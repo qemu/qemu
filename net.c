@@ -745,10 +745,7 @@ int net_handle_fd_param(Monitor *mon, const char *param)
     return fd;
 }
 
-static int net_init_nic(QemuOpts *opts,
-                        Monitor *mon,
-                        const char *name,
-                        VLANState *vlan)
+static int net_init_nic(QemuOpts *opts, const char *name, VLANState *vlan)
 {
     int idx;
     NICInfo *nd;
@@ -821,7 +818,6 @@ static int net_init_nic(QemuOpts *opts,
      }
 
 typedef int (*net_client_init_func)(QemuOpts *opts,
-                                    Monitor *mon,
                                     const char *name,
                                     VLANState *vlan);
 
@@ -1085,7 +1081,7 @@ static const struct {
 #endif /* CONFIG_NET_BRIDGE */
 };
 
-int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
+int net_client_init(QemuOpts *opts, int is_netdev)
 {
     const char *name;
     const char *type;
@@ -1156,7 +1152,7 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
 
             ret = 0;
             if (net_client_types[i].init) {
-                ret = net_client_types[i].init(opts, mon, name, vlan);
+                ret = net_client_types[i].init(opts, name, vlan);
                 if (ret < 0) {
                     /* TODO push error reporting into init() methods */
                     qerror_report(QERR_DEVICE_INIT_FAILED, type);
@@ -1213,7 +1209,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
 
     qemu_opt_set(opts, "type", device);
 
-    if (net_client_init(mon, opts, 0) < 0) {
+    if (net_client_init(opts, 0) < 0) {
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
@@ -1248,7 +1244,7 @@ int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
-    res = net_client_init(mon, opts, 1);
+    res = net_client_init(opts, 1);
     if (res < 0) {
         qemu_opts_del(opts);
     }
@@ -1431,14 +1427,14 @@ void net_check_clients(void)
 
 static int net_init_client(QemuOpts *opts, void *dummy)
 {
-    if (net_client_init(NULL, opts, 0) < 0)
+    if (net_client_init(opts, 0) < 0)
         return -1;
     return 0;
 }
 
 static int net_init_netdev(QemuOpts *opts, void *dummy)
 {
-    return net_client_init(NULL, opts, 1);
+    return net_client_init(opts, 1);
 }
 
 int net_init_clients(void)

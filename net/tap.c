@@ -512,8 +512,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
     return -1;
 }
 
-int net_init_bridge(QemuOpts *opts, Monitor *mon, const char *name,
-                    VLANState *vlan)
+int net_init_bridge(QemuOpts *opts, const char *name, VLANState *vlan)
 {
     TAPState *s;
     int fd, vnet_hdr;
@@ -583,7 +582,7 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
     return fd;
 }
 
-int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
+int net_init_tap(QemuOpts *opts, const char *name, VLANState *vlan)
 {
     TAPState *s;
     int fd, vnet_hdr = 0;
@@ -600,7 +599,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
             return -1;
         }
 
-        fd = net_handle_fd_param(mon, qemu_opt_get(opts, "fd"));
+        fd = net_handle_fd_param(cur_mon, qemu_opt_get(opts, "fd"));
         if (fd == -1) {
             return -1;
         }
@@ -687,7 +686,7 @@ int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan
         int vhostfd, r;
         bool force = qemu_opt_get_bool(opts, "vhostforce", false);
         if (qemu_opt_get(opts, "vhostfd")) {
-            r = net_handle_fd_param(mon, qemu_opt_get(opts, "vhostfd"));
+            r = net_handle_fd_param(cur_mon, qemu_opt_get(opts, "vhostfd"));
             if (r == -1) {
                 return -1;
             }

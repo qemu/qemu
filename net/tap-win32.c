@@ -699,7 +699,7 @@ static int tap_win32_init(VLANState *vlan, const char *model,
     return 0;
 }
 
-int net_init_tap(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
+int net_init_tap(QemuOpts *opts, const char *name, VLANState *vlan)
 {
     const char *ifname;
 
