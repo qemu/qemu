@@ -639,10 +639,12 @@ void object_property_del(Object *obj, const char *name, struct Error **errp);
  * object_property_find:
  * @obj: the object
  * @name: the name of the property
+ * @errp: returns an error if this function fails
  *
  * Look up a property for an object and return its #ObjectProperty if found.
  */
-ObjectProperty *object_property_find(Object *obj, const char *name);
+ObjectProperty *object_property_find(Object *obj, const char *name,
+                                     struct Error **errp);
 
 void object_unparent(Object *obj);
 
