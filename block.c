@@ -1584,6 +1584,8 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     return bdrv_rw_co(bs, sector_num, buf, nb_sectors, false);
 }
 
+#define BITS_PER_LONG  (sizeof(unsigned long) * 8)
+
 static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
                              int nb_sectors, int dirty)
 {
@@ -1594,8 +1596,8 @@ static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
     end = (sector_num + nb_sectors - 1) / BDRV_SECTORS_PER_DIRTY_CHUNK;
 
     for (; start <= end; start++) {
-        idx = start / (sizeof(unsigned long) * 8);
-        bit = start % (sizeof(unsigned long) * 8);
+        idx = start / BITS_PER_LONG;
+        bit = start % BITS_PER_LONG;
         val = bs->dirty_bitmap[idx];
         if (dirty) {
             if (!(val & (1UL << bit))) {
@@ -3900,10 +3902,10 @@ void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable)
     if (enable) {
         if (!bs->dirty_bitmap) {
             bitmap_size = (bdrv_getlength(bs) >> BDRV_SECTOR_BITS) +
-                    BDRV_SECTORS_PER_DIRTY_CHUNK * 8 - 1;
-            bitmap_size /= BDRV_SECTORS_PER_DIRTY_CHUNK * 8;
+                    BDRV_SECTORS_PER_DIRTY_CHUNK * BITS_PER_LONG - 1;
+            bitmap_size /= BDRV_SECTORS_PER_DIRTY_CHUNK * BITS_PER_LONG;
 
-            bs->dirty_bitmap = g_malloc0(bitmap_size);
+            bs->dirty_bitmap = g_new0(unsigned long, bitmap_size);
         }
     } else {
         if (bs->dirty_bitmap) {
