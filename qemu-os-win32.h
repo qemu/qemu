@@ -30,6 +30,32 @@
 #include <winsock2.h>
 #include "main-loop.h"
 
+/* Workaround for older versions of MinGW. */
+#ifndef ECONNREFUSED
+# define ECONNREFUSED WSAECONNREFUSED
+#endif
+#ifndef EINPROGRESS
+# define EINPROGRESS  WSAEINPROGRESS
+#endif
+#ifndef EHOSTUNREACH
+# define EHOSTUNREACH WSAEHOSTUNREACH
+#endif
+#ifndef EINTR
+# define EINTR        WSAEINTR
+#endif
+#ifndef EINPROGRESS
+# define EINPROGRESS  WSAEINPROGRESS
+#endif
+#ifndef ENETUNREACH
+# define ENETUNREACH  WSAENETUNREACH
+#endif
+#ifndef ENOTCONN
+# define ENOTCONN     WSAENOTCONN
+#endif
+#ifndef EWOULDBLOCK
+# define EWOULDBLOCK  WSAEWOULDBLOCK
+#endif
+
 /* Declaration of ffs() is missing in MinGW's strings.h. */
 int ffs(int i);
 
