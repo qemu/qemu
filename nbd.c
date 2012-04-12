@@ -813,7 +813,7 @@ static void nbd_trip(void *opaque)
             LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
             ", Offset: %" PRIu64 "\n",
                     request.from, request.len,
-                    (uint64_t)exp->size, exp->dev_offset);
+                    (uint64_t)exp->size, (uint64_t)exp->dev_offset);
         LOG("requested operation past EOF--bad client?");
         goto invalid_request;
     }
