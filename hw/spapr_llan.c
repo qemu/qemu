@@ -182,6 +182,15 @@ static NetClientInfo net_spapr_vlan_info = {
     .receive = spapr_vlan_receive,
 };
 
+static void spapr_vlan_reset(VIOsPAPRDevice *sdev)
+{
+    VIOsPAPRVLANDevice *dev = DO_UPCAST(VIOsPAPRVLANDevice, sdev, sdev);
+
+    dev->buf_list = 0;
+    dev->rx_bufs = 0;
+    dev->isopen = 0;
+}
+
 static int spapr_vlan_init(VIOsPAPRDevice *sdev)
 {
     VIOsPAPRVLANDevice *dev = (VIOsPAPRVLANDevice *)sdev;
@@ -335,9 +344,7 @@ static target_ulong h_free_logical_lan(CPUPPCState *env, sPAPREnvironment *spapr
         return H_RESOURCE;
     }
 
-    dev->buf_list = 0;
-    dev->rx_bufs = 0;
-    dev->isopen = 0;
+    spapr_vlan_reset(sdev);
     return H_SUCCESS;
 }
 
@@ -484,6 +491,7 @@ static void spapr_vlan_class_init(ObjectClass *klass, void *data)
     VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
     k->init = spapr_vlan_init;
+    k->reset = spapr_vlan_reset;
     k->devnode = spapr_vlan_devnode;
     k->dt_name = "l-lan";
     k->dt_type = "network";
