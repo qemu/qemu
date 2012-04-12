@@ -96,17 +96,6 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
         bdrv_delete(unused);
     }
     top->backing_hd = base;
-
-    pstrcpy(top->backing_file, sizeof(top->backing_file), "");
-    pstrcpy(top->backing_format, sizeof(top->backing_format), "");
-    if (base_id) {
-        pstrcpy(top->backing_file, sizeof(top->backing_file), base_id);
-        if (base->drv) {
-            pstrcpy(top->backing_format, sizeof(top->backing_format),
-                    base->drv->format_name);
-        }
-    }
-
 }
 
 /*
