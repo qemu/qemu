@@ -906,12 +906,31 @@ void bdrv_close_all(void)
  *
  * This function does not flush data to disk, use bdrv_flush_all() for that
  * after calling this function.
+ *
+ * Note that completion of an asynchronous I/O operation can trigger any
+ * number of other I/O operations on other devices---for example a coroutine
+ * can be arbitrarily complex and a constant flow of I/O can come until the
+ * coroutine is complete.  Because of this, it is not possible to have a
+ * function to drain a single device's I/O queue.
  */
 void bdrv_drain_all(void)
 {
     BlockDriverState *bs;
+    bool busy;
 
-    qemu_aio_flush();
+    do {
+        busy = qemu_aio_wait();
+
+        /* FIXME: We do not have timer support here, so this is effectively
+         * a busy wait.
+         */
+        QTAILQ_FOREACH(bs, &bdrv_states, list) {
+            if (!qemu_co_queue_empty(&bs->throttled_reqs)) {
+                qemu_co_queue_restart_all(&bs->throttled_reqs);
+                busy = true;
+            }
+        }
+    } while (busy);
 
     /* If requests are still pending there is a bug somewhere */
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
