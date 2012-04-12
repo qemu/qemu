@@ -104,6 +104,18 @@ typedef struct Qcow2UnknownHeaderExtension {
     uint8_t data[];
 } Qcow2UnknownHeaderExtension;
 
+enum {
+    QCOW2_FEAT_TYPE_INCOMPATIBLE    = 0,
+    QCOW2_FEAT_TYPE_COMPATIBLE      = 1,
+    QCOW2_FEAT_TYPE_AUTOCLEAR       = 2,
+};
+
+typedef struct Qcow2Feature {
+    uint8_t type;
+    uint8_t bit;
+    char    name[46];
+} QEMU_PACKED Qcow2Feature;
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;

@@ -54,6 +54,7 @@ typedef struct {
 } QCowExtension;
 #define  QCOW2_EXT_MAGIC_END 0
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
+#define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -76,7 +77,7 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
  * return 0 upon success, non-0 otherwise
  */
 static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
-                                 uint64_t end_offset)
+                                 uint64_t end_offset, void **p_feature_table)
 {
     BDRVQcowState *s = bs->opaque;
     QCowExtension ext;
@@ -134,6 +135,18 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #endif
             break;
 
+        case QCOW2_EXT_MAGIC_FEATURE_TABLE:
+            if (p_feature_table != NULL) {
+                void* feature_table = g_malloc0(ext.len + 2 * sizeof(Qcow2Feature));
+                ret = bdrv_pread(bs->file, offset , feature_table, ext.len);
+                if (ret < 0) {
+                    return ret;
+                }
+
+                *p_feature_table = feature_table;
+            }
+            break;
+
         default:
             /* unknown magic - save it in case we need to rewrite the header */
             {
@@ -180,6 +193,24 @@ static void report_unsupported(BlockDriverState *bs, const char *fmt, ...)
 
     qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
         bs->device_name, "qcow2", msg);
+}
+
+static void report_unsupported_feature(BlockDriverState *bs,
+    Qcow2Feature *table, uint64_t mask)
+{
+    while (table && table->name[0] != '\0') {
+        if (table->type == QCOW2_FEAT_TYPE_INCOMPATIBLE) {
+            if (mask & (1 << table->bit)) {
+                report_unsupported(bs, "%.46s",table->name);
+                mask &= ~(1 << table->bit);
+            }
+        }
+        table++;
+    }
+
+    if (mask) {
+        report_unsupported(bs, "Unknown incompatible feature: %" PRIx64, mask);
+    }
 }
 
 static int qcow2_open(BlockDriverState *bs, int flags)
@@ -245,14 +276,23 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         }
     }
 
+    if (header.backing_file_offset) {
+        ext_end = header.backing_file_offset;
+    } else {
+        ext_end = 1 << header.cluster_bits;
+    }
+
     /* Handle feature bits */
     s->incompatible_features    = header.incompatible_features;
     s->compatible_features      = header.compatible_features;
     s->autoclear_features       = header.autoclear_features;
 
     if (s->incompatible_features != 0) {
-        report_unsupported(bs, "incompatible features mask %" PRIx64,
-                           header.incompatible_features);
+        void *feature_table = NULL;
+        qcow2_read_extensions(bs, header.header_length, ext_end,
+                              &feature_table);
+        report_unsupported_feature(bs, feature_table,
+                                   s->incompatible_features);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -343,12 +383,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     QLIST_INIT(&s->cluster_allocs);
 
     /* read qcow2 extensions */
-    if (header.backing_file_offset) {
-        ext_end = header.backing_file_offset;
-    } else {
-        ext_end = s->cluster_size;
-    }
-    if (qcow2_read_extensions(bs, header.header_length, ext_end)) {
+    if (qcow2_read_extensions(bs, header.header_length, ext_end, NULL)) {
         ret = -EINVAL;
         goto fail;
     }
@@ -911,6 +946,19 @@ int qcow2_update_header(BlockDriverState *bs)
         buf += ret;
         buflen -= ret;
     }
+
+    /* Feature table */
+    Qcow2Feature features[] = {
+        /* no feature defined yet */
+    };
+
+    ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
+                         features, sizeof(features), buflen);
+    if (ret < 0) {
+        goto fail;
+    }
+    buf += ret;
+    buflen -= ret;
 
     /* Keep unknown header extensions */
     QLIST_FOREACH(uext, &s->unknown_header_ext, next) {
