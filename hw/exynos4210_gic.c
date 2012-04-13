@@ -262,28 +262,44 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 
 /********* GIC part *********/
 
-#define LEGACY_INCLUDED_GIC
-#include "arm_gic.c"
-
 typedef struct {
-    gic_state gic;
+    SysBusDevice busdev;
     MemoryRegion cpu_container;
     MemoryRegion dist_container;
     MemoryRegion cpu_alias[EXYNOS4210_NCPUS];
     MemoryRegion dist_alias[EXYNOS4210_NCPUS];
     uint32_t num_cpu;
+    DeviceState *gic;
 } Exynos4210GicState;
+
+static void exynos4210_gic_set_irq(void *opaque, int irq, int level)
+{
+    Exynos4210GicState *s = (Exynos4210GicState *)opaque;
+    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+}
 
 static int exynos4210_gic_init(SysBusDevice *dev)
 {
-    Exynos4210GicState *s = FROM_SYSBUSGIC(Exynos4210GicState, dev);
+    Exynos4210GicState *s = FROM_SYSBUS(Exynos4210GicState, dev);
     uint32_t i;
     const char cpu_prefix[] = "exynos4210-gic-alias_cpu";
     const char dist_prefix[] = "exynos4210-gic-alias_dist";
     char cpu_alias_name[sizeof(cpu_prefix) + 3];
     char dist_alias_name[sizeof(cpu_prefix) + 3];
+    SysBusDevice *busdev;
 
-    gic_init(&s->gic, s->num_cpu, EXYNOS4210_GIC_NIRQ);
+    s->gic = qdev_create(NULL, "arm_gic");
+    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(s->gic, "num-irq", EXYNOS4210_GIC_NIRQ);
+    qdev_init_nofail(s->gic);
+    busdev = sysbus_from_qdev(s->gic);
+
+    /* Pass through outbound IRQ lines from the GIC */
+    sysbus_pass_irq(dev, busdev);
+
+    /* Pass through inbound GPIO lines to the GIC */
+    qdev_init_gpio_in(&s->busdev.qdev, exynos4210_gic_set_irq,
+                      EXYNOS4210_GIC_NIRQ - 32);
 
     memory_region_init(&s->cpu_container, "exynos4210-cpu-container",
             EXYNOS4210_EXT_GIC_CPU_REGION_SIZE);
@@ -295,7 +311,7 @@ static int exynos4210_gic_init(SysBusDevice *dev)
         sprintf(cpu_alias_name, "%s%x", cpu_prefix, i);
         memory_region_init_alias(&s->cpu_alias[i],
                                  cpu_alias_name,
-                                 &s->gic.cpuiomem[0],
+                                 sysbus_mmio_get_region(busdev, 1),
                                  0,
                                  EXYNOS4210_GIC_CPU_REGION_SIZE);
         memory_region_add_subregion(&s->cpu_container,
@@ -305,7 +321,7 @@ static int exynos4210_gic_init(SysBusDevice *dev)
         sprintf(dist_alias_name, "%s%x", dist_prefix, i);
         memory_region_init_alias(&s->dist_alias[i],
                                  dist_alias_name,
-                                 &s->gic.iomem,
+                                 sysbus_mmio_get_region(busdev, 0),
                                  0,
                                  EXYNOS4210_GIC_DIST_REGION_SIZE);
         memory_region_add_subregion(&s->dist_container,
