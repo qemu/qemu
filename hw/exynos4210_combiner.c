@@ -184,11 +184,6 @@ exynos4210_combiner_read(void *opaque, target_phys_addr_t offset, unsigned size)
     uint32_t reg_n;              /* Register number inside the quad */
     uint32_t val;
 
-    if (s->external && (offset > 0x3c && offset != 0x100)) {
-        hw_error("exynos4210.combiner: unallowed read access at offset 0x"
-                TARGET_FMT_plx "\n", offset);
-    }
-
     req_quad_base_n = offset >> 4;
     grp_quad_base_n = req_quad_base_n << 2;
     reg_n = (offset - (req_quad_base_n << 4)) >> 2;
@@ -280,11 +275,6 @@ static void exynos4210_combiner_write(void *opaque, target_phys_addr_t offset,
                                    get a start of corresponding group quad */
     uint32_t grp_quad_base_n;    /* Base of group quad */
     uint32_t reg_n;              /* Register number inside the quad */
-
-    if (s->external && (offset > 0x3c && offset != 0x100)) {
-        hw_error("exynos4210.combiner: unallowed write access at offset 0x"
-                TARGET_FMT_plx "\n", offset);
-    }
 
     req_quad_base_n = offset >> 4;
     grp_quad_base_n = req_quad_base_n << 2;
