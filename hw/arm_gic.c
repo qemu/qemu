@@ -160,7 +160,7 @@ static void gic_update(gic_state *s)
         cm = 1 << cpu;
         s->current_pending[cpu] = 1023;
         if (!s->enabled || !s->cpu_enabled[cpu]) {
-	    qemu_irq_lower(s->parent_irq[cpu]);
+            qemu_irq_lower(s->parent_irq[cpu]);
             return;
         }
         best_prio = 0x100;
