@@ -48,7 +48,6 @@
 
 /* ------------------------------------------------------------- */
 
-static int syncwrite    = 0;
 static int batch_maps   = 0;
 
 static int max_requests = 32;
@@ -189,15 +188,10 @@ static int ioreq_parse(struct ioreq *ioreq)
             ioreq->presync = 1;
             return 0;
         }
-        if (!syncwrite) {
-            ioreq->presync = ioreq->postsync = 1;
-        }
+        ioreq->presync = ioreq->postsync = 1;
         /* fall through */
     case BLKIF_OP_WRITE:
         ioreq->prot = PROT_READ; /* from memory */
-        if (syncwrite) {
-            ioreq->postsync = 1;
-        }
         break;
     default:
         xen_be_printf(&blkdev->xendev, 0, "error: unknown operation (%d)\n",
