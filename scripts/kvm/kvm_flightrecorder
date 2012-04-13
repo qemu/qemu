@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+#
+# KVM Flight Recorder - ring buffer tracing script
+#
+# Copyright (C) 2012 IBM Corp
+#
+# Author: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+#
+# This script provides a command-line interface to kvm ftrace and is designed
+# to be used as a flight recorder that is always running.  To start in-memory
+# recording:
+#
+# sudo kvm_flightrecorder start 8192  # 8 MB per-cpu ring buffers
+#
+# The per-cpu ring buffer size can be given in KB as an optional argument to
+# the 'start' subcommand.
+#
+# To stop the flight recorder:
+#
+# sudo kvm_flightrecorder stop
+#
+# To dump the contents of the flight recorder (this can be done when the
+# recorder is stopped or while it is running):
+#
+# sudo kvm_flightrecorder dump >/path/to/dump.txt
+#
+# To observe the trace while it is running, use the 'tail' subcommand:
+#
+# sudo kvm_flightrecorder tail
+#
+# Note that the flight recorder may impact overall system performance by
+# consuming CPU cycles.  No disk I/O is performed since the ring buffer holds a
+# fixed-size in-memory trace.
+
+import sys
+import os
+
+tracing_dir = '/sys/kernel/debug/tracing'
+
+def trace_path(*args):
+    return os.path.join(tracing_dir, *args)
+
+def write_file(path, data):
+    open(path, 'wb').write(data)
+
+def enable_event(subsystem, event, enable):
+    write_file(trace_path('events', subsystem, event, 'enable'), '1' if enable else '0')
+
+def enable_subsystem(subsystem, enable):
+    write_file(trace_path('events', subsystem, 'enable'), '1' if enable else '0')
+
+def start_tracing():
+    enable_subsystem('kvm', True)
+    write_file(trace_path('tracing_on'), '1')
+
+def stop_tracing():
+    write_file(trace_path('tracing_on'), '0')
+    enable_subsystem('kvm', False)
+    write_file(trace_path('events', 'enable'), '0')
+    write_file(trace_path('current_tracer'), 'nop')
+
+def dump_trace():
+    tracefile = open(trace_path('trace'), 'r')
+    try:
+        lines = True
+        while lines:
+            lines = tracefile.readlines(64 * 1024)
+            sys.stdout.writelines(lines)
+    except KeyboardInterrupt:
+        pass
+
+def tail_trace():
+    try:
+        for line in open(trace_path('trace_pipe'), 'r'):
+            sys.stdout.write(line)
+    except KeyboardInterrupt:
+        pass
+
+def usage():
+    print 'Usage: %s start [buffer_size_kb] | stop | dump | tail' % sys.argv[0]
+    print 'Control the KVM flight recorder tracing.'
+    sys.exit(0)
+
+def main():
+    if len(sys.argv) < 2:
+        usage()
+
+    cmd = sys.argv[1]
+    if cmd == '--version':
+        print 'kvm_flightrecorder version 1.0'
+        sys.exit(0)
+
+    if not os.path.isdir(tracing_dir):
+        print 'Unable to tracing debugfs directory, try:'
+        print 'mount -t debugfs none /sys/kernel/debug'
+        sys.exit(1)
+    if not os.access(tracing_dir, os.W_OK):
+        print 'Unable to write to tracing debugfs directory, please run as root'
+        sys.exit(1)
+
+    if cmd == 'start':
+        stop_tracing() # clean up first
+
+        if len(sys.argv) == 3:
+            try:
+                buffer_size_kb = int(sys.argv[2])
+            except ValueError:
+                print 'Invalid per-cpu trace buffer size in KB'
+                sys.exit(1)
+            write_file(trace_path('buffer_size_kb'), str(buffer_size_kb))
+            print 'Per-CPU ring buffer size set to %d KB' % buffer_size_kb
+
+        start_tracing()
+        print 'KVM flight recorder enabled'
+    elif cmd == 'stop':
+        stop_tracing()
+        print 'KVM flight recorder disabled'
+    elif cmd == 'dump':
+        dump_trace()
+    elif cmd == 'tail':
+        tail_trace()
+    else:
+        usage()
+
+if __name__ == '__main__':
+    sys.exit(main())

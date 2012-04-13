@@ -184,6 +184,7 @@ struct CPULM32State {
 
 };
 
+#include "cpu-qom.h"
 
 CPULM32State *cpu_lm32_init(const char *cpu_model);
 void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf);

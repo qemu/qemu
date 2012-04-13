@@ -2,6 +2,7 @@
  *  Microblaze helper routines.
  *
  *  Copyright (c) 2009 Edgar E. Iglesias <edgar.iglesias@gmail.com>.
+ *  Copyright (c) 2009-2012 PetaLogix Qld Pty Ltd.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
