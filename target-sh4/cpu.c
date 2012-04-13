@@ -1,6 +1,7 @@
 /*
  * QEMU SuperH CPU
  *
+ * Copyright (c) 2005 Samuel Tardieu
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
  * This library is free software; you can redistribute it and/or
@@ -29,9 +30,27 @@ static void superh_cpu_reset(CPUState *s)
     SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(cpu);
     CPUSH4State *env = &cpu->env;
 
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     scc->parent_reset(s);
 
-    cpu_state_reset(env);
+    memset(env, 0, offsetof(CPUSH4State, breakpoints));
+    tlb_flush(env, 1);
+
+    env->pc = 0xA0000000;
+#if defined(CONFIG_USER_ONLY)
+    env->fpscr = FPSCR_PR; /* value for userspace according to the kernel */
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status); /* ?! */
+#else
+    env->sr = SR_MD | SR_RB | SR_BL | SR_I3 | SR_I2 | SR_I1 | SR_I0;
+    env->fpscr = FPSCR_DN | FPSCR_RM_ZERO; /* CPU reset value according to SH4 manual */
+    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
+    set_flush_to_zero(1, &env->fp_status);
+#endif
+    set_default_nan_mode(1, &env->fp_status);
 }
 
 static void superh_cpu_class_init(ObjectClass *oc, void *data)
