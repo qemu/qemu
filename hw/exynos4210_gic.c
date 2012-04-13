@@ -321,8 +321,6 @@ static int exynos4210_gic_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->cpu_container);
     sysbus_init_mmio(dev, &s->dist_container);
 
-    gic_cpu_write(&s->gic, 1, 0, 1);
-
     return 0;
 }
 

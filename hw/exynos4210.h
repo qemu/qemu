@@ -97,6 +97,9 @@ typedef struct Exynos4210State {
     MemoryRegion bootreg_mem;
 } Exynos4210State;
 
+void exynos4210_write_secondary(CPUARMState *env,
+        const struct arm_boot_info *info);
+
 Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         unsigned long ram_size);
 
