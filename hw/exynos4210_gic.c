@@ -262,12 +262,6 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 
 /********* GIC part *********/
 
-static inline int
-gic_get_current_cpu(void)
-{
-    return cpu_single_env->cpu_index;
-}
-
 #include "arm_gic.c"
 
 typedef struct {

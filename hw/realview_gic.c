@@ -9,13 +9,6 @@
 
 #include "sysbus.h"
 
-/* Only a single "CPU" interface is present.  */
-static inline int
-gic_get_current_cpu(void)
-{
-  return 0;
-}
-
 #include "arm_gic.c"
 
 typedef struct {

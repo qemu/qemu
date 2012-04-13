@@ -126,6 +126,16 @@ typedef struct gic_state
     uint32_t num_irq;
 } gic_state;
 
+static inline int gic_get_current_cpu(gic_state *s)
+{
+#if NCPU > 1
+    if (s->num_cpu > 1) {
+        return cpu_single_env->cpu_index;
+    }
+#endif
+    return 0;
+}
+
 /* TODO: Many places that call this routine could be optimized.  */
 /* Update interrupt status after enabled or pending bits have been changed.  */
 static void gic_update(gic_state *s)
@@ -285,7 +295,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     int cm;
     int mask;
 
-    cpu = gic_get_current_cpu();
+    cpu = gic_get_current_cpu(s);
     cm = 1 << cpu;
     if (offset < 0x100) {
 #ifndef NVIC
@@ -420,7 +430,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     int i;
     int cpu;
 
-    cpu = gic_get_current_cpu();
+    cpu = gic_get_current_cpu(s);
     if (offset < 0x100) {
 #ifdef NVIC
         goto bad_reg;
@@ -582,7 +592,7 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
         int irq;
         int mask;
 
-        cpu = gic_get_current_cpu();
+        cpu = gic_get_current_cpu(s);
         irq = value & 0x3ff;
         switch ((value >> 24) & 3) {
         case 0:
@@ -665,14 +675,14 @@ static uint64_t gic_thiscpu_read(void *opaque, target_phys_addr_t addr,
                                  unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
-    return gic_cpu_read(s, gic_get_current_cpu(), addr);
+    return gic_cpu_read(s, gic_get_current_cpu(s), addr);
 }
 
 static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
                               uint64_t value, unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
-    gic_cpu_write(s, gic_get_current_cpu(), addr, value);
+    gic_cpu_write(s, gic_get_current_cpu(s), addr, value);
 }
 
 /* Wrappers to read/write the GIC CPU interface for a specific CPU.

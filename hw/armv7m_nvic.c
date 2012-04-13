@@ -17,13 +17,6 @@
 
 #define NVIC 1
 
-/* Only a single "CPU" interface is present.  */
-static inline int
-gic_get_current_cpu(void)
-{
-    return 0;
-}
-
 static uint32_t nvic_readl(void *opaque, uint32_t offset);
 static void nvic_writel(void *opaque, uint32_t offset, uint32_t value);
 

@@ -10,12 +10,6 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 
-static inline int
-gic_get_current_cpu(void)
-{
-  return cpu_single_env->cpu_index;
-}
-
 #include "arm_gic.c"
 
 /* MPCore private memory region.  */
