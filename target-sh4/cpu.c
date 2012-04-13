@@ -53,6 +53,16 @@ static void superh_cpu_reset(CPUState *s)
     set_default_nan_mode(1, &env->fp_status);
 }
 
+static void superh_cpu_initfn(Object *obj)
+{
+    SuperHCPU *cpu = SUPERH_CPU(obj);
+    CPUSH4State *env = &cpu->env;
+
+    cpu_exec_init(env);
+
+    env->movcal_backup_tail = &(env->movcal_backup);
+}
+
 static void superh_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -66,6 +76,7 @@ static const TypeInfo superh_cpu_type_info = {
     .name = TYPE_SUPERH_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(SuperHCPU),
+    .instance_init = superh_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(SuperHCPUClass),
     .class_init = superh_cpu_class_init,
