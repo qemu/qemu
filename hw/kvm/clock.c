@@ -65,9 +65,25 @@ static void kvmclock_vm_state_change(void *opaque, int running,
                                      RunState state)
 {
     KVMClockState *s = opaque;
+    CPUArchState *penv = first_cpu;
+    int cap_clock_ctrl = kvm_check_extension(kvm_state, KVM_CAP_KVMCLOCK_CTRL);
+    int ret;
 
     if (running) {
         s->clock_valid = false;
+
+        if (!cap_clock_ctrl) {
+            return;
+        }
+        for (penv = first_cpu; penv != NULL; penv = penv->next_cpu) {
+            ret = kvm_vcpu_ioctl(penv, KVM_KVMCLOCK_CTRL, 0);
+            if (ret) {
+                if (ret != -EINVAL) {
+                    fprintf(stderr, "%s: %s\n", __func__, strerror(-ret));
+                }
+                return;
+            }
+        }
     }
 }
 
