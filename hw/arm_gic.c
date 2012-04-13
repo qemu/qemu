@@ -15,6 +15,13 @@
 #define GIC_MAXIRQ 1020
 /* First 32 are private to each CPU (SGIs and PPIs). */
 #define GIC_INTERNAL 32
+/* Maximum number of possible CPU interfaces, determined by GIC architecture */
+#ifdef NVIC
+#define NCPU 1
+#else
+#define NCPU 8
+#endif
+
 //#define DEBUG_GIC
 
 #ifdef DEBUG_GIC
@@ -50,7 +57,7 @@ typedef struct gic_irq_state
     unsigned trigger:1; /* nonzero = edge triggered.  */
 } gic_irq_state;
 
-#define ALL_CPU_MASK ((1 << NCPU) - 1)
+#define ALL_CPU_MASK ((unsigned)(((1 << NCPU) - 1)))
 #if NCPU > 1
 #define NUM_CPU(s) ((s)->num_cpu)
 #else
@@ -813,6 +820,10 @@ static void gic_init(gic_state *s, int num_irq)
 
 #if NCPU > 1
     s->num_cpu = num_cpu;
+    if (s->num_cpu > NCPU) {
+        hw_error("requested %u CPUs exceeds GIC maximum %d\n",
+                 num_cpu, NCPU);
+    }
 #endif
     s->num_irq = num_irq + GIC_BASE_IRQ;
     if (s->num_irq > GIC_MAXIRQ) {

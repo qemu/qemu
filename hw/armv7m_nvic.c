@@ -15,7 +15,6 @@
 #include "arm-misc.h"
 #include "exec-memory.h"
 
-#define NCPU 1
 #define NVIC 1
 
 /* Only a single "CPU" interface is present.  */

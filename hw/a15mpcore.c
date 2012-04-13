@@ -21,10 +21,8 @@
 #include "sysbus.h"
 
 /* Configuration for arm_gic.c:
- * max number of CPUs, how to ID current CPU
+ * how to ID current CPU
  */
-#define NCPU 4
-
 static inline int gic_get_current_cpu(void)
 {
   return cpu_single_env->cpu_index;
@@ -44,10 +42,6 @@ typedef struct A15MPPrivState {
 static int a15mp_priv_init(SysBusDevice *dev)
 {
     A15MPPrivState *s = FROM_SYSBUSGIC(A15MPPrivState, dev);
-
-    if (s->num_cpu > NCPU) {
-        hw_error("a15mp_priv_init: num-cpu may not be more than %d\n", NCPU);
-    }
 
     gic_init(&s->gic, s->num_cpu, s->num_irq);
 

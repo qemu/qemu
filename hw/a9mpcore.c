@@ -11,10 +11,8 @@
 #include "sysbus.h"
 
 /* Configuration for arm_gic.c:
- * max number of CPUs, how to ID current CPU
+ * how to ID current CPU
  */
-#define NCPU 4
-
 static inline int
 gic_get_current_cpu(void)
 {
@@ -148,10 +146,6 @@ static int a9mp_priv_init(SysBusDevice *dev)
     a9mp_priv_state *s = FROM_SYSBUSGIC(a9mp_priv_state, dev);
     SysBusDevice *busdev;
     int i;
-
-    if (s->num_cpu > NCPU) {
-        hw_error("a9mp_priv_init: num-cpu may not be more than %d\n", NCPU);
-    }
 
     gic_init(&s->gic, s->num_cpu, s->num_irq);
 

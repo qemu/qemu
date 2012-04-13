@@ -9,8 +9,6 @@
 
 #include "sysbus.h"
 
-#define NCPU 1
-
 /* Only a single "CPU" interface is present.  */
 static inline int
 gic_get_current_cpu(void)
@@ -40,7 +38,7 @@ static int realview_gic_init(SysBusDevice *dev)
      * number of interrupt lines, so we don't need to expose this as
      * a qdev property.
      */
-    gic_init(&s->gic, 96);
+    gic_init(&s->gic, 1, 96);
     realview_gic_map_setup(s);
     sysbus_init_mmio(dev, &s->container);
     return 0;

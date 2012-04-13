@@ -10,8 +10,6 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 
-#define NCPU 4
-
 static inline int
 gic_get_current_cpu(void)
 {

@@ -174,7 +174,6 @@ combiner_grp_to_gic_id[64-EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ][8] = {
 };
 
 #define EXYNOS4210_GIC_NIRQ 160
-#define NCPU                EXYNOS4210_NCPUS
 
 #define EXYNOS4210_EXT_GIC_CPU_REGION_SIZE     0x10000
 #define EXYNOS4210_EXT_GIC_DIST_REGION_SIZE    0x10000
@@ -275,8 +274,8 @@ typedef struct {
     gic_state gic;
     MemoryRegion cpu_container;
     MemoryRegion dist_container;
-    MemoryRegion cpu_alias[NCPU];
-    MemoryRegion dist_alias[NCPU];
+    MemoryRegion cpu_alias[EXYNOS4210_NCPUS];
+    MemoryRegion dist_alias[EXYNOS4210_NCPUS];
     uint32_t num_cpu;
 } Exynos4210GicState;
 
@@ -359,7 +358,7 @@ type_init(exynos4210_gic_register_types)
 typedef struct {
     SysBusDevice busdev;
 
-    qemu_irq pic_irq[NCPU]; /* output IRQs to PICs */
+    qemu_irq pic_irq[EXYNOS4210_NCPUS]; /* output IRQs to PICs */
     uint32_t gpio_level[EXYNOS4210_IRQ_GATE_NINPUTS]; /* Input levels */
 } Exynos4210IRQGateState;
 
@@ -424,7 +423,7 @@ static int exynos4210_irq_gate_init(SysBusDevice *dev)
             EXYNOS4210_IRQ_GATE_NINPUTS);
 
     /* Connect SysBusDev irqs to device specific irqs */
-    for (i = 0; i < NCPU; i++) {
+    for (i = 0; i < EXYNOS4210_NCPUS; i++) {
         sysbus_init_irq(dev, &s->pic_irq[i]);
     }
 
