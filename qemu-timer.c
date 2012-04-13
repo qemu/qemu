@@ -106,23 +106,21 @@ static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 
 static int64_t qemu_next_alarm_deadline(void)
 {
-    int64_t delta;
+    int64_t delta = INT64_MAX;
     int64_t rtdelta;
 
-    if (!use_icount && vm_clock->active_timers) {
+    if (!use_icount && vm_clock->enabled && vm_clock->active_timers) {
         delta = vm_clock->active_timers->expire_time -
                      qemu_get_clock_ns(vm_clock);
-    } else {
-        delta = INT32_MAX;
     }
-    if (host_clock->active_timers) {
+    if (host_clock->enabled && host_clock->active_timers) {
         int64_t hdelta = host_clock->active_timers->expire_time -
                  qemu_get_clock_ns(host_clock);
         if (hdelta < delta) {
             delta = hdelta;
         }
     }
-    if (rt_clock->active_timers) {
+    if (rt_clock->enabled && rt_clock->active_timers) {
         rtdelta = (rt_clock->active_timers->expire_time -
                  qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta) {
