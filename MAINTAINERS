@@ -437,7 +437,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
 F: hw/virtio-scsi.*
 F: hw/scsi*
-T: git://github.com/bonzini/qemu.git scsi-next
+T: git git://github.com/bonzini/qemu.git scsi-next
 
 LSI53C895A
 M: Paul Brook <paul@codesourcery.com>
@@ -543,13 +543,13 @@ S: Odd Fixes
 F: block/nbd.c
 F: nbd.*
 F: qemu-nbd.c
-T: git://github.com/bonzini/qemu.git nbd-next
+T: git git://github.com/bonzini/qemu.git nbd-next
 
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
 F: slirp/
-T: git://git.kiszka.org/qemu.git queues/slirp
+T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Tracing
 M: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
@@ -558,7 +558,7 @@ F: trace/
 F: scripts/tracetool.py
 F: scripts/tracetool/
 F: docs/tracing.txt
-T: git://github.com/stefanha/qemu.git tracing
+T: git git://github.com/stefanha/qemu.git tracing
 
 Checkpatch
 M: Blue Swirl <blauwirbel@gmail.com>
