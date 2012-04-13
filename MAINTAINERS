@@ -464,8 +464,7 @@ M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 S: Supported
 F: hw/9pfs/
 F: fsdev/
-T: https://github.com/kvaneesh/QEMU
-
+T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>
