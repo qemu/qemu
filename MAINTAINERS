@@ -462,7 +462,8 @@ F: hw/virtio*
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 S: Supported
-F: hw/9pfs/ fsdev/
+F: hw/9pfs/
+F: fsdev/
 T: https://github.com/kvaneesh/QEMU
 
 
