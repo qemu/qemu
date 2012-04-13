@@ -741,8 +741,9 @@ static const MemoryRegionOps gic_cpu_ops = {
 };
 #endif
 
-static void gic_reset(gic_state *s)
+static void gic_reset(DeviceState *dev)
 {
+    gic_state *s = FROM_SYSBUS(gic_state, sysbus_from_qdev(dev));
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < NUM_CPU(s); i++) {
@@ -905,7 +906,6 @@ static void gic_init(gic_state *s, int num_irq)
     }
 #endif
 
-    gic_reset(s);
     register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
 }
 
@@ -938,6 +938,7 @@ static void arm_gic_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
     sbc->init = arm_gic_init;
     dc->props = arm_gic_properties;
+    dc->reset = gic_reset;
     dc->no_user = 1;
 }
 

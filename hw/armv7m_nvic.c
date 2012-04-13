@@ -76,6 +76,14 @@ static void systick_timer_tick(void * opaque)
     }
 }
 
+static void systick_reset(nvic_state *s)
+{
+    s->systick.control = 0;
+    s->systick.reload = 0;
+    s->systick.tick = 0;
+    qemu_del_timer(s->systick.timer);
+}
+
 /* The external routines use the hardware vector numbering, ie. the first
    IRQ is #16.  The internal GIC routines use #32 as the first IRQ.  */
 void armv7m_nvic_set_pending(void *opaque, int irq)
@@ -371,6 +379,13 @@ static const VMStateDescription vmstate_nvic = {
     }
 };
 
+static void armv7m_nvic_reset(DeviceState *dev)
+{
+    nvic_state *s = FROM_SYSBUSGIC(nvic_state, sysbus_from_qdev(dev));
+    gic_reset(&s->gic.busdev.qdev);
+    systick_reset(s);
+}
+
 static int armv7m_nvic_init(SysBusDevice *dev)
 {
     nvic_state *s= FROM_SYSBUSGIC(nvic_state, dev);
@@ -400,6 +415,7 @@ static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 
     sdc->init = armv7m_nvic_init;
     dc->vmsd  = &vmstate_nvic;
+    dc->reset = armv7m_nvic_reset;
     dc->props = armv7m_nvic_properties;
 }
 
