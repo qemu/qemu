@@ -16,7 +16,6 @@
 #include "exec-memory.h"
 
 #define NVIC 1
-#define LEGACY_INCLUDED_GIC
 
 static uint32_t nvic_readl(void *opaque, uint32_t offset);
 static void nvic_writel(void *opaque, uint32_t offset, uint32_t value);

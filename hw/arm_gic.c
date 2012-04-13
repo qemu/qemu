@@ -8,8 +8,15 @@
  */
 
 /* This file contains implementation code for the RealView EB interrupt
-   controller, MPCore distributed interrupt controller and ARMv7-M
-   Nested Vectored Interrupt Controller.  */
+ * controller, MPCore distributed interrupt controller and ARMv7-M
+ * Nested Vectored Interrupt Controller.
+ * It is compiled in two ways:
+ *  (1) as a standalone file to produce a sysbus device which is a GIC
+ *  that can be used on the realview board and as one of the builtin
+ *  private peripherals for the ARM MP CPUs (11MPCore, A9, etc)
+ *  (2) by being directly #included into armv7m_nvic.c to produce the
+ *  armv7m_nvic device.
+ */
 
 #include "sysbus.h"
 
@@ -909,7 +916,7 @@ static void gic_init(gic_state *s, int num_irq)
     register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
 }
 
-#ifndef LEGACY_INCLUDED_GIC
+#ifndef NVIC
 
 static int arm_gic_init(SysBusDevice *dev)
 {
