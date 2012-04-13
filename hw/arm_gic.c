@@ -192,20 +192,40 @@ gic_set_pending_private(gic_state *s, int cpu, int irq)
 /* Process a change in an external IRQ input.  */
 static void gic_set_irq(void *opaque, int irq, int level)
 {
+    /* Meaning of the 'irq' parameter:
+     *  [0..N-1] : external interrupts
+     *  [N..N+31] : PPI (internal) interrupts for CPU 0
+     *  [N+32..N+63] : PPI (internal interrupts for CPU 1
+     *  ...
+     */
     gic_state *s = (gic_state *)opaque;
-    /* The first external input line is internal interrupt 32.  */
-    irq += GIC_INTERNAL;
-    if (level == GIC_TEST_LEVEL(irq, ALL_CPU_MASK))
+    int cm, target;
+    if (irq < (s->num_irq - GIC_INTERNAL)) {
+        /* The first external input line is internal interrupt 32.  */
+        cm = ALL_CPU_MASK;
+        irq += GIC_INTERNAL;
+        target = GIC_TARGET(irq);
+    } else {
+        int cpu;
+        irq -= (s->num_irq - GIC_INTERNAL);
+        cpu = irq / GIC_INTERNAL;
+        irq %= GIC_INTERNAL;
+        cm = 1 << cpu;
+        target = cm;
+    }
+
+    if (level == GIC_TEST_LEVEL(irq, cm)) {
         return;
+    }
 
     if (level) {
-        GIC_SET_LEVEL(irq, ALL_CPU_MASK);
-        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, ALL_CPU_MASK)) {
-            DPRINTF("Set %d pending mask %x\n", irq, GIC_TARGET(irq));
-            GIC_SET_PENDING(irq, GIC_TARGET(irq));
+        GIC_SET_LEVEL(irq, cm);
+        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
+            DPRINTF("Set %d pending mask %x\n", irq, target);
+            GIC_SET_PENDING(irq, target);
         }
     } else {
-        GIC_CLEAR_LEVEL(irq, ALL_CPU_MASK);
+        GIC_CLEAR_LEVEL(irq, cm);
     }
     gic_update(s);
 }
@@ -849,7 +869,18 @@ static void gic_init(gic_state *s, int num_irq)
                  num_irq);
     }
 
-    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, s->num_irq - GIC_INTERNAL);
+    i = s->num_irq - GIC_INTERNAL;
+#ifndef NVIC
+    /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
+     * GPIO array layout is thus:
+     *  [0..N-1] SPIs
+     *  [N..N+31] PPIs for CPU 0
+     *  [N+32..N+63] PPIs for CPU 1
+     *   ...
+     */
+    i += (GIC_INTERNAL * num_cpu);
+#endif
+    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, i);
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
