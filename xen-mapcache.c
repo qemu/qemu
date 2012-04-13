@@ -216,12 +216,14 @@ tryagain:
     }
 
     /* size is always a multiple of MCACHE_BUCKET_SIZE */
-    if ((address_offset + (__size % MCACHE_BUCKET_SIZE)) > MCACHE_BUCKET_SIZE)
-        __size += MCACHE_BUCKET_SIZE;
-    if (__size % MCACHE_BUCKET_SIZE)
-        __size += MCACHE_BUCKET_SIZE - (__size % MCACHE_BUCKET_SIZE);
-    if (!__size)
+    if (size) {
+        __size = size + address_offset;
+        if (__size % MCACHE_BUCKET_SIZE) {
+            __size += MCACHE_BUCKET_SIZE - (__size % MCACHE_BUCKET_SIZE);
+        }
+    } else {
         __size = MCACHE_BUCKET_SIZE;
+    }
 
     entry = &mapcache->entry[address_index % mapcache->nr_buckets];
 
