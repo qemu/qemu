@@ -638,4 +638,4 @@ F: tcg/sparc/
 TCI target
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
-F: tcg/tci
+F: tcg/tci/
