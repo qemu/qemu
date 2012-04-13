@@ -88,7 +88,7 @@ F: target-microblaze/
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
-S: Maintained
+S: Odd Fixes
 F: target-mips/
 
 PowerPC
@@ -104,7 +104,7 @@ F: target-s390x/
 
 SH4
 M: Aurelien Jarno <aurelien@aurel32.net>
-S: Maintained
+S: Odd Fixes
 F: target-sh4/
 
 SPARC
