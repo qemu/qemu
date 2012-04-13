@@ -120,7 +120,7 @@ void qemu_bh_delete(QEMUBH *bh)
     bh->deleted = 1;
 }
 
-void qemu_bh_update_timeout(int *timeout)
+void qemu_bh_update_timeout(uint32_t *timeout)
 {
     QEMUBH *bh;
 

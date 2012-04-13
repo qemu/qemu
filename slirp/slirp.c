@@ -258,6 +258,13 @@ void slirp_cleanup(Slirp *slirp)
 #define CONN_CANFRCV(so) (((so)->so_state & (SS_FCANTRCVMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)
 #define UPD_NFDS(x) if (nfds < (x)) nfds = (x)
 
+void slirp_update_timeout(uint32_t *timeout)
+{
+    if (!QTAILQ_EMPTY(&slirp_instances)) {
+        *timeout = MIN(1000, *timeout);
+    }
+}
+
 void slirp_select_fill(int *pnfds,
                        fd_set *readfds, fd_set *writefds, fd_set *xfds)
 {

@@ -90,6 +90,10 @@ int qemu_init_main_loop(void)
     return main_loop_init();
 }
 
+void slirp_update_timeout(uint32_t *timeout)
+{
+}
+
 void slirp_select_fill(int *pnfds, fd_set *readfds,
                        fd_set *writefds, fd_set *xfds)
 {

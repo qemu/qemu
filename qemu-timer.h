@@ -63,7 +63,6 @@ void qemu_run_timers(QEMUClock *clock);
 void qemu_run_all_timers(void);
 int qemu_alarm_pending(void);
 void configure_alarms(char const *opt);
-int qemu_calculate_timeout(void);
 void init_clocks(void);
 int init_timer_alarm(void);
 

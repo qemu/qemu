@@ -821,8 +821,3 @@ fail:
     return err;
 }
 
-int qemu_calculate_timeout(void)
-{
-    return 1000;
-}
-
