@@ -696,13 +696,17 @@ static void mm_stop_timer(struct qemu_alarm_timer *t)
 
 static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta)
 {
-    int nearest_delta_ms = (delta + 999999) / 1000000;
+    int64_t nearest_delta_ms = delta / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
+    /* UINT_MAX can be 32 bit */
+    if (nearest_delta_ms > UINT_MAX) {
+        nearest_delta_ms = UINT_MAX;
+    }
 
     timeKillEvent(mm_timer);
-    mm_timer = timeSetEvent(nearest_delta_ms,
+    mm_timer = timeSetEvent((unsigned int) nearest_delta_ms,
                             mm_period,
                             mm_alarm_handler,
                             (DWORD_PTR)t,
@@ -757,16 +761,20 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t,
                               int64_t nearest_delta_ns)
 {
     HANDLE hTimer = t->timer;
-    int nearest_delta_ms;
+    int64_t nearest_delta_ms;
     BOOLEAN success;
 
-    nearest_delta_ms = (nearest_delta_ns + 999999) / 1000000;
+    nearest_delta_ms = nearest_delta_ns / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
+    /* ULONG_MAX can be 32 bit */
+    if (nearest_delta_ms > ULONG_MAX) {
+        nearest_delta_ms = ULONG_MAX;
+    }
     success = ChangeTimerQueueTimer(NULL,
                                     hTimer,
-                                    nearest_delta_ms,
+                                    (unsigned long) nearest_delta_ms,
                                     3600000);
 
     if (!success) {
