@@ -9,6 +9,7 @@
 
 #include "sysbus.h"
 
+#define LEGACY_INCLUDED_GIC
 #include "arm_gic.c"
 
 typedef struct {

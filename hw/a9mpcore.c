@@ -10,6 +10,7 @@
 
 #include "sysbus.h"
 
+#define LEGACY_INCLUDED_GIC
 #include "arm_gic.c"
 
 /* A9MP private memory region.  */

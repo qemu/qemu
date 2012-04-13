@@ -262,6 +262,7 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit)
 
 /********* GIC part *********/
 
+#define LEGACY_INCLUDED_GIC
 #include "arm_gic.c"
 
 typedef struct {

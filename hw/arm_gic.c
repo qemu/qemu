@@ -11,6 +11,8 @@
    controller, MPCore distributed interrupt controller and ARMv7-M
    Nested Vectored Interrupt Controller.  */
 
+#include "sysbus.h"
+
 /* Maximum number of possible interrupts, determined by the GIC architecture */
 #define GIC_MAXIRQ 1020
 /* First 32 are private to each CPU (SGIs and PPIs). */
@@ -112,7 +114,7 @@ typedef struct gic_state
     int current_pending[NCPU];
 
 #if NCPU > 1
-    int num_cpu;
+    uint32_t num_cpu;
 #endif
 
     MemoryRegion iomem; /* Distributor */
@@ -906,3 +908,51 @@ static void gic_init(gic_state *s, int num_irq)
     gic_reset(s);
     register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
 }
+
+#ifndef LEGACY_INCLUDED_GIC
+
+static int arm_gic_init(SysBusDevice *dev)
+{
+    /* Device instance init function for the GIC sysbus device */
+    int i;
+    gic_state *s = FROM_SYSBUS(gic_state, dev);
+    gic_init(s, s->num_cpu, s->num_irq);
+    /* Distributor */
+    sysbus_init_mmio(dev, &s->iomem);
+    /* cpu interfaces (one for "current cpu" plus one per cpu) */
+    for (i = 0; i <= NUM_CPU(s); i++) {
+        sysbus_init_mmio(dev, &s->cpuiomem[i]);
+    }
+    return 0;
+}
+
+static Property arm_gic_properties[] = {
+    DEFINE_PROP_UINT32("num-cpu", gic_state, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-irq", gic_state, num_irq, 32),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void arm_gic_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+    sbc->init = arm_gic_init;
+    dc->props = arm_gic_properties;
+    dc->no_user = 1;
+}
+
+static TypeInfo arm_gic_info = {
+    .name = "arm_gic",
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(gic_state),
+    .class_init = arm_gic_class_init,
+};
+
+static void arm_gic_register_types(void)
+{
+    type_register_static(&arm_gic_info);
+}
+
+type_init(arm_gic_register_types)
+
+#endif

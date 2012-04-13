@@ -10,6 +10,7 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 
+#define LEGACY_INCLUDED_GIC
 #include "arm_gic.c"
 
 /* MPCore private memory region.  */
