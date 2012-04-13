@@ -399,7 +399,8 @@ X86 Machines
 PC
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Supported
-F: hw/pc.[ch] hw/pc_piix.c
+F: hw/pc.[ch]
+F: hw/pc_piix.c
 
 Xtensa Machines
 ---------------
