@@ -185,8 +185,8 @@ static void gic_update(gic_state *s)
     }
 }
 
-static void __attribute__((unused))
-gic_set_pending_private(gic_state *s, int cpu, int irq)
+#ifdef NVIC
+static void gic_set_pending_private(gic_state *s, int cpu, int irq)
 {
     int cm = 1 << cpu;
 
@@ -197,6 +197,7 @@ gic_set_pending_private(gic_state *s, int cpu, int irq)
     GIC_SET_PENDING(irq, cm);
     gic_update(s);
 }
+#endif
 
 /* Process a change in an external IRQ input.  */
 static void gic_set_irq(void *opaque, int irq, int level)
