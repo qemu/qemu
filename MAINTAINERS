@@ -78,7 +78,7 @@ F: target-lm32/
 
 M68K
 M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Odd Fixes
 F: target-m68k/
 
 MicroBlaze
