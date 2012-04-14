@@ -25,10 +25,12 @@
 #include "hw.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "pc.h"
 #include "exec-memory.h"
 
 typedef struct PRePPCIState {
     PCIHostState host_state;
+    MemoryRegion intack;
     qemu_irq irq[4];
 } PREPPCIState;
 
@@ -65,6 +67,19 @@ static const MemoryRegionOps PPC_PCIIO_ops = {
     .read = ppc_pci_io_read,
     .write = ppc_pci_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static uint64_t ppc_intack_read(void *opaque, target_phys_addr_t addr,
+                                unsigned int size)
+{
+    return pic_read_irq(isa_pic);
+}
+
+static const MemoryRegionOps PPC_intack_ops = {
+    .read = ppc_intack_read,
+    .valid = {
+        .max_access_size = 1,
+    },
 };
 
 static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -110,6 +125,8 @@ static int raven_pcihost_init(SysBusDevice *dev)
     memory_region_init_io(&h->mmcfg, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
 
+    memory_region_init_io(&s->intack, &PPC_intack_ops, s, "pci-intack", 1);
+    memory_region_add_subregion(address_space_mem, 0xbffffff0, &s->intack);
     pci_create_simple(bus, 0, "raven");
 
     return 0;

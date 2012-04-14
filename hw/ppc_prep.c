@@ -86,38 +86,6 @@ static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 /* ISA IO ports bridge */
 #define PPC_IO_BASE 0x80000000
 
-/* PCI intack register */
-/* Read-only register (?) */
-static void PPC_intack_write (void *opaque, target_phys_addr_t addr,
-                              uint64_t value, unsigned size)
-{
-#if 0
-    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx64 "\n", __func__, addr,
-           value);
-#endif
-}
-
-static uint64_t PPC_intack_read(void *opaque, target_phys_addr_t addr,
-                                unsigned size)
-{
-    uint32_t retval = 0;
-
-    if ((addr & 0xf) == 0)
-        retval = pic_read_irq(isa_pic);
-#if 0
-    printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
-           retval);
-#endif
-
-    return retval;
-}
-
-static const MemoryRegionOps PPC_intack_ops = {
-    .read = PPC_intack_read,
-    .write = PPC_intack_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 /* PowerPC control and status registers */
 #if 0 // Not used
 static struct {
@@ -492,7 +460,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
     nvram_t nvram;
     M48t59State *m48t59;
     MemoryRegion *PPC_io_memory = g_new(MemoryRegion, 1);
-    MemoryRegion *intack = g_new(MemoryRegion, 1);
 #if 0
     MemoryRegion *xcsr = g_new(MemoryRegion, 1);
 #endif
@@ -685,9 +652,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
     register_ioport_write(0x0092, 0x01, 1, &PREP_io_800_writeb, sysctrl);
     register_ioport_read(0x0800, 0x52, 1, &PREP_io_800_readb, sysctrl);
     register_ioport_write(0x0800, 0x52, 1, &PREP_io_800_writeb, sysctrl);
-    /* PCI intack location */
-    memory_region_init_io(intack, &PPC_intack_ops, NULL, "ppc-intack", 4);
-    memory_region_add_subregion(sysmem, 0xBFFFFFF0, intack);
     /* PowerPC control and status register group */
 #if 0
     memory_region_init_io(xcsr, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
