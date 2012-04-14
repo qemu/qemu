@@ -37,6 +37,7 @@
 #include "loader.h"
 #include "mc146818rtc.h"
 #include "blockdev.h"
+#include "arch_init.h"
 #include "exec-memory.h"
 
 //#define HARD_DEBUG_PPC_IO
@@ -716,6 +717,9 @@ static void ppc_prep_init (ram_addr_t ram_size,
 
     /* Special port to get debug messages from Open-Firmware */
     register_ioport_write(0x0F00, 4, 1, &PPC_debug_write, NULL);
+
+    /* Initialize audio subsystem */
+    audio_init(isa_bus, pci_bus);
 }
 
 static QEMUMachine prep_machine = {
