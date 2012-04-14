@@ -96,6 +96,7 @@ libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
 libobj-$(TARGET_ARM) += cpu.o
 libobj-$(TARGET_CRIS) += cpu.o
 libobj-$(TARGET_LM32) += cpu.o
+libobj-$(TARGET_M68K) += cpu.o
 libobj-$(TARGET_MICROBLAZE) += cpu.o
 libobj-$(TARGET_S390X) += cpu.o
 libobj-$(TARGET_SH4) += cpu.o

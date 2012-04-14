@@ -164,10 +164,12 @@ void cpu_state_reset(CPUM68KState *env)
 
 CPUM68KState *cpu_m68k_init(const char *cpu_model)
 {
+    M68kCPU *cpu;
     CPUM68KState *env;
     static int inited;
 
-    env = g_malloc0(sizeof(CPUM68KState));
+    cpu = M68K_CPU(object_new(TYPE_M68K_CPU));
+    env = &cpu->env;
     cpu_exec_init(env);
     if (!inited) {
         inited = 1;
@@ -177,18 +179,13 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     env->cpu_model_str = cpu_model;
 
     if (cpu_m68k_set_model(env, cpu_model) < 0) {
-        cpu_m68k_close(env);
+        object_delete(OBJECT(cpu));
         return NULL;
     }
 
     cpu_state_reset(env);
     qemu_init_vcpu(env);
     return env;
-}
-
-void cpu_m68k_close(CPUM68KState *env)
-{
-    g_free(env);
 }
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)
