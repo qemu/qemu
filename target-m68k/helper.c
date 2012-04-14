@@ -156,7 +156,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
 
     cpu = M68K_CPU(object_new(TYPE_M68K_CPU));
     env = &cpu->env;
-    cpu_exec_init(env);
+
     if (!inited) {
         inited = 1;
         m68k_tcg_init();

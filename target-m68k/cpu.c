@@ -48,6 +48,14 @@ static void m68k_cpu_reset(CPUState *s)
     tlb_flush(env, 1);
 }
 
+static void m68k_cpu_initfn(Object *obj)
+{
+    M68kCPU *cpu = M68K_CPU(obj);
+    CPUM68KState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
 static void m68k_cpu_class_init(ObjectClass *c, void *data)
 {
     M68kCPUClass *mcc = M68K_CPU_CLASS(c);
@@ -61,6 +69,7 @@ static const TypeInfo m68k_cpu_type_info = {
     .name = TYPE_M68K_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(M68kCPU),
+    .instance_init = m68k_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(M68kCPUClass),
     .class_init = m68k_cpu_class_init,
