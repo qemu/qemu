@@ -29,9 +29,23 @@ static void m68k_cpu_reset(CPUState *s)
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(cpu);
     CPUM68KState *env = &cpu->env;
 
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     mcc->parent_reset(s);
 
-    cpu_state_reset(env);
+    memset(env, 0, offsetof(CPUM68KState, breakpoints));
+#if !defined(CONFIG_USER_ONLY)
+    env->sr = 0x2700;
+#endif
+    m68k_switch_sp(env);
+    /* ??? FP regs should be initialized to NaN.  */
+    env->cc_op = CC_OP_FLAGS;
+    /* TODO: We should set PC from the interrupt vector.  */
+    env->pc = 0;
+    tlb_flush(env, 1);
 }
 
 static void m68k_cpu_class_init(ObjectClass *c, void *data)

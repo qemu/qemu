@@ -145,21 +145,7 @@ static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
 
 void cpu_state_reset(CPUM68KState *env)
 {
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
-    memset(env, 0, offsetof(CPUM68KState, breakpoints));
-#if !defined (CONFIG_USER_ONLY)
-    env->sr = 0x2700;
-#endif
-    m68k_switch_sp(env);
-    /* ??? FP regs should be initialized to NaN.  */
-    env->cc_op = CC_OP_FLAGS;
-    /* TODO: We should set PC from the interrupt vector.  */
-    env->pc = 0;
-    tlb_flush(env, 1);
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 CPUM68KState *cpu_m68k_init(const char *cpu_model)
@@ -183,7 +169,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
         return NULL;
     }
 
-    cpu_state_reset(env);
+    cpu_reset(ENV_GET_CPU(env));
     qemu_init_vcpu(env);
     return env;
 }
