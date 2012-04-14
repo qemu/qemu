@@ -260,13 +260,15 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
 #endif
 
     address = vaddr;
-    if (!is_ram_rom_romd(section)) {
+    if (!(memory_region_is_ram(section->mr) ||
+          memory_region_is_romd(section->mr))) {
         /* IO memory case (romd handled later) */
         address |= TLB_MMIO;
     }
-    if (is_ram_rom_romd(section)) {
+    if (memory_region_is_ram(section->mr) ||
+        memory_region_is_romd(section->mr)) {
         addend = (uintptr_t)memory_region_get_ram_ptr(section->mr)
-                                 + section_addr(section, paddr);
+        + memory_region_section_addr(section, paddr);
     } else {
         addend = 0;
     }
@@ -292,13 +294,13 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     }
     if (prot & PAGE_WRITE) {
         if ((memory_region_is_ram(section->mr) && section->readonly)
-            || is_romd(section)) {
+            || memory_region_is_romd(section->mr)) {
             /* Write access calls the I/O callback.  */
             te->addr_write = address | TLB_MMIO;
         } else if (memory_region_is_ram(section->mr)
                    && !cpu_physical_memory_is_dirty(
                            section->mr->ram_addr
-                           + section_addr(section, paddr))) {
+                           + memory_region_section_addr(section, paddr))) {
             te->addr_write = address | TLB_NOTDIRTY;
         } else {
             te->addr_write = address;
