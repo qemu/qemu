@@ -20,36 +20,38 @@
 
 #include "sysbus.h"
 
-/* Configuration for arm_gic.c:
- * max number of CPUs, how to ID current CPU
- */
-#define NCPU 4
-
-static inline int gic_get_current_cpu(void)
-{
-  return cpu_single_env->cpu_index;
-}
-
-#include "arm_gic.c"
-
 /* A15MP private memory region.  */
 
 typedef struct A15MPPrivState {
-    gic_state gic;
+    SysBusDevice busdev;
     uint32_t num_cpu;
     uint32_t num_irq;
     MemoryRegion container;
+    DeviceState *gic;
 } A15MPPrivState;
+
+static void a15mp_priv_set_irq(void *opaque, int irq, int level)
+{
+    A15MPPrivState *s = (A15MPPrivState *)opaque;
+    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+}
 
 static int a15mp_priv_init(SysBusDevice *dev)
 {
-    A15MPPrivState *s = FROM_SYSBUSGIC(A15MPPrivState, dev);
+    A15MPPrivState *s = FROM_SYSBUS(A15MPPrivState, dev);
+    SysBusDevice *busdev;
 
-    if (s->num_cpu > NCPU) {
-        hw_error("a15mp_priv_init: num-cpu may not be more than %d\n", NCPU);
-    }
+    s->gic = qdev_create(NULL, "arm_gic");
+    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
+    qdev_init_nofail(s->gic);
+    busdev = sysbus_from_qdev(s->gic);
 
-    gic_init(&s->gic, s->num_cpu, s->num_irq);
+    /* Pass through outbound IRQ lines from the GIC */
+    sysbus_pass_irq(dev, busdev);
+
+    /* Pass through inbound GPIO lines to the GIC */
+    qdev_init_gpio_in(&s->busdev.qdev, a15mp_priv_set_irq, s->num_irq - 32);
 
     /* Memory map (addresses are offsets from PERIPHBASE):
      *  0x0000-0x0fff -- reserved
@@ -60,8 +62,10 @@ static int a15mp_priv_init(SysBusDevice *dev)
      *  0x6000-0x7fff -- GIC virtual CPU interface (not modelled)
      */
     memory_region_init(&s->container, "a15mp-priv-container", 0x8000);
-    memory_region_add_subregion(&s->container, 0x1000, &s->gic.iomem);
-    memory_region_add_subregion(&s->container, 0x2000, &s->gic.cpuiomem[0]);
+    memory_region_add_subregion(&s->container, 0x1000,
+                                sysbus_mmio_get_region(busdev, 0));
+    memory_region_add_subregion(&s->container, 0x2000,
+                                sysbus_mmio_get_region(busdev, 1));
 
     sysbus_init_mmio(dev, &s->container);
     return 0;
@@ -85,7 +89,7 @@ static void a15mp_priv_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
     k->init = a15mp_priv_init;
     dc->props = a15mp_priv_properties;
-    /* We currently have no savable state outside the common GIC state */
+    /* We currently have no savable state */
 }
 
 static TypeInfo a15mp_priv_info = {

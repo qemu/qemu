@@ -366,6 +366,7 @@ obj-arm-y += cadence_uart.o
 obj-arm-y += cadence_ttc.o
 obj-arm-y += cadence_gem.o
 obj-arm-y += xilinx_zynq.o zynq_slcr.o
+obj-arm-y += arm_gic.o
 obj-arm-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-arm-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
 obj-arm-y += exynos4_boards.o exynos4210_uart.o exynos4210_pwm.o

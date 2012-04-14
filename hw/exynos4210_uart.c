@@ -246,7 +246,7 @@ static uint32_t exynos4210_uart_Tx_FIFO_trigger_level(Exynos4210UartState *s)
     uint32_t level = 0;
     uint32_t reg;
 
-    reg = (s->reg[I_(UFCON)] && UFCON_Tx_FIFO_TRIGGER_LEVEL) >>
+    reg = (s->reg[I_(UFCON)] & UFCON_Tx_FIFO_TRIGGER_LEVEL) >>
             UFCON_Tx_FIFO_TRIGGER_LEVEL_SHIFT;
 
     switch (s->channel) {
@@ -275,9 +275,9 @@ static void exynos4210_uart_update_irq(Exynos4210UartState *s)
      * The Tx interrupt is always requested if the number of data in the
      * transmit FIFO is smaller than the trigger level.
      */
-    if (s->reg[I_(UFCON)] && UFCON_FIFO_ENABLE) {
+    if (s->reg[I_(UFCON)] & UFCON_FIFO_ENABLE) {
 
-        uint32_t count = (s->reg[I_(UFSTAT)] && UFSTAT_Tx_FIFO_COUNT) >>
+        uint32_t count = (s->reg[I_(UFSTAT)] & UFSTAT_Tx_FIFO_COUNT) >>
                 UFSTAT_Tx_FIFO_COUNT_SHIFT;
 
         if (count <= exynos4210_uart_Tx_FIFO_trigger_level(s)) {

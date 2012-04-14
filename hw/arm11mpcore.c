@@ -10,28 +10,18 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 
-#define NCPU 4
-
-static inline int
-gic_get_current_cpu(void)
-{
-  return cpu_single_env->cpu_index;
-}
-
-#include "arm_gic.c"
-
 /* MPCore private memory region.  */
 
 typedef struct mpcore_priv_state {
-    gic_state gic;
+    SysBusDevice busdev;
     uint32_t scu_control;
     int iomemtype;
     uint32_t old_timer_status[8];
     uint32_t num_cpu;
-    qemu_irq *timer_irq;
     MemoryRegion iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    DeviceState *gic;
     uint32_t num_irq;
 } mpcore_priv_state;
 
@@ -81,18 +71,16 @@ static const MemoryRegionOps mpcore_scu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void mpcore_timer_irq_handler(void *opaque, int irq, int level)
+static void mpcore_priv_set_irq(void *opaque, int irq, int level)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
-    if (level && !s->old_timer_status[irq]) {
-        gic_set_pending_private(&s->gic, irq >> 1, 29 + (irq & 1));
-    }
-    s->old_timer_status[irq] = level;
+    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
 static void mpcore_priv_map_setup(mpcore_priv_state *s)
 {
     int i;
+    SysBusDevice *gicbusdev = sysbus_from_qdev(s->gic);
     SysBusDevice *busdev = sysbus_from_qdev(s->mptimer);
     memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
@@ -102,31 +90,47 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
      */
     for (i = 0; i < (s->num_cpu + 1); i++) {
         target_phys_addr_t offset = 0x100 + (i * 0x100);
-        memory_region_add_subregion(&s->container, offset, &s->gic.cpuiomem[i]);
+        memory_region_add_subregion(&s->container, offset,
+                                    sysbus_mmio_get_region(gicbusdev, i + 1));
     }
     /* Add the regions for timer and watchdog for "current CPU" and
      * for each specific CPU.
      */
-    s->timer_irq = qemu_allocate_irqs(mpcore_timer_irq_handler,
-                                      s, (s->num_cpu + 1) * 2);
     for (i = 0; i < (s->num_cpu + 1) * 2; i++) {
         /* Timers at 0x600, 0x700, ...; watchdogs at 0x620, 0x720, ... */
         target_phys_addr_t offset = 0x600 + (i >> 1) * 0x100 + (i & 1) * 0x20;
         memory_region_add_subregion(&s->container, offset,
                                     sysbus_mmio_get_region(busdev, i));
     }
-    memory_region_add_subregion(&s->container, 0x1000, &s->gic.iomem);
-    /* Wire up the interrupt from each watchdog and timer. */
-    for (i = 0; i < s->num_cpu * 2; i++) {
-        sysbus_connect_irq(busdev, i, s->timer_irq[i]);
+    memory_region_add_subregion(&s->container, 0x1000,
+                                sysbus_mmio_get_region(gicbusdev, 0));
+    /* Wire up the interrupt from each watchdog and timer.
+     * For each core the timer is PPI 29 and the watchdog PPI 30.
+     */
+    for (i = 0; i < s->num_cpu; i++) {
+        int ppibase = (s->num_irq - 32) + i * 32;
+        sysbus_connect_irq(busdev, i * 2,
+                           qdev_get_gpio_in(s->gic, ppibase + 29));
+        sysbus_connect_irq(busdev, i * 2 + 1,
+                           qdev_get_gpio_in(s->gic, ppibase + 30));
     }
 }
 
 static int mpcore_priv_init(SysBusDevice *dev)
 {
-    mpcore_priv_state *s = FROM_SYSBUSGIC(mpcore_priv_state, dev);
+    mpcore_priv_state *s = FROM_SYSBUS(mpcore_priv_state, dev);
 
-    gic_init(&s->gic, s->num_cpu, s->num_irq);
+    s->gic = qdev_create(NULL, "arm_gic");
+    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
+    qdev_init_nofail(s->gic);
+
+    /* Pass through outbound IRQ lines from the GIC */
+    sysbus_pass_irq(dev, sysbus_from_qdev(s->gic));
+
+    /* Pass through inbound GPIO lines to the GIC */
+    qdev_init_gpio_in(&s->busdev.qdev, mpcore_priv_set_irq, s->num_irq - 32);
+
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
     qdev_init_nofail(s->mptimer);

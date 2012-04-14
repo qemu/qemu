@@ -10,32 +10,19 @@
 
 #include "sysbus.h"
 
-/* Configuration for arm_gic.c:
- * max number of CPUs, how to ID current CPU
- */
-#define NCPU 4
-
-static inline int
-gic_get_current_cpu(void)
-{
-  return cpu_single_env->cpu_index;
-}
-
-#include "arm_gic.c"
-
 /* A9MP private memory region.  */
 
 typedef struct a9mp_priv_state {
-    gic_state gic;
+    SysBusDevice busdev;
     uint32_t scu_control;
     uint32_t scu_status;
     uint32_t old_timer_status[8];
     uint32_t num_cpu;
-    qemu_irq *timer_irq;
     MemoryRegion scu_iomem;
     MemoryRegion ptimer_iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    DeviceState *gic;
     uint32_t num_irq;
 } a9mp_priv_state;
 
@@ -124,18 +111,9 @@ static const MemoryRegionOps a9_scu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void a9mpcore_timer_irq_handler(void *opaque, int irq, int level)
-{
-    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
-    if (level && !s->old_timer_status[irq]) {
-        gic_set_pending_private(&s->gic, irq >> 1, 29 + (irq & 1));
-    }
-    s->old_timer_status[irq] = level;
-}
-
 static void a9mp_priv_reset(DeviceState *dev)
 {
-    a9mp_priv_state *s = FROM_SYSBUSGIC(a9mp_priv_state, sysbus_from_qdev(dev));
+    a9mp_priv_state *s = FROM_SYSBUS(a9mp_priv_state, sysbus_from_qdev(dev));
     int i;
     s->scu_control = 0;
     for (i = 0; i < ARRAY_SIZE(s->old_timer_status); i++) {
@@ -143,17 +121,29 @@ static void a9mp_priv_reset(DeviceState *dev)
     }
 }
 
+static void a9mp_priv_set_irq(void *opaque, int irq, int level)
+{
+    a9mp_priv_state *s = (a9mp_priv_state *)opaque;
+    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
+}
+
 static int a9mp_priv_init(SysBusDevice *dev)
 {
-    a9mp_priv_state *s = FROM_SYSBUSGIC(a9mp_priv_state, dev);
-    SysBusDevice *busdev;
+    a9mp_priv_state *s = FROM_SYSBUS(a9mp_priv_state, dev);
+    SysBusDevice *busdev, *gicbusdev;
     int i;
 
-    if (s->num_cpu > NCPU) {
-        hw_error("a9mp_priv_init: num-cpu may not be more than %d\n", NCPU);
-    }
+    s->gic = qdev_create(NULL, "arm_gic");
+    qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
+    qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
+    qdev_init_nofail(s->gic);
+    gicbusdev = sysbus_from_qdev(s->gic);
 
-    gic_init(&s->gic, s->num_cpu, s->num_irq);
+    /* Pass through outbound IRQ lines from the GIC */
+    sysbus_pass_irq(dev, gicbusdev);
+
+    /* Pass through inbound GPIO lines to the GIC */
+    qdev_init_gpio_in(&s->busdev.qdev, a9mp_priv_set_irq, s->num_irq - 32);
 
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
@@ -175,7 +165,8 @@ static int a9mp_priv_init(SysBusDevice *dev)
     memory_region_init_io(&s->scu_iomem, &a9_scu_ops, s, "a9mp-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->scu_iomem);
     /* GIC CPU interface */
-    memory_region_add_subregion(&s->container, 0x100, &s->gic.cpuiomem[0]);
+    memory_region_add_subregion(&s->container, 0x100,
+                                sysbus_mmio_get_region(gicbusdev, 1));
     /* Note that the A9 exposes only the "timer/watchdog for this core"
      * memory region, not the "timer/watchdog for core X" ones 11MPcore has.
      */
@@ -183,15 +174,20 @@ static int a9mp_priv_init(SysBusDevice *dev)
                                 sysbus_mmio_get_region(busdev, 0));
     memory_region_add_subregion(&s->container, 0x620,
                                 sysbus_mmio_get_region(busdev, 1));
-    memory_region_add_subregion(&s->container, 0x1000, &s->gic.iomem);
+    memory_region_add_subregion(&s->container, 0x1000,
+                                sysbus_mmio_get_region(gicbusdev, 0));
 
     sysbus_init_mmio(dev, &s->container);
 
-    /* Wire up the interrupt from each watchdog and timer. */
-    s->timer_irq = qemu_allocate_irqs(a9mpcore_timer_irq_handler,
-                                      s, (s->num_cpu + 1) * 2);
-    for (i = 0; i < s->num_cpu * 2; i++) {
-        sysbus_connect_irq(busdev, i, s->timer_irq[i]);
+    /* Wire up the interrupt from each watchdog and timer.
+     * For each core the timer is PPI 29 and the watchdog PPI 30.
+     */
+    for (i = 0; i < s->num_cpu; i++) {
+        int ppibase = (s->num_irq - 32) + i * 32;
+        sysbus_connect_irq(busdev, i * 2,
+                           qdev_get_gpio_in(s->gic, ppibase + 29));
+        sysbus_connect_irq(busdev, i * 2 + 1,
+                           qdev_get_gpio_in(s->gic, ppibase + 30));
     }
     return 0;
 }

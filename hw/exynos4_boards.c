@@ -70,6 +70,7 @@ static struct arm_boot_info exynos4_board_binfo = {
     .loader_start     = EXYNOS4210_BASE_BOOT_ADDR,
     .smp_loader_start = EXYNOS4210_SMP_BOOT_ADDR,
     .nb_cpus          = EXYNOS4210_NCPUS,
+    .write_secondary_boot = exynos4210_write_secondary,
 };
 
 static QEMUMachine exynos4_machines[EXYNOS4_NUM_OF_BOARDS];
