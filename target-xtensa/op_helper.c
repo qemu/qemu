@@ -27,7 +27,7 @@
 
 #include "cpu.h"
 #include "dyngen-exec.h"
-#include "helpers.h"
+#include "helper.h"
 #include "host-utils.h"
 
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
