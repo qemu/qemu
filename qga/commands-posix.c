@@ -881,27 +881,6 @@ error:
 
 #else /* defined(__linux__) */
 
-GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
-{
-    error_set(err, QERR_UNSUPPORTED);
-
-    return 0;
-}
-
-int64_t qmp_guest_fsfreeze_freeze(Error **err)
-{
-    error_set(err, QERR_UNSUPPORTED);
-
-    return 0;
-}
-
-int64_t qmp_guest_fsfreeze_thaw(Error **err)
-{
-    error_set(err, QERR_UNSUPPORTED);
-
-    return 0;
-}
-
 void qmp_guest_suspend_disk(Error **err)
 {
     error_set(err, QERR_UNSUPPORTED);
@@ -921,6 +900,31 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
     error_set(errp, QERR_UNSUPPORTED);
     return NULL;
+}
+
+#endif
+
+#if !defined(CONFIG_FSFREEZE)
+
+GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+
+    return 0;
+}
+
+int64_t qmp_guest_fsfreeze_freeze(Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+
+    return 0;
+}
+
+int64_t qmp_guest_fsfreeze_thaw(Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+
+    return 0;
 }
 
 #endif
