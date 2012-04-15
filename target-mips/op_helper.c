@@ -2275,7 +2275,7 @@ void helper_pmon (int function)
         break;
     case 158:
         {
-            unsigned char *fmt = (void *)(unsigned long)env->active_tc.gpr[4];
+            unsigned char *fmt = (void *)(uintptr_t)env->active_tc.gpr[4];
             printf("%s", fmt);
         }
         break;

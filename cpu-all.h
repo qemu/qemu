@@ -222,8 +222,8 @@ extern unsigned long reserved_va;
 #else /* !CONFIG_USER_ONLY */
 /* NOTE: we use double casts if pointers and target_ulong have
    different sizes */
-#define saddr(x) (uint8_t *)(long)(x)
-#define laddr(x) (uint8_t *)(long)(x)
+#define saddr(x) (uint8_t *)(intptr_t)(x)
+#define laddr(x) (uint8_t *)(intptr_t)(x)
 #endif
 
 #define ldub_raw(p) ldub_p(laddr((p)))
@@ -299,10 +299,10 @@ extern unsigned long reserved_va;
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
-/* ??? These should be the larger of unsigned long and target_ulong.  */
-extern unsigned long qemu_real_host_page_size;
-extern unsigned long qemu_host_page_size;
-extern unsigned long qemu_host_page_mask;
+/* ??? These should be the larger of uintptr_t and target_ulong.  */
+extern uintptr_t qemu_real_host_page_size;
+extern uintptr_t qemu_host_page_size;
+extern uintptr_t qemu_host_page_mask;
 
 #define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
 

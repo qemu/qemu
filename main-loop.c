@@ -430,7 +430,7 @@ static int os_host_main_loop_wait(int timeout)
     g_assert(n_poll_fds <= ARRAY_SIZE(poll_fds));
 
     for (i = 0; i < w->num; i++) {
-        poll_fds[n_poll_fds + i].fd = (DWORD) w->events[i];
+        poll_fds[n_poll_fds + i].fd = (DWORD_PTR)w->events[i];
         poll_fds[n_poll_fds + i].events = G_IO_IN;
     }
 

@@ -112,7 +112,6 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
     int index;
     target_ulong tlb_addr;
     target_phys_addr_t ioaddr;
-    unsigned long addend;
     uintptr_t retaddr;
 
     /* test if there is match for unaligned or IO access */
@@ -139,6 +138,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                          mmu_idx, retaddr);
         } else {
             /* unaligned/aligned access in the same page */
+            uintptr_t addend;
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
                 retaddr = GETPC();
@@ -146,7 +146,8 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
             }
 #endif
             addend = env->tlb_table[mmu_idx][index].addend;
-            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(long)(addr+addend));
+            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(intptr_t)
+                                                (addr + addend));
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -171,7 +172,6 @@ glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
     DATA_TYPE res, res1, res2;
     int index, shift;
     target_phys_addr_t ioaddr;
-    unsigned long addend;
     target_ulong tlb_addr, addr1, addr2;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -202,8 +202,9 @@ glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
             res = (DATA_TYPE)res;
         } else {
             /* unaligned/aligned access in the same page */
-            addend = env->tlb_table[mmu_idx][index].addend;
-            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(long)(addr+addend));
+            uintptr_t addend = env->tlb_table[mmu_idx][index].addend;
+            res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)(intptr_t)
+                                                (addr + addend));
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -258,7 +259,6 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                             int mmu_idx)
 {
     target_phys_addr_t ioaddr;
-    unsigned long addend;
     target_ulong tlb_addr;
     uintptr_t retaddr;
     int index;
@@ -284,6 +284,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                    mmu_idx, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
+            uintptr_t addend;
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
                 retaddr = GETPC();
@@ -291,7 +292,8 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
             }
 #endif
             addend = env->tlb_table[mmu_idx][index].addend;
-            glue(glue(st, SUFFIX), _raw)((uint8_t *)(long)(addr+addend), val);
+            glue(glue(st, SUFFIX), _raw)((uint8_t *)(intptr_t)
+                                         (addr + addend), val);
         }
     } else {
         /* the page is not in the TLB : fill it */
@@ -313,7 +315,6 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                    uintptr_t retaddr)
 {
     target_phys_addr_t ioaddr;
-    unsigned long addend;
     target_ulong tlb_addr;
     int index, i;
 
@@ -345,8 +346,9 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
             }
         } else {
             /* aligned/unaligned access in the same page */
-            addend = env->tlb_table[mmu_idx][index].addend;
-            glue(glue(st, SUFFIX), _raw)((uint8_t *)(long)(addr+addend), val);
+            uintptr_t addend = env->tlb_table[mmu_idx][index].addend;
+            glue(glue(st, SUFFIX), _raw)((uint8_t *)(intptr_t)
+                                         (addr + addend), val);
         }
     } else {
         /* the page is not in the TLB : fill it */

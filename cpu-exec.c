@@ -541,8 +541,8 @@ int cpu_exec(CPUArchState *env)
                     tb_invalidated_flag = 0;
                 }
 #ifdef CONFIG_DEBUG_EXEC
-                qemu_log_mask(CPU_LOG_EXEC, "Trace 0x%08lx [" TARGET_FMT_lx "] %s\n",
-                             (long)tb->tc_ptr, tb->pc,
+                qemu_log_mask(CPU_LOG_EXEC, "Trace %p [" TARGET_FMT_lx "] %s\n",
+                             tb->tc_ptr, tb->pc,
                              lookup_symbol(tb->pc));
 #endif
                 /* see if we can patch the calling TB. When the TB
