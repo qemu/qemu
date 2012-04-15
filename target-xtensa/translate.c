@@ -2278,7 +2278,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                         tcg_gen_subi_i32(cpu_SR[LCOUNT], cpu_R[RRI8_S], 1);
                         tcg_gen_movi_i32(cpu_SR[LBEG], dc->next_pc);
-                        gen_wsr_lend(dc, LEND, tmp);
+                        gen_helper_wsr_lend(tmp);
                         tcg_temp_free(tmp);
 
                         if (BRI8_R > 8) {
