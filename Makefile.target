@@ -416,6 +416,7 @@ obj-xtensa-y += xtensa_sim.o
 obj-xtensa-y += xtensa_lx60.o
 obj-xtensa-y += xtensa-semi.o
 obj-xtensa-y += core-dc232b.o
+obj-xtensa-y += core-dc233c.o
 obj-xtensa-y += core-fsf.o
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
