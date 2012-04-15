@@ -25,35 +25,50 @@
 
 #define SIGNBIT (1u << 31)
 
-enum m68k_cpuid {
-    M68K_CPUID_M5206,
-    M68K_CPUID_M5208,
-    M68K_CPUID_CFV4E,
-    M68K_CPUID_ANY,
-};
+typedef struct M68kCPUListState {
+    fprintf_function cpu_fprintf;
+    FILE *file;
+} M68kCPUListState;
 
-typedef struct m68k_def_t m68k_def_t;
+/* Sort alphabetically, except for "any". */
+static gint m68k_cpu_list_compare(gconstpointer a, gconstpointer b)
+{
+    ObjectClass *class_a = (ObjectClass *)a;
+    ObjectClass *class_b = (ObjectClass *)b;
+    const char *name_a, *name_b;
 
-struct m68k_def_t {
-    const char * name;
-    enum m68k_cpuid id;
-};
+    name_a = object_class_get_name(class_a);
+    name_b = object_class_get_name(class_b);
+    if (strcmp(name_a, "any") == 0) {
+        return 1;
+    } else if (strcmp(name_b, "any") == 0) {
+        return -1;
+    } else {
+        return strcasecmp(name_a, name_b);
+    }
+}
 
-static m68k_def_t m68k_cpu_defs[] = {
-    {"m5206", M68K_CPUID_M5206},
-    {"m5208", M68K_CPUID_M5208},
-    {"cfv4e", M68K_CPUID_CFV4E},
-    {"any", M68K_CPUID_ANY},
-    {NULL, 0},
-};
+static void m68k_cpu_list_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *c = data;
+    M68kCPUListState *s = user_data;
+
+    (*s->cpu_fprintf)(s->file, "%s\n",
+                      object_class_get_name(c));
+}
 
 void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    unsigned int i;
+    M68kCPUListState s = {
+        .file = f,
+        .cpu_fprintf = cpu_fprintf,
+    };
+    GSList *list;
 
-    for (i = 0; m68k_cpu_defs[i].name; i++) {
-        (*cpu_fprintf)(f, "%s\n", m68k_cpu_defs[i].name);
-    }
+    list = object_class_get_list(TYPE_M68K_CPU, false);
+    list = g_slist_sort(list, m68k_cpu_list_compare);
+    g_slist_foreach(list, m68k_cpu_list_entry, &s);
+    g_slist_free(list);
 }
 
 static int fpu_gdb_get_reg(CPUM68KState *env, uint8_t *mem_buf, int n)
@@ -83,66 +98,6 @@ static int fpu_gdb_set_reg(CPUM68KState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static void m68k_set_feature(CPUM68KState *env, int feature)
-{
-    env->features |= (1u << feature);
-}
-
-static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
-{
-    m68k_def_t *def;
-
-    for (def = m68k_cpu_defs; def->name; def++) {
-        if (strcmp(def->name, name) == 0)
-            break;
-    }
-    if (!def->name)
-        return -1;
-
-    switch (def->id) {
-    case M68K_CPUID_M5206:
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
-        break;
-    case M68K_CPUID_M5208:
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_APLUSC);
-        m68k_set_feature(env, M68K_FEATURE_BRAL);
-        m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
-        m68k_set_feature(env, M68K_FEATURE_USP);
-        break;
-    case M68K_CPUID_CFV4E:
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
-        m68k_set_feature(env, M68K_FEATURE_BRAL);
-        m68k_set_feature(env, M68K_FEATURE_CF_FPU);
-        m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
-        m68k_set_feature(env, M68K_FEATURE_USP);
-        break;
-    case M68K_CPUID_ANY:
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_A);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_B);
-        m68k_set_feature(env, M68K_FEATURE_CF_ISA_APLUSC);
-        m68k_set_feature(env, M68K_FEATURE_BRAL);
-        m68k_set_feature(env, M68K_FEATURE_CF_FPU);
-        /* MAC and EMAC are mututally exclusive, so pick EMAC.
-           It's mostly backwards compatible.  */
-        m68k_set_feature(env, M68K_FEATURE_CF_EMAC);
-        m68k_set_feature(env, M68K_FEATURE_CF_EMAC_B);
-        m68k_set_feature(env, M68K_FEATURE_USP);
-        m68k_set_feature(env, M68K_FEATURE_EXT_FULL);
-        m68k_set_feature(env, M68K_FEATURE_WORD_INDEX);
-        break;
-    }
-
-    register_m68k_insns(env);
-    if (m68k_feature (env, M68K_FEATURE_CF_FPU)) {
-        gdb_register_coprocessor(env, fpu_gdb_get_reg, fpu_gdb_set_reg,
-                                 11, "cf-fp.xml", 18);
-    }
-    /* TODO: Add [E]MAC registers.  */
-    return 0;
-}
-
 void cpu_state_reset(CPUM68KState *env)
 {
     cpu_reset(ENV_GET_CPU(env));
@@ -154,7 +109,10 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     CPUM68KState *env;
     static int inited;
 
-    cpu = M68K_CPU(object_new(TYPE_M68K_CPU));
+    if (object_class_by_name(cpu_model) == NULL) {
+        return NULL;
+    }
+    cpu = M68K_CPU(object_new(cpu_model));
     env = &cpu->env;
 
     if (!inited) {
@@ -164,10 +122,12 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
 
     env->cpu_model_str = cpu_model;
 
-    if (cpu_m68k_set_model(env, cpu_model) < 0) {
-        object_delete(OBJECT(cpu));
-        return NULL;
+    register_m68k_insns(env);
+    if (m68k_feature(env, M68K_FEATURE_CF_FPU)) {
+        gdb_register_coprocessor(env, fpu_gdb_get_reg, fpu_gdb_set_reg,
+                                 11, "cf-fp.xml", 18);
     }
+    /* TODO: Add [E]MAC registers.  */
 
     cpu_reset(ENV_GET_CPU(env));
     qemu_init_vcpu(env);
