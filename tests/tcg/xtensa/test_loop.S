@@ -124,4 +124,40 @@ test lend_invalidation
     assert  eqi, a2, 7
 test_end
 
+test loopnez
+    movi    a2, 0
+    movi    a3, 5
+    loopnez a3, 1f
+    addi    a2, a2, 1
+1:
+    assert  eqi, a2, 5
+
+    movi    a2, 0
+    movi    a3, 0
+    loopnez a3, 1f
+    test_fail
+1:
+test_end
+
+test loopgtz
+    movi    a2, 0
+    movi    a3, 5
+    loopgtz a3, 1f
+    addi    a2, a2, 1
+1:
+    assert  eqi, a2, 5
+
+    movi    a2, 0
+    movi    a3, 0
+    loopgtz a3, 1f
+    test_fail
+1:
+
+    movi    a2, 0
+    movi    a3, 0x80000000
+    loopgtz a3, 1f
+    test_fail
+1:
+test_end
+
 test_suite_end
