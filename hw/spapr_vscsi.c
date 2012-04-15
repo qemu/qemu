@@ -99,10 +99,6 @@ typedef struct {
     vscsi_req reqs[VSCSI_REQ_LIMIT];
 } VSCSIState;
 
-/* XXX Debug only */
-static VSCSIState *dbg_vscsi_state;
-
-
 static struct vscsi_req *vscsi_get_req(VSCSIState *s)
 {
     vscsi_req *req;
@@ -897,18 +893,20 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
     .cancel = vscsi_request_cancelled
 };
 
-static int spapr_vscsi_init(VIOsPAPRDevice *dev)
+static void spapr_vscsi_reset(VIOsPAPRDevice *dev)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
     int i;
 
-    dbg_vscsi_state = s;
-
-    /* Initialize qemu request tags */
     memset(s->reqs, 0, sizeof(s->reqs));
     for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
         s->reqs[i].qtag = i;
     }
+}
+
+static int spapr_vscsi_init(VIOsPAPRDevice *dev)
+{
+    VSCSIState *s = DO_UPCAST(VSCSIState, vdev, dev);
 
     dev->crq.SendFunc = vscsi_do_crq;
 
@@ -958,6 +956,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
     k->init = spapr_vscsi_init;
+    k->reset = spapr_vscsi_reset;
     k->devnode = spapr_vscsi_devnode;
     k->dt_name = "v-scsi";
     k->dt_type = "vscsi";

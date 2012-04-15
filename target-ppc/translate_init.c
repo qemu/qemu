@@ -4462,7 +4462,10 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
     /* Memory management */
-#if !defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_USER_ONLY)
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
+#else /* !defined(CONFIG_USER_ONLY) */
     env->nb_pids = 3;
     env->nb_ways = 2;
     env->id_tlbs = 0;
@@ -9889,6 +9892,28 @@ static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
+static int ppc_fixup_cpu(CPUPPCState *env)
+{
+    /* TCG doesn't (yet) emulate some groups of instructions that
+     * are implemented on some otherwise supported CPUs (e.g. VSX
+     * and decimal floating point instructions on POWER7).  We
+     * remove unsupported instruction groups from the cpu state's
+     * instruction masks and hope the guest can cope.  For at
+     * least the pseries machine, the unavailability of these
+     * instructions can be advertised to the guest via the device
+     * tree. */
+    if ((env->insns_flags & ~PPC_TCG_INSNS)
+        || (env->insns_flags2 & ~PPC_TCG_INSNS2)) {
+        fprintf(stderr, "Warning: Disabling some instructions which are not "
+                "emulated by TCG (0x%" PRIx64 ", 0x%" PRIx64 ")\n",
+                env->insns_flags & ~PPC_TCG_INSNS,
+                env->insns_flags2 & ~PPC_TCG_INSNS2);
+    }
+    env->insns_flags &= PPC_TCG_INSNS;
+    env->insns_flags2 &= PPC_TCG_INSNS2;
+    return 0;
+}
+
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 {
     env->msr_mask = def->msr_mask;
@@ -9897,25 +9922,22 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     env->bus_model = def->bus_model;
     env->insns_flags = def->insns_flags;
     env->insns_flags2 = def->insns_flags2;
-    if (!kvm_enabled()) {
-        /* TCG doesn't (yet) emulate some groups of instructions that
-         * are implemented on some otherwise supported CPUs (e.g. VSX
-         * and decimal floating point instructions on POWER7).  We
-         * remove unsupported instruction groups from the cpu state's
-         * instruction masks and hope the guest can cope.  For at
-         * least the pseries machine, the unavailability of these
-         * instructions can be advertise to the guest via the device
-         * tree.
-         *
-         * FIXME: we should have a similar masking for CPU features
-         * not accessible under KVM, but so far, there aren't any of
-         * those. */
-        env->insns_flags &= PPC_TCG_INSNS;
-        env->insns_flags2 &= PPC_TCG_INSNS2;
-    }
     env->flags = def->flags;
     env->bfd_mach = def->bfd_mach;
     env->check_pow = def->check_pow;
+
+    if (kvm_enabled()) {
+        if (kvmppc_fixup_cpu(env) != 0) {
+            fprintf(stderr, "Unable to virtualize selected CPU with KVM\n");
+            exit(1);
+        }
+    } else {
+        if (ppc_fixup_cpu(env) != 0) {
+            fprintf(stderr, "Unable to emulate selected CPU with TCG\n");
+            exit(1);
+        }
+    }
+
     if (create_ppc_opcodes(env, def) < 0)
         return -1;
     init_ppc_proc(env, def);
@@ -10185,3 +10207,93 @@ void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf)
                        ppc_defs[i].name, ppc_defs[i].pvr);
     }
 }
+
+/* CPUClass::reset() */
+static void ppc_cpu_reset(CPUState *s)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(s);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+    target_ulong msr;
+
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
+    pcc->parent_reset(s);
+
+    msr = (target_ulong)0;
+    if (0) {
+        /* XXX: find a suitable condition to enable the hypervisor mode */
+        msr |= (target_ulong)MSR_HVB;
+    }
+    msr |= (target_ulong)0 << MSR_AP; /* TO BE CHECKED */
+    msr |= (target_ulong)0 << MSR_SA; /* TO BE CHECKED */
+    msr |= (target_ulong)1 << MSR_EP;
+#if defined(DO_SINGLE_STEP) && 0
+    /* Single step trace mode */
+    msr |= (target_ulong)1 << MSR_SE;
+    msr |= (target_ulong)1 << MSR_BE;
+#endif
+#if defined(CONFIG_USER_ONLY)
+    msr |= (target_ulong)1 << MSR_FP; /* Allow floating point usage */
+    msr |= (target_ulong)1 << MSR_VR; /* Allow altivec usage */
+    msr |= (target_ulong)1 << MSR_SPE; /* Allow SPE usage */
+    msr |= (target_ulong)1 << MSR_PR;
+#else
+    env->excp_prefix = env->hreset_excp_prefix;
+    env->nip = env->hreset_vector | env->excp_prefix;
+    if (env->mmu_model != POWERPC_MMU_REAL) {
+        ppc_tlb_invalidate_all(env);
+    }
+#endif
+    env->msr = msr & env->msr_mask;
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64) {
+        env->msr |= (1ULL << MSR_SF);
+    }
+#endif
+    hreg_compute_hflags(env);
+    env->reserve_addr = (target_ulong)-1ULL;
+    /* Be sure no exception or interrupt is pending */
+    env->pending_interrupts = 0;
+    env->exception_index = POWERPC_EXCP_NONE;
+    env->error_code = 0;
+    /* Flush all TLBs */
+    tlb_flush(env, 1);
+}
+
+static void ppc_cpu_initfn(Object *obj)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(obj);
+    CPUPPCState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
+static void ppc_cpu_class_init(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
+
+    pcc->parent_reset = cc->reset;
+    cc->reset = ppc_cpu_reset;
+}
+
+static const TypeInfo ppc_cpu_type_info = {
+    .name = TYPE_POWERPC_CPU,
+    .parent = TYPE_CPU,
+    .instance_size = sizeof(PowerPCCPU),
+    .instance_init = ppc_cpu_initfn,
+    .abstract = false,
+    .class_size = sizeof(PowerPCCPUClass),
+    .class_init = ppc_cpu_class_init,
+};
+
+static void ppc_cpu_register_types(void)
+{
+    type_register_static(&ppc_cpu_type_info);
+}
+
+type_init(ppc_cpu_register_types)

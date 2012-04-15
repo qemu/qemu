@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Max Filippov, Open Source and Linux Lab.
+ * Copyright (c) 2012, Max Filippov, Open Source and Linux Lab.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,19 +28,20 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "gdbstub.h"
+#include "qemu-common.h"
 #include "host-utils.h"
 
-#include "core-dc232b/core-isa.h"
+#include "core-dc233c/core-isa.h"
 #include "overlay_tool.h"
 
-static const XtensaConfig dc232b = {
-    .name = "dc232b",
+static const XtensaConfig dc233c = {
+    .name = "dc233c",
     .options = XTENSA_OPTIONS,
     .gdb_regmap = {
-        .num_regs = 120,
+        .num_regs = 121,
         .num_core_regs = 52,
         .reg = {
-#include "core-dc232b/gdb-config.c"
+#include "core-dc233c/gdb-config.c"
         }
     },
     .nareg = XCHAL_NUM_AREGS,
@@ -48,8 +49,7 @@ static const XtensaConfig dc232b = {
     EXCEPTIONS_SECTION,
     INTERRUPTS_SECTION,
     TLB_SECTION,
-    DEBUG_SECTION,
     .clock_freq_khz = 10000,
 };
 
-REGISTER_CORE(dc232b)
+REGISTER_CORE(dc233c)

@@ -272,7 +272,7 @@ extern sPAPREnvironment *spapr;
 
 #ifdef DEBUG_SPAPR_HCALLS
 #define hcall_dprintf(fmt, ...) \
-    do { fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
+    do { fprintf(stderr, "%s: " fmt, __func__, ## __VA_ARGS__); } while (0)
 #else
 #define hcall_dprintf(fmt, ...) \
     do { } while (0)
