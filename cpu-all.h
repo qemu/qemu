@@ -222,8 +222,8 @@ extern unsigned long reserved_va;
 #else /* !CONFIG_USER_ONLY */
 /* NOTE: we use double casts if pointers and target_ulong have
    different sizes */
-#define saddr(x) (uint8_t *)(long)(x)
-#define laddr(x) (uint8_t *)(long)(x)
+#define saddr(x) (uint8_t *)(intptr_t)(x)
+#define laddr(x) (uint8_t *)(intptr_t)(x)
 #endif
 
 #define ldub_raw(p) ldub_p(laddr((p)))
