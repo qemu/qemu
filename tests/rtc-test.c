@@ -240,6 +240,22 @@ static void alarm_time(void)
     g_assert(cmos_read(RTC_REG_C) == 0);
 }
 
+/* success if no crash or abort */
+static void fuzz_registers(void)
+{
+    unsigned int i;
+
+    for (i = 0; i < 1000; i++) {
+        uint8_t reg, val;
+
+        reg = (uint8_t)g_test_rand_int_range(0, 16);
+        val = (uint8_t)g_test_rand_int_range(0, 256);
+
+        cmos_write(reg, val);
+        cmos_read(reg);
+    }
+}
+
 int main(int argc, char **argv)
 {
     QTestState *s = NULL;
@@ -253,6 +269,7 @@ int main(int argc, char **argv)
     qtest_add_func("/rtc/bcd/check-time", bcd_check_time);
     qtest_add_func("/rtc/dec/check-time", dec_check_time);
     qtest_add_func("/rtc/alarm-time", alarm_time);
+    qtest_add_func("/rtc/fuzz-registers", fuzz_registers);
     ret = g_test_run();
 
     if (s) {
