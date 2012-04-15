@@ -20,6 +20,8 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # really in libqtest, not in the testcases themselves.
 check-qtest-i386-y = tests/rtc-test
 check-qtest-x86_64-y = $(check-qtest-i386-y)
+check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
+check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
 
@@ -64,6 +66,7 @@ tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
+tests/m48t59-test$(EXESUF): tests/m48t59-test.o $(trace-obj-y)
 
 # QTest rules
 
