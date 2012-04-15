@@ -101,10 +101,9 @@ void QEMU_NORETURN helper_raise_exception (uint32_t exception)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void do_restore_state (void *pc_ptr)
+static void do_restore_state(uintptr_t pc)
 {
     TranslationBlock *tb;
-    uintptr_t pc = (uintptr_t)pc_ptr;
 
     tb = tb_find_pc (pc);
     if (tb) {
@@ -2280,7 +2279,7 @@ void QEMU_NORETURN helper_wait (void)
 #if !defined(CONFIG_USER_ONLY)
 
 static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
-                                              int is_user, void *retaddr);
+                                              int is_user, uintptr_t retaddr);
 
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
@@ -2298,7 +2297,7 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
 #include "softmmu_template.h"
 
 static void QEMU_NORETURN do_unaligned_access (target_ulong addr, int is_write,
-                                               int is_user, void *retaddr)
+                                               int is_user, uintptr_t retaddr)
 {
     env->CP0_BadVAddr = addr;
     do_restore_state (retaddr);
@@ -2306,11 +2305,10 @@ static void QEMU_NORETURN do_unaligned_access (target_ulong addr, int is_write,
 }
 
 void tlb_fill(CPUMIPSState *env1, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     TranslationBlock *tb;
     CPUMIPSState *saved_env;
-    uintptr_t pc;
     int ret;
 
     saved_env = env;
@@ -2319,12 +2317,11 @@ void tlb_fill(CPUMIPSState *env1, target_ulong addr, int is_write, int mmu_idx,
     if (ret) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            pc = (uintptr_t)retaddr;
-            tb = tb_find_pc(pc);
+            tb = tb_find_pc(retaddr);
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
+                cpu_restore_state(tb, env, retaddr);
             }
         }
         helper_raise_exception_err(env->exception_index, env->error_code);

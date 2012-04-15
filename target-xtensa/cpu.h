@@ -375,6 +375,7 @@ void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
 int xtensa_get_physical_addr(CPUXtensaState *env,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access);
+void reset_mmu(CPUXtensaState *env);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUXtensaState *env);
 void debug_exception_env(CPUXtensaState *new_env, uint32_t cause);
 
@@ -470,6 +471,7 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
 }
 
 #include "cpu-all.h"
+#include "cpu-qom.h"
 #include "exec-all.h"
 
 static inline int cpu_has_work(CPUXtensaState *env)

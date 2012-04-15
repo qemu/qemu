@@ -57,11 +57,10 @@ extern int semihosting_enabled;
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
 void tlb_fill(CPUM68KState *env1, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     TranslationBlock *tb;
     CPUM68KState *saved_env;
-    uintptr_t pc;
     int ret;
 
     saved_env = env;
@@ -70,12 +69,11 @@ void tlb_fill(CPUM68KState *env1, target_ulong addr, int is_write, int mmu_idx,
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            pc = (uintptr_t)retaddr;
-            tb = tb_find_pc(pc);
+            tb = tb_find_pc(retaddr);
             if (tb) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
+                cpu_restore_state(tb, env, retaddr);
             }
         }
         cpu_loop_exit(env);

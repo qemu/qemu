@@ -9,39 +9,45 @@
 
 #include "sysbus.h"
 
-#define NCPU 1
-
-/* Only a single "CPU" interface is present.  */
-static inline int
-gic_get_current_cpu(void)
-{
-  return 0;
-}
-
-#include "arm_gic.c"
-
 typedef struct {
-    gic_state gic;
+    SysBusDevice busdev;
+    DeviceState *gic;
     MemoryRegion container;
 } RealViewGICState;
 
-static void realview_gic_map_setup(RealViewGICState *s)
+static void realview_gic_set_irq(void *opaque, int irq, int level)
 {
-    memory_region_init(&s->container, "realview-gic-container", 0x2000);
-    memory_region_add_subregion(&s->container, 0, &s->gic.cpuiomem[0]);
-    memory_region_add_subregion(&s->container, 0x1000, &s->gic.iomem);
+    RealViewGICState *s = (RealViewGICState *)opaque;
+    qemu_set_irq(qdev_get_gpio_in(s->gic, irq), level);
 }
 
 static int realview_gic_init(SysBusDevice *dev)
 {
-    RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
-
+    RealViewGICState *s = FROM_SYSBUS(RealViewGICState, dev);
+    SysBusDevice *busdev;
     /* The GICs on the RealView boards have a fixed nonconfigurable
      * number of interrupt lines, so we don't need to expose this as
      * a qdev property.
      */
-    gic_init(&s->gic, 96);
-    realview_gic_map_setup(s);
+    int numirq = 96;
+
+    s->gic = qdev_create(NULL, "arm_gic");
+    qdev_prop_set_uint32(s->gic, "num-cpu", 1);
+    qdev_prop_set_uint32(s->gic, "num-irq", numirq);
+    qdev_init_nofail(s->gic);
+    busdev = sysbus_from_qdev(s->gic);
+
+    /* Pass through outbound IRQ lines from the GIC */
+    sysbus_pass_irq(dev, busdev);
+
+    /* Pass through inbound GPIO lines to the GIC */
+    qdev_init_gpio_in(&s->busdev.qdev, realview_gic_set_irq, numirq - 32);
+
+    memory_region_init(&s->container, "realview-gic-container", 0x2000);
+    memory_region_add_subregion(&s->container, 0,
+                                sysbus_mmio_get_region(busdev, 1));
+    memory_region_add_subregion(&s->container, 0x1000,
+                                sysbus_mmio_get_region(busdev, 0));
     sysbus_init_mmio(dev, &s->container);
     return 0;
 }

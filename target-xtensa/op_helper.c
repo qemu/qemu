@@ -27,11 +27,11 @@
 
 #include "cpu.h"
 #include "dyngen-exec.h"
-#include "helpers.h"
+#include "helper.h"
 #include "host-utils.h"
 
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-        void *retaddr);
+                                uintptr_t retaddr);
 
 #define ALIGNED_ONLY
 #define MMUSUFFIX _mmu
@@ -48,10 +48,9 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 #define SHIFT 3
 #include "softmmu_template.h"
 
-static void do_restore_state(void *pc_ptr)
+static void do_restore_state(uintptr_t pc)
 {
     TranslationBlock *tb;
-    uint32_t pc = (uint32_t)(intptr_t)pc_ptr;
 
     tb = tb_find_pc(pc);
     if (tb) {
@@ -60,7 +59,7 @@ static void do_restore_state(void *pc_ptr)
 }
 
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-        void *retaddr)
+                                uintptr_t retaddr)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
@@ -71,7 +70,7 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 }
 
 void tlb_fill(CPUXtensaState *env1, target_ulong vaddr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     CPUXtensaState *saved_env = env;
 
@@ -97,6 +96,18 @@ void tlb_fill(CPUXtensaState *env1, target_ulong vaddr, int is_write, int mmu_id
         }
     }
     env = saved_env;
+}
+
+static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
+{
+    uint32_t paddr;
+    uint32_t page_size;
+    unsigned access;
+    int ret = xtensa_get_physical_addr(env, vaddr, 2, 0,
+            &paddr, &page_size, &access);
+    if (ret == 0) {
+        tb_invalidate_phys_addr(paddr);
+    }
 }
 
 void HELPER(exception)(uint32_t excp)
@@ -358,8 +369,7 @@ void HELPER(movsp)(uint32_t pc)
 void HELPER(wsr_lbeg)(uint32_t v)
 {
     if (env->sregs[LBEG] != v) {
-        tb_invalidate_phys_page_range(
-                env->sregs[LEND] - 1, env->sregs[LEND], 0);
+        tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
         env->sregs[LBEG] = v;
     }
 }
@@ -367,11 +377,9 @@ void HELPER(wsr_lbeg)(uint32_t v)
 void HELPER(wsr_lend)(uint32_t v)
 {
     if (env->sregs[LEND] != v) {
-        tb_invalidate_phys_page_range(
-                env->sregs[LEND] - 1, env->sregs[LEND], 0);
+        tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
         env->sregs[LEND] = v;
-        tb_invalidate_phys_page_range(
-                env->sregs[LEND] - 1, env->sregs[LEND], 0);
+        tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
     }
 }
 
@@ -692,8 +700,7 @@ void HELPER(wsr_ibreakenable)(uint32_t v)
 
     for (i = 0; i < env->config->nibreak; ++i) {
         if (change & (1 << i)) {
-            tb_invalidate_phys_page_range(
-                    env->sregs[IBREAKA + i], env->sregs[IBREAKA + i] + 1, 0);
+            tb_invalidate_virtual_addr(env, env->sregs[IBREAKA + i]);
         }
     }
     env->sregs[IBREAKENABLE] = v & ((1 << env->config->nibreak) - 1);
@@ -702,9 +709,8 @@ void HELPER(wsr_ibreakenable)(uint32_t v)
 void HELPER(wsr_ibreaka)(uint32_t i, uint32_t v)
 {
     if (env->sregs[IBREAKENABLE] & (1 << i) && env->sregs[IBREAKA + i] != v) {
-        tb_invalidate_phys_page_range(
-                env->sregs[IBREAKA + i], env->sregs[IBREAKA + i] + 1, 0);
-        tb_invalidate_phys_page_range(v, v + 1, 0);
+        tb_invalidate_virtual_addr(env, env->sregs[IBREAKA + i]);
+        tb_invalidate_virtual_addr(env, v);
     }
     env->sregs[IBREAKA + i] = v;
 }

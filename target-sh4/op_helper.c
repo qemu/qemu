@@ -21,18 +21,16 @@
 #include "dyngen-exec.h"
 #include "helper.h"
 
-static void cpu_restore_state_from_retaddr(void *retaddr)
+static void cpu_restore_state_from_retaddr(uintptr_t retaddr)
 {
     TranslationBlock *tb;
-    uintptr_t pc;
 
     if (retaddr) {
-        pc = (uintptr_t)retaddr;
-        tb = tb_find_pc(pc);
+        tb = tb_find_pc(retaddr);
         if (tb) {
             /* the PC is inside the translated code. It means that we have
                a virtual CPU fault */
-            cpu_restore_state(tb, env, pc);
+            cpu_restore_state(tb, env, retaddr);
         }
     }
 }
@@ -55,7 +53,7 @@ static void cpu_restore_state_from_retaddr(void *retaddr)
 #include "softmmu_template.h"
 
 void tlb_fill(CPUSH4State *env1, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     CPUSH4State *saved_env;
     int ret;
@@ -87,7 +85,7 @@ void helper_ldtlb(void)
 #endif
 }
 
-static inline QEMU_NORETURN void raise_exception(int index, void *retaddr)
+static inline QEMU_NORETURN void raise_exception(int index, uintptr_t retaddr)
 {
     env->exception_index = index;
     cpu_restore_state_from_retaddr(retaddr);
@@ -450,7 +448,7 @@ void helper_ld_fpscr(uint32_t val)
     set_flush_to_zero((val & FPSCR_DN) != 0, &env->fp_status);
 }
 
-static void update_fpscr(void *retaddr)
+static void update_fpscr(uintptr_t retaddr)
 {
     int xcpt, cause, enable;
 

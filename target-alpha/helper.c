@@ -494,13 +494,12 @@ void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n");
 }
 
-void do_restore_state(CPUAlphaState *env, void *retaddr)
+void do_restore_state(CPUAlphaState *env, uintptr_t retaddr)
 {
-    uintptr_t pc = (uintptr_t)retaddr;
-    if (pc) {
-        TranslationBlock *tb = tb_find_pc(pc);
+    if (retaddr) {
+        TranslationBlock *tb = tb_find_pc(retaddr);
         if (tb) {
-            cpu_restore_state(tb, env, pc);
+            cpu_restore_state(tb, env, retaddr);
         }
     }
 }
@@ -515,7 +514,7 @@ void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
 }
 
 /* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
-void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, void *retaddr,
+void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
                                 int excp, int error)
 {
     env->exception_index = excp;
@@ -524,7 +523,7 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, void *retaddr,
     cpu_loop_exit(env);
 }
 
-void QEMU_NORETURN arith_excp(CPUAlphaState *env, void *retaddr,
+void QEMU_NORETURN arith_excp(CPUAlphaState *env, uintptr_t retaddr,
                               int exc, uint64_t mask)
 {
     env->trap_arg0 = exc;

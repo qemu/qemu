@@ -8,13 +8,29 @@
  */
 
 /* This file contains implementation code for the RealView EB interrupt
-   controller, MPCore distributed interrupt controller and ARMv7-M
-   Nested Vectored Interrupt Controller.  */
+ * controller, MPCore distributed interrupt controller and ARMv7-M
+ * Nested Vectored Interrupt Controller.
+ * It is compiled in two ways:
+ *  (1) as a standalone file to produce a sysbus device which is a GIC
+ *  that can be used on the realview board and as one of the builtin
+ *  private peripherals for the ARM MP CPUs (11MPCore, A9, etc)
+ *  (2) by being directly #included into armv7m_nvic.c to produce the
+ *  armv7m_nvic device.
+ */
+
+#include "sysbus.h"
 
 /* Maximum number of possible interrupts, determined by the GIC architecture */
 #define GIC_MAXIRQ 1020
 /* First 32 are private to each CPU (SGIs and PPIs). */
 #define GIC_INTERNAL 32
+/* Maximum number of possible CPU interfaces, determined by GIC architecture */
+#ifdef NVIC
+#define NCPU 1
+#else
+#define NCPU 8
+#endif
+
 //#define DEBUG_GIC
 
 #ifdef DEBUG_GIC
@@ -50,7 +66,7 @@ typedef struct gic_irq_state
     unsigned trigger:1; /* nonzero = edge triggered.  */
 } gic_irq_state;
 
-#define ALL_CPU_MASK ((1 << NCPU) - 1)
+#define ALL_CPU_MASK ((unsigned)(((1 << NCPU) - 1)))
 #if NCPU > 1
 #define NUM_CPU(s) ((s)->num_cpu)
 #else
@@ -105,7 +121,7 @@ typedef struct gic_state
     int current_pending[NCPU];
 
 #if NCPU > 1
-    int num_cpu;
+    uint32_t num_cpu;
 #endif
 
     MemoryRegion iomem; /* Distributor */
@@ -118,6 +134,16 @@ typedef struct gic_state
 #endif
     uint32_t num_irq;
 } gic_state;
+
+static inline int gic_get_current_cpu(gic_state *s)
+{
+#if NCPU > 1
+    if (s->num_cpu > 1) {
+        return cpu_single_env->cpu_index;
+    }
+#endif
+    return 0;
+}
 
 /* TODO: Many places that call this routine could be optimized.  */
 /* Update interrupt status after enabled or pending bits have been changed.  */
@@ -134,7 +160,7 @@ static void gic_update(gic_state *s)
         cm = 1 << cpu;
         s->current_pending[cpu] = 1023;
         if (!s->enabled || !s->cpu_enabled[cpu]) {
-	    qemu_irq_lower(s->parent_irq[cpu]);
+            qemu_irq_lower(s->parent_irq[cpu]);
             return;
         }
         best_prio = 0x100;
@@ -159,8 +185,8 @@ static void gic_update(gic_state *s)
     }
 }
 
-static void __attribute__((unused))
-gic_set_pending_private(gic_state *s, int cpu, int irq)
+#ifdef NVIC
+static void gic_set_pending_private(gic_state *s, int cpu, int irq)
 {
     int cm = 1 << cpu;
 
@@ -171,24 +197,45 @@ gic_set_pending_private(gic_state *s, int cpu, int irq)
     GIC_SET_PENDING(irq, cm);
     gic_update(s);
 }
+#endif
 
 /* Process a change in an external IRQ input.  */
 static void gic_set_irq(void *opaque, int irq, int level)
 {
+    /* Meaning of the 'irq' parameter:
+     *  [0..N-1] : external interrupts
+     *  [N..N+31] : PPI (internal) interrupts for CPU 0
+     *  [N+32..N+63] : PPI (internal interrupts for CPU 1
+     *  ...
+     */
     gic_state *s = (gic_state *)opaque;
-    /* The first external input line is internal interrupt 32.  */
-    irq += GIC_INTERNAL;
-    if (level == GIC_TEST_LEVEL(irq, ALL_CPU_MASK))
+    int cm, target;
+    if (irq < (s->num_irq - GIC_INTERNAL)) {
+        /* The first external input line is internal interrupt 32.  */
+        cm = ALL_CPU_MASK;
+        irq += GIC_INTERNAL;
+        target = GIC_TARGET(irq);
+    } else {
+        int cpu;
+        irq -= (s->num_irq - GIC_INTERNAL);
+        cpu = irq / GIC_INTERNAL;
+        irq %= GIC_INTERNAL;
+        cm = 1 << cpu;
+        target = cm;
+    }
+
+    if (level == GIC_TEST_LEVEL(irq, cm)) {
         return;
+    }
 
     if (level) {
-        GIC_SET_LEVEL(irq, ALL_CPU_MASK);
-        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, ALL_CPU_MASK)) {
-            DPRINTF("Set %d pending mask %x\n", irq, GIC_TARGET(irq));
-            GIC_SET_PENDING(irq, GIC_TARGET(irq));
+        GIC_SET_LEVEL(irq, cm);
+        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, cm)) {
+            DPRINTF("Set %d pending mask %x\n", irq, target);
+            GIC_SET_PENDING(irq, target);
         }
     } else {
-        GIC_CLEAR_LEVEL(irq, ALL_CPU_MASK);
+        GIC_CLEAR_LEVEL(irq, cm);
     }
     gic_update(s);
 }
@@ -278,7 +325,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     int cm;
     int mask;
 
-    cpu = gic_get_current_cpu();
+    cpu = gic_get_current_cpu(s);
     cm = 1 << cpu;
     if (offset < 0x100) {
 #ifndef NVIC
@@ -413,7 +460,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     int i;
     int cpu;
 
-    cpu = gic_get_current_cpu();
+    cpu = gic_get_current_cpu(s);
     if (offset < 0x100) {
 #ifdef NVIC
         goto bad_reg;
@@ -575,7 +622,7 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
         int irq;
         int mask;
 
-        cpu = gic_get_current_cpu();
+        cpu = gic_get_current_cpu(s);
         irq = value & 0x3ff;
         switch ((value >> 24) & 3) {
         case 0:
@@ -658,14 +705,14 @@ static uint64_t gic_thiscpu_read(void *opaque, target_phys_addr_t addr,
                                  unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
-    return gic_cpu_read(s, gic_get_current_cpu(), addr);
+    return gic_cpu_read(s, gic_get_current_cpu(s), addr);
 }
 
 static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
                               uint64_t value, unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
-    gic_cpu_write(s, gic_get_current_cpu(), addr, value);
+    gic_cpu_write(s, gic_get_current_cpu(s), addr, value);
 }
 
 /* Wrappers to read/write the GIC CPU interface for a specific CPU.
@@ -702,8 +749,9 @@ static const MemoryRegionOps gic_cpu_ops = {
 };
 #endif
 
-static void gic_reset(gic_state *s)
+static void gic_reset(DeviceState *dev)
 {
+    gic_state *s = FROM_SYSBUS(gic_state, sysbus_from_qdev(dev));
     int i;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < NUM_CPU(s); i++) {
@@ -813,6 +861,10 @@ static void gic_init(gic_state *s, int num_irq)
 
 #if NCPU > 1
     s->num_cpu = num_cpu;
+    if (s->num_cpu > NCPU) {
+        hw_error("requested %u CPUs exceeds GIC maximum %d\n",
+                 num_cpu, NCPU);
+    }
 #endif
     s->num_irq = num_irq + GIC_BASE_IRQ;
     if (s->num_irq > GIC_MAXIRQ) {
@@ -828,7 +880,18 @@ static void gic_init(gic_state *s, int num_irq)
                  num_irq);
     }
 
-    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, s->num_irq - GIC_INTERNAL);
+    i = s->num_irq - GIC_INTERNAL;
+#ifndef NVIC
+    /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
+     * GPIO array layout is thus:
+     *  [0..N-1] SPIs
+     *  [N..N+31] PPIs for CPU 0
+     *  [N+32..N+63] PPIs for CPU 1
+     *   ...
+     */
+    i += (GIC_INTERNAL * num_cpu);
+#endif
+    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, i);
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
@@ -851,6 +914,54 @@ static void gic_init(gic_state *s, int num_irq)
     }
 #endif
 
-    gic_reset(s);
     register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
 }
+
+#ifndef NVIC
+
+static int arm_gic_init(SysBusDevice *dev)
+{
+    /* Device instance init function for the GIC sysbus device */
+    int i;
+    gic_state *s = FROM_SYSBUS(gic_state, dev);
+    gic_init(s, s->num_cpu, s->num_irq);
+    /* Distributor */
+    sysbus_init_mmio(dev, &s->iomem);
+    /* cpu interfaces (one for "current cpu" plus one per cpu) */
+    for (i = 0; i <= NUM_CPU(s); i++) {
+        sysbus_init_mmio(dev, &s->cpuiomem[i]);
+    }
+    return 0;
+}
+
+static Property arm_gic_properties[] = {
+    DEFINE_PROP_UINT32("num-cpu", gic_state, num_cpu, 1),
+    DEFINE_PROP_UINT32("num-irq", gic_state, num_irq, 32),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void arm_gic_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+    sbc->init = arm_gic_init;
+    dc->props = arm_gic_properties;
+    dc->reset = gic_reset;
+    dc->no_user = 1;
+}
+
+static TypeInfo arm_gic_info = {
+    .name = "arm_gic",
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(gic_state),
+    .class_init = arm_gic_class_init,
+};
+
+static void arm_gic_register_types(void)
+{
+    type_register_static(&arm_gic_info);
+}
+
+type_init(arm_gic_register_types)
+
+#endif

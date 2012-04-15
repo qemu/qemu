@@ -475,7 +475,7 @@ struct soundhw {
 
 static struct soundhw soundhw[] = {
 #ifdef HAS_AUDIO_CHOICE
-#if defined(TARGET_I386) || defined(TARGET_MIPS)
+#ifdef CONFIG_PCSPK
     {
         "pcspk",
         "PC speaker",

@@ -1478,13 +1478,11 @@ static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
     tb_invalidate_phys_page_range(pc, pc + 1, 0);
 }
 #else
-static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
+void tb_invalidate_phys_addr(target_phys_addr_t addr)
 {
-    target_phys_addr_t addr;
     ram_addr_t ram_addr;
     MemoryRegionSection *section;
 
-    addr = cpu_get_phys_page_debug(env, pc);
     section = phys_page_find(addr >> TARGET_PAGE_BITS);
     if (!(memory_region_is_ram(section->mr)
           || (section->mr->rom_device && section->mr->readable))) {
@@ -1493,6 +1491,11 @@ static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
     ram_addr = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)
         + section_addr(section, addr);
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
+}
+
+static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
+{
+    tb_invalidate_phys_addr(cpu_get_phys_page_debug(env, pc));
 }
 #endif
 #endif /* TARGET_HAS_ICE */
@@ -4536,20 +4539,20 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
 
 /* in deterministic execution mode, instructions doing device I/Os
    must be at the end of the TB */
-void cpu_io_recompile(CPUArchState *env, void *retaddr)
+void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 {
     TranslationBlock *tb;
     uint32_t n, cflags;
     target_ulong pc, cs_base;
     uint64_t flags;
 
-    tb = tb_find_pc((uintptr_t)retaddr);
+    tb = tb_find_pc(retaddr);
     if (!tb) {
         cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p",
-                  retaddr);
+                  (void *)retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state(tb, env, (uintptr_t)retaddr);
+    cpu_restore_state(tb, env, retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
     n = n - env->icount_decr.u16.low;
@@ -4697,7 +4700,7 @@ bool virtio_is_big_endian(void)
 
 #define MMUSUFFIX _cmmu
 #undef GETPC
-#define GETPC() NULL
+#define GETPC() ((uintptr_t)0)
 #define env cpu_single_env
 #define SOFTMMU_CODE_ACCESS
 

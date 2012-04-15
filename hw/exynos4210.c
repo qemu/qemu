@@ -25,6 +25,7 @@
 #include "sysemu.h"
 #include "sysbus.h"
 #include "arm-misc.h"
+#include "loader.h"
 #include "exynos4210.h"
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
@@ -63,6 +64,35 @@
 
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
+
+void exynos4210_write_secondary(CPUARMState *env,
+        const struct arm_boot_info *info)
+{
+    int n;
+    uint32_t smpboot[] = {
+        0xe59f3024, /* ldr r3, External gic_cpu_if */
+        0xe59f2024, /* ldr r2, Internal gic_cpu_if */
+        0xe59f0024, /* ldr r0, startaddr */
+        0xe3a01001, /* mov r1, #1 */
+        0xe5821000, /* str r1, [r2] */
+        0xe5831000, /* str r1, [r3] */
+        0xe320f003, /* wfi */
+        0xe5901000, /* ldr     r1, [r0] */
+        0xe1110001, /* tst     r1, r1 */
+        0x0afffffb, /* beq     <wfi> */
+        0xe12fff11, /* bx      r1 */
+        EXYNOS4210_EXT_GIC_CPU_BASE_ADDR,
+        0,          /* gic_cpu_if: base address of Internal GIC CPU interface */
+        0           /* bootreg: Boot register address is held here */
+    };
+    smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
+    smpboot[ARRAY_SIZE(smpboot) - 2] = info->gic_cpu_if_addr;
+    for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
+        smpboot[n] = tswap32(smpboot[n]);
+    }
+    rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
+                       info->smp_loader_start);
+}
 
 Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         unsigned long ram_size)

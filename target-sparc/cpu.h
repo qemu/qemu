@@ -702,7 +702,7 @@ trap_state* cpu_tsptr(CPUSPARCState* env);
 #endif
 void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env, target_ulong addr,
                                        int is_write, int is_user,
-                                       void *retaddr);
+                                       uintptr_t retaddr);
 
 #define TB_FLAG_FPU_ENABLED (1 << 4)
 #define TB_FLAG_AM_ENABLED (1 << 5)

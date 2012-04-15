@@ -92,8 +92,6 @@ check-help:
 	@echo "Default options are -k and (for make V=1) --verbose; they can be"
 	@echo "changed with variable GTESTER_OPTIONS."
 
-.SECONDARY:
-
 SPEED = quick
 GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
 

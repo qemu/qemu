@@ -87,7 +87,7 @@ int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
 int cpu_restore_state(struct TranslationBlock *tb,
                       CPUArchState *env, uintptr_t searched_pc);
 void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
-void QEMU_NORETURN cpu_io_recompile(CPUArchState *env, void *retaddr);
+void QEMU_NORETURN cpu_io_recompile(CPUArchState *env, uintptr_t retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env,
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
@@ -102,6 +102,7 @@ void tlb_flush(CPUArchState *env, int flush_global);
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
                   target_phys_addr_t paddr, int prot,
                   int mmu_idx, target_ulong size);
+void tb_invalidate_phys_addr(target_phys_addr_t addr);
 #endif
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
@@ -287,13 +288,13 @@ extern void *tci_tb_ptr;
 # endif
 #elif defined(__s390__) && !defined(__s390x__)
 # define GETPC() \
-    ((void *)(((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1))
+    (((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1)
 #elif defined(__arm__)
 /* Thumb return addresses have the low bit set, so we need to subtract two.
    This is still safe in ARM mode because instructions are 4 bytes.  */
-# define GETPC() ((void *)((uintptr_t)__builtin_return_address(0) - 2))
+# define GETPC() ((uintptr_t)__builtin_return_address(0) - 2)
 #else
-# define GETPC() ((void *)((uintptr_t)__builtin_return_address(0) - 1))
+# define GETPC() ((uintptr_t)__builtin_return_address(0) - 1)
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -305,7 +306,7 @@ void io_mem_write(struct MemoryRegion *mr, target_phys_addr_t addr,
                   uint64_t value, unsigned size);
 
 void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr);
+              uintptr_t retaddr);
 
 #include "softmmu_defs.h"
 

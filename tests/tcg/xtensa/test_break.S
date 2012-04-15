@@ -91,6 +91,40 @@ test ibreak
     assert  eq, a2, a3
 test_end
 
+test ibreak_remove
+    set_vector debug_vector, 3f
+    rsil    a2, debug_level - 1
+    movi    a2, 2f
+    wsr     a2, ibreaka0
+    movi    a3, 1
+1:
+    wsr     a3, ibreakenable
+    isync
+2:
+    beqz    a3, 4f
+    test_fail
+3:
+    assert  eqi, a3, 1
+    rsr     a2, ps
+    movi    a3, 0x1f
+    and     a2, a2, a3
+    movi    a3, 0x10 | debug_level
+    assert  eq, a2, a3
+    rsr     a2, epc6
+    movi    a3, 2b
+    assert  eq, a2, a3
+    rsr     a2, debugcause
+    movi    a3, 0x2
+    assert  eq, a2, a3
+
+    movi    a2, 0x40000
+    wsr     a2, ps
+    isync
+    movi    a3, 0
+    j       1b
+4:
+test_end
+
 test ibreak_priority
     set_vector debug_vector, 2f
     rsil    a2, debug_level - 1

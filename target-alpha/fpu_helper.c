@@ -44,7 +44,7 @@ uint32_t helper_fp_exc_get(CPUAlphaState *env)
     return get_float_exception_flags(&FP_STATUS);
 }
 
-static inline void inline_fp_exc_raise(CPUAlphaState *env, void *retaddr,
+static inline void inline_fp_exc_raise(CPUAlphaState *env, uintptr_t retaddr,
                                        uint32_t exc, uint32_t regno)
 {
     if (exc) {
@@ -160,7 +160,7 @@ static uint64_t float32_to_f(float32 fa)
     return r;
 }
 
-static float32 f_to_float32(CPUAlphaState *env, void *retaddr, uint64_t a)
+static float32 f_to_float32(CPUAlphaState *env, uintptr_t retaddr, uint64_t a)
 {
     uint32_t exp, mant_sig;
     CPU_FloatU r;
@@ -291,7 +291,7 @@ static uint64_t float64_to_g(float64 fa)
     return r;
 }
 
-static float64 g_to_float64(CPUAlphaState *env, void *retaddr, uint64_t a)
+static float64 g_to_float64(CPUAlphaState *env, uintptr_t retaddr, uint64_t a)
 {
     uint64_t exp, mant_sig;
     CPU_DoubleU r;
