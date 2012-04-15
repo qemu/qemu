@@ -98,6 +98,9 @@ libobj-$(TARGET_CRIS) += cpu.o
 libobj-$(TARGET_LM32) += cpu.o
 libobj-$(TARGET_M68K) += cpu.o
 libobj-$(TARGET_MICROBLAZE) += cpu.o
+ifeq ($(TARGET_BASE_ARCH), mips)
+libobj-y += cpu.o
+endif
 libobj-$(TARGET_S390X) += cpu.o
 libobj-$(TARGET_SH4) += cpu.o
 ifeq ($(TARGET_BASE_ARCH), sparc)

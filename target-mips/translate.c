@@ -12691,13 +12691,15 @@ static void mips_tcg_init(void)
 
 CPUMIPSState *cpu_mips_init (const char *cpu_model)
 {
+    MIPSCPU *cpu;
     CPUMIPSState *env;
     const mips_def_t *def;
 
     def = cpu_mips_find_by_name(cpu_model);
     if (!def)
         return NULL;
-    env = g_malloc0(sizeof(CPUMIPSState));
+    cpu = MIPS_CPU(object_new(TYPE_MIPS_CPU));
+    env = &cpu->env;
     env->cpu_model = def;
     env->cpu_model_str = cpu_model;
 

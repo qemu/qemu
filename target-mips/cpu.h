@@ -483,6 +483,8 @@ struct CPUMIPSState {
     struct QEMUTimer *timer; /* Internal timer */
 };
 
+#include "cpu-qom.h"
+
 #if !defined(CONFIG_USER_ONLY)
 int no_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
                         target_ulong address, int rw, int access_type);
