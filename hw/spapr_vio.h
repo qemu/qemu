@@ -64,7 +64,7 @@ typedef struct VIOsPAPRDeviceClass {
     const char *dt_name, *dt_type, *dt_compatible;
     target_ulong signal_mask;
     int (*init)(VIOsPAPRDevice *dev);
-    void (*hcalls)(VIOsPAPRBus *bus);
+    void (*reset)(VIOsPAPRDevice *dev);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 } VIOsPAPRDeviceClass;
 
@@ -89,8 +89,6 @@ struct VIOsPAPRDevice {
 
 struct VIOsPAPRBus {
     BusState bus;
-    const char *dt_name, *dt_type, *dt_compatible;
-    target_ulong signal_mask;
     int (*init)(VIOsPAPRDevice *dev);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 };
@@ -119,6 +117,7 @@ uint64_t ldq_tce(VIOsPAPRDevice *dev, uint64_t taddr);
 
 int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq);
 
+VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg);
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(VIOsPAPRBus *bus, uint32_t reg, CharDriverState *chardev);
 void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd);

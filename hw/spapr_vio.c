@@ -204,8 +204,7 @@ static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPR_RTCE *rtce;
 
     if (!dev) {
-        hcall_dprintf("spapr_vio_put_tce on non-existent LIOBN "
-                      TARGET_FMT_lx "\n", liobn);
+        hcall_dprintf("LIOBN 0x" TARGET_FMT_lx " does not exist\n", liobn);
         return H_PARAMETER;
     }
 
@@ -217,8 +216,7 @@ static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
 #endif
 
     if (ioba >= dev->rtce_window_size) {
-        hcall_dprintf("spapr_vio_put_tce on out-of-boards IOBA 0x"
-                      TARGET_FMT_lx "\n", ioba);
+        hcall_dprintf("Out-of-bounds IOBA 0x" TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
 
@@ -414,33 +412,32 @@ static target_ulong h_reg_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
-        hcall_dprintf("h_reg_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
 
     /* We can't grok a queue size bigger than 256M for now */
     if (queue_len < 0x1000 || queue_len > 0x10000000) {
-        hcall_dprintf("h_reg_crq, queue size too small or too big (0x%llx)\n",
-                      (unsigned long long)queue_len);
+        hcall_dprintf("Queue size too small or too big (0x" TARGET_FMT_lx
+                      ")\n", queue_len);
         return H_PARAMETER;
     }
 
     /* Check queue alignment */
     if (queue_addr & 0xfff) {
-        hcall_dprintf("h_reg_crq, queue not aligned (0x%llx)\n",
-                      (unsigned long long)queue_addr);
+        hcall_dprintf("Queue not aligned (0x" TARGET_FMT_lx ")\n", queue_addr);
         return H_PARAMETER;
     }
 
     /* Check if device supports CRQs */
     if (!dev->crq.SendFunc) {
+        hcall_dprintf("Device does not support CRQ\n");
         return H_NOT_FOUND;
     }
 
-
     /* Already a queue ? */
     if (dev->crq.qsize) {
+        hcall_dprintf("CRQ already registered\n");
         return H_RESOURCE;
     }
     dev->crq.qladdr = queue_addr;
@@ -453,6 +450,17 @@ static target_ulong h_reg_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong free_crq(VIOsPAPRDevice *dev)
+{
+    dev->crq.qladdr = 0;
+    dev->crq.qsize = 0;
+    dev->crq.qnext = 0;
+
+    dprintf("CRQ for dev 0x%" PRIx32 " freed\n", dev->reg);
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_free_crq(CPUPPCState *env, sPAPREnvironment *spapr,
                                target_ulong opcode, target_ulong *args)
 {
@@ -460,18 +468,11 @@ static target_ulong h_free_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
-        hcall_dprintf("h_free_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
 
-    dev->crq.qladdr = 0;
-    dev->crq.qsize = 0;
-    dev->crq.qnext = 0;
-
-    dprintf("CRQ for dev 0x" TARGET_FMT_lx " freed\n", reg);
-
-    return H_SUCCESS;
+    return free_crq(dev);
 }
 
 static target_ulong h_send_crq(CPUPPCState *env, sPAPREnvironment *spapr,
@@ -484,8 +485,7 @@ static target_ulong h_send_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     uint64_t crq_mangle[2];
 
     if (!dev) {
-        hcall_dprintf("h_send_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
     crq_mangle[0] = cpu_to_be64(msg_hi);
@@ -505,8 +505,7 @@ static target_ulong h_enable_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
-        hcall_dprintf("h_enable_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
 
@@ -649,6 +648,20 @@ static int spapr_vio_check_reg(VIOsPAPRDevice *sdev)
     return 0;
 }
 
+static void spapr_vio_busdev_reset(DeviceState *qdev)
+{
+    VIOsPAPRDevice *dev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
+
+    if (dev->crq.qsize) {
+        free_crq(dev);
+    }
+
+    if (pc->reset) {
+        pc->reset(dev);
+    }
+}
+
 static int spapr_vio_busdev_init(DeviceState *qdev)
 {
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
@@ -766,6 +779,7 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = spapr_vio_busdev_init;
+    k->reset = spapr_vio_busdev_reset;
     k->bus_info = &spapr_vio_bus_info;
 }
 

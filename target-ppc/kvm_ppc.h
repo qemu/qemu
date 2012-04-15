@@ -29,6 +29,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd);
 int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 #endif /* !CONFIG_USER_ONLY */
 const ppc_def_t *kvmppc_host_cpu_def(void);
+int kvmppc_fixup_cpu(CPUPPCState *env);
 
 #else
 
@@ -95,6 +96,10 @@ static inline const ppc_def_t *kvmppc_host_cpu_def(void)
     return NULL;
 }
 
+static inline int kvmppc_fixup_cpu(CPUPPCState *env)
+{
+    return -1;
+}
 #endif
 
 #ifndef CONFIG_KVM

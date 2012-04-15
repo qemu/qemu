@@ -70,8 +70,6 @@ static int spapr_vty_init(VIOsPAPRDevice *sdev)
 }
 
 /* Forward declaration */
-static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg);
-
 static target_ulong h_put_term_char(CPUPPCState *env, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
@@ -195,7 +193,7 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
     return selected;
 }
 
-static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg)
+VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg)
 {
     VIOsPAPRDevice *sdev;
 
