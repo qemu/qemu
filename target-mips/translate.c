@@ -12703,7 +12703,6 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     env->cpu_model = def;
     env->cpu_model_str = cpu_model;
 
-    cpu_exec_init(env);
 #ifndef CONFIG_USER_ONLY
     mmu_init(env, def);
 #endif

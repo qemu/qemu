@@ -34,6 +34,14 @@ static void mips_cpu_reset(CPUState *s)
     cpu_state_reset(env);
 }
 
+static void mips_cpu_initfn(Object *obj)
+{
+    MIPSCPU *cpu = MIPS_CPU(obj);
+    CPUMIPSState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
 static void mips_cpu_class_init(ObjectClass *c, void *data)
 {
     MIPSCPUClass *mcc = MIPS_CPU_CLASS(c);
@@ -47,6 +55,7 @@ static const TypeInfo mips_cpu_type_info = {
     .name = TYPE_MIPS_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(MIPSCPU),
+    .instance_init = mips_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(MIPSCPUClass),
     .class_init = mips_cpu_class_init,
