@@ -42,6 +42,7 @@
 #include "sysbus.h"
 #include "sysemu.h"
 #include "kvm.h"
+#include "xen.h"
 #include "blockdev.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
@@ -891,9 +892,12 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
 
     if (kvm_irqchip_in_kernel()) {
         dev = qdev_create(NULL, "kvm-apic");
+    } else if (xen_enabled()) {
+        dev = qdev_create(NULL, "xen-apic");
     } else {
         dev = qdev_create(NULL, "apic");
     }
+
     qdev_prop_set_uint8(dev, "id", apic_id);
     qdev_prop_set_ptr(dev, "cpu_env", env);
     qdev_init_nofail(dev);
@@ -909,6 +913,10 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
 
     /* KVM does not support MSI yet. */
     if (!kvm_irqchip_in_kernel()) {
+        msi_supported = true;
+    }
+
+    if (xen_enabled()) {
         msi_supported = true;
     }
 

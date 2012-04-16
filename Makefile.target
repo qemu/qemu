@@ -239,7 +239,7 @@ QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 obj-$(CONFIG_XEN) += xen-all.o xen_machine_pv.o xen_domainbuild.o xen-mapcache.o
 obj-$(CONFIG_NO_XEN) += xen-stub.o
 
-obj-i386-$(CONFIG_XEN) += xen_platform.o
+obj-i386-$(CONFIG_XEN) += xen_platform.o xen_apic.o
 
 # Inter-VM PCI shared memory
 CONFIG_IVSHMEM =
