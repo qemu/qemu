@@ -990,3 +990,12 @@ void hmp_netdev_add(Monitor *mon, const QDict *qdict)
 out:
     hmp_handle_error(mon, &err);
 }
+
+void hmp_netdev_del(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    Error *err = NULL;
+
+    qmp_netdev_del(id, &err);
+    hmp_handle_error(mon, &err);
+}

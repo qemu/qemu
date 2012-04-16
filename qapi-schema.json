@@ -1826,3 +1826,17 @@
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str', '*props': '**'},
   'gen': 'no' }
+
+##
+# @netdev_del:
+#
+# Remove a network backend.
+#
+# @id: the name of the network backend to remove
+#
+# Returns: Nothing on success
+#          If @id is not a valid network backend, DeviceNotFound
+#
+# Since: 0.14.0
+##
+{ 'command': 'netdev_del', 'data': {'id': 'str'} }

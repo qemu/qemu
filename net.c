@@ -1269,19 +1269,18 @@ exit_err:
     return -1;
 }
 
-int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_netdev_del(const char *id, Error **errp)
 {
-    const char *id = qdict_get_str(qdict, "id");
     VLANClientState *vc;
 
     vc = qemu_find_netdev(id);
     if (!vc) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, id);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, id);
+        return;
     }
+
     qemu_del_vlan_client(vc);
-    qemu_opts_del(qemu_opts_find(qemu_find_opts("netdev"), id));
-    return 0;
+    qemu_opts_del(qemu_opts_find(qemu_find_opts_err("netdev", errp), id));
 }
 
 static void print_net_client(Monitor *mon, VLANClientState *vc)

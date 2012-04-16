@@ -671,10 +671,7 @@ EQMP
     {
         .name       = "netdev_del",
         .args_type  = "id:s",
-        .params     = "id",
-        .help       = "remove host network device",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_netdev_del,
+        .mhandler.cmd_new = qmp_marshal_input_netdev_del,
     },
 
 SQMP
