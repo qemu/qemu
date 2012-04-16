@@ -1305,8 +1305,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                use the ADDR32 prefix.  For now, do nothing.  */
 
             if (offset != GUEST_BASE) {
-                tcg_out_movi(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], GUEST_BASE);
-                tgen_arithr(s, ARITH_ADD + P_REXW, tcg_target_call_iarg_regs[0], base);
+                tcg_out_movi(s, TCG_TYPE_I64,
+                             tcg_target_call_iarg_regs[0], GUEST_BASE);
+                tgen_arithr(s, ARITH_ADD + P_REXW,
+                            tcg_target_call_iarg_regs[0], base);
                 base = tcg_target_call_iarg_regs[0];
                 offset = 0;
             }
@@ -1480,8 +1482,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                use the ADDR32 prefix.  For now, do nothing.  */
 
             if (offset != GUEST_BASE) {
-                tcg_out_movi(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], GUEST_BASE);
-                tgen_arithr(s, ARITH_ADD + P_REXW, tcg_target_call_iarg_regs[0], base);
+                tcg_out_movi(s, TCG_TYPE_I64,
+                             tcg_target_call_iarg_regs[0], GUEST_BASE);
+                tgen_arithr(s, ARITH_ADD + P_REXW,
+                            tcg_target_call_iarg_regs[0], base);
                 base = tcg_target_call_iarg_regs[0];
                 offset = 0;
             }
@@ -1984,6 +1988,10 @@ static int tcg_target_callee_save_regs[] = {
 #if TCG_TARGET_REG_BITS == 64
     TCG_REG_RBP,
     TCG_REG_RBX,
+#if defined(_WIN64)
+    TCG_REG_RDI,
+    TCG_REG_RSI,
+#endif
     TCG_REG_R12,
     TCG_REG_R13,
     TCG_REG_R14, /* Currently used for the global env. */
@@ -2115,7 +2123,9 @@ typedef struct {
     DebugFrameFDE fde;
 } DebugFrame;
 
-#if TCG_TARGET_REG_BITS == 64
+#if !defined(__ELF__)
+    /* Host machine without ELF. */
+#elif TCG_TARGET_REG_BITS == 64
 #define ELF_HOST_MACHINE EM_X86_64
 static DebugFrame debug_frame = {
     .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
@@ -2169,6 +2179,7 @@ static DebugFrame debug_frame = {
 };
 #endif
 
+#if defined(ELF_HOST_MACHINE)
 void tcg_register_jit(void *buf, size_t buf_size)
 {
     /* We're expecting a 2 byte uleb128 encoded value.  */
@@ -2179,3 +2190,4 @@ void tcg_register_jit(void *buf, size_t buf_size)
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
+#endif

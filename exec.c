@@ -95,8 +95,7 @@ spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 #define code_gen_section                                \
     __attribute__((__section__(".gen_code")))           \
     __attribute__((aligned (32)))
-#elif defined(_WIN32)
-/* Maximum alignment for Win32 is 16. */
+#elif defined(_WIN32) && !defined(_WIN64)
 #define code_gen_section                                \
     __attribute__((aligned (16)))
 #else
@@ -1218,7 +1217,8 @@ static inline void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
         qemu_log("modifying code at 0x%x size=%d EIP=%x PC=%08x\n",
                   cpu_single_env->mem_io_vaddr, len,
                   cpu_single_env->eip,
-                  cpu_single_env->eip + cpu_single_env->segs[R_CS].base);
+                  cpu_single_env->eip +
+                  (intptr_t)cpu_single_env->segs[R_CS].base);
     }
 #endif
     p = page_find(start >> TARGET_PAGE_BITS);
@@ -1404,8 +1404,9 @@ TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     if (nb_tbs <= 0)
         return NULL;
     if (tc_ptr < (uintptr_t)code_gen_buffer ||
-        tc_ptr >= (uintptr_t)code_gen_ptr)
+        tc_ptr >= (uintptr_t)code_gen_ptr) {
         return NULL;
+    }
     /* binary search (cf Knuth) */
     m_min = 0;
     m_max = nb_tbs - 1;

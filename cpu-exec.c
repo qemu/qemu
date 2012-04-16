@@ -544,8 +544,8 @@ int cpu_exec(CPUArchState *env)
                 }
 #ifdef CONFIG_DEBUG_EXEC
                 qemu_log_mask(CPU_LOG_EXEC, "Trace %p [" TARGET_FMT_lx "] %s\n",
-                              tb->tc_ptr, tb->pc,
-                              lookup_symbol(tb->pc));
+                             tb->tc_ptr, tb->pc,
+                             lookup_symbol(tb->pc));
 #endif
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
