@@ -86,10 +86,10 @@ def stap(events):
         i = 1
         if len(e.args) > 0:
             for name in e.args.names():
-                # 'limit' is a reserved keyword
-                if name == 'limit':
-                    name = '_limit'
-                out('  %s = $arg%d;' % (name.lstrip(), i))
+                # Append underscore to reserved keywords
+                if name in ('limit', 'in', 'next', 'self'):
+                    name += '_'
+                out('  %s = $arg%d;' % (name, i))
                 i += 1
 
         out('}')
