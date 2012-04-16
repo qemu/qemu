@@ -349,7 +349,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
     b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, isa_bus, pic,
                            address_space_mem, address_space_io, ram_size,
                            pci_hole_start, pci_hole_size,
-                           pci_hole64_size, pci_hole64_size,
+                           pci_hole64_start, pci_hole64_size,
                            pci_memory, ram_memory);
     return b;
 }

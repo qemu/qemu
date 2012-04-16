@@ -77,6 +77,7 @@ struct qemu_ether_header {
 #define CSR_DTX(S)       !!(((S)->csr[15])&0x0002)
 #define CSR_LOOP(S)      !!(((S)->csr[15])&0x0004)
 #define CSR_DXMTFCS(S)   !!(((S)->csr[15])&0x0008)
+#define CSR_INTL(S)      !!(((S)->csr[15])&0x0040)
 #define CSR_DRCVPA(S)    !!(((S)->csr[15])&0x2000)
 #define CSR_DRCVBC(S)    !!(((S)->csr[15])&0x4000)
 #define CSR_PROM(S)      !!(((S)->csr[15])&0x8000)
@@ -884,7 +885,7 @@ static void pcnet_stop(PCNetState *s)
 #ifdef PCNET_DEBUG
     printf("pcnet_stop\n");
 #endif
-    s->csr[0] &= ~0x7feb;
+    s->csr[0] &= ~0xffeb;
     s->csr[0] |= 0x0014;
     s->csr[4] &= ~0x02c2;
     s->csr[5] &= ~0x0011;
@@ -1234,6 +1235,15 @@ static void pcnet_transmit(PCNetState *s)
             if (BCR_SWSTYLE(s) != 1)
                 add_crc = GET_FIELD(tmd.status, TMDS, ADDFCS);
         }
+        if (s->lnkst == 0 &&
+            (!CSR_LOOP(s) || (!CSR_INTL(s) && !BCR_TMAULOOP(s)))) {
+            SET_FIELD(&tmd.misc, TMDM, LCAR, 1);
+            SET_FIELD(&tmd.status, TMDS, ERR, 1);
+            SET_FIELD(&tmd.status, TMDS, OWN, 0);
+            s->csr[0] |= 0xa000; /* ERR | CERR */
+            s->xmit_pos = -1;
+            goto txdone;
+        }
         if (!GET_FIELD(tmd.status, TMDS, ENP)) {
             int bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
             s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
@@ -1262,6 +1272,7 @@ static void pcnet_transmit(PCNetState *s)
             s->xmit_pos = -1;
         }
 
+    txdone:
         SET_FIELD(&tmd.status, TMDS, OWN, 0);
         TMDSTORE(&tmd, PHYSADDR(s,CSR_CXDA(s)));
         if (!CSR_TOKINTD(s) || (CSR_LTINTEN(s) && GET_FIELD(tmd.status, TMDS, LTINT)))

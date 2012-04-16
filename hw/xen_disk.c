@@ -745,6 +745,10 @@ static int blk_free(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
     struct ioreq *ioreq;
 
+    if (blkdev->bs || blkdev->sring) {
+        blk_disconnect(xendev);
+    }
+
     while (!QLIST_EMPTY(&blkdev->freelist)) {
         ioreq = QLIST_FIRST(&blkdev->freelist);
         QLIST_REMOVE(ioreq, list);
