@@ -17,6 +17,11 @@
 #include "boards.h"
 #include "blockdev.h"
 #include "exec-memory.h"
+#include "flash.h"
+
+#define VERSATILE_FLASH_ADDR 0x34000000
+#define VERSATILE_FLASH_SIZE (64 * 1024 * 1024)
+#define VERSATILE_FLASH_SECT_SIZE (256 * 1024)
 
 /* Primary interrupt controller.  */
 
@@ -182,6 +187,7 @@ static void versatile_init(ram_addr_t ram_size,
     i2c_bus *i2c;
     int n;
     int done_smc = 0;
+    DriveInfo *dinfo;
 
     if (!cpu_model)
         cpu_model = "arm926";
@@ -316,6 +322,16 @@ static void versatile_init(ram_addr_t ram_size,
     /*  0x101f2000 UART1.  */
     /*  0x101f3000 UART2.  */
     /* 0x101f4000 SSPI.  */
+    /* 0x34000000 NOR Flash */
+
+    dinfo = drive_get(IF_PFLASH, 0, 0);
+    if (!pflash_cfi01_register(VERSATILE_FLASH_ADDR, NULL, "versatile.flash",
+                          VERSATILE_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
+                          VERSATILE_FLASH_SECT_SIZE,
+                          VERSATILE_FLASH_SIZE / VERSATILE_FLASH_SECT_SIZE,
+                          4, 0x0089, 0x0018, 0x0000, 0x0, 0)) {
+        fprintf(stderr, "qemu: Error registering flash memory.\n");
+    }
 
     versatile_binfo.ram_size = ram_size;
     versatile_binfo.kernel_filename = kernel_filename;
