@@ -2270,7 +2270,6 @@ so should only be used with trusted guest OS.
 @menu
 * Supported Operating Systems ::
 * Linux User space emulator::
-* Mac OS X/Darwin User space emulator ::
 * BSD User space emulator ::
 @end menu
 
@@ -2282,8 +2281,6 @@ The following OS are supported in user space emulation:
 @itemize @minus
 @item
 Linux (referred as qemu-linux-user)
-@item
-Mac OS X/Darwin (referred as qemu-darwin-user)
 @item
 BSD (referred as qemu-bsd-user)
 @end itemize
@@ -2488,93 +2485,6 @@ The binary format is detected automatically.
 
 @command{qemu-sparc64} can execute some Sparc64 (Sparc64 CPU, 64 bit ABI) and
 SPARC32PLUS binaries (Sparc64 CPU, 32 bit ABI).
-
-@node Mac OS X/Darwin User space emulator
-@section Mac OS X/Darwin User space emulator
-
-@menu
-* Mac OS X/Darwin Status::
-* Mac OS X/Darwin Quick Start::
-* Mac OS X/Darwin Command line options::
-@end menu
-
-@node Mac OS X/Darwin Status
-@subsection Mac OS X/Darwin Status
-
-@itemize @minus
-@item
-target x86 on x86: Most apps (Cocoa and Carbon too) works. [1]
-@item
-target PowerPC on x86: Not working as the ppc commpage can't be mapped (yet!)
-@item
-target PowerPC on PowerPC: Most apps (Cocoa and Carbon too) works. [1]
-@item
-target x86 on PowerPC: most utilities work. Cocoa and Carbon apps are not yet supported.
-@end itemize
-
-[1] If you're host commpage can be executed by qemu.
-
-@node Mac OS X/Darwin Quick Start
-@subsection Quick Start
-
-In order to launch a Mac OS X/Darwin process, QEMU needs the process executable
-itself and all the target dynamic libraries used by it. If you don't have the FAT
-libraries (you're running Mac OS X/ppc) you'll need to obtain it from a Mac OS X
-CD or compile them by hand.
-
-@itemize
-
-@item On x86, you can just try to launch any process by using the native
-libraries:
-
-@example
-qemu-i386 /bin/ls
-@end example
-
-or to run the ppc version of the executable:
-
-@example
-qemu-ppc /bin/ls
-@end example
-
-@item On ppc, you'll have to tell qemu where your x86 libraries (and dynamic linker)
-are installed:
-
-@example
-qemu-i386 -L /opt/x86_root/ /bin/ls
-@end example
-
-@code{-L /opt/x86_root/} tells that the dynamic linker (dyld) path is in
-@file{/opt/x86_root/usr/bin/dyld}.
-
-@end itemize
-
-@node Mac OS X/Darwin Command line options
-@subsection Command line options
-
-@example
-usage: qemu-i386 [-h] [-d] [-L path] [-s size] program [arguments...]
-@end example
-
-@table @option
-@item -h
-Print the help
-@item -L path
-Set the library root path (default=/)
-@item -s size
-Set the stack size in bytes (default=524288)
-@end table
-
-Debug options:
-
-@table @option
-@item -d
-Activate log (logfile=/tmp/qemu.log)
-@item -p pagesize
-Act as if the host page size was 'pagesize' bytes
-@item -singlestep
-Run the emulation in single step mode.
-@end table
 
 @node BSD User space emulator
 @section BSD User space emulator

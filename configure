@@ -173,7 +173,6 @@ profiler="no"
 cocoa="no"
 softmmu="yes"
 linux_user="no"
-darwin_user="no"
 bsd_user="no"
 guest_base=""
 uname_release=""
@@ -424,7 +423,6 @@ Darwin)
   else
     QEMU_CFLAGS="-mdynamic-no-pic $QEMU_CFLAGS"
   fi
-  darwin_user="yes"
   cocoa="yes"
   audio_drv_list="coreaudio"
   audio_possible_drivers="coreaudio sdl fmod"
@@ -728,16 +726,11 @@ for opt do
   --disable-user)
       linux_user="no" ;
       bsd_user="no" ;
-      darwin_user="no"
   ;;
   --enable-user) ;;
   --disable-linux-user) linux_user="no"
   ;;
   --enable-linux-user) linux_user="yes"
-  ;;
-  --disable-darwin-user) darwin_user="no"
-  ;;
-  --enable-darwin-user) darwin_user="yes"
   ;;
   --disable-bsd-user) bsd_user="no"
   ;;
@@ -967,10 +960,6 @@ unicore32-linux-user \
 s390x-linux-user \
 "
 fi
-# the following are Darwin specific
-if [ "$darwin_user" = "yes" ] ; then
-    default_target_list="$default_target_list i386-darwin-user ppc-darwin-user "
-fi
 # the following are BSD specific
 if [ "$bsd_user" = "yes" ] ; then
     default_target_list="${default_target_list}\
@@ -1072,8 +1061,6 @@ echo "  --enable-user            enable supported user emulation targets"
 echo "  --disable-user           disable all user emulation targets"
 echo "  --enable-linux-user      enable all linux usermode emulation targets"
 echo "  --disable-linux-user     disable all linux usermode emulation targets"
-echo "  --enable-darwin-user     enable all darwin usermode emulation targets"
-echo "  --disable-darwin-user    disable all darwin usermode emulation targets"
 echo "  --enable-bsd-user        enable all BSD usermode emulation targets"
 echo "  --disable-bsd-user       disable all BSD usermode emulation targets"
 echo "  --enable-guest-base      enable GUEST_BASE support for usermode"
@@ -3472,7 +3459,6 @@ esac
 target_softmmu="no"
 target_user_only="no"
 target_linux_user="no"
-target_darwin_user="no"
 target_bsd_user="no"
 case "$target" in
   ${target_arch2}-softmmu)
@@ -3485,14 +3471,6 @@ case "$target" in
     fi
     target_user_only="yes"
     target_linux_user="yes"
-    ;;
-  ${target_arch2}-darwin-user)
-    if test "$darwin" != "yes" ; then
-      echo "ERROR: Target '$target' is only available on a Darwin host"
-      exit 1
-    fi
-    target_user_only="yes"
-    target_darwin_user="yes"
     ;;
   ${target_arch2}-bsd-user)
     if test "$bsd" != "yes" ; then
@@ -3746,9 +3724,6 @@ if test "$target_user_only" = "yes" ; then
 fi
 if test "$target_linux_user" = "yes" ; then
   echo "CONFIG_LINUX_USER=y" >> $config_target_mak
-fi
-if test "$target_darwin_user" = "yes" ; then
-  echo "CONFIG_DARWIN_USER=y" >> $config_target_mak
 fi
 list=""
 if test ! -z "$gdb_xml_files" ; then
