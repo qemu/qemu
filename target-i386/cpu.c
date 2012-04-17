@@ -599,6 +599,20 @@ static int check_features_against_host(x86_def_t *guest_def)
     return rv;
 }
 
+static void x86_cpuid_version_get_family(Object *obj, Visitor *v, void *opaque,
+                                         const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    int64_t value;
+
+    value = (env->cpuid_version >> 8) & 0xf;
+    if (value == 0xf) {
+        value += (env->cpuid_version >> 20) & 0xff;
+    }
+    visit_type_int(v, &value, name, errp);
+}
+
 static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
                                          const char *name, Error **errp)
 {
@@ -1538,7 +1552,7 @@ static void x86_cpu_initfn(Object *obj)
     cpu_exec_init(env);
 
     object_property_add(obj, "family", "int",
-                        NULL,
+                        x86_cpuid_version_get_family,
                         x86_cpuid_version_set_family, NULL, NULL, NULL);
     object_property_add(obj, "model", "int",
                         NULL,
