@@ -677,15 +677,103 @@ static void qpa_fini_in (HWVoiceIn *hw)
 
 static int qpa_ctl_out (HWVoiceOut *hw, int cmd, ...)
 {
-    (void) hw;
-    (void) cmd;
+    PAVoiceOut *pa = (PAVoiceOut *) hw;
+    pa_operation *op;
+    pa_cvolume v;
+    paaudio *g = &glob_paaudio;
+
+    pa_cvolume_init (&v);
+
+    switch (cmd) {
+    case VOICE_VOLUME:
+        {
+            SWVoiceOut *sw;
+            va_list ap;
+
+            va_start (ap, cmd);
+            sw = va_arg (ap, SWVoiceOut *);
+            va_end (ap);
+
+            v.channels = 2;
+            v.values[0] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.l) / UINT32_MAX;
+            v.values[1] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.r) / UINT32_MAX;
+
+            pa_threaded_mainloop_lock (g->mainloop);
+
+            op = pa_context_set_sink_input_volume (g->context,
+                pa_stream_get_index (pa->stream),
+                &v, NULL, NULL);
+            if (!op)
+                qpa_logerr (pa_context_errno (g->context),
+                            "set_sink_input_volume() failed\n");
+            else
+                pa_operation_unref (op);
+
+            op = pa_context_set_sink_input_mute (g->context,
+                pa_stream_get_index (pa->stream),
+               sw->vol.mute, NULL, NULL);
+            if (!op) {
+                qpa_logerr (pa_context_errno (g->context),
+                            "set_sink_input_mute() failed\n");
+            } else {
+                pa_operation_unref (op);
+            }
+
+            pa_threaded_mainloop_unlock (g->mainloop);
+        }
+    }
     return 0;
 }
 
 static int qpa_ctl_in (HWVoiceIn *hw, int cmd, ...)
 {
-    (void) hw;
-    (void) cmd;
+    PAVoiceIn *pa = (PAVoiceIn *) hw;
+    pa_operation *op;
+    pa_cvolume v;
+    paaudio *g = &glob_paaudio;
+
+    pa_cvolume_init (&v);
+
+    switch (cmd) {
+    case VOICE_VOLUME:
+        {
+            SWVoiceIn *sw;
+            va_list ap;
+
+            va_start (ap, cmd);
+            sw = va_arg (ap, SWVoiceIn *);
+            va_end (ap);
+
+            v.channels = 2;
+            v.values[0] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.l) / UINT32_MAX;
+            v.values[1] = ((PA_VOLUME_NORM - PA_VOLUME_MUTED) * sw->vol.r) / UINT32_MAX;
+
+            pa_threaded_mainloop_lock (g->mainloop);
+
+            /* FIXME: use the upcoming "set_source_output_{volume,mute}" */
+            op = pa_context_set_source_volume_by_index (g->context,
+                pa_stream_get_device_index (pa->stream),
+                &v, NULL, NULL);
+            if (!op) {
+                qpa_logerr (pa_context_errno (g->context),
+                            "set_source_volume() failed\n");
+            } else {
+                pa_operation_unref(op);
+            }
+
+            op = pa_context_set_source_mute_by_index (g->context,
+                pa_stream_get_index (pa->stream),
+                sw->vol.mute, NULL, NULL);
+            if (!op) {
+                qpa_logerr (pa_context_errno (g->context),
+                            "set_source_mute() failed\n");
+            } else {
+                pa_operation_unref (op);
+            }
+
+            pa_threaded_mainloop_unlock (g->mainloop);
+        }
+    }
     return 0;
 }
 
@@ -822,5 +910,6 @@ struct audio_driver pa_audio_driver = {
     .max_voices_out = INT_MAX,
     .max_voices_in  = INT_MAX,
     .voice_size_out = sizeof (PAVoiceOut),
-    .voice_size_in  = sizeof (PAVoiceIn)
+    .voice_size_in  = sizeof (PAVoiceIn),
+    .ctl_caps       = VOICE_VOLUME_CAP
 };
