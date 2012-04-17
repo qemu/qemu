@@ -957,7 +957,9 @@ int audio_pcm_sw_read (SWVoiceIn *sw, void *buf, int size)
         total += isamp;
     }
 
-    mixeng_volume (sw->buf, ret, &sw->vol);
+    if (!(hw->ctl_caps & VOICE_VOLUME_CAP)) {
+        mixeng_volume (sw->buf, ret, &sw->vol);
+    }
 
     sw->clip (buf, sw->buf, ret);
     sw->total_hw_samples_acquired += total;
@@ -1041,7 +1043,10 @@ int audio_pcm_sw_write (SWVoiceOut *sw, void *buf, int size)
     swlim = audio_MIN (swlim, samples);
     if (swlim) {
         sw->conv (sw->buf, buf, swlim);
-        mixeng_volume (sw->buf, swlim, &sw->vol);
+
+        if (!(sw->hw->ctl_caps & VOICE_VOLUME_CAP)) {
+            mixeng_volume (sw->buf, swlim, &sw->vol);
+        }
     }
 
     while (swlim) {
