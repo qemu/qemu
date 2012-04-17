@@ -65,7 +65,7 @@ $QEMU_IO -c "read 1024 4096" $TEST_IMG | _filter_qemu_io
 
 echo
 echo "small write"
-$QEMU_IO -c "read 8192 4096" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write 8192 4096" $TEST_IMG | _filter_qemu_io
 
 # success, all done
 echo "*** done"
