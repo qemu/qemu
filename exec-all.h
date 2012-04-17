@@ -283,7 +283,7 @@ extern int tb_invalidated_flag;
 /* Alpha and SH4 user mode emulations and Softmmu call GETPC().
    For all others, GETPC remains undefined (which makes TCI a little faster. */
 # if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4)
-extern void *tci_tb_ptr;
+extern uintptr_t tci_tb_ptr;
 #  define GETPC() tci_tb_ptr
 # endif
 #elif defined(__s390__) && !defined(__s390x__)
