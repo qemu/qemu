@@ -855,6 +855,37 @@ static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
     }
 }
 
+static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    int64_t value;
+
+    value = cpu->env.tsc_khz * 1000;
+    visit_type_int(v, &value, name, errp);
+}
+
+static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    const int64_t min = 0;
+    const int64_t max = INT_MAX;
+    int64_t value;
+
+    visit_type_int(v, &value, name, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+    if (value < min || value > max) {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                  name ? name : "null", value, min, max);
+        return;
+    }
+
+    cpu->env.tsc_khz = value / 1000;
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 {
     unsigned int i;
@@ -1155,7 +1186,8 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     env->cpuid_svm_features = def->svm_features;
     env->cpuid_ext4_features = def->ext4_features;
     env->cpuid_xlevel2 = def->xlevel2;
-    env->tsc_khz = def->tsc_khz;
+    object_property_set_int(OBJECT(cpu), (int64_t)def->tsc_khz * 1000,
+                            "tsc-frequency", &error);
     if (!kvm_enabled()) {
         env->cpuid_features &= TCG_FEATURES;
         env->cpuid_ext_features &= TCG_EXT_FEATURES;
@@ -1718,6 +1750,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_str(obj, "model-id",
                             x86_cpuid_get_model_id,
                             x86_cpuid_set_model_id, NULL);
+    object_property_add(obj, "tsc-frequency", "int",
+                        x86_cpuid_get_tsc_freq,
+                        x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
 
     env->cpuid_apic_id = env->cpu_index;
     mce_init(cpu);
