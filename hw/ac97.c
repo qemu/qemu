@@ -118,7 +118,6 @@ enum {
 #define EACS_VRA 1
 #define EACS_VRM 8
 
-#define VOL_MASK 0x1f
 #define MUTE_SHIFT 15
 
 #define REC_MASK 7
