@@ -129,7 +129,7 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
 
 void xen_hvm_inject_msi(uint64_t addr, uint32_t data)
 {
-    xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
+    xen_xc_hvm_inject_msi(xen_xc, xen_domid, addr, data);
 }
 
 static void xen_suspend_notifier(Notifier *notifier, void *data)
