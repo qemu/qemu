@@ -436,6 +436,65 @@ static void reset_voices (AC97LinkState *s, uint8_t active[LAST_INDEX])
     AUD_set_active_in (s->voice_mc, active[MC_INDEX]);
 }
 
+static void get_volume (uint16_t vol, uint16_t mask, int inverse,
+                        int *mute, uint8_t *lvol, uint8_t *rvol)
+{
+    *mute = (vol >> MUTE_SHIFT) & 1;
+    *rvol = (255 * (vol & mask)) / mask;
+    *lvol = (255 * ((vol >> 8) & mask)) / mask;
+
+    if (inverse) {
+        *rvol = 255 - *rvol;
+        *lvol = 255 - *lvol;
+    }
+}
+
+static void update_combined_volume_out (AC97LinkState *s)
+{
+    uint8_t lvol, rvol, plvol, prvol;
+    int mute, pmute;
+
+    get_volume (mixer_load (s, AC97_Master_Volume_Mute), 0x3f, 1,
+                &mute, &lvol, &rvol);
+    /* FIXME: should be 1f according to spec */
+    get_volume (mixer_load (s, AC97_PCM_Out_Volume_Mute), 0x3f, 1,
+                &pmute, &plvol, &prvol);
+
+    mute = mute | pmute;
+    lvol = (lvol * plvol) / 255;
+    rvol = (rvol * prvol) / 255;
+
+    AUD_set_volume_out (s->voice_po, mute, lvol, rvol);
+}
+
+static void update_volume_in (AC97LinkState *s)
+{
+    uint8_t lvol, rvol;
+    int mute;
+
+    get_volume (mixer_load (s, AC97_Record_Gain_Mute), 0x0f, 0,
+                &mute, &lvol, &rvol);
+
+    AUD_set_volume_in (s->voice_pi, mute, lvol, rvol);
+}
+
+static void set_volume (AC97LinkState *s, int index, uint32_t val)
+{
+    mixer_store (s, index, val);
+    if (index == AC97_Master_Volume_Mute || index == AC97_PCM_Out_Volume_Mute) {
+        update_combined_volume_out (s);
+    } else if (index == AC97_Record_Gain_Mute) {
+        update_volume_in (s);
+    }
+}
+
+static void record_select (AC97LinkState *s, uint32_t val)
+{
+    uint8_t rs = val & REC_MASK;
+    uint8_t ls = (val >> 8) & REC_MASK;
+    mixer_store (s, AC97_Record_Select, rs | (ls << 8));
+}
+
 static void mixer_reset (AC97LinkState *s)
 {
     uint8_t active[LAST_INDEX];
@@ -469,6 +528,11 @@ static void mixer_reset (AC97LinkState *s)
     mixer_store (s, AC97_PCM_LFE_DAC_Rate        , 0xbb80);
     mixer_store (s, AC97_PCM_LR_ADC_Rate         , 0xbb80);
     mixer_store (s, AC97_MIC_ADC_Rate            , 0xbb80);
+
+    record_select (s, 0);
+    set_volume (s, AC97_Master_Volume_Mute, 0x8000);
+    set_volume (s, AC97_PCM_Out_Volume_Mute, 0x8808);
+    set_volume (s, AC97_Line_In_Volume_Mute, 0x8808);
 
     reset_voices (s, active);
 }
@@ -527,6 +591,15 @@ static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
         val &= ~0xf;
         val |= mixer_load (s, index) & 0xf;
         mixer_store (s, index, val);
+        break;
+    case AC97_PCM_Out_Volume_Mute:
+    case AC97_Master_Volume_Mute:
+    case AC97_Record_Gain_Mute:
+    case AC97_Line_In_Volume_Mute:
+        set_volume (s, index, val);
+        break;
+    case AC97_Record_Select:
+        record_select (s, val);
         break;
     case AC97_Vendor_ID1:
     case AC97_Vendor_ID2:
@@ -1079,6 +1152,14 @@ static int ac97_post_load (void *opaque, int version_id)
 {
     uint8_t active[LAST_INDEX];
     AC97LinkState *s = opaque;
+
+    record_select (s, mixer_load (s, AC97_Record_Select));
+    set_volume (s, AC97_Master_Volume_Mute,
+                mixer_load (s, AC97_Master_Volume_Mute));
+    set_volume (s, AC97_PCM_Out_Volume_Mute,
+                mixer_load (s, AC97_PCM_Out_Volume_Mute));
+    set_volume (s, AC97_Line_In_Volume_Mute,
+                mixer_load (s, AC97_Line_In_Volume_Mute));
 
     active[PI_INDEX] = !!(s->bm_regs[PI_INDEX].cr & CR_RPBM);
     active[PO_INDEX] = !!(s->bm_regs[PO_INDEX].cr & CR_RPBM);
