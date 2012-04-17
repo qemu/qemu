@@ -691,7 +691,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
             if (!strcmp(featurestr, "family")) {
                 char *err;
                 numvalue = strtoul(val, &err, 0);
-                if (!*val || *err) {
+                if (!*val || *err || numvalue > 0xff + 0xf) {
                     fprintf(stderr, "bad numerical value %s\n", val);
                     goto error;
                 }
