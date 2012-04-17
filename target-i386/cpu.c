@@ -626,10 +626,27 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
     }
 }
 
-static void x86_cpuid_version_set_model(CPUX86State *env, int model)
+static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
+                                        const char *name, Error **errp)
 {
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    const int64_t min = 0;
+    const int64_t max = 0xff;
+    int64_t value;
+
+    visit_type_int(v, &value, name, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+    if (value < min || value > max) {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                  name ? name : "null", value, min, max);
+        return;
+    }
+
     env->cpuid_version &= ~0xf00f0;
-    env->cpuid_version |= ((model & 0xf) << 4) | ((model >> 4) << 16);
+    env->cpuid_version |= ((value & 0xf) << 4) | ((value >> 4) << 16);
 }
 
 static void x86_cpuid_version_set_stepping(CPUX86State *env, int stepping)
@@ -946,7 +963,7 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     env->cpuid_vendor_override = def->vendor_override;
     env->cpuid_level = def->level;
     object_property_set_int(OBJECT(cpu), def->family, "family", &error);
-    x86_cpuid_version_set_model(env, def->model);
+    object_property_set_int(OBJECT(cpu), def->model, "model", &error);
     x86_cpuid_version_set_stepping(env, def->stepping);
     env->cpuid_features = def->features;
     env->cpuid_ext_features = def->ext_features;
@@ -1502,6 +1519,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "family", "int",
                         NULL,
                         x86_cpuid_version_set_family, NULL, NULL, NULL);
+    object_property_add(obj, "model", "int",
+                        NULL,
+                        x86_cpuid_version_set_model, NULL, NULL, NULL);
 
     env->cpuid_apic_id = env->cpu_index;
     mce_init(cpu);
