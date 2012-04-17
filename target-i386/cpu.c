@@ -673,8 +673,11 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
     env->cpuid_version |= value & 0xf;
 }
 
-static void x86_cpuid_set_model_id(CPUX86State *env, const char *model_id)
+static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
+                                   Error **errp)
 {
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
     int c, len, i;
 
     if (model_id == NULL) {
@@ -1004,7 +1007,7 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
         env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
     }
-    x86_cpuid_set_model_id(env, def->model_id);
+    object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error_is_set(&error)) {
         error_free(error);
         return -1;
@@ -1543,6 +1546,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "stepping", "int",
                         NULL,
                         x86_cpuid_version_set_stepping, NULL, NULL, NULL);
+    object_property_add_str(obj, "model-id",
+                            NULL,
+                            x86_cpuid_set_model_id, NULL);
 
     env->cpuid_apic_id = env->cpu_index;
     mce_init(cpu);
