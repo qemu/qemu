@@ -744,6 +744,39 @@ static void x86_cpuid_set_level(Object *obj, Visitor *v, void *opaque,
     cpu->env.cpuid_level = value;
 }
 
+static void x86_cpuid_get_xlevel(Object *obj, Visitor *v, void *opaque,
+                                 const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    int64_t value;
+
+    value = cpu->env.cpuid_xlevel;
+    /* TODO Use visit_type_uint32() once available */
+    visit_type_int(v, &value, name, errp);
+}
+
+static void x86_cpuid_set_xlevel(Object *obj, Visitor *v, void *opaque,
+                                 const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    const int64_t min = 0;
+    const int64_t max = UINT32_MAX;
+    int64_t value;
+
+    /* TODO Use visit_type_uint32() once available */
+    visit_type_int(v, &value, name, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+    if (value < min || value > max) {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                  name ? name : "null", value, min, max);
+        return;
+    }
+
+    cpu->env.cpuid_xlevel = value;
+}
+
 static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
@@ -1076,7 +1109,7 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     env->cpuid_ext_features = def->ext_features;
     env->cpuid_ext2_features = def->ext2_features;
     env->cpuid_ext3_features = def->ext3_features;
-    env->cpuid_xlevel = def->xlevel;
+    object_property_set_int(OBJECT(cpu), def->xlevel, "xlevel", &error);
     env->cpuid_kvm_features = def->kvm_features;
     env->cpuid_svm_features = def->svm_features;
     env->cpuid_ext4_features = def->ext4_features;
@@ -1635,6 +1668,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "level", "int",
                         x86_cpuid_get_level,
                         x86_cpuid_set_level, NULL, NULL, NULL);
+    object_property_add(obj, "xlevel", "int",
+                        x86_cpuid_get_xlevel,
+                        x86_cpuid_set_xlevel, NULL, NULL, NULL);
     object_property_add_str(obj, "model-id",
                             x86_cpuid_get_model_id,
                             x86_cpuid_set_model_id, NULL);
