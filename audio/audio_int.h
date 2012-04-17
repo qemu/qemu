@@ -82,6 +82,7 @@ typedef struct HWVoiceOut {
     int samples;
     QLIST_HEAD (sw_out_listhead, SWVoiceOut) sw_head;
     QLIST_HEAD (sw_cap_listhead, SWVoiceCap) cap_head;
+    int ctl_caps;
     struct audio_pcm_ops *pcm_ops;
     QLIST_ENTRY (HWVoiceOut) entries;
 } HWVoiceOut;
@@ -101,6 +102,7 @@ typedef struct HWVoiceIn {
 
     int samples;
     QLIST_HEAD (sw_in_listhead, SWVoiceIn) sw_head;
+    int ctl_caps;
     struct audio_pcm_ops *pcm_ops;
     QLIST_ENTRY (HWVoiceIn) entries;
 } HWVoiceIn;
@@ -150,6 +152,7 @@ struct audio_driver {
     int max_voices_in;
     int voice_size_out;
     int voice_size_in;
+    int ctl_caps;
 };
 
 struct audio_pcm_ops {
@@ -231,6 +234,9 @@ void audio_run (const char *msg);
 
 #define VOICE_ENABLE 1
 #define VOICE_DISABLE 2
+#define VOICE_VOLUME 3
+
+#define VOICE_VOLUME_CAP (1 << VOICE_VOLUME)
 
 static inline int audio_ring_dist (int dst, int src, int len)
 {
