@@ -777,6 +777,47 @@ static void x86_cpuid_set_xlevel(Object *obj, Visitor *v, void *opaque,
     cpu->env.cpuid_xlevel = value;
 }
 
+static char *x86_cpuid_get_vendor(Object *obj, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    char *value;
+    int i;
+
+    value = (char *)g_malloc(12 + 1);
+    for (i = 0; i < 4; i++) {
+        value[i    ] = env->cpuid_vendor1 >> (8 * i);
+        value[i + 4] = env->cpuid_vendor2 >> (8 * i);
+        value[i + 8] = env->cpuid_vendor3 >> (8 * i);
+    }
+    value[12] = '\0';
+    return value;
+}
+
+static void x86_cpuid_set_vendor(Object *obj, const char *value,
+                                 Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    if (strlen(value) != 12) {
+        error_set(errp, QERR_PROPERTY_VALUE_BAD, "",
+                  "vendor", value);
+        return;
+    }
+
+    env->cpuid_vendor1 = 0;
+    env->cpuid_vendor2 = 0;
+    env->cpuid_vendor3 = 0;
+    for (i = 0; i < 4; i++) {
+        env->cpuid_vendor1 |= ((uint8_t)value[i    ]) << (8 * i);
+        env->cpuid_vendor2 |= ((uint8_t)value[i + 4]) << (8 * i);
+        env->cpuid_vendor3 |= ((uint8_t)value[i + 8]) << (8 * i);
+    }
+    env->cpuid_vendor_override = 1;
+}
+
 static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
@@ -1671,6 +1712,9 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add(obj, "xlevel", "int",
                         x86_cpuid_get_xlevel,
                         x86_cpuid_set_xlevel, NULL, NULL, NULL);
+    object_property_add_str(obj, "vendor",
+                            x86_cpuid_get_vendor,
+                            x86_cpuid_set_vendor, NULL);
     object_property_add_str(obj, "model-id",
                             x86_cpuid_get_model_id,
                             x86_cpuid_set_model_id, NULL);
