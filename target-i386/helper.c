@@ -1176,7 +1176,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
             cpu_set_debug_excp_handler(breakpoint_handler);
 #endif
     }
-    if (cpu_x86_register(env, cpu_model) < 0) {
+    if (cpu_x86_register(cpu, cpu_model) < 0) {
         object_delete(OBJECT(cpu));
         return NULL;
     }

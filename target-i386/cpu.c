@@ -905,8 +905,9 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
     }
 }
 
-int cpu_x86_register (CPUX86State *env, const char *cpu_model)
+int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 {
+    CPUX86State *env = &cpu->env;
     x86_def_t def1, *def = &def1;
 
     memset(def, 0, sizeof(*def));
