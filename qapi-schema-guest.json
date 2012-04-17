@@ -296,14 +296,10 @@
 #
 # @frozen: all non-network guest filesystems frozen
 #
-# @error: failure to thaw 1 or more
-#         previously frozen filesystems, or failure to open a previously
-#         cached filesytem (filesystem unmounted/directory changes, etc).
-#
 # Since: 0.15.0
 ##
 { 'enum': 'GuestFsfreezeStatus',
-  'data': [ 'thawed', 'frozen', 'error' ] }
+  'data': [ 'thawed', 'frozen' ] }
 
 ##
 # @guest-fsfreeze-status:
@@ -311,6 +307,10 @@
 # Get guest fsfreeze state. error state indicates
 #
 # Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
+#
+# Note: This may fail to properly report the current state as a result of
+# qemu-ga having been restarted, or other guest processes having issued
+# an fs freeze/thaw.
 #
 # Since: 0.15.0
 ##
@@ -320,9 +320,10 @@
 ##
 # @guest-fsfreeze-freeze:
 #
-# Sync and freeze all non-network guest filesystems
+# Sync and freeze all freezable, local guest filesystems
 #
-# Returns: Number of file systems frozen on success
+# Returns: Number of file systems currently frozen. On error, all filesystems
+# will be thawed.
 #
 # Since: 0.15.0
 ##
@@ -332,10 +333,15 @@
 ##
 # @guest-fsfreeze-thaw:
 #
-# Unfreeze frozen guest fileystems
+# Unfreeze all frozen guest filesystems
 #
-# Returns: Number of file systems thawed
-#          If error, -1 (unknown error) or -errno
+# Returns: Number of file systems thawed by this call
+#
+# Note: if return value does not match the previous call to
+#       guest-fsfreeze-freeze, this likely means some freezable
+#       filesystems were unfrozen before this call, and that the
+#       filesystem state may have changed before issuing this
+#       command.
 #
 # Since: 0.15.0
 ##

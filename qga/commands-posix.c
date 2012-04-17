@@ -332,27 +332,37 @@ typedef struct GuestFsfreezeMount {
     QTAILQ_ENTRY(GuestFsfreezeMount) next;
 } GuestFsfreezeMount;
 
+typedef QTAILQ_HEAD(, GuestFsfreezeMount) GuestFsfreezeMountList;
+
 struct {
     GuestFsfreezeStatus status;
-    QTAILQ_HEAD(, GuestFsfreezeMount) mount_list;
 } guest_fsfreeze_state;
+
+static void guest_fsfreeze_free_mount_list(GuestFsfreezeMountList *mounts)
+{
+     GuestFsfreezeMount *mount, *temp;
+
+     if (!mounts) {
+         return;
+     }
+
+     QTAILQ_FOREACH_SAFE(mount, mounts, next, temp) {
+         QTAILQ_REMOVE(mounts, mount, next);
+         g_free(mount->dirname);
+         g_free(mount->devtype);
+         g_free(mount);
+     }
+}
 
 /*
  * Walk the mount table and build a list of local file systems
  */
-static int guest_fsfreeze_build_mount_list(void)
+static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
 {
     struct mntent *ment;
-    GuestFsfreezeMount *mount, *temp;
+    GuestFsfreezeMount *mount;
     char const *mtab = MOUNTED;
     FILE *fp;
-
-    QTAILQ_FOREACH_SAFE(mount, &guest_fsfreeze_state.mount_list, next, temp) {
-        QTAILQ_REMOVE(&guest_fsfreeze_state.mount_list, mount, next);
-        g_free(mount->dirname);
-        g_free(mount->devtype);
-        g_free(mount);
-    }
 
     fp = setmntent(mtab, "r");
     if (!fp) {
@@ -377,7 +387,7 @@ static int guest_fsfreeze_build_mount_list(void)
         mount->dirname = g_strdup(ment->mnt_dir);
         mount->devtype = g_strdup(ment->mnt_type);
 
-        QTAILQ_INSERT_TAIL(&guest_fsfreeze_state.mount_list, mount, next);
+        QTAILQ_INSERT_TAIL(mounts, mount, next);
     }
 
     endmntent(fp);
@@ -400,17 +410,15 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 int64_t qmp_guest_fsfreeze_freeze(Error **err)
 {
     int ret = 0, i = 0;
-    struct GuestFsfreezeMount *mount, *temp;
+    GuestFsfreezeMountList mounts;
+    struct GuestFsfreezeMount *mount;
     int fd;
     char err_msg[512];
 
     slog("guest-fsfreeze called");
 
-    if (guest_fsfreeze_state.status == GUEST_FSFREEZE_STATUS_FROZEN) {
-        return 0;
-    }
-
-    ret = guest_fsfreeze_build_mount_list();
+    QTAILQ_INIT(&mounts);
+    ret = guest_fsfreeze_build_mount_list(&mounts);
     if (ret < 0) {
         return ret;
     }
@@ -418,43 +426,46 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     /* cannot risk guest agent blocking itself on a write in this state */
     disable_logging();
 
-    QTAILQ_FOREACH_SAFE(mount, &guest_fsfreeze_state.mount_list, next, temp) {
+    QTAILQ_FOREACH(mount, &mounts, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
-            sprintf(err_msg, "failed to open %s, %s", mount->dirname, strerror(errno));
+            sprintf(err_msg, "failed to open %s, %s", mount->dirname,
+                    strerror(errno));
             error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
             goto error;
         }
 
         /* we try to cull filesytems we know won't work in advance, but other
          * filesytems may not implement fsfreeze for less obvious reasons.
-         * these will report EOPNOTSUPP, so we simply ignore them. when
-         * thawing, these filesystems will return an EINVAL instead, due to
-         * not being in a frozen state. Other filesystem-specific
-         * errors may result in EINVAL, however, so the user should check the
-         * number * of filesystems returned here against those returned by the
-         * thaw operation to determine whether everything completed
-         * successfully
+         * these will report EOPNOTSUPP. we simply ignore these when tallying
+         * the number of frozen filesystems.
+         *
+         * any other error means a failure to freeze a filesystem we
+         * expect to be freezable, so return an error in those cases
+         * and return system to thawed state.
          */
         ret = ioctl(fd, FIFREEZE);
-        if (ret < 0 && errno != EOPNOTSUPP) {
-            sprintf(err_msg, "failed to freeze %s, %s", mount->dirname, strerror(errno));
-            error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
-            close(fd);
-            goto error;
+        if (ret == -1) {
+            if (errno != EOPNOTSUPP) {
+                sprintf(err_msg, "failed to freeze %s, %s",
+                        mount->dirname, strerror(errno));
+                error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+                close(fd);
+                goto error;
+            }
+        } else {
+            i++;
         }
         close(fd);
-
-        i++;
     }
 
     guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_FROZEN;
+    guest_fsfreeze_free_mount_list(&mounts);
     return i;
 
 error:
-    if (i > 0) {
-        qmp_guest_fsfreeze_thaw(NULL);
-    }
+    guest_fsfreeze_free_mount_list(&mounts);
+    qmp_guest_fsfreeze_thaw(NULL);
     return 0;
 }
 
@@ -464,39 +475,59 @@ error:
 int64_t qmp_guest_fsfreeze_thaw(Error **err)
 {
     int ret;
-    GuestFsfreezeMount *mount, *temp;
-    int fd, i = 0;
-    bool has_error = false;
+    GuestFsfreezeMountList mounts;
+    GuestFsfreezeMount *mount;
+    int fd, i = 0, logged;
 
-    QTAILQ_FOREACH_SAFE(mount, &guest_fsfreeze_state.mount_list, next, temp) {
+    QTAILQ_INIT(&mounts);
+    ret = guest_fsfreeze_build_mount_list(&mounts);
+    if (ret) {
+        error_set(err, QERR_QGA_COMMAND_FAILED,
+                  "failed to enumerate filesystems");
+        return 0;
+    }
+
+    QTAILQ_FOREACH(mount, &mounts, next) {
+        logged = false;
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
-            has_error = true;
             continue;
         }
-        ret = ioctl(fd, FITHAW);
-        if (ret < 0 && errno != EOPNOTSUPP && errno != EINVAL) {
-            has_error = true;
-            close(fd);
-            continue;
-        }
+        /* we have no way of knowing whether a filesystem was actually unfrozen
+         * as a result of a successful call to FITHAW, only that if an error
+         * was returned the filesystem was *not* unfrozen by that particular
+         * call.
+         *
+         * since multiple preceeding FIFREEZEs require multiple calls to FITHAW
+         * to unfreeze, continuing issuing FITHAW until an error is returned,
+         * in which case either the filesystem is in an unfreezable state, or,
+         * more likely, it was thawed previously (and remains so afterward).
+         *
+         * also, since the most recent successful call is the one that did
+         * the actual unfreeze, we can use this to provide an accurate count
+         * of the number of filesystems unfrozen by guest-fsfreeze-thaw, which
+         * may * be useful for determining whether a filesystem was unfrozen
+         * during the freeze/thaw phase by a process other than qemu-ga.
+         */
+        do {
+            ret = ioctl(fd, FITHAW);
+            if (ret == 0 && !logged) {
+                i++;
+                logged = true;
+            }
+        } while (ret == 0);
         close(fd);
-        i++;
     }
 
-    if (has_error) {
-        guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_ERROR;
-    } else {
-        guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_THAWED;
-    }
+    guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_THAWED;
     enable_logging();
+    guest_fsfreeze_free_mount_list(&mounts);
     return i;
 }
 
 static void guest_fsfreeze_init(void)
 {
     guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_THAWED;
-    QTAILQ_INIT(&guest_fsfreeze_state.mount_list);
 }
 
 static void guest_fsfreeze_cleanup(void)
