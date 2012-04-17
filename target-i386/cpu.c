@@ -711,6 +711,21 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
     env->cpuid_version |= value & 0xf;
 }
 
+static char *x86_cpuid_get_model_id(Object *obj, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    char *value;
+    int i;
+
+    value = g_malloc(48 + 1);
+    for (i = 0; i < 48; i++) {
+        value[i] = env->cpuid_model[i >> 2] >> (8 * (i & 3));
+    }
+    value[48] = '\0';
+    return value;
+}
+
 static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
                                    Error **errp)
 {
@@ -1585,7 +1600,7 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_version_get_stepping,
                         x86_cpuid_version_set_stepping, NULL, NULL, NULL);
     object_property_add_str(obj, "model-id",
-                            NULL,
+                            x86_cpuid_get_model_id,
                             x86_cpuid_set_model_id, NULL);
 
     env->cpuid_apic_id = env->cpu_index;
