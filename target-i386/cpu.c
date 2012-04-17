@@ -640,6 +640,18 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
     }
 }
 
+static void x86_cpuid_version_get_model(Object *obj, Visitor *v, void *opaque,
+                                        const char *name, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    int64_t value;
+
+    value = (env->cpuid_version >> 4) & 0xf;
+    value |= ((env->cpuid_version >> 16) & 0xf) << 4;
+    visit_type_int(v, &value, name, errp);
+}
+
 static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
                                         const char *name, Error **errp)
 {
@@ -1555,7 +1567,7 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_version_get_family,
                         x86_cpuid_version_set_family, NULL, NULL, NULL);
     object_property_add(obj, "model", "int",
-                        NULL,
+                        x86_cpuid_version_get_model,
                         x86_cpuid_version_set_model, NULL, NULL, NULL);
     object_property_add(obj, "stepping", "int",
                         NULL,
