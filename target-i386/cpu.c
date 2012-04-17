@@ -27,6 +27,8 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 
+#include "qapi/qapi-visit-core.h"
+
 #include "hyperv.h"
 
 /* feature flags taken from "Intel Processor Identification and the CPUID
@@ -597,13 +599,30 @@ static int check_features_against_host(x86_def_t *guest_def)
     return rv;
 }
 
-static void x86_cpuid_version_set_family(CPUX86State *env, int family)
+static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
+                                         const char *name, Error **errp)
 {
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+    const int64_t min = 0;
+    const int64_t max = 0xff + 0xf;
+    int64_t value;
+
+    visit_type_int(v, &value, name, errp);
+    if (error_is_set(errp)) {
+        return;
+    }
+    if (value < min || value > max) {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                  name ? name : "null", value, min, max);
+        return;
+    }
+
     env->cpuid_version &= ~0xff00f00;
-    if (family > 0x0f) {
-        env->cpuid_version |= 0xf00 | ((family - 0x0f) << 20);
+    if (value > 0x0f) {
+        env->cpuid_version |= 0xf00 | ((value - 0x0f) << 20);
     } else {
-        env->cpuid_version |= family << 8;
+        env->cpuid_version |= value << 8;
     }
 }
 
@@ -909,6 +928,7 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 {
     CPUX86State *env = &cpu->env;
     x86_def_t def1, *def = &def1;
+    Error *error = NULL;
 
     memset(def, 0, sizeof(*def));
 
@@ -925,7 +945,7 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     }
     env->cpuid_vendor_override = def->vendor_override;
     env->cpuid_level = def->level;
-    x86_cpuid_version_set_family(env, def->family);
+    object_property_set_int(OBJECT(cpu), def->family, "family", &error);
     x86_cpuid_version_set_model(env, def->model);
     x86_cpuid_version_set_stepping(env, def->stepping);
     env->cpuid_features = def->features;
@@ -950,6 +970,10 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
     }
     x86_cpuid_set_model_id(env, def->model_id);
+    if (error_is_set(&error)) {
+        error_free(error);
+        return -1;
+    }
     return 0;
 }
 
@@ -1474,6 +1498,11 @@ static void x86_cpu_initfn(Object *obj)
     CPUX86State *env = &cpu->env;
 
     cpu_exec_init(env);
+
+    object_property_add(obj, "family", "int",
+                        NULL,
+                        x86_cpuid_version_set_family, NULL, NULL, NULL);
+
     env->cpuid_apic_id = env->cpu_index;
     mce_init(cpu);
 }
