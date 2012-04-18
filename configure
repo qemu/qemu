@@ -155,7 +155,7 @@ mingw32="no"
 EXESUF=""
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
-qemu_datadir="\${prefix}/share/qemu"
+datadir="\${prefix}/share"
 qemu_docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
@@ -521,7 +521,7 @@ EOF
   fi
   prefix="c:/Program Files/QEMU"
   mandir="\${prefix}"
-  qemu_datadir="\${prefix}"
+  datadir="\${prefix}"
   qemu_docdir="\${prefix}"
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
@@ -589,7 +589,7 @@ for opt do
   ;;
   --includedir=*) includedir="$optarg"
   ;;
-  --datadir=*) qemu_datadir="$optarg"
+  --datadir=*) datadir="$optarg"
   ;;
   --docdir=*) qemu_docdir="$optarg"
   ;;
@@ -1007,7 +1007,7 @@ echo "  --python=PYTHON          use specified python [$python]"
 echo "  --smbd=SMBD              use specified smbd [$smbd]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
-echo "  --datadir=PATH           install firmware in PATH"
+echo "  --datadir=PATH           install firmware in PATH/qemu"
 echo "  --docdir=PATH            install documentation in PATH"
 echo "  --bindir=PATH            install binaries in PATH"
 echo "  --sysconfdir=PATH        install config in PATH/qemu"
@@ -2880,6 +2880,7 @@ if test "$mingw32" = "yes" ; then
 fi
 
 qemu_confdir=$sysconfdir$confsuffix
+qemu_datadir=$datadir$confsuffix
 
 tools=
 if test "$softmmu" = yes ; then
