@@ -403,7 +403,6 @@ struct EHCIState {
     /*
      *  Internal states, shadow registers, etc
      */
-    uint32_t sofv;
     QEMUTimer *frame_timer;
     int attach_poll_counter;
     int astate;                        // Current state in asynchronous schedule
@@ -797,7 +796,6 @@ static void ehci_child_detach(USBPort *port, USBDevice *child)
     if (portsc & PORTSC_POWNER) {
         USBPort *companion = s->companion_ports[port->index];
         companion->ops->child_detach(companion, child);
-        companion->dev = NULL;
         return;
     }
 
@@ -1101,10 +1099,6 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
     case USBINTR:
         val &= USBINTR_MASK;
-        break;
-
-    case FRINDEX:
-        s->sofv = val >> 3;
         break;
 
     case CONFIGFLAG:
@@ -2015,7 +2009,6 @@ static void ehci_advance_state(EHCIState *ehci,
             fprintf(stderr, "processing error - resetting ehci HC\n");
             ehci_reset(ehci);
             again = 0;
-            assert(0);
         }
     }
     while (again);
@@ -2150,13 +2143,14 @@ static void ehci_frame_timer(void *opaque)
         if ( !(ehci->usbsts & USBSTS_HALT)) {
             ehci->frindex += 8;
 
-            if (ehci->frindex > 0x00001fff) {
-                ehci->frindex = 0;
+            if (ehci->frindex == 0x00002000) {
                 ehci_set_interrupt(ehci, USBSTS_FLR);
             }
 
-            ehci->sofv = (ehci->frindex - 1) >> 3;
-            ehci->sofv &= 0x000003ff;
+            if (ehci->frindex == 0x00004000) {
+                ehci_set_interrupt(ehci, USBSTS_FLR);
+                ehci->frindex = 0;
+            }
         }
 
         if (frames - i > ehci->maxframes) {
