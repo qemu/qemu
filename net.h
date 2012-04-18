@@ -170,7 +170,8 @@ void net_check_clients(void);
 void net_cleanup(void);
 void net_host_device_add(Monitor *mon, const QDict *qdict);
 void net_host_device_remove(Monitor *mon, const QDict *qdict);
-int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data);
+void netdev_add(QemuOpts *opts, Error **errp);
+int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret);
 int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"

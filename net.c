@@ -1234,27 +1234,39 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
     qemu_del_vlan_client(vc);
 }
 
-int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void netdev_add(QemuOpts *opts, Error **errp)
+{
+    net_client_init(opts, 1, errp);
+}
+
+int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret)
 {
     Error *local_err = NULL;
+    QemuOptsList *opts_list;
     QemuOpts *opts;
-    int res;
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &local_err);
-    if (!opts) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
+    opts_list = qemu_find_opts_err("netdev", &local_err);
+    if (error_is_set(&local_err)) {
+        goto exit_err;
     }
 
-    res = net_client_init(opts, 1, &local_err);
-    if (res < 0) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+    opts = qemu_opts_from_qdict(opts_list, qdict, &local_err);
+    if (error_is_set(&local_err)) {
+        goto exit_err;
+    }
+
+    netdev_add(opts, &local_err);
+    if (error_is_set(&local_err)) {
         qemu_opts_del(opts);
+        goto exit_err;
     }
 
-    return res;
+    return 0;
+
+exit_err:
+    qerror_report_err(local_err);
+    error_free(local_err);
+    return -1;
 }
 
 int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data)

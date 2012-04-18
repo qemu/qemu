@@ -1037,8 +1037,7 @@ ETEXI
         .args_type  = "netdev:O",
         .params     = "[user|tap|socket],id=str[,prop=value][,...]",
         .help       = "add host network device",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_netdev_add,
+        .mhandler.cmd = hmp_netdev_add,
     },
 
 STEXI

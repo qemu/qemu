@@ -1798,3 +1798,31 @@
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
             '*length': 'int' } }
+##
+# @netdev_add:
+#
+# Add a network backend.
+#
+# @type: the type of network backend.  Current valid values are 'user', 'tap',
+#        'vde', 'socket', 'dump' and 'bridge'
+#
+# @id: the name of the new network backend
+#
+# @props: #optional a list of properties to be passed to the backend in
+#         the format 'name=value', like 'ifname=tap0,script=no'
+#
+# Notes: The semantics of @props is not well defined.  Future commands will be
+#        introduced that provide stronger typing for backend creation.
+#
+# Since: 0.14.0
+#
+# Returns: Nothing on success
+#          If @type is not a valid network backend, DeviceNotFound
+#          If @id is not a valid identifier, InvalidParameterValue
+#          if @id already exists, DuplicateId
+#          If @props contains an invalid parameter for this backend,
+#            InvalidParameter
+##
+{ 'command': 'netdev_add',
+  'data': {'type': 'str', 'id': 'str', '*props': '**'},
+  'gen': 'no' }
