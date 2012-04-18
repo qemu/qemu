@@ -400,7 +400,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
         return ret;
     }
 
-    return new_block;
+    return 0;
 
 fail_table:
     g_free(new_table);
