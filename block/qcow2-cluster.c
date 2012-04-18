@@ -931,7 +931,7 @@ again:
 fail:
     qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
 fail_put:
-    if (nb_clusters > 0) {
+    if (m->nb_clusters > 0) {
         QLIST_REMOVE(m, next_in_flight);
     }
     return ret;
