@@ -56,9 +56,21 @@ struct GAState {
     GAService service;
 #endif
     bool delimit_response;
+    bool frozen;
+    GList *blacklist;
 };
 
 struct GAState *ga_state;
+
+/* commands that are safe to issue while filesystems are frozen */
+static const char *ga_freeze_whitelist[] = {
+    "guest-ping",
+    "guest-info",
+    "guest-sync",
+    "guest-fsfreeze-status",
+    "guest-fsfreeze-thaw",
+    NULL
+};
 
 #ifdef _WIN32
 DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
@@ -68,6 +80,15 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
 
 static void quit_handler(int sig)
 {
+    /* if we're frozen, don't exit unless we're absolutely forced to,
+     * because it's basically impossible for graceful exit to complete
+     * unless all log/pid files are on unfreezable filesystems. there's
+     * also a very likely chance killing the agent before unfreezing
+     * the filesystems is a mistake (or will be viewed as one later).
+     */
+    if (ga_is_frozen(ga_state)) {
+        return;
+    }
     g_debug("received signal num %d, quitting", sig);
 
     if (g_main_loop_is_running(ga_state->main_loop)) {
@@ -204,6 +225,87 @@ static void ga_log(const gchar *domain, GLogLevelFlags level,
 void ga_set_response_delimited(GAState *s)
 {
     s->delimit_response = true;
+}
+
+static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
+{
+    return strcmp(str1, str2);
+}
+
+/* disable commands that aren't safe for fsfreeze */
+static void ga_disable_non_whitelisted(void)
+{
+    char **list_head, **list;
+    bool whitelisted;
+    int i;
+
+    list_head = list = qmp_get_command_list();
+    while (*list != NULL) {
+        whitelisted = false;
+        i = 0;
+        while (ga_freeze_whitelist[i] != NULL) {
+            if (strcmp(*list, ga_freeze_whitelist[i]) == 0) {
+                whitelisted = true;
+            }
+            i++;
+        }
+        if (!whitelisted) {
+            g_debug("disabling command: %s", *list);
+            qmp_disable_command(*list);
+        }
+        g_free(*list);
+        list++;
+    }
+    g_free(list_head);
+}
+
+/* [re-]enable all commands, except those explictly blacklisted by user */
+static void ga_enable_non_blacklisted(GList *blacklist)
+{
+    char **list_head, **list;
+
+    list_head = list = qmp_get_command_list();
+    while (*list != NULL) {
+        if (g_list_find_custom(blacklist, *list, ga_strcmp) == NULL &&
+            !qmp_command_is_enabled(*list)) {
+            g_debug("enabling command: %s", *list);
+            qmp_enable_command(*list);
+        }
+        g_free(*list);
+        list++;
+    }
+    g_free(list_head);
+}
+
+bool ga_is_frozen(GAState *s)
+{
+    return s->frozen;
+}
+
+void ga_set_frozen(GAState *s)
+{
+    if (ga_is_frozen(s)) {
+        return;
+    }
+    /* disable all non-whitelisted (for frozen state) commands */
+    ga_disable_non_whitelisted();
+    g_warning("disabling logging due to filesystem freeze");
+    ga_disable_logging(s);
+    s->frozen = true;
+}
+
+void ga_unset_frozen(GAState *s)
+{
+    if (!ga_is_frozen(s)) {
+        return;
+    }
+
+    ga_enable_logging(s);
+    g_warning("logging re-enabled");
+
+    /* enable all disabled, non-blacklisted commands */
+    ga_enable_non_blacklisted(s->blacklist);
+    s->frozen = false;
 }
 
 #ifndef _WIN32
@@ -513,12 +615,13 @@ int main(int argc, char **argv)
         { "blacklist", 1, NULL, 'b' },
 #ifdef _WIN32
         { "service", 1, NULL, 's' },
-#endif        
+#endif
         { NULL, 0, NULL, 0 }
     };
     int opt_ind = 0, ch, daemonize = 0, i, j, len;
     GLogLevelFlags log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
     FILE *log_file = stderr;
+    GList *blacklist = NULL;
     GAState *s;
 
     module_call_init(MODULE_INIT_QAPI);
@@ -568,14 +671,12 @@ int main(int argc, char **argv)
             for (j = 0, i = 0, len = strlen(optarg); i < len; i++) {
                 if (optarg[i] == ',') {
                     optarg[i] = 0;
-                    qmp_disable_command(&optarg[j]);
-                    g_debug("disabling command: %s", &optarg[j]);
+                    blacklist = g_list_append(blacklist, &optarg[j]);
                     j = i + 1;
                 }
             }
             if (j < i) {
-                qmp_disable_command(&optarg[j]);
-                g_debug("disabling command: %s", &optarg[j]);
+                blacklist = g_list_append(blacklist, &optarg[j]);
             }
             break;
         }
@@ -615,6 +716,15 @@ int main(int argc, char **argv)
     g_log_set_default_handler(ga_log, s);
     g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
     s->logging_enabled = true;
+    s->frozen = false;
+    if (blacklist) {
+        s->blacklist = blacklist;
+        do {
+            g_debug("disabling command: %s", (char *)blacklist->data);
+            qmp_disable_command(blacklist->data);
+            blacklist = g_list_next(blacklist);
+        } while (blacklist);
+    }
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);

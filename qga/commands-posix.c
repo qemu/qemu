@@ -316,16 +316,6 @@ static void guest_file_init(void)
 
 #if defined(CONFIG_FSFREEZE)
 
-static void disable_logging(void)
-{
-    ga_disable_logging(ga_state);
-}
-
-static void enable_logging(void)
-{
-    ga_enable_logging(ga_state);
-}
-
 typedef struct GuestFsfreezeMount {
     char *dirname;
     char *devtype;
@@ -333,10 +323,6 @@ typedef struct GuestFsfreezeMount {
 } GuestFsfreezeMount;
 
 typedef QTAILQ_HEAD(, GuestFsfreezeMount) GuestFsfreezeMountList;
-
-struct {
-    GuestFsfreezeStatus status;
-} guest_fsfreeze_state;
 
 static void guest_fsfreeze_free_mount_list(GuestFsfreezeMountList *mounts)
 {
@@ -400,7 +386,11 @@ static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
  */
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 {
-    return guest_fsfreeze_state.status;
+    if (ga_is_frozen(ga_state)) {
+        return GUEST_FSFREEZE_STATUS_FROZEN;
+    }
+
+    return GUEST_FSFREEZE_STATUS_THAWED;
 }
 
 /*
@@ -424,7 +414,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     }
 
     /* cannot risk guest agent blocking itself on a write in this state */
-    disable_logging();
+    ga_set_frozen(ga_state);
 
     QTAILQ_FOREACH(mount, &mounts, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
@@ -459,7 +449,6 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
         close(fd);
     }
 
-    guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_FROZEN;
     guest_fsfreeze_free_mount_list(&mounts);
     return i;
 
@@ -519,15 +508,9 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
         close(fd);
     }
 
-    guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_THAWED;
-    enable_logging();
+    ga_unset_frozen(ga_state);
     guest_fsfreeze_free_mount_list(&mounts);
     return i;
-}
-
-static void guest_fsfreeze_init(void)
-{
-    guest_fsfreeze_state.status = GUEST_FSFREEZE_STATUS_THAWED;
 }
 
 static void guest_fsfreeze_cleanup(void)
@@ -535,7 +518,7 @@ static void guest_fsfreeze_cleanup(void)
     int64_t ret;
     Error *err = NULL;
 
-    if (guest_fsfreeze_state.status == GUEST_FSFREEZE_STATUS_FROZEN) {
+    if (ga_is_frozen(ga_state) == GUEST_FSFREEZE_STATUS_FROZEN) {
         ret = qmp_guest_fsfreeze_thaw(&err);
         if (ret < 0 || err) {
             slog("failed to clean up frozen filesystems");
@@ -964,7 +947,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
 #if defined(CONFIG_FSFREEZE)
-    ga_command_state_add(cs, guest_fsfreeze_init, guest_fsfreeze_cleanup);
+    ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
 #endif
     ga_command_state_add(cs, guest_file_init, NULL);
 }
