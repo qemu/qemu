@@ -968,13 +968,19 @@ void qemu_opts_set_defaults(QemuOptsList *list, const char *params,
     assert(opts);
 }
 
+typedef struct OptsFromQDictState {
+    QemuOpts *opts;
+    Error **errp;
+} OptsFromQDictState;
+
 static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
 {
+    OptsFromQDictState *state = opaque;
     char buf[32];
     const char *value;
     int n;
 
-    if (!strcmp(key, "id")) {
+    if (!strcmp(key, "id") || error_is_set(state->errp)) {
         return;
     }
 
@@ -1002,7 +1008,8 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
     default:
         return;
     }
-    qemu_opt_set(opaque, key, value);
+
+    qemu_opt_set_err(state->opts, key, value, state->errp);
 }
 
 /*
@@ -1011,21 +1018,31 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
  * Only QStrings, QInts, QFloats and QBools are copied.  Entries with
  * other types are silently ignored.
  */
-QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict)
+QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
+                               Error **errp)
 {
-    QemuOpts *opts;
+    OptsFromQDictState state;
     Error *local_err = NULL;
+    QemuOpts *opts;
 
     opts = qemu_opts_create(list, qdict_get_try_str(qdict, "id"), 1,
                             &local_err);
     if (error_is_set(&local_err)) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         return NULL;
     }
 
     assert(opts != NULL);
-    qdict_iter(qdict, qemu_opts_from_qdict_1, opts);
+
+    state.errp = &local_err;
+    state.opts = opts;
+    qdict_iter(qdict, qemu_opts_from_qdict_1, &state);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        qemu_opts_del(opts);
+        return NULL;
+    }
+
     return opts;
 }
 

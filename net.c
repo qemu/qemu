@@ -1237,11 +1237,14 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
 
 int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
+    Error *local_err = NULL;
     QemuOpts *opts;
     int res;
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict);
+    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &local_err);
     if (!opts) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return -1;
     }
 
