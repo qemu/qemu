@@ -155,7 +155,7 @@ mingw32="no"
 EXESUF=""
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
-datadir="\${prefix}/share/qemu"
+qemu_datadir="\${prefix}/share/qemu"
 docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
@@ -521,7 +521,7 @@ EOF
   fi
   prefix="c:/Program Files/QEMU"
   mandir="\${prefix}"
-  datadir="\${prefix}"
+  qemu_datadir="\${prefix}"
   docdir="\${prefix}"
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
@@ -589,7 +589,7 @@ for opt do
   ;;
   --includedir=*) includedir="$optarg"
   ;;
-  --datadir=*) datadir="$optarg"
+  --datadir=*) qemu_datadir="$optarg"
   ;;
   --docdir=*) docdir="$optarg"
   ;;
@@ -2914,7 +2914,7 @@ if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
 fi
 
 echo "Install prefix    $prefix"
-echo "BIOS directory    `eval echo $datadir`"
+echo "BIOS directory    `eval echo $qemu_datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
 echo "include directory `eval echo $includedir`"
@@ -3022,7 +3022,7 @@ echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
 echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
-echo "datadir=$datadir" >> $config_host_mak
+echo "datadir=$qemu_datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "docdir=$docdir" >> $config_host_mak
 echo "confdir=$confdir" >> $config_host_mak
