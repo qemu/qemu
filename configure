@@ -156,7 +156,7 @@ EXESUF=""
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
 qemu_datadir="\${prefix}/share/qemu"
-docdir="\${prefix}/share/doc/qemu"
+qemu_docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
 includedir="\${prefix}/include"
@@ -522,7 +522,7 @@ EOF
   prefix="c:/Program Files/QEMU"
   mandir="\${prefix}"
   qemu_datadir="\${prefix}"
-  docdir="\${prefix}"
+  qemu_docdir="\${prefix}"
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
   confsuffix=""
@@ -591,7 +591,7 @@ for opt do
   ;;
   --datadir=*) qemu_datadir="$optarg"
   ;;
-  --docdir=*) docdir="$optarg"
+  --docdir=*) qemu_docdir="$optarg"
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
@@ -3024,7 +3024,7 @@ echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
 echo "datadir=$qemu_datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
-echo "docdir=$docdir" >> $config_host_mak
+echo "docdir=$qemu_docdir" >> $config_host_mak
 echo "confdir=$confdir" >> $config_host_mak
 echo "libexecdir=\${prefix}/libexec" >> $config_host_mak
 echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
