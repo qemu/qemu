@@ -22,7 +22,7 @@ case $line in
     # save for the next definitions
     eval "$name=\$define_value"
     ;;
- prefix=* | [a-z]*dir=*) # directory configuration
+ prefix=*)
     name=${line%=*}
     value=${line#*=}
     define_name=`echo $name | LC_ALL=C tr '[a-z]' '[A-Z]'`
