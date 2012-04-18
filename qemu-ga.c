@@ -18,6 +18,7 @@
 #ifndef _WIN32
 #include <syslog.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #endif
 #include "json-streamer.h"
 #include "json-parser.h"
@@ -41,6 +42,7 @@
 #define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
 #endif
 #define QGA_PIDFILE_DEFAULT "/var/run/qemu-ga.pid"
+#define QGA_STATEDIR_DEFAULT "/tmp"
 #define QGA_SENTINEL_BYTE 0xFF
 
 struct GAState {
@@ -58,6 +60,11 @@ struct GAState {
     bool delimit_response;
     bool frozen;
     GList *blacklist;
+    const char *state_filepath_isfrozen;
+    struct {
+        const char *log_filepath;
+        const char *pid_filepath;
+    } deferred_options;
 };
 
 struct GAState *ga_state;
@@ -147,6 +154,8 @@ static void usage(const char *cmd)
 "                    %s)\n"
 "  -l, --logfile     set logfile path, logs to stderr by default\n"
 "  -f, --pidfile     specify pidfile (default is %s)\n"
+"  -t, --statedir    specify dir to store state information (absolute paths\n"
+"                    only, default is %s)\n"
 "  -v, --verbose     log extra debugging information\n"
 "  -V, --version     print version information and exit\n"
 "  -d, --daemonize   become a daemon\n"
@@ -158,7 +167,8 @@ static void usage(const char *cmd)
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
-    , cmd, QGA_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT);
+    , cmd, QGA_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
+    QGA_STATEDIR_DEFAULT);
 }
 
 static const char *ga_log_level_str(GLogLevelFlags level)
@@ -227,6 +237,41 @@ void ga_set_response_delimited(GAState *s)
     s->delimit_response = true;
 }
 
+#ifndef _WIN32
+static bool ga_open_pidfile(const char *pidfile)
+{
+    int pidfd;
+    char pidstr[32];
+
+    pidfd = open(pidfile, O_CREAT|O_WRONLY, S_IRUSR|S_IWUSR);
+    if (pidfd == -1 || lockf(pidfd, F_TLOCK, 0)) {
+        g_critical("Cannot lock pid file, %s", strerror(errno));
+        return false;
+    }
+
+    if (ftruncate(pidfd, 0) || lseek(pidfd, 0, SEEK_SET)) {
+        g_critical("Failed to truncate pid file");
+        goto fail;
+    }
+    sprintf(pidstr, "%d", getpid());
+    if (write(pidfd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
+        g_critical("Failed to write pid file");
+        goto fail;
+    }
+
+    return true;
+
+fail:
+    unlink(pidfile);
+    return false;
+}
+#else /* _WIN32 */
+static bool ga_open_pidfile(const char *pidfile)
+{
+    return true;
+}
+#endif
+
 static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
 {
     return strcmp(str1, str2);
@@ -277,6 +322,28 @@ static void ga_enable_non_blacklisted(GList *blacklist)
     g_free(list_head);
 }
 
+static bool ga_create_file(const char *path)
+{
+    int fd = open(path, O_CREAT | O_WRONLY, S_IWUSR | S_IRUSR);
+    if (fd == -1) {
+        g_warning("unable to open/create file %s: %s", path, strerror(errno));
+        return false;
+    }
+    close(fd);
+    return true;
+}
+
+static bool ga_delete_file(const char *path)
+{
+    int ret = unlink(path);
+    if (ret == -1) {
+        g_warning("unable to delete file: %s: %s", path, strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
 bool ga_is_frozen(GAState *s)
 {
     return s->frozen;
@@ -292,6 +359,10 @@ void ga_set_frozen(GAState *s)
     g_warning("disabling logging due to filesystem freeze");
     ga_disable_logging(s);
     s->frozen = true;
+    if (!ga_create_file(s->state_filepath_isfrozen)) {
+        g_warning("unable to create %s, fsfreeze may not function properly",
+                  s->state_filepath_isfrozen);
+    }
 }
 
 void ga_unset_frozen(GAState *s)
@@ -300,20 +371,38 @@ void ga_unset_frozen(GAState *s)
         return;
     }
 
+    /* if we delayed creation/opening of pid/log files due to being
+     * in a frozen state at start up, do it now
+     */
+    if (s->deferred_options.log_filepath) {
+        s->log_file = fopen(s->deferred_options.log_filepath, "a");
+        if (!s->log_file) {
+            s->log_file = stderr;
+        }
+        s->deferred_options.log_filepath = NULL;
+    }
     ga_enable_logging(s);
-    g_warning("logging re-enabled");
+    g_warning("logging re-enabled due to filesystem unfreeze");
+    if (s->deferred_options.pid_filepath) {
+        if (!ga_open_pidfile(s->deferred_options.pid_filepath)) {
+            g_warning("failed to create/open pid file");
+        }
+        s->deferred_options.pid_filepath = NULL;
+    }
 
     /* enable all disabled, non-blacklisted commands */
     ga_enable_non_blacklisted(s->blacklist);
     s->frozen = false;
+    if (!ga_delete_file(s->state_filepath_isfrozen)) {
+        g_warning("unable to delete %s, fsfreeze may not function properly",
+                  s->state_filepath_isfrozen);
+    }
 }
 
-#ifndef _WIN32
 static void become_daemon(const char *pidfile)
 {
+#ifndef _WIN32
     pid_t pid, sid;
-    int pidfd;
-    char *pidstr = NULL;
 
     pid = fork();
     if (pid < 0) {
@@ -323,20 +412,11 @@ static void become_daemon(const char *pidfile)
         exit(EXIT_SUCCESS);
     }
 
-    pidfd = open(pidfile, O_CREAT|O_WRONLY|O_EXCL, S_IRUSR|S_IWUSR);
-    if (pidfd == -1) {
-        g_critical("Cannot create pid file, %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-
-    if (asprintf(&pidstr, "%d", getpid()) == -1) {
-        g_critical("Cannot allocate memory");
-        goto fail;
-    }
-    if (write(pidfd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
-        free(pidstr);
-        g_critical("Failed to write pid file");
-        goto fail;
+    if (pidfile) {
+        if (!ga_open_pidfile(pidfile)) {
+            g_critical("failed to create pidfile");
+            exit(EXIT_FAILURE);
+        }
     }
 
     umask(0);
@@ -351,15 +431,14 @@ static void become_daemon(const char *pidfile)
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-    free(pidstr);
     return;
 
 fail:
     unlink(pidfile);
     g_critical("failed to daemonize");
     exit(EXIT_FAILURE);
-}
 #endif
+}
 
 static int send_response(GAState *s, QObject *payload)
 {
@@ -597,9 +676,11 @@ VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
 
 int main(int argc, char **argv)
 {
-    const char *sopt = "hVvdm:p:l:f:b:s:";
-    const char *method = NULL, *path = NULL, *pidfile = QGA_PIDFILE_DEFAULT;
-    const char *log_file_name = NULL;
+    const char *sopt = "hVvdm:p:l:f:b:s:t:";
+    const char *method = NULL, *path = NULL;
+    const char *log_filepath = NULL;
+    const char *pid_filepath = QGA_PIDFILE_DEFAULT;
+    const char *state_dir = QGA_STATEDIR_DEFAULT;
 #ifdef _WIN32
     const char *service = NULL;
 #endif
@@ -616,11 +697,11 @@ int main(int argc, char **argv)
 #ifdef _WIN32
         { "service", 1, NULL, 's' },
 #endif
+        { "statedir", 1, NULL, 't' },
         { NULL, 0, NULL, 0 }
     };
     int opt_ind = 0, ch, daemonize = 0, i, j, len;
     GLogLevelFlags log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
-    FILE *log_file = stderr;
     GList *blacklist = NULL;
     GAState *s;
 
@@ -635,17 +716,14 @@ int main(int argc, char **argv)
             path = optarg;
             break;
         case 'l':
-            log_file_name = optarg;
-            log_file = fopen(log_file_name, "a");
-            if (!log_file) {
-                g_critical("unable to open specified log file: %s",
-                           strerror(errno));
-                return EXIT_FAILURE;
-            }
+            log_filepath = optarg;
             break;
         case 'f':
-            pidfile = optarg;
+            pid_filepath = optarg;
             break;
+        case 't':
+             state_dir = optarg;
+             break;
         case 'v':
             /* enable all log levels */
             log_level = G_LOG_LEVEL_MASK;
@@ -684,7 +762,7 @@ int main(int argc, char **argv)
         case 's':
             service = optarg;
             if (strcmp(service, "install") == 0) {
-                return ga_install_service(path, log_file_name);
+                return ga_install_service(path, log_filepath);
             } else if (strcmp(service, "uninstall") == 0) {
                 return ga_uninstall_service();
             } else {
@@ -703,20 +781,70 @@ int main(int argc, char **argv)
         }
     }
 
+    s = g_malloc0(sizeof(GAState));
+    s->log_level = log_level;
+    s->log_file = stderr;
+    g_log_set_default_handler(ga_log, s);
+    g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
+    ga_enable_logging(s);
+    s->state_filepath_isfrozen = g_strdup_printf("%s/qga.state.isfrozen",
+                                                 state_dir);
+    s->frozen = false;
 #ifndef _WIN32
-    if (daemonize) {
-        g_debug("starting daemon");
-        become_daemon(pidfile);
+    /* check if a previous instance of qemu-ga exited with filesystems' state
+     * marked as frozen. this could be a stale value (a non-qemu-ga process
+     * or reboot may have since unfrozen them), but better to require an
+     * uneeded unfreeze than to risk hanging on start-up
+     */
+    struct stat st;
+    if (stat(s->state_filepath_isfrozen, &st) == -1) {
+        /* it's okay if the file doesn't exist, but if we can't access for
+         * some other reason, such as permissions, there's a configuration
+         * that needs to be addressed. so just bail now before we get into
+         * more trouble later
+         */
+        if (errno != ENOENT) {
+            g_critical("unable to access state file at path %s: %s",
+                       s->state_filepath_isfrozen, strerror(errno));
+            return EXIT_FAILURE;
+        }
+    } else {
+        g_warning("previous instance appears to have exited with frozen"
+                  " filesystems. deferring logging/pidfile creation and"
+                  " disabling non-fsfreeze-safe commands until"
+                  " guest-fsfreeze-thaw is issued, or filesystems are"
+                  " manually unfrozen and the file %s is removed",
+                  s->state_filepath_isfrozen);
+        s->frozen = true;
     }
 #endif
 
-    s = g_malloc0(sizeof(GAState));
-    s->log_file = log_file;
-    s->log_level = log_level;
-    g_log_set_default_handler(ga_log, s);
-    g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
-    s->logging_enabled = true;
-    s->frozen = false;
+    if (ga_is_frozen(s)) {
+        if (daemonize) {
+            /* delay opening/locking of pidfile till filesystem are unfrozen */
+            s->deferred_options.pid_filepath = pid_filepath;
+            become_daemon(NULL);
+        }
+        if (log_filepath) {
+            /* delay opening the log file till filesystems are unfrozen */
+            s->deferred_options.log_filepath = log_filepath;
+        }
+        ga_disable_logging(s);
+        ga_disable_non_whitelisted();
+    } else {
+        if (daemonize) {
+            become_daemon(pid_filepath);
+        }
+        if (log_filepath) {
+            s->log_file = fopen(log_filepath, "a");
+            if (!s->log_file) {
+                g_critical("unable to open specified log file: %s",
+                           strerror(errno));
+                goto out_bad;
+            }
+        }
+    }
+
     if (blacklist) {
         s->blacklist = blacklist;
         do {
@@ -758,13 +886,13 @@ int main(int argc, char **argv)
     ga_channel_free(ga_state->channel);
 
     if (daemonize) {
-        unlink(pidfile);
+        unlink(pid_filepath);
     }
     return 0;
 
 out_bad:
     if (daemonize) {
-        unlink(pidfile);
+        unlink(pid_filepath);
     }
     return EXIT_FAILURE;
 }

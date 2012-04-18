@@ -309,8 +309,7 @@
 # Returns: GuestFsfreezeStatus ("thawed", "frozen", etc., as defined below)
 #
 # Note: This may fail to properly report the current state as a result of
-# qemu-ga having been restarted, or other guest processes having issued
-# an fs freeze/thaw.
+# some other guest processes having issued an fs freeze/thaw.
 #
 # Since: 0.15.0
 ##
