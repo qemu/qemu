@@ -485,8 +485,8 @@ ifneq ($(STRIP),)
 endif
 endif
 ifdef CONFIG_TRACE_SYSTEMTAP
-	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/../systemtap/tapset"
-	$(INSTALL_DATA) $(QEMU_PROG).stp "$(DESTDIR)$(datadir)/../systemtap/tapset"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/../systemtap/tapset"
+	$(INSTALL_DATA) $(QEMU_PROG).stp "$(DESTDIR)$(qemu_datadir)/../systemtap/tapset"
 endif
 
 # Include automatically generated dependency files
