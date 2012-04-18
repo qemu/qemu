@@ -377,6 +377,10 @@ static QEMUMachine pc_machine_v1_1 = {
             .driver   = "apic",\
             .property = "vapic",\
             .value    = "off",\
+        },{\
+            .driver   = "USB",\
+            .property = "full-path",\
+            .value    = "no",\
         }
 
 static QEMUMachine pc_machine_v1_0 = {

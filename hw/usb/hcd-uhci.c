@@ -795,7 +795,8 @@ out:
     return TD_RESULT_NEXT_QH;
 }
 
-static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *int_mask)
+static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
+                          uint32_t *int_mask, bool queuing)
 {
     UHCIAsync *async;
     int len = 0, max_len;
@@ -814,6 +815,12 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 
         if (!async->done)
             return TD_RESULT_ASYNC_CONT;
+        if (queuing) {
+            /* we are busy filling the queue, we are not prepared
+               to consume completed packages then, just leave them
+               in async state */
+            return TD_RESULT_ASYNC_CONT;
+        }
 
         uhci_async_unlink(async);
         goto done;
@@ -964,7 +971,10 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
             break;
         }
         trace_usb_uhci_td_queue(plink & ~0xf, ptd.ctrl, ptd.token);
-        ret = uhci_handle_td(s, plink, &ptd, &int_mask);
+        ret = uhci_handle_td(s, plink, &ptd, &int_mask, true);
+        if (ret == TD_RESULT_ASYNC_CONT) {
+            break;
+        }
         assert(ret == TD_RESULT_ASYNC_START);
         assert(int_mask == 0);
         plink = ptd.link;
@@ -1045,7 +1055,7 @@ static void uhci_process_frame(UHCIState *s)
         trace_usb_uhci_td_load(curr_qh & ~0xf, link & ~0xf, td.ctrl, td.token);
 
         old_td_ctrl = td.ctrl;
-        ret = uhci_handle_td(s, link, &td, &int_mask);
+        ret = uhci_handle_td(s, link, &td, &int_mask, false);
         if (old_td_ctrl != td.ctrl) {
             /* update the status bits of the TD */
             val = cpu_to_le32(td.ctrl);

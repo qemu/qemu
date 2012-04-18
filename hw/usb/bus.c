@@ -19,6 +19,8 @@ static struct BusInfo usb_bus_info = {
     .get_fw_dev_path = usb_get_fw_dev_path,
     .props      = (Property[]) {
         DEFINE_PROP_STRING("port", USBDevice, port_path),
+        DEFINE_PROP_BIT("full-path", USBDevice, flags,
+                        USB_DEV_FLAG_FULL_PATH, true),
         DEFINE_PROP_END_OF_LIST()
     },
 };
@@ -460,7 +462,20 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 static char *usb_get_dev_path(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
-    return g_strdup(dev->port->path);
+    DeviceState *hcd = qdev->parent_bus->parent;
+    char *id = NULL;
+
+    if ((dev->flags & (1 << USB_DEV_FLAG_FULL_PATH)) &&
+        hcd && hcd->parent_bus && hcd->parent_bus->info->get_dev_path) {
+        id = hcd->parent_bus->info->get_dev_path(hcd);
+    }
+    if (id) {
+        char *ret = g_strdup_printf("%s/%s", id, dev->port->path);
+        g_free(id);
+        return ret;
+    } else {
+        return g_strdup(dev->port->path);
+    }
 }
 
 static char *usb_get_fw_dev_path(DeviceState *qdev)

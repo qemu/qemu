@@ -18,32 +18,33 @@ int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x12;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_DEVICE;
+    d->bLength                     = bLength;
+    d->bDescriptorType             = USB_DT_DEVICE;
 
-    dest[0x02] = usb_lo(dev->bcdUSB);
-    dest[0x03] = usb_hi(dev->bcdUSB);
-    dest[0x04] = dev->bDeviceClass;
-    dest[0x05] = dev->bDeviceSubClass;
-    dest[0x06] = dev->bDeviceProtocol;
-    dest[0x07] = dev->bMaxPacketSize0;
+    d->u.device.bcdUSB_lo          = usb_lo(dev->bcdUSB);
+    d->u.device.bcdUSB_hi          = usb_hi(dev->bcdUSB);
+    d->u.device.bDeviceClass       = dev->bDeviceClass;
+    d->u.device.bDeviceSubClass    = dev->bDeviceSubClass;
+    d->u.device.bDeviceProtocol    = dev->bDeviceProtocol;
+    d->u.device.bMaxPacketSize0    = dev->bMaxPacketSize0;
 
-    dest[0x08] = usb_lo(id->idVendor);
-    dest[0x09] = usb_hi(id->idVendor);
-    dest[0x0a] = usb_lo(id->idProduct);
-    dest[0x0b] = usb_hi(id->idProduct);
-    dest[0x0c] = usb_lo(id->bcdDevice);
-    dest[0x0d] = usb_hi(id->bcdDevice);
-    dest[0x0e] = id->iManufacturer;
-    dest[0x0f] = id->iProduct;
-    dest[0x10] = id->iSerialNumber;
+    d->u.device.idVendor_lo        = usb_lo(id->idVendor);
+    d->u.device.idVendor_hi        = usb_hi(id->idVendor);
+    d->u.device.idProduct_lo       = usb_lo(id->idProduct);
+    d->u.device.idProduct_hi       = usb_hi(id->idProduct);
+    d->u.device.bcdDevice_lo       = usb_lo(id->bcdDevice);
+    d->u.device.bcdDevice_hi       = usb_hi(id->bcdDevice);
+    d->u.device.iManufacturer      = id->iManufacturer;
+    d->u.device.iProduct           = id->iProduct;
+    d->u.device.iSerialNumber      = id->iSerialNumber;
 
-    dest[0x11] = dev->bNumConfigurations;
+    d->u.device.bNumConfigurations = dev->bNumConfigurations;
 
     return bLength;
 }
@@ -52,22 +53,23 @@ int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x0a;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_DEVICE_QUALIFIER;
+    d->bLength                               = bLength;
+    d->bDescriptorType                       = USB_DT_DEVICE_QUALIFIER;
 
-    dest[0x02] = usb_lo(dev->bcdUSB);
-    dest[0x03] = usb_hi(dev->bcdUSB);
-    dest[0x04] = dev->bDeviceClass;
-    dest[0x05] = dev->bDeviceSubClass;
-    dest[0x06] = dev->bDeviceProtocol;
-    dest[0x07] = dev->bMaxPacketSize0;
-    dest[0x08] = dev->bNumConfigurations;
-    dest[0x09] = 0; /* reserved */
+    d->u.device_qualifier.bcdUSB_lo          = usb_lo(dev->bcdUSB);
+    d->u.device_qualifier.bcdUSB_hi          = usb_hi(dev->bcdUSB);
+    d->u.device_qualifier.bDeviceClass       = dev->bDeviceClass;
+    d->u.device_qualifier.bDeviceSubClass    = dev->bDeviceSubClass;
+    d->u.device_qualifier.bDeviceProtocol    = dev->bDeviceProtocol;
+    d->u.device_qualifier.bMaxPacketSize0    = dev->bMaxPacketSize0;
+    d->u.device_qualifier.bNumConfigurations = dev->bNumConfigurations;
+    d->u.device_qualifier.bReserved          = 0;
 
     return bLength;
 }
@@ -76,22 +78,24 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
 {
     uint8_t  bLength = 0x09;
     uint16_t wTotalLength = 0;
+    USBDescriptor *d = (void *)dest;
     int i, rc;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_CONFIG;
-    dest[0x04] = conf->bNumInterfaces;
-    dest[0x05] = conf->bConfigurationValue;
-    dest[0x06] = conf->iConfiguration;
-    dest[0x07] = conf->bmAttributes;
-    dest[0x08] = conf->bMaxPower;
+    d->bLength                      = bLength;
+    d->bDescriptorType              = USB_DT_CONFIG;
+
+    d->u.config.bNumInterfaces      = conf->bNumInterfaces;
+    d->u.config.bConfigurationValue = conf->bConfigurationValue;
+    d->u.config.iConfiguration      = conf->iConfiguration;
+    d->u.config.bmAttributes        = conf->bmAttributes;
+    d->u.config.bMaxPower           = conf->bMaxPower;
     wTotalLength += bLength;
 
-    /* handle grouped interfaces if any*/
+    /* handle grouped interfaces if any */
     for (i = 0; i < conf->nif_groups; i++) {
         rc = usb_desc_iface_group(&(conf->if_groups[i]),
                                   dest + wTotalLength,
@@ -111,8 +115,8 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
         wTotalLength += rc;
     }
 
-    dest[0x02] = usb_lo(wTotalLength);
-    dest[0x03] = usb_hi(wTotalLength);
+    d->u.config.wTotalLength_lo = usb_lo(wTotalLength);
+    d->u.config.wTotalLength_hi = usb_hi(wTotalLength);
     return wTotalLength;
 }
 
@@ -155,20 +159,22 @@ int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x09;
     int i, rc, pos = 0;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_INTERFACE;
-    dest[0x02] = iface->bInterfaceNumber;
-    dest[0x03] = iface->bAlternateSetting;
-    dest[0x04] = iface->bNumEndpoints;
-    dest[0x05] = iface->bInterfaceClass;
-    dest[0x06] = iface->bInterfaceSubClass;
-    dest[0x07] = iface->bInterfaceProtocol;
-    dest[0x08] = iface->iInterface;
+    d->bLength                        = bLength;
+    d->bDescriptorType                = USB_DT_INTERFACE;
+
+    d->u.interface.bInterfaceNumber   = iface->bInterfaceNumber;
+    d->u.interface.bAlternateSetting  = iface->bAlternateSetting;
+    d->u.interface.bNumEndpoints      = iface->bNumEndpoints;
+    d->u.interface.bInterfaceClass    = iface->bInterfaceClass;
+    d->u.interface.bInterfaceSubClass = iface->bInterfaceSubClass;
+    d->u.interface.bInterfaceProtocol = iface->bInterfaceProtocol;
+    d->u.interface.iInterface         = iface->iInterface;
     pos += bLength;
 
     for (i = 0; i < iface->ndesc; i++) {
@@ -194,21 +200,23 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len)
 {
     uint8_t bLength = ep->is_audio ? 0x09 : 0x07;
     uint8_t extralen = ep->extra ? ep->extra[0] : 0;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength + extralen) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_ENDPOINT;
-    dest[0x02] = ep->bEndpointAddress;
-    dest[0x03] = ep->bmAttributes;
-    dest[0x04] = usb_lo(ep->wMaxPacketSize);
-    dest[0x05] = usb_hi(ep->wMaxPacketSize);
-    dest[0x06] = ep->bInterval;
+    d->bLength                      = bLength;
+    d->bDescriptorType              = USB_DT_ENDPOINT;
+
+    d->u.endpoint.bEndpointAddress  = ep->bEndpointAddress;
+    d->u.endpoint.bmAttributes      = ep->bmAttributes;
+    d->u.endpoint.wMaxPacketSize_lo = usb_lo(ep->wMaxPacketSize);
+    d->u.endpoint.wMaxPacketSize_hi = usb_hi(ep->wMaxPacketSize);
+    d->u.endpoint.bInterval         = ep->bInterval;
     if (ep->is_audio) {
-        dest[0x07] = ep->bRefresh;
-        dest[0x08] = ep->bSynchAddress;
+        d->u.endpoint.bRefresh      = ep->bRefresh;
+        d->u.endpoint.bSynchAddress = ep->bSynchAddress;
     }
     if (ep->extra) {
         memcpy(dest + bLength, ep->extra, extralen);

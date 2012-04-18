@@ -182,12 +182,17 @@ struct USBEndpoint {
     QTAILQ_HEAD(, USBPacket) queue;
 };
 
+enum USBDeviceFlags {
+    USB_DEV_FLAG_FULL_PATH,
+};
+
 /* definition of a USB device */
 struct USBDevice {
     DeviceState qdev;
     USBPort *port;
     char *port_path;
     void *opaque;
+    uint32_t flags;
 
     /* Actual connected speed */
     int speed;
