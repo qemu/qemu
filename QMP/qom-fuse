@@ -1,0 +1,138 @@
+#!/usr/bin/python
+##
+# QEMU Object Model test tools
+#
+# Copyright IBM, Corp. 2012
+#
+# Authors:
+#  Anthony Liguori   <aliguori@us.ibm.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.  See
+# the COPYING file in the top-level directory.
+##
+
+import fuse, stat
+from fuse import Fuse
+import os, posix
+from errno import *
+from qmp import QEMUMonitorProtocol
+
+fuse.fuse_python_api = (0, 2)
+
+class QOMFS(Fuse):
+    def __init__(self, qmp, *args, **kwds):
+        Fuse.__init__(self, *args, **kwds)
+        self.qmp = qmp
+        self.qmp.connect()
+        self.ino_map = {}
+        self.ino_count = 1
+
+    def get_ino(self, path):
+        if self.ino_map.has_key(path):
+            return self.ino_map[path]
+        self.ino_map[path] = self.ino_count
+        self.ino_count += 1
+        return self.ino_map[path]
+
+    def is_object(self, path):
+        try:
+            items = self.qmp.command('qom-list', path=path)
+            return True
+        except:
+            return False
+
+    def is_property(self, path):
+        try:
+            path, prop = path.rsplit('/', 1)
+            for item in self.qmp.command('qom-list', path=path):
+                if item['name'] == prop:
+                    return True
+            return False
+        except:
+            return False
+
+    def is_link(self, path):
+        try:
+            path, prop = path.rsplit('/', 1)
+            for item in self.qmp.command('qom-list', path=path):
+                if item['name'] == prop:
+                    if item['type'].startswith('link<'):
+                        return True
+                    return False
+            return False
+        except:
+            return False
+
+    def read(self, path, length, offset):
+        if not self.is_property(path):
+            return -ENOENT
+
+        path, prop = path.rsplit('/', 1)
+        try:
+            data = str(self.qmp.command('qom-get', path=path, property=prop))
+            data += '\n' # make values shell friendly
+        except:
+            return -EPERM
+
+        if offset > len(data):
+            return ''
+
+        return str(data[offset:][:length])
+
+    def readlink(self, path):
+        if not self.is_link(path):
+            return False
+        path, prop = path.rsplit('/', 1)
+        prefix = '/'.join(['..'] * (len(path.split('/')) - 1))
+        return prefix + str(self.qmp.command('qom-get', path=path,
+                                             property=prop))
+
+    def getattr(self, path):
+        if self.is_link(path):
+            value = posix.stat_result((0755 | stat.S_IFLNK,
+                                       self.get_ino(path),
+                                       0,
+                                       2,
+                                       1000,
+                                       1000,
+                                       4096,
+                                       0,
+                                       0,
+                                       0))
+        elif self.is_object(path):
+            value = posix.stat_result((0755 | stat.S_IFDIR,
+                                       self.get_ino(path),
+                                       0,
+                                       2,
+                                       1000,
+                                       1000,
+                                       4096,
+                                       0,
+                                       0,
+                                       0))
+        elif self.is_property(path):
+            value = posix.stat_result((0644 | stat.S_IFREG,
+                                       self.get_ino(path),
+                                       0,
+                                       1,
+                                       1000,
+                                       1000,
+                                       4096,
+                                       0,
+                                       0,
+                                       0))
+        else:
+            value = -ENOENT
+        return value
+
+    def readdir(self, path, offset):
+        yield fuse.Direntry('.')
+        yield fuse.Direntry('..')
+        for item in self.qmp.command('qom-list', path=path):
+            yield fuse.Direntry(str(item['name']))
+
+if __name__ == '__main__':
+    import sys, os
+
+    fs = QOMFS(QEMUMonitorProtocol(os.environ['QMP_SOCKET']))
+    fs.main(sys.argv)
