@@ -373,17 +373,22 @@ libdis-$(CONFIG_LM32_DIS) += lm32-dis.o
 # trace
 
 ifeq ($(TRACE_BACKEND),dtrace)
-trace.h: trace.h-timestamp trace-dtrace.h
-else
-trace.h: trace.h-timestamp
+TRACE_H_EXTRA_DEPS=trace-dtrace.h
 endif
+trace.h: trace.h-timestamp $(TRACE_H_EXTRA_DEPS)
 trace.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py --format=h --backend=$(TRACE_BACKEND) < $< > $@,"  GEN   trace.h")
+	$(call quiet-command,$(TRACETOOL) \
+		--format=h \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   trace.h")
 	@cmp -s $@ trace.h || cp $@ trace.h
 
 trace.c: trace.c-timestamp
 trace.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py --format=c --backend=$(TRACE_BACKEND) < $< > $@,"  GEN   trace.c")
+	$(call quiet-command,$(TRACETOOL) \
+		--format=c \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   trace.c")
 	@cmp -s $@ trace.c || cp $@ trace.c
 
 trace.o: trace.c $(GENERATED_HEADERS)
@@ -396,11 +401,14 @@ trace-dtrace.h: trace-dtrace.dtrace
 # rule file. So we use '.dtrace' instead
 trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
 trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py --format=d --backend=$(TRACE_BACKEND) < $< > $@,"  GEN   trace-dtrace.dtrace")
+	$(call quiet-command,$(TRACETOOL) \
+		--format=d \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   trace-dtrace.dtrace")
 	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
 
 trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
-	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN trace-dtrace.o")
+	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   trace-dtrace.o")
 
 ifeq ($(LIBTOOL),)
 trace-dtrace.lo: trace-dtrace.dtrace
