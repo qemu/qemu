@@ -16,6 +16,7 @@
 
 #include "qemu-common.h"
 
+#if !defined(CONFIG_USER_ONLY)
 extern int qtest_allowed;
 extern const char *qtest_chrdev;
 extern const char *qtest_log;
@@ -31,5 +32,22 @@ static inline int qtest_available(void)
 }
 
 int qtest_init(void);
+#else
+static inline bool qtest_enabled(void)
+{
+    return false;
+}
+
+static inline int qtest_available(void)
+{
+    return 0;
+}
+
+static inline int qtest_init(void)
+{
+    return 0;
+}
+
+#endif
 
 #endif
