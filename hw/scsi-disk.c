@@ -628,7 +628,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[3] = buflen = 8;
             outbuf[4] = 0;
             outbuf[5] = 0x60; /* write_same 10/16 supported */
-            outbuf[6] = 0;
+            outbuf[6] = s->qdev.conf.discard_granularity ? 2 : 1;
             outbuf[7] = 0;
             break;
         }
