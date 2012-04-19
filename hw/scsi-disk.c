@@ -174,6 +174,45 @@ done:
     }
 }
 
+static bool scsi_is_cmd_fua(SCSICommand *cmd)
+{
+    switch (cmd->buf[0]) {
+    case READ_10:
+    case READ_12:
+    case READ_16:
+    case WRITE_10:
+    case WRITE_12:
+    case WRITE_16:
+        return (cmd->buf[1] & 8) != 0;
+
+    case WRITE_VERIFY_10:
+    case WRITE_VERIFY_12:
+    case WRITE_VERIFY_16:
+        return true;
+
+    case READ_6:
+    case WRITE_6:
+    default:
+        return false;
+    }
+}
+
+static void scsi_write_do_fua(SCSIDiskReq *r)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    if (scsi_is_cmd_fua(&r->req.cmd)) {
+        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
+        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_flush_complete, r);
+        return;
+    }
+
+    scsi_req_complete(&r->req, GOOD);
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
+}
+
 static void scsi_dma_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -189,7 +228,12 @@ static void scsi_dma_complete(void *opaque, int ret)
 
     r->sector += r->sector_count;
     r->sector_count = 0;
-    scsi_req_complete(&r->req, GOOD);
+    if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+        scsi_write_do_fua(r);
+        return;
+    } else {
+        scsi_req_complete(&r->req, GOOD);
+    }
 
 done:
     if (!r->req.io_canceled) {
@@ -342,7 +386,8 @@ static void scsi_write_complete(void * opaque, int ret)
     r->sector += n;
     r->sector_count -= n;
     if (r->sector_count == 0) {
-        scsi_req_complete(&r->req, GOOD);
+        scsi_write_do_fua(r);
+        return;
     } else {
         scsi_init_iovec(r, SCSI_DMA_BUF_SIZE);
         DPRINTF("Write complete tag=0x%x more=%d\n", r->req.tag, r->qiov.size);
