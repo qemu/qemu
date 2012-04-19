@@ -55,6 +55,7 @@ typedef struct SCSIDiskReq {
     uint64_t sector;
     uint32_t sector_count;
     uint32_t buflen;
+    bool started;
     struct iovec iov;
     QEMUIOVector qiov;
     BlockAcctCookie acct;
@@ -287,6 +288,7 @@ static void scsi_read_data(SCSIRequest *req)
     if (r->sector_count == (uint32_t)-1) {
         DPRINTF("Read buf_len=%zd\n", r->iov.iov_len);
         r->sector_count = 0;
+        r->started = true;
         scsi_req_data(&r->req, r->iov.iov_len);
         return;
     }
@@ -313,6 +315,7 @@ static void scsi_read_data(SCSIRequest *req)
         return;
     }
 
+    r->started = true;
     if (r->req.sg) {
         dma_acct_start(s->qdev.conf.bs, &r->acct, r->req.sg, BDRV_ACCT_READ);
         r->req.resid -= r->req.sg->size;
@@ -425,6 +428,7 @@ static void scsi_write_data(SCSIRequest *req)
 
     if (!r->req.sg && !r->qiov.size) {
         /* Called for the first time.  Ask the driver to send us more data.  */
+        r->started = true;
         scsi_write_complete(r, 0);
         return;
     }
