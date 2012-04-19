@@ -171,7 +171,9 @@ static void scsi_dma_complete(void *opaque, int ret)
     scsi_req_complete(&r->req, GOOD);
 
 done:
-    scsi_req_unref(&r->req);
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
 }
 
 static void scsi_read_complete(void * opaque, int ret)
