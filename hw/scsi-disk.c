@@ -153,6 +153,27 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 }
 
+static void scsi_flush_complete(void * opaque, int ret)
+{
+    SCSIDiskReq *r = (SCSIDiskReq *)opaque;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+
+    if (ret < 0) {
+        if (scsi_handle_rw_error(r, -ret)) {
+            goto done;
+        }
+    }
+
+    scsi_req_complete(&r->req, GOOD);
+
+done:
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
+}
+
 static void scsi_dma_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
@@ -199,27 +220,6 @@ static void scsi_read_complete(void * opaque, int ret)
     r->sector += n;
     r->sector_count -= n;
     scsi_req_data(&r->req, r->qiov.size);
-
-done:
-    if (!r->req.io_canceled) {
-        scsi_req_unref(&r->req);
-    }
-}
-
-static void scsi_flush_complete(void * opaque, int ret)
-{
-    SCSIDiskReq *r = (SCSIDiskReq *)opaque;
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-
-    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
-
-    if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
-            goto done;
-        }
-    }
-
-    scsi_req_complete(&r->req, GOOD);
 
 done:
     if (!r->req.io_canceled) {
