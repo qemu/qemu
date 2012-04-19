@@ -884,16 +884,16 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     }
 
     v = 0;
-    prem = p->iov.iov[v].iov_len;
-    pbuf = p->iov.iov[v].iov_base;
+    prem = 0;
+    pbuf = NULL;
     rem = p->iov.size;
     while (rem) {
         if (prem == 0) {
-            v++;
             assert(v < p->iov.niov);
             prem = p->iov.iov[v].iov_len;
             pbuf = p->iov.iov[v].iov_base;
             assert(prem <= rem);
+            v++;
         }
         aurb = async_alloc(s);
         aurb->packet = p;
