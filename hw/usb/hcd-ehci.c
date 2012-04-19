@@ -664,6 +664,7 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, int async)
 
     q = g_malloc0(sizeof(*q));
     q->ehci = ehci;
+    usb_packet_init(&q->packet);
     QTAILQ_INSERT_HEAD(head, q, next);
     trace_usb_ehci_queue_action(q, "alloc");
     return q;
