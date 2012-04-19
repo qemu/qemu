@@ -1080,11 +1080,12 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint64_t nb_sectors;
-    int page, dbd, buflen, ret, page_control;
+    bool dbd;
+    int page, buflen, ret, page_control;
     uint8_t *p;
     uint8_t dev_specific_param;
 
-    dbd = r->req.cmd.buf[1]  & 0x8;
+    dbd = (r->req.cmd.buf[1] & 0x8) != 0;
     page = r->req.cmd.buf[2] & 0x3f;
     page_control = (r->req.cmd.buf[2] & 0xc0) >> 6;
     DPRINTF("Mode Sense(%d) (page %d, xfer %zd, page_control %d)\n",
@@ -1092,10 +1093,15 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
     memset(outbuf, 0, r->req.cmd.xfer);
     p = outbuf;
 
-    if (bdrv_is_read_only(s->qdev.conf.bs)) {
-        dev_specific_param = 0x80; /* Readonly.  */
+    dev_specific_param = 0x00;
+    if (s->qdev.type == TYPE_DISK) {
+        if (bdrv_is_read_only(s->qdev.conf.bs)) {
+            dev_specific_param |= 0x80; /* Readonly.  */
+        }
     } else {
-        dev_specific_param = 0x00;
+        /* MMC prescribes that CD/DVD drives have no block descriptors,
+         * and defines no device-specific parameter.  */
+        dbd = true;
     }
 
     if (r->req.cmd.buf[0] == MODE_SENSE) {
@@ -1110,9 +1116,8 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
         p += 8;
     }
 
-    /* MMC prescribes that CD/DVD drives have no block descriptors.  */
     bdrv_get_geometry(s->qdev.conf.bs, &nb_sectors);
-    if (!dbd && s->qdev.type == TYPE_DISK && nb_sectors) {
+    if (!dbd && nb_sectors) {
         if (r->req.cmd.buf[0] == MODE_SENSE) {
             outbuf[3] = 8; /* Block descriptor length  */
         } else { /* MODE_SENSE_10 */
