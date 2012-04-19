@@ -185,6 +185,9 @@ static bool scsi_is_cmd_fua(SCSICommand *cmd)
     case WRITE_16:
         return (cmd->buf[1] & 8) != 0;
 
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
     case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
@@ -218,7 +221,10 @@ static void scsi_dma_complete(void *opaque, int ret)
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
-    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    if (r->req.aiocb != NULL) {
+        r->req.aiocb = NULL;
+        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+    }
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -424,6 +430,16 @@ static void scsi_write_data(SCSIRequest *req)
     }
     if (s->tray_open) {
         scsi_write_complete(r, -ENOMEDIUM);
+        return;
+    }
+
+    if (r->req.cmd.buf[0] == VERIFY_10 || r->req.cmd.buf[0] == VERIFY_12 ||
+        r->req.cmd.buf[0] == VERIFY_16) {
+        if (r->req.sg) {
+            scsi_dma_complete(r, 0);
+        } else {
+            scsi_write_complete(r, 0);
+        }
         return;
     }
 
@@ -1350,8 +1366,6 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         }
         DPRINTF("Unsupported Service Action In\n");
         goto illegal_request;
-    case VERIFY_10:
-        break;
     default:
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
         return -1;
@@ -1435,7 +1449,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case MECHANISM_STATUS:
     case SERVICE_ACTION_IN_16:
     case REQUEST_SENSE:
-    case VERIFY_10:
         rc = scsi_disk_emulate_command(r);
         if (rc < 0) {
             return 0;
@@ -1461,6 +1474,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
         r->sector_count = len * (s->qdev.blocksize / 512);
         break;
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
     case WRITE_6:
     case WRITE_10:
     case WRITE_12:
@@ -1811,6 +1827,9 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
     case READ_10:
     case READ_12:
     case READ_16:
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
     case WRITE_6:
     case WRITE_10:
     case WRITE_12:
