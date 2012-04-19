@@ -627,7 +627,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         {
             outbuf[3] = buflen = 8;
             outbuf[4] = 0;
-            outbuf[5] = 0x40; /* write same with unmap supported */
+            outbuf[5] = 0x60; /* write_same 10/16 supported */
             outbuf[6] = 0;
             outbuf[7] = 0;
             break;
@@ -1558,10 +1558,11 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
             goto illegal_lba;
         }
         break;
+    case WRITE_SAME_10:
     case WRITE_SAME_16:
         len = r->req.cmd.xfer / s->qdev.blocksize;
 
-        DPRINTF("WRITE SAME(16) (sector %" PRId64 ", count %d)\n",
+        DPRINTF("WRITE SAME() (sector %" PRId64 ", count %d)\n",
                 r->req.cmd.lba, len);
 
         if (r->req.cmd.lba > s->qdev.max_lba) {
