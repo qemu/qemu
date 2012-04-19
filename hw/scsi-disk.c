@@ -1093,14 +1093,15 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
     memset(outbuf, 0, r->req.cmd.xfer);
     p = outbuf;
 
-    dev_specific_param = 0x00;
     if (s->qdev.type == TYPE_DISK) {
+        dev_specific_param = 0x10; /* DPOFUA */
         if (bdrv_is_read_only(s->qdev.conf.bs)) {
             dev_specific_param |= 0x80; /* Readonly.  */
         }
     } else {
         /* MMC prescribes that CD/DVD drives have no block descriptors,
          * and defines no device-specific parameter.  */
+        dev_specific_param = 0x00;
         dbd = true;
     }
 
