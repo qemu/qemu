@@ -842,6 +842,15 @@ static void nbd_trip(void *opaque)
     case NBD_CMD_READ:
         TRACE("Request type is READ");
 
+        if (request.type & NBD_CMD_FLAG_FUA) {
+            ret = bdrv_co_flush(exp->bs);
+            if (ret < 0) {
+                LOG("flush failed");
+                reply.error = -ret;
+                goto error_reply;
+            }
+        }
+
         ret = bdrv_read(exp->bs, (request.from + exp->dev_offset) / 512,
                         req->data, request.len / 512);
         if (ret < 0) {
