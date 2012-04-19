@@ -1200,6 +1200,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ UNMAP                    ] = "UNMAP",
         [ READ_TOC                 ] = "READ_TOC",
         [ REPORT_DENSITY_SUPPORT   ] = "REPORT_DENSITY_SUPPORT",
+        [ SANITIZE                 ] = "SANITIZE",
         [ GET_CONFIGURATION        ] = "GET_CONFIGURATION",
         [ LOG_SELECT               ] = "LOG_SELECT",
         [ LOG_SENSE                ] = "LOG_SENSE",
