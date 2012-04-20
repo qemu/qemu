@@ -87,11 +87,6 @@ static bool qemu_timer_expired_ns(QEMUTimer *timer_head, int64_t current_time)
     return timer_head && (timer_head->expire_time <= current_time);
 }
 
-int qemu_alarm_pending(void)
-{
-    return alarm_timer->pending;
-}
-
 static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 {
     return !!t->rearm;
