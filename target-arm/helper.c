@@ -114,7 +114,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA260:
     case ARM_CPUID_PXA261:
     case ARM_CPUID_PXA262:
-        /* JTAG_ID is ((id << 28) | 0x09265013) */
         break;
     case ARM_CPUID_PXA270_A0:
     case ARM_CPUID_PXA270_A1:
@@ -122,7 +121,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA270_B1:
     case ARM_CPUID_PXA270_C0:
     case ARM_CPUID_PXA270_C5:
-        /* JTAG_ID is ((id << 28) | 0x09265013) */
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
         break;
     case ARM_CPUID_SA1100:
