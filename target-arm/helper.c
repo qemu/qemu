@@ -47,8 +47,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_TI915T:
     case ARM_CPUID_TI925T:
-        env->cp15.c15_i_max = 0x000;
-        env->cp15.c15_i_min = 0xff0;
         break;
     case ARM_CPUID_PXA250:
     case ARM_CPUID_PXA255:
@@ -114,6 +112,7 @@ void cpu_state_reset(CPUARMState *env)
     env->cp15.c0_c2[3] = cpu->id_isar3;
     env->cp15.c0_c2[4] = cpu->id_isar4;
     env->cp15.c0_c2[5] = cpu->id_isar5;
+    env->cp15.c15_i_min = 0xff0;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
