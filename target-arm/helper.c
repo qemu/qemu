@@ -7,45 +7,6 @@
 #endif
 #include "sysemu.h"
 
-static uint32_t cortexa15_cp15_c0_c1[8] = {
-    0x00001131, 0x00011011, 0x02010555, 0x00000000,
-    0x10201105, 0x20000000, 0x01240000, 0x02102211
-};
-
-static uint32_t cortexa15_cp15_c0_c2[8] = {
-    0x02101110, 0x13112111, 0x21232041, 0x11112131, 0x10011142, 0, 0, 0
-};
-
-static uint32_t cortexa9_cp15_c0_c1[8] =
-{ 0x1031, 0x11, 0x000, 0, 0x00100103, 0x20000000, 0x01230000, 0x00002111 };
-
-static uint32_t cortexa9_cp15_c0_c2[8] =
-{ 0x00101111, 0x13112111, 0x21232041, 0x11112131, 0x00111142, 0, 0, 0 };
-
-static uint32_t cortexa8_cp15_c0_c1[8] =
-{ 0x1031, 0x11, 0x400, 0, 0x31100003, 0x20000000, 0x01202000, 0x11 };
-
-static uint32_t cortexa8_cp15_c0_c2[8] =
-{ 0x00101111, 0x12112111, 0x21232031, 0x11112131, 0x00111142, 0, 0, 0 };
-
-static uint32_t mpcore_cp15_c0_c1[8] =
-{ 0x111, 0x1, 0, 0x2, 0x01100103, 0x10020302, 0x01222000, 0 };
-
-static uint32_t mpcore_cp15_c0_c2[8] =
-{ 0x00100011, 0x12002111, 0x11221011, 0x01102131, 0x141, 0, 0, 0 };
-
-static uint32_t arm1136_cp15_c0_c1[8] =
-{ 0x111, 0x1, 0x2, 0x3, 0x01130003, 0x10030302, 0x01222110, 0 };
-
-static uint32_t arm1136_cp15_c0_c2[8] =
-{ 0x00140011, 0x12002111, 0x11231111, 0x01102131, 0x141, 0, 0, 0 };
-
-static uint32_t arm1176_cp15_c0_c1[8] =
-{ 0x111, 0x11, 0x33, 0, 0x01130003, 0x10030302, 0x01222100, 0 };
-
-static uint32_t arm1176_cp15_c0_c2[8] =
-{ 0x0140011, 0x12002111, 0x11231121, 0x01102131, 0x01141, 0, 0, 0 };
-
 static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
 {
     switch (id) {
@@ -58,43 +19,23 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM1136:
         /* This is the 1136 r1, which is a v6K core */
     case ARM_CPUID_ARM1136_R2:
-        /* What qemu calls "arm1136_r2" is actually the 1136 r0p2, ie an
-         * older core than plain "arm1136". In particular this does not
-         * have the v6K features.
-         */
-        /* These ID register values are correct for 1136 but may be wrong
-         * for 1136_r2 (in particular r0p2 does not actually implement most
-         * of the ID registers).
-         */
-        memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c2, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
         break;
     case ARM_CPUID_ARM1176:
-        memcpy(env->cp15.c0_c1, arm1176_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c2, arm1176_cp15_c0_c2, 8 * sizeof(uint32_t));
         break;
     case ARM_CPUID_ARM11MPCORE:
-        memcpy(env->cp15.c0_c1, mpcore_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c2, mpcore_cp15_c0_c2, 8 * sizeof(uint32_t));
         break;
     case ARM_CPUID_CORTEXA8:
-        memcpy(env->cp15.c0_c1, cortexa8_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c2, cortexa8_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_clid = (1 << 27) | (2 << 24) | 3;
         env->cp15.c0_ccsid[0] = 0xe007e01a; /* 16k L1 dcache. */
         env->cp15.c0_ccsid[1] = 0x2007e01a; /* 16k L1 icache. */
         env->cp15.c0_ccsid[2] = 0xf0000000; /* No L2 icache. */
         break;
     case ARM_CPUID_CORTEXA9:
-        memcpy(env->cp15.c0_c1, cortexa9_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c2, cortexa9_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_clid = (1 << 27) | (1 << 24) | 3;
         env->cp15.c0_ccsid[0] = 0xe00fe015; /* 16k L1 dcache. */
         env->cp15.c0_ccsid[1] = 0x200fe015; /* 16k L1 icache. */
         break;
     case ARM_CPUID_CORTEXA15:
-        memcpy(env->cp15.c0_c1, cortexa15_cp15_c0_c1, 8 * sizeof(uint32_t));
-        memcpy(env->cp15.c0_c2, cortexa15_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_clid = 0x0a200023;
         env->cp15.c0_ccsid[0] = 0x701fe00a; /* 32K L1 dcache */
         env->cp15.c0_ccsid[1] = 0x201fe00a; /* 32K L1 icache */
@@ -159,6 +100,20 @@ void cpu_state_reset(CPUARMState *env)
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->cp15.c0_cachetype = cpu->ctr;
     env->cp15.c1_sys = cpu->reset_sctlr;
+    env->cp15.c0_c1[0] = cpu->id_pfr0;
+    env->cp15.c0_c1[1] = cpu->id_pfr1;
+    env->cp15.c0_c1[2] = cpu->id_dfr0;
+    env->cp15.c0_c1[3] = cpu->id_afr0;
+    env->cp15.c0_c1[4] = cpu->id_mmfr0;
+    env->cp15.c0_c1[5] = cpu->id_mmfr1;
+    env->cp15.c0_c1[6] = cpu->id_mmfr2;
+    env->cp15.c0_c1[7] = cpu->id_mmfr3;
+    env->cp15.c0_c2[0] = cpu->id_isar0;
+    env->cp15.c0_c2[1] = cpu->id_isar1;
+    env->cp15.c0_c2[2] = cpu->id_isar2;
+    env->cp15.c0_c2[3] = cpu->id_isar3;
+    env->cp15.c0_c2[4] = cpu->id_isar4;
+    env->cp15.c0_c2[5] = cpu->id_isar5;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';

@@ -75,6 +75,20 @@ typedef struct ARMCPU {
     uint32_t mvfr1;
     uint32_t ctr;
     uint32_t reset_sctlr;
+    uint32_t id_pfr0;
+    uint32_t id_pfr1;
+    uint32_t id_dfr0;
+    uint32_t id_afr0;
+    uint32_t id_mmfr0;
+    uint32_t id_mmfr1;
+    uint32_t id_mmfr2;
+    uint32_t id_mmfr3;
+    uint32_t id_isar0;
+    uint32_t id_isar1;
+    uint32_t id_isar2;
+    uint32_t id_isar3;
+    uint32_t id_isar4;
+    uint32_t id_isar5;
 } ARMCPU;
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
