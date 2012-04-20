@@ -71,6 +71,8 @@ typedef struct ARMCPU {
      */
     uint32_t midr;
     uint32_t reset_fpsid;
+    uint32_t mvfr0;
+    uint32_t mvfr1;
 } ARMCPU;
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
