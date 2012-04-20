@@ -48,7 +48,7 @@
 
 struct QEMUClock {
     int type;
-    int enabled;
+    bool enabled;
 
     QEMUTimer *active_timers;
 
@@ -76,8 +76,8 @@ struct qemu_alarm_timer {
 #elif defined(_WIN32)
     HANDLE timer;
 #endif
-    char expired;
-    char pending;
+    bool expired;
+    bool pending;
 };
 
 static struct qemu_alarm_timer *alarm_timer;
@@ -249,13 +249,13 @@ static QEMUClock *qemu_new_clock(int type)
 
     clock = g_malloc0(sizeof(QEMUClock));
     clock->type = type;
-    clock->enabled = 1;
+    clock->enabled = true;
     clock->last = INT64_MIN;
     notifier_list_init(&clock->reset_notifiers);
     return clock;
 }
 
-void qemu_clock_enable(QEMUClock *clock, int enabled)
+void qemu_clock_enable(QEMUClock *clock, bool enabled)
 {
     bool old = clock->enabled;
     clock->enabled = enabled;
@@ -368,17 +368,18 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
     qemu_mod_timer_ns(ts, expire_time * ts->scale);
 }
 
-int qemu_timer_pending(QEMUTimer *ts)
+bool qemu_timer_pending(QEMUTimer *ts)
 {
     QEMUTimer *t;
     for (t = ts->clock->active_timers; t != NULL; t = t->next) {
-        if (t == ts)
-            return 1;
+        if (t == ts) {
+            return true;
+        }
     }
-    return 0;
+    return false;
 }
 
-int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
+bool qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
 {
     return qemu_timer_expired_ns(timer_head, current_time * timer_head->scale);
 }
@@ -456,7 +457,7 @@ uint64_t qemu_timer_expire_time_ns(QEMUTimer *ts)
 
 void qemu_run_all_timers(void)
 {
-    alarm_timer->pending = 0;
+    alarm_timer->pending = false;
 
     /* vm time timers */
     qemu_run_timers(vm_clock);
@@ -465,7 +466,7 @@ void qemu_run_all_timers(void)
 
     /* rearm timer, if not periodic */
     if (alarm_timer->expired) {
-        alarm_timer->expired = 0;
+        alarm_timer->expired = false;
         qemu_rearm_alarm_timer(alarm_timer);
     }
 }
@@ -483,7 +484,7 @@ static void host_alarm_handler(int host_signum)
     if (alarm_has_dynticks(t) ||
         qemu_next_alarm_deadline () <= 0) {
         t->expired = alarm_has_dynticks(t);
-        t->pending = 1;
+        t->pending = true;
         qemu_notify_event();
     }
 }
@@ -635,7 +636,7 @@ static void CALLBACK mm_alarm_handler(UINT uTimerID, UINT uMsg,
     }
     if (alarm_has_dynticks(t) || qemu_next_alarm_deadline() <= 0) {
         t->expired = alarm_has_dynticks(t);
-        t->pending = 1;
+        t->pending = true;
         qemu_notify_event();
     }
 }
@@ -800,7 +801,7 @@ int init_timer_alarm(void)
 
     /* first event is at time 0 */
     atexit(quit_timers);
-    t->pending = 1;
+    t->pending = true;
     alarm_timer = t;
 
     return 0;
