@@ -46,46 +46,30 @@ static uint32_t arm1176_cp15_c0_c1[8] =
 static uint32_t arm1176_cp15_c0_c2[8] =
 { 0x0140011, 0x12002111, 0x11231121, 0x01102131, 0x01141, 0, 0, 0 };
 
-static inline void set_feature(CPUARMState *env, int feature)
-{
-    env->features |= 1u << feature;
-}
-
 static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
 {
     switch (id) {
     case ARM_CPUID_ARM926:
-        set_feature(env, ARM_FEATURE_V5);
-        set_feature(env, ARM_FEATURE_VFP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41011090;
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
     case ARM_CPUID_ARM946:
-        set_feature(env, ARM_FEATURE_V5);
-        set_feature(env, ARM_FEATURE_MPU);
         env->cp15.c0_cachetype = 0x0f004006;
         env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_ARM1026:
-        set_feature(env, ARM_FEATURE_V5);
-        set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_AUXCR);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410110a0;
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
     case ARM_CPUID_ARM1136:
         /* This is the 1136 r1, which is a v6K core */
-        set_feature(env, ARM_FEATURE_V6K);
-        /* Fall through */
     case ARM_CPUID_ARM1136_R2:
         /* What qemu calls "arm1136_r2" is actually the 1136 r0p2, ie an
          * older core than plain "arm1136". In particular this does not
          * have the v6K features.
          */
-        set_feature(env, ARM_FEATURE_V6);
-        set_feature(env, ARM_FEATURE_VFP);
         /* These ID register values are correct for 1136 but may be wrong
          * for 1136_r2 (in particular r0p2 does not actually implement most
          * of the ID registers).
@@ -99,9 +83,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM1176:
-        set_feature(env, ARM_FEATURE_V6K);
-        set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_VAPA);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b5;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
@@ -111,9 +92,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
-        set_feature(env, ARM_FEATURE_V6K);
-        set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_VAPA);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b4;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
@@ -122,10 +100,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_CORTEXA8:
-        set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_VFP3);
-        set_feature(env, ARM_FEATURE_NEON);
-        set_feature(env, ARM_FEATURE_THUMB2EE);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410330c0;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00011100;
@@ -139,16 +113,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXA9:
-        set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_VFP3);
-        set_feature(env, ARM_FEATURE_VFP_FP16);
-        set_feature(env, ARM_FEATURE_NEON);
-        set_feature(env, ARM_FEATURE_THUMB2EE);
-        /* Note that A9 supports the MP extensions even for
-         * A9UP and single-core A9MP (which are both different
-         * and valid configurations; we don't model A9UP).
-         */
-        set_feature(env, ARM_FEATURE_V7MP);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x41033090;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x01111111;
@@ -161,14 +125,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXA15:
-        set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_VFP4);
-        set_feature(env, ARM_FEATURE_VFP_FP16);
-        set_feature(env, ARM_FEATURE_NEON);
-        set_feature(env, ARM_FEATURE_THUMB2EE);
-        set_feature(env, ARM_FEATURE_ARM_DIV);
-        set_feature(env, ARM_FEATURE_V7MP);
-        set_feature(env, ARM_FEATURE_GENERIC_TIMER);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410430f0;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x10110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x11111111;
@@ -182,22 +138,11 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
-        set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_M);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
-        set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_VFP4);
-        set_feature(env, ARM_FEATURE_VFP_FP16);
-        set_feature(env, ARM_FEATURE_NEON);
-        set_feature(env, ARM_FEATURE_THUMB2EE);
-        set_feature(env, ARM_FEATURE_ARM_DIV);
-        set_feature(env, ARM_FEATURE_V7MP);
         break;
     case ARM_CPUID_TI915T:
     case ARM_CPUID_TI925T:
-        set_feature(env, ARM_FEATURE_V4T);
-        set_feature(env, ARM_FEATURE_OMAPCP);
         env->cp15.c0_cachetype = 0x5109149;
         env->cp15.c1_sys = 0x00000070;
         env->cp15.c15_i_max = 0x000;
@@ -208,8 +153,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA260:
     case ARM_CPUID_PXA261:
     case ARM_CPUID_PXA262:
-        set_feature(env, ARM_FEATURE_V5);
-        set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
         env->cp15.c0_cachetype = 0xd172172;
         env->cp15.c1_sys = 0x00000078;
@@ -220,17 +163,13 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA270_B1:
     case ARM_CPUID_PXA270_C0:
     case ARM_CPUID_PXA270_C5:
-        set_feature(env, ARM_FEATURE_V5);
-        set_feature(env, ARM_FEATURE_XSCALE);
         /* JTAG_ID is ((id << 28) | 0x09265013) */
-        set_feature(env, ARM_FEATURE_IWMMXT);
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
         env->cp15.c0_cachetype = 0xd172172;
         env->cp15.c1_sys = 0x00000078;
         break;
     case ARM_CPUID_SA1100:
     case ARM_CPUID_SA1110:
-        set_feature(env, ARM_FEATURE_STRONGARM);
         env->cp15.c1_sys = 0x00000070;
         break;
     default:
@@ -238,41 +177,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     }
 
-    /* Some features automatically imply others: */
-    if (arm_feature(env, ARM_FEATURE_V7)) {
-        set_feature(env, ARM_FEATURE_VAPA);
-        set_feature(env, ARM_FEATURE_THUMB2);
-        if (!arm_feature(env, ARM_FEATURE_M)) {
-            set_feature(env, ARM_FEATURE_V6K);
-        } else {
-            set_feature(env, ARM_FEATURE_V6);
-        }
-    }
-    if (arm_feature(env, ARM_FEATURE_V6K)) {
-        set_feature(env, ARM_FEATURE_V6);
-        set_feature(env, ARM_FEATURE_MVFR);
-    }
-    if (arm_feature(env, ARM_FEATURE_V6)) {
-        set_feature(env, ARM_FEATURE_V5);
-        if (!arm_feature(env, ARM_FEATURE_M)) {
-            set_feature(env, ARM_FEATURE_AUXCR);
-        }
-    }
-    if (arm_feature(env, ARM_FEATURE_V5)) {
-        set_feature(env, ARM_FEATURE_V4T);
-    }
-    if (arm_feature(env, ARM_FEATURE_M)) {
-        set_feature(env, ARM_FEATURE_THUMB_DIV);
-    }
-    if (arm_feature(env, ARM_FEATURE_ARM_DIV)) {
-        set_feature(env, ARM_FEATURE_THUMB_DIV);
-    }
-    if (arm_feature(env, ARM_FEATURE_VFP4)) {
-        set_feature(env, ARM_FEATURE_VFP3);
-    }
-    if (arm_feature(env, ARM_FEATURE_VFP3)) {
-        set_feature(env, ARM_FEATURE_VFP);
-    }
 }
 
 /* TODO Move contents into arm_cpu_reset() in cpu.c,
@@ -413,6 +317,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     cpu = ARM_CPU(object_new(cpu_model));
     env = &cpu->env;
     env->cpu_model_str = cpu_model;
+    arm_cpu_realize(cpu);
 
     if (tcg_enabled() && !inited) {
         inited = 1;
