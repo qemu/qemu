@@ -1,0 +1,13 @@
+check-qdict
+check-qfloat
+check-qint
+check-qjson
+check-qlist
+check-qstring
+test-qapi-types.[ch]
+test-qapi-visit.[ch]
+test-qmp-commands.h
+test-qmp-commands
+test-qmp-input-strict
+test-qmp-marshal.c
+*-test
