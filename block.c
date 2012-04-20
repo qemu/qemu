@@ -812,6 +812,7 @@ unlink_and_fail:
 
 void bdrv_close(BlockDriverState *bs)
 {
+    bdrv_flush(bs);
     if (bs->drv) {
         if (bs->job) {
             block_job_cancel_sync(bs->job);
