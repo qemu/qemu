@@ -93,6 +93,7 @@ typedef struct ARMCPU {
      * in the order L1DCache, L1ICache, L2DCache, L2ICache, etc.
      */
     uint32_t ccsidr[16];
+    uint32_t reset_cbar;
 } ARMCPU;
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
