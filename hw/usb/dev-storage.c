@@ -546,6 +546,8 @@ static int usb_msd_initfn(USBDevice *dev)
     }
     if (s->serial) {
         usb_desc_set_string(dev, STR_SERIALNUMBER, s->serial);
+    } else {
+        usb_desc_create_serial(dev);
     }
 
     usb_desc_init(dev);

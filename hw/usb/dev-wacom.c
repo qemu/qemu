@@ -339,6 +339,7 @@ static void usb_wacom_handle_destroy(USBDevice *dev)
 static int usb_wacom_initfn(USBDevice *dev)
 {
     USBWacomState *s = DO_UPCAST(USBWacomState, dev, dev);
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->changed = 1;
     return 0;
