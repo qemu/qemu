@@ -369,6 +369,7 @@ static void uhci_reset(void *opaque)
     }
 
     uhci_async_cancel_all(s);
+    uhci_update_irq(s);
 }
 
 static void uhci_pre_save(void *opaque)
