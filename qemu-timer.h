@@ -4,12 +4,6 @@
 #include "qemu-common.h"
 #include "main-loop.h"
 #include "notify.h"
-#include <time.h>
-#include <sys/time.h>
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 /* timers */
 

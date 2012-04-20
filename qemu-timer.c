@@ -29,22 +29,15 @@
 
 #include "hw/hw.h"
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <time.h>
-#include <errno.h>
-#include <sys/time.h>
-#include <signal.h>
+#include "qemu-timer.h"
+
 #ifdef __FreeBSD__
 #include <sys/param.h>
 #endif
 
 #ifdef _WIN32
-#include <windows.h>
 #include <mmsystem.h>
 #endif
-
-#include "qemu-timer.h"
 
 /***********************************************************/
 /* timers */
