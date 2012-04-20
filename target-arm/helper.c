@@ -7,66 +7,12 @@
 #endif
 #include "sysemu.h"
 
-static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
-{
-    switch (id) {
-    case ARM_CPUID_ARM926:
-        break;
-    case ARM_CPUID_ARM946:
-        break;
-    case ARM_CPUID_ARM1026:
-        break;
-    case ARM_CPUID_ARM1136:
-        /* This is the 1136 r1, which is a v6K core */
-    case ARM_CPUID_ARM1136_R2:
-        break;
-    case ARM_CPUID_ARM1176:
-        break;
-    case ARM_CPUID_ARM11MPCORE:
-        break;
-    case ARM_CPUID_CORTEXA8:
-        break;
-    case ARM_CPUID_CORTEXA9:
-        break;
-    case ARM_CPUID_CORTEXA15:
-        break;
-    case ARM_CPUID_CORTEXM3:
-        break;
-    case ARM_CPUID_ANY: /* For userspace emulation.  */
-        break;
-    case ARM_CPUID_TI915T:
-    case ARM_CPUID_TI925T:
-        break;
-    case ARM_CPUID_PXA250:
-    case ARM_CPUID_PXA255:
-    case ARM_CPUID_PXA260:
-    case ARM_CPUID_PXA261:
-    case ARM_CPUID_PXA262:
-        break;
-    case ARM_CPUID_PXA270_A0:
-    case ARM_CPUID_PXA270_A1:
-    case ARM_CPUID_PXA270_B0:
-    case ARM_CPUID_PXA270_B1:
-    case ARM_CPUID_PXA270_C0:
-    case ARM_CPUID_PXA270_C5:
-        break;
-    case ARM_CPUID_SA1100:
-    case ARM_CPUID_SA1110:
-        break;
-    default:
-        cpu_abort(env, "Bad CPU ID: %x\n", id);
-        break;
-    }
-
-}
-
 /* TODO Move contents into arm_cpu_reset() in cpu.c,
  *      once cpu_reset_model_id() is eliminated,
  *      and then forward to cpu_reset() here.
  */
 void cpu_state_reset(CPUARMState *env)
 {
-    uint32_t id;
     uint32_t tmp = 0;
     ARMCPU *cpu = arm_env_get_cpu(env);
 
@@ -75,11 +21,8 @@ void cpu_state_reset(CPUARMState *env)
         log_cpu_state(env, 0);
     }
 
-    id = cpu->midr;
     tmp = env->cp15.c15_config_base_address;
     memset(env, 0, offsetof(CPUARMState, breakpoints));
-    if (id)
-        cpu_reset_model_id(env, id);
     env->cp15.c15_config_base_address = tmp;
     env->cp15.c0_cpuid = cpu->midr;
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
@@ -144,7 +87,7 @@ void cpu_state_reset(CPUARMState *env)
     /* v7 performance monitor control register: same implementor
      * field as main ID register, and we implement no event counters.
      */
-    env->cp15.c9_pmcr = (id & 0xff000000);
+    env->cp15.c9_pmcr = (cpu->midr & 0xff000000);
 #endif
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
     set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
