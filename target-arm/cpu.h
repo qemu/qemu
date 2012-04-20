@@ -238,7 +238,9 @@ typedef struct CPUARMState {
     const struct arm_boot_info *boot_info;
 } CPUARMState;
 
-CPUARMState *cpu_arm_init(const char *cpu_model);
+#include "cpu-qom.h"
+
+ARMCPU *cpu_arm_init(const char *cpu_model);
 void arm_translate_init(void);
 int cpu_arm_exec(CPUARMState *s);
 void do_interrupt(CPUARMState *);
@@ -456,7 +458,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define cpu_init cpu_arm_init
+#define cpu_init(model) (&cpu_arm_init(model)->env)
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_signal_handler cpu_arm_signal_handler
@@ -483,7 +485,6 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 #endif
 
 #include "cpu-all.h"
-#include "cpu-qom.h"
 
 /* Bit usage in the TB flags field: */
 #define ARM_TBFLAG_THUMB_SHIFT      0

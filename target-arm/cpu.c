@@ -18,7 +18,7 @@
  * <http://www.gnu.org/licenses/gpl-2.0.html>
  */
 
-#include "cpu-qom.h"
+#include "cpu.h"
 #include "qemu-common.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
