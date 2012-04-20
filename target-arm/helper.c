@@ -121,7 +121,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_PXA270_B1:
     case ARM_CPUID_PXA270_C0:
     case ARM_CPUID_PXA270_C5:
-        env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
         break;
     case ARM_CPUID_SA1100:
     case ARM_CPUID_SA1110:
@@ -160,6 +159,10 @@ void cpu_state_reset(CPUARMState *env)
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->cp15.c0_cachetype = cpu->ctr;
     env->cp15.c1_sys = cpu->reset_sctlr;
+
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
+    }
 
 #if defined (CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
