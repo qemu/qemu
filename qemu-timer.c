@@ -47,22 +47,22 @@
 #define QEMU_CLOCK_HOST     2
 
 struct QEMUClock {
-    int type;
-    bool enabled;
-
     QEMUTimer *active_timers;
 
     NotifierList reset_notifiers;
     int64_t last;
+
+    int type;
+    bool enabled;
 };
 
 struct QEMUTimer {
-    QEMUClock *clock;
     int64_t expire_time;	/* in nanoseconds */
-    int scale;
+    QEMUClock *clock;
     QEMUTimerCB *cb;
     void *opaque;
-    struct QEMUTimer *next;
+    QEMUTimer *next;
+    int scale;
 };
 
 struct qemu_alarm_timer {
@@ -71,8 +71,8 @@ struct qemu_alarm_timer {
     void (*stop)(struct qemu_alarm_timer *t);
     void (*rearm)(struct qemu_alarm_timer *t, int64_t nearest_delta_ns);
 #if defined(__linux__)
-    int fd;
     timer_t timer;
+    int fd;
 #elif defined(_WIN32)
     HANDLE timer;
 #endif
