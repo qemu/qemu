@@ -70,6 +70,7 @@ typedef struct ARMCPU {
      * prefix means a constant register.
      */
     uint32_t midr;
+    uint32_t reset_fpsid;
 } ARMCPU;
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)

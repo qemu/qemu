@@ -100,6 +100,7 @@ static void arm926_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     cpu->midr = ARM_CPUID_ARM926;
+    cpu->reset_fpsid = 0x41011090;
 }
 
 static void arm946_initfn(Object *obj)
@@ -117,6 +118,7 @@ static void arm1026_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
     cpu->midr = ARM_CPUID_ARM1026;
+    cpu->reset_fpsid = 0x410110a0;
 }
 
 static void arm1136_r2_initfn(Object *obj)
@@ -125,6 +127,7 @@ static void arm1136_r2_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V6);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     cpu->midr = ARM_CPUID_ARM1136_R2;
+    cpu->reset_fpsid = 0x410120b4;
 }
 
 static void arm1136_initfn(Object *obj)
@@ -134,6 +137,7 @@ static void arm1136_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V6);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     cpu->midr = ARM_CPUID_ARM1136;
+    cpu->reset_fpsid = 0x410120b4;
 }
 
 static void arm1176_initfn(Object *obj)
@@ -143,6 +147,7 @@ static void arm1176_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
     cpu->midr = ARM_CPUID_ARM1176;
+    cpu->reset_fpsid = 0x410120b5;
 }
 
 static void arm11mpcore_initfn(Object *obj)
@@ -152,6 +157,7 @@ static void arm11mpcore_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
     cpu->midr = ARM_CPUID_ARM11MPCORE;
+    cpu->reset_fpsid = 0x410120b4;
 }
 
 static void cortex_m3_initfn(Object *obj)
@@ -170,6 +176,7 @@ static void cortex_a8_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     cpu->midr = ARM_CPUID_CORTEXA8;
+    cpu->reset_fpsid = 0x410330c0;
 }
 
 static void cortex_a9_initfn(Object *obj)
@@ -186,6 +193,7 @@ static void cortex_a9_initfn(Object *obj)
      */
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     cpu->midr = ARM_CPUID_CORTEXA9;
+    cpu->reset_fpsid = 0x41033090;
 }
 
 static void cortex_a15_initfn(Object *obj)
@@ -200,6 +208,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
     cpu->midr = ARM_CPUID_CORTEXA15;
+    cpu->reset_fpsid = 0x410430f0;
 }
 
 static void ti925t_initfn(Object *obj)
