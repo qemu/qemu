@@ -20,18 +20,106 @@
 
 #include "cpu-qom.h"
 #include "qemu-common.h"
+#if !defined(CONFIG_USER_ONLY)
+#include "hw/loader.h"
+#endif
 
 /* CPUClass::reset() */
 static void arm_cpu_reset(CPUState *s)
 {
     ARMCPU *cpu = ARM_CPU(s);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(cpu);
+    CPUARMState *env = &cpu->env;
+    uint32_t tmp = 0;
+
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
 
     acc->parent_reset(s);
 
-    /* TODO Inline the current contents of cpu_state_reset(),
-            once cpu_reset_model_id() is eliminated. */
-    cpu_state_reset(&cpu->env);
+    tmp = env->cp15.c15_config_base_address;
+    memset(env, 0, offsetof(CPUARMState, breakpoints));
+    env->cp15.c15_config_base_address = tmp;
+    env->cp15.c0_cpuid = cpu->midr;
+    env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
+    env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
+    env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
+    env->cp15.c0_cachetype = cpu->ctr;
+    env->cp15.c1_sys = cpu->reset_sctlr;
+    env->cp15.c0_c1[0] = cpu->id_pfr0;
+    env->cp15.c0_c1[1] = cpu->id_pfr1;
+    env->cp15.c0_c1[2] = cpu->id_dfr0;
+    env->cp15.c0_c1[3] = cpu->id_afr0;
+    env->cp15.c0_c1[4] = cpu->id_mmfr0;
+    env->cp15.c0_c1[5] = cpu->id_mmfr1;
+    env->cp15.c0_c1[6] = cpu->id_mmfr2;
+    env->cp15.c0_c1[7] = cpu->id_mmfr3;
+    env->cp15.c0_c2[0] = cpu->id_isar0;
+    env->cp15.c0_c2[1] = cpu->id_isar1;
+    env->cp15.c0_c2[2] = cpu->id_isar2;
+    env->cp15.c0_c2[3] = cpu->id_isar3;
+    env->cp15.c0_c2[4] = cpu->id_isar4;
+    env->cp15.c0_c2[5] = cpu->id_isar5;
+    env->cp15.c15_i_min = 0xff0;
+    env->cp15.c0_clid = cpu->clidr;
+    memcpy(env->cp15.c0_ccsid, cpu->ccsidr, ARRAY_SIZE(cpu->ccsidr));
+
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
+    }
+
+#if defined(CONFIG_USER_ONLY)
+    env->uncached_cpsr = ARM_CPU_MODE_USR;
+    /* For user mode we must enable access to coprocessors */
+    env->vfp.xregs[ARM_VFP_FPEXC] = 1 << 30;
+    if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
+        env->cp15.c15_cpar = 3;
+    } else if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+        env->cp15.c15_cpar = 1;
+    }
+#else
+    /* SVC mode with interrupts disabled.  */
+    env->uncached_cpsr = ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+    /* On ARMv7-M the CPSR_I is the value of the PRIMASK register, and is
+       clear at reset.  Initial SP and PC are loaded from ROM.  */
+    if (IS_M(env)) {
+        uint32_t pc;
+        uint8_t *rom;
+        env->uncached_cpsr &= ~CPSR_I;
+        rom = rom_ptr(0);
+        if (rom) {
+            /* We should really use ldl_phys here, in case the guest
+               modified flash and reset itself.  However images
+               loaded via -kernel have not been copied yet, so load the
+               values directly from there.  */
+            env->regs[13] = ldl_p(rom);
+            pc = ldl_p(rom + 4);
+            env->thumb = pc & 1;
+            env->regs[15] = pc & ~1;
+        }
+    }
+    env->vfp.xregs[ARM_VFP_FPEXC] = 0;
+    env->cp15.c2_base_mask = 0xffffc000u;
+    /* v7 performance monitor control register: same implementor
+     * field as main ID register, and we implement no event counters.
+     */
+    env->cp15.c9_pmcr = (cpu->midr & 0xff000000);
+#endif
+    set_flush_to_zero(1, &env->vfp.standard_fp_status);
+    set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
+    set_default_nan_mode(1, &env->vfp.standard_fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->vfp.fp_status);
+    set_float_detect_tininess(float_tininess_before_rounding,
+                              &env->vfp.standard_fp_status);
+    tlb_flush(env, 1);
+    /* Reset is a state change for some CPUARMState fields which we
+     * bake assumptions about into translated code, so we need to
+     * tb_flush().
+     */
+    tb_flush(env);
 }
 
 static inline void set_feature(CPUARMState *env, int feature)
