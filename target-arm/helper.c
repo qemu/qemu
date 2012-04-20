@@ -25,21 +25,10 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM11MPCORE:
         break;
     case ARM_CPUID_CORTEXA8:
-        env->cp15.c0_clid = (1 << 27) | (2 << 24) | 3;
-        env->cp15.c0_ccsid[0] = 0xe007e01a; /* 16k L1 dcache. */
-        env->cp15.c0_ccsid[1] = 0x2007e01a; /* 16k L1 icache. */
-        env->cp15.c0_ccsid[2] = 0xf0000000; /* No L2 icache. */
         break;
     case ARM_CPUID_CORTEXA9:
-        env->cp15.c0_clid = (1 << 27) | (1 << 24) | 3;
-        env->cp15.c0_ccsid[0] = 0xe00fe015; /* 16k L1 dcache. */
-        env->cp15.c0_ccsid[1] = 0x200fe015; /* 16k L1 icache. */
         break;
     case ARM_CPUID_CORTEXA15:
-        env->cp15.c0_clid = 0x0a200023;
-        env->cp15.c0_ccsid[0] = 0x701fe00a; /* 32K L1 dcache */
-        env->cp15.c0_ccsid[1] = 0x201fe00a; /* 32K L1 icache */
-        env->cp15.c0_ccsid[2] = 0x711fe07a; /* 4096K L2 unified cache */
         break;
     case ARM_CPUID_CORTEXM3:
         break;
@@ -113,6 +102,8 @@ void cpu_state_reset(CPUARMState *env)
     env->cp15.c0_c2[4] = cpu->id_isar4;
     env->cp15.c0_c2[5] = cpu->id_isar5;
     env->cp15.c15_i_min = 0xff0;
+    env->cp15.c0_clid = cpu->clidr;
+    memcpy(env->cp15.c0_ccsid, cpu->ccsidr, ARRAY_SIZE(cpu->ccsidr));
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
