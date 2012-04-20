@@ -163,7 +163,7 @@ struct HCIInfo *qemu_next_hci(void);
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
-int net_client_init(QemuOpts *opts, int is_netdev);
+int net_client_init(QemuOpts *opts, int is_netdev, Error **errp);
 int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
 void net_check_clients(void);

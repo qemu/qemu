@@ -1081,7 +1081,7 @@ static const struct {
 #endif /* CONFIG_NET_BRIDGE */
 };
 
-int net_client_init(QemuOpts *opts, int is_netdev)
+int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
 {
     const char *name;
     const char *type;
@@ -1089,7 +1089,7 @@ int net_client_init(QemuOpts *opts, int is_netdev)
 
     type = qemu_opt_get(opts, "type");
     if (!type) {
-        qerror_report(QERR_MISSING_PARAMETER, "type");
+        error_set(errp, QERR_MISSING_PARAMETER, "type");
         return -1;
     }
 
@@ -1105,21 +1105,21 @@ int net_client_init(QemuOpts *opts, int is_netdev)
             strcmp(type, "vde") != 0 &&
 #endif
             strcmp(type, "socket") != 0) {
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
-                          "a netdev backend type");
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                      "a netdev backend type");
             return -1;
         }
 
         if (qemu_opt_get(opts, "vlan")) {
-            qerror_report(QERR_INVALID_PARAMETER, "vlan");
+            error_set(errp, QERR_INVALID_PARAMETER, "vlan");
             return -1;
         }
         if (qemu_opt_get(opts, "name")) {
-            qerror_report(QERR_INVALID_PARAMETER, "name");
+            error_set(errp, QERR_INVALID_PARAMETER, "name");
             return -1;
         }
         if (!qemu_opts_id(opts)) {
-            qerror_report(QERR_MISSING_PARAMETER, "id");
+            error_set(errp, QERR_MISSING_PARAMETER, "id");
             return -1;
         }
     }
@@ -1138,8 +1138,7 @@ int net_client_init(QemuOpts *opts, int is_netdev)
 
             qemu_opts_validate(opts, &net_client_types[i].desc[0], &local_err);
             if (error_is_set(&local_err)) {
-                qerror_report_err(local_err);
-                error_free(local_err);
+                error_propagate(errp, local_err);
                 return -1;
             }
 
@@ -1155,7 +1154,7 @@ int net_client_init(QemuOpts *opts, int is_netdev)
                 ret = net_client_types[i].init(opts, name, vlan);
                 if (ret < 0) {
                     /* TODO push error reporting into init() methods */
-                    qerror_report(QERR_DEVICE_INIT_FAILED, type);
+                    error_set(errp, QERR_DEVICE_INIT_FAILED, type);
                     return -1;
                 }
             }
@@ -1163,8 +1162,8 @@ int net_client_init(QemuOpts *opts, int is_netdev)
         }
     }
 
-    qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
-                  "a network client type");
+    error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+              "a network client type");
     return -1;
 }
 
@@ -1195,6 +1194,7 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *opts_str = qdict_get_try_str(qdict, "opts");
+    Error *local_err = NULL;
     QemuOpts *opts;
 
     if (!net_host_check_device(device)) {
@@ -1209,7 +1209,10 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
 
     qemu_opt_set(opts, "type", device);
 
-    if (net_client_init(opts, 0) < 0) {
+    net_client_init(opts, 0, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         monitor_printf(mon, "adding host network device %s failed\n", device);
     }
 }
@@ -1244,8 +1247,10 @@ int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
-    res = net_client_init(opts, 1);
+    res = net_client_init(opts, 1, &local_err);
     if (res < 0) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         qemu_opts_del(opts);
     }
 
@@ -1427,14 +1432,31 @@ void net_check_clients(void)
 
 static int net_init_client(QemuOpts *opts, void *dummy)
 {
-    if (net_client_init(opts, 0) < 0)
+    Error *local_err = NULL;
+
+    net_client_init(opts, 0, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return -1;
+    }
+
     return 0;
 }
 
 static int net_init_netdev(QemuOpts *opts, void *dummy)
 {
-    return net_client_init(opts, 1);
+    Error *local_err = NULL;
+    int ret;
+
+    ret = net_client_init(opts, 1, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return ret;
 }
 
 int net_init_clients(void)

@@ -39,6 +39,7 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
                                        const char *devaddr,
                                        const char *opts_str)
 {
+    Error *local_err = NULL;
     QemuOpts *opts;
     PCIBus *bus;
     int ret, devfn;
@@ -60,9 +61,12 @@ static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
 
     qemu_opt_set(opts, "type", "nic");
 
-    ret = net_client_init(opts, 0);
-    if (ret < 0)
+    ret = net_client_init(opts, 0, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return NULL;
+    }
     if (nd_table[ret].devaddr) {
         monitor_printf(mon, "Parameter addr not supported\n");
         return NULL;
