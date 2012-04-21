@@ -499,6 +499,14 @@ not_found:
     return &phys_sections[s_index];
 }
 
+static
+bool memory_region_is_unassigned(MemoryRegion *mr)
+{
+    return mr != &io_mem_ram && mr != &io_mem_rom
+        && mr != &io_mem_notdirty && !mr->rom_device
+        && mr != &io_mem_watch;
+}
+
 static target_phys_addr_t section_addr(MemoryRegionSection *section,
                                        target_phys_addr_t addr)
 {
@@ -1919,7 +1927,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 
-static inline void tlb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
+static inline void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
 {
     unsigned int i;
 
@@ -1934,7 +1942,7 @@ static inline void tlb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
             TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 
-static CPUTLBEntry s_cputlb_empty_entry = {
+static const CPUTLBEntry s_cputlb_empty_entry = {
     .addr_read  = -1,
     .addr_write = -1,
     .addr_code  = -1,
@@ -1964,14 +1972,15 @@ void tlb_flush(CPUArchState *env, int flush_global)
        links while we are modifying them */
     env->current_tb = NULL;
 
-    for(i = 0; i < CPU_TLB_SIZE; i++) {
+    for (i = 0; i < CPU_TLB_SIZE; i++) {
         int mmu_idx;
+
         for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
             env->tlb_table[mmu_idx][i] = s_cputlb_empty_entry;
         }
     }
 
-    memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
+    memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
 
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
@@ -2014,10 +2023,11 @@ void tlb_flush_page(CPUArchState *env, target_ulong addr)
 
     addr &= TARGET_PAGE_MASK;
     i = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++)
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         tlb_flush_entry(&env->tlb_table[mmu_idx][i], addr);
+    }
 
-    tlb_flush_jmp_cache(env, addr);
+    tb_flush_jmp_cache(env, addr);
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
@@ -2046,6 +2056,7 @@ static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
                                          uintptr_t start, uintptr_t length)
 {
     uintptr_t addr;
+
     if (tlb_is_dirty_ram(tlb_entry)) {
         addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
         if ((addr - start) < length) {
@@ -2054,13 +2065,29 @@ static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
     }
 }
 
+static void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length)
+{
+    CPUArchState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        int mmu_idx;
+
+        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
+            unsigned int i;
+
+            for (i = 0; i < CPU_TLB_SIZE; i++) {
+                tlb_reset_dirty_range(&env->tlb_table[mmu_idx][i],
+                                      start1, length);
+            }
+        }
+    }
+}
+
 /* Note: start and end must be within the same ram block.  */
 void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
                                      int dirty_flags)
 {
-    CPUArchState *env;
     uintptr_t length, start1;
-    int i;
 
     start &= TARGET_PAGE_MASK;
     end = TARGET_PAGE_ALIGN(end);
@@ -2079,15 +2106,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
             != (end - 1) - start) {
         abort();
     }
-
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        int mmu_idx;
-        for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-            for(i = 0; i < CPU_TLB_SIZE; i++)
-                tlb_reset_dirty_range(&env->tlb_table[mmu_idx][i],
-                                      start1, length);
-        }
-    }
+    cpu_tlb_reset_dirty_all(start1, length);
 }
 
 int cpu_physical_memory_set_dirty_tracking(int enable)
@@ -2112,21 +2131,11 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
     }
 }
 
-/* update the TLB according to the current state of the dirty bits */
-void cpu_tlb_update_dirty(CPUArchState *env)
-{
-    int i;
-    int mmu_idx;
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
-        for(i = 0; i < CPU_TLB_SIZE; i++)
-            tlb_update_dirty(&env->tlb_table[mmu_idx][i]);
-    }
-}
-
 static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
 {
-    if (tlb_entry->addr_write == (vaddr | TLB_NOTDIRTY))
+    if (tlb_entry->addr_write == (vaddr | TLB_NOTDIRTY)) {
         tlb_entry->addr_write = vaddr;
+    }
 }
 
 /* update the TLB corresponding to virtual page vaddr
@@ -2138,8 +2147,9 @@ static inline void tlb_set_dirty(CPUArchState *env, target_ulong vaddr)
 
     vaddr &= TARGET_PAGE_MASK;
     i = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++)
+    for (mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
         tlb_set_dirty1(&env->tlb_table[mmu_idx][i], vaddr);
+    }
 }
 
 /* Our TLB does not support large pages, so remember the area covered by
@@ -2182,6 +2192,53 @@ static bool is_ram_rom_romd(MemoryRegionSection *s)
     return is_ram_rom(s) || is_romd(s);
 }
 
+static
+target_phys_addr_t memory_region_section_get_iotlb(CPUArchState *env,
+                                                   MemoryRegionSection *section,
+                                                   target_ulong vaddr,
+                                                   target_phys_addr_t paddr,
+                                                   int prot,
+                                                   target_ulong *address)
+{
+    target_phys_addr_t iotlb;
+    CPUWatchpoint *wp;
+
+    if (is_ram_rom(section)) {
+        /* Normal RAM.  */
+        iotlb = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)
+            + section_addr(section, paddr);
+        if (!section->readonly) {
+            iotlb |= phys_section_notdirty;
+        } else {
+            iotlb |= phys_section_rom;
+        }
+    } else {
+        /* IO handlers are currently passed a physical address.
+           It would be nice to pass an offset from the base address
+           of that region.  This would avoid having to special case RAM,
+           and avoid full address decoding in every device.
+           We can't use the high bits of pd for this because
+           IO_MEM_ROMD uses these as a ram address.  */
+        iotlb = section - phys_sections;
+        iotlb += section_addr(section, paddr);
+    }
+
+    /* Make accesses to pages with watchpoints go via the
+       watchpoint trap routines.  */
+    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
+        if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
+            /* Avoid trapping reads of pages with a write breakpoint. */
+            if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
+                iotlb = phys_section_watch + paddr;
+                *address |= TLB_MMIO;
+                break;
+            }
+        }
+    }
+
+    return iotlb;
+}
+
 /* Add a new TLB entry. At most one entry for a given virtual address
    is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
    supplied size is only used by tlb_flush_page.  */
@@ -2195,7 +2252,6 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     target_ulong code_address;
     uintptr_t addend;
     CPUTLBEntry *te;
-    CPUWatchpoint *wp;
     target_phys_addr_t iotlb;
 
     assert(size >= TARGET_PAGE_SIZE);
@@ -2220,38 +2276,10 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     } else {
         addend = 0;
     }
-    if (is_ram_rom(section)) {
-        /* Normal RAM.  */
-        iotlb = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)
-            + section_addr(section, paddr);
-        if (!section->readonly)
-            iotlb |= phys_section_notdirty;
-        else
-            iotlb |= phys_section_rom;
-    } else {
-        /* IO handlers are currently passed a physical address.
-           It would be nice to pass an offset from the base address
-           of that region.  This would avoid having to special case RAM,
-           and avoid full address decoding in every device.
-           We can't use the high bits of pd for this because
-           IO_MEM_ROMD uses these as a ram address.  */
-        iotlb = section - phys_sections;
-        iotlb += section_addr(section, paddr);
-    }
+    iotlb = memory_region_section_get_iotlb(env, section, vaddr, paddr, prot,
+                                            &address);
 
     code_address = address;
-    /* Make accesses to pages with watchpoints go via the
-       watchpoint trap routines.  */
-    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
-        if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
-            /* Avoid trapping reads of pages with a write breakpoint. */
-            if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
-                iotlb = phys_section_watch + paddr;
-                address |= TLB_MMIO;
-                break;
-            }
-        }
-    }
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     env->iotlb[mmu_idx][index] = iotlb - vaddr;
@@ -4614,13 +4642,12 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     }
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(pd);
-    if (mr != &io_mem_ram && mr != &io_mem_rom
-        && mr != &io_mem_notdirty && !mr->rom_device
-        && mr != &io_mem_watch) {
+    if (memory_region_is_unassigned(mr)) {
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
         cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
 #else
-        cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
+        cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x"
+                  TARGET_FMT_lx "\n", addr);
 #endif
     }
     p = (void *)((uintptr_t)addr + env1->tlb_table[mmu_idx][page_index].addend);
