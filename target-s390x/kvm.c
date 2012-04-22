@@ -452,8 +452,7 @@ int kvm_arch_handle_exit(CPUS390XState *env, struct kvm_run *run)
             ret = handle_intercept(env);
             break;
         case KVM_EXIT_S390_RESET:
-            fprintf(stderr, "RESET not implemented\n");
-            exit(1);
+            qemu_system_reset_request();
             break;
         default:
             fprintf(stderr, "Unknown KVM exit: %d\n", run->exit_reason);
