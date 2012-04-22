@@ -274,7 +274,7 @@ static void s390_init(ram_addr_t my_ram_size,
         memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
     }
 
-    if (kernel_cmdline) {
+    if (rom_ptr(KERN_PARM_AREA)) {
         /* we have to overwrite values in the kernel image, which are "rom" */
         memcpy(rom_ptr(KERN_PARM_AREA), kernel_cmdline,
                strlen(kernel_cmdline) + 1);
