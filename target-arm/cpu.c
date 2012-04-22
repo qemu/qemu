@@ -182,6 +182,16 @@ void arm_cpu_realize(ARMCPU *cpu)
 
 /* CPU models */
 
+static void arm920t_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    /* TODO: check features. */
+    set_feature(&cpu->env, ARM_FEATURE_V4T);
+    cpu->midr = ARM_CPUID_ARM920T;
+    cpu->ctr = 0x0d172172;
+    cpu->reset_sctlr = 0x00000078;
+}
+
 static void arm926_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -598,6 +608,7 @@ typedef struct ARMCPUInfo {
 } ARMCPUInfo;
 
 static const ARMCPUInfo arm_cpus[] = {
+    { .name = "arm920t",     .initfn = arm920t_initfn },
     { .name = "arm926",      .initfn = arm926_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },
