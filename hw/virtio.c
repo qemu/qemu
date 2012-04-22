@@ -700,6 +700,8 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     uint16_t old, new;
     bool v;
+    /* We need to expose used array entries before checking used event. */
+    smp_mb();
     /* Always notify when queue is empty (when feature acknowledge) */
     if (((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
          !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx)) {
