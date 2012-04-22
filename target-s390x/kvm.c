@@ -407,6 +407,12 @@ static int handle_instruction(CPUS390XState *env, struct kvm_run *run)
     return 0;
 }
 
+static bool is_special_wait_psw(CPUS390XState *env)
+{
+    /* signal quiesce */
+    return env->kvm_run->psw_addr == 0xfffUL;
+}
+
 static int handle_intercept(CPUS390XState *env)
 {
     struct kvm_run *run = env->kvm_run;
@@ -420,6 +426,12 @@ static int handle_intercept(CPUS390XState *env)
             r = handle_instruction(env, run);
             break;
         case ICPT_WAITPSW:
+            if (s390_del_running_cpu(env) == 0 &&
+                is_special_wait_psw(env)) {
+                qemu_system_shutdown_request();
+            }
+            r = EXCP_HALTED;
+            break;
         case ICPT_CPU_STOP:
             if (s390_del_running_cpu(env) == 0) {
                 qemu_system_shutdown_request();
