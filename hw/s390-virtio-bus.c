@@ -57,6 +57,12 @@ static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev);
 /* length of VirtIO device pages */
 const target_phys_addr_t virtio_size = S390_DEVICE_PAGES * TARGET_PAGE_SIZE;
 
+static void s390_virtio_bus_reset(void *opaque)
+{
+    VirtIOS390Bus *bus = opaque;
+    bus->next_ring = bus->dev_page + TARGET_PAGE_SIZE;
+}
+
 VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
 {
     VirtIOS390Bus *bus;
@@ -82,6 +88,7 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
     /* Allocate RAM for VirtIO device pages (descriptors, queues, rings) */
     *ram_size += S390_DEVICE_PAGES * TARGET_PAGE_SIZE;
 
+    qemu_register_reset(s390_virtio_bus_reset, bus);
     return bus;
 }
 
