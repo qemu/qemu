@@ -230,6 +230,11 @@ static void s390_init(ram_addr_t my_ram_size,
         if (kernel_size == -1UL) {
             kernel_size = load_image_targphys(kernel_filename, 0, ram_size);
         }
+        if (kernel_size == -1UL) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    kernel_filename);
+            exit(1);
+        }
         /*
          * we can not rely on the ELF entry point, since up to 3.2 this
          * value was 0x800 (the SALIPL loader) and it wont work. For
@@ -269,6 +274,12 @@ static void s390_init(ram_addr_t my_ram_size,
         }
         initrd_size = load_image_targphys(initrd_filename, initrd_offset,
                                           ram_size - initrd_offset);
+        if (initrd_size == -1UL) {
+            fprintf(stderr, "qemu: could not load initrd '%s'\n",
+                    initrd_filename);
+            exit(1);
+        }
+
         /* we have to overwrite values in the kernel image, which are "rom" */
         memcpy(rom_ptr(INITRD_PARM_START), &initrd_offset, 8);
         memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
