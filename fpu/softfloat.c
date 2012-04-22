@@ -2219,7 +2219,7 @@ float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
             }
         }
         /* Zero plus something non-zero : just return the something */
-        return c ^ (signflip << 31);
+        return make_float32(float32_val(c) ^ (signflip << 31));
     }
 
     if (aExp == 0) {
@@ -3772,7 +3772,7 @@ float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
             }
         }
         /* Zero plus something non-zero : just return the something */
-        return c ^ ((uint64_t)signflip << 63);
+        return make_float64(float64_val(c) ^ ((uint64_t)signflip << 63));
     }
 
     if (aExp == 0) {

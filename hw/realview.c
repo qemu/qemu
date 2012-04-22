@@ -15,90 +15,12 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "bitbang_i2c.h"
+#include "i2c.h"
 #include "blockdev.h"
 #include "exec-memory.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030
-
-typedef struct {
-    SysBusDevice busdev;
-    MemoryRegion iomem;
-    bitbang_i2c_interface *bitbang;
-    int out;
-    int in;
-} RealViewI2CState;
-
-static uint64_t realview_i2c_read(void *opaque, target_phys_addr_t offset,
-                                  unsigned size)
-{
-    RealViewI2CState *s = (RealViewI2CState *)opaque;
-
-    if (offset == 0) {
-        return (s->out & 1) | (s->in << 1);
-    } else {
-        hw_error("realview_i2c_read: Bad offset 0x%x\n", (int)offset);
-        return -1;
-    }
-}
-
-static void realview_i2c_write(void *opaque, target_phys_addr_t offset,
-                               uint64_t value, unsigned size)
-{
-    RealViewI2CState *s = (RealViewI2CState *)opaque;
-
-    switch (offset) {
-    case 0:
-        s->out |= value & 3;
-        break;
-    case 4:
-        s->out &= ~value;
-        break;
-    default:
-        hw_error("realview_i2c_write: Bad offset 0x%x\n", (int)offset);
-    }
-    bitbang_i2c_set(s->bitbang, BITBANG_I2C_SCL, (s->out & 1) != 0);
-    s->in = bitbang_i2c_set(s->bitbang, BITBANG_I2C_SDA, (s->out & 2) != 0);
-}
-
-static const MemoryRegionOps realview_i2c_ops = {
-    .read = realview_i2c_read,
-    .write = realview_i2c_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
-static int realview_i2c_init(SysBusDevice *dev)
-{
-    RealViewI2CState *s = FROM_SYSBUS(RealViewI2CState, dev);
-    i2c_bus *bus;
-
-    bus = i2c_init_bus(&dev->qdev, "i2c");
-    s->bitbang = bitbang_i2c_init(bus);
-    memory_region_init_io(&s->iomem, &realview_i2c_ops, s,
-                          "realview-i2c", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    return 0;
-}
-
-static void realview_i2c_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
-    k->init = realview_i2c_init;
-}
-
-static TypeInfo realview_i2c_info = {
-    .name          = "realview_i2c",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RealViewI2CState),
-    .class_init    = realview_i2c_class_init,
-};
-
-static void realview_register_types(void)
-{
-    type_register_static(&realview_i2c_info);
-}
 
 /* Board init.  */
 
@@ -328,7 +250,7 @@ static void realview_init(ram_addr_t ram_size,
         }
     }
 
-    dev = sysbus_create_simple("realview_i2c", 0x10002000, NULL);
+    dev = sysbus_create_simple("versatile_i2c", 0x10002000, NULL);
     i2c = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
     i2c_create_slave(i2c, "ds1338", 0x68);
 
@@ -492,4 +414,3 @@ static void realview_machine_init(void)
 }
 
 machine_init(realview_machine_init);
-type_init(realview_register_types)
