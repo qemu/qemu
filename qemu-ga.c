@@ -117,12 +117,13 @@ static gboolean register_signal_handlers(void)
 static void usage(const char *cmd)
 {
     printf(
-"Usage: %s -c <channel_opts>\n"
+"Usage: %s [-m <method> -p <path>] [<options>]\n"
 "QEMU Guest Agent %s\n"
 "\n"
 "  -m, --method      transport method: one of unix-listen, virtio-serial, or\n"
 "                    isa-serial (virtio-serial is the default)\n"
-"  -p, --path        device/socket path (%s is the default for virtio-serial)\n"
+"  -p, --path        device/socket path (the default for virtio-serial is:\n"
+"                    %s)\n"
 "  -l, --logfile     set logfile path, logs to stderr by default\n"
 "  -f, --pidfile     specify pidfile (default is %s)\n"
 "  -v, --verbose     log extra debugging information\n"
@@ -131,7 +132,7 @@ static void usage(const char *cmd)
 #ifdef _WIN32
 "  -s, --service     service commands: install, uninstall\n"
 #endif
-"  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\""
+"  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\"\n"
 "                    to list available RPCs)\n"
 "  -h, --help        display this help and exit\n"
 "\n"
