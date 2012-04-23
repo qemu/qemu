@@ -916,7 +916,7 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
         msi_supported = true;
     }
 
-    if (xen_enabled()) {
+    if (xen_msi_support()) {
         msi_supported = true;
     }
 

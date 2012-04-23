@@ -209,7 +209,7 @@ CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
         }
     }
     if (subtype == NULL) {
-        fprintf(stderr, "spice-qemu-char: unsupported name\n");
+        fprintf(stderr, "spice-qemu-char: unsupported name: %s\n", name);
         print_allowed_subtypes();
         return NULL;
     }

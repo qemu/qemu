@@ -92,8 +92,8 @@ ETEXI
     },
 
 STEXI
-@item block_job_set_stream
-@findex block_job_set_stream
+@item block_job_set_speed
+@findex block_job_set_speed
 Set maximum speed for a background block operation.
 ETEXI
 

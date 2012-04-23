@@ -1200,6 +1200,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ UNMAP                    ] = "UNMAP",
         [ READ_TOC                 ] = "READ_TOC",
         [ REPORT_DENSITY_SUPPORT   ] = "REPORT_DENSITY_SUPPORT",
+        [ SANITIZE                 ] = "SANITIZE",
         [ GET_CONFIGURATION        ] = "GET_CONFIGURATION",
         [ LOG_SELECT               ] = "LOG_SELECT",
         [ LOG_SENSE                ] = "LOG_SENSE",
@@ -1430,15 +1431,18 @@ static char *scsibus_get_dev_path(DeviceState *dev)
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     DeviceState *hba = dev->parent_bus->parent;
     char *id = NULL;
+    char *path;
 
     if (hba && hba->parent_bus && hba->parent_bus->info->get_dev_path) {
         id = hba->parent_bus->info->get_dev_path(hba);
     }
     if (id) {
-        return g_strdup_printf("%s/%d:%d:%d", id, d->channel, d->id, d->lun);
+        path = g_strdup_printf("%s/%d:%d:%d", id, d->channel, d->id, d->lun);
     } else {
-        return g_strdup_printf("%d:%d:%d", d->channel, d->id, d->lun);
+        path = g_strdup_printf("%d:%d:%d", d->channel, d->id, d->lun);
     }
+    g_free(id);
+    return path;
 }
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)

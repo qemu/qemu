@@ -1124,7 +1124,7 @@ echo "  --disable-docs           disable documentation build"
 echo "  --disable-vhost-net      disable vhost-net acceleration support"
 echo "  --enable-vhost-net       enable vhost-net acceleration support"
 echo "  --enable-trace-backend=B Set trace backend"
-echo "                           Available backends:" $("$source_path"/scripts/tracetool --list-backends)
+echo "                           Available backends:" $($python "$source_path"/scripts/tracetool.py --list-backends)
 echo "  --with-trace-file=NAME   Full PATH,NAME of file to store traces"
 echo "                           Default:trace-<pid>"
 echo "  --disable-spice          disable spice"
@@ -1410,6 +1410,31 @@ EOF
     xen=no
 
   # Xen unstable
+  elif (
+      cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+#include <stdint.h>
+#include <xen/hvm/hvm_info_table.h>
+#if !defined(HVM_MAX_VCPUS)
+# error HVM_MAX_VCPUS not defined
+#endif
+int main(void) {
+  xc_interface *xc;
+  xs_daemon_open();
+  xc = xc_interface_open(0, 0, 0);
+  xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
+  xc_gnttab_open(NULL, 0);
+  xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
+  xc_hvm_inject_msi(xc, 0, 0xf0000000, 0x00000000);
+  return 0;
+}
+EOF
+      compile_prog "" "$xen_libs"
+    ) ; then
+    xen_ctrl_version=420
+    xen=yes
+
   elif (
       cat > $TMPC <<EOF
 #include <xenctrl.h>
@@ -2709,7 +2734,7 @@ fi
 ##########################################
 # check if trace backend exists
 
-sh "$source_path/scripts/tracetool" "--$trace_backend" --check-backend > /dev/null 2> /dev/null
+$python "$source_path/scripts/tracetool.py" "--backend=$trace_backend" --check-backend  > /dev/null 2> /dev/null
 if test "$?" -ne 0 ; then
   echo
   echo "Error: invalid trace backend"
