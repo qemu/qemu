@@ -133,6 +133,21 @@ static inline int xc_fd(xc_interface *xen_xc)
 }
 #endif
 
+/* Xen before 4.2 */
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
+static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
+        uint64_t addr, uint32_t data)
+{
+    return -ENOSYS;
+}
+#else
+static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
+        uint64_t addr, uint32_t data)
+{
+    return xc_hvm_inject_msi(xen_xc, dom, addr, data);
+}
+#endif
+
 void destroy_hvm_domain(void);
 
 #endif /* QEMU_HW_XEN_COMMON_H */
