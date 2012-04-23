@@ -253,9 +253,10 @@ SuperHCPU *cpu_sh4_init(const char *cpu_model)
     env->features = def->features;
     sh4_translate_init();
     env->cpu_model_str = cpu_model;
-    cpu_reset(CPU(cpu));
     cpu_register(env, def);
-    qemu_init_vcpu(env);
+
+    object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
+
     return cpu;
 }
 

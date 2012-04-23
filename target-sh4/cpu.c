@@ -54,6 +54,17 @@ static void superh_cpu_reset(CPUState *s)
     set_default_nan_mode(1, &env->fp_status);
 }
 
+static void superh_cpu_realizefn(DeviceState *dev, Error **errp)
+{
+    SuperHCPU *cpu = SUPERH_CPU(dev);
+    SuperHCPUClass *scc = SUPERH_CPU_GET_CLASS(dev);
+
+    cpu_reset(CPU(cpu));
+    qemu_init_vcpu(&cpu->env);
+
+    scc->parent_realize(dev, errp);
+}
+
 static void superh_cpu_initfn(Object *obj)
 {
     SuperHCPU *cpu = SUPERH_CPU(obj);
@@ -74,6 +85,9 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
+
+    scc->parent_realize = dc->realize;
+    dc->realize = superh_cpu_realizefn;
 
     scc->parent_reset = cc->reset;
     cc->reset = superh_cpu_reset;
