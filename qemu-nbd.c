@@ -17,7 +17,7 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block.h"
 #include "nbd.h"
 
 #include <stdarg.h>
@@ -126,8 +126,7 @@ static int find_partition(BlockDriverState *bs, int partition,
     }
 
     if (data[510] != 0x55 || data[511] != 0xaa) {
-        errno = -EINVAL;
-        return -1;
+        return -EINVAL;
     }
 
     for (i = 0; i < 4; i++) {
@@ -165,8 +164,7 @@ static int find_partition(BlockDriverState *bs, int partition,
         }
     }
 
-    errno = -ENOENT;
-    return -1;
+    return -ENOENT;
 }
 
 static void termsig_handler(int signum)
@@ -186,7 +184,7 @@ static void *show_parts(void *arg)
      *     modprobe nbd max_part=63
      */
     nbd = open(device, O_RDWR);
-    if (nbd != -1) {
+    if (nbd >= 0) {
         close(nbd);
     }
     return NULL;
@@ -203,25 +201,25 @@ static void *nbd_client_thread(void *arg)
     pthread_t show_parts_thread;
 
     sock = unix_socket_outgoing(sockpath);
-    if (sock == -1) {
+    if (sock < 0) {
         goto out;
     }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
                                 &size, &blocksize);
-    if (ret == -1) {
+    if (ret < 0) {
         goto out;
     }
 
     fd = open(device, O_RDWR);
-    if (fd == -1) {
+    if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
         fprintf(stderr, "Failed to open %s: %m", device);
         goto out;
     }
 
     ret = nbd_init(fd, sock, nbdflags, size, blocksize);
-    if (ret == -1) {
+    if (ret < 0) {
         goto out;
     }
 
@@ -268,7 +266,7 @@ static void nbd_accept(void *opaque)
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
     nbd_started = true;
-    if (fd != -1 && nbd_client_new(exp, fd, nbd_client_closed)) {
+    if (fd >= 0 && nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
     }
 }
@@ -410,9 +408,9 @@ int main(int argc, char **argv)
 
     if (disconnect) {
         fd = open(argv[optind], O_RDWR);
-        if (fd == -1)
+        if (fd < 0) {
             err(EXIT_FAILURE, "Cannot open %s", argv[optind]);
-
+        }
         nbd_disconnect(fd);
 
         close(fd);
@@ -427,7 +425,7 @@ int main(int argc, char **argv)
         pid_t pid;
         int ret;
 
-        if (qemu_pipe(stderr_fd) == -1) {
+        if (qemu_pipe(stderr_fd) < 0) {
             err(EXIT_FAILURE, "Error setting up communication pipe");
         }
 
@@ -441,7 +439,7 @@ int main(int argc, char **argv)
 
             /* Temporarily redirect stderr to the parent's pipe...  */
             dup2(stderr_fd[1], STDERR_FILENO);
-            if (ret == -1) {
+            if (ret < 0) {
                 err(EXIT_FAILURE, "Failed to daemonize");
             }
 
@@ -459,11 +457,11 @@ int main(int argc, char **argv)
             while ((ret = read(stderr_fd[0], buf, 1024)) > 0) {
                 errors = true;
                 ret = qemu_write_full(STDERR_FILENO, buf, ret);
-                if (ret == -1) {
+                if (ret < 0) {
                     exit(EXIT_FAILURE);
                 }
             }
-            if (ret == -1) {
+            if (ret < 0) {
                 err(EXIT_FAILURE, "Cannot read from daemon");
             }
 
@@ -489,11 +487,14 @@ int main(int argc, char **argv)
         err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
     }
 
-    fd_size = bs->total_sectors * 512;
+    fd_size = bdrv_getlength(bs);
 
-    if (partition != -1 &&
-        find_partition(bs, partition, &dev_offset, &fd_size)) {
-        err(EXIT_FAILURE, "Could not find partition %d", partition);
+    if (partition != -1) {
+        ret = find_partition(bs, partition, &dev_offset, &fd_size);
+        if (ret < 0) {
+            errno = -ret;
+            err(EXIT_FAILURE, "Could not find partition %d", partition);
+        }
     }
 
     exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags);
@@ -504,7 +505,7 @@ int main(int argc, char **argv)
         fd = tcp_socket_incoming(bindto, port);
     }
 
-    if (fd == -1) {
+    if (fd < 0) {
         return 1;
     }
 
