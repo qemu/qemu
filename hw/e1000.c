@@ -481,7 +481,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         } while (split_size -= bytes);
     } else if (!tp->tse && tp->cptse) {
         // context descriptor TSE is not set, while data descriptor TSE is set
-        DBGOUT(TXERR, "TCP segmentaion Error\n");
+        DBGOUT(TXERR, "TCP segmentation error\n");
     } else {
         split_size = MIN(sizeof(tp->data) - tp->size, split_size);
         pci_dma_read(&s->dev, addr, tp->data + tp->size, split_size);

@@ -144,7 +144,6 @@ static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
             } else {
                 ret = p[offset];
                 ret |= p[offset + 1] << 8;
-                ret |= p[offset + 1] << 8;
                 ret |= p[offset + 2] << 16;
                 ret |= p[offset + 3] << 24;
             }
