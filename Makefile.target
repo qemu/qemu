@@ -365,6 +365,7 @@ endif
 obj-arm-y = integratorcp.o versatilepb.o arm_pic.o arm_timer.o
 obj-arm-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
 obj-arm-y += versatile_pci.o
+obj-arm-y += versatile_i2c.o
 obj-arm-y += cadence_uart.o
 obj-arm-y += cadence_ttc.o
 obj-arm-y += cadence_gem.o

@@ -228,6 +228,9 @@ static void timerblock_reset(timerblock *tb)
     tb->control = 0;
     tb->status = 0;
     tb->tick = 0;
+    if (tb->timer) {
+        qemu_del_timer(tb->timer);
+    }
 }
 
 static void arm_mptimer_reset(DeviceState *dev)

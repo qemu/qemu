@@ -1,6 +1,7 @@
 /*
- * QTest testcase for the MC146818 real-time clock
+ * QTest testcase for the M48T59 and M48T08 real-time clocks
  *
+ * Based on MC146818 RTC test:
  * Copyright IBM, Corp. 2012
  *
  * Authors:
@@ -11,7 +12,6 @@
  *
  */
 #include "libqtest.h"
-#include "hw/mc146818rtc_regs.h"
 
 #include <glib.h>
 #include <stdio.h>
@@ -19,28 +19,68 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-static uint8_t base = 0x70;
+#define RTC_SECONDS             0x9
+#define RTC_MINUTES             0xa
+#define RTC_HOURS               0xb
 
-static int bcd2dec(int value)
+#define RTC_DAY_OF_WEEK         0xc
+#define RTC_DAY_OF_MONTH        0xd
+#define RTC_MONTH               0xe
+#define RTC_YEAR                0xf
+
+static uint32_t base;
+static uint16_t reg_base = 0x1ff0; /* 0x7f0 for m48t02 */
+static int base_year;
+static bool use_mmio;
+
+static uint8_t cmos_read_mmio(uint8_t reg)
 {
-    return (((value >> 4) & 0x0F) * 10) + (value & 0x0F);
+    uint8_t data;
+
+    memread(base + (uint32_t)reg_base + (uint32_t)reg, &data, 1);
+    return data;
 }
 
-static int dec2bcd(int value)
+static void cmos_write_mmio(uint8_t reg, uint8_t val)
 {
-    return ((value / 10) << 4) | (value % 10);
+    uint8_t data = val;
+
+    memwrite(base + (uint32_t)reg_base + (uint32_t)reg, &data, 1);
+}
+
+static uint8_t cmos_read_ioio(uint8_t reg)
+{
+    outw(base + 0, reg_base + (uint16_t)reg);
+    return inb(base + 3);
+}
+
+static void cmos_write_ioio(uint8_t reg, uint8_t val)
+{
+    outw(base + 0, reg_base + (uint16_t)reg);
+    outb(base + 3, val);
 }
 
 static uint8_t cmos_read(uint8_t reg)
 {
-    outb(base + 0, reg);
-    return inb(base + 1);
+    if (use_mmio) {
+        return cmos_read_mmio(reg);
+    } else {
+        return cmos_read_ioio(reg);
+    }
 }
 
 static void cmos_write(uint8_t reg, uint8_t val)
 {
-    outb(base + 0, reg);
-    outb(base + 1, val);
+    if (use_mmio) {
+        cmos_write_mmio(reg, val);
+    } else {
+        cmos_write_ioio(reg, val);
+    }
+}
+
+static int bcd2dec(int value)
+{
+    return (((value >> 4) & 0x0F) * 10) + (value & 0x0F);
 }
 
 static int tm_cmp(struct tm *lhs, struct tm *rhs)
@@ -66,7 +106,7 @@ static int tm_cmp(struct tm *lhs, struct tm *rhs)
 #if 0
 static void print_tm(struct tm *tm)
 {
-    printf("%04d-%02d-%02d %02d:%02d:%02d\n",
+    printf("%04d-%02d-%02d %02d:%02d:%02d %+02ld\n",
            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
            tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_gmtoff);
 }
@@ -74,7 +114,6 @@ static void print_tm(struct tm *tm)
 
 static void cmos_get_date_time(struct tm *date)
 {
-    int base_year = 2000, hour_offset;
     int sec, min, hour, mday, mon, year;
     time_t ts;
     struct tm dummy;
@@ -86,24 +125,12 @@ static void cmos_get_date_time(struct tm *date)
     mon = cmos_read(RTC_MONTH);
     year = cmos_read(RTC_YEAR);
 
-    if ((cmos_read(RTC_REG_B) & REG_B_DM) == 0) {
-        sec = bcd2dec(sec);
-        min = bcd2dec(min);
-        hour = bcd2dec(hour);
-        mday = bcd2dec(mday);
-        mon = bcd2dec(mon);
-        year = bcd2dec(year);
-        hour_offset = 80;
-    } else {
-        hour_offset = 0x80;
-    }
-
-    if ((cmos_read(0x0B) & REG_B_24H) == 0) {
-        if (hour >= hour_offset) {
-            hour -= hour_offset;
-            hour += 12;
-        }
-    }
+    sec = bcd2dec(sec);
+    min = bcd2dec(min);
+    hour = bcd2dec(hour);
+    mday = bcd2dec(mday);
+    mon = bcd2dec(mon);
+    year = bcd2dec(year);
 
     ts = time(NULL);
     localtime_r(&ts, &dummy);
@@ -181,63 +208,18 @@ static int wiggle = 2;
 
 static void bcd_check_time(void)
 {
-    /* Set BCD mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) & ~REG_B_DM);
-    check_time(wiggle);
-}
-
-static void dec_check_time(void)
-{
-    /* Set DEC mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_DM);
-    check_time(wiggle);
-}
-
-static void set_alarm_time(struct tm *tm)
-{
-    int sec;
-
-    sec = tm->tm_sec;
-
-    if ((cmos_read(RTC_REG_B) & REG_B_DM) == 0) {
-        sec = dec2bcd(sec);
+    if (strcmp(qtest_get_arch(), "sparc64") == 0) {
+        base = 0x74;
+        base_year = 1900;
+        use_mmio = false;
+    } else if (strcmp(qtest_get_arch(), "sparc") == 0) {
+        base = 0x71200000;
+        base_year = 1968;
+        use_mmio = true;
+    } else { /* PPC: need to map macio in PCI */
+        g_assert_not_reached();
     }
-
-    cmos_write(RTC_SECONDS_ALARM, sec);
-    cmos_write(RTC_MINUTES_ALARM, RTC_ALARM_DONT_CARE);
-    cmos_write(RTC_HOURS_ALARM, RTC_ALARM_DONT_CARE);
-}
-
-static void alarm_time(void)
-{
-    struct tm now;
-    time_t ts;
-    int i;
-
-    ts = time(NULL);
-    gmtime_r(&ts, &now);
-
-    /* set DEC mode */
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_DM);
-
-    g_assert(!get_irq(RTC_ISA_IRQ));
-    cmos_read(RTC_REG_C);
-
-    now.tm_sec = (now.tm_sec + 2) % 60;
-    set_alarm_time(&now);
-    cmos_write(RTC_REG_B, cmos_read(RTC_REG_B) | REG_B_AIE);
-
-    for (i = 0; i < 2 + wiggle; i++) {
-        if (get_irq(RTC_ISA_IRQ)) {
-            break;
-        }
-
-        clock_step(1000000000);
-    }
-
-    g_assert(get_irq(RTC_ISA_IRQ));
-    g_assert((cmos_read(RTC_REG_C) & REG_C_AF) != 0);
-    g_assert(cmos_read(RTC_REG_C) == 0);
+    check_time(wiggle);
 }
 
 /* success if no crash or abort */
@@ -264,11 +246,8 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     s = qtest_start("-display none -rtc clock=vm");
-    qtest_irq_intercept_in(s, "ioapic");
 
     qtest_add_func("/rtc/bcd/check-time", bcd_check_time);
-    qtest_add_func("/rtc/dec/check-time", dec_check_time);
-    qtest_add_func("/rtc/alarm-time", alarm_time);
     qtest_add_func("/rtc/fuzz-registers", fuzz_registers);
     ret = g_test_run();
 
