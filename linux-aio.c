@@ -214,7 +214,7 @@ void *laio_init(void)
         goto out_close_efd;
 
     qemu_aio_set_fd_handler(s->efd, qemu_laio_completion_cb, NULL,
-        qemu_laio_flush_cb, NULL, s);
+        qemu_laio_flush_cb, s);
 
     return s;
 

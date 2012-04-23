@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Test that all qcow2 header extensions survive a header rewrite
+# Test aligned and misaligned write zeroes operations.
 #
-# Copyright (C) 2011 Red Hat, Inc.
+# Copyright (C) 2012 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 
 # creator
-owner=kwolf@redhat.com
+owner=pbonzini@redhat.com
 
 seq=`basename $0`
 echo "QA output created by $seq"
@@ -37,42 +37,35 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
-. ./common.pattern
 
-# This tests qcow2-specific low-level functionality
-_supported_fmt qcow2
+_supported_fmt generic
 _supported_proto generic
 _supported_os Linux
 
-CLUSTER_SIZE=65536
 
-# qcow2.py output depends on the exact options used, so override the command
-# line here as an exception
-for IMGOPTS in "compat=0.10" "compat=1.1"; do
+size=128M
+_make_test_img $size
 
-    echo
-    echo ===== Testing with -o $IMGOPTS =====
-    echo
-    echo === Create image with unknown header extension ===
-    echo
-    _make_test_img 64M
-    ./qcow2.py $TEST_IMG add-header-ext 0x12345678 "This is a test header extension"
-    ./qcow2.py $TEST_IMG dump-header
-    _check_test_img
+echo
+echo "== preparing image =="
+$QEMU_IO -c "write -P 0xa 0x200 0x400" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -P 0xa 0x20000 0x600" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -z 0x400 0x20000" $TEST_IMG | _filter_qemu_io
 
-    echo
-    echo === Rewrite header with no backing file ===
-    echo
-    $QEMU_IMG rebase -u -b "" $TEST_IMG
-    ./qcow2.py $TEST_IMG dump-header
-    _check_test_img
+echo
+echo "== verifying patterns (1) =="
+$QEMU_IO -c "read -P 0xa 0x200 0x200" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P 0x0 0x400 0x20000" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P 0xa 0x20400 0x200" $TEST_IMG | _filter_qemu_io
 
-    echo
-    echo === Add a backing file and format ===
-    echo
-    $QEMU_IMG rebase -u -b "/some/backing/file/path" -F host_device $TEST_IMG
-    ./qcow2.py $TEST_IMG dump-header
-done
+echo
+echo "== rewriting zeroes =="
+$QEMU_IO -c "write -P 0xb 0x10000 0x10000" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -z 0x10000 0x10000" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== verifying patterns (2) =="
+$QEMU_IO -c "read -P 0x0 0x400 0x20000" $TEST_IMG | _filter_qemu_io
 
 # success, all done
 echo "*** done"

@@ -25,6 +25,7 @@
 
 #include "cmd.h"
 #include "qemu-aio.h"
+#include "main-loop.h"
 
 #define _(x)	x	/* not gettext support yet */
 
@@ -146,7 +147,7 @@ static void prep_fetchline(void *opaque)
 {
     int *fetchable = opaque;
 
-    qemu_aio_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL);
     *fetchable= 1;
 }
 
@@ -193,12 +194,11 @@ void command_loop(void)
         if (!prompted) {
             printf("%s", get_prompt());
             fflush(stdout);
-            qemu_aio_set_fd_handler(STDIN_FILENO, prep_fetchline, NULL, NULL,
-                                    NULL, &fetchable);
+            qemu_set_fd_handler(STDIN_FILENO, prep_fetchline, NULL, &fetchable);
             prompted = 1;
         }
 
-        qemu_aio_wait();
+        main_loop_wait(false);
 
         if (!fetchable) {
             continue;
@@ -221,7 +221,7 @@ void command_loop(void)
         prompted = 0;
         fetchable = 0;
     }
-    qemu_aio_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL);
 }
 
 /* from libxcmd/input.c */

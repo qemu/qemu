@@ -15,6 +15,7 @@
 #include <libgen.h>
 
 #include "qemu-common.h"
+#include "main-loop.h"
 #include "block_int.h"
 #include "cmd.h"
 #include "trace/control.h"
@@ -295,7 +296,7 @@ static int do_aio_readv(QEMUIOVector *qiov, int64_t offset, int *total)
     bdrv_aio_readv(bs, offset >> 9, qiov, qiov->size >> 9,
                    aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
-        qemu_aio_wait();
+        main_loop_wait(false);
     }
 
     *total = qiov->size;
@@ -309,7 +310,7 @@ static int do_aio_writev(QEMUIOVector *qiov, int64_t offset, int *total)
     bdrv_aio_writev(bs, offset >> 9, qiov, qiov->size >> 9,
                     aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
-        qemu_aio_wait();
+        main_loop_wait(false);
     }
 
     *total = qiov->size;
@@ -352,7 +353,7 @@ static int do_aio_multiwrite(BlockRequest* reqs, int num_reqs, int *total)
     }
 
     while (async_ret.num_done < num_reqs) {
-        qemu_aio_wait();
+        main_loop_wait(false);
     }
 
     return async_ret.error < 0 ? async_ret.error : 1;
@@ -1784,6 +1785,7 @@ static void usage(const char *name)
 "  -g, --growable       allow file to grow (only applies to protocols)\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
+"  -t, --cache=MODE     use the given cache mode for the image\n"
 "  -T, --trace FILE     enable trace events listed in the given file\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
@@ -1796,7 +1798,7 @@ int main(int argc, char **argv)
 {
     int readonly = 0;
     int growable = 0;
-    const char *sopt = "hVc:rsnmgkT:";
+    const char *sopt = "hVc:rsnmgkt:T:";
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -1808,6 +1810,7 @@ int main(int argc, char **argv)
         { "misalign", 0, NULL, 'm' },
         { "growable", 0, NULL, 'g' },
         { "native-aio", 0, NULL, 'k' },
+        { "cache", 1, NULL, 't' },
         { "trace", 1, NULL, 'T' },
         { NULL, 0, NULL, 0 }
     };
@@ -1839,6 +1842,12 @@ int main(int argc, char **argv)
             break;
         case 'k':
             flags |= BDRV_O_NATIVE_AIO;
+            break;
+        case 't':
+            if (bdrv_parse_cache_flags(optarg, &flags) < 0) {
+                error_report("Invalid cache option: %s", optarg);
+                exit(1);
+            }
             break;
         case 'T':
             if (!trace_backend_init(optarg, NULL)) {

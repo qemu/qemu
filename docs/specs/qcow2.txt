@@ -18,7 +18,7 @@ The first cluster of a qcow2 image contains the file header:
                     QCOW magic string ("QFI\xfb")
 
           4 -  7:   version
-                    Version number (only valid value is 2)
+                    Version number (valid values are 2 and 3)
 
           8 - 15:   backing_file_offset
                     Offset into the image file at which the backing file name
@@ -67,12 +67,45 @@ The first cluster of a qcow2 image contains the file header:
                     Offset into the image file at which the snapshot table
                     starts. Must be aligned to a cluster boundary.
 
+If the version is 3 or higher, the header has the following additional fields.
+For version 2, the values are assumed to be zero, unless specified otherwise
+in the description of a field.
+
+         72 -  79:  incompatible_features
+                    Bitmask of incompatible features. An implementation must
+                    fail to open an image if an unknown bit is set.
+
+                    Bits 0-63:  Reserved (set to 0)
+
+         80 -  87:  compatible_features
+                    Bitmask of compatible features. An implementation can
+                    safely ignore any unknown bits that are set.
+
+                    Bits 0-63:  Reserved (set to 0)
+
+         88 -  95:  autoclear_features
+                    Bitmask of auto-clear features. An implementation may only
+                    write to an image with unknown auto-clear features if it
+                    clears the respective bits from this field first.
+
+                    Bits 0-63:  Reserved (set to 0)
+
+         96 -  99:  refcount_order
+                    Describes the width of a reference count block entry (width
+                    in bits = 1 << refcount_order). For version 2 images, the
+                    order is always assumed to be 4 (i.e. the width is 16 bits).
+
+        100 - 103:  header_length
+                    Length of the header structure in bytes. For version 2
+                    images, the length is always assumed to be 72 bytes.
+
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:
 
     Byte  0 -  3:   Header extension type:
                         0x00000000 - End of the header extension area
                         0xE2792ACA - Backing file format name
+                        0x6803f857 - Feature name table
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -83,9 +116,37 @@ be stored. Each extension has a structure like the following:
           n -  m:   Padding to round up the header extension size to the next
                     multiple of 8.
 
+Unless stated otherwise, each header extension type shall appear at most once
+in the same image.
+
 The remaining space between the end of the header extension area and the end of
-the first cluster can be used for other data. Usually, the backing file name is
-stored there.
+the first cluster can be used for the backing file name. It is not allowed to
+store other data here, so that an implementation can safely modify the header
+and add extensions without harming data of compatible features that it
+doesn't support. Compatible features that need space for additional data can
+use a header extension.
+
+
+== Feature name table ==
+
+The feature name table is an optional header extension that contains the name
+for features used by the image. It can be used by applications that don't know
+the respective feature (e.g. because the feature was introduced only later) to
+display a useful error message.
+
+The number of entries in the feature name table is determined by the length of
+the header extension data. Each entry look like this:
+
+    Byte       0:   Type of feature (select feature bitmap)
+                        0: Incompatible feature
+                        1: Compatible feature
+                        2: Autoclear feature
+
+               1:   Bit number within the selected feature bitmap (valid
+                    values: 0-63)
+
+          2 - 47:   Feature name (padded with zeros, but not necessarily null
+                    terminated if it has full length)
 
 
 == Host cluster management ==
@@ -126,9 +187,11 @@ Refcount table entry:
                     been allocated. All refcounts managed by this refcount block
                     are 0.
 
-Refcount block entry:
+Refcount block entry (x = refcount_bits - 1):
 
-    Bit  0 - 15:    Reference count of the cluster
+    Bit  0 -  x:    Reference count of the cluster. If refcount_bits implies a
+                    sub-byte width, note that bit 0 means the least significant
+                    bit in this context.
 
 
 == Cluster mapping ==
@@ -168,9 +231,29 @@ L1 table entry:
                     refcount is exactly one. This information is only accurate
                     in the active L1 table.
 
-L2 table entry (for normal clusters):
+L2 table entry:
 
-    Bit  0 -  8:    Reserved (set to 0)
+    Bit  0 -  61:   Cluster descriptor
+
+              62:   0 for standard clusters
+                    1 for compressed clusters
+
+              63:   0 for a cluster that is unused or requires COW, 1 if its
+                    refcount is exactly one. This information is only accurate
+                    in L2 tables that are reachable from the the active L1
+                    table.
+
+Standard Cluster Descriptor:
+
+    Bit       0:    If set to 1, the cluster reads as all zeros. The host
+                    cluster offset can be used to describe a preallocation,
+                    but it won't be used for reading data from this cluster,
+                    nor is data read from the backing file if the cluster is
+                    unallocated.
+
+                    With version 2, this is always 0.
+
+         1 -  8:    Reserved (set to 0)
 
          9 - 55:    Bits 9-55 of host cluster offset. Must be aligned to a
                     cluster boundary. If the offset is 0, the cluster is
@@ -178,30 +261,18 @@ L2 table entry (for normal clusters):
 
         56 - 61:    Reserved (set to 0)
 
-             62:    0 (this cluster is not compressed)
 
-             63:    0 for a cluster that is unused or requires COW, 1 if its
-                    refcount is exactly one. This information is only accurate
-                    in L2 tables that are reachable from the the active L1
-                    table.
-
-L2 table entry (for compressed clusters; x = 62 - (cluster_size - 8)):
+Compressed Clusters Descriptor (x = 62 - (cluster_size - 8)):
 
     Bit  0 -  x:    Host cluster offset. This is usually _not_ aligned to a
                     cluster boundary!
 
        x+1 - 61:    Compressed size of the images in sectors of 512 bytes
 
-             62:    1 (this cluster is compressed using zlib)
-
-             63:    0 for a cluster that is unused or requires COW, 1 if its
-                    refcount is exactly one. This information is only accurate
-                    in L2 tables that are reachable from the the active L1
-                    table.
-
 If a cluster is unallocated, read requests shall read the data from the backing
-file. If there is no backing file or the backing file is smaller than the image,
-they shall read zeros for all parts that are not covered by the backing file.
+file (except if bit 0 in the Standard Cluster Descriptor is set). If there is
+no backing file or the backing file is smaller than the image, they shall read
+zeros for all parts that are not covered by the backing file.
 
 
 == Snapshots ==
@@ -260,6 +331,11 @@ Snapshot table entry:
                     Byte 40 - 47:   Size of the VM state in bytes. 0 if no VM
                                     state is saved. If this field is present,
                                     the 32-bit value in bytes 32-35 is ignored.
+
+                    Byte 48 - 55:   Virtual disk size of the snapshot in bytes
+
+                    Version 3 images must include extra data at least up to
+                    byte 55.
 
         variable:   Unique ID string for the snapshot (not null terminated)
 

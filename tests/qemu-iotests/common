@@ -35,6 +35,7 @@ diff="diff -u"
 verbose=false
 group=false
 xgroup=false
+imgopts=false
 showme=false
 sortme=false
 expunge=true
@@ -44,6 +45,7 @@ rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw
 export IMGPROTO=file
+export IMGOPTS=""
 export QEMU_IO_OPTIONS=""
 
 for r
@@ -103,6 +105,13 @@ s/ .*//p
 	mv $tmp.tmp $tmp.list
 	xgroup=false
 	continue
+
+    elif $imgopts
+    then
+        IMGOPTS="$r"
+        imgopts=false
+        continue
+
     fi
 
     xpand=true
@@ -130,6 +139,7 @@ check options
     -nocache		use O_DIRECT on backing file
     -misalign		misalign memory allocations
     -n			show me, do not run tests
+    -o options          -o options to pass to qemu-img create/convert
     -T			output timestamps
     -r 			randomize test order
     
@@ -223,6 +233,10 @@ testlist options
 	    showme=true
 	    xpand=false
 	    ;;
+        -o)
+            imgopts=true
+            xpand=false
+            ;;
         -r)	# randomize test order
 	    randomize=true
 	    xpand=false
@@ -298,6 +312,9 @@ BEGIN	{ for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
     fi
 
 done
+
+# Set default options for qemu-img create -o if they were not specified
+_set_default_imgopts
 
 if [ -s $tmp.list ]
 then

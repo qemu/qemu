@@ -41,15 +41,15 @@ then
     exit 1
 fi
 
-# we need common
-. ./common
-
 # we need common.rc
 if ! . ./common.rc
 then
     echo "check: failed to source common.rc"
     exit 1
 fi
+
+# we need common
+. ./common
 
 #if [ `id -u` -ne 0 ]
 #then

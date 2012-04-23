@@ -385,6 +385,9 @@ struct IDEState {
     int cd_sector_size;
     int atapi_dma; /* true if dma is requested for the packet cmd */
     BlockAcctCookie acct;
+    BlockDriverAIOCB *pio_aiocb;
+    struct iovec iov;
+    QEMUIOVector qiov;
     /* ATA DMA state */
     int io_buffer_size;
     QEMUSGList sg;
