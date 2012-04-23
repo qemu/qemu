@@ -553,6 +553,8 @@ Tracing
 M: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
 S: Maintained
 F: trace/
+F: scripts/tracetool.py
+F: scripts/tracetool/
 F: docs/tracing.txt
 T: git://github.com/stefanha/qemu.git tracing
 

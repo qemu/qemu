@@ -378,12 +378,12 @@ else
 trace.h: trace.h-timestamp
 endif
 trace.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -h < $< > $@,"  GEN   trace.h")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py --format=h --backend=$(TRACE_BACKEND) < $< > $@,"  GEN   trace.h")
 	@cmp -s $@ trace.h || cp $@ trace.h
 
 trace.c: trace.c-timestamp
 trace.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -c < $< > $@,"  GEN   trace.c")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py --format=c --backend=$(TRACE_BACKEND) < $< > $@,"  GEN   trace.c")
 	@cmp -s $@ trace.c || cp $@ trace.c
 
 trace.o: trace.c $(GENERATED_HEADERS)
@@ -396,7 +396,7 @@ trace-dtrace.h: trace-dtrace.dtrace
 # rule file. So we use '.dtrace' instead
 trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
 trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -d < $< > $@,"  GEN   trace-dtrace.dtrace")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py --format=d --backend=$(TRACE_BACKEND) < $< > $@,"  GEN   trace-dtrace.dtrace")
 	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
 
 trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
