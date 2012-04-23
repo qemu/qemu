@@ -287,6 +287,11 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
                      idx, vring_avail_idx(vq));
         exit(1);
     }
+    /* On success, callers read a descriptor at vq->last_avail_idx.
+     * Make sure descriptor read does not bypass avail index read. */
+    if (num_heads) {
+        smp_rmb();
+    }
 
     return num_heads;
 }
