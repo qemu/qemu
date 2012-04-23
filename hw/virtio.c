@@ -209,6 +209,10 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
     } else {
         vring_used_flags_set_bit(vq, VRING_USED_F_NO_NOTIFY);
     }
+    if (enable) {
+        /* Expose avail event/used flags before caller checks the avail idx. */
+        smp_mb();
+    }
 }
 
 int virtio_queue_ready(VirtQueue *vq)
