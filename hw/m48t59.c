@@ -239,7 +239,7 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x1FF5:
         /* alarm date */
-        tmp = from_bcd(val & 0x1F);
+        tmp = from_bcd(val & 0x3F);
         if (tmp != 0) {
             NVRAM->alarm.tm_mday = tmp;
             NVRAM->buffer[0x1FF5] = val;
@@ -310,8 +310,8 @@ void m48t59_write (void *opaque, uint32_t addr, uint32_t val)
         break;
     case 0x1FFD:
     case 0x07FD:
-        /* date */
-	tmp = from_bcd(val & 0x1F);
+        /* date (BCD) */
+       tmp = from_bcd(val & 0x3F);
 	if (tmp != 0) {
 	    get_time(NVRAM, &tm);
 	    tm.tm_mday = tmp;
