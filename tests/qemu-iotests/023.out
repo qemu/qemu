@@ -1,7 +1,7 @@
 QA output created by 023
 Creating new image; cluster size: 1024
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=1024 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 Testing empty image
 
 At offset 0:
@@ -5664,7 +5664,7 @@ qemu-io> read 3072/3072 bytes at offset 4295491072
 qemu-io> No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=1024 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 More complex patterns
 
 test2: With offset 0
@@ -5887,7 +5887,7 @@ qemu-io> read 2048/2048 bytes at offset 4295001088
 qemu-io> No errors were found on the image.
 Creating new image; cluster size: 4096
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=4096 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 Testing empty image
 
 At offset 0:
@@ -12270,7 +12270,7 @@ qemu-io> read 12288/12288 bytes at offset 4301256704
 qemu-io> No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=4096 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 More complex patterns
 
 test2: With offset 0
@@ -12493,7 +12493,7 @@ qemu-io> read 8192/8192 bytes at offset 4295102464
 qemu-io> No errors were found on the image.
 Creating new image; cluster size: 16384
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=16384 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 Testing empty image
 
 At offset 0:
@@ -18876,7 +18876,7 @@ qemu-io> read 49152/49152 bytes at offset 4395622400
 qemu-io> No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=16384 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 More complex patterns
 
 test2: With offset 0
@@ -19099,7 +19099,7 @@ qemu-io> read 32768/32768 bytes at offset 4295507968
 qemu-io> No errors were found on the image.
 Creating new image; cluster size: 65536
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=65536 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 Testing empty image
 
 At offset 0:
@@ -25482,7 +25482,7 @@ qemu-io> read 196608/196608 bytes at offset 5905547264
 qemu-io> No errors were found on the image.
 Creating another new image
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 cluster_size=65536 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=8589934592 
 More complex patterns
 
 test2: With offset 0

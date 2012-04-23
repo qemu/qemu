@@ -103,7 +103,7 @@ static int cow_open(BlockDriverState *bs, int flags)
 }
 
 /*
- * XXX(hch): right now these functions are extremely ineffcient.
+ * XXX(hch): right now these functions are extremely inefficient.
  * We should just read the whole bitmap we'll need in one go instead.
  */
 static inline int cow_set_bit(BlockDriverState *bs, int64_t bitnum)

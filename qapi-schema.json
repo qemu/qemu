@@ -1548,7 +1548,8 @@
   'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }
 
-# @block_stream:
+##
+# @block-stream:
 #
 # Copy data from a backing file into a block device.
 #
@@ -1556,7 +1557,7 @@
 # backing file has been copied.  This command returns immediately once streaming
 # has started.  The status of ongoing block streaming operations can be checked
 # with query-block-jobs.  The operation can be stopped before it has completed
-# using the block_job_cancel command.
+# using the block-job-cancel command.
 #
 # If a base file is specified then sectors are not copied from that base file and
 # its backing chain.  When streaming completes the image file will have the base
@@ -1578,10 +1579,10 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'block_stream', 'data': { 'device': 'str', '*base': 'str' } }
+{ 'command': 'block-stream', 'data': { 'device': 'str', '*base': 'str' } }
 
 ##
-# @block_job_set_speed:
+# @block-job-set-speed:
 #
 # Set maximum speed for a background block operation.
 #
@@ -1599,11 +1600,11 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'block_job_set_speed',
+{ 'command': 'block-job-set-speed',
   'data': { 'device': 'str', 'value': 'int' } }
 
 ##
-# @block_job_cancel:
+# @block-job-cancel:
 #
 # Stop an active block streaming operation.
 #
@@ -1629,7 +1630,7 @@
 #
 # Since: 1.1
 ##
-{ 'command': 'block_job_cancel', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-cancel', 'data': { 'device': 'str' } }
 
 ##
 # @ObjectTypeInfo:

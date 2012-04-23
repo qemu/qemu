@@ -61,7 +61,7 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 
 int64_t cpu_get_clock(void)
 {
-    return 0;
+    return qemu_get_clock_ns(rt_clock);
 }
 
 int64_t cpu_get_icount(void)
@@ -87,7 +87,6 @@ int qemu_init_main_loop(void)
 {
     init_clocks();
     init_timer_alarm();
-    qemu_clock_enable(vm_clock, false);
     return main_loop_init();
 }
 

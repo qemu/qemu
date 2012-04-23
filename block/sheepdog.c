@@ -799,8 +799,7 @@ static int get_sheep_fd(BDRVSheepdogState *s)
         return -1;
     }
 
-    qemu_aio_set_fd_handler(fd, co_read_response, NULL, aio_flush_request,
-                            NULL, s);
+    qemu_aio_set_fd_handler(fd, co_read_response, NULL, aio_flush_request, s);
     return fd;
 }
 
@@ -973,7 +972,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     qemu_co_mutex_lock(&s->lock);
     s->co_send = qemu_coroutine_self();
     qemu_aio_set_fd_handler(s->fd, co_read_response, co_write_request,
-                            aio_flush_request, NULL, s);
+                            aio_flush_request, s);
     socket_set_cork(s->fd, 1);
 
     /* send a header */
@@ -995,7 +994,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
 
     socket_set_cork(s->fd, 0);
     qemu_aio_set_fd_handler(s->fd, co_read_response, NULL,
-                            aio_flush_request, NULL, s);
+                            aio_flush_request, s);
     qemu_co_mutex_unlock(&s->lock);
 
     return 0;
@@ -1135,7 +1134,7 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
     g_free(buf);
     return 0;
 out:
-    qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL);
     if (s->fd >= 0) {
         closesocket(s->fd);
     }
@@ -1349,7 +1348,7 @@ static void sd_close(BlockDriverState *bs)
         error_report("%s, %s", sd_strerror(rsp->result), s->name);
     }
 
-    qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
     if (s->cache_enabled) {
         closesocket(s->flush_fd);
