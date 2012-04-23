@@ -184,7 +184,7 @@ static void cleanup_unknown_header_ext(BlockDriverState *bs)
     }
 }
 
-static void report_unsupported(BlockDriverState *bs, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) report_unsupported(BlockDriverState *bs, const char *fmt, ...)
 {
     char msg[64];
     va_list ap;
