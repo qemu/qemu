@@ -624,6 +624,13 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n)
     return vdev->vq[n].vring.num;
 }
 
+int virtio_queue_get_id(VirtQueue *vq)
+{
+    VirtIODevice *vdev = vq->vdev;
+    assert(vq >= &vdev->vq[0] && vq < &vdev->vq[VIRTIO_PCI_QUEUE_MAX]);
+    return vq - &vdev->vq[0];
+}
+
 void virtio_queue_notify_vq(VirtQueue *vq)
 {
     if (vq->vring.desc) {
