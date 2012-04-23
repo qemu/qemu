@@ -528,6 +528,26 @@ static void set_config(VirtIODevice *vdev, const uint8_t *config_data)
     memcpy(&config, config_data, sizeof(config));
 }
 
+static void set_status(VirtIODevice *vdev, uint8_t status)
+{
+    VirtIOSerial *vser;
+    VirtIOSerialPort *port;
+
+    vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
+    port = find_port_by_id(vser, 0);
+
+    if (port && !use_multiport(port->vser)
+        && (status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        /*
+         * Non-multiport guests won't be able to tell us guest
+         * open/close status.  Such guests can only have a port at id
+         * 0, so set guest_connected for such ports as soon as guest
+         * is up.
+         */
+        port->guest_connected = true;
+    }
+}
+
 static void virtio_serial_save(QEMUFile *f, void *opaque)
 {
     VirtIOSerial *s = opaque;
@@ -798,14 +818,6 @@ static int virtser_port_qdev_init(DeviceState *qdev)
         return ret;
     }
 
-    if (!use_multiport(port->vser)) {
-        /*
-         * Allow writes to guest in this case; we have no way of
-         * knowing if a guest port is connected.
-         */
-        port->guest_connected = true;
-    }
-
     port->elem.out_num = 0;
 
     QTAILQ_INSERT_TAIL(&port->vser->ports, port, next);
@@ -905,6 +917,7 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
     vser->vdev.get_features = get_features;
     vser->vdev.get_config = get_config;
     vser->vdev.set_config = set_config;
+    vser->vdev.set_status = set_status;
 
     vser->qdev = dev;
 
