@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "compiler.h"
 #include "osdep.h"
 
 #define MAX_IRQ 256
@@ -130,7 +131,7 @@ void qtest_quit(QTestState *s)
     }
 }
 
-static void qtest_sendf(QTestState *s, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
 {
     va_list ap;
     gchar *str;
@@ -356,7 +357,7 @@ void qtest_memread(QTestState *s, uint64_t addr, void *data, size_t size)
     gchar **args;
     size_t i;
 
-    qtest_sendf(s, "read 0x%" PRIx64 " 0x%x\n", addr, size);
+    qtest_sendf(s, "read 0x%" PRIx64 " 0x%zx\n", addr, size);
     args = qtest_rsp(s, 2);
 
     for (i = 0; i < size; i++) {
@@ -378,7 +379,7 @@ void qtest_memwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
     const uint8_t *ptr = data;
     size_t i;
 
-    qtest_sendf(s, "write 0x%" PRIx64 " 0x%x 0x", addr, size);
+    qtest_sendf(s, "write 0x%" PRIx64 " 0x%zx 0x", addr, size);
     for (i = 0; i < size; i++) {
         qtest_sendf(s, "%02x", ptr[i]);
     }
