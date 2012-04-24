@@ -262,7 +262,7 @@ Standard Cluster Descriptor:
         56 - 61:    Reserved (set to 0)
 
 
-Compressed Clusters Descriptor (x = 62 - (cluster_size - 8)):
+Compressed Clusters Descriptor (x = 62 - (cluster_bits - 8)):
 
     Bit  0 -  x:    Host cluster offset. This is usually _not_ aligned to a
                     cluster boundary!
