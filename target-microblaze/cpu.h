@@ -266,6 +266,8 @@ struct CPUMBState {
     CPU_COMMON
 };
 
+#include "cpu-qom.h"
+
 CPUMBState *cpu_mb_init(const char *cpu_model);
 int cpu_mb_exec(CPUMBState *s);
 void cpu_mb_close(CPUMBState *s);

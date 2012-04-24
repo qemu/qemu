@@ -3505,15 +3505,17 @@ static uint32_t vr_by_name(const char *name)
 
 CPUCRISState *cpu_cris_init (const char *cpu_model)
 {
+    CRISCPU *cpu;
 	CPUCRISState *env;
 	static int tcg_initialized = 0;
 	int i;
 
-	env = g_malloc0(sizeof(CPUCRISState));
+    cpu = CRIS_CPU(object_new(TYPE_CRIS_CPU));
+    env = &cpu->env;
 
 	env->pregs[PR_VR] = vr_by_name(cpu_model);
-	cpu_exec_init(env);
-    cpu_state_reset(env);
+
+    cpu_reset(CPU(cpu));
 	qemu_init_vcpu(env);
 
 	if (tcg_initialized)
@@ -3575,25 +3577,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 void cpu_state_reset(CPUCRISState *env)
 {
-	uint32_t vr;
-
-	if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-		qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-		log_cpu_state(env, 0);
-	}
-
-	vr = env->pregs[PR_VR];
-	memset(env, 0, offsetof(CPUCRISState, breakpoints));
-	env->pregs[PR_VR] = vr;
-	tlb_flush(env, 1);
-
-#if defined(CONFIG_USER_ONLY)
-	/* start in user mode with interrupts enabled.  */
-	env->pregs[PR_CCS] |= U_FLAG | I_FLAG | P_FLAG;
-#else
-	cris_mmu_init(env);
-	env->pregs[PR_CCS] = 0;
-#endif
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)

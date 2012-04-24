@@ -169,6 +169,8 @@ typedef struct CPUCRISState {
 	void *load_info;
 } CPUCRISState;
 
+#include "cpu-qom.h"
+
 CPUCRISState *cpu_cris_init(const char *cpu_model);
 int cpu_cris_exec(CPUCRISState *s);
 void cpu_cris_close(CPUCRISState *s);
