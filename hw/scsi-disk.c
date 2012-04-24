@@ -296,6 +296,13 @@ static void scsi_do_read(void *opaque, int ret)
         }
     }
 
+    if (r->req.io_canceled) {
+        return;
+    }
+
+    /* The request is used as the AIO opaque value, so add a ref.  */
+    scsi_req_ref(&r->req);
+
     if (r->req.sg) {
         dma_acct_start(s->qdev.conf.bs, &r->acct, r->req.sg, BDRV_ACCT_READ);
         r->req.resid -= r->req.sg->size;
