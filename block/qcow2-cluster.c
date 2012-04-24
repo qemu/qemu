@@ -759,7 +759,7 @@ out:
  * restarted, but the whole request should not be failed.
  */
 static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, unsigned int *nb_clusters, uint64_t *l2_table)
+    uint64_t *host_offset, unsigned int *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t cluster_offset;
@@ -919,7 +919,7 @@ again:
 
         /* Allocate, if necessary at a given offset in the image file */
         ret = do_alloc_cluster_offset(bs, alloc_offset, &alloc_cluster_offset,
-                                      &nb_clusters, l2_table);
+                                      &nb_clusters);
         if (ret == -EAGAIN) {
             goto again;
         } else if (ret < 0) {
