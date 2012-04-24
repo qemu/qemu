@@ -278,8 +278,8 @@ BLOBS=
 endif
 
 install-doc: doc
-	$(INSTALL_DIR) "$(DESTDIR)$(docdir)"
-	$(INSTALL_DATA) qemu-doc.html  qemu-tech.html "$(DESTDIR)$(docdir)"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_docdir)"
+	$(INSTALL_DATA) qemu-doc.html qemu-tech.html "$(DESTDIR)$(qemu_docdir)"
 ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) qemu.1 qemu-img.1 "$(DESTDIR)$(mandir)/man1"
@@ -291,8 +291,8 @@ ifdef CONFIG_VIRTFS
 	$(INSTALL_DATA) fsdev/virtfs-proxy-helper.1 "$(DESTDIR)$(mandir)/man1"
 endif
 install-sysconfig:
-	$(INSTALL_DIR) "$(DESTDIR)$(sysconfdir)/qemu"
-	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(sysconfdir)/qemu"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
+	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
 
 install-tools: tools
 
@@ -306,14 +306,14 @@ ifneq ($(HELPERS-y),)
 	$(INSTALL_PROG) $(STRIP_OPT) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
 endif
 ifneq ($(BLOBS),)
-	$(INSTALL_DIR) "$(DESTDIR)$(datadir)"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
 	set -e; for x in $(BLOBS); do \
-		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(datadir)"; \
+		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(qemu_datadir)"; \
 	done
 endif
-	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/keymaps"
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)/keymaps"
 	set -e; for x in $(KEYMAPS); do \
-		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(datadir)/keymaps"; \
+		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	$(INSTALL_DATA) $(SRC_PATH)/pc-bios/qemu-icon.bmp "$(DESTDIR)$(datadir)"; \
 	for d in $(TARGET_DIRS); do \

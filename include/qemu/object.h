@@ -905,6 +905,7 @@ void object_property_add_str(Object *obj, const char *name,
 
 /**
  * container_get:
+ * @root: root of the #path, e.g., object_get_root()
  * @path: path to the container
  *
  * Return a container object whose path is @path.  Create more containers
@@ -912,7 +913,7 @@ void object_property_add_str(Object *obj, const char *name,
  *
  * Returns: the container object.
  */
-Object *container_get(const char *path);
+Object *container_get(Object *root, const char *path);
 
 
 #endif

@@ -13,14 +13,18 @@ case $line in
     pkgversion=${line#*=}
     echo "#define QEMU_PKGVERSION \"$pkgversion\""
     ;;
- prefix=* | [a-z]*dir=*) # directory configuration
+ qemu_*dir=*) # qemu-specific directory configuration
     name=${line%=*}
     value=${line#*=}
     define_name=`echo $name | LC_ALL=C tr '[a-z]' '[A-Z]'`
     eval "define_value=\"$value\""
-    echo "#define CONFIG_QEMU_$define_name \"$define_value\""
+    echo "#define CONFIG_$define_name \"$define_value\""
     # save for the next definitions
     eval "$name=\$define_value"
+    ;;
+ prefix=*)
+    # save for the next definitions
+    prefix=${line#*=}
     ;;
  CONFIG_AUDIO_DRIVERS=*)
     drivers=${line#*=}

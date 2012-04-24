@@ -156,8 +156,8 @@ mingw32="no"
 EXESUF=""
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
-datadir="\${prefix}/share/qemu"
-docdir="\${prefix}/share/doc/qemu"
+datadir="\${prefix}/share"
+qemu_docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
 includedir="\${prefix}/include"
@@ -545,7 +545,7 @@ EOF
   prefix="c:/Program Files/QEMU"
   mandir="\${prefix}"
   datadir="\${prefix}"
-  docdir="\${prefix}"
+  qemu_docdir="\${prefix}"
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
   confsuffix=""
@@ -614,7 +614,9 @@ for opt do
   ;;
   --datadir=*) datadir="$optarg"
   ;;
-  --docdir=*) docdir="$optarg"
+  --with-confsuffix=*) confsuffix="$optarg"
+  ;;
+  --docdir=*) qemu_docdir="$optarg"
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
@@ -1034,10 +1036,11 @@ echo "  --python=PYTHON          use specified python [$python]"
 echo "  --smbd=SMBD              use specified smbd [$smbd]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
-echo "  --datadir=PATH           install firmware in PATH"
-echo "  --docdir=PATH            install documentation in PATH"
+echo "  --datadir=PATH           install firmware in PATH$confsuffix"
+echo "  --docdir=PATH            install documentation in PATH$confsuffix"
 echo "  --bindir=PATH            install binaries in PATH"
-echo "  --sysconfdir=PATH        install config in PATH/qemu"
+echo "  --sysconfdir=PATH        install config in PATH$confsuffix"
+echo "  --with-confsuffix=SUFFIX      suffix for Qemu data inside datadir and sysconfdir [$confsuffix]"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
 echo "  --enable-debug           enable common debug build options"
@@ -2109,7 +2112,16 @@ else
   for pthread_lib in $PTHREADLIBS_LIST; do
     if compile_prog "" "$pthread_lib" ; then
       pthread=yes
-      LIBS="$pthread_lib $LIBS"
+      found=no
+      for lib_entry in $LIBS; do
+        if test "$lib_entry" = "$pthread_lib"; then
+          found=yes
+          break
+        fi
+      done
+      if test "$found" = "no"; then
+        LIBS="$pthread_lib $LIBS"
+      fi
       break
     fi
   done
@@ -2918,15 +2930,18 @@ if test "$mingw32" = "yes" ; then
     done
 fi
 
-confdir=$sysconfdir$confsuffix
+qemu_confdir=$sysconfdir$confsuffix
+qemu_datadir=$datadir$confsuffix
 
 tools=
 if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if test "$virtfs" != no ; then
-      if test "$cap" = yes && test "$linux" = yes && test "$attr" = yes ; then
+      if test "$linux" = yes && test "$attr" = yes ; then
 	  virtfs=yes
-	  tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+	  if test "$cap" = yes ; then
+	      tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+	  fi
       else
 	  if test "$virtfs" = yes; then
 	      feature_not_found "virtfs"
@@ -2953,7 +2968,7 @@ if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
 fi
 
 echo "Install prefix    $prefix"
-echo "BIOS directory    `eval echo $datadir`"
+echo "BIOS directory    `eval echo $qemu_datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
 echo "include directory `eval echo $includedir`"
@@ -3062,12 +3077,11 @@ echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
 echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
-echo "datadir=$datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
-echo "docdir=$docdir" >> $config_host_mak
-echo "confdir=$confdir" >> $config_host_mak
+echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
+echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
+echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
 echo "libexecdir=\${prefix}/libexec" >> $config_host_mak
-echo "CONFIG_QEMU_SHAREDIR=\"$prefix$datasuffix\"" >> $config_host_mak
 echo "CONFIG_QEMU_HELPERDIR=\"$prefix/libexec\"" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak

@@ -25,7 +25,7 @@ static void container_register_types(void)
     type_register_static(&container_info);
 }
 
-Object *container_get(const char *path)
+Object *container_get(Object *root, const char *path)
 {
     Object *obj, *child;
     gchar **parts;
@@ -33,7 +33,7 @@ Object *container_get(const char *path)
 
     parts = g_strsplit(path, "/", 0);
     assert(parts != NULL && parts[0] != NULL && !parts[0][0]);
-    obj = object_get_root();
+    obj = root;
 
     for (i = 1; parts[i] != NULL; i++, obj = child) {
         child = object_resolve_path_component(obj, parts[i]);
