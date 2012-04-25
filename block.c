@@ -4114,7 +4114,7 @@ void block_job_complete(BlockJob *job, int ret)
     bdrv_set_in_use(bs, 0);
 }
 
-void block_job_set_speed(BlockJob *job, int64_t value, Error **errp)
+void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     Error *local_err = NULL;
 
@@ -4122,13 +4122,13 @@ void block_job_set_speed(BlockJob *job, int64_t value, Error **errp)
         error_set(errp, QERR_NOT_SUPPORTED);
         return;
     }
-    job->job_type->set_speed(job, value, &local_err);
+    job->job_type->set_speed(job, speed, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
         return;
     }
 
-    job->speed = value;
+    job->speed = speed;
 }
 
 void block_job_cancel(BlockJob *job)

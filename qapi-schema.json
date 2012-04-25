@@ -1592,7 +1592,7 @@
 #
 # @device: the device name
 #
-# @value:  the maximum speed, in bytes per second
+# @speed:  the maximum speed, in bytes per second
 #
 # Returns: Nothing on success
 #          If the job type does not support throttling, NotSupported
@@ -1602,7 +1602,7 @@
 # Since: 1.1
 ##
 { 'command': 'block-job-set-speed',
-  'data': { 'device': 'str', 'value': 'int' } }
+  'data': { 'device': 'str', 'speed': 'int' } }
 
 ##
 # @block-job-cancel:

@@ -85,8 +85,8 @@ ETEXI
 
     {
         .name       = "block_job_set_speed",
-        .args_type  = "device:B,value:o",
-        .params     = "device value",
+        .args_type  = "device:B,speed:o",
+        .params     = "device speed",
         .help       = "set maximum speed for a background block operation",
         .mhandler.cmd = hmp_block_job_set_speed,
     },

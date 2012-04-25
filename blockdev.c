@@ -1136,7 +1136,7 @@ static BlockJob *find_block_job(const char *device)
     return bs->job;
 }
 
-void qmp_block_job_set_speed(const char *device, int64_t value, Error **errp)
+void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
 {
     BlockJob *job = find_block_job(device);
 
@@ -1145,7 +1145,7 @@ void qmp_block_job_set_speed(const char *device, int64_t value, Error **errp)
         return;
     }
 
-    block_job_set_speed(job, value, errp);
+    block_job_set_speed(job, speed, errp);
 }
 
 void qmp_block_job_cancel(const char *device, Error **errp)

@@ -79,7 +79,7 @@ typedef struct BlockJobType {
     const char *job_type;
 
     /** Optional callback for job types that support setting a speed limit */
-    void (*set_speed)(BlockJob *job, int64_t value, Error **errp);
+    void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
 } BlockJobType;
 
 /**
@@ -380,7 +380,7 @@ void block_job_complete(BlockJob *job, int ret);
  * Set a rate-limiting parameter for the job; the actual meaning may
  * vary depending on the job type.
  */
-void block_job_set_speed(BlockJob *job, int64_t value, Error **errp);
+void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 
 /**
  * block_job_cancel:
