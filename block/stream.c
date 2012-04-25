@@ -263,15 +263,15 @@ retry:
     block_job_complete(&s->common, ret);
 }
 
-static int stream_set_speed(BlockJob *job, int64_t value)
+static void stream_set_speed(BlockJob *job, int64_t value, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common);
 
     if (value < 0) {
-        return -EINVAL;
+        error_set(errp, QERR_INVALID_PARAMETER, "value");
+        return;
     }
     ratelimit_set_speed(&s->limit, value / BDRV_SECTOR_SIZE);
-    return 0;
 }
 
 static BlockJobType stream_job_type = {

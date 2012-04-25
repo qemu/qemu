@@ -4114,18 +4114,21 @@ void block_job_complete(BlockJob *job, int ret)
     bdrv_set_in_use(bs, 0);
 }
 
-int block_job_set_speed(BlockJob *job, int64_t value)
+void block_job_set_speed(BlockJob *job, int64_t value, Error **errp)
 {
-    int rc;
+    Error *local_err = NULL;
 
     if (!job->job_type->set_speed) {
-        return -ENOTSUP;
+        error_set(errp, QERR_NOT_SUPPORTED);
+        return;
     }
-    rc = job->job_type->set_speed(job, value);
-    if (rc == 0) {
-        job->speed = value;
+    job->job_type->set_speed(job, value, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
     }
-    return rc;
+
+    job->speed = value;
 }
 
 void block_job_cancel(BlockJob *job)

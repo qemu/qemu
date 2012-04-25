@@ -1596,6 +1596,7 @@
 #
 # Returns: Nothing on success
 #          If the job type does not support throttling, NotSupported
+#          If the speed value is invalid, InvalidParameter
 #          If streaming is not active on this device, DeviceNotActive
 #
 # Since: 1.1

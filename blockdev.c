@@ -1145,9 +1145,7 @@ void qmp_block_job_set_speed(const char *device, int64_t value, Error **errp)
         return;
     }
 
-    if (block_job_set_speed(job, value) < 0) {
-        error_set(errp, QERR_NOT_SUPPORTED);
-    }
+    block_job_set_speed(job, value, errp);
 }
 
 void qmp_block_job_cancel(const char *device, Error **errp)
