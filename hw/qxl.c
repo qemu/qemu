@@ -1503,7 +1503,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
         qxl_update_irq(d);
     } else {
         if (write(d->pipe[1], d, 1) != 1) {
-            dprint(d, 1, "%s: write to pipe failed\n", __FUNCTION__);
+            dprint(d, 1, "%s: write to pipe failed\n", __func__);
         }
     }
 }
