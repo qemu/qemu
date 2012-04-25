@@ -383,12 +383,16 @@ static void qxl_ring_set_dirty(PCIQXLDevice *qxl)
  * keep track of some command state, for savevm/loadvm.
  * called from spice server thread context only
  */
-static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
+static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
 {
     switch (le32_to_cpu(ext->cmd.type)) {
     case QXL_CMD_SURFACE:
     {
         QXLSurfaceCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+
+        if (!cmd) {
+            return 1;
+        }
         uint32_t id = le32_to_cpu(cmd->surface_id);
         PANIC_ON(id >= NUM_SURFACES);
         qemu_mutex_lock(&qxl->track_lock);
@@ -408,6 +412,10 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
     case QXL_CMD_CURSOR:
     {
         QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+
+        if (!cmd) {
+            return 1;
+        }
         if (cmd->type == QXL_CURSOR_SET) {
             qemu_mutex_lock(&qxl->track_lock);
             qxl->guest_cursor = ext->cmd.data;
@@ -416,6 +424,7 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
         break;
     }
     }
+    return 0;
 }
 
 /* spice display interface callbacks */
@@ -1568,10 +1577,12 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
 
         cmd = qxl_phys2virt(qxl, qxl->guest_surfaces.cmds[i],
                             MEMSLOT_GROUP_GUEST);
+        assert(cmd);
         assert(cmd->type == QXL_SURFACE_CMD_CREATE);
         surface_offset = (intptr_t)qxl_phys2virt(qxl,
                                                  cmd->u.surface_create.data,
                                                  MEMSLOT_GROUP_GUEST);
+        assert(surface_offset);
         surface_offset -= vram_start;
         surface_size = cmd->u.surface_create.height *
                        abs(cmd->u.surface_create.stride);

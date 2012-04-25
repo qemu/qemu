@@ -100,12 +100,15 @@ static const char *qxl_v2n(const char *n[], size_t l, int v)
 }
 #define qxl_name(_list, _value) qxl_v2n(_list, ARRAY_SIZE(_list), _value)
 
-static void qxl_log_image(PCIQXLDevice *qxl, QXLPHYSICAL addr, int group_id)
+static int qxl_log_image(PCIQXLDevice *qxl, QXLPHYSICAL addr, int group_id)
 {
     QXLImage *image;
     QXLImageDescriptor *desc;
 
     image = qxl_phys2virt(qxl, addr, group_id);
+    if (!image) {
+        return 1;
+    }
     desc = &image->descriptor;
     fprintf(stderr, " (id %" PRIx64 " type %d flags %d width %d height %d",
             desc->id, desc->type, desc->flags, desc->width, desc->height);
@@ -120,6 +123,7 @@ static void qxl_log_image(PCIQXLDevice *qxl, QXLPHYSICAL addr, int group_id)
         break;
     }
     fprintf(stderr, ")");
+    return 0;
 }
 
 static void qxl_log_rect(QXLRect *rect)
@@ -130,17 +134,24 @@ static void qxl_log_rect(QXLRect *rect)
             rect->left, rect->top);
 }
 
-static void qxl_log_cmd_draw_copy(PCIQXLDevice *qxl, QXLCopy *copy, int group_id)
+static int qxl_log_cmd_draw_copy(PCIQXLDevice *qxl, QXLCopy *copy,
+                                 int group_id)
 {
+    int ret;
+
     fprintf(stderr, " src %" PRIx64,
             copy->src_bitmap);
-    qxl_log_image(qxl, copy->src_bitmap, group_id);
+    ret = qxl_log_image(qxl, copy->src_bitmap, group_id);
+    if (ret != 0) {
+        return ret;
+    }
     fprintf(stderr, " area");
     qxl_log_rect(&copy->src_area);
     fprintf(stderr, " rop %d", copy->rop_descriptor);
+    return 0;
 }
 
-static void qxl_log_cmd_draw(PCIQXLDevice *qxl, QXLDrawable *draw, int group_id)
+static int qxl_log_cmd_draw(PCIQXLDevice *qxl, QXLDrawable *draw, int group_id)
 {
     fprintf(stderr, ": surface_id %d type %s effect %s",
             draw->surface_id,
@@ -148,13 +159,14 @@ static void qxl_log_cmd_draw(PCIQXLDevice *qxl, QXLDrawable *draw, int group_id)
             qxl_name(qxl_draw_effect, draw->effect));
     switch (draw->type) {
     case QXL_DRAW_COPY:
-        qxl_log_cmd_draw_copy(qxl, &draw->u.copy, group_id);
+        return qxl_log_cmd_draw_copy(qxl, &draw->u.copy, group_id);
         break;
     }
+    return 0;
 }
 
-static void qxl_log_cmd_draw_compat(PCIQXLDevice *qxl, QXLCompatDrawable *draw,
-                                    int group_id)
+static int qxl_log_cmd_draw_compat(PCIQXLDevice *qxl, QXLCompatDrawable *draw,
+                                   int group_id)
 {
     fprintf(stderr, ": type %s effect %s",
             qxl_name(qxl_draw_type, draw->type),
@@ -166,9 +178,10 @@ static void qxl_log_cmd_draw_compat(PCIQXLDevice *qxl, QXLCompatDrawable *draw,
     }
     switch (draw->type) {
     case QXL_DRAW_COPY:
-        qxl_log_cmd_draw_copy(qxl, &draw->u.copy, group_id);
+        return qxl_log_cmd_draw_copy(qxl, &draw->u.copy, group_id);
         break;
     }
+    return 0;
 }
 
 static void qxl_log_cmd_surface(PCIQXLDevice *qxl, QXLSurfaceCmd *cmd)
@@ -189,7 +202,7 @@ static void qxl_log_cmd_surface(PCIQXLDevice *qxl, QXLSurfaceCmd *cmd)
     }
 }
 
-void qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
+int qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
 {
     QXLCursor *cursor;
 
@@ -203,6 +216,9 @@ void qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
                 cmd->u.set.visible ? "yes" : "no",
                 cmd->u.set.shape);
         cursor = qxl_phys2virt(qxl, cmd->u.set.shape, group_id);
+        if (!cursor) {
+            return 1;
+        }
         fprintf(stderr, " type %s size %dx%d hot-spot +%d+%d"
                 " unique 0x%" PRIx64 " data-size %d",
                 qxl_name(spice_cursor_type, cursor->header.type),
@@ -214,15 +230,17 @@ void qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id)
         fprintf(stderr, " +%d+%d", cmd->u.position.x, cmd->u.position.y);
         break;
     }
+    return 0;
 }
 
-void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
+int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
 {
     bool compat = ext->flags & QXL_COMMAND_FLAG_COMPAT;
     void *data;
+    int ret;
 
     if (!qxl->cmdlog) {
-        return;
+        return 0;
     }
     fprintf(stderr, "%" PRId64 " qxl-%d/%s:", qemu_get_clock_ns(vm_clock),
             qxl->id, ring);
@@ -231,12 +249,18 @@ void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
             compat ? "(compat)" : "");
 
     data = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+    if (!data) {
+        return 1;
+    }
     switch (ext->cmd.type) {
     case QXL_CMD_DRAW:
         if (!compat) {
-            qxl_log_cmd_draw(qxl, data, ext->group_id);
+            ret = qxl_log_cmd_draw(qxl, data, ext->group_id);
         } else {
-            qxl_log_cmd_draw_compat(qxl, data, ext->group_id);
+            ret = qxl_log_cmd_draw_compat(qxl, data, ext->group_id);
+        }
+        if (ret) {
+            return ret;
         }
         break;
     case QXL_CMD_SURFACE:
@@ -247,4 +271,5 @@ void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext)
         break;
     }
     fprintf(stderr, "\n");
+    return 0;
 }
