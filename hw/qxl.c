@@ -1464,8 +1464,7 @@ async_common:
         qxl_spice_destroy_surfaces(d, async);
         break;
     default:
-        fprintf(stderr, "%s: ioport=0x%x, abort()\n", __FUNCTION__, io_port);
-        abort();
+        qxl_guest_bug(d, "%s: unexpected ioport=0x%x\n", __func__, io_port);
     }
     return;
 cancel_async:
