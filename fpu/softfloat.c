@@ -2131,7 +2131,7 @@ float32 float32_rem( float32 a, float32 b STATUS_PARAM )
 float32 float32_muladd(float32 a, float32 b, float32 c, int flags STATUS_PARAM)
 {
     flag aSign, bSign, cSign, zSign;
-    int aExp, bExp, cExp, pExp, zExp, expDiff;
+    int16 aExp, bExp, cExp, pExp, zExp, expDiff;
     uint32_t aSig, bSig, cSig;
     flag pInf, pZero, pSign;
     uint64_t pSig64, cSig64, zSig64;
@@ -3685,7 +3685,7 @@ float64 float64_rem( float64 a, float64 b STATUS_PARAM )
 float64 float64_muladd(float64 a, float64 b, float64 c, int flags STATUS_PARAM)
 {
     flag aSign, bSign, cSign, zSign;
-    int aExp, bExp, cExp, pExp, zExp, expDiff;
+    int16 aExp, bExp, cExp, pExp, zExp, expDiff;
     uint64_t aSig, bSig, cSig;
     flag pInf, pZero, pSign;
     uint64_t pSig0, pSig1, cSig0, cSig1, zSig0, zSig1;
