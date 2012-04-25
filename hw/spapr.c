@@ -631,8 +631,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     for (i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            spapr_vty_create(spapr->vio_bus, SPAPR_VTY_BASE_ADDRESS + i,
-                             serial_hds[i]);
+            spapr_vty_create(spapr->vio_bus, serial_hds[i]);
         }
     }
 
@@ -650,14 +649,14 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
 
         if (strcmp(nd->model, "ibmveth") == 0) {
-            spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd);
+            spapr_vlan_create(spapr->vio_bus, nd);
         } else {
             pci_nic_init_nofail(&nd_table[i], nd->model, NULL);
         }
     }
 
     for (i = 0; i <= drive_get_max_bus(IF_SCSI); i++) {
-        spapr_vscsi_create(spapr->vio_bus, 0x2000 + i);
+        spapr_vscsi_create(spapr->vio_bus);
     }
 
     if (rma_size < (MIN_RMA_SLOF << 20)) {

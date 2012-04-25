@@ -620,28 +620,22 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0);
 }
 
-static int spapr_vio_check_reg(VIOsPAPRDevice *sdev)
+static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
 {
-    VIOsPAPRDevice *other_sdev;
+    VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
     DeviceState *qdev;
-    VIOsPAPRBus *sbus;
-
-    sbus = DO_UPCAST(VIOsPAPRBus, bus, sdev->qdev.parent_bus);
+    VIOsPAPRDevice *other;
 
     /*
-     * Check two device aren't given clashing addresses by the user (or some
-     * other mechanism). We have to open code this because we have to check
-     * for matches with devices other than us.
+     * Check for a device other than the given one which is already
+     * using the requested address. We have to open code this because
+     * the given dev might already be in the list.
      */
-    QTAILQ_FOREACH(qdev, &sbus->bus.children, sibling) {
-        other_sdev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
+        other = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
 
-        if (other_sdev != sdev && other_sdev->reg == sdev->reg) {
-            fprintf(stderr, "vio: %s and %s devices conflict at address %#x\n",
-                    object_get_typename(OBJECT(sdev)),
-                    object_get_typename(OBJECT(qdev)),
-                    sdev->reg);
-            return -EEXIST;
+        if (other != dev && other->reg == dev->reg) {
+            return other;
         }
     }
 
@@ -667,11 +661,30 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
     char *id;
-    int ret;
 
-    ret = spapr_vio_check_reg(dev);
-    if (ret) {
-        return ret;
+    if (dev->reg != -1) {
+        /*
+         * Explicitly assigned address, just verify that no-one else
+         * is using it.  other mechanism). We have to open code this
+         * rather than using spapr_vio_find_by_reg() because sdev
+         * itself is already in the list.
+         */
+        VIOsPAPRDevice *other = reg_conflict(dev);
+
+        if (other) {
+            fprintf(stderr, "vio: %s and %s devices conflict at address %#x\n",
+                    object_get_typename(OBJECT(qdev)),
+                    object_get_typename(OBJECT(&other->qdev)),
+                    dev->reg);
+            return -1;
+        }
+    } else {
+        /* Need to assign an address */
+        VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
+
+        do {
+            dev->reg = bus->next_reg++;
+        } while (reg_conflict(dev));
     }
 
     /* Don't overwrite ids assigned on the command line */
@@ -731,6 +744,7 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     qbus = qbus_create(&spapr_vio_bus_info, dev, "spapr-vio");
     bus = DO_UPCAST(VIOsPAPRBus, bus, qbus);
+    bus->next_reg = 0x1000;
 
     /* hcall-vio */
     spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);
