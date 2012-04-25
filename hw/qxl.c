@@ -777,8 +777,8 @@ static void interface_async_complete_io(PCIQXLDevice *qxl, QXLCookie *cookie)
     }
     if (cookie && current_async != cookie->io) {
         fprintf(stderr,
-                "qxl: %s: error: current_async = %d != %" PRId64 " = cookie->io\n",
-                __func__, current_async, cookie->io);
+                "qxl: %s: error: current_async = %d != %"
+                PRId64 " = cookie->io\n", __func__, current_async, cookie->io);
     }
     switch (current_async) {
     case QXL_IO_MEMSLOT_ADD_ASYNC:
