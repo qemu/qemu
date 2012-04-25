@@ -281,13 +281,14 @@ static BlockJobType stream_job_type = {
 };
 
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *base_id, BlockDriverCompletionFunc *cb,
+                  const char *base_id, int64_t speed,
+                  BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp)
 {
     StreamBlockJob *s;
     Coroutine *co;
 
-    s = block_job_create(&stream_job_type, bs, cb, opaque, errp);
+    s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }

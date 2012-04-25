@@ -344,6 +344,7 @@ int is_windows_drive(const char *filename);
  * block_job_create:
  * @job_type: The class object for the newly-created job.
  * @bs: The block
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
@@ -358,8 +359,8 @@ int is_windows_drive(const char *filename);
  * called from a wrapper that is specific to the job type.
  */
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
-                       BlockDriverCompletionFunc *cb, void *opaque,
-                       Error **errp);
+                       int64_t speed, BlockDriverCompletionFunc *cb,
+                       void *opaque, Error **errp);
 
 /**
  * block_job_complete:
@@ -418,6 +419,7 @@ void block_job_cancel_sync(BlockJob *job);
  * flatten the whole backing file chain onto @bs.
  * @base_id: The file name that will be written to @bs as the new
  * backing file if the job completes.  Ignored if @base is %NULL.
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
@@ -429,7 +431,8 @@ void block_job_cancel_sync(BlockJob *job);
  * @base_id in the written image and to @base in the live BlockDriverState.
  */
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *base_id, BlockDriverCompletionFunc *cb,
+                  const char *base_id, int64_t speed,
+                  BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp);
 
 #endif /* BLOCK_INT_H */

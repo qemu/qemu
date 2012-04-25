@@ -1091,7 +1091,8 @@ static void block_stream_cb(void *opaque, int ret)
 }
 
 void qmp_block_stream(const char *device, bool has_base,
-                      const char *base, Error **errp)
+                      const char *base, bool has_speed,
+                      int64_t speed, Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *base_bs = NULL;
@@ -1111,7 +1112,8 @@ void qmp_block_stream(const char *device, bool has_base,
         }
     }
 
-    stream_start(bs, base_bs, base, block_stream_cb, bs, &local_err);
+    stream_start(bs, base_bs, base, has_speed ? speed : 0,
+                 block_stream_cb, bs, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
         return;
