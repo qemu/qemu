@@ -27,28 +27,42 @@
 
 #include "qxl.h"
 
+/*
+ * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
+ * such can be changed by the guest, so to avoid a guest trigerrable
+ * abort we just set qxl_guest_bug and set the return to NULL. Still
+ * it may happen as a result of emulator bug as well.
+ */
 #undef SPICE_RING_PROD_ITEM
-#define SPICE_RING_PROD_ITEM(r, ret) {                                  \
+#define SPICE_RING_PROD_ITEM(qxl, r, ret) {                             \
         typeof(r) start = r;                                            \
         typeof(r) end = r + 1;                                          \
         uint32_t prod = (r)->prod & SPICE_RING_INDEX_MASK(r);           \
         typeof(&(r)->items[prod]) m_item = &(r)->items[prod];           \
         if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
-            abort();                                                    \
+            qxl_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
+                          "! %p <= %p < %p", (uint8_t *)start,          \
+                          (uint8_t *)m_item, (uint8_t *)end);           \
+            ret = NULL;                                                 \
+        } else {                                                        \
+            ret = &m_item->el;                                          \
         }                                                               \
-        ret = &m_item->el;                                              \
     }
 
 #undef SPICE_RING_CONS_ITEM
-#define SPICE_RING_CONS_ITEM(r, ret) {                                  \
+#define SPICE_RING_CONS_ITEM(qxl, r, ret) {                             \
         typeof(r) start = r;                                            \
         typeof(r) end = r + 1;                                          \
         uint32_t cons = (r)->cons & SPICE_RING_INDEX_MASK(r);           \
         typeof(&(r)->items[cons]) m_item = &(r)->items[cons];           \
         if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
-            abort();                                                    \
+            qxl_guest_bug(qxl, "SPICE_RING_CONS_ITEM indices mismatch " \
+                          "! %p <= %p < %p", (uint8_t *)start,          \
+                          (uint8_t *)m_item, (uint8_t *)end);           \
+            ret = NULL;                                                 \
+        } else {                                                        \
+            ret = &m_item->el;                                          \
         }                                                               \
-        ret = &m_item->el;                                              \
     }
 
 #undef ALIGN
@@ -343,7 +357,8 @@ static void init_qxl_ram(PCIQXLDevice *d)
     SPICE_RING_INIT(&d->ram->cmd_ring);
     SPICE_RING_INIT(&d->ram->cursor_ring);
     SPICE_RING_INIT(&d->ram->release_ring);
-    SPICE_RING_PROD_ITEM(&d->ram->release_ring, item);
+    SPICE_RING_PROD_ITEM(d, &d->ram->release_ring, item);
+    assert(item);
     *item = 0;
     qxl_ring_set_dirty(d);
 }
@@ -559,8 +574,10 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
         if (SPICE_RING_IS_EMPTY(ring)) {
             return false;
         }
-        trace_qxl_ring_command_get(qxl->id, qxl_mode_to_string(qxl->mode));
-        SPICE_RING_CONS_ITEM(ring, cmd);
+        SPICE_RING_CONS_ITEM(qxl, ring, cmd);
+        if (!cmd) {
+            return false;
+        }
         ext->cmd      = *cmd;
         ext->group_id = MEMSLOT_GROUP_GUEST;
         ext->flags    = qxl->cmdflags;
@@ -572,6 +589,7 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
         qxl->guest_primary.commands++;
         qxl_track_command(qxl, ext);
         qxl_log_command(qxl, "cmd", ext);
+        trace_qxl_ring_command_get(qxl->id, qxl_mode_to_string(qxl->mode));
         return true;
     default:
         return false;
@@ -630,7 +648,10 @@ static inline void qxl_push_free_res(PCIQXLDevice *d, int flush)
     if (notify) {
         qxl_send_events(d, QXL_INTERRUPT_DISPLAY);
     }
-    SPICE_RING_PROD_ITEM(ring, item);
+    SPICE_RING_PROD_ITEM(d, ring, item);
+    if (!item) {
+        return;
+    }
     *item = 0;
     d->num_free_res = 0;
     d->last_release = NULL;
@@ -656,7 +677,10 @@ static void interface_release_resource(QXLInstance *sin,
      * pci bar 0, $command.release_info
      */
     ring = &qxl->ram->release_ring;
-    SPICE_RING_PROD_ITEM(ring, item);
+    SPICE_RING_PROD_ITEM(qxl, ring, item);
+    if (!item) {
+        return;
+    }
     if (*item == 0) {
         /* stick head into the ring */
         id = ext.info->id;
@@ -695,7 +719,10 @@ static int interface_get_cursor_command(QXLInstance *sin, struct QXLCommandExt *
         if (SPICE_RING_IS_EMPTY(ring)) {
             return false;
         }
-        SPICE_RING_CONS_ITEM(ring, cmd);
+        SPICE_RING_CONS_ITEM(qxl, ring, cmd);
+        if (!cmd) {
+            return false;
+        }
         ext->cmd      = *cmd;
         ext->group_id = MEMSLOT_GROUP_GUEST;
         ext->flags    = qxl->cmdflags;
