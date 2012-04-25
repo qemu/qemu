@@ -394,7 +394,11 @@ static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
             return 1;
         }
         uint32_t id = le32_to_cpu(cmd->surface_id);
-        PANIC_ON(id >= NUM_SURFACES);
+
+        if (id >= NUM_SURFACES) {
+            qxl_guest_bug(qxl, "QXL_CMD_SURFACE id %d >= %d", id, NUM_SURFACES);
+            return 1;
+        }
         qemu_mutex_lock(&qxl->track_lock);
         if (cmd->type == QXL_SURFACE_CMD_CREATE) {
             qxl->guest_surfaces.cmds[id] = ext->cmd.data;
