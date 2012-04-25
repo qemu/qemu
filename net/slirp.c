@@ -507,7 +507,6 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     fprintf(f,
             "[global]\n"
             "private dir=%s\n"
-            "smb ports=0\n"
             "socket address=127.0.0.1\n"
             "pid directory=%s\n"
             "lock directory=%s\n"
