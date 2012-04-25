@@ -1191,7 +1191,10 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
     QXLDevSurfaceCreate surface;
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
 
-    assert(qxl->mode != QXL_MODE_NATIVE);
+    if (qxl->mode == QXL_MODE_NATIVE) {
+        qxl_guest_bug(qxl, "%s: nop since already in QXL_MODE_NATIVE",
+                      __func__);
+    }
     qxl_exit_vga_mode(qxl);
 
     surface.format     = le32_to_cpu(sc->format);
