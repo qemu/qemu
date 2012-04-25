@@ -280,16 +280,16 @@ static BlockJobType stream_job_type = {
     .set_speed     = stream_set_speed,
 };
 
-int stream_start(BlockDriverState *bs, BlockDriverState *base,
-                 const char *base_id, BlockDriverCompletionFunc *cb,
-                 void *opaque)
+void stream_start(BlockDriverState *bs, BlockDriverState *base,
+                  const char *base_id, BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp)
 {
     StreamBlockJob *s;
     Coroutine *co;
 
-    s = block_job_create(&stream_job_type, bs, cb, opaque);
+    s = block_job_create(&stream_job_type, bs, cb, opaque, errp);
     if (!s) {
-        return -EBUSY; /* bs must already be in use */
+        return;
     }
 
     s->base = base;
@@ -300,5 +300,4 @@ int stream_start(BlockDriverState *bs, BlockDriverState *base,
     co = qemu_coroutine_create(stream_run);
     trace_stream_start(bs, base, s, co, opaque);
     qemu_coroutine_enter(co, s);
-    return 0;
 }

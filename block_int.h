@@ -346,6 +346,7 @@ int is_windows_drive(const char *filename);
  * @bs: The block
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @errp: Error object.
  *
  * Create a new long-running block device job and return it.  The job
  * will call @cb asynchronously when the job completes.  Note that
@@ -357,7 +358,8 @@ int is_windows_drive(const char *filename);
  * called from a wrapper that is specific to the job type.
  */
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
-                       BlockDriverCompletionFunc *cb, void *opaque);
+                       BlockDriverCompletionFunc *cb, void *opaque,
+                       Error **errp);
 
 /**
  * block_job_complete:
@@ -417,6 +419,7 @@ void block_job_cancel_sync(BlockJob *job);
  * backing file if the job completes.  Ignored if @base is %NULL.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @errp: Error object.
  *
  * Start a streaming operation on @bs.  Clusters that are unallocated
  * in @bs, but allocated in any image between @base and @bs (both
@@ -424,8 +427,8 @@ void block_job_cancel_sync(BlockJob *job);
  * streaming job, the backing file of @bs will be changed to
  * @base_id in the written image and to @base in the live BlockDriverState.
  */
-int stream_start(BlockDriverState *bs, BlockDriverState *base,
-                 const char *base_id, BlockDriverCompletionFunc *cb,
-                 void *opaque);
+void stream_start(BlockDriverState *bs, BlockDriverState *base,
+                  const char *base_id, BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp);
 
 #endif /* BLOCK_INT_H */

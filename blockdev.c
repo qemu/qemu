@@ -1095,7 +1095,7 @@ void qmp_block_stream(const char *device, bool has_base,
 {
     BlockDriverState *bs;
     BlockDriverState *base_bs = NULL;
-    int ret;
+    Error *local_err = NULL;
 
     bs = bdrv_find(device);
     if (!bs) {
@@ -1111,16 +1111,10 @@ void qmp_block_stream(const char *device, bool has_base,
         }
     }
 
-    ret = stream_start(bs, base_bs, base, block_stream_cb, bs);
-    if (ret < 0) {
-        switch (ret) {
-        case -EBUSY:
-            error_set(errp, QERR_DEVICE_IN_USE, device);
-            return;
-        default:
-            error_set(errp, QERR_NOT_SUPPORTED);
-            return;
-        }
+    stream_start(bs, base_bs, base, block_stream_cb, bs, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
     }
 
     /* Grab a reference so hotplug does not delete the BlockDriverState from
