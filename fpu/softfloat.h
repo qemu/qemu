@@ -44,6 +44,7 @@ these four paragraphs for those parts of this code that are retained.
 
 #include <inttypes.h>
 #include "config-host.h"
+#include "osdep.h"
 
 /*----------------------------------------------------------------------------
 | Each of the following `typedef's defines the most convenient type that holds
@@ -57,7 +58,6 @@ typedef uint8_t flag;
 typedef uint8_t uint8;
 typedef int8_t int8;
 #ifndef _AIX
-typedef int uint16;
 typedef int int16;
 #endif
 typedef unsigned int uint32;
@@ -263,7 +263,7 @@ extern const float16 float16_default_nan;
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int16 float32_to_int16_round_to_zero( float32 STATUS_PARAM );
-uint16 float32_to_uint16_round_to_zero( float32 STATUS_PARAM );
+uint_fast16_t float32_to_uint16_round_to_zero(float32 STATUS_PARAM);
 int32 float32_to_int32( float32 STATUS_PARAM );
 int32 float32_to_int32_round_to_zero( float32 STATUS_PARAM );
 uint32 float32_to_uint32( float32 STATUS_PARAM );
@@ -367,7 +367,7 @@ extern const float32 float32_default_nan;
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int16 float64_to_int16_round_to_zero( float64 STATUS_PARAM );
-uint16 float64_to_uint16_round_to_zero( float64 STATUS_PARAM );
+uint_fast16_t float64_to_uint16_round_to_zero(float64 STATUS_PARAM);
 int32 float64_to_int32( float64 STATUS_PARAM );
 int32 float64_to_int32_round_to_zero( float64 STATUS_PARAM );
 uint32 float64_to_uint32( float64 STATUS_PARAM );
