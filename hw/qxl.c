@@ -1097,15 +1097,28 @@ void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
     case MEMSLOT_GROUP_HOST:
         return (void *)(intptr_t)offset;
     case MEMSLOT_GROUP_GUEST:
-        PANIC_ON(slot >= NUM_MEMSLOTS);
-        PANIC_ON(!qxl->guest_slots[slot].active);
-        PANIC_ON(offset < qxl->guest_slots[slot].delta);
+        if (slot >= NUM_MEMSLOTS) {
+            qxl_guest_bug(qxl, "slot too large %d >= %d", slot, NUM_MEMSLOTS);
+            return NULL;
+        }
+        if (!qxl->guest_slots[slot].active) {
+            qxl_guest_bug(qxl, "inactive slot %d\n", slot);
+            return NULL;
+        }
+        if (offset < qxl->guest_slots[slot].delta) {
+            qxl_guest_bug(qxl, "slot %d offset %"PRIu64" < delta %"PRIu64"\n",
+                          slot, offset, qxl->guest_slots[slot].delta);
+            return NULL;
+        }
         offset -= qxl->guest_slots[slot].delta;
-        PANIC_ON(offset > qxl->guest_slots[slot].size)
+        if (offset > qxl->guest_slots[slot].size) {
+            qxl_guest_bug(qxl, "slot %d offset %"PRIu64" > size %"PRIu64"\n",
+                          slot, offset, qxl->guest_slots[slot].size);
+            return NULL;
+        }
         return qxl->guest_slots[slot].ptr + offset;
-    default:
-        PANIC_ON(1);
     }
+    return NULL;
 }
 
 static void qxl_create_guest_primary_complete(PCIQXLDevice *qxl)
