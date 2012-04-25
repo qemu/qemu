@@ -1038,8 +1038,8 @@ static const MemoryRegionPortio qxl_vga_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
-                            qxl_async_io async)
+static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
+                           qxl_async_io async)
 {
     static const int regions[] = {
         QXL_RAM_RANGE_INDEX,
@@ -1060,8 +1060,16 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
 
     trace_qxl_memslot_add_guest(d->id, slot_id, guest_start, guest_end);
 
-    PANIC_ON(slot_id >= NUM_MEMSLOTS);
-    PANIC_ON(guest_start > guest_end);
+    if (slot_id >= NUM_MEMSLOTS) {
+        qxl_guest_bug(d, "%s: slot_id >= NUM_MEMSLOTS %d >= %d", __func__,
+                      slot_id, NUM_MEMSLOTS);
+        return 1;
+    }
+    if (guest_start > guest_end) {
+        qxl_guest_bug(d, "%s: guest_start > guest_end 0x%" PRIx64
+                         " > 0x%" PRIx64, __func__, guest_start, guest_end);
+        return 1;
+    }
 
     for (i = 0; i < ARRAY_SIZE(regions); i++) {
         pci_region = regions[i];
@@ -1082,7 +1090,10 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         /* passed */
         break;
     }
-    PANIC_ON(i == ARRAY_SIZE(regions)); /* finished loop without match */
+    if (i == ARRAY_SIZE(regions)) {
+        qxl_guest_bug(d, "%s: finished loop without match", __func__);
+        return 1;
+    }
 
     switch (pci_region) {
     case QXL_RAM_RANGE_INDEX:
@@ -1094,7 +1105,8 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         break;
     default:
         /* should not happen */
-        abort();
+        qxl_guest_bug(d, "%s: pci_region = %d", __func__, pci_region);
+        return 1;
     }
 
     memslot.slot_id = slot_id;
@@ -1110,6 +1122,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     d->guest_slots[slot_id].size = memslot.virt_end - memslot.virt_start;
     d->guest_slots[slot_id].delta = delta;
     d->guest_slots[slot_id].active = 1;
+    return 0;
 }
 
 static void qxl_del_memslot(PCIQXLDevice *d, uint32_t slot_id)
@@ -1250,7 +1263,7 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
     }
 
     d->guest_slots[0].slot = slot;
-    qxl_add_memslot(d, 0, devmem, QXL_SYNC);
+    assert(qxl_add_memslot(d, 0, devmem, QXL_SYNC) == 0);
 
     d->guest_primary.surface = surface;
     qxl_create_guest_primary(d, 0, QXL_SYNC);
