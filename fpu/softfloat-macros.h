@@ -55,7 +55,7 @@ these four paragraphs for those parts of this code that are retained.
 | The result is stored in the location pointed to by `zPtr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void shift32RightJamming( uint32_t a, int16 count, uint32_t *zPtr )
+INLINE void shift32RightJamming(uint32_t a, int_fast16_t count, uint32_t *zPtr)
 {
     uint32_t z;
 
@@ -81,7 +81,7 @@ INLINE void shift32RightJamming( uint32_t a, int16 count, uint32_t *zPtr )
 | The result is stored in the location pointed to by `zPtr'.
 *----------------------------------------------------------------------------*/
 
-INLINE void shift64RightJamming( uint64_t a, int16 count, uint64_t *zPtr )
+INLINE void shift64RightJamming(uint64_t a, int_fast16_t count, uint64_t *zPtr)
 {
     uint64_t z;
 
@@ -117,7 +117,7 @@ INLINE void shift64RightJamming( uint64_t a, int16 count, uint64_t *zPtr )
 
 INLINE void
  shift64ExtraRightJamming(
-     uint64_t a0, uint64_t a1, int16 count, uint64_t *z0Ptr, uint64_t *z1Ptr )
+     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
     uint64_t z0, z1;
     int8 negCount = ( - count ) & 63;
@@ -154,7 +154,7 @@ INLINE void
 
 INLINE void
  shift128Right(
-     uint64_t a0, uint64_t a1, int16 count, uint64_t *z0Ptr, uint64_t *z1Ptr )
+     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
     uint64_t z0, z1;
     int8 negCount = ( - count ) & 63;
@@ -189,7 +189,7 @@ INLINE void
 
 INLINE void
  shift128RightJamming(
-     uint64_t a0, uint64_t a1, int16 count, uint64_t *z0Ptr, uint64_t *z1Ptr )
+     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
     uint64_t z0, z1;
     int8 negCount = ( - count ) & 63;
@@ -243,7 +243,7 @@ INLINE void
      uint64_t a0,
      uint64_t a1,
      uint64_t a2,
-     int16 count,
+     int_fast16_t count,
      uint64_t *z0Ptr,
      uint64_t *z1Ptr,
      uint64_t *z2Ptr
@@ -298,7 +298,7 @@ INLINE void
 
 INLINE void
  shortShift128Left(
-     uint64_t a0, uint64_t a1, int16 count, uint64_t *z0Ptr, uint64_t *z1Ptr )
+     uint64_t a0, uint64_t a1, int_fast16_t count, uint64_t *z0Ptr, uint64_t *z1Ptr)
 {
 
     *z1Ptr = a1<<count;
@@ -320,7 +320,7 @@ INLINE void
      uint64_t a0,
      uint64_t a1,
      uint64_t a2,
-     int16 count,
+     int_fast16_t count,
      uint64_t *z0Ptr,
      uint64_t *z1Ptr,
      uint64_t *z2Ptr
@@ -591,7 +591,7 @@ static uint64_t estimateDiv128To64( uint64_t a0, uint64_t a1, uint64_t b )
 | value.
 *----------------------------------------------------------------------------*/
 
-static uint32_t estimateSqrt32( int16 aExp, uint32_t a )
+static uint32_t estimateSqrt32(int_fast16_t aExp, uint32_t a)
 {
     static const uint16_t sqrtOddAdjustments[] = {
         0x0004, 0x0022, 0x005D, 0x00B1, 0x011D, 0x019F, 0x0236, 0x02E0,

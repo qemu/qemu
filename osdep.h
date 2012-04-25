@@ -14,6 +14,7 @@
 /* [u]int_fast*_t not in <sys/int_types.h> */
 typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
+typedef signed int              int_fast16_t;
 #endif
 
 #ifndef glue
