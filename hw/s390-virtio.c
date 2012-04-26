@@ -99,6 +99,7 @@ int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall)
         virtio_reset(dev->vdev);
         stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
         s390_virtio_device_sync(dev);
+        s390_virtio_reset_idx(dev);
         break;
     }
     case KVM_S390_VIRTIO_SET_STATUS:

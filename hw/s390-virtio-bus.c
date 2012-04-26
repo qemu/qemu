@@ -63,6 +63,23 @@ static void s390_virtio_bus_reset(void *opaque)
     bus->next_ring = bus->dev_page + TARGET_PAGE_SIZE;
 }
 
+void s390_virtio_reset_idx(VirtIOS390Device *dev)
+{
+    int i;
+    target_phys_addr_t idx_addr;
+    uint8_t num_vq;
+
+    num_vq = s390_virtio_device_num_vq(dev);
+    for (i = 0; i < num_vq; i++) {
+        idx_addr = virtio_queue_get_avail_addr(dev->vdev, i) +
+            VIRTIO_VRING_AVAIL_IDX_OFFS;
+        stw_phys(idx_addr, 0);
+        idx_addr = virtio_queue_get_used_addr(dev->vdev, i) +
+            VIRTIO_VRING_USED_IDX_OFFS;
+        stw_phys(idx_addr, 0);
+    }
+}
+
 VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
 {
     VirtIOS390Bus *bus;
@@ -121,7 +138,7 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     virtio_bind_device(vdev, &virtio_s390_bindings, dev);
     dev->host_features = vdev->get_features(vdev, dev->host_features);
     s390_virtio_device_sync(dev);
-
+    s390_virtio_reset_idx(dev);
     if (dev->qdev.hotplugged) {
         CPUS390XState *env = s390_cpu_addr2state(0);
         s390_virtio_irq(env, VIRTIO_PARAM_DEV_ADD, dev->dev_offs);
