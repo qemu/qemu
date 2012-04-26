@@ -6888,6 +6888,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         ret = get_errno(do_fork(cpu_env, arg1, arg2, arg3, arg5, arg4));
 #elif defined(TARGET_CRIS)
         ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg4, arg5));
+#elif defined(TARGET_MICROBLAZE)
+        ret = get_errno(do_fork(cpu_env, arg1, arg2, arg4, arg6, arg5));
 #elif defined(TARGET_S390X)
         ret = get_errno(do_fork(cpu_env, arg2, arg1, arg3, arg5, arg4));
 #else
