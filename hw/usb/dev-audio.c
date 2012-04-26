@@ -648,6 +648,7 @@ static int usb_audio_initfn(USBDevice *dev)
 {
     USBAudioState *s = DO_UPCAST(USBAudioState, dev, dev);
 
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->dev.opaque = s;
     AUD_register_card("usb-audio", &s->card);

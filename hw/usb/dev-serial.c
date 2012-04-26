@@ -479,6 +479,7 @@ static int usb_serial_initfn(USBDevice *dev)
 {
     USBSerialState *s = DO_UPCAST(USBSerialState, dev, dev);
 
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
 
     if (!s->cs) {
