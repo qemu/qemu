@@ -59,6 +59,9 @@ find-in-path = $(if $(find-string /, $1), \
         $(wildcard $1), \
         $(wildcard $(patsubst %, %/$1, $(subst :, ,$(PATH)))))
 
+# Generate files with tracetool
+TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
+
 # Generate timestamp files for .h include files
 
 %.h: %.h-timestamp

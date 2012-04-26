@@ -59,13 +59,13 @@ TARGET_TYPE=system
 endif
 
 $(QEMU_PROG).stp: $(SRC_PATH)/trace-events
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/tracetool.py \
+	$(call quiet-command,$(TRACETOOL) \
 		--format=stap \
 		--backend=$(TRACE_BACKEND) \
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-arch=$(TARGET_ARCH) \
 		--target-type=$(TARGET_TYPE) \
-		< $(SRC_PATH)/trace-events > $(QEMU_PROG).stp,"  GEN   $(QEMU_PROG).stp")
+		< $< > $@,"  GEN   $(QEMU_PROG).stp")
 else
 stap:
 endif
