@@ -89,8 +89,8 @@
  *              TODO lift the restriction
  * 'i'          32 bit integer
  * 'l'          target long (32 or 64 bit)
- * 'M'          just like 'l', except in user mode the value is
- *              multiplied by 2^20 (think Mebibyte)
+ * 'M'          Non-negative target long (32 or 64 bit), in user mode the
+ *              value is multiplied by 2^20 (think Mebibyte)
  * 'o'          octets (aka bytes)
  *              user mode accepts an optional T, t, G, g, M, m, K, k
  *              suffix, which multiplies the value by 2^40 for
@@ -3622,6 +3622,10 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
                     monitor_printf(mon, "integer is for 32-bit values\n");
                     goto fail;
                 } else if (c == 'M') {
+                    if (val < 0) {
+                        monitor_printf(mon, "enter a positive value\n");
+                        goto fail;
+                    }
                     val <<= 20;
                 }
                 qdict_put(qdict, key, qint_from_int(val));
