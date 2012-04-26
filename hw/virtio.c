@@ -209,6 +209,10 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
     } else {
         vring_used_flags_set_bit(vq, VRING_USED_F_NO_NOTIFY);
     }
+    if (enable) {
+        /* Expose avail event/used flags before caller checks the avail idx. */
+        smp_mb();
+    }
 }
 
 int virtio_queue_ready(VirtQueue *vq)
@@ -282,6 +286,11 @@ static int virtqueue_num_heads(VirtQueue *vq, unsigned int idx)
         error_report("Guest moved used index from %u to %u",
                      idx, vring_avail_idx(vq));
         exit(1);
+    }
+    /* On success, callers read a descriptor at vq->last_avail_idx.
+     * Make sure descriptor read does not bypass avail index read. */
+    if (num_heads) {
+        smp_rmb();
     }
 
     return num_heads;
@@ -700,6 +709,8 @@ static bool vring_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
     uint16_t old, new;
     bool v;
+    /* We need to expose used array entries before checking used event. */
+    smp_mb();
     /* Always notify when queue is empty (when feature acknowledge) */
     if (((vdev->guest_features & (1 << VIRTIO_F_NOTIFY_ON_EMPTY)) &&
          !vq->inuse && vring_avail_idx(vq) == vq->last_avail_idx)) {
