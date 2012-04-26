@@ -106,23 +106,21 @@ static inline int alarm_has_dynticks(struct qemu_alarm_timer *t)
 
 static int64_t qemu_next_alarm_deadline(void)
 {
-    int64_t delta;
+    int64_t delta = INT64_MAX;
     int64_t rtdelta;
 
-    if (!use_icount && vm_clock->active_timers) {
+    if (!use_icount && vm_clock->enabled && vm_clock->active_timers) {
         delta = vm_clock->active_timers->expire_time -
                      qemu_get_clock_ns(vm_clock);
-    } else {
-        delta = INT32_MAX;
     }
-    if (host_clock->active_timers) {
+    if (host_clock->enabled && host_clock->active_timers) {
         int64_t hdelta = host_clock->active_timers->expire_time -
                  qemu_get_clock_ns(host_clock);
         if (hdelta < delta) {
             delta = hdelta;
         }
     }
-    if (rt_clock->active_timers) {
+    if (rt_clock->enabled && rt_clock->active_timers) {
         rtdelta = (rt_clock->active_timers->expire_time -
                  qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta) {
@@ -696,13 +694,17 @@ static void mm_stop_timer(struct qemu_alarm_timer *t)
 
 static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta)
 {
-    int nearest_delta_ms = (delta + 999999) / 1000000;
+    int64_t nearest_delta_ms = delta / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
+    /* UINT_MAX can be 32 bit */
+    if (nearest_delta_ms > UINT_MAX) {
+        nearest_delta_ms = UINT_MAX;
+    }
 
     timeKillEvent(mm_timer);
-    mm_timer = timeSetEvent(nearest_delta_ms,
+    mm_timer = timeSetEvent((unsigned int) nearest_delta_ms,
                             mm_period,
                             mm_alarm_handler,
                             (DWORD_PTR)t,
@@ -757,16 +759,20 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t,
                               int64_t nearest_delta_ns)
 {
     HANDLE hTimer = t->timer;
-    int nearest_delta_ms;
+    int64_t nearest_delta_ms;
     BOOLEAN success;
 
-    nearest_delta_ms = (nearest_delta_ns + 999999) / 1000000;
+    nearest_delta_ms = nearest_delta_ns / 1000000;
     if (nearest_delta_ms < 1) {
         nearest_delta_ms = 1;
     }
+    /* ULONG_MAX can be 32 bit */
+    if (nearest_delta_ms > ULONG_MAX) {
+        nearest_delta_ms = ULONG_MAX;
+    }
     success = ChangeTimerQueueTimer(NULL,
                                     hTimer,
-                                    nearest_delta_ms,
+                                    (unsigned long) nearest_delta_ms,
                                     3600000);
 
     if (!success) {
@@ -813,9 +819,4 @@ int init_timer_alarm(void)
 
 fail:
     return err;
-}
-
-int qemu_calculate_timeout(void)
-{
-    return 1000;
 }

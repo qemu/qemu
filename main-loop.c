@@ -226,7 +226,7 @@ static int max_priority;
 
 #ifndef _WIN32
 static void glib_select_fill(int *max_fd, fd_set *rfds, fd_set *wfds,
-                             fd_set *xfds, int *cur_timeout)
+                             fd_set *xfds, uint32_t *cur_timeout)
 {
     GMainContext *context = g_main_context_default();
     int i;
@@ -288,20 +288,24 @@ static void glib_select_poll(fd_set *rfds, fd_set *wfds, fd_set *xfds,
     }
 }
 
-static int os_host_main_loop_wait(int timeout)
+static int os_host_main_loop_wait(uint32_t timeout)
 {
-    struct timeval tv;
+    struct timeval tv, *tvarg = NULL;
     int ret;
 
     glib_select_fill(&nfds, &rfds, &wfds, &xfds, &timeout);
+
+    if (timeout < UINT32_MAX) {
+        tvarg = &tv;
+        tv.tv_sec = timeout / 1000;
+        tv.tv_usec = (timeout % 1000) * 1000;
+    }
 
     if (timeout > 0) {
         qemu_mutex_unlock_iothread();
     }
 
-    tv.tv_sec = timeout / 1000;
-    tv.tv_usec = (timeout % 1000) * 1000;
-    ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
+    ret = select(nfds + 1, &rfds, &wfds, &xfds, tvarg);
 
     if (timeout > 0) {
         qemu_mutex_lock_iothread();
@@ -400,7 +404,7 @@ void qemu_fd_register(int fd)
                    FD_CONNECT | FD_WRITE | FD_OOB);
 }
 
-static int os_host_main_loop_wait(int timeout)
+static int os_host_main_loop_wait(uint32_t timeout)
 {
     GMainContext *context = g_main_context_default();
     int ret, i;
@@ -463,12 +467,12 @@ static int os_host_main_loop_wait(int timeout)
 
 int main_loop_wait(int nonblocking)
 {
-    int ret, timeout;
+    int ret;
+    uint32_t timeout = UINT32_MAX;
 
     if (nonblocking) {
         timeout = 0;
     } else {
-        timeout = qemu_calculate_timeout();
         qemu_bh_update_timeout(&timeout);
     }
 
@@ -480,6 +484,7 @@ int main_loop_wait(int nonblocking)
     FD_ZERO(&xfds);
 
 #ifdef CONFIG_SLIRP
+    slirp_update_timeout(&timeout);
     slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
 #endif
     qemu_iohandler_fill(&nfds, &rfds, &wfds, &xfds);

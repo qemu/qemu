@@ -190,6 +190,8 @@ void pc_system_firmware_init(MemoryRegion *rom_memory)
 
     sysfw_dev = (PcSysFwDevice*) qdev_create(NULL, "pc-sysfw");
 
+    qdev_init_nofail(DEVICE(sysfw_dev));
+
     if (sysfw_dev->rom_only) {
         old_pc_system_rom_init(rom_memory);
         return;
@@ -230,11 +232,17 @@ static Property pcsysfw_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int pcsysfw_init(DeviceState *dev)
+{
+    return 0;
+}
+
 static void pcsysfw_class_init (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
 
     dc->desc = "PC System Firmware";
+    dc->init = pcsysfw_init;
     dc->props = pcsysfw_properties;
 }
 
