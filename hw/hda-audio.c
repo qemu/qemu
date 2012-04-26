@@ -113,23 +113,25 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 /* some defines */
 
 #define QEMU_HDA_ID_VENDOR  0x1af4
-#define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x10)
-#define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x20)
-#define QEMU_HDA_ID_MICRO   ((QEMU_HDA_ID_VENDOR << 16) | 0x30)
-
 #define QEMU_HDA_PCM_FORMATS (AC_SUPPCM_BITS_16 |       \
                               0x1fc /* 16 -> 96 kHz */)
 #define QEMU_HDA_AMP_NONE    (0)
 #define QEMU_HDA_AMP_STEPS   0x4a
 
 #ifdef CONFIG_MIXEMU
-#define QEMU_HDA_AMP_CAPS                                               \
+# define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x12)
+# define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x22)
+# define QEMU_HDA_ID_MICRO   ((QEMU_HDA_ID_VENDOR << 16) | 0x32)
+# define QEMU_HDA_AMP_CAPS                                              \
     (AC_AMPCAP_MUTE |                                                   \
      (QEMU_HDA_AMP_STEPS << AC_AMPCAP_OFFSET_SHIFT)    |                \
      (QEMU_HDA_AMP_STEPS << AC_AMPCAP_NUM_STEPS_SHIFT) |                \
      (3                  << AC_AMPCAP_STEP_SIZE_SHIFT))
 #else
-#define QEMU_HDA_AMP_CAPS    QEMU_HDA_AMP_NONE
+# define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x11)
+# define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x21)
+# define QEMU_HDA_ID_MICRO   ((QEMU_HDA_ID_VENDOR << 16) | 0x31)
+# define QEMU_HDA_AMP_CAPS   QEMU_HDA_AMP_NONE
 #endif
 
 /* common: audio output widget */
