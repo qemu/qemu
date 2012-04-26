@@ -155,6 +155,34 @@ static const desc_param common_params_audio_dac[] = {
     },
 };
 
+/* common: audio input widget */
+static const desc_param common_params_audio_adc[] = {
+    {
+        .id  = AC_PAR_AUDIO_WIDGET_CAP,
+        .val = ((AC_WID_AUD_IN << AC_WCAP_TYPE_SHIFT) |
+                AC_WCAP_CONN_LIST |
+                AC_WCAP_FORMAT_OVRD |
+                AC_WCAP_AMP_OVRD |
+                AC_WCAP_IN_AMP |
+                AC_WCAP_STEREO),
+    },{
+        .id  = AC_PAR_CONNLIST_LEN,
+        .val = 1,
+    },{
+        .id  = AC_PAR_PCM,
+        .val = QEMU_HDA_PCM_FORMATS,
+    },{
+        .id  = AC_PAR_STREAM,
+        .val = AC_SUPFMT_PCM,
+    },{
+        .id  = AC_PAR_AMP_IN_CAP,
+        .val = QEMU_HDA_AMP_CAPS,
+    },{
+        .id  = AC_PAR_AMP_OUT_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },
+};
+
 /* common: pin widget (line-out) */
 static const desc_param common_params_audio_lineout[] = {
     {
@@ -168,6 +196,24 @@ static const desc_param common_params_audio_lineout[] = {
     },{
         .id  = AC_PAR_CONNLIST_LEN,
         .val = 1,
+    },{
+        .id  = AC_PAR_AMP_IN_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },{
+        .id  = AC_PAR_AMP_OUT_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },
+};
+
+/* common: pin widget (line-in) */
+static const desc_param common_params_audio_linein[] = {
+    {
+        .id  = AC_PAR_AUDIO_WIDGET_CAP,
+        .val = ((AC_WID_PIN << AC_WCAP_TYPE_SHIFT) |
+                AC_WCAP_STEREO),
+    },{
+        .id  = AC_PAR_PIN_CAP,
+        .val = AC_PINCAP_IN,
     },{
         .id  = AC_PAR_AMP_IN_CAP,
         .val = QEMU_HDA_AMP_NONE,
@@ -287,52 +333,6 @@ static const desc_param duplex_params_root[] = {
     },
 };
 
-/* duplex: audio input widget */
-static const desc_param duplex_params_audio_adc[] = {
-    {
-        .id  = AC_PAR_AUDIO_WIDGET_CAP,
-        .val = ((AC_WID_AUD_IN << AC_WCAP_TYPE_SHIFT) |
-                AC_WCAP_CONN_LIST |
-                AC_WCAP_FORMAT_OVRD |
-                AC_WCAP_AMP_OVRD |
-                AC_WCAP_IN_AMP |
-                AC_WCAP_STEREO),
-    },{
-        .id  = AC_PAR_CONNLIST_LEN,
-        .val = 1,
-    },{
-        .id  = AC_PAR_PCM,
-        .val = QEMU_HDA_PCM_FORMATS,
-    },{
-        .id  = AC_PAR_STREAM,
-        .val = AC_SUPFMT_PCM,
-    },{
-        .id  = AC_PAR_AMP_IN_CAP,
-        .val = QEMU_HDA_AMP_CAPS,
-    },{
-        .id  = AC_PAR_AMP_OUT_CAP,
-        .val = QEMU_HDA_AMP_NONE,
-    },
-};
-
-/* duplex: pin widget (line-in) */
-static const desc_param duplex_params_audio_linein[] = {
-    {
-        .id  = AC_PAR_AUDIO_WIDGET_CAP,
-        .val = ((AC_WID_PIN << AC_WCAP_TYPE_SHIFT) |
-                AC_WCAP_STEREO),
-    },{
-        .id  = AC_PAR_PIN_CAP,
-        .val = AC_PINCAP_IN,
-    },{
-        .id  = AC_PAR_AMP_IN_CAP,
-        .val = QEMU_HDA_AMP_NONE,
-    },{
-        .id  = AC_PAR_AMP_OUT_CAP,
-        .val = QEMU_HDA_AMP_NONE,
-    },
-};
-
 /* duplex: audio function */
 static const desc_param duplex_params_audio_func[] = {
     {
@@ -401,15 +401,15 @@ static const desc_node duplex_nodes[] = {
     },{
         .nid     = 4,
         .name    = "adc",
-        .params  = duplex_params_audio_adc,
-        .nparams = ARRAY_SIZE(duplex_params_audio_adc),
+        .params  = common_params_audio_adc,
+        .nparams = ARRAY_SIZE(common_params_audio_adc),
         .stindex = 1,
         .conn    = (uint32_t[]) { 5 },
     },{
         .nid     = 5,
         .name    = "in",
-        .params  = duplex_params_audio_linein,
-        .nparams = ARRAY_SIZE(duplex_params_audio_linein),
+        .params  = common_params_audio_linein,
+        .nparams = ARRAY_SIZE(common_params_audio_linein),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_LINE_IN      << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
