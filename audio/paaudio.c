@@ -505,8 +505,7 @@ fail:
         pa_stream_unref (stream);
     }
 
-    qpa_logerr (pa_context_errno (g->context),
-                "stream_new() failed\n");
+    *rerror = pa_context_errno (g->context);
 
     return NULL;
 }

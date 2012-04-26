@@ -113,22 +113,25 @@ static void hda_codec_parse_fmt(uint32_t format, struct audsettings *as)
 /* some defines */
 
 #define QEMU_HDA_ID_VENDOR  0x1af4
-#define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x10)
-#define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x20)
-
 #define QEMU_HDA_PCM_FORMATS (AC_SUPPCM_BITS_16 |       \
                               0x1fc /* 16 -> 96 kHz */)
 #define QEMU_HDA_AMP_NONE    (0)
 #define QEMU_HDA_AMP_STEPS   0x4a
 
 #ifdef CONFIG_MIXEMU
-#define QEMU_HDA_AMP_CAPS                                               \
+# define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x12)
+# define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x22)
+# define QEMU_HDA_ID_MICRO   ((QEMU_HDA_ID_VENDOR << 16) | 0x32)
+# define QEMU_HDA_AMP_CAPS                                              \
     (AC_AMPCAP_MUTE |                                                   \
      (QEMU_HDA_AMP_STEPS << AC_AMPCAP_OFFSET_SHIFT)    |                \
      (QEMU_HDA_AMP_STEPS << AC_AMPCAP_NUM_STEPS_SHIFT) |                \
      (3                  << AC_AMPCAP_STEP_SIZE_SHIFT))
 #else
-#define QEMU_HDA_AMP_CAPS    QEMU_HDA_AMP_NONE
+# define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x11)
+# define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x21)
+# define QEMU_HDA_ID_MICRO   ((QEMU_HDA_ID_VENDOR << 16) | 0x31)
+# define QEMU_HDA_AMP_CAPS   QEMU_HDA_AMP_NONE
 #endif
 
 /* common: audio output widget */
@@ -155,6 +158,34 @@ static const desc_param common_params_audio_dac[] = {
     },
 };
 
+/* common: audio input widget */
+static const desc_param common_params_audio_adc[] = {
+    {
+        .id  = AC_PAR_AUDIO_WIDGET_CAP,
+        .val = ((AC_WID_AUD_IN << AC_WCAP_TYPE_SHIFT) |
+                AC_WCAP_CONN_LIST |
+                AC_WCAP_FORMAT_OVRD |
+                AC_WCAP_AMP_OVRD |
+                AC_WCAP_IN_AMP |
+                AC_WCAP_STEREO),
+    },{
+        .id  = AC_PAR_CONNLIST_LEN,
+        .val = 1,
+    },{
+        .id  = AC_PAR_PCM,
+        .val = QEMU_HDA_PCM_FORMATS,
+    },{
+        .id  = AC_PAR_STREAM,
+        .val = AC_SUPFMT_PCM,
+    },{
+        .id  = AC_PAR_AMP_IN_CAP,
+        .val = QEMU_HDA_AMP_CAPS,
+    },{
+        .id  = AC_PAR_AMP_OUT_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },
+};
+
 /* common: pin widget (line-out) */
 static const desc_param common_params_audio_lineout[] = {
     {
@@ -168,6 +199,24 @@ static const desc_param common_params_audio_lineout[] = {
     },{
         .id  = AC_PAR_CONNLIST_LEN,
         .val = 1,
+    },{
+        .id  = AC_PAR_AMP_IN_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },{
+        .id  = AC_PAR_AMP_OUT_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },
+};
+
+/* common: pin widget (line-in) */
+static const desc_param common_params_audio_linein[] = {
+    {
+        .id  = AC_PAR_AUDIO_WIDGET_CAP,
+        .val = ((AC_WID_PIN << AC_WCAP_TYPE_SHIFT) |
+                AC_WCAP_STEREO),
+    },{
+        .id  = AC_PAR_PIN_CAP,
+        .val = AC_PINCAP_IN,
     },{
         .id  = AC_PAR_AMP_IN_CAP,
         .val = QEMU_HDA_AMP_NONE,
@@ -287,52 +336,6 @@ static const desc_param duplex_params_root[] = {
     },
 };
 
-/* duplex: audio input widget */
-static const desc_param duplex_params_audio_adc[] = {
-    {
-        .id  = AC_PAR_AUDIO_WIDGET_CAP,
-        .val = ((AC_WID_AUD_IN << AC_WCAP_TYPE_SHIFT) |
-                AC_WCAP_CONN_LIST |
-                AC_WCAP_FORMAT_OVRD |
-                AC_WCAP_AMP_OVRD |
-                AC_WCAP_IN_AMP |
-                AC_WCAP_STEREO),
-    },{
-        .id  = AC_PAR_CONNLIST_LEN,
-        .val = 1,
-    },{
-        .id  = AC_PAR_PCM,
-        .val = QEMU_HDA_PCM_FORMATS,
-    },{
-        .id  = AC_PAR_STREAM,
-        .val = AC_SUPFMT_PCM,
-    },{
-        .id  = AC_PAR_AMP_IN_CAP,
-        .val = QEMU_HDA_AMP_CAPS,
-    },{
-        .id  = AC_PAR_AMP_OUT_CAP,
-        .val = QEMU_HDA_AMP_NONE,
-    },
-};
-
-/* duplex: pin widget (line-in) */
-static const desc_param duplex_params_audio_linein[] = {
-    {
-        .id  = AC_PAR_AUDIO_WIDGET_CAP,
-        .val = ((AC_WID_PIN << AC_WCAP_TYPE_SHIFT) |
-                AC_WCAP_STEREO),
-    },{
-        .id  = AC_PAR_PIN_CAP,
-        .val = AC_PINCAP_IN,
-    },{
-        .id  = AC_PAR_AMP_IN_CAP,
-        .val = QEMU_HDA_AMP_NONE,
-    },{
-        .id  = AC_PAR_AMP_OUT_CAP,
-        .val = QEMU_HDA_AMP_NONE,
-    },
-};
-
 /* duplex: audio function */
 static const desc_param duplex_params_audio_func[] = {
     {
@@ -401,15 +404,15 @@ static const desc_node duplex_nodes[] = {
     },{
         .nid     = 4,
         .name    = "adc",
-        .params  = duplex_params_audio_adc,
-        .nparams = ARRAY_SIZE(duplex_params_audio_adc),
+        .params  = common_params_audio_adc,
+        .nparams = ARRAY_SIZE(common_params_audio_adc),
         .stindex = 1,
         .conn    = (uint32_t[]) { 5 },
     },{
         .nid     = 5,
         .name    = "in",
-        .params  = duplex_params_audio_linein,
-        .nparams = ARRAY_SIZE(duplex_params_audio_linein),
+        .params  = common_params_audio_linein,
+        .nparams = ARRAY_SIZE(common_params_audio_linein),
         .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
                     (AC_JACK_LINE_IN      << AC_DEFCFG_DEVICE_SHIFT)    |
                     (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
@@ -425,6 +428,117 @@ static const desc_codec duplex = {
     .iid    = QEMU_HDA_ID_DUPLEX,
     .nodes  = duplex_nodes,
     .nnodes = ARRAY_SIZE(duplex_nodes),
+};
+
+/* micro: root node */
+static const desc_param micro_params_root[] = {
+    {
+        .id  = AC_PAR_VENDOR_ID,
+        .val = QEMU_HDA_ID_MICRO,
+    },{
+        .id  = AC_PAR_SUBSYSTEM_ID,
+        .val = QEMU_HDA_ID_MICRO,
+    },{
+        .id  = AC_PAR_REV_ID,
+        .val = 0x00100101,
+    },{
+        .id  = AC_PAR_NODE_COUNT,
+        .val = 0x00010001,
+    },
+};
+
+/* micro: audio function */
+static const desc_param micro_params_audio_func[] = {
+    {
+        .id  = AC_PAR_FUNCTION_TYPE,
+        .val = AC_GRP_AUDIO_FUNCTION,
+    },{
+        .id  = AC_PAR_SUBSYSTEM_ID,
+        .val = QEMU_HDA_ID_MICRO,
+    },{
+        .id  = AC_PAR_NODE_COUNT,
+        .val = 0x00020004,
+    },{
+        .id  = AC_PAR_PCM,
+        .val = QEMU_HDA_PCM_FORMATS,
+    },{
+        .id  = AC_PAR_STREAM,
+        .val = AC_SUPFMT_PCM,
+    },{
+        .id  = AC_PAR_AMP_IN_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },{
+        .id  = AC_PAR_AMP_OUT_CAP,
+        .val = QEMU_HDA_AMP_NONE,
+    },{
+        .id  = AC_PAR_GPIO_CAP,
+        .val = 0,
+    },{
+        .id  = AC_PAR_AUDIO_FG_CAP,
+        .val = 0x00000808,
+    },{
+        .id  = AC_PAR_POWER_STATE,
+        .val = 0,
+    },
+};
+
+/* micro: nodes */
+static const desc_node micro_nodes[] = {
+    {
+        .nid     = AC_NODE_ROOT,
+        .name    = "root",
+        .params  = micro_params_root,
+        .nparams = ARRAY_SIZE(micro_params_root),
+    },{
+        .nid     = 1,
+        .name    = "func",
+        .params  = micro_params_audio_func,
+        .nparams = ARRAY_SIZE(micro_params_audio_func),
+    },{
+        .nid     = 2,
+        .name    = "dac",
+        .params  = common_params_audio_dac,
+        .nparams = ARRAY_SIZE(common_params_audio_dac),
+        .stindex = 0,
+    },{
+        .nid     = 3,
+        .name    = "out",
+        .params  = common_params_audio_lineout,
+        .nparams = ARRAY_SIZE(common_params_audio_lineout),
+        .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
+                    (AC_JACK_SPEAKER      << AC_DEFCFG_DEVICE_SHIFT)    |
+                    (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
+                    (AC_JACK_COLOR_GREEN  << AC_DEFCFG_COLOR_SHIFT)     |
+                    0x10),
+        .pinctl  = AC_PINCTL_OUT_EN,
+        .conn    = (uint32_t[]) { 2 },
+    },{
+        .nid     = 4,
+        .name    = "adc",
+        .params  = common_params_audio_adc,
+        .nparams = ARRAY_SIZE(common_params_audio_adc),
+        .stindex = 1,
+        .conn    = (uint32_t[]) { 5 },
+    },{
+        .nid     = 5,
+        .name    = "in",
+        .params  = common_params_audio_linein,
+        .nparams = ARRAY_SIZE(common_params_audio_linein),
+        .config  = ((AC_JACK_PORT_COMPLEX << AC_DEFCFG_PORT_CONN_SHIFT) |
+                    (AC_JACK_MIC_IN       << AC_DEFCFG_DEVICE_SHIFT)    |
+                    (AC_JACK_CONN_UNKNOWN << AC_DEFCFG_CONN_TYPE_SHIFT) |
+                    (AC_JACK_COLOR_RED    << AC_DEFCFG_COLOR_SHIFT)     |
+                    0x20),
+        .pinctl  = AC_PINCTL_IN_EN,
+    }
+};
+
+/* micro: codec */
+static const desc_codec micro = {
+    .name   = "micro",
+    .iid    = QEMU_HDA_ID_MICRO,
+    .nodes  = micro_nodes,
+    .nnodes = ARRAY_SIZE(micro_nodes),
 };
 
 /* -------------------------------------------------------------------------- */
@@ -906,6 +1020,11 @@ static int hda_audio_init_duplex(HDACodecDevice *hda)
     return hda_audio_init(hda, &duplex);
 }
 
+static int hda_audio_init_micro(HDACodecDevice *hda)
+{
+    return hda_audio_init(hda, &micro);
+}
+
 static void hda_audio_output_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -915,7 +1034,7 @@ static void hda_audio_output_class_init(ObjectClass *klass, void *data)
     k->exit = hda_audio_exit;
     k->command = hda_audio_command;
     k->stream = hda_audio_stream;
-    dc->desc = "HDA Audio Codec, output-only";
+    dc->desc = "HDA Audio Codec, output-only (line-out)";
     dc->vmsd = &vmstate_hda_audio;
     dc->props = hda_audio_properties;
 }
@@ -936,7 +1055,7 @@ static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
     k->exit = hda_audio_exit;
     k->command = hda_audio_command;
     k->stream = hda_audio_stream;
-    dc->desc = "HDA Audio Codec, duplex";
+    dc->desc = "HDA Audio Codec, duplex (line-out, line-in)";
     dc->vmsd = &vmstate_hda_audio;
     dc->props = hda_audio_properties;
 }
@@ -948,10 +1067,32 @@ static TypeInfo hda_audio_duplex_info = {
     .class_init    = hda_audio_duplex_class_init,
 };
 
+static void hda_audio_micro_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
+
+    k->init = hda_audio_init_micro;
+    k->exit = hda_audio_exit;
+    k->command = hda_audio_command;
+    k->stream = hda_audio_stream;
+    dc->desc = "HDA Audio Codec, duplex (speaker, microphone)";
+    dc->vmsd = &vmstate_hda_audio;
+    dc->props = hda_audio_properties;
+}
+
+static TypeInfo hda_audio_micro_info = {
+    .name          = "hda-micro",
+    .parent        = TYPE_HDA_CODEC_DEVICE,
+    .instance_size = sizeof(HDAAudioState),
+    .class_init    = hda_audio_micro_class_init,
+};
+
 static void hda_audio_register_types(void)
 {
     type_register_static(&hda_audio_output_info);
     type_register_static(&hda_audio_duplex_info);
+    type_register_static(&hda_audio_micro_info);
 }
 
 type_init(hda_audio_register_types)
