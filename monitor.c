@@ -3120,11 +3120,15 @@ static int64_t expr_unary(Monitor *mon)
         n = 0;
         break;
     default:
+        errno = 0;
 #if TARGET_PHYS_ADDR_BITS > 32
         n = strtoull(pch, &p, 0);
 #else
         n = strtoul(pch, &p, 0);
 #endif
+        if (errno == ERANGE) {
+            expr_error(mon, "number too large");
+        }
         if (pch == p) {
             expr_error(mon, "invalid char in expression");
         }
