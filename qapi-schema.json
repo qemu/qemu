@@ -92,6 +92,8 @@
 #
 # @debug: QEMU is running on a debugger
 #
+# @finish-migrate: guest is paused to finish the migration process
+#
 # @inmigrate: guest is paused waiting for an incoming migration
 #
 # @internal-error: An internal error that prevents further guest execution
@@ -105,8 +107,6 @@
 # @postmigrate: guest is paused following a successful 'migrate'
 #
 # @prelaunch: QEMU was started with -S and guest has not started
-#
-# @finish-migrate: guest is paused to finish the migration process
 #
 # @restore-vm: guest is paused to restore VM state
 #
