@@ -410,6 +410,7 @@ static int os_host_main_loop_wait(uint32_t timeout)
     int ret, i;
     PollingEntry *pe;
     WaitObjects *w = &wait_objects;
+    gint poll_timeout;
     static struct timeval tv0;
 
     /* XXX: need to suppress polling by better using win32 events */
@@ -424,12 +425,12 @@ static int os_host_main_loop_wait(uint32_t timeout)
     if (nfds >= 0) {
         ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
         if (ret != 0) {
-            timeout = 0;
+            /* TODO. */
         }
     }
 
     g_main_context_prepare(context, &max_priority);
-    n_poll_fds = g_main_context_query(context, max_priority, &timeout,
+    n_poll_fds = g_main_context_query(context, max_priority, &poll_timeout,
                                       poll_fds, ARRAY_SIZE(poll_fds));
     g_assert(n_poll_fds <= ARRAY_SIZE(poll_fds));
 
@@ -439,7 +440,7 @@ static int os_host_main_loop_wait(uint32_t timeout)
     }
 
     qemu_mutex_unlock_iothread();
-    ret = g_poll(poll_fds, n_poll_fds + w->num, timeout);
+    ret = g_poll(poll_fds, n_poll_fds + w->num, poll_timeout);
     qemu_mutex_lock_iothread();
     if (ret > 0) {
         for (i = 0; i < w->num; i++) {
