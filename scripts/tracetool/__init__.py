@@ -204,7 +204,7 @@ def try_import(mod_name, attr_name = None, attr_default = None):
     object or attribute value.
     """
     try:
-        module = __import__(mod_name, fromlist=["__package__"])
+        module = __import__(mod_name, globals(), locals(), ["__package__"])
         if attr_name is None:
             return True, module
         return True, getattr(module, str(attr_name), attr_default)
