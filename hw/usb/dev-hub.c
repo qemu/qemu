@@ -520,6 +520,7 @@ static int usb_hub_initfn(USBDevice *dev)
     USBHubPort *port;
     int i;
 
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     for (i = 0; i < NUM_PORTS; i++) {

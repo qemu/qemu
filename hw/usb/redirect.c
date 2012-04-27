@@ -39,6 +39,7 @@
 #include "hw/usb.h"
 
 #define MAX_ENDPOINTS 32
+#define NO_INTERFACE_INFO 255 /* Valid interface_count always <= 32 */
 #define EP2I(ep_address) (((ep_address & 0x80) >> 3) | (ep_address & 0x0f))
 #define I2EP(i) (((i & 0x10) << 3) | (i & 0x0f))
 
@@ -276,7 +277,7 @@ static AsyncURB *async_find(USBRedirDevice *dev, uint32_t packet_id)
             return aurb;
         }
     }
-    ERROR("could not find async urb for packet_id %u\n", packet_id);
+    DPRINTF("could not find async urb for packet_id %u\n", packet_id);
     return NULL;
 }
 
@@ -970,7 +971,7 @@ static void usbredir_handle_destroy(USBDevice *udev)
 
 static int usbredir_check_filter(USBRedirDevice *dev)
 {
-    if (dev->interface_info.interface_count == 0) {
+    if (dev->interface_info.interface_count == NO_INTERFACE_INFO) {
         ERROR("No interface info for device\n");
         goto error;
     }
@@ -1134,7 +1135,9 @@ static void usbredir_device_disconnect(void *priv)
         QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
     usb_ep_init(&dev->dev);
-    dev->interface_info.interface_count = 0;
+    dev->interface_info.interface_count = NO_INTERFACE_INFO;
+    dev->dev.addr = 0;
+    dev->dev.speed = 0;
 }
 
 static void usbredir_interface_info(void *priv,

@@ -79,7 +79,7 @@ typedef struct BlockJobType {
     const char *job_type;
 
     /** Optional callback for job types that support setting a speed limit */
-    int (*set_speed)(BlockJob *job, int64_t value);
+    void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
 } BlockJobType;
 
 /**
@@ -345,8 +345,10 @@ int is_windows_drive(const char *filename);
  * block_job_create:
  * @job_type: The class object for the newly-created job.
  * @bs: The block
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @errp: Error object.
  *
  * Create a new long-running block device job and return it.  The job
  * will call @cb asynchronously when the job completes.  Note that
@@ -358,7 +360,8 @@ int is_windows_drive(const char *filename);
  * called from a wrapper that is specific to the job type.
  */
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
-                       BlockDriverCompletionFunc *cb, void *opaque);
+                       int64_t speed, BlockDriverCompletionFunc *cb,
+                       void *opaque, Error **errp);
 
 /**
  * block_job_complete:
@@ -374,11 +377,12 @@ void block_job_complete(BlockJob *job, int ret);
  * block_job_set_speed:
  * @job: The job to set the speed for.
  * @speed: The new value
+ * @errp: Error object.
  *
  * Set a rate-limiting parameter for the job; the actual meaning may
  * vary depending on the job type.
  */
-int block_job_set_speed(BlockJob *job, int64_t value);
+void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
 
 /**
  * block_job_cancel:
@@ -416,8 +420,10 @@ void block_job_cancel_sync(BlockJob *job);
  * flatten the whole backing file chain onto @bs.
  * @base_id: The file name that will be written to @bs as the new
  * backing file if the job completes.  Ignored if @base is %NULL.
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @errp: Error object.
  *
  * Start a streaming operation on @bs.  Clusters that are unallocated
  * in @bs, but allocated in any image between @base and @bs (both
@@ -425,8 +431,9 @@ void block_job_cancel_sync(BlockJob *job);
  * streaming job, the backing file of @bs will be changed to
  * @base_id in the written image and to @base in the live BlockDriverState.
  */
-int stream_start(BlockDriverState *bs, BlockDriverState *base,
-                 const char *base_id, BlockDriverCompletionFunc *cb,
-                 void *opaque);
+void stream_start(BlockDriverState *bs, BlockDriverState *base,
+                  const char *base_id, int64_t speed,
+                  BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp);
 
 #endif /* BLOCK_INT_H */

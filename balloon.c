@@ -108,7 +108,7 @@ void qmp_balloon(int64_t value, Error **errp)
     }
 
     if (value <= 0) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "target", "a size");
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "target", "a size");
         return;
     }
     

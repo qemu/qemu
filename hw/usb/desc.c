@@ -1,3 +1,5 @@
+#include <ctype.h>
+
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "trace.h"
@@ -410,6 +412,36 @@ void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
     }
     g_free(s->str);
     s->str = g_strdup(str);
+}
+
+/*
+ * This function creates a serial number for a usb device.
+ * The serial number should:
+ *   (a) Be unique within the virtual machine.
+ *   (b) Be constant, so you don't get a new one each
+ *       time the guest is started.
+ * So we are using the physical location to generate a serial number
+ * from it.  It has three pieces:  First a fixed, device-specific
+ * prefix.  Second the device path of the host controller (which is
+ * the pci address in most cases).  Third the physical port path.
+ * Results in serial numbers like this: "314159-0000:00:1d.7-3".
+ */
+void usb_desc_create_serial(USBDevice *dev)
+{
+    DeviceState *hcd = dev->qdev.parent_bus->parent;
+    const USBDesc *desc = usb_device_get_usb_desc(dev);
+    int index = desc->id.iSerialNumber;
+    char serial[64];
+    int dst;
+
+    assert(index != 0 && desc->str[index] != NULL);
+    dst = snprintf(serial, sizeof(serial), "%s", desc->str[index]);
+    if (hcd && hcd->parent_bus && hcd->parent_bus->info->get_dev_path) {
+        char *path = hcd->parent_bus->info->get_dev_path(hcd);
+        dst += snprintf(serial+dst, sizeof(serial)-dst, "-%s", path);
+    }
+    dst += snprintf(serial+dst, sizeof(serial)-dst, "-%s", dev->port->path);
+    usb_desc_set_string(dev, index, serial);
 }
 
 const char *usb_desc_get_string(USBDevice *dev, uint8_t index)

@@ -263,15 +263,15 @@ retry:
     block_job_complete(&s->common, ret);
 }
 
-static int stream_set_speed(BlockJob *job, int64_t value)
+static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
     StreamBlockJob *s = container_of(job, StreamBlockJob, common);
 
-    if (value < 0) {
-        return -EINVAL;
+    if (speed < 0) {
+        error_set(errp, QERR_INVALID_PARAMETER, "speed");
+        return;
     }
-    ratelimit_set_speed(&s->limit, value / BDRV_SECTOR_SIZE);
-    return 0;
+    ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE);
 }
 
 static BlockJobType stream_job_type = {
@@ -280,16 +280,17 @@ static BlockJobType stream_job_type = {
     .set_speed     = stream_set_speed,
 };
 
-int stream_start(BlockDriverState *bs, BlockDriverState *base,
-                 const char *base_id, BlockDriverCompletionFunc *cb,
-                 void *opaque)
+void stream_start(BlockDriverState *bs, BlockDriverState *base,
+                  const char *base_id, int64_t speed,
+                  BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp)
 {
     StreamBlockJob *s;
     Coroutine *co;
 
-    s = block_job_create(&stream_job_type, bs, cb, opaque);
+    s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
     if (!s) {
-        return -EBUSY; /* bs must already be in use */
+        return;
     }
 
     s->base = base;
@@ -300,5 +301,4 @@ int stream_start(BlockDriverState *bs, BlockDriverState *base,
     co = qemu_coroutine_create(stream_run);
     trace_stream_start(bs, base, s, co, opaque);
     qemu_coroutine_enter(co, s);
-    return 0;
 }

@@ -501,6 +501,7 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
 void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep)
 {
     assert(!usb_packet_is_inflight(p));
+    assert(p->iov.iov != NULL);
     p->pid = pid;
     p->ep = ep;
     p->result = 0;

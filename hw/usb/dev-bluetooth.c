@@ -494,6 +494,7 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 
 static int usb_bt_initfn(USBDevice *dev)
 {
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
     return 0;
 }

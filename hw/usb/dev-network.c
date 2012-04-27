@@ -1324,6 +1324,7 @@ static int usb_net_initfn(USBDevice *dev)
 {
     USBNetState *s = DO_UPCAST(USBNetState, dev, dev);
 
+    usb_desc_create_serial(dev);
     usb_desc_init(dev);
 
     s->rndis_state = RNDIS_UNINITIALIZED;

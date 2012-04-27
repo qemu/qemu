@@ -268,7 +268,6 @@ static void usb_msd_request_cancelled(SCSIRequest *req)
     if (req == s->req) {
         scsi_req_unref(s->req);
         s->req = NULL;
-        s->packet = NULL;
         s->scsi_len = 0;
     }
 }
@@ -329,6 +328,9 @@ static int usb_msd_handle_control(USBDevice *dev, USBPacket *p,
 static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
+
+    assert(s->packet == p);
+    s->packet = NULL;
 
     if (s->req) {
         scsi_req_cancel(s->req);
@@ -544,6 +546,8 @@ static int usb_msd_initfn(USBDevice *dev)
     }
     if (s->serial) {
         usb_desc_set_string(dev, STR_SERIALNUMBER, s->serial);
+    } else {
+        usb_desc_create_serial(dev);
     }
 
     usb_desc_init(dev);

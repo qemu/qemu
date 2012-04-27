@@ -884,16 +884,16 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     }
 
     v = 0;
-    prem = p->iov.iov[v].iov_len;
-    pbuf = p->iov.iov[v].iov_base;
+    prem = 0;
+    pbuf = NULL;
     rem = p->iov.size;
-    while (rem) {
-        if (prem == 0) {
-            v++;
+    do {
+        if (prem == 0 && rem > 0) {
             assert(v < p->iov.niov);
             prem = p->iov.iov[v].iov_len;
             pbuf = p->iov.iov[v].iov_base;
             assert(prem <= rem);
+            v++;
         }
         aurb = async_alloc(s);
         aurb->packet = p;
@@ -938,7 +938,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
                 return USB_RET_STALL;
             }
         }
-    }
+    } while (rem > 0);
 
     return USB_RET_ASYNC;
 }
