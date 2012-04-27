@@ -116,12 +116,14 @@
 #
 # @shutdown: guest is shut down (and -no-shutdown is in use)
 #
+# @suspended: guest is suspended (ACPI S3)
+#
 # @watchdog: the watchdog action is configured to pause and has been triggered
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
-            'running', 'save-vm', 'shutdown', 'watchdog' ] }
+            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog' ] }
 
 ##
 # @StatusInfo:

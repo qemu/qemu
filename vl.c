@@ -366,6 +366,11 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_SHUTDOWN, RUN_STATE_PAUSED },
     { RUN_STATE_SHUTDOWN, RUN_STATE_FINISH_MIGRATE },
 
+    { RUN_STATE_DEBUG, RUN_STATE_SUSPENDED },
+    { RUN_STATE_RUNNING, RUN_STATE_SUSPENDED },
+    { RUN_STATE_SUSPENDED, RUN_STATE_RUNNING },
+    { RUN_STATE_SUSPENDED, RUN_STATE_FINISH_MIGRATE },
+
     { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
     { RUN_STATE_WATCHDOG, RUN_STATE_FINISH_MIGRATE },
 
@@ -1420,6 +1425,7 @@ static void qemu_system_suspend(void)
 {
     pause_all_vcpus();
     notifier_list_notify(&suspend_notifiers, NULL);
+    runstate_set(RUN_STATE_SUSPENDED);
     monitor_protocol_event(QEVENT_SUSPEND, NULL);
     is_suspended = true;
 }
@@ -1447,6 +1453,7 @@ void qemu_system_wakeup_request(WakeupReason reason)
     if (!(wakeup_reason_mask & (1 << reason))) {
         return;
     }
+    runstate_set(RUN_STATE_RUNNING);
     monitor_protocol_event(QEVENT_WAKEUP, NULL);
     notifier_list_notify(&wakeup_notifiers, &reason);
     reset_requested = 1;
