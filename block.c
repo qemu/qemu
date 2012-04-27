@@ -4083,11 +4083,13 @@ out:
 }
 
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
-                       BlockDriverCompletionFunc *cb, void *opaque)
+                       int64_t speed, BlockDriverCompletionFunc *cb,
+                       void *opaque, Error **errp)
 {
     BlockJob *job;
 
     if (bs->job || bdrv_in_use(bs)) {
+        error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
     bdrv_set_in_use(bs, 1);
@@ -4098,6 +4100,20 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
     job->cb            = cb;
     job->opaque        = opaque;
     bs->job = job;
+
+    /* Only set speed when necessary to avoid NotSupported error */
+    if (speed != 0) {
+        Error *local_err = NULL;
+
+        block_job_set_speed(job, speed, &local_err);
+        if (error_is_set(&local_err)) {
+            bs->job = NULL;
+            g_free(job);
+            bdrv_set_in_use(bs, 0);
+            error_propagate(errp, local_err);
+            return NULL;
+        }
+    }
     return job;
 }
 
@@ -4112,18 +4128,21 @@ void block_job_complete(BlockJob *job, int ret)
     bdrv_set_in_use(bs, 0);
 }
 
-int block_job_set_speed(BlockJob *job, int64_t value)
+void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 {
-    int rc;
+    Error *local_err = NULL;
 
     if (!job->job_type->set_speed) {
-        return -ENOTSUP;
+        error_set(errp, QERR_NOT_SUPPORTED);
+        return;
     }
-    rc = job->job_type->set_speed(job, value);
-    if (rc == 0) {
-        job->speed = value;
+    job->job_type->set_speed(job, speed, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(errp, local_err);
+        return;
     }
-    return rc;
+
+    job->speed = speed;
 }
 
 void block_job_cancel(BlockJob *job)

@@ -1571,15 +1571,19 @@
 #
 # @base:   #optional the common backing file name
 #
+# @speed:  #optional the maximum speed, in bytes per second
+#
 # Returns: Nothing on success
 #          If streaming is already active on this device, DeviceInUse
 #          If @device does not exist, DeviceNotFound
 #          If image streaming is not supported by this device, NotSupported
 #          If @base does not exist, BaseNotFound
+#          If @speed is invalid, InvalidParameter
 #
 # Since: 1.1
 ##
-{ 'command': 'block-stream', 'data': { 'device': 'str', '*base': 'str' } }
+{ 'command': 'block-stream', 'data': { 'device': 'str', '*base': 'str',
+                                       '*speed': 'int' } }
 
 ##
 # @block-job-set-speed:
@@ -1592,16 +1596,18 @@
 #
 # @device: the device name
 #
-# @value:  the maximum speed, in bytes per second
+# @speed:  the maximum speed, in bytes per second, or 0 for unlimited.
+#          Defaults to 0.
 #
 # Returns: Nothing on success
 #          If the job type does not support throttling, NotSupported
+#          If the speed value is invalid, InvalidParameter
 #          If streaming is not active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
 { 'command': 'block-job-set-speed',
-  'data': { 'device': 'str', 'value': 'int' } }
+  'data': { 'device': 'str', 'speed': 'int' } }
 
 ##
 # @block-job-cancel:
