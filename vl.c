@@ -1293,7 +1293,6 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
-static bool is_suspended;
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
@@ -1427,12 +1426,11 @@ static void qemu_system_suspend(void)
     notifier_list_notify(&suspend_notifiers, NULL);
     runstate_set(RUN_STATE_SUSPENDED);
     monitor_protocol_event(QEVENT_SUSPEND, NULL);
-    is_suspended = true;
 }
 
 void qemu_system_suspend_request(void)
 {
-    if (is_suspended) {
+    if (runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
     suspend_requested = 1;
@@ -1447,7 +1445,7 @@ void qemu_register_suspend_notifier(Notifier *notifier)
 
 void qemu_system_wakeup_request(WakeupReason reason)
 {
-    if (!is_suspended) {
+    if (!runstate_check(RUN_STATE_SUSPENDED)) {
         return;
     }
     if (!(wakeup_reason_mask & (1 << reason))) {
@@ -1458,7 +1456,6 @@ void qemu_system_wakeup_request(WakeupReason reason)
     notifier_list_notify(&wakeup_notifiers, &reason);
     reset_requested = 1;
     qemu_notify_event();
-    is_suspended = false;
 }
 
 void qemu_system_wakeup_enable(WakeupReason reason, bool enabled)
