@@ -64,14 +64,17 @@ class Arguments:
         res = []
         for arg in arg_str.split(","):
             arg = arg.strip()
-            parts = arg.split()
-            head, sep, tail = parts[-1].rpartition("*")
-            parts = parts[:-1]
-            if tail == "void":
-                assert len(parts) == 0 and sep == ""
+            if arg == 'void':
                 continue
-            arg_type = " ".join(parts + [ " ".join([head, sep]).strip() ]).strip()
-            res.append((arg_type, tail))
+
+            if '*' in arg:
+                arg_type, identifier = arg.rsplit('*', 1)
+                arg_type += '*'
+                identifier = identifier.strip()
+            else:
+                arg_type, identifier = arg.rsplit(None, 1)
+
+            res.append((arg_type, identifier))
         return Arguments(res)
 
     def __iter__(self):
