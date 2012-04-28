@@ -2659,7 +2659,7 @@ static void gen_exception(DisasContext *s, int trapno, target_ulong cur_eip)
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(cur_eip);
-    gen_helper_raise_exception(tcg_const_i32(trapno));
+    gen_helper_raise_exception(cpu_env, tcg_const_i32(trapno));
     s->is_jmp = DISAS_TB_JUMP;
 }
 
@@ -2671,7 +2671,7 @@ static void gen_interrupt(DisasContext *s, int intno,
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(cur_eip);
-    gen_helper_raise_interrupt(tcg_const_i32(intno), 
+    gen_helper_raise_interrupt(cpu_env, tcg_const_i32(intno),
                                tcg_const_i32(next_eip - cur_eip));
     s->is_jmp = DISAS_TB_JUMP;
 }
