@@ -367,7 +367,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     }
 
     for(i = 0; i < table_size; i++) {
-        cpu_to_be64s(&new_table[i]);
+        be64_to_cpus(&new_table[i]);
     }
 
     /* Hook up the new refcount table in the qcow2 header */
