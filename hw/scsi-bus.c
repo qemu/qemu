@@ -940,6 +940,7 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case WRITE_LONG_10:
     case WRITE_SAME_10:
     case WRITE_SAME_16:
+    case UNMAP:
     case SEARCH_HIGH_12:
     case SEARCH_EQUAL_12:
     case SEARCH_LOW_12:
@@ -949,6 +950,7 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case SEND_DVD_STRUCTURE:
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
+    case ATA_PASSTHROUGH:
         cmd->mode = SCSI_XFER_TO_DEV;
         break;
     default:
