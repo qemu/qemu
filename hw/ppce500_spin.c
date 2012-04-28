@@ -179,7 +179,7 @@ static uint64_t spin_read(void *opaque, target_phys_addr_t addr, unsigned len)
     case 4:
         return ldl_p(spin_p);
     default:
-        assert(0);
+        hw_error("ppce500: unexpected %s with len = %u", __func__, len);
     }
 }
 
