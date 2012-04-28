@@ -159,3 +159,52 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, int is_write, int mmu_idx,
     env = saved_env;
 }
 #endif
+
+/* temporary wrappers */
+#if defined(CONFIG_USER_ONLY)
+#define ldub_data(addr) ldub_raw(addr)
+#define lduw_data(addr) lduw_raw(addr)
+#define ldl_data(addr) ldl_raw(addr)
+#define ldq_data(addr) ldq_raw(addr)
+
+#define stb_data(addr, data) stb_raw(addr, data)
+#define stw_data(addr, data) stw_raw(addr, data)
+#define stl_data(addr, data) stl_raw(addr, data)
+#define stq_data(addr, data) stq_raw(addr, data)
+#endif
+
+#define WRAP_LD(rettype, fn)                                    \
+    rettype cpu_ ## fn(CPUX86State *env1, target_ulong addr)    \
+    {                                                           \
+        CPUX86State *saved_env;                                 \
+        rettype ret;                                            \
+                                                                \
+        saved_env = env;                                        \
+        env = env1;                                             \
+        ret = fn(addr);                                         \
+        env = saved_env;                                        \
+        return ret;                                             \
+    }
+
+WRAP_LD(uint32_t, ldub_data)
+WRAP_LD(uint32_t, lduw_data)
+WRAP_LD(uint32_t, ldl_data)
+WRAP_LD(uint64_t, ldq_data)
+#undef WRAP_LD
+
+#define WRAP_ST(datatype, fn)                                           \
+    void cpu_ ## fn(CPUX86State *env1, target_ulong addr, datatype val) \
+    {                                                                   \
+        CPUX86State *saved_env;                                         \
+                                                                        \
+        saved_env = env;                                                \
+        env = env1;                                                     \
+        fn(addr, val);                                                  \
+        env = saved_env;                                                \
+    }
+
+WRAP_ST(uint32_t, stb_data)
+WRAP_ST(uint32_t, stw_data)
+WRAP_ST(uint32_t, stl_data)
+WRAP_ST(uint64_t, stq_data)
+#undef WRAP_ST

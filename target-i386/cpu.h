@@ -1138,4 +1138,15 @@ void do_smm_enter(CPUX86State *env1);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
+/* temporary wrappers */
+uint32_t cpu_ldub_data(CPUX86State *env, target_ulong ptr);
+uint32_t cpu_lduw_data(CPUX86State *env, target_ulong ptr);
+uint32_t cpu_ldl_data(CPUX86State *env, target_ulong ptr);
+uint64_t cpu_ldq_data(CPUX86State *env, target_ulong ptr);
+
+void cpu_stb_data(CPUX86State *env, target_ulong ptr, uint32_t data);
+void cpu_stw_data(CPUX86State *env, target_ulong ptr, uint32_t data);
+void cpu_stl_data(CPUX86State *env, target_ulong ptr, uint32_t data);
+void cpu_stq_data(CPUX86State *env, target_ulong ptr, uint64_t data);
+
 #endif /* CPU_I386_H */
