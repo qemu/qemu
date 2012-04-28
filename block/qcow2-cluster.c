@@ -540,7 +540,6 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         if (l2_offset) {
             qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t));
         }
-        l2_offset = s->l1_table[l1_index] & L1E_OFFSET_MASK;
     }
 
     /* find the cluster offset for the given disk offset */
