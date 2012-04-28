@@ -35,12 +35,6 @@
 #define NIRQ_GIC      160
 
 /* Board init.  */
-static void highbank_cpu_reset(void *opaque)
-{
-    CPUARMState *env = opaque;
-
-    env->cp15.c15_config_base_address = GIC_BASE_ADDR;
-}
 
 static void hb_write_secondary(CPUARMState *env, const struct arm_boot_info *info)
 {
@@ -213,14 +207,17 @@ static void highbank_init(ram_addr_t ram_size,
     }
 
     for (n = 0; n < smp_cpus; n++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        ARMCPU *cpu;
+        cpu = cpu_arm_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+        /* This will become a QOM property eventually */
+        cpu->reset_cbar = GIC_BASE_ADDR;
         irqp = arm_pic_init_cpu(env);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
-        qemu_register_reset(highbank_cpu_reset, env);
     }
 
     sysmem = get_system_memory();

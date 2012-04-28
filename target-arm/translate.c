@@ -6767,8 +6767,8 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
         if ((insn & 0x0ffffdff) == 0x01010000) {
             ARCH(6);
             /* setend */
-            if (insn & (1 << 9)) {
-                /* BE8 mode not implemented.  */
+            if (((insn >> 9) & 1) != s->bswap_code) {
+                /* Dynamic endianness switching not implemented. */
                 goto illegal_op;
             }
             return;
@@ -9710,8 +9710,8 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             case 2:
                 /* setend */
                 ARCH(6);
-                if (insn & (1 << 3)) {
-                    /* BE8 mode not implemented.  */
+                if (((insn >> 3) & 1) != s->bswap_code) {
+                    /* Dynamic endianness switching not implemented. */
                     goto illegal_op;
                 }
                 break;
