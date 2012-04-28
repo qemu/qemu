@@ -61,7 +61,7 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     return 0;
 }
 
-CPUARMState *cpu_arm_init(const char *cpu_model)
+ARMCPU *cpu_arm_init(const char *cpu_model)
 {
     ARMCPU *cpu;
     CPUARMState *env;
@@ -92,7 +92,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
                                  19, "arm-vfp.xml", 0);
     }
     qemu_init_vcpu(env);
-    return env;
+    return cpu;
 }
 
 typedef struct ARMCPUListState {

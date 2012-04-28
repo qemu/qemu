@@ -516,8 +516,8 @@ esac
 if [ "$bsd" = "yes" ] ; then
   if [ "$darwin" != "yes" ] ; then
     usb="bsd"
+    bsd_user="yes"
   fi
-  bsd_user="yes"
 fi
 
 : ${make=${MAKE-make}}
