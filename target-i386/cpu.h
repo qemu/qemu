@@ -1071,12 +1071,16 @@ void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags);
 
-/* op_helper.c */
-void do_interrupt(CPUX86State *env);
-void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
+/* excp_helper.c */
 void QEMU_NORETURN raise_exception(CPUX86State *env, int exception_index);
 void QEMU_NORETURN raise_exception_err(CPUX86State *env, int exception_index,
                                        int error_code);
+void QEMU_NORETURN raise_interrupt(CPUX86State *nenv, int intno, int is_int,
+                                   int error_code, int next_eip_addend);
+
+/* op_helper.c */
+void do_interrupt(CPUX86State *env);
+void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
 void do_smm_enter(CPUX86State *env1);
 

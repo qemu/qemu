@@ -1,4 +1,5 @@
 obj-y += translate.o op_helper.o helper.o cpu.o
+obj-y += excp_helper.o
 obj-$(CONFIG_SOFTMMU) += machine.o arch_memory_mapping.o arch_dump.o
 obj-$(CONFIG_KVM) += kvm.o hyperv.o
 obj-$(CONFIG_LINUX_USER) += ioport-user.o
