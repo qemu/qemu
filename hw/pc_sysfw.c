@@ -85,6 +85,9 @@ static void pc_fw_add_pflash_drv(void)
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
 
     opts = drive_add(IF_PFLASH, -1, filename, "readonly=on");
+
+    g_free(filename);
+
     if (opts == NULL) {
       return;
     }
