@@ -1149,4 +1149,14 @@ void cpu_stw_data(CPUX86State *env, target_ulong ptr, uint32_t data);
 void cpu_stl_data(CPUX86State *env, target_ulong ptr, uint32_t data);
 void cpu_stq_data(CPUX86State *env, target_ulong ptr, uint64_t data);
 
+uint32_t cpu_ldub_kernel(CPUX86State *env, target_ulong ptr);
+uint32_t cpu_lduw_kernel(CPUX86State *env, target_ulong ptr);
+uint32_t cpu_ldl_kernel(CPUX86State *env, target_ulong ptr);
+uint64_t cpu_ldq_kernel(CPUX86State *env, target_ulong ptr);
+
+void cpu_stb_kernel(CPUX86State *env, target_ulong ptr, uint32_t data);
+void cpu_stw_kernel(CPUX86State *env, target_ulong ptr, uint32_t data);
+void cpu_stl_kernel(CPUX86State *env, target_ulong ptr, uint32_t data);
+void cpu_stq_kernel(CPUX86State *env, target_ulong ptr, uint64_t data);
+
 #endif /* CPU_I386_H */

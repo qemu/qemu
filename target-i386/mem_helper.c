@@ -190,6 +190,11 @@ WRAP_LD(uint32_t, ldub_data)
 WRAP_LD(uint32_t, lduw_data)
 WRAP_LD(uint32_t, ldl_data)
 WRAP_LD(uint64_t, ldq_data)
+
+WRAP_LD(uint32_t, ldub_kernel)
+WRAP_LD(uint32_t, lduw_kernel)
+WRAP_LD(uint32_t, ldl_kernel)
+WRAP_LD(uint64_t, ldq_kernel)
 #undef WRAP_LD
 
 #define WRAP_ST(datatype, fn)                                           \
@@ -207,4 +212,9 @@ WRAP_ST(uint32_t, stb_data)
 WRAP_ST(uint32_t, stw_data)
 WRAP_ST(uint32_t, stl_data)
 WRAP_ST(uint64_t, stq_data)
+
+WRAP_ST(uint32_t, stb_kernel)
+WRAP_ST(uint32_t, stw_kernel)
+WRAP_ST(uint32_t, stl_kernel)
+WRAP_ST(uint64_t, stq_kernel)
 #undef WRAP_ST
