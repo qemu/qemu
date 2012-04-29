@@ -6,5 +6,3 @@ obj-$(CONFIG_KVM) += kvm.o hyperv.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-$(CONFIG_LINUX_USER) += ioport-user.o
 obj-$(CONFIG_BSD_USER) += ioport-user.o
-
-$(obj)/mem_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

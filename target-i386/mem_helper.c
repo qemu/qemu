@@ -18,7 +18,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
@@ -39,19 +38,19 @@ void helper_unlock(void)
     spin_unlock(&global_cpu_lock);
 }
 
-void helper_cmpxchg8b(target_ulong a0)
+void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
 {
     uint64_t d;
     int eflags;
 
     eflags = cpu_cc_compute_all(env, CC_OP);
-    d = ldq(a0);
+    d = cpu_ldq_data(env, a0);
     if (d == (((uint64_t)EDX << 32) | (uint32_t)EAX)) {
-        stq(a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
+        cpu_stq_data(env, a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
         eflags |= CC_Z;
     } else {
         /* always do the store */
-        stq(a0, d);
+        cpu_stq_data(env, a0, d);
         EDX = (uint32_t)(d >> 32);
         EAX = (uint32_t)d;
         eflags &= ~CC_Z;
@@ -60,7 +59,7 @@ void helper_cmpxchg8b(target_ulong a0)
 }
 
 #ifdef TARGET_X86_64
-void helper_cmpxchg16b(target_ulong a0)
+void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
 {
     uint64_t d0, d1;
     int eflags;
@@ -69,16 +68,16 @@ void helper_cmpxchg16b(target_ulong a0)
         raise_exception(env, EXCP0D_GPF);
     }
     eflags = cpu_cc_compute_all(env, CC_OP);
-    d0 = ldq(a0);
-    d1 = ldq(a0 + 8);
+    d0 = cpu_ldq_data(env, a0);
+    d1 = cpu_ldq_data(env, a0 + 8);
     if (d0 == EAX && d1 == EDX) {
-        stq(a0, EBX);
-        stq(a0 + 8, ECX);
+        cpu_stq_data(env, a0, EBX);
+        cpu_stq_data(env, a0 + 8, ECX);
         eflags |= CC_Z;
     } else {
         /* always do the store */
-        stq(a0, d0);
-        stq(a0 + 8, d1);
+        cpu_stq_data(env, a0, d0);
+        cpu_stq_data(env, a0 + 8, d1);
         EDX = d1;
         EAX = d0;
         eflags &= ~CC_Z;
@@ -87,24 +86,24 @@ void helper_cmpxchg16b(target_ulong a0)
 }
 #endif
 
-void helper_boundw(target_ulong a0, int v)
+void helper_boundw(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
 
-    low = ldsw(a0);
-    high = ldsw(a0 + 2);
+    low = cpu_ldsw_data(env, a0);
+    high = cpu_ldsw_data(env, a0 + 2);
     v = (int16_t)v;
     if (v < low || v > high) {
         raise_exception(env, EXCP05_BOUND);
     }
 }
 
-void helper_boundl(target_ulong a0, int v)
+void helper_boundl(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
 
-    low = ldl(a0);
-    high = ldl(a0 + 4);
+    low = cpu_ldl_data(env, a0);
+    high = cpu_ldl_data(env, a0 + 4);
     if (v < low || v > high) {
         raise_exception(env, EXCP05_BOUND);
     }
@@ -133,15 +132,11 @@ void helper_boundl(target_ulong a0, int v)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUX86State *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUX86State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     TranslationBlock *tb;
     int ret;
-    CPUX86State *saved_env;
-
-    saved_env = env;
-    env = env1;
 
     ret = cpu_x86_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (ret) {
@@ -156,65 +151,5 @@ void tlb_fill(CPUX86State *env1, target_ulong addr, int is_write, int mmu_idx,
         }
         raise_exception_err(env, env->exception_index, env->error_code);
     }
-    env = saved_env;
 }
 #endif
-
-/* temporary wrappers */
-#if defined(CONFIG_USER_ONLY)
-#define ldub_data(addr) ldub_raw(addr)
-#define lduw_data(addr) lduw_raw(addr)
-#define ldl_data(addr) ldl_raw(addr)
-#define ldq_data(addr) ldq_raw(addr)
-
-#define stb_data(addr, data) stb_raw(addr, data)
-#define stw_data(addr, data) stw_raw(addr, data)
-#define stl_data(addr, data) stl_raw(addr, data)
-#define stq_data(addr, data) stq_raw(addr, data)
-#endif
-
-#define WRAP_LD(rettype, fn)                                    \
-    rettype cpu_ ## fn(CPUX86State *env1, target_ulong addr)    \
-    {                                                           \
-        CPUX86State *saved_env;                                 \
-        rettype ret;                                            \
-                                                                \
-        saved_env = env;                                        \
-        env = env1;                                             \
-        ret = fn(addr);                                         \
-        env = saved_env;                                        \
-        return ret;                                             \
-    }
-
-WRAP_LD(uint32_t, ldub_data)
-WRAP_LD(uint32_t, lduw_data)
-WRAP_LD(uint32_t, ldl_data)
-WRAP_LD(uint64_t, ldq_data)
-
-WRAP_LD(uint32_t, ldub_kernel)
-WRAP_LD(uint32_t, lduw_kernel)
-WRAP_LD(uint32_t, ldl_kernel)
-WRAP_LD(uint64_t, ldq_kernel)
-#undef WRAP_LD
-
-#define WRAP_ST(datatype, fn)                                           \
-    void cpu_ ## fn(CPUX86State *env1, target_ulong addr, datatype val) \
-    {                                                                   \
-        CPUX86State *saved_env;                                         \
-                                                                        \
-        saved_env = env;                                                \
-        env = env1;                                                     \
-        fn(addr, val);                                                  \
-        env = saved_env;                                                \
-    }
-
-WRAP_ST(uint32_t, stb_data)
-WRAP_ST(uint32_t, stw_data)
-WRAP_ST(uint32_t, stl_data)
-WRAP_ST(uint64_t, stq_data)
-
-WRAP_ST(uint32_t, stb_kernel)
-WRAP_ST(uint32_t, stw_kernel)
-WRAP_ST(uint32_t, stl_kernel)
-WRAP_ST(uint64_t, stq_kernel)
-#undef WRAP_ST

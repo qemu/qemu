@@ -21,6 +21,10 @@
 #include "cpu-all.h"
 #include "helper.h"
 
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
+
 /* Secure Virtual Machine helpers */
 
 #if defined(CONFIG_USER_ONLY)

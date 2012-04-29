@@ -24,6 +24,10 @@
 
 //#define DEBUG_PCALL
 
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
+
 #ifdef DEBUG_PCALL
 # define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
 # define LOG_PCALL_STATE(env)                                  \

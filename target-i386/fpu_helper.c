@@ -21,6 +21,10 @@
 #include "cpu.h"
 #include "helper.h"
 
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
+
 #define FPU_RC_MASK         0xc00
 #define FPU_RC_NEAR         0x000
 #define FPU_RC_DOWN         0x400
