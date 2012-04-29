@@ -811,14 +811,14 @@ static void gen_op_update_neg_cc(void)
 /* compute eflags.C to reg */
 static void gen_compute_eflags_c(TCGv reg)
 {
-    gen_helper_cc_compute_c(cpu_tmp2_i32, cpu_cc_op);
+    gen_helper_cc_compute_c(cpu_tmp2_i32, cpu_env, cpu_cc_op);
     tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
 }
 
 /* compute all eflags to cc_src */
 static void gen_compute_eflags(TCGv reg)
 {
-    gen_helper_cc_compute_all(cpu_tmp2_i32, cpu_cc_op);
+    gen_helper_cc_compute_all(cpu_tmp2_i32, cpu_env, cpu_cc_op);
     tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
 }
 
@@ -2730,10 +2730,10 @@ static void gen_eob(DisasContext *s)
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
     if (s->tb->flags & HF_INHIBIT_IRQ_MASK) {
-        gen_helper_reset_inhibit_irq();
+        gen_helper_reset_inhibit_irq(cpu_env);
     }
     if (s->tb->flags & HF_RF_MASK) {
-        gen_helper_reset_rf();
+        gen_helper_reset_rf(cpu_env);
     }
     if (s->singlestep_enabled) {
         gen_helper_debug();
@@ -5143,7 +5143,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             /* If several instructions disable interrupts, only the
                _first_ does it */
             if (!(s->tb->flags & HF_INHIBIT_IRQ_MASK))
-                gen_helper_set_inhibit_irq();
+                gen_helper_set_inhibit_irq(cpu_env);
             s->tf = 0;
         }
         if (s->is_jmp) {
@@ -5219,7 +5219,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             /* If several instructions disable interrupts, only the
                _first_ does it */
             if (!(s->tb->flags & HF_INHIBIT_IRQ_MASK))
-                gen_helper_set_inhibit_irq();
+                gen_helper_set_inhibit_irq(cpu_env);
             s->tf = 0;
         }
         if (s->is_jmp) {
@@ -6475,7 +6475,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         } else {
             if (s->cc_op != CC_OP_DYNAMIC)
                 gen_op_set_cc_op(s->cc_op);
-            gen_helper_read_eflags(cpu_T[0]);
+            gen_helper_read_eflags(cpu_T[0], cpu_env);
             gen_push_T0(s);
         }
         break;
@@ -6487,28 +6487,46 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_pop_T0(s);
             if (s->cpl == 0) {
                 if (s->dflag) {
-                    gen_helper_write_eflags(cpu_T[0],
-                                       tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK | IOPL_MASK)));
+                    gen_helper_write_eflags(cpu_env, cpu_T[0],
+                                            tcg_const_i32((TF_MASK | AC_MASK |
+                                                           ID_MASK | NT_MASK |
+                                                           IF_MASK |
+                                                           IOPL_MASK)));
                 } else {
-                    gen_helper_write_eflags(cpu_T[0],
-                                       tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK | IOPL_MASK) & 0xffff));
+                    gen_helper_write_eflags(cpu_env, cpu_T[0],
+                                            tcg_const_i32((TF_MASK | AC_MASK |
+                                                           ID_MASK | NT_MASK |
+                                                           IF_MASK | IOPL_MASK)
+                                                          & 0xffff));
                 }
             } else {
                 if (s->cpl <= s->iopl) {
                     if (s->dflag) {
-                        gen_helper_write_eflags(cpu_T[0],
-                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK)));
+                        gen_helper_write_eflags(cpu_env, cpu_T[0],
+                                                tcg_const_i32((TF_MASK |
+                                                               AC_MASK |
+                                                               ID_MASK |
+                                                               NT_MASK |
+                                                               IF_MASK)));
                     } else {
-                        gen_helper_write_eflags(cpu_T[0],
-                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK | IF_MASK) & 0xffff));
+                        gen_helper_write_eflags(cpu_env, cpu_T[0],
+                                                tcg_const_i32((TF_MASK |
+                                                               AC_MASK |
+                                                               ID_MASK |
+                                                               NT_MASK |
+                                                               IF_MASK)
+                                                              & 0xffff));
                     }
                 } else {
                     if (s->dflag) {
-                        gen_helper_write_eflags(cpu_T[0],
-                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK)));
+                        gen_helper_write_eflags(cpu_env, cpu_T[0],
+                                           tcg_const_i32((TF_MASK | AC_MASK |
+                                                          ID_MASK | NT_MASK)));
                     } else {
-                        gen_helper_write_eflags(cpu_T[0],
-                                           tcg_const_i32((TF_MASK | AC_MASK | ID_MASK | NT_MASK) & 0xffff));
+                        gen_helper_write_eflags(cpu_env, cpu_T[0],
+                                           tcg_const_i32((TF_MASK | AC_MASK |
+                                                          ID_MASK | NT_MASK)
+                                                         & 0xffff));
                     }
                 }
             }
@@ -6814,13 +6832,13 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
     case 0xfa: /* cli */
         if (!s->vm86) {
             if (s->cpl <= s->iopl) {
-                gen_helper_cli();
+                gen_helper_cli(cpu_env);
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
         } else {
             if (s->iopl == 3) {
-                gen_helper_cli();
+                gen_helper_cli(cpu_env);
             } else {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
             }
@@ -6830,12 +6848,12 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
         if (!s->vm86) {
             if (s->cpl <= s->iopl) {
             gen_sti:
-                gen_helper_sti();
+                gen_helper_sti(cpu_env);
                 /* interruptions are enabled only the first insn after sti */
                 /* If several instructions disable interrupts, only the
                    _first_ does it */
                 if (!(s->tb->flags & HF_INHIBIT_IRQ_MASK))
-                    gen_helper_set_inhibit_irq();
+                    gen_helper_set_inhibit_irq(cpu_env);
                 /* give a chance to handle pending irqs */
                 gen_jmp_im(s->pc - s->cs_base);
                 gen_eob(s);
@@ -7578,7 +7596,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
-            gen_helper_clts();
+            gen_helper_clts(cpu_env);
             /* abort block because static cpu state changed */
             gen_jmp_im(s->pc - s->cs_base);
             gen_eob(s);

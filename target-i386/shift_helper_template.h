@@ -54,7 +54,7 @@ target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1)
     count = rclb_table[count];
 #endif
     if (count) {
-        eflags = helper_cc_compute_all(CC_OP);
+        eflags = helper_cc_compute_all(env, CC_OP);
         t0 &= DATA_MASK;
         src = t0;
         res = (t0 << count) | ((target_ulong)(eflags & CC_C) << (count - 1));
@@ -84,7 +84,7 @@ target_ulong glue(helper_rcr, SUFFIX)(target_ulong t0, target_ulong t1)
     count = rclb_table[count];
 #endif
     if (count) {
-        eflags = helper_cc_compute_all(CC_OP);
+        eflags = helper_cc_compute_all(env, CC_OP);
         t0 &= DATA_MASK;
         src = t0;
         res = (t0 >> count) |

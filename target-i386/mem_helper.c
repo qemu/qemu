@@ -44,7 +44,7 @@ void helper_cmpxchg8b(target_ulong a0)
     uint64_t d;
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     d = ldq(a0);
     if (d == (((uint64_t)EDX << 32) | (uint32_t)EAX)) {
         stq(a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
@@ -68,7 +68,7 @@ void helper_cmpxchg16b(target_ulong a0)
     if ((a0 & 0xf) != 0) {
         raise_exception(env, EXCP0D_GPF);
     }
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     d0 = ldq(a0);
     d1 = ldq(a0 + 8);
     if (d0 == EAX && d1 == EDX) {

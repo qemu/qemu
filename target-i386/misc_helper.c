@@ -102,7 +102,7 @@ void helper_into(int next_eip_addend)
 {
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     if (eflags & CC_O) {
         raise_interrupt(env, EXCP04_INTO, 1, 0, next_eip_addend);
     }

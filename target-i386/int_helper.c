@@ -185,7 +185,7 @@ void helper_aaa(void)
     int al, ah, af;
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     af = eflags & CC_A;
     al = EAX & 0xff;
     ah = (EAX >> 8) & 0xff;
@@ -209,7 +209,7 @@ void helper_aas(void)
     int al, ah, af;
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     af = eflags & CC_A;
     al = EAX & 0xff;
     ah = (EAX >> 8) & 0xff;
@@ -232,7 +232,7 @@ void helper_daa(void)
     int old_al, al, af, cf;
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
     old_al = al = EAX & 0xff;
@@ -259,7 +259,7 @@ void helper_das(void)
     int al, al1, af, cf;
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
     al = EAX & 0xff;
