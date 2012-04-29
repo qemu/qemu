@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
 #define DATA_BITS (1 << (3 + SHIFT))
 #define SHIFT_MASK (DATA_BITS - 1)
 #define SIGN_MASK (((target_ulong)1) << (DATA_BITS - 1))
@@ -55,6 +56,7 @@ static int glue(compute_all_add, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     target_long src1, src2;
+
     src1 = CC_SRC;
     src2 = CC_DST - CC_SRC;
     cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
@@ -70,6 +72,7 @@ static int glue(compute_c_add, SUFFIX)(void)
 {
     int cf;
     target_long src1;
+
     src1 = CC_SRC;
     cf = (DATA_TYPE)CC_DST < (DATA_TYPE)src1;
     return cf;
@@ -79,6 +82,7 @@ static int glue(compute_all_adc, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     target_long src1, src2;
+
     src1 = CC_SRC;
     src2 = CC_DST - CC_SRC - 1;
     cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
@@ -94,6 +98,7 @@ static int glue(compute_c_adc, SUFFIX)(void)
 {
     int cf;
     target_long src1;
+
     src1 = CC_SRC;
     cf = (DATA_TYPE)CC_DST <= (DATA_TYPE)src1;
     return cf;
@@ -103,6 +108,7 @@ static int glue(compute_all_sub, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     target_long src1, src2;
+
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
@@ -118,6 +124,7 @@ static int glue(compute_c_sub, SUFFIX)(void)
 {
     int cf;
     target_long src1, src2;
+
     src1 = CC_DST + CC_SRC;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 < (DATA_TYPE)src2;
@@ -128,6 +135,7 @@ static int glue(compute_all_sbb, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     target_long src1, src2;
+
     src1 = CC_DST + CC_SRC + 1;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
@@ -143,6 +151,7 @@ static int glue(compute_c_sbb, SUFFIX)(void)
 {
     int cf;
     target_long src1, src2;
+
     src1 = CC_DST + CC_SRC + 1;
     src2 = CC_SRC;
     cf = (DATA_TYPE)src1 <= (DATA_TYPE)src2;
@@ -152,6 +161,7 @@ static int glue(compute_c_sbb, SUFFIX)(void)
 static int glue(compute_all_logic, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
+
     cf = 0;
     pf = parity_table[(uint8_t)CC_DST];
     af = 0;
@@ -170,6 +180,7 @@ static int glue(compute_all_inc, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     target_long src1, src2;
+
     src1 = CC_DST - 1;
     src2 = 1;
     cf = CC_SRC;
@@ -192,6 +203,7 @@ static int glue(compute_all_dec, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
     target_long src1, src2;
+
     src1 = CC_DST + 1;
     src2 = 1;
     cf = CC_SRC;
@@ -206,6 +218,7 @@ static int glue(compute_all_dec, SUFFIX)(void)
 static int glue(compute_all_shl, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
+
     cf = (CC_SRC >> (DATA_BITS - 1)) & CC_C;
     pf = parity_table[(uint8_t)CC_DST];
     af = 0; /* undefined */
@@ -231,6 +244,7 @@ static int glue(compute_c_sar, SUFFIX)(void)
 static int glue(compute_all_sar, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
+
     cf = CC_SRC & 1;
     pf = parity_table[(uint8_t)CC_DST];
     af = 0; /* undefined */
@@ -245,6 +259,7 @@ static int glue(compute_all_sar, SUFFIX)(void)
 static int glue(compute_c_mul, SUFFIX)(void)
 {
     int cf;
+
     cf = (CC_SRC != 0);
     return cf;
 }
@@ -255,6 +270,7 @@ static int glue(compute_c_mul, SUFFIX)(void)
 static int glue(compute_all_mul, SUFFIX)(void)
 {
     int cf, pf, af, zf, sf, of;
+
     cf = (CC_SRC != 0);
     pf = parity_table[(uint8_t)CC_DST];
     af = 0; /* undefined */
@@ -283,8 +299,9 @@ target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1)
         t0 &= DATA_MASK;
         src = t0;
         res = (t0 << count) | ((target_ulong)(eflags & CC_C) << (count - 1));
-        if (count > 1)
+        if (count > 1) {
             res |= t0 >> (DATA_BITS + 1 - count);
+        }
         t0 = res;
         env->cc_tmp = (eflags & ~(CC_C | CC_O)) |
             (lshift(src ^ t0, 11 - (DATA_BITS - 1)) & CC_O) |
@@ -311,9 +328,11 @@ target_ulong glue(helper_rcr, SUFFIX)(target_ulong t0, target_ulong t1)
         eflags = helper_cc_compute_all(CC_OP);
         t0 &= DATA_MASK;
         src = t0;
-        res = (t0 >> count) | ((target_ulong)(eflags & CC_C) << (DATA_BITS - count));
-        if (count > 1)
+        res = (t0 >> count) |
+            ((target_ulong)(eflags & CC_C) << (DATA_BITS - count));
+        if (count > 1) {
             res |= t0 << (DATA_BITS + 1 - count);
+        }
         t0 = res;
         env->cc_tmp = (eflags & ~(CC_C | CC_O)) |
             (lshift(src ^ t0, 11 - (DATA_BITS - 1)) & CC_O) |
