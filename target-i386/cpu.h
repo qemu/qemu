@@ -1121,15 +1121,16 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
     }
 }
 
+/* svm_helper.c */
+void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
+                                   uint64_t param);
+void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
+
 /* op_helper.c */
 void do_interrupt(CPUX86State *env);
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
 void do_smm_enter(CPUX86State *env1);
-
-void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
-                                   uint64_t param);
-void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
