@@ -8,4 +8,3 @@ obj-$(CONFIG_LINUX_USER) += ioport-user.o
 obj-$(CONFIG_BSD_USER) += ioport-user.o
 
 $(obj)/mem_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/seg_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
