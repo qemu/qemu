@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "qemu-log.h"
+#include "sysemu.h"
 #include "helper.h"
 
 #if 0
@@ -38,10 +39,6 @@ void helper_raise_exception(CPUX86State *env, int exception_index)
 {
     raise_exception(env, exception_index);
 }
-
-
-/* This should come from sysemu.h - if we could include it here... */
-void qemu_system_reset_request(void);
 
 /*
  * Check nested exceptions and change to double or triple fault if
