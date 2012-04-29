@@ -1,5 +1,5 @@
 obj-y += translate.o op_helper.o helper.o cpu.o
-obj-y += excp_helper.o fpu_helper.o cc_helper.o
+obj-y += excp_helper.o fpu_helper.o cc_helper.o int_helper.o
 obj-$(CONFIG_SOFTMMU) += machine.o arch_memory_mapping.o arch_dump.o
 obj-$(CONFIG_KVM) += kvm.o hyperv.o
 obj-$(CONFIG_LINUX_USER) += ioport-user.o
@@ -8,3 +8,4 @@ obj-$(CONFIG_BSD_USER) += ioport-user.o
 $(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 $(obj)/fpu_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 $(obj)/cc_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+$(obj)/int_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
