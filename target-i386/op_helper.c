@@ -1,5 +1,6 @@
 /*
- *  i386 helpers
+ *  x86 segmentation related helpers:
+ *  TSS, interrupts, system calls, jumps and call/task gates, descriptors
  *
  *  Copyright (c) 2003 Fabrice Bellard
  *
@@ -36,20 +37,6 @@
 # define LOG_PCALL(...) do { } while (0)
 # define LOG_PCALL_STATE(env) do { } while (0)
 #endif
-
-/* broken thread support */
-
-static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
-
-void helper_lock(void)
-{
-    spin_lock(&global_cpu_lock);
-}
-
-void helper_unlock(void)
-{
-    spin_unlock(&global_cpu_lock);
-}
 
 /* return non zero if error */
 static inline int load_segment(uint32_t *e1_ptr, uint32_t *e2_ptr,
@@ -1279,54 +1266,6 @@ void do_interrupt_x86_hardirq(CPUX86State *env1, int intno, int is_hw)
     env = saved_env;
 }
 
-void helper_cmpxchg8b(target_ulong a0)
-{
-    uint64_t d;
-    int eflags;
-
-    eflags = helper_cc_compute_all(CC_OP);
-    d = ldq(a0);
-    if (d == (((uint64_t)EDX << 32) | (uint32_t)EAX)) {
-        stq(a0, ((uint64_t)ECX << 32) | (uint32_t)EBX);
-        eflags |= CC_Z;
-    } else {
-        /* always do the store */
-        stq(a0, d);
-        EDX = (uint32_t)(d >> 32);
-        EAX = (uint32_t)d;
-        eflags &= ~CC_Z;
-    }
-    CC_SRC = eflags;
-}
-
-#ifdef TARGET_X86_64
-void helper_cmpxchg16b(target_ulong a0)
-{
-    uint64_t d0, d1;
-    int eflags;
-
-    if ((a0 & 0xf) != 0) {
-        raise_exception(env, EXCP0D_GPF);
-    }
-    eflags = helper_cc_compute_all(CC_OP);
-    d0 = ldq(a0);
-    d1 = ldq(a0 + 8);
-    if (d0 == EAX && d1 == EDX) {
-        stq(a0, EBX);
-        stq(a0 + 8, ECX);
-        eflags |= CC_Z;
-    } else {
-        /* always do the store */
-        stq(a0, d0);
-        stq(a0 + 8, d1);
-        EDX = d1;
-        EAX = d0;
-        eflags &= ~CC_Z;
-    }
-    CC_SRC = eflags;
-}
-#endif
-
 void helper_enter_level(int level, int data32, target_ulong t1)
 {
     target_ulong ssp;
@@ -2530,79 +2469,6 @@ void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
                                (selector << 4), 0xffff, 0);
     } else {
         helper_load_seg(seg_reg, selector);
-    }
-    env = saved_env;
-}
-#endif
-
-void helper_boundw(target_ulong a0, int v)
-{
-    int low, high;
-
-    low = ldsw(a0);
-    high = ldsw(a0 + 2);
-    v = (int16_t)v;
-    if (v < low || v > high) {
-        raise_exception(env, EXCP05_BOUND);
-    }
-}
-
-void helper_boundl(target_ulong a0, int v)
-{
-    int low, high;
-
-    low = ldl(a0);
-    high = ldl(a0 + 4);
-    if (v < low || v > high) {
-        raise_exception(env, EXCP05_BOUND);
-    }
-}
-
-#if !defined(CONFIG_USER_ONLY)
-
-#define MMUSUFFIX _mmu
-
-#define SHIFT 0
-#include "softmmu_template.h"
-
-#define SHIFT 1
-#include "softmmu_template.h"
-
-#define SHIFT 2
-#include "softmmu_template.h"
-
-#define SHIFT 3
-#include "softmmu_template.h"
-
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-/* try to fill the TLB and return an exception if error. If retaddr is
-   NULL, it means that the function was called in C code (i.e. not
-   from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPUX86State *env1, target_ulong addr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
-{
-    TranslationBlock *tb;
-    int ret;
-    CPUX86State *saved_env;
-
-    saved_env = env;
-    env = env1;
-
-    ret = cpu_x86_handle_mmu_fault(env, addr, is_write, mmu_idx);
-    if (ret) {
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            tb = tb_find_pc(retaddr);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, retaddr);
-            }
-        }
-        raise_exception_err(env, env->exception_index, env->error_code);
     }
     env = saved_env;
 }
