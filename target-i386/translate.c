@@ -7721,7 +7721,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
         gen_update_cc_op(s);
         gen_jmp_im(s->pc - s->cs_base);
-        gen_helper_rsm();
+        gen_helper_rsm(cpu_env);
         gen_eob(s);
         break;
     case 0x1b8: /* SSE4.2 popcnt */

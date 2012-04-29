@@ -71,7 +71,7 @@ DEF_HELPER_1(set_inhibit_irq, void, env)
 DEF_HELPER_1(reset_inhibit_irq, void, env)
 DEF_HELPER_2(boundw, void, tl, int)
 DEF_HELPER_2(boundl, void, tl, int)
-DEF_HELPER_0(rsm, void)
+DEF_HELPER_1(rsm, void, env)
 DEF_HELPER_1(into, void, int)
 DEF_HELPER_1(cmpxchg8b, void, tl)
 #ifdef TARGET_X86_64
