@@ -754,7 +754,8 @@ static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
         svm_flags |= (1 << (4 + ot));
         next_eip = s->pc - s->cs_base;
         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
-        gen_helper_svm_check_io(cpu_tmp2_i32, tcg_const_i32(svm_flags),
+        gen_helper_svm_check_io(cpu_env, cpu_tmp2_i32,
+                                tcg_const_i32(svm_flags),
                                 tcg_const_i32(next_eip - cur_eip));
     }
 }
@@ -2465,7 +2466,7 @@ gen_svm_check_intercept_param(DisasContext *s, target_ulong pc_start,
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
     gen_jmp_im(pc_start - s->cs_base);
-    gen_helper_svm_check_intercept_param(tcg_const_i32(type),
+    gen_helper_svm_check_intercept_param(cpu_env, tcg_const_i32(type),
                                          tcg_const_i64(param));
 }
 
@@ -7225,7 +7226,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        gen_helper_vmrun(tcg_const_i32(s->aflag),
+                        gen_helper_vmrun(cpu_env, tcg_const_i32(s->aflag),
                                          tcg_const_i32(s->pc - pc_start));
                         tcg_gen_exit_tb(0);
                         s->is_jmp = DISAS_TB_JUMP;
@@ -7234,7 +7235,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                 case 1: /* VMMCALL */
                     if (!(s->flags & HF_SVME_MASK))
                         goto illegal_op;
-                    gen_helper_vmmcall();
+                    gen_helper_vmmcall(cpu_env);
                     break;
                 case 2: /* VMLOAD */
                     if (!(s->flags & HF_SVME_MASK) || !s->pe)
@@ -7243,7 +7244,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        gen_helper_vmload(tcg_const_i32(s->aflag));
+                        gen_helper_vmload(cpu_env, tcg_const_i32(s->aflag));
                     }
                     break;
                 case 3: /* VMSAVE */
@@ -7253,7 +7254,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        gen_helper_vmsave(tcg_const_i32(s->aflag));
+                        gen_helper_vmsave(cpu_env, tcg_const_i32(s->aflag));
                     }
                     break;
                 case 4: /* STGI */
@@ -7265,7 +7266,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        gen_helper_stgi();
+                        gen_helper_stgi(cpu_env);
                     }
                     break;
                 case 5: /* CLGI */
@@ -7275,7 +7276,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        gen_helper_clgi();
+                        gen_helper_clgi(cpu_env);
                     }
                     break;
                 case 6: /* SKINIT */
@@ -7283,7 +7284,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                          !(s->cpuid_ext3_features & CPUID_EXT3_SKINIT)) || 
                         !s->pe)
                         goto illegal_op;
-                    gen_helper_skinit();
+                    gen_helper_skinit(cpu_env);
                     break;
                 case 7: /* INVLPGA */
                     if (!(s->flags & HF_SVME_MASK) || !s->pe)
@@ -7292,7 +7293,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
                         gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                         break;
                     } else {
-                        gen_helper_invlpga(tcg_const_i32(s->aflag));
+                        gen_helper_invlpga(cpu_env, tcg_const_i32(s->aflag));
                     }
                     break;
                 default:
