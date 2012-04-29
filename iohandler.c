@@ -33,13 +33,13 @@
 #endif
 
 typedef struct IOHandlerRecord {
-    int fd;
     IOCanReadHandler *fd_read_poll;
     IOHandler *fd_read;
     IOHandler *fd_write;
-    int deleted;
     void *opaque;
     QLIST_ENTRY(IOHandlerRecord) next;
+    int fd;
+    bool deleted;
 } IOHandlerRecord;
 
 static QLIST_HEAD(, IOHandlerRecord) io_handlers =
