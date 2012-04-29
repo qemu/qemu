@@ -1010,6 +1010,16 @@ static inline int cpu_mmu_index (CPUX86State *env)
 #define CC_DST (env->cc_dst)
 #define CC_OP  (env->cc_op)
 
+/* n must be a constant to be efficient */
+static inline target_long lshift(target_long x, int n)
+{
+    if (n >= 0) {
+        return x << n;
+    } else {
+        return x >> (-n);
+    }
+}
+
 /* float macros */
 #define FT0    (env->ft0)
 #define ST0    (env->fpregs[env->fpstt].d)
@@ -1078,6 +1088,39 @@ void QEMU_NORETURN raise_exception_err(CPUX86State *env, int exception_index,
 void QEMU_NORETURN raise_interrupt(CPUX86State *nenv, int intno, int is_int,
                                    int error_code, int next_eip_addend);
 
+/* cc_helper.c */
+extern const uint8_t parity_table[256];
+uint32_t cpu_cc_compute_all(CPUX86State *env1, int op);
+
+static inline uint32_t cpu_compute_eflags(CPUX86State *env)
+{
+    return env->eflags | cpu_cc_compute_all(env, CC_OP) | (DF & DF_MASK);
+}
+
+/* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
+static inline void cpu_load_eflags(CPUX86State *env, int eflags,
+                                   int update_mask)
+{
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    env->eflags = (env->eflags & ~update_mask) |
+        (eflags & update_mask) | 0x2;
+}
+
+/* load efer and update the corresponding hflags. XXX: do consistency
+   checks with cpuid bits? */
+static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
+{
+    env->efer = val;
+    env->hflags &= ~(HF_LMA_MASK | HF_SVME_MASK);
+    if (env->efer & MSR_EFER_LMA) {
+        env->hflags |= HF_LMA_MASK;
+    }
+    if (env->efer & MSR_EFER_SVME) {
+        env->hflags |= HF_SVME_MASK;
+    }
+}
+
 /* op_helper.c */
 void do_interrupt(CPUX86State *env);
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
@@ -1087,8 +1130,6 @@ void do_smm_enter(CPUX86State *env1);
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param);
 void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
-
-uint32_t cpu_cc_compute_all(CPUX86State *env1, int op);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
