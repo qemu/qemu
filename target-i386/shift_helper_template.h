@@ -41,7 +41,8 @@
 #error unhandled operand size
 #endif
 
-target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1)
+target_ulong glue(helper_rcl, SUFFIX)(CPUX86State *env, target_ulong t0,
+                                      target_ulong t1)
 {
     int count, eflags;
     target_ulong src;
@@ -71,7 +72,8 @@ target_ulong glue(helper_rcl, SUFFIX)(target_ulong t0, target_ulong t1)
     return t0;
 }
 
-target_ulong glue(helper_rcr, SUFFIX)(target_ulong t0, target_ulong t1)
+target_ulong glue(helper_rcr, SUFFIX)(CPUX86State *env, target_ulong t0,
+                                      target_ulong t1)
 {
     int count, eflags;
     target_ulong src;
