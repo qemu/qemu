@@ -2902,6 +2902,7 @@ if test "$softmmu" = yes ; then
       if test "$virtfs" = yes; then
         feature_not_found "virtfs"
       fi
+      virtfs=no
     fi
   fi
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
