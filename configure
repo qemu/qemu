@@ -468,7 +468,9 @@ SunOS)
 # needed for TIOCWIN* defines in termios.h
   QEMU_CFLAGS="-D__EXTENSIONS__ $QEMU_CFLAGS"
   QEMU_CFLAGS="-std=gnu99 $QEMU_CFLAGS"
-  LIBS="-lsocket -lnsl -lresolv $LIBS"
+  solarisnetlibs="-lsocket -lnsl -lresolv"
+  LIBS="$solarisnetlibs $LIBS"
+  libs_qga="$solarisnetlibs $libs_qga"
 ;;
 AIX)
   aix="yes"
