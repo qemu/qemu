@@ -570,11 +570,6 @@ M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: bsd-user/
 
-Darwin user
-M: qemu-devel@nongnu.org
-S: Orphan
-F: darwin-user/
-
 Linux user
 M: Riku Voipio <riku.voipio@iki.fi>
 S: Maintained

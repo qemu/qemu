@@ -153,34 +153,6 @@ obj-y += $(libobj-y)
 endif #CONFIG_LINUX_USER
 
 #########################################################
-# Darwin user emulator target
-
-ifdef CONFIG_DARWIN_USER
-
-$(call set-vpath, $(SRC_PATH)/darwin-user)
-
-QEMU_CFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
-
-# Leave some space for the regular program loading zone
-LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
-
-LIBS+=-lmx
-
-obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o user-exec.o
-
-obj-i386-y += ioport-user.o
-
-$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
-
-obj-y += $(addprefix ../, $(universal-obj-y))
-obj-y += $(addprefix ../libuser/, $(user-obj-y))
-obj-y += $(addprefix ../libdis-user/, $(libdis-y))
-obj-y += $(libobj-y)
-
-endif #CONFIG_DARWIN_USER
-
-#########################################################
 # BSD user emulator target
 
 ifdef CONFIG_BSD_USER

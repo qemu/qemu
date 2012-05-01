@@ -112,8 +112,7 @@ QEMU user mode emulation features:
 @end itemize
 
 Linux user emulator (Linux host only) can be used to launch the Wine
-Windows API emulator (@url{http://www.winehq.org}). A Darwin user
-emulator (Darwin hosts only) exists and a BSD user emulator for BSD
+Windows API emulator (@url{http://www.winehq.org}). A BSD user emulator for BSD
 hosts is under development. It would also be possible to develop a
 similar user emulator for Solaris.
 
