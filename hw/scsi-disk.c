@@ -61,10 +61,12 @@ typedef struct SCSIDiskReq {
     BlockAcctCookie acct;
 } SCSIDiskReq;
 
+#define SCSI_DISK_F_REMOVABLE   0
+
 struct SCSIDiskState
 {
     SCSIDevice qdev;
-    uint32_t removable;
+    uint32_t features;
     bool media_changed;
     bool media_event;
     bool eject_request;
@@ -669,7 +671,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     memset(outbuf, 0, buflen);
 
     outbuf[0] = s->qdev.type & 0x1f;
-    outbuf[1] = s->removable ? 0x80 : 0;
+    outbuf[1] = (s->features & (1 << SCSI_DISK_F_REMOVABLE)) ? 0x80 : 0;
     if (s->qdev.type == TYPE_ROM) {
         memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
     } else {
@@ -1710,7 +1712,8 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (!s->removable && !bdrv_is_inserted(s->qdev.conf.bs)) {
+    if (!(s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
+        !bdrv_is_inserted(s->qdev.conf.bs)) {
         error_report("Device needs media, but drive is empty");
         return -1;
     }
@@ -1732,7 +1735,7 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (s->removable) {
+    if (s->features & (1 << SCSI_DISK_F_REMOVABLE)) {
         bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_cd_block_ops, s);
     }
     bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
@@ -1755,7 +1758,7 @@ static int scsi_cd_initfn(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     s->qdev.blocksize = 2048;
     s->qdev.type = TYPE_ROM;
-    s->removable = true;
+    s->features |= 1 << SCSI_DISK_F_REMOVABLE;
     return scsi_initfn(&s->qdev);
 }
 
@@ -1828,7 +1831,9 @@ static int get_device_type(SCSIDiskState *s)
         return -1;
     }
     s->qdev.type = buf[0];
-    s->removable = (buf[1] & 0x80) != 0;
+    if (buf[1] & 0x80) {
+        s->features |= 1 << SCSI_DISK_F_REMOVABLE;
+    }
     return 0;
 }
 
@@ -1928,7 +1933,8 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 
 static Property scsi_hd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
-    DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+    DEFINE_PROP_BIT("removable", SCSIDiskState, features,
+                    SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2030,7 +2036,8 @@ static TypeInfo scsi_block_info = {
 
 static Property scsi_disk_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
-    DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+    DEFINE_PROP_BIT("removable", SCSIDiskState, features,
+                    SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
