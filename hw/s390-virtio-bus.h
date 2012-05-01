@@ -34,6 +34,8 @@
 #define VIRTIO_VQCONFIG_LEN		24
 
 #define VIRTIO_RING_LEN			(TARGET_PAGE_SIZE * 3)
+#define VIRTIO_VRING_AVAIL_IDX_OFFS 2
+#define VIRTIO_VRING_USED_IDX_OFFS 2
 #define S390_DEVICE_PAGES		512
 
 #define VIRTIO_PARAM_MASK               0xff
@@ -90,3 +92,5 @@ VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
                                              ram_addr_t mem, int *vq_num);
 VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus, ram_addr_t mem);
 void s390_virtio_device_sync(VirtIOS390Device *dev);
+void s390_virtio_reset_idx(VirtIOS390Device *dev);
+
