@@ -438,6 +438,9 @@ typedef struct FDCtrlSysBus {
 
 typedef struct FDCtrlISABus {
     ISADevice busdev;
+    uint32_t iobase;
+    uint32_t irq;
+    uint32_t dma;
     struct FDCtrl state;
     int32_t bootindexA;
     int32_t bootindexB;
@@ -1971,17 +1974,14 @@ static int isabus_fdc_init1(ISADevice *dev)
 {
     FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, dev);
     FDCtrl *fdctrl = &isa->state;
-    int iobase = 0x3f0;
-    int isairq = 6;
-    int dma_chann = 2;
     int ret;
 
-    isa_register_portio_list(dev, iobase, fdc_portio_list, fdctrl, "fdc");
+    isa_register_portio_list(dev, isa->iobase, fdc_portio_list, fdctrl, "fdc");
 
-    isa_init_irq(&isa->busdev, &fdctrl->irq, isairq);
-    fdctrl->dma_chann = dma_chann;
+    isa_init_irq(&isa->busdev, &fdctrl->irq, isa->irq);
+    fdctrl->dma_chann = isa->dma;
 
-    qdev_set_legacy_instance_id(&dev->qdev, iobase, 2);
+    qdev_set_legacy_instance_id(&dev->qdev, isa->iobase, 2);
     ret = fdctrl_init_common(fdctrl);
 
     add_boot_device_path(isa->bootindexA, &dev->qdev, "/floppy@0");
@@ -2046,6 +2046,9 @@ static const VMStateDescription vmstate_isa_fdc ={
 };
 
 static Property isa_fdc_properties[] = {
+    DEFINE_PROP_HEX32("iobase", FDCtrlISABus, iobase, 0x3f0),
+    DEFINE_PROP_UINT32("irq", FDCtrlISABus, irq, 6),
+    DEFINE_PROP_UINT32("dma", FDCtrlISABus, dma, 2),
     DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].bs),
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
     DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),
