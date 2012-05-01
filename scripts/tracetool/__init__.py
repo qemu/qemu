@@ -64,14 +64,17 @@ class Arguments:
         res = []
         for arg in arg_str.split(","):
             arg = arg.strip()
-            parts = arg.split()
-            head, sep, tail = parts[-1].rpartition("*")
-            parts = parts[:-1]
-            if tail == "void":
-                assert len(parts) == 0 and sep == ""
+            if arg == 'void':
                 continue
-            arg_type = " ".join(parts + [ " ".join([head, sep]).strip() ]).strip()
-            res.append((arg_type, tail))
+
+            if '*' in arg:
+                arg_type, identifier = arg.rsplit('*', 1)
+                arg_type += '*'
+                identifier = identifier.strip()
+            else:
+                arg_type, identifier = arg.rsplit(None, 1)
+
+            res.append((arg_type, identifier))
         return Arguments(res)
 
     def __iter__(self):
@@ -204,7 +207,7 @@ def try_import(mod_name, attr_name = None, attr_default = None):
     object or attribute value.
     """
     try:
-        module = __import__(mod_name, fromlist=["__package__"])
+        module = __import__(mod_name, globals(), locals(), ["__package__"])
         if attr_name is None:
             return True, module
         return True, getattr(module, str(attr_name), attr_default)

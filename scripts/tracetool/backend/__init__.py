@@ -37,7 +37,7 @@ __maintainer__ = "Stefan Hajnoczi"
 __email__      = "stefanha@linux.vnet.ibm.com"
 
 
-import pkgutil
+import os
 
 import tracetool
 
@@ -45,7 +45,11 @@ import tracetool
 def get_list():
     """Get a list of (name, description) pairs."""
     res = [("nop", "Tracing disabled.")]
-    for _, modname, _ in pkgutil.iter_modules(tracetool.backend.__path__):
+    modnames = []
+    for filename in os.listdir(tracetool.backend.__path__[0]):
+        if filename.endswith('.py') and filename != '__init__.py':
+            modnames.append(filename.rsplit('.', 1)[0])
+    for modname in modnames:
         module = tracetool.try_import("tracetool.backend." + modname)
 
         # just in case; should never fail unless non-module files are put there
