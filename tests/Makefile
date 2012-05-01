@@ -1,33 +1,65 @@
 export SRC_PATH
 
 check-unit-y = tests/check-qdict$(EXESUF)
+gcov-files-check-qdict-y = qdict.c
 check-unit-y += tests/check-qfloat$(EXESUF)
+gcov-files-check-qfloat-y = qfloat.c
 check-unit-y += tests/check-qint$(EXESUF)
+gcov-files-check-qint-y = qint.c
 check-unit-y += tests/check-qstring$(EXESUF)
+gcov-files-check-qstring-y = qstring.c
 check-unit-y += tests/check-qlist$(EXESUF)
+gcov-files-check-qlist-y = qlist.c
 check-unit-y += tests/check-qjson$(EXESUF)
+gcov-files-check-qjson-y = qjson.c
 check-unit-y += tests/test-qmp-output-visitor$(EXESUF)
+gcov-files-test-qmp-output-visitor-y = qapi/qmp-output-visitor.c
 check-unit-y += tests/test-qmp-input-visitor$(EXESUF)
+gcov-files-test-qmp-input-visitor-y = qapi/qmp-input-visitor.c
 check-unit-y += tests/test-qmp-input-strict$(EXESUF)
 check-unit-y += tests/test-qmp-commands$(EXESUF)
+gcov-files-test-qmp-commands-y = qapi/qmp-dispatch.c
 check-unit-y += tests/test-string-input-visitor$(EXESUF)
+gcov-files-test-string-input-visitor-y = qapi/string-input-visitor.c
 check-unit-y += tests/test-string-output-visitor$(EXESUF)
+gcov-files-test-string-output-visitor-y = qapi/string-output-visitor.c
 check-unit-y += tests/test-coroutine$(EXESUF)
+ifeq ($(CONFIG_WIN32),y)
+gcov-files-test-coroutine-y = coroutine-win32.c
+else
+ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
+gcov-files-test-coroutine-y = coroutine-ucontext.c
+else
+ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
+gcov-files-test-coroutine-y = coroutine-sigaltstack.c
+else
+gcov-files-test-coroutine-y = coroutine-gthread.c
+endif
+endif
+endif
 check-unit-y += tests/test-visitor-serialization$(EXESUF)
 check-unit-y += tests/test-iov$(EXESUF)
+gcov-files-test-iov-y = iov.c
 check-unit-y += tests/test-aio$(EXESUF)
+gcov-files-test-aio-$(CONFIG_WIN32) = aio-win32.c
+gcov-files-test-aio-$(CONFIG_POSIX) = aio-posix.c
 check-unit-y += tests/test-thread-pool$(EXESUF)
+gcov-files-test-thread-pool-y = thread-pool.c
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 check-qtest-i386-y = tests/fdc-test$(EXESUF)
+gcov-files-i386-y = hw/fdc.c
 check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
+gcov-files-i386-y += hw/hd-geometry.c
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
+gcov-files-i386-y += i386-softmmu/hw/mc146818rtc.c
 check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
 check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
+gcov-files-sparc-y += hw/m48t59.c
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
 
@@ -108,17 +140,28 @@ check-help:
 
 SPEED = quick
 GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
+GCOV_OPTIONS = -n $(if $(V),-f,)
 
 # gtester tests, possibly with verbose output
 
 .PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
 $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: $(check-qtest-y)
+	$(if $(CONFIG_GCOV),@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda,)
 	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y),"GTESTER $@")
+	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y); do \
+	  echo Gcov report for $$f:;\
+	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
+	done,)
 
 .PHONY: $(patsubst %, check-%, $(check-unit-y))
 $(patsubst %, check-%, $(check-unit-y)): check-%: %
+	$(if $(CONFIG_GCOV),@rm -f *.gcda */*.gcda */*/*.gcda */*/*/*.gcda,)
 	$(call quiet-command,gtester $(GTESTER_OPTIONS) -m=$(SPEED) $*,"GTESTER $*")
+	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$(subst tests/,,$*)-y); do \
+	  echo Gcov report for $$f:;\
+	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
+	done,)
 
 # gtester tests with XML output
 

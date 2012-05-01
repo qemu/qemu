@@ -176,6 +176,8 @@ strip_opt="yes"
 tcg_interpreter="no"
 bigendian="no"
 mingw32="no"
+gcov="no"
+gcov_tool="gcov"
 EXESUF=""
 prefix="/usr/local"
 mandir="\${prefix}/share/man"
@@ -600,6 +602,8 @@ for opt do
   ;;
   --python=*) python="$optarg"
   ;;
+  --gcov=*) gcov_tool="$optarg"
+  ;;
   --smbd=*) smbd="$optarg"
   ;;
   --extra-cflags=*)
@@ -619,6 +623,8 @@ for opt do
   --with-trace-file=*) trace_file="$optarg"
   ;;
   --enable-gprof) gprof="yes"
+  ;;
+  --enable-gcov) gcov="yes"
   ;;
   --static)
     static="yes"
@@ -1134,6 +1140,8 @@ echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
 echo "                           gthread, ucontext, sigaltstack, windows"
 echo "  --enable-glusterfs       enable GlusterFS backend"
 echo "  --disable-glusterfs      disable GlusterFS backend"
+echo "  --enable-gcov            enable test coverage analysis with gcov"
+echo "  --gcov=GCOV              use specified gcov [$gcov_tool]"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -3120,9 +3128,13 @@ fi
 # End of CC checks
 # After here, no more $cc or $ld runs
 
-if test "$debug" = "no" ; then
+if test "$gcov" = "yes" ; then
+  CFLAGS="-fprofile-arcs -ftest-coverage -g $CFLAGS"
+  LDFLAGS="-fprofile-arcs -ftest-coverage $LDFLAGS"
+elif test "$debug" = "no" ; then
   CFLAGS="-O2 -D_FORTIFY_SOURCE=2 $CFLAGS"
 fi
+
 
 # Disable zero malloc errors for official releases unless explicitly told to
 # enable/disable
@@ -3305,6 +3317,8 @@ echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine_backend"
 echo "GlusterFS support $glusterfs"
 echo "virtio-blk-data-plane $virtio_blk_data_plane"
+echo "gcov              $gcov_tool"
+echo "gcov enabled      $gcov"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3738,6 +3752,10 @@ echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
 echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak
+if test "$gcov" = "yes" ; then
+  echo "CONFIG_GCOV=y" >> $config_host_mak
+  echo "GCOV=$gcov_tool" >> $config_host_mak
+fi
 
 # generate list of library paths for linker script
 
