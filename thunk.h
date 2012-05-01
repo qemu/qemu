@@ -113,7 +113,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
       defined(HOST_PARISC) || defined(HOST_SPARC64)
             return 4;
 #elif defined(HOST_PPC)
-            return HOST_LONG_SIZE;
+            return TARGET_ABI_BITS / 8;
 #else
             return 2;
 #endif
