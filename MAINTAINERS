@@ -399,7 +399,8 @@ X86 Machines
 PC
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Supported
-F: hw/pc.[ch] hw/pc_piix.c
+F: hw/pc.[ch]
+F: hw/pc_piix.c
 
 Xtensa Machines
 ---------------
@@ -436,7 +437,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
 F: hw/virtio-scsi.*
 F: hw/scsi*
-T: git://github.com/bonzini/qemu.git scsi-next
+T: git git://github.com/bonzini/qemu.git scsi-next
 
 LSI53C895A
 M: Paul Brook <paul@codesourcery.com>
@@ -461,9 +462,9 @@ F: hw/virtio*
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 S: Supported
-F: hw/9pfs/ fsdev/
-T: https://github.com/kvaneesh/QEMU
-
+F: hw/9pfs/
+F: fsdev/
+T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>
@@ -541,13 +542,13 @@ S: Odd Fixes
 F: block/nbd.c
 F: nbd.*
 F: qemu-nbd.c
-T: git://github.com/bonzini/qemu.git nbd-next
+T: git git://github.com/bonzini/qemu.git nbd-next
 
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
 F: slirp/
-T: git://git.kiszka.org/qemu.git queues/slirp
+T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Tracing
 M: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
@@ -556,7 +557,7 @@ F: trace/
 F: scripts/tracetool.py
 F: scripts/tracetool/
 F: docs/tracing.txt
-T: git://github.com/stefanha/qemu.git tracing
+T: git git://github.com/stefanha/qemu.git tracing
 
 Checkpatch
 M: Blue Swirl <blauwirbel@gmail.com>
@@ -631,4 +632,26 @@ F: tcg/sparc/
 TCI target
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
-F: tcg/tci
+F: tcg/tci/
+
+Stable branches
+---------------
+Stable 1.0
+L: qemu-stable@nongnu.org
+T: git git://git.qemu.org/qemu-stable-1.0.git
+S: Orphan
+
+Stable 0.15
+L: qemu-stable@nongnu.org
+T: git git://git.qemu.org/qemu-stable-0.15.git
+S: Orphan
+
+Stable 0.14
+L: qemu-stable@nongnu.org
+T: git git://git.qemu.org/qemu-stable-0.14.git
+S: Orphan
+
+Stable 0.10
+L: qemu-stable@nongnu.org
+T: git git://git.qemu.org/qemu-stable-0.10.git
+S: Orphan
