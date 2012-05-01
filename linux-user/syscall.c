@@ -5045,11 +5045,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                         NULL, NULL, 0);
           }
           thread_env = NULL;
-#ifdef ENV_GET_CPU
           object_delete(OBJECT(ENV_GET_CPU(cpu_env)));
-#else
-          g_free(cpu_env);
-#endif
           g_free(ts);
           pthread_exit(NULL);
       }
