@@ -180,25 +180,7 @@ void cpu_dump_state(CPUSH4State * env, FILE * f,
 
 void cpu_state_reset(CPUSH4State *env)
 {
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
-    memset(env, 0, offsetof(CPUSH4State, breakpoints));
-    tlb_flush(env, 1);
-
-    env->pc = 0xA0000000;
-#if defined(CONFIG_USER_ONLY)
-    env->fpscr = FPSCR_PR; /* value for userspace according to the kernel */
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status); /* ?! */
-#else
-    env->sr = SR_MD | SR_RB | SR_BL | SR_I3 | SR_I2 | SR_I1 | SR_I0;
-    env->fpscr = FPSCR_DN | FPSCR_RM_ZERO; /* CPU reset value according to SH4 manual */
-    set_float_rounding_mode(float_round_to_zero, &env->fp_status);
-    set_flush_to_zero(1, &env->fp_status);
-#endif
-    set_default_nan_mode(1, &env->fp_status);
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 typedef struct {
@@ -267,19 +249,19 @@ static void cpu_register(CPUSH4State *env, const sh4_def_t *def)
 
 CPUSH4State *cpu_sh4_init(const char *cpu_model)
 {
+    SuperHCPU *cpu;
     CPUSH4State *env;
     const sh4_def_t *def;
 
     def = cpu_sh4_find_by_name(cpu_model);
     if (!def)
 	return NULL;
-    env = g_malloc0(sizeof(CPUSH4State));
+    cpu = SUPERH_CPU(object_new(TYPE_SUPERH_CPU));
+    env = &cpu->env;
     env->features = def->features;
-    cpu_exec_init(env);
-    env->movcal_backup_tail = &(env->movcal_backup);
     sh4_translate_init();
     env->cpu_model_str = cpu_model;
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     cpu_register(env, def);
     qemu_init_vcpu(env);
     return env;
