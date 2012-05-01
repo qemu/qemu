@@ -62,6 +62,7 @@ typedef struct SCSIDiskReq {
 } SCSIDiskReq;
 
 #define SCSI_DISK_F_REMOVABLE   0
+#define SCSI_DISK_F_DPOFUA      1
 
 struct SCSIDiskState
 {
@@ -1103,7 +1104,7 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
     p = outbuf;
 
     if (s->qdev.type == TYPE_DISK) {
-        dev_specific_param = 0x10; /* DPOFUA */
+        dev_specific_param = s->features & (1 << SCSI_DISK_F_DPOFUA) ? 0x10 : 0;
         if (bdrv_is_read_only(s->qdev.conf.bs)) {
             dev_specific_param |= 0x80; /* Readonly.  */
         }
@@ -1935,6 +1936,8 @@ static Property scsi_hd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_BIT("removable", SCSIDiskState, features,
                     SCSI_DISK_F_REMOVABLE, false),
+    DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
+                    SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2038,6 +2041,8 @@ static Property scsi_disk_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_BIT("removable", SCSIDiskState, features,
                     SCSI_DISK_F_REMOVABLE, false),
+    DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
+                    SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
