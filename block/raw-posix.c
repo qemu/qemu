@@ -29,7 +29,7 @@
 #include "module.h"
 #include "block/raw-posix-aio.h"
 
-#ifdef CONFIG_COCOA
+#if defined(__APPLE__) && (__MACH__)
 #include <paths.h>
 #include <sys/param.h>
 #include <IOKit/IOKitLib.h>
@@ -505,7 +505,7 @@ again:
         }
         if (size == 0)
 #endif
-#ifdef CONFIG_COCOA
+#if defined(__APPLE__) && defined(__MACH__)
         size = LONG_LONG_MAX;
 #else
         size = lseek(fd, 0LL, SEEK_END);
@@ -650,7 +650,7 @@ static BlockDriver bdrv_file = {
 /***********************************************/
 /* host device */
 
-#ifdef CONFIG_COCOA
+#if defined(__APPLE__) && defined(__MACH__)
 static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
 static kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize );
 
@@ -728,7 +728,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
 {
     BDRVRawState *s = bs->opaque;
 
-#ifdef CONFIG_COCOA
+#if defined(__APPLE__) && defined(__MACH__)
     if (strstart(filename, "/dev/cdrom", NULL)) {
         kern_return_t kernResult;
         io_iterator_t mediaIterator;

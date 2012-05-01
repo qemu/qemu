@@ -116,10 +116,11 @@ typedef struct CPUM68KState {
     uint32_t features;
 } CPUM68KState;
 
+#include "cpu-qom.h"
+
 void m68k_tcg_init(void);
 CPUM68KState *cpu_m68k_init(const char *cpu_model);
 int cpu_m68k_exec(CPUM68KState *s);
-void cpu_m68k_close(CPUM68KState *s);
 void do_interrupt(CPUM68KState *env1);
 void do_interrupt_m68k_hardirq(CPUM68KState *env1);
 /* you can call this signal handler from your SIGBUS and SIGSEGV

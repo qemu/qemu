@@ -339,6 +339,19 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
+ * memory_region_is_romd: check whether a memory region is ROMD
+ *
+ * Returns %true is a memory region is ROMD and currently set to allow
+ * direct reads.
+ *
+ * @mr: the memory region being queried
+ */
+static inline bool memory_region_is_romd(MemoryRegion *mr)
+{
+    return mr->rom_device && mr->readable;
+}
+
+/**
  * memory_region_name: get a memory region's name
  *
  * Returns the string that was used to initialize the memory region.
@@ -666,6 +679,22 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
 MemoryRegionSection memory_region_find(MemoryRegion *address_space,
                                        target_phys_addr_t addr, uint64_t size);
 
+/**
+ * memory_region_section_addr: get offset within MemoryRegionSection
+ *
+ * Returns offset within MemoryRegionSection
+ *
+ * @section: the memory region section being queried
+ * @addr: address in address space
+ */
+static inline target_phys_addr_t
+memory_region_section_addr(MemoryRegionSection *section,
+                           target_phys_addr_t addr)
+{
+    addr -= section->offset_within_address_space;
+    addr += section->offset_within_region;
+    return addr;
+}
 
 /**
  * memory_global_sync_dirty_bitmap: synchronize the dirty log for all memory

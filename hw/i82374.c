@@ -38,6 +38,7 @@ do { fprintf(stderr, "i82374 ERROR: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct I82374State {
     uint8_t commands[8];
+    qemu_irq out;
 } I82374State;
 
 static const VMStateDescription vmstate_i82374 = {
@@ -99,7 +100,7 @@ static uint32_t i82374_read_descriptor(void *opaque, uint32_t nport)
 
 static void i82374_init(I82374State *s)
 {
-    DMA_init(1, NULL);
+    DMA_init(1, &s->out);
     memset(s->commands, 0, sizeof(s->commands));
 }
 
@@ -131,6 +132,8 @@ static int i82374_isa_init(ISADevice *dev)
     register_ioport_read(isa->iobase + 0x20, 0x20, 1, i82374_read_descriptor, s);
 
     i82374_init(s);
+
+    qdev_init_gpio_out(&dev->qdev, &s->out, 1);
 
     return 0;
 }

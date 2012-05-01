@@ -76,6 +76,11 @@ void isa_register_portio_list(ISADevice *dev, uint16_t start,
                               const MemoryRegionPortio *portio,
                               void *opaque, const char *name);
 
+static inline ISABus *isa_bus_from_device(ISADevice *d)
+{
+    return DO_UPCAST(ISABus, qbus, d->qdev.parent_bus);
+}
+
 extern target_phys_addr_t isa_mem_base;
 
 void isa_mmio_setup(MemoryRegion *mr, target_phys_addr_t size);

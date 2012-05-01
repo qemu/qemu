@@ -425,7 +425,7 @@ static int os_host_main_loop_wait(uint32_t timeout)
     if (nfds >= 0) {
         ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
         if (ret != 0) {
-            /* TODO. */
+            timeout = 0;
         }
     }
 
@@ -437,6 +437,10 @@ static int os_host_main_loop_wait(uint32_t timeout)
     for (i = 0; i < w->num; i++) {
         poll_fds[n_poll_fds + i].fd = (DWORD_PTR)w->events[i];
         poll_fds[n_poll_fds + i].events = G_IO_IN;
+    }
+
+    if (poll_timeout < 0 || timeout < poll_timeout) {
+        poll_timeout = timeout;
     }
 
     qemu_mutex_unlock_iothread();

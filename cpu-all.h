@@ -518,8 +518,6 @@ extern int mem_prealloc;
 /* Set if TLB entry is an IO callback.  */
 #define TLB_MMIO        (1 << 5)
 
-void cpu_tlb_update_dirty(CPUArchState *env);
-
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 #endif /* !CONFIG_USER_ONLY */
 

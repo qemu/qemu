@@ -98,27 +98,18 @@ libobj-y += op_helper.o
 endif
 endif
 libobj-y += helper.o
-ifeq ($(TARGET_BASE_ARCH), i386)
+ifneq ($(TARGET_BASE_ARCH), ppc)
 libobj-y += cpu.o
 endif
 libobj-$(TARGET_SPARC64) += vis_helper.o
 libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
-libobj-$(TARGET_ARM) += cpu.o
-libobj-$(TARGET_CRIS) += cpu.o
-libobj-$(TARGET_LM32) += cpu.o
-libobj-$(TARGET_MICROBLAZE) += cpu.o
-libobj-$(TARGET_S390X) += cpu.o
 ifeq ($(TARGET_BASE_ARCH), sparc)
 libobj-y += fop_helper.o cc_helper.o win_helper.o mmu_helper.o ldst_helper.o
-libobj-y += cpu.o
 endif
 libobj-$(TARGET_SPARC) += int32_helper.o
 libobj-$(TARGET_SPARC64) += int64_helper.o
-libobj-$(TARGET_UNICORE32) += cpu.o
-libobj-$(TARGET_XTENSA) += cpu.o
 libobj-$(TARGET_ALPHA) += int_helper.o fpu_helper.o sys_helper.o mem_helper.o
-libobj-$(TARGET_ALPHA) += cpu.o
 
 libobj-$(CONFIG_SCU2) += scu2.o
 
@@ -175,34 +166,6 @@ obj-y += $(libobj-y)
 endif #CONFIG_LINUX_USER
 
 #########################################################
-# Darwin user emulator target
-
-ifdef CONFIG_DARWIN_USER
-
-$(call set-vpath, $(SRC_PATH)/darwin-user)
-
-QEMU_CFLAGS+=-I$(SRC_PATH)/darwin-user -I$(SRC_PATH)/darwin-user/$(TARGET_ARCH)
-
-# Leave some space for the regular program loading zone
-LDFLAGS+=-Wl,-segaddr,__STD_PROG_ZONE,0x1000 -image_base 0x0e000000
-
-LIBS+=-lmx
-
-obj-y = main.o commpage.o machload.o mmap.o signal.o syscall.o thunk.o \
-        gdbstub.o user-exec.o
-
-obj-i386-y += ioport-user.o
-
-$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
-
-obj-y += $(addprefix ../, $(universal-obj-y))
-obj-y += $(addprefix ../libuser/, $(user-obj-y))
-obj-y += $(addprefix ../libdis-user/, $(libdis-y))
-obj-y += $(libobj-y)
-
-endif #CONFIG_DARWIN_USER
-
-#########################################################
 # BSD user emulator target
 
 ifdef CONFIG_BSD_USER
@@ -241,7 +204,7 @@ obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p-device.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-$(CONFIG_VGA) += vga.o
-obj-y += memory.o savevm.o
+obj-y += memory.o savevm.o cputlb.o
 LIBS+=-lz
 
 obj-i386-$(CONFIG_KVM) += hyperv.o
