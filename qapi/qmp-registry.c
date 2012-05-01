@@ -40,16 +40,26 @@ QmpCommand *qmp_find_command(const char *name)
     return NULL;
 }
 
-void qmp_disable_command(const char *name)
+static void qmp_toggle_command(const char *name, bool enabled)
 {
     QmpCommand *cmd;
 
     QTAILQ_FOREACH(cmd, &qmp_commands, node) {
         if (strcmp(cmd->name, name) == 0) {
-            cmd->enabled = false;
+            cmd->enabled = enabled;
             return;
         }
     }
+}
+
+void qmp_disable_command(const char *name)
+{
+    qmp_toggle_command(name, false);
+}
+
+void qmp_enable_command(const char *name)
+{
+    qmp_toggle_command(name, true);
 }
 
 bool qmp_command_is_enabled(const char *name)
