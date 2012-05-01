@@ -32,8 +32,6 @@ enum VIOsPAPR_TCEAccess {
     SPAPR_TCE_RW = 3,
 };
 
-#define SPAPR_VTY_BASE_ADDRESS     0x30000000
-
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 #define VIO_SPAPR_DEVICE(obj) \
      OBJECT_CHECK(VIOsPAPRDevice, (obj), TYPE_VIO_SPAPR_DEVICE)
@@ -82,13 +80,14 @@ struct VIOsPAPRDevice {
     VIOsPAPR_CRQ crq;
 };
 
-#define DEFINE_SPAPR_PROPERTIES(type, field, default_reg, default_dma_window) \
-        DEFINE_PROP_UINT32("reg", type, field.reg, default_reg), \
+#define DEFINE_SPAPR_PROPERTIES(type, field, default_dma_window)       \
+        DEFINE_PROP_UINT32("reg", type, field.reg, -1),                \
         DEFINE_PROP_UINT32("dma-window", type, field.rtce_window_size, \
                            default_dma_window)
 
 struct VIOsPAPRBus {
     BusState bus;
+    uint32_t next_reg;
     int (*init)(VIOsPAPRDevice *dev);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 };
@@ -119,9 +118,9 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq);
 
 VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg);
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
-void spapr_vty_create(VIOsPAPRBus *bus, uint32_t reg, CharDriverState *chardev);
-void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd);
-void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg);
+void spapr_vty_create(VIOsPAPRBus *bus, CharDriverState *chardev);
+void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd);
+void spapr_vscsi_create(VIOsPAPRBus *bus);
 
 VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus);
 

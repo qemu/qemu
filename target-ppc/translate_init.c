@@ -4461,33 +4461,36 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  &spr_read_spefscr, &spr_write_spefscr,
                  &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
+#if !defined(CONFIG_USER_ONLY)
     /* Memory management */
-#if defined(CONFIG_USER_ONLY)
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
-#else /* !defined(CONFIG_USER_ONLY) */
     env->nb_pids = 3;
     env->nb_ways = 2;
     env->id_tlbs = 0;
     switch (version) {
     case fsl_e500v1:
-        /* e500v1 */
         tlbncfg[0] = gen_tlbncfg(2, 1, 1, 0, 256);
         tlbncfg[1] = gen_tlbncfg(16, 1, 9, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
-        env->dcache_line_size = 32;
-        env->icache_line_size = 32;
         break;
     case fsl_e500v2:
-        /* e500v2 */
         tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
         tlbncfg[1] = gen_tlbncfg(16, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
+        break;
+    case fsl_e500mc:
+        tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
+        tlbncfg[1] = gen_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
+        break;
+    default:
+        cpu_abort(env, "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
+    }
+#endif
+    /* Cache sizes */
+    switch (version) {
+    case fsl_e500v1:
+    case fsl_e500v2:
         env->dcache_line_size = 32;
         env->icache_line_size = 32;
         break;
     case fsl_e500mc:
-        /* e500mc */
-        tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
-        tlbncfg[1] = gen_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
         env->dcache_line_size = 64;
         env->icache_line_size = 64;
         l1cfg0 |= 0x1000000; /* 64 byte cache block size */
@@ -4495,7 +4498,6 @@ static void init_proc_e500 (CPUPPCState *env, int version)
     default:
         cpu_abort(env, "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
     }
-#endif
     gen_spr_BookE206(env, 0x000000DF, tlbncfg);
     /* XXX : not implemented */
     spr_register(env, SPR_HID0, "HID0",

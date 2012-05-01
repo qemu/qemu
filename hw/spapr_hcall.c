@@ -482,7 +482,7 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
     return H_SUCCESS;
 }
 
-static target_ulong deregister_dtl(CPUPPCState *emv, target_ulong addr)
+static target_ulong deregister_dtl(CPUPPCState *env, target_ulong addr)
 {
     env->dispatch_trace_log = 0;
     env->dtl_size = 0;

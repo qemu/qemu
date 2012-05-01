@@ -204,12 +204,11 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
     return 0;
 }
 
-void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd)
+void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd)
 {
     DeviceState *dev;
 
     dev = qdev_create(&bus->bus, "spapr-vlan");
-    qdev_prop_set_uint32(dev, "reg", reg);
 
     qdev_set_nic_properties(dev, nd);
 
@@ -480,7 +479,7 @@ static target_ulong h_multicast_ctrl(CPUPPCState *env, sPAPREnvironment *spapr,
 }
 
 static Property spapr_vlan_properties[] = {
-    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev, 0x1000, 0x10000000),
+    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev, 0x10000000),
     DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
     DEFINE_PROP_END_OF_LIST(),
 };

@@ -86,6 +86,7 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
     tlb->mas2 = (va & TARGET_PAGE_MASK) | MAS2_M;
     tlb->mas7_3 = pa & TARGET_PAGE_MASK;
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
+    env->tlb_dirty = true;
 }
 
 static void spin_kick(void *data)
@@ -178,7 +179,7 @@ static uint64_t spin_read(void *opaque, target_phys_addr_t addr, unsigned len)
     case 4:
         return ldl_p(spin_p);
     default:
-        assert(0);
+        hw_error("ppce500: unexpected %s with len = %u", __func__, len);
     }
 }
 

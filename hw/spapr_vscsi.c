@@ -918,12 +918,11 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
     return 0;
 }
 
-void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg)
+void spapr_vscsi_create(VIOsPAPRBus *bus)
 {
     DeviceState *dev;
 
     dev = qdev_create(&bus->bus, "spapr-vscsi");
-    qdev_prop_set_uint32(dev, "reg", reg);
 
     qdev_init_nofail(dev);
 }
@@ -946,7 +945,7 @@ static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
 }
 
 static Property spapr_vscsi_properties[] = {
-    DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x2000, 0x10000000),
+    DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x10000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
