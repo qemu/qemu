@@ -991,11 +991,8 @@ void resume_all_vcpus(void)
     }
 }
 
-static void qemu_tcg_init_vcpu(void *_env)
+static void qemu_tcg_init_vcpu(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
         cpu->thread = g_malloc0(sizeof(QemuThread));
@@ -1056,7 +1053,7 @@ void qemu_init_vcpu(void *_env)
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(env);
     } else if (tcg_enabled()) {
-        qemu_tcg_init_vcpu(env);
+        qemu_tcg_init_vcpu(cpu);
     } else {
         qemu_dummy_start_vcpu(env);
     }
