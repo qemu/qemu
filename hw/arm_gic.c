@@ -86,11 +86,7 @@ typedef struct gic_irq_state
 #define GIC_GET_PRIORITY(irq, cpu) (((irq) < GIC_INTERNAL) ?            \
                                     s->priority1[irq][cpu] :            \
                                     s->priority2[(irq) - GIC_INTERNAL])
-#ifdef NVIC
-#define GIC_TARGET(irq) 1
-#else
 #define GIC_TARGET(irq) s->irq_target[irq]
-#endif
 
 typedef struct gic_state
 {
@@ -377,18 +373,22 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
         if (irq >= s->num_irq)
             goto bad_reg;
         res = GIC_GET_PRIORITY(irq, cpu);
-#ifndef NVIC
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target.  */
-        irq = (offset - 0x800) + GIC_BASE_IRQ;
-        if (irq >= s->num_irq)
-            goto bad_reg;
-        if (irq >= 29 && irq <= 31) {
-            res = cm;
+        if (s->num_cpu == 1 && s->revision != REV_11MPCORE) {
+            /* For uniprocessor GICs these RAZ/WI */
+            res = 0;
         } else {
-            res = GIC_TARGET(irq);
+            irq = (offset - 0x800) + GIC_BASE_IRQ;
+            if (irq >= s->num_irq) {
+                goto bad_reg;
+            }
+            if (irq >= 29 && irq <= 31) {
+                res = cm;
+            } else {
+                res = GIC_TARGET(irq);
+            }
         }
-#endif
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
         irq = (offset - 0xc00) * 2 + GIC_BASE_IRQ;
@@ -533,18 +533,22 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
         } else {
             s->priority2[irq - GIC_INTERNAL] = value;
         }
-#ifndef NVIC
     } else if (offset < 0xc00) {
-        /* Interrupt CPU Target.  */
-        irq = (offset - 0x800) + GIC_BASE_IRQ;
-        if (irq >= s->num_irq)
-            goto bad_reg;
-        if (irq < 29)
-            value = 0;
-        else if (irq < GIC_INTERNAL)
-            value = ALL_CPU_MASK;
-        s->irq_target[irq] = value & ALL_CPU_MASK;
-#endif
+        /* Interrupt CPU Target. RAZ/WI on uniprocessor GICs, with the
+         * annoying exception of the 11MPCore's GIC.
+         */
+        if (s->num_cpu != 1 || s->revision == REV_11MPCORE) {
+            irq = (offset - 0x800) + GIC_BASE_IRQ;
+            if (irq >= s->num_irq) {
+                goto bad_reg;
+            }
+            if (irq < 29) {
+                value = 0;
+            } else if (irq < GIC_INTERNAL) {
+                value = ALL_CPU_MASK;
+            }
+            s->irq_target[irq] = value & ALL_CPU_MASK;
+        }
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
         irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
@@ -732,6 +736,12 @@ static void gic_reset(DeviceState *dev)
     for (i = 0; i < 16; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
         GIC_SET_TRIGGER(i);
+    }
+    if (s->num_cpu == 1) {
+        /* For uniprocessor GICs all interrupts always target the sole CPU */
+        for (i = 0; i < GIC_MAXIRQ; i++) {
+            s->irq_target[i] = 1;
+        }
     }
     s->enabled = 0;
 }
