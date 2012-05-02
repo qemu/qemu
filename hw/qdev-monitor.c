@@ -158,7 +158,7 @@ int qdev_device_help(QemuOpts *opts)
          * for removal.  This conditional should be removed along with
          * it.
          */
-        if (!prop->info->parse) {
+        if (!prop->info->set) {
             continue;           /* no way to set it, don't show */
         }
         error_printf("%s.%s=%s\n", driver, prop->name,
@@ -166,7 +166,7 @@ int qdev_device_help(QemuOpts *opts)
     }
     if (info->bus_info) {
         for (prop = info->bus_info->props; prop && prop->name; prop++) {
-            if (!prop->info->parse) {
+            if (!prop->info->set) {
                 continue;           /* no way to set it, don't show */
             }
             error_printf("%s.%s=%s\n", driver, prop->name,
