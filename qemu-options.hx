@@ -2685,9 +2685,19 @@ DEF("nodefconfig", 0, QEMU_OPTION_nodefconfig,
 STEXI
 @item -nodefconfig
 @findex -nodefconfig
-Normally QEMU loads a configuration file from @var{sysconfdir}/qemu.conf and
-@var{sysconfdir}/target-@var{ARCH}.conf on startup.  The @code{-nodefconfig}
-option will prevent QEMU from loading these configuration files at startup.
+Normally QEMU loads configuration files from @var{sysconfdir} and @var{datadir} at startup.
+The @code{-nodefconfig} option will prevent QEMU from loading any of those config files.
+ETEXI
+DEF("no-user-config", 0, QEMU_OPTION_nouserconfig,
+    "-no-user-config\n"
+    "                do not load user-provided config files at startup\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -no-user-config
+@findex -no-user-config
+The @code{-no-user-config} option makes QEMU not load any of the user-provided
+config files on @var{sysconfdir}, but won't make it skip the QEMU-provided config
+files from @var{datadir}.
 ETEXI
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace [events=<file>][,file=<file>]\n"

@@ -2284,6 +2284,7 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
 #endif
     bool defconfig = true;
+    bool userconfig = true;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     GMemVTable mem_trace = {
@@ -2352,13 +2353,16 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_nodefconfig:
                 defconfig = false;
                 break;
+            case QEMU_OPTION_nouserconfig:
+                userconfig = false;
+                break;
             }
         }
     }
 
     if (defconfig) {
         int ret;
-        ret = qemu_read_default_config_files();
+        ret = qemu_read_default_config_files(userconfig);
         if (ret < 0) {
             exit(1);
         }

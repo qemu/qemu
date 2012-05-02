@@ -18,6 +18,6 @@ int qemu_read_config_file(const char *filename);
 
 /* Read default Qemu config files
  */
-int qemu_read_default_config_files(void);
+int qemu_read_default_config_files(bool userconfig);
 
 #endif /* QEMU_CONFIG_H */
