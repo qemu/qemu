@@ -812,7 +812,7 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void gic_init(gic_state *s, int num_irq)
+static void gic_init_irqs_and_distributor(gic_state *s, int num_irq)
 {
     int i;
 
@@ -850,7 +850,19 @@ static void gic_init(gic_state *s, int num_irq)
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
     memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
+
+    register_savevm(NULL, "arm_gic", -1, 3, gic_save, gic_load, s);
+}
+
 #ifndef NVIC
+
+static int arm_gic_init(SysBusDevice *dev)
+{
+    /* Device instance init function for the GIC sysbus device */
+    int i;
+    gic_state *s = FROM_SYSBUS(gic_state, dev);
+    gic_init_irqs_and_distributor(s, s->num_irq);
+
     /* Memory regions for the CPU interfaces (NVIC doesn't have these):
      * a region for "CPU interface for this core", then a region for
      * "CPU interface for core 0", "for core 1", ...
@@ -866,19 +878,7 @@ static void gic_init(gic_state *s, int num_irq)
         memory_region_init_io(&s->cpuiomem[i+1], &gic_cpu_ops, &s->backref[i],
                               "gic_cpu", 0x100);
     }
-#endif
 
-    register_savevm(NULL, "arm_gic", -1, 3, gic_save, gic_load, s);
-}
-
-#ifndef NVIC
-
-static int arm_gic_init(SysBusDevice *dev)
-{
-    /* Device instance init function for the GIC sysbus device */
-    int i;
-    gic_state *s = FROM_SYSBUS(gic_state, dev);
-    gic_init(s, s->num_irq);
     /* Distributor */
     sysbus_init_mmio(dev, &s->iomem);
     /* cpu interfaces (one for "current cpu" plus one per cpu) */
