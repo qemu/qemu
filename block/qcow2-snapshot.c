@@ -331,7 +331,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 
     /* Check that the ID is unique */
     if (find_snapshot_by_id(bs, sn_info->id_str) >= 0) {
-        return -ENOENT;
+        return -EEXIST;
     }
 
     /* Populate sn with passed data */

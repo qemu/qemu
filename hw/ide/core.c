@@ -1035,7 +1035,7 @@ static const uint8_t ide_cmd_table[0x100] = {
     [WIN_IDENTIFY]                      = ALL_OK,
     [WIN_SETFEATURES]                   = ALL_OK,
     [IBM_SENSE_CONDITION]               = CFA_OK,
-    [CFA_WEAR_LEVEL]                    = CFA_OK,
+    [CFA_WEAR_LEVEL]                    = HD_CFA_OK,
     [WIN_READ_NATIVE_MAX]               = ALL_OK,
 };
 
@@ -1350,6 +1350,11 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         break;
     case CFA_ERASE_SECTORS:
     case CFA_WEAR_LEVEL:
+#if 0
+    /* This one has the same ID as CFA_WEAR_LEVEL and is required for
+       Windows 8 to work with AHCI */
+    case WIN_SECURITY_FREEZE_LOCK:
+#endif
         if (val == CFA_WEAR_LEVEL)
             s->nsector = 0;
         if (val == CFA_ERASE_SECTORS)
