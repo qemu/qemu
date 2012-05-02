@@ -62,6 +62,7 @@ struct CPUState {
     Object parent_obj;
     /*< public >*/
 
+    struct QemuThread *thread;
 #ifdef _WIN32
     HANDLE hThread;
 #endif
