@@ -151,7 +151,7 @@ void qemu_thread_get_self(QemuThread *thread)
     thread->thread = pthread_self();
 }
 
-int qemu_thread_is_self(QemuThread *thread)
+bool qemu_thread_is_self(QemuThread *thread)
 {
    return pthread_equal(pthread_self(), thread->thread);
 }
