@@ -112,20 +112,27 @@ const uint32_t arch_type = QEMU_ARCH;
 #endif
 
 
+static struct defconfig_file {
+    const char *filename;
+} default_config_files[] = {
+    { CONFIG_QEMU_CONFDIR "/qemu.conf" },
+    { CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf" },
+    { NULL }, /* end of list */
+};
+
+
 int qemu_read_default_config_files(void)
 {
     int ret;
+    struct defconfig_file *f;
+
+    for (f = default_config_files; f->filename; f++) {
+        ret = qemu_read_config_file(f->filename);
+        if (ret < 0 && ret != -ENOENT) {
+            return ret;
+        }
+    }
     
-    ret = qemu_read_config_file(CONFIG_QEMU_CONFDIR "/qemu.conf");
-    if (ret < 0 && ret != -ENOENT) {
-        return ret;
-    }
-
-    ret = qemu_read_config_file(CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf");
-    if (ret < 0 && ret != -ENOENT) {
-        return ret;
-    }
-
     return 0;
 }
 
