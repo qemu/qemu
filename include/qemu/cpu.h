@@ -54,6 +54,7 @@ typedef struct CPUClass {
 
 /**
  * CPUState:
+ * @created: Indicates whether the CPU thread has been successfully created.
  *
  * State of one CPU core or thread.
  */
@@ -67,6 +68,7 @@ struct CPUState {
     HANDLE hThread;
 #endif
     bool thread_kicked;
+    bool created;
 
     /* TODO Move common fields from CPUArchState here. */
 };

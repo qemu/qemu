@@ -205,7 +205,6 @@ typedef struct CPUWatchpoint {
     /* user data */                                                     \
     void *opaque;                                                       \
                                                                         \
-    uint32_t created;                                                   \
     uint32_t stop;   /* Stop request */                                 \
     uint32_t stopped; /* Artificially stopped */                        \
     struct QemuCond *halt_cond;                                         \
