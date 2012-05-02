@@ -92,6 +92,7 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
 static void spin_kick(void *data)
 {
     SpinKick *kick = data;
+    CPUState *cpu = CPU(kick->cpu);
     CPUPPCState *env = &kick->cpu->env;
     SpinInfo *curspin = kick->spin;
     hwaddr map_size = 64 * 1024 * 1024;
@@ -113,7 +114,7 @@ static void spin_kick(void *data)
 
     env->halted = 0;
     env->exception_index = -1;
-    env->stopped = 0;
+    cpu->stopped = false;
     qemu_cpu_kick(env);
 }
 
