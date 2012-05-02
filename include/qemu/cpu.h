@@ -69,6 +69,7 @@ struct CPUState {
 #ifdef _WIN32
     HANDLE hThread;
 #endif
+    struct QemuCond *halt_cond;
     bool thread_kicked;
     bool created;
     bool stop;

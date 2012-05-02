@@ -722,8 +722,10 @@ static void qemu_tcg_wait_io_event(void)
 
 static void qemu_kvm_wait_io_event(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     while (cpu_thread_is_idle(env)) {
-        qemu_cond_wait(env->halt_cond, &qemu_global_mutex);
+        qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
     qemu_kvm_eat_signals(env);
@@ -873,7 +875,7 @@ void qemu_cpu_kick(void *_env)
     CPUArchState *env = _env;
     CPUState *cpu = ENV_GET_CPU(env);
 
-    qemu_cond_broadcast(env->halt_cond);
+    qemu_cond_broadcast(cpu->halt_cond);
     if (!tcg_enabled() && !cpu->thread_kicked) {
         qemu_cpu_kick_thread(cpu);
         cpu->thread_kicked = true;
@@ -997,9 +999,9 @@ static void qemu_tcg_init_vcpu(void *_env)
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
         cpu->thread = g_malloc0(sizeof(QemuThread));
-        env->halt_cond = g_malloc0(sizeof(QemuCond));
-        qemu_cond_init(env->halt_cond);
-        tcg_halt_cond = env->halt_cond;
+        cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+        qemu_cond_init(cpu->halt_cond);
+        tcg_halt_cond = cpu->halt_cond;
         qemu_thread_create(cpu->thread, qemu_tcg_cpu_thread_fn, env,
                            QEMU_THREAD_JOINABLE);
 #ifdef _WIN32
@@ -1011,7 +1013,7 @@ static void qemu_tcg_init_vcpu(void *_env)
         tcg_cpu_thread = cpu->thread;
     } else {
         cpu->thread = tcg_cpu_thread;
-        env->halt_cond = tcg_halt_cond;
+        cpu->halt_cond = tcg_halt_cond;
     }
 }
 
@@ -1020,8 +1022,8 @@ static void qemu_kvm_start_vcpu(CPUArchState *env)
     CPUState *cpu = ENV_GET_CPU(env);
 
     cpu->thread = g_malloc0(sizeof(QemuThread));
-    env->halt_cond = g_malloc0(sizeof(QemuCond));
-    qemu_cond_init(env->halt_cond);
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
     qemu_thread_create(cpu->thread, qemu_kvm_cpu_thread_fn, env,
                        QEMU_THREAD_JOINABLE);
     while (!cpu->created) {
@@ -1034,8 +1036,8 @@ static void qemu_dummy_start_vcpu(CPUArchState *env)
     CPUState *cpu = ENV_GET_CPU(env);
 
     cpu->thread = g_malloc0(sizeof(QemuThread));
-    env->halt_cond = g_malloc0(sizeof(QemuCond));
-    qemu_cond_init(env->halt_cond);
+    cpu->halt_cond = g_malloc0(sizeof(QemuCond));
+    qemu_cond_init(cpu->halt_cond);
     qemu_thread_create(cpu->thread, qemu_dummy_cpu_thread_fn, env,
                        QEMU_THREAD_JOINABLE);
     while (!cpu->created) {
