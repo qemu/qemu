@@ -39,7 +39,7 @@ typedef struct CPUState CPUState;
 
 /**
  * CPUClass:
- * @reset: Callback to reset the #CPU to its initial state.
+ * @reset: Callback to reset the #CPUState to its initial state.
  *
  * Represents a CPU family or model.
  */
@@ -61,7 +61,7 @@ struct CPUState {
     Object parent_obj;
     /*< public >*/
 
-    /* TODO Move common fields from CPUState here. */
+    /* TODO Move common fields from CPUArchState here. */
 };
 
 
