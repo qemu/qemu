@@ -815,8 +815,8 @@ static void tcg_exec_all(void);
 
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
-    CPUArchState *env = arg;
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUState *cpu = arg;
+    CPUArchState *env;
 
     qemu_tcg_init_cpu_signals();
     qemu_thread_get_self(cpu->thread);
@@ -1002,7 +1002,7 @@ static void qemu_tcg_init_vcpu(void *_env)
         cpu->halt_cond = g_malloc0(sizeof(QemuCond));
         qemu_cond_init(cpu->halt_cond);
         tcg_halt_cond = cpu->halt_cond;
-        qemu_thread_create(cpu->thread, qemu_tcg_cpu_thread_fn, env,
+        qemu_thread_create(cpu->thread, qemu_tcg_cpu_thread_fn, cpu,
                            QEMU_THREAD_JOINABLE);
 #ifdef _WIN32
         cpu->hThread = qemu_thread_get_handle(cpu->thread);
