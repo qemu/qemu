@@ -66,6 +66,7 @@ struct CPUState {
 #ifdef _WIN32
     HANDLE hThread;
 #endif
+    bool thread_kicked;
 
     /* TODO Move common fields from CPUArchState here. */
 };

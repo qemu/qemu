@@ -686,13 +686,15 @@ static void flush_queued_work(CPUArchState *env)
 
 static void qemu_wait_io_event_common(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     if (env->stop) {
         env->stop = 0;
         env->stopped = 1;
         qemu_cond_signal(&qemu_pause_cond);
     }
     flush_queued_work(env);
-    env->thread_kicked = false;
+    cpu->thread_kicked = false;
 }
 
 static void qemu_tcg_wait_io_event(void)
@@ -866,11 +868,12 @@ static void qemu_cpu_kick_thread(CPUArchState *env)
 void qemu_cpu_kick(void *_env)
 {
     CPUArchState *env = _env;
+    CPUState *cpu = ENV_GET_CPU(env);
 
     qemu_cond_broadcast(env->halt_cond);
-    if (!tcg_enabled() && !env->thread_kicked) {
+    if (!tcg_enabled() && !cpu->thread_kicked) {
         qemu_cpu_kick_thread(env);
-        env->thread_kicked = true;
+        cpu->thread_kicked = true;
     }
 }
 
@@ -878,10 +881,11 @@ void qemu_cpu_kick_self(void)
 {
 #ifndef _WIN32
     assert(cpu_single_env);
+    CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
 
-    if (!cpu_single_env->thread_kicked) {
+    if (!cpu_single_cpu->thread_kicked) {
         qemu_cpu_kick_thread(cpu_single_env);
-        cpu_single_env->thread_kicked = true;
+        cpu_single_cpu->thread_kicked = true;
     }
 #else
     abort();
