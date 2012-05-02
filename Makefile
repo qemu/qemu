@@ -281,11 +281,18 @@ ifdef CONFIG_VIRTFS
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DATA) fsdev/virtfs-proxy-helper.1 "$(DESTDIR)$(mandir)/man1"
 endif
-install-sysconfig:
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
-	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
 
-install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig
+install-datadir:
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
+
+install-confdir:
+	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
+
+install-sysconfig: install-datadir install-confdir
+	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
+	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/cpus-x86_64.conf "$(DESTDIR)$(qemu_datadir)"
+
+install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig install-datadir
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 ifneq ($(TOOLS),)
 	$(INSTALL_PROG) $(STRIP_OPT) $(TOOLS) "$(DESTDIR)$(bindir)"
@@ -295,7 +302,6 @@ ifneq ($(HELPERS-y),)
 	$(INSTALL_PROG) $(STRIP_OPT) $(HELPERS-y) "$(DESTDIR)$(libexecdir)"
 endif
 ifneq ($(BLOBS),)
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
 	set -e; for x in $(BLOBS); do \
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/$$x "$(DESTDIR)$(qemu_datadir)"; \
 	done

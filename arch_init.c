@@ -117,6 +117,7 @@ static struct defconfig_file {
     /* Indicates it is an user config file (disabled by -no-user-config) */
     bool userconfig;
 } default_config_files[] = {
+    { CONFIG_QEMU_DATADIR "/cpus-" TARGET_ARCH ".conf",  false },
     { CONFIG_QEMU_CONFDIR "/qemu.conf",                   true },
     { CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", true },
     { NULL }, /* end of list */
