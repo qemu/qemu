@@ -852,9 +852,10 @@ static void qemu_cpu_kick_thread(CPUArchState *env)
     }
 #else /* _WIN32 */
     if (!qemu_cpu_is_self(env)) {
-        SuspendThread(env->hThread);
+        CPUState *cpu = ENV_GET_CPU(env);
+        SuspendThread(cpu->hThread);
         cpu_signal(0);
-        ResumeThread(env->hThread);
+        ResumeThread(cpu->hThread);
     }
 #endif
 }
@@ -974,6 +975,9 @@ void resume_all_vcpus(void)
 static void qemu_tcg_init_vcpu(void *_env)
 {
     CPUArchState *env = _env;
+#ifdef _WIN32
+    CPUState *cpu = ENV_GET_CPU(env);
+#endif
 
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
@@ -984,7 +988,7 @@ static void qemu_tcg_init_vcpu(void *_env)
         qemu_thread_create(env->thread, qemu_tcg_cpu_thread_fn, env,
                            QEMU_THREAD_JOINABLE);
 #ifdef _WIN32
-        env->hThread = qemu_thread_get_handle(env->thread);
+        cpu->hThread = qemu_thread_get_handle(env->thread);
 #endif
         while (env->created == 0) {
             qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
