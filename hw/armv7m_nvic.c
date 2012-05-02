@@ -14,13 +14,7 @@
 #include "qemu-timer.h"
 #include "arm-misc.h"
 #include "exec-memory.h"
-
-#define NVIC 1
-
-static uint32_t nvic_readl(void *opaque, uint32_t offset);
-static void nvic_writel(void *opaque, uint32_t offset, uint32_t value);
-
-#include "arm_gic.c"
+#include "arm_gic_internal.h"
 
 typedef struct {
     gic_state gic;
@@ -35,6 +29,28 @@ typedef struct {
     MemoryRegion container;
     uint32_t num_irq;
 } nvic_state;
+
+#define TYPE_NVIC "armv7m_nvic"
+/**
+ * NVICClass:
+ * @parent_reset: the parent class' reset handler.
+ *
+ * A model of the v7M NVIC and System Controller
+ */
+typedef struct NVICClass {
+    /*< private >*/
+    ARMGICClass parent_class;
+    /*< public >*/
+    int (*parent_init)(SysBusDevice *dev);
+    void (*parent_reset)(DeviceState *dev);
+} NVICClass;
+
+#define NVIC_CLASS(klass) \
+    OBJECT_CLASS_CHECK(NVICClass, (klass), TYPE_NVIC)
+#define NVIC_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(NVICClass, (obj), TYPE_NVIC)
+#define NVIC(obj) \
+    OBJECT_CHECK(nvic_state, (obj), TYPE_NVIC)
 
 static const uint8_t nvic_id[] = {
     0x00, 0xb0, 0x1b, 0x00, 0x0d, 0xe0, 0x05, 0xb1
@@ -429,8 +445,9 @@ static const VMStateDescription vmstate_nvic = {
 
 static void armv7m_nvic_reset(DeviceState *dev)
 {
-    nvic_state *s = FROM_SYSBUSGIC(nvic_state, sysbus_from_qdev(dev));
-    gic_reset(&s->gic.busdev.qdev);
+    nvic_state *s = NVIC(dev);
+    NVICClass *nc = NVIC_GET_CLASS(s);
+    nc->parent_reset(dev);
     /* Common GIC reset resets to disabled; the NVIC doesn't have
      * per-CPU interfaces so mark our non-existent CPU interface
      * as enabled by default.
@@ -443,12 +460,15 @@ static void armv7m_nvic_reset(DeviceState *dev)
 
 static int armv7m_nvic_init(SysBusDevice *dev)
 {
-    nvic_state *s= FROM_SYSBUSGIC(nvic_state, dev);
+    nvic_state *s = NVIC(dev);
+    NVICClass *nc = NVIC_GET_CLASS(s);
 
     /* The NVIC always has only one CPU */
     s->gic.num_cpu = 1;
     /* Tell the common code we're an NVIC */
     s->gic.revision = 0xffffffff;
+    s->gic.num_irq = s->num_irq;
+    nc->parent_init(dev);
     gic_init_irqs_and_distributor(&s->gic, s->num_irq);
     /* The NVIC and system controller register area looks like this:
      *  0..0xff : system control registers, including systick
@@ -489,9 +509,12 @@ static Property armv7m_nvic_properties[] = {
 
 static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 {
+    NVICClass *nc = NVIC_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
+    nc->parent_reset = dc->reset;
+    nc->parent_init = sdc->init;
     sdc->init = armv7m_nvic_init;
     dc->vmsd  = &vmstate_nvic;
     dc->reset = armv7m_nvic_reset;
@@ -499,10 +522,11 @@ static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo armv7m_nvic_info = {
-    .name          = "armv7m_nvic",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .name          = TYPE_NVIC,
+    .parent        = TYPE_ARM_GIC_COMMON,
     .instance_size = sizeof(nvic_state),
     .class_init    = armv7m_nvic_class_init,
+    .class_size    = sizeof(NVICClass),
 };
 
 static void armv7m_nvic_register_types(void)
