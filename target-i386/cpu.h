@@ -787,7 +787,7 @@ typedef struct CPUX86State {
 
 #include "cpu-qom.h"
 
-CPUX86State *cpu_x86_init(const char *cpu_model);
+X86CPU *cpu_x86_init(const char *cpu_model);
 int cpu_x86_exec(CPUX86State *s);
 void x86_cpu_list (FILE *f, fprintf_function cpu_fprintf, const char *optarg);
 void x86_cpudef_setup(void);
@@ -960,7 +960,15 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
-#define cpu_init cpu_x86_init
+static inline CPUX86State *cpu_init(const char *cpu_model)
+{
+    X86CPU *cpu = cpu_x86_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_x86_exec
 #define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler

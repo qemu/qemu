@@ -1157,7 +1157,7 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
     return 1;
 }
 
-CPUX86State *cpu_x86_init(const char *cpu_model)
+X86CPU *cpu_x86_init(const char *cpu_model)
 {
     X86CPU *cpu;
     CPUX86State *env;
@@ -1183,7 +1183,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 
     x86_cpu_realize(OBJECT(cpu), NULL);
 
-    return env;
+    return cpu;
 }
 
 #if !defined(CONFIG_USER_ONLY)
