@@ -932,21 +932,23 @@ static void pc_cpu_reset(void *opaque)
     env->halted = !cpu_is_bsp(env);
 }
 
-static CPUX86State *pc_new_cpu(const char *cpu_model)
+static X86CPU *pc_new_cpu(const char *cpu_model)
 {
+    X86CPU *cpu;
     CPUX86State *env;
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_x86_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find x86 CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->apic_state = apic_init(env, env->cpuid_apic_id);
     }
     qemu_register_reset(pc_cpu_reset, env);
     pc_cpu_reset(env);
-    return env;
+    return cpu;
 }
 
 void pc_cpus_init(const char *cpu_model)
