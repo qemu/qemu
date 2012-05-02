@@ -108,9 +108,7 @@ typedef struct gic_state
     int cpu_enabled[NCPU];
 
     gic_irq_state irq_state[GIC_MAXIRQ];
-#ifndef NVIC
     int irq_target[GIC_MAXIRQ];
-#endif
     int priority1[GIC_INTERNAL][NCPU];
     int priority2[GIC_MAXIRQ - GIC_INTERNAL];
     int last_active[GIC_MAXIRQ][NCPU];
@@ -120,18 +118,14 @@ typedef struct gic_state
     int running_priority[NCPU];
     int current_pending[NCPU];
 
-#if NCPU > 1
     uint32_t num_cpu;
-#endif
 
     MemoryRegion iomem; /* Distributor */
-#ifndef NVIC
     /* This is just so we can have an opaque pointer which identifies
      * both this GIC and which CPU interface we should be accessing.
      */
     struct gic_state *backref[NCPU];
     MemoryRegion cpuiomem[NCPU+1]; /* CPU interfaces */
-#endif
     uint32_t num_irq;
 } gic_state;
 
@@ -800,9 +794,7 @@ static void gic_save(QEMUFile *f, void *opaque)
         qemu_put_be32(f, s->priority2[i]);
     }
     for (i = 0; i < s->num_irq; i++) {
-#ifndef NVIC
         qemu_put_be32(f, s->irq_target[i]);
-#endif
         qemu_put_byte(f, s->irq_state[i].enabled);
         qemu_put_byte(f, s->irq_state[i].pending);
         qemu_put_byte(f, s->irq_state[i].active);
@@ -818,8 +810,9 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     int i;
     int j;
 
-    if (version_id != 2)
+    if (version_id != 3) {
         return -EINVAL;
+    }
 
     s->enabled = qemu_get_be32(f);
     for (i = 0; i < NUM_CPU(s); i++) {
@@ -837,9 +830,7 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
         s->priority2[i] = qemu_get_be32(f);
     }
     for (i = 0; i < s->num_irq; i++) {
-#ifndef NVIC
         s->irq_target[i] = qemu_get_be32(f);
-#endif
         s->irq_state[i].enabled = qemu_get_byte(f);
         s->irq_state[i].pending = qemu_get_byte(f);
         s->irq_state[i].active = qemu_get_byte(f);
@@ -914,7 +905,7 @@ static void gic_init(gic_state *s, int num_irq)
     }
 #endif
 
-    register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
+    register_savevm(NULL, "arm_gic", -1, 3, gic_save, gic_load, s);
 }
 
 #ifndef NVIC
