@@ -382,6 +382,13 @@ static void armv7m_nvic_reset(DeviceState *dev)
 {
     nvic_state *s = FROM_SYSBUSGIC(nvic_state, sysbus_from_qdev(dev));
     gic_reset(&s->gic.busdev.qdev);
+    /* Common GIC reset resets to disabled; the NVIC doesn't have
+     * per-CPU interfaces so mark our non-existent CPU interface
+     * as enabled by default.
+     */
+    s->gic.cpu_enabled[0] = 1;
+    /* The NVIC as a whole is always enabled. */
+    s->gic.enabled = 1;
     systick_reset(s);
 }
 

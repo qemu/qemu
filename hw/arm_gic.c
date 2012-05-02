@@ -743,23 +743,13 @@ static void gic_reset(DeviceState *dev)
         s->current_pending[i] = 1023;
         s->running_irq[i] = 1023;
         s->running_priority[i] = 0x100;
-#ifdef NVIC
-        /* The NVIC doesn't have per-cpu interfaces, so enable by default.  */
-        s->cpu_enabled[i] = 1;
-#else
         s->cpu_enabled[i] = 0;
-#endif
     }
     for (i = 0; i < 16; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
         GIC_SET_TRIGGER(i);
     }
-#ifdef NVIC
-    /* The NVIC is always enabled.  */
-    s->enabled = 1;
-#else
     s->enabled = 0;
-#endif
 }
 
 static void gic_save(QEMUFile *f, void *opaque)
