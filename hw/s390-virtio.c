@@ -99,6 +99,7 @@ int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall)
         virtio_reset(dev->vdev);
         stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
         s390_virtio_device_sync(dev);
+        s390_virtio_reset_idx(dev);
         break;
     }
     case KVM_S390_VIRTIO_SET_STATUS:
@@ -230,6 +231,11 @@ static void s390_init(ram_addr_t my_ram_size,
         if (kernel_size == -1UL) {
             kernel_size = load_image_targphys(kernel_filename, 0, ram_size);
         }
+        if (kernel_size == -1UL) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    kernel_filename);
+            exit(1);
+        }
         /*
          * we can not rely on the ELF entry point, since up to 3.2 this
          * value was 0x800 (the SALIPL loader) and it wont work. For
@@ -269,12 +275,18 @@ static void s390_init(ram_addr_t my_ram_size,
         }
         initrd_size = load_image_targphys(initrd_filename, initrd_offset,
                                           ram_size - initrd_offset);
+        if (initrd_size == -1UL) {
+            fprintf(stderr, "qemu: could not load initrd '%s'\n",
+                    initrd_filename);
+            exit(1);
+        }
+
         /* we have to overwrite values in the kernel image, which are "rom" */
         memcpy(rom_ptr(INITRD_PARM_START), &initrd_offset, 8);
         memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
     }
 
-    if (kernel_cmdline) {
+    if (rom_ptr(KERN_PARM_AREA)) {
         /* we have to overwrite values in the kernel image, which are "rom" */
         memcpy(rom_ptr(KERN_PARM_AREA), kernel_cmdline,
                strlen(kernel_cmdline) + 1);
@@ -320,8 +332,11 @@ static QEMUMachine s390_machine = {
     .alias = "s390",
     .desc = "VirtIO based S390 machine",
     .init = s390_init,
+    .no_cdrom = 1,
+    .no_floppy = 1,
     .no_serial = 1,
     .no_parallel = 1,
+    .no_sdcard = 1,
     .use_virtcon = 1,
     .max_cpus = 255,
     .is_default = 1,

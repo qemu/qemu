@@ -1267,9 +1267,10 @@ fi
 
 # Note that if the Python conditional here evaluates True we will exit
 # with status 1 which is a shell 'false' value.
-if ! "$python" -c 'import sys; sys.exit(sys.version_info[0] >= 3)'; then
-  echo "Python 2 required but '$python' is version 3 or better."
-  echo "Use --python=/path/to/python to specify a Python 2."
+if ! "$python" -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_info >= (3,))'; then
+  echo "Cannot use '$python', Python 2.4 or later is required."
+  echo "Note that Python 3 or later is not yet supported."
+  echo "Use --python=/path/to/python to specify a supported Python."
   exit 1
 fi
 
