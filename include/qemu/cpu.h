@@ -78,5 +78,15 @@ struct CPUState {
  */
 void cpu_reset(CPUState *cpu);
 
+/**
+ * qemu_cpu_is_self:
+ * @cpu: The vCPU to check against.
+ *
+ * Checks whether the caller is executing on the vCPU thread.
+ *
+ * Returns: %true if called from @cpu's thread, %false otherwise.
+ */
+bool qemu_cpu_is_self(CPUState *cpu);
+
 
 #endif

@@ -1693,6 +1693,7 @@ static void cpu_unlink_tb(CPUArchState *env)
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int old_mask;
 
     old_mask = env->interrupt_request;
@@ -1702,7 +1703,7 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
      * If called from iothread context, wake the target cpu in
      * case its halted.
      */
-    if (!qemu_cpu_is_self(env)) {
+    if (!qemu_cpu_is_self(cpu)) {
         qemu_cpu_kick(env);
         return;
     }

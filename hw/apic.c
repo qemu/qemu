@@ -107,7 +107,7 @@ static void apic_sync_vapic(APICCommonState *s, int sync_type)
         length = offsetof(VAPICState, enabled) - offsetof(VAPICState, isr);
 
         if (sync_type & SYNC_TO_VAPIC) {
-            assert(qemu_cpu_is_self(&s->cpu->env));
+            assert(qemu_cpu_is_self(CPU(s->cpu)));
 
             vapic_state.tpr = s->tpr;
             vapic_state.enabled = 1;
@@ -363,10 +363,12 @@ static int apic_irq_pending(APICCommonState *s)
 /* signal the CPU if an irq is pending */
 static void apic_update_irq(APICCommonState *s)
 {
+    CPUState *cpu = CPU(s->cpu);
+
     if (!(s->spurious_vec & APIC_SV_ENABLE)) {
         return;
     }
-    if (!qemu_cpu_is_self(&s->cpu->env)) {
+    if (!qemu_cpu_is_self(cpu)) {
         cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_POLL);
     } else if (apic_irq_pending(s) > 0) {
         cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);

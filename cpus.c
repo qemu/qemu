@@ -638,9 +638,10 @@ void qemu_init_cpu_loop(void)
 
 void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     struct qemu_work_item wi;
 
-    if (qemu_cpu_is_self(env)) {
+    if (qemu_cpu_is_self(cpu)) {
         func(data);
         return;
     }
@@ -855,7 +856,7 @@ static void qemu_cpu_kick_thread(CPUArchState *env)
         exit(1);
     }
 #else /* _WIN32 */
-    if (!qemu_cpu_is_self(env)) {
+    if (!qemu_cpu_is_self(cpu)) {
         SuspendThread(cpu->hThread);
         cpu_signal(0);
         ResumeThread(cpu->hThread);
@@ -890,17 +891,14 @@ void qemu_cpu_kick_self(void)
 #endif
 }
 
-int qemu_cpu_is_self(void *_env)
+bool qemu_cpu_is_self(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
     return qemu_thread_is_self(cpu->thread);
 }
 
 static bool qemu_in_vcpu_thread(void)
 {
-    return cpu_single_env && qemu_cpu_is_self(cpu_single_env);
+    return cpu_single_env && qemu_cpu_is_self(ENV_GET_CPU(cpu_single_env));
 }
 
 void qemu_mutex_lock_iothread(void)
