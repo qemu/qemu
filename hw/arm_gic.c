@@ -37,16 +37,16 @@ do { printf("arm_gic: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 #ifdef NVIC
-static const uint8_t gic_id[] =
-{ 0x00, 0xb0, 0x1b, 0x00, 0x0d, 0xe0, 0x05, 0xb1 };
 /* The NVIC has 16 internal vectors.  However these are not exposed
    through the normal GIC interface.  */
 #define GIC_BASE_IRQ    32
 #else
-static const uint8_t gic_id[] =
-{ 0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1 };
 #define GIC_BASE_IRQ    0
 #endif
+
+static const uint8_t gic_id[] = {
+    0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1
+};
 
 #define FROM_SYSBUSGIC(type, dev) \
     DO_UPCAST(type, gic, FROM_SYSBUS(gic_state, dev))
@@ -312,7 +312,6 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     cpu = gic_get_current_cpu(s);
     cm = 1 << cpu;
     if (offset < 0x100) {
-#ifndef NVIC
         if (offset == 0)
             return s->enabled;
         if (offset == 4)
@@ -323,7 +322,6 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
             /* Interrupt Security , RAZ/WI */
             return 0;
         }
-#endif
         goto bad_reg;
     } else if (offset < 0x200) {
         /* Interrupt Set/Clear Enable.  */
@@ -385,6 +383,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
         } else {
             res = GIC_TARGET(irq);
         }
+#endif
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
         irq = (offset - 0xc00) * 2 + GIC_BASE_IRQ;
@@ -397,7 +396,6 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
             if (GIC_TEST_TRIGGER(irq + i))
                 res |= (2 << (i * 2));
         }
-#endif
     } else if (offset < 0xfe0) {
         goto bad_reg;
     } else /* offset >= 0xfe0 */ {
@@ -424,13 +422,6 @@ static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
 static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
 {
     uint32_t val;
-#ifdef NVIC
-    gic_state *s = (gic_state *)opaque;
-    uint32_t addr;
-    addr = offset;
-    if (addr < 0x100 || addr > 0xd00)
-        return nvic_readl(s, addr);
-#endif
     val = gic_dist_readw(opaque, offset);
     val |= gic_dist_readw(opaque, offset + 2) << 16;
     return val;
@@ -446,9 +437,6 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
 
     cpu = gic_get_current_cpu(s);
     if (offset < 0x100) {
-#ifdef NVIC
-        goto bad_reg;
-#else
         if (offset == 0) {
             s->enabled = (value & 1);
             DPRINTF("Distribution %sabled\n", s->enabled ? "En" : "Dis");
@@ -459,7 +447,6 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
         } else {
             goto bad_reg;
         }
-#endif
     } else if (offset < 0x180) {
         /* Interrupt Set Enable.  */
         irq = (offset - 0x100) * 8 + GIC_BASE_IRQ;
@@ -552,6 +539,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
         else if (irq < GIC_INTERNAL)
             value = ALL_CPU_MASK;
         s->irq_target[irq] = value & ALL_CPU_MASK;
+#endif
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
         irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
@@ -571,7 +559,6 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
                 GIC_CLEAR_TRIGGER(irq + i);
             }
         }
-#endif
     } else {
         /* 0xf00 is only handled for 32-bit writes.  */
         goto bad_reg;
@@ -593,14 +580,6 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
                             uint32_t value)
 {
     gic_state *s = (gic_state *)opaque;
-#ifdef NVIC
-    uint32_t addr;
-    addr = offset;
-    if (addr < 0x100 || (addr > 0xd00 && addr != 0xf00)) {
-        nvic_writel(s, addr, value);
-        return;
-    }
-#endif
     if (offset == 0xf00) {
         int cpu;
         int irq;

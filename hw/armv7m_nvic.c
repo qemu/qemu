@@ -30,8 +30,15 @@ typedef struct {
         int64_t tick;
         QEMUTimer *timer;
     } systick;
+    MemoryRegion sysregmem;
+    MemoryRegion gic_iomem_alias;
+    MemoryRegion container;
     uint32_t num_irq;
 } nvic_state;
+
+static const uint8_t nvic_id[] = {
+    0x00, 0xb0, 0x1b, 0x00, 0x0d, 0xe0, 0x05, 0xb1
+};
 
 /* qemu timers run at 1GHz.   We want something closer to 1MHz.  */
 #define SYSTICK_SCALE 1000ULL
@@ -358,11 +365,53 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
     case 0xd38: /* Bus Fault Address.  */
     case 0xd3c: /* Aux Fault Status.  */
         goto bad_reg;
+    case 0xf00: /* Software Triggered Interrupt Register */
+        if ((value & 0x1ff) < s->num_irq) {
+            gic_set_pending_private(&s->gic, 0, value & 0x1ff);
+        }
+        break;
     default:
     bad_reg:
         hw_error("NVIC: Bad write offset 0x%x\n", offset);
     }
 }
+
+static uint64_t nvic_sysreg_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
+{
+    /* At the moment we only support the ID registers for byte/word access.
+     * This is not strictly correct as a few of the other registers also
+     * allow byte access.
+     */
+    uint32_t offset = addr;
+    if (offset >= 0xfe0) {
+        if (offset & 3) {
+            return 0;
+        }
+        return nvic_id[(offset - 0xfe0) >> 2];
+    }
+    if (size == 4) {
+        return nvic_readl(opaque, offset);
+    }
+    hw_error("NVIC: Bad read of size %d at offset 0x%x\n", size, offset);
+}
+
+static void nvic_sysreg_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t value, unsigned size)
+{
+    uint32_t offset = addr;
+    if (size == 4) {
+        nvic_writel(opaque, offset, value);
+        return;
+    }
+    hw_error("NVIC: Bad write of size %d at offset 0x%x\n", size, offset);
+}
+
+static const MemoryRegionOps nvic_sysreg_ops = {
+    .read = nvic_sysreg_read,
+    .write = nvic_sysreg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
 
 static const VMStateDescription vmstate_nvic = {
     .name = "armv7m_nvic",
@@ -399,7 +448,30 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     /* The NVIC always has only one CPU */
     s->gic.num_cpu = 1;
     gic_init(&s->gic, s->num_irq);
-    memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->gic.iomem);
+    /* The NVIC and system controller register area looks like this:
+     *  0..0xff : system control registers, including systick
+     *  0x100..0xcff : GIC-like registers
+     *  0xd00..0xfff : system control registers
+     * We use overlaying to put the GIC like registers
+     * over the top of the system control register region.
+     */
+    memory_region_init(&s->container, "nvic", 0x1000);
+    /* The system register region goes at the bottom of the priority
+     * stack as it covers the whole page.
+     */
+    memory_region_init_io(&s->sysregmem, &nvic_sysreg_ops, s,
+                          "nvic_sysregs", 0x1000);
+    memory_region_add_subregion(&s->container, 0, &s->sysregmem);
+    /* Alias the GIC region so we can get only the section of it
+     * we need, and layer it on top of the system register region.
+     */
+    memory_region_init_alias(&s->gic_iomem_alias, "nvic-gic", &s->gic.iomem,
+                             0x100, 0xc00);
+    memory_region_add_subregion_overlap(&s->container, 0x100, &s->gic.iomem, 1);
+    /* Map the whole thing into system memory at the location required
+     * by the v7M architecture.
+     */
+    memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->container);
     s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
     return 0;
 }
