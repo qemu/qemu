@@ -34,10 +34,6 @@ int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
 static bool qdev_hot_removed = false;
 
-/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
-static BusState *main_system_bus;
-static void main_system_bus_create(void);
-
 /* Register a new device type.  */
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
@@ -186,14 +182,6 @@ static int qdev_reset_one(DeviceState *dev, void *opaque)
     device_reset(dev);
 
     return 0;
-}
-
-BusState *sysbus_get_default(void)
-{
-    if (!main_system_bus) {
-        main_system_bus_create();
-    }
-    return main_system_bus;
 }
 
 static int qbus_reset_one(BusState *bus, void *opaque)
@@ -415,7 +403,7 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
     if (parent) {
         QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
-    } else if (bus != main_system_bus) {
+    } else if (bus != sysbus_get_default()) {
         /* TODO: once all bus devices are qdevified,
            only reset handler for main_system_bus should be registered here. */
         qemu_register_reset(qbus_reset_all_fn, bus);
@@ -432,16 +420,6 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
     return bus;
 }
 
-static void main_system_bus_create(void)
-{
-    /* assign main_system_bus before qbus_create_inplace()
-     * in order to make "if (bus != main_system_bus)" work */
-    main_system_bus = g_malloc0(system_bus_info.size);
-    main_system_bus->qdev_allocated = 1;
-    qbus_create_inplace(main_system_bus, &system_bus_info, NULL,
-                        "main-system-bus");
-}
-
 void qbus_free(BusState *bus)
 {
     DeviceState *dev;
@@ -453,7 +431,7 @@ void qbus_free(BusState *bus)
         QLIST_REMOVE(bus, sibling);
         bus->parent->num_child_bus--;
     } else {
-        assert(bus != main_system_bus); /* main_system_bus is never freed */
+        assert(bus != sysbus_get_default()); /* main_system_bus is never freed */
         qemu_unregister_reset(qbus_reset_all_fn, bus);
     }
     g_free((void*)bus->name);

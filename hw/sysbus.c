@@ -256,6 +256,27 @@ static TypeInfo sysbus_device_type_info = {
     .class_init = sysbus_device_class_init,
 };
 
+/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
+static BusState *main_system_bus;
+
+static void main_system_bus_create(void)
+{
+    /* assign main_system_bus before qbus_create_inplace()
+     * in order to make "if (bus != sysbus_get_default())" work */
+    main_system_bus = g_malloc0(system_bus_info.size);
+    main_system_bus->qdev_allocated = 1;
+    qbus_create_inplace(main_system_bus, &system_bus_info, NULL,
+                        "main-system-bus");
+}
+
+BusState *sysbus_get_default(void)
+{
+    if (!main_system_bus) {
+        main_system_bus_create();
+    }
+    return main_system_bus;
+}
+
 static void sysbus_register_types(void)
 {
     type_register_static(&sysbus_device_type_info);
