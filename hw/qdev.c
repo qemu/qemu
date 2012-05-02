@@ -404,6 +404,7 @@ static void do_qbus_create_inplace(BusState *bus, const char *typename,
     if (parent) {
         QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
+        object_property_add_child(OBJECT(parent), bus->name, OBJECT(bus), NULL);
     } else if (bus != sysbus_get_default()) {
         /* TODO: once all bus devices are qdevified,
            only reset handler for main_system_bus should be registered here. */
@@ -656,6 +657,9 @@ static void device_initfn(Object *obj)
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
     qdev_prop_set_globals(dev);
+
+    object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
+                             (Object **)&dev->parent_bus, NULL);
 }
 
 /* Unlink device from bus and free the structure.  */

@@ -275,6 +275,9 @@ static void main_system_bus_create(void)
     qbus_create_inplace(main_system_bus, TYPE_SYSTEM_BUS, NULL,
                         "main-system-bus");
     main_system_bus->glib_allocated = true;
+    object_property_add_child(container_get(qdev_get_machine(),
+                                            "/unattached"),
+                              "sysbus", OBJECT(main_system_bus), NULL);
 }
 
 BusState *sysbus_get_default(void)
