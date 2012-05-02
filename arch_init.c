@@ -54,7 +54,6 @@ int graphic_height = 600;
 int graphic_depth = 15;
 #endif
 
-const char arch_config_name[] = CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf";
 
 #if defined(TARGET_ALPHA)
 #define QEMU_ARCH QEMU_ARCH_ALPHA
@@ -122,7 +121,7 @@ int qemu_read_default_config_files(void)
         return ret;
     }
 
-    ret = qemu_read_config_file(arch_config_name);
+    ret = qemu_read_config_file(CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf");
     if (ret < 0 && ret != -ENOENT) {
         return ret;
     }
