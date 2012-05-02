@@ -81,7 +81,7 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     if (!dev) {
         if (bus) {
             hw_error("Unknown device '%s' for bus '%s'\n", name,
-                     bus->info->name);
+                     object_get_typename(OBJECT(bus)));
         } else {
             hw_error("Unknown device '%s' for default sysbus\n", name);
         }
@@ -186,8 +186,9 @@ static int qdev_reset_one(DeviceState *dev, void *opaque)
 
 static int qbus_reset_one(BusState *bus, void *opaque)
 {
-    if (bus->info->reset) {
-        return bus->info->reset(bus);
+    BusClass *bc = BUS_GET_CLASS(bus);
+    if (bc->reset) {
+        return bc->reset(bus);
     }
     return 0;
 }
@@ -370,13 +371,13 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id)
     return NULL;
 }
 
-void qbus_create_inplace(BusState *bus, BusInfo *info,
-                         DeviceState *parent, const char *name)
+/* FIXME move this logic into instance_init */
+static void do_qbus_create_inplace(BusState *bus, const char *typename,
+                                   DeviceState *parent, const char *name)
 {
     char *buf;
     int i,len;
 
-    bus->info = info;
     bus->parent = parent;
 
     if (name) {
@@ -390,9 +391,9 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
         bus->name = buf;
     } else {
         /* no id -> use lowercase bus type for bus name */
-        len = strlen(info->name) + 16;
+        len = strlen(typename) + 16;
         buf = g_malloc(len);
-        len = snprintf(buf, len, "%s.%d", info->name,
+        len = snprintf(buf, len, "%s.%d", typename,
                        parent ? parent->num_child_bus : 0);
         for (i = 0; i < len; i++)
             buf[i] = qemu_tolower(buf[i]);
@@ -410,13 +411,20 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
     }
 }
 
-BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
+void qbus_create_inplace(BusState *bus, const char *typename,
+                         DeviceState *parent, const char *name)
+{
+    object_initialize(bus, typename);
+    do_qbus_create_inplace(bus, typename, parent, name);
+}
+
+BusState *qbus_create(const char *typename, DeviceState *parent, const char *name)
 {
     BusState *bus;
 
-    bus = g_malloc0(info->size);
-    bus->qdev_allocated = 1;
-    qbus_create_inplace(bus, info, parent, name);
+    bus = BUS(object_new(typename));
+    bus->qom_allocated = true;
+    do_qbus_create_inplace(bus, typename, parent, name);
     return bus;
 }
 
@@ -435,9 +443,25 @@ void qbus_free(BusState *bus)
         qemu_unregister_reset(qbus_reset_all_fn, bus);
     }
     g_free((void*)bus->name);
-    if (bus->qdev_allocated) {
-        g_free(bus);
+    if (bus->qom_allocated) {
+        object_delete(OBJECT(bus));
+    } else {
+        object_finalize(OBJECT(bus));
+        if (bus->glib_allocated) {
+            g_free(bus);
+        }
     }
+}
+
+static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)
+{
+    BusClass *bc = BUS_GET_CLASS(bus);
+
+    if (bc->get_fw_dev_path) {
+        return bc->get_fw_dev_path(dev);
+    }
+
+    return NULL;
 }
 
 static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
@@ -447,8 +471,8 @@ static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
     if (dev && dev->parent_bus) {
         char *d;
         l = qdev_get_fw_dev_path_helper(dev->parent_bus->parent, p, size);
-        if (dev->parent_bus->info->get_fw_dev_path) {
-            d = dev->parent_bus->info->get_fw_dev_path(dev);
+        d = bus_get_fw_dev_path(dev->parent_bus, dev);
+        if (d) {
             l += snprintf(p + l, size - l, "%s", d);
             g_free(d);
         } else {
@@ -474,15 +498,15 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
 
 char *qdev_get_dev_path(DeviceState *dev)
 {
-    BusInfo *businfo;
+    BusClass *bc;
 
     if (!dev || !dev->parent_bus) {
         return NULL;
     }
 
-    businfo = dev->parent_bus->info;
-    if (businfo->get_dev_path) {
-        return businfo->get_dev_path(dev);
+    bc = BUS_GET_CLASS(dev->parent_bus);
+    if (bc->get_dev_path) {
+        return bc->get_dev_path(dev);
     }
 
     return NULL;
@@ -700,8 +724,17 @@ static TypeInfo device_type_info = {
     .class_size = sizeof(DeviceClass),
 };
 
+static const TypeInfo bus_info = {
+    .name = TYPE_BUS,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(BusState),
+    .abstract = true,
+    .class_size = sizeof(BusClass),
+};
+
 static void qdev_register_types(void)
 {
+    type_register_static(&bus_info);
     type_register_static(&device_type_info);
 }
 

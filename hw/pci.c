@@ -55,13 +55,21 @@ static Property pci_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-struct BusInfo pci_bus_info = {
-    .name       = "PCI",
-    .size       = sizeof(PCIBus),
-    .print_dev  = pcibus_dev_print,
-    .get_dev_path = pcibus_get_dev_path,
-    .get_fw_dev_path = pcibus_get_fw_dev_path,
-    .reset      = pcibus_reset,
+static void pci_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->print_dev = pcibus_dev_print;
+    k->get_dev_path = pcibus_get_dev_path;
+    k->get_fw_dev_path = pcibus_get_fw_dev_path;
+    k->reset = pcibus_reset;
+}
+
+static const TypeInfo pci_bus_info = {
+    .name = TYPE_PCI_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(PCIBus),
+    .class_init = pci_bus_class_init,
 };
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
@@ -266,7 +274,7 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min)
 {
-    qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
+    qbus_create_inplace(&bus->qbus, TYPE_PCI_BUS, parent, name);
     assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
     bus->address_space_mem = address_space_mem;
@@ -287,7 +295,7 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
     PCIBus *bus;
 
     bus = g_malloc0(sizeof(*bus));
-    bus->qbus.qdev_allocated = 1;
+    bus->qbus.glib_allocated = true;
     pci_bus_new_inplace(bus, parent, name, address_space_mem,
                         address_space_io, devfn_min);
     return bus;
@@ -2001,7 +2009,7 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
     k->init = pci_qdev_init;
     k->unplug = pci_unplug_device;
     k->exit = pci_unregister_device;
-    k->bus_info = &pci_bus_info;
+    k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;
 }
 
@@ -2016,6 +2024,7 @@ static TypeInfo pci_device_type_info = {
 
 static void pci_register_types(void)
 {
+    type_register_static(&pci_bus_info);
     type_register_static(&pci_device_type_info);
 }
 

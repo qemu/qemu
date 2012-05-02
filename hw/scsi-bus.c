@@ -19,11 +19,19 @@ static Property scsi_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static struct BusInfo scsi_bus_info = {
-    .name  = "SCSI",
-    .size  = sizeof(SCSIBus),
-    .get_dev_path = scsibus_get_dev_path,
-    .get_fw_dev_path = scsibus_get_fw_dev_path,
+static void scsi_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->get_dev_path = scsibus_get_dev_path;
+    k->get_fw_dev_path = scsibus_get_fw_dev_path;
+}
+
+static const TypeInfo scsi_bus_info = {
+    .name = TYPE_SCSI_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(SCSIBus),
+    .class_init = scsi_bus_class_init,
 };
 static int next_scsi_bus;
 
@@ -66,7 +74,7 @@ static void scsi_device_unit_attention_reported(SCSIDevice *s)
 /* Create a scsi bus, and attach devices to it.  */
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info)
 {
-    qbus_create_inplace(&bus->qbus, &scsi_bus_info, host, NULL);
+    qbus_create_inplace(&bus->qbus, TYPE_SCSI_BUS, host, NULL);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
     bus->qbus.allow_hotplug = 1;
@@ -1594,7 +1602,7 @@ const VMStateDescription vmstate_scsi_device = {
 static void scsi_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->bus_info = &scsi_bus_info;
+    k->bus_type = TYPE_SCSI_BUS;
     k->init     = scsi_qdev_init;
     k->unplug   = qdev_simple_unplug_cb;
     k->exit     = scsi_qdev_exit;
@@ -1612,6 +1620,7 @@ static TypeInfo scsi_device_type_info = {
 
 static void scsi_register_types(void)
 {
+    type_register_static(&scsi_bus_info);
     type_register_static(&scsi_device_type_info);
 }
 

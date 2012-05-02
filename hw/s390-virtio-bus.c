@@ -45,9 +45,10 @@
 
 #define VIRTIO_EXT_CODE   0x2603
 
-struct BusInfo s390_virtio_bus_info = {
-    .name       = "s390-virtio",
-    .size       = sizeof(VirtIOS390Bus),
+static const TypeInfo s390_virtio_bus_info = {
+    .name = TYPE_S390_VIRTIO_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(VirtIOS390Bus),
 };
 
 static const VirtIOBindings virtio_s390_bindings;
@@ -92,7 +93,7 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
 
     /* Create bus on bridge device */
 
-    _bus = qbus_create(&s390_virtio_bus_info, dev, "s390-virtio");
+    _bus = qbus_create(TYPE_S390_VIRTIO_BUS, dev, "s390-virtio");
     bus = DO_UPCAST(VirtIOS390Bus, bus, _bus);
 
     bus->dev_page = *ram_size;
@@ -460,7 +461,7 @@ static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->init = s390_virtio_busdev_init;
-    dc->bus_info = &s390_virtio_bus_info;
+    dc->bus_type = TYPE_S390_VIRTIO_BUS;
     dc->unplug = qdev_simple_unplug_cb;
 }
 
@@ -521,6 +522,7 @@ static TypeInfo s390_virtio_bridge_info = {
 
 static void s390_virtio_register_types(void)
 {
+    type_register_static(&s390_virtio_bus_info);
     type_register_static(&virtio_s390_device_info);
     type_register_static(&s390_virtio_serial);
     type_register_static(&s390_virtio_blk);

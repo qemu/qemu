@@ -12,7 +12,8 @@
  * Use accessor function in pci.h, pci_bridge.h
  */
 
-extern struct BusInfo pci_bus_info;
+#define TYPE_PCI_BUS "PCI"
+#define PCI_BUS(obj) OBJECT_CHECK(PCIBus, (obj), TYPE_PCI_BUS)
 
 struct PCIBus {
     BusState qbus;

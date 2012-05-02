@@ -421,6 +421,9 @@ void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);
 
 /* usb-bus.c */
 
+#define TYPE_USB_BUS "usb-bus"
+#define USB_BUS(obj) OBJECT_CHECK(USBBus, (obj), TYPE_USB_BUS)
+
 struct USBBus {
     BusState qbus;
     USBBusOps *ops;

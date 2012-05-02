@@ -18,12 +18,20 @@ static Property usb_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static struct BusInfo usb_bus_info = {
-    .name      = "USB",
-    .size      = sizeof(USBBus),
-    .print_dev = usb_bus_dev_print,
-    .get_dev_path = usb_get_dev_path,
-    .get_fw_dev_path = usb_get_fw_dev_path,
+static void usb_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->print_dev = usb_bus_dev_print;
+    k->get_dev_path = usb_get_dev_path;
+    k->get_fw_dev_path = usb_get_fw_dev_path;
+}
+
+static const TypeInfo usb_bus_info = {
+    .name = TYPE_USB_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(USBBus),
+    .class_init = usb_bus_class_init,
 };
 
 static int next_usb_bus = 0;
@@ -47,7 +55,7 @@ const VMStateDescription vmstate_usb_device = {
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host)
 {
-    qbus_create_inplace(&bus->qbus, &usb_bus_info, host, NULL);
+    qbus_create_inplace(&bus->qbus, TYPE_USB_BUS, host, NULL);
     bus->ops = ops;
     bus->busnr = next_usb_bus++;
     bus->qbus.allow_hotplug = 1; /* Yes, we can */
@@ -577,7 +585,7 @@ USBDevice *usbdevice_create(const char *cmdline)
 static void usb_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->bus_info = &usb_bus_info;
+    k->bus_type = TYPE_USB_BUS;
     k->init     = usb_qdev_init;
     k->unplug   = qdev_simple_unplug_cb;
     k->exit     = usb_qdev_exit;
@@ -595,6 +603,7 @@ static TypeInfo usb_device_type_info = {
 
 static void usb_register_types(void)
 {
+    type_register_static(&usb_bus_info);
     type_register_static(&usb_device_type_info);
 }
 

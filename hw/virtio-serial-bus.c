@@ -734,10 +734,21 @@ static Property virtser_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static struct BusInfo virtser_bus_info = {
-    .name      = "virtio-serial-bus",
-    .size      = sizeof(VirtIOSerialBus),
-    .print_dev = virtser_bus_dev_print,
+#define TYPE_VIRTIO_SERIAL_BUS "virtio-serial-bus"
+#define VIRTIO_SERIAL_BUS(obj) \
+      OBJECT_CHECK(VirtIOSerialBus, (obj), TYPE_VIRTIO_SERIAL_BUS)
+
+static void virtser_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+    k->print_dev = virtser_bus_dev_print;
+}
+
+static const TypeInfo virtser_bus_info = {
+    .name = TYPE_VIRTIO_SERIAL_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(VirtIOSerialBus),
+    .class_init = virtser_bus_class_init,
 };
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
@@ -905,7 +916,7 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
     vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
 
     /* Spawn a new virtio-serial bus on which the ports will ride as devices */
-    qbus_create_inplace(&vser->bus.qbus, &virtser_bus_info, dev, NULL);
+    qbus_create_inplace(&vser->bus.qbus, TYPE_VIRTIO_SERIAL_BUS, dev, NULL);
     vser->bus.qbus.allow_hotplug = 1;
     vser->bus.vser = vser;
     QTAILQ_INIT(&vser->ports);
@@ -981,7 +992,7 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = virtser_port_qdev_init;
-    k->bus_info = &virtser_bus_info;
+    k->bus_type = TYPE_VIRTIO_SERIAL_BUS;
     k->exit = virtser_port_qdev_exit;
     k->unplug = qdev_simple_unplug_cb;
     k->props = virtser_props;
@@ -998,6 +1009,7 @@ static TypeInfo virtio_serial_port_type_info = {
 
 static void virtio_serial_register_types(void)
 {
+    type_register_static(&virtser_bus_info);
     type_register_static(&virtio_serial_port_type_info);
 }
 

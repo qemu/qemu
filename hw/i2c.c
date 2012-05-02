@@ -22,9 +22,13 @@ static Property i2c_props[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static struct BusInfo i2c_bus_info = {
-    .name = "I2C",
-    .size = sizeof(i2c_bus),
+#define TYPE_I2C_BUS "i2c-bus"
+#define I2C_BUS(obj) OBJECT_CHECK(i2c_bus, (obj), TYPE_I2C_BUS)
+
+static const TypeInfo i2c_bus_info = {
+    .name = TYPE_I2C_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(i2c_bus),
 };
 
 static void i2c_bus_pre_save(void *opaque)
@@ -62,7 +66,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
 {
     i2c_bus *bus;
 
-    bus = FROM_QBUS(i2c_bus, qbus_create(&i2c_bus_info, parent, name));
+    bus = FROM_QBUS(i2c_bus, qbus_create(TYPE_I2C_BUS, parent, name));
     vmstate_register(NULL, -1, &vmstate_i2c_bus, bus);
     return bus;
 }
@@ -219,7 +223,7 @@ static void i2c_slave_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = i2c_slave_qdev_init;
-    k->bus_info = &i2c_bus_info;
+    k->bus_type = TYPE_I2C_BUS;
     k->props = i2c_props;
 }
 
@@ -234,6 +238,7 @@ static TypeInfo i2c_slave_type_info = {
 
 static void i2c_slave_register_types(void)
 {
+    type_register_static(&i2c_bus_info);
     type_register_static(&i2c_slave_type_info);
 }
 

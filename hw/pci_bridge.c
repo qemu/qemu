@@ -324,7 +324,7 @@ int pci_bridge_initfn(PCIDevice *dev)
 	    br->bus_name = dev->qdev.id;
     }
 
-    qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev,
+    qbus_create_inplace(&sec_bus->qbus, TYPE_PCI_BUS, &dev->qdev,
                         br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq;

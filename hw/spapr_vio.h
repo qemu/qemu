@@ -40,6 +40,9 @@ enum VIOsPAPR_TCEAccess {
 #define VIO_SPAPR_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(VIOsPAPRDeviceClass, (obj), TYPE_VIO_SPAPR_DEVICE)
 
+#define TYPE_SPAPR_VIO_BUS "spapr-vio-bus"
+#define SPAPR_VIO_BUS(obj) OBJECT_CHECK(VIOsPAPRBus, (obj), TYPE_SPAPR_VIO_BUS)
+
 struct VIOsPAPRDevice;
 
 typedef struct VIOsPAPR_RTCE {

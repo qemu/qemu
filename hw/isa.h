@@ -19,6 +19,9 @@ typedef struct ISADevice ISADevice;
 #define ISA_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(ISADeviceClass, (obj), TYPE_ISA_DEVICE)
 
+#define TYPE_ISA_BUS "ISA"
+#define ISA_BUS(obj) OBJECT_CHECK(ISABus, (obj), TYPE_ISA_BUS)
+
 typedef struct ISADeviceClass {
     DeviceClass parent_class;
     int (*init)(ISADevice *dev);
