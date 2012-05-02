@@ -545,6 +545,19 @@ ObjectClass *object_class_by_name(const char *typename)
     return type->class;
 }
 
+ObjectClass *object_class_get_parent(ObjectClass *class)
+{
+    TypeImpl *type = type_get_parent(class->type);
+
+    if (!type) {
+        return NULL;
+    }
+
+    type_initialize(type);
+
+    return type->class;
+}
+
 typedef struct OCFData
 {
     void (*fn)(ObjectClass *klass, void *opaque);

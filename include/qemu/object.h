@@ -548,6 +548,14 @@ ObjectClass *object_class_dynamic_cast(ObjectClass *klass,
                                        const char *typename);
 
 /**
+ * object_class_get_parent:
+ * @klass: The class to obtain the parent for.
+ *
+ * Returns: The parent for @klass or %NULL if none.
+ */
+ObjectClass *object_class_get_parent(ObjectClass *klass);
+
+/**
  * object_class_get_name:
  * @klass: The class to obtain the QOM typename for.
  *
