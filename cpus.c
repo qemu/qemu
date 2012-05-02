@@ -844,9 +844,8 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     return NULL;
 }
 
-static void qemu_cpu_kick_thread(CPUArchState *env)
+static void qemu_cpu_kick_thread(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
 #ifndef _WIN32
     int err;
 
@@ -871,7 +870,7 @@ void qemu_cpu_kick(void *_env)
 
     qemu_cond_broadcast(env->halt_cond);
     if (!tcg_enabled() && !cpu->thread_kicked) {
-        qemu_cpu_kick_thread(env);
+        qemu_cpu_kick_thread(cpu);
         cpu->thread_kicked = true;
     }
 }
@@ -883,7 +882,7 @@ void qemu_cpu_kick_self(void)
     CPUState *cpu_single_cpu = ENV_GET_CPU(cpu_single_env);
 
     if (!cpu_single_cpu->thread_kicked) {
-        qemu_cpu_kick_thread(cpu_single_env);
+        qemu_cpu_kick_thread(cpu_single_cpu);
         cpu_single_cpu->thread_kicked = true;
     }
 #else
@@ -908,7 +907,7 @@ void qemu_mutex_lock_iothread(void)
     } else {
         iothread_requesting_mutex = true;
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
-            qemu_cpu_kick_thread(first_cpu);
+            qemu_cpu_kick_thread(ENV_GET_CPU(first_cpu));
             qemu_mutex_lock(&qemu_global_mutex);
         }
         iothread_requesting_mutex = false;
