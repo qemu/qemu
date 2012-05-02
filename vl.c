@@ -2358,14 +2358,8 @@ int main(int argc, char **argv, char **envp)
 
     if (defconfig) {
         int ret;
-
-        ret = qemu_read_config_file(CONFIG_QEMU_CONFDIR "/qemu.conf");
-        if (ret < 0 && ret != -ENOENT) {
-            exit(1);
-        }
-
-        ret = qemu_read_config_file(arch_config_name);
-        if (ret < 0 && ret != -ENOENT) {
+        ret = qemu_read_default_config_files();
+        if (ret < 0) {
             exit(1);
         }
     }

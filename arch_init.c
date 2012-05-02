@@ -112,6 +112,24 @@ const uint32_t arch_type = QEMU_ARCH;
 #define ALL_EQ(v1, v2) ((v1) == (v2))
 #endif
 
+
+int qemu_read_default_config_files(void)
+{
+    int ret;
+    
+    ret = qemu_read_config_file(CONFIG_QEMU_CONFDIR "/qemu.conf");
+    if (ret < 0 && ret != -ENOENT) {
+        return ret;
+    }
+
+    ret = qemu_read_config_file(arch_config_name);
+    if (ret < 0 && ret != -ENOENT) {
+        return ret;
+    }
+
+    return 0;
+}
+
 static int is_dup_page(uint8_t *page)
 {
     VECTYPE *p = (VECTYPE *)page;
