@@ -45,6 +45,7 @@ struct TypeImpl
     size_t instance_size;
 
     void (*class_init)(ObjectClass *klass, void *data);
+    void (*class_base_init)(ObjectClass *klass, void *data);
     void (*class_finalize)(ObjectClass *klass, void *data);
 
     void *class_data;
@@ -112,6 +113,7 @@ TypeImpl *type_register(const TypeInfo *info)
     ti->instance_size = info->instance_size;
 
     ti->class_init = info->class_init;
+    ti->class_base_init = info->class_base_init;
     ti->class_finalize = info->class_finalize;
     ti->class_data = info->class_data;
 
@@ -232,6 +234,13 @@ static void type_initialize(TypeImpl *ti)
         memcpy((void *)ti->class + sizeof(ObjectClass),
                (void *)parent->class + sizeof(ObjectClass),
                parent->class_size - sizeof(ObjectClass));
+
+        while (parent) {
+            if (parent->class_base_init) {
+                parent->class_base_init(ti->class, ti->class_data);
+            }
+            parent = type_get_parent(parent);
+        }
     }
 
     memset((void *)ti->class + class_size, 0, ti->class_size - class_size);
