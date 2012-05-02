@@ -430,10 +430,8 @@ void cpu_synchronize_all_post_init(void)
     }
 }
 
-int cpu_is_stopped(CPUArchState *env)
+bool cpu_is_stopped(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
-
     return !runstate_is_running() || cpu->stopped;
 }
 

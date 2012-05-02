@@ -94,5 +94,16 @@ void cpu_reset(CPUState *cpu);
  */
 bool qemu_cpu_is_self(CPUState *cpu);
 
+/**
+ * cpu_is_stopped:
+ * @cpu: The CPU to check.
+ *
+ * Checks whether the CPU is stopped.
+ *
+ * Returns: %true if run state is not running or if artificially stopped;
+ * %false otherwise.
+ */
+bool cpu_is_stopped(CPUState *cpu);
+
 
 #endif
