@@ -25,11 +25,7 @@
 /* First 32 are private to each CPU (SGIs and PPIs). */
 #define GIC_INTERNAL 32
 /* Maximum number of possible CPU interfaces, determined by GIC architecture */
-#ifdef NVIC
-#define NCPU 1
-#else
 #define NCPU 8
-#endif
 
 //#define DEBUG_GIC
 
@@ -67,11 +63,7 @@ typedef struct gic_irq_state
 } gic_irq_state;
 
 #define ALL_CPU_MASK ((unsigned)(((1 << NCPU) - 1)))
-#if NCPU > 1
 #define NUM_CPU(s) ((s)->num_cpu)
-#else
-#define NUM_CPU(s) 1
-#endif
 
 #define GIC_SET_ENABLED(irq, cm) s->irq_state[irq].enabled |= (cm)
 #define GIC_CLEAR_ENABLED(irq, cm) s->irq_state[irq].enabled &= ~(cm)
@@ -131,11 +123,9 @@ typedef struct gic_state
 
 static inline int gic_get_current_cpu(gic_state *s)
 {
-#if NCPU > 1
     if (s->num_cpu > 1) {
         return cpu_single_env->cpu_index;
     }
-#endif
     return 0;
 }
 
@@ -842,21 +832,14 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-#if NCPU > 1
-static void gic_init(gic_state *s, int num_cpu, int num_irq)
-#else
 static void gic_init(gic_state *s, int num_irq)
-#endif
 {
     int i;
 
-#if NCPU > 1
-    s->num_cpu = num_cpu;
     if (s->num_cpu > NCPU) {
         hw_error("requested %u CPUs exceeds GIC maximum %d\n",
-                 num_cpu, NCPU);
+                 s->num_cpu, NCPU);
     }
-#endif
     s->num_irq = num_irq + GIC_BASE_IRQ;
     if (s->num_irq > GIC_MAXIRQ) {
         hw_error("requested %u interrupt lines exceeds GIC maximum %d\n",
@@ -880,7 +863,7 @@ static void gic_init(gic_state *s, int num_irq)
      *  [N+32..N+63] PPIs for CPU 1
      *   ...
      */
-    i += (GIC_INTERNAL * num_cpu);
+    i += (GIC_INTERNAL * s->num_cpu);
 #endif
     qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, i);
     for (i = 0; i < NUM_CPU(s); i++) {
@@ -915,7 +898,7 @@ static int arm_gic_init(SysBusDevice *dev)
     /* Device instance init function for the GIC sysbus device */
     int i;
     gic_state *s = FROM_SYSBUS(gic_state, dev);
-    gic_init(s, s->num_cpu, s->num_irq);
+    gic_init(s, s->num_irq);
     /* Distributor */
     sysbus_init_mmio(dev, &s->iomem);
     /* cpu interfaces (one for "current cpu" plus one per cpu) */

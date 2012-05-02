@@ -389,9 +389,8 @@ static int armv7m_nvic_init(SysBusDevice *dev)
 {
     nvic_state *s= FROM_SYSBUSGIC(nvic_state, dev);
 
-   /* note that for the M profile gic_init() takes the number of external
-    * interrupt lines only.
-    */
+    /* The NVIC always has only one CPU */
+    s->gic.num_cpu = 1;
     gic_init(&s->gic, s->num_irq);
     memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->gic.iomem);
     s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
