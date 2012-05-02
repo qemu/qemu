@@ -36,13 +36,9 @@ do { printf("arm_gic: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#ifdef NVIC
 /* The NVIC has 16 internal vectors.  However these are not exposed
    through the normal GIC interface.  */
-#define GIC_BASE_IRQ    32
-#else
-#define GIC_BASE_IRQ    0
-#endif
+#define GIC_BASE_IRQ ((s->revision == REV_NVIC) ? 32 : 0)
 
 static const uint8_t gic_id[] = {
     0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1
@@ -839,7 +835,6 @@ static void gic_init(gic_state *s, int num_irq)
     }
 
     i = s->num_irq - GIC_INTERNAL;
-#ifndef NVIC
     /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
      * GPIO array layout is thus:
      *  [0..N-1] SPIs
@@ -847,8 +842,9 @@ static void gic_init(gic_state *s, int num_irq)
      *  [N+32..N+63] PPIs for CPU 1
      *   ...
      */
-    i += (GIC_INTERNAL * s->num_cpu);
-#endif
+    if (s->revision != REV_NVIC) {
+        i += (GIC_INTERNAL * s->num_cpu);
+    }
     qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, i);
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
