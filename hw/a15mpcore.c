@@ -44,6 +44,7 @@ static int a15mp_priv_init(SysBusDevice *dev)
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
+    qdev_prop_set_uint32(s->gic, "revision", 2);
     qdev_init_nofail(s->gic);
     busdev = sysbus_from_qdev(s->gic);
 

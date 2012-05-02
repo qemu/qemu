@@ -447,6 +447,8 @@ static int armv7m_nvic_init(SysBusDevice *dev)
 
     /* The NVIC always has only one CPU */
     s->gic.num_cpu = 1;
+    /* Tell the common code we're an NVIC */
+    s->gic.revision = 0xffffffff;
     gic_init(&s->gic, s->num_irq);
     /* The NVIC and system controller register area looks like this:
      *  0..0xff : system control registers, including systick

@@ -119,7 +119,12 @@ typedef struct gic_state
     struct gic_state *backref[NCPU];
     MemoryRegion cpuiomem[NCPU+1]; /* CPU interfaces */
     uint32_t num_irq;
+    uint32_t revision;
 } gic_state;
+
+/* The special cases for the revision property: */
+#define REV_11MPCORE 0
+#define REV_NVIC 0xffffffff
 
 static inline int gic_get_current_cpu(gic_state *s)
 {
@@ -880,6 +885,11 @@ static int arm_gic_init(SysBusDevice *dev)
 static Property arm_gic_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", gic_state, num_cpu, 1),
     DEFINE_PROP_UINT32("num-irq", gic_state, num_irq, 32),
+    /* Revision can be 1 or 2 for GIC architecture specification
+     * versions 1 or 2, or 0 to indicate the legacy 11MPCore GIC.
+     * (Internally, 0xffffffff also indicates "not a GIC but an NVIC".)
+     */
+    DEFINE_PROP_UINT32("revision", gic_state, revision, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
