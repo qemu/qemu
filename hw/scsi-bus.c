@@ -1270,6 +1270,7 @@ SCSIRequest *scsi_req_ref(SCSIRequest *req)
 
 void scsi_req_unref(SCSIRequest *req)
 {
+    assert(req->refcount > 0);
     if (--req->refcount == 0) {
         if (req->ops->free_req) {
             req->ops->free_req(req);
