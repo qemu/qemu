@@ -754,6 +754,7 @@ static TypeInfo ram_info = {
 
 static CPUSPARCState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 {
+    SPARCCPU *cpu;
     CPUSPARCState *env;
     ResetData *reset_info;
 
@@ -761,13 +762,15 @@ static CPUSPARCState *cpu_devinit(const char *cpu_model, const struct hwdef *hwd
     uint32_t  stick_frequency = 100*1000000;
     uint32_t hstick_frequency = 100*1000000;
 
-    if (!cpu_model)
+    if (cpu_model == NULL) {
         cpu_model = hwdef->default_cpu_model;
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_sparc_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
     env->tick = cpu_timer_create("tick", env, tick_irq,
                                   tick_frequency, TICK_NPT_MASK);
