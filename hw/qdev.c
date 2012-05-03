@@ -150,6 +150,7 @@ int qdev_init(DeviceState *dev)
 
     rc = dc->init(dev);
     if (rc < 0) {
+        object_unparent(OBJECT(dev));
         qdev_free(dev);
         return rc;
     }
