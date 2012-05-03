@@ -69,6 +69,7 @@ struct CPUState {
 #ifdef _WIN32
     HANDLE hThread;
 #endif
+    int thread_id;
     struct QemuCond *halt_cond;
     struct qemu_work_item *queued_work_first, *queued_work_last;
     bool thread_kicked;
