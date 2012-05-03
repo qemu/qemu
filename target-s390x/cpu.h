@@ -316,7 +316,7 @@ static inline void kvm_s390_interrupt_internal(CPUS390XState *env, int type,
 {
 }
 #endif
-CPUS390XState *s390_cpu_addr2state(uint16_t cpu_addr);
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 void s390_add_running_cpu(CPUS390XState *env);
 unsigned s390_del_running_cpu(CPUS390XState *env);
 

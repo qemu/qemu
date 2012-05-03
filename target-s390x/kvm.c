@@ -333,6 +333,7 @@ static int handle_sigp(CPUS390XState *env, struct kvm_run *run, uint8_t ipa1)
     uint16_t cpu_addr;
     uint8_t t;
     int r = -1;
+    S390CPU *target_cpu;
     CPUS390XState *target_env;
 
     cpu_synchronize_state(env);
@@ -353,10 +354,11 @@ static int handle_sigp(CPUS390XState *env, struct kvm_run *run, uint8_t ipa1)
     parameter = env->regs[t] & 0x7ffffe00;
     cpu_addr = env->regs[ipa1 & 0x0f];
 
-    target_env = s390_cpu_addr2state(cpu_addr);
-    if (!target_env) {
+    target_cpu = s390_cpu_addr2state(cpu_addr);
+    if (target_cpu == NULL) {
         goto out;
     }
+    target_env = &target_cpu->env;
 
     switch (order_code) {
         case SIGP_RESTART:
