@@ -209,9 +209,11 @@ static void s390_init(ram_addr_t my_ram_size,
     ipi_states = g_malloc(sizeof(CPUS390XState *) * smp_cpus);
 
     for (i = 0; i < smp_cpus; i++) {
+        S390CPU *cpu;
         CPUS390XState *tmp_env;
 
-        tmp_env = cpu_init(cpu_model);
+        cpu = cpu_s390x_init(cpu_model);
+        tmp_env = &cpu->env;
         if (!env) {
             env = tmp_env;
         }
