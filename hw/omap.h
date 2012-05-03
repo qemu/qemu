@@ -804,7 +804,7 @@ struct omap_mpu_state_s {
         omap3630,
     } mpu_model;
 
-    CPUARMState *env;
+    ARMCPU *cpu;
 
     qemu_irq *drq;
 

@@ -2222,7 +2222,7 @@ static void omap2_mpu_reset(void *opaque)
     omap_mmc_reset(mpu->mmc);
     omap_mcspi_reset(mpu->mcspi[0]);
     omap_mcspi_reset(mpu->mcspi[1]);
-    cpu_state_reset(mpu->env);
+    cpu_reset(CPU(mpu->cpu));
 }
 
 static int omap2_validate_addr(struct omap_mpu_state_s *s,
@@ -2253,8 +2253,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
 
     /* Core */
     s->mpu_model = omap2420;
-    s->env = cpu_init(core ?: "arm1136-r2");
-    if (!s->env) {
+    s->cpu = cpu_arm_init(core ?: "arm1136-r2");
+    if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
@@ -2277,7 +2277,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     s->l4 = omap_l4_init(sysmem, OMAP2_L4_BASE, 54);
 
     /* Actually mapped at any 2K boundary in the ARM11 private-peripheral if */
-    cpu_irq = arm_pic_init_cpu(s->env);
+    cpu_irq = arm_pic_init_cpu(&s->cpu->env);
     s->ih[0] = qdev_create(NULL, "omap2-intc");
     qdev_prop_set_uint8(s->ih[0], "revision", 0x21);
     qdev_prop_set_ptr(s->ih[0], "fclk", omap_findclk(s, "mpu_intc_fclk"));
