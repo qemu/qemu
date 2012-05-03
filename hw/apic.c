@@ -487,7 +487,7 @@ void apic_sipi(DeviceState *d)
 
     if (!s->wait_for_sipi)
         return;
-    cpu_x86_load_seg_cache_sipi(&s->cpu->env, s->sipi_vector);
+    cpu_x86_load_seg_cache_sipi(s->cpu, s->sipi_vector);
     s->wait_for_sipi = 0;
 }
 

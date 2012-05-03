@@ -907,9 +907,11 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     }
 }
 
-static inline void cpu_x86_load_seg_cache_sipi(CPUX86State *env,
+static inline void cpu_x86_load_seg_cache_sipi(X86CPU *cpu,
                                                int sipi_vector)
 {
+    CPUX86State *env = &cpu->env;
+
     env->eip = 0;
     cpu_x86_load_seg_cache(env, R_CS, sipi_vector << 8,
                            sipi_vector << 12,
