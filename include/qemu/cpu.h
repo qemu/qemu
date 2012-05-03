@@ -70,6 +70,7 @@ struct CPUState {
     HANDLE hThread;
 #endif
     struct QemuCond *halt_cond;
+    struct qemu_work_item *queued_work_first, *queued_work_last;
     bool thread_kicked;
     bool created;
     bool stop;

@@ -66,7 +66,7 @@ static bool cpu_thread_is_idle(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
 
-    if (cpu->stop || env->queued_work_first) {
+    if (cpu->stop || cpu->queued_work_first) {
         return false;
     }
     if (cpu->stopped || !runstate_is_running()) {
@@ -652,12 +652,12 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
 
     wi.func = func;
     wi.data = data;
-    if (!env->queued_work_first) {
-        env->queued_work_first = &wi;
+    if (cpu->queued_work_first == NULL) {
+        cpu->queued_work_first = &wi;
     } else {
-        env->queued_work_last->next = &wi;
+        cpu->queued_work_last->next = &wi;
     }
-    env->queued_work_last = &wi;
+    cpu->queued_work_last = &wi;
     wi.next = NULL;
     wi.done = false;
 
@@ -672,18 +672,19 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
 
 static void flush_queued_work(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     struct qemu_work_item *wi;
 
-    if (!env->queued_work_first) {
+    if (cpu->queued_work_first == NULL) {
         return;
     }
 
-    while ((wi = env->queued_work_first)) {
-        env->queued_work_first = wi->next;
+    while ((wi = cpu->queued_work_first)) {
+        cpu->queued_work_first = wi->next;
         wi->func(wi->data);
         wi->done = true;
     }
-    env->queued_work_last = NULL;
+    cpu->queued_work_last = NULL;
     qemu_cond_broadcast(&qemu_work_cond);
 }
 
