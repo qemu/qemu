@@ -33,7 +33,7 @@
 /*****************************************************************************/
 /* PowerPC Hypercall emulation */
 
-void (*cpu_ppc_hypercall)(CPUPPCState *);
+void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
 /*****************************************************************************/
 /* Exception processing */
@@ -239,7 +239,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         dump_syscall(env);
         lev = env->error_code;
         if ((lev == 1) && cpu_ppc_hypercall) {
-            cpu_ppc_hypercall(env);
+            cpu_ppc_hypercall(cpu);
             return;
         }
         if (lev == 1 || (lpes0 == 0 && lpes1 == 0)) {
