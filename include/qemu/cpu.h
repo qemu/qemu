@@ -125,5 +125,15 @@ void qemu_cpu_kick(CPUState *cpu);
  */
 bool cpu_is_stopped(CPUState *cpu);
 
+/**
+ * run_on_cpu:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ *
+ * Schedules the function @func for execution on the vCPU @cpu.
+ */
+void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
+
 
 #endif

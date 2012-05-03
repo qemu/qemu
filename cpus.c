@@ -640,9 +640,8 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
-void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
+void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     struct qemu_work_item wi;
 
     if (qemu_cpu_is_self(cpu)) {

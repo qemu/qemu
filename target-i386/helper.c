@@ -1177,7 +1177,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
         return;
     }
 
-    run_on_cpu(cenv, do_inject_x86_mce, &params);
+    run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
     if (flags & MCE_INJECT_BROADCAST) {
         params.bank = 1;
         params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
@@ -1189,7 +1189,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
                 continue;
             }
             params.env = env;
-            run_on_cpu(cenv, do_inject_x86_mce, &params);
+            run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
         }
     }
 }
