@@ -254,12 +254,15 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
+        PowerPCCPU *cpu;
         qemu_irq *input;
-        env = cpu_ppc_init(cpu_model);
-        if (!env) {
+
+        cpu = cpu_ppc_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to initialize CPU!\n");
             exit(1);
         }
+        env = &cpu->env;
 
         if (!firstenv) {
             firstenv = env;

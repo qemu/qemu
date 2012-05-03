@@ -1099,7 +1099,7 @@ struct mmu_ctx_t {
 #include "cpu-qom.h"
 
 /*****************************************************************************/
-CPUPPCState *cpu_ppc_init (const char *cpu_model);
+PowerPCCPU *cpu_ppc_init(const char *cpu_model);
 void ppc_translate_init(void);
 int cpu_ppc_exec (CPUPPCState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
@@ -1214,7 +1214,15 @@ static inline uint64_t ppc_dump_gpr(CPUPPCState *env, int gprn)
 int ppc_dcr_read (ppc_dcr_t *dcr_env, int dcrn, uint32_t *valp);
 int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 
-#define cpu_init cpu_ppc_init
+static inline CPUPPCState *cpu_init(const char *cpu_model)
+{
+    PowerPCCPU *cpu = cpu_ppc_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_ppc_exec
 #define cpu_gen_code cpu_ppc_gen_code
 #define cpu_signal_handler cpu_ppc_signal_handler
