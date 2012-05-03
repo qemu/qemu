@@ -649,7 +649,7 @@ void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
     trace_scsi_req_build_sense(req->dev->id, req->lun, req->tag,
                                sense.key, sense.asc, sense.ascq);
     memset(req->sense, 0, 18);
-    req->sense[0] = 0xf0;
+    req->sense[0] = 0x70;
     req->sense[2] = sense.key;
     req->sense[7] = 10;
     req->sense[12] = sense.asc;
@@ -1148,7 +1148,7 @@ int scsi_build_sense(uint8_t *in_buf, int in_len,
     memset(buf, 0, len);
     if (fixed) {
         /* Return fixed format sense buffer */
-        buf[0] = 0xf0;
+        buf[0] = 0x70;
         buf[2] = sense.key;
         buf[7] = 10;
         buf[12] = sense.asc;
