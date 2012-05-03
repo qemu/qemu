@@ -34,7 +34,7 @@
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    CPUARMState *cpu_env;
+    ARMCPU *cpu;
     uint32_t int_enabled[2];
     uint32_t int_pending[2];
     uint32_t is_fiq[2];
@@ -47,25 +47,28 @@ static void pxa2xx_pic_update(void *opaque)
     uint32_t mask[2];
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
 
-    if (s->cpu_env->halted) {
+    if (s->cpu->env.halted) {
         mask[0] = s->int_pending[0] & (s->int_enabled[0] | s->int_idle);
         mask[1] = s->int_pending[1] & (s->int_enabled[1] | s->int_idle);
-        if (mask[0] || mask[1])
-            cpu_interrupt(s->cpu_env, CPU_INTERRUPT_EXITTB);
+        if (mask[0] || mask[1]) {
+            cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_EXITTB);
+        }
     }
 
     mask[0] = s->int_pending[0] & s->int_enabled[0];
     mask[1] = s->int_pending[1] & s->int_enabled[1];
 
-    if ((mask[0] & s->is_fiq[0]) || (mask[1] & s->is_fiq[1]))
-        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_FIQ);
-    else
-        cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_FIQ);
+    if ((mask[0] & s->is_fiq[0]) || (mask[1] & s->is_fiq[1])) {
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
+    } else {
+        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
+    }
 
-    if ((mask[0] & ~s->is_fiq[0]) || (mask[1] & ~s->is_fiq[1]))
-        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
-    else
-        cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
+    if ((mask[0] & ~s->is_fiq[0]) || (mask[1] & ~s->is_fiq[1])) {
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
+    }
 }
 
 /* Note: Here level means state of the signal on a pin, not
@@ -251,7 +254,7 @@ DeviceState *pxa2xx_pic_init(target_phys_addr_t base, ARMCPU *cpu)
     DeviceState *dev = qdev_create(NULL, "pxa2xx_pic");
     PXA2xxPICState *s = FROM_SYSBUS(PXA2xxPICState, sysbus_from_qdev(dev));
 
-    s->cpu_env = env;
+    s->cpu = cpu;
 
     s->int_pending[0] = 0;
     s->int_pending[1] = 0;
