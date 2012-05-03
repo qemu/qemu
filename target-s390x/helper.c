@@ -70,7 +70,7 @@ void s390x_cpu_timer(void *opaque)
 }
 #endif
 
-CPUS390XState *cpu_s390x_init(const char *cpu_model)
+S390CPU *cpu_s390x_init(const char *cpu_model)
 {
     S390CPU *cpu;
     CPUS390XState *env;
@@ -86,7 +86,7 @@ CPUS390XState *cpu_s390x_init(const char *cpu_model)
 
     env->cpu_model_str = cpu_model;
     qemu_init_vcpu(env);
-    return env;
+    return cpu;
 }
 
 #if defined(CONFIG_USER_ONLY)

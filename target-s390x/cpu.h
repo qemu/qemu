@@ -105,6 +105,8 @@ typedef struct CPUS390XState {
     QEMUTimer *cpu_timer;
 } CPUS390XState;
 
+#include "cpu-qom.h"
+
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUS390XState *env, target_ulong newsp)
 {
@@ -271,7 +273,7 @@ static inline int get_ilc(uint8_t opc)
 #define ILC_LATER_INC_2 0x22
 
 
-CPUS390XState *cpu_s390x_init(const char *cpu_model);
+S390CPU *cpu_s390x_init(const char *cpu_model);
 void s390x_translate_init(void);
 int cpu_s390x_exec(CPUS390XState *s);
 void cpu_s390x_close(CPUS390XState *s);
@@ -340,7 +342,7 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
     env->aregs[1] = newtls & 0xffffffffULL;
 }
 
-#define cpu_init cpu_s390x_init
+#define cpu_init(model) (&cpu_s390x_init(model)->env)
 #define cpu_exec cpu_s390x_exec
 #define cpu_gen_code cpu_s390x_gen_code
 #define cpu_signal_handler cpu_s390x_signal_handler
@@ -993,7 +995,5 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 {
     env->psw.addr = tb->pc;
 }
-
-#include "cpu-qom.h"
 
 #endif
