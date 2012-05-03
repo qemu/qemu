@@ -342,7 +342,7 @@ static void cpu_set_ivec_irq(void *opaque, int irq, int level)
 }
 
 typedef struct ResetData {
-    CPUSPARCState *env;
+    SPARCCPU *cpu;
     uint64_t prom_addr;
 } ResetData;
 
@@ -395,10 +395,10 @@ static void cpu_timer_reset(CPUTimer *timer)
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
-    CPUSPARCState *env = s->env;
+    CPUSPARCState *env = &s->cpu->env;
     static unsigned int nr_resets;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(s->cpu));
 
     cpu_timer_reset(env->tick);
     cpu_timer_reset(env->stick);
@@ -782,7 +782,7 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
                                     hstick_frequency, TICK_INT_DIS);
 
     reset_info = g_malloc0(sizeof(ResetData));
-    reset_info->env = env;
+    reset_info->cpu = cpu;
     reset_info->prom_addr = hwdef->prom_addr;
     qemu_register_reset(main_cpu_reset, reset_info);
 
