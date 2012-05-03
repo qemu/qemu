@@ -670,9 +670,8 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
     }
 }
 
-static void flush_queued_work(CPUArchState *env)
+static void flush_queued_work(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     struct qemu_work_item *wi;
 
     if (cpu->queued_work_first == NULL) {
@@ -697,7 +696,7 @@ static void qemu_wait_io_event_common(CPUArchState *env)
         cpu->stopped = true;
         qemu_cond_signal(&qemu_pause_cond);
     }
-    flush_queued_work(env);
+    flush_queued_work(cpu);
     cpu->thread_kicked = false;
 }
 
