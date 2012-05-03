@@ -87,6 +87,16 @@ struct CPUState {
 void cpu_reset(CPUState *cpu);
 
 /**
+ * qemu_cpu_has_work:
+ * @cpu: The vCPU to check.
+ *
+ * Checks whether the CPU has work to do.
+ *
+ * Returns: %true if the CPU has work, %false otherwise.
+ */
+bool qemu_cpu_has_work(CPUState *cpu);
+
+/**
  * qemu_cpu_is_self:
  * @cpu: The vCPU to check against.
  *

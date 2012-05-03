@@ -977,8 +977,10 @@ static inline void cpu_inject_ext(CPUS390XState *env, uint32_t code, uint32_t pa
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-static inline bool cpu_has_work(CPUS390XState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUS390XState *env = &S390_CPU(cpu)->env;
+
     return (env->interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->psw.mask & PSW_MASK_EXT);
 }

@@ -131,7 +131,7 @@ static void xtensa_ccompare_cb(void *opaque)
     if (env->halted) {
         env->halt_clock = qemu_get_clock_ns(vm_clock);
         xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
-        if (!cpu_has_work(env)) {
+        if (!cpu_has_work(CPU(cpu))) {
             env->sregs[CCOUNT] = env->wake_ccount + 1;
             xtensa_rearm_ccompare_timer(env);
         }

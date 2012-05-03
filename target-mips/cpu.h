@@ -706,16 +706,17 @@ static inline int mips_vpe_active(CPUMIPSState *env)
     return active;
 }
 
-static inline int cpu_has_work(CPUMIPSState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
-    int has_work = 0;
+    CPUMIPSState *env = &MIPS_CPU(cpu)->env;
+    bool has_work = false;
 
     /* It is implementation dependent if non-enabled interrupts
        wake-up the CPU, however most of the implementations only
        check for interrupts that can be taken. */
     if ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
-        has_work = 1;
+        has_work = true;
     }
 
     /* MIPS-MT has the ability to halt the CPU.  */
@@ -723,11 +724,11 @@ static inline int cpu_has_work(CPUMIPSState *env)
         /* The QEMU model will issue an _WAKE request whenever the CPUs
            should be woken up.  */
         if (env->interrupt_request & CPU_INTERRUPT_WAKE) {
-            has_work = 1;
+            has_work = true;
         }
 
         if (!mips_vpe_active(env)) {
-            has_work = 0;
+            has_work = false;
         }
     }
     return has_work;

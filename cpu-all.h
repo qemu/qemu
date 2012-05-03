@@ -438,8 +438,6 @@ void cpu_reset_interrupt(CPUArchState *env, int mask);
 
 void cpu_exit(CPUArchState *s);
 
-bool qemu_cpu_has_work(CPUArchState *env);
-
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01
 #define BP_MEM_WRITE          0x02
