@@ -269,24 +269,24 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
         case 1:
             /* Idle */
             if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) {	/* CPDIS */
-                cpu_interrupt(s->env, CPU_INTERRUPT_HALT);
+                cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
                 break;
             }
             /* Fall through.  */
 
         case 2:
             /* Deep-Idle */
-            cpu_interrupt(s->env, CPU_INTERRUPT_HALT);
+            cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
             s->pm_regs[RCSR >> 2] |= 0x8;	/* Set GPR */
             goto message;
 
         case 3:
-            s->env->uncached_cpsr =
+            s->cpu->env.uncached_cpsr =
                     ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
-            s->env->cp15.c1_sys = 0;
-            s->env->cp15.c1_coproc = 0;
-            s->env->cp15.c2_base0 = 0;
-            s->env->cp15.c3 = 0;
+            s->cpu->env.cp15.c1_sys = 0;
+            s->cpu->env.cp15.c1_coproc = 0;
+            s->cpu->env.cp15.c2_base0 = 0;
+            s->cpu->env.cp15.c3 = 0;
             s->pm_regs[PSSR >> 2] |= 0x8;	/* Set STS */
             s->pm_regs[RCSR >> 2] |= 0x8;	/* Set GPR */
 
@@ -296,8 +296,8 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
              * lack of a resuming bootloader, perform a jump
              * directly to that address.
              */
-            memset(s->env->regs, 0, 4 * 15);
-            s->env->regs[15] = s->pm_regs[PSPR >> 2];
+            memset(s->cpu->env.regs, 0, 4 * 15);
+            s->cpu->env.regs[15] = s->pm_regs[PSPR >> 2];
 
 #if 0
             buffer = 0xe59ff000;	/* ldr     pc, [pc, #0] */
@@ -2044,7 +2044,7 @@ static void pxa2xx_reset(void *opaque, int line, int level)
     PXA2xxState *s = (PXA2xxState *) opaque;
 
     if (level && (s->pm_regs[PCFR >> 2] & 0x10)) {	/* GPR_EN */
-        cpu_state_reset(s->env);
+        cpu_reset(CPU(s->cpu));
         /* TODO: reset peripherals */
     }
 }
@@ -2065,8 +2065,8 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     if (!revision)
         revision = "pxa270";
     
-    s->env = cpu_init(revision);
-    if (!s->env) {
+    s->cpu = cpu_arm_init(revision);
+    if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
@@ -2081,7 +2081,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, PXA2XX_INTERNAL_BASE,
                                 &s->internal);
 
-    s->pic = pxa2xx_pic_init(0x40d00000, s->env);
+    s->pic = pxa2xx_pic_init(0x40d00000, &s->cpu->env);
 
     s->dma = pxa27x_dma_init(0x40000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_DMA));
@@ -2094,7 +2094,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                     qdev_get_gpio_in(s->pic, PXA27X_PIC_OST_4_11),
                     NULL);
 
-    s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 121);
+    s->gpio = pxa2xx_gpio_init(0x40e00000, &s->cpu->env, s->pic, 121);
 
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
@@ -2133,7 +2133,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
-    cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
+    cpu_arm_set_cp_io(&s->cpu->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
     s->mm_base = 0x48000000;
     s->mm_regs[MDMRS >> 2] = 0x00020002;
@@ -2196,8 +2196,8 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 
     s = (PXA2xxState *) g_malloc0(sizeof(PXA2xxState));
 
-    s->env = cpu_init("pxa255");
-    if (!s->env) {
+    s->cpu = cpu_arm_init("pxa255");
+    if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
@@ -2213,7 +2213,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     memory_region_add_subregion(address_space, PXA2XX_INTERNAL_BASE,
                                 &s->internal);
 
-    s->pic = pxa2xx_pic_init(0x40d00000, s->env);
+    s->pic = pxa2xx_pic_init(0x40d00000, &s->cpu->env);
 
     s->dma = pxa255_dma_init(0x40000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_DMA));
@@ -2225,7 +2225,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_OST_0 + 3),
                     NULL);
 
-    s->gpio = pxa2xx_gpio_init(0x40e00000, s->env, s->pic, 85);
+    s->gpio = pxa2xx_gpio_init(0x40e00000, &s->cpu->env, s->pic, 85);
 
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
@@ -2264,7 +2264,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
-    cpu_arm_set_cp_io(s->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
+    cpu_arm_set_cp_io(&s->cpu->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
 
     s->mm_base = 0x48000000;
     s->mm_regs[MDMRS >> 2] = 0x00020002;

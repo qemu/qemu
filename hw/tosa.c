@@ -242,7 +242,7 @@ static void tosa_init(ram_addr_t ram_size,
     tosa_binfo.kernel_cmdline = kernel_cmdline;
     tosa_binfo.initrd_filename = initrd_filename;
     tosa_binfo.board_id = 0x208;
-    arm_load_kernel(cpu->env, &tosa_binfo);
+    arm_load_kernel(&cpu->cpu->env, &tosa_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
