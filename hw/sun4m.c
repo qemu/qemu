@@ -281,17 +281,19 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     env->halted = 0;
 }
 
 static void secondary_cpu_reset(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     env->halted = 1;
 }
 
@@ -821,9 +823,9 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
 
     cpu_sparc_set_id(env, id);
     if (id == 0) {
-        qemu_register_reset(main_cpu_reset, env);
+        qemu_register_reset(main_cpu_reset, cpu);
     } else {
-        qemu_register_reset(secondary_cpu_reset, env);
+        qemu_register_reset(secondary_cpu_reset, cpu);
         env->halted = 1;
     }
     *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
