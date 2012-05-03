@@ -292,8 +292,10 @@ static int handle_diag(CPUS390XState *env, struct kvm_run *run, int ipb_code)
     return r;
 }
 
-static int s390_cpu_restart(CPUS390XState *env)
+static int s390_cpu_restart(S390CPU *cpu)
 {
+    CPUS390XState *env = &cpu->env;
+
     kvm_s390_interrupt(env, KVM_S390_RESTART, 0);
     s390_add_running_cpu(env);
     qemu_cpu_kick(env);
@@ -362,7 +364,7 @@ static int handle_sigp(CPUS390XState *env, struct kvm_run *run, uint8_t ipa1)
 
     switch (order_code) {
         case SIGP_RESTART:
-            r = s390_cpu_restart(target_env);
+            r = s390_cpu_restart(target_cpu);
             break;
         case SIGP_STORE_STATUS_ADDR:
             r = s390_store_status(target_env, parameter);
