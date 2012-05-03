@@ -833,7 +833,7 @@ static void kvm_handle_interrupt(CPUArchState *env, int mask)
     env->interrupt_request |= mask;
 
     if (!qemu_cpu_is_self(cpu)) {
-        qemu_cpu_kick(env);
+        qemu_cpu_kick(cpu);
     }
 }
 

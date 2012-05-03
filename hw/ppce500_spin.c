@@ -115,7 +115,7 @@ static void spin_kick(void *data)
     env->halted = 0;
     env->exception_index = -1;
     cpu->stopped = false;
-    qemu_cpu_kick(env);
+    qemu_cpu_kick(cpu);
 }
 
 static void spin_write(void *opaque, hwaddr addr, uint64_t value,

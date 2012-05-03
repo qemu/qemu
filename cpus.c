@@ -661,7 +661,7 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data)
     wi.next = NULL;
     wi.done = false;
 
-    qemu_cpu_kick(env);
+    qemu_cpu_kick(cpu);
     while (!wi.done) {
         CPUArchState *self_env = cpu_single_env;
 
@@ -870,11 +870,8 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
 #endif
 }
 
-void qemu_cpu_kick(void *_env)
+void qemu_cpu_kick(CPUState *cpu)
 {
-    CPUArchState *env = _env;
-    CPUState *cpu = ENV_GET_CPU(env);
-
     qemu_cond_broadcast(cpu->halt_cond);
     if (!tcg_enabled() && !cpu->thread_kicked) {
         qemu_cpu_kick_thread(cpu);
@@ -950,7 +947,7 @@ void pause_all_vcpus(void)
     while (penv) {
         CPUState *pcpu = ENV_GET_CPU(penv);
         pcpu->stop = true;
-        qemu_cpu_kick(penv);
+        qemu_cpu_kick(pcpu);
         penv = penv->next_cpu;
     }
 
@@ -971,7 +968,7 @@ void pause_all_vcpus(void)
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         penv = first_cpu;
         while (penv) {
-            qemu_cpu_kick(penv);
+            qemu_cpu_kick(ENV_GET_CPU(penv));
             penv = penv->next_cpu;
         }
     }
@@ -986,7 +983,7 @@ void resume_all_vcpus(void)
         CPUState *pcpu = ENV_GET_CPU(penv);
         pcpu->stop = false;
         pcpu->stopped = false;
-        qemu_cpu_kick(penv);
+        qemu_cpu_kick(pcpu);
         penv = penv->next_cpu;
     }
 }

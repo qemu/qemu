@@ -76,9 +76,8 @@ static QEMUTimer *idle_timer;
 static void kvm_kick_cpu(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
-    CPUPPCState *env = &cpu->env;
 
-    qemu_cpu_kick(env);
+    qemu_cpu_kick(CPU(cpu));
 }
 
 int kvm_arch_init(KVMState *s)

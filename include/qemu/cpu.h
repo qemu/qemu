@@ -96,6 +96,14 @@ void cpu_reset(CPUState *cpu);
 bool qemu_cpu_is_self(CPUState *cpu);
 
 /**
+ * qemu_cpu_kick:
+ * @cpu: The vCPU to kick.
+ *
+ * Kicks @cpu's thread.
+ */
+void qemu_cpu_kick(CPUState *cpu);
+
+/**
  * cpu_is_stopped:
  * @cpu: The CPU to check.
  *
