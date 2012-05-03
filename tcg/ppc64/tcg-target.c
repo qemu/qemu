@@ -674,12 +674,12 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
-    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
-                tcg_target_call_iarg_regs[1]);
-    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                tcg_target_call_iarg_regs[0]);
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                TCG_AREG0);
+    tcg_out_mov (s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+                 tcg_target_call_iarg_regs[1]);
+    tcg_out_mov (s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                 tcg_target_call_iarg_regs[0]);
+    tcg_out_mov (s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                 TCG_AREG0);
 #endif
     tcg_out_call (s, (tcg_target_long) qemu_ld_helpers[s_bits], 1);
 
@@ -831,14 +831,14 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
-    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
-                tcg_target_call_iarg_regs[2]);
-    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
-                tcg_target_call_iarg_regs[1]);
-    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                tcg_target_call_iarg_regs[0]);
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                TCG_AREG0);
+    tcg_out_mov (s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                 tcg_target_call_iarg_regs[2]);
+    tcg_out_mov (s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                 tcg_target_call_iarg_regs[1]);
+    tcg_out_mov (s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                 tcg_target_call_iarg_regs[0]);
+    tcg_out_mov (s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                 TCG_AREG0);
 #endif
     tcg_out_call (s, (tcg_target_long) qemu_st_helpers[opc], 1);
 
@@ -926,9 +926,9 @@ static void tcg_target_qemu_prologue (TCGContext *s)
         ;
     frame_size = (frame_size + 15) & ~15;
 
-    tcg_set_frame(s, TCG_REG_CALL_STACK, frame_size
-                  - CPU_TEMP_BUF_NLONGS * sizeof(long),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
+    tcg_set_frame (s, TCG_REG_CALL_STACK, frame_size
+                   - CPU_TEMP_BUF_NLONGS * sizeof (long),
+                   CPU_TEMP_BUF_NLONGS * sizeof (long));
 
 #ifndef __APPLE__
     /* First emit adhoc function descriptor */
@@ -952,7 +952,7 @@ static void tcg_target_qemu_prologue (TCGContext *s)
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE) {
         tcg_out_movi (s, TCG_TYPE_I64, TCG_GUEST_BASE_REG, GUEST_BASE);
-        tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
+        tcg_regset_set_reg (s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif
 

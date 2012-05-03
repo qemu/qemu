@@ -759,7 +759,7 @@ out:
  * restarted, but the whole request should not be failed.
  */
 static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, unsigned int *nb_clusters, uint64_t *l2_table)
+    uint64_t *host_offset, unsigned int *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     int64_t cluster_offset;
@@ -853,6 +853,7 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
                                       n_start, n_end);
 
     /* Find L2 entry for the first involved cluster */
+again:
     ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
     if (ret < 0) {
         return ret;
@@ -862,7 +863,6 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
      * Calculate the number of clusters to look for. We stop at L2 table
      * boundaries to keep things simple.
      */
-again:
     nb_clusters = MIN(size_to_clusters(s, n_end << BDRV_SECTOR_BITS),
                       s->l2_size - l2_index);
 
@@ -896,6 +896,18 @@ again:
 
     cluster_offset &= L2E_OFFSET_MASK;
 
+    /*
+     * The L2 table isn't used any more after this. As long as the cache works
+     * synchronously, it's important to release it before calling
+     * do_alloc_cluster_offset, which may yield if we need to wait for another
+     * request to complete. If we still had the reference, we could use up the
+     * whole cache with sleeping requests.
+     */
+    ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    if (ret < 0) {
+        return ret;
+    }
+
     /* If there is something left to allocate, do that now */
     *m = (QCowL2Meta) {
         .cluster_offset     = cluster_offset,
@@ -919,7 +931,7 @@ again:
 
         /* Allocate, if necessary at a given offset in the image file */
         ret = do_alloc_cluster_offset(bs, alloc_offset, &alloc_cluster_offset,
-                                      &nb_clusters, l2_table);
+                                      &nb_clusters);
         if (ret == -EAGAIN) {
             goto again;
         } else if (ret < 0) {
@@ -947,11 +959,6 @@ again:
     }
 
     /* Some cleanup work */
-    ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
-    if (ret < 0) {
-        goto fail_put;
-    }
-
     sectors = (keep_clusters + nb_clusters) << (s->cluster_bits - 9);
     if (sectors > n_end) {
         sectors = n_end;
@@ -963,8 +970,6 @@ again:
     return 0;
 
 fail:
-    qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
-fail_put:
     if (m->nb_clusters > 0) {
         QLIST_REMOVE(m, next_in_flight);
     }
