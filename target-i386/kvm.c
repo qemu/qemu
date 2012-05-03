@@ -243,7 +243,7 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
         status |= 0xc0;
         mcg_status |= MCG_STATUS_RIPV;
     }
-    cpu_x86_inject_mce(NULL, env, 9, status, mcg_status, paddr,
+    cpu_x86_inject_mce(NULL, cpu, 9, status, mcg_status, paddr,
                        (MCM_ADDR_PHYS << 6) | 0xc,
                        cpu_x86_support_mca_broadcast(env) ?
                        MCE_INJECT_BROADCAST : 0);

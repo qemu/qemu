@@ -1141,10 +1141,11 @@ static void do_inject_x86_mce(void *data)
     }
 }
 
-void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
+void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags)
 {
+    CPUX86State *cenv = &cpu->env;
     MCEInjectionParams params = {
         .mon = mon,
         .env = cenv,
