@@ -509,6 +509,7 @@ static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
 #include "../../softmmu_defs.h"
 
 #ifdef CONFIG_TCG_PASS_AREG0
+#error CONFIG_TCG_PASS_AREG0 is not supported
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -620,16 +621,6 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out_mov (s, TCG_TYPE_I32, 3, addr_reg2);
     tcg_out_mov (s, TCG_TYPE_I32, 4, addr_reg);
     tcg_out_movi (s, TCG_TYPE_I32, 5, mem_index);
-#endif
-
-#ifdef CONFIG_TCG_PASS_AREG0
-    /* XXX/FIXME: suboptimal */
-    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
-                tcg_target_call_iarg_regs[1]);
-    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                tcg_target_call_iarg_regs[0]);
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                TCG_AREG0);
 #endif
 
     tcg_out_call (s, (tcg_target_long) qemu_ld_helpers[s_bits], 1);
@@ -863,17 +854,6 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     ir++;
 
     tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
-#ifdef CONFIG_TCG_PASS_AREG0
-    /* XXX/FIXME: suboptimal */
-    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
-                tcg_target_call_iarg_regs[2]);
-    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
-                tcg_target_call_iarg_regs[1]);
-    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                tcg_target_call_iarg_regs[0]);
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                TCG_AREG0);
-#endif
     tcg_out_call (s, (tcg_target_long) qemu_st_helpers[opc], 1);
     label2_ptr = s->code_ptr;
     tcg_out32 (s, B);
