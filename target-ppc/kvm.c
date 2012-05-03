@@ -817,7 +817,8 @@ int kvm_arch_handle_exit(CPUPPCState *env, struct kvm_run *run)
 #ifdef CONFIG_PSERIES
     case KVM_EXIT_PAPR_HCALL:
         dprintf("handle PAPR hypercall\n");
-        run->papr_hcall.ret = spapr_hypercall(env, run->papr_hcall.nr,
+        run->papr_hcall.ret = spapr_hypercall(ppc_env_get_cpu(env),
+                                              run->papr_hcall.nr,
                                               run->papr_hcall.args);
         ret = 0;
         break;
