@@ -1786,8 +1786,10 @@ int kvm_arch_process_async_events(CPUX86State *env)
     return env->halted;
 }
 
-static int kvm_handle_halt(CPUX86State *env)
+static int kvm_handle_halt(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
+
     if (!((env->interrupt_request & CPU_INTERRUPT_HARD) &&
           (env->eflags & IF_MASK)) &&
         !(env->interrupt_request & CPU_INTERRUPT_NMI)) {
@@ -2001,13 +2003,14 @@ static bool host_supports_vmx(void)
 
 int kvm_arch_handle_exit(CPUX86State *env, struct kvm_run *run)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     uint64_t code;
     int ret;
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
         DPRINTF("handle_hlt\n");
-        ret = kvm_handle_halt(env);
+        ret = kvm_handle_halt(cpu);
         break;
     case KVM_EXIT_SET_TPR:
         ret = 0;
