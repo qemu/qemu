@@ -735,10 +735,6 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case 0:
         cmd->xfer = buf[4];
         cmd->len = 6;
-        /* length 0 means 256 blocks */
-        if (cmd->xfer == 0) {
-            cmd->xfer = 256;
-        }
         break;
     case 1:
     case 2:
@@ -808,18 +804,26 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
             cmd->xfer = buf[9] | (buf[8] << 8);
         }
         break;
+    case WRITE_6:
+        /* length 0 means 256 blocks */
+        if (cmd->xfer == 0) {
+            cmd->xfer = 256;
+        }
     case WRITE_10:
     case WRITE_VERIFY_10:
-    case WRITE_6:
     case WRITE_12:
     case WRITE_VERIFY_12:
     case WRITE_16:
     case WRITE_VERIFY_16:
         cmd->xfer *= dev->blocksize;
         break;
-    case READ_10:
     case READ_6:
     case READ_REVERSE:
+        /* length 0 means 256 blocks */
+        if (cmd->xfer == 0) {
+            cmd->xfer = 256;
+        }
+    case READ_10:
     case RECOVER_BUFFERED_DATA:
     case READ_12:
     case READ_16:
