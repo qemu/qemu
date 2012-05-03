@@ -204,7 +204,7 @@ static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
     return H_SUCCESS;
 }
 
-static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     target_ulong liobn = args[0];

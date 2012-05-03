@@ -286,7 +286,7 @@ extern sPAPREnvironment *spapr;
     do { } while (0)
 #endif
 
-typedef target_ulong (*spapr_hcall_fn)(CPUPPCState *env, sPAPREnvironment *spapr,
+typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                        target_ulong opcode,
                                        target_ulong *args);
 
