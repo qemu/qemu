@@ -229,8 +229,9 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     return -ENOSYS;
 }
 
-static void kvm_mce_inject(CPUX86State *env, hwaddr paddr, int code)
+static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
+    CPUX86State *env = &cpu->env;
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
                       MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
     uint64_t mcg_status = MCG_STATUS_MCIP;
@@ -256,6 +257,7 @@ static void hardware_memory_error(void)
 
 int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     ram_addr_t ram_addr;
     hwaddr paddr;
 
@@ -273,7 +275,7 @@ int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
             }
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(env, paddr, code);
+        kvm_mce_inject(cpu, paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
@@ -301,7 +303,7 @@ int kvm_arch_on_sigbus(int code, void *addr)
             return 0;
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(first_cpu, paddr, code);
+        kvm_mce_inject(x86_env_get_cpu(first_cpu), paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
