@@ -1367,8 +1367,9 @@ static int kvm_put_mp_state(CPUX86State *env)
     return kvm_vcpu_ioctl(env, KVM_SET_MP_STATE, &mp_state);
 }
 
-static int kvm_get_mp_state(CPUX86State *env)
+static int kvm_get_mp_state(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     struct kvm_mp_state mp_state;
     int ret;
 
@@ -1612,10 +1613,10 @@ int kvm_arch_put_registers(CPUX86State *env, int level)
 
 int kvm_arch_get_registers(CPUX86State *env)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    X86CPU *cpu = x86_env_get_cpu(env);
     int ret;
 
-    assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
+    assert(cpu_is_stopped(CPU(cpu)) || qemu_cpu_is_self(CPU(cpu)));
 
     ret = kvm_getput_regs(env, 0);
     if (ret < 0) {
@@ -1637,7 +1638,7 @@ int kvm_arch_get_registers(CPUX86State *env)
     if (ret < 0) {
         return ret;
     }
-    ret = kvm_get_mp_state(env);
+    ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
         return ret;
     }
