@@ -73,8 +73,11 @@ static int cap_hior;
  */
 static QEMUTimer *idle_timer;
 
-static void kvm_kick_env(void *env)
+static void kvm_kick_cpu(void *opaque)
 {
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
+
     qemu_cpu_kick(env);
 }
 
@@ -375,6 +378,7 @@ static inline void kvm_fixup_page_sizes(CPUPPCState *env)
 
 int kvm_arch_init_vcpu(CPUPPCState *cenv)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(cenv);
     int ret;
 
     /* Gather server mmu info from KVM and update the CPU state */
@@ -386,7 +390,7 @@ int kvm_arch_init_vcpu(CPUPPCState *cenv)
         return ret;
     }
 
-    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_env, cenv);
+    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_cpu, cpu);
 
     /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
