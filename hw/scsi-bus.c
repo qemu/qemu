@@ -367,10 +367,6 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
     if (r->req.cmd.buf[1] & 0x1) {
         /* Vital product data */
         uint8_t page_code = r->req.cmd.buf[2];
-        if (r->req.cmd.xfer < 4) {
-            return false;
-        }
-
         r->buf[r->len++] = page_code ; /* this page */
         r->buf[r->len++] = 0x00;
 
@@ -398,10 +394,6 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
     }
 
     /* PAGE CODE == 0 */
-    if (r->req.cmd.xfer < 5) {
-        return false;
-    }
-
     r->len = MIN(r->req.cmd.xfer, 36);
     memset(r->buf, 0, r->len);
     if (r->req.lun != 0) {

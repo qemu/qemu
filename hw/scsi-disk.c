@@ -524,11 +524,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     if (req->cmd.buf[1] & 0x1) {
         /* Vital product data */
         uint8_t page_code = req->cmd.buf[2];
-        if (req->cmd.xfer < 4) {
-            BADF("Error: Inquiry (EVPD[%02X]) buffer size %zd is "
-                 "less than 4\n", page_code, req->cmd.xfer);
-            return -1;
-        }
 
         outbuf[buflen++] = s->qdev.type & 0x1f;
         outbuf[buflen++] = page_code ; // this page
@@ -659,12 +654,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
 
     /* PAGE CODE == 0 */
-    if (req->cmd.xfer < 5) {
-        BADF("Error: Inquiry (STANDARD) buffer size %zd "
-             "is less than 5\n", req->cmd.xfer);
-        return -1;
-    }
-
     buflen = req->cmd.xfer;
     if (buflen > SCSI_MAX_INQUIRY_LEN) {
         buflen = SCSI_MAX_INQUIRY_LEN;
