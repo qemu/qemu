@@ -20,7 +20,7 @@
 #include "config.h"
 
 /* Defining NDEBUG disables assertions (which makes the code faster). */
-#if !defined(CONFIG_TCG_DEBUG) && !defined(NDEBUG)
+#if !defined(CONFIG_DEBUG_TCG) && !defined(NDEBUG)
 # define NDEBUG
 #endif
 
