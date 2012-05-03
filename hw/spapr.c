@@ -518,6 +518,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     int i;
     MemoryRegion *sysmem = get_system_memory();
@@ -560,12 +561,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         cpu_model = kvm_enabled() ? "host" : "POWER7";
     }
     for (i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-
-        if (!env) {
+        cpu = cpu_ppc_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
         qemu_register_reset(spapr_cpu_reset, env);
