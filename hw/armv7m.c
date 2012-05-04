@@ -149,7 +149,9 @@ static void armv7m_bitband_init(void)
 
 static void armv7m_reset(void *opaque)
 {
-    cpu_state_reset((CPUARMState *)opaque);
+    ARMCPU *cpu = opaque;
+
+    cpu_reset(CPU(cpu));
 }
 
 /* Init CPU and memory for a v7-M based board.
@@ -244,7 +246,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     vmstate_register_ram_global(hack);
     memory_region_add_subregion(address_space_mem, 0xfffff000, hack);
 
-    qemu_register_reset(armv7m_reset, env);
+    qemu_register_reset(armv7m_reset, cpu);
     return pic;
 }
 
