@@ -160,6 +160,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
                       int flash_size, int sram_size,
                       const char *kernel_filename, const char *cpu_model)
 {
+    ARMCPU *cpu;
     CPUARMState *env;
     DeviceState *nvic;
     /* FIXME: make this local state.  */
@@ -177,13 +178,15 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     flash_size *= 1024;
     sram_size *= 1024;
 
-    if (!cpu_model)
+    if (cpu_model == NULL) {
 	cpu_model = "cortex-m3";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_arm_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
 #if 0
     /* > 32Mb SRAM gets complicated because it overlaps the bitband area.
