@@ -287,11 +287,11 @@ int cpu_exec(CPUArchState *env)
 #if defined(TARGET_I386)
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
                             svm_check_intercept(env, SVM_EXIT_INIT);
-                            do_cpu_init(env);
+                            do_cpu_init(x86_env_get_cpu(env));
                             env->exception_index = EXCP_HALTED;
                             cpu_loop_exit(env);
                     } else if (interrupt_request & CPU_INTERRUPT_SIPI) {
-                            do_cpu_sipi(env);
+                            do_cpu_sipi(x86_env_get_cpu(env));
                     } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                             !(env->hflags & HF_SMM_MASK)) {
