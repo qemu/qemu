@@ -80,6 +80,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                                const char *cpu_model)
 {
     MemoryRegion *sysmem = get_system_memory();
+    PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **heathrow_irqs;
@@ -104,11 +105,13 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     if (cpu_model == NULL)
         cpu_model = "G3";
     for (i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        cpu = cpu_ppc_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  16600000UL);
         qemu_register_reset(ppc_heathrow_reset, env);
