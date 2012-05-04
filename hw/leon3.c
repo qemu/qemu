@@ -42,16 +42,16 @@
 #define MAX_PILS 16
 
 typedef struct ResetData {
-    CPUSPARCState *env;
+    SPARCCPU *cpu;
     uint32_t  entry;            /* save kernel entry in case of reset */
 } ResetData;
 
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s   = (ResetData *)opaque;
-    CPUSPARCState  *env = s->env;
+    CPUSPARCState  *env = &s->cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(s->cpu));
 
     env->halted = 0;
     env->pc     = s->entry;
@@ -129,7 +129,7 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
 
     /* Reset data */
     reset_info        = g_malloc0(sizeof(ResetData));
-    reset_info->env   = env;
+    reset_info->cpu   = cpu;
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate IRQ manager */
