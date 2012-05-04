@@ -101,6 +101,7 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
                                   const char *initrd_filename,
                                   const char *cpu_model)
 {
+    SPARCCPU *cpu;
     CPUSPARCState   *env;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -117,11 +118,12 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
         cpu_model = "LEON3";
     }
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_sparc_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "qemu: Unable to find Sparc CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
     cpu_sparc_set_id(env, 0);
 
