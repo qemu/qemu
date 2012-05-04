@@ -78,10 +78,10 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
     tlb->PID = 0;
 }
 
-static CPUPPCState *ppc440_init_xilinx(ram_addr_t *ram_size,
-                                    int do_init,
-                                    const char *cpu_model,
-                                    uint32_t sysclk)
+static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
+                                      int do_init,
+                                      const char *cpu_model,
+                                      uint32_t sysclk)
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
@@ -103,7 +103,7 @@ static CPUPPCState *ppc440_init_xilinx(ram_addr_t *ram_size,
     irqs[PPCUIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
     ppcuic_init(env, irqs, 0x0C0, 0, 1);
-    return env;
+    return cpu;
 }
 
 static void main_cpu_reset(void *opaque)
@@ -190,6 +190,7 @@ static void virtex_init(ram_addr_t ram_size,
 {
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     target_phys_addr_t ram_base = 0;
     DriveInfo *dinfo;
@@ -203,7 +204,8 @@ static void virtex_init(ram_addr_t ram_size,
         cpu_model = "440-Xilinx";
     }
 
-    env = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
+    cpu = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
+    env = &cpu->env;
     qemu_register_reset(main_cpu_reset, env);
 
     memory_region_init_ram(phys_ram, "ram", ram_size);
