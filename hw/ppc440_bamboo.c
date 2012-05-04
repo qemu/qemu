@@ -172,6 +172,7 @@ static void bamboo_init(ram_addr_t ram_size,
     qemu_irq *pic;
     qemu_irq *irqs;
     PCIBus *pcibus;
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
@@ -185,11 +186,12 @@ static void bamboo_init(ram_addr_t ram_size,
     if (cpu_model == NULL) {
         cpu_model = "440EP";
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_ppc_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);
     }
+    env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, env);
     ppc_booke_timers_init(env, 400000000, 0);
