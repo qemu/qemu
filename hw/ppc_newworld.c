@@ -136,6 +136,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                              const char *initrd_filename,
                              const char *cpu_model)
 {
+    PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
@@ -166,11 +167,13 @@ static void ppc_core99_init (ram_addr_t ram_size,
         cpu_model = "G4";
 #endif
     for (i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        cpu = cpu_ppc_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         qemu_register_reset(ppc_core99_reset, env);
