@@ -40,9 +40,9 @@
 
 static void ppc4xx_reset(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 }
 
 /*****************************************************************************/
@@ -70,7 +70,7 @@ CPUPPCState *ppc4xx_init (const char *cpu_model,
     tb_clk->opaque = env;
     ppc_dcr_init(env, NULL, NULL);
     /* Register qemu callbacks */
-    qemu_register_reset(ppc4xx_reset, env);
+    qemu_register_reset(ppc4xx_reset, cpu);
 
     return env;
 }
