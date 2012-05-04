@@ -891,6 +891,16 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
             cmd->xfer *= dev->blocksize;
         }
         break;
+    case READ_16:
+    case READ_REVERSE_16:
+    case VERIFY_16:
+    case WRITE_16:
+        cmd->len = 16;
+        cmd->xfer = buf[14] | (buf[13] << 8) | (buf[12] << 16);
+        if (buf[1] & 0x01) { /* fixed */
+            cmd->xfer *= dev->blocksize;
+        }
+        break;
     case REWIND:
     case START_STOP:
         cmd->len = 6;
