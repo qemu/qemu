@@ -224,6 +224,7 @@ static void r2d_init(ram_addr_t ram_size,
 	      const char *kernel_filename, const char *kernel_cmdline,
 	      const char *initrd_filename, const char *cpu_model)
 {
+    SuperHCPU *cpu;
     CPUSH4State *env;
     ResetData *reset_info;
     struct SH7750State *s;
@@ -235,14 +236,17 @@ static void r2d_init(ram_addr_t ram_size,
     SysBusDevice *busdev;
     MemoryRegion *address_space_mem = get_system_memory();
 
-    if (!cpu_model)
+    if (cpu_model == NULL) {
         cpu_model = "SH7751R";
+    }
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_sh4_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
+
     reset_info = g_malloc0(sizeof(ResetData));
     reset_info->env = env;
     reset_info->vector = env->pc;
