@@ -164,6 +164,7 @@ static void lx_init(const LxBoardDesc *board,
     int be = 0;
 #endif
     MemoryRegion *system_memory = get_system_memory();
+    XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     MemoryRegion *ram, *rom, *system_io;
     DriveInfo *dinfo;
@@ -175,17 +176,19 @@ static void lx_init(const LxBoardDesc *board,
     }
 
     for (n = 0; n < smp_cpus; n++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        cpu = cpu_xtensa_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+
         env->sregs[PRID] = n;
         qemu_register_reset(lx60_reset, env);
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
-        cpu_state_reset(env);
+        cpu_reset(CPU(cpu));
     }
 
     ram = g_malloc(sizeof(*ram));
