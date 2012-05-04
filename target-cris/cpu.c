@@ -302,6 +302,7 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->handle_mmu_fault = cris_cpu_handle_mmu_fault;
 #else
     cc->get_phys_page_debug = cris_cpu_get_phys_page_debug;
+    dc->vmsd = &vmstate_cris_cpu;
 #endif
 
     cc->gdb_num_core_regs = 49;

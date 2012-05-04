@@ -108,6 +108,11 @@
 
 #define NB_MMU_MODES 2
 
+typedef struct {
+    uint32_t hi;
+    uint32_t lo;
+} TLBSet;
+
 typedef struct CPUCRISState {
 	uint32_t regs[16];
 	/* P0 - P15 are referred to as special registers in the docs.  */
@@ -161,11 +166,7 @@ typedef struct CPUCRISState {
 	 *
 	 * One for I and another for D.
 	 */
-	struct
-	{
-		uint32_t hi;
-		uint32_t lo;
-	} tlbsets[2][4][16];
+        TLBSet tlbsets[2][4][16];
 
 	CPU_COMMON
 
@@ -226,8 +227,6 @@ enum {
 #define cpu_exec cpu_cris_exec
 #define cpu_gen_code cpu_cris_gen_code
 #define cpu_signal_handler cpu_cris_signal_handler
-
-#define CPU_SAVE_VERSION 1
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

@@ -1,90 +1,91 @@
+/*
+ *  CRIS virtual CPU state save/load support
+ *
+ *  Copyright (c) 2012 Red Hat, Inc.
+ *  Written by Juan Quintela <quintela@redhat.com>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "hw/hw.h"
-#include "hw/boards.h"
 
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    CPUCRISState *env = opaque;
-    int i;
-    int s;
-    int mmu;
-
-    for (i = 0; i < 16; i++)
-        qemu_put_be32(f, env->regs[i]);
-    for (i = 0; i < 16; i++)
-        qemu_put_be32(f, env->pregs[i]);
-
-    qemu_put_be32(f, env->pc);
-    qemu_put_be32(f, env->ksp);
-
-    qemu_put_be32(f, env->dslot);
-    qemu_put_be32(f, env->btaken);
-    qemu_put_be32(f, env->btarget);
-
-    qemu_put_be32(f, env->cc_op);
-    qemu_put_be32(f, env->cc_mask);
-    qemu_put_be32(f, env->cc_dest);
-    qemu_put_be32(f, env->cc_src);
-    qemu_put_be32(f, env->cc_result);
-    qemu_put_be32(f, env->cc_size);
-    qemu_put_be32(f, env->cc_x);
-
-    for (s = 0; s < 4; s++) {
-        for (i = 0; i < 16; i++)
-            qemu_put_be32(f, env->sregs[s][i]);
+static const VMStateDescription vmstate_tlbset = {
+    .name = "cpu/tlbset",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(lo, TLBSet),
+        VMSTATE_UINT32(hi, TLBSet),
+        VMSTATE_END_OF_LIST()
     }
+};
 
-    qemu_put_be32(f, env->mmu_rand_lfsr);
-    for (mmu = 0; mmu < 2; mmu++) {
-        for (s = 0; s < 4; s++) {
-            for (i = 0; i < 16; i++) {
-                qemu_put_be32(f, env->tlbsets[mmu][s][i].lo);
-                qemu_put_be32(f, env->tlbsets[mmu][s][i].hi);
-            }
-        }
+static const VMStateDescription vmstate_cris_env = {
+    .name = "env",
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(regs, CPUCRISState, 16),
+        VMSTATE_UINT32_ARRAY(pregs, CPUCRISState, 16),
+        VMSTATE_UINT32(pc, CPUCRISState),
+        VMSTATE_UINT32(ksp, CPUCRISState),
+        VMSTATE_INT32(dslot, CPUCRISState),
+        VMSTATE_INT32(btaken, CPUCRISState),
+        VMSTATE_UINT32(btarget, CPUCRISState),
+        VMSTATE_UINT32(cc_op, CPUCRISState),
+        VMSTATE_UINT32(cc_mask, CPUCRISState),
+        VMSTATE_UINT32(cc_dest, CPUCRISState),
+        VMSTATE_UINT32(cc_src, CPUCRISState),
+        VMSTATE_UINT32(cc_result, CPUCRISState),
+        VMSTATE_INT32(cc_size, CPUCRISState),
+        VMSTATE_INT32(cc_x, CPUCRISState),
+        VMSTATE_INT32(locked_irq, CPUCRISState),
+        VMSTATE_INT32(interrupt_vector, CPUCRISState),
+        VMSTATE_INT32(fault_vector, CPUCRISState),
+        VMSTATE_INT32(trap_vector, CPUCRISState),
+        VMSTATE_UINT32_ARRAY(sregs[0], CPUCRISState, 16),
+        VMSTATE_UINT32_ARRAY(sregs[1], CPUCRISState, 16),
+        VMSTATE_UINT32_ARRAY(sregs[2], CPUCRISState, 16),
+        VMSTATE_UINT32_ARRAY(sregs[3], CPUCRISState, 16),
+        VMSTATE_UINT32(mmu_rand_lfsr, CPUCRISState),
+        VMSTATE_STRUCT_ARRAY(tlbsets[0][0], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[0][1], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[0][2], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[0][3], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[1][0], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[1][1], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[1][2], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_STRUCT_ARRAY(tlbsets[1][3], CPUCRISState, 16, 0,
+                             vmstate_tlbset, TLBSet),
+        VMSTATE_END_OF_LIST()
     }
-}
+};
 
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
-{
-	CPUCRISState *env = opaque;
-    int i;
-    int s;
-    int mmu;
-
-    for (i = 0; i < 16; i++)
-        env->regs[i] = qemu_get_be32(f);
-    for (i = 0; i < 16; i++)
-        env->pregs[i] = qemu_get_be32(f);
-
-    env->pc = qemu_get_be32(f);
-    env->ksp = qemu_get_be32(f);
-
-    env->dslot = qemu_get_be32(f);
-    env->btaken = qemu_get_be32(f);
-    env->btarget = qemu_get_be32(f);
-
-    env->cc_op = qemu_get_be32(f);
-    env->cc_mask = qemu_get_be32(f);
-    env->cc_dest = qemu_get_be32(f);
-    env->cc_src = qemu_get_be32(f);
-    env->cc_result = qemu_get_be32(f);
-    env->cc_size = qemu_get_be32(f);
-    env->cc_x = qemu_get_be32(f);
-
-    for (s = 0; s < 4; s++) {
-        for (i = 0; i < 16; i++)
-            env->sregs[s][i] = qemu_get_be32(f);
+const VMStateDescription vmstate_cris_cpu = {
+    .name = "cpu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_CPU(),
+        VMSTATE_STRUCT(env, CRISCPU, 1, vmstate_cris_env, CPUCRISState),
+        VMSTATE_END_OF_LIST()
     }
-
-    env->mmu_rand_lfsr = qemu_get_be32(f);
-    for (mmu = 0; mmu < 2; mmu++) {
-        for (s = 0; s < 4; s++) {
-            for (i = 0; i < 16; i++) {
-                env->tlbsets[mmu][s][i].lo = qemu_get_be32(f);
-                env->tlbsets[mmu][s][i].hi = qemu_get_be32(f);
-            }
-        }
-    }
-
-    return 0;
-}
+};
