@@ -31,7 +31,7 @@
 #include "exec-memory.h"
 
 typedef struct {
-    CPULM32State *env;
+    LM32CPU *cpu;
     target_phys_addr_t bootstrap_pc;
     target_phys_addr_t flash_base;
     target_phys_addr_t hwsetup_base;
@@ -54,9 +54,9 @@ static void cpu_irq_handler(void *opaque, int irq, int level)
 static void main_cpu_reset(void *opaque)
 {
     ResetInfo *reset_info = opaque;
-    CPULM32State *env = reset_info->env;
+    CPULM32State *env = &reset_info->cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(reset_info->cpu));
 
     /* init defaults */
     env->pc = (uint32_t)reset_info->bootstrap_pc;
@@ -104,7 +104,7 @@ static void lm32_evr_init(ram_addr_t ram_size_not_used,
     }
     cpu = cpu_lm32_init(cpu_model);
     env = &cpu->env;
-    reset_info->env = env;
+    reset_info->cpu = cpu;
 
     reset_info->flash_base = flash_base;
 
@@ -201,7 +201,7 @@ static void lm32_uclinux_init(ram_addr_t ram_size_not_used,
     }
     cpu = cpu_lm32_init(cpu_model);
     env = &cpu->env;
-    reset_info->env = env;
+    reset_info->cpu = cpu;
 
     reset_info->flash_base = flash_base;
 
