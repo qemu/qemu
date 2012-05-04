@@ -148,9 +148,9 @@ static uint64_t translate_phys_addr(void *env, uint64_t addr)
 
 static void lx60_reset(void *opaque)
 {
-    CPUXtensaState *env = opaque;
+    XtensaCPU *cpu = opaque;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 }
 
 static void lx_init(const LxBoardDesc *board,
@@ -184,7 +184,7 @@ static void lx_init(const LxBoardDesc *board,
         env = &cpu->env;
 
         env->sregs[PRID] = n;
-        qemu_register_reset(lx60_reset, env);
+        qemu_register_reset(lx60_reset, cpu);
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
