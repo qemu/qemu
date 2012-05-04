@@ -67,9 +67,9 @@ static target_phys_addr_t round_page(target_phys_addr_t addr)
 
 static void ppc_heathrow_reset(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 }
 
 static void ppc_heathrow_init (ram_addr_t ram_size,
@@ -114,7 +114,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
 
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  16600000UL);
-        qemu_register_reset(ppc_heathrow_reset, env);
+        qemu_register_reset(ppc_heathrow_reset, cpu);
     }
 
     /* allocate RAM */
