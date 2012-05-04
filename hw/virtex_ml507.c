@@ -108,10 +108,11 @@ static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     struct boot_info *bi = env->load_info;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     /* Linux Kernel Parameters (passing device tree):
        *   r3: pointer to the fdt
        *   r4: 0
@@ -206,7 +207,7 @@ static void virtex_init(ram_addr_t ram_size,
 
     cpu = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
     env = &cpu->env;
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, cpu);
 
     memory_region_init_ram(phys_ram, "ram", ram_size);
     vmstate_register_ram_global(phys_ram);
