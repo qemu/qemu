@@ -80,7 +80,7 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
         arm_translate_init();
     }
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);
