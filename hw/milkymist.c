@@ -79,6 +79,7 @@ milkymist_init(ram_addr_t ram_size_not_used,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
+    LM32CPU *cpu;
     CPULM32State *env;
     int kernel_size;
     DriveInfo *dinfo;
@@ -105,7 +106,8 @@ milkymist_init(ram_addr_t ram_size_not_used,
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";
     }
-    env = cpu_init(cpu_model);
+    cpu = cpu_lm32_init(cpu_model);
+    env = &cpu->env;
     reset_info->env = env;
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
