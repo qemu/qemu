@@ -192,16 +192,16 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
 }
 
 typedef struct ResetData {
-    CPUSH4State *env;
+    SuperHCPU *cpu;
     uint32_t vector;
 } ResetData;
 
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
-    CPUSH4State *env = s->env;
+    CPUSH4State *env = &s->cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(s->cpu));
     env->pc = s->vector;
 }
 
@@ -248,7 +248,7 @@ static void r2d_init(ram_addr_t ram_size,
     env = &cpu->env;
 
     reset_info = g_malloc0(sizeof(ResetData));
-    reset_info->env = env;
+    reset_info->cpu = cpu;
     reset_info->vector = env->pc;
     qemu_register_reset(main_cpu_reset, reset_info);
 
