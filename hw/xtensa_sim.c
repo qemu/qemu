@@ -47,16 +47,19 @@ static void sim_init(ram_addr_t ram_size,
         const char *kernel_filename, const char *kernel_cmdline,
         const char *initrd_filename, const char *cpu_model)
 {
+    XtensaCPU *cpu = NULL;
     CPUXtensaState *env = NULL;
     MemoryRegion *ram, *rom;
     int n;
 
     for (n = 0; n < smp_cpus; n++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        cpu = cpu_xtensa_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+
         env->sregs[PRID] = n;
         qemu_register_reset(sim_reset, env);
         /* Need MMU initialized prior to ELF loading,
