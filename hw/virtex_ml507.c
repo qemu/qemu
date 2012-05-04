@@ -83,14 +83,16 @@ static CPUPPCState *ppc440_init_xilinx(ram_addr_t *ram_size,
                                     const char *cpu_model,
                                     uint32_t sysclk)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     qemu_irq *irqs;
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_ppc_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);
     }
+    env = &cpu->env;
 
     ppc_booke_timers_init(env, sysclk, 0/* no flags */);
 
