@@ -37,9 +37,11 @@ static uint64_t translate_phys_addr(void *env, uint64_t addr)
     return cpu_get_phys_page_debug(env, addr);
 }
 
-static void sim_reset(void *env)
+static void sim_reset(void *opaque)
 {
-    cpu_state_reset(env);
+    XtensaCPU *cpu = opaque;
+
+    cpu_reset(CPU(cpu));
 }
 
 static void sim_init(ram_addr_t ram_size,
@@ -61,11 +63,11 @@ static void sim_init(ram_addr_t ram_size,
         env = &cpu->env;
 
         env->sregs[PRID] = n;
-        qemu_register_reset(sim_reset, env);
+        qemu_register_reset(sim_reset, cpu);
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
-        sim_reset(env);
+        sim_reset(cpu);
     }
 
     ram = g_malloc(sizeof(*ram));
