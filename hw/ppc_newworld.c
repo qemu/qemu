@@ -123,9 +123,9 @@ static target_phys_addr_t round_page(target_phys_addr_t addr)
 
 static void ppc_core99_reset(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 }
 
 /* PowerPC Mac99 hardware initialisation */
@@ -176,7 +176,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
 
         /* Set time-base frequency to 100 Mhz */
         cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
-        qemu_register_reset(ppc_core99_reset, env);
+        qemu_register_reset(ppc_core99_reset, cpu);
     }
 
     /* allocate RAM */
