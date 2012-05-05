@@ -346,7 +346,7 @@ void axisdev88_init (ram_addr_t ram_size,
 
     li.image_filename = kernel_filename;
     li.cmdline = kernel_cmdline;
-    cris_load_image(env, &li);
+    cris_load_image(cpu, &li);
 }
 
 static QEMUMachine axisdev88_machine = {
