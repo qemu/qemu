@@ -788,6 +788,7 @@ void mips_malta_init (ram_addr_t ram_size,
     int64_t kernel_entry;
     PCIBus *pci_bus;
     ISABus *isa_bus;
+    MIPSCPU *cpu;
     CPUMIPSState *env;
     qemu_irq *isa_irq;
     qemu_irq *cpu_exit_irq;
@@ -825,11 +826,13 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 
     for (i = 0; i < smp_cpus; i++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        cpu = cpu_mips_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
+        env = &cpu->env;
+
         /* Init internal devices */
         cpu_mips_irq_init_cpu(env);
         cpu_mips_clock_init(env);
