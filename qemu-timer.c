@@ -31,10 +31,6 @@
 
 #include "qemu-timer.h"
 
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#endif
-
 #ifdef _WIN32
 #include <mmsystem.h>
 #endif
