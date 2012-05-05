@@ -3503,7 +3503,7 @@ static uint32_t vr_by_name(const char *name)
     return 32;
 }
 
-CPUCRISState *cpu_cris_init (const char *cpu_model)
+CRISCPU *cpu_cris_init(const char *cpu_model)
 {
     CRISCPU *cpu;
     CPUCRISState *env;
@@ -3519,7 +3519,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
     qemu_init_vcpu(env);
 
     if (tcg_initialized) {
-        return env;
+        return cpu;
     }
 
     tcg_initialized = 1;
@@ -3529,7 +3529,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
     if (env->pregs[PR_VR] < 32) {
         cpu_crisv10_init(env);
-        return env;
+        return cpu;
     }
 
 
@@ -3573,7 +3573,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
                                        pregnames[i]);
     }
 
-    return env;
+    return cpu;
 }
 
 void cpu_state_reset(CPUCRISState *env)
