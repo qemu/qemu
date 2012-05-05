@@ -50,8 +50,9 @@ enum jazz_model_e
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUMIPSState *env = opaque;
-    cpu_state_reset(env);
+    MIPSCPU *cpu = opaque;
+
+    cpu_reset(CPU(cpu));
 }
 
 static uint64_t rtc_read(void *opaque, target_phys_addr_t addr, unsigned size)
@@ -147,7 +148,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
         exit(1);
     }
     env = &cpu->env;
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, cpu);
 
     /* allocate RAM */
     memory_region_init_ram(ram, "mips_jazz.ram", ram_size);
