@@ -162,6 +162,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     MemoryRegion *bios;
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
     int bios_size;
+    MIPSCPU *cpu;
     CPUMIPSState *env;
     ResetData *reset_info;
     int i;
@@ -179,11 +180,13 @@ void mips_r4k_init (ram_addr_t ram_size,
         cpu_model = "24Kf";
 #endif
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_mips_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
+
     reset_info = g_malloc0(sizeof(ResetData));
     reset_info->env = env;
     reset_info->vector = env->active_tc.PC;
