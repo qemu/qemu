@@ -49,8 +49,10 @@
 #define UARTLITE_BASEADDR 0x84000000
 #define ETHLITE_BASEADDR 0x81000000
 
-static void machine_cpu_reset(CPUMBState *env)
+static void machine_cpu_reset(MicroBlazeCPU *cpu)
 {
+    CPUMBState *env = &cpu->env;
+
     env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
 }
 
@@ -107,7 +109,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     xilinx_timer_create(TIMER_BASEADDR, irq[0], 2, 62 * 1000000);
     xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
 
-    microblaze_load_kernel(env, ddr_base, ram_size,
+    microblaze_load_kernel(cpu, ddr_base, ram_size,
                     BINARY_DEVICE_TREE_FILE, machine_cpu_reset);
 }
 
