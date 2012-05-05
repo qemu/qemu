@@ -751,8 +751,10 @@ static void malta_mips_config(CPUMIPSState *env)
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUMIPSState *env = opaque;
-    cpu_state_reset(env);
+    MIPSCPU *cpu = opaque;
+    CPUMIPSState *env = &cpu->env;
+
+    cpu_reset(CPU(cpu));
 
     /* The bootloader does not need to be rewritten as it is located in a
        read only location. The kernel location and the arguments table
@@ -836,7 +838,7 @@ void mips_malta_init (ram_addr_t ram_size,
         /* Init internal devices */
         cpu_mips_irq_init_cpu(env);
         cpu_mips_clock_init(env);
-        qemu_register_reset(main_cpu_reset, env);
+        qemu_register_reset(main_cpu_reset, cpu);
     }
     env = first_cpu;
 
