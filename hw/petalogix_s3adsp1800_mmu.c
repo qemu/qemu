@@ -62,6 +62,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
                           const char *initrd_filename, const char *cpu_model)
 {
     DeviceState *dev;
+    MicroBlazeCPU *cpu;
     CPUMBState *env;
     DriveInfo *dinfo;
     int i;
@@ -75,7 +76,8 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     if (cpu_model == NULL) {
         cpu_model = "microblaze";
     }
-    env = cpu_init(cpu_model);
+    cpu = cpu_mb_init(cpu_model);
+    env = &cpu->env;
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram,
