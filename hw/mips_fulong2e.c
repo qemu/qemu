@@ -272,17 +272,19 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     i2c_bus *smbus;
     int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    MIPSCPU *cpu;
     CPUMIPSState *env;
 
     /* init CPUs */
     if (cpu_model == NULL) {
         cpu_model = "Loongson-2E";
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_mips_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, env);
 
