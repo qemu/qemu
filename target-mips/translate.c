@@ -12689,7 +12689,7 @@ static void mips_tcg_init(void)
 
 #include "translate_init.c"
 
-CPUMIPSState *cpu_mips_init (const char *cpu_model)
+MIPSCPU *cpu_mips_init(const char *cpu_model)
 {
     MIPSCPU *cpu;
     CPUMIPSState *env;
@@ -12711,7 +12711,7 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     mips_tcg_init();
     cpu_reset(CPU(cpu));
     qemu_init_vcpu(env);
-    return env;
+    return cpu;
 }
 
 void cpu_state_reset(CPUMIPSState *env)
