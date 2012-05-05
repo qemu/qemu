@@ -75,6 +75,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
 {
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
+    MicroBlazeCPU *cpu;
     CPUMBState *env;
     DriveInfo *dinfo;
     int i;
@@ -87,7 +88,8 @@ petalogix_ml605_init(ram_addr_t ram_size,
     if (cpu_model == NULL) {
         cpu_model = "microblaze";
     }
-    env = cpu_init(cpu_model);
+    cpu = cpu_mb_init(cpu_model);
+    env = &cpu->env;
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, "petalogix_ml605.lmb_bram",
