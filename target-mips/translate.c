@@ -12709,7 +12709,7 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     fpu_init(env, def);
     mvp_init(env, def);
     mips_tcg_init();
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     qemu_init_vcpu(env);
     return env;
 }
