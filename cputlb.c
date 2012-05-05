@@ -272,10 +272,10 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     } else {
         addend = 0;
     }
-    iotlb = memory_region_section_get_iotlb(env, section, vaddr, paddr, prot,
-                                            &address);
 
     code_address = address;
+    iotlb = memory_region_section_get_iotlb(env, section, vaddr, paddr, prot,
+                                            &address);
 
     index = (vaddr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     env->iotlb[mmu_idx][index] = iotlb - vaddr;
