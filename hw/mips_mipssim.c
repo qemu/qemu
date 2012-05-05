@@ -140,6 +140,7 @@ mips_mipssim_init (ram_addr_t ram_size,
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios = g_new(MemoryRegion, 1);
+    MIPSCPU *cpu;
     CPUMIPSState *env;
     ResetData *reset_info;
     int bios_size;
@@ -152,11 +153,13 @@ mips_mipssim_init (ram_addr_t ram_size,
         cpu_model = "24Kf";
 #endif
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_mips_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
+
     reset_info = g_malloc0(sizeof(ResetData));
     reset_info->env = env;
     reset_info->vector = env->active_tc.PC;
