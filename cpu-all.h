@@ -443,7 +443,6 @@ void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 #define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
 
 void cpu_single_step(CPUArchState *env, int enabled);
-void cpu_state_reset(CPUArchState *s);
 int cpu_is_stopped(CPUArchState *env);
 void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 

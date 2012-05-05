@@ -3576,11 +3576,6 @@ CRISCPU *cpu_cris_init(const char *cpu_model)
     return cpu;
 }
 
-void cpu_state_reset(CPUCRISState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)
 {
 	env->pc = gen_opc_pc[pc_pos];

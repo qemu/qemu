@@ -23,11 +23,6 @@
 
 static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
-void cpu_state_reset(CPUSPARCState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 /* CPUClass::reset() */
 static void sparc_cpu_reset(CPUState *s)
 {

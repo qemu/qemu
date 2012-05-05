@@ -4,11 +4,6 @@
 #include "host-utils.h"
 #include "sysemu.h"
 
-void cpu_state_reset(CPUARMState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
 {
     int nregs;

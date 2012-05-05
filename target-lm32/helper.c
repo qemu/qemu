@@ -233,9 +233,3 @@ void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value)
         env->flags &= ~LM32_FLAG_IGNORE_MSB;
     }
 }
-
-void cpu_state_reset(CPULM32State *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-

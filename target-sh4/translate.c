@@ -178,11 +178,6 @@ void cpu_dump_state(CPUSH4State * env, FILE * f,
     }
 }
 
-void cpu_state_reset(CPUSH4State *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 typedef struct {
     const char *name;
     int id;

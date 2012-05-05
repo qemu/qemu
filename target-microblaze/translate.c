@@ -2001,11 +2001,6 @@ MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
     return cpu;
 }
 
-void cpu_state_reset(CPUMBState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
 {
     env->sregs[SR_PC] = gen_opc_pc[pc_pos];

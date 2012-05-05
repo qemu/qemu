@@ -3186,11 +3186,6 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
              TARGET_FMT_lx "\n", RA, msr);
 }
 
-void cpu_state_reset(CPUPPCState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 {
     PowerPCCPU *cpu;

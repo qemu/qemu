@@ -33,11 +33,6 @@
 #include "hw/loader.h"
 #endif
 
-void cpu_state_reset(CPUXtensaState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 static struct XtensaConfigList *xtensa_cores;
 
 void xtensa_register_core(XtensaConfigList *node)

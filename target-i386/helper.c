@@ -26,12 +26,6 @@
 
 //#define DEBUG_MMU
 
-/* NOTE: must be called outside the CPU execute loop */
-void cpu_state_reset(CPUX86State *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 static void cpu_x86_version(CPUX86State *env, int *family, int *model)
 {
     int cpuver = env->cpuid_version;

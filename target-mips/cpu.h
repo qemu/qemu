@@ -637,6 +637,9 @@ static inline CPUMIPSState *cpu_init(const char *cpu_model)
     return &cpu->env;
 }
 
+/* TODO QOM'ify CPU reset and remove */
+void cpu_state_reset(CPUMIPSState *s);
+
 /* mips_timer.c */
 uint32_t cpu_mips_get_random (CPUMIPSState *env);
 uint32_t cpu_mips_get_count (CPUMIPSState *env);
