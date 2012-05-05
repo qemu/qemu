@@ -29,12 +29,13 @@
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUCRISState *env = opaque;
+    CRISCPU *cpu = opaque;
+    CPUCRISState *env = &cpu->env;
     struct cris_load_info *li;
 
     li = env->load_info;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 
     if (!li) {
         /* nothing more to do.  */
@@ -93,5 +94,5 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
         }
         pstrcpy_targphys("cmdline", 0x40000000, 256, li->cmdline);
     }
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, cpu);
 }
