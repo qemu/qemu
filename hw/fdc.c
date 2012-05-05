@@ -705,6 +705,15 @@ static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
         qemu_set_irq(fdctrl->irq, 1);
         fdctrl->sra |= FD_SRA_INTPEND;
     }
+    if (status0 & FD_SR0_SEEK) {
+        FDrive *cur_drv;
+        /* A seek clears the disk change line (if a disk is inserted) */
+        cur_drv = get_cur_drv(fdctrl);
+        if (cur_drv->max_track) {
+            cur_drv->media_changed = 0;
+        }
+    }
+
     fdctrl->reset_sensei = 0;
     fdctrl->status0 = status0;
     FLOPPY_DPRINTF("Set interrupt status to 0x%02x\n", fdctrl->status0);
@@ -936,23 +945,7 @@ static void fdctrl_write_ccr(FDCtrl *fdctrl, uint32_t value)
 
 static int fdctrl_media_changed(FDrive *drv)
 {
-    int ret;
-
-    if (!drv->bs)
-        return 0;
-    if (drv->media_changed) {
-        drv->media_changed = 0;
-        ret = 1;
-    } else {
-        ret = bdrv_media_changed(drv->bs);
-        if (ret < 0) {
-            ret = 0;            /* we don't know, assume no */
-        }
-    }
-    if (ret) {
-        fd_revalidate(drv);
-    }
-    return ret;
+    return drv->media_changed;
 }
 
 /* Digital input register : 0x07 (read-only) */
@@ -1856,6 +1849,7 @@ static void fdctrl_change_cb(void *opaque, bool load)
     FDrive *drive = opaque;
 
     drive->media_changed = 1;
+    fd_revalidate(drive);
 }
 
 static const BlockDevOps fdctrl_block_ops = {
@@ -1886,7 +1880,6 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
         fd_init(drive);
         fd_revalidate(drive);
         if (drive->bs) {
-            drive->media_changed = 1;
             bdrv_set_dev_ops(drive->bs, &fdctrl_block_ops, drive);
         }
     }
