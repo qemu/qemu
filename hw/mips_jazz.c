@@ -112,6 +112,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
 {
     char *filename;
     int bios_size, n;
+    MIPSCPU *cpu;
     CPUMIPSState *env;
     qemu_irq *rc4030, *i8259;
     rc4030_dma *dmas;
@@ -140,11 +141,12 @@ static void mips_jazz_init(MemoryRegion *address_space,
         cpu_model = "24Kf";
 #endif
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_mips_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
