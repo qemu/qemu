@@ -192,7 +192,7 @@ static uint32_t cfg_by_def(const LM32Def *def)
     return cfg;
 }
 
-CPULM32State *cpu_lm32_init(const char *cpu_model)
+LM32CPU *cpu_lm32_init(const char *cpu_model)
 {
     LM32CPU *cpu;
     CPULM32State *env;
@@ -219,7 +219,7 @@ CPULM32State *cpu_lm32_init(const char *cpu_model)
         lm32_translate_init();
     }
 
-    return env;
+    return cpu;
 }
 
 /* Some soc ignores the MSB on the address bus. Thus creating a shadow memory
