@@ -80,7 +80,7 @@ static void breakpoint_handler(CPUXtensaState *env)
     }
 }
 
-CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
+XtensaCPU *cpu_xtensa_init(const char *cpu_model)
 {
     static int tcg_inited;
     static int debug_handler_inited;
@@ -116,7 +116,7 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 
     xtensa_irq_init(env);
     qemu_init_vcpu(env);
-    return env;
+    return cpu;
 }
 
 
