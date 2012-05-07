@@ -405,6 +405,8 @@ obj-y += $(addprefix ../, $(trace-obj-y))
 
 endif # CONFIG_SOFTMMU
 
+obj-y += dump.o
+
 ifndef CONFIG_LINUX_USER
 ifndef CONFIG_BSD_USER
 # libcacard needs qemu-thread support, and besides is only needed by devices

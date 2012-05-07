@@ -604,6 +604,42 @@ Example:
 EQMP
 
     {
+        .name       = "dump-guest-memory",
+        .args_type  = "paging:b,protocol:s,begin:i?,end:i?",
+        .params     = "-p protocol [begin] [length]",
+        .help       = "dump guest memory to file",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = qmp_marshal_input_dump_guest_memory,
+    },
+
+SQMP
+dump
+
+
+Dump guest memory to file. The file can be processed with crash or gdb.
+
+Arguments:
+
+- "paging": do paging to get guest's memory mapping (json-bool)
+- "protocol": destination file(started with "file:") or destination file
+              descriptor (started with "fd:") (json-string)
+- "begin": the starting physical address. It's optional, and should be specified
+           with length together (json-int)
+- "length": the memory size, in bytes. It's optional, and should be specified
+            with begin together (json-int)
+
+Example:
+
+-> { "execute": "dump-guest-memory", "arguments": { "protocol": "fd:dump" } }
+<- { "return": {} }
+
+Notes:
+
+(1) All boolean arguments default to false
+
+EQMP
+
+    {
         .name       = "netdev_add",
         .args_type  = "netdev:O",
         .params     = "[user|tap|socket],id=str[,prop=value][,...]",

@@ -878,6 +878,34 @@ server will ask the spice/vnc client to automatically reconnect using the
 new parameters (if specified) once the vm migration finished successfully.
 ETEXI
 
+#if defined(CONFIG_HAVE_CORE_DUMP)
+    {
+        .name       = "dump-guest-memory",
+        .args_type  = "paging:-p,protocol:s,begin:i?,length:i?",
+        .params     = "[-p] protocol [begin] [length]",
+        .help       = "dump guest memory to file"
+                      "\n\t\t\t begin(optional): the starting physical address"
+                      "\n\t\t\t length(optional): the memory size, in bytes",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd = hmp_dump_guest_memory,
+    },
+
+
+STEXI
+@item dump-guest-memory [-p] @var{protocol} @var{begin} @var{length}
+@findex dump-guest-memory
+Dump guest memory to @var{protocol}. The file can be processed with crash or
+gdb.
+  protocol: destination file(started with "file:") or destination file
+            descriptor (started with "fd:")
+    paging: do paging to get guest's memory mapping
+     begin: the starting physical address. It's optional, and should be
+            specified with length together.
+    length: the memory size, in bytes. It's optional, and should be specified
+            with begin together.
+ETEXI
+#endif
+
     {
         .name       = "snapshot_blkdev",
         .args_type  = "reuse:-n,device:B,snapshot-file:s?,format:s?",
