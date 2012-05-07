@@ -30,6 +30,15 @@ void gdb_register_coprocessor(CPUArchState *env,
                               gdb_reg_cb get_reg, gdb_reg_cb set_reg,
                               int num_regs, const char *xml, int g_pos);
 
+static inline int cpu_index(CPUArchState *env)
+{
+#if defined(CONFIG_USER_ONLY) && defined(CONFIG_USE_NPTL)
+    return env->host_tid;
+#else
+    return env->cpu_index + 1;
+#endif
+}
+
 #endif
 
 #ifdef CONFIG_USER_ONLY
