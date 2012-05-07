@@ -60,6 +60,9 @@ static inline int qemu_get_guest_memory_mapping(MemoryMappingList *list)
 }
 #endif
 
+/* get guest's memory mapping without do paging(virtual address is 0). */
+void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list);
+
 #else
 
 /* We use MemoryMappingList* in cpu-all.h */
