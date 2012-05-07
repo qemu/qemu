@@ -71,6 +71,10 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque));
 void cpu_unregister_map_client(void *cookie);
 
+#ifndef CONFIG_USER_ONLY
+bool cpu_physical_memory_is_io(target_phys_addr_t phys_addr);
+#endif
+
 /* Coalesced MMIO regions are areas where write operations can be reordered.
  * This usually implies that write operations are side-effect free.  This allows
  * batching which can make a major impact on performance when using
