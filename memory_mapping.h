@@ -45,6 +45,21 @@ void memory_mapping_list_free(MemoryMappingList *list);
 
 void memory_mapping_list_init(MemoryMappingList *list);
 
+/*
+ * Return value:
+ *    0: success
+ *   -1: failed
+ *   -2: unsupported
+ */
+#if defined(CONFIG_HAVE_GET_MEMORY_MAPPING)
+int qemu_get_guest_memory_mapping(MemoryMappingList *list);
+#else
+static inline int qemu_get_guest_memory_mapping(MemoryMappingList *list)
+{
+    return -2;
+}
+#endif
+
 #else
 
 /* We use MemoryMappingList* in cpu-all.h */
