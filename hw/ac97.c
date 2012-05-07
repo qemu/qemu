@@ -458,8 +458,7 @@ static void update_combined_volume_out (AC97LinkState *s)
 
     get_volume (mixer_load (s, AC97_Master_Volume_Mute), 0x3f, 1,
                 &mute, &lvol, &rvol);
-    /* FIXME: should be 1f according to spec */
-    get_volume (mixer_load (s, AC97_PCM_Out_Volume_Mute), 0x3f, 1,
+    get_volume (mixer_load (s, AC97_PCM_Out_Volume_Mute), 0x1f, 1,
                 &pmute, &plvol, &prvol);
 
     mute = mute | pmute;
@@ -482,11 +481,22 @@ static void update_volume_in (AC97LinkState *s)
 
 static void set_volume (AC97LinkState *s, int index, uint32_t val)
 {
-    mixer_store (s, index, val);
-    if (index == AC97_Master_Volume_Mute || index == AC97_PCM_Out_Volume_Mute) {
+    switch (index) {
+    case AC97_Master_Volume_Mute:
+        val &= 0xbf3f;
+        mixer_store (s, index, val);
         update_combined_volume_out (s);
-    } else if (index == AC97_Record_Gain_Mute) {
+        break;
+    case AC97_PCM_Out_Volume_Mute:
+        val &= 0x9f1f;
+        mixer_store (s, index, val);
+        update_combined_volume_out (s);
+        break;
+    case AC97_Record_Gain_Mute:
+        val &= 0x8f0f;
+        mixer_store (s, index, val);
         update_volume_in (s);
+        break;
     }
 }
 
