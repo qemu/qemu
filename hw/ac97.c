@@ -54,6 +54,8 @@ enum {
     AC97_6Ch_Vol_C_LFE_Mute        = 0x36,
     AC97_6Ch_Vol_L_R_Surround_Mute = 0x38,
     AC97_Vendor_Reserved           = 0x58,
+    AC97_Sigmatel_Analog           = 0x6c, /* We emulate a Sigmatel codec */
+    AC97_Sigmatel_Dac2Invert       = 0x6e, /* We emulate a Sigmatel codec */
     AC97_Vendor_ID1                = 0x7c,
     AC97_Vendor_ID2                = 0x7e
 };
@@ -503,14 +505,16 @@ static void mixer_reset (AC97LinkState *s)
     memset (s->mixer_data, 0, sizeof (s->mixer_data));
     memset (active, 0, sizeof (active));
     mixer_store (s, AC97_Reset                   , 0x0000); /* 6940 */
-    mixer_store (s, AC97_Master_Volume_Mono_Mute , 0x8000);
+    mixer_store (s, AC97_Headphone_Volume_Mute   , 0x0000);
+    mixer_store (s, AC97_Master_Volume_Mono_Mute , 0x0000);
+    mixer_store (s, AC97_Master_Tone_RL,           0x0000);
     mixer_store (s, AC97_PC_BEEP_Volume_Mute     , 0x0000);
-
-    mixer_store (s, AC97_Phone_Volume_Mute       , 0x8008);
-    mixer_store (s, AC97_Mic_Volume_Mute         , 0x8008);
-    mixer_store (s, AC97_CD_Volume_Mute          , 0x8808);
-    mixer_store (s, AC97_Aux_Volume_Mute         , 0x8808);
-    mixer_store (s, AC97_Record_Gain_Mic_Mute    , 0x8000);
+    mixer_store (s, AC97_Phone_Volume_Mute       , 0x0000);
+    mixer_store (s, AC97_Mic_Volume_Mute         , 0x0000);
+    mixer_store (s, AC97_CD_Volume_Mute          , 0x0000);
+    mixer_store (s, AC97_Video_Volume_Mute       , 0x0000);
+    mixer_store (s, AC97_Aux_Volume_Mute         , 0x0000);
+    mixer_store (s, AC97_Record_Gain_Mic_Mute    , 0x0000);
     mixer_store (s, AC97_General_Purpose         , 0x0000);
     mixer_store (s, AC97_3D_Control              , 0x0000);
     mixer_store (s, AC97_Powerdown_Ctrl_Stat     , 0x000f);
@@ -656,6 +660,22 @@ static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
             dolog ("Attempt to set LR ADC rate to %d, but VRA is not set\n",
                     val);
         }
+        break;
+    case AC97_Headphone_Volume_Mute:
+    case AC97_Master_Volume_Mono_Mute:
+    case AC97_Master_Tone_RL:
+    case AC97_PC_BEEP_Volume_Mute:
+    case AC97_Phone_Volume_Mute:
+    case AC97_Mic_Volume_Mute:
+    case AC97_CD_Volume_Mute:
+    case AC97_Video_Volume_Mute:
+    case AC97_Aux_Volume_Mute:
+    case AC97_Record_Gain_Mic_Mute:
+    case AC97_General_Purpose:
+    case AC97_3D_Control:
+    case AC97_Sigmatel_Analog:
+    case AC97_Sigmatel_Dac2Invert:
+        /* None of the features in these regs are emulated, so they are RO */
         break;
     default:
         dolog ("U nam writew %#x <- %#x\n", addr, val);
