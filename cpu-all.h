@@ -527,11 +527,17 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
 
 #if defined(CONFIG_HAVE_GET_MEMORY_MAPPING)
 int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env);
+bool cpu_paging_enabled(CPUArchState *env);
 #else
 static inline int cpu_get_memory_mapping(MemoryMappingList *list,
                                          CPUArchState *env)
 {
     return -1;
+}
+
+static inline bool cpu_paging_enabled(CPUArchState *env)
+{
+    return true;
 }
 #endif
 
