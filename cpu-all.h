@@ -553,6 +553,7 @@ int cpu_write_elf64_qemunote(write_core_dump_function f, CPUArchState *env,
 int cpu_write_elf32_qemunote(write_core_dump_function f, CPUArchState *env,
                              void *opaque);
 int cpu_get_dump_info(ArchDumpInfo *info);
+size_t cpu_get_note_size(int class, int machine, int nr_cpus);
 #else
 static inline int cpu_write_elf64_note(write_core_dump_function f,
                                        CPUArchState *env, int cpuid,
@@ -583,6 +584,11 @@ static inline int cpu_write_elf32_qemunote(write_core_dump_function f,
 }
 
 static inline int cpu_get_dump_info(ArchDumpInfo *info)
+{
+    return -1;
+}
+
+static inline int cpu_get_note_size(int class, int machine, int nr_cpus)
 {
     return -1;
 }

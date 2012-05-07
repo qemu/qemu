@@ -414,3 +414,36 @@ int cpu_get_dump_info(ArchDumpInfo *info)
 
     return 0;
 }
+
+size_t cpu_get_note_size(int class, int machine, int nr_cpus)
+{
+    int name_size = 5; /* "CORE" or "QEMU" */
+    size_t elf_note_size = 0;
+    size_t qemu_note_size = 0;
+    int elf_desc_size = 0;
+    int qemu_desc_size = 0;
+    int note_head_size;
+
+    if (class == ELFCLASS32) {
+        note_head_size = sizeof(Elf32_Nhdr);
+    } else {
+        note_head_size = sizeof(Elf64_Nhdr);
+    }
+
+    if (machine == EM_386) {
+        elf_desc_size = sizeof(x86_elf_prstatus);
+    }
+#ifdef TARGET_X86_64
+    else {
+        elf_desc_size = sizeof(x86_64_elf_prstatus);
+    }
+#endif
+    qemu_desc_size = sizeof(QEMUCPUState);
+
+    elf_note_size = ((note_head_size + 3) / 4 + (name_size + 3) / 4 +
+                     (elf_desc_size + 3) / 4) * 4;
+    qemu_note_size = ((note_head_size + 3) / 4 + (name_size + 3) / 4 +
+                      (qemu_desc_size + 3) / 4) * 4;
+
+    return (elf_note_size + qemu_note_size) * nr_cpus;
+}
