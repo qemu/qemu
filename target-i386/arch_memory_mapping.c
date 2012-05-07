@@ -1,0 +1,266 @@
+/*
+ * i386 memory mapping
+ *
+ * Copyright Fujitsu, Corp. 2011, 2012
+ *
+ * Authors:
+ *     Wen Congyang <wency@cn.fujitsu.com>
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2.  See
+ * the COPYING file in the top-level directory.
+ *
+ */
+
+#include "cpu.h"
+#include "cpu-all.h"
+
+/* PAE Paging or IA-32e Paging */
+static void walk_pte(MemoryMappingList *list, target_phys_addr_t pte_start_addr,
+                     int32_t a20_mask, target_ulong start_line_addr)
+{
+    target_phys_addr_t pte_addr, start_paddr;
+    uint64_t pte;
+    target_ulong start_vaddr;
+    int i;
+
+    for (i = 0; i < 512; i++) {
+        pte_addr = (pte_start_addr + i * 8) & a20_mask;
+        pte = ldq_phys(pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        start_paddr = (pte & ~0xfff) & ~(0x1ULL << 63);
+        if (cpu_physical_memory_is_io(start_paddr)) {
+            /* I/O region */
+            continue;
+        }
+
+        start_vaddr = start_line_addr | ((i & 0x1fff) << 12);
+        memory_mapping_list_add_merge_sorted(list, start_paddr,
+                                             start_vaddr, 1 << 12);
+    }
+}
+
+/* 32-bit Paging */
+static void walk_pte2(MemoryMappingList *list,
+                      target_phys_addr_t pte_start_addr, int32_t a20_mask,
+                      target_ulong start_line_addr)
+{
+    target_phys_addr_t pte_addr, start_paddr;
+    uint32_t pte;
+    target_ulong start_vaddr;
+    int i;
+
+    for (i = 0; i < 1024; i++) {
+        pte_addr = (pte_start_addr + i * 4) & a20_mask;
+        pte = ldl_phys(pte_addr);
+        if (!(pte & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        start_paddr = pte & ~0xfff;
+        if (cpu_physical_memory_is_io(start_paddr)) {
+            /* I/O region */
+            continue;
+        }
+
+        start_vaddr = start_line_addr | ((i & 0x3ff) << 12);
+        memory_mapping_list_add_merge_sorted(list, start_paddr,
+                                             start_vaddr, 1 << 12);
+    }
+}
+
+/* PAE Paging or IA-32e Paging */
+static void walk_pde(MemoryMappingList *list, target_phys_addr_t pde_start_addr,
+                     int32_t a20_mask, target_ulong start_line_addr)
+{
+    target_phys_addr_t pde_addr, pte_start_addr, start_paddr;
+    uint64_t pde;
+    target_ulong line_addr, start_vaddr;
+    int i;
+
+    for (i = 0; i < 512; i++) {
+        pde_addr = (pde_start_addr + i * 8) & a20_mask;
+        pde = ldq_phys(pde_addr);
+        if (!(pde & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        line_addr = start_line_addr | ((i & 0x1ff) << 21);
+        if (pde & PG_PSE_MASK) {
+            /* 2 MB page */
+            start_paddr = (pde & ~0x1fffff) & ~(0x1ULL << 63);
+            if (cpu_physical_memory_is_io(start_paddr)) {
+                /* I/O region */
+                continue;
+            }
+            start_vaddr = line_addr;
+            memory_mapping_list_add_merge_sorted(list, start_paddr,
+                                                 start_vaddr, 1 << 21);
+            continue;
+        }
+
+        pte_start_addr = (pde & ~0xfff) & a20_mask;
+        walk_pte(list, pte_start_addr, a20_mask, line_addr);
+    }
+}
+
+/* 32-bit Paging */
+static void walk_pde2(MemoryMappingList *list,
+                      target_phys_addr_t pde_start_addr, int32_t a20_mask,
+                      bool pse)
+{
+    target_phys_addr_t pde_addr, pte_start_addr, start_paddr;
+    uint32_t pde;
+    target_ulong line_addr, start_vaddr;
+    int i;
+
+    for (i = 0; i < 1024; i++) {
+        pde_addr = (pde_start_addr + i * 4) & a20_mask;
+        pde = ldl_phys(pde_addr);
+        if (!(pde & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        line_addr = (((unsigned int)i & 0x3ff) << 22);
+        if ((pde & PG_PSE_MASK) && pse) {
+            /* 4 MB page */
+            start_paddr = (pde & ~0x3fffff) | ((pde & 0x1fe000) << 19);
+            if (cpu_physical_memory_is_io(start_paddr)) {
+                /* I/O region */
+                continue;
+            }
+            start_vaddr = line_addr;
+            memory_mapping_list_add_merge_sorted(list, start_paddr,
+                                                 start_vaddr, 1 << 22);
+            continue;
+        }
+
+        pte_start_addr = (pde & ~0xfff) & a20_mask;
+        walk_pte2(list, pte_start_addr, a20_mask, line_addr);
+    }
+}
+
+/* PAE Paging */
+static void walk_pdpe2(MemoryMappingList *list,
+                       target_phys_addr_t pdpe_start_addr, int32_t a20_mask)
+{
+    target_phys_addr_t pdpe_addr, pde_start_addr;
+    uint64_t pdpe;
+    target_ulong line_addr;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        pdpe_addr = (pdpe_start_addr + i * 8) & a20_mask;
+        pdpe = ldq_phys(pdpe_addr);
+        if (!(pdpe & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        line_addr = (((unsigned int)i & 0x3) << 30);
+        pde_start_addr = (pdpe & ~0xfff) & a20_mask;
+        walk_pde(list, pde_start_addr, a20_mask, line_addr);
+    }
+}
+
+#ifdef TARGET_X86_64
+/* IA-32e Paging */
+static void walk_pdpe(MemoryMappingList *list,
+                      target_phys_addr_t pdpe_start_addr, int32_t a20_mask,
+                      target_ulong start_line_addr)
+{
+    target_phys_addr_t pdpe_addr, pde_start_addr, start_paddr;
+    uint64_t pdpe;
+    target_ulong line_addr, start_vaddr;
+    int i;
+
+    for (i = 0; i < 512; i++) {
+        pdpe_addr = (pdpe_start_addr + i * 8) & a20_mask;
+        pdpe = ldq_phys(pdpe_addr);
+        if (!(pdpe & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        line_addr = start_line_addr | ((i & 0x1ffULL) << 30);
+        if (pdpe & PG_PSE_MASK) {
+            /* 1 GB page */
+            start_paddr = (pdpe & ~0x3fffffff) & ~(0x1ULL << 63);
+            if (cpu_physical_memory_is_io(start_paddr)) {
+                /* I/O region */
+                continue;
+            }
+            start_vaddr = line_addr;
+            memory_mapping_list_add_merge_sorted(list, start_paddr,
+                                                 start_vaddr, 1 << 30);
+            continue;
+        }
+
+        pde_start_addr = (pdpe & ~0xfff) & a20_mask;
+        walk_pde(list, pde_start_addr, a20_mask, line_addr);
+    }
+}
+
+/* IA-32e Paging */
+static void walk_pml4e(MemoryMappingList *list,
+                       target_phys_addr_t pml4e_start_addr, int32_t a20_mask)
+{
+    target_phys_addr_t pml4e_addr, pdpe_start_addr;
+    uint64_t pml4e;
+    target_ulong line_addr;
+    int i;
+
+    for (i = 0; i < 512; i++) {
+        pml4e_addr = (pml4e_start_addr + i * 8) & a20_mask;
+        pml4e = ldq_phys(pml4e_addr);
+        if (!(pml4e & PG_PRESENT_MASK)) {
+            /* not present */
+            continue;
+        }
+
+        line_addr = ((i & 0x1ffULL) << 39) | (0xffffULL << 48);
+        pdpe_start_addr = (pml4e & ~0xfff) & a20_mask;
+        walk_pdpe(list, pdpe_start_addr, a20_mask, line_addr);
+    }
+}
+#endif
+
+int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env)
+{
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        /* paging is disabled */
+        return 0;
+    }
+
+    if (env->cr[4] & CR4_PAE_MASK) {
+#ifdef TARGET_X86_64
+        if (env->hflags & HF_LMA_MASK) {
+            target_phys_addr_t pml4e_addr;
+
+            pml4e_addr = (env->cr[3] & ~0xfff) & env->a20_mask;
+            walk_pml4e(list, pml4e_addr, env->a20_mask);
+        } else
+#endif
+        {
+            target_phys_addr_t pdpe_addr;
+
+            pdpe_addr = (env->cr[3] & ~0x1f) & env->a20_mask;
+            walk_pdpe2(list, pdpe_addr, env->a20_mask);
+        }
+    } else {
+        target_phys_addr_t pde_addr;
+        bool pse;
+
+        pde_addr = (env->cr[3] & ~0xfff) & env->a20_mask;
+        pse = !!(env->cr[4] & CR4_PSE_MASK);
+        walk_pde2(list, pde_addr, env->a20_mask, pse);
+    }
+
+    return 0;
+}

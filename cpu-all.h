@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "qemu-tls.h"
 #include "cpu-common.h"
+#include "memory_mapping.h"
 
 /* some important defines:
  *
@@ -523,5 +524,15 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
+
+#if defined(CONFIG_HAVE_GET_MEMORY_MAPPING)
+int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env);
+#else
+static inline int cpu_get_memory_mapping(MemoryMappingList *list,
+                                         CPUArchState *env)
+{
+    return -1;
+}
+#endif
 
 #endif /* CPU_ALL_H */

@@ -16,6 +16,7 @@
 
 #include "qemu-queue.h"
 
+#ifndef CONFIG_USER_ONLY
 /* The physical and virtual address in the memory mapping are contiguous. */
 typedef struct MemoryMapping {
     target_phys_addr_t phys_addr;
@@ -44,4 +45,9 @@ void memory_mapping_list_free(MemoryMappingList *list);
 
 void memory_mapping_list_init(MemoryMappingList *list);
 
+#else
+
+/* We use MemoryMappingList* in cpu-all.h */
+typedef struct MemoryMappingList MemoryMappingList;
+#endif
 #endif
