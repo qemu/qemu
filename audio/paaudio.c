@@ -56,6 +56,26 @@ static void GCC_FMT_ATTR (2, 3) qpa_logerr (int err, const char *fmt, ...)
     AUD_log (AUDIO_CAP, "Reason: %s\n", pa_strerror (err));
 }
 
+#ifndef PA_CONTEXT_IS_GOOD
+static inline int PA_CONTEXT_IS_GOOD(pa_context_state_t x)
+{
+    return
+        x == PA_CONTEXT_CONNECTING ||
+        x == PA_CONTEXT_AUTHORIZING ||
+        x == PA_CONTEXT_SETTING_NAME ||
+        x == PA_CONTEXT_READY;
+}
+#endif
+
+#ifndef PA_STREAM_IS_GOOD
+static inline int PA_STREAM_IS_GOOD(pa_stream_state_t x)
+{
+    return
+        x == PA_STREAM_CREATING ||
+        x == PA_STREAM_READY;
+}
+#endif
+
 #define CHECK_SUCCESS_GOTO(c, rerror, expression, label)        \
     do {                                                        \
         if (!(expression)) {                                    \
@@ -481,12 +501,16 @@ static pa_stream *qpa_simple_new (
     if (dir == PA_STREAM_PLAYBACK) {
         r = pa_stream_connect_playback (stream, dev, attr,
                                         PA_STREAM_INTERPOLATE_TIMING
+#ifdef PA_STREAM_ADJUST_LATENCY
                                         |PA_STREAM_ADJUST_LATENCY
+#endif
                                         |PA_STREAM_AUTO_TIMING_UPDATE, NULL, NULL);
     } else {
         r = pa_stream_connect_record (stream, dev, attr,
                                       PA_STREAM_INTERPOLATE_TIMING
+#ifdef PA_STREAM_ADJUST_LATENCY
                                       |PA_STREAM_ADJUST_LATENCY
+#endif
                                       |PA_STREAM_AUTO_TIMING_UPDATE);
     }
 
@@ -681,7 +705,9 @@ static int qpa_ctl_out (HWVoiceOut *hw, int cmd, ...)
     pa_cvolume v;
     paaudio *g = &glob_paaudio;
 
-    pa_cvolume_init (&v);
+#ifdef PA_CHECK_VERSION    /* macro is present in 0.9.16+ */
+    pa_cvolume_init (&v);  /* function is present in 0.9.13+ */
+#endif
 
     switch (cmd) {
     case VOICE_VOLUME:
@@ -731,7 +757,9 @@ static int qpa_ctl_in (HWVoiceIn *hw, int cmd, ...)
     pa_cvolume v;
     paaudio *g = &glob_paaudio;
 
+#ifdef PA_CHECK_VERSION
     pa_cvolume_init (&v);
+#endif
 
     switch (cmd) {
     case VOICE_VOLUME:
