@@ -342,7 +342,7 @@ static uint16_t mixer_load (AC97LinkState *s, uint32_t i)
     uint16_t val = 0xffff;
 
     if (i + 2 > sizeof (s->mixer_data)) {
-        dolog ("mixer_store: index %d out of bounds %zd\n",
+        dolog ("mixer_load: index %d out of bounds %zd\n",
                i, sizeof (s->mixer_data));
     }
     else {
