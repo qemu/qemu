@@ -511,6 +511,7 @@ static void mixer_reset (AC97LinkState *s)
     mixer_store (s, AC97_PC_BEEP_Volume_Mute     , 0x0000);
     mixer_store (s, AC97_Phone_Volume_Mute       , 0x0000);
     mixer_store (s, AC97_Mic_Volume_Mute         , 0x0000);
+    mixer_store (s, AC97_Line_In_Volume_Mute     , 0x0000);
     mixer_store (s, AC97_CD_Volume_Mute          , 0x0000);
     mixer_store (s, AC97_Video_Volume_Mute       , 0x0000);
     mixer_store (s, AC97_Aux_Volume_Mute         , 0x0000);
@@ -536,7 +537,7 @@ static void mixer_reset (AC97LinkState *s)
     record_select (s, 0);
     set_volume (s, AC97_Master_Volume_Mute, 0x8000);
     set_volume (s, AC97_PCM_Out_Volume_Mute, 0x8808);
-    set_volume (s, AC97_Line_In_Volume_Mute, 0x8808);
+    set_volume (s, AC97_Record_Gain_Mute, 0x8808);
 
     reset_voices (s, active);
 }
@@ -599,7 +600,6 @@ static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
     case AC97_PCM_Out_Volume_Mute:
     case AC97_Master_Volume_Mute:
     case AC97_Record_Gain_Mute:
-    case AC97_Line_In_Volume_Mute:
         set_volume (s, index, val);
         break;
     case AC97_Record_Select:
@@ -667,6 +667,7 @@ static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
     case AC97_PC_BEEP_Volume_Mute:
     case AC97_Phone_Volume_Mute:
     case AC97_Mic_Volume_Mute:
+    case AC97_Line_In_Volume_Mute:
     case AC97_CD_Volume_Mute:
     case AC97_Video_Volume_Mute:
     case AC97_Aux_Volume_Mute:
@@ -1178,8 +1179,8 @@ static int ac97_post_load (void *opaque, int version_id)
                 mixer_load (s, AC97_Master_Volume_Mute));
     set_volume (s, AC97_PCM_Out_Volume_Mute,
                 mixer_load (s, AC97_PCM_Out_Volume_Mute));
-    set_volume (s, AC97_Line_In_Volume_Mute,
-                mixer_load (s, AC97_Line_In_Volume_Mute));
+    set_volume (s, AC97_Record_Gain_Mute,
+                mixer_load (s, AC97_Record_Gain_Mute));
 
     active[PI_INDEX] = !!(s->bm_regs[PI_INDEX].cr & CR_RPBM);
     active[PO_INDEX] = !!(s->bm_regs[PO_INDEX].cr & CR_RPBM);
