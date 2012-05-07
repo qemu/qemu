@@ -194,6 +194,7 @@ obj-$(CONFIG_VGA) += vga.o
 obj-y += memory.o savevm.o cputlb.o
 obj-y += memory_mapping.o
 obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += arch_memory_mapping.o
+obj-$(CONFIG_HAVE_CORE_DUMP) += arch_dump.o
 LIBS+=-lz
 
 obj-i386-$(CONFIG_KVM) += hyperv.o

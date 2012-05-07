@@ -541,4 +541,26 @@ static inline bool cpu_paging_enabled(CPUArchState *env)
 }
 #endif
 
+typedef int (*write_core_dump_function)(void *buf, size_t size, void *opaque);
+#if defined(CONFIG_HAVE_CORE_DUMP)
+int cpu_write_elf64_note(write_core_dump_function f, CPUArchState *env,
+                         int cpuid, void *opaque);
+int cpu_write_elf32_note(write_core_dump_function f, CPUArchState *env,
+                         int cpuid, void *opaque);
+#else
+static inline int cpu_write_elf64_note(write_core_dump_function f,
+                                       CPUArchState *env, int cpuid,
+                                       void *opaque)
+{
+    return -1;
+}
+
+static inline int cpu_write_elf32_note(write_core_dump_function f,
+                                       CPUArchState *env, int cpuid,
+                                       void *opaque)
+{
+    return -1;
+}
+#endif
+
 #endif /* CPU_ALL_H */
