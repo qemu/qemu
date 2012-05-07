@@ -603,7 +603,7 @@ static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
         mixer_reset (s);
         break;
     case AC97_Powerdown_Ctrl_Stat:
-        val &= ~0xf;
+        val &= ~0x800f;
         val |= mixer_load (s, index) & 0xf;
         mixer_store (s, index, val);
         break;
