@@ -547,6 +547,10 @@ int cpu_write_elf64_note(write_core_dump_function f, CPUArchState *env,
                          int cpuid, void *opaque);
 int cpu_write_elf32_note(write_core_dump_function f, CPUArchState *env,
                          int cpuid, void *opaque);
+int cpu_write_elf64_qemunote(write_core_dump_function f, CPUArchState *env,
+                             void *opaque);
+int cpu_write_elf32_qemunote(write_core_dump_function f, CPUArchState *env,
+                             void *opaque);
 #else
 static inline int cpu_write_elf64_note(write_core_dump_function f,
                                        CPUArchState *env, int cpuid,
@@ -558,6 +562,20 @@ static inline int cpu_write_elf64_note(write_core_dump_function f,
 static inline int cpu_write_elf32_note(write_core_dump_function f,
                                        CPUArchState *env, int cpuid,
                                        void *opaque)
+{
+    return -1;
+}
+
+static inline int cpu_write_elf64_qemunote(write_core_dump_function f,
+                                           CPUArchState *env,
+                                           void *opaque)
+{
+    return -1;
+}
+
+static inline int cpu_write_elf32_qemunote(write_core_dump_function f,
+                                           CPUArchState *env,
+                                           void *opaque)
 {
     return -1;
 }
