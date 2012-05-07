@@ -23,6 +23,7 @@
 #include "qemu-tls.h"
 #include "cpu-common.h"
 #include "memory_mapping.h"
+#include "dump.h"
 
 /* some important defines:
  *
@@ -551,6 +552,7 @@ int cpu_write_elf64_qemunote(write_core_dump_function f, CPUArchState *env,
                              void *opaque);
 int cpu_write_elf32_qemunote(write_core_dump_function f, CPUArchState *env,
                              void *opaque);
+int cpu_get_dump_info(ArchDumpInfo *info);
 #else
 static inline int cpu_write_elf64_note(write_core_dump_function f,
                                        CPUArchState *env, int cpuid,
@@ -576,6 +578,11 @@ static inline int cpu_write_elf64_qemunote(write_core_dump_function f,
 static inline int cpu_write_elf32_qemunote(write_core_dump_function f,
                                            CPUArchState *env,
                                            void *opaque)
+{
+    return -1;
+}
+
+static inline int cpu_get_dump_info(ArchDumpInfo *info)
 {
     return -1;
 }

@@ -13,6 +13,7 @@
 
 #include "cpu.h"
 #include "cpu-all.h"
+#include "dump.h"
 #include "elf.h"
 
 #ifdef TARGET_X86_64
@@ -379,4 +380,37 @@ int cpu_write_elf32_qemunote(write_core_dump_function f, CPUArchState *env,
                              void *opaque)
 {
     return cpu_write_qemu_note(f, env, opaque, 0);
+}
+
+int cpu_get_dump_info(ArchDumpInfo *info)
+{
+    bool lma = false;
+    RAMBlock *block;
+
+#ifdef TARGET_X86_64
+    lma = !!(first_cpu->hflags & HF_LMA_MASK);
+#endif
+
+    if (lma) {
+        info->d_machine = EM_X86_64;
+    } else {
+        info->d_machine = EM_386;
+    }
+    info->d_endian = ELFDATA2LSB;
+
+    if (lma) {
+        info->d_class = ELFCLASS64;
+    } else {
+        info->d_class = ELFCLASS32;
+
+        QLIST_FOREACH(block, &ram_list.blocks, next) {
+            if (block->offset + block->length > UINT_MAX) {
+                /* The memory size is greater than 4G */
+                info->d_class = ELFCLASS64;
+                break;
+            }
+        }
+    }
+
+    return 0;
 }
