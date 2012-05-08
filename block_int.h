@@ -95,6 +95,12 @@ struct BlockJob {
     BlockDriverState *bs;
 
     /**
+     * The coroutine that executes the job.  If not NULL, it is
+     * reentered when busy is false and the job is cancelled.
+     */
+    Coroutine *co;
+
+    /**
      * Set to true if the job should cancel itself.  The flag must
      * always be tested just before toggling the busy flag from false
      * to true.  After a job has been cancelled, it should only yield
@@ -418,8 +424,11 @@ bool block_job_is_cancelled(BlockJob *job);
  * immediately after #block_job_cancel_sync.  Users of block jobs
  * will usually protect the BlockDriverState objects with a reference
  * count, should this be a concern.
+ *
+ * Returns the return value from the job if the job actually completed
+ * during the call, or -ECANCELED if it was canceled.
  */
-void block_job_cancel_sync(BlockJob *job);
+int block_job_cancel_sync(BlockJob *job);
 
 /**
  * stream_start:

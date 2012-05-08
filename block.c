@@ -4238,6 +4238,9 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_cancel(BlockJob *job)
 {
     job->cancelled = true;
+    if (job->co && !job->busy) {
+        qemu_coroutine_enter(job->co, NULL);
+    }
 }
 
 bool block_job_is_cancelled(BlockJob *job)
@@ -4245,15 +4248,44 @@ bool block_job_is_cancelled(BlockJob *job)
     return job->cancelled;
 }
 
-void block_job_cancel_sync(BlockJob *job)
+struct BlockCancelData {
+    BlockJob *job;
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+    bool cancelled;
+    int ret;
+};
+
+static void block_job_cancel_cb(void *opaque, int ret)
 {
+    struct BlockCancelData *data = opaque;
+
+    data->cancelled = block_job_is_cancelled(data->job);
+    data->ret = ret;
+    data->cb(data->opaque, ret);
+}
+
+int block_job_cancel_sync(BlockJob *job)
+{
+    struct BlockCancelData data;
     BlockDriverState *bs = job->bs;
 
     assert(bs->job == job);
+
+    /* Set up our own callback to store the result and chain to
+     * the original callback.
+     */
+    data.job = job;
+    data.cb = job->cb;
+    data.opaque = job->opaque;
+    data.ret = -EINPROGRESS;
+    job->cb = block_job_cancel_cb;
+    job->opaque = &data;
     block_job_cancel(job);
-    while (bs->job != NULL && bs->job->busy) {
+    while (data.ret == -EINPROGRESS) {
         qemu_aio_wait();
     }
+    return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
 }
 
 void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)

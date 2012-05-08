@@ -270,7 +270,6 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   void *opaque, Error **errp)
 {
     StreamBlockJob *s;
-    Coroutine *co;
 
     s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
     if (!s) {
@@ -282,7 +281,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
         pstrcpy(s->backing_file_id, sizeof(s->backing_file_id), base_id);
     }
 
-    co = qemu_coroutine_create(stream_run);
-    trace_stream_start(bs, base, s, co, opaque);
-    qemu_coroutine_enter(co, s);
+    s->common.co = qemu_coroutine_create(stream_run);
+    trace_stream_start(bs, base, s, s->common.co, opaque);
+    qemu_coroutine_enter(s->common.co, s);
 }
