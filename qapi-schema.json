@@ -92,6 +92,8 @@
 #
 # @debug: QEMU is running on a debugger
 #
+# @finish-migrate: guest is paused to finish the migration process
+#
 # @inmigrate: guest is paused waiting for an incoming migration
 #
 # @internal-error: An internal error that prevents further guest execution
@@ -106,8 +108,6 @@
 #
 # @prelaunch: QEMU was started with -S and guest has not started
 #
-# @finish-migrate: guest is paused to finish the migration process
-#
 # @restore-vm: guest is paused to restore VM state
 #
 # @running: guest is actively running
@@ -116,12 +116,14 @@
 #
 # @shutdown: guest is shut down (and -no-shutdown is in use)
 #
+# @suspended: guest is suspended (ACPI S3)
+#
 # @watchdog: the watchdog action is configured to pause and has been triggered
 ##
 { 'enum': 'RunState',
   'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
             'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
-            'running', 'save-vm', 'shutdown', 'watchdog' ] }
+            'running', 'save-vm', 'shutdown', 'suspended', 'watchdog' ] }
 
 ##
 # @StatusInfo:
