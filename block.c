@@ -610,16 +610,11 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     int ret, open_flags;
 
     assert(drv != NULL);
+    assert(bs->file == NULL);
 
     trace_bdrv_open_common(bs, filename, flags, drv->format_name);
 
-    bs->file = NULL;
-    bs->total_sectors = 0;
-    bs->encrypted = 0;
-    bs->valid_key = 0;
-    bs->sg = 0;
     bs->open_flags = flags;
-    bs->growable = 0;
     bs->buffer_alignment = 512;
 
     assert(bs->copy_on_read == 0); /* bdrv_new() and bdrv_close() make it so */
@@ -628,7 +623,6 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     }
 
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
-    bs->backing_file[0] = '\0';
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
         return -ENOTSUP;
@@ -878,6 +872,11 @@ void bdrv_close(BlockDriverState *bs)
         bs->copy_on_read = 0;
         bs->backing_file[0] = '\0';
         bs->backing_format[0] = '\0';
+        bs->total_sectors = 0;
+        bs->encrypted = 0;
+        bs->valid_key = 0;
+        bs->sg = 0;
+        bs->growable = 0;
 
         if (bs->file != NULL) {
             bdrv_delete(bs->file);
