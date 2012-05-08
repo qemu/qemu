@@ -131,11 +131,15 @@
 #
 # @mode: #optional "halt", "powerdown" (default), or "reboot"
 #
-# Returns: Nothing on success
+# This command does NOT return a response on success. Success condition
+# is indicated by the VM exiting with a zero exit status or, when
+# running with --no-shutdown, by issuing the query-status QMP command
+# to confirm the VM status is "shutdown".
 #
 # Since: 0.15.0
 ##
-{ 'command': 'guest-shutdown', 'data': { '*mode': 'str' } }
+{ 'command': 'guest-shutdown', 'data': { '*mode': 'str' },
+  'success-response': 'no' }
 
 ##
 # @guest-file-open:
