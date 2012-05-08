@@ -882,7 +882,8 @@ void bdrv_close(BlockDriverState *bs)
         bs->backing_format[0] = '\0';
 
         if (bs->file != NULL) {
-            bdrv_close(bs->file);
+            bdrv_delete(bs->file);
+            bs->file = NULL;
         }
 
         bdrv_dev_change_media_cb(bs, false);
@@ -1062,9 +1063,6 @@ void bdrv_delete(BlockDriverState *bs)
     bdrv_make_anon(bs);
 
     bdrv_close(bs);
-    if (bs->file != NULL) {
-        bdrv_delete(bs->file);
-    }
 
     assert(bs != bs_snapshots);
     g_free(bs);
