@@ -33,19 +33,19 @@ typedef struct {
 
 static int64_t ratelimit_calculate_delay(RateLimit *limit, uint64_t n)
 {
-    int64_t delay_ns = 0;
     int64_t now = qemu_get_clock_ns(rt_clock);
 
     if (limit->next_slice_time < now) {
         limit->next_slice_time = now + SLICE_TIME;
         limit->dispatched = 0;
     }
-    if (limit->dispatched + n > limit->slice_quota) {
-        delay_ns = limit->next_slice_time - now;
-    } else {
+    if (limit->dispatched == 0 || limit->dispatched + n <= limit->slice_quota) {
         limit->dispatched += n;
+        return 0;
+    } else {
+        limit->dispatched = n;
+        return limit->next_slice_time - now;
     }
-    return delay_ns;
 }
 
 static void ratelimit_set_speed(RateLimit *limit, uint64_t speed)
