@@ -982,6 +982,12 @@ static BDRVVVFATState *vvv = NULL;
 static int enable_write_target(BDRVVVFATState *s);
 static int is_consistent(BDRVVVFATState *s);
 
+static void vvfat_rebind(BlockDriverState *bs)
+{
+    BDRVVVFATState *s = bs->opaque;
+    s->bs = bs;
+}
+
 static int vvfat_open(BlockDriverState *bs, const char* dirname, int flags)
 {
     BDRVVVFATState *s = bs->opaque;
@@ -2855,6 +2861,7 @@ static BlockDriver bdrv_vvfat = {
     .format_name	= "vvfat",
     .instance_size	= sizeof(BDRVVVFATState),
     .bdrv_file_open	= vvfat_open,
+    .bdrv_rebind	= vvfat_rebind,
     .bdrv_read          = vvfat_co_read,
     .bdrv_write         = vvfat_co_write,
     .bdrv_close		= vvfat_close,

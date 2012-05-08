@@ -949,6 +949,13 @@ void bdrv_make_anon(BlockDriverState *bs)
     bs->device_name[0] = '\0';
 }
 
+static void bdrv_rebind(BlockDriverState *bs)
+{
+    if (bs->drv && bs->drv->bdrv_rebind) {
+        bs->drv->bdrv_rebind(bs);
+    }
+}
+
 /*
  * Add new bs contents at the top of an image chain while the chain is
  * live, while keeping required fields on the top layer.
@@ -1037,6 +1044,9 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     bs_new->slice_time        = 0;
     bs_new->slice_start       = 0;
     bs_new->slice_end         = 0;
+
+    bdrv_rebind(bs_new);
+    bdrv_rebind(bs_top);
 }
 
 void bdrv_delete(BlockDriverState *bs)
