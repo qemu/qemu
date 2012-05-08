@@ -363,17 +363,21 @@
 # For the best results it's strongly recommended to have the pm-utils
 # package installed in the guest.
 #
-# Returns: nothing on success
+# This command does NOT return a response on success. There is a high chance
+# the command succeeded if the VM exits with a zero exit status or, when
+# running with --no-shutdown, by issuing the query-status QMP command to
+# to confirm the VM status is "shutdown". However, the VM could also exit
+# (or set its status to "shutdown") due to other reasons.
+#
+# The following errors may be returned:
 #          If suspend to disk is not supported, Unsupported
 #
-# Notes: o This is an asynchronous request. There's no guarantee a response
-#          will be sent
-#        o It's strongly recommended to issue the guest-sync command before
-#          sending commands when the guest resumes
+# Notes: It's strongly recommended to issue the guest-sync command before
+#        sending commands when the guest resumes
 #
 # Since: 1.1
 ##
-{ 'command': 'guest-suspend-disk' }
+{ 'command': 'guest-suspend-disk', 'success-response': 'no' }
 
 ##
 # @guest-suspend-ram
