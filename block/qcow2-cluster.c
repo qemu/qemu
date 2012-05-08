@@ -883,15 +883,19 @@ again:
         assert(keep_clusters <= nb_clusters);
         nb_clusters -= keep_clusters;
     } else {
-        /* For the moment, overwrite compressed clusters one by one */
-        if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
-            nb_clusters = 1;
-        } else {
-            nb_clusters = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
-        }
-
         keep_clusters = 0;
         cluster_offset = 0;
+    }
+
+    if (nb_clusters > 0) {
+        /* For the moment, overwrite compressed clusters one by one */
+        uint64_t entry = be64_to_cpu(l2_table[l2_index + keep_clusters]);
+        if (entry & QCOW_OFLAG_COMPRESSED) {
+            nb_clusters = 1;
+        } else {
+            nb_clusters = count_cow_clusters(s, nb_clusters, l2_table,
+                                             l2_index + keep_clusters);
+        }
     }
 
     cluster_offset &= L2E_OFFSET_MASK;
