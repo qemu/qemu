@@ -350,6 +350,8 @@ void hmp_info_spice(Monitor *mon)
     }
     monitor_printf(mon, "        auth: %s\n", info->auth);
     monitor_printf(mon, "    compiled: %s\n", info->compiled_version);
+    monitor_printf(mon, "  mouse-mode: %s\n",
+                   SpiceQueryMouseMode_lookup[info->mouse_mode]);
 
     if (!info->has_channels || info->channels == NULL) {
         monitor_printf(mon, "Channels: none\n");
