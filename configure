@@ -2546,10 +2546,13 @@ fi
 
 ##########################################
 # Do we have libiscsi
+# We check for iscsi_unmap_sync() to make sure we have a
+# recent enough version of libiscsi.
 if test "$libiscsi" != "no" ; then
   cat > $TMPC << EOF
+#include <stdio.h>
 #include <iscsi/iscsi.h>
-int main(void) { iscsi_create_context(""); return 0; }
+int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
   if compile_prog "-Werror" "-liscsi" ; then
     libiscsi="yes"

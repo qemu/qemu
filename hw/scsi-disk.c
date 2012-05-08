@@ -28,9 +28,6 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #define DPRINTF(fmt, ...) do {} while(0)
 #endif
 
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
-
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "scsi.h"
@@ -61,10 +58,13 @@ typedef struct SCSIDiskReq {
     BlockAcctCookie acct;
 } SCSIDiskReq;
 
+#define SCSI_DISK_F_REMOVABLE   0
+#define SCSI_DISK_F_DPOFUA      1
+
 struct SCSIDiskState
 {
     SCSIDevice qdev;
-    uint32_t removable;
+    uint32_t features;
     bool media_changed;
     bool media_event;
     bool eject_request;
@@ -296,6 +296,13 @@ static void scsi_do_read(void *opaque, int ret)
         }
     }
 
+    if (r->req.io_canceled) {
+        return;
+    }
+
+    /* The request is used as the AIO opaque value, so add a ref.  */
+    scsi_req_ref(&r->req);
+
     if (r->req.sg) {
         dma_acct_start(s->qdev.conf.bs, &r->acct, r->req.sg, BDRV_ACCT_READ);
         r->req.resid -= r->req.sg->size;
@@ -505,20 +512,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int buflen = 0;
 
-    if (req->cmd.buf[1] & 0x2) {
-        /* Command support data - optional, not implemented */
-        BADF("optional INQUIRY command support request not implemented\n");
-        return -1;
-    }
-
     if (req->cmd.buf[1] & 0x1) {
         /* Vital product data */
         uint8_t page_code = req->cmd.buf[2];
-        if (req->cmd.xfer < 4) {
-            BADF("Error: Inquiry (EVPD[%02X]) buffer size %zd is "
-                 "less than 4\n", page_code, req->cmd.xfer);
-            return -1;
-        }
 
         outbuf[buflen++] = s->qdev.type & 0x1f;
         outbuf[buflen++] = page_code ; // this page
@@ -633,8 +629,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             break;
         }
         default:
-            BADF("Error: unsupported Inquiry (EVPD[%02X]) "
-                 "buffer size %zd\n", page_code, req->cmd.xfer);
             return -1;
         }
         /* done with EVPD */
@@ -643,18 +637,10 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
     /* Standard INQUIRY data */
     if (req->cmd.buf[2] != 0) {
-        BADF("Error: Inquiry (STANDARD) page or code "
-             "is non-zero [%02X]\n", req->cmd.buf[2]);
         return -1;
     }
 
     /* PAGE CODE == 0 */
-    if (req->cmd.xfer < 5) {
-        BADF("Error: Inquiry (STANDARD) buffer size %zd "
-             "is less than 5\n", req->cmd.xfer);
-        return -1;
-    }
-
     buflen = req->cmd.xfer;
     if (buflen > SCSI_MAX_INQUIRY_LEN) {
         buflen = SCSI_MAX_INQUIRY_LEN;
@@ -662,7 +648,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     memset(outbuf, 0, buflen);
 
     outbuf[0] = s->qdev.type & 0x1f;
-    outbuf[1] = s->removable ? 0x80 : 0;
+    outbuf[1] = (s->features & (1 << SCSI_DISK_F_REMOVABLE)) ? 0x80 : 0;
     if (s->qdev.type == TYPE_ROM) {
         memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
     } else {
@@ -1094,7 +1080,7 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
     p = outbuf;
 
     if (s->qdev.type == TYPE_DISK) {
-        dev_specific_param = 0x10; /* DPOFUA */
+        dev_specific_param = s->features & (1 << SCSI_DISK_F_DPOFUA) ? 0x10 : 0;
         if (bdrv_is_read_only(s->qdev.conf.bs)) {
             dev_specific_param |= 0x80; /* Readonly.  */
         }
@@ -1559,8 +1545,11 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         }
         break;
     case WRITE_SAME_10:
+        len = lduw_be_p(&buf[7]);
+        goto write_same;
     case WRITE_SAME_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
+        len = ldl_be_p(&buf[10]) & 0xffffffffULL;
+    write_same:
 
         DPRINTF("WRITE SAME() (sector %" PRId64 ", count %d)\n",
                 r->req.cmd.lba, len);
@@ -1700,7 +1689,8 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (!s->removable && !bdrv_is_inserted(s->qdev.conf.bs)) {
+    if (!(s->features & (1 << SCSI_DISK_F_REMOVABLE)) &&
+        !bdrv_is_inserted(s->qdev.conf.bs)) {
         error_report("Device needs media, but drive is empty");
         return -1;
     }
@@ -1722,7 +1712,7 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (s->removable) {
+    if (s->features & (1 << SCSI_DISK_F_REMOVABLE)) {
         bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_cd_block_ops, s);
     }
     bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
@@ -1745,7 +1735,7 @@ static int scsi_cd_initfn(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     s->qdev.blocksize = 2048;
     s->qdev.type = TYPE_ROM;
-    s->removable = true;
+    s->features |= 1 << SCSI_DISK_F_REMOVABLE;
     return scsi_initfn(&s->qdev);
 }
 
@@ -1818,7 +1808,9 @@ static int get_device_type(SCSIDiskState *s)
         return -1;
     }
     s->qdev.type = buf[0];
-    s->removable = (buf[1] & 0x80) != 0;
+    if (buf[1] & 0x80) {
+        s->features |= 1 << SCSI_DISK_F_REMOVABLE;
+    }
     return 0;
 }
 
@@ -1918,7 +1910,10 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 
 static Property scsi_hd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
-    DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+    DEFINE_PROP_BIT("removable", SCSIDiskState, features,
+                    SCSI_DISK_F_REMOVABLE, false),
+    DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
+                    SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2020,7 +2015,10 @@ static TypeInfo scsi_block_info = {
 
 static Property scsi_disk_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
-    DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+    DEFINE_PROP_BIT("removable", SCSIDiskState, features,
+                    SCSI_DISK_F_REMOVABLE, false),
+    DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
+                    SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

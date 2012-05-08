@@ -383,6 +383,65 @@ iscsi_aio_flush(BlockDriverState *bs,
     return &acb->common;
 }
 
+static void
+iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
+                     void *command_data, void *opaque)
+{
+    IscsiAIOCB *acb = opaque;
+
+    if (acb->canceled != 0) {
+        qemu_aio_release(acb);
+        scsi_free_scsi_task(acb->task);
+        acb->task = NULL;
+        return;
+    }
+
+    acb->status = 0;
+    if (status < 0) {
+        error_report("Failed to unmap data on iSCSI lun. %s",
+                     iscsi_get_error(iscsi));
+        acb->status = -EIO;
+    }
+
+    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    scsi_free_scsi_task(acb->task);
+    acb->task = NULL;
+}
+
+static BlockDriverAIOCB *
+iscsi_aio_discard(BlockDriverState *bs,
+                  int64_t sector_num, int nb_sectors,
+                  BlockDriverCompletionFunc *cb, void *opaque)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    struct iscsi_context *iscsi = iscsilun->iscsi;
+    IscsiAIOCB *acb;
+    struct unmap_list list[1];
+
+    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+
+    acb->iscsilun = iscsilun;
+    acb->canceled   = 0;
+
+    list[0].lba = sector_qemu2lun(sector_num, iscsilun);
+    list[0].num = nb_sectors * BDRV_SECTOR_SIZE / iscsilun->block_size;
+
+    acb->task = iscsi_unmap_task(iscsi, iscsilun->lun,
+                                 0, 0, &list[0], 1,
+                                 iscsi_unmap_cb,
+                                 acb);
+    if (acb->task == NULL) {
+        error_report("iSCSI: Failed to send unmap command. %s",
+                     iscsi_get_error(iscsi));
+        qemu_aio_release(acb);
+        return NULL;
+    }
+
+    iscsi_set_events(iscsilun);
+
+    return &acb->common;
+}
+
 static int64_t
 iscsi_getlength(BlockDriverState *bs)
 {
@@ -396,11 +455,11 @@ iscsi_getlength(BlockDriverState *bs)
 }
 
 static void
-iscsi_readcapacity10_cb(struct iscsi_context *iscsi, int status,
+iscsi_readcapacity16_cb(struct iscsi_context *iscsi, int status,
                         void *command_data, void *opaque)
 {
     struct IscsiTask *itask = opaque;
-    struct scsi_readcapacity10 *rc10;
+    struct scsi_readcapacity16 *rc16;
     struct scsi_task *task = command_data;
 
     if (status != 0) {
@@ -412,25 +471,24 @@ iscsi_readcapacity10_cb(struct iscsi_context *iscsi, int status,
         return;
     }
 
-    rc10 = scsi_datain_unmarshall(task);
-    if (rc10 == NULL) {
-        error_report("iSCSI: Failed to unmarshall readcapacity10 data.");
+    rc16 = scsi_datain_unmarshall(task);
+    if (rc16 == NULL) {
+        error_report("iSCSI: Failed to unmarshall readcapacity16 data.");
         itask->status   = 1;
         itask->complete = 1;
         scsi_free_scsi_task(task);
         return;
     }
 
-    itask->iscsilun->block_size = rc10->block_size;
-    itask->iscsilun->num_blocks = rc10->lba;
-    itask->bs->total_sectors = (uint64_t)rc10->lba *
-                               rc10->block_size / BDRV_SECTOR_SIZE ;
+    itask->iscsilun->block_size = rc16->block_length;
+    itask->iscsilun->num_blocks = rc16->returned_lba + 1;
+    itask->bs->total_sectors    = itask->iscsilun->num_blocks *
+                               itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
 
     itask->status   = 0;
     itask->complete = 1;
     scsi_free_scsi_task(task);
 }
-
 
 static void
 iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
@@ -445,10 +503,10 @@ iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
         return;
     }
 
-    task = iscsi_readcapacity10_task(iscsi, itask->iscsilun->lun, 0, 0,
-                                   iscsi_readcapacity10_cb, opaque);
+    task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
+                                   iscsi_readcapacity16_cb, opaque);
     if (task == NULL) {
-        error_report("iSCSI: failed to send readcapacity command.");
+        error_report("iSCSI: failed to send readcapacity16 command.");
         itask->status   = 1;
         itask->complete = 1;
         return;
@@ -700,6 +758,8 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_aio_readv  = iscsi_aio_readv,
     .bdrv_aio_writev = iscsi_aio_writev,
     .bdrv_aio_flush  = iscsi_aio_flush,
+
+    .bdrv_aio_discard = iscsi_aio_discard,
 };
 
 static void iscsi_block_init(void)
