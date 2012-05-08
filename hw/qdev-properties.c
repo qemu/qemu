@@ -834,6 +834,7 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
 
     visit_type_str(v, &str, name, &local_err);
     if (local_err) {
+        error_free(local_err);
         return set_int32(obj, v, opaque, name, errp);
     }
 

@@ -228,14 +228,18 @@ fail:
 
 
 /* called from spice server thread context only */
-void qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
+int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
 {
     QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
     QXLCursor *cursor;
     QEMUCursor *c;
 
+    if (!cmd) {
+        return 1;
+    }
+
     if (!qxl->ssd.ds->mouse_set || !qxl->ssd.ds->cursor_define) {
-        return;
+        return 0;
     }
 
     if (qxl->debug > 1 && cmd->type != QXL_CURSOR_MOVE) {
@@ -246,9 +250,12 @@ void qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
     switch (cmd->type) {
     case QXL_CURSOR_SET:
         cursor = qxl_phys2virt(qxl, cmd->u.set.shape, ext->group_id);
+        if (!cursor) {
+            return 1;
+        }
         if (cursor->chunk.data_size != cursor->data_size) {
             fprintf(stderr, "%s: multiple chunks\n", __FUNCTION__);
-            return;
+            return 1;
         }
         c = qxl_cursor(qxl, cursor);
         if (c == NULL) {
@@ -270,4 +277,5 @@ void qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         qemu_mutex_unlock(&qxl->ssd.lock);
         break;
     }
+    return 0;
 }

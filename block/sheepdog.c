@@ -1678,6 +1678,14 @@ static int coroutine_fn sd_co_flush_to_disk(BlockDriverState *bs)
         return ret;
     }
 
+    if (rsp->result == SD_RES_INVALID_PARMS) {
+        dprintf("disable write cache since the server doesn't support it\n");
+
+        s->cache_enabled = 0;
+        closesocket(s->flush_fd);
+        return 0;
+    }
+
     if (rsp->result != SD_RES_SUCCESS) {
         error_report("%s", sd_strerror(rsp->result));
         return -EIO;

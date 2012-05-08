@@ -98,7 +98,8 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
                 pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
-    if (is_write && page_unprotect(h2g(address), pc, puc)) {
+    if (is_write && h2g_valid(address)
+        && page_unprotect(h2g(address), pc, puc)) {
         return 1;
     }
 

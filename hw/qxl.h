@@ -142,12 +142,12 @@ void qxl_spice_reset_image_cache(PCIQXLDevice *qxl);
 void qxl_spice_reset_cursor(PCIQXLDevice *qxl);
 
 /* qxl-logger.c */
-void qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id);
-void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext);
+int qxl_log_cmd_cursor(PCIQXLDevice *qxl, QXLCursorCmd *cmd, int group_id);
+int qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext);
 
 /* qxl-render.c */
 void qxl_render_resize(PCIQXLDevice *qxl);
 void qxl_render_update(PCIQXLDevice *qxl);
-void qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
+int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
 void qxl_render_update_area_done(PCIQXLDevice *qxl, QXLCookie *cookie);
 void qxl_render_update_area_bh(void *opaque);

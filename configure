@@ -2585,10 +2585,13 @@ fi
 
 ##########################################
 # Do we have libiscsi
+# We check for iscsi_unmap_sync() to make sure we have a
+# recent enough version of libiscsi.
 if test "$libiscsi" != "no" ; then
   cat > $TMPC << EOF
+#include <stdio.h>
 #include <iscsi/iscsi.h>
-int main(void) { iscsi_create_context(""); return 0; }
+int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
   if compile_prog "-Werror" "-liscsi" ; then
     libiscsi="yes"
@@ -2631,6 +2634,7 @@ EOF
   spice_cflags=$($pkg_config --cflags spice-protocol spice-server 2>/dev/null)
   spice_libs=$($pkg_config --libs spice-protocol spice-server 2>/dev/null)
   if $pkg_config --atleast-version=0.8.2 spice-server >/dev/null 2>&1 && \
+     $pkg_config --atleast-version=0.8.1 spice-protocol > /dev/null 2>&1 && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
@@ -2930,14 +2934,15 @@ tools=
 if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if test "$virtfs" != no ; then
-      if test "$cap" = yes && test "$linux" = yes && test "$attr" = yes ; then
-	  virtfs=yes
-	  tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
-      else
-	  if test "$virtfs" = yes; then
-	      feature_not_found "virtfs"
-	  fi
+    if test "$cap" = yes && test "$linux" = yes && test "$attr" = yes ; then
+      virtfs=yes
+      tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+    else
+      if test "$virtfs" = yes; then
+        feature_not_found "virtfs"
       fi
+      virtfs=no
+    fi
   fi
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"

@@ -1194,7 +1194,10 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 
     /* And if we're supposed to preallocate metadata, do that now */
     if (prealloc) {
+        BDRVQcowState *s = bs->opaque;
+        qemu_co_mutex_lock(&s->lock);
         ret = preallocate(bs);
+        qemu_co_mutex_unlock(&s->lock);
         if (ret < 0) {
             goto out;
         }

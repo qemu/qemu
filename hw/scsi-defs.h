@@ -92,6 +92,7 @@
 #define PERSISTENT_RESERVE_OUT 0x5f
 #define VARLENGTH_CDB         0x7f
 #define WRITE_FILEMARKS_16    0x80
+#define READ_REVERSE_16       0x81
 #define ALLOW_OVERWRITE       0x82
 #define EXTENDED_COPY         0x83
 #define ATA_PASSTHROUGH       0x85

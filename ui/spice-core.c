@@ -462,6 +462,13 @@ SpiceInfo *qmp_query_spice(Error **errp)
         info->tls_port = tls_port;
     }
 
+#if SPICE_SERVER_VERSION >= 0x000a03 /* 0.10.3 */
+    info->mouse_mode = spice_server_is_server_mouse(spice_server) ?
+                       SPICE_QUERY_MOUSE_MODE_SERVER :
+                       SPICE_QUERY_MOUSE_MODE_CLIENT;
+#else
+    info->mouse_mode = SPICE_QUERY_MOUSE_MODE_UNKNOWN;
+#endif
     /* for compatibility with the original command */
     info->has_channels = true;
     info->channels = qmp_query_spice_channels();

@@ -341,13 +341,53 @@ BlockDriver *bdrv_find_whitelisted_format(const char *format_name)
     return drv && bdrv_is_whitelisted(drv) ? drv : NULL;
 }
 
+typedef struct CreateCo {
+    BlockDriver *drv;
+    char *filename;
+    QEMUOptionParameter *options;
+    int ret;
+} CreateCo;
+
+static void coroutine_fn bdrv_create_co_entry(void *opaque)
+{
+    CreateCo *cco = opaque;
+    assert(cco->drv);
+
+    cco->ret = cco->drv->bdrv_create(cco->filename, cco->options);
+}
+
 int bdrv_create(BlockDriver *drv, const char* filename,
     QEMUOptionParameter *options)
 {
-    if (!drv->bdrv_create)
-        return -ENOTSUP;
+    int ret;
 
-    return drv->bdrv_create(filename, options);
+    Coroutine *co;
+    CreateCo cco = {
+        .drv = drv,
+        .filename = g_strdup(filename),
+        .options = options,
+        .ret = NOT_DONE,
+    };
+
+    if (!drv->bdrv_create) {
+        return -ENOTSUP;
+    }
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_create_co_entry(&cco);
+    } else {
+        co = qemu_coroutine_create(bdrv_create_co_entry);
+        qemu_coroutine_enter(co, &cco);
+        while (cco.ret == NOT_DONE) {
+            qemu_aio_wait();
+        }
+    }
+
+    ret = cco.ret;
+    g_free(cco.filename);
+
+    return ret;
 }
 
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options)

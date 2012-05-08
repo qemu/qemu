@@ -31,10 +31,6 @@
 
 #include "qemu-timer.h"
 
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#endif
-
 #ifdef _WIN32
 #include <mmsystem.h>
 #endif
@@ -611,7 +607,7 @@ static void unix_stop_timer(struct qemu_alarm_timer *t)
 #ifdef _WIN32
 
 static MMRESULT mm_timer;
-static unsigned mm_period;
+static TIMECAPS mm_tc;
 
 static void CALLBACK mm_alarm_handler(UINT uTimerID, UINT uMsg,
                                       DWORD_PTR dwUser, DWORD_PTR dw1,
@@ -628,16 +624,12 @@ static void CALLBACK mm_alarm_handler(UINT uTimerID, UINT uMsg,
 
 static int mm_start_timer(struct qemu_alarm_timer *t)
 {
-    TIMECAPS tc;
+    timeGetDevCaps(&mm_tc, sizeof(mm_tc));
 
-    memset(&tc, 0, sizeof(tc));
-    timeGetDevCaps(&tc, sizeof(tc));
+    timeBeginPeriod(mm_tc.wPeriodMin);
 
-    mm_period = tc.wPeriodMin;
-    timeBeginPeriod(mm_period);
-
-    mm_timer = timeSetEvent(1,                  /* interval (ms) */
-                            mm_period,          /* resolution */
+    mm_timer = timeSetEvent(mm_tc.wPeriodMin,   /* interval (ms) */
+                            mm_tc.wPeriodMin,   /* resolution */
                             mm_alarm_handler,   /* function */
                             (DWORD_PTR)t,       /* parameter */
                             TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
@@ -645,7 +637,7 @@ static int mm_start_timer(struct qemu_alarm_timer *t)
     if (!mm_timer) {
         fprintf(stderr, "Failed to initialize win32 alarm timer: %ld\n",
                 GetLastError());
-        timeEndPeriod(mm_period);
+        timeEndPeriod(mm_tc.wPeriodMin);
         return -1;
     }
 
@@ -655,23 +647,21 @@ static int mm_start_timer(struct qemu_alarm_timer *t)
 static void mm_stop_timer(struct qemu_alarm_timer *t)
 {
     timeKillEvent(mm_timer);
-    timeEndPeriod(mm_period);
+    timeEndPeriod(mm_tc.wPeriodMin);
 }
 
 static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta)
 {
     int64_t nearest_delta_ms = delta / 1000000;
-    if (nearest_delta_ms < 1) {
-        nearest_delta_ms = 1;
-    }
-    /* UINT_MAX can be 32 bit */
-    if (nearest_delta_ms > UINT_MAX) {
-        nearest_delta_ms = UINT_MAX;
+    if (nearest_delta_ms < mm_tc.wPeriodMin) {
+        nearest_delta_ms = mm_tc.wPeriodMin;
+    } else if (nearest_delta_ms > mm_tc.wPeriodMax) {
+        nearest_delta_ms = mm_tc.wPeriodMax;
     }
 
     timeKillEvent(mm_timer);
-    mm_timer = timeSetEvent((unsigned int) nearest_delta_ms,
-                            mm_period,
+    mm_timer = timeSetEvent((UINT)nearest_delta_ms,
+                            mm_tc.wPeriodMin,
                             mm_alarm_handler,
                             (DWORD_PTR)t,
                             TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
@@ -680,7 +670,7 @@ static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta)
         fprintf(stderr, "Failed to re-arm win32 alarm timer %ld\n",
                 GetLastError());
 
-        timeEndPeriod(mm_period);
+        timeEndPeriod(mm_tc.wPeriodMin);
         exit(1);
     }
 }

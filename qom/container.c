@@ -43,6 +43,8 @@ Object *container_get(Object *root, const char *path)
         }
     }
 
+    g_strfreev(parts);
+
     return obj;
 }
 

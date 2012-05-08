@@ -192,12 +192,6 @@ static inline uint64_t get_HILO (void)
     return ((uint64_t)(env->active_tc.HI[0]) << 32) | (uint32_t)env->active_tc.LO[0];
 }
 
-static inline void set_HILO (uint64_t HILO)
-{
-    env->active_tc.LO[0] = (int32_t)HILO;
-    env->active_tc.HI[0] = (int32_t)(HILO >> 32);
-}
-
 static inline target_ulong set_HIT0_LO(uint64_t HILO)
 {
     target_ulong tmp;

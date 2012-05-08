@@ -27,28 +27,42 @@
 
 #include "qxl.h"
 
+/*
+ * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
+ * such can be changed by the guest, so to avoid a guest trigerrable
+ * abort we just set qxl_guest_bug and set the return to NULL. Still
+ * it may happen as a result of emulator bug as well.
+ */
 #undef SPICE_RING_PROD_ITEM
-#define SPICE_RING_PROD_ITEM(r, ret) {                                  \
+#define SPICE_RING_PROD_ITEM(qxl, r, ret) {                             \
         typeof(r) start = r;                                            \
         typeof(r) end = r + 1;                                          \
         uint32_t prod = (r)->prod & SPICE_RING_INDEX_MASK(r);           \
         typeof(&(r)->items[prod]) m_item = &(r)->items[prod];           \
         if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
-            abort();                                                    \
+            qxl_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
+                          "! %p <= %p < %p", (uint8_t *)start,          \
+                          (uint8_t *)m_item, (uint8_t *)end);           \
+            ret = NULL;                                                 \
+        } else {                                                        \
+            ret = &m_item->el;                                          \
         }                                                               \
-        ret = &m_item->el;                                              \
     }
 
 #undef SPICE_RING_CONS_ITEM
-#define SPICE_RING_CONS_ITEM(r, ret) {                                  \
+#define SPICE_RING_CONS_ITEM(qxl, r, ret) {                             \
         typeof(r) start = r;                                            \
         typeof(r) end = r + 1;                                          \
         uint32_t cons = (r)->cons & SPICE_RING_INDEX_MASK(r);           \
         typeof(&(r)->items[cons]) m_item = &(r)->items[cons];           \
         if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
-            abort();                                                    \
+            qxl_guest_bug(qxl, "SPICE_RING_CONS_ITEM indices mismatch " \
+                          "! %p <= %p < %p", (uint8_t *)start,          \
+                          (uint8_t *)m_item, (uint8_t *)end);           \
+            ret = NULL;                                                 \
+        } else {                                                        \
+            ret = &m_item->el;                                          \
         }                                                               \
-        ret = &m_item->el;                                              \
     }
 
 #undef ALIGN
@@ -343,7 +357,8 @@ static void init_qxl_ram(PCIQXLDevice *d)
     SPICE_RING_INIT(&d->ram->cmd_ring);
     SPICE_RING_INIT(&d->ram->cursor_ring);
     SPICE_RING_INIT(&d->ram->release_ring);
-    SPICE_RING_PROD_ITEM(&d->ram->release_ring, item);
+    SPICE_RING_PROD_ITEM(d, &d->ram->release_ring, item);
+    assert(item);
     *item = 0;
     qxl_ring_set_dirty(d);
 }
@@ -383,14 +398,22 @@ static void qxl_ring_set_dirty(PCIQXLDevice *qxl)
  * keep track of some command state, for savevm/loadvm.
  * called from spice server thread context only
  */
-static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
+static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
 {
     switch (le32_to_cpu(ext->cmd.type)) {
     case QXL_CMD_SURFACE:
     {
         QXLSurfaceCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+
+        if (!cmd) {
+            return 1;
+        }
         uint32_t id = le32_to_cpu(cmd->surface_id);
-        PANIC_ON(id >= NUM_SURFACES);
+
+        if (id >= NUM_SURFACES) {
+            qxl_guest_bug(qxl, "QXL_CMD_SURFACE id %d >= %d", id, NUM_SURFACES);
+            return 1;
+        }
         qemu_mutex_lock(&qxl->track_lock);
         if (cmd->type == QXL_SURFACE_CMD_CREATE) {
             qxl->guest_surfaces.cmds[id] = ext->cmd.data;
@@ -408,6 +431,10 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
     case QXL_CMD_CURSOR:
     {
         QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
+
+        if (!cmd) {
+            return 1;
+        }
         if (cmd->type == QXL_CURSOR_SET) {
             qemu_mutex_lock(&qxl->track_lock);
             qxl->guest_cursor = ext->cmd.data;
@@ -416,6 +443,7 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
         break;
     }
     }
+    return 0;
 }
 
 /* spice display interface callbacks */
@@ -546,8 +574,10 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
         if (SPICE_RING_IS_EMPTY(ring)) {
             return false;
         }
-        trace_qxl_ring_command_get(qxl->id, qxl_mode_to_string(qxl->mode));
-        SPICE_RING_CONS_ITEM(ring, cmd);
+        SPICE_RING_CONS_ITEM(qxl, ring, cmd);
+        if (!cmd) {
+            return false;
+        }
         ext->cmd      = *cmd;
         ext->group_id = MEMSLOT_GROUP_GUEST;
         ext->flags    = qxl->cmdflags;
@@ -559,6 +589,7 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
         qxl->guest_primary.commands++;
         qxl_track_command(qxl, ext);
         qxl_log_command(qxl, "cmd", ext);
+        trace_qxl_ring_command_get(qxl->id, qxl_mode_to_string(qxl->mode));
         return true;
     default:
         return false;
@@ -617,7 +648,10 @@ static inline void qxl_push_free_res(PCIQXLDevice *d, int flush)
     if (notify) {
         qxl_send_events(d, QXL_INTERRUPT_DISPLAY);
     }
-    SPICE_RING_PROD_ITEM(ring, item);
+    SPICE_RING_PROD_ITEM(d, ring, item);
+    if (!item) {
+        return;
+    }
     *item = 0;
     d->num_free_res = 0;
     d->last_release = NULL;
@@ -643,7 +677,10 @@ static void interface_release_resource(QXLInstance *sin,
      * pci bar 0, $command.release_info
      */
     ring = &qxl->ram->release_ring;
-    SPICE_RING_PROD_ITEM(ring, item);
+    SPICE_RING_PROD_ITEM(qxl, ring, item);
+    if (!item) {
+        return;
+    }
     if (*item == 0) {
         /* stick head into the ring */
         id = ext.info->id;
@@ -682,7 +719,10 @@ static int interface_get_cursor_command(QXLInstance *sin, struct QXLCommandExt *
         if (SPICE_RING_IS_EMPTY(ring)) {
             return false;
         }
-        SPICE_RING_CONS_ITEM(ring, cmd);
+        SPICE_RING_CONS_ITEM(qxl, ring, cmd);
+        if (!cmd) {
+            return false;
+        }
         ext->cmd      = *cmd;
         ext->group_id = MEMSLOT_GROUP_GUEST;
         ext->flags    = qxl->cmdflags;
@@ -728,8 +768,13 @@ static int interface_req_cursor_notification(QXLInstance *sin)
 /* called from spice server thread context */
 static void interface_notify_update(QXLInstance *sin, uint32_t update_id)
 {
-    fprintf(stderr, "%s: abort()\n", __FUNCTION__);
-    abort();
+    /*
+     * Called by spice-server as a result of a QXL_CMD_UPDATE which is not in
+     * use by xf86-video-qxl and is defined out in the qxl windows driver.
+     * Probably was at some earlier version that is prior to git start (2009),
+     * and is still guest trigerrable.
+     */
+    fprintf(stderr, "%s: deprecated\n", __func__);
 }
 
 /* called from spice server thread context only */
@@ -764,8 +809,8 @@ static void interface_async_complete_io(PCIQXLDevice *qxl, QXLCookie *cookie)
     }
     if (cookie && current_async != cookie->io) {
         fprintf(stderr,
-                "qxl: %s: error: current_async = %d != %" PRId64 " = cookie->io\n",
-                __func__, current_async, cookie->io);
+                "qxl: %s: error: current_async = %d != %"
+                PRId64 " = cookie->io\n", __func__, current_async, cookie->io);
     }
     switch (current_async) {
     case QXL_IO_MEMSLOT_ADD_ASYNC:
@@ -993,8 +1038,8 @@ static const MemoryRegionPortio qxl_vga_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
-                            qxl_async_io async)
+static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
+                           qxl_async_io async)
 {
     static const int regions[] = {
         QXL_RAM_RANGE_INDEX,
@@ -1015,8 +1060,16 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
 
     trace_qxl_memslot_add_guest(d->id, slot_id, guest_start, guest_end);
 
-    PANIC_ON(slot_id >= NUM_MEMSLOTS);
-    PANIC_ON(guest_start > guest_end);
+    if (slot_id >= NUM_MEMSLOTS) {
+        qxl_guest_bug(d, "%s: slot_id >= NUM_MEMSLOTS %d >= %d", __func__,
+                      slot_id, NUM_MEMSLOTS);
+        return 1;
+    }
+    if (guest_start > guest_end) {
+        qxl_guest_bug(d, "%s: guest_start > guest_end 0x%" PRIx64
+                         " > 0x%" PRIx64, __func__, guest_start, guest_end);
+        return 1;
+    }
 
     for (i = 0; i < ARRAY_SIZE(regions); i++) {
         pci_region = regions[i];
@@ -1037,7 +1090,10 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         /* passed */
         break;
     }
-    PANIC_ON(i == ARRAY_SIZE(regions)); /* finished loop without match */
+    if (i == ARRAY_SIZE(regions)) {
+        qxl_guest_bug(d, "%s: finished loop without match", __func__);
+        return 1;
+    }
 
     switch (pci_region) {
     case QXL_RAM_RANGE_INDEX:
@@ -1049,7 +1105,8 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         break;
     default:
         /* should not happen */
-        abort();
+        qxl_guest_bug(d, "%s: pci_region = %d", __func__, pci_region);
+        return 1;
     }
 
     memslot.slot_id = slot_id;
@@ -1065,6 +1122,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     d->guest_slots[slot_id].size = memslot.virt_end - memslot.virt_start;
     d->guest_slots[slot_id].delta = delta;
     d->guest_slots[slot_id].active = 1;
+    return 0;
 }
 
 static void qxl_del_memslot(PCIQXLDevice *d, uint32_t slot_id)
@@ -1097,15 +1155,28 @@ void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
     case MEMSLOT_GROUP_HOST:
         return (void *)(intptr_t)offset;
     case MEMSLOT_GROUP_GUEST:
-        PANIC_ON(slot >= NUM_MEMSLOTS);
-        PANIC_ON(!qxl->guest_slots[slot].active);
-        PANIC_ON(offset < qxl->guest_slots[slot].delta);
+        if (slot >= NUM_MEMSLOTS) {
+            qxl_guest_bug(qxl, "slot too large %d >= %d", slot, NUM_MEMSLOTS);
+            return NULL;
+        }
+        if (!qxl->guest_slots[slot].active) {
+            qxl_guest_bug(qxl, "inactive slot %d\n", slot);
+            return NULL;
+        }
+        if (offset < qxl->guest_slots[slot].delta) {
+            qxl_guest_bug(qxl, "slot %d offset %"PRIu64" < delta %"PRIu64"\n",
+                          slot, offset, qxl->guest_slots[slot].delta);
+            return NULL;
+        }
         offset -= qxl->guest_slots[slot].delta;
-        PANIC_ON(offset > qxl->guest_slots[slot].size)
+        if (offset > qxl->guest_slots[slot].size) {
+            qxl_guest_bug(qxl, "slot %d offset %"PRIu64" > size %"PRIu64"\n",
+                          slot, offset, qxl->guest_slots[slot].size);
+            return NULL;
+        }
         return qxl->guest_slots[slot].ptr + offset;
-    default:
-        PANIC_ON(1);
     }
+    return NULL;
 }
 
 static void qxl_create_guest_primary_complete(PCIQXLDevice *qxl)
@@ -1120,7 +1191,10 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
     QXLDevSurfaceCreate surface;
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
 
-    assert(qxl->mode != QXL_MODE_NATIVE);
+    if (qxl->mode == QXL_MODE_NATIVE) {
+        qxl_guest_bug(qxl, "%s: nop since already in QXL_MODE_NATIVE",
+                      __func__);
+    }
     qxl_exit_vga_mode(qxl);
 
     surface.format     = le32_to_cpu(sc->format);
@@ -1192,7 +1266,7 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
     }
 
     d->guest_slots[0].slot = slot;
-    qxl_add_memslot(d, 0, devmem, QXL_SYNC);
+    assert(qxl_add_memslot(d, 0, devmem, QXL_SYNC) == 0);
 
     d->guest_primary.surface = surface;
     qxl_create_guest_primary(d, 0, QXL_SYNC);
@@ -1393,8 +1467,7 @@ async_common:
         qxl_spice_destroy_surfaces(d, async);
         break;
     default:
-        fprintf(stderr, "%s: ioport=0x%x, abort()\n", __FUNCTION__, io_port);
-        abort();
+        qxl_guest_bug(d, "%s: unexpected ioport=0x%x\n", __func__, io_port);
     }
     return;
 cancel_async:
@@ -1450,7 +1523,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
         qxl_update_irq(d);
     } else {
         if (write(d->pipe[1], d, 1) != 1) {
-            dprint(d, 1, "%s: write to pipe failed\n", __FUNCTION__);
+            dprint(d, 1, "%s: write to pipe failed\n", __func__);
         }
     }
 }
@@ -1555,10 +1628,12 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
 
         cmd = qxl_phys2virt(qxl, qxl->guest_surfaces.cmds[i],
                             MEMSLOT_GROUP_GUEST);
+        assert(cmd);
         assert(cmd->type == QXL_SURFACE_CMD_CREATE);
         surface_offset = (intptr_t)qxl_phys2virt(qxl,
                                                  cmd->u.surface_create.data,
                                                  MEMSLOT_GROUP_GUEST);
+        assert(surface_offset);
         surface_offset -= vram_start;
         surface_size = cmd->u.surface_create.height *
                        abs(cmd->u.surface_create.stride);
