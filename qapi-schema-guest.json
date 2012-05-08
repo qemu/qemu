@@ -422,17 +422,21 @@
 # command.  Thus, it's *required* to query QEMU for the presence of the
 # 'system_wakeup' command before issuing guest-suspend-hybrid.
 #
-# Returns: nothing on success
+# This command does NOT return a response on success. There are two options
+# to check for success:
+#   1. Wait for the SUSPEND QMP event from QEMU
+#   2. Issue the query-status QMP command to confirm the VM status is
+#      "suspended"
+#
+# The following errors may be returned:
 #          If hybrid suspend is not supported, Unsupported
 #
-# Notes: o This is an asynchronous request. There's no guarantee a response
-#          will be sent
-#        o It's strongly recommended to issue the guest-sync command before
-#          sending commands when the guest resumes
+# Notes: It's strongly recommended to issue the guest-sync command before
+#        sending commands when the guest resumes
 #
 # Since: 1.1
 ##
-{ 'command': 'guest-suspend-hybrid' }
+{ 'command': 'guest-suspend-hybrid', 'success-response': 'no' }
 
 ##
 # @GuestIpAddressType:
