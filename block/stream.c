@@ -101,45 +101,33 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
 /*
  * Given an image chain: [BASE] -> [INTER1] -> [INTER2] -> [TOP]
  *
- * Return true if the given sector is allocated in top.
- * Return false if the given sector is allocated in intermediate images.
- * Return true otherwise.
+ * Return true if the given sector is allocated in any image between
+ * BASE and TOP (inclusive).  BASE can be NULL to check if the given
+ * sector is allocated in any image of the chain.  Return false otherwise.
  *
  * 'pnum' is set to the number of sectors (including and immediately following
  *  the specified sector) that are known to be in the same
  *  allocated/unallocated state.
  *
  */
-static int coroutine_fn is_allocated_base(BlockDriverState *top,
-                                          BlockDriverState *base,
-                                          int64_t sector_num,
-                                          int nb_sectors, int *pnum)
+static int coroutine_fn is_allocated_above(BlockDriverState *top,
+                                           BlockDriverState *base,
+                                           int64_t sector_num,
+                                           int nb_sectors, int *pnum)
 {
     BlockDriverState *intermediate;
-    int ret, n;
+    int ret, n = nb_sectors;
 
-    ret = bdrv_co_is_allocated(top, sector_num, nb_sectors, &n);
-    if (ret) {
-        *pnum = n;
-        return ret;
-    }
-
-    /*
-     * Is the unallocated chunk [sector_num, n] also
-     * unallocated between base and top?
-     */
-    intermediate = top->backing_hd;
-
+    intermediate = top;
     while (intermediate != base) {
         int pnum_inter;
-
         ret = bdrv_co_is_allocated(intermediate, sector_num, nb_sectors,
                                    &pnum_inter);
         if (ret < 0) {
             return ret;
         } else if (ret) {
             *pnum = pnum_inter;
-            return 0;
+            return 1;
         }
 
         /*
@@ -156,7 +144,7 @@ static int coroutine_fn is_allocated_base(BlockDriverState *top,
     }
 
     *pnum = n;
-    return 1;
+    return 0;
 }
 
 static void coroutine_fn stream_run(void *opaque)
@@ -189,6 +177,7 @@ static void coroutine_fn stream_run(void *opaque)
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
         uint64_t delay_ns = 0;
+        bool copy;
 
 wait:
         /* Note that even when no rate limit is applied we need to yield
@@ -199,10 +188,20 @@ wait:
             break;
         }
 
-        ret = is_allocated_base(bs, base, sector_num,
-                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        ret = bdrv_co_is_allocated(bs, sector_num,
+                                   STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        if (ret == 1) {
+            /* Allocated in the top, no need to copy.  */
+            copy = false;
+        } else {
+            /* Copy if allocated in the intermediate images.  Limit to the
+             * known-unallocated area [sector_num, sector_num+n).  */
+            ret = is_allocated_above(bs->backing_hd, base, sector_num, n, &n);
+            copy = (ret == 1);
+        }
+
         trace_stream_one_iteration(s, sector_num, n, ret);
-        if (ret == 0) {
+        if (ret >= 0 && copy) {
             if (s->common.speed) {
                 delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {
