@@ -15,9 +15,9 @@ read 134217728/134217728 bytes at offset 0
 
 unaligned pwrite
 wrote 42/42 bytes at offset 66
-42.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 verify pattern
 read 42/42 bytes at offset 66
-42.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+42 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done
