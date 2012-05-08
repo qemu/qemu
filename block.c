@@ -977,6 +977,7 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     tmp = *bs_new;
 
     /* there are some fields that need to stay on the top layer: */
+    tmp.open_flags        = bs_top->open_flags;
 
     /* dev info */
     tmp.dev_ops           = bs_top->dev_ops;
