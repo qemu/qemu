@@ -488,8 +488,6 @@ static void process_command(GAState *s, QDict *req)
             g_warning("error sending response: %s", strerror(ret));
         }
         qobject_decref(rsp);
-    } else {
-        g_warning("error getting response");
     }
 }
 
