@@ -78,6 +78,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                     completed = True
 
         self.assert_no_active_streams()
+        self.vm.shutdown()
 
         self.assertFalse('sectors not allocated' in qemu_io('-c', 'map', test_img),
                          'image file not fully populated after streaming')

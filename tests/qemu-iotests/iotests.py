@@ -87,10 +87,12 @@ class VM(object):
 
     def shutdown(self):
         '''Terminate the VM and clean up'''
-        self._qmp.cmd('quit')
-        self._popen.wait()
-        os.remove(self._monitor_path)
-        os.remove(self._qemu_log_path)
+        if not self._popen is None:
+            self._qmp.cmd('quit')
+            self._popen.wait()
+            os.remove(self._monitor_path)
+            os.remove(self._qemu_log_path)
+            self._popen = None
 
     def qmp(self, cmd, **args):
         '''Invoke a QMP command and return the result dict'''
