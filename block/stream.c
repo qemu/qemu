@@ -192,12 +192,17 @@ static void coroutine_fn stream_run(void *opaque)
     }
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
-retry:
+        uint64_t delay_ns = 0;
+
+wait:
+        /* Note that even when no rate limit is applied we need to yield
+         * with no pending I/O here so that qemu_aio_flush() returns.
+         */
+        block_job_sleep_ns(&s->common, rt_clock, delay_ns);
         if (block_job_is_cancelled(&s->common)) {
             break;
         }
 
-        s->common.busy = true;
         if (base) {
             ret = is_allocated_base(bs, base, sector_num,
                                     STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
@@ -209,13 +214,9 @@ retry:
         trace_stream_one_iteration(s, sector_num, n, ret);
         if (ret == 0) {
             if (s->common.speed) {
-                uint64_t delay_ns = ratelimit_calculate_delay(&s->limit, n);
+                delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {
-                    s->common.busy = false;
-                    co_sleep_ns(rt_clock, delay_ns);
-
-                    /* Recheck cancellation and that sectors are unallocated */
-                    goto retry;
+                    goto wait;
                 }
             }
             ret = stream_populate(bs, sector_num, n, buf);
@@ -227,12 +228,6 @@ retry:
 
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
-
-        /* Note that even when no rate limit is applied we need to yield
-         * with no pending I/O here so that qemu_aio_flush() returns.
-         */
-        s->common.busy = false;
-        co_sleep_ns(rt_clock, 0);
     }
 
     if (!base) {

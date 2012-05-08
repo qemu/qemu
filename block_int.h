@@ -97,18 +97,15 @@ struct BlockJob {
     /**
      * Set to true if the job should cancel itself.  The flag must
      * always be tested just before toggling the busy flag from false
-     * to true.  After a job has detected that the cancelled flag is
-     * true, it should not anymore issue any I/O operation to the
-     * block device.
+     * to true.  After a job has been cancelled, it should only yield
+     * if #qemu_aio_wait will ("sooner or later") reenter the coroutine.
      */
     bool cancelled;
 
     /**
      * Set to false by the job while it is in a quiescent state, where
-     * no I/O is pending and cancellation can be processed without
-     * issuing new I/O.  The busy flag must be set to false when the
-     * job goes to sleep on any condition that is not detected by
-     * #qemu_aio_wait, such as a timer.
+     * no I/O is pending and the job has yielded on any condition
+     * that is not detected by #qemu_aio_wait, such as a timer.
      */
     bool busy;
 
@@ -362,6 +359,17 @@ int is_windows_drive(const char *filename);
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
                        int64_t speed, BlockDriverCompletionFunc *cb,
                        void *opaque, Error **errp);
+
+/**
+ * block_job_sleep_ns:
+ * @job: The job that calls the function.
+ * @clock: The clock to sleep on.
+ * @ns: How many nanoseconds to stop for.
+ *
+ * Put the job to sleep (assuming that it wasn't canceled) for @ns
+ * nanoseconds.  Canceling the job will interrupt the wait immediately.
+ */
+void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns);
 
 /**
  * block_job_complete:

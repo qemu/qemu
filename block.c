@@ -4188,6 +4188,7 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
     job->bs            = bs;
     job->cb            = cb;
     job->opaque        = opaque;
+    job->busy          = true;
     bs->job = job;
 
     /* Only set speed when necessary to avoid NotSupported error */
@@ -4252,5 +4253,15 @@ void block_job_cancel_sync(BlockJob *job)
     block_job_cancel(job);
     while (bs->job != NULL && bs->job->busy) {
         qemu_aio_wait();
+    }
+}
+
+void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
+{
+    /* Check cancellation *before* setting busy = false, too!  */
+    if (!block_job_is_cancelled(job)) {
+        job->busy = false;
+        co_sleep_ns(clock, ns);
+        job->busy = true;
     }
 }
