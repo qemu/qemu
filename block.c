@@ -210,21 +210,14 @@ static int path_has_protocol(const char *path)
 
 int path_is_absolute(const char *path)
 {
-    const char *p;
 #ifdef _WIN32
     /* specific case for names like: "\\.\d:" */
-    if (*path == '/' || *path == '\\')
+    if (is_windows_drive(path) || is_windows_drive_prefix(path)) {
         return 1;
-#endif
-    p = strchr(path, ':');
-    if (p)
-        p++;
-    else
-        p = path;
-#ifdef _WIN32
-    return (*p == '/' || *p == '\\');
+    }
+    return (*path == '/' || *path == '\\');
 #else
-    return (*p == '/');
+    return (*path == '/');
 #endif
 }
 
