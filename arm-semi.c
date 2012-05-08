@@ -37,26 +37,26 @@
 #include "hw/arm-misc.h"
 #endif
 
-#define SYS_OPEN        0x01
-#define SYS_CLOSE       0x02
-#define SYS_WRITEC      0x03
-#define SYS_WRITE0      0x04
-#define SYS_WRITE       0x05
-#define SYS_READ        0x06
-#define SYS_READC       0x07
-#define SYS_ISTTY       0x09
-#define SYS_SEEK        0x0a
-#define SYS_FLEN        0x0c
-#define SYS_TMPNAM      0x0d
-#define SYS_REMOVE      0x0e
-#define SYS_RENAME      0x0f
-#define SYS_CLOCK       0x10
-#define SYS_TIME        0x11
-#define SYS_SYSTEM      0x12
-#define SYS_ERRNO       0x13
-#define SYS_GET_CMDLINE 0x15
-#define SYS_HEAPINFO    0x16
-#define SYS_EXIT        0x18
+#define TARGET_SYS_OPEN        0x01
+#define TARGET_SYS_CLOSE       0x02
+#define TARGET_SYS_WRITEC      0x03
+#define TARGET_SYS_WRITE0      0x04
+#define TARGET_SYS_WRITE       0x05
+#define TARGET_SYS_READ        0x06
+#define TARGET_SYS_READC       0x07
+#define TARGET_SYS_ISTTY       0x09
+#define TARGET_SYS_SEEK        0x0a
+#define TARGET_SYS_FLEN        0x0c
+#define TARGET_SYS_TMPNAM      0x0d
+#define TARGET_SYS_REMOVE      0x0e
+#define TARGET_SYS_RENAME      0x0f
+#define TARGET_SYS_CLOCK       0x10
+#define TARGET_SYS_TIME        0x11
+#define TARGET_SYS_SYSTEM      0x12
+#define TARGET_SYS_ERRNO       0x13
+#define TARGET_SYS_GET_CMDLINE 0x15
+#define TARGET_SYS_HEAPINFO    0x16
+#define TARGET_SYS_EXIT        0x18
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -138,11 +138,11 @@ static void arm_semi_cb(CPUARMState *env, target_ulong ret, target_ulong err)
     } else {
         /* Fixup syscalls that use nonstardard return conventions.  */
         switch (env->regs[0]) {
-        case SYS_WRITE:
-        case SYS_READ:
+        case TARGET_SYS_WRITE:
+        case TARGET_SYS_READ:
             env->regs[0] = arm_semi_syscall_len - ret;
             break;
-        case SYS_SEEK:
+        case TARGET_SYS_SEEK:
             env->regs[0] = 0;
             break;
         default:
@@ -190,7 +190,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     nr = env->regs[0];
     args = env->regs[1];
     switch (nr) {
-    case SYS_OPEN:
+    case TARGET_SYS_OPEN:
         if (!(s = lock_user_string(ARG(0))))
             /* FIXME - should this error code be -TARGET_EFAULT ? */
             return (uint32_t)-1;
@@ -211,14 +211,14 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         }
         unlock_user(s, ARG(0), 0);
         return ret;
-    case SYS_CLOSE:
+    case TARGET_SYS_CLOSE:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "close,%x", ARG(0));
             return env->regs[0];
         } else {
             return set_swi_errno(ts, close(ARG(0)));
         }
-    case SYS_WRITEC:
+    case TARGET_SYS_WRITEC:
         {
           char c;
 
@@ -233,7 +233,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
                 return write(STDERR_FILENO, &c, 1);
           }
         }
-    case SYS_WRITE0:
+    case TARGET_SYS_WRITE0:
         if (!(s = lock_user_string(args)))
             /* FIXME - should this error code be -TARGET_EFAULT ? */
             return (uint32_t)-1;
@@ -246,7 +246,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         }
         unlock_user(s, args, 0);
         return ret;
-    case SYS_WRITE:
+    case TARGET_SYS_WRITE:
         len = ARG(2);
         if (use_gdb_syscalls()) {
             arm_semi_syscall_len = len;
@@ -262,7 +262,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
                 return -1;
             return len - ret;
         }
-    case SYS_READ:
+    case TARGET_SYS_READ:
         len = ARG(2);
         if (use_gdb_syscalls()) {
             arm_semi_syscall_len = len;
@@ -280,17 +280,17 @@ uint32_t do_arm_semihosting(CPUARMState *env)
                 return -1;
             return len - ret;
         }
-    case SYS_READC:
+    case TARGET_SYS_READC:
        /* XXX: Read from debug cosole. Not implemented.  */
         return 0;
-    case SYS_ISTTY:
+    case TARGET_SYS_ISTTY:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "isatty,%x", ARG(0));
             return env->regs[0];
         } else {
             return isatty(ARG(0));
         }
-    case SYS_SEEK:
+    case TARGET_SYS_SEEK:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "lseek,%x,%x,0", ARG(0), ARG(1));
             return env->regs[0];
@@ -300,7 +300,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
               return -1;
             return 0;
         }
-    case SYS_FLEN:
+    case TARGET_SYS_FLEN:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_flen_cb, "fstat,%x,%x",
 			   ARG(0), env->regs[13]-64);
@@ -312,10 +312,10 @@ uint32_t do_arm_semihosting(CPUARMState *env)
                 return -1;
             return buf.st_size;
         }
-    case SYS_TMPNAM:
+    case TARGET_SYS_TMPNAM:
         /* XXX: Not implemented.  */
         return -1;
-    case SYS_REMOVE:
+    case TARGET_SYS_REMOVE:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "unlink,%s", ARG(0), (int)ARG(1)+1);
             ret = env->regs[0];
@@ -327,7 +327,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             unlock_user(s, ARG(0), 0);
         }
         return ret;
-    case SYS_RENAME:
+    case TARGET_SYS_RENAME:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "rename,%s,%s",
                            ARG(0), (int)ARG(1)+1, ARG(2), (int)ARG(3)+1);
@@ -347,11 +347,11 @@ uint32_t do_arm_semihosting(CPUARMState *env)
                 unlock_user(s, ARG(0), 0);
             return ret;
         }
-    case SYS_CLOCK:
+    case TARGET_SYS_CLOCK:
         return clock() / (CLOCKS_PER_SEC / 100);
-    case SYS_TIME:
+    case TARGET_SYS_TIME:
         return set_swi_errno(ts, time(NULL));
-    case SYS_SYSTEM:
+    case TARGET_SYS_SYSTEM:
         if (use_gdb_syscalls()) {
             gdb_do_syscall(arm_semi_cb, "system,%s", ARG(0), (int)ARG(1)+1);
             return env->regs[0];
@@ -363,13 +363,13 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             unlock_user(s, ARG(0), 0);
             return ret;
         }
-    case SYS_ERRNO:
+    case TARGET_SYS_ERRNO:
 #ifdef CONFIG_USER_ONLY
         return ts->swi_errno;
 #else
         return syscall_err;
 #endif
-    case SYS_GET_CMDLINE:
+    case TARGET_SYS_GET_CMDLINE:
         {
             /* Build a command-line from the original argv.
              *
@@ -452,7 +452,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
 
             return status;
         }
-    case SYS_HEAPINFO:
+    case TARGET_SYS_HEAPINFO:
         {
             uint32_t *ptr;
             uint32_t limit;
@@ -498,7 +498,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
 #endif
             return 0;
         }
-    case SYS_EXIT:
+    case TARGET_SYS_EXIT:
         gdb_exit(env, 0);
         exit(0);
     default:
