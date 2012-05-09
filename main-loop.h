@@ -25,11 +25,7 @@
 #ifndef QEMU_MAIN_LOOP_H
 #define QEMU_MAIN_LOOP_H 1
 
-#ifdef SIGRTMIN
-#define SIG_IPI (SIGRTMIN+4)
-#else
 #define SIG_IPI SIGUSR1
-#endif
 
 /**
  * qemu_init_main_loop: Set up the process so that it can run the main loop.
