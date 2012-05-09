@@ -487,7 +487,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
          * was returned the filesystem was *not* unfrozen by that particular
          * call.
          *
-         * since multiple preceeding FIFREEZEs require multiple calls to FITHAW
+         * since multiple preceding FIFREEZEs require multiple calls to FITHAW
          * to unfreeze, continuing issuing FITHAW until an error is returned,
          * in which case either the filesystem is in an unfreezable state, or,
          * more likely, it was thawed previously (and remains so afterward).
@@ -789,7 +789,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             strncpy(ifr.ifr_name,  info->value->name, IF_NAMESIZE);
             if (ioctl(sock, SIOCGIFHWADDR, &ifr) == -1) {
                 snprintf(err_msg, sizeof(err_msg),
-                         "failed to get MAC addres of %s: %s",
+                         "failed to get MAC address of %s: %s",
                          ifa->ifa_name,
                          strerror(errno));
                 error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);

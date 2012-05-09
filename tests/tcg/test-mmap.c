@@ -3,7 +3,7 @@
  *
  * When running qemu-linux-user with the -p flag, you may need to tell
  * this test program about the pagesize because getpagesize() will not reflect
- * the -p choice. Simply pass one argument beeing the pagesize.
+ * the -p choice. Simply pass one argument being the pagesize.
  *
  * Copyright (c) 2007 AXIS Communications AB
  * Written by Edgar E. Iglesias.

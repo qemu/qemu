@@ -18,7 +18,7 @@
 # lexer/tokenizer/parser state should be flushed/reset in
 # preparation for reliably receiving the subsequent response. As
 # an optimization, clients may opt to ignore all data until a
-# sentinel value is receiving to avoid unecessary processing of
+# sentinel value is receiving to avoid unnecessary processing of
 # stale data.
 #
 # Similarly, clients should also precede this *request*

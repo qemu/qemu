@@ -1091,8 +1091,8 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         break;
 
     case USBSTS:
-        val &= USBSTS_RO_MASK;              // bits 6 thru 31 are RO
-        ehci_clear_usbsts(s, val);          // bits 0 thru 5 are R/WC
+        val &= USBSTS_RO_MASK;              // bits 6 through 31 are RO
+        ehci_clear_usbsts(s, val);          // bits 0 through 5 are R/WC
         val = s->usbsts;
         ehci_set_interrupt(s, 0);
         break;
