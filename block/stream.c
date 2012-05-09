@@ -13,6 +13,7 @@
 
 #include "trace.h"
 #include "block_int.h"
+#include "qemu/ratelimit.h"
 
 enum {
     /*
@@ -24,34 +25,6 @@ enum {
 };
 
 #define SLICE_TIME 100000000ULL /* ns */
-
-typedef struct {
-    int64_t next_slice_time;
-    uint64_t slice_quota;
-    uint64_t dispatched;
-} RateLimit;
-
-static int64_t ratelimit_calculate_delay(RateLimit *limit, uint64_t n)
-{
-    int64_t now = qemu_get_clock_ns(rt_clock);
-
-    if (limit->next_slice_time < now) {
-        limit->next_slice_time = now + SLICE_TIME;
-        limit->dispatched = 0;
-    }
-    if (limit->dispatched == 0 || limit->dispatched + n <= limit->slice_quota) {
-        limit->dispatched += n;
-        return 0;
-    } else {
-        limit->dispatched = n;
-        return limit->next_slice_time - now;
-    }
-}
-
-static void ratelimit_set_speed(RateLimit *limit, uint64_t speed)
-{
-    limit->slice_quota = speed / (1000000000ULL / SLICE_TIME);
-}
 
 typedef struct StreamBlockJob {
     BlockJob common;
@@ -198,7 +171,7 @@ static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
         error_set(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
-    ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE);
+    ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
 static BlockJobType stream_job_type = {
