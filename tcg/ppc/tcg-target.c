@@ -552,7 +552,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
     int addr_reg, data_reg, data_reg2, r0, r1, rbase, bswap;
 #ifdef CONFIG_SOFTMMU
-    int mem_index, s_bits, r2;
+    int mem_index, s_bits, r2, ir;
     void *label1_ptr, *label2_ptr;
 #if TARGET_LONG_BITS == 64
     int addr_reg2;
@@ -614,14 +614,17 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* slow path */
+    ir = 3;
 #if TARGET_LONG_BITS == 32
-    tcg_out_mov (s, TCG_TYPE_I32, 3, addr_reg);
-    tcg_out_movi (s, TCG_TYPE_I32, 4, mem_index);
+    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #else
-    tcg_out_mov (s, TCG_TYPE_I32, 3, addr_reg2);
-    tcg_out_mov (s, TCG_TYPE_I32, 4, addr_reg);
-    tcg_out_movi (s, TCG_TYPE_I32, 5, mem_index);
+#ifdef TCG_TARGET_CALL_ALIGN_ARGS
+    ir |= 1;
 #endif
+    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg2);
+    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
+#endif
+    tcg_out_movi (s, TCG_TYPE_I32, ir, mem_index);
 
     tcg_out_call (s, (tcg_target_long) qemu_ld_helpers[s_bits], 1);
     switch (opc) {
@@ -810,13 +813,15 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* slow path */
+    ir = 3;
 #if TARGET_LONG_BITS == 32
-    tcg_out_mov (s, TCG_TYPE_I32, 3, addr_reg);
-    ir = 4;
+    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #else
-    tcg_out_mov (s, TCG_TYPE_I32, 3, addr_reg2);
-    tcg_out_mov (s, TCG_TYPE_I32, 4, addr_reg);
-    ir = 5;
+#ifdef TCG_TARGET_CALL_ALIGN_ARGS
+    ir |= 1;
+#endif
+    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg2);
+    tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #endif
 
     switch (opc) {
@@ -841,7 +846,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
         break;
     case 3:
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
-        ir = 5;
+        ir |= 1;
 #endif
         tcg_out_mov (s, TCG_TYPE_I32, ir++, data_reg2);
         tcg_out_mov (s, TCG_TYPE_I32, ir, data_reg);
