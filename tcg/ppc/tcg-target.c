@@ -816,11 +816,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #else
     tcg_out_mov (s, TCG_TYPE_I32, 3, addr_reg2);
     tcg_out_mov (s, TCG_TYPE_I32, 4, addr_reg);
-#ifdef TCG_TARGET_CALL_ALIGN_ARGS
     ir = 5;
-#else
-    ir = 4;
-#endif
 #endif
 
     switch (opc) {
