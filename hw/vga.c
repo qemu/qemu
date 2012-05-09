@@ -2357,10 +2357,15 @@ void vga_init(VGACommonState *s, MemoryRegion *address_space,
 void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
 {
 #ifdef CONFIG_BOCHS_VBE
+    /* With pc-0.12 and below we map both the PCI BAR and the fixed VBE region,
+     * so use an alias to avoid double-mapping the same region.
+     */
+    memory_region_init_alias(&s->vram_vbe, "vram.vbe",
+                             &s->vram, 0, memory_region_size(&s->vram));
     /* XXX: use optimized standard vga accesses */
     memory_region_add_subregion(system_memory,
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                &s->vram);
+                                &s->vram_vbe);
     s->vbe_mapped = 1;
 #endif 
 }
