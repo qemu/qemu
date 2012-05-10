@@ -166,7 +166,7 @@ static void coroutine_fn stream_run(void *opaque)
     BlockDriverState *base = s->base;
     int64_t sector_num, end;
     int ret = 0;
-    int n;
+    int n = 0;
     void *buf;
 
     s->common.len = bdrv_getlength(bs);
