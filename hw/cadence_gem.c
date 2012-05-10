@@ -664,7 +664,7 @@ static ssize_t gem_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
          */
 
         memcpy(rxbuf, buf, size);
-        memset(rxbuf + size, 0, sizeof(rxbuf - size));
+        memset(rxbuf + size, 0, sizeof(rxbuf) - size);
         rxbuf_ptr = rxbuf;
         crc_val = cpu_to_le32(crc32(0, rxbuf, MAX(size, 60)));
         if (size < 60) {
