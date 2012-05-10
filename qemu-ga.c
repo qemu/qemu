@@ -445,9 +445,9 @@ static void become_daemon(const char *pidfile)
         goto fail;
     }
 
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    reopen_fd_to_null(STDIN_FILENO);
+    reopen_fd_to_null(STDOUT_FILENO);
+    reopen_fd_to_null(STDERR_FILENO);
     return;
 
 fail:
