@@ -39,9 +39,9 @@ void socket_set_nonblock(int fd);
 int send_all(int fd, const void *buf, int len1);
 
 /* New, ipv6-ready socket helper functions, see qemu-sockets.c */
-int inet_listen_opts(QemuOpts *opts, int port_offset);
+int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp);
 int inet_listen(const char *str, char *ostr, int olen,
-                int socktype, int port_offset);
+                int socktype, int port_offset, Error **errp);
 int inet_connect_opts(QemuOpts *opts, Error **errp);
 int inet_connect(const char *str, bool block, Error **errp);
 int inet_dgram_opts(QemuOpts *opts);

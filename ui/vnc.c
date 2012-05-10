@@ -3088,7 +3088,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
             pstrcpy(dpy, 256, "unix:");
             vs->lsock = unix_listen(display+5, dpy+5, 256-5);
         } else {
-            vs->lsock = inet_listen(display, dpy, 256, SOCK_STREAM, 5900);
+            vs->lsock = inet_listen(display, dpy, 256,
+                                    SOCK_STREAM, 5900, NULL);
         }
         if (-1 == vs->lsock) {
             g_free(dpy);
