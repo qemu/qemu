@@ -791,9 +791,6 @@ static int rtl8139_can_receive(VLANClientState *nc)
       return 1;
     if (!rtl8139_receiver_enabled(s))
       return 1;
-    /* network/host communication happens only in normal mode */
-    if ((s->Cfg9346 & Chip9346_op_mask) != Cfg9346_Normal)
-	return 0;
 
     if (rtl8139_cp_receiver_enabled(s)) {
         /* ??? Flow control not implemented in c+ mode.
@@ -833,12 +830,6 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
     if (!rtl8139_receiver_enabled(s))
     {
         DPRINTF("receiver disabled ================\n");
-        return -1;
-    }
-
-    /* check whether we are in normal mode */
-    if ((s->Cfg9346 & Chip9346_op_mask) != Cfg9346_Normal) {
-        DPRINTF("not in normal op mode\n");
         return -1;
     }
 
