@@ -348,6 +348,7 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
     unsigned long page_number, c;
     target_phys_addr_t addr, addr1;
     unsigned int len = ((section->size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
+    unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
 
     /*
      * bitmap-traveling is faster than memory-traveling (for addr...)
@@ -359,10 +360,11 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
             do {
                 j = ffsl(c) - 1;
                 c &= ~(1ul << j);
-                page_number = i * HOST_LONG_BITS + j;
+                page_number = (i * HOST_LONG_BITS + j) * hpratio;
                 addr1 = page_number * TARGET_PAGE_SIZE;
                 addr = section->offset_within_region + addr1;
-                memory_region_set_dirty(section->mr, addr, TARGET_PAGE_SIZE);
+                memory_region_set_dirty(section->mr, addr,
+                                        TARGET_PAGE_SIZE * hpratio);
             } while (c != 0);
         }
     }
@@ -979,6 +981,14 @@ int kvm_init(void)
     int i;
 
     s = g_malloc0(sizeof(KVMState));
+
+    /*
+     * On systems where the kernel can support different base page
+     * sizes, host page size may be different from TARGET_PAGE_SIZE,
+     * even with KVM.  TARGET_PAGE_SIZE is assumed to be the minimum
+     * page size for the system though.
+     */
+    assert(TARGET_PAGE_SIZE <= getpagesize());
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
