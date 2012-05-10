@@ -1395,30 +1395,26 @@ static void ehci_execute_complete(EHCIQueue *q)
 
 // 4.10.3
 
-static int ehci_execute(EHCIQueue *q)
+static int ehci_execute(EHCIPacket *p)
 {
-    EHCIPacket *p = QTAILQ_FIRST(&q->packets);
     USBDevice *dev;
     USBEndpoint *ep;
     int ret;
     int endp;
     int devadr;
 
-    assert(p != NULL);
-    assert(p->qtdaddr == q->qtdaddr);
-
-    if ( !(q->qh.token & QTD_TOKEN_ACTIVE)) {
-        fprintf(stderr, "Attempting to execute inactive QH\n");
+    if (!(p->qtd.token & QTD_TOKEN_ACTIVE)) {
+        fprintf(stderr, "Attempting to execute inactive qtd\n");
         return USB_RET_PROCERR;
     }
 
-    p->tbytes = (q->qh.token & QTD_TOKEN_TBYTES_MASK) >> QTD_TOKEN_TBYTES_SH;
+    p->tbytes = (p->qtd.token & QTD_TOKEN_TBYTES_MASK) >> QTD_TOKEN_TBYTES_SH;
     if (p->tbytes > BUFF_SIZE) {
         fprintf(stderr, "Request for more bytes than allowed\n");
         return USB_RET_PROCERR;
     }
 
-    p->pid = (q->qh.token & QTD_TOKEN_PID_MASK) >> QTD_TOKEN_PID_SH;
+    p->pid = (p->qtd.token & QTD_TOKEN_PID_MASK) >> QTD_TOKEN_PID_SH;
     switch (p->pid) {
     case 0:
         p->pid = USB_TOKEN_OUT;
@@ -1438,11 +1434,11 @@ static int ehci_execute(EHCIQueue *q)
         return USB_RET_PROCERR;
     }
 
-    endp = get_field(q->qh.epchar, QH_EPCHAR_EP);
-    devadr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
+    endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
+    devadr = get_field(p->queue->qh.epchar, QH_EPCHAR_DEVADDR);
 
     /* TODO: associating device with ehci port */
-    dev = ehci_find_device(q->ehci, devadr);
+    dev = ehci_find_device(p->queue->ehci, devadr);
     ep = usb_ep_get(dev, p->pid, endp);
 
     usb_packet_setup(&p->packet, p->pid, ep);
@@ -1912,7 +1908,7 @@ static int ehci_state_execute(EHCIQueue *q, int async)
         ehci_set_usbsts(q->ehci, USBSTS_REC);
     }
 
-    p->usb_status = ehci_execute(q);
+    p->usb_status = ehci_execute(p);
     if (p->usb_status == USB_RET_PROCERR) {
         again = -1;
         goto out;
