@@ -2446,7 +2446,7 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
         if (is_listen) {
             fd = inet_listen_opts(opts, 0);
         } else {
-            fd = inet_connect_opts(opts);
+            fd = inet_connect_opts(opts, NULL);
         }
     }
     if (fd < 0) {

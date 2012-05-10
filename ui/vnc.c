@@ -3068,7 +3068,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
         if (strncmp(display, "unix:", 5) == 0)
             vs->lsock = unix_connect(display+5);
         else
-            vs->lsock = inet_connect(display, SOCK_STREAM);
+            vs->lsock = inet_connect(display, true, NULL);
         if (-1 == vs->lsock) {
             g_free(vs->display);
             vs->display = NULL;
