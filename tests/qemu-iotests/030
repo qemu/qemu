@@ -23,6 +23,7 @@ import iotests
 from iotests import qemu_img, qemu_io
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
+mid_img = os.path.join(iotests.test_dir, 'mid.img')
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
 class ImageStreamingTestCase(iotests.QMPTestCase):
@@ -52,13 +53,15 @@ class TestSingleDrive(ImageStreamingTestCase):
 
     def setUp(self):
         qemu_img('create', backing_img, str(TestSingleDrive.image_len))
-        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
         self.vm.launch()
 
     def tearDown(self):
         self.vm.shutdown()
         os.remove(test_img)
+        os.remove(mid_img)
         os.remove(backing_img)
 
     def test_stream(self):
@@ -78,9 +81,34 @@ class TestSingleDrive(ImageStreamingTestCase):
                     completed = True
 
         self.assert_no_active_streams()
+        self.vm.shutdown()
 
-        self.assertFalse('sectors not allocated' in qemu_io('-c', 'map', test_img),
-                         'image file not fully populated after streaming')
+        self.assertEqual(qemu_io('-c', 'map', backing_img),
+                         qemu_io('-c', 'map', test_img),
+                         'image file map does not match backing file after streaming')
+
+    def test_stream_partial(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0', base=mid_img)
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+        self.assertEqual(qemu_io('-c', 'map', mid_img),
+                         qemu_io('-c', 'map', test_img),
+                         'image file map does not match backing file after streaming')
 
     def test_device_not_found(self):
         result = self.vm.qmp('block-stream', device='nonexistent')

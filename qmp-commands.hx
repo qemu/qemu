@@ -759,7 +759,7 @@ EQMP
 
     {
         .name       = "blockdev-snapshot-sync",
-        .args_type  = "device:B,snapshot-file:s,format:s?",
+        .args_type  = "device:B,snapshot-file:s,format:s?,mode:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
     },
 

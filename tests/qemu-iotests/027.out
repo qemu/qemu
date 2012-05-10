@@ -19,5 +19,5 @@ read 2048/2048 bytes at offset 0
 
 == verify zeroes after sub-cluster pattern ==
 read 2560/2560 bytes at offset 1024
-2 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+2.500 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 *** done

@@ -38,6 +38,15 @@ QTestState *qtest_init(const char *extra_args);
 void qtest_quit(QTestState *s);
 
 /**
+ * qtest_qmp:
+ * @s: QTestState instance to operate on.
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU
+ */
+void qtest_qmp(QTestState *s, const char *fmt, ...);
+
+/**
  * qtest_get_irq:
  * @s: QTestState instance to operate on.
  * @num: Interrupt to observe.
@@ -205,6 +214,14 @@ void qtest_add_func(const char *str, void (*fn));
 #define qtest_start(args) (            \
     global_qtest = qtest_init((args)) \
         )
+
+/**
+ * qmp:
+ * @fmt...: QMP message to send to qemu
+ *
+ * Sends a QMP message to QEMU
+ */
+#define qmp(fmt, ...) qtest_qmp(global_qtest, fmt, ## __VA_ARGS__)
 
 /**
  * get_irq:

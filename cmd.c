@@ -418,31 +418,37 @@ cvtstr(
 	char		*str,
 	size_t		size)
 {
-	const char	*fmt;
-	int		precise;
-
-	precise = ((double)value * 1000 == (double)(int)value * 1000);
+	char		*trim;
+	const char	*suffix;
 
 	if (value >= EXABYTES(1)) {
-		fmt = precise ? "%.f EiB" : "%.3f EiB";
-		snprintf(str, size, fmt, TO_EXABYTES(value));
+		suffix = " EiB";
+		snprintf(str, size - 4, "%.3f", TO_EXABYTES(value));
 	} else if (value >= PETABYTES(1)) {
-		fmt = precise ? "%.f PiB" : "%.3f PiB";
-		snprintf(str, size, fmt, TO_PETABYTES(value));
+		suffix = " PiB";
+		snprintf(str, size - 4, "%.3f", TO_PETABYTES(value));
 	} else if (value >= TERABYTES(1)) {
-		fmt = precise ? "%.f TiB" : "%.3f TiB";
-		snprintf(str, size, fmt, TO_TERABYTES(value));
+		suffix = " TiB";
+		snprintf(str, size - 4, "%.3f", TO_TERABYTES(value));
 	} else if (value >= GIGABYTES(1)) {
-		fmt = precise ? "%.f GiB" : "%.3f GiB";
-		snprintf(str, size, fmt, TO_GIGABYTES(value));
+		suffix = " GiB";
+		snprintf(str, size - 4, "%.3f", TO_GIGABYTES(value));
 	} else if (value >= MEGABYTES(1)) {
-		fmt = precise ? "%.f MiB" : "%.3f MiB";
-		snprintf(str, size, fmt, TO_MEGABYTES(value));
+		suffix = " MiB";
+		snprintf(str, size - 4, "%.3f", TO_MEGABYTES(value));
 	} else if (value >= KILOBYTES(1)) {
-		fmt = precise ? "%.f KiB" : "%.3f KiB";
-		snprintf(str, size, fmt, TO_KILOBYTES(value));
+		suffix = " KiB";
+		snprintf(str, size - 4, "%.3f", TO_KILOBYTES(value));
 	} else {
-		snprintf(str, size, "%f bytes", value);
+		suffix = " bytes";
+		snprintf(str, size - 6, "%f", value);
+	}
+
+	trim = strstr(str, ".000");
+	if (trim) {
+		strcpy(trim, suffix);
+	} else {
+		strcat(str, suffix);
 	}
 }
 

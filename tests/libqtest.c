@@ -36,6 +36,7 @@ QTestState *global_qtest;
 struct QTestState
 {
     int fd;
+    int qmp_fd;
     bool irq_level[MAX_IRQ];
     GString *rx;
     gchar *pid_file;
@@ -45,25 +46,11 @@ struct QTestState
     g_assert_cmpint(ret, !=, -1); \
 } while (0)
 
-QTestState *qtest_init(const char *extra_args)
+static int init_socket(const char *socket_path)
 {
-    QTestState *s;
     struct sockaddr_un addr;
-    int sock, ret, i;
-    gchar *socket_path;
-    gchar *pid_file;
-    gchar *command;
-    const char *qemu_binary;
-    pid_t pid;
-    socklen_t addrlen;
-
-    qemu_binary = getenv("QTEST_QEMU_BINARY");
-    g_assert(qemu_binary != NULL);
-
-    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
-    pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
-
-    s = g_malloc(sizeof(*s));
+    int sock;
+    int ret;
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
     g_assert_no_errno(sock);
@@ -78,21 +65,14 @@ QTestState *qtest_init(const char *extra_args)
     g_assert_no_errno(ret);
     listen(sock, 1);
 
-    pid = fork();
-    if (pid == 0) {
-        command = g_strdup_printf("%s "
-                                  "-qtest unix:%s,nowait "
-                                  "-qtest-log /dev/null "
-                                  "-pidfile %s "
-                                  "-machine accel=qtest "
-                                  "%s", qemu_binary, socket_path,
-                                  pid_file,
-                                  extra_args ?: "");
+    return sock;
+}
 
-        ret = system(command);
-        exit(ret);
-        g_free(command);
-    }
+static int socket_accept(int sock)
+{
+    struct sockaddr_un addr;
+    socklen_t addrlen;
+    int ret;
 
     do {
         ret = accept(sock, (struct sockaddr *)&addr, &addrlen);
@@ -100,7 +80,52 @@ QTestState *qtest_init(const char *extra_args)
     g_assert_no_errno(ret);
     close(sock);
 
-    s->fd = ret;
+    return ret;
+}
+
+QTestState *qtest_init(const char *extra_args)
+{
+    QTestState *s;
+    int sock, qmpsock, ret, i;
+    gchar *socket_path;
+    gchar *qmp_socket_path;
+    gchar *pid_file;
+    gchar *command;
+    const char *qemu_binary;
+    pid_t pid;
+
+    qemu_binary = getenv("QTEST_QEMU_BINARY");
+    g_assert(qemu_binary != NULL);
+
+    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+    pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
+
+    s = g_malloc(sizeof(*s));
+
+    sock = init_socket(socket_path);
+    qmpsock = init_socket(qmp_socket_path);
+
+    pid = fork();
+    if (pid == 0) {
+        command = g_strdup_printf("%s "
+                                  "-qtest unix:%s,nowait "
+                                  "-qtest-log /dev/null "
+                                  "-qmp unix:%s,nowait "
+                                  "-pidfile %s "
+                                  "-machine accel=qtest "
+                                  "%s", qemu_binary, socket_path,
+                                  qmp_socket_path, pid_file,
+                                  extra_args ?: "");
+
+        ret = system(command);
+        exit(ret);
+        g_free(command);
+    }
+
+    s->fd = socket_accept(sock);
+    s->qmp_fd = socket_accept(qmpsock);
+
     s->rx = g_string_new("");
     s->pid_file = pid_file;
     for (i = 0; i < MAX_IRQ; i++) {
@@ -108,6 +133,11 @@ QTestState *qtest_init(const char *extra_args)
     }
 
     g_free(socket_path);
+    g_free(qmp_socket_path);
+
+    /* Read the QMP greeting and then do the handshake */
+    qtest_qmp(s, "");
+    qtest_qmp(s, "{ 'execute': 'qmp_capabilities' }");
 
     return s;
 }
@@ -131,22 +161,19 @@ void qtest_quit(QTestState *s)
     }
 }
 
-static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
+static void socket_sendf(int fd, const char *fmt, va_list ap)
 {
-    va_list ap;
     gchar *str;
     size_t size, offset;
 
-    va_start(ap, fmt);
     str = g_strdup_vprintf(fmt, ap);
-    va_end(ap);
     size = strlen(str);
 
     offset = 0;
     while (offset < size) {
         ssize_t len;
 
-        len = write(s->fd, str + offset, size - offset);
+        len = write(fd, str + offset, size - offset);
         if (len == -1 && errno == EINTR) {
             continue;
         }
@@ -156,6 +183,15 @@ static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
 
         offset += len;
     }
+}
+
+static void GCC_FMT_ATTR(2, 3) qtest_sendf(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    socket_sendf(s->fd, fmt, ap);
+    va_end(ap);
 }
 
 static GString *qtest_recv_line(QTestState *s)
@@ -231,6 +267,39 @@ redo:
     }
 
     return words;
+}
+
+void qtest_qmp(QTestState *s, const char *fmt, ...)
+{
+    va_list ap;
+    bool has_reply = false;
+    int nesting = 0;
+
+    /* Send QMP request */
+    va_start(ap, fmt);
+    socket_sendf(s->qmp_fd, fmt, ap);
+    va_end(ap);
+
+    /* Receive reply */
+    while (!has_reply || nesting > 0) {
+        ssize_t len;
+        char c;
+
+        len = read(s->qmp_fd, &c, 1);
+        if (len == -1 && errno == EINTR) {
+            continue;
+        }
+
+        switch (c) {
+        case '{':
+            nesting++;
+            has_reply = true;
+            break;
+        case '}':
+            nesting--;
+            break;
+        }
+    }
 }
 
 const char *qtest_get_arch(void)

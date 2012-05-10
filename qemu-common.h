@@ -61,6 +61,9 @@ typedef struct Monitor Monitor;
 #if !defined(ENOTSUP)
 #define ENOTSUP 4096
 #endif
+#if !defined(ECANCELED)
+#define ECANCELED 4097
+#endif
 #ifndef TIME_MAX
 #define TIME_MAX LONG_MAX
 #endif
