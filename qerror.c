@@ -304,6 +304,26 @@ static const QErrorStringTable qerror_table[] = {
         .error_fmt = QERR_VNC_SERVER_FAILED,
         .desc      = "Could not start VNC server on %(target)",
     },
+    {
+        .error_fmt = QERR_SOCKET_CONNECT_IN_PROGRESS,
+        .desc      = "Connection can not be completed immediately",
+    },
+    {
+        .error_fmt = QERR_SOCKET_CONNECT_FAILED,
+        .desc      = "Failed to connect to socket",
+    },
+    {
+        .error_fmt = QERR_SOCKET_LISTEN_FAILED,
+        .desc      = "Failed to set socket to listening mode",
+    },
+    {
+        .error_fmt = QERR_SOCKET_BIND_FAILED,
+        .desc      = "Failed to bind socket",
+    },
+    {
+        .error_fmt = QERR_SOCKET_CREATE_FAILED,
+        .desc      = "Failed to create socket",
+    },
     {}
 };
 

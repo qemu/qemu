@@ -248,4 +248,19 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_VNC_SERVER_FAILED \
     "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
 
+#define QERR_SOCKET_CONNECT_IN_PROGRESS \
+    "{ 'class': 'SockConnectInprogress', 'data': {} }"
+
+#define QERR_SOCKET_CONNECT_FAILED \
+    "{ 'class': 'SockConnectFailed', 'data': {} }"
+
+#define QERR_SOCKET_LISTEN_FAILED \
+    "{ 'class': 'SockListenFailed', 'data': {} }"
+
+#define QERR_SOCKET_BIND_FAILED \
+    "{ 'class': 'SockBindFailed', 'data': {} }"
+
+#define QERR_SOCKET_CREATE_FAILED \
+    "{ 'class': 'SockCreateFailed', 'data': {} }"
+
 #endif /* QERROR_H */
