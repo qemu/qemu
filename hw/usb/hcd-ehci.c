@@ -671,10 +671,6 @@ static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
 {
     EHCIPacket *p;
 
-#if 1
-    /* temporary, we don't handle multiple packets per queue (yet) */
-    assert(QTAILQ_EMPTY(&q->packets));
-#endif
     p = g_new0(EHCIPacket, 1);
     p->queue = q;
     usb_packet_init(&p->packet);
@@ -1394,7 +1390,7 @@ static void ehci_execute_complete(EHCIQueue *q)
 
 // 4.10.3
 
-static int ehci_execute(EHCIPacket *p)
+static int ehci_execute(EHCIPacket *p, const char *action)
 {
     USBEndpoint *ep;
     int ret;
@@ -1437,6 +1433,7 @@ static int ehci_execute(EHCIPacket *p)
     usb_packet_setup(&p->packet, p->pid, ep);
     usb_packet_map(&p->packet, &p->sgl);
 
+    trace_usb_ehci_packet_action(p->queue, p, action);
     ret = usb_handle_packet(p->queue->dev, &p->packet);
     DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
             "(total %d) endp %x ret %d\n",
@@ -1713,7 +1710,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
     if (p && p->async == EHCI_ASYNC_FINISHED) {
         /* I/O finished -- continue processing queue */
-        trace_usb_ehci_queue_action(q, "resume");
+        trace_usb_ehci_packet_action(p->queue, p, "complete");
         ehci_set_state(ehci, async, EST_EXECUTING);
         goto out;
     }
@@ -1858,7 +1855,22 @@ static int ehci_state_fetchqtd(EHCIQueue *q, int async)
                sizeof(EHCIqtd) >> 2);
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
 
-    if (qtd.token & QTD_TOKEN_ACTIVE) {
+    p = QTAILQ_FIRST(&q->packets);
+    while (p != NULL && p->qtdaddr != q->qtdaddr) {
+        /* should not happen (guest bug) */
+        ehci_free_packet(p);
+        p = QTAILQ_FIRST(&q->packets);
+    }
+    if (p != NULL) {
+        ehci_qh_do_overlay(q);
+        ehci_flush_qh(q);
+        if (p->async == EHCI_ASYNC_INFLIGHT) {
+            ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        } else {
+            ehci_set_state(q->ehci, async, EST_EXECUTING);
+        }
+        again = 1;
+    } else if (qtd.token & QTD_TOKEN_ACTIVE) {
         p = ehci_alloc_packet(q);
         p->qtdaddr = q->qtdaddr;
         p->qtd = qtd;
@@ -1885,6 +1897,35 @@ static int ehci_state_horizqh(EHCIQueue *q, int async)
     }
 
     return again;
+}
+
+static void ehci_fill_queue(EHCIPacket *p, int async)
+{
+    EHCIQueue *q = p->queue;
+    EHCIqtd qtd = p->qtd;
+    uint32_t qtdaddr;
+
+    for (;;) {
+        if (NLPTR_TBIT(qtd.altnext) == 0) {
+            break;
+        }
+        if (NLPTR_TBIT(qtd.next) != 0) {
+            break;
+        }
+        qtdaddr = qtd.next;
+        get_dwords(q->ehci, NLPTR_GET(qtdaddr),
+                   (uint32_t *) &qtd, sizeof(EHCIqtd) >> 2);
+        ehci_trace_qtd(q, NLPTR_GET(qtdaddr), &qtd);
+        if (!(qtd.token & QTD_TOKEN_ACTIVE)) {
+            break;
+        }
+        p = ehci_alloc_packet(q);
+        p->qtdaddr = qtdaddr;
+        p->qtd = qtd;
+        p->usb_status = ehci_execute(p, "queue");
+        assert(p->usb_status = USB_RET_ASYNC);
+        p->async = EHCI_ASYNC_INFLIGHT;
+    }
 }
 
 static int ehci_state_execute(EHCIQueue *q, int async)
@@ -1916,17 +1957,18 @@ static int ehci_state_execute(EHCIQueue *q, int async)
         ehci_set_usbsts(q->ehci, USBSTS_REC);
     }
 
-    p->usb_status = ehci_execute(p);
+    p->usb_status = ehci_execute(p, "process");
     if (p->usb_status == USB_RET_PROCERR) {
         again = -1;
         goto out;
     }
     if (p->usb_status == USB_RET_ASYNC) {
         ehci_flush_qh(q);
-        trace_usb_ehci_queue_action(q, "suspend");
+        trace_usb_ehci_packet_action(p->queue, p, "async");
         p->async = EHCI_ASYNC_INFLIGHT;
         ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
         again = 1;
+        ehci_fill_queue(p, async);
         goto out;
     }
 
