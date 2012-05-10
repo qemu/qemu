@@ -371,6 +371,7 @@ struct EHCIQueue {
     EHCIqh qh;             /* copy of current QH (being worked on) */
     uint32_t qhaddr;       /* address QH read from                 */
     uint32_t qtdaddr;      /* address QTD read from                */
+    USBDevice *dev;
     QTAILQ_HEAD(, EHCIPacket) packets;
 };
 
@@ -758,11 +759,9 @@ static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q, *tmp;
-    int addr;
 
     QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
-        addr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
-        if (addr != dev->addr) {
+        if (q->dev != dev) {
             continue;
         }
         ehci_free_queue(q, async);
@@ -1397,11 +1396,9 @@ static void ehci_execute_complete(EHCIQueue *q)
 
 static int ehci_execute(EHCIPacket *p)
 {
-    USBDevice *dev;
     USBEndpoint *ep;
     int ret;
     int endp;
-    int devadr;
 
     if (!(p->qtd.token & QTD_TOKEN_ACTIVE)) {
         fprintf(stderr, "Attempting to execute inactive qtd\n");
@@ -1435,16 +1432,12 @@ static int ehci_execute(EHCIPacket *p)
     }
 
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
-    devadr = get_field(p->queue->qh.epchar, QH_EPCHAR_DEVADDR);
-
-    /* TODO: associating device with ehci port */
-    dev = ehci_find_device(p->queue->ehci, devadr);
-    ep = usb_ep_get(dev, p->pid, endp);
+    ep = usb_ep_get(p->queue->dev, p->pid, endp);
 
     usb_packet_setup(&p->packet, p->pid, ep);
     usb_packet_map(&p->packet, &p->sgl);
 
-    ret = usb_handle_packet(dev, &p->packet);
+    ret = usb_handle_packet(p->queue->dev, &p->packet);
     DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
             "(total %d) endp %x ret %d\n",
             q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
@@ -1658,7 +1651,7 @@ out:
 static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 {
     EHCIPacket *p;
-    uint32_t entry;
+    uint32_t entry, devaddr;
     EHCIQueue *q;
 
     entry = ehci_get_fetch_addr(ehci, async);
@@ -1680,6 +1673,20 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     get_dwords(ehci, NLPTR_GET(q->qhaddr),
                (uint32_t *) &q->qh, sizeof(EHCIqh) >> 2);
     ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &q->qh);
+
+    devaddr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
+    if (q->dev != NULL && q->dev->addr != devaddr) {
+        if (!QTAILQ_EMPTY(&q->packets)) {
+            /* should not happen (guest bug) */
+            while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
+                ehci_free_packet(p);
+            }
+        }
+        q->dev = NULL;
+    }
+    if (q->dev == NULL) {
+        q->dev = ehci_find_device(q->ehci, devaddr);
+    }
 
     if (p && p->async == EHCI_ASYNC_INFLIGHT) {
         /* I/O still in progress -- skip queue */
