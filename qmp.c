@@ -151,6 +151,8 @@ void qmp_cont(Error **errp)
                runstate_check(RUN_STATE_SHUTDOWN)) {
         error_set(errp, QERR_RESET_REQUIRED);
         return;
+    } else if (runstate_check(RUN_STATE_SUSPENDED)) {
+        return;
     }
 
     bdrv_iterate(iostatus_bdrv_it, NULL);
