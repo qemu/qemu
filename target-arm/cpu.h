@@ -458,7 +458,15 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define cpu_init(model) (&cpu_arm_init(model)->env)
+static inline CPUARMState *cpu_init(const char *cpu_model)
+{
+    ARMCPU *cpu = cpu_arm_init(cpu_model);
+    if (cpu) {
+        return &cpu->env;
+    }
+    return NULL;
+}
+
 #define cpu_exec cpu_arm_exec
 #define cpu_gen_code cpu_arm_gen_code
 #define cpu_signal_handler cpu_arm_signal_handler
