@@ -140,6 +140,23 @@ static gboolean register_signal_handlers(void)
 
     return true;
 }
+
+/* TODO: use this in place of all post-fork() fclose(std*) callers */
+void reopen_fd_to_null(int fd)
+{
+    int nullfd;
+
+    nullfd = open("/dev/null", O_RDWR);
+    if (nullfd < 0) {
+        return;
+    }
+
+    dup2(nullfd, fd);
+
+    if (nullfd != fd) {
+        close(nullfd);
+    }
+}
 #endif
 
 static void usage(const char *cmd)

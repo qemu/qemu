@@ -34,25 +34,6 @@
 #endif
 #endif
 
-#if defined(__linux__)
-/* TODO: use this in place of all post-fork() fclose(std*) callers */
-static void reopen_fd_to_null(int fd)
-{
-    int nullfd;
-
-    nullfd = open("/dev/null", O_RDWR);
-    if (nullfd < 0) {
-        return;
-    }
-
-    dup2(nullfd, fd);
-
-    if (nullfd != fd) {
-        close(nullfd);
-    }
-}
-#endif /* defined(__linux__) */
-
 void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
 {
     int ret;
