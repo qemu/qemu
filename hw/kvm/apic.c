@@ -29,7 +29,7 @@ void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
     int i;
 
-    memset(kapic, 0, sizeof(kapic));
+    memset(kapic, 0, sizeof(*kapic));
     kvm_apic_set_reg(kapic, 0x2, s->id << 24);
     kvm_apic_set_reg(kapic, 0x8, s->tpr);
     kvm_apic_set_reg(kapic, 0xd, s->log_dest << 24);
