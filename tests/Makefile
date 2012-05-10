@@ -18,8 +18,8 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
-check-qtest-i386-y = tests/rtc-test
-check-qtest-i386-y = tests/fdc-test
+check-qtest-i386-y = tests/rtc-test$(EXESUF)
+check-qtest-i386-y = tests/fdc-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
 check-qtest-sparc64-y = tests/m48t59-test$(EXESUF)
