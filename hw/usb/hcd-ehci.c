@@ -414,6 +414,7 @@ struct EHCIState {
      *  Internal states, shadow registers, etc
      */
     QEMUTimer *frame_timer;
+    QEMUBH *async_bh;
     int attach_poll_counter;
     int astate;                        // Current state in asynchronous schedule
     int pstate;                        // Current state in periodic schedule
@@ -959,6 +960,7 @@ static void ehci_reset(void *opaque)
     ehci_queues_rip_all(s, 0);
     ehci_queues_rip_all(s, 1);
     qemu_del_timer(s->frame_timer);
+    qemu_bh_cancel(s->async_bh);
 }
 
 static uint32_t ehci_mem_readb(void *ptr, target_phys_addr_t addr)
@@ -1111,6 +1113,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
         if (!(val & USBCMD_RUNSTOP) && (s->usbcmd & USBCMD_RUNSTOP)) {
             qemu_del_timer(s->frame_timer);
+            qemu_bh_cancel(s->async_bh);
             ehci_queues_rip_all(s, 0);
             ehci_queues_rip_all(s, 1);
             ehci_set_usbsts(s, USBSTS_HALT);
@@ -2290,11 +2293,16 @@ static void ehci_frame_timer(void *opaque)
     /*  Async is not inside loop since it executes everything it can once
      *  called
      */
-    ehci_advance_async_state(ehci);
+    qemu_bh_schedule(ehci->async_bh);
 
     qemu_mod_timer(ehci->frame_timer, expire_time);
 }
 
+static void ehci_async_bh(void *opaque)
+{
+    EHCIState *ehci = opaque;
+    ehci_advance_async_state(ehci);
+}
 
 static const MemoryRegionOps ehci_mem_ops = {
     .old_mmio = {
@@ -2430,6 +2438,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     }
 
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
+    s->async_bh = qemu_bh_new(ehci_async_bh, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
 
