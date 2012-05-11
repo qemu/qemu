@@ -1402,12 +1402,14 @@ static int xhci_setup_packet(XHCITransfer *xfer, USBDevice *dev)
 static int xhci_complete_packet(XHCITransfer *xfer, int ret)
 {
     if (ret == USB_RET_ASYNC) {
+        trace_usb_xhci_xfer_async(xfer);
         xfer->running_async = 1;
         xfer->running_retry = 0;
         xfer->complete = 0;
         xfer->cancelled = 0;
         return 0;
     } else if (ret == USB_RET_NAK) {
+        trace_usb_xhci_xfer_nak(xfer);
         xfer->running_async = 0;
         xfer->running_retry = 1;
         xfer->complete = 0;
@@ -1422,10 +1424,12 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
     if (ret >= 0) {
         xfer->status = CC_SUCCESS;
         xhci_xfer_data(xfer, xfer->data, ret, xfer->in_xfer, 0, 1);
+        trace_usb_xhci_xfer_success(xfer, ret);
         return 0;
     }
 
     /* error */
+    trace_usb_xhci_xfer_error(xfer, ret);
     switch (ret) {
     case USB_RET_NODEV:
         xfer->status = CC_USB_TRANSACTION_ERROR;
@@ -1461,10 +1465,11 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     USBDevice *dev;
     int ret;
 
-    DPRINTF("xhci_fire_ctl_transfer(slot=%d)\n", xfer->slotid);
-
     trb_setup = &xfer->trbs[0];
     trb_status = &xfer->trbs[xfer->trb_count-1];
+
+    trace_usb_xhci_xfer_start(xfer, xfer->slotid, xfer->epid,
+                              trb_setup->parameter >> 48);
 
     /* at most one Event Data TRB allowed after STATUS */
     if (TRB_TYPE(*trb_status) == TR_EVDATA && xfer->trb_count > 2) {
@@ -1606,15 +1611,14 @@ static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext
     unsigned int length = 0;
     XHCITRB *trb;
 
-    DPRINTF("xhci_fire_transfer(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
-
     for (i = 0; i < xfer->trb_count; i++) {
         trb = &xfer->trbs[i];
         if (TRB_TYPE(*trb) == TR_NORMAL || TRB_TYPE(*trb) == TR_ISOCH) {
             length += trb->status & 0x1ffff;
         }
     }
-    DPRINTF("xhci: total TD length=%d\n", length);
+
+    trace_usb_xhci_xfer_start(xfer, xfer->slotid, xfer->epid, length);
 
     if (!epctx->has_bg) {
         xfer->data_length = length;
@@ -1670,15 +1674,13 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
         XHCITransfer *xfer = epctx->retry;
         int result;
 
-        DPRINTF("xhci: retry nack'ed transfer ...\n");
+        trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
         xhci_setup_packet(xfer, xfer->packet.ep->dev);
         result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
         if (result == USB_RET_NAK) {
-            DPRINTF("xhci: ... xfer still nacked\n");
             return;
         }
-        DPRINTF("xhci: ... result %d\n", result);
         xhci_complete_packet(xfer, result);
         assert(!xfer->running_retry);
         epctx->retry = NULL;

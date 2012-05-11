@@ -311,6 +311,12 @@ usb_xhci_ep_disable(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_kick(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_stop(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_reset(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
+usb_xhci_xfer_start(void *xfer, uint32_t slotid, uint32_t epid, uint32_t length) "%p: slotid %d, epid %d, length %d"
+usb_xhci_xfer_async(void *xfer) "%p"
+usb_xhci_xfer_nak(void *xfer) "%p"
+usb_xhci_xfer_retry(void *xfer) "%p"
+usb_xhci_xfer_success(void *xfer, uint32_t bytes) "%p: len %d"
+usb_xhci_xfer_error(void *xfer, uint32_t ret) "%p: ret %d"
 
 # hw/usb/desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
