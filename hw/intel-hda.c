@@ -1107,6 +1107,9 @@ static void intel_hda_reset(DeviceState *dev)
     DeviceState *qdev;
     HDACodecDevice *cdev;
 
+    if (d->msi) {
+        msi_reset(&d->pci);
+    }
     intel_hda_regs_reset(d);
     d->wall_base_ns = qemu_get_clock_ns(vm_clock);
 
