@@ -187,6 +187,8 @@ typedef struct BdrvCheckResult {
     int corruptions;
     int leaks;
     int check_errors;
+    int corruptions_fixed;
+    int leaks_fixed;
     BlockFragInfo bfi;
 } BdrvCheckResult;
 

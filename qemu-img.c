@@ -425,6 +425,16 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
+    if (result.corruptions_fixed || result.leaks_fixed) {
+        printf("The following inconsistencies were found and repaired:\n\n"
+               "    %d leaked clusters\n"
+               "    %d corruptions\n\n"
+               "Double checking the fixed image now...\n",
+               result.leaks_fixed,
+               result.corruptions_fixed);
+        ret = bdrv_check(bs, &result, 0);
+    }
+
     if (!(result.corruptions || result.leaks || result.check_errors)) {
         printf("No errors were found on the image.\n");
     } else {

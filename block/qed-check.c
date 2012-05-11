@@ -87,6 +87,7 @@ static unsigned int qed_check_l2_table(QEDCheck *check, QEDTable *table)
         if (!qed_check_cluster_offset(s, offset)) {
             if (check->fix) {
                 table->offsets[i] = 0;
+                check->result->corruptions_fixed++;
             } else {
                 check->result->corruptions++;
             }
@@ -127,6 +128,7 @@ static int qed_check_l1_table(QEDCheck *check, QEDTable *table)
             /* Clear invalid offset */
             if (check->fix) {
                 table->offsets[i] = 0;
+                check->result->corruptions_fixed++;
             } else {
                 check->result->corruptions++;
             }
