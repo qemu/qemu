@@ -842,10 +842,9 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     dma_addr_t dequeue;
     int i;
 
+    trace_usb_xhci_ep_enable(slotid, epid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
     assert(epid >= 1 && epid <= 31);
-
-    DPRINTF("xhci_enable_ep(%d, %d)\n", slotid, epid);
 
     slot = &xhci->slots[slotid-1];
     if (slot->eps[epid-1]) {
@@ -961,10 +960,9 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
     XHCISlot *slot;
     XHCIEPContext *epctx;
 
+    trace_usb_xhci_ep_disable(slotid, epid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
     assert(epid >= 1 && epid <= 31);
-
-    DPRINTF("xhci_disable_ep(%d, %d)\n", slotid, epid);
 
     slot = &xhci->slots[slotid-1];
 
@@ -991,8 +989,7 @@ static TRBCCode xhci_stop_ep(XHCIState *xhci, unsigned int slotid,
     XHCISlot *slot;
     XHCIEPContext *epctx;
 
-    DPRINTF("xhci_stop_ep(%d, %d)\n", slotid, epid);
-
+    trace_usb_xhci_ep_stop(slotid, epid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
 
     if (epid < 1 || epid > 31) {
@@ -1026,9 +1023,8 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
     XHCIEPContext *epctx;
     USBDevice *dev;
 
+    trace_usb_xhci_ep_reset(slotid, epid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-
-    DPRINTF("xhci_reset_ep(%d, %d)\n", slotid, epid);
 
     if (epid < 1 || epid > 31) {
         fprintf(stderr, "xhci: bad ep %d\n", epid);
@@ -1654,9 +1650,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
     int length;
     int i;
 
+    trace_usb_xhci_ep_kick(slotid, epid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
     assert(epid >= 1 && epid <= 31);
-    DPRINTF("xhci_kick_ep(%d, %d)\n", slotid, epid);
 
     if (!xhci->slots[slotid-1].enabled) {
         fprintf(stderr, "xhci: xhci_kick_ep for disabled slot %d\n", slotid);
@@ -1698,21 +1694,14 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
     while (1) {
         XHCITransfer *xfer = &epctx->transfers[epctx->next_xfer];
         if (xfer->running_async || xfer->running_retry || xfer->backgrounded) {
-            DPRINTF("xhci: ep is busy (#%d,%d,%d,%d)\n",
-                    epctx->next_xfer, xfer->running_async,
-                    xfer->running_retry, xfer->backgrounded);
             break;
-        } else {
-            DPRINTF("xhci: ep: using #%d\n", epctx->next_xfer);
         }
         length = xhci_ring_chain_length(xhci, &epctx->ring);
         if (length < 0) {
-            DPRINTF("xhci: incomplete TD (%d TRBs)\n", -length);
             break;
         } else if (length == 0) {
             break;
         }
-        DPRINTF("xhci: fetching %d-TRB TD\n", length);
         if (xfer->trbs && xfer->trb_alloced < length) {
             xfer->trb_count = 0;
             xfer->trb_alloced = 0;
@@ -1747,7 +1736,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
         }
 
         if (epctx->state == EP_HALTED) {
-            DPRINTF("xhci: ep halted, stopping schedule\n");
             break;
         }
         if (xfer->running_retry) {
