@@ -85,6 +85,12 @@ static void help(void)
            "  '-S' indicates the consecutive number of bytes that must contain only zeros\n"
            "       for qemu-img to create a sparse image during conversion\n"
            "\n"
+           "Parameters to check subcommand:\n"
+           "  '-r' tries to repair any inconsistencies that are found during the check.\n"
+           "       '-r leaks' repairs only cluster leaks, whereas '-r all' fixes all\n"
+           "       kinds of errors, with a higher risk of choosing the wrong fix or\n"
+           "       hiding corruption that has already occured.\n"
+           "\n"
            "Parameters to snapshot subcommand:\n"
            "  'snapshot' is the name of the snapshot to create, apply or delete\n"
            "  '-a' applies a snapshot (revert disk to saved state)\n"
@@ -372,10 +378,12 @@ static int img_check(int argc, char **argv)
     const char *filename, *fmt;
     BlockDriverState *bs;
     BdrvCheckResult result;
+    int fix = 0;
+    int flags = BDRV_O_FLAGS;
 
     fmt = NULL;
     for(;;) {
-        c = getopt(argc, argv, "f:h");
+        c = getopt(argc, argv, "f:hr:");
         if (c == -1) {
             break;
         }
@@ -387,6 +395,17 @@ static int img_check(int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
+        case 'r':
+            flags |= BDRV_O_RDWR;
+
+            if (!strcmp(optarg, "leaks")) {
+                fix = BDRV_FIX_LEAKS;
+            } else if (!strcmp(optarg, "all")) {
+                fix = BDRV_FIX_LEAKS | BDRV_FIX_ERRORS;
+            } else {
+                help();
+            }
+            break;
         }
     }
     if (optind >= argc) {
@@ -394,11 +413,11 @@ static int img_check(int argc, char **argv)
     }
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS);
+    bs = bdrv_new_open(filename, fmt, flags);
     if (!bs) {
         return 1;
     }
-    ret = bdrv_check(bs, &result);
+    ret = bdrv_check(bs, &result, fix);
 
     if (ret == -ENOTSUP) {
         error_report("This image format does not support checks");

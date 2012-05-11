@@ -1222,14 +1222,14 @@ bool bdrv_dev_is_medium_locked(BlockDriverState *bs)
  * free of errors) or -errno when an internal error occurred. The results of the
  * check are stored in res.
  */
-int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 {
     if (bs->drv->bdrv_check == NULL) {
         return -ENOTSUP;
     }
 
     memset(res, 0, sizeof(*res));
-    return bs->drv->bdrv_check(bs, res);
+    return bs->drv->bdrv_check(bs, res, fix);
 }
 
 #define COMMIT_BUF_SECTORS 2048

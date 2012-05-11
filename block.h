@@ -190,7 +190,12 @@ typedef struct BdrvCheckResult {
     BlockFragInfo bfi;
 } BdrvCheckResult;
 
-int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res);
+typedef enum {
+    BDRV_FIX_LEAKS    = 1,
+    BDRV_FIX_ERRORS   = 2,
+} BdrvCheckMode;
+
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
