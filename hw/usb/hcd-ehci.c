@@ -364,6 +364,7 @@ struct EHCIQueue {
     QTAILQ_ENTRY(EHCIQueue) next;
     uint32_t seen;
     uint64_t ts;
+    int async;
 
     /* cached data from guest - needs to be flushed
      * when guest removes an entry (doorbell, handshake sequence)
@@ -700,15 +701,16 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     q = g_malloc0(sizeof(*q));
     q->ehci = ehci;
     q->qhaddr = addr;
+    q->async = async;
     QTAILQ_INIT(&q->packets);
     QTAILQ_INSERT_HEAD(head, q, next);
     trace_usb_ehci_queue_action(q, "alloc");
     return q;
 }
 
-static void ehci_free_queue(EHCIQueue *q, int async)
+static void ehci_free_queue(EHCIQueue *q)
 {
-    EHCIQueueHead *head = async ? &q->ehci->aqueues : &q->ehci->pqueues;
+    EHCIQueueHead *head = q->async ? &q->ehci->aqueues : &q->ehci->pqueues;
     EHCIPacket *p;
 
     trace_usb_ehci_queue_action(q, "free");
@@ -748,7 +750,7 @@ static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
             /* allow 0.25 sec idle */
             continue;
         }
-        ehci_free_queue(q, async);
+        ehci_free_queue(q);
     }
 }
 
@@ -761,7 +763,7 @@ static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev, int async)
         if (q->dev != dev) {
             continue;
         }
-        ehci_free_queue(q, async);
+        ehci_free_queue(q);
     }
 }
 
@@ -771,7 +773,7 @@ static void ehci_queues_rip_all(EHCIState *ehci, int async)
     EHCIQueue *q, *tmp;
 
     QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
-        ehci_free_queue(q, async);
+        ehci_free_queue(q);
     }
 }
 
@@ -1806,7 +1808,7 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
 }
 
 /* Section 4.10.2 - paragraph 3 */
-static int ehci_state_advqueue(EHCIQueue *q, int async)
+static int ehci_state_advqueue(EHCIQueue *q)
 {
 #if 0
     /* TO-DO: 4.10.2 - paragraph 2
@@ -1825,27 +1827,27 @@ static int ehci_state_advqueue(EHCIQueue *q, int async)
     if (((q->qh.token & QTD_TOKEN_TBYTES_MASK) != 0) &&
         (NLPTR_TBIT(q->qh.altnext_qtd) == 0)) {
         q->qtdaddr = q->qh.altnext_qtd;
-        ehci_set_state(q->ehci, async, EST_FETCHQTD);
+        ehci_set_state(q->ehci, q->async, EST_FETCHQTD);
 
     /*
      *  next qTD is valid
      */
     } else if (NLPTR_TBIT(q->qh.next_qtd) == 0) {
         q->qtdaddr = q->qh.next_qtd;
-        ehci_set_state(q->ehci, async, EST_FETCHQTD);
+        ehci_set_state(q->ehci, q->async, EST_FETCHQTD);
 
     /*
      *  no valid qTD, try next QH
      */
     } else {
-        ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
     }
 
     return 1;
 }
 
 /* Section 4.10.2 - paragraph 4 */
-static int ehci_state_fetchqtd(EHCIQueue *q, int async)
+static int ehci_state_fetchqtd(EHCIQueue *q)
 {
     EHCIqtd qtd;
     EHCIPacket *p;
@@ -1865,41 +1867,41 @@ static int ehci_state_fetchqtd(EHCIQueue *q, int async)
         ehci_qh_do_overlay(q);
         ehci_flush_qh(q);
         if (p->async == EHCI_ASYNC_INFLIGHT) {
-            ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+            ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         } else {
-            ehci_set_state(q->ehci, async, EST_EXECUTING);
+            ehci_set_state(q->ehci, q->async, EST_EXECUTING);
         }
         again = 1;
     } else if (qtd.token & QTD_TOKEN_ACTIVE) {
         p = ehci_alloc_packet(q);
         p->qtdaddr = q->qtdaddr;
         p->qtd = qtd;
-        ehci_set_state(q->ehci, async, EST_EXECUTE);
+        ehci_set_state(q->ehci, q->async, EST_EXECUTE);
         again = 1;
     } else {
-        ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     }
 
     return again;
 }
 
-static int ehci_state_horizqh(EHCIQueue *q, int async)
+static int ehci_state_horizqh(EHCIQueue *q)
 {
     int again = 0;
 
-    if (ehci_get_fetch_addr(q->ehci, async) != q->qh.next) {
-        ehci_set_fetch_addr(q->ehci, async, q->qh.next);
-        ehci_set_state(q->ehci, async, EST_FETCHENTRY);
+    if (ehci_get_fetch_addr(q->ehci, q->async) != q->qh.next) {
+        ehci_set_fetch_addr(q->ehci, q->async, q->qh.next);
+        ehci_set_state(q->ehci, q->async, EST_FETCHENTRY);
         again = 1;
     } else {
-        ehci_set_state(q->ehci, async, EST_ACTIVE);
+        ehci_set_state(q->ehci, q->async, EST_ACTIVE);
     }
 
     return again;
 }
 
-static void ehci_fill_queue(EHCIPacket *p, int async)
+static void ehci_fill_queue(EHCIPacket *p)
 {
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
@@ -1928,7 +1930,7 @@ static void ehci_fill_queue(EHCIPacket *p, int async)
     }
 }
 
-static int ehci_state_execute(EHCIQueue *q, int async)
+static int ehci_state_execute(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
     int again = 0;
@@ -1944,16 +1946,16 @@ static int ehci_state_execute(EHCIQueue *q, int async)
     // TODO write back ptr to async list when done or out of time
     // TODO Windows does not seem to ever set the MULT field
 
-    if (!async) {
+    if (!q->async) {
         int transactCtr = get_field(q->qh.epcap, QH_EPCAP_MULT);
         if (!transactCtr) {
-            ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+            ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             again = 1;
             goto out;
         }
     }
 
-    if (async) {
+    if (q->async) {
         ehci_set_usbsts(q->ehci, USBSTS_REC);
     }
 
@@ -1966,20 +1968,20 @@ static int ehci_state_execute(EHCIQueue *q, int async)
         ehci_flush_qh(q);
         trace_usb_ehci_packet_action(p->queue, p, "async");
         p->async = EHCI_ASYNC_INFLIGHT;
-        ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
-        ehci_fill_queue(p, async);
+        ehci_fill_queue(p);
         goto out;
     }
 
-    ehci_set_state(q->ehci, async, EST_EXECUTING);
+    ehci_set_state(q->ehci, q->async, EST_EXECUTING);
     again = 1;
 
 out:
     return again;
 }
 
-static int ehci_state_executing(EHCIQueue *q, int async)
+static int ehci_state_executing(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
     int again = 0;
@@ -1997,7 +1999,7 @@ static int ehci_state_executing(EHCIQueue *q, int async)
     }
 
     // 4.10.3
-    if (!async) {
+    if (!q->async) {
         int transactCtr = get_field(q->qh.epcap, QH_EPCAP_MULT);
         transactCtr--;
         set_field(&q->qh.epcap, transactCtr, QH_EPCAP_MULT);
@@ -2007,9 +2009,9 @@ static int ehci_state_executing(EHCIQueue *q, int async)
 
     /* 4.10.5 */
     if (p->usb_status == USB_RET_NAK) {
-        ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
     } else {
-        ehci_set_state(q->ehci, async, EST_WRITEBACK);
+        ehci_set_state(q->ehci, q->async, EST_WRITEBACK);
     }
 
     again = 1;
@@ -2020,7 +2022,7 @@ out:
 }
 
 
-static int ehci_state_writeback(EHCIQueue *q, int async)
+static int ehci_state_writeback(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
     int again = 0;
@@ -2043,10 +2045,10 @@ static int ehci_state_writeback(EHCIQueue *q, int async)
      * bit is clear.
      */
     if (q->qh.token & QTD_TOKEN_HALT) {
-        ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     } else {
-        ehci_set_state(q->ehci, async, EST_ADVANCEQUEUE);
+        ehci_set_state(q->ehci, q->async, EST_ADVANCEQUEUE);
         again = 1;
     }
     return again;
@@ -2056,8 +2058,7 @@ static int ehci_state_writeback(EHCIQueue *q, int async)
  * This is the state machine that is common to both async and periodic
  */
 
-static void ehci_advance_state(EHCIState *ehci,
-                               int async)
+static void ehci_advance_state(EHCIState *ehci, int async)
 {
     EHCIQueue *q = NULL;
     int again;
@@ -2074,7 +2075,12 @@ static void ehci_advance_state(EHCIState *ehci,
 
         case EST_FETCHQH:
             q = ehci_state_fetchqh(ehci, async);
-            again = q ? 1 : 0;
+            if (q != NULL) {
+                assert(q->async == async);
+                again = 1;
+            } else {
+                again = 0;
+            }
             break;
 
         case EST_FETCHITD:
@@ -2086,29 +2092,29 @@ static void ehci_advance_state(EHCIState *ehci,
             break;
 
         case EST_ADVANCEQUEUE:
-            again = ehci_state_advqueue(q, async);
+            again = ehci_state_advqueue(q);
             break;
 
         case EST_FETCHQTD:
-            again = ehci_state_fetchqtd(q, async);
+            again = ehci_state_fetchqtd(q);
             break;
 
         case EST_HORIZONTALQH:
-            again = ehci_state_horizqh(q, async);
+            again = ehci_state_horizqh(q);
             break;
 
         case EST_EXECUTE:
-            again = ehci_state_execute(q, async);
+            again = ehci_state_execute(q);
             break;
 
         case EST_EXECUTING:
             assert(q != NULL);
-            again = ehci_state_executing(q, async);
+            again = ehci_state_executing(q);
             break;
 
         case EST_WRITEBACK:
             assert(q != NULL);
-            again = ehci_state_writeback(q, async);
+            again = ehci_state_writeback(q);
             break;
 
         default:
