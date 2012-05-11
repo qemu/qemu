@@ -221,7 +221,7 @@ qcow2.  If performance is more important than correctness,
 @option{cache=writeback} should be used with qcow2.
 
 In case you don't care about data integrity over host failures, use
-cache=unsafe. This option tells qemu that it never needs to write any data
+cache=unsafe. This option tells QEMU that it never needs to write any data
 to the disk but can instead keeps things in cache. If anything goes wrong,
 like your host losing power, the disk storage getting disconnected accidentally,
 etc. you're image will most probably be rendered unusable.   When using
@@ -515,7 +515,7 @@ Virtual Mouse. This will override the PS/2 mouse emulation when activated.
 
 @item tablet
 Pointer device that uses absolute coordinates (like a touchscreen). This
-means qemu is able to report the mouse position without having to grab the
+means QEMU is able to report the mouse position without having to grab the
 mouse. Also overrides the PS/2 mouse emulation when activated.
 
 @item disk:[format=@var{format}]:@var{file}
@@ -587,7 +587,7 @@ this path will be available to the 9p client on the guest.
 Specifies the security model to be used for this export path.
 Supported security models are "passthrough", "mapped-xattr", "mapped-file" and "none".
 In "passthrough" security model, files are stored using the same
-credentials as they are created on the guest. This requires qemu
+credentials as they are created on the guest. This requires QEMU
 to run as root. In "mapped-xattr" security model, some of the file
 attributes like uid, gid, mode bits and link target are stored as
 file attributes. For "mapped-file" these attributes are stored in the
@@ -654,7 +654,7 @@ this path will be available to the 9p client on the guest.
 Specifies the security model to be used for this export path.
 Supported security models are "passthrough", "mapped-xattr", "mapped-file" and "none".
 In "passthrough" security model, files are stored using the same
-credentials as they are created on the guest. This requires qemu
+credentials as they are created on the guest. This requires QEMU
 to run as root. In "mapped-xattr" security model, some of the file
 attributes like uid, gid, mode bits and link target are stored as
 file attributes. For "mapped-file" these attributes are stored in the
@@ -1117,7 +1117,7 @@ disables exclusive client access.  Useful for shared desktop sessions,
 where you don't want someone forgetting specify -shared disconnect
 everybody else.  'ignore' completely ignores the shared flag and
 allows everybody connect unconditionally.  Doesn't conform to the rfb
-spec but is traditional qemu behavior.
+spec but is traditional QEMU behavior.
 
 @end table
 ETEXI
@@ -1800,7 +1800,7 @@ not take any options.
 @option{pty} is not available on Windows hosts.
 
 @item -chardev stdio ,id=@var{id} [,signal=on|off]
-Connect to standard input and standard output of the qemu process.
+Connect to standard input and standard output of the QEMU process.
 
 @option{signal} controls if signals are enabled on the terminal, that includes
 exiting QEMU with the key sequence @key{Control-c}. This option is enabled by
@@ -2128,19 +2128,19 @@ they default to @code{0.0.0.0}.
 When not using a specified @var{src_port} a random port is automatically chosen.
 
 If you just want a simple readonly console you can use @code{netcat} or
-@code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
-@code{nc -u -l -p 4555}. Any time qemu writes something to that port it
+@code{nc}, by starting QEMU with: @code{-serial udp::4555} and nc as:
+@code{nc -u -l -p 4555}. Any time QEMU writes something to that port it
 will appear in the netconsole session.
 
 If you plan to send characters back via netconsole or you want to stop
-and start qemu a lot of times, you should have qemu use the same
+and start QEMU a lot of times, you should have QEMU use the same
 source port each time by using something like @code{-serial
-udp::4555@@:4556} to qemu. Another approach is to use a patched
+udp::4555@@:4556} to QEMU. Another approach is to use a patched
 version of netcat which can listen to a TCP port and send and receive
 characters via udp.  If you have a patched version of netcat which
 activates telnet remote echo and single char transfer, then you can
 use the following options to step up a netcat redirector to allow
-telnet on port 5555 to access the qemu port.
+telnet on port 5555 to access the QEMU port.
 @table @code
 @item QEMU Options:
 -serial udp::4555@@:4556
@@ -2295,7 +2295,7 @@ STEXI
 @findex -gdb
 Wait for gdb connection on device @var{dev} (@pxref{gdb_usage}). Typical
 connections will likely be TCP-based, but also UDP, pseudo TTY, or even
-stdio are reasonable use case. The latter is allowing to start qemu from
+stdio are reasonable use case. The latter is allowing to start QEMU from
 within gdb and establish the connection via a pipe:
 @example
 (gdb) target remote | exec qemu-system-i386 -gdb stdio ...
@@ -2333,7 +2333,7 @@ ETEXI
 DEF("hdachs", HAS_ARG, QEMU_OPTION_hdachs, \
     "-hdachs c,h,s[,t]\n" \
     "                force hard disk 0 physical geometry and the optional BIOS\n" \
-    "                translation (t=none or lba) (usually qemu can guess them)\n",
+    "                translation (t=none or lba) (usually QEMU can guess them)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -hdachs @var{c},@var{h},@var{s},[,@var{t}]
@@ -2379,7 +2379,7 @@ DEF("xen-create", 0, QEMU_OPTION_xen_create,
     QEMU_ARCH_ALL)
 DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
     "-xen-attach     attach to existing xen domain\n"
-    "                xend will use this when starting qemu\n",
+    "                xend will use this when starting QEMU\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -xen-domid @var{id}
@@ -2392,7 +2392,7 @@ Warning: should not be used when xend is in use (XEN only).
 @item -xen-attach
 @findex -xen-attach
 Attach to existing xen domain.
-xend will use this when starting qemu (XEN only).
+xend will use this when starting QEMU (XEN only).
 ETEXI
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
