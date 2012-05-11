@@ -2316,9 +2316,9 @@ DEF("D", HAS_ARG, QEMU_OPTION_D, \
     "-D logfile      output log to logfile (instead of the default /tmp/qemu.log)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -D
+@item -D @var{logfile}
 @findex -D
-Output log in logfile instead of /tmp/qemu.log
+Output log in @var{logfile} instead of /tmp/qemu.log
 ETEXI
 
 DEF("hdachs", HAS_ARG, QEMU_OPTION_hdachs, \
