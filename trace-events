@@ -289,6 +289,18 @@ usb_uhci_td_nextqh(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 usb_uhci_td_async(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 usb_uhci_td_complete(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 
+# hw/usb/hcd-xhci.c
+usb_xhci_reset(void) "=== RESET ==="
+usb_xhci_cap_read(uint32_t off, uint32_t val) "off 0x%04x, ret 0x%08x"
+usb_xhci_oper_read(uint32_t off, uint32_t val) "off 0x%04x, ret 0x%08x"
+usb_xhci_port_read(uint32_t port, uint32_t off, uint32_t val) "port %d, off 0x%04x, ret 0x%08x"
+usb_xhci_runtime_read(uint32_t off, uint32_t val) "off 0x%04x, ret 0x%08x"
+usb_xhci_doorbell_read(uint32_t off, uint32_t val) "off 0x%04x, ret 0x%08x"
+usb_xhci_oper_write(uint32_t off, uint32_t val) "off 0x%04x, val 0x%08x"
+usb_xhci_port_write(uint32_t port, uint32_t off, uint32_t val) "port %d, off 0x%04x, val 0x%08x"
+usb_xhci_runtime_write(uint32_t off, uint32_t val) "off 0x%04x, val 0x%08x"
+usb_xhci_doorbell_write(uint32_t off, uint32_t val) "off 0x%04x, val 0x%08x"
+
 # hw/usb/desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"

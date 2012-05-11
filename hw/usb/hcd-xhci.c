@@ -23,6 +23,7 @@
 #include "hw/usb.h"
 #include "hw/pci.h"
 #include "hw/msi.h"
+#include "trace.h"
 
 //#define DEBUG_XHCI
 //#define DEBUG_DATA
@@ -2301,7 +2302,7 @@ static void xhci_reset(DeviceState *dev)
     XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev.qdev, dev);
     int i;
 
-    DPRINTF("xhci: full reset\n");
+    trace_usb_xhci_reset();
     if (!(xhci->usbsts & USBSTS_HCH)) {
         fprintf(stderr, "xhci: reset while running!\n");
     }
@@ -2342,83 +2343,106 @@ static void xhci_reset(DeviceState *dev)
 
 static uint32_t xhci_cap_read(XHCIState *xhci, uint32_t reg)
 {
-    DPRINTF("xhci_cap_read(0x%x)\n", reg);
+    uint32_t ret;
 
     switch (reg) {
     case 0x00: /* HCIVERSION, CAPLENGTH */
-        return 0x01000000 | LEN_CAP;
+        ret = 0x01000000 | LEN_CAP;
+        break;
     case 0x04: /* HCSPARAMS 1 */
-        return (MAXPORTS<<24) | (MAXINTRS<<8) | MAXSLOTS;
+        ret = (MAXPORTS<<24) | (MAXINTRS<<8) | MAXSLOTS;
+        break;
     case 0x08: /* HCSPARAMS 2 */
-        return 0x0000000f;
+        ret = 0x0000000f;
+        break;
     case 0x0c: /* HCSPARAMS 3 */
-        return 0x00000000;
+        ret = 0x00000000;
+        break;
     case 0x10: /* HCCPARAMS */
-#if TARGET_PHYS_ADDR_BITS > 32
-        return 0x00081001;
-#else
-        return 0x00081000;
-#endif
+        if (sizeof(dma_addr_t) == 4) {
+            ret = 0x00081000;
+        } else {
+            ret = 0x00081001;
+        }
+        break;
     case 0x14: /* DBOFF */
-        return OFF_DOORBELL;
+        ret = OFF_DOORBELL;
+        break;
     case 0x18: /* RTSOFF */
-        return OFF_RUNTIME;
+        ret = OFF_RUNTIME;
+        break;
 
     /* extended capabilities */
     case 0x20: /* Supported Protocol:00 */
-#if USB3_PORTS > 0
-        return 0x02000402; /* USB 2.0 */
-#else
-        return 0x02000002; /* USB 2.0 */
-#endif
+        ret = 0x02000402; /* USB 2.0 */
+        break;
     case 0x24: /* Supported Protocol:04 */
-        return 0x20425455; /* "USB " */
+        ret = 0x20425455; /* "USB " */
+        break;
     case 0x28: /* Supported Protocol:08 */
-        return 0x00000001 | (USB2_PORTS<<8);
+        ret = 0x00000001 | (USB2_PORTS<<8);
+        break;
     case 0x2c: /* Supported Protocol:0c */
-        return 0x00000000; /* reserved */
-#if USB3_PORTS > 0
+        ret = 0x00000000; /* reserved */
+        break;
     case 0x30: /* Supported Protocol:00 */
-        return 0x03000002; /* USB 3.0 */
+        ret = 0x03000002; /* USB 3.0 */
+        break;
     case 0x34: /* Supported Protocol:04 */
-        return 0x20425455; /* "USB " */
+        ret = 0x20425455; /* "USB " */
+        break;
     case 0x38: /* Supported Protocol:08 */
-        return 0x00000000 | (USB2_PORTS+1) | (USB3_PORTS<<8);
+        ret = 0x00000000 | (USB2_PORTS+1) | (USB3_PORTS<<8);
+        break;
     case 0x3c: /* Supported Protocol:0c */
-        return 0x00000000; /* reserved */
-#endif
+        ret = 0x00000000; /* reserved */
+        break;
     default:
         fprintf(stderr, "xhci_cap_read: reg %d unimplemented\n", reg);
+        ret = 0;
     }
-    return 0;
+
+    trace_usb_xhci_cap_read(reg, ret);
+    return ret;
 }
 
 static uint32_t xhci_port_read(XHCIState *xhci, uint32_t reg)
 {
     uint32_t port = reg >> 4;
+    uint32_t ret;
+
     if (port >= MAXPORTS) {
         fprintf(stderr, "xhci_port_read: port %d out of bounds\n", port);
-        return 0;
+        ret = 0;
+        goto out;
     }
 
     switch (reg & 0xf) {
     case 0x00: /* PORTSC */
-        return xhci->ports[port].portsc;
+        ret = xhci->ports[port].portsc;
+        break;
     case 0x04: /* PORTPMSC */
     case 0x08: /* PORTLI */
-        return 0;
+        ret = 0;
+        break;
     case 0x0c: /* reserved */
     default:
         fprintf(stderr, "xhci_port_read (port %d): reg 0x%x unimplemented\n",
                 port, reg);
-        return 0;
+        ret = 0;
     }
+
+out:
+    trace_usb_xhci_port_read(port, reg & 0x0f, ret);
+    return ret;
 }
 
 static void xhci_port_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 {
     uint32_t port = reg >> 4;
     uint32_t portsc;
+
+    trace_usb_xhci_port_write(port, reg & 0x0f, val);
 
     if (port >= MAXPORTS) {
         fprintf(stderr, "xhci_port_read: port %d out of bounds\n", port);
@@ -2457,7 +2481,7 @@ static void xhci_port_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 
 static uint32_t xhci_oper_read(XHCIState *xhci, uint32_t reg)
 {
-    DPRINTF("xhci_oper_read(0x%x)\n", reg);
+    uint32_t ret;
 
     if (reg >= 0x400) {
         return xhci_port_read(xhci, reg - 0x400);
@@ -2465,37 +2489,49 @@ static uint32_t xhci_oper_read(XHCIState *xhci, uint32_t reg)
 
     switch (reg) {
     case 0x00: /* USBCMD */
-        return xhci->usbcmd;
+        ret = xhci->usbcmd;
+        break;
     case 0x04: /* USBSTS */
-        return xhci->usbsts;
+        ret = xhci->usbsts;
+        break;
     case 0x08: /* PAGESIZE */
-        return 1; /* 4KiB */
+        ret = 1; /* 4KiB */
+        break;
     case 0x14: /* DNCTRL */
-        return xhci->dnctrl;
+        ret = xhci->dnctrl;
+        break;
     case 0x18: /* CRCR low */
-        return xhci->crcr_low & ~0xe;
+        ret = xhci->crcr_low & ~0xe;
+        break;
     case 0x1c: /* CRCR high */
-        return xhci->crcr_high;
+        ret = xhci->crcr_high;
+        break;
     case 0x30: /* DCBAAP low */
-        return xhci->dcbaap_low;
+        ret = xhci->dcbaap_low;
+        break;
     case 0x34: /* DCBAAP high */
-        return xhci->dcbaap_high;
+        ret = xhci->dcbaap_high;
+        break;
     case 0x38: /* CONFIG */
-        return xhci->config;
+        ret = xhci->config;
+        break;
     default:
         fprintf(stderr, "xhci_oper_read: reg 0x%x unimplemented\n", reg);
+        ret = 0;
     }
-    return 0;
+
+    trace_usb_xhci_oper_read(reg, ret);
+    return ret;
 }
 
 static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 {
-    DPRINTF("xhci_oper_write(0x%x, 0x%08x)\n", reg, val);
-
     if (reg >= 0x400) {
         xhci_port_write(xhci, reg - 0x400, val);
         return;
     }
+
+    trace_usb_xhci_oper_write(reg, val);
 
     switch (reg) {
     case 0x00: /* USBCMD */
@@ -2552,35 +2588,46 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 
 static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
 {
-    DPRINTF("xhci_runtime_read(0x%x)\n", reg);
+    uint32_t ret;
 
     switch (reg) {
     case 0x00: /* MFINDEX */
         fprintf(stderr, "xhci_runtime_read: MFINDEX not yet implemented\n");
-        return xhci->mfindex;
+        ret = xhci->mfindex;
+        break;
     case 0x20: /* IMAN */
-        return xhci->iman;
+        ret = xhci->iman;
+        break;
     case 0x24: /* IMOD */
-        return xhci->imod;
+        ret = xhci->imod;
+        break;
     case 0x28: /* ERSTSZ */
-        return xhci->erstsz;
+        ret = xhci->erstsz;
+        break;
     case 0x30: /* ERSTBA low */
-        return xhci->erstba_low;
+        ret = xhci->erstba_low;
+        break;
     case 0x34: /* ERSTBA high */
-        return xhci->erstba_high;
+        ret = xhci->erstba_high;
+        break;
     case 0x38: /* ERDP low */
-        return xhci->erdp_low;
+        ret = xhci->erdp_low;
+        break;
     case 0x3c: /* ERDP high */
-        return xhci->erdp_high;
+        ret = xhci->erdp_high;
+        break;
     default:
         fprintf(stderr, "xhci_runtime_read: reg 0x%x unimplemented\n", reg);
+        ret = 0;
     }
-    return 0;
+
+    trace_usb_xhci_runtime_read(reg, ret);
+    return ret;
 }
 
 static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 {
-    DPRINTF("xhci_runtime_write(0x%x, 0x%08x)\n", reg, val);
+    trace_usb_xhci_runtime_read(reg, val);
 
     switch (reg) {
     case 0x20: /* IMAN */
@@ -2623,14 +2670,14 @@ static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 
 static uint32_t xhci_doorbell_read(XHCIState *xhci, uint32_t reg)
 {
-    DPRINTF("xhci_doorbell_read(0x%x)\n", reg);
     /* doorbells always read as 0 */
+    trace_usb_xhci_doorbell_read(reg, 0);
     return 0;
 }
 
 static void xhci_doorbell_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 {
-    DPRINTF("xhci_doorbell_write(0x%x, 0x%08x)\n", reg, val);
+    trace_usb_xhci_doorbell_write(reg, val);
 
     if (!xhci_running(xhci)) {
         fprintf(stderr, "xhci: wrote doorbell while xHC stopped or paused\n");
