@@ -131,6 +131,7 @@ struct UHCIState {
     uint8_t status2; /* bit 0 and 1 are used to generate UHCI_STS_USBINT */
     int64_t expire_time;
     QEMUTimer *frame_timer;
+    uint32_t frame_bytes;
     UHCIPort ports[NB_PORTS];
 
     /* Interrupts that should be raised at the end of the current frame.  */
@@ -985,7 +986,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
 static void uhci_process_frame(UHCIState *s)
 {
     uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
-    uint32_t curr_qh, td_count = 0, bytes_count = 0;
+    uint32_t curr_qh, td_count = 0;
     int cnt, ret;
     UHCI_TD td;
     UHCI_QH qh;
@@ -1002,6 +1003,12 @@ static void uhci_process_frame(UHCIState *s)
     qhdb_reset(&qhdb);
 
     for (cnt = FRAME_MAX_LOOPS; is_valid(link) && cnt; cnt--) {
+        if (s->frame_bytes >= 1280) {
+            /* We've reached the usb 1.1 bandwidth, which is
+               1280 bytes/frame, stop processing */
+            trace_usb_uhci_frame_stop_bandwidth();
+            break;
+        }
         if (is_qh(link)) {
             /* QH */
             trace_usb_uhci_qh_load(link & ~0xf);
@@ -1011,17 +1018,11 @@ static void uhci_process_frame(UHCIState *s)
                  * We're going in circles. Which is not a bug because
                  * HCD is allowed to do that as part of the BW management.
                  *
-                 * Stop processing here if
-                 *  (a) no transaction has been done since we've been
-                 *      here last time, or
-                 *  (b) we've reached the usb 1.1 bandwidth, which is
-                 *      1280 bytes/frame.
+                 * Stop processing here if no transaction has been done
+                 * since we've been here last time.
                  */
                 if (td_count == 0) {
                     trace_usb_uhci_frame_loop_stop_idle();
-                    break;
-                } else if (bytes_count >= 1280) {
-                    trace_usb_uhci_frame_loop_stop_bandwidth();
                     break;
                 } else {
                     trace_usb_uhci_frame_loop_continue();
@@ -1085,7 +1086,7 @@ static void uhci_process_frame(UHCIState *s)
             trace_usb_uhci_td_complete(curr_qh & ~0xf, link & ~0xf);
             link = td.link;
             td_count++;
-            bytes_count += (td.ctrl & 0x7ff) + 1;
+            s->frame_bytes += (td.ctrl & 0x7ff) + 1;
 
             if (curr_qh) {
                 /* update QH element link */
@@ -1118,6 +1119,7 @@ static void uhci_frame_timer(void *opaque)
 
     /* prepare the timer for the next frame */
     s->expire_time += (get_ticks_per_sec() / FRAME_TIMER_FREQ);
+    s->frame_bytes = 0;
 
     if (!(s->cmd & UHCI_CMD_RS)) {
         /* Full stop */
