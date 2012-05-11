@@ -2296,9 +2296,9 @@ static void xhci_update_port(XHCIState *xhci, XHCIPort *port, int is_detach)
     }
 }
 
-static void xhci_reset(void *opaque)
+static void xhci_reset(DeviceState *dev)
 {
-    XHCIState *xhci = opaque;
+    XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev.qdev, dev);
     int i;
 
     DPRINTF("xhci: full reset\n");
@@ -2506,7 +2506,7 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         }
         xhci->usbcmd = val & 0xc0f;
         if (val & USBCMD_HCRST) {
-            xhci_reset(xhci);
+            xhci_reset(&xhci->pci_dev.qdev);
         }
         xhci_irq_update(xhci);
         break;
@@ -2831,8 +2831,6 @@ static void usb_xhci_init(XHCIState *xhci, DeviceState *dev)
     for (i = 0; i < MAXSLOTS; i++) {
         xhci->slots[i].enabled = 0;
     }
-
-    qemu_register_reset(xhci_reset, xhci);
 }
 
 static int usb_xhci_initfn(struct PCIDevice *dev)
@@ -2895,6 +2893,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd    = &vmstate_xhci;
     dc->props   = xhci_properties;
+    dc->reset   = xhci_reset;
     k->init         = usb_xhci_initfn;
     k->vendor_id    = PCI_VENDOR_ID_NEC;
     k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
