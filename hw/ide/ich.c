@@ -84,6 +84,14 @@ static const VMStateDescription vmstate_ahci = {
     .unmigratable = 1,
 };
 
+static void pci_ich9_reset(void *opaque)
+{
+    struct AHCIPCIState *d = opaque;
+
+    msi_reset(&d->card);
+    ahci_reset(opaque);
+}
+
 static int pci_ich9_ahci_init(PCIDevice *dev)
 {
     struct AHCIPCIState *d;
@@ -102,7 +110,7 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     /* XXX Software should program this register */
     d->card.config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
 
-    qemu_register_reset(ahci_reset, d);
+    qemu_register_reset(pci_ich9_reset, d);
 
     msi_init(dev, 0x50, 1, true, false);
     d->ahci.irq = d->card.irq[0];
@@ -133,7 +141,7 @@ static int pci_ich9_uninit(PCIDevice *dev)
     d = DO_UPCAST(struct AHCIPCIState, card, dev);
 
     msi_uninit(dev);
-    qemu_unregister_reset(ahci_reset, d);
+    qemu_unregister_reset(pci_ich9_reset, d);
     ahci_uninit(&d->ahci);
 
     return 0;
