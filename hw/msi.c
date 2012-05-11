@@ -191,6 +191,10 @@ void msi_reset(PCIDevice *dev)
     uint16_t flags;
     bool msi64bit;
 
+    if (!msi_present(dev)) {
+        return;
+    }
+
     flags = pci_get_word(dev->config + msi_flags_off(dev));
     flags &= ~(PCI_MSI_FLAGS_QSIZE | PCI_MSI_FLAGS_ENABLE);
     msi64bit = flags & PCI_MSI_FLAGS_64BIT;
