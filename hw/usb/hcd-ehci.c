@@ -692,13 +692,14 @@ static void ehci_free_packet(EHCIPacket *p)
 
 /* queue management */
 
-static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, int async)
+static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q;
 
     q = g_malloc0(sizeof(*q));
     q->ehci = ehci;
+    q->qhaddr = addr;
     QTAILQ_INIT(&q->packets);
     QTAILQ_INSERT_HEAD(head, q, next);
     trace_usb_ehci_queue_action(q, "alloc");
@@ -1672,12 +1673,11 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     entry = ehci_get_fetch_addr(ehci, async);
     q = ehci_find_queue_by_qh(ehci, entry, async);
     if (NULL == q) {
-        q = ehci_alloc_queue(ehci, async);
+        q = ehci_alloc_queue(ehci, entry, async);
     }
     p = QTAILQ_FIRST(&q->packets);
-    q->qhaddr = entry;
-    q->seen++;
 
+    q->seen++;
     if (q->seen > 1) {
         /* we are going in circles -- stop processing */
         ehci_set_state(ehci, async, EST_ACTIVE);
