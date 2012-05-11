@@ -1473,11 +1473,7 @@ static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
                        BdrvCheckMode fix)
 {
-    if (fix) {
-        return -ENOTSUP;
-    }
-
-    return qcow2_check_refcounts(bs, result);
+    return qcow2_check_refcounts(bs, result, fix);
 }
 
 #if 0
