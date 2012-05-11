@@ -9,8 +9,6 @@
 
 #define ISA_NUM_IRQS 16
 
-typedef struct ISADevice ISADevice;
-
 #define TYPE_ISA_DEVICE "isa-device"
 #define ISA_DEVICE(obj) \
      OBJECT_CHECK(ISADevice, (obj), TYPE_ISA_DEVICE)
