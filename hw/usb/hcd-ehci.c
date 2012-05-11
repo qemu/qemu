@@ -1327,6 +1327,10 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     assert(p->async == EHCI_ASYNC_INFLIGHT);
     p->async = EHCI_ASYNC_FINISHED;
     p->usb_status = packet->result;
+
+    if (p->queue->async) {
+        qemu_bh_schedule(p->queue->ehci->async_bh);
+    }
 }
 
 static void ehci_execute_complete(EHCIQueue *q)
