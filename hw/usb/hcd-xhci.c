@@ -813,14 +813,13 @@ static void xhci_er_reset(XHCIState *xhci)
 
 static void xhci_run(XHCIState *xhci)
 {
-    DPRINTF("xhci_run()\n");
-
+    trace_usb_xhci_run();
     xhci->usbsts &= ~USBSTS_HCH;
 }
 
 static void xhci_stop(XHCIState *xhci)
 {
-    DPRINTF("xhci_stop()\n");
+    trace_usb_xhci_stop();
     xhci->usbsts |= USBSTS_HCH;
     xhci->crcr_low &= ~CRCR_CRR;
 }
