@@ -276,7 +276,8 @@ void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
     unsigned int vector;
     uint32_t pending;
 
-    if (!ranges_overlap(addr, len, dev->msi_cap, msi_cap_sizeof(flags))) {
+    if (!msi_present(dev) ||
+        !ranges_overlap(addr, len, dev->msi_cap, msi_cap_sizeof(flags))) {
         return;
     }
 

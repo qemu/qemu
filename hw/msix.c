@@ -187,7 +187,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
     int vector;
     bool was_masked;
 
-    if (!range_covers_byte(addr, len, enable_pos)) {
+    if (!msix_present(dev) || !range_covers_byte(addr, len, enable_pos)) {
         return;
     }
 
