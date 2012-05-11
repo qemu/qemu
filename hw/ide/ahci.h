@@ -332,6 +332,6 @@ typedef struct NCQFrame {
 void ahci_init(AHCIState *s, DeviceState *qdev, int ports);
 void ahci_uninit(AHCIState *s);
 
-void ahci_reset(void *opaque);
+void ahci_reset(AHCIState *s);
 
 #endif /* HW_IDE_AHCI_H */

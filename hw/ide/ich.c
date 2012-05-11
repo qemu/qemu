@@ -84,12 +84,12 @@ static const VMStateDescription vmstate_ahci = {
     .unmigratable = 1,
 };
 
-static void pci_ich9_reset(void *opaque)
+static void pci_ich9_reset(DeviceState *dev)
 {
-    struct AHCIPCIState *d = opaque;
+    struct AHCIPCIState *d = DO_UPCAST(struct AHCIPCIState, card.qdev, dev);
 
     msi_reset(&d->card);
-    ahci_reset(opaque);
+    ahci_reset(&d->ahci);
 }
 
 static int pci_ich9_ahci_init(PCIDevice *dev)
@@ -109,8 +109,6 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
 
     /* XXX Software should program this register */
     d->card.config[0x90]   = 1 << 6; /* Address Map Register - AHCI mode */
-
-    qemu_register_reset(pci_ich9_reset, d);
 
     msi_init(dev, 0x50, 1, true, false);
     d->ahci.irq = d->card.irq[0];
@@ -141,7 +139,6 @@ static int pci_ich9_uninit(PCIDevice *dev)
     d = DO_UPCAST(struct AHCIPCIState, card, dev);
 
     msi_uninit(dev);
-    qemu_unregister_reset(pci_ich9_reset, d);
     ahci_uninit(&d->ahci);
 
     return 0;
@@ -167,6 +164,7 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
     k->revision = 0x02;
     k->class_id = PCI_CLASS_STORAGE_SATA;
     dc->vmsd = &vmstate_ahci;
+    dc->reset = pci_ich9_reset;
 }
 
 static TypeInfo ich_ahci_info = {
