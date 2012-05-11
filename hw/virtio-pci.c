@@ -520,8 +520,6 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         virtio_set_status(proxy->vdev,
                           proxy->vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
     }
-
-    msix_write_config(pci_dev, address, val, len);
 }
 
 static unsigned virtio_pci_get_features(void *opaque)

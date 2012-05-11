@@ -40,7 +40,6 @@ static void xio3130_upstream_write_config(PCIDevice *d, uint32_t address,
 {
     pci_bridge_write_config(d, address, val, len);
     pcie_cap_flr_write_config(d, address, val, len);
-    msi_write_config(d, address, val, len);
     pcie_aer_write_config(d, address, val, len);
 }
 

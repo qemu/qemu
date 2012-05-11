@@ -264,7 +264,7 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
     stl_le_phys(address, data);
 }
 
-/* call this function after updating configs by pci_default_write_config(). */
+/* Normally called by pci_default_write_config(). */
 void msi_write_config(PCIDevice *dev, uint32_t addr, uint32_t val, int len)
 {
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));

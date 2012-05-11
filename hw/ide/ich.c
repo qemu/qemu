@@ -143,13 +143,6 @@ static int pci_ich9_uninit(PCIDevice *dev)
     return 0;
 }
 
-static void pci_ich9_write_config(PCIDevice *pci, uint32_t addr,
-                                  uint32_t val, int len)
-{
-    pci_default_write_config(pci, addr, val, len);
-    msi_write_config(pci, addr, val, len);
-}
-
 static void ich_ahci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -157,7 +150,6 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_ich9_ahci_init;
     k->exit = pci_ich9_uninit;
-    k->config_write = pci_ich9_write_config;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801IR;
     k->revision = 0x02;

@@ -71,7 +71,6 @@ static void ioh3420_write_config(PCIDevice *d,
         pci_get_long(d->config + d->exp.aer_cap + PCI_ERR_ROOT_COMMAND);
 
     pci_bridge_write_config(d, address, val, len);
-    msi_write_config(d, address, val, len);
     ioh3420_aer_vector_update(d);
     pcie_cap_slot_write_config(d, address, val, len);
     pcie_aer_write_config(d, address, val, len);
