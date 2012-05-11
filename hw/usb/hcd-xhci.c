@@ -1750,8 +1750,8 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
 
 static TRBCCode xhci_enable_slot(XHCIState *xhci, unsigned int slotid)
 {
+    trace_usb_xhci_slot_enable(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-    DPRINTF("xhci_enable_slot(%d)\n", slotid);
     xhci->slots[slotid-1].enabled = 1;
     xhci->slots[slotid-1].port = 0;
     memset(xhci->slots[slotid-1].eps, 0, sizeof(XHCIEPContext*)*31);
@@ -1763,8 +1763,8 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
 {
     int i;
 
+    trace_usb_xhci_slot_disable(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-    DPRINTF("xhci_disable_slot(%d)\n", slotid);
 
     for (i = 1; i <= 31; i++) {
         if (xhci->slots[slotid-1].eps[i-1]) {
@@ -1790,8 +1790,8 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     int i;
     TRBCCode res;
 
+    trace_usb_xhci_slot_address(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-    DPRINTF("xhci_address_slot(%d)\n", slotid);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
     pci_dma_read(&xhci->pci_dev, dcbaap + 8*slotid, &poctx, sizeof(poctx));
@@ -1877,8 +1877,8 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
     int i;
     TRBCCode res;
 
+    trace_usb_xhci_slot_configure(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-    DPRINTF("xhci_configure_slot(%d)\n", slotid);
 
     ictx = xhci_mask64(pictx);
     octx = xhci->slots[slotid-1].ctx;
@@ -1965,8 +1965,8 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
     uint32_t islot_ctx[4];
     uint32_t slot_ctx[4];
 
+    trace_usb_xhci_slot_evaluate(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-    DPRINTF("xhci_evaluate_slot(%d)\n", slotid);
 
     ictx = xhci_mask64(pictx);
     octx = xhci->slots[slotid-1].ctx;
@@ -2028,8 +2028,8 @@ static TRBCCode xhci_reset_slot(XHCIState *xhci, unsigned int slotid)
     dma_addr_t octx;
     int i;
 
+    trace_usb_xhci_slot_reset(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
-    DPRINTF("xhci_reset_slot(%d)\n", slotid);
 
     octx = xhci->slots[slotid-1].ctx;
 
