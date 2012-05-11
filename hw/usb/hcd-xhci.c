@@ -701,10 +701,8 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
         le32_to_cpus(&trb->status);
         le32_to_cpus(&trb->control);
 
-        DPRINTF("xhci: TRB fetched [" DMA_ADDR_FMT "]: "
-                "%016" PRIx64 " %08x %08x %s\n",
-                ring->dequeue, trb->parameter, trb->status, trb->control,
-                trb_name(trb));
+        trace_usb_xhci_fetch_trb(ring->dequeue, trb_name(trb),
+                                 trb->parameter, trb->status, trb->control);
 
         if ((trb->control & TRB_C) != ring->ccs) {
             return 0;
@@ -742,10 +740,6 @@ static int xhci_ring_chain_length(XHCIState *xhci, const XHCIRing *ring)
         le64_to_cpus(&trb.parameter);
         le32_to_cpus(&trb.status);
         le32_to_cpus(&trb.control);
-
-        DPRINTF("xhci: TRB peeked [" DMA_ADDR_FMT "]: "
-                "%016" PRIx64 " %08x %08x\n",
-                dequeue, trb.parameter, trb.status, trb.control);
 
         if ((trb.control & TRB_C) != ccs) {
             return -length;
