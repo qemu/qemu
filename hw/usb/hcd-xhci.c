@@ -422,7 +422,6 @@ typedef struct XHCIEvRingSeg {
     uint32_t rsvd;
 } XHCIEvRingSeg;
 
-#ifdef DEBUG_XHCI
 static const char *TRBType_names[] = {
     [TRB_RESERVED]                     = "TRB_RESERVED",
     [TR_NORMAL]                        = "TR_NORMAL",
@@ -474,7 +473,6 @@ static const char *trb_name(XHCITRB *trb)
     return lookup_name(TRB_TYPE(*trb), TRBType_names,
                        ARRAY_SIZE(TRBType_names));
 }
-#endif
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid);
@@ -506,14 +504,13 @@ static void xhci_irq_update(XHCIState *xhci)
         level = 1;
     }
 
-    DPRINTF("xhci_irq_update(): %d\n", level);
-
     if (xhci->msi && msi_enabled(&xhci->pci_dev)) {
         if (level) {
-            DPRINTF("xhci_irq_update(): MSI signal\n");
+            trace_usb_xhci_irq_msi(0);
             msi_notify(&xhci->pci_dev, 0);
         }
     } else {
+        trace_usb_xhci_irq_intx(level);
         qemu_set_irq(xhci->irq, level);
     }
 }
@@ -543,9 +540,8 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event)
     }
     ev_trb.control = cpu_to_le32(ev_trb.control);
 
-    DPRINTF("xhci_write_event(): [%d] %016"PRIx64" %08x %08x %s\n",
-            xhci->er_ep_idx, ev_trb.parameter, ev_trb.status, ev_trb.control,
-            trb_name(&ev_trb));
+    trace_usb_xhci_queue_event(xhci->er_ep_idx, trb_name(&ev_trb),
+                               ev_trb.parameter, ev_trb.status, ev_trb.control);
 
     addr = xhci->er_start + TRB_SIZE*xhci->er_ep_idx;
     pci_dma_write(&xhci->pci_dev, addr, &ev_trb, TRB_SIZE);

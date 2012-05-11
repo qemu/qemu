@@ -302,6 +302,9 @@ usb_xhci_oper_write(uint32_t off, uint32_t val) "off 0x%04x, val 0x%08x"
 usb_xhci_port_write(uint32_t port, uint32_t off, uint32_t val) "port %d, off 0x%04x, val 0x%08x"
 usb_xhci_runtime_write(uint32_t off, uint32_t val) "off 0x%04x, val 0x%08x"
 usb_xhci_doorbell_write(uint32_t off, uint32_t val) "off 0x%04x, val 0x%08x"
+usb_xhci_irq_intx(uint32_t level) "level %d"
+usb_xhci_irq_msi(uint32_t nr) "nr %d"
+usb_xhci_queue_event(uint32_t idx, const char *name, uint64_t param, uint32_t status, uint32_t control) "idx %d, %s, p %016" PRIx64 ", s %08x, c 0x%08x"
 
 # hw/usb/desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
