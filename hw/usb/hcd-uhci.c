@@ -133,6 +133,7 @@ struct UHCIState {
     QEMUTimer *frame_timer;
     QEMUBH *bh;
     uint32_t frame_bytes;
+    uint32_t frame_bandwidth;
     UHCIPort ports[NB_PORTS];
 
     /* Interrupts that should be raised at the end of the current frame.  */
@@ -908,7 +909,7 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
         uhci_async_free(async);
     } else {
         async->done = 1;
-        if (s->frame_bytes < 1280) {
+        if (s->frame_bytes < s->frame_bandwidth) {
             qemu_bh_schedule(s->bh);
         }
     }
@@ -1007,7 +1008,7 @@ static void uhci_process_frame(UHCIState *s)
     qhdb_reset(&qhdb);
 
     for (cnt = FRAME_MAX_LOOPS; is_valid(link) && cnt; cnt--) {
-        if (s->frame_bytes >= 1280) {
+        if (s->frame_bytes >= s->frame_bandwidth) {
             /* We've reached the usb 1.1 bandwidth, which is
                1280 bytes/frame, stop processing */
             trace_usb_uhci_frame_stop_bandwidth();
@@ -1258,6 +1259,7 @@ static int usb_uhci_exit(PCIDevice *dev)
 static Property uhci_properties[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+    DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_END_OF_LIST(),
 };
 
