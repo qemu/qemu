@@ -2098,7 +2098,7 @@ void helper_ldf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             return;
         }
         helper_check_align(env, addr, 0x3f);
-        for (i = 0; i < 8; i++, rd += 2, addr += 4) {
+        for (i = 0; i < 8; i++, rd += 2, addr += 8) {
             env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi & 0x19, 8, 0);
         }
         return;
