@@ -85,6 +85,8 @@ typedef struct APBState {
     unsigned int nr_resets;
 } APBState;
 
+static void pci_apb_set_irq(void *opaque, int irq_num, int level);
+
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
                                uint64_t val, unsigned size)
 {
@@ -111,6 +113,16 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
         if (addr & 4) {
             s->obio_irq_map[(addr & 0xff) >> 3] &= PBM_PCI_IMR_MASK;
             s->obio_irq_map[(addr & 0xff) >> 3] |= val & ~PBM_PCI_IMR_MASK;
+        }
+        break;
+    case 0x1400 ... 0x143f: /* PCI interrupt clear */
+        if (addr & 4) {
+            pci_apb_set_irq(s, (addr & 0x3f) >> 3, 0);
+        }
+        break;
+    case 0x1800 ... 0x1860: /* OBIO interrupt clear */
+        if (addr & 4) {
+            pci_apb_set_irq(s, 0x20 | ((addr & 0xff) >> 3), 0);
         }
         break;
     case 0x2000 ... 0x202f: /* PCI control */
