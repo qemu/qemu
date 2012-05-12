@@ -642,7 +642,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
     int addr_reg, data_reg, r0, r1, rbase, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2, mem_index, s_bits;
+    int r2, mem_index, s_bits, ir;
     void *label1_ptr, *label2_ptr;
 #endif
 
@@ -669,8 +669,9 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* slow path */
-    tcg_out_mov (s, TCG_TYPE_I64, 3, addr_reg);
-    tcg_out_movi (s, TCG_TYPE_I64, 4, mem_index);
+    ir = 3;
+    tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
+    tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
 
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
@@ -799,7 +800,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 {
     int addr_reg, r0, r1, rbase, data_reg, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2, mem_index;
+    int r2, mem_index, ir;
     void *label1_ptr, *label2_ptr;
 #endif
 
@@ -825,9 +826,10 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     /* slow path */
-    tcg_out_mov (s, TCG_TYPE_I64, 3, addr_reg);
-    tcg_out_rld (s, RLDICL, 4, data_reg, 0, 64 - (1 << (3 + opc)));
-    tcg_out_movi (s, TCG_TYPE_I64, 5, mem_index);
+    ir = 3;
+    tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
+    tcg_out_rld (s, RLDICL, ir++, data_reg, 0, 64 - (1 << (3 + opc)));
+    tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
 
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
