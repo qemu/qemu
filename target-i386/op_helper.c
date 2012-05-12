@@ -4715,23 +4715,41 @@ void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1)
 #endif
 
 #define SHIFT 0
-#include "helper_template.h"
+#include "cc_helper_template.h"
 #undef SHIFT
 
 #define SHIFT 1
-#include "helper_template.h"
+#include "cc_helper_template.h"
 #undef SHIFT
 
 #define SHIFT 2
-#include "helper_template.h"
+#include "cc_helper_template.h"
 #undef SHIFT
 
 #ifdef TARGET_X86_64
 
 #define SHIFT 3
-#include "helper_template.h"
+#include "cc_helper_template.h"
 #undef SHIFT
 
+#endif
+
+#define SHIFT 0
+#include "shift_helper_template.h"
+#undef SHIFT
+
+#define SHIFT 1
+#include "shift_helper_template.h"
+#undef SHIFT
+
+#define SHIFT 2
+#include "shift_helper_template.h"
+#undef SHIFT
+
+#ifdef TARGET_X86_64
+#define SHIFT 3
+#include "shift_helper_template.h"
+#undef SHIFT
 #endif
 
 /* bit operations */
