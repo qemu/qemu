@@ -235,6 +235,9 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
 #ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
+#ifdef CONFIG_TCG_PASS_AREG0
+        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
+#endif
 #endif
         break;
     case 'S':                   /* qemu_st constraint */
@@ -244,6 +247,9 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
 #ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
+#ifdef CONFIG_TCG_PASS_AREG0
+        tcg_regset_reset_reg (ct->u.regs, TCG_REG_R6);
+#endif
 #endif
         break;
     case 'Z':
@@ -670,18 +676,12 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
+#ifdef CONFIG_TCG_PASS_AREG0
+    tcg_out_mov (s, TCG_TYPE_I64, ir++, TCG_AREG0);
+#endif
     tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
     tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
 
-#ifdef CONFIG_TCG_PASS_AREG0
-    /* XXX/FIXME: suboptimal */
-    tcg_out_mov (s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
-                 tcg_target_call_iarg_regs[1]);
-    tcg_out_mov (s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                 tcg_target_call_iarg_regs[0]);
-    tcg_out_mov (s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                 TCG_AREG0);
-#endif
     tcg_out_call (s, (tcg_target_long) qemu_ld_helpers[s_bits], 1);
 
     switch (opc) {
@@ -827,21 +827,13 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
+#ifdef CONFIG_TCG_PASS_AREG0
+    tcg_out_mov (s, TCG_TYPE_I64, ir++, TCG_AREG0);
+#endif
     tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
     tcg_out_rld (s, RLDICL, ir++, data_reg, 0, 64 - (1 << (3 + opc)));
     tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
 
-#ifdef CONFIG_TCG_PASS_AREG0
-    /* XXX/FIXME: suboptimal */
-    tcg_out_mov (s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
-                 tcg_target_call_iarg_regs[2]);
-    tcg_out_mov (s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
-                 tcg_target_call_iarg_regs[1]);
-    tcg_out_mov (s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                 tcg_target_call_iarg_regs[0]);
-    tcg_out_mov (s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                 TCG_AREG0);
-#endif
     tcg_out_call (s, (tcg_target_long) qemu_st_helpers[opc], 1);
 
     label2_ptr = s->code_ptr;
