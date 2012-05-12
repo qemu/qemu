@@ -1343,6 +1343,11 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
 
+#ifdef TARGET_SPARC64
+    if (unlikely(AM_CHECK(dc))) {
+        target &= 0xffffffffULL;
+    }
+#endif
     if (cond == 0x0) {
         /* unconditional not taken */
         if (a) {
@@ -1388,6 +1393,11 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
 
+#ifdef TARGET_SPARC64
+    if (unlikely(AM_CHECK(dc))) {
+        target &= 0xffffffffULL;
+    }
+#endif
     if (cond == 0x0) {
         /* unconditional not taken */
         if (a) {
@@ -1434,6 +1444,9 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     unsigned int cond = GET_FIELD_SP(insn, 25, 27), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
 
+    if (unlikely(AM_CHECK(dc))) {
+        target &= 0xffffffffULL;
+    }
     flush_cond(dc, r_cond);
     gen_cond_reg(r_cond, cond, r_reg);
     if (a) {
@@ -2486,6 +2499,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             tcg_temp_free(r_const);
             target += dc->pc;
             gen_mov_pc_npc(dc, cpu_cond);
+#ifdef TARGET_SPARC64
+            if (unlikely(AM_CHECK(dc))) {
+                target &= 0xffffffffULL;
+            }
+#endif
             dc->npc = target;
         }
         goto jmp_insn;
@@ -2610,7 +2628,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     {
                         TCGv r_const;
 
-                        r_const = tcg_const_tl(dc->pc);
+                        if (unlikely(AM_CHECK(dc))) {
+                            r_const = tcg_const_tl(dc->pc & 0xffffffffULL);
+                        } else {
+                           r_const = tcg_const_tl(dc->pc);
+                        }
                         gen_movl_TN_reg(rd, r_const);
                         tcg_temp_free(r_const);
                     }
@@ -4579,6 +4601,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         r_const = tcg_const_i32(3);
                         gen_helper_check_align(cpu_env, cpu_dst, r_const);
                         tcg_temp_free_i32(r_const);
+                        gen_address_mask(dc, cpu_dst);
                         tcg_gen_mov_tl(cpu_npc, cpu_dst);
                         dc->npc = DYNAMIC_PC;
                     }
