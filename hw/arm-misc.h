@@ -50,7 +50,7 @@ struct arm_boot_info {
      * perform any necessary CPU reset handling and set the PC for thei
      * secondary CPUs to point at this boot blob.
      */
-    void (*write_secondary_boot)(CPUARMState *env,
+    void (*write_secondary_boot)(ARMCPU *cpu,
                                  const struct arm_boot_info *info);
     void (*secondary_cpu_reset_hook)(CPUARMState *env,
                                      const struct arm_boot_info *info);

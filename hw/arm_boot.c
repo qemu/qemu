@@ -59,7 +59,7 @@ static uint32_t smpboot[] = {
   0           /* bootreg: Boot register address is held here */
 };
 
-static void default_write_secondary(CPUARMState *env,
+static void default_write_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
     int n;
@@ -303,7 +303,7 @@ static void do_cpu_reset(void *opaque)
 
 void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
 {
-    ARMCPU *cpu;
+    ARMCPU *cpu = arm_env_get_cpu(env);
     int kernel_size;
     int initrd_size;
     int n;
@@ -402,7 +402,7 @@ void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
         rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
                            info->loader_start);
         if (info->nb_cpus > 1) {
-            info->write_secondary_boot(env, info);
+            info->write_secondary_boot(cpu, info);
         }
     }
     info->is_linux = is_linux;

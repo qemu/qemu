@@ -65,7 +65,7 @@
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
 
-void exynos4210_write_secondary(CPUARMState *env,
+void exynos4210_write_secondary(ARMCPU *cpu,
         const struct arm_boot_info *info)
 {
     int n;

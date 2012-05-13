@@ -36,7 +36,7 @@
 
 /* Board init.  */
 
-static void hb_write_secondary(CPUARMState *env, const struct arm_boot_info *info)
+static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     int n;
     uint32_t smpboot[] = {
