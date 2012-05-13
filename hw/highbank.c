@@ -60,8 +60,10 @@ static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
     rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot), SMP_BOOT_ADDR);
 }
 
-static void hb_reset_secondary(CPUARMState *env, const struct arm_boot_info *info)
+static void hb_reset_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 {
+    CPUARMState *env = &cpu->env;
+
     switch (info->nb_cpus) {
     case 4:
         stl_phys_notdirty(SMP_BOOT_REG + 0x30, 0);

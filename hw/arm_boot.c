@@ -72,9 +72,11 @@ static void default_write_secondary(ARMCPU *cpu,
                        info->smp_loader_start);
 }
 
-static void default_reset_secondary(CPUARMState *env,
+static void default_reset_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
+    CPUARMState *env = &cpu->env;
+
     stl_phys_notdirty(info->smp_bootreg_addr, 0);
     env->regs[15] = info->smp_loader_start;
 }
@@ -295,7 +297,7 @@ static void do_cpu_reset(void *opaque)
                     }
                 }
             } else {
-                info->secondary_cpu_reset_hook(env, info);
+                info->secondary_cpu_reset_hook(cpu, info);
             }
         }
     }

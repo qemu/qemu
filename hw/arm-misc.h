@@ -52,7 +52,7 @@ struct arm_boot_info {
      */
     void (*write_secondary_boot)(ARMCPU *cpu,
                                  const struct arm_boot_info *info);
-    void (*secondary_cpu_reset_hook)(CPUARMState *env,
+    void (*secondary_cpu_reset_hook)(ARMCPU *cpu,
                                      const struct arm_boot_info *info);
     /* Used internally by arm_boot.c */
     int is_linux;
