@@ -196,7 +196,7 @@ static void palmte_init(ram_addr_t ram_size,
                 const char *initrd_filename, const char *cpu_model)
 {
     MemoryRegion *address_space_mem = get_system_memory();
-    struct omap_mpu_state_s *cpu;
+    struct omap_mpu_state_s *mpu;
     int flash_size = 0x00800000;
     int sdram_size = palmte_binfo.ram_size;
     static uint32_t cs0val = 0xffffffff;
@@ -208,7 +208,7 @@ static void palmte_init(ram_addr_t ram_size,
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
 
-    cpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
+    mpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
     memory_region_init_ram(flash, "palmte.flash", flash_size);
@@ -230,11 +230,11 @@ static void palmte_init(ram_addr_t ram_size,
                           OMAP_CS3_SIZE);
     memory_region_add_subregion(address_space_mem, OMAP_CS3_BASE, &cs[3]);
 
-    palmte_microwire_setup(cpu);
+    palmte_microwire_setup(mpu);
 
-    qemu_add_kbd_event_handler(palmte_button_event, cpu);
+    qemu_add_kbd_event_handler(palmte_button_event, mpu);
 
-    palmte_gpio_setup(cpu);
+    palmte_gpio_setup(mpu);
 
     /* Setup initial (reset) machine state */
     if (nb_option_roms) {
@@ -265,7 +265,7 @@ static void palmte_init(ram_addr_t ram_size,
         palmte_binfo.kernel_filename = kernel_filename;
         palmte_binfo.kernel_cmdline = kernel_cmdline;
         palmte_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(&cpu->cpu->env, &palmte_binfo);
+        arm_load_kernel(&mpu->cpu->env, &palmte_binfo);
     }
 
     /* FIXME: We shouldn't really be doing this here.  The LCD controller
