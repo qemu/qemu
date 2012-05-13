@@ -103,7 +103,7 @@ static void sx1_init(ram_addr_t ram_size,
                 const char *initrd_filename, const char *cpu_model,
                 const int version)
 {
-    struct omap_mpu_state_s *cpu;
+    struct omap_mpu_state_s *mpu;
     MemoryRegion *address_space = get_system_memory();
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
@@ -121,7 +121,7 @@ static void sx1_init(ram_addr_t ram_size,
         flash_size = flash2_size;
     }
 
-    cpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, cpu_model);
+    mpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, cpu_model);
 
     /* External Flash (EMIFS) */
     memory_region_init_ram(flash, "omap_sx1.flash0-0", flash_size);
@@ -202,7 +202,7 @@ static void sx1_init(ram_addr_t ram_size,
         sx1_binfo.kernel_filename = kernel_filename;
         sx1_binfo.kernel_cmdline = kernel_cmdline;
         sx1_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(&cpu->cpu->env, &sx1_binfo);
+        arm_load_kernel(&mpu->cpu->env, &sx1_binfo);
     }
 
     /* TODO: fix next line */
