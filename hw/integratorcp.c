@@ -443,7 +443,7 @@ static void integratorcp_init(ram_addr_t ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    CPUARMState *env;
+    ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
@@ -452,13 +452,15 @@ static void integratorcp_init(ram_addr_t ram_size,
     DeviceState *dev;
     int i;
 
-    if (!cpu_model)
+    if (!cpu_model) {
         cpu_model = "arm926";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_arm_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+
     memory_region_init_ram(ram, "integrator.ram", ram_size);
     vmstate_register_ram_global(ram);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
@@ -474,7 +476,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(env);
+    cpu_pic = arm_pic_init_cpu(&cpu->env);
     dev = sysbus_create_varargs("integrator_pic", 0x14000000,
                                 cpu_pic[ARM_PIC_CPU_IRQ],
                                 cpu_pic[ARM_PIC_CPU_FIQ], NULL);
@@ -500,7 +502,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     integrator_binfo.kernel_filename = kernel_filename;
     integrator_binfo.kernel_cmdline = kernel_cmdline;
     integrator_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(env, &integrator_binfo);
+    arm_load_kernel(&cpu->env, &integrator_binfo);
 }
 
 static QEMUMachine integratorcp_machine = {
