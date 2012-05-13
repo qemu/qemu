@@ -1513,7 +1513,7 @@ static void musicpal_init(ram_addr_t ram_size,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
-    CPUARMState *env;
+    ARMCPU *cpu;
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;
@@ -1533,12 +1533,12 @@ static void musicpal_init(ram_addr_t ram_size,
     if (!cpu_model) {
         cpu_model = "arm926";
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_arm_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    cpu_pic = arm_pic_init_cpu(env);
+    cpu_pic = arm_pic_init_cpu(&cpu->env);
 
     /* For now we use a fixed - the original - RAM size */
     memory_region_init_ram(ram, "musicpal.ram", MP_RAM_DEFAULT_SIZE);
@@ -1651,7 +1651,7 @@ static void musicpal_init(ram_addr_t ram_size,
     musicpal_binfo.kernel_filename = kernel_filename;
     musicpal_binfo.kernel_cmdline = kernel_cmdline;
     musicpal_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(env, &musicpal_binfo);
+    arm_load_kernel(&cpu->env, &musicpal_binfo);
 }
 
 static QEMUMachine musicpal_machine = {
