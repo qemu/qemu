@@ -85,6 +85,8 @@ typedef struct APBState {
     unsigned int nr_resets;
 } APBState;
 
+static void pci_apb_set_irq(void *opaque, int irq_num, int level);
+
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
                                uint64_t val, unsigned size)
 {
@@ -111,6 +113,16 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
         if (addr & 4) {
             s->obio_irq_map[(addr & 0xff) >> 3] &= PBM_PCI_IMR_MASK;
             s->obio_irq_map[(addr & 0xff) >> 3] |= val & ~PBM_PCI_IMR_MASK;
+        }
+        break;
+    case 0x1400 ... 0x143f: /* PCI interrupt clear */
+        if (addr & 4) {
+            pci_apb_set_irq(s, (addr & 0x3f) >> 3, 0);
+        }
+        break;
+    case 0x1800 ... 0x1860: /* OBIO interrupt clear */
+        if (addr & 4) {
+            pci_apb_set_irq(s, 0x20 | ((addr & 0xff) >> 3), 0);
         }
         break;
     case 0x2000 ... 0x202f: /* PCI control */
@@ -404,6 +416,9 @@ static void pci_pbm_reset(DeviceState *d)
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] &= PBM_PCI_IMR_MASK;
     }
+    for (i = 0; i < 32; i++) {
+        s->obio_irq_map[i] &= PBM_PCI_IMR_MASK;
+    }
 
     if (s->nr_resets++ == 0) {
         /* Power on reset */
@@ -425,6 +440,9 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     s = FROM_SYSBUS(APBState, dev);
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
+    }
+    for (i = 0; i < 32; i++) {
+        s->obio_irq_map[i] = ((0x1f << 6) | 0x20) + i;
     }
     s->pbm_irqs = qemu_allocate_irqs(pci_apb_set_irq, s, MAX_IVEC);
 
