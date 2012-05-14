@@ -60,13 +60,13 @@ static MigrationState *migrate_get_current(void)
     return &current_migration;
 }
 
-int qemu_start_incoming_migration(const char *uri)
+int qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
     int ret;
 
     if (strstart(uri, "tcp:", &p))
-        ret = tcp_start_incoming_migration(p);
+        ret = tcp_start_incoming_migration(p, errp);
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
         ret =  exec_start_incoming_migration(p);
@@ -414,7 +414,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     s = migrate_init(blk, inc);
 
     if (strstart(uri, "tcp:", &p)) {
-        ret = tcp_start_outgoing_migration(s, p);
+        ret = tcp_start_outgoing_migration(s, p, errp);
 #if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
         ret = exec_start_outgoing_migration(s, p);
@@ -429,9 +429,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (ret < 0) {
-        DPRINTF("migration failed: %s\n", strerror(-ret));
-        /* FIXME: we should return meaningful errors */
-        error_set(errp, QERR_UNDEFINED_ERROR);
+        if (!error_is_set(errp)) {
+            DPRINTF("migration failed: %s\n", strerror(-ret));
+            /* FIXME: we should return meaningful errors */
+            error_set(errp, QERR_UNDEFINED_ERROR);
+        }
         return;
     }
 

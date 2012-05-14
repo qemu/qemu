@@ -28,9 +28,9 @@ __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
 
 # This will not work if arguments or path contain spaces but is necessary if we
 # want to support the override options that ./check supports.
-qemu_img_args = os.environ.get('QEMU_IMG', 'qemu-img').split(' ')
-qemu_io_args = os.environ.get('QEMU_IO', 'qemu-io').split(' ')
-qemu_args = os.environ.get('QEMU', 'qemu').split(' ')
+qemu_img_args = os.environ.get('QEMU_IMG', 'qemu-img').strip().split(' ')
+qemu_io_args = os.environ.get('QEMU_IO', 'qemu-io').strip().split(' ')
+qemu_args = os.environ.get('QEMU', 'qemu').strip().split(' ')
 
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
@@ -87,10 +87,12 @@ class VM(object):
 
     def shutdown(self):
         '''Terminate the VM and clean up'''
-        self._qmp.cmd('quit')
-        self._popen.wait()
-        os.remove(self._monitor_path)
-        os.remove(self._qemu_log_path)
+        if not self._popen is None:
+            self._qmp.cmd('quit')
+            self._popen.wait()
+            os.remove(self._monitor_path)
+            os.remove(self._qemu_log_path)
+            self._popen = None
 
     def qmp(self, cmd, **args):
         '''Invoke a QMP command and return the result dict'''

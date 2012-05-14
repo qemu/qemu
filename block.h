@@ -303,6 +303,8 @@ int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs);
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
+void bdrv_get_full_backing_filename(BlockDriverState *bs,
+                                    char *dest, size_t sz);
 int bdrv_can_snapshot(BlockDriverState *bs);
 int bdrv_is_snapshot(BlockDriverState *bs);
 BlockDriverState *bdrv_snapshots(void);

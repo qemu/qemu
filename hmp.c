@@ -849,7 +849,7 @@ void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
-    int64_t value = qdict_get_int(qdict, "value");
+    int64_t value = qdict_get_int(qdict, "speed");
 
     qmp_block_job_set_speed(device, value, &error);
 

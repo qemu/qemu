@@ -162,7 +162,7 @@ int tcp_socket_outgoing(const char *address, uint16_t port)
 
 int tcp_socket_outgoing_spec(const char *address_and_port)
 {
-    return inet_connect(address_and_port, SOCK_STREAM);
+    return inet_connect(address_and_port, true, NULL);
 }
 
 int tcp_socket_incoming(const char *address, uint16_t port)
@@ -176,7 +176,7 @@ int tcp_socket_incoming_spec(const char *address_and_port)
 {
     char *ostr  = NULL;
     int olen = 0;
-    return inet_listen(address_and_port, ostr, olen, SOCK_STREAM, 0);
+    return inet_listen(address_and_port, ostr, olen, SOCK_STREAM, 0, NULL);
 }
 
 int unix_socket_incoming(const char *path)

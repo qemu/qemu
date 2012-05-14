@@ -33,19 +33,19 @@ typedef struct {
 
 static int64_t ratelimit_calculate_delay(RateLimit *limit, uint64_t n)
 {
-    int64_t delay_ns = 0;
     int64_t now = qemu_get_clock_ns(rt_clock);
 
     if (limit->next_slice_time < now) {
         limit->next_slice_time = now + SLICE_TIME;
         limit->dispatched = 0;
     }
-    if (limit->dispatched + n > limit->slice_quota) {
-        delay_ns = limit->next_slice_time - now;
-    } else {
+    if (limit->dispatched == 0 || limit->dispatched + n <= limit->slice_quota) {
         limit->dispatched += n;
+        return 0;
+    } else {
+        limit->dispatched = n;
+        return limit->next_slice_time - now;
     }
-    return delay_ns;
 }
 
 static void ratelimit_set_speed(RateLimit *limit, uint64_t speed)
@@ -96,17 +96,6 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
         bdrv_delete(unused);
     }
     top->backing_hd = base;
-
-    pstrcpy(top->backing_file, sizeof(top->backing_file), "");
-    pstrcpy(top->backing_format, sizeof(top->backing_format), "");
-    if (base_id) {
-        pstrcpy(top->backing_file, sizeof(top->backing_file), base_id);
-        if (base->drv) {
-            pstrcpy(top->backing_format, sizeof(top->backing_format),
-                    base->drv->format_name);
-        }
-    }
-
 }
 
 /*
@@ -141,14 +130,9 @@ static int coroutine_fn is_allocated_base(BlockDriverState *top,
      */
     intermediate = top->backing_hd;
 
-    while (intermediate) {
+    while (intermediate != base) {
         int pnum_inter;
 
-        /* reached base */
-        if (intermediate == base) {
-            *pnum = n;
-            return 1;
-        }
         ret = bdrv_co_is_allocated(intermediate, sector_num, nb_sectors,
                                    &pnum_inter);
         if (ret < 0) {
@@ -171,6 +155,7 @@ static int coroutine_fn is_allocated_base(BlockDriverState *top,
         intermediate = intermediate->backing_hd;
     }
 
+    *pnum = n;
     return 1;
 }
 
@@ -181,7 +166,7 @@ static void coroutine_fn stream_run(void *opaque)
     BlockDriverState *base = s->base;
     int64_t sector_num, end;
     int ret = 0;
-    int n;
+    int n = 0;
     void *buf;
 
     s->common.len = bdrv_getlength(bs);
@@ -203,30 +188,25 @@ static void coroutine_fn stream_run(void *opaque)
     }
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
-retry:
+        uint64_t delay_ns = 0;
+
+wait:
+        /* Note that even when no rate limit is applied we need to yield
+         * with no pending I/O here so that qemu_aio_flush() returns.
+         */
+        block_job_sleep_ns(&s->common, rt_clock, delay_ns);
         if (block_job_is_cancelled(&s->common)) {
             break;
         }
 
-        s->common.busy = true;
-        if (base) {
-            ret = is_allocated_base(bs, base, sector_num,
-                                    STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
-        } else {
-            ret = bdrv_co_is_allocated(bs, sector_num,
-                                       STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE,
-                                       &n);
-        }
+        ret = is_allocated_base(bs, base, sector_num,
+                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         trace_stream_one_iteration(s, sector_num, n, ret);
         if (ret == 0) {
             if (s->common.speed) {
-                uint64_t delay_ns = ratelimit_calculate_delay(&s->limit, n);
+                delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {
-                    s->common.busy = false;
-                    co_sleep_ns(rt_clock, delay_ns);
-
-                    /* Recheck cancellation and that sectors are unallocated */
-                    goto retry;
+                    goto wait;
                 }
             }
             ret = stream_populate(bs, sector_num, n, buf);
@@ -238,12 +218,6 @@ retry:
 
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
-
-        /* Note that even when no rate limit is applied we need to yield
-         * with no pending I/O here so that qemu_aio_flush() returns.
-         */
-        s->common.busy = false;
-        co_sleep_ns(rt_clock, 0);
     }
 
     if (!base) {
@@ -251,11 +225,14 @@ retry:
     }
 
     if (!block_job_is_cancelled(&s->common) && sector_num == end && ret == 0) {
-        const char *base_id = NULL;
+        const char *base_id = NULL, *base_fmt = NULL;
         if (base) {
             base_id = s->backing_file_id;
+            if (base->drv) {
+                base_fmt = base->drv->format_name;
+            }
         }
-        ret = bdrv_change_backing_file(bs, base_id, NULL);
+        ret = bdrv_change_backing_file(bs, base_id, base_fmt);
         close_unused_images(bs, base, base_id);
     }
 
@@ -286,7 +263,6 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   void *opaque, Error **errp)
 {
     StreamBlockJob *s;
-    Coroutine *co;
 
     s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
     if (!s) {
@@ -298,7 +274,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
         pstrcpy(s->backing_file_id, sizeof(s->backing_file_id), base_id);
     }
 
-    co = qemu_coroutine_create(stream_run);
-    trace_stream_start(bs, base, s, co, opaque);
-    qemu_coroutine_enter(co, s);
+    s->common.co = qemu_coroutine_create(stream_run);
+    trace_stream_start(bs, base, s, s->common.co, opaque);
+    qemu_coroutine_enter(s->common.co, s);
 }

@@ -54,7 +54,6 @@ int graphic_height = 600;
 int graphic_depth = 15;
 #endif
 
-const char arch_config_name[] = CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf";
 
 #if defined(TARGET_ALPHA)
 #define QEMU_ARCH QEMU_ARCH_ALPHA
@@ -111,6 +110,37 @@ const uint32_t arch_type = QEMU_ARCH;
 #define SPLAT(p)       (*(p) * (~0UL / 255))
 #define ALL_EQ(v1, v2) ((v1) == (v2))
 #endif
+
+
+static struct defconfig_file {
+    const char *filename;
+    /* Indicates it is an user config file (disabled by -no-user-config) */
+    bool userconfig;
+} default_config_files[] = {
+    { CONFIG_QEMU_DATADIR "/cpus-" TARGET_ARCH ".conf",  false },
+    { CONFIG_QEMU_CONFDIR "/qemu.conf",                   true },
+    { CONFIG_QEMU_CONFDIR "/target-" TARGET_ARCH ".conf", true },
+    { NULL }, /* end of list */
+};
+
+
+int qemu_read_default_config_files(bool userconfig)
+{
+    int ret;
+    struct defconfig_file *f;
+
+    for (f = default_config_files; f->filename; f++) {
+        if (!userconfig && f->userconfig) {
+            continue;
+        }
+        ret = qemu_read_config_file(f->filename);
+        if (ret < 0 && ret != -ENOENT) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
 
 static int is_dup_page(uint8_t *page)
 {

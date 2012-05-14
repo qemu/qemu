@@ -1,8 +1,6 @@
 #ifndef QEMU_ARCH_INIT_H
 #define QEMU_ARCH_INIT_H
 
-extern const char arch_config_name[];
-
 enum {
     QEMU_ARCH_ALL = -1,
     QEMU_ARCH_ALPHA = 1,
