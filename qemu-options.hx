@@ -221,7 +221,7 @@ qcow2.  If performance is more important than correctness,
 @option{cache=writeback} should be used with qcow2.
 
 In case you don't care about data integrity over host failures, use
-cache=unsafe. This option tells qemu that it never needs to write any data
+cache=unsafe. This option tells QEMU that it never needs to write any data
 to the disk but can instead keeps things in cache. If anything goes wrong,
 like your host losing power, the disk storage getting disconnected accidentally,
 etc. you're image will most probably be rendered unusable.   When using
@@ -233,47 +233,47 @@ is off.
 
 Instead of @option{-cdrom} you can use:
 @example
-qemu -drive file=file,index=2,media=cdrom
+qemu-system-i386 -drive file=file,index=2,media=cdrom
 @end example
 
 Instead of @option{-hda}, @option{-hdb}, @option{-hdc}, @option{-hdd}, you can
 use:
 @example
-qemu -drive file=file,index=0,media=disk
-qemu -drive file=file,index=1,media=disk
-qemu -drive file=file,index=2,media=disk
-qemu -drive file=file,index=3,media=disk
+qemu-system-i386 -drive file=file,index=0,media=disk
+qemu-system-i386 -drive file=file,index=1,media=disk
+qemu-system-i386 -drive file=file,index=2,media=disk
+qemu-system-i386 -drive file=file,index=3,media=disk
 @end example
 
 You can connect a CDROM to the slave of ide0:
 @example
-qemu -drive file=file,if=ide,index=1,media=cdrom
+qemu-system-i386 -drive file=file,if=ide,index=1,media=cdrom
 @end example
 
 If you don't specify the "file=" argument, you define an empty drive:
 @example
-qemu -drive if=ide,index=1,media=cdrom
+qemu-system-i386 -drive if=ide,index=1,media=cdrom
 @end example
 
 You can connect a SCSI disk with unit ID 6 on the bus #0:
 @example
-qemu -drive file=file,if=scsi,bus=0,unit=6
+qemu-system-i386 -drive file=file,if=scsi,bus=0,unit=6
 @end example
 
 Instead of @option{-fda}, @option{-fdb}, you can use:
 @example
-qemu -drive file=file,index=0,if=floppy
-qemu -drive file=file,index=1,if=floppy
+qemu-system-i386 -drive file=file,index=0,if=floppy
+qemu-system-i386 -drive file=file,index=1,if=floppy
 @end example
 
 By default, @var{interface} is "ide" and @var{index} is automatically
 incremented:
 @example
-qemu -drive file=a -drive file=b"
+qemu-system-i386 -drive file=a -drive file=b"
 @end example
 is interpreted like:
 @example
-qemu -hda a -hdb b
+qemu-system-i386 -hda a -hdb b
 @end example
 ETEXI
 
@@ -297,7 +297,7 @@ STEXI
 Set default value of @var{driver}'s property @var{prop} to @var{value}, e.g.:
 
 @example
-qemu -global ide-drive.physical_block_size=4096 -drive file=file,if=ide,index=0,media=disk
+qemu-system-i386 -global ide-drive.physical_block_size=4096 -drive file=file,if=ide,index=0,media=disk
 @end example
 
 In particular, you can use this to set driver properties for devices which are 
@@ -359,11 +359,11 @@ the recommended is 320x240, 640x480, 800x640.
 
 @example
 # try to boot from network first, then from hard disk
-qemu -boot order=nc
+qemu-system-i386 -boot order=nc
 # boot from CD-ROM first, switch back to default order after reboot
-qemu -boot once=d
+qemu-system-i386 -boot once=d
 # boot with a splash picture for 5 seconds.
-qemu -boot menu=on,splash=/root/boot.bmp,splash-time=5000
+qemu-system-i386 -boot menu=on,splash=/root/boot.bmp,splash-time=5000
 @end example
 
 Note: The legacy format '-boot @var{drives}' is still supported but its
@@ -454,12 +454,12 @@ Enable audio and selected sound hardware. Use ? to print all
 available sound hardware.
 
 @example
-qemu -soundhw sb16,adlib disk.img
-qemu -soundhw es1370 disk.img
-qemu -soundhw ac97 disk.img
-qemu -soundhw hda disk.img
-qemu -soundhw all disk.img
-qemu -soundhw ?
+qemu-system-i386 -soundhw sb16,adlib disk.img
+qemu-system-i386 -soundhw es1370 disk.img
+qemu-system-i386 -soundhw ac97 disk.img
+qemu-system-i386 -soundhw hda disk.img
+qemu-system-i386 -soundhw all disk.img
+qemu-system-i386 -soundhw ?
 @end example
 
 Note that Linux's i810_audio OSS kernel (for AC97) module might
@@ -515,7 +515,7 @@ Virtual Mouse. This will override the PS/2 mouse emulation when activated.
 
 @item tablet
 Pointer device that uses absolute coordinates (like a touchscreen). This
-means qemu is able to report the mouse position without having to grab the
+means QEMU is able to report the mouse position without having to grab the
 mouse. Also overrides the PS/2 mouse emulation when activated.
 
 @item disk:[format=@var{format}]:@var{file}
@@ -587,7 +587,7 @@ this path will be available to the 9p client on the guest.
 Specifies the security model to be used for this export path.
 Supported security models are "passthrough", "mapped-xattr", "mapped-file" and "none".
 In "passthrough" security model, files are stored using the same
-credentials as they are created on the guest. This requires qemu
+credentials as they are created on the guest. This requires QEMU
 to run as root. In "mapped-xattr" security model, some of the file
 attributes like uid, gid, mode bits and link target are stored as
 file attributes. For "mapped-file" these attributes are stored in the
@@ -654,7 +654,7 @@ this path will be available to the 9p client on the guest.
 Specifies the security model to be used for this export path.
 Supported security models are "passthrough", "mapped-xattr", "mapped-file" and "none".
 In "passthrough" security model, files are stored using the same
-credentials as they are created on the guest. This requires qemu
+credentials as they are created on the guest. This requires QEMU
 to run as root. In "mapped-xattr" security model, some of the file
 attributes like uid, gid, mode bits and link target are stored as
 file attributes. For "mapped-file" these attributes are stored in the
@@ -1117,7 +1117,7 @@ disables exclusive client access.  Useful for shared desktop sessions,
 where you don't want someone forgetting specify -shared disconnect
 everybody else.  'ignore' completely ignores the shared flag and
 allows everybody connect unconditionally.  Doesn't conform to the rfb
-spec but is traditional qemu behavior.
+spec but is traditional QEMU behavior.
 
 @end table
 ETEXI
@@ -1368,7 +1368,7 @@ a guest from a local directory.
 
 Example (using pxelinux):
 @example
-qemu -hda linux.img -boot n -net user,tftp=/path/to/tftp/files,bootfile=/pxelinux.0
+qemu-system-i386 -hda linux.img -boot n -net user,tftp=/path/to/tftp/files,bootfile=/pxelinux.0
 @end example
 
 @item smb=@var{dir}[,smbserver=@var{addr}]
@@ -1403,7 +1403,7 @@ screen 0, use the following:
 
 @example
 # on the host
-qemu -net user,hostfwd=tcp:127.0.0.1:6001-:6000 [...]
+qemu-system-i386 -net user,hostfwd=tcp:127.0.0.1:6001-:6000 [...]
 # this host xterm should open in the guest X11 server
 xterm -display :1
 @end example
@@ -1413,7 +1413,7 @@ the guest, use the following:
 
 @example
 # on the host
-qemu -net user,hostfwd=tcp::5555-:23 [...]
+qemu-system-i386 -net user,hostfwd=tcp::5555-:23 [...]
 telnet localhost 5555
 @end example
 
@@ -1452,20 +1452,22 @@ Examples:
 
 @example
 #launch a QEMU instance with the default network script
-qemu linux.img -net nic -net tap
+qemu-system-i386 linux.img -net nic -net tap
 @end example
 
 @example
 #launch a QEMU instance with two NICs, each one connected
 #to a TAP device
-qemu linux.img -net nic,vlan=0 -net tap,vlan=0,ifname=tap0 \
-               -net nic,vlan=1 -net tap,vlan=1,ifname=tap1
+qemu-system-i386 linux.img \
+                 -net nic,vlan=0 -net tap,vlan=0,ifname=tap0 \
+                 -net nic,vlan=1 -net tap,vlan=1,ifname=tap1
 @end example
 
 @example
 #launch a QEMU instance with the default network helper to
 #connect a TAP device to bridge br0
-qemu linux.img -net nic -net tap,"helper=/usr/local/libexec/qemu-bridge-helper"
+qemu-system-i386 linux.img \
+                 -net nic -net tap,"helper=/usr/local/libexec/qemu-bridge-helper"
 @end example
 
 @item -net bridge[,vlan=@var{n}][,name=@var{name}][,br=@var{bridge}][,helper=@var{helper}]
@@ -1481,13 +1483,13 @@ Examples:
 @example
 #launch a QEMU instance with the default network helper to
 #connect a TAP device to bridge br0
-qemu linux.img -net bridge -net nic,model=virtio
+qemu-system-i386 linux.img -net bridge -net nic,model=virtio
 @end example
 
 @example
 #launch a QEMU instance with the default network helper to
 #connect a TAP device to bridge qemubr0
-qemu linux.img -net bridge,br=qemubr0 -net nic,model=virtio
+qemu-system-i386 linux.img -net bridge,br=qemubr0 -net nic,model=virtio
 @end example
 
 @item -net socket[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}] [,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
@@ -1502,12 +1504,14 @@ specifies an already opened TCP socket.
 Example:
 @example
 # launch a first QEMU instance
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
-               -net socket,listen=:1234
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:56 \
+                 -net socket,listen=:1234
 # connect the VLAN 0 of this instance to the VLAN 0
 # of the first instance
-qemu linux.img -net nic,macaddr=52:54:00:12:34:57 \
-               -net socket,connect=127.0.0.1:1234
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:57 \
+                 -net socket,connect=127.0.0.1:1234
 @end example
 
 @item -net socket[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,mcast=@var{maddr}:@var{port}[,localaddr=@var{addr}]]
@@ -1530,30 +1534,35 @@ Use @option{fd=h} to specify an already opened UDP multicast socket.
 Example:
 @example
 # launch one QEMU instance
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
-               -net socket,mcast=230.0.0.1:1234
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:56 \
+                 -net socket,mcast=230.0.0.1:1234
 # launch another QEMU instance on same "bus"
-qemu linux.img -net nic,macaddr=52:54:00:12:34:57 \
-               -net socket,mcast=230.0.0.1:1234
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:57 \
+                 -net socket,mcast=230.0.0.1:1234
 # launch yet another QEMU instance on same "bus"
-qemu linux.img -net nic,macaddr=52:54:00:12:34:58 \
-               -net socket,mcast=230.0.0.1:1234
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:58 \
+                 -net socket,mcast=230.0.0.1:1234
 @end example
 
 Example (User Mode Linux compat.):
 @example
 # launch QEMU instance (note mcast address selected
 # is UML's default)
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
-               -net socket,mcast=239.192.168.1:1102
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:56 \
+                 -net socket,mcast=239.192.168.1:1102
 # launch UML
 /path/to/linux ubd0=/path/to/root_fs eth0=mcast
 @end example
 
 Example (send packets from host's 1.2.3.4):
 @example
-qemu linux.img -net nic,macaddr=52:54:00:12:34:56 \
-               -net socket,mcast=239.192.168.1:1102,localaddr=1.2.3.4
+qemu-system-i386 linux.img \
+                 -net nic,macaddr=52:54:00:12:34:56 \
+                 -net socket,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 @end example
 
 @item -net vde[,vlan=@var{n}][,name=@var{name}][,sock=@var{socketpath}] [,port=@var{n}][,group=@var{groupname}][,mode=@var{octalmode}]
@@ -1568,7 +1577,7 @@ Example:
 # launch vde switch
 vde_switch -F -sock /tmp/myswitch
 # launch QEMU instance
-qemu linux.img -net nic -net vde,sock=/tmp/myswitch
+qemu-system-i386 linux.img -net nic -net vde,sock=/tmp/myswitch
 @end example
 
 @item -net dump[,vlan=@var{n}][,file=@var{file}][,len=@var{len}]
@@ -1791,7 +1800,7 @@ not take any options.
 @option{pty} is not available on Windows hosts.
 
 @item -chardev stdio ,id=@var{id} [,signal=on|off]
-Connect to standard input and standard output of the qemu process.
+Connect to standard input and standard output of the QEMU process.
 
 @option{signal} controls if signals are enabled on the terminal, that includes
 exiting QEMU with the key sequence @key{Control-c}. This option is enabled by
@@ -1853,21 +1862,21 @@ Syntax for specifying iSCSI LUNs is
 
 Example (without authentication):
 @example
-qemu -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
--cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
--drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+qemu-system-i386 -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
+                 -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
+                 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via URL):
 @example
-qemu -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
+qemu-system-i386 -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via environment variables):
 @example
 LIBISCSI_CHAP_USERNAME="user" \
 LIBISCSI_CHAP_PASSWORD="password" \
-qemu -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+qemu-system-i386 -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 iSCSI support is an optional feature of QEMU and only available when
@@ -1893,12 +1902,12 @@ Syntax for specifying a NBD device using Unix Domain Sockets
 
 Example for TCP
 @example
-qemu --drive file=nbd:192.0.2.1:30000
+qemu-system-i386 --drive file=nbd:192.0.2.1:30000
 @end example
 
 Example for Unix Domain Sockets
 @example
-qemu --drive file=nbd:unix:/tmp/nbd-socket
+qemu-system-i386 --drive file=nbd:unix:/tmp/nbd-socket
 @end example
 
 @item Sheepdog
@@ -1923,7 +1932,7 @@ Syntax for specifying a sheepdog device
 
 Example
 @example
-qemu --drive file=sheepdog:192.0.2.1:30000:MyVirtualMachine
+qemu-system-i386 --drive file=sheepdog:192.0.2.1:30000:MyVirtualMachine
 @end example
 
 See also @url{http://http://www.osrg.net/sheepdog/}.
@@ -1986,7 +1995,7 @@ and communicate.  Requires the Linux @code{vhci} driver installed.  Can
 be used as following:
 
 @example
-qemu [...OPTIONS...] -bt hci,vlan=5 -bt vhci,vlan=5
+qemu-system-i386 [...OPTIONS...] -bt hci,vlan=5 -bt vhci,vlan=5
 @end example
 
 @item -bt device:@var{dev}[,vlan=@var{n}]
@@ -2119,19 +2128,19 @@ they default to @code{0.0.0.0}.
 When not using a specified @var{src_port} a random port is automatically chosen.
 
 If you just want a simple readonly console you can use @code{netcat} or
-@code{nc}, by starting qemu with: @code{-serial udp::4555} and nc as:
-@code{nc -u -l -p 4555}. Any time qemu writes something to that port it
+@code{nc}, by starting QEMU with: @code{-serial udp::4555} and nc as:
+@code{nc -u -l -p 4555}. Any time QEMU writes something to that port it
 will appear in the netconsole session.
 
 If you plan to send characters back via netconsole or you want to stop
-and start qemu a lot of times, you should have qemu use the same
+and start QEMU a lot of times, you should have QEMU use the same
 source port each time by using something like @code{-serial
-udp::4555@@:4556} to qemu. Another approach is to use a patched
+udp::4555@@:4556} to QEMU. Another approach is to use a patched
 version of netcat which can listen to a TCP port and send and receive
 characters via udp.  If you have a patched version of netcat which
 activates telnet remote echo and single char transfer, then you can
 use the following options to step up a netcat redirector to allow
-telnet on port 5555 to access the qemu port.
+telnet on port 5555 to access the QEMU port.
 @table @code
 @item QEMU Options:
 -serial udp::4555@@:4556
@@ -2286,10 +2295,10 @@ STEXI
 @findex -gdb
 Wait for gdb connection on device @var{dev} (@pxref{gdb_usage}). Typical
 connections will likely be TCP-based, but also UDP, pseudo TTY, or even
-stdio are reasonable use case. The latter is allowing to start qemu from
+stdio are reasonable use case. The latter is allowing to start QEMU from
 within gdb and establish the connection via a pipe:
 @example
-(gdb) target remote | exec qemu -gdb stdio ...
+(gdb) target remote | exec qemu-system-i386 -gdb stdio ...
 @end example
 ETEXI
 
@@ -2316,15 +2325,15 @@ DEF("D", HAS_ARG, QEMU_OPTION_D, \
     "-D logfile      output log to logfile (instead of the default /tmp/qemu.log)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -D
+@item -D @var{logfile}
 @findex -D
-Output log in logfile instead of /tmp/qemu.log
+Output log in @var{logfile} instead of /tmp/qemu.log
 ETEXI
 
 DEF("hdachs", HAS_ARG, QEMU_OPTION_hdachs, \
     "-hdachs c,h,s[,t]\n" \
     "                force hard disk 0 physical geometry and the optional BIOS\n" \
-    "                translation (t=none or lba) (usually qemu can guess them)\n",
+    "                translation (t=none or lba) (usually QEMU can guess them)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -hdachs @var{c},@var{h},@var{s},[,@var{t}]
@@ -2370,7 +2379,7 @@ DEF("xen-create", 0, QEMU_OPTION_xen_create,
     QEMU_ARCH_ALL)
 DEF("xen-attach", 0, QEMU_OPTION_xen_attach,
     "-xen-attach     attach to existing xen domain\n"
-    "                xend will use this when starting qemu\n",
+    "                xend will use this when starting QEMU\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -xen-domid @var{id}
@@ -2383,7 +2392,7 @@ Warning: should not be used when xend is in use (XEN only).
 @item -xen-attach
 @findex -xen-attach
 Attach to existing xen domain.
-xend will use this when starting qemu (XEN only).
+xend will use this when starting QEMU (XEN only).
 ETEXI
 
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \

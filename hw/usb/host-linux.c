@@ -1058,6 +1058,15 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
         ret = usb_host_set_interface(s, index, value);
         trace_usb_host_req_emulated(s->bus_num, s->addr, p, ret);
         return ret;
+
+    case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
+        if (value == 0) { /* clear halt */
+            int pid = (index & USB_DIR_IN) ? USB_TOKEN_IN : USB_TOKEN_OUT;
+            ioctl(s->fd, USBDEVFS_CLEAR_HALT, &index);
+            clear_halt(s, pid, index & 0x0f);
+            trace_usb_host_req_emulated(s->bus_num, s->addr, p, 0);
+            return 0;
+        }
     }
 
     /* The rest are asynchronous */

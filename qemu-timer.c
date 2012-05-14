@@ -635,8 +635,7 @@ static int mm_start_timer(struct qemu_alarm_timer *t)
                             TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
 
     if (!mm_timer) {
-        fprintf(stderr, "Failed to initialize win32 alarm timer: %ld\n",
-                GetLastError());
+        fprintf(stderr, "Failed to initialize win32 alarm timer\n");
         timeEndPeriod(mm_tc.wPeriodMin);
         return -1;
     }
@@ -667,9 +666,7 @@ static void mm_rearm_timer(struct qemu_alarm_timer *t, int64_t delta)
                             TIME_ONESHOT | TIME_CALLBACK_FUNCTION);
 
     if (!mm_timer) {
-        fprintf(stderr, "Failed to re-arm win32 alarm timer %ld\n",
-                GetLastError());
-
+        fprintf(stderr, "Failed to re-arm win32 alarm timer\n");
         timeEndPeriod(mm_tc.wPeriodMin);
         exit(1);
     }

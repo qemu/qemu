@@ -576,9 +576,12 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 {
     gchar *name, *type;
 
-    if (!prop->info->print && !prop->info->parse) {
+    /* Register pointer properties as legacy properties */
+    if (!prop->info->print && !prop->info->parse &&
+        (prop->info->set || prop->info->get)) {
         return;
     }
+
     name = g_strdup_printf("legacy-%s", prop->name);
     type = g_strdup_printf("legacy<%s>",
                            prop->info->legacy_name ?: prop->info->name);

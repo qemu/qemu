@@ -302,7 +302,10 @@ static int qcow2_open(BlockDriverState *bs, int flags)
 
     if (!bs->read_only && s->autoclear_features != 0) {
         s->autoclear_features = 0;
-        qcow2_update_header(bs);
+        ret = qcow2_update_header(bs);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* Check support for various header values */

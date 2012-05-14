@@ -226,7 +226,7 @@ static Coroutine *coroutine_new(void)
      * called.
      */
     coTS->tr_called = 0;
-    kill(getpid(), SIGUSR2);
+    pthread_kill(pthread_self(), SIGUSR2);
     sigfillset(&sigs);
     sigdelset(&sigs, SIGUSR2);
     while (!coTS->tr_called) {
@@ -257,7 +257,7 @@ static Coroutine *coroutine_new(void)
     /*
      * Now enter the trampoline again, but this time not as a signal
      * handler. Instead we jump into it directly. The functionally
-     * redundant ping-pong pointer arithmentic is neccessary to avoid
+     * redundant ping-pong pointer arithmetic is necessary to avoid
      * type-conversion warnings related to the `volatile' qualifier and
      * the fact that `jmp_buf' usually is an array type.
      */

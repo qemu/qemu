@@ -284,7 +284,6 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         exit(1);
     }
 
-    register_savevm(NULL, "cpu", 0, 3, cpu_save, cpu_load, env);
     qemu_register_reset(main_cpu_reset, env);
 
     /* fulong 2e has 256M ram. */
