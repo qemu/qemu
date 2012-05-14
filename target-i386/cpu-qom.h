@@ -22,6 +22,7 @@
 
 #include "qemu/cpu.h"
 #include "cpu.h"
+#include "error.h"
 
 #ifdef TARGET_X86_64
 #define TYPE_X86_CPU "x86_64-cpu"
@@ -70,6 +71,9 @@ static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
 }
 
 #define ENV_GET_CPU(e) CPU(x86_env_get_cpu(e))
+
+/* TODO Drop once ObjectClass::realize is available */
+void x86_cpu_realize(Object *obj, Error **errp);
 
 
 #endif

@@ -1722,6 +1722,14 @@ static void mce_init(X86CPU *cpu)
     }
 }
 
+void x86_cpu_realize(Object *obj, Error **errp)
+{
+    X86CPU *cpu = X86_CPU(obj);
+
+    mce_init(cpu);
+    qemu_init_vcpu(&cpu->env);
+}
+
 static void x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
@@ -1755,7 +1763,6 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
 
     env->cpuid_apic_id = env->cpu_index;
-    mce_init(cpu);
 }
 
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
