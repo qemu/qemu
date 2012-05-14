@@ -159,7 +159,6 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
                                   const char *cpu_model,
                                   qemu_irq *pic, uint32_t *proc_id)
 {
-    CPUARMState *env = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
@@ -177,12 +176,12 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     *proc_id = 0x0c000191;
 
     for (n = 0; n < smp_cpus; n++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        ARMCPU *cpu = cpu_arm_init(cpu_model);
+        if (!cpu) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(env);
+        irqp = arm_pic_init_cpu(&cpu->env);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
 
@@ -259,7 +258,6 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
                                    qemu_irq *pic, uint32_t *proc_id)
 {
     int n;
-    CPUARMState *env = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
@@ -274,13 +272,15 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
     *proc_id = 0x14000217;
 
     for (n = 0; n < smp_cpus; n++) {
+        ARMCPU *cpu;
         qemu_irq *irqp;
-        env = cpu_init(cpu_model);
-        if (!env) {
+
+        cpu = cpu_arm_init(cpu_model);
+        if (!cpu) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(env);
+        irqp = arm_pic_init_cpu(&cpu->env);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
 
