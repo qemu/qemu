@@ -836,12 +836,13 @@ int main(int argc, char **argv)
             become_daemon(pid_filepath);
         }
         if (log_filepath) {
-            s->log_file = fopen(log_filepath, "a");
-            if (!s->log_file) {
+            FILE *log_file = fopen(log_filepath, "a");
+            if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
                 goto out_bad;
             }
+            s->log_file = log_file;
         }
     }
 
