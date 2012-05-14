@@ -52,7 +52,7 @@ struct GuestAgentInfo *qmp_guest_info(Error **err)
     GuestAgentCommandInfoList *cmd_info_list;
     char **cmd_list_head, **cmd_list;
 
-    info->version = g_strdup(QGA_VERSION);
+    info->version = g_strdup(QEMU_VERSION);
 
     cmd_list_head = cmd_list = qmp_get_command_list();
     if (*cmd_list_head == NULL) {

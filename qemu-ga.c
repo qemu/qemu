@@ -169,7 +169,7 @@ static void usage(const char *cmd)
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
-    , cmd, QGA_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
+    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
     QGA_STATEDIR_DEFAULT);
 }
 
@@ -729,7 +729,7 @@ int main(int argc, char **argv)
             log_level = G_LOG_LEVEL_MASK;
             break;
         case 'V':
-            printf("QEMU Guest Agent %s\n", QGA_VERSION);
+            printf("QEMU Guest Agent %s\n", QEMU_VERSION);
             return 0;
         case 'd':
             daemonize = 1;
