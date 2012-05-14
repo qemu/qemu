@@ -304,7 +304,7 @@ static void ga_disable_non_whitelisted(void)
     g_free(list_head);
 }
 
-/* [re-]enable all commands, except those explictly blacklisted by user */
+/* [re-]enable all commands, except those explicitly blacklisted by user */
 static void ga_enable_non_blacklisted(GList *blacklist)
 {
     char **list_head, **list;

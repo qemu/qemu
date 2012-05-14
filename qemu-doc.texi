@@ -227,15 +227,15 @@ QEMU uses GUS emulation (GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
 by Tibor "TS" Schütz.
 
 Note that, by default, GUS shares IRQ(7) with parallel ports and so
-qemu must be told to not have parallel ports to have working GUS
+QEMU must be told to not have parallel ports to have working GUS.
 
 @example
-qemu dos.img -soundhw gus -parallel none
+qemu-system-i386 dos.img -soundhw gus -parallel none
 @end example
 
 Alternatively:
 @example
-qemu dos.img -device gus,irq=5
+qemu-system-i386 dos.img -device gus,irq=5
 @end example
 
 Or some other unclaimed IRQ.
@@ -251,7 +251,7 @@ CS4231A is the chip used in Windows Sound System and GUSMAX products
 Download and uncompress the linux image (@file{linux.img}) and type:
 
 @example
-qemu linux.img
+qemu-system-i386 linux.img
 @end example
 
 Linux should boot and give you a prompt.
@@ -261,7 +261,7 @@ Linux should boot and give you a prompt.
 
 @example
 @c man begin SYNOPSIS
-usage: qemu [options] [@var{disk_image}]
+usage: qemu-system-i386 [options] [@var{disk_image}]
 @c man end
 @end example
 
@@ -575,7 +575,7 @@ QEMU can automatically create a virtual FAT disk image from a
 directory tree. In order to use it, just type:
 
 @example
-qemu linux.img -hdb fat:/my_directory
+qemu-system-i386 linux.img -hdb fat:/my_directory
 @end example
 
 Then you access access to all the files in the @file{/my_directory}
@@ -585,14 +585,14 @@ them via SAMBA or NFS. The default access is @emph{read-only}.
 Floppies can be emulated with the @code{:floppy:} option:
 
 @example
-qemu linux.img -fda fat:floppy:/my_directory
+qemu-system-i386 linux.img -fda fat:floppy:/my_directory
 @end example
 
 A read/write support is available for testing (beta stage) with the
 @code{:rw:} option:
 
 @example
-qemu linux.img -fda fat:floppy:rw:/my_directory
+qemu-system-i386 linux.img -fda fat:floppy:rw:/my_directory
 @end example
 
 What you should @emph{never} do:
@@ -610,14 +610,14 @@ QEMU can access directly to block device exported using the Network Block Device
 protocol.
 
 @example
-qemu linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
 @end example
 
 If the NBD server is located on the same host, you can use an unix socket instead
 of an inet socket:
 
 @example
-qemu linux.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux.img -hdb nbd:unix:/tmp/my_socket
 @end example
 
 In this case, the block device must be exported using qemu-nbd:
@@ -633,15 +633,15 @@ qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
 
 and then you can use it with two guests:
 @example
-qemu linux1.img -hdb nbd:unix:/tmp/my_socket
-qemu linux2.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux1.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
 @end example
 
 If the nbd-server uses named exports (since NBD 2.9.18), you must use the
 "exportname" option:
 @example
-qemu -cdrom nbd:localhost:exportname=debian-500-ppc-netinst
-qemu -cdrom nbd:localhost:exportname=openSUSE-11.1-ppc-netinst
+qemu-system-i386 -cdrom nbd:localhost:exportname=debian-500-ppc-netinst
+qemu-system-i386 -cdrom nbd:localhost:exportname=openSUSE-11.1-ppc-netinst
 @end example
 
 @node disk_images_sheepdog
@@ -666,7 +666,7 @@ qemu-img convert @var{filename} sheepdog:@var{image}
 
 You can boot from the Sheepdog disk image with the command:
 @example
-qemu sheepdog:@var{image}
+qemu-system-i386 sheepdog:@var{image}
 @end example
 
 You can also create a snapshot of the Sheepdog image like qcow2.
@@ -678,7 +678,7 @@ where @var{tag} is a tag name of the newly created snapshot.
 To boot from the Sheepdog snapshot, specify the tag name of the
 snapshot.
 @example
-qemu sheepdog:@var{image}:@var{tag}
+qemu-system-i386 sheepdog:@var{image}:@var{tag}
 @end example
 
 You can create a cloned image from the existing snapshot.
@@ -692,7 +692,7 @@ If the Sheepdog daemon doesn't run on the local host, you need to
 specify one of the Sheepdog servers to connect to.
 @example
 qemu-img create sheepdog:@var{hostname}:@var{port}:@var{image} @var{size}
-qemu sheepdog:@var{hostname}:@var{port}:@var{image}
+qemu-system-i386 sheepdog:@var{hostname}:@var{port}:@var{image}
 @end example
 
 @node disk_images_iscsi
@@ -899,7 +899,7 @@ zero-copy communication to the application level of the guests.  The basic
 syntax is:
 
 @example
-qemu -device ivshmem,size=<size in format accepted by -m>[,shm=<shm name>]
+qemu-system-i386 -device ivshmem,size=<size in format accepted by -m>[,shm=<shm name>]
 @end example
 
 If desired, interrupts can be sent between guest VMs accessing the same shared
@@ -909,9 +909,9 @@ is qemu.git/contrib/ivshmem-server.  An example syntax when using the shared
 memory server is:
 
 @example
-qemu -device ivshmem,size=<size in format accepted by -m>[,chardev=<id>]
-                        [,msi=on][,ioeventfd=on][,vectors=n][,role=peer|master]
-qemu -chardev socket,path=<path>,id=<id>
+qemu-system-i386 -device ivshmem,size=<size in format accepted by -m>[,chardev=<id>]
+                 [,msi=on][,ioeventfd=on][,vectors=n][,role=peer|master]
+qemu-system-i386 -chardev socket,path=<path>,id=<id>
 @end example
 
 When using the server, the guest will be assigned a VM ID (>=0) that allows guests
@@ -941,7 +941,7 @@ kernel testing.
 
 The syntax is:
 @example
-qemu -kernel arch/i386/boot/bzImage -hda root-2.4.20.img -append "root=/dev/hda"
+qemu-system-i386 -kernel arch/i386/boot/bzImage -hda root-2.4.20.img -append "root=/dev/hda"
 @end example
 
 Use @option{-kernel} to provide the Linux kernel image and
@@ -956,8 +956,8 @@ If you do not need graphical output, you can disable it and redirect
 the virtual serial port and the QEMU monitor to the console with the
 @option{-nographic} option. The typical command line is:
 @example
-qemu -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
-     -append "root=/dev/hda console=ttyS0" -nographic
+qemu-system-i386 -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
+                 -append "root=/dev/hda console=ttyS0" -nographic
 @end example
 
 Use @key{Ctrl-a c} to switch between the serial console and the
@@ -986,7 +986,7 @@ or the @code{usb_add} monitor command.  Available devices are:
 Virtual Mouse.  This will override the PS/2 mouse emulation when activated.
 @item tablet
 Pointer device that uses absolute coordinates (like a touchscreen).
-This means qemu is able to report the mouse position without having
+This means QEMU is able to report the mouse position without having
 to grab the mouse.  Also overrides the PS/2 mouse emulation when activated.
 @item disk:@var{file}
 Mass storage device based on @var{file} (@pxref{disk_images})
@@ -1020,7 +1020,7 @@ Network adapter that supports CDC ethernet and RNDIS protocols.  @var{options}
 specifies NIC options as with @code{-net nic,}@var{options} (see description).
 For instance, user-mode networking can be used with
 @example
-qemu [...OPTIONS...] -net user,vlan=0 -usbdevice net:vlan=0
+qemu-system-i386 [...OPTIONS...] -net user,vlan=0 -usbdevice net:vlan=0
 @end example
 Currently this cannot be used in machines that support PCI NICs.
 @item bt[:@var{hci-type}]
@@ -1030,7 +1030,7 @@ no type is given, the HCI logic corresponds to @code{-bt hci,vlan=0}.
 This USB device implements the USB Transport Layer of HCI.  Example
 usage:
 @example
-qemu [...OPTIONS...] -usbdevice bt:hci,vlan=3 -bt device:keyboard,vlan=3
+qemu-system-i386 [...OPTIONS...] -usbdevice bt:hci,vlan=3 -bt device:keyboard,vlan=3
 @end example
 @end table
 
@@ -1108,7 +1108,7 @@ For this setup it is recommended to restrict it to listen on a UNIX domain
 socket only. For example
 
 @example
-qemu [...OPTIONS...] -vnc unix:/home/joebloggs/.qemu-myvm-vnc
+qemu-system-i386 [...OPTIONS...] -vnc unix:/home/joebloggs/.qemu-myvm-vnc
 @end example
 
 This ensures that only users on local box with read/write access to that
@@ -1129,7 +1129,7 @@ option, and then once QEMU is running the password is set with the monitor. Unti
 the monitor is used to set the password all clients will be rejected.
 
 @example
-qemu [...OPTIONS...] -vnc :1,password -monitor stdio
+qemu-system-i386 [...OPTIONS...] -vnc :1,password -monitor stdio
 (qemu) change vnc password
 Password: ********
 (qemu)
@@ -1146,7 +1146,7 @@ support provides a secure session, but no authentication. This allows any
 client to connect, and provides an encrypted session.
 
 @example
-qemu [...OPTIONS...] -vnc :1,tls,x509=/etc/pki/qemu -monitor stdio
+qemu-system-i386 [...OPTIONS...] -vnc :1,tls,x509=/etc/pki/qemu -monitor stdio
 @end example
 
 In the above example @code{/etc/pki/qemu} should contain at least three files,
@@ -1164,7 +1164,7 @@ then validate against the CA certificate. This is a good choice if deploying
 in an environment with a private internal certificate authority.
 
 @example
-qemu [...OPTIONS...] -vnc :1,tls,x509verify=/etc/pki/qemu -monitor stdio
+qemu-system-i386 [...OPTIONS...] -vnc :1,tls,x509verify=/etc/pki/qemu -monitor stdio
 @end example
 
 
@@ -1175,7 +1175,7 @@ Finally, the previous method can be combined with VNC password authentication
 to provide two layers of authentication for clients.
 
 @example
-qemu [...OPTIONS...] -vnc :1,password,tls,x509verify=/etc/pki/qemu -monitor stdio
+qemu-system-i386 [...OPTIONS...] -vnc :1,password,tls,x509verify=/etc/pki/qemu -monitor stdio
 (qemu) change vnc password
 Password: ********
 (qemu)
@@ -1198,7 +1198,7 @@ used for authentication, but assuming use of one supporting SSF,
 then QEMU can be launched with:
 
 @example
-qemu [...OPTIONS...] -vnc :1,sasl -monitor stdio
+qemu-system-i386 [...OPTIONS...] -vnc :1,sasl -monitor stdio
 @end example
 
 @node vnc_sec_certificate_sasl
@@ -1212,7 +1212,7 @@ credentials. This can be enabled, by combining the 'sasl' option
 with the aforementioned TLS + x509 options:
 
 @example
-qemu [...OPTIONS...] -vnc :1,tls,x509,sasl -monitor stdio
+qemu-system-i386 [...OPTIONS...] -vnc :1,tls,x509,sasl -monitor stdio
 @end example
 
 
@@ -1377,11 +1377,11 @@ use TLS and x509 certificates to protect security credentials from snooping.
 QEMU has a primitive support to work with gdb, so that you can do
 'Ctrl-C' while the virtual machine is running and inspect its state.
 
-In order to use gdb, launch qemu with the '-s' option. It will wait for a
+In order to use gdb, launch QEMU with the '-s' option. It will wait for a
 gdb connection:
 @example
-> qemu -s -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
-       -append "root=/dev/hda"
+qemu-system-i386 -s -kernel arch/i386/boot/bzImage -hda root-2.4.20.img \
+                    -append "root=/dev/hda"
 Connected to host network interface: tun0
 Waiting gdb connection on port 1234
 @end example
@@ -2313,8 +2313,8 @@ qemu-i386 -L / /bin/ls
 @code{-L /} tells that the x86 dynamic linker must be searched with a
 @file{/} prefix.
 
-@item Since QEMU is also a linux process, you can launch qemu with
-qemu (NOTE: you can only do that if you compiled QEMU from the sources):
+@item Since QEMU is also a linux process, you can launch QEMU with
+QEMU (NOTE: you can only do that if you compiled QEMU from the sources):
 
 @example
 qemu-i386 -L / qemu-i386 -L / /bin/ls
@@ -2669,7 +2669,8 @@ installation directory.
 
 @end itemize
 
-Wine can be used to launch the resulting qemu.exe compiled for Win32.
+Wine can be used to launch the resulting qemu-system-i386.exe
+and all other qemu-system-@var{target}.exe compiled for Win32.
 
 @node Mac OS X
 @section Mac OS X

@@ -51,7 +51,7 @@ perror_memory (int status, bfd_vma memaddr, struct disassemble_info *info)
 			   "Address 0x%" PRIx64 " is out of bounds.\n", memaddr);
 }
 
-/* This could be in a separate file, to save miniscule amounts of space
+/* This could be in a separate file, to save minuscule amounts of space
    in statically linked executables.  */
 
 /* Just print the address is hex.  This is included for completeness even
