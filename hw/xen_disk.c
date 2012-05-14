@@ -154,7 +154,7 @@ static void ioreq_finish(struct ioreq *ioreq)
     blkdev->requests_finished++;
 }
 
-static void ioreq_release(struct ioreq *ioreq)
+static void ioreq_release(struct ioreq *ioreq, bool finish)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
@@ -162,7 +162,11 @@ static void ioreq_release(struct ioreq *ioreq)
     memset(ioreq, 0, sizeof(*ioreq));
     ioreq->blkdev = blkdev;
     QLIST_INSERT_HEAD(&blkdev->freelist, ioreq, list);
-    blkdev->requests_finished--;
+    if (finish) {
+        blkdev->requests_finished--;
+    } else {
+        blkdev->requests_inflight--;
+    }
 }
 
 /*
@@ -457,7 +461,7 @@ static void blk_send_response_all(struct XenBlkDev *blkdev)
     while (!QLIST_EMPTY(&blkdev->finished)) {
         ioreq = QLIST_FIRST(&blkdev->finished);
         send_notify += blk_send_response_one(ioreq);
-        ioreq_release(ioreq);
+        ioreq_release(ioreq, true);
     }
     if (send_notify) {
         xen_be_send_notify(&blkdev->xendev);
@@ -513,7 +517,7 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
             if (blk_send_response_one(ioreq)) {
                 xen_be_send_notify(&blkdev->xendev);
             }
-            ioreq_release(ioreq);
+            ioreq_release(ioreq, false);
             continue;
         }
 
