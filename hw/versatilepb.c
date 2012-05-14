@@ -209,7 +209,7 @@ static void versatile_init(ram_addr_t ram_size,
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(&cpu->env);
+    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("pl190", 0x10140000,
                                 cpu_pic[0], cpu_pic[1], NULL);
     for (n = 0; n < 32; n++) {

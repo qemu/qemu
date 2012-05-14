@@ -192,7 +192,6 @@ static void highbank_init(ram_addr_t ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    CPUARMState *env = NULL;
     DeviceState *dev;
     SysBusDevice *busdev;
     qemu_irq *irqp;
@@ -215,10 +214,10 @@ static void highbank_init(ram_addr_t ram_size,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        env = &cpu->env;
+
         /* This will become a QOM property eventually */
         cpu->reset_cbar = GIC_BASE_ADDR;
-        irqp = arm_pic_init_cpu(env);
+        irqp = arm_pic_init_cpu(cpu);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
 

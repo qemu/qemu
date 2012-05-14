@@ -71,7 +71,7 @@ static void zynq_init(ram_addr_t ram_size, const char *boot_device,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    irqp = arm_pic_init_cpu(&cpu->env);
+    irqp = arm_pic_init_cpu(cpu);
     cpu_irq = irqp[ARM_PIC_CPU_IRQ];
 
     /* max 2GB ram */

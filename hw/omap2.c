@@ -2277,7 +2277,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     s->l4 = omap_l4_init(sysmem, OMAP2_L4_BASE, 54);
 
     /* Actually mapped at any 2K boundary in the ARM11 private-peripheral if */
-    cpu_irq = arm_pic_init_cpu(&s->cpu->env);
+    cpu_irq = arm_pic_init_cpu(s->cpu);
     s->ih[0] = qdev_create(NULL, "omap2-intc");
     qdev_prop_set_uint8(s->ih[0], "revision", 0x21);
     qdev_prop_set_ptr(s->ih[0], "fclk", omap_findclk(s, "mpu_intc_fclk"));

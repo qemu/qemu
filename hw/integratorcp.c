@@ -476,7 +476,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     qdev_init_nofail(dev);
     sysbus_mmio_map((SysBusDevice *)dev, 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(&cpu->env);
+    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("integrator_pic", 0x14000000,
                                 cpu_pic[ARM_PIC_CPU_IRQ],
                                 cpu_pic[ARM_PIC_CPU_FIQ], NULL);

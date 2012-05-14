@@ -16,7 +16,7 @@
 /* The CPU is also modeled as an interrupt controller.  */
 #define ARM_PIC_CPU_IRQ 0
 #define ARM_PIC_CPU_FIQ 1
-qemu_irq *arm_pic_init_cpu(CPUARMState *env);
+qemu_irq *arm_pic_init_cpu(ARMCPU *cpu);
 
 /* armv7m.c */
 qemu_irq *armv7m_init(MemoryRegion *address_space_mem,

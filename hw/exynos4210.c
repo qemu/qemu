@@ -112,8 +112,9 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
             fprintf(stderr, "Unable to find CPU %d definition\n", n);
             exit(1);
         }
+
         /* Create PIC controller for each processor instance */
-        irqp = arm_pic_init_cpu(&s->cpu[n]->env);
+        irqp = arm_pic_init_cpu(s->cpu[n]);
 
         /*
          * Get GICs gpio_in cpu_irq to connect a combiner to them later.

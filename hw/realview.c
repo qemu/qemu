@@ -94,7 +94,7 @@ static void realview_init(ram_addr_t ram_size,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(&cpu->env);
+        irqp = arm_pic_init_cpu(cpu);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
     env = &cpu->env;
