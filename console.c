@@ -1303,16 +1303,20 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
                         int linesize, PixelFormat pf, int newflags)
 {
     void *data;
+    size_t new_size = linesize * height;
+    if (surface->flags & QEMU_ALLOCATED_FLAG) {
+        size_t old_size = surface->linesize * surface->height;
+        data = g_realloc(surface->data, new_size);
+        if (old_size < new_size) {
+            memset(surface->data + old_size, 0, new_size - old_size);
+        }
+    } else {
+        data = g_malloc0(new_size);
+    }
     surface->width = width;
     surface->height = height;
     surface->linesize = linesize;
     surface->pf = pf;
-    if (surface->flags & QEMU_ALLOCATED_FLAG) {
-        data = g_realloc(surface->data,
-                            surface->linesize * surface->height);
-    } else {
-        data = g_malloc(surface->linesize * surface->height);
-    }
     surface->data = (uint8_t *)data;
     surface->flags = newflags | QEMU_ALLOCATED_FLAG;
 #ifdef HOST_WORDS_BIGENDIAN
@@ -1410,7 +1414,7 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
     DisplayState *ds;
 
     ds = (DisplayState *) g_malloc0(sizeof(DisplayState));
-    ds->allocator = &default_allocator; 
+    ds->allocator = &default_allocator;
     ds->surface = qemu_create_displaysurface(ds, 640, 480);
 
     s = new_console(ds, GRAPHIC_CONSOLE);
