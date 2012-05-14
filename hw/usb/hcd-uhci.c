@@ -376,13 +376,6 @@ static void uhci_reset(void *opaque)
     uhci_update_irq(s);
 }
 
-static void uhci_pre_save(void *opaque)
-{
-    UHCIState *s = opaque;
-
-    uhci_async_cancel_all(s);
-}
-
 static const VMStateDescription vmstate_uhci_port = {
     .name = "uhci port",
     .version_id = 1,
@@ -399,7 +392,6 @@ static const VMStateDescription vmstate_uhci = {
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .pre_save = uhci_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, UHCIState),
         VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState),
