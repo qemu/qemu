@@ -173,7 +173,7 @@ static void versatile_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model,
                      int board_id)
 {
-    CPUARMState *env;
+    ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     qemu_irq *cpu_pic;
@@ -189,10 +189,11 @@ static void versatile_init(ram_addr_t ram_size,
     int done_smc = 0;
     DriveInfo *dinfo;
 
-    if (!cpu_model)
+    if (!cpu_model) {
         cpu_model = "arm926";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_arm_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
@@ -208,7 +209,7 @@ static void versatile_init(ram_addr_t ram_size,
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(env);
+    cpu_pic = arm_pic_init_cpu(&cpu->env);
     dev = sysbus_create_varargs("pl190", 0x10140000,
                                 cpu_pic[0], cpu_pic[1], NULL);
     for (n = 0; n < 32; n++) {
@@ -338,7 +339,7 @@ static void versatile_init(ram_addr_t ram_size,
     versatile_binfo.kernel_cmdline = kernel_cmdline;
     versatile_binfo.initrd_filename = initrd_filename;
     versatile_binfo.board_id = board_id;
-    arm_load_kernel(env, &versatile_binfo);
+    arm_load_kernel(&cpu->env, &versatile_binfo);
 }
 
 static void vpb_init(ram_addr_t ram_size,
