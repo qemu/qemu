@@ -753,10 +753,12 @@ static void set_mac(Object *obj, Visitor *v, void *opaque,
         }
         mac->a[i] = strtol(str+pos, &p, 16);
     }
+    g_free(str);
     return;
 
 inval:
     error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+    g_free(str);
 }
 
 PropertyInfo qdev_prop_macaddr = {
