@@ -107,13 +107,13 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     SysBusDevice *busdev;
 
     for (n = 0; n < EXYNOS4210_NCPUS; n++) {
-        s->env[n] = cpu_init("cortex-a9");
-        if (!s->env[n]) {
+        s->cpu[n] = cpu_arm_init("cortex-a9");
+        if (!s->cpu[n]) {
             fprintf(stderr, "Unable to find CPU %d definition\n", n);
             exit(1);
         }
         /* Create PIC controller for each processor instance */
-        irqp = arm_pic_init_cpu(s->env[n]);
+        irqp = arm_pic_init_cpu(&s->cpu[n]->env);
 
         /*
          * Get GICs gpio_in cpu_irq to connect a combiner to them later.
