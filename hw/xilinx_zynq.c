@@ -50,7 +50,7 @@ static void zynq_init(ram_addr_t ram_size, const char *boot_device,
                         const char *kernel_filename, const char *kernel_cmdline,
                         const char *initrd_filename, const char *cpu_model)
 {
-    CPUARMState *env = NULL;
+    ARMCPU *cpu;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ext_ram = g_new(MemoryRegion, 1);
     MemoryRegion *ocm_ram = g_new(MemoryRegion, 1);
@@ -66,12 +66,12 @@ static void zynq_init(ram_addr_t ram_size, const char *boot_device,
         cpu_model = "cortex-a9";
     }
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_arm_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    irqp = arm_pic_init_cpu(env);
+    irqp = arm_pic_init_cpu(&cpu->env);
     cpu_irq = irqp[ARM_PIC_CPU_IRQ];
 
     /* max 2GB ram */
