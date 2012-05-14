@@ -226,7 +226,7 @@ static Coroutine *coroutine_new(void)
      * called.
      */
     coTS->tr_called = 0;
-    kill(getpid(), SIGUSR2);
+    pthread_kill(pthread_self(), SIGUSR2);
     sigfillset(&sigs);
     sigdelset(&sigs, SIGUSR2);
     while (!coTS->tr_called) {
