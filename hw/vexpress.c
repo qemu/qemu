@@ -438,7 +438,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     vexpress_binfo.smp_loader_start = map[VE_SRAM];
     vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
     vexpress_binfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
-    arm_load_kernel(first_cpu, &vexpress_binfo);
+    arm_load_kernel(arm_env_get_cpu(first_cpu), &vexpress_binfo);
 }
 
 static void vexpress_a9_init(ram_addr_t ram_size,

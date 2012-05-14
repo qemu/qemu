@@ -59,7 +59,7 @@ struct arm_boot_info {
     target_phys_addr_t initrd_size;
     target_phys_addr_t entry;
 };
-void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info);
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 
 /* Multiplication factor to convert from system clock ticks to qemu timer
    ticks.  */

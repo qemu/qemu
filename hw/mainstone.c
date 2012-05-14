@@ -168,7 +168,7 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     mainstone_binfo.kernel_cmdline = kernel_cmdline;
     mainstone_binfo.initrd_filename = initrd_filename;
     mainstone_binfo.board_id = arm_id;
-    arm_load_kernel(&mpu->cpu->env, &mainstone_binfo);
+    arm_load_kernel(mpu->cpu, &mainstone_binfo);
 }
 
 static void mainstone_init(ram_addr_t ram_size,

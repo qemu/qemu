@@ -1651,7 +1651,7 @@ static void musicpal_init(ram_addr_t ram_size,
     musicpal_binfo.kernel_filename = kernel_filename;
     musicpal_binfo.kernel_cmdline = kernel_cmdline;
     musicpal_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(&cpu->env, &musicpal_binfo);
+    arm_load_kernel(cpu, &musicpal_binfo);
 }
 
 static QEMUMachine musicpal_machine = {

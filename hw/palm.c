@@ -265,7 +265,7 @@ static void palmte_init(ram_addr_t ram_size,
         palmte_binfo.kernel_filename = kernel_filename;
         palmte_binfo.kernel_cmdline = kernel_cmdline;
         palmte_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(&mpu->cpu->env, &palmte_binfo);
+        arm_load_kernel(mpu->cpu, &palmte_binfo);
     }
 
     /* FIXME: We shouldn't really be doing this here.  The LCD controller

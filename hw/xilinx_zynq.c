@@ -137,7 +137,7 @@ static void zynq_init(ram_addr_t ram_size, const char *boot_device,
     zynq_binfo.nb_cpus = 1;
     zynq_binfo.board_id = 0xd32;
     zynq_binfo.loader_start = 0;
-    arm_load_kernel(first_cpu, &zynq_binfo);
+    arm_load_kernel(arm_env_get_cpu(first_cpu), &zynq_binfo);
 }
 
 static QEMUMachine zynq_machine = {

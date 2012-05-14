@@ -303,9 +303,9 @@ static void do_cpu_reset(void *opaque)
     }
 }
 
-void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
-    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUARMState *env = &cpu->env;
     int kernel_size;
     int initrd_size;
     int n;

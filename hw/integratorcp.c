@@ -502,7 +502,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     integrator_binfo.kernel_filename = kernel_filename;
     integrator_binfo.kernel_cmdline = kernel_cmdline;
     integrator_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(&cpu->env, &integrator_binfo);
+    arm_load_kernel(cpu, &integrator_binfo);
 }
 
 static QEMUMachine integratorcp_machine = {

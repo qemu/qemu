@@ -202,7 +202,7 @@ static void sx1_init(ram_addr_t ram_size,
         sx1_binfo.kernel_filename = kernel_filename;
         sx1_binfo.kernel_cmdline = kernel_cmdline;
         sx1_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(&mpu->cpu->env, &sx1_binfo);
+        arm_load_kernel(mpu->cpu, &sx1_binfo);
     }
 
     /* TODO: fix next line */

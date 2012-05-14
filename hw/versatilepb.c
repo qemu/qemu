@@ -339,7 +339,7 @@ static void versatile_init(ram_addr_t ram_size,
     versatile_binfo.kernel_cmdline = kernel_cmdline;
     versatile_binfo.initrd_filename = initrd_filename;
     versatile_binfo.board_id = board_id;
-    arm_load_kernel(&cpu->env, &versatile_binfo);
+    arm_load_kernel(cpu, &versatile_binfo);
 }
 
 static void vpb_init(ram_addr_t ram_size,
