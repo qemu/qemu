@@ -506,6 +506,17 @@ static void usb_msd_password_cb(void *opaque, int err)
         qdev_unplug(&s->dev.qdev, NULL);
 }
 
+static void *usb_msd_load_request(QEMUFile *f, SCSIRequest *req)
+{
+    MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
+
+    /* nothing to load, just store req in our state struct */
+    assert(s->req == NULL);
+    scsi_req_ref(req);
+    s->req = req;
+    return NULL;
+}
+
 static const struct SCSIBusInfo usb_msd_scsi_info = {
     .tcq = false,
     .max_target = 0,
@@ -513,7 +524,8 @@ static const struct SCSIBusInfo usb_msd_scsi_info = {
 
     .transfer_data = usb_msd_transfer_data,
     .complete = usb_msd_command_complete,
-    .cancel = usb_msd_request_cancelled
+    .cancel = usb_msd_request_cancelled,
+    .load_request = usb_msd_load_request,
 };
 
 static int usb_msd_initfn(USBDevice *dev)
@@ -633,11 +645,18 @@ static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
 
 static const VMStateDescription vmstate_usb_msd = {
     .name = "usb-storage",
-    .unmigratable = 1, /* FIXME: handle transactions which are in flight */
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField []) {
         VMSTATE_USB_DEVICE(dev, MSDState),
+        VMSTATE_UINT32(mode, MSDState),
+        VMSTATE_UINT32(scsi_len, MSDState),
+        VMSTATE_UINT32(scsi_off, MSDState),
+        VMSTATE_UINT32(data_len, MSDState),
+        VMSTATE_UINT32(csw.sig, MSDState),
+        VMSTATE_UINT32(csw.tag, MSDState),
+        VMSTATE_UINT32(csw.residue, MSDState),
+        VMSTATE_UINT8(csw.status, MSDState),
         VMSTATE_END_OF_LIST()
     }
 };
