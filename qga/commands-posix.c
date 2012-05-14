@@ -37,8 +37,8 @@
 void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
 {
     const char *shutdown_flag;
-    int ret, status;
     pid_t rpid, pid;
+    int status;
 
     slog("guest-shutdown called, mode: %s", mode);
     if (!has_mode || strcmp(mode, "powerdown") == 0) {
@@ -57,16 +57,13 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
     if (pid == 0) {
         /* child, start the shutdown */
         setsid();
-        fclose(stdin);
-        fclose(stdout);
-        fclose(stderr);
+        reopen_fd_to_null(0);
+        reopen_fd_to_null(1);
+        reopen_fd_to_null(2);
 
-        ret = execl("/sbin/shutdown", "shutdown", shutdown_flag, "+0",
-                    "hypervisor initiated shutdown", (char*)NULL);
-        if (ret) {
-            slog("guest-shutdown failed: %s", strerror(errno));
-        }
-        exit(!!ret);
+        execle("/sbin/shutdown", "shutdown", shutdown_flag, "+0",
+               "hypervisor initiated shutdown", (char*)NULL, environ);
+        _exit(EXIT_FAILURE);
     } else if (pid < 0) {
         goto exit_err;
     }

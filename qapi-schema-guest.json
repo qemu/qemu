@@ -126,8 +126,7 @@
 # @guest-shutdown:
 #
 # Initiate guest-activated shutdown. Note: this is an asynchronous
-# shutdown request, with no guaruntee of successful shutdown. Errors
-# will be logged to guest's syslog.
+# shutdown request, with no guarantee of successful shutdown.
 #
 # @mode: #optional "halt", "powerdown" (default), or "reboot"
 #
