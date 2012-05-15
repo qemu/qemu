@@ -530,7 +530,6 @@ static void ivshmem_reset(DeviceState *d)
     IVShmemState *s = DO_UPCAST(IVShmemState, dev.qdev, d);
 
     s->intrstatus = 0;
-    msix_reset(&s->dev);
     ivshmem_use_msix(s);
     return;
 }

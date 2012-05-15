@@ -81,7 +81,7 @@ static void ioh3420_write_config(PCIDevice *d,
 static void ioh3420_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
-    msi_reset(d);
+
     ioh3420_aer_vector_update(d);
     pcie_cap_root_reset(d);
     pcie_cap_deverr_reset(d);

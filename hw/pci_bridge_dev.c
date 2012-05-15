@@ -119,10 +119,8 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
 static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
 {
     PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+
     pci_bridge_reset(qdev);
-    if (msi_present(dev)) {
-        msi_reset(dev);
-    }
     shpc_reset(dev);
 }
 

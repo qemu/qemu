@@ -88,7 +88,6 @@ static void pci_ich9_reset(DeviceState *dev)
 {
     struct AHCIPCIState *d = DO_UPCAST(struct AHCIPCIState, card.qdev, dev);
 
-    msi_reset(&d->card);
     ahci_reset(&d->ahci);
 }
 

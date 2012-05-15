@@ -47,7 +47,7 @@ static void xio3130_upstream_write_config(PCIDevice *d, uint32_t address,
 static void xio3130_upstream_reset(DeviceState *qdev)
 {
     PCIDevice *d = PCI_DEVICE(qdev);
-    msi_reset(d);
+
     pci_bridge_reset(qdev);
     pcie_cap_deverr_reset(d);
 }
