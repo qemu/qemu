@@ -68,7 +68,7 @@ tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marsh
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o $(trace-obj-y)
-tests/fdc-test$(EXESUF): tests/fdc-test.o tests/libqtest.o
+tests/fdc-test$(EXESUF): tests/fdc-test.o tests/libqtest.o $(trace-obj-y)
 
 # QTest rules
 
