@@ -522,6 +522,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int buflen = 0;
+    int start;
 
     if (req->cmd.buf[1] & 0x1) {
         /* Vital product data */
@@ -530,14 +531,14 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         outbuf[buflen++] = s->qdev.type & 0x1f;
         outbuf[buflen++] = page_code ; // this page
         outbuf[buflen++] = 0x00;
+        outbuf[buflen++] = 0x00;
+        start = buflen;
 
         switch (page_code) {
         case 0x00: /* Supported page codes, mandatory */
         {
-            int pages;
             DPRINTF("Inquiry EVPD[Supported pages] "
                     "buffer size %zd\n", req->cmd.xfer);
-            pages = buflen++;
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
             if (s->serial) {
                 outbuf[buflen++] = 0x80; // unit serial number
@@ -547,7 +548,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                 outbuf[buflen++] = 0xb0; // block limits
                 outbuf[buflen++] = 0xb2; // thin provisioning
             }
-            outbuf[pages] = buflen - pages - 1; // number of pages
             break;
         }
         case 0x80: /* Device serial number, optional */
@@ -566,7 +566,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
             DPRINTF("Inquiry EVPD[Serial number] "
                     "buffer size %zd\n", req->cmd.xfer);
-            outbuf[buflen++] = l;
             memcpy(outbuf+buflen, s->serial, l);
             buflen += l;
             break;
@@ -584,7 +583,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             DPRINTF("Inquiry EVPD[Device identification] "
                     "buffer size %zd\n", req->cmd.xfer);
 
-            outbuf[buflen++] = 4 + id_len;
             outbuf[buflen++] = 0x2; // ASCII
             outbuf[buflen++] = 0;   // not officially assigned
             outbuf[buflen++] = 0;   // reserved
@@ -609,8 +607,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                 return -1;
             }
             /* required VPD size with unmap support */
-            outbuf[3] = buflen = 0x3c;
-
+            buflen = 0x40;
             memset(outbuf + 4, 0, buflen - 4);
 
             /* optimal transfer length granularity */
@@ -632,7 +629,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         }
         case 0xb2: /* thin provisioning */
         {
-            outbuf[3] = buflen = 8;
+            buflen = 8;
             outbuf[4] = 0;
             outbuf[5] = 0x60; /* write_same 10/16 supported */
             outbuf[6] = s->qdev.conf.discard_granularity ? 2 : 1;
@@ -643,6 +640,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             return -1;
         }
         /* done with EVPD */
+        assert(buflen - start <= 255);
+        outbuf[start - 1] = buflen - start;
         return buflen;
     }
 
