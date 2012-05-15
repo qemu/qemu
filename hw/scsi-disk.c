@@ -67,6 +67,7 @@ struct SCSIDiskState
     bool media_changed;
     bool media_event;
     bool eject_request;
+    uint64_t wwn;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -587,9 +588,17 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[buflen++] = 0;   // not officially assigned
             outbuf[buflen++] = 0;   // reserved
             outbuf[buflen++] = id_len; // length of data following
-
             memcpy(outbuf+buflen, str, id_len);
             buflen += id_len;
+
+            if (s->wwn) {
+                outbuf[buflen++] = 0x1; // Binary
+                outbuf[buflen++] = 0x3; // NAA
+                outbuf[buflen++] = 0;   // reserved
+                outbuf[buflen++] = 8;
+                stq_be_p(&outbuf[buflen], s->wwn);
+                buflen += 8;
+            }
             break;
         }
         case 0xb0: /* block limits */
@@ -1924,6 +1933,7 @@ static Property scsi_hd_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
+    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1968,6 +1978,7 @@ static TypeInfo scsi_hd_info = {
 
 static Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
+    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2029,6 +2040,7 @@ static Property scsi_disk_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
+    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
