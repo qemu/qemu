@@ -1099,7 +1099,7 @@ static int kvm_irqchip_create(KVMState *s)
 
     if (QTAILQ_EMPTY(&list->head) ||
         !qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
-                           "kernel_irqchip", false) ||
+                           "kernel_irqchip", true) ||
         !kvm_check_extension(s, KVM_CAP_IRQCHIP)) {
         return 0;
     }
