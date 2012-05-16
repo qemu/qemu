@@ -40,6 +40,11 @@ static void xen_apic_init(APICCommonState *s)
 {
     memory_region_init_io(&s->io_memory, &xen_apic_io_ops, s, "xen-apic-msi",
                           MSI_SPACE_SIZE);
+
+#if defined(CONFIG_XEN_CTRL_INTERFACE_VERSION) \
+    && CONFIG_XEN_CTRL_INTERFACE_VERSION >= 420
+    msi_supported = true;
+#endif
 }
 
 static void xen_apic_set_base(APICCommonState *s, uint64_t val)

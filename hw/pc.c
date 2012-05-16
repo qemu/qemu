@@ -911,15 +911,6 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
         apic_mapped = 1;
     }
 
-    /* KVM does not support MSI yet. */
-    if (!kvm_irqchip_in_kernel()) {
-        msi_supported = true;
-    }
-
-    if (xen_msi_support()) {
-        msi_supported = true;
-    }
-
     return dev;
 }
 
