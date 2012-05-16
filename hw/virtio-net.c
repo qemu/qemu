@@ -891,11 +891,15 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIONet *n = opaque;
     int i;
+    int ret;
 
     if (version_id < 2 || version_id > VIRTIO_NET_VM_VERSION)
         return -EINVAL;
 
-    virtio_load(&n->vdev, f);
+    ret = virtio_load(&n->vdev, f);
+    if (ret) {
+        return ret;
+    }
 
     qemu_get_buffer(f, n->mac, ETH_ALEN);
     n->tx_waiting = qemu_get_be32(f);
