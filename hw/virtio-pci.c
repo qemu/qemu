@@ -726,7 +726,6 @@ static int virtio_blk_exit_pci(PCIDevice *pci_dev)
 
     virtio_pci_stop_ioeventfd(proxy);
     virtio_blk_exit(proxy->vdev);
-    blockdev_mark_auto_del(proxy->block.bs);
     return virtio_exit_pci(pci_dev);
 }
 
