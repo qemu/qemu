@@ -145,19 +145,11 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
     return req;
 }
 
-#ifdef __linux__
 static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 {
-    struct sg_io_hdr hdr;
     int ret;
-    int status;
+    int status = VIRTIO_BLK_S_OK;
     int i;
-
-    if ((req->dev->vdev.guest_features & (1 << VIRTIO_BLK_F_SCSI)) == 0) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
-        g_free(req);
-        return;
-    }
 
     /*
      * We require at least one output segment each for the virtio_blk_outhdr
@@ -173,20 +165,26 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
     }
 
     /*
-     * No support for bidirection commands yet.
-     */
-    if (req->elem.out_num > 2 && req->elem.in_num > 3) {
-        virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
-        g_free(req);
-        return;
-    }
-
-    /*
      * The scsi inhdr is placed in the second-to-last input segment, just
      * before the regular inhdr.
      */
     req->scsi = (void *)req->elem.in_sg[req->elem.in_num - 2].iov_base;
 
+    if ((req->dev->vdev.guest_features & (1 << VIRTIO_BLK_F_SCSI)) == 0) {
+        status = VIRTIO_BLK_S_UNSUPP;
+        goto fail;
+    }
+
+    /*
+     * No support for bidirection commands yet.
+     */
+    if (req->elem.out_num > 2 && req->elem.in_num > 3) {
+        status = VIRTIO_BLK_S_UNSUPP;
+        goto fail;
+    }
+
+#ifdef __linux__
+    struct sg_io_hdr hdr;
     memset(&hdr, 0, sizeof(struct sg_io_hdr));
     hdr.interface_id = 'S';
     hdr.cmd_len = req->elem.out_sg[1].iov_len;
@@ -230,12 +228,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
     ret = bdrv_ioctl(req->dev->bs, SG_IO, &hdr);
     if (ret) {
         status = VIRTIO_BLK_S_UNSUPP;
-        hdr.status = ret;
-        hdr.resid = hdr.dxfer_len;
-    } else if (hdr.status) {
-        status = VIRTIO_BLK_S_IOERR;
-    } else {
-        status = VIRTIO_BLK_S_OK;
+        goto fail;
     }
 
     /*
@@ -258,14 +251,16 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 
     virtio_blk_req_complete(req, status);
     g_free(req);
-}
 #else
-static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
-{
-    virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+    abort();
+#endif
+
+fail:
+    /* Just put anything nonzero so that the ioctl fails in the guest.  */
+    stl_p(&req->scsi->errors, 255);
+    virtio_blk_req_complete(req, status);
     g_free(req);
 }
-#endif /* __linux__ */
 
 typedef struct MultiReqBuffer {
     BlockRequest        blkreq[32];
