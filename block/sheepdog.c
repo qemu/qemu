@@ -1249,24 +1249,26 @@ out:
 
 static int sd_create(const char *filename, QEMUOptionParameter *options)
 {
-    int ret;
+    int ret = 0;
     uint32_t vid = 0, base_vid = 0;
     int64_t vdi_size = 0;
     char *backing_file = NULL;
-    BDRVSheepdogState s;
+    BDRVSheepdogState *s;
     char vdi[SD_MAX_VDI_LEN], tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snapid;
     int prealloc = 0;
     const char *vdiname;
 
+    s = g_malloc0(sizeof(BDRVSheepdogState));
+
     strstart(filename, "sheepdog:", &vdiname);
 
-    memset(&s, 0, sizeof(s));
     memset(vdi, 0, sizeof(vdi));
     memset(tag, 0, sizeof(tag));
-    if (parse_vdiname(&s, vdiname, vdi, &snapid, tag) < 0) {
+    if (parse_vdiname(s, vdiname, vdi, &snapid, tag) < 0) {
         error_report("invalid filename");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     while (options && options->name) {
@@ -1282,7 +1284,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
             } else {
                 error_report("Invalid preallocation mode: '%s'",
                              options->value.s);
-                return -EINVAL;
+                ret = -EINVAL;
+                goto out;
             }
         }
         options++;
@@ -1290,7 +1293,8 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
 
     if (vdi_size > SD_MAX_VDI_SIZE) {
         error_report("too big image size");
-        return -EINVAL;
+        ret = -EINVAL;
+        goto out;
     }
 
     if (backing_file) {
@@ -1302,12 +1306,13 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
         drv = bdrv_find_protocol(backing_file);
         if (!drv || strcmp(drv->protocol_name, "sheepdog") != 0) {
             error_report("backing_file must be a sheepdog image");
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
 
         ret = bdrv_file_open(&bs, backing_file, 0);
         if (ret < 0) {
-            return ret;
+            goto out;
         }
 
         s = bs->opaque;
@@ -1315,19 +1320,23 @@ static int sd_create(const char *filename, QEMUOptionParameter *options)
         if (!is_snapshot(&s->inode)) {
             error_report("cannot clone from a non snapshot vdi");
             bdrv_delete(bs);
-            return -EINVAL;
+            ret = -EINVAL;
+            goto out;
         }
 
         base_vid = s->inode.vdi_id;
         bdrv_delete(bs);
     }
 
-    ret = do_sd_create(vdi, vdi_size, base_vid, &vid, 0, s.addr, s.port);
+    ret = do_sd_create(vdi, vdi_size, base_vid, &vid, 0, s->addr, s->port);
     if (!prealloc || ret) {
-        return ret;
+        goto out;
     }
 
-    return sd_prealloc(filename);
+    ret = sd_prealloc(filename);
+out:
+    g_free(s);
+    return ret;
 }
 
 static void sd_close(BlockDriverState *bs)
