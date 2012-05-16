@@ -29,7 +29,7 @@ typedef struct VirtIOBlock
     void *rq;
     QEMUBH *bh;
     BlockConf *conf;
-    char *serial;
+    VirtIOBlkConf *blk;
     unsigned short sector_mask;
     DeviceState *qdev;
 } VirtIOBlock;
@@ -389,7 +389,7 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
          * terminated by '\0' only when shorter than buffer.
          */
         strncpy(req->elem.in_sg[0].iov_base,
-                s->serial ? s->serial : "",
+                s->blk->serial ? s->blk->serial : "",
                 MIN(req->elem.in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
         g_free(req);
@@ -563,28 +563,27 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
-VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
-                              char **serial)
+VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
 {
     VirtIOBlock *s;
     int cylinders, heads, secs;
     static int virtio_blk_id;
     DriveInfo *dinfo;
 
-    if (!conf->bs) {
+    if (!blk->conf.bs) {
         error_report("drive property not set");
         return NULL;
     }
-    if (!bdrv_is_inserted(conf->bs)) {
+    if (!bdrv_is_inserted(blk->conf.bs)) {
         error_report("Device needs media, but drive is empty");
         return NULL;
     }
 
-    if (!*serial) {
+    if (!blk->serial) {
         /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(conf->bs);
+        dinfo = drive_get_by_blockdev(blk->conf.bs);
         if (*dinfo->serial) {
-            *serial = strdup(dinfo->serial);
+            blk->serial = strdup(dinfo->serial);
         }
     }
 
@@ -595,9 +594,9 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
-    s->bs = conf->bs;
-    s->conf = conf;
-    s->serial = *serial;
+    s->bs = blk->conf.bs;
+    s->conf = &blk->conf;
+    s->blk = blk;
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
     bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
@@ -609,10 +608,10 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
-    bdrv_set_buffer_alignment(s->bs, conf->logical_block_size);
+    bdrv_set_buffer_alignment(s->bs, s->conf->logical_block_size);
 
     bdrv_iostatus_enable(s->bs);
-    add_boot_device_path(conf->bootindex, dev, "/disk@0,0");
+    add_boot_device_path(s->conf->bootindex, dev, "/disk@0,0");
 
     return &s->vdev;
 }

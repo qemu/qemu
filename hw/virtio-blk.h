@@ -97,6 +97,12 @@ struct virtio_scsi_inhdr
     uint32_t residual;
 };
 
+struct VirtIOBlkConf
+{
+    BlockConf conf;
+    char *serial;
+};
+
 #ifdef __linux__
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
@@ -105,4 +111,5 @@ struct virtio_scsi_inhdr
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
 #endif
+
 #endif
