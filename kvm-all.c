@@ -24,6 +24,7 @@
 #include "qemu-barrier.h"
 #include "sysemu.h"
 #include "hw/hw.h"
+#include "hw/msi.h"
 #include "gdbstub.h"
 #include "kvm.h"
 #include "bswap.h"
@@ -48,6 +49,8 @@
     do { } while (0)
 #endif
 
+#define KVM_MSI_HASHTAB_SIZE    256
+
 typedef struct KVMSlot
 {
     target_phys_addr_t start_addr;
@@ -58,6 +61,11 @@ typedef struct KVMSlot
 } KVMSlot;
 
 typedef struct kvm_dirty_log KVMDirtyLog;
+
+typedef struct KVMMSIRoute {
+    struct kvm_irq_routing_entry kroute;
+    QTAILQ_ENTRY(KVMMSIRoute) entry;
+} KVMMSIRoute;
 
 struct KVMState
 {
@@ -87,6 +95,7 @@ struct KVMState
     int nr_allocated_irq_routes;
     uint32_t *used_gsi_bitmap;
     unsigned int gsi_count;
+    QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
 #endif
 };
 
@@ -862,9 +871,14 @@ static void set_gsi(KVMState *s, unsigned int gsi)
     s->used_gsi_bitmap[gsi / 32] |= 1U << (gsi % 32);
 }
 
+static void clear_gsi(KVMState *s, unsigned int gsi)
+{
+    s->used_gsi_bitmap[gsi / 32] &= ~(1U << (gsi % 32));
+}
+
 static void kvm_init_irq_routing(KVMState *s)
 {
-    int gsi_count;
+    int gsi_count, i;
 
     gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING);
     if (gsi_count > 0) {
@@ -883,6 +897,10 @@ static void kvm_init_irq_routing(KVMState *s)
 
     s->irq_routes = g_malloc0(sizeof(*s->irq_routes));
     s->nr_allocated_irq_routes = 0;
+
+    for (i = 0; i < KVM_MSI_HASHTAB_SIZE; i++) {
+        QTAILQ_INIT(&s->msi_hashtab[i]);
+    }
 
     kvm_arch_init_irq_routing(s);
 }
@@ -934,10 +952,129 @@ int kvm_irqchip_commit_routes(KVMState *s)
     return kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
 }
 
+static void kvm_irqchip_release_virq(KVMState *s, int virq)
+{
+    struct kvm_irq_routing_entry *e;
+    int i;
+
+    for (i = 0; i < s->irq_routes->nr; i++) {
+        e = &s->irq_routes->entries[i];
+        if (e->gsi == virq) {
+            s->irq_routes->nr--;
+            *e = s->irq_routes->entries[s->irq_routes->nr];
+        }
+    }
+    clear_gsi(s, virq);
+}
+
+static unsigned int kvm_hash_msi(uint32_t data)
+{
+    /* This is optimized for IA32 MSI layout. However, no other arch shall
+     * repeat the mistake of not providing a direct MSI injection API. */
+    return data & 0xff;
+}
+
+static void kvm_flush_dynamic_msi_routes(KVMState *s)
+{
+    KVMMSIRoute *route, *next;
+    unsigned int hash;
+
+    for (hash = 0; hash < KVM_MSI_HASHTAB_SIZE; hash++) {
+        QTAILQ_FOREACH_SAFE(route, &s->msi_hashtab[hash], entry, next) {
+            kvm_irqchip_release_virq(s, route->kroute.gsi);
+            QTAILQ_REMOVE(&s->msi_hashtab[hash], route, entry);
+            g_free(route);
+        }
+    }
+}
+
+static int kvm_irqchip_get_virq(KVMState *s)
+{
+    uint32_t *word = s->used_gsi_bitmap;
+    int max_words = ALIGN(s->gsi_count, 32) / 32;
+    int i, bit;
+    bool retry = true;
+
+again:
+    /* Return the lowest unused GSI in the bitmap */
+    for (i = 0; i < max_words; i++) {
+        bit = ffs(~word[i]);
+        if (!bit) {
+            continue;
+        }
+
+        return bit - 1 + i * 32;
+    }
+    if (retry) {
+        retry = false;
+        kvm_flush_dynamic_msi_routes(s);
+        goto again;
+    }
+    return -ENOSPC;
+
+}
+
+static KVMMSIRoute *kvm_lookup_msi_route(KVMState *s, MSIMessage msg)
+{
+    unsigned int hash = kvm_hash_msi(msg.data);
+    KVMMSIRoute *route;
+
+    QTAILQ_FOREACH(route, &s->msi_hashtab[hash], entry) {
+        if (route->kroute.u.msi.address_lo == (uint32_t)msg.address &&
+            route->kroute.u.msi.address_hi == (msg.address >> 32) &&
+            route->kroute.u.msi.data == msg.data) {
+            return route;
+        }
+    }
+    return NULL;
+}
+
+int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
+{
+    KVMMSIRoute *route;
+
+    route = kvm_lookup_msi_route(s, msg);
+    if (!route) {
+        int virq, ret;
+
+        virq = kvm_irqchip_get_virq(s);
+        if (virq < 0) {
+            return virq;
+        }
+
+        route = g_malloc(sizeof(KVMMSIRoute));
+        route->kroute.gsi = virq;
+        route->kroute.type = KVM_IRQ_ROUTING_MSI;
+        route->kroute.flags = 0;
+        route->kroute.u.msi.address_lo = (uint32_t)msg.address;
+        route->kroute.u.msi.address_hi = msg.address >> 32;
+        route->kroute.u.msi.data = msg.data;
+
+        kvm_add_routing_entry(s, &route->kroute);
+
+        QTAILQ_INSERT_TAIL(&s->msi_hashtab[kvm_hash_msi(msg.data)], route,
+                           entry);
+
+        ret = kvm_irqchip_commit_routes(s);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    assert(route->kroute.type == KVM_IRQ_ROUTING_MSI);
+
+    return kvm_irqchip_set_irq(s, route->kroute.gsi, 1);
+}
+
 #else /* !KVM_CAP_IRQ_ROUTING */
 
 static void kvm_init_irq_routing(KVMState *s)
 {
+}
+
+int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
+{
+    abort();
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
