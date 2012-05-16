@@ -1103,7 +1103,7 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
         }
     }
 
-    if (snapid) {
+    if (snapid || tag[0] != '\0') {
         dprintf("%" PRIx32 " snapshot inode was open.\n", vid);
         s->is_snapshot = 1;
     }
