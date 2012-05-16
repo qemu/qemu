@@ -86,7 +86,7 @@ struct KVMState
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
     uint32_t *used_gsi_bitmap;
-    unsigned int max_gsi;
+    unsigned int gsi_count;
 #endif
 };
 
@@ -859,8 +859,6 @@ int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
 #ifdef KVM_CAP_IRQ_ROUTING
 static void set_gsi(KVMState *s, unsigned int gsi)
 {
-    assert(gsi < s->max_gsi);
-
     s->used_gsi_bitmap[gsi / 32] |= 1U << (gsi % 32);
 }
 
@@ -875,7 +873,7 @@ static void kvm_init_irq_routing(KVMState *s)
         /* Round up so we can search ints using ffs */
         gsi_bits = ALIGN(gsi_count, 32);
         s->used_gsi_bitmap = g_malloc0(gsi_bits / 8);
-        s->max_gsi = gsi_bits;
+        s->gsi_count = gsi_count;
 
         /* Mark any over-allocated bits as already in use */
         for (i = gsi_count; i < gsi_bits; i++) {
@@ -919,6 +917,8 @@ static void kvm_add_routing_entry(KVMState *s,
 void kvm_irqchip_add_route(KVMState *s, int irq, int irqchip, int pin)
 {
     struct kvm_irq_routing_entry e;
+
+    assert(pin < s->gsi_count);
 
     e.gsi = irq;
     e.type = KVM_IRQ_ROUTING_IRQCHIP;
