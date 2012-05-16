@@ -101,15 +101,10 @@ struct VirtIOBlkConf
 {
     BlockConf conf;
     char *serial;
+    uint32_t scsi;
 };
 
-#ifdef __linux__
-#define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
-        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
-        DEFINE_PROP_BIT("scsi", _state, _field, VIRTIO_BLK_F_SCSI, true)
-#else
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
         DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
-#endif
 
 #endif
