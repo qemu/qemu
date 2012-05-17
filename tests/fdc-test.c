@@ -250,6 +250,22 @@ static void test_media_change(void)
     assert_bit_set(dir, DSKCHG);
 }
 
+/* success if no crash or abort */
+static void fuzz_registers(void)
+{
+    unsigned int i;
+
+    for (i = 0; i < 1000; i++) {
+        uint8_t reg, val;
+
+        reg = (uint8_t)g_test_rand_int_range(0, 8);
+        val = (uint8_t)g_test_rand_int_range(0, 256);
+
+        outb(FLOPPY_BASE + reg, val);
+        inb(FLOPPY_BASE + reg);
+    }
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -281,6 +297,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);
     qtest_add_func("/fdc/read_without_media", test_read_without_media);
     qtest_add_func("/fdc/media_change", test_media_change);
+    qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
 
     ret = g_test_run();
 
