@@ -27,11 +27,6 @@
 		#size-cells = <0>;
 	};
 
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x0>;	// Filled by U-Boot
-	};
-
 	soc8544@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;

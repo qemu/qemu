@@ -88,10 +88,10 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     }
 
     /* Manipulate device tree in memory. */
-    ret = qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
-                               sizeof(mem_reg_property));
-    if (ret < 0)
-        fprintf(stderr, "couldn't set /memory/reg\n");
+    qemu_devtree_add_subnode(fdt, "/memory");
+    qemu_devtree_setprop_string(fdt, "/memory", "device_type", "memory");
+    qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
+                         sizeof(mem_reg_property));
 
     if (initrd_size) {
         ret = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
