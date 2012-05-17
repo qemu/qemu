@@ -35,6 +35,15 @@
 #define MSIX_PAGE_PENDING (MSIX_PAGE_SIZE / 2)
 #define MSIX_MAX_ENTRIES 32
 
+static MSIMessage msix_get_message(PCIDevice *dev, unsigned vector)
+{
+    uint8_t *table_entry = dev->msix_table_page + vector * PCI_MSIX_ENTRY_SIZE;
+    MSIMessage msg;
+
+    msg.address = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
+    msg.data = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
+    return msg;
+}
 
 /* Add MSI-X capability to the config space for the device. */
 /* Given a bar and its size, add MSI-X table on top of it
@@ -352,9 +361,7 @@ uint32_t msix_bar_size(PCIDevice *dev)
 /* Send an MSI-X message */
 void msix_notify(PCIDevice *dev, unsigned vector)
 {
-    uint8_t *table_entry = dev->msix_table_page + vector * PCI_MSIX_ENTRY_SIZE;
-    uint64_t address;
-    uint32_t data;
+    MSIMessage msg;
 
     if (vector >= dev->msix_entries_nr || !dev->msix_entry_used[vector])
         return;
@@ -363,9 +370,9 @@ void msix_notify(PCIDevice *dev, unsigned vector)
         return;
     }
 
-    address = pci_get_quad(table_entry + PCI_MSIX_ENTRY_LOWER_ADDR);
-    data = pci_get_long(table_entry + PCI_MSIX_ENTRY_DATA);
-    stl_le_phys(address, data);
+    msg = msix_get_message(dev, vector);
+
+    stl_le_phys(msg.address, msg.data);
 }
 
 void msix_reset(PCIDevice *dev)
