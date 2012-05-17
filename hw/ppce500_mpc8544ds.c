@@ -81,6 +81,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     char compatible[] = "MPC8544DS\0MPC85xxDS";
     char model[] = "MPC8544DS";
     char soc[128];
+    char ser0[128];
+    char ser1[128];
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -182,6 +184,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
         }
     }
 
+    qemu_devtree_add_subnode(fdt, "/aliases");
     /* XXX These should go into their respective devices' code */
     snprintf(soc, sizeof(soc), "/soc8544@%x", MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, soc);
@@ -195,6 +198,38 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                MPC8544_CCSRBAR_REGSIZE);
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
+
+    /*
+     * We have to generate ser1 first, because Linux takes the first
+     * device it finds in the dt as serial output device. And we generate
+     * devices in reverse order to the dt.
+     */
+    snprintf(ser1, sizeof(ser1), "%s/serial@%x", soc,
+             MPC8544_SERIAL1_REGS_BASE - MPC8544_CCSRBAR_BASE);
+    qemu_devtree_add_subnode(fdt, ser1);
+    qemu_devtree_setprop_string(fdt, ser1, "device_type", "serial");
+    qemu_devtree_setprop_string(fdt, ser1, "compatible", "ns16550");
+    qemu_devtree_setprop_cells(fdt, ser1, "reg", MPC8544_SERIAL1_REGS_BASE -
+                               MPC8544_CCSRBAR_BASE, 0x100);
+    qemu_devtree_setprop_cell(fdt, ser1, "cell-index", 1);
+    qemu_devtree_setprop_cell(fdt, ser1, "clock-frequency", 0);
+    qemu_devtree_setprop_cells(fdt, ser1, "interrupts", 42, 2);
+    qemu_devtree_setprop_phandle(fdt, ser1, "interrupt-parent", mpic);
+    qemu_devtree_setprop_string(fdt, "/aliases", "serial1", ser1);
+
+    snprintf(ser0, sizeof(ser0), "%s/serial@%x", soc,
+             MPC8544_SERIAL0_REGS_BASE - MPC8544_CCSRBAR_BASE);
+    qemu_devtree_add_subnode(fdt, ser0);
+    qemu_devtree_setprop_string(fdt, ser0, "device_type", "serial");
+    qemu_devtree_setprop_string(fdt, ser0, "compatible", "ns16550");
+    qemu_devtree_setprop_cells(fdt, ser0, "reg", MPC8544_SERIAL0_REGS_BASE -
+                               MPC8544_CCSRBAR_BASE, 0x100);
+    qemu_devtree_setprop_cell(fdt, ser0, "cell-index", 0);
+    qemu_devtree_setprop_cell(fdt, ser0, "clock-frequency", 0);
+    qemu_devtree_setprop_cells(fdt, ser0, "interrupts", 42, 2);
+    qemu_devtree_setprop_phandle(fdt, ser0, "interrupt-parent", mpic);
+    qemu_devtree_setprop_string(fdt, "/aliases", "serial0", ser0);
+    qemu_devtree_setprop_string(fdt, "/chosen", "linux,stdout-path", ser0);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     if (ret < 0) {

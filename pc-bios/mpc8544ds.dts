@@ -12,32 +12,10 @@
 /dts-v1/;
 / {
 	aliases {
-		serial0 = &serial0;
-		serial1 = &serial1;
 		pci0 = &pci0;
 	};
 
 	soc8544@e0000000 {
-		serial0: serial@4500 {
-			cell-index = <0>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4500 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
-		};
-
-		serial1: serial@4600 {
-			cell-index = <1>;
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <0x4600 0x100>;
-			clock-frequency = <0>;
-			interrupts = <42 2>;
-			interrupt-parent = <&mpic>;
-		};
-
 		mpic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
@@ -84,9 +62,5 @@
 		#size-cells = <2>;
 		#address-cells = <3>;
 		reg = <0xe0008000 0x1000>;
-	};
-
-	chosen {
-		linux,stdout-path = "/soc8544@e0000000/serial@4500";
 	};
 };
