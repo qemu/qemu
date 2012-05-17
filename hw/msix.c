@@ -139,12 +139,33 @@ static bool msix_is_masked(PCIDevice *dev, int vector)
     return msix_vector_masked(dev, vector, dev->msix_function_masked);
 }
 
+static void msix_fire_vector_notifier(PCIDevice *dev,
+                                      unsigned int vector, bool is_masked)
+{
+    MSIMessage msg;
+    int ret;
+
+    if (!dev->msix_vector_use_notifier) {
+        return;
+    }
+    if (is_masked) {
+        dev->msix_vector_release_notifier(dev, vector);
+    } else {
+        msg = msix_get_message(dev, vector);
+        ret = dev->msix_vector_use_notifier(dev, vector, msg);
+        assert(ret >= 0);
+    }
+}
+
 static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
 {
     bool is_masked = msix_is_masked(dev, vector);
+
     if (is_masked == was_masked) {
         return;
     }
+
+    msix_fire_vector_notifier(dev, vector, is_masked);
 
     if (!is_masked && msix_is_pending(dev, vector)) {
         msix_clr_pending(dev, vector);
@@ -330,6 +351,7 @@ void msix_save(PCIDevice *dev, QEMUFile *f)
 void msix_load(PCIDevice *dev, QEMUFile *f)
 {
     unsigned n = dev->msix_entries_nr;
+    unsigned int vector;
 
     if (!(dev->cap_present & QEMU_PCI_CAP_MSIX)) {
         return;
@@ -339,6 +361,10 @@ void msix_load(PCIDevice *dev, QEMUFile *f)
     qemu_get_buffer(f, dev->msix_table_page, n * PCI_MSIX_ENTRY_SIZE);
     qemu_get_buffer(f, dev->msix_table_page + MSIX_PAGE_PENDING, (n + 7) / 8);
     msix_update_function_masked(dev);
+
+    for (vector = 0; vector < n; vector++) {
+        msix_handle_mask_update(dev, vector, true);
+    }
 }
 
 /* Does device support MSI-X? */
@@ -424,4 +450,71 @@ void msix_unuse_all_vectors(PCIDevice *dev)
     if (!(dev->cap_present & QEMU_PCI_CAP_MSIX))
         return;
     msix_free_irq_entries(dev);
+}
+
+static int msix_set_notifier_for_vector(PCIDevice *dev, unsigned int vector)
+{
+    MSIMessage msg;
+
+    if (msix_is_masked(dev, vector)) {
+        return 0;
+    }
+    msg = msix_get_message(dev, vector);
+    return dev->msix_vector_use_notifier(dev, vector, msg);
+}
+
+static void msix_unset_notifier_for_vector(PCIDevice *dev, unsigned int vector)
+{
+    if (msix_is_masked(dev, vector)) {
+        return;
+    }
+    dev->msix_vector_release_notifier(dev, vector);
+}
+
+int msix_set_vector_notifiers(PCIDevice *dev,
+                              MSIVectorUseNotifier use_notifier,
+                              MSIVectorReleaseNotifier release_notifier)
+{
+    int vector, ret;
+
+    assert(use_notifier && release_notifier);
+
+    dev->msix_vector_use_notifier = use_notifier;
+    dev->msix_vector_release_notifier = release_notifier;
+
+    if ((dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
+        (MSIX_ENABLE_MASK | MSIX_MASKALL_MASK)) == MSIX_ENABLE_MASK) {
+        for (vector = 0; vector < dev->msix_entries_nr; vector++) {
+            ret = msix_set_notifier_for_vector(dev, vector);
+            if (ret < 0) {
+                goto undo;
+            }
+        }
+    }
+    return 0;
+
+undo:
+    while (--vector >= 0) {
+        msix_unset_notifier_for_vector(dev, vector);
+    }
+    dev->msix_vector_use_notifier = NULL;
+    dev->msix_vector_release_notifier = NULL;
+    return ret;
+}
+
+void msix_unset_vector_notifiers(PCIDevice *dev)
+{
+    int vector;
+
+    assert(dev->msix_vector_use_notifier &&
+           dev->msix_vector_release_notifier);
+
+    if ((dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
+        (MSIX_ENABLE_MASK | MSIX_MASKALL_MASK)) == MSIX_ENABLE_MASK) {
+        for (vector = 0; vector < dev->msix_entries_nr; vector++) {
+            msix_unset_notifier_for_vector(dev, vector);
+        }
+    }
+    dev->msix_vector_use_notifier = NULL;
+    dev->msix_vector_release_notifier = NULL;
 }

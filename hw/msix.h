@@ -29,4 +29,8 @@ void msix_notify(PCIDevice *dev, unsigned vector);
 
 void msix_reset(PCIDevice *dev);
 
+int msix_set_vector_notifiers(PCIDevice *dev,
+                              MSIVectorUseNotifier use_notifier,
+                              MSIVectorReleaseNotifier release_notifier);
+void msix_unset_vector_notifiers(PCIDevice *dev);
 #endif
