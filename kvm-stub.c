@@ -18,6 +18,7 @@
 #include "kvm.h"
 
 KVMState *kvm_state;
+bool kvm_kernel_irqchip;
 
 int kvm_init_vcpu(CPUArchState *env)
 {
