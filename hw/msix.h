@@ -13,6 +13,8 @@ void msix_write_config(PCIDevice *pci_dev, uint32_t address,
 
 int msix_uninit(PCIDevice *d, MemoryRegion *bar);
 
+unsigned int msix_nr_vectors_allocated(const PCIDevice *dev);
+
 void msix_save(PCIDevice *dev, QEMUFile *f);
 void msix_load(PCIDevice *dev, QEMUFile *f);
 

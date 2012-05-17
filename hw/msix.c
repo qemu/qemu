@@ -452,6 +452,11 @@ void msix_unuse_all_vectors(PCIDevice *dev)
     msix_free_irq_entries(dev);
 }
 
+unsigned int msix_nr_vectors_allocated(const PCIDevice *dev)
+{
+    return dev->msix_entries_nr;
+}
+
 static int msix_set_notifier_for_vector(PCIDevice *dev, unsigned int vector)
 {
     MSIMessage msg;
