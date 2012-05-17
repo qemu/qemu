@@ -21,6 +21,8 @@ int qemu_devtree_setprop(void *fdt, const char *node_path,
                          const char *property, void *val_array, int size);
 int qemu_devtree_setprop_cell(void *fdt, const char *node_path,
                               const char *property, uint32_t val);
+int qemu_devtree_setprop_u64(void *fdt, const char *node_path,
+                             const char *property, uint64_t val);
 int qemu_devtree_setprop_string(void *fdt, const char *node_path,
                                 const char *property, const char *string);
 int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
