@@ -231,10 +231,14 @@ static void msix_mmio_setup(PCIDevice *d, MemoryRegion *bar)
 static void msix_mask_all(struct PCIDevice *dev, unsigned nentries)
 {
     int vector;
+
     for (vector = 0; vector < nentries; ++vector) {
         unsigned offset =
             vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
+        bool was_masked = msix_is_masked(dev, vector);
+
         dev->msix_table_page[offset] |= PCI_MSIX_ENTRY_CTRL_MASKBIT;
+        msix_handle_mask_update(dev, vector, was_masked);
     }
 }
 
