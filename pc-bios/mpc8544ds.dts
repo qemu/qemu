@@ -22,11 +22,6 @@
 		pci0 = &pci0;
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
 	soc8544@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -125,6 +125,11 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                              hypercall, sizeof(hypercall));
     }
 
+    /* Create CPU nodes */
+    qemu_devtree_add_subnode(fdt, "/cpus");
+    qemu_devtree_setprop_cell(fdt, "/cpus", "#address-cells", 1);
+    qemu_devtree_setprop_cell(fdt, "/cpus", "#size-cells", 0);
+
     /* We need to generate the cpu nodes in reverse order, so Linux can pick
        the first node as boot node and be happy */
     for (i = smp_cpus - 1; i >= 0; i--) {
