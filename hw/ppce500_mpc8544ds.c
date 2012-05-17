@@ -83,6 +83,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     char soc[128];
     char ser0[128];
     char ser1[128];
+    char mpic[128];
+    uint32_t mpic_ph;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -198,6 +200,20 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                MPC8544_CCSRBAR_REGSIZE);
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
+
+    snprintf(mpic, sizeof(mpic), "%s/pic@%x", soc,
+             MPC8544_MPIC_REGS_BASE - MPC8544_CCSRBAR_BASE);
+    qemu_devtree_add_subnode(fdt, mpic);
+    qemu_devtree_setprop_string(fdt, mpic, "device_type", "open-pic");
+    qemu_devtree_setprop_string(fdt, mpic, "compatible", "chrp,open-pic");
+    qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_BASE -
+                               MPC8544_CCSRBAR_BASE, 0x40000);
+    qemu_devtree_setprop_cell(fdt, mpic, "#address-cells", 0);
+    qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 2);
+    mpic_ph = qemu_devtree_alloc_phandle(fdt);
+    qemu_devtree_setprop_cell(fdt, mpic, "phandle", mpic_ph);
+    qemu_devtree_setprop_cell(fdt, mpic, "linux,phandle", mpic_ph);
+    qemu_devtree_setprop(fdt, mpic, "interrupt-controller", NULL, 0);
 
     /*
      * We have to generate ser1 first, because Linux takes the first
