@@ -583,6 +583,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "dtb",
             .type = QEMU_OPT_STRING,
             .help = "Linux kernel device tree file",
+        }, {
+            .name = "dumpdtb",
+            .type = QEMU_OPT_STRING,
+            .help = "Dump current dtb to a file and quit",
         },
         { /* End of list */ }
     },

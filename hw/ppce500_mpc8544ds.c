@@ -111,6 +111,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     uint32_t pci_ranges[12] = { 0x2000000, 0x0, 0xc0000000, 0xc0000000, 0x0,
                                 0x20000000, 0x1000000, 0x0, 0x0, 0xe1000000,
                                 0x0, 0x10000 };
+    QemuOpts *machine_opts;
+    const char *dumpdtb = NULL;
 
     fdt = create_device_tree(&fdt_size);
     if (fdt == NULL) {
@@ -299,6 +301,22 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_cell(fdt, pci, "#size-cells", 2);
     qemu_devtree_setprop_cell(fdt, pci, "#address-cells", 3);
     qemu_devtree_setprop_string(fdt, "/aliases", "pci0", pci);
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
+    }
+    if (dumpdtb) {
+        /* Dump the dtb to a file and quit */
+        FILE *f = fopen(dumpdtb, "wb");
+        size_t len;
+        len = fwrite(fdt, fdt_size, 1, f);
+        fclose(f);
+        if (len != fdt_size) {
+            exit(1);
+        }
+        exit(0);
+    }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     if (ret < 0) {
