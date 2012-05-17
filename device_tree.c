@@ -191,6 +191,13 @@ int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
     return qemu_devtree_setprop_cell(fdt, node_path, property, phandle);
 }
 
+uint32_t qemu_devtree_alloc_phandle(void *fdt)
+{
+    static int phandle = 0x8000;
+
+    return phandle++;
+}
+
 int qemu_devtree_nop_node(void *fdt, const char *node_path)
 {
     int r;

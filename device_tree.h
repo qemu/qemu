@@ -27,6 +27,7 @@ int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
                                  const char *property,
                                  const char *target_node_path);
 uint32_t qemu_devtree_get_phandle(void *fdt, const char *path);
+uint32_t qemu_devtree_alloc_phandle(void *fdt);
 int qemu_devtree_nop_node(void *fdt, const char *node_path);
 int qemu_devtree_add_subnode(void *fdt, const char *name);
 
