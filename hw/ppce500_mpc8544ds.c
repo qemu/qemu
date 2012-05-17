@@ -101,6 +101,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
                          sizeof(mem_reg_property));
 
+    qemu_devtree_add_subnode(fdt, "/chosen");
     if (initrd_size) {
         ret = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
                                         initrd_base);
