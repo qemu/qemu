@@ -151,6 +151,7 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     char *dupname = g_strdup(name);
     char *basename = strrchr(dupname, '/');
     int retval;
+    int parent = 0;
 
     if (!basename) {
         g_free(dupname);
@@ -160,7 +161,11 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     basename[0] = '\0';
     basename++;
 
-    retval = fdt_add_subnode(fdt, findnode_nofail(fdt, dupname), basename);
+    if (dupname[0]) {
+        parent = findnode_nofail(fdt, dupname);
+    }
+
+    retval = fdt_add_subnode(fdt, parent, basename);
     if (retval < 0) {
         fprintf(stderr, "FDT: Failed to create subnode %s: %s\n", name,
                 fdt_strerror(retval));
