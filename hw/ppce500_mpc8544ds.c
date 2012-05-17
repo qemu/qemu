@@ -174,7 +174,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
        the first node as boot node and be happy */
     for (i = smp_cpus - 1; i >= 0; i--) {
         char cpu_name[128];
-        uint64_t cpu_release_addr = cpu_to_be64(MPC8544_SPIN_BASE + (i * 0x20));
+        uint64_t cpu_release_addr = MPC8544_SPIN_BASE + (i * 0x20);
 
         for (env = first_cpu; env != NULL; env = env->next_cpu) {
             if (env->cpu_index == i) {
@@ -202,8 +202,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
         if (env->cpu_index) {
             qemu_devtree_setprop_string(fdt, cpu_name, "status", "disabled");
             qemu_devtree_setprop_string(fdt, cpu_name, "enable-method", "spin-table");
-            qemu_devtree_setprop(fdt, cpu_name, "cpu-release-addr",
-                                 &cpu_release_addr, sizeof(cpu_release_addr));
+            qemu_devtree_setprop_u64(fdt, cpu_name, "cpu-release-addr",
+                                     cpu_release_addr);
         } else {
             qemu_devtree_setprop_string(fdt, cpu_name, "status", "okay");
         }
