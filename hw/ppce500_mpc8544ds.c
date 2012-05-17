@@ -92,7 +92,6 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
 {
     int ret = -1;
     uint32_t mem_reg_property[] = {0, cpu_to_be32(ramsize)};
-    char *filename;
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
@@ -113,12 +112,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                 0x20000000, 0x1000000, 0x0, 0x0, 0xe1000000,
                                 0x0, 0x10000 };
 
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
-    if (!filename) {
-        goto out;
-    }
-    fdt = load_device_tree(filename, &fdt_size);
-    g_free(filename);
+    fdt = create_device_tree(&fdt_size);
     if (fdt == NULL) {
         goto out;
     }
