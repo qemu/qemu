@@ -56,7 +56,7 @@ static void kvm_piix3_setup_irq_routing(bool pci_enabled)
 {
 #ifdef CONFIG_KVM
     KVMState *s = kvm_state;
-    int ret, i;
+    int i;
 
     if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
         for (i = 0; i < 8; ++i) {
@@ -76,10 +76,6 @@ static void kvm_piix3_setup_irq_routing(bool pci_enabled)
                     kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, i);
                 }
             }
-        }
-        ret = kvm_irqchip_commit_routes(s);
-        if (ret < 0) {
-            hw_error("KVM IRQ routing setup failed");
         }
     }
 #endif /* CONFIG_KVM */

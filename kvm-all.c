@@ -908,6 +908,15 @@ static void kvm_init_irq_routing(KVMState *s)
     kvm_arch_init_irq_routing(s);
 }
 
+static void kvm_irqchip_commit_routes(KVMState *s)
+{
+    int ret;
+
+    s->irq_routes->flags = 0;
+    ret = kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
+    assert(ret == 0);
+}
+
 static void kvm_add_routing_entry(KVMState *s,
                                   struct kvm_irq_routing_entry *entry)
 {
@@ -933,6 +942,8 @@ static void kvm_add_routing_entry(KVMState *s,
     new->u = entry->u;
 
     set_gsi(s, entry->gsi);
+
+    kvm_irqchip_commit_routes(s);
 }
 
 void kvm_irqchip_add_irq_route(KVMState *s, int irq, int irqchip, int pin)
@@ -949,12 +960,6 @@ void kvm_irqchip_add_irq_route(KVMState *s, int irq, int irqchip, int pin)
     kvm_add_routing_entry(s, &e);
 }
 
-int kvm_irqchip_commit_routes(KVMState *s)
-{
-    s->irq_routes->flags = 0;
-    return kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
-}
-
 void kvm_irqchip_release_virq(KVMState *s, int virq)
 {
     struct kvm_irq_routing_entry *e;
@@ -968,6 +973,8 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
         }
     }
     clear_gsi(s, virq);
+
+    kvm_irqchip_commit_routes(s);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)
@@ -1049,7 +1056,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
     route = kvm_lookup_msi_route(s, msg);
     if (!route) {
-        int virq, ret;
+        int virq;
 
         virq = kvm_irqchip_get_virq(s);
         if (virq < 0) {
@@ -1068,11 +1075,6 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
         QTAILQ_INSERT_TAIL(&s->msi_hashtab[kvm_hash_msi(msg.data)], route,
                            entry);
-
-        ret = kvm_irqchip_commit_routes(s);
-        if (ret < 0) {
-            return ret;
-        }
     }
 
     assert(route->kroute.type == KVM_IRQ_ROUTING_MSI);
