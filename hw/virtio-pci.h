@@ -25,6 +25,11 @@
 #define VIRTIO_PCI_FLAG_USE_IOEVENTFD   (1 << VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT)
 
 typedef struct {
+    int virq;
+    unsigned int users;
+} VirtIOIRQFD;
+
+typedef struct {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
     MemoryRegion bar;
@@ -44,6 +49,7 @@ typedef struct {
     VirtIOSCSIConf scsi;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
+    VirtIOIRQFD *vector_irqfd;
 } VirtIOPCIProxy;
 
 void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev);

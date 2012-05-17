@@ -24,6 +24,7 @@
 #include "virtio-scsi.h"
 #include "pci.h"
 #include "qemu-error.h"
+#include "msi.h"
 #include "msix.h"
 #include "net.h"
 #include "loader.h"
@@ -539,6 +540,107 @@ static void virtio_pci_guest_notifier_read(void *opaque)
     }
 }
 
+static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
+                                        unsigned int queue_no,
+                                        unsigned int vector,
+                                        MSIMessage msg)
+{
+    VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
+    VirtIOIRQFD *irqfd = &proxy->vector_irqfd[vector];
+    int fd, ret;
+
+    fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vq));
+
+    if (irqfd->users == 0) {
+        ret = kvm_irqchip_add_msi_route(kvm_state, msg);
+        if (ret < 0) {
+            return ret;
+        }
+        irqfd->virq = ret;
+    }
+    irqfd->users++;
+
+    ret = kvm_irqchip_add_irqfd(kvm_state, fd, irqfd->virq);
+    if (ret < 0) {
+        if (--irqfd->users == 0) {
+            kvm_irqchip_release_virq(kvm_state, irqfd->virq);
+        }
+        return ret;
+    }
+
+    qemu_set_fd_handler(fd, NULL, NULL, NULL);
+
+    return 0;
+}
+
+static void kvm_virtio_pci_vq_vector_release(VirtIOPCIProxy *proxy,
+                                             unsigned int queue_no,
+                                             unsigned int vector)
+{
+    VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
+    VirtIOIRQFD *irqfd = &proxy->vector_irqfd[vector];
+    int fd, ret;
+
+    fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vq));
+
+    ret = kvm_irqchip_remove_irqfd(kvm_state, fd, irqfd->virq);
+    assert(ret == 0);
+
+    if (--irqfd->users == 0) {
+        kvm_irqchip_release_virq(kvm_state, irqfd->virq);
+    }
+
+    qemu_set_fd_handler(fd, virtio_pci_guest_notifier_read, NULL, vq);
+}
+
+static int kvm_virtio_pci_vector_use(PCIDevice *dev, unsigned vector,
+                                     MSIMessage msg)
+{
+    VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
+    VirtIODevice *vdev = proxy->vdev;
+    int ret, queue_no;
+
+    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+        if (!virtio_queue_get_num(vdev, queue_no)) {
+            break;
+        }
+        if (virtio_queue_vector(vdev, queue_no) != vector) {
+            continue;
+        }
+        ret = kvm_virtio_pci_vq_vector_use(proxy, queue_no, vector, msg);
+        if (ret < 0) {
+            goto undo;
+        }
+    }
+    return 0;
+
+undo:
+    while (--queue_no >= 0) {
+        if (virtio_queue_vector(vdev, queue_no) != vector) {
+            continue;
+        }
+        kvm_virtio_pci_vq_vector_release(proxy, queue_no, vector);
+    }
+    return ret;
+}
+
+static void kvm_virtio_pci_vector_release(PCIDevice *dev, unsigned vector)
+{
+    VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
+    VirtIODevice *vdev = proxy->vdev;
+    int queue_no;
+
+    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+        if (!virtio_queue_get_num(vdev, queue_no)) {
+            break;
+        }
+        if (virtio_queue_vector(vdev, queue_no) != vector) {
+            continue;
+        }
+        kvm_virtio_pci_vq_vector_release(proxy, queue_no, vector);
+    }
+}
+
 static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
 {
     VirtIOPCIProxy *proxy = opaque;
@@ -555,6 +657,9 @@ static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
     } else {
         qemu_set_fd_handler(event_notifier_get_fd(notifier),
                             NULL, NULL, NULL);
+        /* Test and clear notifier before closing it,
+         * in case poll callback didn't have time to run. */
+        virtio_pci_guest_notifier_read(vq);
         event_notifier_cleanup(notifier);
     }
 
@@ -573,6 +678,13 @@ static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
     VirtIODevice *vdev = proxy->vdev;
     int r, n;
 
+    /* Must unset vector notifier while guest notifier is still assigned */
+    if (kvm_irqchip_in_kernel() && !assign) {
+        msix_unset_vector_notifiers(&proxy->pci_dev);
+        g_free(proxy->vector_irqfd);
+        proxy->vector_irqfd = NULL;
+    }
+
     for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             break;
@@ -584,10 +696,24 @@ static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
         }
     }
 
+    /* Must set vector notifier after guest notifier has been assigned */
+    if (kvm_irqchip_in_kernel() && assign) {
+        proxy->vector_irqfd =
+            g_malloc0(sizeof(*proxy->vector_irqfd) *
+                      msix_nr_vectors_allocated(&proxy->pci_dev));
+        r = msix_set_vector_notifiers(&proxy->pci_dev,
+                                      kvm_virtio_pci_vector_use,
+                                      kvm_virtio_pci_vector_release);
+        if (r < 0) {
+            goto assign_error;
+        }
+    }
+
     return 0;
 
 assign_error:
     /* We get here on assignment failure. Recover by undoing for VQs 0 .. n. */
+    assert(assign);
     while (--n >= 0) {
         virtio_pci_set_guest_notifier(opaque, n, !assign);
     }
