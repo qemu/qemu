@@ -25,4 +25,16 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
 int qemu_devtree_nop_node(void *fdt, const char *node_path);
 int qemu_devtree_add_subnode(void *fdt, const char *name);
 
+#define qemu_devtree_setprop_cells(fdt, node_path, property, ...)             \
+    do {                                                                      \
+        uint32_t qdt_tmp[] = { __VA_ARGS__ };                                 \
+        int i;                                                                \
+                                                                              \
+        for (i = 0; i < ARRAY_SIZE(qdt_tmp); i++) {                           \
+            qdt_tmp[i] = cpu_to_be32(qdt_tmp[i]);                             \
+        }                                                                     \
+        qemu_devtree_setprop(fdt, node_path, property, qdt_tmp,               \
+                             sizeof(qdt_tmp));                                \
+    } while (0)
+
 #endif /* __DEVICE_TREE_H__ */
