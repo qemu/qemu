@@ -743,7 +743,7 @@ static void dec_bit(DisasContext *dc)
     unsigned int op;
     int mem_index = cpu_mmu_index(dc->env);
 
-    op = dc->ir & ((1 << 8) - 1);
+    op = dc->ir & ((1 << 9) - 1);
     switch (op) {
         case 0x21:
             /* src.  */
@@ -824,6 +824,16 @@ static void dec_bit(DisasContext *dc)
             if (dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR) {
                 gen_helper_clz(cpu_R[dc->rd], cpu_R[dc->ra]);
             }
+            break;
+        case 0x1e0:
+            /* swapb */
+            LOG_DIS("swapb r%d r%d\n", dc->rd, dc->ra);
+            tcg_gen_bswap32_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
+            break;
+        case 0x1e1:
+            /*swaph */
+            LOG_DIS("swaph r%d r%d\n", dc->rd, dc->ra);
+            tcg_gen_rotri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 16);
             break;
         default:
             cpu_abort(dc->env, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
