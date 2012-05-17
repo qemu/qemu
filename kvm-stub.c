@@ -136,3 +136,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 {
     return -ENOSYS;
 }
+
+void kvm_irqchip_release_virq(KVMState *s, int virq)
+{
+}

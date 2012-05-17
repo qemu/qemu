@@ -955,7 +955,7 @@ int kvm_irqchip_commit_routes(KVMState *s)
     return kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
 }
 
-static void kvm_irqchip_release_virq(KVMState *s, int virq)
+void kvm_irqchip_release_virq(KVMState *s, int virq)
 {
     struct kvm_irq_routing_entry *e;
     int i;
