@@ -781,6 +781,13 @@ static inline dma_addr_t rtl8139_addr64(uint32_t low, uint32_t high)
 #endif
 }
 
+/* Workaround for buggy guest driver such as linux who allocates rx
+ * rings after the receiver were enabled. */
+static bool rtl8139_cp_rx_valid(RTL8139State *s)
+{
+    return !(s->RxRingAddrLO == 0 && s->RxRingAddrHI == 0);
+}
+
 static int rtl8139_can_receive(VLANClientState *nc)
 {
     RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
@@ -791,11 +798,8 @@ static int rtl8139_can_receive(VLANClientState *nc)
       return 1;
     if (!rtl8139_receiver_enabled(s))
       return 1;
-    /* network/host communication happens only in normal mode */
-    if ((s->Cfg9346 & Chip9346_op_mask) != Cfg9346_Normal)
-	return 0;
 
-    if (rtl8139_cp_receiver_enabled(s)) {
+    if (rtl8139_cp_receiver_enabled(s) && rtl8139_cp_rx_valid(s)) {
         /* ??? Flow control not implemented in c+ mode.
            This is a hack to work around slirp deficiencies anyway.  */
         return 1;
@@ -833,12 +837,6 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
     if (!rtl8139_receiver_enabled(s))
     {
         DPRINTF("receiver disabled ================\n");
-        return -1;
-    }
-
-    /* check whether we are in normal mode */
-    if ((s->Cfg9346 & Chip9346_op_mask) != Cfg9346_Normal) {
-        DPRINTF("not in normal op mode\n");
         return -1;
     }
 
@@ -946,6 +944,10 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
 
     if (rtl8139_cp_receiver_enabled(s))
     {
+        if (!rtl8139_cp_rx_valid(s)) {
+            return size;
+        }
+
         DPRINTF("in C+ Rx mode ================\n");
 
         /* begin C+ receiver mode */
