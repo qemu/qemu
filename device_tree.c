@@ -25,6 +25,43 @@
 
 #include <libfdt.h>
 
+#define FDT_MAX_SIZE  0x10000
+
+void *create_device_tree(int *sizep)
+{
+    void *fdt;
+    int ret;
+
+    *sizep = FDT_MAX_SIZE;
+    fdt = g_malloc0(FDT_MAX_SIZE);
+    ret = fdt_create(fdt, FDT_MAX_SIZE);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_begin_node(fdt, "");
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_end_node(fdt);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_finish(fdt);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_open_into(fdt, fdt, *sizep);
+    if (ret) {
+        fprintf(stderr, "Unable to copy device tree in memory\n");
+        exit(1);
+    }
+
+    return fdt;
+fail:
+    fprintf(stderr, "%s Couldn't create dt: %s\n", __func__, fdt_strerror(ret));
+    exit(1);
+}
+
 void *load_device_tree(const char *filename_path, int *sizep)
 {
     int dt_size;

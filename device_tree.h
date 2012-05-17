@@ -14,6 +14,7 @@
 #ifndef __DEVICE_TREE_H__
 #define __DEVICE_TREE_H__
 
+void *create_device_tree(int *sizep);
 void *load_device_tree(const char *filename_path, int *sizep);
 
 int qemu_devtree_setprop(void *fdt, const char *node_path,
