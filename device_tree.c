@@ -132,11 +132,25 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
     return r;
 }
 
+uint32_t qemu_devtree_get_phandle(void *fdt, const char *path)
+{
+    uint32_t r;
+
+    r = fdt_get_phandle(fdt, findnode_nofail(fdt, path));
+    if (r <= 0) {
+        fprintf(stderr, "%s: Couldn't get phandle for %s: %s\n", __func__,
+                path, fdt_strerror(r));
+        exit(1);
+    }
+
+    return r;
+}
+
 int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
                                  const char *property,
                                  const char *target_node_path)
 {
-    uint32_t phandle = fdt_get_phandle(fdt, findnode_nofail(fdt, target_node_path));
+    uint32_t phandle = qemu_devtree_get_phandle(fdt, target_node_path);
     return qemu_devtree_setprop_cell(fdt, node_path, property, phandle);
 }
 
