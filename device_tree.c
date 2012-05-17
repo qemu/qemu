@@ -174,11 +174,13 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     }
 
     retval = fdt_add_subnode(fdt, parent, basename);
+#if 0
     if (retval < 0) {
         fprintf(stderr, "FDT: Failed to create subnode %s: %s\n", name,
                 fdt_strerror(retval));
         exit(1);
     }
+#endif
 
     g_free(dupname);
     return retval;
