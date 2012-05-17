@@ -85,6 +85,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     char ser1[128];
     char mpic[128];
     uint32_t mpic_ph;
+    char gutil[128];
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -246,6 +247,14 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_phandle(fdt, ser0, "interrupt-parent", mpic);
     qemu_devtree_setprop_string(fdt, "/aliases", "serial0", ser0);
     qemu_devtree_setprop_string(fdt, "/chosen", "linux,stdout-path", ser0);
+
+    snprintf(gutil, sizeof(gutil), "%s/global-utilities@%x", soc,
+             MPC8544_UTIL_BASE - MPC8544_CCSRBAR_BASE);
+    qemu_devtree_add_subnode(fdt, gutil);
+    qemu_devtree_setprop_string(fdt, gutil, "compatible", "fsl,mpc8544-guts");
+    qemu_devtree_setprop_cells(fdt, gutil, "reg", MPC8544_UTIL_BASE -
+                               MPC8544_CCSRBAR_BASE, 0x1000);
+    qemu_devtree_setprop(fdt, gutil, "fsl,has-rstcr", NULL, 0);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     if (ret < 0) {
