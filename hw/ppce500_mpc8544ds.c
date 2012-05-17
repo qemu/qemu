@@ -76,6 +76,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     uint32_t clock_freq = 400000000;
     uint32_t tb_freq = 400000000;
     int i;
+    char compatible[] = "MPC8544DS\0MPC85xxDS";
+    char model[] = "MPC8544DS";
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -88,6 +90,12 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     }
 
     /* Manipulate device tree in memory. */
+    qemu_devtree_setprop_string(fdt, "/", "model", model);
+    qemu_devtree_setprop(fdt, "/", "compatible", compatible,
+                         sizeof(compatible));
+    qemu_devtree_setprop_cell(fdt, "/", "#address-cells", 1);
+    qemu_devtree_setprop_cell(fdt, "/", "#size-cells", 1);
+
     qemu_devtree_add_subnode(fdt, "/memory");
     qemu_devtree_setprop_string(fdt, "/memory", "device_type", "memory");
     qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,

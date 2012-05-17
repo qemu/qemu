@@ -11,11 +11,6 @@
 
 /dts-v1/;
 / {
-	model = "MPC8544DS";
-	compatible = "MPC8544DS", "MPC85xxDS";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
 	aliases {
 		serial0 = &serial0;
 		serial1 = &serial1;
