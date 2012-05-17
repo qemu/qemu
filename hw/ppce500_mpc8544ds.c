@@ -118,6 +118,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
         tb_freq = kvmppc_get_tbfreq();
 
         /* indicate KVM hypercall interface */
+        qemu_devtree_add_subnode(fdt, "/hypervisor");
         qemu_devtree_setprop_string(fdt, "/hypervisor", "compatible",
                                     "linux,kvm");
         kvmppc_get_hypercall(env, hypercall, sizeof(hypercall));
