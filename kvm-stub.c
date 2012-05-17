@@ -12,9 +12,12 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
+#include "hw/msi.h"
 #include "cpu.h"
 #include "gdbstub.h"
 #include "kvm.h"
+
+KVMState *kvm_state;
 
 int kvm_init_vcpu(CPUArchState *env)
 {
@@ -127,4 +130,9 @@ int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr)
 int kvm_on_sigbus(int code, void *addr)
 {
     return 1;
+}
+
+int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
+{
+    return -ENOSYS;
 }

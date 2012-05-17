@@ -44,6 +44,10 @@ typedef struct KVMCapabilityInfo {
 #define KVM_CAP_INFO(CAP) { "KVM_CAP_" stringify(CAP), KVM_CAP_##CAP }
 #define KVM_CAP_LAST_INFO { NULL, 0 }
 
+struct KVMState;
+typedef struct KVMState KVMState;
+extern KVMState *kvm_state;
+
 /* external API */
 
 int kvm_init(void);
@@ -87,10 +91,6 @@ int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
 /* internal API */
-
-struct KVMState;
-typedef struct KVMState KVMState;
-extern KVMState *kvm_state;
 
 int kvm_ioctl(KVMState *s, int type, ...);
 
@@ -213,4 +213,6 @@ int kvm_set_ioeventfd_mmio(int fd, uint32_t adr, uint32_t val, bool assign,
                            uint32_t size);
 
 int kvm_set_ioeventfd_pio_word(int fd, uint16_t adr, uint16_t val, bool assign);
+
+int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg);
 #endif
