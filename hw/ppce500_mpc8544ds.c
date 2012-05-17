@@ -68,7 +68,6 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                     const char *kernel_cmdline)
 {
     int ret = -1;
-#ifdef CONFIG_FDT
     uint32_t mem_reg_property[] = {0, cpu_to_be32(ramsize)};
     char *filename;
     int fdt_size;
@@ -173,7 +172,6 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     ret = fdt_size;
 
 out:
-#endif
 
     return ret;
 }
@@ -391,9 +389,6 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         struct boot_info *boot_info;
         int dt_size;
 
-#ifndef CONFIG_FDT
-        cpu_abort(env, "Compiled without FDT support - can't load kernel\n");
-#endif
         dt_base = (loadaddr + kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
         dt_size = mpc8544_load_device_tree(env, dt_base, ram_size, initrd_base,
                                            initrd_size, kernel_cmdline);
