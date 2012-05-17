@@ -1108,6 +1108,21 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     return virq;
 }
 
+static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
+{
+    struct kvm_irqfd irqfd = {
+        .fd = fd,
+        .gsi = virq,
+        .flags = assign ? 0 : KVM_IRQFD_FLAG_DEASSIGN,
+    };
+
+    if (!kvm_irqchip_in_kernel()) {
+        return -ENOSYS;
+    }
+
+    return kvm_vm_ioctl(s, KVM_IRQFD, &irqfd);
+}
+
 #else /* !KVM_CAP_IRQ_ROUTING */
 
 static void kvm_init_irq_routing(KVMState *s)
@@ -1123,7 +1138,22 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 {
     abort();
 }
+
+static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
+{
+    abort();
+}
 #endif /* !KVM_CAP_IRQ_ROUTING */
+
+int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
+{
+    return kvm_irqchip_assign_irqfd(s, fd, virq, true);
+}
+
+int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
+{
+    return kvm_irqchip_assign_irqfd(s, fd, virq, false);
+}
 
 static int kvm_irqchip_create(KVMState *s)
 {
