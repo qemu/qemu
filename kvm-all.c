@@ -935,7 +935,7 @@ static void kvm_add_routing_entry(KVMState *s,
     set_gsi(s, entry->gsi);
 }
 
-void kvm_irqchip_add_route(KVMState *s, int irq, int irqchip, int pin)
+void kvm_irqchip_add_irq_route(KVMState *s, int irq, int irqchip, int pin)
 {
     struct kvm_irq_routing_entry e;
 
