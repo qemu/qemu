@@ -148,6 +148,6 @@ static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
 }
 #endif
 
-void destroy_hvm_domain(void);
+void destroy_hvm_domain(bool reboot);
 
 #endif /* QEMU_HW_XEN_COMMON_H */

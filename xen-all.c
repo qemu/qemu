@@ -860,7 +860,7 @@ static void cpu_handle_ioreq(void *opaque)
                     "data: %"PRIx64", count: %" FMT_ioreq_size ", size: %" FMT_ioreq_size "\n",
                     req->state, req->data_is_ptr, req->addr,
                     req->data, req->count, req->size);
-            destroy_hvm_domain();
+            destroy_hvm_domain(false);
             return;
         }
 
@@ -874,10 +874,11 @@ static void cpu_handle_ioreq(void *opaque)
          */
         if (runstate_is_running()) {
             if (qemu_shutdown_requested_get()) {
-                destroy_hvm_domain();
+                destroy_hvm_domain(false);
             }
             if (qemu_reset_requested_get()) {
                 qemu_system_reset(VMRESET_REPORT);
+                destroy_hvm_domain(true);
             }
         }
 
@@ -1163,7 +1164,7 @@ int xen_hvm_init(void)
     return 0;
 }
 
-void destroy_hvm_domain(void)
+void destroy_hvm_domain(bool reboot)
 {
     XenXC xc_handle;
     int sts;
@@ -1172,12 +1173,15 @@ void destroy_hvm_domain(void)
     if (xc_handle == XC_HANDLER_INITIAL_VALUE) {
         fprintf(stderr, "Cannot acquire xenctrl handle\n");
     } else {
-        sts = xc_domain_shutdown(xc_handle, xen_domid, SHUTDOWN_poweroff);
+        sts = xc_domain_shutdown(xc_handle, xen_domid,
+                                 reboot ? SHUTDOWN_reboot : SHUTDOWN_poweroff);
         if (sts != 0) {
-            fprintf(stderr, "? xc_domain_shutdown failed to issue poweroff, "
-                    "sts %d, %s\n", sts, strerror(errno));
+            fprintf(stderr, "xc_domain_shutdown failed to issue %s, "
+                    "sts %d, %s\n", reboot ? "reboot" : "poweroff",
+                    sts, strerror(errno));
         } else {
-            fprintf(stderr, "Issued domain %d poweroff\n", xen_domid);
+            fprintf(stderr, "Issued domain %d %s\n", xen_domid,
+                    reboot ? "reboot" : "poweroff");
         }
         xc_interface_close(xc_handle);
     }
