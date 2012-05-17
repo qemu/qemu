@@ -132,6 +132,14 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
     return r;
 }
 
+int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
+                                 const char *property,
+                                 const char *target_node_path)
+{
+    uint32_t phandle = fdt_get_phandle(fdt, findnode_nofail(fdt, target_node_path));
+    return qemu_devtree_setprop_cell(fdt, node_path, property, phandle);
+}
+
 int qemu_devtree_nop_node(void *fdt, const char *node_path)
 {
     int r;
