@@ -85,7 +85,7 @@ static void pci_map_create(void *fdt, uint32_t *pci_map, uint32_t mpic)
 
 static int mpc8544_load_device_tree(CPUPPCState *env,
                                     target_phys_addr_t addr,
-                                    uint32_t ramsize,
+                                    target_phys_addr_t ramsize,
                                     target_phys_addr_t initrd_base,
                                     target_phys_addr_t initrd_size,
                                     const char *kernel_cmdline)
