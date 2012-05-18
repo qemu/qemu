@@ -753,10 +753,12 @@ static void set_mac(Object *obj, Visitor *v, void *opaque,
         }
         mac->a[i] = strtol(str+pos, &p, 16);
     }
+    g_free(str);
     return;
 
 inval:
     error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+    g_free(str);
 }
 
 PropertyInfo qdev_prop_macaddr = {
@@ -825,7 +827,7 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     unsigned int slot, fn, n;
     Error *local_err = NULL;
-    char *str = (char *)"";
+    char *str;
 
     if (dev->state != DEV_STATE_CREATED) {
         error_set(errp, QERR_PERMISSION_DENIED);
@@ -848,10 +850,12 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
         goto invalid;
     }
     *ptr = slot << 3 | fn;
+    g_free(str);
     return;
 
 invalid:
     error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+    g_free(str);
 }
 
 static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t len)
