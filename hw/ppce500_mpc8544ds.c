@@ -31,6 +31,7 @@
 #include "elf.h"
 #include "sysbus.h"
 #include "exec-memory.h"
+#include "host-utils.h"
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
@@ -55,6 +56,7 @@
 struct boot_info
 {
     uint32_t dt_base;
+    uint32_t dt_size;
     uint32_t entry;
 };
 
@@ -164,7 +166,11 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
+    if (ret < 0) {
+        goto out;
+    }
     g_free(fdt);
+    ret = fdt_size;
 
 out:
 #endif
@@ -172,23 +178,27 @@ out:
     return ret;
 }
 
-/* Create -kernel TLB entries for BookE, linearly spanning 256MB.  */
+/* Create -kernel TLB entries for BookE.  */
 static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
 {
-    return ffs(size >> 10) - 1;
+    return 63 - clz64(size >> 10);
 }
 
-static void mmubooke_create_initial_mapping(CPUPPCState *env,
-                                     target_ulong va,
-                                     target_phys_addr_t pa)
+static void mmubooke_create_initial_mapping(CPUPPCState *env)
 {
+    struct boot_info *bi = env->load_info;
     ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
-    target_phys_addr_t size;
+    target_phys_addr_t size, dt_end;
+    int ps;
 
-    size = (booke206_page_size_to_tlb(256 * 1024 * 1024) << MAS1_TSIZE_SHIFT);
+    /* Our initial TLB entry needs to cover everything from 0 to
+       the device tree top */
+    dt_end = bi->dt_base + bi->dt_size;
+    ps = booke206_page_size_to_tlb(dt_end) + 1;
+    size = (ps << MAS1_TSIZE_SHIFT);
     tlb->mas1 = MAS1_VALID | size;
-    tlb->mas2 = va & TARGET_PAGE_MASK;
-    tlb->mas7_3 = pa & TARGET_PAGE_MASK;
+    tlb->mas2 = 0;
+    tlb->mas7_3 = 0;
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
 
     env->tlb_dirty = true;
@@ -220,7 +230,7 @@ static void mpc8544ds_cpu_reset(void *opaque)
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = bi->dt_base;
     env->nip = bi->entry;
-    mmubooke_create_initial_mapping(env, 0, 0);
+    mmubooke_create_initial_mapping(env);
 }
 
 static void mpc8544ds_init(ram_addr_t ram_size,
@@ -379,13 +389,15 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
         struct boot_info *boot_info;
+        int dt_size;
 
 #ifndef CONFIG_FDT
         cpu_abort(env, "Compiled without FDT support - can't load kernel\n");
 #endif
-        dt_base = (kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
-        if (mpc8544_load_device_tree(env, dt_base, ram_size,
-                    initrd_base, initrd_size, kernel_cmdline) < 0) {
+        dt_base = (loadaddr + kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
+        dt_size = mpc8544_load_device_tree(env, dt_base, ram_size, initrd_base,
+                                           initrd_size, kernel_cmdline);
+        if (dt_size < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
@@ -393,6 +405,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         boot_info = env->load_info;
         boot_info->entry = entry;
         boot_info->dt_base = dt_base;
+        boot_info->dt_size = dt_size;
     }
 
     if (kvm_enabled()) {
