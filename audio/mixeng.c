@@ -33,7 +33,8 @@
 #define ENDIAN_CONVERT(v) (v)
 
 /* Signed 8 bit */
-#define IN_T int8_t
+#define BSIZE 8
+#define ITYPE int
 #define IN_MIN SCHAR_MIN
 #define IN_MAX SCHAR_MAX
 #define SIGNED
@@ -42,25 +43,29 @@
 #undef SIGNED
 #undef IN_MAX
 #undef IN_MIN
-#undef IN_T
+#undef BSIZE
+#undef ITYPE
 #undef SHIFT
 
 /* Unsigned 8 bit */
-#define IN_T uint8_t
+#define BSIZE 8
+#define ITYPE uint
 #define IN_MIN 0
 #define IN_MAX UCHAR_MAX
 #define SHIFT 8
 #include "mixeng_template.h"
 #undef IN_MAX
 #undef IN_MIN
-#undef IN_T
+#undef BSIZE
+#undef ITYPE
 #undef SHIFT
 
 #undef ENDIAN_CONVERT
 #undef ENDIAN_CONVERSION
 
 /* Signed 16 bit */
-#define IN_T int16_t
+#define BSIZE 16
+#define ITYPE int
 #define IN_MIN SHRT_MIN
 #define IN_MAX SHRT_MAX
 #define SIGNED
@@ -78,11 +83,13 @@
 #undef SIGNED
 #undef IN_MAX
 #undef IN_MIN
-#undef IN_T
+#undef BSIZE
+#undef ITYPE
 #undef SHIFT
 
 /* Unsigned 16 bit */
-#define IN_T uint16_t
+#define BSIZE 16
+#define ITYPE uint
 #define IN_MIN 0
 #define IN_MAX USHRT_MAX
 #define SHIFT 16
@@ -98,11 +105,13 @@
 #undef ENDIAN_CONVERSION
 #undef IN_MAX
 #undef IN_MIN
-#undef IN_T
+#undef BSIZE
+#undef ITYPE
 #undef SHIFT
 
 /* Signed 32 bit */
-#define IN_T int32_t
+#define BSIZE 32
+#define ITYPE int
 #define IN_MIN INT32_MIN
 #define IN_MAX INT32_MAX
 #define SIGNED
@@ -120,11 +129,13 @@
 #undef SIGNED
 #undef IN_MAX
 #undef IN_MIN
-#undef IN_T
+#undef BSIZE
+#undef ITYPE
 #undef SHIFT
 
 /* Unsigned 32 bit */
-#define IN_T uint32_t
+#define BSIZE 32
+#define ITYPE uint
 #define IN_MIN 0
 #define IN_MAX UINT32_MAX
 #define SHIFT 32
@@ -140,7 +151,8 @@
 #undef ENDIAN_CONVERSION
 #undef IN_MAX
 #undef IN_MIN
-#undef IN_T
+#undef BSIZE
+#undef ITYPE
 #undef SHIFT
 
 t_sample *mixeng_conv[2][2][2][3] = {

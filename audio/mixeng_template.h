@@ -31,7 +31,8 @@
 #define HALF (IN_MAX >> 1)
 #endif
 
-#define ET glue (ENDIAN_CONVERSION, glue (_, IN_T))
+#define ET glue (ENDIAN_CONVERSION, glue (glue (glue (_, ITYPE), BSIZE), _t))
+#define IN_T glue (glue (ITYPE, BSIZE), _t)
 
 #ifdef FLOAT_MIXENG
 static mixeng_real inline glue (conv_, ET) (IN_T v)
@@ -150,3 +151,4 @@ static void glue (glue (clip_, ET), _from_mono)
 
 #undef ET
 #undef HALF
+#undef IN_T
