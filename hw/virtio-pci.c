@@ -491,7 +491,7 @@ static void virtio_pci_config_writel(void *opaque, uint32_t addr, uint32_t val)
     virtio_config_writel(proxy->vdev, addr, val);
 }
 
-const MemoryRegionPortio virtio_portio[] = {
+static const MemoryRegionPortio virtio_portio[] = {
     { 0, 0x10000, 1, .write = virtio_pci_config_writeb, },
     { 0, 0x10000, 2, .write = virtio_pci_config_writew, },
     { 0, 0x10000, 4, .write = virtio_pci_config_writel, },
