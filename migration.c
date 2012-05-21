@@ -131,6 +131,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->transferred = ram_bytes_transferred();
         info->ram->remaining = ram_bytes_remaining();
         info->ram->total = ram_bytes_total();
+        info->ram->total_time = qemu_get_clock_ms(rt_clock)
+            - s->total_time;
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -143,6 +145,13 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     case MIG_STATE_COMPLETED:
         info->has_status = true;
         info->status = g_strdup("completed");
+
+        info->has_ram = true;
+        info->ram = g_malloc0(sizeof(*info->ram));
+        info->ram->transferred = ram_bytes_transferred();
+        info->ram->remaining = 0;
+        info->ram->total = ram_bytes_total();
+        info->ram->total_time = s->total_time;
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;
@@ -260,6 +269,7 @@ static void migrate_fd_put_ready(void *opaque)
         } else {
             migrate_fd_completed(s);
         }
+        s->total_time = qemu_get_clock_ms(rt_clock) - s->total_time;
         if (s->state != MIG_STATE_COMPLETED) {
             if (old_vm_running) {
                 vm_start();
@@ -372,6 +382,7 @@ static MigrationState *migrate_init(const MigrationParams *params)
 
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;
+    s->total_time = qemu_get_clock_ms(rt_clock);
 
     return s;
 }

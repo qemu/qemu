@@ -37,6 +37,7 @@ struct MigrationState
     int (*write)(MigrationState *s, const void *buff, size_t size);
     void *opaque;
     MigrationParams params;
+    int64_t total_time;
 };
 
 void process_incoming_migration(QEMUFile *f);
