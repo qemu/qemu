@@ -27,7 +27,7 @@ do {                                                    \
 #define D_VERBOSE 4
 
 /* TODO: do we still need this? */
-uint8_t DEFAULT_ATR[] = {
+static const uint8_t DEFAULT_ATR[] = {
 /*
  * From some example somewhere
  * 0x3B, 0xB0, 0x18, 0x00, 0xD1, 0x81, 0x05, 0xB1, 0x40, 0x38, 0x1F, 0x03, 0x28
