@@ -741,6 +741,8 @@ typedef struct CPUX86State {
     /* Store the results of Centaur's CPUID instructions */
     uint32_t cpuid_xlevel2;
     uint32_t cpuid_ext4_features;
+    /* Flags from CPUID[EAX=7,ECX=0].EBX */
+    uint32_t cpuid_7_0_ebx;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
