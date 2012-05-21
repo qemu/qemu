@@ -314,7 +314,6 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
     ram_addr_t addr;
     uint64_t bytes_transferred_last;
     double bwidth = 0;
-    uint64_t expected_time = 0;
     int ret;
 
     if (stage < 0) {
@@ -391,12 +390,16 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-    expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+    if (stage == 2) {
+        uint64_t expected_time;
+        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
-    DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
-            expected_time, migrate_max_downtime());
+        DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
+                expected_time, migrate_max_downtime());
 
-    return (stage == 2) && (expected_time <= migrate_max_downtime());
+        return expected_time <= migrate_max_downtime();
+    }
+    return 0;
 }
 
 static inline void *host_from_stream_offset(QEMUFile *f,
