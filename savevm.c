@@ -85,6 +85,7 @@
 #include "cpus.h"
 #include "memory.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -1625,11 +1626,14 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         if (se->save_live_state == NULL)
             continue;
 
+        trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
         ret = se->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
+        trace_savevm_section_end(se->section_id);
+
         if (ret <= 0) {
             /* Do not proceed to the next vmstate before this one reported
                completion of the current stage. This serializes the migration
@@ -1659,11 +1663,13 @@ int qemu_savevm_state_complete(QEMUFile *f)
         if (se->save_live_state == NULL)
             continue;
 
+        trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
         ret = se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
+        trace_savevm_section_end(se->section_id);
         if (ret < 0) {
             return ret;
         }
@@ -1675,6 +1681,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
 	if (se->save_state == NULL && se->vmsd == NULL)
 	    continue;
 
+        trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_FULL);
         qemu_put_be32(f, se->section_id);
@@ -1688,6 +1695,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->version_id);
 
         vmstate_save(f, se);
+        trace_savevm_section_end(se->section_id);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
