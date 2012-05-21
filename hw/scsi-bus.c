@@ -1561,7 +1561,7 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
-const VMStateInfo vmstate_info_scsi_requests = {
+static const VMStateInfo vmstate_info_scsi_requests = {
     .name = "scsi-requests",
     .get  = get_scsi_requests,
     .put  = put_scsi_requests,
