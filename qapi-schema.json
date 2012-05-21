@@ -228,6 +228,28 @@
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
+# @EventInfo:
+#
+# Information about a QMP event
+#
+# @name: The event name
+#
+# Since: 1.2.0
+##
+{ 'type': 'EventInfo', 'data': {'name': 'str'} }
+
+##
+# @query-events:
+#
+# Return a list of supported QMP events by this server
+#
+# Returns: A list of @EventInfo for all supported events
+#
+# Since: 1.2.0
+##
+{ 'command': 'query-events', 'returns': ['EventInfo'] }
+
+##
 # @MigrationStats
 #
 # Detailed migration status.
