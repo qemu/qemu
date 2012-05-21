@@ -264,7 +264,8 @@ static int ppm_save(const char *filename, uint8_t *data,
     return 0;
 }
 
-static void omap_screen_dump(void *opaque, const char *filename, bool cswitch)
+static void omap_screen_dump(void *opaque, const char *filename, bool cswitch,
+                             Error **errp)
 {
     struct omap_lcd_panel_s *omap_lcd = opaque;
 

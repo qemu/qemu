@@ -933,7 +933,7 @@ static void blizzard_update_display(void *opaque)
 }
 
 static void blizzard_screen_dump(void *opaque, const char *filename,
-                                 bool cswitch)
+                                 bool cswitch, Error **errp)
 {
     BlizzardState *s = (BlizzardState *) opaque;
 

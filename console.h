@@ -7,6 +7,7 @@
 #include "monitor.h"
 #include "trace.h"
 #include "qapi-types.h"
+#include "error.h"
 
 /* keyboard/mouse support */
 
@@ -344,7 +345,8 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 
 typedef void (*vga_hw_update_ptr)(void *);
 typedef void (*vga_hw_invalidate_ptr)(void *);
-typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch);
+typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch,
+                                       Error **errp);
 typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
 
 DisplayState *graphic_console_init(vga_hw_update_ptr update,

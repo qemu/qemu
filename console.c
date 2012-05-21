@@ -190,7 +190,7 @@ void vga_hw_screen_dump(const char *filename)
         console_select(0);
     }
     if (consoles[0] && consoles[0]->hw_screen_dump) {
-        consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch);
+        consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch, NULL);
     } else {
         error_report("screen dump not implemented");
     }
