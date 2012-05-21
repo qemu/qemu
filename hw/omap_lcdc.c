@@ -224,8 +224,8 @@ static void omap_update_display(void *opaque)
     omap_lcd->invalidate = 0;
 }
 
-static int ppm_save(const char *filename, uint8_t *data,
-                int w, int h, int linesize)
+static int omap_ppm_save(const char *filename, uint8_t *data,
+                    int w, int h, int linesize)
 {
     FILE *f;
     uint8_t *d, *d1;
@@ -271,9 +271,9 @@ static void omap_screen_dump(void *opaque, const char *filename, bool cswitch,
 
     omap_update_display(opaque);
     if (omap_lcd && ds_get_data(omap_lcd->state))
-        ppm_save(filename, ds_get_data(omap_lcd->state),
-                omap_lcd->width, omap_lcd->height,
-                ds_get_linesize(omap_lcd->state));
+        omap_ppm_save(filename, ds_get_data(omap_lcd->state),
+                    omap_lcd->width, omap_lcd->height,
+                    ds_get_linesize(omap_lcd->state));
 }
 
 static void omap_invalidate_display(void *opaque) {
