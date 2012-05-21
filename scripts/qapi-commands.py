@@ -291,14 +291,24 @@ out:
 
     return ret
 
+def option_value_matches(opt, val, cmd):
+    if opt in cmd and cmd[opt] == val:
+        return True
+    return False
+
 def gen_registry(commands):
     registry=""
     push_indent()
     for cmd in commands:
+        options = 'QCO_NO_OPTIONS'
+        if option_value_matches('success-response', 'no', cmd):
+            options = 'QCO_NO_SUCCESS_RESP'
+
         registry += mcgen('''
-qmp_register_command("%(name)s", qmp_marshal_input_%(c_name)s);
+qmp_register_command("%(name)s", qmp_marshal_input_%(c_name)s, %(opts)s);
 ''',
-                     name=cmd['command'], c_name=c_fun(cmd['command']))
+                     name=cmd['command'], c_name=c_fun(cmd['command']),
+                     opts=options)
     pop_indent()
     ret = mcgen('''
 static void qmp_init_marshal(void)
