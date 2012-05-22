@@ -113,6 +113,27 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                 0x0, 0x10000 };
     QemuOpts *machine_opts;
     const char *dumpdtb = NULL;
+    const char *dtb_file = NULL;
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
+        dtb_file = qemu_opt_get(machine_opts, "dtb");
+    }
+
+    if (dtb_file) {
+        char *filename;
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_file);
+        if (!filename) {
+            goto out;
+        }
+
+        fdt = load_device_tree(filename, &fdt_size);
+        if (!fdt) {
+            goto out;
+        }
+        goto done;
+    }
 
     fdt = create_device_tree(&fdt_size);
     if (fdt == NULL) {
@@ -302,10 +323,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_cell(fdt, pci, "#address-cells", 3);
     qemu_devtree_setprop_string(fdt, "/aliases", "pci0", pci);
 
-    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-    if (machine_opts) {
-        dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
-    }
+done:
     if (dumpdtb) {
         /* Dump the dtb to a file and quit */
         FILE *f = fopen(dumpdtb, "wb");
