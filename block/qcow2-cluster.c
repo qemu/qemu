@@ -947,8 +947,16 @@ again:
 
         /* save info needed for meta data update */
         if (nb_clusters > 0) {
+            /*
+             * requested_sectors: Number of sectors from the start of the first
+             * newly allocated cluster to the end of the (possibly shortened
+             * before) write request.
+             *
+             * avail_sectors: Number of sectors from the start of the first
+             * newly allocated to the end of the last newly allocated cluster.
+             */
             int requested_sectors = n_end - keep_clusters * s->cluster_sectors;
-            int avail_sectors = (keep_clusters + nb_clusters)
+            int avail_sectors = nb_clusters
                                 << (s->cluster_bits - BDRV_SECTOR_BITS);
 
             *m = (QCowL2Meta) {
