@@ -385,11 +385,7 @@ universal-obj-y += $(qapi-obj-y)
 ######################################################################
 # guest agent
 
-qga-nested-y = commands.o guest-agent-command-state.o
-qga-nested-$(CONFIG_POSIX) += commands-posix.o channel-posix.o
-qga-nested-$(CONFIG_WIN32) += commands-win32.o channel-win32.o service-win32.o
-qga-obj-y = $(addprefix qga/, $(qga-nested-y))
-qga-obj-y += qemu-ga.o module.o
+qga-obj-y = qga/ qemu-ga.o module.o
 qga-obj-$(CONFIG_WIN32) += oslib-win32.o
 qga-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-sockets.o qemu-option.o
 
@@ -400,6 +396,7 @@ vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
+	qga-obj-y \
 	block-obj-y \
 	qom-obj-y \
 	qapi-obj-y \
