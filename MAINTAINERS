@@ -398,6 +398,12 @@ M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: hw/sun4u.c
 
+Leon3
+M: Fabien Chouteau <chouteau@adacore.com>
+S: Maintained
+F: hw/leon3.c
+F: hw/grlib*
+
 S390 Machines
 -------------
 S390 Virtio
