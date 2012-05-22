@@ -94,8 +94,12 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     switch (cmd->type) {
     case QCT_NORMAL:
         cmd->fn(args, &ret, errp);
-        if (!error_is_set(errp) && ret == NULL) {
-            ret = QOBJECT(qdict_new());
+        if (!error_is_set(errp)) {
+            if (cmd->options & QCO_NO_SUCCESS_RESP) {
+                g_assert(!ret);
+            } else if (!ret) {
+                ret = QOBJECT(qdict_new());
+            }
         }
         break;
     }

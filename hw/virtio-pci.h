@@ -15,6 +15,7 @@
 #ifndef QEMU_VIRTIO_PCI_H
 #define QEMU_VIRTIO_PCI_H
 
+#include "virtio-blk.h"
 #include "virtio-net.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
@@ -32,8 +33,7 @@ typedef struct {
     uint32_t flags;
     uint32_t class_code;
     uint32_t nvectors;
-    BlockConf block;
-    char *block_serial;
+    VirtIOBlkConf blk;
     NICConf nic;
     uint32_t host_features;
 #ifdef CONFIG_LINUX

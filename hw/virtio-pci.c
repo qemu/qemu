@@ -697,8 +697,7 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
         proxy->class_code != PCI_CLASS_STORAGE_OTHER)
         proxy->class_code = PCI_CLASS_STORAGE_SCSI;
 
-    vdev = virtio_blk_init(&pci_dev->qdev, &proxy->block,
-                           &proxy->block_serial);
+    vdev = virtio_blk_init(&pci_dev->qdev, &proxy->blk);
     if (!vdev) {
         return -1;
     }
@@ -726,7 +725,6 @@ static int virtio_blk_exit_pci(PCIDevice *pci_dev)
 
     virtio_pci_stop_ioeventfd(proxy);
     virtio_blk_exit(proxy->vdev);
-    blockdev_mark_auto_del(proxy->block.bs);
     return virtio_exit_pci(pci_dev);
 }
 
@@ -814,8 +812,11 @@ static int virtio_balloon_exit_pci(PCIDevice *pci_dev)
 
 static Property virtio_blk_properties[] = {
     DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
-    DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, block),
-    DEFINE_PROP_STRING("serial", VirtIOPCIProxy, block_serial),
+    DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, blk.conf),
+    DEFINE_PROP_STRING("serial", VirtIOPCIProxy, blk.serial),
+#ifdef __linux__
+    DEFINE_PROP_BIT("scsi", VirtIOPCIProxy, blk.scsi, 0, true),
+#endif
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),

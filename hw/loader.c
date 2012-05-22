@@ -103,7 +103,7 @@ ssize_t read_targphys(const char *name,
 
 /* return the size or -1 if error */
 int load_image_targphys(const char *filename,
-			target_phys_addr_t addr, int max_sz)
+                        target_phys_addr_t addr, uint64_t max_sz)
 {
     int size;
 

@@ -104,16 +104,9 @@ static void quit_handler(int sig)
 }
 
 #ifndef _WIN32
-/* reap _all_ terminated children */
-static void child_handler(int sig)
-{
-    int status;
-    while (waitpid(-1, &status, WNOHANG) > 0) /* NOTHING */;
-}
-
 static gboolean register_signal_handlers(void)
 {
-    struct sigaction sigact, sigact_chld;
+    struct sigaction sigact;
     int ret;
 
     memset(&sigact, 0, sizeof(struct sigaction));
@@ -130,15 +123,24 @@ static gboolean register_signal_handlers(void)
         return false;
     }
 
-    memset(&sigact_chld, 0, sizeof(struct sigaction));
-    sigact_chld.sa_handler = child_handler;
-    sigact_chld.sa_flags = SA_NOCLDSTOP;
-    ret = sigaction(SIGCHLD, &sigact_chld, NULL);
-    if (ret == -1) {
-        g_error("error configuring signal handler: %s", strerror(errno));
+    return true;
+}
+
+/* TODO: use this in place of all post-fork() fclose(std*) callers */
+void reopen_fd_to_null(int fd)
+{
+    int nullfd;
+
+    nullfd = open("/dev/null", O_RDWR);
+    if (nullfd < 0) {
+        return;
     }
 
-    return true;
+    dup2(nullfd, fd);
+
+    if (nullfd != fd) {
+        close(nullfd);
+    }
 }
 #endif
 
@@ -167,7 +169,7 @@ static void usage(const char *cmd)
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
-    , cmd, QGA_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
+    , cmd, QEMU_VERSION, QGA_VIRTIO_PATH_DEFAULT, QGA_PIDFILE_DEFAULT,
     QGA_STATEDIR_DEFAULT);
 }
 
@@ -428,9 +430,9 @@ static void become_daemon(const char *pidfile)
         goto fail;
     }
 
-    close(STDIN_FILENO);
-    close(STDOUT_FILENO);
-    close(STDERR_FILENO);
+    reopen_fd_to_null(STDIN_FILENO);
+    reopen_fd_to_null(STDOUT_FILENO);
+    reopen_fd_to_null(STDERR_FILENO);
     return;
 
 fail:
@@ -488,8 +490,6 @@ static void process_command(GAState *s, QDict *req)
             g_warning("error sending response: %s", strerror(ret));
         }
         qobject_decref(rsp);
-    } else {
-        g_warning("error getting response");
     }
 }
 
@@ -729,7 +729,7 @@ int main(int argc, char **argv)
             log_level = G_LOG_LEVEL_MASK;
             break;
         case 'V':
-            printf("QEMU Guest Agent %s\n", QGA_VERSION);
+            printf("QEMU Guest Agent %s\n", QEMU_VERSION);
             return 0;
         case 'd':
             daemonize = 1;
@@ -836,12 +836,13 @@ int main(int argc, char **argv)
             become_daemon(pid_filepath);
         }
         if (log_filepath) {
-            s->log_file = fopen(log_filepath, "a");
-            if (!s->log_file) {
+            FILE *log_file = fopen(log_filepath, "a");
+            if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
                 goto out_bad;
             }
+            s->log_file = log_file;
         }
     }
 

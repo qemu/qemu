@@ -13,7 +13,6 @@
 #include "qapi/qmp-core.h"
 #include "qemu-common.h"
 
-#define QGA_VERSION "1.0"
 #define QGA_READ_COUNT_DEFAULT 4096
 
 typedef struct GAState GAState;
@@ -35,3 +34,7 @@ void ga_set_response_delimited(GAState *s);
 bool ga_is_frozen(GAState *s);
 void ga_set_frozen(GAState *s);
 void ga_unset_frozen(GAState *s);
+
+#ifndef _WIN32
+void reopen_fd_to_null(int fd);
+#endif

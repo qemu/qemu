@@ -163,8 +163,7 @@ static int s390_virtio_blk_init(VirtIOS390Device *dev)
 {
     VirtIODevice *vdev;
 
-    vdev = virtio_blk_init((DeviceState *)dev, &dev->block,
-                           &dev->block_serial);
+    vdev = virtio_blk_init((DeviceState *)dev, &dev->blk);
     if (!vdev) {
         return -1;
     }
@@ -400,8 +399,11 @@ static TypeInfo s390_virtio_net = {
 };
 
 static Property s390_virtio_blk_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, block),
-    DEFINE_PROP_STRING("serial", VirtIOS390Device, block_serial),
+    DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, blk.conf),
+    DEFINE_PROP_STRING("serial", VirtIOS390Device, blk.serial),
+#ifdef __linux__
+    DEFINE_PROP_BIT("scsi", VirtIOS390Device, blk.scsi, 0, true),
+#endif
     DEFINE_PROP_END_OF_LIST(),
 };
 

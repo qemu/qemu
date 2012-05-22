@@ -4,7 +4,8 @@
 /* loader.c */
 int get_image_size(const char *filename);
 int load_image(const char *filename, uint8_t *addr); /* deprecated */
-int load_image_targphys(const char *filename, target_phys_addr_t, int max_sz);
+int load_image_targphys(const char *filename, target_phys_addr_t,
+                        uint64_t max_sz);
 int load_elf(const char *filename, uint64_t (*translate_fn)(void *, uint64_t),
              void *translate_opaque, uint64_t *pentry, uint64_t *lowaddr,
              uint64_t *highaddr, int big_endian, int elf_machine,
