@@ -200,6 +200,18 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     memset(&s->csw, 0, sizeof(s->csw));
 }
 
+static void usb_msd_packet_complete(MSDState *s)
+{
+    USBPacket *p = s->packet;
+
+    /* Set s->packet to NULL before calling usb_packet_complete
+       because another request may be issued before
+       usb_packet_complete returns.  */
+    DPRINTF("Packet complete %p\n", p);
+    s->packet = NULL;
+    usb_packet_complete(&s->dev, p);
+}
+
 static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
 {
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
@@ -212,12 +224,7 @@ static void usb_msd_transfer_data(SCSIRequest *req, uint32_t len)
         usb_msd_copy_data(s, p);
         p = s->packet;
         if (p && p->result == p->iov.size) {
-            /* Set s->packet to NULL before calling usb_packet_complete
-               because another request may be issued before
-               usb_packet_complete returns.  */
-            DPRINTF("Packet complete %p\n", p);
-            s->packet = NULL;
-            usb_packet_complete(&s->dev, p);
+            usb_msd_packet_complete(s);
         }
     }
 }
@@ -250,8 +257,7 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status, size_t r
                 s->mode = USB_MSDM_CSW;
             }
         }
-        s->packet = NULL;
-        usb_packet_complete(&s->dev, p);
+        usb_msd_packet_complete(s);
     } else if (s->data_len == 0) {
         s->mode = USB_MSDM_CSW;
     }
@@ -281,10 +287,8 @@ static void usb_msd_handle_reset(USBDevice *dev)
     assert(s->req == NULL);
 
     if (s->packet) {
-        USBPacket *p = s->packet;
-        s->packet = NULL;
-        p->result = USB_RET_STALL;
-        usb_packet_complete(dev, p);
+        s->packet->result = USB_RET_STALL;
+        usb_msd_packet_complete(s);
     }
 
     s->mode = USB_MSDM_CBW;
