@@ -100,7 +100,7 @@ endif
 
 subdir-libcacard: $(oslib-obj-y) $(trace-obj-y) qemu-timer-common.o
 
-$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) subdir-libdis
+$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y) subdir-libdis
 
 $(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) subdir-libdis-user subdir-libuser
 

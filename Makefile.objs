@@ -51,11 +51,7 @@ ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
 # only pull in the actual virtio-9p device if we also enabled virtio.
 CONFIG_REALLY_VIRTFS=y
-fsdev-nested-y = qemu-fsdev.o virtio-9p-marshal.o
-else
-fsdev-nested-y = qemu-fsdev-dummy.o
 endif
-fsdev-obj-$(CONFIG_VIRTFS) += $(addprefix fsdev/, $(fsdev-nested-y))
 
 ######################################################################
 # Target independent part of system emulation. The long term path is to
@@ -65,11 +61,13 @@ fsdev-obj-$(CONFIG_VIRTFS) += $(addprefix fsdev/, $(fsdev-nested-y))
 common-obj-y = $(block-obj-y) blockdev.o
 common-obj-y += net.o net/
 common-obj-y += qom/
-common-obj-$(CONFIG_LINUX) += $(fsdev-obj-$(CONFIG_LINUX))
 common-obj-y += readline.o console.o cursor.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
+
+common-obj-$(CONFIG_LINUX) += fsdev/
+extra-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += tcg-runtime.o host-utils.o main-loop.o
 common-obj-y += irq.o input.o
@@ -442,5 +440,6 @@ nested-vars += \
 	block-obj-y \
 	qom-obj-y \
 	user-obj-y \
-	common-obj-y
+	common-obj-y \
+	extra-obj-y
 dummy := $(call unnest-vars)
