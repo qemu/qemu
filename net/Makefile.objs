@@ -1,0 +1,12 @@
+common-obj-y = queue.o checksum.o util.o
+common-obj-y += socket.o
+common-obj-y += dump.o
+common-obj-$(CONFIG_POSIX) += tap.o
+common-obj-$(CONFIG_LINUX) += tap-linux.o
+common-obj-$(CONFIG_WIN32) += tap-win32.o
+common-obj-$(CONFIG_BSD) += tap-bsd.o
+common-obj-$(CONFIG_SOLARIS) += tap-solaris.o
+common-obj-$(CONFIG_AIX) += tap-aix.o
+common-obj-$(CONFIG_HAIKU) += tap-haiku.o
+common-obj-$(CONFIG_SLIRP) += slirp.o
+common-obj-$(CONFIG_VDE) += vde.o
