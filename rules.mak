@@ -73,3 +73,42 @@ TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
 
 # will delete the target of a rule if commands exit with a nonzero exit status
 .DELETE_ON_ERROR:
+
+# magic to descend into other directories
+
+obj := .
+old-nested-dirs :=
+
+define push-var
+$(eval save-$2-$1 = $(value $1))
+$(eval $1 :=)
+endef
+
+define pop-var
+$(eval subdir-$2-$1 := $(if $(filter $2,$(save-$2-$1)),$(addprefix $2,$($1))))
+$(eval $1 = $(value save-$2-$1) $$(subdir-$2-$1))
+$(eval save-$2-$1 :=)
+endef
+
+define unnest-dir
+$(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
+$(eval obj := $(obj)/$1)
+$(eval include $(SRC_PATH)/$1/Makefile.objs)
+$(eval obj := $(patsubst %/$1,%,$(obj)))
+$(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
+endef
+
+define unnest-vars-1
+$(eval nested-dirs := $(filter-out \
+    $(old-nested-dirs), \
+    $(sort $(foreach var,$(nested-vars), $(filter %/, $($(var)))))))
+$(if $(nested-dirs),
+  $(foreach dir,$(nested-dirs),$(call unnest-dir,$(patsubst %/,%,$(dir))))
+  $(eval old-nested-dirs := $(old-nested-dirs) $(nested-dirs))
+  $(call unnest-vars-1))
+endef
+
+define unnest-vars
+$(call unnest-vars-1)
+$(foreach var,$(nested-vars),$(eval $(var) := $(filter-out %/, $($(var)))))
+endef
