@@ -75,7 +75,7 @@ static void a9_scu_write(void *opaque, target_phys_addr_t offset,
         break;
     default:
         fprintf(stderr, "Invalid size %u in write to a9 scu register %x\n",
-                size, offset);
+                size, (unsigned)offset);
         return;
     }
 
