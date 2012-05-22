@@ -39,6 +39,7 @@ typedef struct IscsiLun {
     int lun;
     int block_size;
     unsigned long num_blocks;
+    int events;
 } IscsiLun;
 
 typedef struct IscsiAIOCB {
@@ -104,11 +105,27 @@ static void
 iscsi_set_events(IscsiLun *iscsilun)
 {
     struct iscsi_context *iscsi = iscsilun->iscsi;
+    int ev;
 
-    qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), iscsi_process_read,
-                           (iscsi_which_events(iscsi) & POLLOUT)
-                           ? iscsi_process_write : NULL,
-                           iscsi_process_flush, iscsilun);
+    /* We always register a read handler.  */
+    ev = POLLIN;
+    ev |= iscsi_which_events(iscsi);
+    if (ev != iscsilun->events) {
+        qemu_aio_set_fd_handler(iscsi_get_fd(iscsi),
+                      iscsi_process_read,
+                      (ev & POLLOUT) ? iscsi_process_write : NULL,
+                      iscsi_process_flush,
+                      iscsilun);
+
+    }
+
+    /* If we just added an event, the callback might be delayed
+     * unless we call qemu_notify_event().
+     */
+    if (ev & ~iscsilun->events) {
+        qemu_notify_event();
+    }
+    iscsilun->events = ev;
 }
 
 static void
