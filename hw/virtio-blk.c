@@ -147,9 +147,11 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
 
 static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 {
+#ifdef __linux__
     int ret;
-    int status = VIRTIO_BLK_S_OK;
     int i;
+#endif
+    int status = VIRTIO_BLK_S_OK;
 
     /*
      * We require at least one output segment each for the virtio_blk_outhdr
