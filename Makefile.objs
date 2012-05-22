@@ -425,16 +425,11 @@ ifneq ($(TRACE_BACKEND),dtrace)
 trace-obj-y = trace.o
 endif
 
-trace-nested-$(CONFIG_TRACE_DEFAULT) += default.o
-
-trace-nested-$(CONFIG_TRACE_SIMPLE) += simple.o
+trace-obj-$(CONFIG_TRACE_DEFAULT) += trace/default.o
+trace-obj-$(CONFIG_TRACE_SIMPLE) += trace/simple.o
 trace-obj-$(CONFIG_TRACE_SIMPLE) += qemu-timer-common.o
-
-trace-nested-$(CONFIG_TRACE_STDERR) += stderr.o
-
-trace-nested-y += control.o
-
-trace-obj-y += $(addprefix trace/, $(trace-nested-y))
+trace-obj-$(CONFIG_TRACE_STDERR) += trace/stderr.o
+trace-obj-y += trace/control.o
 
 $(trace-obj-y): $(GENERATED_HEADERS)
 
