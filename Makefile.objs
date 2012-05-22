@@ -110,7 +110,6 @@ common-obj-$(CONFIG_BRLAPI) += baum.o
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
 common-obj-$(CONFIG_WIN32) += version.o
 
-common-obj-$(CONFIG_SPICE) += ui/spice-core.o ui/spice-input.o ui/spice-display.o spice-qemu-char.o
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
@@ -127,24 +126,8 @@ audio-obj-$(CONFIG_AUDIO_PT_INT) += audio_pt_int.o
 audio-obj-$(CONFIG_AUDIO_WIN_INT) += audio_win_int.o
 audio-obj-y += wavcapture.o
 common-obj-y += $(addprefix audio/, $(audio-obj-y))
-
-ui-obj-y += keymaps.o
-ui-obj-$(CONFIG_SDL) += sdl.o sdl_zoom.o x_keymap.o
-ui-obj-$(CONFIG_COCOA) += cocoa.o
-ui-obj-$(CONFIG_CURSES) += curses.o
-vnc-obj-y += vnc.o d3des.o
-vnc-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
-vnc-obj-y += vnc-enc-tight.o vnc-palette.o
-vnc-obj-y += vnc-enc-zrle.o
-vnc-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
-vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
-ifdef CONFIG_VNC_THREAD
-vnc-obj-y += vnc-jobs-async.o
-else
-vnc-obj-y += vnc-jobs-sync.o
-endif
-common-obj-y += $(addprefix ui/, $(ui-obj-y))
-common-obj-$(CONFIG_VNC) += $(addprefix ui/, $(vnc-obj-y))
+common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
+common-obj-y += ui/
 
 common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_POSIX) += compatfd.o
