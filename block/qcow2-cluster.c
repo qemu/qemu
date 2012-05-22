@@ -642,11 +642,10 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
 
     if (m->nb_available & (s->cluster_sectors - 1)) {
-        uint64_t end = m->nb_available & ~(uint64_t)(s->cluster_sectors - 1);
         cow = true;
         qemu_co_mutex_unlock(&s->lock);
-        ret = copy_sectors(bs, start_sect + end, cluster_offset + (end << 9),
-                m->nb_available - end, s->cluster_sectors);
+        ret = copy_sectors(bs, start_sect, cluster_offset, m->nb_available,
+                           align_offset(m->nb_available, s->cluster_sectors));
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0)
             goto err;
