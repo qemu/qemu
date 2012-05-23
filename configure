@@ -2831,6 +2831,21 @@ if compile_prog "" "" ; then
     linux_magic_h=yes
 fi
 
+########################################
+# check if environ is declared
+
+has_environ=no
+cat > $TMPC << EOF
+#include <unistd.h>
+int main(void) {
+    environ = environ;
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    has_environ=yes
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -3340,6 +3355,10 @@ fi
 
 if test "$linux_magic_h" = "yes" ; then
   echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
+fi
+
+if test "$has_environ" = "yes" ; then
+  echo "CONFIG_HAS_ENVIRON=y" >> $config_host_mak
 fi
 
 # USB host support
