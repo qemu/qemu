@@ -1308,7 +1308,7 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
         size_t old_size = surface->linesize * surface->height;
         data = g_realloc(surface->data, new_size);
         if (old_size < new_size) {
-            memset(surface->data + old_size, 0, new_size - old_size);
+            memset(data + old_size, 0, new_size - old_size);
         }
     } else {
         data = g_malloc0(new_size);
@@ -1317,7 +1317,7 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
     surface->height = height;
     surface->linesize = linesize;
     surface->pf = pf;
-    surface->data = (uint8_t *)data;
+    surface->data = data;
     surface->flags = newflags | QEMU_ALLOCATED_FLAG;
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags |= QEMU_BIG_ENDIAN_FLAG;
