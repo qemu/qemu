@@ -2283,6 +2283,7 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
         s->update_retrace_info = vga_precise_update_retrace_info;
         break;
     }
+    memset(s->vram_ptr, 0, s->vram_size);
     vga_dirty_log_start(s);
 }
 
