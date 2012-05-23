@@ -21,8 +21,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-
-#include <stddef.h>     /* offsetof */
 #include "qemu-common.h"
 #include "block_int.h"
 #include "module.h"
