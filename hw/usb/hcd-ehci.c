@@ -415,7 +415,6 @@ struct EHCIState {
      */
     QEMUTimer *frame_timer;
     QEMUBH *async_bh;
-    int attach_poll_counter;
     int astate;                        // Current state in asynchronous schedule
     int pstate;                        // Current state in periodic schedule
     USBPort ports[NB_PORTS];
@@ -984,7 +983,6 @@ static void ehci_reset(void *opaque)
 
     s->astate = EST_INACTIVE;
     s->pstate = EST_INACTIVE;
-    s->attach_poll_counter = 0;
 
     for(i = 0; i < NB_PORTS; i++) {
         if (s->companion_ports[i]) {
