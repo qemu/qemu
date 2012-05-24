@@ -357,7 +357,6 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
 
 void vga_hw_update(void);
 void vga_hw_invalidate(void);
-void vga_hw_screen_dump(const char *filename);
 void vga_hw_text_update(console_ch_t *chardata);
 
 int is_graphic_console(void);

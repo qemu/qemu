@@ -1157,3 +1157,12 @@ void hmp_send_key(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
     qapi_free_QKeyCodeList(head);
 }
+
+void hmp_screen_dump(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+
+    qmp_screendump(filename, &err);
+    hmp_handle_error(mon, &err);
+}

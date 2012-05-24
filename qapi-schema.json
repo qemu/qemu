@@ -2539,3 +2539,16 @@
 ##
 { 'command': 'send-key',
   'data': { 'keys': ['QKeyCode'], '*hold-time': 'int' } }
+
+##
+# @screendump:
+#
+# Write a PPM of the VGA screen to a file.
+#
+# @filename: the path of a new PPM file to store the image
+#
+# Returns: Nothing on success
+#
+# Since: 0.14.0
+##
+{ 'command': 'screendump', 'data': {'filename': 'str'} }

@@ -1016,12 +1016,6 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
     return -1;
 }
 
-static int do_screen_dump(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    vga_hw_screen_dump(qdict_get_str(qdict, "filename"));
-    return 0;
-}
-
 static void do_logfile(Monitor *mon, const QDict *qdict)
 {
     cpu_set_log_filename(qdict_get_str(qdict, "filename"));
