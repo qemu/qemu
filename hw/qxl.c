@@ -932,6 +932,7 @@ static void qxl_enter_vga_mode(PCIQXLDevice *d)
     qemu_spice_create_host_primary(&d->ssd);
     d->mode = QXL_MODE_VGA;
     memset(&d->ssd.dirty, 0, sizeof(d->ssd.dirty));
+    vga_dirty_log_start(&d->vga);
 }
 
 static void qxl_exit_vga_mode(PCIQXLDevice *d)
@@ -940,6 +941,7 @@ static void qxl_exit_vga_mode(PCIQXLDevice *d)
         return;
     }
     trace_qxl_exit_vga_mode(d->id);
+    vga_dirty_log_stop(&d->vga);
     qxl_destroy_primary(d, QXL_SYNC);
 }
 
