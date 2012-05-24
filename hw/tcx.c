@@ -611,12 +611,18 @@ static void tcx24_screen_dump(void *opaque, const char *filename, bool cswitch,
     FILE *f;
     uint8_t *d, *d1, v;
     uint32_t *s24, *cptr, dval;
-    int y, x;
+    int ret, y, x;
 
     f = fopen(filename, "wb");
-    if (!f)
+    if (!f) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
         return;
-    fprintf(f, "P6\n%d %d\n%d\n", s->width, s->height, 255);
+    }
+    ret = fprintf(f, "P6\n%d %d\n%d\n", s->width, s->height, 255);
+    if (ret < 0) {
+        goto write_err;
+    }
     d1 = s->vram;
     s24 = s->vram24;
     cptr = s->cplane;
@@ -625,20 +631,46 @@ static void tcx24_screen_dump(void *opaque, const char *filename, bool cswitch,
         for(x = 0; x < s->width; x++, d++, s24++) {
             if ((*cptr++ & 0xff000000) == 0x03000000) { // 24-bit direct
                 dval = *s24 & 0x00ffffff;
-                fputc((dval >> 16) & 0xff, f);
-                fputc((dval >> 8) & 0xff, f);
-                fputc(dval & 0xff, f);
+                ret = fputc((dval >> 16) & 0xff, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc((dval >> 8) & 0xff, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc(dval & 0xff, f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
             } else {
                 v = *d;
-                fputc(s->r[v], f);
-                fputc(s->g[v], f);
-                fputc(s->b[v], f);
+                ret = fputc(s->r[v], f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc(s->g[v], f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
+                ret = fputc(s->b[v], f);
+                if (ret == EOF) {
+                    goto write_err;
+                }
             }
         }
         d1 += MAXX;
     }
+
+out:
     fclose(f);
     return;
+
+write_err:
+    error_setg(errp, "failed to write to file '%s': %s", filename,
+               strerror(errno));
+    unlink(filename);
+    goto out;
 }
 
 static Property tcx_properties[] = {
