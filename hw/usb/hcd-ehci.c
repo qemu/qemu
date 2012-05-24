@@ -586,6 +586,17 @@ static inline void ehci_commit_interrupt(EHCIState *s)
     s->usbsts_pending = 0;
 }
 
+static void ehci_update_halt(EHCIState *s)
+{
+    if (s->usbcmd & USBCMD_RUNSTOP) {
+        ehci_clear_usbsts(s, USBSTS_HALT);
+    } else {
+        if (s->astate == EST_INACTIVE && s->pstate == EST_INACTIVE) {
+            ehci_set_usbsts(s, USBSTS_HALT);
+        }
+    }
+}
+
 static void ehci_set_state(EHCIState *s, int async, int state)
 {
     if (async) {
@@ -593,6 +604,7 @@ static void ehci_set_state(EHCIState *s, int async, int state)
         s->astate = state;
         if (s->astate == EST_INACTIVE) {
             ehci_clear_usbsts(s, USBSTS_ASS);
+            ehci_update_halt(s);
         } else {
             ehci_set_usbsts(s, USBSTS_ASS);
         }
@@ -601,6 +613,7 @@ static void ehci_set_state(EHCIState *s, int async, int state)
         s->pstate = state;
         if (s->pstate == EST_INACTIVE) {
             ehci_clear_usbsts(s, USBSTS_PSS);
+            ehci_update_halt(s);
         } else {
             ehci_set_usbsts(s, USBSTS_PSS);
         }
@@ -1138,20 +1151,14 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
             break;
         }
 
-        if ((val & USBCMD_RUNSTOP) && !(s->usbcmd & USBCMD_RUNSTOP)) {
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
-            SET_LAST_RUN_CLOCK(s);
-            ehci_clear_usbsts(s, USBSTS_HALT);
+        if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
+            ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
+            if (!ehci_enabled(s)) {
+                qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
+                SET_LAST_RUN_CLOCK(s);
+            }
+            ehci_update_halt(s);
         }
-
-        if (!(val & USBCMD_RUNSTOP) && (s->usbcmd & USBCMD_RUNSTOP)) {
-            qemu_del_timer(s->frame_timer);
-            qemu_bh_cancel(s->async_bh);
-            ehci_queues_rip_all(s, 0);
-            ehci_queues_rip_all(s, 1);
-            ehci_set_usbsts(s, USBSTS_HALT);
-        }
-
 
         /* not supporting dynamic frame list size at the moment */
         if ((val & USBCMD_FLS) && !(s->usbcmd & USBCMD_FLS)) {
@@ -2291,7 +2298,7 @@ static void ehci_frame_timer(void *opaque)
     frames = ns_elapsed / FRAME_TIMER_NS;
 
     for (i = 0; i < frames; i++) {
-        if ( !(ehci->usbsts & USBSTS_HALT)) {
+        if (ehci_enabled(ehci)) {
             ehci->frindex += 8;
 
             if (ehci->frindex == 0x00002000) {
@@ -2324,7 +2331,9 @@ static void ehci_frame_timer(void *opaque)
      */
     qemu_bh_schedule(ehci->async_bh);
 
-    qemu_mod_timer(ehci->frame_timer, expire_time);
+    if (ehci_enabled(ehci)) {
+        qemu_mod_timer(ehci->frame_timer, expire_time);
+    }
 }
 
 static void ehci_async_bh(void *opaque)
