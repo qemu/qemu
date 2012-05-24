@@ -2390,7 +2390,7 @@ void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
 /********************************************************/
 /* vga screen dump */
 
-int ppm_save(const char *filename, struct DisplaySurface *ds)
+void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp)
 {
     FILE *f;
     uint8_t *d, *d1;
@@ -2402,10 +2402,16 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
 
     trace_ppm_save(filename, ds);
     f = fopen(filename, "wb");
-    if (!f)
-        return -1;
-    fprintf(f, "P6\n%d %d\n%d\n",
-            ds->width, ds->height, 255);
+    if (!f) {
+        error_setg(errp, "failed to open file '%s': %s", filename,
+                   strerror(errno));
+        return;
+    }
+    ret = fprintf(f, "P6\n%d %d\n%d\n", ds->width, ds->height, 255);
+    if (ret < 0) {
+        linebuf = NULL;
+        goto write_err;
+    }
     linebuf = g_malloc(ds->width * 3);
     d1 = ds->data;
     for(y = 0; y < ds->height; y++) {
@@ -2426,12 +2432,24 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
             d += ds->pf.bytes_per_pixel;
         }
         d1 += ds->linesize;
+        clearerr(f);
         ret = fwrite(linebuf, 1, pbuf - linebuf, f);
         (void)ret;
+        if (ferror(f)) {
+            goto write_err;
+        }
     }
+
+out:
     g_free(linebuf);
     fclose(f);
-    return 0;
+    return;
+
+write_err:
+    error_setg(errp, "failed to write to file '%s': %s", filename,
+               strerror(errno));
+    unlink(filename);
+    goto out;
 }
 
 /* save the vga display in a PPM image even if no display is
@@ -2445,5 +2463,5 @@ static void vga_screen_dump(void *opaque, const char *filename, bool cswitch,
         vga_invalidate_display(s);
     }
     vga_hw_update();
-    ppm_save(filename, s->ds->surface);
+    ppm_save(filename, s->ds->surface, errp);
 }

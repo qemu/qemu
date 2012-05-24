@@ -1605,7 +1605,7 @@ static void qxl_hw_screen_dump(void *opaque, const char *filename, bool cswitch,
     case QXL_MODE_COMPAT:
     case QXL_MODE_NATIVE:
         qxl_render_update(qxl);
-        ppm_save(filename, qxl->ssd.ds->surface);
+        ppm_save(filename, qxl->ssd.ds->surface, errp);
         break;
     case QXL_MODE_VGA:
         vga->screen_dump(vga, filename, cswitch, errp);
