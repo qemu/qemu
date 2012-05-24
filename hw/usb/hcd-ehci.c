@@ -386,7 +386,6 @@ struct EHCIState {
     int companion_count;
 
     /* properties */
-    uint32_t freq;
     uint32_t maxframes;
 
     /*
@@ -430,6 +429,7 @@ struct EHCIState {
     QEMUSGList isgl;
 
     uint64_t last_run_ns;
+    uint32_t async_stepdown;
 };
 
 #define SET_LAST_RUN_CLOCK(s) \
@@ -776,6 +776,7 @@ static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
 static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
+    uint64_t maxage = FRAME_TIMER_NS * ehci->maxframes * 4;
     EHCIQueue *q, *tmp;
 
     QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
@@ -784,8 +785,7 @@ static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
             q->ts = ehci->last_run_ns;
             continue;
         }
-        if (!flush && ehci->last_run_ns < q->ts + 250000000) {
-            /* allow 0.25 sec idle */
+        if (!flush && ehci->last_run_ns < q->ts + maxage) {
             continue;
         }
         ehci_free_queue(q);
@@ -1151,11 +1151,12 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
         if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
             ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
-            if (!ehci_enabled(s)) {
-                qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
+            if (s->pstate == EST_INACTIVE) {
                 SET_LAST_RUN_CLOCK(s);
             }
             ehci_update_halt(s);
+            s->async_stepdown = 0;
+            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
         }
 
         /* not supporting dynamic frame list size at the moment */
@@ -2146,10 +2147,16 @@ static void ehci_advance_state(EHCIState *ehci, int async)
 
         case EST_EXECUTE:
             again = ehci_state_execute(q);
+            if (async) {
+                ehci->async_stepdown = 0;
+            }
             break;
 
         case EST_EXECUTING:
             assert(q != NULL);
+            if (async) {
+                ehci->async_stepdown = 0;
+            }
             again = ehci_state_executing(q);
             break;
 
@@ -2305,6 +2312,7 @@ static void ehci_update_frindex(EHCIState *ehci, int frames)
 static void ehci_frame_timer(void *opaque)
 {
     EHCIState *ehci = opaque;
+    int schedules = 0;
     int64_t expire_time, t_now;
     uint64_t ns_elapsed;
     int frames;
@@ -2312,21 +2320,32 @@ static void ehci_frame_timer(void *opaque)
     int skipped_frames = 0;
 
     t_now = qemu_get_clock_ns(vm_clock);
-    expire_time = t_now + (get_ticks_per_sec() / ehci->freq);
-
     ns_elapsed = t_now - ehci->last_run_ns;
     frames = ns_elapsed / FRAME_TIMER_NS;
 
-    for (i = 0; i < frames; i++) {
-        ehci_update_frindex(ehci, 1);
+    if (ehci_periodic_enabled(ehci) || ehci->pstate != EST_INACTIVE) {
+        schedules++;
+        expire_time = t_now + (get_ticks_per_sec() / FRAME_TIMER_FREQ);
 
-        if (frames - i > ehci->maxframes) {
-            skipped_frames++;
-        } else {
-            ehci_advance_periodic_state(ehci);
+        for (i = 0; i < frames; i++) {
+            ehci_update_frindex(ehci, 1);
+
+            if (frames - i > ehci->maxframes) {
+                skipped_frames++;
+            } else {
+                ehci_advance_periodic_state(ehci);
+            }
+
+            ehci->last_run_ns += FRAME_TIMER_NS;
         }
-
-        ehci->last_run_ns += FRAME_TIMER_NS;
+    } else {
+        if (ehci->async_stepdown < ehci->maxframes / 2) {
+            ehci->async_stepdown++;
+        }
+        expire_time = t_now + (get_ticks_per_sec()
+                               * ehci->async_stepdown / FRAME_TIMER_FREQ);
+        ehci_update_frindex(ehci, frames);
+        ehci->last_run_ns += FRAME_TIMER_NS * frames;
     }
 
 #if 0
@@ -2338,9 +2357,12 @@ static void ehci_frame_timer(void *opaque)
     /*  Async is not inside loop since it executes everything it can once
      *  called
      */
-    qemu_bh_schedule(ehci->async_bh);
+    if (ehci_async_enabled(ehci) || ehci->astate != EST_INACTIVE) {
+        schedules++;
+        qemu_bh_schedule(ehci->async_bh);
+    }
 
-    if (ehci_enabled(ehci)) {
+    if (schedules) {
         qemu_mod_timer(ehci->frame_timer, expire_time);
     }
 }
@@ -2379,7 +2401,6 @@ static const VMStateDescription vmstate_ehci = {
 };
 
 static Property ehci_properties[] = {
-    DEFINE_PROP_UINT32("freq",      EHCIState, freq, FRAME_TIMER_FREQ),
     DEFINE_PROP_UINT32("maxframes", EHCIState, maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
 };
