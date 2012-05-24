@@ -489,7 +489,22 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     stw_raw(&blkcfg.min_io_size, s->conf->min_io_size / blk_size);
     stw_raw(&blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
     blkcfg.heads = heads;
-    blkcfg.sectors = secs & ~s->sector_mask;
+    /*
+     * We must ensure that the block device capacity is a multiple of
+     * the logical block size. If that is not the case, lets use
+     * sector_mask to adopt the geometry to have a correct picture.
+     * For those devices where the capacity is ok for the given geometry
+     * we dont touch the sector value of the geometry, since some devices
+     * (like s390 dasd) need a specific value. Here the capacity is already
+     * cyls*heads*secs*blk_size and the sector value is not block size
+     * divided by 512 - instead it is the amount of blk_size blocks
+     * per track (cylinder).
+     */
+    if (bdrv_getlength(s->bs) /  heads / secs % blk_size) {
+        blkcfg.sectors = secs & ~s->sector_mask;
+    } else {
+        blkcfg.sectors = secs;
+    }
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(s->conf);
     blkcfg.alignment_offset = 0;
