@@ -31,6 +31,9 @@ typedef struct PCIQXLDevice {
     uint32_t           debug;
     uint32_t           guestdebug;
     uint32_t           cmdlog;
+
+    uint32_t           guest_bug;
+
     enum qxl_mode      mode;
     uint32_t           cmdflags;
     int                generation;
