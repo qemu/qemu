@@ -30,7 +30,7 @@
 /*
  * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
  * such can be changed by the guest, so to avoid a guest trigerrable
- * abort we just set qxl_guest_bug and set the return to NULL. Still
+ * abort we just qxl_set_guest_bug and set the return to NULL. Still
  * it may happen as a result of emulator bug as well.
  */
 #undef SPICE_RING_PROD_ITEM
@@ -40,7 +40,7 @@
         uint32_t prod = (r)->prod & SPICE_RING_INDEX_MASK(r);           \
         typeof(&(r)->items[prod]) m_item = &(r)->items[prod];           \
         if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
-            qxl_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
+            qxl_set_guest_bug(qxl, "SPICE_RING_PROD_ITEM indices mismatch " \
                           "! %p <= %p < %p", (uint8_t *)start,          \
                           (uint8_t *)m_item, (uint8_t *)end);           \
             ret = NULL;                                                 \
@@ -56,7 +56,7 @@
         uint32_t cons = (r)->cons & SPICE_RING_INDEX_MASK(r);           \
         typeof(&(r)->items[cons]) m_item = &(r)->items[cons];           \
         if (!((uint8_t*)m_item >= (uint8_t*)(start) && (uint8_t*)(m_item + 1) <= (uint8_t*)(end))) { \
-            qxl_guest_bug(qxl, "SPICE_RING_CONS_ITEM indices mismatch " \
+            qxl_set_guest_bug(qxl, "SPICE_RING_CONS_ITEM indices mismatch " \
                           "! %p <= %p < %p", (uint8_t *)start,          \
                           (uint8_t *)m_item, (uint8_t *)end);           \
             ret = NULL;                                                 \
@@ -138,7 +138,7 @@ static void qxl_reset_memslots(PCIQXLDevice *d);
 static void qxl_reset_surfaces(PCIQXLDevice *d);
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
-void qxl_guest_bug(PCIQXLDevice *qxl, const char *msg, ...)
+void qxl_set_guest_bug(PCIQXLDevice *qxl, const char *msg, ...)
 {
     qxl_send_events(qxl, QXL_INTERRUPT_ERROR);
     if (qxl->guestdebug) {
@@ -411,7 +411,8 @@ static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
         uint32_t id = le32_to_cpu(cmd->surface_id);
 
         if (id >= NUM_SURFACES) {
-            qxl_guest_bug(qxl, "QXL_CMD_SURFACE id %d >= %d", id, NUM_SURFACES);
+            qxl_set_guest_bug(qxl, "QXL_CMD_SURFACE id %d >= %d", id,
+                              NUM_SURFACES);
             return 1;
         }
         qemu_mutex_lock(&qxl->track_lock);
@@ -1061,12 +1062,12 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     trace_qxl_memslot_add_guest(d->id, slot_id, guest_start, guest_end);
 
     if (slot_id >= NUM_MEMSLOTS) {
-        qxl_guest_bug(d, "%s: slot_id >= NUM_MEMSLOTS %d >= %d", __func__,
+        qxl_set_guest_bug(d, "%s: slot_id >= NUM_MEMSLOTS %d >= %d", __func__,
                       slot_id, NUM_MEMSLOTS);
         return 1;
     }
     if (guest_start > guest_end) {
-        qxl_guest_bug(d, "%s: guest_start > guest_end 0x%" PRIx64
+        qxl_set_guest_bug(d, "%s: guest_start > guest_end 0x%" PRIx64
                          " > 0x%" PRIx64, __func__, guest_start, guest_end);
         return 1;
     }
@@ -1091,7 +1092,7 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         break;
     }
     if (i == ARRAY_SIZE(regions)) {
-        qxl_guest_bug(d, "%s: finished loop without match", __func__);
+        qxl_set_guest_bug(d, "%s: finished loop without match", __func__);
         return 1;
     }
 
@@ -1105,7 +1106,7 @@ static int qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         break;
     default:
         /* should not happen */
-        qxl_guest_bug(d, "%s: pci_region = %d", __func__, pci_region);
+        qxl_set_guest_bug(d, "%s: pci_region = %d", __func__, pci_region);
         return 1;
     }
 
@@ -1156,21 +1157,24 @@ void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
         return (void *)(intptr_t)offset;
     case MEMSLOT_GROUP_GUEST:
         if (slot >= NUM_MEMSLOTS) {
-            qxl_guest_bug(qxl, "slot too large %d >= %d", slot, NUM_MEMSLOTS);
+            qxl_set_guest_bug(qxl, "slot too large %d >= %d", slot,
+                              NUM_MEMSLOTS);
             return NULL;
         }
         if (!qxl->guest_slots[slot].active) {
-            qxl_guest_bug(qxl, "inactive slot %d\n", slot);
+            qxl_set_guest_bug(qxl, "inactive slot %d\n", slot);
             return NULL;
         }
         if (offset < qxl->guest_slots[slot].delta) {
-            qxl_guest_bug(qxl, "slot %d offset %"PRIu64" < delta %"PRIu64"\n",
+            qxl_set_guest_bug(qxl,
+                          "slot %d offset %"PRIu64" < delta %"PRIu64"\n",
                           slot, offset, qxl->guest_slots[slot].delta);
             return NULL;
         }
         offset -= qxl->guest_slots[slot].delta;
         if (offset > qxl->guest_slots[slot].size) {
-            qxl_guest_bug(qxl, "slot %d offset %"PRIu64" > size %"PRIu64"\n",
+            qxl_set_guest_bug(qxl,
+                          "slot %d offset %"PRIu64" > size %"PRIu64"\n",
                           slot, offset, qxl->guest_slots[slot].size);
             return NULL;
         }
@@ -1192,7 +1196,7 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
 
     if (qxl->mode == QXL_MODE_NATIVE) {
-        qxl_guest_bug(qxl, "%s: nop since already in QXL_MODE_NATIVE",
+        qxl_set_guest_bug(qxl, "%s: nop since already in QXL_MODE_NATIVE",
                       __func__);
     }
     qxl_exit_vga_mode(qxl);
@@ -1342,7 +1346,7 @@ async_common:
         async = QXL_ASYNC;
         qemu_mutex_lock(&d->async_lock);
         if (d->current_async != QXL_UNDEFINED_IO) {
-            qxl_guest_bug(d, "%d async started before last (%d) complete",
+            qxl_set_guest_bug(d, "%d async started before last (%d) complete",
                 io_port, d->current_async);
             qemu_mutex_unlock(&d->async_lock);
             return;
@@ -1403,11 +1407,12 @@ async_common:
         break;
     case QXL_IO_MEMSLOT_ADD:
         if (val >= NUM_MEMSLOTS) {
-            qxl_guest_bug(d, "QXL_IO_MEMSLOT_ADD: val out of range");
+            qxl_set_guest_bug(d, "QXL_IO_MEMSLOT_ADD: val out of range");
             break;
         }
         if (d->guest_slots[val].active) {
-            qxl_guest_bug(d, "QXL_IO_MEMSLOT_ADD: memory slot already active");
+            qxl_set_guest_bug(d,
+                        "QXL_IO_MEMSLOT_ADD: memory slot already active");
             break;
         }
         d->guest_slots[val].slot = d->ram->mem_slot;
@@ -1415,14 +1420,14 @@ async_common:
         break;
     case QXL_IO_MEMSLOT_DEL:
         if (val >= NUM_MEMSLOTS) {
-            qxl_guest_bug(d, "QXL_IO_MEMSLOT_DEL: val out of range");
+            qxl_set_guest_bug(d, "QXL_IO_MEMSLOT_DEL: val out of range");
             break;
         }
         qxl_del_memslot(d, val);
         break;
     case QXL_IO_CREATE_PRIMARY:
         if (val != 0) {
-            qxl_guest_bug(d, "QXL_IO_CREATE_PRIMARY (async=%d): val != 0",
+            qxl_set_guest_bug(d, "QXL_IO_CREATE_PRIMARY (async=%d): val != 0",
                           async);
             goto cancel_async;
         }
@@ -1431,7 +1436,7 @@ async_common:
         break;
     case QXL_IO_DESTROY_PRIMARY:
         if (val != 0) {
-            qxl_guest_bug(d, "QXL_IO_DESTROY_PRIMARY (async=%d): val != 0",
+            qxl_set_guest_bug(d, "QXL_IO_DESTROY_PRIMARY (async=%d): val != 0",
                           async);
             goto cancel_async;
         }
@@ -1443,7 +1448,7 @@ async_common:
         break;
     case QXL_IO_DESTROY_SURFACE_WAIT:
         if (val >= NUM_SURFACES) {
-            qxl_guest_bug(d, "QXL_IO_DESTROY_SURFACE (async=%d):"
+            qxl_set_guest_bug(d, "QXL_IO_DESTROY_SURFACE (async=%d):"
                              "%" PRIu64 " >= NUM_SURFACES", async, val);
             goto cancel_async;
         }
@@ -1467,7 +1472,7 @@ async_common:
         qxl_spice_destroy_surfaces(d, async);
         break;
     default:
-        qxl_guest_bug(d, "%s: unexpected ioport=0x%x\n", __func__, io_port);
+        qxl_set_guest_bug(d, "%s: unexpected ioport=0x%x\n", __func__, io_port);
     }
     return;
 cancel_async:
