@@ -2280,6 +2280,28 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     }
 }
 
+static void ehci_update_frindex(EHCIState *ehci, int frames)
+{
+    int i;
+
+    if (!ehci_enabled(ehci)) {
+        return;
+    }
+
+    for (i = 0; i < frames; i++) {
+        ehci->frindex += 8;
+
+        if (ehci->frindex == 0x00002000) {
+            ehci_set_interrupt(ehci, USBSTS_FLR);
+        }
+
+        if (ehci->frindex == 0x00004000) {
+            ehci_set_interrupt(ehci, USBSTS_FLR);
+            ehci->frindex = 0;
+        }
+    }
+}
+
 static void ehci_frame_timer(void *opaque)
 {
     EHCIState *ehci = opaque;
@@ -2296,18 +2318,7 @@ static void ehci_frame_timer(void *opaque)
     frames = ns_elapsed / FRAME_TIMER_NS;
 
     for (i = 0; i < frames; i++) {
-        if (ehci_enabled(ehci)) {
-            ehci->frindex += 8;
-
-            if (ehci->frindex == 0x00002000) {
-                ehci_set_interrupt(ehci, USBSTS_FLR);
-            }
-
-            if (ehci->frindex == 0x00004000) {
-                ehci_set_interrupt(ehci, USBSTS_FLR);
-                ehci->frindex = 0;
-            }
-        }
+        ehci_update_frindex(ehci, 1);
 
         if (frames - i > ehci->maxframes) {
             skipped_frames++;
