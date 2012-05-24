@@ -667,6 +667,21 @@ static void ehci_trace_sitd(EHCIState *s, target_phys_addr_t addr,
                         (bool)(sitd->results & SITD_RESULTS_ACTIVE));
 }
 
+static inline bool ehci_enabled(EHCIState *s)
+{
+    return s->usbcmd & USBCMD_RUNSTOP;
+}
+
+static inline bool ehci_async_enabled(EHCIState *s)
+{
+    return ehci_enabled(s) && (s->usbcmd & USBCMD_ASE);
+}
+
+static inline bool ehci_periodic_enabled(EHCIState *s)
+{
+    return ehci_enabled(s) && (s->usbcmd & USBCMD_PSE);
+}
+
 /* packet management */
 
 static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
@@ -1160,7 +1175,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         break;
 
     case PERIODICLISTBASE:
-        if ((s->usbcmd & USBCMD_PSE) && (s->usbcmd & USBCMD_RUNSTOP)) {
+        if (ehci_periodic_enabled(s)) {
             fprintf(stderr,
               "ehci: PERIODIC list base register set while periodic schedule\n"
               "      is enabled and HC is enabled\n");
@@ -1168,7 +1183,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         break;
 
     case ASYNCLISTADDR:
-        if ((s->usbcmd & USBCMD_ASE) && (s->usbcmd & USBCMD_RUNSTOP)) {
+        if (ehci_async_enabled(s)) {
             fprintf(stderr,
               "ehci: ASYNC list address register set while async schedule\n"
               "      is enabled and HC is enabled\n");
@@ -2152,7 +2167,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
 
     switch(ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
-        if (!(ehci->usbcmd & USBCMD_ASE)) {
+        if (!ehci_async_enabled(ehci)) {
             break;
         }
         ehci_set_usbsts(ehci, USBSTS_ASS);
@@ -2160,7 +2175,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         // No break, fall through to ACTIVE
 
     case EST_ACTIVE:
-        if ( !(ehci->usbcmd & USBCMD_ASE)) {
+        if (!ehci_async_enabled(ehci)) {
             ehci_queues_rip_all(ehci, async);
             ehci_clear_usbsts(ehci, USBSTS_ASS);
             ehci_set_state(ehci, async, EST_INACTIVE);
@@ -2213,7 +2228,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 
     switch(ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
-        if ( !(ehci->frindex & 7) && (ehci->usbcmd & USBCMD_PSE)) {
+        if (!(ehci->frindex & 7) && ehci_periodic_enabled(ehci)) {
             ehci_set_usbsts(ehci, USBSTS_PSS);
             ehci_set_state(ehci, async, EST_ACTIVE);
             // No break, fall through to ACTIVE
@@ -2221,7 +2236,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
             break;
 
     case EST_ACTIVE:
-        if ( !(ehci->frindex & 7) && !(ehci->usbcmd & USBCMD_PSE)) {
+        if (!(ehci->frindex & 7) && !ehci_periodic_enabled(ehci)) {
             ehci_queues_rip_all(ehci, async);
             ehci_clear_usbsts(ehci, USBSTS_PSS);
             ehci_set_state(ehci, async, EST_INACTIVE);
