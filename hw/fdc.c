@@ -179,12 +179,14 @@ static void fd_revalidate(FDrive *drv)
     FDriveRate rate;
 
     FLOPPY_DPRINTF("revalidate\n");
-    if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
+    if (drv->bs != NULL) {
         ro = bdrv_is_read_only(drv->bs);
         bdrv_get_floppy_geometry_hint(drv->bs, &nb_heads, &max_track,
                                       &last_sect, drv->drive, &drive, &rate);
-        if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
-            FLOPPY_DPRINTF("User defined disk (%d %d %d)",
+        if (!bdrv_is_inserted(drv->bs)) {
+            FLOPPY_DPRINTF("No disk in drive\n");
+        } else if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
+            FLOPPY_DPRINTF("User defined disk (%d %d %d)\n",
                            nb_heads - 1, max_track, last_sect);
         } else {
             FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n", nb_heads,
@@ -201,7 +203,7 @@ static void fd_revalidate(FDrive *drv)
         drv->drive = drive;
         drv->media_rate = rate;
     } else {
-        FLOPPY_DPRINTF("No disk in drive\n");
+        FLOPPY_DPRINTF("No drive connected\n");
         drv->last_sect = 0;
         drv->max_track = 0;
         drv->flags &= ~FDISK_DBL_SIDES;
@@ -709,7 +711,7 @@ static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
         FDrive *cur_drv;
         /* A seek clears the disk change line (if a disk is inserted) */
         cur_drv = get_cur_drv(fdctrl);
-        if (cur_drv->max_track) {
+        if (cur_drv->bs != NULL && bdrv_is_inserted(cur_drv->bs)) {
             cur_drv->media_changed = 0;
         }
     }
@@ -1878,7 +1880,7 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
         }
 
         fd_init(drive);
-        fd_revalidate(drive);
+        fdctrl_change_cb(drive, 0);
         if (drive->bs) {
             bdrv_set_dev_ops(drive->bs, &fdctrl_block_ops, drive);
         }
