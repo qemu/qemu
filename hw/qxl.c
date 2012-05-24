@@ -27,6 +27,8 @@
 
 #include "qxl.h"
 
+#define VGA_RAM_SIZE (8192 * 1024)
+
 /*
  * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
  * such can be changed by the guest, so to avoid a guest trigerrable
@@ -1854,7 +1856,8 @@ static int qxl_init_primary(PCIDevice *dev)
 
     qxl->id = 0;
     qxl_init_ramsize(qxl, 32);
-    vga_common_init(vga, qxl->vga.vram_size);
+    vga->vram_size_mb = qxl->vga.vram_size >> 20;
+    vga_common_init(vga);
     vga_init(vga, pci_address_space(dev), pci_address_space_io(dev), false);
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);

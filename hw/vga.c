@@ -2225,7 +2225,7 @@ const VMStateDescription vmstate_vga_common = {
     }
 };
 
-void vga_common_init(VGACommonState *s, int vga_ram_size)
+void vga_common_init(VGACommonState *s)
 {
     int i, j, v, b;
 
@@ -2252,16 +2252,23 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
         expand4to8[i] = v;
     }
 
+    /* valid range: 1 MB -> 256 MB */
+    s->vram_size = 1024 * 1024;
+    while (s->vram_size < (s->vram_size_mb << 20) &&
+           s->vram_size < (256 << 20)) {
+        s->vram_size <<= 1;
+    }
+    s->vram_size_mb = s->vram_size >> 20;
+
 #ifdef CONFIG_BOCHS_VBE
     s->is_vbe_vmstate = 1;
 #else
     s->is_vbe_vmstate = 0;
 #endif
-    memory_region_init_ram(&s->vram, "vga.vram", vga_ram_size);
+    memory_region_init_ram(&s->vram, "vga.vram", s->vram_size);
     vmstate_register_ram_global(&s->vram);
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
-    s->vram_size = vga_ram_size;
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
     s->get_resolution = vga_get_resolution;

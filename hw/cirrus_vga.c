@@ -43,6 +43,8 @@
 //#define DEBUG_CIRRUS
 //#define DEBUG_BITBLT
 
+#define VGA_RAM_SIZE (8192 * 1024)
+
 /***************************************
  *
  *  definitions
@@ -2891,7 +2893,8 @@ static int vga_initfn(ISADevice *dev)
     ISACirrusVGAState *d = DO_UPCAST(ISACirrusVGAState, dev, dev);
     VGACommonState *s = &d->cirrus_vga.vga;
 
-    vga_common_init(s, VGA_RAM_SIZE);
+    s->vram_size_mb = VGA_RAM_SIZE >> 20;
+    vga_common_init(s);
     cirrus_init_common(&d->cirrus_vga, CIRRUS_ID_CLGD5430, 0,
                        isa_address_space(dev));
     s->ds = graphic_console_init(s->update, s->invalidate,
@@ -2933,7 +2936,8 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      int16_t device_id = pc->device_id;
 
      /* setup VGA */
-     vga_common_init(&s->vga, VGA_RAM_SIZE);
+     s->vga.vram_size_mb = VGA_RAM_SIZE >> 20;
+     vga_common_init(&s->vga);
      cirrus_init_common(s, device_id, 1, pci_address_space(dev));
      s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                       s->vga.screen_dump, s->vga.text_update,
