@@ -591,9 +591,19 @@ static void ehci_set_state(EHCIState *s, int async, int state)
     if (async) {
         trace_usb_ehci_state("async", state2str(state));
         s->astate = state;
+        if (s->astate == EST_INACTIVE) {
+            ehci_clear_usbsts(s, USBSTS_ASS);
+        } else {
+            ehci_set_usbsts(s, USBSTS_ASS);
+        }
     } else {
         trace_usb_ehci_state("periodic", state2str(state));
         s->pstate = state;
+        if (s->pstate == EST_INACTIVE) {
+            ehci_clear_usbsts(s, USBSTS_PSS);
+        } else {
+            ehci_set_usbsts(s, USBSTS_PSS);
+        }
     }
 }
 
@@ -2170,14 +2180,12 @@ static void ehci_advance_async_state(EHCIState *ehci)
         if (!ehci_async_enabled(ehci)) {
             break;
         }
-        ehci_set_usbsts(ehci, USBSTS_ASS);
         ehci_set_state(ehci, async, EST_ACTIVE);
         // No break, fall through to ACTIVE
 
     case EST_ACTIVE:
         if (!ehci_async_enabled(ehci)) {
             ehci_queues_rip_all(ehci, async);
-            ehci_clear_usbsts(ehci, USBSTS_ASS);
             ehci_set_state(ehci, async, EST_INACTIVE);
             break;
         }
@@ -2229,7 +2237,6 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     switch(ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
         if (!(ehci->frindex & 7) && ehci_periodic_enabled(ehci)) {
-            ehci_set_usbsts(ehci, USBSTS_PSS);
             ehci_set_state(ehci, async, EST_ACTIVE);
             // No break, fall through to ACTIVE
         } else
@@ -2238,7 +2245,6 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     case EST_ACTIVE:
         if (!(ehci->frindex & 7) && !ehci_periodic_enabled(ehci)) {
             ehci_queues_rip_all(ehci, async);
-            ehci_clear_usbsts(ehci, USBSTS_PSS);
             ehci_set_state(ehci, async, EST_INACTIVE);
             break;
         }
