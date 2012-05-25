@@ -29,6 +29,7 @@
 #include "qemu-error.h"
 #include "block_int.h"
 #include "trace.h"
+#include "hw/scsi-defs.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
@@ -37,6 +38,7 @@
 typedef struct IscsiLun {
     struct iscsi_context *iscsi;
     int lun;
+    enum scsi_inquiry_peripheral_device_type type;
     int block_size;
     uint64_t num_blocks;
     int events;
@@ -508,6 +510,44 @@ iscsi_readcapacity16_cb(struct iscsi_context *iscsi, int status,
 }
 
 static void
+iscsi_inquiry_cb(struct iscsi_context *iscsi, int status, void *command_data,
+                 void *opaque)
+{
+    struct IscsiTask *itask = opaque;
+    struct scsi_task *task = command_data;
+    struct scsi_inquiry_standard *inq;
+
+    if (status != 0) {
+        itask->status   = 1;
+        itask->complete = 1;
+        scsi_free_scsi_task(task);
+        return;
+    }
+
+    inq = scsi_datain_unmarshall(task);
+    if (inq == NULL) {
+        error_report("iSCSI: Failed to unmarshall inquiry data.");
+        itask->status   = 1;
+        itask->complete = 1;
+        scsi_free_scsi_task(task);
+        return;
+    }
+
+    itask->iscsilun->type = inq->periperal_device_type;
+
+    scsi_free_scsi_task(task);
+
+    task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
+                                   iscsi_readcapacity16_cb, opaque);
+    if (task == NULL) {
+        error_report("iSCSI: failed to send readcapacity16 command.");
+        itask->status   = 1;
+        itask->complete = 1;
+        return;
+    }
+}
+
+static void
 iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
                  void *opaque)
 {
@@ -520,10 +560,11 @@ iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
         return;
     }
 
-    task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
-                                   iscsi_readcapacity16_cb, opaque);
+    task = iscsi_inquiry_task(iscsi, itask->iscsilun->lun,
+                              0, 0, 36,
+                              iscsi_inquiry_cb, opaque);
     if (task == NULL) {
-        error_report("iSCSI: failed to send readcapacity16 command.");
+        error_report("iSCSI: failed to send inquiry command.");
         itask->status   = 1;
         itask->complete = 1;
         return;
