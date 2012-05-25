@@ -82,6 +82,7 @@
 #define GET_EVENT_STATUS_NOTIFICATION 0x4a
 #define LOG_SELECT            0x4c
 #define LOG_SENSE             0x4d
+#define READ_DISC_INFORMATION 0x51
 #define RESERVE_TRACK         0x53
 #define MODE_SELECT_10        0x55
 #define RESERVE_10            0x56
