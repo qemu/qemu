@@ -138,6 +138,7 @@ struct UHCIState {
 
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;
+    int irq_pin;
 
     /* Active packets */
     QTAILQ_HEAD(, UHCIQueue) queues;
@@ -340,7 +341,7 @@ static void uhci_update_irq(UHCIState *s)
     } else {
         level = 0;
     }
-    qemu_set_irq(s->dev.irq[3], level);
+    qemu_set_irq(s->dev.irq[s->irq_pin], level);
 }
 
 static void uhci_reset(void *opaque)
@@ -1184,14 +1185,30 @@ static USBBusOps uhci_bus_ops = {
 
 static int usb_uhci_common_initfn(PCIDevice *dev)
 {
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
     int i;
 
     pci_conf[PCI_CLASS_PROG] = 0x00;
     /* TODO: reset value should be 0. */
-    pci_conf[PCI_INTERRUPT_PIN] = 4; /* interrupt pin D */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
+
+    switch (pc->device_id) {
+    case PCI_DEVICE_ID_INTEL_82801I_UHCI1:
+        s->irq_pin = 0;  /* A */
+        break;
+    case PCI_DEVICE_ID_INTEL_82801I_UHCI2:
+        s->irq_pin = 1;  /* B */
+        break;
+    case PCI_DEVICE_ID_INTEL_82801I_UHCI3:
+        s->irq_pin = 2;  /* C */
+        break;
+    default:
+        s->irq_pin = 3;  /* D */
+        break;
+    }
+    pci_config_set_interrupt_pin(pci_conf, s->irq_pin + 1);
 
     if (s->masterbus) {
         USBPort *ports[NB_PORTS];
