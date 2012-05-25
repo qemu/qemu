@@ -27,14 +27,6 @@
 #define QEMU_AIO_MISALIGNED   0x1000
 
 
-/* posix-aio-compat.c - thread pool based implementation */
-BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque, int type);
-BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
-        unsigned long int req, void *buf,
-        BlockDriverCompletionFunc *cb, void *opaque);
-
 /* linux-aio.c - Linux native implementation */
 void *laio_init(void);
 BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
