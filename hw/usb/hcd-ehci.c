@@ -2315,9 +2315,8 @@ static void ehci_frame_timer(void *opaque)
     int schedules = 0;
     int64_t expire_time, t_now;
     uint64_t ns_elapsed;
-    int frames;
+    int frames, skipped_frames;
     int i;
-    int skipped_frames = 0;
 
     t_now = qemu_get_clock_ns(vm_clock);
     ns_elapsed = t_now - ehci->last_run_ns;
@@ -2327,15 +2326,17 @@ static void ehci_frame_timer(void *opaque)
         schedules++;
         expire_time = t_now + (get_ticks_per_sec() / FRAME_TIMER_FREQ);
 
+        if (frames > ehci->maxframes) {
+            skipped_frames = frames - ehci->maxframes;
+            ehci_update_frindex(ehci, skipped_frames);
+            ehci->last_run_ns += FRAME_TIMER_NS * skipped_frames;
+            frames -= skipped_frames;
+            DPRINTF("WARNING - EHCI skipped %d frames\n", skipped_frames);
+        }
+
         for (i = 0; i < frames; i++) {
             ehci_update_frindex(ehci, 1);
-
-            if (frames - i > ehci->maxframes) {
-                skipped_frames++;
-            } else {
-                ehci_advance_periodic_state(ehci);
-            }
-
+            ehci_advance_periodic_state(ehci);
             ehci->last_run_ns += FRAME_TIMER_NS;
         }
     } else {
@@ -2347,12 +2348,6 @@ static void ehci_frame_timer(void *opaque)
         ehci_update_frindex(ehci, frames);
         ehci->last_run_ns += FRAME_TIMER_NS * frames;
     }
-
-#if 0
-    if (skipped_frames) {
-        DPRINTF("WARNING - EHCI skipped %d frames\n", skipped_frames);
-    }
-#endif
 
     /*  Async is not inside loop since it executes everything it can once
      *  called
