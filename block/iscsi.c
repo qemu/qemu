@@ -38,7 +38,7 @@ typedef struct IscsiLun {
     struct iscsi_context *iscsi;
     int lun;
     int block_size;
-    unsigned long num_blocks;
+    uint64_t num_blocks;
     int events;
 } IscsiLun;
 
