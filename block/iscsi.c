@@ -1022,6 +1022,16 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
     }
+
+    /* Medium changer or tape. We dont have any emulation for this so this must
+     * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
+     * to read from the device to guess the image format.
+     */
+    if (iscsilun->type == TYPE_MEDIUM_CHANGER ||
+        iscsilun->type == TYPE_TAPE) {
+        bs->sg = 1;
+    }
+
     return 0;
 
 failed:
