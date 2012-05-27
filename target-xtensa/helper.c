@@ -511,6 +511,7 @@ static int autorefill_mmu(CPUXtensaState *env, uint32_t vaddr, bool dtlb,
         *wi = (++env->autorefill_idx) & 0x3;
         split_tlb_entry_spec_way(env, vaddr, dtlb, &vpn, *wi, ei);
         xtensa_tlb_set_entry(env, dtlb, *wi, *ei, vpn, pte);
+        env->sregs[EXCVADDR] = vaddr;
         qemu_log("%s: autorefill(%08x): %08x -> %08x\n",
                 __func__, vaddr, vpn, pte);
     }
