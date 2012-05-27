@@ -22,7 +22,12 @@
 #include "host-utils.h"
 
 #ifndef CONFIG_HAS_ENVIRON
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#else
 extern char **environ;
+#endif
 #endif
 
 #if defined(__linux__)
