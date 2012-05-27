@@ -1492,7 +1492,8 @@ void tb_invalidate_phys_addr(target_phys_addr_t addr)
 
 static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
 {
-    tb_invalidate_phys_addr(cpu_get_phys_page_debug(env, pc));
+    tb_invalidate_phys_addr(cpu_get_phys_page_debug(env, pc) |
+            (pc & ~TARGET_PAGE_MASK));
 }
 #endif
 #endif /* TARGET_HAS_ICE */
