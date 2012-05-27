@@ -669,6 +669,7 @@ void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
             entry->paddr = pte & xtensa_tlb_get_addr_mask(env, dtlb, wi);
             entry->asid = (env->sregs[RASID] >> ((pte >> 1) & 0x18)) & 0xff;
             entry->attr = pte & 0xf;
+            tlb_flush_page(env, entry->vaddr);
         } else {
             qemu_log("%s %d, %d, %d trying to set immutable entry\n",
                     __func__, dtlb, wi, ei);
