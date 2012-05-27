@@ -655,6 +655,16 @@ uint32_t HELPER(ptlb)(uint32_t v, uint32_t dtlb)
     }
 }
 
+void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
+        xtensa_tlb_entry *entry, bool dtlb,
+        unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
+{
+    entry->vaddr = vpn;
+    entry->paddr = pte & xtensa_tlb_get_addr_mask(env, dtlb, wi);
+    entry->asid = (env->sregs[RASID] >> ((pte >> 1) & 0x18)) & 0xff;
+    entry->attr = pte & 0xf;
+}
+
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
 {
@@ -665,10 +675,7 @@ void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
             if (entry->asid) {
                 tlb_flush_page(env, entry->vaddr);
             }
-            entry->vaddr = vpn;
-            entry->paddr = pte & xtensa_tlb_get_addr_mask(env, dtlb, wi);
-            entry->asid = (env->sregs[RASID] >> ((pte >> 1) & 0x18)) & 0xff;
-            entry->attr = pte & 0xf;
+            xtensa_tlb_set_entry_mmu(env, entry, dtlb, wi, ei, vpn, pte);
             tlb_flush_page(env, entry->vaddr);
         } else {
             qemu_log("%s %d, %d, %d trying to set immutable entry\n",

@@ -370,6 +370,9 @@ void split_tlb_entry_spec_way(const CPUXtensaState *env, uint32_t v, bool dtlb,
         uint32_t *vpn, uint32_t wi, uint32_t *ei);
 int xtensa_tlb_lookup(const CPUXtensaState *env, uint32_t addr, bool dtlb,
         uint32_t *pwi, uint32_t *pei, uint8_t *pring);
+void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
+        xtensa_tlb_entry *entry, bool dtlb,
+        unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte);
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte);
 int xtensa_get_physical_addr(CPUXtensaState *env,
