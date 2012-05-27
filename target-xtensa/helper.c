@@ -452,7 +452,8 @@ static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte);
 
 static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
         uint32_t vaddr, int is_write, int mmu_idx,
-        uint32_t *paddr, uint32_t *page_size, unsigned *access)
+        uint32_t *paddr, uint32_t *page_size, unsigned *access,
+        bool may_lookup_pt)
 {
     bool dtlb = is_write != 2;
     uint32_t wi;
@@ -465,8 +466,7 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
     int ret = xtensa_tlb_lookup(env, vaddr, dtlb, &wi, &ei, &ring);
 
     if ((ret == INST_TLB_MISS_CAUSE || ret == LOAD_STORE_TLB_MISS_CAUSE) &&
-            (mmu_idx != 0 || ((vaddr ^ env->sregs[PTEVADDR]) & 0xffc00000)) &&
-            get_pte(env, vaddr, &pte) == 0) {
+            may_lookup_pt && get_pte(env, vaddr, &pte) == 0) {
         ring = (pte >> 4) & 0x3;
         wi = 0;
         split_tlb_entry_spec_way(env, vaddr, dtlb, &vpn, wi, &ei);
@@ -520,7 +520,7 @@ static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
     uint32_t pt_vaddr =
         (env->sregs[PTEVADDR] | (vaddr >> 10)) & 0xfffffffc;
     int ret = get_physical_addr_mmu(env, false, pt_vaddr, 0, 0,
-            &paddr, &page_size, &access);
+            &paddr, &page_size, &access, false);
 
     qemu_log("%s: trying autorefill(%08x) -> %08x\n", __func__,
             vaddr, ret ? ~0 : paddr);
@@ -568,7 +568,7 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         return get_physical_addr_mmu(env, update_tlb,
-                vaddr, is_write, mmu_idx, paddr, page_size, access);
+                vaddr, is_write, mmu_idx, paddr, page_size, access, true);
     } else if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION))) {
