@@ -386,7 +386,7 @@ void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte);
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte);
-int xtensa_get_physical_addr(CPUXtensaState *env,
+int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access);
 void reset_mmu(CPUXtensaState *env);

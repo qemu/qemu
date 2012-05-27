@@ -79,7 +79,7 @@ void tlb_fill(CPUXtensaState *env1, target_ulong vaddr, int is_write, int mmu_id
         uint32_t paddr;
         uint32_t page_size;
         unsigned access;
-        int ret = xtensa_get_physical_addr(env, vaddr, is_write, mmu_idx,
+        int ret = xtensa_get_physical_addr(env, true, vaddr, is_write, mmu_idx,
                 &paddr, &page_size, &access);
 
         qemu_log("%s(%08x, %d, %d) -> %08x, ret = %d\n", __func__,
@@ -103,7 +103,7 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
-    int ret = xtensa_get_physical_addr(env, vaddr, 2, 0,
+    int ret = xtensa_get_physical_addr(env, false, vaddr, 2, 0,
             &paddr, &page_size, &access);
     if (ret == 0) {
         tb_invalidate_phys_addr(paddr);
