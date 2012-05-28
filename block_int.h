@@ -335,7 +335,7 @@ struct BlockDriverState {
     BlockJob *job;
 };
 
-void get_tmp_filename(char *filename, int size);
+int get_tmp_filename(char *filename, int size);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         BlockIOLimit *io_limits);
