@@ -55,6 +55,21 @@ try ...
 ... then use "bus=ehci.0" to assign your usb devices to that bus.
 
 
+xhci controller support
+-----------------------
+
+There also is xhci host controller support available.  It got alot
+less testing than ehci and there are a bunch of known limitations, so
+ehci may work better for you.  On the other hand the xhci hardware
+design is much more virtualization-friendly, thus xhci emulation uses
+less ressources (especially cpu).  If you wanna give xhci a try
+use this to add the host controller ...
+
+    qemu -device nec-usb-xhci,id=xhci
+
+... then use "bus=xhci.0" when assigning usb devices.
+
+
 More USB tips & tricks
 ======================
 
