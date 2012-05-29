@@ -147,6 +147,10 @@ libcacard.la: $(oslib-obj-y) qemu-timer-common.o $(addsuffix .lo, $(basename $(t
 install-libcacard: libcacard.la
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
 endif
+
+vscclient$(EXESUF): $(libcacard-y) $(oslib-obj-y) qemu-timer-common.o libcacard/vscclient.o
+	$(call quiet-command,$(CC) -o $@ $^ $(libcacard_libs) $(LIBS),"  LINK  $@")
+
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h

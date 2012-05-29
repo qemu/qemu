@@ -2927,6 +2927,9 @@ if test "$softmmu" = yes ; then
     fi
   fi
 fi
+if test "$smartcard_nss" = "yes" ; then
+  tools="vscclient\$(EXESUF) $tools"
+fi
 
 # Mac OS X ships with a broken assembler
 roms=
@@ -3959,9 +3962,10 @@ DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui hw hw/usb"
 DIRS="$DIRS qapi qapi-generated"
 DIRS="$DIRS qga trace qom"
+DIRS="$DIRS libcacard libcacard/libcacard libcacard/trace"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
-FILES="$FILES tests/tcg/lm32/Makefile"
+FILES="$FILES tests/tcg/lm32/Makefile libcacard/Makefile"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
 FILES="$FILES pc-bios/spapr-rtas/Makefile"
 FILES="$FILES roms/seabios/Makefile roms/vgabios/Makefile"
@@ -4004,12 +4008,6 @@ for hwlib in 32 64; do
   mkdir -p $d/hw/9pfs
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak
 done
-
-if [ "$source_path" != `pwd` ]; then
-    # out of tree build
-    mkdir -p libcacard
-    symlink "$source_path/libcacard/Makefile" libcacard/Makefile
-fi
 
 d=libuser
 mkdir -p $d

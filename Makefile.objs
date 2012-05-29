@@ -198,7 +198,13 @@ $(trace-obj-y): $(GENERATED_HEADERS)
 ######################################################################
 # smartcard
 
-libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o card_7816.o
+libcacard-y += libcacard/cac.o libcacard/event.o
+libcacard-y += libcacard/vcard.o libcacard/vreader.o
+libcacard-y += libcacard/vcard_emul_nss.o
+libcacard-y += libcacard/vcard_emul_type.o
+libcacard-y += libcacard/card_7816.o
+
+common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 
 ######################################################################
 # qapi

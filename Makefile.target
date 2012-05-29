@@ -164,16 +164,10 @@ all-obj-y = $(obj-y)
 all-obj-y += $(addprefix ../, $(universal-obj-y))
 
 ifdef CONFIG_SOFTMMU
-
 all-obj-y += $(addprefix ../, $(common-obj-y))
 all-obj-y += $(addprefix ../libdis/, $(libdis-y))
 all-obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 all-obj-y += $(addprefix ../, $(trace-obj-y))
-
-# libcacard needs qemu-thread support, and besides is only needed by devices
-# so not requires with linux-user / bsd-user targets
-all-obj-$(CONFIG_SMARTCARD_NSS) += $(addprefix ../libcacard/, $(libcacard-y))
-
 else
 all-obj-y += $(addprefix ../libuser/, $(user-obj-y))
 all-obj-y += $(addprefix ../libdis-user/, $(libdis-y))
