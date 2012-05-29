@@ -78,7 +78,7 @@ all: $(PROGS) stap
 
 #########################################################
 # cpu emulator library
-obj-y = exec.o translate-all.o cpu-exec.o translate.o
+obj-y = exec.o translate-all.o cpu-exec.o
 obj-y += tcg/tcg.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
 obj-y += fpu/softfloat.o
@@ -133,7 +133,7 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y += arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o ioport.o
+obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-$(CONFIG_NO_PCI) += pci-stub.o
@@ -142,12 +142,12 @@ obj-$(CONFIG_VIRTIO) += virtio-scsi.o
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p-device.o
-obj-$(CONFIG_KVM) += kvm.o kvm-all.o
+obj-$(CONFIG_KVM) += kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-$(CONFIG_VGA) += vga.o
 obj-y += memory.o savevm.o cputlb.o
-obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += memory_mapping.o arch_memory_mapping.o
-obj-$(CONFIG_HAVE_CORE_DUMP) += dump.o arch_dump.o
+obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += memory_mapping.o
+obj-$(CONFIG_HAVE_CORE_DUMP) += dump.o
 obj-$(CONFIG_NO_GET_MEMORY_MAPPING) += memory_mapping-stub.o
 obj-$(CONFIG_NO_CORE_DUMP) += dump-stub.o
 LIBS+=-lz

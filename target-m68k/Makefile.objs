@@ -1,4 +1,5 @@
 obj-y += m68k-semi.o
-obj-y += op_helper.o helper.o cpu.o
+obj-y += translate.o op_helper.o helper.o cpu.o
+obj-$(CONFIG_SOFTMMU) += machine.o
 
 $(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
