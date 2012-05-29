@@ -345,7 +345,7 @@ static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
 {
     struct mntent *ment;
     GuestFsfreezeMount *mount;
-    char const *mtab = MOUNTED;
+    char const *mtab = "/proc/self/mounts";
     FILE *fp;
 
     fp = setmntent(mtab, "r");
