@@ -1,0 +1,4 @@
+common-obj-y += core.o bus.o desc.o dev-hub.o
+common-obj-y += host-$(HOST_USB).o dev-bluetooth.o
+common-obj-y += dev-hid.o dev-storage.o dev-wacom.o
+common-obj-y += dev-serial.o dev-network.o dev-audio.o
