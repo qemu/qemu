@@ -382,7 +382,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     if (floppy) {
         fdc_get_bs(fd, floppy);
         for (i = 0; i < 2; i++) {
-            if (fd[i] && bdrv_is_inserted(fd[i])) {
+            if (fd[i]) {
                 bdrv_get_floppy_geometry_hint(fd[i], &nb_heads, &max_track,
                                               &last_sect, FDRIVE_DRV_NONE,
                                               &fd_type[i], &rate);

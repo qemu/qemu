@@ -159,6 +159,24 @@ It can be used without an accessible old backing file, i.e. you can use it to
 fix an image whose backing file has already been moved/renamed.
 @end table
 
+You can use @code{rebase} to perform a ``diff'' operation on two
+disk images.  This can be useful when you have copied or cloned
+a guest, and you want to get back to a thin image on top of a
+template or base image.
+
+Say that @code{base.img} has been cloned as @code{modified.img} by
+copying it, and that the @code{modified.img} guest has run so there
+are now some changes compared to @code{base.img}.  To construct a thin
+image called @code{diff.qcow2} that contains just the differences, do:
+
+@example
+qemu-img create -f qcow2 -b modified.img diff.qcow2
+qemu-img rebase -b base.img diff.qcow2
+@end example
+
+At this point, @code{modified.img} can be discarded, since
+@code{base.img + diff.qcow2} contains the same information.
+
 @item resize @var{filename} [+ | -]@var{size}
 
 Change the disk image as if it had been created with @var{size}.
