@@ -7,7 +7,7 @@ include $(SRC_PATH)/rules.mak
 
 .PHONY: all
 
-$(call set-vpath, $(SRC_PATH):$(SRC_PATH)/hw)
+$(call set-vpath, $(SRC_PATH))
 
 QEMU_CFLAGS+=-I..
 QEMU_CFLAGS += -I$(SRC_PATH)/include
@@ -19,7 +19,7 @@ all: $(hw-obj-y)
 	@true
 
 clean:
-	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~
+	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ */*/*.d
 
 # Include automatically generated dependency files
--include $(wildcard *.d */*.d)
+-include $(wildcard *.d */*.d */*/*.d)

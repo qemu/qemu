@@ -109,147 +109,7 @@ user-obj-y += qom/
 ######################################################################
 # libhw
 
-hw-obj-y =
-hw-obj-y += vl.o loader.o
-hw-obj-$(CONFIG_VIRTIO) += virtio-console.o
-hw-obj-y += usb/libhw.o
-hw-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
-hw-obj-y += fw_cfg.o
-hw-obj-$(CONFIG_PCI) += pci.o pci_bridge.o pci_bridge_dev.o
-hw-obj-$(CONFIG_PCI) += msix.o msi.o
-hw-obj-$(CONFIG_PCI) += shpc.o
-hw-obj-$(CONFIG_PCI) += slotid_cap.o
-hw-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
-hw-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
-hw-obj-y += watchdog.o
-hw-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
-hw-obj-$(CONFIG_ECC) += ecc.o
-hw-obj-$(CONFIG_NAND) += nand.o
-hw-obj-$(CONFIG_PFLASH_CFI01) += pflash_cfi01.o
-hw-obj-$(CONFIG_PFLASH_CFI02) += pflash_cfi02.o
-
-hw-obj-$(CONFIG_M48T59) += m48t59.o
-hw-obj-$(CONFIG_ESCC) += escc.o
-hw-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
-
-hw-obj-$(CONFIG_SERIAL) += serial.o
-hw-obj-$(CONFIG_PARALLEL) += parallel.o
-hw-obj-$(CONFIG_I8254) += i8254_common.o i8254.o
-hw-obj-$(CONFIG_PCSPK) += pcspk.o
-hw-obj-$(CONFIG_PCKBD) += pckbd.o
-hw-obj-$(CONFIG_USB_UHCI) += usb/hcd-uhci.o
-hw-obj-$(CONFIG_USB_OHCI) += usb/hcd-ohci.o
-hw-obj-$(CONFIG_USB_EHCI) += usb/hcd-ehci.o
-hw-obj-$(CONFIG_USB_XHCI) += usb/hcd-xhci.o
-hw-obj-$(CONFIG_FDC) += fdc.o
-hw-obj-$(CONFIG_ACPI) += acpi.o acpi_piix4.o
-hw-obj-$(CONFIG_APM) += pm_smbus.o apm.o
-hw-obj-$(CONFIG_DMA) += dma.o
-hw-obj-$(CONFIG_I82374) += i82374.o
-hw-obj-$(CONFIG_HPET) += hpet.o
-hw-obj-$(CONFIG_APPLESMC) += applesmc.o
-hw-obj-$(CONFIG_SMARTCARD) += usb/dev-smartcard-reader.o ccid-card-passthru.o
-hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
-hw-obj-$(CONFIG_USB_REDIR) += usb/redirect.o
-hw-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
-
-# PPC devices
-hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
-hw-obj-$(CONFIG_I82378) += i82378.o
-# Mac shared devices
-hw-obj-$(CONFIG_MACIO) += macio.o
-hw-obj-$(CONFIG_CUDA) += cuda.o
-hw-obj-$(CONFIG_ADB) += adb.o
-hw-obj-$(CONFIG_MAC_NVRAM) += mac_nvram.o
-hw-obj-$(CONFIG_MAC_DBDMA) += mac_dbdma.o
-# OldWorld PowerMac
-hw-obj-$(CONFIG_HEATHROW_PIC) += heathrow_pic.o
-hw-obj-$(CONFIG_GRACKLE_PCI) += grackle_pci.o
-# NewWorld PowerMac
-hw-obj-$(CONFIG_UNIN_PCI) += unin_pci.o
-hw-obj-$(CONFIG_DEC_PCI) += dec_pci.o
-# PowerPC E500 boards
-hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
-
-# MIPS devices
-hw-obj-$(CONFIG_PIIX4) += piix4.o
-hw-obj-$(CONFIG_G364FB) += g364fb.o
-hw-obj-$(CONFIG_JAZZ_LED) += jazz_led.o
-
-# PCI watchdog devices
-hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
-
-hw-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
-
-# PCI network cards
-hw-obj-$(CONFIG_NE2000_PCI) += ne2000.o
-hw-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
-hw-obj-$(CONFIG_PCNET_PCI) += pcnet-pci.o
-hw-obj-$(CONFIG_PCNET_COMMON) += pcnet.o
-hw-obj-$(CONFIG_E1000_PCI) += e1000.o
-hw-obj-$(CONFIG_RTL8139_PCI) += rtl8139.o
-
-hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
-hw-obj-$(CONFIG_LAN9118) += lan9118.o
-hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
-hw-obj-$(CONFIG_OPENCORES_ETH) += opencores_eth.o
-
-# IDE
-hw-obj-$(CONFIG_IDE_CORE) += ide/core.o ide/atapi.o
-hw-obj-$(CONFIG_IDE_QDEV) += ide/qdev.o
-hw-obj-$(CONFIG_IDE_PCI) += ide/pci.o
-hw-obj-$(CONFIG_IDE_ISA) += ide/isa.o
-hw-obj-$(CONFIG_IDE_PIIX) += ide/piix.o
-hw-obj-$(CONFIG_IDE_CMD646) += ide/cmd646.o
-hw-obj-$(CONFIG_IDE_MACIO) += ide/macio.o
-hw-obj-$(CONFIG_IDE_VIA) += ide/via.o
-hw-obj-$(CONFIG_AHCI) += ide/ahci.o
-hw-obj-$(CONFIG_AHCI) += ide/ich.o
-
-# SCSI layer
-hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
-hw-obj-$(CONFIG_ESP) += esp.o
-
-hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
-hw-obj-y += qdev-addr.o
-
-# VGA
-hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
-hw-obj-$(CONFIG_VGA_ISA) += vga-isa.o
-hw-obj-$(CONFIG_VGA_ISA_MM) += vga-isa-mm.o
-hw-obj-$(CONFIG_VMWARE_VGA) += vmware_vga.o
-hw-obj-$(CONFIG_VMMOUSE) += vmmouse.o
-hw-obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
-
-hw-obj-$(CONFIG_RC4030) += rc4030.o
-hw-obj-$(CONFIG_DP8393X) += dp8393x.o
-hw-obj-$(CONFIG_DS1225Y) += ds1225y.o
-hw-obj-$(CONFIG_MIPSNET) += mipsnet.o
-
-hw-obj-y += qtest.o
-
-# Sound
-sound-obj-y =
-sound-obj-$(CONFIG_SB16) += sb16.o
-sound-obj-$(CONFIG_ES1370) += es1370.o
-sound-obj-$(CONFIG_AC97) += ac97.o
-sound-obj-$(CONFIG_ADLIB) += fmopl.o adlib.o
-sound-obj-$(CONFIG_GUS) += gus.o gusemu_hal.o gusemu_mixer.o
-sound-obj-$(CONFIG_CS4231A) += cs4231a.o
-sound-obj-$(CONFIG_HDA) += intel-hda.o hda-audio.o
-
-adlib.o fmopl.o: QEMU_CFLAGS += -DBUILD_Y8950=0
-hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
-
-9pfs-nested-$(CONFIG_VIRTFS)  = virtio-9p.o
-9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-local.o virtio-9p-xattr.o
-9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-xattr-user.o virtio-9p-posix-acl.o
-9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-coth.o cofs.o codir.o cofile.o
-9pfs-nested-$(CONFIG_VIRTFS) += coxattr.o virtio-9p-synth.o
-9pfs-nested-$(CONFIG_OPEN_BY_HANDLE) +=  virtio-9p-handle.o
-9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-proxy.o
-
-hw-obj-$(CONFIG_REALLY_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
+hw-obj-y = vl.o dma-helpers.o qtest.o hw/
 
 ######################################################################
 # libdis
@@ -364,6 +224,7 @@ vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
+	hw-obj-y \
 	qga-obj-y \
 	block-obj-y \
 	qom-obj-y \
