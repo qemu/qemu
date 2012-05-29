@@ -1,0 +1,3 @@
+obj-y = s390-virtio-bus.o s390-virtio.o
+
+obj-y := $(addprefix ../,$(obj-y))

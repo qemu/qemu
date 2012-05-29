@@ -1,0 +1,23 @@
+# LM32 boards
+obj-y += lm32_boards.o
+obj-y += milkymist.o
+
+# LM32 peripherals
+obj-y += lm32_pic.o
+obj-y += lm32_juart.o
+obj-y += lm32_timer.o
+obj-y += lm32_uart.o
+obj-y += lm32_sys.o
+obj-y += milkymist-ac97.o
+obj-y += milkymist-hpdmc.o
+obj-y += milkymist-memcard.o
+obj-y += milkymist-minimac2.o
+obj-y += milkymist-pfpu.o
+obj-y += milkymist-softusb.o
+obj-y += milkymist-sysctl.o
+obj-$(CONFIG_OPENGL) += milkymist-tmu2.o
+obj-y += milkymist-uart.o
+obj-y += milkymist-vgafb.o
+obj-y += framebuffer.o
+
+obj-y := $(addprefix ../,$(obj-y))

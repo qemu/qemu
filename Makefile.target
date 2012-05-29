@@ -102,6 +102,8 @@ libobj-$(TARGET_ALPHA) += int_helper.o fpu_helper.o sys_helper.o mem_helper.o
 libobj-y += disas.o
 libobj-$(CONFIG_TCI_DIS) += tci-dis.o
 
+obj-y += target-$(TARGET_BASE_ARCH)/
+
 tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
 
 # HELPER_CFLAGS is used for all the legacy code compiled with static register
@@ -124,9 +126,6 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
 obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
-obj-i386-y += ioport-user.o
-obj-$(TARGET_ARM) += arm-semi.o
-obj-$(TARGET_M68K) += m68k-semi.o
 
 obj-y += $(addprefix ../, $(universal-obj-y))
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
@@ -144,7 +143,6 @@ QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y += bsd-user/
 obj-y += gdbstub.o user-exec.o
-obj-i386-y += ioport-user.o
 
 obj-y += $(addprefix ../, $(universal-obj-y))
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
@@ -157,7 +155,7 @@ endif #CONFIG_BSD_USER
 # System emulator target
 ifdef CONFIG_SOFTMMU
 
-obj-y = arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o ioport.o
+obj-y += arch_init.o cpus.o monitor.o machine.o gdbstub.o balloon.o ioport.o
 # virtio has to be here due to weird dependency between PCI and virtio-net.
 # need to fix this properly
 obj-$(CONFIG_NO_PCI) += pci-stub.o
@@ -175,8 +173,6 @@ obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += arch_memory_mapping.o
 obj-$(CONFIG_HAVE_CORE_DUMP) += arch_dump.o
 LIBS+=-lz
 
-obj-i386-$(CONFIG_KVM) += hyperv.o
-
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
@@ -185,8 +181,6 @@ QEMU_CFLAGS += $(VNC_PNG_CFLAGS)
 # xen support
 obj-$(CONFIG_XEN) += xen-all.o xen_machine_pv.o xen_domainbuild.o xen-mapcache.o
 obj-$(CONFIG_NO_XEN) += xen-stub.o
-
-obj-i386-$(CONFIG_XEN) += xen_platform.o xen_apic.o
 
 # Inter-VM PCI shared memory
 CONFIG_IVSHMEM =
@@ -201,172 +195,18 @@ obj-$(CONFIG_IVSHMEM) += ivshmem.o
 obj-y += device-hotplug.o
 
 # Hardware support
-obj-i386-y += mc146818rtc.o pc.o
-obj-i386-y += apic_common.o apic.o kvmvapic.o
-obj-i386-y += sga.o ioapic_common.o ioapic.o piix_pci.o
-obj-i386-y += vmport.o
-obj-i386-y += pci-hotplug.o smbios.o wdt_ib700.o
-obj-i386-y += debugcon.o multiboot.o
-obj-i386-y += pc_piix.o
-obj-i386-y += pc_sysfw.o
-obj-i386-$(CONFIG_KVM) += kvm/clock.o kvm/apic.o kvm/i8259.o kvm/ioapic.o kvm/i8254.o
-obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
-
-# shared objects
-obj-ppc-y = ppc.o ppc_booke.o
-# PREP target
-obj-ppc-y += mc146818rtc.o
-obj-ppc-y += ppc_prep.o
-# OldWorld PowerMac
-obj-ppc-y += ppc_oldworld.o
-# NewWorld PowerMac
-obj-ppc-y += ppc_newworld.o
-# IBM pSeries (sPAPR)
-obj-ppc-$(CONFIG_PSERIES) += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
-obj-ppc-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
-obj-ppc-$(CONFIG_PSERIES) += spapr_pci.o device-hotplug.o pci-hotplug.o
-# PowerPC 4xx boards
-obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
-obj-ppc-y += ppc440_bamboo.o
-# PowerPC E500 boards
-obj-ppc-y += ppce500_mpc8544ds.o mpc8544_guts.o ppce500_spin.o
-# PowerPC 440 Xilinx ML507 reference board.
-obj-ppc-y += virtex_ml507.o
-obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
-obj-ppc-$(CONFIG_FDT) += device_tree.o
-# PowerPC OpenPIC
-obj-ppc-y += openpic.o
-
-# Xilinx PPC peripherals
-obj-ppc-y += xilinx_intc.o
-obj-ppc-y += xilinx_timer.o
-obj-ppc-y += xilinx_uartlite.o
-obj-ppc-y += xilinx_ethlite.o
-
-# LM32 boards
-obj-lm32-y += lm32_boards.o
-obj-lm32-y += milkymist.o
-
-# LM32 peripherals
-obj-lm32-y += lm32_pic.o
-obj-lm32-y += lm32_juart.o
-obj-lm32-y += lm32_timer.o
-obj-lm32-y += lm32_uart.o
-obj-lm32-y += lm32_sys.o
-obj-lm32-y += milkymist-ac97.o
-obj-lm32-y += milkymist-hpdmc.o
-obj-lm32-y += milkymist-memcard.o
-obj-lm32-y += milkymist-minimac2.o
-obj-lm32-y += milkymist-pfpu.o
-obj-lm32-y += milkymist-softusb.o
-obj-lm32-y += milkymist-sysctl.o
-obj-lm32-$(CONFIG_OPENGL) += milkymist-tmu2.o
-obj-lm32-y += milkymist-uart.o
-obj-lm32-y += milkymist-vgafb.o
-obj-lm32-y += framebuffer.o
-
-obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
-obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += gt64xxx.o mc146818rtc.o
-obj-mips-$(CONFIG_FULONG) += bonito.o vt82c686.o mips_fulong2e.o
-
-obj-microblaze-y = petalogix_s3adsp1800_mmu.o
-obj-microblaze-y += petalogix_ml605_mmu.o
-obj-microblaze-y += microblaze_boot.o
-
-obj-microblaze-y += microblaze_pic_cpu.o
-obj-microblaze-y += xilinx_intc.o
-obj-microblaze-y += xilinx_timer.o
-obj-microblaze-y += xilinx_uartlite.o
-obj-microblaze-y += xilinx_ethlite.o
-obj-microblaze-y += xilinx_axidma.o
-obj-microblaze-y += xilinx_axienet.o
-
-obj-microblaze-$(CONFIG_FDT) += device_tree.o
-
-# Boards
-obj-cris-y = cris_pic_cpu.o
-obj-cris-y += cris-boot.o
-obj-cris-y += axis_dev88.o
-
-# IO blocks
-obj-cris-y += etraxfs_dma.o
-obj-cris-y += etraxfs_pic.o
-obj-cris-y += etraxfs_eth.o
-obj-cris-y += etraxfs_timer.o
-obj-cris-y += etraxfs_ser.o
-
 ifeq ($(TARGET_ARCH), sparc64)
-obj-sparc-y = sun4u.o apb_pci.o
-obj-sparc-y += mc146818rtc.o
+obj-y += hw/sparc64/
 else
-obj-sparc-y = sun4m.o lance.o tcx.o sun4m_iommu.o slavio_intctl.o
-obj-sparc-y += slavio_timer.o slavio_misc.o sparc32_dma.o
-obj-sparc-y += cs4231.o eccmemctl.o sbi.o sun4c_intctl.o leon3.o
-
-# GRLIB
-obj-sparc-y += grlib_gptimer.o grlib_irqmp.o grlib_apbuart.o
+obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
-obj-arm-y = integratorcp.o versatilepb.o arm_pic.o arm_timer.o
-obj-arm-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
-obj-arm-y += versatile_pci.o
-obj-arm-y += versatile_i2c.o
-obj-arm-y += cadence_uart.o
-obj-arm-y += cadence_ttc.o
-obj-arm-y += cadence_gem.o
-obj-arm-y += xilinx_zynq.o zynq_slcr.o
-obj-arm-y += arm_gic.o
-obj-arm-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
-obj-arm-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
-obj-arm-y += exynos4_boards.o exynos4210_uart.o exynos4210_pwm.o
-obj-arm-y += exynos4210_pmu.o exynos4210_mct.o exynos4210_fimd.o
-obj-arm-y += arm_l2x0.o
-obj-arm-y += arm_mptimer.o a15mpcore.o
-obj-arm-y += armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
-obj-arm-y += highbank.o
-obj-arm-y += pl061.o
-obj-arm-y += xgmac.o
-obj-arm-y += arm-semi.o
-obj-arm-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
-obj-arm-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
-obj-arm-y += gumstix.o
-obj-arm-y += zaurus.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
-obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
-		omap_gpio.o omap_intc.o omap_uart.o
-obj-arm-y += omap2.o omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
-		omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
-obj-arm-y += omap_sx1.o palm.o tsc210x.o
-obj-arm-y += nseries.o blizzard.o onenand.o cbus.o tusb6010.o usb/hcd-musb.o
-obj-arm-y += mst_fpga.o mainstone.o
-obj-arm-y += z2.o
-obj-arm-y += musicpal.o bitbang_i2c.o marvell_88w8618_audio.o
-obj-arm-y += framebuffer.o
-obj-arm-y += vexpress.o
-obj-arm-y += strongarm.o
-obj-arm-y += collie.o
-obj-arm-y += pl041.o lm4549.o
-obj-arm-$(CONFIG_FDT) += device_tree.o
-
-obj-sh4-y = shix.o r2d.o sh7750.o sh7750_regnames.o tc58128.o
-obj-sh4-y += sh_timer.o sh_serial.o sh_intc.o sh_pci.o sm501.o
-obj-sh4-y += ide/mmio.o
-
-obj-m68k-y = an5206.o mcf5206.o mcf_uart.o mcf_intc.o mcf5208.o mcf_fec.o
-obj-m68k-y += m68k-semi.o dummy_m68k.o
-
-obj-s390x-y = s390-virtio-bus.o s390-virtio.o
-
-obj-alpha-y = mc146818rtc.o
-obj-alpha-y += alpha_pci.o alpha_dp264.o alpha_typhoon.o
-
-obj-xtensa-y += xtensa_pic.o
-obj-xtensa-y += xtensa_sim.o
-obj-xtensa-y += xtensa_lx60.o
-obj-xtensa-y += xtensa-semi.o
-obj-xtensa-y += core-dc232b.o
-obj-xtensa-y += core-dc233c.o
-obj-xtensa-y += core-fsf.o
+# Device tree
+ifeq ($(CONFIG_FDT), y)
+obj-$(TARGET_ARM) += device_tree.o
+obj-$(TARGET_MICROBLAZE) += device_tree.o
+obj-$(TARGET_PPC) += device_tree.o
+endif
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
@@ -398,12 +238,12 @@ dummy := $(call unnest-vars)
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
+$(QEMU_PROGW): $(obj-y)
 	$(call LINK,$^)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
 else
-$(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
+$(QEMU_PROG): $(obj-y)
 	$(call LINK,$^)
 endif
 

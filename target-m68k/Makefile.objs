@@ -1,0 +1,1 @@
+obj-y += m68k-semi.o

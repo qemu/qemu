@@ -1,0 +1,5 @@
+obj-y += xtensa_pic.o
+obj-y += xtensa_sim.o
+obj-y += xtensa_lx60.o
+
+obj-y := $(addprefix ../,$(obj-y))

@@ -1,0 +1,3 @@
+obj-$(CONFIG_KVM) += hyperv.o
+obj-$(CONFIG_LINUX_USER) += ioport-user.o
+obj-$(CONFIG_BSD_USER) += ioport-user.o
