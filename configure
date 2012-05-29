@@ -3520,8 +3520,14 @@ mkdir -p $target_dir/ide
 mkdir -p $target_dir/usb
 mkdir -p $target_dir/9pfs
 mkdir -p $target_dir/kvm
+if test "$target_linux_user" = yes; then
+  mkdir -p $target_dir/linux-user
+fi
+if test "$target_bsd_user" = yes; then
+  mkdir -p $target_dir/bsd-user
+fi
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
-  mkdir -p $target_dir/nwfpe
+  mkdir -p $target_dir/linux-user/arm/nwfpe
 fi
 symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 

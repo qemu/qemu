@@ -113,32 +113,20 @@ user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in user-exec.c.
-signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+%/signal.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 #########################################################
 # Linux user emulator target
 
 ifdef CONFIG_LINUX_USER
 
-$(call set-vpath, $(SRC_PATH)/linux-user:$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR))
-
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
-obj-y = main.o syscall.o strace.o mmap.o signal.o thunk.o \
-      elfload.o linuxload.o uaccess.o gdbstub.o cpu-uname.o \
-      user-exec.o $(oslib-obj-y)
 
-obj-$(TARGET_HAS_BFLT) += flatload.o
-
-obj-$(TARGET_I386) += vm86.o
-
+obj-y += linux-user/
+obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
 obj-i386-y += ioport-user.o
-
-nwfpe-obj-y = fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
-nwfpe-obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o
-obj-arm-y +=  $(addprefix nwfpe/, $(nwfpe-obj-y))
-obj-arm-y += arm-semi.o
-
-obj-m68k-y += m68k-sim.o m68k-semi.o
+obj-$(TARGET_ARM) += arm-semi.o
+obj-$(TARGET_M68K) += m68k-semi.o
 
 obj-y += $(addprefix ../, $(universal-obj-y))
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
@@ -152,13 +140,10 @@ endif #CONFIG_LINUX_USER
 
 ifdef CONFIG_BSD_USER
 
-$(call set-vpath, $(SRC_PATH)/bsd-user)
-
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
-obj-y = main.o bsdload.o elfload.o mmap.o signal.o strace.o syscall.o \
-        gdbstub.o uaccess.o user-exec.o
-
+obj-y += bsd-user/
+obj-y += gdbstub.o user-exec.o
 obj-i386-y += ioport-user.o
 
 obj-y += $(addprefix ../, $(universal-obj-y))
@@ -407,6 +392,9 @@ endif # CONFIG_BSD_USER
 endif # CONFIG_LINUX_USER
 
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
+
+nested-vars = obj-y
+dummy := $(call unnest-vars)
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
