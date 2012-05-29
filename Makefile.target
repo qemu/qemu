@@ -76,41 +76,19 @@ all: $(PROGS) stap
 
 #########################################################
 # cpu emulator library
-libobj-y = exec.o translate-all.o cpu-exec.o translate.o
-libobj-y += tcg/tcg.o tcg/optimize.o
-libobj-$(CONFIG_TCG_INTERPRETER) += tci.o
-libobj-y += fpu/softfloat.o
-ifneq ($(TARGET_BASE_ARCH), sparc)
-ifneq ($(TARGET_BASE_ARCH), alpha)
-libobj-y += op_helper.o
-endif
-endif
-libobj-y += helper.o
-ifneq ($(TARGET_BASE_ARCH), ppc)
-libobj-y += cpu.o
-endif
-libobj-$(TARGET_SPARC64) += vis_helper.o
-libobj-$(CONFIG_NEED_MMU) += mmu.o
-libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
-ifeq ($(TARGET_BASE_ARCH), sparc)
-libobj-y += fop_helper.o cc_helper.o win_helper.o mmu_helper.o ldst_helper.o
-endif
-libobj-$(TARGET_SPARC) += int32_helper.o
-libobj-$(TARGET_SPARC64) += int64_helper.o
-libobj-$(TARGET_ALPHA) += int_helper.o fpu_helper.o sys_helper.o mem_helper.o
-
-libobj-y += disas.o
-libobj-$(CONFIG_TCI_DIS) += tci-dis.o
-
+obj-y = exec.o translate-all.o cpu-exec.o translate.o
+obj-y += tcg/tcg.o tcg/optimize.o
+obj-$(CONFIG_TCG_INTERPRETER) += tci.o
+obj-y += fpu/softfloat.o
+obj-y += disas.o
+obj-$(CONFIG_TCI_DIS) += tci-dis.o
 obj-y += target-$(TARGET_BASE_ARCH)/
+obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
 
 # HELPER_CFLAGS is used for all the legacy code compiled with static register
 # variables
-ifneq ($(TARGET_BASE_ARCH), sparc)
-op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-endif
 user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
@@ -130,7 +108,6 @@ obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
 obj-y += $(addprefix ../, $(universal-obj-y))
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
 obj-y += $(addprefix ../libdis-user/, $(libdis-y))
-obj-y += $(libobj-y)
 
 endif #CONFIG_LINUX_USER
 
@@ -147,7 +124,6 @@ obj-y += gdbstub.o user-exec.o
 obj-y += $(addprefix ../, $(universal-obj-y))
 obj-y += $(addprefix ../libuser/, $(user-obj-y))
 obj-y += $(addprefix ../libdis-user/, $(libdis-y))
-obj-y += $(libobj-y)
 
 endif #CONFIG_BSD_USER
 
@@ -215,7 +191,6 @@ GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
 obj-y += $(addprefix ../, $(universal-obj-y))
 obj-y += $(addprefix ../, $(common-obj-y))
 obj-y += $(addprefix ../libdis/, $(libdis-y))
-obj-y += $(libobj-y)
 obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 obj-y += $(addprefix ../, $(trace-obj-y))
 
@@ -230,8 +205,6 @@ ifndef CONFIG_BSD_USER
 obj-$(CONFIG_SMARTCARD_NSS) += $(addprefix ../libcacard/, $(libcacard-y))
 endif # CONFIG_BSD_USER
 endif # CONFIG_LINUX_USER
-
-obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 nested-vars = obj-y
 dummy := $(call unnest-vars)

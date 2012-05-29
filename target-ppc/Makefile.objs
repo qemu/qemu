@@ -1,1 +1,3 @@
-# still empty
+obj-y += op_helper.o helper.o
+
+$(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

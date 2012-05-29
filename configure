@@ -3911,12 +3911,6 @@ if test "$target_softmmu" = "yes" ; then
   esac
 fi
 
-if test "$target_softmmu" = "yes" -a \( \
-        "$TARGET_ARCH" = "microblaze" -o \
-        "$TARGET_ARCH" = "cris" \) ; then
-  echo "CONFIG_NEED_MMU=y" >> $config_target_mak
-fi
-
 if test "$gprof" = "yes" ; then
   echo "TARGET_GPROF=yes" >> $config_target_mak
   if test "$target_linux_user" = "yes" ; then
