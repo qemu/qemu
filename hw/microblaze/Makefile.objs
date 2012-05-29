@@ -9,5 +9,6 @@ obj-y += xilinx_uartlite.o
 obj-y += xilinx_ethlite.o
 obj-y += xilinx_axidma.o
 obj-y += xilinx_axienet.o
+obj-$(CONFIG_FDT) += ../device_tree.o
 
 obj-y := $(addprefix ../,$(obj-y))

@@ -21,6 +21,7 @@ obj-y += virtex_ml507.o
 obj-$(CONFIG_KVM) += kvm_ppc.o
 # PowerPC OpenPIC
 obj-y += openpic.o
+obj-$(CONFIG_FDT) += ../device_tree.o
 
 # Xilinx PPC peripherals
 obj-y += xilinx_intc.o

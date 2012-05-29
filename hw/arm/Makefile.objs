@@ -35,5 +35,6 @@ obj-y += vexpress.o
 obj-y += strongarm.o
 obj-y += collie.o
 obj-y += pl041.o lm4549.o
+obj-$(CONFIG_FDT) += ../device_tree.o
 
 obj-y := $(addprefix ../,$(obj-y))
