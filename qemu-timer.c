@@ -112,14 +112,10 @@ static int64_t qemu_next_alarm_deadline(void)
 
 static void qemu_rearm_alarm_timer(struct qemu_alarm_timer *t)
 {
-    int64_t nearest_delta_ns;
-    if (!rt_clock->active_timers &&
-        !vm_clock->active_timers &&
-        !host_clock->active_timers) {
-        return;
+    int64_t nearest_delta_ns = qemu_next_alarm_deadline();
+    if (nearest_delta_ns < INT64_MAX) {
+        t->rearm(t, nearest_delta_ns);
     }
-    nearest_delta_ns = qemu_next_alarm_deadline();
-    t->rearm(t, nearest_delta_ns);
 }
 
 /* TODO: MIN_TIMER_REARM_NS should be optimized */
