@@ -5,3 +5,5 @@ hw-obj-y += virtio-9p-coth.o cofs.o codir.o cofile.o
 hw-obj-y += coxattr.o virtio-9p-synth.o
 hw-obj-$(CONFIG_OPEN_BY_HANDLE) +=  virtio-9p-handle.o
 hw-obj-y += virtio-9p-proxy.o
+
+obj-y += virtio-9p-device.o

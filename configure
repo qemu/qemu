@@ -3675,6 +3675,7 @@ mkdir -p $target_dir/9pfs
 mkdir -p $target_dir/hw
 mkdir -p $target_dir/hw/ide
 mkdir -p $target_dir/hw/usb
+mkdir -p $target_dir/hw/9pfs
 mkdir -p $target_dir/hw/kvm
 mkdir -p $target_dir/hw/$TARGET_ARCH
 mkdir -p $target_dir/hw/$TARGET_BASE_ARCH

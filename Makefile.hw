@@ -19,7 +19,8 @@ all: $(hw-obj-y)
 	@true
 
 clean:
-	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ */*/*.d
+	rm -f $(addsuffix /*.o, $(dir $(sort $(hw-obj-y))))
+	rm -f $(addsuffix /*.d, $(dir $(sort $(hw-obj-y))))
 
 # Include automatically generated dependency files
--include $(wildcard *.d */*.d */*/*.d)
+-include $(patsubst %.o, %.d, $(hw-obj-y))
