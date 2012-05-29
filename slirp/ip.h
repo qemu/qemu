@@ -34,18 +34,14 @@
 #define _IP_H_
 
 #ifdef HOST_WORDS_BIGENDIAN
-# ifndef NTOHL
-#  define NTOHL(d)
-# endif
-# ifndef NTOHS
-#  define NTOHS(d)
-# endif
-# ifndef HTONL
-#  define HTONL(d)
-# endif
-# ifndef HTONS
-#  define HTONS(d)
-# endif
+# undef NTOHL
+# undef NTOHS
+# undef HTONL
+# undef HTONS
+# define NTOHL(d)
+# define NTOHS(d)
+# define HTONL(d)
+# define HTONS(d)
 #else
 # ifndef NTOHL
 #  define NTOHL(d) ((d) = ntohl((d)))
