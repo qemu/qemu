@@ -43,44 +43,6 @@ void helper_store_dump_spr(uint32_t sprn)
     qemu_log("Write SPR %d %03x <= " TARGET_FMT_lx "\n", sprn, sprn,
              env->spr[sprn]);
 }
-
-target_ulong helper_load_tbl(void)
-{
-    return (target_ulong)cpu_ppc_load_tbl(env);
-}
-
-target_ulong helper_load_tbu(void)
-{
-    return cpu_ppc_load_tbu(env);
-}
-
-target_ulong helper_load_atbl(void)
-{
-    return (target_ulong)cpu_ppc_load_atbl(env);
-}
-
-target_ulong helper_load_atbu(void)
-{
-    return cpu_ppc_load_atbu(env);
-}
-
-#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-target_ulong helper_load_purr(void)
-{
-    return (target_ulong)cpu_ppc_load_purr(env);
-}
-#endif
-
-target_ulong helper_load_601_rtcl(void)
-{
-    return cpu_ppc601_load_rtcl(env);
-}
-
-target_ulong helper_load_601_rtcu(void)
-{
-    return cpu_ppc601_load_rtcu(env);
-}
-
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
 void helper_store_asr(target_ulong val)
@@ -92,46 +54,6 @@ void helper_store_asr(target_ulong val)
 void helper_store_sdr1(target_ulong val)
 {
     ppc_store_sdr1(env, val);
-}
-
-void helper_store_tbl(target_ulong val)
-{
-    cpu_ppc_store_tbl(env, val);
-}
-
-void helper_store_tbu(target_ulong val)
-{
-    cpu_ppc_store_tbu(env, val);
-}
-
-void helper_store_atbl(target_ulong val)
-{
-    cpu_ppc_store_atbl(env, val);
-}
-
-void helper_store_atbu(target_ulong val)
-{
-    cpu_ppc_store_atbu(env, val);
-}
-
-void helper_store_601_rtcl(target_ulong val)
-{
-    cpu_ppc601_store_rtcl(env, val);
-}
-
-void helper_store_601_rtcu(target_ulong val)
-{
-    cpu_ppc601_store_rtcu(env, val);
-}
-
-target_ulong helper_load_decr(void)
-{
-    return cpu_ppc_load_decr(env);
-}
-
-void helper_store_decr(target_ulong val)
-{
-    cpu_ppc_store_decr(env, val);
 }
 
 void helper_store_hid0_601(target_ulong val)
@@ -160,16 +82,6 @@ void helper_store_403_pbr(uint32_t num, target_ulong value)
     }
 }
 
-target_ulong helper_load_40x_pit(void)
-{
-    return load_40x_pit(env);
-}
-
-void helper_store_40x_pit(target_ulong val)
-{
-    store_40x_pit(env, val);
-}
-
 void helper_store_40x_dbcr0(target_ulong val)
 {
     store_40x_dbcr0(env, val);
@@ -178,16 +90,6 @@ void helper_store_40x_dbcr0(target_ulong val)
 void helper_store_40x_sler(target_ulong val)
 {
     store_40x_sler(env, val);
-}
-
-void helper_store_booke_tcr(target_ulong val)
-{
-    store_booke_tcr(env, val);
-}
-
-void helper_store_booke_tsr(target_ulong val)
-{
-    store_booke_tsr(env, val);
 }
 #endif
 
@@ -377,43 +279,6 @@ target_ulong helper_clcs(uint32_t arg)
         /* Undefined */
         return 0;
         break;
-    }
-}
-
-/*****************************************************************************/
-/* Embedded PowerPC specific helpers */
-
-/* XXX: to be improved to check access rights when in user-mode */
-target_ulong helper_load_dcr(target_ulong dcrn)
-{
-    uint32_t val = 0;
-
-    if (unlikely(env->dcr_env == NULL)) {
-        qemu_log("No DCR environment\n");
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL |
-                                   POWERPC_EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_read(env->dcr_env,
-                                     (uint32_t)dcrn, &val) != 0)) {
-        qemu_log("DCR read error %d %03x\n", (uint32_t)dcrn, (uint32_t)dcrn);
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
-    }
-    return val;
-}
-
-void helper_store_dcr(target_ulong dcrn, target_ulong val)
-{
-    if (unlikely(env->dcr_env == NULL)) {
-        qemu_log("No DCR environment\n");
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL |
-                                   POWERPC_EXCP_INVAL_INVAL);
-    } else if (unlikely(ppc_dcr_write(env->dcr_env, (uint32_t)dcrn,
-                                      (uint32_t)val) != 0)) {
-        qemu_log("DCR write error %d %03x\n", (uint32_t)dcrn, (uint32_t)dcrn);
-        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
-                                   POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
 }
 
