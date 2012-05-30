@@ -310,6 +310,7 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
             if (fpscr_ve) {
                 goto raise_ve;
             }
+            break;
         case FPSCR_OX:
             env->fpscr |= 1 << FPSCR_FX;
             if (fpscr_oe) {
