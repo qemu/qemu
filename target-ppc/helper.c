@@ -23,15 +23,6 @@
 #include "kvm_ppc.h"
 #include "cpus.h"
 
-/*****************************************************************************/
-/* Special registers manipulation */
-
-/* GDBstub can read and write MSR... */
-void ppc_store_msr(CPUPPCState *env, target_ulong value)
-{
-    hreg_store_msr(env, value, 0);
-}
-
 PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 {
     PowerPCCPU *cpu;

@@ -113,3 +113,12 @@ target_ulong helper_clcs(CPUPPCState *env, uint32_t arg)
         break;
     }
 }
+
+/*****************************************************************************/
+/* Special registers manipulation */
+
+/* GDBstub can read and write MSR... */
+void ppc_store_msr(CPUPPCState *env, target_ulong value)
+{
+    hreg_store_msr(env, value, 0);
+}
