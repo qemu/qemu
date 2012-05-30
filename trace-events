@@ -602,9 +602,9 @@ escc_kbd_command(int val) "Command %d"
 escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=%01x"
 
 # block/iscsi.c
-iscsi_aio_write10_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p status %d acb %p canceled %d"
+iscsi_aio_write16_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p status %d acb %p canceled %d"
 iscsi_aio_writev(void *iscsi, int64_t sector_num, int nb_sectors, void *opaque, void *acb) "iscsi %p sector_num %"PRId64" nb_sectors %d opaque %p acb %p"
-iscsi_aio_read10_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p status %d acb %p canceled %d"
+iscsi_aio_read16_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p status %d acb %p canceled %d"
 iscsi_aio_readv(void *iscsi, int64_t sector_num, int nb_sectors, void *opaque, void *acb) "iscsi %p sector_num %"PRId64" nb_sectors %d opaque %p acb %p"
 
 # hw/esp.c

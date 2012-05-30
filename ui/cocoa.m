@@ -879,7 +879,8 @@ int main (int argc, const char * argv[]) {
                 !strcmp(opt, "-vnc") ||
                 !strcmp(opt, "-nographic") ||
                 !strcmp(opt, "-version") ||
-                !strcmp(opt, "-curses")) {
+                !strcmp(opt, "-curses") ||
+                !strcmp(opt, "-qtest")) {
                 return qemu_main(gArgc, gArgv, *_NSGetEnviron());
             }
         }

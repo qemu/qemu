@@ -25,10 +25,12 @@
 #include "config-host.h"
 
 #include <poll.h>
+#include <arpa/inet.h>
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "block_int.h"
 #include "trace.h"
+#include "hw/scsi-defs.h"
 
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
@@ -37,8 +39,10 @@
 typedef struct IscsiLun {
     struct iscsi_context *iscsi;
     int lun;
+    enum scsi_inquiry_peripheral_device_type type;
     int block_size;
-    unsigned long num_blocks;
+    uint64_t num_blocks;
+    int events;
 } IscsiLun;
 
 typedef struct IscsiAIOCB {
@@ -104,11 +108,27 @@ static void
 iscsi_set_events(IscsiLun *iscsilun)
 {
     struct iscsi_context *iscsi = iscsilun->iscsi;
+    int ev;
 
-    qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), iscsi_process_read,
-                           (iscsi_which_events(iscsi) & POLLOUT)
-                           ? iscsi_process_write : NULL,
-                           iscsi_process_flush, iscsilun);
+    /* We always register a read handler.  */
+    ev = POLLIN;
+    ev |= iscsi_which_events(iscsi);
+    if (ev != iscsilun->events) {
+        qemu_aio_set_fd_handler(iscsi_get_fd(iscsi),
+                      iscsi_process_read,
+                      (ev & POLLOUT) ? iscsi_process_write : NULL,
+                      iscsi_process_flush,
+                      iscsilun);
+
+    }
+
+    /* If we just added an event, the callback might be delayed
+     * unless we call qemu_notify_event().
+     */
+    if (ev & ~iscsilun->events) {
+        qemu_notify_event();
+    }
+    iscsilun->events = ev;
 }
 
 static void
@@ -161,12 +181,12 @@ iscsi_readv_writev_bh_cb(void *p)
 
 
 static void
-iscsi_aio_write10_cb(struct iscsi_context *iscsi, int status,
+iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
                      void *command_data, void *opaque)
 {
     IscsiAIOCB *acb = opaque;
 
-    trace_iscsi_aio_write10_cb(iscsi, status, acb, acb->canceled);
+    trace_iscsi_aio_write16_cb(iscsi, status, acb, acb->canceled);
 
     g_free(acb->buf);
 
@@ -179,7 +199,7 @@ iscsi_aio_write10_cb(struct iscsi_context *iscsi, int status,
 
     acb->status = 0;
     if (status < 0) {
-        error_report("Failed to write10 data to iSCSI lun. %s",
+        error_report("Failed to write16 data to iSCSI lun. %s",
                      iscsi_get_error(iscsi));
         acb->status = -EIO;
     }
@@ -204,12 +224,9 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     struct iscsi_context *iscsi = iscsilun->iscsi;
     IscsiAIOCB *acb;
     size_t size;
-    int fua = 0;
-
-    /* set FUA on writes when cache mode is write through */
-    if (!(bs->open_flags & BDRV_O_CACHE_WB)) {
-        fua = 1;
-    }
+    uint32_t num_sectors;
+    uint64_t lba;
+    struct iscsi_data data;
 
     acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
     trace_iscsi_aio_writev(iscsi, sector_num, nb_sectors, opaque, acb);
@@ -219,18 +236,44 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
 
     acb->canceled   = 0;
 
-    /* XXX we should pass the iovec to write10 to avoid the extra copy */
+    /* XXX we should pass the iovec to write16 to avoid the extra copy */
     /* this will allow us to get rid of 'buf' completely */
     size = nb_sectors * BDRV_SECTOR_SIZE;
     acb->buf = g_malloc(size);
     qemu_iovec_to_buffer(acb->qiov, acb->buf);
-    acb->task = iscsi_write10_task(iscsi, iscsilun->lun, acb->buf, size,
-                              sector_qemu2lun(sector_num, iscsilun),
-                              fua, 0, iscsilun->block_size,
-                              iscsi_aio_write10_cb, acb);
+
+
+    acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
-        error_report("iSCSI: Failed to send write10 command. %s",
-                     iscsi_get_error(iscsi));
+        error_report("iSCSI: Failed to allocate task for scsi WRITE16 "
+                     "command. %s", iscsi_get_error(iscsi));
+        qemu_aio_release(acb);
+        return NULL;
+    }
+    memset(acb->task, 0, sizeof(struct scsi_task));
+
+    acb->task->xfer_dir = SCSI_XFER_WRITE;
+    acb->task->cdb_size = 16;
+    acb->task->cdb[0] = 0x8a;
+    if (!(bs->open_flags & BDRV_O_CACHE_WB)) {
+        /* set FUA on writes when cache mode is write through */
+        acb->task->cdb[1] |= 0x04;
+    }
+    lba = sector_qemu2lun(sector_num, iscsilun);
+    *(uint32_t *)&acb->task->cdb[2]  = htonl(lba >> 32);
+    *(uint32_t *)&acb->task->cdb[6]  = htonl(lba & 0xffffffff);
+    num_sectors = size / iscsilun->block_size;
+    *(uint32_t *)&acb->task->cdb[10] = htonl(num_sectors);
+    acb->task->expxferlen = size;
+
+    data.data = acb->buf;
+    data.size = size;
+
+    if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
+                                 iscsi_aio_write16_cb,
+                                 &data,
+                                 acb) != 0) {
+        scsi_free_scsi_task(acb->task);
         g_free(acb->buf);
         qemu_aio_release(acb);
         return NULL;
@@ -242,12 +285,12 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
 }
 
 static void
-iscsi_aio_read10_cb(struct iscsi_context *iscsi, int status,
+iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
                     void *command_data, void *opaque)
 {
     IscsiAIOCB *acb = opaque;
 
-    trace_iscsi_aio_read10_cb(iscsi, status, acb, acb->canceled);
+    trace_iscsi_aio_read16_cb(iscsi, status, acb, acb->canceled);
 
     if (acb->canceled != 0) {
         qemu_aio_release(acb);
@@ -258,7 +301,7 @@ iscsi_aio_read10_cb(struct iscsi_context *iscsi, int status,
 
     acb->status = 0;
     if (status != 0) {
-        error_report("Failed to read10 data from iSCSI lun. %s",
+        error_report("Failed to read16 data from iSCSI lun. %s",
                      iscsi_get_error(iscsi));
         acb->status = -EIO;
     }
@@ -277,8 +320,10 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;
     IscsiAIOCB *acb;
-    size_t qemu_read_size, lun_read_size;
+    size_t qemu_read_size;
     int i;
+    uint64_t lba;
+    uint32_t num_sectors;
 
     qemu_read_size = BDRV_SECTOR_SIZE * (size_t)nb_sectors;
 
@@ -303,16 +348,44 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
         acb->read_offset  = bdrv_offset % iscsilun->block_size;
     }
 
-    lun_read_size  = (qemu_read_size + iscsilun->block_size
-                     + acb->read_offset - 1)
-                     / iscsilun->block_size * iscsilun->block_size;
-    acb->task = iscsi_read10_task(iscsi, iscsilun->lun,
-                             sector_qemu2lun(sector_num, iscsilun),
-                             lun_read_size, iscsilun->block_size,
-                             iscsi_aio_read10_cb, acb);
+    num_sectors  = (qemu_read_size + iscsilun->block_size
+                    + acb->read_offset - 1)
+                    / iscsilun->block_size;
+
+    acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
-        error_report("iSCSI: Failed to send read10 command. %s",
-                     iscsi_get_error(iscsi));
+        error_report("iSCSI: Failed to allocate task for scsi READ16 "
+                     "command. %s", iscsi_get_error(iscsi));
+        qemu_aio_release(acb);
+        return NULL;
+    }
+    memset(acb->task, 0, sizeof(struct scsi_task));
+
+    acb->task->xfer_dir = SCSI_XFER_READ;
+    lba = sector_qemu2lun(sector_num, iscsilun);
+    acb->task->expxferlen = qemu_read_size;
+
+    switch (iscsilun->type) {
+    case TYPE_DISK:
+        acb->task->cdb_size = 16;
+        acb->task->cdb[0]  = 0x88;
+        *(uint32_t *)&acb->task->cdb[2]  = htonl(lba >> 32);
+        *(uint32_t *)&acb->task->cdb[6]  = htonl(lba & 0xffffffff);
+        *(uint32_t *)&acb->task->cdb[10] = htonl(num_sectors);
+        break;
+    default:
+        acb->task->cdb_size = 10;
+        acb->task->cdb[0]  = 0x28;
+        *(uint32_t *)&acb->task->cdb[2] = htonl(lba);
+        *(uint16_t *)&acb->task->cdb[7] = htons(num_sectors);
+        break;
+    }
+    
+    if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
+                                 iscsi_aio_read16_cb,
+                                 NULL,
+                                 acb) != 0) {
+        scsi_free_scsi_task(acb->task);
         qemu_aio_release(acb);
         return NULL;
     }
@@ -491,6 +564,98 @@ iscsi_readcapacity16_cb(struct iscsi_context *iscsi, int status,
 }
 
 static void
+iscsi_readcapacity10_cb(struct iscsi_context *iscsi, int status,
+                        void *command_data, void *opaque)
+{
+    struct IscsiTask *itask = opaque;
+    struct scsi_readcapacity10 *rc10;
+    struct scsi_task *task = command_data;
+
+    if (status != 0) {
+        error_report("iSCSI: Failed to read capacity of iSCSI lun. %s",
+                     iscsi_get_error(iscsi));
+        itask->status   = 1;
+        itask->complete = 1;
+        scsi_free_scsi_task(task);
+        return;
+    }
+
+    rc10 = scsi_datain_unmarshall(task);
+    if (rc10 == NULL) {
+        error_report("iSCSI: Failed to unmarshall readcapacity10 data.");
+        itask->status   = 1;
+        itask->complete = 1;
+        scsi_free_scsi_task(task);
+        return;
+    }
+
+    itask->iscsilun->block_size = rc10->block_size;
+    itask->iscsilun->num_blocks = rc10->lba + 1;
+    itask->bs->total_sectors    = itask->iscsilun->num_blocks *
+                               itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
+
+    itask->status   = 0;
+    itask->complete = 1;
+    scsi_free_scsi_task(task);
+}
+
+static void
+iscsi_inquiry_cb(struct iscsi_context *iscsi, int status, void *command_data,
+                 void *opaque)
+{
+    struct IscsiTask *itask = opaque;
+    struct scsi_task *task = command_data;
+    struct scsi_inquiry_standard *inq;
+
+    if (status != 0) {
+        itask->status   = 1;
+        itask->complete = 1;
+        scsi_free_scsi_task(task);
+        return;
+    }
+
+    inq = scsi_datain_unmarshall(task);
+    if (inq == NULL) {
+        error_report("iSCSI: Failed to unmarshall inquiry data.");
+        itask->status   = 1;
+        itask->complete = 1;
+        scsi_free_scsi_task(task);
+        return;
+    }
+
+    itask->iscsilun->type = inq->periperal_device_type;
+
+    scsi_free_scsi_task(task);
+
+    switch (itask->iscsilun->type) {
+    case TYPE_DISK:
+        task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
+                                   iscsi_readcapacity16_cb, opaque);
+        if (task == NULL) {
+            error_report("iSCSI: failed to send readcapacity16 command.");
+            itask->status   = 1;
+            itask->complete = 1;
+            return;
+        }
+        break;
+    case TYPE_ROM:
+        task = iscsi_readcapacity10_task(iscsi, itask->iscsilun->lun,
+                                   0, 0,
+                                   iscsi_readcapacity10_cb, opaque);
+        if (task == NULL) {
+            error_report("iSCSI: failed to send readcapacity16 command.");
+            itask->status   = 1;
+            itask->complete = 1;
+            return;
+        }
+        break;
+    default:
+        itask->status   = 0;
+        itask->complete = 1;
+    }
+}
+
+static void
 iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
                  void *opaque)
 {
@@ -503,10 +668,11 @@ iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
         return;
     }
 
-    task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
-                                   iscsi_readcapacity16_cb, opaque);
+    task = iscsi_inquiry_task(iscsi, itask->iscsilun->lun,
+                              0, 0, 36,
+                              iscsi_inquiry_cb, opaque);
     if (task == NULL) {
-        error_report("iSCSI: failed to send readcapacity16 command.");
+        error_report("iSCSI: failed to send inquiry command.");
         itask->status   = 1;
         itask->complete = 1;
         return;

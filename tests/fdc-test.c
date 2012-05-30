@@ -63,6 +63,12 @@ char test_image[] = "/tmp/qtest.XXXXXX";
 #define assert_bit_set(data, mask) g_assert_cmphex((data) & (mask), ==, (mask))
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
 
+static uint8_t base = 0x70;
+
+enum {
+    CMOS_FLOPPY     = 0x10,
+};
+
 static void floppy_send(uint8_t byte)
 {
     uint8_t msr;
@@ -108,14 +114,57 @@ static void send_step_pulse(void)
     cyl = (cyl + 1) % 4;
 }
 
+static uint8_t cmos_read(uint8_t reg)
+{
+    outb(base + 0, reg);
+    return inb(base + 1);
+}
+
+static void test_cmos(void)
+{
+    uint8_t cmos;
+
+    cmos = cmos_read(CMOS_FLOPPY);
+    g_assert(cmos == 0x40);
+}
+
+static void test_no_media_on_start(void)
+{
+    uint8_t dir;
+
+    /* Media changed bit must be set all time after start if there is
+     * no media in drive. */
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    send_step_pulse();
+    send_step_pulse();
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+}
+
 static void test_media_change(void)
 {
     uint8_t dir;
 
-    /* Media changed bit must be up-to-date after step pulse. Do two SEEKs
-     * because we may already happen to be on the right cylinder initially. */
+    /* Insert media in drive. DSKCHK should not be reset until a step pulse
+     * is sent. */
+    qmp("{'execute':'change', 'arguments':{ 'device':'floppy0', "
+        "'target': '%s' }}", test_image);
+    qmp(""); /* ignore event (FIXME open -> open transition?!) */
+    qmp(""); /* ignore event */
+
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+
     send_step_pulse();
-    send_step_pulse();
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_clear(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
 
@@ -134,24 +183,6 @@ static void test_media_change(void)
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-
-    /* And then insert it again. DSKCHK should not be reset until a step pulse
-     * is sent. */
-    qmp("{'execute':'change', 'arguments':{ 'device':'floppy0', "
-        "'target': '%s' }}", test_image);
-    qmp(""); /* ignore event (FIXME open -> open transition?!) */
-    qmp(""); /* ignore event */
-
-    dir = inb(FLOPPY_BASE + reg_dir);
-    assert_bit_set(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
-    assert_bit_set(dir, DSKCHG);
-
-    send_step_pulse();
-    dir = inb(FLOPPY_BASE + reg_dir);
-    assert_bit_clear(dir, DSKCHG);
-    dir = inb(FLOPPY_BASE + reg_dir);
-    assert_bit_clear(dir, DSKCHG);
 }
 
 int main(int argc, char **argv)
@@ -177,12 +208,12 @@ int main(int argc, char **argv)
     /* Run the tests */
     g_test_init(&argc, &argv, NULL);
 
-    cmdline = g_strdup_printf("-vnc none "
-        "-drive file=%s,if=floppy,cache=writeback ",
-        test_image);
+    cmdline = g_strdup_printf("-vnc none ");
 
     qtest_start(cmdline);
     qtest_irq_intercept_in(global_qtest, "ioapic");
+    qtest_add_func("/fdc/cmos", test_cmos);
+    qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);
     qtest_add_func("/fdc/media_change", test_media_change);
 
     ret = g_test_run();

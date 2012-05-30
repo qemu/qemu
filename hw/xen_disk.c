@@ -48,7 +48,6 @@
 
 /* ------------------------------------------------------------- */
 
-static int syncwrite    = 0;
 static int batch_maps   = 0;
 
 static int max_requests = 32;
@@ -67,6 +66,7 @@ struct ioreq {
     QEMUIOVector        v;
     int                 presync;
     int                 postsync;
+    uint8_t             mapped;
 
     /* grant mapping */
     uint32_t            domids[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -154,7 +154,7 @@ static void ioreq_finish(struct ioreq *ioreq)
     blkdev->requests_finished++;
 }
 
-static void ioreq_release(struct ioreq *ioreq)
+static void ioreq_release(struct ioreq *ioreq, bool finish)
 {
     struct XenBlkDev *blkdev = ioreq->blkdev;
 
@@ -162,7 +162,11 @@ static void ioreq_release(struct ioreq *ioreq)
     memset(ioreq, 0, sizeof(*ioreq));
     ioreq->blkdev = blkdev;
     QLIST_INSERT_HEAD(&blkdev->freelist, ioreq, list);
-    blkdev->requests_finished--;
+    if (finish) {
+        blkdev->requests_finished--;
+    } else {
+        blkdev->requests_inflight--;
+    }
 }
 
 /*
@@ -189,15 +193,10 @@ static int ioreq_parse(struct ioreq *ioreq)
             ioreq->presync = 1;
             return 0;
         }
-        if (!syncwrite) {
-            ioreq->presync = ioreq->postsync = 1;
-        }
+        ioreq->presync = ioreq->postsync = 1;
         /* fall through */
     case BLKIF_OP_WRITE:
         ioreq->prot = PROT_READ; /* from memory */
-        if (syncwrite) {
-            ioreq->postsync = 1;
-        }
         break;
     default:
         xen_be_printf(&blkdev->xendev, 0, "error: unknown operation (%d)\n",
@@ -248,7 +247,7 @@ static void ioreq_unmap(struct ioreq *ioreq)
     XenGnttab gnt = ioreq->blkdev->xendev.gnttabdev;
     int i;
 
-    if (ioreq->v.niov == 0) {
+    if (ioreq->v.niov == 0 || ioreq->mapped == 0) {
         return;
     }
     if (batch_maps) {
@@ -274,6 +273,7 @@ static void ioreq_unmap(struct ioreq *ioreq)
             ioreq->page[i] = NULL;
         }
     }
+    ioreq->mapped = 0;
 }
 
 static int ioreq_map(struct ioreq *ioreq)
@@ -281,7 +281,7 @@ static int ioreq_map(struct ioreq *ioreq)
     XenGnttab gnt = ioreq->blkdev->xendev.gnttabdev;
     int i;
 
-    if (ioreq->v.niov == 0) {
+    if (ioreq->v.niov == 0 || ioreq->mapped == 1) {
         return 0;
     }
     if (batch_maps) {
@@ -313,8 +313,11 @@ static int ioreq_map(struct ioreq *ioreq)
             ioreq->blkdev->cnt_map++;
         }
     }
+    ioreq->mapped = 1;
     return 0;
 }
+
+static int ioreq_runio_qemu_aio(struct ioreq *ioreq);
 
 static void qemu_aio_complete(void *opaque, int ret)
 {
@@ -327,11 +330,19 @@ static void qemu_aio_complete(void *opaque, int ret)
     }
 
     ioreq->aio_inflight--;
+    if (ioreq->presync) {
+        ioreq->presync = 0;
+        ioreq_runio_qemu_aio(ioreq);
+        return;
+    }
     if (ioreq->aio_inflight > 0) {
         return;
     }
     if (ioreq->postsync) {
-        bdrv_flush(ioreq->blkdev->bs);
+        ioreq->postsync = 0;
+        ioreq->aio_inflight++;
+        bdrv_aio_flush(ioreq->blkdev->bs, qemu_aio_complete, ioreq);
+        return;
     }
 
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
@@ -351,7 +362,8 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
 
     ioreq->aio_inflight++;
     if (ioreq->presync) {
-        bdrv_flush(blkdev->bs); /* FIXME: aio_flush() ??? */
+        bdrv_aio_flush(ioreq->blkdev->bs, qemu_aio_complete, ioreq);
+        return 0;
     }
 
     switch (ioreq->req.operation) {
@@ -449,7 +461,7 @@ static void blk_send_response_all(struct XenBlkDev *blkdev)
     while (!QLIST_EMPTY(&blkdev->finished)) {
         ioreq = QLIST_FIRST(&blkdev->finished);
         send_notify += blk_send_response_one(ioreq);
-        ioreq_release(ioreq);
+        ioreq_release(ioreq, true);
     }
     if (send_notify) {
         xen_be_send_notify(&blkdev->xendev);
@@ -505,7 +517,7 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
             if (blk_send_response_one(ioreq)) {
                 xen_be_send_notify(&blkdev->xendev);
             }
-            ioreq_release(ioreq);
+            ioreq_release(ioreq, false);
             continue;
         }
 
