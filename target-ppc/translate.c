@@ -1181,8 +1181,16 @@ static void gen_mulld(DisasContext *ctx)
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
+
 /* mulldo  mulldo. */
-GEN_INT_ARITH_MUL_HELPER(mulldo, 0x17);
+static void gen_mulldo(DisasContext *ctx)
+{
+    gen_helper_mulldo(cpu_gpr[rD(ctx->opcode)], cpu_env,
+                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    if (unlikely(Rc(ctx->opcode) != 0)) {
+        gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
+    }
+}
 #endif
 
 /* neg neg. nego nego. */
@@ -1869,7 +1877,7 @@ static void gen_slw(DisasContext *ctx)
 /* sraw & sraw. */
 static void gen_sraw(DisasContext *ctx)
 {
-    gen_helper_sraw(cpu_gpr[rA(ctx->opcode)],
+    gen_helper_sraw(cpu_gpr[rA(ctx->opcode)], cpu_env,
                     cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
@@ -1953,7 +1961,7 @@ static void gen_sld(DisasContext *ctx)
 /* srad & srad. */
 static void gen_srad(DisasContext *ctx)
 {
-    gen_helper_srad(cpu_gpr[rA(ctx->opcode)],
+    gen_helper_srad(cpu_gpr[rA(ctx->opcode)], cpu_env,
                     cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rA(ctx->opcode)]);
@@ -4550,7 +4558,8 @@ static void gen_clcs(DisasContext *ctx)
 /* div - div. */
 static void gen_div(DisasContext *ctx)
 {
-    gen_helper_div(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_div(cpu_gpr[rD(ctx->opcode)], cpu_env, cpu_gpr[rA(ctx->opcode)],
+                   cpu_gpr[rB(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -4558,7 +4567,8 @@ static void gen_div(DisasContext *ctx)
 /* divo - divo. */
 static void gen_divo(DisasContext *ctx)
 {
-    gen_helper_divo(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_divo(cpu_gpr[rD(ctx->opcode)], cpu_env, cpu_gpr[rA(ctx->opcode)],
+                    cpu_gpr[rB(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -4566,7 +4576,8 @@ static void gen_divo(DisasContext *ctx)
 /* divs - divs. */
 static void gen_divs(DisasContext *ctx)
 {
-    gen_helper_divs(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_divs(cpu_gpr[rD(ctx->opcode)], cpu_env, cpu_gpr[rA(ctx->opcode)],
+                    cpu_gpr[rB(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -4574,7 +4585,8 @@ static void gen_divs(DisasContext *ctx)
 /* divso - divso. */
 static void gen_divso(DisasContext *ctx)
 {
-    gen_helper_divso(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_divso(cpu_gpr[rD(ctx->opcode)], cpu_env,
+                     cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);
     if (unlikely(Rc(ctx->opcode) != 0))
         gen_set_Rc0(ctx, cpu_gpr[rD(ctx->opcode)]);
 }
@@ -6237,8 +6249,8 @@ static void gen_wrteei(DisasContext *ctx)
 static void gen_dlmzb(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(Rc(ctx->opcode));
-    gen_helper_dlmzb(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)],
-                     cpu_gpr[rB(ctx->opcode)], t0);
+    gen_helper_dlmzb(cpu_gpr[rA(ctx->opcode)], cpu_env,
+                     cpu_gpr[rS(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0);
     tcg_temp_free_i32(t0);
 }
 
@@ -6457,7 +6469,7 @@ static void gen_mtvscr(DisasContext *ctx)
         return;
     }
     p = gen_avr_ptr(rD(ctx->opcode));
-    gen_helper_mtvscr(p);
+    gen_helper_mtvscr(cpu_env, p);
     tcg_temp_free_ptr(p);
 }
 
@@ -6491,6 +6503,23 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
     rb = gen_avr_ptr(rB(ctx->opcode));                                  \
     rd = gen_avr_ptr(rD(ctx->opcode));                                  \
     gen_helper_##name (rd, ra, rb);                                     \
+    tcg_temp_free_ptr(ra);                                              \
+    tcg_temp_free_ptr(rb);                                              \
+    tcg_temp_free_ptr(rd);                                              \
+}
+
+#define GEN_VXFORM_ENV(name, opc2, opc3)                                \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+{                                                                       \
+    TCGv_ptr ra, rb, rd;                                                \
+    if (unlikely(!ctx->altivec_enabled)) {                              \
+        gen_exception(ctx, POWERPC_EXCP_VPU);                           \
+        return;                                                         \
+    }                                                                   \
+    ra = gen_avr_ptr(rA(ctx->opcode));                                  \
+    rb = gen_avr_ptr(rB(ctx->opcode));                                  \
+    rd = gen_avr_ptr(rD(ctx->opcode));                                  \
+    gen_helper_##name(rd, cpu_env, ra, rb);                             \
     tcg_temp_free_ptr(ra);                                              \
     tcg_temp_free_ptr(rb);                                              \
     tcg_temp_free_ptr(rd);                                              \
@@ -6547,41 +6576,41 @@ GEN_VXFORM(vslo, 6, 16);
 GEN_VXFORM(vsro, 6, 17);
 GEN_VXFORM(vaddcuw, 0, 6);
 GEN_VXFORM(vsubcuw, 0, 22);
-GEN_VXFORM(vaddubs, 0, 8);
-GEN_VXFORM(vadduhs, 0, 9);
-GEN_VXFORM(vadduws, 0, 10);
-GEN_VXFORM(vaddsbs, 0, 12);
-GEN_VXFORM(vaddshs, 0, 13);
-GEN_VXFORM(vaddsws, 0, 14);
-GEN_VXFORM(vsububs, 0, 24);
-GEN_VXFORM(vsubuhs, 0, 25);
-GEN_VXFORM(vsubuws, 0, 26);
-GEN_VXFORM(vsubsbs, 0, 28);
-GEN_VXFORM(vsubshs, 0, 29);
-GEN_VXFORM(vsubsws, 0, 30);
+GEN_VXFORM_ENV(vaddubs, 0, 8);
+GEN_VXFORM_ENV(vadduhs, 0, 9);
+GEN_VXFORM_ENV(vadduws, 0, 10);
+GEN_VXFORM_ENV(vaddsbs, 0, 12);
+GEN_VXFORM_ENV(vaddshs, 0, 13);
+GEN_VXFORM_ENV(vaddsws, 0, 14);
+GEN_VXFORM_ENV(vsububs, 0, 24);
+GEN_VXFORM_ENV(vsubuhs, 0, 25);
+GEN_VXFORM_ENV(vsubuws, 0, 26);
+GEN_VXFORM_ENV(vsubsbs, 0, 28);
+GEN_VXFORM_ENV(vsubshs, 0, 29);
+GEN_VXFORM_ENV(vsubsws, 0, 30);
 GEN_VXFORM(vrlb, 2, 0);
 GEN_VXFORM(vrlh, 2, 1);
 GEN_VXFORM(vrlw, 2, 2);
 GEN_VXFORM(vsl, 2, 7);
 GEN_VXFORM(vsr, 2, 11);
-GEN_VXFORM(vpkuhum, 7, 0);
-GEN_VXFORM(vpkuwum, 7, 1);
-GEN_VXFORM(vpkuhus, 7, 2);
-GEN_VXFORM(vpkuwus, 7, 3);
-GEN_VXFORM(vpkshus, 7, 4);
-GEN_VXFORM(vpkswus, 7, 5);
-GEN_VXFORM(vpkshss, 7, 6);
-GEN_VXFORM(vpkswss, 7, 7);
+GEN_VXFORM_ENV(vpkuhum, 7, 0);
+GEN_VXFORM_ENV(vpkuwum, 7, 1);
+GEN_VXFORM_ENV(vpkuhus, 7, 2);
+GEN_VXFORM_ENV(vpkuwus, 7, 3);
+GEN_VXFORM_ENV(vpkshus, 7, 4);
+GEN_VXFORM_ENV(vpkswus, 7, 5);
+GEN_VXFORM_ENV(vpkshss, 7, 6);
+GEN_VXFORM_ENV(vpkswss, 7, 7);
 GEN_VXFORM(vpkpx, 7, 12);
-GEN_VXFORM(vsum4ubs, 4, 24);
-GEN_VXFORM(vsum4sbs, 4, 28);
-GEN_VXFORM(vsum4shs, 4, 25);
-GEN_VXFORM(vsum2sws, 4, 26);
-GEN_VXFORM(vsumsws, 4, 30);
-GEN_VXFORM(vaddfp, 5, 0);
-GEN_VXFORM(vsubfp, 5, 1);
-GEN_VXFORM(vmaxfp, 5, 16);
-GEN_VXFORM(vminfp, 5, 17);
+GEN_VXFORM_ENV(vsum4ubs, 4, 24);
+GEN_VXFORM_ENV(vsum4sbs, 4, 28);
+GEN_VXFORM_ENV(vsum4shs, 4, 25);
+GEN_VXFORM_ENV(vsum2sws, 4, 26);
+GEN_VXFORM_ENV(vsumsws, 4, 30);
+GEN_VXFORM_ENV(vaddfp, 5, 0);
+GEN_VXFORM_ENV(vsubfp, 5, 1);
+GEN_VXFORM_ENV(vmaxfp, 5, 16);
+GEN_VXFORM_ENV(vminfp, 5, 17);
 
 #define GEN_VXRFORM1(opname, name, str, opc2, opc3)                     \
 static void glue(gen_, name)(DisasContext *ctx)                         \
@@ -6594,7 +6623,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
         ra = gen_avr_ptr(rA(ctx->opcode));                              \
         rb = gen_avr_ptr(rB(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
-        gen_helper_##opname (rd, ra, rb);                               \
+        gen_helper_##opname(cpu_env, rd, ra, rb);                       \
         tcg_temp_free_ptr(ra);                                          \
         tcg_temp_free_ptr(rb);                                          \
         tcg_temp_free_ptr(rd);                                          \
@@ -6653,20 +6682,36 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
         tcg_temp_free_ptr(rd);                                         \
     }
 
+#define GEN_VXFORM_NOA_ENV(name, opc2, opc3)                            \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+                                                                        \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name(cpu_env, rd, rb);                             \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
 GEN_VXFORM_NOA(vupkhsb, 7, 8);
 GEN_VXFORM_NOA(vupkhsh, 7, 9);
 GEN_VXFORM_NOA(vupklsb, 7, 10);
 GEN_VXFORM_NOA(vupklsh, 7, 11);
 GEN_VXFORM_NOA(vupkhpx, 7, 13);
 GEN_VXFORM_NOA(vupklpx, 7, 15);
-GEN_VXFORM_NOA(vrefp, 5, 4);
-GEN_VXFORM_NOA(vrsqrtefp, 5, 5);
-GEN_VXFORM_NOA(vexptefp, 5, 6);
-GEN_VXFORM_NOA(vlogefp, 5, 7);
-GEN_VXFORM_NOA(vrfim, 5, 8);
-GEN_VXFORM_NOA(vrfin, 5, 9);
-GEN_VXFORM_NOA(vrfip, 5, 10);
-GEN_VXFORM_NOA(vrfiz, 5, 11);
+GEN_VXFORM_NOA_ENV(vrefp, 5, 4);
+GEN_VXFORM_NOA_ENV(vrsqrtefp, 5, 5);
+GEN_VXFORM_NOA_ENV(vexptefp, 5, 6);
+GEN_VXFORM_NOA_ENV(vlogefp, 5, 7);
+GEN_VXFORM_NOA_ENV(vrfim, 5, 8);
+GEN_VXFORM_NOA_ENV(vrfin, 5, 9);
+GEN_VXFORM_NOA_ENV(vrfip, 5, 10);
+GEN_VXFORM_NOA_ENV(vrfiz, 5, 11);
 
 #define GEN_VXFORM_SIMM(name, opc2, opc3)                               \
 static void glue(gen_, name)(DisasContext *ctx)                                 \
@@ -6702,13 +6747,32 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
         tcg_temp_free_ptr(rd);                                          \
     }
 
+#define GEN_VXFORM_UIMM_ENV(name, opc2, opc3)                           \
+static void glue(gen_, name)(DisasContext *ctx)                         \
+    {                                                                   \
+        TCGv_ptr rb, rd;                                                \
+        TCGv_i32 uimm;                                                  \
+                                                                        \
+        if (unlikely(!ctx->altivec_enabled)) {                          \
+            gen_exception(ctx, POWERPC_EXCP_VPU);                       \
+            return;                                                     \
+        }                                                               \
+        uimm = tcg_const_i32(UIMM5(ctx->opcode));                       \
+        rb = gen_avr_ptr(rB(ctx->opcode));                              \
+        rd = gen_avr_ptr(rD(ctx->opcode));                              \
+        gen_helper_##name(cpu_env, rd, rb, uimm);                       \
+        tcg_temp_free_i32(uimm);                                        \
+        tcg_temp_free_ptr(rb);                                          \
+        tcg_temp_free_ptr(rd);                                          \
+    }
+
 GEN_VXFORM_UIMM(vspltb, 6, 8);
 GEN_VXFORM_UIMM(vsplth, 6, 9);
 GEN_VXFORM_UIMM(vspltw, 6, 10);
-GEN_VXFORM_UIMM(vcfux, 5, 12);
-GEN_VXFORM_UIMM(vcfsx, 5, 13);
-GEN_VXFORM_UIMM(vctuxs, 5, 14);
-GEN_VXFORM_UIMM(vctsxs, 5, 15);
+GEN_VXFORM_UIMM_ENV(vcfux, 5, 12);
+GEN_VXFORM_UIMM_ENV(vcfsx, 5, 13);
+GEN_VXFORM_UIMM_ENV(vctuxs, 5, 14);
+GEN_VXFORM_UIMM_ENV(vctsxs, 5, 15);
 
 static void gen_vsldoi(DisasContext *ctx)
 {
@@ -6730,7 +6794,7 @@ static void gen_vsldoi(DisasContext *ctx)
 }
 
 #define GEN_VAFORM_PAIRED(name0, name1, opc2)                           \
-static void glue(gen_, name0##_##name1)(DisasContext *ctx)                      \
+static void glue(gen_, name0##_##name1)(DisasContext *ctx)              \
     {                                                                   \
         TCGv_ptr ra, rb, rc, rd;                                        \
         if (unlikely(!ctx->altivec_enabled)) {                          \
@@ -6742,9 +6806,9 @@ static void glue(gen_, name0##_##name1)(DisasContext *ctx)                      
         rc = gen_avr_ptr(rC(ctx->opcode));                              \
         rd = gen_avr_ptr(rD(ctx->opcode));                              \
         if (Rc(ctx->opcode)) {                                          \
-            gen_helper_##name1 (rd, ra, rb, rc);                        \
+            gen_helper_##name1(cpu_env, rd, ra, rb, rc);                \
         } else {                                                        \
-            gen_helper_##name0 (rd, ra, rb, rc);                        \
+            gen_helper_##name0(cpu_env, rd, ra, rb, rc);                \
         }                                                               \
         tcg_temp_free_ptr(ra);                                          \
         tcg_temp_free_ptr(rb);                                          \

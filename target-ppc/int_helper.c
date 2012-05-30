@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "helper.h"
 
@@ -44,7 +43,7 @@ uint64_t helper_mulhdu(uint64_t arg1, uint64_t arg2)
     return th;
 }
 
-uint64_t helper_mulldo(uint64_t arg1, uint64_t arg2)
+uint64_t helper_mulldo(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 {
     int64_t th;
     uint64_t tl;
@@ -73,7 +72,8 @@ target_ulong helper_cntlzd(target_ulong t)
 #endif
 
 /* shift right arithmetic helper */
-target_ulong helper_sraw(target_ulong value, target_ulong shift)
+target_ulong helper_sraw(CPUPPCState *env, target_ulong value,
+                         target_ulong shift)
 {
     int32_t ret;
 
@@ -102,7 +102,8 @@ target_ulong helper_sraw(target_ulong value, target_ulong shift)
 }
 
 #if defined(TARGET_PPC64)
-target_ulong helper_srad(target_ulong value, target_ulong shift)
+target_ulong helper_srad(CPUPPCState *env, target_ulong value,
+                         target_ulong shift)
 {
     int64_t ret;
 
@@ -184,7 +185,7 @@ target_ulong helper_popcntw(target_ulong val)
 
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
-target_ulong helper_div(target_ulong arg1, target_ulong arg2)
+target_ulong helper_div(CPUPPCState *env, target_ulong arg1, target_ulong arg2)
 {
     uint64_t tmp = (uint64_t)arg1 << 32 | env->spr[SPR_MQ];
 
@@ -198,7 +199,8 @@ target_ulong helper_div(target_ulong arg1, target_ulong arg2)
     }
 }
 
-target_ulong helper_divo(target_ulong arg1, target_ulong arg2)
+target_ulong helper_divo(CPUPPCState *env, target_ulong arg1,
+                         target_ulong arg2)
 {
     uint64_t tmp = (uint64_t)arg1 << 32 | env->spr[SPR_MQ];
 
@@ -219,7 +221,8 @@ target_ulong helper_divo(target_ulong arg1, target_ulong arg2)
     }
 }
 
-target_ulong helper_divs(target_ulong arg1, target_ulong arg2)
+target_ulong helper_divs(CPUPPCState *env, target_ulong arg1,
+                         target_ulong arg2)
 {
     if (((int32_t)arg1 == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
         (int32_t)arg2 == 0) {
@@ -231,7 +234,8 @@ target_ulong helper_divs(target_ulong arg1, target_ulong arg2)
     }
 }
 
-target_ulong helper_divso(target_ulong arg1, target_ulong arg2)
+target_ulong helper_divso(CPUPPCState *env, target_ulong arg1,
+                          target_ulong arg2)
 {
     if (((int32_t)arg1 == INT32_MIN && (int32_t)arg2 == (int32_t)-1) ||
         (int32_t)arg2 == 0) {
@@ -361,7 +365,7 @@ void helper_lvsr(ppc_avr_t *r, target_ulong sh)
     }
 }
 
-void helper_mtvscr(ppc_avr_t *r)
+void helper_mtvscr(CPUPPCState *env, ppc_avr_t *r)
 {
 #if defined(HOST_WORDS_BIGENDIAN)
     env->vscr = r->u32[3];
@@ -399,7 +403,8 @@ VARITH(uwm, u32)
 #undef VARITH
 
 #define VARITHFP(suffix, func)                                          \
-    void helper_v##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)     \
+    void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
+                          ppc_avr_t *b)                                 \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -420,7 +425,8 @@ VARITHFP(subfp, float32_sub)
     }
 
 #define VARITHSAT_DO(name, op, optype, cvt, element)                    \
-    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    void helper_v##name(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,   \
+                        ppc_avr_t *b)                                   \
     {                                                                   \
         int sat = 0;                                                    \
         int i;                                                          \
@@ -481,7 +487,8 @@ VAVG(w, s32, int64_t, u32, uint64_t)
 #undef VAVG
 
 #define VCF(suffix, cvt, element)                                       \
-    void helper_vcf##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t uim)   \
+    void helper_vcf##suffix(CPUPPCState *env, ppc_avr_t *r,             \
+                            ppc_avr_t *b, uint32_t uim)                 \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -495,7 +502,8 @@ VCF(sx, int32_to_float32, s32)
 #undef VCF
 
 #define VCMP_DO(suffix, compare, element, record)                       \
-    void helper_vcmp##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
+                             ppc_avr_t *a, ppc_avr_t *b)                \
     {                                                                   \
         uint32_t ones = (uint32_t)-1;                                   \
         uint32_t all = ones;                                            \
@@ -539,7 +547,8 @@ VCMP(gtsw, >, s32)
 #undef VCMP
 
 #define VCMPFP_DO(suffix, compare, order, record)                       \
-    void helper_vcmp##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)  \
+    void helper_vcmp##suffix(CPUPPCState *env, ppc_avr_t *r,            \
+                             ppc_avr_t *a, ppc_avr_t *b)                \
     {                                                                   \
         uint32_t ones = (uint32_t)-1;                                   \
         uint32_t all = ones;                                            \
@@ -574,8 +583,8 @@ VCMPFP(gtfp, ==, float_relation_greater)
 #undef VCMPFP_DO
 #undef VCMPFP
 
-static inline void vcmpbfp_internal(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
-                                    int record)
+static inline void vcmpbfp_internal(CPUPPCState *env, ppc_avr_t *r,
+                                    ppc_avr_t *a, ppc_avr_t *b, int record)
 {
     int i;
     int all_in = 0;
@@ -600,18 +609,20 @@ static inline void vcmpbfp_internal(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
     }
 }
 
-void helper_vcmpbfp(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vcmpbfp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
-    vcmpbfp_internal(r, a, b, 0);
+    vcmpbfp_internal(env, r, a, b, 0);
 }
 
-void helper_vcmpbfp_dot(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vcmpbfp_dot(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                        ppc_avr_t *b)
 {
-    vcmpbfp_internal(r, a, b, 1);
+    vcmpbfp_internal(env, r, a, b, 1);
 }
 
 #define VCT(suffix, satcvt, element)                                    \
-    void helper_vct##suffix(ppc_avr_t *r, ppc_avr_t *b, uint32_t uim)   \
+    void helper_vct##suffix(CPUPPCState *env, ppc_avr_t *r,             \
+                            ppc_avr_t *b, uint32_t uim)                 \
     {                                                                   \
         int i;                                                          \
         int sat = 0;                                                    \
@@ -638,7 +649,8 @@ VCT(uxs, cvtsduw, u32)
 VCT(sxs, cvtsdsw, s32)
 #undef VCT
 
-void helper_vmaddfp(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmaddfp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
+                    ppc_avr_t *c)
 {
     int i;
 
@@ -658,7 +670,8 @@ void helper_vmaddfp(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmhaddshs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmhaddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                      ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
     int i;
@@ -675,7 +688,8 @@ void helper_vmhaddshs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmhraddshs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmhraddshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                       ppc_avr_t *b, ppc_avr_t *c)
 {
     int sat = 0;
     int i;
@@ -717,7 +731,8 @@ VMINMAX(uw, u32)
 #undef VMINMAX
 
 #define VMINMAXFP(suffix, rT, rF)                                       \
-    void helper_v##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)     \
+    void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
+                          ppc_avr_t *b)                                 \
     {                                                                   \
         int i;                                                          \
                                                                         \
@@ -784,7 +799,8 @@ VMRG(w, u32)
 #undef MRGHI
 #undef MRGLO
 
-void helper_vmsummbm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmsummbm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     int32_t prod[16];
     int i;
@@ -799,7 +815,8 @@ void helper_vmsummbm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmsumshm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmsumshm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     int32_t prod[8];
     int i;
@@ -813,7 +830,8 @@ void helper_vmsumshm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmsumshs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmsumshs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     int32_t prod[8];
     int i;
@@ -834,7 +852,8 @@ void helper_vmsumshs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmsumubm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmsumubm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     uint16_t prod[16];
     int i;
@@ -849,7 +868,8 @@ void helper_vmsumubm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmsumuhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmsumuhm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     uint32_t prod[8];
     int i;
@@ -863,7 +883,8 @@ void helper_vmsumuhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vmsumuhs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vmsumuhs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     uint32_t prod[8];
     int i;
@@ -909,7 +930,8 @@ VMUL(uh, u16, u32)
 #undef VMUL_DO
 #undef VMUL
 
-void helper_vnmsubfp(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vnmsubfp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a,
+                     ppc_avr_t *b, ppc_avr_t *c)
 {
     int i;
 
@@ -930,7 +952,8 @@ void helper_vnmsubfp(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
     }
 }
 
-void helper_vperm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
+                  ppc_avr_t *c)
 {
     ppc_avr_t result;
     int i;
@@ -980,7 +1003,8 @@ void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 }
 
 #define VPK(suffix, from, to, cvt, dosat)                               \
-    void helper_vpk##suffix(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
+    void helper_vpk##suffix(CPUPPCState *env, ppc_avr_t *r,             \
+                            ppc_avr_t *a, ppc_avr_t *b)                 \
     {                                                                   \
         int i;                                                          \
         int sat = 0;                                                    \
@@ -1010,7 +1034,7 @@ VPK(uwum, u32, u16, I, 0)
 #undef VPK
 #undef PKBIG
 
-void helper_vrefp(ppc_avr_t *r, ppc_avr_t *b)
+void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
@@ -1022,7 +1046,8 @@ void helper_vrefp(ppc_avr_t *r, ppc_avr_t *b)
 }
 
 #define VRFI(suffix, rounding)                                  \
-    void helper_vrfi##suffix(ppc_avr_t *r, ppc_avr_t *b)        \
+    void helper_vrfi##suffix(CPUPPCState *env, ppc_avr_t *r,    \
+                             ppc_avr_t *b)                      \
     {                                                           \
         int i;                                                  \
         float_status s = env->vec_status;                       \
@@ -1059,7 +1084,7 @@ VROTATE(h, u16)
 VROTATE(w, u32)
 #undef VROTATE
 
-void helper_vrsqrtefp(ppc_avr_t *r, ppc_avr_t *b)
+void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
@@ -1072,13 +1097,14 @@ void helper_vrsqrtefp(ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
-void helper_vsel(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
+void helper_vsel(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
+                 ppc_avr_t *c)
 {
     r->u64[0] = (a->u64[0] & ~c->u64[0]) | (b->u64[0] & c->u64[0]);
     r->u64[1] = (a->u64[1] & ~c->u64[1]) | (b->u64[1] & c->u64[1]);
 }
 
-void helper_vexptefp(ppc_avr_t *r, ppc_avr_t *b)
+void helper_vexptefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
@@ -1089,7 +1115,7 @@ void helper_vexptefp(ppc_avr_t *r, ppc_avr_t *b)
     }
 }
 
-void helper_vlogefp(ppc_avr_t *r, ppc_avr_t *b)
+void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
 {
     int i;
 
@@ -1286,7 +1312,7 @@ void helper_vsubcuw(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
-void helper_vsumsws(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vsumsws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int64_t t;
     int i, upper;
@@ -1311,7 +1337,7 @@ void helper_vsumsws(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
-void helper_vsum2sws(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vsum2sws(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i, j, upper;
     ppc_avr_t result;
@@ -1338,7 +1364,7 @@ void helper_vsum2sws(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
-void helper_vsum4sbs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vsum4sbs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i, j;
     int sat = 0;
@@ -1357,7 +1383,7 @@ void helper_vsum4sbs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
-void helper_vsum4shs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vsum4shs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int sat = 0;
     int i;
@@ -1374,7 +1400,7 @@ void helper_vsum4shs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     }
 }
 
-void helper_vsum4ubs(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+void helper_vsum4ubs(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
     int i, j;
     int sat = 0;
@@ -1501,8 +1527,8 @@ uint32_t helper_cntlzw32(uint32_t val)
 }
 
 /* 440 specific */
-target_ulong helper_dlmzb(target_ulong high, target_ulong low,
-                          uint32_t update_Rc)
+target_ulong helper_dlmzb(CPUPPCState *env, target_ulong high,
+                          target_ulong low, uint32_t update_Rc)
 {
     target_ulong mask;
     int i;
