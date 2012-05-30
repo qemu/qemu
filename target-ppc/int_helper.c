@@ -1484,7 +1484,7 @@ VUPK(lsh, s32, s16, UPKLO)
 /*****************************************************************************/
 /* SPE extension helpers */
 /* Use a table to make this quicker */
-static uint8_t hbrev[16] = {
+static const uint8_t hbrev[16] = {
     0x0, 0x8, 0x4, 0xC, 0x2, 0xA, 0x6, 0xE,
     0x1, 0x9, 0x5, 0xD, 0x3, 0xB, 0x7, 0xF,
 };
