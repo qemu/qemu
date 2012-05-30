@@ -279,28 +279,28 @@ static void spr_read_ibat_h (void *opaque, int gprn, int sprn)
 static void spr_write_ibatu (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32((sprn - SPR_IBAT0U) / 2);
-    gen_helper_store_ibatu(t0, cpu_gpr[gprn]);
+    gen_helper_store_ibatu(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_ibatu_h (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(((sprn - SPR_IBAT4U) / 2) + 4);
-    gen_helper_store_ibatu(t0, cpu_gpr[gprn]);
+    gen_helper_store_ibatu(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_ibatl (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32((sprn - SPR_IBAT0L) / 2);
-    gen_helper_store_ibatl(t0, cpu_gpr[gprn]);
+    gen_helper_store_ibatl(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_ibatl_h (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(((sprn - SPR_IBAT4L) / 2) + 4);
-    gen_helper_store_ibatl(t0, cpu_gpr[gprn]);
+    gen_helper_store_ibatl(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
@@ -319,28 +319,28 @@ static void spr_read_dbat_h (void *opaque, int gprn, int sprn)
 static void spr_write_dbatu (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32((sprn - SPR_DBAT0U) / 2);
-    gen_helper_store_dbatu(t0, cpu_gpr[gprn]);
+    gen_helper_store_dbatu(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_dbatu_h (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(((sprn - SPR_DBAT4U) / 2) + 4);
-    gen_helper_store_dbatu(t0, cpu_gpr[gprn]);
+    gen_helper_store_dbatu(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_dbatl (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32((sprn - SPR_DBAT0L) / 2);
-    gen_helper_store_dbatl(t0, cpu_gpr[gprn]);
+    gen_helper_store_dbatl(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_dbatl_h (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(((sprn - SPR_DBAT4L) / 2) + 4);
-    gen_helper_store_dbatl(t0, cpu_gpr[gprn]);
+    gen_helper_store_dbatl(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
@@ -421,14 +421,14 @@ static void spr_read_601_ubat (void *opaque, int gprn, int sprn)
 static void spr_write_601_ubatu (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32((sprn - SPR_IBAT0U) / 2);
-    gen_helper_store_601_batl(t0, cpu_gpr[gprn]);
+    gen_helper_store_601_batl(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_601_ubatl (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32((sprn - SPR_IBAT0U) / 2);
-    gen_helper_store_601_batu(t0, cpu_gpr[gprn]);
+    gen_helper_store_601_batu(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 #endif
@@ -1371,14 +1371,14 @@ static void spr_write_e500_l1csr0 (void *opaque, int sprn, int gprn)
 static void spr_write_booke206_mmucsr0 (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(sprn);
-    gen_helper_booke206_tlbflush(t0);
+    gen_helper_booke206_tlbflush(cpu_env, t0);
     tcg_temp_free_i32(t0);
 }
 
 static void spr_write_booke_pid (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(sprn);
-    gen_helper_booke_setpid(t0, cpu_gpr[gprn]);
+    gen_helper_booke_setpid(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 #endif

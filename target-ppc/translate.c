@@ -4200,7 +4200,7 @@ static void gen_mfsr(DisasContext *ctx)
         return;
     }
     t0 = tcg_const_tl(SR(ctx->opcode));
-    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
 #endif
 }
@@ -4219,7 +4219,7 @@ static void gen_mfsrin(DisasContext *ctx)
     t0 = tcg_temp_new();
     tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
     tcg_gen_andi_tl(t0, t0, 0xF);
-    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
 #endif
 }
@@ -4236,7 +4236,7 @@ static void gen_mtsr(DisasContext *ctx)
         return;
     }
     t0 = tcg_const_tl(SR(ctx->opcode));
-    gen_helper_store_sr(t0, cpu_gpr[rS(ctx->opcode)]);
+    gen_helper_store_sr(cpu_env, t0, cpu_gpr[rS(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }
@@ -4255,7 +4255,7 @@ static void gen_mtsrin(DisasContext *ctx)
     t0 = tcg_temp_new();
     tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
     tcg_gen_andi_tl(t0, t0, 0xF);
-    gen_helper_store_sr(t0, cpu_gpr[rD(ctx->opcode)]);
+    gen_helper_store_sr(cpu_env, t0, cpu_gpr[rD(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }
@@ -4275,7 +4275,7 @@ static void gen_mfsr_64b(DisasContext *ctx)
         return;
     }
     t0 = tcg_const_tl(SR(ctx->opcode));
-    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
 #endif
 }
@@ -4294,7 +4294,7 @@ static void gen_mfsrin_64b(DisasContext *ctx)
     t0 = tcg_temp_new();
     tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
     tcg_gen_andi_tl(t0, t0, 0xF);
-    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_load_sr(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
 #endif
 }
@@ -4311,7 +4311,7 @@ static void gen_mtsr_64b(DisasContext *ctx)
         return;
     }
     t0 = tcg_const_tl(SR(ctx->opcode));
-    gen_helper_store_sr(t0, cpu_gpr[rS(ctx->opcode)]);
+    gen_helper_store_sr(cpu_env, t0, cpu_gpr[rS(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }
@@ -4330,7 +4330,7 @@ static void gen_mtsrin_64b(DisasContext *ctx)
     t0 = tcg_temp_new();
     tcg_gen_shri_tl(t0, cpu_gpr[rB(ctx->opcode)], 28);
     tcg_gen_andi_tl(t0, t0, 0xF);
-    gen_helper_store_sr(t0, cpu_gpr[rS(ctx->opcode)]);
+    gen_helper_store_sr(cpu_env, t0, cpu_gpr[rS(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }
@@ -4345,7 +4345,8 @@ static void gen_slbmte(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
-    gen_helper_store_slb(cpu_gpr[rB(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+    gen_helper_store_slb(cpu_env, cpu_gpr[rB(ctx->opcode)],
+                         cpu_gpr[rS(ctx->opcode)]);
 #endif
 }
 
@@ -4358,7 +4359,7 @@ static void gen_slbmfee(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
-    gen_helper_load_slb_esid(cpu_gpr[rS(ctx->opcode)],
+    gen_helper_load_slb_esid(cpu_gpr[rS(ctx->opcode)], cpu_env,
                              cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
@@ -4372,7 +4373,7 @@ static void gen_slbmfev(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         return;
     }
-    gen_helper_load_slb_vsid(cpu_gpr[rS(ctx->opcode)],
+    gen_helper_load_slb_vsid(cpu_gpr[rS(ctx->opcode)], cpu_env,
                              cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
@@ -4391,7 +4392,7 @@ static void gen_tlbia(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_tlbia();
+    gen_helper_tlbia(cpu_env);
 #endif
 }
 
@@ -4405,7 +4406,7 @@ static void gen_tlbiel(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_tlbie(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4423,11 +4424,11 @@ static void gen_tlbie(DisasContext *ctx)
     if (!ctx->sf_mode) {
         TCGv t0 = tcg_temp_new();
         tcg_gen_ext32u_tl(t0, cpu_gpr[rB(ctx->opcode)]);
-        gen_helper_tlbie(t0);
+        gen_helper_tlbie(cpu_env, t0);
         tcg_temp_free(t0);
     } else
 #endif
-        gen_helper_tlbie(cpu_gpr[rB(ctx->opcode)]);
+        gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -4459,7 +4460,7 @@ static void gen_slbia(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_slbia();
+    gen_helper_slbia(cpu_env);
 #endif
 }
 
@@ -4473,7 +4474,7 @@ static void gen_slbie(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_slbie(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_slbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 #endif
@@ -5194,7 +5195,7 @@ static void gen_tlbld_6xx(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_6xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_6xx_tlbd(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5208,7 +5209,7 @@ static void gen_tlbli_6xx(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_6xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_6xx_tlbi(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5224,7 +5225,7 @@ static void gen_tlbld_74xx(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_74xx_tlbd(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_74xx_tlbd(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5238,7 +5239,7 @@ static void gen_tlbli_74xx(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_74xx_tlbi(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_74xx_tlbi(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 
@@ -5286,7 +5287,7 @@ static void gen_mfsri(DisasContext *ctx)
     gen_addr_reg_index(ctx, t0);
     tcg_gen_shri_tl(t0, t0, 28);
     tcg_gen_andi_tl(t0, t0, 0xF);
-    gen_helper_load_sr(cpu_gpr[rd], t0);
+    gen_helper_load_sr(cpu_gpr[rd], cpu_env, t0);
     tcg_temp_free(t0);
     if (ra != 0 && ra != rd)
         tcg_gen_mov_tl(cpu_gpr[ra], cpu_gpr[rd]);
@@ -5305,7 +5306,7 @@ static void gen_rac(DisasContext *ctx)
     }
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_rac(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_rac(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
 #endif
 }
@@ -5483,7 +5484,7 @@ static void gen_tlbiva(DisasContext *ctx)
     }
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_tlbie(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_tlbie(cpu_env, cpu_gpr[rB(ctx->opcode)]);
     tcg_temp_free(t0);
 #endif
 }
@@ -5946,10 +5947,12 @@ static void gen_tlbre_40x(DisasContext *ctx)
     }
     switch (rB(ctx->opcode)) {
     case 0:
-        gen_helper_4xx_tlbre_hi(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+        gen_helper_4xx_tlbre_hi(cpu_gpr[rD(ctx->opcode)], cpu_env,
+                                cpu_gpr[rA(ctx->opcode)]);
         break;
     case 1:
-        gen_helper_4xx_tlbre_lo(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);
+        gen_helper_4xx_tlbre_lo(cpu_gpr[rD(ctx->opcode)], cpu_env,
+                                cpu_gpr[rA(ctx->opcode)]);
         break;
     default:
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
@@ -5971,7 +5974,7 @@ static void gen_tlbsx_40x(DisasContext *ctx)
     }
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_4xx_tlbsx(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_4xx_tlbsx(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
     if (Rc(ctx->opcode)) {
         int l1 = gen_new_label();
@@ -5997,10 +6000,12 @@ static void gen_tlbwe_40x(DisasContext *ctx)
     }
     switch (rB(ctx->opcode)) {
     case 0:
-        gen_helper_4xx_tlbwe_hi(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+        gen_helper_4xx_tlbwe_hi(cpu_env, cpu_gpr[rA(ctx->opcode)],
+                                cpu_gpr[rS(ctx->opcode)]);
         break;
     case 1:
-        gen_helper_4xx_tlbwe_lo(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+        gen_helper_4xx_tlbwe_lo(cpu_env, cpu_gpr[rA(ctx->opcode)],
+                                cpu_gpr[rS(ctx->opcode)]);
         break;
     default:
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
@@ -6027,7 +6032,8 @@ static void gen_tlbre_440(DisasContext *ctx)
     case 2:
         {
             TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
-            gen_helper_440_tlbre(cpu_gpr[rD(ctx->opcode)], t0, cpu_gpr[rA(ctx->opcode)]);
+            gen_helper_440_tlbre(cpu_gpr[rD(ctx->opcode)], cpu_env,
+                                 t0, cpu_gpr[rA(ctx->opcode)]);
             tcg_temp_free_i32(t0);
         }
         break;
@@ -6051,7 +6057,7 @@ static void gen_tlbsx_440(DisasContext *ctx)
     }
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_440_tlbsx(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_440_tlbsx(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free(t0);
     if (Rc(ctx->opcode)) {
         int l1 = gen_new_label();
@@ -6081,7 +6087,8 @@ static void gen_tlbwe_440(DisasContext *ctx)
     case 2:
         {
             TCGv_i32 t0 = tcg_const_i32(rB(ctx->opcode));
-            gen_helper_440_tlbwe(t0, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rS(ctx->opcode)]);
+            gen_helper_440_tlbwe(cpu_env, t0, cpu_gpr[rA(ctx->opcode)],
+                                 cpu_gpr[rS(ctx->opcode)]);
             tcg_temp_free_i32(t0);
         }
         break;
@@ -6105,7 +6112,7 @@ static void gen_tlbre_booke206(DisasContext *ctx)
         return;
     }
 
-    gen_helper_booke206_tlbre();
+    gen_helper_booke206_tlbre(cpu_env);
 #endif
 }
 
@@ -6129,7 +6136,7 @@ static void gen_tlbsx_booke206(DisasContext *ctx)
     }
 
     tcg_gen_add_tl(t0, t0, cpu_gpr[rB(ctx->opcode)]);
-    gen_helper_booke206_tlbsx(t0);
+    gen_helper_booke206_tlbsx(cpu_env, t0);
 #endif
 }
 
@@ -6144,7 +6151,7 @@ static void gen_tlbwe_booke206(DisasContext *ctx)
         return;
     }
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_helper_booke206_tlbwe();
+    gen_helper_booke206_tlbwe(cpu_env);
 #endif
 }
 
@@ -6162,7 +6169,7 @@ static void gen_tlbivax_booke206(DisasContext *ctx)
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
 
-    gen_helper_booke206_tlbivax(t0);
+    gen_helper_booke206_tlbivax(cpu_env, t0);
 #endif
 }
 
@@ -6182,13 +6189,13 @@ static void gen_tlbilx_booke206(DisasContext *ctx)
 
     switch((ctx->opcode >> 21) & 0x3) {
     case 0:
-        gen_helper_booke206_tlbilx0(t0);
+        gen_helper_booke206_tlbilx0(cpu_env, t0);
         break;
     case 1:
-        gen_helper_booke206_tlbilx1(t0);
+        gen_helper_booke206_tlbilx1(cpu_env, t0);
         break;
     case 3:
-        gen_helper_booke206_tlbilx3(t0);
+        gen_helper_booke206_tlbilx3(cpu_env, t0);
         break;
     default:
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
