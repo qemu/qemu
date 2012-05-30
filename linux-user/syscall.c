@@ -4962,8 +4962,8 @@ static int open_self_maps(void *cpu_env, int fd)
 #if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
     dprintf(fd, "%08llx-%08llx rw-p %08llx 00:00 0          [stack]\n",
                 (unsigned long long)ts->info->stack_limit,
-                (unsigned long long)(ts->stack_base + (TARGET_PAGE_SIZE - 1))
-                                     & TARGET_PAGE_MASK,
+                (unsigned long long)(ts->info->start_stack +
+                                     (TARGET_PAGE_SIZE - 1)) & TARGET_PAGE_MASK,
                 (unsigned long long)0);
 #endif
 
