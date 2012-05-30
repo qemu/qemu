@@ -347,8 +347,8 @@ static inline void ppc6xx_tlb_invalidate_virt(CPUPPCState *env,
     ppc6xx_tlb_invalidate_virt2(env, eaddr, is_code, 0);
 }
 
-void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way, int is_code,
-                      target_ulong pte0, target_ulong pte1)
+static void ppc6xx_tlb_store(CPUPPCState *env, target_ulong EPN, int way,
+                             int is_code, target_ulong pte0, target_ulong pte1)
 {
     ppc6xx_tlb_t *tlb;
     int nr;
@@ -712,7 +712,10 @@ static inline ppc_slb_t *slb_lookup(CPUPPCState *env, target_ulong eaddr)
     return NULL;
 }
 
-void ppc_slb_invalidate_all(CPUPPCState *env)
+/*****************************************************************************/
+/* SPR accesses */
+
+void helper_slbia(CPUPPCState *env)
 {
     int n, do_invalidate;
 
@@ -735,11 +738,11 @@ void ppc_slb_invalidate_all(CPUPPCState *env)
     }
 }
 
-void ppc_slb_invalidate_one(CPUPPCState *env, uint64_t T0)
+void helper_slbie(CPUPPCState *env, target_ulong addr)
 {
     ppc_slb_t *slb;
 
-    slb = slb_lookup(env, T0);
+    slb = slb_lookup(env, addr);
     if (!slb) {
         return;
     }
@@ -781,7 +784,8 @@ int ppc_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
     return 0;
 }
 
-int ppc_load_slb_esid(CPUPPCState *env, target_ulong rb, target_ulong *rt)
+static int ppc_load_slb_esid(CPUPPCState *env, target_ulong rb,
+                             target_ulong *rt)
 {
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
@@ -794,7 +798,8 @@ int ppc_load_slb_esid(CPUPPCState *env, target_ulong rb, target_ulong *rt)
     return 0;
 }
 
-int ppc_load_slb_vsid(CPUPPCState *env, target_ulong rb, target_ulong *rt)
+static int ppc_load_slb_vsid(CPUPPCState *env, target_ulong rb,
+                             target_ulong *rt)
 {
     int slot = rb & 0xfff;
     ppc_slb_t *slb = &env->slb[slot];
@@ -1003,10 +1008,10 @@ static inline int get_segment(CPUPPCState *env, mmu_ctx_t *ctx,
 }
 
 /* Generic TLB check function for embedded PowerPC implementations */
-int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
-                     target_phys_addr_t *raddrp,
-                     target_ulong address, uint32_t pid, int ext,
-                     int i)
+static int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
+                            target_phys_addr_t *raddrp,
+                            target_ulong address, uint32_t pid, int ext,
+                            int i)
 {
     target_ulong mask;
 
@@ -1038,7 +1043,8 @@ int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
 }
 
 /* Generic TLB search function for PowerPC embedded implementations */
-int ppcemb_tlb_search(CPUPPCState *env, target_ulong address, uint32_t pid)
+static int ppcemb_tlb_search(CPUPPCState *env, target_ulong address,
+                             uint32_t pid)
 {
     ppcemb_tlb_t *tlb;
     target_phys_addr_t raddr;
@@ -2144,7 +2150,7 @@ static inline void dump_store_bat(CPUPPCState *env, char ID, int ul, int nr,
              nr, ul == 0 ? 'u' : 'l', value, env->nip);
 }
 
-void ppc_store_ibatu(CPUPPCState *env, int nr, target_ulong value)
+void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 
@@ -2170,13 +2176,13 @@ void ppc_store_ibatu(CPUPPCState *env, int nr, target_ulong value)
     }
 }
 
-void ppc_store_ibatl(CPUPPCState *env, int nr, target_ulong value)
+void helper_store_ibatl(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     dump_store_bat(env, 'I', 1, nr, value);
     env->IBAT[1][nr] = value;
 }
 
-void ppc_store_dbatu(CPUPPCState *env, int nr, target_ulong value)
+void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 
@@ -2202,13 +2208,13 @@ void ppc_store_dbatu(CPUPPCState *env, int nr, target_ulong value)
     }
 }
 
-void ppc_store_dbatl(CPUPPCState *env, int nr, target_ulong value)
+void helper_store_dbatl(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     dump_store_bat(env, 'D', 1, nr, value);
     env->DBAT[1][nr] = value;
 }
 
-void ppc_store_ibatu_601(CPUPPCState *env, int nr, target_ulong value)
+void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 #if defined(FLUSH_ALL_TLBS)
@@ -2250,7 +2256,7 @@ void ppc_store_ibatu_601(CPUPPCState *env, int nr, target_ulong value)
     }
 }
 
-void ppc_store_ibatl_601(CPUPPCState *env, int nr, target_ulong value)
+void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong value)
 {
     target_ulong mask;
 #if defined(FLUSH_ALL_TLBS)
@@ -2446,18 +2452,22 @@ void ppc_store_sdr1(CPUPPCState *env, target_ulong value)
     }
 }
 
-#if defined(TARGET_PPC64)
-target_ulong ppc_load_sr(CPUPPCState *env, int slb_nr)
+/* Segment registers load and store */
+target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
 {
-    /* XXX */
-    return 0;
-}
+#if defined(TARGET_PPC64)
+    if (env->mmu_model & POWERPC_MMU_64) {
+        /* XXX */
+        return 0;
+    }
 #endif
+    return env->sr[sr_num];
+}
 
-void ppc_store_sr(CPUPPCState *env, int srnum, target_ulong value)
+void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
 {
     LOG_MMU("%s: reg=%d " TARGET_FMT_lx " " TARGET_FMT_lx "\n", __func__,
-            srnum, value, env->sr[srnum]);
+            (int)srnum, value, env->sr[srnum]);
 #if defined(TARGET_PPC64)
     if (env->mmu_model & POWERPC_MMU_64) {
         uint64_t rb = 0, rs = 0;
@@ -2498,56 +2508,7 @@ void ppc_store_sr(CPUPPCState *env, int srnum, target_ulong value)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
-/*****************************************************************************/
-/* SPR accesses */
-
 #if !defined(CONFIG_USER_ONLY)
-void helper_store_ibatu(CPUPPCState *env, uint32_t nr, target_ulong val)
-{
-    ppc_store_ibatu(env, nr, val);
-}
-
-void helper_store_ibatl(CPUPPCState *env, uint32_t nr, target_ulong val)
-{
-    ppc_store_ibatl(env, nr, val);
-}
-
-void helper_store_dbatu(CPUPPCState *env, uint32_t nr, target_ulong val)
-{
-    ppc_store_dbatu(env, nr, val);
-}
-
-void helper_store_dbatl(CPUPPCState *env, uint32_t nr, target_ulong val)
-{
-    ppc_store_dbatl(env, nr, val);
-}
-
-void helper_store_601_batl(CPUPPCState *env, uint32_t nr, target_ulong val)
-{
-    ppc_store_ibatl_601(env, nr, val);
-}
-
-void helper_store_601_batu(CPUPPCState *env, uint32_t nr, target_ulong val)
-{
-    ppc_store_ibatu_601(env, nr, val);
-}
-
-/* Segment registers load and store */
-target_ulong helper_load_sr(CPUPPCState *env, target_ulong sr_num)
-{
-#if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
-        return ppc_load_sr(env, sr_num);
-    }
-#endif
-    return env->sr[sr_num];
-}
-
-void helper_store_sr(CPUPPCState *env, target_ulong sr_num, target_ulong val)
-{
-    ppc_store_sr(env, sr_num, val);
-}
-
 /* SLB management */
 #if defined(TARGET_PPC64)
 void helper_store_slb(CPUPPCState *env, target_ulong rb, target_ulong rs)
@@ -2579,17 +2540,6 @@ target_ulong helper_load_slb_vsid(CPUPPCState *env, target_ulong rb)
     }
     return rt;
 }
-
-void helper_slbia(CPUPPCState *env)
-{
-    ppc_slb_invalidate_all(env);
-}
-
-void helper_slbie(CPUPPCState *env, target_ulong addr)
-{
-    ppc_slb_invalidate_one(env, addr);
-}
-
 #endif /* defined(TARGET_PPC64) */
 
 /* TLB management */

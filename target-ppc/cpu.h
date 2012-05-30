@@ -1118,24 +1118,11 @@ void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
-void ppc6xx_tlb_store (CPUPPCState *env, target_ulong EPN, int way, int is_code,
-                       target_ulong pte0, target_ulong pte1);
-void ppc_store_ibatu (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_ibatl (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_dbatu (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_dbatl (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value);
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
 #if defined(TARGET_PPC64)
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
-target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
-target_ulong ppc_load_sr (CPUPPCState *env, int sr_nr);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
-int ppc_load_slb_esid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
-int ppc_load_slb_vsid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
 #endif /* defined(TARGET_PPC64) */
-void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
@@ -1174,19 +1161,11 @@ void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot);
 target_phys_addr_t booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
-int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
-                     target_phys_addr_t *raddrp, target_ulong address,
-                     uint32_t pid, int ext, int i);
 int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
                      target_phys_addr_t *raddrp, target_ulong address,
                      uint32_t pid);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
-#if defined(TARGET_PPC64)
-void ppc_slb_invalidate_all (CPUPPCState *env);
-void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0);
-#endif
-int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
 
