@@ -159,7 +159,7 @@ static void spr_read_decr (void *opaque, int gprn, int sprn)
     if (use_icount) {
         gen_io_start();
     }
-    gen_helper_load_decr(cpu_gpr[gprn]);
+    gen_helper_load_decr(cpu_gpr[gprn], cpu_env);
     if (use_icount) {
         gen_io_end();
         gen_stop_exception(opaque);
@@ -171,7 +171,7 @@ static void spr_write_decr (void *opaque, int sprn, int gprn)
     if (use_icount) {
         gen_io_start();
     }
-    gen_helper_store_decr(cpu_gpr[gprn]);
+    gen_helper_store_decr(cpu_env, cpu_gpr[gprn]);
     if (use_icount) {
         gen_io_end();
         gen_stop_exception(opaque);
@@ -186,7 +186,7 @@ static void spr_read_tbl (void *opaque, int gprn, int sprn)
     if (use_icount) {
         gen_io_start();
     }
-    gen_helper_load_tbl(cpu_gpr[gprn]);
+    gen_helper_load_tbl(cpu_gpr[gprn], cpu_env);
     if (use_icount) {
         gen_io_end();
         gen_stop_exception(opaque);
@@ -198,7 +198,7 @@ static void spr_read_tbu (void *opaque, int gprn, int sprn)
     if (use_icount) {
         gen_io_start();
     }
-    gen_helper_load_tbu(cpu_gpr[gprn]);
+    gen_helper_load_tbu(cpu_gpr[gprn], cpu_env);
     if (use_icount) {
         gen_io_end();
         gen_stop_exception(opaque);
@@ -208,13 +208,13 @@ static void spr_read_tbu (void *opaque, int gprn, int sprn)
 __attribute__ (( unused ))
 static void spr_read_atbl (void *opaque, int gprn, int sprn)
 {
-    gen_helper_load_atbl(cpu_gpr[gprn]);
+    gen_helper_load_atbl(cpu_gpr[gprn], cpu_env);
 }
 
 __attribute__ (( unused ))
 static void spr_read_atbu (void *opaque, int gprn, int sprn)
 {
-    gen_helper_load_atbu(cpu_gpr[gprn]);
+    gen_helper_load_atbu(cpu_gpr[gprn], cpu_env);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -223,7 +223,7 @@ static void spr_write_tbl (void *opaque, int sprn, int gprn)
     if (use_icount) {
         gen_io_start();
     }
-    gen_helper_store_tbl(cpu_gpr[gprn]);
+    gen_helper_store_tbl(cpu_env, cpu_gpr[gprn]);
     if (use_icount) {
         gen_io_end();
         gen_stop_exception(opaque);
@@ -235,7 +235,7 @@ static void spr_write_tbu (void *opaque, int sprn, int gprn)
     if (use_icount) {
         gen_io_start();
     }
-    gen_helper_store_tbu(cpu_gpr[gprn]);
+    gen_helper_store_tbu(cpu_env, cpu_gpr[gprn]);
     if (use_icount) {
         gen_io_end();
         gen_stop_exception(opaque);
@@ -245,20 +245,20 @@ static void spr_write_tbu (void *opaque, int sprn, int gprn)
 __attribute__ (( unused ))
 static void spr_write_atbl (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_atbl(cpu_gpr[gprn]);
+    gen_helper_store_atbl(cpu_env, cpu_gpr[gprn]);
 }
 
 __attribute__ (( unused ))
 static void spr_write_atbu (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_atbu(cpu_gpr[gprn]);
+    gen_helper_store_atbu(cpu_env, cpu_gpr[gprn]);
 }
 
 #if defined(TARGET_PPC64)
 __attribute__ (( unused ))
 static void spr_read_purr (void *opaque, int gprn, int sprn)
 {
-    gen_helper_load_purr(cpu_gpr[gprn]);
+    gen_helper_load_purr(cpu_gpr[gprn], cpu_env);
 }
 #endif
 #endif
@@ -382,23 +382,23 @@ static void spr_write_asr (void *opaque, int sprn, int gprn)
 /* RTC */
 static void spr_read_601_rtcl (void *opaque, int gprn, int sprn)
 {
-    gen_helper_load_601_rtcl(cpu_gpr[gprn]);
+    gen_helper_load_601_rtcl(cpu_gpr[gprn], cpu_env);
 }
 
 static void spr_read_601_rtcu (void *opaque, int gprn, int sprn)
 {
-    gen_helper_load_601_rtcu(cpu_gpr[gprn]);
+    gen_helper_load_601_rtcu(cpu_gpr[gprn], cpu_env);
 }
 
 #if !defined(CONFIG_USER_ONLY)
 static void spr_write_601_rtcu (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_601_rtcu(cpu_gpr[gprn]);
+    gen_helper_store_601_rtcu(cpu_env, cpu_gpr[gprn]);
 }
 
 static void spr_write_601_rtcl (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_601_rtcl(cpu_gpr[gprn]);
+    gen_helper_store_601_rtcl(cpu_env, cpu_gpr[gprn]);
 }
 
 static void spr_write_hid0_601 (void *opaque, int sprn, int gprn)
@@ -437,12 +437,12 @@ static void spr_write_601_ubatl (void *opaque, int sprn, int gprn)
 #if !defined(CONFIG_USER_ONLY)
 static void spr_read_40x_pit (void *opaque, int gprn, int sprn)
 {
-    gen_helper_load_40x_pit(cpu_gpr[gprn]);
+    gen_helper_load_40x_pit(cpu_gpr[gprn], cpu_env);
 }
 
 static void spr_write_40x_pit (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_40x_pit(cpu_gpr[gprn]);
+    gen_helper_store_40x_pit(cpu_env, cpu_gpr[gprn]);
 }
 
 static void spr_write_40x_dbcr0 (void *opaque, int sprn, int gprn)
@@ -461,12 +461,12 @@ static void spr_write_40x_sler (void *opaque, int sprn, int gprn)
 
 static void spr_write_booke_tcr (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_booke_tcr(cpu_gpr[gprn]);
+    gen_helper_store_booke_tcr(cpu_env, cpu_gpr[gprn]);
 }
 
 static void spr_write_booke_tsr (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_booke_tsr(cpu_gpr[gprn]);
+    gen_helper_store_booke_tsr(cpu_env, cpu_gpr[gprn]);
 }
 #endif
 
