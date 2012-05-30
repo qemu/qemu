@@ -57,7 +57,13 @@ int setenv(const char *name, const char *value, int overwrite)
 
 static BOOL WINAPI qemu_ctrl_handler(DWORD type)
 {
-    exit(STATUS_CONTROL_C_EXIT);
+    qemu_system_shutdown_request();
+    /* Windows 7 kills application when the function returns.
+       Sleep here to give QEMU a try for closing.
+       Sleep period is 10000ms because Windows kills the program
+       after 10 seconds anyway. */
+    Sleep(10000);
+
     return TRUE;
 }
 
