@@ -305,7 +305,6 @@ static x86_def_t builtin_x86_defs[] = {
         .ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM |
             CPUID_EXT3_ABM | CPUID_EXT3_SSE4A,
         .xlevel = 0x8000000A,
-        .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
     {
         .name = "phenom",
@@ -388,7 +387,6 @@ static x86_def_t builtin_x86_defs[] = {
         .features = PPRO_FEATURES,
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_POPCNT,
         .xlevel = 0x80000004,
-        .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
     {
         .name = "kvm32",
@@ -467,8 +465,6 @@ static x86_def_t builtin_x86_defs[] = {
         .features = PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR | CPUID_MCA,
         .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .xlevel = 0x80000008,
-        /* XXX: put another string ? */
-        .model_id = "QEMU Virtual CPU version " QEMU_VERSION,
     },
     {
         .name = "n270",
@@ -1299,11 +1295,23 @@ void cpu_clear_apic_feature(CPUX86State *env)
  */
 void x86_cpudef_setup(void)
 {
-    int i;
+    int i, j;
+    static const char *model_with_versions[] = { "qemu32", "qemu64", "athlon" };
 
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
         builtin_x86_defs[i].next = x86_defs;
         builtin_x86_defs[i].flags = 1;
+
+        /* Look for specific "cpudef" models that */
+        /* have the QEmu version in .model_id */
+        for (j = 0; j < ARRAY_SIZE(model_with_versions); j++) {
+            if (strcmp(model_with_versions[j], builtin_x86_defs[i].name) == 0) {
+                pstrcpy(builtin_x86_defs[i].model_id, sizeof(builtin_x86_defs[i].model_id), "QEMU Virtual CPU version ");
+                pstrcat(builtin_x86_defs[i].model_id, sizeof(builtin_x86_defs[i].model_id), qemu_get_version());
+                break;
+            }
+        }
+
         x86_defs = &builtin_x86_defs[i];
     }
 #if !defined(CONFIG_USER_ONLY)

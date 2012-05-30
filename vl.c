@@ -3206,6 +3206,10 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    if (machine->hw_version) {
+        qemu_set_version(machine->hw_version);
+    }
+
     /* Init CPU def lists, based on config
      * - Must be called after all the qemu_read_config_file() calls
      * - Must be called before list_cpus()

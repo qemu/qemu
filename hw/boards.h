@@ -29,6 +29,7 @@ typedef struct QEMUMachine {
     const char *default_machine_opts;
     GlobalProperty *compat_props;
     struct QEMUMachine *next;
+    const char *hw_version;
 } QEMUMachine;
 
 int qemu_register_machine(QEMUMachine *m);

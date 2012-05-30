@@ -57,7 +57,7 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]     = "QEMU " QEMU_VERSION,
+    [STR_MANUFACTURER]     = "QEMU",
     [STR_SERIALNUMBER]     = "1",
 };
 

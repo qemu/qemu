@@ -834,7 +834,7 @@ SERVICE(hid,
     ATTRIBUTE(DOC_URL,         URL("http://bellard.org/qemu/user-doc.html"))
     ATTRIBUTE(SVCNAME_PRIMARY, STRING("QEMU Bluetooth HID"))
     ATTRIBUTE(SVCDESC_PRIMARY, STRING("QEMU Keyboard/Mouse"))
-    ATTRIBUTE(SVCPROV_PRIMARY, STRING("QEMU " QEMU_VERSION))
+    ATTRIBUTE(SVCPROV_PRIMARY, STRING("QEMU"))
 
     /* Profile specific */
     ATTRIBUTE(DEVICE_RELEASE_NUMBER,	UINT16(0x0091)) /* Deprecated, remove */
@@ -908,7 +908,7 @@ SERVICE(sdp,
         LIST(UUID128(SDP_SERVER_PROFILE_ID) UINT16(0x0100))
     ))
     ATTRIBUTE(DOC_URL,         URL("http://bellard.org/qemu/user-doc.html"))
-    ATTRIBUTE(SVCPROV_PRIMARY, STRING("QEMU " QEMU_VERSION))
+    ATTRIBUTE(SVCPROV_PRIMARY, STRING("QEMU"))
 
     /* Profile specific */
     ATTRIBUTE(VERSION_NUM_LIST, LIST(UINT16(0x0100)))
@@ -931,7 +931,7 @@ SERVICE(pnp,
         LIST(UUID128(PNP_INFO_PROFILE_ID) UINT16(0x0100))
     ))
     ATTRIBUTE(DOC_URL,         URL("http://bellard.org/qemu/user-doc.html"))
-    ATTRIBUTE(SVCPROV_PRIMARY, STRING("QEMU " QEMU_VERSION))
+    ATTRIBUTE(SVCPROV_PRIMARY, STRING("QEMU"))
 
     /* Profile specific */
     ATTRIBUTE(SPECIFICATION_ID, UINT16(0x0100))
