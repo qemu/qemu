@@ -1,22 +1,22 @@
 #include "def-helper.h"
 
-DEF_HELPER_2(raise_exception_err, void, i32, i32)
-DEF_HELPER_1(raise_exception, void, i32)
-DEF_HELPER_3(tw, void, tl, tl, i32)
+DEF_HELPER_3(raise_exception_err, void, env, i32, i32)
+DEF_HELPER_2(raise_exception, void, env, i32)
+DEF_HELPER_4(tw, void, env, tl, tl, i32)
 #if defined(TARGET_PPC64)
-DEF_HELPER_3(td, void, tl, tl, i32)
+DEF_HELPER_4(td, void, env, tl, tl, i32)
 #endif
 #if !defined(CONFIG_USER_ONLY)
-DEF_HELPER_1(store_msr, void, tl)
-DEF_HELPER_0(rfi, void)
-DEF_HELPER_0(rfsvc, void)
-DEF_HELPER_0(40x_rfci, void)
-DEF_HELPER_0(rfci, void)
-DEF_HELPER_0(rfdi, void)
-DEF_HELPER_0(rfmci, void)
+DEF_HELPER_2(store_msr, void, env, tl)
+DEF_HELPER_1(rfi, void, env)
+DEF_HELPER_1(rfsvc, void, env)
+DEF_HELPER_1(40x_rfci, void, env)
+DEF_HELPER_1(rfci, void, env)
+DEF_HELPER_1(rfdi, void, env)
+DEF_HELPER_1(rfmci, void, env)
 #if defined(TARGET_PPC64)
-DEF_HELPER_0(rfid, void)
-DEF_HELPER_0(hrfid, void)
+DEF_HELPER_1(rfid, void, env)
+DEF_HELPER_1(hrfid, void, env)
 #endif
 #endif
 
@@ -359,7 +359,7 @@ DEF_HELPER_FLAGS_2(store_sr, TCG_CALL_CONST, void, tl, tl)
 
 DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
 DEF_HELPER_1(msgsnd, void, tl)
-DEF_HELPER_1(msgclr, void, tl)
+DEF_HELPER_2(msgclr, void, env, tl)
 #endif
 
 DEF_HELPER_3(dlmzb, tl, tl, tl, i32)

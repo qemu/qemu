@@ -270,7 +270,7 @@ static inline void gen_exception_err(DisasContext *ctx, uint32_t excp, uint32_t 
     }
     t0 = tcg_const_i32(excp);
     t1 = tcg_const_i32(error);
-    gen_helper_raise_exception_err(t0, t1);
+    gen_helper_raise_exception_err(cpu_env, t0, t1);
     tcg_temp_free_i32(t0);
     tcg_temp_free_i32(t1);
     ctx->exception = (excp);
@@ -283,7 +283,7 @@ static inline void gen_exception(DisasContext *ctx, uint32_t excp)
         gen_update_nip(ctx, ctx->nip);
     }
     t0 = tcg_const_i32(excp);
-    gen_helper_raise_exception(t0);
+    gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
     ctx->exception = (excp);
 }
@@ -297,7 +297,7 @@ static inline void gen_debug_exception(DisasContext *ctx)
         gen_update_nip(ctx, ctx->nip);
     }
     t0 = tcg_const_i32(EXCP_DEBUG);
-    gen_helper_raise_exception(t0);
+    gen_helper_raise_exception(cpu_env, t0);
     tcg_temp_free_i32(t0);
 }
 
@@ -2495,7 +2495,7 @@ static inline void gen_check_align(DisasContext *ctx, TCGv EA, int mask)
     tcg_gen_brcondi_tl(TCG_COND_EQ, t0, 0, l1);
     t1 = tcg_const_i32(POWERPC_EXCP_ALIGN);
     t2 = tcg_const_i32(0);
-    gen_helper_raise_exception_err(t1, t2);
+    gen_helper_raise_exception_err(cpu_env, t1, t2);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
     gen_set_label(l1);
@@ -3662,7 +3662,7 @@ static void gen_rfi(DisasContext *ctx)
         return;
     }
     gen_update_cfar(ctx, ctx->nip);
-    gen_helper_rfi();
+    gen_helper_rfi(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -3679,7 +3679,7 @@ static void gen_rfid(DisasContext *ctx)
         return;
     }
     gen_update_cfar(ctx, ctx->nip);
-    gen_helper_rfid();
+    gen_helper_rfid(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -3694,7 +3694,7 @@ static void gen_hrfid(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_hrfid();
+    gen_helper_hrfid(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -3722,7 +3722,8 @@ static void gen_tw(DisasContext *ctx)
     TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
-    gen_helper_tw(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0);
+    gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
+                  t0);
     tcg_temp_free_i32(t0);
 }
 
@@ -3733,7 +3734,7 @@ static void gen_twi(DisasContext *ctx)
     TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
-    gen_helper_tw(cpu_gpr[rA(ctx->opcode)], t0, t1);
+    gen_helper_tw(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
 }
@@ -3745,7 +3746,8 @@ static void gen_td(DisasContext *ctx)
     TCGv_i32 t0 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
-    gen_helper_td(cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)], t0);
+    gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],
+                  t0);
     tcg_temp_free_i32(t0);
 }
 
@@ -3756,7 +3758,7 @@ static void gen_tdi(DisasContext *ctx)
     TCGv_i32 t1 = tcg_const_i32(TO(ctx->opcode));
     /* Update the nip since this might generate a trap exception */
     gen_update_nip(ctx, ctx->nip);
-    gen_helper_td(cpu_gpr[rA(ctx->opcode)], t0, t1);
+    gen_helper_td(cpu_env, cpu_gpr[rA(ctx->opcode)], t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
 }
@@ -3934,7 +3936,7 @@ static void gen_mtmsrd(DisasContext *ctx)
          *      directly from ppc_store_msr
          */
         gen_update_nip(ctx, ctx->nip);
-        gen_helper_store_msr(cpu_gpr[rS(ctx->opcode)]);
+        gen_helper_store_msr(cpu_env, cpu_gpr[rS(ctx->opcode)]);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         gen_stop_exception(ctx);
@@ -3972,7 +3974,7 @@ static void gen_mtmsr(DisasContext *ctx)
 #else
         tcg_gen_mov_tl(msr, cpu_gpr[rS(ctx->opcode)]);
 #endif
-        gen_helper_store_msr(msr);
+        gen_helper_store_msr(cpu_env, msr);
         /* Must stop the translation as machine state (may have) changed */
         /* Note that mtmsr is not always defined as context-synchronizing */
         gen_stop_exception(ctx);
@@ -5290,7 +5292,7 @@ static void gen_rfsvc(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
-    gen_helper_rfsvc();
+    gen_helper_rfsvc(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -5849,7 +5851,7 @@ static void gen_rfci_40x(DisasContext *ctx)
         return;
     }
     /* Restore CPU state */
-    gen_helper_40x_rfci();
+    gen_helper_40x_rfci(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -5864,7 +5866,7 @@ static void gen_rfci(DisasContext *ctx)
         return;
     }
     /* Restore CPU state */
-    gen_helper_rfci();
+    gen_helper_rfci(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -5882,7 +5884,7 @@ static void gen_rfdi(DisasContext *ctx)
         return;
     }
     /* Restore CPU state */
-    gen_helper_rfdi();
+    gen_helper_rfdi(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -5898,7 +5900,7 @@ static void gen_rfmci(DisasContext *ctx)
         return;
     }
     /* Restore CPU state */
-    gen_helper_rfmci();
+    gen_helper_rfmci(cpu_env);
     gen_sync_exception(ctx);
 #endif
 }
@@ -6258,7 +6260,7 @@ static void gen_msgclr(DisasContext *ctx)
         return;
     }
 
-    gen_helper_msgclr(cpu_gpr[rB(ctx->opcode)]);
+    gen_helper_msgclr(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif
 }
 

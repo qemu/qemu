@@ -294,7 +294,7 @@ void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
     if (likely(xer_bc != 0)) {
         if (unlikely((ra != 0 && reg < ra && (reg + xer_bc) > ra) ||
                      (reg < rb && (reg + xer_bc) > rb))) {
-            helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+            helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                        POWERPC_EXCP_INVAL |
                                        POWERPC_EXCP_INVAL_LSWX);
         } else {
@@ -709,7 +709,7 @@ static inline uint64_t fload_invalid_op_excp(int op)
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         if (msr_fe0 != 0 || msr_fe1 != 0) {
-            helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+            helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                        POWERPC_EXCP_FP | op);
         }
     }
@@ -726,7 +726,7 @@ static inline void float_zero_divide_excp(void)
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
         if (msr_fe0 != 0 || msr_fe1 != 0) {
-            helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+            helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                        POWERPC_EXCP_FP | POWERPC_EXCP_FP_ZX);
         }
     }
@@ -995,7 +995,8 @@ void helper_float_check_status(void)
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */
         if (msr_fe0 != 0 || msr_fe1 != 0) {
-            helper_raise_exception_err(env->exception_index, env->error_code);
+            helper_raise_exception_err(env, env->exception_index,
+                                       env->error_code);
         }
     } else {
         int status = get_float_exception_flags(&env->fp_status);
@@ -1781,13 +1782,13 @@ target_ulong helper_load_dcr(target_ulong dcrn)
 
     if (unlikely(env->dcr_env == NULL)) {
         qemu_log("No DCR environment\n");
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL |
                                    POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_read(env->dcr_env,
                                      (uint32_t)dcrn, &val) != 0)) {
         qemu_log("DCR read error %d %03x\n", (uint32_t)dcrn, (uint32_t)dcrn);
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
     return val;
@@ -1797,13 +1798,13 @@ void helper_store_dcr(target_ulong dcrn, target_ulong val)
 {
     if (unlikely(env->dcr_env == NULL)) {
         qemu_log("No DCR environment\n");
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL |
                                    POWERPC_EXCP_INVAL_INVAL);
     } else if (unlikely(ppc_dcr_write(env->dcr_env, (uint32_t)dcrn,
                                       (uint32_t)val) != 0)) {
         qemu_log("DCR write error %d %03x\n", (uint32_t)dcrn, (uint32_t)dcrn);
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL | POWERPC_EXCP_PRIV_REG);
     }
 }
@@ -3783,7 +3784,7 @@ void tlb_fill(CPUPPCState *env1, target_ulong addr, int is_write, int mmu_idx,
                 cpu_restore_state(tb, env, retaddr);
             }
         }
-        helper_raise_exception_err(env->exception_index, env->error_code);
+        helper_raise_exception_err(env, env->exception_index, env->error_code);
     }
     env = saved_env;
 }
@@ -3809,7 +3810,8 @@ void helper_store_sr(target_ulong sr_num, target_ulong val)
 void helper_store_slb(target_ulong rb, target_ulong rs)
 {
     if (ppc_store_slb(env, rb, rs) < 0) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL);
     }
 }
 
@@ -3818,7 +3820,8 @@ target_ulong helper_load_slb_esid(target_ulong rb)
     target_ulong rt;
 
     if (ppc_load_slb_esid(env, rb, &rt) < 0) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL);
     }
     return rt;
 }
@@ -3828,7 +3831,8 @@ target_ulong helper_load_slb_vsid(target_ulong rb)
     target_ulong rt;
 
     if (ppc_load_slb_vsid(env, rb, &rt) < 0) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL);
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL);
     }
     return rt;
 }
@@ -4328,7 +4332,7 @@ void helper_booke206_tlbwe(void)
     tlb = booke206_cur_tlb(env);
 
     if (!tlb) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL |
                                    POWERPC_EXCP_INVAL_INVAL);
     }
@@ -4338,7 +4342,7 @@ void helper_booke206_tlbwe(void)
     size_ps = booke206_tlbnps(env, tlbn);
     if ((env->spr[SPR_BOOKE_MAS1] & MAS1_VALID) && (tlbncfg & TLBnCFG_AVAIL) &&
         !(size_ps & (1 << size_tlb))) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
                                    POWERPC_EXCP_INVAL |
                                    POWERPC_EXCP_INVAL_INVAL);
     }

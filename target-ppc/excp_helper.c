@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #include "helper_regs.h"
@@ -28,7 +27,8 @@
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-void helper_raise_exception_err(uint32_t exception, uint32_t error_code)
+void helper_raise_exception_err(CPUPPCState *env, uint32_t exception,
+                                uint32_t error_code)
 {
 #if 0
     printf("Raise exception %3x code : %d\n", exception, error_code);
@@ -38,22 +38,22 @@ void helper_raise_exception_err(uint32_t exception, uint32_t error_code)
     cpu_loop_exit(env);
 }
 
-void helper_raise_exception(uint32_t exception)
+void helper_raise_exception(CPUPPCState *env, uint32_t exception)
 {
-    helper_raise_exception_err(exception, 0);
+    helper_raise_exception_err(env, exception, 0);
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void helper_store_msr(target_ulong val)
+void helper_store_msr(CPUPPCState *env, target_ulong val)
 {
     val = hreg_store_msr(env, val, 0);
     if (val != 0) {
         env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-        helper_raise_exception(val);
+        helper_raise_exception(env, val);
     }
 }
 
-static inline void do_rfi(target_ulong nip, target_ulong msr,
+static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
                           target_ulong msrm, int keep_msrh)
 {
 #if defined(TARGET_PPC64)
@@ -83,73 +83,77 @@ static inline void do_rfi(target_ulong nip, target_ulong msr,
     env->interrupt_request |= CPU_INTERRUPT_EXITTB;
 }
 
-void helper_rfi(void)
+void helper_rfi(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
            ~((target_ulong)0x783F0000), 1);
 }
 
 #if defined(TARGET_PPC64)
-void helper_rfid(void)
+void helper_rfid(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_SRR0], env->spr[SPR_SRR1],
+    do_rfi(env, env->spr[SPR_SRR0], env->spr[SPR_SRR1],
            ~((target_ulong)0x783F0000), 0);
 }
 
-void helper_hrfid(void)
+void helper_hrfid(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
+    do_rfi(env, env->spr[SPR_HSRR0], env->spr[SPR_HSRR1],
            ~((target_ulong)0x783F0000), 0);
 }
 #endif
 
 /*****************************************************************************/
 /* Embedded PowerPC specific helpers */
-void helper_40x_rfci(void)
+void helper_40x_rfci(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
+    do_rfi(env, env->spr[SPR_40x_SRR2], env->spr[SPR_40x_SRR3],
            ~((target_ulong)0xFFFF0000), 0);
 }
 
-void helper_rfci(void)
+void helper_rfci(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
+    do_rfi(env, env->spr[SPR_BOOKE_CSRR0], SPR_BOOKE_CSRR1,
            ~((target_ulong)0x3FFF0000), 0);
 }
 
-void helper_rfdi(void)
+void helper_rfdi(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
+    do_rfi(env, env->spr[SPR_BOOKE_DSRR0], SPR_BOOKE_DSRR1,
            ~((target_ulong)0x3FFF0000), 0);
 }
 
-void helper_rfmci(void)
+void helper_rfmci(CPUPPCState *env)
 {
-    do_rfi(env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
+    do_rfi(env, env->spr[SPR_BOOKE_MCSRR0], SPR_BOOKE_MCSRR1,
            ~((target_ulong)0x3FFF0000), 0);
 }
 #endif
 
-void helper_tw(target_ulong arg1, target_ulong arg2, uint32_t flags)
+void helper_tw(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
+               uint32_t flags)
 {
     if (!likely(!(((int32_t)arg1 < (int32_t)arg2 && (flags & 0x10)) ||
                   ((int32_t)arg1 > (int32_t)arg2 && (flags & 0x08)) ||
                   ((int32_t)arg1 == (int32_t)arg2 && (flags & 0x04)) ||
                   ((uint32_t)arg1 < (uint32_t)arg2 && (flags & 0x02)) ||
                   ((uint32_t)arg1 > (uint32_t)arg2 && (flags & 0x01))))) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_TRAP);
     }
 }
 
 #if defined(TARGET_PPC64)
-void helper_td(target_ulong arg1, target_ulong arg2, uint32_t flags)
+void helper_td(CPUPPCState *env, target_ulong arg1, target_ulong arg2,
+               uint32_t flags)
 {
     if (!likely(!(((int64_t)arg1 < (int64_t)arg2 && (flags & 0x10)) ||
                   ((int64_t)arg1 > (int64_t)arg2 && (flags & 0x08)) ||
                   ((int64_t)arg1 == (int64_t)arg2 && (flags & 0x04)) ||
                   ((uint64_t)arg1 < (uint64_t)arg2 && (flags & 0x02)) ||
                   ((uint64_t)arg1 > (uint64_t)arg2 && (flags & 0x01))))) {
-        helper_raise_exception_err(POWERPC_EXCP_PROGRAM, POWERPC_EXCP_TRAP);
+        helper_raise_exception_err(env, POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_TRAP);
     }
 }
 #endif
@@ -158,9 +162,9 @@ void helper_td(target_ulong arg1, target_ulong arg2, uint32_t flags)
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
 
-void helper_rfsvc(void)
+void helper_rfsvc(CPUPPCState *env)
 {
-    do_rfi(env->lr, env->ctr, 0x0000FFFF, 0);
+    do_rfi(env, env->lr, env->ctr, 0x0000FFFF, 0);
 }
 
 /* Embedded.Processor Control */
@@ -187,7 +191,7 @@ static int dbell2irq(target_ulong rb)
     return irq;
 }
 
-void helper_msgclr(target_ulong rb)
+void helper_msgclr(CPUPPCState *env, target_ulong rb)
 {
     int irq = dbell2irq(rb);
 
