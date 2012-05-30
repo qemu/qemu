@@ -31,69 +31,6 @@
 //#define DEBUG_OP
 
 /*****************************************************************************/
-/* SPR accesses */
-void helper_load_dump_spr(uint32_t sprn)
-{
-    qemu_log("Read SPR %d %03x => " TARGET_FMT_lx "\n", sprn, sprn,
-             env->spr[sprn]);
-}
-
-void helper_store_dump_spr(uint32_t sprn)
-{
-    qemu_log("Write SPR %d %03x <= " TARGET_FMT_lx "\n", sprn, sprn,
-             env->spr[sprn]);
-}
-#if !defined(CONFIG_USER_ONLY)
-#if defined(TARGET_PPC64)
-void helper_store_asr(target_ulong val)
-{
-    ppc_store_asr(env, val);
-}
-#endif
-
-void helper_store_sdr1(target_ulong val)
-{
-    ppc_store_sdr1(env, val);
-}
-
-void helper_store_hid0_601(target_ulong val)
-{
-    target_ulong hid0;
-
-    hid0 = env->spr[SPR_HID0];
-    if ((val ^ hid0) & 0x00000008) {
-        /* Change current endianness */
-        env->hflags &= ~(1 << MSR_LE);
-        env->hflags_nmsr &= ~(1 << MSR_LE);
-        env->hflags_nmsr |= (1 << MSR_LE) & (((val >> 3) & 1) << MSR_LE);
-        env->hflags |= env->hflags_nmsr;
-        qemu_log("%s: set endianness to %c => " TARGET_FMT_lx "\n", __func__,
-                 val & 0x8 ? 'l' : 'b', env->hflags);
-    }
-    env->spr[SPR_HID0] = (uint32_t)val;
-}
-
-void helper_store_403_pbr(uint32_t num, target_ulong value)
-{
-    if (likely(env->pb[num] != value)) {
-        env->pb[num] = value;
-        /* Should be optimized */
-        tlb_flush(env, 1);
-    }
-}
-
-void helper_store_40x_dbcr0(target_ulong val)
-{
-    store_40x_dbcr0(env, val);
-}
-
-void helper_store_40x_sler(target_ulong val)
-{
-    store_40x_sler(env, val);
-}
-#endif
-
-/*****************************************************************************/
 /* Memory load and stores */
 
 static inline target_ulong addr_add(target_ulong addr, target_long arg)
@@ -249,37 +186,6 @@ target_ulong helper_lscbx(target_ulong addr, uint32_t reg, uint32_t ra,
         }
     }
     return i;
-}
-
-/*****************************************************************************/
-/* PowerPC 601 specific instructions (POWER bridge) */
-
-target_ulong helper_clcs(uint32_t arg)
-{
-    switch (arg) {
-    case 0x0CUL:
-        /* Instruction cache line size */
-        return env->icache_line_size;
-        break;
-    case 0x0DUL:
-        /* Data cache line size */
-        return env->dcache_line_size;
-        break;
-    case 0x0EUL:
-        /* Minimum cache line size */
-        return (env->icache_line_size < env->dcache_line_size) ?
-            env->icache_line_size : env->dcache_line_size;
-        break;
-    case 0x0FUL:
-        /* Maximum cache line size */
-        return (env->icache_line_size > env->dcache_line_size) ?
-            env->icache_line_size : env->dcache_line_size;
-        break;
-    default:
-        /* Undefined */
-        return 0;
-        break;
-    }
 }
 
 /*****************************************************************************/
