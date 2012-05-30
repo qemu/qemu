@@ -2989,7 +2989,7 @@ static void gen_lmw(DisasContext *ctx)
     t0 = tcg_temp_new();
     t1 = tcg_const_i32(rD(ctx->opcode));
     gen_addr_imm_index(ctx, t0, 0);
-    gen_helper_lmw(t0, t1);
+    gen_helper_lmw(cpu_env, t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
 }
@@ -3005,7 +3005,7 @@ static void gen_stmw(DisasContext *ctx)
     t0 = tcg_temp_new();
     t1 = tcg_const_i32(rS(ctx->opcode));
     gen_addr_imm_index(ctx, t0, 0);
-    gen_helper_stmw(t0, t1);
+    gen_helper_stmw(cpu_env, t0, t1);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
 }
@@ -3043,7 +3043,7 @@ static void gen_lswi(DisasContext *ctx)
     gen_addr_register(ctx, t0);
     t1 = tcg_const_i32(nb);
     t2 = tcg_const_i32(start);
-    gen_helper_lsw(t0, t1, t2);
+    gen_helper_lsw(cpu_env, t0, t1, t2);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
@@ -3062,7 +3062,7 @@ static void gen_lswx(DisasContext *ctx)
     t1 = tcg_const_i32(rD(ctx->opcode));
     t2 = tcg_const_i32(rA(ctx->opcode));
     t3 = tcg_const_i32(rB(ctx->opcode));
-    gen_helper_lswx(t0, t1, t2, t3);
+    gen_helper_lswx(cpu_env, t0, t1, t2, t3);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
@@ -3084,7 +3084,7 @@ static void gen_stswi(DisasContext *ctx)
         nb = 32;
     t1 = tcg_const_i32(nb);
     t2 = tcg_const_i32(rS(ctx->opcode));
-    gen_helper_stsw(t0, t1, t2);
+    gen_helper_stsw(cpu_env, t0, t1, t2);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
@@ -3104,7 +3104,7 @@ static void gen_stswx(DisasContext *ctx)
     tcg_gen_trunc_tl_i32(t1, cpu_xer);
     tcg_gen_andi_i32(t1, t1, 0x7F);
     t2 = tcg_const_i32(rS(ctx->opcode));
-    gen_helper_stsw(t0, t1, t2);
+    gen_helper_stsw(cpu_env, t0, t1, t2);
     tcg_temp_free(t0);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
@@ -4116,7 +4116,7 @@ static void gen_dcbz(DisasContext *ctx)
     gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_dcbz(t0);
+    gen_helper_dcbz(cpu_env, t0);
     tcg_temp_free(t0);
 }
 
@@ -4129,9 +4129,9 @@ static void gen_dcbz_970(DisasContext *ctx)
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
     if (ctx->opcode & 0x00200000)
-        gen_helper_dcbz(t0);
+        gen_helper_dcbz(cpu_env, t0);
     else
-        gen_helper_dcbz_970(t0);
+        gen_helper_dcbz_970(cpu_env, t0);
     tcg_temp_free(t0);
 }
 
@@ -4171,7 +4171,7 @@ static void gen_icbi(DisasContext *ctx)
     gen_update_nip(ctx, ctx->nip - 4);
     t0 = tcg_temp_new();
     gen_addr_reg_index(ctx, t0);
-    gen_helper_icbi(t0);
+    gen_helper_icbi(cpu_env, t0);
     tcg_temp_free(t0);
 }
 
@@ -4663,7 +4663,7 @@ static void gen_lscbx(DisasContext *ctx)
     gen_addr_reg_index(ctx, t0);
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_helper_lscbx(t0, t0, t1, t2, t3);
+    gen_helper_lscbx(t0, cpu_env, t0, t1, t2, t3);
     tcg_temp_free_i32(t1);
     tcg_temp_free_i32(t2);
     tcg_temp_free_i32(t3);
@@ -6387,7 +6387,7 @@ static void gen_lve##name(DisasContext *ctx)                            \
         EA = tcg_temp_new();                                            \
         gen_addr_reg_index(ctx, EA);                                    \
         rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_lve##name (rs, EA);                                  \
+        gen_helper_lve##name(cpu_env, rs, EA);                          \
         tcg_temp_free(EA);                                              \
         tcg_temp_free_ptr(rs);                                          \
     }
@@ -6405,7 +6405,7 @@ static void gen_stve##name(DisasContext *ctx)                           \
         EA = tcg_temp_new();                                            \
         gen_addr_reg_index(ctx, EA);                                    \
         rs = gen_avr_ptr(rS(ctx->opcode));                              \
-        gen_helper_stve##name (rs, EA);                                 \
+        gen_helper_stve##name(cpu_env, rs, EA);                         \
         tcg_temp_free(EA);                                              \
         tcg_temp_free_ptr(rs);                                          \
     }
@@ -9683,9 +9683,9 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
         if (unlikely(ctx.le_mode)) {
-            ctx.opcode = bswap32(ldl_code(ctx.nip));
+            ctx.opcode = bswap32(cpu_ldl_code(env, ctx.nip));
         } else {
-            ctx.opcode = ldl_code(ctx.nip);
+            ctx.opcode = cpu_ldl_code(env, ctx.nip);
         }
         LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),

@@ -1,5 +1,5 @@
 /*
- *  PowerPC emulation helpers for QEMU.
+ *  PowerPC memory access emulation helpers for QEMU.
  *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
  *
@@ -16,9 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <string.h>
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "helper.h"
 
@@ -33,7 +31,8 @@
 /*****************************************************************************/
 /* Memory load and stores */
 
-static inline target_ulong addr_add(target_ulong addr, target_long arg)
+static inline target_ulong addr_add(CPUPPCState *env, target_ulong addr,
+                                    target_long arg)
 {
 #if defined(TARGET_PPC64)
     if (!msr_sf) {
@@ -45,44 +44,44 @@ static inline target_ulong addr_add(target_ulong addr, target_long arg)
     }
 }
 
-void helper_lmw(target_ulong addr, uint32_t reg)
+void helper_lmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     for (; reg < 32; reg++) {
         if (msr_le) {
-            env->gpr[reg] = bswap32(ldl(addr));
+            env->gpr[reg] = bswap32(cpu_ldl_data(env, addr));
         } else {
-            env->gpr[reg] = ldl(addr);
+            env->gpr[reg] = cpu_ldl_data(env, addr);
         }
-        addr = addr_add(addr, 4);
+        addr = addr_add(env, addr, 4);
     }
 }
 
-void helper_stmw(target_ulong addr, uint32_t reg)
+void helper_stmw(CPUPPCState *env, target_ulong addr, uint32_t reg)
 {
     for (; reg < 32; reg++) {
         if (msr_le) {
-            stl(addr, bswap32((uint32_t)env->gpr[reg]));
+            cpu_stl_data(env, addr, bswap32((uint32_t)env->gpr[reg]));
         } else {
-            stl(addr, (uint32_t)env->gpr[reg]);
+            cpu_stl_data(env, addr, (uint32_t)env->gpr[reg]);
         }
-        addr = addr_add(addr, 4);
+        addr = addr_add(env, addr, 4);
     }
 }
 
-void helper_lsw(target_ulong addr, uint32_t nb, uint32_t reg)
+void helper_lsw(CPUPPCState *env, target_ulong addr, uint32_t nb, uint32_t reg)
 {
     int sh;
 
     for (; nb > 3; nb -= 4) {
-        env->gpr[reg] = ldl(addr);
+        env->gpr[reg] = cpu_ldl_data(env, addr);
         reg = (reg + 1) % 32;
-        addr = addr_add(addr, 4);
+        addr = addr_add(env, addr, 4);
     }
     if (unlikely(nb > 0)) {
         env->gpr[reg] = 0;
         for (sh = 24; nb > 0; nb--, sh -= 8) {
-            env->gpr[reg] |= ldub(addr) << sh;
-            addr = addr_add(addr, 1);
+            env->gpr[reg] |= cpu_ldub_data(env, addr) << sh;
+            addr = addr_add(env, addr, 1);
         }
     }
 }
@@ -91,7 +90,8 @@ void helper_lsw(target_ulong addr, uint32_t nb, uint32_t reg)
  * In an other hand, IBM says this is valid, but rA won't be loaded.
  * For now, I'll follow the spec...
  */
-void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
+void helper_lswx(CPUPPCState *env, target_ulong addr, uint32_t reg,
+                 uint32_t ra, uint32_t rb)
 {
     if (likely(xer_bc != 0)) {
         if (unlikely((ra != 0 && reg < ra && (reg + xer_bc) > ra) ||
@@ -100,56 +100,57 @@ void helper_lswx(target_ulong addr, uint32_t reg, uint32_t ra, uint32_t rb)
                                        POWERPC_EXCP_INVAL |
                                        POWERPC_EXCP_INVAL_LSWX);
         } else {
-            helper_lsw(addr, xer_bc, reg);
+            helper_lsw(env, addr, xer_bc, reg);
         }
     }
 }
 
-void helper_stsw(target_ulong addr, uint32_t nb, uint32_t reg)
+void helper_stsw(CPUPPCState *env, target_ulong addr, uint32_t nb,
+                 uint32_t reg)
 {
     int sh;
 
     for (; nb > 3; nb -= 4) {
-        stl(addr, env->gpr[reg]);
+        cpu_stl_data(env, addr, env->gpr[reg]);
         reg = (reg + 1) % 32;
-        addr = addr_add(addr, 4);
+        addr = addr_add(env, addr, 4);
     }
     if (unlikely(nb > 0)) {
         for (sh = 24; nb > 0; nb--, sh -= 8) {
-            stb(addr, (env->gpr[reg] >> sh) & 0xFF);
-            addr = addr_add(addr, 1);
+            cpu_stb_data(env, addr, (env->gpr[reg] >> sh) & 0xFF);
+            addr = addr_add(env, addr, 1);
         }
     }
 }
 
-static void do_dcbz(target_ulong addr, int dcache_line_size)
+static void do_dcbz(CPUPPCState *env, target_ulong addr, int dcache_line_size)
 {
     int i;
 
     addr &= ~(dcache_line_size - 1);
     for (i = 0; i < dcache_line_size; i += 4) {
-        stl(addr + i, 0);
+        cpu_stl_data(env, addr + i, 0);
     }
     if (env->reserve_addr == addr) {
         env->reserve_addr = (target_ulong)-1ULL;
     }
 }
 
-void helper_dcbz(target_ulong addr)
+void helper_dcbz(CPUPPCState *env, target_ulong addr)
 {
-    do_dcbz(addr, env->dcache_line_size);
+    do_dcbz(env, addr, env->dcache_line_size);
 }
 
-void helper_dcbz_970(target_ulong addr)
+void helper_dcbz_970(CPUPPCState *env, target_ulong addr)
 {
     if (((env->spr[SPR_970_HID5] >> 7) & 0x3) == 1) {
-        do_dcbz(addr, 32);
+        do_dcbz(env, addr, 32);
     } else {
-        do_dcbz(addr, env->dcache_line_size);
+        do_dcbz(env, addr, env->dcache_line_size);
     }
 }
 
-void helper_icbi(target_ulong addr)
+void helper_icbi(CPUPPCState *env, target_ulong addr)
 {
     addr &= ~(env->dcache_line_size - 1);
     /* Invalidate one cache line :
@@ -157,19 +158,19 @@ void helper_icbi(target_ulong addr)
      * (not a fetch) by the MMU. To be sure it will be so,
      * do the load "by hand".
      */
-    ldl(addr);
+    cpu_ldl_data(env, addr);
 }
 
 /* XXX: to be tested */
-target_ulong helper_lscbx(target_ulong addr, uint32_t reg, uint32_t ra,
-                          uint32_t rb)
+target_ulong helper_lscbx(CPUPPCState *env, target_ulong addr, uint32_t reg,
+                          uint32_t ra, uint32_t rb)
 {
     int i, c, d;
 
     d = 24;
     for (i = 0; i < xer_bc; i++) {
-        c = ldub(addr);
-        addr = addr_add(addr, 1);
+        c = cpu_ldub_data(env, addr);
+        addr = addr_add(env, addr, 1);
         /* ra (if not 0) and rb are never modified */
         if (likely(reg != rb && (ra == 0 || reg != ra))) {
             env->gpr[reg] = (env->gpr[reg] & ~(0xFF << d)) | (c << d);
@@ -199,7 +200,8 @@ target_ulong helper_lscbx(target_ulong addr, uint32_t reg, uint32_t ra,
 #endif
 
 #define LVE(name, access, swap, element)                        \
-    void helper_##name(ppc_avr_t *r, target_ulong addr)         \
+    void helper_##name(CPUPPCState *env, ppc_avr_t *r,          \
+                       target_ulong addr)                       \
     {                                                           \
         size_t n_elems = ARRAY_SIZE(r->element);                \
         int adjust = HI_IDX*(n_elems - 1);                      \
@@ -208,21 +210,22 @@ target_ulong helper_lscbx(target_ulong addr, uint32_t reg, uint32_t ra,
                                                                 \
         if (msr_le) {                                           \
             r->element[LO_IDX ? index : (adjust - index)] =     \
-                swap(access(addr));                             \
+                swap(access(env, addr));                        \
         } else {                                                \
             r->element[LO_IDX ? index : (adjust - index)] =     \
-                access(addr);                                   \
+                access(env, addr);                              \
         }                                                       \
     }
 #define I(x) (x)
-LVE(lvebx, ldub, I, u8)
-LVE(lvehx, lduw, bswap16, u16)
-LVE(lvewx, ldl, bswap32, u32)
+LVE(lvebx, cpu_ldub_data, I, u8)
+LVE(lvehx, cpu_lduw_data, bswap16, u16)
+LVE(lvewx, cpu_ldl_data, bswap32, u32)
 #undef I
 #undef LVE
 
 #define STVE(name, access, swap, element)                               \
-    void helper_##name(ppc_avr_t *r, target_ulong addr)                 \
+    void helper_##name(CPUPPCState *env, ppc_avr_t *r,                  \
+                       target_ulong addr)                               \
     {                                                                   \
         size_t n_elems = ARRAY_SIZE(r->element);                        \
         int adjust = HI_IDX * (n_elems - 1);                            \
@@ -230,15 +233,17 @@ LVE(lvewx, ldl, bswap32, u32)
         int index = (addr & 0xf) >> sh;                                 \
                                                                         \
         if (msr_le) {                                                   \
-            access(addr, swap(r->element[LO_IDX ? index : (adjust - index)])); \
+            access(env, addr, swap(r->element[LO_IDX ? index :          \
+                                              (adjust - index)]));      \
         } else {                                                        \
-            access(addr, r->element[LO_IDX ? index : (adjust - index)]); \
+            access(env, addr, r->element[LO_IDX ? index :               \
+                                         (adjust - index)]);            \
         }                                                               \
     }
 #define I(x) (x)
-STVE(stvebx, stb, I, u8)
-STVE(stvehx, stw, bswap16, u16)
-STVE(stvewx, stl, bswap32, u32)
+STVE(stvebx, cpu_stb_data, I, u8)
+STVE(stvehx, cpu_stw_data, bswap16, u16)
+STVE(stvewx, cpu_stl_data, bswap32, u32)
 #undef I
 #undef LVE
 
@@ -267,15 +272,12 @@ STVE(stvewx, stl, bswap32, u32)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUPPCState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUPPCState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     TranslationBlock *tb;
-    CPUPPCState *saved_env;
     int ret;
 
-    saved_env = env;
-    env = env1;
     ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
@@ -289,6 +291,5 @@ void tlb_fill(CPUPPCState *env1, target_ulong addr, int is_write, int mmu_idx,
         }
         helper_raise_exception_err(env, env->exception_index, env->error_code);
     }
-    env = saved_env;
 }
 #endif /* !CONFIG_USER_ONLY */
