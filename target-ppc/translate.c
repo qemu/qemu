@@ -219,7 +219,7 @@ struct opc_handler_t {
 
 static inline void gen_reset_fpstatus(void)
 {
-    gen_helper_reset_fpstatus();
+    gen_helper_reset_fpstatus(cpu_env);
 }
 
 static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
@@ -229,15 +229,15 @@ static inline void gen_compute_fprf(TCGv_i64 arg, int set_fprf, int set_rc)
     if (set_fprf != 0) {
         /* This case might be optimized later */
         tcg_gen_movi_i32(t0, 1);
-        gen_helper_compute_fprf(t0, arg, t0);
+        gen_helper_compute_fprf(t0, cpu_env, arg, t0);
         if (unlikely(set_rc)) {
             tcg_gen_mov_i32(cpu_crf[1], t0);
         }
-        gen_helper_float_check_status();
+        gen_helper_float_check_status(cpu_env);
     } else if (unlikely(set_rc)) {
         /* We always need to compute fpcc */
         tcg_gen_movi_i32(t0, 0);
-        gen_helper_compute_fprf(t0, arg, t0);
+        gen_helper_compute_fprf(t0, cpu_env, arg, t0);
         tcg_gen_mov_i32(cpu_crf[1], t0);
     }
 
@@ -2027,10 +2027,12 @@ static void gen_f##name(DisasContext *ctx)                                    \
     /* NIP cannot be restored if the memory exception comes from an helper */ \
     gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
-    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],      \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
+                     cpu_fpr[rA(ctx->opcode)],                                \
                      cpu_fpr[rC(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);     \
     if (isfloat) {                                                            \
-        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);  \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
+                        cpu_fpr[rD(ctx->opcode)]);                            \
     }                                                                         \
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], set_fprf,                      \
                      Rc(ctx->opcode) != 0);                                   \
@@ -2050,10 +2052,12 @@ static void gen_f##name(DisasContext *ctx)                                    \
     /* NIP cannot be restored if the memory exception comes from an helper */ \
     gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
-    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],      \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
+                     cpu_fpr[rA(ctx->opcode)],                                \
                      cpu_fpr[rB(ctx->opcode)]);                               \
     if (isfloat) {                                                            \
-        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);  \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
+                        cpu_fpr[rD(ctx->opcode)]);                            \
     }                                                                         \
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
                      set_fprf, Rc(ctx->opcode) != 0);                         \
@@ -2072,10 +2076,12 @@ static void gen_f##name(DisasContext *ctx)                                    \
     /* NIP cannot be restored if the memory exception comes from an helper */ \
     gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
-    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rA(ctx->opcode)],      \
-                       cpu_fpr[rC(ctx->opcode)]);                             \
+    gen_helper_f##op(cpu_fpr[rD(ctx->opcode)], cpu_env,                       \
+                     cpu_fpr[rA(ctx->opcode)],                                \
+                     cpu_fpr[rC(ctx->opcode)]);                               \
     if (isfloat) {                                                            \
-        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);  \
+        gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,                    \
+                        cpu_fpr[rD(ctx->opcode)]);                            \
     }                                                                         \
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
                      set_fprf, Rc(ctx->opcode) != 0);                         \
@@ -2094,7 +2100,8 @@ static void gen_f##name(DisasContext *ctx)                                    \
     /* NIP cannot be restored if the memory exception comes from an helper */ \
     gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
-    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);   \
+    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
+                       cpu_fpr[rB(ctx->opcode)]);                             \
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
                      set_fprf, Rc(ctx->opcode) != 0);                         \
 }
@@ -2109,7 +2116,8 @@ static void gen_f##name(DisasContext *ctx)                                    \
     /* NIP cannot be restored if the memory exception comes from an helper */ \
     gen_update_nip(ctx, ctx->nip - 4);                                        \
     gen_reset_fpstatus();                                                     \
-    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);   \
+    gen_helper_f##name(cpu_fpr[rD(ctx->opcode)], cpu_env,                     \
+                       cpu_fpr[rB(ctx->opcode)]);                             \
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)],                                \
                      set_fprf, Rc(ctx->opcode) != 0);                         \
 }
@@ -2140,8 +2148,10 @@ static void gen_frsqrtes(DisasContext *ctx)
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
-    gen_helper_frsqrte(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
-    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);
+    gen_helper_frsqrte(cpu_fpr[rD(ctx->opcode)], cpu_env,
+                       cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,
+                    cpu_fpr[rD(ctx->opcode)]);
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 1, Rc(ctx->opcode) != 0);
 }
 
@@ -2161,7 +2171,8 @@ static void gen_fsqrt(DisasContext *ctx)
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
-    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
+                     cpu_fpr[rB(ctx->opcode)]);
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 1, Rc(ctx->opcode) != 0);
 }
 
@@ -2174,8 +2185,10 @@ static void gen_fsqrts(DisasContext *ctx)
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
-    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rB(ctx->opcode)]);
-    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_fpr[rD(ctx->opcode)]);
+    gen_helper_fsqrt(cpu_fpr[rD(ctx->opcode)], cpu_env,
+                     cpu_fpr[rB(ctx->opcode)]);
+    gen_helper_frsp(cpu_fpr[rD(ctx->opcode)], cpu_env,
+                    cpu_fpr[rD(ctx->opcode)]);
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 1, Rc(ctx->opcode) != 0);
 }
 
@@ -2228,9 +2241,10 @@ static void gen_fcmpo(DisasContext *ctx)
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     crf = tcg_const_i32(crfD(ctx->opcode));
-    gen_helper_fcmpo(cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)], crf);
+    gen_helper_fcmpo(cpu_env, cpu_fpr[rA(ctx->opcode)],
+                     cpu_fpr[rB(ctx->opcode)], crf);
     tcg_temp_free_i32(crf);
-    gen_helper_float_check_status();
+    gen_helper_float_check_status(cpu_env);
 }
 
 /* fcmpu */
@@ -2245,9 +2259,10 @@ static void gen_fcmpu(DisasContext *ctx)
     gen_update_nip(ctx, ctx->nip - 4);
     gen_reset_fpstatus();
     crf = tcg_const_i32(crfD(ctx->opcode));
-    gen_helper_fcmpu(cpu_fpr[rA(ctx->opcode)], cpu_fpr[rB(ctx->opcode)], crf);
+    gen_helper_fcmpu(cpu_env, cpu_fpr[rA(ctx->opcode)],
+                     cpu_fpr[rB(ctx->opcode)], crf);
     tcg_temp_free_i32(crf);
-    gen_helper_float_check_status();
+    gen_helper_float_check_status(cpu_env);
 }
 
 /***                         Floating-point move                           ***/
@@ -2319,7 +2334,7 @@ static void gen_mtfsb0(DisasContext *ctx)
         /* NIP cannot be restored if the memory exception comes from an helper */
         gen_update_nip(ctx, ctx->nip - 4);
         t0 = tcg_const_i32(crb);
-        gen_helper_fpscr_clrbit(t0);
+        gen_helper_fpscr_clrbit(cpu_env, t0);
         tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
@@ -2344,14 +2359,14 @@ static void gen_mtfsb1(DisasContext *ctx)
         /* NIP cannot be restored if the memory exception comes from an helper */
         gen_update_nip(ctx, ctx->nip - 4);
         t0 = tcg_const_i32(crb);
-        gen_helper_fpscr_setbit(t0);
+        gen_helper_fpscr_setbit(cpu_env, t0);
         tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
     /* We can raise a differed exception */
-    gen_helper_float_check_status();
+    gen_helper_float_check_status(cpu_env);
 }
 
 /* mtfsf */
@@ -2371,13 +2386,13 @@ static void gen_mtfsf(DisasContext *ctx)
         t0 = tcg_const_i32(0xff);
     else
         t0 = tcg_const_i32(FM(ctx->opcode));
-    gen_helper_store_fpscr(cpu_fpr[rB(ctx->opcode)], t0);
+    gen_helper_store_fpscr(cpu_env, cpu_fpr[rB(ctx->opcode)], t0);
     tcg_temp_free_i32(t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
     /* We can raise a differed exception */
-    gen_helper_float_check_status();
+    gen_helper_float_check_status(cpu_env);
 }
 
 /* mtfsfi */
@@ -2398,14 +2413,14 @@ static void gen_mtfsfi(DisasContext *ctx)
     gen_reset_fpstatus();
     t0 = tcg_const_i64(FPIMM(ctx->opcode) << (4 * sh));
     t1 = tcg_const_i32(1 << sh);
-    gen_helper_store_fpscr(t0, t1);
+    gen_helper_store_fpscr(cpu_env, t0, t1);
     tcg_temp_free_i64(t0);
     tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
         tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
     }
     /* We can raise a differed exception */
-    gen_helper_float_check_status();
+    gen_helper_float_check_status(cpu_env);
 }
 
 /***                           Addressing modes                            ***/
@@ -3303,7 +3318,7 @@ static inline void gen_qemu_ld32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
     gen_qemu_ld32u(ctx, t0, arg2);
     tcg_gen_trunc_tl_i32(t1, t0);
     tcg_temp_free(t0);
-    gen_helper_float32_to_float64(arg1, t1);
+    gen_helper_float32_to_float64(arg1, cpu_env, t1);
     tcg_temp_free_i32(t1);
 }
 
@@ -3393,7 +3408,7 @@ static inline void gen_qemu_st32fs(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
     TCGv t1 = tcg_temp_new();
-    gen_helper_float64_to_float32(t0, arg1);
+    gen_helper_float64_to_float32(t0, cpu_env, arg1);
     tcg_gen_extu_i32_tl(t1, t0);
     tcg_temp_free_i32(t0);
     gen_qemu_st32(ctx, t1, arg2);
@@ -8010,7 +8025,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     TCGv t1;                                                                  \
     t0 = tcg_temp_new_i32();                                                  \
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(t0, t0);                                                \
+    gen_helper_##name(t0, cpu_env, t0);                                       \
     t1 = tcg_temp_new();                                                      \
     tcg_gen_extu_i32_tl(t1, t0);                                              \
     tcg_temp_free_i32(t0);                                                    \
@@ -8025,7 +8040,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     TCGv_i32 t0;                                                              \
     TCGv t1;                                                                  \
     t0 = tcg_temp_new_i32();                                                  \
-    gen_helper_##name(t0, cpu_gpr[rB(ctx->opcode)]);                          \
+    gen_helper_##name(t0, cpu_env, cpu_gpr[rB(ctx->opcode)]);                 \
     t1 = tcg_temp_new();                                                      \
     tcg_gen_extu_i32_tl(t1, t0);                                              \
     tcg_temp_free_i32(t0);                                                    \
@@ -8039,13 +8054,14 @@ static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i32 t0 = tcg_temp_new_i32();                                         \
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], t0);                          \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);                 \
     tcg_temp_free_i32(t0);                                                    \
 }
 #define GEN_SPEFPUOP_CONV_64_64(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
-    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_env,                      \
+                      cpu_gpr[rB(ctx->opcode)]);                              \
 }
 #define GEN_SPEFPUOP_ARITH2_32_32(name)                                       \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -8060,7 +8076,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     t1 = tcg_temp_new_i32();                                                  \
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
     tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(t0, t0, t1);                                            \
+    gen_helper_##name(t0, cpu_env, t0, t1);                                   \
     tcg_temp_free_i32(t1);                                                    \
     t2 = tcg_temp_new();                                                      \
     tcg_gen_extu_i32_tl(t2, t0);                                              \
@@ -8077,8 +8093,8 @@ static inline void gen_##name(DisasContext *ctx)                              \
         gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
-    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],     \
-                      cpu_gpr[rB(ctx->opcode)]);                              \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_env,                      \
+                      cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
 }
 #define GEN_SPEFPUOP_COMP_32(name)                                            \
 static inline void gen_##name(DisasContext *ctx)                              \
@@ -8092,7 +8108,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     t1 = tcg_temp_new_i32();                                                  \
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[rA(ctx->opcode)]);                       \
     tcg_gen_trunc_tl_i32(t1, cpu_gpr[rB(ctx->opcode)]);                       \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], t0, t1);                    \
+    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env, t0, t1);           \
     tcg_temp_free_i32(t0);                                                    \
     tcg_temp_free_i32(t1);                                                    \
 }
@@ -8103,28 +8119,29 @@ static inline void gen_##name(DisasContext *ctx)                              \
         gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)],                             \
+    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env,                    \
                       cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
 }
 #else
 #define GEN_SPEFPUOP_CONV_32_32(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
-    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_env,                      \
+                      cpu_gpr[rB(ctx->opcode)]);                              \
 }
 #define GEN_SPEFPUOP_CONV_32_64(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i64 t0 = tcg_temp_new_i64();                                         \
     gen_load_gpr64(t0, rB(ctx->opcode));                                      \
-    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], t0);                          \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);                 \
     tcg_temp_free_i64(t0);                                                    \
 }
 #define GEN_SPEFPUOP_CONV_64_32(name)                                         \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i64 t0 = tcg_temp_new_i64();                                         \
-    gen_helper_##name(t0, cpu_gpr[rB(ctx->opcode)]);                          \
+    gen_helper_##name(t0, cpu_env, cpu_gpr[rB(ctx->opcode)]);                 \
     gen_store_gpr64(rD(ctx->opcode), t0);                                     \
     tcg_temp_free_i64(t0);                                                    \
 }
@@ -8133,7 +8150,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i64 t0 = tcg_temp_new_i64();                                         \
     gen_load_gpr64(t0, rB(ctx->opcode));                                      \
-    gen_helper_##name(t0, t0);                                                \
+    gen_helper_##name(t0, cpu_env, t0);                                       \
     gen_store_gpr64(rD(ctx->opcode), t0);                                     \
     tcg_temp_free_i64(t0);                                                    \
 }
@@ -8144,7 +8161,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
         gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
-    gen_helper_##name(cpu_gpr[rD(ctx->opcode)],                               \
+    gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_env,                      \
                       cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
 }
 #define GEN_SPEFPUOP_ARITH2_64_64(name)                                       \
@@ -8159,7 +8176,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     t1 = tcg_temp_new_i64();                                                  \
     gen_load_gpr64(t0, rA(ctx->opcode));                                      \
     gen_load_gpr64(t1, rB(ctx->opcode));                                      \
-    gen_helper_##name(t0, t0, t1);                                            \
+    gen_helper_##name(t0, cpu_env, t0, t1);                                   \
     gen_store_gpr64(rD(ctx->opcode), t0);                                     \
     tcg_temp_free_i64(t0);                                                    \
     tcg_temp_free_i64(t1);                                                    \
@@ -8171,7 +8188,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
         gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)],                             \
+    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env,                    \
                       cpu_gpr[rA(ctx->opcode)], cpu_gpr[rB(ctx->opcode)]);    \
 }
 #define GEN_SPEFPUOP_COMP_64(name)                                            \
@@ -8186,7 +8203,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     t1 = tcg_temp_new_i64();                                                  \
     gen_load_gpr64(t0, rA(ctx->opcode));                                      \
     gen_load_gpr64(t1, rB(ctx->opcode));                                      \
-    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], t0, t1);                    \
+    gen_helper_##name(cpu_crf[crfD(ctx->opcode)], cpu_env, t0, t1);           \
     tcg_temp_free_i64(t0);                                                    \
     tcg_temp_free_i64(t1);                                                    \
 }

@@ -17,12 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 /*****************************************************************************/
 /* Floating point operations helpers */
-uint64_t helper_float32_to_float64(uint32_t arg)
+uint64_t helper_float32_to_float64(CPUPPCState *env, uint32_t arg)
 {
     CPU_FloatU f;
     CPU_DoubleU d;
@@ -32,7 +31,7 @@ uint64_t helper_float32_to_float64(uint32_t arg)
     return d.ll;
 }
 
-uint32_t helper_float64_to_float32(uint64_t arg)
+uint32_t helper_float64_to_float32(CPUPPCState *env, uint64_t arg)
 {
     CPU_FloatU f;
     CPU_DoubleU d;
@@ -51,7 +50,7 @@ static inline int isden(float64 d)
     return ((u.ll >> 52) & 0x7FF) == 0;
 }
 
-uint32_t helper_compute_fprf(uint64_t arg, uint32_t set_fprf)
+uint32_t helper_compute_fprf(CPUPPCState *env, uint64_t arg, uint32_t set_fprf)
 {
     CPU_DoubleU farg;
     int isneg;
@@ -107,7 +106,7 @@ uint32_t helper_compute_fprf(uint64_t arg, uint32_t set_fprf)
 }
 
 /* Floating-point invalid operations exception */
-static inline uint64_t fload_invalid_op_excp(int op)
+static inline uint64_t fload_invalid_op_excp(CPUPPCState *env, int op)
 {
     uint64_t ret = 0;
     int ve;
@@ -190,7 +189,7 @@ static inline uint64_t fload_invalid_op_excp(int op)
     return ret;
 }
 
-static inline void float_zero_divide_excp(void)
+static inline void float_zero_divide_excp(CPUPPCState *env)
 {
     env->fpscr |= 1 << FPSCR_ZX;
     env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
@@ -206,7 +205,7 @@ static inline void float_zero_divide_excp(void)
     }
 }
 
-static inline void float_overflow_excp(void)
+static inline void float_overflow_excp(CPUPPCState *env)
 {
     env->fpscr |= 1 << FPSCR_OX;
     /* Update the floating-point exception summary */
@@ -224,7 +223,7 @@ static inline void float_overflow_excp(void)
     }
 }
 
-static inline void float_underflow_excp(void)
+static inline void float_underflow_excp(CPUPPCState *env)
 {
     env->fpscr |= 1 << FPSCR_UX;
     /* Update the floating-point exception summary */
@@ -239,7 +238,7 @@ static inline void float_underflow_excp(void)
     }
 }
 
-static inline void float_inexact_excp(void)
+static inline void float_inexact_excp(CPUPPCState *env)
 {
     env->fpscr |= 1 << FPSCR_XX;
     /* Update the floating-point exception summary */
@@ -253,7 +252,7 @@ static inline void float_inexact_excp(void)
     }
 }
 
-static inline void fpscr_set_rounding_mode(void)
+static inline void fpscr_set_rounding_mode(CPUPPCState *env)
 {
     int rnd_type;
 
@@ -280,7 +279,7 @@ static inline void fpscr_set_rounding_mode(void)
     set_float_rounding_mode(rnd_type, &env->fp_status);
 }
 
-void helper_fpscr_clrbit(uint32_t bit)
+void helper_fpscr_clrbit(CPUPPCState *env, uint32_t bit)
 {
     int prev;
 
@@ -290,7 +289,7 @@ void helper_fpscr_clrbit(uint32_t bit)
         switch (bit) {
         case FPSCR_RN1:
         case FPSCR_RN:
-            fpscr_set_rounding_mode();
+            fpscr_set_rounding_mode(env);
             break;
         default:
             break;
@@ -298,7 +297,7 @@ void helper_fpscr_clrbit(uint32_t bit)
     }
 }
 
-void helper_fpscr_setbit(uint32_t bit)
+void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
 {
     int prev;
 
@@ -414,7 +413,7 @@ void helper_fpscr_setbit(uint32_t bit)
             break;
         case FPSCR_RN1:
         case FPSCR_RN:
-            fpscr_set_rounding_mode();
+            fpscr_set_rounding_mode(env);
             break;
         default:
             break;
@@ -428,7 +427,7 @@ void helper_fpscr_setbit(uint32_t bit)
     }
 }
 
-void helper_store_fpscr(uint64_t arg, uint32_t mask)
+void helper_store_fpscr(CPUPPCState *env, uint64_t arg, uint32_t mask)
 {
     /*
      * We use only the 32 LSB of the incoming fpr
@@ -460,10 +459,10 @@ void helper_store_fpscr(uint64_t arg, uint32_t mask)
     } else {
         env->fpscr &= ~(1 << FPSCR_FEX);
     }
-    fpscr_set_rounding_mode();
+    fpscr_set_rounding_mode(env);
 }
 
-void helper_float_check_status(void)
+void helper_float_check_status(CPUPPCState *env)
 {
     if (env->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
@@ -475,24 +474,24 @@ void helper_float_check_status(void)
     } else {
         int status = get_float_exception_flags(&env->fp_status);
         if (status & float_flag_divbyzero) {
-            float_zero_divide_excp();
+            float_zero_divide_excp(env);
         } else if (status & float_flag_overflow) {
-            float_overflow_excp();
+            float_overflow_excp(env);
         } else if (status & float_flag_underflow) {
-            float_underflow_excp();
+            float_underflow_excp(env);
         } else if (status & float_flag_inexact) {
-            float_inexact_excp();
+            float_inexact_excp(env);
         }
     }
 }
 
-void helper_reset_fpstatus(void)
+void helper_reset_fpstatus(CPUPPCState *env)
 {
     set_float_exception_flags(0, &env->fp_status);
 }
 
 /* fadd - fadd. */
-uint64_t helper_fadd(uint64_t arg1, uint64_t arg2)
+uint64_t helper_fadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 {
     CPU_DoubleU farg1, farg2;
 
@@ -502,12 +501,12 @@ uint64_t helper_fadd(uint64_t arg1, uint64_t arg2)
     if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
                  float64_is_neg(farg1.d) != float64_is_neg(farg2.d))) {
         /* Magnitude subtraction of infinities */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d))) {
             /* sNaN addition */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         farg1.d = float64_add(farg1.d, farg2.d, &env->fp_status);
     }
@@ -516,7 +515,7 @@ uint64_t helper_fadd(uint64_t arg1, uint64_t arg2)
 }
 
 /* fsub - fsub. */
-uint64_t helper_fsub(uint64_t arg1, uint64_t arg2)
+uint64_t helper_fsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 {
     CPU_DoubleU farg1, farg2;
 
@@ -526,12 +525,12 @@ uint64_t helper_fsub(uint64_t arg1, uint64_t arg2)
     if (unlikely(float64_is_infinity(farg1.d) && float64_is_infinity(farg2.d) &&
                  float64_is_neg(farg1.d) == float64_is_neg(farg2.d))) {
         /* Magnitude subtraction of infinities */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d))) {
             /* sNaN subtraction */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         farg1.d = float64_sub(farg1.d, farg2.d, &env->fp_status);
     }
@@ -540,7 +539,7 @@ uint64_t helper_fsub(uint64_t arg1, uint64_t arg2)
 }
 
 /* fmul - fmul. */
-uint64_t helper_fmul(uint64_t arg1, uint64_t arg2)
+uint64_t helper_fmul(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 {
     CPU_DoubleU farg1, farg2;
 
@@ -550,12 +549,12 @@ uint64_t helper_fmul(uint64_t arg1, uint64_t arg2)
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d))) {
             /* sNaN multiplication */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         farg1.d = float64_mul(farg1.d, farg2.d, &env->fp_status);
     }
@@ -564,7 +563,7 @@ uint64_t helper_fmul(uint64_t arg1, uint64_t arg2)
 }
 
 /* fdiv - fdiv. */
-uint64_t helper_fdiv(uint64_t arg1, uint64_t arg2)
+uint64_t helper_fdiv(CPUPPCState *env, uint64_t arg1, uint64_t arg2)
 {
     CPU_DoubleU farg1, farg2;
 
@@ -574,15 +573,15 @@ uint64_t helper_fdiv(uint64_t arg1, uint64_t arg2)
     if (unlikely(float64_is_infinity(farg1.d) &&
                  float64_is_infinity(farg2.d))) {
         /* Division of infinity by infinity */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIDI);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIDI);
     } else if (unlikely(float64_is_zero(farg1.d) && float64_is_zero(farg2.d))) {
         /* Division of zero by zero */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXZDZ);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXZDZ);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d))) {
             /* sNaN division */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         farg1.d = float64_div(farg1.d, farg2.d, &env->fp_status);
     }
@@ -591,7 +590,7 @@ uint64_t helper_fdiv(uint64_t arg1, uint64_t arg2)
 }
 
 /* fabs */
-uint64_t helper_fabs(uint64_t arg)
+uint64_t helper_fabs(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -601,7 +600,7 @@ uint64_t helper_fabs(uint64_t arg)
 }
 
 /* fnabs */
-uint64_t helper_fnabs(uint64_t arg)
+uint64_t helper_fnabs(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -612,7 +611,7 @@ uint64_t helper_fnabs(uint64_t arg)
 }
 
 /* fneg */
-uint64_t helper_fneg(uint64_t arg)
+uint64_t helper_fneg(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -622,7 +621,7 @@ uint64_t helper_fneg(uint64_t arg)
 }
 
 /* fctiw - fctiw. */
-uint64_t helper_fctiw(uint64_t arg)
+uint64_t helper_fctiw(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -630,12 +629,12 @@ uint64_t helper_fctiw(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN |
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                         POWERPC_EXCP_FP_VXCVI);
     } else if (unlikely(float64_is_quiet_nan(farg.d) ||
                         float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI);
     } else {
         farg.ll = float64_to_int32(farg.d, &env->fp_status);
         /* XXX: higher bits are not supposed to be significant.
@@ -647,7 +646,7 @@ uint64_t helper_fctiw(uint64_t arg)
 }
 
 /* fctiwz - fctiwz. */
-uint64_t helper_fctiwz(uint64_t arg)
+uint64_t helper_fctiwz(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -655,12 +654,12 @@ uint64_t helper_fctiwz(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN |
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                         POWERPC_EXCP_FP_VXCVI);
     } else if (unlikely(float64_is_quiet_nan(farg.d) ||
                         float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI);
     } else {
         farg.ll = float64_to_int32_round_to_zero(farg.d, &env->fp_status);
         /* XXX: higher bits are not supposed to be significant.
@@ -673,7 +672,7 @@ uint64_t helper_fctiwz(uint64_t arg)
 
 #if defined(TARGET_PPC64)
 /* fcfid - fcfid. */
-uint64_t helper_fcfid(uint64_t arg)
+uint64_t helper_fcfid(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -682,7 +681,7 @@ uint64_t helper_fcfid(uint64_t arg)
 }
 
 /* fctid - fctid. */
-uint64_t helper_fctid(uint64_t arg)
+uint64_t helper_fctid(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -690,12 +689,12 @@ uint64_t helper_fctid(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN |
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                         POWERPC_EXCP_FP_VXCVI);
     } else if (unlikely(float64_is_quiet_nan(farg.d) ||
                         float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI);
     } else {
         farg.ll = float64_to_int64(farg.d, &env->fp_status);
     }
@@ -703,7 +702,7 @@ uint64_t helper_fctid(uint64_t arg)
 }
 
 /* fctidz - fctidz. */
-uint64_t helper_fctidz(uint64_t arg)
+uint64_t helper_fctidz(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -711,12 +710,12 @@ uint64_t helper_fctidz(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN |
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                         POWERPC_EXCP_FP_VXCVI);
     } else if (unlikely(float64_is_quiet_nan(farg.d) ||
                         float64_is_infinity(farg.d))) {
         /* qNan / infinity conversion */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI);
     } else {
         farg.ll = float64_to_int64_round_to_zero(farg.d, &env->fp_status);
     }
@@ -725,7 +724,8 @@ uint64_t helper_fctidz(uint64_t arg)
 
 #endif
 
-static inline uint64_t do_fri(uint64_t arg, int rounding_mode)
+static inline uint64_t do_fri(CPUPPCState *env, uint64_t arg,
+                              int rounding_mode)
 {
     CPU_DoubleU farg;
 
@@ -733,43 +733,44 @@ static inline uint64_t do_fri(uint64_t arg, int rounding_mode)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN round */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN |
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                         POWERPC_EXCP_FP_VXCVI);
     } else if (unlikely(float64_is_quiet_nan(farg.d) ||
                         float64_is_infinity(farg.d))) {
         /* qNan / infinity round */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXCVI);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXCVI);
     } else {
         set_float_rounding_mode(rounding_mode, &env->fp_status);
         farg.ll = float64_round_to_int(farg.d, &env->fp_status);
         /* Restore rounding mode from FPSCR */
-        fpscr_set_rounding_mode();
+        fpscr_set_rounding_mode(env);
     }
     return farg.ll;
 }
 
-uint64_t helper_frin(uint64_t arg)
+uint64_t helper_frin(CPUPPCState *env, uint64_t arg)
 {
-    return do_fri(arg, float_round_nearest_even);
+    return do_fri(env, arg, float_round_nearest_even);
 }
 
-uint64_t helper_friz(uint64_t arg)
+uint64_t helper_friz(CPUPPCState *env, uint64_t arg)
 {
-    return do_fri(arg, float_round_to_zero);
+    return do_fri(env, arg, float_round_to_zero);
 }
 
-uint64_t helper_frip(uint64_t arg)
+uint64_t helper_frip(CPUPPCState *env, uint64_t arg)
 {
-    return do_fri(arg, float_round_up);
+    return do_fri(env, arg, float_round_up);
 }
 
-uint64_t helper_frim(uint64_t arg)
+uint64_t helper_frim(CPUPPCState *env, uint64_t arg)
 {
-    return do_fri(arg, float_round_down);
+    return do_fri(env, arg, float_round_down);
 }
 
 /* fmadd - fmadd. */
-uint64_t helper_fmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
+uint64_t helper_fmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                      uint64_t arg3)
 {
     CPU_DoubleU farg1, farg2, farg3;
 
@@ -780,13 +781,13 @@ uint64_t helper_fmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d) ||
                      float64_is_signaling_nan(farg3.d))) {
             /* sNaN operation */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -798,7 +799,7 @@ uint64_t helper_fmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) != float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
@@ -810,7 +811,8 @@ uint64_t helper_fmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
 }
 
 /* fmsub - fmsub. */
-uint64_t helper_fmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
+uint64_t helper_fmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                      uint64_t arg3)
 {
     CPU_DoubleU farg1, farg2, farg3;
 
@@ -822,13 +824,13 @@ uint64_t helper_fmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
                  (float64_is_zero(farg1.d) &&
                   float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d) ||
                      float64_is_signaling_nan(farg3.d))) {
             /* sNaN operation */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -840,7 +842,7 @@ uint64_t helper_fmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) == float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
@@ -851,7 +853,8 @@ uint64_t helper_fmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
 }
 
 /* fnmadd - fnmadd. */
-uint64_t helper_fnmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
+uint64_t helper_fnmadd(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                       uint64_t arg3)
 {
     CPU_DoubleU farg1, farg2, farg3;
 
@@ -862,13 +865,13 @@ uint64_t helper_fnmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
     if (unlikely((float64_is_infinity(farg1.d) && float64_is_zero(farg2.d)) ||
                  (float64_is_zero(farg1.d) && float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d) ||
                      float64_is_signaling_nan(farg3.d))) {
             /* sNaN operation */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -880,7 +883,7 @@ uint64_t helper_fnmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) != float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_add(ft0_128, ft1_128, &env->fp_status);
@@ -894,7 +897,8 @@ uint64_t helper_fnmadd(uint64_t arg1, uint64_t arg2, uint64_t arg3)
 }
 
 /* fnmsub - fnmsub. */
-uint64_t helper_fnmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
+uint64_t helper_fnmsub(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                       uint64_t arg3)
 {
     CPU_DoubleU farg1, farg2, farg3;
 
@@ -906,13 +910,13 @@ uint64_t helper_fnmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
                  (float64_is_zero(farg1.d) &&
                   float64_is_infinity(farg2.d)))) {
         /* Multiplication of zero by infinity */
-        farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXIMZ);
+        farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXIMZ);
     } else {
         if (unlikely(float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d) ||
                      float64_is_signaling_nan(farg3.d))) {
             /* sNaN operation */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         /* This is the way the PowerPC specification defines it */
         float128 ft0_128, ft1_128;
@@ -924,7 +928,7 @@ uint64_t helper_fnmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
                      float64_is_infinity(farg3.d) &&
                      float128_is_neg(ft0_128) == float64_is_neg(farg3.d))) {
             /* Magnitude subtraction of infinities */
-            farg1.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXISI);
+            farg1.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXISI);
         } else {
             ft1_128 = float64_to_float128(farg3.d, &env->fp_status);
             ft0_128 = float128_sub(ft0_128, ft1_128, &env->fp_status);
@@ -938,7 +942,7 @@ uint64_t helper_fnmsub(uint64_t arg1, uint64_t arg2, uint64_t arg3)
 }
 
 /* frsp - frsp. */
-uint64_t helper_frsp(uint64_t arg)
+uint64_t helper_frsp(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
     float32 f32;
@@ -947,7 +951,7 @@ uint64_t helper_frsp(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN square root */
-        fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
     }
     f32 = float64_to_float32(farg.d, &env->fp_status);
     farg.d = float32_to_float64(f32, &env->fp_status);
@@ -956,7 +960,7 @@ uint64_t helper_frsp(uint64_t arg)
 }
 
 /* fsqrt - fsqrt. */
-uint64_t helper_fsqrt(uint64_t arg)
+uint64_t helper_fsqrt(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -964,11 +968,11 @@ uint64_t helper_fsqrt(uint64_t arg)
 
     if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Square root of a negative nonzero number */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT);
     } else {
         if (unlikely(float64_is_signaling_nan(farg.d))) {
             /* sNaN square root */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         farg.d = float64_sqrt(farg.d, &env->fp_status);
     }
@@ -976,7 +980,7 @@ uint64_t helper_fsqrt(uint64_t arg)
 }
 
 /* fre - fre. */
-uint64_t helper_fre(uint64_t arg)
+uint64_t helper_fre(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
 
@@ -984,14 +988,14 @@ uint64_t helper_fre(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
-        fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
     }
     farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     return farg.d;
 }
 
 /* fres - fres. */
-uint64_t helper_fres(uint64_t arg)
+uint64_t helper_fres(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
     float32 f32;
@@ -1000,7 +1004,7 @@ uint64_t helper_fres(uint64_t arg)
 
     if (unlikely(float64_is_signaling_nan(farg.d))) {
         /* sNaN reciprocal */
-        fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
     }
     farg.d = float64_div(float64_one, farg.d, &env->fp_status);
     f32 = float64_to_float32(farg.d, &env->fp_status);
@@ -1010,7 +1014,7 @@ uint64_t helper_fres(uint64_t arg)
 }
 
 /* frsqrte  - frsqrte. */
-uint64_t helper_frsqrte(uint64_t arg)
+uint64_t helper_frsqrte(CPUPPCState *env, uint64_t arg)
 {
     CPU_DoubleU farg;
     float32 f32;
@@ -1019,11 +1023,11 @@ uint64_t helper_frsqrte(uint64_t arg)
 
     if (unlikely(float64_is_neg(farg.d) && !float64_is_zero(farg.d))) {
         /* Reciprocal square root of a negative nonzero number */
-        farg.ll = fload_invalid_op_excp(POWERPC_EXCP_FP_VXSQRT);
+        farg.ll = fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSQRT);
     } else {
         if (unlikely(float64_is_signaling_nan(farg.d))) {
             /* sNaN reciprocal square root */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
         }
         farg.d = float64_sqrt(farg.d, &env->fp_status);
         farg.d = float64_div(float64_one, farg.d, &env->fp_status);
@@ -1034,7 +1038,8 @@ uint64_t helper_frsqrte(uint64_t arg)
 }
 
 /* fsel - fsel. */
-uint64_t helper_fsel(uint64_t arg1, uint64_t arg2, uint64_t arg3)
+uint64_t helper_fsel(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                     uint64_t arg3)
 {
     CPU_DoubleU farg1;
 
@@ -1048,7 +1053,8 @@ uint64_t helper_fsel(uint64_t arg1, uint64_t arg2, uint64_t arg3)
     }
 }
 
-void helper_fcmpu(uint64_t arg1, uint64_t arg2, uint32_t crfD)
+void helper_fcmpu(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                  uint32_t crfD)
 {
     CPU_DoubleU farg1, farg2;
     uint32_t ret = 0;
@@ -1074,11 +1080,12 @@ void helper_fcmpu(uint64_t arg1, uint64_t arg2, uint32_t crfD)
                  && (float64_is_signaling_nan(farg1.d) ||
                      float64_is_signaling_nan(farg2.d)))) {
         /* sNaN comparison */
-        fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN);
+        fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN);
     }
 }
 
-void helper_fcmpo(uint64_t arg1, uint64_t arg2, uint32_t crfD)
+void helper_fcmpo(CPUPPCState *env, uint64_t arg1, uint64_t arg2,
+                  uint32_t crfD)
 {
     CPU_DoubleU farg1, farg2;
     uint32_t ret = 0;
@@ -1104,17 +1111,17 @@ void helper_fcmpo(uint64_t arg1, uint64_t arg2, uint32_t crfD)
         if (float64_is_signaling_nan(farg1.d) ||
             float64_is_signaling_nan(farg2.d)) {
             /* sNaN comparison */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXSNAN |
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXSNAN |
                                   POWERPC_EXCP_FP_VXVC);
         } else {
             /* qNaN comparison */
-            fload_invalid_op_excp(POWERPC_EXCP_FP_VXVC);
+            fload_invalid_op_excp(env, POWERPC_EXCP_FP_VXVC);
         }
     }
 }
 
 /* Single-precision floating-point conversions */
-static inline uint32_t efscfsi(uint32_t val)
+static inline uint32_t efscfsi(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
 
@@ -1123,7 +1130,7 @@ static inline uint32_t efscfsi(uint32_t val)
     return u.l;
 }
 
-static inline uint32_t efscfui(uint32_t val)
+static inline uint32_t efscfui(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
 
@@ -1132,7 +1139,7 @@ static inline uint32_t efscfui(uint32_t val)
     return u.l;
 }
 
-static inline int32_t efsctsi(uint32_t val)
+static inline int32_t efsctsi(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
 
@@ -1145,7 +1152,7 @@ static inline int32_t efsctsi(uint32_t val)
     return float32_to_int32(u.f, &env->vec_status);
 }
 
-static inline uint32_t efsctui(uint32_t val)
+static inline uint32_t efsctui(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
 
@@ -1158,7 +1165,7 @@ static inline uint32_t efsctui(uint32_t val)
     return float32_to_uint32(u.f, &env->vec_status);
 }
 
-static inline uint32_t efsctsiz(uint32_t val)
+static inline uint32_t efsctsiz(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
 
@@ -1171,7 +1178,7 @@ static inline uint32_t efsctsiz(uint32_t val)
     return float32_to_int32_round_to_zero(u.f, &env->vec_status);
 }
 
-static inline uint32_t efsctuiz(uint32_t val)
+static inline uint32_t efsctuiz(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
 
@@ -1184,7 +1191,7 @@ static inline uint32_t efsctuiz(uint32_t val)
     return float32_to_uint32_round_to_zero(u.f, &env->vec_status);
 }
 
-static inline uint32_t efscfsf(uint32_t val)
+static inline uint32_t efscfsf(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -1196,7 +1203,7 @@ static inline uint32_t efscfsf(uint32_t val)
     return u.l;
 }
 
-static inline uint32_t efscfuf(uint32_t val)
+static inline uint32_t efscfuf(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -1208,7 +1215,7 @@ static inline uint32_t efscfuf(uint32_t val)
     return u.l;
 }
 
-static inline uint32_t efsctsf(uint32_t val)
+static inline uint32_t efsctsf(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -1224,7 +1231,7 @@ static inline uint32_t efsctsf(uint32_t val)
     return float32_to_int32(u.f, &env->vec_status);
 }
 
-static inline uint32_t efsctuf(uint32_t val)
+static inline uint32_t efsctuf(CPUPPCState *env, uint32_t val)
 {
     CPU_FloatU u;
     float32 tmp;
@@ -1240,10 +1247,10 @@ static inline uint32_t efsctuf(uint32_t val)
     return float32_to_uint32(u.f, &env->vec_status);
 }
 
-#define HELPER_SPE_SINGLE_CONV(name)            \
-    uint32_t helper_e##name(uint32_t val)       \
-    {                                           \
-        return e##name(val);                    \
+#define HELPER_SPE_SINGLE_CONV(name)                              \
+    uint32_t helper_e##name(CPUPPCState *env, uint32_t val)       \
+    {                                                             \
+        return e##name(env, val);                                 \
     }
 /* efscfsi */
 HELPER_SPE_SINGLE_CONV(fscfsi);
@@ -1266,11 +1273,11 @@ HELPER_SPE_SINGLE_CONV(fsctsf);
 /* efsctuf */
 HELPER_SPE_SINGLE_CONV(fsctuf);
 
-#define HELPER_SPE_VECTOR_CONV(name)                    \
-    uint64_t helper_ev##name(uint64_t val)              \
-    {                                                   \
-        return ((uint64_t)e##name(val >> 32) << 32) |   \
-            (uint64_t)e##name(val);                     \
+#define HELPER_SPE_VECTOR_CONV(name)                            \
+    uint64_t helper_ev##name(CPUPPCState *env, uint64_t val)    \
+    {                                                           \
+        return ((uint64_t)e##name(env, val >> 32) << 32) |      \
+            (uint64_t)e##name(env, val);                        \
     }
 /* evfscfsi */
 HELPER_SPE_VECTOR_CONV(fscfsi);
@@ -1294,7 +1301,7 @@ HELPER_SPE_VECTOR_CONV(fsctsf);
 HELPER_SPE_VECTOR_CONV(fsctuf);
 
 /* Single-precision floating-point arithmetic */
-static inline uint32_t efsadd(uint32_t op1, uint32_t op2)
+static inline uint32_t efsadd(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1304,7 +1311,7 @@ static inline uint32_t efsadd(uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-static inline uint32_t efssub(uint32_t op1, uint32_t op2)
+static inline uint32_t efssub(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1314,7 +1321,7 @@ static inline uint32_t efssub(uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-static inline uint32_t efsmul(uint32_t op1, uint32_t op2)
+static inline uint32_t efsmul(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1324,7 +1331,7 @@ static inline uint32_t efsmul(uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-static inline uint32_t efsdiv(uint32_t op1, uint32_t op2)
+static inline uint32_t efsdiv(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1334,10 +1341,10 @@ static inline uint32_t efsdiv(uint32_t op1, uint32_t op2)
     return u1.l;
 }
 
-#define HELPER_SPE_SINGLE_ARITH(name)                   \
-    uint32_t helper_e##name(uint32_t op1, uint32_t op2) \
-    {                                                   \
-        return e##name(op1, op2);                       \
+#define HELPER_SPE_SINGLE_ARITH(name)                                   \
+    uint32_t helper_e##name(CPUPPCState *env, uint32_t op1, uint32_t op2) \
+    {                                                                   \
+        return e##name(env, op1, op2);                                  \
     }
 /* efsadd */
 HELPER_SPE_SINGLE_ARITH(fsadd);
@@ -1349,10 +1356,10 @@ HELPER_SPE_SINGLE_ARITH(fsmul);
 HELPER_SPE_SINGLE_ARITH(fsdiv);
 
 #define HELPER_SPE_VECTOR_ARITH(name)                                   \
-    uint64_t helper_ev##name(uint64_t op1, uint64_t op2)                \
+    uint64_t helper_ev##name(CPUPPCState *env, uint64_t op1, uint64_t op2) \
     {                                                                   \
-        return ((uint64_t)e##name(op1 >> 32, op2 >> 32) << 32) |        \
-            (uint64_t)e##name(op1, op2);                                \
+        return ((uint64_t)e##name(env, op1 >> 32, op2 >> 32) << 32) |   \
+            (uint64_t)e##name(env, op1, op2);                           \
     }
 /* evfsadd */
 HELPER_SPE_VECTOR_ARITH(fsadd);
@@ -1364,7 +1371,7 @@ HELPER_SPE_VECTOR_ARITH(fsmul);
 HELPER_SPE_VECTOR_ARITH(fsdiv);
 
 /* Single-precision floating-point comparisons */
-static inline uint32_t efscmplt(uint32_t op1, uint32_t op2)
+static inline uint32_t efscmplt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1373,7 +1380,7 @@ static inline uint32_t efscmplt(uint32_t op1, uint32_t op2)
     return float32_lt(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static inline uint32_t efscmpgt(uint32_t op1, uint32_t op2)
+static inline uint32_t efscmpgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1382,7 +1389,7 @@ static inline uint32_t efscmpgt(uint32_t op1, uint32_t op2)
     return float32_le(u1.f, u2.f, &env->vec_status) ? 0 : 4;
 }
 
-static inline uint32_t efscmpeq(uint32_t op1, uint32_t op2)
+static inline uint32_t efscmpeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     CPU_FloatU u1, u2;
 
@@ -1391,28 +1398,28 @@ static inline uint32_t efscmpeq(uint32_t op1, uint32_t op2)
     return float32_eq(u1.f, u2.f, &env->vec_status) ? 4 : 0;
 }
 
-static inline uint32_t efststlt(uint32_t op1, uint32_t op2)
+static inline uint32_t efststlt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: ignore special values (NaN, infinites, ...) */
-    return efscmplt(op1, op2);
+    return efscmplt(env, op1, op2);
 }
 
-static inline uint32_t efststgt(uint32_t op1, uint32_t op2)
+static inline uint32_t efststgt(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: ignore special values (NaN, infinites, ...) */
-    return efscmpgt(op1, op2);
+    return efscmpgt(env, op1, op2);
 }
 
-static inline uint32_t efststeq(uint32_t op1, uint32_t op2)
+static inline uint32_t efststeq(CPUPPCState *env, uint32_t op1, uint32_t op2)
 {
     /* XXX: TODO: ignore special values (NaN, infinites, ...) */
-    return efscmpeq(op1, op2);
+    return efscmpeq(env, op1, op2);
 }
 
-#define HELPER_SINGLE_SPE_CMP(name)                     \
-    uint32_t helper_e##name(uint32_t op1, uint32_t op2) \
-    {                                                   \
-        return e##name(op1, op2) << 2;                  \
+#define HELPER_SINGLE_SPE_CMP(name)                                     \
+    uint32_t helper_e##name(CPUPPCState *env, uint32_t op1, uint32_t op2) \
+    {                                                                   \
+        return e##name(env, op1, op2) << 2;                             \
     }
 /* efststlt */
 HELPER_SINGLE_SPE_CMP(fststlt);
@@ -1433,9 +1440,10 @@ static inline uint32_t evcmp_merge(int t0, int t1)
 }
 
 #define HELPER_VECTOR_SPE_CMP(name)                                     \
-    uint32_t helper_ev##name(uint64_t op1, uint64_t op2)                \
+    uint32_t helper_ev##name(CPUPPCState *env, uint64_t op1, uint64_t op2) \
     {                                                                   \
-        return evcmp_merge(e##name(op1 >> 32, op2 >> 32), e##name(op1, op2)); \
+        return evcmp_merge(e##name(env, op1 >> 32, op2 >> 32),          \
+                           e##name(env, op1, op2));                     \
     }
 /* evfststlt */
 HELPER_VECTOR_SPE_CMP(fststlt);
@@ -1451,7 +1459,7 @@ HELPER_VECTOR_SPE_CMP(fscmpgt);
 HELPER_VECTOR_SPE_CMP(fscmpeq);
 
 /* Double-precision floating-point conversion */
-uint64_t helper_efdcfsi(uint32_t val)
+uint64_t helper_efdcfsi(CPUPPCState *env, uint32_t val)
 {
     CPU_DoubleU u;
 
@@ -1460,7 +1468,7 @@ uint64_t helper_efdcfsi(uint32_t val)
     return u.ll;
 }
 
-uint64_t helper_efdcfsid(uint64_t val)
+uint64_t helper_efdcfsid(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1469,7 +1477,7 @@ uint64_t helper_efdcfsid(uint64_t val)
     return u.ll;
 }
 
-uint64_t helper_efdcfui(uint32_t val)
+uint64_t helper_efdcfui(CPUPPCState *env, uint32_t val)
 {
     CPU_DoubleU u;
 
@@ -1478,7 +1486,7 @@ uint64_t helper_efdcfui(uint32_t val)
     return u.ll;
 }
 
-uint64_t helper_efdcfuid(uint64_t val)
+uint64_t helper_efdcfuid(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1487,7 +1495,7 @@ uint64_t helper_efdcfuid(uint64_t val)
     return u.ll;
 }
 
-uint32_t helper_efdctsi(uint64_t val)
+uint32_t helper_efdctsi(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1500,7 +1508,7 @@ uint32_t helper_efdctsi(uint64_t val)
     return float64_to_int32(u.d, &env->vec_status);
 }
 
-uint32_t helper_efdctui(uint64_t val)
+uint32_t helper_efdctui(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1513,7 +1521,7 @@ uint32_t helper_efdctui(uint64_t val)
     return float64_to_uint32(u.d, &env->vec_status);
 }
 
-uint32_t helper_efdctsiz(uint64_t val)
+uint32_t helper_efdctsiz(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1526,7 +1534,7 @@ uint32_t helper_efdctsiz(uint64_t val)
     return float64_to_int32_round_to_zero(u.d, &env->vec_status);
 }
 
-uint64_t helper_efdctsidz(uint64_t val)
+uint64_t helper_efdctsidz(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1539,7 +1547,7 @@ uint64_t helper_efdctsidz(uint64_t val)
     return float64_to_int64_round_to_zero(u.d, &env->vec_status);
 }
 
-uint32_t helper_efdctuiz(uint64_t val)
+uint32_t helper_efdctuiz(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1552,7 +1560,7 @@ uint32_t helper_efdctuiz(uint64_t val)
     return float64_to_uint32_round_to_zero(u.d, &env->vec_status);
 }
 
-uint64_t helper_efdctuidz(uint64_t val)
+uint64_t helper_efdctuidz(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
 
@@ -1565,7 +1573,7 @@ uint64_t helper_efdctuidz(uint64_t val)
     return float64_to_uint64_round_to_zero(u.d, &env->vec_status);
 }
 
-uint64_t helper_efdcfsf(uint32_t val)
+uint64_t helper_efdcfsf(CPUPPCState *env, uint32_t val)
 {
     CPU_DoubleU u;
     float64 tmp;
@@ -1577,7 +1585,7 @@ uint64_t helper_efdcfsf(uint32_t val)
     return u.ll;
 }
 
-uint64_t helper_efdcfuf(uint32_t val)
+uint64_t helper_efdcfuf(CPUPPCState *env, uint32_t val)
 {
     CPU_DoubleU u;
     float64 tmp;
@@ -1589,7 +1597,7 @@ uint64_t helper_efdcfuf(uint32_t val)
     return u.ll;
 }
 
-uint32_t helper_efdctsf(uint64_t val)
+uint32_t helper_efdctsf(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
     float64 tmp;
@@ -1605,7 +1613,7 @@ uint32_t helper_efdctsf(uint64_t val)
     return float64_to_int32(u.d, &env->vec_status);
 }
 
-uint32_t helper_efdctuf(uint64_t val)
+uint32_t helper_efdctuf(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u;
     float64 tmp;
@@ -1621,7 +1629,7 @@ uint32_t helper_efdctuf(uint64_t val)
     return float64_to_uint32(u.d, &env->vec_status);
 }
 
-uint32_t helper_efscfd(uint64_t val)
+uint32_t helper_efscfd(CPUPPCState *env, uint64_t val)
 {
     CPU_DoubleU u1;
     CPU_FloatU u2;
@@ -1632,7 +1640,7 @@ uint32_t helper_efscfd(uint64_t val)
     return u2.l;
 }
 
-uint64_t helper_efdcfs(uint32_t val)
+uint64_t helper_efdcfs(CPUPPCState *env, uint32_t val)
 {
     CPU_DoubleU u2;
     CPU_FloatU u1;
@@ -1644,7 +1652,7 @@ uint64_t helper_efdcfs(uint32_t val)
 }
 
 /* Double precision fixed-point arithmetic */
-uint64_t helper_efdadd(uint64_t op1, uint64_t op2)
+uint64_t helper_efdadd(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1654,7 +1662,7 @@ uint64_t helper_efdadd(uint64_t op1, uint64_t op2)
     return u1.ll;
 }
 
-uint64_t helper_efdsub(uint64_t op1, uint64_t op2)
+uint64_t helper_efdsub(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1664,7 +1672,7 @@ uint64_t helper_efdsub(uint64_t op1, uint64_t op2)
     return u1.ll;
 }
 
-uint64_t helper_efdmul(uint64_t op1, uint64_t op2)
+uint64_t helper_efdmul(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1674,7 +1682,7 @@ uint64_t helper_efdmul(uint64_t op1, uint64_t op2)
     return u1.ll;
 }
 
-uint64_t helper_efddiv(uint64_t op1, uint64_t op2)
+uint64_t helper_efddiv(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1685,7 +1693,7 @@ uint64_t helper_efddiv(uint64_t op1, uint64_t op2)
 }
 
 /* Double precision floating point helpers */
-uint32_t helper_efdtstlt(uint64_t op1, uint64_t op2)
+uint32_t helper_efdtstlt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1694,7 +1702,7 @@ uint32_t helper_efdtstlt(uint64_t op1, uint64_t op2)
     return float64_lt(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
-uint32_t helper_efdtstgt(uint64_t op1, uint64_t op2)
+uint32_t helper_efdtstgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1703,7 +1711,7 @@ uint32_t helper_efdtstgt(uint64_t op1, uint64_t op2)
     return float64_le(u1.d, u2.d, &env->vec_status) ? 0 : 4;
 }
 
-uint32_t helper_efdtsteq(uint64_t op1, uint64_t op2)
+uint32_t helper_efdtsteq(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     CPU_DoubleU u1, u2;
 
@@ -1712,20 +1720,20 @@ uint32_t helper_efdtsteq(uint64_t op1, uint64_t op2)
     return float64_eq_quiet(u1.d, u2.d, &env->vec_status) ? 4 : 0;
 }
 
-uint32_t helper_efdcmplt(uint64_t op1, uint64_t op2)
+uint32_t helper_efdcmplt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
-    return helper_efdtstlt(op1, op2);
+    return helper_efdtstlt(env, op1, op2);
 }
 
-uint32_t helper_efdcmpgt(uint64_t op1, uint64_t op2)
+uint32_t helper_efdcmpgt(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
-    return helper_efdtstgt(op1, op2);
+    return helper_efdtstgt(env, op1, op2);
 }
 
-uint32_t helper_efdcmpeq(uint64_t op1, uint64_t op2)
+uint32_t helper_efdcmpeq(CPUPPCState *env, uint64_t op1, uint64_t op2)
 {
     /* XXX: TODO: test special values (NaN, infinites, ...) */
-    return helper_efdtsteq(op1, op2);
+    return helper_efdtsteq(env, op1, op2);
 }
