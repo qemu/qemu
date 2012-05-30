@@ -17,38 +17,37 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #include "helper_regs.h"
 
 /*****************************************************************************/
 /* SPR accesses */
-void helper_load_dump_spr(uint32_t sprn)
+void helper_load_dump_spr(CPUPPCState *env, uint32_t sprn)
 {
     qemu_log("Read SPR %d %03x => " TARGET_FMT_lx "\n", sprn, sprn,
              env->spr[sprn]);
 }
 
-void helper_store_dump_spr(uint32_t sprn)
+void helper_store_dump_spr(CPUPPCState *env, uint32_t sprn)
 {
     qemu_log("Write SPR %d %03x <= " TARGET_FMT_lx "\n", sprn, sprn,
              env->spr[sprn]);
 }
 #if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
-void helper_store_asr(target_ulong val)
+void helper_store_asr(CPUPPCState *env, target_ulong val)
 {
     ppc_store_asr(env, val);
 }
 #endif
 
-void helper_store_sdr1(target_ulong val)
+void helper_store_sdr1(CPUPPCState *env, target_ulong val)
 {
     ppc_store_sdr1(env, val);
 }
 
-void helper_store_hid0_601(target_ulong val)
+void helper_store_hid0_601(CPUPPCState *env, target_ulong val)
 {
     target_ulong hid0;
 
@@ -65,7 +64,7 @@ void helper_store_hid0_601(target_ulong val)
     env->spr[SPR_HID0] = (uint32_t)val;
 }
 
-void helper_store_403_pbr(uint32_t num, target_ulong value)
+void helper_store_403_pbr(CPUPPCState *env, uint32_t num, target_ulong value)
 {
     if (likely(env->pb[num] != value)) {
         env->pb[num] = value;
@@ -74,12 +73,12 @@ void helper_store_403_pbr(uint32_t num, target_ulong value)
     }
 }
 
-void helper_store_40x_dbcr0(target_ulong val)
+void helper_store_40x_dbcr0(CPUPPCState *env, target_ulong val)
 {
     store_40x_dbcr0(env, val);
 }
 
-void helper_store_40x_sler(target_ulong val)
+void helper_store_40x_sler(CPUPPCState *env, target_ulong val)
 {
     store_40x_sler(env, val);
 }
@@ -87,7 +86,7 @@ void helper_store_40x_sler(target_ulong val)
 /*****************************************************************************/
 /* PowerPC 601 specific instructions (POWER bridge) */
 
-target_ulong helper_clcs(uint32_t arg)
+target_ulong helper_clcs(CPUPPCState *env, uint32_t arg)
 {
     switch (arg) {
     case 0x0CUL:

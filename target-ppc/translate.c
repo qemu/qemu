@@ -4551,7 +4551,7 @@ static void gen_abso(DisasContext *ctx)
 static void gen_clcs(DisasContext *ctx)
 {
     TCGv_i32 t0 = tcg_const_i32(rA(ctx->opcode));
-    gen_helper_clcs(cpu_gpr[rD(ctx->opcode)], t0);
+    gen_helper_clcs(cpu_gpr[rD(ctx->opcode)], cpu_env, t0);
     tcg_temp_free_i32(t0);
     /* Rc=1 sets CR0 to an undefined state */
 }

@@ -347,7 +347,7 @@ static void spr_write_dbatl_h (void *opaque, int sprn, int gprn)
 /* SDR1 */
 static void spr_write_sdr1 (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_sdr1(cpu_gpr[gprn]);
+    gen_helper_store_sdr1(cpu_env, cpu_gpr[gprn]);
 }
 
 /* 64 bits PowerPC specific SPRs */
@@ -373,7 +373,7 @@ static void spr_read_asr (void *opaque, int gprn, int sprn)
 
 static void spr_write_asr (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_asr(cpu_gpr[gprn]);
+    gen_helper_store_asr(cpu_env, cpu_gpr[gprn]);
 }
 #endif
 #endif
@@ -405,7 +405,7 @@ static void spr_write_hid0_601 (void *opaque, int sprn, int gprn)
 {
     DisasContext *ctx = opaque;
 
-    gen_helper_store_hid0_601(cpu_gpr[gprn]);
+    gen_helper_store_hid0_601(cpu_env, cpu_gpr[gprn]);
     /* Must stop the translation as endianness may have changed */
     gen_stop_exception(ctx);
 }
@@ -449,14 +449,14 @@ static void spr_write_40x_dbcr0 (void *opaque, int sprn, int gprn)
 {
     DisasContext *ctx = opaque;
 
-    gen_helper_store_40x_dbcr0(cpu_gpr[gprn]);
+    gen_helper_store_40x_dbcr0(cpu_env, cpu_gpr[gprn]);
     /* We must stop translation as we may have rebooted */
     gen_stop_exception(ctx);
 }
 
 static void spr_write_40x_sler (void *opaque, int sprn, int gprn)
 {
-    gen_helper_store_40x_sler(cpu_gpr[gprn]);
+    gen_helper_store_40x_sler(cpu_env, cpu_gpr[gprn]);
 }
 
 static void spr_write_booke_tcr (void *opaque, int sprn, int gprn)
@@ -481,7 +481,7 @@ static void spr_read_403_pbr (void *opaque, int gprn, int sprn)
 static void spr_write_403_pbr (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_const_i32(sprn - SPR_403_PBL1);
-    gen_helper_store_403_pbr(t0, cpu_gpr[gprn]);
+    gen_helper_store_403_pbr(cpu_env, t0, cpu_gpr[gprn]);
     tcg_temp_free_i32(t0);
 }
 
