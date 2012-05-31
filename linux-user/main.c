@@ -2921,6 +2921,9 @@ void cpu_loop(CPUAlphaState *env)
         case EXCP_STQ_C:
             do_store_exclusive(env, env->error_code, trapnr - EXCP_STL_C);
             break;
+        case EXCP_INTERRUPT:
+            /* Just indicate that signals should be handled asap.  */
+            break;
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(env, stderr, fprintf, 0);
