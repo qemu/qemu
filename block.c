@@ -409,28 +409,36 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options)
     return bdrv_create(drv, filename, options);
 }
 
+/*
+ * Create a uniquely-named empty temporary file.
+ * Return 0 upon success, otherwise a negative errno value.
+ */
+int get_tmp_filename(char *filename, int size)
+{
 #ifdef _WIN32
-void get_tmp_filename(char *filename, int size)
-{
     char temp_dir[MAX_PATH];
-
-    GetTempPath(MAX_PATH, temp_dir);
-    GetTempFileName(temp_dir, "qem", 0, filename);
-}
+    /* GetTempFileName requires that its output buffer (4th param)
+       have length MAX_PATH or greater.  */
+    assert(size >= MAX_PATH);
+    return (GetTempPath(MAX_PATH, temp_dir)
+            && GetTempFileName(temp_dir, "qem", 0, filename)
+            ? 0 : -GetLastError());
 #else
-void get_tmp_filename(char *filename, int size)
-{
     int fd;
     const char *tmpdir;
-    /* XXX: race condition possible */
     tmpdir = getenv("TMPDIR");
     if (!tmpdir)
         tmpdir = "/tmp";
-    snprintf(filename, size, "%s/vl.XXXXXX", tmpdir);
+    if (snprintf(filename, size, "%s/vl.XXXXXX", tmpdir) >= size) {
+        return -EOVERFLOW;
+    }
     fd = mkstemp(filename);
-    close(fd);
-}
+    if (fd < 0 || close(fd)) {
+        return -errno;
+    }
+    return 0;
 #endif
+}
 
 /*
  * Detect host devices. By convention, /dev/cdrom[N] is always
@@ -753,7 +761,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
 
         bdrv_delete(bs1);
 
-        get_tmp_filename(tmp_filename, sizeof(tmp_filename));
+        ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
+        if (ret < 0) {
+            return ret;
+        }
 
         /* Real path is meaningless for protocols */
         if (is_protocol)

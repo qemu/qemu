@@ -2808,7 +2808,12 @@ static int enable_write_target(BDRVVVFATState *s)
     array_init(&(s->commits), sizeof(commit_t));
 
     s->qcow_filename = g_malloc(1024);
-    get_tmp_filename(s->qcow_filename, 1024);
+    ret = get_tmp_filename(s->qcow_filename, 1024);
+    if (ret < 0) {
+        g_free(s->qcow_filename);
+        s->qcow_filename = NULL;
+        return ret;
+    }
 
     bdrv_qcow = bdrv_find_format("qcow");
     options = parse_option_parameters("", bdrv_qcow->create_options, NULL);

@@ -22,7 +22,12 @@
 #include "host-utils.h"
 
 #ifndef CONFIG_HAS_ENVIRON
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#else
 extern char **environ;
+#endif
 #endif
 
 #if defined(__linux__)
@@ -340,7 +345,7 @@ static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
 {
     struct mntent *ment;
     GuestFsfreezeMount *mount;
-    char const *mtab = MOUNTED;
+    char const *mtab = "/proc/self/mounts";
     FILE *fp;
 
     fp = setmntent(mtab, "r");
