@@ -22,6 +22,7 @@ MSR_IA32_VMX_TRUE_PINBASED_CTLS = 0x48D
 MSR_IA32_VMX_TRUE_PROCBASED_CTLS = 0x48E
 MSR_IA32_VMX_TRUE_EXIT_CTLS = 0x48F
 MSR_IA32_VMX_TRUE_ENTRY_CTLS = 0x490
+MSR_IA32_VMX_VMFUNC = 0x491
 
 class msr(object):
     def __init__(self):
@@ -147,6 +148,9 @@ controls = [
             6: 'WBINVD exiting',
             7: 'Unrestricted guest',
             10: 'PAUSE-loop exiting',
+            11: 'RDRAND exiting',
+            12: 'Enable INVPCID',
+            13: 'Enable VM functions',
             },
         cap_msr = MSR_IA32_VMX_PROCBASED_CTLS2,
         ),
@@ -193,6 +197,7 @@ controls = [
             8: 'Wait-for-SIPI activity state',
             (16,24): 'Number of CR3-target values',
             (25,27): 'MSR-load/store count recommenation',
+            28: 'IA32_SMM_MONITOR_CTL[2] can be set to 1',
             (32,62): 'MSEG revision identifier',
             },
         msr = MSR_IA32_VMX_MISC_CTLS,
@@ -208,6 +213,7 @@ controls = [
             16: '2MB EPT pages',
             17: '1GB EPT pages',
             20: 'INVEPT supported',
+            21: 'EPT accessed and dirty flags',
             25: 'Single-context INVEPT',
             26: 'All-context INVEPT',
             32: 'INVVPID supported',
@@ -217,6 +223,13 @@ controls = [
             43: 'Single-context-retaining-globals INVVPID',
             },
         msr = MSR_IA32_VMX_EPT_VPID_CAP,
+        ),
+    Misc(
+        name = 'VM Functions',
+        bits = {
+            0: 'EPTP Switching',
+            },
+        msr = MSR_IA32_VMX_VMFUNC,
         ),
     ]
 

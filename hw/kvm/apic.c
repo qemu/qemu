@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "hw/apic_internal.h"
+#include "hw/msi.h"
 #include "kvm.h"
 
 static inline void kvm_apic_set_reg(struct kvm_lapic_state *kapic,
@@ -145,10 +146,39 @@ static void kvm_apic_external_nmi(APICCommonState *s)
     run_on_cpu(s->cpu_env, do_inject_external_nmi, s);
 }
 
+static uint64_t kvm_apic_mem_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
+{
+    return ~(uint64_t)0;
+}
+
+static void kvm_apic_mem_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t data, unsigned size)
+{
+    MSIMessage msg = { .address = addr, .data = data };
+    int ret;
+
+    ret = kvm_irqchip_send_msi(kvm_state, msg);
+    if (ret < 0) {
+        fprintf(stderr, "KVM: injection failed, MSI lost (%s)\n",
+                strerror(-ret));
+    }
+}
+
+static const MemoryRegionOps kvm_apic_io_ops = {
+    .read = kvm_apic_mem_read,
+    .write = kvm_apic_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static void kvm_apic_init(APICCommonState *s)
 {
-    memory_region_init_reservation(&s->io_memory, "kvm-apic-msi",
-                                   MSI_SPACE_SIZE);
+    memory_region_init_io(&s->io_memory, &kvm_apic_io_ops, s, "kvm-apic-msi",
+                          MSI_SPACE_SIZE);
+
+    if (kvm_has_gsi_routing()) {
+        msi_supported = true;
+    }
 }
 
 static void kvm_apic_class_init(ObjectClass *klass, void *data)

@@ -57,14 +57,4 @@ void xen_register_framebuffer(struct MemoryRegion *mr);
 #  define HVM_MAX_VCPUS 32
 #endif
 
-static inline int xen_msi_support(void)
-{
-#if defined(CONFIG_XEN_CTRL_INTERFACE_VERSION) \
-    && CONFIG_XEN_CTRL_INTERFACE_VERSION >= 420
-    return xen_enabled();
-#else
-    return 0;
-#endif
-}
-
 #endif /* QEMU_HW_XEN_H */
