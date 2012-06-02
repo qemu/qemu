@@ -51,14 +51,12 @@
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#include <libutil.h>
 #include <sys/sysctl.h>
 #else
 #include <util.h>
 #endif
 #else
 #ifdef __linux__
-#include <pty.h>
 #include <malloc.h>
 
 #include <linux/ppdev.h>
@@ -79,10 +77,6 @@
 #include <stropts.h>
 #endif
 #endif
-#endif
-
-#if defined(__OpenBSD__)
-#include <util.h>
 #endif
 
 #if defined(CONFIG_VDE)
