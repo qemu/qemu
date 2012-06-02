@@ -462,7 +462,7 @@ static void ahci_check_cmd_bh(void *opaque)
 
 static void ahci_init_d2h(AHCIDevice *ad)
 {
-    uint8_t init_fis[0x20];
+    uint8_t init_fis[20];
     IDEState *ide_state = &ad->port.ifs[0];
 
     memset(init_fis, 0, sizeof(init_fis));
@@ -619,7 +619,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     d2h_fis[11] = cmd_fis[11];
     d2h_fis[12] = cmd_fis[12];
     d2h_fis[13] = cmd_fis[13];
-    for (i = 14; i < 0x20; i++) {
+    for (i = 14; i < 20; i++) {
         d2h_fis[i] = 0;
     }
 
