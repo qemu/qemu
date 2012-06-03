@@ -878,7 +878,7 @@ static void tcg_target_init(TCGContext *s)
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
     const char *envval = getenv("DEBUG_TCG");
     if (envval) {
-        loglevel = strtol(envval, NULL, 0);
+        cpu_set_log(strtol(envval, NULL, 0));
     }
 #endif
 

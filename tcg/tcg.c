@@ -873,7 +873,7 @@ static const char * const cond_name[] =
     [TCG_COND_GTU] = "gtu"
 };
 
-void tcg_dump_ops(TCGContext *s, FILE *outfile)
+void tcg_dump_ops(TCGContext *s)
 {
     const uint16_t *opc_ptr;
     const TCGArg *args;
@@ -896,9 +896,10 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
 #else
             pc = args[0];
 #endif
-            if (!first_insn) 
-                fprintf(outfile, "\n");
-            fprintf(outfile, " ---- 0x%" PRIx64, pc);
+            if (!first_insn) {
+                qemu_log("\n");
+            }
+            qemu_log(" ---- 0x%" PRIx64, pc);
             first_insn = 0;
             nb_oargs = def->nb_oargs;
             nb_iargs = def->nb_iargs;
@@ -912,28 +913,28 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             nb_iargs = arg & 0xffff;
             nb_cargs = def->nb_cargs;
 
-            fprintf(outfile, " %s ", def->name);
+            qemu_log(" %s ", def->name);
 
             /* function name */
-            fprintf(outfile, "%s",
-                    tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + nb_iargs - 1]));
+            qemu_log("%s",
+                     tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                         args[nb_oargs + nb_iargs - 1]));
             /* flags */
-            fprintf(outfile, ",$0x%" TCG_PRIlx,
-                    args[nb_oargs + nb_iargs]);
+            qemu_log(",$0x%" TCG_PRIlx, args[nb_oargs + nb_iargs]);
             /* nb out args */
-            fprintf(outfile, ",$%d", nb_oargs);
+            qemu_log(",$%d", nb_oargs);
             for(i = 0; i < nb_oargs; i++) {
-                fprintf(outfile, ",");
-                fprintf(outfile, "%s",
-                        tcg_get_arg_str_idx(s, buf, sizeof(buf), args[i]));
+                qemu_log(",");
+                qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                   args[i]));
             }
             for(i = 0; i < (nb_iargs - 1); i++) {
-                fprintf(outfile, ",");
+                qemu_log(",");
                 if (args[nb_oargs + i] == TCG_CALL_DUMMY_ARG) {
-                    fprintf(outfile, "<dummy>");
+                    qemu_log("<dummy>");
                 } else {
-                    fprintf(outfile, "%s",
-                            tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + i]));
+                    qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                       args[nb_oargs + i]));
                 }
             }
         } else if (c == INDEX_op_movi_i32 
@@ -947,20 +948,21 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             nb_oargs = def->nb_oargs;
             nb_iargs = def->nb_iargs;
             nb_cargs = def->nb_cargs;
-            fprintf(outfile, " %s %s,$", def->name, 
-                    tcg_get_arg_str_idx(s, buf, sizeof(buf), args[0]));
+            qemu_log(" %s %s,$", def->name,
+                     tcg_get_arg_str_idx(s, buf, sizeof(buf), args[0]));
             val = args[1];
             th = tcg_find_helper(s, val);
             if (th) {
-                fprintf(outfile, "%s", th->name);
+                qemu_log("%s", th->name);
             } else {
-                if (c == INDEX_op_movi_i32)
-                    fprintf(outfile, "0x%x", (uint32_t)val);
-                else
-                    fprintf(outfile, "0x%" PRIx64 , (uint64_t)val);
+                if (c == INDEX_op_movi_i32) {
+                    qemu_log("0x%x", (uint32_t)val);
+                } else {
+                    qemu_log("0x%" PRIx64 , (uint64_t)val);
+                }
             }
         } else {
-            fprintf(outfile, " %s ", def->name);
+            qemu_log(" %s ", def->name);
             if (c == INDEX_op_nopn) {
                 /* variable number of arguments */
                 nb_cargs = *args;
@@ -974,16 +976,18 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
             
             k = 0;
             for(i = 0; i < nb_oargs; i++) {
-                if (k != 0)
-                    fprintf(outfile, ",");
-                fprintf(outfile, "%s",
-                        tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k++]));
+                if (k != 0) {
+                    qemu_log(",");
+                }
+                qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                   args[k++]));
             }
             for(i = 0; i < nb_iargs; i++) {
-                if (k != 0)
-                    fprintf(outfile, ",");
-                fprintf(outfile, "%s",
-                        tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k++]));
+                if (k != 0) {
+                    qemu_log(",");
+                }
+                qemu_log("%s", tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                                   args[k++]));
             }
             switch (c) {
             case INDEX_op_brcond_i32:
@@ -998,10 +1002,11 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
 #elif TCG_TARGET_REG_BITS == 64
             case INDEX_op_setcond_i64:
 #endif
-                if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]])
-                    fprintf(outfile, ",%s", cond_name[args[k++]]);
-                else
-                    fprintf(outfile, ",$0x%" TCG_PRIlx, args[k++]);
+                if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
+                    qemu_log(",%s", cond_name[args[k++]]);
+                } else {
+                    qemu_log(",$0x%" TCG_PRIlx, args[k++]);
+                }
                 i = 1;
                 break;
             default:
@@ -1009,13 +1014,14 @@ void tcg_dump_ops(TCGContext *s, FILE *outfile)
                 break;
             }
             for(; i < nb_cargs; i++) {
-                if (k != 0)
-                    fprintf(outfile, ",");
+                if (k != 0) {
+                    qemu_log(",");
+                }
                 arg = args[k++];
-                fprintf(outfile, "$0x%" TCG_PRIlx, arg);
+                qemu_log("$0x%" TCG_PRIlx, arg);
             }
         }
-        fprintf(outfile, "\n");
+        qemu_log("\n");
         args += nb_iargs + nb_oargs + nb_cargs;
     }
 }
@@ -2048,7 +2054,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
         qemu_log("OP:\n");
-        tcg_dump_ops(s, logfile);
+        tcg_dump_ops(s);
         qemu_log("\n");
     }
 #endif
@@ -2069,7 +2075,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_OPT))) {
         qemu_log("OP after liveness analysis:\n");
-        tcg_dump_ops(s, logfile);
+        tcg_dump_ops(s);
         qemu_log("\n");
     }
 #endif

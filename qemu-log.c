@@ -25,17 +25,39 @@ static const char *logfilename = "qemu.log";
 #else
 static const char *logfilename = "/tmp/qemu.log";
 #endif
-FILE *logfile;
-int loglevel;
+FILE *qemu_logfile;
+int qemu_loglevel;
 static int log_append = 0;
+
+void qemu_log(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if (qemu_logfile) {
+        vfprintf(qemu_logfile, fmt, ap);
+    }
+    va_end(ap);
+}
+
+void qemu_log_mask(int mask, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if ((qemu_loglevel & mask) && qemu_logfile) {
+        vfprintf(qemu_logfile, fmt, ap);
+    }
+    va_end(ap);
+}
 
 /* enable or disable low levels log */
 void cpu_set_log(int log_flags)
 {
-    loglevel = log_flags;
-    if (loglevel && !logfile) {
-        logfile = fopen(logfilename, log_append ? "a" : "w");
-        if (!logfile) {
+    qemu_loglevel = log_flags;
+    if (qemu_loglevel && !qemu_logfile) {
+        qemu_logfile = fopen(logfilename, log_append ? "a" : "w");
+        if (!qemu_logfile) {
             perror(logfilename);
             _exit(1);
         }
@@ -43,30 +65,30 @@ void cpu_set_log(int log_flags)
         /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
         {
             static char logfile_buf[4096];
-            setvbuf(logfile, logfile_buf, _IOLBF, sizeof(logfile_buf));
+            setvbuf(qemu_logfile, logfile_buf, _IOLBF, sizeof(logfile_buf));
         }
 #elif defined(_WIN32)
         /* Win32 doesn't support line-buffering, so use unbuffered output. */
-        setvbuf(logfile, NULL, _IONBF, 0);
+        setvbuf(qemu_logfile, NULL, _IONBF, 0);
 #else
-        setvbuf(logfile, NULL, _IOLBF, 0);
+        setvbuf(qemu_logfile, NULL, _IOLBF, 0);
 #endif
         log_append = 1;
     }
-    if (!loglevel && logfile) {
-        fclose(logfile);
-        logfile = NULL;
+    if (!qemu_loglevel && qemu_logfile) {
+        fclose(qemu_logfile);
+        qemu_logfile = NULL;
     }
 }
 
 void cpu_set_log_filename(const char *filename)
 {
     logfilename = strdup(filename);
-    if (logfile) {
-        fclose(logfile);
-        logfile = NULL;
+    if (qemu_logfile) {
+        fclose(qemu_logfile);
+        qemu_logfile = NULL;
     }
-    cpu_set_log(loglevel);
+    cpu_set_log(qemu_loglevel);
 }
 
 const CPULogItem cpu_log_items[] = {

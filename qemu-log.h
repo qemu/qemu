@@ -1,9 +1,14 @@
 #ifndef QEMU_LOG_H
 #define QEMU_LOG_H
 
-/* The deprecated global variables: */
-extern FILE *logfile;
-extern int loglevel;
+#include <stdarg.h>
+#ifdef NEED_CPU_H
+#include "disas.h"
+#endif
+
+/* Private global variables, don't use */
+extern FILE *qemu_logfile;
+extern int qemu_loglevel;
 
 /* 
  * The new API:
@@ -14,7 +19,10 @@ extern int loglevel;
 
 /* Returns true if qemu_log() will really write somewhere
  */
-#define qemu_log_enabled() (logfile != NULL)
+static inline bool qemu_log_enabled(void)
+{
+    return qemu_logfile != NULL;
+}
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
 #define CPU_LOG_TB_IN_ASM  (1 << 1)
@@ -29,73 +37,97 @@ extern int loglevel;
 
 /* Returns true if a bit is set in the current loglevel mask
  */
-#define qemu_loglevel_mask(b) ((loglevel & (b)) != 0)
+static inline bool qemu_loglevel_mask(int mask)
+{
+    return (qemu_loglevel & mask) != 0;
+}
 
 /* Logging functions: */
 
 /* main logging function
  */
-#define qemu_log(...) do {                 \
-        if (logfile)                       \
-            fprintf(logfile, ## __VA_ARGS__); \
-    } while (0)
+void GCC_FMT_ATTR(1, 2) qemu_log(const char *fmt, ...);
 
 /* vfprintf-like logging function
  */
-#define qemu_log_vprintf(fmt, va) do {     \
-        if (logfile)                       \
-            vfprintf(logfile, fmt, va);    \
-    } while (0)
+static inline void qemu_log_vprintf(const char *fmt, va_list va)
+{
+    if (qemu_logfile) {
+        vfprintf(qemu_logfile, fmt, va);
+    }
+}
 
 /* log only if a bit is set on the current loglevel mask
  */
-#define qemu_log_mask(b, ...) do {         \
-        if (loglevel & (b))                \
-            fprintf(logfile, ## __VA_ARGS__); \
-    } while (0)
+void GCC_FMT_ATTR(2, 3) qemu_log_mask(int mask, const char *fmt, ...);
 
 
 /* Special cases: */
 
 #ifdef NEED_CPU_H
 /* cpu_dump_state() logging functions: */
-#define log_cpu_state(env, f) cpu_dump_state((env), logfile, fprintf, (f));
-#define log_cpu_state_mask(b, env, f) do {           \
-      if (loglevel & (b)) log_cpu_state((env), (f)); \
-  } while (0)
+static inline void log_cpu_state(CPUArchState *env1, int flags)
+{
+    cpu_dump_state(env1, qemu_logfile, fprintf, flags);
+}
 
-/* disas() and target_disas() to logfile: */
-#define log_target_disas(start, len, flags) \
-        target_disas(logfile, (start), (len), (flags))
-#define log_disas(start, len) \
-        disas(logfile, (start), (len))
+static inline void log_cpu_state_mask(int mask, CPUArchState *env1, int flags)
+{
+    if (qemu_loglevel & mask) {
+        log_cpu_state(env1, flags);
+    }
+}
 
+/* disas() and target_disas() to qemu_logfile: */
+static inline void log_target_disas(target_ulong start, target_ulong len,
+                                    int flags)
+{
+    target_disas(qemu_logfile, start, len, flags);
+}
+
+static inline void log_disas(void *code, unsigned long size)
+{
+    disas(qemu_logfile, code, size);
+}
+
+#if defined(CONFIG_USER_ONLY)
 /* page_dump() output to the log file: */
-#define log_page_dump() page_dump(logfile)
+static inline void log_page_dump(void)
+{
+    page_dump(qemu_logfile);
+}
+#endif
 #endif
 
 
 /* Maintenance: */
 
 /* fflush() the log file */
-#define qemu_log_flush() fflush(logfile)
+static inline void qemu_log_flush(void)
+{
+    fflush(qemu_logfile);
+}
 
 /* Close the log file */
-#define qemu_log_close() do { \
-        fclose(logfile);      \
-        logfile = NULL;       \
-    } while (0)
+static inline void qemu_log_close(void)
+{
+    fclose(qemu_logfile);
+    qemu_logfile = NULL;
+}
 
 /* Set up a new log file */
-#define qemu_log_set_file(f) do { \
-        logfile = (f);            \
-    } while (0)
+static inline void qemu_log_set_file(FILE *f)
+{
+    qemu_logfile = f;
+}
 
 /* Set up a new log file, only if none is set */
-#define qemu_log_try_set_file(f) do { \
-        if (!logfile)                 \
-            logfile = (f);            \
-    } while (0)
+static inline void qemu_log_try_set_file(FILE *f)
+{
+    if (!qemu_logfile) {
+        qemu_logfile = f;
+    }
+}
 
 /* define log items */
 typedef struct CPULogItem {

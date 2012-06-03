@@ -24,8 +24,6 @@
 
 #include <sys/time.h>
 
-FILE *logfile;
-
 struct QEMUBH
 {
     QEMUBHFunc *cb;
