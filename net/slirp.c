@@ -626,25 +626,35 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str,
 
     fwd = g_malloc(sizeof(struct GuestFwd));
     snprintf(buf, sizeof(buf), "guestfwd.tcp.%d", port);
-    fwd->hd = qemu_chr_new(buf, p, NULL);
-    if (!fwd->hd) {
-        error_report("could not open guest forwarding device '%s'", buf);
-        g_free(fwd);
-        return -1;
-    }
 
-    if (slirp_add_exec(s->slirp, 3, fwd->hd, &server, port) < 0) {
-        error_report("conflicting/invalid host:port in guest forwarding "
-                     "rule '%s'", config_str);
-        g_free(fwd);
-        return -1;
-    }
-    fwd->server = server;
-    fwd->port = port;
-    fwd->slirp = s->slirp;
+    if ((strlen(p) > 4) && !strncmp(p, "cmd:", 4)) {
+        if (slirp_add_exec(s->slirp, 0, &p[4], &server, port) < 0) {
+            error_report("conflicting/invalid host:port in guest forwarding "
+                         "rule '%s'", config_str);
+            g_free(fwd);
+            return -1;
+        }
+    } else {
+        fwd->hd = qemu_chr_new(buf, p, NULL);
+        if (!fwd->hd) {
+            error_report("could not open guest forwarding device '%s'", buf);
+            g_free(fwd);
+            return -1;
+        }
 
-    qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
-                          NULL, fwd);
+        if (slirp_add_exec(s->slirp, 3, fwd->hd, &server, port) < 0) {
+            error_report("conflicting/invalid host:port in guest forwarding "
+                         "rule '%s'", config_str);
+            g_free(fwd);
+            return -1;
+        }
+        fwd->server = server;
+        fwd->port = port;
+        fwd->slirp = s->slirp;
+
+        qemu_chr_add_handlers(fwd->hd, guestfwd_can_read, guestfwd_read,
+                              NULL, fwd);
+    }
     return 0;
 
  fail_syntax:
