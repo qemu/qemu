@@ -1621,7 +1621,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
         break;
 #endif
     default:
-        cpu_fprintf(f, "%s: unimplemented\n", __func__);
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented\n", __func__);
     }
 }
 
