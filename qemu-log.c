@@ -120,6 +120,8 @@ const CPULogItem cpu_log_items[] = {
     { CPU_LOG_IOPORT, "ioport",
       "show all i/o ports accesses" },
 #endif
+    { LOG_UNIMP, "unimp",
+      "log unimplemented functionality" },
     { 0, NULL, NULL },
 };
 
