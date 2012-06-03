@@ -36,6 +36,7 @@
 #include "qdev-addr.h"
 #include "blockdev.h"
 #include "sysemu.h"
+#include "qemu-log.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -47,9 +48,6 @@
 #else
 #define FLOPPY_DPRINTF(fmt, ...)
 #endif
-
-#define FLOPPY_ERROR(fmt, ...)                                          \
-    do { printf("FLOPPY ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 /********************************************************/
 /* Floppy drive emulation                               */
@@ -147,8 +145,10 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
     if (sector != fd_sector(drv)) {
 #if 0
         if (!enable_seek) {
-            FLOPPY_ERROR("no implicit seek %d %02x %02x (max=%d %02x %02x)\n",
-                         head, track, sect, 1, drv->max_track, drv->last_sect);
+            FLOPPY_DPRINTF("error: no implicit seek %d %02x %02x"
+                           " (max=%d %02x %02x)\n",
+                           head, track, sect, 1, drv->max_track,
+                           drv->last_sect);
             return 4;
         }
 #endif
@@ -991,7 +991,8 @@ static void fdctrl_set_fifo(FDCtrl *fdctrl, int fifo_len, int do_irq)
 /* Set an error: unimplemented/unknown command */
 static void fdctrl_unimplemented(FDCtrl *fdctrl, int direction)
 {
-    FLOPPY_ERROR("unimplemented command 0x%02x\n", fdctrl->fifo[0]);
+    qemu_log_mask(LOG_UNIMP, "fdc: unimplemented command 0x%02x\n",
+                  fdctrl->fifo[0]);
     fdctrl->fifo[0] = FD_SR0_INVCMD;
     fdctrl_set_fifo(fdctrl, 1, 0);
 }
@@ -1159,7 +1160,8 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
             DMA_schedule(fdctrl->dma_chann);
             return;
         } else {
-            FLOPPY_ERROR("dma_mode=%d direction=%d\n", dma_mode, direction);
+            FLOPPY_DPRINTF("bad dma_mode=%d direction=%d\n", dma_mode,
+                           direction);
         }
     }
     FLOPPY_DPRINTF("start non-DMA transfer\n");
@@ -1175,7 +1177,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
 /* Prepare a transfer of deleted data */
 static void fdctrl_start_transfer_del(FDCtrl *fdctrl, int direction)
 {
-    FLOPPY_ERROR("fdctrl_start_transfer_del() unimplemented\n");
+    qemu_log_mask(LOG_UNIMP, "fdctrl_start_transfer_del() unimplemented\n");
 
     /* We don't handle deleted data,
      * so we don't return *ANYTHING*
@@ -1254,7 +1256,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                              fdctrl->data_pos, len);
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
                            fdctrl->fifo, 1) < 0) {
-                FLOPPY_ERROR("writing sector %d\n", fd_sector(cur_drv));
+                FLOPPY_DPRINTF("error writing sector %d\n",
+                               fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
                 goto transfer_error;
             }
@@ -1313,7 +1316,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
     cur_drv = get_cur_drv(fdctrl);
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
     if (!(fdctrl->msr & FD_MSR_RQM) || !(fdctrl->msr & FD_MSR_DIO)) {
-        FLOPPY_ERROR("controller not ready for reading\n");
+        FLOPPY_DPRINTF("error: controller not ready for reading\n");
         return 0;
     }
     pos = fdctrl->data_pos;
@@ -1397,7 +1400,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
     if (cur_drv->bs == NULL ||
         bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
-        FLOPPY_ERROR("formatting sector %d\n", fd_sector(cur_drv));
+        FLOPPY_DPRINTF("error formatting sector %d\n", fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
     } else {
         if (cur_drv->sect == cur_drv->last_sect) {
@@ -1772,7 +1775,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         return;
     }
     if (!(fdctrl->msr & FD_MSR_RQM) || (fdctrl->msr & FD_MSR_DIO)) {
-        FLOPPY_ERROR("controller not ready for writing\n");
+        FLOPPY_DPRINTF("error: controller not ready for writing\n");
         return;
     }
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
@@ -1786,7 +1789,8 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv), fdctrl->fifo, 1) < 0) {
-                FLOPPY_ERROR("writing sector %d\n", fd_sector(cur_drv));
+                FLOPPY_DPRINTF("error writing sector %d\n",
+                               fd_sector(cur_drv));
                 return;
             }
             if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
