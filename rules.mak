@@ -111,4 +111,5 @@ endef
 define unnest-vars
 $(call unnest-vars-1)
 $(foreach var,$(nested-vars),$(eval $(var) := $(filter-out %/, $($(var)))))
+$(shell mkdir -p $(sort $(foreach var,$(nested-vars),$(dir $($(var))))))
 endef

@@ -3671,26 +3671,6 @@ if [ "$TARGET_BASE_ARCH" = "" ]; then
   TARGET_BASE_ARCH=$TARGET_ARCH
 fi
 
-mkdir -p $target_dir/fpu
-mkdir -p $target_dir/tcg
-mkdir -p $target_dir/9pfs
-mkdir -p $target_dir/hw
-mkdir -p $target_dir/hw/ide
-mkdir -p $target_dir/hw/usb
-mkdir -p $target_dir/hw/9pfs
-mkdir -p $target_dir/hw/kvm
-mkdir -p $target_dir/hw/$TARGET_ARCH
-mkdir -p $target_dir/hw/$TARGET_BASE_ARCH
-mkdir -p $target_dir/target-$TARGET_BASE_ARCH
-if test "$target_linux_user" = yes; then
-  mkdir -p $target_dir/linux-user
-fi
-if test "$target_bsd_user" = yes; then
-  mkdir -p $target_dir/bsd-user
-fi
-if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
-  mkdir -p $target_dir/linux-user/arm/nwfpe
-fi
 symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 
 
@@ -3955,12 +3935,9 @@ done # for target in $targets
 
 # build tree in object directory in case the source is not in the current directory
 DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32"
-DIRS="$DIRS slirp audio block net pc-bios/optionrom"
-DIRS="$DIRS pc-bios/spapr-rtas"
+DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
-DIRS="$DIRS fsdev ui hw hw/usb"
-DIRS="$DIRS qapi qapi-generated"
-DIRS="$DIRS qga trace qom"
+DIRS="$DIRS qapi-generated"
 DIRS="$DIRS libcacard libcacard/libcacard libcacard/trace"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
@@ -3999,19 +3976,11 @@ done
 
 for hwlib in 32 64; do
   d=libhw$hwlib
-  mkdir -p $d
-  mkdir -p $d/hw
-  mkdir -p $d/hw/ide
-  mkdir -p $d/hw/usb
   symlink "$source_path/Makefile.hw" "$d/Makefile"
-  mkdir -p $d/hw/9pfs
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak
 done
 
 d=libuser
-mkdir -p $d
-mkdir -p $d/trace
-mkdir -p $d/qom
 symlink "$source_path/Makefile.user" "$d/Makefile"
 
 if test "$docs" = "yes" ; then
