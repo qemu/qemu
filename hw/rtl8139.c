@@ -799,7 +799,7 @@ static int rtl8139_can_receive(VLANClientState *nc)
     } else {
         avail = MOD2(s->RxBufferSize + s->RxBufPtr - s->RxBufAddr,
                      s->RxBufferSize);
-        return (avail == 0 || avail >= 1514);
+        return (avail == 0 || avail >= 1514 || (s->IntrMask & RxOverflow));
     }
 }
 
