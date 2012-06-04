@@ -959,7 +959,7 @@ void mips_malta_init (ram_addr_t ram_size,
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     pci_create_simple(pci_bus, piix4_devfn + 2, "piix4-usb-uhci");
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100,
-                          isa_get_irq(NULL, 9), NULL, 0);
+                          isa_get_irq(NULL, 9), NULL, 0, NULL);
     /* TODO: Populate SPD eeprom data.  */
     smbus_eeprom_init(smbus, 8, NULL, 0);
     pit = pit_init(isa_bus, 0x40, 0, NULL);

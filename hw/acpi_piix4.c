@@ -27,6 +27,7 @@
 #include "sysemu.h"
 #include "range.h"
 #include "ioport.h"
+#include "fw_cfg.h"
 
 //#define DEBUG
 
@@ -71,6 +72,10 @@ typedef struct PIIX4PMState {
     struct pci_status pci0_status;
     uint32_t pci0_hotplug_enable;
     uint32_t pci0_slot_device_present;
+
+    uint8_t disable_s3;
+    uint8_t disable_s4;
+    uint8_t s4_val;
 } PIIX4PMState;
 
 static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
@@ -123,7 +128,7 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
         pm_update_sci(s);
         break;
     case 0x04:
-        acpi_pm1_cnt_write(&s->ar, val);
+        acpi_pm1_cnt_write(&s->ar, val, s->s4_val);
         break;
     default:
         break;
@@ -424,7 +429,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
 
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                        qemu_irq sci_irq, qemu_irq smi_irq,
-                       int kvm_enabled)
+                       int kvm_enabled, void *fw_cfg)
 {
     PCIDevice *dev;
     PIIX4PMState *s;
@@ -440,11 +445,22 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     qdev_init_nofail(&dev->qdev);
 
+    if (fw_cfg) {
+        uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
+        suspend[3] = 1 | ((!s->disable_s3) << 7);
+        suspend[4] = s->s4_val | ((!s->disable_s4) << 7);
+
+        fw_cfg_add_file(fw_cfg, "etc/system-states", g_memdup(suspend, 6), 6);
+    }
+
     return s->smb.smbus;
 }
 
 static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
+    DEFINE_PROP_UINT8("disable_s3", PIIX4PMState, disable_s3, 0),
+    DEFINE_PROP_UINT8("disable_s4", PIIX4PMState, disable_s4, 0),
+    DEFINE_PROP_UINT8("s4_val", PIIX4PMState, s4_val, 2),
     DEFINE_PROP_END_OF_LIST(),
 };
 

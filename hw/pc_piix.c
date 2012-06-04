@@ -147,6 +147,7 @@ static void pc_init1(MemoryRegion *system_memory,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
+    void *fw_cfg = NULL;
 
     pc_cpus_init(cpu_model);
 
@@ -173,7 +174,7 @@ static void pc_init1(MemoryRegion *system_memory,
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        pc_memory_init(system_memory,
+        fw_cfg = pc_memory_init(system_memory,
                        kernel_filename, kernel_cmdline, initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
                        pci_enabled ? rom_memory : system_memory, &ram_memory);
@@ -277,7 +278,7 @@ static void pc_init1(MemoryRegion *system_memory,
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], *smi_irq,
-                              kvm_enabled());
+                              kvm_enabled(), fw_cfg);
         smbus_eeprom_init(smbus, 8, NULL, 0);
     }
 
