@@ -1653,8 +1653,13 @@ if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
-  vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
-  vnc_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
+  if $pkg_config --exists gnutls; then
+    vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
+    vnc_tls_libs=`$pkg_config --libs gnutls 2>/dev/null`
+  else
+    vnc_tls_cflags=
+    vnc_tls_libs=-lgnutls
+  fi
   if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
     vnc_tls=yes
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
