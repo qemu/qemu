@@ -13,6 +13,8 @@ void msix_write_config(PCIDevice *pci_dev, uint32_t address,
 
 int msix_uninit(PCIDevice *d, MemoryRegion *bar);
 
+unsigned int msix_nr_vectors_allocated(const PCIDevice *dev);
+
 void msix_save(PCIDevice *dev, QEMUFile *f);
 void msix_load(PCIDevice *dev, QEMUFile *f);
 
@@ -29,4 +31,8 @@ void msix_notify(PCIDevice *dev, unsigned vector);
 
 void msix_reset(PCIDevice *dev);
 
+int msix_set_vector_notifiers(PCIDevice *dev,
+                              MSIVectorUseNotifier use_notifier,
+                              MSIVectorReleaseNotifier release_notifier);
+void msix_unset_vector_notifiers(PCIDevice *dev);
 #endif

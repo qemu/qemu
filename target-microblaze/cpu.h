@@ -243,6 +243,10 @@ struct CPUMBState {
     /* Stack protectors. Yes, it's a hw feature.  */
     uint32_t slr, shr;
 
+    /* lwx/swx reserved address */
+#define RES_ADDR_NONE 0xffffffff /* Use 0xffffffff to indicate no reservation */
+    uint32_t res_addr;
+
     /* Internal flags.  */
 #define IMM_FLAG	4
 #define MSR_EE_FLAG     (1 << 8)

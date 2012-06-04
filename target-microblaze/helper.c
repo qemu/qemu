@@ -29,6 +29,7 @@
 void do_interrupt (CPUMBState *env)
 {
     env->exception_index = -1;
+    env->res_addr = RES_ADDR_NONE;
     env->regs[14] = env->sregs[SR_PC];
 }
 
@@ -116,6 +117,7 @@ void do_interrupt(CPUMBState *env)
     assert(!((env->iflags & D_FLAG) && (env->iflags & IMM_FLAG)));
     assert(!(env->iflags & (DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)));
 /*    assert(env->sregs[SR_MSR] & (MSR_EE)); Only for HW exceptions.  */
+    env->res_addr = RES_ADDR_NONE;
     switch (env->exception_index) {
         case EXCP_HW_EXCP:
             if (!(env->pvr.regs[0] & PVR0_USE_EXC_MASK)) {

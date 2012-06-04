@@ -19,6 +19,7 @@
 #include "apic_internal.h"
 #include "apic.h"
 #include "ioapic.h"
+#include "msi.h"
 #include "host-utils.h"
 #include "trace.h"
 #include "pc.h"
@@ -862,6 +863,8 @@ static void apic_init(APICCommonState *s)
 
     s->timer = qemu_new_timer_ns(vm_clock, apic_timer, s);
     local_apics[s->idx] = s;
+
+    msi_supported = true;
 }
 
 static void apic_class_init(ObjectClass *klass, void *data)

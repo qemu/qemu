@@ -162,6 +162,14 @@ static void write_carry(DisasContext *dc, TCGv v)
     tcg_temp_free(t0);
 }
 
+static void write_carryi(DisasContext *dc, int carry)
+{
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_movi_tl(t0, carry ? 1 : 0);
+    write_carry(dc, t0);
+    tcg_temp_free(t0);
+}
+
 /* True if ALU operand b is a small immediate that may deserve
    faster treatment.  */
 static inline int dec_alu_op_b_is_small_imm(DisasContext *dc)
@@ -948,12 +956,13 @@ static inline void dec_byteswap(DisasContext *dc, TCGv dst, TCGv src, int size)
 static void dec_load(DisasContext *dc)
 {
     TCGv t, *addr;
-    unsigned int size, rev = 0;
+    unsigned int size, rev = 0, ex = 0;
 
     size = 1 << (dc->opcode & 3);
 
     if (!dc->type_b) {
         rev = (dc->ir >> 9) & 1;
+        ex = (dc->ir >> 10) & 1;
     }
 
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
@@ -963,7 +972,8 @@ static void dec_load(DisasContext *dc)
         return;
     }
 
-    LOG_DIS("l%d%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "");
+    LOG_DIS("l%d%s%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "",
+                                                        ex ? "x" : "");
 
     t_sync_flags(dc);
     addr = compute_ldst_addr(dc, &t);
@@ -1019,6 +1029,17 @@ static void dec_load(DisasContext *dc)
         }
     }
 
+    /* lwx does not throw unaligned access errors, so force alignment */
+    if (ex) {
+        /* Force addr into the temp.  */
+        if (addr != &t) {
+            t = tcg_temp_new();
+            tcg_gen_mov_tl(t, *addr);
+            addr = &t;
+        }
+        tcg_gen_andi_tl(t, t, ~3);
+    }
+
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
 
@@ -1057,6 +1078,12 @@ static void dec_load(DisasContext *dc)
         }
     }
 
+    if (ex) { /* lwx */
+        /* no support for for AXI exclusive so always clear C */
+        write_carryi(dc, 0);
+        tcg_gen_st_tl(*addr, cpu_env, offsetof(CPUMBState, res_addr));
+    }
+
     if (addr == &t)
         tcg_temp_free(t);
 }
@@ -1078,12 +1105,14 @@ static void gen_store(DisasContext *dc, TCGv addr, TCGv val,
 
 static void dec_store(DisasContext *dc)
 {
-    TCGv t, *addr;
-    unsigned int size, rev = 0;
+    TCGv t, *addr, swx_addr, r_check = 0;
+    int swx_skip = 0;
+    unsigned int size, rev = 0, ex = 0;
 
     size = 1 << (dc->opcode & 3);
     if (!dc->type_b) {
         rev = (dc->ir >> 9) & 1;
+        ex = (dc->ir >> 10) & 1;
     }
 
     if (size > 4 && (dc->tb_flags & MSR_EE_FLAG)
@@ -1093,11 +1122,29 @@ static void dec_store(DisasContext *dc)
         return;
     }
 
-    LOG_DIS("s%d%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "");
+    LOG_DIS("s%d%s%s%s\n", size, dc->type_b ? "i" : "", rev ? "r" : "",
+                                                        ex ? "x" : "");
     t_sync_flags(dc);
     /* If we get a fault on a dslot, the jmpstate better be in sync.  */
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
+
+    if (ex) { /* swx */
+        r_check = tcg_temp_new();
+        swx_addr = tcg_temp_local_new();
+
+        /* Force addr into the swx_addr. */
+        tcg_gen_mov_tl(swx_addr, *addr);
+        addr = &swx_addr;
+        /* swx does not throw unaligned access errors, so force alignment */
+        tcg_gen_andi_tl(swx_addr, swx_addr, ~3);
+
+        tcg_gen_ld_tl(r_check, cpu_env, offsetof(CPUMBState, res_addr));
+        write_carryi(dc, 1);
+        swx_skip = gen_new_label();
+        tcg_gen_brcond_tl(TCG_COND_NE, r_check, swx_addr, swx_skip);
+        write_carryi(dc, 0);
+    }
 
     if (rev && size != 4) {
         /* Endian reverse the address. t is addr.  */
@@ -1173,6 +1220,11 @@ static void dec_store(DisasContext *dc)
          */
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
+    }
+    if (ex) {
+        gen_set_label(swx_skip);
+        tcg_temp_free(r_check);
+        tcg_temp_free(swx_addr);
     }
 
     if (addr == &t)
