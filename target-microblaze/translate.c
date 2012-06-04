@@ -1105,7 +1105,7 @@ static void gen_store(DisasContext *dc, TCGv addr, TCGv val,
 
 static void dec_store(DisasContext *dc)
 {
-    TCGv t, *addr, swx_addr, r_check = 0;
+    TCGv t, *addr, swx_addr, r_check;
     int swx_skip = 0;
     unsigned int size, rev = 0, ex = 0;
 
