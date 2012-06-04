@@ -21,8 +21,6 @@ void msix_load(PCIDevice *dev, QEMUFile *f);
 int msix_enabled(PCIDevice *dev);
 int msix_present(PCIDevice *dev);
 
-uint32_t msix_bar_size(PCIDevice *dev);
-
 int msix_vector_use(PCIDevice *dev, unsigned vector);
 void msix_vector_unuse(PCIDevice *dev, unsigned vector);
 void msix_unuse_all_vectors(PCIDevice *dev);

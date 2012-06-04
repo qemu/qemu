@@ -55,24 +55,17 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
 {
     int config_offset;
     uint8_t *config;
-    uint32_t new_size;
 
     if (nentries < 1 || nentries > PCI_MSIX_FLAGS_QSIZE + 1)
         return -EINVAL;
     if (bar_size > 0x80000000)
         return -ENOSPC;
 
-    /* Add space for MSI-X structures */
-    if (!bar_size) {
-        new_size = MSIX_PAGE_SIZE;
-    } else if (bar_size < MSIX_PAGE_SIZE) {
-        bar_size = MSIX_PAGE_SIZE;
-        new_size = MSIX_PAGE_SIZE * 2;
-    } else {
-        new_size = bar_size * 2;
+    /* Require aligned offset for MSI-X structures */
+    if (bar_size & ~(MSIX_PAGE_SIZE - 1)) {
+        return -EINVAL;
     }
 
-    pdev->msix_bar_size = new_size;
     config_offset = pci_add_capability(pdev, PCI_CAP_ID_MSIX,
                                        0, MSIX_CAP_LENGTH);
     if (config_offset < 0)
@@ -380,13 +373,6 @@ int msix_enabled(PCIDevice *dev)
     return (dev->cap_present & QEMU_PCI_CAP_MSIX) &&
         (dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &
          MSIX_ENABLE_MASK);
-}
-
-/* Size of bar where MSI-X table resides, or 0 if MSI-X not supported. */
-uint32_t msix_bar_size(PCIDevice *dev)
-{
-    return (dev->cap_present & QEMU_PCI_CAP_MSIX) ?
-        dev->msix_bar_size : 0;
 }
 
 /* Send an MSI-X message */
