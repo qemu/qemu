@@ -1000,6 +1000,8 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     tmp.buffer_alignment  = bs_top->buffer_alignment;
     tmp.copy_on_read      = bs_top->copy_on_read;
 
+    tmp.enable_write_cache = bs_top->enable_write_cache;
+
     /* i/o timing parameters */
     tmp.slice_time        = bs_top->slice_time;
     tmp.slice_start       = bs_top->slice_start;
