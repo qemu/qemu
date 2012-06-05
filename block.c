@@ -2466,6 +2466,11 @@ const char *bdrv_get_device_name(BlockDriverState *bs)
     return bs->device_name;
 }
 
+int bdrv_get_flags(BlockDriverState *bs)
+{
+    return bs->open_flags;
+}
+
 void bdrv_flush_all(void)
 {
     BlockDriverState *bs;
