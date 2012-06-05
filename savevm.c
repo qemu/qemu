@@ -400,7 +400,7 @@ static int block_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 
 static int bdrv_fclose(void *opaque)
 {
-    return 0;
+    return bdrv_flush(opaque);
 }
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
