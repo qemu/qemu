@@ -1105,7 +1105,7 @@ static void gen_store(DisasContext *dc, TCGv addr, TCGv val,
 
 static void dec_store(DisasContext *dc)
 {
-    TCGv t, *addr, swx_addr, r_check = 0;
+    TCGv t, *addr, swx_addr, r_check;
     int swx_skip = 0;
     unsigned int size, rev = 0, ex = 0;
 
@@ -1129,9 +1129,9 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
+    r_check = tcg_temp_new();
+    swx_addr = tcg_temp_local_new();
     if (ex) { /* swx */
-        r_check = tcg_temp_new();
-        swx_addr = tcg_temp_local_new();
 
         /* Force addr into the swx_addr. */
         tcg_gen_mov_tl(swx_addr, *addr);
@@ -1221,11 +1221,12 @@ static void dec_store(DisasContext *dc)
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
     }
+
     if (ex) {
         gen_set_label(swx_skip);
-        tcg_temp_free(r_check);
-        tcg_temp_free(swx_addr);
     }
+    tcg_temp_free(r_check);
+    tcg_temp_free(swx_addr);
 
     if (addr == &t)
         tcg_temp_free(t);
