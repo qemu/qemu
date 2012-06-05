@@ -43,7 +43,6 @@
 #define RAM_SIZES_ALIGN            (64UL << 20)
 
 #define MPC8544_CCSRBAR_BASE       0xE0000000
-#define MPC8544_CCSRBAR_REGSIZE    0x00001000
 #define MPC8544_CCSRBAR_SIZE       0x00100000
 #define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000)
 #define MPC8544_SERIAL0_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4500)
@@ -99,6 +98,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     uint32_t tb_freq = 400000000;
     int i;
     char compatible[] = "MPC8544DS\0MPC85xxDS";
+    char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
     char model[] = "MPC8544DS";
     char soc[128];
     char ser0[128];
@@ -232,16 +232,15 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
 
     qemu_devtree_add_subnode(fdt, "/aliases");
     /* XXX These should go into their respective devices' code */
-    snprintf(soc, sizeof(soc), "/soc8544@%x", MPC8544_CCSRBAR_BASE);
+    snprintf(soc, sizeof(soc), "/soc@%x", MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, soc);
     qemu_devtree_setprop_string(fdt, soc, "device_type", "soc");
-    qemu_devtree_setprop_string(fdt, soc, "compatible", "simple-bus");
+    qemu_devtree_setprop(fdt, soc, "compatible", compatible_sb,
+                         sizeof(compatible_sb));
     qemu_devtree_setprop_cell(fdt, soc, "#address-cells", 1);
     qemu_devtree_setprop_cell(fdt, soc, "#size-cells", 1);
     qemu_devtree_setprop_cells(fdt, soc, "ranges", 0x0, MPC8544_CCSRBAR_BASE,
                                MPC8544_CCSRBAR_SIZE);
-    qemu_devtree_setprop_cells(fdt, soc, "reg", MPC8544_CCSRBAR_BASE,
-                               MPC8544_CCSRBAR_REGSIZE);
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
 
