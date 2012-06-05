@@ -82,6 +82,28 @@ static void pci_map_create(void *fdt, uint32_t *pci_map, uint32_t mpic)
     }
 }
 
+static void dt_serial_create(void *fdt, unsigned long long offset,
+                             const char *soc, const char *mpic,
+                             const char *alias, int idx, bool defcon)
+{
+    char ser[128];
+
+    snprintf(ser, sizeof(ser), "%s/serial@%llx", soc, offset);
+    qemu_devtree_add_subnode(fdt, ser);
+    qemu_devtree_setprop_string(fdt, ser, "device_type", "serial");
+    qemu_devtree_setprop_string(fdt, ser, "compatible", "ns16550");
+    qemu_devtree_setprop_cells(fdt, ser, "reg", offset, 0x100);
+    qemu_devtree_setprop_cell(fdt, ser, "cell-index", idx);
+    qemu_devtree_setprop_cell(fdt, ser, "clock-frequency", 0);
+    qemu_devtree_setprop_cells(fdt, ser, "interrupts", 42, 2, 0, 0);
+    qemu_devtree_setprop_phandle(fdt, ser, "interrupt-parent", mpic);
+    qemu_devtree_setprop_string(fdt, "/aliases", alias, ser);
+
+    if (defcon) {
+        qemu_devtree_setprop_string(fdt, "/chosen", "linux,stdout-path", ser);
+    }
+}
+
 static int mpc8544_load_device_tree(CPUPPCState *env,
                                     target_phys_addr_t addr,
                                     target_phys_addr_t ramsize,
@@ -101,8 +123,6 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
     char model[] = "MPC8544DS";
     char soc[128];
-    char ser0[128];
-    char ser1[128];
     char mpic[128];
     uint32_t mpic_ph;
     char gutil[128];
@@ -274,32 +294,10 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
      * device it finds in the dt as serial output device. And we generate
      * devices in reverse order to the dt.
      */
-    snprintf(ser1, sizeof(ser1), "%s/serial@%llx", soc,
-             MPC8544_SERIAL1_REGS_BASE - MPC8544_CCSRBAR_BASE);
-    qemu_devtree_add_subnode(fdt, ser1);
-    qemu_devtree_setprop_string(fdt, ser1, "device_type", "serial");
-    qemu_devtree_setprop_string(fdt, ser1, "compatible", "ns16550");
-    qemu_devtree_setprop_cells(fdt, ser1, "reg", MPC8544_SERIAL1_REGS_BASE -
-                               MPC8544_CCSRBAR_BASE, 0x100);
-    qemu_devtree_setprop_cell(fdt, ser1, "cell-index", 1);
-    qemu_devtree_setprop_cell(fdt, ser1, "clock-frequency", 0);
-    qemu_devtree_setprop_cells(fdt, ser1, "interrupts", 42, 2, 0, 0);
-    qemu_devtree_setprop_phandle(fdt, ser1, "interrupt-parent", mpic);
-    qemu_devtree_setprop_string(fdt, "/aliases", "serial1", ser1);
-
-    snprintf(ser0, sizeof(ser0), "%s/serial@%llx", soc,
-             MPC8544_SERIAL0_REGS_BASE - MPC8544_CCSRBAR_BASE);
-    qemu_devtree_add_subnode(fdt, ser0);
-    qemu_devtree_setprop_string(fdt, ser0, "device_type", "serial");
-    qemu_devtree_setprop_string(fdt, ser0, "compatible", "ns16550");
-    qemu_devtree_setprop_cells(fdt, ser0, "reg", MPC8544_SERIAL0_REGS_BASE -
-                               MPC8544_CCSRBAR_BASE, 0x100);
-    qemu_devtree_setprop_cell(fdt, ser0, "cell-index", 0);
-    qemu_devtree_setprop_cell(fdt, ser0, "clock-frequency", 0);
-    qemu_devtree_setprop_cells(fdt, ser0, "interrupts", 42, 2, 0, 0);
-    qemu_devtree_setprop_phandle(fdt, ser0, "interrupt-parent", mpic);
-    qemu_devtree_setprop_string(fdt, "/aliases", "serial0", ser0);
-    qemu_devtree_setprop_string(fdt, "/chosen", "linux,stdout-path", ser0);
+    dt_serial_create(fdt, MPC8544_SERIAL1_REGS_BASE - MPC8544_CCSRBAR_BASE,
+                     soc, mpic, "serial1", 1, false);
+    dt_serial_create(fdt, MPC8544_SERIAL0_REGS_BASE - MPC8544_CCSRBAR_BASE,
+                     soc, mpic, "serial0", 0, true);
 
     snprintf(gutil, sizeof(gutil), "%s/global-utilities@%llx", soc,
              MPC8544_UTIL_BASE - MPC8544_CCSRBAR_BASE);
