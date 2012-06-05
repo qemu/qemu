@@ -22,6 +22,8 @@
 #include "qemu-common.h"
 #include "device_tree.h"
 #include "hw/loader.h"
+#include "qemu-option.h"
+#include "qemu-config.h"
 
 #include <libfdt.h>
 
@@ -200,7 +202,31 @@ int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
 
 uint32_t qemu_devtree_alloc_phandle(void *fdt)
 {
-    static int phandle = 0x8000;
+    static int phandle = 0x0;
+
+    /*
+     * We need to find out if the user gave us special instruction at
+     * which phandle id to start allocting phandles.
+     */
+    if (!phandle) {
+        QemuOpts *machine_opts;
+        machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+        if (machine_opts) {
+            const char *phandle_start;
+            phandle_start = qemu_opt_get(machine_opts, "phandle_start");
+            if (phandle_start) {
+                phandle = strtoul(phandle_start, NULL, 0);
+            }
+        }
+    }
+
+    if (!phandle) {
+        /*
+         * None or invalid phandle given on the command line, so fall back to
+         * default starting point.
+         */
+        phandle = 0x8000;
+    }
 
     return phandle++;
 }

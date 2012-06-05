@@ -587,6 +587,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "dumpdtb",
             .type = QEMU_OPT_STRING,
             .help = "Dump current dtb to a file and quit",
+        }, {
+            .name = "phandle_start",
+            .type = QEMU_OPT_STRING,
+            .help = "The first phandle ID we may generate dynamically",
         },
         { /* End of list */ }
     },
