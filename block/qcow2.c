@@ -220,7 +220,6 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     int len, i, ret = 0;
     QCowHeader header;
     uint64_t ext_end;
-    bool writethrough;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -367,10 +366,8 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     }
 
     /* alloc L2 table/refcount block cache */
-    writethrough = ((flags & BDRV_O_CACHE_WB) == 0);
-    s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE, writethrough);
-    s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE,
-        writethrough);
+    s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE);
+    s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE);
 
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */

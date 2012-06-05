@@ -726,13 +726,6 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t old_offset, old_l2_offset;
     int i, j, l1_modified = 0, nb_csectors, refcount;
     int ret;
-    bool old_l2_writethrough, old_refcount_writethrough;
-
-    /* Switch caches to writeback mode during update */
-    old_l2_writethrough =
-        qcow2_cache_set_writethrough(bs, s->l2_table_cache, false);
-    old_refcount_writethrough =
-        qcow2_cache_set_writethrough(bs, s->refcount_block_cache, false);
 
     l2_table = NULL;
     l1_table = NULL;
@@ -855,11 +848,6 @@ fail:
     if (l2_table) {
         qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     }
-
-    /* Enable writethrough cache mode again */
-    qcow2_cache_set_writethrough(bs, s->l2_table_cache, old_l2_writethrough);
-    qcow2_cache_set_writethrough(bs, s->refcount_block_cache,
-        old_refcount_writethrough);
 
     /* Update L1 only if it isn't deleted anyway (addend = -1) */
     if (addend >= 0 && l1_modified) {
