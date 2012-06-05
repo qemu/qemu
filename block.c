@@ -1758,8 +1758,8 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
         return ret;
     }
 
-    /* No flush needed for cache modes that use O_DSYNC */
-    if ((bs->open_flags & BDRV_O_CACHE_WB) != 0) {
+    /* No flush needed for cache modes that already do it */
+    if (bs->enable_write_cache) {
         bdrv_flush(bs);
     }
 
@@ -1808,6 +1808,9 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         ret = bdrv_co_do_write_zeroes(bs, cluster_sector_num,
                                       cluster_nb_sectors);
     } else {
+        /* This does not change the data on the disk, it is not necessary
+         * to flush even in cache=writethrough mode.
+         */
         ret = drv->bdrv_co_writev(bs, cluster_sector_num, cluster_nb_sectors,
                                   &bounce_qiov);
     }
@@ -1975,6 +1978,10 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors);
     } else {
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
+    }
+
+    if (ret == 0 && !bs->enable_write_cache) {
+        ret = bdrv_co_flush(bs);
     }
 
     if (bs->dirty_bitmap) {
