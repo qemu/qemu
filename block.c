@@ -2380,6 +2380,11 @@ int bdrv_enable_write_cache(BlockDriverState *bs)
     return bs->enable_write_cache;
 }
 
+void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
+{
+    bs->enable_write_cache = wce;
+}
+
 int bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing_hd && bs->backing_hd->encrypted)

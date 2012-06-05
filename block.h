@@ -291,6 +291,7 @@ BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);
+void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce);
 int bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);
