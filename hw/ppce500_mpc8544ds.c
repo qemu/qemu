@@ -42,17 +42,17 @@
 
 #define RAM_SIZES_ALIGN            (64UL << 20)
 
-#define MPC8544_CCSRBAR_BASE       0xE0000000
-#define MPC8544_CCSRBAR_SIZE       0x00100000
-#define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000)
-#define MPC8544_SERIAL0_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4500)
-#define MPC8544_SERIAL1_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4600)
-#define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + 0x8000)
-#define MPC8544_PCI_REGS_SIZE      0x1000
-#define MPC8544_PCI_IO             0xE1000000
-#define MPC8544_PCI_IOLEN          0x10000
-#define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000)
-#define MPC8544_SPIN_BASE          0xEF000000
+#define MPC8544_CCSRBAR_BASE       0xE0000000ULL
+#define MPC8544_CCSRBAR_SIZE       0x00100000ULL
+#define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000ULL)
+#define MPC8544_SERIAL0_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4500ULL)
+#define MPC8544_SERIAL1_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4600ULL)
+#define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + 0x8000ULL)
+#define MPC8544_PCI_REGS_SIZE      0x1000ULL
+#define MPC8544_PCI_IO             0xE1000000ULL
+#define MPC8544_PCI_IOLEN          0x10000ULL
+#define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000ULL)
+#define MPC8544_SPIN_BASE          0xEF000000ULL
 
 struct boot_info
 {
@@ -232,7 +232,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
 
     qemu_devtree_add_subnode(fdt, "/aliases");
     /* XXX These should go into their respective devices' code */
-    snprintf(soc, sizeof(soc), "/soc@%x", MPC8544_CCSRBAR_BASE);
+    snprintf(soc, sizeof(soc), "/soc@%llx", MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, soc);
     qemu_devtree_setprop_string(fdt, soc, "device_type", "soc");
     qemu_devtree_setprop(fdt, soc, "compatible", compatible_sb,
@@ -244,7 +244,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
 
-    snprintf(mpic, sizeof(mpic), "%s/pic@%x", soc,
+    snprintf(mpic, sizeof(mpic), "%s/pic@%llx", soc,
              MPC8544_MPIC_REGS_BASE - MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, mpic);
     qemu_devtree_setprop_string(fdt, mpic, "device_type", "open-pic");
@@ -266,7 +266,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
      * device it finds in the dt as serial output device. And we generate
      * devices in reverse order to the dt.
      */
-    snprintf(ser1, sizeof(ser1), "%s/serial@%x", soc,
+    snprintf(ser1, sizeof(ser1), "%s/serial@%llx", soc,
              MPC8544_SERIAL1_REGS_BASE - MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, ser1);
     qemu_devtree_setprop_string(fdt, ser1, "device_type", "serial");
@@ -279,7 +279,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_phandle(fdt, ser1, "interrupt-parent", mpic);
     qemu_devtree_setprop_string(fdt, "/aliases", "serial1", ser1);
 
-    snprintf(ser0, sizeof(ser0), "%s/serial@%x", soc,
+    snprintf(ser0, sizeof(ser0), "%s/serial@%llx", soc,
              MPC8544_SERIAL0_REGS_BASE - MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, ser0);
     qemu_devtree_setprop_string(fdt, ser0, "device_type", "serial");
@@ -293,7 +293,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_string(fdt, "/aliases", "serial0", ser0);
     qemu_devtree_setprop_string(fdt, "/chosen", "linux,stdout-path", ser0);
 
-    snprintf(gutil, sizeof(gutil), "%s/global-utilities@%x", soc,
+    snprintf(gutil, sizeof(gutil), "%s/global-utilities@%llx", soc,
              MPC8544_UTIL_BASE - MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, gutil);
     qemu_devtree_setprop_string(fdt, gutil, "compatible", "fsl,mpc8544-guts");
@@ -301,7 +301,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                MPC8544_CCSRBAR_BASE, 0x1000);
     qemu_devtree_setprop(fdt, gutil, "fsl,has-rstcr", NULL, 0);
 
-    snprintf(pci, sizeof(pci), "/pci@%x", MPC8544_PCI_REGS_BASE);
+    snprintf(pci, sizeof(pci), "/pci@%llx", MPC8544_PCI_REGS_BASE);
     qemu_devtree_add_subnode(fdt, pci);
     qemu_devtree_setprop_cell(fdt, pci, "cell-index", 0);
     qemu_devtree_setprop_string(fdt, pci, "compatible", "fsl,mpc8540-pci");
