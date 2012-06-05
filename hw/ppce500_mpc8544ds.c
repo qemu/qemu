@@ -90,7 +90,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                                     const char *kernel_cmdline)
 {
     int ret = -1;
-    uint32_t mem_reg_property[] = {0, cpu_to_be32(ramsize)};
+    uint64_t mem_reg_property[] = { 0, cpu_to_be64(ramsize) };
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
@@ -108,9 +108,16 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     char gutil[128];
     char pci[128];
     uint32_t pci_map[9 * 8];
-    uint32_t pci_ranges[12] = { 0x2000000, 0x0, 0xc0000000, 0xc0000000, 0x0,
-                                0x20000000, 0x1000000, 0x0, 0x0, 0xe1000000,
-                                0x0, 0x10000 };
+    uint32_t pci_ranges[14] =
+        {
+            0x2000000, 0x0, 0xc0000000,
+            0x0, 0xc0000000,
+            0x0, 0x20000000,
+
+            0x1000000, 0x0, 0x0,
+            0x0, 0xe1000000,
+            0x0, 0x10000,
+        };
     QemuOpts *machine_opts;
     const char *dumpdtb = NULL;
     const char *dtb_file = NULL;
@@ -144,8 +151,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_string(fdt, "/", "model", model);
     qemu_devtree_setprop(fdt, "/", "compatible", compatible,
                          sizeof(compatible));
-    qemu_devtree_setprop_cell(fdt, "/", "#address-cells", 1);
-    qemu_devtree_setprop_cell(fdt, "/", "#size-cells", 1);
+    qemu_devtree_setprop_cell(fdt, "/", "#address-cells", 2);
+    qemu_devtree_setprop_cell(fdt, "/", "#size-cells", 2);
 
     qemu_devtree_add_subnode(fdt, "/memory");
     qemu_devtree_setprop_string(fdt, "/memory", "device_type", "memory");
@@ -239,7 +246,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
                          sizeof(compatible_sb));
     qemu_devtree_setprop_cell(fdt, soc, "#address-cells", 1);
     qemu_devtree_setprop_cell(fdt, soc, "#size-cells", 1);
-    qemu_devtree_setprop_cells(fdt, soc, "ranges", 0x0, MPC8544_CCSRBAR_BASE,
+    qemu_devtree_setprop_cells(fdt, soc, "ranges", 0x0,
+                               MPC8544_CCSRBAR_BASE >> 32, MPC8544_CCSRBAR_BASE,
                                MPC8544_CCSRBAR_SIZE);
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
@@ -313,12 +321,12 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_phandle(fdt, pci, "interrupt-parent", mpic);
     qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2, 0, 0);
     qemu_devtree_setprop_cells(fdt, pci, "bus-range", 0, 255);
-    for (i = 0; i < 12; i++) {
+    for (i = 0; i < 14; i++) {
         pci_ranges[i] = cpu_to_be32(pci_ranges[i]);
     }
     qemu_devtree_setprop(fdt, pci, "ranges", pci_ranges, sizeof(pci_ranges));
-    qemu_devtree_setprop_cells(fdt, pci, "reg", MPC8544_PCI_REGS_BASE,
-                               0x1000);
+    qemu_devtree_setprop_cells(fdt, pci, "reg", MPC8544_PCI_REGS_BASE >> 32,
+                               MPC8544_PCI_REGS_BASE, 0, 0x1000);
     qemu_devtree_setprop_cell(fdt, pci, "clock-frequency", 66666666);
     qemu_devtree_setprop_cell(fdt, pci, "#interrupt-cells", 1);
     qemu_devtree_setprop_cell(fdt, pci, "#size-cells", 2);
