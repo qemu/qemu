@@ -3729,6 +3729,10 @@ case "$target_arch2" in
       fi
     fi
 esac
+case "$target_arch2" in
+  i386|x86_64)
+    echo "CONFIG_HAVE_GET_MEMORY_MAPPING=y" >> $config_target_mak
+esac
 if test "$target_arch2" = "ppc64" -a "$fdt" = "yes"; then
   echo "CONFIG_PSERIES=y" >> $config_target_mak
 fi
@@ -3744,6 +3748,10 @@ if test "$target_softmmu" = "yes" ; then
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
   fi
+  case "$target_arch2" in
+    i386|x86_64)
+      echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak
+  esac
 fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_target_mak

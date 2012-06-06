@@ -554,10 +554,13 @@ void do_info_qdm(Monitor *mon)
 
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
+    Error *local_err = NULL;
     QemuOpts *opts;
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict);
-    if (!opts) {
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return -1;
     }
     if (!monitor_cur_is_qmp() && qdev_device_help(opts)) {

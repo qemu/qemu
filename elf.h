@@ -1037,6 +1037,11 @@ typedef struct elf64_sym {
 
 #define EI_NIDENT	16
 
+/* Special value for e_phnum.  This indicates that the real number of
+   program headers is too large to fit into e_phnum.  Instead the real
+   value is in the field sh_info of section 0.  */
+#define PN_XNUM         0xffff
+
 typedef struct elf32_hdr{
   unsigned char	e_ident[EI_NIDENT];
   Elf32_Half	e_type;

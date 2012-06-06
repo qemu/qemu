@@ -163,15 +163,15 @@ struct HCIInfo *qemu_next_hci(void);
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
 
-int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev);
+int net_client_init(QemuOpts *opts, int is_netdev, Error **errp);
 int net_client_parse(QemuOptsList *opts_list, const char *str);
 int net_init_clients(void);
 void net_check_clients(void);
 void net_cleanup(void);
 void net_host_device_add(Monitor *mon, const QDict *qdict);
 void net_host_device_remove(Monitor *mon, const QDict *qdict);
-int do_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret_data);
-int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
+void netdev_add(QemuOpts *opts, Error **errp);
+int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret);
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"

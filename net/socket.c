@@ -26,6 +26,7 @@
 #include "config-host.h"
 
 #include "net.h"
+#include "monitor.h"
 #include "qemu-char.h"
 #include "qemu-common.h"
 #include "qemu-error.h"
@@ -585,10 +586,7 @@ static int net_socket_udp_init(VLANState *vlan,
     return 0;
 }
 
-int net_init_socket(QemuOpts *opts,
-                    Monitor *mon,
-                    const char *name,
-                    VLANState *vlan)
+int net_init_socket(QemuOpts *opts, const char *name, VLANState *vlan)
 {
     if (qemu_opt_get(opts, "fd")) {
         int fd;
@@ -601,7 +599,7 @@ int net_init_socket(QemuOpts *opts,
             return -1;
         }
 
-        fd = net_handle_fd_param(mon, qemu_opt_get(opts, "fd"));
+        fd = net_handle_fd_param(cur_mon, qemu_opt_get(opts, "fd"));
         if (fd == -1) {
             return -1;
         }
