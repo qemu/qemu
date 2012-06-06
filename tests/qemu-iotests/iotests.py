@@ -54,7 +54,9 @@ class VM(object):
         self._qemu_log_path = os.path.join(test_dir, 'qemu-log.%d' % os.getpid())
         self._args = qemu_args + ['-chardev',
                      'socket,id=mon,path=' + self._monitor_path,
-                     '-mon', 'chardev=mon,mode=control', '-nographic']
+                     '-mon', 'chardev=mon,mode=control',
+                     '-qtest', 'stdio', '-machine', 'accel=qtest',
+                     '-display', 'none', '-vga', 'none']
         self._num_drives = 0
 
     def add_drive(self, path, opts=''):
