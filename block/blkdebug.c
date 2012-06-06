@@ -361,9 +361,7 @@ static BlockDriverAIOCB *blkdebug_aio_readv(BlockDriverState *bs,
         return inject_error(bs, cb, opaque);
     }
 
-    BlockDriverAIOCB *acb =
-        bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
-    return acb;
+    return bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
 }
 
 static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
@@ -376,9 +374,7 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
         return inject_error(bs, cb, opaque);
     }
 
-    BlockDriverAIOCB *acb =
-        bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
-    return acb;
+    return bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
 }
 
 static void blkdebug_close(BlockDriverState *bs)
