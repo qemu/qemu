@@ -59,6 +59,7 @@ typedef struct BlkdebugRule {
             int error;
             int immediately;
             int once;
+            int64_t sector;
         } inject;
         struct {
             int new_state;
@@ -82,6 +83,10 @@ static QemuOptsList inject_error_opts = {
         },
         {
             .name = "errno",
+            .type = QEMU_OPT_NUMBER,
+        },
+        {
+            .name = "sector",
             .type = QEMU_OPT_NUMBER,
         },
         {
@@ -213,6 +218,7 @@ static int add_rule(QemuOpts *opts, void *opaque)
         rule->options.inject.once  = qemu_opt_get_bool(opts, "once", 0);
         rule->options.inject.immediately =
             qemu_opt_get_bool(opts, "immediately", 0);
+        rule->options.inject.sector = qemu_opt_get_number(opts, "sector", -1);
         break;
 
     case ACTION_SET_STATE:
@@ -343,7 +349,15 @@ static BlockDriverAIOCB *blkdebug_aio_readv(BlockDriverState *bs,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugRule *rule = QSIMPLEQ_FIRST(&s->active_rules);
+    BlkdebugRule *rule = NULL;
+
+    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
+        if (rule->options.inject.sector == -1 ||
+            (rule->options.inject.sector >= sector_num &&
+             rule->options.inject.sector < sector_num + nb_sectors)) {
+            break;
+        }
+    }
 
     if (rule && rule->options.inject.error) {
         return inject_error(bs, cb, opaque, rule);
@@ -357,7 +371,15 @@ static BlockDriverAIOCB *blkdebug_aio_writev(BlockDriverState *bs,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVBlkdebugState *s = bs->opaque;
-    BlkdebugRule *rule = QSIMPLEQ_FIRST(&s->active_rules);
+    BlkdebugRule *rule = NULL;
+
+    QSIMPLEQ_FOREACH(rule, &s->active_rules, active_next) {
+        if (rule->options.inject.sector == -1 ||
+            (rule->options.inject.sector >= sector_num &&
+             rule->options.inject.sector < sector_num + nb_sectors)) {
+            break;
+        }
+    }
 
     if (rule && rule->options.inject.error) {
         return inject_error(bs, cb, opaque, rule);
