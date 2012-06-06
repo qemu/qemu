@@ -3186,12 +3186,7 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
              TARGET_FMT_lx "\n", RA, msr);
 }
 
-void cpu_state_reset(CPUPPCState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
-CPUPPCState *cpu_ppc_init (const char *cpu_model)
+PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
@@ -3213,5 +3208,5 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
 
     qemu_init_vcpu(env);
 
-    return env;
+    return cpu;
 }

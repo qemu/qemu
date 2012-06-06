@@ -8,4 +8,4 @@ struct cris_load_info
     target_phys_addr_t entry;
 };
 
-void cris_load_image(CPUCRISState *env, struct cris_load_info *li);
+void cris_load_image(CRISCPU *cpu, struct cris_load_info *li);

@@ -247,6 +247,7 @@ void axisdev88_init (ram_addr_t ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
+    CRISCPU *cpu;
     CPUCRISState *env;
     DeviceState *dev;
     SysBusDevice *s;
@@ -263,7 +264,8 @@ void axisdev88_init (ram_addr_t ram_size,
     if (cpu_model == NULL) {
         cpu_model = "crisv32";
     }
-    env = cpu_init(cpu_model);
+    cpu = cpu_cris_init(cpu_model);
+    env = &cpu->env;
 
     /* allocate RAM */
     memory_region_init_ram(phys_ram, "axisdev88.ram", ram_size);
@@ -344,7 +346,7 @@ void axisdev88_init (ram_addr_t ram_size,
 
     li.image_filename = kernel_filename;
     li.cmdline = kernel_cmdline;
-    cris_load_image(env, &li);
+    cris_load_image(cpu, &li);
 }
 
 static QEMUMachine axisdev88_machine = {

@@ -196,9 +196,10 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
 
 static void mpc8544ds_cpu_reset_sec(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 
     /* Secondary CPU starts in halted state for now. Needs to change when
        implementing non-kernel boot. */
@@ -208,10 +209,11 @@ static void mpc8544ds_cpu_reset_sec(void *opaque)
 
 static void mpc8544ds_cpu_reset(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     struct boot_info *bi = env->load_info;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
 
     /* Set initial guest state. */
     env->halted = 0;
@@ -254,12 +256,15 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
+        PowerPCCPU *cpu;
         qemu_irq *input;
-        env = cpu_ppc_init(cpu_model);
-        if (!env) {
+
+        cpu = cpu_ppc_init(cpu_model);
+        if (cpu == NULL) {
             fprintf(stderr, "Unable to initialize CPU!\n");
             exit(1);
         }
+        env = &cpu->env;
 
         if (!firstenv) {
             firstenv = env;
@@ -278,11 +283,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
             /* Primary CPU */
             struct boot_info *boot_info;
             boot_info = g_malloc0(sizeof(struct boot_info));
-            qemu_register_reset(mpc8544ds_cpu_reset, env);
+            qemu_register_reset(mpc8544ds_cpu_reset, cpu);
             env->load_info = boot_info;
         } else {
             /* Secondary CPUs */
-            qemu_register_reset(mpc8544ds_cpu_reset_sec, env);
+            qemu_register_reset(mpc8544ds_cpu_reset_sec, cpu);
         }
     }
 

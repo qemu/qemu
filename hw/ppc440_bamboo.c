@@ -145,9 +145,10 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env,
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = FDT_ADDR;
     env->nip = entry;
@@ -172,6 +173,7 @@ static void bamboo_init(ram_addr_t ram_size,
     qemu_irq *pic;
     qemu_irq *irqs;
     PCIBus *pcibus;
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
@@ -185,13 +187,14 @@ static void bamboo_init(ram_addr_t ram_size,
     if (cpu_model == NULL) {
         cpu_model = "440EP";
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_ppc_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);
     }
+    env = &cpu->env;
 
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, cpu);
     ppc_booke_timers_init(env, 400000000, 0);
     ppc_dcr_init(env, NULL, NULL);
 

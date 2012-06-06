@@ -106,14 +106,7 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
     return 1;
 }
 
-#endif /* CONFIG_USER_ONLY */
-
-void cpu_state_reset(CPUS390XState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
-#ifndef CONFIG_USER_ONLY
+#else /* !CONFIG_USER_ONLY */
 
 /* Ensure to exit the TB after this call! */
 static void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilc)

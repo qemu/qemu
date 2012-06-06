@@ -399,6 +399,7 @@ static void set_hflags_for_handler (CPUMIPSState *env)
 void do_interrupt (CPUMIPSState *env)
 {
 #if !defined(CONFIG_USER_ONLY)
+    MIPSCPU *cpu = mips_env_get_cpu(env);
     target_ulong offset;
     int cause = -1;
     const char *name;
@@ -452,7 +453,7 @@ void do_interrupt (CPUMIPSState *env)
         set_hflags_for_handler(env);
         break;
     case EXCP_RESET:
-        cpu_state_reset(env);
+        cpu_reset(CPU(cpu));
         break;
     case EXCP_SRESET:
         env->CP0_Status |= (1 << CP0St_SR);

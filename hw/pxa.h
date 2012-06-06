@@ -122,7 +122,7 @@ typedef struct PXA2xxI2SState PXA2xxI2SState;
 typedef struct PXA2xxFIrState PXA2xxFIrState;
 
 typedef struct {
-    CPUARMState *env;
+    ARMCPU *cpu;
     DeviceState *pic;
     qemu_irq reset;
     MemoryRegion sdram;

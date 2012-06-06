@@ -274,10 +274,11 @@ static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
 
 static void do_cpu_reset(void *opaque)
 {
-    CPUARMState *env = opaque;
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
     const struct arm_boot_info *info = env->boot_info;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     if (info) {
         if (!info->is_linux) {
             /* Jump to the entry point.  */
@@ -302,6 +303,7 @@ static void do_cpu_reset(void *opaque)
 
 void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
 {
+    ARMCPU *cpu;
     int kernel_size;
     int initrd_size;
     int n;
@@ -406,7 +408,8 @@ void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
     info->is_linux = is_linux;
 
     for (; env; env = env->next_cpu) {
+        cpu = arm_env_get_cpu(env);
         env->boot_info = info;
-        qemu_register_reset(do_cpu_reset, env);
+        qemu_register_reset(do_cpu_reset, cpu);
     }
 }

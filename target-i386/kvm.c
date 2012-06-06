@@ -1698,6 +1698,8 @@ void kvm_arch_post_run(CPUX86State *env, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
     if (env->interrupt_request & CPU_INTERRUPT_MCE) {
         /* We must not raise CPU_INTERRUPT_MCE if it's not supported. */
         assert(env->mcg_cap);
@@ -1732,11 +1734,11 @@ int kvm_arch_process_async_events(CPUX86State *env)
     }
     if (env->interrupt_request & CPU_INTERRUPT_INIT) {
         kvm_cpu_synchronize_state(env);
-        do_cpu_init(env);
+        do_cpu_init(cpu);
     }
     if (env->interrupt_request & CPU_INTERRUPT_SIPI) {
         kvm_cpu_synchronize_state(env);
-        do_cpu_sipi(env);
+        do_cpu_sipi(cpu);
     }
     if (env->interrupt_request & CPU_INTERRUPT_TPR) {
         env->interrupt_request &= ~CPU_INTERRUPT_TPR;

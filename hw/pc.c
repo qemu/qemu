@@ -926,27 +926,30 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 
 static void pc_cpu_reset(void *opaque)
 {
-    CPUX86State *env = opaque;
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     env->halted = !cpu_is_bsp(env);
 }
 
-static CPUX86State *pc_new_cpu(const char *cpu_model)
+static X86CPU *pc_new_cpu(const char *cpu_model)
 {
+    X86CPU *cpu;
     CPUX86State *env;
 
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_x86_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find x86 CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->apic_state = apic_init(env, env->cpuid_apic_id);
     }
-    qemu_register_reset(pc_cpu_reset, env);
-    pc_cpu_reset(env);
-    return env;
+    qemu_register_reset(pc_cpu_reset, cpu);
+    pc_cpu_reset(cpu);
+    return cpu;
 }
 
 void pc_cpus_init(const char *cpu_model)

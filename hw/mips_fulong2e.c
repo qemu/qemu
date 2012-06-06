@@ -198,9 +198,10 @@ static void write_bootloader (CPUMIPSState *env, uint8_t *base, int64_t kernel_a
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUMIPSState *env = opaque;
+    MIPSCPU *cpu = opaque;
+    CPUMIPSState *env = &cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     /* TODO: 2E reset stuff */
     if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
@@ -272,19 +273,21 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     i2c_bus *smbus;
     int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
+    MIPSCPU *cpu;
     CPUMIPSState *env;
 
     /* init CPUs */
     if (cpu_model == NULL) {
         cpu_model = "Loongson-2E";
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_mips_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
-    qemu_register_reset(main_cpu_reset, env);
+    qemu_register_reset(main_cpu_reset, cpu);
 
     /* fulong 2e has 256M ram. */
     ram_size = 256 * 1024 * 1024;

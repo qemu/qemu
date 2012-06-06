@@ -171,7 +171,7 @@ typedef struct CPUCRISState {
 
 #include "cpu-qom.h"
 
-CPUCRISState *cpu_cris_init(const char *cpu_model);
+CRISCPU *cpu_cris_init(const char *cpu_model);
 int cpu_cris_exec(CPUCRISState *s);
 void cpu_cris_close(CPUCRISState *s);
 void do_interrupt(CPUCRISState *env);
@@ -216,7 +216,15 @@ enum {
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define cpu_init cpu_cris_init
+static inline CPUCRISState *cpu_init(const char *cpu_model)
+{
+    CRISCPU *cpu = cpu_cris_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_cris_exec
 #define cpu_gen_code cpu_cris_gen_code
 #define cpu_signal_handler cpu_cris_signal_handler

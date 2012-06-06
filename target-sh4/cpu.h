@@ -191,7 +191,7 @@ typedef struct CPUSH4State {
 
 #include "cpu-qom.h"
 
-CPUSH4State *cpu_sh4_init(const char *cpu_model);
+SuperHCPU *cpu_sh4_init(const char *cpu_model);
 int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
@@ -232,7 +232,15 @@ void cpu_load_tlb(CPUSH4State * env);
 
 #include "softfloat.h"
 
-#define cpu_init cpu_sh4_init
+static inline CPUSH4State *cpu_init(const char *cpu_model)
+{
+    SuperHCPU *cpu = cpu_sh4_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_sh4_exec
 #define cpu_gen_code cpu_sh4_gen_code
 #define cpu_signal_handler cpu_sh4_signal_handler

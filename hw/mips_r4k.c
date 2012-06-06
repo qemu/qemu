@@ -65,7 +65,7 @@ static const MemoryRegionOps mips_qemu_ops = {
 };
 
 typedef struct ResetData {
-    CPUMIPSState *env;
+    MIPSCPU *cpu;
     uint64_t vector;
 } ResetData;
 
@@ -143,9 +143,9 @@ static int64_t load_kernel(void)
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
-    CPUMIPSState *env = s->env;
+    CPUMIPSState *env = &s->cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(s->cpu));
     env->active_tc.PC = s->vector;
 }
 
@@ -162,6 +162,7 @@ void mips_r4k_init (ram_addr_t ram_size,
     MemoryRegion *bios;
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
     int bios_size;
+    MIPSCPU *cpu;
     CPUMIPSState *env;
     ResetData *reset_info;
     int i;
@@ -179,13 +180,15 @@ void mips_r4k_init (ram_addr_t ram_size,
         cpu_model = "24Kf";
 #endif
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_mips_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
+
     reset_info = g_malloc0(sizeof(ResetData));
-    reset_info->env = env;
+    reset_info->cpu = cpu;
     reset_info->vector = env->active_tc.PC;
     qemu_register_reset(main_cpu_reset, reset_info);
 
