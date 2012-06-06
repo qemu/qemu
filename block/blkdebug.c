@@ -429,6 +429,11 @@ static void blkdebug_debug_event(BlockDriverState *bs, BlkDebugEvent event)
     }
 }
 
+static int64_t blkdebug_getlength(BlockDriverState *bs)
+{
+    return bdrv_getlength(bs->file);
+}
+
 static BlockDriver bdrv_blkdebug = {
     .format_name        = "blkdebug",
     .protocol_name      = "blkdebug",
@@ -437,6 +442,7 @@ static BlockDriver bdrv_blkdebug = {
 
     .bdrv_file_open     = blkdebug_open,
     .bdrv_close         = blkdebug_close,
+    .bdrv_getlength     = blkdebug_getlength,
 
     .bdrv_aio_readv     = blkdebug_aio_readv,
     .bdrv_aio_writev    = blkdebug_aio_writev,
