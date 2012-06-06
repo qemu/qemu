@@ -2811,7 +2811,11 @@ fi
 open_by_hande_at=no
 cat > $TMPC << EOF
 #include <fcntl.h>
+#if !defined(AT_EMPTY_PATH)
+# error missing definition
+#else
 int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
+#endif
 EOF
 if compile_prog "" "" ; then
     open_by_handle_at=yes
