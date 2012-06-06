@@ -147,9 +147,7 @@ static const char *event_names[BLKDBG_EVENT_MAX] = {
     [BLKDBG_L2_ALLOC_COW_READ]              = "l2_alloc.cow_read",
     [BLKDBG_L2_ALLOC_WRITE]                 = "l2_alloc.write",
 
-    [BLKDBG_READ]                           = "read",
     [BLKDBG_READ_AIO]                       = "read_aio",
-    [BLKDBG_READ_BACKING]                   = "read_backing",
     [BLKDBG_READ_BACKING_AIO]               = "read_backing_aio",
     [BLKDBG_READ_COMPRESSED]                = "read_compressed",
 
