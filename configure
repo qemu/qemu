@@ -183,6 +183,7 @@ datadir="\${prefix}/share"
 qemu_docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
+libexecdir="\${prefix}/libexec"
 includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
 confsuffix="/qemu"
@@ -633,6 +634,8 @@ for opt do
   ;;
   --libdir=*) libdir="$optarg"
   ;;
+  --libexecdir=*) libexecdir="$optarg"
+  ;;
   --includedir=*) includedir="$optarg"
   ;;
   --datadir=*) datadir="$optarg"
@@ -643,7 +646,7 @@ for opt do
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
-  --sbindir=*|--libexecdir=*|--sharedstatedir=*|--localstatedir=*|\
+  --sbindir=*|--sharedstatedir=*|--localstatedir=*|\
   --oldincludedir=*|--datarootdir=*|--infodir=*|--localedir=*|\
   --htmldir=*|--dvidir=*|--pdfdir=*|--psdir=*)
     # These switches are silently ignored, for compatibility with
@@ -3085,6 +3088,7 @@ echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $qemu_datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
+echo "libexec directory `eval echo $libexecdir`"
 echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
@@ -3188,14 +3192,14 @@ echo all: >> $config_host_mak
 echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
+echo "libexecdir=$libexecdir" >> $config_host_mak
 echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
-echo "libexecdir=\${prefix}/libexec" >> $config_host_mak
-echo "CONFIG_QEMU_HELPERDIR=\"$prefix/libexec\"" >> $config_host_mak
+echo "CONFIG_QEMU_HELPERDIR=\"$libexecdir\"" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
