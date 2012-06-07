@@ -750,6 +750,13 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
         goto cleanup;
     }
 
+    s->note_size = cpu_get_note_size(s->dump_info.d_class,
+                                     s->dump_info.d_machine, nr_cpus);
+    if (ret < 0) {
+        error_set(errp, QERR_UNSUPPORTED);
+        goto cleanup;
+    }
+
     /* get memory mapping */
     memory_mapping_list_init(&s->list);
     if (paging) {
@@ -784,8 +791,6 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
         }
     }
 
-    s->note_size = cpu_get_note_size(s->dump_info.d_class,
-                                     s->dump_info.d_machine, nr_cpus);
     if (s->dump_info.d_class == ELFCLASS64) {
         if (s->have_section) {
             s->memory_offset = sizeof(Elf64_Ehdr) +
