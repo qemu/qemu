@@ -147,6 +147,7 @@ obj-y += memory.o savevm.o cputlb.o
 obj-y += memory_mapping.o
 obj-$(CONFIG_HAVE_GET_MEMORY_MAPPING) += arch_memory_mapping.o
 obj-$(CONFIG_HAVE_CORE_DUMP) += arch_dump.o
+obj-y += dump.o
 LIBS+=-lz
 
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
@@ -195,8 +196,6 @@ obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 obj-y += $(addprefix ../, $(trace-obj-y))
 
 endif # CONFIG_SOFTMMU
-
-obj-y += dump.o
 
 ifndef CONFIG_LINUX_USER
 ifndef CONFIG_BSD_USER
