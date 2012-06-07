@@ -22,8 +22,6 @@
 #include "qemu-common.h"
 #include "qemu-tls.h"
 #include "cpu-common.h"
-#include "memory_mapping.h"
-#include "dump.h"
 
 /* some important defines:
  *
@@ -524,73 +522,5 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
-
-#if defined(CONFIG_HAVE_GET_MEMORY_MAPPING)
-int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env);
-bool cpu_paging_enabled(CPUArchState *env);
-#else
-static inline int cpu_get_memory_mapping(MemoryMappingList *list,
-                                         CPUArchState *env)
-{
-    return -1;
-}
-
-static inline bool cpu_paging_enabled(CPUArchState *env)
-{
-    return true;
-}
-#endif
-
-typedef int (*write_core_dump_function)(void *buf, size_t size, void *opaque);
-#if defined(CONFIG_HAVE_CORE_DUMP)
-int cpu_write_elf64_note(write_core_dump_function f, CPUArchState *env,
-                         int cpuid, void *opaque);
-int cpu_write_elf32_note(write_core_dump_function f, CPUArchState *env,
-                         int cpuid, void *opaque);
-int cpu_write_elf64_qemunote(write_core_dump_function f, CPUArchState *env,
-                             void *opaque);
-int cpu_write_elf32_qemunote(write_core_dump_function f, CPUArchState *env,
-                             void *opaque);
-int cpu_get_dump_info(ArchDumpInfo *info);
-ssize_t cpu_get_note_size(int class, int machine, int nr_cpus);
-#else
-static inline int cpu_write_elf64_note(write_core_dump_function f,
-                                       CPUArchState *env, int cpuid,
-                                       void *opaque)
-{
-    return -1;
-}
-
-static inline int cpu_write_elf32_note(write_core_dump_function f,
-                                       CPUArchState *env, int cpuid,
-                                       void *opaque)
-{
-    return -1;
-}
-
-static inline int cpu_write_elf64_qemunote(write_core_dump_function f,
-                                           CPUArchState *env,
-                                           void *opaque)
-{
-    return -1;
-}
-
-static inline int cpu_write_elf32_qemunote(write_core_dump_function f,
-                                           CPUArchState *env,
-                                           void *opaque)
-{
-    return -1;
-}
-
-static inline int cpu_get_dump_info(ArchDumpInfo *info)
-{
-    return -1;
-}
-
-static inline ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
-{
-    return -1;
-}
-#endif
 
 #endif /* CPU_ALL_H */

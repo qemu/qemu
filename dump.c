@@ -29,7 +29,6 @@
 #include "qmp-commands.h"
 #include "gdbstub.h"
 
-#if defined(CONFIG_HAVE_CORE_DUMP)
 static uint16_t cpu_convert_to_target16(uint16_t val, int endian)
 {
     if (endian == ELFDATA2LSB) {
@@ -876,13 +875,3 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
 
     g_free(s);
 }
-
-#else
-/* we need this function in hmp.c */
-void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
-                           int64_t begin, bool has_length, int64_t length,
-                           Error **errp)
-{
-    error_set(errp, QERR_UNSUPPORTED);
-}
-#endif
