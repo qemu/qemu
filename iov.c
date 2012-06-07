@@ -7,6 +7,7 @@
  * Author(s):
  *  Anthony Liguori <aliguori@us.ibm.com>
  *  Amit Shah <amit.shah@redhat.com>
+ *  Michael Tokarev <mjt@tls.msk.ru>
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
@@ -17,75 +18,61 @@
 
 #include "iov.h"
 
-size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt, size_t iov_off,
-                    const void *buf, size_t size)
+size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
+                    size_t offset, const void *buf, size_t bytes)
 {
-    size_t iovec_off, buf_off;
+    size_t done;
     unsigned int i;
-
-    iovec_off = 0;
-    buf_off = 0;
-    for (i = 0; i < iov_cnt && size; i++) {
-        if (iov_off < (iovec_off + iov[i].iov_len)) {
-            size_t len = MIN((iovec_off + iov[i].iov_len) - iov_off, size);
-
-            memcpy(iov[i].iov_base + (iov_off - iovec_off), buf + buf_off, len);
-
-            buf_off += len;
-            iov_off += len;
-            size -= len;
+    for (i = 0, done = 0; (offset || done < bytes) && i < iov_cnt; i++) {
+        if (offset < iov[i].iov_len) {
+            size_t len = MIN(iov[i].iov_len - offset, bytes - done);
+            memcpy(iov[i].iov_base + offset, buf + done, len);
+            done += len;
+            offset = 0;
+        } else {
+            offset -= iov[i].iov_len;
         }
-        iovec_off += iov[i].iov_len;
     }
-    return buf_off;
+    assert(offset == 0);
+    return done;
 }
 
-size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt, size_t iov_off,
-                  void *buf, size_t size)
+size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
+                  size_t offset, void *buf, size_t bytes)
 {
-    uint8_t *ptr;
-    size_t iovec_off, buf_off;
+    size_t done;
     unsigned int i;
-
-    ptr = buf;
-    iovec_off = 0;
-    buf_off = 0;
-    for (i = 0; i < iov_cnt && size; i++) {
-        if (iov_off < (iovec_off + iov[i].iov_len)) {
-            size_t len = MIN((iovec_off + iov[i].iov_len) - iov_off , size);
-
-            memcpy(ptr + buf_off, iov[i].iov_base + (iov_off - iovec_off), len);
-
-            buf_off += len;
-            iov_off += len;
-            size -= len;
+    for (i = 0, done = 0; (offset || done < bytes) && i < iov_cnt; i++) {
+        if (offset < iov[i].iov_len) {
+            size_t len = MIN(iov[i].iov_len - offset, bytes - done);
+            memcpy(buf + done, iov[i].iov_base + offset, len);
+            done += len;
+            offset = 0;
+        } else {
+            offset -= iov[i].iov_len;
         }
-        iovec_off += iov[i].iov_len;
     }
-    return buf_off;
+    assert(offset == 0);
+    return done;
 }
 
 size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
-                 size_t iov_off, int fillc, size_t size)
+                  size_t offset, int fillc, size_t bytes)
 {
-    size_t iovec_off, buf_off;
+    size_t done;
     unsigned int i;
-
-    iovec_off = 0;
-    buf_off = 0;
-    for (i = 0; i < iov_cnt && size; i++) {
-        if (iov_off < (iovec_off + iov[i].iov_len)) {
-            size_t len = MIN((iovec_off + iov[i].iov_len) - iov_off , size);
-
-            memset(iov[i].iov_base + (iov_off - iovec_off), fillc, len);
-
-            buf_off += len;
-            iov_off += len;
-            size -= len;
+    for (i = 0, done = 0; (offset || done < bytes) && i < iov_cnt; i++) {
+        if (offset < iov[i].iov_len) {
+            size_t len = MIN(iov[i].iov_len - offset, bytes - done);
+            memset(iov[i].iov_base + offset, fillc, len);
+            done += len;
+            offset = 0;
+        } else {
+            offset -= iov[i].iov_len;
         }
-        iovec_off += iov[i].iov_len;
     }
-    return buf_off;
+    assert(offset == 0);
+    return done;
 }
 
 size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
