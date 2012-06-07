@@ -16,7 +16,6 @@
 
 #include "qemu-queue.h"
 
-#ifndef CONFIG_USER_ONLY
 /* The physical and virtual address in the memory mapping are contiguous. */
 typedef struct MemoryMapping {
     target_phys_addr_t phys_addr;
@@ -30,6 +29,9 @@ typedef struct MemoryMappingList {
     MemoryMapping *last_mapping;
     QTAILQ_HEAD(, MemoryMapping) head;
 } MemoryMappingList;
+
+int cpu_get_memory_mapping(MemoryMappingList *list, CPUArchState *env);
+bool cpu_paging_enabled(CPUArchState *env);
 
 /*
  * add or merge the memory region [phys_addr, phys_addr + length) into the
@@ -51,14 +53,7 @@ void memory_mapping_list_init(MemoryMappingList *list);
  *   -1: failed
  *   -2: unsupported
  */
-#if defined(CONFIG_HAVE_GET_MEMORY_MAPPING)
 int qemu_get_guest_memory_mapping(MemoryMappingList *list);
-#else
-static inline int qemu_get_guest_memory_mapping(MemoryMappingList *list)
-{
-    return -2;
-}
-#endif
 
 /* get guest's memory mapping without do paging(virtual address is 0). */
 void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list);
@@ -66,9 +61,4 @@ void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list);
 void memory_mapping_filter(MemoryMappingList *list, int64_t begin,
                            int64_t length);
 
-#else
-
-/* We use MemoryMappingList* in cpu-all.h */
-typedef struct MemoryMappingList MemoryMappingList;
-#endif
 #endif

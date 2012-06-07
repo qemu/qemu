@@ -1,0 +1,13 @@
+# Boards
+obj-y = cris_pic_cpu.o
+obj-y += cris-boot.o
+obj-y += axis_dev88.o
+
+# IO blocks
+obj-y += etraxfs_dma.o
+obj-y += etraxfs_pic.o
+obj-y += etraxfs_eth.o
+obj-y += etraxfs_timer.o
+obj-y += etraxfs_ser.o
+
+obj-y := $(addprefix ../,$(obj-y))

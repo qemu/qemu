@@ -165,8 +165,6 @@ void memory_mapping_list_init(MemoryMappingList *list)
     QTAILQ_INIT(&list->head);
 }
 
-#if defined(CONFIG_HAVE_GET_MEMORY_MAPPING)
-
 static CPUArchState *find_paging_enabled_cpu(CPUArchState *start_cpu)
 {
     CPUArchState *env;
@@ -210,7 +208,6 @@ int qemu_get_guest_memory_mapping(MemoryMappingList *list)
 
     return 0;
 }
-#endif
 
 void qemu_get_guest_simple_memory_mapping(MemoryMappingList *list)
 {

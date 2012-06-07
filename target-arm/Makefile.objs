@@ -1,0 +1,6 @@
+obj-y += arm-semi.o
+obj-$(CONFIG_SOFTMMU) += machine.o
+obj-y += translate.o op_helper.o helper.o cpu.o
+obj-y += neon_helper.o iwmmxt_helper.o
+
+$(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

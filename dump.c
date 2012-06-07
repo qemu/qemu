@@ -29,7 +29,6 @@
 #include "qmp-commands.h"
 #include "gdbstub.h"
 
-#if defined(CONFIG_HAVE_CORE_DUMP)
 static uint16_t cpu_convert_to_target16(uint16_t val, int endian)
 {
     if (endian == ELFDATA2LSB) {
@@ -750,6 +749,13 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
         goto cleanup;
     }
 
+    s->note_size = cpu_get_note_size(s->dump_info.d_class,
+                                     s->dump_info.d_machine, nr_cpus);
+    if (ret < 0) {
+        error_set(errp, QERR_UNSUPPORTED);
+        goto cleanup;
+    }
+
     /* get memory mapping */
     memory_mapping_list_init(&s->list);
     if (paging) {
@@ -784,8 +790,6 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
         }
     }
 
-    s->note_size = cpu_get_note_size(s->dump_info.d_class,
-                                     s->dump_info.d_machine, nr_cpus);
     if (s->dump_info.d_class == ELFCLASS64) {
         if (s->have_section) {
             s->memory_offset = sizeof(Elf64_Ehdr) +
@@ -871,13 +875,3 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
 
     g_free(s);
 }
-
-#else
-/* we need this function in hmp.c */
-void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
-                           int64_t begin, bool has_length, int64_t length,
-                           Error **errp)
-{
-    error_set(errp, QERR_UNSUPPORTED);
-}
-#endif

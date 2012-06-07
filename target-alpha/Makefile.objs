@@ -1,0 +1,3 @@
+obj-$(CONFIG_SOFTMMU) += machine.o
+obj-y += translate.o helper.o cpu.o
+obj-y += int_helper.o fpu_helper.o sys_helper.o mem_helper.o
