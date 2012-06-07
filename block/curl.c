@@ -140,8 +140,8 @@ static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
             continue;
 
         if ((s->buf_off >= acb->end)) {
-            qemu_iovec_from_buffer(acb->qiov, s->orig_buf + acb->start,
-                                   acb->end - acb->start);
+            qemu_iovec_from_buf(acb->qiov, 0, s->orig_buf + acb->start,
+                                acb->end - acb->start);
             acb->common.cb(acb->common.opaque, 0);
             qemu_aio_release(acb);
             s->acb[i] = NULL;
@@ -176,7 +176,7 @@ static int curl_find_buf(BDRVCURLState *s, size_t start, size_t len,
         {
             char *buf = state->orig_buf + (start - state->buf_start);
 
-            qemu_iovec_from_buffer(acb->qiov, buf, len);
+            qemu_iovec_from_buf(acb->qiov, 0, buf, len);
             acb->common.cb(acb->common.opaque, 0);
 
             return FIND_RET_OK;

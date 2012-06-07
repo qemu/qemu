@@ -590,7 +590,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 goto fail;
             }
 
-            qemu_iovec_from_buffer(&hd_qiov,
+            qemu_iovec_from_buf(&hd_qiov, 0,
                 s->cluster_cache + index_in_cluster * 512,
                 512 * cur_nr_sectors);
             break;
@@ -630,11 +630,8 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             if (s->crypt_method) {
                 qcow2_encrypt_sectors(s, sector_num,  cluster_data,
                     cluster_data, cur_nr_sectors, 0, &s->aes_decrypt_key);
-                qemu_iovec_reset(&hd_qiov);
-                qemu_iovec_copy(&hd_qiov, qiov, bytes_done,
-                    cur_nr_sectors * 512);
-                qemu_iovec_from_buffer(&hd_qiov, cluster_data,
-                    512 * cur_nr_sectors);
+                qemu_iovec_from_buf(qiov, bytes_done,
+                    cluster_data, 512 * cur_nr_sectors);
             }
             break;
 

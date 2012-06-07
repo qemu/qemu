@@ -1821,8 +1821,8 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     }
 
     skip_bytes = (sector_num - cluster_sector_num) * BDRV_SECTOR_SIZE;
-    qemu_iovec_from_buffer(qiov, bounce_buffer + skip_bytes,
-                           nb_sectors * BDRV_SECTOR_SIZE);
+    qemu_iovec_from_buf(qiov, 0, bounce_buffer + skip_bytes,
+                        nb_sectors * BDRV_SECTOR_SIZE);
 
 err:
     qemu_vfree(bounce_buffer);
@@ -3382,7 +3382,7 @@ static void bdrv_aio_bh_cb(void *opaque)
     BlockDriverAIOCBSync *acb = opaque;
 
     if (!acb->is_write)
-        qemu_iovec_from_buffer(acb->qiov, acb->bounce, acb->qiov->size);
+        qemu_iovec_from_buf(acb->qiov, 0, acb->bounce, acb->qiov->size);
     qemu_vfree(acb->bounce);
     acb->common.cb(acb->common.opaque, acb->ret);
     qemu_bh_delete(acb->bh);

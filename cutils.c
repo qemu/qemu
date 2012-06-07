@@ -245,20 +245,10 @@ void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf)
     }
 }
 
-void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count)
+size_t qemu_iovec_from_buf(QEMUIOVector *qiov, size_t offset,
+                           const void *buf, size_t bytes)
 {
-    const uint8_t *p = (const uint8_t *)buf;
-    size_t copy;
-    int i;
-
-    for (i = 0; i < qiov->niov && count; ++i) {
-        copy = count;
-        if (copy > qiov->iov[i].iov_len)
-            copy = qiov->iov[i].iov_len;
-        memcpy(qiov->iov[i].iov_base, p, copy);
-        p     += copy;
-        count -= copy;
-    }
+    return iov_from_buf(qiov->iov, qiov->niov, offset, buf, bytes);
 }
 
 size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,

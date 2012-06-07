@@ -540,7 +540,7 @@ done:
     qemu_co_mutex_unlock(&s->lock);
 
     if (qiov->niov > 1) {
-        qemu_iovec_from_buffer(qiov, orig_buf, qiov->size);
+        qemu_iovec_from_buf(qiov, 0, orig_buf, qiov->size);
         qemu_vfree(orig_buf);
     }
 
