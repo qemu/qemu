@@ -344,7 +344,8 @@ void qemu_iovec_concat(QEMUIOVector *dst,
                        QEMUIOVector *src, size_t soffset, size_t sbytes);
 void qemu_iovec_destroy(QEMUIOVector *qiov);
 void qemu_iovec_reset(QEMUIOVector *qiov);
-void qemu_iovec_to_buffer(QEMUIOVector *qiov, void *buf);
+size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,
+                         void *buf, size_t bytes);
 size_t qemu_iovec_from_buf(QEMUIOVector *qiov, size_t offset,
                            const void *buf, size_t bytes);
 size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,

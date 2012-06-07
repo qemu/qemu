@@ -731,7 +731,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
             assert(hd_qiov.size <=
                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
-            qemu_iovec_to_buffer(&hd_qiov, cluster_data);
+            qemu_iovec_to_buf(&hd_qiov, 0, cluster_data, hd_qiov.size);
 
             qcow2_encrypt_sectors(s, sector_num, cluster_data,
                 cluster_data, cur_nr_sectors, 1, &s->aes_encrypt_key);

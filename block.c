@@ -3408,7 +3408,7 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
     acb->bh = qemu_bh_new(bdrv_aio_bh_cb, acb);
 
     if (is_write) {
-        qemu_iovec_to_buffer(acb->qiov, acb->bounce);
+        qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
         acb->ret = bs->drv->bdrv_write(bs, sector_num, acb->bounce, nb_sectors);
     } else {
         acb->ret = bs->drv->bdrv_read(bs, sector_num, acb->bounce, nb_sectors);

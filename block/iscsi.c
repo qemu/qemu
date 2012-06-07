@@ -240,8 +240,7 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     /* this will allow us to get rid of 'buf' completely */
     size = nb_sectors * BDRV_SECTOR_SIZE;
     acb->buf = g_malloc(size);
-    qemu_iovec_to_buffer(acb->qiov, acb->buf);
-
+    qemu_iovec_to_buf(acb->qiov, 0, acb->buf, size);
 
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {

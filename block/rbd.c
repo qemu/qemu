@@ -674,7 +674,7 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
     acb->bh = NULL;
 
     if (cmd == RBD_AIO_WRITE) {
-        qemu_iovec_to_buffer(acb->qiov, acb->bounce);
+        qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
     }
 
     buf = acb->bounce;

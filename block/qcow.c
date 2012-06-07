@@ -569,7 +569,7 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     if (qiov->niov > 1) {
         buf = orig_buf = qemu_blockalign(bs, qiov->size);
-        qemu_iovec_to_buffer(qiov, buf);
+        qemu_iovec_to_buf(qiov, 0, buf, qiov->size);
     } else {
         orig_buf = NULL;
         buf = (uint8_t *)qiov->iov->iov_base;
