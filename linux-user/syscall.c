@@ -218,7 +218,6 @@ _syscall3(int, sys_getdents, uint, fd, struct linux_dirent *, dirp, uint, count)
 #if defined(TARGET_NR_getdents64) && defined(__NR_getdents64)
 _syscall3(int, sys_getdents64, uint, fd, struct linux_dirent64 *, dirp, uint, count);
 #endif
-_syscall2(int, sys_getpriority, int, which, int, who);
 #if defined(TARGET_NR__llseek) && defined(__NR_llseek)
 _syscall5(int, _llseek,  uint,  fd, ulong, hi, ulong, lo,
           loff_t *, res, uint, wh);
@@ -6445,10 +6444,21 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_getpriority:
-        /* libc does special remapping of the return value of
-         * sys_getpriority() so it's just easiest to call
-         * sys_getpriority() directly rather than through libc. */
-        ret = get_errno(sys_getpriority(arg1, arg2));
+        /* Note that negative values are valid for getpriority, so we must
+           differentiate based on errno settings.  */
+        errno = 0;
+        ret = getpriority(arg1, arg2);
+        if (ret == -1 && errno != 0) {
+            ret = -host_to_target_errno(errno);
+            break;
+        }
+#ifdef TARGET_ALPHA
+        /* Return value is the unbiased priority.  Signal no error.  */
+        ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0;
+#else
+        /* Return value is a biased priority to avoid negative numbers.  */
+        ret = 20 - ret;
+#endif
         break;
     case TARGET_NR_setpriority:
         ret = get_errno(setpriority(arg1, arg2, arg3));
