@@ -12787,18 +12787,13 @@ void cpu_state_reset(CPUMIPSState *env)
     env->insn_flags = env->cpu_model->insn_flags;
 
 #if defined(CONFIG_USER_ONLY)
-    env->hflags = MIPS_HFLAG_UM;
+    env->CP0_Status = (MIPS_HFLAG_UM << CP0St_KSU);
     /* Enable access to the CPUNum, SYNCI_Step, CC, and CCRes RDHWR
        hardware registers.  */
     env->CP0_HWREna |= 0x0000000F;
     if (env->CP0_Config1 & (1 << CP0C1_FP)) {
-        env->hflags |= MIPS_HFLAG_FPU;
+        env->CP0_Status |= (1 << CP0St_CU1);
     }
-#ifdef TARGET_MIPS64
-    if (env->active_fpu.fcr0 & (1 << FCR0_F64)) {
-        env->hflags |= MIPS_HFLAG_F64;
-    }
-#endif
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
         /* If the exception was raised from a delay slot,
@@ -12828,7 +12823,6 @@ void cpu_state_reset(CPUMIPSState *env)
     }
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
-    env->hflags = MIPS_HFLAG_CP0;
 
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
         int i;
@@ -12856,11 +12850,7 @@ void cpu_state_reset(CPUMIPSState *env)
         }
     }
 #endif
-#if defined(TARGET_MIPS64)
-    if (env->cpu_model->insn_flags & ISA_MIPS3) {
-        env->hflags |= MIPS_HFLAG_64;
-    }
-#endif
+    compute_hflags(env);
     env->exception_index = EXCP_NONE;
 }
 
