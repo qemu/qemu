@@ -347,6 +347,20 @@ usb_hub_clear_port_feature(int addr, int nr, const char *f) "dev %d, port %d, fe
 usb_hub_attach(int addr, int nr) "dev %d, port %d"
 usb_hub_detach(int addr, int nr) "dev %d, port %d"
 
+# hw/usb/dev-uas.c
+usb_uas_reset(int addr) "dev %d"
+usb_uas_command(int addr, uint16_t tag, int lun, uint32_t lun64_1, uint32_t lun64_2) "dev %d, tag 0x%x, lun %d, lun64 %08x-%08x"
+usb_uas_response(int addr, uint16_t tag, uint8_t code) "dev %d, tag 0x%x, code 0x%x"
+usb_uas_sense(int addr, uint16_t tag, uint8_t status) "dev %d, tag 0x%x, status 0x%x"
+usb_uas_read_ready(int addr, uint16_t tag) "dev %d, tag 0x%x"
+usb_uas_write_ready(int addr, uint16_t tag) "dev %d, tag 0x%x"
+usb_uas_xfer_data(int addr, uint16_t tag, uint32_t copy, uint32_t uoff, uint32_t usize, uint32_t soff, uint32_t ssize) "dev %d, tag 0x%x, copy %d, usb-pkt %d/%d, scsi-buf %d/%d"
+usb_uas_scsi_data(int addr, uint16_t tag, uint32_t bytes) "dev %d, tag 0x%x, bytes %d"
+usb_uas_scsi_complete(int addr, uint16_t tag, uint32_t status, uint32_t resid) "dev %d, tag 0x%x, status 0x%x, residue %d"
+usb_uas_tmf_abort_task(int addr, uint16_t tag, uint16_t task_tag) "dev %d, tag 0x%x, task-tag 0x%x"
+usb_uas_tmf_logical_unit_reset(int addr, uint16_t tag, int lun) "dev %d, tag 0x%x, lun %d"
+usb_uas_tmf_unsupported(int addr, uint16_t tag, uint32_t function) "dev %d, tag 0x%x, function 0x%x"
+
 # hw/usb/host-linux.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
 usb_host_open_success(int bus, int addr) "dev %d:%d"
