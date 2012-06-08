@@ -37,10 +37,23 @@ static const TypeInfo usb_bus_info = {
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 
+static int usb_device_post_load(void *opaque, int version_id)
+{
+    USBDevice *dev = opaque;
+
+    if (dev->state == USB_STATE_NOTATTACHED) {
+        dev->attached = 0;
+    } else {
+        dev->attached = 1;
+    }
+    return 0;
+}
+
 const VMStateDescription vmstate_usb_device = {
     .name = "USBDevice",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = usb_device_post_load,
     .fields = (VMStateField []) {
         VMSTATE_UINT8(addr, USBDevice),
         VMSTATE_INT32(state, USBDevice),
