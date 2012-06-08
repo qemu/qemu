@@ -1737,25 +1737,27 @@ static void usb_host_auto_check(void *unused)
     struct USBHostDevice *s;
     int unconnected = 0;
 
-    usb_host_scan(NULL, usb_host_auto_scan);
+    if (runstate_is_running()) {
+        usb_host_scan(NULL, usb_host_auto_scan);
 
-    QTAILQ_FOREACH(s, &hostdevs, next) {
-        if (s->fd == -1) {
-            unconnected++;
+        QTAILQ_FOREACH(s, &hostdevs, next) {
+            if (s->fd == -1) {
+                unconnected++;
+            }
+            if (s->seen == 0) {
+                s->errcount = 0;
+            }
+            s->seen = 0;
         }
-        if (s->seen == 0) {
-            s->errcount = 0;
-        }
-        s->seen = 0;
-    }
 
-    if (unconnected == 0) {
-        /* nothing to watch */
-        if (usb_auto_timer) {
-            qemu_del_timer(usb_auto_timer);
-            trace_usb_host_auto_scan_disabled();
+        if (unconnected == 0) {
+            /* nothing to watch */
+            if (usb_auto_timer) {
+                qemu_del_timer(usb_auto_timer);
+                trace_usb_host_auto_scan_disabled();
+            }
+            return;
         }
-        return;
     }
 
     if (!usb_auto_timer) {
