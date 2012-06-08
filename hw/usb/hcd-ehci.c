@@ -569,6 +569,7 @@ static inline void ehci_set_interrupt(EHCIState *s, int intr)
         level = 1;
     }
 
+    trace_usb_ehci_interrupt(level, s->usbsts, s->usbintr);
     qemu_set_irq(s->irq, level);
 }
 
@@ -822,8 +823,9 @@ static void ehci_attach(USBPort *port)
 {
     EHCIState *s = port->opaque;
     uint32_t *portsc = &s->portsc[port->index];
+    const char *owner = (*portsc & PORTSC_POWNER) ? "comp" : "ehci";
 
-    trace_usb_ehci_port_attach(port->index, port->dev->product_desc);
+    trace_usb_ehci_port_attach(port->index, owner, port->dev->product_desc);
 
     if (*portsc & PORTSC_POWNER) {
         USBPort *companion = s->companion_ports[port->index];
@@ -842,8 +844,9 @@ static void ehci_detach(USBPort *port)
 {
     EHCIState *s = port->opaque;
     uint32_t *portsc = &s->portsc[port->index];
+    const char *owner = (*portsc & PORTSC_POWNER) ? "comp" : "ehci";
 
-    trace_usb_ehci_port_detach(port->index);
+    trace_usb_ehci_port_detach(port->index, owner);
 
     if (*portsc & PORTSC_POWNER) {
         USBPort *companion = s->companion_ports[port->index];
