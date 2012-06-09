@@ -1,5 +1,5 @@
 /*
- * QEMU Posix block I/O backend AIO support
+ * Declarations for AIO in the raw protocol
  *
  * Copyright IBM, Corp. 2008
  *
@@ -12,8 +12,8 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#ifndef QEMU_RAW_POSIX_AIO_H
-#define QEMU_RAW_POSIX_AIO_H
+#ifndef QEMU_RAW_AIO_H
+#define QEMU_RAW_AIO_H
 
 /* AIO request types */
 #define QEMU_AIO_READ         0x0001
@@ -28,9 +28,11 @@
 
 
 /* linux-aio.c - Linux native implementation */
+#ifdef CONFIG_LINUX_AIO
 void *laio_init(void);
 BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque, int type);
+#endif
 
-#endif /* QEMU_RAW_POSIX_AIO_H */
+#endif /* QEMU_RAW_AIO_H */

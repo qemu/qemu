@@ -30,7 +30,7 @@
 #include "trace.h"
 #include "thread-pool.h"
 #include "iov.h"
-#include "block/raw-posix-aio.h"
+#include "raw-aio.h"
 
 #if defined(__APPLE__) && (__MACH__)
 #include <paths.h>

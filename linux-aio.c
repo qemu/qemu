@@ -10,7 +10,7 @@
 #include "qemu-common.h"
 #include "qemu-aio.h"
 #include "qemu-queue.h"
-#include "block/raw-posix-aio.h"
+#include "block/raw-aio.h"
 #include "event_notifier.h"
 
 #include <libaio.h>
