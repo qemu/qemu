@@ -59,6 +59,11 @@ hw-obj-$(CONFIG_PIIX4) += piix4.o
 hw-obj-$(CONFIG_G364FB) += g364fb.o
 hw-obj-$(CONFIG_JAZZ_LED) += jazz_led.o
 
+# Xilinx devices
+hw-obj-$(CONFIG_XILINX) += xilinx_intc.o
+hw-obj-$(CONFIG_XILINX) += xilinx_timer.o
+hw-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
+
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 
