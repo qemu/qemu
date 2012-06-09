@@ -388,6 +388,7 @@ static bool gen_check_loop_end(DisasContext *dc, int slot)
             dc->next_pc == dc->lend) {
         int label = gen_new_label();
 
+        gen_advance_ccount(dc);
         tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_SR[LCOUNT], 0, label);
         tcg_gen_subi_i32(cpu_SR[LCOUNT], cpu_SR[LCOUNT], 1);
         gen_jumpi(dc, dc->lbeg, slot);
@@ -410,6 +411,7 @@ static void gen_brcond(DisasContext *dc, TCGCond cond,
 {
     int label = gen_new_label();
 
+    gen_advance_ccount(dc);
     tcg_gen_brcond_i32(cond, t0, t1, label);
     gen_jumpi_check_loop_end(dc, 0);
     gen_set_label(label);

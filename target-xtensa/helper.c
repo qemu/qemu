@@ -130,11 +130,11 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUXtensaState *env, target_ulong add
     uint32_t page_size;
     unsigned access;
 
-    if (xtensa_get_physical_addr(env, addr, 0, 0,
+    if (xtensa_get_physical_addr(env, false, addr, 0, 0,
                 &paddr, &page_size, &access) == 0) {
         return paddr;
     }
-    if (xtensa_get_physical_addr(env, addr, 2, 0,
+    if (xtensa_get_physical_addr(env, false, addr, 2, 0,
                 &paddr, &page_size, &access) == 0) {
         return paddr;
     }
@@ -443,30 +443,48 @@ static bool is_access_granted(unsigned access, int is_write)
     }
 }
 
-static int autorefill_mmu(CPUXtensaState *env, uint32_t vaddr, bool dtlb,
-        uint32_t *wi, uint32_t *ei, uint8_t *ring);
+static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte);
 
-static int get_physical_addr_mmu(CPUXtensaState *env,
+static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
         uint32_t vaddr, int is_write, int mmu_idx,
-        uint32_t *paddr, uint32_t *page_size, unsigned *access)
+        uint32_t *paddr, uint32_t *page_size, unsigned *access,
+        bool may_lookup_pt)
 {
     bool dtlb = is_write != 2;
     uint32_t wi;
     uint32_t ei;
     uint8_t ring;
+    uint32_t vpn;
+    uint32_t pte;
+    const xtensa_tlb_entry *entry = NULL;
+    xtensa_tlb_entry tmp_entry;
     int ret = xtensa_tlb_lookup(env, vaddr, dtlb, &wi, &ei, &ring);
 
     if ((ret == INST_TLB_MISS_CAUSE || ret == LOAD_STORE_TLB_MISS_CAUSE) &&
-            (mmu_idx != 0 || ((vaddr ^ env->sregs[PTEVADDR]) & 0xffc00000)) &&
-            autorefill_mmu(env, vaddr, dtlb, &wi, &ei, &ring) == 0) {
+            may_lookup_pt && get_pte(env, vaddr, &pte) == 0) {
+        ring = (pte >> 4) & 0x3;
+        wi = 0;
+        split_tlb_entry_spec_way(env, vaddr, dtlb, &vpn, wi, &ei);
+
+        if (update_tlb) {
+            wi = ++env->autorefill_idx & 0x3;
+            xtensa_tlb_set_entry(env, dtlb, wi, ei, vpn, pte);
+            env->sregs[EXCVADDR] = vaddr;
+            qemu_log("%s: autorefill(%08x): %08x -> %08x\n",
+                    __func__, vaddr, vpn, pte);
+        } else {
+            xtensa_tlb_set_entry_mmu(env, &tmp_entry, dtlb, wi, ei, vpn, pte);
+            entry = &tmp_entry;
+        }
         ret = 0;
     }
     if (ret != 0) {
         return ret;
     }
 
-    const xtensa_tlb_entry *entry =
-        xtensa_tlb_get_entry(env, dtlb, wi, ei);
+    if (entry == NULL) {
+        entry = xtensa_tlb_get_entry(env, dtlb, wi, ei);
+    }
 
     if (ring < mmu_idx) {
         return dtlb ?
@@ -489,30 +507,21 @@ static int get_physical_addr_mmu(CPUXtensaState *env,
     return 0;
 }
 
-static int autorefill_mmu(CPUXtensaState *env, uint32_t vaddr, bool dtlb,
-        uint32_t *wi, uint32_t *ei, uint8_t *ring)
+static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
 {
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
     uint32_t pt_vaddr =
         (env->sregs[PTEVADDR] | (vaddr >> 10)) & 0xfffffffc;
-    int ret = get_physical_addr_mmu(env, pt_vaddr, 0, 0,
-            &paddr, &page_size, &access);
+    int ret = get_physical_addr_mmu(env, false, pt_vaddr, 0, 0,
+            &paddr, &page_size, &access, false);
 
     qemu_log("%s: trying autorefill(%08x) -> %08x\n", __func__,
             vaddr, ret ? ~0 : paddr);
 
     if (ret == 0) {
-        uint32_t vpn;
-        uint32_t pte = ldl_phys(paddr);
-
-        *ring = (pte >> 4) & 0x3;
-        *wi = (++env->autorefill_idx) & 0x3;
-        split_tlb_entry_spec_way(env, vaddr, dtlb, &vpn, *wi, ei);
-        xtensa_tlb_set_entry(env, dtlb, *wi, *ei, vpn, pte);
-        qemu_log("%s: autorefill(%08x): %08x -> %08x\n",
-                __func__, vaddr, vpn, pte);
+        *pte = ldl_phys(paddr);
     }
     return ret;
 }
@@ -548,13 +557,13 @@ static int get_physical_addr_region(CPUXtensaState *env,
  *
  * \return 0 if ok, exception cause code otherwise
  */
-int xtensa_get_physical_addr(CPUXtensaState *env,
+int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
-        return get_physical_addr_mmu(env, vaddr, is_write, mmu_idx,
-                paddr, page_size, access);
+        return get_physical_addr_mmu(env, update_tlb,
+                vaddr, is_write, mmu_idx, paddr, page_size, access, true);
     } else if (xtensa_option_bits_enabled(env->config,
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
                 XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION))) {

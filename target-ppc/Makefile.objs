@@ -1,6 +1,6 @@
 obj-y += translate.o op_helper.o helper.o
 obj-$(CONFIG_SOFTMMU) += machine.o
-obj-$(CONFIG_KVM) += kvm.o
+obj-$(CONFIG_KVM) += kvm.o kvm_ppc.o
 obj-y += op_helper.o helper.o
 
 $(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

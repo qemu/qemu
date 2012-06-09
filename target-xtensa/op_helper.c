@@ -79,7 +79,7 @@ void tlb_fill(CPUXtensaState *env1, target_ulong vaddr, int is_write, int mmu_id
         uint32_t paddr;
         uint32_t page_size;
         unsigned access;
-        int ret = xtensa_get_physical_addr(env, vaddr, is_write, mmu_idx,
+        int ret = xtensa_get_physical_addr(env, true, vaddr, is_write, mmu_idx,
                 &paddr, &page_size, &access);
 
         qemu_log("%s(%08x, %d, %d) -> %08x, ret = %d\n", __func__,
@@ -103,7 +103,7 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
     uint32_t paddr;
     uint32_t page_size;
     unsigned access;
-    int ret = xtensa_get_physical_addr(env, vaddr, 2, 0,
+    int ret = xtensa_get_physical_addr(env, false, vaddr, 2, 0,
             &paddr, &page_size, &access);
     if (ret == 0) {
         tb_invalidate_phys_addr(paddr);
@@ -655,6 +655,16 @@ uint32_t HELPER(ptlb)(uint32_t v, uint32_t dtlb)
     }
 }
 
+void xtensa_tlb_set_entry_mmu(const CPUXtensaState *env,
+        xtensa_tlb_entry *entry, bool dtlb,
+        unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
+{
+    entry->vaddr = vpn;
+    entry->paddr = pte & xtensa_tlb_get_addr_mask(env, dtlb, wi);
+    entry->asid = (env->sregs[RASID] >> ((pte >> 1) & 0x18)) & 0xff;
+    entry->attr = pte & 0xf;
+}
+
 void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
         unsigned wi, unsigned ei, uint32_t vpn, uint32_t pte)
 {
@@ -665,10 +675,8 @@ void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
             if (entry->asid) {
                 tlb_flush_page(env, entry->vaddr);
             }
-            entry->vaddr = vpn;
-            entry->paddr = pte & xtensa_tlb_get_addr_mask(env, dtlb, wi);
-            entry->asid = (env->sregs[RASID] >> ((pte >> 1) & 0x18)) & 0xff;
-            entry->attr = pte & 0xf;
+            xtensa_tlb_set_entry_mmu(env, entry, dtlb, wi, ei, vpn, pte);
+            tlb_flush_page(env, entry->vaddr);
         } else {
             qemu_log("%s %d, %d, %d trying to set immutable entry\n",
                     __func__, dtlb, wi, ei);

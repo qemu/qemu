@@ -56,19 +56,19 @@
 #include <sys/select.h>
 #ifdef CONFIG_BSD
 #include <sys/stat.h>
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-#include <libutil.h>
-#include <dev/ppbus/ppi.h>
-#include <dev/ppbus/ppbconf.h>
 #if defined(__GLIBC__)
 #include <pty.h>
-#endif
-#elif defined(__DragonFly__)
+#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 #include <libutil.h>
-#include <dev/misc/ppi/ppi.h>
-#include <bus/ppbus/ppbconf.h>
 #else
 #include <util.h>
+#endif
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#include <dev/ppbus/ppi.h>
+#include <dev/ppbus/ppbconf.h>
+#elif defined(__DragonFly__)
+#include <dev/misc/ppi/ppi.h>
+#include <bus/ppbus/ppbconf.h>
 #endif
 #else
 #ifdef __linux__

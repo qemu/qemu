@@ -12,22 +12,9 @@
  */
 
 #include "qemu-common.h"
-#include <unistd.h>
-#include "elf.h"
-#include <sys/procfs.h>
-#include <glib.h>
-#include "cpu.h"
-#include "cpu-all.h"
-#include "targphys.h"
-#include "monitor.h"
-#include "kvm.h"
 #include "dump.h"
-#include "sysemu.h"
-#include "bswap.h"
-#include "memory_mapping.h"
-#include "error.h"
+#include "qerror.h"
 #include "qmp-commands.h"
-#include "gdbstub.h"
 
 /* we need this function in hmp.c */
 void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,

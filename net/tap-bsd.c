@@ -33,12 +33,6 @@
 #include <net/if_tap.h>
 #endif
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
-#include <libutil.h>
-#else
-#include <util.h>
-#endif
-
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
     int fd;

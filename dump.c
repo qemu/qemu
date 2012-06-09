@@ -12,10 +12,7 @@
  */
 
 #include "qemu-common.h"
-#include <unistd.h>
 #include "elf.h"
-#include <sys/procfs.h>
-#include <glib.h>
 #include "cpu.h"
 #include "cpu-all.h"
 #include "targphys.h"
@@ -23,7 +20,6 @@
 #include "kvm.h"
 #include "dump.h"
 #include "sysemu.h"
-#include "bswap.h"
 #include "memory_mapping.h"
 #include "error.h"
 #include "qmp-commands.h"
