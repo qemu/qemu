@@ -16,6 +16,7 @@
 
 #include "qemu-common.h"
 #include "qemu-char.h"
+#include "event_notifier.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
@@ -39,7 +40,7 @@ void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
 void qemu_aio_release(void *p);
 
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
-typedef int (AioFlushHandler)(void *opaque);
+typedef int (AioFlushEventNotifierHandler)(EventNotifier *e);
 
 /* Flush any pending AIO operation. This function will block until all
  * outstanding AIO operations have been completed or cancelled. */
@@ -53,6 +54,10 @@ void qemu_aio_flush(void);
  * Return whether there is still any pending AIO operation.  */
 bool qemu_aio_wait(void);
 
+#ifdef CONFIG_POSIX
+/* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
+typedef int (AioFlushHandler)(void *opaque);
+
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
  * be invoked when using either qemu_aio_wait() or qemu_aio_flush().
@@ -65,5 +70,17 @@ void qemu_aio_set_fd_handler(int fd,
                              IOHandler *io_write,
                              AioFlushHandler *io_flush,
                              void *opaque);
+#endif
+
+/* Register an event notifier and associated callbacks.  Behaves very similarly
+ * to event_notifier_set_handler.  Unlike event_notifier_set_handler, these callbacks
+ * will be invoked when using either qemu_aio_wait() or qemu_aio_flush().
+ *
+ * Code that invokes AIO completion functions should rely on this function
+ * instead of event_notifier_set_handler.
+ */
+void qemu_aio_set_event_notifier(EventNotifier *notifier,
+                                 EventNotifierHandler *io_read,
+                                 AioFlushEventNotifierHandler *io_flush);
 
 #endif
