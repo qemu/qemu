@@ -537,6 +537,7 @@ bool qemu_aio_wait(void)
     return aio_poll(qemu_aio_context, true);
 }
 
+#ifdef CONFIG_POSIX
 void qemu_aio_set_fd_handler(int fd,
                              IOHandler *io_read,
                              IOHandler *io_write,
@@ -549,7 +550,6 @@ void qemu_aio_set_fd_handler(int fd,
     qemu_set_fd_handler2(fd, NULL, io_read, io_write, opaque);
 }
 
-#ifdef CONFIG_POSIX
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
                                  EventNotifierHandler *io_read,
                                  AioFlushEventNotifierHandler *io_flush)
