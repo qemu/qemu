@@ -18,7 +18,6 @@ obj-y += ppc440_bamboo.o
 obj-y += ppce500_mpc8544ds.o mpc8544_guts.o ppce500_spin.o
 # PowerPC 440 Xilinx ML507 reference board.
 obj-y += virtex_ml507.o
-obj-$(CONFIG_KVM) += kvm_ppc.o
 # PowerPC OpenPIC
 obj-y += openpic.o
 obj-$(CONFIG_FDT) += ../device_tree.o
