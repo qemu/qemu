@@ -4,8 +4,6 @@ obj-y += microblaze_boot.o
 
 obj-y += microblaze_pic_cpu.o
 obj-y += xilinx_ethlite.o
-obj-y += xilinx_axidma.o
-obj-y += xilinx_axienet.o
 obj-$(CONFIG_FDT) += ../device_tree.o
 
 obj-y := $(addprefix ../,$(obj-y))
