@@ -10,6 +10,7 @@ $(call set-vpath, $(SRC_PATH))
 
 QEMU_CFLAGS+=-I..
 QEMU_CFLAGS += -I$(SRC_PATH)/include
+QEMU_CFLAGS += -DCONFIG_USER_ONLY
 
 include $(SRC_PATH)/Makefile.objs
 
