@@ -342,7 +342,7 @@ static void cpu_set_ivec_irq(void *opaque, int irq, int level)
 }
 
 typedef struct ResetData {
-    CPUSPARCState *env;
+    SPARCCPU *cpu;
     uint64_t prom_addr;
 } ResetData;
 
@@ -395,10 +395,10 @@ static void cpu_timer_reset(CPUTimer *timer)
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
-    CPUSPARCState *env = s->env;
+    CPUSPARCState *env = &s->cpu->env;
     static unsigned int nr_resets;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(s->cpu));
 
     cpu_timer_reset(env->tick);
     cpu_timer_reset(env->stick);
@@ -752,8 +752,9 @@ static TypeInfo ram_info = {
     .class_init    = ram_class_init,
 };
 
-static CPUSPARCState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
+static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 {
+    SPARCCPU *cpu;
     CPUSPARCState *env;
     ResetData *reset_info;
 
@@ -761,13 +762,15 @@ static CPUSPARCState *cpu_devinit(const char *cpu_model, const struct hwdef *hwd
     uint32_t  stick_frequency = 100*1000000;
     uint32_t hstick_frequency = 100*1000000;
 
-    if (!cpu_model)
+    if (cpu_model == NULL) {
         cpu_model = hwdef->default_cpu_model;
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_sparc_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find Sparc CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
     env->tick = cpu_timer_create("tick", env, tick_irq,
                                   tick_frequency, TICK_NPT_MASK);
@@ -779,11 +782,11 @@ static CPUSPARCState *cpu_devinit(const char *cpu_model, const struct hwdef *hwd
                                     hstick_frequency, TICK_INT_DIS);
 
     reset_info = g_malloc0(sizeof(ResetData));
-    reset_info->env = env;
+    reset_info->cpu = cpu;
     reset_info->prom_addr = hwdef->prom_addr;
     qemu_register_reset(main_cpu_reset, reset_info);
 
-    return env;
+    return cpu;
 }
 
 static void sun4uv_init(MemoryRegion *address_space_mem,
@@ -793,6 +796,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                         const char *initrd_filename, const char *cpu_model,
                         const struct hwdef *hwdef)
 {
+    SPARCCPU *cpu;
     CPUSPARCState *env;
     M48t59State *nvram;
     unsigned int i;
@@ -805,7 +809,8 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     void *fw_cfg;
 
     /* init CPUs */
-    env = cpu_devinit(cpu_model, hwdef);
+    cpu = cpu_devinit(cpu_model, hwdef);
+    env = &cpu->env;
 
     /* set up devices */
     ram_init(0, RAM_size);

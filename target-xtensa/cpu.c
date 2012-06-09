@@ -28,7 +28,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "cpu-qom.h"
+#include "cpu.h"
 #include "qemu-common.h"
 
 

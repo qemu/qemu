@@ -186,7 +186,7 @@ struct CPULM32State {
 
 #include "cpu-qom.h"
 
-CPULM32State *cpu_lm32_init(const char *cpu_model);
+LM32CPU *cpu_lm32_init(const char *cpu_model);
 void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_lm32_exec(CPULM32State *s);
 void cpu_lm32_close(CPULM32State *s);
@@ -199,8 +199,16 @@ int cpu_lm32_signal_handler(int host_signum, void *pinfo,
 void lm32_translate_init(void);
 void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value);
 
+static inline CPULM32State *cpu_init(const char *cpu_model)
+{
+    LM32CPU *cpu = cpu_lm32_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_list cpu_lm32_list
-#define cpu_init cpu_lm32_init
 #define cpu_exec cpu_lm32_exec
 #define cpu_gen_code cpu_lm32_gen_code
 #define cpu_signal_handler cpu_lm32_signal_handler

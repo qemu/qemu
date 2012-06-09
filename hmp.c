@@ -14,6 +14,8 @@
  */
 
 #include "hmp.h"
+#include "net.h"
+#include "qemu-option.h"
 #include "qemu-timer.h"
 #include "qmp-commands.h"
 
@@ -945,5 +947,55 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_device_del(id, &err);
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
+{
+    Error *errp = NULL;
+    int paging = qdict_get_try_bool(qdict, "paging", 0);
+    const char *file = qdict_get_str(qdict, "protocol");
+    bool has_begin = qdict_haskey(qdict, "begin");
+    bool has_length = qdict_haskey(qdict, "length");
+    int64_t begin = 0;
+    int64_t length = 0;
+
+    if (has_begin) {
+        begin = qdict_get_int(qdict, "begin");
+    }
+    if (has_length) {
+        length = qdict_get_int(qdict, "length");
+    }
+
+    qmp_dump_guest_memory(paging, file, has_begin, begin, has_length, length,
+                          &errp);
+    hmp_handle_error(mon, &errp);
+}
+
+void hmp_netdev_add(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    QemuOpts *opts;
+
+    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &err);
+    if (error_is_set(&err)) {
+        goto out;
+    }
+
+    netdev_add(opts, &err);
+    if (error_is_set(&err)) {
+        qemu_opts_del(opts);
+    }
+
+out:
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_netdev_del(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    Error *err = NULL;
+
+    qmp_netdev_del(id, &err);
     hmp_handle_error(mon, &err);
 }

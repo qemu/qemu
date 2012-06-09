@@ -422,6 +422,30 @@ static void timestamp_put(QDict *qdict)
     qdict_put_obj(qdict, "timestamp", obj);
 }
 
+
+static const char *monitor_event_names[] = {
+    [QEVENT_SHUTDOWN] = "SHUTDOWN",
+    [QEVENT_RESET] = "RESET",
+    [QEVENT_POWERDOWN] = "POWERDOWN",
+    [QEVENT_STOP] = "STOP",
+    [QEVENT_RESUME] = "RESUME",
+    [QEVENT_VNC_CONNECTED] = "VNC_CONNECTED",
+    [QEVENT_VNC_INITIALIZED] = "VNC_INITIALIZED",
+    [QEVENT_VNC_DISCONNECTED] = "VNC_DISCONNECTED",
+    [QEVENT_BLOCK_IO_ERROR] = "BLOCK_IO_ERROR",
+    [QEVENT_RTC_CHANGE] = "RTC_CHANGE",
+    [QEVENT_WATCHDOG] = "WATCHDOG",
+    [QEVENT_SPICE_CONNECTED] = "SPICE_CONNECTED",
+    [QEVENT_SPICE_INITIALIZED] = "SPICE_INITIALIZED",
+    [QEVENT_SPICE_DISCONNECTED] = "SPICE_DISCONNECTED",
+    [QEVENT_BLOCK_JOB_COMPLETED] = "BLOCK_JOB_COMPLETED",
+    [QEVENT_BLOCK_JOB_CANCELLED] = "BLOCK_JOB_CANCELLED",
+    [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
+    [QEVENT_SUSPEND] = "SUSPEND",
+    [QEVENT_WAKEUP] = "WAKEUP",
+};
+QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
+
 /**
  * monitor_protocol_event(): Generate a Monitor event
  *
@@ -435,68 +459,8 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 
     assert(event < QEVENT_MAX);
 
-    switch (event) {
-        case QEVENT_SHUTDOWN:
-            event_name = "SHUTDOWN";
-            break;
-        case QEVENT_RESET:
-            event_name = "RESET";
-            break;
-        case QEVENT_POWERDOWN:
-            event_name = "POWERDOWN";
-            break;
-        case QEVENT_STOP:
-            event_name = "STOP";
-            break;
-        case QEVENT_RESUME:
-            event_name = "RESUME";
-            break;
-        case QEVENT_VNC_CONNECTED:
-            event_name = "VNC_CONNECTED";
-            break;
-        case QEVENT_VNC_INITIALIZED:
-            event_name = "VNC_INITIALIZED";
-            break;
-        case QEVENT_VNC_DISCONNECTED:
-            event_name = "VNC_DISCONNECTED";
-            break;
-        case QEVENT_BLOCK_IO_ERROR:
-            event_name = "BLOCK_IO_ERROR";
-            break;
-        case QEVENT_RTC_CHANGE:
-            event_name = "RTC_CHANGE";
-            break;
-        case QEVENT_WATCHDOG:
-            event_name = "WATCHDOG";
-            break;
-        case QEVENT_SPICE_CONNECTED:
-            event_name = "SPICE_CONNECTED";
-            break;
-        case QEVENT_SPICE_INITIALIZED:
-            event_name = "SPICE_INITIALIZED";
-            break;
-        case QEVENT_SPICE_DISCONNECTED:
-            event_name = "SPICE_DISCONNECTED";
-            break;
-        case QEVENT_BLOCK_JOB_COMPLETED:
-            event_name = "BLOCK_JOB_COMPLETED";
-            break;
-        case QEVENT_BLOCK_JOB_CANCELLED:
-            event_name = "BLOCK_JOB_CANCELLED";
-            break;
-        case QEVENT_DEVICE_TRAY_MOVED:
-             event_name = "DEVICE_TRAY_MOVED";
-            break;
-        case QEVENT_SUSPEND:
-            event_name = "SUSPEND";
-            break;
-        case QEVENT_WAKEUP:
-            event_name = "WAKEUP";
-            break;
-        default:
-            abort();
-            break;
-    }
+    event_name = monitor_event_names[event];
+    assert(event_name != NULL);
 
     qmp = qdict_new();
     timestamp_put(qmp);
@@ -736,6 +700,25 @@ CommandInfoList *qmp_query_commands(Error **errp)
     }
 
     return cmd_list;
+}
+
+EventInfoList *qmp_query_events(Error **errp)
+{
+    EventInfoList *info, *ev_list = NULL;
+    MonitorEvent e;
+
+    for (e = 0 ; e < QEVENT_MAX ; e++) {
+        const char *event_name = monitor_event_names[e];
+        assert(event_name != NULL);
+        info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = g_strdup(event_name);
+
+        info->next = ev_list;
+        ev_list = info;
+    }
+
+    return ev_list;
 }
 
 /* set the current CPU defined by the user */

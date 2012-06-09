@@ -178,11 +178,6 @@ void cpu_dump_state(CPUSH4State * env, FILE * f,
     }
 }
 
-void cpu_state_reset(CPUSH4State *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 typedef struct {
     const char *name;
     int id;
@@ -247,7 +242,7 @@ static void cpu_register(CPUSH4State *env, const sh4_def_t *def)
     env->id = def->id;
 }
 
-CPUSH4State *cpu_sh4_init(const char *cpu_model)
+SuperHCPU *cpu_sh4_init(const char *cpu_model)
 {
     SuperHCPU *cpu;
     CPUSH4State *env;
@@ -264,7 +259,7 @@ CPUSH4State *cpu_sh4_init(const char *cpu_model)
     cpu_reset(CPU(cpu));
     cpu_register(env, def);
     qemu_init_vcpu(env);
-    return env;
+    return cpu;
 }
 
 static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)

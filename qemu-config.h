@@ -1,11 +1,14 @@
 #ifndef QEMU_CONFIG_H
 #define QEMU_CONFIG_H
 
+#include "error.h"
+
 extern QemuOptsList qemu_fsdev_opts;
 extern QemuOptsList qemu_virtfs_opts;
 extern QemuOptsList qemu_spice_opts;
 
 QemuOptsList *qemu_find_opts(const char *group);
+QemuOptsList *qemu_find_opts_err(const char *group, Error **errp);
 void qemu_add_opts(QemuOptsList *list);
 int qemu_set_option(const char *str);
 int qemu_global_option(const char *str);

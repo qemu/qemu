@@ -1,0 +1,4 @@
+qom-obj-y = object.o container.o qom-qobject.o
+qom-obj-twice-y = cpu.o
+common-obj-y = $(qom-obj-twice-y)
+user-obj-y = $(qom-obj-twice-y)

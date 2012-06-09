@@ -1023,7 +1023,7 @@ static void n8x0_boot_init(void *opaque)
     n800_dss_init(&s->blizzard);
 
     /* CPU setup */
-    s->cpu->env->GE = 0x5;
+    s->cpu->cpu->env.GE = 0x5;
 
     /* If the machine has a slided keyboard, open it */
     if (s->kbd)
@@ -1329,7 +1329,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
         binfo->kernel_filename = kernel_filename;
         binfo->kernel_cmdline = kernel_cmdline;
         binfo->initrd_filename = initrd_filename;
-        arm_load_kernel(s->cpu->env, binfo);
+        arm_load_kernel(&s->cpu->cpu->env, binfo);
 
         qemu_register_reset(n8x0_boot_init, s);
     }
@@ -1338,7 +1338,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
         int rom_size;
         uint8_t nolo_tags[0x10000];
         /* No, wait, better start at the ROM.  */
-        s->cpu->env->regs[15] = OMAP2_Q2_BASE + 0x400000;
+        s->cpu->cpu->env.regs[15] = OMAP2_Q2_BASE + 0x400000;
 
         /* This is intended for loading the `secondary.bin' program from
          * Nokia images (the NOLO bootloader).  The entry point seems

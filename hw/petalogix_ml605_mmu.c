@@ -54,8 +54,10 @@
 #define AXIENET_BASEADDR 0x82780000
 #define AXIDMA_BASEADDR 0x84600000
 
-static void machine_cpu_reset(CPUMBState *env)
+static void machine_cpu_reset(MicroBlazeCPU *cpu)
 {
+    CPUMBState *env = &cpu->env;
+
     env->pvr.regs[10] = 0x0e000000; /* virtex 6 */
     /* setup pvr to match kernel setting */
     env->pvr.regs[5] |= PVR5_DCACHE_WRITEBACK_MASK;
@@ -75,6 +77,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
 {
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
+    MicroBlazeCPU *cpu;
     CPUMBState *env;
     DriveInfo *dinfo;
     int i;
@@ -87,7 +90,8 @@ petalogix_ml605_init(ram_addr_t ram_size,
     if (cpu_model == NULL) {
         cpu_model = "microblaze";
     }
-    env = cpu_init(cpu_model);
+    cpu = cpu_mb_init(cpu_model);
+    env = &cpu->env;
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, "petalogix_ml605.lmb_bram",
@@ -131,7 +135,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
                                      irq[1], irq[0], 100 * 1000000);
     }
 
-    microblaze_load_kernel(env, ddr_base, ram_size, BINARY_DEVICE_TREE_FILE,
+    microblaze_load_kernel(cpu, ddr_base, ram_size, BINARY_DEVICE_TREE_FILE,
                                                             machine_cpu_reset);
 
 }

@@ -918,7 +918,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 #if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
-    cpu_state_reset(env);
+    cpu_reset(ENV_GET_CPU(env));
 #endif
     thread_env = env;
 

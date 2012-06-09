@@ -1,0 +1,8 @@
+obj-$(CONFIG_SOFTMMU) += machine.o
+obj-y += translate.o helper.o cpu.o
+obj-y += fop_helper.o cc_helper.o win_helper.o mmu_helper.o ldst_helper.o
+obj-$(TARGET_SPARC) += int32_helper.o
+obj-$(TARGET_SPARC64) += int64_helper.o
+obj-$(TARGET_SPARC64) += vis_helper.o
+
+$(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

@@ -363,7 +363,7 @@ static void z2_init(ram_addr_t ram_size,
         z2_binfo.kernel_cmdline = kernel_cmdline;
         z2_binfo.initrd_filename = initrd_filename;
         z2_binfo.board_id = 0x6dd;
-        arm_load_kernel(cpu->env, &z2_binfo);
+        arm_load_kernel(&cpu->cpu->env, &z2_binfo);
     }
 }
 

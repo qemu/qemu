@@ -98,11 +98,6 @@ static int fpu_gdb_set_reg(CPUM68KState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-void cpu_state_reset(CPUM68KState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
-}
-
 CPUM68KState *cpu_m68k_init(const char *cpu_model)
 {
     M68kCPU *cpu;

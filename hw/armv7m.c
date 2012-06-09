@@ -149,7 +149,9 @@ static void armv7m_bitband_init(void)
 
 static void armv7m_reset(void *opaque)
 {
-    cpu_state_reset((CPUARMState *)opaque);
+    ARMCPU *cpu = opaque;
+
+    cpu_reset(CPU(cpu));
 }
 
 /* Init CPU and memory for a v7-M based board.
@@ -160,6 +162,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
                       int flash_size, int sram_size,
                       const char *kernel_filename, const char *cpu_model)
 {
+    ARMCPU *cpu;
     CPUARMState *env;
     DeviceState *nvic;
     /* FIXME: make this local state.  */
@@ -177,13 +180,15 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     flash_size *= 1024;
     sram_size *= 1024;
 
-    if (!cpu_model)
+    if (cpu_model == NULL) {
 	cpu_model = "cortex-m3";
-    env = cpu_init(cpu_model);
-    if (!env) {
+    }
+    cpu = cpu_arm_init(cpu_model);
+    if (cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
+    env = &cpu->env;
 
 #if 0
     /* > 32Mb SRAM gets complicated because it overlaps the bitband area.
@@ -241,7 +246,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     vmstate_register_ram_global(hack);
     memory_region_add_subregion(address_space_mem, 0xfffff000, hack);
 
-    qemu_register_reset(armv7m_reset, env);
+    qemu_register_reset(armv7m_reset, cpu);
     return pic;
 }
 

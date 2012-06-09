@@ -37,7 +37,7 @@
 #define KERNEL_LOAD_ADDR 0x40000000
 
 typedef struct {
-    CPULM32State *env;
+    LM32CPU *cpu;
     target_phys_addr_t bootstrap_pc;
     target_phys_addr_t flash_base;
     target_phys_addr_t initrd_base;
@@ -59,9 +59,9 @@ static void cpu_irq_handler(void *opaque, int irq, int level)
 static void main_cpu_reset(void *opaque)
 {
     ResetInfo *reset_info = opaque;
-    CPULM32State *env = reset_info->env;
+    CPULM32State *env = &reset_info->cpu->env;
 
-    cpu_state_reset(env);
+    cpu_reset(CPU(reset_info->cpu));
 
     /* init defaults */
     env->pc = reset_info->bootstrap_pc;
@@ -79,6 +79,7 @@ milkymist_init(ram_addr_t ram_size_not_used,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
+    LM32CPU *cpu;
     CPULM32State *env;
     int kernel_size;
     DriveInfo *dinfo;
@@ -105,8 +106,9 @@ milkymist_init(ram_addr_t ram_size_not_used,
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";
     }
-    env = cpu_init(cpu_model);
-    reset_info->env = env;
+    cpu = cpu_lm32_init(cpu_model);
+    env = &cpu->env;
+    reset_info->cpu = cpu;
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
 

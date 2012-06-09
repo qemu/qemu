@@ -1,0 +1,2 @@
+obj-y = fpa11.o fpa11_cpdo.o fpa11_cpdt.o fpa11_cprt.o fpopcode.o
+obj-y += single_cpdo.o double_cpdo.o extended_cpdo.o

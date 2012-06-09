@@ -272,7 +272,7 @@ struct CPUMBState {
 
 #include "cpu-qom.h"
 
-CPUMBState *cpu_mb_init(const char *cpu_model);
+MicroBlazeCPU *cpu_mb_init(const char *cpu_model);
 int cpu_mb_exec(CPUMBState *s);
 void cpu_mb_close(CPUMBState *s);
 void do_interrupt(CPUMBState *env);
@@ -295,7 +295,15 @@ enum {
 #define TARGET_PHYS_ADDR_SPACE_BITS 32
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
-#define cpu_init cpu_mb_init
+static inline CPUMBState *cpu_init(const char *cpu_model)
+{
+    MicroBlazeCPU *cpu = cpu_mb_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 #define cpu_exec cpu_mb_exec
 #define cpu_gen_code cpu_mb_gen_code
 #define cpu_signal_handler cpu_mb_signal_handler

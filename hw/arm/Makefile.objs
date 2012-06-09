@@ -1,0 +1,56 @@
+obj-y = integratorcp.o versatilepb.o arm_pic.o arm_timer.o
+obj-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
+obj-y += versatile_pci.o
+obj-y += versatile_i2c.o
+obj-y += cadence_uart.o
+obj-y += cadence_ttc.o
+obj-y += cadence_gem.o
+obj-y += xilinx_zynq.o zynq_slcr.o
+obj-y += arm_gic.o
+obj-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
+obj-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
+obj-y += exynos4_boards.o exynos4210_uart.o exynos4210_pwm.o
+obj-y += exynos4210_pmu.o exynos4210_mct.o exynos4210_fimd.o
+obj-y += arm_l2x0.o
+obj-y += arm_mptimer.o a15mpcore.o
+obj-y += armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
+obj-y += highbank.o
+obj-y += pl061.o
+obj-y += xgmac.o
+obj-y += pxa2xx.o pxa2xx_pic.o pxa2xx_gpio.o pxa2xx_timer.o pxa2xx_dma.o
+obj-y += pxa2xx_lcd.o pxa2xx_mmci.o pxa2xx_pcmcia.o pxa2xx_keypad.o
+obj-y += gumstix.o
+
+obj-y += arm_tt.o
+obj-y += s3c24xx_memc.o s3c24xx_irq.o s3c24xx_clkcon.o s3c24xx_timers.o
+obj-y += s3c24xx_serial.o s3c24xx_rtc.o s3c24xx_gpio.o s3c24xx_iic.o
+obj-y += s3c24xx_lcd.o s3c24xx_nand.o
+obj-y += s3c2410x.o s3c2440.o
+obj-y += a9m2410.o
+obj-y += bast.o
+obj-y += smdk2410.o
+obj-y += dm9000.o
+obj-y += ch7xxx.o stcpmu.o
+obj-y += phycard-l.o
+obj-y += syborg.o syborg_fb.o syborg_interrupt.o syborg_keyboard.o
+obj-y += syborg_serial.o syborg_timer.o syborg_pointer.o syborg_rtc.o
+obj-y += syborg_virtio.o
+
+obj-y += zaurus.o ide/microdrive.o spitz.o tosa.o tc6393xb.o
+obj-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
+                omap_gpio.o omap_intc.o omap_uart.o
+obj-y += omap2.o omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
+                omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
+obj-y += omap_sx1.o palm.o tsc210x.o
+obj-y += nseries.o blizzard.o onenand.o cbus.o tusb6010.o usb/hcd-musb.o
+obj-y += mst_fpga.o mainstone.o
+obj-y += z2.o
+obj-y += musicpal.o bitbang_i2c.o marvell_88w8618_audio.o
+obj-y += framebuffer.o
+obj-y += vexpress.o
+obj-y += strongarm.o
+obj-y += collie.o
+obj-y += pl041.o lm4549.o
+obj-$(CONFIG_FDT) += ../device_tree.o
+
+obj-y := $(addprefix ../,$(obj-y))

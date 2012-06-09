@@ -34,7 +34,7 @@ configure: ;
 	info install install-doc install-tools \
 	pdf recurse-all speed tar tarbin test tools build-all
 
-$(call set-vpath, $(SRC_PATH):$(SRC_PATH)/hw)
+$(call set-vpath, $(SRC_PATH))
 
 LIBS+=-lz $(LIBS_TOOLS)
 
@@ -101,19 +101,18 @@ qemu-options.def: $(SRC_PATH)/qemu-options.hx
 
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
-subdir-%: $(GENERATED_HEADERS)
+subdir-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
 
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/Makefile.objs
 endif
 
-$(universal-obj-y) $(common-obj-y): $(GENERATED_HEADERS)
 subdir-libcacard: $(oslib-obj-y) $(trace-obj-y) qemu-timer-common.o
 
-$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) subdir-libdis
+$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y) subdir-libdis
 
-$(filter %-user,$(SUBDIR_RULES)): $(GENERATED_HEADERS) $(universal-obj-y) $(trace-obj-y) subdir-libdis-user subdir-libuser
+$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) subdir-libdis-user subdir-libuser
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -131,7 +130,7 @@ QEMU_CFLAGS += -I$(SRC_PATH)/include
 
 ui/cocoa.o: ui/cocoa.m
 
-ui/sdl.o audio/sdlaudio.o ui/sdl_zoom.o baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
+ui/sdl.o audio/sdlaudio.o ui/sdl_zoom.o hw/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
 
 ui/vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 
@@ -152,16 +151,19 @@ libcacard.la:
 install-libcacard:
 	@echo "libtool is missing, please install and rerun configure"; exit 1
 else
-libcacard.la: $(GENERATED_HEADERS) $(oslib-obj-y) qemu-timer-common.o $(addsuffix .lo, $(basename $(trace-obj-y)))
+libcacard.la: $(oslib-obj-y) qemu-timer-common.o $(addsuffix .lo, $(basename $(trace-obj-y)))
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" libcacard.la,)
 
 install-libcacard: libcacard.la
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
 endif
+
+vscclient$(EXESUF): $(libcacard-y) $(oslib-obj-y) qemu-timer-common.o libcacard/vscclient.o
+	$(call quiet-command,$(CC) -o $@ $^ $(libcacard_libs) $(LIBS),"  LINK  $@")
+
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
-qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o cmd.o qemu-ga.o: $(GENERATED_HEADERS)
 
 tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-tool.o qemu-timer.o \
 	qemu-timer-common.o main-loop.o notify.o iohandler.o cutils.o async.o
@@ -172,7 +174,6 @@ qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y)
 qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y)
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
-qemu-bridge-helper.o: $(GENERATED_HEADERS)
 
 fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o oslib-posix.o $(trace-obj-y)
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
@@ -180,7 +181,6 @@ fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $@")
 
-$(qapi-obj-y): $(GENERATED_HEADERS)
 qapi-dir := $(BUILD_DIR)/qapi-generated
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
@@ -213,8 +213,8 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py
 
 QGALIB_OBJ=$(addprefix $(qapi-dir)/, qga-qapi-types.o qga-qapi-visit.o qga-qmp-marshal.o)
 QGALIB_GEN=$(addprefix $(qapi-dir)/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
-$(QGALIB_OBJ): $(QGALIB_GEN) $(GENERATED_HEADERS)
-$(qga-obj-y) qemu-ga.o: $(QGALIB_GEN) $(GENERATED_HEADERS)
+$(QGALIB_OBJ): $(QGALIB_GEN)
+$(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
 qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(tools-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) $(QGALIB_OBJ)
 
@@ -228,6 +228,7 @@ clean:
 	rm -Rf .libs
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d qapi/*.o qapi/*.d qga/*.o qga/*.d
 	rm -f qom/*.o qom/*.d
+	rm -f usb/*.o usb/*.d hw/*.o hw/*.d
 	rm -f qemu-img-cmds.h
 	rm -f trace/*.o trace/*.d
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
@@ -444,5 +445,10 @@ tar:
 	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS --exclude .git --exclude .svn
 	rm -rf /tmp/$(FILE)
 
+# Add a dependency on the generated files, so that they are always
+# rebuilt before other object files
+Makefile: $(GENERATED_HEADERS)
+
 # Include automatically generated dependency files
--include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d qapi/*.d qga/*.d)
+-include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d qapi/*.d)
+-include $(wildcard qga/*.d hw/*.d hw/usb/*.d)

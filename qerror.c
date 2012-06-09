@@ -156,6 +156,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Invalid block format '%(name)'",
     },
     {
+        .error_fmt = QERR_INVALID_OPTION_GROUP,
+        .desc      = "There is no option group '%(group)'",
+    },
+    {
         .error_fmt = QERR_INVALID_PARAMETER,
         .desc      = "Invalid parameter '%(name)'",
     },

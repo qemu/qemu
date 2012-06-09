@@ -110,7 +110,7 @@ static int net_vde_init(VLANState *vlan, const char *model,
     return 0;
 }
 
-int net_init_vde(QemuOpts *opts, Monitor *mon, const char *name, VLANState *vlan)
+int net_init_vde(QemuOpts *opts, const char *name, VLANState *vlan)
 {
     const char *sock;
     const char *group;

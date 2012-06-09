@@ -37,7 +37,6 @@ test-qapi-obj-y =  $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y)
 test-qapi-obj-y += tests/test-qapi-visit.o tests/test-qapi-types.o
 test-qapi-obj-y += module.o
 
-$(test-obj-y): $(GENERATED_HEADERS)
 $(test-obj-y): QEMU_INCLUDES += -Itests
 
 tests/check-qint$(EXESUF): tests/check-qint.o qint.o $(tools-obj-y)

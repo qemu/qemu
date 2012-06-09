@@ -932,7 +932,7 @@ static void spitz_common_init(ram_addr_t ram_size,
     spitz_binfo.kernel_cmdline = kernel_cmdline;
     spitz_binfo.initrd_filename = initrd_filename;
     spitz_binfo.board_id = arm_id;
-    arm_load_kernel(cpu->env, &spitz_binfo);
+    arm_load_kernel(&cpu->cpu->env, &spitz_binfo);
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 

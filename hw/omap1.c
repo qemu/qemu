@@ -1519,8 +1519,9 @@ static inline void omap_clkm_idlect1_update(struct omap_mpu_state_s *s,
 {
     omap_clk clk;
 
-    if (value & (1 << 11))				/* SETARM_IDLE */
-        cpu_interrupt(s->env, CPU_INTERRUPT_HALT);
+    if (value & (1 << 11)) {                            /* SETARM_IDLE */
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
+    }
     if (!(value & (1 << 10)))				/* WKUP_MODE */
         qemu_system_shutdown_request();	/* XXX: disable wakeup from IRQ */
 
@@ -1734,7 +1735,7 @@ static uint64_t omap_clkdsp_read(void *opaque, target_phys_addr_t addr,
 
     case 0x18:	/* DSP_SYSST */
         return (s->clkm.clocking_scheme << 11) | s->clkm.cold_start |
-                (s->env->halted << 6);	/* Quite useless... */
+                (s->cpu->env.halted << 6);      /* Quite useless... */
     }
 
     OMAP_BAD_REG(addr);
@@ -3701,7 +3702,7 @@ static void omap1_mpu_reset(void *opaque)
     omap_lpg_reset(mpu->led[0]);
     omap_lpg_reset(mpu->led[1]);
     omap_clkm_reset(mpu);
-    cpu_state_reset(mpu->env);
+    cpu_reset(CPU(mpu->cpu));
 }
 
 static const struct omap_map_s {
@@ -3751,8 +3752,9 @@ void omap_mpu_wakeup(void *opaque, int irq, int req)
 {
     struct omap_mpu_state_s *mpu = (struct omap_mpu_state_s *) opaque;
 
-    if (mpu->env->halted)
-        cpu_interrupt(mpu->env, CPU_INTERRUPT_EXITTB);
+    if (mpu->cpu->env.halted) {
+        cpu_interrupt(&mpu->cpu->env, CPU_INTERRUPT_EXITTB);
+    }
 }
 
 static const struct dma_irq_map omap1_dma_irq_map[] = {
@@ -3829,8 +3831,8 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
 
     /* Core */
     s->mpu_model = omap310;
-    s->env = cpu_init(core);
-    if (!s->env) {
+    s->cpu = cpu_arm_init(core);
+    if (s->cpu == NULL) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
@@ -3852,7 +3854,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
 
     omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);
 
-    cpu_irq = arm_pic_init_cpu(s->env);
+    cpu_irq = arm_pic_init_cpu(&s->cpu->env);
     s->ih[0] = qdev_create(NULL, "omap-intc");
     qdev_prop_set_uint32(s->ih[0], "size", 0x100);
     qdev_prop_set_ptr(s->ih[0], "clk", omap_findclk(s, "arminth_ck"));

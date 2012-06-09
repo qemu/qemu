@@ -1129,9 +1129,9 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
+    r_check = tcg_temp_new();
+    swx_addr = tcg_temp_local_new();
     if (ex) { /* swx */
-        r_check = tcg_temp_new();
-        swx_addr = tcg_temp_local_new();
 
         /* Force addr into the swx_addr. */
         tcg_gen_mov_tl(swx_addr, *addr);
@@ -1221,11 +1221,12 @@ static void dec_store(DisasContext *dc)
         gen_helper_memalign(*addr, tcg_const_tl(dc->rd),
                             tcg_const_tl(1), tcg_const_tl(size - 1));
     }
+
     if (ex) {
         gen_set_label(swx_skip);
-        tcg_temp_free(r_check);
-        tcg_temp_free(swx_addr);
     }
+    tcg_temp_free(r_check);
+    tcg_temp_free(swx_addr);
 
     if (addr == &t)
         tcg_temp_free(t);
@@ -1951,21 +1952,20 @@ void cpu_dump_state (CPUMBState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n\n");
 }
 
-CPUMBState *cpu_mb_init (const char *cpu_model)
+MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
 {
     MicroBlazeCPU *cpu;
-    CPUMBState *env;
     static int tcg_initialized = 0;
     int i;
 
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
-    env = &cpu->env;
 
     cpu_reset(CPU(cpu));
-    qemu_init_vcpu(env);
+    qemu_init_vcpu(&cpu->env);
 
-    if (tcg_initialized)
-        return env;
+    if (tcg_initialized) {
+        return cpu;
+    }
 
     tcg_initialized = 1;
 
@@ -1999,12 +1999,7 @@ CPUMBState *cpu_mb_init (const char *cpu_model)
 #define GEN_HELPER 2
 #include "helper.h"
 
-    return env;
-}
-
-void cpu_state_reset(CPUMBState *env)
-{
-    cpu_reset(ENV_GET_CPU(env));
+    return cpu;
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
