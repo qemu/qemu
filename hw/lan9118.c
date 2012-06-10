@@ -500,7 +500,7 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
         }
     } else {
         /* Hash matching  */
-        hash = (crc32(~0, addr, 6) >> 26);
+        hash = compute_mcast_idx(addr);
         if (hash & 0x20) {
             return (s->mac_hashh >> (hash & 0x1f)) & 1;
         } else {
