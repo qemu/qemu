@@ -15,8 +15,8 @@ QEMU_CFLAGS+=-I../
 libcacard.lib-y=$(patsubst %.o,%.lo,$(libcacard-y))
 
 clean:
-	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ vscclient *.lo .libs/* *.la *.pc
-	rm -Rf .libs
+	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ vscclient *.lo */*.lo .libs/* */.libs/* *.la */*.la *.pc
+	rm -Rf .libs */.libs
 
 all: libcacard.la libcacard.pc
 # Dummy command so that make thinks it has done something
@@ -37,11 +37,12 @@ libcacard.la: $(libcacard.lib-y) $(QEMU_OBJS_LIB)
 
 libcacard_srcpath=$(SRC_PATH)/libcacard
 libcacard.pc: $(libcacard_srcpath)/libcacard.pc.in
-	sed -e 's|@LIBDIR@|$(libdir)|' \
+	$(call quiet-command,sed -e 's|@LIBDIR@|$(libdir)|' \
 		-e 's|@INCLUDEDIR@|$(libcacard_includedir)|' \
 	    -e 's|@VERSION@|$(shell cat $(SRC_PATH)/VERSION)|' \
 		-e 's|@PREFIX@|$(prefix)|' \
-		< $(libcacard_srcpath)/libcacard.pc.in > libcacard.pc
+		< $(libcacard_srcpath)/libcacard.pc.in > libcacard.pc,\
+	"  GEN   $@")
 
 .PHONY: install-libcacard
 
