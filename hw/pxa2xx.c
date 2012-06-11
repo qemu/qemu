@@ -2081,7 +2081,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, PXA2XX_INTERNAL_BASE,
                                 &s->internal);
 
-    s->pic = pxa2xx_pic_init(0x40d00000, &s->cpu->env);
+    s->pic = pxa2xx_pic_init(0x40d00000, s->cpu);
 
     s->dma = pxa27x_dma_init(0x40000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_DMA));
@@ -2213,7 +2213,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     memory_region_add_subregion(address_space, PXA2XX_INTERNAL_BASE,
                                 &s->internal);
 
-    s->pic = pxa2xx_pic_init(0x40d00000, &s->cpu->env);
+    s->pic = pxa2xx_pic_init(0x40d00000, s->cpu);
 
     s->dma = pxa255_dma_init(0x40000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_DMA));

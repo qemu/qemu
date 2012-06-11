@@ -84,7 +84,7 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
-    g_assert_cmpstr(str, ==, "3.14");
+    g_assert_cmpstr(str, ==, "3.140000");
     g_free(str);
 }
 

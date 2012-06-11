@@ -59,7 +59,7 @@ static uint32_t smpboot[] = {
   0           /* bootreg: Boot register address is held here */
 };
 
-static void default_write_secondary(CPUARMState *env,
+static void default_write_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
     int n;
@@ -72,9 +72,11 @@ static void default_write_secondary(CPUARMState *env,
                        info->smp_loader_start);
 }
 
-static void default_reset_secondary(CPUARMState *env,
+static void default_reset_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
+    CPUARMState *env = &cpu->env;
+
     stl_phys_notdirty(info->smp_bootreg_addr, 0);
     env->regs[15] = info->smp_loader_start;
 }
@@ -301,15 +303,15 @@ static void do_cpu_reset(void *opaque)
                     }
                 }
             } else {
-                info->secondary_cpu_reset_hook(env, info);
+                info->secondary_cpu_reset_hook(cpu, info);
             }
         }
     }
 }
 
-void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 {
-    ARMCPU *cpu;
+    CPUARMState *env = &cpu->env;
     int kernel_size;
     int initrd_size;
     int n;
@@ -403,7 +405,7 @@ void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
         rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
                            info->loader_start);
         if (info->nb_cpus > 1) {
-            info->write_secondary_boot(env, info);
+            info->write_secondary_boot(cpu, info);
         }
     }
     info->is_linux = is_linux;

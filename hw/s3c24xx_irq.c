@@ -35,7 +35,7 @@
 /* Interrupt controller state */
 struct s3c24xx_irq_state_s {
     MemoryRegion mmio;
-    CPUARMState *cpu_env;
+    ARMCPU *cpu;
 
     qemu_irq *irqs;
 
@@ -56,11 +56,11 @@ s3c24xx_percolate_interrupt(struct s3c24xx_irq_state_s *s)
     /* TODO: Priority encoder could go here */
     if (ints & s->irq_reg[S3C_IRQ_INTMOD]) {
         /* Detected a FIQ */
-        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_FIQ);
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
         return;
     } else {
         /* No FIQ here today */
-        cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_FIQ);
+        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_FIQ);
     }
 
     /* No FIQ, check for a normal IRQ */
@@ -76,9 +76,9 @@ s3c24xx_percolate_interrupt(struct s3c24xx_irq_state_s *s)
     }
 
     if (s->irq_reg[S3C_IRQ_INTPND] != 0) {
-        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
     } else {
-        cpu_reset_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
+        cpu_reset_interrupt(&s->cpu->env, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -220,7 +220,7 @@ s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr)
     memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
     register_savevm(NULL, "s3c24xx_irq", 0, 0, s3c24xx_irq_save, s3c24xx_irq_load, s);
 
-    s->cpu_env = soc->cpu_env;
+    s->cpu = soc->cpu;
 
     /* Set up registers to power on values */
     s->irq_reg[S3C_IRQ_SRCPND] = 0x00;

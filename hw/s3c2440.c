@@ -368,7 +368,7 @@ s3c2440_init(int sdram_size)
     S3CState *s = g_new0(S3CState, 1);
 
     /* Prepare the ARM 920T core. */
-    s->cpu_env = cpu_init("arm920t");
+    s->cpu = cpu_arm_init("arm920t");
 
     /* S3C2440X SDRAM memory is always at the same physical location. */
     memory_region_init_ram(&s->sdram0, "s3c2440.sdram0", sdram_size);

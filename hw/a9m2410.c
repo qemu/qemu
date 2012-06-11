@@ -328,11 +328,11 @@ static void stcb_init(ram_addr_t _ram_size,
     if (kernel_filename != NULL) {
         a9m2410_binfo.loader_start = CPU_S3C2410X_DRAM;
         //~ a9m2410_binfo.loader_start = 0xc0108000 - 0x00010000;
-        arm_load_kernel(stcb->soc->cpu_env, &a9m2410_binfo);
+        arm_load_kernel(stcb->soc->cpu, &a9m2410_binfo);
     }
 
     /* Setup initial (reset) program counter */
-    stcb->soc->cpu_env->regs[15] = a9m2410_binfo.loader_start;
+    stcb->soc->cpu->env.regs[15] = a9m2410_binfo.loader_start;
 
     nd = &nd_table[0];
     if (nd->vlan) {

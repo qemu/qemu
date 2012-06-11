@@ -912,7 +912,7 @@ static void tt_init(ram_addr_t ram_size,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
-    CPUARMState *env;
+    ARMCPU *cpu;
     TTState *s;
 #if 0
     qemu_irq *cpu_pic;
@@ -950,8 +950,8 @@ static void tt_init(ram_addr_t ram_size,
     /* Initialise SOC. */
     s->soc = s3c2440_init(ram_size);
 
-    env = s->soc->cpu_env;
-    //~ cpu_pic = arm_pic_init_cpu(env);
+    cpu = s->soc->cpu;
+    //~ cpu_pic = arm_pic_init_cpu(cpu);
 
     //~ ram_off = qemu_ram_alloc(NULL, "arm920.ram", ram_size);
     //~ cpu_register_physical_memory(0x00000000, ram_size, ram_off | IO_MEM_RAM);
@@ -1005,7 +1005,7 @@ static void tt_init(ram_addr_t ram_size,
         /* TODO: load ttsystem. */
         //~ sect_size = 0x11b778, sect_addr = 0x31700000
         //~ sect_size = 0x6a3f45, sect_addr = 0x31000000
-        arm_load_kernel(env, &tt_binfo);
+        arm_load_kernel(cpu, &tt_binfo);
     }
 }
 

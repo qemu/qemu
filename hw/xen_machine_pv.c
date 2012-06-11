@@ -36,6 +36,7 @@ static void xen_init_pv(ram_addr_t ram_size,
 			const char *initrd_filename,
 			const char *cpu_model)
 {
+    X86CPU *cpu;
     CPUX86State *env;
     DriveInfo *dinfo;
     int i;
@@ -48,7 +49,8 @@ static void xen_init_pv(ram_addr_t ram_size,
         cpu_model = "qemu32";
 #endif
     }
-    env = cpu_init(cpu_model);
+    cpu = cpu_x86_init(cpu_model);
+    env = &cpu->env;
     env->halted = 1;
 
     /* Initialize backend core & drivers */

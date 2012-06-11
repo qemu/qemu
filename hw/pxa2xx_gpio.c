@@ -20,7 +20,7 @@ struct PXA2xxGPIOInfo {
     qemu_irq irq0, irq1, irqX;
     int lines;
     int ncpu;
-    CPUARMState *cpu_env;
+    ARMCPU *cpu;
 
     /* XXX: GNU C vectors are more suitable */
     uint32_t ilevel[PXA2XX_GPIO_BANKS];
@@ -118,8 +118,9 @@ static void pxa2xx_gpio_set(void *opaque, int line, int level)
         pxa2xx_gpio_irq_update(s);
 
     /* Wake-up GPIOs */
-    if (s->cpu_env->halted && (mask & ~s->dir[bank] & pxa2xx_gpio_wake[bank]))
-        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_EXITTB);
+    if (s->cpu->env.halted && (mask & ~s->dir[bank] & pxa2xx_gpio_wake[bank])) {
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_EXITTB);
+    }
 }
 
 static void pxa2xx_gpio_handler_update(PXA2xxGPIOInfo *s) {
@@ -275,7 +276,7 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
 
     s = FROM_SYSBUS(PXA2xxGPIOInfo, dev);
 
-    s->cpu_env = qemu_get_cpu(s->ncpu);
+    s->cpu = arm_env_get_cpu(qemu_get_cpu(s->ncpu));
 
     qdev_init_gpio_in(&dev->qdev, pxa2xx_gpio_set, s->lines);
     qdev_init_gpio_out(&dev->qdev, s->handler, s->lines);

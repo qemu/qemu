@@ -20,7 +20,7 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#include "cpu-qom.h"
+#include "cpu.h"
 #include "qemu-common.h"
 #include "qemu-timer.h"
 

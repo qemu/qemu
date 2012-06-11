@@ -20,7 +20,7 @@ typedef struct S3CState_s {
     MemoryRegion sdram2;
     MemoryRegion sram;
 
-    CPUARMState *cpu_env;
+    ARMCPU *cpu;
 
     /* Memory controller state */
     struct s3c24xx_memc_state_s *memc;

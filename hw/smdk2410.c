@@ -105,11 +105,11 @@ static void smdk2410_init(ram_addr_t _ram_size,
         }
     } else {
         smdk2410_binfo.loader_start = CPU_S3C2410X_DRAM;
-        arm_load_kernel(stcb->soc->cpu_env, &smdk2410_binfo);
+        arm_load_kernel(stcb->soc->cpu, &smdk2410_binfo);
     }
 
     /* Setup initial (reset) program counter */
-    stcb->soc->cpu_env->regs[15] = smdk2410_binfo.loader_start;
+    stcb->soc->cpu->env.regs[15] = smdk2410_binfo.loader_start;
 
     /* Attach some NAND devices */
     stcb->nand[0] = NULL;

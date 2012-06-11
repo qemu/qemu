@@ -52,7 +52,7 @@ static void print_type_number(Visitor *v, double *obj, const char *name,
                               Error **errp)
 {
     StringOutputVisitor *sov = DO_UPCAST(StringOutputVisitor, visitor, v);
-    string_output_set(sov, g_strdup_printf("%g", *obj));
+    string_output_set(sov, g_strdup_printf("%f", *obj));
 }
 
 char *string_output_get_string(StringOutputVisitor *sov)

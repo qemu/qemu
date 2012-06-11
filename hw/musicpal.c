@@ -1513,7 +1513,7 @@ static void musicpal_init(ram_addr_t ram_size,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
-    CPUARMState *env;
+    ARMCPU *cpu;
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;
@@ -1533,12 +1533,12 @@ static void musicpal_init(ram_addr_t ram_size,
     if (!cpu_model) {
         cpu_model = "arm926";
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
+    cpu = cpu_arm_init(cpu_model);
+    if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    cpu_pic = arm_pic_init_cpu(env);
+    cpu_pic = arm_pic_init_cpu(cpu);
 
     /* For now we use a fixed - the original - RAM size */
     memory_region_init_ram(ram, "musicpal.ram", MP_RAM_DEFAULT_SIZE);
@@ -1588,7 +1588,7 @@ static void musicpal_init(ram_addr_t ram_size,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, env->bigendian);
+                              0x5555, 0x2AAA, cpu->env.bigendian);
     }
     sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
 
@@ -1640,7 +1640,7 @@ static void musicpal_init(ram_addr_t ram_size,
     musicpal_binfo.kernel_filename = kernel_filename;
     musicpal_binfo.kernel_cmdline = kernel_cmdline;
     musicpal_binfo.initrd_filename = initrd_filename;
-    arm_load_kernel(env, &musicpal_binfo);
+    arm_load_kernel(cpu, &musicpal_binfo);
 }
 
 static QEMUMachine musicpal_machine = {

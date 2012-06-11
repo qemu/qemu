@@ -1092,11 +1092,11 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
 }
 
 /*
- * invalidate all TBs which intersect with the target physical pages
- * starting in range [start;end[. NOTE: start and end may refer to
- * different physical pages. 'is_cpu_write_access' should be true if called
- * from a real cpu write access: the virtual CPU will exit the current
- * TB if code is modified inside this TB.
+ * Invalidate all TBs which intersect with the target physical address range
+ * [start;end[. NOTE: start and end may refer to *different* physical pages.
+ * 'is_cpu_write_access' should be true if called from a real cpu write
+ * access: the virtual CPU will exit the current TB if code is modified inside
+ * this TB.
  */
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
                               int is_cpu_write_access)
@@ -1108,11 +1108,13 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
     }
 }
 
-/* invalidate all TBs which intersect with the target physical page
-   starting in range [start;end[. NOTE: start and end must refer to
-   the same physical page. 'is_cpu_write_access' should be true if called
-   from a real cpu write access: the virtual CPU will exit the current
-   TB if code is modified inside this TB. */
+/*
+ * Invalidate all TBs which intersect with the target physical address range
+ * [start;end[. NOTE: start and end must refer to the *same* physical page.
+ * 'is_cpu_write_access' should be true if called from a real cpu write
+ * access: the virtual CPU will exit the current TB if code is modified inside
+ * this TB.
+ */
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
 {

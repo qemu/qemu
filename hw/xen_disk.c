@@ -537,6 +537,15 @@ static void blk_bh(void *opaque)
     blk_handle_requests(blkdev);
 }
 
+/*
+ * We need to account for the grant allocations requiring contiguous
+ * chunks; the worst case number would be
+ *     max_req * max_seg + (max_req - 1) * (max_seg - 1) + 1,
+ * but in order to keep things simple just use
+ *     2 * max_req * max_seg.
+ */
+#define MAX_GRANTS(max_req, max_seg) (2 * (max_req) * (max_seg))
+
 static void blk_alloc(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
@@ -547,6 +556,11 @@ static void blk_alloc(struct XenDevice *xendev)
     blkdev->bh = qemu_bh_new(blk_bh, blkdev);
     if (xen_mode != XEN_EMULATE) {
         batch_maps = 1;
+    }
+    if (xc_gnttab_set_max_grants(xendev->gnttabdev,
+            MAX_GRANTS(max_requests, BLKIF_MAX_SEGMENTS_PER_REQUEST)) < 0) {
+        xen_be_printf(xendev, 0, "xc_gnttab_set_max_grants failed: %s\n",
+                      strerror(errno));
     }
 }
 

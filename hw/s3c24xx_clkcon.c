@@ -119,7 +119,7 @@ s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_fr
     memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
     register_savevm(NULL, "s3c24xx_clkcon", 0, 0, s3c24xx_clkcon_save, s3c24xx_clkcon_load, s);
 
-    s->cpu_env = soc->cpu_env;
+    s->cpu_env = &soc->cpu->env;
     s->ref_freq = ref_freq;
 
     /* initialise register values to power on defaults */
