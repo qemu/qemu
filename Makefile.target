@@ -108,7 +108,7 @@ ifdef CONFIG_LINUX_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
-obj-y += gdbstub.o thunk.o user-exec.o
+obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
 
 endif #CONFIG_LINUX_USER
 

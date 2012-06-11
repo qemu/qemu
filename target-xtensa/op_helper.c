@@ -26,12 +26,11 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 #include "host-utils.h"
 
-static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-                                uintptr_t retaddr);
+static void do_unaligned_access(CPUXtensaState *env,
+        target_ulong addr, int is_write, int is_user, uintptr_t retaddr);
 
 #define ALIGNED_ONLY
 #define MMUSUFFIX _mmu
@@ -48,7 +47,7 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 #define SHIFT 3
 #include "softmmu_template.h"
 
-static void do_restore_state(uintptr_t pc)
+static void do_restore_state(CPUXtensaState *env, uintptr_t pc)
 {
     TranslationBlock *tb;
 
@@ -58,44 +57,38 @@ static void do_restore_state(uintptr_t pc)
     }
 }
 
-static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-                                uintptr_t retaddr)
+static void do_unaligned_access(CPUXtensaState *env,
+        target_ulong addr, int is_write, int is_user, uintptr_t retaddr)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
-        do_restore_state(retaddr);
-        HELPER(exception_cause_vaddr)(
+        do_restore_state(env, retaddr);
+        HELPER(exception_cause_vaddr)(env,
                 env->pc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
     }
 }
 
-void tlb_fill(CPUXtensaState *env1, target_ulong vaddr, int is_write, int mmu_idx,
-              uintptr_t retaddr)
+void tlb_fill(CPUXtensaState *env,
+        target_ulong vaddr, int is_write, int mmu_idx, uintptr_t retaddr)
 {
-    CPUXtensaState *saved_env = env;
+    uint32_t paddr;
+    uint32_t page_size;
+    unsigned access;
+    int ret = xtensa_get_physical_addr(env, true, vaddr, is_write, mmu_idx,
+            &paddr, &page_size, &access);
 
-    env = env1;
-    {
-        uint32_t paddr;
-        uint32_t page_size;
-        unsigned access;
-        int ret = xtensa_get_physical_addr(env, true, vaddr, is_write, mmu_idx,
-                &paddr, &page_size, &access);
+    qemu_log("%s(%08x, %d, %d) -> %08x, ret = %d\n", __func__,
+            vaddr, is_write, mmu_idx, paddr, ret);
 
-        qemu_log("%s(%08x, %d, %d) -> %08x, ret = %d\n", __func__,
-                vaddr, is_write, mmu_idx, paddr, ret);
-
-        if (ret == 0) {
-            tlb_set_page(env,
-                    vaddr & TARGET_PAGE_MASK,
-                    paddr & TARGET_PAGE_MASK,
-                    access, mmu_idx, page_size);
-        } else {
-            do_restore_state(retaddr);
-            HELPER(exception_cause_vaddr)(env->pc, ret, vaddr);
-        }
+    if (ret == 0) {
+        tlb_set_page(env,
+                vaddr & TARGET_PAGE_MASK,
+                paddr & TARGET_PAGE_MASK,
+                access, mmu_idx, page_size);
+    } else {
+        do_restore_state(env, retaddr);
+        HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);
     }
-    env = saved_env;
 }
 
 static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
@@ -110,13 +103,13 @@ static void tb_invalidate_virtual_addr(CPUXtensaState *env, uint32_t vaddr)
     }
 }
 
-void HELPER(exception)(uint32_t excp)
+void HELPER(exception)(CPUXtensaState *env, uint32_t excp)
 {
     env->exception_index = excp;
     cpu_loop_exit(env);
 }
 
-void HELPER(exception_cause)(uint32_t pc, uint32_t cause)
+void HELPER(exception_cause)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
 {
     uint32_t vector;
 
@@ -136,24 +129,24 @@ void HELPER(exception_cause)(uint32_t pc, uint32_t cause)
     env->sregs[EXCCAUSE] = cause;
     env->sregs[PS] |= PS_EXCM;
 
-    HELPER(exception)(vector);
+    HELPER(exception)(env, vector);
 }
 
-void HELPER(exception_cause_vaddr)(uint32_t pc, uint32_t cause, uint32_t vaddr)
+void HELPER(exception_cause_vaddr)(CPUXtensaState *env,
+        uint32_t pc, uint32_t cause, uint32_t vaddr)
 {
     env->sregs[EXCVADDR] = vaddr;
-    HELPER(exception_cause)(pc, cause);
+    HELPER(exception_cause)(env, pc, cause);
 }
 
-void debug_exception_env(CPUXtensaState *new_env, uint32_t cause)
+void debug_exception_env(CPUXtensaState *env, uint32_t cause)
 {
-    if (xtensa_get_cintlevel(new_env) < new_env->config->debug_level) {
-        env = new_env;
-        HELPER(debug_exception)(env->pc, cause);
+    if (xtensa_get_cintlevel(env) < env->config->debug_level) {
+        HELPER(debug_exception)(env, env->pc, cause);
     }
 }
 
-void HELPER(debug_exception)(uint32_t pc, uint32_t cause)
+void HELPER(debug_exception)(CPUXtensaState *env, uint32_t pc, uint32_t cause)
 {
     unsigned level = env->config->debug_level;
 
@@ -163,7 +156,7 @@ void HELPER(debug_exception)(uint32_t pc, uint32_t cause)
     env->sregs[EPS2 + level - 2] = env->sregs[PS];
     env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) | PS_EXCM |
         (level << PS_INTLEVEL_SHIFT);
-    HELPER(exception)(EXC_DEBUG);
+    HELPER(exception)(env, EXC_DEBUG);
 }
 
 uint32_t HELPER(nsa)(uint32_t v)
@@ -232,39 +225,39 @@ void xtensa_sync_phys_from_window(CPUXtensaState *env)
     copy_phys_from_window(env, env->sregs[WINDOW_BASE] * 4, 0, 16);
 }
 
-static void rotate_window_abs(uint32_t position)
+static void rotate_window_abs(CPUXtensaState *env, uint32_t position)
 {
     xtensa_sync_phys_from_window(env);
     env->sregs[WINDOW_BASE] = windowbase_bound(position, env);
     xtensa_sync_window_from_phys(env);
 }
 
-static void rotate_window(uint32_t delta)
+static void rotate_window(CPUXtensaState *env, uint32_t delta)
 {
-    rotate_window_abs(env->sregs[WINDOW_BASE] + delta);
+    rotate_window_abs(env, env->sregs[WINDOW_BASE] + delta);
 }
 
-void HELPER(wsr_windowbase)(uint32_t v)
+void HELPER(wsr_windowbase)(CPUXtensaState *env, uint32_t v)
 {
-    rotate_window_abs(v);
+    rotate_window_abs(env, v);
 }
 
-void HELPER(entry)(uint32_t pc, uint32_t s, uint32_t imm)
+void HELPER(entry)(CPUXtensaState *env, uint32_t pc, uint32_t s, uint32_t imm)
 {
     int callinc = (env->sregs[PS] & PS_CALLINC) >> PS_CALLINC_SHIFT;
     if (s > 3 || ((env->sregs[PS] & (PS_WOE | PS_EXCM)) ^ PS_WOE) != 0) {
         qemu_log("Illegal entry instruction(pc = %08x), PS = %08x\n",
                 pc, env->sregs[PS]);
-        HELPER(exception_cause)(pc, ILLEGAL_INSTRUCTION_CAUSE);
+        HELPER(exception_cause)(env, pc, ILLEGAL_INSTRUCTION_CAUSE);
     } else {
         env->regs[(callinc << 2) | (s & 3)] = env->regs[s] - (imm << 3);
-        rotate_window(callinc);
+        rotate_window(env, callinc);
         env->sregs[WINDOW_START] |=
             windowstart_bit(env->sregs[WINDOW_BASE], env);
     }
 }
 
-void HELPER(window_check)(uint32_t pc, uint32_t w)
+void HELPER(window_check)(CPUXtensaState *env, uint32_t pc, uint32_t w)
 {
     uint32_t windowbase = windowbase_bound(env->sregs[WINDOW_BASE], env);
     uint32_t windowstart = env->sregs[WINDOW_START];
@@ -284,21 +277,21 @@ void HELPER(window_check)(uint32_t pc, uint32_t w)
     }
 
     m = windowbase_bound(windowbase + n, env);
-    rotate_window(n);
+    rotate_window(env, n);
     env->sregs[PS] = (env->sregs[PS] & ~PS_OWB) |
         (windowbase << PS_OWB_SHIFT) | PS_EXCM;
     env->sregs[EPC1] = env->pc = pc;
 
     if (windowstart & windowstart_bit(m + 1, env)) {
-        HELPER(exception)(EXC_WINDOW_OVERFLOW4);
+        HELPER(exception)(env, EXC_WINDOW_OVERFLOW4);
     } else if (windowstart & windowstart_bit(m + 2, env)) {
-        HELPER(exception)(EXC_WINDOW_OVERFLOW8);
+        HELPER(exception)(env, EXC_WINDOW_OVERFLOW8);
     } else {
-        HELPER(exception)(EXC_WINDOW_OVERFLOW12);
+        HELPER(exception)(env, EXC_WINDOW_OVERFLOW12);
     }
 }
 
-uint32_t HELPER(retw)(uint32_t pc)
+uint32_t HELPER(retw)(CPUXtensaState *env, uint32_t pc)
 {
     int n = (env->regs[0] >> 30) & 0x3;
     int m = 0;
@@ -319,13 +312,13 @@ uint32_t HELPER(retw)(uint32_t pc)
         qemu_log("Illegal retw instruction(pc = %08x), "
                 "PS = %08x, m = %d, n = %d\n",
                 pc, env->sregs[PS], m, n);
-        HELPER(exception_cause)(pc, ILLEGAL_INSTRUCTION_CAUSE);
+        HELPER(exception_cause)(env, pc, ILLEGAL_INSTRUCTION_CAUSE);
     } else {
         int owb = windowbase;
 
         ret_pc = (pc & 0xc0000000) | (env->regs[0] & 0x3fffffff);
 
-        rotate_window(-n);
+        rotate_window(env, -n);
         if (windowstart & windowstart_bit(env->sregs[WINDOW_BASE], env)) {
             env->sregs[WINDOW_START] &= ~windowstart_bit(owb, env);
         } else {
@@ -335,38 +328,38 @@ uint32_t HELPER(retw)(uint32_t pc)
             env->sregs[EPC1] = env->pc = pc;
 
             if (n == 1) {
-                HELPER(exception)(EXC_WINDOW_UNDERFLOW4);
+                HELPER(exception)(env, EXC_WINDOW_UNDERFLOW4);
             } else if (n == 2) {
-                HELPER(exception)(EXC_WINDOW_UNDERFLOW8);
+                HELPER(exception)(env, EXC_WINDOW_UNDERFLOW8);
             } else if (n == 3) {
-                HELPER(exception)(EXC_WINDOW_UNDERFLOW12);
+                HELPER(exception)(env, EXC_WINDOW_UNDERFLOW12);
             }
         }
     }
     return ret_pc;
 }
 
-void HELPER(rotw)(uint32_t imm4)
+void HELPER(rotw)(CPUXtensaState *env, uint32_t imm4)
 {
-    rotate_window(imm4);
+    rotate_window(env, imm4);
 }
 
-void HELPER(restore_owb)(void)
+void HELPER(restore_owb)(CPUXtensaState *env)
 {
-    rotate_window_abs((env->sregs[PS] & PS_OWB) >> PS_OWB_SHIFT);
+    rotate_window_abs(env, (env->sregs[PS] & PS_OWB) >> PS_OWB_SHIFT);
 }
 
-void HELPER(movsp)(uint32_t pc)
+void HELPER(movsp)(CPUXtensaState *env, uint32_t pc)
 {
     if ((env->sregs[WINDOW_START] &
             (windowstart_bit(env->sregs[WINDOW_BASE] - 3, env) |
              windowstart_bit(env->sregs[WINDOW_BASE] - 2, env) |
              windowstart_bit(env->sregs[WINDOW_BASE] - 1, env))) == 0) {
-        HELPER(exception_cause)(pc, ALLOCA_CAUSE);
+        HELPER(exception_cause)(env, pc, ALLOCA_CAUSE);
     }
 }
 
-void HELPER(wsr_lbeg)(uint32_t v)
+void HELPER(wsr_lbeg)(CPUXtensaState *env, uint32_t v)
 {
     if (env->sregs[LBEG] != v) {
         tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
@@ -374,7 +367,7 @@ void HELPER(wsr_lbeg)(uint32_t v)
     }
 }
 
-void HELPER(wsr_lend)(uint32_t v)
+void HELPER(wsr_lend)(CPUXtensaState *env, uint32_t v)
 {
     if (env->sregs[LEND] != v) {
         tb_invalidate_virtual_addr(env, env->sregs[LEND] - 1);
@@ -383,12 +376,12 @@ void HELPER(wsr_lend)(uint32_t v)
     }
 }
 
-void HELPER(dump_state)(void)
+void HELPER(dump_state)(CPUXtensaState *env)
 {
     cpu_dump_state(env, stderr, fprintf, 0);
 }
 
-void HELPER(waiti)(uint32_t pc, uint32_t intlevel)
+void HELPER(waiti)(CPUXtensaState *env, uint32_t pc, uint32_t intlevel)
 {
     env->pc = pc;
     env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) |
@@ -404,15 +397,15 @@ void HELPER(waiti)(uint32_t pc, uint32_t intlevel)
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
         xtensa_rearm_ccompare_timer(env);
     }
-    HELPER(exception)(EXCP_HLT);
+    HELPER(exception)(env, EXCP_HLT);
 }
 
-void HELPER(timer_irq)(uint32_t id, uint32_t active)
+void HELPER(timer_irq)(CPUXtensaState *env, uint32_t id, uint32_t active)
 {
     xtensa_timer_irq(env, id, active);
 }
 
-void HELPER(advance_ccount)(uint32_t d)
+void HELPER(advance_ccount)(CPUXtensaState *env, uint32_t d)
 {
     xtensa_advance_ccount(env, d);
 }
@@ -422,7 +415,7 @@ void HELPER(check_interrupts)(CPUXtensaState *env)
     check_interrupts(env);
 }
 
-void HELPER(wsr_rasid)(uint32_t v)
+void HELPER(wsr_rasid)(CPUXtensaState *env, uint32_t v)
 {
     v = (v & 0xffffff00) | 0x1;
     if (v != env->sregs[RASID]) {
@@ -574,7 +567,7 @@ void split_tlb_entry_spec_way(const CPUXtensaState *env, uint32_t v, bool dtlb,
  * Split TLB address into TLB way, entry index and VPN (with index).
  * See ISA, 4.6.5.5 - 4.6.5.8 for the TLB addressing format
  */
-static void split_tlb_entry_spec(uint32_t v, bool dtlb,
+static void split_tlb_entry_spec(CPUXtensaState *env, uint32_t v, bool dtlb,
         uint32_t *vpn, uint32_t *wi, uint32_t *ei)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
@@ -587,41 +580,42 @@ static void split_tlb_entry_spec(uint32_t v, bool dtlb,
     }
 }
 
-static xtensa_tlb_entry *get_tlb_entry(uint32_t v, bool dtlb, uint32_t *pwi)
+static xtensa_tlb_entry *get_tlb_entry(CPUXtensaState *env,
+        uint32_t v, bool dtlb, uint32_t *pwi)
 {
     uint32_t vpn;
     uint32_t wi;
     uint32_t ei;
 
-    split_tlb_entry_spec(v, dtlb, &vpn, &wi, &ei);
+    split_tlb_entry_spec(env, v, dtlb, &vpn, &wi, &ei);
     if (pwi) {
         *pwi = wi;
     }
     return xtensa_tlb_get_entry(env, dtlb, wi, ei);
 }
 
-uint32_t HELPER(rtlb0)(uint32_t v, uint32_t dtlb)
+uint32_t HELPER(rtlb0)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         uint32_t wi;
-        const xtensa_tlb_entry *entry = get_tlb_entry(v, dtlb, &wi);
+        const xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
         return (entry->vaddr & get_vpn_mask(env, dtlb, wi)) | entry->asid;
     } else {
         return v & REGION_PAGE_MASK;
     }
 }
 
-uint32_t HELPER(rtlb1)(uint32_t v, uint32_t dtlb)
+uint32_t HELPER(rtlb1)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
 {
-    const xtensa_tlb_entry *entry = get_tlb_entry(v, dtlb, NULL);
+    const xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, NULL);
     return entry->paddr | entry->attr;
 }
 
-void HELPER(itlb)(uint32_t v, uint32_t dtlb)
+void HELPER(itlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         uint32_t wi;
-        xtensa_tlb_entry *entry = get_tlb_entry(v, dtlb, &wi);
+        xtensa_tlb_entry *entry = get_tlb_entry(env, v, dtlb, &wi);
         if (entry->variable && entry->asid) {
             tlb_flush_page(env, entry->vaddr);
             entry->asid = 0;
@@ -629,7 +623,7 @@ void HELPER(itlb)(uint32_t v, uint32_t dtlb)
     }
 }
 
-uint32_t HELPER(ptlb)(uint32_t v, uint32_t dtlb)
+uint32_t HELPER(ptlb)(CPUXtensaState *env, uint32_t v, uint32_t dtlb)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         uint32_t wi;
@@ -646,7 +640,7 @@ uint32_t HELPER(ptlb)(uint32_t v, uint32_t dtlb)
 
         case INST_TLB_MULTI_HIT_CAUSE:
         case LOAD_STORE_TLB_MULTI_HIT_CAUSE:
-            HELPER(exception_cause_vaddr)(env->pc, res, v);
+            HELPER(exception_cause_vaddr)(env, env->pc, res, v);
             break;
         }
         return 0;
@@ -691,17 +685,17 @@ void xtensa_tlb_set_entry(CPUXtensaState *env, bool dtlb,
     }
 }
 
-void HELPER(wtlb)(uint32_t p, uint32_t v, uint32_t dtlb)
+void HELPER(wtlb)(CPUXtensaState *env, uint32_t p, uint32_t v, uint32_t dtlb)
 {
     uint32_t vpn;
     uint32_t wi;
     uint32_t ei;
-    split_tlb_entry_spec(v, dtlb, &vpn, &wi, &ei);
+    split_tlb_entry_spec(env, v, dtlb, &vpn, &wi, &ei);
     xtensa_tlb_set_entry(env, dtlb, wi, ei, vpn, p);
 }
 
 
-void HELPER(wsr_ibreakenable)(uint32_t v)
+void HELPER(wsr_ibreakenable)(CPUXtensaState *env, uint32_t v)
 {
     uint32_t change = v ^ env->sregs[IBREAKENABLE];
     unsigned i;
@@ -714,7 +708,7 @@ void HELPER(wsr_ibreakenable)(uint32_t v)
     env->sregs[IBREAKENABLE] = v & ((1 << env->config->nibreak) - 1);
 }
 
-void HELPER(wsr_ibreaka)(uint32_t i, uint32_t v)
+void HELPER(wsr_ibreaka)(CPUXtensaState *env, uint32_t i, uint32_t v)
 {
     if (env->sregs[IBREAKENABLE] & (1 << i) && env->sregs[IBREAKA + i] != v) {
         tb_invalidate_virtual_addr(env, env->sregs[IBREAKA + i]);
@@ -723,7 +717,8 @@ void HELPER(wsr_ibreaka)(uint32_t i, uint32_t v)
     env->sregs[IBREAKA + i] = v;
 }
 
-static void set_dbreak(unsigned i, uint32_t dbreaka, uint32_t dbreakc)
+static void set_dbreak(CPUXtensaState *env, unsigned i, uint32_t dbreaka,
+        uint32_t dbreakc)
 {
     int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
     uint32_t mask = dbreakc | ~DBREAKC_MASK;
@@ -751,22 +746,22 @@ static void set_dbreak(unsigned i, uint32_t dbreaka, uint32_t dbreakc)
     }
 }
 
-void HELPER(wsr_dbreaka)(uint32_t i, uint32_t v)
+void HELPER(wsr_dbreaka)(CPUXtensaState *env, uint32_t i, uint32_t v)
 {
     uint32_t dbreakc = env->sregs[DBREAKC + i];
 
     if ((dbreakc & DBREAKC_SB_LB) &&
             env->sregs[DBREAKA + i] != v) {
-        set_dbreak(i, v, dbreakc);
+        set_dbreak(env, i, v, dbreakc);
     }
     env->sregs[DBREAKA + i] = v;
 }
 
-void HELPER(wsr_dbreakc)(uint32_t i, uint32_t v)
+void HELPER(wsr_dbreakc)(CPUXtensaState *env, uint32_t i, uint32_t v)
 {
     if ((env->sregs[DBREAKC + i] ^ v) & (DBREAKC_SB_LB | DBREAKC_MASK)) {
         if (v & DBREAKC_SB_LB) {
-            set_dbreak(i, env->sregs[DBREAKA + i], v);
+            set_dbreak(env, i, env->sregs[DBREAKA + i], v);
         } else {
             if (env->cpu_watchpoint[i]) {
                 cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[i]);

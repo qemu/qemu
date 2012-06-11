@@ -22,8 +22,6 @@ oslib-obj-y = osdep.o
 oslib-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
 oslib-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
 
-universal-obj-y += $(oslib-obj-y)
-
 #######################################################################
 # coroutines
 coroutine-obj-y = qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
@@ -64,6 +62,7 @@ common-obj-y = $(block-obj-y) blockdev.o
 common-obj-y += net.o net/
 common-obj-y += qom/
 common-obj-y += readline.o console.o cursor.o
+common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 
