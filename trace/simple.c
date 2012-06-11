@@ -161,8 +161,11 @@ static void trace(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3,
     }
 
     timestamp = get_clock();
-
+#if GLIB_CHECK_VERSION(2, 30, 0)
+    idx = g_atomic_int_add((gint *)&trace_idx, 1) % TRACE_BUF_LEN;
+#else
     idx = g_atomic_int_exchange_and_add((gint *)&trace_idx, 1) % TRACE_BUF_LEN;
+#endif
     trace_buf[idx] = (TraceRecord){
         .event = event,
         .timestamp_ns = timestamp,
