@@ -132,8 +132,14 @@ static void scsi_disk_save_request(QEMUFile *f, SCSIRequest *req)
     qemu_put_be64s(f, &r->sector);
     qemu_put_be32s(f, &r->sector_count);
     qemu_put_be32s(f, &r->buflen);
-    if (r->buflen && r->req.cmd.mode == SCSI_XFER_TO_DEV) {
-        qemu_put_buffer(f, r->iov.iov_base, r->iov.iov_len);
+    if (r->buflen) {
+        if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+            qemu_put_buffer(f, r->iov.iov_base, r->iov.iov_len);
+        } else if (!req->retry) {
+            uint32_t len = r->iov.iov_len;
+            qemu_put_be32s(f, &len);
+            qemu_put_buffer(f, r->iov.iov_base, r->iov.iov_len);
+        }
     }
 }
 
@@ -147,6 +153,12 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     if (r->buflen) {
         scsi_init_iovec(r, r->buflen);
         if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+            qemu_get_buffer(f, r->iov.iov_base, r->iov.iov_len);
+        } else if (!r->req.retry) {
+            uint32_t len;
+            qemu_get_be32s(f, &len);
+            r->iov.iov_len = len;
+            assert(r->iov.iov_len <= r->buflen);
             qemu_get_buffer(f, r->iov.iov_base, r->iov.iov_len);
         }
     }

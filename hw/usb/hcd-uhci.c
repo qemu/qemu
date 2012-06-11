@@ -131,10 +131,14 @@ struct UHCIState {
     uint8_t status2; /* bit 0 and 1 are used to generate UHCI_STS_USBINT */
     int64_t expire_time;
     QEMUTimer *frame_timer;
+    QEMUBH *bh;
+    uint32_t frame_bytes;
+    uint32_t frame_bandwidth;
     UHCIPort ports[NB_PORTS];
 
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;
+    int irq_pin;
 
     /* Active packets */
     QTAILQ_HEAD(, UHCIQueue) queues;
@@ -337,7 +341,7 @@ static void uhci_update_irq(UHCIState *s)
     } else {
         level = 0;
     }
-    qemu_set_irq(s->dev.irq[3], level);
+    qemu_set_irq(s->dev.irq[s->irq_pin], level);
 }
 
 static void uhci_reset(void *opaque)
@@ -369,14 +373,8 @@ static void uhci_reset(void *opaque)
     }
 
     uhci_async_cancel_all(s);
+    qemu_bh_cancel(s->bh);
     uhci_update_irq(s);
-}
-
-static void uhci_pre_save(void *opaque)
-{
-    UHCIState *s = opaque;
-
-    uhci_async_cancel_all(s);
 }
 
 static const VMStateDescription vmstate_uhci_port = {
@@ -395,7 +393,6 @@ static const VMStateDescription vmstate_uhci = {
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .pre_save = uhci_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, UHCIState),
         VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState),
@@ -905,7 +902,9 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
         uhci_async_free(async);
     } else {
         async->done = 1;
-        uhci_process_frame(s);
+        if (s->frame_bytes < s->frame_bandwidth) {
+            qemu_bh_schedule(s->bh);
+        }
     }
 }
 
@@ -985,7 +984,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
 static void uhci_process_frame(UHCIState *s)
 {
     uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
-    uint32_t curr_qh, td_count = 0, bytes_count = 0;
+    uint32_t curr_qh, td_count = 0;
     int cnt, ret;
     UHCI_TD td;
     UHCI_QH qh;
@@ -1002,6 +1001,12 @@ static void uhci_process_frame(UHCIState *s)
     qhdb_reset(&qhdb);
 
     for (cnt = FRAME_MAX_LOOPS; is_valid(link) && cnt; cnt--) {
+        if (s->frame_bytes >= s->frame_bandwidth) {
+            /* We've reached the usb 1.1 bandwidth, which is
+               1280 bytes/frame, stop processing */
+            trace_usb_uhci_frame_stop_bandwidth();
+            break;
+        }
         if (is_qh(link)) {
             /* QH */
             trace_usb_uhci_qh_load(link & ~0xf);
@@ -1011,17 +1016,11 @@ static void uhci_process_frame(UHCIState *s)
                  * We're going in circles. Which is not a bug because
                  * HCD is allowed to do that as part of the BW management.
                  *
-                 * Stop processing here if
-                 *  (a) no transaction has been done since we've been
-                 *      here last time, or
-                 *  (b) we've reached the usb 1.1 bandwidth, which is
-                 *      1280 bytes/frame.
+                 * Stop processing here if no transaction has been done
+                 * since we've been here last time.
                  */
                 if (td_count == 0) {
                     trace_usb_uhci_frame_loop_stop_idle();
-                    break;
-                } else if (bytes_count >= 1280) {
-                    trace_usb_uhci_frame_loop_stop_bandwidth();
                     break;
                 } else {
                     trace_usb_uhci_frame_loop_continue();
@@ -1085,7 +1084,7 @@ static void uhci_process_frame(UHCIState *s)
             trace_usb_uhci_td_complete(curr_qh & ~0xf, link & ~0xf);
             link = td.link;
             td_count++;
-            bytes_count += (td.ctrl & 0x7ff) + 1;
+            s->frame_bytes += (td.ctrl & 0x7ff) + 1;
 
             if (curr_qh) {
                 /* update QH element link */
@@ -1112,12 +1111,20 @@ out:
     s->pending_int_mask |= int_mask;
 }
 
+static void uhci_bh(void *opaque)
+{
+    UHCIState *s = opaque;
+    uhci_process_frame(s);
+}
+
 static void uhci_frame_timer(void *opaque)
 {
     UHCIState *s = opaque;
 
     /* prepare the timer for the next frame */
     s->expire_time += (get_ticks_per_sec() / FRAME_TIMER_FREQ);
+    s->frame_bytes = 0;
+    qemu_bh_cancel(s->bh);
 
     if (!(s->cmd & UHCI_CMD_RS)) {
         /* Full stop */
@@ -1178,14 +1185,30 @@ static USBBusOps uhci_bus_ops = {
 
 static int usb_uhci_common_initfn(PCIDevice *dev)
 {
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
     int i;
 
     pci_conf[PCI_CLASS_PROG] = 0x00;
     /* TODO: reset value should be 0. */
-    pci_conf[PCI_INTERRUPT_PIN] = 4; /* interrupt pin D */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
+
+    switch (pc->device_id) {
+    case PCI_DEVICE_ID_INTEL_82801I_UHCI1:
+        s->irq_pin = 0;  /* A */
+        break;
+    case PCI_DEVICE_ID_INTEL_82801I_UHCI2:
+        s->irq_pin = 1;  /* B */
+        break;
+    case PCI_DEVICE_ID_INTEL_82801I_UHCI3:
+        s->irq_pin = 2;  /* C */
+        break;
+    default:
+        s->irq_pin = 3;  /* D */
+        break;
+    }
+    pci_config_set_interrupt_pin(pci_conf, s->irq_pin + 1);
 
     if (s->masterbus) {
         USBPort *ports[NB_PORTS];
@@ -1204,6 +1227,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
                               USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         }
     }
+    s->bh = qemu_bh_new(uhci_bh, s);
     s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
     s->num_ports_vmstate = NB_PORTS;
     QTAILQ_INIT(&s->queues);
@@ -1244,6 +1268,7 @@ static int usb_uhci_exit(PCIDevice *dev)
 static Property uhci_properties[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
+    DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
     DEFINE_PROP_END_OF_LIST(),
 };
 

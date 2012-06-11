@@ -1507,10 +1507,9 @@ static void put_scsi_requests(QEMUFile *f, void *pv, size_t size)
     QTAILQ_FOREACH(req, &s->requests, next) {
         assert(!req->io_canceled);
         assert(req->status == -1);
-        assert(req->retry);
         assert(req->enqueued);
 
-        qemu_put_sbyte(f, 1);
+        qemu_put_sbyte(f, req->retry ? 1 : 2);
         qemu_put_buffer(f, req->cmd.buf, sizeof(req->cmd.buf));
         qemu_put_be32s(f, &req->tag);
         qemu_put_be32s(f, &req->lun);
@@ -1528,8 +1527,9 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
 {
     SCSIDevice *s = pv;
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
+    int8_t sbyte;
 
-    while (qemu_get_sbyte(f)) {
+    while ((sbyte = qemu_get_sbyte(f)) > 0) {
         uint8_t buf[SCSI_CMD_BUF_SIZE];
         uint32_t tag;
         uint32_t lun;
@@ -1539,6 +1539,7 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
         qemu_get_be32s(f, &tag);
         qemu_get_be32s(f, &lun);
         req = scsi_req_new(s, tag, lun, buf, NULL);
+        req->retry = (sbyte == 1);
         if (bus->info->load_request) {
             req->hba_private = bus->info->load_request(f, req);
         }
@@ -1547,7 +1548,6 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
         }
 
         /* Just restart it later.  */
-        req->retry = true;
         scsi_req_enqueue_internal(req);
 
         /* At this point, the request will be kept alive by the reference
