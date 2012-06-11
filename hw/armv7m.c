@@ -215,7 +215,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     nvic = qdev_create(NULL, "armv7m_nvic");
     env->nvic = nvic;
     qdev_init_nofail(nvic);
-    cpu_pic = arm_pic_init_cpu(env);
+    cpu_pic = arm_pic_init_cpu(cpu);
     sysbus_connect_irq(sysbus_from_qdev(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(nvic, i);

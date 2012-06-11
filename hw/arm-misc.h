@@ -16,7 +16,7 @@
 /* The CPU is also modeled as an interrupt controller.  */
 #define ARM_PIC_CPU_IRQ 0
 #define ARM_PIC_CPU_FIQ 1
-qemu_irq *arm_pic_init_cpu(CPUARMState *env);
+qemu_irq *arm_pic_init_cpu(ARMCPU *cpu);
 
 /* armv7m.c */
 qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
@@ -50,16 +50,16 @@ struct arm_boot_info {
      * perform any necessary CPU reset handling and set the PC for thei
      * secondary CPUs to point at this boot blob.
      */
-    void (*write_secondary_boot)(CPUARMState *env,
+    void (*write_secondary_boot)(ARMCPU *cpu,
                                  const struct arm_boot_info *info);
-    void (*secondary_cpu_reset_hook)(CPUARMState *env,
+    void (*secondary_cpu_reset_hook)(ARMCPU *cpu,
                                      const struct arm_boot_info *info);
     /* Used internally by arm_boot.c */
     int is_linux;
     target_phys_addr_t initrd_size;
     target_phys_addr_t entry;
 };
-void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info);
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 
 /* Multiplication factor to convert from system clock ticks to qemu timer
    ticks.  */

@@ -50,7 +50,8 @@ static void realview_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model,
                      enum realview_board_type board_type)
 {
-    CPUARMState *env = NULL;
+    ARMCPU *cpu = NULL;
+    CPUARMState *env;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram_lo = g_new(MemoryRegion, 1);
     MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
@@ -88,14 +89,15 @@ static void realview_init(ram_addr_t ram_size,
         break;
     }
     for (n = 0; n < smp_cpus; n++) {
-        env = cpu_init(cpu_model);
-        if (!env) {
+        cpu = cpu_arm_init(cpu_model);
+        if (!cpu) {
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(env);
+        irqp = arm_pic_init_cpu(cpu);
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
+    env = &cpu->env;
     if (arm_feature(env, ARM_FEATURE_V7)) {
         if (is_mpcore) {
             proc_id = 0x0c000000;
@@ -325,7 +327,7 @@ static void realview_init(ram_addr_t ram_size,
     realview_binfo.nb_cpus = smp_cpus;
     realview_binfo.board_id = realview_board_id[board_type];
     realview_binfo.loader_start = (board_type == BOARD_PB_A8 ? 0x70000000 : 0);
-    arm_load_kernel(first_cpu, &realview_binfo);
+    arm_load_kernel(arm_env_get_cpu(first_cpu), &realview_binfo);
 }
 
 static void realview_eb_init(ram_addr_t ram_size,

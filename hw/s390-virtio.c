@@ -61,9 +61,9 @@
 #define MAX_BLK_DEVS                    10
 
 static VirtIOS390Bus *s390_bus;
-static CPUS390XState **ipi_states;
+static S390CPU **ipi_states;
 
-CPUS390XState *s390_cpu_addr2state(uint16_t cpu_addr)
+S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
     if (cpu_addr >= smp_cpus) {
         return NULL;
@@ -206,16 +206,18 @@ static void s390_init(ram_addr_t my_ram_size,
         cpu_model = "host";
     }
 
-    ipi_states = g_malloc(sizeof(CPUS390XState *) * smp_cpus);
+    ipi_states = g_malloc(sizeof(S390CPU *) * smp_cpus);
 
     for (i = 0; i < smp_cpus; i++) {
+        S390CPU *cpu;
         CPUS390XState *tmp_env;
 
-        tmp_env = cpu_init(cpu_model);
+        cpu = cpu_s390x_init(cpu_model);
+        tmp_env = &cpu->env;
         if (!env) {
             env = tmp_env;
         }
-        ipi_states[i] = tmp_env;
+        ipi_states[i] = cpu;
         tmp_env->halted = 1;
         tmp_env->exception_index = EXCP_HLT;
         tmp_env->storage_keys = storage_keys;

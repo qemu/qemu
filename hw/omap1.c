@@ -3854,7 +3854,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
 
     omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);
 
-    cpu_irq = arm_pic_init_cpu(&s->cpu->env);
+    cpu_irq = arm_pic_init_cpu(s->cpu);
     s->ih[0] = qdev_create(NULL, "omap-intc");
     qdev_prop_set_uint32(s->ih[0], "size", 0x100);
     qdev_prop_set_ptr(s->ih[0], "clk", omap_findclk(s, "arminth_ck"));
