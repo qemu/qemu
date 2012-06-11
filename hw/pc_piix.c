@@ -349,13 +349,20 @@ static void pc_xen_hvm_init(ram_addr_t ram_size,
 }
 #endif
 
-static QEMUMachine pc_machine_v1_1 = {
-    .name = "pc-1.1",
+static QEMUMachine pc_machine_v1_2 = {
+    .name = "pc-1.2",
     .alias = "pc",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
     .is_default = 1,
+};
+
+static QEMUMachine pc_machine_v1_1 = {
+    .name = "pc-1.1",
+    .desc = "Standard PC",
+    .init = pc_init_pci,
+    .max_cpus = 255,
 };
 
 #define PC_COMPAT_1_0 \
@@ -612,6 +619,7 @@ static QEMUMachine xenfv_machine = {
 
 static void pc_machine_init(void)
 {
+    qemu_register_machine(&pc_machine_v1_2);
     qemu_register_machine(&pc_machine_v1_1);
     qemu_register_machine(&pc_machine_v1_0);
     qemu_register_machine(&pc_machine_v0_15);
