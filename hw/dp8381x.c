@@ -58,7 +58,7 @@
  ****************************************************************************/
 
 /* Debug DP8381x card. */
-#define DEBUG_DP8381X
+//~ #define DEBUG_DP8381X
 
 #if defined(DEBUG_DP8381X)
 # define logout(fmt, ...) fprintf(stderr, "DP8381X %-24s" fmt, __func__, ##__VA_ARGS__)
@@ -827,9 +827,6 @@ static uint16_t dp8381x_readw(DP8381xState * s, target_phys_addr_t addr)
     if (logging) {
         logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), val);
     }
-#if defined(TARGET_WORDS_BIGENDIAN)
-    bswap16s(&val);
-#endif
     return val;
 }
 
@@ -932,9 +929,6 @@ static uint32_t dp8381x_readl(DP8381xState * s, target_phys_addr_t addr)
     if (logging) {
         logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), val);
     }
-#if defined(TARGET_WORDS_BIGENDIAN)
-    bswap32s(&val);
-#endif
     return val;
 }
 
@@ -955,9 +949,6 @@ static void dp8381x_writew(DP8381xState * s, target_phys_addr_t addr,
                            uint16_t val)
 {
     int logging = 1;
-#if defined(TARGET_WORDS_BIGENDIAN)
-    bswap16s(&val);
-#endif
     if ((addr & 1) != 0) {
         logout("??? address not on word boundary, addr=%s val=0x%08x\n",
                dp8381x_regname(addr), val);
@@ -1012,9 +1003,6 @@ static void dp8381x_writel(DP8381xState * s, target_phys_addr_t addr,
                            uint32_t val)
 {
     int logging = 1;
-#if defined(TARGET_WORDS_BIGENDIAN)
-    bswap32s(&val);
-#endif
     if ((addr & 3) != 0) {
         logout("??? address not on double word boundary, addr=%s val=0x%08x\n",
                dp8381x_regname(addr), val);
@@ -1200,7 +1188,7 @@ static uint64_t dp8381x_read(void *opaque, target_phys_addr_t addr,
     default:
         assert(!"bad size");
     }
-    logout("%u %s\n", size, dp8381x_regname(addr));
+    logout("%u, %s, 0x%08" PRIx64 "\n", size, dp8381x_regname(addr), val);
     return val;
 }
 
@@ -1227,7 +1215,8 @@ static void dp8381x_write(void *opaque, target_phys_addr_t addr,
 static const MemoryRegionOps dp8381x_ops = {
     .read = dp8381x_read,
     .write = dp8381x_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
+    //~ .endianness = DEVICE_LITTLE_ENDIAN,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void nic_cleanup(VLANClientState *vc)

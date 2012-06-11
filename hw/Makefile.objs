@@ -67,6 +67,7 @@ hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 hw-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
 
 # PCI network cards
+hw-obj-$(CONFIG_DP8381X_PCI) += dp8381x.o
 hw-obj-$(CONFIG_E100_PCI) += e100.o
 hw-obj-$(CONFIG_NE2000_PCI) += ne2000.o
 hw-obj-$(CONFIG_EEPRO100_PCI) += eepro100.o
