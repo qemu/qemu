@@ -76,7 +76,7 @@ DeviceState *pci_vga_init(PCIBus *bus)
 }
 
 static Property vga_pci_properties[] = {
-    DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 8),
+    DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -1201,7 +1201,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
 static Property vga_vmware_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", struct pci_vmsvga_state_s,
-                       chip.vga.vram_size_mb, 8),
+                       chip.vga.vram_size_mb, 16),
     DEFINE_PROP_END_OF_LIST(),
 };
 

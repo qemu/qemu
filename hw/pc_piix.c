@@ -358,14 +358,38 @@ static QEMUMachine pc_machine_v1_2 = {
     .is_default = 1,
 };
 
+#define PC_COMPAT_1_1 \
+        {\
+            .driver   = "VGA",\
+            .property = "vgamem_mb",\
+            .value    = stringify(8),\
+        },{\
+            .driver   = "vmware-svga",\
+            .property = "vgamem_mb",\
+            .value    = stringify(8),\
+        },{\
+            .driver   = "qxl-vga",\
+            .property = "vgamem_mb",\
+            .value    = stringify(8),\
+        },{\
+            .driver   = "qxl",\
+            .property = "vgamem_mb",\
+            .value    = stringify(8),\
+        }
+
 static QEMUMachine pc_machine_v1_1 = {
     .name = "pc-1.1",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_1,
+        { /* end of list */ }
+    },
 };
 
 #define PC_COMPAT_1_0 \
+        PC_COMPAT_1_1,\
         {\
             .driver   = "pc-sysfw",\
             .property = "rom_only",\

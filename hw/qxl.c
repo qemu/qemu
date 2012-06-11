@@ -2067,7 +2067,7 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("ram_size_mb",  PCIQXLDevice, ram_size_mb, -1),
         DEFINE_PROP_UINT32("vram_size_mb", PCIQXLDevice, vram32_size_mb, -1),
         DEFINE_PROP_UINT32("vram64_size_mb", PCIQXLDevice, vram_size_mb, -1),
-        DEFINE_PROP_UINT32("vgamem_mb", PCIQXLDevice, vgamem_size_mb, 8),
+        DEFINE_PROP_UINT32("vgamem_mb", PCIQXLDevice, vgamem_size_mb, 16),
         DEFINE_PROP_END_OF_LIST(),
 };
 
