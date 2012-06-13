@@ -54,9 +54,9 @@ xilinx_axiethernet_create(void *dmach,
                           int txmem, int rxmem)
 {
     DeviceState *dev;
-    qemu_check_nic_model(nd, "xilinx-axienet");
+    qemu_check_nic_model(nd, "xlnx.axi-ethernet");
 
-    dev = qdev_create(NULL, "xilinx,axienet");
+    dev = qdev_create(NULL, "xlnx.axi-ethernet");
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint32(dev, "rxmem", rxmem);
     qdev_prop_set_uint32(dev, "txmem", txmem);

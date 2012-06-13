@@ -889,7 +889,7 @@ static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo xilinx_enet_info = {
-    .name          = "xilinx,axienet",
+    .name          = "xlnx.axi-ethernet",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct XilinxAXIEnet),
     .class_init    = xilinx_enet_class_init,
