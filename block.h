@@ -296,7 +296,7 @@ int bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);
 void bdrv_eject(BlockDriverState *bs, bool eject_flag);
-void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
+const char *bdrv_get_format_name(BlockDriverState *bs);
 BlockDriverState *bdrv_find(const char *name);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),

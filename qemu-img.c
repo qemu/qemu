@@ -1107,7 +1107,7 @@ static int img_info(int argc, char **argv)
     int c;
     const char *filename, *fmt;
     BlockDriverState *bs;
-    char fmt_name[128], size_buf[128], dsize_buf[128];
+    char size_buf[128], dsize_buf[128];
     uint64_t total_sectors;
     int64_t allocated_size;
     char backing_filename[1024];
@@ -1139,7 +1139,6 @@ static int img_info(int argc, char **argv)
     if (!bs) {
         return 1;
     }
-    bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
     bdrv_get_geometry(bs, &total_sectors);
     get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
     allocated_size = bdrv_get_allocated_file_size(bs);
@@ -1153,7 +1152,7 @@ static int img_info(int argc, char **argv)
            "file format: %s\n"
            "virtual size: %s (%" PRId64 " bytes)\n"
            "disk size: %s\n",
-           filename, fmt_name, size_buf,
+           filename, bdrv_get_format_name(bs), size_buf,
            (total_sectors * 512),
            dsize_buf);
     if (bdrv_is_encrypted(bs)) {

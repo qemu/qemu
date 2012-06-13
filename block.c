@@ -1035,7 +1035,8 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
      * swapping bs_new and bs_top contents. */
     tmp.backing_hd = bs_new;
     pstrcpy(tmp.backing_file, sizeof(tmp.backing_file), bs_top->filename);
-    bdrv_get_format(bs_top, tmp.backing_format, sizeof(tmp.backing_format));
+    pstrcpy(tmp.backing_format, sizeof(tmp.backing_format),
+            bs_top->drv ? bs_top->drv->format_name : "");
 
     /* swap contents of the fixed new bs and the current top */
     *bs_new = *bs_top;
@@ -2428,13 +2429,9 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     return ret;
 }
 
-void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size)
+const char *bdrv_get_format_name(BlockDriverState *bs)
 {
-    if (!bs->drv) {
-        buf[0] = '\0';
-    } else {
-        pstrcpy(buf, buf_size, bs->drv->format_name);
-    }
+    return bs->drv ? bs->drv->format_name : NULL;
 }
 
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
