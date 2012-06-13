@@ -40,8 +40,8 @@ xilinx_ethlite_create(NICInfo *nd, target_phys_addr_t base, qemu_irq irq,
 
     dev = qdev_create(NULL, "xilinx,ethlite");
     qdev_set_nic_properties(dev, nd);
-    qdev_prop_set_uint32(dev, "txpingpong", txpingpong);
-    qdev_prop_set_uint32(dev, "rxpingpong", rxpingpong);
+    qdev_prop_set_uint32(dev, "tx-ping-pong", txpingpong);
+    qdev_prop_set_uint32(dev, "rx-ping-pong", rxpingpong);
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
     sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
