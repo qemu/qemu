@@ -276,7 +276,7 @@ static DMAContext *spapr_pci_dma_context_fn(PCIBus *bus, void *opaque,
 
 static int spapr_phb_init(SysBusDevice *s)
 {
-    sPAPRPHBState *phb = FROM_SYSBUS(sPAPRPHBState, s);
+    sPAPRPHBState *phb = DO_UPCAST(sPAPRPHBState, host_state.busdev, s);
     char *namebuf;
     int i;
     PCIBus *bus;
@@ -314,7 +314,7 @@ static int spapr_phb_init(SysBusDevice *s)
     memory_region_add_subregion(get_system_memory(), phb->io_win_addr,
                                 &phb->iowindow);
 
-    bus = pci_register_bus(&phb->busdev.qdev,
+    bus = pci_register_bus(&phb->host_state.busdev.qdev,
                            phb->busname ? phb->busname : phb->dtbusname,
                            pci_spapr_set_irq, pci_spapr_map_irq, phb,
                            &phb->memspace, &phb->iospace,

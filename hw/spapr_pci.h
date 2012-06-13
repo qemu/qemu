@@ -28,7 +28,6 @@
 #include "hw/xics.h"
 
 typedef struct sPAPRPHBState {
-    SysBusDevice busdev;
     PCIHostState host_state;
 
     uint64_t buid;
