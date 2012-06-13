@@ -229,7 +229,7 @@ static void virtex_init(ram_addr_t ram_size,
                    serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
-    xilinx_timer_create(0x83c00000, irq[3], 2, 62 * 1000000);
+    xilinx_timer_create(0x83c00000, irq[3], 0, 62 * 1000000);
 
     if (kernel_filename) {
         uint64_t entry, low, high;

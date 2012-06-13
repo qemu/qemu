@@ -123,7 +123,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
                    irq[5], 115200, serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
-    xilinx_timer_create(TIMER_BASEADDR, irq[2], 2, 100 * 1000000);
+    xilinx_timer_create(TIMER_BASEADDR, irq[2], 0, 100 * 1000000);
 
     /* axi ethernet and dma initialization. TODO: Dynamically connect them.  */
     {
