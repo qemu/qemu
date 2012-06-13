@@ -58,8 +58,8 @@ xilinx_axiethernet_create(void *dmach,
 
     dev = qdev_create(NULL, "xilinx,axienet");
     qdev_set_nic_properties(dev, nd);
-    qdev_prop_set_uint32(dev, "c_rxmem", rxmem);
-    qdev_prop_set_uint32(dev, "c_txmem", txmem);
+    qdev_prop_set_uint32(dev, "rxmem", rxmem);
+    qdev_prop_set_uint32(dev, "txmem", txmem);
     qdev_prop_set_ptr(dev, "dmach", dmach);
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
