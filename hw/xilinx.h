@@ -36,9 +36,9 @@ xilinx_ethlite_create(NICInfo *nd, target_phys_addr_t base, qemu_irq irq,
 {
     DeviceState *dev;
 
-    qemu_check_nic_model(nd, "xilinx-ethlite");
+    qemu_check_nic_model(nd, "xlnx.xps-ethernetlite");
 
-    dev = qdev_create(NULL, "xilinx,ethlite");
+    dev = qdev_create(NULL, "xlnx.xps-ethernetlite");
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint32(dev, "tx-ping-pong", txpingpong);
     qdev_prop_set_uint32(dev, "rx-ping-pong", rxpingpong);

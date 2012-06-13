@@ -216,7 +216,8 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->rxbuf = 0;
 
-    memory_region_init_io(&s->mmio, &eth_ops, s, "xilinx-ethlite", R_MAX * 4);
+    memory_region_init_io(&s->mmio, &eth_ops, s, "xlnx.xps-ethernetlite",
+                                                                    R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
@@ -243,7 +244,7 @@ static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo xilinx_ethlite_info = {
-    .name          = "xilinx,ethlite",
+    .name          = "xlnx.xps-ethernetlite",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct xlx_ethlite),
     .class_init    = xilinx_ethlite_class_init,
