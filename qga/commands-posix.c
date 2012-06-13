@@ -38,8 +38,11 @@ extern char **environ;
 #include <sys/socket.h>
 #include <net/if.h>
 
-#if defined(__linux__) && defined(FIFREEZE)
+#ifdef FIFREEZE
 #define CONFIG_FSFREEZE
+#endif
+#ifdef FITRIM
+#define CONFIG_FSTRIM
 #endif
 #endif
 
@@ -312,8 +315,7 @@ static void guest_file_init(void)
 /* linux-specific implementations. avoid this if at all possible. */
 #if defined(__linux__)
 
-#if defined(CONFIG_FSFREEZE)
-
+#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
 typedef struct FsMount {
     char *dirname;
     char *devtype;
@@ -378,6 +380,9 @@ static int build_fs_mount_list(FsMountList *mounts)
 
     return 0;
 }
+#endif
+
+#if defined(CONFIG_FSFREEZE)
 
 /*
  * Return status of freeze/thaw
@@ -524,6 +529,65 @@ static void guest_fsfreeze_cleanup(void)
     }
 }
 #endif /* CONFIG_FSFREEZE */
+
+#if defined(CONFIG_FSTRIM)
+/*
+ * Walk list of mounted file systems in the guest, and trim them.
+ */
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+{
+    int ret = 0;
+    FsMountList mounts;
+    struct FsMount *mount;
+    int fd;
+    char err_msg[512];
+    struct fstrim_range r = {
+        .start = 0,
+        .len = -1,
+        .minlen = has_minimum ? minimum : 0,
+    };
+
+    slog("guest-fstrim called");
+
+    QTAILQ_INIT(&mounts);
+    ret = build_fs_mount_list(&mounts);
+    if (ret < 0) {
+        return;
+    }
+
+    QTAILQ_FOREACH(mount, &mounts, next) {
+        fd = qemu_open(mount->dirname, O_RDONLY);
+        if (fd == -1) {
+            sprintf(err_msg, "failed to open %s, %s", mount->dirname,
+                    strerror(errno));
+            error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+            goto error;
+        }
+
+        /* We try to cull filesytems we know won't work in advance, but other
+         * filesytems may not implement fstrim for less obvious reasons.  These
+         * will report EOPNOTSUPP; we simply ignore these errors.  Any other
+         * error means an unexpected error, so return it in those cases.  In
+         * some other cases ENOTTY will be reported (e.g. CD-ROMs).
+         */
+        ret = ioctl(fd, FITRIM, &r);
+        if (ret == -1) {
+            if (errno != ENOTTY && errno != EOPNOTSUPP) {
+                sprintf(err_msg, "failed to trim %s, %s",
+                        mount->dirname, strerror(errno));
+                error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+                close(fd);
+                goto error;
+            }
+        }
+        close(fd);
+    }
+
+error:
+    free_fs_mount_list(&mounts);
+}
+#endif /* CONFIG_FSTRIM */
+
 
 #define LINUX_SYS_STATE_FILE "/sys/power/state"
 #define SUSPEND_SUPPORTED 0
@@ -918,7 +982,15 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 
     return 0;
 }
+#endif /* CONFIG_FSFREEZE */
 
+#if !defined(CONFIG_FSTRIM)
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+
+    return;
+}
 #endif
 
 /* register init/cleanup routines for stateful command groups */

@@ -351,6 +351,26 @@
   'returns': 'int' }
 
 ##
+# @guest-fstrim:
+#
+# Discard (or "trim") blocks which are not in use by the filesystem.
+#
+# @minimum:
+#       Minimum contiguous free range to discard, in bytes. Free ranges
+#       smaller than this may be ignored (this is a hint and the guest
+#       may not respect it).  By increasing this value, the fstrim
+#       operation will complete more quickly for filesystems with badly
+#       fragmented free space, although not all blocks will be discarded.
+#       The default value is zero, meaning "discard every free block".
+#
+# Returns: Nothing.
+#
+# Since: 1.2
+##
+{ 'command': 'guest-fstrim',
+  'data': { '*minimum': 'int' } }
+
+##
 # @guest-suspend-disk
 #
 # Suspend guest to disk.
