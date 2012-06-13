@@ -55,8 +55,8 @@ void spapr_create_phb(sPAPREnvironment *spapr,
                       uint64_t mem_win_addr, uint64_t mem_win_size,
                       uint64_t io_win_addr);
 
-int spapr_populate_pci_devices(sPAPRPHBState *phb,
-                               uint32_t xics_phandle,
-                               void *fdt);
+int spapr_populate_pci_dt(sPAPRPHBState *phb,
+                          uint32_t xics_phandle,
+                          void *fdt);
 
 #endif /* __HW_SPAPR_PCI_H__ */

@@ -406,9 +406,9 @@ void spapr_create_phb(sPAPREnvironment *spapr,
 #define b_fff(x)        b_x((x), 8, 3)  /* function number */
 #define b_rrrrrrrr(x)   b_x((x), 0, 8)  /* register number */
 
-int spapr_populate_pci_devices(sPAPRPHBState *phb,
-                               uint32_t xics_phandle,
-                               void *fdt)
+int spapr_populate_pci_dt(sPAPRPHBState *phb,
+                          uint32_t xics_phandle,
+                          void *fdt)
 {
     int bus_off, i, j;
     char nodename[256];
