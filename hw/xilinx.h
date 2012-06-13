@@ -81,8 +81,8 @@ xilinx_axiethernetdma_create(void *dmach,
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq2);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, irq);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 1, irq2);
 
     return dev;
 }

@@ -463,8 +463,8 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     struct XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), dev);
     int i;
 
-    sysbus_init_irq(dev, &s->streams[1].irq);
     sysbus_init_irq(dev, &s->streams[0].irq);
+    sysbus_init_irq(dev, &s->streams[1].irq);
 
     if (!s->dmach) {
         hw_error("Unconnected DMA channel.\n");
