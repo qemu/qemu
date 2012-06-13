@@ -232,6 +232,29 @@ to grow.
 
 @end table
 
+@item qed
+Image format with support for backing files and compact image files (when your
+filesystem or transport medium does not support holes).  Good performance due
+to less metadata than the more featureful qcow2 format, especially with
+cache=writethrough or cache=directsync.  Consider using qcow2 which will soon
+have a similar optimization and is most actively developed.
+
+Supported options:
+@table @code
+@item backing_file
+File name of a base image (see @option{create} subcommand).
+@item backing_fmt
+Image file format of backing file (optional).  Useful if the format cannot be
+autodetected because it has no header, like some vhd/vpc files.
+@item cluster_size
+Changes the cluster size (must be power-of-2 between 4K and 64K). Smaller
+cluster sizes can improve the image file size whereas larger cluster sizes
+generally provide better performance.
+@item table_size
+Changes the number of clusters per L1/L2 table (must be power-of-2 between 1
+and 16).  There is normally no need to change this value but this option can be
+used for performance benchmarking.
+@end table
 
 @item qcow
 Old QEMU image format. Left for compatibility.
