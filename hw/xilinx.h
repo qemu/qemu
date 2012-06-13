@@ -75,7 +75,7 @@ xilinx_axiethernetdma_create(void *dmach,
 {
     DeviceState *dev = NULL;
 
-    dev = qdev_create(NULL, "xilinx,axidma");
+    dev = qdev_create(NULL, "xlnx.axi-dma");
     qdev_prop_set_uint32(dev, "freqhz", freqhz);
     qdev_prop_set_ptr(dev, "dmach", dmach);
     qdev_init_nofail(dev);
