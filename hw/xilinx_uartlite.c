@@ -202,7 +202,8 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     uart_update_status(s);
-    memory_region_init_io(&s->mmio, &uart_ops, s, "xilinx-uartlite", R_MAX * 4);
+    memory_region_init_io(&s->mmio, &uart_ops, s, "xlnx.xps-uartlite",
+                                                                R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
     s->chr = qemu_char_get_next_serial();
@@ -219,7 +220,7 @@ static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo xilinx_uartlite_info = {
-    .name          = "xilinx,uartlite",
+    .name          = "xlnx.xps-uartlite",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof (struct xlx_uartlite),
     .class_init    = xilinx_uartlite_class_init,
