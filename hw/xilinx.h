@@ -20,7 +20,7 @@ xilinx_timer_create(target_phys_addr_t base, qemu_irq irq, int oto, int freq)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "xilinx,timer");
+    dev = qdev_create(NULL, "xlnx,xps-timer");
     qdev_prop_set_uint32(dev, "one-timer-only", oto);
     qdev_prop_set_uint32(dev, "frequency", freq);
     qdev_init_nofail(dev);
