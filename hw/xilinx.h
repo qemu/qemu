@@ -6,7 +6,7 @@ xilinx_intc_create(target_phys_addr_t base, qemu_irq irq, int kind_of_intr)
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "xilinx,intc");
+    dev = qdev_create(NULL, "xlnx.xps-intc");
     qdev_prop_set_uint32(dev, "kind-of-intr", kind_of_intr);
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
