@@ -314,17 +314,17 @@ static void guest_file_init(void)
 
 #if defined(CONFIG_FSFREEZE)
 
-typedef struct GuestFsfreezeMount {
+typedef struct FsMount {
     char *dirname;
     char *devtype;
-    QTAILQ_ENTRY(GuestFsfreezeMount) next;
-} GuestFsfreezeMount;
+    QTAILQ_ENTRY(FsMount) next;
+} FsMount;
 
-typedef QTAILQ_HEAD(, GuestFsfreezeMount) GuestFsfreezeMountList;
+typedef QTAILQ_HEAD(, FsMount) FsMountList;
 
-static void guest_fsfreeze_free_mount_list(GuestFsfreezeMountList *mounts)
+static void free_fs_mount_list(FsMountList *mounts)
 {
-     GuestFsfreezeMount *mount, *temp;
+     FsMount *mount, *temp;
 
      if (!mounts) {
          return;
@@ -341,10 +341,10 @@ static void guest_fsfreeze_free_mount_list(GuestFsfreezeMountList *mounts)
 /*
  * Walk the mount table and build a list of local file systems
  */
-static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
+static int build_fs_mount_list(FsMountList *mounts)
 {
     struct mntent *ment;
-    GuestFsfreezeMount *mount;
+    FsMount *mount;
     char const *mtab = "/proc/self/mounts";
     FILE *fp;
 
@@ -367,7 +367,7 @@ static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
             continue;
         }
 
-        mount = g_malloc0(sizeof(GuestFsfreezeMount));
+        mount = g_malloc0(sizeof(FsMount));
         mount->dirname = g_strdup(ment->mnt_dir);
         mount->devtype = g_strdup(ment->mnt_type);
 
@@ -398,15 +398,15 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 int64_t qmp_guest_fsfreeze_freeze(Error **err)
 {
     int ret = 0, i = 0;
-    GuestFsfreezeMountList mounts;
-    struct GuestFsfreezeMount *mount;
+    FsMountList mounts;
+    struct FsMount *mount;
     int fd;
     char err_msg[512];
 
     slog("guest-fsfreeze called");
 
     QTAILQ_INIT(&mounts);
-    ret = guest_fsfreeze_build_mount_list(&mounts);
+    ret = build_fs_mount_list(&mounts);
     if (ret < 0) {
         return ret;
     }
@@ -447,11 +447,11 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
         close(fd);
     }
 
-    guest_fsfreeze_free_mount_list(&mounts);
+    free_fs_mount_list(&mounts);
     return i;
 
 error:
-    guest_fsfreeze_free_mount_list(&mounts);
+    free_fs_mount_list(&mounts);
     qmp_guest_fsfreeze_thaw(NULL);
     return 0;
 }
@@ -462,12 +462,12 @@ error:
 int64_t qmp_guest_fsfreeze_thaw(Error **err)
 {
     int ret;
-    GuestFsfreezeMountList mounts;
-    GuestFsfreezeMount *mount;
+    FsMountList mounts;
+    FsMount *mount;
     int fd, i = 0, logged;
 
     QTAILQ_INIT(&mounts);
-    ret = guest_fsfreeze_build_mount_list(&mounts);
+    ret = build_fs_mount_list(&mounts);
     if (ret) {
         error_set(err, QERR_QGA_COMMAND_FAILED,
                   "failed to enumerate filesystems");
@@ -507,7 +507,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
     }
 
     ga_unset_frozen(ga_state);
-    guest_fsfreeze_free_mount_list(&mounts);
+    free_fs_mount_list(&mounts);
     return i;
 }
 
