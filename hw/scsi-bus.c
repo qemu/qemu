@@ -1389,7 +1389,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
     assert(req->status == -1);
     req->status = status;
 
-    assert(req->sense_len < sizeof(req->sense));
+    assert(req->sense_len <= sizeof(req->sense));
     if (status == GOOD) {
         req->sense_len = 0;
     }
