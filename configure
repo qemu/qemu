@@ -3491,6 +3491,7 @@ done
 
 # use included Linux headers
 if test "$linux" = "yes" ; then
+  mkdir -p linux-headers
   case "$cpu" in
   i386|x86_64)
     symlink "$source_path/linux-headers/asm-x86" linux-headers/asm
