@@ -901,7 +901,21 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
         cmd->xfer = buf[13] | (buf[12] << 8);
         break;
     case READ_POSITION:
-        cmd->xfer = buf[8] | (buf[7] << 8);
+        switch (buf[1] & 0x1f) /* operation code */ {
+        case SHORT_FORM_BLOCK_ID:
+        case SHORT_FORM_VENDOR_SPECIFIC:
+            cmd->xfer = 20;
+            break;
+        case LONG_FORM:
+            cmd->xfer = 32;
+            break;
+        case EXTENDED_FORM:
+            cmd->xfer = buf[8] | (buf[7] << 8);
+            break;
+        default:
+            return -1;
+        }
+
         break;
     case FORMAT_UNIT:
         cmd->xfer = buf[4] | (buf[3] << 8);

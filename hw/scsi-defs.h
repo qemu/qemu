@@ -147,6 +147,14 @@
 #define SAI_READ_CAPACITY_16  0x10
 
 /*
+ * READ POSITION service action codes
+ */
+#define SHORT_FORM_BLOCK_ID  0x00
+#define SHORT_FORM_VENDOR_SPECIFIC 0x01
+#define LONG_FORM            0x06
+#define EXTENDED_FORM        0x08
+
+/*
  *  SAM Status codes
  */
 
