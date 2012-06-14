@@ -770,7 +770,6 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case SET_CD_SPEED:
     case SET_LIMITS:
     case WRITE_LONG_10:
-    case MOVE_MEDIUM:
     case UPDATE_BLOCK:
     case RESERVE_TRACK:
     case SET_READ_AHEAD:
@@ -914,6 +913,29 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
     return 0;
 }
 
+static int scsi_req_medium_changer_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+{
+    switch (buf[0]) {
+    /* medium changer commands */
+    case EXCHANGE_MEDIUM:
+    case INITIALIZE_ELEMENT_STATUS:
+    case INITIALIZE_ELEMENT_STATUS_WITH_RANGE:
+    case MOVE_MEDIUM:
+    case POSITION_TO_ELEMENT:
+        cmd->xfer = 0;
+        break;
+    case READ_ELEMENT_STATUS:
+        cmd->xfer = buf[9] | (buf[8] << 8) | (buf[7] << 16);
+        break;
+
+    /* generic commands */
+    default:
+        return scsi_req_length(cmd, dev, buf);
+    }
+    return 0;
+}
+
+
 static void scsi_cmd_xfer_mode(SCSICommand *cmd)
 {
     if (!cmd->xfer) {
@@ -1011,11 +1033,18 @@ int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
         return -1;
     }
 
-    if (dev->type == TYPE_TAPE) {
+    switch (dev->type) {
+    case TYPE_TAPE:
         rc = scsi_req_stream_length(cmd, dev, buf);
-    } else {
+        break;
+    case TYPE_MEDIUM_CHANGER:
+        rc = scsi_req_medium_changer_length(cmd, dev, buf);
+        break;
+    default:
         rc = scsi_req_length(cmd, dev, buf);
+        break;
     }
+
     if (rc != 0)
         return rc;
 
@@ -1193,7 +1222,8 @@ static const char *scsi_command_name(uint8_t cmd)
         [ REQUEST_SENSE            ] = "REQUEST_SENSE",
         [ FORMAT_UNIT              ] = "FORMAT_UNIT",
         [ READ_BLOCK_LIMITS        ] = "READ_BLOCK_LIMITS",
-        [ REASSIGN_BLOCKS          ] = "REASSIGN_BLOCKS",
+        [ REASSIGN_BLOCKS          ] = "REASSIGN_BLOCKS/INITIALIZE ELEMENT STATUS",
+        /* LOAD_UNLOAD and INITIALIZE_ELEMENT_STATUS use the same operation code */
         [ READ_6                   ] = "READ_6",
         [ WRITE_6                  ] = "WRITE_6",
         [ SET_CAPACITY             ] = "SET_CAPACITY",
@@ -1218,7 +1248,8 @@ static const char *scsi_command_name(uint8_t cmd)
         [ READ_CAPACITY_10         ] = "READ_CAPACITY_10",
         [ READ_10                  ] = "READ_10",
         [ WRITE_10                 ] = "WRITE_10",
-        [ SEEK_10                  ] = "SEEK_10",
+        [ SEEK_10                  ] = "SEEK_10/POSITION_TO_ELEMENT",
+        /* SEEK_10 and POSITION_TO_ELEMENT use the same operation code */
         [ WRITE_VERIFY_10          ] = "WRITE_VERIFY_10",
         [ VERIFY_10                ] = "VERIFY_10",
         [ SEARCH_HIGH              ] = "SEARCH_HIGH",
@@ -1229,7 +1260,8 @@ static const char *scsi_command_name(uint8_t cmd)
         /* READ_POSITION and PRE_FETCH use the same operation code */
         [ SYNCHRONIZE_CACHE        ] = "SYNCHRONIZE_CACHE",
         [ LOCK_UNLOCK_CACHE        ] = "LOCK_UNLOCK_CACHE",
-        [ READ_DEFECT_DATA         ] = "READ_DEFECT_DATA",
+        [ READ_DEFECT_DATA         ] = "READ_DEFECT_DATA/INITIALIZE_ELEMENT_STATUS_WITH_RANGE",
+        /* READ_DEFECT_DATA and INITIALIZE_ELEMENT_STATUS_WITH_RANGE use the same operation code */
         [ MEDIUM_SCAN              ] = "MEDIUM_SCAN",
         [ COMPARE                  ] = "COMPARE",
         [ COPY_VERIFY              ] = "COPY_VERIFY",
@@ -1274,6 +1306,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ REPORT_LUNS              ] = "REPORT_LUNS",
         [ BLANK                    ] = "BLANK",
         [ MOVE_MEDIUM              ] = "MOVE_MEDIUM",
+        [ EXCHANGE_MEDIUM          ] = "EXCHANGE MEDIUM",
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ READ_12                  ] = "READ_12",
         [ WRITE_12                 ] = "WRITE_12",

@@ -29,6 +29,7 @@
 #define REQUEST_SENSE         0x03
 #define FORMAT_UNIT           0x04
 #define READ_BLOCK_LIMITS     0x05
+#define INITIALIZE_ELEMENT_STATUS 0x07
 #define REASSIGN_BLOCKS       0x07
 #define READ_6                0x08
 #define WRITE_6               0x0a
@@ -54,6 +55,7 @@
 #define WRITE_10              0x2a
 #define SEEK_10               0x2b
 #define LOCATE_10             0x2b
+#define POSITION_TO_ELEMENT   0x2b
 #define WRITE_VERIFY_10       0x2e
 #define VERIFY_10             0x2f
 #define SEARCH_HIGH           0x30
@@ -64,6 +66,7 @@
 #define READ_POSITION         0x34
 #define SYNCHRONIZE_CACHE     0x35
 #define LOCK_UNLOCK_CACHE     0x36
+#define INITIALIZE_ELEMENT_STATUS_WITH_RANGE 0x37
 #define READ_DEFECT_DATA      0x37
 #define MEDIUM_SCAN           0x38
 #define COMPARE               0x39
@@ -118,6 +121,7 @@
 #define MAINTENANCE_IN        0xa3
 #define MAINTENANCE_OUT       0xa4
 #define MOVE_MEDIUM           0xa5
+#define EXCHANGE_MEDIUM       0xa6
 #define SET_READ_AHEAD        0xa7
 #define READ_12               0xa8
 #define WRITE_12              0xaa
