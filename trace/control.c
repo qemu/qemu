@@ -27,6 +27,9 @@ void trace_backend_init_events(const char *fname)
         size_t len = strlen(line_buf);
         if (len > 1) {              /* skip empty lines */
             line_buf[len - 1] = '\0';
+            if ('#' == line_buf[0]) { /* skip commented lines */
+                continue;
+            }
             if (!trace_event_set_state(line_buf, true)) {
                 fprintf(stderr,
                         "error: trace event '%s' does not exist\n", line_buf);
