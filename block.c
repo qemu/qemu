@@ -971,6 +971,107 @@ static void bdrv_rebind(BlockDriverState *bs)
     }
 }
 
+static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
+                                     BlockDriverState *bs_src)
+{
+    /* move some fields that need to stay attached to the device */
+    bs_dest->open_flags         = bs_src->open_flags;
+
+    /* dev info */
+    bs_dest->dev_ops            = bs_src->dev_ops;
+    bs_dest->dev_opaque         = bs_src->dev_opaque;
+    bs_dest->dev                = bs_src->dev;
+    bs_dest->buffer_alignment   = bs_src->buffer_alignment;
+    bs_dest->copy_on_read       = bs_src->copy_on_read;
+
+    bs_dest->enable_write_cache = bs_src->enable_write_cache;
+
+    /* i/o timing parameters */
+    bs_dest->slice_time         = bs_src->slice_time;
+    bs_dest->slice_start        = bs_src->slice_start;
+    bs_dest->slice_end          = bs_src->slice_end;
+    bs_dest->io_limits          = bs_src->io_limits;
+    bs_dest->io_base            = bs_src->io_base;
+    bs_dest->throttled_reqs     = bs_src->throttled_reqs;
+    bs_dest->block_timer        = bs_src->block_timer;
+    bs_dest->io_limits_enabled  = bs_src->io_limits_enabled;
+
+    /* geometry */
+    bs_dest->cyls               = bs_src->cyls;
+    bs_dest->heads              = bs_src->heads;
+    bs_dest->secs               = bs_src->secs;
+    bs_dest->translation        = bs_src->translation;
+
+    /* r/w error */
+    bs_dest->on_read_error      = bs_src->on_read_error;
+    bs_dest->on_write_error     = bs_src->on_write_error;
+
+    /* i/o status */
+    bs_dest->iostatus_enabled   = bs_src->iostatus_enabled;
+    bs_dest->iostatus           = bs_src->iostatus;
+
+    /* dirty bitmap */
+    bs_dest->dirty_count        = bs_src->dirty_count;
+    bs_dest->dirty_bitmap       = bs_src->dirty_bitmap;
+
+    /* job */
+    bs_dest->in_use             = bs_src->in_use;
+    bs_dest->job                = bs_src->job;
+
+    /* keep the same entry in bdrv_states */
+    pstrcpy(bs_dest->device_name, sizeof(bs_dest->device_name),
+            bs_src->device_name);
+    bs_dest->list = bs_src->list;
+}
+
+/*
+ * Swap bs contents for two image chains while they are live,
+ * while keeping required fields on the BlockDriverState that is
+ * actually attached to a device.
+ *
+ * This will modify the BlockDriverState fields, and swap contents
+ * between bs_new and bs_old. Both bs_new and bs_old are modified.
+ *
+ * bs_new is required to be anonymous.
+ *
+ * This function does not create any image files.
+ */
+void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
+{
+    BlockDriverState tmp;
+
+    /* bs_new must be anonymous and shouldn't have anything fancy enabled */
+    assert(bs_new->device_name[0] == '\0');
+    assert(bs_new->dirty_bitmap == NULL);
+    assert(bs_new->job == NULL);
+    assert(bs_new->dev == NULL);
+    assert(bs_new->in_use == 0);
+    assert(bs_new->io_limits_enabled == false);
+    assert(bs_new->block_timer == NULL);
+
+    tmp = *bs_new;
+    *bs_new = *bs_old;
+    *bs_old = tmp;
+
+    /* there are some fields that should not be swapped, move them back */
+    bdrv_move_feature_fields(&tmp, bs_old);
+    bdrv_move_feature_fields(bs_old, bs_new);
+    bdrv_move_feature_fields(bs_new, &tmp);
+
+    /* bs_new shouldn't be in bdrv_states even after the swap!  */
+    assert(bs_new->device_name[0] == '\0');
+
+    /* Check a few fields that should remain attached to the device */
+    assert(bs_new->dev == NULL);
+    assert(bs_new->job == NULL);
+    assert(bs_new->in_use == 0);
+    assert(bs_new->io_limits_enabled == false);
+    assert(bs_new->block_timer == NULL);
+
+    bdrv_rebind(bs_new);
+    bdrv_rebind(bs_old);
+}
+
 /*
  * Add new bs contents at the top of an image chain while the chain is
  * live, while keeping required fields on the top layer.
@@ -984,103 +1085,16 @@ static void bdrv_rebind(BlockDriverState *bs)
  */
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 {
-    BlockDriverState tmp;
-
-    /* bs_new must be anonymous */
-    assert(bs_new->device_name[0] == '\0');
-
-    tmp = *bs_new;
-
-    /* there are some fields that need to stay on the top layer: */
-    tmp.open_flags        = bs_top->open_flags;
-
-    /* dev info */
-    tmp.dev_ops           = bs_top->dev_ops;
-    tmp.dev_opaque        = bs_top->dev_opaque;
-    tmp.dev               = bs_top->dev;
-    tmp.buffer_alignment  = bs_top->buffer_alignment;
-    tmp.copy_on_read      = bs_top->copy_on_read;
-
-    tmp.enable_write_cache = bs_top->enable_write_cache;
-
-    /* i/o timing parameters */
-    tmp.slice_time        = bs_top->slice_time;
-    tmp.slice_start       = bs_top->slice_start;
-    tmp.slice_end         = bs_top->slice_end;
-    tmp.io_limits         = bs_top->io_limits;
-    tmp.io_base           = bs_top->io_base;
-    tmp.throttled_reqs    = bs_top->throttled_reqs;
-    tmp.block_timer       = bs_top->block_timer;
-    tmp.io_limits_enabled = bs_top->io_limits_enabled;
-
-    /* geometry */
-    tmp.cyls              = bs_top->cyls;
-    tmp.heads             = bs_top->heads;
-    tmp.secs              = bs_top->secs;
-    tmp.translation       = bs_top->translation;
-
-    /* r/w error */
-    tmp.on_read_error     = bs_top->on_read_error;
-    tmp.on_write_error    = bs_top->on_write_error;
-
-    /* i/o status */
-    tmp.iostatus_enabled  = bs_top->iostatus_enabled;
-    tmp.iostatus          = bs_top->iostatus;
-
-    /* dirty bitmap */
-    tmp.dirty_count       = bs_top->dirty_count;
-    tmp.dirty_bitmap      = bs_top->dirty_bitmap;
-    assert(bs_new->dirty_bitmap == NULL);
-
-    /* job */
-    tmp.in_use            = bs_top->in_use;
-    tmp.job               = bs_top->job;
-    assert(bs_new->job == NULL);
-
-    /* keep the same entry in bdrv_states */
-    pstrcpy(tmp.device_name, sizeof(tmp.device_name), bs_top->device_name);
-    tmp.list = bs_top->list;
+    bdrv_swap(bs_new, bs_top);
 
     /* The contents of 'tmp' will become bs_top, as we are
      * swapping bs_new and bs_top contents. */
-    tmp.backing_hd = bs_new;
-    pstrcpy(tmp.backing_file, sizeof(tmp.backing_file), bs_top->filename);
-    pstrcpy(tmp.backing_format, sizeof(tmp.backing_format),
-            bs_top->drv ? bs_top->drv->format_name : "");
-
-    /* swap contents of the fixed new bs and the current top */
-    *bs_new = *bs_top;
-    *bs_top = tmp;
-
-    /* device_name[] was carried over from the old bs_top.  bs_new
-     * shouldn't be in bdrv_states, so we need to make device_name[]
-     * reflect the anonymity of bs_new
-     */
-    bs_new->device_name[0] = '\0';
-
-    /* clear the copied fields in the new backing file */
-    bdrv_detach_dev(bs_new, bs_new->dev);
-
-    bs_new->job                = NULL;
-    bs_new->in_use             = 0;
-    bs_new->dirty_bitmap       = NULL;
-    bs_new->dirty_count        = 0;
-
-    qemu_co_queue_init(&bs_new->throttled_reqs);
-    memset(&bs_new->io_base,   0, sizeof(bs_new->io_base));
-    memset(&bs_new->io_limits, 0, sizeof(bs_new->io_limits));
-    bdrv_iostatus_disable(bs_new);
-
-    /* we don't use bdrv_io_limits_disable() for this, because we don't want
-     * to affect or delete the block_timer, as it has been moved to bs_top */
-    bs_new->io_limits_enabled = false;
-    bs_new->block_timer       = NULL;
-    bs_new->slice_time        = 0;
-    bs_new->slice_start       = 0;
-    bs_new->slice_end         = 0;
-
-    bdrv_rebind(bs_new);
-    bdrv_rebind(bs_top);
+    bs_top->backing_hd = bs_new;
+    bs_top->open_flags &= ~BDRV_O_NO_BACKING;
+    pstrcpy(bs_top->backing_file, sizeof(bs_top->backing_file),
+            bs_new->filename);
+    pstrcpy(bs_top->backing_format, sizeof(bs_top->backing_format),
+            bs_new->drv ? bs_new->drv->format_name : "");
 }
 
 void bdrv_delete(BlockDriverState *bs)
