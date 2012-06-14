@@ -328,10 +328,10 @@ static void msix_free_irq_entries(PCIDevice *dev)
 }
 
 /* Clean up resources for the device. */
-int msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
+void msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
 {
     if (!msix_present(dev)) {
-        return 0;
+        return;
     }
     pci_del_capability(dev, PCI_CAP_ID_MSIX, MSIX_CAP_LENGTH);
     dev->msix_cap = 0;
@@ -348,7 +348,7 @@ int msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
     g_free(dev->msix_entry_used);
     dev->msix_entry_used = NULL;
     dev->cap_present &= ~QEMU_PCI_CAP_MSIX;
-    return 0;
+    return;
 }
 
 void msix_uninit_exclusive_bar(PCIDevice *dev)

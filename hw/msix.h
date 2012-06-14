@@ -13,8 +13,8 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
 
 void msix_write_config(PCIDevice *dev, uint32_t address, uint32_t val, int len);
 
-int msix_uninit(PCIDevice *dev, MemoryRegion *table_bar,
-                MemoryRegion *pba_bar);
+void msix_uninit(PCIDevice *dev, MemoryRegion *table_bar,
+                 MemoryRegion *pba_bar);
 void msix_uninit_exclusive_bar(PCIDevice *dev);
 
 unsigned int msix_nr_vectors_allocated(const PCIDevice *dev);
