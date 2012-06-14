@@ -44,6 +44,7 @@
 #define COPY                  0x18
 #define ERASE                 0x19
 #define MODE_SENSE            0x1a
+#define LOAD_UNLOAD           0x1b
 #define START_STOP            0x1b
 #define RECEIVE_DIAGNOSTIC    0x1c
 #define SEND_DIAGNOSTIC       0x1d
@@ -117,7 +118,6 @@
 #define MAINTENANCE_IN        0xa3
 #define MAINTENANCE_OUT       0xa4
 #define MOVE_MEDIUM           0xa5
-#define LOAD_UNLOAD           0xa6
 #define SET_READ_AHEAD        0xa7
 #define READ_12               0xa8
 #define WRITE_12              0xaa

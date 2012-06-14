@@ -771,7 +771,6 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case SYNCHRONIZE_CACHE_16:
     case LOCATE_16:
     case LOCK_UNLOCK_CACHE:
-    case LOAD_UNLOAD:
     case SET_CD_SPEED:
     case SET_LIMITS:
     case WRITE_LONG_10:
@@ -902,7 +901,7 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
         }
         break;
     case REWIND:
-    case START_STOP:
+    case LOAD_UNLOAD:
         cmd->len = 6;
         cmd->xfer = 0;
         break;
@@ -1200,7 +1199,8 @@ static const char *scsi_command_name(uint8_t cmd)
         [ COPY                     ] = "COPY",
         [ ERASE                    ] = "ERASE",
         [ MODE_SENSE               ] = "MODE_SENSE",
-        [ START_STOP               ] = "START_STOP",
+        [ START_STOP               ] = "START_STOP/LOAD_UNLOAD",
+        /* LOAD_UNLOAD and START_STOP use the same operation code */
         [ RECEIVE_DIAGNOSTIC       ] = "RECEIVE_DIAGNOSTIC",
         [ SEND_DIAGNOSTIC          ] = "SEND_DIAGNOSTIC",
         [ ALLOW_MEDIUM_REMOVAL     ] = "ALLOW_MEDIUM_REMOVAL",
