@@ -297,14 +297,6 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         goto fail;
     }
 
-    if (!bs->read_only && s->autoclear_features != 0) {
-        s->autoclear_features = 0;
-        ret = qcow2_update_header(bs);
-        if (ret < 0) {
-            goto fail;
-        }
-    }
-
     /* Check support for various header values */
     if (header.refcount_order != 4) {
         report_unsupported(bs, "%d bit reference counts",
@@ -406,6 +398,15 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     ret = qcow2_read_snapshots(bs);
     if (ret < 0) {
         goto fail;
+    }
+
+    /* Clear unknown autoclear feature bits */
+    if (!bs->read_only && s->autoclear_features != 0) {
+        s->autoclear_features = 0;
+        ret = qcow2_update_header(bs);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* Initialise locks */
