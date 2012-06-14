@@ -443,6 +443,7 @@ static const char *monitor_event_names[] = {
     [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
     [QEVENT_SUSPEND] = "SUSPEND",
     [QEVENT_WAKEUP] = "WAKEUP",
+    [QEVENT_BALLOON_CHANGE] = "BALLOON_CHANGE",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
 

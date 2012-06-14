@@ -30,6 +30,7 @@
 #include "balloon.h"
 #include "trace.h"
 #include "qmp-commands.h"
+#include "qjson.h"
 
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
@@ -79,6 +80,19 @@ static int qemu_balloon_status(BalloonInfo *info)
     balloon_stat_fn(balloon_opaque, info);
     return 1;
 }
+
+void qemu_balloon_changed(int64_t actual)
+{
+    QObject *data;
+
+    data = qobject_from_jsonf("{ 'actual': %" PRId64 " }",
+                              actual);
+
+    monitor_protocol_event(QEVENT_BALLOON_CHANGE, data);
+
+    qobject_decref(data);
+}
+
 
 BalloonInfo *qmp_query_balloon(Error **errp)
 {
