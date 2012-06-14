@@ -299,6 +299,45 @@ err_config:
     return ret;
 }
 
+int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
+                            uint8_t bar_nr)
+{
+    int ret;
+    char *name;
+
+    /*
+     * Migration compatibility dictates that this remains a 4k
+     * BAR with the vector table in the lower half and PBA in
+     * the upper half.  Do not use these elsewhere!
+     */
+#define MSIX_EXCLUSIVE_BAR_SIZE 4096
+#define MSIX_EXCLUSIVE_BAR_PBA_OFFSET (MSIX_EXCLUSIVE_BAR_SIZE / 2)
+
+    if (nentries * PCI_MSIX_ENTRY_SIZE > MSIX_EXCLUSIVE_BAR_PBA_OFFSET) {
+        return -EINVAL;
+    }
+
+    if (asprintf(&name, "%s-msix", dev->name) == -1) {
+        return -ENOMEM;
+    }
+
+    memory_region_init(&dev->msix_exclusive_bar, name, MSIX_EXCLUSIVE_BAR_SIZE);
+
+    free(name);
+
+    ret = msix_init(dev, nentries, &dev->msix_exclusive_bar, bar_nr,
+                    MSIX_EXCLUSIVE_BAR_SIZE);
+    if (ret) {
+        memory_region_destroy(&dev->msix_exclusive_bar);
+        return ret;
+    }
+
+    pci_register_bar(dev, bar_nr, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &dev->msix_exclusive_bar);
+
+    return 0;
+}
+
 static void msix_free_irq_entries(PCIDevice *dev)
 {
     int vector;
@@ -327,6 +366,14 @@ int msix_uninit(PCIDevice *dev, MemoryRegion *bar)
     dev->msix_entry_used = NULL;
     dev->cap_present &= ~QEMU_PCI_CAP_MSIX;
     return 0;
+}
+
+void msix_uninit_exclusive_bar(PCIDevice *dev)
+{
+    if (msix_present(dev)) {
+        msix_uninit(dev, &dev->msix_exclusive_bar);
+        memory_region_destroy(&dev->msix_exclusive_bar);
+    }
 }
 
 void msix_save(PCIDevice *dev, QEMUFile *f)
