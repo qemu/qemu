@@ -8,8 +8,7 @@ int msix_init(PCIDevice *pdev, unsigned short nentries,
               MemoryRegion *bar,
               unsigned bar_nr, unsigned bar_size);
 
-void msix_write_config(PCIDevice *pci_dev, uint32_t address,
-                       uint32_t val, int len);
+void msix_write_config(PCIDevice *dev, uint32_t address, uint32_t val, int len);
 
 int msix_uninit(PCIDevice *d, MemoryRegion *bar);
 
