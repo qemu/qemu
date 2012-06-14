@@ -1027,6 +1027,16 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     tmp.iostatus_enabled  = bs_top->iostatus_enabled;
     tmp.iostatus          = bs_top->iostatus;
 
+    /* dirty bitmap */
+    tmp.dirty_count       = bs_top->dirty_count;
+    tmp.dirty_bitmap      = bs_top->dirty_bitmap;
+    assert(bs_new->dirty_bitmap == NULL);
+
+    /* job */
+    tmp.in_use            = bs_top->in_use;
+    tmp.job               = bs_top->job;
+    assert(bs_new->job == NULL);
+
     /* keep the same entry in bdrv_states */
     pstrcpy(tmp.device_name, sizeof(tmp.device_name), bs_top->device_name);
     tmp.list = bs_top->list;
@@ -1050,6 +1060,11 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 
     /* clear the copied fields in the new backing file */
     bdrv_detach_dev(bs_new, bs_new->dev);
+
+    bs_new->job                = NULL;
+    bs_new->in_use             = 0;
+    bs_new->dirty_bitmap       = NULL;
+    bs_new->dirty_count        = 0;
 
     qemu_co_queue_init(&bs_new->throttled_reqs);
     memset(&bs_new->io_base,   0, sizeof(bs_new->io_base));
