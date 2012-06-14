@@ -86,16 +86,6 @@ static int msix_add_config(struct PCIDevice *pdev, unsigned short nentries,
     return 0;
 }
 
-static uint64_t msix_mmio_read(void *opaque, target_phys_addr_t addr,
-                               unsigned size)
-{
-    PCIDevice *dev = opaque;
-    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1) & ~0x3;
-    void *page = dev->msix_table_page;
-
-    return pci_get_long(page + offset);
-}
-
 static uint8_t msix_pending_mask(int vector)
 {
     return 1 << (vector % 8);
@@ -201,6 +191,16 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
         msix_handle_mask_update(dev, vector,
                                 msix_vector_masked(dev, vector, was_masked));
     }
+}
+
+static uint64_t msix_mmio_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
+{
+    PCIDevice *dev = opaque;
+    unsigned int offset = addr & (MSIX_PAGE_SIZE - 1) & ~0x3;
+    void *page = dev->msix_table_page;
+
+    return pci_get_long(page + offset);
 }
 
 static void msix_mmio_write(void *opaque, target_phys_addr_t addr,
