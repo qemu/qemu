@@ -471,6 +471,8 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
                 QCOW_OFLAG_COMPRESSED | QCOW_OFLAG_ZERO);
         *cluster_offset &= L2E_OFFSET_MASK;
         break;
+    default:
+        abort();
     }
 
     qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
