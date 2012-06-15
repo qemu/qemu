@@ -415,7 +415,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
 #ifdef DEBUG_ALLOC
     {
         BdrvCheckResult result = {0};
-        qcow2_check_refcounts(bs, &result);
+        qcow2_check_refcounts(bs, &result, 0);
     }
 #endif
     return ret;
