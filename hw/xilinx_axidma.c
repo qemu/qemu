@@ -463,8 +463,8 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     struct XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), dev);
     int i;
 
-    sysbus_init_irq(dev, &s->streams[1].irq);
     sysbus_init_irq(dev, &s->streams[0].irq);
+    sysbus_init_irq(dev, &s->streams[1].irq);
 
     if (!s->dmach) {
         hw_error("Unconnected DMA channel.\n");
@@ -473,7 +473,7 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     xlx_dma_connect_dma(s->dmach, s, axidma_push);
 
     memory_region_init_io(&s->iomem, &axidma_ops, s,
-                          "axidma", R_MAX * 4 * 2);
+                          "xlnx.axi-dma", R_MAX * 4 * 2);
     sysbus_init_mmio(dev, &s->iomem);
 
     for (i = 0; i < 2; i++) {
@@ -502,7 +502,7 @@ static void axidma_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo axidma_info = {
-    .name          = "xilinx,axidma",
+    .name          = "xlnx.axi-dma",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct XilinxAXIDMA),
     .class_init    = axidma_class_init,

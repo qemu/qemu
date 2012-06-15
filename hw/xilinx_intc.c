@@ -156,7 +156,7 @@ static int xilinx_intc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &p->parent_irq);
 
-    memory_region_init_io(&p->mmio, &pic_ops, p, "xilinx-pic", R_MAX * 4);
+    memory_region_init_io(&p->mmio, &pic_ops, p, "xlnx.xps-intc", R_MAX * 4);
     sysbus_init_mmio(dev, &p->mmio);
     return 0;
 }
@@ -176,7 +176,7 @@ static void xilinx_intc_class_init(ObjectClass *klass, void *data)
 }
 
 static TypeInfo xilinx_intc_info = {
-    .name          = "xilinx,intc",
+    .name          = "xlnx.xps-intc",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct xlx_pic),
     .class_init    = xilinx_intc_class_init,

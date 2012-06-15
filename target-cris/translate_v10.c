@@ -1132,6 +1132,7 @@ static unsigned int dec10_ind(DisasContext *dc)
                     LOG_DIS("break %d\n", dc->src);
                     cris_evaluate_flags(dc);
                     tcg_gen_movi_tl(env_pc, dc->pc + 2);
+                    t_gen_mov_env_TN(trap_vector, tcg_const_tl(dc->src + 2));
                     t_gen_raise_exception(EXCP_BREAK);
                     dc->is_jmp = DISAS_UPDATE;
                     return insn_len;

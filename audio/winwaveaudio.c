@@ -72,7 +72,7 @@ static void winwave_log_mmresult (MMRESULT mr)
         break;
 
     case MMSYSERR_NOMEM:
-        str = "Unable to allocate or locl memory";
+        str = "Unable to allocate or lock memory";
         break;
 
     case WAVERR_SYNC:

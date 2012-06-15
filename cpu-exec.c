@@ -467,11 +467,18 @@ int cpu_exec(CPUArchState *env)
                         do_interrupt(env);
                         next_tb = 0;
                     }
-                    if (interrupt_request & CPU_INTERRUPT_NMI
-                        && (env->pregs[PR_CCS] & M_FLAG)) {
-                        env->exception_index = EXCP_NMI;
-                        do_interrupt(env);
-                        next_tb = 0;
+                    if (interrupt_request & CPU_INTERRUPT_NMI) {
+                        unsigned int m_flag_archval;
+                        if (env->pregs[PR_VR] < 32) {
+                            m_flag_archval = M_FLAG_V10;
+                        } else {
+                            m_flag_archval = M_FLAG_V32;
+                        }
+                        if ((env->pregs[PR_CCS] & m_flag_archval)) {
+                            env->exception_index = EXCP_NMI;
+                            do_interrupt(env);
+                            next_tb = 0;
+                        }
                     }
 #elif defined(TARGET_M68K)
                     if (interrupt_request & CPU_INTERRUPT_HARD

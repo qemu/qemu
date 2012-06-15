@@ -64,17 +64,19 @@
 #define PR_NRP 12
 #define PR_CCS 13
 #define PR_USP 14
+#define PRV10_BRP 14
 #define PR_SPC 15
 
 /* CPU flags.  */
 #define Q_FLAG 0x80000000
-#define M_FLAG 0x40000000
+#define M_FLAG_V32 0x40000000
 #define PFIX_FLAG 0x800      /* CRISv10 Only.  */
 #define F_FLAG_V10 0x400
 #define P_FLAG_V10 0x200
 #define S_FLAG 0x200
 #define R_FLAG 0x100
 #define P_FLAG 0x80
+#define M_FLAG_V10 0x80
 #define U_FLAG 0x40
 #define I_FLAG 0x20
 #define X_FLAG 0x10

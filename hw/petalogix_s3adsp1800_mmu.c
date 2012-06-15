@@ -104,9 +104,9 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    sysbus_create_simple("xilinx,uartlite", UARTLITE_BASEADDR, irq[3]);
+    sysbus_create_simple("xlnx.xps-uartlite", UARTLITE_BASEADDR, irq[3]);
     /* 2 timers at irq 2 @ 62 Mhz.  */
-    xilinx_timer_create(TIMER_BASEADDR, irq[0], 2, 62 * 1000000);
+    xilinx_timer_create(TIMER_BASEADDR, irq[0], 0, 62 * 1000000);
     xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,

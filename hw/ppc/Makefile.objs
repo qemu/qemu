@@ -23,9 +23,6 @@ obj-y += openpic.o
 obj-$(CONFIG_FDT) += ../device_tree.o
 
 # Xilinx PPC peripherals
-obj-y += xilinx_intc.o
-obj-y += xilinx_timer.o
-obj-y += xilinx_uartlite.o
 obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
