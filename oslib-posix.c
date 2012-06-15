@@ -41,6 +41,9 @@ extern int daemon(int, int);
       therefore we need special code which handles running on Valgrind. */
 #  define QEMU_VMALLOC_ALIGN (512 * 4096)
 #  define CONFIG_VALGRIND
+#elif defined(__linux__) && defined(__s390x__)
+   /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
+#  define QEMU_VMALLOC_ALIGN (256 * 4096)
 #else
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
