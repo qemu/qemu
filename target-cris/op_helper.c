@@ -247,8 +247,8 @@ void helper_rfn(void)
 	if (!rflag)
 		env->pregs[PR_CCS] |= P_FLAG;
 
-    /* Always set the M flag.  */
-    env->pregs[PR_CCS] |= M_FLAG;
+	/* Always set the M flag.  */
+	env->pregs[PR_CCS] |= M_FLAG_V32;
 }
 
 uint32_t helper_lz(uint32_t t0)

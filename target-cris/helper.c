@@ -127,7 +127,7 @@ static void do_interruptv10(CPUCRISState *env)
 		case EXCP_NMI:
 			/* NMI is hardwired to vector zero.  */
 			ex_vec = 0;
-			env->pregs[PR_CCS] &= ~M_FLAG;
+			env->pregs[PR_CCS] &= ~M_FLAG_V10;
 			env->pregs[PRV10_BRP] = env->pc;
 			break;
 
@@ -185,7 +185,7 @@ void do_interrupt(CPUCRISState *env)
 		case EXCP_NMI:
 			/* NMI is hardwired to vector zero.  */
 			ex_vec = 0;
-			env->pregs[PR_CCS] &= ~M_FLAG;
+			env->pregs[PR_CCS] &= ~M_FLAG_V32;
 			env->pregs[PR_NRP] = env->pc;
 			break;
 
