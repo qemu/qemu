@@ -136,7 +136,7 @@ static void timer_enable(struct xlx_timer *xt)
         count = xt->regs[R_TLR];
     else
         count = ~0 - xt->regs[R_TLR];
-    ptimer_set_count(xt->ptimer, count);
+    ptimer_set_limit(xt->ptimer, count, 1);
     ptimer_run(xt->ptimer, 1);
 }
 
