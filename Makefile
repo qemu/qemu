@@ -406,5 +406,5 @@ tar:
 Makefile: $(GENERATED_HEADERS)
 
 # Include automatically generated dependency files
--include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d qapi/*.d)
--include $(wildcard qga/*.d hw/*.d hw/usb/*.d)
+# All subdir dependencies come automatically from our recursive subdir rules
+-include $(wildcard *.d)

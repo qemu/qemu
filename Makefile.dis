@@ -20,4 +20,4 @@ clean:
 	rm -f *.o *.d *.a *~
 
 # Include automatically generated dependency files
--include $(wildcard *.d */*.d)
+-include $(wildcard *.d)

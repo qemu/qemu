@@ -23,4 +23,4 @@ clean:
 	done
 
 # Include automatically generated dependency files
--include $(wildcard *.d */*.d)
+-include $(wildcard *.d)

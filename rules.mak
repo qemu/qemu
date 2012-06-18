@@ -94,6 +94,7 @@ define unnest-dir
 $(foreach var,$(nested-vars),$(call push-var,$(var),$1/))
 $(eval obj := $(obj)/$1)
 $(eval include $(SRC_PATH)/$1/Makefile.objs)
+$(eval -include $(wildcard $1/*.d))
 $(eval obj := $(patsubst %/$1,%,$(obj)))
 $(foreach var,$(nested-vars),$(call pop-var,$(var),$1/))
 endef
