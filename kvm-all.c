@@ -22,6 +22,8 @@
 
 #include "qemu-common.h"
 #include "qemu-barrier.h"
+#include "qemu-option.h"
+#include "qemu-config.h"
 #include "sysemu.h"
 #include "hw/hw.h"
 #include "hw/msi.h"

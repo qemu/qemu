@@ -677,6 +677,11 @@ esp_mem_writeb_cmd_ensel(uint32_t val) "Enable selection (%2.2x)"
 # monitor.c
 handle_qmp_command(void *mon, const char *cmd_name) "mon %p cmd_name \"%s\""
 monitor_protocol_emitter(void *mon) "mon %p"
+monitor_protocol_event(uint32_t event, const char *evname, void *data) "event=%d name \"%s\" data %p"
+monitor_protocol_event_handler(uint32_t event, void *data, uint64_t last, uint64_t now) "event=%d data=%p last=%" PRId64 " now=%" PRId64
+monitor_protocol_event_emit(uint32_t event, void *data) "event=%d data=%p"
+monitor_protocol_event_queue(uint32_t event, void *data, uint64_t rate, uint64_t last, uint64_t now) "event=%d data=%p rate=%" PRId64 " last=%" PRId64 " now=%" PRId64
+monitor_protocol_event_throttle(uint32_t event, uint64_t rate) "event=%d rate=%" PRId64
 
 # hw/opencores_eth.c
 open_eth_mii_write(unsigned idx, uint16_t v) "MII[%02x] <- %04x"
