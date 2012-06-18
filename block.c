@@ -649,12 +649,13 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->opaque = g_malloc0(drv->instance_size);
 
     bs->enable_write_cache = !!(flags & BDRV_O_CACHE_WB);
+    open_flags = flags | BDRV_O_CACHE_WB;
 
     /*
      * Clear flags that are internal to the block layer before opening the
      * image.
      */
-    open_flags = flags & ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
     /*
      * Snapshots should be writable.
@@ -1000,6 +1001,8 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     tmp.buffer_alignment  = bs_top->buffer_alignment;
     tmp.copy_on_read      = bs_top->copy_on_read;
 
+    tmp.enable_write_cache = bs_top->enable_write_cache;
+
     /* i/o timing parameters */
     tmp.slice_time        = bs_top->slice_time;
     tmp.slice_start       = bs_top->slice_start;
@@ -1032,7 +1035,8 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
      * swapping bs_new and bs_top contents. */
     tmp.backing_hd = bs_new;
     pstrcpy(tmp.backing_file, sizeof(tmp.backing_file), bs_top->filename);
-    bdrv_get_format(bs_top, tmp.backing_format, sizeof(tmp.backing_format));
+    pstrcpy(tmp.backing_format, sizeof(tmp.backing_format),
+            bs_top->drv ? bs_top->drv->format_name : "");
 
     /* swap contents of the fixed new bs and the current top */
     *bs_new = *bs_top;
@@ -1222,14 +1226,14 @@ bool bdrv_dev_is_medium_locked(BlockDriverState *bs)
  * free of errors) or -errno when an internal error occurred. The results of the
  * check are stored in res.
  */
-int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res)
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 {
     if (bs->drv->bdrv_check == NULL) {
         return -ENOTSUP;
     }
 
     memset(res, 0, sizeof(*res));
-    return bs->drv->bdrv_check(bs, res);
+    return bs->drv->bdrv_check(bs, res, fix);
 }
 
 #define COMMIT_BUF_SECTORS 2048
@@ -1758,8 +1762,8 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
         return ret;
     }
 
-    /* No flush needed for cache modes that use O_DSYNC */
-    if ((bs->open_flags & BDRV_O_CACHE_WB) != 0) {
+    /* No flush needed for cache modes that already do it */
+    if (bs->enable_write_cache) {
         bdrv_flush(bs);
     }
 
@@ -1808,6 +1812,9 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         ret = bdrv_co_do_write_zeroes(bs, cluster_sector_num,
                                       cluster_nb_sectors);
     } else {
+        /* This does not change the data on the disk, it is not necessary
+         * to flush even in cache=writethrough mode.
+         */
         ret = drv->bdrv_co_writev(bs, cluster_sector_num, cluster_nb_sectors,
                                   &bounce_qiov);
     }
@@ -1975,6 +1982,10 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors);
     } else {
         ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
+    }
+
+    if (ret == 0 && !bs->enable_write_cache) {
+        ret = bdrv_co_flush(bs);
     }
 
     if (bs->dirty_bitmap) {
@@ -2371,6 +2382,11 @@ int bdrv_enable_write_cache(BlockDriverState *bs)
     return bs->enable_write_cache;
 }
 
+void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
+{
+    bs->enable_write_cache = wce;
+}
+
 int bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing_hd && bs->backing_hd->encrypted)
@@ -2413,13 +2429,9 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     return ret;
 }
 
-void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size)
+const char *bdrv_get_format_name(BlockDriverState *bs)
 {
-    if (!bs->drv) {
-        buf[0] = '\0';
-    } else {
-        pstrcpy(buf, buf_size, bs->drv->format_name);
-    }
+    return bs->drv ? bs->drv->format_name : NULL;
 }
 
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
@@ -2464,6 +2476,11 @@ void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs), void *opaque)
 const char *bdrv_get_device_name(BlockDriverState *bs)
 {
     return bs->device_name;
+}
+
+int bdrv_get_flags(BlockDriverState *bs)
+{
+    return bs->open_flags;
 }
 
 void bdrv_flush_all(void)
@@ -2567,6 +2584,55 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         qemu_aio_wait();
     }
     return data.ret;
+}
+
+/*
+ * Given an image chain: ... -> [BASE] -> [INTER1] -> [INTER2] -> [TOP]
+ *
+ * Return true if the given sector is allocated in any image between
+ * BASE and TOP (inclusive).  BASE can be NULL to check if the given
+ * sector is allocated in any image of the chain.  Return false otherwise.
+ *
+ * 'pnum' is set to the number of sectors (including and immediately following
+ *  the specified sector) that are known to be in the same
+ *  allocated/unallocated state.
+ *
+ */
+int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
+                                            BlockDriverState *base,
+                                            int64_t sector_num,
+                                            int nb_sectors, int *pnum)
+{
+    BlockDriverState *intermediate;
+    int ret, n = nb_sectors;
+
+    intermediate = top;
+    while (intermediate && intermediate != base) {
+        int pnum_inter;
+        ret = bdrv_co_is_allocated(intermediate, sector_num, nb_sectors,
+                                   &pnum_inter);
+        if (ret < 0) {
+            return ret;
+        } else if (ret) {
+            *pnum = pnum_inter;
+            return 1;
+        }
+
+        /*
+         * [sector_num, nb_sectors] is unallocated on top but intermediate
+         * might have
+         *
+         * [sector_num+x, nr_sectors] allocated.
+         */
+        if (n > pnum_inter) {
+            n = pnum_inter;
+        }
+
+        intermediate = intermediate->backing_hd;
+    }
+
+    *pnum = n;
+    return 0;
 }
 
 BlockInfoList *qmp_query_block(Error **errp)

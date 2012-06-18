@@ -339,7 +339,7 @@ static void ahci_mem_write(void *opaque, target_phys_addr_t addr,
             case HOST_CTL: /* R/W */
                 if (val & HOST_CTL_RESET) {
                     DPRINTF(-1, "HBA Reset\n");
-                    ahci_reset(container_of(s, AHCIPCIState, ahci));
+                    ahci_reset(s);
                 } else {
                     s->control_regs.ghc = (val & 0x3) | HOST_CTL_AHCI_EN;
                     ahci_check_irq(s);
@@ -1149,21 +1149,20 @@ void ahci_uninit(AHCIState *s)
     g_free(s->dev);
 }
 
-void ahci_reset(void *opaque)
+void ahci_reset(AHCIState *s)
 {
-    struct AHCIPCIState *d = opaque;
     AHCIPortRegs *pr;
     int i;
 
-    d->ahci.control_regs.irqstatus = 0;
-    d->ahci.control_regs.ghc = 0;
+    s->control_regs.irqstatus = 0;
+    s->control_regs.ghc = 0;
 
-    for (i = 0; i < d->ahci.ports; i++) {
-        pr = &d->ahci.dev[i].port_regs;
+    for (i = 0; i < s->ports; i++) {
+        pr = &s->dev[i].port_regs;
         pr->irq_stat = 0;
         pr->irq_mask = 0;
         pr->scr_ctl = 0;
-        ahci_reset_port(&d->ahci, i);
+        ahci_reset_port(s, i);
     }
 }
 
@@ -1178,6 +1177,13 @@ static const VMStateDescription vmstate_sysbus_ahci = {
     .unmigratable = 1,
 };
 
+static void sysbus_ahci_reset(DeviceState *dev)
+{
+    SysbusAHCIState *s = DO_UPCAST(SysbusAHCIState, busdev.qdev, dev);
+
+    ahci_reset(&s->ahci);
+}
+
 static int sysbus_ahci_init(SysBusDevice *dev)
 {
     SysbusAHCIState *s = FROM_SYSBUS(SysbusAHCIState, dev);
@@ -1185,8 +1191,6 @@ static int sysbus_ahci_init(SysBusDevice *dev)
 
     sysbus_init_mmio(dev, &s->ahci.mem);
     sysbus_init_irq(dev, &s->ahci.irq);
-
-    qemu_register_reset(ahci_reset, &s->ahci);
     return 0;
 }
 
@@ -1203,6 +1207,7 @@ static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
     sbc->init = sysbus_ahci_init;
     dc->vmsd = &vmstate_sysbus_ahci;
     dc->props = sysbus_ahci_properties;
+    dc->reset = sysbus_ahci_reset;
 }
 
 static TypeInfo sysbus_ahci_info = {

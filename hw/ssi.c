@@ -16,9 +16,13 @@ struct SSIBus {
     BusState qbus;
 };
 
-static struct BusInfo ssi_bus_info = {
-    .name = "SSI",
-    .size = sizeof(SSIBus),
+#define TYPE_SSI_BUS "SSI"
+#define SSI_BUS(obj) OBJECT_CHECK(SSIBus, (obj), TYPE_SSI_BUS)
+
+static const TypeInfo ssi_bus_info = {
+    .name = TYPE_SSI_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(SSIBus),
 };
 
 static int ssi_slave_init(DeviceState *dev)
@@ -26,10 +30,11 @@ static int ssi_slave_init(DeviceState *dev)
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
     SSIBus *bus;
+    BusChild *kid;
 
     bus = FROM_QBUS(SSIBus, qdev_get_parent_bus(dev));
-    if (QTAILQ_FIRST(&bus->qbus.children) != dev
-        || QTAILQ_NEXT(dev, sibling) != NULL) {
+    kid = QTAILQ_FIRST(&bus->qbus.children);
+    if (kid->child != dev || QTAILQ_NEXT(kid, sibling) != NULL) {
         hw_error("Too many devices on SSI bus");
     }
 
@@ -40,7 +45,7 @@ static void ssi_slave_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->init = ssi_slave_init;
-    dc->bus_info = &ssi_bus_info;
+    dc->bus_type = TYPE_SSI_BUS;
 }
 
 static TypeInfo ssi_slave_info = {
@@ -62,26 +67,28 @@ DeviceState *ssi_create_slave(SSIBus *bus, const char *name)
 SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 {
     BusState *bus;
-    bus = qbus_create(&ssi_bus_info, parent, name);
+    bus = qbus_create(TYPE_SSI_BUS, parent, name);
     return FROM_QBUS(SSIBus, bus);
 }
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
-    DeviceState *dev;
+    BusChild *kid;
     SSISlave *slave;
     SSISlaveClass *ssc;
-    dev = QTAILQ_FIRST(&bus->qbus.children);
-    if (!dev) {
+
+    kid = QTAILQ_FIRST(&bus->qbus.children);
+    if (!kid) {
         return 0;
     }
-    slave = SSI_SLAVE(dev);
+    slave = SSI_SLAVE(kid->child);
     ssc = SSI_SLAVE_GET_CLASS(slave);
     return ssc->transfer(slave, val);
 }
 
 static void ssi_slave_register_types(void)
 {
+    type_register_static(&ssi_bus_info);
     type_register_static(&ssi_slave_info);
 }
 

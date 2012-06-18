@@ -242,7 +242,8 @@ struct BlockDriver {
      * Returns 0 for completed check, -errno for internal errors.
      * The check results are stored in result.
      */
-    int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result);
+    int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
+        BdrvCheckMode fix);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 

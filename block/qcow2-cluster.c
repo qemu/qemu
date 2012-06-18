@@ -540,7 +540,6 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
         if (l2_offset) {
             qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t));
         }
-        l2_offset = s->l1_table[l1_index] & L1E_OFFSET_MASK;
     }
 
     /* find the cluster offset for the given disk offset */
@@ -643,11 +642,10 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
 
     if (m->nb_available & (s->cluster_sectors - 1)) {
-        uint64_t end = m->nb_available & ~(uint64_t)(s->cluster_sectors - 1);
         cow = true;
         qemu_co_mutex_unlock(&s->lock);
-        ret = copy_sectors(bs, start_sect + end, cluster_offset + (end << 9),
-                m->nb_available - end, s->cluster_sectors);
+        ret = copy_sectors(bs, start_sect, cluster_offset, m->nb_available,
+                           align_offset(m->nb_available, s->cluster_sectors));
         qemu_co_mutex_lock(&s->lock);
         if (ret < 0)
             goto err;
@@ -949,8 +947,16 @@ again:
 
         /* save info needed for meta data update */
         if (nb_clusters > 0) {
+            /*
+             * requested_sectors: Number of sectors from the start of the first
+             * newly allocated cluster to the end of the (possibly shortened
+             * before) write request.
+             *
+             * avail_sectors: Number of sectors from the start of the first
+             * newly allocated to the end of the last newly allocated cluster.
+             */
             int requested_sectors = n_end - keep_clusters * s->cluster_sectors;
-            int avail_sectors = (keep_clusters + nb_clusters)
+            int avail_sectors = nb_clusters
                                 << (s->cluster_bits - BDRV_SECTOR_BITS);
 
             *m = (QCowL2Meta) {

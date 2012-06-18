@@ -1047,6 +1047,7 @@ static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val)
 {
+    uint16_t *identify_data;
     IDEState *s;
     int n;
     int lba48 = 0;
@@ -1231,10 +1232,21 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
             goto abort_cmd;
         /* XXX: valid for CDROM ? */
         switch(s->feature) {
+        case 0x02: /* write cache enable */
+            bdrv_set_enable_write_cache(s->bs, true);
+            identify_data = (uint16_t *)s->identify_data;
+            put_le16(identify_data + 85, (1 << 14) | (1 << 5) | 1);
+            s->status = READY_STAT | SEEK_STAT;
+            ide_set_irq(s->bus);
+            break;
+        case 0x82: /* write cache disable */
+            bdrv_set_enable_write_cache(s->bs, false);
+            identify_data = (uint16_t *)s->identify_data;
+            put_le16(identify_data + 85, (1 << 14) | 1);
+            ide_flush_cache(s);
+            break;
         case 0xcc: /* reverting to power-on defaults enable */
         case 0x66: /* reverting to power-on defaults disable */
-        case 0x02: /* write cache enable */
-        case 0x82: /* write cache disable */
         case 0xaa: /* read look-ahead enable */
         case 0x55: /* read look-ahead disable */
         case 0x05: /* set advanced power management mode */
@@ -1250,7 +1262,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
             break;
         case 0x03: { /* set transfer mode */
 		uint8_t val = s->nsector & 0x07;
-            uint16_t *identify_data = (uint16_t *)s->identify_data;
+		identify_data = (uint16_t *)s->identify_data;
 
 		switch (s->nsector >> 3) {
 		case 0x00: /* pio default */
@@ -2145,6 +2157,9 @@ static int ide_drive_post_load(void *opaque, int version_id)
             s->asc == ASC_MEDIUM_MAY_HAVE_CHANGED) {
             s->cdrom_changed = 1;
         }
+    }
+    if (s->identify_set) {
+        bdrv_set_enable_write_cache(s->bs, !!(s->identify_data[85] & (1 << 5)));
     }
     return 0;
 }

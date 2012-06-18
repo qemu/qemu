@@ -29,20 +29,22 @@
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
 
-static struct BusInfo hda_codec_bus_info = {
-    .name      = "HDA",
-    .size      = sizeof(HDACodecBus),
-    .props     = (Property[]) {
-        DEFINE_PROP_UINT32("cad", HDACodecDevice, cad, -1),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property hda_props[] = {
+    DEFINE_PROP_UINT32("cad", HDACodecDevice, cad, -1),
+    DEFINE_PROP_END_OF_LIST()
+};
+
+static const TypeInfo hda_codec_bus_info = {
+    .name = TYPE_HDA_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(HDACodecBus),
 };
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
                         hda_codec_response_func response,
                         hda_codec_xfer_func xfer)
 {
-    qbus_create_inplace(&bus->qbus, &hda_codec_bus_info, dev, NULL);
+    qbus_create_inplace(&bus->qbus, TYPE_HDA_BUS, dev, NULL);
     bus->response = response;
     bus->xfer = xfer;
 }
@@ -76,10 +78,11 @@ static int hda_codec_dev_exit(DeviceState *qdev)
 
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     HDACodecDevice *cdev;
 
-    QTAILQ_FOREACH(qdev, &bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
         if (cdev->cad == cad) {
             return cdev;
@@ -481,10 +484,11 @@ static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
 
 static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool running, bool output)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     HDACodecDevice *cdev;
 
-    QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         HDACodecDeviceClass *cdc;
 
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
@@ -1103,15 +1107,16 @@ static const MemoryRegionOps intel_hda_mmio_ops = {
 
 static void intel_hda_reset(DeviceState *dev)
 {
+    BusChild *kid;
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci.qdev, dev);
-    DeviceState *qdev;
     HDACodecDevice *cdev;
 
     intel_hda_regs_reset(d);
     d->wall_base_ns = qemu_get_clock_ns(vm_clock);
 
     /* reset codecs */
-    QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
         device_reset(DEVICE(cdev));
         d->state_sts |= (1 << cdev->cad);
@@ -1151,17 +1156,6 @@ static int intel_hda_exit(PCIDevice *pci)
     msi_uninit(&d->pci);
     memory_region_destroy(&d->mmio);
     return 0;
-}
-
-static void intel_hda_write_config(PCIDevice *pci, uint32_t addr,
-                                   uint32_t val, int len)
-{
-    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
-
-    pci_default_write_config(pci, addr, val, len);
-    if (d->msi) {
-        msi_write_config(pci, addr, val, len);
-    }
 }
 
 static int intel_hda_post_load(void *opaque, int version)
@@ -1252,7 +1246,6 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
 
     k->init = intel_hda_init;
     k->exit = intel_hda_exit;
-    k->config_write = intel_hda_write_config;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = 0x2668;
     k->revision = 1;
@@ -1275,7 +1268,8 @@ static void hda_codec_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = hda_codec_dev_init;
     k->exit = hda_codec_dev_exit;
-    k->bus_info = &hda_codec_bus_info;
+    k->bus_type = TYPE_HDA_BUS;
+    k->props = hda_props;
 }
 
 static TypeInfo hda_codec_device_type_info = {
@@ -1289,6 +1283,7 @@ static TypeInfo hda_codec_device_type_info = {
 
 static void intel_hda_register_types(void)
 {
+    type_register_static(&hda_codec_bus_info);
     type_register_static(&intel_hda_info);
     type_register_static(&hda_codec_device_type_info);
 }

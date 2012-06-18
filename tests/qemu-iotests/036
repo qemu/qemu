@@ -1,0 +1,68 @@
+#!/bin/bash
+#
+# Test that qcow2 unknown autoclear feature bits are cleared
+#
+# Copyright (C) 2011 Red Hat, Inc.
+# Copyright IBM, Corp. 2010
+#
+# Based on test 031.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=stefanha@linux.vnet.ibm.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+# This tests qcow2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto generic
+_supported_os Linux
+
+# Only qcow2v3 and later supports feature bits
+IMGOPTS="compat=1.1"
+
+echo === Create image with unknown autoclear feature bit ===
+echo
+_make_test_img 64M
+./qcow2.py $TEST_IMG set-feature-bit autoclear 63
+./qcow2.py $TEST_IMG dump-header
+
+echo
+echo === Repair image ===
+echo
+$QEMU_IMG check -r all $TEST_IMG
+./qcow2.py $TEST_IMG dump-header
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

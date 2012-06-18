@@ -160,7 +160,7 @@ static TypeInfo spapr_vty_info = {
 VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
 {
     VIOsPAPRDevice *sdev, *selected;
-    DeviceState *iter;
+    BusChild *kid;
 
     /*
      * To avoid the console bouncing around we want one VTY to be
@@ -169,7 +169,9 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
      */
 
     selected = NULL;
-    QTAILQ_FOREACH(iter, &bus->bus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        DeviceState *iter = kid->child;
+
         /* Only look at VTY devices */
         if (!object_dynamic_cast(OBJECT(iter), "spapr-vty")) {
             continue;

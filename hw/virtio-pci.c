@@ -278,7 +278,6 @@ void virtio_pci_reset(DeviceState *d)
     VirtIOPCIProxy *proxy = container_of(d, VirtIOPCIProxy, pci_dev.qdev);
     virtio_pci_stop_ioeventfd(proxy);
     virtio_reset(proxy->vdev);
-    msix_reset(&proxy->pci_dev);
     proxy->flags &= ~VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
 }
 
@@ -521,8 +520,6 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         virtio_set_status(proxy->vdev,
                           proxy->vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
     }
-
-    msix_write_config(pci_dev, address, val, len);
 }
 
 static unsigned virtio_pci_get_features(void *opaque)

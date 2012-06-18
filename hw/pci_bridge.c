@@ -254,8 +254,9 @@ void pci_bridge_disable_base_limit(PCIDevice *dev)
 }
 
 /* reset bridge specific configuration registers */
-void pci_bridge_reset_reg(PCIDevice *dev)
+void pci_bridge_reset(DeviceState *qdev)
 {
+    PCIDevice *dev = PCI_DEVICE(qdev);
     uint8_t *conf = dev->config;
 
     conf[PCI_PRIMARY_BUS] = 0;
@@ -291,13 +292,6 @@ void pci_bridge_reset_reg(PCIDevice *dev)
     pci_set_word(conf + PCI_BRIDGE_CONTROL, 0);
 }
 
-/* default reset function for PCI-to-PCI bridge */
-void pci_bridge_reset(DeviceState *qdev)
-{
-    PCIDevice *dev = PCI_DEVICE(qdev);
-    pci_bridge_reset_reg(dev);
-}
-
 /* default qdev initialization function for PCI-to-PCI bridge */
 int pci_bridge_initfn(PCIDevice *dev)
 {
@@ -324,7 +318,7 @@ int pci_bridge_initfn(PCIDevice *dev)
 	    br->bus_name = dev->qdev.id;
     }
 
-    qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev,
+    qbus_create_inplace(&sec_bus->qbus, TYPE_PCI_BUS, &dev->qdev,
                         br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq;

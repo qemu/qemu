@@ -10,6 +10,9 @@
 #define QDEV_MAX_PIO 32
 #define QDEV_MAX_IRQ 512
 
+#define TYPE_SYSTEM_BUS "System"
+#define SYSTEM_BUS(obj) OBJECT_CHECK(IDEBus, (obj), TYPE_IDE_BUS)
+
 typedef struct SysBusDevice SysBusDevice;
 
 #define TYPE_SYS_BUS_DEVICE "sys-bus-device"

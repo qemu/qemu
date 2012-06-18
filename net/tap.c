@@ -34,6 +34,7 @@
 #include <net/if.h>
 
 #include "net.h"
+#include "monitor.h"
 #include "sysemu.h"
 #include "qemu-char.h"
 #include "qemu-common.h"

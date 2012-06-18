@@ -9,8 +9,6 @@
 
 #define ISA_NUM_IRQS 16
 
-typedef struct ISADevice ISADevice;
-
 #define TYPE_ISA_DEVICE "isa-device"
 #define ISA_DEVICE(obj) \
      OBJECT_CHECK(ISADevice, (obj), TYPE_ISA_DEVICE)
@@ -18,6 +16,9 @@ typedef struct ISADevice ISADevice;
      OBJECT_CLASS_CHECK(ISADeviceClass, (klass), TYPE_ISA_DEVICE)
 #define ISA_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(ISADeviceClass, (obj), TYPE_ISA_DEVICE)
+
+#define TYPE_ISA_BUS "ISA"
+#define ISA_BUS(obj) OBJECT_CHECK(ISABus, (obj), TYPE_ISA_BUS)
 
 typedef struct ISADeviceClass {
     DeviceClass parent_class;

@@ -6,8 +6,8 @@
  * Authors:
  *     Wen Congyang <wency@cn.fujitsu.com>
  *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
  *
  */
 

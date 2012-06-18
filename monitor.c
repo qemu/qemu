@@ -66,6 +66,7 @@
 #include "memory.h"
 #include "qmp-commands.h"
 #include "hmp.h"
+#include "qemu-thread.h"
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)
@@ -144,6 +145,19 @@ typedef struct MonitorControl {
     JSONMessageParser parser;
     int command_mode;
 } MonitorControl;
+
+/*
+ * To prevent flooding clients, events can be throttled. The
+ * throttling is calculated globally, rather than per-Monitor
+ * instance.
+ */
+typedef struct MonitorEventState {
+    MonitorEvent event; /* Event being tracked */
+    int64_t rate;       /* Period over which to throttle. 0 to disable */
+    int64_t last;       /* Time at which event was last emitted */
+    QEMUTimer *timer;   /* Timer for handling delayed events */
+    QObject *data;      /* Event pending delayed dispatch */
+} MonitorEventState;
 
 struct Monitor {
     CharDriverState *chr;
@@ -443,8 +457,144 @@ static const char *monitor_event_names[] = {
     [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
     [QEVENT_SUSPEND] = "SUSPEND",
     [QEVENT_WAKEUP] = "WAKEUP",
+    [QEVENT_BALLOON_CHANGE] = "BALLOON_CHANGE",
 };
 QEMU_BUILD_BUG_ON(ARRAY_SIZE(monitor_event_names) != QEVENT_MAX)
+
+MonitorEventState monitor_event_state[QEVENT_MAX];
+QemuMutex monitor_event_state_lock;
+
+/*
+ * Emits the event to every monitor instance
+ */
+static void
+monitor_protocol_event_emit(MonitorEvent event,
+                            QObject *data)
+{
+    Monitor *mon;
+
+    trace_monitor_protocol_event_emit(event, data);
+    QLIST_FOREACH(mon, &mon_list, entry) {
+        if (monitor_ctrl_mode(mon) && qmp_cmd_mode(mon)) {
+            monitor_json_emitter(mon, data);
+        }
+    }
+}
+
+
+/*
+ * Queue a new event for emission to Monitor instances,
+ * applying any rate limiting if required.
+ */
+static void
+monitor_protocol_event_queue(MonitorEvent event,
+                             QObject *data)
+{
+    MonitorEventState *evstate;
+    int64_t now = qemu_get_clock_ns(rt_clock);
+    assert(event < QEVENT_MAX);
+
+    qemu_mutex_lock(&monitor_event_state_lock);
+    evstate = &(monitor_event_state[event]);
+    trace_monitor_protocol_event_queue(event,
+                                       data,
+                                       evstate->rate,
+                                       evstate->last,
+                                       now);
+
+    /* Rate limit of 0 indicates no throttling */
+    if (!evstate->rate) {
+        monitor_protocol_event_emit(event, data);
+        evstate->last = now;
+    } else {
+        int64_t delta = now - evstate->last;
+        if (evstate->data ||
+            delta < evstate->rate) {
+            /* If there's an existing event pending, replace
+             * it with the new event, otherwise schedule a
+             * timer for delayed emission
+             */
+            if (evstate->data) {
+                qobject_decref(evstate->data);
+            } else {
+                int64_t then = evstate->last + evstate->rate;
+                qemu_mod_timer_ns(evstate->timer, then);
+            }
+            evstate->data = data;
+            qobject_incref(evstate->data);
+        } else {
+            monitor_protocol_event_emit(event, data);
+            evstate->last = now;
+        }
+    }
+    qemu_mutex_unlock(&monitor_event_state_lock);
+}
+
+
+/*
+ * The callback invoked by QemuTimer when a delayed
+ * event is ready to be emitted
+ */
+static void monitor_protocol_event_handler(void *opaque)
+{
+    MonitorEventState *evstate = opaque;
+    int64_t now = qemu_get_clock_ns(rt_clock);
+
+    qemu_mutex_lock(&monitor_event_state_lock);
+
+    trace_monitor_protocol_event_handler(evstate->event,
+                                         evstate->data,
+                                         evstate->last,
+                                         now);
+    if (evstate->data) {
+        monitor_protocol_event_emit(evstate->event, evstate->data);
+        qobject_decref(evstate->data);
+        evstate->data = NULL;
+    }
+    evstate->last = now;
+    qemu_mutex_unlock(&monitor_event_state_lock);
+}
+
+
+/*
+ * @event: the event ID to be limited
+ * @rate: the rate limit in milliseconds
+ *
+ * Sets a rate limit on a particular event, so no
+ * more than 1 event will be emitted within @rate
+ * milliseconds
+ */
+static void
+monitor_protocol_event_throttle(MonitorEvent event,
+                                int64_t rate)
+{
+    MonitorEventState *evstate;
+    assert(event < QEVENT_MAX);
+
+    evstate = &(monitor_event_state[event]);
+
+    trace_monitor_protocol_event_throttle(event, rate);
+    evstate->event = event;
+    evstate->rate = rate * SCALE_MS;
+    evstate->timer = qemu_new_timer(rt_clock,
+                                    SCALE_MS,
+                                    monitor_protocol_event_handler,
+                                    evstate);
+    evstate->last = 0;
+    evstate->data = NULL;
+}
+
+
+/* Global, one-time initializer to configure the rate limiting
+ * and initialize state */
+static void monitor_protocol_event_init(void)
+{
+    qemu_mutex_init(&monitor_event_state_lock);
+    /* Limit RTC & BALLOON events to 1 per second */
+    monitor_protocol_event_throttle(QEVENT_RTC_CHANGE, 1000);
+    monitor_protocol_event_throttle(QEVENT_BALLOON_CHANGE, 1000);
+    monitor_protocol_event_throttle(QEVENT_WATCHDOG, 1000);
+}
 
 /**
  * monitor_protocol_event(): Generate a Monitor event
@@ -455,7 +605,6 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 {
     QDict *qmp;
     const char *event_name;
-    Monitor *mon;
 
     assert(event < QEVENT_MAX);
 
@@ -470,11 +619,8 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         qdict_put_obj(qmp, "data", data);
     }
 
-    QLIST_FOREACH(mon, &mon_list, entry) {
-        if (monitor_ctrl_mode(mon) && qmp_cmd_mode(mon)) {
-            monitor_json_emitter(mon, QOBJECT(qmp));
-        }
-    }
+    trace_monitor_protocol_event(event, event_name, qmp);
+    monitor_protocol_event_queue(event, QOBJECT(qmp));
     QDECREF(qmp);
 }
 
@@ -4570,6 +4716,7 @@ void monitor_init(CharDriverState *chr, int flags)
 
     if (is_first_init) {
         key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
+        monitor_protocol_event_init();
         is_first_init = 0;
     }
 

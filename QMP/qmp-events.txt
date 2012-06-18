@@ -335,3 +335,21 @@ Example:
                "len": 10737418240, "offset": 134217728,
                "speed": 0 },
      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+
+
+BALLOON_CHANGE
+----------
+
+Emitted when the guest changes the actual BALLOON level. This
+value is equivalent to the 'actual' field return by the
+'query-balloon' command
+
+Data:
+
+- "actual": actual level of the guest memory balloon in bytes (json-number)
+
+Example:
+
+{ "event": "BALLOON_CHANGE",
+    "data": { "actual": 944766976 },
+    "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }

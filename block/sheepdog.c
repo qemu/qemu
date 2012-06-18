@@ -522,8 +522,8 @@ static int send_req(int sockfd, SheepdogReq *hdr, void *data,
     return ret;
 }
 
-static int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
-                       unsigned int *wlen)
+static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
+                                    unsigned int *wlen)
 {
     int ret;
 
@@ -540,6 +540,7 @@ static int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
 
     return ret;
 }
+
 static int do_req(int sockfd, SheepdogReq *hdr, void *data,
                   unsigned int *wlen, unsigned int *rlen)
 {
@@ -576,8 +577,8 @@ out:
     return ret;
 }
 
-static int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
-                     unsigned int *wlen, unsigned int *rlen)
+static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
+                                  unsigned int *wlen, unsigned int *rlen)
 {
     int ret;
 

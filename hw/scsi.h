@@ -136,6 +136,9 @@ struct SCSIBusInfo {
     void *(*load_request)(QEMUFile *f, SCSIRequest *req);
 };
 
+#define TYPE_SCSI_BUS "SCSI"
+#define SCSI_BUS(obj) OBJECT_CHECK(SCSIBus, (obj), TYPE_SCSI_BUS)
+
 struct SCSIBus {
     BusState qbus;
     int busnr;

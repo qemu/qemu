@@ -40,11 +40,9 @@ struct Qcow2Cache {
     struct Qcow2Cache*      depends;
     int                     size;
     bool                    depends_on_flush;
-    bool                    writethrough;
 };
 
-Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
-    bool writethrough)
+Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
 {
     BDRVQcowState *s = bs->opaque;
     Qcow2Cache *c;
@@ -53,7 +51,6 @@ Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables,
     c = g_malloc0(sizeof(*c));
     c->size = num_tables;
     c->entries = g_malloc0(sizeof(*c->entries) * num_tables);
-    c->writethrough = writethrough;
 
     for (i = 0; i < c->size; i++) {
         c->entries[i].table = qemu_blockalign(bs, s->cluster_size);
@@ -307,12 +304,7 @@ found:
     *table = NULL;
 
     assert(c->entries[i].ref >= 0);
-
-    if (c->writethrough) {
-        return qcow2_cache_entry_flush(bs, c, i);
-    } else {
-        return 0;
-    }
+    return 0;
 }
 
 void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table)
@@ -328,17 +320,4 @@ void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table)
 
 found:
     c->entries[i].dirty = true;
-}
-
-bool qcow2_cache_set_writethrough(BlockDriverState *bs, Qcow2Cache *c,
-    bool enable)
-{
-    bool old = c->writethrough;
-
-    if (!old && enable) {
-        qcow2_cache_flush(bs, c);
-    }
-
-    c->writethrough = enable;
-    return old;
 }

@@ -21,6 +21,7 @@
 import os
 import iotests
 from iotests import qemu_img, qemu_io
+import struct
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
@@ -48,11 +49,21 @@ class ImageStreamingTestCase(iotests.QMPTestCase):
 
         self.assert_no_active_streams()
 
+    def create_image(self, name, size):
+        file = open(name, 'w')
+        i = 0
+        while i < size:
+            sector = struct.pack('>l504xl', i / 512, i / 512)
+            file.write(sector)
+            i = i + 512
+        file.close()
+
+
 class TestSingleDrive(ImageStreamingTestCase):
     image_len = 1 * 1024 * 1024 # MB
 
     def setUp(self):
-        qemu_img('create', backing_img, str(TestSingleDrive.image_len))
+        self.create_image(backing_img, TestSingleDrive.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, mid_img)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % mid_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
@@ -136,7 +147,7 @@ class TestStreamStop(ImageStreamingTestCase):
         result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        time.sleep(1)
+        time.sleep(0.1)
         events = self.vm.get_qmp_events(wait=False)
         self.assertEqual(events, [], 'unexpected QMP event: %s' % events)
 

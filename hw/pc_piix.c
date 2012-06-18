@@ -29,6 +29,7 @@
 #include "apic.h"
 #include "pci.h"
 #include "pci_ids.h"
+#include "usb.h"
 #include "net.h"
 #include "boards.h"
 #include "ide.h"
@@ -374,7 +375,7 @@ static QEMUMachine pc_machine_v1_1 = {
             .property = "vapic",\
             .value    = "off",\
         },{\
-            .driver   = "USB",\
+            .driver   = TYPE_USB_DEVICE,\
             .property = "full-path",\
             .value    = "no",\
         }
@@ -447,7 +448,7 @@ static QEMUMachine pc_machine_v0_14 = {
 #define PC_COMPAT_0_13 \
         PC_COMPAT_0_14,\
         {\
-            .driver   = "PCI",\
+            .driver   = TYPE_PCI_DEVICE,\
             .property = "command_serr_enable",\
             .value    = "off",\
         },{\
@@ -519,7 +520,7 @@ static QEMUMachine pc_machine_v0_12 = {
             .property = "vectors",\
             .value    = stringify(0),\
         },{\
-            .driver   = "PCI",\
+            .driver   = TYPE_PCI_DEVICE,\
             .property = "rombar",\
             .value    = stringify(0),\
         }

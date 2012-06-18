@@ -14,6 +14,9 @@
 #define HDA_CODEC_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(HDACodecDeviceClass, (obj), TYPE_HDA_CODEC_DEVICE)
 
+#define TYPE_HDA_BUS "HDA"
+#define HDA_BUS(obj) OBJECT_CHECK(HDACodecBus, (obj), TYPE_HDA_BUS)
+
 typedef struct HDACodecBus HDACodecBus;
 typedef struct HDACodecDevice HDACodecDevice;
 

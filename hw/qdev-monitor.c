@@ -75,8 +75,8 @@ static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
     }
 
     error_printf("name \"%s\"", object_class_get_name(klass));
-    if (dc->bus_info) {
-        error_printf(", bus %s", dc->bus_info->name);
+    if (dc->bus_type) {
+        error_printf(", bus %s", dc->bus_type);
     }
     if (qdev_class_has_alias(dc)) {
         error_printf(", alias \"%s\"", qdev_class_get_alias(dc));
@@ -123,7 +123,6 @@ int qdev_device_help(QemuOpts *opts)
     const char *driver;
     Property *prop;
     ObjectClass *klass;
-    DeviceClass *info;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && !strcmp(driver, "?")) {
@@ -149,30 +148,22 @@ int qdev_device_help(QemuOpts *opts)
     if (!klass) {
         return 0;
     }
-    info = DEVICE_CLASS(klass);
-
-    for (prop = info->props; prop && prop->name; prop++) {
-        /*
-         * TODO Properties without a parser are just for dirty hacks.
-         * qdev_prop_ptr is the only such PropertyInfo.  It's marked
-         * for removal.  This conditional should be removed along with
-         * it.
-         */
-        if (!prop->info->set) {
-            continue;           /* no way to set it, don't show */
-        }
-        error_printf("%s.%s=%s\n", driver, prop->name,
-                     prop->info->legacy_name ?: prop->info->name);
-    }
-    if (info->bus_info) {
-        for (prop = info->bus_info->props; prop && prop->name; prop++) {
+    do {
+        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
+            /*
+             * TODO Properties without a parser are just for dirty hacks.
+             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
+             * for removal.  This conditional should be removed along with
+             * it.
+             */
             if (!prop->info->set) {
                 continue;           /* no way to set it, don't show */
             }
             error_printf("%s.%s=%s\n", driver, prop->name,
                          prop->info->legacy_name ?: prop->info->name);
         }
-    }
+        klass = object_class_get_parent(klass);
+    } while (klass != object_class_by_name(TYPE_DEVICE));
     return 1;
 }
 
@@ -214,11 +205,12 @@ static void qbus_list_bus(DeviceState *dev)
 
 static void qbus_list_dev(BusState *bus)
 {
-    DeviceState *dev;
+    BusChild *kid;
     const char *sep = " ";
 
     error_printf("devices at \"%s\":", bus->name);
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         error_printf("%s\"%s\"", sep, object_get_typename(OBJECT(dev)));
         if (dev->id)
             error_printf("/\"%s\"", dev->id);
@@ -241,7 +233,7 @@ static BusState *qbus_find_bus(DeviceState *dev, char *elem)
 
 static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 {
-    DeviceState *dev;
+    BusChild *kid;
 
     /*
      * try to match in order:
@@ -249,17 +241,20 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
      *   (2) driver name
      *   (3) driver alias, if present
      */
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         if (dev->id  &&  strcmp(dev->id, elem) == 0) {
             return dev;
         }
     }
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         if (strcmp(object_get_typename(OBJECT(dev)), elem) == 0) {
             return dev;
         }
     }
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
         if (qdev_class_has_alias(dc) &&
@@ -271,25 +266,27 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 }
 
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
-                                     const BusInfo *info)
+                                     const char *bus_typename)
 {
-    DeviceState *dev;
+    BusChild *kid;
     BusState *child, *ret;
     int match = 1;
 
     if (name && (strcmp(bus->name, name) != 0)) {
         match = 0;
     }
-    if (info && (bus->info != info)) {
+    if (bus_typename &&
+        (strcmp(object_get_typename(OBJECT(bus)), bus_typename) != 0)) {
         match = 0;
     }
     if (match) {
         return bus;
     }
 
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         QLIST_FOREACH(child, &dev->child_bus, sibling) {
-            ret = qbus_find_recursive(child, name, info);
+            ret = qbus_find_recursive(child, name, bus_typename);
             if (ret) {
                 return ret;
             }
@@ -424,16 +421,16 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         if (!bus) {
             return NULL;
         }
-        if (bus->info != k->bus_info) {
+        if (strcmp(object_get_typename(OBJECT(bus)), k->bus_type) != 0) {
             qerror_report(QERR_BAD_BUS_FOR_DEVICE,
-                           driver, bus->info->name);
+                          driver, object_get_typename(OBJECT(bus)));
             return NULL;
         }
     } else {
-        bus = qbus_find_recursive(sysbus_get_default(), NULL, k->bus_info);
+        bus = qbus_find_recursive(sysbus_get_default(), NULL, k->bus_type);
         if (!bus) {
             qerror_report(QERR_NO_BUS_FOR_DEVICE,
-                          driver, k->bus_info->name);
+                          driver, k->bus_type);
             return NULL;
         }
     }
@@ -449,7 +446,6 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* create device, set properties */
     qdev = DEVICE(object_new(driver));
     qdev_set_parent_bus(qdev, bus);
-    qdev_prop_set_globals(qdev);
 
     id = qemu_opts_id(opts);
     if (id) {
@@ -482,7 +478,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
 static void qbus_print(Monitor *mon, BusState *bus, int indent);
 
 static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
-                             const char *prefix, int indent)
+                             int indent)
 {
     if (!props)
         return;
@@ -501,14 +497,24 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
             error_free(err);
             continue;
         }
-        qdev_printf("%s-prop: %s = %s\n", prefix, props->name,
+        qdev_printf("%s = %s\n", props->name,
                     value && *value ? value : "<null>");
         g_free(value);
     }
 }
 
+static void bus_print_dev(BusState *bus, Monitor *mon, DeviceState *dev, int indent)
+{
+    BusClass *bc = BUS_GET_CLASS(bus);
+
+    if (bc->print_dev) {
+        bc->print_dev(mon, dev, indent);
+    }
+}
+
 static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
+    ObjectClass *class;
     BusState *child;
     qdev_printf("dev: %s, id \"%s\"\n", object_get_typename(OBJECT(dev)),
                 dev->id ? dev->id : "");
@@ -519,10 +525,12 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     if (dev->num_gpio_out) {
         qdev_printf("gpio-out %d\n", dev->num_gpio_out);
     }
-    qdev_print_props(mon, dev, qdev_get_props(dev), "dev", indent);
-    qdev_print_props(mon, dev, dev->parent_bus->info->props, "bus", indent);
-    if (dev->parent_bus->info->print_dev)
-        dev->parent_bus->info->print_dev(mon, dev, indent);
+    class = object_get_class(OBJECT(dev));
+    do {
+        qdev_print_props(mon, dev, DEVICE_CLASS(class)->props, indent);
+        class = object_class_get_parent(class);
+    } while (class != object_class_by_name(TYPE_DEVICE));
+    bus_print_dev(dev->parent_bus, mon, dev, indent + 2);
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         qbus_print(mon, child, indent);
     }
@@ -530,12 +538,13 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 
 static void qbus_print(Monitor *mon, BusState *bus, int indent)
 {
-    struct DeviceState *dev;
+    BusChild *kid;
 
     qdev_printf("bus: %s\n", bus->name);
     indent += 2;
-    qdev_printf("type %s\n", bus->info->name);
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    qdev_printf("type %s\n", object_get_typename(OBJECT(bus)));
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         qdev_print(mon, dev, indent);
     }
 }
