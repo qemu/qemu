@@ -800,6 +800,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
     if (crq->s.IU_length > sizeof(union viosrp_iu)) {
         fprintf(stderr, "VSCSI: SRP IU too long (%d bytes) !\n",
                 crq->s.IU_length);
+        vscsi_put_req(req);
         return;
     }
 
@@ -807,7 +808,8 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
     if (spapr_tce_dma_read(&s->vdev, crq->s.IU_data_ptr, &req->iu,
                            crq->s.IU_length)) {
         fprintf(stderr, "vscsi_got_payload: DMA read failure !\n");
-        g_free(req);
+        vscsi_put_req(req);
+        return;
     }
     memcpy(&req->crq, crq, sizeof(vscsi_crq));
 
