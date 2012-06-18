@@ -627,10 +627,11 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC_BYTES);
     assert(size > 0 && size <= s->cluster_size);
     if (s->free_byte_offset == 0) {
-        s->free_byte_offset = qcow2_alloc_clusters(bs, s->cluster_size);
-        if (s->free_byte_offset < 0) {
-            return s->free_byte_offset;
+        offset = qcow2_alloc_clusters(bs, s->cluster_size);
+        if (offset < 0) {
+            return offset;
         }
+        s->free_byte_offset = offset;
     }
  redo:
     free_in_cluster = s->cluster_size -
