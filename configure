@@ -2808,7 +2808,7 @@ fi
 ##########################################
 # check if we have open_by_handle_at
 
-open_by_hande_at=no
+open_by_handle_at=no
 cat > $TMPC << EOF
 #include <fcntl.h>
 #if !defined(AT_EMPTY_PATH)
