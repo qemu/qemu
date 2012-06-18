@@ -52,7 +52,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
 {
     PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
     PCIBridgeDev *bridge_dev = DO_UPCAST(PCIBridgeDev, bridge, br);
-    int err;
+    int err, ret;
     pci_bridge_map_irq(br, NULL, pci_bridge_dev_map_irq_fn);
     err = pci_bridge_initfn(dev);
     if (err) {
@@ -86,6 +86,8 @@ slotid_error:
     shpc_cleanup(dev, &bridge_dev->bar);
 shpc_error:
     memory_region_destroy(&bridge_dev->bar);
+    ret = pci_bridge_exitfn(dev);
+    assert(!ret);
 bridge_error:
     return err;
 }
@@ -119,10 +121,8 @@ static void pci_bridge_dev_write_config(PCIDevice *d,
 static void qdev_pci_bridge_dev_reset(DeviceState *qdev)
 {
     PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+
     pci_bridge_reset(qdev);
-    if (msi_present(dev)) {
-        msi_reset(dev);
-    }
     shpc_reset(dev);
 }
 

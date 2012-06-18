@@ -31,6 +31,8 @@
 #include "loader.h"
 #include "range.h"
 #include "qmp-commands.h"
+#include "msi.h"
+#include "msix.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI
@@ -188,6 +190,9 @@ void pci_device_reset(PCIDevice *dev)
         }
     }
     pci_update_mappings(dev);
+
+    msi_reset(dev);
+    msix_reset(dev);
 }
 
 /*
@@ -1037,6 +1042,9 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 
     if (range_covers_byte(addr, l, PCI_COMMAND))
         pci_update_irq_disabled(d, was_irq_disabled);
+
+    msi_write_config(d, addr, val, l);
+    msix_write_config(d, addr, val, l);
 }
 
 /***********************************************************/

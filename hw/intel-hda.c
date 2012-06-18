@@ -1153,17 +1153,6 @@ static int intel_hda_exit(PCIDevice *pci)
     return 0;
 }
 
-static void intel_hda_write_config(PCIDevice *pci, uint32_t addr,
-                                   uint32_t val, int len)
-{
-    IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
-
-    pci_default_write_config(pci, addr, val, len);
-    if (d->msi) {
-        msi_write_config(pci, addr, val, len);
-    }
-}
-
 static int intel_hda_post_load(void *opaque, int version)
 {
     IntelHDAState* d = opaque;
@@ -1252,7 +1241,6 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
 
     k->init = intel_hda_init;
     k->exit = intel_hda_exit;
-    k->config_write = intel_hda_write_config;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = 0x2668;
     k->revision = 1;
