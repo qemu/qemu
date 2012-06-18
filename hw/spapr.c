@@ -146,6 +146,40 @@ static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
     return ret;
 }
 
+
+static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
+                                     size_t maxsize)
+{
+    size_t maxcells = maxsize / sizeof(uint32_t);
+    int i, j, count;
+    uint32_t *p = prop;
+
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        struct ppc_one_seg_page_size *sps = &env->sps.sps[i];
+
+        if (!sps->page_shift) {
+            break;
+        }
+        for (count = 0; count < PPC_PAGE_SIZES_MAX_SZ; count++) {
+            if (sps->enc[count].page_shift == 0) {
+                break;
+            }
+        }
+        if ((p - prop) >= (maxcells - 3 - count * 2)) {
+            break;
+        }
+        *(p++) = cpu_to_be32(sps->page_shift);
+        *(p++) = cpu_to_be32(sps->slb_enc);
+        *(p++) = cpu_to_be32(count);
+        for (j = 0; j < count; j++) {
+            *(p++) = cpu_to_be32(sps->enc[j].page_shift);
+            *(p++) = cpu_to_be32(sps->enc[j].pte_enc);
+        }
+    }
+
+    return (p - prop) * sizeof(uint32_t);
+}
+
 static void *spapr_create_fdt_skel(const char *cpu_model,
                                    target_phys_addr_t rma_size,
                                    target_phys_addr_t initrd_base,
@@ -298,6 +332,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                            0xffffffff, 0xffffffff};
         uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
         uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
+        uint32_t page_sizes_prop[64];
+        size_t page_sizes_prop_size;
 
         if ((index % smt) != 0) {
             continue;
@@ -360,6 +396,13 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
          *   1               == DFP available */
         if (env->insns_flags2 & PPC2_DFP) {
             _FDT((fdt_property_cell(fdt, "ibm,dfp", 1)));
+        }
+
+        page_sizes_prop_size = create_page_sizes_prop(env, page_sizes_prop,
+                                                      sizeof(page_sizes_prop));
+        if (page_sizes_prop_size) {
+            _FDT((fdt_property(fdt, "ibm,segment-page-sizes",
+                               page_sizes_prop, page_sizes_prop_size)));
         }
 
         _FDT((fdt_end_node(fdt)));
