@@ -608,6 +608,73 @@ static target_ulong h_logical_store(CPUPPCState *env, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
+static target_ulong h_logical_memop(CPUPPCState *env, sPAPREnvironment *spapr,
+                                    target_ulong opcode, target_ulong *args)
+{
+    target_ulong dst   = args[0]; /* Destination address */
+    target_ulong src   = args[1]; /* Source address */
+    target_ulong esize = args[2]; /* Element size (0=1,1=2,2=4,3=8) */
+    target_ulong count = args[3]; /* Element count */
+    target_ulong op    = args[4]; /* 0 = copy, 1 = invert */
+    uint64_t tmp;
+    unsigned int mask = (1 << esize) - 1;
+    int step = 1 << esize;
+
+    if (count > 0x80000000) {
+        return H_PARAMETER;
+    }
+
+    if ((dst & mask) || (src & mask) || (op > 1)) {
+        return H_PARAMETER;
+    }
+
+    if (dst >= src && dst < (src + (count << esize))) {
+            dst = dst + ((count - 1) << esize);
+            src = src + ((count - 1) << esize);
+            step = -step;
+    }
+
+    while (count--) {
+        switch (esize) {
+        case 0:
+            tmp = ldub_phys(src);
+            break;
+        case 1:
+            tmp = lduw_phys(src);
+            break;
+        case 2:
+            tmp = ldl_phys(src);
+            break;
+        case 3:
+            tmp = ldq_phys(src);
+            break;
+        default:
+            return H_PARAMETER;
+        }
+        if (op == 1) {
+            tmp = ~tmp;
+        }
+        switch (esize) {
+        case 0:
+            stb_phys(dst, tmp);
+            break;
+        case 1:
+            stw_phys(dst, tmp);
+            break;
+        case 2:
+            stl_phys(dst, tmp);
+            break;
+        case 3:
+            stq_phys(dst, tmp);
+            break;
+        }
+        dst = dst + step;
+        src = src + step;
+    }
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_logical_icbi(CPUPPCState *env, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
@@ -700,6 +767,7 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_LOGICAL_CACHE_STORE, h_logical_store);
     spapr_register_hypercall(H_LOGICAL_ICBI, h_logical_icbi);
     spapr_register_hypercall(H_LOGICAL_DCBF, h_logical_dcbf);
+    spapr_register_hypercall(KVMPPC_H_LOGICAL_MEMOP, h_logical_memop);
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);

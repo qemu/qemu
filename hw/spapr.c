@@ -197,6 +197,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
     char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
         "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk";
+    char qemu_hypertas_prop[] = "hcall-memop1";
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i;
     char *modelname;
@@ -417,6 +418,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
     _FDT((fdt_property(fdt, "ibm,hypertas-functions", hypertas_prop,
                        sizeof(hypertas_prop))));
+    _FDT((fdt_property(fdt, "qemu,hypertas-functions", qemu_hypertas_prop,
+                       sizeof(qemu_hypertas_prop))));
 
     _FDT((fdt_property(fdt, "ibm,associativity-reference-points",
         refpoints, sizeof(refpoints))));
