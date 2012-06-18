@@ -278,7 +278,6 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 {
     const char *buf;
     const char *file = NULL;
-    char devname[128];
     const char *serial;
     const char *mediastr = "";
     BlockInterfaceType type;
@@ -318,7 +317,6 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     serial = qemu_opt_get(opts, "serial");
 
     if ((buf = qemu_opt_get(opts, "if")) != NULL) {
-        pstrcpy(devname, sizeof(devname), buf);
         for (type = 0; type < IF_COUNT && strcmp(buf, if_name[type]); type++)
             ;
         if (type == IF_COUNT) {
@@ -327,7 +325,6 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 	}
     } else {
         type = default_to_scsi ? IF_SCSI : IF_IDE;
-        pstrcpy(devname, sizeof(devname), if_name[type]);
     }
 
     max_devs = if_max_devs[type];
@@ -523,10 +520,10 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
             mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
         if (max_devs)
             snprintf(dinfo->id, 32, "%s%i%s%i",
-                     devname, bus_id, mediastr, unit_id);
+                     if_name[type], bus_id, mediastr, unit_id);
         else
             snprintf(dinfo->id, 32, "%s%s%i",
-                     devname, mediastr, unit_id);
+                     if_name[type], mediastr, unit_id);
     }
     dinfo->bdrv = bdrv_new(dinfo->id);
     dinfo->devaddr = devaddr;

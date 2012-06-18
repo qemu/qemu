@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 
+#include "blockdev.h"
 #include "sysbus.h"
 #include "hw.h"
 #include "pc.h"

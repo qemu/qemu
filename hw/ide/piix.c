@@ -22,11 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
 #include <hw/hw.h>
 #include <hw/pc.h>
 #include <hw/pci.h>
 #include <hw/isa.h>
-#include "block.h"
+#include "blockdev.h"
 #include "sysemu.h"
 #include "dma.h"
 

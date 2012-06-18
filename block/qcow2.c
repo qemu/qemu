@@ -220,7 +220,6 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     int len, i, ret = 0;
     QCowHeader header;
     uint64_t ext_end;
-    bool writethrough;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -298,14 +297,6 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         goto fail;
     }
 
-    if (!bs->read_only && s->autoclear_features != 0) {
-        s->autoclear_features = 0;
-        ret = qcow2_update_header(bs);
-        if (ret < 0) {
-            goto fail;
-        }
-    }
-
     /* Check support for various header values */
     if (header.refcount_order != 4) {
         report_unsupported(bs, "%d bit reference counts",
@@ -367,10 +358,8 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     }
 
     /* alloc L2 table/refcount block cache */
-    writethrough = ((flags & BDRV_O_CACHE_WB) == 0);
-    s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE, writethrough);
-    s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE,
-        writethrough);
+    s->l2_table_cache = qcow2_cache_create(bs, L2_CACHE_SIZE);
+    s->refcount_block_cache = qcow2_cache_create(bs, REFCOUNT_CACHE_SIZE);
 
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
@@ -409,6 +398,15 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     ret = qcow2_read_snapshots(bs);
     if (ret < 0) {
         goto fail;
+    }
+
+    /* Clear unknown autoclear feature bits */
+    if (!bs->read_only && s->autoclear_features != 0) {
+        s->autoclear_features = 0;
+        ret = qcow2_update_header(bs);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     /* Initialise locks */
@@ -1470,9 +1468,10 @@ static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 }
 
 
-static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result)
+static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
+                       BdrvCheckMode fix)
 {
-    return qcow2_check_refcounts(bs, result);
+    return qcow2_check_refcounts(bs, result, fix);
 }
 
 #if 0

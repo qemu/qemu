@@ -1,6 +1,5 @@
 #include "xen_backend.h"
 #include "blockdev.h"
-#include "block_int.h" /* XXX */
 
 /* ------------------------------------------------------------- */
 
@@ -94,16 +93,16 @@ static int xen_config_dev_all(char *fe, char *be)
 
 int xen_config_dev_blk(DriveInfo *disk)
 {
-    char fe[256], be[256];
+    char fe[256], be[256], device_name[32];
     int vdev = 202 * 256 + 16 * disk->unit;
     int cdrom = disk->media_cd;
     const char *devtype = cdrom ? "cdrom" : "disk";
     const char *mode    = cdrom ? "r"     : "w";
+    const char *filename = qemu_opt_get(disk->opts, "file");
 
-    snprintf(disk->bdrv->device_name, sizeof(disk->bdrv->device_name),
-	     "xvd%c", 'a' + disk->unit);
+    snprintf(device_name, sizeof(device_name), "xvd%c", 'a' + disk->unit);
     xen_be_printf(NULL, 1, "config disk %d [%s]: %s\n",
-                  disk->unit, disk->bdrv->device_name, disk->bdrv->filename);
+                  disk->unit, device_name, filename);
     xen_config_dev_dirs("vbd", "qdisk", vdev, fe, be, sizeof(fe));
 
     /* frontend */
@@ -111,9 +110,9 @@ int xen_config_dev_blk(DriveInfo *disk)
     xenstore_write_str(fe, "device-type",     devtype);
 
     /* backend */
-    xenstore_write_str(be, "dev",             disk->bdrv->device_name);
+    xenstore_write_str(be, "dev",             device_name);
     xenstore_write_str(be, "type",            "file");
-    xenstore_write_str(be, "params",          disk->bdrv->filename);
+    xenstore_write_str(be, "params",          filename);
     xenstore_write_str(be, "mode",            mode);
 
     /* common stuff */

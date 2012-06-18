@@ -159,6 +159,10 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
         drv->sect = sect;
     }
 
+    if (drv->bs == NULL || !bdrv_is_inserted(drv->bs)) {
+        ret = 2;
+    }
+
     return ret;
 }
 
@@ -1886,6 +1890,26 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
         }
     }
     return 0;
+}
+
+ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
+{
+    ISADevice *dev;
+
+    dev = isa_try_create(bus, "isa-fdc");
+    if (!dev) {
+        return NULL;
+    }
+
+    if (fds[0]) {
+        qdev_prop_set_drive_nofail(&dev->qdev, "driveA", fds[0]->bdrv);
+    }
+    if (fds[1]) {
+        qdev_prop_set_drive_nofail(&dev->qdev, "driveB", fds[1]->bdrv);
+    }
+    qdev_init_nofail(&dev->qdev);
+
+    return dev;
 }
 
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,

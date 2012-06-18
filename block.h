@@ -165,6 +165,10 @@ int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors);
 int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors, int *pnum);
+int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
+                                            BlockDriverState *base,
+                                            int64_t sector_num,
+                                            int nb_sectors, int *pnum);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 int bdrv_truncate(BlockDriverState *bs, int64_t offset);
@@ -183,10 +187,17 @@ typedef struct BdrvCheckResult {
     int corruptions;
     int leaks;
     int check_errors;
+    int corruptions_fixed;
+    int leaks_fixed;
     BlockFragInfo bfi;
 } BdrvCheckResult;
 
-int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res);
+typedef enum {
+    BDRV_FIX_LEAKS    = 1,
+    BDRV_FIX_ERRORS   = 2,
+} BdrvCheckMode;
+
+int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
 
 /* async block I/O */
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
@@ -280,11 +291,12 @@ BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);
+void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce);
 int bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);
 void bdrv_eject(BlockDriverState *bs, bool eject_flag);
-void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
+const char *bdrv_get_format_name(BlockDriverState *bs);
 BlockDriverState *bdrv_find(const char *name);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
 void bdrv_iterate(void (*it)(void *opaque, BlockDriverState *bs),
@@ -296,6 +308,7 @@ int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);
 const char *bdrv_get_device_name(BlockDriverState *bs);
+int bdrv_get_flags(BlockDriverState *bs);
 int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
                           const uint8_t *buf, int nb_sectors);
 int bdrv_get_info(BlockDriverState *bs, BlockDriverInfo *bdi);
