@@ -119,6 +119,8 @@ enum powerpc_mmu_t {
     POWERPC_MMU_620        = POWERPC_MMU_64 | 0x00000002,
     /* Architecture 2.06 variant                               */
     POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG | 0x00000003,
+    /* Architecture 2.06 "degraded" (no 1T segments)           */
+    POWERPC_MMU_2_06d      = POWERPC_MMU_64 | 0x00000003,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -874,6 +876,29 @@ enum {
 #define DBELL_PIRTAG_MASK              0x3fff
 
 /*****************************************************************************/
+/* Segment page size information, used by recent hash MMUs
+ * The format of this structure mirrors kvm_ppc_smmu_info
+ */
+
+#define PPC_PAGE_SIZES_MAX_SZ   8
+
+struct ppc_one_page_size {
+    uint32_t page_shift;  /* Page shift (or 0) */
+    uint32_t pte_enc;     /* Encoding in the HPTE (>>12) */
+};
+
+struct ppc_one_seg_page_size {
+    uint32_t page_shift;  /* Base page shift of segment (or 0) */
+    uint32_t slb_enc;     /* SLB encoding for BookS */
+    struct ppc_one_page_size enc[PPC_PAGE_SIZES_MAX_SZ];
+};
+
+struct ppc_segment_page_sizes {
+    struct ppc_one_seg_page_size sps[PPC_PAGE_SIZES_MAX_SZ];
+};
+
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
@@ -889,6 +914,9 @@ struct ppc_def_t {
     powerpc_input_t bus_model;
     uint32_t flags;
     int bfd_mach;
+#if defined(TARGET_PPC64)
+    const struct ppc_segment_page_sizes *sps;
+#endif
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
 };
@@ -1012,6 +1040,9 @@ struct CPUPPCState {
     uint32_t flags;
     uint64_t insns_flags;
     uint64_t insns_flags2;
+#if defined(TARGET_PPC64)
+    struct ppc_segment_page_sizes sps;
+#endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
     target_phys_addr_t vpa;

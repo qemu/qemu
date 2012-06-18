@@ -9928,6 +9928,27 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     env->bfd_mach = def->bfd_mach;
     env->check_pow = def->check_pow;
 
+#if defined(TARGET_PPC64)
+    if (def->sps)
+        env->sps = *def->sps;
+    else if (env->mmu_model & POWERPC_MMU_64) {
+        /* Use default sets of page sizes */
+        static const struct ppc_segment_page_sizes defsps = {
+            .sps = {
+                { .page_shift = 12, /* 4K */
+                  .slb_enc = 0,
+                  .enc = { { .page_shift = 12, .pte_enc = 0 } }
+                },
+                { .page_shift = 24, /* 16M */
+                  .slb_enc = 0x100,
+                  .enc = { { .page_shift = 24, .pte_enc = 0 } }
+                },
+            },
+        };
+        env->sps = defsps;
+    }
+#endif /* defined(TARGET_PPC64) */
+
     if (kvm_enabled()) {
         if (kvmppc_fixup_cpu(env) != 0) {
             fprintf(stderr, "Unable to virtualize selected CPU with KVM\n");

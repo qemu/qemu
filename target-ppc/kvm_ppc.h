@@ -58,6 +58,11 @@ static inline int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_l
     return -1;
 }
 
+static inline int kvmppc_read_segment_page_sizes(uint32_t *prop, int maxcells)
+{
+    return -1;
+}
+
 static inline int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
 {
     return -1;

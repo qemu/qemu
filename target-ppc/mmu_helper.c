@@ -1634,6 +1634,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
 #if defined(TARGET_PPC64)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06d:
         mmubooks_dump_mmu(f, cpu_fprintf, env);
         break;
 #endif
@@ -1664,6 +1665,7 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
     case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06d:
         /* Real address are 60 bits long */
         ctx->raddr &= 0x0FFFFFFFFFFFFFFFULL;
         ctx->prot |= PAGE_WRITE;
@@ -1745,6 +1747,7 @@ int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx, target_ulong eaddr,
         case POWERPC_MMU_620:
         case POWERPC_MMU_64B:
         case POWERPC_MMU_2_06:
+        case POWERPC_MMU_2_06d:
 #endif
             if (ret < 0) {
                 /* We didn't match any BAT entry or don't have BATs */
@@ -1886,6 +1889,7 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
                 case POWERPC_MMU_2_06:
+                case POWERPC_MMU_2_06d:
 #endif
                     env->exception_index = POWERPC_EXCP_ISI;
                     env->error_code = 0x40000000;
@@ -1997,6 +2001,7 @@ int cpu_ppc_handle_mmu_fault(CPUPPCState *env, target_ulong address, int rw,
                 case POWERPC_MMU_620:
                 case POWERPC_MMU_64B:
                 case POWERPC_MMU_2_06:
+                case POWERPC_MMU_2_06d:
 #endif
                     env->exception_index = POWERPC_EXCP_DSI;
                     env->error_code = 0;
@@ -2326,6 +2331,7 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06d:
 #endif /* defined(TARGET_PPC64) */
         tlb_flush(env, 1);
         break;
@@ -2395,6 +2401,7 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_620:
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06d:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
