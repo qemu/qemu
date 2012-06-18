@@ -2603,8 +2603,8 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
     assert(new_block);
     assert(!new_block->idstr[0]);
 
-    if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
-        char *id = dev->parent_bus->info->get_dev_path(dev);
+    if (dev) {
+        char *id = qdev_get_dev_path(dev);
         if (id) {
             snprintf(new_block->idstr, sizeof(new_block->idstr), "%s/", id);
             g_free(id);

@@ -52,6 +52,10 @@
 #define VIRTIO_S390_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(VirtIOS390DeviceClass, (obj), TYPE_VIRTIO_S390_DEVICE)
 
+#define TYPE_S390_VIRTIO_BUS "s390-virtio-bus"
+#define S390_VIRTIO_BUS(obj) \
+     OBJECT_CHECK(VirtIOS390Bus, (obj), TYPE_S390_VIRTIO_BUS)
+
 typedef struct VirtIOS390Device VirtIOS390Device;
 
 typedef struct VirtIOS390DeviceClass {

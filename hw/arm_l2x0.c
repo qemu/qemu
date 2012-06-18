@@ -161,7 +161,7 @@ static int l2x0_priv_init(SysBusDevice *dev)
 }
 
 static Property l2x0_properties[] = {
-    DEFINE_PROP_UINT32("type", l2x0_state, cache_type, 0x1c100100),
+    DEFINE_PROP_UINT32("cache-type", l2x0_state, cache_type, 0x1c100100),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -17,7 +17,7 @@ typedef struct CompatProperty CompatProperty;
 
 typedef struct BusState BusState;
 
-typedef struct BusInfo BusInfo;
+typedef struct BusClass BusClass;
 
 enum DevState {
     DEV_STATE_CREATED = 1,
@@ -55,7 +55,7 @@ typedef struct DeviceClass {
     qdev_initfn init;
     qdev_event unplug;
     qdev_event exit;
-    BusInfo *bus_info;
+    const char *bus_type;
 } DeviceClass;
 
 /* This structure should not be accessed directly.  We declare it here
@@ -74,38 +74,52 @@ struct DeviceState {
     qemu_irq *gpio_in;
     QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
-    QTAILQ_ENTRY(DeviceState) sibling;
     int instance_id_alias;
     int alias_required_for_version;
 };
 
-typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
-typedef char *(*bus_get_dev_path)(DeviceState *dev);
 /*
  * This callback is used to create Open Firmware device path in accordance with
  * OF spec http://forthworks.com/standards/of1275.pdf. Indicidual bus bindings
  * can be found here http://playground.sun.com/1275/bindings/.
  */
-typedef char *(*bus_get_fw_dev_path)(DeviceState *dev);
-typedef int (qbus_resetfn)(BusState *bus);
 
-struct BusInfo {
-    const char *name;
-    size_t size;
-    bus_dev_printfn print_dev;
-    bus_get_dev_path get_dev_path;
-    bus_get_fw_dev_path get_fw_dev_path;
-    qbus_resetfn *reset;
-    Property *props;
+#define TYPE_BUS "bus"
+#define BUS(obj) OBJECT_CHECK(BusState, (obj), TYPE_BUS)
+#define BUS_CLASS(klass) OBJECT_CLASS_CHECK(BusClass, (klass), TYPE_BUS)
+#define BUS_GET_CLASS(obj) OBJECT_GET_CLASS(BusClass, (obj), TYPE_BUS)
+
+struct BusClass {
+    ObjectClass parent_class;
+
+    /* FIXME first arg should be BusState */
+    void (*print_dev)(Monitor *mon, DeviceState *dev, int indent);
+    char *(*get_dev_path)(DeviceState *dev);
+    char *(*get_fw_dev_path)(DeviceState *dev);
+    int (*reset)(BusState *bus);
 };
 
+typedef struct BusChild {
+    DeviceState *child;
+    int index;
+    QTAILQ_ENTRY(BusChild) sibling;
+} BusChild;
+
+/**
+ * BusState:
+ * @qom_allocated: Indicates whether the object was allocated by QOM.
+ * @glib_allocated: Indicates whether the object was initialized in-place
+ * yet is expected to be freed with g_free().
+ */
 struct BusState {
+    Object obj;
     DeviceState *parent;
-    BusInfo *info;
     const char *name;
     int allow_hotplug;
-    int qdev_allocated;
-    QTAILQ_HEAD(ChildrenHead, DeviceState) children;
+    bool qom_allocated;
+    bool glib_allocated;
+    int max_index;
+    QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
 };
 
@@ -175,9 +189,9 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id);
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
 typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
 
-void qbus_create_inplace(BusState *bus, BusInfo *info,
+void qbus_create_inplace(BusState *bus, const char *typename,
                          DeviceState *parent, const char *name);
-BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name);
+BusState *qbus_create(const char *typename, DeviceState *parent, const char *name);
 /* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,
  *         < 0 if either devfn or busfn terminate walk somewhere in cursion,
  *           0 otherwise. */
@@ -292,7 +306,6 @@ extern PropertyInfo qdev_prop_blocksize;
 
 /* Set properties between creation and init.  */
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
-int qdev_prop_exists(DeviceState *dev, const char *name);
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
@@ -310,7 +323,6 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
-void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
@@ -318,9 +330,6 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                                     Property *prop, const char *value);
 
 char *qdev_get_fw_dev_path(DeviceState *dev);
-
-/* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
-extern struct BusInfo system_bus_info;
 
 /**
  * @qdev_property_add_static - add a @Property to a device referencing a
@@ -347,15 +356,13 @@ const VMStateDescription *qdev_get_vmsd(DeviceState *dev);
 
 const char *qdev_fw_name(DeviceState *dev);
 
-BusInfo *qdev_get_bus_info(DeviceState *dev);
-
-Property *qdev_get_props(DeviceState *dev);
-
 Object *qdev_get_machine(void);
 
 /* FIXME: make this a link<> */
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus);
 
 extern int qdev_hotplug;
+
+char *qdev_get_dev_path(DeviceState *dev);
 
 #endif

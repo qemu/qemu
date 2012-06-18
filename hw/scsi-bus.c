@@ -12,17 +12,26 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
 
-static struct BusInfo scsi_bus_info = {
-    .name  = "SCSI",
-    .size  = sizeof(SCSIBus),
-    .get_dev_path = scsibus_get_dev_path,
-    .get_fw_dev_path = scsibus_get_fw_dev_path,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
-        DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
-        DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property scsi_props[] = {
+    DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
+    DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
+    DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void scsi_bus_class_init(ObjectClass *klass, void *data)
+{
+    BusClass *k = BUS_CLASS(klass);
+
+    k->get_dev_path = scsibus_get_dev_path;
+    k->get_fw_dev_path = scsibus_get_fw_dev_path;
+}
+
+static const TypeInfo scsi_bus_info = {
+    .name = TYPE_SCSI_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(SCSIBus),
+    .class_init = scsi_bus_class_init,
 };
 static int next_scsi_bus;
 
@@ -65,7 +74,7 @@ static void scsi_device_unit_attention_reported(SCSIDevice *s)
 /* Create a scsi bus, and attach devices to it.  */
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info)
 {
-    qbus_create_inplace(&bus->qbus, &scsi_bus_info, host, NULL);
+    qbus_create_inplace(&bus->qbus, TYPE_SCSI_BUS, host, NULL);
     bus->busnr = next_scsi_bus++;
     bus->info = info;
     bus->qbus.allow_hotplug = 1;
@@ -205,7 +214,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
     if (bootindex >= 0) {
         qdev_prop_set_int32(dev, "bootindex", bootindex);
     }
-    if (qdev_prop_exists(dev, "removable")) {
+    if (object_property_find(OBJECT(dev), "removable", NULL)) {
         qdev_prop_set_bit(dev, "removable", removable);
     }
     if (qdev_prop_set_drive(dev, "drive", bdrv) < 0) {
@@ -306,7 +315,7 @@ static void store_lun(uint8_t *outbuf, int lun)
 
 static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     int i, len, n;
     int channel, id;
     bool found_lun0;
@@ -321,7 +330,8 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
     id = r->req.dev->id;
     found_lun0 = false;
     n = 0;
-    QTAILQ_FOREACH(qdev, &r->req.bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &r->req.bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         SCSIDevice *dev = SCSI_DEVICE(qdev);
 
         if (dev->channel == channel && dev->id == id) {
@@ -343,7 +353,8 @@ static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
     memset(r->buf, 0, len);
     stl_be_p(&r->buf, n);
     i = found_lun0 ? 8 : 16;
-    QTAILQ_FOREACH(qdev, &r->req.bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &r->req.bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         SCSIDevice *dev = SCSI_DEVICE(qdev);
 
         if (dev->channel == channel && dev->id == id) {
@@ -1452,12 +1463,10 @@ static char *scsibus_get_dev_path(DeviceState *dev)
 {
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     DeviceState *hba = dev->parent_bus->parent;
-    char *id = NULL;
+    char *id;
     char *path;
 
-    if (hba && hba->parent_bus && hba->parent_bus->info->get_dev_path) {
-        id = hba->parent_bus->info->get_dev_path(hba);
-    }
+    id = qdev_get_dev_path(hba);
     if (id) {
         path = g_strdup_printf("%s/%d:%d:%d", id, d->channel, d->id, d->lun);
     } else {
@@ -1480,10 +1489,11 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
 
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     SCSIDevice *target_dev = NULL;
 
-    QTAILQ_FOREACH_REVERSE(qdev, &bus->qbus.children, ChildrenHead, sibling) {
+    QTAILQ_FOREACH_REVERSE(kid, &bus->qbus.children, ChildrenHead, sibling) {
+        DeviceState *qdev = kid->child;
         SCSIDevice *dev = SCSI_DEVICE(qdev);
 
         if (dev->channel == channel && dev->id == id) {
@@ -1595,10 +1605,11 @@ const VMStateDescription vmstate_scsi_device = {
 static void scsi_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->bus_info = &scsi_bus_info;
+    k->bus_type = TYPE_SCSI_BUS;
     k->init     = scsi_qdev_init;
     k->unplug   = qdev_simple_unplug_cb;
     k->exit     = scsi_qdev_exit;
+    k->props    = scsi_props;
 }
 
 static TypeInfo scsi_device_type_info = {
@@ -1612,6 +1623,7 @@ static TypeInfo scsi_device_type_info = {
 
 static void scsi_register_types(void)
 {
+    type_register_static(&scsi_bus_info);
     type_register_static(&scsi_device_type_info);
 }
 

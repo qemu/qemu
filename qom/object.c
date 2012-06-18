@@ -45,6 +45,7 @@ struct TypeImpl
     size_t instance_size;
 
     void (*class_init)(ObjectClass *klass, void *data);
+    void (*class_base_init)(ObjectClass *klass, void *data);
     void (*class_finalize)(ObjectClass *klass, void *data);
 
     void *class_data;
@@ -94,7 +95,7 @@ static TypeImpl *type_table_lookup(const char *name)
     return g_hash_table_lookup(type_table_get(), name);
 }
 
-TypeImpl *type_register(const TypeInfo *info)
+static TypeImpl *type_register_internal(const TypeInfo *info)
 {
     TypeImpl *ti = g_malloc0(sizeof(*ti));
 
@@ -112,6 +113,7 @@ TypeImpl *type_register(const TypeInfo *info)
     ti->instance_size = info->instance_size;
 
     ti->class_init = info->class_init;
+    ti->class_base_init = info->class_base_init;
     ti->class_finalize = info->class_finalize;
     ti->class_data = info->class_data;
 
@@ -133,6 +135,12 @@ TypeImpl *type_register(const TypeInfo *info)
     type_table_add(ti);
 
     return ti;
+}
+
+TypeImpl *type_register(const TypeInfo *info)
+{
+    assert(info->parent);
+    return type_register_internal(info);
 }
 
 TypeImpl *type_register_static(const TypeInfo *info)
@@ -202,13 +210,13 @@ static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
     char *name = g_strdup_printf("<%s::%s>", ti->name, iface->parent);
 
     info.name = name;
-    iface->type = type_register(&info);
+    iface->type = type_register_internal(&info);
     g_free(name);
 }
 
 static void type_initialize(TypeImpl *ti)
 {
-    size_t class_size = sizeof(ObjectClass);
+    TypeImpl *parent;
     int i;
 
     if (ti->class) {
@@ -219,22 +227,23 @@ static void type_initialize(TypeImpl *ti)
     ti->instance_size = type_object_get_size(ti);
 
     ti->class = g_malloc0(ti->class_size);
-    ti->class->type = ti;
 
-    if (type_has_parent(ti)) {
-        TypeImpl *parent = type_get_parent(ti);
-
+    parent = type_get_parent(ti);
+    if (parent) {
         type_initialize(parent);
 
-        class_size = parent->class_size;
         g_assert(parent->class_size <= ti->class_size);
-
-        memcpy((void *)ti->class + sizeof(ObjectClass),
-               (void *)parent->class + sizeof(ObjectClass),
-               parent->class_size - sizeof(ObjectClass));
+        memcpy(ti->class, parent->class, parent->class_size);
     }
 
-    memset((void *)ti->class + class_size, 0, ti->class_size - class_size);
+    ti->class->type = ti;
+
+    while (parent) {
+        if (parent->class_base_init) {
+            parent->class_base_init(ti->class, ti->class_data);
+        }
+        parent = type_get_parent(parent);
+    }
 
     for (i = 0; i < ti->num_interfaces; i++) {
         type_class_interface_init(ti, &ti->interfaces[i]);
@@ -296,6 +305,16 @@ void object_initialize(void *data, const char *typename)
     object_initialize_with_type(data, type);
 }
 
+static inline bool object_property_is_child(ObjectProperty *prop)
+{
+    return strstart(prop->type, "child<", NULL);
+}
+
+static inline bool object_property_is_link(ObjectProperty *prop)
+{
+    return strstart(prop->type, "link<", NULL);
+}
+
 static void object_property_del_all(Object *obj)
 {
     while (!QTAILQ_EMPTY(&obj->properties)) {
@@ -318,7 +337,7 @@ static void object_property_del_child(Object *obj, Object *child, Error **errp)
     ObjectProperty *prop;
 
     QTAILQ_FOREACH(prop, &obj->properties, node) {
-        if (strstart(prop->type, "child<", NULL) && prop->opaque == child) {
+        if (object_property_is_child(prop) && prop->opaque == child) {
             object_property_del(obj, prop->name, errp);
             break;
         }
@@ -458,19 +477,6 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
 }
 
 
-static void register_types(void)
-{
-    static TypeInfo interface_info = {
-        .name = TYPE_INTERFACE,
-        .instance_size = sizeof(Interface),
-        .abstract = true,
-    };
-
-    type_interface = type_register_static(&interface_info);
-}
-
-type_init(register_types)
-
 Object *object_dynamic_cast_assert(Object *obj, const char *typename)
 {
     Object *inst;
@@ -545,6 +551,19 @@ ObjectClass *object_class_by_name(const char *typename)
     return type->class;
 }
 
+ObjectClass *object_class_get_parent(ObjectClass *class)
+{
+    TypeImpl *type = type_get_parent(class->type);
+
+    if (!type) {
+        return NULL;
+    }
+
+    type_initialize(type);
+
+    return type->class;
+}
+
 typedef struct OCFData
 {
     void (*fn)(ObjectClass *klass, void *opaque);
@@ -582,6 +601,23 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     OCFData data = { fn, implements_type, include_abstract, opaque };
 
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
+}
+
+int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
+                         void *opaque)
+{
+    ObjectProperty *prop;
+    int ret = 0;
+
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        if (object_property_is_child(prop)) {
+            ret = fn(prop->opaque, opaque);
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+    return ret;
 }
 
 static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)
@@ -636,7 +672,8 @@ void object_property_add(Object *obj, const char *name, const char *type,
     QTAILQ_INSERT_TAIL(&obj->properties, prop, node);
 }
 
-static ObjectProperty *object_property_find(Object *obj, const char *name)
+ObjectProperty *object_property_find(Object *obj, const char *name,
+                                     Error **errp)
 {
     ObjectProperty *prop;
 
@@ -646,16 +683,22 @@ static ObjectProperty *object_property_find(Object *obj, const char *name)
         }
     }
 
+    error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
     return NULL;
 }
 
 void object_property_del(Object *obj, const char *name, Error **errp)
 {
-    ObjectProperty *prop = object_property_find(obj, name);
+    ObjectProperty *prop = object_property_find(obj, name, errp);
+    if (prop == NULL) {
+        return;
+    }
+
+    if (prop->release) {
+        prop->release(obj, name, prop->opaque);
+    }
 
     QTAILQ_REMOVE(&obj->properties, prop, node);
-
-    prop->release(obj, prop->name, prop->opaque);
 
     g_free(prop->name);
     g_free(prop->type);
@@ -665,10 +708,8 @@ void object_property_del(Object *obj, const char *name, Error **errp)
 void object_property_get(Object *obj, Visitor *v, const char *name,
                          Error **errp)
 {
-    ObjectProperty *prop = object_property_find(obj, name);
-
+    ObjectProperty *prop = object_property_find(obj, name, errp);
     if (prop == NULL) {
-        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
         return;
     }
 
@@ -682,10 +723,8 @@ void object_property_get(Object *obj, Visitor *v, const char *name,
 void object_property_set(Object *obj, Visitor *v, const char *name,
                          Error **errp)
 {
-    ObjectProperty *prop = object_property_find(obj, name);
-
+    ObjectProperty *prop = object_property_find(obj, name, errp);
     if (prop == NULL) {
-        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
         return;
     }
 
@@ -838,10 +877,8 @@ char *object_property_print(Object *obj, const char *name,
 
 const char *object_property_get_type(Object *obj, const char *name, Error **errp)
 {
-    ObjectProperty *prop = object_property_find(obj, name);
-
+    ObjectProperty *prop = object_property_find(obj, name, errp);
     if (prop == NULL) {
-        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
         return NULL;
     }
 
@@ -995,7 +1032,7 @@ gchar *object_get_canonical_path(Object *obj)
         g_assert(obj->parent != NULL);
 
         QTAILQ_FOREACH(prop, &obj->parent->properties, node) {
-            if (!strstart(prop->type, "child<", NULL)) {
+            if (!object_property_is_child(prop)) {
                 continue;
             }
 
@@ -1024,14 +1061,14 @@ gchar *object_get_canonical_path(Object *obj)
 
 Object *object_resolve_path_component(Object *parent, gchar *part)
 {
-    ObjectProperty *prop = object_property_find(parent, part);
+    ObjectProperty *prop = object_property_find(parent, part, NULL);
     if (prop == NULL) {
         return NULL;
     }
 
-    if (strstart(prop->type, "link<", NULL)) {
+    if (object_property_is_link(prop)) {
         return *(Object **)prop->opaque;
-    } else if (strstart(prop->type, "child<", NULL)) {
+    } else if (object_property_is_child(prop)) {
         return prop->opaque;
     } else {
         return NULL;
@@ -1074,7 +1111,7 @@ static Object *object_resolve_partial_path(Object *parent,
     QTAILQ_FOREACH(prop, &parent->properties, node) {
         Object *found;
 
-        if (!strstart(prop->type, "child<", NULL)) {
+        if (!object_property_is_child(prop)) {
             continue;
         }
 
@@ -1194,3 +1231,34 @@ void object_property_add_str(Object *obj, const char *name,
                         property_release_str,
                         prop, errp);
 }
+
+static char *qdev_get_type(Object *obj, Error **errp)
+{
+    return g_strdup(object_get_typename(obj));
+}
+
+static void object_instance_init(Object *obj)
+{
+    object_property_add_str(obj, "type", qdev_get_type, NULL, NULL);
+}
+
+static void register_types(void)
+{
+    static TypeInfo interface_info = {
+        .name = TYPE_INTERFACE,
+        .instance_size = sizeof(Interface),
+        .abstract = true,
+    };
+
+    static TypeInfo object_info = {
+        .name = TYPE_OBJECT,
+        .instance_size = sizeof(Object),
+        .instance_init = object_instance_init,
+        .abstract = true,
+    };
+
+    type_interface = type_register_internal(&interface_info);
+    type_register_internal(&object_info);
+}
+
+type_init(register_types)

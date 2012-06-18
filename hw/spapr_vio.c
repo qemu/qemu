@@ -49,22 +49,24 @@
     do { } while (0)
 #endif
 
-static struct BusInfo spapr_vio_bus_info = {
-    .name       = "spapr-vio",
-    .size       = sizeof(VIOsPAPRBus),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property spapr_vio_props[] = {
+    DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static const TypeInfo spapr_vio_bus_info = {
+    .name = TYPE_SPAPR_VIO_BUS,
+    .parent = TYPE_BUS,
+    .instance_size = sizeof(VIOsPAPRBus),
 };
 
 VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     VIOsPAPRDevice *dev = NULL;
 
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        dev = (VIOsPAPRDevice *)qdev;
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        dev = (VIOsPAPRDevice *)kid->child;
         if (dev->reg == reg) {
             return dev;
         }
@@ -604,7 +606,7 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
                          uint32_t nret, target_ulong rets)
 {
     VIOsPAPRBus *bus = spapr->vio_bus;
-    DeviceState *qdev;
+    BusChild *kid;
     VIOsPAPRDevice *dev = NULL;
 
     if (nargs != 0) {
@@ -612,8 +614,8 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        dev = (VIOsPAPRDevice *)qdev;
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        dev = (VIOsPAPRDevice *)kid->child;
         spapr_vio_quiesce_one(dev);
     }
 
@@ -623,7 +625,7 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
 static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
 {
     VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
-    DeviceState *qdev;
+    BusChild *kid;
     VIOsPAPRDevice *other;
 
     /*
@@ -631,8 +633,8 @@ static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
      * using the requested address. We have to open code this because
      * the given dev might already be in the list.
      */
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        other = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        other = DO_UPCAST(VIOsPAPRDevice, qdev, kid->child);
 
         if (other != dev && other->reg == dev->reg) {
             return other;
@@ -742,7 +744,7 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
 
     /* Create bus on bridge device */
 
-    qbus = qbus_create(&spapr_vio_bus_info, dev, "spapr-vio");
+    qbus = qbus_create(TYPE_SPAPR_VIO_BUS, dev, "spapr-vio");
     bus = DO_UPCAST(VIOsPAPRBus, bus, qbus);
     bus->next_reg = 0x1000;
 
@@ -794,7 +796,8 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = spapr_vio_busdev_init;
     k->reset = spapr_vio_busdev_reset;
-    k->bus_info = &spapr_vio_bus_info;
+    k->bus_type = TYPE_SPAPR_VIO_BUS;
+    k->props = spapr_vio_props;
 }
 
 static TypeInfo spapr_vio_type_info = {
@@ -808,6 +811,7 @@ static TypeInfo spapr_vio_type_info = {
 
 static void spapr_vio_register_types(void)
 {
+    type_register_static(&spapr_vio_bus_info);
     type_register_static(&spapr_vio_bridge_info);
     type_register_static(&spapr_vio_type_info);
 }
@@ -836,19 +840,20 @@ static int compare_reg(const void *p1, const void *p2)
 int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
 {
     DeviceState *qdev, **qdevs;
+    BusChild *kid;
     int i, num, ret = 0;
 
     /* Count qdevs on the bus list */
     num = 0;
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
         num++;
     }
 
     /* Copy out into an array of pointers */
     qdevs = g_malloc(sizeof(qdev) * num);
     num = 0;
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        qdevs[num++] = qdev;
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        qdevs[num++] = kid->child;
     }
 
     /* Sort the array */

@@ -284,7 +284,7 @@ static const VMStateDescription vmstate_acpi = {
 
 static void acpi_piix_eject_slot(PIIX4PMState *s, unsigned slots)
 {
-    DeviceState *qdev, *next;
+    BusChild *kid, *next;
     BusState *bus = qdev_get_parent_bus(&s->dev.qdev);
     int slot = ffs(slots) - 1;
     bool slot_free = true;
@@ -292,7 +292,8 @@ static void acpi_piix_eject_slot(PIIX4PMState *s, unsigned slots)
     /* Mark request as complete */
     s->pci0_status.down &= ~(1U << slot);
 
-    QTAILQ_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
+    QTAILQ_FOREACH_SAFE(kid, &bus->children, sibling, next) {
+        DeviceState *qdev = kid->child;
         PCIDevice *dev = PCI_DEVICE(qdev);
         PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
         if (PCI_SLOT(dev->devfn) == slot) {
@@ -313,7 +314,7 @@ static void piix4_update_hotplug(PIIX4PMState *s)
 {
     PCIDevice *dev = &s->dev;
     BusState *bus = qdev_get_parent_bus(&dev->qdev);
-    DeviceState *qdev, *next;
+    BusChild *kid, *next;
 
     /* Execute any pending removes during reset */
     while (s->pci0_status.down) {
@@ -323,7 +324,8 @@ static void piix4_update_hotplug(PIIX4PMState *s)
     s->pci0_hotplug_enable = ~0;
     s->pci0_slot_device_present = 0;
 
-    QTAILQ_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
+    QTAILQ_FOREACH_SAFE(kid, &bus->children, sibling, next) {
+        DeviceState *qdev = kid->child;
         PCIDevice *pdev = PCI_DEVICE(qdev);
         PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pdev);
         int slot = PCI_SLOT(pdev->devfn);

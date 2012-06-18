@@ -432,12 +432,13 @@ void usb_desc_create_serial(USBDevice *dev)
     const USBDesc *desc = usb_device_get_usb_desc(dev);
     int index = desc->id.iSerialNumber;
     char serial[64];
+    char *path;
     int dst;
 
     assert(index != 0 && desc->str[index] != NULL);
     dst = snprintf(serial, sizeof(serial), "%s", desc->str[index]);
-    if (hcd && hcd->parent_bus && hcd->parent_bus->info->get_dev_path) {
-        char *path = hcd->parent_bus->info->get_dev_path(hcd);
+    path = qdev_get_dev_path(hcd);
+    if (path) {
         dst += snprintf(serial+dst, sizeof(serial)-dst, "-%s", path);
     }
     dst += snprintf(serial+dst, sizeof(serial)-dst, "-%s", dev->port->path);

@@ -915,24 +915,20 @@ static Property *qdev_prop_walk(Property *props, const char *name)
 
 static Property *qdev_prop_find(DeviceState *dev, const char *name)
 {
+    ObjectClass *class;
     Property *prop;
 
     /* device properties */
-    prop = qdev_prop_walk(qdev_get_props(dev), name);
-    if (prop)
-        return prop;
-
-    /* bus properties */
-    prop = qdev_prop_walk(dev->parent_bus->info->props, name);
-    if (prop)
-        return prop;
+    class = object_get_class(OBJECT(dev));
+    do {
+        prop = qdev_prop_walk(DEVICE_CLASS(class)->props, name);
+        if (prop) {
+            return prop;
+        }
+        class = object_class_get_parent(class);
+    } while (class != object_class_by_name(TYPE_DEVICE));
 
     return NULL;
-}
-
-int qdev_prop_exists(DeviceState *dev, const char *name)
-{
-    return qdev_prop_find(dev, name) ? true : false;
 }
 
 void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
@@ -1105,28 +1101,6 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
     *ptr = value;
 }
 
-void qdev_prop_set_defaults(DeviceState *dev, Property *props)
-{
-    Object *obj = OBJECT(dev);
-    if (!props)
-        return;
-    for (; props->name; props++) {
-        Error *errp = NULL;
-        if (props->qtype == QTYPE_NONE) {
-            continue;
-        }
-        if (props->qtype == QTYPE_QBOOL) {
-            object_property_set_bool(obj, props->defval, props->name, &errp);
-        } else if (props->info->enum_table) {
-            object_property_set_str(obj, props->info->enum_table[props->defval],
-                                    props->name, &errp);
-        } else if (props->qtype == QTYPE_QINT) {
-            object_property_set_int(obj, props->defval, props->name, &errp);
-        }
-        assert_no_error(errp);
-    }
-}
-
 static QTAILQ_HEAD(, GlobalProperty) global_props = QTAILQ_HEAD_INITIALIZER(global_props);
 
 static void qdev_prop_register_global(GlobalProperty *prop)
@@ -1145,17 +1119,20 @@ void qdev_prop_register_global_list(GlobalProperty *props)
 
 void qdev_prop_set_globals(DeviceState *dev)
 {
-    GlobalProperty *prop;
+    ObjectClass *class = object_get_class(OBJECT(dev));
 
-    QTAILQ_FOREACH(prop, &global_props, next) {
-        if (strcmp(object_get_typename(OBJECT(dev)), prop->driver) != 0 &&
-            strcmp(qdev_get_bus_info(dev)->name, prop->driver) != 0) {
-            continue;
+    do {
+        GlobalProperty *prop;
+        QTAILQ_FOREACH(prop, &global_props, next) {
+            if (strcmp(object_class_get_name(class), prop->driver) != 0) {
+                continue;
+            }
+            if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {
+                exit(1);
+            }
         }
-        if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {
-            exit(1);
-        }
-    }
+        class = object_class_get_parent(class);
+    } while (class);
 }
 
 static int qdev_add_one_global(QemuOpts *opts, void *opaque)
