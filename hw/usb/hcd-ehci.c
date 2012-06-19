@@ -1246,6 +1246,23 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
     return 1;
 }
 
+/*
+ *  Write the qh back to guest physical memory.  This step isn't
+ *  in the EHCI spec but we need to do it since we don't share
+ *  physical memory with our guest VM.
+ *
+ *  The first three dwords are read-only for the EHCI, so skip them
+ *  when writing back the qh.
+ */
+static void ehci_flush_qh(EHCIQueue *q)
+{
+    uint32_t *qh = (uint32_t *) &q->qh;
+    uint32_t dwords = sizeof(EHCIqh) >> 2;
+    uint32_t addr = NLPTR_GET(q->qhaddr);
+
+    put_dwords(q->ehci, addr + 3 * sizeof(uint32_t), qh + 3, dwords - 3);
+}
+
 // 4.10.2
 
 static int ehci_qh_do_overlay(EHCIQueue *q)
@@ -1293,8 +1310,7 @@ static int ehci_qh_do_overlay(EHCIQueue *q)
     q->qh.bufptr[1] &= ~BUFPTR_CPROGMASK_MASK;
     q->qh.bufptr[2] &= ~BUFPTR_FRAMETAG_MASK;
 
-    put_dwords(q->ehci, NLPTR_GET(q->qhaddr), (uint32_t *) &q->qh,
-               sizeof(EHCIqh) >> 2);
+    ehci_flush_qh(q);
 
     return 0;
 }
@@ -1599,23 +1615,6 @@ static int ehci_process_itd(EHCIState *ehci,
     return 0;
 }
 
-
-/*
- *  Write the qh back to guest physical memory.  This step isn't
- *  in the EHCI spec but we need to do it since we don't share
- *  physical memory with our guest VM.
- *
- *  The first three dwords are read-only for the EHCI, so skip them
- *  when writing back the qh.
- */
-static void ehci_flush_qh(EHCIQueue *q)
-{
-    uint32_t *qh = (uint32_t *) &q->qh;
-    uint32_t dwords = sizeof(EHCIqh) >> 2;
-    uint32_t addr = NLPTR_GET(q->qhaddr);
-
-    put_dwords(q->ehci, addr + 3 * sizeof(uint32_t), qh + 3, dwords - 3);
-}
 
 /*  This state is the entry point for asynchronous schedule
  *  processing.  Entry here consitutes a EHCI start event state (4.8.5)
