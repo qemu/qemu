@@ -487,7 +487,7 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
         assert(label->u.value);
     } else {
         tcg_out_reloc(s, s->code_ptr, sizeof(tcg_target_ulong), arg, 0);
-        tcg_out_i(s, 0);
+        s->code_ptr += sizeof(tcg_target_ulong);
     }
 }
 
