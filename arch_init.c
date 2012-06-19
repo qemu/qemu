@@ -304,6 +304,11 @@ static void sort_ram_list(void)
     g_free(blocks);
 }
 
+static void migration_end(void)
+{
+    memory_global_dirty_log_stop();
+}
+
 int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
@@ -313,7 +318,7 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
     int ret;
 
     if (stage < 0) {
-        memory_global_dirty_log_stop();
+        migration_end();
         return 0;
     }
 
