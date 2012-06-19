@@ -483,6 +483,9 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
             void *host;
 
             host = host_from_stream_offset(f, addr, flags);
+            if (!host) {
+                return -EINVAL;
+            }
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         }
