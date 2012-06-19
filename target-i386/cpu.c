@@ -1716,6 +1716,7 @@ static void x86_cpu_initfn(Object *obj)
 {
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
+    static int inited;
 
     cpu_exec_init(env);
 
@@ -1745,6 +1746,15 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
 
     env->cpuid_apic_id = env->cpu_index;
+
+    /* init various static tables used in TCG mode */
+    if (tcg_enabled() && !inited) {
+        inited = 1;
+        optimize_flags_init();
+#ifndef CONFIG_USER_ONLY
+        cpu_set_debug_excp_handler(breakpoint_handler);
+#endif
+    }
 }
 
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)

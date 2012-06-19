@@ -933,6 +933,7 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index)
 void hw_breakpoint_insert(CPUX86State *env, int index);
 void hw_breakpoint_remove(CPUX86State *env, int index);
 int check_hw_breakpoints(CPUX86State *env, int force_dr6_update);
+void breakpoint_handler(CPUX86State *env);
 
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
