@@ -1561,7 +1561,8 @@ bool qemu_savevm_state_blocked(Error **errp)
     return false;
 }
 
-int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
+int qemu_savevm_state_begin(QEMUFile *f,
+                            const MigrationParams *params)
 {
     SaveStateEntry *se;
     int ret;
@@ -1569,8 +1570,8 @@ int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if(se->set_params == NULL) {
             continue;
-	}
-	se->set_params(blk_enable, shared, se->opaque);
+        }
+        se->set_params(params, se->opaque);
     }
     
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
@@ -1708,13 +1709,17 @@ void qemu_savevm_state_cancel(QEMUFile *f)
 static int qemu_savevm_state(QEMUFile *f)
 {
     int ret;
+    MigrationParams params = {
+        .blk = 0,
+        .shared = 0
+    };
 
     if (qemu_savevm_state_blocked(NULL)) {
         ret = -EINVAL;
         goto out;
     }
 
-    ret = qemu_savevm_state_begin(f, 0, 0);
+    ret = qemu_savevm_state_begin(f, &params);
     if (ret < 0)
         goto out;
 

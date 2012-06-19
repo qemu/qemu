@@ -19,6 +19,11 @@
 #include "notify.h"
 #include "error.h"
 
+struct MigrationParams {
+    bool blk;
+    bool shared;
+};
+
 typedef struct MigrationState MigrationState;
 
 struct MigrationState
@@ -31,8 +36,7 @@ struct MigrationState
     int (*close)(MigrationState *s);
     int (*write)(MigrationState *s, const void *buff, size_t size);
     void *opaque;
-    int blk;
-    int shared;
+    MigrationParams params;
 };
 
 void process_incoming_migration(QEMUFile *f);
