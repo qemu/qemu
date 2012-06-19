@@ -19,8 +19,8 @@ all: $(hw-obj-y)
 	@true
 
 clean:
-	rm -f $(addsuffix /*.o, $(dir $(sort $(hw-obj-y))))
-	rm -f $(addsuffix /*.d, $(dir $(sort $(hw-obj-y))))
+	rm -f $(addsuffix *.o, $(sort $(dir $(hw-obj-y))))
+	rm -f $(addsuffix *.d, $(sort $(dir $(hw-obj-y))))
 
 # Include automatically generated dependency files
 -include $(patsubst %.o, %.d, $(hw-obj-y))
