@@ -161,6 +161,18 @@ static int is_dup_page(uint8_t *page)
     return 1;
 }
 
+static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
+        int cont, int flag)
+{
+        qemu_put_be64(f, offset | cont | flag);
+        if (!cont) {
+                qemu_put_byte(f, strlen(block->idstr));
+                qemu_put_buffer(f, (uint8_t *)block->idstr,
+                                strlen(block->idstr));
+        }
+
+}
+
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
 
@@ -187,21 +199,11 @@ static int ram_save_block(QEMUFile *f)
             p = memory_region_get_ram_ptr(mr) + offset;
 
             if (is_dup_page(p)) {
-                qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_COMPRESS);
-                if (!cont) {
-                    qemu_put_byte(f, strlen(block->idstr));
-                    qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                    strlen(block->idstr));
-                }
+                save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_COMPRESS);
                 qemu_put_byte(f, *p);
                 bytes_sent = 1;
             } else {
-                qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_PAGE);
-                if (!cont) {
-                    qemu_put_byte(f, strlen(block->idstr));
-                    qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                    strlen(block->idstr));
-                }
+                save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
                 bytes_sent = TARGET_PAGE_SIZE;
             }
