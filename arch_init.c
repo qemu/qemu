@@ -44,6 +44,14 @@
 #include "exec-memory.h"
 #include "hw/pcspk.h"
 
+#ifdef DEBUG_ARCH_INIT
+#define DPRINTF(fmt, ...) \
+    do { fprintf(stdout, "arch_init: " fmt, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
+
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -380,6 +388,9 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
 
     expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
+    DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
+            expected_time, migrate_max_downtime());
+
     return (stage == 2) && (expected_time <= migrate_max_downtime());
 }
 
@@ -416,8 +427,11 @@ static inline void *host_from_stream_offset(QEMUFile *f,
 int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
-    int flags;
+    int flags, ret = 0;
     int error;
+    static uint64_t seq_iter;
+
+    seq_iter++;
 
     if (version_id < 4 || version_id > 4) {
         return -EINVAL;
@@ -447,8 +461,10 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
 
                     QLIST_FOREACH(block, &ram_list.blocks, next) {
                         if (!strncmp(id, block->idstr, sizeof(id))) {
-                            if (block->length != length)
-                                return -EINVAL;
+                            if (block->length != length) {
+                                ret =  -EINVAL;
+                                goto done;
+                            }
                             break;
                         }
                     }
@@ -456,7 +472,8 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
                     if (!block) {
                         fprintf(stderr, "Unknown ramblock \"%s\", cannot "
                                 "accept migration\n", id);
-                        return -EINVAL;
+                        ret = -EINVAL;
+                        goto done;
                     }
 
                     total_ram_bytes -= length;
@@ -493,11 +510,15 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         }
         error = qemu_file_get_error(f);
         if (error) {
-            return error;
+            ret = error;
+            goto done;
         }
     } while (!(flags & RAM_SAVE_FLAG_EOS));
 
-    return 0;
+done:
+    DPRINTF("Completed load of VM with exit code %d seq iteration " PRIu64 "\n",
+            ret, seq_iter);
+    return ret;
 }
 
 #ifdef HAS_AUDIO
