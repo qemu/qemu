@@ -1303,7 +1303,7 @@ void x86_cpudef_setup(void)
         builtin_x86_defs[i].flags = 1;
 
         /* Look for specific "cpudef" models that */
-        /* have the QEmu version in .model_id */
+        /* have the QEMU version in .model_id */
         for (j = 0; j < ARRAY_SIZE(model_with_versions); j++) {
             if (strcmp(model_with_versions[j], builtin_x86_defs[i].name) == 0) {
                 pstrcpy(builtin_x86_defs[i].model_id, sizeof(builtin_x86_defs[i].model_id), "QEMU Virtual CPU version ");
