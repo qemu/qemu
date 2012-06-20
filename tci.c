@@ -1014,7 +1014,6 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
 #endif
 #if TCG_TARGET_HAS_bswap64_i64
         case INDEX_op_bswap64_i64:
-            TODO();
             t0 = *tb_ptr++;
             t1 = tci_read_r64(&tb_ptr);
             tci_write_reg64(t0, bswap64(t1));
