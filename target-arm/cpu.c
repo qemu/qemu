@@ -307,7 +307,7 @@ static void arm11mpcore_initfn(Object *obj)
     cpu->reset_fpsid = 0x410120b4;
     cpu->mvfr0 = 0x11111111;
     cpu->mvfr1 = 0x00000000;
-    cpu->ctr = 0x1dd20d2;
+    cpu->ctr = 0x1d192992; /* 32K icache 32K dcache */
     cpu->id_pfr0 = 0x111;
     cpu->id_pfr1 = 0x1;
     cpu->id_dfr0 = 0;
