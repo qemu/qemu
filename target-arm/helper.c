@@ -193,6 +193,9 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
     { .name = "ILOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_insn),
       .resetvalue = 0 },
+    /* v6 doesn't have the cache ID registers but Linux reads them anyway */
+    { .name = "DUMMY", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = CP_ANY,
+      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -322,6 +325,21 @@ static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
+static int ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    *value = cpu->ccsidr[env->cp15.c0_cssel];
+    return 0;
+}
+
+static int csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    env->cp15.c0_cssel = value & 0xf;
+    return 0;
+}
+
 static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components
@@ -392,6 +410,16 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
       .resetvalue = 0, },
+    { .name = "CCSIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 0,
+      .access = PL1_R, .readfn = ccsidr_read },
+    { .name = "CSSELR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 2, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c0_cssel),
+      .writefn = csselr_write, .resetvalue = 0 },
+    /* Auxiliary ID register: this actually has an IMPDEF value but for now
+     * just RAZ for all cores:
+     */
+    { .name = "AIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 7,
+      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -896,7 +924,12 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
             .readfn = pmreg_read, .writefn = pmcr_write
         };
+        ARMCPRegInfo clidr = {
+            .name = "CLIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
+            .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->clidr
+        };
         define_one_arm_cp_reg(cpu, &pmcr);
+        define_one_arm_cp_reg(cpu, &clidr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
@@ -2051,11 +2084,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
             break;
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             break;
-        if (arm_feature(env, ARM_FEATURE_V7)
-                && op1 == 2 && crm == 0 && op2 == 0) {
-            env->cp15.c0_cssel = val & 0xf;
-            break;
-        }
         goto bad_reg;
     case 4: /* Reserved.  */
         goto bad_reg;
@@ -2123,29 +2151,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
             default:
                 goto bad_reg;
             }
-        case 1:
-            /* These registers aren't documented on arm11 cores.  However
-               Linux looks at them anyway.  */
-            if (!arm_feature(env, ARM_FEATURE_V6))
-                goto bad_reg;
-            if (crm != 0)
-                goto bad_reg;
-            if (!arm_feature(env, ARM_FEATURE_V7))
-                return 0;
-
-            switch (op2) {
-            case 0:
-                return env->cp15.c0_ccsid[env->cp15.c0_cssel];
-            case 1:
-                return env->cp15.c0_clid;
-            case 7:
-                return 0;
-            }
-            goto bad_reg;
-        case 2:
-            if (op2 != 0 || crm != 0)
-                goto bad_reg;
-            return env->cp15.c0_cssel;
         default:
             goto bad_reg;
         }

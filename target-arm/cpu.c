@@ -77,8 +77,6 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->cp15.c0_cachetype = cpu->ctr;
-    env->cp15.c0_clid = cpu->clidr;
-    memcpy(env->cp15.c0_ccsid, cpu->ccsidr, ARRAY_SIZE(cpu->ccsidr));
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
