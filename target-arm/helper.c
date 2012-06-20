@@ -492,10 +492,91 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int omap_ticonfig_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    env->cp15.c15_ticonfig = value & 0xe7;
+    /* The OS_TYPE bit in this register changes the reported CPUID! */
+    env->cp15.c0_cpuid = (value & (1 << 5)) ?
+        ARM_CPUID_TI915T : ARM_CPUID_TI925T;
+    return 0;
+}
+
+static int omap_threadid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    env->cp15.c15_threadid = value & 0xffff;
+    return 0;
+}
+
+static int omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    /* Wait-for-interrupt (deprecated) */
+    cpu_interrupt(env, CPU_INTERRUPT_HALT);
+    return 0;
+}
+
 static const ARMCPRegInfo omap_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_OVERRIDE,
       .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    { .name = "", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TICONFIG", .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_ticonfig), .resetvalue = 0,
+      .writefn = omap_ticonfig_write },
+    { .name = "IMAX", .cp = 15, .crn = 15, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_i_max), .resetvalue = 0, },
+    { .name = "IMIN", .cp = 15, .crn = 15, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0xff0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_i_min) },
+    { .name = "THREADID", .cp = 15, .crn = 15, .crm = 4, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_threadid), .resetvalue = 0,
+      .writefn = omap_threadid_write },
+    { .name = "TI925T_STATUS", .cp = 15, .crn = 15,
+      .crm = 8, .opc1 = 0, .opc2 = 0, .access = PL1_RW,
+      .readfn = arm_cp_read_zero, .writefn = omap_wfi_write, },
+    /* TODO: Peripheral port remap register:
+     * On OMAP2 mcr p15, 0, rn, c15, c2, 4 sets up the interrupt controller
+     * base address at $rn & ~0xfff and map size of 0x200 << ($rn & 0xfff),
+     * when MMU is off.
+     */
+    REGINFO_SENTINEL
+};
+
+static int xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    value &= 0x3fff;
+    if (env->cp15.c15_cpar != value) {
+        /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
+        tb_flush(env);
+        env->cp15.c15_cpar = value;
+    }
+    return 0;
+}
+
+static const ARMCPRegInfo xscale_cp_reginfo[] = {
+    { .name = "XSCALE_CPAR",
+      .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0, .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_cpar), .resetvalue = 0,
+      .writefn = xscale_cpar_write, },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo dummy_c15_cp_reginfo[] = {
+    /* RAZ/WI the whole crn=15 space, when we don't have a more specific
+     * implementation of this implementation-defined space.
+     * Ideally this should eventually disappear in favour of actually
+     * implementing the correct behaviour for all cores.
+     */
+    { .name = "C15_IMPDEF", .cp = 15, .crn = 15,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -551,6 +632,12 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
         define_arm_cp_regs(cpu, omap_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+        define_arm_cp_regs(cpu, xscale_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_DUMMY_C15_REGS)) {
+        define_arm_cp_regs(cpu, dummy_c15_cp_reginfo);
     }
 }
 
@@ -1802,58 +1889,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         break;
     case 12: /* Reserved.  */
         goto bad_reg;
-    case 15: /* Implementation specific.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-            if (op2 == 0 && crm == 1) {
-                if (env->cp15.c15_cpar != (val & 0x3fff)) {
-                    /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
-                    tb_flush(env);
-                    env->cp15.c15_cpar = val & 0x3fff;
-                }
-                break;
-            }
-            goto bad_reg;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
-            switch (crm) {
-            case 0:
-                break;
-            case 1: /* Set TI925T configuration.  */
-                env->cp15.c15_ticonfig = val & 0xe7;
-                env->cp15.c0_cpuid = (val & (1 << 5)) ? /* OS_TYPE bit */
-                        ARM_CPUID_TI915T : ARM_CPUID_TI925T;
-                break;
-            case 2: /* Set I_max.  */
-                env->cp15.c15_i_max = val;
-                break;
-            case 3: /* Set I_min.  */
-                env->cp15.c15_i_min = val;
-                break;
-            case 4: /* Set thread-ID.  */
-                env->cp15.c15_threadid = val & 0xffff;
-                break;
-            case 8: /* Wait-for-interrupt (deprecated).  */
-                cpu_interrupt(env, CPU_INTERRUPT_HALT);
-                break;
-            default:
-                goto bad_reg;
-            }
-        }
-        if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
-            switch (crm) {
-            case 0:
-                if ((op1 == 0) && (op2 == 0)) {
-                    env->cp15.c15_power_control = val;
-                } else if ((op1 == 0) && (op2 == 1)) {
-                    env->cp15.c15_diagnostic = val;
-                } else if ((op1 == 0) && (op2 == 2)) {
-                    env->cp15.c15_power_diagnostic = val;
-                }
-            default:
-                break;
-            }
-        }
-        break;
     }
     return;
 bad_reg:
@@ -2080,69 +2115,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
     case 11: /* TCM DMA control.  */
     case 12: /* Reserved.  */
         goto bad_reg;
-    case 15: /* Implementation specific.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-            if (op2 == 0 && crm == 1)
-                return env->cp15.c15_cpar;
-
-            goto bad_reg;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
-            switch (crm) {
-            case 0:
-                return 0;
-            case 1: /* Read TI925T configuration.  */
-                return env->cp15.c15_ticonfig;
-            case 2: /* Read I_max.  */
-                return env->cp15.c15_i_max;
-            case 3: /* Read I_min.  */
-                return env->cp15.c15_i_min;
-            case 4: /* Read thread-ID.  */
-                return env->cp15.c15_threadid;
-            case 8: /* TI925T_status */
-                return 0;
-            }
-            /* TODO: Peripheral port remap register:
-             * On OMAP2 mcr p15, 0, rn, c15, c2, 4 sets up the interrupt
-             * controller base address at $rn & ~0xfff and map size of
-             * 0x200 << ($rn & 0xfff), when MMU is off.  */
-            goto bad_reg;
-        }
-        if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
-            switch (crm) {
-            case 0:
-                if ((op1 == 4) && (op2 == 0)) {
-                    /* The config_base_address should hold the value of
-                     * the peripheral base. ARM should get this from a CPU
-                     * object property, but that support isn't available in
-                     * December 2011. Default to 0 for now and board models
-                     * that care can set it by a private hook */
-                    return env->cp15.c15_config_base_address;
-                } else if ((op1 == 0) && (op2 == 0)) {
-                    /* power_control should be set to maximum latency. Again,
-                       default to 0 and set by private hook */
-                    return env->cp15.c15_power_control;
-                } else if ((op1 == 0) && (op2 == 1)) {
-                    return env->cp15.c15_diagnostic;
-                } else if ((op1 == 0) && (op2 == 2)) {
-                    return env->cp15.c15_power_diagnostic;
-                }
-                break;
-            case 1: /* NEON Busy */
-                return 0;
-            case 5: /* tlb lockdown */
-            case 6:
-            case 7:
-                if ((op1 == 5) && (op2 == 2)) {
-                    return 0;
-                }
-                break;
-            default:
-                break;
-            }
-            goto bad_reg;
-        }
-        return 0;
     }
 bad_reg:
     /* ??? For debugging only.  Should raise illegal instruction exception.  */

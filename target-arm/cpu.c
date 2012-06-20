@@ -71,7 +71,6 @@ static void arm_cpu_reset(CPUState *s)
 
     memset(env, 0, offsetof(CPUARMState, breakpoints));
     g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
-    env->cp15.c15_config_base_address = cpu->reset_cbar;
     env->cp15.c0_cpuid = cpu->midr;
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
@@ -92,7 +91,6 @@ static void arm_cpu_reset(CPUState *s)
     env->cp15.c0_c2[3] = cpu->id_isar3;
     env->cp15.c0_c2[4] = cpu->id_isar4;
     env->cp15.c0_c2[5] = cpu->id_isar5;
-    env->cp15.c15_i_min = 0xff0;
     env->cp15.c0_clid = cpu->clidr;
     memcpy(env->cp15.c0_ccsid, cpu->ccsidr, ARRAY_SIZE(cpu->ccsidr));
 
@@ -399,6 +397,35 @@ static void cortex_a8_initfn(Object *obj)
     cpu->ccsidr[2] = 0xf0000000; /* No L2 icache. */
 }
 
+static const ARMCPRegInfo cortexa9_cp_reginfo[] = {
+    /* power_control should be set to maximum latency. Again,
+     * default to 0 and set by private hook
+     */
+    { .name = "A9_PWRCTL", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_power_control) },
+    { .name = "A9_DIAG", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_diagnostic) },
+    { .name = "A9_PWRDIAG", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_power_diagnostic) },
+    { .name = "NEONBUSY", .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    /* TLB lockdown control */
+    { .name = "TLB_LOCKR", .cp = 15, .crn = 15, .crm = 4, .opc1 = 5, .opc2 = 2,
+      .access = PL1_W, .resetvalue = 0, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKW", .cp = 15, .crn = 15, .crm = 4, .opc1 = 5, .opc2 = 4,
+      .access = PL1_W, .resetvalue = 0, .type = ARM_CP_NOP },
+    { .name = "TLB_VA", .cp = 15, .crn = 15, .crm = 5, .opc1 = 5, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    { .name = "TLB_PA", .cp = 15, .crn = 15, .crm = 6, .opc1 = 5, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    { .name = "TLB_ATTR", .cp = 15, .crn = 15, .crm = 7, .opc1 = 5, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    REGINFO_SENTINEL
+};
+
 static void cortex_a9_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -434,6 +461,15 @@ static void cortex_a9_initfn(Object *obj)
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
     cpu->ccsidr[0] = 0xe00fe015; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x200fe015; /* 16k L1 icache. */
+    {
+        ARMCPRegInfo cbar = {
+            .name = "CBAR", .cp = 15, .crn = 15,  .crm = 0, .opc1 = 4,
+            .opc2 = 0, .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
+        };
+        define_one_arm_cp_reg(cpu, &cbar);
+        define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
+    }
 }
 
 static void cortex_a15_initfn(Object *obj)
