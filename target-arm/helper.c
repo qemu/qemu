@@ -410,8 +410,31 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
     { .name = "INSN_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 3,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+    { .name = "DCACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_data), .resetvalue = 0, },
+    { .name = "ICACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_insn), .resetvalue = 0, },
     REGINFO_SENTINEL
 };
+
+static int vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    value &= 7;
+    env->cp15.c2_control = value;
+    env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> value);
+    env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> value);
+    return 0;
+}
+
+static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c2_base_mask = 0xffffc000u;
+    env->cp15.c2_control = 0;
+    env->cp15.c2_mask = 0;
+}
 
 static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
@@ -420,6 +443,16 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
     { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+    { .name = "TTBR0", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
+    { .name = "TTBR1", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
+    { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .writefn = vmsa_ttbcr_write,
+      .resetfn = vmsa_ttbcr_reset,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_control) },
     REGINFO_SENTINEL
 };
 
@@ -1609,37 +1642,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
             goto bad_reg;
         }
         break;
-    case 2: /* MMU Page table control / MPU cache control.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            switch (op2) {
-            case 0:
-                env->cp15.c2_data = val;
-                break;
-            case 1:
-                env->cp15.c2_insn = val;
-                break;
-            default:
-                goto bad_reg;
-            }
-        } else {
-	    switch (op2) {
-	    case 0:
-		env->cp15.c2_base0 = val;
-		break;
-	    case 1:
-		env->cp15.c2_base1 = val;
-		break;
-	    case 2:
-                val &= 7;
-                env->cp15.c2_control = val;
-		env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> val);
-                env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> val);
-		break;
-	    default:
-		goto bad_reg;
-	    }
-        }
-        break;
     case 4: /* Reserved.  */
         goto bad_reg;
     case 6: /* MMU Fault address / MPU base/size.  */
@@ -1975,30 +1977,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
         default:
             goto bad_reg;
         }
-    case 2: /* MMU Page table control / MPU cache control.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            switch (op2) {
-            case 0:
-                return env->cp15.c2_data;
-                break;
-            case 1:
-                return env->cp15.c2_insn;
-                break;
-            default:
-                goto bad_reg;
-            }
-        } else {
-	    switch (op2) {
-	    case 0:
-		return env->cp15.c2_base0;
-	    case 1:
-		return env->cp15.c2_base1;
-	    case 2:
-                return env->cp15.c2_control;
-	    default:
-		goto bad_reg;
-	    }
-	}
     case 4: /* Reserved.  */
         goto bad_reg;
     case 6: /* MMU Fault address.  */
