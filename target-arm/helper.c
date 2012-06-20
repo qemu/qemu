@@ -56,6 +56,27 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     return 0;
 }
 
+static const ARMCPRegInfo cp_reginfo[] = {
+    /* DBGDIDR: just RAZ. In particular this means the "debug architecture
+     * version" bits will read as a reserved value, which should cause
+     * Linux to not try to use the debug hardware.
+     */
+    { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v7_cp_reginfo[] = {
+    /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
+     * debug components
+     */
+    { .name = "DBGDRAR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "DBGDRAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
     /* Register all the coprocessor registers based on feature bits */
@@ -65,6 +86,10 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         return;
     }
 
+    define_arm_cp_regs(cpu, cp_reginfo);
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        define_arm_cp_regs(cpu, v7_cp_reginfo);
+    }
 }
 
 ARMCPU *cpu_arm_init(const char *cpu_model)
