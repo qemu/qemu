@@ -324,80 +324,11 @@ static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
     }
 }
 
-/* Performace Monitoring Registers */
-#define CPPMNC		0	/* Performance Monitor Control register */
-#define CPCCNT		1	/* Clock Counter register */
-#define CPINTEN		4	/* Interrupt Enable register */
-#define CPFLAG		5	/* Overflow Flag register */
-#define CPEVTSEL	8	/* Event Selection register */
-
-#define CPPMN0		0	/* Performance Count register 0 */
-#define CPPMN1		1	/* Performance Count register 1 */
-#define CPPMN2		2	/* Performance Count register 2 */
-#define CPPMN3		3	/* Performance Count register 3 */
-
-static uint32_t pxa2xx_perf_read(void *opaque, int op2, int reg, int crm)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-
-    switch (reg) {
-    case CPPMNC:
-        return s->pmnc;
-    case CPCCNT:
-        if (s->pmnc & 1)
-            return qemu_get_clock_ns(vm_clock);
-        else
-            return 0;
-    case CPINTEN:
-    case CPFLAG:
-    case CPEVTSEL:
-        return 0;
-
-    default:
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        break;
-    }
-    return 0;
-}
-
-static void pxa2xx_perf_write(void *opaque, int op2, int reg, int crm,
-                uint32_t value)
-{
-    PXA2xxState *s = (PXA2xxState *) opaque;
-
-    switch (reg) {
-    case CPPMNC:
-        s->pmnc = value;
-        break;
-
-    case CPCCNT:
-    case CPINTEN:
-    case CPFLAG:
-    case CPEVTSEL:
-        break;
-
-    default:
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        break;
-    }
-}
-
 static uint32_t pxa2xx_cp14_read(void *opaque, int op2, int reg, int crm)
 {
     switch (crm) {
     case 0:
         return pxa2xx_clkpwr_read(opaque, op2, reg, crm);
-    case 1:
-        return pxa2xx_perf_read(opaque, op2, reg, crm);
-    case 2:
-        switch (reg) {
-        case CPPMN0:
-        case CPPMN1:
-        case CPPMN2:
-        case CPPMN3:
-            return 0;
-        }
-        /* Fall through */
     default:
         printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
         break;
@@ -412,22 +343,69 @@ static void pxa2xx_cp14_write(void *opaque, int op2, int reg, int crm,
     case 0:
         pxa2xx_clkpwr_write(opaque, op2, reg, crm, value);
         break;
-    case 1:
-        pxa2xx_perf_write(opaque, op2, reg, crm, value);
-        break;
-    case 2:
-        switch (reg) {
-        case CPPMN0:
-        case CPPMN1:
-        case CPPMN2:
-        case CPPMN3:
-            return;
-        }
-        /* Fall through */
     default:
         printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
         break;
     }
+}
+
+static int pxa2xx_cppmnc_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t *value)
+{
+    PXA2xxState *s = (PXA2xxState *)ri->opaque;
+    *value = s->pmnc;
+    return 0;
+}
+
+static int pxa2xx_cppmnc_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    PXA2xxState *s = (PXA2xxState *)ri->opaque;
+    s->pmnc = value;
+    return 0;
+}
+
+static int pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t *value)
+{
+    PXA2xxState *s = (PXA2xxState *)ri->opaque;
+    if (s->pmnc & 1) {
+        *value = qemu_get_clock_ns(vm_clock);
+    } else {
+        *value = 0;
+    }
+    return 0;
+}
+
+static const ARMCPRegInfo pxa_cp_reginfo[] = {
+    /* cp14 crn==1: perf registers */
+    { .name = "CPPMNC", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .readfn = pxa2xx_cppmnc_read, .writefn = pxa2xx_cppmnc_write },
+    { .name = "CPCCNT", .cp = 14, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .readfn = pxa2xx_cpccnt_read, .writefn = arm_cp_write_ignore },
+    { .name = "CPINTEN", .cp = 14, .crn = 1, .crm = 4, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPFLAG", .cp = 14, .crn = 1, .crm = 5, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPEVTSEL", .cp = 14, .crn = 1, .crm = 8, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* cp14 crn==2: performance count registers */
+    { .name = "CPPMN0", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPPMN1", .cp = 14, .crn = 2, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPPMN2", .cp = 14, .crn = 2, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CPPMN3", .cp = 14, .crn = 2, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static void pxa2xx_setup_cp14(PXA2xxState *s)
+{
+    define_arm_cp_regs_with_opaque(s->cpu, pxa_cp_reginfo, s);
 }
 
 #define MDCNFG		0x00	/* SDRAM Configuration register */
@@ -2134,6 +2112,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
     cpu_arm_set_cp_io(&s->cpu->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
+    pxa2xx_setup_cp14(s);
 
     s->mm_base = 0x48000000;
     s->mm_regs[MDMRS >> 2] = 0x00020002;
@@ -2265,6 +2244,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
     cpu_arm_set_cp_io(&s->cpu->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
+    pxa2xx_setup_cp14(s);
 
     s->mm_base = 0x48000000;
     s->mm_regs[MDMRS >> 2] = 0x00020002;
