@@ -228,12 +228,6 @@ typedef struct CPUARMState {
     /* Internal CPU feature flags.  */
     uint32_t features;
 
-    /* Coprocessor IO used by peripherals */
-    struct {
-        ARMReadCPFunc *cp_read;
-        ARMWriteCPFunc *cp_write;
-        void *opaque;
-    } cp[15];
     void *nvic;
     const struct arm_boot_info *boot_info;
 } CPUARMState;
@@ -405,10 +399,6 @@ void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void armv7m_nvic_set_pending(void *opaque, int irq);
 int armv7m_nvic_acknowledge_irq(void *opaque);
 void armv7m_nvic_complete_irq(void *opaque, int irq);
-
-void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
-                       ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,
-                       void *opaque);
 
 /* Interface for defining coprocessor registers.
  * Registers are defined in tables of arm_cp_reginfo structs

@@ -2439,39 +2439,6 @@ static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
     return 1;
 }
 
-/* Disassemble system coprocessor instruction.  Return nonzero if
-   instruction is not defined.  */
-static int disas_cp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
-{
-    TCGv tmp, tmp2;
-    uint32_t rd = (insn >> 12) & 0xf;
-    uint32_t cp = (insn >> 8) & 0xf;
-    if (IS_USER(s)) {
-        return 1;
-    }
-
-    if (insn & ARM_CP_RW_BIT) {
-        if (!env->cp[cp].cp_read)
-            return 1;
-        gen_set_pc_im(s->pc);
-        tmp = tcg_temp_new_i32();
-        tmp2 = tcg_const_i32(insn);
-        gen_helper_get_cp(tmp, cpu_env, tmp2);
-        tcg_temp_free(tmp2);
-        store_reg(s, rd, tmp);
-    } else {
-        if (!env->cp[cp].cp_write)
-            return 1;
-        gen_set_pc_im(s->pc);
-        tmp = load_reg(s, rd);
-        tmp2 = tcg_const_i32(insn);
-        gen_helper_set_cp(cpu_env, tmp2, tmp);
-        tcg_temp_free(tmp2);
-        tcg_temp_free_i32(tmp);
-    }
-    return 0;
-}
-
 static int cp15_user_ok(CPUARMState *env, uint32_t insn)
 {
     int cpn = (insn >> 16) & 0xf;
@@ -6653,10 +6620,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
      */
     switch (cpnum) {
     case 14:
-        /* Coprocessors 7-15 are architecturally reserved by ARM.
-           Unfortunately Intel decided to ignore this.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE))
-            goto board;
         if (insn & (1 << 20))
             return disas_cp14_read(env, s, insn);
         else
@@ -6664,9 +6627,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
     case 15:
 	return disas_cp15_insn (env, s, insn);
     default:
-    board:
-	/* Unknown coprocessor.  See if the board has hooked it.  */
-	return disas_cp_insn (env, s, insn);
+        return 1;
     }
 }
 
