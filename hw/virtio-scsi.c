@@ -24,6 +24,10 @@
 #define VIRTIO_SCSI_MAX_TARGET  255
 #define VIRTIO_SCSI_MAX_LUN     16383
 
+/* Feature Bits */
+#define VIRTIO_SCSI_F_INOUT                    0
+#define VIRTIO_SCSI_F_HOTPLUG                  1
+
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
 #define VIRTIO_SCSI_S_OVERRUN                  1
@@ -59,6 +63,11 @@
 #define VIRTIO_SCSI_T_NO_EVENT                 0
 #define VIRTIO_SCSI_T_TRANSPORT_RESET          1
 #define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
+
+/* Reasons for transport reset event */
+#define VIRTIO_SCSI_EVT_RESET_HARD             0
+#define VIRTIO_SCSI_EVT_RESET_RESCAN           1
+#define VIRTIO_SCSI_EVT_RESET_REMOVED          2
 
 /* SCSI command request, followed by data-out */
 typedef struct {
@@ -206,11 +215,13 @@ static void qemu_sgl_init_external(QEMUSGList *qsgl, struct iovec *sg,
 static void virtio_scsi_parse_req(VirtIOSCSI *s, VirtQueue *vq,
                                   VirtIOSCSIReq *req)
 {
-    assert(req->elem.out_num && req->elem.in_num);
+    assert(req->elem.in_num);
     req->vq = vq;
     req->dev = s;
     req->sreq = NULL;
-    req->req.buf = req->elem.out_sg[0].iov_base;
+    if (req->elem.out_num) {
+        req->req.buf = req->elem.out_sg[0].iov_base;
+    }
     req->resp.buf = req->elem.in_sg[0].iov_base;
 
     if (req->elem.out_num > 1) {
@@ -545,6 +556,7 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
                                          uint32_t requested_features)
 {
+    requested_features |= (1UL << VIRTIO_SCSI_F_HOTPLUG);
     return requested_features;
 }
 
@@ -577,6 +589,60 @@ static int virtio_scsi_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
+static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
+                                   uint32_t event, uint32_t reason)
+{
+    VirtIOSCSIReq *req = virtio_scsi_pop_req(s, s->event_vq);
+    VirtIOSCSIEvent *evt;
+
+    if (req) {
+        int in_size;
+        if (req->elem.out_num || req->elem.in_num != 1) {
+            virtio_scsi_bad_req();
+        }
+
+        in_size = req->elem.in_sg[0].iov_len;
+        if (in_size < sizeof(VirtIOSCSIEvent)) {
+            virtio_scsi_bad_req();
+        }
+
+        evt = req->resp.event;
+        memset(evt, 0, sizeof(VirtIOSCSIEvent));
+        evt->event = event;
+        evt->reason = reason;
+        evt->lun[0] = 1;
+        evt->lun[1] = dev->id;
+
+        /* Linux wants us to keep the same encoding we use for REPORT LUNS.  */
+        if (dev->lun >= 256) {
+            evt->lun[2] = (dev->lun >> 8) | 0x40;
+        }
+        evt->lun[3] = dev->lun & 0xFF;
+        virtio_scsi_complete_req(req);
+    }
+}
+
+static void virtio_scsi_hotplug(SCSIBus *bus, SCSIDevice *dev)
+{
+    VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+
+    if (((s->vdev.guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) &&
+        (s->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_TRANSPORT_RESET,
+                               VIRTIO_SCSI_EVT_RESET_RESCAN);
+    }
+}
+
+static void virtio_scsi_hot_unplug(SCSIBus *bus, SCSIDevice *dev)
+{
+    VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+
+    if ((s->vdev.guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) {
+        virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_TRANSPORT_RESET,
+                               VIRTIO_SCSI_EVT_RESET_REMOVED);
+    }
+}
+
 static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .tcq = true,
     .max_channel = VIRTIO_SCSI_MAX_CHANNEL,
@@ -585,6 +651,8 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
 
     .complete = virtio_scsi_command_complete,
     .cancel = virtio_scsi_request_cancelled,
+    .hotplug = virtio_scsi_hotplug,
+    .hot_unplug = virtio_scsi_hot_unplug,
     .get_sg_list = virtio_scsi_get_sg_list,
     .save_request = virtio_scsi_save_request,
     .load_request = virtio_scsi_load_request,
