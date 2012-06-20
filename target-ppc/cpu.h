@@ -1395,6 +1395,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_BOOKE_TLB1PS      (0x159)
 #define SPR_BOOKE_TLB2PS      (0x15A)
 #define SPR_BOOKE_TLB3PS      (0x15B)
+#define SPR_BOOKE_MAS7_MAS3   (0x174)
 #define SPR_BOOKE_IVOR0       (0x190)
 #define SPR_BOOKE_IVOR1       (0x191)
 #define SPR_BOOKE_IVOR2       (0x192)
@@ -1761,6 +1762,27 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_601_HID15         (0x3FF)
 #define SPR_604_HID15         (0x3FF)
 #define SPR_E500_SVR          (0x3FF)
+
+/* Disable MAS Interrupt Updates for Hypervisor */
+#define EPCR_DMIUH            (1 << 22)
+/* Disable Guest TLB Management Instructions */
+#define EPCR_DGTMI            (1 << 23)
+/* Guest Interrupt Computation Mode */
+#define EPCR_GICM             (1 << 24)
+/* Interrupt Computation Mode */
+#define EPCR_ICM              (1 << 25)
+/* Disable Embedded Hypervisor Debug */
+#define EPCR_DUVD             (1 << 26)
+/* Instruction Storage Interrupt Directed to Guest State */
+#define EPCR_ISIGS            (1 << 27)
+/* Data Storage Interrupt Directed to Guest State */
+#define EPCR_DSIGS            (1 << 28)
+/* Instruction TLB Error Interrupt Directed to Guest State */
+#define EPCR_ITLBGS           (1 << 29)
+/* Data TLB Error Interrupt Directed to Guest State */
+#define EPCR_DTLBGS           (1 << 30)
+/* External Input Interrupt Directed to Guest State */
+#define EPCR_EXTGS            (1 << 31)
 
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */
