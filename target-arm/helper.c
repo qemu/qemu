@@ -106,6 +106,11 @@ static const ARMCPRegInfo cp_reginfo[] = {
     { .name = "CONTEXTIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
       .resetvalue = 0, .writefn = contextidr_write },
+    /* ??? This covers not just the impdef TLB lockdown registers but also
+     * some v7VMSA registers relating to TEX remap, so it is overly broad.
+     */
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
@@ -1795,9 +1800,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
             goto bad_reg;
         }
         break;
-    case 10: /* MMU TLB lockdown.  */
-        /* ??? TLB lockdown not implemented.  */
-        break;
     case 12: /* Reserved.  */
         goto bad_reg;
     case 15: /* Implementation specific.  */
@@ -2075,9 +2077,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
             goto bad_reg;
         }
         break;
-    case 10: /* MMU TLB lockdown.  */
-        /* ??? TLB lockdown not implemented.  */
-        return 0;
     case 11: /* TCM DMA control.  */
     case 12: /* Reserved.  */
         goto bad_reg;
