@@ -77,7 +77,6 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->cp15.c0_cachetype = cpu->ctr;
-    env->cp15.c1_sys = cpu->reset_sctlr;
     env->cp15.c0_c1[0] = cpu->id_pfr0;
     env->cp15.c0_c1[1] = cpu->id_pfr1;
     env->cp15.c0_c1[2] = cpu->id_dfr0;
@@ -252,6 +251,7 @@ static void arm1026_initfn(Object *obj)
     cpu->reset_fpsid = 0x410110a0;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00090078;
+    cpu->reset_auxcr = 1;
     {
         /* The 1026 had an IFAR at c6,c0,0,1 rather than the ARMv6 c6,c0,0,2 */
         ARMCPRegInfo ifar = {
@@ -297,6 +297,7 @@ static void arm1136_r2_initfn(Object *obj)
     cpu->id_isar2 = 0x11231111;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x141;
+    cpu->reset_auxcr = 7;
 }
 
 static void arm1136_initfn(Object *obj)
@@ -326,6 +327,7 @@ static void arm1136_initfn(Object *obj)
     cpu->id_isar2 = 0x11231111;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x141;
+    cpu->reset_auxcr = 7;
 }
 
 static void arm1176_initfn(Object *obj)
@@ -355,6 +357,7 @@ static void arm1176_initfn(Object *obj)
     cpu->id_isar2 = 0x11231121;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x01141;
+    cpu->reset_auxcr = 7;
 }
 
 static void arm11mpcore_initfn(Object *obj)
@@ -381,6 +384,7 @@ static void arm11mpcore_initfn(Object *obj)
     cpu->id_isar2 = 0x11221011;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x141;
+    cpu->reset_auxcr = 1;
 }
 
 static void cortex_m3_initfn(Object *obj)
@@ -430,6 +434,7 @@ static void cortex_a8_initfn(Object *obj)
     cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x2007e01a; /* 16k L1 icache. */
     cpu->ccsidr[2] = 0xf0000000; /* No L2 icache. */
+    cpu->reset_auxcr = 2;
     define_arm_cp_regs(cpu, cortexa8_cp_reginfo);
 }
 

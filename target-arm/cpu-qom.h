@@ -97,6 +97,7 @@ typedef struct ARMCPU {
      */
     uint32_t ccsidr[16];
     uint32_t reset_cbar;
+    uint32_t reset_auxcr;
 } ARMCPU;
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)

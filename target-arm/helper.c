@@ -196,6 +196,16 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    if (env->cp15.c1_coproc != value) {
+        env->cp15.c1_coproc = value;
+        /* ??? Is this safe when called from within a TB?  */
+        tb_flush(env);
+    }
+    return 0;
+}
+
 static const ARMCPRegInfo v6_cp_reginfo[] = {
     /* prefetch by MVA in v6, NOP in v7 */
     { .name = "MVA_prefetch",
@@ -215,6 +225,9 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
      */
     { .name = "WFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
+    { .name = "CPACR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_coproc),
+      .resetvalue = 0, .writefn = cpacr_write },
     REGINFO_SENTINEL
 };
 
@@ -376,6 +389,9 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .resetvalue = 0,
       .writefn = pmintenclr_write },
+    { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
+      .resetvalue = 0, },
     REGINFO_SENTINEL
 };
 
@@ -736,6 +752,10 @@ static const ARMCPRegInfo xscale_cp_reginfo[] = {
       .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0, .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c15_cpar), .resetvalue = 0,
       .writefn = xscale_cpar_write, },
+    { .name = "XSCALE_AUXCR",
+      .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1, .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c1_xscaleauxcr),
+      .resetvalue = 0, },
     REGINFO_SENTINEL
 };
 
@@ -784,6 +804,15 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
       .resetvalue = 0 },
     REGINFO_SENTINEL
 };
+
+static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    env->cp15.c1_sys = value;
+    /* ??? Lots of these bits are not implemented.  */
+    /* This may enable/disable the MMU, so do a TLB flush.  */
+    tlb_flush(env, 1);
+    return 0;
+}
 
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
@@ -858,6 +887,31 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_DUMMY_C15_REGS)) {
         define_arm_cp_regs(cpu, dummy_c15_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_AUXCR)) {
+        ARMCPRegInfo auxcr = {
+            .name = "AUXCR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1,
+            .access = PL1_RW, .type = ARM_CP_CONST,
+            .resetvalue = cpu->reset_auxcr
+        };
+        define_one_arm_cp_reg(cpu, &auxcr);
+    }
+
+    /* Generic registers whose values depend on the implementation */
+    {
+        ARMCPRegInfo sctlr = {
+            .name = "SCTLR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+            .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_sys),
+            .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr
+        };
+        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+            /* Normally we would always end the TB on an SCTLR write, but Linux
+             * arch/arm/mach-pxa/sleep.S expects two instructions following
+             * an MMU enable to execute from cache.  Imitate this behaviour.
+             */
+            sctlr.type |= ARM_CP_SUPPRESS_TB_END;
+        }
+        define_one_arm_cp_reg(cpu, &sctlr);
     }
 }
 
@@ -1949,42 +2003,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
             break;
         }
         goto bad_reg;
-    case 1: /* System configuration.  */
-        if (arm_feature(env, ARM_FEATURE_V7)
-                && op1 == 0 && crm == 1 && op2 == 0) {
-            env->cp15.c1_scr = val;
-            break;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0:
-            if (!arm_feature(env, ARM_FEATURE_XSCALE) || crm == 0)
-                env->cp15.c1_sys = val;
-            /* ??? Lots of these bits are not implemented.  */
-            /* This may enable/disable the MMU, so do a TLB flush.  */
-            tlb_flush(env, 1);
-            break;
-        case 1: /* Auxiliary control register.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-                env->cp15.c1_xscaleauxcr = val;
-                break;
-            }
-            /* Not implemented.  */
-            break;
-        case 2:
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
-                goto bad_reg;
-            if (env->cp15.c1_coproc != val) {
-                env->cp15.c1_coproc = val;
-                /* ??? Is this safe when called from within a TB?  */
-                tb_flush(env);
-            }
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
     case 4: /* Reserved.  */
         goto bad_reg;
     case 12: /* Reserved.  */
@@ -2082,45 +2100,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
             if (op2 != 0 || crm != 0)
                 goto bad_reg;
             return env->cp15.c0_cssel;
-        default:
-            goto bad_reg;
-        }
-    case 1: /* System configuration.  */
-        if (arm_feature(env, ARM_FEATURE_V7)
-            && op1 == 0 && crm == 1 && op2 == 0) {
-            return env->cp15.c1_scr;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0: /* Control register.  */
-            return env->cp15.c1_sys;
-        case 1: /* Auxiliary control register.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
-                return env->cp15.c1_xscaleauxcr;
-            if (!arm_feature(env, ARM_FEATURE_AUXCR))
-                goto bad_reg;
-            switch (ARM_CPUID(env)) {
-            case ARM_CPUID_ARM1026:
-                return 1;
-            case ARM_CPUID_ARM1136:
-            case ARM_CPUID_ARM1136_R2:
-            case ARM_CPUID_ARM1176:
-                return 7;
-            case ARM_CPUID_ARM11MPCORE:
-                return 1;
-            case ARM_CPUID_CORTEXA8:
-                return 2;
-            case ARM_CPUID_CORTEXA9:
-            case ARM_CPUID_CORTEXA15:
-                return 0;
-            default:
-                goto bad_reg;
-            }
-        case 2: /* Coprocessor access register.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
-                goto bad_reg;
-            return env->cp15.c1_coproc;
         default:
             goto bad_reg;
         }
