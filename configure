@@ -134,7 +134,6 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
-vnc_thread="no"
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -666,10 +665,6 @@ for opt do
   --disable-vnc-png) vnc_png="no"
   ;;
   --enable-vnc-png) vnc_png="yes"
-  ;;
-  --disable-vnc-thread) vnc_thread="no"
-  ;;
-  --enable-vnc-thread) vnc_thread="yes"
   ;;
   --disable-slirp) slirp="no"
   ;;
@@ -3024,7 +3019,6 @@ if test "$vnc" = "yes" ; then
     echo "VNC SASL support  $vnc_sasl"
     echo "VNC JPEG support  $vnc_jpeg"
     echo "VNC PNG support   $vnc_png"
-    echo "VNC thread        $vnc_thread"
 fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
@@ -3199,9 +3193,6 @@ fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
   echo "VNC_PNG_CFLAGS=$vnc_png_cflags" >> $config_host_mak
-fi
-if test "$vnc_thread" = "yes" ; then
-  echo "CONFIG_VNC_THREAD=y" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak

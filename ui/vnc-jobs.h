@@ -38,51 +38,35 @@ bool vnc_has_job(VncState *vs);
 void vnc_jobs_clear(VncState *vs);
 void vnc_jobs_join(VncState *vs);
 
-#ifdef CONFIG_VNC_THREAD
-
 void vnc_jobs_consume_buffer(VncState *vs);
 void vnc_start_worker_thread(void);
 bool vnc_worker_thread_running(void);
 void vnc_stop_worker_thread(void);
 
-#endif /* CONFIG_VNC_THREAD */
-
 /* Locks */
 static inline int vnc_trylock_display(VncDisplay *vd)
 {
-#ifdef CONFIG_VNC_THREAD
     return qemu_mutex_trylock(&vd->mutex);
-#else
-    return 0;
-#endif
 }
 
 static inline void vnc_lock_display(VncDisplay *vd)
 {
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_lock(&vd->mutex);
-#endif
 }
 
 static inline void vnc_unlock_display(VncDisplay *vd)
 {
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_unlock(&vd->mutex);
-#endif
 }
 
 static inline void vnc_lock_output(VncState *vs)
 {
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_lock(&vs->output_mutex);
-#endif
 }
 
 static inline void vnc_unlock_output(VncState *vs)
 {
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_unlock(&vs->output_mutex);
-#endif
 }
 
 #endif /* VNC_JOBS_H */
