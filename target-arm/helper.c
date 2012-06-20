@@ -56,6 +56,13 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     return 0;
 }
 
+static int dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    env->cp15.c3 = value;
+    tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
+    return 0;
+}
+
 static const ARMCPRegInfo cp_reginfo[] = {
     /* DBGDIDR: just RAZ. In particular this means the "debug architecture
      * version" bits will read as a reserved value, which should cause
@@ -63,6 +70,11 @@ static const ARMCPRegInfo cp_reginfo[] = {
      */
     { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* MMU Domain access control / MPU write buffer control */
+    { .name = "DACR", .cp = 15,
+      .crn = 3, .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
+      .resetvalue = 0, .writefn = dacr_write },
     REGINFO_SENTINEL
 };
 
@@ -1551,10 +1563,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
 	    }
         }
         break;
-    case 3: /* MMU Domain access control / MPU write buffer control.  */
-        env->cp15.c3 = val;
-        tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
-        break;
     case 4: /* Reserved.  */
         goto bad_reg;
     case 5: /* MMU Fault status / MPU access permission.  */
@@ -1942,8 +1950,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
 		goto bad_reg;
 	    }
 	}
-    case 3: /* MMU Domain access control / MPU write buffer control.  */
-        return env->cp15.c3;
     case 4: /* Reserved.  */
         goto bad_reg;
     case 5: /* MMU Fault status / MPU access permission.  */
