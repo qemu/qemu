@@ -1066,6 +1066,7 @@ struct CPUPPCState {
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
+    target_phys_addr_t mpic_cpu_base;
 #endif
 
     /* Those resources are used only during code translation */

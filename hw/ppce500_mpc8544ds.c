@@ -469,6 +469,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
+        env->mpic_cpu_base = MPC8544_MPIC_REGS_BASE + 0x20000;
 
         ppc_booke_timers_init(env, 400000000, PPC_TIMER_E500);
 
