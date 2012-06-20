@@ -386,6 +386,7 @@ enum arm_features {
     ARM_FEATURE_CACHE_TEST_CLEAN, /* 926/1026 style test-and-clean ops */
     ARM_FEATURE_CACHE_DIRTY_REG, /* 1136/1176 cache dirty status register */
     ARM_FEATURE_CACHE_BLOCK_OPS, /* v6 optional cache block operations */
+    ARM_FEATURE_MPIDR, /* has cp15 MPIDR */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

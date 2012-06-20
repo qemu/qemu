@@ -833,6 +833,31 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t *value)
+{
+    uint32_t mpidr = env->cpu_index;
+    /* We don't support setting cluster ID ([8..11])
+     * so these bits always RAZ.
+     */
+    if (arm_feature(env, ARM_FEATURE_V7MP)) {
+        mpidr |= (1 << 31);
+        /* Cores which are uniprocessor (non-coherent)
+         * but still implement the MP extensions set
+         * bit 30. (For instance, A9UP.) However we do
+         * not currently model any of those cores.
+         */
+    }
+    *value = mpidr;
+    return 0;
+}
+
+static const ARMCPRegInfo mpidr_cp_reginfo[] = {
+    { .name = "MPIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
+      .access = PL1_R, .readfn = mpidr_read },
+    REGINFO_SENTINEL
+};
+
 static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c1_sys = value;
@@ -974,6 +999,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_DUMMY_C15_REGS)) {
         define_arm_cp_regs(cpu, dummy_c15_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_MPIDR)) {
+        define_arm_cp_regs(cpu, mpidr_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
         ARMCPRegInfo auxcr = {
@@ -2121,28 +2149,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
                     return 0;
                 case 3: /* TLB type register.  */
                     return 0; /* No lockable TLB entries.  */
-                case 5: /* MPIDR */
-                    /* The MPIDR was standardised in v7; prior to
-                     * this it was implemented only in the 11MPCore.
-                     * For all other pre-v7 cores it does not exist.
-                     */
-                    if (arm_feature(env, ARM_FEATURE_V7) ||
-                        ARM_CPUID(env) == ARM_CPUID_ARM11MPCORE) {
-                        int mpidr = env->cpu_index;
-                        /* We don't support setting cluster ID ([8..11])
-                         * so these bits always RAZ.
-                         */
-                        if (arm_feature(env, ARM_FEATURE_V7MP)) {
-                            mpidr |= (1 << 31);
-                            /* Cores which are uniprocessor (non-coherent)
-                             * but still implement the MP extensions set
-                             * bit 30. (For instance, A9UP.) However we do
-                             * not currently model any of those cores.
-                             */
-                        }
-                        return mpidr;
-                    }
-                    /* otherwise fall through to the unimplemented-reg case */
                 default:
                     goto bad_reg;
                 }
