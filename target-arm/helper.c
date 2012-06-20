@@ -98,6 +98,97 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int pmreg_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t *value)
+{
+    /* Generic performance monitor register read function for where
+     * user access may be allowed by PMUSERENR.
+     */
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    *value = CPREG_FIELD32(env, ri);
+    return 0;
+}
+
+static int pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    /* only the DP, X, D and E bits are writable */
+    env->cp15.c9_pmcr &= ~0x39;
+    env->cp15.c9_pmcr |= (value & 0x39);
+    return 0;
+}
+
+static int pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    value &= (1 << 31);
+    env->cp15.c9_pmcnten |= value;
+    return 0;
+}
+
+static int pmcntenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    value &= (1 << 31);
+    env->cp15.c9_pmcnten &= ~value;
+    return 0;
+}
+
+static int pmovsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    env->cp15.c9_pmovsr &= ~value;
+    return 0;
+}
+
+static int pmxevtyper_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    env->cp15.c9_pmxevtyper = value & 0xff;
+    return 0;
+}
+
+static int pmuserenr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    env->cp15.c9_pmuserenr = value & 1;
+    return 0;
+}
+
+static int pmintenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    /* We have no event counters so only the C bit can be changed */
+    value &= (1 << 31);
+    env->cp15.c9_pminten |= value;
+    return 0;
+}
+
+static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    value &= (1 << 31);
+    env->cp15.c9_pminten &= ~value;
+    return 0;
+}
+
 static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components
@@ -109,6 +200,62 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* the old v6 WFI, UNPREDICTABLE in v7 but we choose to NOP */
     { .name = "NOP", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
       .access = PL1_W, .type = ARM_CP_NOP },
+    /* Performance monitors are implementation defined in v7,
+     * but with an ARM recommended set of registers, which we
+     * follow (although we don't actually implement any counters)
+     *
+     * Performance registers fall into three categories:
+     *  (a) always UNDEF in PL0, RW in PL1 (PMINTENSET, PMINTENCLR)
+     *  (b) RO in PL0 (ie UNDEF on write), RW in PL1 (PMUSERENR)
+     *  (c) UNDEF in PL0 if PMUSERENR.EN==0, otherwise accessible (all others)
+     * For the cases controlled by PMUSERENR we must set .access to PL0_RW
+     * or PL0_RO as appropriate and then check PMUSERENR in the helper fn.
+     */
+    { .name = "PMCNTENSET", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 1,
+      .access = PL0_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .readfn = pmreg_read, .writefn = pmcntenset_write },
+    { .name = "PMCNTENCLR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 2,
+      .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .readfn = pmreg_read, .writefn = pmcntenclr_write },
+    { .name = "PMOVSR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 3,
+      .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmovsr),
+      .readfn = pmreg_read, .writefn = pmovsr_write },
+    /* Unimplemented so WI. Strictly speaking write accesses in PL0 should
+     * respect PMUSERENR.
+     */
+    { .name = "PMSWINC", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 4,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    /* Since we don't implement any events, writing to PMSELR is UNPREDICTABLE.
+     * We choose to RAZ/WI. XXX should respect PMUSERENR.
+     */
+    { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+    { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
+      .access = PL0_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
+      .readfn = pmreg_read, .writefn = pmxevtyper_write },
+    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+    { .name = "PMXEVCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 2,
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "PMUSERENR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R | PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
+      .resetvalue = 0,
+      .writefn = pmuserenr_write },
+    { .name = "PMINTENSET", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
+      .resetvalue = 0,
+      .writefn = pmintenset_write },
+    { .name = "PMINTENCLR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
+      .resetvalue = 0,
+      .writefn = pmintenclr_write },
     REGINFO_SENTINEL
 };
 
@@ -189,6 +336,16 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v6k_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
+        /* v7 performance monitor control register: same implementor
+         * field as main ID register, and we implement no event counters.
+         */
+        ARMCPRegInfo pmcr = {
+            .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
+            .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
+            .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
+            .readfn = pmreg_read, .writefn = pmcr_write
+        };
+        define_one_arm_cp_reg(cpu, &pmcr);
         define_arm_cp_regs(cpu, v7_cp_reginfo);
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
@@ -1533,81 +1690,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         case 1: /* TCM memory region registers.  */
             /* Not implemented.  */
             goto bad_reg;
-        case 12: /* Performance monitor control */
-            /* Performance monitors are implementation defined in v7,
-             * but with an ARM recommended set of registers, which we
-             * follow (although we don't actually implement any counters)
-             */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* performance monitor control register */
-                /* only the DP, X, D and E bits are writable */
-                env->cp15.c9_pmcr &= ~0x39;
-                env->cp15.c9_pmcr |= (val & 0x39);
-                break;
-            case 1: /* Count enable set register */
-                val &= (1 << 31);
-                env->cp15.c9_pmcnten |= val;
-                break;
-            case 2: /* Count enable clear */
-                val &= (1 << 31);
-                env->cp15.c9_pmcnten &= ~val;
-                break;
-            case 3: /* Overflow flag status */
-                env->cp15.c9_pmovsr &= ~val;
-                break;
-            case 4: /* Software increment */
-                /* RAZ/WI since we don't implement the software-count event */
-                break;
-            case 5: /* Event counter selection register */
-                /* Since we don't implement any events, writing to this register
-                 * is actually UNPREDICTABLE. So we choose to RAZ/WI.
-                 */
-                break;
-            default:
-                goto bad_reg;
-            }
-            break;
-        case 13: /* Performance counters */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* Cycle count register: not implemented, so RAZ/WI */
-                break;
-            case 1: /* Event type select */
-                env->cp15.c9_pmxevtyper = val & 0xff;
-                break;
-            case 2: /* Event count register */
-                /* Unimplemented (we have no events), RAZ/WI */
-                break;
-            default:
-                goto bad_reg;
-            }
-            break;
-        case 14: /* Performance monitor control */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* user enable */
-                env->cp15.c9_pmuserenr = val & 1;
-                /* changes access rights for cp registers, so flush tbs */
-                tb_flush(env);
-                break;
-            case 1: /* interrupt enable set */
-                /* We have no event counters so only the C bit can be changed */
-                val &= (1 << 31);
-                env->cp15.c9_pminten |= val;
-                break;
-            case 2: /* interrupt enable clear */
-                val &= (1 << 31);
-                env->cp15.c9_pminten &= ~val;
-                break;
-            }
-            break;
         default:
             goto bad_reg;
         }
@@ -1964,51 +2046,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
                 goto bad_reg;
             }
             break;
-        case 12: /* Performance monitor control */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* performance monitor control register */
-                return env->cp15.c9_pmcr;
-            case 1: /* count enable set */
-            case 2: /* count enable clear */
-                return env->cp15.c9_pmcnten;
-            case 3: /* overflow flag status */
-                return env->cp15.c9_pmovsr;
-            case 4: /* software increment */
-            case 5: /* event counter selection register */
-                return 0; /* Unimplemented, RAZ/WI */
-            default:
-                goto bad_reg;
-            }
-        case 13: /* Performance counters */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 1: /* Event type select */
-                return env->cp15.c9_pmxevtyper;
-            case 0: /* Cycle count register */
-            case 2: /* Event count register */
-                /* Unimplemented, so RAZ/WI */
-                return 0;
-            default:
-                goto bad_reg;
-            }
-        case 14: /* Performance monitor control */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* user enable */
-                return env->cp15.c9_pmuserenr;
-            case 1: /* interrupt enable set */
-            case 2: /* interrupt enable clear */
-                return env->cp15.c9_pminten;
-            default:
-                goto bad_reg;
-            }
         default:
             goto bad_reg;
         }

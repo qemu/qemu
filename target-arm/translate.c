@@ -2439,30 +2439,6 @@ static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
     return 1;
 }
 
-static int cp15_user_ok(CPUARMState *env, uint32_t insn)
-{
-    int cpn = (insn >> 16) & 0xf;
-    int cpm = insn & 0xf;
-    int op = ((insn >> 5) & 7) | ((insn >> 18) & 0x38);
-
-    if (arm_feature(env, ARM_FEATURE_V7) && cpn == 9) {
-        /* Performance monitor registers fall into three categories:
-         *  (a) always UNDEF in usermode
-         *  (b) UNDEF only if PMUSERENR.EN is 0
-         *  (c) always read OK and UNDEF on write (PMUSERENR only)
-         */
-        if ((cpm == 12 && (op < 6)) ||
-            (cpm == 13 && (op < 3))) {
-            return env->cp15.c9_pmuserenr;
-        } else if (cpm == 14 && op == 0 && (insn & ARM_CP_RW_BIT)) {
-            /* PMUSERENR, read only */
-            return 1;
-        }
-        return 0;
-    }
-    return 0;
-}
-
 /* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
    instruction is not defined.  */
 static int disas_cp15_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
@@ -2487,7 +2463,7 @@ static int disas_cp15_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
         return 1;
     }
 
-    if (IS_USER(s) && !cp15_user_ok(env, insn)) {
+    if (IS_USER(s)) {
         return 1;
     }
 

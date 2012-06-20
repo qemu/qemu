@@ -132,10 +132,6 @@ static void arm_cpu_reset(CPUState *s)
     }
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
     env->cp15.c2_base_mask = 0xffffc000u;
-    /* v7 performance monitor control register: same implementor
-     * field as main ID register, and we implement no event counters.
-     */
-    env->cp15.c9_pmcr = (cpu->midr & 0xff000000);
 #endif
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
     set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
