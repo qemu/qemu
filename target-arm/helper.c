@@ -825,6 +825,60 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 
     define_arm_cp_regs(cpu, cp_reginfo);
     if (arm_feature(env, ARM_FEATURE_V6)) {
+        /* The ID registers all have impdef reset values */
+        ARMCPRegInfo v6_idregs[] = {
+            { .name = "ID_PFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 0, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_pfr0 },
+            { .name = "ID_PFR1", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 1, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_pfr1 },
+            { .name = "ID_DFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 2, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_dfr0 },
+            { .name = "ID_AFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 3, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_afr0 },
+            { .name = "ID_MMFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 4, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr0 },
+            { .name = "ID_MMFR1", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 5, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr1 },
+            { .name = "ID_MMFR2", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 6, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr2 },
+            { .name = "ID_MMFR3", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 7, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr3 },
+            { .name = "ID_ISAR0", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 0, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar0 },
+            { .name = "ID_ISAR1", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 1, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar1 },
+            { .name = "ID_ISAR2", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 2, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar2 },
+            { .name = "ID_ISAR3", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 3, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar3 },
+            { .name = "ID_ISAR4", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 4, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar4 },
+            { .name = "ID_ISAR5", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 5, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar5 },
+            /* 6..7 are as yet unallocated and must RAZ */
+            { .name = "ID_ISAR6", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 6, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_ISAR7", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 7, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
+        define_arm_cp_regs(cpu, v6_idregs);
         define_arm_cp_regs(cpu, v6_cp_reginfo);
     } else {
         define_arm_cp_regs(cpu, not_v6_cp_reginfo);
@@ -2064,14 +2118,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
                 default:
                     goto bad_reg;
                 }
-            case 1:
-                if (!arm_feature(env, ARM_FEATURE_V6))
-                    goto bad_reg;
-                return env->cp15.c0_c1[op2];
-            case 2:
-                if (!arm_feature(env, ARM_FEATURE_V6))
-                    goto bad_reg;
-                return env->cp15.c0_c2[op2];
             case 3: case 4: case 5: case 6: case 7:
                 return 0;
             default:

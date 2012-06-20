@@ -111,8 +111,6 @@ typedef struct CPUARMState {
         uint32_t c0_ccsid[16]; /* Cache size.  */
         uint32_t c0_clid; /* Cache level.  */
         uint32_t c0_cssel; /* Cache size selection.  */
-        uint32_t c0_c1[8]; /* Feature registers.  */
-        uint32_t c0_c2[8]; /* Instruction set registers.  */
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */

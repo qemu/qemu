@@ -77,20 +77,6 @@ static void arm_cpu_reset(CPUState *s)
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
     env->cp15.c0_cachetype = cpu->ctr;
-    env->cp15.c0_c1[0] = cpu->id_pfr0;
-    env->cp15.c0_c1[1] = cpu->id_pfr1;
-    env->cp15.c0_c1[2] = cpu->id_dfr0;
-    env->cp15.c0_c1[3] = cpu->id_afr0;
-    env->cp15.c0_c1[4] = cpu->id_mmfr0;
-    env->cp15.c0_c1[5] = cpu->id_mmfr1;
-    env->cp15.c0_c1[6] = cpu->id_mmfr2;
-    env->cp15.c0_c1[7] = cpu->id_mmfr3;
-    env->cp15.c0_c2[0] = cpu->id_isar0;
-    env->cp15.c0_c2[1] = cpu->id_isar1;
-    env->cp15.c0_c2[2] = cpu->id_isar2;
-    env->cp15.c0_c2[3] = cpu->id_isar3;
-    env->cp15.c0_c2[4] = cpu->id_isar4;
-    env->cp15.c0_c2[5] = cpu->id_isar5;
     env->cp15.c0_clid = cpu->clidr;
     memcpy(env->cp15.c0_ccsid, cpu->ccsidr, ARRAY_SIZE(cpu->ccsidr));
 
