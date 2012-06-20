@@ -4,6 +4,13 @@
 #include "host-utils.h"
 #include "sysemu.h"
 
+#ifndef CONFIG_USER_ONLY
+static inline int get_phys_addr(CPUARMState *env, uint32_t address,
+                                int access_type, int is_user,
+                                uint32_t *phys_ptr, int *prot,
+                                target_ulong *page_size);
+#endif
+
 static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
 {
     int nregs;
@@ -416,6 +423,61 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        env->cp15.c7_par = value & 0xfffff6ff;
+    } else {
+        env->cp15.c7_par = value & 0xfffff1ff;
+    }
+    return 0;
+}
+
+#ifndef CONFIG_USER_ONLY
+/* get_phys_addr() isn't present for user-mode-only targets */
+static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    uint32_t phys_addr;
+    target_ulong page_size;
+    int prot;
+    int ret, is_user = ri->opc2 & 2;
+    int access_type = ri->opc2 & 1;
+
+    if (ri->opc2 & 4) {
+        /* Other states are only available with TrustZone */
+        return EXCP_UDEF;
+    }
+    ret = get_phys_addr(env, value, access_type, is_user,
+                        &phys_addr, &prot, &page_size);
+    if (ret == 0) {
+        /* We do not set any attribute bits in the PAR */
+        if (page_size == (1 << 24)
+            && arm_feature(env, ARM_FEATURE_V7)) {
+            env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+        } else {
+            env->cp15.c7_par = phys_addr & 0xfffff000;
+        }
+    } else {
+        env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
+            ((ret & (12 << 1)) >> 6) |
+            ((ret & 0xf) << 1) | 1;
+    }
+    return 0;
+}
+#endif
+
+static const ARMCPRegInfo vapa_cp_reginfo[] = {
+    { .name = "PAR", .cp = 15, .crn = 7, .crm = 4, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c7_par),
+      .writefn = par_write },
+#ifndef CONFIG_USER_ONLY
+    { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
+      .access = PL1_W, .writefn = ats_write },
+#endif
+    REGINFO_SENTINEL
+};
+
 /* Return basic MPU access permission bits.  */
 static uint32_t simple_mpu_ap_bits(uint32_t val)
 {
@@ -672,6 +734,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
         define_arm_cp_regs(cpu, generic_timer_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_VAPA)) {
+        define_arm_cp_regs(cpu, vapa_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
         define_arm_cp_regs(cpu, omap_cp_reginfo);
@@ -1837,46 +1902,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         if (op1 != 0) {
             goto bad_reg;
         }
-        /* No cache, so nothing to do except VA->PA translations. */
-        if (arm_feature(env, ARM_FEATURE_VAPA)) {
-            switch (crm) {
-            case 4:
-                if (arm_feature(env, ARM_FEATURE_V7)) {
-                    env->cp15.c7_par = val & 0xfffff6ff;
-                } else {
-                    env->cp15.c7_par = val & 0xfffff1ff;
-                }
-                break;
-            case 8: {
-                uint32_t phys_addr;
-                target_ulong page_size;
-                int prot;
-                int ret, is_user = op2 & 2;
-                int access_type = op2 & 1;
-
-                if (op2 & 4) {
-                    /* Other states are only available with TrustZone */
-                    goto bad_reg;
-                }
-                ret = get_phys_addr(env, val, access_type, is_user,
-                                    &phys_addr, &prot, &page_size);
-                if (ret == 0) {
-                    /* We do not set any attribute bits in the PAR */
-                    if (page_size == (1 << 24)
-                        && arm_feature(env, ARM_FEATURE_V7)) {
-                        env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
-                    } else {
-                        env->cp15.c7_par = phys_addr & 0xfffff000;
-                    }
-                } else {
-                    env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
-                                       ((ret & (12 << 1)) >> 6) |
-                                       ((ret & 0xf) << 1) | 1;
-                }
-                break;
-            }
-            }
-        }
         break;
     case 9:
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
@@ -2084,9 +2109,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
 	    }
         }
     case 7: /* Cache control.  */
-        if (crm == 4 && op1 == 0 && op2 == 0) {
-            return env->cp15.c7_par;
-        }
         /* FIXME: Should only clear Z flag if destination is r15.  */
         env->ZF = 0;
         return 0;
