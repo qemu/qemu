@@ -365,6 +365,7 @@ struct EHCIQueue {
     uint32_t seen;
     uint64_t ts;
     int async;
+    int revalidate;
 
     /* cached data from guest - needs to be flushed
      * when guest removes an entry (doorbell, handshake sequence)
@@ -775,7 +776,18 @@ static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
     return NULL;
 }
 
-static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
+static void ehci_queues_tag_unused_async(EHCIState *ehci)
+{
+    EHCIQueue *q;
+
+    QTAILQ_FOREACH(q, &ehci->aqueues, next) {
+        if (!q->seen) {
+            q->revalidate = 1;
+        }
+    }
+}
+
+static void ehci_queues_rip_unused(EHCIState *ehci, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     uint64_t maxage = FRAME_TIMER_NS * ehci->maxframes * 4;
@@ -787,7 +799,7 @@ static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
             q->ts = ehci->last_run_ns;
             continue;
         }
-        if (!flush && ehci->last_run_ns < q->ts + maxage) {
+        if (ehci->last_run_ns < q->ts + maxage) {
             continue;
         }
         ehci_free_queue(q);
@@ -1631,7 +1643,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
         ehci_set_usbsts(ehci, USBSTS_REC);
     }
 
-    ehci_queues_rip_unused(ehci, async, 0);
+    ehci_queues_rip_unused(ehci, async);
 
     /*  Find the head of the list (4.9.1.1) */
     for(i = 0; i < MAX_QH; i++) {
@@ -1716,6 +1728,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     EHCIPacket *p;
     uint32_t entry, devaddr;
     EHCIQueue *q;
+    EHCIqh qh;
 
     entry = ehci_get_fetch_addr(ehci, async);
     q = ehci_find_queue_by_qh(ehci, entry, async);
@@ -1733,7 +1746,17 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
 
     get_dwords(ehci, NLPTR_GET(q->qhaddr),
-               (uint32_t *) &q->qh, sizeof(EHCIqh) >> 2);
+               (uint32_t *) &qh, sizeof(EHCIqh) >> 2);
+    if (q->revalidate && (q->qh.epchar      != qh.epchar ||
+                          q->qh.epcap       != qh.epcap  ||
+                          q->qh.current_qtd != qh.current_qtd)) {
+        ehci_free_queue(q);
+        q = ehci_alloc_queue(ehci, entry, async);
+        q->seen++;
+        p = NULL;
+    }
+    q->qh = qh;
+    q->revalidate = 0;
     ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &q->qh);
 
     devaddr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
@@ -2228,7 +2251,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
          */
         if (ehci->usbcmd & USBCMD_IAAD) {
             /* Remove all unseen qhs from the async qhs queue */
-            ehci_queues_rip_unused(ehci, async, 1);
+            ehci_queues_tag_unused_async(ehci);
             DPRINTF("ASYNC: doorbell request acknowledged\n");
             ehci->usbcmd &= ~USBCMD_IAAD;
             ehci_set_interrupt(ehci, USBSTS_IAA);
@@ -2281,7 +2304,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         ehci_set_fetch_addr(ehci, async,entry);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
-        ehci_queues_rip_unused(ehci, async, 0);
+        ehci_queues_rip_unused(ehci, async);
         break;
 
     default:
