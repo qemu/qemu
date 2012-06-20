@@ -2451,12 +2451,7 @@ static int disas_cp15_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
 	return 1;
 
     if ((insn & (1 << 25)) == 0) {
-        if (insn & (1 << 20)) {
-            /* mrrc */
-            return 1;
-        }
-        /* mcrr.  Used for block cache operations, so implement as no-op.  */
-        return 0;
+        return 1;
     }
     if ((insn & (1 << 4)) == 0) {
         /* cdp */
