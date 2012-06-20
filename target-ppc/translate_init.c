@@ -4424,16 +4424,69 @@ static void init_proc_e300 (CPUPPCState *env)
 #define check_pow_e500mc       check_pow_none
 #define init_proc_e500mc       init_proc_e500mc
 
+/* e5500 core                                                                 */
+#define POWERPC_INSNS_e5500    (PPC_INSNS_BASE | PPC_ISEL |                    \
+                                PPC_WRTEE | PPC_RFDI | PPC_RFMCI |             \
+                                PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI |  \
+                                PPC_CACHE_DCBZ | PPC_CACHE_DCBA |              \
+                                PPC_FLOAT | PPC_FLOAT_FRES |                   \
+                                PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |           \
+                                PPC_FLOAT_STFIWX | PPC_WAIT |                  \
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC | \
+                                PPC_64B | PPC_POPCNTB | PPC_POPCNTWD)
+#define POWERPC_INSNS2_e5500   (PPC2_BOOKE206 | PPC2_PRCNTL)
+#define POWERPC_MSRM_e5500     (0x000000009402FB36ULL)
+#define POWERPC_MMU_e5500      (POWERPC_MMU_BOOKE206)
+#define POWERPC_EXCP_e5500     (POWERPC_EXCP_BOOKE)
+#define POWERPC_INPUT_e5500    (PPC_FLAGS_INPUT_BookE)
+/* Fixme: figure out the correct flag for e5500 */
+#define POWERPC_BFDM_e5500     (bfd_mach_ppc_e500)
+#define POWERPC_FLAG_e5500     (POWERPC_FLAG_CE | POWERPC_FLAG_DE | \
+                                POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
+#define check_pow_e5500        check_pow_none
+#define init_proc_e5500        init_proc_e5500
+
+#if !defined(CONFIG_USER_ONLY)
+static void spr_write_mas73(void *opaque, int sprn, int gprn)
+{
+    TCGv val = tcg_temp_new();
+    tcg_gen_ext32u_tl(val, cpu_gpr[gprn]);
+    gen_store_spr(SPR_BOOKE_MAS3, val);
+    tcg_gen_shri_tl(val, gprn, 32);
+    gen_store_spr(SPR_BOOKE_MAS7, val);
+    tcg_temp_free(val);
+}
+
+static void spr_read_mas73(void *opaque, int gprn, int sprn)
+{
+    TCGv mas7 = tcg_temp_new();
+    TCGv mas3 = tcg_temp_new();
+    gen_load_spr(mas7, SPR_BOOKE_MAS7);
+    tcg_gen_shli_tl(mas7, mas7, 32);
+    gen_load_spr(mas3, SPR_BOOKE_MAS3);
+    tcg_gen_or_tl(cpu_gpr[gprn], mas3, mas7);
+    tcg_temp_free(mas3);
+    tcg_temp_free(mas7);
+}
+
+static void spr_load_epr(void *opaque, int gprn, int sprn)
+{
+    gen_helper_load_epr(cpu_gpr[gprn], cpu_env);
+}
+
+#endif
+
 enum fsl_e500_version {
     fsl_e500v1,
     fsl_e500v2,
     fsl_e500mc,
+    fsl_e5500,
 };
 
 static void init_proc_e500 (CPUPPCState *env, int version)
 {
     uint32_t tlbncfg[2];
-    uint64_t ivor_mask = 0x0000000F0000FFFFULL;
+    uint64_t ivor_mask;
     uint64_t ivpr_mask = 0xFFFF0000ULL;
     uint32_t l1cfg0 = 0x3800  /* 8 ways */
                     | 0x0020; /* 32 kb */
@@ -4448,8 +4501,16 @@ static void init_proc_e500 (CPUPPCState *env, int version)
      *     complain when accessing them.
      * gen_spr_BookE(env, 0x0000000F0000FD7FULL);
      */
-    if (version == fsl_e500mc) {
-        ivor_mask = 0x000003FE0000FFFFULL;
+    switch (version) {
+        case fsl_e500v1:
+        case fsl_e500v2:
+        default:
+            ivor_mask = 0x0000000F0000FFFFULL;
+            break;
+        case fsl_e500mc:
+        case fsl_e5500:
+            ivor_mask = 0x000003FE0000FFFFULL;
+            break;
     }
     gen_spr_BookE(env, ivor_mask);
     /* Processor identification */
@@ -4477,6 +4538,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
         tlbncfg[1] = gen_tlbncfg(16, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
         break;
     case fsl_e500mc:
+    case fsl_e5500:
         tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
         tlbncfg[1] = gen_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
         break;
@@ -4492,6 +4554,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
         env->icache_line_size = 32;
         break;
     case fsl_e500mc:
+    case fsl_e5500:
         env->dcache_line_size = 64;
         env->icache_line_size = 64;
         l1cfg0 |= 0x1000000; /* 64 byte cache block size */
@@ -4567,6 +4630,22 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_booke206_mmucsr0,
                  0x00000000);
+    spr_register(env, SPR_BOOKE_EPR, "EPR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_load_epr, SPR_NOACCESS,
+                 0x00000000);
+    /* XXX better abstract into Emb.xxx features */
+    if (version == fsl_e5500) {
+        spr_register(env, SPR_BOOKE_EPCR, "EPCR",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_generic, &spr_write_generic,
+                     0x00000000);
+        spr_register(env, SPR_BOOKE_MAS7_MAS3, "MAS7_MAS3",
+                     SPR_NOACCESS, SPR_NOACCESS,
+                     &spr_read_mas73, &spr_write_mas73,
+                     0x00000000);
+        ivpr_mask = (target_ulong)~0xFFFFULL;
+    }
 
 #if !defined(CONFIG_USER_ONLY)
     env->nb_tlb = 0;
@@ -4595,6 +4674,13 @@ static void init_proc_e500mc(CPUPPCState *env)
 {
     init_proc_e500(env, fsl_e500mc);
 }
+
+#ifdef TARGET_PPC64
+static void init_proc_e5500(CPUPPCState *env)
+{
+    init_proc_e500(env, fsl_e5500);
+}
+#endif
 
 /* Non-embedded PowerPC                                                      */
 
@@ -7134,6 +7220,7 @@ enum {
     CPU_POWERPC_e500v2_v22         = 0x80210022,
     CPU_POWERPC_e500v2_v30         = 0x80210030,
     CPU_POWERPC_e500mc             = 0x80230020,
+    CPU_POWERPC_e5500              = 0x80240020,
     /* MPC85xx microcontrollers */
 #define CPU_POWERPC_MPC8533          CPU_POWERPC_MPC8533_v11
 #define CPU_POWERPC_MPC8533_v10      CPU_POWERPC_e500v2_v21
@@ -8528,6 +8615,9 @@ static const ppc_def_t ppc_defs[] = {
     /* PowerPC e500v2 v3.0 core                                              */
     POWERPC_DEF("e500v2_v30",    CPU_POWERPC_e500v2_v30,             e500v2),
     POWERPC_DEF("e500mc",        CPU_POWERPC_e500mc,                 e500mc),
+#ifdef TARGET_PPC64
+    POWERPC_DEF("e5500",         CPU_POWERPC_e5500,                  e5500),
+#endif
     /* PowerPC e500 microcontrollers                                         */
     /* MPC8533                                                               */
     POWERPC_DEF_SVR("MPC8533",
