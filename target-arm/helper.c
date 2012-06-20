@@ -63,6 +63,31 @@ static int dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     return 0;
 }
 
+static int fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    if (env->cp15.c13_fcse != value) {
+        /* Unlike real hardware the qemu TLB uses virtual addresses,
+         * not modified virtual addresses, so this causes a TLB flush.
+         */
+        tlb_flush(env, 1);
+        env->cp15.c13_fcse = value;
+    }
+    return 0;
+}
+static int contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
+        /* For VMSA (when not using the LPAE long descriptor page table
+         * format) this register includes the ASID, so do a TLB flush.
+         * For PMSA it is purely a process ID and no action is needed.
+         */
+        tlb_flush(env, 1);
+    }
+    env->cp15.c13_context = value;
+    return 0;
+}
+
 static const ARMCPRegInfo cp_reginfo[] = {
     /* DBGDIDR: just RAZ. In particular this means the "debug architecture
      * version" bits will read as a reserved value, which should cause
@@ -75,6 +100,12 @@ static const ARMCPRegInfo cp_reginfo[] = {
       .crn = 3, .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
       .resetvalue = 0, .writefn = dacr_write },
+    { .name = "FCSEIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
+      .resetvalue = 0, .writefn = fcse_write },
+    { .name = "CONTEXTIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
+      .resetvalue = 0, .writefn = contextidr_write },
     REGINFO_SENTINEL
 };
 
@@ -1769,27 +1800,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         break;
     case 12: /* Reserved.  */
         goto bad_reg;
-    case 13: /* Process ID.  */
-        switch (op2) {
-        case 0:
-            /* Unlike real hardware the qemu TLB uses virtual addresses,
-               not modified virtual addresses, so this causes a TLB flush.
-             */
-            if (env->cp15.c13_fcse != val)
-              tlb_flush(env, 1);
-            env->cp15.c13_fcse = val;
-            break;
-        case 1:
-            /* This changes the ASID, so do a TLB flush.  */
-            if (env->cp15.c13_context != val
-                && !arm_feature(env, ARM_FEATURE_MPU))
-              tlb_flush(env, 0);
-            env->cp15.c13_context = val;
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
     case 15: /* Implementation specific.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {
             if (op2 == 0 && crm == 1) {
@@ -2071,15 +2081,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
     case 11: /* TCM DMA control.  */
     case 12: /* Reserved.  */
         goto bad_reg;
-    case 13: /* Process ID.  */
-        switch (op2) {
-        case 0:
-            return env->cp15.c13_fcse;
-        case 1:
-            return env->cp15.c13_context;
-        default:
-            goto bad_reg;
-        }
     case 15: /* Implementation specific.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {
             if (op2 == 0 && crm == 1)
