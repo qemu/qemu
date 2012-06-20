@@ -210,7 +210,7 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         pm_update_sci(s);
         break;
     case 0x04:
-        acpi_pm1_cnt_write(&s->ar, val);
+        acpi_pm1_cnt_write(&s->ar, val, 0);
         break;
     default:
         break;

@@ -143,8 +143,6 @@ static void usbredir_interrupt_packet(void *priv, uint32_t id,
 static int usbredir_handle_status(USBRedirDevice *dev,
                                        int status, int actual_len);
 
-#define VERSION "qemu usb-redir guest " QEMU_VERSION
-
 /*
  * Logging stuff
  */
@@ -794,6 +792,10 @@ static void usbredir_open_close_bh(void *opaque)
 {
     USBRedirDevice *dev = opaque;
     uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
+    char version[32];
+
+    strcpy(version, "qemu usb-redir guest ");
+    pstrcat(version, sizeof(version), qemu_get_version());
 
     usbredir_device_disconnect(dev);
 
@@ -828,7 +830,7 @@ static void usbredir_open_close_bh(void *opaque)
 
         usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
         usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
-        usbredirparser_init(dev->parser, VERSION, caps, USB_REDIR_CAPS_SIZE, 0);
+        usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE, 0);
         usbredirparser_do_write(dev->parser);
     }
 }

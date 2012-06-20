@@ -1995,7 +1995,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     if (version) {
         pstrcpy(s->version, sizeof(s->version), version);
     } else {
-        pstrcpy(s->version, sizeof(s->version), QEMU_VERSION);
+        pstrcpy(s->version, sizeof(s->version), qemu_get_version());
     }
 
     ide_reset(s);

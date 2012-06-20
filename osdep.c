@@ -48,6 +48,8 @@ extern int madvise(caddr_t, size_t, int);
 #include "trace.h"
 #include "qemu_socket.h"
 
+static const char *qemu_version = QEMU_VERSION;
+
 int socket_set_cork(int fd, int v)
 {
 #if defined(SOL_TCP) && defined(TCP_CORK)
@@ -242,3 +244,12 @@ ssize_t qemu_recv_full(int fd, void *buf, size_t count, int flags)
     return total;
 }
 
+void qemu_set_version(const char *version)
+{
+    qemu_version = version;
+}
+
+const char *qemu_get_version(void)
+{
+    return qemu_version;
+}

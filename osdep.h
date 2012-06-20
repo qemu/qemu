@@ -149,4 +149,7 @@ static inline void qemu_timersub(const struct timeval *val1,
 
 void qemu_set_cloexec(int fd);
 
+void qemu_set_version(const char *);
+const char *qemu_get_version(void);
+
 #endif

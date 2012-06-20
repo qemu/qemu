@@ -970,7 +970,7 @@ void pc_cpus_init(const char *cpu_model)
     }
 }
 
-void pc_memory_init(MemoryRegion *system_memory,
+void *pc_memory_init(MemoryRegion *system_memory,
                     const char *kernel_filename,
                     const char *kernel_cmdline,
                     const char *initrd_filename,
@@ -1029,6 +1029,7 @@ void pc_memory_init(MemoryRegion *system_memory,
     for (i = 0; i < nb_option_roms; i++) {
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
+    return fw_cfg;
 }
 
 qemu_irq *pc_allocate_cpu_irq(void)

@@ -81,7 +81,7 @@ do { \
 #define CCID_CONTROL_GET_DATA_RATES         0x3
 
 #define CCID_PRODUCT_DESCRIPTION        "QEMU USB CCID"
-#define CCID_VENDOR_DESCRIPTION         "QEMU " QEMU_VERSION
+#define CCID_VENDOR_DESCRIPTION         "QEMU"
 #define CCID_INTERFACE_NAME             "CCID Interface"
 #define CCID_SERIAL_NUMBER_STRING       "1"
 /*
@@ -401,7 +401,7 @@ enum {
 };
 
 static const USBDescStrings desc_strings = {
-    [STR_MANUFACTURER]  = "QEMU " QEMU_VERSION,
+    [STR_MANUFACTURER]  = "QEMU",
     [STR_PRODUCT]       = "QEMU USB CCID",
     [STR_SERIALNUMBER]  = "1",
     [STR_INTERFACE]     = "CCID Interface",
