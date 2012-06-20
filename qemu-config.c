@@ -591,6 +591,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "phandle_start",
             .type = QEMU_OPT_STRING,
             .help = "The first phandle ID we may generate dynamically",
+        }, {
+            .name = "dt_compatible",
+            .type = QEMU_OPT_STRING,
+            .help = "Overrides the \"compatible\" property of the dt root node",
         },
         { /* End of list */ }
     },

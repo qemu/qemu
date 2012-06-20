@@ -119,7 +119,8 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     uint32_t clock_freq = 400000000;
     uint32_t tb_freq = 400000000;
     int i;
-    char compatible[] = "MPC8544DS\0MPC85xxDS";
+    const char *compatible = "MPC8544DS\0MPC85xxDS";
+    int compatible_len = sizeof("MPC8544DS\0MPC85xxDS");
     char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
     char model[] = "MPC8544DS";
     char soc[128];
@@ -144,8 +145,14 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
+        const char *tmp;
         dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
         dtb_file = qemu_opt_get(machine_opts, "dtb");
+        tmp = qemu_opt_get(machine_opts, "dt_compatible");
+        if (tmp) {
+            compatible = tmp;
+            compatible_len = strlen(compatible) + 1;
+        }
     }
 
     if (dtb_file) {
@@ -169,8 +176,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
 
     /* Manipulate device tree in memory. */
     qemu_devtree_setprop_string(fdt, "/", "model", model);
-    qemu_devtree_setprop(fdt, "/", "compatible", compatible,
-                         sizeof(compatible));
+    qemu_devtree_setprop(fdt, "/", "compatible", compatible, compatible_len);
     qemu_devtree_setprop_cell(fdt, "/", "#address-cells", 2);
     qemu_devtree_setprop_cell(fdt, "/", "#size-cells", 2);
 
