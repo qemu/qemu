@@ -72,11 +72,9 @@ static void arm_cpu_reset(CPUState *s)
 
     memset(env, 0, offsetof(CPUARMState, breakpoints));
     g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
-    env->cp15.c0_cpuid = cpu->midr;
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
-    env->cp15.c0_cachetype = cpu->ctr;
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';

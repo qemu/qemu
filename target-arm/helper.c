@@ -1003,6 +1003,74 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     if (arm_feature(env, ARM_FEATURE_MPIDR)) {
         define_arm_cp_regs(cpu, mpidr_cp_reginfo);
     }
+    /* Slightly awkwardly, the OMAP and StrongARM cores need all of
+     * cp15 crn=0 to be writes-ignored, whereas for other cores they should
+     * be read-only (ie write causes UNDEF exception).
+     */
+    {
+        ARMCPRegInfo id_cp_reginfo[] = {
+            /* Note that the MIDR isn't a simple constant register because
+             * of the TI925 behaviour where writes to another register can
+             * cause the MIDR value to change.
+             */
+            { .name = "MIDR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
+              .access = PL1_R, .resetvalue = cpu->midr,
+              .writefn = arm_cp_write_ignore,
+              .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid) },
+            { .name = "CTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+            { .name = "TCMTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "TLBTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            /* crn = 0 op1 = 0 crm = 3..7 : currently unassigned; we RAZ. */
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 3, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 4, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 5, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 6, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 7, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
+        ARMCPRegInfo crn0_wi_reginfo = {
+            .name = "CRN0_WI", .cp = 15, .crn = 0, .crm = CP_ANY,
+            .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_W,
+            .type = ARM_CP_NOP | ARM_CP_OVERRIDE
+        };
+        if (arm_feature(env, ARM_FEATURE_OMAPCP) ||
+            arm_feature(env, ARM_FEATURE_STRONGARM)) {
+            ARMCPRegInfo *r;
+            /* Register the blanket "writes ignored" value first to cover the
+             * whole space. Then define the specific ID registers, but update
+             * their access field to allow write access, so that they ignore
+             * writes rather than causing them to UNDEF.
+             */
+            define_one_arm_cp_reg(cpu, &crn0_wi_reginfo);
+            for (r = id_cp_reginfo; r->type != ARM_CP_SENTINEL; r++) {
+                r->access = PL1_RW;
+                define_one_arm_cp_reg(cpu, r);
+            }
+        } else {
+            /* Just register the standard ID registers (read-only, meaning
+             * that writes will UNDEF).
+             */
+            define_arm_cp_regs(cpu, id_cp_reginfo);
+        }
+    }
+
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
         ARMCPRegInfo auxcr = {
             .name = "AUXCR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1,
@@ -2105,21 +2173,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
     op1 = (insn >> 21) & 7;
     op2 = (insn >> 5) & 7;
     crm = insn & 0xf;
-    switch ((insn >> 16) & 0xf) {
-    case 0:
-        /* ID codes.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE))
-            break;
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            break;
-        goto bad_reg;
-    case 4: /* Reserved.  */
-        goto bad_reg;
-    case 12: /* Reserved.  */
-        goto bad_reg;
-    }
-    return;
-bad_reg:
     /* ??? For debugging only.  Should raise illegal instruction exception.  */
     cpu_abort(env, "Unimplemented cp15 register write (c%d, c%d, {%d, %d})\n",
               (insn >> 16) & 0xf, crm, op1, op2);
@@ -2134,39 +2187,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
     op1 = (insn >> 21) & 7;
     op2 = (insn >> 5) & 7;
     crm = insn & 0xf;
-    switch ((insn >> 16) & 0xf) {
-    case 0: /* ID codes.  */
-        switch (op1) {
-        case 0:
-            switch (crm) {
-            case 0:
-                switch (op2) {
-                case 0: /* Device ID.  */
-                    return env->cp15.c0_cpuid;
-                case 1: /* Cache Type.  */
-		    return env->cp15.c0_cachetype;
-                case 2: /* TCM status.  */
-                    return 0;
-                case 3: /* TLB type register.  */
-                    return 0; /* No lockable TLB entries.  */
-                default:
-                    goto bad_reg;
-                }
-            case 3: case 4: case 5: case 6: case 7:
-                return 0;
-            default:
-                goto bad_reg;
-            }
-        default:
-            goto bad_reg;
-        }
-    case 4: /* Reserved.  */
-        goto bad_reg;
-    case 11: /* TCM DMA control.  */
-    case 12: /* Reserved.  */
-        goto bad_reg;
-    }
-bad_reg:
     /* ??? For debugging only.  Should raise illegal instruction exception.  */
     cpu_abort(env, "Unimplemented cp15 register read (c%d, c%d, {%d, %d})\n",
               (insn >> 16) & 0xf, crm, op1, op2);
