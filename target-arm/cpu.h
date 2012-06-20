@@ -107,7 +107,6 @@ typedef struct CPUARMState {
     /* System control coprocessor (cp15) */
     struct {
         uint32_t c0_cpuid;
-        uint32_t c0_cachetype;
         uint32_t c0_cssel; /* Cache size selection.  */
         uint32_t c1_sys; /* System control register.  */
         uint32_t c1_coproc; /* Coprocessor access register.  */
@@ -664,7 +663,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 6
+#define CPU_SAVE_VERSION 7
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
