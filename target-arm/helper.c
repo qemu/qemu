@@ -66,6 +66,38 @@ static const ARMCPRegInfo cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static const ARMCPRegInfo not_v6_cp_reginfo[] = {
+    /* Not all pre-v6 cores implemented this WFI, so this is slightly
+     * over-broad.
+     */
+    { .name = "WFI_v5", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_WFI },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo not_v7_cp_reginfo[] = {
+    /* Standard v6 WFI (also used in some pre-v6 cores); not in v7 (which
+     * is UNPREDICTABLE; we choose to NOP as most implementations do).
+     */
+    { .name = "WFI_v6", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .access = PL1_W, .type = ARM_CP_WFI },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v6_cp_reginfo[] = {
+    /* prefetch by MVA in v6, NOP in v7 */
+    { .name = "MVA_prefetch",
+      .cp = 15, .crn = 7, .crm = 13, .opc1 = 0, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "ISB", .cp = 15, .crn = 7, .crm = 5, .opc1 = 0, .opc2 = 4,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    REGINFO_SENTINEL
+};
+
 static const ARMCPRegInfo v7_cp_reginfo[] = {
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components
@@ -74,6 +106,9 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "DBGDRAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* the old v6 WFI, UNPREDICTABLE in v7 but we choose to NOP */
+    { .name = "NOP", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .access = PL1_W, .type = ARM_CP_NOP },
     REGINFO_SENTINEL
 };
 
@@ -129,8 +164,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     define_arm_cp_regs(cpu, cp_reginfo);
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        define_arm_cp_regs(cpu, v6_cp_reginfo);
+    } else {
+        define_arm_cp_regs(cpu, not_v6_cp_reginfo);
+    }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         define_arm_cp_regs(cpu, v7_cp_reginfo);
+    } else {
+        define_arm_cp_regs(cpu, not_v7_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
         define_arm_cp_regs(cpu, t2ee_cp_reginfo);
