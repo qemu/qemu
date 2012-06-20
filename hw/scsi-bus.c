@@ -186,6 +186,10 @@ static int scsi_qdev_init(DeviceState *qdev)
                                                          dev);
     }
 
+    if (bus->info->hotplug) {
+        bus->info->hotplug(bus, dev);
+    }
+
 err:
     return rc;
 }
@@ -1650,6 +1654,17 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
+static int scsi_qdev_unplug(DeviceState *qdev)
+{
+    SCSIDevice *dev = SCSI_DEVICE(qdev);
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+
+    if (bus->info->hot_unplug) {
+        bus->info->hot_unplug(bus, dev);
+    }
+    return qdev_simple_unplug_cb(qdev);
+}
+
 static const VMStateInfo vmstate_info_scsi_requests = {
     .name = "scsi-requests",
     .get  = get_scsi_requests,
@@ -1686,7 +1701,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_SCSI_BUS;
     k->init     = scsi_qdev_init;
-    k->unplug   = qdev_simple_unplug_cb;
+    k->unplug   = scsi_qdev_unplug;
     k->exit     = scsi_qdev_exit;
     k->props    = scsi_props;
 }
