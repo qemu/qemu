@@ -58,6 +58,9 @@ typedef struct ARMCPU {
 
     CPUARMState env;
 
+    /* Coprocessor information */
+    GHashTable *cp_regs;
+
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
      * various constant registers and reset values of non-constant

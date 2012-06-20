@@ -410,6 +410,207 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
                        ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,
                        void *opaque);
 
+/* Interface for defining coprocessor registers.
+ * Registers are defined in tables of arm_cp_reginfo structs
+ * which are passed to define_arm_cp_regs().
+ */
+
+/* When looking up a coprocessor register we look for it
+ * via an integer which encodes all of:
+ *  coprocessor number
+ *  Crn, Crm, opc1, opc2 fields
+ *  32 or 64 bit register (ie is it accessed via MRC/MCR
+ *    or via MRRC/MCRR?)
+ * We allow 4 bits for opc1 because MRRC/MCRR have a 4 bit field.
+ * (In this case crn and opc2 should be zero.)
+ */
+#define ENCODE_CP_REG(cp, is64, crn, crm, opc1, opc2)   \
+    (((cp) << 16) | ((is64) << 15) | ((crn) << 11) |    \
+     ((crm) << 7) | ((opc1) << 3) | (opc2))
+
+#define DECODE_CPREG_CRN(enc) (((enc) >> 7) & 0xf)
+
+/* ARMCPRegInfo type field bits. If the SPECIAL bit is set this is a
+ * special-behaviour cp reg and bits [15..8] indicate what behaviour
+ * it has. Otherwise it is a simple cp reg, where CONST indicates that
+ * TCG can assume the value to be constant (ie load at translate time)
+ * and 64BIT indicates a 64 bit wide coprocessor register. SUPPRESS_TB_END
+ * indicates that the TB should not be ended after a write to this register
+ * (the default is that the TB ends after cp writes). OVERRIDE permits
+ * a register definition to override a previous definition for the
+ * same (cp, is64, crn, crm, opc1, opc2) tuple: either the new or the
+ * old must have the OVERRIDE bit set.
+ */
+#define ARM_CP_SPECIAL 1
+#define ARM_CP_CONST 2
+#define ARM_CP_64BIT 4
+#define ARM_CP_SUPPRESS_TB_END 8
+#define ARM_CP_OVERRIDE 16
+#define ARM_CP_NOP (ARM_CP_SPECIAL | (1 << 8))
+#define ARM_CP_WFI (ARM_CP_SPECIAL | (2 << 8))
+#define ARM_LAST_SPECIAL ARM_CP_WFI
+/* Used only as a terminator for ARMCPRegInfo lists */
+#define ARM_CP_SENTINEL 0xffff
+/* Mask of only the flag bits in a type field */
+#define ARM_CP_FLAG_MASK 0x1f
+
+/* Return true if cptype is a valid type field. This is used to try to
+ * catch errors where the sentinel has been accidentally left off the end
+ * of a list of registers.
+ */
+static inline bool cptype_valid(int cptype)
+{
+    return ((cptype & ~ARM_CP_FLAG_MASK) == 0)
+        || ((cptype & ARM_CP_SPECIAL) &&
+            (cptype <= ARM_LAST_SPECIAL));
+}
+
+/* Access rights:
+ * We define bits for Read and Write access for what rev C of the v7-AR ARM ARM
+ * defines as PL0 (user), PL1 (fiq/irq/svc/abt/und/sys, ie privileged), and
+ * PL2 (hyp). The other level which has Read and Write bits is Secure PL1
+ * (ie any of the privileged modes in Secure state, or Monitor mode).
+ * If a register is accessible in one privilege level it's always accessible
+ * in higher privilege levels too. Since "Secure PL1" also follows this rule
+ * (ie anything visible in PL2 is visible in S-PL1, some things are only
+ * visible in S-PL1) but "Secure PL1" is a bit of a mouthful, we bend the
+ * terminology a little and call this PL3.
+ *
+ * If access permissions for a register are more complex than can be
+ * described with these bits, then use a laxer set of restrictions, and
+ * do the more restrictive/complex check inside a helper function.
+ */
+#define PL3_R 0x80
+#define PL3_W 0x40
+#define PL2_R (0x20 | PL3_R)
+#define PL2_W (0x10 | PL3_W)
+#define PL1_R (0x08 | PL2_R)
+#define PL1_W (0x04 | PL2_W)
+#define PL0_R (0x02 | PL1_R)
+#define PL0_W (0x01 | PL1_W)
+
+#define PL3_RW (PL3_R | PL3_W)
+#define PL2_RW (PL2_R | PL2_W)
+#define PL1_RW (PL1_R | PL1_W)
+#define PL0_RW (PL0_R | PL0_W)
+
+static inline int arm_current_pl(CPUARMState *env)
+{
+    if ((env->uncached_cpsr & 0x1f) == ARM_CPU_MODE_USR) {
+        return 0;
+    }
+    /* We don't currently implement the Virtualization or TrustZone
+     * extensions, so PL2 and PL3 don't exist for us.
+     */
+    return 1;
+}
+
+typedef struct ARMCPRegInfo ARMCPRegInfo;
+
+/* Access functions for coprocessor registers. These should return
+ * 0 on success, or one of the EXCP_* constants if access should cause
+ * an exception (in which case *value is not written).
+ */
+typedef int CPReadFn(CPUARMState *env, const ARMCPRegInfo *opaque,
+                     uint64_t *value);
+typedef int CPWriteFn(CPUARMState *env, const ARMCPRegInfo *opaque,
+                      uint64_t value);
+/* Hook function for register reset */
+typedef void CPResetFn(CPUARMState *env, const ARMCPRegInfo *opaque);
+
+#define CP_ANY 0xff
+
+/* Definition of an ARM coprocessor register */
+struct ARMCPRegInfo {
+    /* Name of register (useful mainly for debugging, need not be unique) */
+    const char *name;
+    /* Location of register: coprocessor number and (crn,crm,opc1,opc2)
+     * tuple. Any of crm, opc1 and opc2 may be CP_ANY to indicate a
+     * 'wildcard' field -- any value of that field in the MRC/MCR insn
+     * will be decoded to this register. The register read and write
+     * callbacks will be passed an ARMCPRegInfo with the crn/crm/opc1/opc2
+     * used by the program, so it is possible to register a wildcard and
+     * then behave differently on read/write if necessary.
+     * For 64 bit registers, only crm and opc1 are relevant; crn and opc2
+     * must both be zero.
+     */
+    uint8_t cp;
+    uint8_t crn;
+    uint8_t crm;
+    uint8_t opc1;
+    uint8_t opc2;
+    /* Register type: ARM_CP_* bits/values */
+    int type;
+    /* Access rights: PL*_[RW] */
+    int access;
+    /* The opaque pointer passed to define_arm_cp_regs_with_opaque() when
+     * this register was defined: can be used to hand data through to the
+     * register read/write functions, since they are passed the ARMCPRegInfo*.
+     */
+    void *opaque;
+    /* Value of this register, if it is ARM_CP_CONST. Otherwise, if
+     * fieldoffset is non-zero, the reset value of the register.
+     */
+    uint64_t resetvalue;
+    /* Offset of the field in CPUARMState for this register. This is not
+     * needed if either:
+     *  1. type is ARM_CP_CONST or one of the ARM_CP_SPECIALs
+     *  2. both readfn and writefn are specified
+     */
+    ptrdiff_t fieldoffset; /* offsetof(CPUARMState, field) */
+    /* Function for handling reads of this register. If NULL, then reads
+     * will be done by loading from the offset into CPUARMState specified
+     * by fieldoffset.
+     */
+    CPReadFn *readfn;
+    /* Function for handling writes of this register. If NULL, then writes
+     * will be done by writing to the offset into CPUARMState specified
+     * by fieldoffset.
+     */
+    CPWriteFn *writefn;
+    /* Function for resetting the register. If NULL, then reset will be done
+     * by writing resetvalue to the field specified in fieldoffset. If
+     * fieldoffset is 0 then no reset will be done.
+     */
+    CPResetFn *resetfn;
+};
+
+/* Macros which are lvalues for the field in CPUARMState for the
+ * ARMCPRegInfo *ri.
+ */
+#define CPREG_FIELD32(env, ri) \
+    (*(uint32_t *)((char *)(env) + (ri)->fieldoffset))
+#define CPREG_FIELD64(env, ri) \
+    (*(uint64_t *)((char *)(env) + (ri)->fieldoffset))
+
+#define REGINFO_SENTINEL { .type = ARM_CP_SENTINEL }
+
+void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
+                                    const ARMCPRegInfo *regs, void *opaque);
+void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
+                                       const ARMCPRegInfo *regs, void *opaque);
+static inline void define_arm_cp_regs(ARMCPU *cpu, const ARMCPRegInfo *regs)
+{
+    define_arm_cp_regs_with_opaque(cpu, regs, 0);
+}
+static inline void define_one_arm_cp_reg(ARMCPU *cpu, const ARMCPRegInfo *regs)
+{
+    define_one_arm_cp_reg_with_opaque(cpu, regs, 0);
+}
+const ARMCPRegInfo *get_arm_cp_reginfo(ARMCPU *cpu, uint32_t encoded_cp);
+
+/* CPWriteFn that can be used to implement writes-ignored behaviour */
+int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value);
+/* CPReadFn that can be used for read-as-zero behaviour */
+int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value);
+
+static inline bool cp_access_ok(CPUARMState *env,
+                                const ARMCPRegInfo *ri, int isread)
+{
+    return (ri->access >> ((arm_current_pl(env) * 2) + isread)) & 1;
+}
+
 /* Does the core conform to the the "MicroController" profile. e.g. Cortex-M3.
    Note the M in older cores (eg. ARM7TDMI) stands for Multiply. These are
    conventional cores (ie. Application or Realtime profile).  */
