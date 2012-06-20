@@ -224,129 +224,94 @@ static const VMStateDescription vmstate_pxa2xx_cm = {
     }
 };
 
-static uint32_t pxa2xx_clkpwr_read(void *opaque, int op2, int reg, int crm)
+static int pxa2xx_clkcfg_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t *value)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxState *s = (PXA2xxState *)ri->opaque;
+    *value = s->clkcfg;
+    return 0;
+}
 
-    switch (reg) {
-    case 6:	/* Clock Configuration register */
-        return s->clkcfg;
-
-    case 7:	/* Power Mode register */
-        return 0;
-
-    default:
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        break;
+static int pxa2xx_clkcfg_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    PXA2xxState *s = (PXA2xxState *)ri->opaque;
+    s->clkcfg = value & 0xf;
+    if (value & 2) {
+        printf("%s: CPU frequency change attempt\n", __func__);
     }
     return 0;
 }
 
-static void pxa2xx_clkpwr_write(void *opaque, int op2, int reg, int crm,
-                uint32_t value)
+static int pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
 {
-    PXA2xxState *s = (PXA2xxState *) opaque;
+    PXA2xxState *s = (PXA2xxState *)ri->opaque;
     static const char *pwrmode[8] = {
         "Normal", "Idle", "Deep-idle", "Standby",
         "Sleep", "reserved (!)", "reserved (!)", "Deep-sleep",
     };
 
-    switch (reg) {
-    case 6:	/* Clock Configuration register */
-        s->clkcfg = value & 0xf;
-        if (value & 2)
-            printf("%s: CPU frequency change attempt\n", __FUNCTION__);
+    if (value & 8) {
+        printf("%s: CPU voltage change attempt\n", __func__);
+    }
+    switch (value & 7) {
+    case 0:
+        /* Do nothing */
         break;
 
-    case 7:	/* Power Mode register */
-        if (value & 8)
-            printf("%s: CPU voltage change attempt\n", __FUNCTION__);
-        switch (value & 7) {
-        case 0:
-            /* Do nothing */
-            break;
-
-        case 1:
-            /* Idle */
-            if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) {	/* CPDIS */
-                cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
-                break;
-            }
-            /* Fall through.  */
-
-        case 2:
-            /* Deep-Idle */
+    case 1:
+        /* Idle */
+        if (!(s->cm_regs[CCCR >> 2] & (1 << 31))) { /* CPDIS */
             cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
-            s->pm_regs[RCSR >> 2] |= 0x8;	/* Set GPR */
-            goto message;
+            break;
+        }
+        /* Fall through.  */
 
-        case 3:
-            s->cpu->env.uncached_cpsr =
-                    ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
-            s->cpu->env.cp15.c1_sys = 0;
-            s->cpu->env.cp15.c1_coproc = 0;
-            s->cpu->env.cp15.c2_base0 = 0;
-            s->cpu->env.cp15.c3 = 0;
-            s->pm_regs[PSSR >> 2] |= 0x8;	/* Set STS */
-            s->pm_regs[RCSR >> 2] |= 0x8;	/* Set GPR */
+    case 2:
+        /* Deep-Idle */
+        cpu_interrupt(&s->cpu->env, CPU_INTERRUPT_HALT);
+        s->pm_regs[RCSR >> 2] |= 0x8; /* Set GPR */
+        goto message;
 
-            /*
-             * The scratch-pad register is almost universally used
-             * for storing the return address on suspend.  For the
-             * lack of a resuming bootloader, perform a jump
-             * directly to that address.
-             */
-            memset(s->cpu->env.regs, 0, 4 * 15);
-            s->cpu->env.regs[15] = s->pm_regs[PSPR >> 2];
+    case 3:
+        s->cpu->env.uncached_cpsr =
+            ARM_CPU_MODE_SVC | CPSR_A | CPSR_F | CPSR_I;
+        s->cpu->env.cp15.c1_sys = 0;
+        s->cpu->env.cp15.c1_coproc = 0;
+        s->cpu->env.cp15.c2_base0 = 0;
+        s->cpu->env.cp15.c3 = 0;
+        s->pm_regs[PSSR >> 2] |= 0x8; /* Set STS */
+        s->pm_regs[RCSR >> 2] |= 0x8; /* Set GPR */
+
+        /*
+         * The scratch-pad register is almost universally used
+         * for storing the return address on suspend.  For the
+         * lack of a resuming bootloader, perform a jump
+         * directly to that address.
+         */
+        memset(s->cpu->env.regs, 0, 4 * 15);
+        s->cpu->env.regs[15] = s->pm_regs[PSPR >> 2];
 
 #if 0
-            buffer = 0xe59ff000;	/* ldr     pc, [pc, #0] */
-            cpu_physical_memory_write(0, &buffer, 4);
-            buffer = s->pm_regs[PSPR >> 2];
-            cpu_physical_memory_write(8, &buffer, 4);
+        buffer = 0xe59ff000; /* ldr     pc, [pc, #0] */
+        cpu_physical_memory_write(0, &buffer, 4);
+        buffer = s->pm_regs[PSPR >> 2];
+        cpu_physical_memory_write(8, &buffer, 4);
 #endif
 
-            /* Suspend */
-            cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
+        /* Suspend */
+        cpu_interrupt(cpu_single_env, CPU_INTERRUPT_HALT);
 
-            goto message;
-
-        default:
-        message:
-            printf("%s: machine entered %s mode\n", __FUNCTION__,
-                            pwrmode[value & 7]);
-        }
-        break;
+        goto message;
 
     default:
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        break;
+    message:
+        printf("%s: machine entered %s mode\n", __func__,
+               pwrmode[value & 7]);
     }
-}
 
-static uint32_t pxa2xx_cp14_read(void *opaque, int op2, int reg, int crm)
-{
-    switch (crm) {
-    case 0:
-        return pxa2xx_clkpwr_read(opaque, op2, reg, crm);
-    default:
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        break;
-    }
     return 0;
-}
-
-static void pxa2xx_cp14_write(void *opaque, int op2, int reg, int crm,
-                uint32_t value)
-{
-    switch (crm) {
-    case 0:
-        pxa2xx_clkpwr_write(opaque, op2, reg, crm, value);
-        break;
-    default:
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        break;
-    }
 }
 
 static int pxa2xx_cppmnc_read(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -400,6 +365,14 @@ static const ARMCPRegInfo pxa_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "CPPMN3", .cp = 14, .crn = 2, .crm = 3, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* cp14 crn==6: CLKCFG */
+    { .name = "CLKCFG", .cp = 14, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .readfn = pxa2xx_clkcfg_read, .writefn = pxa2xx_clkcfg_write },
+    /* cp14 crn==7: PWRMODE */
+    { .name = "PWRMODE", .cp = 14, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .readfn = arm_cp_read_zero, .writefn = pxa2xx_pwrmode_write },
     REGINFO_SENTINEL
 };
 
@@ -2111,7 +2084,6 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
-    cpu_arm_set_cp_io(&s->cpu->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
     pxa2xx_setup_cp14(s);
 
     s->mm_base = 0x48000000;
@@ -2243,7 +2215,6 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     memory_region_add_subregion(address_space, s->cm_base, &s->cm_iomem);
     vmstate_register(NULL, 0, &vmstate_pxa2xx_cm, s);
 
-    cpu_arm_set_cp_io(&s->cpu->env, 14, pxa2xx_cp14_read, pxa2xx_cp14_write, s);
     pxa2xx_setup_cp14(s);
 
     s->mm_base = 0x48000000;
