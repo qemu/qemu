@@ -127,7 +127,7 @@ static int findnode_nofail(void *fdt, const char *node_path)
 }
 
 int qemu_devtree_setprop(void *fdt, const char *node_path,
-                         const char *property, void *val_array, int size)
+                         const char *property, const void *val_array, int size)
 {
     int r;
 
