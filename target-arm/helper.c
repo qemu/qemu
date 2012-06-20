@@ -337,6 +337,99 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+/* Return basic MPU access permission bits.  */
+static uint32_t simple_mpu_ap_bits(uint32_t val)
+{
+    uint32_t ret;
+    uint32_t mask;
+    int i;
+    ret = 0;
+    mask = 3;
+    for (i = 0; i < 16; i += 2) {
+        ret |= (val >> i) & mask;
+        mask <<= 2;
+    }
+    return ret;
+}
+
+/* Pad basic MPU access permission bits to extended format.  */
+static uint32_t extended_mpu_ap_bits(uint32_t val)
+{
+    uint32_t ret;
+    uint32_t mask;
+    int i;
+    ret = 0;
+    mask = 3;
+    for (i = 0; i < 16; i += 2) {
+        ret |= (val & mask) << i;
+        mask <<= 2;
+    }
+    return ret;
+}
+
+static int pmsav5_data_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    env->cp15.c5_data = extended_mpu_ap_bits(value);
+    return 0;
+}
+
+static int pmsav5_data_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t *value)
+{
+    *value = simple_mpu_ap_bits(env->cp15.c5_data);
+    return 0;
+}
+
+static int pmsav5_insn_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    env->cp15.c5_insn = extended_mpu_ap_bits(value);
+    return 0;
+}
+
+static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t *value)
+{
+    *value = simple_mpu_ap_bits(env->cp15.c5_insn);
+    return 0;
+}
+
+static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
+    { .name = "DATA_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0,
+      .readfn = pmsav5_data_ap_read, .writefn = pmsav5_data_ap_write, },
+    { .name = "INSN_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0,
+      .readfn = pmsav5_insn_ap_read, .writefn = pmsav5_insn_ap_write, },
+    { .name = "DATA_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    { .name = "INSN_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 3,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo vmsa_cp_reginfo[] = {
+    { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo omap_cp_reginfo[] = {
+    { .name = "DFSR", .cp = 15, .crn = 5, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_OVERRIDE,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    REGINFO_SENTINEL
+};
+
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
     /* Register all the coprocessor registers based on feature bits */
@@ -370,11 +463,25 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     } else {
         define_arm_cp_regs(cpu, not_v7_cp_reginfo);
     }
+    if (arm_feature(env, ARM_FEATURE_MPU)) {
+        /* These are the MPU registers prior to PMSAv6. Any new
+         * PMSA core later than the ARM946 will require that we
+         * implement the PMSAv6 or PMSAv7 registers, which are
+         * completely different.
+         */
+        assert(!arm_feature(env, ARM_FEATURE_V6));
+        define_arm_cp_regs(cpu, pmsav5_cp_reginfo);
+    } else {
+        define_arm_cp_regs(cpu, vmsa_cp_reginfo);
+    }
     if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
         define_arm_cp_regs(cpu, t2ee_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
         define_arm_cp_regs(cpu, generic_timer_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
+        define_arm_cp_regs(cpu, omap_cp_reginfo);
     }
 }
 
@@ -1444,36 +1551,6 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
     return phys_addr;
 }
 
-/* Return basic MPU access permission bits.  */
-static uint32_t simple_mpu_ap_bits(uint32_t val)
-{
-    uint32_t ret;
-    uint32_t mask;
-    int i;
-    ret = 0;
-    mask = 3;
-    for (i = 0; i < 16; i += 2) {
-        ret |= (val >> i) & mask;
-        mask <<= 2;
-    }
-    return ret;
-}
-
-/* Pad basic MPU access permission bits to extended format.  */
-static uint32_t extended_mpu_ap_bits(uint32_t val)
-{
-    uint32_t ret;
-    uint32_t mask;
-    int i;
-    ret = 0;
-    mask = 3;
-    for (i = 0; i < 16; i += 2) {
-        ret |= (val & mask) << i;
-        mask <<= 2;
-    }
-    return ret;
-}
-
 void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
 {
     int op1;
@@ -1565,34 +1642,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         break;
     case 4: /* Reserved.  */
         goto bad_reg;
-    case 5: /* MMU Fault status / MPU access permission.  */
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                val = extended_mpu_ap_bits(val);
-            env->cp15.c5_data = val;
-            break;
-        case 1:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                val = extended_mpu_ap_bits(val);
-            env->cp15.c5_insn = val;
-            break;
-        case 2:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            env->cp15.c5_data = val;
-            break;
-        case 3:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            env->cp15.c5_insn = val;
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
     case 6: /* MMU Fault address / MPU base/size.  */
         if (arm_feature(env, ARM_FEATURE_MPU)) {
             if (crm >= 8)
@@ -1952,29 +2001,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
 	}
     case 4: /* Reserved.  */
         goto bad_reg;
-    case 5: /* MMU Fault status / MPU access permission.  */
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                return simple_mpu_ap_bits(env->cp15.c5_data);
-            return env->cp15.c5_data;
-        case 1:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                return simple_mpu_ap_bits(env->cp15.c5_insn);
-            return env->cp15.c5_insn;
-        case 2:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            return env->cp15.c5_data;
-        case 3:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            return env->cp15.c5_insn;
-        default:
-            goto bad_reg;
-        }
     case 6: /* MMU Fault address.  */
         if (arm_feature(env, ARM_FEATURE_MPU)) {
             if (crm >= 8)
