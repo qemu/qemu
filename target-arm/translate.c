@@ -6355,67 +6355,6 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
     return 0;
 }
 
-static int disas_cp14_read(CPUARMState * env, DisasContext *s, uint32_t insn)
-{
-    int crn = (insn >> 16) & 0xf;
-    int crm = insn & 0xf;
-    int op1 = (insn >> 21) & 7;
-    int op2 = (insn >> 5) & 7;
-    int rt = (insn >> 12) & 0xf;
-    TCGv tmp;
-
-    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
-        if (op1 == 6 && crn == 0 && crm == 0 && op2 == 0) {
-            /* TEECR */
-            if (IS_USER(s))
-                return 1;
-            tmp = load_cpu_field(teecr);
-            store_reg(s, rt, tmp);
-            return 0;
-        }
-        if (op1 == 6 && crn == 1 && crm == 0 && op2 == 0) {
-            /* TEEHBR */
-            if (IS_USER(s) && (env->teecr & 1))
-                return 1;
-            tmp = load_cpu_field(teehbr);
-            store_reg(s, rt, tmp);
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static int disas_cp14_write(CPUARMState * env, DisasContext *s, uint32_t insn)
-{
-    int crn = (insn >> 16) & 0xf;
-    int crm = insn & 0xf;
-    int op1 = (insn >> 21) & 7;
-    int op2 = (insn >> 5) & 7;
-    int rt = (insn >> 12) & 0xf;
-    TCGv tmp;
-
-    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
-        if (op1 == 6 && crn == 0 && crm == 0 && op2 == 0) {
-            /* TEECR */
-            if (IS_USER(s))
-                return 1;
-            tmp = load_reg(s, rt);
-            gen_helper_set_teecr(cpu_env, tmp);
-            tcg_temp_free_i32(tmp);
-            return 0;
-        }
-        if (op1 == 6 && crn == 1 && crm == 0 && op2 == 0) {
-            /* TEEHBR */
-            if (IS_USER(s) && (env->teecr & 1))
-                return 1;
-            tmp = load_reg(s, rt);
-            store_cpu_field(tmp, teehbr);
-            return 0;
-        }
-    }
-    return 1;
-}
-
 static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
 {
     int cpnum, is64, crn, crm, opc1, opc2, isread, rt, rt2;
@@ -6591,11 +6530,6 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
      * to ARMCPRegInfo.
      */
     switch (cpnum) {
-    case 14:
-        if (insn & (1 << 20))
-            return disas_cp14_read(env, s, insn);
-        else
-            return disas_cp14_write(env, s, insn);
     case 15:
 	return disas_cp15_insn (env, s, insn);
     default:
