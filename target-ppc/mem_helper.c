@@ -35,7 +35,7 @@ static inline target_ulong addr_add(CPUPPCState *env, target_ulong addr,
                                     target_long arg)
 {
 #if defined(TARGET_PPC64)
-    if (!msr_sf) {
+    if (!msr_is_64bit(env, env->msr)) {
         return (uint32_t)(addr + arg);
     } else
 #endif

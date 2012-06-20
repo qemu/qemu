@@ -9626,7 +9626,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
     ctx.access_type = -1;
     ctx.le_mode = env->hflags & (1 << MSR_LE) ? 1 : 0;
 #if defined(TARGET_PPC64)
-    ctx.sf_mode = msr_sf;
+    ctx.sf_mode = msr_is_64bit(env, env->msr);
     ctx.has_cfar = !!(env->flags & POWERPC_FLAG_CFAR);
 #endif
     ctx.fpu_enabled = msr_fp;

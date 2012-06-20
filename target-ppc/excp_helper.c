@@ -608,10 +608,11 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
     vector |= env->excp_prefix;
 #if defined(TARGET_PPC64)
     if (excp_model == POWERPC_EXCP_BOOKE) {
-        if (!msr_icm) {
-            vector = (uint32_t)vector;
-        } else {
+        if (env->spr[SPR_BOOKE_EPCR] & EPCR_ICM) {
+            /* Cat.64-bit: EPCR.ICM is copied to MSR.CM */
             new_msr |= (target_ulong)1 << MSR_CM;
+        } else {
+            vector = (uint32_t)vector;
         }
     } else {
         if (!msr_isf && !(env->mmu_model & POWERPC_MMU_64)) {
@@ -803,7 +804,7 @@ static inline void do_rfi(CPUPPCState *env, target_ulong nip, target_ulong msr,
                           target_ulong msrm, int keep_msrh)
 {
 #if defined(TARGET_PPC64)
-    if (msr & (1ULL << MSR_SF)) {
+    if (msr_is_64bit(env, msr)) {
         nip = (uint64_t)nip;
         msr &= (uint64_t)msrm;
     } else {

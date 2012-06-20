@@ -2212,6 +2212,15 @@ static inline uint32_t booke206_tlbnps(CPUPPCState *env, const int tlbn)
 
 #endif
 
+static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
+{
+    if (env->mmu_model == POWERPC_MMU_BOOKE206) {
+        return msr & (1ULL << MSR_CM);
+    }
+
+    return msr & (1ULL << MSR_SF);
+}
+
 extern void (*cpu_ppc_hypercall)(CPUPPCState *);
 
 static inline bool cpu_has_work(CPUPPCState *env)
