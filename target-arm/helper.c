@@ -183,6 +183,16 @@ static const ARMCPRegInfo not_v7_cp_reginfo[] = {
      */
     { .name = "WFI_v6", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
       .access = PL1_W, .type = ARM_CP_WFI },
+    /* L1 cache lockdown. Not architectural in v6 and earlier but in practice
+     * implemented in 926, 946, 1026, 1136, 1176 and 11MPCore. StrongARM and
+     * OMAPCP will override this space.
+     */
+    { .name = "DLOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_data),
+      .resetvalue = 0 },
+    { .name = "ILOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_insn),
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -703,6 +713,9 @@ static const ARMCPRegInfo omap_cp_reginfo[] = {
     { .name = "OMAP_CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
       .opc1 = 0, .opc2 = CP_ANY, .access = PL1_W, .type = ARM_CP_OVERRIDE,
       .writefn = omap_cachemaint_write },
+    { .name = "C9", .cp = 15, .crn = 9,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW,
+      .type = ARM_CP_CONST | ARM_CP_OVERRIDE, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -760,6 +773,15 @@ static const ARMCPRegInfo cache_test_clean_cp_reginfo[] = {
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = (1 << 30) },
     { .name = "TCI_DCACHE", .cp = 15, .crn = 7, .crm = 14, .opc1 = 0, .opc2 = 3,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = (1 << 30) },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo strongarm_cp_reginfo[] = {
+    /* Ignore ReadBuffer accesses */
+    { .name = "C9_READBUFFER", .cp = 15, .crn = 9,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -827,6 +849,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
         define_arm_cp_regs(cpu, omap_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_STRONGARM)) {
+        define_arm_cp_regs(cpu, strongarm_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_XSCALE)) {
         define_arm_cp_regs(cpu, xscale_cp_reginfo);
@@ -1962,40 +1987,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         break;
     case 4: /* Reserved.  */
         goto bad_reg;
-    case 9:
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            break;
-        if (arm_feature(env, ARM_FEATURE_STRONGARM))
-            break; /* Ignore ReadBuffer access */
-        switch (crm) {
-        case 0: /* Cache lockdown.  */
-	    switch (op1) {
-	    case 0: /* L1 cache.  */
-		switch (op2) {
-		case 0:
-		    env->cp15.c9_data = val;
-		    break;
-		case 1:
-		    env->cp15.c9_insn = val;
-		    break;
-		default:
-		    goto bad_reg;
-		}
-		break;
-	    case 1: /* L2 cache.  */
-		/* Ignore writes to L2 lockdown/auxiliary registers.  */
-		break;
-	    default:
-		goto bad_reg;
-	    }
-	    break;
-        case 1: /* TCM memory region registers.  */
-            /* Not implemented.  */
-            goto bad_reg;
-        default:
-            goto bad_reg;
-        }
-        break;
     case 12: /* Reserved.  */
         goto bad_reg;
     }
@@ -2135,51 +2126,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
         }
     case 4: /* Reserved.  */
         goto bad_reg;
-    case 9:
-        switch (crm) {
-        case 0: /* Cache lockdown */
-            switch (op1) {
-            case 0: /* L1 cache.  */
-                if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
-                    return 0;
-                }
-                switch (op2) {
-                case 0:
-                    return env->cp15.c9_data;
-                case 1:
-                    return env->cp15.c9_insn;
-                default:
-                    goto bad_reg;
-                }
-            case 1: /* L2 cache */
-                /* L2 Lockdown and Auxiliary control.  */
-                switch (op2) {
-                case 0:
-                    /* L2 cache lockdown (A8 only) */
-                    return 0;
-                case 2:
-                    /* L2 cache auxiliary control (A8) or control (A15) */
-                    if (ARM_CPUID(env) == ARM_CPUID_CORTEXA15) {
-                        /* Linux wants the number of processors from here.
-                         * Might as well set the interrupt-controller bit too.
-                         */
-                        return ((smp_cpus - 1) << 24) | (1 << 23);
-                    }
-                    return 0;
-                case 3:
-                    /* L2 cache extended control (A15) */
-                    return 0;
-                default:
-                    goto bad_reg;
-                }
-            default:
-                goto bad_reg;
-            }
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
     case 11: /* TCM DMA control.  */
     case 12: /* Reserved.  */
         goto bad_reg;

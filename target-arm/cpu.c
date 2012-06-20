@@ -23,6 +23,7 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
+#include "sysemu.h"
 
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {
@@ -390,6 +391,14 @@ static void cortex_m3_initfn(Object *obj)
     cpu->midr = ARM_CPUID_CORTEXM3;
 }
 
+static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
+    { .name = "L2LOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "L2AUXCR", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 2,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
 static void cortex_a8_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -421,6 +430,7 @@ static void cortex_a8_initfn(Object *obj)
     cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x2007e01a; /* 16k L1 icache. */
     cpu->ccsidr[2] = 0xf0000000; /* No L2 icache. */
+    define_arm_cp_regs(cpu, cortexa8_cp_reginfo);
 }
 
 static const ARMCPRegInfo cortexa9_cp_reginfo[] = {
@@ -498,6 +508,29 @@ static void cortex_a9_initfn(Object *obj)
     }
 }
 
+#ifndef CONFIG_USER_ONLY
+static int a15_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t *value)
+{
+    /* Linux wants the number of processors from here.
+     * Might as well set the interrupt-controller bit too.
+     */
+    *value = ((smp_cpus - 1) << 24) | (1 << 23);
+    return 0;
+}
+#endif
+
+static const ARMCPRegInfo cortexa15_cp_reginfo[] = {
+#ifndef CONFIG_USER_ONLY
+    { .name = "L2CTLR", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .readfn = a15_l2ctlr_read,
+      .writefn = arm_cp_write_ignore, },
+#endif
+    { .name = "L2ECTLR", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 3,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
 static void cortex_a15_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -533,6 +566,7 @@ static void cortex_a15_initfn(Object *obj)
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
     cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
+    define_arm_cp_regs(cpu, cortexa15_cp_reginfo);
 }
 
 static void ti925t_initfn(Object *obj)
