@@ -2439,55 +2439,6 @@ static int disas_dsp_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
     return 1;
 }
 
-/* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
-   instruction is not defined.  */
-static int disas_cp15_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
-{
-    uint32_t rd;
-    TCGv tmp, tmp2;
-
-    /* M profile cores use memory mapped registers instead of cp15.  */
-    if (arm_feature(env, ARM_FEATURE_M))
-	return 1;
-
-    if ((insn & (1 << 25)) == 0) {
-        return 1;
-    }
-    if ((insn & (1 << 4)) == 0) {
-        /* cdp */
-        return 1;
-    }
-
-    if (IS_USER(s)) {
-        return 1;
-    }
-
-    rd = (insn >> 12) & 0xf;
-
-    tmp2 = tcg_const_i32(insn);
-    if (insn & ARM_CP_RW_BIT) {
-        tmp = tcg_temp_new_i32();
-        gen_helper_get_cp15(tmp, cpu_env, tmp2);
-        /* If the destination register is r15 then sets condition codes.  */
-        if (rd != 15)
-            store_reg(s, rd, tmp);
-        else
-            tcg_temp_free_i32(tmp);
-    } else {
-        tmp = load_reg(s, rd);
-        gen_helper_set_cp15(cpu_env, tmp2, tmp);
-        tcg_temp_free_i32(tmp);
-        /* Normally we would always end the TB here, but Linux
-         * arch/arm/mach-pxa/sleep.S expects two instructions following
-         * an MMU enable to execute from cache.  Imitate this behaviour.  */
-        if (!arm_feature(env, ARM_FEATURE_XSCALE) ||
-                (insn & 0x0fff0fff) != 0x0e010f10)
-            gen_lookup_tb(s);
-    }
-    tcg_temp_free_i32(tmp2);
-    return 0;
-}
-
 #define VFP_REG_SHR(x, n) (((n) > 0) ? (x) >> (n) : (x) << -(n))
 #define VFP_SREG(insn, bigbit, smallbit) \
   ((VFP_REG_SHR(insn, bigbit - 1) & 0x1e) | (((insn) >> (smallbit)) & 1))
@@ -6388,15 +6339,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
         return 0;
     }
 
-    /* Fallback code: handle coprocessor registers not yet converted
-     * to ARMCPRegInfo.
-     */
-    switch (cpnum) {
-    case 15:
-	return disas_cp15_insn (env, s, insn);
-    default:
-        return 1;
-    }
+    return 1;
 }
 
 

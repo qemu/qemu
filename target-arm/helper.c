@@ -1441,16 +1441,6 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
     return 1;
 }
 
-void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
-{
-    cpu_abort(env, "cp15 insn %08x\n", insn);
-}
-
-uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
-{
-    cpu_abort(env, "cp15 insn %08x\n", insn);
-}
-
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
@@ -2175,35 +2165,6 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
         return -1;
 
     return phys_addr;
-}
-
-void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
-{
-    int op1;
-    int op2;
-    int crm;
-
-    op1 = (insn >> 21) & 7;
-    op2 = (insn >> 5) & 7;
-    crm = insn & 0xf;
-    /* ??? For debugging only.  Should raise illegal instruction exception.  */
-    cpu_abort(env, "Unimplemented cp15 register write (c%d, c%d, {%d, %d})\n",
-              (insn >> 16) & 0xf, crm, op1, op2);
-}
-
-uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
-{
-    int op1;
-    int op2;
-    int crm;
-
-    op1 = (insn >> 21) & 7;
-    op2 = (insn >> 5) & 7;
-    crm = insn & 0xf;
-    /* ??? For debugging only.  Should raise illegal instruction exception.  */
-    cpu_abort(env, "Unimplemented cp15 register read (c%d, c%d, {%d, %d})\n",
-              (insn >> 16) & 0xf, crm, op1, op2);
-    return 0;
 }
 
 void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)

@@ -59,9 +59,6 @@ DEF_HELPER_0(cpsr_read, i32)
 DEF_HELPER_3(v7m_msr, void, env, i32, i32)
 DEF_HELPER_2(v7m_mrs, i32, env, i32)
 
-DEF_HELPER_3(set_cp15, void, env, i32, i32)
-DEF_HELPER_2(get_cp15, i32, env, i32)
-
 DEF_HELPER_3(set_cp_reg, void, env, ptr, i32)
 DEF_HELPER_2(get_cp_reg, i32, env, ptr)
 DEF_HELPER_3(set_cp_reg64, void, env, ptr, i64)
