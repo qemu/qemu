@@ -251,6 +251,16 @@ static void arm1026_initfn(Object *obj)
     cpu->reset_fpsid = 0x410110a0;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00090078;
+    {
+        /* The 1026 had an IFAR at c6,c0,0,1 rather than the ARMv6 c6,c0,0,2 */
+        ARMCPRegInfo ifar = {
+            .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
+            .access = PL1_RW,
+            .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+            .resetvalue = 0
+        };
+        define_one_arm_cp_reg(cpu, &ifar);
+    }
 }
 
 static void arm1136_r2_initfn(Object *obj)

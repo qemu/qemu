@@ -197,6 +197,14 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
       .access = PL0_W, .type = ARM_CP_NOP },
+    { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+      .resetvalue = 0, },
+    /* Watchpoint Fault Address Register : should actually only be present
+     * for 1136, 1176, 11MPCore.
+     */
+    { .name = "WFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
     REGINFO_SENTINEL
 };
 
@@ -540,6 +548,26 @@ static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
+static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t *value)
+{
+    if (ri->crm > 8) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c6_region[ri->crm];
+    return 0;
+}
+
+static int arm946_prbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    if (ri->crm > 8) {
+        return EXCP_UDEF;
+    }
+    env->cp15.c6_region[ri->crm] = value;
+    return 0;
+}
+
 static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
     { .name = "DATA_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW,
@@ -561,6 +589,10 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
     { .name = "ICACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_insn), .resetvalue = 0, },
+    /* Protection region base and size registers */
+    { .name = "946_PRBS", .cp = 15, .crn = 6, .crm = CP_ANY, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW,
+      .readfn = arm946_prbs_read, .writefn = arm946_prbs_write, },
     REGINFO_SENTINEL
 };
 
@@ -598,6 +630,9 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .access = PL1_RW, .writefn = vmsa_ttbcr_write,
       .resetfn = vmsa_ttbcr_reset,
       .fieldoffset = offsetof(CPUARMState, cp15.c2_control) },
+    { .name = "DFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_data),
+      .resetvalue = 0, },
     REGINFO_SENTINEL
 };
 
@@ -1927,27 +1962,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
         break;
     case 4: /* Reserved.  */
         goto bad_reg;
-    case 6: /* MMU Fault address / MPU base/size.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            if (crm >= 8)
-                goto bad_reg;
-            env->cp15.c6_region[crm] = val;
-        } else {
-            if (arm_feature(env, ARM_FEATURE_OMAPCP))
-                op2 = 0;
-            switch (op2) {
-            case 0:
-                env->cp15.c6_data = val;
-                break;
-            case 1: /* ??? This is WFAR on armv6 */
-            case 2:
-                env->cp15.c6_insn = val;
-                break;
-            default:
-                goto bad_reg;
-            }
-        }
-        break;
     case 9:
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             break;
@@ -2121,38 +2135,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
         }
     case 4: /* Reserved.  */
         goto bad_reg;
-    case 6: /* MMU Fault address.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            if (crm >= 8)
-                goto bad_reg;
-            return env->cp15.c6_region[crm];
-        } else {
-            if (arm_feature(env, ARM_FEATURE_OMAPCP))
-                op2 = 0;
-	    switch (op2) {
-	    case 0:
-		return env->cp15.c6_data;
-	    case 1:
-		if (arm_feature(env, ARM_FEATURE_V6)) {
-		    /* Watchpoint Fault Adrress.  */
-		    return 0; /* Not implemented.  */
-		} else {
-		    /* Instruction Fault Adrress.  */
-		    /* Arm9 doesn't have an IFAR, but implementing it anyway
-		       shouldn't do any harm.  */
-		    return env->cp15.c6_insn;
-		}
-	    case 2:
-		if (arm_feature(env, ARM_FEATURE_V6)) {
-		    /* Instruction Fault Adrress.  */
-		    return env->cp15.c6_insn;
-		} else {
-		    goto bad_reg;
-		}
-	    default:
-		goto bad_reg;
-	    }
-        }
     case 9:
         switch (crm) {
         case 0: /* Cache lockdown */
