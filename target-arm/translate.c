@@ -2460,62 +2460,7 @@ static int cp15_user_ok(CPUARMState *env, uint32_t insn)
         }
         return 0;
     }
-
-    if (cpn == 13 && cpm == 0) {
-        /* TLS register.  */
-        if (op == 2 || (op == 3 && (insn & ARM_CP_RW_BIT)))
-            return 1;
-    }
     return 0;
-}
-
-static int cp15_tls_load_store(CPUARMState *env, DisasContext *s, uint32_t insn, uint32_t rd)
-{
-    TCGv tmp;
-    int cpn = (insn >> 16) & 0xf;
-    int cpm = insn & 0xf;
-    int op = ((insn >> 5) & 7) | ((insn >> 18) & 0x38);
-
-    if (!arm_feature(env, ARM_FEATURE_V6K))
-        return 0;
-
-    if (!(cpn == 13 && cpm == 0))
-        return 0;
-
-    if (insn & ARM_CP_RW_BIT) {
-        switch (op) {
-        case 2:
-            tmp = load_cpu_field(cp15.c13_tls1);
-            break;
-        case 3:
-            tmp = load_cpu_field(cp15.c13_tls2);
-            break;
-        case 4:
-            tmp = load_cpu_field(cp15.c13_tls3);
-            break;
-        default:
-            return 0;
-        }
-        store_reg(s, rd, tmp);
-
-    } else {
-        tmp = load_reg(s, rd);
-        switch (op) {
-        case 2:
-            store_cpu_field(tmp, cp15.c13_tls1);
-            break;
-        case 3:
-            store_cpu_field(tmp, cp15.c13_tls2);
-            break;
-        case 4:
-            store_cpu_field(tmp, cp15.c13_tls3);
-            break;
-        default:
-            tcg_temp_free_i32(tmp);
-            return 0;
-        }
-    }
-    return 1;
 }
 
 /* Disassemble system coprocessor (cp15) instruction.  Return nonzero if
@@ -2547,9 +2492,6 @@ static int disas_cp15_insn(CPUARMState *env, DisasContext *s, uint32_t insn)
     }
 
     rd = (insn >> 12) & 0xf;
-
-    if (cp15_tls_load_store(env, s, insn, rd))
-        return 0;
 
     tmp2 = tcg_const_i32(insn);
     if (insn & ARM_CP_RW_BIT) {

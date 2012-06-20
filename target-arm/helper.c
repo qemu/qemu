@@ -154,6 +154,22 @@ static const ARMCPRegInfo t2ee_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static const ARMCPRegInfo v6k_cp_reginfo[] = {
+    { .name = "TPIDRURW", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL0_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls1),
+      .resetvalue = 0 },
+    { .name = "TPIDRURO", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 3,
+      .access = PL0_R|PL1_W,
+      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls2),
+      .resetvalue = 0 },
+    { .name = "TPIDRPRW", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls3),
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
 void register_cp_regs_for_features(ARMCPU *cpu)
 {
     /* Register all the coprocessor registers based on feature bits */
@@ -168,6 +184,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v6_cp_reginfo);
     } else {
         define_arm_cp_regs(cpu, not_v6_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_V6K)) {
+        define_arm_cp_regs(cpu, v6k_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_V7)) {
         define_arm_cp_regs(cpu, v7_cp_reginfo);
