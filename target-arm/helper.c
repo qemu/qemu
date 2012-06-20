@@ -88,6 +88,38 @@ static int contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
+static int tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    /* Invalidate all (TLBIALL) */
+    tlb_flush(env, 1);
+    return 0;
+}
+
+static int tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
+    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    return 0;
+}
+
+static int tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    /* Invalidate by ASID (TLBIASID) */
+    tlb_flush(env, value == 0);
+    return 0;
+}
+
+static int tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
+    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    return 0;
+}
+
 static const ARMCPRegInfo cp_reginfo[] = {
     /* DBGDIDR: just RAZ. In particular this means the "debug architecture
      * version" bits will read as a reserved value, which should cause
@@ -111,6 +143,17 @@ static const ARMCPRegInfo cp_reginfo[] = {
      */
     { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = CP_ANY,
       .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    /* MMU TLB control. Note that the wildcarding means we cover not just
+     * the unified TLB ops but also the dside/iside/inner-shareable variants.
+     */
+    { .name = "TLBIALL", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 0, .access = PL1_W, .writefn = tlbiall_write, },
+    { .name = "TLBIMVA", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 1, .access = PL1_W, .writefn = tlbimva_write, },
+    { .name = "TLBIASID", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 2, .access = PL1_W, .writefn = tlbiasid_write, },
+    { .name = "TLBIMVAA", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 3, .access = PL1_W, .writefn = tlbimvaa_write, },
     REGINFO_SENTINEL
 };
 
@@ -1835,24 +1878,6 @@ void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
             }
         }
         break;
-    case 8: /* MMU TLB control.  */
-        switch (op2) {
-        case 0: /* Invalidate all (TLBIALL) */
-            tlb_flush(env, 1);
-            break;
-        case 1: /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
-            tlb_flush_page(env, val & TARGET_PAGE_MASK);
-            break;
-        case 2: /* Invalidate by ASID (TLBIASID) */
-            tlb_flush(env, val == 0);
-            break;
-        case 3: /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
-            tlb_flush_page(env, val & TARGET_PAGE_MASK);
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
     case 9:
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             break;
@@ -2065,8 +2090,6 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
         /* FIXME: Should only clear Z flag if destination is r15.  */
         env->ZF = 0;
         return 0;
-    case 8: /* MMU TLB control.  */
-        goto bad_reg;
     case 9:
         switch (crm) {
         case 0: /* Cache lockdown */
