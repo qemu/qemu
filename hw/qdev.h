@@ -237,6 +237,7 @@ extern PropertyInfo qdev_prop_netdev;
 extern PropertyInfo qdev_prop_vlan;
 extern PropertyInfo qdev_prop_pci_devfn;
 extern PropertyInfo qdev_prop_blocksize;
+extern PropertyInfo qdev_prop_pci_host_devaddr;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \
@@ -300,6 +301,8 @@ extern PropertyInfo qdev_prop_blocksize;
                         LostTickPolicy)
 #define DEFINE_PROP_BLOCKSIZE(_n, _s, _f, _d) \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_blocksize, uint16_t)
+#define DEFINE_PROP_PCI_HOST_DEVADDR(_n, _s, _f) \
+    DEFINE_PROP(_n, _s, _f, qdev_prop_pci_host_devaddr, PCIHostDeviceAddress)
 
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
