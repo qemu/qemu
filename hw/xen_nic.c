@@ -35,17 +35,14 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
-#include <xs.h>
-#include <xenctrl.h>
-#include <xen/io/xenbus.h>
-#include <xen/io/netif.h>
-
 #include "hw.h"
 #include "net.h"
 #include "net/checksum.h"
 #include "net/util.h"
 #include "qemu-char.h"
 #include "xen_backend.h"
+
+#include <xen/io/netif.h>
 
 /* ------------------------------------------------------------- */
 
