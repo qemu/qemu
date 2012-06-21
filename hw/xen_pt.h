@@ -62,6 +62,8 @@ typedef int (*xen_pt_conf_byte_read)
 #define XEN_PT_BAR_ALLF 0xFFFFFFFF
 #define XEN_PT_BAR_UNMAPPED (-1)
 
+#define PCI_CAP_MAX 48
+
 
 typedef enum {
     XEN_PT_GRP_TYPE_HARDWIRED = 0,  /* 0 Hardwired reg group */

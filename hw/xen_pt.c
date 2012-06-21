@@ -673,6 +673,13 @@ static int xen_pt_initfn(PCIDevice *d)
     /* Handle real device's MMIO/PIO BARs */
     xen_pt_register_regions(s);
 
+    /* reinitialize each config register to be emulated */
+    if (xen_pt_config_init(s)) {
+        XEN_PT_ERR(d, "PCI Config space initialisation failed.\n");
+        xen_host_pci_device_put(&s->real_device);
+        return -1;
+    }
+
     /* Bind interrupt */
     if (!s->dev.config[PCI_INTERRUPT_PIN]) {
         XEN_PT_LOG(d, "no pin interrupt\n");
@@ -770,6 +777,9 @@ static int xen_pt_unregister_device(PCIDevice *d)
             }
         }
     }
+
+    /* delete all emulated config registers */
+    xen_pt_config_delete(s);
 
     xen_pt_unregister_regions(s);
     memory_listener_unregister(&s->memory_listener);
