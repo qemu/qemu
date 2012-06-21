@@ -693,7 +693,7 @@ enum {
 #define MAS1_VALID         0x80000000
 
 #define MAS2_EPN_SHIFT     12
-#define MAS2_EPN_MASK      (0xfffff << MAS2_EPN_SHIFT)
+#define MAS2_EPN_MASK      (~0ULL << MAS2_EPN_SHIFT)
 
 #define MAS2_ACM_SHIFT     6
 #define MAS2_ACM           (1 << MAS2_ACM_SHIFT)
