@@ -36,6 +36,20 @@
  *
  *     Write '1'
  *       - Set real bit to '1'.
+ *
+ * MSI interrupt:
+ *   Initialize MSI register(xen_pt_msi_setup, xen_pt_msi_update)
+ *     Bind MSI(xc_domain_update_msi_irq)
+ *       <fail>
+ *         - Unmap MSI.
+ *         - Set dev->msi->pirq to '-1'.
+ *
+ * MSI-X interrupt:
+ *   Initialize MSI-X register(xen_pt_msix_update_one)
+ *     Bind MSI-X(xc_domain_update_msi_irq)
+ *       <fail>
+ *         - Unmap MSI-X.
+ *         - Set entry->pirq to '-1'.
  */
 
 #include <sys/ioctl.h>
@@ -534,7 +548,15 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     };
 
     bar = xen_pt_bar_from_region(s, mr);
-    if (bar == -1) {
+    if (bar == -1 && (!s->msix || &s->msix->mmio != mr)) {
+        return;
+    }
+
+    if (s->msix && &s->msix->mmio == mr) {
+        if (adding) {
+            s->msix->mmio_base_addr = sec->offset_within_address_space;
+            rc = xen_pt_msix_update_remap(s, s->msix->bar_index);
+        }
         return;
     }
 
@@ -762,6 +784,13 @@ static int xen_pt_unregister_device(PCIDevice *d)
                        " But bravely continuing on..\n",
                        'a' + intx, machine_irq, rc);
         }
+    }
+
+    if (s->msi) {
+        xen_pt_msi_disable(s);
+    }
+    if (s->msix) {
+        xen_pt_msix_disable(s);
     }
 
     if (machine_irq) {

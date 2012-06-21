@@ -160,6 +160,36 @@ typedef struct XenPTRegGroup {
 
 
 #define XEN_PT_UNASSIGNED_PIRQ (-1)
+typedef struct XenPTMSI {
+    uint16_t flags;
+    uint32_t addr_lo;  /* guest message address */
+    uint32_t addr_hi;  /* guest message upper address */
+    uint16_t data;     /* guest message data */
+    uint32_t ctrl_offset; /* saved control offset */
+    int pirq;          /* guest pirq corresponding */
+    bool initialized;  /* when guest MSI is initialized */
+    bool mapped;       /* when pirq is mapped */
+} XenPTMSI;
+
+typedef struct XenPTMSIXEntry {
+    int pirq;
+    uint64_t addr;
+    uint32_t data;
+    uint32_t vector_ctrl;
+    bool updated; /* indicate whether MSI ADDR or DATA is updated */
+} XenPTMSIXEntry;
+typedef struct XenPTMSIX {
+    uint32_t ctrl_offset;
+    bool enabled;
+    int total_entries;
+    int bar_index;
+    uint64_t table_base;
+    uint32_t table_offset_adjust; /* page align mmap */
+    uint64_t mmio_base_addr;
+    MemoryRegion mmio;
+    void *phys_iomem_base;
+    XenPTMSIXEntry msix_entry[0];
+} XenPTMSIX;
 
 struct XenPCIPassthroughState {
     PCIDevice dev;
@@ -171,6 +201,9 @@ struct XenPCIPassthroughState {
     QLIST_HEAD(, XenPTRegGroup) reg_grps;
 
     uint32_t machine_irq;
+
+    XenPTMSI *msi;
+    XenPTMSIX *msix;
 
     MemoryRegion bar[PCI_NUM_REGIONS - 1];
     MemoryRegion rom;
@@ -246,5 +279,23 @@ static inline uint8_t xen_pt_pci_intx(XenPCIPassthroughState *s)
 
     return r_val;
 }
+
+/* MSI/MSI-X */
+int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool en);
+int xen_pt_msi_setup(XenPCIPassthroughState *s);
+int xen_pt_msi_update(XenPCIPassthroughState *d);
+void xen_pt_msi_disable(XenPCIPassthroughState *s);
+
+int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base);
+void xen_pt_msix_delete(XenPCIPassthroughState *s);
+int xen_pt_msix_update(XenPCIPassthroughState *s);
+int xen_pt_msix_update_remap(XenPCIPassthroughState *s, int bar_index);
+void xen_pt_msix_disable(XenPCIPassthroughState *s);
+
+static inline bool xen_pt_has_msix_mapping(XenPCIPassthroughState *s, int bar)
+{
+    return s->msix && s->msix->bar_index == bar;
+}
+
 
 #endif /* !XEN_PT_H */

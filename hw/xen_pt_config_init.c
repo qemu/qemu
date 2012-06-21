@@ -1022,6 +1022,410 @@ static XenPTRegInfo xen_pt_emu_reg_pm[] = {
 };
 
 
+/********************************
+ * MSI Capability
+ */
+
+/* Helper */
+static bool xen_pt_msgdata_check_type(uint32_t offset, uint16_t flags)
+{
+    /* check the offset whether matches the type or not */
+    bool is_32 = (offset == PCI_MSI_DATA_32) && !(flags & PCI_MSI_FLAGS_64BIT);
+    bool is_64 = (offset == PCI_MSI_DATA_64) &&  (flags & PCI_MSI_FLAGS_64BIT);
+    return is_32 || is_64;
+}
+
+/* Message Control register */
+static int xen_pt_msgctrl_reg_init(XenPCIPassthroughState *s,
+                                   XenPTRegInfo *reg, uint32_t real_offset,
+                                   uint32_t *data)
+{
+    PCIDevice *d = &s->dev;
+    XenPTMSI *msi = s->msi;
+    uint16_t reg_field = 0;
+
+    /* use I/O device register's value as initial value */
+    reg_field = pci_get_word(d->config + real_offset);
+
+    if (reg_field & PCI_MSI_FLAGS_ENABLE) {
+        XEN_PT_LOG(&s->dev, "MSI already enabled, disabling it first\n");
+        xen_host_pci_set_word(&s->real_device, real_offset,
+                              reg_field & ~PCI_MSI_FLAGS_ENABLE);
+    }
+    msi->flags |= reg_field;
+    msi->ctrl_offset = real_offset;
+    msi->initialized = false;
+    msi->mapped = false;
+
+    *data = reg->init_val;
+    return 0;
+}
+static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
+                                    XenPTReg *cfg_entry, uint16_t *val,
+                                    uint16_t dev_value, uint16_t valid_mask)
+{
+    XenPTRegInfo *reg = cfg_entry->reg;
+    XenPTMSI *msi = s->msi;
+    uint16_t writable_mask = 0;
+    uint16_t throughable_mask = 0;
+    uint16_t raw_val;
+
+    /* Currently no support for multi-vector */
+    if (*val & PCI_MSI_FLAGS_QSIZE) {
+        XEN_PT_WARN(&s->dev, "Tries to set more than 1 vector ctrl %x\n", *val);
+    }
+
+    /* modify emulate register */
+    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
+    cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
+    msi->flags |= cfg_entry->data & ~PCI_MSI_FLAGS_ENABLE;
+
+    /* create value for writing to I/O device register */
+    raw_val = *val;
+    throughable_mask = ~reg->emu_mask & valid_mask;
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+
+    /* update MSI */
+    if (raw_val & PCI_MSI_FLAGS_ENABLE) {
+        /* setup MSI pirq for the first time */
+        if (!msi->initialized) {
+            /* Init physical one */
+            XEN_PT_LOG(&s->dev, "setup MSI\n");
+            if (xen_pt_msi_setup(s)) {
+                /* We do not broadcast the error to the framework code, so
+                 * that MSI errors are contained in MSI emulation code and
+                 * QEMU can go on running.
+                 * Guest MSI would be actually not working.
+                 */
+                *val &= ~PCI_MSI_FLAGS_ENABLE;
+                XEN_PT_WARN(&s->dev, "Can not map MSI.\n");
+                return 0;
+            }
+            if (xen_pt_msi_update(s)) {
+                *val &= ~PCI_MSI_FLAGS_ENABLE;
+                XEN_PT_WARN(&s->dev, "Can not bind MSI\n");
+                return 0;
+            }
+            msi->initialized = true;
+            msi->mapped = true;
+        }
+        msi->flags |= PCI_MSI_FLAGS_ENABLE;
+    } else {
+        msi->flags &= ~PCI_MSI_FLAGS_ENABLE;
+    }
+
+    /* pass through MSI_ENABLE bit */
+    *val &= ~PCI_MSI_FLAGS_ENABLE;
+    *val |= raw_val & PCI_MSI_FLAGS_ENABLE;
+
+    return 0;
+}
+
+/* initialize Message Upper Address register */
+static int xen_pt_msgaddr64_reg_init(XenPCIPassthroughState *s,
+                                     XenPTRegInfo *reg, uint32_t real_offset,
+                                     uint32_t *data)
+{
+    /* no need to initialize in case of 32 bit type */
+    if (!(s->msi->flags & PCI_MSI_FLAGS_64BIT)) {
+        *data = XEN_PT_INVALID_REG;
+    } else {
+        *data = reg->init_val;
+    }
+
+    return 0;
+}
+/* this function will be called twice (for 32 bit and 64 bit type) */
+/* initialize Message Data register */
+static int xen_pt_msgdata_reg_init(XenPCIPassthroughState *s,
+                                   XenPTRegInfo *reg, uint32_t real_offset,
+                                   uint32_t *data)
+{
+    uint32_t flags = s->msi->flags;
+    uint32_t offset = reg->offset;
+
+    /* check the offset whether matches the type or not */
+    if (xen_pt_msgdata_check_type(offset, flags)) {
+        *data = reg->init_val;
+    } else {
+        *data = XEN_PT_INVALID_REG;
+    }
+    return 0;
+}
+
+/* write Message Address register */
+static int xen_pt_msgaddr32_reg_write(XenPCIPassthroughState *s,
+                                      XenPTReg *cfg_entry, uint32_t *val,
+                                      uint32_t dev_value, uint32_t valid_mask)
+{
+    XenPTRegInfo *reg = cfg_entry->reg;
+    uint32_t writable_mask = 0;
+    uint32_t throughable_mask = 0;
+    uint32_t old_addr = cfg_entry->data;
+
+    /* modify emulate register */
+    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
+    cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
+    s->msi->addr_lo = cfg_entry->data;
+
+    /* create value for writing to I/O device register */
+    throughable_mask = ~reg->emu_mask & valid_mask;
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+
+    /* update MSI */
+    if (cfg_entry->data != old_addr) {
+        if (s->msi->mapped) {
+            xen_pt_msi_update(s);
+        }
+    }
+
+    return 0;
+}
+/* write Message Upper Address register */
+static int xen_pt_msgaddr64_reg_write(XenPCIPassthroughState *s,
+                                      XenPTReg *cfg_entry, uint32_t *val,
+                                      uint32_t dev_value, uint32_t valid_mask)
+{
+    XenPTRegInfo *reg = cfg_entry->reg;
+    uint32_t writable_mask = 0;
+    uint32_t throughable_mask = 0;
+    uint32_t old_addr = cfg_entry->data;
+
+    /* check whether the type is 64 bit or not */
+    if (!(s->msi->flags & PCI_MSI_FLAGS_64BIT)) {
+        XEN_PT_ERR(&s->dev,
+                   "Can't write to the upper address without 64 bit support\n");
+        return -1;
+    }
+
+    /* modify emulate register */
+    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
+    cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
+    /* update the msi_info too */
+    s->msi->addr_hi = cfg_entry->data;
+
+    /* create value for writing to I/O device register */
+    throughable_mask = ~reg->emu_mask & valid_mask;
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+
+    /* update MSI */
+    if (cfg_entry->data != old_addr) {
+        if (s->msi->mapped) {
+            xen_pt_msi_update(s);
+        }
+    }
+
+    return 0;
+}
+
+
+/* this function will be called twice (for 32 bit and 64 bit type) */
+/* write Message Data register */
+static int xen_pt_msgdata_reg_write(XenPCIPassthroughState *s,
+                                    XenPTReg *cfg_entry, uint16_t *val,
+                                    uint16_t dev_value, uint16_t valid_mask)
+{
+    XenPTRegInfo *reg = cfg_entry->reg;
+    XenPTMSI *msi = s->msi;
+    uint16_t writable_mask = 0;
+    uint16_t throughable_mask = 0;
+    uint16_t old_data = cfg_entry->data;
+    uint32_t offset = reg->offset;
+
+    /* check the offset whether matches the type or not */
+    if (!xen_pt_msgdata_check_type(offset, msi->flags)) {
+        /* exit I/O emulator */
+        XEN_PT_ERR(&s->dev, "the offset does not match the 32/64 bit type!\n");
+        return -1;
+    }
+
+    /* modify emulate register */
+    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
+    cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
+    /* update the msi_info too */
+    msi->data = cfg_entry->data;
+
+    /* create value for writing to I/O device register */
+    throughable_mask = ~reg->emu_mask & valid_mask;
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+
+    /* update MSI */
+    if (cfg_entry->data != old_data) {
+        if (msi->mapped) {
+            xen_pt_msi_update(s);
+        }
+    }
+
+    return 0;
+}
+
+/* MSI Capability Structure reg static infomation table */
+static XenPTRegInfo xen_pt_emu_reg_msi[] = {
+    /* Next Pointer reg */
+    {
+        .offset     = PCI_CAP_LIST_NEXT,
+        .size       = 1,
+        .init_val   = 0x00,
+        .ro_mask    = 0xFF,
+        .emu_mask   = 0xFF,
+        .init       = xen_pt_ptr_reg_init,
+        .u.b.read   = xen_pt_byte_reg_read,
+        .u.b.write  = xen_pt_byte_reg_write,
+    },
+    /* Message Control reg */
+    {
+        .offset     = PCI_MSI_FLAGS,
+        .size       = 2,
+        .init_val   = 0x0000,
+        .ro_mask    = 0xFF8E,
+        .emu_mask   = 0x007F,
+        .init       = xen_pt_msgctrl_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_msgctrl_reg_write,
+    },
+    /* Message Address reg */
+    {
+        .offset     = PCI_MSI_ADDRESS_LO,
+        .size       = 4,
+        .init_val   = 0x00000000,
+        .ro_mask    = 0x00000003,
+        .emu_mask   = 0xFFFFFFFF,
+        .no_wb      = 1,
+        .init       = xen_pt_common_reg_init,
+        .u.dw.read  = xen_pt_long_reg_read,
+        .u.dw.write = xen_pt_msgaddr32_reg_write,
+    },
+    /* Message Upper Address reg (if PCI_MSI_FLAGS_64BIT set) */
+    {
+        .offset     = PCI_MSI_ADDRESS_HI,
+        .size       = 4,
+        .init_val   = 0x00000000,
+        .ro_mask    = 0x00000000,
+        .emu_mask   = 0xFFFFFFFF,
+        .no_wb      = 1,
+        .init       = xen_pt_msgaddr64_reg_init,
+        .u.dw.read  = xen_pt_long_reg_read,
+        .u.dw.write = xen_pt_msgaddr64_reg_write,
+    },
+    /* Message Data reg (16 bits of data for 32-bit devices) */
+    {
+        .offset     = PCI_MSI_DATA_32,
+        .size       = 2,
+        .init_val   = 0x0000,
+        .ro_mask    = 0x0000,
+        .emu_mask   = 0xFFFF,
+        .no_wb      = 1,
+        .init       = xen_pt_msgdata_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_msgdata_reg_write,
+    },
+    /* Message Data reg (16 bits of data for 64-bit devices) */
+    {
+        .offset     = PCI_MSI_DATA_64,
+        .size       = 2,
+        .init_val   = 0x0000,
+        .ro_mask    = 0x0000,
+        .emu_mask   = 0xFFFF,
+        .no_wb      = 1,
+        .init       = xen_pt_msgdata_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_msgdata_reg_write,
+    },
+    {
+        .size = 0,
+    },
+};
+
+
+/**************************************
+ * MSI-X Capability
+ */
+
+/* Message Control register for MSI-X */
+static int xen_pt_msixctrl_reg_init(XenPCIPassthroughState *s,
+                                    XenPTRegInfo *reg, uint32_t real_offset,
+                                    uint32_t *data)
+{
+    PCIDevice *d = &s->dev;
+    uint16_t reg_field = 0;
+
+    /* use I/O device register's value as initial value */
+    reg_field = pci_get_word(d->config + real_offset);
+
+    if (reg_field & PCI_MSIX_FLAGS_ENABLE) {
+        XEN_PT_LOG(d, "MSIX already enabled, disabling it first\n");
+        xen_host_pci_set_word(&s->real_device, real_offset,
+                              reg_field & ~PCI_MSIX_FLAGS_ENABLE);
+    }
+
+    s->msix->ctrl_offset = real_offset;
+
+    *data = reg->init_val;
+    return 0;
+}
+static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
+                                     XenPTReg *cfg_entry, uint16_t *val,
+                                     uint16_t dev_value, uint16_t valid_mask)
+{
+    XenPTRegInfo *reg = cfg_entry->reg;
+    uint16_t writable_mask = 0;
+    uint16_t throughable_mask = 0;
+    int debug_msix_enabled_old;
+
+    /* modify emulate register */
+    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
+    cfg_entry->data = XEN_PT_MERGE_VALUE(*val, cfg_entry->data, writable_mask);
+
+    /* create value for writing to I/O device register */
+    throughable_mask = ~reg->emu_mask & valid_mask;
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+
+    /* update MSI-X */
+    if ((*val & PCI_MSIX_FLAGS_ENABLE)
+        && !(*val & PCI_MSIX_FLAGS_MASKALL)) {
+        xen_pt_msix_update(s);
+    }
+
+    debug_msix_enabled_old = s->msix->enabled;
+    s->msix->enabled = !!(*val & PCI_MSIX_FLAGS_ENABLE);
+    if (s->msix->enabled != debug_msix_enabled_old) {
+        XEN_PT_LOG(&s->dev, "%s MSI-X\n",
+                   s->msix->enabled ? "enable" : "disable");
+    }
+
+    return 0;
+}
+
+/* MSI-X Capability Structure reg static infomation table */
+static XenPTRegInfo xen_pt_emu_reg_msix[] = {
+    /* Next Pointer reg */
+    {
+        .offset     = PCI_CAP_LIST_NEXT,
+        .size       = 1,
+        .init_val   = 0x00,
+        .ro_mask    = 0xFF,
+        .emu_mask   = 0xFF,
+        .init       = xen_pt_ptr_reg_init,
+        .u.b.read   = xen_pt_byte_reg_read,
+        .u.b.write  = xen_pt_byte_reg_write,
+    },
+    /* Message Control reg */
+    {
+        .offset     = PCI_MSI_FLAGS,
+        .size       = 2,
+        .init_val   = 0x0000,
+        .ro_mask    = 0x3FFF,
+        .emu_mask   = 0x0000,
+        .init       = xen_pt_msixctrl_reg_init,
+        .u.w.read   = xen_pt_word_reg_read,
+        .u.w.write  = xen_pt_msixctrl_reg_write,
+    },
+    {
+        .size = 0,
+    },
+};
+
+
 /****************************
  * Capabilities
  */
@@ -1115,6 +1519,49 @@ static int xen_pt_pcie_size_init(XenPCIPassthroughState *s,
     *size = pcie_size;
     return 0;
 }
+/* get MSI Capability Structure register group size */
+static int xen_pt_msi_size_init(XenPCIPassthroughState *s,
+                                const XenPTRegGroupInfo *grp_reg,
+                                uint32_t base_offset, uint8_t *size)
+{
+    PCIDevice *d = &s->dev;
+    uint16_t msg_ctrl = 0;
+    uint8_t msi_size = 0xa;
+
+    msg_ctrl = pci_get_word(d->config + (base_offset + PCI_MSI_FLAGS));
+
+    /* check if 64-bit address is capable of per-vector masking */
+    if (msg_ctrl & PCI_MSI_FLAGS_64BIT) {
+        msi_size += 4;
+    }
+    if (msg_ctrl & PCI_MSI_FLAGS_MASKBIT) {
+        msi_size += 10;
+    }
+
+    s->msi = g_new0(XenPTMSI, 1);
+    s->msi->pirq = XEN_PT_UNASSIGNED_PIRQ;
+
+    *size = msi_size;
+    return 0;
+}
+/* get MSI-X Capability Structure register group size */
+static int xen_pt_msix_size_init(XenPCIPassthroughState *s,
+                                 const XenPTRegGroupInfo *grp_reg,
+                                 uint32_t base_offset, uint8_t *size)
+{
+    int rc = 0;
+
+    rc = xen_pt_msix_init(s, base_offset);
+
+    if (rc < 0) {
+        XEN_PT_ERR(&s->dev, "Internal error: Invalid xen_pt_msix_init.\n");
+        return rc;
+    }
+
+    *size = grp_reg->grp_size;
+    return 0;
+}
+
 
 static const XenPTRegGroupInfo xen_pt_emu_reg_grps[] = {
     /* Header Type0 reg group */
@@ -1154,6 +1601,14 @@ static const XenPTRegGroupInfo xen_pt_emu_reg_grps[] = {
         .grp_type   = XEN_PT_GRP_TYPE_HARDWIRED,
         .grp_size   = 0x04,
         .size_init  = xen_pt_reg_grp_size_init,
+    },
+    /* MSI Capability Structure reg group */
+    {
+        .grp_id      = PCI_CAP_ID_MSI,
+        .grp_type    = XEN_PT_GRP_TYPE_EMU,
+        .grp_size    = 0xFF,
+        .size_init   = xen_pt_msi_size_init,
+        .emu_regs = xen_pt_emu_reg_msi,
     },
     /* PCI-X Capabilities List Item reg group */
     {
@@ -1198,6 +1653,14 @@ static const XenPTRegGroupInfo xen_pt_emu_reg_grps[] = {
         .grp_size    = 0xFF,
         .size_init   = xen_pt_pcie_size_init,
         .emu_regs = xen_pt_emu_reg_pcie,
+    },
+    /* MSI-X Capability Structure reg group */
+    {
+        .grp_id      = PCI_CAP_ID_MSIX,
+        .grp_type    = XEN_PT_GRP_TYPE_EMU,
+        .grp_size    = 0x0C,
+        .size_init   = xen_pt_msix_size_init,
+        .emu_regs = xen_pt_emu_reg_msix,
     },
     {
         .grp_size = 0,
@@ -1383,6 +1846,14 @@ void xen_pt_config_delete(XenPCIPassthroughState *s)
 {
     struct XenPTRegGroup *reg_group, *next_grp;
     struct XenPTReg *reg, *next_reg;
+
+    /* free MSI/MSI-X info table */
+    if (s->msix) {
+        xen_pt_msix_delete(s);
+    }
+    if (s->msi) {
+        g_free(s->msi);
+    }
 
     /* free all register group entry */
     QLIST_FOREACH_SAFE(reg_group, &s->reg_grps, entries, next_grp) {
