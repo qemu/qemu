@@ -7,6 +7,7 @@ obj-y += debugcon.o multiboot.o
 obj-y += pc_piix.o
 obj-y += pc_sysfw.o
 obj-$(CONFIG_XEN) += xen_platform.o xen_apic.o
+obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen-host-pci-device.o
 obj-y += kvm/
 obj-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
