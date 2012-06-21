@@ -2804,7 +2804,7 @@ static void init_excp_G2 (CPUPPCState *env)
 #endif
 }
 
-static void init_excp_e200 (CPUPPCState *env)
+static void init_excp_e200(CPUPPCState *env, target_ulong ivpr_mask)
 {
 #if !defined(CONFIG_USER_ONLY)
     env->excp_vectors[POWERPC_EXCP_RESET]    = 0x00000FFC;
@@ -2829,7 +2829,7 @@ static void init_excp_e200 (CPUPPCState *env)
     env->excp_vectors[POWERPC_EXCP_EFPRI]    = 0x00000000;
     env->hreset_excp_prefix = 0x00000000UL;
     env->ivor_mask = 0x0000FFF7UL;
-    env->ivpr_mask = 0xFFFF0000UL;
+    env->ivpr_mask = ivpr_mask;
     /* Hardware reset vector */
     env->hreset_vector = 0xFFFFFFFCUL;
 #endif
@@ -4307,7 +4307,7 @@ static void init_proc_e200 (CPUPPCState *env)
     env->id_tlbs = 0;
     env->tlb_type = TLB_EMB;
 #endif
-    init_excp_e200(env);
+    init_excp_e200(env, 0xFFFF0000UL);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
@@ -4434,6 +4434,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
 {
     uint32_t tlbncfg[2];
     uint64_t ivor_mask = 0x0000000F0000FFFFULL;
+    uint64_t ivpr_mask = 0xFFFF0000ULL;
     uint32_t l1cfg0 = 0x3800  /* 8 ways */
                     | 0x0020; /* 32 kb */
 #if !defined(CONFIG_USER_ONLY)
@@ -4575,7 +4576,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
     }
 #endif
 
-    init_excp_e200(env);
+    init_excp_e200(env, ivpr_mask);
     /* Allocate hardware IRQ controller */
     ppce500_irq_init(env);
 }
