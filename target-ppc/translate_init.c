@@ -86,6 +86,19 @@ static void spr_write_generic (void *opaque, int sprn, int gprn)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+static void spr_write_generic32(void *opaque, int sprn, int gprn)
+{
+#ifdef TARGET_PPC64
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_ext32u_tl(t0, cpu_gpr[gprn]);
+    gen_store_spr(sprn, t0);
+    tcg_temp_free(t0);
+    spr_store_dump_spr(sprn);
+#else
+    spr_write_generic(opaque, sprn, gprn);
+#endif
+}
+
 static void spr_write_clear (void *opaque, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
@@ -1597,10 +1610,14 @@ static void gen_spr_BookE206(CPUPPCState *env, uint32_t mas_mask,
     /* TLB assist registers */
     /* XXX : not implemented */
     for (i = 0; i < 8; i++) {
+        void (*uea_write)(void *o, int sprn, int gprn) = &spr_write_generic32;
+        if (i == 2 && (mas_mask & (1 << i)) && (env->insns_flags & PPC_64B)) {
+            uea_write = &spr_write_generic;
+        }
         if (mas_mask & (1 << i)) {
             spr_register(env, mas_sprn[i], mas_names[i],
                          SPR_NOACCESS, SPR_NOACCESS,
-                         &spr_read_generic, &spr_write_generic,
+                         &spr_read_generic, uea_write,
                          0x00000000);
         }
     }
