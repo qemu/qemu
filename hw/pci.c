@@ -1144,7 +1144,9 @@ static const pci_class_desc pci_class_descriptions[] =
 };
 
 static void pci_for_each_device_under_bus(PCIBus *bus,
-                                          void (*fn)(PCIBus *b, PCIDevice *d))
+                                          void (*fn)(PCIBus *b, PCIDevice *d,
+                                                     void *opaque),
+                                          void *opaque)
 {
     PCIDevice *d;
     int devfn;
@@ -1152,18 +1154,19 @@ static void pci_for_each_device_under_bus(PCIBus *bus,
     for(devfn = 0; devfn < ARRAY_SIZE(bus->devices); devfn++) {
         d = bus->devices[devfn];
         if (d) {
-            fn(bus, d);
+            fn(bus, d, opaque);
         }
     }
 }
 
 void pci_for_each_device(PCIBus *bus, int bus_num,
-                         void (*fn)(PCIBus *b, PCIDevice *d))
+                         void (*fn)(PCIBus *b, PCIDevice *d, void *opaque),
+                         void *opaque)
 {
     bus = pci_find_bus_nr(bus, bus_num);
 
     if (bus) {
-        pci_for_each_device_under_bus(bus, fn);
+        pci_for_each_device_under_bus(bus, fn, opaque);
     }
 }
 

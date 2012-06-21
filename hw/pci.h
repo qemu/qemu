@@ -312,7 +312,9 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
                                const char *default_devaddr);
 int pci_bus_num(PCIBus *s);
-void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
+void pci_for_each_device(PCIBus *bus, int bus_num,
+                         void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
+                         void *opaque);
 PCIBus *pci_find_root_bus(int domain);
 int pci_find_domain(const PCIBus *bus);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
