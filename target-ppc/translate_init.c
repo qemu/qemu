@@ -55,28 +55,34 @@ PPC_IRQ_INIT_FN(e500);
 /* Generic callbacks:
  * do nothing but store/retrieve spr value
  */
+static void spr_load_dump_spr(int sprn)
+{
+#ifdef PPC_DUMP_SPR_ACCESSES
+    TCGv_i32 t0 = tcg_const_i32(sprn);
+    gen_helper_load_dump_spr(t0);
+    tcg_temp_free_i32(t0);
+#endif
+}
+
 static void spr_read_generic (void *opaque, int gprn, int sprn)
 {
     gen_load_spr(cpu_gpr[gprn], sprn);
+    spr_load_dump_spr(sprn);
+}
+
+static void spr_store_dump_spr(int sprn)
+{
 #ifdef PPC_DUMP_SPR_ACCESSES
-    {
-        TCGv_i32 t0 = tcg_const_i32(sprn);
-        gen_helper_load_dump_spr(t0);
-        tcg_temp_free_i32(t0);
-    }
+    TCGv_i32 t0 = tcg_const_i32(sprn);
+    gen_helper_store_dump_spr(t0);
+    tcg_temp_free_i32(t0);
 #endif
 }
 
 static void spr_write_generic (void *opaque, int sprn, int gprn)
 {
     gen_store_spr(sprn, cpu_gpr[gprn]);
-#ifdef PPC_DUMP_SPR_ACCESSES
-    {
-        TCGv_i32 t0 = tcg_const_i32(sprn);
-        gen_helper_store_dump_spr(t0);
-        tcg_temp_free_i32(t0);
-    }
-#endif
+    spr_store_dump_spr(sprn);
 }
 
 #if !defined(CONFIG_USER_ONLY)
