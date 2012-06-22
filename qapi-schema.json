@@ -1870,3 +1870,38 @@
 # Since: 0.14.0
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
+
+##
+# @getfd:
+#
+# Receive a file descriptor via SCM rights and assign it a name
+#
+# @fdname: file descriptor name
+#
+# Returns: Nothing on success
+#          If file descriptor was not received, FdNotSupplied
+#          If @fdname is not valid, InvalidParameterType
+#
+# Since: 0.14.0
+#
+# Notes: If @fdname already exists, the file descriptor assigned to
+#        it will be closed and replaced by the received file
+#        descriptor.
+#        The 'closefd' command can be used to explicitly close the
+#        file descriptor when it is no longer needed.
+##
+{ 'command': 'getfd', 'data': {'fdname': 'str'} }
+
+##
+# @closefd:
+#
+# Close a file descriptor previously passed via SCM rights
+#
+# @fdname: file descriptor name
+#
+# Returns: Nothing on success
+#          If @fdname is not found, FdNotFound
+#
+# Since: 0.14.0
+##
+{ 'command': 'closefd', 'data': {'fdname': 'str'} }

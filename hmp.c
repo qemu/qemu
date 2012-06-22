@@ -1002,3 +1002,21 @@ void hmp_netdev_del(Monitor *mon, const QDict *qdict)
     qmp_netdev_del(id, &err);
     hmp_handle_error(mon, &err);
 }
+
+void hmp_getfd(Monitor *mon, const QDict *qdict)
+{
+    const char *fdname = qdict_get_str(qdict, "fdname");
+    Error *errp = NULL;
+
+    qmp_getfd(fdname, &errp);
+    hmp_handle_error(mon, &errp);
+}
+
+void hmp_closefd(Monitor *mon, const QDict *qdict)
+{
+    const char *fdname = qdict_get_str(qdict, "fdname");
+    Error *errp = NULL;
+
+    qmp_closefd(fdname, &errp);
+    hmp_handle_error(mon, &errp);
+}

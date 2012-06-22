@@ -873,8 +873,7 @@ EQMP
         .args_type  = "fdname:s",
         .params     = "getfd name",
         .help       = "receive a file descriptor via SCM rights and assign it a name",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_getfd,
+        .mhandler.cmd_new = qmp_marshal_input_getfd,
     },
 
 SQMP
@@ -892,6 +891,14 @@ Example:
 -> { "execute": "getfd", "arguments": { "fdname": "fd1" } }
 <- { "return": {} }
 
+Notes:
+
+(1) If the name specified by the "fdname" argument already exists,
+    the file descriptor assigned to it will be closed and replaced
+    by the received file descriptor.
+(2) The 'closefd' command can be used to explicitly close the file
+    descriptor when it is no longer needed.
+
 EQMP
 
     {
@@ -899,8 +906,7 @@ EQMP
         .args_type  = "fdname:s",
         .params     = "closefd name",
         .help       = "close a file descriptor previously passed via SCM rights",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_closefd,
+        .mhandler.cmd_new = qmp_marshal_input_closefd,
     },
 
 SQMP
