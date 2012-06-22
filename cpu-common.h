@@ -3,9 +3,7 @@
 
 /* CPU interfaces that are target independent.  */
 
-#ifdef TARGET_PHYS_ADDR_BITS
 #include "targphys.h"
-#endif
 
 #ifndef NEED_CPU_H
 #include "poison.h"
