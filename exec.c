@@ -2565,8 +2565,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
-    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
-           0xff, size >> TARGET_PAGE_BITS);
+    cpu_physical_memory_set_dirty_range(new_block->offset, size, 0xff);
 
     if (kvm_enabled())
         kvm_setup_guest_memory(new_block->host, size);
