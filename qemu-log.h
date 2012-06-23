@@ -51,7 +51,8 @@ void GCC_FMT_ATTR(1, 2) qemu_log(const char *fmt, ...);
 
 /* vfprintf-like logging function
  */
-static inline void qemu_log_vprintf(const char *fmt, va_list va)
+static inline void GCC_FMT_ATTR(1, 0)
+qemu_log_vprintf(const char *fmt, va_list va)
 {
     if (qemu_logfile) {
         vfprintf(qemu_logfile, fmt, va);
