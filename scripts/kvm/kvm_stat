@@ -141,15 +141,39 @@ svm_exit_reasons = {
     0x400: 'NPF',
 }
 
+s390_exit_reasons = {
+	0x000: 'UNKNOWN',
+	0x001: 'EXCEPTION',
+	0x002: 'IO',
+	0x003: 'HYPERCALL',
+	0x004: 'DEBUG',
+	0x005: 'HLT',
+	0x006: 'MMIO',
+	0x007: 'IRQ_WINDOW_OPEN',
+	0x008: 'SHUTDOWN',
+	0x009: 'FAIL_ENTRY',
+	0x010: 'INTR',
+	0x011: 'SET_TPR',
+	0x012: 'TPR_ACCESS',
+	0x013: 'S390_SIEIC',
+	0x014: 'S390_RESET',
+	0x015: 'DCR',
+	0x016: 'NMI',
+	0x017: 'INTERNAL_ERROR',
+	0x018: 'OSI',
+	0x019: 'PAPR_HCALL',
+}
+
 vendor_exit_reasons = {
     'vmx': vmx_exit_reasons,
     'svm': svm_exit_reasons,
+    'IBM/S390': s390_exit_reasons,
 }
 
 exit_reasons = None
 
 for line in file('/proc/cpuinfo').readlines():
-    if line.startswith('flags'):
+    if line.startswith('flags') or line.startswith('vendor_id'):
         for flag in line.split():
             if flag in vendor_exit_reasons:
                 exit_reasons = vendor_exit_reasons[flag]
