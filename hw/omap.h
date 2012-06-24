@@ -998,7 +998,6 @@ enum {
 #define OMAP_GPIOSW_OUTPUT	0x0002
 
 # define TCMI_VERBOSE			1
-//# define MEM_VERBOSE			1
 
 # ifdef TCMI_VERBOSE
 #  define OMAP_8B_REG(paddr)		\
@@ -1017,99 +1016,5 @@ enum {
 # endif
 
 # define OMAP_MPUI_REG_MASK		0x000007ff
-
-# ifdef MEM_VERBOSE
-struct io_fn {
-    CPUReadMemoryFunc * const *mem_read;
-    CPUWriteMemoryFunc * const *mem_write;
-    void *opaque;
-    int in;
-};
-
-static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
-{
-    struct io_fn *s = opaque;
-    uint32_t ret;
-
-    s->in ++;
-    ret = s->mem_read[0](s->opaque, addr);
-    s->in --;
-    if (!s->in)
-        fprintf(stderr, "%08x ---> %02x\n", (uint32_t) addr, ret);
-    return ret;
-}
-static uint32_t io_readh(void *opaque, target_phys_addr_t addr)
-{
-    struct io_fn *s = opaque;
-    uint32_t ret;
-
-    s->in ++;
-    ret = s->mem_read[1](s->opaque, addr);
-    s->in --;
-    if (!s->in)
-        fprintf(stderr, "%08x ---> %04x\n", (uint32_t) addr, ret);
-    return ret;
-}
-static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
-{
-    struct io_fn *s = opaque;
-    uint32_t ret;
-
-    s->in ++;
-    ret = s->mem_read[2](s->opaque, addr);
-    s->in --;
-    if (!s->in)
-        fprintf(stderr, "%08x ---> %08x\n", (uint32_t) addr, ret);
-    return ret;
-}
-static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    struct io_fn *s = opaque;
-
-    if (!s->in)
-        fprintf(stderr, "%08x <--- %02x\n", (uint32_t) addr, value);
-    s->in ++;
-    s->mem_write[0](s->opaque, addr, value);
-    s->in --;
-}
-static void io_writeh(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    struct io_fn *s = opaque;
-
-    if (!s->in)
-        fprintf(stderr, "%08x <--- %04x\n", (uint32_t) addr, value);
-    s->in ++;
-    s->mem_write[1](s->opaque, addr, value);
-    s->in --;
-}
-static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    struct io_fn *s = opaque;
-
-    if (!s->in)
-        fprintf(stderr, "%08x <--- %08x\n", (uint32_t) addr, value);
-    s->in ++;
-    s->mem_write[2](s->opaque, addr, value);
-    s->in --;
-}
-
-static CPUReadMemoryFunc * const io_readfn[] = { io_readb, io_readh, io_readw, };
-static CPUWriteMemoryFunc * const io_writefn[] = { io_writeb, io_writeh, io_writew, };
-
-inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                                           CPUWriteMemoryFunc * const *mem_write,
-                                           void *opaque)
-{
-    struct io_fn *s = g_malloc(sizeof(struct io_fn));
-
-    s->mem_read = mem_read;
-    s->mem_write = mem_write;
-    s->opaque = opaque;
-    s->in = 0;
-    return cpu_register_io_memory(io_readfn, io_writefn, s,
-                                  DEVICE_NATIVE_ENDIAN);
-}
-#  define cpu_register_io_memory	debug_register_io_memory
-# endif
 
 #endif /* hw_omap_h */

@@ -405,7 +405,7 @@ static int cadence_ttc_init(SysBusDevice *dev)
     int i;
 
     for (i = 0; i < 3; ++i) {
-        cadence_timer_init(2500000, &s->timer[i]);
+        cadence_timer_init(133000000, &s->timer[i]);
         sysbus_init_irq(dev, &s->timer[i].irq);
     }
 

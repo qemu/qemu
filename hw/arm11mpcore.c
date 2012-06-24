@@ -123,6 +123,8 @@ static int mpcore_priv_init(SysBusDevice *dev)
     s->gic = qdev_create(NULL, "arm_gic");
     qdev_prop_set_uint32(s->gic, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(s->gic, "num-irq", s->num_irq);
+    /* Request the legacy 11MPCore GIC behaviour: */
+    qdev_prop_set_uint32(s->gic, "revision", 0);
     qdev_init_nofail(s->gic);
 
     /* Pass through outbound IRQ lines from the GIC */
