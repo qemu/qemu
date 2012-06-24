@@ -4475,7 +4475,7 @@ static void spr_write_mas73(void *opaque, int sprn, int gprn)
     TCGv val = tcg_temp_new();
     tcg_gen_ext32u_tl(val, cpu_gpr[gprn]);
     gen_store_spr(SPR_BOOKE_MAS3, val);
-    tcg_gen_shri_tl(val, gprn, 32);
+    tcg_gen_shri_tl(val, cpu_gpr[gprn], 32);
     gen_store_spr(SPR_BOOKE_MAS7, val);
     tcg_temp_free(val);
 }
