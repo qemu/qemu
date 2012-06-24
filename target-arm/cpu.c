@@ -23,6 +23,38 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
+#include "sysemu.h"
+
+static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
+{
+    /* Reset a single ARMCPRegInfo register */
+    ARMCPRegInfo *ri = value;
+    ARMCPU *cpu = opaque;
+
+    if (ri->type & ARM_CP_SPECIAL) {
+        return;
+    }
+
+    if (ri->resetfn) {
+        ri->resetfn(&cpu->env, ri);
+        return;
+    }
+
+    /* A zero offset is never possible as it would be regs[0]
+     * so we use it to indicate that reset is being handled elsewhere.
+     * This is basically only used for fields in non-core coprocessors
+     * (like the pxa2xx ones).
+     */
+    if (!ri->fieldoffset) {
+        return;
+    }
+
+    if (ri->type & ARM_CP_64BIT) {
+        CPREG_FIELD64(&cpu->env, ri) = ri->resetvalue;
+    } else {
+        CPREG_FIELD32(&cpu->env, ri) = ri->resetvalue;
+    }
+}
 
 /* CPUClass::reset() */
 static void arm_cpu_reset(CPUState *s)
@@ -39,30 +71,10 @@ static void arm_cpu_reset(CPUState *s)
     acc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUARMState, breakpoints));
-    env->cp15.c15_config_base_address = cpu->reset_cbar;
-    env->cp15.c0_cpuid = cpu->midr;
+    g_hash_table_foreach(cpu->cp_regs, cp_reg_reset, cpu);
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
     env->vfp.xregs[ARM_VFP_MVFR0] = cpu->mvfr0;
     env->vfp.xregs[ARM_VFP_MVFR1] = cpu->mvfr1;
-    env->cp15.c0_cachetype = cpu->ctr;
-    env->cp15.c1_sys = cpu->reset_sctlr;
-    env->cp15.c0_c1[0] = cpu->id_pfr0;
-    env->cp15.c0_c1[1] = cpu->id_pfr1;
-    env->cp15.c0_c1[2] = cpu->id_dfr0;
-    env->cp15.c0_c1[3] = cpu->id_afr0;
-    env->cp15.c0_c1[4] = cpu->id_mmfr0;
-    env->cp15.c0_c1[5] = cpu->id_mmfr1;
-    env->cp15.c0_c1[6] = cpu->id_mmfr2;
-    env->cp15.c0_c1[7] = cpu->id_mmfr3;
-    env->cp15.c0_c2[0] = cpu->id_isar0;
-    env->cp15.c0_c2[1] = cpu->id_isar1;
-    env->cp15.c0_c2[2] = cpu->id_isar2;
-    env->cp15.c0_c2[3] = cpu->id_isar3;
-    env->cp15.c0_c2[4] = cpu->id_isar4;
-    env->cp15.c0_c2[5] = cpu->id_isar5;
-    env->cp15.c15_i_min = 0xff0;
-    env->cp15.c0_clid = cpu->clidr;
-    memcpy(env->cp15.c0_ccsid, cpu->ccsidr, ARRAY_SIZE(cpu->ccsidr));
 
     if (arm_feature(env, ARM_FEATURE_IWMMXT)) {
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
@@ -99,11 +111,6 @@ static void arm_cpu_reset(CPUState *s)
         }
     }
     env->vfp.xregs[ARM_VFP_FPEXC] = 0;
-    env->cp15.c2_base_mask = 0xffffc000u;
-    /* v7 performance monitor control register: same implementor
-     * field as main ID register, and we implement no event counters.
-     */
-    env->cp15.c9_pmcr = (cpu->midr & 0xff000000);
 #endif
     set_flush_to_zero(1, &env->vfp.standard_fp_status);
     set_flush_inputs_to_zero(1, &env->vfp.standard_fp_status);
@@ -130,6 +137,14 @@ static void arm_cpu_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
 
     cpu_exec_init(&cpu->env);
+    cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
+                                         g_free, g_free);
+}
+
+static void arm_cpu_finalizefn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    g_hash_table_destroy(cpu->cp_regs);
 }
 
 void arm_cpu_realize(ARMCPU *cpu)
@@ -145,6 +160,7 @@ void arm_cpu_realize(ARMCPU *cpu)
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
         set_feature(env, ARM_FEATURE_THUMB2);
+        set_feature(env, ARM_FEATURE_MPIDR);
         if (!arm_feature(env, ARM_FEATURE_M)) {
             set_feature(env, ARM_FEATURE_V6K);
         } else {
@@ -176,6 +192,8 @@ void arm_cpu_realize(ARMCPU *cpu)
     if (arm_feature(env, ARM_FEATURE_VFP3)) {
         set_feature(env, ARM_FEATURE_VFP);
     }
+
+    register_cp_regs_for_features(cpu);
 }
 
 /* CPU models */
@@ -185,7 +203,9 @@ static void arm926_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
-    cpu->midr = ARM_CPUID_ARM926;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
+    cpu->midr = 0x41069265;
     cpu->reset_fpsid = 0x41011090;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00090078;
@@ -196,7 +216,8 @@ static void arm946_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_MPU);
-    cpu->midr = ARM_CPUID_ARM946;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    cpu->midr = 0x41059461;
     cpu->ctr = 0x0f004006;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -207,10 +228,23 @@ static void arm1026_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_AUXCR);
-    cpu->midr = ARM_CPUID_ARM1026;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_TEST_CLEAN);
+    cpu->midr = 0x4106a262;
     cpu->reset_fpsid = 0x410110a0;
     cpu->ctr = 0x1dd20d2;
     cpu->reset_sctlr = 0x00090078;
+    cpu->reset_auxcr = 1;
+    {
+        /* The 1026 had an IFAR at c6,c0,0,1 rather than the ARMv6 c6,c0,0,2 */
+        ARMCPRegInfo ifar = {
+            .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
+            .access = PL1_RW,
+            .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+            .resetvalue = 0
+        };
+        define_one_arm_cp_reg(cpu, &ifar);
+    }
 }
 
 static void arm1136_r2_initfn(Object *obj)
@@ -225,7 +259,10 @@ static void arm1136_r2_initfn(Object *obj)
      */
     set_feature(&cpu->env, ARM_FEATURE_V6);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
-    cpu->midr = ARM_CPUID_ARM1136_R2;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+    cpu->midr = 0x4107b362;
     cpu->reset_fpsid = 0x410120b4;
     cpu->mvfr0 = 0x11111111;
     cpu->mvfr1 = 0x00000000;
@@ -243,6 +280,7 @@ static void arm1136_r2_initfn(Object *obj)
     cpu->id_isar2 = 0x11231111;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x141;
+    cpu->reset_auxcr = 7;
 }
 
 static void arm1136_initfn(Object *obj)
@@ -251,7 +289,10 @@ static void arm1136_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V6K);
     set_feature(&cpu->env, ARM_FEATURE_V6);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
-    cpu->midr = ARM_CPUID_ARM1136;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+    cpu->midr = 0x4117b363;
     cpu->reset_fpsid = 0x410120b4;
     cpu->mvfr0 = 0x11111111;
     cpu->mvfr1 = 0x00000000;
@@ -269,6 +310,7 @@ static void arm1136_initfn(Object *obj)
     cpu->id_isar2 = 0x11231111;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x141;
+    cpu->reset_auxcr = 7;
 }
 
 static void arm1176_initfn(Object *obj)
@@ -277,7 +319,10 @@ static void arm1176_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V6K);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
-    cpu->midr = ARM_CPUID_ARM1176;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_DIRTY_REG);
+    set_feature(&cpu->env, ARM_FEATURE_CACHE_BLOCK_OPS);
+    cpu->midr = 0x410fb767;
     cpu->reset_fpsid = 0x410120b5;
     cpu->mvfr0 = 0x11111111;
     cpu->mvfr1 = 0x00000000;
@@ -295,6 +340,7 @@ static void arm1176_initfn(Object *obj)
     cpu->id_isar2 = 0x11231121;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x01141;
+    cpu->reset_auxcr = 7;
 }
 
 static void arm11mpcore_initfn(Object *obj)
@@ -303,11 +349,13 @@ static void arm11mpcore_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V6K);
     set_feature(&cpu->env, ARM_FEATURE_VFP);
     set_feature(&cpu->env, ARM_FEATURE_VAPA);
-    cpu->midr = ARM_CPUID_ARM11MPCORE;
+    set_feature(&cpu->env, ARM_FEATURE_MPIDR);
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    cpu->midr = 0x410fb022;
     cpu->reset_fpsid = 0x410120b4;
     cpu->mvfr0 = 0x11111111;
     cpu->mvfr1 = 0x00000000;
-    cpu->ctr = 0x1dd20d2;
+    cpu->ctr = 0x1d192992; /* 32K icache 32K dcache */
     cpu->id_pfr0 = 0x111;
     cpu->id_pfr1 = 0x1;
     cpu->id_dfr0 = 0;
@@ -320,6 +368,7 @@ static void arm11mpcore_initfn(Object *obj)
     cpu->id_isar2 = 0x11221011;
     cpu->id_isar3 = 0x01102131;
     cpu->id_isar4 = 0x141;
+    cpu->reset_auxcr = 1;
 }
 
 static void cortex_m3_initfn(Object *obj)
@@ -327,8 +376,16 @@ static void cortex_m3_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V7);
     set_feature(&cpu->env, ARM_FEATURE_M);
-    cpu->midr = ARM_CPUID_CORTEXM3;
+    cpu->midr = 0x410fc231;
 }
+
+static const ARMCPRegInfo cortexa8_cp_reginfo[] = {
+    { .name = "L2LOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "L2AUXCR", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 2,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
 
 static void cortex_a8_initfn(Object *obj)
 {
@@ -337,7 +394,8 @@ static void cortex_a8_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_VFP3);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
-    cpu->midr = ARM_CPUID_CORTEXA8;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    cpu->midr = 0x410fc080;
     cpu->reset_fpsid = 0x410330c0;
     cpu->mvfr0 = 0x11110222;
     cpu->mvfr1 = 0x00011100;
@@ -360,7 +418,38 @@ static void cortex_a8_initfn(Object *obj)
     cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x2007e01a; /* 16k L1 icache. */
     cpu->ccsidr[2] = 0xf0000000; /* No L2 icache. */
+    cpu->reset_auxcr = 2;
+    define_arm_cp_regs(cpu, cortexa8_cp_reginfo);
 }
+
+static const ARMCPRegInfo cortexa9_cp_reginfo[] = {
+    /* power_control should be set to maximum latency. Again,
+     * default to 0 and set by private hook
+     */
+    { .name = "A9_PWRCTL", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_power_control) },
+    { .name = "A9_DIAG", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_diagnostic) },
+    { .name = "A9_PWRDIAG", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_power_diagnostic) },
+    { .name = "NEONBUSY", .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    /* TLB lockdown control */
+    { .name = "TLB_LOCKR", .cp = 15, .crn = 15, .crm = 4, .opc1 = 5, .opc2 = 2,
+      .access = PL1_W, .resetvalue = 0, .type = ARM_CP_NOP },
+    { .name = "TLB_LOCKW", .cp = 15, .crn = 15, .crm = 4, .opc1 = 5, .opc2 = 4,
+      .access = PL1_W, .resetvalue = 0, .type = ARM_CP_NOP },
+    { .name = "TLB_VA", .cp = 15, .crn = 15, .crm = 5, .opc1 = 5, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    { .name = "TLB_PA", .cp = 15, .crn = 15, .crm = 6, .opc1 = 5, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    { .name = "TLB_ATTR", .cp = 15, .crn = 15, .crm = 7, .opc1 = 5, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .type = ARM_CP_CONST },
+    REGINFO_SENTINEL
+};
 
 static void cortex_a9_initfn(Object *obj)
 {
@@ -375,7 +464,7 @@ static void cortex_a9_initfn(Object *obj)
      * and valid configurations; we don't model A9UP).
      */
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
-    cpu->midr = ARM_CPUID_CORTEXA9;
+    cpu->midr = 0x410fc090;
     cpu->reset_fpsid = 0x41033090;
     cpu->mvfr0 = 0x11110222;
     cpu->mvfr1 = 0x01111111;
@@ -397,7 +486,39 @@ static void cortex_a9_initfn(Object *obj)
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
     cpu->ccsidr[0] = 0xe00fe015; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x200fe015; /* 16k L1 icache. */
+    {
+        ARMCPRegInfo cbar = {
+            .name = "CBAR", .cp = 15, .crn = 15,  .crm = 0, .opc1 = 4,
+            .opc2 = 0, .access = PL1_R|PL3_W, .resetvalue = cpu->reset_cbar,
+            .fieldoffset = offsetof(CPUARMState, cp15.c15_config_base_address)
+        };
+        define_one_arm_cp_reg(cpu, &cbar);
+        define_arm_cp_regs(cpu, cortexa9_cp_reginfo);
+    }
 }
+
+#ifndef CONFIG_USER_ONLY
+static int a15_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                           uint64_t *value)
+{
+    /* Linux wants the number of processors from here.
+     * Might as well set the interrupt-controller bit too.
+     */
+    *value = ((smp_cpus - 1) << 24) | (1 << 23);
+    return 0;
+}
+#endif
+
+static const ARMCPRegInfo cortexa15_cp_reginfo[] = {
+#ifndef CONFIG_USER_ONLY
+    { .name = "L2CTLR", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 2,
+      .access = PL1_RW, .resetvalue = 0, .readfn = a15_l2ctlr_read,
+      .writefn = arm_cp_write_ignore, },
+#endif
+    { .name = "L2ECTLR", .cp = 15, .crn = 9, .crm = 0, .opc1 = 1, .opc2 = 3,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
 
 static void cortex_a15_initfn(Object *obj)
 {
@@ -410,7 +531,8 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    cpu->midr = ARM_CPUID_CORTEXA15;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    cpu->midr = 0x412fc0f1;
     cpu->reset_fpsid = 0x410430f0;
     cpu->mvfr0 = 0x10110222;
     cpu->mvfr1 = 0x11111111;
@@ -433,6 +555,7 @@ static void cortex_a15_initfn(Object *obj)
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
     cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
+    define_arm_cp_regs(cpu, cortexa15_cp_reginfo);
 }
 
 static void ti925t_initfn(Object *obj)
@@ -449,7 +572,8 @@ static void sa1100_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
-    cpu->midr = ARM_CPUID_SA1100;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    cpu->midr = 0x4401A11B;
     cpu->reset_sctlr = 0x00000070;
 }
 
@@ -457,7 +581,8 @@ static void sa1110_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_STRONGARM);
-    cpu->midr = ARM_CPUID_SA1110;
+    set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    cpu->midr = 0x6901B119;
     cpu->reset_sctlr = 0x00000070;
 }
 
@@ -466,7 +591,7 @@ static void pxa250_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
-    cpu->midr = ARM_CPUID_PXA250;
+    cpu->midr = 0x69052100;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -476,7 +601,7 @@ static void pxa255_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
-    cpu->midr = ARM_CPUID_PXA255;
+    cpu->midr = 0x69052d00;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -486,7 +611,7 @@ static void pxa260_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
-    cpu->midr = ARM_CPUID_PXA260;
+    cpu->midr = 0x69052903;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -496,7 +621,7 @@ static void pxa261_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
-    cpu->midr = ARM_CPUID_PXA261;
+    cpu->midr = 0x69052d05;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -506,7 +631,7 @@ static void pxa262_initfn(Object *obj)
     ARMCPU *cpu = ARM_CPU(obj);
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
-    cpu->midr = ARM_CPUID_PXA262;
+    cpu->midr = 0x69052d06;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -517,7 +642,7 @@ static void pxa270a0_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
-    cpu->midr = ARM_CPUID_PXA270_A0;
+    cpu->midr = 0x69054110;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -528,7 +653,7 @@ static void pxa270a1_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
-    cpu->midr = ARM_CPUID_PXA270_A1;
+    cpu->midr = 0x69054111;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -539,7 +664,7 @@ static void pxa270b0_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
-    cpu->midr = ARM_CPUID_PXA270_B0;
+    cpu->midr = 0x69054112;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -550,7 +675,7 @@ static void pxa270b1_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
-    cpu->midr = ARM_CPUID_PXA270_B1;
+    cpu->midr = 0x69054113;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -561,7 +686,7 @@ static void pxa270c0_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
-    cpu->midr = ARM_CPUID_PXA270_C0;
+    cpu->midr = 0x69054114;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -572,7 +697,7 @@ static void pxa270c5_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V5);
     set_feature(&cpu->env, ARM_FEATURE_XSCALE);
     set_feature(&cpu->env, ARM_FEATURE_IWMMXT);
-    cpu->midr = ARM_CPUID_PXA270_C5;
+    cpu->midr = 0x69054117;
     cpu->ctr = 0xd172172;
     cpu->reset_sctlr = 0x00000078;
 }
@@ -587,7 +712,7 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
-    cpu->midr = ARM_CPUID_ANY;
+    cpu->midr = 0xffffffff;
 }
 
 typedef struct ARMCPUInfo {
@@ -657,6 +782,7 @@ static const TypeInfo arm_cpu_type_info = {
     .parent = TYPE_CPU,
     .instance_size = sizeof(ARMCPU),
     .instance_init = arm_cpu_initfn,
+    .instance_finalize = arm_cpu_finalizefn,
     .abstract = true,
     .class_size = sizeof(ARMCPUClass),
     .class_init = arm_cpu_class_init,

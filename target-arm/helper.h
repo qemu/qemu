@@ -59,11 +59,10 @@ DEF_HELPER_0(cpsr_read, i32)
 DEF_HELPER_3(v7m_msr, void, env, i32, i32)
 DEF_HELPER_2(v7m_mrs, i32, env, i32)
 
-DEF_HELPER_3(set_cp15, void, env, i32, i32)
-DEF_HELPER_2(get_cp15, i32, env, i32)
-
-DEF_HELPER_3(set_cp, void, env, i32, i32)
-DEF_HELPER_2(get_cp, i32, env, i32)
+DEF_HELPER_3(set_cp_reg, void, env, ptr, i32)
+DEF_HELPER_2(get_cp_reg, i32, env, ptr)
+DEF_HELPER_3(set_cp_reg64, void, env, ptr, i64)
+DEF_HELPER_2(get_cp_reg64, i64, env, ptr)
 
 DEF_HELPER_2(get_r13_banked, i32, env, i32)
 DEF_HELPER_3(set_r13_banked, void, env, i32, i32)
@@ -458,8 +457,6 @@ DEF_HELPER_3(iwmmxt_packsq, i64, env, i64, i64)
 DEF_HELPER_3(iwmmxt_muladdsl, i64, i64, i32, i32)
 DEF_HELPER_3(iwmmxt_muladdsw, i64, i64, i32, i32)
 DEF_HELPER_3(iwmmxt_muladdswl, i64, i64, i32, i32)
-
-DEF_HELPER_2(set_teecr, void, env, i32)
 
 DEF_HELPER_3(neon_unzip8, void, env, i32, i32)
 DEF_HELPER_3(neon_unzip16, void, env, i32, i32)

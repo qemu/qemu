@@ -58,6 +58,9 @@ typedef struct ARMCPU {
 
     CPUARMState env;
 
+    /* Coprocessor information */
+    GHashTable *cp_regs;
+
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
      * various constant registers and reset values of non-constant
@@ -94,6 +97,7 @@ typedef struct ARMCPU {
      */
     uint32_t ccsidr[16];
     uint32_t reset_cbar;
+    uint32_t reset_auxcr;
 } ARMCPU;
 
 static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
@@ -104,5 +108,6 @@ static inline ARMCPU *arm_env_get_cpu(CPUARMState *env)
 #define ENV_GET_CPU(e) CPU(arm_env_get_cpu(e))
 
 void arm_cpu_realize(ARMCPU *cpu);
+void register_cp_regs_for_features(ARMCPU *cpu);
 
 #endif

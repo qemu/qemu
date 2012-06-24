@@ -21,7 +21,6 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_be32(f, env->fiq_regs[i]);
     }
     qemu_put_be32(f, env->cp15.c0_cpuid);
-    qemu_put_be32(f, env->cp15.c0_cachetype);
     qemu_put_be32(f, env->cp15.c0_cssel);
     qemu_put_be32(f, env->cp15.c1_sys);
     qemu_put_be32(f, env->cp15.c1_coproc);
@@ -139,7 +138,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         env->fiq_regs[i] = qemu_get_be32(f);
     }
     env->cp15.c0_cpuid = qemu_get_be32(f);
-    env->cp15.c0_cachetype = qemu_get_be32(f);
     env->cp15.c0_cssel = qemu_get_be32(f);
     env->cp15.c1_sys = qemu_get_be32(f);
     env->cp15.c1_coproc = qemu_get_be32(f);
