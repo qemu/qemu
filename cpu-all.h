@@ -446,30 +446,6 @@ void cpu_single_step(CPUArchState *env, int enabled);
 int cpu_is_stopped(CPUArchState *env);
 void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 
-#define CPU_LOG_TB_OUT_ASM (1 << 0)
-#define CPU_LOG_TB_IN_ASM  (1 << 1)
-#define CPU_LOG_TB_OP      (1 << 2)
-#define CPU_LOG_TB_OP_OPT  (1 << 3)
-#define CPU_LOG_INT        (1 << 4)
-#define CPU_LOG_EXEC       (1 << 5)
-#define CPU_LOG_PCALL      (1 << 6)
-#define CPU_LOG_IOPORT     (1 << 7)
-#define CPU_LOG_TB_CPU     (1 << 8)
-#define CPU_LOG_RESET      (1 << 9)
-
-/* define log items */
-typedef struct CPULogItem {
-    int mask;
-    const char *name;
-    const char *help;
-} CPULogItem;
-
-extern const CPULogItem cpu_log_items[];
-
-void cpu_set_log(int log_flags);
-void cpu_set_log_filename(const char *filename);
-int cpu_str_to_log_mask(const char *str);
-
 #if !defined(CONFIG_USER_ONLY)
 
 /* Return the physical page corresponding to a virtual one. Use it

@@ -1,6 +1,7 @@
 #######################################################################
 # Target-independent parts used in system and user emulation
 universal-obj-y =
+universal-obj-y += qemu-log.o
 
 #######################################################################
 # QObject

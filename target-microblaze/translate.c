@@ -1539,8 +1539,10 @@ static void dec_fpu(DisasContext *dc)
                                        cpu_R[dc->ra], cpu_R[dc->rb]);
                     break;
                 default:
-                    qemu_log ("unimplemented fcmp fpu_insn=%x pc=%x opc=%x\n",
-                              fpu_insn, dc->pc, dc->opcode);
+                    qemu_log_mask(LOG_UNIMP,
+                                  "unimplemented fcmp fpu_insn=%x pc=%x"
+                                  " opc=%x\n",
+                                  fpu_insn, dc->pc, dc->opcode);
                     dc->abort_at_next_insn = 1;
                     break;
             }
@@ -1568,8 +1570,9 @@ static void dec_fpu(DisasContext *dc)
             break;
 
         default:
-            qemu_log ("unimplemented FPU insn fpu_insn=%x pc=%x opc=%x\n",
-                      fpu_insn, dc->pc, dc->opcode);
+            qemu_log_mask(LOG_UNIMP, "unimplemented FPU insn fpu_insn=%x pc=%x"
+                          " opc=%x\n",
+                          fpu_insn, dc->pc, dc->opcode);
             dc->abort_at_next_insn = 1;
             break;
     }

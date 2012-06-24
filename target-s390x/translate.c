@@ -5098,7 +5098,7 @@ static void disas_s390_insn(DisasContext *s)
         disas_ed(s, op, r1, x2, b2, d2, r1b);
         break;
     default:
-        LOG_DISAS("unimplemented opcode 0x%x\n", opc);
+        qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%x\n", opc);
         gen_illegal_opcode(s, ilc);
         break;
     }
