@@ -5795,7 +5795,7 @@ static void gen_mtdcrux(DisasContext *ctx)
 {
     /* NIP cannot be restored if the memory exception comes from an helper */
     gen_update_nip(ctx, ctx->nip - 4);
-    gen_helper_store_dcr(cpu_gpr[rA(ctx->opcode)], cpu_env,
+    gen_helper_store_dcr(cpu_env, cpu_gpr[rA(ctx->opcode)],
                          cpu_gpr[rS(ctx->opcode)]);
     /* Note: Rc update flag set leads to undefined state of Rc0 */
 }
