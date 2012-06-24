@@ -46,9 +46,9 @@ struct arm_boot_info {
     /* multicore boards that use the default secondary core boot functions
      * can ignore these two function calls. If the default functions won't
      * work, then write_secondary_boot() should write a suitable blob of
-     * code mimicing the secondary CPU startup process used by the board's
+     * code mimicking the secondary CPU startup process used by the board's
      * boot loader/boot ROM code, and secondary_cpu_reset_hook() should
-     * perform any necessary CPU reset handling and set the PC for thei
+     * perform any necessary CPU reset handling and set the PC for the
      * secondary CPUs to point at this boot blob.
      */
     void (*write_secondary_boot)(ARMCPU *cpu,

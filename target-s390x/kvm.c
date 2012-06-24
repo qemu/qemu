@@ -314,6 +314,7 @@ static int s390_cpu_initial_reset(CPUS390XState *env)
 {
     int i;
 
+    s390_del_running_cpu(env);
     if (kvm_vcpu_ioctl(env, KVM_S390_INITIAL_RESET, NULL) < 0) {
         perror("cannot init reset vcpu");
     }

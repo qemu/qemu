@@ -248,10 +248,12 @@ static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
         fprintf(stderr, "couldn't set /memory/reg\n");
     }
 
-    rc = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
-                                      binfo->kernel_cmdline);
-    if (rc < 0) {
-        fprintf(stderr, "couldn't set /chosen/bootargs\n");
+    if (binfo->kernel_cmdline && *binfo->kernel_cmdline) {
+        rc = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
+                                          binfo->kernel_cmdline);
+        if (rc < 0) {
+            fprintf(stderr, "couldn't set /chosen/bootargs\n");
+        }
     }
 
     if (binfo->initrd_size) {

@@ -209,32 +209,41 @@ static const int pxa2xx_cp_reg_map[0x10] = {
     [0xa] = ICPR2,
 };
 
-static uint32_t pxa2xx_pic_cp_read(void *opaque, int op2, int reg, int crm)
+static int pxa2xx_pic_cp_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t *value)
 {
-    target_phys_addr_t offset;
-
-    if (pxa2xx_cp_reg_map[reg] == -1) {
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        return 0;
-    }
-
-    offset = pxa2xx_cp_reg_map[reg];
-    return pxa2xx_pic_mem_read(opaque, offset, 4);
+    int offset = pxa2xx_cp_reg_map[ri->crn];
+    *value = pxa2xx_pic_mem_read(ri->opaque, offset, 4);
+    return 0;
 }
 
-static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
-                uint32_t value)
+static int pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
 {
-    target_phys_addr_t offset;
-
-    if (pxa2xx_cp_reg_map[reg] == -1) {
-        printf("%s: Bad register 0x%x\n", __FUNCTION__, reg);
-        return;
-    }
-
-    offset = pxa2xx_cp_reg_map[reg];
-    pxa2xx_pic_mem_write(opaque, offset, value, 4);
+    int offset = pxa2xx_cp_reg_map[ri->crn];
+    pxa2xx_pic_mem_write(ri->opaque, offset, value, 4);
+    return 0;
 }
+
+#define REGINFO_FOR_PIC_CP(NAME, CRN) \
+    { .name = NAME, .cp = 6, .crn = CRN, .crm = 0, .opc1 = 0, .opc2 = 0, \
+      .access = PL1_RW, \
+      .readfn = pxa2xx_pic_cp_read, .writefn = pxa2xx_pic_cp_write }
+
+static const ARMCPRegInfo pxa_pic_cp_reginfo[] = {
+    REGINFO_FOR_PIC_CP("ICIP", 0),
+    REGINFO_FOR_PIC_CP("ICMR", 1),
+    REGINFO_FOR_PIC_CP("ICLR", 2),
+    REGINFO_FOR_PIC_CP("ICFP", 3),
+    REGINFO_FOR_PIC_CP("ICPR", 4),
+    REGINFO_FOR_PIC_CP("ICHP", 5),
+    REGINFO_FOR_PIC_CP("ICIP2", 6),
+    REGINFO_FOR_PIC_CP("ICMR2", 7),
+    REGINFO_FOR_PIC_CP("ICLR2", 8),
+    REGINFO_FOR_PIC_CP("ICFP2", 9),
+    REGINFO_FOR_PIC_CP("ICPR2", 0xa),
+    REGINFO_SENTINEL
+};
 
 static const MemoryRegionOps pxa2xx_pic_ops = {
     .read = pxa2xx_pic_mem_read,
@@ -274,7 +283,7 @@ DeviceState *pxa2xx_pic_init(target_phys_addr_t base, ARMCPU *cpu)
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
 
     /* Enable IC coprocessor access.  */
-    cpu_arm_set_cp_io(env, 6, pxa2xx_pic_cp_read, pxa2xx_pic_cp_write, s);
+    define_arm_cp_regs_with_opaque(arm_env_get_cpu(env), pxa_pic_cp_reginfo, s);
 
     return dev;
 }

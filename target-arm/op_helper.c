@@ -24,13 +24,11 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-#if !defined(CONFIG_USER_ONLY)
 static void raise_exception(int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit(env);
 }
-#endif
 
 uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
                           uint32_t rn, uint32_t maxindex)
@@ -286,6 +284,46 @@ void HELPER(set_user_reg)(uint32_t regno, uint32_t val)
     } else {
         env->regs[regno] = val;
     }
+}
+
+void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
+{
+    const ARMCPRegInfo *ri = rip;
+    int excp = ri->writefn(env, ri, value);
+    if (excp) {
+        raise_exception(excp);
+    }
+}
+
+uint32_t HELPER(get_cp_reg)(CPUARMState *env, void *rip)
+{
+    const ARMCPRegInfo *ri = rip;
+    uint64_t value;
+    int excp = ri->readfn(env, ri, &value);
+    if (excp) {
+        raise_exception(excp);
+    }
+    return value;
+}
+
+void HELPER(set_cp_reg64)(CPUARMState *env, void *rip, uint64_t value)
+{
+    const ARMCPRegInfo *ri = rip;
+    int excp = ri->writefn(env, ri, value);
+    if (excp) {
+        raise_exception(excp);
+    }
+}
+
+uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
+{
+    const ARMCPRegInfo *ri = rip;
+    uint64_t value;
+    int excp = ri->readfn(env, ri, &value);
+    if (excp) {
+        raise_exception(excp);
+    }
+    return value;
 }
 
 /* ??? Flag setting arithmetic is awkward because we need to do comparisons.

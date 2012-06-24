@@ -264,7 +264,8 @@ typedef struct sPAPREnvironment {
  */
 #define KVMPPC_HCALL_BASE       0xf000
 #define KVMPPC_H_RTAS           (KVMPPC_HCALL_BASE + 0x0)
-#define KVMPPC_HCALL_MAX        KVMPPC_H_RTAS
+#define KVMPPC_H_LOGICAL_MEMOP  (KVMPPC_HCALL_BASE + 0x1)
+#define KVMPPC_HCALL_MAX        KVMPPC_H_LOGICAL_MEMOP
 
 extern sPAPREnvironment *spapr;
 

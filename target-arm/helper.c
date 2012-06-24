@@ -4,6 +4,13 @@
 #include "host-utils.h"
 #include "sysemu.h"
 
+#ifndef CONFIG_USER_ONLY
+static inline int get_phys_addr(CPUARMState *env, uint32_t address,
+                                int access_type, int is_user,
+                                uint32_t *phys_ptr, int *prot,
+                                target_ulong *page_size);
+#endif
+
 static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
 {
     int nregs;
@@ -54,6 +61,1054 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
     case 2: env->vfp.xregs[ARM_VFP_FPEXC] = ldl_p(buf) & (1 << 30); return 4;
     }
     return 0;
+}
+
+static int dacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    env->cp15.c3 = value;
+    tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
+    return 0;
+}
+
+static int fcse_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    if (env->cp15.c13_fcse != value) {
+        /* Unlike real hardware the qemu TLB uses virtual addresses,
+         * not modified virtual addresses, so this causes a TLB flush.
+         */
+        tlb_flush(env, 1);
+        env->cp15.c13_fcse = value;
+    }
+    return 0;
+}
+static int contextidr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (env->cp15.c13_context != value && !arm_feature(env, ARM_FEATURE_MPU)) {
+        /* For VMSA (when not using the LPAE long descriptor page table
+         * format) this register includes the ASID, so do a TLB flush.
+         * For PMSA it is purely a process ID and no action is needed.
+         */
+        tlb_flush(env, 1);
+    }
+    env->cp15.c13_context = value;
+    return 0;
+}
+
+static int tlbiall_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    /* Invalidate all (TLBIALL) */
+    tlb_flush(env, 1);
+    return 0;
+}
+
+static int tlbimva_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
+    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    return 0;
+}
+
+static int tlbiasid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    /* Invalidate by ASID (TLBIASID) */
+    tlb_flush(env, value == 0);
+    return 0;
+}
+
+static int tlbimvaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
+    tlb_flush_page(env, value & TARGET_PAGE_MASK);
+    return 0;
+}
+
+static const ARMCPRegInfo cp_reginfo[] = {
+    /* DBGDIDR: just RAZ. In particular this means the "debug architecture
+     * version" bits will read as a reserved value, which should cause
+     * Linux to not try to use the debug hardware.
+     */
+    { .name = "DBGDIDR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* MMU Domain access control / MPU write buffer control */
+    { .name = "DACR", .cp = 15,
+      .crn = 3, .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c3),
+      .resetvalue = 0, .writefn = dacr_write },
+    { .name = "FCSEIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
+      .resetvalue = 0, .writefn = fcse_write },
+    { .name = "CONTEXTIDR", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c13_fcse),
+      .resetvalue = 0, .writefn = contextidr_write },
+    /* ??? This covers not just the impdef TLB lockdown registers but also
+     * some v7VMSA registers relating to TEX remap, so it is overly broad.
+     */
+    { .name = "TLB_LOCKDOWN", .cp = 15, .crn = 10, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_NOP },
+    /* MMU TLB control. Note that the wildcarding means we cover not just
+     * the unified TLB ops but also the dside/iside/inner-shareable variants.
+     */
+    { .name = "TLBIALL", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 0, .access = PL1_W, .writefn = tlbiall_write, },
+    { .name = "TLBIMVA", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 1, .access = PL1_W, .writefn = tlbimva_write, },
+    { .name = "TLBIASID", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 2, .access = PL1_W, .writefn = tlbiasid_write, },
+    { .name = "TLBIMVAA", .cp = 15, .crn = 8, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = 3, .access = PL1_W, .writefn = tlbimvaa_write, },
+    /* Cache maintenance ops; some of this space may be overridden later. */
+    { .name = "CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
+      .opc1 = 0, .opc2 = CP_ANY, .access = PL1_W,
+      .type = ARM_CP_NOP | ARM_CP_OVERRIDE },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo not_v6_cp_reginfo[] = {
+    /* Not all pre-v6 cores implemented this WFI, so this is slightly
+     * over-broad.
+     */
+    { .name = "WFI_v5", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = 2,
+      .access = PL1_W, .type = ARM_CP_WFI },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo not_v7_cp_reginfo[] = {
+    /* Standard v6 WFI (also used in some pre-v6 cores); not in v7 (which
+     * is UNPREDICTABLE; we choose to NOP as most implementations do).
+     */
+    { .name = "WFI_v6", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .access = PL1_W, .type = ARM_CP_WFI },
+    /* L1 cache lockdown. Not architectural in v6 and earlier but in practice
+     * implemented in 926, 946, 1026, 1136, 1176 and 11MPCore. StrongARM and
+     * OMAPCP will override this space.
+     */
+    { .name = "DLOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_data),
+      .resetvalue = 0 },
+    { .name = "ILOCKDOWN", .cp = 15, .crn = 9, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_insn),
+      .resetvalue = 0 },
+    /* v6 doesn't have the cache ID registers but Linux reads them anyway */
+    { .name = "DUMMY", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = CP_ANY,
+      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static int cpacr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    if (env->cp15.c1_coproc != value) {
+        env->cp15.c1_coproc = value;
+        /* ??? Is this safe when called from within a TB?  */
+        tb_flush(env);
+    }
+    return 0;
+}
+
+static const ARMCPRegInfo v6_cp_reginfo[] = {
+    /* prefetch by MVA in v6, NOP in v7 */
+    { .name = "MVA_prefetch",
+      .cp = 15, .crn = 7, .crm = 13, .opc1 = 0, .opc2 = 1,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    { .name = "ISB", .cp = 15, .crn = 7, .crm = 5, .opc1 = 0, .opc2 = 4,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
+      .resetvalue = 0, },
+    /* Watchpoint Fault Address Register : should actually only be present
+     * for 1136, 1176, 11MPCore.
+     */
+    { .name = "WFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0, },
+    { .name = "CPACR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_coproc),
+      .resetvalue = 0, .writefn = cpacr_write },
+    REGINFO_SENTINEL
+};
+
+static int pmreg_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t *value)
+{
+    /* Generic performance monitor register read function for where
+     * user access may be allowed by PMUSERENR.
+     */
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    *value = CPREG_FIELD32(env, ri);
+    return 0;
+}
+
+static int pmcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    /* only the DP, X, D and E bits are writable */
+    env->cp15.c9_pmcr &= ~0x39;
+    env->cp15.c9_pmcr |= (value & 0x39);
+    return 0;
+}
+
+static int pmcntenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    value &= (1 << 31);
+    env->cp15.c9_pmcnten |= value;
+    return 0;
+}
+
+static int pmcntenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    value &= (1 << 31);
+    env->cp15.c9_pmcnten &= ~value;
+    return 0;
+}
+
+static int pmovsr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    env->cp15.c9_pmovsr &= ~value;
+    return 0;
+}
+
+static int pmxevtyper_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && !env->cp15.c9_pmuserenr) {
+        return EXCP_UDEF;
+    }
+    env->cp15.c9_pmxevtyper = value & 0xff;
+    return 0;
+}
+
+static int pmuserenr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    env->cp15.c9_pmuserenr = value & 1;
+    return 0;
+}
+
+static int pmintenset_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    /* We have no event counters so only the C bit can be changed */
+    value &= (1 << 31);
+    env->cp15.c9_pminten |= value;
+    return 0;
+}
+
+static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    value &= (1 << 31);
+    env->cp15.c9_pminten &= ~value;
+    return 0;
+}
+
+static int ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    *value = cpu->ccsidr[env->cp15.c0_cssel];
+    return 0;
+}
+
+static int csselr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    env->cp15.c0_cssel = value & 0xf;
+    return 0;
+}
+
+static const ARMCPRegInfo v7_cp_reginfo[] = {
+    /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
+     * debug components
+     */
+    { .name = "DBGDRAR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "DBGDRAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* the old v6 WFI, UNPREDICTABLE in v7 but we choose to NOP */
+    { .name = "NOP", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .access = PL1_W, .type = ARM_CP_NOP },
+    /* Performance monitors are implementation defined in v7,
+     * but with an ARM recommended set of registers, which we
+     * follow (although we don't actually implement any counters)
+     *
+     * Performance registers fall into three categories:
+     *  (a) always UNDEF in PL0, RW in PL1 (PMINTENSET, PMINTENCLR)
+     *  (b) RO in PL0 (ie UNDEF on write), RW in PL1 (PMUSERENR)
+     *  (c) UNDEF in PL0 if PMUSERENR.EN==0, otherwise accessible (all others)
+     * For the cases controlled by PMUSERENR we must set .access to PL0_RW
+     * or PL0_RO as appropriate and then check PMUSERENR in the helper fn.
+     */
+    { .name = "PMCNTENSET", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 1,
+      .access = PL0_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .readfn = pmreg_read, .writefn = pmcntenset_write },
+    { .name = "PMCNTENCLR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 2,
+      .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcnten),
+      .readfn = pmreg_read, .writefn = pmcntenclr_write },
+    { .name = "PMOVSR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 3,
+      .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, cp15.c9_pmovsr),
+      .readfn = pmreg_read, .writefn = pmovsr_write },
+    /* Unimplemented so WI. Strictly speaking write accesses in PL0 should
+     * respect PMUSERENR.
+     */
+    { .name = "PMSWINC", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 4,
+      .access = PL0_W, .type = ARM_CP_NOP },
+    /* Since we don't implement any events, writing to PMSELR is UNPREDICTABLE.
+     * We choose to RAZ/WI. XXX should respect PMUSERENR.
+     */
+    { .name = "PMSELR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 5,
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+    { .name = "PMCCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 0,
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "PMXEVTYPER", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 1,
+      .access = PL0_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmxevtyper),
+      .readfn = pmreg_read, .writefn = pmxevtyper_write },
+    /* Unimplemented, RAZ/WI. XXX PMUSERENR */
+    { .name = "PMXEVCNTR", .cp = 15, .crn = 9, .crm = 13, .opc1 = 0, .opc2 = 2,
+      .access = PL0_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "PMUSERENR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 0,
+      .access = PL0_R | PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pmuserenr),
+      .resetvalue = 0,
+      .writefn = pmuserenr_write },
+    { .name = "PMINTENSET", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
+      .resetvalue = 0,
+      .writefn = pmintenset_write },
+    { .name = "PMINTENCLR", .cp = 15, .crn = 9, .crm = 14, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
+      .resetvalue = 0,
+      .writefn = pmintenclr_write },
+    { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
+      .resetvalue = 0, },
+    { .name = "CCSIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 0,
+      .access = PL1_R, .readfn = ccsidr_read },
+    { .name = "CSSELR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 2, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c0_cssel),
+      .writefn = csselr_write, .resetvalue = 0 },
+    /* Auxiliary ID register: this actually has an IMPDEF value but for now
+     * just RAZ for all cores:
+     */
+    { .name = "AIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 7,
+      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static int teecr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    value &= 1;
+    env->teecr = value;
+    return 0;
+}
+
+static int teehbr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    /* This is a helper function because the user access rights
+     * depend on the value of the TEECR.
+     */
+    if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
+        return EXCP_UDEF;
+    }
+    *value = env->teehbr;
+    return 0;
+}
+
+static int teehbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    if (arm_current_pl(env) == 0 && (env->teecr & 1)) {
+        return EXCP_UDEF;
+    }
+    env->teehbr = value;
+    return 0;
+}
+
+static const ARMCPRegInfo t2ee_cp_reginfo[] = {
+    { .name = "TEECR", .cp = 14, .crn = 0, .crm = 0, .opc1 = 6, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, teecr),
+      .resetvalue = 0,
+      .writefn = teecr_write },
+    { .name = "TEEHBR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 6, .opc2 = 0,
+      .access = PL0_RW, .fieldoffset = offsetof(CPUARMState, teehbr),
+      .resetvalue = 0,
+      .readfn = teehbr_read, .writefn = teehbr_write },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo v6k_cp_reginfo[] = {
+    { .name = "TPIDRURW", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL0_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls1),
+      .resetvalue = 0 },
+    { .name = "TPIDRURO", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 3,
+      .access = PL0_R|PL1_W,
+      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls2),
+      .resetvalue = 0 },
+    { .name = "TPIDRPRW", .cp = 15, .crn = 13, .crm = 0, .opc1 = 0, .opc2 = 4,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c13_tls3),
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
+    /* Dummy implementation: RAZ/WI the whole crn=14 space */
+    { .name = "GENERIC_TIMER", .cp = 15, .crn = 14,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        env->cp15.c7_par = value & 0xfffff6ff;
+    } else {
+        env->cp15.c7_par = value & 0xfffff1ff;
+    }
+    return 0;
+}
+
+#ifndef CONFIG_USER_ONLY
+/* get_phys_addr() isn't present for user-mode-only targets */
+static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    uint32_t phys_addr;
+    target_ulong page_size;
+    int prot;
+    int ret, is_user = ri->opc2 & 2;
+    int access_type = ri->opc2 & 1;
+
+    if (ri->opc2 & 4) {
+        /* Other states are only available with TrustZone */
+        return EXCP_UDEF;
+    }
+    ret = get_phys_addr(env, value, access_type, is_user,
+                        &phys_addr, &prot, &page_size);
+    if (ret == 0) {
+        /* We do not set any attribute bits in the PAR */
+        if (page_size == (1 << 24)
+            && arm_feature(env, ARM_FEATURE_V7)) {
+            env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+        } else {
+            env->cp15.c7_par = phys_addr & 0xfffff000;
+        }
+    } else {
+        env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
+            ((ret & (12 << 1)) >> 6) |
+            ((ret & 0xf) << 1) | 1;
+    }
+    return 0;
+}
+#endif
+
+static const ARMCPRegInfo vapa_cp_reginfo[] = {
+    { .name = "PAR", .cp = 15, .crn = 7, .crm = 4, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c7_par),
+      .writefn = par_write },
+#ifndef CONFIG_USER_ONLY
+    { .name = "ATS", .cp = 15, .crn = 7, .crm = 8, .opc1 = 0, .opc2 = CP_ANY,
+      .access = PL1_W, .writefn = ats_write },
+#endif
+    REGINFO_SENTINEL
+};
+
+/* Return basic MPU access permission bits.  */
+static uint32_t simple_mpu_ap_bits(uint32_t val)
+{
+    uint32_t ret;
+    uint32_t mask;
+    int i;
+    ret = 0;
+    mask = 3;
+    for (i = 0; i < 16; i += 2) {
+        ret |= (val >> i) & mask;
+        mask <<= 2;
+    }
+    return ret;
+}
+
+/* Pad basic MPU access permission bits to extended format.  */
+static uint32_t extended_mpu_ap_bits(uint32_t val)
+{
+    uint32_t ret;
+    uint32_t mask;
+    int i;
+    ret = 0;
+    mask = 3;
+    for (i = 0; i < 16; i += 2) {
+        ret |= (val & mask) << i;
+        mask <<= 2;
+    }
+    return ret;
+}
+
+static int pmsav5_data_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    env->cp15.c5_data = extended_mpu_ap_bits(value);
+    return 0;
+}
+
+static int pmsav5_data_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t *value)
+{
+    *value = simple_mpu_ap_bits(env->cp15.c5_data);
+    return 0;
+}
+
+static int pmsav5_insn_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                uint64_t value)
+{
+    env->cp15.c5_insn = extended_mpu_ap_bits(value);
+    return 0;
+}
+
+static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t *value)
+{
+    *value = simple_mpu_ap_bits(env->cp15.c5_insn);
+    return 0;
+}
+
+static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t *value)
+{
+    if (ri->crm > 8) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c6_region[ri->crm];
+    return 0;
+}
+
+static int arm946_prbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    if (ri->crm > 8) {
+        return EXCP_UDEF;
+    }
+    env->cp15.c6_region[ri->crm] = value;
+    return 0;
+}
+
+static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
+    { .name = "DATA_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0,
+      .readfn = pmsav5_data_ap_read, .writefn = pmsav5_data_ap_write, },
+    { .name = "INSN_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0,
+      .readfn = pmsav5_insn_ap_read, .writefn = pmsav5_insn_ap_write, },
+    { .name = "DATA_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    { .name = "INSN_EXT_AP", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 3,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+    { .name = "DCACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_data), .resetvalue = 0, },
+    { .name = "ICACHE_CFG", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_insn), .resetvalue = 0, },
+    /* Protection region base and size registers */
+    { .name = "946_PRBS", .cp = 15, .crn = 6, .crm = CP_ANY, .opc1 = 0,
+      .opc2 = CP_ANY, .access = PL1_RW,
+      .readfn = arm946_prbs_read, .writefn = arm946_prbs_write, },
+    REGINFO_SENTINEL
+};
+
+static int vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    value &= 7;
+    env->cp15.c2_control = value;
+    env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> value);
+    env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> value);
+    return 0;
+}
+
+static void vmsa_ttbcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c2_base_mask = 0xffffc000u;
+    env->cp15.c2_control = 0;
+    env->cp15.c2_mask = 0;
+}
+
+static const ARMCPRegInfo vmsa_cp_reginfo[] = {
+    { .name = "DFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    { .name = "IFSR", .cp = 15, .crn = 5, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_insn), .resetvalue = 0, },
+    { .name = "TTBR0", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
+    { .name = "TTBR1", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
+    { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
+      .access = PL1_RW, .writefn = vmsa_ttbcr_write,
+      .resetfn = vmsa_ttbcr_reset,
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_control) },
+    { .name = "DFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_data),
+      .resetvalue = 0, },
+    REGINFO_SENTINEL
+};
+
+static int omap_ticonfig_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    env->cp15.c15_ticonfig = value & 0xe7;
+    /* The OS_TYPE bit in this register changes the reported CPUID! */
+    env->cp15.c0_cpuid = (value & (1 << 5)) ?
+        ARM_CPUID_TI915T : ARM_CPUID_TI925T;
+    return 0;
+}
+
+static int omap_threadid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                               uint64_t value)
+{
+    env->cp15.c15_threadid = value & 0xffff;
+    return 0;
+}
+
+static int omap_wfi_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t value)
+{
+    /* Wait-for-interrupt (deprecated) */
+    cpu_interrupt(env, CPU_INTERRUPT_HALT);
+    return 0;
+}
+
+static int omap_cachemaint_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
+{
+    /* On OMAP there are registers indicating the max/min index of dcache lines
+     * containing a dirty line; cache flush operations have to reset these.
+     */
+    env->cp15.c15_i_max = 0x000;
+    env->cp15.c15_i_min = 0xff0;
+    return 0;
+}
+
+static const ARMCPRegInfo omap_cp_reginfo[] = {
+    { .name = "DFSR", .cp = 15, .crn = 5, .crm = CP_ANY,
+      .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW, .type = ARM_CP_OVERRIDE,
+      .fieldoffset = offsetof(CPUARMState, cp15.c5_data), .resetvalue = 0, },
+    { .name = "", .cp = 15, .crn = 15, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_NOP },
+    { .name = "TICONFIG", .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_ticonfig), .resetvalue = 0,
+      .writefn = omap_ticonfig_write },
+    { .name = "IMAX", .cp = 15, .crn = 15, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_i_max), .resetvalue = 0, },
+    { .name = "IMIN", .cp = 15, .crn = 15, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .resetvalue = 0xff0,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_i_min) },
+    { .name = "THREADID", .cp = 15, .crn = 15, .crm = 4, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_threadid), .resetvalue = 0,
+      .writefn = omap_threadid_write },
+    { .name = "TI925T_STATUS", .cp = 15, .crn = 15,
+      .crm = 8, .opc1 = 0, .opc2 = 0, .access = PL1_RW,
+      .readfn = arm_cp_read_zero, .writefn = omap_wfi_write, },
+    /* TODO: Peripheral port remap register:
+     * On OMAP2 mcr p15, 0, rn, c15, c2, 4 sets up the interrupt controller
+     * base address at $rn & ~0xfff and map size of 0x200 << ($rn & 0xfff),
+     * when MMU is off.
+     */
+    { .name = "OMAP_CACHEMAINT", .cp = 15, .crn = 7, .crm = CP_ANY,
+      .opc1 = 0, .opc2 = CP_ANY, .access = PL1_W, .type = ARM_CP_OVERRIDE,
+      .writefn = omap_cachemaint_write },
+    { .name = "C9", .cp = 15, .crn = 9,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_RW,
+      .type = ARM_CP_CONST | ARM_CP_OVERRIDE, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static int xscale_cpar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                             uint64_t value)
+{
+    value &= 0x3fff;
+    if (env->cp15.c15_cpar != value) {
+        /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
+        tb_flush(env);
+        env->cp15.c15_cpar = value;
+    }
+    return 0;
+}
+
+static const ARMCPRegInfo xscale_cp_reginfo[] = {
+    { .name = "XSCALE_CPAR",
+      .cp = 15, .crn = 15, .crm = 1, .opc1 = 0, .opc2 = 0, .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c15_cpar), .resetvalue = 0,
+      .writefn = xscale_cpar_write, },
+    { .name = "XSCALE_AUXCR",
+      .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1, .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c1_xscaleauxcr),
+      .resetvalue = 0, },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo dummy_c15_cp_reginfo[] = {
+    /* RAZ/WI the whole crn=15 space, when we don't have a more specific
+     * implementation of this implementation-defined space.
+     * Ideally this should eventually disappear in favour of actually
+     * implementing the correct behaviour for all cores.
+     */
+    { .name = "C15_IMPDEF", .cp = 15, .crn = 15,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo cache_dirty_status_cp_reginfo[] = {
+    /* Cache status: RAZ because we have no cache so it's always clean */
+    { .name = "CDSR", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 6,
+      .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo cache_block_ops_cp_reginfo[] = {
+    /* We never have a a block transfer operation in progress */
+    { .name = "BXSR", .cp = 15, .crn = 7, .crm = 12, .opc1 = 0, .opc2 = 4,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+    /* The cache ops themselves: these all NOP for QEMU */
+    { .name = "IICR", .cp = 15, .crm = 5, .opc1 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP|ARM_CP_64BIT },
+    { .name = "IDCR", .cp = 15, .crm = 6, .opc1 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP|ARM_CP_64BIT },
+    { .name = "CDCR", .cp = 15, .crm = 12, .opc1 = 0,
+      .access = PL0_W, .type = ARM_CP_NOP|ARM_CP_64BIT },
+    { .name = "PIR", .cp = 15, .crm = 12, .opc1 = 1,
+      .access = PL0_W, .type = ARM_CP_NOP|ARM_CP_64BIT },
+    { .name = "PDR", .cp = 15, .crm = 12, .opc1 = 2,
+      .access = PL0_W, .type = ARM_CP_NOP|ARM_CP_64BIT },
+    { .name = "CIDCR", .cp = 15, .crm = 14, .opc1 = 0,
+      .access = PL1_W, .type = ARM_CP_NOP|ARM_CP_64BIT },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo cache_test_clean_cp_reginfo[] = {
+    /* The cache test-and-clean instructions always return (1 << 30)
+     * to indicate that there are no dirty cache lines.
+     */
+    { .name = "TC_DCACHE", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 3,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = (1 << 30) },
+    { .name = "TCI_DCACHE", .cp = 15, .crn = 7, .crm = 14, .opc1 = 0, .opc2 = 3,
+      .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = (1 << 30) },
+    REGINFO_SENTINEL
+};
+
+static const ARMCPRegInfo strongarm_cp_reginfo[] = {
+    /* Ignore ReadBuffer accesses */
+    { .name = "C9_READBUFFER", .cp = 15, .crn = 9,
+      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
+static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t *value)
+{
+    uint32_t mpidr = env->cpu_index;
+    /* We don't support setting cluster ID ([8..11])
+     * so these bits always RAZ.
+     */
+    if (arm_feature(env, ARM_FEATURE_V7MP)) {
+        mpidr |= (1 << 31);
+        /* Cores which are uniprocessor (non-coherent)
+         * but still implement the MP extensions set
+         * bit 30. (For instance, A9UP.) However we do
+         * not currently model any of those cores.
+         */
+    }
+    *value = mpidr;
+    return 0;
+}
+
+static const ARMCPRegInfo mpidr_cp_reginfo[] = {
+    { .name = "MPIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 5,
+      .access = PL1_R, .readfn = mpidr_read },
+    REGINFO_SENTINEL
+};
+
+static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    env->cp15.c1_sys = value;
+    /* ??? Lots of these bits are not implemented.  */
+    /* This may enable/disable the MMU, so do a TLB flush.  */
+    tlb_flush(env, 1);
+    return 0;
+}
+
+void register_cp_regs_for_features(ARMCPU *cpu)
+{
+    /* Register all the coprocessor registers based on feature bits */
+    CPUARMState *env = &cpu->env;
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        /* M profile has no coprocessor registers */
+        return;
+    }
+
+    define_arm_cp_regs(cpu, cp_reginfo);
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        /* The ID registers all have impdef reset values */
+        ARMCPRegInfo v6_idregs[] = {
+            { .name = "ID_PFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 0, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_pfr0 },
+            { .name = "ID_PFR1", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 1, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_pfr1 },
+            { .name = "ID_DFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 2, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_dfr0 },
+            { .name = "ID_AFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 3, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_afr0 },
+            { .name = "ID_MMFR0", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 4, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr0 },
+            { .name = "ID_MMFR1", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 5, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr1 },
+            { .name = "ID_MMFR2", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 6, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr2 },
+            { .name = "ID_MMFR3", .cp = 15, .crn = 0, .crm = 1,
+              .opc1 = 0, .opc2 = 7, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_mmfr3 },
+            { .name = "ID_ISAR0", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 0, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar0 },
+            { .name = "ID_ISAR1", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 1, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar1 },
+            { .name = "ID_ISAR2", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 2, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar2 },
+            { .name = "ID_ISAR3", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 3, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar3 },
+            { .name = "ID_ISAR4", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 4, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar4 },
+            { .name = "ID_ISAR5", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 5, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = cpu->id_isar5 },
+            /* 6..7 are as yet unallocated and must RAZ */
+            { .name = "ID_ISAR6", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 6, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ID_ISAR7", .cp = 15, .crn = 0, .crm = 2,
+              .opc1 = 0, .opc2 = 7, .access = PL1_R, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
+        define_arm_cp_regs(cpu, v6_idregs);
+        define_arm_cp_regs(cpu, v6_cp_reginfo);
+    } else {
+        define_arm_cp_regs(cpu, not_v6_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_V6K)) {
+        define_arm_cp_regs(cpu, v6k_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        /* v7 performance monitor control register: same implementor
+         * field as main ID register, and we implement no event counters.
+         */
+        ARMCPRegInfo pmcr = {
+            .name = "PMCR", .cp = 15, .crn = 9, .crm = 12, .opc1 = 0, .opc2 = 0,
+            .access = PL0_RW, .resetvalue = cpu->midr & 0xff000000,
+            .fieldoffset = offsetof(CPUARMState, cp15.c9_pmcr),
+            .readfn = pmreg_read, .writefn = pmcr_write
+        };
+        ARMCPRegInfo clidr = {
+            .name = "CLIDR", .cp = 15, .crn = 0, .crm = 0, .opc1 = 1, .opc2 = 1,
+            .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->clidr
+        };
+        define_one_arm_cp_reg(cpu, &pmcr);
+        define_one_arm_cp_reg(cpu, &clidr);
+        define_arm_cp_regs(cpu, v7_cp_reginfo);
+    } else {
+        define_arm_cp_regs(cpu, not_v7_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_MPU)) {
+        /* These are the MPU registers prior to PMSAv6. Any new
+         * PMSA core later than the ARM946 will require that we
+         * implement the PMSAv6 or PMSAv7 registers, which are
+         * completely different.
+         */
+        assert(!arm_feature(env, ARM_FEATURE_V6));
+        define_arm_cp_regs(cpu, pmsav5_cp_reginfo);
+    } else {
+        define_arm_cp_regs(cpu, vmsa_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_THUMB2EE)) {
+        define_arm_cp_regs(cpu, t2ee_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
+        define_arm_cp_regs(cpu, generic_timer_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_VAPA)) {
+        define_arm_cp_regs(cpu, vapa_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_CACHE_TEST_CLEAN)) {
+        define_arm_cp_regs(cpu, cache_test_clean_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_CACHE_DIRTY_REG)) {
+        define_arm_cp_regs(cpu, cache_dirty_status_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_CACHE_BLOCK_OPS)) {
+        define_arm_cp_regs(cpu, cache_block_ops_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
+        define_arm_cp_regs(cpu, omap_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_STRONGARM)) {
+        define_arm_cp_regs(cpu, strongarm_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+        define_arm_cp_regs(cpu, xscale_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_DUMMY_C15_REGS)) {
+        define_arm_cp_regs(cpu, dummy_c15_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_MPIDR)) {
+        define_arm_cp_regs(cpu, mpidr_cp_reginfo);
+    }
+    /* Slightly awkwardly, the OMAP and StrongARM cores need all of
+     * cp15 crn=0 to be writes-ignored, whereas for other cores they should
+     * be read-only (ie write causes UNDEF exception).
+     */
+    {
+        ARMCPRegInfo id_cp_reginfo[] = {
+            /* Note that the MIDR isn't a simple constant register because
+             * of the TI925 behaviour where writes to another register can
+             * cause the MIDR value to change.
+             */
+            { .name = "MIDR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 0,
+              .access = PL1_R, .resetvalue = cpu->midr,
+              .writefn = arm_cp_write_ignore,
+              .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid) },
+            { .name = "CTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 1,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->ctr },
+            { .name = "TCMTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 2,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "TLBTR",
+              .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 3,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            /* crn = 0 op1 = 0 crm = 3..7 : currently unassigned; we RAZ. */
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 3, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 4, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 5, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 6, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            { .name = "DUMMY",
+              .cp = 15, .crn = 0, .crm = 7, .opc1 = 0, .opc2 = CP_ANY,
+              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = 0 },
+            REGINFO_SENTINEL
+        };
+        ARMCPRegInfo crn0_wi_reginfo = {
+            .name = "CRN0_WI", .cp = 15, .crn = 0, .crm = CP_ANY,
+            .opc1 = CP_ANY, .opc2 = CP_ANY, .access = PL1_W,
+            .type = ARM_CP_NOP | ARM_CP_OVERRIDE
+        };
+        if (arm_feature(env, ARM_FEATURE_OMAPCP) ||
+            arm_feature(env, ARM_FEATURE_STRONGARM)) {
+            ARMCPRegInfo *r;
+            /* Register the blanket "writes ignored" value first to cover the
+             * whole space. Then define the specific ID registers, but update
+             * their access field to allow write access, so that they ignore
+             * writes rather than causing them to UNDEF.
+             */
+            define_one_arm_cp_reg(cpu, &crn0_wi_reginfo);
+            for (r = id_cp_reginfo; r->type != ARM_CP_SENTINEL; r++) {
+                r->access = PL1_RW;
+                define_one_arm_cp_reg(cpu, r);
+            }
+        } else {
+            /* Just register the standard ID registers (read-only, meaning
+             * that writes will UNDEF).
+             */
+            define_arm_cp_regs(cpu, id_cp_reginfo);
+        }
+    }
+
+    if (arm_feature(env, ARM_FEATURE_AUXCR)) {
+        ARMCPRegInfo auxcr = {
+            .name = "AUXCR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 1,
+            .access = PL1_RW, .type = ARM_CP_CONST,
+            .resetvalue = cpu->reset_auxcr
+        };
+        define_one_arm_cp_reg(cpu, &auxcr);
+    }
+
+    /* Generic registers whose values depend on the implementation */
+    {
+        ARMCPRegInfo sctlr = {
+            .name = "SCTLR", .cp = 15, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
+            .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_sys),
+            .writefn = sctlr_write, .resetvalue = cpu->reset_sctlr
+        };
+        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
+            /* Normally we would always end the TB on an SCTLR write, but Linux
+             * arch/arm/mach-pxa/sleep.S expects two instructions following
+             * an MMU enable to execute from cache.  Imitate this behaviour.
+             */
+            sctlr.type |= ARM_CP_SUPPRESS_TB_END;
+        }
+        define_one_arm_cp_reg(cpu, &sctlr);
+    }
 }
 
 ARMCPU *cpu_arm_init(const char *cpu_model)
@@ -135,6 +1190,107 @@ void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, arm_cpu_list_entry, &s);
     g_slist_free(list);
+}
+
+void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
+                                       const ARMCPRegInfo *r, void *opaque)
+{
+    /* Define implementations of coprocessor registers.
+     * We store these in a hashtable because typically
+     * there are less than 150 registers in a space which
+     * is 16*16*16*8*8 = 262144 in size.
+     * Wildcarding is supported for the crm, opc1 and opc2 fields.
+     * If a register is defined twice then the second definition is
+     * used, so this can be used to define some generic registers and
+     * then override them with implementation specific variations.
+     * At least one of the original and the second definition should
+     * include ARM_CP_OVERRIDE in its type bits -- this is just a guard
+     * against accidental use.
+     */
+    int crm, opc1, opc2;
+    int crmmin = (r->crm == CP_ANY) ? 0 : r->crm;
+    int crmmax = (r->crm == CP_ANY) ? 15 : r->crm;
+    int opc1min = (r->opc1 == CP_ANY) ? 0 : r->opc1;
+    int opc1max = (r->opc1 == CP_ANY) ? 7 : r->opc1;
+    int opc2min = (r->opc2 == CP_ANY) ? 0 : r->opc2;
+    int opc2max = (r->opc2 == CP_ANY) ? 7 : r->opc2;
+    /* 64 bit registers have only CRm and Opc1 fields */
+    assert(!((r->type & ARM_CP_64BIT) && (r->opc2 || r->crn)));
+    /* Check that the register definition has enough info to handle
+     * reads and writes if they are permitted.
+     */
+    if (!(r->type & (ARM_CP_SPECIAL|ARM_CP_CONST))) {
+        if (r->access & PL3_R) {
+            assert(r->fieldoffset || r->readfn);
+        }
+        if (r->access & PL3_W) {
+            assert(r->fieldoffset || r->writefn);
+        }
+    }
+    /* Bad type field probably means missing sentinel at end of reg list */
+    assert(cptype_valid(r->type));
+    for (crm = crmmin; crm <= crmmax; crm++) {
+        for (opc1 = opc1min; opc1 <= opc1max; opc1++) {
+            for (opc2 = opc2min; opc2 <= opc2max; opc2++) {
+                uint32_t *key = g_new(uint32_t, 1);
+                ARMCPRegInfo *r2 = g_memdup(r, sizeof(ARMCPRegInfo));
+                int is64 = (r->type & ARM_CP_64BIT) ? 1 : 0;
+                *key = ENCODE_CP_REG(r->cp, is64, r->crn, crm, opc1, opc2);
+                r2->opaque = opaque;
+                /* Make sure reginfo passed to helpers for wildcarded regs
+                 * has the correct crm/opc1/opc2 for this reg, not CP_ANY:
+                 */
+                r2->crm = crm;
+                r2->opc1 = opc1;
+                r2->opc2 = opc2;
+                /* Overriding of an existing definition must be explicitly
+                 * requested.
+                 */
+                if (!(r->type & ARM_CP_OVERRIDE)) {
+                    ARMCPRegInfo *oldreg;
+                    oldreg = g_hash_table_lookup(cpu->cp_regs, key);
+                    if (oldreg && !(oldreg->type & ARM_CP_OVERRIDE)) {
+                        fprintf(stderr, "Register redefined: cp=%d %d bit "
+                                "crn=%d crm=%d opc1=%d opc2=%d, "
+                                "was %s, now %s\n", r2->cp, 32 + 32 * is64,
+                                r2->crn, r2->crm, r2->opc1, r2->opc2,
+                                oldreg->name, r2->name);
+                        assert(0);
+                    }
+                }
+                g_hash_table_insert(cpu->cp_regs, key, r2);
+            }
+        }
+    }
+}
+
+void define_arm_cp_regs_with_opaque(ARMCPU *cpu,
+                                    const ARMCPRegInfo *regs, void *opaque)
+{
+    /* Define a whole list of registers */
+    const ARMCPRegInfo *r;
+    for (r = regs; r->type != ARM_CP_SENTINEL; r++) {
+        define_one_arm_cp_reg_with_opaque(cpu, r, opaque);
+    }
+}
+
+const ARMCPRegInfo *get_arm_cp_reginfo(ARMCPU *cpu, uint32_t encoded_cp)
+{
+    return g_hash_table_lookup(cpu->cp_regs, &encoded_cp);
+}
+
+int arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    /* Helper coprocessor write function for write-ignore registers */
+    return 0;
+}
+
+int arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
+{
+    /* Helper coprocessor write function for read-as-zero registers */
+    *value = 0;
+    return 0;
 }
 
 static int bad_mode_switch(CPUARMState *env, int mode)
@@ -286,31 +1442,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void QEMU_NORETURN HELPER(set_cp)(CPUARMState *env, uint32_t insn, uint32_t val)
-{
-    int op1 = (insn >> 8) & 0xf;
-    cpu_abort(env, "cp%i insn %08x\n", op1, insn);
-}
-
-uint32_t QEMU_NORETURN HELPER(get_cp)(CPUARMState *env, uint32_t insn)
-{
-    int op1 = (insn >> 8) & 0xf;
-    cpu_abort(env, "cp%i insn %08x\n", op1, insn);
-    //~ return 0;
-}
-
-void QEMU_NORETURN HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
-{
-    cpu_abort(env, "cp15 insn %08x\n", insn);
-}
-
-uint32_t QEMU_NORETURN HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
-{
-    cpu_abort(env, "cp15 insn %08x\n", insn);
-}
-
-/* These should probably raise undefined insn exceptions.  */
-void QEMU_NORETURN HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
+void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
 }
@@ -1035,872 +2167,6 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
     return phys_addr;
 }
 
-void HELPER(set_cp)(CPUARMState *env, uint32_t insn, uint32_t val)
-{
-    int cp_num = (insn >> 8) & 0xf;
-    int cp_info = (insn >> 5) & 7;
-    int src = (insn >> 16) & 0xf;
-    int operand = insn & 0xf;
-
-    if (env->cp[cp_num].cp_write)
-        env->cp[cp_num].cp_write(env->cp[cp_num].opaque,
-                                 cp_info, src, operand, val);
-}
-
-uint32_t HELPER(get_cp)(CPUARMState *env, uint32_t insn)
-{
-    int cp_num = (insn >> 8) & 0xf;
-    int cp_info = (insn >> 5) & 7;
-    int dest = (insn >> 16) & 0xf;
-    int operand = insn & 0xf;
-
-    if (env->cp[cp_num].cp_read)
-        return env->cp[cp_num].cp_read(env->cp[cp_num].opaque,
-                                       cp_info, dest, operand);
-    return 0;
-}
-
-/* Return basic MPU access permission bits.  */
-static uint32_t simple_mpu_ap_bits(uint32_t val)
-{
-    uint32_t ret;
-    uint32_t mask;
-    int i;
-    ret = 0;
-    mask = 3;
-    for (i = 0; i < 16; i += 2) {
-        ret |= (val >> i) & mask;
-        mask <<= 2;
-    }
-    return ret;
-}
-
-/* Pad basic MPU access permission bits to extended format.  */
-static uint32_t extended_mpu_ap_bits(uint32_t val)
-{
-    uint32_t ret;
-    uint32_t mask;
-    int i;
-    ret = 0;
-    mask = 3;
-    for (i = 0; i < 16; i += 2) {
-        ret |= (val & mask) << i;
-        mask <<= 2;
-    }
-    return ret;
-}
-
-void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
-{
-    int op1;
-    int op2;
-    int crm;
-
-    op1 = (insn >> 21) & 7;
-    op2 = (insn >> 5) & 7;
-    crm = insn & 0xf;
-    switch ((insn >> 16) & 0xf) {
-    case 0:
-        /* ID codes.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE))
-            break;
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            break;
-        if (arm_feature(env, ARM_FEATURE_V7)
-                && op1 == 2 && crm == 0 && op2 == 0) {
-            env->cp15.c0_cssel = val & 0xf;
-            break;
-        }
-        goto bad_reg;
-    case 1: /* System configuration.  */
-        if (arm_feature(env, ARM_FEATURE_V7)
-                && op1 == 0 && crm == 1 && op2 == 0) {
-            env->cp15.c1_scr = val;
-            break;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0:
-            if (!arm_feature(env, ARM_FEATURE_XSCALE) || crm == 0)
-                env->cp15.c1_sys = val;
-            /* ??? Lots of these bits are not implemented.  */
-            /* This may enable/disable the MMU, so do a TLB flush.  */
-            tlb_flush(env, 1);
-            break;
-        case 1: /* Auxiliary control register.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-                env->cp15.c1_xscaleauxcr = val;
-                break;
-            }
-            /* Not implemented.  */
-            break;
-        case 2:
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
-                goto bad_reg;
-            if (env->cp15.c1_coproc != val) {
-                env->cp15.c1_coproc = val;
-                /* ??? Is this safe when called from within a TB?  */
-                tb_flush(env);
-            }
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
-    case 2: /* MMU Page table control / MPU cache control.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            switch (op2) {
-            case 0:
-                env->cp15.c2_data = val;
-                break;
-            case 1:
-                env->cp15.c2_insn = val;
-                break;
-            default:
-                goto bad_reg;
-            }
-        } else {
-	    switch (op2) {
-	    case 0:
-		env->cp15.c2_base0 = val;
-		break;
-	    case 1:
-		env->cp15.c2_base1 = val;
-		break;
-	    case 2:
-                val &= 7;
-                env->cp15.c2_control = val;
-		env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> val);
-                env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> val);
-		break;
-	    default:
-		goto bad_reg;
-	    }
-        }
-        break;
-    case 3: /* MMU Domain access control / MPU write buffer control.  */
-        env->cp15.c3 = val;
-        tlb_flush(env, 1); /* Flush TLB as domain not tracked in TLB */
-        break;
-    case 4: /* Reserved.  */
-        goto bad_reg;
-    case 5: /* MMU Fault status / MPU access permission.  */
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                val = extended_mpu_ap_bits(val);
-            env->cp15.c5_data = val;
-            break;
-        case 1:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                val = extended_mpu_ap_bits(val);
-            env->cp15.c5_insn = val;
-            break;
-        case 2:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            env->cp15.c5_data = val;
-            break;
-        case 3:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            env->cp15.c5_insn = val;
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
-    case 6: /* MMU Fault address / MPU base/size.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            if (crm >= 8)
-                goto bad_reg;
-            env->cp15.c6_region[crm] = val;
-        } else {
-            if (arm_feature(env, ARM_FEATURE_OMAPCP))
-                op2 = 0;
-            switch (op2) {
-            case 0:
-                env->cp15.c6_data = val;
-                break;
-            case 1: /* ??? This is WFAR on armv6 */
-            case 2:
-                env->cp15.c6_insn = val;
-                break;
-            default:
-                goto bad_reg;
-            }
-        }
-        break;
-    case 7: /* Cache control.  */
-        env->cp15.c15_i_max = 0x000;
-        env->cp15.c15_i_min = 0xff0;
-        if (op1 != 0) {
-            goto bad_reg;
-        }
-        /* No cache, so nothing to do except VA->PA translations. */
-        if (arm_feature(env, ARM_FEATURE_VAPA)) {
-            switch (crm) {
-            case 4:
-                if (arm_feature(env, ARM_FEATURE_V7)) {
-                    env->cp15.c7_par = val & 0xfffff6ff;
-                } else {
-                    env->cp15.c7_par = val & 0xfffff1ff;
-                }
-                break;
-            case 8: {
-                uint32_t phys_addr;
-                target_ulong page_size;
-                int prot;
-                int ret, is_user = op2 & 2;
-                int access_type = op2 & 1;
-
-                if (op2 & 4) {
-                    /* Other states are only available with TrustZone */
-                    goto bad_reg;
-                }
-                ret = get_phys_addr(env, val, access_type, is_user,
-                                    &phys_addr, &prot, &page_size);
-                if (ret == 0) {
-                    /* We do not set any attribute bits in the PAR */
-                    if (page_size == (1 << 24)
-                        && arm_feature(env, ARM_FEATURE_V7)) {
-                        env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
-                    } else {
-                        env->cp15.c7_par = phys_addr & 0xfffff000;
-                    }
-                } else {
-                    env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
-                                       ((ret & (12 << 1)) >> 6) |
-                                       ((ret & 0xf) << 1) | 1;
-                }
-                break;
-            }
-            }
-        }
-        break;
-    case 8: /* MMU TLB control.  */
-        switch (op2) {
-        case 0: /* Invalidate all (TLBIALL) */
-            tlb_flush(env, 1);
-            break;
-        case 1: /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
-            tlb_flush_page(env, val & TARGET_PAGE_MASK);
-            break;
-        case 2: /* Invalidate by ASID (TLBIASID) */
-            tlb_flush(env, val == 0);
-            break;
-        case 3: /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
-            tlb_flush_page(env, val & TARGET_PAGE_MASK);
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
-    case 9:
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            break;
-        if (arm_feature(env, ARM_FEATURE_STRONGARM))
-            break; /* Ignore ReadBuffer access */
-        switch (crm) {
-        case 0: /* Cache lockdown.  */
-	    switch (op1) {
-	    case 0: /* L1 cache.  */
-		switch (op2) {
-		case 0:
-		    env->cp15.c9_data = val;
-		    break;
-		case 1:
-		    env->cp15.c9_insn = val;
-		    break;
-		default:
-		    goto bad_reg;
-		}
-		break;
-	    case 1: /* L2 cache.  */
-		/* Ignore writes to L2 lockdown/auxiliary registers.  */
-		break;
-	    default:
-		goto bad_reg;
-	    }
-	    break;
-        case 1: /* TCM memory region registers.  */
-            /* Not implemented.  */
-            goto bad_reg;
-        case 12: /* Performance monitor control */
-            /* Performance monitors are implementation defined in v7,
-             * but with an ARM recommended set of registers, which we
-             * follow (although we don't actually implement any counters)
-             */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* performance monitor control register */
-                /* only the DP, X, D and E bits are writable */
-                env->cp15.c9_pmcr &= ~0x39;
-                env->cp15.c9_pmcr |= (val & 0x39);
-                break;
-            case 1: /* Count enable set register */
-                val &= (1 << 31);
-                env->cp15.c9_pmcnten |= val;
-                break;
-            case 2: /* Count enable clear */
-                val &= (1 << 31);
-                env->cp15.c9_pmcnten &= ~val;
-                break;
-            case 3: /* Overflow flag status */
-                env->cp15.c9_pmovsr &= ~val;
-                break;
-            case 4: /* Software increment */
-                /* RAZ/WI since we don't implement the software-count event */
-                break;
-            case 5: /* Event counter selection register */
-                /* Since we don't implement any events, writing to this register
-                 * is actually UNPREDICTABLE. So we choose to RAZ/WI.
-                 */
-                break;
-            default:
-                goto bad_reg;
-            }
-            break;
-        case 13: /* Performance counters */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* Cycle count register: not implemented, so RAZ/WI */
-                break;
-            case 1: /* Event type select */
-                env->cp15.c9_pmxevtyper = val & 0xff;
-                break;
-            case 2: /* Event count register */
-                /* Unimplemented (we have no events), RAZ/WI */
-                break;
-            default:
-                goto bad_reg;
-            }
-            break;
-        case 14: /* Performance monitor control */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* user enable */
-                env->cp15.c9_pmuserenr = val & 1;
-                /* changes access rights for cp registers, so flush tbs */
-                tb_flush(env);
-                break;
-            case 1: /* interrupt enable set */
-                /* We have no event counters so only the C bit can be changed */
-                val &= (1 << 31);
-                env->cp15.c9_pminten |= val;
-                break;
-            case 2: /* interrupt enable clear */
-                val &= (1 << 31);
-                env->cp15.c9_pminten &= ~val;
-                break;
-            }
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
-    case 10: /* MMU TLB lockdown.  */
-        /* ??? TLB lockdown not implemented.  */
-        break;
-    case 12: /* Reserved.  */
-        goto bad_reg;
-    case 13: /* Process ID.  */
-        switch (op2) {
-        case 0:
-            /* Unlike real hardware the qemu TLB uses virtual addresses,
-               not modified virtual addresses, so this causes a TLB flush.
-             */
-            if (env->cp15.c13_fcse != val)
-              tlb_flush(env, 1);
-            env->cp15.c13_fcse = val;
-            break;
-        case 1:
-            /* This changes the ASID, so do a TLB flush.  */
-            if (env->cp15.c13_context != val
-                && !arm_feature(env, ARM_FEATURE_MPU))
-              tlb_flush(env, 0);
-            env->cp15.c13_context = val;
-            break;
-        default:
-            goto bad_reg;
-        }
-        break;
-    case 14: /* Generic timer */
-        if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
-            /* Dummy implementation: RAZ/WI for all */
-            break;
-        }
-        goto bad_reg;
-    case 15: /* Implementation specific.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-            if (op2 == 0 && crm == 1) {
-                if (env->cp15.c15_cpar != (val & 0x3fff)) {
-                    /* Changes cp0 to cp13 behavior, so needs a TB flush.  */
-                    tb_flush(env);
-                    env->cp15.c15_cpar = val & 0x3fff;
-                }
-                break;
-            }
-            goto bad_reg;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
-            switch (crm) {
-            case 0:
-                break;
-            case 1: /* Set TI925T configuration.  */
-                env->cp15.c15_ticonfig = val & 0xe7;
-                env->cp15.c0_cpuid = (val & (1 << 5)) ? /* OS_TYPE bit */
-                        ARM_CPUID_TI915T : ARM_CPUID_TI925T;
-                break;
-            case 2: /* Set I_max.  */
-                env->cp15.c15_i_max = val;
-                break;
-            case 3: /* Set I_min.  */
-                env->cp15.c15_i_min = val;
-                break;
-            case 4: /* Set thread-ID.  */
-                env->cp15.c15_threadid = val & 0xffff;
-                break;
-            case 8: /* Wait-for-interrupt (deprecated).  */
-                cpu_interrupt(env, CPU_INTERRUPT_HALT);
-                break;
-            default:
-                goto bad_reg;
-            }
-        }
-        if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
-            switch (crm) {
-            case 0:
-                if ((op1 == 0) && (op2 == 0)) {
-                    env->cp15.c15_power_control = val;
-                } else if ((op1 == 0) && (op2 == 1)) {
-                    env->cp15.c15_diagnostic = val;
-                } else if ((op1 == 0) && (op2 == 2)) {
-                    env->cp15.c15_power_diagnostic = val;
-                }
-            default:
-                break;
-            }
-        }
-        break;
-    }
-    return;
-bad_reg:
-    /* ??? For debugging only.  Should raise illegal instruction exception.  */
-    cpu_abort(env, "Unimplemented cp15 register write (c%d, c%d, {%d, %d})\n",
-              (insn >> 16) & 0xf, crm, op1, op2);
-}
-
-uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
-{
-    int op1;
-    int op2;
-    int crm;
-
-    op1 = (insn >> 21) & 7;
-    op2 = (insn >> 5) & 7;
-    crm = insn & 0xf;
-    switch ((insn >> 16) & 0xf) {
-    case 0: /* ID codes.  */
-        switch (op1) {
-        case 0:
-            switch (crm) {
-            case 0:
-                switch (op2) {
-                case 0: /* Device ID.  */
-                    return env->cp15.c0_cpuid;
-                case 1: /* Cache Type.  */
-		    return env->cp15.c0_cachetype;
-                case 2: /* TCM status.  */
-                    return 0;
-                case 3: /* TLB type register.  */
-                    return 0; /* No lockable TLB entries.  */
-                case 5: /* MPIDR */
-                    /* The MPIDR was standardised in v7; prior to
-                     * this it was implemented only in the 11MPCore.
-                     * For all other pre-v7 cores it does not exist.
-                     */
-                    if (arm_feature(env, ARM_FEATURE_V7) ||
-                        ARM_CPUID(env) == ARM_CPUID_ARM11MPCORE) {
-                        int mpidr = env->cpu_index;
-                        /* We don't support setting cluster ID ([8..11])
-                         * so these bits always RAZ.
-                         */
-                        if (arm_feature(env, ARM_FEATURE_V7MP)) {
-                            mpidr |= (1 << 31);
-                            /* Cores which are uniprocessor (non-coherent)
-                             * but still implement the MP extensions set
-                             * bit 30. (For instance, A9UP.) However we do
-                             * not currently model any of those cores.
-                             */
-                        }
-                        return mpidr;
-                    }
-                    /* otherwise fall through to the unimplemented-reg case */
-                default:
-                    goto bad_reg;
-                }
-            case 1:
-                if (!arm_feature(env, ARM_FEATURE_V6))
-                    goto bad_reg;
-                return env->cp15.c0_c1[op2];
-            case 2:
-                if (!arm_feature(env, ARM_FEATURE_V6))
-                    goto bad_reg;
-                return env->cp15.c0_c2[op2];
-            case 3: case 4: case 5: case 6: case 7:
-                return 0;
-            default:
-                goto bad_reg;
-            }
-        case 1:
-            /* These registers aren't documented on arm11 cores.  However
-               Linux looks at them anyway.  */
-            if (!arm_feature(env, ARM_FEATURE_V6))
-                goto bad_reg;
-            if (crm != 0)
-                goto bad_reg;
-            if (!arm_feature(env, ARM_FEATURE_V7))
-                return 0;
-
-            switch (op2) {
-            case 0:
-                return env->cp15.c0_ccsid[env->cp15.c0_cssel];
-            case 1:
-                return env->cp15.c0_clid;
-            case 7:
-                return 0;
-            }
-            goto bad_reg;
-        case 2:
-            if (op2 != 0 || crm != 0)
-                goto bad_reg;
-            return env->cp15.c0_cssel;
-        default:
-            goto bad_reg;
-        }
-    case 1: /* System configuration.  */
-        if (arm_feature(env, ARM_FEATURE_V7)
-            && op1 == 0 && crm == 1 && op2 == 0) {
-            return env->cp15.c1_scr;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0: /* Control register.  */
-            return env->cp15.c1_sys;
-        case 1: /* Auxiliary control register.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
-                return env->cp15.c1_xscaleauxcr;
-            if (!arm_feature(env, ARM_FEATURE_AUXCR))
-                goto bad_reg;
-            switch (ARM_CPUID(env)) {
-            case ARM_CPUID_ARM1026:
-                return 1;
-            case ARM_CPUID_ARM1136:
-            case ARM_CPUID_ARM1136_R2:
-            case ARM_CPUID_ARM1176:
-                return 7;
-            case ARM_CPUID_ARM11MPCORE:
-                return 1;
-            case ARM_CPUID_CORTEXA8:
-                return 2;
-            case ARM_CPUID_CORTEXA9:
-            case ARM_CPUID_CORTEXA15:
-                return 0;
-            default:
-                goto bad_reg;
-            }
-        case 2: /* Coprocessor access register.  */
-            if (arm_feature(env, ARM_FEATURE_XSCALE))
-                goto bad_reg;
-            return env->cp15.c1_coproc;
-        default:
-            goto bad_reg;
-        }
-    case 2: /* MMU Page table control / MPU cache control.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            switch (op2) {
-            case 0:
-                return env->cp15.c2_data;
-                break;
-            case 1:
-                return env->cp15.c2_insn;
-                break;
-            default:
-                goto bad_reg;
-            }
-        } else {
-	    switch (op2) {
-	    case 0:
-		return env->cp15.c2_base0;
-	    case 1:
-		return env->cp15.c2_base1;
-	    case 2:
-                return env->cp15.c2_control;
-	    default:
-		goto bad_reg;
-	    }
-	}
-    case 3: /* MMU Domain access control / MPU write buffer control.  */
-        return env->cp15.c3;
-    case 4: /* Reserved.  */
-        goto bad_reg;
-    case 5: /* MMU Fault status / MPU access permission.  */
-        if (arm_feature(env, ARM_FEATURE_OMAPCP))
-            op2 = 0;
-        switch (op2) {
-        case 0:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                return simple_mpu_ap_bits(env->cp15.c5_data);
-            return env->cp15.c5_data;
-        case 1:
-            if (arm_feature(env, ARM_FEATURE_MPU))
-                return simple_mpu_ap_bits(env->cp15.c5_insn);
-            return env->cp15.c5_insn;
-        case 2:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            return env->cp15.c5_data;
-        case 3:
-            if (!arm_feature(env, ARM_FEATURE_MPU))
-                goto bad_reg;
-            return env->cp15.c5_insn;
-        default:
-            goto bad_reg;
-        }
-    case 6: /* MMU Fault address.  */
-        if (arm_feature(env, ARM_FEATURE_MPU)) {
-            if (crm >= 8)
-                goto bad_reg;
-            return env->cp15.c6_region[crm];
-        } else {
-            if (arm_feature(env, ARM_FEATURE_OMAPCP))
-                op2 = 0;
-	    switch (op2) {
-	    case 0:
-		return env->cp15.c6_data;
-	    case 1:
-		if (arm_feature(env, ARM_FEATURE_V6)) {
-		    /* Watchpoint Fault Adrress.  */
-		    return 0; /* Not implemented.  */
-		} else {
-		    /* Instruction Fault Adrress.  */
-		    /* Arm9 doesn't have an IFAR, but implementing it anyway
-		       shouldn't do any harm.  */
-		    return env->cp15.c6_insn;
-		}
-	    case 2:
-		if (arm_feature(env, ARM_FEATURE_V6)) {
-		    /* Instruction Fault Adrress.  */
-		    return env->cp15.c6_insn;
-		} else {
-		    goto bad_reg;
-		}
-	    default:
-		goto bad_reg;
-	    }
-        }
-    case 7: /* Cache control.  */
-        if (crm == 4 && op1 == 0 && op2 == 0) {
-            return env->cp15.c7_par;
-        }
-        /* FIXME: Should only clear Z flag if destination is r15.  */
-        env->ZF = 0;
-        return 0;
-    case 8: /* MMU TLB control.  */
-        goto bad_reg;
-    case 9:
-        switch (crm) {
-        case 0: /* Cache lockdown */
-            switch (op1) {
-            case 0: /* L1 cache.  */
-                if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
-                    return 0;
-                }
-                switch (op2) {
-                case 0:
-                    return env->cp15.c9_data;
-                case 1:
-                    return env->cp15.c9_insn;
-                default:
-                    goto bad_reg;
-                }
-            case 1: /* L2 cache */
-                /* L2 Lockdown and Auxiliary control.  */
-                switch (op2) {
-                case 0:
-                    /* L2 cache lockdown (A8 only) */
-                    return 0;
-                case 2:
-                    /* L2 cache auxiliary control (A8) or control (A15) */
-                    if (ARM_CPUID(env) == ARM_CPUID_CORTEXA15) {
-                        /* Linux wants the number of processors from here.
-                         * Might as well set the interrupt-controller bit too.
-                         */
-                        return ((smp_cpus - 1) << 24) | (1 << 23);
-                    }
-                    return 0;
-                case 3:
-                    /* L2 cache extended control (A15) */
-                    return 0;
-                default:
-                    goto bad_reg;
-                }
-            default:
-                goto bad_reg;
-            }
-            break;
-        case 12: /* Performance monitor control */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* performance monitor control register */
-                return env->cp15.c9_pmcr;
-            case 1: /* count enable set */
-            case 2: /* count enable clear */
-                return env->cp15.c9_pmcnten;
-            case 3: /* overflow flag status */
-                return env->cp15.c9_pmovsr;
-            case 4: /* software increment */
-            case 5: /* event counter selection register */
-                return 0; /* Unimplemented, RAZ/WI */
-            default:
-                goto bad_reg;
-            }
-        case 13: /* Performance counters */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 1: /* Event type select */
-                return env->cp15.c9_pmxevtyper;
-            case 0: /* Cycle count register */
-            case 2: /* Event count register */
-                /* Unimplemented, so RAZ/WI */
-                return 0;
-            default:
-                goto bad_reg;
-            }
-        case 14: /* Performance monitor control */
-            if (!arm_feature(env, ARM_FEATURE_V7)) {
-                goto bad_reg;
-            }
-            switch (op2) {
-            case 0: /* user enable */
-                return env->cp15.c9_pmuserenr;
-            case 1: /* interrupt enable set */
-            case 2: /* interrupt enable clear */
-                return env->cp15.c9_pminten;
-            default:
-                goto bad_reg;
-            }
-        default:
-            goto bad_reg;
-        }
-        break;
-    case 10: /* MMU TLB lockdown.  */
-        /* ??? TLB lockdown not implemented.  */
-        return 0;
-    case 11: /* TCM DMA control.  */
-    case 12: /* Reserved.  */
-        goto bad_reg;
-    case 13: /* Process ID.  */
-        switch (op2) {
-        case 0:
-            return env->cp15.c13_fcse;
-        case 1:
-            return env->cp15.c13_context;
-        default:
-            goto bad_reg;
-        }
-    case 14: /* Generic timer */
-        if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
-            /* Dummy implementation: RAZ/WI for all */
-            return 0;
-        }
-        goto bad_reg;
-    case 15: /* Implementation specific.  */
-        if (arm_feature(env, ARM_FEATURE_XSCALE)) {
-            if (op2 == 0 && crm == 1)
-                return env->cp15.c15_cpar;
-
-            goto bad_reg;
-        }
-        if (arm_feature(env, ARM_FEATURE_OMAPCP)) {
-            switch (crm) {
-            case 0:
-                return 0;
-            case 1: /* Read TI925T configuration.  */
-                return env->cp15.c15_ticonfig;
-            case 2: /* Read I_max.  */
-                return env->cp15.c15_i_max;
-            case 3: /* Read I_min.  */
-                return env->cp15.c15_i_min;
-            case 4: /* Read thread-ID.  */
-                return env->cp15.c15_threadid;
-            case 8: /* TI925T_status */
-                return 0;
-            }
-            /* TODO: Peripheral port remap register:
-             * On OMAP2 mcr p15, 0, rn, c15, c2, 4 sets up the interrupt
-             * controller base address at $rn & ~0xfff and map size of
-             * 0x200 << ($rn & 0xfff), when MMU is off.  */
-            goto bad_reg;
-        }
-        if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
-            switch (crm) {
-            case 0:
-                if ((op1 == 4) && (op2 == 0)) {
-                    /* The config_base_address should hold the value of
-                     * the peripheral base. ARM should get this from a CPU
-                     * object property, but that support isn't available in
-                     * December 2011. Default to 0 for now and board models
-                     * that care can set it by a private hook */
-                    return env->cp15.c15_config_base_address;
-                } else if ((op1 == 0) && (op2 == 0)) {
-                    /* power_control should be set to maximum latency. Again,
-                       default to 0 and set by private hook */
-                    return env->cp15.c15_power_control;
-                } else if ((op1 == 0) && (op2 == 1)) {
-                    return env->cp15.c15_diagnostic;
-                } else if ((op1 == 0) && (op2 == 2)) {
-                    return env->cp15.c15_power_diagnostic;
-                }
-                break;
-            case 1: /* NEON Busy */
-                return 0;
-            case 5: /* tlb lockdown */
-            case 6:
-            case 7:
-                if ((op1 == 5) && (op2 == 2)) {
-                    return 0;
-                }
-                break;
-            default:
-                break;
-            }
-            goto bad_reg;
-        }
-        return 0;
-    }
-bad_reg:
-    /* ??? For debugging only.  Should raise illegal instruction exception.  */
-    cpu_abort(env, "Unimplemented cp15 register read (c%d, c%d, {%d, %d})\n",
-              (insn >> 16) & 0xf, crm, op1, op2);
-    return 0;
-}
-
 void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
     if ((env->uncached_cpsr & CPSR_M) == mode) {
@@ -2021,20 +2287,6 @@ void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
         cpu_abort(env, "Unimplemented system register write (%d)\n", reg);
         return;
     }
-}
-
-void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
-                ARMReadCPFunc *cp_read, ARMWriteCPFunc *cp_write,
-                void *opaque)
-{
-    if (cpnum < 0 || cpnum > 14) {
-        cpu_abort(env, "Bad coprocessor number: %i\n", cpnum);
-        return;
-    }
-
-    env->cp[cpnum].cp_read = cp_read;
-    env->cp[cpnum].cp_write = cp_write;
-    env->cp[cpnum].opaque = opaque;
 }
 
 #endif
@@ -2866,13 +3118,4 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
 {
     float_status *fpst = fpstp;
     return float64_muladd(a, b, c, 0, fpst);
-}
-
-void HELPER(set_teecr)(CPUARMState *env, uint32_t val)
-{
-    val &= 1;
-    if (env->teecr != val) {
-        env->teecr = val;
-        tb_flush(env);
-    }
 }

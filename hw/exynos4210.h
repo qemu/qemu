@@ -56,7 +56,7 @@
 /*
  * exynos4210 IRQ subsystem stub definitions.
  */
-#define EXYNOS4210_IRQ_GATE_NINPUTS 8
+#define EXYNOS4210_IRQ_GATE_NINPUTS 2 /* Internal and External GIC */
 
 #define EXYNOS4210_MAX_INT_COMBINER_OUT_IRQ  64
 #define EXYNOS4210_MAX_EXT_COMBINER_OUT_IRQ  16

@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/vfs.h>
 
 #include <linux/kvm.h>
 
@@ -167,10 +168,217 @@ static int kvm_booke206_tlb_init(CPUPPCState *env)
     return 0;
 }
 
+
+#if defined(TARGET_PPC64)
+static void kvm_get_fallback_smmu_info(CPUPPCState *env,
+                                       struct kvm_ppc_smmu_info *info)
+{
+    memset(info, 0, sizeof(*info));
+
+    /* We don't have the new KVM_PPC_GET_SMMU_INFO ioctl, so
+     * need to "guess" what the supported page sizes are.
+     *
+     * For that to work we make a few assumptions:
+     *
+     * - If KVM_CAP_PPC_GET_PVINFO is supported we are running "PR"
+     *   KVM which only supports 4K and 16M pages, but supports them
+     *   regardless of the backing store characteritics. We also don't
+     *   support 1T segments.
+     *
+     *   This is safe as if HV KVM ever supports that capability or PR
+     *   KVM grows supports for more page/segment sizes, those versions
+     *   will have implemented KVM_CAP_PPC_GET_SMMU_INFO and thus we
+     *   will not hit this fallback
+     *
+     * - Else we are running HV KVM. This means we only support page
+     *   sizes that fit in the backing store. Additionally we only
+     *   advertize 64K pages if the processor is ARCH 2.06 and we assume
+     *   P7 encodings for the SLB and hash table. Here too, we assume
+     *   support for any newer processor will mean a kernel that
+     *   implements KVM_CAP_PPC_GET_SMMU_INFO and thus doesn't hit
+     *   this fallback.
+     */
+    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
+        /* No flags */
+        info->flags = 0;
+        info->slb_size = 64;
+
+        /* Standard 4k base page size segment */
+        info->sps[0].page_shift = 12;
+        info->sps[0].slb_enc = 0;
+        info->sps[0].enc[0].page_shift = 12;
+        info->sps[0].enc[0].pte_enc = 0;
+
+        /* Standard 16M large page size segment */
+        info->sps[1].page_shift = 24;
+        info->sps[1].slb_enc = SLB_VSID_L;
+        info->sps[1].enc[0].page_shift = 24;
+        info->sps[1].enc[0].pte_enc = 0;
+    } else {
+        int i = 0;
+
+        /* HV KVM has backing store size restrictions */
+        info->flags = KVM_PPC_PAGE_SIZES_REAL;
+
+        if (env->mmu_model & POWERPC_MMU_1TSEG) {
+            info->flags |= KVM_PPC_1T_SEGMENTS;
+        }
+
+        if (env->mmu_model == POWERPC_MMU_2_06) {
+            info->slb_size = 32;
+        } else {
+            info->slb_size = 64;
+        }
+
+        /* Standard 4k base page size segment */
+        info->sps[i].page_shift = 12;
+        info->sps[i].slb_enc = 0;
+        info->sps[i].enc[0].page_shift = 12;
+        info->sps[i].enc[0].pte_enc = 0;
+        i++;
+
+        /* 64K on MMU 2.06 */
+        if (env->mmu_model == POWERPC_MMU_2_06) {
+            info->sps[i].page_shift = 16;
+            info->sps[i].slb_enc = 0x110;
+            info->sps[i].enc[0].page_shift = 16;
+            info->sps[i].enc[0].pte_enc = 1;
+            i++;
+        }
+
+        /* Standard 16M large page size segment */
+        info->sps[i].page_shift = 24;
+        info->sps[i].slb_enc = SLB_VSID_L;
+        info->sps[i].enc[0].page_shift = 24;
+        info->sps[i].enc[0].pte_enc = 0;
+    }
+}
+
+static void kvm_get_smmu_info(CPUPPCState *env, struct kvm_ppc_smmu_info *info)
+{
+    int ret;
+
+    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
+        ret = kvm_vm_ioctl(env->kvm_state, KVM_PPC_GET_SMMU_INFO, info);
+        if (ret == 0) {
+            return;
+        }
+    }
+
+    kvm_get_fallback_smmu_info(env, info);
+}
+
+static long getrampagesize(void)
+{
+    struct statfs fs;
+    int ret;
+
+    if (!mem_path) {
+        /* guest RAM is backed by normal anonymous pages */
+        return getpagesize();
+    }
+
+    do {
+        ret = statfs(mem_path, &fs);
+    } while (ret != 0 && errno == EINTR);
+
+    if (ret != 0) {
+        fprintf(stderr, "Couldn't statfs() memory path: %s\n",
+                strerror(errno));
+        exit(1);
+    }
+
+#define HUGETLBFS_MAGIC       0x958458f6
+
+    if (fs.f_type != HUGETLBFS_MAGIC) {
+        /* Explicit mempath, but it's ordinary pages */
+        return getpagesize();
+    }
+
+    /* It's hugepage, return the huge page size */
+    return fs.f_bsize;
+}
+
+static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
+{
+    if (!(flags & KVM_PPC_PAGE_SIZES_REAL)) {
+        return true;
+    }
+
+    return (1ul << shift) <= rampgsize;
+}
+
+static void kvm_fixup_page_sizes(CPUPPCState *env)
+{
+    static struct kvm_ppc_smmu_info smmu_info;
+    static bool has_smmu_info;
+    long rampagesize;
+    int iq, ik, jq, jk;
+
+    /* We only handle page sizes for 64-bit server guests for now */
+    if (!(env->mmu_model & POWERPC_MMU_64)) {
+        return;
+    }
+
+    /* Collect MMU info from kernel if not already */
+    if (!has_smmu_info) {
+        kvm_get_smmu_info(env, &smmu_info);
+        has_smmu_info = true;
+    }
+
+    rampagesize = getrampagesize();
+
+    /* Convert to QEMU form */
+    memset(&env->sps, 0, sizeof(env->sps));
+
+    for (ik = iq = 0; ik < KVM_PPC_PAGE_SIZES_MAX_SZ; ik++) {
+        struct ppc_one_seg_page_size *qsps = &env->sps.sps[iq];
+        struct kvm_ppc_one_seg_page_size *ksps = &smmu_info.sps[ik];
+
+        if (!kvm_valid_page_size(smmu_info.flags, rampagesize,
+                                 ksps->page_shift)) {
+            continue;
+        }
+        qsps->page_shift = ksps->page_shift;
+        qsps->slb_enc = ksps->slb_enc;
+        for (jk = jq = 0; jk < KVM_PPC_PAGE_SIZES_MAX_SZ; jk++) {
+            if (!kvm_valid_page_size(smmu_info.flags, rampagesize,
+                                     ksps->enc[jk].page_shift)) {
+                continue;
+            }
+            qsps->enc[jq].page_shift = ksps->enc[jk].page_shift;
+            qsps->enc[jq].pte_enc = ksps->enc[jk].pte_enc;
+            if (++jq >= PPC_PAGE_SIZES_MAX_SZ) {
+                break;
+            }
+        }
+        if (++iq >= PPC_PAGE_SIZES_MAX_SZ) {
+            break;
+        }
+    }
+    env->slb_nr = smmu_info.slb_size;
+    if (smmu_info.flags & KVM_PPC_1T_SEGMENTS) {
+        env->mmu_model |= POWERPC_MMU_1TSEG;
+    } else {
+        env->mmu_model &= ~POWERPC_MMU_1TSEG;
+    }
+}
+#else /* defined (TARGET_PPC64) */
+
+static inline void kvm_fixup_page_sizes(CPUPPCState *env)
+{
+}
+
+#endif /* !defined (TARGET_PPC64) */
+
 int kvm_arch_init_vcpu(CPUPPCState *cenv)
 {
     int ret;
 
+    /* Gather server mmu info from KVM and update the CPU state */
+    kvm_fixup_page_sizes(cenv);
+
+    /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cenv);
     if (ret) {
         return ret;
