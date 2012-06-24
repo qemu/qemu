@@ -291,6 +291,15 @@ extern unsigned long reserved_va;
 #define stfl_kernel(p, v) stfl_raw(p, v)
 #define stfq_kernel(p, vt) stfq_raw(p, v)
 
+#ifdef CONFIG_TCG_PASS_AREG0
+#define cpu_ldub_data(env, addr) ldub_raw(addr)
+#define cpu_lduw_data(env, addr) lduw_raw(addr)
+#define cpu_ldl_data(env, addr) ldl_raw(addr)
+
+#define cpu_stb_data(env, addr, data) stb_raw(addr, data)
+#define cpu_stw_data(env, addr, data) stw_raw(addr, data)
+#define cpu_stl_data(env, addr, data) stl_raw(addr, data)
+#endif
 #endif /* defined(CONFIG_USER_ONLY) */
 
 /* page related stuff */

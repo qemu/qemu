@@ -119,6 +119,8 @@ enum powerpc_mmu_t {
     POWERPC_MMU_620        = POWERPC_MMU_64 | 0x00000002,
     /* Architecture 2.06 variant                               */
     POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG | 0x00000003,
+    /* Architecture 2.06 "degraded" (no 1T segments)           */
+    POWERPC_MMU_2_06d      = POWERPC_MMU_64 | 0x00000003,
 #endif /* defined(TARGET_PPC64) */
 };
 
@@ -691,7 +693,7 @@ enum {
 #define MAS1_VALID         0x80000000
 
 #define MAS2_EPN_SHIFT     12
-#define MAS2_EPN_MASK      (0xfffff << MAS2_EPN_SHIFT)
+#define MAS2_EPN_MASK      (~0ULL << MAS2_EPN_SHIFT)
 
 #define MAS2_ACM_SHIFT     6
 #define MAS2_ACM           (1 << MAS2_ACM_SHIFT)
@@ -874,6 +876,29 @@ enum {
 #define DBELL_PIRTAG_MASK              0x3fff
 
 /*****************************************************************************/
+/* Segment page size information, used by recent hash MMUs
+ * The format of this structure mirrors kvm_ppc_smmu_info
+ */
+
+#define PPC_PAGE_SIZES_MAX_SZ   8
+
+struct ppc_one_page_size {
+    uint32_t page_shift;  /* Page shift (or 0) */
+    uint32_t pte_enc;     /* Encoding in the HPTE (>>12) */
+};
+
+struct ppc_one_seg_page_size {
+    uint32_t page_shift;  /* Base page shift of segment (or 0) */
+    uint32_t slb_enc;     /* SLB encoding for BookS */
+    struct ppc_one_page_size enc[PPC_PAGE_SIZES_MAX_SZ];
+};
+
+struct ppc_segment_page_sizes {
+    struct ppc_one_seg_page_size sps[PPC_PAGE_SIZES_MAX_SZ];
+};
+
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
@@ -889,6 +914,9 @@ struct ppc_def_t {
     powerpc_input_t bus_model;
     uint32_t flags;
     int bfd_mach;
+#if defined(TARGET_PPC64)
+    const struct ppc_segment_page_sizes *sps;
+#endif
     void (*init_proc)(CPUPPCState *env);
     int  (*check_pow)(CPUPPCState *env);
 };
@@ -1012,6 +1040,9 @@ struct CPUPPCState {
     uint32_t flags;
     uint64_t insns_flags;
     uint64_t insns_flags2;
+#if defined(TARGET_PPC64)
+    struct ppc_segment_page_sizes sps;
+#endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
     target_phys_addr_t vpa;
@@ -1035,6 +1066,7 @@ struct CPUPPCState {
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
+    target_phys_addr_t mpic_cpu_base;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1117,27 +1149,12 @@ int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 
-void cpu_dump_rfi (target_ulong RA, target_ulong msr);
-
 #if !defined(CONFIG_USER_ONLY)
-void ppc6xx_tlb_store (CPUPPCState *env, target_ulong EPN, int way, int is_code,
-                       target_ulong pte0, target_ulong pte1);
-void ppc_store_ibatu (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_ibatl (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_dbatu (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_dbatl (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_ibatu_601 (CPUPPCState *env, int nr, target_ulong value);
-void ppc_store_ibatl_601 (CPUPPCState *env, int nr, target_ulong value);
 void ppc_store_sdr1 (CPUPPCState *env, target_ulong value);
 #if defined(TARGET_PPC64)
 void ppc_store_asr (CPUPPCState *env, target_ulong value);
-target_ulong ppc_load_slb (CPUPPCState *env, int slb_nr);
-target_ulong ppc_load_sr (CPUPPCState *env, int sr_nr);
 int ppc_store_slb (CPUPPCState *env, target_ulong rb, target_ulong rs);
-int ppc_load_slb_esid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
-int ppc_load_slb_vsid (CPUPPCState *env, target_ulong rb, target_ulong *rt);
 #endif /* defined(TARGET_PPC64) */
-void ppc_store_sr (CPUPPCState *env, int srnum, target_ulong value);
 #endif /* !defined(CONFIG_USER_ONLY) */
 void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
@@ -1176,19 +1193,11 @@ void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot);
 target_phys_addr_t booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
-int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
-                     target_phys_addr_t *raddrp, target_ulong address,
-                     uint32_t pid, int ext, int i);
 int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
                      target_phys_addr_t *raddrp, target_ulong address,
                      uint32_t pid);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);
-#if defined(TARGET_PPC64)
-void ppc_slb_invalidate_all (CPUPPCState *env);
-void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0);
-#endif
-int ppcemb_tlb_search (CPUPPCState *env, target_ulong address, uint32_t pid);
 #endif
 #endif
 
@@ -1387,6 +1396,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_BOOKE_TLB1PS      (0x159)
 #define SPR_BOOKE_TLB2PS      (0x15A)
 #define SPR_BOOKE_TLB3PS      (0x15B)
+#define SPR_BOOKE_MAS7_MAS3   (0x174)
 #define SPR_BOOKE_IVOR0       (0x190)
 #define SPR_BOOKE_IVOR1       (0x191)
 #define SPR_BOOKE_IVOR2       (0x192)
@@ -1753,6 +1763,27 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 #define SPR_601_HID15         (0x3FF)
 #define SPR_604_HID15         (0x3FF)
 #define SPR_E500_SVR          (0x3FF)
+
+/* Disable MAS Interrupt Updates for Hypervisor */
+#define EPCR_DMIUH            (1 << 22)
+/* Disable Guest TLB Management Instructions */
+#define EPCR_DGTMI            (1 << 23)
+/* Guest Interrupt Computation Mode */
+#define EPCR_GICM             (1 << 24)
+/* Interrupt Computation Mode */
+#define EPCR_ICM              (1 << 25)
+/* Disable Embedded Hypervisor Debug */
+#define EPCR_DUVD             (1 << 26)
+/* Instruction Storage Interrupt Directed to Guest State */
+#define EPCR_ISIGS            (1 << 27)
+/* Data Storage Interrupt Directed to Guest State */
+#define EPCR_DSIGS            (1 << 28)
+/* Instruction TLB Error Interrupt Directed to Guest State */
+#define EPCR_ITLBGS           (1 << 29)
+/* Data TLB Error Interrupt Directed to Guest State */
+#define EPCR_DTLBGS           (1 << 30)
+/* External Input Interrupt Directed to Guest State */
+#define EPCR_EXTGS            (1 << 31)
 
 /*****************************************************************************/
 /* PowerPC Instructions types definitions                                    */
@@ -2181,6 +2212,15 @@ static inline uint32_t booke206_tlbnps(CPUPPCState *env, const int tlbn)
 }
 
 #endif
+
+static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
+{
+    if (env->mmu_model == POWERPC_MMU_BOOKE206) {
+        return msr & (1ULL << MSR_CM);
+    }
+
+    return msr & (1ULL << MSR_SF);
+}
 
 extern void (*cpu_ppc_hypercall)(CPUPPCState *);
 

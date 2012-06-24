@@ -606,7 +606,6 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
                                             int64_t sector_num,
                                             int nb_sectors, int *pnum)
 {
-    BDRVRawState *s = bs->opaque;
     off_t start, data, hole;
     int ret;
 
@@ -616,11 +615,15 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
     }
 
     start = sector_num * BDRV_SECTOR_SIZE;
+
 #ifdef CONFIG_FIEMAP
+
+    BDRVRawState *s = bs->opaque;
     struct {
         struct fiemap fm;
         struct fiemap_extent fe;
     } f;
+
     f.fm.fm_start = start;
     f.fm.fm_length = (int64_t)nb_sectors * BDRV_SECTOR_SIZE;
     f.fm.fm_flags = 0;
@@ -643,7 +646,11 @@ static int coroutine_fn raw_co_is_allocated(BlockDriverState *bs,
         data = f.fe.fe_logical;
         hole = f.fe.fe_logical + f.fe.fe_length;
     }
+
 #elif defined SEEK_HOLE && defined SEEK_DATA
+
+    BDRVRawState *s = bs->opaque;
+
     hole = lseek(s->fd, start, SEEK_HOLE);
     if (hole == -1) {
         /* -ENXIO indicates that sector_num was past the end of the file.

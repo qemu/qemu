@@ -22,8 +22,47 @@
 #include "qemu-common.h"
 #include "device_tree.h"
 #include "hw/loader.h"
+#include "qemu-option.h"
+#include "qemu-config.h"
 
 #include <libfdt.h>
+
+#define FDT_MAX_SIZE  0x10000
+
+void *create_device_tree(int *sizep)
+{
+    void *fdt;
+    int ret;
+
+    *sizep = FDT_MAX_SIZE;
+    fdt = g_malloc0(FDT_MAX_SIZE);
+    ret = fdt_create(fdt, FDT_MAX_SIZE);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_begin_node(fdt, "");
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_end_node(fdt);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_finish(fdt);
+    if (ret < 0) {
+        goto fail;
+    }
+    ret = fdt_open_into(fdt, fdt, *sizep);
+    if (ret) {
+        fprintf(stderr, "Unable to copy device tree in memory\n");
+        exit(1);
+    }
+
+    return fdt;
+fail:
+    fprintf(stderr, "%s Couldn't create dt: %s\n", __func__, fdt_strerror(ret));
+    exit(1);
+}
 
 void *load_device_tree(const char *filename_path, int *sizep)
 {
@@ -88,7 +127,7 @@ static int findnode_nofail(void *fdt, const char *node_path)
 }
 
 int qemu_devtree_setprop(void *fdt, const char *node_path,
-                         const char *property, void *val_array, int size)
+                         const char *property, const void *val_array, int size)
 {
     int r;
 
@@ -117,6 +156,13 @@ int qemu_devtree_setprop_cell(void *fdt, const char *node_path,
     return r;
 }
 
+int qemu_devtree_setprop_u64(void *fdt, const char *node_path,
+                             const char *property, uint64_t val)
+{
+    val = cpu_to_be64(val);
+    return qemu_devtree_setprop(fdt, node_path, property, &val, sizeof(val));
+}
+
 int qemu_devtree_setprop_string(void *fdt, const char *node_path,
                                 const char *property, const char *string)
 {
@@ -130,6 +176,59 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
     }
 
     return r;
+}
+
+uint32_t qemu_devtree_get_phandle(void *fdt, const char *path)
+{
+    uint32_t r;
+
+    r = fdt_get_phandle(fdt, findnode_nofail(fdt, path));
+    if (r <= 0) {
+        fprintf(stderr, "%s: Couldn't get phandle for %s: %s\n", __func__,
+                path, fdt_strerror(r));
+        exit(1);
+    }
+
+    return r;
+}
+
+int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
+                                 const char *property,
+                                 const char *target_node_path)
+{
+    uint32_t phandle = qemu_devtree_get_phandle(fdt, target_node_path);
+    return qemu_devtree_setprop_cell(fdt, node_path, property, phandle);
+}
+
+uint32_t qemu_devtree_alloc_phandle(void *fdt)
+{
+    static int phandle = 0x0;
+
+    /*
+     * We need to find out if the user gave us special instruction at
+     * which phandle id to start allocting phandles.
+     */
+    if (!phandle) {
+        QemuOpts *machine_opts;
+        machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+        if (machine_opts) {
+            const char *phandle_start;
+            phandle_start = qemu_opt_get(machine_opts, "phandle_start");
+            if (phandle_start) {
+                phandle = strtoul(phandle_start, NULL, 0);
+            }
+        }
+    }
+
+    if (!phandle) {
+        /*
+         * None or invalid phandle given on the command line, so fall back to
+         * default starting point.
+         */
+        phandle = 0x8000;
+    }
+
+    return phandle++;
 }
 
 int qemu_devtree_nop_node(void *fdt, const char *node_path)
@@ -151,6 +250,7 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     char *dupname = g_strdup(name);
     char *basename = strrchr(dupname, '/');
     int retval;
+    int parent = 0;
 
     if (!basename) {
         g_free(dupname);
@@ -160,7 +260,11 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     basename[0] = '\0';
     basename++;
 
-    retval = fdt_add_subnode(fdt, findnode_nofail(fdt, dupname), basename);
+    if (dupname[0]) {
+        parent = findnode_nofail(fdt, dupname);
+    }
+
+    retval = fdt_add_subnode(fdt, parent, basename);
     if (retval < 0) {
         fprintf(stderr, "FDT: Failed to create subnode %s: %s\n", name,
                 fdt_strerror(retval));
