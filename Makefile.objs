@@ -100,6 +100,8 @@ common-obj-y += vl.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 
+common-obj-y += backends/
+
 ######################################################################
 # libseccomp
 ifeq ($(CONFIG_SECCOMP),y)
