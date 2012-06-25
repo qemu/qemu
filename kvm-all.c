@@ -1142,7 +1142,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 {
-    abort();
+    return -ENOSYS;
 }
 
 static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
