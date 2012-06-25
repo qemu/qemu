@@ -1,1 +1,1 @@
-common-obj-y += rng.o
+common-obj-y += rng.o rng-random.o
