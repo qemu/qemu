@@ -296,6 +296,11 @@ static void migration_end(void)
     memory_global_dirty_log_stop();
 }
 
+static void ram_migration_cancel(void *opaque)
+{
+    migration_end();
+}
+
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
 static int ram_save_live(QEMUFile *f, int stage, void *opaque)
@@ -305,11 +310,6 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
     double bwidth = 0;
     int ret;
     int i;
-
-    if (stage < 0) {
-        migration_end();
-        return 0;
-    }
 
     memory_global_sync_dirty_bitmap(get_system_memory());
 
@@ -537,6 +537,7 @@ done:
 SaveVMHandlers savevm_ram_handlers = {
     .save_live_state = ram_save_live,
     .load_state = ram_load,
+    .cancel = ram_migration_cancel,
 };
 
 #ifdef HAS_AUDIO

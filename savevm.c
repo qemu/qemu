@@ -1703,8 +1703,8 @@ void qemu_savevm_state_cancel(QEMUFile *f)
     SaveStateEntry *se;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (se->ops && se->ops->save_live_state) {
-            se->ops->save_live_state(f, -1, se->opaque);
+        if (se->ops && se->ops->cancel) {
+            se->ops->cancel(se->opaque);
         }
     }
 }

@@ -536,6 +536,11 @@ static void blk_mig_cleanup(void)
     }
 }
 
+static void block_migration_cancel(void *opaque)
+{
+    blk_mig_cleanup();
+}
+
 static int block_save_live(QEMUFile *f, int stage, void *opaque)
 {
     int ret;
@@ -543,10 +548,6 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
     DPRINTF("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
 
-    if (stage < 0) {
-        blk_mig_cleanup();
-        return 0;
-    }
 
     if (block_mig_state.blk_enable != 1) {
         /* no need to migrate storage */
@@ -713,6 +714,7 @@ SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
     .save_live_state = block_save_live,
     .load_state = block_load,
+    .cancel = block_migration_cancel,
 };
 
 void blk_mig_init(void)
