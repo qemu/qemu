@@ -298,7 +298,7 @@ static void migration_end(void)
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
-int ram_save_live(QEMUFile *f, int stage, void *opaque)
+static int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
     uint64_t bytes_transferred_last;
@@ -437,7 +437,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     return NULL;
 }
 
-int ram_load(QEMUFile *f, void *opaque, int version_id)
+static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
     int flags, ret = 0;
@@ -533,6 +533,11 @@ done:
             ret, seq_iter);
     return ret;
 }
+
+SaveVMHandlers savevm_ram_handlers = {
+    .save_live_state = ram_save_live,
+    .load_state = ram_load,
+};
 
 #ifdef HAS_AUDIO
 struct soundhw {

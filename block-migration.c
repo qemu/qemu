@@ -709,11 +709,17 @@ static void block_set_params(const MigrationParams *params, void *opaque)
     block_mig_state.blk_enable |= params->shared;
 }
 
+SaveVMHandlers savevm_block_handlers = {
+    .set_params = block_set_params,
+    .save_live_state = block_save_live,
+    .load_state = block_load,
+};
+
 void blk_mig_init(void)
 {
     QSIMPLEQ_INIT(&block_mig_state.bmds_list);
     QSIMPLEQ_INIT(&block_mig_state.blk_list);
 
-    register_savevm_live(NULL, "block", 0, 1, block_set_params,
-                         block_save_live, NULL, block_load, &block_mig_state);
+    register_savevm_live(NULL, "block", 0, 1, &savevm_block_handlers,
+                         &block_mig_state);
 }
