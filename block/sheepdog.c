@@ -577,16 +577,29 @@ out:
     return ret;
 }
 
+static void restart_co_req(void *opaque)
+{
+    Coroutine *co = opaque;
+
+    qemu_coroutine_enter(co, NULL);
+}
+
 static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
                                   unsigned int *wlen, unsigned int *rlen)
 {
     int ret;
+    Coroutine *co;
+
+    co = qemu_coroutine_self();
+    qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, NULL, co);
 
     socket_set_block(sockfd);
     ret = send_co_req(sockfd, hdr, data, wlen);
     if (ret < 0) {
         goto out;
     }
+
+    qemu_aio_set_fd_handler(sockfd, restart_co_req, NULL, NULL, co);
 
     ret = qemu_co_recv(sockfd, hdr, sizeof(*hdr));
     if (ret < sizeof(*hdr)) {
@@ -609,6 +622,7 @@ static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
     }
     ret = 0;
 out:
+    qemu_aio_set_fd_handler(sockfd, NULL, NULL, NULL, NULL);
     socket_set_nonblock(sockfd);
     return ret;
 }
