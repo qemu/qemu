@@ -35,14 +35,10 @@
 #include <sys/mman.h>
 #include <sys/uio.h>
 
-#include <xs.h>
-#include <xenctrl.h>
-#include <xen/io/xenbus.h>
-
 #include "hw.h"
 #include "qemu-char.h"
-#include "xen_blkif.h"
 #include "xen_backend.h"
+#include "xen_blkif.h"
 #include "blockdev.h"
 
 /* ------------------------------------------------------------- */

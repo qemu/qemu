@@ -7,7 +7,11 @@
 #include <inttypes.h>
 
 #include <xenctrl.h>
-#include <xs.h>
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
+#  include <xs.h>
+#else
+#  include <xenstore.h>
+#endif
 #include <xen/io/xenbus.h>
 
 #include "hw.h"
