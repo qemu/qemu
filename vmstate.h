@@ -26,13 +26,12 @@
 #ifndef QEMU_VMSTATE_H
 #define QEMU_VMSTATE_H 1
 
-typedef void SaveSetParamsHandler(const MigrationParams *params, void * opaque);
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
 typedef int SaveLiveStateHandler(QEMUFile *f, int stage, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
 typedef struct SaveVMHandlers {
-    SaveSetParamsHandler *set_params;
+    void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
     SaveLiveStateHandler *save_live_state;
     LoadStateHandler *load_state;
