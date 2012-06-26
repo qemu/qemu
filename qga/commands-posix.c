@@ -38,8 +38,11 @@ extern char **environ;
 #include <sys/socket.h>
 #include <net/if.h>
 
-#if defined(__linux__) && defined(FIFREEZE)
+#ifdef FIFREEZE
 #define CONFIG_FSFREEZE
+#endif
+#ifdef FITRIM
+#define CONFIG_FSTRIM
 #endif
 #endif
 
@@ -312,19 +315,18 @@ static void guest_file_init(void)
 /* linux-specific implementations. avoid this if at all possible. */
 #if defined(__linux__)
 
-#if defined(CONFIG_FSFREEZE)
-
-typedef struct GuestFsfreezeMount {
+#if defined(CONFIG_FSFREEZE) || defined(CONFIG_FSTRIM)
+typedef struct FsMount {
     char *dirname;
     char *devtype;
-    QTAILQ_ENTRY(GuestFsfreezeMount) next;
-} GuestFsfreezeMount;
+    QTAILQ_ENTRY(FsMount) next;
+} FsMount;
 
-typedef QTAILQ_HEAD(, GuestFsfreezeMount) GuestFsfreezeMountList;
+typedef QTAILQ_HEAD(, FsMount) FsMountList;
 
-static void guest_fsfreeze_free_mount_list(GuestFsfreezeMountList *mounts)
+static void free_fs_mount_list(FsMountList *mounts)
 {
-     GuestFsfreezeMount *mount, *temp;
+     FsMount *mount, *temp;
 
      if (!mounts) {
          return;
@@ -341,10 +343,10 @@ static void guest_fsfreeze_free_mount_list(GuestFsfreezeMountList *mounts)
 /*
  * Walk the mount table and build a list of local file systems
  */
-static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
+static int build_fs_mount_list(FsMountList *mounts)
 {
     struct mntent *ment;
-    GuestFsfreezeMount *mount;
+    FsMount *mount;
     char const *mtab = "/proc/self/mounts";
     FILE *fp;
 
@@ -367,7 +369,7 @@ static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
             continue;
         }
 
-        mount = g_malloc0(sizeof(GuestFsfreezeMount));
+        mount = g_malloc0(sizeof(FsMount));
         mount->dirname = g_strdup(ment->mnt_dir);
         mount->devtype = g_strdup(ment->mnt_type);
 
@@ -378,6 +380,9 @@ static int guest_fsfreeze_build_mount_list(GuestFsfreezeMountList *mounts)
 
     return 0;
 }
+#endif
+
+#if defined(CONFIG_FSFREEZE)
 
 /*
  * Return status of freeze/thaw
@@ -398,15 +403,15 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 int64_t qmp_guest_fsfreeze_freeze(Error **err)
 {
     int ret = 0, i = 0;
-    GuestFsfreezeMountList mounts;
-    struct GuestFsfreezeMount *mount;
+    FsMountList mounts;
+    struct FsMount *mount;
     int fd;
     char err_msg[512];
 
     slog("guest-fsfreeze called");
 
     QTAILQ_INIT(&mounts);
-    ret = guest_fsfreeze_build_mount_list(&mounts);
+    ret = build_fs_mount_list(&mounts);
     if (ret < 0) {
         return ret;
     }
@@ -447,11 +452,11 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
         close(fd);
     }
 
-    guest_fsfreeze_free_mount_list(&mounts);
+    free_fs_mount_list(&mounts);
     return i;
 
 error:
-    guest_fsfreeze_free_mount_list(&mounts);
+    free_fs_mount_list(&mounts);
     qmp_guest_fsfreeze_thaw(NULL);
     return 0;
 }
@@ -462,12 +467,12 @@ error:
 int64_t qmp_guest_fsfreeze_thaw(Error **err)
 {
     int ret;
-    GuestFsfreezeMountList mounts;
-    GuestFsfreezeMount *mount;
+    FsMountList mounts;
+    FsMount *mount;
     int fd, i = 0, logged;
 
     QTAILQ_INIT(&mounts);
-    ret = guest_fsfreeze_build_mount_list(&mounts);
+    ret = build_fs_mount_list(&mounts);
     if (ret) {
         error_set(err, QERR_QGA_COMMAND_FAILED,
                   "failed to enumerate filesystems");
@@ -507,7 +512,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
     }
 
     ga_unset_frozen(ga_state);
-    guest_fsfreeze_free_mount_list(&mounts);
+    free_fs_mount_list(&mounts);
     return i;
 }
 
@@ -524,6 +529,65 @@ static void guest_fsfreeze_cleanup(void)
     }
 }
 #endif /* CONFIG_FSFREEZE */
+
+#if defined(CONFIG_FSTRIM)
+/*
+ * Walk list of mounted file systems in the guest, and trim them.
+ */
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+{
+    int ret = 0;
+    FsMountList mounts;
+    struct FsMount *mount;
+    int fd;
+    char err_msg[512];
+    struct fstrim_range r = {
+        .start = 0,
+        .len = -1,
+        .minlen = has_minimum ? minimum : 0,
+    };
+
+    slog("guest-fstrim called");
+
+    QTAILQ_INIT(&mounts);
+    ret = build_fs_mount_list(&mounts);
+    if (ret < 0) {
+        return;
+    }
+
+    QTAILQ_FOREACH(mount, &mounts, next) {
+        fd = qemu_open(mount->dirname, O_RDONLY);
+        if (fd == -1) {
+            sprintf(err_msg, "failed to open %s, %s", mount->dirname,
+                    strerror(errno));
+            error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+            goto error;
+        }
+
+        /* We try to cull filesytems we know won't work in advance, but other
+         * filesytems may not implement fstrim for less obvious reasons.  These
+         * will report EOPNOTSUPP; we simply ignore these errors.  Any other
+         * error means an unexpected error, so return it in those cases.  In
+         * some other cases ENOTTY will be reported (e.g. CD-ROMs).
+         */
+        ret = ioctl(fd, FITRIM, &r);
+        if (ret == -1) {
+            if (errno != ENOTTY && errno != EOPNOTSUPP) {
+                sprintf(err_msg, "failed to trim %s, %s",
+                        mount->dirname, strerror(errno));
+                error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+                close(fd);
+                goto error;
+            }
+        }
+        close(fd);
+    }
+
+error:
+    free_fs_mount_list(&mounts);
+}
+#endif /* CONFIG_FSTRIM */
+
 
 #define LINUX_SYS_STATE_FILE "/sys/power/state"
 #define SUSPEND_SUPPORTED 0
@@ -918,7 +982,15 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 
     return 0;
 }
+#endif /* CONFIG_FSFREEZE */
 
+#if !defined(CONFIG_FSTRIM)
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+
+    return;
+}
 #endif
 
 /* register init/cleanup routines for stateful command groups */

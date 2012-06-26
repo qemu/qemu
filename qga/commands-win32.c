@@ -173,6 +173,17 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
     return 0;
 }
 
+/*
+ * Walk list of mounted file systems in the guest, and discard unused
+ * areas.
+ */
+void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+
+    return;
+}
+
 typedef enum {
     GUEST_SUSPEND_MODE_DISK,
     GUEST_SUSPEND_MODE_RAM
