@@ -23,18 +23,9 @@
 #include "host-utils.h"
 #include "trace.h"
 #include "pc.h"
+#include "apic-msidef.h"
 
 #define MAX_APIC_WORDS 8
-
-/* Intel APIC constants: from include/asm/msidef.h */
-#define MSI_DATA_VECTOR_SHIFT		0
-#define MSI_DATA_VECTOR_MASK		0x000000ff
-#define MSI_DATA_DELIVERY_MODE_SHIFT	8
-#define MSI_DATA_TRIGGER_SHIFT		15
-#define MSI_DATA_LEVEL_SHIFT		14
-#define MSI_ADDR_DEST_MODE_SHIFT	2
-#define MSI_ADDR_DEST_ID_SHIFT		12
-#define	MSI_ADDR_DEST_ID_MASK		0x00ffff0
 
 #define SYNC_FROM_VAPIC                 0x1
 #define SYNC_TO_VAPIC                   0x2

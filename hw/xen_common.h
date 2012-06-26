@@ -150,4 +150,7 @@ static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
 
 void destroy_hvm_domain(bool reboot);
 
+/* shutdown/destroy current domain because of an error */
+void xen_shutdown_fatal_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
+
 #endif /* QEMU_HW_XEN_COMMON_H */

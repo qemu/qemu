@@ -899,6 +899,113 @@ PropertyInfo qdev_prop_blocksize = {
     .set   = set_blocksize,
 };
 
+/* --- pci host address --- */
+
+static void get_pci_host_devaddr(Object *obj, Visitor *v, void *opaque,
+                                 const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    PCIHostDeviceAddress *addr = qdev_get_prop_ptr(dev, prop);
+    char buffer[] = "xxxx:xx:xx.x";
+    char *p = buffer;
+    int rc = 0;
+
+    rc = snprintf(buffer, sizeof(buffer), "%04x:%02x:%02x.%d",
+                  addr->domain, addr->bus, addr->slot, addr->function);
+    assert(rc == sizeof(buffer) - 1);
+
+    visit_type_str(v, &p, name, errp);
+}
+
+/*
+ * Parse [<domain>:]<bus>:<slot>.<func>
+ *   if <domain> is not supplied, it's assumed to be 0.
+ */
+static void set_pci_host_devaddr(Object *obj, Visitor *v, void *opaque,
+                                 const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    PCIHostDeviceAddress *addr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    char *str, *p;
+    char *e;
+    unsigned long val;
+    unsigned long dom = 0, bus = 0;
+    unsigned int slot = 0, func = 0;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    p = str;
+    val = strtoul(p, &e, 16);
+    if (e == p || *e != ':') {
+        goto inval;
+    }
+    bus = val;
+
+    p = e + 1;
+    val = strtoul(p, &e, 16);
+    if (e == p) {
+        goto inval;
+    }
+    if (*e == ':') {
+        dom = bus;
+        bus = val;
+        p = e + 1;
+        val = strtoul(p, &e, 16);
+        if (e == p) {
+            goto inval;
+        }
+    }
+    slot = val;
+
+    if (*e != '.') {
+        goto inval;
+    }
+    p = e + 1;
+    val = strtoul(p, &e, 10);
+    if (e == p) {
+        goto inval;
+    }
+    func = val;
+
+    if (dom > 0xffff || bus > 0xff || slot > 0x1f || func > 7) {
+        goto inval;
+    }
+
+    if (*e) {
+        goto inval;
+    }
+
+    addr->domain = dom;
+    addr->bus = bus;
+    addr->slot = slot;
+    addr->function = func;
+
+    g_free(str);
+    return;
+
+inval:
+    error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+    g_free(str);
+}
+
+PropertyInfo qdev_prop_pci_host_devaddr = {
+    .name = "pci-host-devaddr",
+    .get = get_pci_host_devaddr,
+    .set = set_pci_host_devaddr,
+};
+
 /* --- public helpers --- */
 
 static Property *qdev_prop_walk(Property *props, const char *name)
