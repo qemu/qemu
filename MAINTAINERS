@@ -511,6 +511,12 @@ M: Anthony Liguori <aliguori@us.ibm.com>
 S: Maintained
 F: qemu-char.c
 
+Device Tree
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: device-tree.[ch]
+
 GDB stub
 M: qemu-devel@nongnu.org
 S: Odd Fixes
