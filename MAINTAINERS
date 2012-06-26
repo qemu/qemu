@@ -482,6 +482,17 @@ S: Supported
 F: hw/virtio-serial*
 F: hw/virtio-console*
 
+Xilinx EDK
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: hw/xilinx_axi*
+F: hw/xilinx_uartlite.c
+F: hw/xilinx_intc.c
+F: hw/xilinx_ethlite.c
+F: hw/xilinx_timer.c
+F: hw/xilinx.h
+
 Subsystems
 ----------
 Audio
