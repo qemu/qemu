@@ -634,21 +634,31 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, int create,
                            enum AIOCBState aiocb_type);
 
+
+static AIOReq *find_pending_req(BDRVSheepdogState *s, uint64_t oid)
+{
+    AIOReq *aio_req;
+
+    QLIST_FOREACH(aio_req, &s->pending_aio_head, aio_siblings) {
+        if (aio_req->oid == oid) {
+            return aio_req;
+        }
+    }
+
+    return NULL;
+}
+
 /*
  * This function searchs pending requests to the object `oid', and
  * sends them.
  */
 static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid)
 {
-    AIOReq *aio_req, *next;
+    AIOReq *aio_req;
     SheepdogAIOCB *acb;
     int ret;
 
-    QLIST_FOREACH_SAFE(aio_req, &s->pending_aio_head, aio_siblings, next) {
-        if (aio_req->oid != oid) {
-            continue;
-        }
-
+    while ((aio_req = find_pending_req(s, oid)) != NULL) {
         acb = aio_req->aiocb;
         /* move aio_req from pending list to inflight one */
         QLIST_REMOVE(aio_req, aio_siblings);
