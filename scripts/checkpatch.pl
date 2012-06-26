@@ -2849,6 +2849,11 @@ sub process {
 				ERROR("lockdep_no_validate class is reserved for device->mutex.\n" . $herecurr);
 			}
 		}
+
+# QEMU specific tests
+		if ($rawline =~ /\b(?:Qemu|QEmu)\b/) {
+			WARN("use QEMU instead of Qemu or QEmu\n" . $herecurr);
+		}
 	}
 
 	# If we have no input at all, then there is nothing to report on
