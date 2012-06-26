@@ -28,6 +28,8 @@
 #include "pixel_ops.h"
 #include "qemu-timer.h"
 
+#define VGA_RAM_SIZE (8192 * 1024)
+
 typedef struct ISAVGAMMState {
     VGACommonState vga;
     int it_shift;
@@ -128,7 +130,8 @@ int isa_vga_mm_init(target_phys_addr_t vram_base,
 
     s = g_malloc0(sizeof(*s));
 
-    vga_common_init(&s->vga, VGA_RAM_SIZE);
+    s->vga.vram_size_mb = VGA_RAM_SIZE >> 20;
+    vga_common_init(&s->vga);
     vga_mm_init(s, vram_base, ctrl_base, it_shift, address_space);
 
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,

@@ -244,6 +244,8 @@ void qemu_spice_create_host_primary(SimpleSpiceDisplay *ssd)
 {
     QXLDevSurfaceCreate surface;
 
+    memset(&surface, 0, sizeof(surface));
+
     dprint(1, "%s: %dx%d\n", __FUNCTION__,
            ds_get_width(ssd->ds), ds_get_height(ssd->ds));
 
