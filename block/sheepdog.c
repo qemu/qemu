@@ -541,10 +541,17 @@ static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
     return ret;
 }
 
+static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
+                                  unsigned int *wlen, unsigned int *rlen);
+
 static int do_req(int sockfd, SheepdogReq *hdr, void *data,
                   unsigned int *wlen, unsigned int *rlen)
 {
     int ret;
+
+    if (qemu_in_coroutine()) {
+        return do_co_req(sockfd, hdr, data, wlen, rlen);
+    }
 
     socket_set_block(sockfd);
     ret = send_req(sockfd, hdr, data, wlen);
@@ -1642,7 +1649,6 @@ static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
     int ret;
 
     if (bs->growable && sector_num + nb_sectors > bs->total_sectors) {
-        /* TODO: shouldn't block here */
         ret = sd_truncate(bs, (sector_num + nb_sectors) * SECTOR_SIZE);
         if (ret < 0) {
             return ret;
@@ -1710,7 +1716,7 @@ static int coroutine_fn sd_co_flush_to_disk(BlockDriverState *bs)
     hdr.opcode = SD_OP_FLUSH_VDI;
     hdr.oid = vid_to_vdi_oid(inode->vdi_id);
 
-    ret = do_co_req(s->flush_fd, (SheepdogReq *)&hdr, NULL, &wlen, &rlen);
+    ret = do_req(s->flush_fd, (SheepdogReq *)&hdr, NULL, &wlen, &rlen);
     if (ret) {
         error_report("failed to send a request to the sheep");
         return ret;
