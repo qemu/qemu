@@ -260,7 +260,6 @@ typedef struct AIOReq {
     uint32_t id;
 
     QLIST_ENTRY(AIOReq) outstanding_aio_siblings;
-    QLIST_ENTRY(AIOReq) aioreq_siblings;
 } AIOReq;
 
 enum AIOCBState {
@@ -283,8 +282,7 @@ struct SheepdogAIOCB {
     void (*aio_done_func)(SheepdogAIOCB *);
 
     int canceled;
-
-    QLIST_HEAD(aioreq_head, AIOReq) aioreq_head;
+    int nr_pending;
 };
 
 typedef struct BDRVSheepdogState {
@@ -388,19 +386,19 @@ static inline AIOReq *alloc_aio_req(BDRVSheepdogState *s, SheepdogAIOCB *acb,
 
     QLIST_INSERT_HEAD(&s->outstanding_aio_head, aio_req,
                       outstanding_aio_siblings);
-    QLIST_INSERT_HEAD(&acb->aioreq_head, aio_req, aioreq_siblings);
 
+    acb->nr_pending++;
     return aio_req;
 }
 
-static inline int free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
+static inline void free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
 {
     SheepdogAIOCB *acb = aio_req->aiocb;
+
     QLIST_REMOVE(aio_req, outstanding_aio_siblings);
-    QLIST_REMOVE(aio_req, aioreq_siblings);
     g_free(aio_req);
 
-    return !QLIST_EMPTY(&acb->aioreq_head);
+    acb->nr_pending--;
 }
 
 static void coroutine_fn sd_finish_aiocb(SheepdogAIOCB *acb)
@@ -446,7 +444,7 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
     acb->canceled = 0;
     acb->coroutine = qemu_coroutine_self();
     acb->ret = 0;
-    QLIST_INIT(&acb->aioreq_head);
+    acb->nr_pending = 0;
     return acb;
 }
 
@@ -663,7 +661,7 @@ static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid, ui
         if (ret < 0) {
             error_report("add_aio_request is failed");
             free_aio_req(s, aio_req);
-            if (QLIST_EMPTY(&acb->aioreq_head)) {
+            if (!acb->nr_pending) {
                 sd_finish_aiocb(acb);
             }
         }
@@ -684,7 +682,6 @@ static void coroutine_fn aio_read_response(void *opaque)
     int ret;
     AIOReq *aio_req = NULL;
     SheepdogAIOCB *acb;
-    int rest;
     unsigned long idx;
 
     if (QLIST_EMPTY(&s->outstanding_aio_head)) {
@@ -755,8 +752,8 @@ static void coroutine_fn aio_read_response(void *opaque)
         error_report("%s", sd_strerror(rsp.result));
     }
 
-    rest = free_aio_req(s, aio_req);
-    if (!rest) {
+    free_aio_req(s, aio_req);
+    if (!acb->nr_pending) {
         /*
          * We've finished all requests which belong to the AIOCB, so
          * we can switch back to sd_co_readv/writev now.
@@ -1568,6 +1565,12 @@ static int coroutine_fn sd_co_rw_vector(void *p)
         }
     }
 
+    /*
+     * Make sure we don't free the aiocb before we are done with all requests.
+     * This additional reference is dropped at the end of this function.
+     */
+    acb->nr_pending++;
+
     while (done != total) {
         uint8_t flags = 0;
         uint64_t old_oid = 0;
@@ -1636,7 +1639,7 @@ static int coroutine_fn sd_co_rw_vector(void *p)
         done += len;
     }
 out:
-    if (QLIST_EMPTY(&acb->aioreq_head)) {
+    if (!--acb->nr_pending) {
         return acb->ret;
     }
     return 1;
