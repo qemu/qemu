@@ -311,6 +311,11 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/petalogix_s3adsp1800.c
 
+petalogix_ml605
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+S: Maintained
+F: hw/petalogix_ml605_mmu.c
+
 MIPS Machines
 -------------
 Jazz
