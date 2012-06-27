@@ -291,6 +291,11 @@ void qtest_qmp(QTestState *s, const char *fmt, ...)
             continue;
         }
 
+        if (len == -1 || len == 0) {
+            fprintf(stderr, "Broken pipe\n");
+            exit(1);
+        }
+
         switch (c) {
         case '{':
             nesting++;
