@@ -31,6 +31,8 @@ static void do_dma_memory_set(dma_addr_t addr, uint8_t c, dma_addr_t len)
 
 int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
 {
+    dma_barrier(dma, DMA_DIRECTION_FROM_DEVICE);
+
     if (dma_has_iommu(dma)) {
         return iommu_dma_memory_set(dma, addr, c, len);
     }

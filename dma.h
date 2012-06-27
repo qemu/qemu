@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include "hw/hw.h"
 #include "block.h"
+#include "kvm.h"
 
 typedef struct DMAContext DMAContext;
 typedef struct ScatterGatherEntry ScatterGatherEntry;
@@ -65,6 +66,31 @@ struct DMAContext {
     DMAUnmapFunc *unmap;
 };
 
+static inline void dma_barrier(DMAContext *dma, DMADirection dir)
+{
+    /*
+     * This is called before DMA read and write operations
+     * unless the _relaxed form is used and is responsible
+     * for providing some sane ordering of accesses vs
+     * concurrently running VCPUs.
+     *
+     * Users of map(), unmap() or lower level st/ld_*
+     * operations are responsible for providing their own
+     * ordering via barriers.
+     *
+     * This primitive implementation does a simple smp_mb()
+     * before each operation which provides pretty much full
+     * ordering.
+     *
+     * A smarter implementation can be devised if needed to
+     * use lighter barriers based on the direction of the
+     * transfer, the DMA context, etc...
+     */
+    if (kvm_enabled()) {
+        smp_mb();
+    }
+}
+
 static inline bool dma_has_iommu(DMAContext *dma)
 {
     return !!dma;
@@ -88,8 +114,9 @@ static inline bool dma_memory_valid(DMAContext *dma,
 
 int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
                         void *buf, dma_addr_t len, DMADirection dir);
-static inline int dma_memory_rw(DMAContext *dma, dma_addr_t addr,
-                                void *buf, dma_addr_t len, DMADirection dir)
+static inline int dma_memory_rw_relaxed(DMAContext *dma, dma_addr_t addr,
+                                        void *buf, dma_addr_t len,
+                                        DMADirection dir)
 {
     if (!dma_has_iommu(dma)) {
         /* Fast-path for no IOMMU */
@@ -99,6 +126,28 @@ static inline int dma_memory_rw(DMAContext *dma, dma_addr_t addr,
     } else {
         return iommu_dma_memory_rw(dma, addr, buf, len, dir);
     }
+}
+
+static inline int dma_memory_read_relaxed(DMAContext *dma, dma_addr_t addr,
+                                          void *buf, dma_addr_t len)
+{
+    return dma_memory_rw_relaxed(dma, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+}
+
+static inline int dma_memory_write_relaxed(DMAContext *dma, dma_addr_t addr,
+                                           const void *buf, dma_addr_t len)
+{
+    return dma_memory_rw_relaxed(dma, addr, (void *)buf, len,
+                                 DMA_DIRECTION_FROM_DEVICE);
+}
+
+static inline int dma_memory_rw(DMAContext *dma, dma_addr_t addr,
+                                void *buf, dma_addr_t len,
+                                DMADirection dir)
+{
+    dma_barrier(dma, dir);
+
+    return dma_memory_rw_relaxed(dma, addr, buf, len, dir);
 }
 
 static inline int dma_memory_read(DMAContext *dma, dma_addr_t addr,
