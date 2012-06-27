@@ -31,6 +31,7 @@ struct QEMUSGList {
 #if defined(TARGET_PHYS_ADDR_BITS)
 typedef target_phys_addr_t dma_addr_t;
 
+#define DMA_ADDR_BITS TARGET_PHYS_ADDR_BITS
 #define DMA_ADDR_FMT TARGET_FMT_plx
 
 struct ScatterGatherEntry {
