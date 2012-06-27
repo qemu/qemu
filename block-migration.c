@@ -548,13 +548,6 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
     DPRINTF("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
 
-
-    if (block_mig_state.blk_enable != 1) {
-        /* no need to migrate storage */
-        qemu_put_be64(f, BLK_MIG_FLAG_EOS);
-        return 1;
-    }
-
     if (stage == 1) {
         init_blk_migration(f);
 
@@ -710,11 +703,17 @@ static void block_set_params(const MigrationParams *params, void *opaque)
     block_mig_state.blk_enable |= params->shared;
 }
 
+static bool block_is_active(void *opaque)
+{
+    return block_mig_state.blk_enable == 1;
+}
+
 SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
     .save_live_state = block_save_live,
     .load_state = block_load,
     .cancel = block_migration_cancel,
+    .is_active = block_is_active,
 };
 
 void blk_mig_init(void)

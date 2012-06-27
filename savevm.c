@@ -1576,6 +1576,11 @@ int qemu_savevm_state_begin(QEMUFile *f,
         if (!se->ops || !se->ops->save_live_state) {
             continue;
         }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_START);
         qemu_put_be32(f, se->section_id);
@@ -1618,6 +1623,11 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         if (!se->ops || !se->ops->save_live_state) {
             continue;
         }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
         if (qemu_file_rate_limit(f)) {
             return 0;
         }
@@ -1657,6 +1667,11 @@ int qemu_savevm_state_complete(QEMUFile *f)
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (!se->ops || !se->ops->save_live_state) {
             continue;
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
         }
         trace_savevm_section_start();
         /* Section type */
