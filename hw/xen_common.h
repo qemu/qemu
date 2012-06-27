@@ -7,7 +7,11 @@
 #include <inttypes.h>
 
 #include <xenctrl.h>
-#include <xs.h>
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 420
+#  include <xs.h>
+#else
+#  include <xenstore.h>
+#endif
 #include <xen/io/xenbus.h>
 
 #include "hw.h"
@@ -149,5 +153,8 @@ static inline int xen_xc_hvm_inject_msi(XenXC xen_xc, domid_t dom,
 #endif
 
 void destroy_hvm_domain(bool reboot);
+
+/* shutdown/destroy current domain because of an error */
+void xen_shutdown_fatal_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 #endif /* QEMU_HW_XEN_COMMON_H */

@@ -35,18 +35,15 @@
 #include <string.h>
 #include <time.h>
 
-#include <xs.h>
-#include <xenctrl.h>
-#include <xen/event_channel.h>
-#include <xen/io/xenbus.h>
-#include <xen/io/fbif.h>
-#include <xen/io/kbdif.h>
-#include <xen/io/protocols.h>
-
 #include "hw.h"
 #include "console.h"
 #include "qemu-char.h"
 #include "xen_backend.h"
+
+#include <xen/event_channel.h>
+#include <xen/io/fbif.h>
+#include <xen/io/kbdif.h>
+#include <xen/io/protocols.h>
 
 #ifndef BTN_LEFT
 #define BTN_LEFT 0x110 /* from <linux/input.h> */

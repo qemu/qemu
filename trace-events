@@ -252,12 +252,13 @@ usb_ehci_qtd_fields(uint32_t addr, int tbytes, int cpage, int cerr, int pid) "QT
 usb_ehci_qtd_bits(uint32_t addr, int ioc, int active, int halt, int babble, int xacterr) "QTD @ %08x - ioc %d, active %d, halt %d, babble %d, xacterr %d"
 usb_ehci_itd(uint32_t addr, uint32_t nxt, uint32_t mplen, uint32_t mult, uint32_t ep, uint32_t devaddr) "ITD @ %08x: next %08x - mplen %d, mult %d, ep %d, dev %d"
 usb_ehci_sitd(uint32_t addr, uint32_t nxt, uint32_t active) "ITD @ %08x: next %08x - active %d"
-usb_ehci_port_attach(uint32_t port, const char *device) "attach port #%d - %s"
-usb_ehci_port_detach(uint32_t port) "detach port #%d"
+usb_ehci_port_attach(uint32_t port, const char *owner, const char *device) "attach port #%d, owner %s, device %s"
+usb_ehci_port_detach(uint32_t port, const char *owner) "detach port #%d, owner %s"
 usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
 usb_ehci_data(int rw, uint32_t cpage, uint32_t offset, uint32_t addr, uint32_t len, uint32_t bufpos) "write %d, cpage %d, offset 0x%03x, addr 0x%08x, len %d, bufpos %d"
 usb_ehci_queue_action(void *q, const char *action) "q %p: %s"
 usb_ehci_packet_action(void *q, void *p, const char *action) "q %p p %p: %s"
+usb_ehci_interrupt(uint32_t level, uint32_t sts, uint32_t mask) "level %d, sts 0x%x, mask 0x%x"
 
 # hw/usb/hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="

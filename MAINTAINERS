@@ -311,6 +311,11 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: hw/petalogix_s3adsp1800.c
 
+petalogix_ml605
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+S: Maintained
+F: hw/petalogix_ml605_mmu.c
+
 MIPS Machines
 -------------
 Jazz
@@ -477,6 +482,17 @@ S: Supported
 F: hw/virtio-serial*
 F: hw/virtio-console*
 
+Xilinx EDK
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+S: Maintained
+F: hw/xilinx_axi*
+F: hw/xilinx_uartlite.c
+F: hw/xilinx_intc.c
+F: hw/xilinx_ethlite.c
+F: hw/xilinx_timer.c
+F: hw/xilinx.h
+
 Subsystems
 ----------
 Audio
@@ -494,6 +510,12 @@ Character Devices
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Maintained
 F: qemu-char.c
+
+Device Tree
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+M: Alexander Graf <agraf@suse.de>
+S: Maintained
+F: device-tree.[ch]
 
 GDB stub
 M: qemu-devel@nongnu.org

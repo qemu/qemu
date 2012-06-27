@@ -138,6 +138,7 @@ vnc_png=""
 vnc_thread="no"
 xen=""
 xen_ctrl_version=""
+xen_pci_passthrough=""
 linux_aio=""
 cap_ng=""
 attr=""
@@ -707,6 +708,10 @@ for opt do
   ;;
   --enable-xen) xen="yes"
   ;;
+  --disable-xen-pci-passthrough) xen_pci_passthrough="no"
+  ;;
+  --enable-xen-pci-passthrough) xen_pci_passthrough="yes"
+  ;;
   --disable-brlapi) brlapi="no"
   ;;
   --enable-brlapi) brlapi="yes"
@@ -1058,6 +1063,8 @@ echo "                           (affects only QEMU, not qemu-img)"
 echo "  --enable-mixemu          enable mixer emulation"
 echo "  --disable-xen            disable xen backend driver support"
 echo "  --enable-xen             enable xen backend driver support"
+echo "  --disable-xen-pci-passthrough"
+echo "  --enable-xen-pci-passthrough"
 echo "  --disable-brlapi         disable BrlAPI"
 echo "  --enable-brlapi          enable BrlAPI"
 echo "  --disable-vnc-tls        disable TLS encryption for VNC server"
@@ -1409,7 +1416,7 @@ EOF
   elif (
       cat > $TMPC <<EOF
 #include <xenctrl.h>
-#include <xs.h>
+#include <xenstore.h>
 #include <stdint.h>
 #include <xen/hvm/hvm_info_table.h>
 #if !defined(HVM_MAX_VCPUS)
@@ -1532,6 +1539,25 @@ EOF
 
   if test "$xen" = yes; then
     libs_softmmu="$xen_libs $libs_softmmu"
+  fi
+fi
+
+if test "$xen_pci_passthrough" != "no"; then
+  if test "$xen" = "yes" && test "$linux" = "yes" &&
+    test "$xen_ctrl_version" -ge 340; then
+    xen_pci_passthrough=yes
+  else
+    if test "$xen_pci_passthrough" = "yes"; then
+      echo "ERROR"
+      echo "ERROR: User requested feature Xen PCI Passthrough"
+      echo "ERROR: but this feature require /sys from Linux"
+      if test "$xen_ctrl_version" -lt 340; then
+        echo "ERROR: This feature does not work with Xen 3.3"
+      fi
+      echo "ERROR"
+      exit 1;
+    fi
+    xen_pci_passthrough=no
   fi
 fi
 
@@ -2852,7 +2878,7 @@ fi
 ##########################################
 # check if we have open_by_handle_at
 
-open_by_hande_at=no
+open_by_handle_at=no
 cat > $TMPC << EOF
 #include <fcntl.h>
 #if !defined(AT_EMPTY_PATH)
@@ -3751,6 +3777,9 @@ case "$target_arch2" in
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
       target_phys_bits=64
       echo "CONFIG_XEN=y" >> $config_target_mak
+      if test "$xen_pci_passthrough" = yes; then
+        echo "CONFIG_XEN_PCI_PASSTHROUGH=y" >> "$config_target_mak"
+      fi
     else
       echo "CONFIG_NO_XEN=y" >> $config_target_mak
     fi

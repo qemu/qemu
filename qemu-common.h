@@ -281,6 +281,13 @@ typedef enum LostTickPolicy {
     LOST_TICK_MAX
 } LostTickPolicy;
 
+typedef struct PCIHostDeviceAddress {
+    unsigned int domain;
+    unsigned int bus;
+    unsigned int slot;
+    unsigned int function;
+} PCIHostDeviceAddress;
+
 void tcg_exec_init(uintptr_t tb_size);
 bool tcg_enabled(void);
 

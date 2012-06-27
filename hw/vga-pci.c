@@ -53,7 +53,7 @@ static int pci_vga_initfn(PCIDevice *dev)
      VGACommonState *s = &d->vga;
 
      // vga + console init
-     vga_common_init(s, VGA_RAM_SIZE);
+     vga_common_init(s);
      vga_init(s, pci_address_space(dev), pci_address_space_io(dev), true);
 
      s->ds = graphic_console_init(s->update, s->invalidate,
@@ -75,6 +75,11 @@ DeviceState *pci_vga_init(PCIBus *bus)
     return &pci_create_simple(bus, -1, "VGA")->qdev;
 }
 
+static Property vga_pci_properties[] = {
+    DEFINE_PROP_UINT32("vgamem_mb", PCIVGAState, vga.vram_size_mb, 16),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void vga_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -87,6 +92,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     dc->vmsd = &vmstate_vga_pci;
+    dc->props = vga_pci_properties;
 }
 
 static TypeInfo vga_info = {

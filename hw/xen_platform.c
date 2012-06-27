@@ -83,7 +83,7 @@ static void log_writeb(PCIXenPlatformState *s, char val)
 #define UNPLUG_ALL_NICS 2
 #define UNPLUG_AUX_IDE_DISKS 4
 
-static void unplug_nic(PCIBus *b, PCIDevice *d)
+static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
 {
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_NETWORK_ETHERNET) {
@@ -96,10 +96,10 @@ static void unplug_nic(PCIBus *b, PCIDevice *d)
 
 static void pci_unplug_nics(PCIBus *bus)
 {
-    pci_for_each_device(bus, 0, unplug_nic);
+    pci_for_each_device(bus, 0, unplug_nic, NULL);
 }
 
-static void unplug_disks(PCIBus *b, PCIDevice *d)
+static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
 {
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_STORAGE_IDE) {
@@ -109,7 +109,7 @@ static void unplug_disks(PCIBus *b, PCIDevice *d)
 
 static void pci_unplug_disks(PCIBus *bus)
 {
-    pci_for_each_device(bus, 0, unplug_disks);
+    pci_for_each_device(bus, 0, unplug_disks, NULL);
 }
 
 static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t val)

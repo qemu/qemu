@@ -49,7 +49,7 @@ static int vga_initfn(ISADevice *dev)
     MemoryRegion *vga_io_memory;
     const MemoryRegionPortio *vga_ports, *vbe_ports;
 
-    vga_common_init(s, VGA_RAM_SIZE);
+    vga_common_init(s);
     s->legacy_address_space = isa_address_space(dev);
     vga_io_memory = vga_init_io(s, &vga_ports, &vbe_ports);
     isa_register_portio_list(dev, 0x3b0, vga_ports, s, "vga");
@@ -69,6 +69,11 @@ static int vga_initfn(ISADevice *dev)
     return 0;
 }
 
+static Property vga_isa_properties[] = {
+    DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void vga_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -76,6 +81,7 @@ static void vga_class_initfn(ObjectClass *klass, void *data)
     ic->init = vga_initfn;
     dc->reset = vga_reset_isa;
     dc->vmsd = &vmstate_vga_common;
+    dc->props = vga_isa_properties;
 }
 
 static TypeInfo vga_info = {
