@@ -31,28 +31,74 @@ struct QEMUSGList {
 };
 
 #if defined(TARGET_PHYS_ADDR_BITS)
-typedef target_phys_addr_t dma_addr_t;
 
-#define DMA_ADDR_BITS TARGET_PHYS_ADDR_BITS
-#define DMA_ADDR_FMT TARGET_FMT_plx
+/*
+ * When an IOMMU is present, bus addresses become distinct from
+ * CPU/memory physical addresses and may be a different size.  Because
+ * the IOVA size depends more on the bus than on the platform, we more
+ * or less have to treat these as 64-bit always to cover all (or at
+ * least most) cases.
+ */
+typedef uint64_t dma_addr_t;
+
+#define DMA_ADDR_BITS 64
+#define DMA_ADDR_FMT "%" PRIx64
+
+typedef int DMATranslateFunc(DMAContext *dma,
+                             dma_addr_t addr,
+                             target_phys_addr_t *paddr,
+                             target_phys_addr_t *len,
+                             DMADirection dir);
+typedef void* DMAMapFunc(DMAContext *dma,
+                         dma_addr_t addr,
+                         dma_addr_t *len,
+                         DMADirection dir);
+typedef void DMAUnmapFunc(DMAContext *dma,
+                          void *buffer,
+                          dma_addr_t len,
+                          DMADirection dir,
+                          dma_addr_t access_len);
+
+struct DMAContext {
+    DMATranslateFunc *translate;
+    DMAMapFunc *map;
+    DMAUnmapFunc *unmap;
+};
+
+static inline bool dma_has_iommu(DMAContext *dma)
+{
+    return !!dma;
+}
 
 /* Checks that the given range of addresses is valid for DMA.  This is
  * useful for certain cases, but usually you should just use
  * dma_memory_{read,write}() and check for errors */
-static inline bool dma_memory_valid(DMAContext *dma, dma_addr_t addr,
-                                    dma_addr_t len, DMADirection dir)
+bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
+                            DMADirection dir);
+static inline bool dma_memory_valid(DMAContext *dma,
+                                    dma_addr_t addr, dma_addr_t len,
+                                    DMADirection dir)
 {
-    /* Stub version, with no iommu we assume all bus addresses are valid */
-    return true;
+    if (!dma_has_iommu(dma)) {
+        return true;
+    } else {
+        return iommu_dma_memory_valid(dma, addr, len, dir);
+    }
 }
 
+int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
+                        void *buf, dma_addr_t len, DMADirection dir);
 static inline int dma_memory_rw(DMAContext *dma, dma_addr_t addr,
                                 void *buf, dma_addr_t len, DMADirection dir)
 {
-    /* Stub version when we have no iommu support */
-    cpu_physical_memory_rw(addr, buf, (target_phys_addr_t)len,
-                           dir == DMA_DIRECTION_FROM_DEVICE);
-    return 0;
+    if (!dma_has_iommu(dma)) {
+        /* Fast-path for no IOMMU */
+        cpu_physical_memory_rw(addr, buf, len,
+                               dir == DMA_DIRECTION_FROM_DEVICE);
+        return 0;
+    } else {
+        return iommu_dma_memory_rw(dma, addr, buf, len, dir);
+    }
 }
 
 static inline int dma_memory_read(DMAContext *dma, dma_addr_t addr,
@@ -68,28 +114,45 @@ static inline int dma_memory_write(DMAContext *dma, dma_addr_t addr,
                          DMA_DIRECTION_FROM_DEVICE);
 }
 
+int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
+			 dma_addr_t len);
+
 int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len);
 
+void *iommu_dma_memory_map(DMAContext *dma,
+                           dma_addr_t addr, dma_addr_t *len,
+                           DMADirection dir);
 static inline void *dma_memory_map(DMAContext *dma,
                                    dma_addr_t addr, dma_addr_t *len,
                                    DMADirection dir)
 {
-    target_phys_addr_t xlen = *len;
-    void *p;
+    if (!dma_has_iommu(dma)) {
+        target_phys_addr_t xlen = *len;
+        void *p;
 
-    p = cpu_physical_memory_map(addr, &xlen,
-                                dir == DMA_DIRECTION_FROM_DEVICE);
-    *len = xlen;
-    return p;
+        p = cpu_physical_memory_map(addr, &xlen,
+                                    dir == DMA_DIRECTION_FROM_DEVICE);
+        *len = xlen;
+        return p;
+    } else {
+        return iommu_dma_memory_map(dma, addr, len, dir);
+    }
 }
 
+void iommu_dma_memory_unmap(DMAContext *dma,
+                            void *buffer, dma_addr_t len,
+                            DMADirection dir, dma_addr_t access_len);
 static inline void dma_memory_unmap(DMAContext *dma,
                                     void *buffer, dma_addr_t len,
                                     DMADirection dir, dma_addr_t access_len)
 {
-    return cpu_physical_memory_unmap(buffer, (target_phys_addr_t)len,
-                                     dir == DMA_DIRECTION_FROM_DEVICE,
-                                     access_len);
+    if (!dma_has_iommu(dma)) {
+        return cpu_physical_memory_unmap(buffer, (target_phys_addr_t)len,
+                                         dir == DMA_DIRECTION_FROM_DEVICE,
+                                         access_len);
+    } else {
+        iommu_dma_memory_unmap(dma, buffer, len, dir, access_len);
+    }
 }
 
 #define DEFINE_LDST_DMA(_lname, _sname, _bits, _end) \
@@ -129,6 +192,9 @@ DEFINE_LDST_DMA(l, l, 32, be);
 DEFINE_LDST_DMA(q, q, 64, be);
 
 #undef DEFINE_LDST_DMA
+
+void dma_context_init(DMAContext *dma, DMATranslateFunc translate,
+                      DMAMapFunc map, DMAUnmapFunc unmap);
 
 struct ScatterGatherEntry {
     dma_addr_t base;
