@@ -609,6 +609,10 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 
     bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
+    if (ro && copy_on_read) {
+        error_report("warning: disabling copy_on_read on readonly drive");
+    }
+
     ret = bdrv_open(dinfo->bdrv, file, bdrv_flags, drv);
     if (ret < 0) {
         error_report("could not open disk image %s: %s",
