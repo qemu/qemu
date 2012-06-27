@@ -1067,7 +1067,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
         return NULL;
     }
 
-    len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE) * sizeof(VIOsPAPR_RTCE);
+    len = (window_size / SPAPR_TCE_PAGE_SIZE) * sizeof(sPAPRTCE);
     /* FIXME: round this up to page size */
 
     table = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
@@ -1090,7 +1090,7 @@ int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
         return -1;
     }
 
-    len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE)*sizeof(VIOsPAPR_RTCE);
+    len = (window_size / SPAPR_TCE_PAGE_SIZE)*sizeof(sPAPRTCE);
     if ((munmap(table, len) < 0) ||
         (close(fd) < 0)) {
         fprintf(stderr, "KVM: Unexpected error removing TCE table: %s",

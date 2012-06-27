@@ -133,7 +133,7 @@ void spapr_vty_create(VIOsPAPRBus *bus, CharDriverState *chardev)
 }
 
 static Property spapr_vty_properties[] = {
-    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev, 0),
+    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev),
     DEFINE_PROP_CHR("chardev", VIOsPAPRVTYDevice, chardev),
     DEFINE_PROP_END_OF_LIST(),
 };

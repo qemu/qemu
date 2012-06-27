@@ -21,16 +21,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#define SPAPR_VIO_TCE_PAGE_SHIFT   12
-#define SPAPR_VIO_TCE_PAGE_SIZE    (1ULL << SPAPR_VIO_TCE_PAGE_SHIFT)
-#define SPAPR_VIO_TCE_PAGE_MASK    (SPAPR_VIO_TCE_PAGE_SIZE - 1)
-
-enum VIOsPAPR_TCEAccess {
-    SPAPR_TCE_FAULT = 0,
-    SPAPR_TCE_RO = 1,
-    SPAPR_TCE_WO = 2,
-    SPAPR_TCE_RW = 3,
-};
+#include "dma.h"
 
 #define TYPE_VIO_SPAPR_DEVICE "vio-spapr-device"
 #define VIO_SPAPR_DEVICE(obj) \
@@ -44,10 +35,6 @@ enum VIOsPAPR_TCEAccess {
 #define SPAPR_VIO_BUS(obj) OBJECT_CHECK(VIOsPAPRBus, (obj), TYPE_SPAPR_VIO_BUS)
 
 struct VIOsPAPRDevice;
-
-typedef struct VIOsPAPR_RTCE {
-    uint64_t tce;
-} VIOsPAPR_RTCE;
 
 typedef struct VIOsPAPR_CRQ {
     uint64_t qladdr;
@@ -64,6 +51,7 @@ typedef struct VIOsPAPRDeviceClass {
 
     const char *dt_name, *dt_type, *dt_compatible;
     target_ulong signal_mask;
+    uint32_t rtce_window_size;
     int (*init)(VIOsPAPRDevice *dev);
     void (*reset)(VIOsPAPRDevice *dev);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
@@ -73,20 +61,15 @@ struct VIOsPAPRDevice {
     DeviceState qdev;
     uint32_t reg;
     uint32_t flags;
-#define VIO_PAPR_FLAG_DMA_BYPASS        0x1
     qemu_irq qirq;
     uint32_t vio_irq_num;
     target_ulong signal_state;
-    uint32_t rtce_window_size;
-    VIOsPAPR_RTCE *rtce_table;
-    int kvmtce_fd;
     VIOsPAPR_CRQ crq;
+    DMAContext *dma;
 };
 
-#define DEFINE_SPAPR_PROPERTIES(type, field, default_dma_window)       \
-        DEFINE_PROP_UINT32("reg", type, field.reg, -1),                \
-        DEFINE_PROP_UINT32("dma-window", type, field.rtce_window_size, \
-                           default_dma_window)
+#define DEFINE_SPAPR_PROPERTIES(type, field)           \
+        DEFINE_PROP_UINT32("reg", type, field.reg, -1)
 
 struct VIOsPAPRBus {
     BusState bus;
@@ -102,20 +85,38 @@ extern int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus);
 
 extern int spapr_vio_signal(VIOsPAPRDevice *dev, target_ulong mode);
 
-int spapr_vio_check_tces(VIOsPAPRDevice *dev, target_ulong ioba,
-                         target_ulong len,
-                         enum VIOsPAPR_TCEAccess access);
+static inline bool spapr_vio_dma_valid(VIOsPAPRDevice *dev, uint64_t taddr,
+                                       uint32_t size, DMADirection dir)
+{
+    return dma_memory_valid(dev->dma, taddr, size, dir);
+}
 
-int spapr_tce_dma_read(VIOsPAPRDevice *dev, uint64_t taddr,
-                       void *buf, uint32_t size);
-int spapr_tce_dma_write(VIOsPAPRDevice *dev, uint64_t taddr,
-                        const void *buf, uint32_t size);
-int spapr_tce_dma_zero(VIOsPAPRDevice *dev, uint64_t taddr, uint32_t size);
-void stb_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint8_t val);
-void sth_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint16_t val);
-void stw_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint32_t val);
-void stq_tce(VIOsPAPRDevice *dev, uint64_t taddr, uint64_t val);
-uint64_t ldq_tce(VIOsPAPRDevice *dev, uint64_t taddr);
+static inline int spapr_vio_dma_read(VIOsPAPRDevice *dev, uint64_t taddr,
+                                     void *buf, uint32_t size)
+{
+    return (dma_memory_read(dev->dma, taddr, buf, size) != 0) ?
+        H_DEST_PARM : H_SUCCESS;
+}
+
+static inline int spapr_vio_dma_write(VIOsPAPRDevice *dev, uint64_t taddr,
+                                      const void *buf, uint32_t size)
+{
+    return (dma_memory_write(dev->dma, taddr, buf, size) != 0) ?
+        H_DEST_PARM : H_SUCCESS;
+}
+
+static inline int spapr_vio_dma_set(VIOsPAPRDevice *dev, uint64_t taddr,
+                                    uint8_t c, uint32_t size)
+{
+    return (dma_memory_set(dev->dma, taddr, c, size) != 0) ?
+        H_DEST_PARM : H_SUCCESS;
+}
+
+#define vio_stb(_dev, _addr, _val) (stb_dma((_dev)->dma, (_addr), (_val)))
+#define vio_sth(_dev, _addr, _val) (stw_be_dma((_dev)->dma, (_addr), (_val)))
+#define vio_stl(_dev, _addr, _val) (stl_be_dma((_dev)->dma, (_addr), (_val)))
+#define vio_stq(_dev, _addr, _val) (stq_be_dma((_dev)->dma, (_addr), (_val)))
+#define vio_ldq(_dev, _addr) (ldq_be_dma((_dev)->dma, (_addr)))
 
 int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq);
 

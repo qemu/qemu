@@ -674,6 +674,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     spapr->icp = xics_system_init(XICS_IRQS);
     spapr->next_irq = 16;
 
+    /* Set up IOMMU */
+    spapr_iommu_init();
+
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 

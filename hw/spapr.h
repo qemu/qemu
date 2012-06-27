@@ -1,6 +1,7 @@
 #if !defined(__HW_SPAPR_H__)
 #define __HW_SPAPR_H__
 
+#include "dma.h"
 #include "hw/xics.h"
 
 struct VIOsPAPRBus;
@@ -319,5 +320,21 @@ target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
                              uint32_t nret, target_ulong rets);
 int spapr_rtas_device_tree_setup(void *fdt, target_phys_addr_t rtas_addr,
                                  target_phys_addr_t rtas_size);
+
+#define SPAPR_TCE_PAGE_SHIFT   12
+#define SPAPR_TCE_PAGE_SIZE    (1ULL << SPAPR_TCE_PAGE_SHIFT)
+#define SPAPR_TCE_PAGE_MASK    (SPAPR_TCE_PAGE_SIZE - 1)
+
+typedef struct sPAPRTCE {
+    uint64_t tce;
+} sPAPRTCE;
+
+#define SPAPR_VIO_BASE_LIOBN    0x00000000
+
+void spapr_iommu_init(void);
+DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
+void spapr_tce_free(DMAContext *dma);
+int spapr_dma_dt(void *fdt, int node_off, const char *propname,
+                 DMAContext *dma);
 
 #endif /* !defined (__HW_SPAPR_H__) */
