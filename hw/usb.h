@@ -345,7 +345,7 @@ void usb_packet_check_state(USBPacket *p, USBPacketState expected);
 void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
-void usb_packet_unmap(USBPacket *p);
+void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
 void usb_packet_skip(USBPacket *p, size_t bytes);
 void usb_packet_cleanup(USBPacket *p);

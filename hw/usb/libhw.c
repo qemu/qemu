@@ -26,15 +26,15 @@
 
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 {
-    int is_write = (p->pid == USB_TOKEN_IN);
-    target_phys_addr_t len;
+    DMADirection dir = (p->pid == USB_TOKEN_IN) ?
+        DMA_DIRECTION_FROM_DEVICE : DMA_DIRECTION_TO_DEVICE;
+    dma_addr_t len;
     void *mem;
     int i;
 
     for (i = 0; i < sgl->nsg; i++) {
         len = sgl->sg[i].len;
-        mem = cpu_physical_memory_map(sgl->sg[i].base, &len,
-                                      is_write);
+        mem = dma_memory_map(sgl->dma, sgl->sg[i].base, &len, dir);
         if (!mem) {
             goto err;
         }
@@ -46,18 +46,19 @@ int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
     return 0;
 
 err:
-    usb_packet_unmap(p);
+    usb_packet_unmap(p, sgl);
     return -1;
 }
 
-void usb_packet_unmap(USBPacket *p)
+void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl)
 {
-    int is_write = (p->pid == USB_TOKEN_IN);
+    DMADirection dir = (p->pid == USB_TOKEN_IN) ?
+        DMA_DIRECTION_FROM_DEVICE : DMA_DIRECTION_TO_DEVICE;
     int i;
 
     for (i = 0; i < p->iov.niov; i++) {
-        cpu_physical_memory_unmap(p->iov.iov[i].iov_base,
-                                  p->iov.iov[i].iov_len, is_write,
-                                  p->iov.iov[i].iov_len);
+        dma_memory_unmap(sgl->dma, p->iov.iov[i].iov_base,
+                         p->iov.iov[i].iov_len, dir,
+                         p->iov.iov[i].iov_len);
     }
 }

@@ -871,7 +871,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
 
 done:
     len = uhci_complete_td(s, td, async, int_mask);
-    usb_packet_unmap(&async->packet);
+    usb_packet_unmap(&async->packet, &async->sgl);
     uhci_async_free(async);
     return len;
 }
