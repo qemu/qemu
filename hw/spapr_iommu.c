@@ -162,34 +162,10 @@ void spapr_tce_free(DMAContext *dma)
     }
 }
 
-
-static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
-                              target_ulong opcode, target_ulong *args)
+static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,
+                                target_ulong tce)
 {
-    target_ulong liobn = args[0];
-    target_ulong ioba = args[1];
-    target_ulong tce = args[2];
-    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
     sPAPRTCE *tcep;
-
-    if (liobn & 0xFFFFFFFF00000000ULL) {
-        hcall_dprintf("spapr_vio_put_tce on out-of-boundsw LIOBN "
-                      TARGET_FMT_lx "\n", liobn);
-        return H_PARAMETER;
-    }
-    if (!tcet) {
-        hcall_dprintf("spapr_vio_put_tce on non-existent LIOBN "
-                      TARGET_FMT_lx "\n", liobn);
-        return H_PARAMETER;
-    }
-
-    ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
-
-#ifdef DEBUG_TCE
-    fprintf(stderr, "spapr_vio_put_tce on liobn=" TARGET_FMT_lx /*%s*/
-            "  ioba 0x" TARGET_FMT_lx "  TCE 0x" TARGET_FMT_lx "\n",
-            liobn, /*dev->qdev.id, */ioba, tce);
-#endif
 
     if (ioba >= tcet->window_size) {
         hcall_dprintf("spapr_vio_put_tce on out-of-boards IOBA 0x"
@@ -201,6 +177,34 @@ static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
     tcep->tce = tce;
 
     return H_SUCCESS;
+}
+
+static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
+                              target_ulong opcode, target_ulong *args)
+{
+    target_ulong liobn = args[0];
+    target_ulong ioba = args[1];
+    target_ulong tce = args[2];
+    sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
+
+    if (liobn & 0xFFFFFFFF00000000ULL) {
+        hcall_dprintf("spapr_vio_put_tce on out-of-boundsw LIOBN "
+                      TARGET_FMT_lx "\n", liobn);
+        return H_PARAMETER;
+    }
+
+    ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
+
+    if (tcet) {
+        return put_tce_emu(tcet, ioba, tce);
+    }
+#ifdef DEBUG_TCE
+    fprintf(stderr, "%s on liobn=" TARGET_FMT_lx /*%s*/
+            "  ioba 0x" TARGET_FMT_lx "  TCE 0x" TARGET_FMT_lx "\n",
+            __func__, liobn, /*dev->qdev.id, */ioba, tce);
+#endif
+
+    return H_PARAMETER;
 }
 
 void spapr_iommu_init(void)

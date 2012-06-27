@@ -330,6 +330,7 @@ typedef struct sPAPRTCE {
 } sPAPRTCE;
 
 #define SPAPR_VIO_BASE_LIOBN    0x00000000
+#define SPAPR_PCI_BASE_LIOBN    0x80000000
 
 void spapr_iommu_init(void);
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
