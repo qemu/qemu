@@ -26,12 +26,13 @@ int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
     return 0;
 }
 
-void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint)
+void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, DMAContext *dma)
 {
     qsg->sg = g_malloc(alloc_hint * sizeof(ScatterGatherEntry));
     qsg->nsg = 0;
     qsg->nalloc = alloc_hint;
     qsg->size = 0;
+    qsg->dma = dma;
 }
 
 void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len)
@@ -90,10 +91,9 @@ static void dma_bdrv_unmap(DMAAIOCB *dbs)
     int i;
 
     for (i = 0; i < dbs->iov.niov; ++i) {
-        cpu_physical_memory_unmap(dbs->iov.iov[i].iov_base,
-                                  dbs->iov.iov[i].iov_len,
-                                  dbs->dir != DMA_DIRECTION_TO_DEVICE,
-                                  dbs->iov.iov[i].iov_len);
+        dma_memory_unmap(dbs->sg->dma, dbs->iov.iov[i].iov_base,
+                         dbs->iov.iov[i].iov_len, dbs->dir,
+                         dbs->iov.iov[i].iov_len);
     }
     qemu_iovec_reset(&dbs->iov);
 }
@@ -122,7 +122,7 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
 static void dma_bdrv_cb(void *opaque, int ret)
 {
     DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-    target_phys_addr_t cur_addr, cur_len;
+    dma_addr_t cur_addr, cur_len;
     void *mem;
 
     trace_dma_bdrv_cb(dbs, ret);
@@ -139,8 +139,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
     while (dbs->sg_cur_index < dbs->sg->nsg) {
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
         cur_len = dbs->sg->sg[dbs->sg_cur_index].len - dbs->sg_cur_byte;
-        mem = cpu_physical_memory_map(cur_addr, &cur_len,
-                                      dbs->dir != DMA_DIRECTION_TO_DEVICE);
+        mem = dma_memory_map(dbs->sg->dma, cur_addr, &cur_len, dbs->dir);
         if (!mem)
             break;
         qemu_iovec_add(&dbs->iov, mem, cur_len);
@@ -225,7 +224,8 @@ BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
 }
 
 
-static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_dev)
+static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
+                           DMADirection dir)
 {
     uint64_t resid;
     int sg_cur_index;
@@ -236,7 +236,7 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_de
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
         int32_t xfer = MIN(len, entry.len);
-        cpu_physical_memory_rw(entry.base, ptr, xfer, !to_dev);
+        dma_memory_rw(sg->dma, entry.base, ptr, xfer, dir);
         ptr += xfer;
         len -= xfer;
         resid -= xfer;
@@ -247,12 +247,12 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_de
 
 uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg)
 {
-    return dma_buf_rw(ptr, len, sg, 0);
+    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_FROM_DEVICE);
 }
 
 uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg)
 {
-    return dma_buf_rw(ptr, len, sg, 1);
+    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_TO_DEVICE);
 }
 
 void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,

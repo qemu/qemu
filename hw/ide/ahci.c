@@ -667,7 +667,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist)
     if (sglist_alloc_hint > 0) {
         AHCI_SG *tbl = (AHCI_SG *)prdt;
 
-        qemu_sglist_init(sglist, sglist_alloc_hint);
+        /* FIXME: pass the correct DMAContext */
+        qemu_sglist_init(sglist, sglist_alloc_hint, NULL);
         for (i = 0; i < sglist_alloc_hint; i++) {
             /* flags_size is zero-based */
             qemu_sglist_add(sglist, le64_to_cpu(tbl[i].addr),

@@ -625,7 +625,7 @@ static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len,
 static inline void pci_dma_sglist_init(QEMUSGList *qsg, PCIDevice *dev,
                                        int alloc_hint)
 {
-    qemu_sglist_init(qsg, alloc_hint);
+    qemu_sglist_init(qsg, alloc_hint, pci_dma_context(dev));
 }
 
 extern const VMStateDescription vmstate_pci_device;
