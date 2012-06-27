@@ -775,6 +775,9 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         return NULL;
     }
     pci_dev->bus = bus;
+    if (bus->dma_context_fn) {
+        pci_dev->dma = bus->dma_context_fn(bus, bus->dma_context_opaque, devfn);
+    }
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
     pci_dev->irq_state = 0;
@@ -2022,6 +2025,12 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
     k->exit = pci_unregister_device;
     k->bus_type = TYPE_PCI_BUS;
     k->props = pci_props;
+}
+
+void pci_setup_iommu(PCIBus *bus, PCIDMAContextFunc fn, void *opaque)
+{
+    bus->dma_context_fn = fn;
+    bus->dma_context_opaque = opaque;
 }
 
 static TypeInfo pci_device_type_info = {
