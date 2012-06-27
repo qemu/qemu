@@ -258,9 +258,10 @@ int qdev_simple_unplug_cb(DeviceState *dev)
    way is somewhat unclean, and best avoided.  */
 void qdev_init_nofail(DeviceState *dev)
 {
+    const char *typename = object_get_typename(OBJECT(dev));
+
     if (qdev_init(dev) < 0) {
-        error_report("Initialization of device %s failed",
-                     object_get_typename(OBJECT(dev)));
+        error_report("Initialization of device %s failed", typename);
         exit(1);
     }
 }
