@@ -403,41 +403,9 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
-    double bwidth = 0;
-    int ret;
-    int i;
     int bytes_sent;
 
     memory_global_sync_dirty_bitmap(get_system_memory());
-
-    bwidth = qemu_get_clock_ns(rt_clock);
-
-    i = 0;
-    while ((ret = qemu_file_rate_limit(f)) == 0) {
-        bytes_sent = ram_save_block(f);
-        bytes_transferred += bytes_sent;
-        if (bytes_sent == 0) { /* no more blocks */
-            break;
-        }
-        /* we want to check in the 1st loop, just in case it was the 1st time
-           and we had to sync the dirty bitmap.
-           qemu_get_clock_ns() is a bit expensive, so we only check each some
-           iterations
-        */
-        if ((i & 63) == 0) {
-            uint64_t t1 = (qemu_get_clock_ns(rt_clock) - bwidth) / 1000000;
-            if (t1 > MAX_WAIT) {
-                DPRINTF("big wait: " PRIu64 " milliseconds, %d iterations\n",
-                        t1, i);
-                break;
-            }
-        }
-        i++;
-    }
-
-    if (ret < 0) {
-        return ret;
-    }
 
     /* try transferring iterative blocks of memory */
 
