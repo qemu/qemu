@@ -1211,9 +1211,8 @@ static int img_update(int argc, char **argv)
     }
 
     if (bs->drv->bdrv_update==NULL) {
-        char fmt_name[128];
-        bdrv_get_format(bs, fmt_name, sizeof(fmt_name));
-        error_report ("the 'update' command is not supported for the '%s' image format.", fmt_name);
+        error_report("the 'update' command is not supported for the "
+                     "'%s' image format.", bdrv_get_format_name(bs));
     }
 
     bs->drv->bdrv_update(bs, argc-optind, &argv[optind]);
