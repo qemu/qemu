@@ -1573,7 +1573,7 @@ int qemu_savevm_state_begin(QEMUFile *f,
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
-        if (!se->ops || !se->ops->save_live_state) {
+        if (!se->ops || !se->ops->save_live_setup) {
             continue;
         }
         if (se->ops && se->ops->is_active) {
@@ -1593,7 +1593,7 @@ int qemu_savevm_state_begin(QEMUFile *f,
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        ret = se->ops->save_live_state(f, QEMU_VM_SECTION_START, se->opaque);
+        ret = se->ops->save_live_setup(f, se->opaque);
         if (ret < 0) {
             qemu_savevm_state_cancel(f);
             return ret;

@@ -541,19 +541,39 @@ static void block_migration_cancel(void *opaque)
     blk_mig_cleanup();
 }
 
+static int block_save_setup(QEMUFile *f, void *opaque)
+{
+    int ret;
+
+    DPRINTF("Enter save live setup submitted %d transferred %d\n",
+            block_mig_state.submitted, block_mig_state.transferred);
+
+    init_blk_migration(f);
+
+    /* start track dirty blocks */
+    set_dirty_tracking(1);
+
+    flush_blks(f);
+
+    ret = qemu_file_get_error(f);
+    if (ret) {
+        blk_mig_cleanup();
+        return ret;
+    }
+
+    blk_mig_reset_dirty_cursor();
+
+    qemu_put_be64(f, BLK_MIG_FLAG_EOS);
+
+    return 0;
+}
+
 static int block_save_live(QEMUFile *f, int stage, void *opaque)
 {
     int ret;
 
     DPRINTF("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
-
-    if (stage == 1) {
-        init_blk_migration(f);
-
-        /* start track dirty blocks */
-        set_dirty_tracking(1);
-    }
 
     flush_blks(f);
 
@@ -710,6 +730,7 @@ static bool block_is_active(void *opaque)
 
 SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
+    .save_live_setup = block_save_setup,
     .save_live_state = block_save_live,
     .load_state = block_load,
     .cancel = block_migration_cancel,

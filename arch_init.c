@@ -303,43 +303,85 @@ static void ram_migration_cancel(void *opaque)
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
-static int ram_save_live(QEMUFile *f, int stage, void *opaque)
+static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     ram_addr_t addr;
-    uint64_t bytes_transferred_last;
+    RAMBlock *block;
     double bwidth = 0;
     int ret;
     int i;
 
     memory_global_sync_dirty_bitmap(get_system_memory());
 
-    if (stage == 1) {
-        RAMBlock *block;
-        bytes_transferred = 0;
-        last_block = NULL;
-        last_offset = 0;
-        sort_ram_list();
+    bytes_transferred = 0;
+    last_block = NULL;
+    last_offset = 0;
+    sort_ram_list();
 
-        /* Make sure all dirty bits are set */
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
-            for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-                if (!memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
-                                             DIRTY_MEMORY_MIGRATION)) {
-                    memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
-                }
+    /* Make sure all dirty bits are set */
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
+            if (!memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
+                                         DIRTY_MEMORY_MIGRATION)) {
+                memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
             }
         }
-
-        memory_global_dirty_log_start();
-
-        qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
-
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
-            qemu_put_byte(f, strlen(block->idstr));
-            qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
-            qemu_put_be64(f, block->length);
-        }
     }
+
+    memory_global_dirty_log_start();
+
+    qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
+
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        qemu_put_byte(f, strlen(block->idstr));
+        qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
+        qemu_put_be64(f, block->length);
+    }
+
+    bwidth = qemu_get_clock_ns(rt_clock);
+
+    i = 0;
+    while ((ret = qemu_file_rate_limit(f)) == 0) {
+        int bytes_sent;
+
+        bytes_sent = ram_save_block(f);
+        bytes_transferred += bytes_sent;
+        if (bytes_sent == 0) { /* no more blocks */
+            break;
+        }
+        /* we want to check in the 1st loop, just in case it was the 1st time
+           and we had to sync the dirty bitmap.
+           qemu_get_clock_ns() is a bit expensive, so we only check each some
+           iterations
+        */
+        if ((i & 63) == 0) {
+            uint64_t t1 = (qemu_get_clock_ns(rt_clock) - bwidth) / 1000000;
+            if (t1 > MAX_WAIT) {
+                DPRINTF("big wait: " PRIu64 " milliseconds, %d iterations\n",
+                        t1, i);
+                break;
+            }
+        }
+        i++;
+    }
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+
+    return 0;
+}
+
+static int ram_save_live(QEMUFile *f, int stage, void *opaque)
+{
+    uint64_t bytes_transferred_last;
+    double bwidth = 0;
+    int ret;
+    int i;
+
+    memory_global_sync_dirty_bitmap(get_system_memory());
 
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
@@ -535,6 +577,7 @@ done:
 }
 
 SaveVMHandlers savevm_ram_handlers = {
+    .save_live_setup = ram_save_setup,
     .save_live_state = ram_save_live,
     .load_state = ram_load,
     .cancel = ram_migration_cancel,

@@ -32,6 +32,7 @@ typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 typedef struct SaveVMHandlers {
     void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
+    int (*save_live_setup)(QEMUFile *f, void *opaque);
     int (*save_live_state)(QEMUFile *f, int stage, void *opaque);
     void (*cancel)(void *opaque);
     LoadStateHandler *load_state;
