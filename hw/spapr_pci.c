@@ -266,12 +266,21 @@ static const MemoryRegionOps spapr_io_ops = {
 /*
  * PHB PCI device
  */
+static DMAContext *spapr_pci_dma_context_fn(PCIBus *bus, void *opaque,
+                                            int devfn)
+{
+    sPAPRPHBState *phb = opaque;
+
+    return phb->dma;
+}
+
 static int spapr_phb_init(SysBusDevice *s)
 {
     sPAPRPHBState *phb = FROM_SYSBUS(sPAPRPHBState, s);
     char *namebuf;
     int i;
     PCIBus *bus;
+    uint32_t liobn;
 
     phb->dtbusname = g_strdup_printf("pci@%" PRIx64, phb->buid);
     namebuf = alloca(strlen(phb->dtbusname) + 32);
@@ -311,6 +320,10 @@ static int spapr_phb_init(SysBusDevice *s)
                            &phb->memspace, &phb->iospace,
                            PCI_DEVFN(0, 0), PCI_NUM_PINS);
     phb->host_state.bus = bus;
+
+    liobn = SPAPR_PCI_BASE_LIOBN | (pci_find_domain(bus) << 16);
+    phb->dma = spapr_tce_new_dma_context(liobn, 0x40000000);
+    pci_setup_iommu(bus, spapr_pci_dma_context_fn, phb);
 
     QLIST_INSERT_HEAD(&spapr->phbs, phb, list);
 
@@ -471,6 +484,8 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
     /* Write interrupt map */
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map", &interrupt_map,
                      sizeof(interrupt_map)));
+
+    spapr_dma_dt(fdt, bus_off, "ibm,dma-window", phb->dma);
 
     return 0;
 }

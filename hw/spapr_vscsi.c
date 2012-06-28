@@ -165,7 +165,7 @@ static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
     long rc, rc1;
 
     /* First copy the SRP */
-    rc = spapr_tce_dma_write(&s->vdev, req->crq.s.IU_data_ptr,
+    rc = spapr_vio_dma_write(&s->vdev, req->crq.s.IU_data_ptr,
                              &req->iu, length);
     if (rc) {
         fprintf(stderr, "vscsi_send_iu: DMA write failure !\n");
@@ -281,9 +281,9 @@ static int vscsi_srp_direct_data(VSCSIState *s, vscsi_req *req,
     llen = MIN(len, md->len);
     if (llen) {
         if (req->writing) { /* writing = to device = reading from memory */
-            rc = spapr_tce_dma_read(&s->vdev, md->va, buf, llen);
+            rc = spapr_vio_dma_read(&s->vdev, md->va, buf, llen);
         } else {
-            rc = spapr_tce_dma_write(&s->vdev, md->va, buf, llen);
+            rc = spapr_vio_dma_write(&s->vdev, md->va, buf, llen);
         }
     }
     md->len -= llen;
@@ -329,10 +329,11 @@ static int vscsi_srp_indirect_data(VSCSIState *s, vscsi_req *req,
             md = req->cur_desc = &req->ext_desc;
             dprintf("VSCSI:   Reading desc from 0x%llx\n",
                     (unsigned long long)td->va);
-            rc = spapr_tce_dma_read(&s->vdev, td->va, md,
+            rc = spapr_vio_dma_read(&s->vdev, td->va, md,
                                     sizeof(struct srp_direct_buf));
             if (rc) {
-                dprintf("VSCSI: tce_dma_read -> %d reading ext_desc\n", rc);
+                dprintf("VSCSI: spapr_vio_dma_read -> %d reading ext_desc\n",
+                        rc);
                 break;
             }
             vscsi_swap_desc(md);
@@ -345,12 +346,12 @@ static int vscsi_srp_indirect_data(VSCSIState *s, vscsi_req *req,
         /* Perform transfer */
         llen = MIN(len, md->len);
         if (req->writing) { /* writing = to device = reading from memory */
-            rc = spapr_tce_dma_read(&s->vdev, md->va, buf, llen);
+            rc = spapr_vio_dma_read(&s->vdev, md->va, buf, llen);
         } else {
-            rc = spapr_tce_dma_write(&s->vdev, md->va, buf, llen);
+            rc = spapr_vio_dma_write(&s->vdev, md->va, buf, llen);
         }
         if (rc) {
-            dprintf("VSCSI: tce_dma_r/w(%d) -> %d\n", req->writing, rc);
+            dprintf("VSCSI: spapr_vio_dma_r/w(%d) -> %d\n", req->writing, rc);
             break;
         }
         dprintf("VSCSI:     data: %02x %02x %02x %02x...\n",
@@ -728,7 +729,7 @@ static int vscsi_send_adapter_info(VSCSIState *s, vscsi_req *req)
     sinfo = &req->iu.mad.adapter_info;
 
 #if 0 /* What for ? */
-    rc = spapr_tce_dma_read(&s->vdev, be64_to_cpu(sinfo->buffer),
+    rc = spapr_vio_dma_read(&s->vdev, be64_to_cpu(sinfo->buffer),
                             &info, be16_to_cpu(sinfo->common.length));
     if (rc) {
         fprintf(stderr, "vscsi_send_adapter_info: DMA read failure !\n");
@@ -742,7 +743,7 @@ static int vscsi_send_adapter_info(VSCSIState *s, vscsi_req *req)
     info.os_type = cpu_to_be32(2);
     info.port_max_txu[0] = cpu_to_be32(VSCSI_MAX_SECTORS << 9);
 
-    rc = spapr_tce_dma_write(&s->vdev, be64_to_cpu(sinfo->buffer),
+    rc = spapr_vio_dma_write(&s->vdev, be64_to_cpu(sinfo->buffer),
                              &info, be16_to_cpu(sinfo->common.length));
     if (rc)  {
         fprintf(stderr, "vscsi_send_adapter_info: DMA write failure !\n");
@@ -805,7 +806,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
     }
 
     /* XXX Handle failure differently ? */
-    if (spapr_tce_dma_read(&s->vdev, crq->s.IU_data_ptr, &req->iu,
+    if (spapr_vio_dma_read(&s->vdev, crq->s.IU_data_ptr, &req->iu,
                            crq->s.IU_length)) {
         fprintf(stderr, "vscsi_got_payload: DMA read failure !\n");
         vscsi_put_req(req);
@@ -947,7 +948,7 @@ static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
 }
 
 static Property spapr_vscsi_properties[] = {
-    DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x10000000),
+    DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -964,6 +965,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     k->dt_compatible = "IBM,v-scsi";
     k->signal_mask = 0x00000001;
     dc->props = spapr_vscsi_properties;
+    k->rtce_window_size = 0x10000000;
 }
 
 static TypeInfo spapr_vscsi_info = {

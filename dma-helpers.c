@@ -9,13 +9,45 @@
 
 #include "dma.h"
 #include "trace.h"
+#include "range.h"
+#include "qemu-thread.h"
 
-void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint)
+/* #define DEBUG_IOMMU */
+
+static void do_dma_memory_set(dma_addr_t addr, uint8_t c, dma_addr_t len)
+{
+#define FILLBUF_SIZE 512
+    uint8_t fillbuf[FILLBUF_SIZE];
+    int l;
+
+    memset(fillbuf, c, FILLBUF_SIZE);
+    while (len > 0) {
+        l = len < FILLBUF_SIZE ? len : FILLBUF_SIZE;
+        cpu_physical_memory_rw(addr, fillbuf, l, true);
+        len -= len;
+        addr += len;
+    }
+}
+
+int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
+{
+    dma_barrier(dma, DMA_DIRECTION_FROM_DEVICE);
+
+    if (dma_has_iommu(dma)) {
+        return iommu_dma_memory_set(dma, addr, c, len);
+    }
+    do_dma_memory_set(addr, c, len);
+
+    return 0;
+}
+
+void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint, DMAContext *dma)
 {
     qsg->sg = g_malloc(alloc_hint * sizeof(ScatterGatherEntry));
     qsg->nsg = 0;
     qsg->nalloc = alloc_hint;
     qsg->size = 0;
+    qsg->dma = dma;
 }
 
 void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len)
@@ -74,10 +106,9 @@ static void dma_bdrv_unmap(DMAAIOCB *dbs)
     int i;
 
     for (i = 0; i < dbs->iov.niov; ++i) {
-        cpu_physical_memory_unmap(dbs->iov.iov[i].iov_base,
-                                  dbs->iov.iov[i].iov_len,
-                                  dbs->dir != DMA_DIRECTION_TO_DEVICE,
-                                  dbs->iov.iov[i].iov_len);
+        dma_memory_unmap(dbs->sg->dma, dbs->iov.iov[i].iov_base,
+                         dbs->iov.iov[i].iov_len, dbs->dir,
+                         dbs->iov.iov[i].iov_len);
     }
     qemu_iovec_reset(&dbs->iov);
 }
@@ -106,7 +137,7 @@ static void dma_complete(DMAAIOCB *dbs, int ret)
 static void dma_bdrv_cb(void *opaque, int ret)
 {
     DMAAIOCB *dbs = (DMAAIOCB *)opaque;
-    target_phys_addr_t cur_addr, cur_len;
+    dma_addr_t cur_addr, cur_len;
     void *mem;
 
     trace_dma_bdrv_cb(dbs, ret);
@@ -123,8 +154,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
     while (dbs->sg_cur_index < dbs->sg->nsg) {
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
         cur_len = dbs->sg->sg[dbs->sg_cur_index].len - dbs->sg_cur_byte;
-        mem = cpu_physical_memory_map(cur_addr, &cur_len,
-                                      dbs->dir != DMA_DIRECTION_TO_DEVICE);
+        mem = dma_memory_map(dbs->sg->dma, cur_addr, &cur_len, dbs->dir);
         if (!mem)
             break;
         qemu_iovec_add(&dbs->iov, mem, cur_len);
@@ -209,7 +239,8 @@ BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
 }
 
 
-static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_dev)
+static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg,
+                           DMADirection dir)
 {
     uint64_t resid;
     int sg_cur_index;
@@ -220,7 +251,7 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_de
     while (len > 0) {
         ScatterGatherEntry entry = sg->sg[sg_cur_index++];
         int32_t xfer = MIN(len, entry.len);
-        cpu_physical_memory_rw(entry.base, ptr, xfer, !to_dev);
+        dma_memory_rw(sg->dma, entry.base, ptr, xfer, dir);
         ptr += xfer;
         len -= xfer;
         resid -= xfer;
@@ -231,16 +262,173 @@ static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_de
 
 uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg)
 {
-    return dma_buf_rw(ptr, len, sg, 0);
+    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_FROM_DEVICE);
 }
 
 uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg)
 {
-    return dma_buf_rw(ptr, len, sg, 1);
+    return dma_buf_rw(ptr, len, sg, DMA_DIRECTION_TO_DEVICE);
 }
 
 void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
                     QEMUSGList *sg, enum BlockAcctType type)
 {
     bdrv_acct_start(bs, cookie, sg->size, type);
+}
+
+bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
+                            DMADirection dir)
+{
+    target_phys_addr_t paddr, plen;
+
+#ifdef DEBUG_IOMMU
+    fprintf(stderr, "dma_memory_check context=%p addr=0x" DMA_ADDR_FMT
+            " len=0x" DMA_ADDR_FMT " dir=%d\n", dma, addr, len, dir);
+#endif
+
+    while (len) {
+        if (dma->translate(dma, addr, &paddr, &plen, dir) != 0) {
+            return false;
+        }
+
+        /* The translation might be valid for larger regions. */
+        if (plen > len) {
+            plen = len;
+        }
+
+        len -= plen;
+        addr += plen;
+    }
+
+    return true;
+}
+
+int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
+                        void *buf, dma_addr_t len, DMADirection dir)
+{
+    target_phys_addr_t paddr, plen;
+    int err;
+
+#ifdef DEBUG_IOMMU
+    fprintf(stderr, "dma_memory_rw context=%p addr=0x" DMA_ADDR_FMT " len=0x"
+            DMA_ADDR_FMT " dir=%d\n", dma, addr, len, dir);
+#endif
+
+    while (len) {
+        err = dma->translate(dma, addr, &paddr, &plen, dir);
+        if (err) {
+	    /*
+             * In case of failure on reads from the guest, we clean the
+             * destination buffer so that a device that doesn't test
+             * for errors will not expose qemu internal memory.
+	     */
+	    memset(buf, 0, len);
+            return -1;
+        }
+
+        /* The translation might be valid for larger regions. */
+        if (plen > len) {
+            plen = len;
+        }
+
+        cpu_physical_memory_rw(paddr, buf, plen,
+                               dir == DMA_DIRECTION_FROM_DEVICE);
+
+        len -= plen;
+        addr += plen;
+        buf += plen;
+    }
+
+    return 0;
+}
+
+int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
+                         dma_addr_t len)
+{
+    target_phys_addr_t paddr, plen;
+    int err;
+
+#ifdef DEBUG_IOMMU
+    fprintf(stderr, "dma_memory_set context=%p addr=0x" DMA_ADDR_FMT
+            " len=0x" DMA_ADDR_FMT "\n", dma, addr, len);
+#endif
+
+    while (len) {
+        err = dma->translate(dma, addr, &paddr, &plen,
+                             DMA_DIRECTION_FROM_DEVICE);
+        if (err) {
+            return err;
+        }
+
+        /* The translation might be valid for larger regions. */
+        if (plen > len) {
+            plen = len;
+        }
+
+        do_dma_memory_set(paddr, c, plen);
+
+        len -= plen;
+        addr += plen;
+    }
+
+    return 0;
+}
+
+void dma_context_init(DMAContext *dma, DMATranslateFunc translate,
+                      DMAMapFunc map, DMAUnmapFunc unmap)
+{
+#ifdef DEBUG_IOMMU
+    fprintf(stderr, "dma_context_init(%p, %p, %p, %p)\n",
+            dma, translate, map, unmap);
+#endif
+    dma->translate = translate;
+    dma->map = map;
+    dma->unmap = unmap;
+}
+
+void *iommu_dma_memory_map(DMAContext *dma, dma_addr_t addr, dma_addr_t *len,
+                           DMADirection dir)
+{
+    int err;
+    target_phys_addr_t paddr, plen;
+    void *buf;
+
+    if (dma->map) {
+        return dma->map(dma, addr, len, dir);
+    }
+
+    plen = *len;
+    err = dma->translate(dma, addr, &paddr, &plen, dir);
+    if (err) {
+        return NULL;
+    }
+
+    /*
+     * If this is true, the virtual region is contiguous,
+     * but the translated physical region isn't. We just
+     * clamp *len, much like cpu_physical_memory_map() does.
+     */
+    if (plen < *len) {
+        *len = plen;
+    }
+
+    buf = cpu_physical_memory_map(paddr, &plen,
+                                  dir == DMA_DIRECTION_FROM_DEVICE);
+    *len = plen;
+
+    return buf;
+}
+
+void iommu_dma_memory_unmap(DMAContext *dma, void *buffer, dma_addr_t len,
+                            DMADirection dir, dma_addr_t access_len)
+{
+    if (dma->unmap) {
+        dma->unmap(dma, buffer, len, dir, access_len);
+        return;
+    }
+
+    cpu_physical_memory_unmap(buffer, len,
+                              dir == DMA_DIRECTION_FROM_DEVICE,
+                              access_len);
+
 }

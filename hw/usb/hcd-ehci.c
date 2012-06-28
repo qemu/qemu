@@ -1426,8 +1426,8 @@ static void ehci_execute_complete(EHCIQueue *q)
         set_field(&q->qh.token, p->tbytes, QTD_TOKEN_TBYTES);
     }
     ehci_finish_transfer(q, p->usb_status);
+    usb_packet_unmap(&p->packet, &p->sgl);
     qemu_sglist_destroy(&p->sgl);
-    usb_packet_unmap(&p->packet);
 
     q->qh.token ^= QTD_TOKEN_DTOGGLE;
     q->qh.token &= ~QTD_TOKEN_ACTIVE;
@@ -1551,7 +1551,7 @@ static int ehci_process_itd(EHCIState *ehci,
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 ret = usb_handle_packet(dev, &ehci->ipacket);
                 assert(ret != USB_RET_ASYNC);
-                usb_packet_unmap(&ehci->ipacket);
+                usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
             } else {
                 DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
                 ret = USB_RET_NAK;

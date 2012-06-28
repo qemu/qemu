@@ -4,11 +4,7 @@ vnc-obj-y += vnc-enc-tight.o vnc-palette.o
 vnc-obj-y += vnc-enc-zrle.o
 vnc-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
-ifdef CONFIG_VNC_THREAD
-vnc-obj-y += vnc-jobs-async.o
-else
-vnc-obj-y += vnc-jobs-sync.o
-endif
+vnc-obj-y += vnc-jobs.o
 
 common-obj-y += keymaps.o
 common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o

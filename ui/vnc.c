@@ -526,7 +526,6 @@ static void vnc_desktop_resize(VncState *vs)
     vnc_flush(vs);
 }
 
-#ifdef CONFIG_VNC_THREAD
 static void vnc_abort_display_jobs(VncDisplay *vd)
 {
     VncState *vs;
@@ -545,11 +544,6 @@ static void vnc_abort_display_jobs(VncDisplay *vd)
         vnc_unlock_output(vs);
     }
 }
-#else
-static void vnc_abort_display_jobs(VncDisplay *vd)
-{
-}
-#endif
 
 static void vnc_dpy_resize(DisplayState *ds)
 {
@@ -867,19 +861,12 @@ static int find_and_clear_dirty_height(struct VncState *vs,
     return h;
 }
 
-#ifdef CONFIG_VNC_THREAD
 static int vnc_update_client_sync(VncState *vs, int has_dirty)
 {
     int ret = vnc_update_client(vs, has_dirty);
     vnc_jobs_join(vs);
     return ret;
 }
-#else
-static int vnc_update_client_sync(VncState *vs, int has_dirty)
-{
-    return vnc_update_client(vs, has_dirty);
-}
-#endif
 
 static int vnc_update_client(VncState *vs, int has_dirty)
 {
@@ -1066,11 +1053,9 @@ static void vnc_disconnect_finish(VncState *vs)
         qemu_remove_led_event_handler(vs->led);
     vnc_unlock_output(vs);
 
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_destroy(&vs->output_mutex);
     qemu_bh_delete(vs->bh);
     buffer_free(&vs->jobs_buffer);
-#endif
 
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
         g_free(vs->lossy_rect[i]);
@@ -1286,14 +1271,12 @@ static long vnc_client_read_plain(VncState *vs)
     return ret;
 }
 
-#ifdef CONFIG_VNC_THREAD
 static void vnc_jobs_bh(void *opaque)
 {
     VncState *vs = opaque;
 
     vnc_jobs_consume_buffer(vs);
 }
-#endif
 
 /*
  * First function called whenever there is more data to be read from
@@ -2699,10 +2682,8 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
     vs->as.fmt = AUD_FMT_S16;
     vs->as.endianness = 0;
 
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_init(&vs->output_mutex);
     vs->bh = qemu_bh_new(vnc_jobs_bh, vs);
-#endif
 
     QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
 
@@ -2762,10 +2743,8 @@ void vnc_display_init(DisplayState *ds)
     if (!vs->kbd_layout)
         exit(1);
 
-#ifdef CONFIG_VNC_THREAD
     qemu_mutex_init(&vs->mutex);
     vnc_start_worker_thread();
-#endif
 
     dcl->dpy_copy = vnc_dpy_copy;
     dcl->dpy_update = vnc_dpy_update;

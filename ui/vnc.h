@@ -29,9 +29,7 @@
 
 #include "qemu-common.h"
 #include "qemu-queue.h"
-#ifdef CONFIG_VNC_THREAD
 #include "qemu-thread.h"
-#endif
 #include "console.h"
 #include "monitor.h"
 #include "audio/audio.h"
@@ -146,9 +144,7 @@ struct VncDisplay
     DisplayState *ds;
     kbd_layout_t *kbd_layout;
     int lock_key_sync;
-#ifdef CONFIG_VNC_THREAD
     QemuMutex mutex;
-#endif
 
     QEMUCursor *cursor;
     int cursor_msize;
@@ -216,7 +212,6 @@ typedef struct VncZywrle {
     int buf[VNC_ZRLE_TILE_WIDTH * VNC_ZRLE_TILE_HEIGHT];
 } VncZywrle;
 
-#ifdef CONFIG_VNC_THREAD
 struct VncRect
 {
     int x;
@@ -238,14 +233,6 @@ struct VncJob
     QLIST_HEAD(, VncRectEntry) rectangles;
     QTAILQ_ENTRY(VncJob) next;
 };
-#else
-struct VncJob
-{
-    VncState *vs;
-    int rectangles;
-    size_t saved_offset;
-};
-#endif
 
 struct VncState
 {
@@ -300,13 +287,9 @@ struct VncState
     QEMUPutLEDEntry *led;
 
     bool abort;
-#ifndef CONFIG_VNC_THREAD
-    VncJob job;
-#else
     QemuMutex output_mutex;
     QEMUBH *bh;
     Buffer jobs_buffer;
-#endif
 
     /* Encoding specific, if you add something here, don't forget to
      *  update vnc_async_encoding_start()
