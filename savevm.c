@@ -1236,7 +1236,7 @@ int register_savevm_live(DeviceState *dev,
     se->vmsd = NULL;
     se->no_migrate = 0;
     /* if this is a live_savem then set is_ram */
-    if (ops->save_live_state != NULL) {
+    if (ops->save_live_setup != NULL) {
         se->is_ram = 1;
     }
 
@@ -1620,7 +1620,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     int ret = 1;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (!se->ops || !se->ops->save_live_state) {
+        if (!se->ops || !se->ops->save_live_iterate) {
             continue;
         }
         if (se->ops && se->ops->is_active) {
@@ -1636,7 +1636,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
-        ret = se->ops->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
+        ret = se->ops->save_live_iterate(f, se->opaque);
         trace_savevm_section_end(se->section_id);
 
         if (ret <= 0) {
@@ -1665,7 +1665,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (!se->ops || !se->ops->save_live_state) {
+        if (!se->ops || !se->ops->save_live_complete) {
             continue;
         }
         if (se->ops && se->ops->is_active) {
@@ -1678,7 +1678,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
-        ret = se->ops->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
+        ret = se->ops->save_live_complete(f, se->opaque);
         trace_savevm_section_end(se->section_id);
         if (ret < 0) {
             return ret;

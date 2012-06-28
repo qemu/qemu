@@ -33,7 +33,8 @@ typedef struct SaveVMHandlers {
     void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
     int (*save_live_setup)(QEMUFile *f, void *opaque);
-    int (*save_live_state)(QEMUFile *f, int stage, void *opaque);
+    int (*save_live_iterate)(QEMUFile *f, void *opaque);
+    int (*save_live_complete)(QEMUFile *f, void *opaque);
     void (*cancel)(void *opaque);
     LoadStateHandler *load_state;
     bool (*is_active)(void *opaque);

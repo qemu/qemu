@@ -374,12 +374,13 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static int ram_save_live(QEMUFile *f, int stage, void *opaque)
+static int ram_save_iterate(QEMUFile *f, void *opaque)
 {
     uint64_t bytes_transferred_last;
     double bwidth = 0;
     int ret;
     int i;
+    uint64_t expected_time;
 
     memory_global_sync_dirty_bitmap(get_system_memory());
 
@@ -424,28 +425,64 @@ static int ram_save_live(QEMUFile *f, int stage, void *opaque)
         bwidth = 0.000001;
     }
 
-    /* try transferring iterative blocks of memory */
-    if (stage == 3) {
-        int bytes_sent;
+    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-        /* flush all remaining blocks regardless of rate limiting */
-        while ((bytes_sent = ram_save_block(f)) != 0) {
-            bytes_transferred += bytes_sent;
+    expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+
+    DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
+            expected_time, migrate_max_downtime());
+
+    return expected_time <= migrate_max_downtime();
+}
+
+static int ram_save_complete(QEMUFile *f, void *opaque)
+{
+    double bwidth = 0;
+    int ret;
+    int i;
+    int bytes_sent;
+
+    memory_global_sync_dirty_bitmap(get_system_memory());
+
+    bwidth = qemu_get_clock_ns(rt_clock);
+
+    i = 0;
+    while ((ret = qemu_file_rate_limit(f)) == 0) {
+        bytes_sent = ram_save_block(f);
+        bytes_transferred += bytes_sent;
+        if (bytes_sent == 0) { /* no more blocks */
+            break;
         }
-        memory_global_dirty_log_stop();
+        /* we want to check in the 1st loop, just in case it was the 1st time
+           and we had to sync the dirty bitmap.
+           qemu_get_clock_ns() is a bit expensive, so we only check each some
+           iterations
+        */
+        if ((i & 63) == 0) {
+            uint64_t t1 = (qemu_get_clock_ns(rt_clock) - bwidth) / 1000000;
+            if (t1 > MAX_WAIT) {
+                DPRINTF("big wait: " PRIu64 " milliseconds, %d iterations\n",
+                        t1, i);
+                break;
+            }
+        }
+        i++;
     }
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* try transferring iterative blocks of memory */
+
+    /* flush all remaining blocks regardless of rate limiting */
+    while ((bytes_sent = ram_save_block(f)) != 0) {
+        bytes_transferred += bytes_sent;
+    }
+    memory_global_dirty_log_stop();
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-    if (stage == 2) {
-        uint64_t expected_time;
-        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
-
-        DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
-                expected_time, migrate_max_downtime());
-
-        return expected_time <= migrate_max_downtime();
-    }
     return 0;
 }
 
@@ -578,7 +615,8 @@ done:
 
 SaveVMHandlers savevm_ram_handlers = {
     .save_live_setup = ram_save_setup,
-    .save_live_state = ram_save_live,
+    .save_live_iterate = ram_save_iterate,
+    .save_live_complete = ram_save_complete,
     .load_state = ram_load,
     .cancel = ram_migration_cancel,
 };

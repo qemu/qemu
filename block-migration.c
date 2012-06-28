@@ -568,12 +568,12 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static int block_save_live(QEMUFile *f, int stage, void *opaque)
+static int block_save_iterate(QEMUFile *f, void *opaque)
 {
     int ret;
 
-    DPRINTF("Enter save live stage %d submitted %d transferred %d\n",
-            stage, block_mig_state.submitted, block_mig_state.transferred);
+    DPRINTF("Enter save live iterate submitted %d transferred %d\n",
+            block_mig_state.submitted, block_mig_state.transferred);
 
     flush_blks(f);
 
@@ -585,56 +585,76 @@ static int block_save_live(QEMUFile *f, int stage, void *opaque)
 
     blk_mig_reset_dirty_cursor();
 
-    if (stage == 2) {
-        /* control the rate of transfer */
-        while ((block_mig_state.submitted +
-                block_mig_state.read_done) * BLOCK_SIZE <
-               qemu_file_get_rate_limit(f)) {
-            if (block_mig_state.bulk_completed == 0) {
-                /* first finish the bulk phase */
-                if (blk_mig_save_bulked_block(f) == 0) {
-                    /* finished saving bulk on all devices */
-                    block_mig_state.bulk_completed = 1;
-                }
-            } else {
-                if (blk_mig_save_dirty_block(f, 1) == 0) {
-                    /* no more dirty blocks */
-                    break;
-                }
+    /* control the rate of transfer */
+    while ((block_mig_state.submitted +
+            block_mig_state.read_done) * BLOCK_SIZE <
+           qemu_file_get_rate_limit(f)) {
+        if (block_mig_state.bulk_completed == 0) {
+            /* first finish the bulk phase */
+            if (blk_mig_save_bulked_block(f) == 0) {
+                /* finished saving bulk on all devices */
+                block_mig_state.bulk_completed = 1;
             }
-        }
-
-        flush_blks(f);
-
-        ret = qemu_file_get_error(f);
-        if (ret) {
-            blk_mig_cleanup();
-            return ret;
+        } else {
+            if (blk_mig_save_dirty_block(f, 1) == 0) {
+                /* no more dirty blocks */
+                break;
+            }
         }
     }
 
-    if (stage == 3) {
-        /* we know for sure that save bulk is completed and
-           all async read completed */
-        assert(block_mig_state.submitted == 0);
+    flush_blks(f);
 
-        while (blk_mig_save_dirty_block(f, 0) != 0);
+    ret = qemu_file_get_error(f);
+    if (ret) {
         blk_mig_cleanup();
-
-        /* report completion */
-        qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
-
-        ret = qemu_file_get_error(f);
-        if (ret) {
-            return ret;
-        }
-
-        DPRINTF("Block migration completed\n");
+        return ret;
     }
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    return ((stage == 2) && is_stage2_completed());
+    return is_stage2_completed();
+}
+
+static int block_save_complete(QEMUFile *f, void *opaque)
+{
+    int ret;
+
+    DPRINTF("Enter save live complete submitted %d transferred %d\n",
+            block_mig_state.submitted, block_mig_state.transferred);
+
+    flush_blks(f);
+
+    ret = qemu_file_get_error(f);
+    if (ret) {
+        blk_mig_cleanup();
+        return ret;
+    }
+
+    blk_mig_reset_dirty_cursor();
+
+    /* we know for sure that save bulk is completed and
+       all async read completed */
+    assert(block_mig_state.submitted == 0);
+
+    while (blk_mig_save_dirty_block(f, 0) != 0) {
+        /* Do nothing */
+    }
+    blk_mig_cleanup();
+
+    /* report completion */
+    qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
+
+    ret = qemu_file_get_error(f);
+    if (ret) {
+        return ret;
+    }
+
+    DPRINTF("Block migration completed\n");
+
+    qemu_put_be64(f, BLK_MIG_FLAG_EOS);
+
+    return 0;
 }
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
@@ -731,7 +751,8 @@ static bool block_is_active(void *opaque)
 SaveVMHandlers savevm_block_handlers = {
     .set_params = block_set_params,
     .save_live_setup = block_save_setup,
-    .save_live_state = block_save_live,
+    .save_live_iterate = block_save_iterate,
+    .save_live_complete = block_save_complete,
     .load_state = block_load,
     .cancel = block_migration_cancel,
     .is_active = block_is_active,
