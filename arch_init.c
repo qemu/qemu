@@ -308,8 +308,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     ram_addr_t addr;
     RAMBlock *block;
 
-    memory_global_sync_dirty_bitmap(get_system_memory());
-
     bytes_transferred = 0;
     last_block = NULL;
     last_offset = 0;
