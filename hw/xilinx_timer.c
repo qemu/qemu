@@ -119,7 +119,7 @@ timer_read(void *opaque, target_phys_addr_t addr, unsigned int size)
             break;
 
     }
-    D(printf("%s timer=%d %x=%x\n", __func__, timer, addr * 4, r));
+    D(fprintf(stderr, "%s timer=%d %x=%x\n", __func__, timer, addr * 4, r));
     return r;
 }
 
@@ -127,7 +127,7 @@ static void timer_enable(struct xlx_timer *xt)
 {
     uint64_t count;
 
-    D(printf("%s timer=%d down=%d\n", __func__,
+    D(fprintf(stderr, "%s timer=%d down=%d\n", __func__,
               xt->nr, xt->regs[R_TCSR] & TCSR_UDT));
 
     ptimer_stop(xt->ptimer);
@@ -152,7 +152,7 @@ timer_write(void *opaque, target_phys_addr_t addr,
     addr >>= 2;
     timer = timer_from_addr(addr);
     xt = &t->timers[timer];
-    D(printf("%s addr=%x val=%x (timer=%d off=%d)\n",
+    D(fprintf(stderr, "%s addr=%x val=%x (timer=%d off=%d)\n",
              __func__, addr * 4, value, timer, addr & 3));
     /* Further decoding to address a specific timers reg.  */
     addr &= 3;
@@ -189,7 +189,7 @@ static void timer_hit(void *opaque)
 {
     struct xlx_timer *xt = opaque;
     struct timerblock *t = xt->parent;
-    D(printf("%s %d\n", __func__, timer));
+    D(fprintf(stderr, "%s %d\n", __func__, timer));
     xt->regs[R_TCSR] |= TCSR_TINT;
 
     if (xt->regs[R_TCSR] & TCSR_ARHT)
