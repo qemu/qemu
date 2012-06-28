@@ -348,8 +348,6 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int i;
     uint64_t expected_time;
 
-    memory_global_sync_dirty_bitmap(get_system_memory());
-
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
 
@@ -398,7 +396,13 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
             expected_time, migrate_max_downtime());
 
-    return expected_time <= migrate_max_downtime();
+    if (expected_time <= migrate_max_downtime()) {
+        memory_global_sync_dirty_bitmap(get_system_memory());
+        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+
+        return expected_time <= migrate_max_downtime();
+    }
+    return 0;
 }
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
