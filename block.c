@@ -1639,6 +1639,20 @@ int bdrv_read(BlockDriverState *bs, int64_t sector_num,
     return bdrv_rw_co(bs, sector_num, buf, nb_sectors, false);
 }
 
+/* Just like bdrv_read(), but with I/O throttling temporarily disabled */
+int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
+                          uint8_t *buf, int nb_sectors)
+{
+    bool enabled;
+    int ret;
+
+    enabled = bs->io_limits_enabled;
+    bs->io_limits_enabled = false;
+    ret = bdrv_read(bs, 0, buf, 1);
+    bs->io_limits_enabled = enabled;
+    return ret;
+}
+
 #define BITS_PER_LONG  (sizeof(unsigned long) * 8)
 
 static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
@@ -2136,11 +2150,10 @@ static int guess_disk_lchs(BlockDriverState *bs,
                            int *pcylinders, int *pheads, int *psectors)
 {
     uint8_t buf[BDRV_SECTOR_SIZE];
-    int ret, i, heads, sectors, cylinders;
+    int i, heads, sectors, cylinders;
     struct partition *p;
     uint32_t nr_sects;
     uint64_t nb_sectors;
-    bool enabled;
 
     bdrv_get_geometry(bs, &nb_sectors);
 
@@ -2149,12 +2162,9 @@ static int guess_disk_lchs(BlockDriverState *bs,
      * but also in async I/O mode. So the I/O throttling function has to
      * be disabled temporarily here, not permanently.
      */
-    enabled = bs->io_limits_enabled;
-    bs->io_limits_enabled = false;
-    ret = bdrv_read(bs, 0, buf, 1);
-    bs->io_limits_enabled = enabled;
-    if (ret < 0)
+    if (bdrv_read_unthrottled(bs, 0, buf, 1) < 0) {
         return -1;
+    }
     /* test msdos magic */
     if (buf[510] != 0x55 || buf[511] != 0xaa)
         return -1;
