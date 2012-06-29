@@ -2947,24 +2947,33 @@ static const SSEFunc_0_pp sse_op_table2[3 * 8][2] = {
     [16 + 7] = { NULL, gen_helper_pslldq_xmm },
 };
 
-static const SSEFunc_0_pi sse_op_table3a[4] = {
+static const SSEFunc_0_pi sse_op_table3ai[] = {
     gen_helper_cvtsi2ss,
-    gen_helper_cvtsi2sd,
-    X86_64_ONLY(gen_helper_cvtsq2ss),
-    X86_64_ONLY(gen_helper_cvtsq2sd),
+    gen_helper_cvtsi2sd
 };
 
-static const SSEFunc_i_p sse_op_table3b[4 * 2] = {
+#ifdef TARGET_X86_64
+static const SSEFunc_0_pl sse_op_table3aq[] = {
+    gen_helper_cvtsq2ss,
+    gen_helper_cvtsq2sd
+};
+#endif
+
+static const SSEFunc_i_p sse_op_table3bi[] = {
     gen_helper_cvttss2si,
     gen_helper_cvttsd2si,
-    X86_64_ONLY(gen_helper_cvttss2sq),
-    X86_64_ONLY(gen_helper_cvttsd2sq),
-
     gen_helper_cvtss2si,
-    gen_helper_cvtsd2si,
-    X86_64_ONLY(gen_helper_cvtss2sq),
-    X86_64_ONLY(gen_helper_cvtsd2sq),
+    gen_helper_cvtsd2si
 };
+
+#ifdef TARGET_X86_64
+static const SSEFunc_l_p sse_op_table3bq[] = {
+    gen_helper_cvttss2sq,
+    gen_helper_cvttsd2sq,
+    gen_helper_cvtss2sq,
+    gen_helper_cvtsd2sq
+};
+#endif
 
 static const SSEFunc_0_pp sse_op_table4[8][4] = {
     SSE_FOP(cmpeq),
@@ -3097,10 +3106,6 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
 {
     int b1, op1_offset, op2_offset, is_xmm, val, ot;
     int modrm, mod, rm, reg, reg_addr, offset_addr;
-    SSEFunc_i_p sse_fn_i_p;
-    SSEFunc_l_p sse_fn_l_p;
-    SSEFunc_0_pi sse_fn_pi;
-    SSEFunc_0_pl sse_fn_pl;
     SSEFunc_0_pp sse_fn_pp;
     SSEFunc_0_ppi sse_fn_ppi;
     SSEFunc_0_ppt sse_fn_ppt;
@@ -3563,14 +3568,16 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
             if (ot == OT_LONG) {
-                sse_fn_pi = sse_op_table3a[(s->dflag == 2) * 2 +
-                                           ((b >> 8) - 2)];
+                SSEFunc_0_pi sse_fn_pi = sse_op_table3ai[(b >> 8) - 2];
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 sse_fn_pi(cpu_ptr0, cpu_tmp2_i32);
             } else {
-                sse_fn_pl = sse_op_table3a[(s->dflag == 2) * 2 +
-                                           ((b >> 8) - 2)];
+#ifdef TARGET_X86_64
+                SSEFunc_0_pl sse_fn_pl = sse_op_table3aq[(b >> 8) - 2];
                 sse_fn_pl(cpu_ptr0, cpu_T[0]);
+#else
+                goto illegal_op;
+#endif
             }
             break;
         case 0x02c: /* cvttps2pi */
@@ -3624,16 +3631,18 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             }
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op2_offset);
             if (ot == OT_LONG) {
-                sse_fn_i_p = sse_op_table3b[(s->dflag == 2) * 2 +
-                                            ((b >> 8) - 2) +
-                                            (b & 1) * 4];
+                SSEFunc_i_p sse_fn_i_p =
+                    sse_op_table3bi[(b >> 8) - 2 + (b & 1) * 2];
                 sse_fn_i_p(cpu_tmp2_i32, cpu_ptr0);
                 tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
             } else {
-                sse_fn_l_p = sse_op_table3b[(s->dflag == 2) * 2 +
-                                            ((b >> 8) - 2) +
-                                            (b & 1) * 4];
+#ifdef TARGET_X86_64
+                SSEFunc_l_p sse_fn_l_p =
+                    sse_op_table3bq[(b >> 8) - 2 + (b & 1) * 2];
                 sse_fn_l_p(cpu_T[0], cpu_ptr0);
+#else
+                goto illegal_op;
+#endif
             }
             gen_op_mov_reg_T0(ot, reg);
             break;
