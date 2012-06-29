@@ -2871,6 +2871,22 @@ if compile_prog "" "" ; then
 fi
 
 ########################################
+# check if we have valgrind/valgrind.h
+
+valgrind_h=no
+cat > $TMPC << EOF
+#include <valgrind/valgrind.h>
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+int main(void) {
+  VALGRIND_STACK_DEREGISTER(0);
+  return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    valgrind_h=yes
+fi
+
+########################################
 # check if environ is declared
 
 has_environ=no
@@ -3377,6 +3393,10 @@ fi
 
 if test "$linux_magic_h" = "yes" ; then
   echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
+fi
+
+if test "$valgrind_h" = "yes" ; then
+  echo "CONFIG_VALGRIND_H=y" >> $config_host_mak
 fi
 
 if test "$has_environ" = "yes" ; then
