@@ -224,7 +224,8 @@ static int xilinx_timer_init(SysBusDevice *dev)
 }
 
 static Property xilinx_timer_properties[] = {
-    DEFINE_PROP_UINT32("frequency", struct timerblock, freq_hz,   62 * 1000000),
+    DEFINE_PROP_UINT32("clock-frequency", struct timerblock, freq_hz,
+                                                                62 * 1000000),
     DEFINE_PROP_UINT8("one-timer-only", struct timerblock, one_timer_only, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
