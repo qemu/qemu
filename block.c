@@ -2337,46 +2337,40 @@ void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
     uint64_t nb_sectors, size;
     int i, first_match, match;
 
-    bdrv_get_geometry_hint(bs, nb_heads, max_track, last_sect);
-    if (*nb_heads != 0 && *max_track != 0 && *last_sect != 0) {
-        /* User defined disk */
-        *rate = FDRIVE_RATE_500K;
-    } else {
-        bdrv_get_geometry(bs, &nb_sectors);
-        match = -1;
-        first_match = -1;
-        for (i = 0; ; i++) {
-            parse = &fd_formats[i];
-            if (parse->drive == FDRIVE_DRV_NONE) {
+    bdrv_get_geometry(bs, &nb_sectors);
+    match = -1;
+    first_match = -1;
+    for (i = 0; ; i++) {
+        parse = &fd_formats[i];
+        if (parse->drive == FDRIVE_DRV_NONE) {
+            break;
+        }
+        if (drive_in == parse->drive ||
+            drive_in == FDRIVE_DRV_NONE) {
+            size = (parse->max_head + 1) * parse->max_track *
+                parse->last_sect;
+            if (nb_sectors == size) {
+                match = i;
                 break;
             }
-            if (drive_in == parse->drive ||
-                drive_in == FDRIVE_DRV_NONE) {
-                size = (parse->max_head + 1) * parse->max_track *
-                    parse->last_sect;
-                if (nb_sectors == size) {
-                    match = i;
-                    break;
-                }
-                if (first_match == -1) {
-                    first_match = i;
-                }
-            }
-        }
-        if (match == -1) {
             if (first_match == -1) {
-                match = 1;
-            } else {
-                match = first_match;
+                first_match = i;
             }
-            parse = &fd_formats[match];
         }
-        *nb_heads = parse->max_head + 1;
-        *max_track = parse->max_track;
-        *last_sect = parse->last_sect;
-        *drive = parse->drive;
-        *rate = parse->rate;
     }
+    if (match == -1) {
+        if (first_match == -1) {
+            match = 1;
+        } else {
+            match = first_match;
+        }
+        parse = &fd_formats[match];
+    }
+    *nb_heads = parse->max_head + 1;
+    *max_track = parse->max_track;
+    *last_sect = parse->last_sect;
+    *drive = parse->drive;
+    *rate = parse->rate;
 }
 
 int bdrv_get_translation_hint(BlockDriverState *bs)

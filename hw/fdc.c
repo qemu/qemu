@@ -191,9 +191,6 @@ static void fd_revalidate(FDrive *drv)
                                       &last_sect, drv->drive, &drive, &rate);
         if (!bdrv_is_inserted(drv->bs)) {
             FLOPPY_DPRINTF("No disk in drive\n");
-        } else if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
-            FLOPPY_DPRINTF("User defined disk (%d %d %d)\n",
-                           nb_heads - 1, max_track, last_sect);
         } else {
             FLOPPY_DPRINTF("Floppy disk (%d h %d t %d s) %s\n", nb_heads,
                            max_track, last_sect, ro ? "ro" : "rw");
