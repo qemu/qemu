@@ -927,10 +927,16 @@ static void do_interrupt64(int intno, int is_int, int error_code,
 
 #ifdef TARGET_X86_64
 #if defined(CONFIG_USER_ONLY)
-void helper_syscall(int next_eip_addend)
+void QEMU_NORETURN helper_syscall(int next_eip_addend)
 {
     env->exception_index = EXCP_SYSCALL;
     env->exception_next_eip = env->eip + next_eip_addend;
+    cpu_loop_exit(env);
+}
+
+void QEMU_NORETURN helper_vsyscall(void)
+{
+    env->exception_index = EXCP_VSYSCALL;
     cpu_loop_exit(env);
 }
 #else

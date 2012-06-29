@@ -108,7 +108,7 @@ void helper_into(int next_eip_addend)
     }
 }
 
-void helper_single_step(void)
+void QEMU_NORETURN helper_single_step(void)
 {
 #ifndef CONFIG_USER_ONLY
     check_hw_breakpoints(env, 1);
@@ -245,7 +245,7 @@ void helper_rdtscp(void)
     ECX = (uint32_t)(env->tsc_aux);
 }
 
-void helper_rdpmc(void)
+void QEMU_NORETURN helper_rdpmc(void)
 {
     if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception(env, EXCP0D_GPF);
@@ -554,7 +554,7 @@ void helper_rdmsr(void)
 }
 #endif
 
-static void do_hlt(void)
+static void QEMU_NORETURN do_hlt(void)
 {
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     env->halted = 1;
@@ -562,7 +562,7 @@ static void do_hlt(void)
     cpu_loop_exit(env);
 }
 
-void helper_hlt(int next_eip_addend)
+void QEMU_NORETURN helper_hlt(int next_eip_addend)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0);
     EIP += next_eip_addend;
@@ -596,7 +596,7 @@ void helper_mwait(int next_eip_addend)
     }
 }
 
-void helper_debug(void)
+void QEMU_NORETURN helper_debug(void)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);
