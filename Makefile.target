@@ -120,7 +120,7 @@ ifdef CONFIG_BSD_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y += bsd-user/
-obj-y += gdbstub.o user-exec.o
+obj-y += gdbstub.o user-exec.o $(oslib-obj-y)
 
 endif #CONFIG_BSD_USER
 

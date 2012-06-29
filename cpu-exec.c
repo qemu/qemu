@@ -289,7 +289,8 @@ int cpu_exec(CPUArchState *env)
 #endif
 #if defined(TARGET_I386)
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
-                            svm_check_intercept(env, SVM_EXIT_INIT);
+                            cpu_svm_check_intercept_param(env, SVM_EXIT_INIT,
+                                                          0);
                             do_cpu_init(x86_env_get_cpu(env));
                             env->exception_index = EXCP_HALTED;
                             cpu_loop_exit(env);
@@ -298,7 +299,8 @@ int cpu_exec(CPUArchState *env)
                     } else if (env->hflags2 & HF2_GIF_MASK) {
                         if ((interrupt_request & CPU_INTERRUPT_SMI) &&
                             !(env->hflags & HF_SMM_MASK)) {
-                            svm_check_intercept(env, SVM_EXIT_SMI);
+                            cpu_svm_check_intercept_param(env, SVM_EXIT_SMI,
+                                                          0);
                             env->interrupt_request &= ~CPU_INTERRUPT_SMI;
                             do_smm_enter(env);
                             next_tb = 0;
@@ -319,7 +321,8 @@ int cpu_exec(CPUArchState *env)
                                      (env->eflags & IF_MASK &&
                                       !(env->hflags & HF_INHIBIT_IRQ_MASK))))) {
                             int intno;
-                            svm_check_intercept(env, SVM_EXIT_INTR);
+                            cpu_svm_check_intercept_param(env, SVM_EXIT_INTR,
+                                                          0);
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
@@ -333,7 +336,8 @@ int cpu_exec(CPUArchState *env)
                                    !(env->hflags & HF_INHIBIT_IRQ_MASK)) {
                             int intno;
                             /* FIXME: this should respect TPR */
-                            svm_check_intercept(env, SVM_EXIT_VINTR);
+                            cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR,
+                                                          0);
                             intno = ldl_phys(env->vm_vmcb + offsetof(struct vmcb, control.int_vector));
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing virtual hardware INT=0x%02x\n", intno);
                             do_interrupt_x86_hardirq(env, intno, 1);

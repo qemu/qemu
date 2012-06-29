@@ -951,7 +951,7 @@ static void breakpoint_handler(CPUX86State *env)
         if (env->watchpoint_hit->flags & BP_CPU) {
             env->watchpoint_hit = NULL;
             if (check_hw_breakpoints(env, 0))
-                raise_exception_env(EXCP01_DB, env);
+                raise_exception(env, EXCP01_DB);
             else
                 cpu_resume_from_signal(env, NULL);
         }
@@ -960,7 +960,7 @@ static void breakpoint_handler(CPUX86State *env)
             if (bp->pc == env->eip) {
                 if (bp->flags & BP_CPU) {
                     check_hw_breakpoints(env, 1);
-                    raise_exception_env(EXCP01_DB, env);
+                    raise_exception(env, EXCP01_DB);
                 }
                 break;
             }
