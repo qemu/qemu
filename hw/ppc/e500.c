@@ -1,5 +1,5 @@
 /*
- * QEMU PowerPC MPC8544DS board emulation
+ * QEMU PowerPC e500-based platforms
  *
  * Copyright (C) 2009 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -42,6 +42,7 @@
 
 #define RAM_SIZES_ALIGN            (64UL << 20)
 
+/* TODO: parameterize */
 #define MPC8544_CCSRBAR_BASE       0xE0000000ULL
 #define MPC8544_CCSRBAR_SIZE       0x00100000ULL
 #define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000ULL)
@@ -104,7 +105,7 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     }
 }
 
-static int mpc8544_load_device_tree(CPUPPCState *env,
+static int ppce500_load_device_tree(CPUPPCState *env,
                                     target_phys_addr_t addr,
                                     target_phys_addr_t ramsize,
                                     target_phys_addr_t initrd_base,
@@ -388,7 +389,7 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
     env->tlb_dirty = true;
 }
 
-static void mpc8544ds_cpu_reset_sec(void *opaque)
+static void ppce500_cpu_reset_sec(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
@@ -401,7 +402,7 @@ static void mpc8544ds_cpu_reset_sec(void *opaque)
     env->exception_index = EXCP_HLT;
 }
 
-static void mpc8544ds_cpu_reset(void *opaque)
+static void ppce500_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
@@ -417,7 +418,7 @@ static void mpc8544ds_cpu_reset(void *opaque)
     mmubooke_create_initial_mapping(env);
 }
 
-static void mpc8544ds_init(ram_addr_t ram_size,
+static void ppce500_init(ram_addr_t ram_size,
                          const char *boot_device,
                          const char *kernel_filename,
                          const char *kernel_cmdline,
@@ -478,11 +479,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
             /* Primary CPU */
             struct boot_info *boot_info;
             boot_info = g_malloc0(sizeof(struct boot_info));
-            qemu_register_reset(mpc8544ds_cpu_reset, cpu);
+            qemu_register_reset(ppce500_cpu_reset, cpu);
             env->load_info = boot_info;
         } else {
             /* Secondary CPUs */
-            qemu_register_reset(mpc8544ds_cpu_reset_sec, cpu);
+            qemu_register_reset(ppce500_cpu_reset_sec, cpu);
         }
     }
 
@@ -577,7 +578,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         int dt_size;
 
         dt_base = (loadaddr + kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
-        dt_size = mpc8544_load_device_tree(env, dt_base, ram_size, initrd_base,
+        dt_size = ppce500_load_device_tree(env, dt_base, ram_size, initrd_base,
                                            initrd_size, kernel_cmdline);
         if (dt_size < 0) {
             fprintf(stderr, "couldn't load device tree\n");
@@ -595,16 +596,16 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     }
 }
 
-static QEMUMachine mpc8544ds_machine = {
+static QEMUMachine ppce500_machine = {
     .name = "mpc8544ds",
     .desc = "mpc8544ds",
-    .init = mpc8544ds_init,
+    .init = ppce500_init,
     .max_cpus = 15,
 };
 
-static void mpc8544ds_machine_init(void)
+static void ppce500_machine_init(void)
 {
-    qemu_register_machine(&mpc8544ds_machine);
+    qemu_register_machine(&ppce500_machine);
 }
 
-machine_init(mpc8544ds_machine_init);
+machine_init(ppce500_machine_init);
