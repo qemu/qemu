@@ -282,8 +282,6 @@ static inline int lsi_irq_on_rsl(LSIState *s)
 
 static void lsi_soft_reset(LSIState *s)
 {
-    lsi_request *p;
-
     DPRINTF("Reset\n");
     s->carry = 0;
 
@@ -350,15 +348,8 @@ static void lsi_soft_reset(LSIState *s)
     s->sbc = 0;
     s->csbc = 0;
     s->sbr = 0;
-    while (!QTAILQ_EMPTY(&s->queue)) {
-        p = QTAILQ_FIRST(&s->queue);
-        QTAILQ_REMOVE(&s->queue, p, next);
-        g_free(p);
-    }
-    if (s->current) {
-        g_free(s->current);
-        s->current = NULL;
-    }
+    assert(QTAILQ_EMPTY(&s->queue));
+    assert(!s->current);
 }
 
 static int lsi_dma_40bit(LSIState *s)
@@ -1738,7 +1729,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
             lsi_execute_script(s);
         }
         if (val & LSI_ISTAT0_SRST) {
-            lsi_soft_reset(s);
+            qdev_reset_all(&s->dev.qdev);
         }
         break;
     case 0x16: /* MBOX0 */
