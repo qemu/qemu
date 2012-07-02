@@ -27,4 +27,4 @@ obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
 
-obj-$(CONFIG_FDT) += e500.o mpc8544ds.o
+obj-$(CONFIG_FDT) += e500.o mpc8544ds.o e500plat.o
