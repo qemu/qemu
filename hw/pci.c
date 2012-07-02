@@ -1086,6 +1086,29 @@ PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
     return bus->route_intx_to_irq(bus->irq_opaque, pin);
 }
 
+void pci_bus_fire_intx_routing_notifier(PCIBus *bus)
+{
+    PCIDevice *dev;
+    PCIBus *sec;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        dev = bus->devices[i];
+        if (dev && dev->intx_routing_notifier) {
+            dev->intx_routing_notifier(dev);
+        }
+        QLIST_FOREACH(sec, &bus->child, sibling) {
+            pci_bus_fire_intx_routing_notifier(sec);
+        }
+    }
+}
+
+void pci_device_set_intx_routing_notifier(PCIDevice *dev,
+                                          PCIINTxRoutingNotifier notifier)
+{
+    dev->intx_routing_notifier = notifier;
+}
+
 /***********************************************************/
 /* monitor info on PCI */
 
