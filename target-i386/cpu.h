@@ -400,6 +400,7 @@
 #define CPUID_EXT_X2APIC   (1 << 21)
 #define CPUID_EXT_MOVBE    (1 << 22)
 #define CPUID_EXT_POPCNT   (1 << 23)
+#define CPUID_EXT_TSC_DEADLINE_TIMER (1 << 24)
 #define CPUID_EXT_XSAVE    (1 << 26)
 #define CPUID_EXT_OSXSAVE  (1 << 27)
 #define CPUID_EXT_HYPERVISOR  (1 << 31)
