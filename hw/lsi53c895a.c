@@ -641,23 +641,24 @@ static lsi_request *lsi_find_by_tag(LSIState *s, uint32_t tag)
     return NULL;
 }
 
+static void lsi_request_free(LSIState *s, lsi_request *p)
+{
+    if (p == s->current) {
+        s->current = NULL;
+    } else {
+        QTAILQ_REMOVE(&s->queue, p, next);
+    }
+    g_free(p);
+}
+
 static void lsi_request_cancelled(SCSIRequest *req)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     lsi_request *p = req->hba_private;
 
-    if (s->current && req == s->current->req) {
-        scsi_req_unref(req);
-        g_free(s->current);
-        s->current = NULL;
-        return;
-    }
-
-    if (p) {
-        QTAILQ_REMOVE(&s->queue, p, next);
-        scsi_req_unref(req);
-        g_free(p);
-    }
+    req->hba_private = NULL;
+    lsi_request_free(s, p);
+    scsi_req_unref(req);
 }
 
 /* Record that data is available for a queued command.  Returns zero if
@@ -706,9 +707,9 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
     }
 
     if (s->current && req == s->current->req) {
-        scsi_req_unref(s->current->req);
-        g_free(s->current);
-        s->current = NULL;
+        req->hba_private = NULL;
+        lsi_request_free(s, s->current);
+        scsi_req_unref(req);
     }
     lsi_resume_script(s);
 }
