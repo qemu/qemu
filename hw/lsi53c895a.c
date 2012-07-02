@@ -706,7 +706,7 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid
         lsi_set_phase(s, PHASE_ST);
     }
 
-    if (s->current && req == s->current->req) {
+    if (req->hba_private == s->current) {
         req->hba_private = NULL;
         lsi_request_free(s, s->current);
         scsi_req_unref(req);
@@ -720,7 +720,8 @@ static void lsi_transfer_data(SCSIRequest *req, uint32_t len)
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;
 
-    if (s->waiting == 1 || !s->current || req->hba_private != s->current ||
+    assert(req->hba_private);
+    if (s->waiting == 1 || req->hba_private != s->current ||
         (lsi_irq_on_rsl(s) && !(s->scntl1 & LSI_SCNTL1_CON))) {
         if (lsi_queue_req(s, req, len)) {
             return;
