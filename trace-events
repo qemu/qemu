@@ -368,8 +368,10 @@ usb_host_urb_complete(int bus, int addr, void *aurb, int status, int length, int
 usb_host_urb_canceled(int bus, int addr, void *aurb) "dev %d:%d, aurb %p"
 usb_host_ep_set_halt(int bus, int addr, int ep) "dev %d:%d, ep %d"
 usb_host_ep_clear_halt(int bus, int addr, int ep) "dev %d:%d, ep %d"
-usb_host_ep_start_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
-usb_host_ep_stop_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_iso_start(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_iso_stop(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_iso_out_of_bufs(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_iso_many_urbs(int bus, int addr, int count) "dev %d:%d, count %d"
 usb_host_reset(int bus, int addr) "dev %d:%d"
 usb_host_auto_scan_enabled(void)
 usb_host_auto_scan_disabled(void)
