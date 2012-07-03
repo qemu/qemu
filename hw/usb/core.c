@@ -566,8 +566,8 @@ void usb_ep_reset(USBDevice *dev)
         dev->ep_out[ep].pid = USB_TOKEN_OUT;
         dev->ep_in[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
-        dev->ep_in[ep].ifnum = 0;
-        dev->ep_out[ep].ifnum = 0;
+        dev->ep_in[ep].ifnum = USB_INTERFACE_INVALID;
+        dev->ep_out[ep].ifnum = USB_INTERFACE_INVALID;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
         dev->ep_in[ep].pipeline = false;

@@ -145,6 +145,8 @@
 #define USB_ENDPOINT_XFER_INT		3
 #define USB_ENDPOINT_XFER_INVALID     255
 
+#define USB_INTERFACE_INVALID         255
+
 typedef struct USBBus USBBus;
 typedef struct USBBusOps USBBusOps;
 typedef struct USBPort USBPort;
