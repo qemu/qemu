@@ -1136,7 +1136,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     USBDescriptor *d;
     bool active = false;
 
-    usb_ep_init(&s->dev);
+    usb_ep_reset(&s->dev);
 
     for (i = 0;; i += d->bLength) {
         if (i+2 >= s->descr_len) {
@@ -1239,7 +1239,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 
 error:
-    usb_ep_init(&s->dev);
+    usb_ep_reset(&s->dev);
     return 1;
 }
 
@@ -1326,6 +1326,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
         goto fail;
     }
 
+    usb_ep_init(&dev->dev);
     ret = usb_linux_update_endp_table(dev);
     if (ret) {
         goto fail;
