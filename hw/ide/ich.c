@@ -132,15 +132,13 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     return 0;
 }
 
-static int pci_ich9_uninit(PCIDevice *dev)
+static void pci_ich9_uninit(PCIDevice *dev)
 {
     struct AHCIPCIState *d;
     d = DO_UPCAST(struct AHCIPCIState, card, dev);
 
     msi_uninit(dev);
     ahci_uninit(&d->ahci);
-
-    return 0;
 }
 
 static void ich_ahci_class_init(ObjectClass *klass, void *data)

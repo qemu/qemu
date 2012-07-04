@@ -199,7 +199,7 @@ PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
     return dev;
 }
 
-static int pci_piix_ide_exitfn(PCIDevice *dev)
+static void pci_piix_ide_exitfn(PCIDevice *dev)
 {
     PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
     unsigned i;
@@ -211,8 +211,6 @@ static int pci_piix_ide_exitfn(PCIDevice *dev)
         memory_region_destroy(&d->bmdma[i].addr_ioport);
     }
     memory_region_destroy(&d->bmdma_bar);
-
-    return 0;
 }
 
 /* hd_table must contain 4 block drivers */

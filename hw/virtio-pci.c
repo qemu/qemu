@@ -828,22 +828,21 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-static int virtio_exit_pci(PCIDevice *pci_dev)
+static void virtio_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     memory_region_destroy(&proxy->bar);
     msix_uninit_exclusive_bar(pci_dev);
-    return 0;
 }
 
-static int virtio_blk_exit_pci(PCIDevice *pci_dev)
+static void virtio_blk_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     virtio_pci_stop_ioeventfd(proxy);
     virtio_blk_exit(proxy->vdev);
-    return virtio_exit_pci(pci_dev);
+    virtio_exit_pci(pci_dev);
 }
 
 static int virtio_serial_init_pci(PCIDevice *pci_dev)
@@ -868,13 +867,13 @@ static int virtio_serial_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-static int virtio_serial_exit_pci(PCIDevice *pci_dev)
+static void virtio_serial_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     virtio_pci_stop_ioeventfd(proxy);
     virtio_serial_exit(proxy->vdev);
-    return virtio_exit_pci(pci_dev);
+    virtio_exit_pci(pci_dev);
 }
 
 static int virtio_net_init_pci(PCIDevice *pci_dev)
@@ -892,13 +891,13 @@ static int virtio_net_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-static int virtio_net_exit_pci(PCIDevice *pci_dev)
+static void virtio_net_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     virtio_pci_stop_ioeventfd(proxy);
     virtio_net_exit(proxy->vdev);
-    return virtio_exit_pci(pci_dev);
+    virtio_exit_pci(pci_dev);
 }
 
 static int virtio_balloon_init_pci(PCIDevice *pci_dev)
@@ -919,13 +918,13 @@ static int virtio_balloon_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-static int virtio_balloon_exit_pci(PCIDevice *pci_dev)
+static void virtio_balloon_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     virtio_pci_stop_ioeventfd(proxy);
     virtio_balloon_exit(proxy->vdev);
-    return virtio_exit_pci(pci_dev);
+    virtio_exit_pci(pci_dev);
 }
 
 static Property virtio_blk_properties[] = {
@@ -1074,12 +1073,12 @@ static int virtio_scsi_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-static int virtio_scsi_exit_pci(PCIDevice *pci_dev)
+static void virtio_scsi_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
 
     virtio_scsi_exit(proxy->vdev);
-    return virtio_exit_pci(pci_dev);
+    virtio_exit_pci(pci_dev);
 }
 
 static Property virtio_scsi_properties[] = {

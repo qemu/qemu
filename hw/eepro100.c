@@ -1831,7 +1831,7 @@ static void nic_cleanup(VLANClientState *nc)
     s->nic = NULL;
 }
 
-static int pci_nic_uninit(PCIDevice *pci_dev)
+static void pci_nic_uninit(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
@@ -1841,7 +1841,6 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
     vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
     qemu_del_vlan_client(&s->nic->nc);
-    return 0;
 }
 
 static NetClientInfo net_eepro100_info = {

@@ -760,7 +760,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
     return 0;
 }
 
-static int pci_ivshmem_uninit(PCIDevice *dev)
+static void pci_ivshmem_uninit(PCIDevice *dev)
 {
     IVShmemState *s = DO_UPCAST(IVShmemState, dev, dev);
 
@@ -775,8 +775,6 @@ static int pci_ivshmem_uninit(PCIDevice *dev)
     memory_region_destroy(&s->ivshmem);
     memory_region_destroy(&s->bar);
     unregister_savevm(&dev->qdev, "ivshmem", s);
-
-    return 0;
 }
 
 static Property ivshmem_properties[] = {

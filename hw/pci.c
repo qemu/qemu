@@ -837,12 +837,10 @@ static int pci_unregister_device(DeviceState *dev)
 {
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
-    int ret = 0;
 
-    if (pc->exit)
-        ret = pc->exit(pci_dev);
-    if (ret)
-        return ret;
+    if (pc->exit) {
+        pc->exit(pci_dev);
+    }
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);

@@ -3427,7 +3427,7 @@ static void rtl8139_cleanup(VLANClientState *nc)
     s->nic = NULL;
 }
 
-static int pci_rtl8139_uninit(PCIDevice *dev)
+static void pci_rtl8139_uninit(PCIDevice *dev)
 {
     RTL8139State *s = DO_UPCAST(RTL8139State, dev, dev);
 
@@ -3440,7 +3440,6 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
     qemu_del_vlan_client(&s->nic->nc);
-    return 0;
 }
 
 static NetClientInfo net_rtl8139_info = {

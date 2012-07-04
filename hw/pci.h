@@ -85,7 +85,7 @@ typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,
                                    uint32_t address, int len);
 typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 pcibus_t addr, pcibus_t size, int type);
-typedef int PCIUnregisterFunc(PCIDevice *pci_dev);
+typedef void PCIUnregisterFunc(PCIDevice *pci_dev);
 
 typedef struct PCIIORegion {
     pcibus_t addr; /* current PCI mapping address. -1 means not mapped */
