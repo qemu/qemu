@@ -45,7 +45,7 @@
 #define MEGASAS_FLAG_USE_QUEUE64   2
 #define MEGASAS_MASK_USE_QUEUE64   (1 << MEGASAS_FLAG_USE_QUEUE64)
 
-const char *mfi_frame_desc[] = {
+static const char *mfi_frame_desc[] = {
     "MFI init", "LD Read", "LD Write", "LD SCSI", "PD SCSI",
     "MFI Doorbell", "MFI Abort", "MFI SMP", "MFI Stop"};
 
