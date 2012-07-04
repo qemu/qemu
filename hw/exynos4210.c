@@ -33,6 +33,9 @@
 /* PWM */
 #define EXYNOS4210_PWM_BASE_ADDR       0x139D0000
 
+/* RTC */
+#define EXYNOS4210_RTC_BASE_ADDR       0x10070000
+
 /* MCT */
 #define EXYNOS4210_MCT_BASE_ADDR       0x10050000
 
@@ -257,6 +260,11 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
                           s->irq_table[exynos4210_get_irq(22, 2)],
                           s->irq_table[exynos4210_get_irq(22, 3)],
                           s->irq_table[exynos4210_get_irq(22, 4)],
+                          NULL);
+    /* RTC */
+    sysbus_create_varargs("exynos4210.rtc", EXYNOS4210_RTC_BASE_ADDR,
+                          s->irq_table[exynos4210_get_irq(23, 0)],
+                          s->irq_table[exynos4210_get_irq(23, 1)],
                           NULL);
 
     /* Multi Core Timer */
