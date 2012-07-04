@@ -35,7 +35,7 @@ obj-y += framebuffer.o
 obj-y += vexpress.o
 obj-y += strongarm.o
 obj-y += collie.o
-obj-y += imx_serial.o imx_ccm.o imx_timer.o
+obj-y += imx_serial.o imx_ccm.o imx_timer.o imx_avic.o
 obj-y += pl041.o lm4549.o
 obj-$(CONFIG_FDT) += ../device_tree.o
 
