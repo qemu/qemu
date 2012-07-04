@@ -156,19 +156,16 @@ static uint8_t send_read_command(void)
     return ret;
 }
 
-static void send_step_pulse(void)
+static void send_step_pulse(int cyl)
 {
     int drive = 0;
     int head = 0;
-    static int cyl = 0;
 
     floppy_send(CMD_SEEK);
     floppy_send(head << 2 | drive);
     g_assert(!get_irq(FLOPPY_IRQ));
     floppy_send(cyl);
     ack_irq();
-
-    cyl = (cyl + 1) % 4;
 }
 
 static uint8_t cmos_read(uint8_t reg)
@@ -195,8 +192,7 @@ static void test_no_media_on_start(void)
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    send_step_pulse();
-    send_step_pulse();
+    send_step_pulse(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -227,7 +223,14 @@ static void test_media_change(void)
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse();
+    send_step_pulse(0);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+
+    /* Step to next track should clear DSKCHG bit. */
+    send_step_pulse(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -243,7 +246,13 @@ static void test_media_change(void)
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse();
+    send_step_pulse(0);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+
+    send_step_pulse(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
