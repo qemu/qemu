@@ -23,4 +23,12 @@ typedef enum  {
 
 uint32_t imx_clock_frequency(DeviceState *s, IMXClk clock);
 
+void imx_timerp_create(const target_phys_addr_t addr,
+                      qemu_irq irq,
+                      DeviceState *ccm);
+void imx_timerg_create(const target_phys_addr_t addr,
+                      qemu_irq irq,
+                      DeviceState *ccm);
+
+
 #endif /* IMX_H */
