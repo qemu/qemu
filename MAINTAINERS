@@ -207,6 +207,12 @@ M: qemu-devel@nongnu.org
 S: Orphan
 F: hw/gumstix.c
 
+i.MX31
+M: Peter Chubb <peter.chubb@nicta.com.au>
+S: Odd fixes
+F: hw/imx*
+F: hw/kzm.c
+
 Integrator CP
 M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
