@@ -13,4 +13,14 @@
 
 void imx_serial_create(int uart, const target_phys_addr_t addr, qemu_irq irq);
 
+typedef enum  {
+    NOCLK,
+    MCU,
+    HSP,
+    IPG,
+    CLK_32k
+} IMXClk;
+
+uint32_t imx_clock_frequency(DeviceState *s, IMXClk clock);
+
 #endif /* IMX_H */
