@@ -38,12 +38,10 @@
 #define PREFIX_ADR    0x10
 
 #ifdef TARGET_X86_64
-#define X86_64_DEF(...)  __VA_ARGS__
 #define CODE64(s) ((s)->code64)
 #define REX_X(s) ((s)->rex_x)
 #define REX_B(s) ((s)->rex_b)
 #else
-#define X86_64_DEF(...)
 #define CODE64(s) 0
 #define REX_X(s) 0
 #define REX_B(s) 0
@@ -265,11 +263,30 @@ static inline void gen_op_andl_A0_ffff(void)
 #define REG_LH_OFFSET 4
 #endif
 
+/* In instruction encodings for byte register accesses the
+ * register number usually indicates "low 8 bits of register N";
+ * however there are some special cases where N 4..7 indicates
+ * [AH, CH, DH, BH], ie "bits 15..8 of register N-4". Return
+ * true for this special case, false otherwise.
+ */
+static inline bool byte_reg_is_xH(int reg)
+{
+    if (reg < 4) {
+        return false;
+    }
+#ifdef TARGET_X86_64
+    if (reg >= 8 || x86_64_hregs) {
+        return false;
+    }
+#endif
+    return true;
+}
+
 static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
 {
     switch(ot) {
     case OT_BYTE:
-        if (reg < 4 X86_64_DEF( || reg >= 8 || x86_64_hregs)) {
+        if (!byte_reg_is_xH(reg)) {
             tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 8);
         } else {
             tcg_gen_deposit_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], t0, 8, 8);
@@ -324,19 +341,11 @@ static inline void gen_op_mov_reg_A0(int size, int reg)
 
 static inline void gen_op_mov_v_reg(int ot, TCGv t0, int reg)
 {
-    switch(ot) {
-    case OT_BYTE:
-        if (reg < 4 X86_64_DEF( || reg >= 8 || x86_64_hregs)) {
-            goto std_case;
-        } else {
-            tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
-            tcg_gen_ext8u_tl(t0, t0);
-        }
-        break;
-    default:
-    std_case:
+    if (ot == OT_BYTE && byte_reg_is_xH(reg)) {
+        tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
+        tcg_gen_ext8u_tl(t0, t0);
+    } else {
         tcg_gen_mov_tl(t0, cpu_regs[reg]);
-        break;
     }
 }
 
