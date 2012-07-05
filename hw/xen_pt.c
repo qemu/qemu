@@ -634,7 +634,7 @@ static void xen_pt_log_global_fns(MemoryListener *l)
 }
 
 static void xen_pt_eventfd_fns(MemoryListener *l, MemoryRegionSection *s,
-                               bool match_data, uint64_t data, int fd)
+                               bool match_data, uint64_t data, EventNotifier *n)
 {
 }
 

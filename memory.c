@@ -156,7 +156,7 @@ struct MemoryRegionIoeventfd {
     AddrRange addr;
     bool match_data;
     uint64_t data;
-    int fd;
+    EventNotifier *e;
 };
 
 static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd a,
@@ -181,9 +181,9 @@ static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd a,
             return false;
         }
     }
-    if (a.fd < b.fd) {
+    if (a.e < b.e) {
         return true;
-    } else if (a.fd > b.fd) {
+    } else if (a.e > b.e) {
         return false;
     }
     return false;
@@ -597,7 +597,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                 .size = int128_get64(fd->addr.size),
             };
             MEMORY_LISTENER_CALL(eventfd_del, Forward, &section,
-                                 fd->match_data, fd->data, fd->fd);
+                                 fd->match_data, fd->data, fd->e);
             ++iold;
         } else if (inew < fds_new_nb
                    && (iold == fds_old_nb
@@ -610,7 +610,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                 .size = int128_get64(fd->addr.size),
             };
             MEMORY_LISTENER_CALL(eventfd_add, Reverse, &section,
-                                 fd->match_data, fd->data, fd->fd);
+                                 fd->match_data, fd->data, fd->e);
             ++inew;
         } else {
             ++iold;
@@ -1195,14 +1195,14 @@ void memory_region_add_eventfd(MemoryRegion *mr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
-                               int fd)
+                               EventNotifier *e)
 {
     MemoryRegionIoeventfd mrfd = {
         .addr.start = int128_make64(addr),
         .addr.size = int128_make64(size),
         .match_data = match_data,
         .data = data,
-        .fd = fd,
+        .e = e,
     };
     unsigned i;
 
@@ -1225,14 +1225,14 @@ void memory_region_del_eventfd(MemoryRegion *mr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
-                               int fd)
+                               EventNotifier *e)
 {
     MemoryRegionIoeventfd mrfd = {
         .addr.start = int128_make64(addr),
         .addr.size = int128_make64(size),
         .match_data = match_data,
         .data = data,
-        .fd = fd,
+        .e = e,
     };
     unsigned i;
 

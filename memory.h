@@ -198,9 +198,9 @@ struct MemoryListener {
     void (*log_global_start)(MemoryListener *listener);
     void (*log_global_stop)(MemoryListener *listener);
     void (*eventfd_add)(MemoryListener *listener, MemoryRegionSection *section,
-                        bool match_data, uint64_t data, int fd);
+                        bool match_data, uint64_t data, EventNotifier *e);
     void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
-                        bool match_data, uint64_t data, int fd);
+                        bool match_data, uint64_t data, EventNotifier *e);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
     MemoryRegion *address_space_filter;
@@ -541,7 +541,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
-                               int fd);
+                               EventNotifier *e);
 
 /**
  * memory_region_del_eventfd: Cancel an eventfd.
@@ -561,7 +561,8 @@ void memory_region_del_eventfd(MemoryRegion *mr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
-                               int fd);
+                               EventNotifier *e);
+
 /**
  * memory_region_add_subregion: Add a subregion to a container.
  *

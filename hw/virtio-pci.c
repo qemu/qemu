@@ -174,10 +174,10 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
             return r;
         }
         memory_region_add_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
-                                  true, n, event_notifier_get_fd(notifier));
+                                  true, n, notifier);
     } else {
         memory_region_del_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
-                                  true, n, event_notifier_get_fd(notifier));
+                                  true, n, notifier);
         /* Handle the race condition where the guest kicked and we deassigned
          * before we got around to handling the kick.
          */

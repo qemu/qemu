@@ -350,7 +350,7 @@ static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
                               4,
                               true,
                               (posn << 16) | i,
-                              event_notifier_get_fd(&s->peers[posn].eventfds[i]));
+                              &s->peers[posn].eventfds[i]);
 }
 
 static void ivshmem_del_eventfd(IVShmemState *s, int posn, int i)
@@ -360,7 +360,7 @@ static void ivshmem_del_eventfd(IVShmemState *s, int posn, int i)
                               4,
                               true,
                               (posn << 16) | i,
-                              event_notifier_get_fd(&s->peers[posn].eventfds[i]));
+                              &s->peers[posn].eventfds[i]);
 }
 
 static void close_guest_eventfds(IVShmemState *s, int posn)
