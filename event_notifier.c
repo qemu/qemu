@@ -51,18 +51,3 @@ int event_notifier_test_and_clear(EventNotifier *e)
     int r = read(e->fd, &value, sizeof(value));
     return r == sizeof(value);
 }
-
-int event_notifier_test(EventNotifier *e)
-{
-    uint64_t value;
-    int r = read(e->fd, &value, sizeof(value));
-    if (r == sizeof(value)) {
-        /* restore previous value. */
-        int s = write(e->fd, &value, sizeof(value));
-        /* never blocks because we use EFD_SEMAPHORE.
-         * If we didn't we'd get EAGAIN on overflow
-         * and we'd have to write code to ignore it. */
-        assert(s == sizeof(value));
-    }
-    return r == sizeof(value);
-}
