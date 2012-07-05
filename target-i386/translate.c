@@ -2964,16 +2964,16 @@ static const SSEFunc_0_pl sse_op_table3aq[] = {
 
 static const SSEFunc_i_p sse_op_table3bi[] = {
     gen_helper_cvttss2si,
-    gen_helper_cvttsd2si,
     gen_helper_cvtss2si,
+    gen_helper_cvttsd2si,
     gen_helper_cvtsd2si
 };
 
 #ifdef TARGET_X86_64
 static const SSEFunc_l_p sse_op_table3bq[] = {
     gen_helper_cvttss2sq,
-    gen_helper_cvttsd2sq,
     gen_helper_cvtss2sq,
+    gen_helper_cvttsd2sq,
     gen_helper_cvtsd2sq
 };
 #endif
@@ -3571,12 +3571,12 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
             if (ot == OT_LONG) {
-                SSEFunc_0_pi sse_fn_pi = sse_op_table3ai[(b >> 8) - 2];
+                SSEFunc_0_pi sse_fn_pi = sse_op_table3ai[(b >> 8) & 1];
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 sse_fn_pi(cpu_ptr0, cpu_tmp2_i32);
             } else {
 #ifdef TARGET_X86_64
-                SSEFunc_0_pl sse_fn_pl = sse_op_table3aq[(b >> 8) - 2];
+                SSEFunc_0_pl sse_fn_pl = sse_op_table3aq[(b >> 8) & 1];
                 sse_fn_pl(cpu_ptr0, cpu_T[0]);
 #else
                 goto illegal_op;
@@ -3635,13 +3635,13 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op2_offset);
             if (ot == OT_LONG) {
                 SSEFunc_i_p sse_fn_i_p =
-                    sse_op_table3bi[(b >> 8) - 2 + (b & 1) * 2];
+                    sse_op_table3bi[((b >> 7) & 2) | (b & 1)];
                 sse_fn_i_p(cpu_tmp2_i32, cpu_ptr0);
                 tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
             } else {
 #ifdef TARGET_X86_64
                 SSEFunc_l_p sse_fn_l_p =
-                    sse_op_table3bq[(b >> 8) - 2 + (b & 1) * 2];
+                    sse_op_table3bq[((b >> 7) & 2) | (b & 1)];
                 sse_fn_l_p(cpu_T[0], cpu_ptr0);
 #else
                 goto illegal_op;
