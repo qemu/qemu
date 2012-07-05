@@ -496,25 +496,15 @@ static unsigned virtio_pci_get_features(void *opaque)
     return proxy->host_features;
 }
 
-static void virtio_pci_guest_notifier_read(void *opaque)
-{
-    VirtQueue *vq = opaque;
-    EventNotifier *n = virtio_queue_get_guest_notifier(vq);
-    if (event_notifier_test_and_clear(n)) {
-        virtio_irq(vq);
-    }
-}
-
 static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
                                         unsigned int queue_no,
                                         unsigned int vector,
                                         MSIMessage msg)
 {
     VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
+    EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     VirtIOIRQFD *irqfd = &proxy->vector_irqfd[vector];
-    int fd, ret;
-
-    fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vq));
+    int ret;
 
     if (irqfd->users == 0) {
         ret = kvm_irqchip_add_msi_route(kvm_state, msg);
@@ -525,7 +515,7 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
     }
     irqfd->users++;
 
-    ret = kvm_irqchip_add_irqfd(kvm_state, fd, irqfd->virq);
+    ret = kvm_irqchip_add_irq_notifier(kvm_state, n, irqfd->virq);
     if (ret < 0) {
         if (--irqfd->users == 0) {
             kvm_irqchip_release_virq(kvm_state, irqfd->virq);
@@ -533,8 +523,7 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
         return ret;
     }
 
-    qemu_set_fd_handler(fd, NULL, NULL, NULL);
-
+    virtio_queue_set_guest_notifier_fd_handler(vq, true, true);
     return 0;
 }
 
@@ -543,19 +532,18 @@ static void kvm_virtio_pci_vq_vector_release(VirtIOPCIProxy *proxy,
                                              unsigned int vector)
 {
     VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
+    EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     VirtIOIRQFD *irqfd = &proxy->vector_irqfd[vector];
-    int fd, ret;
+    int ret;
 
-    fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vq));
-
-    ret = kvm_irqchip_remove_irqfd(kvm_state, fd, irqfd->virq);
+    ret = kvm_irqchip_remove_irq_notifier(kvm_state, n, irqfd->virq);
     assert(ret == 0);
 
     if (--irqfd->users == 0) {
         kvm_irqchip_release_virq(kvm_state, irqfd->virq);
     }
 
-    qemu_set_fd_handler(fd, virtio_pci_guest_notifier_read, NULL, vq);
+    virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
 }
 
 static int kvm_virtio_pci_vector_use(PCIDevice *dev, unsigned vector,
@@ -617,14 +605,9 @@ static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
         if (r < 0) {
             return r;
         }
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            virtio_pci_guest_notifier_read, NULL, vq);
+        virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
     } else {
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            NULL, NULL, NULL);
-        /* Test and clear notifier before closing it,
-         * in case poll callback didn't have time to run. */
-        virtio_pci_guest_notifier_read(vq);
+        virtio_queue_set_guest_notifier_fd_handler(vq, false, false);
         event_notifier_cleanup(notifier);
     }
 

@@ -1163,9 +1163,19 @@ int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
     return kvm_irqchip_assign_irqfd(s, fd, virq, true);
 }
 
+int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+{
+    return kvm_irqchip_add_irqfd(s, event_notifier_get_fd(n), virq);
+}
+
 int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
 {
     return kvm_irqchip_assign_irqfd(s, fd, virq, false);
+}
+
+int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+{
+    return kvm_irqchip_remove_irqfd(s, event_notifier_get_fd(n), virq);
 }
 
 static int kvm_irqchip_create(KVMState *s)
