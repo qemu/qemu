@@ -38,17 +38,11 @@
 #define PREFIX_ADR    0x10
 
 #ifdef TARGET_X86_64
-#define X86_64_ONLY(x) x
 #define X86_64_DEF(...)  __VA_ARGS__
 #define CODE64(s) ((s)->code64)
 #define REX_X(s) ((s)->rex_x)
 #define REX_B(s) ((s)->rex_b)
-/* XXX: gcc generates push/pop in some opcodes, so we cannot use them */
-#if 1
-#define BUGGY_64(x) NULL
-#endif
 #else
-#define X86_64_ONLY(x) NULL
 #define X86_64_DEF(...)
 #define CODE64(s) 0
 #define REX_X(s) 0
