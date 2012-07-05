@@ -173,44 +173,16 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
                          __func__, r);
             return r;
         }
+        virtio_queue_set_host_notifier_fd_handler(vq, true);
         memory_region_add_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
                                   true, n, notifier);
     } else {
         memory_region_del_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
                                   true, n, notifier);
-        /* Handle the race condition where the guest kicked and we deassigned
-         * before we got around to handling the kick.
-         */
-        if (event_notifier_test_and_clear(notifier)) {
-            virtio_queue_notify_vq(vq);
-        }
-
+        virtio_queue_set_host_notifier_fd_handler(vq, false);
         event_notifier_cleanup(notifier);
     }
     return r;
-}
-
-static void virtio_pci_host_notifier_read(void *opaque)
-{
-    VirtQueue *vq = opaque;
-    EventNotifier *n = virtio_queue_get_host_notifier(vq);
-    if (event_notifier_test_and_clear(n)) {
-        virtio_queue_notify_vq(vq);
-    }
-}
-
-static void virtio_pci_set_host_notifier_fd_handler(VirtIOPCIProxy *proxy,
-                                                    int n, bool assign)
-{
-    VirtQueue *vq = virtio_get_queue(proxy->vdev, n);
-    EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
-    if (assign) {
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            virtio_pci_host_notifier_read, NULL, vq);
-    } else {
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            NULL, NULL, NULL);
-    }
 }
 
 static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
@@ -232,8 +204,6 @@ static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
         if (r < 0) {
             goto assign_error;
         }
-
-        virtio_pci_set_host_notifier_fd_handler(proxy, n, true);
     }
     proxy->ioeventfd_started = true;
     return;
@@ -244,7 +214,6 @@ assign_error:
             continue;
         }
 
-        virtio_pci_set_host_notifier_fd_handler(proxy, n, false);
         r = virtio_pci_set_host_notifier_internal(proxy, n, false);
         assert(r >= 0);
     }
@@ -266,7 +235,6 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
             continue;
         }
 
-        virtio_pci_set_host_notifier_fd_handler(proxy, n, false);
         r = virtio_pci_set_host_notifier_internal(proxy, n, false);
         assert(r >= 0);
     }
