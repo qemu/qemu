@@ -2849,7 +2849,7 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     * Arguments to signal handler:
     *
     *   a0 = signal number
-    *   a1 = pointer to struct siginfo
+    *   a1 = pointer to siginfo_t
     *   a2 = pointer to struct ucontext
     *
     * $25 and PC point to the signal handler, $29 points to the
@@ -3255,7 +3255,7 @@ struct target_signal_frame {
 };
 
 struct rt_signal_frame {
-    struct siginfo info;
+    siginfo_t info;
     struct ucontext uc;
     uint32_t tramp[2];
 };
@@ -3474,9 +3474,9 @@ struct target_signal_frame {
 };
 
 struct rt_signal_frame {
-        struct siginfo *pinfo;
+        siginfo_t *pinfo;
         void *puc;
-        struct siginfo info;
+        siginfo_t info;
         struct ucontext uc;
         uint8_t retcode[8];       /* Trampoline code. */
 };

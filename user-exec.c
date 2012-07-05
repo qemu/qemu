@@ -588,7 +588,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
-    struct siginfo *info = pinfo;
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     unsigned long pc = uc->uc_mcontext.sc_iaoq[0];
     uint32_t insn = *(uint32_t *)pc;
