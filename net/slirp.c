@@ -26,6 +26,7 @@
 #include "config-host.h"
 
 #ifndef _WIN32
+#include <pwd.h>
 #include <sys/wait.h>
 #endif
 #include "net.h"
@@ -487,7 +488,14 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     static int instance;
     char smb_conf[128];
     char smb_cmdline[128];
+    struct passwd *passwd;
     FILE *f;
+
+    passwd = getpwuid(geteuid());
+    if (!passwd) {
+        error_report("failed to retrieve user name");
+        return -1;
+    }
 
     snprintf(s->smb_dir, sizeof(s->smb_dir), "/tmp/qemu-smb.%ld-%d",
              (long)getpid(), instance++);
@@ -517,14 +525,16 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             "[qemu]\n"
             "path=%s\n"
             "read only=no\n"
-            "guest ok=yes\n",
+            "guest ok=yes\n"
+            "force user=%s\n",
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,
             s->smb_dir,
-            exported_dir
+            exported_dir,
+            passwd->pw_name
             );
     fclose(f);
 
