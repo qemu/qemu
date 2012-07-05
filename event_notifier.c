@@ -10,10 +10,17 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu-common.h"
 #include "event_notifier.h"
+
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
 #endif
+
+void event_notifier_init_fd(EventNotifier *e, int fd)
+{
+    e->fd = fd;
+}
 
 int event_notifier_init(EventNotifier *e, int active)
 {
