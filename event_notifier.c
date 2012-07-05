@@ -38,6 +38,13 @@ int event_notifier_get_fd(EventNotifier *e)
     return e->fd;
 }
 
+int event_notifier_set(EventNotifier *e)
+{
+    uint64_t value = 1;
+    int r = write(e->fd, &value, sizeof(value));
+    return r == sizeof(value);
+}
+
 int event_notifier_test_and_clear(EventNotifier *e)
 {
     uint64_t value;
