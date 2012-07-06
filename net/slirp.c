@@ -504,8 +504,8 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     }
 
     if (access(exported_dir, R_OK | X_OK)) {
-        error_report("no such directory '%s', or you do not have permission "
-                     "to access it, please check it", exported_dir);
+        error_report("error accessing shared directory '%s': %s",
+                     exported_dir, strerror(errno));
         return -1;
     }
 
