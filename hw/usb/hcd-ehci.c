@@ -2581,6 +2581,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     s->async_bh = qemu_bh_new(ehci_async_bh, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
+    usb_packet_init(&s->ipacket);
 
     qemu_register_reset(ehci_reset, s);
 
