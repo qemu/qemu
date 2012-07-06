@@ -2324,6 +2324,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
+    usb_packet_init(&s->ipacket);
 
     qemu_register_reset(ehci_reset, s);
 
