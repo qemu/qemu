@@ -497,6 +497,18 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
         return -1;
     }
 
+    if (access(CONFIG_SMBD_COMMAND, F_OK)) {
+        error_report("could not find '%s', please install it",
+                     CONFIG_SMBD_COMMAND);
+        return -1;
+    }
+
+    if (access(exported_dir, R_OK | X_OK)) {
+        error_report("no such directory '%s', or you do not have permission "
+                     "to access it, please check it", exported_dir);
+        return -1;
+    }
+
     snprintf(s->smb_dir, sizeof(s->smb_dir), "/tmp/qemu-smb.%ld-%d",
              (long)getpid(), instance++);
     if (mkdir(s->smb_dir, 0700) < 0) {
