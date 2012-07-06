@@ -905,10 +905,11 @@ static void ehci_wakeup(USBPort *port)
         USBPort *companion = s->companion_ports[port->index];
         if (companion->ops->wakeup) {
             companion->ops->wakeup(companion);
-        } else {
-            qemu_bh_schedule(s->async_bh);
         }
+        return;
     }
+
+    qemu_bh_schedule(s->async_bh);
 }
 
 static int ehci_register_companion(USBBus *bus, USBPort *ports[],
