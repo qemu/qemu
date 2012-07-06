@@ -1033,6 +1033,8 @@ static int usbredir_handle_status(USBRedirDevice *dev,
     case usb_redir_inval:
         WARNING("got invalid param error from usb-host?\n");
         return USB_RET_NAK;
+    case usb_redir_babble:
+        return USB_RET_BABBLE;
     case usb_redir_ioerror:
     case usb_redir_timeout:
     default:
