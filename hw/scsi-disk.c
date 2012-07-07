@@ -72,6 +72,8 @@ struct SCSIDiskState
     QEMUBH *bh;
     char *version;
     char *serial;
+    char *vendor;
+    char *product;
     bool tray_open;
     bool tray_locked;
 };
@@ -669,12 +671,10 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
     outbuf[0] = s->qdev.type & 0x1f;
     outbuf[1] = (s->features & (1 << SCSI_DISK_F_REMOVABLE)) ? 0x80 : 0;
-    if (s->qdev.type == TYPE_ROM) {
-        memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
-    } else {
-        memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
-    }
-    memcpy(&outbuf[8], "QEMU    ", 8);
+
+    strpadcpy((char *) &outbuf[16], 16, s->product, ' ');
+    strpadcpy((char *) &outbuf[8], 8, s->vendor, ' ');
+
     memset(&outbuf[32], 0, 4);
     memcpy(&outbuf[32], s->version, MIN(4, strlen(s->version)));
     /*
@@ -1757,6 +1757,9 @@ static int scsi_initfn(SCSIDevice *dev)
     if (!s->version) {
         s->version = g_strdup(qemu_get_version());
     }
+    if (!s->vendor) {
+        s->vendor = g_strdup("QEMU");
+    }
 
     if (bdrv_is_sg(s->qdev.conf.bs)) {
         error_report("unwanted /dev/sg*");
@@ -1778,6 +1781,9 @@ static int scsi_hd_initfn(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     s->qdev.blocksize = s->qdev.conf.logical_block_size;
     s->qdev.type = TYPE_DISK;
+    if (!s->product) {
+        s->product = g_strdup("QEMU HARDDISK");
+    }
     return scsi_initfn(&s->qdev);
 }
 
@@ -1787,6 +1793,9 @@ static int scsi_cd_initfn(SCSIDevice *dev)
     s->qdev.blocksize = 2048;
     s->qdev.type = TYPE_ROM;
     s->features |= 1 << SCSI_DISK_F_REMOVABLE;
+    if (!s->product) {
+        s->product = g_strdup("QEMU CD-ROM");
+    }
     return scsi_initfn(&s->qdev);
 }
 
@@ -1954,10 +1963,12 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 }
 #endif
 
-#define DEFINE_SCSI_DISK_PROPERTIES()                           \
-    DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),          \
-    DEFINE_PROP_STRING("ver",  SCSIDiskState, version),         \
-    DEFINE_PROP_STRING("serial",  SCSIDiskState, serial)
+#define DEFINE_SCSI_DISK_PROPERTIES()                                \
+    DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),               \
+    DEFINE_PROP_STRING("ver", SCSIDiskState, version),               \
+    DEFINE_PROP_STRING("serial", SCSIDiskState, serial),             \
+    DEFINE_PROP_STRING("vendor", SCSIDiskState, vendor),             \
+    DEFINE_PROP_STRING("product", SCSIDiskState, product)
 
 static Property scsi_hd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
