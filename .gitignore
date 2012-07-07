@@ -41,12 +41,14 @@ qemu-io
 qemu-ga
 qemu-bridge-helper
 qemu-monitor.texi
+vscclient
 QMP/qmp-commands.txt
 test-coroutine
 test-qmp-input-visitor
 test-qmp-output-visitor
 test-string-input-visitor
 test-string-output-visitor
+test-visitor-serialization
 fsdev/virtfs-proxy-helper.1
 fsdev/virtfs-proxy-helper.pod
 .gdbinit
@@ -69,6 +71,10 @@ fsdev/virtfs-proxy-helper.pod
 *.vr
 *.d
 *.o
+*.lo
+*.la
+*.pc
+.libs
 *.swp
 *.orig
 .pc

@@ -11,6 +11,7 @@ obj-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
 obj-y += exynos4_boards.o exynos4210_uart.o exynos4210_pwm.o
 obj-y += exynos4210_pmu.o exynos4210_mct.o exynos4210_fimd.o
+obj-y += exynos4210_rtc.o
 obj-y += arm_l2x0.o
 obj-y += arm_mptimer.o a15mpcore.o
 obj-y += armv7m.o armv7m_nvic.o stellaris.o pl022.o stellaris_enet.o
@@ -50,6 +51,8 @@ obj-y += framebuffer.o
 obj-y += vexpress.o
 obj-y += strongarm.o
 obj-y += collie.o
+obj-y += imx_serial.o imx_ccm.o imx_timer.o imx_avic.o
+obj-y += kzm.o
 obj-y += pl041.o lm4549.o
 obj-$(CONFIG_FDT) += ../device_tree.o
 

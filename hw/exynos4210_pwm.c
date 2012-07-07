@@ -200,7 +200,7 @@ static void exynos4210_pwm_tick(void *opaque)
         ptimer_run(p->timer[id].ptimer, 1);
     } else {
         /* stop timer, set status to STOP, see Basic Timer Operation */
-        p->reg_tcon = ~TCON_TIMER_START(id);
+        p->reg_tcon &= ~TCON_TIMER_START(id);
         ptimer_stop(p->timer[id].ptimer);
     }
 }

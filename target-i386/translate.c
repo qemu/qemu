@@ -39,18 +39,10 @@
 #define PREFIX_ADR    0x10
 
 #ifdef TARGET_X86_64
-#define X86_64_ONLY(x) x
-#define X86_64_DEF(...)  __VA_ARGS__
 #define CODE64(s) ((s)->code64)
 #define REX_X(s) ((s)->rex_x)
 #define REX_B(s) ((s)->rex_b)
-/* XXX: gcc generates push/pop in some opcodes, so we cannot use them */
-#if 1
-#define BUGGY_64(x) NULL
-#endif
 #else
-#define X86_64_ONLY(x) NULL
-#define X86_64_DEF(...)
 #define CODE64(s) 0
 #define REX_X(s) 0
 #define REX_B(s) 0
@@ -272,11 +264,30 @@ static inline void gen_op_andl_A0_ffff(void)
 #define REG_LH_OFFSET 4
 #endif
 
+/* In instruction encodings for byte register accesses the
+ * register number usually indicates "low 8 bits of register N";
+ * however there are some special cases where N 4..7 indicates
+ * [AH, CH, DH, BH], ie "bits 15..8 of register N-4". Return
+ * true for this special case, false otherwise.
+ */
+static inline bool byte_reg_is_xH(int reg)
+{
+    if (reg < 4) {
+        return false;
+    }
+#ifdef TARGET_X86_64
+    if (reg >= 8 || x86_64_hregs) {
+        return false;
+    }
+#endif
+    return true;
+}
+
 static inline void gen_op_mov_reg_v(int ot, int reg, TCGv t0)
 {
     switch(ot) {
     case OT_BYTE:
-        if (reg < 4 X86_64_DEF( || reg >= 8 || x86_64_hregs)) {
+        if (!byte_reg_is_xH(reg)) {
             tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], t0, 0, 8);
         } else {
             tcg_gen_deposit_tl(cpu_regs[reg - 4], cpu_regs[reg - 4], t0, 8, 8);
@@ -331,19 +342,11 @@ static inline void gen_op_mov_reg_A0(int size, int reg)
 
 static inline void gen_op_mov_v_reg(int ot, TCGv t0, int reg)
 {
-    switch(ot) {
-    case OT_BYTE:
-        if (reg < 4 X86_64_DEF( || reg >= 8 || x86_64_hregs)) {
-            goto std_case;
-        } else {
-            tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
-            tcg_gen_ext8u_tl(t0, t0);
-        }
-        break;
-    default:
-    std_case:
+    if (ot == OT_BYTE && byte_reg_is_xH(reg)) {
+        tcg_gen_shri_tl(t0, cpu_regs[reg - 4], 8);
+        tcg_gen_ext8u_tl(t0, t0);
+    } else {
         tcg_gen_mov_tl(t0, cpu_regs[reg]);
-        break;
     }
 }
 
@@ -2962,16 +2965,16 @@ static const SSEFunc_0_pl sse_op_table3aq[] = {
 
 static const SSEFunc_i_p sse_op_table3bi[] = {
     gen_helper_cvttss2si,
-    gen_helper_cvttsd2si,
     gen_helper_cvtss2si,
+    gen_helper_cvttsd2si,
     gen_helper_cvtsd2si
 };
 
 #ifdef TARGET_X86_64
 static const SSEFunc_l_p sse_op_table3bq[] = {
     gen_helper_cvttss2sq,
-    gen_helper_cvttsd2sq,
     gen_helper_cvtss2sq,
+    gen_helper_cvttsd2sq,
     gen_helper_cvtsd2sq
 };
 #endif
@@ -3569,12 +3572,12 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             op1_offset = offsetof(CPUX86State,xmm_regs[reg]);
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op1_offset);
             if (ot == OT_LONG) {
-                SSEFunc_0_pi sse_fn_pi = sse_op_table3ai[(b >> 8) - 2];
+                SSEFunc_0_pi sse_fn_pi = sse_op_table3ai[(b >> 8) & 1];
                 tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
                 sse_fn_pi(cpu_ptr0, cpu_tmp2_i32);
             } else {
 #ifdef TARGET_X86_64
-                SSEFunc_0_pl sse_fn_pl = sse_op_table3aq[(b >> 8) - 2];
+                SSEFunc_0_pl sse_fn_pl = sse_op_table3aq[(b >> 8) & 1];
                 sse_fn_pl(cpu_ptr0, cpu_T[0]);
 #else
                 goto illegal_op;
@@ -3613,9 +3616,9 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             }
             break;
         case 0x22c: /* cvttss2si */
-        case 0x32c: /* cvttsd2si */
         case 0x22d: /* cvtss2si */
         case 0x32d: /* cvtsd2si */
+        case 0x32c: /* cvttsd2si */
             ot = (s->dflag == 2) ? OT_QUAD : OT_LONG;
             if (mod != 3) {
                 gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
@@ -3633,13 +3636,13 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
             tcg_gen_addi_ptr(cpu_ptr0, cpu_env, op2_offset);
             if (ot == OT_LONG) {
                 SSEFunc_i_p sse_fn_i_p =
-                    sse_op_table3bi[(b >> 8) - 2 + (b & 1) * 2];
+                    sse_op_table3bi[((b >> 7) & 2) | (b & 1)];
                 sse_fn_i_p(cpu_tmp2_i32, cpu_ptr0);
                 tcg_gen_extu_i32_tl(cpu_T[0], cpu_tmp2_i32);
             } else {
 #ifdef TARGET_X86_64
                 SSEFunc_l_p sse_fn_l_p =
-                    sse_op_table3bq[(b >> 8) - 2 + (b & 1) * 2];
+                    sse_op_table3bq[((b >> 7) & 2) | (b & 1)];
                 sse_fn_l_p(cpu_T[0], cpu_ptr0);
 #else
                 goto illegal_op;

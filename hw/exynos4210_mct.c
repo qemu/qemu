@@ -376,10 +376,6 @@ static uint64_t exynos4210_gfrc_get_count(Exynos4210MCTGT *s)
 {
     uint64_t count = 0;
     count = ptimer_get_count(s->ptimer_frc);
-    if (!count) {
-        /* Timer event was generated and s->reg.cnt holds adequate value */
-        return s->reg.cnt;
-    }
     count = s->count - count;
     return s->reg.cnt + count;
 }
