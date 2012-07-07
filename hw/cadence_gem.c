@@ -339,8 +339,8 @@ typedef struct {
     uint8_t phy_loop; /* Are we in phy loopback? */
 
     /* The current DMA descriptor pointers */
-    target_phys_addr_t rx_desc_addr;
-    target_phys_addr_t tx_desc_addr;
+    uint32_t rx_desc_addr;
+    uint32_t tx_desc_addr;
 
 } GemState;
 
