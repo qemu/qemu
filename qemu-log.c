@@ -52,7 +52,7 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 }
 
 /* enable or disable low levels log */
-void cpu_set_log(int log_flags)
+void qemu_set_log(int log_flags, bool use_own_buffers)
 {
     qemu_loglevel = log_flags;
     if (qemu_loglevel && !qemu_logfile) {
@@ -61,19 +61,20 @@ void cpu_set_log(int log_flags)
             perror(logfilename);
             _exit(1);
         }
-#if !defined(CONFIG_SOFTMMU)
         /* must avoid mmap() usage of glibc by setting a buffer "by hand" */
-        {
+        if (use_own_buffers) {
             static char logfile_buf[4096];
+
             setvbuf(qemu_logfile, logfile_buf, _IOLBF, sizeof(logfile_buf));
-        }
-#elif defined(_WIN32)
-        /* Win32 doesn't support line-buffering, so use unbuffered output. */
-        setvbuf(qemu_logfile, NULL, _IONBF, 0);
+        } else {
+#if defined(_WIN32)
+            /* Win32 doesn't support line-buffering, so use unbuffered output. */
+            setvbuf(qemu_logfile, NULL, _IONBF, 0);
 #else
-        setvbuf(qemu_logfile, NULL, _IOLBF, 0);
+            setvbuf(qemu_logfile, NULL, _IOLBF, 0);
 #endif
-        log_append = 1;
+            log_append = 1;
+        }
     }
     if (!qemu_loglevel && qemu_logfile) {
         fclose(qemu_logfile);
@@ -99,10 +100,7 @@ const CPULogItem cpu_log_items[] = {
     { CPU_LOG_TB_OP, "op",
       "show micro ops for each compiled TB" },
     { CPU_LOG_TB_OP_OPT, "op_opt",
-      "show micro ops "
-#ifdef TARGET_I386
-      "before eflags optimization and "
-#endif
+      "show micro ops (x86 only: before eflags optimization) and\n"
       "after liveness analysis" },
     { CPU_LOG_INT, "int",
       "show interrupts/exceptions in short format" },
@@ -110,16 +108,12 @@ const CPULogItem cpu_log_items[] = {
       "show trace before each executed TB (lots of logs)" },
     { CPU_LOG_TB_CPU, "cpu",
       "show CPU state before block translation" },
-#ifdef TARGET_I386
     { CPU_LOG_PCALL, "pcall",
-      "show protected mode far calls/returns/exceptions" },
+      "x86 only: show protected mode far calls/returns/exceptions" },
     { CPU_LOG_RESET, "cpu_reset",
-      "show CPU state before CPU resets" },
-#endif
-#ifdef DEBUG_IOPORT
+      "x86 only: show CPU state before CPU resets" },
     { CPU_LOG_IOPORT, "ioport",
       "show all i/o ports accesses" },
-#endif
     { LOG_UNIMP, "unimp",
       "log unimplemented functionality" },
     { 0, NULL, NULL },
