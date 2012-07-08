@@ -319,8 +319,8 @@ static inline uint64_t extract64(uint64_t value, int start, int length)
  * @value. Bits of @value outside the bit field are not modified.
  * Bits of @fieldval above the least significant @length bits are
  * ignored. The bit field must lie entirely within the 32 bit word.
- * It is valid to request that all 64 bits are modified (ie @length
- * 64 and @start 0).
+ * It is valid to request that all 32 bits are modified (ie @length
+ * 32 and @start 0).
  *
  * Returns: the modified @value.
  */
@@ -334,7 +334,7 @@ static inline uint32_t deposit32(uint32_t value, int start, int length,
 }
 
 /**
- * deposit32:
+ * deposit64:
  * @value: initial value to insert bit field into
  * @start: the lowest bit in the bit field (numbered from 0)
  * @length: the length of the bit field
@@ -344,7 +344,7 @@ static inline uint32_t deposit32(uint32_t value, int start, int length,
  * by the @start and @length parameters, and return the modified
  * @value. Bits of @value outside the bit field are not modified.
  * Bits of @fieldval above the least significant @length bits are
- * ignored. The bit field must lie entirely within the 32 bit word.
+ * ignored. The bit field must lie entirely within the 64 bit word.
  * It is valid to request that all 64 bits are modified (ie @length
  * 64 and @start 0).
  *
