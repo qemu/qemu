@@ -1150,11 +1150,14 @@ static void vmsvga_io_write(void *opaque, target_phys_addr_t addr,
 
     switch (addr) {
     case SVGA_IO_MUL * SVGA_INDEX_PORT:
-        return vmsvga_index_write(s, addr, data);
+        vmsvga_index_write(s, addr, data);
+        break;
     case SVGA_IO_MUL * SVGA_VALUE_PORT:
-        return vmsvga_value_write(s, addr, data);
+        vmsvga_value_write(s, addr, data);
+        break;
     case SVGA_IO_MUL * SVGA_BIOS_PORT:
-        return vmsvga_bios_write(s, addr, data);
+        vmsvga_bios_write(s, addr, data);
+        break;
     }
 }
 

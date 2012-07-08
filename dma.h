@@ -196,9 +196,9 @@ static inline void dma_memory_unmap(DMAContext *dma,
                                     DMADirection dir, dma_addr_t access_len)
 {
     if (!dma_has_iommu(dma)) {
-        return cpu_physical_memory_unmap(buffer, (target_phys_addr_t)len,
-                                         dir == DMA_DIRECTION_FROM_DEVICE,
-                                         access_len);
+        cpu_physical_memory_unmap(buffer, (target_phys_addr_t)len,
+                                  dir == DMA_DIRECTION_FROM_DEVICE,
+                                  access_len);
     } else {
         iommu_dma_memory_unmap(dma, buffer, len, dir, access_len);
     }

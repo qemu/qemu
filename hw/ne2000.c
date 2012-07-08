@@ -677,15 +677,15 @@ static void ne2000_write(void *opaque, target_phys_addr_t addr,
     NE2000State *s = opaque;
 
     if (addr < 0x10 && size == 1) {
-        return ne2000_ioport_write(s, addr, data);
+        ne2000_ioport_write(s, addr, data);
     } else if (addr == 0x10) {
         if (size <= 2) {
-            return ne2000_asic_ioport_write(s, addr, data);
+            ne2000_asic_ioport_write(s, addr, data);
         } else {
-            return ne2000_asic_ioport_writel(s, addr, data);
+            ne2000_asic_ioport_writel(s, addr, data);
         }
     } else if (addr == 0x1f && size == 1) {
-        return ne2000_reset_ioport_write(s, addr, data);
+        ne2000_reset_ioport_write(s, addr, data);
     }
 }
 

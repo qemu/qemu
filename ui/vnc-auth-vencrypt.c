@@ -47,7 +47,8 @@ static void start_auth_vencrypt_subauth(VncState *vs)
     case VNC_AUTH_VENCRYPT_TLSSASL:
     case VNC_AUTH_VENCRYPT_X509SASL:
       VNC_DEBUG("Start TLS auth SASL\n");
-      return start_auth_sasl(vs);
+      start_auth_sasl(vs);
+      break;
 #endif /* CONFIG_VNC_SASL */
 
     default: /* Should not be possible, but just in case */

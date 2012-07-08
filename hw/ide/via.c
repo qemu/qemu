@@ -74,7 +74,8 @@ static void bmdma_write(void *opaque, target_phys_addr_t addr,
 #endif
     switch (addr & 3) {
     case 0:
-        return bmdma_cmd_writeb(bm, val);
+        bmdma_cmd_writeb(bm, val);
+        break;
     case 2:
         bm->status = (val & 0x60) | (bm->status & 1) | (bm->status & ~val & 0x06);
         break;
