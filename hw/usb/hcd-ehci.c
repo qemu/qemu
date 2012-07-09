@@ -365,6 +365,7 @@ struct EHCIQueue {
     uint32_t seen;
     uint64_t ts;
     int async;
+    int revalidate;
 
     /* cached data from guest - needs to be flushed
      * when guest removes an entry (doorbell, handshake sequence)
@@ -775,7 +776,18 @@ static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
     return NULL;
 }
 
-static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
+static void ehci_queues_tag_unused_async(EHCIState *ehci)
+{
+    EHCIQueue *q;
+
+    QTAILQ_FOREACH(q, &ehci->aqueues, next) {
+        if (!q->seen) {
+            q->revalidate = 1;
+        }
+    }
+}
+
+static void ehci_queues_rip_unused(EHCIState *ehci, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     uint64_t maxage = FRAME_TIMER_NS * ehci->maxframes * 4;
@@ -787,7 +799,7 @@ static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
             q->ts = ehci->last_run_ns;
             continue;
         }
-        if (!flush && ehci->last_run_ns < q->ts + maxage) {
+        if (ehci->last_run_ns < q->ts + maxage) {
             continue;
         }
         ehci_free_queue(q);
@@ -893,10 +905,11 @@ static void ehci_wakeup(USBPort *port)
         USBPort *companion = s->companion_ports[port->index];
         if (companion->ops->wakeup) {
             companion->ops->wakeup(companion);
-        } else {
-            qemu_bh_schedule(s->async_bh);
         }
+        return;
     }
+
+    qemu_bh_schedule(s->async_bh);
 }
 
 static int ehci_register_companion(USBBus *bus, USBPort *ports[],
@@ -1246,6 +1259,23 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
     return 1;
 }
 
+/*
+ *  Write the qh back to guest physical memory.  This step isn't
+ *  in the EHCI spec but we need to do it since we don't share
+ *  physical memory with our guest VM.
+ *
+ *  The first three dwords are read-only for the EHCI, so skip them
+ *  when writing back the qh.
+ */
+static void ehci_flush_qh(EHCIQueue *q)
+{
+    uint32_t *qh = (uint32_t *) &q->qh;
+    uint32_t dwords = sizeof(EHCIqh) >> 2;
+    uint32_t addr = NLPTR_GET(q->qhaddr);
+
+    put_dwords(q->ehci, addr + 3 * sizeof(uint32_t), qh + 3, dwords - 3);
+}
+
 // 4.10.2
 
 static int ehci_qh_do_overlay(EHCIQueue *q)
@@ -1293,8 +1323,7 @@ static int ehci_qh_do_overlay(EHCIQueue *q)
     q->qh.bufptr[1] &= ~BUFPTR_CPROGMASK_MASK;
     q->qh.bufptr[2] &= ~BUFPTR_FRAMETAG_MASK;
 
-    put_dwords(q->ehci, NLPTR_GET(q->qhaddr), (uint32_t *) &q->qh,
-               sizeof(EHCIqh) >> 2);
+    ehci_flush_qh(q);
 
     return 0;
 }
@@ -1600,23 +1629,6 @@ static int ehci_process_itd(EHCIState *ehci,
 }
 
 
-/*
- *  Write the qh back to guest physical memory.  This step isn't
- *  in the EHCI spec but we need to do it since we don't share
- *  physical memory with our guest VM.
- *
- *  The first three dwords are read-only for the EHCI, so skip them
- *  when writing back the qh.
- */
-static void ehci_flush_qh(EHCIQueue *q)
-{
-    uint32_t *qh = (uint32_t *) &q->qh;
-    uint32_t dwords = sizeof(EHCIqh) >> 2;
-    uint32_t addr = NLPTR_GET(q->qhaddr);
-
-    put_dwords(q->ehci, addr + 3 * sizeof(uint32_t), qh + 3, dwords - 3);
-}
-
 /*  This state is the entry point for asynchronous schedule
  *  processing.  Entry here consitutes a EHCI start event state (4.8.5)
  */
@@ -1632,7 +1644,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
         ehci_set_usbsts(ehci, USBSTS_REC);
     }
 
-    ehci_queues_rip_unused(ehci, async, 0);
+    ehci_queues_rip_unused(ehci, async);
 
     /*  Find the head of the list (4.9.1.1) */
     for(i = 0; i < MAX_QH; i++) {
@@ -1717,6 +1729,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     EHCIPacket *p;
     uint32_t entry, devaddr;
     EHCIQueue *q;
+    EHCIqh qh;
 
     entry = ehci_get_fetch_addr(ehci, async);
     q = ehci_find_queue_by_qh(ehci, entry, async);
@@ -1734,7 +1747,17 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
 
     get_dwords(ehci, NLPTR_GET(q->qhaddr),
-               (uint32_t *) &q->qh, sizeof(EHCIqh) >> 2);
+               (uint32_t *) &qh, sizeof(EHCIqh) >> 2);
+    if (q->revalidate && (q->qh.epchar      != qh.epchar ||
+                          q->qh.epcap       != qh.epcap  ||
+                          q->qh.current_qtd != qh.current_qtd)) {
+        ehci_free_queue(q);
+        q = ehci_alloc_queue(ehci, entry, async);
+        q->seen++;
+        p = NULL;
+    }
+    q->qh = qh;
+    q->revalidate = 0;
     ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &q->qh);
 
     devaddr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
@@ -2071,6 +2094,7 @@ out:
 static int ehci_state_writeback(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
+    uint32_t *qtd, addr;
     int again = 0;
 
     /*  Write back the QTD from the QH area */
@@ -2078,8 +2102,9 @@ static int ehci_state_writeback(EHCIQueue *q)
     assert(p->qtdaddr == q->qtdaddr);
 
     ehci_trace_qtd(q, NLPTR_GET(p->qtdaddr), (EHCIqtd *) &q->qh.next_qtd);
-    put_dwords(q->ehci, NLPTR_GET(p->qtdaddr), (uint32_t *) &q->qh.next_qtd,
-               sizeof(EHCIqtd) >> 2);
+    qtd = (uint32_t *) &q->qh.next_qtd;
+    addr = NLPTR_GET(p->qtdaddr);
+    put_dwords(q->ehci, addr + 2 * sizeof(uint32_t), qtd + 2, 2);
     ehci_free_packet(p);
 
     /*
@@ -2227,7 +2252,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
          */
         if (ehci->usbcmd & USBCMD_IAAD) {
             /* Remove all unseen qhs from the async qhs queue */
-            ehci_queues_rip_unused(ehci, async, 1);
+            ehci_queues_tag_unused_async(ehci);
             DPRINTF("ASYNC: doorbell request acknowledged\n");
             ehci->usbcmd &= ~USBCMD_IAAD;
             ehci_set_interrupt(ehci, USBSTS_IAA);
@@ -2280,7 +2305,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         ehci_set_fetch_addr(ehci, async,entry);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
-        ehci_queues_rip_unused(ehci, async, 0);
+        ehci_queues_rip_unused(ehci, async);
         break;
 
     default:
@@ -2557,6 +2582,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     s->async_bh = qemu_bh_new(ehci_async_bh, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
+    usb_packet_init(&s->ipacket);
 
     qemu_register_reset(ehci_reset, s);
 

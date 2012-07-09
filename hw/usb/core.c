@@ -550,7 +550,7 @@ void usb_packet_cleanup(USBPacket *p)
     qemu_iovec_destroy(&p->iov);
 }
 
-void usb_ep_init(USBDevice *dev)
+void usb_ep_reset(USBDevice *dev)
 {
     int ep;
 
@@ -559,7 +559,6 @@ void usb_ep_init(USBDevice *dev)
     dev->ep_ctl.ifnum = 0;
     dev->ep_ctl.dev = dev;
     dev->ep_ctl.pipeline = false;
-    QTAILQ_INIT(&dev->ep_ctl.queue);
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
         dev->ep_in[ep].nr = ep + 1;
         dev->ep_out[ep].nr = ep + 1;
@@ -567,12 +566,22 @@ void usb_ep_init(USBDevice *dev)
         dev->ep_out[ep].pid = USB_TOKEN_OUT;
         dev->ep_in[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
-        dev->ep_in[ep].ifnum = 0;
-        dev->ep_out[ep].ifnum = 0;
+        dev->ep_in[ep].ifnum = USB_INTERFACE_INVALID;
+        dev->ep_out[ep].ifnum = USB_INTERFACE_INVALID;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
         dev->ep_in[ep].pipeline = false;
         dev->ep_out[ep].pipeline = false;
+    }
+}
+
+void usb_ep_init(USBDevice *dev)
+{
+    int ep;
+
+    usb_ep_reset(dev);
+    QTAILQ_INIT(&dev->ep_ctl.queue);
+    for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
         QTAILQ_INIT(&dev->ep_in[ep].queue);
         QTAILQ_INIT(&dev->ep_out[ep].queue);
     }
