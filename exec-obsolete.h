@@ -45,15 +45,15 @@ int cpu_physical_memory_set_dirty_tracking(int enable);
 #define CODE_DIRTY_FLAG      0x02
 #define MIGRATION_DIRTY_FLAG 0x08
 
-/* read dirty bit (return 0 or 1) */
-static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
-{
-    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
-}
-
 static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
 {
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS];
+}
+
+/* read dirty bit (return 0 or 1) */
+static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
+{
+    return cpu_physical_memory_get_dirty_flags(addr) == 0xff;
 }
 
 static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
@@ -61,41 +61,55 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
                                                 int dirty_flags)
 {
     int ret = 0;
-    uint8_t *p;
     ram_addr_t addr, end;
 
     end = TARGET_PAGE_ALIGN(start + length);
     start &= TARGET_PAGE_MASK;
-    p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
     for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        ret |= *p++ & dirty_flags;
+        ret |= cpu_physical_memory_get_dirty_flags(addr) & dirty_flags;
     }
     return ret;
-}
-
-static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
-{
-    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
 }
 
 static inline int cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
                                                       int dirty_flags)
 {
+    if ((dirty_flags & MIGRATION_DIRTY_FLAG) &&
+        !cpu_physical_memory_get_dirty(addr, TARGET_PAGE_SIZE,
+                                       MIGRATION_DIRTY_FLAG)) {
+        ram_list.dirty_pages++;
+    }
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
+}
+
+static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
+{
+    cpu_physical_memory_set_dirty_flags(addr, 0xff);
+}
+
+static inline int cpu_physical_memory_clear_dirty_flags(ram_addr_t addr,
+                                                        int dirty_flags)
+{
+    int mask = ~dirty_flags;
+
+    if ((dirty_flags & MIGRATION_DIRTY_FLAG) &&
+        cpu_physical_memory_get_dirty(addr, TARGET_PAGE_SIZE,
+                                      MIGRATION_DIRTY_FLAG)) {
+        ram_list.dirty_pages--;
+    }
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] &= mask;
 }
 
 static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
                                                        ram_addr_t length,
                                                        int dirty_flags)
 {
-    uint8_t *p;
     ram_addr_t addr, end;
 
     end = TARGET_PAGE_ALIGN(start + length);
     start &= TARGET_PAGE_MASK;
-    p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
     for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        *p++ |= dirty_flags;
+        cpu_physical_memory_set_dirty_flags(addr, dirty_flags);
     }
 }
 
@@ -103,16 +117,12 @@ static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
                                                         ram_addr_t length,
                                                         int dirty_flags)
 {
-    int mask;
-    uint8_t *p;
     ram_addr_t addr, end;
 
     end = TARGET_PAGE_ALIGN(start + length);
     start &= TARGET_PAGE_MASK;
-    mask = ~dirty_flags;
-    p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
     for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
-        *p++ &= mask;
+        cpu_physical_memory_clear_dirty_flags(addr, dirty_flags);
     }
 }
 

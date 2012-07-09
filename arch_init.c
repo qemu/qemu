@@ -44,6 +44,14 @@
 #include "exec-memory.h"
 #include "hw/pcspk.h"
 
+#ifdef DEBUG_ARCH_INIT
+#define DPRINTF(fmt, ...) \
+    do { fprintf(stdout, "arch_init: " fmt, ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF(fmt, ...) \
+    do { } while (0)
+#endif
+
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
 int graphic_height = 768;
@@ -161,6 +169,18 @@ static int is_dup_page(uint8_t *page)
     return 1;
 }
 
+static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
+        int cont, int flag)
+{
+        qemu_put_be64(f, offset | cont | flag);
+        if (!cont) {
+                qemu_put_byte(f, strlen(block->idstr));
+                qemu_put_buffer(f, (uint8_t *)block->idstr,
+                                strlen(block->idstr));
+        }
+
+}
+
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
 
@@ -187,21 +207,11 @@ static int ram_save_block(QEMUFile *f)
             p = memory_region_get_ram_ptr(mr) + offset;
 
             if (is_dup_page(p)) {
-                qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_COMPRESS);
-                if (!cont) {
-                    qemu_put_byte(f, strlen(block->idstr));
-                    qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                    strlen(block->idstr));
-                }
+                save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_COMPRESS);
                 qemu_put_byte(f, *p);
                 bytes_sent = 1;
             } else {
-                qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_PAGE);
-                if (!cont) {
-                    qemu_put_byte(f, strlen(block->idstr));
-                    qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                    strlen(block->idstr));
-                }
+                save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
                 bytes_sent = TARGET_PAGE_SIZE;
             }
@@ -228,20 +238,7 @@ static uint64_t bytes_transferred;
 
 static ram_addr_t ram_save_remaining(void)
 {
-    RAMBlock *block;
-    ram_addr_t count = 0;
-
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
-        ram_addr_t addr;
-        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-            if (memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
-                                        DIRTY_MEMORY_MIGRATION)) {
-                count++;
-            }
-        }
-    }
-
-    return count;
+    return ram_list.dirty_pages;
 }
 
 uint64_t ram_bytes_remaining(void)
@@ -294,16 +291,23 @@ static void sort_ram_list(void)
     g_free(blocks);
 }
 
+static void migration_end(void)
+{
+    memory_global_dirty_log_stop();
+}
+
+#define MAX_WAIT 50 /* ms, half buffered_file limit */
+
 int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
     uint64_t bytes_transferred_last;
     double bwidth = 0;
-    uint64_t expected_time = 0;
     int ret;
+    int i;
 
     if (stage < 0) {
-        memory_global_dirty_log_stop();
+        migration_end();
         return 0;
     }
 
@@ -340,6 +344,7 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
 
+    i = 0;
     while ((ret = qemu_file_rate_limit(f)) == 0) {
         int bytes_sent;
 
@@ -348,6 +353,20 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
         if (bytes_sent == 0) { /* no more blocks */
             break;
         }
+        /* we want to check in the 1st loop, just in case it was the 1st time
+           and we had to sync the dirty bitmap.
+           qemu_get_clock_ns() is a bit expensive, so we only check each some
+           iterations
+        */
+        if ((i & 63) == 0) {
+            uint64_t t1 = (qemu_get_clock_ns(rt_clock) - bwidth) / 1000000;
+            if (t1 > MAX_WAIT) {
+                DPRINTF("big wait: " PRIu64 " milliseconds, %d iterations\n",
+                        t1, i);
+                break;
+            }
+        }
+        i++;
     }
 
     if (ret < 0) {
@@ -376,9 +395,16 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-    expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+    if (stage == 2) {
+        uint64_t expected_time;
+        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
-    return (stage == 2) && (expected_time <= migrate_max_downtime());
+        DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
+                expected_time, migrate_max_downtime());
+
+        return expected_time <= migrate_max_downtime();
+    }
+    return 0;
 }
 
 static inline void *host_from_stream_offset(QEMUFile *f,
@@ -414,8 +440,11 @@ static inline void *host_from_stream_offset(QEMUFile *f,
 int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
-    int flags;
+    int flags, ret = 0;
     int error;
+    static uint64_t seq_iter;
+
+    seq_iter++;
 
     if (version_id < 4 || version_id > 4) {
         return -EINVAL;
@@ -445,8 +474,10 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
 
                     QLIST_FOREACH(block, &ram_list.blocks, next) {
                         if (!strncmp(id, block->idstr, sizeof(id))) {
-                            if (block->length != length)
-                                return -EINVAL;
+                            if (block->length != length) {
+                                ret =  -EINVAL;
+                                goto done;
+                            }
                             break;
                         }
                     }
@@ -454,7 +485,8 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
                     if (!block) {
                         fprintf(stderr, "Unknown ramblock \"%s\", cannot "
                                 "accept migration\n", id);
-                        return -EINVAL;
+                        ret = -EINVAL;
+                        goto done;
                     }
 
                     total_ram_bytes -= length;
@@ -483,16 +515,23 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
             void *host;
 
             host = host_from_stream_offset(f, addr, flags);
+            if (!host) {
+                return -EINVAL;
+            }
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         }
         error = qemu_file_get_error(f);
         if (error) {
-            return error;
+            ret = error;
+            goto done;
         }
     } while (!(flags & RAM_SAVE_FLAG_EOS));
 
-    return 0;
+done:
+    DPRINTF("Completed load of VM with exit code %d seq iteration " PRIu64 "\n",
+            ret, seq_iter);
+    return ret;
 }
 
 #ifdef HAS_AUDIO

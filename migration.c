@@ -131,6 +131,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->transferred = ram_bytes_transferred();
         info->ram->remaining = ram_bytes_remaining();
         info->ram->total = ram_bytes_total();
+        info->ram->total_time = qemu_get_clock_ms(rt_clock)
+            - s->total_time;
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -143,6 +145,13 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     case MIG_STATE_COMPLETED:
         info->has_status = true;
         info->status = g_strdup("completed");
+
+        info->has_ram = true;
+        info->ram = g_malloc0(sizeof(*info->ram));
+        info->ram->transferred = ram_bytes_transferred();
+        info->ram->remaining = 0;
+        info->ram->total = ram_bytes_total();
+        info->ram->total_time = s->total_time;
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;
@@ -260,6 +269,7 @@ static void migrate_fd_put_ready(void *opaque)
         } else {
             migrate_fd_completed(s);
         }
+        s->total_time = qemu_get_clock_ms(rt_clock) - s->total_time;
         if (s->state != MIG_STATE_COMPLETED) {
             if (old_vm_running) {
                 vm_start();
@@ -352,7 +362,7 @@ void migrate_fd_connect(MigrationState *s)
                                       migrate_fd_close);
 
     DPRINTF("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->file, s->blk, s->shared);
+    ret = qemu_savevm_state_begin(s->file, &s->params);
     if (ret < 0) {
         DPRINTF("failed, %d\n", ret);
         migrate_fd_error(s);
@@ -361,18 +371,18 @@ void migrate_fd_connect(MigrationState *s)
     migrate_fd_put_ready(s);
 }
 
-static MigrationState *migrate_init(int blk, int inc)
+static MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
     int64_t bandwidth_limit = s->bandwidth_limit;
 
     memset(s, 0, sizeof(*s));
     s->bandwidth_limit = bandwidth_limit;
-    s->blk = blk;
-    s->shared = inc;
+    s->params = *params;
 
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;
+    s->total_time = qemu_get_clock_ms(rt_clock);
 
     return s;
 }
@@ -394,8 +404,12 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  Error **errp)
 {
     MigrationState *s = migrate_get_current();
+    MigrationParams params;
     const char *p;
     int ret;
+
+    params.blk = blk;
+    params.shared = inc;
 
     if (s->state == MIG_STATE_ACTIVE) {
         error_set(errp, QERR_MIGRATION_ACTIVE);
@@ -411,7 +425,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
-    s = migrate_init(blk, inc);
+    s = migrate_init(&params);
 
     if (strstart(uri, "tcp:", &p)) {
         ret = tcp_start_outgoing_migration(s, p, errp);

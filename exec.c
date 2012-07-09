@@ -1824,19 +1824,10 @@ void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr)
             TB_JMP_PAGE_SIZE * sizeof(TranslationBlock *));
 }
 
-/* Note: start and end must be within the same ram block.  */
-void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
-                                     int dirty_flags)
+static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
+                                      uintptr_t length)
 {
-    uintptr_t length, start1;
-
-    start &= TARGET_PAGE_MASK;
-    end = TARGET_PAGE_ALIGN(end);
-
-    length = end - start;
-    if (length == 0)
-        return;
-    cpu_physical_memory_mask_dirty_range(start, length, dirty_flags);
+    uintptr_t start1;
 
     /* we modify the TLB cache so that the dirty bit will be set again
        when accessing the range */
@@ -1848,6 +1839,26 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
         abort();
     }
     cpu_tlb_reset_dirty_all(start1, length);
+
+}
+
+/* Note: start and end must be within the same ram block.  */
+void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
+                                     int dirty_flags)
+{
+    uintptr_t length;
+
+    start &= TARGET_PAGE_MASK;
+    end = TARGET_PAGE_ALIGN(end);
+
+    length = end - start;
+    if (length == 0)
+        return;
+    cpu_physical_memory_mask_dirty_range(start, length, dirty_flags);
+
+    if (tcg_enabled()) {
+        tlb_reset_dirty_range_all(start, end, length);
+    }
 }
 
 int cpu_physical_memory_set_dirty_tracking(int enable)
@@ -2554,8 +2565,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
-    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
-           0xff, size >> TARGET_PAGE_BITS);
+    cpu_physical_memory_set_dirty_range(new_block->offset, size, 0xff);
 
     if (kvm_enabled())
         kvm_setup_guest_memory(new_block->host, size);
