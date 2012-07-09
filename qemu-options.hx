@@ -1421,8 +1421,28 @@ Then when you use on the host @code{telnet localhost 5555}, you
 connect to the guest telnet server.
 
 @item guestfwd=[tcp]:@var{server}:@var{port}-@var{dev}
+@item guestfwd=[tcp]:@var{server}:@var{port}-@var{cmd:command}
 Forward guest TCP connections to the IP address @var{server} on port @var{port}
-to the character device @var{dev}. This option can be given multiple times.
+to the character device @var{dev} or to a program executed by @var{cmd:command}
+which gets spawned for each connection. This option can be given multiple times.
+
+You can either use a chardev directly and have that one used throughout Qemu's
+lifetime, like in the following example:
+
+@example
+# open 10.10.1.1:4321 on bootup, connect 10.0.2.100:1234 to it whenever
+# the guest accesses it
+qemu -net user,guestfwd=tcp:10.0.2.100:1234-tcp:10.10.1.1:4321 [...]
+@end example
+
+Or you can execute a command on every TCP connection established by the guest,
+so that Qemu behaves similar to an inetd process for that virtual server:
+
+@example
+# call "netcat 10.10.1.1 4321" on every TCP connection to 10.0.2.100:1234
+# and connect the TCP stream to its stdin/stdout
+qemu -net 'user,guestfwd=tcp:10.0.2.100:1234-cmd:netcat 10.10.1.1 4321'
+@end example
 
 @end table
 
