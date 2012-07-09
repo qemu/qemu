@@ -363,9 +363,6 @@ static void apic_update_irq(APICCommonState *s)
     }
     if (apic_irq_pending(s) > 0) {
         cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
-    } else if (apic_accept_pic_intr(&s->busdev.qdev) &&
-               pic_get_output(isa_pic)) {
-        apic_deliver_pic_intr(&s->busdev.qdev, 1);
     }
 }
 
@@ -560,7 +557,14 @@ int apic_get_interrupt(DeviceState *d)
     reset_bit(s->irr, intno);
     set_bit(s->isr, intno);
     apic_sync_vapic(s, SYNC_TO_VAPIC);
+
+    /* re-inject if there is still a pending PIC interrupt */
+    if (apic_accept_pic_intr(&s->busdev.qdev) && pic_get_output(isa_pic)) {
+        apic_deliver_pic_intr(&s->busdev.qdev, 1);
+    }
+
     apic_update_irq(s);
+
     return intno;
 }
 
