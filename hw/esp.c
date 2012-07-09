@@ -113,6 +113,7 @@ struct ESPState {
 #define CMD_MSGACC   0x12
 #define CMD_PAD      0x18
 #define CMD_SATN     0x1a
+#define CMD_RSTATN   0x1b
 #define CMD_SEL      0x41
 #define CMD_SELATN   0x42
 #define CMD_SELATNS  0x43
@@ -633,6 +634,9 @@ static void esp_mem_write(void *opaque, target_phys_addr_t addr,
             break;
         case CMD_SATN:
             trace_esp_mem_writeb_cmd_satn(val);
+            break;
+        case CMD_RSTATN:
+            trace_esp_mem_writeb_cmd_rstatn(val);
             break;
         case CMD_SEL:
             trace_esp_mem_writeb_cmd_sel(val);

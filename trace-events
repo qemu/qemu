@@ -751,6 +751,7 @@ esp_mem_writeb_cmd_iccs(uint32_t val) "Initiator Command Complete Sequence (%2.2
 esp_mem_writeb_cmd_msgacc(uint32_t val) "Message Accepted (%2.2x)"
 esp_mem_writeb_cmd_pad(uint32_t val) "Transfer padding (%2.2x)"
 esp_mem_writeb_cmd_satn(uint32_t val) "Set ATN (%2.2x)"
+esp_mem_writeb_cmd_rstatn(uint32_t val) "Reset ATN (%2.2x)"
 esp_mem_writeb_cmd_sel(uint32_t val) "Select without ATN (%2.2x)"
 esp_mem_writeb_cmd_selatn(uint32_t val) "Select with ATN (%2.2x)"
 esp_mem_writeb_cmd_selatns(uint32_t val) "Select with ATN & stop (%2.2x)"
