@@ -532,6 +532,15 @@ static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
     apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, trigger_mode);
 }
 
+static bool apic_check_pic(APICCommonState *s)
+{
+    if (!apic_accept_pic_intr(&s->busdev.qdev) || !pic_get_output(isa_pic)) {
+        return false;
+    }
+    apic_deliver_pic_intr(&s->busdev.qdev, 1);
+    return true;
+}
+
 int apic_get_interrupt(DeviceState *d)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
@@ -559,9 +568,7 @@ int apic_get_interrupt(DeviceState *d)
     apic_sync_vapic(s, SYNC_TO_VAPIC);
 
     /* re-inject if there is still a pending PIC interrupt */
-    if (apic_accept_pic_intr(&s->busdev.qdev) && pic_get_output(isa_pic)) {
-        apic_deliver_pic_intr(&s->busdev.qdev, 1);
-    }
+    apic_check_pic(s);
 
     apic_update_irq(s);
 
@@ -804,8 +811,11 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         {
             int n = index - 0x32;
             s->lvt[n] = val;
-            if (n == APIC_LVT_TIMER)
+            if (n == APIC_LVT_TIMER) {
                 apic_timer_update(s, qemu_get_clock_ns(vm_clock));
+            } else if (n == APIC_LVT_LINT0 && apic_check_pic(s)) {
+                apic_update_irq(s);
+            }
         }
         break;
     case 0x38:
