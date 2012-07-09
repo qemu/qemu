@@ -67,6 +67,7 @@ struct SCSIDiskState
     bool media_changed;
     bool media_event;
     bool eject_request;
+    uint64_t wwn;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -522,6 +523,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int buflen = 0;
+    int start;
 
     if (req->cmd.buf[1] & 0x1) {
         /* Vital product data */
@@ -530,14 +532,14 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         outbuf[buflen++] = s->qdev.type & 0x1f;
         outbuf[buflen++] = page_code ; // this page
         outbuf[buflen++] = 0x00;
+        outbuf[buflen++] = 0x00;
+        start = buflen;
 
         switch (page_code) {
         case 0x00: /* Supported page codes, mandatory */
         {
-            int pages;
             DPRINTF("Inquiry EVPD[Supported pages] "
                     "buffer size %zd\n", req->cmd.xfer);
-            pages = buflen++;
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
             if (s->serial) {
                 outbuf[buflen++] = 0x80; // unit serial number
@@ -547,7 +549,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                 outbuf[buflen++] = 0xb0; // block limits
                 outbuf[buflen++] = 0xb2; // thin provisioning
             }
-            outbuf[pages] = buflen - pages - 1; // number of pages
             break;
         }
         case 0x80: /* Device serial number, optional */
@@ -566,7 +567,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
             DPRINTF("Inquiry EVPD[Serial number] "
                     "buffer size %zd\n", req->cmd.xfer);
-            outbuf[buflen++] = l;
             memcpy(outbuf+buflen, s->serial, l);
             buflen += l;
             break;
@@ -584,14 +584,21 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             DPRINTF("Inquiry EVPD[Device identification] "
                     "buffer size %zd\n", req->cmd.xfer);
 
-            outbuf[buflen++] = 4 + id_len;
             outbuf[buflen++] = 0x2; // ASCII
             outbuf[buflen++] = 0;   // not officially assigned
             outbuf[buflen++] = 0;   // reserved
             outbuf[buflen++] = id_len; // length of data following
-
             memcpy(outbuf+buflen, str, id_len);
             buflen += id_len;
+
+            if (s->wwn) {
+                outbuf[buflen++] = 0x1; // Binary
+                outbuf[buflen++] = 0x3; // NAA
+                outbuf[buflen++] = 0;   // reserved
+                outbuf[buflen++] = 8;
+                stq_be_p(&outbuf[buflen], s->wwn);
+                buflen += 8;
+            }
             break;
         }
         case 0xb0: /* block limits */
@@ -609,8 +616,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                 return -1;
             }
             /* required VPD size with unmap support */
-            outbuf[3] = buflen = 0x3c;
-
+            buflen = 0x40;
             memset(outbuf + 4, 0, buflen - 4);
 
             /* optimal transfer length granularity */
@@ -632,7 +638,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         }
         case 0xb2: /* thin provisioning */
         {
-            outbuf[3] = buflen = 8;
+            buflen = 8;
             outbuf[4] = 0;
             outbuf[5] = 0x60; /* write_same 10/16 supported */
             outbuf[6] = s->qdev.conf.discard_granularity ? 2 : 1;
@@ -643,6 +649,8 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             return -1;
         }
         /* done with EVPD */
+        assert(buflen - start <= 255);
+        outbuf[start - 1] = buflen - start;
         return buflen;
     }
 
@@ -714,6 +722,39 @@ static inline bool media_is_cd(SCSIDiskState *s)
     }
     bdrv_get_geometry(s->qdev.conf.bs, &nb_sectors);
     return nb_sectors <= CD_MAX_SECTORS;
+}
+
+static int scsi_read_disc_information(SCSIDiskState *s, SCSIDiskReq *r,
+                                      uint8_t *outbuf)
+{
+    uint8_t type = r->req.cmd.buf[1] & 7;
+
+    if (s->qdev.type != TYPE_ROM) {
+        return -1;
+    }
+
+    /* Types 1/2 are only defined for Blu-Ray.  */
+    if (type != 0) {
+        scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
+        return -1;
+    }
+
+    memset(outbuf, 0, 34);
+    outbuf[1] = 32;
+    outbuf[2] = 0xe; /* last session complete, disc finalized */
+    outbuf[3] = 1;   /* first track on disc */
+    outbuf[4] = 1;   /* # of sessions */
+    outbuf[5] = 1;   /* first track of last session */
+    outbuf[6] = 1;   /* last track of last session */
+    outbuf[7] = 0x20; /* unrestricted use */
+    outbuf[8] = 0x00; /* CD-ROM or DVD-ROM */
+    /* 9-10-11: most significant byte corresponding bytes 4-5-6 */
+    /* 12-23: not meaningful for CD-ROM or DVD-ROM */
+    /* 24-31: disc bar code */
+    /* 32: disc application code */
+    /* 33: number of OPC tables */
+
+    return 34;
 }
 
 static int scsi_read_dvd_structure(SCSIDiskState *s, SCSIDiskReq *r,
@@ -1355,6 +1396,12 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
             goto illegal_request;
         }
         break;
+    case READ_DISC_INFORMATION:
+        buflen = scsi_read_disc_information(s, r, outbuf);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
+        break;
     case READ_DVD_STRUCTURE:
         buflen = scsi_read_dvd_structure(s, r, outbuf);
         if (buflen < 0) {
@@ -1482,6 +1529,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case ALLOW_MEDIUM_REMOVAL:
     case READ_CAPACITY_10:
     case READ_TOC:
+    case READ_DISC_INFORMATION:
     case READ_DVD_STRUCTURE:
     case GET_CONFIGURATION:
     case GET_EVENT_STATUS_NOTIFICATION:
@@ -1925,6 +1973,7 @@ static Property scsi_hd_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
+    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1969,6 +2018,7 @@ static TypeInfo scsi_hd_info = {
 
 static Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
+    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2030,6 +2080,7 @@ static Property scsi_disk_properties[] = {
                     SCSI_DISK_F_REMOVABLE, false),
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
+    DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

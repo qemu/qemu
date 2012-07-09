@@ -35,6 +35,10 @@
 #include <iscsi/iscsi.h>
 #include <iscsi/scsi-lowlevel.h>
 
+#ifdef __linux__
+#include <scsi/sg.h>
+#include <hw/scsi-defs.h>
+#endif
 
 typedef struct IscsiLun {
     struct iscsi_context *iscsi;
@@ -56,6 +60,9 @@ typedef struct IscsiAIOCB {
     int canceled;
     size_t read_size;
     size_t read_offset;
+#ifdef __linux__
+    sg_io_hdr_t *ioh;
+#endif
 } IscsiAIOCB;
 
 struct IscsiTask {
@@ -515,6 +522,136 @@ iscsi_aio_discard(BlockDriverState *bs,
     return &acb->common;
 }
 
+#ifdef __linux__
+static void
+iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
+                     void *command_data, void *opaque)
+{
+    IscsiAIOCB *acb = opaque;
+
+    if (acb->canceled != 0) {
+        qemu_aio_release(acb);
+        scsi_free_scsi_task(acb->task);
+        acb->task = NULL;
+        return;
+    }
+
+    acb->status = 0;
+    if (status < 0) {
+        error_report("Failed to ioctl(SG_IO) to iSCSI lun. %s",
+                     iscsi_get_error(iscsi));
+        acb->status = -EIO;
+    }
+
+    acb->ioh->driver_status = 0;
+    acb->ioh->host_status   = 0;
+    acb->ioh->resid         = 0;
+
+#define SG_ERR_DRIVER_SENSE    0x08
+
+    if (status == SCSI_STATUS_CHECK_CONDITION && acb->task->datain.size >= 2) {
+        int ss;
+
+        acb->ioh->driver_status |= SG_ERR_DRIVER_SENSE;
+
+        acb->ioh->sb_len_wr = acb->task->datain.size - 2;
+        ss = (acb->ioh->mx_sb_len >= acb->ioh->sb_len_wr) ?
+             acb->ioh->mx_sb_len : acb->ioh->sb_len_wr;
+        memcpy(acb->ioh->sbp, &acb->task->datain.data[2], ss);
+    }
+
+    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    scsi_free_scsi_task(acb->task);
+    acb->task = NULL;
+}
+
+static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
+        unsigned long int req, void *buf,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    IscsiLun *iscsilun = bs->opaque;
+    struct iscsi_context *iscsi = iscsilun->iscsi;
+    struct iscsi_data data;
+    IscsiAIOCB *acb;
+
+    assert(req == SG_IO);
+
+    acb = qemu_aio_get(&iscsi_aio_pool, bs, cb, opaque);
+
+    acb->iscsilun = iscsilun;
+    acb->canceled    = 0;
+    acb->buf         = NULL;
+    acb->ioh         = buf;
+
+    acb->task = malloc(sizeof(struct scsi_task));
+    if (acb->task == NULL) {
+        error_report("iSCSI: Failed to allocate task for scsi command. %s",
+                     iscsi_get_error(iscsi));
+        qemu_aio_release(acb);
+        return NULL;
+    }
+    memset(acb->task, 0, sizeof(struct scsi_task));
+
+    switch (acb->ioh->dxfer_direction) {
+    case SG_DXFER_TO_DEV:
+        acb->task->xfer_dir = SCSI_XFER_WRITE;
+        break;
+    case SG_DXFER_FROM_DEV:
+        acb->task->xfer_dir = SCSI_XFER_READ;
+        break;
+    default:
+        acb->task->xfer_dir = SCSI_XFER_NONE;
+        break;
+    }
+
+    acb->task->cdb_size = acb->ioh->cmd_len;
+    memcpy(&acb->task->cdb[0], acb->ioh->cmdp, acb->ioh->cmd_len);
+    acb->task->expxferlen = acb->ioh->dxfer_len;
+
+    if (acb->task->xfer_dir == SCSI_XFER_WRITE) {
+        data.data = acb->ioh->dxferp;
+        data.size = acb->ioh->dxfer_len;
+    }
+    if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
+                                 iscsi_aio_ioctl_cb,
+                                 (acb->task->xfer_dir == SCSI_XFER_WRITE) ?
+                                     &data : NULL,
+                                 acb) != 0) {
+        scsi_free_scsi_task(acb->task);
+        qemu_aio_release(acb);
+        return NULL;
+    }
+
+    /* tell libiscsi to read straight into the buffer we got from ioctl */
+    if (acb->task->xfer_dir == SCSI_XFER_READ) {
+        scsi_task_add_data_in_buffer(acb->task,
+                                     acb->ioh->dxfer_len,
+                                     acb->ioh->dxferp);
+    }
+
+    iscsi_set_events(iscsilun);
+
+    return &acb->common;
+}
+
+static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+{
+    IscsiLun *iscsilun = bs->opaque;
+
+    switch (req) {
+    case SG_GET_VERSION_NUM:
+        *(int *)buf = 30000;
+        break;
+    case SG_GET_SCSI_ID:
+        ((struct sg_scsi_id *)buf)->scsi_type = iscsilun->type;
+        break;
+    default:
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 static int64_t
 iscsi_getlength(BlockDriverState *bs)
 {
@@ -885,6 +1022,16 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
     }
+
+    /* Medium changer or tape. We dont have any emulation for this so this must
+     * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
+     * to read from the device to guess the image format.
+     */
+    if (iscsilun->type == TYPE_MEDIUM_CHANGER ||
+        iscsilun->type == TYPE_TAPE) {
+        bs->sg = 1;
+    }
+
     return 0;
 
 failed:
@@ -926,6 +1073,11 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_aio_flush  = iscsi_aio_flush,
 
     .bdrv_aio_discard = iscsi_aio_discard,
+
+#ifdef __linux__
+    .bdrv_ioctl       = iscsi_ioctl,
+    .bdrv_aio_ioctl   = iscsi_aio_ioctl,
+#endif
 };
 
 static void iscsi_block_init(void)
