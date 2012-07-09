@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
+#include "qemu-thread.h"
 #include "apic_internal.h"
 #include "apic.h"
 #include "ioapic.h"
@@ -361,7 +362,9 @@ static void apic_update_irq(APICCommonState *s)
     if (!(s->spurious_vec & APIC_SV_ENABLE)) {
         return;
     }
-    if (apic_irq_pending(s) > 0) {
+    if (!qemu_cpu_is_self(s->cpu_env)) {
+        cpu_interrupt(s->cpu_env, CPU_INTERRUPT_POLL);
+    } else if (apic_irq_pending(s) > 0) {
         cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
     }
 }

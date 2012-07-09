@@ -1732,6 +1732,10 @@ int kvm_arch_process_async_events(CPUX86State *env)
         return 0;
     }
 
+    if (env->interrupt_request & CPU_INTERRUPT_POLL) {
+        env->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        apic_poll_irq(env->apic_state);
+    }
     if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
         (env->interrupt_request & CPU_INTERRUPT_NMI)) {
