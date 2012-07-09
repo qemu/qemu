@@ -186,7 +186,7 @@ static void esp_dma_enable(void *opaque, int irq, int level)
 
 static void esp_request_cancelled(SCSIRequest *req)
 {
-    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+    ESPState *s = req->hba_private;
 
     if (req == s->current_req) {
         scsi_req_unref(s->current_req);
@@ -242,7 +242,7 @@ static void do_busid_cmd(ESPState *s, uint8_t *buf, uint8_t busid)
     trace_esp_do_busid_cmd(busid);
     lun = busid & 7;
     current_lun = scsi_device_find(&s->bus, 0, s->current_dev->id, lun);
-    s->current_req = scsi_req_new(current_lun, 0, lun, buf, NULL);
+    s->current_req = scsi_req_new(current_lun, 0, lun, buf, s);
     datalen = scsi_req_enqueue(s->current_req);
     s->ti_size = datalen;
     if (datalen != 0) {
@@ -396,7 +396,7 @@ static void esp_do_dma(ESPState *s)
 static void esp_command_complete(SCSIRequest *req, uint32_t status,
                                  size_t resid)
 {
-    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+    ESPState *s = req->hba_private;
 
     trace_esp_command_complete();
     if (s->ti_size != 0) {
@@ -420,7 +420,7 @@ static void esp_command_complete(SCSIRequest *req, uint32_t status,
 
 static void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
-    ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
+    ESPState *s = req->hba_private;
 
     trace_esp_transfer_data(s->dma_left, s->ti_size);
     s->async_len = len;
