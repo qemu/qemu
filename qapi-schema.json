@@ -260,10 +260,15 @@
 #
 # @total: total amount of bytes involved in the migration process
 #
+# @total_time: tota0l amount of ms since migration started.  If
+#        migration has ended, it returns the total migration
+#        time. (since 1.2)
+#
 # Since: 0.14.0.
 ##
 { 'type': 'MigrationStats',
-  'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' } }
+  'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
+           'total_time': 'int' } }
 
 ##
 # @MigrationInfo
@@ -275,8 +280,9 @@
 #          'cancelled'. If this field is not returned, no migration process
 #          has been initiated
 #
-# @ram: #optional @MigrationStats containing detailed migration status,
-#       only returned if status is 'active'
+# @ram: #optional @MigrationStats containing detailed migration
+#       status, only returned if status is 'active' or
+#       'completed'. 'comppleted' (since 1.2)
 #
 # @disk: #optional @MigrationStats containing detailed disk migration
 #        status, only returned if status is 'active' and it is a block

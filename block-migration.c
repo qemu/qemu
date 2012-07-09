@@ -700,13 +700,13 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void block_set_params(int blk_enable, int shared_base, void *opaque)
+static void block_set_params(const MigrationParams *params, void *opaque)
 {
-    block_mig_state.blk_enable = blk_enable;
-    block_mig_state.shared_base = shared_base;
+    block_mig_state.blk_enable = params->blk;
+    block_mig_state.shared_base = params->shared;
 
     /* shared base means that blk_enable = 1 */
-    block_mig_state.blk_enable |= shared_base;
+    block_mig_state.blk_enable |= params->shared;
 }
 
 void blk_mig_init(void)

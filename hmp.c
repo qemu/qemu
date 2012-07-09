@@ -145,6 +145,8 @@ void hmp_info_migrate(Monitor *mon)
                        info->ram->remaining >> 10);
         monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n",
                        info->ram->total >> 10);
+        monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
+                       info->ram->total_time);
     }
 
     if (info->has_disk) {

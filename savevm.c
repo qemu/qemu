@@ -85,6 +85,7 @@
 #include "cpus.h"
 #include "memory.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -1561,7 +1562,8 @@ bool qemu_savevm_state_blocked(Error **errp)
     return false;
 }
 
-int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
+int qemu_savevm_state_begin(QEMUFile *f,
+                            const MigrationParams *params)
 {
     SaveStateEntry *se;
     int ret;
@@ -1569,8 +1571,8 @@ int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if(se->set_params == NULL) {
             continue;
-	}
-	se->set_params(blk_enable, shared, se->opaque);
+        }
+        se->set_params(params, se->opaque);
     }
 
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
@@ -1624,11 +1626,17 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         if (se->save_live_state == NULL)
             continue;
 
+        if (qemu_file_rate_limit(f)) {
+            return 0;
+        }
+        trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
         ret = se->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
+        trace_savevm_section_end(se->section_id);
+
         if (ret <= 0) {
             /* Do not proceed to the next vmstate before this one reported
                completion of the current stage. This serializes the migration
@@ -1658,11 +1666,13 @@ int qemu_savevm_state_complete(QEMUFile *f)
         if (se->save_live_state == NULL)
             continue;
 
+        trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
         ret = se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
+        trace_savevm_section_end(se->section_id);
         if (ret < 0) {
             return ret;
         }
@@ -1674,6 +1684,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
 	if (se->save_state == NULL && se->vmsd == NULL)
 	    continue;
 
+        trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_FULL);
         qemu_put_be32(f, se->section_id);
@@ -1687,6 +1698,7 @@ int qemu_savevm_state_complete(QEMUFile *f)
         qemu_put_be32(f, se->version_id);
 
         vmstate_save(f, se);
+        trace_savevm_section_end(se->section_id);
     }
 
     qemu_put_byte(f, QEMU_VM_EOF);
@@ -1708,13 +1720,17 @@ void qemu_savevm_state_cancel(QEMUFile *f)
 static int qemu_savevm_state(QEMUFile *f)
 {
     int ret;
+    MigrationParams params = {
+        .blk = 0,
+        .shared = 0
+    };
 
     if (qemu_savevm_state_blocked(NULL)) {
         ret = -EINVAL;
         goto out;
     }
 
-    ret = qemu_savevm_state_begin(f, 0, 0);
+    ret = qemu_savevm_state_begin(f, &params);
     if (ret < 0)
         goto out;
 
