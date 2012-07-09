@@ -15,6 +15,7 @@
 
 #define PCI_CLASS_STORAGE_SCSI           0x0100
 #define PCI_CLASS_STORAGE_IDE            0x0101
+#define PCI_CLASS_STORAGE_RAID           0x0104
 #define PCI_CLASS_STORAGE_SATA           0x0106
 #define PCI_CLASS_STORAGE_OTHER          0x0180
 
@@ -48,6 +49,7 @@
 
 #define PCI_VENDOR_ID_LSI_LOGIC          0x1000
 #define PCI_DEVICE_ID_LSI_53C895A        0x0012
+#define PCI_DEVICE_ID_LSI_SAS1078        0x0060
 
 #define PCI_VENDOR_ID_NS                 0x100b
 #define PCI_DEVICE_ID_NS_83815           0x0020

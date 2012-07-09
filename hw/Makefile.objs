@@ -99,6 +99,7 @@ hw-obj-$(CONFIG_VLYNQ) += tnetw1130-vlynq.o
 
 # SCSI layer
 hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
+hw-obj-$(CONFIG_MEGASAS_SCSI_PCI) += megasas.o
 hw-obj-$(CONFIG_ESP) += esp.o
 
 hw-obj-y += sysbus.o isa-bus.o

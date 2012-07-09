@@ -142,7 +142,7 @@ static uint8_t send_read_command(void)
     }
 
     st0 = floppy_recv();
-    if (st0 != 0x40) {
+    if (st0 != 0x60) {
         ret = 1;
     }
 
@@ -156,19 +156,16 @@ static uint8_t send_read_command(void)
     return ret;
 }
 
-static void send_step_pulse(void)
+static void send_step_pulse(int cyl)
 {
     int drive = 0;
     int head = 0;
-    static int cyl = 0;
 
     floppy_send(CMD_SEEK);
     floppy_send(head << 2 | drive);
     g_assert(!get_irq(FLOPPY_IRQ));
     floppy_send(cyl);
     ack_irq();
-
-    cyl = (cyl + 1) % 4;
 }
 
 static uint8_t cmos_read(uint8_t reg)
@@ -195,8 +192,7 @@ static void test_no_media_on_start(void)
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    send_step_pulse();
-    send_step_pulse();
+    send_step_pulse(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -227,7 +223,14 @@ static void test_media_change(void)
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse();
+    send_step_pulse(0);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+
+    /* Step to next track should clear DSKCHG bit. */
+    send_step_pulse(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -243,11 +246,39 @@ static void test_media_change(void)
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse();
+    send_step_pulse(0);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
+
+    send_step_pulse(1);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+    dir = inb(FLOPPY_BASE + reg_dir);
+    assert_bit_set(dir, DSKCHG);
+}
+
+static void test_sense_interrupt(void)
+{
+    int drive = 0;
+    int head = 0;
+    int cyl = 0;
+    int ret = 0;
+
+    floppy_send(CMD_SENSE_INT);
+    ret = floppy_recv();
+    g_assert(ret == 0x80);
+
+    floppy_send(CMD_SEEK);
+    floppy_send(head << 2 | drive);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    floppy_send(cyl);
+
+    floppy_send(CMD_SENSE_INT);
+    ret = floppy_recv();
+    g_assert(ret == 0x20);
+    floppy_recv();
 }
 
 /* success if no crash or abort */
@@ -297,6 +328,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/no_media_on_start", test_no_media_on_start);
     qtest_add_func("/fdc/read_without_media", test_read_without_media);
     qtest_add_func("/fdc/media_change", test_media_change);
+    qtest_add_func("/fdc/sense_interrupt", test_sense_interrupt);
     qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
 
     ret = g_test_run();

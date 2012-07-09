@@ -400,12 +400,6 @@ static int scsi_generic_initfn(SCSIDevice *s)
         return -1;
     }
 
-    /* check we are really using a /dev/sg* file */
-    if (!bdrv_is_sg(s->conf.bs)) {
-        error_report("not /dev/sg*");
-        return -1;
-    }
-
     if (bdrv_get_on_error(s->conf.bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
         error_report("Device doesn't support drive option werror");
         return -1;
@@ -416,8 +410,11 @@ static int scsi_generic_initfn(SCSIDevice *s)
     }
 
     /* check we are using a driver managing SG_IO (version 3 and after */
-    if (bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
-        sg_version < 30000) {
+    if (bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0) {
+        error_report("scsi generic interface not supported");
+        return -1;
+    }
+    if (sg_version < 30000) {
         error_report("scsi generic interface too old");
         return -1;
     }

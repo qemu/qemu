@@ -213,7 +213,7 @@ static int is_iso_started(USBHostDevice *s, int pid, int ep)
 
 static void clear_iso_started(USBHostDevice *s, int pid, int ep)
 {
-    trace_usb_host_ep_stop_iso(s->bus_num, s->addr, ep);
+    trace_usb_host_iso_stop(s->bus_num, s->addr, ep);
     get_endp(s, pid, ep)->iso_started = 0;
 }
 
@@ -221,7 +221,7 @@ static void set_iso_started(USBHostDevice *s, int pid, int ep)
 {
     struct endp_data *e = get_endp(s, pid, ep);
 
-    trace_usb_host_ep_start_iso(s->bus_num, s->addr, ep);
+    trace_usb_host_iso_start(s->bus_num, s->addr, ep);
     if (!e->iso_started) {
         e->iso_started = 1;
         e->inflight = 0;
@@ -319,7 +319,8 @@ static void async_complete(void *opaque)
         if (r < 0) {
             if (errno == EAGAIN) {
                 if (urbs > 2) {
-                    fprintf(stderr, "husb: %d iso urbs finished at once\n", urbs);
+                    /* indicates possible latency issues */
+                    trace_usb_host_iso_many_urbs(s->bus_num, s->addr, urbs);
                 }
                 return;
             }
@@ -352,7 +353,8 @@ static void async_complete(void *opaque)
             urbs++;
             inflight = change_iso_inflight(s, pid, ep, -1);
             if (inflight == 0 && is_iso_started(s, pid, ep)) {
-                fprintf(stderr, "husb: out of buffers for iso stream\n");
+                /* can be latency issues, or simply end of stream */
+                trace_usb_host_iso_out_of_bufs(s->bus_num, s->addr, ep);
             }
             continue;
         }
@@ -1136,7 +1138,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     USBDescriptor *d;
     bool active = false;
 
-    usb_ep_init(&s->dev);
+    usb_ep_reset(&s->dev);
 
     for (i = 0;; i += d->bLength) {
         if (i+2 >= s->descr_len) {
@@ -1239,7 +1241,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     return 0;
 
 error:
-    usb_ep_init(&s->dev);
+    usb_ep_reset(&s->dev);
     return 1;
 }
 
@@ -1326,6 +1328,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
         goto fail;
     }
 
+    usb_ep_init(&dev->dev);
     ret = usb_linux_update_endp_table(dev);
     if (ret) {
         goto fail;
