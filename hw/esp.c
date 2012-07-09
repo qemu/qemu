@@ -117,6 +117,7 @@ struct ESPState {
 #define CMD_SELATN   0x42
 #define CMD_SELATNS  0x43
 #define CMD_ENSEL    0x44
+#define CMD_DISSEL   0x45
 
 #define STAT_DO 0x00
 #define STAT_DI 0x01
@@ -648,6 +649,11 @@ static void esp_mem_write(void *opaque, target_phys_addr_t addr,
         case CMD_ENSEL:
             trace_esp_mem_writeb_cmd_ensel(val);
             s->rregs[ESP_RINTR] = 0;
+            break;
+        case CMD_DISSEL:
+            trace_esp_mem_writeb_cmd_dissel(val);
+            s->rregs[ESP_RINTR] = 0;
+            esp_raise_irq(s);
             break;
         default:
             ESP_ERROR("Unhandled ESP command (%2.2x)\n", (unsigned)val);
