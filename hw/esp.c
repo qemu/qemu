@@ -26,6 +26,7 @@
 #include "scsi.h"
 #include "esp.h"
 #include "trace.h"
+#include "qemu-log.h"
 
 /*
  * On Sparc32, this is the ESP (NCR53C90) part of chip STP2000 (Master I/O),
@@ -34,9 +35,6 @@
  * and
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR53C9X.txt
  */
-
-#define ESP_ERROR(fmt, ...)                                             \
-    do { printf("ESP ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 
 #define ESP_REGS 16
 #define TI_BUFSZ 16
@@ -503,7 +501,8 @@ static uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
             s->ti_size--;
             if ((s->rregs[ESP_RSTAT] & STAT_PIO_MASK) == 0) {
                 /* Data out.  */
-                ESP_ERROR("PIO data read not implemented\n");
+                qemu_log_mask(LOG_UNIMP,
+                              "esp: PIO data read not implemented\n");
                 s->rregs[ESP_FIFO] = 0;
             } else {
                 s->rregs[ESP_FIFO] = s->ti_buf[s->ti_rptr++];
@@ -543,7 +542,7 @@ static void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         if (s->do_cmd) {
             s->cmdbuf[s->cmdlen++] = val & 0xff;
         } else if (s->ti_size == TI_BUFSZ - 1) {
-            ESP_ERROR("fifo overrun\n");
+            trace_esp_error_fifo_overrun();
         } else {
             s->ti_size++;
             s->ti_buf[s->ti_wptr++] = val & 0xff;
@@ -631,7 +630,7 @@ static void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             esp_raise_irq(s);
             break;
         default:
-            ESP_ERROR("Unhandled ESP command (%2.2x)\n", (unsigned)val);
+            trace_esp_error_unhandled_command(val);
             break;
         }
         break;
@@ -646,7 +645,7 @@ static void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
         s->rregs[saddr] = val;
         break;
     default:
-        ESP_ERROR("invalid write of 0x%02x at [0x%x]\n", (unsigned)val, saddr);
+        trace_esp_error_invalid_write(val, saddr);
         return;
     }
     s->wregs[saddr] = val;

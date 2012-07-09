@@ -726,6 +726,9 @@ iscsi_aio_read16_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p 
 iscsi_aio_readv(void *iscsi, int64_t sector_num, int nb_sectors, void *opaque, void *acb) "iscsi %p sector_num %"PRId64" nb_sectors %d opaque %p acb %p"
 
 # hw/esp.c
+esp_error_fifo_overrun(void) "FIFO overrun"
+esp_error_unhandled_command(uint32_t val) "unhandled command (%2.2x)"
+esp_error_invalid_write(uint32_t val, uint32_t addr) "invalid write of 0x%02x at [0x%x]"
 esp_raise_irq(void) "Raise IRQ"
 esp_lower_irq(void) "Lower IRQ"
 esp_dma_enable(void) "Raise enable"
