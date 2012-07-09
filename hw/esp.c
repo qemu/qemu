@@ -270,7 +270,7 @@ static void handle_satn(ESPState *s)
     uint8_t buf[32];
     int len;
 
-    if (!s->dma_enabled) {
+    if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn;
         return;
     }
@@ -284,7 +284,7 @@ static void handle_s_without_atn(ESPState *s)
     uint8_t buf[32];
     int len;
 
-    if (!s->dma_enabled) {
+    if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_s_without_atn;
         return;
     }
@@ -296,7 +296,7 @@ static void handle_s_without_atn(ESPState *s)
 
 static void handle_satn_stop(ESPState *s)
 {
-    if (!s->dma_enabled) {
+    if (s->dma && !s->dma_enabled) {
         s->dma_cb = handle_satn_stop;
         return;
     }
