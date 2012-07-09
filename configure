@@ -1139,10 +1139,26 @@ else
     exit 1
 fi
 
+# Consult white-list to determine whether to enable werror
+# by default.  Only enable by default for git builds
+z_version=`cut -f3 -d. $source_path/VERSION`
+
+if test -z "$werror" ; then
+    if test "$z_version" = "50" -a \
+        "$linux" = "yes" ; then
+        werror="yes"
+    else
+        werror="no"
+    fi
+fi
+
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
+if test "$werror" = "yes" ; then
+    gcc_flags="-Werror $gcc_flags"
+fi
 cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
@@ -2573,7 +2589,7 @@ if test "$libiscsi" != "no" ; then
 #include <iscsi/iscsi.h>
 int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
-  if compile_prog "-Werror" "-liscsi" ; then
+  if compile_prog "" "-liscsi" ; then
     libiscsi="yes"
     LIBS="$LIBS -liscsi"
   else
@@ -2877,19 +2893,6 @@ if test "$debug" = "no" ; then
   CFLAGS="-O2 -D_FORTIFY_SOURCE=2 $CFLAGS"
 fi
 
-# Consult white-list to determine whether to enable werror
-# by default.  Only enable by default for git builds
-z_version=`cut -f3 -d. $source_path/VERSION`
-
-if test -z "$werror" ; then
-    if test "$z_version" = "50" -a \
-        "$linux" = "yes" ; then
-        werror="yes"
-    else
-        werror="no"
-    fi
-fi
-
 # Disable zero malloc errors for official releases unless explicitly told to
 # enable/disable
 if test -z "$zero_malloc" ; then
@@ -2898,10 +2901,6 @@ if test -z "$zero_malloc" ; then
     else
 	zero_malloc="yes"
     fi
-fi
-
-if test "$werror" = "yes" ; then
-    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 if test "$solaris" = "no" ; then
