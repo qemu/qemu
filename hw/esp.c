@@ -44,12 +44,9 @@
 typedef struct ESPState ESPState;
 
 struct ESPState {
-    SysBusDevice busdev;
-    MemoryRegion iomem;
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
     qemu_irq irq;
-    uint32_t it_shift;
     uint8_t chip_id;
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
@@ -166,11 +163,8 @@ static void esp_lower_irq(ESPState *s)
     }
 }
 
-static void esp_dma_enable(void *opaque, int irq, int level)
+static void esp_dma_enable(ESPState *s, int irq, int level)
 {
-    DeviceState *d = opaque;
-    ESPState *s = container_of(d, ESPState, busdev.qdev);
-
     if (level) {
         s->dma_enabled = 1;
         trace_esp_dma_enable();
@@ -470,10 +464,8 @@ static void handle_ti(ESPState *s)
     }
 }
 
-static void esp_hard_reset(DeviceState *d)
+static void esp_hard_reset(ESPState *s)
 {
-    ESPState *s = container_of(d, ESPState, busdev.qdev);
-
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
     s->rregs[ESP_TCHI] = s->chip_id;
@@ -487,40 +479,23 @@ static void esp_hard_reset(DeviceState *d)
     s->rregs[ESP_CFG1] = 7;
 }
 
-static void esp_soft_reset(DeviceState *d)
+static void esp_soft_reset(ESPState *s)
 {
-    ESPState *s = container_of(d, ESPState, busdev.qdev);
-
     qemu_irq_lower(s->irq);
-    esp_hard_reset(d);
+    esp_hard_reset(s);
 }
 
-static void parent_esp_reset(void *opaque, int irq, int level)
+static void parent_esp_reset(ESPState *s, int irq, int level)
 {
     if (level) {
-        esp_soft_reset(opaque);
+        esp_soft_reset(s);
     }
 }
 
-static void esp_gpio_demux(void *opaque, int irq, int level)
+static uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
 {
-    switch (irq) {
-    case 0:
-        parent_esp_reset(opaque, irq, level);
-        break;
-    case 1:
-        esp_dma_enable(opaque, irq, level);
-        break;
-    }
-}
+    uint32_t old_val;
 
-static uint64_t esp_mem_read(void *opaque, target_phys_addr_t addr,
-                             unsigned size)
-{
-    ESPState *s = opaque;
-    uint32_t saddr, old_val;
-
-    saddr = addr >> s->it_shift;
     trace_esp_mem_readb(saddr, s->rregs[saddr]);
     switch (saddr) {
     case ESP_FIFO:
@@ -556,13 +531,8 @@ static uint64_t esp_mem_read(void *opaque, target_phys_addr_t addr,
     return s->rregs[saddr];
 }
 
-static void esp_mem_write(void *opaque, target_phys_addr_t addr,
-                          uint64_t val, unsigned size)
+static void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
 {
-    ESPState *s = opaque;
-    uint32_t saddr;
-
-    saddr = addr >> s->it_shift;
     trace_esp_mem_writeb(saddr, s->wregs[saddr], val);
     switch (saddr) {
     case ESP_TCLO:
@@ -602,7 +572,7 @@ static void esp_mem_write(void *opaque, target_phys_addr_t addr,
             break;
         case CMD_RESET:
             trace_esp_mem_writeb_cmd_reset(val);
-            esp_soft_reset(&s->busdev.qdev);
+            esp_soft_reset(s);
             break;
         case CMD_BUSRESET:
             trace_esp_mem_writeb_cmd_bus_reset(val);
@@ -688,13 +658,6 @@ static bool esp_mem_accepts(void *opaque, target_phys_addr_t addr,
     return (size == 1) || (is_write && size == 4);
 }
 
-static const MemoryRegionOps esp_mem_ops = {
-    .read = esp_mem_read,
-    .write = esp_mem_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid.accepts = esp_mem_accepts,
-};
-
 static const VMStateDescription vmstate_esp = {
     .name ="esp",
     .version_id = 3,
@@ -717,6 +680,40 @@ static const VMStateDescription vmstate_esp = {
     }
 };
 
+typedef struct {
+    SysBusDevice busdev;
+    MemoryRegion iomem;
+    uint32_t it_shift;
+    ESPState esp;
+} SysBusESPState;
+
+static void sysbus_esp_mem_write(void *opaque, target_phys_addr_t addr,
+                                 uint64_t val, unsigned int size)
+{
+    SysBusESPState *sysbus = opaque;
+    uint32_t saddr;
+
+    saddr = addr >> sysbus->it_shift;
+    esp_reg_write(&sysbus->esp, saddr, val);
+}
+
+static uint64_t sysbus_esp_mem_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned int size)
+{
+    SysBusESPState *sysbus = opaque;
+    uint32_t saddr;
+
+    saddr = addr >> sysbus->it_shift;
+    return esp_reg_read(&sysbus->esp, saddr);
+}
+
+static const MemoryRegionOps sysbus_esp_mem_ops = {
+    .read = sysbus_esp_mem_read,
+    .write = sysbus_esp_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.accepts = esp_mem_accepts,
+};
+
 void esp_init(target_phys_addr_t espaddr, int it_shift,
               ESPDMAMemoryReadWriteFunc dma_memory_read,
               ESPDMAMemoryReadWriteFunc dma_memory_write,
@@ -725,14 +722,16 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
 {
     DeviceState *dev;
     SysBusDevice *s;
+    SysBusESPState *sysbus;
     ESPState *esp;
 
     dev = qdev_create(NULL, "esp");
-    esp = DO_UPCAST(ESPState, busdev.qdev, dev);
+    sysbus = DO_UPCAST(SysBusESPState, busdev.qdev, dev);
+    esp = &sysbus->esp;
     esp->dma_memory_read = dma_memory_read;
     esp->dma_memory_write = dma_memory_write;
     esp->dma_opaque = dma_opaque;
-    esp->it_shift = it_shift;
+    sysbus->it_shift = it_shift;
     /* XXX for now until rc4030 has been changed to use DMA enable signal */
     esp->dma_enabled = 1;
     qdev_init_nofail(dev);
@@ -753,49 +752,78 @@ static const struct SCSIBusInfo esp_scsi_info = {
     .cancel = esp_request_cancelled
 };
 
-static int esp_init1(SysBusDevice *dev)
+static void sysbus_esp_gpio_demux(void *opaque, int irq, int level)
 {
-    ESPState *s = FROM_SYSBUS(ESPState, dev);
+    DeviceState *d = opaque;
+    SysBusESPState *sysbus = container_of(d, SysBusESPState, busdev.qdev);
+    ESPState *s = &sysbus->esp;
+
+    switch (irq) {
+    case 0:
+        parent_esp_reset(s, irq, level);
+        break;
+    case 1:
+        esp_dma_enable(opaque, irq, level);
+        break;
+    }
+}
+
+static int sysbus_esp_init(SysBusDevice *dev)
+{
+    SysBusESPState *sysbus = FROM_SYSBUS(SysBusESPState, dev);
+    ESPState *s = &sysbus->esp;
 
     sysbus_init_irq(dev, &s->irq);
-    assert(s->it_shift != -1);
+    assert(sysbus->it_shift != -1);
 
     s->chip_id = TCHI_FAS100A;
-    memory_region_init_io(&s->iomem, &esp_mem_ops, s,
-                          "esp", ESP_REGS << s->it_shift);
-    sysbus_init_mmio(dev, &s->iomem);
+    memory_region_init_io(&sysbus->iomem, &sysbus_esp_mem_ops, sysbus,
+                          "esp", ESP_REGS << sysbus->it_shift);
+    sysbus_init_mmio(dev, &sysbus->iomem);
 
-    qdev_init_gpio_in(&dev->qdev, esp_gpio_demux, 2);
+    qdev_init_gpio_in(&dev->qdev, sysbus_esp_gpio_demux, 2);
 
     scsi_bus_new(&s->bus, &dev->qdev, &esp_scsi_info);
     return scsi_bus_legacy_handle_cmdline(&s->bus);
 }
 
-static Property esp_properties[] = {
-    {.name = NULL},
+static void sysbus_esp_hard_reset(DeviceState *dev)
+{
+    SysBusESPState *sysbus = DO_UPCAST(SysBusESPState, busdev.qdev, dev);
+    esp_hard_reset(&sysbus->esp);
+}
+
+static const VMStateDescription vmstate_sysbus_esp_scsi = {
+    .name = "sysbusespscsi",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(esp, SysBusESPState, 0, vmstate_esp, ESPState),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
-static void esp_class_init(ObjectClass *klass, void *data)
+static void sysbus_esp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = esp_init1;
-    dc->reset = esp_hard_reset;
-    dc->vmsd = &vmstate_esp;
-    dc->props = esp_properties;
+    k->init = sysbus_esp_init;
+    dc->reset = sysbus_esp_hard_reset;
+    dc->vmsd = &vmstate_sysbus_esp_scsi;
 }
 
-static TypeInfo esp_info = {
+static TypeInfo sysbus_esp_info = {
     .name          = "esp",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(ESPState),
-    .class_init    = esp_class_init,
+    .instance_size = sizeof(SysBusESPState),
+    .class_init    = sysbus_esp_class_init,
 };
 
 static void esp_register_types(void)
 {
-    type_register_static(&esp_info);
+    type_register_static(&sysbus_esp_info);
 }
 
 type_init(esp_register_types)
