@@ -40,6 +40,7 @@ struct QTestState
     bool irq_level[MAX_IRQ];
     GString *rx;
     gchar *pid_file;
+    char *socket_path, *qmp_socket_path;
 };
 
 #define g_assert_no_errno(ret) do { \
@@ -88,8 +89,6 @@ QTestState *qtest_init(const char *extra_args)
 {
     QTestState *s;
     int sock, qmpsock, ret, i;
-    gchar *socket_path;
-    gchar *qmp_socket_path;
     gchar *pid_file;
     gchar *command;
     const char *qemu_binary;
@@ -98,14 +97,14 @@ QTestState *qtest_init(const char *extra_args)
     qemu_binary = getenv("QTEST_QEMU_BINARY");
     g_assert(qemu_binary != NULL);
 
-    socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
-    qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
-    pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
-
     s = g_malloc(sizeof(*s));
 
-    sock = init_socket(socket_path);
-    qmpsock = init_socket(qmp_socket_path);
+    s->socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
+    s->qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
+    pid_file = g_strdup_printf("/tmp/qtest-%d.pid", getpid());
+
+    sock = init_socket(s->socket_path);
+    qmpsock = init_socket(s->qmp_socket_path);
 
     pid = fork();
     if (pid == 0) {
@@ -115,8 +114,8 @@ QTestState *qtest_init(const char *extra_args)
                                   "-qmp unix:%s,nowait "
                                   "-pidfile %s "
                                   "-machine accel=qtest "
-                                  "%s", qemu_binary, socket_path,
-                                  qmp_socket_path, pid_file,
+                                  "%s", qemu_binary, s->socket_path,
+                                  s->qmp_socket_path, pid_file,
                                   extra_args ?: "");
 
         ret = system(command);
@@ -132,9 +131,6 @@ QTestState *qtest_init(const char *extra_args)
     for (i = 0; i < MAX_IRQ; i++) {
         s->irq_level[i] = false;
     }
-
-    g_free(socket_path);
-    g_free(qmp_socket_path);
 
     /* Read the QMP greeting and then do the handshake */
     qtest_qmp(s, "");
@@ -160,6 +156,13 @@ void qtest_quit(QTestState *s)
 
         fclose(f);
     }
+
+    unlink(s->pid_file);
+    unlink(s->socket_path);
+    unlink(s->qmp_socket_path);
+    g_free(s->pid_file);
+    g_free(s->socket_path);
+    g_free(s->qmp_socket_path);
 }
 
 static void socket_sendf(int fd, const char *fmt, va_list ap)

@@ -748,7 +748,7 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     /* If the read straddles the end of the backing file, shorten it */
     size = MIN((uint64_t)backing_length - pos, qiov->size);
 
-    BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING);
+    BLKDBG_EVENT(s->bs->file, BLKDBG_READ_BACKING_AIO);
     bdrv_aio_readv(s->bs->backing_hd, pos / BDRV_SECTOR_SIZE,
                    qiov, size / BDRV_SECTOR_SIZE, cb, opaque);
 }

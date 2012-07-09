@@ -122,6 +122,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_make_anon(BlockDriverState *bs);
+void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
@@ -141,6 +142,8 @@ bool bdrv_dev_is_tray_open(BlockDriverState *bs);
 bool bdrv_dev_is_medium_locked(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
+int bdrv_read_unthrottled(BlockDriverState *bs, int64_t sector_num,
+                          uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors);
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
@@ -395,9 +398,7 @@ typedef enum {
     BLKDBG_L2_ALLOC_COW_READ,
     BLKDBG_L2_ALLOC_WRITE,
 
-    BLKDBG_READ,
     BLKDBG_READ_AIO,
-    BLKDBG_READ_BACKING,
     BLKDBG_READ_BACKING_AIO,
     BLKDBG_READ_COMPRESSED,
 
