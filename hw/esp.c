@@ -435,6 +435,11 @@ static void handle_ti(ESPState *s)
 {
     uint32_t dmalen, minlen;
 
+    if (s->dma && !s->dma_enabled) {
+        s->dma_cb = handle_ti;
+        return;
+    }
+
     dmalen = s->rregs[ESP_TCLO] | (s->rregs[ESP_TCMID] << 8);
     if (dmalen==0) {
       dmalen=0x10000;
