@@ -196,7 +196,7 @@ static void nbd_restart_write(void *opaque)
 }
 
 static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
-                               struct iovec *iov, int offset)
+                               QEMUIOVector *qiov, int offset)
 {
     int rc, ret;
 
@@ -205,8 +205,9 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
     qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write,
                             nbd_have_request, s);
     rc = nbd_send_request(s->sock, request);
-    if (rc >= 0 && iov) {
-        ret = qemu_co_sendv(s->sock, iov, request->len, offset);
+    if (rc >= 0 && qiov) {
+        ret = qemu_co_sendv(s->sock, qiov->iov, qiov->niov,
+                            offset, request->len);
         if (ret != request->len) {
             return -EIO;
         }
@@ -220,7 +221,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
 
 static void nbd_co_receive_reply(BDRVNBDState *s, struct nbd_request *request,
                                  struct nbd_reply *reply,
-                                 struct iovec *iov, int offset)
+                                 QEMUIOVector *qiov, int offset)
 {
     int ret;
 
@@ -231,8 +232,9 @@ static void nbd_co_receive_reply(BDRVNBDState *s, struct nbd_request *request,
     if (reply->handle != request->handle) {
         reply->error = EIO;
     } else {
-        if (iov && reply->error == 0) {
-            ret = qemu_co_recvv(s->sock, iov, request->len, offset);
+        if (qiov && reply->error == 0) {
+            ret = qemu_co_recvv(s->sock, qiov->iov, qiov->niov,
+                                offset, request->len);
             if (ret != request->len) {
                 reply->error = EIO;
             }
@@ -349,7 +351,7 @@ static int nbd_co_readv_1(BlockDriverState *bs, int64_t sector_num,
     if (ret < 0) {
         reply.error = -ret;
     } else {
-        nbd_co_receive_reply(s, &request, &reply, qiov->iov, offset);
+        nbd_co_receive_reply(s, &request, &reply, qiov, offset);
     }
     nbd_coroutine_end(s, &request);
     return -reply.error;
@@ -374,7 +376,7 @@ static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(s, &request);
-    ret = nbd_co_send_request(s, &request, qiov->iov, offset);
+    ret = nbd_co_send_request(s, &request, qiov, offset);
     if (ret < 0) {
         reply.error = -ret;
     } else {

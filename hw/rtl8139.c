@@ -1785,7 +1785,7 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
         if (iov) {
             buf2_size = iov_size(iov, 3);
             buf2 = g_malloc(buf2_size);
-            iov_to_buf(iov, 3, buf2, 0, buf2_size);
+            iov_to_buf(iov, 3, 0, buf2, buf2_size);
             buf = buf2;
         }
 

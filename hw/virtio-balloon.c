@@ -77,7 +77,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         size_t offset = 0;
         uint32_t pfn;
 
-        while (iov_to_buf(elem.out_sg, elem.out_num, &pfn, offset, 4) == 4) {
+        while (iov_to_buf(elem.out_sg, elem.out_num, offset, &pfn, 4) == 4) {
             ram_addr_t pa;
             ram_addr_t addr;
 
@@ -118,7 +118,7 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
      */
     reset_stats(s);
 
-    while (iov_to_buf(elem->out_sg, elem->out_num, &stat, offset, sizeof(stat))
+    while (iov_to_buf(elem->out_sg, elem->out_num, offset, &stat, sizeof(stat))
            == sizeof(stat)) {
         uint16_t tag = tswap16(stat.tag);
         uint64_t val = tswap64(stat.val);

@@ -544,7 +544,7 @@ static ssize_t vc_sendv_compat(VLANClientState *vc, const struct iovec *iov,
     uint8_t buffer[4096];
     size_t offset;
 
-    offset = iov_to_buf(iov, iovcnt, buffer, 0, sizeof(buffer));
+    offset = iov_to_buf(iov, iovcnt, 0, buffer, sizeof(buffer));
 
     return vc->info->receive(vc, buffer, offset);
 }

@@ -63,8 +63,8 @@ static void qemu_laio_process_completion(struct qemu_laio_state *s,
         } else if (ret >= 0) {
             /* Short reads mean EOF, pad with zeros. */
             if (laiocb->is_read) {
-                qemu_iovec_memset_skip(laiocb->qiov, 0,
-                    laiocb->qiov->size - ret, ret);
+                qemu_iovec_memset(laiocb->qiov, ret, 0,
+                    laiocb->qiov->size - ret);
             } else {
                 ret = -EINVAL;
             }

@@ -522,10 +522,10 @@ void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes)
     switch (p->pid) {
     case USB_TOKEN_SETUP:
     case USB_TOKEN_OUT:
-        iov_to_buf(p->iov.iov, p->iov.niov, ptr, p->result, bytes);
+        iov_to_buf(p->iov.iov, p->iov.niov, p->result, ptr, bytes);
         break;
     case USB_TOKEN_IN:
-        iov_from_buf(p->iov.iov, p->iov.niov, ptr, p->result, bytes);
+        iov_from_buf(p->iov.iov, p->iov.niov, p->result, ptr, bytes);
         break;
     default:
         fprintf(stderr, "%s: invalid pid: %x\n", __func__, p->pid);
@@ -539,7 +539,7 @@ void usb_packet_skip(USBPacket *p, size_t bytes)
     assert(p->result >= 0);
     assert(p->result + bytes <= p->iov.size);
     if (p->pid == USB_TOKEN_IN) {
-        iov_clear(p->iov.iov, p->iov.niov, p->result, bytes);
+        iov_memset(p->iov.iov, p->iov.niov, p->result, 0, bytes);
     }
     p->result += bytes;
 }

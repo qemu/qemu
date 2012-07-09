@@ -540,7 +540,7 @@ done:
     qemu_co_mutex_unlock(&s->lock);
 
     if (qiov->niov > 1) {
-        qemu_iovec_from_buffer(qiov, orig_buf, qiov->size);
+        qemu_iovec_from_buf(qiov, 0, orig_buf, qiov->size);
         qemu_vfree(orig_buf);
     }
 
@@ -569,7 +569,7 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
 
     if (qiov->niov > 1) {
         buf = orig_buf = qemu_blockalign(bs, qiov->size);
-        qemu_iovec_to_buffer(qiov, buf);
+        qemu_iovec_to_buf(qiov, 0, buf, qiov->size);
     } else {
         orig_buf = NULL;
         buf = (uint8_t *)qiov->iov->iov_base;

@@ -656,8 +656,8 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
         }
 
         /* copy in packet.  ugh */
-        len = iov_from_buf(sg, elem.in_num,
-                           buf + offset, 0, size - offset);
+        len = iov_from_buf(sg, elem.in_num, 0,
+                           buf + offset, size - offset);
         total += len;
         offset += len;
         /* If buffers can't be merged, at this point we
