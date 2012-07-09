@@ -50,6 +50,7 @@ struct ESPState {
     uint8_t wregs[ESP_REGS];
     qemu_irq irq;
     uint32_t it_shift;
+    uint8_t chip_id;
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
     uint32_t status;
@@ -475,7 +476,7 @@ static void esp_hard_reset(DeviceState *d)
 
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
-    s->rregs[ESP_TCHI] = TCHI_FAS100A; // Indicate fas100a
+    s->rregs[ESP_TCHI] = s->chip_id;
     s->ti_size = 0;
     s->ti_rptr = 0;
     s->ti_wptr = 0;
@@ -759,6 +760,7 @@ static int esp_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     assert(s->it_shift != -1);
 
+    s->chip_id = TCHI_FAS100A;
     memory_region_init_io(&s->iomem, &esp_mem_ops, s,
                           "esp", ESP_REGS << s->it_shift);
     sysbus_init_mmio(dev, &s->iomem);
