@@ -28,6 +28,13 @@
 #include "qemu_socket.h"
 #include "iov.h"
 
+void strpadcpy(char *buf, int buf_size, const char *str, char pad)
+{
+    int len = qemu_strnlen(str, buf_size);
+    memcpy(buf, str, len);
+    memset(buf + len, pad, buf_size - len);
+}
+
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
