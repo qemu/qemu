@@ -144,7 +144,6 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     IDEState *s = bus->ifs + dev->unit;
     const char *serial;
     DriveInfo *dinfo;
-    int trans;
 
     if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
         error_report("discard_granularity must be 512 for ide");
@@ -160,25 +159,24 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         }
     }
 
-    trans = BIOS_ATA_TRANSLATION_AUTO;
     if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
         /* try to fall back to value set with legacy -drive cyls=... */
         dinfo = drive_get_by_blockdev(dev->conf.bs);
         dev->conf.cyls  = dinfo->cyls;
         dev->conf.heads = dinfo->heads;
         dev->conf.secs  = dinfo->secs;
-        trans           = dinfo->trans;
+        dev->chs_trans  = dinfo->trans;
     }
     if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
         hd_geometry_guess(dev->conf.bs,
                           &dev->conf.cyls, &dev->conf.heads, &dev->conf.secs,
-                          &trans);
+                          &dev->chs_trans);
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,
                        dev->version, serial, dev->model, dev->wwn,
                        dev->conf.cyls, dev->conf.heads, dev->conf.secs,
-                       trans) < 0) {
+                       dev->chs_trans) < 0) {
         return -1;
     }
 
@@ -222,6 +220,8 @@ static int ide_drive_initfn(IDEDevice *dev)
 static Property ide_hd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
     DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
+    DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
+                IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 

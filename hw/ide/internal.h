@@ -474,6 +474,7 @@ struct IDEDevice {
     DeviceState qdev;
     uint32_t unit;
     BlockConf conf;
+    int chs_trans;
     char *version;
     char *serial;
     char *model;
