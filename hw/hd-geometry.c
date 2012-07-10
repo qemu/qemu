@@ -32,6 +32,7 @@
 
 #include "block.h"
 #include "hw/block-common.h"
+#include "trace.h"
 
 struct partition {
         uint8_t boot_ind;           /* 0x80 - active */
@@ -89,10 +90,7 @@ static int guess_disk_lchs(BlockDriverState *bs,
             *pheads = heads;
             *psectors = sectors;
             *pcylinders = cylinders;
-#if 0
-            printf("guessed geometry: LCHS=%d %d %d\n",
-                   cylinders, heads, sectors);
-#endif
+            trace_hd_geometry_lchs_guess(bs, cylinders, heads, sectors);
             return 0;
         }
     }
@@ -159,4 +157,5 @@ void hd_geometry_guess(BlockDriverState *bs,
         }
         bdrv_set_geometry_hint(bs, *pcyls, *pheads, *psecs);
     }
+    trace_hd_geometry_guess(bs, *pcyls, *pheads, *psecs, translation);
 }

@@ -141,6 +141,10 @@ ecc_mem_readl_ecr1(uint32_t ret) "Read event count 2 %08x"
 ecc_diag_mem_writeb(uint64_t addr, uint32_t val) "Write diagnostic %"PRId64" = %02x"
 ecc_diag_mem_readb(uint64_t addr, uint32_t ret) "Read diagnostic %"PRId64"= %02x"
 
+# hw/hd-geometry.c
+hd_geometry_lchs_guess(void *bs, int cyls, int heads, int secs) "bs %p LCHS %d %d %d"
+hd_geometry_guess(void *bs, int cyls, int heads, int secs, int trans) "bs %p CHS %d %d %d trans %d"
+
 # hw/jazz-led.c
 jazz_led_read(uint64_t addr, uint8_t val) "read addr=0x%"PRIx64": 0x%x"
 jazz_led_write(uint64_t addr, uint8_t new) "write addr=0x%"PRIx64": 0x%x"
