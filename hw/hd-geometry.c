@@ -97,14 +97,31 @@ static int guess_disk_lchs(BlockDriverState *bs,
     return -1;
 }
 
+static void guess_chs_for_size(BlockDriverState *bs,
+                               int *pcyls, int *pheads, int *psecs)
+{
+    uint64_t nb_sectors;
+    int cylinders;
+
+    bdrv_get_geometry(bs, &nb_sectors);
+
+    cylinders = nb_sectors / (16 * 63);
+    if (cylinders > 16383) {
+        cylinders = 16383;
+    } else if (cylinders < 2) {
+        cylinders = 2;
+    }
+    *pcyls = cylinders;
+    *pheads = 16;
+    *psecs = 63;
+}
+
 void hd_geometry_guess(BlockDriverState *bs,
                        int *pcyls, int *pheads, int *psecs)
 {
     int translation, lba_detected = 0;
     int cylinders, heads, secs;
-    uint64_t nb_sectors;
 
-    bdrv_get_geometry(bs, &nb_sectors);
     bdrv_get_geometry_hint(bs, &cylinders, &heads, &secs);
     translation = bdrv_get_translation_hint(bs);
 
@@ -119,16 +136,7 @@ void hd_geometry_guess(BlockDriverState *bs,
     if (guess_disk_lchs(bs, &cylinders, &heads, &secs) < 0) {
         /* no LCHS guess: use a standard physical disk geometry  */
     default_geometry:
-        cylinders = nb_sectors / (16 * 63);
-
-        if (cylinders > 16383) {
-            cylinders = 16383;
-        } else if (cylinders < 2) {
-            cylinders = 2;
-        }
-        *pcyls = cylinders;
-        *pheads = 16;
-        *psecs = 63;
+        guess_chs_for_size(bs, pcyls, pheads, psecs);
         if ((lba_detected == 1) && (translation == BIOS_ATA_TRANSLATION_AUTO)) {
             if ((*pcyls * *pheads) <= 131072) {
                 bdrv_set_translation_hint(bs,
