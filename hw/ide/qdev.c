@@ -117,7 +117,7 @@ int ide_get_geometry(BusState *bus, int unit,
 {
     IDEState *s = &DO_UPCAST(IDEBus, qbus, bus)->ifs[unit];
 
-    if (!s->bs) {
+    if (s->drive_kind != IDE_HD || !s->bs) {
         return -1;
     }
 
