@@ -369,6 +369,27 @@ static void test_ide_device_user_chst(void)
     test_ide_drive_user("ide-hd", true);
 }
 
+/*
+ * Test case: IDE devices (if=ide), but use index=0 for CD-ROM
+ */
+static void test_ide_drive_cd_0(void)
+{
+    char *argv[256];
+    int argc, ide_idx;
+    Backend i;
+
+    argc = setup_common(argv, ARRAY_SIZE(argv));
+    for (i = 0; i <= backend_empty; i++) {
+        ide_idx = backend_empty - i;
+        cur_ide[ide_idx] = &hd_chst[i][mbr_blank];
+        argc = setup_ide(argc, argv, ARRAY_SIZE(argv),
+                         ide_idx, NULL, i, mbr_blank, "");
+    }
+    qtest_start(g_strjoinv(" ", argv));
+    test_cmos();
+    qtest_quit(global_qtest);
+}
+
 int main(int argc, char **argv)
 {
     Backend i;
@@ -390,6 +411,7 @@ int main(int argc, char **argv)
     qtest_add_func("hd-geo/ide/drive/mbr/chs", test_ide_drive_mbr_chs);
     qtest_add_func("hd-geo/ide/drive/user/chs", test_ide_drive_user_chs);
     qtest_add_func("hd-geo/ide/drive/user/chst", test_ide_drive_user_chst);
+    qtest_add_func("hd-geo/ide/drive/cd_0", test_ide_drive_cd_0);
     qtest_add_func("hd-geo/ide/device/mbr/blank", test_ide_device_mbr_blank);
     qtest_add_func("hd-geo/ide/device/mbr/lba", test_ide_device_mbr_lba);
     qtest_add_func("hd-geo/ide/device/mbr/chs", test_ide_device_mbr_chs);
