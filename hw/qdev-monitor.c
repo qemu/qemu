@@ -20,6 +20,7 @@
 #include "qdev.h"
 #include "monitor.h"
 #include "qmp-commands.h"
+#include "arch_init.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -29,16 +30,18 @@ typedef struct QDevAlias
 {
     const char *typename;
     const char *alias;
+    uint32_t arch_mask;
 } QDevAlias;
 
 static const QDevAlias qdev_alias_table[] = {
-    { "virtio-blk-pci", "virtio-blk" },
-    { "virtio-net-pci", "virtio-net" },
-    { "virtio-serial-pci", "virtio-serial" },
-    { "virtio-balloon-pci", "virtio-balloon" },
-    { "virtio-blk-s390", "virtio-blk" },
-    { "virtio-net-s390", "virtio-net" },
-    { "virtio-serial-s390", "virtio-serial" },
+    { "virtio-blk-pci", "virtio-blk", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-net-pci", "virtio-net", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-serial-pci", "virtio-serial", QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-balloon-pci", "virtio-balloon",
+            QEMU_ARCH_ALL & ~QEMU_ARCH_S390X },
+    { "virtio-blk-s390", "virtio-blk", QEMU_ARCH_S390X },
+    { "virtio-net-s390", "virtio-net", QEMU_ARCH_S390X },
+    { "virtio-serial-s390", "virtio-serial", QEMU_ARCH_S390X },
     { "lsi53c895a", "lsi" },
     { "ich9-ahci", "ahci" },
     { }
@@ -50,6 +53,11 @@ static const char *qdev_class_get_alias(DeviceClass *dc)
     int i;
 
     for (i = 0; qdev_alias_table[i].typename; i++) {
+        if (qdev_alias_table[i].arch_mask &&
+            !(qdev_alias_table[i].arch_mask & arch_type)) {
+            continue;
+        }
+
         if (strcmp(qdev_alias_table[i].typename, typename) == 0) {
             return qdev_alias_table[i].alias;
         }
@@ -110,6 +118,11 @@ static const char *find_typename_by_alias(const char *alias)
     int i;
 
     for (i = 0; qdev_alias_table[i].alias; i++) {
+        if (qdev_alias_table[i].arch_mask &&
+            !(qdev_alias_table[i].arch_mask & arch_type)) {
+            continue;
+        }
+
         if (strcmp(qdev_alias_table[i].alias, alias) == 0) {
             return qdev_alias_table[i].typename;
         }
