@@ -394,11 +394,12 @@ static void init_mbr(BDRVVVFATState* s)
 
     /* LBA is used when partition is outside the CHS geometry */
     lba = sector2CHS(s->bs, &partition->start_CHS, s->first_sectors_number-1);
-    lba|= sector2CHS(s->bs, &partition->end_CHS,   s->sector_count);
+    lba |= sector2CHS(s->bs, &partition->end_CHS, s->bs->total_sectors - 1);
 
     /*LBA partitions are identified only by start/length_sector_long not by CHS*/
-    partition->start_sector_long =cpu_to_le32(s->first_sectors_number-1);
-    partition->length_sector_long=cpu_to_le32(s->sector_count - s->first_sectors_number+1);
+    partition->start_sector_long  = cpu_to_le32(s->first_sectors_number - 1);
+    partition->length_sector_long = cpu_to_le32(s->bs->total_sectors
+                                                - s->first_sectors_number + 1);
 
     /* FAT12/FAT16/FAT32 */
     /* DOS uses different types when partition is LBA,
