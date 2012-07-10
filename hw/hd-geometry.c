@@ -119,8 +119,7 @@ static void guess_chs_for_size(BlockDriverState *bs,
 void hd_geometry_guess(BlockDriverState *bs,
                        int *pcyls, int *pheads, int *psecs)
 {
-    int translation, lba_detected = 0;
-    int cylinders, heads, secs;
+    int cylinders, heads, secs, translation;
 
     bdrv_get_geometry_hint(bs, &cylinders, &heads, &secs);
     translation = bdrv_get_translation_hint(bs);
@@ -135,23 +134,18 @@ void hd_geometry_guess(BlockDriverState *bs,
 
     if (guess_disk_lchs(bs, &cylinders, &heads, &secs) < 0) {
         /* no LCHS guess: use a standard physical disk geometry  */
-    default_geometry:
         guess_chs_for_size(bs, pcyls, pheads, psecs);
-        if ((lba_detected == 1) && (translation == BIOS_ATA_TRANSLATION_AUTO)) {
-            if ((*pcyls * *pheads) <= 131072) {
-                bdrv_set_translation_hint(bs,
-                                          BIOS_ATA_TRANSLATION_LARGE);
-            } else {
-                bdrv_set_translation_hint(bs,
-                                          BIOS_ATA_TRANSLATION_LBA);
-            }
-        }
     } else if (heads > 16) {
         /* LCHS guess with heads > 16 means that a BIOS LBA
            translation was active, so a standard physical disk
            geometry is OK */
-        lba_detected = 1;
-        goto default_geometry;
+        guess_chs_for_size(bs, pcyls, pheads, psecs);
+        if (translation == BIOS_ATA_TRANSLATION_AUTO) {
+            bdrv_set_translation_hint(bs,
+                                      *pcyls * *pheads <= 131072
+                                      ? BIOS_ATA_TRANSLATION_LARGE
+                                      : BIOS_ATA_TRANSLATION_LBA);
+        }
     } else {
         /* LCHS guess with heads <= 16: use as physical geometry */
         *pcyls = cylinders;
