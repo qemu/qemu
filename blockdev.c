@@ -530,6 +530,10 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
+    dinfo->cyls = cyls;
+    dinfo->heads = heads;
+    dinfo->secs = secs;
+    dinfo->trans = translation;
     dinfo->opts = opts;
     dinfo->refcount = 1;
     if (serial) {
