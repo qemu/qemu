@@ -335,10 +335,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   ISADevice *floppy, BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
-    int val, nb, nb_heads, max_track, last_sect, i;
+    int val, nb, i;
     FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
-    FDriveRate rate;
-    BlockDriverState *fd[MAX_FD];
     static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -381,13 +379,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     /* floppy type */
     if (floppy) {
-        fdc_get_bs(fd, floppy);
         for (i = 0; i < 2; i++) {
-            if (fd[i]) {
-                bdrv_get_floppy_geometry_hint(fd[i], &nb_heads, &max_track,
-                                              &last_sect, FDRIVE_DRV_NONE,
-                                              &fd_type[i], &rate);
-            }
+            fd_type[i] = isa_fdc_get_drive_type(floppy, i);
         }
     }
     val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
