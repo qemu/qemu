@@ -184,11 +184,19 @@ static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
 
+/*
+ * ram_save_block: Writes a page of memory to the stream f
+ *
+ * Returns:  0: if the page hasn't changed
+ *          -1: if there are no more dirty pages
+ *           n: the amount of bytes written in other case
+ */
+
 static int ram_save_block(QEMUFile *f)
 {
     RAMBlock *block = last_block;
     ram_addr_t offset = last_offset;
-    int bytes_sent = 0;
+    int bytes_sent = -1;
     MemoryRegion *mr;
 
     if (!block)
@@ -354,10 +362,11 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         int bytes_sent;
 
         bytes_sent = ram_save_block(f);
-        bytes_transferred += bytes_sent;
-        if (bytes_sent == 0) { /* no more blocks */
+        /* no more blocks to sent */
+        if (bytes_sent < 0) {
             break;
         }
+        bytes_transferred += bytes_sent;
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some
@@ -405,14 +414,19 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
-    int bytes_sent;
-
     memory_global_sync_dirty_bitmap(get_system_memory());
 
     /* try transferring iterative blocks of memory */
 
     /* flush all remaining blocks regardless of rate limiting */
-    while ((bytes_sent = ram_save_block(f)) != 0) {
+    while (true) {
+        int bytes_sent;
+
+        bytes_sent = ram_save_block(f);
+        /* no more blocks to sent */
+        if (bytes_sent < 0) {
+            break;
+        }
         bytes_transferred += bytes_sent;
     }
     memory_global_dirty_log_stop();
