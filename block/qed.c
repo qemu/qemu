@@ -736,7 +736,7 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     /* Zero all sectors if reading beyond the end of the backing file */
     if (pos >= backing_length ||
         pos + qiov->size > backing_length) {
-        qemu_iovec_memset(qiov, 0, qiov->size);
+        qemu_iovec_memset(qiov, 0, 0, qiov->size);
     }
 
     /* Complete now if there are no backing file sectors to read */
@@ -1131,7 +1131,7 @@ static void qed_aio_write_alloc(QEDAIOCB *acb, size_t len)
 
     acb->cur_nclusters = qed_bytes_to_clusters(s,
             qed_offset_into_cluster(s, acb->cur_pos) + len);
-    qemu_iovec_copy(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
+    qemu_iovec_concat(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
 
     if (acb->flags & QED_AIOCB_ZERO) {
         /* Skip ahead if the clusters are already zero */
@@ -1177,7 +1177,7 @@ static void qed_aio_write_inplace(QEDAIOCB *acb, uint64_t offset, size_t len)
 
     /* Calculate the I/O vector */
     acb->cur_cluster = offset;
-    qemu_iovec_copy(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
+    qemu_iovec_concat(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
 
     /* Do the actual write */
     qed_aio_write_main(acb, 0);
@@ -1247,11 +1247,11 @@ static void qed_aio_read_data(void *opaque, int ret,
         goto err;
     }
 
-    qemu_iovec_copy(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
+    qemu_iovec_concat(&acb->cur_qiov, acb->qiov, acb->qiov_offset, len);
 
     /* Handle zero cluster and backing file reads */
     if (ret == QED_CLUSTER_ZERO) {
-        qemu_iovec_memset(&acb->cur_qiov, 0, acb->cur_qiov.size);
+        qemu_iovec_memset(&acb->cur_qiov, 0, 0, acb->cur_qiov.size);
         qed_aio_next_io(acb, 0);
         return;
     } else if (ret != QED_CLUSTER_FOUND) {

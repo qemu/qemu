@@ -29,6 +29,7 @@
 #include "qemu-common.h"
 #include "trace.h"
 #include "block_int.h"
+#include "iov.h"
 
 #include "block/raw-posix-aio.h"
 
@@ -351,11 +352,8 @@ static void *aio_thread(void *unused)
             if (ret >= 0 && ret < aiocb->aio_nbytes && aiocb->common.bs->growable) {
                 /* A short read means that we have reached EOF. Pad the buffer
                  * with zeros for bytes after EOF. */
-                QEMUIOVector qiov;
-
-                qemu_iovec_init_external(&qiov, aiocb->aio_iov,
-                                         aiocb->aio_niov);
-                qemu_iovec_memset_skip(&qiov, 0, aiocb->aio_nbytes - ret, ret);
+                iov_memset(aiocb->aio_iov, aiocb->aio_niov, ret,
+                           0, aiocb->aio_nbytes - ret);
 
                 ret = aiocb->aio_nbytes;
             }

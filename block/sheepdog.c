@@ -745,8 +745,8 @@ static void coroutine_fn aio_read_response(void *opaque)
         }
         break;
     case AIOCB_READ_UDATA:
-        ret = qemu_co_recvv(fd, acb->qiov->iov, rsp.data_length,
-                            aio_req->iov_offset);
+        ret = qemu_co_recvv(fd, acb->qiov->iov, acb->qiov->niov,
+                            aio_req->iov_offset, rsp.data_length);
         if (ret < 0) {
             error_report("failed to get the data, %s", strerror(errno));
             goto out;
@@ -1019,7 +1019,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     }
 
     if (wlen) {
-        ret = qemu_co_sendv(s->fd, iov, wlen, aio_req->iov_offset);
+        ret = qemu_co_sendv(s->fd, iov, niov, aio_req->iov_offset, wlen);
         if (ret < 0) {
             qemu_co_mutex_unlock(&s->lock);
             error_report("failed to send a data, %s", strerror(errno));
