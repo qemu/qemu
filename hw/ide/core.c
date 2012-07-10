@@ -1934,7 +1934,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->drive_kind = kind;
 
     bdrv_get_geometry(bs, &nb_sectors);
-    hd_geometry_guess(bs, &cylinders, &heads, &secs, NULL);
+    hd_geometry_guess(bs, &cylinders, &heads, &secs, &s->chs_trans);
     if (cylinders < 1 || cylinders > 16383) {
         error_report("cyls must be between 1 and 16383");
         return -1;

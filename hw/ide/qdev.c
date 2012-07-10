@@ -111,11 +111,24 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
     return DO_UPCAST(IDEDevice, qdev, dev);
 }
 
-void ide_get_bs(BlockDriverState *bs[], BusState *qbus)
+int ide_get_geometry(BusState *bus, int unit,
+                     int16_t *cyls, int8_t *heads, int8_t *secs)
 {
-    IDEBus *bus = DO_UPCAST(IDEBus, qbus, qbus);
-    bs[0] = bus->master ? bus->master->conf.bs : NULL;
-    bs[1] = bus->slave  ? bus->slave->conf.bs  : NULL;
+    IDEState *s = &DO_UPCAST(IDEBus, qbus, bus)->ifs[unit];
+
+    if (!s->bs) {
+        return -1;
+    }
+
+    *cyls = s->cylinders;
+    *heads = s->heads;
+    *secs = s->sectors;
+    return 0;
+}
+
+int ide_get_bios_chs_trans(BusState *bus, int unit)
+{
+    return DO_UPCAST(IDEBus, qbus, bus)->ifs[unit].chs_trans;
 }
 
 /* --------------------------------- */

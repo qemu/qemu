@@ -344,7 +344,7 @@ struct IDEState {
     uint8_t unit;
     /* ide config */
     IDEDriveKind drive_kind;
-    int cylinders, heads, sectors;
+    int cylinders, heads, sectors, chs_trans;
     int64_t nb_sectors;
     int mult_sectors;
     int identify_set;
