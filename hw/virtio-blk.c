@@ -14,6 +14,7 @@
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "trace.h"
+#include "hw/block-common.h"
 #include "blockdev.h"
 #include "virtio-blk.h"
 #include "scsi-defs.h"
@@ -622,7 +623,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     s->blk = blk;
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
-    bdrv_guess_geometry(s->bs, &cylinders, &heads, &secs);
+    hd_geometry_guess(s->bs, &cylinders, &heads, &secs);
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
 

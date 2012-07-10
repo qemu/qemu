@@ -30,6 +30,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "dma.h"
+#include "hw/block-common.h"
 #include "blockdev.h"
 
 #include <hw/ide/internal.h>
@@ -1933,7 +1934,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->drive_kind = kind;
 
     bdrv_get_geometry(bs, &nb_sectors);
-    bdrv_guess_geometry(bs, &cylinders, &heads, &secs);
+    hd_geometry_guess(bs, &cylinders, &heads, &secs);
     if (cylinders < 1 || cylinders > 16383) {
         error_report("cyls must be between 1 and 16383");
         return -1;

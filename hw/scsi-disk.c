@@ -34,6 +34,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "scsi-defs.h"
 #include "sysemu.h"
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "dma.h"
 
 #ifdef __linux
@@ -989,7 +990,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
             break;
         }
         /* if a geometry hint is available, use it */
-        bdrv_guess_geometry(bdrv, &cylinders, &heads, &secs);
+        hd_geometry_guess(bdrv, &cylinders, &heads, &secs);
         p[2] = (cylinders >> 16) & 0xff;
         p[3] = (cylinders >> 8) & 0xff;
         p[4] = cylinders & 0xff;
@@ -1023,7 +1024,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         p[2] = 5000 >> 8;
         p[3] = 5000 & 0xff;
         /* if a geometry hint is available, use it */
-        bdrv_guess_geometry(bdrv, &cylinders, &heads, &secs);
+        hd_geometry_guess(bdrv, &cylinders, &heads, &secs);
         p[4] = heads & 0xff;
         p[5] = secs & 0xff;
         p[6] = s->qdev.blocksize >> 8;
