@@ -1112,6 +1112,16 @@ const struct SCSISense sense_code_INVALID_FIELD = {
     .key = ILLEGAL_REQUEST, .asc = 0x24, .ascq = 0x00
 };
 
+/* Illegal request, Invalid field in parameter list */
+const struct SCSISense sense_code_INVALID_PARAM = {
+    .key = ILLEGAL_REQUEST, .asc = 0x26, .ascq = 0x00
+};
+
+/* Illegal request, Parameter list length error */
+const struct SCSISense sense_code_INVALID_PARAM_LEN = {
+    .key = ILLEGAL_REQUEST, .asc = 0x1a, .ascq = 0x00
+};
+
 /* Illegal request, LUN not supported */
 const struct SCSISense sense_code_LUN_NOT_SUPPORTED = {
     .key = ILLEGAL_REQUEST, .asc = 0x25, .ascq = 0x00

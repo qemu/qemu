@@ -43,6 +43,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
+#define SCSI_MAX_MODE_LEN    256
 
 typedef struct SCSIDiskState SCSIDiskState;
 
@@ -1283,6 +1284,159 @@ static void scsi_disk_emulate_read_data(SCSIRequest *req)
     scsi_req_complete(&r->req, GOOD);
 }
 
+static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
+                                       uint8_t *inbuf, int inlen)
+{
+    uint8_t mode_current[SCSI_MAX_MODE_LEN];
+    uint8_t mode_changeable[SCSI_MAX_MODE_LEN];
+    uint8_t *p;
+    int len, expected_len, changeable_len, i;
+
+    /* The input buffer does not include the page header, so it is
+     * off by 2 bytes.
+     */
+    expected_len = inlen + 2;
+    if (expected_len > SCSI_MAX_MODE_LEN) {
+        return -1;
+    }
+
+    p = mode_current;
+    memset(mode_current, 0, inlen + 2);
+    len = mode_sense_page(s, page, &p, 0);
+    if (len < 0 || len != expected_len) {
+        return -1;
+    }
+
+    p = mode_changeable;
+    memset(mode_changeable, 0, inlen + 2);
+    changeable_len = mode_sense_page(s, page, &p, 1);
+    assert(changeable_len == len);
+
+    /* Check that unchangeable bits are the same as what MODE SENSE
+     * would return.
+     */
+    for (i = 2; i < len; i++) {
+        if (((mode_current[i] ^ inbuf[i - 2]) & ~mode_changeable[i]) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static void scsi_disk_apply_mode_select(SCSIDiskState *s, int page, uint8_t *p)
+{
+}
+
+static int mode_select_pages(SCSIDiskReq *r, uint8_t *p, int len, bool change)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    while (len > 0) {
+        int page, subpage, page_len;
+
+        /* Parse both possible formats for the mode page headers.  */
+        page = p[0] & 0x3f;
+        if (p[0] & 0x40) {
+            if (len < 4) {
+                goto invalid_param_len;
+            }
+            subpage = p[1];
+            page_len = lduw_be_p(&p[2]);
+            p += 4;
+            len -= 4;
+        } else {
+            if (len < 2) {
+                goto invalid_param_len;
+            }
+            subpage = 0;
+            page_len = p[1];
+            p += 2;
+            len -= 2;
+        }
+
+        if (subpage) {
+            goto invalid_param;
+        }
+        if (page_len > len) {
+            goto invalid_param_len;
+        }
+
+        if (!change) {
+            if (scsi_disk_check_mode_select(s, page, p, page_len) < 0) {
+                goto invalid_param;
+            }
+        } else {
+            scsi_disk_apply_mode_select(s, page, p);
+        }
+
+        p += page_len;
+        len -= page_len;
+    }
+    return 0;
+
+invalid_param:
+    scsi_check_condition(r, SENSE_CODE(INVALID_PARAM));
+    return -1;
+
+invalid_param_len:
+    scsi_check_condition(r, SENSE_CODE(INVALID_PARAM_LEN));
+    return -1;
+}
+
+static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
+{
+    uint8_t *p = inbuf;
+    int cmd = r->req.cmd.buf[0];
+    int len = r->req.cmd.xfer;
+    int hdr_len = (cmd == MODE_SELECT ? 4 : 8);
+    int bd_len;
+    int pass;
+
+    /* We only support PF=1, SP=0.  */
+    if ((r->req.cmd.buf[1] & 0x11) != 0x10) {
+        goto invalid_field;
+    }
+
+    if (len < hdr_len) {
+        goto invalid_param_len;
+    }
+
+    bd_len = (cmd == MODE_SELECT ? p[3] : lduw_be_p(&p[6]));
+    len -= hdr_len;
+    p += hdr_len;
+    if (len < bd_len) {
+        goto invalid_param_len;
+    }
+    if (bd_len != 0 && bd_len != 8) {
+        goto invalid_param;
+    }
+
+    len -= bd_len;
+    p += bd_len;
+
+    /* Ensure no change is made if there is an error!  */
+    for (pass = 0; pass < 2; pass++) {
+        if (mode_select_pages(r, p, len, pass == 1) < 0) {
+            assert(pass == 0);
+            return;
+        }
+    }
+    scsi_req_complete(&r->req, GOOD);
+    return;
+
+invalid_param:
+    scsi_check_condition(r, SENSE_CODE(INVALID_PARAM));
+    return;
+
+invalid_param_len:
+    scsi_check_condition(r, SENSE_CODE(INVALID_PARAM_LEN));
+    return;
+
+invalid_field:
+    scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
+    return;
+}
+
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -1299,7 +1453,7 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
     case MODE_SELECT:
     case MODE_SELECT_10:
         /* This also clears the sense buffer for REQUEST SENSE.  */
-        scsi_req_complete(&r->req, GOOD);
+        scsi_disk_emulate_mode_select(r, r->iov.iov_base);
         break;
 
     default:
@@ -1532,19 +1686,9 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     case MODE_SELECT:
         DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
-        /* We don't support mode parameter changes.
-           Allow the mode parameter header + block descriptors only. */
-        if (r->req.cmd.xfer > 12) {
-            goto illegal_request;
-        }
         break;
     case MODE_SELECT_10:
         DPRINTF("Mode Select(10) (len %lu)\n", (long)r->req.cmd.xfer);
-        /* We don't support mode parameter changes.
-           Allow the mode parameter header + block descriptors only. */
-        if (r->req.cmd.xfer > 16) {
-            goto illegal_request;
-        }
         break;
     case WRITE_SAME_10:
         nb_sectors = lduw_be_p(&req->cmd.buf[7]);

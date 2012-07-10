@@ -180,6 +180,10 @@ extern const struct SCSISense sense_code_INVALID_OPCODE;
 extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
 /* Illegal request, Invalid field in CDB */
 extern const struct SCSISense sense_code_INVALID_FIELD;
+/* Illegal request, Invalid field in parameter list */
+extern const struct SCSISense sense_code_INVALID_PARAM;
+/* Illegal request, Parameter list length error */
+extern const struct SCSISense sense_code_INVALID_PARAM_LEN;
 /* Illegal request, LUN not supported */
 extern const struct SCSISense sense_code_LUN_NOT_SUPPORTED;
 /* Illegal request, Saving parameters not supported */
