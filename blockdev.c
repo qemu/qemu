@@ -330,15 +330,15 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     max_devs = if_max_devs[type];
 
     if (cyls || heads || secs) {
-        if (cyls < 1 || (type == IF_IDE && cyls > 16383)) {
+        if (cyls < 1) {
             error_report("invalid physical cyls number");
 	    return NULL;
 	}
-        if (heads < 1 || (type == IF_IDE && heads > 16)) {
+        if (heads < 1) {
             error_report("invalid physical heads number");
 	    return NULL;
 	}
-        if (secs < 1 || (type == IF_IDE && secs > 63)) {
+        if (secs < 1) {
             error_report("invalid physical secs number");
 	    return NULL;
 	}
