@@ -426,6 +426,8 @@ typedef struct BlockConf {
     uint32_t opt_io_size;
     int32_t bootindex;
     uint32_t discard_granularity;
+    /* geometry, not all devices use this */
+    uint32_t cyls, heads, secs;
 } BlockConf;
 
 static inline unsigned int get_physical_block_exp(BlockConf *conf)
@@ -453,5 +455,9 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     DEFINE_PROP_UINT32("discard_granularity", _state, \
                        _conf.discard_granularity, 0)
 
-#endif
+#define DEFINE_BLOCK_CHS_PROPERTIES(_state, _conf)      \
+    DEFINE_PROP_UINT32("cyls", _state, _conf.cyls, 0),  \
+    DEFINE_PROP_UINT32("heads", _state, _conf.heads, 0), \
+    DEFINE_PROP_UINT32("secs", _state, _conf.secs, 0)
 
+#endif
