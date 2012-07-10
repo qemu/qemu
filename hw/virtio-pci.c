@@ -936,6 +936,7 @@ static int virtio_balloon_exit_pci(PCIDevice *pci_dev)
 static Property virtio_blk_properties[] = {
     DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, blk.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOPCIProxy, blk.conf),
     DEFINE_PROP_STRING("serial", VirtIOPCIProxy, blk.serial),
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOPCIProxy, blk.scsi, 0, true),

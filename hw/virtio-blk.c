@@ -479,19 +479,17 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     VirtIOBlock *s = to_virtio_blk(vdev);
     struct virtio_blk_config blkcfg;
     uint64_t capacity;
-    int cylinders, heads, secs;
     int blk_size = s->conf->logical_block_size;
 
     bdrv_get_geometry(s->bs, &capacity);
-    bdrv_get_geometry_hint(s->bs, &cylinders, &heads, &secs);
     memset(&blkcfg, 0, sizeof(blkcfg));
     stq_raw(&blkcfg.capacity, capacity);
     stl_raw(&blkcfg.seg_max, 128 - 2);
-    stw_raw(&blkcfg.cylinders, cylinders);
+    stw_raw(&blkcfg.cylinders, s->conf->cyls);
     stl_raw(&blkcfg.blk_size, blk_size);
     stw_raw(&blkcfg.min_io_size, s->conf->min_io_size / blk_size);
     stw_raw(&blkcfg.opt_io_size, s->conf->opt_io_size / blk_size);
-    blkcfg.heads = heads;
+    blkcfg.heads = s->conf->heads;
     /*
      * We must ensure that the block device capacity is a multiple of
      * the logical block size. If that is not the case, lets use
@@ -503,10 +501,10 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
      * divided by 512 - instead it is the amount of blk_size blocks
      * per track (cylinder).
      */
-    if (bdrv_getlength(s->bs) /  heads / secs % blk_size) {
-        blkcfg.sectors = secs & ~s->sector_mask;
+    if (bdrv_getlength(s->bs) /  s->conf->heads / s->conf->secs % blk_size) {
+        blkcfg.sectors = s->conf->secs & ~s->sector_mask;
     } else {
-        blkcfg.sectors = secs;
+        blkcfg.sectors = s->conf->secs;
     }
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(s->conf);
@@ -590,7 +588,6 @@ static const BlockDevOps virtio_block_ops = {
 VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
 {
     VirtIOBlock *s;
-    uint32_t cylinders, heads, secs;
     static int virtio_blk_id;
     DriveInfo *dinfo;
 
@@ -623,7 +620,33 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     s->blk = blk;
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
-    hd_geometry_guess(s->bs, &cylinders, &heads, &secs, NULL);
+
+    if (!blk->conf.cyls && !blk->conf.heads && !blk->conf.secs) {
+        /* try to fall back to value set with legacy -drive cyls=... */
+        dinfo = drive_get_by_blockdev(blk->conf.bs);
+        blk->conf.cyls = dinfo->cyls;
+        blk->conf.heads = dinfo->heads;
+        blk->conf.secs = dinfo->secs;
+    }
+    if (!blk->conf.cyls && !blk->conf.heads && !blk->conf.secs) {
+        hd_geometry_guess(s->bs,
+                          &blk->conf.cyls, &blk->conf.heads, &blk->conf.secs,
+                          NULL);
+    }
+    if (blk->conf.cyls || blk->conf.heads || blk->conf.secs) {
+        if (blk->conf.cyls < 1 || blk->conf.cyls > 65535) {
+            error_report("cyls must be between 1 and 65535");
+            return NULL;
+        }
+        if (blk->conf.heads < 1 || blk->conf.heads > 255) {
+            error_report("heads must be between 1 and 255");
+            return NULL;
+        }
+        if (blk->conf.secs < 1 || blk->conf.secs > 255) {
+            error_report("secs must be between 1 and 255");
+            return NULL;
+        }
+    }
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
 
