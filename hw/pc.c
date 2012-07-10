@@ -44,6 +44,7 @@
 #include "kvm.h"
 #include "xen.h"
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
 #include "exec-memory.h"

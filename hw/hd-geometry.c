@@ -122,25 +122,10 @@ void hd_geometry_guess(BlockDriverState *bs,
 {
     int cylinders, heads, secs, translation;
 
-    bdrv_get_geometry_hint(bs, &cylinders, &heads, &secs);
-    translation = bdrv_get_translation_hint(bs);
-
-    if (cylinders != 0) {
-        /* already got a geometry hint: use it */
-        *pcyls = cylinders;
-        *pheads = heads;
-        *psecs = secs;
-        if (ptrans) {
-            *ptrans = translation;
-        }
-        return;
-    }
-
-    assert(translation == BIOS_ATA_TRANSLATION_AUTO);
-
     if (guess_disk_lchs(bs, &cylinders, &heads, &secs) < 0) {
         /* no LCHS guess: use a standard physical disk geometry  */
         guess_chs_for_size(bs, pcyls, pheads, psecs);
+        translation = BIOS_ATA_TRANSLATION_AUTO;
     } else if (heads > 16) {
         /* LCHS guess with heads > 16 means that a BIOS LBA
            translation was active, so a standard physical disk
@@ -149,7 +134,6 @@ void hd_geometry_guess(BlockDriverState *bs,
         translation = *pcyls * *pheads <= 131072
             ? BIOS_ATA_TRANSLATION_LARGE
             : BIOS_ATA_TRANSLATION_LBA;
-        bdrv_set_translation_hint(bs, translation);
     } else {
         /* LCHS guess with heads <= 16: use as physical geometry */
         *pcyls = cylinders;
@@ -158,11 +142,9 @@ void hd_geometry_guess(BlockDriverState *bs,
         /* disable any translation to be in sync with
            the logical geometry */
         translation = BIOS_ATA_TRANSLATION_NONE;
-        bdrv_set_translation_hint(bs, translation);
     }
     if (ptrans) {
         *ptrans = translation;
     }
-    bdrv_set_geometry_hint(bs, *pcyls, *pheads, *psecs);
     trace_hd_geometry_guess(bs, *pcyls, *pheads, *psecs, translation);
 }

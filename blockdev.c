@@ -7,8 +7,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include "block.h"
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "monitor.h"
 #include "qerror.h"
 #include "qemu-option.h"
@@ -551,17 +551,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     case IF_SCSI:
     case IF_XEN:
     case IF_NONE:
-        switch(media) {
-	case MEDIA_DISK:
-            if (cyls != 0) {
-                bdrv_set_geometry_hint(dinfo->bdrv, cyls, heads, secs);
-                bdrv_set_translation_hint(dinfo->bdrv, translation);
-            }
-	    break;
-	case MEDIA_CDROM:
-            dinfo->media_cd = 1;
-	    break;
-	}
+        dinfo->media_cd = media == MEDIA_CDROM;
         break;
     case IF_SD:
     case IF_FLOPPY:

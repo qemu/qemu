@@ -996,12 +996,6 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     bs_dest->block_timer        = bs_src->block_timer;
     bs_dest->io_limits_enabled  = bs_src->io_limits_enabled;
 
-    /* geometry */
-    bs_dest->cyls               = bs_src->cyls;
-    bs_dest->heads              = bs_src->heads;
-    bs_dest->secs               = bs_src->secs;
-    bs_dest->translation        = bs_src->translation;
-
     /* r/w error */
     bs_dest->on_read_error      = bs_src->on_read_error;
     bs_dest->on_write_error     = bs_src->on_write_error;
@@ -2132,38 +2126,12 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     *nb_sectors_ptr = length;
 }
 
-void bdrv_set_geometry_hint(BlockDriverState *bs,
-                            int cyls, int heads, int secs)
-{
-    bs->cyls = cyls;
-    bs->heads = heads;
-    bs->secs = secs;
-}
-
-void bdrv_set_translation_hint(BlockDriverState *bs, int translation)
-{
-    bs->translation = translation;
-}
-
-void bdrv_get_geometry_hint(BlockDriverState *bs,
-                            int *pcyls, int *pheads, int *psecs)
-{
-    *pcyls = bs->cyls;
-    *pheads = bs->heads;
-    *psecs = bs->secs;
-}
-
 /* throttling disk io limits */
 void bdrv_set_io_limits(BlockDriverState *bs,
                         BlockIOLimit *io_limits)
 {
     bs->io_limits = *io_limits;
     bs->io_limits_enabled = bdrv_io_limits_enabled(bs);
-}
-
-int bdrv_get_translation_hint(BlockDriverState *bs)
-{
-    return bs->translation;
 }
 
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
