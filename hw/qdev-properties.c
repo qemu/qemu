@@ -782,6 +782,21 @@ PropertyInfo qdev_prop_losttickpolicy = {
     .set   = set_enum,
 };
 
+/* --- BIOS CHS translation */
+
+static const char *bios_chs_trans_table[] = {
+    [BIOS_ATA_TRANSLATION_AUTO] = "auto",
+    [BIOS_ATA_TRANSLATION_NONE] = "none",
+    [BIOS_ATA_TRANSLATION_LBA]  = "lba",
+};
+
+PropertyInfo qdev_prop_bios_chs_trans = {
+    .name = "bios-chs-trans",
+    .enum_table = bios_chs_trans_table,
+    .get = get_enum,
+    .set = set_enum,
+};
+
 /* --- pci address --- */
 
 /*
