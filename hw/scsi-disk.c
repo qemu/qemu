@@ -1059,6 +1059,9 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
 
     case MODE_PAGE_R_W_ERROR:
         length = 10;
+        if (page_control == 1) { /* Changeable Values */
+            break;
+        }
         p[0] = 0x80; /* Automatic Write Reallocation Enabled */
         if (s->qdev.type == TYPE_ROM) {
             p[1] = 0x20; /* Read Retry Count */
