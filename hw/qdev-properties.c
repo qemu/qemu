@@ -10,6 +10,78 @@ void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
     return ptr;
 }
 
+static void get_pointer(Object *obj, Visitor *v, Property *prop,
+                        const char *(*print)(void *ptr),
+                        const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    void **ptr = qdev_get_prop_ptr(dev, prop);
+    char *p;
+
+    p = (char *) (*ptr ? print(*ptr) : "");
+    visit_type_str(v, &p, name, errp);
+}
+
+static void set_pointer(Object *obj, Visitor *v, Property *prop,
+                        int (*parse)(DeviceState *dev, const char *str,
+                                     void **ptr),
+                        const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Error *local_err = NULL;
+    void **ptr = qdev_get_prop_ptr(dev, prop);
+    char *str;
+    int ret;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (!*str) {
+        g_free(str);
+        *ptr = NULL;
+        return;
+    }
+    ret = parse(dev, str, ptr);
+    error_set_from_qdev_prop_error(errp, ret, dev, prop, str);
+    g_free(str);
+}
+
+static void get_enum(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    int *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_enum(v, ptr, prop->info->enum_table,
+                    prop->info->name, prop->name, errp);
+}
+
+static void set_enum(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    int *ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_enum(v, ptr, prop->info->enum_table,
+                    prop->info->name, prop->name, errp);
+}
+
+/* Bit */
+
 static uint32_t qdev_get_prop_mask(Property *prop)
 {
     assert(prop->info == &qdev_prop_bit);
@@ -25,8 +97,6 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
     else
         *p &= ~mask;
 }
-
-/* Bit */
 
 static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
@@ -435,48 +505,6 @@ static const char *print_drive(void *ptr)
     return bdrv_get_device_name(ptr);
 }
 
-static void get_pointer(Object *obj, Visitor *v, Property *prop,
-                        const char *(*print)(void *ptr),
-                        const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    void **ptr = qdev_get_prop_ptr(dev, prop);
-    char *p;
-
-    p = (char *) (*ptr ? print(*ptr) : "");
-    visit_type_str(v, &p, name, errp);
-}
-
-static void set_pointer(Object *obj, Visitor *v, Property *prop,
-                        int (*parse)(DeviceState *dev, const char *str, void **ptr),
-                        const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Error *local_err = NULL;
-    void **ptr = qdev_get_prop_ptr(dev, prop);
-    char *str;
-    int ret;
-
-    if (dev->state != DEV_STATE_CREATED) {
-        error_set(errp, QERR_PERMISSION_DENIED);
-        return;
-    }
-
-    visit_type_str(v, &str, name, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-    if (!*str) {
-        g_free(str);
-        *ptr = NULL;
-        return;
-    }
-    ret = parse(dev, str, ptr);
-    error_set_from_qdev_prop_error(errp, ret, dev, prop, str);
-    g_free(str);
-}
-
 static void get_drive(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
@@ -735,7 +763,6 @@ PropertyInfo qdev_prop_macaddr = {
     .set   = set_mac,
 };
 
-
 /* --- lost tick policy --- */
 
 static const char *lost_tick_policy_table[LOST_TICK_MAX+1] = {
@@ -747,33 +774,6 @@ static const char *lost_tick_policy_table[LOST_TICK_MAX+1] = {
 };
 
 QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
-
-static void get_enum(Object *obj, Visitor *v, void *opaque,
-                     const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
-    int *ptr = qdev_get_prop_ptr(dev, prop);
-
-    visit_type_enum(v, ptr, prop->info->enum_table,
-                    prop->info->name, prop->name, errp);
-}
-
-static void set_enum(Object *obj, Visitor *v, void *opaque,
-                     const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
-    int *ptr = qdev_get_prop_ptr(dev, prop);
-
-    if (dev->state != DEV_STATE_CREATED) {
-        error_set(errp, QERR_PERMISSION_DENIED);
-        return;
-    }
-
-    visit_type_enum(v, ptr, prop->info->enum_table,
-                    prop->info->name, prop->name, errp);
-}
 
 PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
