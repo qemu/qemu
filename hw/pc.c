@@ -290,7 +290,7 @@ static void pc_cmos_init_late(void *opaque)
     int16_t cylinders;
     int8_t heads, sectors;
     int val;
-    int i;
+    int i, trans;
 
     val = 0;
     if (ide_get_geometry(arg->idebus[0], 0,
@@ -313,20 +313,9 @@ static void pc_cmos_init_late(void *opaque)
            geometry can be different if a translation is done. */
         if (ide_get_geometry(arg->idebus[i / 2], i % 2,
                              &cylinders, &heads, &sectors) >= 0) {
-            int translation = ide_get_bios_chs_trans(arg->idebus[i / 2],
-                                                     i % 2);
-            if (translation == BIOS_ATA_TRANSLATION_AUTO) {
-                if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
-                    /* No translation. */
-                    translation = 0;
-                } else {
-                    /* LBA translation. */
-                    translation = 1;
-                }
-            } else {
-                translation--;
-            }
-            val |= translation << (i * 2);
+            trans = ide_get_bios_chs_trans(arg->idebus[i / 2], i % 2) - 1;
+            assert((trans & ~3) == 0);
+            val |= trans << (i * 2);
         }
     }
     rtc_set_memory(s, 0x39, val);

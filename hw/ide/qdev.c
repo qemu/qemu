@@ -171,6 +171,9 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         hd_geometry_guess(dev->conf.bs,
                           &dev->conf.cyls, &dev->conf.heads, &dev->conf.secs,
                           &dev->chs_trans);
+    } else if (dev->chs_trans == BIOS_ATA_TRANSLATION_AUTO) {
+        dev->chs_trans = hd_bios_chs_auto_trans(dev->conf.cyls,
+                                        dev->conf.heads, dev->conf.secs);
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,

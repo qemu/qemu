@@ -24,5 +24,6 @@
 void hd_geometry_guess(BlockDriverState *bs,
                        uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs,
                        int *ptrans);
+int hd_bios_chs_auto_trans(uint32_t cyls, uint32_t heads, uint32_t secs);
 
 #endif

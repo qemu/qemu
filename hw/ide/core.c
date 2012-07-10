@@ -2091,6 +2091,8 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
             trans = dinfo->trans;
             if (!cyls && !heads && !secs) {
                 hd_geometry_guess(dinfo->bdrv, &cyls, &heads, &secs, &trans);
+            } else if (trans == BIOS_ATA_TRANSLATION_AUTO) {
+                trans = hd_bios_chs_auto_trans(cyls, heads, secs);
             }
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
                                dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
