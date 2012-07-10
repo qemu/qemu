@@ -590,7 +590,7 @@ static const BlockDevOps virtio_block_ops = {
 VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
 {
     VirtIOBlock *s;
-    int cylinders, heads, secs;
+    uint32_t cylinders, heads, secs;
     static int virtio_blk_id;
     DriveInfo *dinfo;
 

@@ -16,7 +16,7 @@
 /* Hard disk geometry */
 
 void hd_geometry_guess(BlockDriverState *bs,
-                       int *pcyls, int *pheads, int *psecs,
+                       uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs,
                        int *ptrans);
 
 #endif

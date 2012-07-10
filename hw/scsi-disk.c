@@ -968,7 +968,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
     };
 
     BlockDriverState *bdrv = s->qdev.conf.bs;
-    int cylinders, heads, secs;
+    uint32_t cylinders, heads, secs;
     uint8_t *p = *p_outbuf;
 
     if ((mode_sense_valid[page] & (1 << s->qdev.type)) == 0) {

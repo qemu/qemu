@@ -1927,7 +1927,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
                    uint64_t wwn)
 {
-    int cylinders, heads, secs;
+    uint32_t cylinders, heads, secs;
     uint64_t nb_sectors;
 
     s->bs = bs;

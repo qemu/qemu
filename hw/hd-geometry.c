@@ -98,7 +98,7 @@ static int guess_disk_lchs(BlockDriverState *bs,
 }
 
 static void guess_chs_for_size(BlockDriverState *bs,
-                               int *pcyls, int *pheads, int *psecs)
+                uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs)
 {
     uint64_t nb_sectors;
     int cylinders;
@@ -117,7 +117,7 @@ static void guess_chs_for_size(BlockDriverState *bs,
 }
 
 void hd_geometry_guess(BlockDriverState *bs,
-                       int *pcyls, int *pheads, int *psecs,
+                       uint32_t *pcyls, uint32_t *pheads, uint32_t *psecs,
                        int *ptrans)
 {
     int cylinders, heads, secs, translation;
