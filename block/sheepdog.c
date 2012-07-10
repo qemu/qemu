@@ -1571,18 +1571,25 @@ static int coroutine_fn sd_co_rw_vector(void *p)
 
         len = MIN(total - done, SD_DATA_OBJ_SIZE - offset);
 
-        if (!inode->data_vdi_id[idx]) {
-            if (acb->aiocb_type == AIOCB_READ_UDATA) {
+        switch (acb->aiocb_type) {
+        case AIOCB_READ_UDATA:
+            if (!inode->data_vdi_id[idx]) {
+                qemu_iovec_memset(acb->qiov, done, 0, len);
                 goto done;
             }
-
-            create = 1;
-        } else if (acb->aiocb_type == AIOCB_WRITE_UDATA
-                   && !is_data_obj_writable(inode, idx)) {
-            /* Copy-On-Write */
-            create = 1;
-            old_oid = oid;
-            flags = SD_FLAG_CMD_COW;
+            break;
+        case AIOCB_WRITE_UDATA:
+            if (!inode->data_vdi_id[idx]) {
+                create = 1;
+            } else if (!is_data_obj_writable(inode, idx)) {
+                /* Copy-On-Write */
+                create = 1;
+                old_oid = oid;
+                flags = SD_FLAG_CMD_COW;
+            }
+            break;
+        default:
+            break;
         }
 
         if (create) {
@@ -1668,19 +1675,11 @@ static coroutine_fn int sd_co_readv(BlockDriverState *bs, int64_t sector_num,
                        int nb_sectors, QEMUIOVector *qiov)
 {
     SheepdogAIOCB *acb;
-    int i, ret;
+    int ret;
 
     acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors, NULL, NULL);
     acb->aiocb_type = AIOCB_READ_UDATA;
     acb->aio_done_func = sd_finish_aiocb;
-
-    /*
-     * TODO: we can do better; we don't need to initialize
-     * blindly.
-     */
-    for (i = 0; i < qiov->niov; i++) {
-        memset(qiov->iov[i].iov_base, 0, qiov->iov[i].iov_len);
-    }
 
     ret = sd_co_rw_vector(acb);
     if (ret <= 0) {
