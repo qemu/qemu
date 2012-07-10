@@ -1050,10 +1050,8 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
 
     case MODE_PAGE_CACHING:
         length = 0x12;
-        if (page_control == 1) { /* Changeable Values */
-            break;
-        }
-        if (bdrv_enable_write_cache(s->qdev.conf.bs)) {
+        if (page_control == 1 || /* Changeable Values */
+            bdrv_enable_write_cache(s->qdev.conf.bs)) {
             p[0] = 4; /* WCE */
         }
         break;
@@ -1325,6 +1323,14 @@ static int scsi_disk_check_mode_select(SCSIDiskState *s, int page,
 
 static void scsi_disk_apply_mode_select(SCSIDiskState *s, int page, uint8_t *p)
 {
+    switch (page) {
+    case MODE_PAGE_CACHING:
+        bdrv_set_enable_write_cache(s->qdev.conf.bs, (p[0] & 4) != 0);
+        break;
+
+    default:
+        break;
+    }
 }
 
 static int mode_select_pages(SCSIDiskReq *r, uint8_t *p, int len, bool change)
