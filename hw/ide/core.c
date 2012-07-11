@@ -2095,9 +2095,9 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                 trans = hd_bios_chs_auto_trans(cyls, heads, secs);
             }
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
-                               dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
-                               *dinfo->serial ? dinfo->serial : NULL,
-                               NULL, 0, cyls, heads, secs, trans) < 0) {
+                               dinfo->media_cd ? IDE_CD : IDE_HD,
+                               NULL, dinfo->serial, NULL, 0,
+                               cyls, heads, secs, trans) < 0) {
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);
             }

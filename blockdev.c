@@ -536,9 +536,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     dinfo->trans = translation;
     dinfo->opts = opts;
     dinfo->refcount = 1;
-    if (serial) {
-        pstrcpy(dinfo->serial, sizeof(dinfo->serial), serial);
-    }
+    dinfo->serial = serial;
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
