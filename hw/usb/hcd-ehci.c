@@ -2372,7 +2372,7 @@ static void ehci_frame_timer(void *opaque)
 
     if (ehci_periodic_enabled(ehci) || ehci->pstate != EST_INACTIVE) {
         need_timer++;
-        expire_time = t_now + (get_ticks_per_sec() / FRAME_TIMER_FREQ);
+        ehci->async_stepdown = 0;
 
         if (frames > ehci->maxframes) {
             skipped_frames = frames - ehci->maxframes;
@@ -2391,8 +2391,6 @@ static void ehci_frame_timer(void *opaque)
         if (ehci->async_stepdown < ehci->maxframes / 2) {
             ehci->async_stepdown++;
         }
-        expire_time = t_now + (get_ticks_per_sec()
-                               * ehci->async_stepdown / FRAME_TIMER_FREQ);
         ehci_update_frindex(ehci, frames);
         ehci->last_run_ns += FRAME_TIMER_NS * frames;
     }
@@ -2402,7 +2400,7 @@ static void ehci_frame_timer(void *opaque)
      */
     if (ehci_async_enabled(ehci) || ehci->astate != EST_INACTIVE) {
         need_timer++;
-        qemu_bh_schedule(ehci->async_bh);
+        ehci_advance_async_state(ehci);
     }
 
     ehci_commit_irq(ehci);
@@ -2412,6 +2410,8 @@ static void ehci_frame_timer(void *opaque)
     }
 
     if (need_timer) {
+        expire_time = t_now + (get_ticks_per_sec()
+                               * (ehci->async_stepdown+1) / FRAME_TIMER_FREQ);
         qemu_mod_timer(ehci->frame_timer, expire_time);
     }
 }
