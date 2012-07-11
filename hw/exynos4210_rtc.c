@@ -142,7 +142,7 @@ static const VMStateDescription vmstate_exynos4210_rtc_state = {
 };
 
 #define BCD3DIGITS(x) \
-    ((uint32_t)to_bcd((uint8_t)x) + \
+    ((uint32_t)to_bcd((uint8_t)(x % 100)) + \
     ((uint32_t)to_bcd((uint8_t)((x % 1000) / 100)) << 8))
 
 static void check_alarm_raise(Exynos4210RTCState *s)
