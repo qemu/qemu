@@ -403,5 +403,5 @@ qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 Makefile: $(GENERATED_HEADERS)
 
 # Include automatically generated dependency files
-# All subdir dependencies come automatically from our recursive subdir rules
--include $(wildcard *.d)
+# Dependencies in Makefile.objs files come from our recursive subdir rules
+-include $(wildcard *.d tests/*.d)

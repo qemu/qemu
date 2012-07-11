@@ -214,6 +214,3 @@ endif
 
 GENERATED_HEADERS += config-target.h
 Makefile: $(GENERATED_HEADERS)
-
-# Include automatically generated dependency files
--include $(wildcard *.d fpu/*.d tcg/*.d)
