@@ -11,6 +11,7 @@
 #include "iorange.h"
 #include "dma.h"
 #include "sysemu.h"
+#include "hw/block-common.h"
 #include "hw/scsi-defs.h"
 
 /* debug IDE devices */
