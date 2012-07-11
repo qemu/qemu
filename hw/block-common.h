@@ -60,6 +60,8 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
 /* Configuration helpers */
 
 void blkconf_serial(BlockConf *conf, char **serial);
+int blkconf_geometry(BlockConf *conf, int *trans,
+                     unsigned cyls_max, unsigned heads_max, unsigned secs_max);
 
 /* Hard disk geometry */
 

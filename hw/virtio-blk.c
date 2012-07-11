@@ -589,7 +589,6 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
 {
     VirtIOBlock *s;
     static int virtio_blk_id;
-    DriveInfo *dinfo;
 
     if (!blk->conf.bs) {
         error_report("drive property not set");
@@ -601,6 +600,9 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     }
 
     blkconf_serial(&blk->conf, &blk->serial);
+    if (blkconf_geometry(&blk->conf, NULL, 65535, 255, 255) < 0) {
+        return NULL;
+    }
 
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
                                           sizeof(struct virtio_blk_config),
@@ -614,33 +616,6 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     s->blk = blk;
     s->rq = NULL;
     s->sector_mask = (s->conf->logical_block_size / BDRV_SECTOR_SIZE) - 1;
-
-    if (!blk->conf.cyls && !blk->conf.heads && !blk->conf.secs) {
-        /* try to fall back to value set with legacy -drive cyls=... */
-        dinfo = drive_get_by_blockdev(blk->conf.bs);
-        blk->conf.cyls = dinfo->cyls;
-        blk->conf.heads = dinfo->heads;
-        blk->conf.secs = dinfo->secs;
-    }
-    if (!blk->conf.cyls && !blk->conf.heads && !blk->conf.secs) {
-        hd_geometry_guess(s->bs,
-                          &blk->conf.cyls, &blk->conf.heads, &blk->conf.secs,
-                          NULL);
-    }
-    if (blk->conf.cyls || blk->conf.heads || blk->conf.secs) {
-        if (blk->conf.cyls < 1 || blk->conf.cyls > 65535) {
-            error_report("cyls must be between 1 and 65535");
-            return NULL;
-        }
-        if (blk->conf.heads < 1 || blk->conf.heads > 255) {
-            error_report("heads must be between 1 and 255");
-            return NULL;
-        }
-        if (blk->conf.secs < 1 || blk->conf.secs > 255) {
-            error_report("secs must be between 1 and 255");
-            return NULL;
-        }
-    }
 
     s->vq = virtio_add_queue(&s->vdev, 128, virtio_blk_handle_output);
 

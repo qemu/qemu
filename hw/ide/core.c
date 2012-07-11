@@ -1935,18 +1935,6 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->drive_kind = kind;
 
     bdrv_get_geometry(bs, &nb_sectors);
-    if (cylinders < 1 || cylinders > 65535) {
-        error_report("cyls must be between 1 and 65535");
-        return -1;
-    }
-    if (heads < 1 || heads > 16) {
-        error_report("heads must be between 1 and 16");
-        return -1;
-    }
-    if (secs < 1 || secs > 255) {
-        error_report("secs must be between 1 and 255");
-        return -1;
-    }
     s->cylinders = cylinders;
     s->heads = heads;
     s->sectors = secs;
@@ -2093,6 +2081,18 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                 hd_geometry_guess(dinfo->bdrv, &cyls, &heads, &secs, &trans);
             } else if (trans == BIOS_ATA_TRANSLATION_AUTO) {
                 trans = hd_bios_chs_auto_trans(cyls, heads, secs);
+            }
+            if (cyls < 1 || cyls > 65535) {
+                error_report("cyls must be between 1 and 65535");
+                exit(1);
+            }
+            if (heads < 1 || heads > 16) {
+                error_report("heads must be between 1 and 16");
+                exit(1);
+            }
+            if (secs < 1 || secs > 255) {
+                error_report("secs must be between 1 and 255");
+                exit(1);
             }
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
                                dinfo->media_cd ? IDE_CD : IDE_HD,

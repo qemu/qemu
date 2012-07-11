@@ -142,7 +142,6 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
-    DriveInfo *dinfo;
 
     if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
         error_report("discard_granularity must be 512 for ide");
@@ -150,22 +149,8 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     }
 
     blkconf_serial(&dev->conf, &dev->serial);
-
-    if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
-        /* try to fall back to value set with legacy -drive cyls=... */
-        dinfo = drive_get_by_blockdev(dev->conf.bs);
-        dev->conf.cyls  = dinfo->cyls;
-        dev->conf.heads = dinfo->heads;
-        dev->conf.secs  = dinfo->secs;
-        dev->chs_trans  = dinfo->trans;
-    }
-    if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
-        hd_geometry_guess(dev->conf.bs,
-                          &dev->conf.cyls, &dev->conf.heads, &dev->conf.secs,
-                          &dev->chs_trans);
-    } else if (dev->chs_trans == BIOS_ATA_TRANSLATION_AUTO) {
-        dev->chs_trans = hd_bios_chs_auto_trans(dev->conf.cyls,
-                                        dev->conf.heads, dev->conf.secs);
+    if (blkconf_geometry(&dev->conf, &dev->chs_trans, 65536, 16, 255) < 0) {
+        return -1;
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,

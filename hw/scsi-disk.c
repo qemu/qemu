@@ -1737,7 +1737,6 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
 static int scsi_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-    DriveInfo *dinfo;
 
     if (!s->qdev.conf.bs) {
         error_report("drive property not set");
@@ -1750,34 +1749,10 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
-        /* try to fall back to value set with legacy -drive cyls=... */
-        dinfo = drive_get_by_blockdev(s->qdev.conf.bs);
-        dev->conf.cyls = dinfo->cyls;
-        dev->conf.heads = dinfo->heads;
-        dev->conf.secs = dinfo->secs;
-    }
-    if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
-        hd_geometry_guess(s->qdev.conf.bs,
-                          &dev->conf.cyls, &dev->conf.heads, &dev->conf.secs,
-                          NULL);
-    }
-    if (dev->conf.cyls || dev->conf.heads || dev->conf.secs) {
-        if (dev->conf.cyls < 1 || dev->conf.cyls > 65535) {
-            error_report("cyls must be between 1 and 65535");
-            return -1;
-        }
-        if (dev->conf.heads < 1 || dev->conf.heads > 255) {
-            error_report("heads must be between 1 and 255");
-            return -1;
-        }
-        if (dev->conf.secs < 1 || dev->conf.secs > 255) {
-            error_report("secs must be between 1 and 255");
-            return -1;
-        }
-    }
-
     blkconf_serial(&s->qdev.conf, &s->serial);
+    if (blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
+        return -1;
+    }
 
     if (!s->version) {
         s->version = g_strdup(qemu_get_version());
