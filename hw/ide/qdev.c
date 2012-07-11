@@ -142,7 +142,6 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
-    const char *serial;
     DriveInfo *dinfo;
 
     if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
@@ -150,14 +149,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         return -1;
     }
 
-    serial = dev->serial;
-    if (!serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(dev->conf.bs);
-        if (*dinfo->serial) {
-            serial = dinfo->serial;
-        }
-    }
+    blkconf_serial(&dev->conf, &dev->serial);
 
     if (!dev->conf.cyls && !dev->conf.heads && !dev->conf.secs) {
         /* try to fall back to value set with legacy -drive cyls=... */
@@ -177,7 +169,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,
-                       dev->version, serial, dev->model, dev->wwn,
+                       dev->version, dev->serial, dev->model, dev->wwn,
                        dev->conf.cyls, dev->conf.heads, dev->conf.secs,
                        dev->chs_trans) < 0) {
         return -1;

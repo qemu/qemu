@@ -1777,13 +1777,7 @@ static int scsi_initfn(SCSIDevice *dev)
         }
     }
 
-    if (!s->serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(s->qdev.conf.bs);
-        if (*dinfo->serial) {
-            s->serial = g_strdup(dinfo->serial);
-        }
-    }
+    blkconf_serial(&s->qdev.conf, &s->serial);
 
     if (!s->version) {
         s->version = g_strdup(qemu_get_version());

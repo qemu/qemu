@@ -57,6 +57,9 @@ static inline unsigned int get_physical_block_exp(BlockConf *conf)
     DEFINE_PROP_UINT32("heads", _state, _conf.heads, 0), \
     DEFINE_PROP_UINT32("secs", _state, _conf.secs, 0)
 
+/* Configuration helpers */
+
+void blkconf_serial(BlockConf *conf, char **serial);
 
 /* Hard disk geometry */
 

@@ -600,13 +600,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
         return NULL;
     }
 
-    if (!blk->serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(blk->conf.bs);
-        if (*dinfo->serial) {
-            blk->serial = strdup(dinfo->serial);
-        }
-    }
+    blkconf_serial(&blk->conf, &blk->serial);
 
     s = (VirtIOBlock *)virtio_common_init("virtio-blk", VIRTIO_ID_BLOCK,
                                           sizeof(struct virtio_blk_config),
