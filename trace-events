@@ -258,7 +258,7 @@ usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
 usb_ehci_data(int rw, uint32_t cpage, uint32_t offset, uint32_t addr, uint32_t len, uint32_t bufpos) "write %d, cpage %d, offset 0x%03x, addr 0x%08x, len %d, bufpos %d"
 usb_ehci_queue_action(void *q, const char *action) "q %p: %s"
 usb_ehci_packet_action(void *q, void *p, const char *action) "q %p p %p: %s"
-usb_ehci_interrupt(uint32_t level, uint32_t sts, uint32_t mask) "level %d, sts 0x%x, mask 0x%x"
+usb_ehci_irq(uint32_t level, uint32_t frindex, uint32_t sts, uint32_t mask) "level %d, frindex 0x%04x, sts 0x%x, mask 0x%x"
 
 # hw/usb/hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="
