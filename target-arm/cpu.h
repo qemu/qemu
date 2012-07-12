@@ -221,7 +221,7 @@ typedef struct CPUARMState {
     /* These fields after the common ones so they are preserved on reset.  */
 
     /* Internal CPU feature flags.  */
-    uint32_t features;
+    uint64_t features;
 
     void *nvic;
     const struct arm_boot_info *boot_info;
@@ -392,7 +392,7 @@ enum arm_features {
 
 static inline int arm_feature(CPUARMState *env, int feature)
 {
-    return (env->features & (1u << feature)) != 0;
+    return (env->features & (1ULL << feature)) != 0;
 }
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
@@ -638,7 +638,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 7
+#define CPU_SAVE_VERSION 8
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

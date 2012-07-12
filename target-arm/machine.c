@@ -60,7 +60,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c15_diagnostic);
     qemu_put_be32(f, env->cp15.c15_power_diagnostic);
 
-    qemu_put_be32(f, env->features);
+    qemu_put_be64(f, env->features);
 
     if (arm_feature(env, ARM_FEATURE_VFP)) {
         for (i = 0;  i < 16; i++) {
@@ -177,7 +177,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c15_diagnostic = qemu_get_be32(f);
     env->cp15.c15_power_diagnostic = qemu_get_be32(f);
 
-    env->features = qemu_get_be32(f);
+    env->features = qemu_get_be64(f);
 
     if (arm_feature(env, ARM_FEATURE_VFP)) {
         for (i = 0;  i < 16; i++) {

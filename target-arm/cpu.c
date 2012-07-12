@@ -129,7 +129,7 @@ static void arm_cpu_reset(CPUState *s)
 
 static inline void set_feature(CPUARMState *env, int feature)
 {
-    env->features |= 1u << feature;
+    env->features |= 1ULL << feature;
 }
 
 static void arm_cpu_initfn(Object *obj)
