@@ -267,7 +267,7 @@ static void imx_avic_write(void *opaque, target_phys_addr_t offset,
     /* Vector Registers not yet supported */
     if (offset >= 0x100 && offset <= 0x2fc) {
         IPRINTF("imx_avic_write to vector register %d ignored\n",
-                (offset - 0x100) >> 2);
+                (unsigned int)((offset - 0x100) >> 2));
         return;
     }
 
