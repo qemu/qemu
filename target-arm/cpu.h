@@ -619,7 +619,7 @@ static inline bool cp_access_ok(CPUARMState *env,
 #define TARGET_PAGE_BITS 10
 #endif
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_PHYS_ADDR_SPACE_BITS 40
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 static inline CPUARMState *cpu_init(const char *cpu_model)
