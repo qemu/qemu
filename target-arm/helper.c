@@ -3,6 +3,7 @@
 #include "helper.h"
 #include "host-utils.h"
 #include "sysemu.h"
+#include "bitops.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
@@ -2184,6 +2185,184 @@ do_fault:
     return code | (domain << 4);
 }
 
+/* Fault type for long-descriptor MMU fault reporting; this corresponds
+ * to bits [5..2] in the STATUS field in long-format DFSR/IFSR.
+ */
+typedef enum {
+    translation_fault = 1,
+    access_fault = 2,
+    permission_fault = 3,
+} MMUFaultType;
+
+static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
+                              int access_type, int is_user,
+                              target_phys_addr_t *phys_ptr, int *prot,
+                              target_ulong *page_size_ptr)
+{
+    /* Read an LPAE long-descriptor translation table. */
+    MMUFaultType fault_type = translation_fault;
+    uint32_t level = 1;
+    uint32_t epd;
+    uint32_t tsz;
+    uint64_t ttbr;
+    int ttbr_select;
+    int n;
+    target_phys_addr_t descaddr;
+    uint32_t tableattrs;
+    target_ulong page_size;
+    uint32_t attrs;
+
+    /* Determine whether this address is in the region controlled by
+     * TTBR0 or TTBR1 (or if it is in neither region and should fault).
+     * This is a Non-secure PL0/1 stage 1 translation, so controlled by
+     * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
+     */
+    uint32_t t0sz = extract32(env->cp15.c2_control, 0, 3);
+    uint32_t t1sz = extract32(env->cp15.c2_control, 16, 3);
+    if (t0sz && !extract32(address, 32 - t0sz, t0sz)) {
+        /* there is a ttbr0 region and we are in it (high bits all zero) */
+        ttbr_select = 0;
+    } else if (t1sz && !extract32(~address, 32 - t1sz, t1sz)) {
+        /* there is a ttbr1 region and we are in it (high bits all one) */
+        ttbr_select = 1;
+    } else if (!t0sz) {
+        /* ttbr0 region is "everything not in the ttbr1 region" */
+        ttbr_select = 0;
+    } else if (!t1sz) {
+        /* ttbr1 region is "everything not in the ttbr0 region" */
+        ttbr_select = 1;
+    } else {
+        /* in the gap between the two regions, this is a Translation fault */
+        fault_type = translation_fault;
+        goto do_fault;
+    }
+
+    /* Note that QEMU ignores shareability and cacheability attributes,
+     * so we don't need to do anything with the SH, ORGN, IRGN fields
+     * in the TTBCR.  Similarly, TTBCR:A1 selects whether we get the
+     * ASID from TTBR0 or TTBR1, but QEMU's TLB doesn't currently
+     * implement any ASID-like capability so we can ignore it (instead
+     * we will always flush the TLB any time the ASID is changed).
+     */
+    if (ttbr_select == 0) {
+        ttbr = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
+        epd = extract32(env->cp15.c2_control, 7, 1);
+        tsz = t0sz;
+    } else {
+        ttbr = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
+        epd = extract32(env->cp15.c2_control, 23, 1);
+        tsz = t1sz;
+    }
+
+    if (epd) {
+        /* Translation table walk disabled => Translation fault on TLB miss */
+        goto do_fault;
+    }
+
+    /* If the region is small enough we will skip straight to a 2nd level
+     * lookup. This affects the number of bits of the address used in
+     * combination with the TTBR to find the first descriptor. ('n' here
+     * matches the usage in the ARM ARM sB3.6.6, where bits [39..n] are
+     * from the TTBR, [n-1..3] from the vaddr, and [2..0] always zero).
+     */
+    if (tsz > 1) {
+        level = 2;
+        n = 14 - tsz;
+    } else {
+        n = 5 - tsz;
+    }
+
+    /* Clear the vaddr bits which aren't part of the within-region address,
+     * so that we don't have to special case things when calculating the
+     * first descriptor address.
+     */
+    address &= (0xffffffffU >> tsz);
+
+    /* Now we can extract the actual base address from the TTBR */
+    descaddr = extract64(ttbr, 0, 40);
+    descaddr &= ~((1ULL << n) - 1);
+
+    tableattrs = 0;
+    for (;;) {
+        uint64_t descriptor;
+
+        descaddr |= ((address >> (9 * (4 - level))) & 0xff8);
+        descriptor = ldq_phys(descaddr);
+        if (!(descriptor & 1) ||
+            (!(descriptor & 2) && (level == 3))) {
+            /* Invalid, or the Reserved level 3 encoding */
+            goto do_fault;
+        }
+        descaddr = descriptor & 0xfffffff000ULL;
+
+        if ((descriptor & 2) && (level < 3)) {
+            /* Table entry. The top five bits are attributes which  may
+             * propagate down through lower levels of the table (and
+             * which are all arranged so that 0 means "no effect", so
+             * we can gather them up by ORing in the bits at each level).
+             */
+            tableattrs |= extract64(descriptor, 59, 5);
+            level++;
+            continue;
+        }
+        /* Block entry at level 1 or 2, or page entry at level 3.
+         * These are basically the same thing, although the number
+         * of bits we pull in from the vaddr varies.
+         */
+        page_size = (1 << (39 - (9 * level)));
+        descaddr |= (address & (page_size - 1));
+        /* Extract attributes from the descriptor and merge with table attrs */
+        attrs = extract64(descriptor, 2, 10)
+            | (extract64(descriptor, 52, 12) << 10);
+        attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
+        attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
+        /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
+         * means "force PL1 access only", which means forcing AP[1] to 0.
+         */
+        if (extract32(tableattrs, 2, 1)) {
+            attrs &= ~(1 << 4);
+        }
+        /* Since we're always in the Non-secure state, NSTable is ignored. */
+        break;
+    }
+    /* Here descaddr is the final physical address, and attributes
+     * are all in attrs.
+     */
+    fault_type = access_fault;
+    if ((attrs & (1 << 8)) == 0) {
+        /* Access flag */
+        goto do_fault;
+    }
+    fault_type = permission_fault;
+    if (is_user && !(attrs & (1 << 4))) {
+        /* Unprivileged access not enabled */
+        goto do_fault;
+    }
+    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    if (attrs & (1 << 12) || (!is_user && (attrs & (1 << 11)))) {
+        /* XN or PXN */
+        if (access_type == 2) {
+            goto do_fault;
+        }
+        *prot &= ~PAGE_EXEC;
+    }
+    if (attrs & (1 << 5)) {
+        /* Write access forbidden */
+        if (access_type == 1) {
+            goto do_fault;
+        }
+        *prot &= ~PAGE_WRITE;
+    }
+
+    *phys_ptr = descaddr;
+    *page_size_ptr = page_size;
+    return 0;
+
+do_fault:
+    /* Long-descriptor format IFSR/DFSR value */
+    return (1 << 9) | (fault_type << 2) | level;
+}
+
 static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
                              int access_type, int is_user,
                              target_phys_addr_t *phys_ptr, int *prot)
@@ -2287,6 +2466,9 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
         *page_size = TARGET_PAGE_SIZE;
 	return get_phys_addr_mpu(env, address, access_type, is_user, phys_ptr,
 				 prot);
+    } else if (extended_addresses_enabled(env)) {
+        return get_phys_addr_lpae(env, address, access_type, is_user, phys_ptr,
+                                  prot, page_size);
     } else if (env->cp15.c1_sys & (1 << 23)) {
         return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
                                 prot, page_size);
