@@ -386,6 +386,8 @@ enum arm_features {
     ARM_FEATURE_CACHE_DIRTY_REG, /* 1136/1176 cache dirty status register */
     ARM_FEATURE_CACHE_BLOCK_OPS, /* v6 optional cache block operations */
     ARM_FEATURE_MPIDR, /* has cp15 MPIDR */
+    ARM_FEATURE_PXN, /* has Privileged Execute Never bit */
+    ARM_FEATURE_LPAE, /* has Large Physical Address Extension */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

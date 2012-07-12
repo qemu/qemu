@@ -1935,9 +1935,10 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     uint32_t table;
     uint32_t desc;
     uint32_t xn;
+    uint32_t pxn = 0;
     int type;
     int ap;
-    int domain;
+    int domain = 0;
     int domain_prot;
     uint32_t phys_addr;
 
@@ -1946,27 +1947,27 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     table = get_level1_table_address(env, address);
     desc = ldl_phys(table);
     type = (desc & 3);
-    if (type == 0) {
-        /* Section translation fault.  */
+    if (type == 0 || (type == 3 && !arm_feature(env, ARM_FEATURE_PXN))) {
+        /* Section translation fault, or attempt to use the encoding
+         * which is Reserved on implementations without PXN.
+         */
         code = 5;
-        domain = 0;
         goto do_fault;
-    } else if (type == 2 && (desc & (1 << 18))) {
-        /* Supersection.  */
-        domain = 0;
-    } else {
-        /* Section or page.  */
+    }
+    if ((type == 1) || !(desc & (1 << 18))) {
+        /* Page or Section.  */
         domain = (desc >> 5) & 0x0f;
     }
     domain_prot = (env->cp15.c3 >> (domain * 2)) & 3;
     if (domain_prot == 0 || domain_prot == 2) {
-        if (type == 2)
+        if (type != 1) {
             code = 9; /* Section domain fault.  */
-        else
+        } else {
             code = 11; /* Page domain fault.  */
+        }
         goto do_fault;
     }
-    if (type == 2) {
+    if (type != 1) {
         if (desc & (1 << 18)) {
             /* Supersection.  */
             phys_addr = (desc & 0xff000000) | (address & 0x00ffffff);
@@ -1978,8 +1979,12 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         }
         ap = ((desc >> 10) & 3) | ((desc >> 13) & 4);
         xn = desc & (1 << 4);
+        pxn = desc & 1;
         code = 13;
     } else {
+        if (arm_feature(env, ARM_FEATURE_PXN)) {
+            pxn = (desc >> 2) & 1;
+        }
         /* Lookup l2 entry.  */
         table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
         desc = ldl_phys(table);
@@ -2007,6 +2012,9 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     if (domain_prot == 3) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     } else {
+        if (pxn && !is_user) {
+            xn = 1;
+        }
         if (xn && access_type == 2)
             goto do_fault;
 
