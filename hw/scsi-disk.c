@@ -1958,7 +1958,8 @@ static int scsi_initfn(SCSIDevice *dev)
     }
 
     blkconf_serial(&s->qdev.conf, &s->serial);
-    if (blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
+    if (dev->type == TYPE_DISK
+        && blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
         return -1;
     }
 
