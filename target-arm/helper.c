@@ -871,6 +871,19 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static const ARMCPRegInfo lpae_cp_reginfo[] = {
+    /* NOP AMAIR0/1: the override is because these clash with tha rather
+     * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
+     */
+    { .name = "AMAIR0", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .resetvalue = 0 },
+    { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .resetvalue = 0 },
+    REGINFO_SENTINEL
+};
+
 static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c1_sys = value;
@@ -1015,6 +1028,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_MPIDR)) {
         define_arm_cp_regs(cpu, mpidr_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+        define_arm_cp_regs(cpu, lpae_cp_reginfo);
     }
     /* Slightly awkwardly, the OMAP and StrongARM cores need all of
      * cp15 crn=0 to be writes-ignored, whereas for other cores they should
