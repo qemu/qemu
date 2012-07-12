@@ -503,6 +503,17 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 
 #ifndef CONFIG_USER_ONLY
 /* get_phys_addr() isn't present for user-mode-only targets */
+
+/* Return true if extended addresses are enabled, ie this is an
+ * LPAE implementation and we are using the long-descriptor translation
+ * table format because the TTBCR EAE bit is set.
+ */
+static inline bool extended_addresses_enabled(CPUARMState *env)
+{
+    return arm_feature(env, ARM_FEATURE_LPAE)
+        && (env->cp15.c2_control & (1 << 31));
+}
+
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     target_phys_addr_t phys_addr;
@@ -517,20 +528,45 @@ static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     }
     ret = get_phys_addr(env, value, access_type, is_user,
                         &phys_addr, &prot, &page_size);
-    if (ret == 0) {
-        /* We do not set any attribute bits in the PAR */
-        if (page_size == (1 << 24)
-            && arm_feature(env, ARM_FEATURE_V7)) {
-            env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+    if (extended_addresses_enabled(env)) {
+        /* ret is a DFSR/IFSR value for the long descriptor
+         * translation table format, but with WnR always clear.
+         * Convert it to a 64-bit PAR.
+         */
+        uint64_t par64 = (1 << 11); /* LPAE bit always set */
+        if (ret == 0) {
+            par64 |= phys_addr & ~0xfffULL;
+            /* We don't set the ATTR or SH fields in the PAR. */
         } else {
-            env->cp15.c7_par = phys_addr & 0xfffff000;
+            par64 |= 1; /* F */
+            par64 |= (ret & 0x3f) << 1; /* FS */
+            /* Note that S2WLK and FSTAGE are always zero, because we don't
+             * implement virtualization and therefore there can't be a stage 2
+             * fault.
+             */
         }
+        env->cp15.c7_par = par64;
+        env->cp15.c7_par_hi = par64 >> 32;
     } else {
-        env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
-            ((ret & (12 << 1)) >> 6) |
-            ((ret & 0xf) << 1) | 1;
+        /* ret is a DFSR/IFSR value for the short descriptor
+         * translation table format (with WnR always clear).
+         * Convert it to a 32-bit PAR.
+         */
+        if (ret == 0) {
+            /* We do not set any attribute bits in the PAR */
+            if (page_size == (1 << 24)
+                && arm_feature(env, ARM_FEATURE_V7)) {
+                env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+            } else {
+                env->cp15.c7_par = phys_addr & 0xfffff000;
+            }
+        } else {
+            env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
+                ((ret & (12 << 1)) >> 6) |
+                ((ret & 0xf) << 1) | 1;
+        }
+        env->cp15.c7_par_hi = 0;
     }
-    env->cp15.c7_par_hi = 0;
     return 0;
 }
 #endif
@@ -2196,6 +2232,29 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
     return 0;
 }
 
+/* get_phys_addr - get the physical address for this virtual address
+ *
+ * Find the physical address corresponding to the given virtual address,
+ * by doing a translation table walk on MMU based systems or using the
+ * MPU state on MPU based systems.
+ *
+ * Returns 0 if the translation was successful. Otherwise, phys_ptr,
+ * prot and page_size are not filled in, and the return value provides
+ * information on why the translation aborted, in the format of a
+ * DFSR/IFSR fault register, with the following caveats:
+ *  * we honour the short vs long DFSR format differences.
+ *  * the WnR bit is never set (the caller must do this).
+ *  * for MPU based systems we don't bother to return a full FSR format
+ *    value.
+ *
+ * @env: CPUARMState
+ * @address: virtual address to get physical address for
+ * @access_type: 0 for read, 1 for write, 2 for execute
+ * @is_user: 0 for privileged access, 1 for user
+ * @phys_ptr: set to the physical address corresponding to the virtual address
+ * @prot: set to the permissions for the page containing phys_ptr
+ * @page_size: set to the size of the page containing phys_ptr
+ */
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
                                 target_phys_addr_t *phys_ptr, int *prot,
