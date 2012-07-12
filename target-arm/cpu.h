@@ -113,7 +113,9 @@ typedef struct CPUARMState {
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint32_t c1_scr; /* secure config register.  */
         uint32_t c2_base0; /* MMU translation table base 0.  */
-        uint32_t c2_base1; /* MMU translation table base 1.  */
+        uint32_t c2_base0_hi; /* MMU translation table base 0, high 32 bits */
+        uint32_t c2_base1; /* MMU translation table base 0.  */
+        uint32_t c2_base1_hi; /* MMU translation table base 1, high 32 bits */
         uint32_t c2_control; /* MMU translation table base control.  */
         uint32_t c2_mask; /* MMU translation table base selection mask.  */
         uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
@@ -127,6 +129,7 @@ typedef struct CPUARMState {
         uint32_t c6_insn; /* Fault address registers.  */
         uint32_t c6_data;
         uint32_t c7_par;  /* Translation result. */
+        uint32_t c7_par_hi;  /* Translation result, high 32 bits */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint32_t c9_pmcr; /* performance monitor control register */
@@ -638,7 +641,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 8
+#define CPU_SAVE_VERSION 9
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

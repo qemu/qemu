@@ -27,7 +27,9 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c1_xscaleauxcr);
     qemu_put_be32(f, env->cp15.c1_scr);
     qemu_put_be32(f, env->cp15.c2_base0);
+    qemu_put_be32(f, env->cp15.c2_base0_hi);
     qemu_put_be32(f, env->cp15.c2_base1);
+    qemu_put_be32(f, env->cp15.c2_base1_hi);
     qemu_put_be32(f, env->cp15.c2_control);
     qemu_put_be32(f, env->cp15.c2_mask);
     qemu_put_be32(f, env->cp15.c2_base_mask);
@@ -42,6 +44,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, env->cp15.c6_insn);
     qemu_put_be32(f, env->cp15.c6_data);
     qemu_put_be32(f, env->cp15.c7_par);
+    qemu_put_be32(f, env->cp15.c7_par_hi);
     qemu_put_be32(f, env->cp15.c9_insn);
     qemu_put_be32(f, env->cp15.c9_data);
     qemu_put_be32(f, env->cp15.c9_pmcr);
@@ -144,7 +147,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c1_xscaleauxcr = qemu_get_be32(f);
     env->cp15.c1_scr = qemu_get_be32(f);
     env->cp15.c2_base0 = qemu_get_be32(f);
+    env->cp15.c2_base0_hi = qemu_get_be32(f);
     env->cp15.c2_base1 = qemu_get_be32(f);
+    env->cp15.c2_base1_hi = qemu_get_be32(f);
     env->cp15.c2_control = qemu_get_be32(f);
     env->cp15.c2_mask = qemu_get_be32(f);
     env->cp15.c2_base_mask = qemu_get_be32(f);
@@ -159,6 +164,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     env->cp15.c6_insn = qemu_get_be32(f);
     env->cp15.c6_data = qemu_get_be32(f);
     env->cp15.c7_par = qemu_get_be32(f);
+    env->cp15.c7_par_hi = qemu_get_be32(f);
     env->cp15.c9_insn = qemu_get_be32(f);
     env->cp15.c9_data = qemu_get_be32(f);
     env->cp15.c9_pmcr = qemu_get_be32(f);

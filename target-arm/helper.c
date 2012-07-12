@@ -491,7 +491,9 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 
 static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    if (arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+        env->cp15.c7_par = value;
+    } else if (arm_feature(env, ARM_FEATURE_V7)) {
         env->cp15.c7_par = value & 0xfffff6ff;
     } else {
         env->cp15.c7_par = value & 0xfffff1ff;
@@ -528,6 +530,7 @@ static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
             ((ret & (12 << 1)) >> 6) |
             ((ret & 0xf) << 1) | 1;
     }
+    env->cp15.c7_par_hi = 0;
     return 0;
 }
 #endif
@@ -871,6 +874,69 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int par64_read(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
+{
+    *value = ((uint64_t)env->cp15.c7_par_hi << 32) | env->cp15.c7_par;
+    return 0;
+}
+
+static int par64_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    env->cp15.c7_par_hi = value >> 32;
+    env->cp15.c7_par = value;
+    return 0;
+}
+
+static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c7_par_hi = 0;
+    env->cp15.c7_par = 0;
+}
+
+static int ttbr064_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    *value = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
+    return 0;
+}
+
+static int ttbr064_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    env->cp15.c2_base0_hi = value >> 32;
+    env->cp15.c2_base0 = value;
+    /* Writes to the 64 bit format TTBRs may change the ASID */
+    tlb_flush(env, 1);
+    return 0;
+}
+
+static void ttbr064_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c2_base0_hi = 0;
+    env->cp15.c2_base0 = 0;
+}
+
+static int ttbr164_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    *value = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
+    return 0;
+}
+
+static int ttbr164_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    env->cp15.c2_base1_hi = value >> 32;
+    env->cp15.c2_base1 = value;
+    return 0;
+}
+
+static void ttbr164_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c2_base1_hi = 0;
+    env->cp15.c2_base1 = 0;
+}
+
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
     /* NOP AMAIR0/1: the override is because these clash with tha rather
      * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
@@ -886,6 +952,15 @@ static const ARMCPRegInfo lpae_cp_reginfo[] = {
       .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
     { .name = "DBGDSAR", .cp = 14, .crm = 2, .opc1 = 0,
       .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
+    { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
+      .access = PL1_RW, .type = ARM_CP_64BIT,
+      .readfn = par64_read, .writefn = par64_write, .resetfn = par64_reset },
+    { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
+      .access = PL1_RW, .type = ARM_CP_64BIT, .readfn = ttbr064_read,
+      .writefn = ttbr064_write, .resetfn = ttbr064_reset },
+    { .name = "TTBR1", .cp = 15, .crm = 2, .opc1 = 1,
+      .access = PL1_RW, .type = ARM_CP_64BIT, .readfn = ttbr164_read,
+      .writefn = ttbr164_write, .resetfn = ttbr164_reset },
     REGINFO_SENTINEL
 };
 
