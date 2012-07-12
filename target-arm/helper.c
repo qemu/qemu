@@ -216,9 +216,9 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
       .access = PL1_W, .type = ARM_CP_NOP },
     { .name = "ISB", .cp = 15, .crn = 7, .crm = 5, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .type = ARM_CP_NOP },
-    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
+    { .name = "DSB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .type = ARM_CP_NOP },
-    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
+    { .name = "DMB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
@@ -346,7 +346,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
      */
     { .name = "DBGDRAR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
-    { .name = "DBGDRAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+    { .name = "DBGDSAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* the old v6 WFI, UNPREDICTABLE in v7 but we choose to NOP */
     { .name = "NOP", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
