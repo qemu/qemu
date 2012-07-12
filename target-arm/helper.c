@@ -7,7 +7,7 @@
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
-                                uint32_t *phys_ptr, int *prot,
+                                target_phys_addr_t *phys_ptr, int *prot,
                                 target_ulong *page_size);
 #endif
 
@@ -505,7 +505,7 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 /* get_phys_addr() isn't present for user-mode-only targets */
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user = ri->opc2 & 2;
@@ -1929,8 +1929,8 @@ static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
-			    int is_user, uint32_t *phys_ptr, int *prot,
-                            target_ulong *page_size)
+                            int is_user, target_phys_addr_t *phys_ptr,
+                            int *prot, target_ulong *page_size)
 {
     int code;
     uint32_t table;
@@ -1939,7 +1939,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     int ap;
     int domain;
     int domain_prot;
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -2024,8 +2024,8 @@ do_fault:
 }
 
 static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
-			    int is_user, uint32_t *phys_ptr, int *prot,
-                            target_ulong *page_size)
+                            int is_user, target_phys_addr_t *phys_ptr,
+                            int *prot, target_ulong *page_size)
 {
     int code;
     uint32_t table;
@@ -2036,7 +2036,7 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     int ap;
     int domain = 0;
     int domain_prot;
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -2135,8 +2135,9 @@ do_fault:
     return code | (domain << 4);
 }
 
-static int get_phys_addr_mpu(CPUARMState *env, uint32_t address, int access_type,
-			     int is_user, uint32_t *phys_ptr, int *prot)
+static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
+                             int access_type, int is_user,
+                             target_phys_addr_t *phys_ptr, int *prot)
 {
     int n;
     uint32_t mask;
@@ -2197,7 +2198,7 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address, int access_type
 
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
-                                uint32_t *phys_ptr, int *prot,
+                                target_phys_addr_t *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
     /* Fast Context Switch Extension.  */
@@ -2226,7 +2227,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
 int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                               int access_type, int mmu_idx)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user;
@@ -2236,7 +2237,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                         &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
-        phys_addr &= ~(uint32_t)0x3ff;
+        phys_addr &= ~(target_phys_addr_t)0x3ff;
         address &= ~(uint32_t)0x3ff;
         tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
@@ -2258,7 +2259,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot;
     int ret;
