@@ -6236,7 +6236,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             }
             gen_set_pc_im(s->pc);
             s->is_jmp = DISAS_WFI;
-            break;
+            return 0;
         default:
             break;
         }
