@@ -1838,9 +1838,8 @@ char *qemu_find_file(int type, const char *name)
     const char *subdir;
     char *buf;
 
-    /* If name contains path separators then try it as a straight path.  */
-    if ((strchr(name, '/') || strchr(name, '\\'))
-        && access(name, R_OK) == 0) {
+    /* Try the name as a straight path first */
+    if (access(name, R_OK) == 0) {
         return g_strdup(name);
     }
     switch (type) {

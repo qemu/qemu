@@ -114,9 +114,9 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
 #else
     /* else send piece-by-piece */
     /*XXX Note: windows has WSASend() and WSARecv() */
-    unsigned i;
-    size_t count = 0;
-    for (i = 0; i < iov_cnt; ++i) {
+    unsigned i = 0;
+    ssize_t ret = 0;
+    while (i < iov_cnt) {
         ssize_t r = do_send
             ? send(sockfd, iov[i].iov_base, iov[i].iov_len, 0)
             : recv(sockfd, iov[i].iov_base, iov[i].iov_len, 0);
@@ -130,12 +130,13 @@ do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
             /* else it is some "other" error,
              * only return if there was no data processed. */
             if (ret == 0) {
-                return -1;
+                ret = -1;
             }
             break;
         }
+        i++;
     }
-    return count;
+    return ret;
 #endif
 }
 
