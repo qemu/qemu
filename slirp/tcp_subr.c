@@ -435,8 +435,11 @@ tcp_connect(struct socket *inso)
 	so->so_fport = addr.sin_port;
 	so->so_faddr = addr.sin_addr;
 	/* Translate connections from localhost to the real hostname */
-	if (so->so_faddr.s_addr == 0 || so->so_faddr.s_addr == loopback_addr.s_addr)
-	   so->so_faddr = slirp->vhost_addr;
+        if (so->so_faddr.s_addr == 0 ||
+            (so->so_faddr.s_addr & loopback_mask) ==
+            (loopback_addr.s_addr & loopback_mask)) {
+            so->so_faddr = slirp->vhost_addr;
+        }
 
 	/* Close the accept() socket, set right state */
 	if (inso->so_state & SS_FACCEPTONCE) {
