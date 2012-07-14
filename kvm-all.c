@@ -1655,6 +1655,19 @@ int kvm_allows_irq0_override(void)
     return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
 }
 
+void *kvm_vmalloc(ram_addr_t size)
+{
+#ifdef TARGET_S390X
+    void *mem;
+
+    mem = kvm_arch_vmalloc(size);
+    if (mem) {
+        return mem;
+    }
+#endif
+    return qemu_vmalloc(size);
+}
+
 void kvm_setup_guest_memory(void *start, size_t size)
 {
     if (!kvm_has_sync_mmu()) {
