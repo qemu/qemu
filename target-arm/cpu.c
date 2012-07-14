@@ -129,7 +129,7 @@ static void arm_cpu_reset(CPUState *s)
 
 static inline void set_feature(CPUARMState *env, int feature)
 {
-    env->features |= 1u << feature;
+    env->features |= 1ULL << feature;
 }
 
 static void arm_cpu_initfn(Object *obj)
@@ -191,6 +191,9 @@ void arm_cpu_realize(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_VFP3)) {
         set_feature(env, ARM_FEATURE_VFP);
+    }
+    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+        set_feature(env, ARM_FEATURE_PXN);
     }
 
     register_cp_regs_for_features(cpu);
@@ -532,6 +535,7 @@ static void cortex_a15_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
     set_feature(&cpu->env, ARM_FEATURE_DUMMY_C15_REGS);
+    set_feature(&cpu->env, ARM_FEATURE_LPAE);
     cpu->midr = 0x412fc0f1;
     cpu->reset_fpsid = 0x410430f0;
     cpu->mvfr0 = 0x10110222;

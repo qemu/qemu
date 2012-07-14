@@ -6236,7 +6236,7 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
             }
             gen_set_pc_im(s->pc);
             s->is_jmp = DISAS_WFI;
-            break;
+            return 0;
         default:
             break;
         }
@@ -6263,7 +6263,9 @@ static int disas_coproc_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                 tcg_gen_trunc_i64_i32(tmp, tmp64);
                 store_reg(s, rt, tmp);
                 tcg_gen_shri_i64(tmp64, tmp64, 32);
+                tmp = tcg_temp_new_i32();
                 tcg_gen_trunc_i64_i32(tmp, tmp64);
+                tcg_temp_free_i64(tmp64);
                 store_reg(s, rt2, tmp);
             } else {
                 TCGv tmp;
