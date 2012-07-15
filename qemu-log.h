@@ -142,7 +142,17 @@ typedef struct CPULogItem {
 
 extern const CPULogItem cpu_log_items[];
 
-void cpu_set_log(int log_flags);
+void qemu_set_log(int log_flags, bool use_own_buffers);
+
+static inline void cpu_set_log(int log_flags)
+{
+#ifdef CONFIG_USER_ONLY
+    qemu_set_log(log_flags, true);
+#else
+    qemu_set_log(log_flags, false);
+#endif
+}
+
 void cpu_set_log_filename(const char *filename);
 int cpu_str_to_log_mask(const char *str);
 

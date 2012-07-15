@@ -270,7 +270,7 @@ static void finish_read (FvdAIOCB * acb)
         /* Only read data from the base image. */
         uint8_t *data = ((uint8_t *) acb->read.read_backing.iov.iov_base) +
                     (acb->sector_num - acb->read.read_backing.sector_num) * 512;
-        qemu_iovec_from_buffer (acb->read.qiov, data, acb->nb_sectors * 512);
+        qemu_iovec_from_buf(acb->read.qiov, 0, data, acb->nb_sectors * 512);
     } else {
         /* Under the guidance of the saved bitmap, merge data from the FVD
          * data file and the base image. */

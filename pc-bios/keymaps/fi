@@ -99,9 +99,7 @@ asterisk 0x2b shift
 acute 0x2b altgr
 multiply 0x2b shift altgr
 guillemotleft 0x2c altgr
-less 0x2c shift altgr
 guillemotright 0x2d altgr
-greater 0x2d shift altgr
 copyright 0x2e altgr
 leftdoublequotemark 0x2f altgr
 grave 0x2f shift altgr

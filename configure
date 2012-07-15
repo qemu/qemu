@@ -1166,11 +1166,27 @@ else
     exit 1
 fi
 
+# Consult white-list to determine whether to enable werror
+# by default.  Only enable by default for git builds
+z_version=`cut -f3 -d. $source_path/VERSION`
+
+if test -z "$werror" ; then
+    if test "$z_version" = "50" -a \
+        "$linux" = "yes" ; then
+        werror="yes"
+    else
+        werror="no"
+    fi
+fi
+
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-Wunused-but-set-variable $gcc_flags"
 gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
+if test "$werror" = "yes" ; then
+    gcc_flags="-Werror $gcc_flags"
+fi
 cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
@@ -2617,7 +2633,7 @@ if test "$libiscsi" != "no" ; then
 #include <iscsi/iscsi.h>
 int main(void) { iscsi_unmap_sync(NULL,0,0,0,NULL,0); return 0; }
 EOF
-  if compile_prog "-Werror" "-liscsi" ; then
+  if compile_prog "" "-liscsi" ; then
     libiscsi="yes"
     LIBS="$LIBS -liscsi"
   else
@@ -2942,10 +2958,6 @@ if test -z "$zero_malloc" ; then
     else
 	zero_malloc="yes"
     fi
-fi
-
-if test "$werror" = "yes" ; then
-    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 if test "$solaris" = "no" ; then
@@ -3620,7 +3632,7 @@ case "$target_arch2" in
     bflt="yes"
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
-    target_phys_bits=32
+    target_phys_bits=64
     target_llong_alignment=4
     target_libs_softmmu="$fdt_libs"
   ;;

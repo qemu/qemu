@@ -449,7 +449,7 @@ static void sim_task_by_acb (SimAIOCB * acb)
                              acb->sector_num, acb->nb_sectors);
                     exit (1);
                 }
-                qemu_iovec_from_buffer (acb->qiov, buf, acb->qiov->size);
+                qemu_iovec_from_buf(acb->qiov, 0, buf, acb->qiov->size);
                 qemu_vfree (buf);
             }
         }
@@ -473,7 +473,7 @@ static void sim_task_by_acb (SimAIOCB * acb)
             } else {
                 uint8_t *buf = qemu_blockalign (acb->common.bs,
                                                 acb->qiov->size);
-                qemu_iovec_to_buffer (acb->qiov, buf);
+                qemu_iovec_to_buf(acb->qiov, 0, buf, acb->qiov->size);
                 if (sim_write (bs, acb->sector_num, buf, acb->nb_sectors)!= 0) {
                     fprintf (stderr, "Error in writing %s sector_num=%" PRId64
                              " nb_sectors=%d\n", acb->common.bs->filename,

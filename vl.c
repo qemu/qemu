@@ -3638,8 +3638,11 @@ int main(int argc, char **argv, char **envp)
     /* init remote displays */
     if (vnc_display) {
         vnc_display_init(ds);
-        if (vnc_display_open(ds, vnc_display) < 0)
+        if (vnc_display_open(ds, vnc_display) < 0) {
+            fprintf(stderr, "Failed to start VNC server on `%s'\n",
+                    vnc_display);
             exit(1);
+        }
 
         if (show_vnc_port) {
             printf("VNC server running on `%s'\n", vnc_display_local_addr(ds));

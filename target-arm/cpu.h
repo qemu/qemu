@@ -113,7 +113,9 @@ typedef struct CPUARMState {
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint32_t c1_scr; /* secure config register.  */
         uint32_t c2_base0; /* MMU translation table base 0.  */
-        uint32_t c2_base1; /* MMU translation table base 1.  */
+        uint32_t c2_base0_hi; /* MMU translation table base 0, high 32 bits */
+        uint32_t c2_base1; /* MMU translation table base 0.  */
+        uint32_t c2_base1_hi; /* MMU translation table base 1, high 32 bits */
         uint32_t c2_control; /* MMU translation table base control.  */
         uint32_t c2_mask; /* MMU translation table base selection mask.  */
         uint32_t c2_base_mask; /* MMU translation table base 0 mask. */
@@ -127,6 +129,7 @@ typedef struct CPUARMState {
         uint32_t c6_insn; /* Fault address registers.  */
         uint32_t c6_data;
         uint32_t c7_par;  /* Translation result. */
+        uint32_t c7_par_hi;  /* Translation result, high 32 bits */
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint32_t c9_pmcr; /* performance monitor control register */
@@ -221,7 +224,7 @@ typedef struct CPUARMState {
     /* These fields after the common ones so they are preserved on reset.  */
 
     /* Internal CPU feature flags.  */
-    uint32_t features;
+    uint64_t features;
 
     void *nvic;
     const struct arm_boot_info *boot_info;
@@ -392,11 +395,13 @@ enum arm_features {
     ARM_FEATURE_CACHE_DIRTY_REG, /* 1136/1176 cache dirty status register */
     ARM_FEATURE_CACHE_BLOCK_OPS, /* v6 optional cache block operations */
     ARM_FEATURE_MPIDR, /* has cp15 MPIDR */
+    ARM_FEATURE_PXN, /* has Privileged Execute Never bit */
+    ARM_FEATURE_LPAE, /* has Large Physical Address Extension */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
 {
-    return (env->features & (1u << feature)) != 0;
+    return (env->features & (1ULL << feature)) != 0;
 }
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
@@ -625,7 +630,7 @@ static inline bool cp_access_ok(CPUARMState *env,
 #define TARGET_PAGE_BITS 10
 #endif
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_PHYS_ADDR_SPACE_BITS 40
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 static inline CPUARMState *cpu_init(const char *cpu_model)
@@ -642,7 +647,7 @@ static inline CPUARMState *cpu_init(const char *cpu_model)
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
-#define CPU_SAVE_VERSION 7
+#define CPU_SAVE_VERSION 9
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

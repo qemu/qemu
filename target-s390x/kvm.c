@@ -135,6 +135,41 @@ int kvm_arch_get_registers(CPUS390XState *env)
     return 0;
 }
 
+/*
+ * Legacy layout for s390:
+ * Older S390 KVM requires the topmost vma of the RAM to be
+ * smaller than an system defined value, which is at least 256GB.
+ * Larger systems have larger values. We put the guest between
+ * the end of data segment (system break) and this value. We
+ * use 32GB as a base to have enough room for the system break
+ * to grow. We also have to use MAP parameters that avoid
+ * read-only mapping of guest pages.
+ */
+static void *legacy_s390_alloc(ram_addr_t size)
+{
+    void *mem;
+
+    mem = mmap((void *) 0x800000000ULL, size,
+               PROT_EXEC|PROT_READ|PROT_WRITE,
+               MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (mem == MAP_FAILED) {
+        fprintf(stderr, "Allocating RAM failed\n");
+        abort();
+    }
+    return mem;
+}
+
+void *kvm_arch_vmalloc(ram_addr_t size)
+{
+    /* Can we use the standard allocation ? */
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_GMAP) &&
+        kvm_check_extension(kvm_state, KVM_CAP_S390_COW)) {
+        return NULL;
+    } else {
+        return legacy_s390_alloc(size);
+    }
+}
+
 int kvm_arch_insert_sw_breakpoint(CPUS390XState *env, struct kvm_sw_breakpoint *bp)
 {
     static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};

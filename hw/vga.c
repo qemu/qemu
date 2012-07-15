@@ -38,6 +38,9 @@
 
 //#define DEBUG_BOCHS_VBE
 
+/* 16 state changes per vertical frame @60 Hz */
+#define VGA_TEXT_CURSOR_PERIOD_MS       (1000 * 2 * 16 / 60)
+
 /*
  * Video Graphics Array (VGA)
  *
@@ -1301,6 +1304,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     uint32_t *ch_attr_ptr;
     vga_draw_glyph8_func *vga_draw_glyph8;
     vga_draw_glyph9_func *vga_draw_glyph9;
+    int64_t now = qemu_get_clock_ms(vm_clock);
 
     /* compute font data address (in plane 2) */
     v = s->sr[VGA_SEQ_CHARACTER_MAP];
@@ -1371,6 +1375,10 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->cursor_end = s->cr[VGA_CRTC_CURSOR_END];
     }
     cursor_ptr = s->vram_ptr + (s->start_addr + cursor_offset) * 4;
+    if (now >= s->cursor_blink_time) {
+        s->cursor_blink_time = now + VGA_TEXT_CURSOR_PERIOD_MS / 2;
+        s->cursor_visible_phase = !s->cursor_visible_phase;
+    }
 
     depth_index = get_depth_index(s->ds);
     if (cw == 16)
@@ -1391,7 +1399,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         cx_max = -1;
         for(cx = 0; cx < width; cx++) {
             ch_attr = *(uint16_t *)src;
-            if (full_update || ch_attr != *ch_attr_ptr) {
+            if (full_update || ch_attr != *ch_attr_ptr || src == cursor_ptr) {
                 if (cx < cx_min)
                     cx_min = cx;
                 if (cx > cx_max)
@@ -1421,7 +1429,8 @@ static void vga_draw_text(VGACommonState *s, int full_update)
                                     font_ptr, cheight, fgcol, bgcol, dup9);
                 }
                 if (src == cursor_ptr &&
-                    !(s->cr[VGA_CRTC_CURSOR_START] & 0x20)) {
+                    !(s->cr[VGA_CRTC_CURSOR_START] & 0x20) &&
+                    s->cursor_visible_phase) {
                     int line_start, line_last, h;
                     /* draw the cursor */
                     line_start = s->cr[VGA_CRTC_CURSOR_START] & 0x1f;
@@ -1887,6 +1896,7 @@ static void vga_update_display(void *opaque)
         }
         if (graphic_mode != s->graphic_mode) {
             s->graphic_mode = graphic_mode;
+            s->cursor_blink_time = qemu_get_clock_ms(vm_clock);
             full_update = 1;
         }
         switch(graphic_mode) {

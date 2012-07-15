@@ -3,11 +3,12 @@
 #include "helper.h"
 #include "host-utils.h"
 #include "sysemu.h"
+#include "bitops.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
-                                uint32_t *phys_ptr, int *prot,
+                                target_phys_addr_t *phys_ptr, int *prot,
                                 target_ulong *page_size);
 #endif
 
@@ -216,9 +217,9 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
       .access = PL1_W, .type = ARM_CP_NOP },
     { .name = "ISB", .cp = 15, .crn = 7, .crm = 5, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .type = ARM_CP_NOP },
-    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
+    { .name = "DSB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .type = ARM_CP_NOP },
-    { .name = "ISB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
+    { .name = "DMB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "IFAR", .cp = 15, .crn = 6, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c6_insn),
@@ -346,7 +347,7 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
      */
     { .name = "DBGDRAR", .cp = 14, .crn = 1, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
-    { .name = "DBGDRAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
+    { .name = "DBGDSAR", .cp = 14, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 0,
       .access = PL0_R, .type = ARM_CP_CONST, .resetvalue = 0 },
     /* the old v6 WFI, UNPREDICTABLE in v7 but we choose to NOP */
     { .name = "NOP", .cp = 15, .crn = 7, .crm = 0, .opc1 = 0, .opc2 = 4,
@@ -491,7 +492,9 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
 
 static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    if (arm_feature(env, ARM_FEATURE_V7)) {
+    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+        env->cp15.c7_par = value;
+    } else if (arm_feature(env, ARM_FEATURE_V7)) {
         env->cp15.c7_par = value & 0xfffff6ff;
     } else {
         env->cp15.c7_par = value & 0xfffff1ff;
@@ -501,9 +504,20 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 
 #ifndef CONFIG_USER_ONLY
 /* get_phys_addr() isn't present for user-mode-only targets */
+
+/* Return true if extended addresses are enabled, ie this is an
+ * LPAE implementation and we are using the long-descriptor translation
+ * table format because the TTBCR EAE bit is set.
+ */
+static inline bool extended_addresses_enabled(CPUARMState *env)
+{
+    return arm_feature(env, ARM_FEATURE_LPAE)
+        && (env->cp15.c2_control & (1 << 31));
+}
+
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user = ri->opc2 & 2;
@@ -515,18 +529,44 @@ static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     }
     ret = get_phys_addr(env, value, access_type, is_user,
                         &phys_addr, &prot, &page_size);
-    if (ret == 0) {
-        /* We do not set any attribute bits in the PAR */
-        if (page_size == (1 << 24)
-            && arm_feature(env, ARM_FEATURE_V7)) {
-            env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+    if (extended_addresses_enabled(env)) {
+        /* ret is a DFSR/IFSR value for the long descriptor
+         * translation table format, but with WnR always clear.
+         * Convert it to a 64-bit PAR.
+         */
+        uint64_t par64 = (1 << 11); /* LPAE bit always set */
+        if (ret == 0) {
+            par64 |= phys_addr & ~0xfffULL;
+            /* We don't set the ATTR or SH fields in the PAR. */
         } else {
-            env->cp15.c7_par = phys_addr & 0xfffff000;
+            par64 |= 1; /* F */
+            par64 |= (ret & 0x3f) << 1; /* FS */
+            /* Note that S2WLK and FSTAGE are always zero, because we don't
+             * implement virtualization and therefore there can't be a stage 2
+             * fault.
+             */
         }
+        env->cp15.c7_par = par64;
+        env->cp15.c7_par_hi = par64 >> 32;
     } else {
-        env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
-            ((ret & (12 << 1)) >> 6) |
-            ((ret & 0xf) << 1) | 1;
+        /* ret is a DFSR/IFSR value for the short descriptor
+         * translation table format (with WnR always clear).
+         * Convert it to a 32-bit PAR.
+         */
+        if (ret == 0) {
+            /* We do not set any attribute bits in the PAR */
+            if (page_size == (1 << 24)
+                && arm_feature(env, ARM_FEATURE_V7)) {
+                env->cp15.c7_par = (phys_addr & 0xff000000) | 1 << 1;
+            } else {
+                env->cp15.c7_par = phys_addr & 0xfffff000;
+            }
+        } else {
+            env->cp15.c7_par = ((ret & (10 << 1)) >> 5) |
+                ((ret & (12 << 1)) >> 6) |
+                ((ret & 0xf) << 1) | 1;
+        }
+        env->cp15.c7_par_hi = 0;
     }
     return 0;
 }
@@ -653,7 +693,20 @@ static const ARMCPRegInfo pmsav5_cp_reginfo[] = {
 static int vmsa_ttbcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
-    value &= 7;
+    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+        value &= ~((7 << 19) | (3 << 14) | (0xf << 3));
+        /* With LPAE the TTBCR could result in a change of ASID
+         * via the TTBCR.A1 bit, so do a TLB flush.
+         */
+        tlb_flush(env, 1);
+    } else {
+        value &= 7;
+    }
+    /* Note that we always calculate c2_mask and c2_base_mask, but
+     * they are only used for short-descriptor tables (ie if EAE is 0);
+     * for long-descriptor tables the TTBCR fields are used differently
+     * and the c2_mask and c2_base_mask values are meaningless.
+     */
     env->cp15.c2_control = value;
     env->cp15.c2_mask = ~(((uint32_t)0xffffffffu) >> value);
     env->cp15.c2_base_mask = ~((uint32_t)0x3fffu >> value);
@@ -679,7 +732,7 @@ static const ARMCPRegInfo vmsa_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
     { .name = "TTBR1", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 1,
       .access = PL1_RW,
-      .fieldoffset = offsetof(CPUARMState, cp15.c2_base0), .resetvalue = 0, },
+      .fieldoffset = offsetof(CPUARMState, cp15.c2_base1), .resetvalue = 0, },
     { .name = "TTBCR", .cp = 15, .crn = 2, .crm = 0, .opc1 = 0, .opc2 = 2,
       .access = PL1_RW, .writefn = vmsa_ttbcr_write,
       .resetfn = vmsa_ttbcr_reset,
@@ -871,6 +924,96 @@ static const ARMCPRegInfo mpidr_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static int par64_read(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t *value)
+{
+    *value = ((uint64_t)env->cp15.c7_par_hi << 32) | env->cp15.c7_par;
+    return 0;
+}
+
+static int par64_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
+{
+    env->cp15.c7_par_hi = value >> 32;
+    env->cp15.c7_par = value;
+    return 0;
+}
+
+static void par64_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c7_par_hi = 0;
+    env->cp15.c7_par = 0;
+}
+
+static int ttbr064_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    *value = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
+    return 0;
+}
+
+static int ttbr064_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    env->cp15.c2_base0_hi = value >> 32;
+    env->cp15.c2_base0 = value;
+    /* Writes to the 64 bit format TTBRs may change the ASID */
+    tlb_flush(env, 1);
+    return 0;
+}
+
+static void ttbr064_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c2_base0_hi = 0;
+    env->cp15.c2_base0 = 0;
+}
+
+static int ttbr164_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    *value = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
+    return 0;
+}
+
+static int ttbr164_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    env->cp15.c2_base1_hi = value >> 32;
+    env->cp15.c2_base1 = value;
+    return 0;
+}
+
+static void ttbr164_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    env->cp15.c2_base1_hi = 0;
+    env->cp15.c2_base1 = 0;
+}
+
+static const ARMCPRegInfo lpae_cp_reginfo[] = {
+    /* NOP AMAIR0/1: the override is because these clash with tha rather
+     * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
+     */
+    { .name = "AMAIR0", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .resetvalue = 0 },
+    { .name = "AMAIR1", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 1,
+      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_OVERRIDE,
+      .resetvalue = 0 },
+    /* 64 bit access versions of the (dummy) debug registers */
+    { .name = "DBGDRAR", .cp = 14, .crm = 1, .opc1 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
+    { .name = "DBGDSAR", .cp = 14, .crm = 2, .opc1 = 0,
+      .access = PL0_R, .type = ARM_CP_CONST|ARM_CP_64BIT, .resetvalue = 0 },
+    { .name = "PAR", .cp = 15, .crm = 7, .opc1 = 0,
+      .access = PL1_RW, .type = ARM_CP_64BIT,
+      .readfn = par64_read, .writefn = par64_write, .resetfn = par64_reset },
+    { .name = "TTBR0", .cp = 15, .crm = 2, .opc1 = 0,
+      .access = PL1_RW, .type = ARM_CP_64BIT, .readfn = ttbr064_read,
+      .writefn = ttbr064_write, .resetfn = ttbr064_reset },
+    { .name = "TTBR1", .cp = 15, .crm = 2, .opc1 = 1,
+      .access = PL1_RW, .type = ARM_CP_64BIT, .readfn = ttbr164_read,
+      .writefn = ttbr164_write, .resetfn = ttbr164_reset },
+    REGINFO_SENTINEL
+};
+
 static int sctlr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     env->cp15.c1_sys = value;
@@ -1015,6 +1158,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
     if (arm_feature(env, ARM_FEATURE_MPIDR)) {
         define_arm_cp_regs(cpu, mpidr_cp_reginfo);
+    }
+    if (arm_feature(env, ARM_FEATURE_LPAE)) {
+        define_arm_cp_regs(cpu, lpae_cp_reginfo);
     }
     /* Slightly awkwardly, the OMAP and StrongARM cores need all of
      * cp15 crn=0 to be writes-ignored, whereas for other cores they should
@@ -1833,8 +1979,8 @@ static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
 }
 
 static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
-			    int is_user, uint32_t *phys_ptr, int *prot,
-                            target_ulong *page_size)
+                            int is_user, target_phys_addr_t *phys_ptr,
+                            int *prot, target_ulong *page_size)
 {
     int code;
     uint32_t table;
@@ -1843,7 +1989,7 @@ static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
     int ap;
     int domain;
     int domain_prot;
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
@@ -1928,45 +2074,46 @@ do_fault:
 }
 
 static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
-			    int is_user, uint32_t *phys_ptr, int *prot,
-                            target_ulong *page_size)
+                            int is_user, target_phys_addr_t *phys_ptr,
+                            int *prot, target_ulong *page_size)
 {
     int code;
     uint32_t table;
     uint32_t desc;
     uint32_t xn;
+    uint32_t pxn = 0;
     int type;
     int ap;
-    int domain;
+    int domain = 0;
     int domain_prot;
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
 
     /* Pagetable walk.  */
     /* Lookup l1 descriptor.  */
     table = get_level1_table_address(env, address);
     desc = ldl_phys(table);
     type = (desc & 3);
-    if (type == 0) {
-        /* Section translation fault.  */
+    if (type == 0 || (type == 3 && !arm_feature(env, ARM_FEATURE_PXN))) {
+        /* Section translation fault, or attempt to use the encoding
+         * which is Reserved on implementations without PXN.
+         */
         code = 5;
-        domain = 0;
         goto do_fault;
-    } else if (type == 2 && (desc & (1 << 18))) {
-        /* Supersection.  */
-        domain = 0;
-    } else {
-        /* Section or page.  */
+    }
+    if ((type == 1) || !(desc & (1 << 18))) {
+        /* Page or Section.  */
         domain = (desc >> 5) & 0x0f;
     }
     domain_prot = (env->cp15.c3 >> (domain * 2)) & 3;
     if (domain_prot == 0 || domain_prot == 2) {
-        if (type == 2)
+        if (type != 1) {
             code = 9; /* Section domain fault.  */
-        else
+        } else {
             code = 11; /* Page domain fault.  */
+        }
         goto do_fault;
     }
-    if (type == 2) {
+    if (type != 1) {
         if (desc & (1 << 18)) {
             /* Supersection.  */
             phys_addr = (desc & 0xff000000) | (address & 0x00ffffff);
@@ -1978,8 +2125,12 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
         }
         ap = ((desc >> 10) & 3) | ((desc >> 13) & 4);
         xn = desc & (1 << 4);
+        pxn = desc & 1;
         code = 13;
     } else {
+        if (arm_feature(env, ARM_FEATURE_PXN)) {
+            pxn = (desc >> 2) & 1;
+        }
         /* Lookup l2 entry.  */
         table = (desc & 0xfffffc00) | ((address >> 10) & 0x3fc);
         desc = ldl_phys(table);
@@ -2007,6 +2158,9 @@ static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
     if (domain_prot == 3) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     } else {
+        if (pxn && !is_user) {
+            xn = 1;
+        }
         if (xn && access_type == 2)
             goto do_fault;
 
@@ -2031,8 +2185,187 @@ do_fault:
     return code | (domain << 4);
 }
 
-static int get_phys_addr_mpu(CPUARMState *env, uint32_t address, int access_type,
-			     int is_user, uint32_t *phys_ptr, int *prot)
+/* Fault type for long-descriptor MMU fault reporting; this corresponds
+ * to bits [5..2] in the STATUS field in long-format DFSR/IFSR.
+ */
+typedef enum {
+    translation_fault = 1,
+    access_fault = 2,
+    permission_fault = 3,
+} MMUFaultType;
+
+static int get_phys_addr_lpae(CPUARMState *env, uint32_t address,
+                              int access_type, int is_user,
+                              target_phys_addr_t *phys_ptr, int *prot,
+                              target_ulong *page_size_ptr)
+{
+    /* Read an LPAE long-descriptor translation table. */
+    MMUFaultType fault_type = translation_fault;
+    uint32_t level = 1;
+    uint32_t epd;
+    uint32_t tsz;
+    uint64_t ttbr;
+    int ttbr_select;
+    int n;
+    target_phys_addr_t descaddr;
+    uint32_t tableattrs;
+    target_ulong page_size;
+    uint32_t attrs;
+
+    /* Determine whether this address is in the region controlled by
+     * TTBR0 or TTBR1 (or if it is in neither region and should fault).
+     * This is a Non-secure PL0/1 stage 1 translation, so controlled by
+     * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
+     */
+    uint32_t t0sz = extract32(env->cp15.c2_control, 0, 3);
+    uint32_t t1sz = extract32(env->cp15.c2_control, 16, 3);
+    if (t0sz && !extract32(address, 32 - t0sz, t0sz)) {
+        /* there is a ttbr0 region and we are in it (high bits all zero) */
+        ttbr_select = 0;
+    } else if (t1sz && !extract32(~address, 32 - t1sz, t1sz)) {
+        /* there is a ttbr1 region and we are in it (high bits all one) */
+        ttbr_select = 1;
+    } else if (!t0sz) {
+        /* ttbr0 region is "everything not in the ttbr1 region" */
+        ttbr_select = 0;
+    } else if (!t1sz) {
+        /* ttbr1 region is "everything not in the ttbr0 region" */
+        ttbr_select = 1;
+    } else {
+        /* in the gap between the two regions, this is a Translation fault */
+        fault_type = translation_fault;
+        goto do_fault;
+    }
+
+    /* Note that QEMU ignores shareability and cacheability attributes,
+     * so we don't need to do anything with the SH, ORGN, IRGN fields
+     * in the TTBCR.  Similarly, TTBCR:A1 selects whether we get the
+     * ASID from TTBR0 or TTBR1, but QEMU's TLB doesn't currently
+     * implement any ASID-like capability so we can ignore it (instead
+     * we will always flush the TLB any time the ASID is changed).
+     */
+    if (ttbr_select == 0) {
+        ttbr = ((uint64_t)env->cp15.c2_base0_hi << 32) | env->cp15.c2_base0;
+        epd = extract32(env->cp15.c2_control, 7, 1);
+        tsz = t0sz;
+    } else {
+        ttbr = ((uint64_t)env->cp15.c2_base1_hi << 32) | env->cp15.c2_base1;
+        epd = extract32(env->cp15.c2_control, 23, 1);
+        tsz = t1sz;
+    }
+
+    if (epd) {
+        /* Translation table walk disabled => Translation fault on TLB miss */
+        goto do_fault;
+    }
+
+    /* If the region is small enough we will skip straight to a 2nd level
+     * lookup. This affects the number of bits of the address used in
+     * combination with the TTBR to find the first descriptor. ('n' here
+     * matches the usage in the ARM ARM sB3.6.6, where bits [39..n] are
+     * from the TTBR, [n-1..3] from the vaddr, and [2..0] always zero).
+     */
+    if (tsz > 1) {
+        level = 2;
+        n = 14 - tsz;
+    } else {
+        n = 5 - tsz;
+    }
+
+    /* Clear the vaddr bits which aren't part of the within-region address,
+     * so that we don't have to special case things when calculating the
+     * first descriptor address.
+     */
+    address &= (0xffffffffU >> tsz);
+
+    /* Now we can extract the actual base address from the TTBR */
+    descaddr = extract64(ttbr, 0, 40);
+    descaddr &= ~((1ULL << n) - 1);
+
+    tableattrs = 0;
+    for (;;) {
+        uint64_t descriptor;
+
+        descaddr |= ((address >> (9 * (4 - level))) & 0xff8);
+        descriptor = ldq_phys(descaddr);
+        if (!(descriptor & 1) ||
+            (!(descriptor & 2) && (level == 3))) {
+            /* Invalid, or the Reserved level 3 encoding */
+            goto do_fault;
+        }
+        descaddr = descriptor & 0xfffffff000ULL;
+
+        if ((descriptor & 2) && (level < 3)) {
+            /* Table entry. The top five bits are attributes which  may
+             * propagate down through lower levels of the table (and
+             * which are all arranged so that 0 means "no effect", so
+             * we can gather them up by ORing in the bits at each level).
+             */
+            tableattrs |= extract64(descriptor, 59, 5);
+            level++;
+            continue;
+        }
+        /* Block entry at level 1 or 2, or page entry at level 3.
+         * These are basically the same thing, although the number
+         * of bits we pull in from the vaddr varies.
+         */
+        page_size = (1 << (39 - (9 * level)));
+        descaddr |= (address & (page_size - 1));
+        /* Extract attributes from the descriptor and merge with table attrs */
+        attrs = extract64(descriptor, 2, 10)
+            | (extract64(descriptor, 52, 12) << 10);
+        attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
+        attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
+        /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
+         * means "force PL1 access only", which means forcing AP[1] to 0.
+         */
+        if (extract32(tableattrs, 2, 1)) {
+            attrs &= ~(1 << 4);
+        }
+        /* Since we're always in the Non-secure state, NSTable is ignored. */
+        break;
+    }
+    /* Here descaddr is the final physical address, and attributes
+     * are all in attrs.
+     */
+    fault_type = access_fault;
+    if ((attrs & (1 << 8)) == 0) {
+        /* Access flag */
+        goto do_fault;
+    }
+    fault_type = permission_fault;
+    if (is_user && !(attrs & (1 << 4))) {
+        /* Unprivileged access not enabled */
+        goto do_fault;
+    }
+    *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+    if (attrs & (1 << 12) || (!is_user && (attrs & (1 << 11)))) {
+        /* XN or PXN */
+        if (access_type == 2) {
+            goto do_fault;
+        }
+        *prot &= ~PAGE_EXEC;
+    }
+    if (attrs & (1 << 5)) {
+        /* Write access forbidden */
+        if (access_type == 1) {
+            goto do_fault;
+        }
+        *prot &= ~PAGE_WRITE;
+    }
+
+    *phys_ptr = descaddr;
+    *page_size_ptr = page_size;
+    return 0;
+
+do_fault:
+    /* Long-descriptor format IFSR/DFSR value */
+    return (1 << 9) | (fault_type << 2) | level;
+}
+
+static int get_phys_addr_mpu(CPUARMState *env, uint32_t address,
+                             int access_type, int is_user,
+                             target_phys_addr_t *phys_ptr, int *prot)
 {
     int n;
     uint32_t mask;
@@ -2091,9 +2424,32 @@ static int get_phys_addr_mpu(CPUARMState *env, uint32_t address, int access_type
     return 0;
 }
 
+/* get_phys_addr - get the physical address for this virtual address
+ *
+ * Find the physical address corresponding to the given virtual address,
+ * by doing a translation table walk on MMU based systems or using the
+ * MPU state on MPU based systems.
+ *
+ * Returns 0 if the translation was successful. Otherwise, phys_ptr,
+ * prot and page_size are not filled in, and the return value provides
+ * information on why the translation aborted, in the format of a
+ * DFSR/IFSR fault register, with the following caveats:
+ *  * we honour the short vs long DFSR format differences.
+ *  * the WnR bit is never set (the caller must do this).
+ *  * for MPU based systems we don't bother to return a full FSR format
+ *    value.
+ *
+ * @env: CPUARMState
+ * @address: virtual address to get physical address for
+ * @access_type: 0 for read, 1 for write, 2 for execute
+ * @is_user: 0 for privileged access, 1 for user
+ * @phys_ptr: set to the physical address corresponding to the virtual address
+ * @prot: set to the permissions for the page containing phys_ptr
+ * @page_size: set to the size of the page containing phys_ptr
+ */
 static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
-                                uint32_t *phys_ptr, int *prot,
+                                target_phys_addr_t *phys_ptr, int *prot,
                                 target_ulong *page_size)
 {
     /* Fast Context Switch Extension.  */
@@ -2110,6 +2466,9 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
         *page_size = TARGET_PAGE_SIZE;
 	return get_phys_addr_mpu(env, address, access_type, is_user, phys_ptr,
 				 prot);
+    } else if (extended_addresses_enabled(env)) {
+        return get_phys_addr_lpae(env, address, access_type, is_user, phys_ptr,
+                                  prot, page_size);
     } else if (env->cp15.c1_sys & (1 << 23)) {
         return get_phys_addr_v6(env, address, access_type, is_user, phys_ptr,
                                 prot, page_size);
@@ -2122,7 +2481,7 @@ static inline int get_phys_addr(CPUARMState *env, uint32_t address,
 int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                               int access_type, int mmu_idx)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot;
     int ret, is_user;
@@ -2132,7 +2491,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                         &page_size);
     if (ret == 0) {
         /* Map a single [sub]page.  */
-        phys_addr &= ~(uint32_t)0x3ff;
+        phys_addr &= ~(target_phys_addr_t)0x3ff;
         address &= ~(uint32_t)0x3ff;
         tlb_set_page (env, address, phys_addr, prot, mmu_idx, page_size);
         return 0;
@@ -2154,7 +2513,7 @@ int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
 {
-    uint32_t phys_addr;
+    target_phys_addr_t phys_addr;
     target_ulong page_size;
     int prot;
     int ret;
