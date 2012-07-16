@@ -1030,8 +1030,21 @@ is a TCP port number, not a display number.
 @item password
 
 Require that password based authentication is used for client connections.
-The password must be set separately using the @code{change} command in the
-@ref{pcsys_monitor}
+
+The password must be set separately using the @code{set_password} command in
+the @ref{pcsys_monitor}. The syntax to change your password is:
+@code{set_password <protocol> <password>} where <protocol> could be either
+"vnc" or "spice".
+
+If you would like to change <protocol> password expiration, you should use
+@code{expire_password <protocol> <expiration-time>} where expiration time could
+be one of the following options: now, never, +seconds or UNIX time of
+expiration, e.g. +60 to make password expire in 60 seconds, or 1335196800
+to make password expire on "Mon Apr 23 12:00:00 EDT 2012" (UNIX time for this
+date and time).
+
+You can also use keywords "now" or "never" for the expiration time to
+allow <protocol> password to expire immediately or never expire.
 
 @item tls
 
