@@ -93,17 +93,21 @@ static uint8_t floppy_recv(void)
     return inb(FLOPPY_BASE + reg_fifo);
 }
 
-static uint8_t ack_irq(void)
+/* pcn: Present Cylinder Number */
+static void ack_irq(uint8_t *pcn)
 {
     uint8_t ret;
 
     g_assert(get_irq(FLOPPY_IRQ));
     floppy_send(CMD_SENSE_INT);
     floppy_recv();
-    ret = floppy_recv();
-    g_assert(!get_irq(FLOPPY_IRQ));
 
-    return ret;
+    ret = floppy_recv();
+    if (pcn != NULL) {
+        *pcn = ret;
+    }
+
+    g_assert(!get_irq(FLOPPY_IRQ));
 }
 
 static uint8_t send_read_command(void)
@@ -162,7 +166,7 @@ static uint8_t send_read_command(void)
     return ret;
 }
 
-static void send_step_pulse(int cyl)
+static void send_seek(int cyl)
 {
     int drive = 0;
     int head = 0;
@@ -171,7 +175,7 @@ static void send_step_pulse(int cyl)
     floppy_send(head << 2 | drive);
     g_assert(!get_irq(FLOPPY_IRQ));
     floppy_send(cyl);
-    ack_irq();
+    ack_irq(NULL);
 }
 
 static uint8_t cmos_read(uint8_t reg)
@@ -198,7 +202,7 @@ static void test_no_media_on_start(void)
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
-    send_step_pulse(1);
+    send_seek(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -229,14 +233,14 @@ static void test_media_change(void)
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse(0);
+    send_seek(0);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
     /* Step to next track should clear DSKCHG bit. */
-    send_step_pulse(1);
+    send_seek(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -252,13 +256,13 @@ static void test_media_change(void)
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse(0);
+    send_seek(0);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
 
-    send_step_pulse(1);
+    send_seek(1);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
@@ -292,10 +296,10 @@ static void test_relative_seek(void)
     uint8_t drive = 0;
     uint8_t head = 0;
     uint8_t cyl = 1;
-    uint8_t ret;
+    uint8_t pcn;
 
     /* Send seek to track 0 */
-    send_step_pulse(0);
+    send_seek(0);
 
     /* Send relative seek to increase track by 1 */
     floppy_send(CMD_RELATIVE_SEEK_IN);
@@ -303,8 +307,8 @@ static void test_relative_seek(void)
     g_assert(!get_irq(FLOPPY_IRQ));
     floppy_send(cyl);
 
-    ret = ack_irq();
-    g_assert(ret == 1);
+    ack_irq(&pcn);
+    g_assert(pcn == 1);
 
     /* Send relative seek to decrease track by 1 */
     floppy_send(CMD_RELATIVE_SEEK_OUT);
@@ -312,8 +316,8 @@ static void test_relative_seek(void)
     g_assert(!get_irq(FLOPPY_IRQ));
     floppy_send(cyl);
 
-    ret = ack_irq();
-    g_assert(ret == 0);
+    ack_irq(&pcn);
+    g_assert(pcn == 0);
 }
 
 /* success if no crash or abort */
