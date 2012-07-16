@@ -1531,6 +1531,55 @@ void scsi_req_abort(SCSIRequest *req, int status)
     scsi_req_unref(req);
 }
 
+static int scsi_ua_precedence(SCSISense sense)
+{
+    if (sense.key != UNIT_ATTENTION) {
+        return INT_MAX;
+    }
+    if (sense.asc == 0x29 && sense.ascq == 0x04) {
+        /* DEVICE INTERNAL RESET goes with POWER ON OCCURRED */
+        return 1;
+    } else if (sense.asc == 0x3F && sense.ascq == 0x01) {
+        /* MICROCODE HAS BEEN CHANGED goes with SCSI BUS RESET OCCURRED */
+        return 2;
+    } else if (sense.asc == 0x29 && (sense.ascq == 0x05 || sense.ascq == 0x06)) {
+        /* These two go with "all others". */
+        ;
+    } else if (sense.asc == 0x29 && sense.ascq <= 0x07) {
+        /* POWER ON, RESET OR BUS DEVICE RESET OCCURRED = 0
+         * POWER ON OCCURRED = 1
+         * SCSI BUS RESET OCCURRED = 2
+         * BUS DEVICE RESET FUNCTION OCCURRED = 3
+         * I_T NEXUS LOSS OCCURRED = 7
+         */
+        return sense.ascq;
+    } else if (sense.asc == 0x2F && sense.ascq == 0x01) {
+        /* COMMANDS CLEARED BY POWER LOSS NOTIFICATION  */
+        return 8;
+    }
+    return (sense.asc << 8) | sense.ascq;
+}
+
+void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense)
+{
+    int prec1, prec2;
+    if (sense.key != UNIT_ATTENTION) {
+        return;
+    }
+    trace_scsi_device_set_ua(sdev->id, sdev->lun, sense.key,
+                             sense.asc, sense.ascq);
+
+    /*
+     * Override a pre-existing unit attention condition, except for a more
+     * important reset condition.
+    */
+    prec1 = scsi_ua_precedence(sdev->unit_attention);
+    prec2 = scsi_ua_precedence(sense);
+    if (prec2 < prec1) {
+        sdev->unit_attention = sense;
+    }
+}
+
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 {
     SCSIRequest *req;
@@ -1539,7 +1588,8 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
         req = QTAILQ_FIRST(&sdev->requests);
         scsi_req_cancel(req);
     }
-    sdev->unit_attention = sense;
+
+    scsi_device_set_ua(sdev, sense);
 }
 
 static char *scsibus_get_dev_path(DeviceState *dev)

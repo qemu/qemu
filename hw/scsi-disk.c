@@ -1876,7 +1876,7 @@ static void scsi_cd_change_media_cb(void *opaque, bool load)
      */
     s->media_changed = load;
     s->tray_open = !load;
-    s->qdev.unit_attention = SENSE_CODE(UNIT_ATTENTION_NO_MEDIUM);
+    scsi_device_set_ua(&s->qdev, SENSE_CODE(UNIT_ATTENTION_NO_MEDIUM));
     s->media_event = true;
     s->eject_request = false;
 }
@@ -1913,7 +1913,7 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     if (s->media_changed) {
         s->media_changed = false;
-        s->qdev.unit_attention = SENSE_CODE(MEDIUM_CHANGED);
+        scsi_device_set_ua(&s->qdev, SENSE_CODE(MEDIUM_CHANGED));
     }
 }
 
