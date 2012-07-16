@@ -563,6 +563,7 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
 
     s->sense_size = VIRTIO_SCSI_SENSE_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
+    s->events_dropped = false;
 }
 
 /* The device does not have anything to save beyond the virtio data.
