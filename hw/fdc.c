@@ -1802,7 +1802,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
     }
 }
 
-static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
+static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv;
 
@@ -1812,14 +1812,15 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
         fd_seek(cur_drv, cur_drv->head, cur_drv->max_track - 1,
                 cur_drv->sect, 1);
     } else {
-        fd_seek(cur_drv, cur_drv->head, fdctrl->fifo[2], cur_drv->sect, 1);
+        fd_seek(cur_drv, cur_drv->head,
+                cur_drv->track + fdctrl->fifo[2], cur_drv->sect, 1);
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
     fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
-static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
+static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv;
 
@@ -1828,7 +1829,8 @@ static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
     if (fdctrl->fifo[2] > cur_drv->track) {
         fd_seek(cur_drv, cur_drv->head, 0, cur_drv->sect, 1);
     } else {
-        fd_seek(cur_drv, cur_drv->head, fdctrl->fifo[2], cur_drv->sect, 1);
+        fd_seek(cur_drv, cur_drv->head,
+                cur_drv->track - fdctrl->fifo[2], cur_drv->sect, 1);
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
