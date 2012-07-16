@@ -1248,7 +1248,7 @@ static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     bool start = req->cmd.buf[4] & 1;
     bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
 
-    if (s->qdev.type == TYPE_ROM && loej) {
+    if ((s->features & (1 << SCSI_DISK_F_REMOVABLE)) && loej) {
         if (!start && !s->tray_open && s->tray_locked) {
             scsi_check_condition(r,
                                  bdrv_is_inserted(s->qdev.conf.bs)
