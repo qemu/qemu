@@ -2641,7 +2641,10 @@ DEF("nodefaults", 0, QEMU_OPTION_nodefaults, \
 STEXI
 @item -nodefaults
 @findex -nodefaults
-Don't create default devices.
+Don't create default devices. Normally, QEMU sets the default devices like serial
+port, parallel port, virtual console, monitor device, VGA adapter, floppy and
+CD-ROM drive and others. The @code{-nodefaults} option will disable all those
+default devices.
 ETEXI
 
 #ifndef _WIN32
