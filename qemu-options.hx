@@ -2697,7 +2697,9 @@ DEF("readconfig", HAS_ARG, QEMU_OPTION_readconfig,
 STEXI
 @item -readconfig @var{file}
 @findex -readconfig
-Read device configuration from @var{file}.
+Read device configuration from @var{file}. This approach is useful when you want to spawn
+QEMU process with many command line options but you don't want to exceed the command line
+character limit.
 ETEXI
 DEF("writeconfig", HAS_ARG, QEMU_OPTION_writeconfig,
     "-writeconfig <file>\n"
@@ -2705,7 +2707,9 @@ DEF("writeconfig", HAS_ARG, QEMU_OPTION_writeconfig,
 STEXI
 @item -writeconfig @var{file}
 @findex -writeconfig
-Write device configuration to @var{file}.
+Write device configuration to @var{file}. The @var{file} can be either filename to save
+command line and device configuration into file or dash @code{-}) character to print the
+output to stdout. This can be later used as input file for @code{-readconfig} option.
 ETEXI
 DEF("nodefconfig", 0, QEMU_OPTION_nodefconfig,
     "-nodefconfig\n"
