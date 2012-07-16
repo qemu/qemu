@@ -78,7 +78,7 @@ to ease cross-compilation and cross-debugging.
 
 @end itemize
 
-QEMU can run without an host kernel driver and yet gives acceptable
+QEMU can run without a host kernel driver and yet gives acceptable
 performance.
 
 For system emulation, the following hardware targets are supported:
