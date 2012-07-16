@@ -47,9 +47,11 @@ enum {
 };
 
 enum {
-    CMD_SENSE_INT   = 0x08,
-    CMD_SEEK        = 0x0f,
-    CMD_READ        = 0xe6,
+    CMD_SENSE_INT           = 0x08,
+    CMD_SEEK                = 0x0f,
+    CMD_READ                = 0xe6,
+    CMD_RELATIVE_SEEK_OUT   = 0x8f,
+    CMD_RELATIVE_SEEK_IN    = 0xcf,
 };
 
 enum {
@@ -91,13 +93,17 @@ static uint8_t floppy_recv(void)
     return inb(FLOPPY_BASE + reg_fifo);
 }
 
-static void ack_irq(void)
+static uint8_t ack_irq(void)
 {
+    uint8_t ret;
+
     g_assert(get_irq(FLOPPY_IRQ));
     floppy_send(CMD_SENSE_INT);
     floppy_recv();
-    floppy_recv();
+    ret = floppy_recv();
     g_assert(!get_irq(FLOPPY_IRQ));
+
+    return ret;
 }
 
 static uint8_t send_read_command(void)
@@ -281,6 +287,35 @@ static void test_sense_interrupt(void)
     floppy_recv();
 }
 
+static void test_relative_seek(void)
+{
+    uint8_t drive = 0;
+    uint8_t head = 0;
+    uint8_t cyl = 1;
+    uint8_t ret;
+
+    /* Send seek to track 0 */
+    send_step_pulse(0);
+
+    /* Send relative seek to increase track by 1 */
+    floppy_send(CMD_RELATIVE_SEEK_IN);
+    floppy_send(head << 2 | drive);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    floppy_send(cyl);
+
+    ret = ack_irq();
+    g_assert(ret == 1);
+
+    /* Send relative seek to decrease track by 1 */
+    floppy_send(CMD_RELATIVE_SEEK_OUT);
+    floppy_send(head << 2 | drive);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    floppy_send(cyl);
+
+    ret = ack_irq();
+    g_assert(ret == 0);
+}
+
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
@@ -329,6 +364,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/read_without_media", test_read_without_media);
     qtest_add_func("/fdc/media_change", test_media_change);
     qtest_add_func("/fdc/sense_interrupt", test_sense_interrupt);
+    qtest_add_func("/fdc/relative_seek", test_relative_seek);
     qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
 
     ret = g_test_run();
