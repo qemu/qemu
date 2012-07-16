@@ -1161,6 +1161,11 @@ const struct SCSISense sense_code_LUN_FAILURE = {
     .key = ABORTED_COMMAND, .asc = 0x3e, .ascq = 0x01
 };
 
+/* Unit attention, Capacity data has changed */
+const struct SCSISense sense_code_CAPACITY_CHANGED = {
+    .key = UNIT_ATTENTION, .asc = 0x2a, .ascq = 0x09
+};
+
 /* Unit attention, Power on, reset or bus device reset occurred */
 const struct SCSISense sense_code_RESET = {
     .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x00

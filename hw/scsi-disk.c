@@ -1860,6 +1860,18 @@ static void scsi_destroy(SCSIDevice *dev)
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
+static void scsi_disk_resize_cb(void *opaque)
+{
+    SCSIDiskState *s = opaque;
+
+    /* SPC lists this sense code as available only for
+     * direct-access devices.
+     */
+    if (s->qdev.type == TYPE_DISK) {
+        scsi_device_set_ua(&s->qdev, SENSE_CODE(CAPACITY_CHANGED));
+    }
+}
+
 static void scsi_cd_change_media_cb(void *opaque, bool load)
 {
     SCSIDiskState *s = opaque;
@@ -1901,11 +1913,17 @@ static bool scsi_cd_is_medium_locked(void *opaque)
     return ((SCSIDiskState *)opaque)->tray_locked;
 }
 
-static const BlockDevOps scsi_cd_block_ops = {
+static const BlockDevOps scsi_disk_removable_block_ops = {
     .change_media_cb = scsi_cd_change_media_cb,
     .eject_request_cb = scsi_cd_eject_request_cb,
     .is_tray_open = scsi_cd_is_tray_open,
     .is_medium_locked = scsi_cd_is_medium_locked,
+
+    .resize_cb = scsi_disk_resize_cb,
+};
+
+static const BlockDevOps scsi_disk_block_ops = {
+    .resize_cb = scsi_disk_resize_cb,
 };
 
 static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
@@ -1950,7 +1968,9 @@ static int scsi_initfn(SCSIDevice *dev)
     }
 
     if (s->features & (1 << SCSI_DISK_F_REMOVABLE)) {
-        bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_cd_block_ops, s);
+        bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_disk_removable_block_ops, s);
+    } else {
+        bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_disk_block_ops, s);
     }
     bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
 
