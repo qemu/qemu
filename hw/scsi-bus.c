@@ -1072,6 +1072,16 @@ int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     return 0;
 }
 
+void scsi_device_report_change(SCSIDevice *dev, SCSISense sense)
+{
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+
+    scsi_device_set_ua(dev, sense);
+    if (bus->info->change) {
+        bus->info->change(bus, dev, sense);
+    }
+}
+
 /*
  * Predefined sense codes
  */

@@ -133,6 +133,7 @@ struct SCSIBusInfo {
     void (*cancel)(SCSIRequest *req);
     void (*hotplug)(SCSIBus *bus, SCSIDevice *dev);
     void (*hot_unplug)(SCSIBus *bus, SCSIDevice *dev);
+    void (*change)(SCSIBus *bus, SCSIDevice *dev, SCSISense sense);
     QEMUSGList *(*get_sg_list)(SCSIRequest *req);
 
     void (*save_request)(QEMUFile *f, SCSIRequest *req);
@@ -242,6 +243,7 @@ void scsi_req_cancel(SCSIRequest *req);
 void scsi_req_retry(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense);
+void scsi_device_report_change(SCSIDevice *dev, SCSISense sense);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
 
