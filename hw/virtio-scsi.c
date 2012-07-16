@@ -27,6 +27,7 @@
 /* Feature Bits */
 #define VIRTIO_SCSI_F_INOUT                    0
 #define VIRTIO_SCSI_F_HOTPLUG                  1
+#define VIRTIO_SCSI_F_CHANGE                   2
 
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
@@ -63,6 +64,7 @@
 #define VIRTIO_SCSI_T_NO_EVENT                 0
 #define VIRTIO_SCSI_T_TRANSPORT_RESET          1
 #define VIRTIO_SCSI_T_ASYNC_NOTIFY             2
+#define VIRTIO_SCSI_T_PARAM_CHANGE             3
 
 /* Reasons for transport reset event */
 #define VIRTIO_SCSI_EVT_RESET_HARD             0
@@ -554,6 +556,7 @@ static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
                                          uint32_t requested_features)
 {
     requested_features |= (1UL << VIRTIO_SCSI_F_HOTPLUG);
+    requested_features |= (1UL << VIRTIO_SCSI_F_CHANGE);
     return requested_features;
 }
 
@@ -641,6 +644,18 @@ static void virtio_scsi_handle_event(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
+static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
+{
+    VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+
+    if (((s->vdev.guest_features >> VIRTIO_SCSI_F_CHANGE) & 1) &&
+        (s->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK) &&
+        dev->type != TYPE_ROM) {
+        virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_PARAM_CHANGE,
+                               sense.asc | (sense.ascq << 8));
+    }
+}
+
 static void virtio_scsi_hotplug(SCSIBus *bus, SCSIDevice *dev)
 {
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
@@ -670,6 +685,7 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
 
     .complete = virtio_scsi_command_complete,
     .cancel = virtio_scsi_request_cancelled,
+    .change = virtio_scsi_change,
     .hotplug = virtio_scsi_hotplug,
     .hot_unplug = virtio_scsi_hot_unplug,
     .get_sg_list = virtio_scsi_get_sg_list,
