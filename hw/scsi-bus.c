@@ -1182,6 +1182,11 @@ const struct SCSISense sense_code_DEVICE_INTERNAL_RESET = {
     .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x04
 };
 
+/* Data Protection, Write Protected */
+const struct SCSISense sense_code_WRITE_PROTECTED = {
+    .key = DATA_PROTECT, .asc = 0x27, .ascq = 0x00
+};
+
 /*
  * scsi_build_sense
  *

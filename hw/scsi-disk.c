@@ -1702,6 +1702,10 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_SAME_16:
         nb_sectors = ldl_be_p(&req->cmd.buf[10]) & 0xffffffffULL;
     write_same:
+        if (bdrv_is_read_only(s->qdev.conf.bs)) {
+            scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
+            return 0;
+        }
         if (r->req.cmd.lba > s->qdev.max_lba) {
             goto illegal_lba;
         }
@@ -1784,9 +1788,6 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
         r->sector_count = len * (s->qdev.blocksize / 512);
         break;
-    case VERIFY_10:
-    case VERIFY_12:
-    case VERIFY_16:
     case WRITE_6:
     case WRITE_10:
     case WRITE_12:
@@ -1794,6 +1795,14 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
+        if (bdrv_is_read_only(s->qdev.conf.bs)) {
+            scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
+            return 0;
+        }
+        /* fallthrough */
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
         len = r->req.cmd.xfer / s->qdev.blocksize;
         DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",

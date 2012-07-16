@@ -208,6 +208,8 @@ extern const struct SCSISense sense_code_MEDIUM_CHANGED;
 extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
 /* Unit attention, Device internal reset */
 extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
+/* Data Protection, Write Protected */
+extern const struct SCSISense sense_code_WRITE_PROTECTED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
