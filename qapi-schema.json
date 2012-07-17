@@ -343,7 +343,7 @@
 # @CPU: the index of the virtual CPU
 #
 # @current: this only exists for backwards compatible and should be ignored
-# 
+#
 # @halted: true if the virtual CPU is in the halt state.  Halt usually refers
 #          to a processor specific low power mode.
 #
@@ -686,7 +686,7 @@
 # @SpiceInfo
 #
 # Information about the SPICE session.
-# 
+#
 # @enabled: true if the SPICE server is enabled, false otherwise
 #
 # @host: #optional The hostname the SPICE server is bound to.  This depends on
@@ -1297,7 +1297,7 @@
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
-  'returns': 'str' } 
+  'returns': 'str' }
 
 ##
 # @migrate_cancel
@@ -1458,7 +1458,7 @@
 # @password: the new password
 #
 # @connected: #optional how to handle existing clients when changing the
-#                       password.  If nothing is specified, defaults to `keep' 
+#                       password.  If nothing is specified, defaults to `keep'
 #                       `fail' to fail the command if clients are connected
 #                       `disconnect' to disconnect existing clients
 #                       `keep' to maintain existing clients
@@ -1598,7 +1598,7 @@
 #          If the argument combination is invalid, InvalidParameterCombination
 #
 # Since: 1.1
-## 
+##
 { 'command': 'block_set_io_throttle',
   'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }
