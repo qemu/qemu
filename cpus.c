@@ -36,6 +36,7 @@
 #include "cpus.h"
 #include "qtest.h"
 #include "main-loop.h"
+#include "bitmap.h"
 
 #ifndef _WIN32
 #include "compatfd.h"
@@ -1159,7 +1160,7 @@ void set_numa_modes(void)
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         for (i = 0; i < nb_numa_nodes; i++) {
-            if (node_cpumask[i] & (1 << env->cpu_index)) {
+            if (test_bit(env->cpu_index, node_cpumask[i])) {
                 env->numa_node = i;
             }
         }

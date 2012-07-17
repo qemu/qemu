@@ -49,6 +49,7 @@
 #include "memory.h"
 #include "exec-memory.h"
 #include "arch_init.h"
+#include "bitmap.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -625,7 +626,7 @@ static void *bochs_bios_init(void)
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
     for (i = 0; i < max_cpus; i++) {
         for (j = 0; j < nb_numa_nodes; j++) {
-            if (node_cpumask[j] & (1 << i)) {
+            if (test_bit(i, node_cpumask[j])) {
                 numa_fw_cfg[i + 1] = cpu_to_le64(j);
                 break;
             }
