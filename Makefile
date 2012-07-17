@@ -240,13 +240,6 @@ dist: qemu-$(VERSION).tar.bz2
 qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
-VERSION ?= $(shell cat VERSION)
-
-dist: qemu-$(VERSION).tar.bz2
-
-qemu-%.tar.bz2:
-	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
-
 distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
 	rm -f config-all-devices.mak
@@ -404,6 +397,10 @@ pdf: qemu-doc.pdf qemu-tech.pdf
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi \
 	qemu-monitor.texi qemu-img-cmds.texi
+
+# Add a dependency on the generated files, so that they are always
+# rebuilt before other object files
+Makefile: $(GENERATED_HEADERS)
 
 # Include automatically generated dependency files
 # All subdir dependencies come automatically from our recursive subdir rules
