@@ -481,6 +481,14 @@ static void ram_migration_cancel(void *opaque)
     migration_end();
 }
 
+
+static void reset_ram_globals(void)
+{
+    last_block = NULL;
+    last_offset = 0;
+    sort_ram_list();
+}
+
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
 static int ram_save_setup(QEMUFile *f, void *opaque)
@@ -489,9 +497,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMBlock *block;
 
     bytes_transferred = 0;
-    last_block = NULL;
-    last_offset = 0;
-    sort_ram_list();
+    reset_ram_globals();
 
     if (migrate_use_xbzrle()) {
         XBZRLE.cache = cache_init(migrate_xbzrle_cache_size() /
