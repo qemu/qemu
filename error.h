@@ -57,7 +57,7 @@ void error_set_field(Error *err, const char *field, const char *value);
 /**
  * Propagate an error to an indirect pointer to an error.  This function will
  * always transfer ownership of the error reference and handles the case where
- * dst_err is NULL correctly.
+ * dst_err is NULL correctly.  Errors after the first are discarded.
  */
 void error_propagate(Error **dst_err, Error *local_err);
 
