@@ -513,21 +513,22 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
     return -1;
 }
 
-int net_init_bridge(QemuOpts *opts, const NetClientOptions *new_opts,
+int net_init_bridge(QemuOpts *old_opts, const NetClientOptions *opts,
                     const char *name, VLANState *vlan)
 {
+    const NetdevBridgeOptions *bridge;
+    const char *helper, *br;
+
     TAPState *s;
     int fd, vnet_hdr;
 
-    if (!qemu_opt_get(opts, "br")) {
-        qemu_opt_set(opts, "br", DEFAULT_BRIDGE_INTERFACE);
-    }
-    if (!qemu_opt_get(opts, "helper")) {
-        qemu_opt_set(opts, "helper", DEFAULT_BRIDGE_HELPER);
-    }
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_BRIDGE);
+    bridge = opts->bridge;
 
-    fd = net_bridge_run_helper(qemu_opt_get(opts, "helper"),
-                               qemu_opt_get(opts, "br"));
+    helper = bridge->has_helper ? bridge->helper : DEFAULT_BRIDGE_HELPER;
+    br     = bridge->has_br     ? bridge->br     : DEFAULT_BRIDGE_INTERFACE;
+
+    fd = net_bridge_run_helper(helper, br);
     if (fd == -1) {
         return -1;
     }
@@ -542,8 +543,8 @@ int net_init_bridge(QemuOpts *opts, const NetClientOptions *new_opts,
         return -1;
     }
 
-    snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s,br=%s",
-             qemu_opt_get(opts, "helper"), qemu_opt_get(opts, "br"));
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s,br=%s", helper,
+             br);
 
     return 0;
 }
