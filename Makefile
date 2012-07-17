@@ -31,7 +31,7 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed tar tarbin test
+	pdf recurse-all speed test dist
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -233,6 +233,20 @@ clean:
 	rm -f $$d/qemu-options.def; \
         done
 
+VERSION ?= $(shell cat VERSION)
+
+dist: qemu-$(VERSION).tar.bz2
+
+qemu-%.tar.bz2:
+	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
+
+VERSION ?= $(shell cat VERSION)
+
+dist: qemu-$(VERSION).tar.bz2
+
+qemu-%.tar.bz2:
+	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
+
 distclean: clean
 	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
 	rm -f config-all-devices.mak
@@ -390,20 +404,6 @@ pdf: qemu-doc.pdf qemu-tech.pdf
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi \
 	qemu-monitor.texi qemu-img-cmds.texi
-
-VERSION ?= $(shell cat VERSION)
-FILE = qemu-$(VERSION)
-
-# tar release (use 'make -k tar' on a checkouted tree)
-tar:
-	rm -rf /tmp/$(FILE)
-	cp -r . /tmp/$(FILE)
-	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS --exclude .git --exclude .svn
-	rm -rf /tmp/$(FILE)
-
-# Add a dependency on the generated files, so that they are always
-# rebuilt before other object files
-Makefile: $(GENERATED_HEADERS)
 
 # Include automatically generated dependency files
 # All subdir dependencies come automatically from our recursive subdir rules
