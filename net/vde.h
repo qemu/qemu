@@ -25,13 +25,12 @@
 #define QEMU_NET_VDE_H
 
 #include "qemu-common.h"
-#include "qemu-option.h"
 #include "qapi-types.h"
 
 #ifdef CONFIG_VDE
 
-int net_init_vde(QemuOpts *opts, const NetClientOptions *new_opts,
-                 const char *name, VLANState *vlan);
+int net_init_vde(const NetClientOptions *opts, const char *name,
+                 VLANState *vlan);
 
 #endif /* CONFIG_VDE */
 

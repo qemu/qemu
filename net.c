@@ -748,8 +748,8 @@ int net_handle_fd_param(Monitor *mon, const char *param)
     return fd;
 }
 
-static int net_init_nic(QemuOpts *old_opts, const NetClientOptions *opts,
-                        const char *name, VLANState *vlan)
+static int net_init_nic(const NetClientOptions *opts, const char *name,
+                        VLANState *vlan)
 {
     int idx;
     NICInfo *nd;
@@ -813,8 +813,7 @@ static int net_init_nic(QemuOpts *old_opts, const NetClientOptions *opts,
 
 
 static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
-    QemuOpts *old_opts,
-    const NetClientOptions *new_opts,
+    const NetClientOptions *opts,
     const char *name,
     VLANState *vlan) = {
         [NET_CLIENT_OPTIONS_KIND_NIC]    = net_init_nic,
@@ -833,8 +832,7 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
 };
 
 
-static int net_client_init1(const void *object, int is_netdev,
-                            QemuOpts *old_opts, Error **errp)
+static int net_client_init1(const void *object, int is_netdev, Error **errp)
 {
     union {
         const Netdev    *netdev;
@@ -885,7 +883,7 @@ static int net_client_init1(const void *object, int is_netdev,
             vlan = qemu_find_vlan(u.net->has_vlan ? u.net->vlan : 0, true);
         }
 
-        if (net_client_init_fun[opts->kind](old_opts, opts, name, vlan) < 0) {
+        if (net_client_init_fun[opts->kind](opts, name, vlan) < 0) {
             /* TODO push error reporting into init() methods */
             error_set(errp, QERR_DEVICE_INIT_FAILED,
                       NetClientOptionsKind_lookup[opts->kind]);
@@ -920,7 +918,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
     }
 
     if (!err) {
-        ret = net_client_init1(object, is_netdev, opts, &err);
+        ret = net_client_init1(object, is_netdev, &err);
     }
 
     if (object) {

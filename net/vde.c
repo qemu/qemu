@@ -110,8 +110,8 @@ static int net_vde_init(VLANState *vlan, const char *model,
     return 0;
 }
 
-int net_init_vde(QemuOpts *old_opts, const NetClientOptions *opts,
-                 const char *name, VLANState *vlan)
+int net_init_vde(const NetClientOptions *opts, const char *name,
+                 VLANState *vlan)
 {
     const NetdevVdeOptions *vde;
 

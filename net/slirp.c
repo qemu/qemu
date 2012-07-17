@@ -702,8 +702,8 @@ net_init_slirp_configs(const StringList *fwd, int flags)
     }
 }
 
-int net_init_slirp(QemuOpts *old_opts, const NetClientOptions *opts,
-                   const char *name, VLANState *vlan)
+int net_init_slirp(const NetClientOptions *opts, const char *name,
+                   VLANState *vlan)
 {
     struct slirp_config_str *config;
     char *vnet;

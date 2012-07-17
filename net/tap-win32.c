@@ -699,8 +699,8 @@ static int tap_win32_init(VLANState *vlan, const char *model,
     return 0;
 }
 
-int net_init_tap(QemuOpts *old_opts, const NetClientOptions *opts,
-                 const char *name, VLANState *vlan)
+int net_init_tap(const NetClientOptions *opts, const char *name,
+                 VLANState *vlan)
 {
     const NetdevTapOptions *tap;
 

@@ -144,8 +144,8 @@ static int net_dump_init(VLANState *vlan, const char *device,
     return 0;
 }
 
-int net_init_dump(QemuOpts *old_opts, const NetClientOptions *opts,
-                  const char *name, VLANState *vlan)
+int net_init_dump(const NetClientOptions *opts, const char *name,
+                  VLANState *vlan)
 {
     int len;
     const char *file;
