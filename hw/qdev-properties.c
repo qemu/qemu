@@ -1123,7 +1123,7 @@ void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
     assert_no_error(errp);
 }
 
-void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
+void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
 {
     Error *errp = NULL;
     object_property_set_str(OBJECT(dev), value, name, &errp);
