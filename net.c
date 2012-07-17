@@ -37,6 +37,9 @@
 #include "qmp-commands.h"
 #include "hw/qdev.h"
 #include "iov.h"
+#include "qapi-visit.h"
+#include "qapi/opts-visitor.h"
+#include "qapi/qapi-dealloc-visitor.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -745,7 +748,8 @@ int net_handle_fd_param(Monitor *mon, const char *param)
     return fd;
 }
 
-static int net_init_nic(QemuOpts *opts, const char *name, VLANState *vlan)
+static int net_init_nic(QemuOpts *opts, const NetClientOptions *new_opts,
+                        const char *name, VLANState *vlan)
 {
     int idx;
     NICInfo *nd;
@@ -802,370 +806,129 @@ static int net_init_nic(QemuOpts *opts, const char *name, VLANState *vlan)
     return idx;
 }
 
-#define NET_COMMON_PARAMS_DESC                     \
-    {                                              \
-        .name = "type",                            \
-        .type = QEMU_OPT_STRING,                   \
-        .help = "net client type (nic, tap etc.)", \
-     }, {                                          \
-        .name = "vlan",                            \
-        .type = QEMU_OPT_NUMBER,                   \
-        .help = "vlan number",                     \
-     }, {                                          \
-        .name = "name",                            \
-        .type = QEMU_OPT_STRING,                   \
-        .help = "identifier for monitor commands", \
-     }
 
-typedef int (*net_client_init_func)(QemuOpts *opts,
-                                    const char *name,
-                                    VLANState *vlan);
-
-/* magic number, but compiler will warn if too small */
-#define NET_MAX_DESC 20
-
-static const struct {
-    const char *type;
-    net_client_init_func init;
-    QemuOptDesc desc[NET_MAX_DESC];
-} net_client_types[NET_CLIENT_OPTIONS_KIND_MAX] = {
-    [NET_CLIENT_OPTIONS_KIND_NONE] = {
-        .type = "none",
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            { /* end of list */ }
-        },
-    },
-    [NET_CLIENT_OPTIONS_KIND_NIC] = {
-        .type = "nic",
-        .init = net_init_nic,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "netdev",
-                .type = QEMU_OPT_STRING,
-                .help = "id of -netdev to connect to",
-            },
-            {
-                .name = "macaddr",
-                .type = QEMU_OPT_STRING,
-                .help = "MAC address",
-            }, {
-                .name = "model",
-                .type = QEMU_OPT_STRING,
-                .help = "device model (e1000, rtl8139, virtio etc.)",
-            }, {
-                .name = "addr",
-                .type = QEMU_OPT_STRING,
-                .help = "PCI device address",
-            }, {
-                .name = "vectors",
-                .type = QEMU_OPT_NUMBER,
-                .help = "number of MSI-x vectors, 0 to disable MSI-X",
-            },
-            { /* end of list */ }
-        },
-    },
+static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
+    QemuOpts *old_opts,
+    const NetClientOptions *new_opts,
+    const char *name,
+    VLANState *vlan) = {
+        [NET_CLIENT_OPTIONS_KIND_NIC]    = net_init_nic,
 #ifdef CONFIG_SLIRP
-    [NET_CLIENT_OPTIONS_KIND_USER] = {
-        .type = "user",
-        .init = net_init_slirp,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "hostname",
-                .type = QEMU_OPT_STRING,
-                .help = "client hostname reported by the builtin DHCP server",
-            }, {
-                .name = "restrict",
-                .type = QEMU_OPT_STRING,
-                .help = "isolate the guest from the host (y|yes|n|no)",
-            }, {
-                .name = "ip",
-                .type = QEMU_OPT_STRING,
-                .help = "legacy parameter, use net= instead",
-            }, {
-                .name = "net",
-                .type = QEMU_OPT_STRING,
-                .help = "IP address and optional netmask",
-            }, {
-                .name = "host",
-                .type = QEMU_OPT_STRING,
-                .help = "guest-visible address of the host",
-            }, {
-                .name = "tftp",
-                .type = QEMU_OPT_STRING,
-                .help = "root directory of the built-in TFTP server",
-            }, {
-                .name = "bootfile",
-                .type = QEMU_OPT_STRING,
-                .help = "BOOTP filename, for use with tftp=",
-            }, {
-                .name = "dhcpstart",
-                .type = QEMU_OPT_STRING,
-                .help = "the first of the 16 IPs the built-in DHCP server can assign",
-            }, {
-                .name = "dns",
-                .type = QEMU_OPT_STRING,
-                .help = "guest-visible address of the virtual nameserver",
-            }, {
-                .name = "smb",
-                .type = QEMU_OPT_STRING,
-                .help = "root directory of the built-in SMB server",
-            }, {
-                .name = "smbserver",
-                .type = QEMU_OPT_STRING,
-                .help = "IP address of the built-in SMB server",
-            }, {
-                .name = "hostfwd",
-                .type = QEMU_OPT_STRING,
-                .help = "guest port number to forward incoming TCP or UDP connections",
-            }, {
-                .name = "guestfwd",
-                .type = QEMU_OPT_STRING,
-                .help = "IP address and port to forward guest TCP connections",
-            },
-            { /* end of list */ }
-        },
-    },
+        [NET_CLIENT_OPTIONS_KIND_USER]   = net_init_slirp,
 #endif
-    [NET_CLIENT_OPTIONS_KIND_TAP] = {
-        .type = "tap",
-        .init = net_init_tap,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "ifname",
-                .type = QEMU_OPT_STRING,
-                .help = "interface name",
-            },
-#ifndef _WIN32
-            {
-                .name = "fd",
-                .type = QEMU_OPT_STRING,
-                .help = "file descriptor of an already opened tap",
-            }, {
-                .name = "script",
-                .type = QEMU_OPT_STRING,
-                .help = "script to initialize the interface",
-            }, {
-                .name = "downscript",
-                .type = QEMU_OPT_STRING,
-                .help = "script to shut down the interface",
-            }, {
-#ifdef CONFIG_NET_BRIDGE
-                .name = "helper",
-                .type = QEMU_OPT_STRING,
-                .help = "command to execute to configure bridge",
-            }, {
-#endif
-                .name = "sndbuf",
-                .type = QEMU_OPT_SIZE,
-                .help = "send buffer limit"
-            }, {
-                .name = "vnet_hdr",
-                .type = QEMU_OPT_BOOL,
-                .help = "enable the IFF_VNET_HDR flag on the tap interface"
-            }, {
-                .name = "vhost",
-                .type = QEMU_OPT_BOOL,
-                .help = "enable vhost-net network accelerator",
-            }, {
-                .name = "vhostfd",
-                .type = QEMU_OPT_STRING,
-                .help = "file descriptor of an already opened vhost net device",
-            }, {
-                .name = "vhostforce",
-                .type = QEMU_OPT_BOOL,
-                .help = "force vhost on for non-MSIX virtio guests",
-        },
-#endif /* _WIN32 */
-            { /* end of list */ }
-        },
-    },
-    [NET_CLIENT_OPTIONS_KIND_SOCKET] = {
-        .type = "socket",
-        .init = net_init_socket,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "fd",
-                .type = QEMU_OPT_STRING,
-                .help = "file descriptor of an already opened socket",
-            }, {
-                .name = "listen",
-                .type = QEMU_OPT_STRING,
-                .help = "port number, and optional hostname, to listen on",
-            }, {
-                .name = "connect",
-                .type = QEMU_OPT_STRING,
-                .help = "port number, and optional hostname, to connect to",
-            }, {
-                .name = "mcast",
-                .type = QEMU_OPT_STRING,
-                .help = "UDP multicast address and port number",
-            }, {
-                .name = "localaddr",
-                .type = QEMU_OPT_STRING,
-                .help = "source address and port for multicast and udp packets",
-            }, {
-                .name = "udp",
-                .type = QEMU_OPT_STRING,
-                .help = "UDP unicast address and port number",
-            },
-            { /* end of list */ }
-        },
-    },
+        [NET_CLIENT_OPTIONS_KIND_TAP]    = net_init_tap,
+        [NET_CLIENT_OPTIONS_KIND_SOCKET] = net_init_socket,
 #ifdef CONFIG_VDE
-    [NET_CLIENT_OPTIONS_KIND_VDE] = {
-        .type = "vde",
-        .init = net_init_vde,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "sock",
-                .type = QEMU_OPT_STRING,
-                .help = "socket path",
-            }, {
-                .name = "port",
-                .type = QEMU_OPT_NUMBER,
-                .help = "port number",
-            }, {
-                .name = "group",
-                .type = QEMU_OPT_STRING,
-                .help = "group owner of socket",
-            }, {
-                .name = "mode",
-                .type = QEMU_OPT_NUMBER,
-                .help = "permissions for socket",
-            },
-            { /* end of list */ }
-        },
-    },
+        [NET_CLIENT_OPTIONS_KIND_VDE]    = net_init_vde,
 #endif
-    [NET_CLIENT_OPTIONS_KIND_DUMP] = {
-        .type = "dump",
-        .init = net_init_dump,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "len",
-                .type = QEMU_OPT_SIZE,
-                .help = "per-packet size limit (64k default)",
-            }, {
-                .name = "file",
-                .type = QEMU_OPT_STRING,
-                .help = "dump file path (default is qemu-vlan0.pcap)",
-            },
-            { /* end of list */ }
-        },
-    },
+        [NET_CLIENT_OPTIONS_KIND_DUMP]   = net_init_dump,
 #ifdef CONFIG_NET_BRIDGE
-    [NET_CLIENT_OPTIONS_KIND_BRIDGE] = {
-        .type = "bridge",
-        .init = net_init_bridge,
-        .desc = {
-            NET_COMMON_PARAMS_DESC,
-            {
-                .name = "br",
-                .type = QEMU_OPT_STRING,
-                .help = "bridge name",
-            }, {
-                .name = "helper",
-                .type = QEMU_OPT_STRING,
-                .help = "command to execute to configure bridge",
-            },
-            { /* end of list */ }
-        },
-    },
-#endif /* CONFIG_NET_BRIDGE */
+        [NET_CLIENT_OPTIONS_KIND_BRIDGE] = net_init_bridge,
+#endif
 };
 
-int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
-{
-    const char *name;
-    const char *type;
-    int i;
 
-    type = qemu_opt_get(opts, "type");
-    if (!type) {
-        error_set(errp, QERR_MISSING_PARAMETER, "type");
-        return -1;
-    }
+static int net_client_init1(const void *object, int is_netdev,
+                            QemuOpts *old_opts, Error **errp)
+{
+    union {
+        const Netdev    *netdev;
+        const NetLegacy *net;
+    } u;
+    const NetClientOptions *opts;
+    const char *name;
 
     if (is_netdev) {
-        if (strcmp(type, "tap") != 0 &&
-#ifdef CONFIG_NET_BRIDGE
-            strcmp(type, "bridge") != 0 &&
-#endif
+        u.netdev = object;
+        opts = u.netdev->opts;
+        name = u.netdev->id;
+
+        switch (opts->kind) {
 #ifdef CONFIG_SLIRP
-            strcmp(type, "user") != 0 &&
+        case NET_CLIENT_OPTIONS_KIND_USER:
 #endif
+        case NET_CLIENT_OPTIONS_KIND_TAP:
+        case NET_CLIENT_OPTIONS_KIND_SOCKET:
 #ifdef CONFIG_VDE
-            strcmp(type, "vde") != 0 &&
+        case NET_CLIENT_OPTIONS_KIND_VDE:
 #endif
-            strcmp(type, "socket") != 0) {
+#ifdef CONFIG_NET_BRIDGE
+        case NET_CLIENT_OPTIONS_KIND_BRIDGE:
+#endif
+            break;
+
+        default:
             error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                       "a netdev backend type");
             return -1;
         }
+    } else {
+        u.net = object;
+        opts = u.net->opts;
+        /* missing optional values have been initialized to "all bits zero" */
+        name = u.net->has_id ? u.net->id : u.net->name;
+    }
 
-        if (qemu_opt_get(opts, "vlan")) {
-            error_set(errp, QERR_INVALID_PARAMETER, "vlan");
-            return -1;
+    if (net_client_init_fun[opts->kind]) {
+        VLANState *vlan = NULL;
+
+        /* Do not add to a vlan if it's a -netdev or a nic with a netdev=
+         * parameter. */
+        if (!is_netdev &&
+            (opts->kind != NET_CLIENT_OPTIONS_KIND_NIC ||
+             !opts->nic->has_netdev)) {
+            vlan = qemu_find_vlan(u.net->has_vlan ? u.net->vlan : 0, true);
         }
-        if (qemu_opt_get(opts, "name")) {
-            error_set(errp, QERR_INVALID_PARAMETER, "name");
-            return -1;
-        }
-        if (!qemu_opts_id(opts)) {
-            error_set(errp, QERR_MISSING_PARAMETER, "id");
+
+        if (net_client_init_fun[opts->kind](old_opts, opts, name, vlan) < 0) {
+            /* TODO push error reporting into init() methods */
+            error_set(errp, QERR_DEVICE_INIT_FAILED,
+                      NetClientOptionsKind_lookup[opts->kind]);
             return -1;
         }
     }
-
-    name = qemu_opts_id(opts);
-    if (!name) {
-        name = qemu_opt_get(opts, "name");
-    }
-
-    for (i = 0; i < NET_CLIENT_OPTIONS_KIND_MAX; i++) {
-        if (net_client_types[i].type != NULL &&
-            !strcmp(net_client_types[i].type, type)) {
-            Error *local_err = NULL;
-            VLANState *vlan = NULL;
-            int ret;
-
-            qemu_opts_validate(opts, &net_client_types[i].desc[0], &local_err);
-            if (error_is_set(&local_err)) {
-                error_propagate(errp, local_err);
-                return -1;
-            }
-
-            /* Do not add to a vlan if it's a -netdev or a nic with a
-             * netdev= parameter. */
-            if (!(is_netdev ||
-                  (strcmp(type, "nic") == 0 && qemu_opt_get(opts, "netdev")))) {
-                vlan = qemu_find_vlan(qemu_opt_get_number(opts, "vlan", 0), 1);
-            }
-
-            ret = 0;
-            if (net_client_types[i].init) {
-                ret = net_client_types[i].init(opts, name, vlan);
-                if (ret < 0) {
-                    /* TODO push error reporting into init() methods */
-                    error_set(errp, QERR_DEVICE_INIT_FAILED, type);
-                    return -1;
-                }
-            }
-            return ret;
-        }
-    }
-
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
-              "a network client type");
-    return -1;
+    return 0;
 }
+
+
+static void net_visit(Visitor *v, int is_netdev, void **object, Error **errp)
+{
+    if (is_netdev) {
+        visit_type_Netdev(v, (Netdev **)object, NULL, errp);
+    } else {
+        visit_type_NetLegacy(v, (NetLegacy **)object, NULL, errp);
+    }
+}
+
+
+int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
+{
+    void *object = NULL;
+    Error *err = NULL;
+    int ret = -1;
+
+    {
+        OptsVisitor *ov = opts_visitor_new(opts);
+
+        net_visit(opts_get_visitor(ov), is_netdev, &object, &err);
+        opts_visitor_cleanup(ov);
+    }
+
+    if (!err) {
+        ret = net_client_init1(object, is_netdev, opts, &err);
+    }
+
+    if (object) {
+        QapiDeallocVisitor *dv = qapi_dealloc_visitor_new();
+
+        net_visit(qapi_dealloc_get_visitor(dv), is_netdev, &object, NULL);
+        qapi_dealloc_visitor_cleanup(dv);
+    }
+
+    error_propagate(errp, err);
+    return ret;
+}
+
 
 static int net_host_check_device(const char *device)
 {
@@ -1286,7 +1049,7 @@ void qmp_netdev_del(const char *id, Error **errp)
 static void print_net_client(Monitor *mon, VLANClientState *vc)
 {
     monitor_printf(mon, "%s: type=%s,%s\n", vc->name,
-                   net_client_types[vc->info->type].type, vc->info_str);
+                   NetClientOptionsKind_lookup[vc->info->type], vc->info_str);
 }
 
 void do_info_network(Monitor *mon)

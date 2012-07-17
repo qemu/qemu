@@ -586,7 +586,8 @@ static int net_socket_udp_init(VLANState *vlan,
     return 0;
 }
 
-int net_init_socket(QemuOpts *opts, const char *name, VLANState *vlan)
+int net_init_socket(QemuOpts *opts, const NetClientOptions *new_opts,
+                    const char *name, VLANState *vlan)
 {
     if (qemu_opt_get(opts, "fd")) {
         int fd;

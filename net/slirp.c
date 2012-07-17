@@ -708,7 +708,8 @@ static int net_init_slirp_configs(const char *name, const char *value, void *opa
     return 0;
 }
 
-int net_init_slirp(QemuOpts *opts, const char *name, VLANState *vlan)
+int net_init_slirp(QemuOpts *opts, const NetClientOptions *new_opts,
+                   const char *name, VLANState *vlan)
 {
     struct slirp_config_str *config;
     const char *vhost;

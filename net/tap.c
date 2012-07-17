@@ -513,7 +513,8 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
     return -1;
 }
 
-int net_init_bridge(QemuOpts *opts, const char *name, VLANState *vlan)
+int net_init_bridge(QemuOpts *opts, const NetClientOptions *new_opts,
+                    const char *name, VLANState *vlan)
 {
     TAPState *s;
     int fd, vnet_hdr;
@@ -583,7 +584,8 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
     return fd;
 }
 
-int net_init_tap(QemuOpts *opts, const char *name, VLANState *vlan)
+int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
+                 const char *name, VLANState *vlan)
 {
     TAPState *s;
     int fd, vnet_hdr = 0;
