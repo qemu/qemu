@@ -218,7 +218,7 @@ int tap_has_ufo(VLANClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
 
     return s->has_ufo;
 }
@@ -227,7 +227,7 @@ int tap_has_vnet_hdr(VLANClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
 
     return !!s->host_vnet_hdr_len;
 }
@@ -236,7 +236,7 @@ int tap_has_vnet_hdr_len(VLANClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
 
     return tap_probe_vnet_hdr_len(s->fd, len);
 }
@@ -245,7 +245,7 @@ void tap_set_vnet_hdr_len(VLANClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
     assert(len == sizeof(struct virtio_net_hdr_mrg_rxbuf) ||
            len == sizeof(struct virtio_net_hdr));
 
@@ -259,7 +259,7 @@ void tap_using_vnet_hdr(VLANClientState *nc, int using_vnet_hdr)
 
     using_vnet_hdr = using_vnet_hdr != 0;
 
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
     assert(!!s->host_vnet_hdr_len == using_vnet_hdr);
 
     s->using_vnet_hdr = using_vnet_hdr;
@@ -306,14 +306,14 @@ static void tap_poll(VLANClientState *nc, bool enable)
 int tap_get_fd(VLANClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
     return s->fd;
 }
 
 /* fd support */
 
 static NetClientInfo net_tap_info = {
-    .type = NET_CLIENT_TYPE_TAP,
+    .type = NET_CLIENT_OPTIONS_KIND_TAP,
     .size = sizeof(TAPState),
     .receive = tap_receive,
     .receive_raw = tap_receive_raw,
@@ -711,6 +711,6 @@ int net_init_tap(QemuOpts *opts, const char *name, VLANState *vlan)
 VHostNetState *tap_get_vhost_net(VLANClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
-    assert(nc->info->type == NET_CLIENT_TYPE_TAP);
+    assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
     return s->vhost_net;
 }

@@ -467,7 +467,7 @@ static void open_eth_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_open_eth_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = open_eth_can_receive,
     .receive = open_eth_receive,

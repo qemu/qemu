@@ -93,7 +93,7 @@ static void dump_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_dump_info = {
-    .type = NET_CLIENT_TYPE_DUMP,
+    .type = NET_CLIENT_OPTIONS_KIND_DUMP,
     .size = sizeof(DumpState),
     .receive = dump_receive,
     .cleanup = dump_cleanup,

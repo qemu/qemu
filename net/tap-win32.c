@@ -667,7 +667,7 @@ static void tap_win32_send(void *opaque)
 }
 
 static NetClientInfo net_tap_win32_info = {
-    .type = NET_CLIENT_TYPE_TAP,
+    .type = NET_CLIENT_OPTIONS_KIND_TAP,
     .size = sizeof(TAPState),
     .receive = tap_receive,
     .cleanup = tap_cleanup,

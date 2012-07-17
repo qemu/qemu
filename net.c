@@ -239,7 +239,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
     VLANClientState *nc;
     NICState *nic;
 
-    assert(info->type == NET_CLIENT_TYPE_NIC);
+    assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
 
     nc = qemu_new_net_client(info, conf->vlan, conf->peer, model, name);
@@ -282,7 +282,7 @@ static void qemu_free_vlan_client(VLANClientState *vc)
 void qemu_del_vlan_client(VLANClientState *vc)
 {
     /* If there is a peer NIC, delete and cleanup client, but do not free. */
-    if (!vc->vlan && vc->peer && vc->peer->info->type == NET_CLIENT_TYPE_NIC) {
+    if (!vc->vlan && vc->peer && vc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         NICState *nic = DO_UPCAST(NICState, nc, vc->peer);
         if (nic->peer_deleted) {
             return;
@@ -298,7 +298,7 @@ void qemu_del_vlan_client(VLANClientState *vc)
     }
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
-    if (!vc->vlan && vc->peer && vc->info->type == NET_CLIENT_TYPE_NIC) {
+    if (!vc->vlan && vc->peer && vc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         NICState *nic = DO_UPCAST(NICState, nc, vc);
         if (nic->peer_deleted) {
             qemu_free_vlan_client(vc->peer);
@@ -341,14 +341,14 @@ void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
     VLANState *vlan;
 
     QTAILQ_FOREACH(nc, &non_vlan_clients, next) {
-        if (nc->info->type == NET_CLIENT_TYPE_NIC) {
+        if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
             func(DO_UPCAST(NICState, nc, nc), opaque);
         }
     }
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
         QTAILQ_FOREACH(nc, &vlan->clients, next) {
-            if (nc->info->type == NET_CLIENT_TYPE_NIC) {
+            if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
                 func(DO_UPCAST(NICState, nc, nc), opaque);
             }
         }
@@ -664,7 +664,7 @@ VLANClientState *qemu_find_netdev(const char *id)
     VLANClientState *vc;
 
     QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
-        if (vc->info->type == NET_CLIENT_TYPE_NIC)
+        if (vc->info->type == NET_CLIENT_OPTIONS_KIND_NIC)
             continue;
         if (!strcmp(vc->name, id)) {
             return vc;
@@ -828,15 +828,15 @@ static const struct {
     const char *type;
     net_client_init_func init;
     QemuOptDesc desc[NET_MAX_DESC];
-} net_client_types[NET_CLIENT_TYPE_MAX] = {
-    [NET_CLIENT_TYPE_NONE] = {
+} net_client_types[NET_CLIENT_OPTIONS_KIND_MAX] = {
+    [NET_CLIENT_OPTIONS_KIND_NONE] = {
         .type = "none",
         .desc = {
             NET_COMMON_PARAMS_DESC,
             { /* end of list */ }
         },
     },
-    [NET_CLIENT_TYPE_NIC] = {
+    [NET_CLIENT_OPTIONS_KIND_NIC] = {
         .type = "nic",
         .init = net_init_nic,
         .desc = {
@@ -867,7 +867,7 @@ static const struct {
         },
     },
 #ifdef CONFIG_SLIRP
-    [NET_CLIENT_TYPE_USER] = {
+    [NET_CLIENT_OPTIONS_KIND_USER] = {
         .type = "user",
         .init = net_init_slirp,
         .desc = {
@@ -929,7 +929,7 @@ static const struct {
         },
     },
 #endif
-    [NET_CLIENT_TYPE_TAP] = {
+    [NET_CLIENT_OPTIONS_KIND_TAP] = {
         .type = "tap",
         .init = net_init_tap,
         .desc = {
@@ -983,7 +983,7 @@ static const struct {
             { /* end of list */ }
         },
     },
-    [NET_CLIENT_TYPE_SOCKET] = {
+    [NET_CLIENT_OPTIONS_KIND_SOCKET] = {
         .type = "socket",
         .init = net_init_socket,
         .desc = {
@@ -1017,7 +1017,7 @@ static const struct {
         },
     },
 #ifdef CONFIG_VDE
-    [NET_CLIENT_TYPE_VDE] = {
+    [NET_CLIENT_OPTIONS_KIND_VDE] = {
         .type = "vde",
         .init = net_init_vde,
         .desc = {
@@ -1043,7 +1043,7 @@ static const struct {
         },
     },
 #endif
-    [NET_CLIENT_TYPE_DUMP] = {
+    [NET_CLIENT_OPTIONS_KIND_DUMP] = {
         .type = "dump",
         .init = net_init_dump,
         .desc = {
@@ -1061,7 +1061,7 @@ static const struct {
         },
     },
 #ifdef CONFIG_NET_BRIDGE
-    [NET_CLIENT_TYPE_BRIDGE] = {
+    [NET_CLIENT_OPTIONS_KIND_BRIDGE] = {
         .type = "bridge",
         .init = net_init_bridge,
         .desc = {
@@ -1129,7 +1129,7 @@ int net_client_init(QemuOpts *opts, int is_netdev, Error **errp)
         name = qemu_opt_get(opts, "name");
     }
 
-    for (i = 0; i < NET_CLIENT_TYPE_MAX; i++) {
+    for (i = 0; i < NET_CLIENT_OPTIONS_KIND_MAX; i++) {
         if (net_client_types[i].type != NULL &&
             !strcmp(net_client_types[i].type, type)) {
             Error *local_err = NULL;
@@ -1293,7 +1293,7 @@ void do_info_network(Monitor *mon)
 {
     VLANState *vlan;
     VLANClientState *vc, *peer;
-    net_client_type type;
+    NetClientOptionsKind type;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
         monitor_printf(mon, "VLAN %d devices:\n", vlan->id);
@@ -1307,11 +1307,11 @@ void do_info_network(Monitor *mon)
     QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
         peer = vc->peer;
         type = vc->info->type;
-        if (!peer || type == NET_CLIENT_TYPE_NIC) {
+        if (!peer || type == NET_CLIENT_OPTIONS_KIND_NIC) {
             monitor_printf(mon, "  ");
             print_net_client(mon, vc);
         } /* else it's a netdev connected to a NIC, printed with the NIC */
-        if (peer && type == NET_CLIENT_TYPE_NIC) {
+        if (peer && type == NET_CLIENT_OPTIONS_KIND_NIC) {
             monitor_printf(mon, "   \\ ");
             print_net_client(mon, peer);
         }
@@ -1399,13 +1399,13 @@ void net_check_clients(void)
 
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             switch (vc->info->type) {
-            case NET_CLIENT_TYPE_NIC:
+            case NET_CLIENT_OPTIONS_KIND_NIC:
                 has_nic = 1;
                 break;
-            case NET_CLIENT_TYPE_USER:
-            case NET_CLIENT_TYPE_TAP:
-            case NET_CLIENT_TYPE_SOCKET:
-            case NET_CLIENT_TYPE_VDE:
+            case NET_CLIENT_OPTIONS_KIND_USER:
+            case NET_CLIENT_OPTIONS_KIND_TAP:
+            case NET_CLIENT_OPTIONS_KIND_SOCKET:
+            case NET_CLIENT_OPTIONS_KIND_VDE:
                 has_host_dev = 1;
                 break;
             default: ;
@@ -1421,7 +1421,7 @@ void net_check_clients(void)
     QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
         if (!vc->peer) {
             fprintf(stderr, "Warning: %s %s has no peer\n",
-                    vc->info->type == NET_CLIENT_TYPE_NIC ? "nic" : "netdev",
+                    vc->info->type == NET_CLIENT_OPTIONS_KIND_NIC ? "nic" : "netdev",
                     vc->name);
         }
     }
