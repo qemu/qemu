@@ -163,6 +163,8 @@ def c_type(name):
           name == 'int64' or name == 'uint8' or name == 'uint16' or
           name == 'uint32' or name == 'uint64'):
         return name + '_t'
+    elif name == 'size':
+        return 'uint64_t'
     elif name == 'bool':
         return 'bool'
     elif name == 'number':
