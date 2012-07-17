@@ -699,19 +699,20 @@ static int tap_win32_init(VLANState *vlan, const char *model,
     return 0;
 }
 
-int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
+int net_init_tap(QemuOpts *old_opts, const NetClientOptions *opts,
                  const char *name, VLANState *vlan)
 {
-    const char *ifname;
+    const NetdevTapOptions *tap;
 
-    ifname = qemu_opt_get(opts, "ifname");
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_TAP);
+    tap = opts->tap;
 
-    if (!ifname) {
+    if (!tap->has_ifname) {
         error_report("tap: no interface name");
         return -1;
     }
 
-    if (tap_win32_init(vlan, "tap", name, ifname) == -1) {
+    if (tap_win32_init(vlan, "tap", name, tap->ifname) == -1) {
         return -1;
     }
 

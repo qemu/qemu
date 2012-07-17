@@ -548,29 +548,32 @@ int net_init_bridge(QemuOpts *opts, const NetClientOptions *new_opts,
     return 0;
 }
 
-static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
+static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
+                        const char *setup_script, char *ifname,
+                        size_t ifname_sz)
 {
     int fd, vnet_hdr_required;
-    char ifname[128] = {0,};
-    const char *setup_script;
 
-    if (qemu_opt_get(opts, "ifname")) {
-        pstrcpy(ifname, sizeof(ifname), qemu_opt_get(opts, "ifname"));
+    if (tap->has_ifname) {
+        pstrcpy(ifname, ifname_sz, tap->ifname);
+    } else {
+        assert(ifname_sz > 0);
+        ifname[0] = '\0';
     }
 
-    *vnet_hdr = qemu_opt_get_bool(opts, "vnet_hdr", 1);
-    if (qemu_opt_get(opts, "vnet_hdr")) {
+    if (tap->has_vnet_hdr) {
+        *vnet_hdr = tap->vnet_hdr;
         vnet_hdr_required = *vnet_hdr;
     } else {
+        *vnet_hdr = 1;
         vnet_hdr_required = 0;
     }
 
-    TFR(fd = tap_open(ifname, sizeof(ifname), vnet_hdr, vnet_hdr_required));
+    TFR(fd = tap_open(ifname, ifname_sz, vnet_hdr, vnet_hdr_required));
     if (fd < 0) {
         return -1;
     }
 
-    setup_script = qemu_opt_get(opts, "script");
     if (setup_script &&
         setup_script[0] != '\0' &&
         strcmp(setup_script, "no") != 0 &&
@@ -579,30 +582,34 @@ static int net_tap_init(QemuOpts *opts, int *vnet_hdr)
         return -1;
     }
 
-    qemu_opt_set(opts, "ifname", ifname);
-
     return fd;
 }
 
-int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
+int net_init_tap(QemuOpts *old_opts, const NetClientOptions *opts,
                  const char *name, VLANState *vlan)
 {
-    TAPState *s;
+    const NetdevTapOptions *tap;
+
     int fd, vnet_hdr = 0;
     const char *model;
+    TAPState *s;
 
-    if (qemu_opt_get(opts, "fd")) {
-        if (qemu_opt_get(opts, "ifname") ||
-            qemu_opt_get(opts, "script") ||
-            qemu_opt_get(opts, "downscript") ||
-            qemu_opt_get(opts, "vnet_hdr") ||
-            qemu_opt_get(opts, "helper")) {
+    /* for the no-fd, no-helper case */
+    const char *script = NULL; /* suppress wrong "uninit'd use" gcc warning */
+    char ifname[128];
+
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_TAP);
+    tap = opts->tap;
+
+    if (tap->has_fd) {
+        if (tap->has_ifname || tap->has_script || tap->has_downscript ||
+            tap->has_vnet_hdr || tap->has_helper) {
             error_report("ifname=, script=, downscript=, vnet_hdr=, "
                          "and helper= are invalid with fd=");
             return -1;
         }
 
-        fd = net_handle_fd_param(cur_mon, qemu_opt_get(opts, "fd"));
+        fd = net_handle_fd_param(cur_mon, tap->fd);
         if (fd == -1) {
             return -1;
         }
@@ -613,18 +620,15 @@ int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
 
         model = "tap";
 
-    } else if (qemu_opt_get(opts, "helper")) {
-        if (qemu_opt_get(opts, "ifname") ||
-            qemu_opt_get(opts, "script") ||
-            qemu_opt_get(opts, "downscript") ||
-            qemu_opt_get(opts, "vnet_hdr")) {
+    } else if (tap->has_helper) {
+        if (tap->has_ifname || tap->has_script || tap->has_downscript ||
+            tap->has_vnet_hdr) {
             error_report("ifname=, script=, downscript=, and vnet_hdr= "
                          "are invalid with helper=");
             return -1;
         }
 
-        fd = net_bridge_run_helper(qemu_opt_get(opts, "helper"),
-                                   DEFAULT_BRIDGE_INTERFACE);
+        fd = net_bridge_run_helper(tap->helper, DEFAULT_BRIDGE_INTERFACE);
         if (fd == -1) {
             return -1;
         }
@@ -636,15 +640,8 @@ int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
         model = "bridge";
 
     } else {
-        if (!qemu_opt_get(opts, "script")) {
-            qemu_opt_set(opts, "script", DEFAULT_NETWORK_SCRIPT);
-        }
-
-        if (!qemu_opt_get(opts, "downscript")) {
-            qemu_opt_set(opts, "downscript", DEFAULT_NETWORK_DOWN_SCRIPT);
-        }
-
-        fd = net_tap_init(opts, &vnet_hdr);
+        script = tap->has_script ? tap->script : DEFAULT_NETWORK_SCRIPT;
+        fd = net_tap_init(tap, &vnet_hdr, script, ifname, sizeof ifname);
         if (fd == -1) {
             return -1;
         }
@@ -658,25 +655,24 @@ int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
         return -1;
     }
 
-    if (tap_set_sndbuf(s->fd, opts) < 0) {
+    if (tap_set_sndbuf(s->fd, tap) < 0) {
         return -1;
     }
 
-    if (qemu_opt_get(opts, "fd")) {
+    if (tap->has_fd) {
         snprintf(s->nc.info_str, sizeof(s->nc.info_str), "fd=%d", fd);
-    } else if (qemu_opt_get(opts, "helper")) {
-        snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-                 "helper=%s", qemu_opt_get(opts, "helper"));
+    } else if (tap->has_helper) {
+        snprintf(s->nc.info_str, sizeof(s->nc.info_str), "helper=%s",
+                 tap->helper);
     } else {
-        const char *ifname, *script, *downscript;
+        const char *downscript;
 
-        ifname     = qemu_opt_get(opts, "ifname");
-        script     = qemu_opt_get(opts, "script");
-        downscript = qemu_opt_get(opts, "downscript");
+        downscript = tap->has_downscript ? tap->downscript :
+                                           DEFAULT_NETWORK_DOWN_SCRIPT;
 
         snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-                 "ifname=%s,script=%s,downscript=%s",
-                 ifname, script, downscript);
+                 "ifname=%s,script=%s,downscript=%s", ifname, script,
+                 downscript);
 
         if (strcmp(downscript, "no") != 0) {
             snprintf(s->down_script, sizeof(s->down_script), "%s", downscript);
@@ -684,25 +680,26 @@ int net_init_tap(QemuOpts *opts, const NetClientOptions *new_opts,
         }
     }
 
-    if (qemu_opt_get_bool(opts, "vhost", !!qemu_opt_get(opts, "vhostfd") ||
-                          qemu_opt_get_bool(opts, "vhostforce", false))) {
-        int vhostfd, r;
-        bool force = qemu_opt_get_bool(opts, "vhostforce", false);
-        if (qemu_opt_get(opts, "vhostfd")) {
-            r = net_handle_fd_param(cur_mon, qemu_opt_get(opts, "vhostfd"));
-            if (r == -1) {
+    if (tap->has_vhost ? tap->vhost :
+        tap->has_vhostfd || (tap->has_vhostforce && tap->vhostforce)) {
+        int vhostfd;
+
+        if (tap->has_vhostfd) {
+            vhostfd = net_handle_fd_param(cur_mon, tap->vhostfd);
+            if (vhostfd == -1) {
                 return -1;
             }
-            vhostfd = r;
         } else {
             vhostfd = -1;
         }
-        s->vhost_net = vhost_net_init(&s->nc, vhostfd, force);
+
+        s->vhost_net = vhost_net_init(&s->nc, vhostfd,
+                                      tap->has_vhostforce && tap->vhostforce);
         if (!s->vhost_net) {
             error_report("vhost-net requested but could not be initialized");
             return -1;
         }
-    } else if (qemu_opt_get(opts, "vhostfd")) {
+    } else if (tap->has_vhostfd) {
         error_report("vhostfd= is not valid without vhost");
         return -1;
     }
