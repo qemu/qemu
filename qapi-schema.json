@@ -1872,6 +1872,284 @@
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
 
 ##
+# @NetdevNoneOptions
+#
+# Use it alone to have zero network devices.
+#
+# Since 1.2
+##
+{ 'type': 'NetdevNoneOptions',
+  'data': { } }
+
+##
+# @NetLegacyNicOptions
+#
+# Create a new Network Interface Card.
+#
+# @netdev: #optional id of -netdev to connect to
+#
+# @macaddr: #optional MAC address
+#
+# @model: #optional device model (e1000, rtl8139, virtio etc.)
+#
+# @addr: #optional PCI device address
+#
+# @vectors: #optional number of MSI-x vectors, 0 to disable MSI-X
+#
+# Since 1.2
+##
+{ 'type': 'NetLegacyNicOptions',
+  'data': {
+    '*netdev':  'str',
+    '*macaddr': 'str',
+    '*model':   'str',
+    '*addr':    'str',
+    '*vectors': 'uint32' } }
+
+##
+# @String
+#
+# A fat type wrapping 'str', to be embedded in lists.
+#
+# Since 1.2
+##
+{ 'type': 'String',
+  'data': {
+    'str': 'str' } }
+
+##
+# @NetdevUserOptions
+#
+# Use the user mode network stack which requires no administrator privilege to
+# run.
+#
+# @hostname: #optional client hostname reported by the builtin DHCP server
+#
+# @restrict: #optional isolate the guest from the host
+#
+# @ip: #optional legacy parameter, use net= instead
+#
+# @net: #optional IP address and optional netmask
+#
+# @host: #optional guest-visible address of the host
+#
+# @tftp: #optional root directory of the built-in TFTP server
+#
+# @bootfile: #optional BOOTP filename, for use with tftp=
+#
+# @dhcpstart: #optional the first of the 16 IPs the built-in DHCP server can
+#             assign
+#
+# @dns: #optional guest-visible address of the virtual nameserver
+#
+# @smb: #optional root directory of the built-in SMB server
+#
+# @smbserver: #optional IP address of the built-in SMB server
+#
+# @hostfwd: #optional redirect incoming TCP or UDP host connections to guest
+#           endpoints
+#
+# @guestfwd: #optional forward guest TCP connections
+#
+# Since 1.2
+##
+{ 'type': 'NetdevUserOptions',
+  'data': {
+    '*hostname':  'str',
+    '*restrict':  'bool',
+    '*ip':        'str',
+    '*net':       'str',
+    '*host':      'str',
+    '*tftp':      'str',
+    '*bootfile':  'str',
+    '*dhcpstart': 'str',
+    '*dns':       'str',
+    '*smb':       'str',
+    '*smbserver': 'str',
+    '*hostfwd':   ['String'],
+    '*guestfwd':  ['String'] } }
+
+##
+# @NetdevTapOptions
+#
+# Connect the host TAP network interface name to the VLAN.
+#
+# @ifname: #optional interface name
+#
+# @fd: #optional file descriptor of an already opened tap
+#
+# @script: #optional script to initialize the interface
+#
+# @downscript: #optional script to shut down the interface
+#
+# @helper: #optional command to execute to configure bridge
+#
+# @sndbuf: #optional send buffer limit. Understands [TGMKkb] suffixes.
+#
+# @vnet_hdr: #optional enable the IFF_VNET_HDR flag on the tap interface
+#
+# @vhost: #optional enable vhost-net network accelerator
+#
+# @vhostfd: #optional file descriptor of an already opened vhost net device
+#
+# @vhostforce: #optional vhost on for non-MSIX virtio guests
+#
+# Since 1.2
+##
+{ 'type': 'NetdevTapOptions',
+  'data': {
+    '*ifname':     'str',
+    '*fd':         'str',
+    '*script':     'str',
+    '*downscript': 'str',
+    '*helper':     'str',
+    '*sndbuf':     'size',
+    '*vnet_hdr':   'bool',
+    '*vhost':      'bool',
+    '*vhostfd':    'str',
+    '*vhostforce': 'bool' } }
+
+##
+# @NetdevSocketOptions
+#
+# Connect the VLAN to a remote VLAN in another QEMU virtual machine using a TCP
+# socket connection.
+#
+# @fd: #optional file descriptor of an already opened socket
+#
+# @listen: #optional port number, and optional hostname, to listen on
+#
+# @connect: #optional port number, and optional hostname, to connect to
+#
+# @mcast: #optional UDP multicast address and port number
+#
+# @localaddr: #optional source address and port for multicast and udp packets
+#
+# @udp: #optional UDP unicast address and port number
+#
+# Since 1.2
+##
+{ 'type': 'NetdevSocketOptions',
+  'data': {
+    '*fd':        'str',
+    '*listen':    'str',
+    '*connect':   'str',
+    '*mcast':     'str',
+    '*localaddr': 'str',
+    '*udp':       'str' } }
+
+##
+# @NetdevVdeOptions
+#
+# Connect the VLAN to a vde switch running on the host.
+#
+# @sock: #optional socket path
+#
+# @port: #optional port number
+#
+# @group: #optional group owner of socket
+#
+# @mode: #optional permissions for socket
+#
+# Since 1.2
+##
+{ 'type': 'NetdevVdeOptions',
+  'data': {
+    '*sock':  'str',
+    '*port':  'uint16',
+    '*group': 'str',
+    '*mode':  'uint16' } }
+
+##
+# @NetdevDumpOptions
+#
+# Dump VLAN network traffic to a file.
+#
+# @len: #optional per-packet size limit (64k default). Understands [TGMKkb]
+# suffixes.
+#
+# @file: #optional dump file path (default is qemu-vlan0.pcap)
+#
+# Since 1.2
+##
+{ 'type': 'NetdevDumpOptions',
+  'data': {
+    '*len':  'size',
+    '*file': 'str' } }
+
+##
+# @NetdevBridgeOptions
+#
+# Connect a host TAP network interface to a host bridge device.
+#
+# @br: #optional bridge name
+#
+# @helper: #optional command to execute to configure bridge
+#
+# Since 1.2
+##
+{ 'type': 'NetdevBridgeOptions',
+  'data': {
+    '*br':     'str',
+    '*helper': 'str' } }
+
+##
+# @NetClientOptions
+#
+# A discriminated record of network device traits.
+#
+# Since 1.2
+##
+{ 'union': 'NetClientOptions',
+  'data': {
+    'none':   'NetdevNoneOptions',
+    'nic':    'NetLegacyNicOptions',
+    'user':   'NetdevUserOptions',
+    'tap':    'NetdevTapOptions',
+    'socket': 'NetdevSocketOptions',
+    'vde':    'NetdevVdeOptions',
+    'dump':   'NetdevDumpOptions',
+    'bridge': 'NetdevBridgeOptions' } }
+
+##
+# @NetLegacy
+#
+# Captures the configuration of a network device; legacy.
+#
+# @vlan: #optional vlan number
+#
+# @id: #optional identifier for monitor commands
+#
+# @name: #optional identifier for monitor commands, ignored if @id is present
+#
+# @opts: device type specific properties (legacy)
+#
+# Since 1.2
+##
+{ 'type': 'NetLegacy',
+  'data': {
+    '*vlan': 'int32',
+    '*id':   'str',
+    '*name': 'str',
+    'opts':  'NetClientOptions' } }
+
+##
+# @Netdev
+#
+# Captures the configuration of a network device.
+#
+# @id: identifier for monitor commands.
+#
+# @opts: device type specific properties
+#
+# Since 1.2
+##
+{ 'type': 'Netdev',
+  'data': {
+    'id':   'str',
+    'opts': 'NetClientOptions' } }
+
+##
 # @getfd:
 #
 # Receive a file descriptor via SCM rights and assign it a name
