@@ -586,101 +586,68 @@ static int net_socket_udp_init(VLANState *vlan,
     return 0;
 }
 
-int net_init_socket(QemuOpts *opts, const NetClientOptions *new_opts,
+int net_init_socket(QemuOpts *old_opts, const NetClientOptions *opts,
                     const char *name, VLANState *vlan)
 {
-    if (qemu_opt_get(opts, "fd")) {
+    const NetdevSocketOptions *sock;
+
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_SOCKET);
+    sock = opts->socket;
+
+    if (sock->has_fd + sock->has_listen + sock->has_connect + sock->has_mcast +
+        sock->has_udp != 1) {
+        error_report("exactly one of fd=, listen=, connect=, mcast= or udp="
+                     " is required");
+        return -1;
+    }
+
+    if (sock->has_localaddr && !sock->has_mcast && !sock->has_udp) {
+        error_report("localaddr= is only valid with mcast= or udp=");
+        return -1;
+    }
+
+    if (sock->has_fd) {
         int fd;
 
-        if (qemu_opt_get(opts, "listen") ||
-            qemu_opt_get(opts, "connect") ||
-            qemu_opt_get(opts, "mcast") ||
-            qemu_opt_get(opts, "localaddr")) {
-            error_report("listen=, connect=, mcast= and localaddr= is invalid with fd=");
+        fd = net_handle_fd_param(cur_mon, sock->fd);
+        if (fd == -1 || !net_socket_fd_init(vlan, "socket", name, fd, 1)) {
             return -1;
         }
+        return 0;
+    }
 
-        fd = net_handle_fd_param(cur_mon, qemu_opt_get(opts, "fd"));
-        if (fd == -1) {
+    if (sock->has_listen) {
+        if (net_socket_listen_init(vlan, "socket", name, sock->listen) == -1) {
             return -1;
         }
+        return 0;
+    }
 
-        if (!net_socket_fd_init(vlan, "socket", name, fd, 1)) {
+    if (sock->has_connect) {
+        if (net_socket_connect_init(vlan, "socket", name, sock->connect) ==
+            -1) {
             return -1;
         }
-    } else if (qemu_opt_get(opts, "listen")) {
-        const char *listen;
+        return 0;
+    }
 
-        if (qemu_opt_get(opts, "fd") ||
-            qemu_opt_get(opts, "connect") ||
-            qemu_opt_get(opts, "mcast") ||
-            qemu_opt_get(opts, "localaddr")) {
-            error_report("fd=, connect=, mcast= and localaddr= is invalid with listen=");
+    if (sock->has_mcast) {
+        /* if sock->localaddr is missing, it has been initialized to "all bits
+         * zero" */
+        if (net_socket_mcast_init(vlan, "socket", name, sock->mcast,
+            sock->localaddr) == -1) {
             return -1;
         }
+        return 0;
+    }
 
-        listen = qemu_opt_get(opts, "listen");
-
-        if (net_socket_listen_init(vlan, "socket", name, listen) == -1) {
-            return -1;
-        }
-    } else if (qemu_opt_get(opts, "connect")) {
-        const char *connect;
-
-        if (qemu_opt_get(opts, "fd") ||
-            qemu_opt_get(opts, "listen") ||
-            qemu_opt_get(opts, "mcast") ||
-            qemu_opt_get(opts, "localaddr")) {
-            error_report("fd=, listen=, mcast= and localaddr= is invalid with connect=");
-            return -1;
-        }
-
-        connect = qemu_opt_get(opts, "connect");
-
-        if (net_socket_connect_init(vlan, "socket", name, connect) == -1) {
-            return -1;
-        }
-    } else if (qemu_opt_get(opts, "mcast")) {
-        const char *mcast, *localaddr;
-
-        if (qemu_opt_get(opts, "fd") ||
-            qemu_opt_get(opts, "connect") ||
-            qemu_opt_get(opts, "listen")) {
-            error_report("fd=, connect= and listen= is invalid with mcast=");
-            return -1;
-        }
-
-        mcast = qemu_opt_get(opts, "mcast");
-        localaddr = qemu_opt_get(opts, "localaddr");
-
-        if (net_socket_mcast_init(vlan, "socket", name, mcast, localaddr) == -1) {
-            return -1;
-        }
-    } else if (qemu_opt_get(opts, "udp")) {
-        const char *udp, *localaddr;
-
-        if (qemu_opt_get(opts, "fd") ||
-            qemu_opt_get(opts, "connect") ||
-            qemu_opt_get(opts, "listen") ||
-            qemu_opt_get(opts, "mcast")) {
-            error_report("fd=, connect=, listen="
-                         " and mcast= is invalid with udp=");
-            return -1;
-        }
-
-        udp = qemu_opt_get(opts, "udp");
-        localaddr = qemu_opt_get(opts, "localaddr");
-        if (localaddr == NULL) {
-                error_report("localaddr= is mandatory with udp=");
-                return -1;
-        }
-
-        if (net_socket_udp_init(vlan, "udp", name, udp, localaddr) == -1) {
-            return -1;
-        }
-    } else {
-        error_report("-socket requires fd=, listen=,"
-                     " connect=, mcast= or udp=");
+    assert(sock->has_udp);
+    if (!sock->has_localaddr) {
+        error_report("localaddr= is mandatory with udp=");
+        return -1;
+    }
+    if (net_socket_udp_init(vlan, "udp", name, sock->udp, sock->localaddr) ==
+        -1) {
         return -1;
     }
     return 0;
