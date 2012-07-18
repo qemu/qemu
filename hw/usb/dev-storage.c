@@ -532,12 +532,13 @@ static int usb_msd_initfn(USBDevice *dev)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
     BlockDriverState *bs = s->conf.bs;
-    DriveInfo *dinfo;
 
     if (!bs) {
         error_report("drive property not set");
         return -1;
     }
+
+    blkconf_serial(&s->conf, &s->serial);
 
     /*
      * Hack alert: this pretends to be a block device, but it's really
@@ -551,13 +552,6 @@ static int usb_msd_initfn(USBDevice *dev)
     bdrv_detach_dev(bs, &s->dev.qdev);
     s->conf.bs = NULL;
 
-    if (!s->serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(bs);
-        if (*dinfo->serial) {
-            s->serial = strdup(dinfo->serial);
-        }
-    }
     if (s->serial) {
         usb_desc_set_string(dev, STR_SERIALNUMBER, s->serial);
     } else {

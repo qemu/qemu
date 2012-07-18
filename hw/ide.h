@@ -29,7 +29,9 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1);
 
-void ide_get_bs(BlockDriverState *bs[], BusState *qbus);
+int ide_get_geometry(BusState *bus, int unit,
+                     int16_t *cyls, int8_t *heads, int8_t *secs);
+int ide_get_bios_chs_trans(BusState *bus, int unit);
 
 /* ide/core.c */
 void ide_drive_get(DriveInfo **hd, int max_bus);

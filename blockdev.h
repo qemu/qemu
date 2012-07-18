@@ -17,8 +17,6 @@
 void blockdev_mark_auto_del(BlockDriverState *bs);
 void blockdev_auto_del(BlockDriverState *bs);
 
-#define BLOCK_SERIAL_STRLEN 20
-
 typedef enum {
     IF_DEFAULT = -1,            /* for use with drive_add() only */
     IF_NONE,
@@ -35,8 +33,9 @@ struct DriveInfo {
     int unit;
     int auto_del;               /* see blockdev_mark_auto_del() */
     int media_cd;
+    int cyls, heads, secs, trans;
     QemuOpts *opts;
-    char serial[BLOCK_SERIAL_STRLEN + 1];
+    const char *serial;
     QTAILQ_ENTRY(DriveInfo) next;
     int refcount;
 };

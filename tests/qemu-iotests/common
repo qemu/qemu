@@ -41,6 +41,7 @@ sortme=false
 expunge=true
 have_test_arg=false
 randomize=false
+valgrind=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
 export IMGFMT=raw
@@ -212,6 +213,11 @@ testlist options
 	    xpand=false
 	    ;;
 
+    -valgrind)
+        valgrind=true
+	    xpand=false
+        ;;
+
 	-g)	# -g group ... pick from group file
 	    group=true
 	    xpand=false
@@ -345,3 +351,8 @@ fi
 [ "$QEMU" = "" ] && _fatal "qemu not found"
 [ "$QEMU_IMG" = "" ] && _fatal "qemu-img not found"
 [ "$QEMU_IO" = "" ] && _fatal "qemu-img not found"
+
+if $valgrind; then
+    export REAL_QEMU_IO="$QEMU_IO_PROG"
+    export QEMU_IO_PROG=valgrind_qemu_io
+fi

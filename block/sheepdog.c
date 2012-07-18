@@ -498,26 +498,6 @@ success:
     return fd;
 }
 
-static int send_req(int sockfd, SheepdogReq *hdr, void *data,
-                    unsigned int *wlen)
-{
-    int ret;
-
-    ret = qemu_send_full(sockfd, hdr, sizeof(*hdr), 0);
-    if (ret < sizeof(*hdr)) {
-        error_report("failed to send a req, %s", strerror(errno));
-        return -errno;
-    }
-
-    ret = qemu_send_full(sockfd, data, *wlen, 0);
-    if (ret < *wlen) {
-        error_report("failed to send a req, %s", strerror(errno));
-        ret = -errno;
-    }
-
-    return ret;
-}
-
 static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
                                     unsigned int *wlen)
 {
@@ -537,49 +517,6 @@ static coroutine_fn int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
     return ret;
 }
 
-static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
-                                  unsigned int *wlen, unsigned int *rlen);
-
-static int do_req(int sockfd, SheepdogReq *hdr, void *data,
-                  unsigned int *wlen, unsigned int *rlen)
-{
-    int ret;
-
-    if (qemu_in_coroutine()) {
-        return do_co_req(sockfd, hdr, data, wlen, rlen);
-    }
-
-    socket_set_block(sockfd);
-    ret = send_req(sockfd, hdr, data, wlen);
-    if (ret < 0) {
-        goto out;
-    }
-
-    ret = qemu_recv_full(sockfd, hdr, sizeof(*hdr), 0);
-    if (ret < sizeof(*hdr)) {
-        error_report("failed to get a rsp, %s", strerror(errno));
-        ret = -errno;
-        goto out;
-    }
-
-    if (*rlen > hdr->data_length) {
-        *rlen = hdr->data_length;
-    }
-
-    if (*rlen) {
-        ret = qemu_recv_full(sockfd, data, *rlen, 0);
-        if (ret < *rlen) {
-            error_report("failed to get the data, %s", strerror(errno));
-            ret = -errno;
-            goto out;
-        }
-    }
-    ret = 0;
-out:
-    socket_set_nonblock(sockfd);
-    return ret;
-}
-
 static void restart_co_req(void *opaque)
 {
     Coroutine *co = opaque;
@@ -587,11 +524,26 @@ static void restart_co_req(void *opaque)
     qemu_coroutine_enter(co, NULL);
 }
 
-static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
-                                  unsigned int *wlen, unsigned int *rlen)
+typedef struct SheepdogReqCo {
+    int sockfd;
+    SheepdogReq *hdr;
+    void *data;
+    unsigned int *wlen;
+    unsigned int *rlen;
+    int ret;
+    bool finished;
+} SheepdogReqCo;
+
+static coroutine_fn void do_co_req(void *opaque)
 {
     int ret;
     Coroutine *co;
+    SheepdogReqCo *srco = opaque;
+    int sockfd = srco->sockfd;
+    SheepdogReq *hdr = srco->hdr;
+    void *data = srco->data;
+    unsigned int *wlen = srco->wlen;
+    unsigned int *rlen = srco->rlen;
 
     co = qemu_coroutine_self();
     qemu_aio_set_fd_handler(sockfd, NULL, restart_co_req, NULL, co);
@@ -627,7 +579,36 @@ static coroutine_fn int do_co_req(int sockfd, SheepdogReq *hdr, void *data,
 out:
     qemu_aio_set_fd_handler(sockfd, NULL, NULL, NULL, NULL);
     socket_set_nonblock(sockfd);
-    return ret;
+
+    srco->ret = ret;
+    srco->finished = true;
+}
+
+static int do_req(int sockfd, SheepdogReq *hdr, void *data,
+                  unsigned int *wlen, unsigned int *rlen)
+{
+    Coroutine *co;
+    SheepdogReqCo srco = {
+        .sockfd = sockfd,
+        .hdr = hdr,
+        .data = data,
+        .wlen = wlen,
+        .rlen = rlen,
+        .ret = 0,
+        .finished = false,
+    };
+
+    if (qemu_in_coroutine()) {
+        do_co_req(&srco);
+    } else {
+        co = qemu_coroutine_create(do_co_req);
+        qemu_coroutine_enter(co, &srco);
+        while (!srco.finished) {
+            qemu_aio_wait();
+        }
+    }
+
+    return srco.ret;
 }
 
 static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
@@ -1590,18 +1571,25 @@ static int coroutine_fn sd_co_rw_vector(void *p)
 
         len = MIN(total - done, SD_DATA_OBJ_SIZE - offset);
 
-        if (!inode->data_vdi_id[idx]) {
-            if (acb->aiocb_type == AIOCB_READ_UDATA) {
+        switch (acb->aiocb_type) {
+        case AIOCB_READ_UDATA:
+            if (!inode->data_vdi_id[idx]) {
+                qemu_iovec_memset(acb->qiov, done, 0, len);
                 goto done;
             }
-
-            create = 1;
-        } else if (acb->aiocb_type == AIOCB_WRITE_UDATA
-                   && !is_data_obj_writable(inode, idx)) {
-            /* Copy-On-Write */
-            create = 1;
-            old_oid = oid;
-            flags = SD_FLAG_CMD_COW;
+            break;
+        case AIOCB_WRITE_UDATA:
+            if (!inode->data_vdi_id[idx]) {
+                create = 1;
+            } else if (!is_data_obj_writable(inode, idx)) {
+                /* Copy-On-Write */
+                create = 1;
+                old_oid = oid;
+                flags = SD_FLAG_CMD_COW;
+            }
+            break;
+        default:
+            break;
         }
 
         if (create) {
@@ -1687,19 +1675,11 @@ static coroutine_fn int sd_co_readv(BlockDriverState *bs, int64_t sector_num,
                        int nb_sectors, QEMUIOVector *qiov)
 {
     SheepdogAIOCB *acb;
-    int i, ret;
+    int ret;
 
     acb = sd_aio_setup(bs, qiov, sector_num, nb_sectors, NULL, NULL);
     acb->aiocb_type = AIOCB_READ_UDATA;
     acb->aio_done_func = sd_finish_aiocb;
-
-    /*
-     * TODO: we can do better; we don't need to initialize
-     * blindly.
-     */
-    for (i = 0; i < qiov->niov; i++) {
-        memset(qiov->iov[i].iov_base, 0, qiov->iov[i].iov_len);
-    }
 
     ret = sd_co_rw_vector(acb);
     if (ret <= 0) {

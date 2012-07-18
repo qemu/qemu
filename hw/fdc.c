@@ -52,6 +52,113 @@
 /********************************************************/
 /* Floppy drive emulation                               */
 
+typedef enum FDriveRate {
+    FDRIVE_RATE_500K = 0x00,  /* 500 Kbps */
+    FDRIVE_RATE_300K = 0x01,  /* 300 Kbps */
+    FDRIVE_RATE_250K = 0x02,  /* 250 Kbps */
+    FDRIVE_RATE_1M   = 0x03,  /*   1 Mbps */
+} FDriveRate;
+
+typedef struct FDFormat {
+    FDriveType drive;
+    uint8_t last_sect;
+    uint8_t max_track;
+    uint8_t max_head;
+    FDriveRate rate;
+} FDFormat;
+
+static const FDFormat fd_formats[] = {
+    /* First entry is default format */
+    /* 1.44 MB 3"1/2 floppy disks */
+    { FDRIVE_DRV_144, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 21, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 21, 82, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 21, 83, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 22, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 23, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 24, 80, 1, FDRIVE_RATE_500K, },
+    /* 2.88 MB 3"1/2 floppy disks */
+    { FDRIVE_DRV_288, 36, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 39, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 40, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 44, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 48, 80, 1, FDRIVE_RATE_1M, },
+    /* 720 kB 3"1/2 floppy disks */
+    { FDRIVE_DRV_144,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 10, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 10, 82, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 10, 83, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 13, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 14, 80, 1, FDRIVE_RATE_250K, },
+    /* 1.2 MB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120, 15, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 18, 82, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 18, 83, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 20, 80, 1, FDRIVE_RATE_500K, },
+    /* 720 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_120, 11, 80, 1, FDRIVE_RATE_250K, },
+    /* 360 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120,  9, 40, 1, FDRIVE_RATE_300K, },
+    { FDRIVE_DRV_120,  9, 40, 0, FDRIVE_RATE_300K, },
+    { FDRIVE_DRV_120, 10, 41, 1, FDRIVE_RATE_300K, },
+    { FDRIVE_DRV_120, 10, 42, 1, FDRIVE_RATE_300K, },
+    /* 320 kB 5"1/4 floppy disks */
+    { FDRIVE_DRV_120,  8, 40, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_120,  8, 40, 0, FDRIVE_RATE_250K, },
+    /* 360 kB must match 5"1/4 better than 3"1/2... */
+    { FDRIVE_DRV_144,  9, 80, 0, FDRIVE_RATE_250K, },
+    /* end */
+    { FDRIVE_DRV_NONE, -1, -1, 0, 0, },
+};
+
+static void pick_geometry(BlockDriverState *bs, int *nb_heads,
+                          int *max_track, int *last_sect,
+                          FDriveType drive_in, FDriveType *drive,
+                          FDriveRate *rate)
+{
+    const FDFormat *parse;
+    uint64_t nb_sectors, size;
+    int i, first_match, match;
+
+    bdrv_get_geometry(bs, &nb_sectors);
+    match = -1;
+    first_match = -1;
+    for (i = 0; ; i++) {
+        parse = &fd_formats[i];
+        if (parse->drive == FDRIVE_DRV_NONE) {
+            break;
+        }
+        if (drive_in == parse->drive ||
+            drive_in == FDRIVE_DRV_NONE) {
+            size = (parse->max_head + 1) * parse->max_track *
+                parse->last_sect;
+            if (nb_sectors == size) {
+                match = i;
+                break;
+            }
+            if (first_match == -1) {
+                first_match = i;
+            }
+        }
+    }
+    if (match == -1) {
+        if (first_match == -1) {
+            match = 1;
+        } else {
+            match = first_match;
+        }
+        parse = &fd_formats[match];
+    }
+    *nb_heads = parse->max_head + 1;
+    *max_track = parse->max_track;
+    *last_sect = parse->last_sect;
+    *drive = parse->drive;
+    *rate = parse->rate;
+}
+
 #define GET_CUR_DRV(fdctrl) ((fdctrl)->cur_drv)
 #define SET_CUR_DRV(fdctrl, drive) ((fdctrl)->cur_drv = (drive))
 
@@ -187,8 +294,8 @@ static void fd_revalidate(FDrive *drv)
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->bs != NULL) {
         ro = bdrv_is_read_only(drv->bs);
-        bdrv_get_floppy_geometry_hint(drv->bs, &nb_heads, &max_track,
-                                      &last_sect, drv->drive, &drive, &rate);
+        pick_geometry(drv->bs, &nb_heads, &max_track,
+                      &last_sect, drv->drive, &drive, &rate);
         if (!bdrv_is_inserted(drv->bs)) {
             FLOPPY_DPRINTF("No disk in drive\n");
         } else {
@@ -1695,7 +1802,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
     }
 }
 
-static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
+static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv;
 
@@ -1705,14 +1812,15 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
         fd_seek(cur_drv, cur_drv->head, cur_drv->max_track - 1,
                 cur_drv->sect, 1);
     } else {
-        fd_seek(cur_drv, cur_drv->head, fdctrl->fifo[2], cur_drv->sect, 1);
+        fd_seek(cur_drv, cur_drv->head,
+                cur_drv->track + fdctrl->fifo[2], cur_drv->sect, 1);
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
     fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
-static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
+static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv;
 
@@ -1721,7 +1829,8 @@ static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
     if (fdctrl->fifo[2] > cur_drv->track) {
         fd_seek(cur_drv, cur_drv->head, 0, cur_drv->sect, 1);
     } else {
-        fd_seek(cur_drv, cur_drv->head, fdctrl->fifo[2], cur_drv->sect, 1);
+        fd_seek(cur_drv, cur_drv->head,
+                cur_drv->track - fdctrl->fifo[2], cur_drv->sect, 1);
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
@@ -2054,17 +2163,12 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
     return fdctrl_init_common(fdctrl);
 }
 
-void fdc_get_bs(BlockDriverState *bs[], ISADevice *dev)
+FDriveType isa_fdc_get_drive_type(ISADevice *fdc, int i)
 {
-    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, dev);
-    FDCtrl *fdctrl = &isa->state;
-    int i;
+    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, fdc);
 
-    for (i = 0; i < MAX_FD; i++) {
-        bs[i] = fdctrl->drives[i].bs;
-    }
+    return isa->state.drives[i].drive;
 }
-
 
 static const VMStateDescription vmstate_isa_fdc ={
     .name = "fdc",

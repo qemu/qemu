@@ -402,6 +402,7 @@ static TypeInfo s390_virtio_net = {
 
 static Property s390_virtio_blk_properties[] = {
     DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, blk.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOS390Device, blk.conf),
     DEFINE_PROP_STRING("serial", VirtIOS390Device, blk.serial),
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOS390Device, blk.scsi, 0, true),

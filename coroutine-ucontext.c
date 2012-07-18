@@ -30,6 +30,10 @@
 #include "qemu-common.h"
 #include "qemu-coroutine-int.h"
 
+#ifdef CONFIG_VALGRIND_H
+#include <valgrind/valgrind.h>
+#endif
+
 enum {
     /* Maximum free pool size prevents holding too many freed coroutines */
     POOL_MAX_SIZE = 64,
@@ -43,6 +47,11 @@ typedef struct {
     Coroutine base;
     void *stack;
     jmp_buf env;
+
+#ifdef CONFIG_VALGRIND_H
+    unsigned int valgrind_stack_id;
+#endif
+
 } CoroutineUContext;
 
 /**
@@ -159,6 +168,11 @@ static Coroutine *coroutine_new(void)
     uc.uc_stack.ss_size = stack_size;
     uc.uc_stack.ss_flags = 0;
 
+#ifdef CONFIG_VALGRIND_H
+    co->valgrind_stack_id =
+        VALGRIND_STACK_REGISTER(co->stack, co->stack + stack_size);
+#endif
+
     arg.p = co;
 
     makecontext(&uc, (void (*)(void))coroutine_trampoline,
@@ -185,6 +199,16 @@ Coroutine *qemu_coroutine_new(void)
     return co;
 }
 
+#ifdef CONFIG_VALGRIND_H
+/* Work around an unused variable in the valgrind.h macro... */
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+static inline void valgrind_stack_deregister(CoroutineUContext *co)
+{
+    VALGRIND_STACK_DEREGISTER(co->valgrind_stack_id);
+}
+#pragma GCC diagnostic error "-Wunused-but-set-variable"
+#endif
+
 void qemu_coroutine_delete(Coroutine *co_)
 {
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
@@ -195,6 +219,10 @@ void qemu_coroutine_delete(Coroutine *co_)
         pool_size++;
         return;
     }
+
+#ifdef CONFIG_VALGRIND_H
+    valgrind_stack_deregister(co);
+#endif
 
     g_free(co->stack);
     g_free(co);

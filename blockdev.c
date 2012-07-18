@@ -7,8 +7,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include "block.h"
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "monitor.h"
 #include "qerror.h"
 #include "qemu-option.h"
@@ -330,15 +330,15 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     max_devs = if_max_devs[type];
 
     if (cyls || heads || secs) {
-        if (cyls < 1 || (type == IF_IDE && cyls > 16383)) {
+        if (cyls < 1) {
             error_report("invalid physical cyls number");
 	    return NULL;
 	}
-        if (heads < 1 || (type == IF_IDE && heads > 16)) {
+        if (heads < 1) {
             error_report("invalid physical heads number");
 	    return NULL;
 	}
-        if (secs < 1 || (type == IF_IDE && secs > 63)) {
+        if (secs < 1) {
             error_report("invalid physical secs number");
 	    return NULL;
 	}
@@ -530,11 +530,13 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     dinfo->type = type;
     dinfo->bus = bus_id;
     dinfo->unit = unit_id;
+    dinfo->cyls = cyls;
+    dinfo->heads = heads;
+    dinfo->secs = secs;
+    dinfo->trans = translation;
     dinfo->opts = opts;
     dinfo->refcount = 1;
-    if (serial) {
-        pstrcpy(dinfo->serial, sizeof(dinfo->serial), serial);
-    }
+    dinfo->serial = serial;
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
@@ -547,17 +549,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     case IF_SCSI:
     case IF_XEN:
     case IF_NONE:
-        switch(media) {
-	case MEDIA_DISK:
-            if (cyls != 0) {
-                bdrv_set_geometry_hint(dinfo->bdrv, cyls, heads, secs);
-                bdrv_set_translation_hint(dinfo->bdrv, translation);
-            }
-	    break;
-	case MEDIA_CDROM:
-            dinfo->media_cd = 1;
-	    break;
-	}
+        dinfo->media_cd = media == MEDIA_CDROM;
         break;
     case IF_SD:
     case IF_FLOPPY:
