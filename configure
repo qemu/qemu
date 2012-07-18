@@ -2343,6 +2343,7 @@ cat > $TMPC << EOF
 #define _ATFILE_SOURCE
 #include <stddef.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 int main(void)
 {
