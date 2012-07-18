@@ -74,6 +74,8 @@
 #define EXYNOS4210_EXT_GIC_NIRQ     (160-32)
 #define EXYNOS4210_INT_GIC_NIRQ     64
 
+#define EXYNOS4210_I2C_NUMBER               9
+
 typedef struct Exynos4210Irq {
     qemu_irq int_combiner_irq[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
     qemu_irq ext_combiner_irq[EXYNOS4210_MAX_EXT_COMBINER_IN_IRQ];
@@ -95,6 +97,7 @@ typedef struct Exynos4210State {
     MemoryRegion dram1_mem;
     MemoryRegion boot_secondary;
     MemoryRegion bootreg_mem;
+    i2c_bus *i2c_if[EXYNOS4210_I2C_NUMBER];
 } Exynos4210State;
 
 void exynos4210_write_secondary(ARMCPU *cpu,

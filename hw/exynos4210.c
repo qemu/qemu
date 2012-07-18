@@ -39,6 +39,13 @@
 /* MCT */
 #define EXYNOS4210_MCT_BASE_ADDR       0x10050000
 
+/* I2C */
+#define EXYNOS4210_I2C_SHIFT           0x00010000
+#define EXYNOS4210_I2C_BASE_ADDR       0x13860000
+/* Interrupt Group of External Interrupt Combiner for I2C */
+#define EXYNOS4210_I2C_INTG            27
+#define EXYNOS4210_HDMI_INTG           16
+
 /* UART's definitions */
 #define EXYNOS4210_UART0_BASE_ADDR     0x13800000
 #define EXYNOS4210_UART1_BASE_ADDR     0x13810000
@@ -282,6 +289,26 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     sysbus_connect_irq(busdev, 5,
             s->irq_table[exynos4210_get_irq(35, 3)]);
     sysbus_mmio_map(busdev, 0, EXYNOS4210_MCT_BASE_ADDR);
+
+    /*** I2C ***/
+    for (n = 0; n < EXYNOS4210_I2C_NUMBER; n++) {
+        uint32_t addr = EXYNOS4210_I2C_BASE_ADDR + EXYNOS4210_I2C_SHIFT * n;
+        qemu_irq i2c_irq;
+
+        if (n < 8) {
+            i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_I2C_INTG, n)];
+        } else {
+            i2c_irq = s->irq_table[exynos4210_get_irq(EXYNOS4210_HDMI_INTG, 1)];
+        }
+
+        dev = qdev_create(NULL, "exynos4210.i2c");
+        qdev_init_nofail(dev);
+        busdev = sysbus_from_qdev(dev);
+        sysbus_connect_irq(busdev, 0, i2c_irq);
+        sysbus_mmio_map(busdev, 0, addr);
+        s->i2c_if[n] = (i2c_bus *)qdev_get_child_bus(dev, "i2c");
+    }
+
 
     /*** UARTs ***/
     exynos4210_uart_create(EXYNOS4210_UART0_BASE_ADDR,
