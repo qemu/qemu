@@ -737,13 +737,13 @@ static void vhost_virtqueue_cleanup(struct vhost_dev *dev,
 
 static void vhost_eventfd_add(MemoryListener *listener,
                               MemoryRegionSection *section,
-                              bool match_data, uint64_t data, int fd)
+                              bool match_data, uint64_t data, EventNotifier *e)
 {
 }
 
 static void vhost_eventfd_del(MemoryListener *listener,
                               MemoryRegionSection *section,
-                              bool match_data, uint64_t data, int fd)
+                              bool match_data, uint64_t data, EventNotifier *e)
 {
 }
 

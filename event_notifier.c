@@ -10,10 +10,18 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "qemu-common.h"
 #include "event_notifier.h"
+#include "qemu-char.h"
+
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
 #endif
+
+void event_notifier_init_fd(EventNotifier *e, int fd)
+{
+    e->fd = fd;
+}
 
 int event_notifier_init(EventNotifier *e, int active)
 {
@@ -38,24 +46,22 @@ int event_notifier_get_fd(EventNotifier *e)
     return e->fd;
 }
 
+int event_notifier_set_handler(EventNotifier *e,
+                               EventNotifierHandler *handler)
+{
+    return qemu_set_fd_handler(e->fd, (IOHandler *)handler, NULL, e);
+}
+
+int event_notifier_set(EventNotifier *e)
+{
+    uint64_t value = 1;
+    int r = write(e->fd, &value, sizeof(value));
+    return r == sizeof(value);
+}
+
 int event_notifier_test_and_clear(EventNotifier *e)
 {
     uint64_t value;
     int r = read(e->fd, &value, sizeof(value));
-    return r == sizeof(value);
-}
-
-int event_notifier_test(EventNotifier *e)
-{
-    uint64_t value;
-    int r = read(e->fd, &value, sizeof(value));
-    if (r == sizeof(value)) {
-        /* restore previous value. */
-        int s = write(e->fd, &value, sizeof(value));
-        /* never blocks because we use EFD_SEMAPHORE.
-         * If we didn't we'd get EAGAIN on overflow
-         * and we'd have to write code to ignore it. */
-        assert(s == sizeof(value));
-    }
     return r == sizeof(value);
 }

@@ -20,6 +20,7 @@ void apic_init_reset(DeviceState *s);
 void apic_sipi(DeviceState *s);
 void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
                                    TPRAccess access);
+void apic_poll_irq(DeviceState *d);
 
 /* pc.c */
 int cpu_is_bsp(CPUX86State *env);

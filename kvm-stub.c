@@ -147,7 +147,17 @@ int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
     return -ENOSYS;
 }
 
+int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+{
+    return -ENOSYS;
+}
+
 int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
+{
+    return -ENOSYS;
+}
+
+int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq)
 {
     return -ENOSYS;
 }

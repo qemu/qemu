@@ -400,6 +400,7 @@
 #define CPUID_EXT_X2APIC   (1 << 21)
 #define CPUID_EXT_MOVBE    (1 << 22)
 #define CPUID_EXT_POPCNT   (1 << 23)
+#define CPUID_EXT_TSC_DEADLINE_TIMER (1 << 24)
 #define CPUID_EXT_XSAVE    (1 << 26)
 #define CPUID_EXT_OSXSAVE  (1 << 27)
 #define CPUID_EXT_HYPERVISOR  (1 << 31)
@@ -477,6 +478,7 @@
                                  for syscall instruction */
 
 /* i386-specific interrupt pending bits.  */
+#define CPU_INTERRUPT_POLL      CPU_INTERRUPT_TGT_EXT_1
 #define CPU_INTERRUPT_SMI       CPU_INTERRUPT_TGT_EXT_2
 #define CPU_INTERRUPT_NMI       CPU_INTERRUPT_TGT_EXT_3
 #define CPU_INTERRUPT_MCE       CPU_INTERRUPT_TGT_EXT_4
@@ -1047,7 +1049,8 @@ static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
 
 static inline bool cpu_has_work(CPUX86State *env)
 {
-    return ((env->interrupt_request & CPU_INTERRUPT_HARD) &&
+    return ((env->interrupt_request & (CPU_INTERRUPT_HARD |
+                                       CPU_INTERRUPT_POLL)) &&
             (env->eflags & IF_MASK)) ||
            (env->interrupt_request & (CPU_INTERRUPT_NMI |
                                       CPU_INTERRUPT_INIT |
