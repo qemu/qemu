@@ -1789,34 +1789,36 @@
 #
 # Dump guest's memory to vmcore. It is a synchronous operation that can take
 # very long depending on the amount of guest memory. This command is only
-# supported only on i386 and x86_64
+# supported on i386 and x86_64.
 #
-# @paging: if true, do paging to get guest's memory mapping. The @paging's
-# default value of @paging is false, If you want to use gdb to process the
-# core, please set @paging to true. The reason why the @paging's value is
-# false:
-#   1. guest machine in a catastrophic state can have corrupted memory,
-#      which we cannot trust.
-#   2. The guest machine can be in read-mode even if paging is enabled.
-#      For example: the guest machine uses ACPI to sleep, and ACPI sleep
-#      state goes in real-mode
+# @paging: if true, do paging to get guest's memory mapping. This allows
+# using gdb to process the core file. However, setting @paging to false
+# may be desirable because of two reasons:
+#
+#   1. The guest may be in a catastrophic state or can have corrupted
+#      memory, which cannot be trusted
+#   2. The guest can be in real-mode even if paging is enabled. For example,
+#      the guest uses ACPI to sleep, and ACPI sleep state goes in real-mode
+#
 # @protocol: the filename or file descriptor of the vmcore. The supported
-# protocol can be file or fd:
+# protocols are:
+#
 #   1. file: the protocol starts with "file:", and the following string is
 #      the file's path.
 #   2. fd: the protocol starts with "fd:", and the following string is the
 #      fd's name.
+#
 # @begin: #optional if specified, the starting physical address.
+#
 # @length: #optional if specified, the memory size, in bytes. If you don't
-# want to dump all guest's memory, please specify the start @begin and
-# @length
+# want to dump all guest's memory, please specify the start @begin and @length
 #
 # Returns: nothing on success
 #          If @begin contains an invalid address, InvalidParameter
 #          If only one of @begin and @length is specified, MissingParameter
 #          If @protocol stats with "fd:", and the fd cannot be found, FdNotFound
 #          If @protocol starts with "file:", and the file cannot be
-#          opened, OpenFileFailed
+#             opened, OpenFileFailed
 #          If @protocol does not start with "fd:" or "file:", InvalidParameter
 #          If an I/O error occurs while writing the file, IOError
 #          If the target does not support this command, Unsupported
@@ -1868,3 +1870,38 @@
 # Since: 0.14.0
 ##
 { 'command': 'netdev_del', 'data': {'id': 'str'} }
+
+##
+# @getfd:
+#
+# Receive a file descriptor via SCM rights and assign it a name
+#
+# @fdname: file descriptor name
+#
+# Returns: Nothing on success
+#          If file descriptor was not received, FdNotSupplied
+#          If @fdname is not valid, InvalidParameterType
+#
+# Since: 0.14.0
+#
+# Notes: If @fdname already exists, the file descriptor assigned to
+#        it will be closed and replaced by the received file
+#        descriptor.
+#        The 'closefd' command can be used to explicitly close the
+#        file descriptor when it is no longer needed.
+##
+{ 'command': 'getfd', 'data': {'fdname': 'str'} }
+
+##
+# @closefd:
+#
+# Close a file descriptor previously passed via SCM rights
+#
+# @fdname: file descriptor name
+#
+# Returns: Nothing on success
+#          If @fdname is not found, FdNotFound
+#
+# Since: 0.14.0
+##
+{ 'command': 'closefd', 'data': {'fdname': 'str'} }
