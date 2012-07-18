@@ -46,28 +46,39 @@ static int nb_fds;
 
 static void usage(const char *name)
 {
-    printf(
+    (printf) (
 "Usage: %s [OPTIONS] FILE\n"
 "QEMU Disk Network Block Device Server\n"
 "\n"
-"  -p, --port=PORT      port to listen on (default `%d')\n"
-"  -o, --offset=OFFSET  offset into the image\n"
-"  -b, --bind=IFACE     interface to bind to (default `0.0.0.0')\n"
-"  -k, --socket=PATH    path to the unix socket\n"
-"                       (default '"SOCKET_PATH"')\n"
-"  -r, --read-only      export read-only\n"
-"  -P, --partition=NUM  only expose partition NUM\n"
-"  -s, --snapshot       use snapshot file\n"
-"  -n, --nocache        disable host cache\n"
-"  -c, --connect=DEV    connect FILE to the local NBD device DEV\n"
-"  -d, --disconnect     disconnect the specified device\n"
-"  -e, --shared=NUM     device can be shared by NUM clients (default '1')\n"
-"  -t, --persistent     don't exit on the last connection\n"
-"  -v, --verbose        display extra debugging information\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n"
-"Report bugs to <anthony@codemonkey.ws>\n"
+"Connection properties:\n"
+"  -p, --port=PORT      port to listen on (default `%d')\n"
+"  -b, --bind=IFACE     interface to bind to (default `0.0.0.0')\n"
+"  -k, --socket=PATH    path to the unix socket\n"
+"                       (default '"SOCKET_PATH"')\n"
+"  -e, --shared=NUM     device can be shared by NUM clients (default '1')\n"
+"  -t, --persistent     don't exit on the last connection\n"
+"  -v, --verbose        display extra debugging information\n"
+"\n"
+"Exposing part of the image:\n"
+"  -o, --offset=OFFSET  offset into the image\n"
+"  -P, --partition=NUM  only expose partition NUM\n"
+"\n"
+#ifdef __linux__
+"Kernel NBD client support:\n"
+"  -c, --connect=DEV    connect FILE to the local NBD device DEV\n"
+"  -d, --disconnect     disconnect the specified device\n"
+"\n"
+#endif
+"\n"
+"Block device options:\n"
+"  -r, --read-only      export read-only\n"
+"  -s, --snapshot       use snapshot file\n"
+"  -n, --nocache        disable host cache\n"
+"\n"
+"Report bugs to <qemu-devel@nongnu.org>\n"
     , name, NBD_DEFAULT_PORT, "DEVICE");
 }
 
