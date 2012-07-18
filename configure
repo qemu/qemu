@@ -2812,7 +2812,7 @@ int main(int argc, char **argv)
 }
 EOF
   if ! compile_prog "" "" ; then
-    CFLAGS+="-march=i486"
+    CFLAGS="-march=i486 $CFLAGS"
   fi
 fi
 
