@@ -2658,7 +2658,7 @@ if test "$smartcard" != "no" ; then
 #include <pk11pub.h>
 int main(void) { PK11_FreeSlot(0); return 0; }
 EOF
-        smartcard_cflags="-I\$(SRC_PATH)/libcacard"
+        smartcard_includes="-I\$(SRC_PATH)/libcacard"
         libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
         libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
         test_cflags="$libcacard_cflags"
@@ -2672,7 +2672,8 @@ EOF
         if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
           compile_prog "$test_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
-            QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
+            QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
+            QEMU_INCLUDES="$QEMU_INCLUDES $smartcard_includes"
             libs_softmmu="$libcacard_libs $libs_softmmu"
         else
             if test "$smartcard_nss" = "yes"; then
