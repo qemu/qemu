@@ -1822,7 +1822,8 @@ if test "$vde" != "no" ; then
 int main(void)
 {
     struct vde_open_args a = {0, 0, 0};
-    vde_open("", "", &a);
+    char s[] = "";
+    vde_open(s, s, &a);
     return 0;
 }
 EOF
