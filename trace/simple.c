@@ -27,30 +27,13 @@
 #define HEADER_MAGIC 0xf2b177cb0aa429b4ULL
 
 /** Trace file version number, bump if format changes */
-#define HEADER_VERSION 0
+#define HEADER_VERSION 2
 
 /** Records were dropped event ID */
 #define DROPPED_EVENT_ID (~(uint64_t)0 - 1)
 
 /** Trace record is valid */
 #define TRACE_RECORD_VALID ((uint64_t)1 << 63)
-
-/** Trace buffer entry */
-typedef struct {
-    uint64_t event;
-    uint64_t timestamp_ns;
-    uint64_t x1;
-    uint64_t x2;
-    uint64_t x3;
-    uint64_t x4;
-    uint64_t x5;
-    uint64_t x6;
-} TraceRecord;
-
-enum {
-    TRACE_BUF_LEN = 4096,
-    TRACE_BUF_FLUSH_THRESHOLD = TRACE_BUF_LEN / 4,
-};
 
 /*
  * Trace records are written out by a dedicated thread.  The thread waits for
@@ -62,11 +45,48 @@ static GCond *trace_empty_cond;
 static bool trace_available;
 static bool trace_writeout_enabled;
 
-static TraceRecord trace_buf[TRACE_BUF_LEN];
+enum {
+    TRACE_BUF_LEN = 4096 * 64,
+    TRACE_BUF_FLUSH_THRESHOLD = TRACE_BUF_LEN / 4,
+};
+
+uint8_t trace_buf[TRACE_BUF_LEN];
 static unsigned int trace_idx;
+static unsigned int writeout_idx;
+static uint64_t dropped_events;
 static FILE *trace_fp;
 static char *trace_file_name = NULL;
 
+/* * Trace buffer entry */
+typedef struct {
+    uint64_t event; /*   TraceEventID */
+    uint64_t timestamp_ns;
+    uint32_t length;   /*    in bytes */
+    uint32_t reserved; /*    unused */
+    uint8_t arguments[];
+} TraceRecord;
+
+typedef struct {
+    uint64_t header_event_id; /* HEADER_EVENT_ID */
+    uint64_t header_magic;    /* HEADER_MAGIC    */
+    uint64_t header_version;  /* HEADER_VERSION  */
+} TraceRecordHeader;
+
+
+static void read_from_buffer(unsigned int idx, void *dataptr, size_t size);
+static unsigned int write_to_buffer(unsigned int idx, void *dataptr, size_t size);
+
+static void clear_buffer_range(unsigned int idx, size_t len)
+{
+    uint32_t num = 0;
+    while (num < len) {
+        if (idx >= TRACE_BUF_LEN) {
+            idx = idx % TRACE_BUF_LEN;
+        }
+        trace_buf[idx++] = 0;
+        num++;
+    }
+}
 /**
  * Read a trace record from the trace buffer
  *
@@ -75,16 +95,30 @@ static char *trace_file_name = NULL;
  *
  * Returns false if the record is not valid.
  */
-static bool get_trace_record(unsigned int idx, TraceRecord *record)
+static bool get_trace_record(unsigned int idx, TraceRecord **recordptr)
 {
-    if (!(trace_buf[idx].event & TRACE_RECORD_VALID)) {
+    uint64_t event_flag = 0;
+    TraceRecord record;
+    /* read the event flag to see if its a valid record */
+    read_from_buffer(idx, &record, sizeof(event_flag));
+
+    if (!(record.event & TRACE_RECORD_VALID)) {
         return false;
     }
 
-    __sync_synchronize(); /* read memory barrier before accessing record */
-
-    *record = trace_buf[idx];
-    record->event &= ~TRACE_RECORD_VALID;
+    smp_rmb(); /* read memory barrier before accessing record */
+    /* read the record header to know record length */
+    read_from_buffer(idx, &record, sizeof(TraceRecord));
+    *recordptr = malloc(record.length); /* dont use g_malloc, can deadlock when traced */
+    /* make a copy of record to avoid being overwritten */
+    read_from_buffer(idx, *recordptr, record.length);
+    smp_rmb(); /* memory barrier before clearing valid flag */
+    (*recordptr)->event &= ~TRACE_RECORD_VALID;
+    /* clear the trace buffer range for consumed record otherwise any byte
+     * with its MSB set may be considered as a valid event id when the writer
+     * thread crosses this range of buffer again.
+     */
+    clear_buffer_range(idx, record.length);
     return true;
 }
 
@@ -120,29 +154,39 @@ static void wait_for_trace_records_available(void)
 
 static gpointer writeout_thread(gpointer opaque)
 {
-    TraceRecord record;
-    unsigned int writeout_idx = 0;
-    unsigned int num_available, idx;
+    TraceRecord *recordptr;
+    union {
+        TraceRecord rec;
+        uint8_t bytes[sizeof(TraceRecord) + sizeof(uint64_t)];
+    } dropped;
+    unsigned int idx = 0;
+    uint64_t dropped_count;
     size_t unused __attribute__ ((unused));
 
     for (;;) {
         wait_for_trace_records_available();
 
-        num_available = trace_idx - writeout_idx;
-        if (num_available > TRACE_BUF_LEN) {
-            record = (TraceRecord){
-                .event = DROPPED_EVENT_ID,
-                .x1 = num_available,
-            };
-            unused = fwrite(&record, sizeof(record), 1, trace_fp);
-            writeout_idx += num_available;
+        if (dropped_events) {
+            dropped.rec.event = DROPPED_EVENT_ID,
+            dropped.rec.timestamp_ns = get_clock();
+            dropped.rec.length = sizeof(TraceRecord) + sizeof(dropped_events),
+            dropped.rec.reserved = 0;
+            while (1) {
+                dropped_count = dropped_events;
+                if (g_atomic_int_compare_and_exchange((gint *)&dropped_events,
+                                                      dropped_count, 0)) {
+                    break;
+                }
+            }
+            memcpy(dropped.rec.arguments, &dropped_count, sizeof(uint64_t));
+            unused = fwrite(&dropped.rec, dropped.rec.length, 1, trace_fp);
         }
 
-        idx = writeout_idx % TRACE_BUF_LEN;
-        while (get_trace_record(idx, &record)) {
-            trace_buf[idx].event = 0; /* clear valid bit */
-            unused = fwrite(&record, sizeof(record), 1, trace_fp);
-            idx = ++writeout_idx % TRACE_BUF_LEN;
+        while (get_trace_record(idx, &recordptr)) {
+            unused = fwrite(recordptr, recordptr->length, 1, trace_fp);
+            writeout_idx += recordptr->length;
+            free(recordptr); /* dont use g_free, can deadlock when traced */
+            idx = writeout_idx % TRACE_BUF_LEN;
         }
 
         fflush(trace_fp);
@@ -150,73 +194,93 @@ static gpointer writeout_thread(gpointer opaque)
     return NULL;
 }
 
-static void trace(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3,
-                  uint64_t x4, uint64_t x5, uint64_t x6)
+void trace_record_write_u64(TraceBufferRecord *rec, uint64_t val)
 {
-    unsigned int idx;
-    uint64_t timestamp;
+    rec->rec_off = write_to_buffer(rec->rec_off, &val, sizeof(uint64_t));
+}
 
-    if (!trace_list[event].state) {
-        return;
+void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen)
+{
+    /* Write string length first */
+    rec->rec_off = write_to_buffer(rec->rec_off, &slen, sizeof(slen));
+    /* Write actual string now */
+    rec->rec_off = write_to_buffer(rec->rec_off, (void*)s, slen);
+}
+
+int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasize)
+{
+    unsigned int idx, rec_off, old_idx, new_idx;
+    uint32_t rec_len = sizeof(TraceRecord) + datasize;
+    uint64_t timestamp_ns = get_clock();
+
+    while (1) {
+        old_idx = trace_idx;
+        smp_rmb();
+        new_idx = old_idx + rec_len;
+
+        if (new_idx - writeout_idx > TRACE_BUF_LEN) {
+            /* Trace Buffer Full, Event dropped ! */
+            g_atomic_int_inc((gint *)&dropped_events);
+            return -ENOSPC;
+        }
+
+        if (g_atomic_int_compare_and_exchange((gint *)&trace_idx,
+                                              old_idx, new_idx)) {
+            break;
+        }
     }
 
-    timestamp = get_clock();
-#if GLIB_CHECK_VERSION(2, 30, 0)
-    idx = g_atomic_int_add((gint *)&trace_idx, 1) % TRACE_BUF_LEN;
-#else
-    idx = g_atomic_int_exchange_and_add((gint *)&trace_idx, 1) % TRACE_BUF_LEN;
-#endif
-    trace_buf[idx] = (TraceRecord){
-        .event = event,
-        .timestamp_ns = timestamp,
-        .x1 = x1,
-        .x2 = x2,
-        .x3 = x3,
-        .x4 = x4,
-        .x5 = x5,
-        .x6 = x6,
-    };
-    __sync_synchronize(); /* write barrier before marking as valid */
-    trace_buf[idx].event |= TRACE_RECORD_VALID;
+    idx = old_idx % TRACE_BUF_LEN;
+    /*  To check later if threshold crossed */
+    rec->next_tbuf_idx = new_idx % TRACE_BUF_LEN;
 
-    if ((idx + 1) % TRACE_BUF_FLUSH_THRESHOLD == 0) {
+    rec_off = idx;
+    rec_off = write_to_buffer(rec_off, (uint8_t*)&event, sizeof(event));
+    rec_off = write_to_buffer(rec_off, (uint8_t*)&timestamp_ns, sizeof(timestamp_ns));
+    rec_off = write_to_buffer(rec_off, (uint8_t*)&rec_len, sizeof(rec_len));
+
+    rec->tbuf_idx = idx;
+    rec->rec_off  = (idx + sizeof(TraceRecord)) % TRACE_BUF_LEN;
+    return 0;
+}
+
+static void read_from_buffer(unsigned int idx, void *dataptr, size_t size)
+{
+    uint8_t *data_ptr = dataptr;
+    uint32_t x = 0;
+    while (x < size) {
+        if (idx >= TRACE_BUF_LEN) {
+            idx = idx % TRACE_BUF_LEN;
+        }
+        data_ptr[x++] = trace_buf[idx++];
+    }
+}
+
+static unsigned int write_to_buffer(unsigned int idx, void *dataptr, size_t size)
+{
+    uint8_t *data_ptr = dataptr;
+    uint32_t x = 0;
+    while (x < size) {
+        if (idx >= TRACE_BUF_LEN) {
+            idx = idx % TRACE_BUF_LEN;
+        }
+        trace_buf[idx++] = data_ptr[x++];
+    }
+    return idx; /* most callers wants to know where to write next */
+}
+
+void trace_record_finish(TraceBufferRecord *rec)
+{
+    uint8_t temp_rec[sizeof(TraceRecord)];
+    TraceRecord *record = (TraceRecord *) temp_rec;
+    read_from_buffer(rec->tbuf_idx, temp_rec, sizeof(TraceRecord));
+    smp_wmb(); /* write barrier before marking as valid */
+    record->event |= TRACE_RECORD_VALID;
+    write_to_buffer(rec->tbuf_idx, temp_rec, sizeof(TraceRecord));
+
+    if ((trace_idx - writeout_idx) > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);
     }
-}
-
-void trace0(TraceEventID event)
-{
-    trace(event, 0, 0, 0, 0, 0, 0);
-}
-
-void trace1(TraceEventID event, uint64_t x1)
-{
-    trace(event, x1, 0, 0, 0, 0, 0);
-}
-
-void trace2(TraceEventID event, uint64_t x1, uint64_t x2)
-{
-    trace(event, x1, x2, 0, 0, 0, 0);
-}
-
-void trace3(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3)
-{
-    trace(event, x1, x2, x3, 0, 0, 0);
-}
-
-void trace4(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4)
-{
-    trace(event, x1, x2, x3, x4, 0, 0);
-}
-
-void trace5(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4, uint64_t x5)
-{
-    trace(event, x1, x2, x3, x4, x5, 0);
-}
-
-void trace6(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4, uint64_t x5, uint64_t x6)
-{
-    trace(event, x1, x2, x3, x4, x5, x6);
 }
 
 void st_set_trace_file_enabled(bool enable)
@@ -231,10 +295,11 @@ void st_set_trace_file_enabled(bool enable)
     flush_trace_file(true);
 
     if (enable) {
-        static const TraceRecord header = {
-            .event = HEADER_EVENT_ID,
-            .timestamp_ns = HEADER_MAGIC,
-            .x1 = HEADER_VERSION,
+        static const TraceRecordHeader header = {
+            .header_event_id = HEADER_EVENT_ID,
+            .header_magic = HEADER_MAGIC,
+            /* Older log readers will check for version at next location */
+            .header_version = HEADER_VERSION,
         };
 
         trace_fp = fopen(trace_file_name, "wb");
