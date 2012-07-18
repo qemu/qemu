@@ -1729,7 +1729,7 @@ cat > $TMPC <<EOF
 int main(void) {
     png_structp png_ptr;
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    return 0;
+    return png_ptr != 0;
 }
 EOF
   if $pkg_config libpng --modversion >/dev/null 2>&1; then
