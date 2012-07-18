@@ -1354,6 +1354,7 @@ static const char *scsi_command_name(uint8_t cmd)
 
 SCSIRequest *scsi_req_ref(SCSIRequest *req)
 {
+    assert(req->refcount > 0);
     req->refcount++;
     return req;
 }
@@ -1362,6 +1363,10 @@ void scsi_req_unref(SCSIRequest *req)
 {
     assert(req->refcount > 0);
     if (--req->refcount == 0) {
+        SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, req->dev->qdev.parent_bus);
+        if (bus->info->free_request && req->hba_private) {
+            bus->info->free_request(bus, req->hba_private);
+        }
         if (req->ops->free_req) {
             req->ops->free_req(req);
         }
