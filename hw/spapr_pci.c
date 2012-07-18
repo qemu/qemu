@@ -418,7 +418,7 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
         uint64_t child;
         uint64_t parent;
         uint64_t size;
-    } __attribute__((packed)) ranges[] = {
+    } QEMU_PACKED ranges[] = {
         {
             cpu_to_be32(b_ss(1)), cpu_to_be64(0),
             cpu_to_be64(phb->io_win_addr),
