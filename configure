@@ -1158,9 +1158,10 @@ gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
-if test "$werror" = "yes" ; then
-    gcc_flags="-Werror $gcc_flags"
-fi
+# Note that we do not add -Werror to gcc_flags here, because that would
+# enable it for all configure tests. If a configure test failed due
+# to -Werror this would just silently disable some features,
+# so it's too error prone.
 cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
@@ -2658,8 +2659,16 @@ EOF
         smartcard_cflags="-I\$(SRC_PATH)/libcacard"
         libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
         libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
+        test_cflags="$libcacard_cflags"
+        # The header files in nss < 3.13.3 have a bug which causes them to
+        # emit a warning. If we're going to compile QEMU with -Werror, then
+        # test that the headers don't have this bug. Otherwise we would pass
+        # the configure test but fail to compile QEMU later.
+        if test "$werror" = "yes"; then
+            test_cflags="-Werror $test_cflags"
+        fi
         if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
-          compile_prog "$smartcard_cflags $libcacard_cflags" "$libcacard_libs"; then
+          compile_prog "$test_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
             QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
             libs_softmmu="$libcacard_libs $libs_softmmu"
@@ -2934,6 +2943,11 @@ if test -z "$zero_malloc" ; then
     else
 	zero_malloc="yes"
     fi
+fi
+
+# Now we've finished running tests it's OK to add -Werror to the compiler flags
+if test "$werror" = "yes"; then
+    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 if test "$solaris" = "no" ; then
