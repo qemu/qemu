@@ -33,7 +33,9 @@
 #include <libgen.h>
 #include <pthread.h>
 
-#define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
+#define SOCKET_PATH         "/var/lock/qemu-nbd-%s"
+#define QEMU_NBD_OPT_CACHE  1
+#define QEMU_NBD_OPT_AIO    2
 
 static NBDExport *exp;
 static int verbose;
@@ -77,6 +79,10 @@ static void usage(const char *name)
 "  -r, --read-only      export read-only\n"
 "  -s, --snapshot       use snapshot file\n"
 "  -n, --nocache        disable host cache\n"
+"      --cache=MODE     set cache mode (none, writeback, ...)\n"
+#ifdef CONFIG_LINUX_AIO
+"      --aio=MODE       set AIO mode (native or threads)\n"
+#endif
 "\n"
 "Report bugs to <qemu-devel@nongnu.org>\n"
     , name, NBD_DEFAULT_PORT, "DEVICE");
@@ -306,6 +312,10 @@ int main(int argc, char **argv)
         { "disconnect", 0, NULL, 'd' },
         { "snapshot", 0, NULL, 's' },
         { "nocache", 0, NULL, 'n' },
+        { "cache", 1, NULL, QEMU_NBD_OPT_CACHE },
+#ifdef CONFIG_LINUX_AIO
+        { "aio", 1, NULL, QEMU_NBD_OPT_AIO },
+#endif
         { "shared", 1, NULL, 'e' },
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
@@ -320,6 +330,10 @@ int main(int argc, char **argv)
     int ret;
     int fd;
     int persistent = 0;
+    bool seen_cache = false;
+#ifdef CONFIG_LINUX_AIO
+    bool seen_aio = false;
+#endif
     pthread_t client_thread;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
@@ -336,8 +350,32 @@ int main(int argc, char **argv)
             flags |= BDRV_O_SNAPSHOT;
             break;
         case 'n':
-            flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+            optarg = (char *) "none";
+            /* fallthrough */
+        case QEMU_NBD_OPT_CACHE:
+            if (seen_cache) {
+                errx(EXIT_FAILURE, "-n and --cache can only be specified once");
+            }
+            seen_cache = true;
+            if (bdrv_parse_cache_flags(optarg, &flags) == -1) {
+                errx(EXIT_FAILURE, "Invalid cache mode `%s'", optarg);
+            }
             break;
+#ifdef CONFIG_LINUX_AIO
+        case QEMU_NBD_OPT_AIO:
+            if (seen_aio) {
+                errx(EXIT_FAILURE, "--aio can only be specified once");
+            }
+            seen_aio = true;
+            if (!strcmp(optarg, "native")) {
+                flags |= BDRV_O_NATIVE_AIO;
+            } else if (!strcmp(optarg, "threads")) {
+                /* this is the default */
+            } else {
+               errx(EXIT_FAILURE, "invalid aio mode `%s'", optarg);
+            }
+            break;
+#endif
         case 'b':
             bindto = optarg;
             break;
