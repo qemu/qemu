@@ -2085,7 +2085,7 @@ if test "$cap" != "no" ; then
   cat > $TMPC <<EOF
 #include <stdio.h>
 #include <sys/capability.h>
-int main(void) { cap_t caps; caps = cap_init(); }
+int main(void) { cap_t caps; caps = cap_init(); return caps != NULL; }
 EOF
   if compile_prog "" "-lcap" ; then
     cap=yes
