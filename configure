@@ -2799,7 +2799,7 @@ fi
 # specification is necessary
 if test "$vhost_net" = "yes" && test "$cpu" = "i386"; then
   cat > $TMPC << EOF
-int sfaa(unsigned *ptr)
+static int sfaa(int *ptr)
 {
   return __sync_fetch_and_and(ptr, 0);
 }
