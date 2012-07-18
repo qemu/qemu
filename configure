@@ -1891,7 +1891,7 @@ for drv in $audio_drv_list; do
     case $drv in
     alsa)
     audio_drv_probe $drv alsa/asoundlib.h -lasound \
-        "snd_pcm_t **handle; return snd_pcm_close(*handle);"
+        "return snd_pcm_close((snd_pcm_t *)0);"
     libs_softmmu="-lasound $libs_softmmu"
     ;;
 
