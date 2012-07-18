@@ -40,7 +40,7 @@ typedef struct spin_info {
     uint32_t resv;
     uint32_t pir;
     uint64_t reserved;
-} __attribute__ ((packed)) SpinInfo;
+} QEMU_PACKED SpinInfo;
 
 typedef struct spin_state {
     SysBusDevice busdev;
