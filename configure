@@ -27,16 +27,40 @@ printf " '%s'" "$0" "$@" >> config.log
 echo >> config.log
 echo "#" >> config.log
 
+do_cc() {
+    # Run the compiler, capturing its output to the log.
+    echo $cc "$@" >> config.log
+    $cc "$@" >> config.log 2>&1 || return $?
+    # Test passed. If this is an --enable-werror build, rerun
+    # the test with -Werror and bail out if it fails. This
+    # makes warning-generating-errors in configure test code
+    # obvious to developers.
+    if test "$werror" != "yes"; then
+        return 0
+    fi
+    # Don't bother rerunning the compile if we were already using -Werror
+    case "$*" in
+        *-Werror*)
+           return 0
+        ;;
+    esac
+    echo $cc -Werror "$@" >> config.log
+    $cc -Werror "$@" >> config.log 2>&1 && return $?
+    echo "ERROR: configure test passed without -Werror but failed with -Werror."
+    echo "This is probably a bug in the configure script. The failing command"
+    echo "will be at the bottom of config.log."
+    echo "You can run configure with --disable-werror to bypass this check."
+    exit 1
+}
+
 compile_object() {
-  echo $cc $QEMU_CFLAGS -c -o $TMPO $TMPC >> config.log
-  $cc $QEMU_CFLAGS -c -o $TMPO $TMPC >> config.log 2>&1
+  do_cc $QEMU_CFLAGS -c -o $TMPO $TMPC
 }
 
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  echo $cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags >> config.log
-  $cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags >> config.log 2>&1
+  do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
