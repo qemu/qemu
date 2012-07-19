@@ -172,40 +172,10 @@ struct Monitor {
     CPUArchState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
-#ifdef CONFIG_DEBUG_MONITOR
-    int print_calls_nr;
-#endif
     QError *error;
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
 };
-
-#ifdef CONFIG_DEBUG_MONITOR
-#define MON_DEBUG(fmt, ...) do {    \
-    fprintf(stderr, "Monitor: ");       \
-    fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-
-static inline void mon_print_count_inc(Monitor *mon)
-{
-    mon->print_calls_nr++;
-}
-
-static inline void mon_print_count_init(Monitor *mon)
-{
-    mon->print_calls_nr = 0;
-}
-
-static inline int mon_print_count_get(const Monitor *mon)
-{
-    return mon->print_calls_nr;
-}
-
-#else /* !CONFIG_DEBUG_MONITOR */
-#define MON_DEBUG(fmt, ...) do { } while (0)
-static inline void mon_print_count_inc(Monitor *mon) { }
-static inline void mon_print_count_init(Monitor *mon) { }
-static inline int mon_print_count_get(const Monitor *mon) { return 0; }
-#endif /* CONFIG_DEBUG_MONITOR */
 
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
@@ -298,8 +268,6 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 
     if (!mon)
         return;
-
-    mon_print_count_inc(mon);
 
     if (monitor_ctrl_mode(mon)) {
         return;
@@ -3860,8 +3828,6 @@ void monitor_set_error(Monitor *mon, QError *qerror)
     if (!mon->error) {
         mon->error = qerror;
     } else {
-        MON_DEBUG("Additional error report at %s:%d\n",
-                  qerror->file, qerror->linenr);
         QDECREF(qerror);
     }
 }
@@ -3875,36 +3841,7 @@ static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
          * Action: Report an internal error to the client if in QMP.
          */
         qerror_report(QERR_UNDEFINED_ERROR);
-        MON_DEBUG("command '%s' returned failure but did not pass an error\n",
-                  cmd->name);
     }
-
-#ifdef CONFIG_DEBUG_MONITOR
-    if (!ret && monitor_has_error(mon)) {
-        /*
-         * If it returns success, it must not have passed an error.
-         *
-         * Action: Report the passed error to the client.
-         */
-        MON_DEBUG("command '%s' returned success but passed an error\n",
-                  cmd->name);
-    }
-
-    if (mon_print_count_get(mon) > 0 && strcmp(cmd->name, "info") != 0) {
-        /*
-         * Handlers should not call Monitor print functions.
-         *
-         * Action: Ignore them in QMP.
-         *
-         * (XXX: we don't check any 'info' or 'query' command here
-         * because the user print function _is_ called by do_info(), hence
-         * we will trigger this check. This problem will go away when we
-         * make 'query' commands real and kill do_info())
-         */
-        MON_DEBUG("command '%s' called print functions %d time(s)\n",
-                  cmd->name, mon_print_count_get(mon));
-    }
-#endif
 }
 
 static void handle_user_command(Monitor *mon, const char *cmdline)
@@ -4432,8 +4369,6 @@ static void qmp_call_cmd(Monitor *mon, const mon_cmd_t *cmd,
 {
     int ret;
     QObject *data = NULL;
-
-    mon_print_count_init(mon);
 
     ret = cmd->mhandler.cmd_new(mon, params, &data);
     handler_audit(mon, cmd, ret);
