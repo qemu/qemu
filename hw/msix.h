@@ -4,6 +4,7 @@
 #include "qemu-common.h"
 #include "pci.h"
 
+void msix_set_message(PCIDevice *dev, int vector, MSIMessage msg);
 int msix_init(PCIDevice *dev, unsigned short nentries,
               MemoryRegion *table_bar, uint8_t table_bar_nr,
               unsigned table_offset, MemoryRegion *pba_bar,

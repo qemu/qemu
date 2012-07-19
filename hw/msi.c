@@ -105,6 +105,23 @@ static inline uint8_t msi_pending_off(const PCIDevice* dev, bool msi64bit)
     return dev->msi_cap + (msi64bit ? PCI_MSI_PENDING_64 : PCI_MSI_PENDING_32);
 }
 
+/*
+ * Special API for POWER to configure the vectors through
+ * a side channel. Should never be used by devices.
+ */
+void msi_set_message(PCIDevice *dev, MSIMessage msg)
+{
+    uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
+    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
+
+    if (msi64bit) {
+        pci_set_quad(dev->config + msi_address_lo_off(dev), msg.address);
+    } else {
+        pci_set_long(dev->config + msi_address_lo_off(dev), msg.address);
+    }
+    pci_set_word(dev->config + msi_data_off(dev, msi64bit), msg.data);
+}
+
 bool msi_enabled(const PCIDevice *dev)
 {
     return msi_present(dev) &&
