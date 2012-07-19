@@ -336,7 +336,7 @@ static const QErrorStringTable qerror_table[] = {
  *
  * Return strong reference.
  */
-QError *qerror_new(void)
+static QError *qerror_new(void)
 {
     QError *qerr;
 
@@ -424,8 +424,8 @@ static void qerror_set_desc(QError *qerr, const char *fmt)
  *
  * Return strong reference.
  */
-QError *qerror_from_info(const char *file, int linenr, const char *func,
-                         const char *fmt, va_list *va)
+static QError *qerror_from_info(const char *file, int linenr, const char *func,
+                                const char *fmt, va_list *va)
 {
     QError *qerr;
 
@@ -549,7 +549,7 @@ QString *qerror_human(const QError *qerror)
  * it uses error_report() for this, so that the output is routed to the right
  * place (ie. stderr or Monitor's device).
  */
-void qerror_print(QError *qerror)
+static void qerror_print(QError *qerror)
 {
     QString *qstring = qerror_human(qerror);
     loc_push_restore(&qerror->loc);
@@ -620,7 +620,7 @@ void assert_no_error(Error *err)
 /**
  * qobject_to_qerror(): Convert a QObject into a QError
  */
-QError *qobject_to_qerror(const QObject *obj)
+static QError *qobject_to_qerror(const QObject *obj)
 {
     if (qobject_type(obj) != QTYPE_QERROR) {
         return NULL;
