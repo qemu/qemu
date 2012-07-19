@@ -1066,6 +1066,26 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
     pci_change_irq_level(pci_dev, irq_num, change);
 }
 
+/* Special hooks used by device assignment */
+void pci_bus_set_route_irq_fn(PCIBus *bus, pci_route_irq_fn route_intx_to_irq)
+{
+    assert(!bus->parent_dev);
+    bus->route_intx_to_irq = route_intx_to_irq;
+}
+
+PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
+{
+    PCIBus *bus;
+
+    do {
+         bus = dev->bus;
+         pin = bus->map_irq(dev, pin);
+         dev = bus->parent_dev;
+    } while (dev);
+    assert(bus->route_intx_to_irq);
+    return bus->route_intx_to_irq(bus->irq_opaque, pin);
+}
+
 /***********************************************************/
 /* monitor info on PCI */
 

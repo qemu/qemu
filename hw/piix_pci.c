@@ -89,6 +89,7 @@ struct PCII440FXState {
 #define I440FX_SMRAM    0x72
 
 static void piix3_set_irq(void *opaque, int pirq, int level);
+static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pci_intx);
 static void piix3_write_config_xen(PCIDevice *dev,
                                uint32_t address, uint32_t val, int len);
 
@@ -315,6 +316,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
                 pci_create_simple_multifunction(b, -1, true, "PIIX3"));
         pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
                 PIIX_NUM_PIRQS);
+        pci_bus_set_route_irq_fn(b, piix3_route_intx_pin_to_irq);
     }
     piix3->pic = pic;
     *isa_bus = DO_UPCAST(ISABus, qbus,
@@ -384,6 +386,22 @@ static void piix3_set_irq(void *opaque, int pirq, int level)
 {
     PIIX3State *piix3 = opaque;
     piix3_set_irq_level(piix3, pirq, level);
+}
+
+static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pin)
+{
+    PIIX3State *piix3 = opaque;
+    int irq = piix3->dev.config[PIIX_PIRQC + pin];
+    PCIINTxRoute route;
+
+    if (irq < PIIX_NUM_PIC_IRQS) {
+        route.mode = PCI_INTX_ENABLED;
+        route.irq = irq;
+    } else {
+        route.mode = PCI_INTX_DISABLED;
+        route.irq = -1;
+    }
+    return route;
 }
 
 /* irq routing is changed. so rebuild bitmap */

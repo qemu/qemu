@@ -141,6 +141,15 @@ enum {
 #define PCI_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PCIDeviceClass, (obj), TYPE_PCI_DEVICE)
 
+typedef struct PCIINTxRoute {
+    enum {
+        PCI_INTX_ENABLED,
+        PCI_INTX_INVERTED,
+        PCI_INTX_DISABLED,
+    } mode;
+    int irq;
+} PCIINTxRoute;
+
 typedef struct PCIDeviceClass {
     DeviceClass parent_class;
 
@@ -278,6 +287,7 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev);
 
 typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
+typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 typedef enum {
     PCI_HOTPLUG_DISABLED,
@@ -306,6 +316,8 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, int nirq);
+void pci_bus_set_route_irq_fn(PCIBus *, pci_route_irq_fn);
+PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin);
 void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 
