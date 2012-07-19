@@ -21,6 +21,7 @@
 #include "qemu-error.h"
 #include <hw/ide/internal.h>
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "sysemu.h"
 
 /* --------------------------------- */
@@ -111,11 +112,24 @@ IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
     return DO_UPCAST(IDEDevice, qdev, dev);
 }
 
-void ide_get_bs(BlockDriverState *bs[], BusState *qbus)
+int ide_get_geometry(BusState *bus, int unit,
+                     int16_t *cyls, int8_t *heads, int8_t *secs)
 {
-    IDEBus *bus = DO_UPCAST(IDEBus, qbus, qbus);
-    bs[0] = bus->master ? bus->master->conf.bs : NULL;
-    bs[1] = bus->slave  ? bus->slave->conf.bs  : NULL;
+    IDEState *s = &DO_UPCAST(IDEBus, qbus, bus)->ifs[unit];
+
+    if (s->drive_kind != IDE_HD || !s->bs) {
+        return -1;
+    }
+
+    *cyls = s->cylinders;
+    *heads = s->heads;
+    *secs = s->sectors;
+    return 0;
+}
+
+int ide_get_bios_chs_trans(BusState *bus, int unit)
+{
+    return DO_UPCAST(IDEBus, qbus, bus)->ifs[unit].chs_trans;
 }
 
 /* --------------------------------- */
@@ -128,25 +142,21 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
     IDEState *s = bus->ifs + dev->unit;
-    const char *serial;
-    DriveInfo *dinfo;
 
     if (dev->conf.discard_granularity && dev->conf.discard_granularity != 512) {
         error_report("discard_granularity must be 512 for ide");
         return -1;
     }
 
-    serial = dev->serial;
-    if (!serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(dev->conf.bs);
-        if (*dinfo->serial) {
-            serial = dinfo->serial;
-        }
+    blkconf_serial(&dev->conf, &dev->serial);
+    if (blkconf_geometry(&dev->conf, &dev->chs_trans, 65536, 16, 255) < 0) {
+        return -1;
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,
-                       dev->version, serial, dev->model, dev->wwn) < 0) {
+                       dev->version, dev->serial, dev->model, dev->wwn,
+                       dev->conf.cyls, dev->conf.heads, dev->conf.secs,
+                       dev->chs_trans) < 0) {
         return -1;
     }
 
@@ -189,6 +199,9 @@ static int ide_drive_initfn(IDEDevice *dev)
 
 static Property ide_hd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
+    DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
+    DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
+                IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
     DEFINE_PROP_END_OF_LIST(),
 };
 

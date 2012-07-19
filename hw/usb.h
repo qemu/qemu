@@ -25,7 +25,6 @@
  * THE SOFTWARE.
  */
 
-#include "block.h"
 #include "qdev.h"
 #include "qemu-queue.h"
 

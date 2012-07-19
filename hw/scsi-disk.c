@@ -34,6 +34,7 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "scsi-defs.h"
 #include "sysemu.h"
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "dma.h"
 
 #ifdef __linux
@@ -965,9 +966,6 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         [MODE_PAGE_AUDIO_CTL]              = (1 << TYPE_ROM),
         [MODE_PAGE_CAPABILITIES]           = (1 << TYPE_ROM),
     };
-
-    BlockDriverState *bdrv = s->qdev.conf.bs;
-    int cylinders, heads, secs;
     uint8_t *p = *p_outbuf;
 
     if ((mode_sense_valid[page] & (1 << s->qdev.type)) == 0) {
@@ -989,19 +987,18 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
             break;
         }
         /* if a geometry hint is available, use it */
-        bdrv_guess_geometry(bdrv, &cylinders, &heads, &secs);
-        p[2] = (cylinders >> 16) & 0xff;
-        p[3] = (cylinders >> 8) & 0xff;
-        p[4] = cylinders & 0xff;
-        p[5] = heads & 0xff;
+        p[2] = (s->qdev.conf.cyls >> 16) & 0xff;
+        p[3] = (s->qdev.conf.cyls >> 8) & 0xff;
+        p[4] = s->qdev.conf.cyls & 0xff;
+        p[5] = s->qdev.conf.heads & 0xff;
         /* Write precomp start cylinder, disabled */
-        p[6] = (cylinders >> 16) & 0xff;
-        p[7] = (cylinders >> 8) & 0xff;
-        p[8] = cylinders & 0xff;
+        p[6] = (s->qdev.conf.cyls >> 16) & 0xff;
+        p[7] = (s->qdev.conf.cyls >> 8) & 0xff;
+        p[8] = s->qdev.conf.cyls & 0xff;
         /* Reduced current start cylinder, disabled */
-        p[9] = (cylinders >> 16) & 0xff;
-        p[10] = (cylinders >> 8) & 0xff;
-        p[11] = cylinders & 0xff;
+        p[9] = (s->qdev.conf.cyls >> 16) & 0xff;
+        p[10] = (s->qdev.conf.cyls >> 8) & 0xff;
+        p[11] = s->qdev.conf.cyls & 0xff;
         /* Device step rate [ns], 200ns */
         p[12] = 0;
         p[13] = 200;
@@ -1023,18 +1020,17 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         p[2] = 5000 >> 8;
         p[3] = 5000 & 0xff;
         /* if a geometry hint is available, use it */
-        bdrv_guess_geometry(bdrv, &cylinders, &heads, &secs);
-        p[4] = heads & 0xff;
-        p[5] = secs & 0xff;
+        p[4] = s->qdev.conf.heads & 0xff;
+        p[5] = s->qdev.conf.secs & 0xff;
         p[6] = s->qdev.blocksize >> 8;
-        p[8] = (cylinders >> 8) & 0xff;
-        p[9] = cylinders & 0xff;
+        p[8] = (s->qdev.conf.cyls >> 8) & 0xff;
+        p[9] = s->qdev.conf.cyls & 0xff;
         /* Write precomp start cylinder, disabled */
-        p[10] = (cylinders >> 8) & 0xff;
-        p[11] = cylinders & 0xff;
+        p[10] = (s->qdev.conf.cyls >> 8) & 0xff;
+        p[11] = s->qdev.conf.cyls & 0xff;
         /* Reduced current start cylinder, disabled */
-        p[12] = (cylinders >> 8) & 0xff;
-        p[13] = cylinders & 0xff;
+        p[12] = (s->qdev.conf.cyls >> 8) & 0xff;
+        p[13] = s->qdev.conf.cyls & 0xff;
         /* Device step rate [100us], 100us */
         p[14] = 0;
         p[15] = 1;
@@ -1741,7 +1737,6 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
 static int scsi_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
-    DriveInfo *dinfo;
 
     if (!s->qdev.conf.bs) {
         error_report("drive property not set");
@@ -1754,12 +1749,9 @@ static int scsi_initfn(SCSIDevice *dev)
         return -1;
     }
 
-    if (!s->serial) {
-        /* try to fall back to value set with legacy -drive serial=... */
-        dinfo = drive_get_by_blockdev(s->qdev.conf.bs);
-        if (*dinfo->serial) {
-            s->serial = g_strdup(dinfo->serial);
-        }
+    blkconf_serial(&s->qdev.conf, &s->serial);
+    if (blkconf_geometry(&dev->conf, NULL, 65535, 255, 255) < 0) {
+        return -1;
     }
 
     if (!s->version) {
@@ -1974,6 +1966,7 @@ static Property scsi_hd_properties[] = {
     DEFINE_PROP_BIT("dpofua", SCSIDiskState, features,
                     SCSI_DISK_F_DPOFUA, false),
     DEFINE_PROP_HEX64("wwn", SCSIDiskState, wwn, 0),
+    DEFINE_BLOCK_CHS_PROPERTIES(SCSIDiskState, qdev.conf),
     DEFINE_PROP_END_OF_LIST(),
 };
 

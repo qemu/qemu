@@ -32,6 +32,7 @@
 #include "bswap.h"
 #include "memory.h"
 #include "exec-memory.h"
+#include "event_notifier.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -800,23 +801,29 @@ static void kvm_io_ioeventfd_del(MemoryRegionSection *section,
 
 static void kvm_eventfd_add(MemoryListener *listener,
                             MemoryRegionSection *section,
-                            bool match_data, uint64_t data, int fd)
+                            bool match_data, uint64_t data,
+                            EventNotifier *e)
 {
     if (section->address_space == get_system_memory()) {
-        kvm_mem_ioeventfd_add(section, match_data, data, fd);
+        kvm_mem_ioeventfd_add(section, match_data, data,
+			      event_notifier_get_fd(e));
     } else {
-        kvm_io_ioeventfd_add(section, match_data, data, fd);
+        kvm_io_ioeventfd_add(section, match_data, data,
+			     event_notifier_get_fd(e));
     }
 }
 
 static void kvm_eventfd_del(MemoryListener *listener,
                             MemoryRegionSection *section,
-                            bool match_data, uint64_t data, int fd)
+                            bool match_data, uint64_t data,
+                            EventNotifier *e)
 {
     if (section->address_space == get_system_memory()) {
-        kvm_mem_ioeventfd_del(section, match_data, data, fd);
+        kvm_mem_ioeventfd_del(section, match_data, data,
+			      event_notifier_get_fd(e));
     } else {
-        kvm_io_ioeventfd_del(section, match_data, data, fd);
+        kvm_io_ioeventfd_del(section, match_data, data,
+			     event_notifier_get_fd(e));
     }
 }
 
@@ -1142,7 +1149,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 {
-    abort();
+    return -ENOSYS;
 }
 
 static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
@@ -1156,9 +1163,19 @@ int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
     return kvm_irqchip_assign_irqfd(s, fd, virq, true);
 }
 
+int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+{
+    return kvm_irqchip_add_irqfd(s, event_notifier_get_fd(n), virq);
+}
+
 int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
 {
     return kvm_irqchip_assign_irqfd(s, fd, virq, false);
+}
+
+int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+{
+    return kvm_irqchip_remove_irqfd(s, event_notifier_get_fd(n), virq);
 }
 
 static int kvm_irqchip_create(KVMState *s)

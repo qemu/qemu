@@ -1,0 +1,38 @@
+
+qemu usb storage emulation
+--------------------------
+
+Qemu has two emulations for usb storage devices.
+
+Number one emulates the classic bulk-only transport protocol which is
+used by 99% of the usb sticks on the marked today and is called
+"usb-storage".  Usage (hooking up to xhci, other host controllers work
+too):
+
+  qemu ${other_vm_args}                                \
+       -drive if=none,id=stick,file=/path/to/file.img  \
+       -device nec-usb-xhci,id=xhci                    \
+       -device usb-storage,bus=xhci.0,drive=stick
+
+
+Number two is the newer usb attached scsi transport.  This one doesn't
+automagically create a scsi disk, so you have to explicitly attach one
+manually.  Multiple logical units are supported.  Here is an example
+with tree logical units:
+
+  qemu ${other_vm_args}                                                \
+       -drive if=none,id=uas-disk1,file=/path/to/file1.img             \
+       -drive if=none,id=uas-disk2,file=/path/to/file2.img             \
+       -drive if=none,id=uas-cdrom,media=cdrom,file=/path/to/image.iso \
+       -device nec-usb-xhci,id=xhci                                    \
+       -device usb-uas,id=uas,bus=xhci.0                               \
+       -device scsi-hd,bus=uas.0,scsi-id=0,lun=0,drive=uas-disk1       \
+       -device scsi-hd,bus=uas.0,scsi-id=0,lun=1,drive=uas-disk2       \
+       -device scsi-cd,bus=uas.0,scsi-id=0,lun=5,drive=uas-cdrom
+
+
+enjoy,
+  Gerd
+
+--
+Gerd Hoffmann <kraxel@redhat.com>

@@ -21,6 +21,7 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 check-qtest-i386-y = tests/fdc-test$(EXESUF)
+check-qtest-i386-y += tests/hd-geo-test$(EXESUF)
 check-qtest-i386-y += tests/rtc-test$(EXESUF)
 check-qtest-x86_64-y = $(check-qtest-i386-y)
 check-qtest-sparc-y = tests/m48t59-test$(EXESUF)
@@ -72,6 +73,7 @@ tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(
 tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o $(trace-obj-y)
 tests/fdc-test$(EXESUF): tests/fdc-test.o tests/libqtest.o $(trace-obj-y)
+tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o tests/libqtest.o $(trace-obj-y)
 
 # QTest rules
 

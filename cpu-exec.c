@@ -288,6 +288,12 @@ int cpu_exec(CPUArchState *env)
                     }
 #endif
 #if defined(TARGET_I386)
+#if !defined(CONFIG_USER_ONLY)
+                    if (interrupt_request & CPU_INTERRUPT_POLL) {
+                        env->interrupt_request &= ~CPU_INTERRUPT_POLL;
+                        apic_poll_irq(env->apic_state);
+                    }
+#endif
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
                             cpu_svm_check_intercept_param(env, SVM_EXIT_INIT,
                                                           0);

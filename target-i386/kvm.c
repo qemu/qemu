@@ -362,8 +362,13 @@ int kvm_arch_init_vcpu(CPUX86State *env)
     env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
 
     i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
+    j = env->cpuid_ext_features & CPUID_EXT_TSC_DEADLINE_TIMER;
     env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
     env->cpuid_ext_features |= i;
+    if (j && kvm_irqchip_in_kernel() &&
+        kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
+        env->cpuid_ext_features |= CPUID_EXT_TSC_DEADLINE_TIMER;
+    }
 
     env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
                                                              0, R_EDX);
@@ -1730,6 +1735,10 @@ int kvm_arch_process_async_events(CPUX86State *env)
         return 0;
     }
 
+    if (env->interrupt_request & CPU_INTERRUPT_POLL) {
+        env->interrupt_request &= ~CPU_INTERRUPT_POLL;
+        apic_poll_irq(env->apic_state);
+    }
     if (((env->interrupt_request & CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
         (env->interrupt_request & CPU_INTERRUPT_NMI)) {

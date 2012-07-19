@@ -30,6 +30,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "dma.h"
+#include "hw/block-common.h"
 #include "blockdev.h"
 
 #include <hw/ide/internal.h>
@@ -1924,31 +1925,20 @@ static const BlockDevOps ide_cd_block_ops = {
 
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    const char *version, const char *serial, const char *model,
-                   uint64_t wwn)
+                   uint64_t wwn,
+                   uint32_t cylinders, uint32_t heads, uint32_t secs,
+                   int chs_trans)
 {
-    int cylinders, heads, secs;
     uint64_t nb_sectors;
 
     s->bs = bs;
     s->drive_kind = kind;
 
     bdrv_get_geometry(bs, &nb_sectors);
-    bdrv_guess_geometry(bs, &cylinders, &heads, &secs);
-    if (cylinders < 1 || cylinders > 16383) {
-        error_report("cyls must be between 1 and 16383");
-        return -1;
-    }
-    if (heads < 1 || heads > 16) {
-        error_report("heads must be between 1 and 16");
-        return -1;
-    }
-    if (secs < 1 || secs > 63) {
-        error_report("secs must be between 1 and 63");
-        return -1;
-    }
     s->cylinders = cylinders;
     s->heads = heads;
     s->sectors = secs;
+    s->chs_trans = chs_trans;
     s->nb_sectors = nb_sectors;
     s->wwn = wwn;
     /* The SMART values should be preserved across power cycles
@@ -2075,17 +2065,39 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
 void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                                     DriveInfo *hd1, qemu_irq irq)
 {
-    int i;
+    int i, trans;
     DriveInfo *dinfo;
+    uint32_t cyls, heads, secs;
 
     for(i = 0; i < 2; i++) {
         dinfo = i == 0 ? hd0 : hd1;
         ide_init1(bus, i);
         if (dinfo) {
+            cyls  = dinfo->cyls;
+            heads = dinfo->heads;
+            secs  = dinfo->secs;
+            trans = dinfo->trans;
+            if (!cyls && !heads && !secs) {
+                hd_geometry_guess(dinfo->bdrv, &cyls, &heads, &secs, &trans);
+            } else if (trans == BIOS_ATA_TRANSLATION_AUTO) {
+                trans = hd_bios_chs_auto_trans(cyls, heads, secs);
+            }
+            if (cyls < 1 || cyls > 65535) {
+                error_report("cyls must be between 1 and 65535");
+                exit(1);
+            }
+            if (heads < 1 || heads > 16) {
+                error_report("heads must be between 1 and 16");
+                exit(1);
+            }
+            if (secs < 1 || secs > 255) {
+                error_report("secs must be between 1 and 255");
+                exit(1);
+            }
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
-                               dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
-                               *dinfo->serial ? dinfo->serial : NULL,
-                               NULL, 0) < 0) {
+                               dinfo->media_cd ? IDE_CD : IDE_HD,
+                               NULL, dinfo->serial, NULL, 0,
+                               cyls, heads, secs, trans) < 0) {
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);
             }

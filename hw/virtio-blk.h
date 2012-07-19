@@ -15,7 +15,7 @@
 #define _QEMU_VIRTIO_BLK_H
 
 #include "virtio.h"
-#include "block.h"
+#include "hw/block-common.h"
 
 /* from Linux's linux/virtio_blk.h */
 

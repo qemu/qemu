@@ -670,6 +670,7 @@ static int readv_f(int argc, char **argv)
     print_report("read", &t2, offset, qiov.size, total, cnt, Cflag);
 
 out:
+    qemu_iovec_destroy(&qiov);
     qemu_io_free(buf);
     return 0;
 }
@@ -928,6 +929,7 @@ static int writev_f(int argc, char **argv)
     t2 = tsub(t2, t1);
     print_report("wrote", &t2, offset, qiov.size, total, cnt, Cflag);
 out:
+    qemu_iovec_destroy(&qiov);
     qemu_io_free(buf);
     return 0;
 }
@@ -1126,6 +1128,7 @@ static void aio_write_done(void *opaque, int ret)
                  ctx->qiov.size, 1, ctx->Cflag);
 out:
     qemu_io_free(ctx->buf);
+    qemu_iovec_destroy(&ctx->qiov);
     g_free(ctx);
 }
 
@@ -1166,6 +1169,7 @@ static void aio_read_done(void *opaque, int ret)
                  ctx->qiov.size, 1, ctx->Cflag);
 out:
     qemu_io_free(ctx->buf);
+    qemu_iovec_destroy(&ctx->qiov);
     g_free(ctx);
 }
 

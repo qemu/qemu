@@ -141,6 +141,10 @@ ecc_mem_readl_ecr1(uint32_t ret) "Read event count 2 %08x"
 ecc_diag_mem_writeb(uint64_t addr, uint32_t val) "Write diagnostic %"PRId64" = %02x"
 ecc_diag_mem_readb(uint64_t addr, uint32_t ret) "Read diagnostic %"PRId64"= %02x"
 
+# hw/hd-geometry.c
+hd_geometry_lchs_guess(void *bs, int cyls, int heads, int secs) "bs %p LCHS %d %d %d"
+hd_geometry_guess(void *bs, uint32_t cyls, uint32_t heads, uint32_t secs, int trans) "bs %p CHS %u %u %u trans %d"
+
 # hw/jazz-led.c
 jazz_led_read(uint64_t addr, uint8_t val) "read addr=0x%"PRIx64": 0x%x"
 jazz_led_write(uint64_t addr, uint8_t new) "write addr=0x%"PRIx64": 0x%x"
@@ -258,7 +262,7 @@ usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
 usb_ehci_data(int rw, uint32_t cpage, uint32_t offset, uint32_t addr, uint32_t len, uint32_t bufpos) "write %d, cpage %d, offset 0x%03x, addr 0x%08x, len %d, bufpos %d"
 usb_ehci_queue_action(void *q, const char *action) "q %p: %s"
 usb_ehci_packet_action(void *q, void *p, const char *action) "q %p p %p: %s"
-usb_ehci_interrupt(uint32_t level, uint32_t sts, uint32_t mask) "level %d, sts 0x%x, mask 0x%x"
+usb_ehci_irq(uint32_t level, uint32_t frindex, uint32_t sts, uint32_t mask) "level %d, frindex 0x%04x, sts 0x%x, mask 0x%x"
 
 # hw/usb/hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="
@@ -346,6 +350,20 @@ usb_hub_set_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feat
 usb_hub_clear_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feature %s"
 usb_hub_attach(int addr, int nr) "dev %d, port %d"
 usb_hub_detach(int addr, int nr) "dev %d, port %d"
+
+# hw/usb/dev-uas.c
+usb_uas_reset(int addr) "dev %d"
+usb_uas_command(int addr, uint16_t tag, int lun, uint32_t lun64_1, uint32_t lun64_2) "dev %d, tag 0x%x, lun %d, lun64 %08x-%08x"
+usb_uas_response(int addr, uint16_t tag, uint8_t code) "dev %d, tag 0x%x, code 0x%x"
+usb_uas_sense(int addr, uint16_t tag, uint8_t status) "dev %d, tag 0x%x, status 0x%x"
+usb_uas_read_ready(int addr, uint16_t tag) "dev %d, tag 0x%x"
+usb_uas_write_ready(int addr, uint16_t tag) "dev %d, tag 0x%x"
+usb_uas_xfer_data(int addr, uint16_t tag, uint32_t copy, uint32_t uoff, uint32_t usize, uint32_t soff, uint32_t ssize) "dev %d, tag 0x%x, copy %d, usb-pkt %d/%d, scsi-buf %d/%d"
+usb_uas_scsi_data(int addr, uint16_t tag, uint32_t bytes) "dev %d, tag 0x%x, bytes %d"
+usb_uas_scsi_complete(int addr, uint16_t tag, uint32_t status, uint32_t resid) "dev %d, tag 0x%x, status 0x%x, residue %d"
+usb_uas_tmf_abort_task(int addr, uint16_t tag, uint16_t task_tag) "dev %d, tag 0x%x, task-tag 0x%x"
+usb_uas_tmf_logical_unit_reset(int addr, uint16_t tag, int lun) "dev %d, tag 0x%x, lun %d"
+usb_uas_tmf_unsupported(int addr, uint16_t tag, uint32_t function) "dev %d, tag 0x%x, function 0x%x"
 
 # hw/usb/host-linux.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"

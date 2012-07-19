@@ -388,11 +388,23 @@ static const VMStateDescription vmstate_uhci_port = {
     }
 };
 
+static int uhci_post_load(void *opaque, int version_id)
+{
+    UHCIState *s = opaque;
+
+    if (version_id < 2) {
+        s->expire_time = qemu_get_clock_ns(vm_clock) +
+            (get_ticks_per_sec() / FRAME_TIMER_FREQ);
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_uhci = {
     .name = "uhci",
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .post_load = uhci_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, UHCIState),
         VMSTATE_UINT8_EQUAL(num_ports_vmstate, UHCIState),

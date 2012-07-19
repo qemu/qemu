@@ -298,7 +298,7 @@ void input_type_enum(Visitor *v, int *obj, const char *strings[],
     }
 
     if (strings[value] == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER, name ? name : "null");
+        error_set(errp, QERR_INVALID_PARAMETER, enum_str);
         g_free(enum_str);
         return;
     }

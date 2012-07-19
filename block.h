@@ -178,7 +178,6 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset);
 int64_t bdrv_getlength(BlockDriverState *bs);
 int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
-void bdrv_guess_geometry(BlockDriverState *bs, int *pcyls, int *pheads, int *psecs);
 int bdrv_commit(BlockDriverState *bs);
 int bdrv_commit_all(void);
 int bdrv_change_backing_file(BlockDriverState *bs,
@@ -258,36 +257,6 @@ int bdrv_has_zero_init(BlockDriverState *bs);
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
                       int *pnum);
 
-#define BIOS_ATA_TRANSLATION_AUTO   0
-#define BIOS_ATA_TRANSLATION_NONE   1
-#define BIOS_ATA_TRANSLATION_LBA    2
-#define BIOS_ATA_TRANSLATION_LARGE  3
-#define BIOS_ATA_TRANSLATION_RECHS  4
-
-void bdrv_set_geometry_hint(BlockDriverState *bs,
-                            int cyls, int heads, int secs);
-void bdrv_set_translation_hint(BlockDriverState *bs, int translation);
-void bdrv_get_geometry_hint(BlockDriverState *bs,
-                            int *pcyls, int *pheads, int *psecs);
-typedef enum FDriveType {
-    FDRIVE_DRV_144  = 0x00,   /* 1.44 MB 3"5 drive      */
-    FDRIVE_DRV_288  = 0x01,   /* 2.88 MB 3"5 drive      */
-    FDRIVE_DRV_120  = 0x02,   /* 1.2  MB 5"25 drive     */
-    FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
-} FDriveType;
-
-typedef enum FDriveRate {
-    FDRIVE_RATE_500K = 0x00,  /* 500 Kbps */
-    FDRIVE_RATE_300K = 0x01,  /* 300 Kbps */
-    FDRIVE_RATE_250K = 0x02,  /* 250 Kbps */
-    FDRIVE_RATE_1M   = 0x03,  /*   1 Mbps */
-} FDriveRate;
-
-void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
-                                   int *max_track, int *last_sect,
-                                   FDriveType drive_in, FDriveType *drive,
-                                   FDriveRate *rate);
-int bdrv_get_translation_hint(BlockDriverState *bs);
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
                        BlockErrorAction on_write_error);
 BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
@@ -434,43 +403,4 @@ typedef enum {
 #define BLKDBG_EVENT(bs, evt) bdrv_debug_event(bs, evt)
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
 
-
-/* Convenience for block device models */
-
-typedef struct BlockConf {
-    BlockDriverState *bs;
-    uint16_t physical_block_size;
-    uint16_t logical_block_size;
-    uint16_t min_io_size;
-    uint32_t opt_io_size;
-    int32_t bootindex;
-    uint32_t discard_granularity;
-} BlockConf;
-
-static inline unsigned int get_physical_block_exp(BlockConf *conf)
-{
-    unsigned int exp = 0, size;
-
-    for (size = conf->physical_block_size;
-        size > conf->logical_block_size;
-        size >>= 1) {
-        exp++;
-    }
-
-    return exp;
-}
-
-#define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
-    DEFINE_PROP_DRIVE("drive", _state, _conf.bs),                       \
-    DEFINE_PROP_BLOCKSIZE("logical_block_size", _state,                 \
-                          _conf.logical_block_size, 512),               \
-    DEFINE_PROP_BLOCKSIZE("physical_block_size", _state,                \
-                          _conf.physical_block_size, 512),              \
-    DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 0),  \
-    DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0),    \
-    DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1),        \
-    DEFINE_PROP_UINT32("discard_granularity", _state, \
-                       _conf.discard_granularity, 0)
-
 #endif
-

@@ -3,6 +3,7 @@
 
 #include "qdev.h"
 #include "block.h"
+#include "hw/block-common.h"
 #include "sysemu.h"
 
 #define MAX_SCSI_DEVS	255
@@ -134,6 +135,7 @@ struct SCSIBusInfo {
 
     void (*save_request)(QEMUFile *f, SCSIRequest *req);
     void *(*load_request)(QEMUFile *f, SCSIRequest *req);
+    void (*free_request)(SCSIBus *bus, void *priv);
 };
 
 #define TYPE_SCSI_BUS "SCSI"

@@ -44,6 +44,7 @@
 #include "kvm.h"
 #include "xen.h"
 #include "blockdev.h"
+#include "hw/block-common.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
 #include "exec-memory.h"
@@ -216,11 +217,9 @@ static int cmos_get_fd_drive_type(FDriveType fd0)
     return val;
 }
 
-static void cmos_init_hd(int type_ofs, int info_ofs, BlockDriverState *hd,
-                         ISADevice *s)
+static void cmos_init_hd(ISADevice *s, int type_ofs, int info_ofs,
+                         int16_t cylinders, int8_t heads, int8_t sectors)
 {
-    int cylinders, heads, sectors;
-    bdrv_get_geometry_hint(hd, &cylinders, &heads, &sectors);
     rtc_set_memory(s, type_ofs, 47);
     rtc_set_memory(s, info_ofs, cylinders);
     rtc_set_memory(s, info_ofs + 1, cylinders >> 8);
@@ -281,48 +280,42 @@ static int pc_boot_set(void *opaque, const char *boot_device)
 
 typedef struct pc_cmos_init_late_arg {
     ISADevice *rtc_state;
-    BusState *idebus0, *idebus1;
+    BusState *idebus[2];
 } pc_cmos_init_late_arg;
 
 static void pc_cmos_init_late(void *opaque)
 {
     pc_cmos_init_late_arg *arg = opaque;
     ISADevice *s = arg->rtc_state;
+    int16_t cylinders;
+    int8_t heads, sectors;
     int val;
-    BlockDriverState *hd_table[4];
-    int i;
+    int i, trans;
 
-    ide_get_bs(hd_table, arg->idebus0);
-    ide_get_bs(hd_table + 2, arg->idebus1);
-
-    rtc_set_memory(s, 0x12, (hd_table[0] ? 0xf0 : 0) | (hd_table[1] ? 0x0f : 0));
-    if (hd_table[0])
-        cmos_init_hd(0x19, 0x1b, hd_table[0], s);
-    if (hd_table[1])
-        cmos_init_hd(0x1a, 0x24, hd_table[1], s);
+    val = 0;
+    if (ide_get_geometry(arg->idebus[0], 0,
+                         &cylinders, &heads, &sectors) >= 0) {
+        cmos_init_hd(s, 0x19, 0x1b, cylinders, heads, sectors);
+        val |= 0xf0;
+    }
+    if (ide_get_geometry(arg->idebus[0], 1,
+                         &cylinders, &heads, &sectors) >= 0) {
+        cmos_init_hd(s, 0x1a, 0x24, cylinders, heads, sectors);
+        val |= 0x0f;
+    }
+    rtc_set_memory(s, 0x12, val);
 
     val = 0;
     for (i = 0; i < 4; i++) {
-        if (hd_table[i]) {
-            int cylinders, heads, sectors, translation;
-            /* NOTE: bdrv_get_geometry_hint() returns the physical
-                geometry.  It is always such that: 1 <= sects <= 63, 1
-                <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
-                geometry can be different if a translation is done. */
-            translation = bdrv_get_translation_hint(hd_table[i]);
-            if (translation == BIOS_ATA_TRANSLATION_AUTO) {
-                bdrv_get_geometry_hint(hd_table[i], &cylinders, &heads, &sectors);
-                if (cylinders <= 1024 && heads <= 16 && sectors <= 63) {
-                    /* No translation. */
-                    translation = 0;
-                } else {
-                    /* LBA translation. */
-                    translation = 1;
-                }
-            } else {
-                translation--;
-            }
-            val |= translation << (i * 2);
+        /* NOTE: ide_get_geometry() returns the physical
+           geometry.  It is always such that: 1 <= sects <= 63, 1
+           <= heads <= 16, 1 <= cylinders <= 16383. The BIOS
+           geometry can be different if a translation is done. */
+        if (ide_get_geometry(arg->idebus[i / 2], i % 2,
+                             &cylinders, &heads, &sectors) >= 0) {
+            trans = ide_get_bios_chs_trans(arg->idebus[i / 2], i % 2) - 1;
+            assert((trans & ~3) == 0);
+            val |= trans << (i * 2);
         }
     }
     rtc_set_memory(s, 0x39, val);
@@ -335,10 +328,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   ISADevice *floppy, BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
-    int val, nb, nb_heads, max_track, last_sect, i;
+    int val, nb, i;
     FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
-    FDriveRate rate;
-    BlockDriverState *fd[MAX_FD];
     static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -381,13 +372,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     /* floppy type */
     if (floppy) {
-        fdc_get_bs(fd, floppy);
         for (i = 0; i < 2; i++) {
-            if (fd[i]) {
-                bdrv_get_floppy_geometry_hint(fd[i], &nb_heads, &max_track,
-                                              &last_sect, FDRIVE_DRV_NONE,
-                                              &fd_type[i], &rate);
-            }
+            fd_type[i] = isa_fdc_get_drive_type(floppy, i);
         }
     }
     val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
@@ -418,8 +404,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     /* hard drives */
     arg.rtc_state = s;
-    arg.idebus0 = idebus0;
-    arg.idebus1 = idebus1;
+    arg.idebus[0] = idebus0;
+    arg.idebus[1] = idebus1;
     qemu_register_reset(pc_cmos_init_late, &arg);
 }
 

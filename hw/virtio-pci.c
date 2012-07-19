@@ -173,44 +173,16 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
                          __func__, r);
             return r;
         }
+        virtio_queue_set_host_notifier_fd_handler(vq, true);
         memory_region_add_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
-                                  true, n, event_notifier_get_fd(notifier));
+                                  true, n, notifier);
     } else {
         memory_region_del_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
-                                  true, n, event_notifier_get_fd(notifier));
-        /* Handle the race condition where the guest kicked and we deassigned
-         * before we got around to handling the kick.
-         */
-        if (event_notifier_test_and_clear(notifier)) {
-            virtio_queue_notify_vq(vq);
-        }
-
+                                  true, n, notifier);
+        virtio_queue_set_host_notifier_fd_handler(vq, false);
         event_notifier_cleanup(notifier);
     }
     return r;
-}
-
-static void virtio_pci_host_notifier_read(void *opaque)
-{
-    VirtQueue *vq = opaque;
-    EventNotifier *n = virtio_queue_get_host_notifier(vq);
-    if (event_notifier_test_and_clear(n)) {
-        virtio_queue_notify_vq(vq);
-    }
-}
-
-static void virtio_pci_set_host_notifier_fd_handler(VirtIOPCIProxy *proxy,
-                                                    int n, bool assign)
-{
-    VirtQueue *vq = virtio_get_queue(proxy->vdev, n);
-    EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
-    if (assign) {
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            virtio_pci_host_notifier_read, NULL, vq);
-    } else {
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            NULL, NULL, NULL);
-    }
 }
 
 static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
@@ -232,8 +204,6 @@ static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
         if (r < 0) {
             goto assign_error;
         }
-
-        virtio_pci_set_host_notifier_fd_handler(proxy, n, true);
     }
     proxy->ioeventfd_started = true;
     return;
@@ -244,7 +214,6 @@ assign_error:
             continue;
         }
 
-        virtio_pci_set_host_notifier_fd_handler(proxy, n, false);
         r = virtio_pci_set_host_notifier_internal(proxy, n, false);
         assert(r >= 0);
     }
@@ -266,7 +235,6 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
             continue;
         }
 
-        virtio_pci_set_host_notifier_fd_handler(proxy, n, false);
         r = virtio_pci_set_host_notifier_internal(proxy, n, false);
         assert(r >= 0);
     }
@@ -528,25 +496,15 @@ static unsigned virtio_pci_get_features(void *opaque)
     return proxy->host_features;
 }
 
-static void virtio_pci_guest_notifier_read(void *opaque)
-{
-    VirtQueue *vq = opaque;
-    EventNotifier *n = virtio_queue_get_guest_notifier(vq);
-    if (event_notifier_test_and_clear(n)) {
-        virtio_irq(vq);
-    }
-}
-
 static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
                                         unsigned int queue_no,
                                         unsigned int vector,
                                         MSIMessage msg)
 {
     VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
+    EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     VirtIOIRQFD *irqfd = &proxy->vector_irqfd[vector];
-    int fd, ret;
-
-    fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vq));
+    int ret;
 
     if (irqfd->users == 0) {
         ret = kvm_irqchip_add_msi_route(kvm_state, msg);
@@ -557,7 +515,7 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
     }
     irqfd->users++;
 
-    ret = kvm_irqchip_add_irqfd(kvm_state, fd, irqfd->virq);
+    ret = kvm_irqchip_add_irq_notifier(kvm_state, n, irqfd->virq);
     if (ret < 0) {
         if (--irqfd->users == 0) {
             kvm_irqchip_release_virq(kvm_state, irqfd->virq);
@@ -565,8 +523,7 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
         return ret;
     }
 
-    qemu_set_fd_handler(fd, NULL, NULL, NULL);
-
+    virtio_queue_set_guest_notifier_fd_handler(vq, true, true);
     return 0;
 }
 
@@ -575,19 +532,18 @@ static void kvm_virtio_pci_vq_vector_release(VirtIOPCIProxy *proxy,
                                              unsigned int vector)
 {
     VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
+    EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     VirtIOIRQFD *irqfd = &proxy->vector_irqfd[vector];
-    int fd, ret;
+    int ret;
 
-    fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vq));
-
-    ret = kvm_irqchip_remove_irqfd(kvm_state, fd, irqfd->virq);
+    ret = kvm_irqchip_remove_irq_notifier(kvm_state, n, irqfd->virq);
     assert(ret == 0);
 
     if (--irqfd->users == 0) {
         kvm_irqchip_release_virq(kvm_state, irqfd->virq);
     }
 
-    qemu_set_fd_handler(fd, virtio_pci_guest_notifier_read, NULL, vq);
+    virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
 }
 
 static int kvm_virtio_pci_vector_use(PCIDevice *dev, unsigned vector,
@@ -649,14 +605,9 @@ static int virtio_pci_set_guest_notifier(void *opaque, int n, bool assign)
         if (r < 0) {
             return r;
         }
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            virtio_pci_guest_notifier_read, NULL, vq);
+        virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
     } else {
-        qemu_set_fd_handler(event_notifier_get_fd(notifier),
-                            NULL, NULL, NULL);
-        /* Test and clear notifier before closing it,
-         * in case poll callback didn't have time to run. */
-        virtio_pci_guest_notifier_read(vq);
+        virtio_queue_set_guest_notifier_fd_handler(vq, false, false);
         event_notifier_cleanup(notifier);
     }
 
@@ -936,6 +887,7 @@ static int virtio_balloon_exit_pci(PCIDevice *pci_dev)
 static Property virtio_blk_properties[] = {
     DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, blk.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(VirtIOPCIProxy, blk.conf),
     DEFINE_PROP_STRING("serial", VirtIOPCIProxy, blk.serial),
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOPCIProxy, blk.scsi, 0, true),
