@@ -355,6 +355,9 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
 #define cpu_handle_mmu_fault cpu_openrisc_handle_mmu_fault
 
 #ifndef CONFIG_USER_ONLY
+/* hw/openrisc_pic.c */
+void cpu_openrisc_pic_init(OpenRISCCPU *cpu);
+
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
 int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
                                 target_phys_addr_t *physical,
