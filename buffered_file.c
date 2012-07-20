@@ -23,7 +23,6 @@
 
 typedef struct QEMUFileBuffered
 {
-    BufferedPutReadyFunc *put_ready;
     BufferedWaitForUnfreezeFunc *wait_for_unfreeze;
     BufferedCloseFunc *close;
     MigrationState *migration_state;
@@ -128,7 +127,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         DPRINTF("file is ready\n");
         if (!s->freeze_output && s->bytes_xfer < s->xfer_limit) {
             DPRINTF("notifying client\n");
-            s->put_ready(s->migration_state);
+            migrate_fd_put_ready(s->migration_state);
         }
     }
 
@@ -227,7 +226,6 @@ static void buffered_rate_tick(void *opaque)
 
 QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
                                   size_t bytes_per_sec,
-                                  BufferedPutReadyFunc *put_ready,
                                   BufferedWaitForUnfreezeFunc *wait_for_unfreeze,
                                   BufferedCloseFunc *close)
 {
@@ -237,7 +235,6 @@ QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
 
     s->migration_state = migration_state;
     s->xfer_limit = bytes_per_sec / 10;
-    s->put_ready = put_ready;
     s->wait_for_unfreeze = wait_for_unfreeze;
     s->close = close;
 

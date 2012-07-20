@@ -80,6 +80,7 @@ void migrate_fd_connect(MigrationState *s);
 
 ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
                               size_t size);
+void migrate_fd_put_ready(MigrationState *s);
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);
