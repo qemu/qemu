@@ -27,7 +27,7 @@ typedef struct QEMUFileBuffered
     BufferedPutReadyFunc *put_ready;
     BufferedWaitForUnfreezeFunc *wait_for_unfreeze;
     BufferedCloseFunc *close;
-    void *migration_state;
+    MigrationState *migration_state;
     QEMUFile *file;
     int freeze_output;
     size_t bytes_xfer;
@@ -226,7 +226,7 @@ static void buffered_rate_tick(void *opaque)
     buffered_put_buffer(s, NULL, 0, 0);
 }
 
-QEMUFile *qemu_fopen_ops_buffered(void *opaque,
+QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
                                   size_t bytes_per_sec,
                                   BufferedPutFunc *put_buffer,
                                   BufferedPutReadyFunc *put_ready,
@@ -237,7 +237,7 @@ QEMUFile *qemu_fopen_ops_buffered(void *opaque,
 
     s = g_malloc0(sizeof(*s));
 
-    s->migration_state = opaque;
+    s->migration_state = migration_state;
     s->xfer_limit = bytes_per_sec / 10;
     s->put_buffer = put_buffer;
     s->put_ready = put_ready;
