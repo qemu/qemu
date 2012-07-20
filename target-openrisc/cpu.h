@@ -80,6 +80,9 @@ enum {
                                       (reg) |= ((v & 0x1f) << 2);\
                                   } while (0)
 
+/* Version Register */
+#define SPR_VR 0xFFFF003F
+
 /* Internal flags, delay slot flag */
 #define D_FLAG    1
 

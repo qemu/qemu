@@ -997,10 +997,36 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
 
     case 0x2d:    /* l.mfspr */
         LOG_DIS("l.mfspr r%d, r%d, %d\n", rd, ra, I16);
+        {
+#if defined(CONFIG_USER_ONLY)
+            return;
+#else
+            TCGv_i32 ti = tcg_const_i32(I16);
+            if (dc->mem_idx == MMU_USER_IDX) {
+                gen_illegal_exception(dc);
+                return;
+            }
+            gen_helper_mfspr(cpu_R[rd], cpu_env, cpu_R[rd], cpu_R[ra], ti);
+            tcg_temp_free_i32(ti);
+#endif
+        }
         break;
 
     case 0x30:    /* l.mtspr */
         LOG_DIS("l.mtspr %d, r%d, r%d, %d\n", I5, ra, rb, I11);
+        {
+#if defined(CONFIG_USER_ONLY)
+            return;
+#else
+            TCGv_i32 im = tcg_const_i32(tmp);
+            if (dc->mem_idx == MMU_USER_IDX) {
+                gen_illegal_exception(dc);
+                return;
+            }
+            gen_helper_mtspr(cpu_env, cpu_R[ra], cpu_R[rb], im);
+            tcg_temp_free_i32(im);
+#endif
+        }
         break;
 
 /* not used yet, open it when we need or64.  */
