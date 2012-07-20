@@ -951,6 +951,7 @@ microblaze-linux-user \
 microblazeel-linux-user \
 mips-linux-user \
 mipsel-linux-user \
+or32-linux-user \
 ppc-linux-user \
 ppc64-linux-user \
 ppc64abi32-linux-user \

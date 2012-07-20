@@ -787,6 +787,47 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 
 #endif /* TARGET_MICROBLAZE */
 
+#ifdef TARGET_OPENRISC
+
+#define ELF_START_MMAP 0x08000000
+
+#define elf_check_arch(x) ((x) == EM_OPENRISC)
+
+#define ELF_ARCH EM_OPENRISC
+#define ELF_CLASS ELFCLASS32
+#define ELF_DATA  ELFDATA2MSB
+
+static inline void init_thread(struct target_pt_regs *regs,
+                               struct image_info *infop)
+{
+    regs->pc = infop->entry;
+    regs->gpr[1] = infop->start_stack;
+}
+
+#define USE_ELF_CORE_DUMP
+#define ELF_EXEC_PAGESIZE 8192
+
+/* See linux kernel arch/openrisc/include/asm/elf.h.  */
+#define ELF_NREG 34 /* gprs and pc, sr */
+typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
+
+static void elf_core_copy_regs(target_elf_gregset_t *regs,
+                               const CPUOpenRISCState *env)
+{
+    int i;
+
+    for (i = 0; i < 32; i++) {
+        (*regs)[i] = tswapl(env->gpr[i]);
+    }
+
+    (*regs)[32] = tswapl(env->pc);
+    (*regs)[33] = tswapl(env->sr);
+}
+#define ELF_HWCAP 0
+#define ELF_PLATFORM NULL
+
+#endif /* TARGET_OPENRISC */
+
 #ifdef TARGET_SH4
 
 #define ELF_START_MMAP 0x80000000

@@ -367,11 +367,13 @@ void openrisc_translate_init(void);
 int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
                                   target_ulong address,
                                   int rw, int mmu_idx);
+int cpu_openrisc_signal_handler(int host_signum, void *pinfo, void *puc);
 
 #define cpu_list cpu_openrisc_list
 #define cpu_exec cpu_openrisc_exec
 #define cpu_gen_code cpu_openrisc_gen_code
 #define cpu_handle_mmu_fault cpu_openrisc_handle_mmu_fault
+#define cpu_signal_handler cpu_openrisc_signal_handler
 
 #ifndef CONFIG_USER_ONLY
 /* hw/openrisc_pic.c */
@@ -403,6 +405,16 @@ static inline CPUOpenRISCState *cpu_init(const char *cpu_model)
     }
     return NULL;
 }
+
+#if defined(CONFIG_USER_ONLY)
+static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
+{
+    if (newsp) {
+        env->gpr[1] = newsp;
+    }
+    env->gpr[2] = 0;
+}
+#endif
 
 #include "cpu-all.h"
 
