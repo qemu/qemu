@@ -35,6 +35,7 @@
 
 typedef struct NetSocketState {
     NetClientState nc;
+    int listen_fd;
     int fd;
     int state; /* 0 = getting length, 1 = getting data */
     unsigned int index;
@@ -43,12 +44,7 @@ typedef struct NetSocketState {
     struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
 } NetSocketState;
 
-typedef struct NetSocketListenState {
-    NetClientState *peer;
-    char *model;
-    char *name;
-    int fd;
-} NetSocketListenState;
+static void net_socket_accept(void *opaque);
 
 /* XXX: we consider we can send the whole packet without blocking */
 static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -86,7 +82,19 @@ static void net_socket_send(void *opaque)
         /* end of connection */
     eoc:
         qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        if (s->listen_fd != -1) {
+            qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
+        }
         closesocket(s->fd);
+
+        s->fd = -1;
+        s->state = 0;
+        s->index = 0;
+        s->packet_len = 0;
+        s->nc.link_down = true;
+        memset(s->buf, 0, sizeof(s->buf));
+        memset(s->nc.info_str, 0, sizeof(s->nc.info_str));
+
         return;
     }
     buf = buf1;
@@ -234,8 +242,16 @@ fail:
 static void net_socket_cleanup(NetClientState *nc)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
-    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
-    close(s->fd);
+    if (s->fd != -1) {
+        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        close(s->fd);
+        s->fd = -1;
+    }
+    if (s->listen_fd != -1) {
+        qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
+        closesocket(s->listen_fd);
+        s->listen_fd = -1;
+    }
 }
 
 static NetClientInfo net_dgram_socket_info = {
@@ -297,6 +313,7 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     s = DO_UPCAST(NetSocketState, nc, nc);
 
     s->fd = fd;
+    s->listen_fd = -1;
 
     qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
 
@@ -340,6 +357,7 @@ static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
     s = DO_UPCAST(NetSocketState, nc, nc);
 
     s->fd = fd;
+    s->listen_fd = -1;
 
     if (is_connected) {
         net_socket_connect(s);
@@ -377,27 +395,28 @@ static NetSocketState *net_socket_fd_init(NetClientState *peer,
 
 static void net_socket_accept(void *opaque)
 {
-    NetSocketListenState *s = opaque;
-    NetSocketState *s1;
+    NetSocketState *s = opaque;
     struct sockaddr_in saddr;
     socklen_t len;
     int fd;
 
     for(;;) {
         len = sizeof(saddr);
-        fd = qemu_accept(s->fd, (struct sockaddr *)&saddr, &len);
+        fd = qemu_accept(s->listen_fd, (struct sockaddr *)&saddr, &len);
         if (fd < 0 && errno != EINTR) {
             return;
         } else if (fd >= 0) {
+            qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
             break;
         }
     }
-    s1 = net_socket_fd_init(s->peer, s->model, s->name, fd, 1);
-    if (s1) {
-        snprintf(s1->nc.info_str, sizeof(s1->nc.info_str),
-                 "socket: connection from %s:%d",
-                 inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
-    }
+
+    s->fd = fd;
+    s->nc.link_down = false;
+    net_socket_connect(s);
+    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
+             "socket: connection from %s:%d",
+             inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
 }
 
 static int net_socket_listen_init(NetClientState *peer,
@@ -405,19 +424,17 @@ static int net_socket_listen_init(NetClientState *peer,
                                   const char *name,
                                   const char *host_str)
 {
-    NetSocketListenState *s;
-    int fd, val, ret;
+    NetClientState *nc;
+    NetSocketState *s;
     struct sockaddr_in saddr;
+    int fd, val, ret;
 
     if (parse_host_port(&saddr, host_str) < 0)
         return -1;
 
-    s = g_malloc0(sizeof(NetSocketListenState));
-
     fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
         perror("socket");
-        g_free(s);
         return -1;
     }
     socket_set_nonblock(fd);
@@ -429,22 +446,23 @@ static int net_socket_listen_init(NetClientState *peer,
     ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
     if (ret < 0) {
         perror("bind");
-        g_free(s);
         closesocket(fd);
         return -1;
     }
     ret = listen(fd, 0);
     if (ret < 0) {
         perror("listen");
-        g_free(s);
         closesocket(fd);
         return -1;
     }
-    s->peer = peer;
-    s->model = g_strdup(model);
-    s->name = name ? g_strdup(name) : NULL;
-    s->fd = fd;
-    qemu_set_fd_handler(fd, net_socket_accept, NULL, s);
+
+    nc = qemu_new_net_client(&net_socket_info, peer, model, name);
+    s = DO_UPCAST(NetSocketState, nc, nc);
+    s->fd = -1;
+    s->listen_fd = fd;
+    s->nc.link_down = true;
+
+    qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
     return 0;
 }
 
