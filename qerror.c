@@ -346,22 +346,6 @@ static QError *qerror_new(void)
     return qerr;
 }
 
-static void GCC_FMT_ATTR(2, 3) qerror_abort(const QError *qerr,
-                                            const char *fmt, ...)
-{
-    va_list ap;
-
-    fprintf(stderr, "qerror: bad call in function '%s':\n", qerr->func);
-    fprintf(stderr, "qerror: -> ");
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-
-    fprintf(stderr, "\nqerror: call at %s:%d\n", qerr->file, qerr->linenr);
-    abort();
-}
-
 static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
                                                const char *fmt, va_list *va)
 {
@@ -369,28 +353,34 @@ static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
 
     obj = qobject_from_jsonv(fmt, va);
     if (!obj) {
-        qerror_abort(qerr, "invalid format '%s'", fmt);
+        fprintf(stderr, "invalid json in error dict '%s'\n", fmt);
+        abort();
     }
     if (qobject_type(obj) != QTYPE_QDICT) {
-        qerror_abort(qerr, "error format is not a QDict '%s'", fmt);
+        fprintf(stderr, "error is not a dict '%s'\n", fmt);
+        abort();
     }
 
     qerr->error = qobject_to_qdict(obj);
 
     obj = qdict_get(qerr->error, "class");
     if (!obj) {
-        qerror_abort(qerr, "missing 'class' key in '%s'", fmt);
+        fprintf(stderr, "missing 'class' key in '%s'\n", fmt);
+        abort();
     }
     if (qobject_type(obj) != QTYPE_QSTRING) {
-        qerror_abort(qerr, "'class' key value should be a QString");
+        fprintf(stderr, "'class' key value should be a string in '%s'\n", fmt);
+        abort();
     }
     
     obj = qdict_get(qerr->error, "data");
     if (!obj) {
-        qerror_abort(qerr, "missing 'data' key in '%s'", fmt);
+        fprintf(stderr, "missing 'data' key in '%s'\n", fmt);
+        abort();
     }
     if (qobject_type(obj) != QTYPE_QDICT) {
-        qerror_abort(qerr, "'data' key value should be a QDICT");
+        fprintf(stderr, "'data' key value should be a dict in '%s'\n", fmt);
+        abort();
     }
 }
 
@@ -407,7 +397,8 @@ static void qerror_set_desc(QError *qerr, const char *fmt)
         }
     }
 
-    qerror_abort(qerr, "error format '%s' not found", fmt);
+    fprintf(stderr, "error format '%s' not found\n", fmt);
+    abort();
 }
 
 /**
@@ -434,10 +425,6 @@ static QError *qerror_from_info(const char *file, int linenr, const char *func,
     qerr->linenr = linenr;
     qerr->file = file;
     qerr->func = func;
-
-    if (!fmt) {
-        qerror_abort(qerr, "QDict not specified");
-    }
 
     qerror_set_data(qerr, fmt, va);
     qerror_set_desc(qerr, fmt);
