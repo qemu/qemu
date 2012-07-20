@@ -235,9 +235,9 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
     rec->next_tbuf_idx = new_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
-    rec_off = write_to_buffer(rec_off, (uint8_t*)&event, sizeof(event));
-    rec_off = write_to_buffer(rec_off, (uint8_t*)&timestamp_ns, sizeof(timestamp_ns));
-    rec_off = write_to_buffer(rec_off, (uint8_t*)&rec_len, sizeof(rec_len));
+    rec_off = write_to_buffer(rec_off, &event, sizeof(event));
+    rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns));
+    rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len));
 
     rec->tbuf_idx = idx;
     rec->rec_off  = (idx + sizeof(TraceRecord)) % TRACE_BUF_LEN;
