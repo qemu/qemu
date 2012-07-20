@@ -25,6 +25,9 @@
 
 #define CPUArchState struct CPUOpenRISCState
 
+/* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
+struct OpenRISCCPU;
+
 #include "config.h"
 #include "qemu-common.h"
 #include "cpu-defs.h"
@@ -56,6 +59,12 @@ typedef struct OpenRISCCPUClass {
 } OpenRISCCPUClass;
 
 #define NB_MMU_MODES    3
+
+enum {
+    MMU_NOMMU_IDX = 0,
+    MMU_SUPERVISOR_IDX = 1,
+    MMU_USER_IDX = 2,
+};
 
 #define TARGET_PAGE_BITS 13
 
@@ -208,6 +217,56 @@ enum {
     OPENRISC_FEATURE_OV64S = (1 << 9),
 };
 
+/* TLB size */
+enum {
+    DTLB_WAYS = 1,
+    DTLB_SIZE = 64,
+    DTLB_MASK = (DTLB_SIZE-1),
+    ITLB_WAYS = 1,
+    ITLB_SIZE = 64,
+    ITLB_MASK = (ITLB_SIZE-1),
+};
+
+/* TLB prot */
+enum {
+    URE = (1 << 6),
+    UWE = (1 << 7),
+    SRE = (1 << 8),
+    SWE = (1 << 9),
+
+    SXE = (1 << 6),
+    UXE = (1 << 7),
+};
+
+/* check if tlb available */
+enum {
+    TLBRET_INVALID = -3,
+    TLBRET_NOMATCH = -2,
+    TLBRET_BADADDR = -1,
+    TLBRET_MATCH = 0
+};
+
+typedef struct OpenRISCTLBEntry {
+    uint32_t mr;
+    uint32_t tr;
+} OpenRISCTLBEntry;
+
+#ifndef CONFIG_USER_ONLY
+typedef struct CPUOpenRISCTLBContext {
+    OpenRISCTLBEntry itlb[ITLB_WAYS][ITLB_SIZE];
+    OpenRISCTLBEntry dtlb[DTLB_WAYS][DTLB_SIZE];
+
+    int (*cpu_openrisc_map_address_code)(struct OpenRISCCPU *cpu,
+                                         target_phys_addr_t *physical,
+                                         int *prot,
+                                         target_ulong address, int rw);
+    int (*cpu_openrisc_map_address_data)(struct OpenRISCCPU *cpu,
+                                         target_phys_addr_t *physical,
+                                         int *prot,
+                                         target_ulong address, int rw);
+} CPUOpenRISCTLBContext;
+#endif
+
 typedef struct CPUOpenRISCState {
     target_ulong gpr[32];     /* General registers */
     target_ulong pc;          /* Program counter */
@@ -241,6 +300,8 @@ typedef struct CPUOpenRISCState {
     CPU_COMMON
 
 #ifndef CONFIG_USER_ONLY
+    CPUOpenRISCTLBContext * tlb;
+
     struct QEMUTimer *timer;
     uint32_t ttmr;          /* Timer tick mode register */
     uint32_t ttcr;          /* Timer tick count register */
@@ -280,13 +341,26 @@ void cpu_openrisc_list(FILE *f, fprintf_function cpu_fprintf);
 int cpu_openrisc_exec(CPUOpenRISCState *s);
 void do_interrupt(CPUOpenRISCState *env);
 void openrisc_translate_init(void);
+int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
+                                  target_ulong address,
+                                  int rw, int mmu_idx);
 
 #define cpu_list cpu_openrisc_list
 #define cpu_exec cpu_openrisc_exec
 #define cpu_gen_code cpu_openrisc_gen_code
+#define cpu_handle_mmu_fault cpu_openrisc_handle_mmu_fault
 
 #ifndef CONFIG_USER_ONLY
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
+int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
+                                target_phys_addr_t *physical,
+                                int *prot, target_ulong address, int rw);
+int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
+                               target_phys_addr_t *physical,
+                               int *prot, target_ulong address, int rw);
+int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
+                               target_phys_addr_t *physical,
+                               int *prot, target_ulong address, int rw);
 #endif
 
 static inline CPUOpenRISCState *cpu_init(const char *cpu_model)
@@ -312,7 +386,10 @@ static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
 
 static inline int cpu_mmu_index(CPUOpenRISCState *env)
 {
-    return 0;
+    if (!(env->sr & SR_IME)) {
+        return MMU_NOMMU_IDX;
+    }
+    return (env->sr & SR_SM) == 0 ? MMU_USER_IDX : MMU_SUPERVISOR_IDX;
 }
 
 static inline bool cpu_has_work(CPUOpenRISCState *env)
