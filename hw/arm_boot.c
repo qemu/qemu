@@ -399,6 +399,12 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
             bootloader[5] = dtb_start;
         } else {
             bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
+            if (info->ram_size >= (1ULL << 32)) {
+                fprintf(stderr, "qemu: RAM size must be less than 4GB to boot"
+                        " Linux kernel using ATAGS (try passing a device tree"
+                        " using -dtb)\n");
+                exit(1);
+            }
         }
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++) {
