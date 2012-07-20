@@ -356,6 +356,12 @@ static inline void migration_bitmap_set_dirty(MemoryRegion *mr, int length)
     }
 }
 
+static void migration_bitmap_sync(void)
+{
+    memory_global_sync_dirty_bitmap(get_system_memory());
+}
+
+
 /*
  * ram_save_block: Writes a page of memory to the stream f
  *
@@ -613,7 +619,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             expected_downtime, migrate_max_downtime());
 
     if (expected_downtime <= migrate_max_downtime()) {
-        memory_global_sync_dirty_bitmap(get_system_memory());
+        migration_bitmap_sync();
         expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
         s->expected_downtime = expected_downtime / 1000000; /* ns -> ms */
 
@@ -624,7 +630,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
-    memory_global_sync_dirty_bitmap(get_system_memory());
+    migration_bitmap_sync();
 
     /* try transferring iterative blocks of memory */
 
