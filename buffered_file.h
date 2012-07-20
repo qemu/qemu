@@ -17,12 +17,10 @@
 #include "hw/hw.h"
 #include "migration.h"
 
-typedef void (BufferedWaitForUnfreezeFunc)(void *opaque);
 typedef int (BufferedCloseFunc)(void *opaque);
 
 QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
                                   size_t xfer_limit,
-                                  BufferedWaitForUnfreezeFunc *wait_for_unfreeze,
                                   BufferedCloseFunc *close);
 
 #endif

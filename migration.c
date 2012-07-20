@@ -370,9 +370,8 @@ static void migrate_fd_cancel(MigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-static void migrate_fd_wait_for_unfreeze(void *opaque)
+void migrate_fd_wait_for_unfreeze(MigrationState *s)
 {
-    MigrationState *s = opaque;
     int ret;
 
     DPRINTF("wait for unfreeze\n");
@@ -434,7 +433,6 @@ void migrate_fd_connect(MigrationState *s)
     s->state = MIG_STATE_ACTIVE;
     s->file = qemu_fopen_ops_buffered(s,
                                       s->bandwidth_limit,
-                                      migrate_fd_wait_for_unfreeze,
                                       migrate_fd_close);
 
     DPRINTF("beginning savevm\n");
