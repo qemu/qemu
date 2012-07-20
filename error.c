@@ -65,10 +65,7 @@ bool error_is_set(Error **errp)
 const char *error_get_pretty(Error *err)
 {
     if (err->msg == NULL) {
-        QString *str;
-        str = qerror_format(err->fmt, err->obj);
-        err->msg = g_strdup(qstring_get_str(str));
-        QDECREF(str);
+        err->msg = qerror_format(err->fmt, err->obj);
     }
 
     return err->msg;

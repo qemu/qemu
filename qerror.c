@@ -493,9 +493,11 @@ static QString *qerror_format_desc(QDict *error,
     return qstring;
 }
 
-QString *qerror_format(const char *fmt, QDict *error)
+char *qerror_format(const char *fmt, QDict *error)
 {
     const QErrorStringTable *entry = NULL;
+    QString *qstr;
+    char *ret;
     int i;
 
     for (i = 0; qerror_table[i].error_fmt; i++) {
@@ -505,7 +507,11 @@ QString *qerror_format(const char *fmt, QDict *error)
         }
     }
 
-    return qerror_format_desc(error, entry);
+    qstr = qerror_format_desc(error, entry);
+    ret = g_strdup(qstring_get_str(qstr));
+    QDECREF(qstr);
+
+    return ret;
 }
 
 /**
