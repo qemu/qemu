@@ -220,6 +220,22 @@ enum {
     OPENRISC_FEATURE_OV64S = (1 << 9),
 };
 
+/* Tick Timer Mode Register */
+enum {
+    TTMR_TP = (0xfffffff),
+    TTMR_IP = (1 << 28),
+    TTMR_IE = (1 << 29),
+    TTMR_M  = (3 << 30),
+};
+
+/* Timer Mode */
+enum {
+    TIMER_NONE = (0 << 30),
+    TIMER_INTR = (1 << 30),
+    TIMER_SHOT = (2 << 30),
+    TIMER_CONT = (3 << 30),
+};
+
 /* TLB size */
 enum {
     DTLB_WAYS = 1,
@@ -357,6 +373,12 @@ int cpu_openrisc_handle_mmu_fault(CPUOpenRISCState *env,
 #ifndef CONFIG_USER_ONLY
 /* hw/openrisc_pic.c */
 void cpu_openrisc_pic_init(OpenRISCCPU *cpu);
+
+/* hw/openrisc_timer.c */
+void cpu_openrisc_clock_init(OpenRISCCPU *cpu);
+void cpu_openrisc_count_update(OpenRISCCPU *cpu);
+void cpu_openrisc_count_start(OpenRISCCPU *cpu);
+void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
 int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
