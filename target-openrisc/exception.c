@@ -1,5 +1,5 @@
 /*
- * OpenRISC helper defines
+ * OpenRISC exception.
  *
  * Copyright (c) 2011-2012 Jia Liu <proljc@gmail.com>
  *
@@ -17,12 +17,11 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "def-helper.h"
+#include "cpu.h"
+#include "exception.h"
 
-/* exception */
-DEF_HELPER_FLAGS_2(exception, 0, void, env, i32)
-
-/* interrupt */
-DEF_HELPER_FLAGS_1(rfe, 0, void, env)
-
-#include "def-helper.h"
+void QEMU_NORETURN raise_exception(OpenRISCCPU *cpu, uint32_t excp)
+{
+    cpu->env.exception_index = excp;
+    cpu_loop_exit(&cpu->env);
+}

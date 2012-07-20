@@ -1,5 +1,5 @@
 /*
- * OpenRISC helper defines
+ * OpenRISC exception helper routines
  *
  * Copyright (c) 2011-2012 Jia Liu <proljc@gmail.com>
  *
@@ -17,12 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "def-helper.h"
+#include "cpu.h"
+#include "helper.h"
+#include "exception.h"
 
-/* exception */
-DEF_HELPER_FLAGS_2(exception, 0, void, env, i32)
+void HELPER(exception)(CPUOpenRISCState *env, uint32_t excp)
+{
+    OpenRISCCPU *cpu = OPENRISC_CPU(ENV_GET_CPU(env));
 
-/* interrupt */
-DEF_HELPER_FLAGS_1(rfe, 0, void, env)
-
-#include "def-helper.h"
+    raise_exception(cpu, excp);
+}

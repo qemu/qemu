@@ -1,3 +1,3 @@
 obj-$(CONFIG_SOFTMMU) += machine.o
-obj-y += cpu.o interrupt.o mmu.o translate.o
-obj-y += interrupt_helper.o mmu_helper.o
+obj-y += cpu.o exception.o interrupt.o mmu.o translate.o
+obj-y += exception_helper.o interrupt_helper.o mmu_helper.o
