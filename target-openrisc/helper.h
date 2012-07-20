@@ -22,6 +22,39 @@
 /* exception */
 DEF_HELPER_FLAGS_2(exception, 0, void, env, i32)
 
+/* float */
+DEF_HELPER_FLAGS_2(itofd, 0, i64, env, i64)
+DEF_HELPER_FLAGS_2(itofs, 0, i32, env, i32)
+DEF_HELPER_FLAGS_2(ftoid, 0, i64, env, i64)
+DEF_HELPER_FLAGS_2(ftois, 0, i32, env, i32)
+
+#define FOP_MADD(op)                                             \
+DEF_HELPER_FLAGS_3(float_ ## op ## _s, 0, i32, env, i32, i32)    \
+DEF_HELPER_FLAGS_3(float_ ## op ## _d, 0, i64, env, i64, i64)
+FOP_MADD(muladd)
+#undef FOP_MADD
+
+#define FOP_CALC(op)                                            \
+DEF_HELPER_FLAGS_3(float_ ## op ## _s, 0, i32, env, i32, i32)    \
+DEF_HELPER_FLAGS_3(float_ ## op ## _d, 0, i64, env, i64, i64)
+FOP_CALC(add)
+FOP_CALC(sub)
+FOP_CALC(mul)
+FOP_CALC(div)
+FOP_CALC(rem)
+#undef FOP_CALC
+
+#define FOP_CMP(op)                                              \
+DEF_HELPER_FLAGS_3(float_ ## op ## _s, 0, i32, env, i32, i32)    \
+DEF_HELPER_FLAGS_3(float_ ## op ## _d, 0, i64, env, i64, i64)
+FOP_CMP(eq)
+FOP_CMP(lt)
+FOP_CMP(le)
+FOP_CMP(ne)
+FOP_CMP(gt)
+FOP_CMP(ge)
+#undef FOP_CMP
+
 /* int */
 DEF_HELPER_FLAGS_1(ff1, 0, tl, tl)
 DEF_HELPER_FLAGS_1(fl1, 0, tl, tl)
