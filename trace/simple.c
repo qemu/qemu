@@ -70,7 +70,7 @@ typedef struct {
     uint64_t header_event_id; /* HEADER_EVENT_ID */
     uint64_t header_magic;    /* HEADER_MAGIC    */
     uint64_t header_version;  /* HEADER_VERSION  */
-} TraceRecordHeader;
+} TraceLogHeader;
 
 
 static void read_from_buffer(unsigned int idx, void *dataptr, size_t size);
@@ -295,7 +295,7 @@ void st_set_trace_file_enabled(bool enable)
     flush_trace_file(true);
 
     if (enable) {
-        static const TraceRecordHeader header = {
+        static const TraceLogHeader header = {
             .header_event_id = HEADER_EVENT_ID,
             .header_magic = HEADER_MAGIC,
             /* Older log readers will check for version at next location */
