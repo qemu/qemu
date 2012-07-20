@@ -385,22 +385,6 @@ static QDict *error_obj_from_fmt_no_fail(const char *fmt, va_list *va)
     return ret;
 }
 
-static const QErrorStringTable *get_desc_no_fail(const char *fmt)
-{
-    int i;
-
-    // FIXME: inefficient loop
-
-    for (i = 0; qerror_table[i].error_fmt; i++) {
-        if (strcmp(qerror_table[i].error_fmt, fmt) == 0) {
-            return &qerror_table[i];
-        }
-    }
-
-    fprintf(stderr, "error format '%s' not found\n", fmt);
-    abort();
-}
-
 /**
  * qerror_from_info(): Create a new QError from error information
  *
@@ -414,7 +398,7 @@ static QError *qerror_from_info(const char *fmt, va_list *va)
     loc_save(&qerr->loc);
 
     qerr->error = error_obj_from_fmt_no_fail(fmt, va);
-    qerr->entry = get_desc_no_fail(fmt);
+    qerr->err_msg = qerror_format(fmt, qerr->error);
 
     return qerr;
 }
@@ -519,7 +503,7 @@ char *qerror_format(const char *fmt, QDict *error)
  */
 QString *qerror_human(const QError *qerror)
 {
-    return qerror_format_desc(qerror->error, qerror->entry);
+    return qstring_from_str(qerror->err_msg);
 }
 
 /**
@@ -566,19 +550,13 @@ struct Error
 void qerror_report_err(Error *err)
 {
     QError *qerr;
-    int i;
 
     qerr = qerror_new();
     loc_save(&qerr->loc);
     QINCREF(err->obj);
     qerr->error = err->obj;
 
-    for (i = 0; qerror_table[i].error_fmt; i++) {
-        if (strcmp(qerror_table[i].error_fmt, err->fmt) == 0) {
-            qerr->entry = &qerror_table[i];
-            break;
-        }
-    }
+    qerr->err_msg = qerror_format(err->fmt, qerr->error);
 
     if (monitor_cur_is_qmp()) {
         monitor_set_error(cur_mon, qerr);
@@ -619,5 +597,6 @@ static void qerror_destroy_obj(QObject *obj)
     qerr = qobject_to_qerror(obj);
 
     QDECREF(qerr->error);
+    g_free(qerr->err_msg);
     g_free(qerr);
 }

@@ -27,7 +27,7 @@ typedef struct QError {
     QObject_HEAD;
     QDict *error;
     Location loc;
-    const QErrorStringTable *entry;
+    char *err_msg;
 } QError;
 
 QString *qerror_human(const QError *qerror);
