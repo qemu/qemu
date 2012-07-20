@@ -222,15 +222,14 @@ static void buffered_rate_tick(void *opaque)
     buffered_put_buffer(s, NULL, 0, 0);
 }
 
-QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
-                                  size_t bytes_per_sec)
+QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state)
 {
     QEMUFileBuffered *s;
 
     s = g_malloc0(sizeof(*s));
 
     s->migration_state = migration_state;
-    s->xfer_limit = bytes_per_sec / 10;
+    s->xfer_limit = migration_state->bandwidth_limit / 10;
 
     s->file = qemu_fopen_ops(s, buffered_put_buffer, NULL,
                              buffered_close, buffered_rate_limit,
