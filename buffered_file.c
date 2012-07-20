@@ -27,7 +27,7 @@ typedef struct QEMUFileBuffered
     BufferedPutReadyFunc *put_ready;
     BufferedWaitForUnfreezeFunc *wait_for_unfreeze;
     BufferedCloseFunc *close;
-    void *opaque;
+    void *migration_state;
     QEMUFile *file;
     int freeze_output;
     size_t bytes_xfer;
@@ -78,7 +78,7 @@ static void buffered_flush(QEMUFileBuffered *s)
     while (s->bytes_xfer < s->xfer_limit && offset < s->buffer_size) {
         ssize_t ret;
 
-        ret = s->put_buffer(s->opaque, s->buffer + offset,
+        ret = s->put_buffer(s->migration_state, s->buffer + offset,
                             s->buffer_size - offset);
         if (ret == -EAGAIN) {
             DPRINTF("backend not ready, freezing\n");
@@ -129,7 +129,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         DPRINTF("file is ready\n");
         if (!s->freeze_output && s->bytes_xfer < s->xfer_limit) {
             DPRINTF("notifying client\n");
-            s->put_ready(s->opaque);
+            s->put_ready(s->migration_state);
         }
     }
 
@@ -147,10 +147,10 @@ static int buffered_close(void *opaque)
     while (!qemu_file_get_error(s->file) && s->buffer_size) {
         buffered_flush(s);
         if (s->freeze_output)
-            s->wait_for_unfreeze(s->opaque);
+            s->wait_for_unfreeze(s->migration_state);
     }
 
-    ret = s->close(s->opaque);
+    ret = s->close(s->migration_state);
 
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
@@ -237,7 +237,7 @@ QEMUFile *qemu_fopen_ops_buffered(void *opaque,
 
     s = g_malloc0(sizeof(*s));
 
-    s->opaque = opaque;
+    s->migration_state = opaque;
     s->xfer_limit = bytes_per_sec / 10;
     s->put_buffer = put_buffer;
     s->put_ready = put_ready;
