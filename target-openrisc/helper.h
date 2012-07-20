@@ -22,6 +22,11 @@
 /* exception */
 DEF_HELPER_FLAGS_2(exception, 0, void, env, i32)
 
+/* int */
+DEF_HELPER_FLAGS_1(ff1, 0, tl, tl)
+DEF_HELPER_FLAGS_1(fl1, 0, tl, tl)
+DEF_HELPER_FLAGS_3(mul32, 0, i32, env, i32, i32)
+
 /* interrupt */
 DEF_HELPER_FLAGS_1(rfe, 0, void, env)
 
