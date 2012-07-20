@@ -78,7 +78,9 @@ static uint64_t pl011_read(void *opaque, target_phys_addr_t offset,
         if (s->read_count == s->read_trigger - 1)
             s->int_level &= ~ PL011_INT_RX;
         pl011_update(s);
-        qemu_chr_accept_input(s->chr);
+        if (s->chr) {
+            qemu_chr_accept_input(s->chr);
+        }
         return c;
     case 1: /* UARTCR */
         return 0;
