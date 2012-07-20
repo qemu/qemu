@@ -231,8 +231,6 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
     }
 
     idx = old_idx % TRACE_BUF_LEN;
-    /*  To check later if threshold crossed */
-    rec->next_tbuf_idx = new_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
     rec_off = write_to_buffer(rec_off, &event, sizeof(event));
