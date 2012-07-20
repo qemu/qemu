@@ -27,20 +27,14 @@ typedef struct QError {
     QObject_HEAD;
     QDict *error;
     Location loc;
-    int linenr;
-    const char *file;
-    const char *func;
     const QErrorStringTable *entry;
 } QError;
 
 QString *qerror_human(const QError *qerror);
-void qerror_report_internal(const char *file, int linenr, const char *func,
-                            const char *fmt, ...) GCC_FMT_ATTR(4, 5);
+void qerror_report(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 void qerror_report_err(Error *err);
 void assert_no_error(Error *err);
 QString *qerror_format(const char *fmt, QDict *error);
-#define qerror_report(fmt, ...) \
-    qerror_report_internal(__FILE__, __LINE__, __func__, fmt, ## __VA_ARGS__)
 
 /*
  * QError class list

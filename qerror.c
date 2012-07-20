@@ -404,27 +404,14 @@ static const QErrorStringTable *get_desc_no_fail(const char *fmt)
 /**
  * qerror_from_info(): Create a new QError from error information
  *
- * The information consists of:
- *
- * - file   the file name of where the error occurred
- * - linenr the line number of where the error occurred
- * - func   the function name of where the error occurred
- * - fmt    JSON printf-like dictionary, there must exist keys 'class' and
- *          'data'
- * - va     va_list of all arguments specified by fmt
- *
  * Return strong reference.
  */
-static QError *qerror_from_info(const char *file, int linenr, const char *func,
-                                const char *fmt, va_list *va)
+static QError *qerror_from_info(const char *fmt, va_list *va)
 {
     QError *qerr;
 
     qerr = qerror_new();
     loc_save(&qerr->loc);
-    qerr->linenr = linenr;
-    qerr->file = file;
-    qerr->func = func;
 
     qerr->error = error_obj_from_fmt_no_fail(fmt, va);
     qerr->entry = get_desc_no_fail(fmt);
@@ -545,14 +532,13 @@ static void qerror_print(QError *qerror)
     QDECREF(qstring);
 }
 
-void qerror_report_internal(const char *file, int linenr, const char *func,
-                            const char *fmt, ...)
+void qerror_report(const char *fmt, ...)
 {
     va_list va;
     QError *qerror;
 
     va_start(va, fmt);
-    qerror = qerror_from_info(file, linenr, func, fmt, &va);
+    qerror = qerror_from_info(fmt, &va);
     va_end(va);
 
     if (monitor_cur_is_qmp()) {
