@@ -31,6 +31,8 @@
 #include "config.h"
 #include "monitor.h"
 #include "sysemu.h"
+#include "bitops.h"
+#include "bitmap.h"
 #include "arch_init.h"
 #include "audio/audio.h"
 #include "hw/pc.h"
@@ -331,39 +333,57 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
 
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
+static unsigned long *migration_bitmap;
+static uint64_t migration_dirty_pages;
 
 static inline bool migration_bitmap_test_and_reset_dirty(MemoryRegion *mr,
                                                          ram_addr_t offset)
 {
-    bool ret = memory_region_get_dirty(mr, offset, TARGET_PAGE_SIZE,
-                                       DIRTY_MEMORY_MIGRATION);
+    bool ret;
+    int nr = (mr->ram_addr + offset) >> TARGET_PAGE_BITS;
+
+    ret = test_and_clear_bit(nr, migration_bitmap);
 
     if (ret) {
-        memory_region_reset_dirty(mr, offset, TARGET_PAGE_SIZE,
-                                  DIRTY_MEMORY_MIGRATION);
+        migration_dirty_pages--;
     }
     return ret;
 }
 
-static inline void migration_bitmap_set_dirty(MemoryRegion *mr, int length)
+static inline bool migration_bitmap_set_dirty(MemoryRegion *mr,
+                                              ram_addr_t offset)
 {
-    ram_addr_t addr;
+    bool ret;
+    int nr = (mr->ram_addr + offset) >> TARGET_PAGE_BITS;
 
-    for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
-        if (!memory_region_get_dirty(mr, addr, TARGET_PAGE_SIZE,
-                                     DIRTY_MEMORY_MIGRATION)) {
-            memory_region_set_dirty(mr, addr, TARGET_PAGE_SIZE);
-        }
+    ret = test_and_set_bit(nr, migration_bitmap);
+
+    if (!ret) {
+        migration_dirty_pages++;
     }
+    return ret;
 }
 
 static void migration_bitmap_sync(void)
 {
-    uint64_t num_dirty_pages_init = ram_list.dirty_pages;
+    RAMBlock *block;
+    ram_addr_t addr;
+    uint64_t num_dirty_pages_init = migration_dirty_pages;
 
     trace_migration_bitmap_sync_start();
     memory_global_sync_dirty_bitmap(get_system_memory());
-    trace_migration_bitmap_sync_end(ram_list.dirty_pages
+
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
+            if (memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
+                                        DIRTY_MEMORY_MIGRATION)) {
+                migration_bitmap_set_dirty(block->mr, addr);
+            }
+        }
+        memory_region_reset_dirty(block->mr, 0, block->length,
+                                  DIRTY_MEMORY_MIGRATION);
+    }
+    trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
 }
 
@@ -442,7 +462,7 @@ static uint64_t bytes_transferred;
 
 static ram_addr_t ram_save_remaining(void)
 {
-    return ram_list.dirty_pages;
+    return migration_dirty_pages;
 }
 
 uint64_t ram_bytes_remaining(void)
@@ -527,6 +547,11 @@ static void reset_ram_globals(void)
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     RAMBlock *block;
+    int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+
+    migration_bitmap = bitmap_new(ram_pages);
+    bitmap_set(migration_bitmap, 1, ram_pages);
+    migration_dirty_pages = ram_pages;
 
     bytes_transferred = 0;
     reset_ram_globals();
@@ -544,13 +569,8 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         acct_clear();
     }
 
-    /* Make sure all dirty bits are set */
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
-        migration_bitmap_set_dirty(block->mr, block->length);
-    }
-
     memory_global_dirty_log_start();
-    memory_global_sync_dirty_bitmap(get_system_memory());
+    migration_bitmap_sync();
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
@@ -654,6 +674,9 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     memory_global_dirty_log_stop();
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+
+    g_free(migration_bitmap);
+    migration_bitmap = NULL;
 
     return 0;
 }
