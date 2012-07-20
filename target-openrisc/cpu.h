@@ -83,6 +83,9 @@ enum {
 /* Internal flags, delay slot flag */
 #define D_FLAG    1
 
+/* Interrupt */
+#define NR_IRQS  32
+
 /* Registers */
 enum {
     R0 = 0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10,
@@ -309,6 +312,7 @@ typedef struct CPUOpenRISCState {
     uint32_t picmr;         /* Interrupt mask register */
     uint32_t picsr;         /* Interrupt contrl register*/
 #endif
+    void *irq[32];          /* Interrupt irq input */
 } CPUOpenRISCState;
 
 /**
@@ -392,9 +396,11 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
     return (env->sr & SR_SM) == 0 ? MMU_USER_IDX : MMU_SUPERVISOR_IDX;
 }
 
+#define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
 static inline bool cpu_has_work(CPUOpenRISCState *env)
 {
-    return true;
+    return env->interrupt_request & (CPU_INTERRUPT_HARD |
+                                     CPU_INTERRUPT_TIMER);
 }
 
 #include "exec-all.h"

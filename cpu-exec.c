@@ -388,6 +388,23 @@ int cpu_exec(CPUArchState *env)
                         do_interrupt(env);
                         next_tb = 0;
                     }
+#elif defined(TARGET_OPENRISC)
+                    {
+                        int idx = -1;
+                        if ((interrupt_request & CPU_INTERRUPT_HARD)
+                            && (env->sr & SR_IEE)) {
+                            idx = EXCP_INT;
+                        }
+                        if ((interrupt_request & CPU_INTERRUPT_TIMER)
+                            && (env->sr & SR_TEE)) {
+                            idx = EXCP_TICK;
+                        }
+                        if (idx >= 0) {
+                            env->exception_index = idx;
+                            do_interrupt(env);
+                            next_tb = 0;
+                        }
+                    }
 #elif defined(TARGET_SPARC)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         if (cpu_interrupts_enabled(env) &&
