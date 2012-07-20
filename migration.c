@@ -392,10 +392,8 @@ void migrate_fd_wait_for_unfreeze(MigrationState *s)
     }
 }
 
-static int migrate_fd_close(void *opaque)
+int migrate_fd_close(MigrationState *s)
 {
-    MigrationState *s = opaque;
-
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
     return s->close(s);
 }
@@ -431,9 +429,7 @@ void migrate_fd_connect(MigrationState *s)
     int ret;
 
     s->state = MIG_STATE_ACTIVE;
-    s->file = qemu_fopen_ops_buffered(s,
-                                      s->bandwidth_limit,
-                                      migrate_fd_close);
+    s->file = qemu_fopen_ops_buffered(s, s->bandwidth_limit);
 
     DPRINTF("beginning savevm\n");
     ret = qemu_savevm_state_begin(s->file, &s->params);

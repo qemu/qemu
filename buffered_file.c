@@ -23,7 +23,6 @@
 
 typedef struct QEMUFileBuffered
 {
-    BufferedCloseFunc *close;
     MigrationState *migration_state;
     QEMUFile *file;
     int freeze_output;
@@ -147,7 +146,7 @@ static int buffered_close(void *opaque)
             migrate_fd_wait_for_unfreeze(s->migration_state);
     }
 
-    ret = s->close(s->migration_state);
+    ret = migrate_fd_close(s->migration_state);
 
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
@@ -224,8 +223,7 @@ static void buffered_rate_tick(void *opaque)
 }
 
 QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
-                                  size_t bytes_per_sec,
-                                  BufferedCloseFunc *close)
+                                  size_t bytes_per_sec)
 {
     QEMUFileBuffered *s;
 
@@ -233,7 +231,6 @@ QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
 
     s->migration_state = migration_state;
     s->xfer_limit = bytes_per_sec / 10;
-    s->close = close;
 
     s->file = qemu_fopen_ops(s, buffered_put_buffer, NULL,
                              buffered_close, buffered_rate_limit,

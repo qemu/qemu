@@ -17,10 +17,7 @@
 #include "hw/hw.h"
 #include "migration.h"
 
-typedef int (BufferedCloseFunc)(void *opaque);
-
 QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state,
-                                  size_t xfer_limit,
-                                  BufferedCloseFunc *close);
+                                  size_t xfer_limit);
 
 #endif
