@@ -331,6 +331,19 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
 
+static inline bool migration_bitmap_test_and_reset_dirty(MemoryRegion *mr,
+                                                         ram_addr_t offset)
+{
+    bool ret = memory_region_get_dirty(mr, offset, TARGET_PAGE_SIZE,
+                                       DIRTY_MEMORY_MIGRATION);
+
+    if (ret) {
+        memory_region_reset_dirty(mr, offset, TARGET_PAGE_SIZE,
+                                  DIRTY_MEMORY_MIGRATION);
+    }
+    return ret;
+}
+
 static inline void migration_bitmap_set_dirty(MemoryRegion *mr, int length)
 {
     ram_addr_t addr;
@@ -364,13 +377,9 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 
     do {
         mr = block->mr;
-        if (memory_region_get_dirty(mr, offset, TARGET_PAGE_SIZE,
-                                    DIRTY_MEMORY_MIGRATION)) {
+        if (migration_bitmap_test_and_reset_dirty(mr, offset)) {
             uint8_t *p;
             int cont = (block == last_block) ? RAM_SAVE_FLAG_CONTINUE : 0;
-
-            memory_region_reset_dirty(mr, offset, TARGET_PAGE_SIZE,
-                                      DIRTY_MEMORY_MIGRATION);
 
             p = memory_region_get_ram_ptr(mr) + offset;
 
