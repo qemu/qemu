@@ -331,6 +331,18 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
 
+static inline void migration_bitmap_set_dirty(MemoryRegion *mr, int length)
+{
+    ram_addr_t addr;
+
+    for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
+        if (!memory_region_get_dirty(mr, addr, TARGET_PAGE_SIZE,
+                                     DIRTY_MEMORY_MIGRATION)) {
+            memory_region_set_dirty(mr, addr, TARGET_PAGE_SIZE);
+        }
+    }
+}
+
 /*
  * ram_save_block: Writes a page of memory to the stream f
  *
@@ -493,7 +505,6 @@ static void reset_ram_globals(void)
 
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
-    ram_addr_t addr;
     RAMBlock *block;
 
     bytes_transferred = 0;
@@ -514,12 +525,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     /* Make sure all dirty bits are set */
     QLIST_FOREACH(block, &ram_list.blocks, next) {
-        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-            if (!memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
-                                         DIRTY_MEMORY_MIGRATION)) {
-                memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
-            }
-        }
+        migration_bitmap_set_dirty(block->mr, block->length);
     }
 
     memory_global_dirty_log_start();
