@@ -543,7 +543,6 @@ void qerror_report(const char *fmt, ...)
 struct Error
 {
     QDict *obj;
-    const char *fmt;
     char *msg;
 };
 
@@ -555,8 +554,7 @@ void qerror_report_err(Error *err)
     loc_save(&qerr->loc);
     QINCREF(err->obj);
     qerr->error = err->obj;
-
-    qerr->err_msg = qerror_format(err->fmt, qerr->error);
+    qerr->err_msg = g_strdup(err->msg);
 
     if (monitor_cur_is_qmp()) {
         monitor_set_error(cur_mon, qerr);

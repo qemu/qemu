@@ -20,7 +20,6 @@
 struct Error
 {
     QDict *obj;
-    const char *fmt;
     char *msg;
 };
 
@@ -39,7 +38,7 @@ void error_set(Error **errp, const char *fmt, ...)
     va_start(ap, fmt);
     err->obj = qobject_to_qdict(qobject_from_jsonv(fmt, &ap));
     va_end(ap);
-    err->fmt = fmt;
+    err->msg = qerror_format(fmt, err->obj);
 
     *errp = err;
 }
@@ -50,7 +49,6 @@ Error *error_copy(const Error *err)
 
     err_new = g_malloc0(sizeof(*err));
     err_new->msg = g_strdup(err->msg);
-    err_new->fmt = err->fmt;
     err_new->obj = err->obj;
     QINCREF(err_new->obj);
 
@@ -64,10 +62,6 @@ bool error_is_set(Error **errp)
 
 const char *error_get_pretty(Error *err)
 {
-    if (err->msg == NULL) {
-        err->msg = qerror_format(err->fmt, err->obj);
-    }
-
     return err->msg;
 }
 
