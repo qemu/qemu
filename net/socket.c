@@ -301,7 +301,9 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
     qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
 
     /* mcast: save bound address as dst */
-    if (is_connected) s->dgram_dst=saddr;
+    if (is_connected) {
+        s->dgram_dst = saddr;
+    }
 
     return s;
 
