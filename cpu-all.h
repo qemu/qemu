@@ -518,6 +518,7 @@ extern int mem_prealloc;
 #define TLB_MMIO        (1 << 5)
 
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
+ram_addr_t last_ram_offset(void);
 #endif /* !CONFIG_USER_ONLY */
 
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
