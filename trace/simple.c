@@ -269,12 +269,11 @@ static unsigned int write_to_buffer(unsigned int idx, void *dataptr, size_t size
 
 void trace_record_finish(TraceBufferRecord *rec)
 {
-    uint8_t temp_rec[sizeof(TraceRecord)];
-    TraceRecord *record = (TraceRecord *) temp_rec;
-    read_from_buffer(rec->tbuf_idx, temp_rec, sizeof(TraceRecord));
+    TraceRecord record;
+    read_from_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
     smp_wmb(); /* write barrier before marking as valid */
-    record->event |= TRACE_RECORD_VALID;
-    write_to_buffer(rec->tbuf_idx, temp_rec, sizeof(TraceRecord));
+    record.event |= TRACE_RECORD_VALID;
+    write_to_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
 
     if ((trace_idx - writeout_idx) > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);
