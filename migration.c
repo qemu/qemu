@@ -295,10 +295,9 @@ static void migrate_fd_put_notify(void *opaque)
     }
 }
 
-static ssize_t migrate_fd_put_buffer(void *opaque, const void *data,
-                                     size_t size)
+ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
+                              size_t size)
 {
-    MigrationState *s = opaque;
     ssize_t ret;
 
     if (s->state != MIG_STATE_ACTIVE) {
@@ -436,7 +435,6 @@ void migrate_fd_connect(MigrationState *s)
     s->state = MIG_STATE_ACTIVE;
     s->file = qemu_fopen_ops_buffered(s,
                                       s->bandwidth_limit,
-                                      migrate_fd_put_buffer,
                                       migrate_fd_put_ready,
                                       migrate_fd_wait_for_unfreeze,
                                       migrate_fd_close);
