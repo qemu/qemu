@@ -2362,12 +2362,6 @@ static void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
     }
 }
 
-static void ext_interrupt(CPUS390XState *env, int type, uint32_t param,
-                          uint64_t param64)
-{
-    cpu_inject_ext(env, type, param, param64);
-}
-
 /*
  * ret < 0 indicates program check, ret = 0,1,2,3 -> cc
  */
@@ -2398,15 +2392,7 @@ int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
             stb_phys(sccb + SCP_INCREMENT, 1 << shift);
             stw_phys(sccb + SCP_RESPONSE_CODE, 0x10);
 
-            if (kvm_enabled()) {
-#ifdef CONFIG_KVM
-                kvm_s390_interrupt_internal(env, KVM_S390_INT_SERVICE,
-                                            sccb & ~3, 0, 1);
-#endif
-            } else {
-                env->psw.addr += 4;
-                ext_interrupt(env, EXT_SERVICE, sccb & ~3, 0);
-            }
+            s390_sclp_extint(sccb & ~3);
             break;
         default:
 #ifdef DEBUG_HELPER

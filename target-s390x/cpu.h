@@ -320,6 +320,9 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
 void s390_add_running_cpu(CPUS390XState *env);
 unsigned s390_del_running_cpu(CPUS390XState *env);
 
+/* service interrupts are floating therefore we must not pass an cpustate */
+void s390_sclp_extint(uint32_t parm);
+
 /* from s390-virtio-bus */
 extern const target_phys_addr_t virtio_size;
 
