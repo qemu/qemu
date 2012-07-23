@@ -448,7 +448,7 @@ void migrate_fd_connect(MigrationState *s)
     int ret;
 
     s->state = MIG_STATE_ACTIVE;
-    s->file = qemu_fopen_ops_buffered(s);
+    qemu_fopen_ops_buffered(s);
 
     DPRINTF("beginning savevm\n");
     ret = qemu_savevm_state_begin(s->file, &s->params);
