@@ -225,6 +225,27 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
 }
 
 
+QObject *qobject_from_block_job(BlockJob *job)
+{
+    return qobject_from_jsonf("{ 'type': %s,"
+                              "'device': %s,"
+                              "'len': %" PRId64 ","
+                              "'offset': %" PRId64 ","
+                              "'speed': %" PRId64 " }",
+                              job->job_type->job_type,
+                              bdrv_get_device_name(job->bs),
+                              job->len,
+                              job->offset,
+                              job->speed);
+}
+
+void block_job_ready(BlockJob *job)
+{
+    QObject *data = qobject_from_block_job(job);
+    monitor_protocol_event(QEVENT_BLOCK_JOB_READY, data);
+    qobject_decref(data);
+}
+
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
                                         BlockdevOnError on_err,
                                         int is_read, int error)

@@ -2037,7 +2037,8 @@
 #
 # Manually trigger completion of an active background block operation.  This
 # is supported for drive mirroring, where it also switches the device to
-# write to the target path only.
+# write to the target path only.  The ability to complete is signaled with
+# a BLOCK_JOB_READY event.
 #
 # This command completes an active background block operation synchronously.
 # The ordering of this command's return with the BLOCK_JOB_COMPLETED event

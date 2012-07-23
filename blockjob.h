@@ -211,6 +211,22 @@ void block_job_pause(BlockJob *job);
 void block_job_resume(BlockJob *job);
 
 /**
+ * qobject_from_block_job:
+ * @job: The job whose information is requested.
+ *
+ * Return a QDict corresponding to @job's query-block-jobs entry.
+ */
+QObject *qobject_from_block_job(BlockJob *job);
+
+/**
+ * block_job_ready:
+ * @job: The job which is now ready to complete.
+ *
+ * Send a BLOCK_JOB_READY event for the specified job.
+ */
+void block_job_ready(BlockJob *job);
+
+/**
  * block_job_is_paused:
  * @job: The job being queried.
  *

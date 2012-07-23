@@ -1056,20 +1056,6 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
     }
 }
 
-static QObject *qobject_from_block_job(BlockJob *job)
-{
-    return qobject_from_jsonf("{ 'type': %s,"
-                              "'device': %s,"
-                              "'len': %" PRId64 ","
-                              "'offset': %" PRId64 ","
-                              "'speed': %" PRId64 " }",
-                              job->job_type->job_type,
-                              bdrv_get_device_name(job->bs),
-                              job->len,
-                              job->offset,
-                              job->speed);
-}
-
 static void block_job_cb(void *opaque, int ret)
 {
     BlockDriverState *bs = opaque;
