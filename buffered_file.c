@@ -25,7 +25,6 @@ typedef struct QEMUFileBuffered
 {
     MigrationState *migration_state;
     QEMUFile *file;
-    int freeze_output;
     size_t bytes_xfer;
     size_t xfer_limit;
     uint8_t *buffer;
@@ -69,13 +68,6 @@ static ssize_t buffered_flush(QEMUFileBuffered *s)
         size_t to_send = MIN(s->buffer_size - offset, s->xfer_limit - s->bytes_xfer);
         ret = migrate_fd_put_buffer(s->migration_state, s->buffer + offset,
                                     to_send);
-        if (ret == -EAGAIN) {
-            DPRINTF("backend not ready, freezing\n");
-            ret = 0;
-            s->freeze_output = 1;
-            break;
-        }
-
         if (ret <= 0) {
             DPRINTF("error flushing data, %zd\n", ret);
             break;
@@ -109,9 +101,6 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         return error;
     }
 
-    DPRINTF("unfreezing output\n");
-    s->freeze_output = 0;
-
     if (size > 0) {
         DPRINTF("buffering %d bytes\n", size - offset);
         buffered_append(s, buf, size);
@@ -125,7 +114,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
 
     if (pos == 0 && size == 0) {
         DPRINTF("file is ready\n");
-        if (!s->freeze_output && s->bytes_xfer < s->xfer_limit) {
+        if (s->bytes_xfer < s->xfer_limit) {
             DPRINTF("notifying client\n");
             migrate_fd_put_ready(s->migration_state);
         }
@@ -147,12 +136,6 @@ static int buffered_close(void *opaque)
         ret = buffered_flush(s);
         if (ret < 0) {
             break;
-        }
-        if (s->freeze_output) {
-            ret = migrate_fd_wait_for_unfreeze(s->migration_state);
-            if (ret < 0) {
-                break;
-            }
         }
     }
 
@@ -187,8 +170,6 @@ static int buffered_rate_limit(void *opaque)
     if (ret) {
         return ret;
     }
-    if (s->freeze_output)
-        return 1;
 
     if (s->bytes_xfer > s->xfer_limit)
         return 1;
@@ -232,9 +213,6 @@ static void *buffered_file_thread(void *opaque)
 
         if (s->migration_state->complete) {
             break;
-        }
-        if (s->freeze_output) {
-            continue;
         }
         if (current_time >= expire_time) {
             s->bytes_xfer = 0;

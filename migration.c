@@ -382,29 +382,6 @@ static void migrate_fd_cancel(MigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-int migrate_fd_wait_for_unfreeze(MigrationState *s)
-{
-    int ret;
-
-    DPRINTF("wait for unfreeze\n");
-    if (s->state != MIG_STATE_ACTIVE)
-        return -EINVAL;
-
-    do {
-        fd_set wfds;
-
-        FD_ZERO(&wfds);
-        FD_SET(s->fd, &wfds);
-
-        ret = select(s->fd + 1, NULL, &wfds, NULL, NULL);
-    } while (ret == -1 && (s->get_error(s)) == EINTR);
-
-    if (ret == -1) {
-        return -s->get_error(s);
-    }
-    return 0;
-}
-
 int migrate_fd_close(MigrationState *s)
 {
     int rc = 0;
