@@ -28,6 +28,10 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
 int qemu_devtree_setprop_phandle(void *fdt, const char *node_path,
                                  const char *property,
                                  const char *target_node_path);
+const void *qemu_devtree_getprop(void *fdt, const char *node_path,
+                                 const char *property, int *lenp);
+uint32_t qemu_devtree_getprop_cell(void *fdt, const char *node_path,
+                                   const char *property);
 uint32_t qemu_devtree_get_phandle(void *fdt, const char *path);
 uint32_t qemu_devtree_alloc_phandle(void *fdt);
 int qemu_devtree_nop_node(void *fdt, const char *node_path);

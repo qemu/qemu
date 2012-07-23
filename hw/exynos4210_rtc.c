@@ -142,7 +142,7 @@ static const VMStateDescription vmstate_exynos4210_rtc_state = {
 };
 
 #define BCD3DIGITS(x) \
-    ((uint32_t)to_bcd((uint8_t)x) + \
+    ((uint32_t)to_bcd((uint8_t)(x % 100)) + \
     ((uint32_t)to_bcd((uint8_t)((x % 1000) / 100)) << 8))
 
 static void check_alarm_raise(Exynos4210RTCState *s)
@@ -510,10 +510,7 @@ static void exynos4210_rtc_reset(DeviceState *d)
 {
     Exynos4210RTCState *s = (Exynos4210RTCState *)d;
 
-    struct tm tm;
-
-    qemu_get_timedate(&tm, 0);
-    s->current_tm = tm;
+    qemu_get_timedate(&s->current_tm, 0);
 
     DPRINTF("Get time from host: %d-%d-%d %2d:%02d:%02d\n",
             s->current_tm.tm_year, s->current_tm.tm_mon, s->current_tm.tm_mday,
