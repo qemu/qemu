@@ -60,6 +60,7 @@ static void tcp_wait_for_connect(int fd, void *opaque)
     } else {
         DPRINTF("migrate connect success\n");
         s->fd = fd;
+        socket_set_block(s->fd);
         migrate_fd_connect(s);
     }
 }

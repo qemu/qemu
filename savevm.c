@@ -555,11 +555,6 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
-int qemu_file_put_notify(QEMUFile *f)
-{
-    return f->ops->put_buffer(f->opaque, NULL, 0, 0);
-}
-
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;

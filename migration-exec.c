@@ -69,7 +69,6 @@ void exec_start_outgoing_migration(MigrationState *s, const char *command, Error
 
     s->fd = fileno(f);
     assert(s->fd != -1);
-    socket_set_nonblock(s->fd);
 
     s->opaque = qemu_popen(f, "w");
 

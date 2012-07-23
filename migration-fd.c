@@ -75,7 +75,6 @@ void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **
         return;
     }
 
-    fcntl(s->fd, F_SETFL, O_NONBLOCK);
     s->get_error = fd_errno;
     s->write = fd_write;
     s->close = fd_close;
