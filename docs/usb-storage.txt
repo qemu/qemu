@@ -2,7 +2,7 @@
 qemu usb storage emulation
 --------------------------
 
-Qemu has two emulations for usb storage devices.
+QEMU has two emulations for usb storage devices.
 
 Number one emulates the classic bulk-only transport protocol which is
 used by 99% of the usb sticks on the marked today and is called

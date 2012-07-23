@@ -61,6 +61,32 @@
 
 static CPUArchState *next_cpu;
 
+static bool cpu_thread_is_idle(CPUArchState *env)
+{
+    if (env->stop || env->queued_work_first) {
+        return false;
+    }
+    if (env->stopped || !runstate_is_running()) {
+        return true;
+    }
+    if (!env->halted || qemu_cpu_has_work(env) || kvm_irqchip_in_kernel()) {
+        return false;
+    }
+    return true;
+}
+
+static bool all_cpu_threads_idle(void)
+{
+    CPUArchState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        if (!cpu_thread_is_idle(env)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /***********************************************************/
 /* guest cycle counter */
 
@@ -431,32 +457,6 @@ static int cpu_can_run(CPUArchState *env)
         return 0;
     }
     return 1;
-}
-
-static bool cpu_thread_is_idle(CPUArchState *env)
-{
-    if (env->stop || env->queued_work_first) {
-        return false;
-    }
-    if (env->stopped || !runstate_is_running()) {
-        return true;
-    }
-    if (!env->halted || qemu_cpu_has_work(env) || kvm_irqchip_in_kernel()) {
-        return false;
-    }
-    return true;
-}
-
-bool all_cpu_threads_idle(void)
-{
-    CPUArchState *env;
-
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (!cpu_thread_is_idle(env)) {
-            return false;
-        }
-    }
-    return true;
 }
 
 static void cpu_handle_guest_debug(CPUArchState *env)
