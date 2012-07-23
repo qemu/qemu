@@ -222,9 +222,7 @@ static void *buffered_file_thread(void *opaque)
             /* usleep expects microseconds */
             g_usleep((expire_time - current_time)*1000);
         }
-        qemu_mutex_lock_iothread();
         buffered_put_buffer(s, NULL, 0, 0);
-        qemu_mutex_unlock_iothread();
     }
     g_free(s->buffer);
     g_free(s);
