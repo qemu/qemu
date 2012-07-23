@@ -43,8 +43,8 @@ uint64_t cpu_get_apic_base(DeviceState *d)
         trace_cpu_get_apic_base((uint64_t)s->apicbase);
         return s->apicbase;
     } else {
-        trace_cpu_get_apic_base(0);
-        return 0;
+        trace_cpu_get_apic_base(MSR_IA32_APICBASE_BSP);
+        return MSR_IA32_APICBASE_BSP;
     }
 }
 
@@ -201,13 +201,23 @@ void apic_init_reset(DeviceState *d)
     s->timer_expiry = -1;
 }
 
+void apic_designate_bsp(DeviceState *d)
+{
+    if (d == NULL) {
+        return;
+    }
+
+    APICCommonState *s = APIC_COMMON(d);
+    s->apicbase |= MSR_IA32_APICBASE_BSP;
+}
+
 static void apic_reset_common(DeviceState *d)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     bool bsp;
 
-    bsp = cpu_is_bsp(s->cpu_env);
+    bsp = cpu_is_bsp(x86_env_get_cpu(s->cpu_env));
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
 

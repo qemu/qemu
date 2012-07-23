@@ -584,11 +584,13 @@ int kvm_arch_init_vcpu(CPUX86State *env)
 
 void kvm_arch_reset_vcpu(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+
     env->exception_injected = -1;
     env->interrupt_injected = -1;
     env->xcr0 = 1;
     if (kvm_irqchip_in_kernel()) {
-        env->mp_state = cpu_is_bsp(env) ? KVM_MP_STATE_RUNNABLE :
+        env->mp_state = cpu_is_bsp(cpu) ? KVM_MP_STATE_RUNNABLE :
                                           KVM_MP_STATE_UNINITIALIZED;
     } else {
         env->mp_state = KVM_MP_STATE_RUNNABLE;
