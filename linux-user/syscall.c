@@ -4606,6 +4606,12 @@ void syscall_init(void)
 #undef STRUCT
 #undef STRUCT_SPECIAL
 
+    /* Build target_to_host_errno_table[] table from
+     * host_to_target_errno_table[]. */
+    for (i = 0; i < ERRNO_TABLE_SIZE; i++) {
+        target_to_host_errno_table[host_to_target_errno_table[i]] = i;
+    }
+
     /* we patch the ioctl size if necessary. We rely on the fact that
        no ioctl has all the bits at '1' in the size field */
     ie = ioctl_entries;
@@ -4624,11 +4630,6 @@ void syscall_init(void)
                               ~(TARGET_IOC_SIZEMASK << TARGET_IOC_SIZESHIFT)) |
                 (size << TARGET_IOC_SIZESHIFT);
         }
-
-        /* Build target_to_host_errno_table[] table from
-         * host_to_target_errno_table[]. */
-        for (i=0; i < ERRNO_TABLE_SIZE; i++)
-                target_to_host_errno_table[host_to_target_errno_table[i]] = i;
 
         /* automatic consistency check if same arch */
 #if (defined(__i386__) && defined(TARGET_I386) && defined(TARGET_ABI32)) || \
