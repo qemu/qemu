@@ -238,9 +238,10 @@ static int kvm_sclp_service_call(CPUS390XState *env, struct kvm_run *run,
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
     r = sclp_service_call(env, sccb, code);
-    if (r) {
-        setcc(env, 3);
+    if (r < 0) {
+        enter_pgmcheck(env, -r);
     }
+    setcc(env, r);
 
     return 0;
 }
