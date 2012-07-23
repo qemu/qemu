@@ -31,7 +31,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
     return -1;
 }
 
-int tap_set_sndbuf(int fd, QemuOpts *opts)
+int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
 {
     return 0;
 }

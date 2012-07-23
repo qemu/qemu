@@ -220,6 +220,8 @@ Example:
     #endif
     mdroth@illuin:~/w/qemu2.git$
 
+(The actual structure of the visit_type_* functions is a bit more complex
+in order to propagate errors correctly and avoid leaking memory).
 
 === scripts/qapi-commands.py ===
 

@@ -202,7 +202,7 @@ static void eth_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_xilinx_ethlite_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = eth_can_rx,
     .receive = eth_rx,

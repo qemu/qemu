@@ -176,7 +176,7 @@ static ssize_t spapr_vlan_receive(VLANClientState *nc, const uint8_t *buf,
 }
 
 static NetClientInfo net_spapr_vlan_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = spapr_vlan_can_receive,
     .receive = spapr_vlan_receive,

@@ -1161,7 +1161,7 @@ static void gem_set_link(VLANClientState *nc)
 }
 
 static NetClientInfo net_gem_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = gem_can_receive,
     .receive = gem_receive,

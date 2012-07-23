@@ -1206,7 +1206,7 @@ pci_e1000_uninit(PCIDevice *dev)
 }
 
 static NetClientInfo net_e1000_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = e1000_can_receive,
     .receive = e1000_receive,

@@ -7,6 +7,7 @@
 #include "qemu-option.h"
 #include "net/queue.h"
 #include "vmstate.h"
+#include "qapi-types.h"
 
 struct MACAddr {
     uint8_t a[6];
@@ -29,19 +30,6 @@ typedef struct NICConf {
 
 /* VLANs support */
 
-typedef enum {
-    NET_CLIENT_TYPE_NONE,
-    NET_CLIENT_TYPE_NIC,
-    NET_CLIENT_TYPE_USER,
-    NET_CLIENT_TYPE_TAP,
-    NET_CLIENT_TYPE_SOCKET,
-    NET_CLIENT_TYPE_VDE,
-    NET_CLIENT_TYPE_DUMP,
-    NET_CLIENT_TYPE_BRIDGE,
-
-    NET_CLIENT_TYPE_MAX
-} net_client_type;
-
 typedef void (NetPoll)(VLANClientState *, bool enable);
 typedef int (NetCanReceive)(VLANClientState *);
 typedef ssize_t (NetReceive)(VLANClientState *, const uint8_t *, size_t);
@@ -50,7 +38,7 @@ typedef void (NetCleanup) (VLANClientState *);
 typedef void (LinkStatusChanged)(VLANClientState *);
 
 typedef struct NetClientInfo {
-    net_client_type type;
+    NetClientOptionsKind type;
     size_t size;
     NetReceive *receive;
     NetReceive *receive_raw;

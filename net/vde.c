@@ -69,7 +69,7 @@ static void vde_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_vde_info = {
-    .type = NET_CLIENT_TYPE_VDE,
+    .type = NET_CLIENT_OPTIONS_KIND_VDE,
     .size = sizeof(VDEState),
     .receive = vde_receive,
     .cleanup = vde_cleanup,
@@ -110,19 +110,17 @@ static int net_vde_init(VLANState *vlan, const char *model,
     return 0;
 }
 
-int net_init_vde(QemuOpts *opts, const char *name, VLANState *vlan)
+int net_init_vde(const NetClientOptions *opts, const char *name,
+                 VLANState *vlan)
 {
-    const char *sock;
-    const char *group;
-    int port, mode;
+    const NetdevVdeOptions *vde;
 
-    sock  = qemu_opt_get(opts, "sock");
-    group = qemu_opt_get(opts, "group");
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_VDE);
+    vde = opts->vde;
 
-    port = qemu_opt_get_number(opts, "port", 0);
-    mode = qemu_opt_get_number(opts, "mode", 0700);
-
-    if (net_vde_init(vlan, "vde", name, sock, port, group, mode) == -1) {
+    /* missing optional values have been initialized to "all bits zero" */
+    if (net_vde_init(vlan, "vde", name, vde->sock, vde->port, vde->group,
+                     vde->has_mode ? vde->mode : 0700) == -1) {
         return -1;
     }
 
