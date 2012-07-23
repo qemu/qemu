@@ -216,7 +216,7 @@ clean:
 	rm -Rf .libs
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d qapi/*.o qapi/*.d qga/*.o qga/*.d
 	rm -f qom/*.o qom/*.d
-	rm -f usb/*.o usb/*.d hw/*.o hw/*.d
+	rm -f hw/usb/*.o hw/usb/*.d hw/*.o hw/*.d
 	rm -f qemu-img-cmds.h
 	rm -f trace/*.o trace/*.d
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
