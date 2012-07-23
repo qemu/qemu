@@ -22,17 +22,41 @@ typedef struct {
     bool state;
 } TraceEvent;
 
-void trace0(TraceEventID event);
-void trace1(TraceEventID event, uint64_t x1);
-void trace2(TraceEventID event, uint64_t x1, uint64_t x2);
-void trace3(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3);
-void trace4(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4);
-void trace5(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4, uint64_t x5);
-void trace6(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4, uint64_t x5, uint64_t x6);
-void st_print_trace(FILE *stream, fprintf_function stream_printf);
 void st_print_trace_file_status(FILE *stream, fprintf_function stream_printf);
 void st_set_trace_file_enabled(bool enable);
 bool st_set_trace_file(const char *file);
 void st_flush_trace_buffer(void);
+
+typedef struct {
+    unsigned int tbuf_idx;
+    unsigned int next_tbuf_idx;
+    unsigned int rec_off;
+} TraceBufferRecord;
+
+/* Note for hackers: Make sure MAX_TRACE_LEN < sizeof(uint32_t) */
+#define MAX_TRACE_STRLEN 512
+/**
+ * Initialize a trace record and claim space for it in the buffer
+ *
+ * @arglen  number of bytes required for arguments
+ */
+int trace_record_start(TraceBufferRecord *rec, TraceEventID id, size_t arglen);
+
+/**
+ * Append a 64-bit argument to a trace record
+ */
+void trace_record_write_u64(TraceBufferRecord *rec, uint64_t val);
+
+/**
+ * Append a string argument to a trace record
+ */
+void trace_record_write_str(TraceBufferRecord *rec, const char *s, uint32_t slen);
+
+/**
+ * Mark a trace record completed
+ *
+ * Don't append any more arguments to the trace record after calling this.
+ */
+void trace_record_finish(TraceBufferRecord *rec);
 
 #endif /* TRACE_SIMPLE_H */
