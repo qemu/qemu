@@ -21,6 +21,7 @@
 #include "block/block.h"
 #include "qemu/sockets.h"
 #include "migration/block.h"
+#include "qemu/thread.h"
 #include "qmp-commands.h"
 
 //#define DEBUG_MIGRATION
@@ -339,6 +340,16 @@ void migrate_fd_put_ready(MigrationState *s)
         DPRINTF("put_ready returning because of non-active state\n");
         return;
     }
+    if (s->first_time) {
+        s->first_time = false;
+        DPRINTF("beginning savevm\n");
+        ret = qemu_savevm_state_begin(s->file, &s->params);
+        if (ret < 0) {
+            DPRINTF("failed, %d\n", ret);
+            migrate_fd_error(s);
+            return;
+        }
+    }
 
     DPRINTF("iterate\n");
     ret = qemu_savevm_state_iterate(s->file);
@@ -351,7 +362,11 @@ void migrate_fd_put_ready(MigrationState *s)
         DPRINTF("done iterating\n");
         start_time = qemu_get_clock_ms(rt_clock);
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-        vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+        if (old_vm_running) {
+            vm_stop(RUN_STATE_FINISH_MIGRATE);
+        } else {
+            vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+        }
 
         if (qemu_savevm_state_complete(s->file) < 0) {
             migrate_fd_error(s);
@@ -445,19 +460,9 @@ bool migration_has_failed(MigrationState *s)
 
 void migrate_fd_connect(MigrationState *s)
 {
-    int ret;
-
     s->state = MIG_STATE_ACTIVE;
+    s->first_time = true;
     qemu_fopen_ops_buffered(s);
-
-    DPRINTF("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->file, &s->params);
-    if (ret < 0) {
-        DPRINTF("failed, %d\n", ret);
-        migrate_fd_error(s);
-        return;
-    }
-    migrate_fd_put_ready(s);
 }
 
 static MigrationState *migrate_init(const MigrationParams *params)

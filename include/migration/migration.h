@@ -46,6 +46,7 @@ struct MigrationState
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size;
     bool complete;
+    bool first_time;
 };
 
 void process_incoming_migration(QEMUFile *f);
