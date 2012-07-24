@@ -106,12 +106,6 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         buffered_append(s, buf, size);
     }
 
-    error = buffered_flush(s);
-    if (error < 0) {
-        DPRINTF("buffered flush error. bailing: %s\n", strerror(-error));
-        return error;
-    }
-
     return size;
 }
 
