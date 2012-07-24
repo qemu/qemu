@@ -2,6 +2,8 @@
  * QEMU Synchronous Serial Interface support
  *
  * Copyright (c) 2009 CodeSourcery.
+ * Copyright (c) 2012 Peter A.G. Crosthwaite (peter.crosthwaite@petalogix.com)
+ * Copyright (c) 2012 PetaLogix Pty Ltd.
  * Written by Paul Brook
  *
  * This code is licensed under the GNU GPL v2.
@@ -29,14 +31,6 @@ static int ssi_slave_init(DeviceState *dev)
 {
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
-    SSIBus *bus;
-    BusChild *kid;
-
-    bus = FROM_QBUS(SSIBus, qdev_get_parent_bus(dev));
-    kid = QTAILQ_FIRST(&bus->qbus.children);
-    if (kid->child != dev || QTAILQ_NEXT(kid, sibling) != NULL) {
-        hw_error("Too many devices on SSI bus");
-    }
 
     return ssc->init(s);
 }
@@ -74,16 +68,16 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
     BusChild *kid;
-    SSISlave *slave;
     SSISlaveClass *ssc;
+    uint32_t r = 0;
 
-    kid = QTAILQ_FIRST(&bus->qbus.children);
-    if (!kid) {
-        return 0;
+    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+        SSISlave *slave = SSI_SLAVE(kid->child);
+        ssc = SSI_SLAVE_GET_CLASS(slave);
+        r |= ssc->transfer(slave, val);
     }
-    slave = SSI_SLAVE(kid->child);
-    ssc = SSI_SLAVE_GET_CLASS(slave);
-    return ssc->transfer(slave, val);
+
+    return r;
 }
 
 static void ssi_slave_register_types(void)
