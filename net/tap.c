@@ -331,7 +331,7 @@ static TAPState *net_tap_fd_init(VLANClientState *peer,
     VLANClientState *nc;
     TAPState *s;
 
-    nc = qemu_new_net_client(&net_tap_info, NULL, peer, model, name);
+    nc = qemu_new_net_client(&net_tap_info, peer, model, name);
 
     s = DO_UPCAST(TAPState, nc, nc);
 

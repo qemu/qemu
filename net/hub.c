@@ -129,7 +129,7 @@ static NetHubPort *net_hub_port_new(NetHub *hub, const char *name)
         name = default_name;
     }
 
-    nc = qemu_new_net_client(&net_hub_port_info, NULL, NULL, "hub", name);
+    nc = qemu_new_net_client(&net_hub_port_info, NULL, "hub", name);
     port = DO_UPCAST(NetHubPort, nc, nc);
     port->id = id;
     port->hub = hub;

@@ -287,7 +287,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANClientState *peer,
         }
     }
 
-    nc = qemu_new_net_client(&net_dgram_socket_info, NULL, peer, model, name);
+    nc = qemu_new_net_client(&net_dgram_socket_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
             "socket: fd=%d (%s mcast=%s:%d)",
@@ -331,7 +331,7 @@ static NetSocketState *net_socket_fd_init_stream(VLANClientState *peer,
     VLANClientState *nc;
     NetSocketState *s;
 
-    nc = qemu_new_net_client(&net_socket_info, NULL, peer, model, name);
+    nc = qemu_new_net_client(&net_socket_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str), "socket: fd=%d", fd);
 

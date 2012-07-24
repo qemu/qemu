@@ -129,7 +129,7 @@ static int net_dump_init(VLANClientState *peer, const char *device,
         return -1;
     }
 
-    nc = qemu_new_net_client(&net_dump_info, NULL, peer, device, name);
+    nc = qemu_new_net_client(&net_dump_info, peer, device, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
              "dump to %s (len=%d)", filename, len);

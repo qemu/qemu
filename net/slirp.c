@@ -239,7 +239,7 @@ static int net_slirp_init(VLANClientState *peer, const char *model,
     }
 #endif
 
-    nc = qemu_new_net_client(&net_slirp_info, NULL, peer, model, name);
+    nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
              "net=%s,restrict=%s", inet_ntoa(net),

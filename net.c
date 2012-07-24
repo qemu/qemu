@@ -197,7 +197,6 @@ static ssize_t qemu_deliver_packet_iov(VLANClientState *sender,
                                        void *opaque);
 
 VLANClientState *qemu_new_net_client(NetClientInfo *info,
-                                     VLANState *vlan,
                                      VLANClientState *peer,
                                      const char *model,
                                      const char *name)
@@ -216,22 +215,16 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
         vc->name = assign_name(vc, model);
     }
 
-    if (vlan) {
-        assert(!peer);
-        vc->vlan = vlan;
-        QTAILQ_INSERT_TAIL(&vc->vlan->clients, vc, next);
-    } else {
-        if (peer) {
-            assert(!peer->peer);
-            vc->peer = peer;
-            peer->peer = vc;
-        }
-        QTAILQ_INSERT_TAIL(&non_vlan_clients, vc, next);
-
-        vc->send_queue = qemu_new_net_queue(qemu_deliver_packet,
-                                            qemu_deliver_packet_iov,
-                                            vc);
+    if (peer) {
+        assert(!peer->peer);
+        vc->peer = peer;
+        peer->peer = vc;
     }
+    QTAILQ_INSERT_TAIL(&non_vlan_clients, vc, next);
+
+    vc->send_queue = qemu_new_net_queue(qemu_deliver_packet,
+                                        qemu_deliver_packet_iov,
+                                        vc);
 
     return vc;
 }
@@ -248,7 +241,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
     assert(info->type == NET_CLIENT_OPTIONS_KIND_NIC);
     assert(info->size >= sizeof(NICState));
 
-    nc = qemu_new_net_client(info, conf->vlan, conf->peer, model, name);
+    nc = qemu_new_net_client(info, conf->peer, model, name);
 
     nic = DO_UPCAST(NICState, nc, nc);
     nic->conf = conf;

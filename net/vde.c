@@ -96,7 +96,7 @@ static int net_vde_init(VLANClientState *peer, const char *model,
         return -1;
     }
 
-    nc = qemu_new_net_client(&net_vde_info, NULL, peer, model, name);
+    nc = qemu_new_net_client(&net_vde_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str), "sock=%s,fd=%d",
              sock, vde_datafd(vde));

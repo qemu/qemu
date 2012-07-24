@@ -685,7 +685,7 @@ static int tap_win32_init(VLANClientState *peer, const char *model,
         return -1;
     }
 
-    nc = qemu_new_net_client(&net_tap_win32_info, NULL, peer, model, name);
+    nc = qemu_new_net_client(&net_tap_win32_info, peer, model, name);
 
     s = DO_UPCAST(TAPState, nc, nc);
 
