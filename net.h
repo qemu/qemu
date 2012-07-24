@@ -76,7 +76,6 @@ struct VLANState {
     NetQueue *send_queue;
 };
 
-VLANState *qemu_find_vlan(int id, int allocate);
 VLANClientState *qemu_find_netdev(const char *id);
 VLANClientState *qemu_new_net_client(NetClientInfo *info,
                                      VLANClientState *peer,
