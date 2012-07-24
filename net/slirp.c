@@ -97,13 +97,6 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
-int slirp_can_output(void *opaque)
-{
-    SlirpState *s = opaque;
-
-    return qemu_can_send_packet(&s->nc);
-}
-
 void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
     SlirpState *s = opaque;
