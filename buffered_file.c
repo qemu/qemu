@@ -112,14 +112,6 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         return error;
     }
 
-    if (pos == 0 && size == 0) {
-        DPRINTF("file is ready\n");
-        if (s->bytes_xfer < s->xfer_limit) {
-            DPRINTF("notifying client\n");
-            migrate_fd_put_ready(s->migration_state);
-        }
-    }
-
     return size;
 }
 
@@ -222,8 +214,17 @@ static void *buffered_file_thread(void *opaque)
             /* usleep expects microseconds */
             g_usleep((expire_time - current_time)*1000);
         }
-        buffered_put_buffer(s, NULL, 0, 0);
+        if (buffered_flush(s) < 0) {
+            break;
+        }
+
+        DPRINTF("file is ready\n");
+        if (s->bytes_xfer < s->xfer_limit) {
+            DPRINTF("notifying client\n");
+            migrate_fd_put_ready(s->migration_state);
+        }
     }
+
     g_free(s->buffer);
     g_free(s);
     return NULL;
