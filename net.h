@@ -100,6 +100,17 @@ void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
 
+ssize_t qemu_deliver_packet(NetClientState *sender,
+                            unsigned flags,
+                            const uint8_t *data,
+                            size_t size,
+                            void *opaque);
+ssize_t qemu_deliver_packet_iov(NetClientState *sender,
+                            unsigned flags,
+                            const struct iovec *iov,
+                            int iovcnt,
+                            void *opaque);
+
 void print_net_client(Monitor *mon, NetClientState *nc);
 void do_info_network(Monitor *mon);
 

@@ -31,24 +31,11 @@ typedef struct NetQueue NetQueue;
 
 typedef void (NetPacketSent) (NetClientState *sender, ssize_t ret);
 
-typedef ssize_t (NetPacketDeliver) (NetClientState *sender,
-                                    unsigned flags,
-                                    const uint8_t *buf,
-                                    size_t size,
-                                    void *opaque);
-
-typedef ssize_t (NetPacketDeliverIOV) (NetClientState *sender,
-                                       unsigned flags,
-                                       const struct iovec *iov,
-                                       int iovcnt,
-                                       void *opaque);
-
 #define QEMU_NET_PACKET_FLAG_NONE  0
 #define QEMU_NET_PACKET_FLAG_RAW  (1<<0)
 
-NetQueue *qemu_new_net_queue(NetPacketDeliver *deliver,
-                             NetPacketDeliverIOV *deliver_iov,
-                             void *opaque);
+NetQueue *qemu_new_net_queue(void *opaque);
+
 void qemu_del_net_queue(NetQueue *queue);
 
 ssize_t qemu_net_queue_send(NetQueue *queue,

@@ -184,17 +184,6 @@ static char *assign_name(NetClientState *nc1, const char *model)
     return g_strdup(buf);
 }
 
-static ssize_t qemu_deliver_packet(NetClientState *sender,
-                                   unsigned flags,
-                                   const uint8_t *data,
-                                   size_t size,
-                                   void *opaque);
-static ssize_t qemu_deliver_packet_iov(NetClientState *sender,
-                                       unsigned flags,
-                                       const struct iovec *iov,
-                                       int iovcnt,
-                                       void *opaque);
-
 NetClientState *qemu_new_net_client(NetClientInfo *info,
                                     NetClientState *peer,
                                     const char *model,
@@ -221,9 +210,7 @@ NetClientState *qemu_new_net_client(NetClientInfo *info,
     }
     QTAILQ_INSERT_TAIL(&net_clients, nc, next);
 
-    nc->send_queue = qemu_new_net_queue(qemu_deliver_packet,
-                                        qemu_deliver_packet_iov,
-                                        nc);
+    nc->send_queue = qemu_new_net_queue(nc);
 
     return nc;
 }
@@ -327,11 +314,11 @@ int qemu_can_send_packet(NetClientState *sender)
     return 1;
 }
 
-static ssize_t qemu_deliver_packet(NetClientState *sender,
-                                   unsigned flags,
-                                   const uint8_t *data,
-                                   size_t size,
-                                   void *opaque)
+ssize_t qemu_deliver_packet(NetClientState *sender,
+                            unsigned flags,
+                            const uint8_t *data,
+                            size_t size,
+                            void *opaque)
 {
     NetClientState *nc = opaque;
     ssize_t ret;
@@ -424,11 +411,11 @@ static ssize_t nc_sendv_compat(NetClientState *nc, const struct iovec *iov,
     return nc->info->receive(nc, buffer, offset);
 }
 
-static ssize_t qemu_deliver_packet_iov(NetClientState *sender,
-                                       unsigned flags,
-                                       const struct iovec *iov,
-                                       int iovcnt,
-                                       void *opaque)
+ssize_t qemu_deliver_packet_iov(NetClientState *sender,
+                                unsigned flags,
+                                const struct iovec *iov,
+                                int iovcnt,
+                                void *opaque)
 {
     NetClientState *nc = opaque;
 

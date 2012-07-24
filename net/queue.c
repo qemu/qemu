@@ -23,6 +23,7 @@
 
 #include "net/queue.h"
 #include "qemu-queue.h"
+#include "net.h"
 
 /* The delivery handler may only return zero if it will call
  * qemu_net_queue_flush() when it determines that it is once again able
@@ -48,8 +49,6 @@ struct NetPacket {
 };
 
 struct NetQueue {
-    NetPacketDeliver *deliver;
-    NetPacketDeliverIOV *deliver_iov;
     void *opaque;
 
     QTAILQ_HEAD(packets, NetPacket) packets;
@@ -57,16 +56,12 @@ struct NetQueue {
     unsigned delivering : 1;
 };
 
-NetQueue *qemu_new_net_queue(NetPacketDeliver *deliver,
-                             NetPacketDeliverIOV *deliver_iov,
-                             void *opaque)
+NetQueue *qemu_new_net_queue(void *opaque)
 {
     NetQueue *queue;
 
     queue = g_malloc0(sizeof(NetQueue));
 
-    queue->deliver = deliver;
-    queue->deliver_iov = deliver_iov;
     queue->opaque = opaque;
 
     QTAILQ_INIT(&queue->packets);
@@ -151,7 +146,7 @@ static ssize_t qemu_net_queue_deliver(NetQueue *queue,
     ssize_t ret = -1;
 
     queue->delivering = 1;
-    ret = queue->deliver(sender, flags, data, size, queue->opaque);
+    ret = qemu_deliver_packet(sender, flags, data, size, queue->opaque);
     queue->delivering = 0;
 
     return ret;
@@ -166,7 +161,7 @@ static ssize_t qemu_net_queue_deliver_iov(NetQueue *queue,
     ssize_t ret = -1;
 
     queue->delivering = 1;
-    ret = queue->deliver_iov(sender, flags, iov, iovcnt, queue->opaque);
+    ret = qemu_deliver_packet_iov(sender, flags, iov, iovcnt, queue->opaque);
     queue->delivering = 0;
 
     return ret;
