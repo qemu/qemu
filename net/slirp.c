@@ -30,6 +30,7 @@
 #include <sys/wait.h>
 #endif
 #include "net.h"
+#include "net/hub.h"
 #include "monitor.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"
@@ -284,7 +285,7 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
 
     if (vlan) {
         VLANClientState *nc;
-        nc = qemu_find_vlan_client_by_name(mon, strtol(vlan, NULL, 0), stack);
+        nc = net_hub_find_client_by_name(strtol(vlan, NULL, 0), stack);
         if (!nc) {
             return NULL;
         }
@@ -679,8 +680,10 @@ void do_info_usernet(Monitor *mon)
     SlirpState *s;
 
     QTAILQ_FOREACH(s, &slirp_stacks, entry) {
+        int id;
+        bool got_vlan_id = net_hub_id_for_client(&s->nc, &id) == 0;
         monitor_printf(mon, "VLAN %d (%s):\n",
-                       s->nc.vlan ? s->nc.vlan->id : -1,
+                       got_vlan_id ? id : -1,
                        s->nc.name);
         slirp_connection_info(s->slirp, mon);
     }

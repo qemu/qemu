@@ -20,6 +20,7 @@
 int net_init_hubport(const NetClientOptions *opts, const char *name,
                      VLANClientState *peer);
 VLANClientState *net_hub_add_port(int hub_id, const char *name);
+VLANClientState *net_hub_find_client_by_name(int hub_id, const char *name);
 void net_hub_info(Monitor *mon);
 int net_hub_id_for_client(VLANClientState *nc, int *id);
 

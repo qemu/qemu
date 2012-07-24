@@ -315,32 +315,6 @@ void qemu_del_vlan_client(VLANClientState *vc)
     qemu_free_vlan_client(vc);
 }
 
-VLANClientState *
-qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
-                              const char *client_str)
-{
-    VLANState *vlan;
-    VLANClientState *vc;
-
-    vlan = qemu_find_vlan(vlan_id, 0);
-    if (!vlan) {
-        monitor_printf(mon, "unknown VLAN %d\n", vlan_id);
-        return NULL;
-    }
-
-    QTAILQ_FOREACH(vc, &vlan->clients, next) {
-        if (!strcmp(vc->name, client_str)) {
-            break;
-        }
-    }
-    if (!vc) {
-        monitor_printf(mon, "can't find device %s on VLAN %d\n",
-                       client_str, vlan_id);
-    }
-
-    return vc;
-}
-
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
 {
     VLANClientState *nc;
@@ -994,7 +968,7 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
     int vlan_id = qdict_get_int(qdict, "vlan_id");
     const char *device = qdict_get_str(qdict, "device");
 
-    vc = qemu_find_vlan_client_by_name(mon, vlan_id, device);
+    vc = net_hub_find_client_by_name(vlan_id, device);
     if (!vc) {
         return;
     }

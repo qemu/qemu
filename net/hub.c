@@ -165,6 +165,29 @@ VLANClientState *net_hub_add_port(int hub_id, const char *name)
 }
 
 /**
+ * Find a specific client on a hub
+ */
+VLANClientState *net_hub_find_client_by_name(int hub_id, const char *name)
+{
+    NetHub *hub;
+    NetHubPort *port;
+    VLANClientState *peer;
+
+    QLIST_FOREACH(hub, &hubs, next) {
+        if (hub->id == hub_id) {
+            QLIST_FOREACH(port, &hub->ports, next) {
+                peer = port->nc.peer;
+
+                if (peer && strcmp(peer->name, name) == 0) {
+                    return peer;
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+/**
  * Print hub configuration
  */
 void net_hub_info(Monitor *mon)
