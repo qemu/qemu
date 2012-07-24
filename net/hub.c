@@ -223,8 +223,10 @@ void net_hub_info(Monitor *mon)
     QLIST_FOREACH(hub, &hubs, next) {
         monitor_printf(mon, "hub %d\n", hub->id);
         QLIST_FOREACH(port, &hub->ports, next) {
-            monitor_printf(mon, "    port %d peer %s\n", port->id,
-                           port->nc.peer ? port->nc.peer->name : "<none>");
+            if (port->nc.peer) {
+                monitor_printf(mon, " \\ ");
+                print_net_client(mon, port->nc.peer);
+            }
         }
     }
 }

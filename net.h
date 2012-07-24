@@ -100,6 +100,7 @@ void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
 
+void print_net_client(Monitor *mon, NetClientState *nc);
 void do_info_network(Monitor *mon);
 
 /* NIC info */
