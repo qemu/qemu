@@ -1660,7 +1660,7 @@
 # Returns: Nothing on success
 #          If the job type does not support throttling, NotSupported
 #          If the speed value is invalid, InvalidParameter
-#          If streaming is not active on this device, DeviceNotActive
+#          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
@@ -1670,9 +1670,9 @@
 ##
 # @block-job-cancel:
 #
-# Stop an active block streaming operation.
+# Stop an active background block operation.
 #
-# This command returns immediately after marking the active block streaming
+# This command returns immediately after marking the active background block
 # operation for cancellation.  It is an error to call this command if no
 # operation is in progress.
 #
@@ -1680,16 +1680,15 @@
 # BLOCK_JOB_CANCELLED event.  Before that happens the job is still visible when
 # enumerated using query-block-jobs.
 #
-# The image file retains its backing file unless the streaming operation happens
-# to complete just as it is being cancelled.
-#
-# A new block streaming operation can be started at a later time to finish
-# copying all data from the backing file.
+# For streaming, the image file retains its backing file unless the streaming
+# operation happens to complete just as it is being cancelled.  A new streaming
+# operation can be started at a later time to finish copying all data from the
+# backing file.
 #
 # @device: the device name
 #
 # Returns: Nothing on success
-#          If streaming is not active on this device, DeviceNotActive
+#          If no background operation is active on this device, DeviceNotActive
 #          If cancellation already in progress, DeviceInUse
 #
 # Since: 1.1
