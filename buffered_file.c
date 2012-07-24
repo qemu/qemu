@@ -50,20 +50,12 @@ static void buffered_append(QEMUFileBuffered *s,
                             const uint8_t *buf, size_t size)
 {
     if (size > (s->buffer_capacity - s->buffer_size)) {
-        void *tmp;
-
         DPRINTF("increasing buffer capacity from %zu by %zu\n",
                 s->buffer_capacity, size + 1024);
 
         s->buffer_capacity += size + 1024;
 
-        tmp = g_realloc(s->buffer, s->buffer_capacity);
-        if (tmp == NULL) {
-            fprintf(stderr, "qemu file buffer expansion failed\n");
-            exit(1);
-        }
-
-        s->buffer = tmp;
+        s->buffer = g_realloc(s->buffer, s->buffer_capacity);
     }
 
     memcpy(s->buffer + s->buffer_size, buf, size);
