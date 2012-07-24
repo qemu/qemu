@@ -279,6 +279,7 @@ static void ssd0323_cd(void *opaque, int n, int level)
 
 static void ssd0323_save(QEMUFile *f, void *opaque)
 {
+    SSISlave *ss = SSI_SLAVE(opaque);
     ssd0323_state *s = (ssd0323_state *)opaque;
     int i;
 
@@ -296,10 +297,13 @@ static void ssd0323_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->remap);
     qemu_put_be32(f, s->mode);
     qemu_put_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    qemu_put_be32(f, ss->cs);
 }
 
 static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
 {
+    SSISlave *ss = SSI_SLAVE(opaque);
     ssd0323_state *s = (ssd0323_state *)opaque;
     int i;
 
@@ -320,6 +324,8 @@ static int ssd0323_load(QEMUFile *f, void *opaque, int version_id)
     s->remap = qemu_get_be32(f);
     s->mode = qemu_get_be32(f);
     qemu_get_buffer(f, s->framebuffer, sizeof(s->framebuffer));
+
+    ss->cs = qemu_get_be32(f);
 
     return 0;
 }

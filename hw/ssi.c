@@ -27,19 +27,55 @@ static const TypeInfo ssi_bus_info = {
     .instance_size = sizeof(SSIBus),
 };
 
+static void ssi_cs_default(void *opaque, int n, int level)
+{
+    SSISlave *s = SSI_SLAVE(opaque);
+    bool cs = !!level;
+    assert(n == 0);
+    if (s->cs != cs) {
+        SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
+        if (ssc->set_cs) {
+            ssc->set_cs(s, cs);
+        }
+    }
+    s->cs = cs;
+}
+
+static uint32_t ssi_transfer_raw_default(SSISlave *dev, uint32_t val)
+{
+    SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(dev);
+
+    if ((dev->cs && ssc->cs_polarity == SSI_CS_HIGH) ||
+            (!dev->cs && ssc->cs_polarity == SSI_CS_LOW) ||
+            ssc->cs_polarity == SSI_CS_NONE) {
+        return ssc->transfer(dev, val);
+    }
+    return 0;
+}
+
 static int ssi_slave_init(DeviceState *dev)
 {
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
+
+    if (ssc->transfer_raw == ssi_transfer_raw_default &&
+            ssc->cs_polarity != SSI_CS_NONE) {
+        qdev_init_gpio_in(&s->qdev, ssi_cs_default, 1);
+    }
 
     return ssc->init(s);
 }
 
 static void ssi_slave_class_init(ObjectClass *klass, void *data)
 {
+    SSISlaveClass *ssc = SSI_SLAVE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+
     dc->init = ssi_slave_init;
     dc->bus_type = TYPE_SSI_BUS;
+    if (!ssc->transfer_raw) {
+        ssc->transfer_raw = ssi_transfer_raw_default;
+    }
 }
 
 static TypeInfo ssi_slave_info = {
@@ -74,11 +110,22 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
     QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
         SSISlave *slave = SSI_SLAVE(kid->child);
         ssc = SSI_SLAVE_GET_CLASS(slave);
-        r |= ssc->transfer(slave, val);
+        r |= ssc->transfer_raw(slave, val);
     }
 
     return r;
 }
+
+const VMStateDescription vmstate_ssi_slave = {
+    .name = "SSISlave",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(cs, SSISlave),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void ssi_slave_register_types(void)
 {

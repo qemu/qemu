@@ -1184,10 +1184,11 @@ static uint32_t stellaris_ssi_bus_transfer(SSISlave *dev, uint32_t val)
 
 static const VMStateDescription vmstate_stellaris_ssi_bus = {
     .name = "stellaris_ssi_bus",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields      = (VMStateField[]) {
+        VMSTATE_SSI_SLAVE(ssidev, stellaris_ssi_bus_state),
         VMSTATE_INT32(current_dev, stellaris_ssi_bus_state),
         VMSTATE_END_OF_LIST()
     }

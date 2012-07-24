@@ -99,10 +99,11 @@ static uint32_t max111x_transfer(SSISlave *dev, uint32_t value)
 
 static const VMStateDescription vmstate_max111x = {
     .name = "max111x",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
     .fields      = (VMStateField[]) {
+        VMSTATE_SSI_SLAVE(ssidev, MAX111xState),
         VMSTATE_UINT8(tb1, MAX111xState),
         VMSTATE_UINT8(rb2, MAX111xState),
         VMSTATE_UINT8(rb3, MAX111xState),

@@ -1083,10 +1083,11 @@ static TypeInfo spitz_keyboard_info = {
 
 static const VMStateDescription vmstate_corgi_ssp_regs = {
     .name = "corgi-ssp",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields = (VMStateField []) {
+        VMSTATE_SSI_SLAVE(ssidev, CorgiSSPState),
         VMSTATE_UINT32_ARRAY(enable, CorgiSSPState, 3),
         VMSTATE_END_OF_LIST(),
     }
@@ -1115,6 +1116,7 @@ static const VMStateDescription vmstate_spitz_lcdtg_regs = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField []) {
+        VMSTATE_SSI_SLAVE(ssidev, SpitzLCDTG),
         VMSTATE_UINT32(bl_intensity, SpitzLCDTG),
         VMSTATE_UINT32(bl_power, SpitzLCDTG),
         VMSTATE_END_OF_LIST(),
