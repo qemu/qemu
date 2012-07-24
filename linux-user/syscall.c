@@ -60,6 +60,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <linux/wireless.h>
+#include <linux/icmp.h>
 #include "qemu-common.h"
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
@@ -1446,6 +1447,25 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             ip_mreq_source = lock_user(VERIFY_READ, optval_addr, optlen, 1);
             ret = get_errno(setsockopt(sockfd, level, optname, ip_mreq_source, optlen));
             unlock_user (ip_mreq_source, optval_addr, 0);
+            break;
+
+        default:
+            goto unimplemented;
+        }
+        break;
+    case SOL_RAW:
+        switch (optname) {
+        case ICMP_FILTER:
+            /* struct icmp_filter takes an u32 value */
+            if (optlen < sizeof(uint32_t)) {
+                return -TARGET_EINVAL;
+            }
+
+            if (get_user_u32(val, optval_addr)) {
+                return -TARGET_EFAULT;
+            }
+            ret = get_errno(setsockopt(sockfd, level, optname,
+                                       &val, sizeof(val)));
             break;
 
         default:
