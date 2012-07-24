@@ -15,6 +15,7 @@
 #include "monitor.h"
 #include "net.h"
 #include "hub.h"
+#include "iov.h"
 
 /*
  * A hub broadcasts incoming packets to all its ports except the source port.
@@ -59,16 +60,16 @@ static ssize_t net_hub_receive_iov(NetHub *hub, NetHubPort *source_port,
                                    const struct iovec *iov, int iovcnt)
 {
     NetHubPort *port;
-    ssize_t ret = 0;
+    ssize_t len = iov_size(iov, iovcnt);
 
     QLIST_FOREACH(port, &hub->ports, next) {
         if (port == source_port) {
             continue;
         }
 
-        ret = qemu_sendv_packet(&port->nc, iov, iovcnt);
+        qemu_sendv_packet(&port->nc, iov, iovcnt);
     }
-    return ret;
+    return len;
 }
 
 static NetHub *net_hub_new(int id)
@@ -83,6 +84,25 @@ static NetHub *net_hub_new(int id)
     QLIST_INSERT_HEAD(&hubs, hub, next);
 
     return hub;
+}
+
+static int net_hub_port_can_receive(NetClientState *nc)
+{
+    NetHubPort *port;
+    NetHubPort *src_port = DO_UPCAST(NetHubPort, nc, nc);
+    NetHub *hub = src_port->hub;
+
+    QLIST_FOREACH(port, &hub->ports, next) {
+        if (port == src_port) {
+            continue;
+        }
+
+        if (!qemu_can_send_packet(&port->nc)) {
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 static ssize_t net_hub_port_receive(NetClientState *nc,
@@ -111,6 +131,7 @@ static void net_hub_port_cleanup(NetClientState *nc)
 static NetClientInfo net_hub_port_info = {
     .type = NET_CLIENT_OPTIONS_KIND_HUBPORT,
     .size = sizeof(NetHubPort),
+    .can_receive = net_hub_port_can_receive,
     .receive = net_hub_port_receive,
     .receive_iov = net_hub_port_receive_iov,
     .cleanup = net_hub_port_cleanup,
