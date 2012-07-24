@@ -41,22 +41,6 @@ typedef struct QEMUFileBuffered
     do { } while (0)
 #endif
 
-static void buffered_append(QEMUFileBuffered *s,
-                            const uint8_t *buf, size_t size)
-{
-    if (size > (s->buffer_capacity - s->buffer_size)) {
-        DPRINTF("increasing buffer capacity from %zu by %zu\n",
-                s->buffer_capacity, size + 1024);
-
-        s->buffer_capacity += size + 1024;
-
-        s->buffer = g_realloc(s->buffer, s->buffer_capacity);
-    }
-
-    memcpy(s->buffer + s->buffer_size, buf, size);
-    s->buffer_size += size;
-}
-
 static ssize_t buffered_flush(QEMUFileBuffered *s)
 {
     size_t offset = 0;
@@ -101,10 +85,21 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
         return error;
     }
 
-    if (size > 0) {
-        DPRINTF("buffering %d bytes\n", size - offset);
-        buffered_append(s, buf, size);
+    if (size <= 0) {
+        return size;
     }
+
+    if (size > (s->buffer_capacity - s->buffer_size)) {
+        DPRINTF("increasing buffer capacity from %zu by %zu\n",
+                s->buffer_capacity, size + 1024);
+
+        s->buffer_capacity += size + 1024;
+
+        s->buffer = g_realloc(s->buffer, s->buffer_capacity);
+    }
+
+    memcpy(s->buffer + s->buffer_size, buf, size);
+    s->buffer_size += size;
 
     return size;
 }
