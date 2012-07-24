@@ -77,23 +77,23 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *model,
                        const char *name,
                        void *opaque);
-void qemu_del_vlan_client(NetClientState *vc);
+void qemu_del_vlan_client(NetClientState *nc);
 NetClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
                                               const char *client_str);
 typedef void (*qemu_nic_foreach)(NICState *nic, void *opaque);
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque);
-int qemu_can_send_packet(NetClientState *vc);
-ssize_t qemu_sendv_packet(NetClientState *vc, const struct iovec *iov,
+int qemu_can_send_packet(NetClientState *nc);
+ssize_t qemu_sendv_packet(NetClientState *nc, const struct iovec *iov,
                           int iovcnt);
-ssize_t qemu_sendv_packet_async(NetClientState *vc, const struct iovec *iov,
+ssize_t qemu_sendv_packet_async(NetClientState *nc, const struct iovec *iov,
                                 int iovcnt, NetPacketSent *sent_cb);
-void qemu_send_packet(NetClientState *vc, const uint8_t *buf, int size);
-ssize_t qemu_send_packet_raw(NetClientState *vc, const uint8_t *buf, int size);
-ssize_t qemu_send_packet_async(NetClientState *vc, const uint8_t *buf,
+void qemu_send_packet(NetClientState *nc, const uint8_t *buf, int size);
+ssize_t qemu_send_packet_raw(NetClientState *nc, const uint8_t *buf, int size);
+ssize_t qemu_send_packet_async(NetClientState *nc, const uint8_t *buf,
                                int size, NetPacketSent *sent_cb);
-void qemu_purge_queued_packets(NetClientState *vc);
-void qemu_flush_queued_packets(NetClientState *vc);
-void qemu_format_nic_info_str(NetClientState *vc, uint8_t macaddr[6]);
+void qemu_purge_queued_packets(NetClientState *nc);
+void qemu_flush_queued_packets(NetClientState *nc);
+void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6]);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);

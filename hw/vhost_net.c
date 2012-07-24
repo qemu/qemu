@@ -42,7 +42,7 @@ struct vhost_net {
     struct vhost_dev dev;
     struct vhost_virtqueue vqs[2];
     int backend;
-    NetClientState *vc;
+    NetClientState *nc;
 };
 
 unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
@@ -104,7 +104,7 @@ struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
     if (r < 0) {
         goto fail;
     }
-    net->vc = backend;
+    net->nc = backend;
     net->dev.backend_features = tap_has_vnet_hdr(backend) ? 0 :
         (1 << VHOST_NET_F_VIRTIO_NET_HDR);
     net->backend = r;
@@ -151,7 +151,7 @@ int vhost_net_start(struct vhost_net *net,
         goto fail_notifiers;
     }
     if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->vc,
+        tap_set_vnet_hdr_len(net->nc,
                              sizeof(struct virtio_net_hdr_mrg_rxbuf));
     }
 
@@ -160,7 +160,7 @@ int vhost_net_start(struct vhost_net *net,
         goto fail_start;
     }
 
-    net->vc->info->poll(net->vc, false);
+    net->nc->info->poll(net->nc, false);
     qemu_set_fd_handler(net->backend, NULL, NULL, NULL);
     file.fd = net->backend;
     for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
@@ -177,10 +177,10 @@ fail:
         int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
         assert(r >= 0);
     }
-    net->vc->info->poll(net->vc, true);
+    net->nc->info->poll(net->nc, true);
     vhost_dev_stop(&net->dev, dev);
     if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->vc, sizeof(struct virtio_net_hdr));
+        tap_set_vnet_hdr_len(net->nc, sizeof(struct virtio_net_hdr));
     }
 fail_start:
     vhost_dev_disable_notifiers(&net->dev, dev);
@@ -197,10 +197,10 @@ void vhost_net_stop(struct vhost_net *net,
         int r = ioctl(net->dev.control, VHOST_NET_SET_BACKEND, &file);
         assert(r >= 0);
     }
-    net->vc->info->poll(net->vc, true);
+    net->nc->info->poll(net->nc, true);
     vhost_dev_stop(&net->dev, dev);
     if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->vc, sizeof(struct virtio_net_hdr));
+        tap_set_vnet_hdr_len(net->nc, sizeof(struct virtio_net_hdr));
     }
     vhost_dev_disable_notifiers(&net->dev, dev);
 }
@@ -209,7 +209,7 @@ void vhost_net_cleanup(struct vhost_net *net)
 {
     vhost_dev_cleanup(&net->dev);
     if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
-        tap_set_vnet_hdr_len(net->vc, sizeof(struct virtio_net_hdr));
+        tap_set_vnet_hdr_len(net->nc, sizeof(struct virtio_net_hdr));
     }
     g_free(net);
 }

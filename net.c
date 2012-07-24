@@ -132,11 +132,11 @@ int parse_host_port(struct sockaddr_in *saddr, const char *str)
     return 0;
 }
 
-void qemu_format_nic_info_str(NetClientState *vc, uint8_t macaddr[6])
+void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
 {
-    snprintf(vc->info_str, sizeof(vc->info_str),
+    snprintf(nc->info_str, sizeof(nc->info_str),
              "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             vc->model,
+             nc->model,
              macaddr[0], macaddr[1], macaddr[2],
              macaddr[3], macaddr[4], macaddr[5]);
 }
@@ -162,19 +162,19 @@ void qemu_macaddr_default_if_unset(MACAddr *macaddr)
  * Only net clients created with the legacy -net option need this.  Naming is
  * mandatory for net clients created with -netdev.
  */
-static char *assign_name(NetClientState *vc1, const char *model)
+static char *assign_name(NetClientState *nc1, const char *model)
 {
-    NetClientState *vc;
+    NetClientState *nc;
     char buf[256];
     int id = 0;
 
-    QTAILQ_FOREACH(vc, &net_clients, next) {
-        if (vc == vc1) {
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (nc == nc1) {
             continue;
         }
         /* For compatibility only bump id for net clients on a vlan */
-        if (strcmp(vc->model, model) == 0 &&
-            net_hub_id_for_client(vc, NULL) == 0) {
+        if (strcmp(nc->model, model) == 0 &&
+            net_hub_id_for_client(nc, NULL) == 0) {
             id++;
         }
     }
@@ -200,32 +200,32 @@ NetClientState *qemu_new_net_client(NetClientInfo *info,
                                     const char *model,
                                     const char *name)
 {
-    NetClientState *vc;
+    NetClientState *nc;
 
     assert(info->size >= sizeof(NetClientState));
 
-    vc = g_malloc0(info->size);
+    nc = g_malloc0(info->size);
 
-    vc->info = info;
-    vc->model = g_strdup(model);
+    nc->info = info;
+    nc->model = g_strdup(model);
     if (name) {
-        vc->name = g_strdup(name);
+        nc->name = g_strdup(name);
     } else {
-        vc->name = assign_name(vc, model);
+        nc->name = assign_name(nc, model);
     }
 
     if (peer) {
         assert(!peer->peer);
-        vc->peer = peer;
-        peer->peer = vc;
+        nc->peer = peer;
+        peer->peer = nc;
     }
-    QTAILQ_INSERT_TAIL(&net_clients, vc, next);
+    QTAILQ_INSERT_TAIL(&net_clients, nc, next);
 
-    vc->send_queue = qemu_new_net_queue(qemu_deliver_packet,
+    nc->send_queue = qemu_new_net_queue(qemu_deliver_packet,
                                         qemu_deliver_packet_iov,
-                                        vc);
+                                        nc);
 
-    return vc;
+    return nc;
 }
 
 NICState *qemu_new_nic(NetClientInfo *info,
@@ -249,56 +249,56 @@ NICState *qemu_new_nic(NetClientInfo *info,
     return nic;
 }
 
-static void qemu_cleanup_vlan_client(NetClientState *vc)
+static void qemu_cleanup_vlan_client(NetClientState *nc)
 {
-    QTAILQ_REMOVE(&net_clients, vc, next);
+    QTAILQ_REMOVE(&net_clients, nc, next);
 
-    if (vc->info->cleanup) {
-        vc->info->cleanup(vc);
+    if (nc->info->cleanup) {
+        nc->info->cleanup(nc);
     }
 }
 
-static void qemu_free_vlan_client(NetClientState *vc)
+static void qemu_free_vlan_client(NetClientState *nc)
 {
-    if (vc->send_queue) {
-        qemu_del_net_queue(vc->send_queue);
+    if (nc->send_queue) {
+        qemu_del_net_queue(nc->send_queue);
     }
-    if (vc->peer) {
-        vc->peer->peer = NULL;
+    if (nc->peer) {
+        nc->peer->peer = NULL;
     }
-    g_free(vc->name);
-    g_free(vc->model);
-    g_free(vc);
+    g_free(nc->name);
+    g_free(nc->model);
+    g_free(nc);
 }
 
-void qemu_del_vlan_client(NetClientState *vc)
+void qemu_del_vlan_client(NetClientState *nc)
 {
     /* If there is a peer NIC, delete and cleanup client, but do not free. */
-    if (vc->peer && vc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = DO_UPCAST(NICState, nc, vc->peer);
+    if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+        NICState *nic = DO_UPCAST(NICState, nc, nc->peer);
         if (nic->peer_deleted) {
             return;
         }
         nic->peer_deleted = true;
         /* Let NIC know peer is gone. */
-        vc->peer->link_down = true;
-        if (vc->peer->info->link_status_changed) {
-            vc->peer->info->link_status_changed(vc->peer);
+        nc->peer->link_down = true;
+        if (nc->peer->info->link_status_changed) {
+            nc->peer->info->link_status_changed(nc->peer);
         }
-        qemu_cleanup_vlan_client(vc);
+        qemu_cleanup_vlan_client(nc);
         return;
     }
 
     /* If this is a peer NIC and peer has already been deleted, free it now. */
-    if (vc->peer && vc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
-        NICState *nic = DO_UPCAST(NICState, nc, vc);
+    if (nc->peer && nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+        NICState *nic = DO_UPCAST(NICState, nc, nc);
         if (nic->peer_deleted) {
-            qemu_free_vlan_client(vc->peer);
+            qemu_free_vlan_client(nc->peer);
         }
     }
 
-    qemu_cleanup_vlan_client(vc);
-    qemu_free_vlan_client(vc);
+    qemu_cleanup_vlan_client(nc);
+    qemu_free_vlan_client(nc);
 }
 
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
@@ -333,44 +333,44 @@ static ssize_t qemu_deliver_packet(NetClientState *sender,
                                    size_t size,
                                    void *opaque)
 {
-    NetClientState *vc = opaque;
+    NetClientState *nc = opaque;
     ssize_t ret;
 
-    if (vc->link_down) {
+    if (nc->link_down) {
         return size;
     }
 
-    if (vc->receive_disabled) {
+    if (nc->receive_disabled) {
         return 0;
     }
 
-    if (flags & QEMU_NET_PACKET_FLAG_RAW && vc->info->receive_raw) {
-        ret = vc->info->receive_raw(vc, data, size);
+    if (flags & QEMU_NET_PACKET_FLAG_RAW && nc->info->receive_raw) {
+        ret = nc->info->receive_raw(nc, data, size);
     } else {
-        ret = vc->info->receive(vc, data, size);
+        ret = nc->info->receive(nc, data, size);
     }
 
     if (ret == 0) {
-        vc->receive_disabled = 1;
+        nc->receive_disabled = 1;
     };
 
     return ret;
 }
 
-void qemu_purge_queued_packets(NetClientState *vc)
+void qemu_purge_queued_packets(NetClientState *nc)
 {
-    if (!vc->peer) {
+    if (!nc->peer) {
         return;
     }
 
-    qemu_net_queue_purge(vc->peer->send_queue, vc);
+    qemu_net_queue_purge(nc->peer->send_queue, nc);
 }
 
-void qemu_flush_queued_packets(NetClientState *vc)
+void qemu_flush_queued_packets(NetClientState *nc)
 {
-    vc->receive_disabled = 0;
+    nc->receive_disabled = 0;
 
-    qemu_net_queue_flush(vc->send_queue);
+    qemu_net_queue_flush(nc->send_queue);
 }
 
 static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
@@ -402,18 +402,18 @@ ssize_t qemu_send_packet_async(NetClientState *sender,
                                              buf, size, sent_cb);
 }
 
-void qemu_send_packet(NetClientState *vc, const uint8_t *buf, int size)
+void qemu_send_packet(NetClientState *nc, const uint8_t *buf, int size)
 {
-    qemu_send_packet_async(vc, buf, size, NULL);
+    qemu_send_packet_async(nc, buf, size, NULL);
 }
 
-ssize_t qemu_send_packet_raw(NetClientState *vc, const uint8_t *buf, int size)
+ssize_t qemu_send_packet_raw(NetClientState *nc, const uint8_t *buf, int size)
 {
-    return qemu_send_packet_async_with_flags(vc, QEMU_NET_PACKET_FLAG_RAW,
+    return qemu_send_packet_async_with_flags(nc, QEMU_NET_PACKET_FLAG_RAW,
                                              buf, size, NULL);
 }
 
-static ssize_t vc_sendv_compat(NetClientState *vc, const struct iovec *iov,
+static ssize_t nc_sendv_compat(NetClientState *nc, const struct iovec *iov,
                                int iovcnt)
 {
     uint8_t buffer[4096];
@@ -421,7 +421,7 @@ static ssize_t vc_sendv_compat(NetClientState *vc, const struct iovec *iov,
 
     offset = iov_to_buf(iov, iovcnt, 0, buffer, sizeof(buffer));
 
-    return vc->info->receive(vc, buffer, offset);
+    return nc->info->receive(nc, buffer, offset);
 }
 
 static ssize_t qemu_deliver_packet_iov(NetClientState *sender,
@@ -430,16 +430,16 @@ static ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                                        int iovcnt,
                                        void *opaque)
 {
-    NetClientState *vc = opaque;
+    NetClientState *nc = opaque;
 
-    if (vc->link_down) {
+    if (nc->link_down) {
         return iov_size(iov, iovcnt);
     }
 
-    if (vc->info->receive_iov) {
-        return vc->info->receive_iov(vc, iov, iovcnt);
+    if (nc->info->receive_iov) {
+        return nc->info->receive_iov(nc, iov, iovcnt);
     } else {
-        return vc_sendv_compat(vc, iov, iovcnt);
+        return nc_sendv_compat(nc, iov, iovcnt);
     }
 }
 
@@ -461,20 +461,20 @@ ssize_t qemu_sendv_packet_async(NetClientState *sender,
 }
 
 ssize_t
-qemu_sendv_packet(NetClientState *vc, const struct iovec *iov, int iovcnt)
+qemu_sendv_packet(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
-    return qemu_sendv_packet_async(vc, iov, iovcnt, NULL);
+    return qemu_sendv_packet_async(nc, iov, iovcnt, NULL);
 }
 
 NetClientState *qemu_find_netdev(const char *id)
 {
-    NetClientState *vc;
+    NetClientState *nc;
 
-    QTAILQ_FOREACH(vc, &net_clients, next) {
-        if (vc->info->type == NET_CLIENT_OPTIONS_KIND_NIC)
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC)
             continue;
-        if (!strcmp(vc->name, id)) {
-            return vc;
+        if (!strcmp(nc->name, id)) {
+            return nc;
         }
     }
 
@@ -791,19 +791,19 @@ void net_host_device_add(Monitor *mon, const QDict *qdict)
 
 void net_host_device_remove(Monitor *mon, const QDict *qdict)
 {
-    NetClientState *vc;
+    NetClientState *nc;
     int vlan_id = qdict_get_int(qdict, "vlan_id");
     const char *device = qdict_get_str(qdict, "device");
 
-    vc = net_hub_find_client_by_name(vlan_id, device);
-    if (!vc) {
+    nc = net_hub_find_client_by_name(vlan_id, device);
+    if (!nc) {
         return;
     }
-    if (!net_host_check_device(vc->model)) {
+    if (!net_host_check_device(nc->model)) {
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
     }
-    qemu_del_vlan_client(vc);
+    qemu_del_vlan_client(nc);
 }
 
 void netdev_add(QemuOpts *opts, Error **errp)
@@ -843,36 +843,36 @@ exit_err:
 
 void qmp_netdev_del(const char *id, Error **errp)
 {
-    NetClientState *vc;
+    NetClientState *nc;
 
-    vc = qemu_find_netdev(id);
-    if (!vc) {
+    nc = qemu_find_netdev(id);
+    if (!nc) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, id);
         return;
     }
 
-    qemu_del_vlan_client(vc);
+    qemu_del_vlan_client(nc);
     qemu_opts_del(qemu_opts_find(qemu_find_opts_err("netdev", errp), id));
 }
 
-static void print_net_client(Monitor *mon, NetClientState *vc)
+static void print_net_client(Monitor *mon, NetClientState *nc)
 {
-    monitor_printf(mon, "%s: type=%s,%s\n", vc->name,
-                   NetClientOptionsKind_lookup[vc->info->type], vc->info_str);
+    monitor_printf(mon, "%s: type=%s,%s\n", nc->name,
+                   NetClientOptionsKind_lookup[nc->info->type], nc->info_str);
 }
 
 void do_info_network(Monitor *mon)
 {
-    NetClientState *vc, *peer;
+    NetClientState *nc, *peer;
     NetClientOptionsKind type;
 
     monitor_printf(mon, "Devices not on any VLAN:\n");
-    QTAILQ_FOREACH(vc, &net_clients, next) {
-        peer = vc->peer;
-        type = vc->info->type;
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        peer = nc->peer;
+        type = nc->info->type;
         if (!peer || type == NET_CLIENT_OPTIONS_KIND_NIC) {
             monitor_printf(mon, "  ");
-            print_net_client(mon, vc);
+            print_net_client(mon, nc);
         } /* else it's a netdev connected to a NIC, printed with the NIC */
         if (peer && type == NET_CLIENT_OPTIONS_KIND_NIC) {
             monitor_printf(mon, "   \\ ");
@@ -884,23 +884,23 @@ void do_info_network(Monitor *mon)
 
 void qmp_set_link(const char *name, bool up, Error **errp)
 {
-    NetClientState *vc = NULL;
+    NetClientState *nc = NULL;
 
-    QTAILQ_FOREACH(vc, &net_clients, next) {
-        if (!strcmp(vc->name, name)) {
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (!strcmp(nc->name, name)) {
             goto done;
         }
     }
 done:
-    if (!vc) {
+    if (!nc) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, name);
         return;
     }
 
-    vc->link_down = !up;
+    nc->link_down = !up;
 
-    if (vc->info->link_status_changed) {
-        vc->info->link_status_changed(vc);
+    if (nc->info->link_status_changed) {
+        nc->info->link_status_changed(nc);
     }
 
     /* Notify peer. Don't update peer link status: this makes it possible to
@@ -910,23 +910,23 @@ done:
      * Current behaviour is compatible with qemu vlans where there could be
      * multiple clients that can still communicate with each other in
      * disconnected mode. For now maintain this compatibility. */
-    if (vc->peer && vc->peer->info->link_status_changed) {
-        vc->peer->info->link_status_changed(vc->peer);
+    if (nc->peer && nc->peer->info->link_status_changed) {
+        nc->peer->info->link_status_changed(nc->peer);
     }
 }
 
 void net_cleanup(void)
 {
-    NetClientState *vc, *next_vc;
+    NetClientState *nc, *next_vc;
 
-    QTAILQ_FOREACH_SAFE(vc, &net_clients, next, next_vc) {
-        qemu_del_vlan_client(vc);
+    QTAILQ_FOREACH_SAFE(nc, &net_clients, next, next_vc) {
+        qemu_del_vlan_client(nc);
     }
 }
 
 void net_check_clients(void)
 {
-    NetClientState *vc;
+    NetClientState *nc;
     int i;
 
     /* Don't warn about the default network setup that you get if
@@ -943,11 +943,11 @@ void net_check_clients(void)
 
     net_hub_check_clients();
 
-    QTAILQ_FOREACH(vc, &net_clients, next) {
-        if (!vc->peer) {
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (!nc->peer) {
             fprintf(stderr, "Warning: %s %s has no peer\n",
-                    vc->info->type == NET_CLIENT_OPTIONS_KIND_NIC ? "nic" : "netdev",
-                    vc->name);
+                    nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC ?
+                    "nic" : "netdev", nc->name);
         }
     }
 
