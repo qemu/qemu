@@ -233,7 +233,7 @@ static void net_rx_response(struct XenNetDev *netdev,
 
 #define NET_IP_ALIGN 2
 
-static int net_rx_ok(VLANClientState *nc)
+static int net_rx_ok(NetClientState *nc)
 {
     struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
     RING_IDX rc, rp;
@@ -254,7 +254,7 @@ static int net_rx_ok(VLANClientState *nc)
     return 1;
 }
 
-static ssize_t net_rx_packet(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_rx_packet(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     struct XenNetDev *netdev = DO_UPCAST(NICState, nc, nc)->opaque;
     netif_rx_request_t rxreq;

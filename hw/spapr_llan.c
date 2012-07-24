@@ -83,14 +83,14 @@ typedef struct VIOsPAPRVLANDevice {
     target_ulong rxq_ptr;
 } VIOsPAPRVLANDevice;
 
-static int spapr_vlan_can_receive(VLANClientState *nc)
+static int spapr_vlan_can_receive(NetClientState *nc)
 {
     VIOsPAPRVLANDevice *dev = DO_UPCAST(NICState, nc, nc)->opaque;
 
     return (dev->isopen && dev->rx_bufs > 0);
 }
 
-static ssize_t spapr_vlan_receive(VLANClientState *nc, const uint8_t *buf,
+static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
     VIOsPAPRDevice *sdev = DO_UPCAST(NICState, nc, nc)->opaque;

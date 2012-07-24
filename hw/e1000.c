@@ -720,7 +720,7 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 }
 
 static void
-e1000_set_link_status(VLANClientState *nc)
+e1000_set_link_status(NetClientState *nc)
 {
     E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint32_t old_status = s->mac_reg[STATUS];
@@ -754,7 +754,7 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
 }
 
 static int
-e1000_can_receive(VLANClientState *nc)
+e1000_can_receive(NetClientState *nc)
 {
     E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -770,7 +770,7 @@ static uint64_t rx_desc_base(E1000State *s)
 }
 
 static ssize_t
-e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     struct e1000_rx_desc desc;
@@ -1185,7 +1185,7 @@ e1000_mmio_setup(E1000State *d)
 }
 
 static void
-e1000_cleanup(VLANClientState *nc)
+e1000_cleanup(NetClientState *nc)
 {
     E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

@@ -1247,7 +1247,7 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static ssize_t usbnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     struct rndis_packet_msg_type *msg;
@@ -1285,7 +1285,7 @@ static ssize_t usbnet_receive(VLANClientState *nc, const uint8_t *buf, size_t si
     return size;
 }
 
-static int usbnet_can_receive(VLANClientState *nc)
+static int usbnet_can_receive(NetClientState *nc)
 {
     USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -1296,7 +1296,7 @@ static int usbnet_can_receive(VLANClientState *nc)
     return !s->in_len;
 }
 
-static void usbnet_cleanup(VLANClientState *nc)
+static void usbnet_cleanup(NetClientState *nc)
 {
     USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

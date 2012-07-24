@@ -17,7 +17,7 @@ struct MACAddr {
 
 typedef struct NICConf {
     MACAddr macaddr;
-    VLANClientState *peer;
+    NetClientState *peer;
     int32_t bootindex;
 } NICConf;
 
@@ -27,14 +27,14 @@ typedef struct NICConf {
     DEFINE_PROP_NETDEV("netdev", _state, _conf.peer),                   \
     DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1)
 
-/* VLANs support */
+/* Net clients */
 
-typedef void (NetPoll)(VLANClientState *, bool enable);
-typedef int (NetCanReceive)(VLANClientState *);
-typedef ssize_t (NetReceive)(VLANClientState *, const uint8_t *, size_t);
-typedef ssize_t (NetReceiveIOV)(VLANClientState *, const struct iovec *, int);
-typedef void (NetCleanup) (VLANClientState *);
-typedef void (LinkStatusChanged)(VLANClientState *);
+typedef void (NetPoll)(NetClientState *, bool enable);
+typedef int (NetCanReceive)(NetClientState *);
+typedef ssize_t (NetReceive)(NetClientState *, const uint8_t *, size_t);
+typedef ssize_t (NetReceiveIOV)(NetClientState *, const struct iovec *, int);
+typedef void (NetCleanup) (NetClientState *);
+typedef void (LinkStatusChanged)(NetClientState *);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -48,11 +48,11 @@ typedef struct NetClientInfo {
     NetPoll *poll;
 } NetClientInfo;
 
-struct VLANClientState {
+struct NetClientState {
     NetClientInfo *info;
     int link_down;
-    QTAILQ_ENTRY(VLANClientState) next;
-    VLANClientState *peer;
+    QTAILQ_ENTRY(NetClientState) next;
+    NetClientState *peer;
     NetQueue *send_queue;
     char *model;
     char *name;
@@ -61,39 +61,39 @@ struct VLANClientState {
 };
 
 typedef struct NICState {
-    VLANClientState nc;
+    NetClientState nc;
     NICConf *conf;
     void *opaque;
     bool peer_deleted;
 } NICState;
 
-VLANClientState *qemu_find_netdev(const char *id);
-VLANClientState *qemu_new_net_client(NetClientInfo *info,
-                                     VLANClientState *peer,
-                                     const char *model,
-                                     const char *name);
+NetClientState *qemu_find_netdev(const char *id);
+NetClientState *qemu_new_net_client(NetClientInfo *info,
+                                    NetClientState *peer,
+                                    const char *model,
+                                    const char *name);
 NICState *qemu_new_nic(NetClientInfo *info,
                        NICConf *conf,
                        const char *model,
                        const char *name,
                        void *opaque);
-void qemu_del_vlan_client(VLANClientState *vc);
-VLANClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
-                                               const char *client_str);
+void qemu_del_vlan_client(NetClientState *vc);
+NetClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
+                                              const char *client_str);
 typedef void (*qemu_nic_foreach)(NICState *nic, void *opaque);
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque);
-int qemu_can_send_packet(VLANClientState *vc);
-ssize_t qemu_sendv_packet(VLANClientState *vc, const struct iovec *iov,
+int qemu_can_send_packet(NetClientState *vc);
+ssize_t qemu_sendv_packet(NetClientState *vc, const struct iovec *iov,
                           int iovcnt);
-ssize_t qemu_sendv_packet_async(VLANClientState *vc, const struct iovec *iov,
+ssize_t qemu_sendv_packet_async(NetClientState *vc, const struct iovec *iov,
                                 int iovcnt, NetPacketSent *sent_cb);
-void qemu_send_packet(VLANClientState *vc, const uint8_t *buf, int size);
-ssize_t qemu_send_packet_raw(VLANClientState *vc, const uint8_t *buf, int size);
-ssize_t qemu_send_packet_async(VLANClientState *vc, const uint8_t *buf,
+void qemu_send_packet(NetClientState *vc, const uint8_t *buf, int size);
+ssize_t qemu_send_packet_raw(NetClientState *vc, const uint8_t *buf, int size);
+ssize_t qemu_send_packet_async(NetClientState *vc, const uint8_t *buf,
                                int size, NetPacketSent *sent_cb);
-void qemu_purge_queued_packets(VLANClientState *vc);
-void qemu_flush_queued_packets(VLANClientState *vc);
-void qemu_format_nic_info_str(VLANClientState *vc, uint8_t macaddr[6]);
+void qemu_purge_queued_packets(NetClientState *vc);
+void qemu_flush_queued_packets(NetClientState *vc);
+void qemu_format_nic_info_str(NetClientState *vc, uint8_t macaddr[6]);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
@@ -111,7 +111,7 @@ struct NICInfo {
     char *model;
     char *name;
     char *devaddr;
-    VLANClientState *netdev;
+    NetClientState *netdev;
     int used;         /* is this slot in nd_table[] being used? */
     int instantiated; /* does this NICInfo correspond to an instantiated NIC? */
     int nvectors;

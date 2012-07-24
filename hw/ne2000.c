@@ -165,7 +165,7 @@ static int ne2000_buffer_full(NE2000State *s)
     return 0;
 }
 
-int ne2000_can_receive(VLANClientState *nc)
+int ne2000_can_receive(NetClientState *nc)
 {
     NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -176,7 +176,7 @@ int ne2000_can_receive(VLANClientState *nc)
 
 #define MIN_BUF_SIZE 60
 
-ssize_t ne2000_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
+ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
     NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int size = size_;
@@ -703,7 +703,7 @@ void ne2000_setup_io(NE2000State *s, unsigned size)
     memory_region_init_io(&s->io, &ne2000_ops, s, "ne2000", size);
 }
 
-static void ne2000_cleanup(VLANClientState *nc)
+static void ne2000_cleanup(NetClientState *nc)
 {
     NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

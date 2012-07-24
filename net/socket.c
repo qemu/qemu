@@ -34,7 +34,7 @@
 #include "qemu_socket.h"
 
 typedef struct NetSocketState {
-    VLANClientState nc;
+    NetClientState nc;
     int fd;
     int state; /* 0 = getting length, 1 = getting data */
     unsigned int index;
@@ -44,14 +44,14 @@ typedef struct NetSocketState {
 } NetSocketState;
 
 typedef struct NetSocketListenState {
-    VLANClientState *peer;
+    NetClientState *peer;
     char *model;
     char *name;
     int fd;
 } NetSocketListenState;
 
 /* XXX: we consider we can send the whole packet without blocking */
-static ssize_t net_socket_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     uint32_t len;
@@ -61,7 +61,7 @@ static ssize_t net_socket_receive(VLANClientState *nc, const uint8_t *buf, size_
     return send_all(s->fd, buf, size);
 }
 
-static ssize_t net_socket_receive_dgram(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_socket_receive_dgram(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
 
@@ -231,7 +231,7 @@ fail:
     return -1;
 }
 
-static void net_socket_cleanup(VLANClientState *nc)
+static void net_socket_cleanup(NetClientState *nc)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
@@ -245,7 +245,7 @@ static NetClientInfo net_dgram_socket_info = {
     .cleanup = net_socket_cleanup,
 };
 
-static NetSocketState *net_socket_fd_init_dgram(VLANClientState *peer,
+static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
                                                 const char *model,
                                                 const char *name,
                                                 int fd, int is_connected)
@@ -253,7 +253,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANClientState *peer,
     struct sockaddr_in saddr;
     int newfd;
     socklen_t saddr_len;
-    VLANClientState *nc;
+    NetClientState *nc;
     NetSocketState *s;
 
     /* fd passed: multicast: "learn" dgram_dst address from bound address and save it
@@ -323,12 +323,12 @@ static NetClientInfo net_socket_info = {
     .cleanup = net_socket_cleanup,
 };
 
-static NetSocketState *net_socket_fd_init_stream(VLANClientState *peer,
+static NetSocketState *net_socket_fd_init_stream(NetClientState *peer,
                                                  const char *model,
                                                  const char *name,
                                                  int fd, int is_connected)
 {
-    VLANClientState *nc;
+    NetClientState *nc;
     NetSocketState *s;
 
     nc = qemu_new_net_client(&net_socket_info, peer, model, name);
@@ -347,7 +347,7 @@ static NetSocketState *net_socket_fd_init_stream(VLANClientState *peer,
     return s;
 }
 
-static NetSocketState *net_socket_fd_init(VLANClientState *peer,
+static NetSocketState *net_socket_fd_init(NetClientState *peer,
                                           const char *model, const char *name,
                                           int fd, int is_connected)
 {
@@ -398,7 +398,7 @@ static void net_socket_accept(void *opaque)
     }
 }
 
-static int net_socket_listen_init(VLANClientState *peer,
+static int net_socket_listen_init(NetClientState *peer,
                                   const char *model,
                                   const char *name,
                                   const char *host_str)
@@ -446,7 +446,7 @@ static int net_socket_listen_init(VLANClientState *peer,
     return 0;
 }
 
-static int net_socket_connect_init(VLANClientState *peer,
+static int net_socket_connect_init(NetClientState *peer,
                                    const char *model,
                                    const char *name,
                                    const char *host_str)
@@ -496,7 +496,7 @@ static int net_socket_connect_init(VLANClientState *peer,
     return 0;
 }
 
-static int net_socket_mcast_init(VLANClientState *peer,
+static int net_socket_mcast_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
                                  const char *host_str,
@@ -535,7 +535,7 @@ static int net_socket_mcast_init(VLANClientState *peer,
 
 }
 
-static int net_socket_udp_init(VLANClientState *peer,
+static int net_socket_udp_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
                                  const char *rhost,
@@ -587,7 +587,7 @@ static int net_socket_udp_init(VLANClientState *peer,
 }
 
 int net_init_socket(const NetClientOptions *opts, const char *name,
-                    VLANClientState *peer)
+                    NetClientState *peer)
 {
     const NetdevSocketOptions *sock;
 

@@ -612,7 +612,7 @@ static const MemoryRegionOps enet_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int eth_can_rx(VLANClientState *nc)
+static int eth_can_rx(NetClientState *nc)
 {
     struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -635,7 +635,7 @@ static int enet_match_addr(const uint8_t *buf, uint32_t f0, uint32_t f1)
     return match;
 }
 
-static ssize_t eth_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
@@ -780,7 +780,7 @@ static ssize_t eth_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
-static void eth_cleanup(VLANClientState *nc)
+static void eth_cleanup(NetClientState *nc)
 {
     /* FIXME.  */
     struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;

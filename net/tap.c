@@ -50,7 +50,7 @@
 #define TAP_BUFSIZE (4096 + 65536)
 
 typedef struct TAPState {
-    VLANClientState nc;
+    NetClientState nc;
     int fd;
     char down_script[1024];
     char down_script_arg[128];
@@ -115,7 +115,7 @@ static ssize_t tap_write_packet(TAPState *s, const struct iovec *iov, int iovcnt
     return len;
 }
 
-static ssize_t tap_receive_iov(VLANClientState *nc, const struct iovec *iov,
+static ssize_t tap_receive_iov(NetClientState *nc, const struct iovec *iov,
                                int iovcnt)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
@@ -134,7 +134,7 @@ static ssize_t tap_receive_iov(VLANClientState *nc, const struct iovec *iov,
     return tap_write_packet(s, iovp, iovcnt);
 }
 
-static ssize_t tap_receive_raw(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive_raw(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     struct iovec iov[2];
@@ -154,7 +154,7 @@ static ssize_t tap_receive_raw(VLANClientState *nc, const uint8_t *buf, size_t s
     return tap_write_packet(s, iov, iovcnt);
 }
 
-static ssize_t tap_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     struct iovec iov[1];
@@ -183,7 +183,7 @@ ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
 }
 #endif
 
-static void tap_send_completed(VLANClientState *nc, ssize_t len)
+static void tap_send_completed(NetClientState *nc, ssize_t len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     tap_read_poll(s, 1);
@@ -214,7 +214,7 @@ static void tap_send(void *opaque)
     } while (size > 0 && qemu_can_send_packet(&s->nc));
 }
 
-int tap_has_ufo(VLANClientState *nc)
+int tap_has_ufo(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -223,7 +223,7 @@ int tap_has_ufo(VLANClientState *nc)
     return s->has_ufo;
 }
 
-int tap_has_vnet_hdr(VLANClientState *nc)
+int tap_has_vnet_hdr(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -232,7 +232,7 @@ int tap_has_vnet_hdr(VLANClientState *nc)
     return !!s->host_vnet_hdr_len;
 }
 
-int tap_has_vnet_hdr_len(VLANClientState *nc, int len)
+int tap_has_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -241,7 +241,7 @@ int tap_has_vnet_hdr_len(VLANClientState *nc, int len)
     return tap_probe_vnet_hdr_len(s->fd, len);
 }
 
-void tap_set_vnet_hdr_len(VLANClientState *nc, int len)
+void tap_set_vnet_hdr_len(NetClientState *nc, int len)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -253,7 +253,7 @@ void tap_set_vnet_hdr_len(VLANClientState *nc, int len)
     s->host_vnet_hdr_len = len;
 }
 
-void tap_using_vnet_hdr(VLANClientState *nc, int using_vnet_hdr)
+void tap_using_vnet_hdr(NetClientState *nc, int using_vnet_hdr)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -265,7 +265,7 @@ void tap_using_vnet_hdr(VLANClientState *nc, int using_vnet_hdr)
     s->using_vnet_hdr = using_vnet_hdr;
 }
 
-void tap_set_offload(VLANClientState *nc, int csum, int tso4,
+void tap_set_offload(NetClientState *nc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
@@ -276,7 +276,7 @@ void tap_set_offload(VLANClientState *nc, int csum, int tso4,
     tap_fd_set_offload(s->fd, csum, tso4, tso6, ecn, ufo);
 }
 
-static void tap_cleanup(VLANClientState *nc)
+static void tap_cleanup(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -296,14 +296,14 @@ static void tap_cleanup(VLANClientState *nc)
     s->fd = -1;
 }
 
-static void tap_poll(VLANClientState *nc, bool enable)
+static void tap_poll(NetClientState *nc, bool enable)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     tap_read_poll(s, enable);
     tap_write_poll(s, enable);
 }
 
-int tap_get_fd(VLANClientState *nc)
+int tap_get_fd(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);
@@ -322,13 +322,13 @@ static NetClientInfo net_tap_info = {
     .cleanup = tap_cleanup,
 };
 
-static TAPState *net_tap_fd_init(VLANClientState *peer,
+static TAPState *net_tap_fd_init(NetClientState *peer,
                                  const char *model,
                                  const char *name,
                                  int fd,
                                  int vnet_hdr)
 {
-    VLANClientState *nc;
+    NetClientState *nc;
     TAPState *s;
 
     nc = qemu_new_net_client(&net_tap_info, peer, model, name);
@@ -514,7 +514,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
 }
 
 int net_init_bridge(const NetClientOptions *opts, const char *name,
-                    VLANClientState *peer)
+                    NetClientState *peer)
 {
     const NetdevBridgeOptions *bridge;
     const char *helper, *br;
@@ -587,7 +587,7 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 }
 
 int net_init_tap(const NetClientOptions *opts, const char *name,
-                 VLANClientState *peer)
+                 NetClientState *peer)
 {
     const NetdevTapOptions *tap;
 
@@ -708,7 +708,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     return 0;
 }
 
-VHostNetState *tap_get_vhost_net(VLANClientState *nc)
+VHostNetState *tap_get_vhost_net(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
     assert(nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP);

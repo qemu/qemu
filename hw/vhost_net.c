@@ -42,7 +42,7 @@ struct vhost_net {
     struct vhost_dev dev;
     struct vhost_virtqueue vqs[2];
     int backend;
-    VLANClientState *vc;
+    NetClientState *vc;
 };
 
 unsigned vhost_net_get_features(struct vhost_net *net, unsigned features)
@@ -80,7 +80,7 @@ void vhost_net_ack_features(struct vhost_net *net, unsigned features)
     }
 }
 
-static int vhost_net_get_fd(VLANClientState *backend)
+static int vhost_net_get_fd(NetClientState *backend)
 {
     switch (backend->info->type) {
     case NET_CLIENT_OPTIONS_KIND_TAP:
@@ -91,7 +91,7 @@ static int vhost_net_get_fd(VLANClientState *backend)
     }
 }
 
-struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
+struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
                                  bool force)
 {
     int r;
@@ -214,7 +214,7 @@ void vhost_net_cleanup(struct vhost_net *net)
     g_free(net);
 }
 #else
-struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
+struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
                                  bool force)
 {
     error_report("vhost-net support is not compiled in");

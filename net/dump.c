@@ -30,7 +30,7 @@
 #include "hub.h"
 
 typedef struct DumpState {
-    VLANClientState nc;
+    NetClientState nc;
     int64_t start_ts;
     int fd;
     int pcap_caplen;
@@ -57,7 +57,7 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static ssize_t dump_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     DumpState *s = DO_UPCAST(DumpState, nc, nc);
     struct pcap_sf_pkthdr hdr;
@@ -86,7 +86,7 @@ static ssize_t dump_receive(VLANClientState *nc, const uint8_t *buf, size_t size
     return size;
 }
 
-static void dump_cleanup(VLANClientState *nc)
+static void dump_cleanup(NetClientState *nc)
 {
     DumpState *s = DO_UPCAST(DumpState, nc, nc);
 
@@ -100,11 +100,11 @@ static NetClientInfo net_dump_info = {
     .cleanup = dump_cleanup,
 };
 
-static int net_dump_init(VLANClientState *peer, const char *device,
+static int net_dump_init(NetClientState *peer, const char *device,
                          const char *name, const char *filename, int len)
 {
     struct pcap_file_hdr hdr;
-    VLANClientState *nc;
+    NetClientState *nc;
     DumpState *s;
     struct tm tm;
     int fd;
@@ -146,7 +146,7 @@ static int net_dump_init(VLANClientState *peer, const char *device,
 }
 
 int net_init_dump(const NetClientOptions *opts, const char *name,
-                  VLANClientState *peer)
+                  NetClientState *peer)
 {
     int len;
     const char *file;

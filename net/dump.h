@@ -28,6 +28,6 @@
 #include "qapi-types.h"
 
 int net_init_dump(const NetClientOptions *opts, const char *name,
-                  VLANClientState *peer);
+                  NetClientState *peer);
 
 #endif /* QEMU_NET_DUMP_H */

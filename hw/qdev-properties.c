@@ -584,7 +584,7 @@ PropertyInfo qdev_prop_chr = {
 
 static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
 {
-    VLANClientState *netdev = qemu_find_netdev(str);
+    NetClientState *netdev = qemu_find_netdev(str);
 
     if (netdev == NULL) {
         return -ENOENT;
@@ -598,7 +598,7 @@ static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
 
 static const char *print_netdev(void *ptr)
 {
-    VLANClientState *netdev = ptr;
+    NetClientState *netdev = ptr;
 
     return netdev->name ? netdev->name : "";
 }
@@ -625,7 +625,7 @@ PropertyInfo qdev_prop_netdev = {
 
 static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    NetClientState **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
         int id;
@@ -642,7 +642,7 @@ static void get_vlan(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    NetClientState **ptr = qdev_get_prop_ptr(dev, prop);
     int32_t id = -1;
 
     if (*ptr) {
@@ -660,10 +660,10 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    NetClientState **ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
     int32_t id;
-    VLANClientState *hubport;
+    NetClientState *hubport;
 
     if (dev->state != DEV_STATE_CREATED) {
         error_set(errp, QERR_PERMISSION_DENIED);
@@ -1186,7 +1186,7 @@ void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *valu
     assert_no_error(errp);
 }
 
-void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value)
+void qdev_prop_set_netdev(DeviceState *dev, const char *name, NetClientState *value)
 {
     Error *errp = NULL;
     assert(!value || value->name);

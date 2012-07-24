@@ -163,7 +163,7 @@ static void virtio_net_set_status(struct VirtIODevice *vdev, uint8_t status)
     }
 }
 
-static void virtio_net_set_link_status(VLANClientState *nc)
+static void virtio_net_set_link_status(NetClientState *nc)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t old_status = n->status;
@@ -453,7 +453,7 @@ static void virtio_net_handle_rx(VirtIODevice *vdev, VirtQueue *vq)
     qemu_notify_event();
 }
 
-static int virtio_net_can_receive(VLANClientState *nc)
+static int virtio_net_can_receive(NetClientState *nc)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
     if (!n->vdev.vm_running) {
@@ -593,7 +593,7 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     return 0;
 }
 
-static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
@@ -690,7 +690,7 @@ static ssize_t virtio_net_receive(VLANClientState *nc, const uint8_t *buf, size_
 
 static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq);
 
-static void virtio_net_tx_complete(VLANClientState *nc, ssize_t len)
+static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -980,7 +980,7 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_net_cleanup(VLANClientState *nc)
+static void virtio_net_cleanup(NetClientState *nc)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
 

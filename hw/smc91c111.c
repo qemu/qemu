@@ -628,7 +628,7 @@ static uint32_t smc91c111_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static int smc91c111_can_receive(VLANClientState *nc)
+static int smc91c111_can_receive(NetClientState *nc)
 {
     smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -639,7 +639,7 @@ static int smc91c111_can_receive(VLANClientState *nc)
     return 1;
 }
 
-static ssize_t smc91c111_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t smc91c111_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int status;
@@ -728,7 +728,7 @@ static const MemoryRegionOps smc91c111_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void smc91c111_cleanup(VLANClientState *nc)
+static void smc91c111_cleanup(NetClientState *nc)
 {
     smc91c111_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

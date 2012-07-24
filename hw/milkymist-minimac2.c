@@ -278,7 +278,7 @@ static void update_rx_interrupt(MilkymistMinimac2State *s)
     }
 }
 
-static ssize_t minimac2_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t minimac2_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -408,7 +408,7 @@ static const MemoryRegionOps minimac2_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int minimac2_can_rx(VLANClientState *nc)
+static int minimac2_can_rx(NetClientState *nc)
 {
     MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -422,7 +422,7 @@ static int minimac2_can_rx(VLANClientState *nc)
     return 0;
 }
 
-static void minimac2_cleanup(VLANClientState *nc)
+static void minimac2_cleanup(NetClientState *nc)
 {
     MilkymistMinimac2State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

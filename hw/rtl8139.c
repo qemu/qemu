@@ -788,7 +788,7 @@ static bool rtl8139_cp_rx_valid(RTL8139State *s)
     return !(s->RxRingAddrLO == 0 && s->RxRingAddrHI == 0);
 }
 
-static int rtl8139_can_receive(VLANClientState *nc)
+static int rtl8139_can_receive(NetClientState *nc)
 {
     RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int avail;
@@ -810,7 +810,7 @@ static int rtl8139_can_receive(VLANClientState *nc)
     }
 }
 
-static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
+static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t size_, int do_interrupt)
 {
     RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     /* size is the length of the buffer passed to the driver */
@@ -1187,7 +1187,7 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
     return size_;
 }
 
-static ssize_t rtl8139_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t rtl8139_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     return rtl8139_do_receive(nc, buf, size, 1);
 }
@@ -3431,7 +3431,7 @@ static void rtl8139_timer(void *opaque)
     rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
 }
 
-static void rtl8139_cleanup(VLANClientState *nc)
+static void rtl8139_cleanup(NetClientState *nc)
 {
     RTL8139State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

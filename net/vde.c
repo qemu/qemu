@@ -33,7 +33,7 @@
 #include "qemu-option.h"
 
 typedef struct VDEState {
-    VLANClientState nc;
+    NetClientState nc;
     VDECONN *vde;
 } VDEState;
 
@@ -49,7 +49,7 @@ static void vde_to_qemu(void *opaque)
     }
 }
 
-static ssize_t vde_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t vde_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     VDEState *s = DO_UPCAST(VDEState, nc, nc);
     ssize_t ret;
@@ -61,7 +61,7 @@ static ssize_t vde_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
     return ret;
 }
 
-static void vde_cleanup(VLANClientState *nc)
+static void vde_cleanup(NetClientState *nc)
 {
     VDEState *s = DO_UPCAST(VDEState, nc, nc);
     qemu_set_fd_handler(vde_datafd(s->vde), NULL, NULL, NULL);
@@ -75,11 +75,11 @@ static NetClientInfo net_vde_info = {
     .cleanup = vde_cleanup,
 };
 
-static int net_vde_init(VLANClientState *peer, const char *model,
+static int net_vde_init(NetClientState *peer, const char *model,
                         const char *name, const char *sock,
                         int port, const char *group, int mode)
 {
-    VLANClientState *nc;
+    NetClientState *nc;
     VDEState *s;
     VDECONN *vde;
     char *init_group = (char *)group;
@@ -111,7 +111,7 @@ static int net_vde_init(VLANClientState *peer, const char *model,
 }
 
 int net_init_vde(const NetClientOptions *opts, const char *name,
-                 VLANClientState *peer)
+                 NetClientState *peer)
 {
     const NetdevVdeOptions *vde;
 

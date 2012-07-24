@@ -40,7 +40,7 @@
 
 struct NetPacket {
     QTAILQ_ENTRY(NetPacket) entry;
-    VLANClientState *sender;
+    NetClientState *sender;
     unsigned flags;
     int size;
     NetPacketSent *sent_cb;
@@ -89,7 +89,7 @@ void qemu_del_net_queue(NetQueue *queue)
 }
 
 static ssize_t qemu_net_queue_append(NetQueue *queue,
-                                     VLANClientState *sender,
+                                     NetClientState *sender,
                                      unsigned flags,
                                      const uint8_t *buf,
                                      size_t size,
@@ -110,7 +110,7 @@ static ssize_t qemu_net_queue_append(NetQueue *queue,
 }
 
 static ssize_t qemu_net_queue_append_iov(NetQueue *queue,
-                                         VLANClientState *sender,
+                                         NetClientState *sender,
                                          unsigned flags,
                                          const struct iovec *iov,
                                          int iovcnt,
@@ -143,7 +143,7 @@ static ssize_t qemu_net_queue_append_iov(NetQueue *queue,
 }
 
 static ssize_t qemu_net_queue_deliver(NetQueue *queue,
-                                      VLANClientState *sender,
+                                      NetClientState *sender,
                                       unsigned flags,
                                       const uint8_t *data,
                                       size_t size)
@@ -158,7 +158,7 @@ static ssize_t qemu_net_queue_deliver(NetQueue *queue,
 }
 
 static ssize_t qemu_net_queue_deliver_iov(NetQueue *queue,
-                                          VLANClientState *sender,
+                                          NetClientState *sender,
                                           unsigned flags,
                                           const struct iovec *iov,
                                           int iovcnt)
@@ -173,7 +173,7 @@ static ssize_t qemu_net_queue_deliver_iov(NetQueue *queue,
 }
 
 ssize_t qemu_net_queue_send(NetQueue *queue,
-                            VLANClientState *sender,
+                            NetClientState *sender,
                             unsigned flags,
                             const uint8_t *data,
                             size_t size,
@@ -197,7 +197,7 @@ ssize_t qemu_net_queue_send(NetQueue *queue,
 }
 
 ssize_t qemu_net_queue_send_iov(NetQueue *queue,
-                                VLANClientState *sender,
+                                NetClientState *sender,
                                 unsigned flags,
                                 const struct iovec *iov,
                                 int iovcnt,
@@ -220,7 +220,7 @@ ssize_t qemu_net_queue_send_iov(NetQueue *queue,
     return ret;
 }
 
-void qemu_net_queue_purge(NetQueue *queue, VLANClientState *from)
+void qemu_net_queue_purge(NetQueue *queue, NetClientState *from)
 {
     NetPacket *packet, *next;
 

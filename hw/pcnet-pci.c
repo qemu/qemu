@@ -264,7 +264,7 @@ static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
     pci_dma_read(dma_opaque, addr, buf, len);
 }
 
-static void pci_pcnet_cleanup(VLANClientState *nc)
+static void pci_pcnet_cleanup(NetClientState *nc)
 {
     PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
 
