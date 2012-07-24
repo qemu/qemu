@@ -33,7 +33,7 @@
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
 
 int net_init_tap(const NetClientOptions *opts, const char *name,
-                 VLANState *vlan);
+                 VLANClientState *peer);
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required);
 
@@ -59,6 +59,6 @@ struct vhost_net;
 struct vhost_net *tap_get_vhost_net(VLANClientState *vc);
 
 int net_init_bridge(const NetClientOptions *opts, const char *name,
-                    VLANState *vlan);
+                    VLANClientState *peer);
 
 #endif /* QEMU_NET_TAP_H */

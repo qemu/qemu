@@ -30,7 +30,7 @@
 #ifdef CONFIG_VDE
 
 int net_init_vde(const NetClientOptions *opts, const char *name,
-                 VLANState *vlan);
+                 VLANClientState *peer);
 
 #endif /* CONFIG_VDE */
 

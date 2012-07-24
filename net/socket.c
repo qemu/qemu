@@ -44,7 +44,7 @@ typedef struct NetSocketState {
 } NetSocketState;
 
 typedef struct NetSocketListenState {
-    VLANState *vlan;
+    VLANClientState *peer;
     char *model;
     char *name;
     int fd;
@@ -245,7 +245,7 @@ static NetClientInfo net_dgram_socket_info = {
     .cleanup = net_socket_cleanup,
 };
 
-static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
+static NetSocketState *net_socket_fd_init_dgram(VLANClientState *peer,
                                                 const char *model,
                                                 const char *name,
                                                 int fd, int is_connected)
@@ -287,7 +287,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
         }
     }
 
-    nc = qemu_new_net_client(&net_dgram_socket_info, vlan, NULL, model, name);
+    nc = qemu_new_net_client(&net_dgram_socket_info, NULL, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
             "socket: fd=%d (%s mcast=%s:%d)",
@@ -323,7 +323,7 @@ static NetClientInfo net_socket_info = {
     .cleanup = net_socket_cleanup,
 };
 
-static NetSocketState *net_socket_fd_init_stream(VLANState *vlan,
+static NetSocketState *net_socket_fd_init_stream(VLANClientState *peer,
                                                  const char *model,
                                                  const char *name,
                                                  int fd, int is_connected)
@@ -331,7 +331,7 @@ static NetSocketState *net_socket_fd_init_stream(VLANState *vlan,
     VLANClientState *nc;
     NetSocketState *s;
 
-    nc = qemu_new_net_client(&net_socket_info, vlan, NULL, model, name);
+    nc = qemu_new_net_client(&net_socket_info, NULL, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str), "socket: fd=%d", fd);
 
@@ -347,7 +347,7 @@ static NetSocketState *net_socket_fd_init_stream(VLANState *vlan,
     return s;
 }
 
-static NetSocketState *net_socket_fd_init(VLANState *vlan,
+static NetSocketState *net_socket_fd_init(VLANClientState *peer,
                                           const char *model, const char *name,
                                           int fd, int is_connected)
 {
@@ -362,13 +362,13 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan,
     }
     switch(so_type) {
     case SOCK_DGRAM:
-        return net_socket_fd_init_dgram(vlan, model, name, fd, is_connected);
+        return net_socket_fd_init_dgram(peer, model, name, fd, is_connected);
     case SOCK_STREAM:
-        return net_socket_fd_init_stream(vlan, model, name, fd, is_connected);
+        return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
     default:
         /* who knows ... this could be a eg. a pty, do warn and continue as stream */
         fprintf(stderr, "qemu: warning: socket type=%d for fd=%d is not SOCK_DGRAM or SOCK_STREAM\n", so_type, fd);
-        return net_socket_fd_init_stream(vlan, model, name, fd, is_connected);
+        return net_socket_fd_init_stream(peer, model, name, fd, is_connected);
     }
     return NULL;
 }
@@ -390,7 +390,7 @@ static void net_socket_accept(void *opaque)
             break;
         }
     }
-    s1 = net_socket_fd_init(s->vlan, s->model, s->name, fd, 1);
+    s1 = net_socket_fd_init(s->peer, s->model, s->name, fd, 1);
     if (s1) {
         snprintf(s1->nc.info_str, sizeof(s1->nc.info_str),
                  "socket: connection from %s:%d",
@@ -398,7 +398,7 @@ static void net_socket_accept(void *opaque)
     }
 }
 
-static int net_socket_listen_init(VLANState *vlan,
+static int net_socket_listen_init(VLANClientState *peer,
                                   const char *model,
                                   const char *name,
                                   const char *host_str)
@@ -438,7 +438,7 @@ static int net_socket_listen_init(VLANState *vlan,
         closesocket(fd);
         return -1;
     }
-    s->vlan = vlan;
+    s->peer = peer;
     s->model = g_strdup(model);
     s->name = name ? g_strdup(name) : NULL;
     s->fd = fd;
@@ -446,7 +446,7 @@ static int net_socket_listen_init(VLANState *vlan,
     return 0;
 }
 
-static int net_socket_connect_init(VLANState *vlan,
+static int net_socket_connect_init(VLANClientState *peer,
                                    const char *model,
                                    const char *name,
                                    const char *host_str)
@@ -487,7 +487,7 @@ static int net_socket_connect_init(VLANState *vlan,
             break;
         }
     }
-    s = net_socket_fd_init(vlan, model, name, fd, connected);
+    s = net_socket_fd_init(peer, model, name, fd, connected);
     if (!s)
         return -1;
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
@@ -496,7 +496,7 @@ static int net_socket_connect_init(VLANState *vlan,
     return 0;
 }
 
-static int net_socket_mcast_init(VLANState *vlan,
+static int net_socket_mcast_init(VLANClientState *peer,
                                  const char *model,
                                  const char *name,
                                  const char *host_str,
@@ -522,7 +522,7 @@ static int net_socket_mcast_init(VLANState *vlan,
     if (fd < 0)
         return -1;
 
-    s = net_socket_fd_init(vlan, model, name, fd, 0);
+    s = net_socket_fd_init(peer, model, name, fd, 0);
     if (!s)
         return -1;
 
@@ -535,7 +535,7 @@ static int net_socket_mcast_init(VLANState *vlan,
 
 }
 
-static int net_socket_udp_init(VLANState *vlan,
+static int net_socket_udp_init(VLANClientState *peer,
                                  const char *model,
                                  const char *name,
                                  const char *rhost,
@@ -573,7 +573,7 @@ static int net_socket_udp_init(VLANState *vlan,
         return -1;
     }
 
-    s = net_socket_fd_init(vlan, model, name, fd, 0);
+    s = net_socket_fd_init(peer, model, name, fd, 0);
     if (!s) {
         return -1;
     }
@@ -587,7 +587,7 @@ static int net_socket_udp_init(VLANState *vlan,
 }
 
 int net_init_socket(const NetClientOptions *opts, const char *name,
-                    VLANState *vlan)
+                    VLANClientState *peer)
 {
     const NetdevSocketOptions *sock;
 
@@ -610,21 +610,21 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
         int fd;
 
         fd = net_handle_fd_param(cur_mon, sock->fd);
-        if (fd == -1 || !net_socket_fd_init(vlan, "socket", name, fd, 1)) {
+        if (fd == -1 || !net_socket_fd_init(peer, "socket", name, fd, 1)) {
             return -1;
         }
         return 0;
     }
 
     if (sock->has_listen) {
-        if (net_socket_listen_init(vlan, "socket", name, sock->listen) == -1) {
+        if (net_socket_listen_init(peer, "socket", name, sock->listen) == -1) {
             return -1;
         }
         return 0;
     }
 
     if (sock->has_connect) {
-        if (net_socket_connect_init(vlan, "socket", name, sock->connect) ==
+        if (net_socket_connect_init(peer, "socket", name, sock->connect) ==
             -1) {
             return -1;
         }
@@ -634,7 +634,7 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
     if (sock->has_mcast) {
         /* if sock->localaddr is missing, it has been initialized to "all bits
          * zero" */
-        if (net_socket_mcast_init(vlan, "socket", name, sock->mcast,
+        if (net_socket_mcast_init(peer, "socket", name, sock->mcast,
             sock->localaddr) == -1) {
             return -1;
         }
@@ -646,7 +646,7 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
         error_report("localaddr= is mandatory with udp=");
         return -1;
     }
-    if (net_socket_udp_init(vlan, "udp", name, sock->udp, sock->localaddr) ==
+    if (net_socket_udp_init(peer, "udp", name, sock->udp, sock->localaddr) ==
         -1) {
         return -1;
     }

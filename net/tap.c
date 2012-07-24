@@ -322,7 +322,7 @@ static NetClientInfo net_tap_info = {
     .cleanup = tap_cleanup,
 };
 
-static TAPState *net_tap_fd_init(VLANState *vlan,
+static TAPState *net_tap_fd_init(VLANClientState *peer,
                                  const char *model,
                                  const char *name,
                                  int fd,
@@ -331,7 +331,7 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
     VLANClientState *nc;
     TAPState *s;
 
-    nc = qemu_new_net_client(&net_tap_info, vlan, NULL, model, name);
+    nc = qemu_new_net_client(&net_tap_info, NULL, peer, model, name);
 
     s = DO_UPCAST(TAPState, nc, nc);
 
@@ -514,7 +514,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge)
 }
 
 int net_init_bridge(const NetClientOptions *opts, const char *name,
-                    VLANState *vlan)
+                    VLANClientState *peer)
 {
     const NetdevBridgeOptions *bridge;
     const char *helper, *br;
@@ -537,7 +537,7 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
 
     vnet_hdr = tap_probe_vnet_hdr(fd);
 
-    s = net_tap_fd_init(vlan, "bridge", name, fd, vnet_hdr);
+    s = net_tap_fd_init(peer, "bridge", name, fd, vnet_hdr);
     if (!s) {
         close(fd);
         return -1;
@@ -587,7 +587,7 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
 }
 
 int net_init_tap(const NetClientOptions *opts, const char *name,
-                 VLANState *vlan)
+                 VLANClientState *peer)
 {
     const NetdevTapOptions *tap;
 
@@ -650,7 +650,7 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         model = "tap";
     }
 
-    s = net_tap_fd_init(vlan, model, name, fd, vnet_hdr);
+    s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     if (!s) {
         close(fd);
         return -1;

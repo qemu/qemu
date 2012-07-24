@@ -206,15 +206,15 @@ int net_hub_id_for_client(VLANClientState *nc, int *id)
 }
 
 int net_init_hubport(const NetClientOptions *opts, const char *name,
-                     VLANState *vlan)
+                     VLANClientState *peer)
 {
     const NetdevHubPortOptions *hubport;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT);
     hubport = opts->hubport;
 
-    /* The hub is a "vlan" so this option makes no sense. */
-    if (vlan) {
+    /* Treat hub port like a backend, NIC must be the one to peer */
+    if (peer) {
         return -EINVAL;
     }
 
