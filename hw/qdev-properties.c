@@ -1195,13 +1195,6 @@ void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *v
     assert_no_error(errp);
 }
 
-void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value)
-{
-    Error *errp = NULL;
-    object_property_set_int(OBJECT(dev), value ? value->id : -1, name, &errp);
-    assert_no_error(errp);
-}
-
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
 {
     Error *errp = NULL;

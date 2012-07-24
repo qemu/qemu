@@ -201,7 +201,7 @@ static void lx_init(const LxBoardDesc *board,
     memory_region_init(system_io, "lx60.io", 224 * 1024 * 1024);
     memory_region_add_subregion(system_memory, 0xf0000000, system_io);
     lx60_fpga_init(system_io, 0x0d020000);
-    if (nd_table[0].vlan) {
+    if (nd_table[0].used) {
         lx60_net_init(system_io, 0x0d030000, 0x0d030400, 0x0d800000,
                 xtensa_get_extint(env, 1), nd_table);
     }

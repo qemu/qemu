@@ -17,7 +17,6 @@ struct MACAddr {
 
 typedef struct NICConf {
     MACAddr macaddr;
-    VLANState *vlan;
     VLANClientState *peer;
     int32_t bootindex;
 } NICConf;
@@ -53,7 +52,6 @@ struct VLANClientState {
     NetClientInfo *info;
     int link_down;
     QTAILQ_ENTRY(VLANClientState) next;
-    struct VLANState *vlan;
     VLANClientState *peer;
     NetQueue *send_queue;
     char *model;
@@ -68,13 +66,6 @@ typedef struct NICState {
     void *opaque;
     bool peer_deleted;
 } NICState;
-
-struct VLANState {
-    int id;
-    QTAILQ_HEAD(, VLANClientState) clients;
-    QTAILQ_ENTRY(VLANState) next;
-    NetQueue *send_queue;
-};
 
 VLANClientState *qemu_find_netdev(const char *id);
 VLANClientState *qemu_new_net_client(NetClientInfo *info,
@@ -120,7 +111,6 @@ struct NICInfo {
     char *model;
     char *name;
     char *devaddr;
-    VLANState *vlan;
     VLANClientState *netdev;
     int used;         /* is this slot in nd_table[] being used? */
     int instantiated; /* does this NICInfo correspond to an instantiated NIC? */

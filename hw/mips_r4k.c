@@ -283,7 +283,7 @@ void mips_r4k_init (ram_addr_t ram_size,
 
     isa_vga_init(isa_bus);
 
-    if (nd_table[0].vlan)
+    if (nd_table[0].used)
         isa_ne2000_init(isa_bus, 0x300, 9, &nd_table[0]);
 
     ide_drive_get(hd, MAX_IDE_BUS);
