@@ -249,7 +249,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
     return nic;
 }
 
-static void qemu_cleanup_vlan_client(NetClientState *nc)
+static void qemu_cleanup_net_client(NetClientState *nc)
 {
     QTAILQ_REMOVE(&net_clients, nc, next);
 
@@ -258,7 +258,7 @@ static void qemu_cleanup_vlan_client(NetClientState *nc)
     }
 }
 
-static void qemu_free_vlan_client(NetClientState *nc)
+static void qemu_free_net_client(NetClientState *nc)
 {
     if (nc->send_queue) {
         qemu_del_net_queue(nc->send_queue);
@@ -271,7 +271,7 @@ static void qemu_free_vlan_client(NetClientState *nc)
     g_free(nc);
 }
 
-void qemu_del_vlan_client(NetClientState *nc)
+void qemu_del_net_client(NetClientState *nc)
 {
     /* If there is a peer NIC, delete and cleanup client, but do not free. */
     if (nc->peer && nc->peer->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
@@ -285,7 +285,7 @@ void qemu_del_vlan_client(NetClientState *nc)
         if (nc->peer->info->link_status_changed) {
             nc->peer->info->link_status_changed(nc->peer);
         }
-        qemu_cleanup_vlan_client(nc);
+        qemu_cleanup_net_client(nc);
         return;
     }
 
@@ -293,12 +293,12 @@ void qemu_del_vlan_client(NetClientState *nc)
     if (nc->peer && nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
         NICState *nic = DO_UPCAST(NICState, nc, nc);
         if (nic->peer_deleted) {
-            qemu_free_vlan_client(nc->peer);
+            qemu_free_net_client(nc->peer);
         }
     }
 
-    qemu_cleanup_vlan_client(nc);
-    qemu_free_vlan_client(nc);
+    qemu_cleanup_net_client(nc);
+    qemu_free_net_client(nc);
 }
 
 void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
@@ -803,7 +803,7 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "invalid host network device %s\n", device);
         return;
     }
-    qemu_del_vlan_client(nc);
+    qemu_del_net_client(nc);
 }
 
 void netdev_add(QemuOpts *opts, Error **errp)
@@ -851,7 +851,7 @@ void qmp_netdev_del(const char *id, Error **errp)
         return;
     }
 
-    qemu_del_vlan_client(nc);
+    qemu_del_net_client(nc);
     qemu_opts_del(qemu_opts_find(qemu_find_opts_err("netdev", errp), id));
 }
 
@@ -920,7 +920,7 @@ void net_cleanup(void)
     NetClientState *nc, *next_vc;
 
     QTAILQ_FOREACH_SAFE(nc, &net_clients, next, next_vc) {
-        qemu_del_vlan_client(nc);
+        qemu_del_net_client(nc);
     }
 }
 

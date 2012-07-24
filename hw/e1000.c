@@ -1201,7 +1201,7 @@ pci_e1000_uninit(PCIDevice *dev)
     qemu_free_timer(d->autoneg_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
-    qemu_del_vlan_client(&d->nic->nc);
+    qemu_del_net_client(&d->nic->nc);
 }
 
 static NetClientInfo net_e1000_info = {

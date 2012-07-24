@@ -279,7 +279,7 @@ static void pci_pcnet_uninit(PCIDevice *dev)
     memory_region_destroy(&d->io_bar);
     qemu_del_timer(d->state.poll_timer);
     qemu_free_timer(d->state.poll_timer);
-    qemu_del_vlan_client(&d->state.nic->nc);
+    qemu_del_net_client(&d->state.nic->nc);
 }
 
 static NetClientInfo net_pci_pcnet_info = {

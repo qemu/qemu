@@ -77,7 +77,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
                        const char *model,
                        const char *name,
                        void *opaque);
-void qemu_del_vlan_client(NetClientState *nc);
+void qemu_del_net_client(NetClientState *nc);
 NetClientState *qemu_find_vlan_client_by_name(Monitor *mon, int vlan_id,
                                               const char *client_str);
 typedef void (*qemu_nic_foreach)(NICState *nic, void *opaque);

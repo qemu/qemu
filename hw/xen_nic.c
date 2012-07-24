@@ -406,7 +406,7 @@ static void net_disconnect(struct XenDevice *xendev)
         netdev->rxs = NULL;
     }
     if (netdev->nic) {
-        qemu_del_vlan_client(&netdev->nic->nc);
+        qemu_del_net_client(&netdev->nic->nc);
         netdev->nic = NULL;
     }
 }

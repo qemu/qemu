@@ -1847,7 +1847,7 @@ static void pci_nic_uninit(PCIDevice *pci_dev)
     memory_region_destroy(&s->flash_bar);
     vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
-    qemu_del_vlan_client(&s->nic->nc);
+    qemu_del_net_client(&s->nic->nc);
 }
 
 static NetClientInfo net_eepro100_info = {
