@@ -86,10 +86,15 @@ static TypeInfo ssi_slave_info = {
     .abstract = true,
 };
 
+DeviceState *ssi_create_slave_no_init(SSIBus *bus, const char *name)
+{
+    return qdev_create(&bus->qbus, name);
+}
+
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name)
 {
-    DeviceState *dev;
-    dev = qdev_create(&bus->qbus, name);
+    DeviceState *dev = ssi_create_slave_no_init(bus, name);
+
     qdev_init_nofail(dev);
     return dev;
 }
