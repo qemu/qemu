@@ -2094,6 +2094,19 @@
     '*helper': 'str' } }
 
 ##
+# @NetdevHubPortOptions
+#
+# Connect two or more net clients through a software hub.
+#
+# @hubid: hub identifier number
+#
+# Since 1.2
+##
+{ 'type': 'NetdevHubPortOptions',
+  'data': {
+    'hubid':     'int32' } }
+
+##
 # @NetClientOptions
 #
 # A discriminated record of network device traits.
@@ -2102,14 +2115,15 @@
 ##
 { 'union': 'NetClientOptions',
   'data': {
-    'none':   'NetdevNoneOptions',
-    'nic':    'NetLegacyNicOptions',
-    'user':   'NetdevUserOptions',
-    'tap':    'NetdevTapOptions',
-    'socket': 'NetdevSocketOptions',
-    'vde':    'NetdevVdeOptions',
-    'dump':   'NetdevDumpOptions',
-    'bridge': 'NetdevBridgeOptions' } }
+    'none':     'NetdevNoneOptions',
+    'nic':      'NetLegacyNicOptions',
+    'user':     'NetdevUserOptions',
+    'tap':      'NetdevTapOptions',
+    'socket':   'NetdevSocketOptions',
+    'vde':      'NetdevVdeOptions',
+    'dump':     'NetdevDumpOptions',
+    'bridge':   'NetdevBridgeOptions',
+    'hubport':  'NetdevHubPortOptions' } }
 
 ##
 # @NetLegacy

@@ -1,0 +1,223 @@
+/*
+ * Hub net client
+ *
+ * Copyright IBM, Corp. 2012
+ *
+ * Authors:
+ *  Stefan Hajnoczi   <stefanha@linux.vnet.ibm.com>
+ *  Zhi Yong Wu       <wuzhy@linux.vnet.ibm.com>
+ *
+ * This work is licensed under the terms of the GNU LGPL, version 2 or later.
+ * See the COPYING.LIB file in the top-level directory.
+ *
+ */
+
+#include "monitor.h"
+#include "net.h"
+#include "hub.h"
+
+/*
+ * A hub broadcasts incoming packets to all its ports except the source port.
+ * Hubs can be used to provide independent network segments, also confusingly
+ * named the QEMU 'vlan' feature.
+ */
+
+typedef struct NetHub NetHub;
+
+typedef struct NetHubPort {
+    VLANClientState nc;
+    QLIST_ENTRY(NetHubPort) next;
+    NetHub *hub;
+    int id;
+} NetHubPort;
+
+struct NetHub {
+    int id;
+    QLIST_ENTRY(NetHub) next;
+    int num_ports;
+    QLIST_HEAD(, NetHubPort) ports;
+};
+
+static QLIST_HEAD(, NetHub) hubs = QLIST_HEAD_INITIALIZER(&hubs);
+
+static ssize_t net_hub_receive(NetHub *hub, NetHubPort *source_port,
+                               const uint8_t *buf, size_t len)
+{
+    NetHubPort *port;
+
+    QLIST_FOREACH(port, &hub->ports, next) {
+        if (port == source_port) {
+            continue;
+        }
+
+        qemu_send_packet(&port->nc, buf, len);
+    }
+    return len;
+}
+
+static ssize_t net_hub_receive_iov(NetHub *hub, NetHubPort *source_port,
+                                   const struct iovec *iov, int iovcnt)
+{
+    NetHubPort *port;
+    ssize_t ret = 0;
+
+    QLIST_FOREACH(port, &hub->ports, next) {
+        if (port == source_port) {
+            continue;
+        }
+
+        ret = qemu_sendv_packet(&port->nc, iov, iovcnt);
+    }
+    return ret;
+}
+
+static NetHub *net_hub_new(int id)
+{
+    NetHub *hub;
+
+    hub = g_malloc(sizeof(*hub));
+    hub->id = id;
+    hub->num_ports = 0;
+    QLIST_INIT(&hub->ports);
+
+    QLIST_INSERT_HEAD(&hubs, hub, next);
+
+    return hub;
+}
+
+static ssize_t net_hub_port_receive(VLANClientState *nc,
+                                    const uint8_t *buf, size_t len)
+{
+    NetHubPort *port = DO_UPCAST(NetHubPort, nc, nc);
+
+    return net_hub_receive(port->hub, port, buf, len);
+}
+
+static ssize_t net_hub_port_receive_iov(VLANClientState *nc,
+                                        const struct iovec *iov, int iovcnt)
+{
+    NetHubPort *port = DO_UPCAST(NetHubPort, nc, nc);
+
+    return net_hub_receive_iov(port->hub, port, iov, iovcnt);
+}
+
+static void net_hub_port_cleanup(VLANClientState *nc)
+{
+    NetHubPort *port = DO_UPCAST(NetHubPort, nc, nc);
+
+    QLIST_REMOVE(port, next);
+}
+
+static NetClientInfo net_hub_port_info = {
+    .type = NET_CLIENT_OPTIONS_KIND_HUBPORT,
+    .size = sizeof(NetHubPort),
+    .receive = net_hub_port_receive,
+    .receive_iov = net_hub_port_receive_iov,
+    .cleanup = net_hub_port_cleanup,
+};
+
+static NetHubPort *net_hub_port_new(NetHub *hub, const char *name)
+{
+    VLANClientState *nc;
+    NetHubPort *port;
+    int id = hub->num_ports++;
+    char default_name[128];
+
+    if (!name) {
+        snprintf(default_name, sizeof(default_name),
+                 "hub%dport%d", hub->id, id);
+        name = default_name;
+    }
+
+    nc = qemu_new_net_client(&net_hub_port_info, NULL, NULL, "hub", name);
+    port = DO_UPCAST(NetHubPort, nc, nc);
+    port->id = id;
+    port->hub = hub;
+
+    QLIST_INSERT_HEAD(&hub->ports, port, next);
+
+    return port;
+}
+
+/**
+ * Create a port on a given hub
+ * @name: Net client name or NULL for default name.
+ *
+ * If there is no existing hub with the given id then a new hub is created.
+ */
+VLANClientState *net_hub_add_port(int hub_id, const char *name)
+{
+    NetHub *hub;
+    NetHubPort *port;
+
+    QLIST_FOREACH(hub, &hubs, next) {
+        if (hub->id == hub_id) {
+            break;
+        }
+    }
+
+    if (!hub) {
+        hub = net_hub_new(hub_id);
+    }
+
+    port = net_hub_port_new(hub, name);
+    return &port->nc;
+}
+
+/**
+ * Print hub configuration
+ */
+void net_hub_info(Monitor *mon)
+{
+    NetHub *hub;
+    NetHubPort *port;
+
+    QLIST_FOREACH(hub, &hubs, next) {
+        monitor_printf(mon, "hub %d\n", hub->id);
+        QLIST_FOREACH(port, &hub->ports, next) {
+            monitor_printf(mon, "    port %d peer %s\n", port->id,
+                           port->nc.peer ? port->nc.peer->name : "<none>");
+        }
+    }
+}
+
+/**
+ * Get the hub id that a client is connected to
+ *
+ * @id              Pointer for hub id output, may be NULL
+ */
+int net_hub_id_for_client(VLANClientState *nc, int *id)
+{
+    NetHubPort *port;
+
+    if (nc->info->type == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+        port = DO_UPCAST(NetHubPort, nc, nc);
+    } else if (nc->peer != NULL && nc->peer->info->type ==
+            NET_CLIENT_OPTIONS_KIND_HUBPORT) {
+        port = DO_UPCAST(NetHubPort, nc, nc->peer);
+    } else {
+        return -ENOENT;
+    }
+
+    if (id) {
+        *id = port->hub->id;
+    }
+    return 0;
+}
+
+int net_init_hubport(const NetClientOptions *opts, const char *name,
+                     VLANState *vlan)
+{
+    const NetdevHubPortOptions *hubport;
+
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT);
+    hubport = opts->hubport;
+
+    /* The hub is a "vlan" so this option makes no sense. */
+    if (vlan) {
+        return -EINVAL;
+    }
+
+    net_hub_add_port(hubport->hubid, name);
+    return 0;
+}

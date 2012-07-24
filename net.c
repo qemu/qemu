@@ -30,6 +30,7 @@
 #include "net/dump.h"
 #include "net/slirp.h"
 #include "net/vde.h"
+#include "net/hub.h"
 #include "net/util.h"
 #include "monitor.h"
 #include "qemu-common.h"
@@ -816,19 +817,20 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
     const NetClientOptions *opts,
     const char *name,
     VLANState *vlan) = {
-        [NET_CLIENT_OPTIONS_KIND_NIC]    = net_init_nic,
+        [NET_CLIENT_OPTIONS_KIND_NIC]       = net_init_nic,
 #ifdef CONFIG_SLIRP
-        [NET_CLIENT_OPTIONS_KIND_USER]   = net_init_slirp,
+        [NET_CLIENT_OPTIONS_KIND_USER]      = net_init_slirp,
 #endif
-        [NET_CLIENT_OPTIONS_KIND_TAP]    = net_init_tap,
-        [NET_CLIENT_OPTIONS_KIND_SOCKET] = net_init_socket,
+        [NET_CLIENT_OPTIONS_KIND_TAP]       = net_init_tap,
+        [NET_CLIENT_OPTIONS_KIND_SOCKET]    = net_init_socket,
 #ifdef CONFIG_VDE
-        [NET_CLIENT_OPTIONS_KIND_VDE]    = net_init_vde,
+        [NET_CLIENT_OPTIONS_KIND_VDE]       = net_init_vde,
 #endif
-        [NET_CLIENT_OPTIONS_KIND_DUMP]   = net_init_dump,
+        [NET_CLIENT_OPTIONS_KIND_DUMP]      = net_init_dump,
 #ifdef CONFIG_NET_BRIDGE
-        [NET_CLIENT_OPTIONS_KIND_BRIDGE] = net_init_bridge,
+        [NET_CLIENT_OPTIONS_KIND_BRIDGE]    = net_init_bridge,
 #endif
+        [NET_CLIENT_OPTIONS_KIND_HUBPORT]   = net_init_hubport,
 };
 
 
@@ -858,6 +860,7 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
 #ifdef CONFIG_NET_BRIDGE
         case NET_CLIENT_OPTIONS_KIND_BRIDGE:
 #endif
+        case NET_CLIENT_OPTIONS_KIND_HUBPORT:
             break;
 
         default:
