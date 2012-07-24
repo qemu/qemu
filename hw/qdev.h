@@ -291,7 +291,7 @@ extern PropertyInfo qdev_prop_pci_host_devaddr;
 #define DEFINE_PROP_NETDEV(_n, _s, _f)             \
     DEFINE_PROP(_n, _s, _f, qdev_prop_netdev, VLANClientState*)
 #define DEFINE_PROP_VLAN(_n, _s, _f)             \
-    DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, VLANState*)
+    DEFINE_PROP(_n, _s, _f, qdev_prop_vlan, VLANClientState*)
 #define DEFINE_PROP_DRIVE(_n, _s, _f) \
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \

@@ -24,7 +24,7 @@ typedef struct NICConf {
 
 #define DEFINE_NIC_PROPERTIES(_state, _conf)                            \
     DEFINE_PROP_MACADDR("mac",   _state, _conf.macaddr),                \
-    DEFINE_PROP_VLAN("vlan",     _state, _conf.vlan),                   \
+    DEFINE_PROP_VLAN("vlan",     _state, _conf.peer),                   \
     DEFINE_PROP_NETDEV("netdev", _state, _conf.peer),                   \
     DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1)
 

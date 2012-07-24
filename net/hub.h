@@ -24,5 +24,6 @@ VLANClientState *net_hub_find_client_by_name(int hub_id, const char *name);
 void net_hub_info(Monitor *mon);
 int net_hub_id_for_client(VLANClientState *nc, int *id);
 void net_hub_check_clients(void);
+VLANClientState *net_hub_port_find(int hub_id);
 
 #endif /* NET_HUB_H */

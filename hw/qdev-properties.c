@@ -3,6 +3,7 @@
 #include "qerror.h"
 #include "blockdev.h"
 #include "hw/block-common.h"
+#include "net/hub.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {
@@ -624,13 +625,16 @@ PropertyInfo qdev_prop_netdev = {
 
 static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
+    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
-        return snprintf(dest, len, "%d", (*ptr)->id);
-    } else {
-        return snprintf(dest, len, "<null>");
+        int id;
+        if (!net_hub_id_for_client(*ptr, &id)) {
+            return snprintf(dest, len, "%d", id);
+        }
     }
+
+    return snprintf(dest, len, "<null>");
 }
 
 static void get_vlan(Object *obj, Visitor *v, void *opaque,
@@ -638,11 +642,17 @@ static void get_vlan(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
-    int64_t id;
+    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    int32_t id = -1;
 
-    id = *ptr ? (*ptr)->id : -1;
-    visit_type_int64(v, &id, name, errp);
+    if (*ptr) {
+        int hub_id;
+        if (!net_hub_id_for_client(*ptr, &hub_id)) {
+            id = hub_id;
+        }
+    }
+
+    visit_type_int32(v, &id, name, errp);
 }
 
 static void set_vlan(Object *obj, Visitor *v, void *opaque,
@@ -650,17 +660,17 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
+    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
-    int64_t id;
-    VLANState *vlan;
+    int32_t id;
+    VLANClientState *hubport;
 
     if (dev->state != DEV_STATE_CREATED) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }
 
-    visit_type_int64(v, &id, name, &local_err);
+    visit_type_int32(v, &id, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -669,13 +679,14 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
         *ptr = NULL;
         return;
     }
-    vlan = qemu_find_vlan(id, 1);
-    if (!vlan) {
+
+    hubport = net_hub_port_find(id);
+    if (!hubport) {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE,
                   name, prop->info->name);
         return;
     }
-    *ptr = vlan;
+    *ptr = hubport;
 }
 
 PropertyInfo qdev_prop_vlan = {
