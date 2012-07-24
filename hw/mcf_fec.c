@@ -450,7 +450,7 @@ static void mcf_fec_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_mcf_fec_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = mcf_fec_can_receive,
     .receive = mcf_fec_receive,

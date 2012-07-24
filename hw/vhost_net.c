@@ -83,7 +83,7 @@ void vhost_net_ack_features(struct vhost_net *net, unsigned features)
 static int vhost_net_get_fd(VLANClientState *backend)
 {
     switch (backend->info->type) {
-    case NET_CLIENT_TYPE_TAP:
+    case NET_CLIENT_OPTIONS_KIND_TAP:
         return tap_get_fd(backend);
     default:
         fprintf(stderr, "vhost-net requires tap backend\n");

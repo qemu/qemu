@@ -1,7 +1,8 @@
 /*
- * QEMU System Emulator
+ * Commandline option parsing functions
  *
  * Copyright (c) 2003-2008 Fabrice Bellard
+ * Copyright (c) 2009 Kevin Wolf <kwolf@redhat.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -21,13 +22,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef QEMU_NET_DUMP_H
-#define QEMU_NET_DUMP_H
 
-#include "net.h"
-#include "qapi-types.h"
+#ifndef QEMU_OPTIONS_INTERNAL_H
+#define QEMU_OPTIONS_INTERNAL_H
 
-int net_init_dump(const NetClientOptions *opts, const char *name,
-                  VLANState *vlan);
+#include "qemu-option.h"
 
-#endif /* QEMU_NET_DUMP_H */
+struct QemuOpt {
+    const char   *name;
+    const char   *str;
+
+    const QemuOptDesc *desc;
+    union {
+        bool boolean;
+        uint64_t uint;
+    } value;
+
+    QemuOpts     *opts;
+    QTAILQ_ENTRY(QemuOpt) next;
+};
+
+struct QemuOpts {
+    char *id;
+    QemuOptsList *list;
+    Location loc;
+    QTAILQ_HEAD(QemuOptHead, QemuOpt) head;
+    QTAILQ_ENTRY(QemuOpts) next;
+};
+
+#endif

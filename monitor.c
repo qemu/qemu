@@ -941,13 +941,6 @@ static void do_info_cpu_stats(Monitor *mon)
 }
 #endif
 
-#if defined(CONFIG_TRACE_SIMPLE)
-static void do_info_trace(Monitor *mon)
-{
-    st_print_trace((FILE *)mon, &monitor_fprintf);
-}
-#endif
-
 static void do_trace_print_events(Monitor *mon)
 {
     trace_print_events((FILE *)mon, &monitor_fprintf);
@@ -2689,15 +2682,6 @@ static mon_cmd_t info_cmds[] = {
         .help       = "show roms",
         .mhandler.info = do_info_roms,
     },
-#if defined(CONFIG_TRACE_SIMPLE)
-    {
-        .name       = "trace",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show current contents of trace buffer",
-        .mhandler.info = do_info_trace,
-    },
-#endif
     {
         .name       = "trace-events",
         .args_type  = "",

@@ -2334,7 +2334,7 @@ static void eeprom_init(E100State *s)
 }
 
 static NetClientInfo net_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = nic_can_receive,
     .receive = nic_receive,

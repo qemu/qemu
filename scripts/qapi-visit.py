@@ -17,32 +17,49 @@ import os
 import getopt
 import errno
 
-def generate_visit_struct_body(field_prefix, members):
-    ret = ""
+def generate_visit_struct_body(field_prefix, name, members):
+    ret = mcgen('''
+if (!error_is_set(errp)) {
+''')
+    push_indent()
+
     if len(field_prefix):
         field_prefix = field_prefix + "."
+        ret += mcgen('''
+Error **errp = &err; /* from outer scope */
+Error *err = NULL;
+visit_start_struct(m, NULL, "", "%(name)s", 0, &err);
+''',
+                name=name)
+    else:
+        ret += mcgen('''
+Error *err = NULL;
+visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+''',
+                name=name)
+
+    ret += mcgen('''
+if (!err) {
+    if (!obj || *obj) {
+''')
+
+    push_indent()
+    push_indent()
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
             ret += mcgen('''
-visit_start_optional(m, (obj && *obj) ? &(*obj)->%(c_prefix)shas_%(c_name)s : NULL, "%(name)s", errp);
-if ((*obj)->%(prefix)shas_%(c_name)s) {
+visit_start_optional(m, obj ? &(*obj)->%(c_prefix)shas_%(c_name)s : NULL, "%(name)s", &err);
+if (obj && (*obj)->%(prefix)shas_%(c_name)s) {
 ''',
                          c_prefix=c_var(field_prefix), prefix=field_prefix,
                          c_name=c_var(argname), name=argname)
             push_indent()
 
         if structured:
-            ret += mcgen('''
-visit_start_struct(m, NULL, "", "%(name)s", 0, errp);
-''',
-                         name=argname)
-            ret += generate_visit_struct_body(field_prefix + argname, argentry)
-            ret += mcgen('''
-visit_end_struct(m, errp);
-''')
+            ret += generate_visit_struct_body(field_prefix + argname, argname, argentry)
         else:
             ret += mcgen('''
-visit_type_%(type)s(m, (obj && *obj) ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "%(name)s", errp);
+visit_type_%(type)s(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "%(name)s", &err);
 ''',
                          c_prefix=c_var(field_prefix), prefix=field_prefix,
                          type=type_name(argentry), c_name=c_var(argname),
@@ -52,7 +69,25 @@ visit_type_%(type)s(m, (obj && *obj) ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, "
             pop_indent()
             ret += mcgen('''
 }
-visit_end_optional(m, errp);
+visit_end_optional(m, &err);
+''')
+
+    pop_indent()
+    ret += mcgen('''
+
+    error_propagate(errp, err);
+    err = NULL;
+}
+''')
+
+    pop_indent()
+    pop_indent()
+    ret += mcgen('''
+        /* Always call end_struct if start_struct succeeded.  */
+        visit_end_struct(m, &err);
+    }
+    error_propagate(errp, err);
+}
 ''')
     return ret
 
@@ -61,22 +96,14 @@ def generate_visit_struct(name, members):
 
 void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
 {
-    if (error_is_set(errp)) {
-        return;
-    }
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), errp);
-    if (obj && !*obj) {
-        goto end;
-    }
 ''',
                 name=name)
+
     push_indent()
-    ret += generate_visit_struct_body("", members)
+    ret += generate_visit_struct_body("", name, members)
     pop_indent()
 
     ret += mcgen('''
-end:
-    visit_end_struct(m, errp);
 }
 ''')
     return ret
@@ -87,18 +114,23 @@ def generate_visit_list(name, members):
 void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp)
 {
     GenericList *i, **prev = (GenericList **)obj;
+    Error *err = NULL;
 
-    if (error_is_set(errp)) {
-        return;
+    if (!error_is_set(errp)) {
+        visit_start_list(m, name, &err);
+        if (!err) {
+            for (; (i = visit_next_list(m, prev, &err)) != NULL; prev = &i) {
+                %(name)sList *native_i = (%(name)sList *)i;
+                visit_type_%(name)s(m, &native_i->value, NULL, &err);
+            }
+            error_propagate(errp, err);
+            err = NULL;
+
+            /* Always call end_list if start_list succeeded.  */
+            visit_end_list(m, &err);
+        }
+        error_propagate(errp, err);
     }
-    visit_start_list(m, name, errp);
-
-    for (; (i = visit_next_list(m, prev, errp)) != NULL; prev = &i) {
-        %(name)sList *native_i = (%(name)sList *)i;
-        visit_type_%(name)s(m, &native_i->value, NULL, errp);
-    }
-
-    visit_end_list(m, errp);
 }
 ''',
                 name=name)
@@ -122,27 +154,23 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 {
     Error *err = NULL;
 
-    if (error_is_set(errp)) {
-        return;
-    }
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
-    if (obj && !*obj) {
-        goto end;
-    }
-    visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
-    if (err) {
-        error_propagate(errp, err);
-        goto end;
-    }
-    switch ((*obj)->kind) {
+    if (!error_is_set(errp)) {
+        visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+        if (!err) {
+            if (!obj || *obj) {
+                visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
+                if (!err) {
+                    switch ((*obj)->kind) {
 ''',
                  name=name)
 
+    push_indent()
+    push_indent()
     for key in members:
         ret += mcgen('''
-    case %(abbrev)s_KIND_%(enum)s:
-        visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", errp);
-        break;
+            case %(abbrev)s_KIND_%(enum)s:
+                visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);
+                break;
 ''',
                 abbrev = de_camel_case(name).upper(),
                 enum = c_fun(de_camel_case(key)).upper(),
@@ -150,11 +178,25 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
                 c_name=c_fun(key))
 
     ret += mcgen('''
-    default:
-        abort();
+            default:
+                abort();
+            }
+        }
+        error_propagate(errp, err);
+        err = NULL;
     }
-end:
-    visit_end_struct(m, errp);
+''')
+    pop_indent()
+    ret += mcgen('''
+        /* Always call end_struct if start_struct succeeded.  */
+        visit_end_struct(m, &err);
+    }
+    error_propagate(errp, err);
+}
+''')
+
+    pop_indent();
+    ret += mcgen('''
 }
 ''')
 

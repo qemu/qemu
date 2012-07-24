@@ -284,9 +284,16 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
         cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
 
-    if (ram_size > 0x80000000) {
-        fprintf(stderr, "vexpress-a15: cannot model more than 2GB RAM\n");
-        exit(1);
+    {
+        /* We have to use a separate 64 bit variable here to avoid the gcc
+         * "comparison is always false due to limited range of data type"
+         * warning if we are on a host where ram_addr_t is 32 bits.
+         */
+        uint64_t rsz = ram_size;
+        if (rsz > (30ULL * 1024 * 1024 * 1024)) {
+            fprintf(stderr, "vexpress-a15: cannot model more than 30GB RAM\n");
+            exit(1);
+        }
     }
 
     memory_region_init_ram(ram, "vexpress.highmem", ram_size);

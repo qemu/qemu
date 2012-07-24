@@ -1064,7 +1064,7 @@ static void smc91c111_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_smc91c111_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = smc91c111_can_receive,
     .receive = smc91c111_receive,

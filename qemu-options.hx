@@ -1439,7 +1439,7 @@ Forward guest TCP connections to the IP address @var{server} on port @var{port}
 to the character device @var{dev} or to a program executed by @var{cmd:command}
 which gets spawned for each connection. This option can be given multiple times.
 
-You can either use a chardev directly and have that one used throughout Qemu's
+You can either use a chardev directly and have that one used throughout QEMU's
 lifetime, like in the following example:
 
 @example
@@ -1449,7 +1449,7 @@ qemu -net user,guestfwd=tcp:10.0.2.100:1234-tcp:10.10.1.1:4321 [...]
 @end example
 
 Or you can execute a command on every TCP connection established by the guest,
-so that Qemu behaves similar to an inetd process for that virtual server:
+so that QEMU behaves similar to an inetd process for that virtual server:
 
 @example
 # call "netcat 10.10.1.1 4321" on every TCP connection to 10.0.2.100:1234

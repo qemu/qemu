@@ -645,7 +645,7 @@ static const MemoryRegionOps dm9000_ops = {
 };
 
 static NetClientInfo net_dm9000_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = dm9000_can_receive,
     .receive = dm9000_receive,

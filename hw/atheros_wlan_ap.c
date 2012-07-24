@@ -257,7 +257,7 @@ static void Atheros_WLAN_cleanup(VLANClientState *vc)
 }
 
 static NetClientInfo net_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = Atheros_WLAN_can_receive,
     .receive = Atheros_WLAN_receive,

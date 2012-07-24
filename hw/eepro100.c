@@ -1928,7 +1928,7 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
 }
 
 static NetClientInfo net_eepro100_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = nic_can_receive,
     .receive = nic_receive,

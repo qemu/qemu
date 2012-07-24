@@ -27,12 +27,13 @@
 #define QEMU_NET_TAP_H
 
 #include "qemu-common.h"
-#include "qemu-option.h"
+#include "qapi-types.h"
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
 
-int net_init_tap(QemuOpts *opts, const char *name, VLANState *vlan);
+int net_init_tap(const NetClientOptions *opts, const char *name,
+                 VLANState *vlan);
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required);
 
@@ -45,7 +46,7 @@ void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr);
 void tap_set_offload(VLANClientState *vc, int csum, int tso4, int tso6, int ecn, int ufo);
 void tap_set_vnet_hdr_len(VLANClientState *vc, int len);
 
-int tap_set_sndbuf(int fd, QemuOpts *opts);
+int tap_set_sndbuf(int fd, const NetdevTapOptions *tap);
 int tap_probe_vnet_hdr(int fd);
 int tap_probe_vnet_hdr_len(int fd, int len);
 int tap_probe_has_ufo(int fd);
@@ -57,6 +58,7 @@ int tap_get_fd(VLANClientState *vc);
 struct vhost_net;
 struct vhost_net *tap_get_vhost_net(VLANClientState *vc);
 
-int net_init_bridge(QemuOpts *opts, const char *name, VLANState *vlan);
+int net_init_bridge(const NetClientOptions *opts, const char *name,
+                    VLANState *vlan);
 
 #endif /* QEMU_NET_TAP_H */

@@ -25,7 +25,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
 
 /* arm_boot.c */
 struct arm_boot_info {
-    int ram_size;
+    uint64_t ram_size;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *initrd_filename;

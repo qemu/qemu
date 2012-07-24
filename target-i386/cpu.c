@@ -47,7 +47,7 @@ static const char *ext_feature_name[] = {
     "ds_cpl", "vmx", "smx", "est",
     "tm2", "ssse3", "cid", NULL,
     "fma", "cx16", "xtpr", "pdcm",
-    NULL, NULL, "dca", "sse4.1|sse4_1",
+    NULL, "pcid", "dca", "sse4.1|sse4_1",
     "sse4.2|sse4_2", "x2apic", "movbe", "popcnt",
     "tsc-deadline", "aes", "xsave", "osxsave",
     "avx", NULL, NULL, "hypervisor",

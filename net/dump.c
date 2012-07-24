@@ -93,7 +93,7 @@ static void dump_cleanup(VLANClientState *nc)
 }
 
 static NetClientInfo net_dump_info = {
-    .type = NET_CLIENT_TYPE_DUMP,
+    .type = NET_CLIENT_OPTIONS_KIND_DUMP,
     .size = sizeof(DumpState),
     .receive = dump_receive,
     .cleanup = dump_cleanup,
@@ -144,21 +144,35 @@ static int net_dump_init(VLANState *vlan, const char *device,
     return 0;
 }
 
-int net_init_dump(QemuOpts *opts, const char *name, VLANState *vlan)
+int net_init_dump(const NetClientOptions *opts, const char *name,
+                  VLANState *vlan)
 {
     int len;
     const char *file;
     char def_file[128];
+    const NetdevDumpOptions *dump;
+
+    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP);
+    dump = opts->dump;
 
     assert(vlan);
 
-    file = qemu_opt_get(opts, "file");
-    if (!file) {
+    if (dump->has_file) {
+        file = dump->file;
+    } else {
         snprintf(def_file, sizeof(def_file), "qemu-vlan%d.pcap", vlan->id);
         file = def_file;
     }
 
-    len = qemu_opt_get_size(opts, "len", 65536);
+    if (dump->has_len) {
+        if (dump->len > INT_MAX) {
+            error_report("invalid length: %"PRIu64, dump->len);
+            return -1;
+        }
+        len = dump->len;
+    } else {
+        len = 65536;
+    }
 
     return net_dump_init(vlan, "dump", name, file, len);
 }

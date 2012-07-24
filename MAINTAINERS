@@ -560,9 +560,10 @@ F: monitor.c
 
 Network device layer
 M: Anthony Liguori <aliguori@us.ibm.com>
-M: Mark McLoughlin <markmc@redhat.com>
+M: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
 S: Maintained
 F: net/
+T: git git://github.com/stefanha/qemu.git net
 
 Network Block Device (NBD)
 M: Paolo Bonzini <pbonzini@redhat.com>

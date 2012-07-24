@@ -159,6 +159,12 @@ def c_type(name):
         return 'char *'
     elif name == 'int':
         return 'int64_t'
+    elif (name == 'int8' or name == 'int16' or name == 'int32' or
+          name == 'int64' or name == 'uint8' or name == 'uint16' or
+          name == 'uint32' or name == 'uint64'):
+        return name + '_t'
+    elif name == 'size':
+        return 'uint64_t'
     elif name == 'bool':
         return 'bool'
     elif name == 'number':

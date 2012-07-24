@@ -78,12 +78,6 @@ struct DeviceState {
     int alias_required_for_version;
 };
 
-/*
- * This callback is used to create Open Firmware device path in accordance with
- * OF spec http://forthworks.com/standards/of1275.pdf. Indicidual bus bindings
- * can be found here http://playground.sun.com/1275/bindings/.
- */
-
 #define TYPE_BUS "bus"
 #define BUS(obj) OBJECT_CHECK(BusState, (obj), TYPE_BUS)
 #define BUS_CLASS(klass) OBJECT_CLASS_CHECK(BusClass, (klass), TYPE_BUS)
@@ -95,6 +89,11 @@ struct BusClass {
     /* FIXME first arg should be BusState */
     void (*print_dev)(Monitor *mon, DeviceState *dev, int indent);
     char *(*get_dev_path)(DeviceState *dev);
+    /*
+     * This callback is used to create Open Firmware device path in accordance
+     * with OF spec http://forthworks.com/standards/of1275.pdf. Individual bus
+     * bindings can be found at http://playground.sun.com/1275/bindings/.
+     */
     char *(*get_fw_dev_path)(DeviceState *dev);
     int (*reset)(BusState *bus);
 };

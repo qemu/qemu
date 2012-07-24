@@ -3502,7 +3502,7 @@ static void ar7_nic_cleanup(VLANClientState *vc)
 }
 
 static NetClientInfo ar7_net_info = {
-    .type = NET_CLIENT_TYPE_NIC,
+    .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
     .can_receive = ar7_nic_can_receive,
     .receive = ar7_nic_receive,

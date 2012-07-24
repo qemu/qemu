@@ -178,6 +178,36 @@ int qemu_devtree_setprop_string(void *fdt, const char *node_path,
     return r;
 }
 
+const void *qemu_devtree_getprop(void *fdt, const char *node_path,
+                                 const char *property, int *lenp)
+{
+    int len;
+    const void *r;
+    if (!lenp) {
+        lenp = &len;
+    }
+    r = fdt_getprop(fdt, findnode_nofail(fdt, node_path), property, lenp);
+    if (!r) {
+        fprintf(stderr, "%s: Couldn't get %s/%s: %s\n", __func__,
+                node_path, property, fdt_strerror(*lenp));
+        exit(1);
+    }
+    return r;
+}
+
+uint32_t qemu_devtree_getprop_cell(void *fdt, const char *node_path,
+                                   const char *property)
+{
+    int len;
+    const uint32_t *p = qemu_devtree_getprop(fdt, node_path, property, &len);
+    if (len != 4) {
+        fprintf(stderr, "%s: %s/%s not 4 bytes long (not a cell?)\n",
+                __func__, node_path, property);
+        exit(1);
+    }
+    return be32_to_cpu(*p);
+}
+
 uint32_t qemu_devtree_get_phandle(void *fdt, const char *path)
 {
     uint32_t r;

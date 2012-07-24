@@ -3,6 +3,9 @@
 #include "test-qmp-commands.h"
 #include "qapi/qmp-core.h"
 #include "module.h"
+#include "qapi/qmp-input-visitor.h"
+#include "tests/test-qapi-types.h"
+#include "tests/test-qapi-visit.h"
 
 void qmp_user_def_cmd(Error **errp)
 {
@@ -123,6 +126,44 @@ static void test_dealloc_types(void)
     qapi_free_UserDefOneList(ud1list);
 }
 
+/* test generated deallocation on an object whose construction was prematurely
+ * terminated due to an error */
+static void test_dealloc_partial(void)
+{
+    static const char text[] = "don't leak me";
+
+    UserDefTwo *ud2 = NULL;
+    Error *err = NULL;
+
+    /* create partial object */
+    {
+        QDict *ud2_dict;
+        QmpInputVisitor *qiv;
+
+        ud2_dict = qdict_new();
+        qdict_put_obj(ud2_dict, "string", QOBJECT(qstring_from_str(text)));
+
+        qiv = qmp_input_visitor_new(QOBJECT(ud2_dict));
+        visit_type_UserDefTwo(qmp_input_get_visitor(qiv), &ud2, NULL, &err);
+        qmp_input_visitor_cleanup(qiv);
+        QDECREF(ud2_dict);
+    }
+
+    /* verify partial success */
+    assert(ud2 != NULL);
+    assert(ud2->string != NULL);
+    assert(strcmp(ud2->string, text) == 0);
+    assert(ud2->dict.dict.userdef == NULL);
+
+    /* confirm & release construction error */
+    assert(err != NULL);
+    error_free(err);
+
+    /* tear down partial object */
+    qapi_free_UserDefTwo(ud2);
+}
+
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -131,6 +172,7 @@ int main(int argc, char **argv)
     g_test_add_func("/0.15/dispatch_cmd_error", test_dispatch_cmd_error);
     g_test_add_func("/0.15/dispatch_cmd_io", test_dispatch_cmd_io);
     g_test_add_func("/0.15/dealloc_types", test_dealloc_types);
+    g_test_add_func("/0.15/dealloc_partial", test_dealloc_partial);
 
     module_call_init(MODULE_INIT_QAPI);
     g_test_run();
