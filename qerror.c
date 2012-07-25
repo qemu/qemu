@@ -49,7 +49,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_AMBIGUOUS_PATH,
-        .desc      = "Path '%(path)' does not uniquely identify a %(object)"
+        .desc      = "Path '%(path)' does not uniquely identify an object"
     },
     {
         .error_fmt = QERR_BAD_BUS_FOR_DEVICE,
