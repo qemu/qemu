@@ -2271,7 +2271,7 @@ static void register_subpage(MemoryRegionSection *section)
         subpage = container_of(existing->mr, subpage_t, iomem);
     }
     start = section->offset_within_address_space & ~TARGET_PAGE_MASK;
-    end = start + section->size;
+    end = start + section->size - 1;
     subpage_register(subpage, start, end, phys_section_add(section));
 }
 
