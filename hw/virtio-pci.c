@@ -627,7 +627,7 @@ static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
     int r, n;
 
     /* Must unset vector notifier while guest notifier is still assigned */
-    if (kvm_irqchip_in_kernel() && !assign) {
+    if (kvm_msi_via_irqfd_enabled() && !assign) {
         msix_unset_vector_notifiers(&proxy->pci_dev);
         g_free(proxy->vector_irqfd);
         proxy->vector_irqfd = NULL;
@@ -645,7 +645,7 @@ static int virtio_pci_set_guest_notifiers(void *opaque, bool assign)
     }
 
     /* Must set vector notifier after guest notifier has been assigned */
-    if (kvm_irqchip_in_kernel() && assign) {
+    if (kvm_msi_via_irqfd_enabled() && assign) {
         proxy->vector_irqfd =
             g_malloc0(sizeof(*proxy->vector_irqfd) *
                       msix_nr_vectors_allocated(&proxy->pci_dev));
