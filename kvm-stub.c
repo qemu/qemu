@@ -72,11 +72,6 @@ int kvm_has_many_ioeventfds(void)
     return 0;
 }
 
-int kvm_allows_irq0_override(void)
-{
-    return 1;
-}
-
 int kvm_has_pit_state2(void)
 {
     return 0;

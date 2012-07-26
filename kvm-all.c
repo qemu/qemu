@@ -1701,11 +1701,6 @@ int kvm_has_gsi_routing(void)
 #endif
 }
 
-int kvm_allows_irq0_override(void)
-{
-    return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
-}
-
 void *kvm_vmalloc(ram_addr_t size)
 {
 #ifdef TARGET_S390X

@@ -42,6 +42,7 @@
 #include "sysbus.h"
 #include "sysemu.h"
 #include "kvm.h"
+#include "kvm_i386.h"
 #include "xen.h"
 #include "blockdev.h"
 #include "hw/block-common.h"

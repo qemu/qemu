@@ -23,6 +23,7 @@
 #include "qemu-common.h"
 #include "sysemu.h"
 #include "kvm.h"
+#include "kvm_i386.h"
 #include "cpu.h"
 #include "gdbstub.h"
 #include "host-utils.h"
@@ -64,6 +65,11 @@ static bool has_msr_tsc_deadline;
 static bool has_msr_async_pf_en;
 static bool has_msr_misc_enable;
 static int lm_capable_kernel;
+
+bool kvm_allows_irq0_override(void)
+{
+    return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
+}
 
 static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
 {
