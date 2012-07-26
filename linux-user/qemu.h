@@ -210,6 +210,19 @@ void fork_end(int child);
  */
 bool guest_validate_base(unsigned long guest_base);
 
+/* Creates the initial guest address space in the host memory space using
+ * the given host start address hint and size.  The guest_start parameter
+ * specifies the start address of the guest space.  guest_base will be the
+ * difference between the host start address computed by this function and
+ * guest_start.  If fixed is specified, then the mapped address space must
+ * start at host_start.  The real start address of the mapped memory space is
+ * returned or -1 if there was an error.
+ */
+unsigned long init_guest_space(unsigned long host_start,
+                               unsigned long host_size,
+                               unsigned long guest_start,
+                               bool fixed);
+
 #include "qemu-log.h"
 
 /* strace.c */
