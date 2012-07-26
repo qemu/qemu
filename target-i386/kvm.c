@@ -2047,4 +2047,8 @@ void kvm_arch_init_irq_routing(KVMState *s)
          */
         no_hpet = 1;
     }
+    /* We know at this point that we're using the in-kernel
+     * irqchip, so we can use irqfds.
+     */
+    kvm_irqfds_allowed = true;
 }

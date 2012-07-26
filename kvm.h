@@ -25,6 +25,7 @@
 extern int kvm_allowed;
 extern bool kvm_kernel_irqchip;
 extern bool kvm_async_interrupts_allowed;
+extern bool kvm_irqfds_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
@@ -40,10 +41,20 @@ extern bool kvm_async_interrupts_allowed;
  */
 #define kvm_async_interrupts_enabled() (kvm_async_interrupts_allowed)
 
+/**
+ * kvm_irqfds_enabled:
+ *
+ * Returns: true if we can use irqfds to inject interrupts into
+ * a KVM CPU (ie the kernel supports irqfds and we are running
+ * with a configuration where it is meaningful to use them).
+ */
+#define kvm_irqfds_enabled() (kvm_irqfds_allowed)
+
 #else
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
 #define kvm_async_interrupts_enabled() (false)
+#define kvm_irqfds_enabled() (false)
 #endif
 
 struct kvm_run;
