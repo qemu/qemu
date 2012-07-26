@@ -402,6 +402,9 @@
 #
 # @encrypted: true if the backing device is encrypted
 #
+# @encryption_key_missing: true if the backing device is encrypted but an
+#                          valid encryption key is missing
+#
 # @bps: total throughput limit in bytes per second is specified
 #
 # @bps_rd: read throughput limit in bytes per second is specified
@@ -421,9 +424,9 @@
 { 'type': 'BlockDeviceInfo',
   'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
-            'encrypted': 'bool', 'bps': 'int', 'bps_rd': 'int',
-            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int',
-            'iops_wr': 'int'} }
+            'encrypted': 'bool', 'encryption_key_missing': 'bool',
+            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
 
 ##
 # @BlockDeviceIoStatus:
