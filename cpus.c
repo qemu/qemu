@@ -70,7 +70,8 @@ static bool cpu_thread_is_idle(CPUArchState *env)
     if (env->stopped || !runstate_is_running()) {
         return true;
     }
-    if (!env->halted || qemu_cpu_has_work(env) || kvm_irqchip_in_kernel()) {
+    if (!env->halted || qemu_cpu_has_work(env) ||
+        kvm_async_interrupts_enabled()) {
         return false;
     }
     return true;

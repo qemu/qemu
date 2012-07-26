@@ -24,13 +24,26 @@
 
 extern int kvm_allowed;
 extern bool kvm_kernel_irqchip;
+extern bool kvm_async_interrupts_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
 #define kvm_irqchip_in_kernel() (kvm_kernel_irqchip)
+
+/**
+ * kvm_async_interrupts_enabled:
+ *
+ * Returns: true if we can deliver interrupts to KVM
+ * asynchronously (ie by ioctl from any thread at any time)
+ * rather than having to do interrupt delivery synchronously
+ * (where the vcpu must be stopped at a suitable point first).
+ */
+#define kvm_async_interrupts_enabled() (kvm_async_interrupts_allowed)
+
 #else
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
+#define kvm_async_interrupts_enabled() (false)
 #endif
 
 struct kvm_run;

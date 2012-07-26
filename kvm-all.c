@@ -100,6 +100,7 @@ struct KVMState
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
+bool kvm_async_interrupts_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -857,7 +858,7 @@ int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
     struct kvm_irq_level event;
     int ret;
 
-    assert(kvm_irqchip_in_kernel());
+    assert(kvm_async_interrupts_enabled());
 
     event.level = level;
     event.irq = irq;
@@ -1201,6 +1202,10 @@ static int kvm_irqchip_create(KVMState *s)
         s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
     }
     kvm_kernel_irqchip = true;
+    /* If we have an in-kernel IRQ chip then we must have asynchronous
+     * interrupt delivery (though the reverse is not necessarily true)
+     */
+    kvm_async_interrupts_allowed = true;
 
     kvm_init_irq_routing(s);
 
