@@ -31,6 +31,17 @@ extern bool kvm_gsi_routing_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
+/**
+ * kvm_irqchip_in_kernel:
+ *
+ * Returns: true if the user asked us to create an in-kernel
+ * irqchip via the "kernel_irqchip=on" machine option.
+ * What this actually means is architecture and machine model
+ * specific: on PC, for instance, it means that the LAPIC,
+ * IOAPIC and PIT are all in kernel. This function should never
+ * be used from generic target-independent code: use one of the
+ * following functions or some other specific check instead.
+ */
 #define kvm_irqchip_in_kernel() (kvm_kernel_irqchip)
 
 /**
