@@ -853,7 +853,7 @@ static void kvm_handle_interrupt(CPUArchState *env, int mask)
     }
 }
 
-int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
+int kvm_set_irq(KVMState *s, int irq, int level)
 {
     struct kvm_irq_level event;
     int ret;
@@ -864,7 +864,7 @@ int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
     event.irq = irq;
     ret = kvm_vm_ioctl(s, s->irqchip_inject_ioctl, &event);
     if (ret < 0) {
-        perror("kvm_set_irqchip_line");
+        perror("kvm_set_irq");
         abort();
     }
 
@@ -1089,7 +1089,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
     assert(route->kroute.type == KVM_IRQ_ROUTING_MSI);
 
-    return kvm_irqchip_set_irq(s, route->kroute.gsi, 1);
+    return kvm_set_irq(s, route->kroute.gsi, 1);
 }
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)

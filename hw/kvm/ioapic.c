@@ -82,7 +82,7 @@ static void kvm_ioapic_set_irq(void *opaque, int irq, int level)
     KVMIOAPICState *s = opaque;
     int delivered;
 
-    delivered = kvm_irqchip_set_irq(kvm_state, s->kvm_gsi_base + irq, level);
+    delivered = kvm_set_irq(kvm_state, s->kvm_gsi_base + irq, level);
     apic_report_irq_delivered(delivered);
 }
 

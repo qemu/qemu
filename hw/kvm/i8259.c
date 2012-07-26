@@ -94,7 +94,7 @@ static void kvm_pic_set_irq(void *opaque, int irq, int level)
 {
     int delivered;
 
-    delivered = kvm_irqchip_set_irq(kvm_state, irq, level);
+    delivered = kvm_set_irq(kvm_state, irq, level);
     apic_report_irq_delivered(delivered);
 }
 
