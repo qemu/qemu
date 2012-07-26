@@ -3516,39 +3516,16 @@ int main(int argc, char **argv, char **envp)
      */
     guest_base = HOST_PAGE_ALIGN(guest_base);
 
-    if (reserved_va) {
-        void *p;
-        int flags;
-
-        flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
-        if (have_guest_base) {
-            flags |= MAP_FIXED;
-        }
-        p = mmap((void *)guest_base, reserved_va, PROT_NONE, flags, -1, 0);
-        if (p == MAP_FAILED) {
+    if (reserved_va || have_guest_base) {
+        guest_base = init_guest_space(guest_base, reserved_va, 0,
+                                      have_guest_base);
+        if (guest_base == (unsigned long)-1) {
             fprintf(stderr, "Unable to reserve guest address space\n");
             exit(1);
         }
-        guest_base = (unsigned long)p;
-        /* Make sure the address is properly aligned.  */
-        if (guest_base & ~qemu_host_page_mask) {
-            munmap(p, reserved_va);
-            p = mmap((void *)guest_base, reserved_va + qemu_host_page_size,
-                     PROT_NONE, flags, -1, 0);
-            if (p == MAP_FAILED) {
-                fprintf(stderr, "Unable to reserve guest address space\n");
-                exit(1);
-            }
-            guest_base = HOST_PAGE_ALIGN((unsigned long)p);
-        }
-        qemu_log("Reserved 0x%lx bytes of guest address space\n", reserved_va);
-        mmap_next_start = reserved_va;
-    }
 
-    if (reserved_va || have_guest_base) {
-        if (!guest_validate_base(guest_base)) {
-            fprintf(stderr, "Guest base/Reserved VA rejected by guest code\n");
-            exit(1);
+        if (reserved_va) {
+            mmap_next_start = reserved_va;
         }
     }
 #endif /* CONFIG_USE_GUEST_BASE */

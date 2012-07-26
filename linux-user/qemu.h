@@ -204,12 +204,6 @@ int get_osversion(void);
 void fork_start(void);
 void fork_end(int child);
 
-/* Return true if the proposed guest_base is suitable for the guest.
- * The guest code may leave a page mapped and populate it if the
- * address is suitable.
- */
-bool guest_validate_base(unsigned long guest_base);
-
 /* Creates the initial guest address space in the host memory space using
  * the given host start address hint and size.  The guest_start parameter
  * specifies the start address of the guest space.  guest_base will be the

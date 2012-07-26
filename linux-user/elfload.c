@@ -332,9 +332,17 @@ enum
     ARM_HWCAP_ARM_VFPv3D16  = 1 << 13,
 };
 
-#define TARGET_HAS_GUEST_VALIDATE_BASE
-/* We want the opportunity to check the suggested base */
-bool guest_validate_base(unsigned long guest_base)
+#define TARGET_HAS_VALIDATE_GUEST_SPACE
+/* Return 1 if the proposed guest space is suitable for the guest.
+ * Return 0 if the proposed guest space isn't suitable, but another
+ * address space should be tried.
+ * Return -1 if there is no way the proposed guest space can be
+ * valid regardless of the base.
+ * The guest code may leave a page mapped and populate it if the
+ * address is suitable.
+ */
+static int validate_guest_space(unsigned long guest_base,
+                                unsigned long guest_size)
 {
     unsigned long real_start, test_page_addr;
 
@@ -342,6 +350,15 @@ bool guest_validate_base(unsigned long guest_base)
      * commpage at 0xffff0fxx
      */
     test_page_addr = guest_base + (0xffff0f00 & qemu_host_page_mask);
+
+    /* If the commpage lies within the already allocated guest space,
+     * then there is no way we can allocate it.
+     */
+    if (test_page_addr >= guest_base
+        && test_page_addr <= (guest_base + guest_size)) {
+        return -1;
+    }
+
     /* Note it needs to be writeable to let us initialise it */
     real_start = (unsigned long)
                  mmap((void *)test_page_addr, qemu_host_page_size,
@@ -1418,9 +1435,10 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-#ifndef TARGET_HAS_GUEST_VALIDATE_BASE
+#ifndef TARGET_HAS_VALIDATE_GUEST_SPACE
 /* If the guest doesn't have a validation function just agree */
-bool guest_validate_base(unsigned long guest_base)
+static int validate_guest_space(unsigned long guest_base,
+                                unsigned long guest_size)
 {
     return 1;
 }
@@ -1439,7 +1457,7 @@ unsigned long init_guest_space(unsigned long host_start,
     /* If just a starting address is given, then just verify that
      * address.  */
     if (host_start && !host_size) {
-        if (guest_validate_base(host_start)) {
+        if (validate_guest_space(host_start, host_size) == 1) {
             return host_start;
         } else {
             return (unsigned long)-1;
@@ -1456,6 +1474,8 @@ unsigned long init_guest_space(unsigned long host_start,
     /* Otherwise, a non-zero size region of memory needs to be mapped
      * and validated.  */
     while (1) {
+        unsigned long real_size = host_size;
+
         /* Do not use mmap_find_vma here because that is limited to the
          * guest address space.  We are going to make the
          * guest address space fit whatever we're given.
@@ -1466,9 +1486,28 @@ unsigned long init_guest_space(unsigned long host_start,
             return (unsigned long)-1;
         }
 
-        if ((real_start == current_start)
-            && guest_validate_base(real_start - guest_start)) {
-            break;
+        /* Ensure the address is properly aligned.  */
+        if (real_start & ~qemu_host_page_mask) {
+            munmap((void *)real_start, host_size);
+            real_size = host_size + qemu_host_page_size;
+            real_start = (unsigned long)
+                mmap((void *)real_start, real_size, PROT_NONE, flags, -1, 0);
+            if (real_start == (unsigned long)-1) {
+                return (unsigned long)-1;
+            }
+            real_start = HOST_PAGE_ALIGN(real_start);
+        }
+
+        /* Check to see if the address is valid.  */
+        if (!host_start || real_start == current_start) {
+            int valid = validate_guest_space(real_start - guest_start,
+                                             real_size);
+            if (valid == 1) {
+                break;
+            } else if (valid == -1) {
+                return (unsigned long)-1;
+            }
+            /* valid == 0, so try again. */
         }
 
         /* That address didn't work.  Unmap and try a different one.
@@ -1489,6 +1528,8 @@ unsigned long init_guest_space(unsigned long host_start,
             return (unsigned long)-1;
         }
     }
+
+    qemu_log("Reserved 0x%lx bytes of guest address space\n", host_size);
 
     return real_start;
 }
