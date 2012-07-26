@@ -2049,8 +2049,9 @@ void kvm_arch_init_irq_routing(KVMState *s)
     }
     /* We know at this point that we're using the in-kernel
      * irqchip, so we can use irqfds, and on x86 we know
-     * we can use msi via irqfd.
+     * we can use msi via irqfd and GSI routing.
      */
     kvm_irqfds_allowed = true;
     kvm_msi_via_irqfd_allowed = true;
+    kvm_gsi_routing_allowed = true;
 }
