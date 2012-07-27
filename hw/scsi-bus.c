@@ -1496,6 +1496,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
 void scsi_req_cancel(SCSIRequest *req)
 {
+    trace_scsi_req_cancel(req->dev->id, req->lun, req->tag);
     if (!req->enqueued) {
         return;
     }
