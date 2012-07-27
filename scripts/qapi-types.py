@@ -253,7 +253,8 @@ fdecl.write(mcgen('''
 #ifndef %(guard)s
 #define %(guard)s
 
-#include "qapi/qapi-types-core.h"
+#include "qemu-common.h"
+
 ''',
                   guard=guardname(h_file)))
 
