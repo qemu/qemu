@@ -45,214 +45,214 @@ char *qerror_format(const char *fmt, QDict *error);
  * Use scripts/check-qerror.sh to check.
  */
 #define QERR_ADD_CLIENT_FAILED \
-    -1, "{ 'class': 'AddClientFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'AddClientFailed', 'data': {} }"
 
 #define QERR_AMBIGUOUS_PATH \
-    -1, "{ 'class': 'AmbiguousPath', 'data': { 'path': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'AmbiguousPath', 'data': { 'path': %s } }"
 
 #define QERR_BAD_BUS_FOR_DEVICE \
-    -1, "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
 
 #define QERR_BASE_NOT_FOUND \
-    -1, "{ 'class': 'BaseNotFound', 'data': { 'base': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'BaseNotFound', 'data': { 'base': %s } }"
 
 #define QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED \
-    -1, "{ 'class': 'BlockFormatFeatureNotSupported', 'data': { 'format': %s, 'name': %s, 'feature': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'BlockFormatFeatureNotSupported', 'data': { 'format': %s, 'name': %s, 'feature': %s } }"
 
 #define QERR_BUFFER_OVERRUN \
-    -1, "{ 'class': 'BufferOverrun', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'BufferOverrun', 'data': {} }"
 
 #define QERR_BUS_NO_HOTPLUG \
-    -1, "{ 'class': 'BusNoHotplug', 'data': { 'bus': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'BusNoHotplug', 'data': { 'bus': %s } }"
 
 #define QERR_BUS_NOT_FOUND \
-    -1, "{ 'class': 'BusNotFound', 'data': { 'bus': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'BusNotFound', 'data': { 'bus': %s } }"
 
 #define QERR_COMMAND_DISABLED \
-    -1, "{ 'class': 'CommandDisabled', 'data': { 'name': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'CommandDisabled', 'data': { 'name': %s } }"
 
 #define QERR_COMMAND_NOT_FOUND \
-    -1, "{ 'class': 'CommandNotFound', 'data': { 'name': %s } }"
+    ERROR_CLASS_COMMAND_NOT_FOUND, "{ 'class': 'CommandNotFound', 'data': { 'name': %s } }"
 
 #define QERR_DEVICE_ENCRYPTED \
-    -1, "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s, 'filename': %s } }"
+    ERROR_CLASS_DEVICE_ENCRYPTED, "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s, 'filename': %s } }"
 
 #define QERR_DEVICE_FEATURE_BLOCKS_MIGRATION \
-    -1, "{ 'class': 'DeviceFeatureBlocksMigration', 'data': { 'device': %s, 'feature': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceFeatureBlocksMigration', 'data': { 'device': %s, 'feature': %s } }"
 
 #define QERR_DEVICE_HAS_NO_MEDIUM \
-    -1, "{ 'class': 'DeviceHasNoMedium', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceHasNoMedium', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_INIT_FAILED \
-    -1, "{ 'class': 'DeviceInitFailed', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceInitFailed', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_IN_USE \
-    -1, "{ 'class': 'DeviceInUse', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceInUse', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_IS_READ_ONLY \
-    -1, "{ 'class': 'DeviceIsReadOnly', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceIsReadOnly', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_LOCKED \
-    -1, "{ 'class': 'DeviceLocked', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceLocked', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_MULTIPLE_BUSSES \
-    -1, "{ 'class': 'DeviceMultipleBusses', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceMultipleBusses', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NO_BUS \
-    -1, "{ 'class': 'DeviceNoBus', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceNoBus', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NO_HOTPLUG \
-    -1, "{ 'class': 'DeviceNoHotplug', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceNoHotplug', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NOT_ACTIVE \
-    -1, "{ 'class': 'DeviceNotActive', 'data': { 'device': %s } }"
+    ERROR_CLASS_DEVICE_NOT_ACTIVE, "{ 'class': 'DeviceNotActive', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NOT_ENCRYPTED \
-    -1, "{ 'class': 'DeviceNotEncrypted', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceNotEncrypted', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NOT_FOUND \
-    -1, "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
+    ERROR_CLASS_DEVICE_NOT_FOUND, "{ 'class': 'DeviceNotFound', 'data': { 'device': %s } }"
 
 #define QERR_DEVICE_NOT_REMOVABLE \
-    -1, "{ 'class': 'DeviceNotRemovable', 'data': { 'device': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DeviceNotRemovable', 'data': { 'device': %s } }"
 
 #define QERR_DUPLICATE_ID \
-    -1, "{ 'class': 'DuplicateId', 'data': { 'id': %s, 'object': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'DuplicateId', 'data': { 'id': %s, 'object': %s } }"
 
 #define QERR_FD_NOT_FOUND \
-    -1, "{ 'class': 'FdNotFound', 'data': { 'name': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'FdNotFound', 'data': { 'name': %s } }"
 
 #define QERR_FD_NOT_SUPPLIED \
-    -1, "{ 'class': 'FdNotSupplied', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'FdNotSupplied', 'data': {} }"
 
 #define QERR_FEATURE_DISABLED \
-    -1, "{ 'class': 'FeatureDisabled', 'data': { 'name': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'FeatureDisabled', 'data': { 'name': %s } }"
 
 #define QERR_INVALID_BLOCK_FORMAT \
-    -1, "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
 
 #define QERR_INVALID_OPTION_GROUP \
-    -1, "{ 'class': 'InvalidOptionGroup', 'data': { 'group': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidOptionGroup', 'data': { 'group': %s } }"
 
 #define QERR_INVALID_PARAMETER \
-    -1, "{ 'class': 'InvalidParameter', 'data': { 'name': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidParameter', 'data': { 'name': %s } }"
 
 #define QERR_INVALID_PARAMETER_COMBINATION \
-    -1, "{ 'class': 'InvalidParameterCombination', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidParameterCombination', 'data': {} }"
 
 #define QERR_INVALID_PARAMETER_TYPE \
-    -1, "{ 'class': 'InvalidParameterType', 'data': { 'name': %s,'expected': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidParameterType', 'data': { 'name': %s,'expected': %s } }"
 
 #define QERR_INVALID_PARAMETER_VALUE \
-    -1, "{ 'class': 'InvalidParameterValue', 'data': { 'name': %s, 'expected': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidParameterValue', 'data': { 'name': %s, 'expected': %s } }"
 
 #define QERR_INVALID_PASSWORD \
-    -1, "{ 'class': 'InvalidPassword', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'InvalidPassword', 'data': {} }"
 
 #define QERR_IO_ERROR \
-    -1, "{ 'class': 'IOError', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'IOError', 'data': {} }"
 
 #define QERR_JSON_PARSE_ERROR \
-    -1, "{ 'class': 'JSONParseError', 'data': { 'message': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'JSONParseError', 'data': { 'message': %s } }"
 
 #define QERR_JSON_PARSING \
-    -1, "{ 'class': 'JSONParsing', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'JSONParsing', 'data': {} }"
 
 #define QERR_KVM_MISSING_CAP \
-    -1, "{ 'class': 'KVMMissingCap', 'data': { 'capability': %s, 'feature': %s } }"
+    ERROR_CLASS_K_V_M_MISSING_CAP, "{ 'class': 'KVMMissingCap', 'data': { 'capability': %s, 'feature': %s } }"
 
 #define QERR_MIGRATION_ACTIVE \
-    -1, "{ 'class': 'MigrationActive', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'MigrationActive', 'data': {} }"
 
 #define QERR_MIGRATION_NOT_SUPPORTED \
-    -1, "{ 'class': 'MigrationNotSupported', 'data': {'device': %s} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'MigrationNotSupported', 'data': {'device': %s} }"
 
 #define QERR_MIGRATION_EXPECTED \
-    -1, "{ 'class': 'MigrationExpected', 'data': {} }"
+    ERROR_CLASS_MIGRATION_EXPECTED, "{ 'class': 'MigrationExpected', 'data': {} }"
 
 #define QERR_MISSING_PARAMETER \
-    -1, "{ 'class': 'MissingParameter', 'data': { 'name': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'MissingParameter', 'data': { 'name': %s } }"
 
 #define QERR_NO_BUS_FOR_DEVICE \
-    -1, "{ 'class': 'NoBusForDevice', 'data': { 'device': %s, 'bus': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'NoBusForDevice', 'data': { 'device': %s, 'bus': %s } }"
 
 #define QERR_NOT_SUPPORTED \
-    -1, "{ 'class': 'NotSupported', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'NotSupported', 'data': {} }"
 
 #define QERR_OPEN_FILE_FAILED \
-    -1, "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
 
 #define QERR_PERMISSION_DENIED \
-    -1, "{ 'class': 'PermissionDenied', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PermissionDenied', 'data': {} }"
 
 #define QERR_PROPERTY_NOT_FOUND \
-    -1, "{ 'class': 'PropertyNotFound', 'data': { 'device': %s, 'property': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PropertyNotFound', 'data': { 'device': %s, 'property': %s } }"
 
 #define QERR_PROPERTY_VALUE_BAD \
-    -1, "{ 'class': 'PropertyValueBad', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PropertyValueBad', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
 
 #define QERR_PROPERTY_VALUE_IN_USE \
-    -1, "{ 'class': 'PropertyValueInUse', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PropertyValueInUse', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
 
 #define QERR_PROPERTY_VALUE_NOT_FOUND \
-    -1, "{ 'class': 'PropertyValueNotFound', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PropertyValueNotFound', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
 
 #define QERR_PROPERTY_VALUE_NOT_POWER_OF_2 \
-    -1, "{ 'class': 'PropertyValueNotPowerOf2', 'data': { " \
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PropertyValueNotPowerOf2', 'data': { " \
     "'device': %s, 'property': %s, 'value': %"PRId64" } }"
 
 #define QERR_PROPERTY_VALUE_OUT_OF_RANGE \
-    -1, "{ 'class': 'PropertyValueOutOfRange', 'data': { 'device': %s, 'property': %s, 'value': %"PRId64", 'min': %"PRId64", 'max': %"PRId64" } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'PropertyValueOutOfRange', 'data': { 'device': %s, 'property': %s, 'value': %"PRId64", 'min': %"PRId64", 'max': %"PRId64" } }"
 
 #define QERR_QGA_COMMAND_FAILED \
-    -1, "{ 'class': 'QgaCommandFailed', 'data': { 'message': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'QgaCommandFailed', 'data': { 'message': %s } }"
 
 #define QERR_QGA_LOGGING_FAILED \
-    -1, "{ 'class': 'QgaLoggingFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'QgaLoggingFailed', 'data': {} }"
 
 #define QERR_QMP_BAD_INPUT_OBJECT \
-    -1, "{ 'class': 'QMPBadInputObject', 'data': { 'expected': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'QMPBadInputObject', 'data': { 'expected': %s } }"
 
 #define QERR_QMP_BAD_INPUT_OBJECT_MEMBER \
-    -1, "{ 'class': 'QMPBadInputObjectMember', 'data': { 'member': %s, 'expected': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'QMPBadInputObjectMember', 'data': { 'member': %s, 'expected': %s } }"
 
 #define QERR_QMP_EXTRA_MEMBER \
-    -1, "{ 'class': 'QMPExtraInputObjectMember', 'data': { 'member': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'QMPExtraInputObjectMember', 'data': { 'member': %s } }"
 
 #define QERR_RESET_REQUIRED \
-    -1, "{ 'class': 'ResetRequired', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'ResetRequired', 'data': {} }"
 
 #define QERR_SET_PASSWD_FAILED \
-    -1, "{ 'class': 'SetPasswdFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'SetPasswdFailed', 'data': {} }"
 
 #define QERR_TOO_MANY_FILES \
-    -1, "{ 'class': 'TooManyFiles', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'TooManyFiles', 'data': {} }"
 
 #define QERR_UNDEFINED_ERROR \
-    -1, "{ 'class': 'UndefinedError', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'UndefinedError', 'data': {} }"
 
 #define QERR_UNKNOWN_BLOCK_FORMAT_FEATURE \
-    -1, "{ 'class': 'UnknownBlockFormatFeature', 'data': { 'device': %s, 'format': %s, 'feature': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'UnknownBlockFormatFeature', 'data': { 'device': %s, 'format': %s, 'feature': %s } }"
 
 #define QERR_UNSUPPORTED \
-    -1, "{ 'class': 'Unsupported', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'Unsupported', 'data': {} }"
 
 #define QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION \
-    -1, "{ 'class': 'VirtFSFeatureBlocksMigration', 'data': { 'path': %s, 'tag': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'VirtFSFeatureBlocksMigration', 'data': { 'path': %s, 'tag': %s } }"
 
 #define QERR_VNC_SERVER_FAILED \
-    -1, "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
 
 #define QERR_SOCKET_CONNECT_FAILED \
-    -1, "{ 'class': 'SockConnectFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'SockConnectFailed', 'data': {} }"
 
 #define QERR_SOCKET_LISTEN_FAILED \
-    -1, "{ 'class': 'SockListenFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'SockListenFailed', 'data': {} }"
 
 #define QERR_SOCKET_BIND_FAILED \
-    -1, "{ 'class': 'SockBindFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'SockBindFailed', 'data': {} }"
 
 #define QERR_SOCKET_CREATE_FAILED \
-    -1, "{ 'class': 'SockCreateFailed', 'data': {} }"
+    ERROR_CLASS_GENERIC_ERROR, "{ 'class': 'SockCreateFailed', 'data': {} }"
 
 #endif /* QERROR_H */
