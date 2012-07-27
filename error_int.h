@@ -22,7 +22,6 @@
  *
  * These are used to convert QErrors to Errors
  */
-QDict *error_get_data(Error *err);
 QObject *error_get_qobject(Error *err);
 void error_set_qobject(Error **errp, QObject *obj);
   

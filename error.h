@@ -51,16 +51,6 @@ Error *error_copy(const Error *err);
 const char *error_get_pretty(Error *err);
 
 /**
- * Get an individual named error field.
- */
-const char *error_get_field(Error *err, const char *field);
-
-/**
- * Get an individual named error field.
- */
-void error_set_field(Error *err, const char *field, const char *value);
-
-/**
  * Propagate an error to an indirect pointer to an error.  This function will
  * always transfer ownership of the error reference and handles the case where
  * dst_err is NULL correctly.  Errors after the first are discarded.
@@ -71,11 +61,5 @@ void error_propagate(Error **dst_err, Error *local_err);
  * Free an error object.
  */
 void error_free(Error *err);
-
-/**
- * Determine if an error is of a speific type (based on the qerror format).
- * Non-QEMU users should get the `class' field to identify the error type.
- */
-bool error_is_type(Error *err, ErrorClass err_class, const char *fmt);
 
 #endif

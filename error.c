@@ -74,29 +74,6 @@ const char *error_get_pretty(Error *err)
     return err->msg;
 }
 
-const char *error_get_field(Error *err, const char *field)
-{
-    if (strcmp(field, "class") == 0) {
-        return qdict_get_str(err->obj, field);
-    } else {
-        QDict *dict = qdict_get_qdict(err->obj, "data");
-        return qdict_get_str(dict, field);
-    }
-}
-
-QDict *error_get_data(Error *err)
-{
-    QDict *data = qdict_get_qdict(err->obj, "data");
-    QINCREF(data);
-    return data;
-}
-
-void error_set_field(Error *err, const char *field, const char *value)
-{
-    QDict *dict = qdict_get_qdict(err->obj, "data");
-    qdict_put(dict, field, qstring_from_str(value));
-}
-
 void error_free(Error *err)
 {
     if (err) {
@@ -104,31 +81,6 @@ void error_free(Error *err)
         g_free(err->msg);
         g_free(err);
     }
-}
-
-bool error_is_type(Error *err, ErrorClass err_class, const char *fmt)
-{
-    const char *error_class;
-    char *ptr;
-    char *end;
-
-    if (!err) {
-        return false;
-    }
-
-    ptr = strstr(fmt, "'class': '");
-    assert(ptr != NULL);
-    ptr += strlen("'class': '");
-
-    end = strchr(ptr, '\'');
-    assert(end != NULL);
-
-    error_class = error_get_field(err, "class");
-    if (strlen(error_class) != end - ptr) {
-        return false;
-    }
-
-    return strncmp(ptr, error_class, end - ptr) == 0;
 }
 
 void error_propagate(Error **dst_err, Error *local_err)
