@@ -342,45 +342,6 @@ static QError *qerror_new(void)
     return qerr;
 }
 
-static QDict *error_obj_from_fmt_no_fail(const char *fmt, va_list *va)
-{
-    QObject *obj;
-    QDict *ret;
-
-    obj = qobject_from_jsonv(fmt, va);
-    if (!obj) {
-        fprintf(stderr, "invalid json in error dict '%s'\n", fmt);
-        abort();
-    }
-    if (qobject_type(obj) != QTYPE_QDICT) {
-        fprintf(stderr, "error is not a dict '%s'\n", fmt);
-        abort();
-    }
-
-    ret = qobject_to_qdict(obj);
-    obj = qdict_get(ret, "class");
-    if (!obj) {
-        fprintf(stderr, "missing 'class' key in '%s'\n", fmt);
-        abort();
-    }
-    if (qobject_type(obj) != QTYPE_QSTRING) {
-        fprintf(stderr, "'class' key value should be a string in '%s'\n", fmt);
-        abort();
-    }
-
-    obj = qdict_get(ret, "data");
-    if (!obj) {
-        fprintf(stderr, "missing 'data' key in '%s'\n", fmt);
-        abort();
-    }
-    if (qobject_type(obj) != QTYPE_QDICT) {
-        fprintf(stderr, "'data' key value should be a dict in '%s'\n", fmt);
-        abort();
-    }
-
-    return ret;
-}
-
 /**
  * qerror_from_info(): Create a new QError from error information
  *
@@ -394,9 +355,8 @@ static QError *qerror_from_info(ErrorClass err_class, const char *fmt,
     qerr = qerror_new();
     loc_save(&qerr->loc);
 
+    qerr->err_msg = g_strdup_vprintf(fmt, *va);
     qerr->err_class = err_class;
-    qerr->error = error_obj_from_fmt_no_fail(fmt, va);
-    qerr->err_msg = qerror_format(fmt, qerr->error);
 
     return qerr;
 }

@@ -37,9 +37,8 @@ void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
     err = g_malloc0(sizeof(*err));
 
     va_start(ap, fmt);
-    err->obj = qobject_to_qdict(qobject_from_jsonv(fmt, &ap));
+    err->msg = g_strdup_vprintf(fmt, ap);
     va_end(ap);
-    err->msg = qerror_format(fmt, err->obj);
     err->err_class = err_class;
 
     *errp = err;

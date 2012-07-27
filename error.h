@@ -17,15 +17,15 @@
 #include <stdbool.h>
 
 /**
- * A class representing internal errors within QEMU.  An error has a string
- * typename and optionally a set of named string parameters.
+ * A class representing internal errors within QEMU.  An error has a ErrorClass
+ * code and a human message.
  */
 typedef struct Error Error;
 
 /**
- * Set an indirect pointer to an error given a printf-style format parameter.
- * Currently, qerror.h defines these error formats.  This function is not
- * meant to be used outside of QEMU.
+ * Set an indirect pointer to an error given a ErrorClass value and a
+ * printf-style human message.  This function is not meant to be used outside
+ * of QEMU.
  */
 void error_set(Error **err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(3, 4);
 
