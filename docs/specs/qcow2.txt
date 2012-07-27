@@ -86,7 +86,12 @@ in the description of a field.
                     Bitmask of compatible features. An implementation can
                     safely ignore any unknown bits that are set.
 
-                    Bits 0-63:  Reserved (set to 0)
+                    Bit 0:      Lazy refcounts bit.  If this bit is set then
+                                lazy refcount updates can be used.  This means
+                                marking the image file dirty and postponing
+                                refcount metadata updates.
+
+                    Bits 1-63:  Reserved (set to 0)
 
          88 -  95:  autoclear_features
                     Bitmask of auto-clear features. An implementation may only
