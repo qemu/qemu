@@ -70,7 +70,7 @@ const char *%(name)s_lookup[] = {
         ret += mcgen('''
     "%(value)s",
 ''',
-                     value=value.lower())
+                     value=value)
 
     ret += mcgen('''
     NULL,
