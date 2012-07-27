@@ -31,8 +31,9 @@
 #include "qemu-timer.h"
 #include "qapi-types.h"
 
-#define BLOCK_FLAG_ENCRYPT	1
-#define BLOCK_FLAG_COMPAT6	4
+#define BLOCK_FLAG_ENCRYPT          1
+#define BLOCK_FLAG_COMPAT6          4
+#define BLOCK_FLAG_LAZY_REFCOUNTS   8
 
 #define BLOCK_IO_LIMIT_READ     0
 #define BLOCK_IO_LIMIT_WRITE    1
@@ -41,16 +42,17 @@
 #define BLOCK_IO_SLICE_TIME     100000000
 #define NANOSECONDS_PER_SECOND  1000000000.0
 
-#define BLOCK_OPT_SIZE          "size"
-#define BLOCK_OPT_ENCRYPT       "encryption"
-#define BLOCK_OPT_COMPAT6       "compat6"
-#define BLOCK_OPT_BACKING_FILE  "backing_file"
-#define BLOCK_OPT_BACKING_FMT   "backing_fmt"
-#define BLOCK_OPT_CLUSTER_SIZE  "cluster_size"
-#define BLOCK_OPT_TABLE_SIZE    "table_size"
-#define BLOCK_OPT_PREALLOC      "preallocation"
-#define BLOCK_OPT_SUBFMT        "subformat"
-#define BLOCK_OPT_COMPAT_LEVEL  "compat"
+#define BLOCK_OPT_SIZE              "size"
+#define BLOCK_OPT_ENCRYPT           "encryption"
+#define BLOCK_OPT_COMPAT6           "compat6"
+#define BLOCK_OPT_BACKING_FILE      "backing_file"
+#define BLOCK_OPT_BACKING_FMT       "backing_fmt"
+#define BLOCK_OPT_CLUSTER_SIZE      "cluster_size"
+#define BLOCK_OPT_TABLE_SIZE        "table_size"
+#define BLOCK_OPT_PREALLOC          "preallocation"
+#define BLOCK_OPT_SUBFMT            "subformat"
+#define BLOCK_OPT_COMPAT_LEVEL      "compat"
+#define BLOCK_OPT_LAZY_REFCOUNTS    "lazy_refcounts"
 
 typedef struct BdrvTrackedRequest BdrvTrackedRequest;
 

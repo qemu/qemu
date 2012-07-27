@@ -118,6 +118,14 @@ enum {
     QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY,
 };
 
+/* Compatible feature bits */
+enum {
+    QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR = 0,
+    QCOW2_COMPAT_LAZY_REFCOUNTS       = 1 << QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
+
+    QCOW2_COMPAT_FEAT_MASK            = QCOW2_COMPAT_LAZY_REFCOUNTS,
+};
+
 typedef struct Qcow2Feature {
     uint8_t type;
     uint8_t bit;
@@ -245,6 +253,11 @@ static inline int qcow2_get_cluster_type(uint64_t l2_entry)
     }
 }
 
+/* Check whether refcounts are eager or lazy */
+static inline bool qcow2_need_accurate_refcounts(BDRVQcowState *s)
+{
+    return !(s->incompatible_features & QCOW2_INCOMPAT_DIRTY);
+}
 
 // FIXME Need qcow2_ prefix to global functions
 
