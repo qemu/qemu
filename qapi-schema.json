@@ -3,6 +3,36 @@
 # QAPI Schema
 
 ##
+# @ErrorClass
+#
+# QEMU error classes
+#
+# @GenericError: this is used for errors that don't require a specific error
+#                class. This should be the default case for most errors
+#
+# @CommandNotFound: the requested command has not been found
+#
+# @DeviceEncrypted: the requested operation can't be fulfilled because the
+#                   selected device is encrypted
+#
+# @DeviceNotActive: a device has failed to be become active
+#
+# @DeviceNotFound: the requested device has not been found
+#
+# @KVMMissingCap: the requested operation can't be fulfilled because a
+#                 required KVM capability is missing
+#
+# @MigrationExpected: the requested operation can't be fulfilled because a
+#                     migration process is expected
+#
+# Since: 1.2
+##
+{ 'enum': 'ErrorClass',
+  'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
+            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap',
+            'MigrationExpected' ] }
+
+##
 # @NameInfo:
 #
 # Guest name information.
