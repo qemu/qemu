@@ -19,8 +19,8 @@
 #include <stdarg.h>
 
 typedef struct QErrorStringTable {
-    const char *desc;
     const char *error_fmt;
+    const char *desc;
 } QErrorStringTable;
 
 typedef struct QError {

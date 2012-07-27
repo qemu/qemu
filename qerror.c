@@ -44,285 +44,285 @@ static const QType qerror_type = {
  */
 static const QErrorStringTable qerror_table[] = {
     {
-        .error_fmt = QERR_ADD_CLIENT_FAILED,
-        .desc      = "Could not add client",
+         QERR_ADD_CLIENT_FAILED,
+         "Could not add client",
     },
     {
-        .error_fmt = QERR_AMBIGUOUS_PATH,
-        .desc      = "Path '%(path)' does not uniquely identify an object"
+         QERR_AMBIGUOUS_PATH,
+         "Path '%(path)' does not uniquely identify an object"
     },
     {
-        .error_fmt = QERR_BAD_BUS_FOR_DEVICE,
-        .desc      = "Device '%(device)' can't go on a %(bad_bus_type) bus",
+         QERR_BAD_BUS_FOR_DEVICE,
+         "Device '%(device)' can't go on a %(bad_bus_type) bus",
     },
     {
-        .error_fmt = QERR_BASE_NOT_FOUND,
-        .desc      = "Base '%(base)' not found",
+         QERR_BASE_NOT_FOUND,
+         "Base '%(base)' not found",
     },
     {
-        .error_fmt = QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-        .desc      = "Block format '%(format)' used by device '%(name)' does not support feature '%(feature)'",
+         QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+         "Block format '%(format)' used by device '%(name)' does not support feature '%(feature)'",
     },
     {
-        .error_fmt = QERR_BUS_NO_HOTPLUG,
-        .desc      = "Bus '%(bus)' does not support hotplugging",
+         QERR_BUS_NO_HOTPLUG,
+         "Bus '%(bus)' does not support hotplugging",
     },
     {
-        .error_fmt = QERR_BUS_NOT_FOUND,
-        .desc      = "Bus '%(bus)' not found",
+         QERR_BUS_NOT_FOUND,
+         "Bus '%(bus)' not found",
     },
     {
-        .error_fmt = QERR_COMMAND_DISABLED,
-        .desc      = "The command %(name) has been disabled for this instance",
+         QERR_COMMAND_DISABLED,
+         "The command %(name) has been disabled for this instance",
     },
     {
-        .error_fmt = QERR_COMMAND_NOT_FOUND,
-        .desc      = "The command %(name) has not been found",
+         QERR_COMMAND_NOT_FOUND,
+         "The command %(name) has not been found",
     },
     {
-        .error_fmt = QERR_DEVICE_ENCRYPTED,
-        .desc      = "'%(device)' (%(filename)) is encrypted",
+         QERR_DEVICE_ENCRYPTED,
+         "'%(device)' (%(filename)) is encrypted",
     },
     {
-        .error_fmt = QERR_DEVICE_FEATURE_BLOCKS_MIGRATION,
-        .desc      = "Migration is disabled when using feature '%(feature)' in device '%(device)'",
+         QERR_DEVICE_FEATURE_BLOCKS_MIGRATION,
+         "Migration is disabled when using feature '%(feature)' in device '%(device)'",
     },
     {
-        .error_fmt = QERR_DEVICE_HAS_NO_MEDIUM,
-        .desc      = "Device '%(device)' has no medium",
+         QERR_DEVICE_HAS_NO_MEDIUM,
+         "Device '%(device)' has no medium",
     },
     {
-        .error_fmt = QERR_DEVICE_INIT_FAILED,
-        .desc      = "Device '%(device)' could not be initialized",
+         QERR_DEVICE_INIT_FAILED,
+         "Device '%(device)' could not be initialized",
     },
     {
-        .error_fmt = QERR_DEVICE_IN_USE,
-        .desc      = "Device '%(device)' is in use",
+         QERR_DEVICE_IN_USE,
+         "Device '%(device)' is in use",
     },
     {
-        .error_fmt = QERR_DEVICE_IS_READ_ONLY,
-        .desc      = "Device '%(device)' is read only",
+         QERR_DEVICE_IS_READ_ONLY,
+         "Device '%(device)' is read only",
     },
     {
-        .error_fmt = QERR_DEVICE_LOCKED,
-        .desc      = "Device '%(device)' is locked",
+         QERR_DEVICE_LOCKED,
+         "Device '%(device)' is locked",
     },
     {
-        .error_fmt = QERR_DEVICE_MULTIPLE_BUSSES,
-        .desc      = "Device '%(device)' has multiple child busses",
+         QERR_DEVICE_MULTIPLE_BUSSES,
+         "Device '%(device)' has multiple child busses",
     },
     {
-        .error_fmt = QERR_DEVICE_NO_BUS,
-        .desc      = "Device '%(device)' has no child bus",
+         QERR_DEVICE_NO_BUS,
+         "Device '%(device)' has no child bus",
     },
     {
-        .error_fmt = QERR_DEVICE_NO_HOTPLUG,
-        .desc      = "Device '%(device)' does not support hotplugging",
+         QERR_DEVICE_NO_HOTPLUG,
+         "Device '%(device)' does not support hotplugging",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_ACTIVE,
-        .desc      = "Device '%(device)' has not been activated",
+         QERR_DEVICE_NOT_ACTIVE,
+         "Device '%(device)' has not been activated",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_ENCRYPTED,
-        .desc      = "Device '%(device)' is not encrypted",
+         QERR_DEVICE_NOT_ENCRYPTED,
+         "Device '%(device)' is not encrypted",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_FOUND,
-        .desc      = "Device '%(device)' not found",
+         QERR_DEVICE_NOT_FOUND,
+         "Device '%(device)' not found",
     },
     {
-        .error_fmt = QERR_DEVICE_NOT_REMOVABLE,
-        .desc      = "Device '%(device)' is not removable",
+         QERR_DEVICE_NOT_REMOVABLE,
+         "Device '%(device)' is not removable",
     },
     {
-        .error_fmt = QERR_DUPLICATE_ID,
-        .desc      = "Duplicate ID '%(id)' for %(object)",
+         QERR_DUPLICATE_ID,
+         "Duplicate ID '%(id)' for %(object)",
     },
     {
-        .error_fmt = QERR_FD_NOT_FOUND,
-        .desc      = "File descriptor named '%(name)' not found",
+         QERR_FD_NOT_FOUND,
+         "File descriptor named '%(name)' not found",
     },
     {
-        .error_fmt = QERR_FD_NOT_SUPPLIED,
-        .desc      = "No file descriptor supplied via SCM_RIGHTS",
+         QERR_FD_NOT_SUPPLIED,
+         "No file descriptor supplied via SCM_RIGHTS",
     },
     {
-        .error_fmt = QERR_FEATURE_DISABLED,
-        .desc      = "The feature '%(name)' is not enabled",
+         QERR_FEATURE_DISABLED,
+         "The feature '%(name)' is not enabled",
     },
     {
-        .error_fmt = QERR_INVALID_BLOCK_FORMAT,
-        .desc      = "Invalid block format '%(name)'",
+         QERR_INVALID_BLOCK_FORMAT,
+         "Invalid block format '%(name)'",
     },
     {
-        .error_fmt = QERR_INVALID_OPTION_GROUP,
-        .desc      = "There is no option group '%(group)'",
+         QERR_INVALID_OPTION_GROUP,
+         "There is no option group '%(group)'",
     },
     {
-        .error_fmt = QERR_INVALID_PARAMETER,
-        .desc      = "Invalid parameter '%(name)'",
+         QERR_INVALID_PARAMETER,
+         "Invalid parameter '%(name)'",
     },
     {
-        .error_fmt = QERR_INVALID_PARAMETER_COMBINATION,
-        .desc      = "Invalid parameter combination",
+         QERR_INVALID_PARAMETER_COMBINATION,
+         "Invalid parameter combination",
     },
     {
-        .error_fmt = QERR_INVALID_PARAMETER_TYPE,
-        .desc      = "Invalid parameter type for '%(name)', expected: %(expected)",
+         QERR_INVALID_PARAMETER_TYPE,
+         "Invalid parameter type for '%(name)', expected: %(expected)",
     },
     {
-        .error_fmt = QERR_INVALID_PARAMETER_VALUE,
-        .desc      = "Parameter '%(name)' expects %(expected)",
+         QERR_INVALID_PARAMETER_VALUE,
+         "Parameter '%(name)' expects %(expected)",
     },
     {
-        .error_fmt = QERR_INVALID_PASSWORD,
-        .desc      = "Password incorrect",
+         QERR_INVALID_PASSWORD,
+         "Password incorrect",
     },
     {
-        .error_fmt = QERR_IO_ERROR,
-        .desc      = "An IO error has occurred",
+         QERR_IO_ERROR,
+         "An IO error has occurred",
     },
     {
-        .error_fmt = QERR_JSON_PARSE_ERROR,
-        .desc      = "JSON parse error, %(message)",
+         QERR_JSON_PARSE_ERROR,
+         "JSON parse error, %(message)",
 
     },
     {
-        .error_fmt = QERR_JSON_PARSING,
-        .desc      = "Invalid JSON syntax",
+         QERR_JSON_PARSING,
+         "Invalid JSON syntax",
     },
     {
-        .error_fmt = QERR_KVM_MISSING_CAP,
-        .desc      = "Using KVM without %(capability), %(feature) unavailable",
+         QERR_KVM_MISSING_CAP,
+         "Using KVM without %(capability), %(feature) unavailable",
     },
     {
-        .error_fmt = QERR_MIGRATION_ACTIVE,
-        .desc      = "There's a migration process in progress",
+         QERR_MIGRATION_ACTIVE,
+         "There's a migration process in progress",
     },
     {
-        .error_fmt = QERR_MIGRATION_NOT_SUPPORTED,
-        .desc      = "State blocked by non-migratable device '%(device)'",
+         QERR_MIGRATION_NOT_SUPPORTED,
+         "State blocked by non-migratable device '%(device)'",
     },
     {
-        .error_fmt = QERR_MIGRATION_EXPECTED,
-        .desc      = "An incoming migration is expected before this command can be executed",
+         QERR_MIGRATION_EXPECTED,
+         "An incoming migration is expected before this command can be executed",
     },
     {
-        .error_fmt = QERR_MISSING_PARAMETER,
-        .desc      = "Parameter '%(name)' is missing",
+         QERR_MISSING_PARAMETER,
+         "Parameter '%(name)' is missing",
     },
     {
-        .error_fmt = QERR_NO_BUS_FOR_DEVICE,
-        .desc      = "No '%(bus)' bus found for device '%(device)'",
+         QERR_NO_BUS_FOR_DEVICE,
+         "No '%(bus)' bus found for device '%(device)'",
     },
     {
-        .error_fmt = QERR_NOT_SUPPORTED,
-        .desc      = "Not supported",
+         QERR_NOT_SUPPORTED,
+         "Not supported",
     },
     {
-        .error_fmt = QERR_OPEN_FILE_FAILED,
-        .desc      = "Could not open '%(filename)'",
+         QERR_OPEN_FILE_FAILED,
+         "Could not open '%(filename)'",
     },
     {
-        .error_fmt = QERR_PERMISSION_DENIED,
-        .desc      = "Insufficient permission to perform this operation",
+         QERR_PERMISSION_DENIED,
+         "Insufficient permission to perform this operation",
     },
     {
-        .error_fmt = QERR_PROPERTY_NOT_FOUND,
-        .desc      = "Property '%(device).%(property)' not found",
+         QERR_PROPERTY_NOT_FOUND,
+         "Property '%(device).%(property)' not found",
     },
     {
-        .error_fmt = QERR_PROPERTY_VALUE_BAD,
-        .desc      = "Property '%(device).%(property)' doesn't take value '%(value)'",
+         QERR_PROPERTY_VALUE_BAD,
+         "Property '%(device).%(property)' doesn't take value '%(value)'",
     },
     {
-        .error_fmt = QERR_PROPERTY_VALUE_IN_USE,
-        .desc      = "Property '%(device).%(property)' can't take value '%(value)', it's in use",
+         QERR_PROPERTY_VALUE_IN_USE,
+         "Property '%(device).%(property)' can't take value '%(value)', it's in use",
     },
     {
-        .error_fmt = QERR_PROPERTY_VALUE_NOT_FOUND,
-        .desc      = "Property '%(device).%(property)' can't find value '%(value)'",
+         QERR_PROPERTY_VALUE_NOT_FOUND,
+         "Property '%(device).%(property)' can't find value '%(value)'",
     },
     {
-        .error_fmt = QERR_PROPERTY_VALUE_NOT_POWER_OF_2,
-        .desc      = "Property '%(device).%(property)' doesn't take "
+         QERR_PROPERTY_VALUE_NOT_POWER_OF_2,
+         "Property '%(device).%(property)' doesn't take "
                      "value '%(value)', it's not a power of 2",
     },
     {
-        .error_fmt = QERR_PROPERTY_VALUE_OUT_OF_RANGE,
-        .desc      = "Property '%(device).%(property)' doesn't take "
+         QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+         "Property '%(device).%(property)' doesn't take "
                      "value %(value) (minimum: %(min), maximum: %(max))",
     },
     {
-        .error_fmt = QERR_QGA_COMMAND_FAILED,
-        .desc      = "Guest agent command failed, error was '%(message)'",
+         QERR_QGA_COMMAND_FAILED,
+         "Guest agent command failed, error was '%(message)'",
     },
     {
-        .error_fmt = QERR_QGA_LOGGING_FAILED,
-        .desc      = "Guest agent failed to log non-optional log statement",
+         QERR_QGA_LOGGING_FAILED,
+         "Guest agent failed to log non-optional log statement",
     },
     {
-        .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,
-        .desc      = "Expected '%(expected)' in QMP input",
+         QERR_QMP_BAD_INPUT_OBJECT,
+         "Expected '%(expected)' in QMP input",
     },
     {
-        .error_fmt = QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
-        .desc      = "QMP input object member '%(member)' expects '%(expected)'",
+         QERR_QMP_BAD_INPUT_OBJECT_MEMBER,
+         "QMP input object member '%(member)' expects '%(expected)'",
     },
     {
-        .error_fmt = QERR_QMP_EXTRA_MEMBER,
-        .desc      = "QMP input object member '%(member)' is unexpected",
+         QERR_QMP_EXTRA_MEMBER,
+         "QMP input object member '%(member)' is unexpected",
     },
     {
-        .error_fmt = QERR_RESET_REQUIRED,
-        .desc      = "Resetting the Virtual Machine is required",
+         QERR_RESET_REQUIRED,
+         "Resetting the Virtual Machine is required",
     },
     {
-        .error_fmt = QERR_SET_PASSWD_FAILED,
-        .desc      = "Could not set password",
+         QERR_SET_PASSWD_FAILED,
+         "Could not set password",
     },
     {
-        .error_fmt = QERR_TOO_MANY_FILES,
-        .desc      = "Too many open files",
+         QERR_TOO_MANY_FILES,
+         "Too many open files",
     },
     {
-        .error_fmt = QERR_UNDEFINED_ERROR,
-        .desc      = "An undefined error has occurred",
+         QERR_UNDEFINED_ERROR,
+         "An undefined error has occurred",
     },
     {
-        .error_fmt = QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-        .desc      = "'%(device)' uses a %(format) feature which is not "
+         QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+         "'%(device)' uses a %(format) feature which is not "
                      "supported by this qemu version: %(feature)",
     },
     {
-        .error_fmt = QERR_UNSUPPORTED,
-        .desc      = "this feature or command is not currently supported",
+         QERR_UNSUPPORTED,
+         "this feature or command is not currently supported",
     },
     {
-        .error_fmt = QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
-        .desc      = "Migration is disabled when VirtFS export path '%(path)' "
+         QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
+         "Migration is disabled when VirtFS export path '%(path)' "
                      "is mounted in the guest using mount_tag '%(tag)'",
     },
     {
-        .error_fmt = QERR_VNC_SERVER_FAILED,
-        .desc      = "Could not start VNC server on %(target)",
+         QERR_VNC_SERVER_FAILED,
+         "Could not start VNC server on %(target)",
     },
     {
-        .error_fmt = QERR_SOCKET_CONNECT_FAILED,
-        .desc      = "Failed to connect to socket",
+         QERR_SOCKET_CONNECT_FAILED,
+         "Failed to connect to socket",
     },
     {
-        .error_fmt = QERR_SOCKET_LISTEN_FAILED,
-        .desc      = "Failed to set socket to listening mode",
+         QERR_SOCKET_LISTEN_FAILED,
+         "Failed to set socket to listening mode",
     },
     {
-        .error_fmt = QERR_SOCKET_BIND_FAILED,
-        .desc      = "Failed to bind socket",
+         QERR_SOCKET_BIND_FAILED,
+         "Failed to bind socket",
     },
     {
-        .error_fmt = QERR_SOCKET_CREATE_FAILED,
-        .desc      = "Failed to create socket",
+         QERR_SOCKET_CREATE_FAILED,
+         "Failed to create socket",
     },
     {}
 };
