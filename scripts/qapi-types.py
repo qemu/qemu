@@ -79,6 +79,16 @@ const char *%(name)s_lookup[] = {
 ''')
     return ret
 
+def generate_enum_name(name):
+    if name.isupper():
+        return c_fun(name)
+    new_name = ''
+    for c in c_fun(name):
+        if c.isupper():
+            new_name += '_'
+        new_name += c
+    return new_name.lstrip('_').upper()
+
 def generate_enum(name, values):
     lookup_decl = mcgen('''
 extern const char *%(name)s_lookup[];
@@ -100,7 +110,7 @@ typedef enum %(name)s
     %(abbrev)s_%(value)s = %(i)d,
 ''',
                      abbrev=de_camel_case(name).upper(),
-                     value=c_fun(value).upper(),
+                     value=generate_enum_name(value),
                      i=i)
         i += 1
 
