@@ -30,6 +30,7 @@
 #include "qemu-coroutine.h"
 #include "qemu-timer.h"
 #include "qapi-types.h"
+#include "qerror.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4
