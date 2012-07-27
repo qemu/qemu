@@ -1,14 +1,14 @@
 QA output created by 039
 
 == Checking that image is clean on shutdown ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 lazy_refcounts=on 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 incompatible_features     0x0
 No errors were found on the image.
 
 == Creating a dirty image file ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 lazy_refcounts=on 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 incompatible_features     0x1
@@ -34,7 +34,7 @@ read 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 == Opening a dirty image read/write should repair it ==
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 lazy_refcounts=on 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 incompatible_features     0x1
