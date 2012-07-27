@@ -353,16 +353,26 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
     QDECREF(json);
 }
 
+static QDict *build_qmp_error_dict(const QError *err)
+{
+    QObject *obj;
+
+    obj = qobject_from_jsonf("{ 'error': { 'class': %s, 'desc': %p } }",
+                             ErrorClass_lookup[err->err_class],
+                             qerror_human(err));
+
+    return qobject_to_qdict(obj);
+}
+
 static void monitor_protocol_emitter(Monitor *mon, QObject *data)
 {
     QDict *qmp;
 
     trace_monitor_protocol_emitter(mon);
 
-    qmp = qdict_new();
-
     if (!monitor_has_error(mon)) {
         /* success response */
+        qmp = qdict_new();
         if (data) {
             qobject_incref(data);
             qdict_put_obj(qmp, "return", data);
@@ -372,9 +382,7 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
         }
     } else {
         /* error response */
-        qdict_put(mon->error->error, "desc", qerror_human(mon->error));
-        qdict_put(qmp, "error", mon->error->error);
-        QINCREF(mon->error->error);
+        qmp = build_qmp_error_dict(mon->error);
         QDECREF(mon->error);
         mon->error = NULL;
     }

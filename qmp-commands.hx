@@ -435,8 +435,8 @@ Example:
 -> { "execute": "inject-nmi" }
 <- { "return": {} }
 
-Note: inject-nmi is only supported for x86 guest currently, it will
-      returns "Unsupported" error for non-x86 guest.
+Note: inject-nmi fails when the guest doesn't support injecting.
+      Currently, only x86 guests do.
 
 EQMP
 

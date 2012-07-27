@@ -658,7 +658,6 @@
 # Returns information about the current VNC server
 #
 # Returns: @VncInfo
-#          If VNC support is not compiled in, FeatureDisabled
 #
 # Since: 0.14.0
 ##
@@ -1042,9 +1041,6 @@
 #                       virtual address (defaults to CPU 0)
 #
 # Returns: Nothing on success
-#          If @cpu is not a valid VCPU, InvalidParameterValue
-#          If @filename cannot be opened, OpenFileFailed
-#          If an I/O error occurs while writing the file, IOError
 #
 # Since: 0.14.0
 #
@@ -1065,8 +1061,6 @@
 # @filename: the file to save the memory to as binary data
 #
 # Returns: Nothing on success
-#          If @filename cannot be opened, OpenFileFailed
-#          If an I/O error occurs while writing the file, IOError
 #
 # Since: 0.14.0
 #
@@ -1108,7 +1102,6 @@
 # Injects an Non-Maskable Interrupt into all guest's VCPUs.
 #
 # Returns:  If successful, nothing
-#           If the Virtual Machine doesn't support NMI injection, Unsupported
 #
 # Since:  0.14.0
 #
@@ -1159,7 +1152,6 @@
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #          If @device is not encrypted, DeviceNotEncrypted
-#          If @password is not valid for this device, InvalidPassword
 #
 # Notes:  Not all block formats support encryption and some that do are not
 #         able to validate that a password is correct.  Disk corruption may
@@ -1200,11 +1192,6 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If @size is negative, InvalidParameterValue
-#          If the block device has no medium inserted, DeviceHasNoMedium
-#          If the block device does not support resize, Unsupported
-#          If the block device is read-only, DeviceIsReadOnly
-#          If a long-running operation is using the device, DeviceInUse
 #
 # Since: 0.14.0
 ##
@@ -1266,10 +1253,6 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If @device is busy, DeviceInUse will be returned
-#          If @snapshot-file can't be created, OpenFileFailed
-#          If @snapshot-file can't be opened, OpenFileFailed
-#          If @format is invalid, InvalidBlockFormat
 #
 # Note: The transaction aborts on the first failure.  Therefore, there will
 # be only one device or snapshot file returned in an error condition, and
@@ -1298,8 +1281,6 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If @snapshot-file can't be opened, OpenFileFailed
-#          If @format is invalid, InvalidBlockFormat
 #
 # Since 0.14.0
 ##
@@ -1501,11 +1482,6 @@
 #
 # Returns: Nothing on success
 #          If Spice is not enabled, DeviceNotFound
-#          If @protocol does not support connected, InvalidParameter
-#          If @protocol is invalid, InvalidParameter
-#          If any other error occurs, SetPasswdFailed
-#
-# Notes: If VNC is not enabled, SetPasswdFailed is returned.
 #
 # Since: 0.14.0
 ##
@@ -1527,8 +1503,6 @@
 #
 # Returns: Nothing on success
 #          If @protocol is `spice' and Spice is not active, DeviceNotFound
-#          If an error occurs setting password expiration, SetPasswdFailed
-#          If @protocol is not `spice' or 'vnc', InvalidParameter
 #
 # Since: 0.14.0
 #
@@ -1551,8 +1525,6 @@
 #
 # Returns:  Nothing on success
 #           If @device is not a valid block device, DeviceNotFound
-#           If @device is not removable and @force is false, DeviceNotRemovable
-#           If @force is false and @device is locked, DeviceLocked
 #
 # Notes:    Ejecting a device will no media results in success
 #
@@ -1595,7 +1567,6 @@
 #
 # Returns: Nothing on success.
 #          If @device is not a valid block device, DeviceNotFound
-#          If @format is not a valid block format, InvalidBlockFormat
 #          If the new block device is encrypted, DeviceEncrypted.  Note that
 #          if this error is returned, the device has been opened successfully
 #          and an additional call to @block_passwd is required to set the
@@ -1631,7 +1602,6 @@
 #
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If the argument combination is invalid, InvalidParameterCombination
 #
 # Since: 1.1
 ##
@@ -1665,11 +1635,7 @@
 # @speed:  #optional the maximum speed, in bytes per second
 #
 # Returns: Nothing on success
-#          If streaming is already active on this device, DeviceInUse
 #          If @device does not exist, DeviceNotFound
-#          If image streaming is not supported by this device, NotSupported
-#          If @base does not exist, BaseNotFound
-#          If @speed is invalid, InvalidParameter
 #
 # Since: 1.1
 ##
@@ -1691,8 +1657,6 @@
 #          Defaults to 0.
 #
 # Returns: Nothing on success
-#          If the job type does not support throttling, NotSupported
-#          If the speed value is invalid, InvalidParameter
 #          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
@@ -1722,7 +1686,6 @@
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
-#          If cancellation already in progress, DeviceInUse
 #
 # Since: 1.1
 ##
@@ -1792,8 +1755,6 @@
 # format.
 #
 # Returns: Nothing on success
-#          If @filename cannot be opened, OpenFileFailed
-#          If an I/O error occurs while writing the file, IOError
 #
 # Since: 1.1
 ##
@@ -1808,7 +1769,6 @@
 #
 # Returns: Nothing on success
 #          If @id is not a valid device, DeviceNotFound
-#          If the device does not support unplug, BusNoHotplug
 #
 # Notes: When this command completes, the device may not be removed from the
 #        guest.  Hot removal is an operation that requires guest cooperation.
@@ -1849,14 +1809,6 @@
 # want to dump all guest's memory, please specify the start @begin and @length
 #
 # Returns: nothing on success
-#          If @begin contains an invalid address, InvalidParameter
-#          If only one of @begin and @length is specified, MissingParameter
-#          If @protocol stats with "fd:", and the fd cannot be found, FdNotFound
-#          If @protocol starts with "file:", and the file cannot be
-#             opened, OpenFileFailed
-#          If @protocol does not start with "fd:" or "file:", InvalidParameter
-#          If an I/O error occurs while writing the file, IOError
-#          If the target does not support this command, Unsupported
 #
 # Since: 1.2
 ##
@@ -1883,10 +1835,6 @@
 #
 # Returns: Nothing on success
 #          If @type is not a valid network backend, DeviceNotFound
-#          If @id is not a valid identifier, InvalidParameterValue
-#          if @id already exists, DuplicateId
-#          If @props contains an invalid parameter for this backend,
-#            InvalidParameter
 ##
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str', '*props': '**'},
@@ -2206,8 +2154,6 @@
 # @fdname: file descriptor name
 #
 # Returns: Nothing on success
-#          If file descriptor was not received, FdNotSupplied
-#          If @fdname is not valid, InvalidParameterType
 #
 # Since: 0.14.0
 #
@@ -2227,7 +2173,6 @@
 # @fdname: file descriptor name
 #
 # Returns: Nothing on success
-#          If @fdname is not found, FdNotFound
 #
 # Since: 0.14.0
 ##
