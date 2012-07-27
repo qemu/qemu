@@ -1040,6 +1040,7 @@ static int virtio_scsi_exit_pci(PCIDevice *pci_dev)
 }
 
 static Property virtio_scsi_properties[] = {
+    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOPCIProxy, host_features, scsi),
     DEFINE_PROP_END_OF_LIST(),
