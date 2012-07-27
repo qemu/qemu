@@ -110,6 +110,14 @@ enum {
     QCOW2_FEAT_TYPE_AUTOCLEAR       = 2,
 };
 
+/* Incompatible feature bits */
+enum {
+    QCOW2_INCOMPAT_DIRTY_BITNR   = 0,
+    QCOW2_INCOMPAT_DIRTY         = 1 << QCOW2_INCOMPAT_DIRTY_BITNR,
+
+    QCOW2_INCOMPAT_MASK          = QCOW2_INCOMPAT_DIRTY,
+};
+
 typedef struct Qcow2Feature {
     uint8_t type;
     uint8_t bit;

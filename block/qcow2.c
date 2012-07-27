@@ -214,6 +214,27 @@ static void report_unsupported_feature(BlockDriverState *bs,
     }
 }
 
+/*
+ * Clears the dirty bit and flushes before if necessary.  Only call this
+ * function when there are no pending requests, it does not guard against
+ * concurrent requests dirtying the image.
+ */
+static int qcow2_mark_clean(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_DIRTY) {
+        int ret = bdrv_flush(bs);
+        if (ret < 0) {
+            return ret;
+        }
+
+        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
+        return qcow2_update_header(bs);
+    }
+    return 0;
+}
+
 static int qcow2_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
@@ -287,12 +308,13 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     s->compatible_features      = header.compatible_features;
     s->autoclear_features       = header.autoclear_features;
 
-    if (s->incompatible_features != 0) {
+    if (s->incompatible_features & ~QCOW2_INCOMPAT_MASK) {
         void *feature_table = NULL;
         qcow2_read_extensions(bs, header.header_length, ext_end,
                               &feature_table);
         report_unsupported_feature(bs, feature_table,
-                                   s->incompatible_features);
+                                   s->incompatible_features &
+                                   ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -411,6 +433,22 @@ static int qcow2_open(BlockDriverState *bs, int flags)
 
     /* Initialise locks */
     qemu_co_mutex_init(&s->lock);
+
+    /* Repair image if dirty */
+    if ((s->incompatible_features & QCOW2_INCOMPAT_DIRTY) &&
+        !bs->read_only) {
+        BdrvCheckResult result = {0};
+
+        ret = qcow2_check_refcounts(bs, &result, BDRV_FIX_ERRORS);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        ret = qcow2_mark_clean(bs);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
 
 #ifdef DEBUG_ALLOC
     {
@@ -785,6 +823,8 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_cache_flush(bs, s->l2_table_cache);
     qcow2_cache_flush(bs, s->refcount_block_cache);
 
+    qcow2_mark_clean(bs);
+
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
 
@@ -949,7 +989,11 @@ int qcow2_update_header(BlockDriverState *bs)
 
     /* Feature table */
     Qcow2Feature features[] = {
-        /* no feature defined yet */
+        {
+            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+            .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
+            .name = "dirty bit",
+        },
     };
 
     ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
