@@ -14,6 +14,7 @@
 #include "error.h"
 #include "qjson.h"
 #include "qdict.h"
+#include "qapi-types.h"
 #include "error_int.h"
 #include "qerror.h"
 
@@ -21,9 +22,10 @@ struct Error
 {
     QDict *obj;
     char *msg;
+    ErrorClass err_class;
 };
 
-void error_set(Error **errp, const char *fmt, ...)
+void error_set(Error **errp, ErrorClass err_class, const char *fmt, ...)
 {
     Error *err;
     va_list ap;
@@ -39,6 +41,7 @@ void error_set(Error **errp, const char *fmt, ...)
     err->obj = qobject_to_qdict(qobject_from_jsonv(fmt, &ap));
     va_end(ap);
     err->msg = qerror_format(fmt, err->obj);
+    err->err_class = err_class;
 
     *errp = err;
 }
@@ -49,6 +52,7 @@ Error *error_copy(const Error *err)
 
     err_new = g_malloc0(sizeof(*err));
     err_new->msg = g_strdup(err->msg);
+    err_new->err_class = err->err_class;
     err_new->obj = err->obj;
     QINCREF(err_new->obj);
 
@@ -97,7 +101,7 @@ void error_free(Error *err)
     }
 }
 
-bool error_is_type(Error *err, const char *fmt)
+bool error_is_type(Error *err, ErrorClass err_class, const char *fmt)
 {
     const char *error_class;
     char *ptr;

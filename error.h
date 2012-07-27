@@ -13,6 +13,7 @@
 #define ERROR_H
 
 #include "compiler.h"
+#include "qapi-types.h"
 #include <stdbool.h>
 
 /**
@@ -26,7 +27,7 @@ typedef struct Error Error;
  * Currently, qerror.h defines these error formats.  This function is not
  * meant to be used outside of QEMU.
  */
-void error_set(Error **err, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
+void error_set(Error **err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(3, 4);
 
 /**
  * Returns true if an indirect pointer to an error is pointing to a valid
@@ -70,6 +71,6 @@ void error_free(Error *err);
  * Determine if an error is of a speific type (based on the qerror format).
  * Non-QEMU users should get the `class' field to identify the error type.
  */
-bool error_is_type(Error *err, const char *fmt);
+bool error_is_type(Error *err, ErrorClass err_class, const char *fmt);
 
 #endif

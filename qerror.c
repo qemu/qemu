@@ -386,13 +386,15 @@ static QDict *error_obj_from_fmt_no_fail(const char *fmt, va_list *va)
  *
  * Return strong reference.
  */
-static QError *qerror_from_info(const char *fmt, va_list *va)
+static QError *qerror_from_info(ErrorClass err_class, const char *fmt,
+                                va_list *va)
 {
     QError *qerr;
 
     qerr = qerror_new();
     loc_save(&qerr->loc);
 
+    qerr->err_class = err_class;
     qerr->error = error_obj_from_fmt_no_fail(fmt, va);
     qerr->err_msg = qerror_format(fmt, qerr->error);
 
@@ -518,13 +520,13 @@ static void qerror_print(QError *qerror)
     QDECREF(qstring);
 }
 
-void qerror_report(const char *fmt, ...)
+void qerror_report(ErrorClass eclass, const char *fmt, ...)
 {
     va_list va;
     QError *qerror;
 
     va_start(va, fmt);
-    qerror = qerror_from_info(fmt, &va);
+    qerror = qerror_from_info(eclass, fmt, &va);
     va_end(va);
 
     if (monitor_cur_is_qmp()) {
@@ -540,6 +542,7 @@ struct Error
 {
     QDict *obj;
     char *msg;
+    ErrorClass err_class;
 };
 
 void qerror_report_err(Error *err)
@@ -551,6 +554,7 @@ void qerror_report_err(Error *err)
     QINCREF(err->obj);
     qerr->error = err->obj;
     qerr->err_msg = g_strdup(err->msg);
+    qerr->err_class = err->err_class;
 
     if (monitor_cur_is_qmp()) {
         monitor_set_error(cur_mon, qerr);
