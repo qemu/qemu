@@ -19,12 +19,6 @@
 #include "qapi-types.h"
 #include <stdarg.h>
 
-typedef struct QErrorStringTable {
-    ErrorClass err_class;
-    const char *error_fmt;
-    const char *desc;
-} QErrorStringTable;
-
 typedef struct QError {
     QObject_HEAD;
     QDict *error;
@@ -37,7 +31,6 @@ QString *qerror_human(const QError *qerror);
 void qerror_report(ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void qerror_report_err(Error *err);
 void assert_no_error(Error *err);
-char *qerror_format(const char *fmt, QDict *error);
 
 /*
  * QError class list
