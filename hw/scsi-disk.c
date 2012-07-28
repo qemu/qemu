@@ -1247,6 +1247,12 @@ static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     bool start = req->cmd.buf[4] & 1;
     bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
+    int pwrcnd = req->cmd.buf[4] & 0xf0;
+
+    if (pwrcnd) {
+        /* eject/load only happens for power condition == 0 */
+        return 0;
+    }
 
     if ((s->features & (1 << SCSI_DISK_F_REMOVABLE)) && loej) {
         if (!start && !s->tray_open && s->tray_locked) {
