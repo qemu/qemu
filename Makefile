@@ -216,7 +216,7 @@ QGALIB_GEN=$(addprefix qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qm
 $(QGALIB_OBJ): $(QGALIB_GEN)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(tools-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) $(QGALIB_OBJ)
+qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(tools-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y)
 
 QEMULIBS=libhw32 libhw64 libuser libdis libdis-user
 
@@ -450,5 +450,5 @@ endif # CONFIG_INSTALLER
 Makefile: $(GENERATED_HEADERS)
 
 # Include automatically generated dependency files
-# All subdir dependencies come automatically from our recursive subdir rules
--include $(wildcard *.d)
+# Dependencies in Makefile.objs files come from our recursive subdir rules
+-include $(wildcard *.d tests/*.d)

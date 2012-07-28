@@ -2366,10 +2366,18 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 5: /*BBC*/ /*BBS*/
                 gen_window_check2(dc, RRI8_S, RRI8_T);
                 {
-                    TCGv_i32 bit = tcg_const_i32(1);
+#ifdef TARGET_WORDS_BIGENDIAN
+                    TCGv_i32 bit = tcg_const_i32(0x80000000);
+#else
+                    TCGv_i32 bit = tcg_const_i32(0x00000001);
+#endif
                     TCGv_i32 tmp = tcg_temp_new_i32();
                     tcg_gen_andi_i32(tmp, cpu_R[RRI8_T], 0x1f);
+#ifdef TARGET_WORDS_BIGENDIAN
+                    tcg_gen_shr_i32(bit, bit, tmp);
+#else
                     tcg_gen_shl_i32(bit, bit, tmp);
+#endif
                     tcg_gen_and_i32(tmp, cpu_R[RRI8_S], bit);
                     gen_brcondi(dc, eq_ne, tmp, 0, 4 + RRI8_IMM8_SE);
                     tcg_temp_free(tmp);
@@ -2383,7 +2391,11 @@ static void disas_xtensa_insn(DisasContext *dc)
                 {
                     TCGv_i32 tmp = tcg_temp_new_i32();
                     tcg_gen_andi_i32(tmp, cpu_R[RRI8_S],
-                            1 << (((RRI8_R & 1) << 4) | RRI8_T));
+#ifdef TARGET_WORDS_BIGENDIAN
+                            0x80000000 >> (((RRI8_R & 1) << 4) | RRI8_T));
+#else
+                            0x00000001 << (((RRI8_R & 1) << 4) | RRI8_T));
+#endif
                     gen_brcondi(dc, eq_ne, tmp, 0, 4 + RRI8_IMM8_SE);
                     tcg_temp_free(tmp);
                 }

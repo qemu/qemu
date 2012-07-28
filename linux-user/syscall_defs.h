@@ -59,7 +59,7 @@
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_UNICORE32) \
-    || defined(TARGET_S390X)
+    || defined(TARGET_S390X) || defined(TARGET_OPENRISC)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -323,7 +323,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) \
     || defined(TARGET_MICROBLAZE) || defined(TARGET_UNICORE32) \
-    || defined(TARGET_S390X)
+    || defined(TARGET_S390X) || defined(TARGET_OPENRISC)
 
 #if defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP    8u
@@ -344,6 +344,14 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #if !defined(TARGET_ABI_MIPSN32) && !defined(TARGET_ABI_MIPSN64)
 #define TARGET_SA_RESTORER	0x04000000	/* Only for O32 */
 #endif
+#elif defined(TARGET_OPENRISC)
+#define TARGET_SA_NOCLDSTOP    0x00000001
+#define TARGET_SA_NOCLDWAIT    0x00000002
+#define TARGET_SA_SIGINFO      0x00000004
+#define TARGET_SA_ONSTACK      0x08000000
+#define TARGET_SA_RESTART      0x10000000
+#define TARGET_SA_NODEFER      0x40000000
+#define TARGET_SA_RESETHAND    0x80000000
 #elif defined(TARGET_ALPHA)
 #define TARGET_SA_ONSTACK	0x00000001
 #define TARGET_SA_RESTART	0x00000002
@@ -448,6 +456,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
 #else
 
+/* OpenRISC Using the general signals */
 #define TARGET_SIGHUP		 1
 #define TARGET_SIGINT		 2
 #define TARGET_SIGQUIT		 3
@@ -1086,7 +1095,8 @@ struct target_winsize {
 #endif
 
 #if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) \
-    || defined(TARGET_CRIS) || defined(TARGET_UNICORE32)
+    || defined(TARGET_CRIS) || defined(TARGET_UNICORE32) \
+    || defined(TARGET_OPENRISC)
 struct target_stat {
 	unsigned short st_dev;
 	unsigned short __pad1;
@@ -1782,6 +1792,30 @@ struct target_stat {
     abi_ulong  st_blksize;
     abi_long       st_blocks;
     abi_ulong  __unused[3];
+};
+#elif defined(TARGET_OPENRISC)
+struct target_stat {
+    abi_ulong st_dev;
+    abi_ulong st_ino;
+    abi_ulong st_nlink;
+
+    unsigned int st_mode;
+    unsigned int st_uid;
+    unsigned int st_gid;
+    unsigned int __pad0;
+    abi_ulong st_rdev;
+    abi_long st_size;
+    abi_long st_blksize;
+    abi_long st_blocks;    /* Number 512-byte blocks allocated. */
+
+    abi_ulong target_st_atime;
+    abi_ulong target_st_atime_nsec;
+    abi_ulong target_st_mtime;
+    abi_ulong target_st_mtime_nsec;
+    abi_ulong target_st_ctime;
+    abi_ulong target_st_ctime_nsec;
+
+    abi_long __unused[3];
 };
 #else
 #error unsupported CPU

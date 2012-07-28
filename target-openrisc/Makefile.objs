@@ -1,0 +1,4 @@
+obj-$(CONFIG_SOFTMMU) += machine.o
+obj-y += cpu.o exception.o interrupt.o mmu.o translate.o
+obj-y += exception_helper.o fpu_helper.o int_helper.o \
+         interrupt_helper.o mmu_helper.o sys_helper.o

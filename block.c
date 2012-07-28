@@ -2609,7 +2609,7 @@ void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
         return;
     }
 
-    return drv->bdrv_debug_event(bs, event);
+    drv->bdrv_debug_event(bs, event);
 
 }
 

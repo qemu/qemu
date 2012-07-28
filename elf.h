@@ -106,6 +106,8 @@ typedef int64_t  Elf64_Sxword;
 #define EM_H8S          48      /* Hitachi H8S     */
 #define EM_LATTICEMICO32 138    /* LatticeMico32 */
 
+#define EM_OPENRISC     92        /* OpenCores OpenRISC */
+
 #define EM_UNICORE32    110     /* UniCore32 */
 
 /*

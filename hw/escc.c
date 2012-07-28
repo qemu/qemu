@@ -905,7 +905,6 @@ static Property escc_properties[] = {
     DEFINE_PROP_UINT32("frequency", SerialState, frequency,   0),
     DEFINE_PROP_UINT32("it_shift",  SerialState, it_shift,    0),
     DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
-    DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
     DEFINE_PROP_UINT32("chnBtype",  SerialState, chn[0].type, 0),
     DEFINE_PROP_UINT32("chnAtype",  SerialState, chn[1].type, 0),
     DEFINE_PROP_CHR("chrB", SerialState, chn[0].chr),

@@ -1155,6 +1155,68 @@ static int cpu_gdb_write_register(CPUMIPSState *env, uint8_t *mem_buf, int n)
 
     return sizeof(target_ulong);
 }
+#elif defined(TARGET_OPENRISC)
+
+#define NUM_CORE_REGS (32 + 3)
+
+static int cpu_gdb_read_register(CPUOpenRISCState *env, uint8_t *mem_buf, int n)
+{
+    if (n < 32) {
+        GET_REG32(env->gpr[n]);
+    } else {
+        switch (n) {
+        case 32:    /* PPC */
+            GET_REG32(env->ppc);
+            break;
+
+        case 33:    /* NPC */
+            GET_REG32(env->npc);
+            break;
+
+        case 34:    /* SR */
+            GET_REG32(env->sr);
+            break;
+
+        default:
+            break;
+        }
+    }
+    return 0;
+}
+
+static int cpu_gdb_write_register(CPUOpenRISCState *env,
+                                  uint8_t *mem_buf, int n)
+{
+    uint32_t tmp;
+
+    if (n > NUM_CORE_REGS) {
+        return 0;
+    }
+
+    tmp = ldl_p(mem_buf);
+
+    if (n < 32) {
+        env->gpr[n] = tmp;
+    } else {
+        switch (n) {
+        case 32: /* PPC */
+            env->ppc = tmp;
+            break;
+
+        case 33: /* NPC */
+            env->npc = tmp;
+            break;
+
+        case 34: /* SR */
+            env->sr = tmp;
+            break;
+
+        default:
+            break;
+        }
+    }
+    return 4;
+}
 #elif defined (TARGET_SH4)
 
 /* Hint: Use "set architecture sh4" in GDB to see fpu registers */
@@ -1924,6 +1986,8 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
     }
 #elif defined (TARGET_MICROBLAZE)
     s->c_cpu->sregs[SR_PC] = pc;
+#elif defined(TARGET_OPENRISC)
+    s->c_cpu->pc = pc;
 #elif defined (TARGET_CRIS)
     s->c_cpu->pc = pc;
 #elif defined (TARGET_ALPHA)

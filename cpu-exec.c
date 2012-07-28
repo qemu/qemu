@@ -225,6 +225,7 @@ int cpu_exec(CPUArchState *env)
 #elif defined(TARGET_LM32)
 #elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
+#elif defined(TARGET_OPENRISC)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_CRIS)
 #elif defined(TARGET_S390X)
@@ -386,6 +387,23 @@ int cpu_exec(CPUArchState *env)
                         env->error_code = 0;
                         do_interrupt(env);
                         next_tb = 0;
+                    }
+#elif defined(TARGET_OPENRISC)
+                    {
+                        int idx = -1;
+                        if ((interrupt_request & CPU_INTERRUPT_HARD)
+                            && (env->sr & SR_IEE)) {
+                            idx = EXCP_INT;
+                        }
+                        if ((interrupt_request & CPU_INTERRUPT_TIMER)
+                            && (env->sr & SR_TEE)) {
+                            idx = EXCP_TICK;
+                        }
+                        if (idx >= 0) {
+                            env->exception_index = idx;
+                            do_interrupt(env);
+                            next_tb = 0;
+                        }
                     }
 #elif defined(TARGET_SPARC)
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
@@ -640,6 +658,7 @@ int cpu_exec(CPUArchState *env)
               | env->cc_dest | (env->cc_x << 4);
 #elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)
+#elif defined(TARGET_OPENRISC)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_ALPHA)
 #elif defined(TARGET_CRIS)

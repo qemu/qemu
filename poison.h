@@ -14,6 +14,7 @@
 #pragma GCC poison TARGET_M68K
 #pragma GCC poison TARGET_MIPS
 #pragma GCC poison TARGET_MIPS64
+#pragma GCC poison TARGET_OPENRISC
 #pragma GCC poison TARGET_PPC
 #pragma GCC poison TARGET_PPCEMB
 #pragma GCC poison TARGET_PPC64
