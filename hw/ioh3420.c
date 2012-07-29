@@ -96,7 +96,6 @@ static int ioh3420_initfn(PCIDevice *d)
     PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
     PCIESlot *s = DO_UPCAST(PCIESlot, port, p);
     int rc;
-    int tmp;
 
     rc = pci_bridge_initfn(d);
     if (rc < 0) {
@@ -144,12 +143,11 @@ err_pcie_cap:
 err_msi:
     msi_uninit(d);
 err_bridge:
-    tmp = pci_bridge_exitfn(d);
-    assert(!tmp);
+    pci_bridge_exitfn(d);
     return rc;
 }
 
-static int ioh3420_exitfn(PCIDevice *d)
+static void ioh3420_exitfn(PCIDevice *d)
 {
     PCIBridge* br = DO_UPCAST(PCIBridge, dev, d);
     PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
@@ -159,7 +157,7 @@ static int ioh3420_exitfn(PCIDevice *d)
     pcie_chassis_del_slot(s);
     pcie_cap_exit(d);
     msi_uninit(d);
-    return pci_bridge_exitfn(d);
+    pci_bridge_exitfn(d);
 }
 
 PCIESlot *ioh3420_init(PCIBus *bus, int devfn, bool multifunction,

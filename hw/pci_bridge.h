@@ -44,7 +44,7 @@ void pci_bridge_reset_reg(PCIDevice *dev);
 void pci_bridge_reset(DeviceState *qdev);
 
 int pci_bridge_initfn(PCIDevice *pci_dev);
-int pci_bridge_exitfn(PCIDevice *pci_dev);
+void pci_bridge_exitfn(PCIDevice *pci_dev);
 
 
 /*

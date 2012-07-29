@@ -411,13 +411,11 @@ static int i6300esb_init(PCIDevice *dev)
     return 0;
 }
 
-static int i6300esb_exit(PCIDevice *dev)
+static void i6300esb_exit(PCIDevice *dev)
 {
     I6300State *d = DO_UPCAST(I6300State, dev, dev);
 
     memory_region_destroy(&d->io_mem);
-
-    return 0;
 }
 
 static WatchdogTimerModel model = {

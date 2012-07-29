@@ -56,7 +56,6 @@ static int xio3130_upstream_initfn(PCIDevice *d)
     PCIBridge* br = DO_UPCAST(PCIBridge, dev, d);
     PCIEPort *p = DO_UPCAST(PCIEPort, br, br);
     int rc;
-    int tmp;
 
     rc = pci_bridge_initfn(d);
     if (rc < 0) {
@@ -95,17 +94,16 @@ err:
 err_msi:
     msi_uninit(d);
 err_bridge:
-    tmp =  pci_bridge_exitfn(d);
-    assert(!tmp);
+    pci_bridge_exitfn(d);
     return rc;
 }
 
-static int xio3130_upstream_exitfn(PCIDevice *d)
+static void xio3130_upstream_exitfn(PCIDevice *d)
 {
     pcie_aer_exit(d);
     pcie_cap_exit(d);
     msi_uninit(d);
-    return pci_bridge_exitfn(d);
+    pci_bridge_exitfn(d);
 }
 
 PCIEPort *xio3130_upstream_init(PCIBus *bus, int devfn, bool multifunction,

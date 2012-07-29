@@ -1149,13 +1149,12 @@ static int intel_hda_init(PCIDevice *pci)
     return 0;
 }
 
-static int intel_hda_exit(PCIDevice *pci)
+static void intel_hda_exit(PCIDevice *pci)
 {
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
 
     msi_uninit(&d->pci);
     memory_region_destroy(&d->mmio);
-    return 0;
 }
 
 static int intel_hda_post_load(void *opaque, int version)

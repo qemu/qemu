@@ -1018,12 +1018,11 @@ static int es1370_initfn (PCIDevice *dev)
     return 0;
 }
 
-static int es1370_exitfn (PCIDevice *dev)
+static void es1370_exitfn (PCIDevice *dev)
 {
     ES1370State *s = DO_UPCAST (ES1370State, dev, dev);
 
     memory_region_destroy (&s->io);
-    return 0;
 }
 
 int es1370_init (PCIBus *bus)

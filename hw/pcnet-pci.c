@@ -271,7 +271,7 @@ static void pci_pcnet_cleanup(VLANClientState *nc)
     pcnet_common_cleanup(d);
 }
 
-static int pci_pcnet_uninit(PCIDevice *dev)
+static void pci_pcnet_uninit(PCIDevice *dev)
 {
     PCIPCNetState *d = DO_UPCAST(PCIPCNetState, pci_dev, dev);
 
@@ -280,7 +280,6 @@ static int pci_pcnet_uninit(PCIDevice *dev)
     qemu_del_timer(d->state.poll_timer);
     qemu_free_timer(d->state.poll_timer);
     qemu_del_vlan_client(&d->state.nic->nc);
-    return 0;
 }
 
 static NetClientInfo net_pci_pcnet_info = {
