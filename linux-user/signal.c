@@ -1844,7 +1844,7 @@ typedef struct {
 } __siginfo_t;
 
 typedef struct {
-        unsigned   long si_float_regs [32];
+        abi_ulong       si_float_regs[32];
         unsigned   long si_fsr;
         unsigned   long si_fpqdepth;
         struct {
@@ -2056,11 +2056,9 @@ restore_fpu_state(CPUSPARCState *env, qemu_siginfo_fpu_t *fpu)
                 return -EFAULT;
 #endif
 
-#if 0
         /* XXX: incorrect */
-        err = __copy_from_user(&env->fpr[0], &fpu->si_float_regs[0],
-	                             (sizeof(unsigned long) * 32));
-#endif
+        err = copy_from_user(&env->fpr[0], fpu->si_float_regs[0],
+                             (sizeof(abi_ulong) * 32));
         err |= __get_user(env->fsr, &fpu->si_fsr);
 #if 0
         err |= __get_user(current->thread.fpqdepth, &fpu->si_fpqdepth);
