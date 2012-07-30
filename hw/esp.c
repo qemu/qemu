@@ -1153,13 +1153,11 @@ static int esp_pci_scsi_init(PCIDevice *dev)
     return 0;
 }
 
-static int esp_pci_scsi_uninit(PCIDevice *d)
+static void esp_pci_scsi_uninit(PCIDevice *d)
 {
     PCIESPState *pci = DO_UPCAST(PCIESPState, dev, d);
 
     memory_region_destroy(&pci->io);
-
-    return 0;
 }
 
 static void esp_pci_class_init(ObjectClass *klass, void *data)

@@ -70,7 +70,6 @@ typedef struct IVShmemState {
      */
     MemoryRegion bar;
     MemoryRegion ivshmem;
-    MemoryRegion msix_bar;
     uint64_t ivshmem_size; /* size of shared memory region */
     int shm_fd; /* shared memory file descriptor */
 
@@ -574,15 +573,12 @@ static uint64_t ivshmem_get_size(IVShmemState * s) {
 
 static void ivshmem_setup_msi(IVShmemState * s)
 {
-    memory_region_init(&s->msix_bar, "ivshmem-msix", 4096);
-    if (!msix_init(&s->dev, s->vectors, &s->msix_bar, 1, 0)) {
-        pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                         &s->msix_bar);
-        IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
-    } else {
+    if (msix_init_exclusive_bar(&s->dev, s->vectors, 1)) {
         IVSHMEM_DPRINTF("msix initialization failed\n");
         exit(1);
     }
+
+    IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
 
     /* allocate QEMU char devices for receiving interrupts */
     s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
@@ -775,7 +771,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
     return 0;
 }
 
-static int pci_ivshmem_uninit(PCIDevice *dev)
+static void pci_ivshmem_uninit(PCIDevice *dev)
 {
     IVShmemState *s = DO_UPCAST(IVShmemState, dev, dev);
 
@@ -790,8 +786,6 @@ static int pci_ivshmem_uninit(PCIDevice *dev)
     memory_region_destroy(&s->ivshmem);
     memory_region_destroy(&s->bar);
     unregister_savevm(&dev->qdev, "ivshmem", s);
-
-    return 0;
 }
 
 static Property ivshmem_properties[] = {

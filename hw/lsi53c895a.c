@@ -2064,15 +2064,13 @@ static const VMStateDescription vmstate_lsi_scsi = {
     }
 };
 
-static int lsi_scsi_uninit(PCIDevice *d)
+static void lsi_scsi_uninit(PCIDevice *d)
 {
     LSIState *s = DO_UPCAST(LSIState, dev, d);
 
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->ram_io);
     memory_region_destroy(&s->io_io);
-
-    return 0;
 }
 
 static const struct SCSIBusInfo lsi_scsi_info = {
