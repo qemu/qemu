@@ -1437,7 +1437,6 @@ static const char *scsi_command_name(uint8_t cmd)
         [ ATA_PASSTHROUGH_12       ] = "BLANK/ATA_PASSTHROUGH_12",
         [ MOVE_MEDIUM              ] = "MOVE_MEDIUM",
         [ EXCHANGE_MEDIUM          ] = "EXCHANGE MEDIUM",
-        [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ READ_12                  ] = "READ_12",
         [ WRITE_12                 ] = "WRITE_12",
         [ ERASE_12                 ] = "ERASE_12/GET_PERFORMANCE",
