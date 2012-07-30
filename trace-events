@@ -403,6 +403,7 @@ usb_host_parse_error(int bus, int addr, const char *errmsg) "dev %d:%d, msg %s"
 
 # hw/scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
+scsi_req_cancel(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
 scsi_req_data_canceled(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
 scsi_req_dequeue(int target, int lun, int tag) "target %d lun %d tag %d"
@@ -411,6 +412,7 @@ scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfer) "targ
 scsi_req_parsed_lba(int target, int lun, int tag, int cmd, uint64_t lba) "target %d lun %d tag %d command %d lba %"PRIu64
 scsi_req_parse_bad(int target, int lun, int tag, int cmd) "target %d lun %d tag %d command %d"
 scsi_req_build_sense(int target, int lun, int tag, int key, int asc, int ascq) "target %d lun %d tag %d key %#02x asc %#02x ascq %#02x"
+scsi_device_set_ua(int target, int lun, int key, int asc, int ascq) "target %d lun %d key %#02x asc %#02x ascq %#02x"
 scsi_report_luns(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_inquiry(int target, int lun, int tag, int cdb1, int cdb2) "target %d lun %d tag %d page %#02x/%#02x"
 scsi_test_unit_ready(int target, int lun, int tag) "target %d lun %d tag %d"
@@ -595,7 +597,7 @@ megasas_dcmd_ld_get_list(int cmd, int num, int max) "scmd %d: DCMD LD get list: 
 megasas_dcmd_ld_get_info(int cmd, int ld_id) "scmd %d: DCMD LD get info for dev %d"
 megasas_dcmd_pd_get_info(int cmd, int pd_id) "scmd %d: DCMD PD get info for dev %d"
 megasas_dcmd_pd_list_query(int cmd, int flags) "scmd %d: DCMD PD list query flags %x"
-megasas_dcmd_dump_frame(int offset, char f0, char f1, char f2, char f3, char f4, char f5, char f6, char f7) "0x%x: %02x %02x %02x %02x %02x %02x %02x %02x"
+megasas_dcmd_unsupported(int cmd, unsigned long size) "scmd %d: set properties len %ld"
 megasas_abort_frame(int cmd, int abort_cmd) "scmd %d: aborting frame %x"
 megasas_abort_no_cmd(int cmd, uint64_t context) "scmd %d: no active command for frame context %" PRIx64 ""
 megasas_abort_invalid_context(int cmd, uint64_t context, int abort_cmd) "scmd %d: invalid frame context %" PRIx64 " for abort frame %x"

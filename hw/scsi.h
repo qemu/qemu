@@ -131,6 +131,9 @@ struct SCSIBusInfo {
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
     void (*complete)(SCSIRequest *req, uint32_t arg, size_t resid);
     void (*cancel)(SCSIRequest *req);
+    void (*hotplug)(SCSIBus *bus, SCSIDevice *dev);
+    void (*hot_unplug)(SCSIBus *bus, SCSIDevice *dev);
+    void (*change)(SCSIBus *bus, SCSIDevice *dev, SCSISense sense);
     QEMUSGList *(*get_sg_list)(SCSIRequest *req);
 
     void (*save_request)(QEMUFile *f, SCSIRequest *req);
@@ -180,6 +183,10 @@ extern const struct SCSISense sense_code_INVALID_OPCODE;
 extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
 /* Illegal request, Invalid field in CDB */
 extern const struct SCSISense sense_code_INVALID_FIELD;
+/* Illegal request, Invalid field in parameter list */
+extern const struct SCSISense sense_code_INVALID_PARAM;
+/* Illegal request, Parameter list length error */
+extern const struct SCSISense sense_code_INVALID_PARAM_LEN;
 /* Illegal request, LUN not supported */
 extern const struct SCSISense sense_code_LUN_NOT_SUPPORTED;
 /* Illegal request, Saving parameters not supported */
@@ -194,6 +201,8 @@ extern const struct SCSISense sense_code_IO_ERROR;
 extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
 /* Command aborted, Logical Unit failure */
 extern const struct SCSISense sense_code_LUN_FAILURE;
+/* LUN not ready, Capacity data has changed */
+extern const struct SCSISense sense_code_CAPACITY_CHANGED;
 /* LUN not ready, Medium not present */
 extern const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM;
 /* Unit attention, Power on, reset or bus device reset occurred */
@@ -204,6 +213,8 @@ extern const struct SCSISense sense_code_MEDIUM_CHANGED;
 extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
 /* Unit attention, Device internal reset */
 extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
+/* Data Protection, Write Protected */
+extern const struct SCSISense sense_code_WRITE_PROTECTED;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
@@ -231,6 +242,8 @@ void scsi_req_abort(SCSIRequest *req, int status);
 void scsi_req_cancel(SCSIRequest *req);
 void scsi_req_retry(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
+void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense);
+void scsi_device_report_change(SCSIDevice *dev, SCSISense sense);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
 
