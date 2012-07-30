@@ -648,7 +648,6 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     uint16_t csum16;
     int i;
 
-    s = s;
     DENET(qemu_log("%s: %zd bytes\n", __func__, size));
 
     unicast = ~buf[0] & 0x1;
