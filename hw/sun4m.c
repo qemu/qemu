@@ -832,6 +832,10 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
     env->prom_addr = prom_addr;
 }
 
+static void dummy_fdc_tc(void *opaque, int irq, int level)
+{
+}
+
 static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
                           const char *boot_device,
                           const char *kernel_filename,
@@ -942,9 +946,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
     cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
-    slavio_misc_init(hwdef->slavio_base, hwdef->aux1_base, hwdef->aux2_base,
-                     slavio_irq[30], fdc_tc);
-
     if (hwdef->apc_base) {
         apc_init(hwdef->apc_base, cpu_halt[0]);
     }
@@ -955,7 +956,12 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
         fd[0] = drive_get(IF_FLOPPY, 0, 0);
         sun4m_fdctrl_init(slavio_irq[22], hwdef->fd_base, fd,
                           &fdc_tc);
+    } else {
+        fdc_tc = *qemu_allocate_irqs(dummy_fdc_tc, NULL, 1);
     }
+
+    slavio_misc_init(hwdef->slavio_base, hwdef->aux1_base, hwdef->aux2_base,
+                     slavio_irq[30], fdc_tc);
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
         fprintf(stderr, "qemu: too many SCSI bus\n");
@@ -1772,15 +1778,17 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
               slavio_irq[1], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);
 
-    slavio_misc_init(0, hwdef->aux1_base, 0, slavio_irq[1], fdc_tc);
-
     if (hwdef->fd_base != (target_phys_addr_t)-1) {
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
         fd[0] = drive_get(IF_FLOPPY, 0, 0);
         sun4m_fdctrl_init(slavio_irq[1], hwdef->fd_base, fd,
                           &fdc_tc);
+    } else {
+        fdc_tc = *qemu_allocate_irqs(dummy_fdc_tc, NULL, 1);
     }
+
+    slavio_misc_init(0, hwdef->aux1_base, 0, slavio_irq[1], fdc_tc);
 
     if (drive_get_max_bus(IF_SCSI) > 0) {
         fprintf(stderr, "qemu: too many SCSI bus\n");
