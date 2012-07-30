@@ -718,9 +718,9 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     net_init_slirp_configs(user->hostfwd, SLIRP_CFG_HOSTFWD);
     net_init_slirp_configs(user->guestfwd, 0);
 
-    ret = net_slirp_init(peer, "user", name, user->restrict, vnet, user->host,
-                         user->hostname, user->tftp, user->bootfile,
-                         user->dhcpstart, user->dns, user->smb,
+    ret = net_slirp_init(peer, "user", name, user->q_restrict, vnet,
+                         user->host, user->hostname, user->tftp,
+                         user->bootfile, user->dhcpstart, user->dns, user->smb,
                          user->smbserver);
 
     while (slirp_configs) {
