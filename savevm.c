@@ -1171,10 +1171,7 @@ typedef struct SaveStateEntry {
     int alias_id;
     int version_id;
     int section_id;
-    SaveSetParamsHandler *set_params;
-    SaveLiveStateHandler *save_live_state;
-    SaveStateHandler *save_state;
-    LoadStateHandler *load_state;
+    SaveVMHandlers *ops;
     const VMStateDescription *vmsd;
     void *opaque;
     CompatEntry *compat;
@@ -1226,10 +1223,7 @@ int register_savevm_live(DeviceState *dev,
                          const char *idstr,
                          int instance_id,
                          int version_id,
-                         SaveSetParamsHandler *set_params,
-                         SaveLiveStateHandler *save_live_state,
-                         SaveStateHandler *save_state,
-                         LoadStateHandler *load_state,
+                         SaveVMHandlers *ops,
                          void *opaque)
 {
     SaveStateEntry *se;
@@ -1237,15 +1231,12 @@ int register_savevm_live(DeviceState *dev,
     se = g_malloc0(sizeof(SaveStateEntry));
     se->version_id = version_id;
     se->section_id = global_section_id++;
-    se->set_params = set_params;
-    se->save_live_state = save_live_state;
-    se->save_state = save_state;
-    se->load_state = load_state;
+    se->ops = ops;
     se->opaque = opaque;
     se->vmsd = NULL;
     se->no_migrate = 0;
     /* if this is a live_savem then set is_ram */
-    if (save_live_state != NULL) {
+    if (ops->save_live_setup != NULL) {
         se->is_ram = 1;
     }
 
@@ -1284,8 +1275,11 @@ int register_savevm(DeviceState *dev,
                     LoadStateHandler *load_state,
                     void *opaque)
 {
+    SaveVMHandlers *ops = g_malloc0(sizeof(SaveVMHandlers));
+    ops->save_state = save_state;
+    ops->load_state = load_state;
     return register_savevm_live(dev, idstr, instance_id, version_id,
-                                NULL, NULL, save_state, load_state, opaque);
+                                ops, opaque);
 }
 
 void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
@@ -1309,6 +1303,7 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
             if (se->compat) {
                 g_free(se->compat);
             }
+            g_free(se->ops);
             g_free(se);
         }
     }
@@ -1327,9 +1322,6 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     se = g_malloc0(sizeof(SaveStateEntry));
     se->version_id = vmsd->version_id;
     se->section_id = global_section_id++;
-    se->save_live_state = NULL;
-    se->save_state = NULL;
-    se->load_state = NULL;
     se->opaque = opaque;
     se->vmsd = vmsd;
     se->alias_id = alias_id;
@@ -1524,7 +1516,7 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
 static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
 {
     if (!se->vmsd) {         /* Old style */
-        return se->load_state(f, se->opaque, version_id);
+        return se->ops->load_state(f, se->opaque, version_id);
     }
     return vmstate_load_state(f, se->vmsd, se->opaque, version_id);
 }
@@ -1532,7 +1524,7 @@ static int vmstate_load(QEMUFile *f, SaveStateEntry *se, int version_id)
 static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 {
     if (!se->vmsd) {         /* Old style */
-        se->save_state(f, se->opaque);
+        se->ops->save_state(f, se->opaque);
         return;
     }
     vmstate_save_state(f,se->vmsd, se->opaque);
@@ -1569,10 +1561,10 @@ int qemu_savevm_state_begin(QEMUFile *f,
     int ret;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if(se->set_params == NULL) {
+        if (!se->ops || !se->ops->set_params) {
             continue;
         }
-        se->set_params(params, se->opaque);
+        se->ops->set_params(params, se->opaque);
     }
     
     qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
@@ -1581,9 +1573,14 @@ int qemu_savevm_state_begin(QEMUFile *f,
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
-        if (se->save_live_state == NULL)
+        if (!se->ops || !se->ops->save_live_setup) {
             continue;
-
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_START);
         qemu_put_be32(f, se->section_id);
@@ -1596,7 +1593,7 @@ int qemu_savevm_state_begin(QEMUFile *f,
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        ret = se->save_live_state(f, QEMU_VM_SECTION_START, se->opaque);
+        ret = se->ops->save_live_setup(f, se->opaque);
         if (ret < 0) {
             qemu_savevm_state_cancel(f);
             return ret;
@@ -1623,9 +1620,14 @@ int qemu_savevm_state_iterate(QEMUFile *f)
     int ret = 1;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (se->save_live_state == NULL)
+        if (!se->ops || !se->ops->save_live_iterate) {
             continue;
-
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
         if (qemu_file_rate_limit(f)) {
             return 0;
         }
@@ -1634,7 +1636,7 @@ int qemu_savevm_state_iterate(QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
-        ret = se->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
+        ret = se->ops->save_live_iterate(f, se->opaque);
         trace_savevm_section_end(se->section_id);
 
         if (ret <= 0) {
@@ -1663,15 +1665,20 @@ int qemu_savevm_state_complete(QEMUFile *f)
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (se->save_live_state == NULL)
+        if (!se->ops || !se->ops->save_live_complete) {
             continue;
-
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
         trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
-        ret = se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
+        ret = se->ops->save_live_complete(f, se->opaque);
         trace_savevm_section_end(se->section_id);
         if (ret < 0) {
             return ret;
@@ -1681,9 +1688,9 @@ int qemu_savevm_state_complete(QEMUFile *f)
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         int len;
 
-	if (se->save_state == NULL && se->vmsd == NULL)
+        if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
 	    continue;
-
+        }
         trace_savevm_section_start();
         /* Section type */
         qemu_put_byte(f, QEMU_VM_SECTION_FULL);
@@ -1711,8 +1718,8 @@ void qemu_savevm_state_cancel(QEMUFile *f)
     SaveStateEntry *se;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
-        if (se->save_live_state) {
-            se->save_live_state(f, -1, se->opaque);
+        if (se->ops && se->ops->cancel) {
+            se->ops->cancel(se->opaque);
         }
     }
 }
@@ -1765,7 +1772,7 @@ static int qemu_save_device_state(QEMUFile *f)
         if (se->is_ram) {
             continue;
         }
-        if (se->save_state == NULL && se->vmsd == NULL) {
+        if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
         }
 

@@ -18,6 +18,7 @@
 #include "qemu-common.h"
 #include "notify.h"
 #include "error.h"
+#include "vmstate.h"
 
 struct MigrationParams {
     bool blk;
@@ -81,8 +82,7 @@ uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_transferred(void);
 uint64_t ram_bytes_total(void);
 
-int ram_save_live(QEMUFile *f, int stage, void *opaque);
-int ram_load(QEMUFile *f, void *opaque, int version_id);
+extern SaveVMHandlers savevm_ram_handlers;
 
 /**
  * @migrate_add_blocker - prevent migration from proceeding

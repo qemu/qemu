@@ -186,11 +186,19 @@ static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
 static RAMBlock *last_block;
 static ram_addr_t last_offset;
 
+/*
+ * ram_save_block: Writes a page of memory to the stream f
+ *
+ * Returns:  0: if the page hasn't changed
+ *          -1: if there are no more dirty pages
+ *           n: the amount of bytes written in other case
+ */
+
 static int ram_save_block(QEMUFile *f)
 {
     RAMBlock *block = last_block;
     ram_addr_t offset = last_offset;
-    int bytes_sent = 0;
+    int bytes_sent = -1;
     MemoryRegion *mr;
 
     if (!block)
@@ -298,50 +306,55 @@ static void migration_end(void)
     memory_global_dirty_log_stop();
 }
 
+static void ram_migration_cancel(void *opaque)
+{
+    migration_end();
+}
+
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
-int ram_save_live(QEMUFile *f, int stage, void *opaque)
+static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     ram_addr_t addr;
+    RAMBlock *block;
+
+    bytes_transferred = 0;
+    last_block = NULL;
+    last_offset = 0;
+    sort_ram_list();
+
+    /* Make sure all dirty bits are set */
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
+            if (!memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
+                                         DIRTY_MEMORY_MIGRATION)) {
+                memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
+            }
+        }
+    }
+
+    memory_global_dirty_log_start();
+
+    qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
+
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        qemu_put_byte(f, strlen(block->idstr));
+        qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
+        qemu_put_be64(f, block->length);
+    }
+
+    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+
+    return 0;
+}
+
+static int ram_save_iterate(QEMUFile *f, void *opaque)
+{
     uint64_t bytes_transferred_last;
     double bwidth = 0;
     int ret;
     int i;
-
-    if (stage < 0) {
-        migration_end();
-        return 0;
-    }
-
-    memory_global_sync_dirty_bitmap(get_system_memory());
-
-    if (stage == 1) {
-        RAMBlock *block;
-        bytes_transferred = 0;
-        last_block = NULL;
-        last_offset = 0;
-        sort_ram_list();
-
-        /* Make sure all dirty bits are set */
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
-            for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-                if (!memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
-                                             DIRTY_MEMORY_MIGRATION)) {
-                    memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
-                }
-            }
-        }
-
-        memory_global_dirty_log_start();
-
-        qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
-
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
-            qemu_put_byte(f, strlen(block->idstr));
-            qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
-            qemu_put_be64(f, block->length);
-        }
-    }
+    uint64_t expected_time;
 
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
@@ -351,10 +364,11 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
         int bytes_sent;
 
         bytes_sent = ram_save_block(f);
-        bytes_transferred += bytes_sent;
-        if (bytes_sent == 0) { /* no more blocks */
+        /* no more blocks to sent */
+        if (bytes_sent < 0) {
             break;
         }
+        bytes_transferred += bytes_sent;
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some
@@ -384,28 +398,43 @@ int ram_save_live(QEMUFile *f, int stage, void *opaque)
         bwidth = 0.000001;
     }
 
-    /* try transferring iterative blocks of memory */
-    if (stage == 3) {
-        int bytes_sent;
-
-        /* flush all remaining blocks regardless of rate limiting */
-        while ((bytes_sent = ram_save_block(f)) != 0) {
-            bytes_transferred += bytes_sent;
-        }
-        memory_global_dirty_log_stop();
-    }
-
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-    if (stage == 2) {
-        uint64_t expected_time;
-        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+    expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
-        DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
-                expected_time, migrate_max_downtime());
+    DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
+            expected_time, migrate_max_downtime());
+
+    if (expected_time <= migrate_max_downtime()) {
+        memory_global_sync_dirty_bitmap(get_system_memory());
+        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
         return expected_time <= migrate_max_downtime();
     }
+    return 0;
+}
+
+static int ram_save_complete(QEMUFile *f, void *opaque)
+{
+    memory_global_sync_dirty_bitmap(get_system_memory());
+
+    /* try transferring iterative blocks of memory */
+
+    /* flush all remaining blocks regardless of rate limiting */
+    while (true) {
+        int bytes_sent;
+
+        bytes_sent = ram_save_block(f);
+        /* no more blocks to sent */
+        if (bytes_sent < 0) {
+            break;
+        }
+        bytes_transferred += bytes_sent;
+    }
+    memory_global_dirty_log_stop();
+
+    qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+
     return 0;
 }
 
@@ -439,7 +468,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     return NULL;
 }
 
-int ram_load(QEMUFile *f, void *opaque, int version_id)
+static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
     int flags, ret = 0;
@@ -535,6 +564,14 @@ done:
             ret, seq_iter);
     return ret;
 }
+
+SaveVMHandlers savevm_ram_handlers = {
+    .save_live_setup = ram_save_setup,
+    .save_live_iterate = ram_save_iterate,
+    .save_live_complete = ram_save_complete,
+    .load_state = ram_load,
+    .cancel = ram_migration_cancel,
+};
 
 #ifdef HAS_AUDIO
 struct soundhw {
