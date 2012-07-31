@@ -2040,7 +2040,7 @@ static const VMStateDescription vmstate_megasas = {
     }
 };
 
-static int megasas_scsi_uninit(PCIDevice *d)
+static void megasas_scsi_uninit(PCIDevice *d)
 {
     MegasasState *s = DO_UPCAST(MegasasState, dev, d);
 
@@ -2050,7 +2050,6 @@ static int megasas_scsi_uninit(PCIDevice *d)
     memory_region_destroy(&s->mmio_io);
     memory_region_destroy(&s->port_io);
     memory_region_destroy(&s->queue_io);
-    return 0;
 }
 
 static const struct SCSIBusInfo megasas_scsi_info = {
