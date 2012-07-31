@@ -346,10 +346,10 @@ static QError *qerror_new(void)
     return qerr;
 }
 
-static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
-                                               const char *fmt, va_list *va)
+static QDict *error_obj_from_fmt_no_fail(const char *fmt, va_list *va)
 {
     QObject *obj;
+    QDict *ret;
 
     obj = qobject_from_jsonv(fmt, va);
     if (!obj) {
@@ -361,9 +361,8 @@ static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
         abort();
     }
 
-    qerr->error = qobject_to_qdict(obj);
-
-    obj = qdict_get(qerr->error, "class");
+    ret = qobject_to_qdict(obj);
+    obj = qdict_get(ret, "class");
     if (!obj) {
         fprintf(stderr, "missing 'class' key in '%s'\n", fmt);
         abort();
@@ -372,8 +371,8 @@ static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
         fprintf(stderr, "'class' key value should be a string in '%s'\n", fmt);
         abort();
     }
-    
-    obj = qdict_get(qerr->error, "data");
+
+    obj = qdict_get(ret, "data");
     if (!obj) {
         fprintf(stderr, "missing 'data' key in '%s'\n", fmt);
         abort();
@@ -382,9 +381,11 @@ static void GCC_FMT_ATTR(2, 0) qerror_set_data(QError *qerr,
         fprintf(stderr, "'data' key value should be a dict in '%s'\n", fmt);
         abort();
     }
+
+    return ret;
 }
 
-static void qerror_set_desc(QError *qerr, const char *fmt)
+static const QErrorStringTable *get_desc_no_fail(const char *fmt)
 {
     int i;
 
@@ -392,8 +393,7 @@ static void qerror_set_desc(QError *qerr, const char *fmt)
 
     for (i = 0; qerror_table[i].error_fmt; i++) {
         if (strcmp(qerror_table[i].error_fmt, fmt) == 0) {
-            qerr->entry = &qerror_table[i];
-            return;
+            return &qerror_table[i];
         }
     }
 
@@ -426,8 +426,8 @@ static QError *qerror_from_info(const char *file, int linenr, const char *func,
     qerr->file = file;
     qerr->func = func;
 
-    qerror_set_data(qerr, fmt, va);
-    qerror_set_desc(qerr, fmt);
+    qerr->error = error_obj_from_fmt_no_fail(fmt, va);
+    qerr->entry = get_desc_no_fail(fmt);
 
     return qerr;
 }
