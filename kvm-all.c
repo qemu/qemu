@@ -1207,6 +1207,26 @@ static int kvm_irqchip_create(KVMState *s)
     return 0;
 }
 
+static int kvm_max_vcpus(KVMState *s)
+{
+    int ret;
+
+    /* Find number of supported CPUs using the recommended
+     * procedure from the kernel API documentation to cope with
+     * older kernels that may be missing capabilities.
+     */
+    ret = kvm_check_extension(s, KVM_CAP_MAX_VCPUS);
+    if (ret) {
+        return ret;
+    }
+    ret = kvm_check_extension(s, KVM_CAP_NR_VCPUS);
+    if (ret) {
+        return ret;
+    }
+
+    return 4;
+}
+
 int kvm_init(void)
 {
     static const char upgrade_note[] =
@@ -1216,6 +1236,7 @@ int kvm_init(void)
     const KVMCapabilityInfo *missing_cap;
     int ret;
     int i;
+    int max_vcpus;
 
     s = g_malloc0(sizeof(KVMState));
 
@@ -1253,6 +1274,14 @@ int kvm_init(void)
     if (ret > KVM_API_VERSION) {
         ret = -EINVAL;
         fprintf(stderr, "kvm version not supported\n");
+        goto err;
+    }
+
+    max_vcpus = kvm_max_vcpus(s);
+    if (smp_cpus > max_vcpus) {
+        ret = -EINVAL;
+        fprintf(stderr, "Number of SMP cpus requested (%d) exceeds max cpus "
+                "supported by KVM (%d)\n", smp_cpus, max_vcpus);
         goto err;
     }
 
