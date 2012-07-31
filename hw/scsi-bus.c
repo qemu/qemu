@@ -186,6 +186,10 @@ static int scsi_qdev_init(DeviceState *qdev)
                                                          dev);
     }
 
+    if (bus->info->hotplug) {
+        bus->info->hotplug(bus, dev);
+    }
+
 err:
     return rc;
 }
@@ -1068,6 +1072,16 @@ int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     return 0;
 }
 
+void scsi_device_report_change(SCSIDevice *dev, SCSISense sense)
+{
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+
+    scsi_device_set_ua(dev, sense);
+    if (bus->info->change) {
+        bus->info->change(bus, dev, sense);
+    }
+}
+
 /*
  * Predefined sense codes
  */
@@ -1112,6 +1126,16 @@ const struct SCSISense sense_code_INVALID_FIELD = {
     .key = ILLEGAL_REQUEST, .asc = 0x24, .ascq = 0x00
 };
 
+/* Illegal request, Invalid field in parameter list */
+const struct SCSISense sense_code_INVALID_PARAM = {
+    .key = ILLEGAL_REQUEST, .asc = 0x26, .ascq = 0x00
+};
+
+/* Illegal request, Parameter list length error */
+const struct SCSISense sense_code_INVALID_PARAM_LEN = {
+    .key = ILLEGAL_REQUEST, .asc = 0x1a, .ascq = 0x00
+};
+
 /* Illegal request, LUN not supported */
 const struct SCSISense sense_code_LUN_NOT_SUPPORTED = {
     .key = ILLEGAL_REQUEST, .asc = 0x25, .ascq = 0x00
@@ -1147,6 +1171,11 @@ const struct SCSISense sense_code_LUN_FAILURE = {
     .key = ABORTED_COMMAND, .asc = 0x3e, .ascq = 0x01
 };
 
+/* Unit attention, Capacity data has changed */
+const struct SCSISense sense_code_CAPACITY_CHANGED = {
+    .key = UNIT_ATTENTION, .asc = 0x2a, .ascq = 0x09
+};
+
 /* Unit attention, Power on, reset or bus device reset occurred */
 const struct SCSISense sense_code_RESET = {
     .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x00
@@ -1170,6 +1199,11 @@ const struct SCSISense sense_code_REPORTED_LUNS_CHANGED = {
 /* Unit attention, Device internal reset */
 const struct SCSISense sense_code_DEVICE_INTERNAL_RESET = {
     .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x04
+};
+
+/* Data Protection, Write Protected */
+const struct SCSISense sense_code_WRITE_PROTECTED = {
+    .key = DATA_PROTECT, .asc = 0x27, .ascq = 0x00
 };
 
 /*
@@ -1481,6 +1515,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
 void scsi_req_cancel(SCSIRequest *req)
 {
+    trace_scsi_req_cancel(req->dev->id, req->lun, req->tag);
     if (!req->enqueued) {
         return;
     }
@@ -1511,6 +1546,55 @@ void scsi_req_abort(SCSIRequest *req, int status)
     scsi_req_unref(req);
 }
 
+static int scsi_ua_precedence(SCSISense sense)
+{
+    if (sense.key != UNIT_ATTENTION) {
+        return INT_MAX;
+    }
+    if (sense.asc == 0x29 && sense.ascq == 0x04) {
+        /* DEVICE INTERNAL RESET goes with POWER ON OCCURRED */
+        return 1;
+    } else if (sense.asc == 0x3F && sense.ascq == 0x01) {
+        /* MICROCODE HAS BEEN CHANGED goes with SCSI BUS RESET OCCURRED */
+        return 2;
+    } else if (sense.asc == 0x29 && (sense.ascq == 0x05 || sense.ascq == 0x06)) {
+        /* These two go with "all others". */
+        ;
+    } else if (sense.asc == 0x29 && sense.ascq <= 0x07) {
+        /* POWER ON, RESET OR BUS DEVICE RESET OCCURRED = 0
+         * POWER ON OCCURRED = 1
+         * SCSI BUS RESET OCCURRED = 2
+         * BUS DEVICE RESET FUNCTION OCCURRED = 3
+         * I_T NEXUS LOSS OCCURRED = 7
+         */
+        return sense.ascq;
+    } else if (sense.asc == 0x2F && sense.ascq == 0x01) {
+        /* COMMANDS CLEARED BY POWER LOSS NOTIFICATION  */
+        return 8;
+    }
+    return (sense.asc << 8) | sense.ascq;
+}
+
+void scsi_device_set_ua(SCSIDevice *sdev, SCSISense sense)
+{
+    int prec1, prec2;
+    if (sense.key != UNIT_ATTENTION) {
+        return;
+    }
+    trace_scsi_device_set_ua(sdev->id, sdev->lun, sense.key,
+                             sense.asc, sense.ascq);
+
+    /*
+     * Override a pre-existing unit attention condition, except for a more
+     * important reset condition.
+    */
+    prec1 = scsi_ua_precedence(sdev->unit_attention);
+    prec2 = scsi_ua_precedence(sense);
+    if (prec2 < prec1) {
+        sdev->unit_attention = sense;
+    }
+}
+
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 {
     SCSIRequest *req;
@@ -1519,7 +1603,8 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
         req = QTAILQ_FIRST(&sdev->requests);
         scsi_req_cancel(req);
     }
-    sdev->unit_attention = sense;
+
+    scsi_device_set_ua(sdev, sense);
 }
 
 static char *scsibus_get_dev_path(DeviceState *dev)
@@ -1634,6 +1719,17 @@ static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
     return 0;
 }
 
+static int scsi_qdev_unplug(DeviceState *qdev)
+{
+    SCSIDevice *dev = SCSI_DEVICE(qdev);
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
+
+    if (bus->info->hot_unplug) {
+        bus->info->hot_unplug(bus, dev);
+    }
+    return qdev_simple_unplug_cb(qdev);
+}
+
 static const VMStateInfo vmstate_info_scsi_requests = {
     .name = "scsi-requests",
     .get  = get_scsi_requests,
@@ -1670,7 +1766,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->bus_type = TYPE_SCSI_BUS;
     k->init     = scsi_qdev_init;
-    k->unplug   = qdev_simple_unplug_cb;
+    k->unplug   = scsi_qdev_unplug;
     k->exit     = scsi_qdev_exit;
     k->props    = scsi_props;
 }

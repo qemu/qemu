@@ -745,14 +745,13 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     return 0;
 }
 
-static int pci_ne2000_exit(PCIDevice *pci_dev)
+static void pci_ne2000_exit(PCIDevice *pci_dev)
 {
     PCINE2000State *d = DO_UPCAST(PCINE2000State, dev, pci_dev);
     NE2000State *s = &d->ne2000;
 
     memory_region_destroy(&s->io);
     qemu_del_vlan_client(&s->nic->nc);
-    return 0;
 }
 
 static Property ne2000_properties[] = {

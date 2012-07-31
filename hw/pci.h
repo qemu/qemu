@@ -85,7 +85,7 @@ typedef uint32_t PCIConfigReadFunc(PCIDevice *pci_dev,
                                    uint32_t address, int len);
 typedef void PCIMapIORegionFunc(PCIDevice *pci_dev, int region_num,
                                 pcibus_t addr, pcibus_t size, int type);
-typedef int PCIUnregisterFunc(PCIDevice *pci_dev);
+typedef void PCIUnregisterFunc(PCIDevice *pci_dev);
 
 typedef struct PCIIORegion {
     pcibus_t addr; /* current PCI mapping address. -1 means not mapped */
@@ -141,6 +141,15 @@ enum {
 #define PCI_DEVICE_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PCIDeviceClass, (obj), TYPE_PCI_DEVICE)
 
+typedef struct PCIINTxRoute {
+    enum {
+        PCI_INTX_ENABLED,
+        PCI_INTX_INVERTED,
+        PCI_INTX_DISABLED,
+    } mode;
+    int irq;
+} PCIINTxRoute;
+
 typedef struct PCIDeviceClass {
     DeviceClass parent_class;
 
@@ -173,6 +182,7 @@ typedef struct PCIDeviceClass {
     const char *romfile;
 } PCIDeviceClass;
 
+typedef void (*PCIINTxRoutingNotifier)(PCIDevice *dev);
 typedef int (*MSIVectorUseNotifier)(PCIDevice *dev, unsigned int vector,
                                       MSIMessage msg);
 typedef void (*MSIVectorReleaseNotifier)(PCIDevice *dev, unsigned int vector);
@@ -222,14 +232,16 @@ struct PCIDevice {
     /* MSI-X entries */
     int msix_entries_nr;
 
-    /* Space to store MSIX table */
-    uint8_t *msix_table_page;
-    /* MMIO index used to map MSIX table and pending bit entries. */
-    MemoryRegion msix_mmio;
+    /* Space to store MSIX table & pending bit array */
+    uint8_t *msix_table;
+    uint8_t *msix_pba;
+    /* MemoryRegion container for msix exclusive BAR setup */
+    MemoryRegion msix_exclusive_bar;
+    /* Memory Regions for MSIX table and pending bit entries. */
+    MemoryRegion msix_table_mmio;
+    MemoryRegion msix_pba_mmio;
     /* Reference-count for entries actually in use by driver. */
     unsigned *msix_entry_used;
-    /* Region including the MSI-X table */
-    uint32_t msix_bar_size;
     /* MSIX function mask set or MSIX disabled */
     bool msix_function_masked;
     /* Version id needed for VMState */
@@ -249,6 +261,9 @@ struct PCIDevice {
     bool has_rom;
     MemoryRegion rom;
     uint32_t rom_bar;
+
+    /* INTx routing notifier */
+    PCIINTxRoutingNotifier intx_routing_notifier;
 
     /* MSI-X notifiers */
     MSIVectorUseNotifier msix_vector_use_notifier;
@@ -278,6 +293,7 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev);
 
 typedef void (*pci_set_irq_fn)(void *opaque, int irq_num, int level);
 typedef int (*pci_map_irq_fn)(PCIDevice *pci_dev, int irq_num);
+typedef PCIINTxRoute (*pci_route_irq_fn)(void *opaque, int pin);
 
 typedef enum {
     PCI_HOTPLUG_DISABLED,
@@ -306,6 +322,11 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io,
                          uint8_t devfn_min, int nirq);
+void pci_bus_set_route_irq_fn(PCIBus *, pci_route_irq_fn);
+PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin);
+void pci_bus_fire_intx_routing_notifier(PCIBus *bus);
+void pci_device_set_intx_routing_notifier(PCIDevice *dev,
+                                          PCIINTxRoutingNotifier notifier);
 void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 

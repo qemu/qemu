@@ -544,7 +544,7 @@ static void megasas_reset_frames(MegasasState *s)
 static void megasas_abort_command(MegasasCmd *cmd)
 {
     if (cmd->req) {
-        scsi_req_abort(cmd->req, ABORTED_COMMAND);
+        scsi_req_cancel(cmd->req);
         cmd->req = NULL;
     }
 }
@@ -1290,35 +1290,16 @@ static int megasas_cluster_reset_ld(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_dcmd_set_properties(MegasasState *s, MegasasCmd *cmd)
 {
-    uint8_t *dummy = g_malloc(cmd->iov_size);
+    struct mfi_ctrl_props info;
+    size_t dcmd_size = sizeof(info);
 
-    dma_buf_write(dummy, cmd->iov_size, &cmd->qsg);
-
-    trace_megasas_dcmd_dump_frame(0,
-            dummy[0x00], dummy[0x01], dummy[0x02], dummy[0x03],
-            dummy[0x04], dummy[0x05], dummy[0x06], dummy[0x07]);
-    trace_megasas_dcmd_dump_frame(1,
-            dummy[0x08], dummy[0x09], dummy[0x0a], dummy[0x0b],
-            dummy[0x0c], dummy[0x0d], dummy[0x0e], dummy[0x0f]);
-    trace_megasas_dcmd_dump_frame(2,
-            dummy[0x10], dummy[0x11], dummy[0x12], dummy[0x13],
-            dummy[0x14], dummy[0x15], dummy[0x16], dummy[0x17]);
-    trace_megasas_dcmd_dump_frame(3,
-            dummy[0x18], dummy[0x19], dummy[0x1a], dummy[0x1b],
-            dummy[0x1c], dummy[0x1d], dummy[0x1e], dummy[0x1f]);
-    trace_megasas_dcmd_dump_frame(4,
-            dummy[0x20], dummy[0x21], dummy[0x22], dummy[0x23],
-            dummy[0x24], dummy[0x25], dummy[0x26], dummy[0x27]);
-    trace_megasas_dcmd_dump_frame(5,
-            dummy[0x28], dummy[0x29], dummy[0x2a], dummy[0x2b],
-            dummy[0x2c], dummy[0x2d], dummy[0x2e], dummy[0x2f]);
-    trace_megasas_dcmd_dump_frame(6,
-            dummy[0x30], dummy[0x31], dummy[0x32], dummy[0x33],
-            dummy[0x34], dummy[0x35], dummy[0x36], dummy[0x37]);
-    trace_megasas_dcmd_dump_frame(7,
-            dummy[0x38], dummy[0x39], dummy[0x3a], dummy[0x3b],
-            dummy[0x3c], dummy[0x3d], dummy[0x3e], dummy[0x3f]);
-    g_free(dummy);
+    if (cmd->iov_size < dcmd_size) {
+        trace_megasas_dcmd_invalid_xfer_len(cmd->index, cmd->iov_size,
+                                            dcmd_size);
+        return MFI_STAT_INVALID_PARAMETER;
+    }
+    dma_buf_write((uint8_t *)&info, cmd->iov_size, &cmd->qsg);
+    trace_megasas_dcmd_unsupported(cmd->index, cmd->iov_size);
     return MFI_STAT_OK;
 }
 

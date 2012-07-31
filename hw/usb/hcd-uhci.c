@@ -1269,12 +1269,11 @@ static int usb_uhci_vt82c686b_initfn(PCIDevice *dev)
     return usb_uhci_common_initfn(dev);
 }
 
-static int usb_uhci_exit(PCIDevice *dev)
+static void usb_uhci_exit(PCIDevice *dev)
 {
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
 
     memory_region_destroy(&s->io_bar);
-    return 0;
 }
 
 static Property uhci_properties[] = {

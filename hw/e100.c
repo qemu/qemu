@@ -2387,7 +2387,7 @@ static int pci_e100_init(PCIDevice *pci_dev)
     return e100_init(pci_dev, i82557C);
 }
 
-static int e100_exit(PCIDevice *pci_dev)
+static void e100_exit(PCIDevice *pci_dev)
 {
     E100State *s = DO_UPCAST(E100State, dev, pci_dev);
     logout("\n");
@@ -2395,7 +2395,6 @@ static int e100_exit(PCIDevice *pci_dev)
     memory_region_destroy(&s->io_bar);
     memory_region_destroy(&s->flash_bar);
     qemu_del_vlan_client(&s->nic->nc);
-    return 0;
 }
 
 static Property e100_properties[] = {

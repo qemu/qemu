@@ -1192,7 +1192,7 @@ e1000_cleanup(VLANClientState *nc)
     s->nic = NULL;
 }
 
-static int
+static void
 pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = DO_UPCAST(E1000State, dev, dev);
@@ -1202,7 +1202,6 @@ pci_e1000_uninit(PCIDevice *dev)
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
     qemu_del_vlan_client(&d->nic->nc);
-    return 0;
 }
 
 static NetClientInfo net_e1000_info = {

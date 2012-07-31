@@ -1186,9 +1186,10 @@ gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-Wunused-but-set-variable $gcc_flags"
 gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
-if test "$werror" = "yes" ; then
-    gcc_flags="-Werror $gcc_flags"
-fi
+# Note that we do not add -Werror to gcc_flags here, because that would
+# enable it for all configure tests. If a configure test failed due
+# to -Werror this would just silently disable some features,
+# so it's too error prone.
 cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
@@ -1761,7 +1762,7 @@ cat > $TMPC <<EOF
 int main(void) {
     png_structp png_ptr;
     png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    return 0;
+    return png_ptr != 0;
 }
 EOF
   if $pkg_config libpng --modversion >/dev/null 2>&1; then
@@ -1855,7 +1856,8 @@ if test "$vde" != "no" ; then
 int main(void)
 {
     struct vde_open_args a = {0, 0, 0};
-    vde_open(NULL, NULL, &a);
+    char s[] = "";
+    vde_open(s, s, &a);
     return 0;
 }
 EOF
@@ -2377,6 +2379,7 @@ cat > $TMPC << EOF
 #define _ATFILE_SOURCE
 #include <stddef.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 int main(void)
 {
@@ -2699,13 +2702,22 @@ if test "$smartcard" != "no" ; then
 #include <pk11pub.h>
 int main(void) { PK11_FreeSlot(0); return 0; }
 EOF
-        smartcard_cflags="-I\$(SRC_PATH)/libcacard"
+        smartcard_includes="-I\$(SRC_PATH)/libcacard"
         libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
         libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
+        test_cflags="$libcacard_cflags"
+        # The header files in nss < 3.13.3 have a bug which causes them to
+        # emit a warning. If we're going to compile QEMU with -Werror, then
+        # test that the headers don't have this bug. Otherwise we would pass
+        # the configure test but fail to compile QEMU later.
+        if test "$werror" = "yes"; then
+            test_cflags="-Werror $test_cflags"
+        fi
         if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
-          compile_prog "$smartcard_cflags $libcacard_cflags" "$libcacard_libs"; then
+          compile_prog "$test_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
-            QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
+            QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
+            QEMU_INCLUDES="$QEMU_INCLUDES $smartcard_includes"
             libs_softmmu="$libcacard_libs $libs_softmmu"
         else
             if test "$smartcard_nss" = "yes"; then
@@ -2834,7 +2846,7 @@ fi
 # specification is necessary
 if test "$vhost_net" = "yes" && test "$cpu" = "i386"; then
   cat > $TMPC << EOF
-int sfaa(unsigned *ptr)
+static int sfaa(int *ptr)
 {
   return __sync_fetch_and_and(ptr, 0);
 }
@@ -2847,7 +2859,7 @@ int main(int argc, char **argv)
 }
 EOF
   if ! compile_prog "" "" ; then
-    CFLAGS+="-march=i486"
+    QEMU_CFLAGS="-march=i486 $QEMU_CFLAGS"
   fi
 fi
 
@@ -2917,14 +2929,29 @@ if compile_prog "" "" ; then
 fi
 
 ########################################
+# check whether we can disable the -Wunused-but-set-variable
+# option with a pragma (this is needed to silence a warning in
+# some versions of the valgrind VALGRIND_STACK_DEREGISTER macro.)
+# This test has to be compiled with -Werror as otherwise an
+# unknown pragma is only a warning.
+pragma_disable_unused_but_set=no
+cat > $TMPC << EOF
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+int main(void) {
+    return 0;
+}
+EOF
+if compile_prog "-Werror" "" ; then
+    pragma_disable_unused_but_set=yes
+fi
+
+########################################
 # check if we have valgrind/valgrind.h
 
 valgrind_h=no
 cat > $TMPC << EOF
 #include <valgrind/valgrind.h>
-#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 int main(void) {
-  VALGRIND_STACK_DEREGISTER(0);
   return 0;
 }
 EOF
@@ -2976,6 +3003,11 @@ if test -z "$zero_malloc" ; then
     else
 	zero_malloc="yes"
     fi
+fi
+
+# Now we've finished running tests it's OK to add -Werror to the compiler flags
+if test "$werror" = "yes"; then
+    QEMU_CFLAGS="-Werror $QEMU_CFLAGS"
 fi
 
 if test "$solaris" = "no" ; then
@@ -3457,6 +3489,10 @@ fi
 
 if test "$linux_magic_h" = "yes" ; then
   echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
+fi
+
+if test "$pragma_disable_unused_but_set" = "yes" ; then
+  echo "CONFIG_PRAGMA_DISABLE_UNUSED_BUT_SET=y" >> $config_host_mak
 fi
 
 if test "$valgrind_h" = "yes" ; then

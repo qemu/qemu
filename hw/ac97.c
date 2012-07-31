@@ -1319,13 +1319,12 @@ static int ac97_initfn (PCIDevice *dev)
     return 0;
 }
 
-static int ac97_exitfn (PCIDevice *dev)
+static void ac97_exitfn (PCIDevice *dev)
 {
     AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
 
     memory_region_destroy (&s->io_nam);
     memory_region_destroy (&s->io_nabm);
-    return 0;
 }
 
 int ac97_init (PCIBus *bus)

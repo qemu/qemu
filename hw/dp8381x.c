@@ -1375,13 +1375,12 @@ static int dp8381x_init(PCIDevice *pci_dev)
 #endif
 }
 
-static int dp8381x_exit(PCIDevice *pci_dev)
+static void dp8381x_exit(PCIDevice *pci_dev)
 {
     DP8381xState *s = DO_UPCAST(DP8381xState, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar);
     memory_region_destroy(&s->io_bar);
     qemu_del_vlan_client(&s->nic->nc);
-    return 0;
 }
 
 static void qdev_dp8381x_reset(DeviceState *dev)

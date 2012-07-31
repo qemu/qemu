@@ -144,6 +144,7 @@ int qemu_timedate_diff(struct tm *tm);
 
 /* cutils.c */
 void pstrcpy(char *buf, int buf_size, const char *str);
+void strpadcpy(char *buf, int buf_size, const char *str, char pad);
 char *pstrcat(char *buf, int buf_size, const char *s);
 int strstart(const char *str, const char *val, const char **ptr);
 int stristart(const char *str, const char *val, const char **ptr);

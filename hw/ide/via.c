@@ -190,7 +190,7 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
     return 0;
 }
 
-static int vt82c686b_ide_exitfn(PCIDevice *dev)
+static void vt82c686b_ide_exitfn(PCIDevice *dev)
 {
     PCIIDEState *d = DO_UPCAST(PCIIDEState, dev, dev);
     unsigned i;
@@ -202,8 +202,6 @@ static int vt82c686b_ide_exitfn(PCIDevice *dev)
         memory_region_destroy(&d->bmdma[i].addr_ioport);
     }
     memory_region_destroy(&d->bmdma_bar);
-
-    return 0;
 }
 
 void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)

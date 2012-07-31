@@ -849,15 +849,14 @@ static int pci_unregister_device(DeviceState *dev)
 {
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
-    int ret = 0;
-
-    if (pc->exit)
-        ret = pc->exit(pci_dev);
-    if (ret)
-        return ret;
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
+
+    if (pc->exit) {
+        pc->exit(pci_dev);
+    }
+
     do_pci_unregister_device(pci_dev);
     return 0;
 }
@@ -1077,6 +1076,49 @@ static void pci_set_irq(void *opaque, int irq_num, int level)
     if (pci_irq_disabled(pci_dev))
         return;
     pci_change_irq_level(pci_dev, irq_num, change);
+}
+
+/* Special hooks used by device assignment */
+void pci_bus_set_route_irq_fn(PCIBus *bus, pci_route_irq_fn route_intx_to_irq)
+{
+    assert(!bus->parent_dev);
+    bus->route_intx_to_irq = route_intx_to_irq;
+}
+
+PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
+{
+    PCIBus *bus;
+
+    do {
+         bus = dev->bus;
+         pin = bus->map_irq(dev, pin);
+         dev = bus->parent_dev;
+    } while (dev);
+    assert(bus->route_intx_to_irq);
+    return bus->route_intx_to_irq(bus->irq_opaque, pin);
+}
+
+void pci_bus_fire_intx_routing_notifier(PCIBus *bus)
+{
+    PCIDevice *dev;
+    PCIBus *sec;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        dev = bus->devices[i];
+        if (dev && dev->intx_routing_notifier) {
+            dev->intx_routing_notifier(dev);
+        }
+        QLIST_FOREACH(sec, &bus->child, sibling) {
+            pci_bus_fire_intx_routing_notifier(sec);
+        }
+    }
+}
+
+void pci_device_set_intx_routing_notifier(PCIDevice *dev,
+                                          PCIINTxRoutingNotifier notifier)
+{
+    dev->intx_routing_notifier = notifier;
 }
 
 /***********************************************************/

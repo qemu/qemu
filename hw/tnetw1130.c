@@ -743,13 +743,12 @@ static int pci_tnetw1130_init(PCIDevice* pci_dev)
     return tnetw1130_init(pci_dev);
 }
 
-static int pci_tnetw1130_uninit(PCIDevice *pci_dev)
+static void pci_tnetw1130_uninit(PCIDevice *pci_dev)
 {
     TNETW1130State *s = DO_UPCAST(TNETW1130State, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar0);
     memory_region_destroy(&s->mmio_bar1);
     qemu_del_vlan_client(&s->tnetw1130.nic->nc);
-    return 0;
 }
 
 static const VMStateDescription vmstate_pci_tnetw1130 = {
