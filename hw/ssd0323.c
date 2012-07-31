@@ -354,6 +354,7 @@ static void ssd0323_class_init(ObjectClass *klass, void *data)
 
     k->init = ssd0323_init;
     k->transfer = ssd0323_transfer;
+    k->cs_polarity = SSI_CS_HIGH;
 }
 
 static TypeInfo ssd0323_info = {
