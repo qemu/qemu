@@ -28,7 +28,6 @@
 #include "module.h"
 #include "signal.h"
 #include "qerror.h"
-#include "error_int.h"
 #include "qapi/qmp-core.h"
 #include "qga/channel.h"
 #ifdef _WIN32

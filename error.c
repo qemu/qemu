@@ -15,7 +15,6 @@
 #include "qjson.h"
 #include "qdict.h"
 #include "qapi-types.h"
-#include "error_int.h"
 #include "qerror.h"
 
 struct Error
@@ -90,23 +89,4 @@ void error_propagate(Error **dst_err, Error *local_err)
     } else if (local_err) {
         error_free(local_err);
     }
-}
-
-QObject *error_get_qobject(Error *err)
-{
-    QINCREF(err->obj);
-    return QOBJECT(err->obj);
-}
-
-void error_set_qobject(Error **errp, QObject *obj)
-{
-    Error *err;
-    if (errp == NULL) {
-        return;
-    }
-    err = g_malloc0(sizeof(*err));
-    err->obj = qobject_to_qdict(obj);
-    qobject_incref(obj);
-
-    *errp = err;
 }

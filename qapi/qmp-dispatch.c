@@ -16,7 +16,6 @@
 #include "json-parser.h"
 #include "qapi-types.h"
 #include "error.h"
-#include "error_int.h"
 #include "qerror.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
