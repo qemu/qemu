@@ -86,7 +86,7 @@ int tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
     s->write = socket_write;
     s->close = tcp_close;
 
-    s->fd = inet_connect(host_port, false, errp);
+    s->fd = inet_connect(host_port, false, NULL, errp);
 
     if (!error_is_set(errp)) {
         migrate_fd_connect(s);
