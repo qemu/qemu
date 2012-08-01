@@ -38,6 +38,9 @@
 #define MEGASAS_MAX_SECTORS 0xFFFF      /* No real limit */
 #define MEGASAS_MAX_ARRAYS 128
 
+#define NAA_LOCALLY_ASSIGNED_ID 0x3ULL
+#define IEEE_COMPANY_LOCALLY_ASSIGNED 0x525400
+
 #define MEGASAS_FLAG_USE_JBOD      0
 #define MEGASAS_MASK_USE_JBOD      (1 << MEGASAS_FLAG_USE_JBOD)
 #define MEGASAS_FLAG_USE_MSIX      1
@@ -88,6 +91,8 @@ typedef struct MegasasState {
     int event_count;
     int shutdown_event;
     int boot_event;
+
+    uint64_t sas_addr;
 
     uint64_t reply_queue_pa;
     void *reply_queue;
@@ -372,14 +377,16 @@ static uint64_t megasas_fw_time(void)
     return bcd_time;
 }
 
-static uint64_t megasas_gen_sas_addr(uint64_t id)
+/*
+ * Default disk sata address
+ * 0x1221 is the magic number as
+ * present in real hardware,
+ * so use it here, too.
+ */
+static uint64_t megasas_get_sata_addr(uint16_t id)
 {
-    uint64_t addr;
-
-    addr = 0x5001a4aULL << 36;
-    addr |= id & 0xfffffffff;
-
-    return addr;
+    uint64_t addr = (0x1221ULL << 48);
+    return addr & (id << 24);
 }
 
 /*
@@ -652,10 +659,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     size_t dcmd_size = sizeof(info);
     BusChild *kid;
     int num_ld_disks = 0;
-
-    QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
-        num_ld_disks++;
-    }
+    uint16_t sdev_id;
 
     memset(&info, 0x0, cmd->iov_size);
     if (cmd->iov_size < dcmd_size) {
@@ -669,10 +673,29 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     info.pci.subvendor = cpu_to_le16(PCI_VENDOR_ID_LSI_LOGIC);
     info.pci.subdevice = cpu_to_le16(0x1013);
 
-    info.host.type = MFI_INFO_HOST_PCIX;
+    /*
+     * For some reason the firmware supports
+     * only up to 8 device ports.
+     * Despite supporting a far larger number
+     * of devices for the physical devices.
+     * So just display the first 8 devices
+     * in the device port list, independent
+     * of how many logical devices are actually
+     * present.
+     */
+    info.host.type = MFI_INFO_HOST_PCIE;
     info.device.type = MFI_INFO_DEV_SAS3G;
-    info.device.port_count = 2;
-    info.device.port_addr[0] = cpu_to_le64(megasas_gen_sas_addr((uint64_t)s));
+    info.device.port_count = 8;
+    QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
+        SCSIDevice *sdev = DO_UPCAST(SCSIDevice, qdev, kid->child);
+
+        if (num_ld_disks < 8) {
+            sdev_id = ((sdev->id & 0xFF) >> 8) | (sdev->lun & 0xFF);
+            info.device.port_addr[num_ld_disks] =
+                cpu_to_le64(megasas_get_sata_addr(sdev_id));
+        }
+        num_ld_disks++;
+    }
 
     memcpy(info.product_name, "MegaRAID SAS 8708EM2", 20);
     snprintf(info.serial_number, 32, "QEMU%08lx",
@@ -761,7 +784,7 @@ static int megasas_mfc_get_defaults(MegasasState *s, MegasasCmd *cmd)
         return MFI_STAT_INVALID_PARAMETER;
     }
 
-    info.sas_addr = cpu_to_le64(megasas_gen_sas_addr((uint64_t)s));
+    info.sas_addr = cpu_to_le64(s->sas_addr);
     info.stripe_size = 3;
     info.flush_time = 4;
     info.background_rate = 30;
@@ -891,7 +914,7 @@ static int megasas_dcmd_pd_get_list(MegasasState *s, MegasasCmd *cmd)
         info.addr[num_pd_disks].scsi_dev_type = sdev->type;
         info.addr[num_pd_disks].connect_port_bitmap = 0x1;
         info.addr[num_pd_disks].sas_addr[0] =
-            cpu_to_le64(megasas_gen_sas_addr((uint64_t)sdev));
+            cpu_to_le64(megasas_get_sata_addr(sdev_id));
         num_pd_disks++;
         offset += sizeof(struct mfi_pd_address);
     }
@@ -994,7 +1017,7 @@ static int megasas_pd_get_info_submit(SCSIDevice *sdev, int lun,
     info->slot_number = (sdev->id & 0xFF);
     info->path_info.count = 1;
     info->path_info.sas_addr[0] =
-        cpu_to_le64(megasas_gen_sas_addr((uint64_t)sdev));
+        cpu_to_le64(megasas_get_sata_addr(sdev_id));
     info->connected_port_bitmap = 0x1;
     info->device_speed = 1;
     info->link_speed = 1;
@@ -2102,6 +2125,13 @@ static int megasas_scsi_init(PCIDevice *dev)
         msix_vector_use(&s->dev, 0);
     }
 
+    if (!s->sas_addr) {
+        s->sas_addr = ((NAA_LOCALLY_ASSIGNED_ID << 24) |
+                       IEEE_COMPANY_LOCALLY_ASSIGNED) << 36;
+        s->sas_addr |= (pci_bus_num(dev->bus) << 16);
+        s->sas_addr |= (PCI_SLOT(dev->devfn) << 8);
+        s->sas_addr |= PCI_FUNC(dev->devfn);
+    }
     if (s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
         s->fw_sge = MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE;
     } else if (s->fw_sge >= 128 - MFI_PASS_FRAME_SIZE) {
@@ -2136,6 +2166,7 @@ static Property megasas_properties[] = {
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
                        MEGASAS_DEFAULT_FRAMES),
+    DEFINE_PROP_HEX64("sas_address", MegasasState, sas_addr, 0),
 #ifdef USE_MSIX
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,
                     MEGASAS_FLAG_USE_MSIX, false),

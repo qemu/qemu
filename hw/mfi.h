@@ -656,6 +656,7 @@ struct mfi_info_device {
 #define MFI_INFO_DEV_SAS3G      0x02
 #define MFI_INFO_DEV_SATA1      0x04
 #define MFI_INFO_DEV_SATA3G     0x08
+#define MFI_INFO_DEV_PCIE       0x10
     uint8_t reserved[6];
     uint8_t port_count;
     uint64_t port_addr[8];
