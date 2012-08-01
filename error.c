@@ -19,7 +19,6 @@
 
 struct Error
 {
-    QDict *obj;
     char *msg;
     ErrorClass err_class;
 };
@@ -51,8 +50,6 @@ Error *error_copy(const Error *err)
     err_new = g_malloc0(sizeof(*err));
     err_new->msg = g_strdup(err->msg);
     err_new->err_class = err->err_class;
-    err_new->obj = err->obj;
-    QINCREF(err_new->obj);
 
     return err_new;
 }
@@ -75,7 +72,6 @@ const char *error_get_pretty(Error *err)
 void error_free(Error *err)
 {
     if (err) {
-        QDECREF(err->obj);
         g_free(err->msg);
         g_free(err);
     }

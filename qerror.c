@@ -100,7 +100,6 @@ void qerror_report(ErrorClass eclass, const char *fmt, ...)
 /* Evil... */
 struct Error
 {
-    QDict *obj;
     char *msg;
     ErrorClass err_class;
 };
@@ -111,8 +110,6 @@ void qerror_report_err(Error *err)
 
     qerr = qerror_new();
     loc_save(&qerr->loc);
-    QINCREF(err->obj);
-    qerr->error = err->obj;
     qerr->err_msg = g_strdup(err->msg);
     qerr->err_class = err->err_class;
 
@@ -154,7 +151,6 @@ static void qerror_destroy_obj(QObject *obj)
     assert(obj != NULL);
     qerr = qobject_to_qerror(obj);
 
-    QDECREF(qerr->error);
     g_free(qerr->err_msg);
     g_free(qerr);
 }

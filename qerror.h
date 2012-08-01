@@ -21,7 +21,6 @@
 
 typedef struct QError {
     QObject_HEAD;
-    QDict *error;
     Location loc;
     char *err_msg;
     ErrorClass err_class;
