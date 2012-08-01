@@ -1384,7 +1384,6 @@ if test "$xen" != "no" ; then
   # Xen (any)
   cat > $TMPC <<EOF
 #include <xenctrl.h>
-#include <xs.h>
 int main(void) {
   return 0;
 }
