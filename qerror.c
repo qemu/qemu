@@ -309,10 +309,6 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not start VNC server on %(target)",
     },
     {
-        .error_fmt = QERR_SOCKET_CONNECT_IN_PROGRESS,
-        .desc      = "Connection can not be completed immediately",
-    },
-    {
         .error_fmt = QERR_SOCKET_CONNECT_FAILED,
         .desc      = "Failed to connect to socket",
     },

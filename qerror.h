@@ -240,9 +240,6 @@ char *qerror_format(const char *fmt, QDict *error);
 #define QERR_VNC_SERVER_FAILED \
     "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
 
-#define QERR_SOCKET_CONNECT_IN_PROGRESS \
-    "{ 'class': 'SockConnectInprogress', 'data': {} }"
-
 #define QERR_SOCKET_CONNECT_FAILED \
     "{ 'class': 'SockConnectFailed', 'data': {} }"
 
