@@ -64,6 +64,11 @@ bool error_is_set(Error **errp)
     return (errp && *errp);
 }
 
+ErrorClass error_get_class(const Error *err)
+{
+    return err->err_class;
+}
+
 const char *error_get_pretty(Error *err)
 {
     return err->msg;

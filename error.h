@@ -35,6 +35,11 @@ void error_set(Error **err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_
  */
 bool error_is_set(Error **err);
 
+/*
+ * Get the error class of an error object.
+ */
+ErrorClass error_get_class(const Error *err);
+
 /**
  * Returns an exact copy of the error passed as an argument.
  */
