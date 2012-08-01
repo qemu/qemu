@@ -2240,14 +2240,6 @@ static void phys_sections_clear(void)
     phys_sections_nb = 0;
 }
 
-/* register physical memory.
-   For RAM, 'size' must be a multiple of the target page size.
-   If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
-   io memory page.  The address used when calling the IO function is
-   the offset from the start of the region, plus region_offset.  Both
-   start_addr and region_offset are rounded down to a page boundary
-   before calculating this offset.  This should not be a problem unless
-   the low bits of start_addr and region_offset differ.  */
 static void register_subpage(MemoryRegionSection *section)
 {
     subpage_t *subpage;
