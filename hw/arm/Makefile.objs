@@ -1,6 +1,7 @@
 obj-y = integratorcp.o versatilepb.o arm_pic.o
 obj-y += arm_boot.o
 obj-y += xilinx_zynq.o zynq_slcr.o
+obj-y += xilinx_spips.o
 obj-y += arm_gic.o arm_gic_common.o
 obj-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
