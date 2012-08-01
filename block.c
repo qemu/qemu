@@ -2837,6 +2837,13 @@ BlockInfo *bdrv_query_info(BlockDriverState *bs)
         info->io_status = bs->iostatus;
     }
 
+    if (bs->dirty_bitmap) {
+        info->has_dirty = true;
+        info->dirty = g_malloc0(sizeof(*info->dirty));
+        info->dirty->count = bdrv_get_dirty_count(bs) *
+            BDRV_SECTORS_PER_DIRTY_CHUNK * BDRV_SECTOR_SIZE;
+    }
+
     if (bs->drv) {
         info->has_inserted = true;
         info->inserted = g_malloc0(sizeof(*info->inserted));
