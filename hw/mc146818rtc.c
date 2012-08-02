@@ -220,15 +220,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
                     rtc_set_time(s);
                 }
             }
-            if (((s->cmos_data[RTC_REG_B] ^ data) & (REG_B_DM | REG_B_24H)) &&
-                !(data & REG_B_SET)) {
-                /* If the time format has changed and not in set mode,
-                   update the registers immediately. */
-                s->cmos_data[RTC_REG_B] = data;
-                rtc_copy_date(s);
-            } else {
-                s->cmos_data[RTC_REG_B] = data;
-            }
+            s->cmos_data[RTC_REG_B] = data;
             rtc_timer_update(s, qemu_get_clock_ns(rtc_clock));
             break;
         case RTC_REG_C:
