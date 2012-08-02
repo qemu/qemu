@@ -61,7 +61,6 @@ typedef struct RTCState {
     MemoryRegion io;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
-    struct tm current_tm;
     int32_t base_year;
     uint64_t base_rtc;
     uint64_t last_update;
@@ -524,7 +523,6 @@ static void rtc_set_time(RTCState *s)
     struct tm tm;
 
     rtc_get_time(s, &tm);
-    s->current_tm = tm;
     s->base_rtc = mktimegm(&tm);
     s->last_update = qemu_get_clock_ns(rtc_clock);
 
@@ -566,7 +564,6 @@ static void rtc_update_time(RTCState *s)
     guest_sec = guest_nsec / NSEC_PER_SEC;
     gmtime_r(&guest_sec, &ret);
     rtc_set_cmos(s, &ret);
-    s->current_tm = ret;
 }
 
 static int update_in_progress(RTCState *s)
@@ -682,7 +679,6 @@ static void rtc_set_date_from_host(ISADevice *dev)
 
     /* set the CMOS date */
     rtc_set_cmos(s, &tm);
-    s->current_tm = tm;
 
     val = rtc_to_bcd(s, (tm.tm_year / 100) + 19);
     rtc_set_memory(dev, REG_IBM_CENTURY_BYTE, val);
@@ -718,13 +714,7 @@ static const VMStateDescription vmstate_rtc = {
     .fields      = (VMStateField []) {
         VMSTATE_BUFFER(cmos_data, RTCState),
         VMSTATE_UINT8(cmos_index, RTCState),
-        VMSTATE_INT32(current_tm.tm_sec, RTCState),
-        VMSTATE_INT32(current_tm.tm_min, RTCState),
-        VMSTATE_INT32(current_tm.tm_hour, RTCState),
-        VMSTATE_INT32(current_tm.tm_wday, RTCState),
-        VMSTATE_INT32(current_tm.tm_mday, RTCState),
-        VMSTATE_INT32(current_tm.tm_mon, RTCState),
-        VMSTATE_INT32(current_tm.tm_year, RTCState),
+        VMSTATE_UNUSED(7*4),
         VMSTATE_TIMER(periodic_timer, RTCState),
         VMSTATE_INT64(next_periodic_time, RTCState),
         VMSTATE_UNUSED(3*8),
