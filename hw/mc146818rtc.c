@@ -46,6 +46,11 @@
 #endif
 
 #define NSEC_PER_SEC    1000000000LL
+#define SEC_PER_MIN     60
+#define MIN_PER_HOUR    60
+#define SEC_PER_HOUR    3600
+#define HOUR_PER_DAY    24
+#define SEC_PER_DAY     86400
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
 #define RTC_CLOCK_RATE            32768
@@ -69,6 +74,7 @@ typedef struct RTCState {
     int64_t next_periodic_time;
     /* update-ended timer */
     QEMUTimer *update_timer;
+    uint64_t next_alarm_time;
     uint16_t irq_reinject_on_ack_count;
     uint32_t irq_coalesced;
     uint32_t period;
@@ -82,6 +88,7 @@ static void rtc_set_time(RTCState *s);
 static void rtc_update_time(RTCState *s);
 static void rtc_set_cmos(RTCState *s);
 static inline int rtc_from_bcd(RTCState *s, int a);
+static uint64_t get_next_alarm(RTCState *s);
 
 static inline bool rtc_running(RTCState *s)
 {
@@ -204,6 +211,7 @@ static void check_update_timer(RTCState *s)
 {
     uint64_t next_update_time;
     uint64_t guest_nsec;
+    int next_alarm_sec;
 
     /* From the data sheet: "Holding the dividers in reset prevents
      * interrupts from operating, while setting the SET bit allows"
@@ -226,9 +234,21 @@ static void check_update_timer(RTCState *s)
     }
 
     guest_nsec = get_guest_rtc_ns(s) % NSEC_PER_SEC;
-    /* reprogram to next second */
+    /* if UF is clear, reprogram to next second */
     next_update_time = qemu_get_clock_ns(rtc_clock)
         + NSEC_PER_SEC - guest_nsec;
+
+    /* Compute time of next alarm.  One second is already accounted
+     * for in next_update_time.
+     */
+    next_alarm_sec = get_next_alarm(s);
+    s->next_alarm_time = next_update_time + (next_alarm_sec - 1) * NSEC_PER_SEC;
+
+    if (s->cmos_data[RTC_REG_C] & REG_C_UF) {
+        /* UF is set, but AF is clear.  Program the timer to target
+         * the alarm time.  */
+        next_update_time = s->next_alarm_time;
+    }
     if (next_update_time != qemu_timer_expire_time_ns(s->update_timer)) {
         qemu_mod_timer(s->update_timer, next_update_time);
     }
@@ -245,31 +265,95 @@ static inline uint8_t convert_hour(RTCState *s, uint8_t hour)
     return hour;
 }
 
-static uint32_t check_alarm(RTCState *s)
+static uint64_t get_next_alarm(RTCState *s)
 {
-    uint8_t alarm_hour, alarm_min, alarm_sec;
-    uint8_t cur_hour, cur_min, cur_sec;
+    int32_t alarm_sec, alarm_min, alarm_hour, cur_hour, cur_min, cur_sec;
+    int32_t hour, min, sec;
+
+    rtc_update_time(s);
 
     alarm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS_ALARM]);
     alarm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES_ALARM]);
     alarm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS_ALARM]);
-    alarm_hour = convert_hour(s, alarm_hour);
+    alarm_hour = alarm_hour == -1 ? -1 : convert_hour(s, alarm_hour);
 
     cur_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     cur_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
     cur_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS]);
     cur_hour = convert_hour(s, cur_hour);
 
-    if (((s->cmos_data[RTC_SECONDS_ALARM] & 0xc0) == 0xc0
-                || alarm_sec == cur_sec) &&
-            ((s->cmos_data[RTC_MINUTES_ALARM] & 0xc0) == 0xc0
-             || alarm_min == cur_min) &&
-            ((s->cmos_data[RTC_HOURS_ALARM] & 0xc0) == 0xc0
-             || alarm_hour == cur_hour)) {
-        return 1;
-    }
-    return 0;
+    if (alarm_hour == -1) {
+        alarm_hour = cur_hour;
+        if (alarm_min == -1) {
+            alarm_min = cur_min;
+            if (alarm_sec == -1) {
+                alarm_sec = cur_sec + 1;
+            } else if (cur_sec > alarm_sec) {
+                alarm_min++;
+            }
+        } else if (cur_min == alarm_min) {
+            if (alarm_sec == -1) {
+                alarm_sec = cur_sec + 1;
+            } else {
+                if (cur_sec > alarm_sec) {
+                    alarm_hour++;
+                }
+            }
+            if (alarm_sec == SEC_PER_MIN) {
+                /* wrap to next hour, minutes is not in don't care mode */
+                alarm_sec = 0;
+                alarm_hour++;
+            }
+        } else if (cur_min > alarm_min) {
+            alarm_hour++;
+        }
+    } else if (cur_hour == alarm_hour) {
+        if (alarm_min == -1) {
+            alarm_min = cur_min;
+            if (alarm_sec == -1) {
+                alarm_sec = cur_sec + 1;
+            } else if (cur_sec > alarm_sec) {
+                alarm_min++;
+            }
 
+            if (alarm_sec == SEC_PER_MIN) {
+                alarm_sec = 0;
+                alarm_min++;
+            }
+            /* wrap to next day, hour is not in don't care mode */
+            alarm_min %= MIN_PER_HOUR;
+        } else if (cur_min == alarm_min) {
+            if (alarm_sec == -1) {
+                alarm_sec = cur_sec + 1;
+            }
+            /* wrap to next day, hours+minutes not in don't care mode */
+            alarm_sec %= SEC_PER_MIN;
+        }
+    }
+
+    /* values that are still don't care fire at the next min/sec */
+    if (alarm_min == -1) {
+        alarm_min = 0;
+    }
+    if (alarm_sec == -1) {
+        alarm_sec = 0;
+    }
+
+    /* keep values in range */
+    if (alarm_sec == SEC_PER_MIN) {
+        alarm_sec = 0;
+        alarm_min++;
+    }
+    if (alarm_min == MIN_PER_HOUR) {
+        alarm_min = 0;
+        alarm_hour++;
+    }
+    alarm_hour %= HOUR_PER_DAY;
+
+    hour = alarm_hour - cur_hour;
+    min = hour * MIN_PER_HOUR + alarm_min - cur_min;
+    sec = min * SEC_PER_MIN + alarm_sec - cur_sec;
+    return sec <= 0 ? sec + SEC_PER_DAY : sec;
 }
 
 static void rtc_update_timer(void *opaque)
@@ -284,12 +368,13 @@ static void rtc_update_timer(void *opaque)
     rtc_update_time(s);
     s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
 
-    if (check_alarm(s)) {
+    if (qemu_get_clock_ns(rtc_clock) >= s->next_alarm_time) {
         irqs |= REG_C_AF;
         if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
             qemu_system_wakeup_request(QEMU_WAKEUP_REASON_RTC);
         }
     }
+
     new_irqs = irqs & ~s->cmos_data[RTC_REG_C];
     s->cmos_data[RTC_REG_C] |= irqs;
     if ((new_irqs & s->cmos_data[RTC_REG_B]) != 0) {
@@ -407,6 +492,9 @@ static inline int rtc_to_bcd(RTCState *s, int a)
 
 static inline int rtc_from_bcd(RTCState *s, int a)
 {
+    if ((a & 0xc0) == 0xc0) {
+        return -1;
+    }
     if (s->cmos_data[RTC_REG_B] & REG_B_DM) {
         return a;
     } else {
@@ -642,6 +730,7 @@ static const VMStateDescription vmstate_rtc = {
         VMSTATE_UINT64_V(last_update, RTCState, 3),
         VMSTATE_INT64_V(offset, RTCState, 3),
         VMSTATE_TIMER_V(update_timer, RTCState, 3),
+        VMSTATE_UINT64_V(next_alarm_time, RTCState, 3),
         VMSTATE_END_OF_LIST()
     }
 };
