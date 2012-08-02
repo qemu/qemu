@@ -46,6 +46,7 @@
 #endif
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
+#define RTC_CLOCK_RATE            32768
 
 typedef struct RTCState {
     ISADevice dev;
@@ -85,7 +86,7 @@ static void rtc_coalesced_timer_update(RTCState *s)
         /* divide each RTC interval to 2 - 8 smaller intervals */
         int c = MIN(s->irq_coalesced, 7) + 1; 
         int64_t next_clock = qemu_get_clock_ns(rtc_clock) +
-            muldiv64(s->period / c, get_ticks_per_sec(), 32768);
+            muldiv64(s->period / c, get_ticks_per_sec(), RTC_CLOCK_RATE);
         qemu_mod_timer(s->coalesced_timer, next_clock);
     }
 }
@@ -131,10 +132,10 @@ static void periodic_timer_update(RTCState *s, int64_t current_time)
         s->period = period;
 #endif
         /* compute 32 khz clock */
-        cur_clock = muldiv64(current_time, 32768, get_ticks_per_sec());
+        cur_clock = muldiv64(current_time, RTC_CLOCK_RATE, get_ticks_per_sec());
         next_irq_clock = (cur_clock & ~(period - 1)) + period;
         s->next_periodic_time =
-            muldiv64(next_irq_clock, get_ticks_per_sec(), 32768) + 1;
+            muldiv64(next_irq_clock, get_ticks_per_sec(), RTC_CLOCK_RATE) + 1;
         qemu_mod_timer(s->periodic_timer, s->next_periodic_time);
     } else {
 #ifdef TARGET_I386
@@ -369,7 +370,7 @@ static void rtc_update_second(void *opaque)
             /* update in progress bit */
             s->cmos_data[RTC_REG_A] |= REG_A_UIP;
         }
-        /* should be 244 us = 8 / 32768 seconds, but currently the
+        /* should be 244 us = 8 / RTC_CLOCK_RATE seconds, but currently the
            timers do not have the necessary resolution. */
         delay = (get_ticks_per_sec() * 1) / 100;
         if (delay < 1)
