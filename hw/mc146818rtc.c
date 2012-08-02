@@ -86,7 +86,7 @@ typedef struct RTCState {
 
 static void rtc_set_time(RTCState *s);
 static void rtc_update_time(RTCState *s);
-static void rtc_set_cmos(RTCState *s);
+static void rtc_set_cmos(RTCState *s, const struct tm *tm);
 static inline int rtc_from_bcd(RTCState *s, int a);
 static uint64_t get_next_alarm(RTCState *s);
 
@@ -502,10 +502,8 @@ static inline int rtc_from_bcd(RTCState *s, int a)
     }
 }
 
-static void rtc_set_time(RTCState *s)
+static void rtc_get_time(RTCState *s, struct tm *tm)
 {
-    struct tm *tm = &s->current_tm;
-
     tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
     tm->tm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
@@ -519,16 +517,22 @@ static void rtc_set_time(RTCState *s)
     tm->tm_mday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
     tm->tm_mon = rtc_from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
     tm->tm_year = rtc_from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year - 1900;
-
-    s->base_rtc = mktimegm(tm);
-    s->last_update = qemu_get_clock_ns(rtc_clock);
-
-    rtc_change_mon_event(tm);
 }
 
-static void rtc_set_cmos(RTCState *s)
+static void rtc_set_time(RTCState *s)
 {
-    const struct tm *tm = &s->current_tm;
+    struct tm tm;
+
+    rtc_get_time(s, &tm);
+    s->current_tm = tm;
+    s->base_rtc = mktimegm(&tm);
+    s->last_update = qemu_get_clock_ns(rtc_clock);
+
+    rtc_change_mon_event(&tm);
+}
+
+static void rtc_set_cmos(RTCState *s, const struct tm *tm)
+{
     int year;
 
     s->cmos_data[RTC_SECONDS] = rtc_to_bcd(s, tm->tm_sec);
@@ -561,8 +565,8 @@ static void rtc_update_time(RTCState *s)
     guest_nsec = get_guest_rtc_ns(s);
     guest_sec = guest_nsec / NSEC_PER_SEC;
     gmtime_r(&guest_sec, &ret);
+    rtc_set_cmos(s, &ret);
     s->current_tm = ret;
-    rtc_set_cmos(s);
 }
 
 static int update_in_progress(RTCState *s)
@@ -677,8 +681,8 @@ static void rtc_set_date_from_host(ISADevice *dev)
     s->offset = 0;
 
     /* set the CMOS date */
+    rtc_set_cmos(s, &tm);
     s->current_tm = tm;
-    rtc_set_cmos(s);
 
     val = rtc_to_bcd(s, (tm.tm_year / 100) + 19);
     rtc_set_memory(dev, REG_IBM_CENTURY_BYTE, val);
@@ -789,15 +793,17 @@ static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
 {
     ISADevice *isa = ISA_DEVICE(obj);
     RTCState *s = DO_UPCAST(RTCState, dev, isa);
+    struct tm current_tm;
 
     rtc_update_time(s);
+    rtc_get_time(s, &current_tm);
     visit_start_struct(v, NULL, "struct tm", name, 0, errp);
-    visit_type_int32(v, &s->current_tm.tm_year, "tm_year", errp);
-    visit_type_int32(v, &s->current_tm.tm_mon, "tm_mon", errp);
-    visit_type_int32(v, &s->current_tm.tm_mday, "tm_mday", errp);
-    visit_type_int32(v, &s->current_tm.tm_hour, "tm_hour", errp);
-    visit_type_int32(v, &s->current_tm.tm_min, "tm_min", errp);
-    visit_type_int32(v, &s->current_tm.tm_sec, "tm_sec", errp);
+    visit_type_int32(v, &current_tm.tm_year, "tm_year", errp);
+    visit_type_int32(v, &current_tm.tm_mon, "tm_mon", errp);
+    visit_type_int32(v, &current_tm.tm_mday, "tm_mday", errp);
+    visit_type_int32(v, &current_tm.tm_hour, "tm_hour", errp);
+    visit_type_int32(v, &current_tm.tm_min, "tm_min", errp);
+    visit_type_int32(v, &current_tm.tm_sec, "tm_sec", errp);
     visit_end_struct(v, errp);
 }
 
