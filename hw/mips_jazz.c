@@ -239,7 +239,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
             dp83932_init(nd, 0x80001000, 2, get_system_memory(), rc4030[4],
                          rc4030_opaque, rc4030_dma_memory_rw);
             break;
-        } else if (strcmp(nd->model, "?") == 0) {
+        } else if (is_help_option(nd->model)) {
             fprintf(stderr, "qemu: Supported NICs: dp83932\n");
             exit(1);
         } else {

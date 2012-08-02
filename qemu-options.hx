@@ -6,6 +6,10 @@ HXCOMM construct option structures, enums and help message for specified
 HXCOMM architectures.
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
+HXCOMM TODO : when we are able to change -help output without breaking
+HXCOMM libvirt we should update the help options which refer to -cpu ?,
+HXCOMM -driver ?, etc to use the preferred -cpu help etc instead.
+
 DEFHEADING(Standard options:)
 STEXI
 @table @option

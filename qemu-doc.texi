@@ -2390,7 +2390,7 @@ Set the x86 elf interpreter prefix (default=/usr/local/qemu-i386)
 @item -s size
 Set the x86 stack size in bytes (default=524288)
 @item -cpu model
-Select CPU model (-cpu ? for list and additional feature selection)
+Select CPU model (-cpu help for list and additional feature selection)
 @item -ignore-environment
 Start with an empty environment. Without this option,
 the initial environment is a copy of the caller's environment.

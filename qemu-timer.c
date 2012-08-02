@@ -183,7 +183,7 @@ void configure_alarms(char const *opt)
     char *name;
     struct qemu_alarm_timer tmp;
 
-    if (!strcmp(opt, "?")) {
+    if (is_help_option(opt)) {
         show_available_alarms();
         exit(0);
     }

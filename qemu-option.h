@@ -107,6 +107,18 @@ struct QemuOptsList {
 };
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name);
+/**
+ * qemu_opt_has_help_opt:
+ * @opts: options to search for a help request
+ *
+ * Check whether the options specified by @opts include one of the
+ * standard strings which indicate that the user is asking for a
+ * list of the valid values for a command line option (as defined
+ * by is_help_option()).
+ *
+ * Returns: true if @opts includes 'help' or equivalent.
+ */
+bool qemu_opt_has_help_opt(QemuOpts *opts);
 bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval);
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);

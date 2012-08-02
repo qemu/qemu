@@ -350,7 +350,7 @@ static int img_create(int argc, char **argv)
         img_size = (uint64_t)sval;
     }
 
-    if (options && !strcmp(options, "?")) {
+    if (options && is_help_option(options)) {
         ret = print_block_option_help(filename, fmt);
         goto out;
     }
@@ -744,7 +744,7 @@ static int img_convert(int argc, char **argv)
     /* Initialize before goto out */
     qemu_progress_init(progress, 2.0);
 
-    if (options && !strcmp(options, "?")) {
+    if (options && is_help_option(options)) {
         ret = print_block_option_help(out_filename, out_fmt);
         goto out;
     }

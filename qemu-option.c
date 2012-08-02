@@ -529,6 +529,18 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
     return opt ? opt->str : NULL;
 }
 
+bool qemu_opt_has_help_opt(QemuOpts *opts)
+{
+    QemuOpt *opt;
+
+    QTAILQ_FOREACH_REVERSE(opt, &opts->head, QemuOptHead, next) {
+        if (is_help_option(opt->name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval)
 {
     QemuOpt *opt = qemu_opt_find(opts, name);

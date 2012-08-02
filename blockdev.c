@@ -398,11 +398,11 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 #endif
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
-       if (strcmp(buf, "?") == 0) {
-           error_printf("Supported formats:");
-           bdrv_iterate_format(bdrv_format_print, NULL);
-           error_printf("\n");
-           return NULL;
+        if (is_help_option(buf)) {
+            error_printf("Supported formats:");
+            bdrv_iterate_format(bdrv_format_print, NULL);
+            error_printf("\n");
+            return NULL;
         }
         drv = bdrv_find_whitelisted_format(buf);
         if (!drv) {
