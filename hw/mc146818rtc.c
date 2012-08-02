@@ -221,6 +221,15 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
                     rtc_set_time(s);
                 }
             }
+            /* if an interrupt flag is already set when the interrupt
+             * becomes enabled, raise an interrupt immediately.  */
+            if (data & s->cmos_data[RTC_REG_C] & REG_C_MASK) {
+                s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
+                qemu_irq_raise(s->irq);
+            } else {
+                s->cmos_data[RTC_REG_C] &= ~REG_C_IRQF;
+                qemu_irq_lower(s->irq);
+            }
             s->cmos_data[RTC_REG_B] = data;
             periodic_timer_update(s, qemu_get_clock_ns(rtc_clock));
             break;

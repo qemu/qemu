@@ -58,5 +58,6 @@
 #define REG_C_IRQF 0x80
 #define REG_C_PF   0x40
 #define REG_C_AF   0x20
+#define REG_C_MASK 0x70
 
 #endif
