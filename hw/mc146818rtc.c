@@ -83,6 +83,12 @@ static void rtc_update_time(RTCState *s);
 static void rtc_set_cmos(RTCState *s);
 static inline int rtc_from_bcd(RTCState *s, int a);
 
+static inline bool rtc_running(RTCState *s)
+{
+    return (!(s->cmos_data[RTC_REG_B] & REG_B_SET) &&
+            (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20);
+}
+
 static uint64_t get_guest_rtc_ns(RTCState *s)
 {
     uint64_t guest_rtc;
@@ -199,11 +205,15 @@ static void check_update_timer(RTCState *s)
     uint64_t next_update_time;
     uint64_t guest_nsec;
 
-    /* From the data sheet: setting the SET bit does not prevent
-     * interrupts from occurring!  However, it will prevent an
-     * alarm interrupt from occurring, because the time of day is
-     * not updated.
+    /* From the data sheet: "Holding the dividers in reset prevents
+     * interrupts from operating, while setting the SET bit allows"
+     * them to occur.  However, it will prevent an alarm interrupt
+     * from occurring, because the time of day is not updated.
      */
+    if ((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) {
+        qemu_del_timer(s->update_timer);
+        return;
+    }
     if ((s->cmos_data[RTC_REG_C] & REG_C_UF) &&
         (s->cmos_data[RTC_REG_B] & REG_B_SET)) {
         qemu_del_timer(s->update_timer);
@@ -268,6 +278,8 @@ static void rtc_update_timer(void *opaque)
     int32_t irqs = REG_C_UF;
     int32_t new_irqs;
 
+    assert((s->cmos_data[RTC_REG_A] & 0x60) != 0x60);
+
     /* UIP might have been latched, update time and clear it.  */
     rtc_update_time(s);
     s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
@@ -312,12 +324,31 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
         case RTC_YEAR:
             s->cmos_data[s->cmos_index] = data;
             /* if in set mode, do not update the time */
-            if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
+            if (rtc_running(s)) {
                 rtc_set_time(s);
                 check_update_timer(s);
             }
             break;
         case RTC_REG_A:
+            if ((data & 0x60) == 0x60) {
+                if (rtc_running(s)) {
+                    rtc_update_time(s);
+                }
+                /* What happens to UIP when divider reset is enabled is
+                 * unclear from the datasheet.  Shouldn't matter much
+                 * though.
+                 */
+                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+            } else if (((s->cmos_data[RTC_REG_A] & 0x60) == 0x60) &&
+                    (data & 0x70)  <= 0x20) {
+                /* when the divider reset is removed, the first update cycle
+                 * begins one-half second later*/
+                if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
+                    s->offset = 500000000;
+                    rtc_set_time(s);
+                }
+                s->cmos_data[RTC_REG_A] &= ~REG_A_UIP;
+            }
             /* UIP bit is read only */
             s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
                 (s->cmos_data[RTC_REG_A] & REG_A_UIP);
@@ -327,7 +358,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
         case RTC_REG_B:
             if (data & REG_B_SET) {
                 /* update cmos to when the rtc was stopping */
-                if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
+                if (rtc_running(s)) {
                     rtc_update_time(s);
                 }
                 /* set mode: reset UIP mode */
@@ -335,7 +366,8 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
                 data &= ~REG_B_UIE;
             } else {
                 /* if disabling set mode, update the time */
-                if (s->cmos_data[RTC_REG_B] & REG_B_SET) {
+                if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
+                    (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20) {
                     s->offset = get_guest_rtc_ns(s) % NSEC_PER_SEC;
                     rtc_set_time(s);
                 }
@@ -449,7 +481,7 @@ static int update_in_progress(RTCState *s)
 {
     int64_t guest_nsec;
 
-    if (s->cmos_data[RTC_REG_B] & REG_B_SET) {
+    if (!rtc_running(s)) {
         return 0;
     }
     if (qemu_timer_pending(s->update_timer)) {
@@ -486,7 +518,7 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
         case RTC_YEAR:
             /* if not in set mode, calibrate cmos before
              * reading*/
-            if (!(s->cmos_data[RTC_REG_B] & REG_B_SET)) {
+            if (rtc_running(s)) {
                 rtc_update_time(s);
             }
             ret = s->cmos_data[s->cmos_index];
