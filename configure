@@ -1431,9 +1431,8 @@ EOF
 # error HVM_MAX_VCPUS not defined
 #endif
 int main(void) {
-  xc_interface *xc;
   xs_daemon_open();
-  xc = xc_interface_open(0, 0, 0);
+  xc_interface_open(0, 0, 0);
   xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
   xc_gnttab_open(NULL, 0);
   xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
