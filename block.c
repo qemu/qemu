@@ -2754,6 +2754,19 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     return NULL;
 }
 
+int bdrv_get_backing_file_depth(BlockDriverState *bs)
+{
+    if (!bs->drv) {
+        return 0;
+    }
+
+    if (!bs->backing_hd) {
+        return 0;
+    }
+
+    return 1 + bdrv_get_backing_file_depth(bs->backing_hd);
+}
+
 #define NB_SUFFIXES 4
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size)
