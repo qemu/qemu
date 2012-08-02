@@ -110,7 +110,7 @@ static void rtc_coalesced_timer(void *opaque)
 }
 #endif
 
-static void rtc_timer_update(RTCState *s, int64_t current_time)
+static void periodic_timer_update(RTCState *s, int64_t current_time)
 {
     int period_code, period;
     int64_t cur_clock, next_irq_clock;
@@ -148,7 +148,7 @@ static void rtc_periodic_timer(void *opaque)
 {
     RTCState *s = opaque;
 
-    rtc_timer_update(s, s->next_periodic_time);
+    periodic_timer_update(s, s->next_periodic_time);
     s->cmos_data[RTC_REG_C] |= REG_C_PF;
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
@@ -207,7 +207,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
             /* UIP bit is read only */
             s->cmos_data[RTC_REG_A] = (data & ~REG_A_UIP) |
                 (s->cmos_data[RTC_REG_A] & REG_A_UIP);
-            rtc_timer_update(s, qemu_get_clock_ns(rtc_clock));
+            periodic_timer_update(s, qemu_get_clock_ns(rtc_clock));
             break;
         case RTC_REG_B:
             if (data & REG_B_SET) {
@@ -221,7 +221,7 @@ static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
                 }
             }
             s->cmos_data[RTC_REG_B] = data;
-            rtc_timer_update(s, qemu_get_clock_ns(rtc_clock));
+            periodic_timer_update(s, qemu_get_clock_ns(rtc_clock));
             break;
         case RTC_REG_C:
         case RTC_REG_D:
@@ -550,7 +550,7 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
     rtc_set_date_from_host(&s->dev);
     s->next_second_time = now + (get_ticks_per_sec() * 99) / 100;
     qemu_mod_timer(s->second_timer2, s->next_second_time);
-    rtc_timer_update(s, now);
+    periodic_timer_update(s, now);
 #ifdef TARGET_I386
     if (s->lost_tick_policy == LOST_TICK_SLEW) {
         rtc_coalesced_timer_update(s);
