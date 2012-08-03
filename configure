@@ -3538,15 +3538,23 @@ if test "$linux" = "yes" ; then
   mkdir -p linux-headers
   case "$cpu" in
   i386|x86_64)
-    symlink "$source_path/linux-headers/asm-x86" linux-headers/asm
+    linux_arch=x86
     ;;
   ppcemb|ppc|ppc64)
-    symlink "$source_path/linux-headers/asm-powerpc" linux-headers/asm
+    linux_arch=powerpc
     ;;
   s390x)
-    symlink "$source_path/linux-headers/asm-s390" linux-headers/asm
+    linux_arch=s390
+    ;;
+  *)
+    # For most CPUs the kernel architecture name and QEMU CPU name match.
+    linux_arch="$cpu"
     ;;
   esac
+    # For non-KVM architectures we will not have asm headers
+    if [ -e "$source_path/linux-headers/asm-$linux_arch" ]; then
+      symlink "$source_path/linux-headers/asm-$linux_arch" linux-headers/asm
+    fi
 fi
 
 for target in $target_list; do
