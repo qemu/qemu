@@ -983,11 +983,16 @@ static void v9fs_attach(void *opaque)
     err += offset;
     trace_v9fs_attach_return(pdu->tag, pdu->id,
                              qid.type, qid.version, qid.path);
-    s->root_fid = fid;
-    /* disable migration */
-    error_set(&s->migration_blocker, QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
-              s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
-    migrate_add_blocker(s->migration_blocker);
+    /*
+     * disable migration if we haven't done already.
+     * attach could get called multiple times for the same export.
+     */
+    if (!s->migration_blocker) {
+        s->root_fid = fid;
+        error_set(&s->migration_blocker, QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
+                  s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
+        migrate_add_blocker(s->migration_blocker);
+    }
 out:
     put_fid(pdu, fidp);
 out_nofid:
