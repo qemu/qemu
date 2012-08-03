@@ -1124,9 +1124,11 @@ the protocol limits passwords to 8 characters it should not be considered
 to provide high security. The password can be fairly easily brute-forced by
 a client making repeat connections. For this reason, a VNC server using password
 authentication should be restricted to only listen on the loopback interface
-or UNIX domain sockets. Password authentication is requested with the @code{password}
-option, and then once QEMU is running the password is set with the monitor. Until
-the monitor is used to set the password all clients will be rejected.
+or UNIX domain sockets. Password authentication is not supported when operating
+in FIPS 140-2 compliance mode as it requires the use of the DES cipher. Password
+authentication is requested with the @code{password} option, and then once QEMU
+is running the password is set with the monitor. Until the monitor is used to
+set the password all clients will be rejected.
 
 @example
 qemu-system-i386 [...OPTIONS...] -vnc :1,password -monitor stdio

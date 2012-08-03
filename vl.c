@@ -159,6 +159,7 @@ int main(int argc, char **argv)
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"
+#include "osdep.h"
 
 #include "ui/qemu-spice.h"
 
@@ -3197,6 +3198,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_qtest_log:
                 qtest_log = optarg;
+                break;
+            case QEMU_OPTION_enablefips:
+                fips_set_state(true);
                 break;
             default:
                 os_parse_cmd_args(popt->index, optarg);

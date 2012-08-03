@@ -2787,6 +2787,17 @@ DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log,
     "-qtest-log LOG  specify tracing options\n",
     QEMU_ARCH_ALL)
 
+#ifdef __linux__
+DEF("enable-fips", 0, QEMU_OPTION_enablefips,
+    "-enable-fips    enable FIPS 140-2 compliance\n",
+    QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -enable-fips
+@findex -enable-fips
+Enable FIPS 140-2 compliance mode.
+ETEXI
+
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
 @end table
