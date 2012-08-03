@@ -100,7 +100,7 @@
 #define READ_REVERSE_16       0x81
 #define ALLOW_OVERWRITE       0x82
 #define EXTENDED_COPY         0x83
-#define ATA_PASSTHROUGH       0x85
+#define ATA_PASSTHROUGH_16    0x85
 #define ACCESS_CONTROL_IN     0x86
 #define ACCESS_CONTROL_OUT    0x87
 #define READ_16               0x88
@@ -117,7 +117,7 @@
 #define SERVICE_ACTION_IN_16  0x9e
 #define WRITE_LONG_16         0x9f
 #define REPORT_LUNS           0xa0
-#define BLANK                 0xa1
+#define ATA_PASSTHROUGH_12    0xa1
 #define MAINTENANCE_IN        0xa3
 #define MAINTENANCE_OUT       0xa4
 #define MOVE_MEDIUM           0xa5

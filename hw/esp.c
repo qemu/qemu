@@ -816,7 +816,7 @@ static void sysbus_esp_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sysbus_esp_scsi;
 }
 
-static TypeInfo sysbus_esp_info = {
+static const TypeInfo sysbus_esp_info = {
     .name          = "esp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusESPState),
@@ -1176,7 +1176,7 @@ static void esp_pci_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_esp_pci_scsi;
 }
 
-static TypeInfo esp_pci_info = {
+static const TypeInfo esp_pci_info = {
     .name = "am53c974",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIESPState),

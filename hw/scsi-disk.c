@@ -447,7 +447,7 @@ static void scsi_write_complete(void * opaque, int ret)
         return;
     } else {
         scsi_init_iovec(r, SCSI_DMA_BUF_SIZE);
-        DPRINTF("Write complete tag=0x%x more=%d\n", r->req.tag, r->qiov.size);
+        DPRINTF("Write complete tag=0x%x more=%zd\n", r->req.tag, r->qiov.size);
         scsi_req_data(&r->req, r->qiov.size);
     }
 
@@ -1247,6 +1247,12 @@ static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     bool start = req->cmd.buf[4] & 1;
     bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
+    int pwrcnd = req->cmd.buf[4] & 0xf0;
+
+    if (pwrcnd) {
+        /* eject/load only happens for power condition == 0 */
+        return 0;
+    }
 
     if ((s->features & (1 << SCSI_DISK_F_REMOVABLE)) && loej) {
         if (!start && !s->tray_open && s->tray_locked) {
@@ -1271,7 +1277,7 @@ static void scsi_disk_emulate_read_data(SCSIRequest *req)
     int buflen = r->iov.iov_len;
 
     if (buflen) {
-        DPRINTF("Read buf_len=%zd\n", buflen);
+        DPRINTF("Read buf_len=%d\n", buflen);
         r->iov.iov_len = 0;
         r->started = true;
         scsi_req_data(&r->req, buflen);
@@ -1449,7 +1455,7 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
 
     if (r->iov.iov_len) {
         int buflen = r->iov.iov_len;
-        DPRINTF("Write buf_len=%zd\n", buflen);
+        DPRINTF("Write buf_len=%d\n", buflen);
         r->iov.iov_len = 0;
         scsi_req_data(&r->req, buflen);
         return;
@@ -2087,23 +2093,24 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
     const SCSIReqOps *ops;
     uint8_t command;
 
-#ifdef DEBUG_SCSI
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, buf[0]);
-    {
-        int i;
-        for (i = 1; i < r->req.cmd.len; i++) {
-            printf(" 0x%02x", buf[i]);
-        }
-        printf("\n");
-    }
-#endif
-
     command = buf[0];
     ops = scsi_disk_reqops_dispatch[command];
     if (!ops) {
         ops = &scsi_disk_emulate_reqops;
     }
     req = scsi_req_alloc(ops, &s->qdev, tag, lun, hba_private);
+
+#ifdef DEBUG_SCSI
+    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, tag, buf[0]);
+    {
+        int i;
+        for (i = 1; i < req->cmd.len; i++) {
+            printf(" 0x%02x", buf[i]);
+        }
+        printf("\n");
+    }
+#endif
+
     return req;
 }
 

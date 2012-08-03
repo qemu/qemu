@@ -733,6 +733,72 @@ static int scsi_get_performance_length(int num_desc, int type, int data_type)
     }
 }
 
+static int ata_passthrough_xfer_unit(SCSIDevice *dev, uint8_t *buf)
+{
+    int byte_block = (buf[2] >> 2) & 0x1;
+    int type = (buf[2] >> 4) & 0x1;
+    int xfer_unit;
+
+    if (byte_block) {
+        if (type) {
+            xfer_unit = dev->blocksize;
+        } else {
+            xfer_unit = 512;
+        }
+    } else {
+        xfer_unit = 1;
+    }
+
+    return xfer_unit;
+}
+
+static int ata_passthrough_12_xfer_size(SCSIDevice *dev, uint8_t *buf)
+{
+    int length = buf[2] & 0x3;
+    int xfer;
+    int unit = ata_passthrough_xfer_unit(dev, buf);
+
+    switch (length) {
+    case 0:
+    case 3: /* USB-specific.  */
+        xfer = 0;
+        break;
+    case 1:
+        xfer = buf[3];
+        break;
+    case 2:
+        xfer = buf[4];
+        break;
+    }
+
+    return xfer * unit;
+}
+
+static int ata_passthrough_16_xfer_size(SCSIDevice *dev, uint8_t *buf)
+{
+    int extend = buf[1] & 0x1;
+    int length = buf[2] & 0x3;
+    int xfer;
+    int unit = ata_passthrough_xfer_unit(dev, buf);
+
+    switch (length) {
+    case 0:
+    case 3: /* USB-specific.  */
+        xfer = 0;
+        break;
+    case 1:
+        xfer = buf[4];
+        xfer |= (extend ? buf[3] << 8 : 0);
+        break;
+    case 2:
+        xfer = buf[6];
+        xfer |= (extend ? buf[5] << 8 : 0);
+        break;
+    }
+
+    return xfer * unit;
+}
+
 static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
 {
     switch (buf[0] >> 5) {
@@ -867,6 +933,17 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
             cmd->xfer = buf[9] | (buf[8] << 8);
         }
         break;
+    case ATA_PASSTHROUGH_12:
+        if (dev->type == TYPE_ROM) {
+            /* BLANK command of MMC */
+            cmd->xfer = 0;
+        } else {
+            cmd->xfer = ata_passthrough_12_xfer_size(dev, buf);
+        }
+        break;
+    case ATA_PASSTHROUGH_16:
+        cmd->xfer = ata_passthrough_16_xfer_size(dev, buf);
+        break;
     }
     return 0;
 }
@@ -996,8 +1073,13 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case SEND_DVD_STRUCTURE:
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
-    case ATA_PASSTHROUGH:
         cmd->mode = SCSI_XFER_TO_DEV;
+        break;
+    case ATA_PASSTHROUGH_12:
+    case ATA_PASSTHROUGH_16:
+        /* T_DIR */
+        cmd->mode = (cmd->buf[2] & 0x8) ?
+                   SCSI_XFER_FROM_DEV : SCSI_XFER_TO_DEV;
         break;
     default:
         cmd->mode = SCSI_XFER_FROM_DEV;
@@ -1103,7 +1185,7 @@ const struct SCSISense sense_code_NO_MEDIUM = {
 
 /* LUN not ready, medium removal prevented */
 const struct SCSISense sense_code_NOT_READY_REMOVAL_PREVENTED = {
-    .key = NOT_READY, .asc = 0x53, .ascq = 0x00
+    .key = NOT_READY, .asc = 0x53, .ascq = 0x02
 };
 
 /* Hardware error, internal target failure */
@@ -1153,7 +1235,7 @@ const struct SCSISense sense_code_INCOMPATIBLE_FORMAT = {
 
 /* Illegal request, medium removal prevented */
 const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED = {
-    .key = ILLEGAL_REQUEST, .asc = 0x53, .ascq = 0x00
+    .key = ILLEGAL_REQUEST, .asc = 0x53, .ascq = 0x02
 };
 
 /* Command aborted, I/O process terminated */
@@ -1335,7 +1417,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ PERSISTENT_RESERVE_OUT   ] = "PERSISTENT_RESERVE_OUT",
         [ WRITE_FILEMARKS_16       ] = "WRITE_FILEMARKS_16",
         [ EXTENDED_COPY            ] = "EXTENDED_COPY",
-        [ ATA_PASSTHROUGH          ] = "ATA_PASSTHROUGH",
+        [ ATA_PASSTHROUGH_16       ] = "ATA_PASSTHROUGH_16",
         [ ACCESS_CONTROL_IN        ] = "ACCESS_CONTROL_IN",
         [ ACCESS_CONTROL_OUT       ] = "ACCESS_CONTROL_OUT",
         [ READ_16                  ] = "READ_16",
@@ -1352,7 +1434,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SERVICE_ACTION_IN_16     ] = "SERVICE_ACTION_IN_16",
         [ WRITE_LONG_16            ] = "WRITE_LONG_16",
         [ REPORT_LUNS              ] = "REPORT_LUNS",
-        [ BLANK                    ] = "BLANK",
+        [ ATA_PASSTHROUGH_12       ] = "BLANK/ATA_PASSTHROUGH_12",
         [ MOVE_MEDIUM              ] = "MOVE_MEDIUM",
         [ EXCHANGE_MEDIUM          ] = "EXCHANGE MEDIUM",
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
