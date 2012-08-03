@@ -517,6 +517,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     }
 
     memory_global_dirty_log_start();
+    memory_global_sync_dirty_bitmap(get_system_memory());
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
