@@ -160,7 +160,7 @@ static const MemoryRegionOps eth_ops = {
     }
 };
 
-static int eth_can_rx(VLANClientState *nc)
+static int eth_can_rx(NetClientState *nc)
 {
     struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int r;
@@ -168,7 +168,7 @@ static int eth_can_rx(VLANClientState *nc)
     return r;
 }
 
-static ssize_t eth_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
     unsigned int rxbase = s->rxbuf * (0x800 / 4);
@@ -194,7 +194,7 @@ static ssize_t eth_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
-static void eth_cleanup(VLANClientState *nc)
+static void eth_cleanup(NetClientState *nc)
 {
     struct xlx_ethlite *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

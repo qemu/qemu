@@ -182,12 +182,12 @@ static void eth_rx_desc_get(uint32_t addr, mv88w8618_rx_desc *desc)
     le32_to_cpus(&desc->next);
 }
 
-static int eth_can_receive(VLANClientState *nc)
+static int eth_can_receive(NetClientState *nc)
 {
     return 1;
 }
 
-static ssize_t eth_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint32_t desc_addr;
@@ -366,7 +366,7 @@ static const MemoryRegionOps mv88w8618_eth_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void eth_cleanup(VLANClientState *nc)
+static void eth_cleanup(NetClientState *nc)
 {
     mv88w8618_eth_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

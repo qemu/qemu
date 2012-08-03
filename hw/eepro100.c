@@ -1616,7 +1616,7 @@ static const MemoryRegionOps eepro100_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int nic_can_receive(VLANClientState *nc)
+static int nic_can_receive(NetClientState *nc)
 {
     EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     TRACE(RXTX, logout("%p\n", s));
@@ -1626,7 +1626,7 @@ static int nic_can_receive(VLANClientState *nc)
 #endif
 }
 
-static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
 {
     /* TODO:
      * - Magic packets should set bit 30 in power management driver register.
@@ -1831,7 +1831,7 @@ static const VMStateDescription vmstate_eepro100 = {
     }
 };
 
-static void nic_cleanup(VLANClientState *nc)
+static void nic_cleanup(NetClientState *nc)
 {
     EEPRO100State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -1847,7 +1847,7 @@ static void pci_nic_uninit(PCIDevice *pci_dev)
     memory_region_destroy(&s->flash_bar);
     vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
-    qemu_del_vlan_client(&s->nic->nc);
+    qemu_del_net_client(&s->nic->nc);
 }
 
 static NetClientInfo net_eepro100_info = {

@@ -62,7 +62,7 @@ static int mipsnet_buffer_full(MIPSnetState *s)
     return 0;
 }
 
-static int mipsnet_can_receive(VLANClientState *nc)
+static int mipsnet_can_receive(NetClientState *nc)
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -71,7 +71,7 @@ static int mipsnet_can_receive(VLANClientState *nc)
     return !mipsnet_buffer_full(s);
 }
 
-static ssize_t mipsnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t mipsnet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -209,7 +209,7 @@ static const VMStateDescription vmstate_mipsnet = {
     }
 };
 
-static void mipsnet_cleanup(VLANClientState *nc)
+static void mipsnet_cleanup(NetClientState *nc)
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

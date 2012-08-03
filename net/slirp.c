@@ -30,6 +30,7 @@
 #include <sys/wait.h>
 #endif
 #include "net.h"
+#include "net/hub.h"
 #include "monitor.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"
@@ -67,7 +68,7 @@ struct slirp_config_str {
 };
 
 typedef struct SlirpState {
-    VLANClientState nc;
+    NetClientState nc;
     QTAILQ_ENTRY(SlirpState) entry;
     Slirp *slirp;
 #ifndef _WIN32
@@ -96,13 +97,6 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
-int slirp_can_output(void *opaque)
-{
-    SlirpState *s = opaque;
-
-    return qemu_can_send_packet(&s->nc);
-}
-
 void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
     SlirpState *s = opaque;
@@ -110,7 +104,7 @@ void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
     qemu_send_packet(&s->nc, pkt, pkt_len);
 }
 
-static ssize_t net_slirp_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t net_slirp_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
@@ -119,7 +113,7 @@ static ssize_t net_slirp_receive(VLANClientState *nc, const uint8_t *buf, size_t
     return size;
 }
 
-static void net_slirp_cleanup(VLANClientState *nc)
+static void net_slirp_cleanup(NetClientState *nc)
 {
     SlirpState *s = DO_UPCAST(SlirpState, nc, nc);
 
@@ -135,7 +129,7 @@ static NetClientInfo net_slirp_info = {
     .cleanup = net_slirp_cleanup,
 };
 
-static int net_slirp_init(VLANState *vlan, const char *model,
+static int net_slirp_init(NetClientState *peer, const char *model,
                           const char *name, int restricted,
                           const char *vnetwork, const char *vhost,
                           const char *vhostname, const char *tftp_export,
@@ -152,7 +146,7 @@ static int net_slirp_init(VLANState *vlan, const char *model,
 #ifndef _WIN32
     struct in_addr smbsrv = { .s_addr = 0 };
 #endif
-    VLANClientState *nc;
+    NetClientState *nc;
     SlirpState *s;
     char buf[20];
     uint32_t addr;
@@ -238,7 +232,7 @@ static int net_slirp_init(VLANState *vlan, const char *model,
     }
 #endif
 
-    nc = qemu_new_net_client(&net_slirp_info, vlan, NULL, model, name);
+    nc = qemu_new_net_client(&net_slirp_info, peer, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
              "net=%s,restrict=%s", inet_ntoa(net),
@@ -274,7 +268,7 @@ static int net_slirp_init(VLANState *vlan, const char *model,
     return 0;
 
 error:
-    qemu_del_vlan_client(nc);
+    qemu_del_net_client(nc);
     return -1;
 }
 
@@ -283,8 +277,8 @@ static SlirpState *slirp_lookup(Monitor *mon, const char *vlan,
 {
 
     if (vlan) {
-        VLANClientState *nc;
-        nc = qemu_find_vlan_client_by_name(mon, strtol(vlan, NULL, 0), stack);
+        NetClientState *nc;
+        nc = net_hub_find_client_by_name(strtol(vlan, NULL, 0), stack);
         if (!nc) {
             return NULL;
         }
@@ -679,8 +673,10 @@ void do_info_usernet(Monitor *mon)
     SlirpState *s;
 
     QTAILQ_FOREACH(s, &slirp_stacks, entry) {
+        int id;
+        bool got_vlan_id = net_hub_id_for_client(&s->nc, &id) == 0;
         monitor_printf(mon, "VLAN %d (%s):\n",
-                       s->nc.vlan ? s->nc.vlan->id : -1,
+                       got_vlan_id ? id : -1,
                        s->nc.name);
         slirp_connection_info(s->slirp, mon);
     }
@@ -703,7 +699,7 @@ net_init_slirp_configs(const StringList *fwd, int flags)
 }
 
 int net_init_slirp(const NetClientOptions *opts, const char *name,
-                   VLANState *vlan)
+                   NetClientState *peer)
 {
     struct slirp_config_str *config;
     char *vnet;
@@ -722,7 +718,7 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     net_init_slirp_configs(user->hostfwd, SLIRP_CFG_HOSTFWD);
     net_init_slirp_configs(user->guestfwd, 0);
 
-    ret = net_slirp_init(vlan, "user", name, user->restrict, vnet, user->host,
+    ret = net_slirp_init(peer, "user", name, user->restrict, vnet, user->host,
                          user->hostname, user->tftp, user->bootfile,
                          user->dhcpstart, user->dns, user->smb,
                          user->smbserver);

@@ -217,7 +217,7 @@ mips_mipssim_init (ram_addr_t ram_size,
     if (serial_hds[0])
         serial_init(0x3f8, env->irq[4], 115200, serial_hds[0]);
 
-    if (nd_table[0].vlan)
+    if (nd_table[0].used)
         /* MIPSnet uses the MIPS CPU INT0, which is interrupt 2. */
         mipsnet_init(0x4200, env->irq[2], &nd_table[0]);
 }

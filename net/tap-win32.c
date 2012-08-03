@@ -630,11 +630,11 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
 /********************************************/
 
  typedef struct TAPState {
-     VLANClientState nc;
+     NetClientState nc;
      tap_win32_overlapped_t *handle;
  } TAPState;
 
-static void tap_cleanup(VLANClientState *nc)
+static void tap_cleanup(NetClientState *nc)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -645,7 +645,7 @@ static void tap_cleanup(VLANClientState *nc)
     */
 }
 
-static ssize_t tap_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t tap_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     TAPState *s = DO_UPCAST(TAPState, nc, nc);
 
@@ -673,10 +673,10 @@ static NetClientInfo net_tap_win32_info = {
     .cleanup = tap_cleanup,
 };
 
-static int tap_win32_init(VLANState *vlan, const char *model,
+static int tap_win32_init(NetClientState *peer, const char *model,
                           const char *name, const char *ifname)
 {
-    VLANClientState *nc;
+    NetClientState *nc;
     TAPState *s;
     tap_win32_overlapped_t *handle;
 
@@ -685,7 +685,7 @@ static int tap_win32_init(VLANState *vlan, const char *model,
         return -1;
     }
 
-    nc = qemu_new_net_client(&net_tap_win32_info, vlan, NULL, model, name);
+    nc = qemu_new_net_client(&net_tap_win32_info, peer, model, name);
 
     s = DO_UPCAST(TAPState, nc, nc);
 
@@ -700,7 +700,7 @@ static int tap_win32_init(VLANState *vlan, const char *model,
 }
 
 int net_init_tap(const NetClientOptions *opts, const char *name,
-                 VLANState *vlan)
+                 NetClientState *peer)
 {
     const NetdevTapOptions *tap;
 
@@ -712,19 +712,19 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
         return -1;
     }
 
-    if (tap_win32_init(vlan, "tap", name, tap->ifname) == -1) {
+    if (tap_win32_init(peer, "tap", name, tap->ifname) == -1) {
         return -1;
     }
 
     return 0;
 }
 
-int tap_has_ufo(VLANClientState *vc)
+int tap_has_ufo(NetClientState *nc)
 {
     return 0;
 }
 
-int tap_has_vnet_hdr(VLANClientState *vc)
+int tap_has_vnet_hdr(NetClientState *nc)
 {
     return 0;
 }
@@ -738,16 +738,16 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
 }
 
-void tap_using_vnet_hdr(VLANClientState *vc, int using_vnet_hdr)
+void tap_using_vnet_hdr(NetClientState *nc, int using_vnet_hdr)
 {
 }
 
-void tap_set_offload(VLANClientState *vc, int csum, int tso4,
+void tap_set_offload(NetClientState *nc, int csum, int tso4,
                      int tso6, int ecn, int ufo)
 {
 }
 
-struct vhost_net *tap_get_vhost_net(VLANClientState *nc)
+struct vhost_net *tap_get_vhost_net(NetClientState *nc)
 {
     return NULL;
 }
