@@ -1073,6 +1073,9 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
         dma_buf_write(p, l, &s->sg);
     }
 
+    /* free sglist that was created in ahci_populate_sglist() */
+    qemu_sglist_destroy(&s->sg);
+
     /* update number of transferred bytes */
     ad->cur_cmd->status = cpu_to_le32(le32_to_cpu(ad->cur_cmd->status) + l);
     s->io_buffer_index += l;
