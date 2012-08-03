@@ -398,6 +398,8 @@
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
+# @backing_file_depth: number of files in the backing file chain (since: 1.2)
+#
 # @encrypted: true if the backing device is encrypted
 #
 # @bps: total throughput limit in bytes per second is specified
@@ -418,9 +420,10 @@
 ##
 { 'type': 'BlockDeviceInfo',
   'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
-            '*backing_file': 'str', 'encrypted': 'bool',
-            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
+            '*backing_file': 'str', 'backing_file_depth': 'int',
+            'encrypted': 'bool', 'bps': 'int', 'bps_rd': 'int',
+            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int',
+            'iops_wr': 'int'} }
 
 ##
 # @BlockDeviceIoStatus:

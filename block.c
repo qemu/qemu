@@ -2450,6 +2450,9 @@ BlockInfoList *qmp_query_block(Error **errp)
                 info->value->inserted->backing_file = g_strdup(bs->backing_file);
             }
 
+            info->value->inserted->backing_file_depth =
+                bdrv_get_backing_file_depth(bs);
+
             if (bs->io_limits_enabled) {
                 info->value->inserted->bps =
                                bs->io_limits.bps[BLOCK_IO_LIMIT_TOTAL];
@@ -2752,6 +2755,19 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     }
 
     return NULL;
+}
+
+int bdrv_get_backing_file_depth(BlockDriverState *bs)
+{
+    if (!bs->drv) {
+        return 0;
+    }
+
+    if (!bs->backing_hd) {
+        return 0;
+    }
+
+    return 1 + bdrv_get_backing_file_depth(bs->backing_hd);
 }
 
 #define NB_SUFFIXES 4
