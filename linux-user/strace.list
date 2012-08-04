@@ -1527,3 +1527,6 @@
 #ifdef TARGET_NR_sync_file_range2
 { TARGET_NR_sync_file_range2, "sync_file_range2", NULL, NULL, NULL },
 #endif
+#ifdef TARGET_NR_pipe2
+{ TARGET_NR_pipe2, "pipe2", NULL, NULL, NULL },
+#endif

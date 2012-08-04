@@ -382,7 +382,6 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
                      int flags, int fd, abi_ulong offset)
 {
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
-    unsigned long host_start;
 
     mmap_lock();
 #ifdef DEBUG_MMAP
@@ -421,6 +420,19 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     if (len == 0)
         goto the_end;
     real_start = start & qemu_host_page_mask;
+    host_offset = offset & qemu_host_page_mask;
+
+    /* If the user is asking for the kernel to find a location, do that
+       before we truncate the length for mapping files below.  */
+    if (!(flags & MAP_FIXED)) {
+        host_len = len + offset - host_offset;
+        host_len = HOST_PAGE_ALIGN(host_len);
+        start = mmap_find_vma(real_start, host_len);
+        if (start == (abi_ulong)-1) {
+            errno = ENOMEM;
+            goto fail;
+        }
+    }
 
     /* When mapping files into a memory area larger than the file, accesses
        to pages beyond the file size will cause a SIGBUS. 
@@ -453,27 +465,23 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     }
 
     if (!(flags & MAP_FIXED)) {
-        abi_ulong mmap_start;
+        unsigned long host_start;
         void *p;
-        host_offset = offset & qemu_host_page_mask;
+
         host_len = len + offset - host_offset;
         host_len = HOST_PAGE_ALIGN(host_len);
-        mmap_start = mmap_find_vma(real_start, host_len);
-        if (mmap_start == (abi_ulong)-1) {
-            errno = ENOMEM;
-            goto fail;
-        }
+
         /* Note: we prefer to control the mapping address. It is
            especially important if qemu_host_page_size >
            qemu_real_host_page_size */
-        p = mmap(g2h(mmap_start),
-                 host_len, prot, flags | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
+        p = mmap(g2h(start), host_len, prot,
+                 flags | MAP_FIXED | MAP_ANONYMOUS, -1, 0);
         if (p == MAP_FAILED)
             goto fail;
         /* update start so that it points to the file position at 'offset' */
         host_start = (unsigned long)p;
         if (!(flags & MAP_ANONYMOUS)) {
-            p = mmap(g2h(mmap_start), len, prot, 
+            p = mmap(g2h(start), len, prot,
                      flags | MAP_FIXED, fd, host_offset);
             host_start += offset - host_offset;
         }

@@ -371,10 +371,20 @@ UNUSED static struct flags open_flags[] = {
     FLAG_TARGET(O_NOCTTY),
     FLAG_TARGET(O_NOFOLLOW),
     FLAG_TARGET(O_NONBLOCK),      /* also O_NDELAY */
-    FLAG_TARGET(O_SYNC),
+    FLAG_TARGET(O_DSYNC),
+    FLAG_TARGET(__O_SYNC),
     FLAG_TARGET(O_TRUNC),
 #ifdef O_DIRECT
     FLAG_TARGET(O_DIRECT),
+#endif
+#ifdef O_NOATIME
+    FLAG_TARGET(O_NOATIME),
+#endif
+#ifdef O_CLOEXEC
+    FLAG_TARGET(O_CLOEXEC),
+#endif
+#ifdef O_PATH
+    FLAG_TARGET(O_PATH),
 #endif
     FLAG_END,
 };
