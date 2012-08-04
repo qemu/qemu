@@ -34,21 +34,6 @@ static void pci_error_message(Monitor *mon)
     monitor_printf(mon, "PCI devices not supported\n");
 }
 
-void pci_register_bar(PCIDevice *pci_dev, int region_num,
-                      uint8_t type, MemoryRegion *memory)
-{
-}
-
-const VMStateDescription vmstate_pci_device = {
-    .name = "PCIDeviceStub",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields      = (VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 int do_pcie_aer_inject_error(Monitor *mon,
                              const QDict *qdict, QObject **ret_data)
 {
