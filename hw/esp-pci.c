@@ -24,9 +24,12 @@
  */
 
 #include "pci.h"
+#include "eeprom93xx.h"
 #include "esp.h"
 #include "trace.h"
 #include "qemu-log.h"
+
+#define TYPE_AM53C974_DEVICE "am53c974"
 
 #define DMA_CMD   0x0
 #define DMA_STC   0x1
@@ -382,15 +385,134 @@ static void esp_pci_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo esp_pci_info = {
-    .name = "am53c974",
+    .name = TYPE_AM53C974_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIESPState),
     .class_init = esp_pci_class_init,
 };
 
+typedef struct {
+    PCIESPState pci;
+    eeprom_t *eeprom;
+} DC390State;
+
+#define TYPE_DC390_DEVICE "dc390"
+#define DC390(obj) \
+    OBJECT_CHECK(DC390State, obj, TYPE_DC390_DEVICE)
+
+#define EE_ADAPT_SCSI_ID 64
+#define EE_MODE2         65
+#define EE_DELAY         66
+#define EE_TAG_CMD_NUM   67
+#define EE_ADAPT_OPTIONS 68
+#define EE_BOOT_SCSI_ID  69
+#define EE_BOOT_SCSI_LUN 70
+#define EE_CHKSUM1       126
+#define EE_CHKSUM2       127
+
+#define EE_ADAPT_OPTION_F6_F8_AT_BOOT   0x01
+#define EE_ADAPT_OPTION_BOOT_FROM_CDROM 0x02
+#define EE_ADAPT_OPTION_INT13           0x04
+#define EE_ADAPT_OPTION_SCAM_SUPPORT    0x08
+
+
+static uint32_t dc390_read_config(PCIDevice *dev, uint32_t addr, int l)
+{
+    DC390State *pci = DC390(dev);
+    uint32_t val;
+
+    val = pci_default_read_config(dev, addr, l);
+
+    if (addr == 0x00 && l == 1) {
+        /* First byte of address space is AND-ed with EEPROM DO line */
+        if (!eeprom93xx_read(pci->eeprom)) {
+            val &= ~0xff;
+        }
+    }
+
+    return val;
+}
+
+static void dc390_write_config(PCIDevice *dev,
+                               uint32_t addr, uint32_t val, int l)
+{
+    DC390State *pci = DC390(dev);
+    if (addr == 0x80) {
+        /* EEPROM write */
+        int eesk = val & 0x80 ? 1 : 0;
+        int eedi = val & 0x40 ? 1 : 0;
+        eeprom93xx_write(pci->eeprom, 1, eesk, eedi);
+    } else if (addr == 0xc0) {
+        /* EEPROM CS low */
+        eeprom93xx_write(pci->eeprom, 0, 0, 0);
+    } else {
+        pci_default_write_config(dev, addr, val, l);
+    }
+}
+
+static int dc390_scsi_init(PCIDevice *dev)
+{
+    DC390State *pci = DC390(dev);
+    uint8_t *contents;
+    uint16_t chksum = 0;
+    int i, ret;
+
+    /* init base class */
+    ret = esp_pci_scsi_init(dev);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* EEPROM */
+    pci->eeprom = eeprom93xx_new(DEVICE(dev), 64);
+
+    /* set default eeprom values */
+    contents = (uint8_t *)eeprom93xx_data(pci->eeprom);
+
+    for (i = 0; i < 16; i++) {
+        contents[i * 2] = 0x57;
+        contents[i * 2 + 1] = 0x00;
+    }
+    contents[EE_ADAPT_SCSI_ID] = 7;
+    contents[EE_MODE2] = 0x0f;
+    contents[EE_TAG_CMD_NUM] = 0x04;
+    contents[EE_ADAPT_OPTIONS] = EE_ADAPT_OPTION_F6_F8_AT_BOOT
+                               | EE_ADAPT_OPTION_BOOT_FROM_CDROM
+                               | EE_ADAPT_OPTION_INT13;
+
+    /* update eeprom checksum */
+    for (i = 0; i < EE_CHKSUM1; i += 2) {
+        chksum += contents[i] + (((uint16_t)contents[i + 1]) << 8);
+    }
+    chksum = 0x1234 - chksum;
+    contents[EE_CHKSUM1] = chksum & 0xff;
+    contents[EE_CHKSUM2] = chksum >> 8;
+
+    return 0;
+}
+
+static void dc390_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = dc390_scsi_init;
+    k->config_read = dc390_read_config;
+    k->config_write = dc390_write_config;
+    dc->desc = "Tekram DC-390 SCSI adapter";
+}
+
+static const TypeInfo dc390_info = {
+    .name = "dc390",
+    .parent = TYPE_AM53C974_DEVICE,
+    .instance_size = sizeof(DC390State),
+    .class_init = dc390_class_init,
+};
+
 static void esp_pci_register_types(void)
 {
     type_register_static(&esp_pci_info);
+    type_register_static(&dc390_info);
 }
 
 type_init(esp_pci_register_types)
