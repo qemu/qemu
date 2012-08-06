@@ -191,6 +191,16 @@ static struct {
     .cache = NULL,
 };
 
+
+int64_t xbzrle_cache_resize(int64_t new_size)
+{
+    if (XBZRLE.cache != NULL) {
+        return cache_resize(XBZRLE.cache, new_size / TARGET_PAGE_SIZE) *
+            TARGET_PAGE_SIZE;
+    }
+    return pow2floor(new_size);
+}
+
 static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
         int cont, int flag)
 {
