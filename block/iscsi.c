@@ -896,6 +896,7 @@ static char *parse_initiator_name(const char *target)
     QemuOptsList *list;
     QemuOpts *opts;
     const char *name = NULL;
+    const char *iscsi_name = qemu_get_vm_name();
 
     list = qemu_find_opts("iscsi");
     if (list) {
@@ -911,7 +912,9 @@ static char *parse_initiator_name(const char *target)
     if (name) {
         return g_strdup(name);
     } else {
-        return g_strdup("iqn.2008-11.org.linux-kvm");
+        return g_strdup_printf("iqn.2008-11.org.linux-kvm%s%s",
+                               iscsi_name ? ":" : "",
+                               iscsi_name ? iscsi_name : "");
     }
 }
 

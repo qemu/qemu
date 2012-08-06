@@ -1897,6 +1897,11 @@ images for the guest storage. Both disk and cdrom images are supported.
 Syntax for specifying iSCSI LUNs is
 ``iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>''
 
+By default qemu will use the iSCSI initiator-name
+'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from the command
+line or a configuration file.
+
+
 Example (without authentication):
 @example
 qemu-system-i386 -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
@@ -1925,6 +1930,9 @@ DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "       [,initiator-name=iqn]\n"
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 STEXI
+
+iSCSI parameters such as username and password can also be specified via
+a configuration file. See qemu-doc for more information and examples.
 
 @item NBD
 QEMU supports NBD (Network Block Devices) both using TCP protocol as well

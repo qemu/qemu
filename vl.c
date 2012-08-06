@@ -293,6 +293,11 @@ static struct {
     { .driver = "qxl-vga",              .flag = &default_vga       },
 };
 
+const char *qemu_get_vm_name(void)
+{
+    return qemu_name;
+}
+
 static void res_free(void)
 {
     if (boot_splash_filedata != NULL) {

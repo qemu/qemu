@@ -30,6 +30,11 @@ struct QEMUBH
     void *opaque;
 };
 
+const char *qemu_get_vm_name(void)
+{
+    return NULL;
+}
+
 Monitor *cur_mon;
 
 int monitor_cur_is_qmp(void)

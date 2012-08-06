@@ -734,6 +734,11 @@ Various session related parameters can be set via special options, either
 in a configuration file provided via '-readconfig' or directly on the
 command line.
 
+If the initiator-name is not specified qemu will use a default name
+of 'iqn.2008-11.org.linux-kvm[:<name>'] where <name> is the name of the
+virtual machine.
+
+
 @example
 Setting a specific initiator name to use when logging in to the target
 -iscsi initiator-name=iqn.qemu.test:my-initiator
