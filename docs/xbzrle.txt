@@ -1,0 +1,128 @@
+XBZRLE (Xor Based Zero Run Length Encoding)
+===========================================
+
+Using XBZRLE (Xor Based Zero Run Length Encoding) allows for the reduction
+of VM downtime and the total live-migration time of Virtual machines.
+It is particularly useful for virtual machines running memory write intensive
+workloads that are typical of large enterprise applications such as SAP ERP
+Systems, and generally speaking for any application that uses a sparse memory
+update pattern.
+
+Instead of sending the changed guest memory page this solution will send a
+compressed version of the updates, thus reducing the amount of data sent during
+live migration.
+In order to be able to calculate the update, the previous memory pages need to
+be stored on the source. Those pages are stored in a dedicated cache
+(hash table) and are accessed by their address.
+The larger the cache size the better the chances are that the page has already
+been stored in the cache.
+A small cache size will result in high cache miss rate.
+Cache size can be changed before and during migration.
+
+Format
+=======
+
+The compression format performs a XOR between the previous and current content
+of the page, where zero represents an unchanged value.
+The page data delta is represented by zero and non zero runs.
+A zero run is represented by its length (in bytes).
+A non zero run is represented by its length (in bytes) and the new data.
+The run length is encoded using ULEB128 (http://en.wikipedia.org/wiki/LEB128)
+
+There can be more than one valid encoding, the sender may send a longer encoding
+for the benefit of reducing computation cost.
+
+page = zrun nzrun
+       | zrun nzrun page
+
+zrun = length
+
+nzrun = length byte...
+
+length = uleb128 encoded integer
+
+On the sender side XBZRLE is used as a compact delta encoding of page updates,
+retrieving the old page content from the cache (default size of 512 MB). The
+receiving side uses the existing page's content and XBZRLE to decode the new
+page's content.
+
+This work was originally based on research results published
+VEE 2011: Evaluation of Delta Compression Techniques for Efficient Live
+Migration of Large Virtual Machines by Benoit, Svard, Tordsson and Elmroth.
+Additionally the delta encoder XBRLE was improved further using the XBZRLE
+instead.
+
+XBZRLE has a sustained bandwidth of 2-2.5 GB/s for typical workloads making it
+ideal for in-line, real-time encoding such as is needed for live-migration.
+
+Example
+old buffer:
+1001 zeros
+05 06 07 08 09 0a 0b 0c 0d 0e 0f 10 11 12 13 68 00 00 6b 00 6d
+3074 zeros
+
+new buffer:
+1001 zeros
+01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 68 00 00 67 00 69
+3074 zeros
+
+encoded buffer:
+
+encoded length 24
+e9 07 0f 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 03 01 67 01 01 69
+
+Usage
+======================
+1. Verify the destination QEMU version is able to decode the new format.
+    {qemu} info migrate_capabilities
+    {qemu} xbzrle: off , ...
+
+2. Activate xbzrle on both source and destination:
+   {qemu} migrate_set_capability xbzrle on
+
+3. Set the XBZRLE cache size - the cache size is in MBytes and should be a
+power of 2. The cache default value is 64MBytes. (on source only)
+    {qemu} migrate_set_cache_size 256m
+
+4. Start outgoing migration
+    {qemu} migrate -d tcp:destination.host:4444
+    {qemu} info migrate
+    capabilities: xbzrle: on
+    Migration status: active
+    transferred ram: A kbytes
+    remaining ram: B kbytes
+    total ram: C kbytes
+    total time: D milliseconds
+    duplicate: E pages
+    normal: F pages
+    normal bytes: G kbytes
+    cache size: H bytes
+    xbzrle transferred: I kbytes
+    xbzrle pages: J pages
+    xbzrle cache miss: K
+    xbzrle overflow : L
+
+xbzrle cache-miss: the number of cache misses to date - high cache-miss rate
+indicates that the cache size is set too low.
+xbzrle overflow: the number of overflows in the decoding which where the delta
+could not be compressed. This can happen if the changes in the pages are too
+large or there are many short changes; for example, changing every second byte
+(half a page).
+
+Testing: Testing indicated that live migration with XBZRLE was completed in 110
+seconds, whereas without it would not be able to complete.
+
+A simple synthetic memory r/w load generator:
+..    include <stdlib.h>
+..    include <stdio.h>
+..    int main()
+..    {
+..        char *buf = (char *) calloc(4096, 4096);
+..        while (1) {
+..            int i;
+..            for (i = 0; i < 4096 * 4; i++) {
+..                buf[i * 4096 / 4]++;
+..            }
+..            printf(".");
+..        }
+..    }
