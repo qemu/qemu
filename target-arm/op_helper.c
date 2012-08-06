@@ -99,7 +99,7 @@ void tlb_fill(CPUARMState *env1, target_ulong addr, int is_write, int mmu_idx,
 }
 #endif
 
-/* FIXME: Pass an axplicit pointer to QF to CPUARMState, and move saturating
+/* FIXME: Pass an explicit pointer to QF to CPUARMState, and move saturating
    instructions into helper.c  */
 uint32_t HELPER(add_setq)(uint32_t a, uint32_t b)
 {

@@ -530,7 +530,7 @@ NEON_VOP(rshl_s16, neon_s16, 2)
 #undef NEON_FN
 
 /* The addition of the rounding constant may overflow, so we use an
- * intermediate 64 bits accumulator.  */
+ * intermediate 64 bit accumulator.  */
 uint32_t HELPER(neon_rshl_s32)(uint32_t valop, uint32_t shiftop)
 {
     int32_t dest;
@@ -547,8 +547,8 @@ uint32_t HELPER(neon_rshl_s32)(uint32_t valop, uint32_t shiftop)
     return dest;
 }
 
-/* Handling addition overflow with 64 bits inputs values is more
- * tricky than with 32 bits values.  */
+/* Handling addition overflow with 64 bit input values is more
+ * tricky than with 32 bit values.  */
 uint64_t HELPER(neon_rshl_s64)(uint64_t valop, uint64_t shiftop)
 {
     int8_t shift = (int8_t)shiftop;
@@ -590,7 +590,7 @@ NEON_VOP(rshl_u16, neon_u16, 2)
 #undef NEON_FN
 
 /* The addition of the rounding constant may overflow, so we use an
- * intermediate 64 bits accumulator.  */
+ * intermediate 64 bit accumulator.  */
 uint32_t HELPER(neon_rshl_u32)(uint32_t val, uint32_t shiftop)
 {
     uint32_t dest;
@@ -608,8 +608,8 @@ uint32_t HELPER(neon_rshl_u32)(uint32_t val, uint32_t shiftop)
     return dest;
 }
 
-/* Handling addition overflow with 64 bits inputs values is more
- * tricky than with 32 bits values.  */
+/* Handling addition overflow with 64 bit input values is more
+ * tricky than with 32 bit values.  */
 uint64_t HELPER(neon_rshl_u64)(uint64_t val, uint64_t shiftop)
 {
     int8_t shift = (uint8_t)shiftop;
@@ -817,7 +817,7 @@ NEON_VOP_ENV(qrshl_u16, neon_u16, 2)
 #undef NEON_FN
 
 /* The addition of the rounding constant may overflow, so we use an
- * intermediate 64 bits accumulator.  */
+ * intermediate 64 bit accumulator.  */
 uint32_t HELPER(neon_qrshl_u32)(CPUARMState *env, uint32_t val, uint32_t shiftop)
 {
     uint32_t dest;
@@ -846,8 +846,8 @@ uint32_t HELPER(neon_qrshl_u32)(CPUARMState *env, uint32_t val, uint32_t shiftop
     return dest;
 }
 
-/* Handling addition overflow with 64 bits inputs values is more
- * tricky than with 32 bits values.  */
+/* Handling addition overflow with 64 bit input values is more
+ * tricky than with 32 bit values.  */
 uint64_t HELPER(neon_qrshl_u64)(CPUARMState *env, uint64_t val, uint64_t shiftop)
 {
     int8_t shift = (int8_t)shiftop;
@@ -914,7 +914,7 @@ NEON_VOP_ENV(qrshl_s16, neon_s16, 2)
 #undef NEON_FN
 
 /* The addition of the rounding constant may overflow, so we use an
- * intermediate 64 bits accumulator.  */
+ * intermediate 64 bit accumulator.  */
 uint32_t HELPER(neon_qrshl_s32)(CPUARMState *env, uint32_t valop, uint32_t shiftop)
 {
     int32_t dest;
@@ -942,8 +942,8 @@ uint32_t HELPER(neon_qrshl_s32)(CPUARMState *env, uint32_t valop, uint32_t shift
     return dest;
 }
 
-/* Handling addition overflow with 64 bits inputs values is more
- * tricky than with 32 bits values.  */
+/* Handling addition overflow with 64 bit input values is more
+ * tricky than with 32 bit values.  */
 uint64_t HELPER(neon_qrshl_s64)(CPUARMState *env, uint64_t valop, uint64_t shiftop)
 {
     int8_t shift = (uint8_t)shiftop;
@@ -1671,7 +1671,7 @@ uint64_t HELPER(neon_negl_u64)(uint64_t x)
     return -x;
 }
 
-/* Saturnating sign manuipulation.  */
+/* Saturating sign manipulation.  */
 /* ??? Make these use NEON_VOP1 */
 #define DO_QABS8(x) do { \
     if (x == (int8_t)0x80) { \
