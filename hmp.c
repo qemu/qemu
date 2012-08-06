@@ -793,7 +793,8 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     }
 
     qmp_change(device, target, !!arg, arg, &err);
-    if (error_is_type(err, QERR_DEVICE_ENCRYPTED)) {
+    if (error_is_set(&err) &&
+        error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
         error_free(err);
         monitor_read_block_device_key(mon, device, NULL, NULL);
         return;
