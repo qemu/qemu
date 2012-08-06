@@ -2133,7 +2133,13 @@ The main json-object contains the following:
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
-
+- "xbzrle-cache": only present if XBZRLE is active.
+  It is a json-object with the following XBZRLE information:
+         - "cache-size": XBZRLE cache size
+         - "bytes": total XBZRLE bytes transferred
+         - "pages": number of XBZRLE compressed pages
+         - "cache-miss": number of cache misses
+         - "overflow": number of XBZRLE overflows
 Examples:
 
 1. Before the first migration
@@ -2200,6 +2206,32 @@ Examples:
             "total":20971520,
             "remaining":20880384,
             "transferred":91136
+         }
+      }
+   }
+
+6. Migration is being performed and XBZRLE is active:
+
+-> { "execute": "query-migrate" }
+<- {
+      "return":{
+         "status":"active",
+         "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+         "ram":{
+            "total":1057024,
+            "remaining":1053304,
+            "transferred":3720,
+            "total-time":12345,
+            "duplicate":10,
+            "normal":3333,
+            "normal-bytes":3412992
+         },
+         "xbzrle-cache":{
+            "cache-size":67108864,
+            "bytes":20971520,
+            "pages":2444343,
+            "cache-miss":2244,
+            "overflow":34434
          }
       }
    }

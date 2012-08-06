@@ -278,6 +278,27 @@
            'normal-bytes': 'int' } }
 
 ##
+# @XBZRLECacheStats
+#
+# Detailed XBZRLE migration cache statistics
+#
+# @cache-size: XBZRLE cache size
+#
+# @bytes: amount of bytes already transferred to the target VM
+#
+# @pages: amount of pages transferred to the target VM
+#
+# @cache-miss: number of cache miss
+#
+# @overflow: number of overflows
+#
+# Since: 1.2
+##
+{ 'type': 'XBZRLECacheStats',
+  'data': {'cache-size': 'int', 'bytes': 'int', 'pages': 'int',
+           'cache-miss': 'int', 'overflow': 'int' } }
+
+##
 # @MigrationInfo
 #
 # Information about current migration process.
@@ -295,11 +316,16 @@
 #        status, only returned if status is 'active' and it is a block
 #        migration
 #
+# @xbzrle-cache: #optional @XBZRLECacheStats containing detailed XBZRLE
+#                migration statistics, only returned if XBZRLE feature is on and
+#                status is 'active' or 'completed' (since 1.2)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
   'data': {'*status': 'str', '*ram': 'MigrationStats',
-           '*disk': 'MigrationStats'} }
+           '*disk': 'MigrationStats',
+           '*xbzrle-cache': 'XBZRLECacheStats'} }
 
 ##
 # @query-migrate

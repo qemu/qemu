@@ -91,6 +91,10 @@ uint64_t dup_mig_bytes_transferred(void);
 uint64_t dup_mig_pages_transferred(void);
 uint64_t norm_mig_bytes_transferred(void);
 uint64_t norm_mig_pages_transferred(void);
+uint64_t xbzrle_mig_bytes_transferred(void);
+uint64_t xbzrle_mig_pages_transferred(void);
+uint64_t xbzrle_mig_pages_overflow(void);
+uint64_t xbzrle_mig_pages_cache_miss(void);
 
 /**
  * @migrate_add_blocker - prevent migration from proceeding
