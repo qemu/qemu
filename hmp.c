@@ -770,6 +770,38 @@ void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
     qmp_migrate_set_speed(value, NULL);
 }
 
+void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
+{
+    const char *cap = qdict_get_str(qdict, "capability");
+    bool state = qdict_get_bool(qdict, "state");
+    Error *err = NULL;
+    MigrationCapabilityStatusList *caps = g_malloc0(sizeof(*caps));
+    int i;
+
+    for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+        if (strcmp(cap, MigrationCapability_lookup[i]) == 0) {
+            caps->value = g_malloc0(sizeof(*caps->value));
+            caps->value->capability = i;
+            caps->value->state = state;
+            caps->next = NULL;
+            qmp_migrate_set_capabilities(caps, &err);
+            break;
+        }
+    }
+
+    if (i == MIGRATION_CAPABILITY_MAX) {
+        error_set(&err, QERR_INVALID_PARAMETER, cap);
+    }
+
+    qapi_free_MigrationCapabilityStatusList(caps);
+
+    if (err) {
+        monitor_printf(mon, "migrate_set_parameter: %s\n",
+                       error_get_pretty(err));
+        error_free(err);
+    }
+}
+
 void hmp_set_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");

@@ -334,6 +334,18 @@
   'data': { 'capability' : 'MigrationCapability', 'state' : 'bool' } }
 
 ##
+# @migrate-set-capabilities
+#
+# Enable/Disable the following migration capabilities (like xbzrle)
+#
+# @capabilities: json array of capability modifications to make
+#
+# Since: 1.2
+##
+{ 'command': 'migrate-set-capabilities',
+  'data': { 'capabilities': ['MigrationCapabilityStatus'] } }
+
+##
 # @query-migrate-capabilities
 #
 # Returns information about the current migration capabilities status

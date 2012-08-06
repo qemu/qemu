@@ -861,6 +861,20 @@ Set maximum tolerated downtime (in seconds) for migration.
 ETEXI
 
     {
+        .name       = "migrate_set_capability",
+        .args_type  = "capability:s,state:b",
+        .params     = "capability state",
+        .help       = "Enable/Disable the usage of a capability for migration",
+        .mhandler.cmd = hmp_migrate_set_capability,
+    },
+
+STEXI
+@item migrate_set_capability @var{capability} @var{state}
+@findex migrate_set_capability
+Enable/Disable the usage of a capability @var{capability} for migration.
+ETEXI
+
+    {
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",

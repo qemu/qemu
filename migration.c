@@ -190,6 +190,22 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     return info;
 }
 
+void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
+                                  Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+    MigrationCapabilityStatusList *cap;
+
+    if (s->state == MIG_STATE_ACTIVE) {
+        error_set(errp, QERR_MIGRATION_ACTIVE);
+        return;
+    }
+
+    for (cap = params; cap; cap = cap->next) {
+        s->enabled_capabilities[cap->value->capability] = cap->value->state;
+    }
+}
+
 /* shared migration helpers */
 
 static int migrate_fd_cleanup(MigrationState *s)

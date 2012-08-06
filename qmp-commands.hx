@@ -2143,6 +2143,29 @@ EQMP
     },
 
 SQMP
+migrate-set-capabilities
+-------
+
+Enable/Disable migration capabilities
+
+- "xbzrle": xbzrle support
+
+Arguments:
+
+Example:
+
+-> { "execute": "migrate-set-capabilities" , "arguments":
+     { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+
+EQMP
+
+    {
+        .name       = "migrate-set-capabilities",
+        .args_type  = "capabilities:O",
+        .params     = "capability:s,state:b",
+	.mhandler.cmd_new = qmp_marshal_input_migrate_set_capabilities,
+    },
+SQMP
 query-migrate-capabilities
 -------
 
