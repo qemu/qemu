@@ -254,6 +254,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 
     virtio_blk_req_complete(req, status);
     g_free(req);
+    return;
 #else
     abort();
 #endif
