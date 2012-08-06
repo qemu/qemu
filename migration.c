@@ -43,6 +43,9 @@ enum {
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
 
+/* Migration XBZRLE default cache size */
+#define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
+
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
@@ -55,6 +58,7 @@ static MigrationState *migrate_get_current(void)
     static MigrationState current_migration = {
         .state = MIG_STATE_SETUP,
         .bandwidth_limit = MAX_THROTTLE,
+        .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
     };
 
     return &current_migration;
@@ -416,6 +420,7 @@ static MigrationState *migrate_init(const MigrationParams *params)
     MigrationState *s = migrate_get_current();
     int64_t bandwidth_limit = s->bandwidth_limit;
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
+    int64_t xbzrle_cache_size = s->xbzrle_cache_size;
 
     memcpy(enabled_capabilities, s->enabled_capabilities,
            sizeof(enabled_capabilities));
@@ -425,6 +430,7 @@ static MigrationState *migrate_init(const MigrationParams *params)
     s->params = *params;
     memcpy(s->enabled_capabilities, enabled_capabilities,
            sizeof(enabled_capabilities));
+    s->xbzrle_cache_size = xbzrle_cache_size;
 
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;
@@ -523,4 +529,22 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     value *= 1e9;
     value = MAX(0, MIN(UINT64_MAX, value));
     max_downtime = (uint64_t)value;
+}
+
+int migrate_use_xbzrle(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
+}
+
+int64_t migrate_xbzrle_cache_size(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->xbzrle_cache_size;
 }
