@@ -306,6 +306,45 @@
 { 'command': 'query-migrate', 'returns': 'MigrationInfo' }
 
 ##
+# @MigrationCapability
+#
+# Migration capabilities enumeration
+#
+# @xbzrle: Migration supports xbzrle (Xor Based Zero Run Length Encoding).
+#          This feature allows us to minimize migration traffic for certain work
+#          loads, by sending compressed difference of the pages
+#
+# Since: 1.2
+##
+{ 'enum': 'MigrationCapability',
+  'data': ['xbzrle'] }
+
+##
+# @MigrationCapabilityStatus
+#
+# Migration capability information
+#
+# @capability: capability enum
+#
+# @state: capability state bool
+#
+# Since: 1.2
+##
+{ 'type': 'MigrationCapabilityStatus',
+  'data': { 'capability' : 'MigrationCapability', 'state' : 'bool' } }
+
+##
+# @query-migrate-capabilities
+#
+# Returns information about the current migration capabilities status
+#
+# Returns: @MigrationCapabilitiesStatus
+#
+# Since: 1.2
+##
+{ 'command': 'query-migrate-capabilities', 'returns':   ['MigrationCapabilityStatus']}
+
+##
 # @MouseInfo:
 #
 # Information about a mouse device.

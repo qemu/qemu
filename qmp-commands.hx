@@ -2143,6 +2143,32 @@ EQMP
     },
 
 SQMP
+query-migrate-capabilities
+-------
+
+Query current migration capabilities
+
+- "capabilities": migration capabilities state
+         - "xbzrle" : XBZRLE state (json-bool)
+
+Arguments:
+
+Example:
+
+-> { "execute": "query-migrate-capabilities" }
+<- { "return": {
+        "capabilities" :  [ { "capability" : "xbzrle", "state" : false } ]
+     }
+   }
+EQMP
+
+    {
+        .name       = "query-migrate-capabilities",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_capabilities,
+    },
+
+SQMP
 query-balloon
 -------------
 

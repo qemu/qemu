@@ -1417,6 +1417,8 @@ show CPU statistics
 show user network stack connection states
 @item info migrate
 show migration status
+@item info migrate_capabilities
+show current migration capabilities
 @item info balloon
 show balloon information
 @item info qtree

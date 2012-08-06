@@ -113,6 +113,30 @@ uint64_t migrate_max_downtime(void)
     return max_downtime;
 }
 
+MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
+{
+    MigrationCapabilityStatusList *head = NULL;
+    MigrationCapabilityStatusList *caps;
+    MigrationState *s = migrate_get_current();
+    int i;
+
+    for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+        if (head == NULL) {
+            head = g_malloc0(sizeof(*caps));
+            caps = head;
+        } else {
+            caps->next = g_malloc0(sizeof(*caps));
+            caps = caps->next;
+        }
+        caps->value =
+            g_malloc(sizeof(*caps->value));
+        caps->value->capability = i;
+        caps->value->state = s->enabled_capabilities[i];
+    }
+
+    return head;
+}
+
 MigrationInfo *qmp_query_migrate(Error **errp)
 {
     MigrationInfo *info = g_malloc0(sizeof(*info));
@@ -375,10 +399,16 @@ static MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
     int64_t bandwidth_limit = s->bandwidth_limit;
+    bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
+
+    memcpy(enabled_capabilities, s->enabled_capabilities,
+           sizeof(enabled_capabilities));
 
     memset(s, 0, sizeof(*s));
     s->bandwidth_limit = bandwidth_limit;
     s->params = *params;
+    memcpy(s->enabled_capabilities, enabled_capabilities,
+           sizeof(enabled_capabilities));
 
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;

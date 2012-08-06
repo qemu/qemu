@@ -25,6 +25,7 @@ void hmp_info_uuid(Monitor *mon);
 void hmp_info_chardev(Monitor *mon);
 void hmp_info_mice(Monitor *mon);
 void hmp_info_migrate(Monitor *mon);
+void hmp_info_migrate_capabilities(Monitor *mon);
 void hmp_info_cpus(Monitor *mon);
 void hmp_info_block(Monitor *mon);
 void hmp_info_blockstats(Monitor *mon);

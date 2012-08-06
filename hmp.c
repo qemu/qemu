@@ -131,8 +131,21 @@ void hmp_info_mice(Monitor *mon)
 void hmp_info_migrate(Monitor *mon)
 {
     MigrationInfo *info;
+    MigrationCapabilityStatusList *caps, *cap;
 
     info = qmp_query_migrate(NULL);
+    caps = qmp_query_migrate_capabilities(NULL);
+
+    /* do not display parameters during setup */
+    if (info->has_status && caps) {
+        monitor_printf(mon, "capabilities: ");
+        for (cap = caps; cap; cap = cap->next) {
+            monitor_printf(mon, "%s: %s ",
+                           MigrationCapability_lookup[cap->value->capability],
+                           cap->value->state ? "on" : "off");
+        }
+        monitor_printf(mon, "\n");
+    }
 
     if (info->has_status) {
         monitor_printf(mon, "Migration status: %s\n", info->status);
@@ -159,6 +172,26 @@ void hmp_info_migrate(Monitor *mon)
     }
 
     qapi_free_MigrationInfo(info);
+    qapi_free_MigrationCapabilityStatusList(caps);
+}
+
+void hmp_info_migrate_capabilities(Monitor *mon)
+{
+    MigrationCapabilityStatusList *caps, *cap;
+
+    caps = qmp_query_migrate_capabilities(NULL);
+
+    if (caps) {
+        monitor_printf(mon, "capabilities: ");
+        for (cap = caps; cap; cap = cap->next) {
+            monitor_printf(mon, "%s: %s ",
+                           MigrationCapability_lookup[cap->value->capability],
+                           cap->value->state ? "on" : "off");
+        }
+        monitor_printf(mon, "\n");
+    }
+
+    qapi_free_MigrationCapabilityStatusList(caps);
 }
 
 void hmp_info_cpus(Monitor *mon)
