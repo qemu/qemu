@@ -898,24 +898,21 @@ static char *parse_initiator_name(const char *target)
     const char *name = NULL;
 
     list = qemu_find_opts("iscsi");
-    if (!list) {
-        return g_strdup("iqn.2008-11.org.linux-kvm");
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
+    if (list) {
+        opts = qemu_opts_find(list, target);
         if (!opts) {
-            return g_strdup("iqn.2008-11.org.linux-kvm");
+            opts = QTAILQ_FIRST(&list->head);
+        }
+        if (opts) {
+            name = qemu_opt_get(opts, "initiator-name");
         }
     }
 
-    name = qemu_opt_get(opts, "initiator-name");
-    if (!name) {
+    if (name) {
+        return g_strdup(name);
+    } else {
         return g_strdup("iqn.2008-11.org.linux-kvm");
     }
-
-    return g_strdup(name);
 }
 
 /*
