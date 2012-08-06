@@ -776,22 +776,6 @@ static void hmp_change_read_arg(Monitor *mon, const char *password,
     monitor_read_command(mon, 1);
 }
 
-static void cb_hmp_change_bdrv_pwd(Monitor *mon, const char *password,
-                                   void *opaque)
-{
-    Error *encryption_err = opaque;
-    Error *err = NULL;
-    const char *device;
-
-    device = error_get_field(encryption_err, "device");
-
-    qmp_block_passwd(device, password, &err);
-    hmp_handle_error(mon, &err);
-    error_free(encryption_err);
-
-    monitor_read_command(mon, 1);
-}
-
 void hmp_change(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
@@ -810,17 +794,8 @@ void hmp_change(Monitor *mon, const QDict *qdict)
 
     qmp_change(device, target, !!arg, arg, &err);
     if (error_is_type(err, QERR_DEVICE_ENCRYPTED)) {
-        monitor_printf(mon, "%s (%s) is encrypted.\n",
-                       error_get_field(err, "device"),
-                       error_get_field(err, "filename"));
-        if (!monitor_get_rs(mon)) {
-            monitor_printf(mon,
-                    "terminal does not support password prompting\n");
-            error_free(err);
-            return;
-        }
-        readline_start(monitor_get_rs(mon), "Password: ", 1,
-                       cb_hmp_change_bdrv_pwd, err);
+        error_free(err);
+        monitor_read_block_device_key(mon, device, NULL, NULL);
         return;
     }
     hmp_handle_error(mon, &err);
