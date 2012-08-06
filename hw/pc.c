@@ -51,6 +51,7 @@
 #include "exec-memory.h"
 #include "arch_init.h"
 #include "bitmap.h"
+#include "vga-pci.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS

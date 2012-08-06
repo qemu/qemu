@@ -39,6 +39,7 @@
 #include "elf.h"
 #include "blockdev.h"
 #include "exec-memory.h"
+#include "vga-pci.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS
