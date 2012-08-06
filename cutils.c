@@ -391,3 +391,36 @@ int64_t pow2floor(int64_t value)
     }
     return value;
 }
+
+/*
+ * Implementation of  ULEB128 (http://en.wikipedia.org/wiki/LEB128)
+ * Input is limited to 14-bit numbers
+ */
+int uleb128_encode_small(uint8_t *out, uint32_t n)
+{
+    g_assert(n <= 0x3fff);
+    if (n < 0x80) {
+        *out++ = n;
+        return 1;
+    } else {
+        *out++ = (n & 0x7f) | 0x80;
+        *out++ = n >> 7;
+        return 2;
+    }
+}
+
+int uleb128_decode_small(const uint8_t *in, uint32_t *n)
+{
+    if (!(*in & 0x80)) {
+        *n = *in++;
+        return 1;
+    } else {
+        *n = *in++ & 0x7f;
+        /* we exceed 14 bit number */
+        if (*in & 0x80) {
+            return -1;
+        }
+        *n |= *in++ << 7;
+        return 2;
+    }
+}

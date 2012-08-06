@@ -443,4 +443,12 @@ int64_t pow2floor(int64_t value);
 
 #include "module.h"
 
+/*
+ * Implementation of ULEB128 (http://en.wikipedia.org/wiki/LEB128)
+ * Input is limited to 14-bit numbers
+ */
+
+int uleb128_encode_small(uint8_t *out, uint32_t n);
+int uleb128_decode_small(const uint8_t *in, uint32_t *n);
+
 #endif
