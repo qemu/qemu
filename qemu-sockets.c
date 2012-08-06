@@ -284,8 +284,6 @@ int inet_connect_opts(QemuOpts *opts, bool *in_progress, Error **errp)
             if (in_progress) {
                 *in_progress = true;
             }
-
-            error_set(errp, QERR_SOCKET_CONNECT_IN_PROGRESS);
         } else if (rc < 0) {
             if (NULL == e->ai_next)
                 fprintf(stderr, "%s: connect(%s,%s,%s,%s): %s\n", __FUNCTION__,
