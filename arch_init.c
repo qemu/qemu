@@ -275,14 +275,16 @@ static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
 
 static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
                             ram_addr_t current_addr, RAMBlock *block,
-                            ram_addr_t offset, int cont)
+                            ram_addr_t offset, int cont, bool last_stage)
 {
     int encoded_len = 0, bytes_sent = -1;
     uint8_t *prev_cached_page;
 
     if (!cache_is_cached(XBZRLE.cache, current_addr)) {
-        cache_insert(XBZRLE.cache, current_addr,
-                     g_memdup(current_data, TARGET_PAGE_SIZE));
+        if (!last_stage) {
+            cache_insert(XBZRLE.cache, current_addr,
+                         g_memdup(current_data, TARGET_PAGE_SIZE));
+        }
         acct_info.xbzrle_cache_miss++;
         return -1;
     }
@@ -308,7 +310,9 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
     }
 
     /* we need to update the data in the cache, in order to get the same data */
-    memcpy(prev_cached_page, XBZRLE.current_buf, TARGET_PAGE_SIZE);
+    if (!last_stage) {
+        memcpy(prev_cached_page, XBZRLE.current_buf, TARGET_PAGE_SIZE);
+    }
 
     /* Send XBZRLE based compressed page */
     save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_XBZRLE);
@@ -333,7 +337,7 @@ static ram_addr_t last_offset;
  *           n: the amount of bytes written in other case
  */
 
-static int ram_save_block(QEMUFile *f)
+static int ram_save_block(QEMUFile *f, bool last_stage)
 {
     RAMBlock *block = last_block;
     ram_addr_t offset = last_offset;
@@ -364,8 +368,10 @@ static int ram_save_block(QEMUFile *f)
             } else if (migrate_use_xbzrle()) {
                 current_addr = block->offset + offset;
                 bytes_sent = save_xbzrle_page(f, p, current_addr, block,
-                                              offset, cont);
-                p = get_cached_data(XBZRLE.cache, current_addr);
+                                              offset, cont, last_stage);
+                if (!last_stage) {
+                    p = get_cached_data(XBZRLE.cache, current_addr);
+                }
             }
 
             /* either we didn't send yet (we may have had XBZRLE overflow) */
@@ -538,7 +544,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     while ((ret = qemu_file_rate_limit(f)) == 0) {
         int bytes_sent;
 
-        bytes_sent = ram_save_block(f);
+        bytes_sent = ram_save_block(f, false);
         /* no more blocks to sent */
         if (bytes_sent < 0) {
             break;
@@ -600,7 +606,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     while (true) {
         int bytes_sent;
 
-        bytes_sent = ram_save_block(f);
+        bytes_sent = ram_save_block(f, true);
         /* no more blocks to sent */
         if (bytes_sent < 0) {
             break;
