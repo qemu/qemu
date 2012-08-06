@@ -160,7 +160,7 @@ static int virtio_pci_load_queue(void * opaque, int n, QEMUFile *f)
 }
 
 static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
-                                                 int n, bool assign)
+                                                 int n, bool assign, bool set_handler)
 {
     VirtQueue *vq = virtio_get_queue(proxy->vdev, n);
     EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
@@ -173,13 +173,13 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
                          __func__, r);
             return r;
         }
-        virtio_queue_set_host_notifier_fd_handler(vq, true);
+        virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
         memory_region_add_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
                                   true, n, notifier);
     } else {
         memory_region_del_eventfd(&proxy->bar, VIRTIO_PCI_QUEUE_NOTIFY, 2,
                                   true, n, notifier);
-        virtio_queue_set_host_notifier_fd_handler(vq, false);
+        virtio_queue_set_host_notifier_fd_handler(vq, false, false);
         event_notifier_cleanup(notifier);
     }
     return r;
@@ -200,7 +200,7 @@ static void virtio_pci_start_ioeventfd(VirtIOPCIProxy *proxy)
             continue;
         }
 
-        r = virtio_pci_set_host_notifier_internal(proxy, n, true);
+        r = virtio_pci_set_host_notifier_internal(proxy, n, true, true);
         if (r < 0) {
             goto assign_error;
         }
@@ -214,7 +214,7 @@ assign_error:
             continue;
         }
 
-        r = virtio_pci_set_host_notifier_internal(proxy, n, false);
+        r = virtio_pci_set_host_notifier_internal(proxy, n, false, false);
         assert(r >= 0);
     }
     proxy->ioeventfd_started = false;
@@ -235,7 +235,7 @@ static void virtio_pci_stop_ioeventfd(VirtIOPCIProxy *proxy)
             continue;
         }
 
-        r = virtio_pci_set_host_notifier_internal(proxy, n, false);
+        r = virtio_pci_set_host_notifier_internal(proxy, n, false, false);
         assert(r >= 0);
     }
     proxy->ioeventfd_started = false;
@@ -683,7 +683,7 @@ static int virtio_pci_set_host_notifier(void *opaque, int n, bool assign)
      * currently only stops on status change away from ok,
      * reset, vmstop and such. If we do add code to start here,
      * need to check vmstate, device state etc. */
-    return virtio_pci_set_host_notifier_internal(proxy, n, assign);
+    return virtio_pci_set_host_notifier_internal(proxy, n, assign, false);
 }
 
 static void virtio_pci_vmstate_change(void *opaque, bool running)
