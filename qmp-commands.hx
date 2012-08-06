@@ -2122,6 +2122,9 @@ The main json-object contains the following:
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
+         - "total-time": total amount of ms since migration started.  If
+                         migration has ended, it returns the total migration time
+                         (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information (in bytes):
          - "transferred": amount transferred (json-int)
@@ -2154,7 +2157,8 @@ Examples:
          "ram":{
             "transferred":123,
             "remaining":123,
-            "total":246
+            "total":246,
+            "total-time":12345
          }
       }
    }
@@ -2168,7 +2172,8 @@ Examples:
          "ram":{
             "total":1057024,
             "remaining":1053304,
-            "transferred":3720
+            "transferred":3720,
+            "total-time":12345
          },
          "disk":{
             "total":20971520,
