@@ -382,3 +382,12 @@ int qemu_parse_fd(const char *param)
     }
     return fd;
 }
+
+/* round down to the nearest power of 2*/
+int64_t pow2floor(int64_t value)
+{
+    if (!is_power_of_2(value)) {
+        value = 0x8000000000000000ULL >> clz64(value);
+    }
+    return value;
+}
