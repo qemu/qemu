@@ -45,6 +45,7 @@
 #include "kvm.h"
 #include "kvm_ppc.h"
 #include "pci.h"
+#include "vga-pci.h"
 
 #include "exec-memory.h"
 
@@ -82,6 +83,7 @@
 #define PHANDLE_XICP            0x00001111
 
 sPAPREnvironment *spapr;
+bool spapr_has_graphics;
 
 qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
                             enum xics_irq_type type)
@@ -257,6 +259,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
     }
     _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
+    _FDT((fdt_property_cell(fdt, "qemu,graphic-width", graphic_width)));
+    _FDT((fdt_property_cell(fdt, "qemu,graphic-height", graphic_height)));
+    _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -503,7 +508,9 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
         }
     }
 
-    spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
+    if (!spapr_has_graphics) {
+        spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
+    }
 
     _FDT((fdt_pack(fdt)));
 
@@ -554,6 +561,18 @@ static void spapr_cpu_reset(void *opaque)
     PowerPCCPU *cpu = opaque;
 
     cpu_reset(CPU(cpu));
+}
+
+static int spapr_vga_init(PCIBus *pci_bus)
+{
+    if (std_vga_enabled) {
+        pci_vga_init(pci_bus);
+    } else {
+        fprintf(stderr, "This vga model is not supported,"
+                "currently it only supports -vga std\n");
+        return 0;
+    }
+    return 1;
 }
 
 /* pSeries LPAR / sPAPR hardware init */
@@ -708,6 +727,11 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     for (i = 0; i <= drive_get_max_bus(IF_SCSI); i++) {
         spapr_vscsi_create(spapr->vio_bus);
+    }
+
+    /* Graphics */
+    if (spapr_vga_init(QLIST_FIRST(&spapr->phbs)->host_state.bus)) {
+        spapr_has_graphics = true;
     }
 
     if (rma_size < (MIN_RMA_SLOF << 20)) {
