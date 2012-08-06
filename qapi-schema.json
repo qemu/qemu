@@ -264,11 +264,18 @@
 #        migration has ended, it returns the total migration
 #        time. (since 1.2)
 #
-# Since: 0.14.0.
+# @duplicate: number of duplicate pages (since 1.2)
+#
+# @normal : number of normal pages (since 1.2)
+#
+# @normal-bytes : number of normal bytes sent (since 1.2)
+#
+# Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
-           'total-time': 'int' } }
+           'total-time': 'int', 'duplicate': 'int', 'normal': 'int',
+           'normal-bytes': 'int' } }
 
 ##
 # @MigrationInfo

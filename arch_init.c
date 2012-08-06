@@ -201,6 +201,40 @@ int64_t xbzrle_cache_resize(int64_t new_size)
     return pow2floor(new_size);
 }
 
+/* accounting for migration statistics */
+typedef struct AccountingInfo {
+    uint64_t dup_pages;
+    uint64_t norm_pages;
+    uint64_t iterations;
+} AccountingInfo;
+
+static AccountingInfo acct_info;
+
+static void acct_clear(void)
+{
+    memset(&acct_info, 0, sizeof(acct_info));
+}
+
+uint64_t dup_mig_bytes_transferred(void)
+{
+    return acct_info.dup_pages * TARGET_PAGE_SIZE;
+}
+
+uint64_t dup_mig_pages_transferred(void)
+{
+    return acct_info.dup_pages;
+}
+
+uint64_t norm_mig_bytes_transferred(void)
+{
+    return acct_info.norm_pages * TARGET_PAGE_SIZE;
+}
+
+uint64_t norm_mig_pages_transferred(void)
+{
+    return acct_info.norm_pages;
+}
+
 static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
         int cont, int flag)
 {
@@ -295,6 +329,7 @@ static int ram_save_block(QEMUFile *f)
             p = memory_region_get_ram_ptr(mr) + offset;
 
             if (is_dup_page(p)) {
+                acct_info.dup_pages++;
                 save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_COMPRESS);
                 qemu_put_byte(f, *p);
                 bytes_sent = 1;
@@ -310,6 +345,7 @@ static int ram_save_block(QEMUFile *f)
                 save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
                 bytes_sent = TARGET_PAGE_SIZE;
+                acct_info.norm_pages++;
             }
 
             /* if page is unmodified, continue to the next */
@@ -431,6 +467,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         }
         XBZRLE.encoded_buf = g_malloc0(TARGET_PAGE_SIZE);
         XBZRLE.current_buf = g_malloc(TARGET_PAGE_SIZE);
+        acct_clear();
     }
 
     /* Make sure all dirty bits are set */
@@ -479,6 +516,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
             break;
         }
         bytes_transferred += bytes_sent;
+        acct_info.iterations++;
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some

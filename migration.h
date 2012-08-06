@@ -87,6 +87,11 @@ uint64_t ram_bytes_total(void);
 
 extern SaveVMHandlers savevm_ram_handlers;
 
+uint64_t dup_mig_bytes_transferred(void);
+uint64_t dup_mig_pages_transferred(void);
+uint64_t norm_mig_bytes_transferred(void);
+uint64_t norm_mig_pages_transferred(void);
+
 /**
  * @migrate_add_blocker - prevent migration from proceeding
  *

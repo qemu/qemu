@@ -160,6 +160,12 @@ void hmp_info_migrate(Monitor *mon)
                        info->ram->total >> 10);
         monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
                        info->ram->total_time);
+        monitor_printf(mon, "duplicate: %" PRIu64 " pages\n",
+                       info->ram->duplicate);
+        monitor_printf(mon, "normal: %" PRIu64 " pages\n",
+                       info->ram->normal);
+        monitor_printf(mon, "normal bytes: %" PRIu64 " kbytes\n",
+                       info->ram->normal_bytes >> 10);
     }
 
     if (info->has_disk) {

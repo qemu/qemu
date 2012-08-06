@@ -161,6 +161,9 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->total = ram_bytes_total();
         info->ram->total_time = qemu_get_clock_ms(rt_clock)
             - s->total_time;
+        info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->normal = norm_mig_pages_transferred();
+        info->ram->normal_bytes = norm_mig_bytes_transferred();
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -180,6 +183,9 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->remaining = 0;
         info->ram->total = ram_bytes_total();
         info->ram->total_time = s->total_time;
+        info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->normal = norm_mig_pages_transferred();
+        info->ram->normal_bytes = norm_mig_bytes_transferred();
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;

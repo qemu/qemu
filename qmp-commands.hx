@@ -2125,6 +2125,9 @@ The main json-object contains the following:
          - "total-time": total amount of ms since migration started.  If
                          migration has ended, it returns the total migration time
                          (json-int)
+         - "duplicate": number of duplicated pages (json-int)
+         - "normal" : number of normal pages transferred (json-int)
+         - "normal-bytes" : number of normal bytes transferred (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information (in bytes):
          - "transferred": amount transferred (json-int)
@@ -2141,7 +2144,19 @@ Examples:
 2. Migration is done and has succeeded
 
 -> { "execute": "query-migrate" }
-<- { "return": { "status": "completed" } }
+<- { "return": {
+        "status": "completed",
+        "ram":{
+          "transferred":123,
+          "remaining":123,
+          "total":246,
+          "total-time":12345,
+          "duplicate":123,
+          "normal":123,
+          "normal-bytes":123456
+        }
+     }
+   }
 
 3. Migration is done and has failed
 
@@ -2158,7 +2173,10 @@ Examples:
             "transferred":123,
             "remaining":123,
             "total":246,
-            "total-time":12345
+            "total-time":12345,
+            "duplicate":123,
+            "normal":123,
+            "normal-bytes":123456
          }
       }
    }
@@ -2173,7 +2191,10 @@ Examples:
             "total":1057024,
             "remaining":1053304,
             "transferred":3720,
-            "total-time":12345
+            "total-time":12345,
+            "duplicate":123,
+            "normal":123,
+            "normal-bytes":123456
          },
          "disk":{
             "total":20971520,
