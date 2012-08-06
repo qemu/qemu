@@ -1567,14 +1567,19 @@ static int img_resize(int argc, char **argv)
     const char *filename, *fmt, *size;
     int64_t n, total_size;
     BlockDriverState *bs = NULL;
-    QEMUOptionParameter *param;
-    QEMUOptionParameter resize_options[] = {
-        {
-            .name = BLOCK_OPT_SIZE,
-            .type = OPT_SIZE,
-            .help = "Virtual disk size"
+    QemuOpts *param;
+    static QemuOptsList resize_options = {
+        .name = "resize_options",
+        .head = QTAILQ_HEAD_INITIALIZER(resize_options.head),
+        .desc = {
+            {
+                .name = BLOCK_OPT_SIZE,
+                .type = QEMU_OPT_SIZE,
+                .help = "Virtual disk size"
+            }, {
+                /* end of list */
+            }
         },
-        { NULL }
     };
 
     /* Remove size from argv manually so that negative numbers are not treated
@@ -1624,14 +1629,15 @@ static int img_resize(int argc, char **argv)
     }
 
     /* Parse size */
-    param = parse_option_parameters("", resize_options, NULL);
-    if (set_option_parameter(param, BLOCK_OPT_SIZE, size)) {
+    param = qemu_opts_create(&resize_options, NULL, 0, NULL);
+    if (qemu_opt_set(param, BLOCK_OPT_SIZE, size)) {
         /* Error message already printed when size parsing fails */
         ret = -1;
+        qemu_opts_del(param);
         goto out;
     }
-    n = get_option_parameter(param, BLOCK_OPT_SIZE)->value.n;
-    free_option_parameters(param);
+    n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
+    qemu_opts_del(param);
 
     bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
     if (!bs) {
