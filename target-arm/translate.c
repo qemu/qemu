@@ -9892,7 +9892,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     } else {
         /* While branches must always occur at the end of an IT block,
            there are a few other things that can cause us to terminate
-           the TB in the middel of an IT block:
+           the TB in the middle of an IT block:
             - Exception generating instructions (bkpt, swi, undefined).
             - Page boundaries.
             - Hardware watchpoints.
