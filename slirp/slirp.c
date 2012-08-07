@@ -30,7 +30,7 @@
 /* host loopback address */
 struct in_addr loopback_addr;
 /* host loopback network mask */
-in_addr_t loopback_mask;
+unsigned long loopback_mask;
 
 /* emulated hosts use the MAC addr 52:55:IP:IP:IP:IP */
 static const uint8_t special_ethaddr[ETH_ALEN] = {
