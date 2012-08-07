@@ -352,6 +352,9 @@ static void piix4_reset(void *opaque)
     pci_conf[0x5a] = 0;
     pci_conf[0x5b] = 0;
 
+    pci_conf[0x40] = 0x01; /* PM io base read only bit */
+    pci_conf[0x80] = 0;
+
     if (s->kvm_enabled) {
         /* Mark SMM as already inited (until KVM supports SMM). */
         pci_conf[0x5B] = 0x02;
@@ -390,8 +393,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0x07] = 0x02;
     pci_conf[0x09] = 0x00;
     pci_conf[0x3d] = 0x01; // interrupt pin 1
-
-    pci_conf[0x40] = 0x01; /* PM io base read only bit */
 
     /* APM */
     apm_init(&s->apm, apm_ctrl_changed, s);
