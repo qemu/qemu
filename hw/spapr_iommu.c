@@ -216,31 +216,47 @@ void spapr_iommu_init(void)
 }
 
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
-                 DMAContext *dma)
+                 uint32_t liobn, uint64_t window, uint32_t size)
 {
-    if (dma) {
-        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
-        uint32_t dma_prop[] = {cpu_to_be32(tcet->liobn),
-                               0, 0,
-                               0, cpu_to_be32(tcet->window_size)};
-        int ret;
+    uint32_t dma_prop[5];
+    int ret;
 
-        ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-address-cells", 2);
-        if (ret < 0) {
-            return ret;
-        }
+    dma_prop[0] = cpu_to_be32(liobn);
+    dma_prop[1] = cpu_to_be32(window >> 32);
+    dma_prop[2] = cpu_to_be32(window & 0xFFFFFFFF);
+    dma_prop[3] = 0; /* window size is 32 bits */
+    dma_prop[4] = cpu_to_be32(size);
 
-        ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-size-cells", 2);
-        if (ret < 0) {
-            return ret;
-        }
+    ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-address-cells", 2);
+    if (ret < 0) {
+        return ret;
+    }
 
-        ret = fdt_setprop(fdt, node_off, propname, dma_prop,
-                          sizeof(dma_prop));
-        if (ret < 0) {
-            return ret;
-        }
+    ret = fdt_setprop_cell(fdt, node_off, "ibm,#dma-size-cells", 2);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = fdt_setprop(fdt, node_off, propname, dma_prop, sizeof(dma_prop));
+    if (ret < 0) {
+        return ret;
     }
 
     return 0;
+}
+
+int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
+                      DMAContext *iommu)
+{
+    if (!iommu) {
+        return 0;
+    }
+
+    if (iommu->translate == spapr_tce_translate) {
+        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, iommu);
+        return spapr_dma_dt(fdt, node_off, propname,
+                tcet->liobn, 0, tcet->window_size);
+    }
+
+    return -1;
 }

@@ -337,6 +337,8 @@ void spapr_iommu_init(void);
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
 void spapr_tce_free(DMAContext *dma);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
-                 DMAContext *dma);
+                 uint32_t liobn, uint64_t window, uint32_t size);
+int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
+                      DMAContext *dma);
 
 #endif /* !defined (__HW_SPAPR_H__) */

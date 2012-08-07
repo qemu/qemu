@@ -41,7 +41,9 @@ typedef struct sPAPRPHBState {
     target_phys_addr_t msi_win_addr;
     MemoryRegion memwindow, iowindow, msiwindow;
 
-
+    uint32_t dma_liobn;
+    uint64_t dma_window_start;
+    uint64_t dma_window_size;
     DMAContext *dma;
 
     struct {

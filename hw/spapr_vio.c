@@ -142,7 +142,7 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
         }
     }
 
-    ret = spapr_dma_dt(fdt, node_off, "ibm,my-dma-window", dev->dma);
+    ret = spapr_tcet_dma_dt(fdt, node_off, "ibm,my-dma-window", dev->dma);
     if (ret < 0) {
         return ret;
     }
