@@ -223,7 +223,7 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
      */
     sPAPRPHBState *phb = opaque;
 
-    qemu_set_irq(phb->lsi_table[irq_num].qirq, level);
+    qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
 }
 
 static uint64_t spapr_io_read(void *opaque, target_phys_addr_t addr,
@@ -329,16 +329,14 @@ static int spapr_phb_init(SysBusDevice *s)
 
     /* Initialize the LSI table */
     for (i = 0; i < PCI_NUM_PINS; i++) {
-        qemu_irq qirq;
-        uint32_t num;
+        uint32_t irq;
 
-        qirq = spapr_allocate_lsi(0, &num);
-        if (!qirq) {
+        irq = spapr_allocate_lsi(0);
+        if (!irq) {
             return -1;
         }
 
-        phb->lsi_table[i].dt_irq = num;
-        phb->lsi_table[i].qirq = qirq;
+        phb->lsi_table[i].irq = irq;
     }
 
     return 0;
@@ -477,7 +475,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
             irqmap[2] = 0;
             irqmap[3] = cpu_to_be32(j+1);
             irqmap[4] = cpu_to_be32(xics_phandle);
-            irqmap[5] = cpu_to_be32(phb->lsi_table[lsi_num].dt_irq);
+            irqmap[5] = cpu_to_be32(phb->lsi_table[lsi_num].irq);
             irqmap[6] = cpu_to_be32(0x8);
         }
     }

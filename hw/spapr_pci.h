@@ -40,12 +40,16 @@ typedef struct sPAPRPHBState {
     DMAContext *dma;
 
     struct {
-        uint32_t dt_irq;
-        qemu_irq qirq;
+        uint32_t irq;
     } lsi_table[PCI_NUM_PINS];
 
     QLIST_ENTRY(sPAPRPHBState) list;
 } sPAPRPHBState;
+
+static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
+{
+    return xics_get_qirq(spapr->icp, phb->lsi_table[pin].irq);
+}
 
 #define SPAPR_PCI_MEM_WIN_BUS_OFFSET 0x80000000ULL
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000

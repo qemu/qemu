@@ -84,11 +84,9 @@
 
 sPAPREnvironment *spapr;
 
-qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
-                            enum xics_irq_type type)
+int spapr_allocate_irq(int hint, enum xics_irq_type type)
 {
-    uint32_t irq;
-    qemu_irq qirq;
+    int irq;
 
     if (hint) {
         irq = hint;
@@ -97,16 +95,14 @@ qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
         irq = spapr->next_irq++;
     }
 
-    qirq = xics_assign_irq(spapr->icp, irq, type);
-    if (!qirq) {
-        return NULL;
+    /* Configure irq type */
+    if (!xics_get_qirq(spapr->icp, irq)) {
+        return 0;
     }
 
-    if (irq_num) {
-        *irq_num = irq;
-    }
+    xics_set_irq_type(spapr->icp, irq, type);
 
-    return qirq;
+    return irq;
 }
 
 static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
