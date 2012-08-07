@@ -83,11 +83,13 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     }
 }
 
-void process_incoming_migration(QEMUFile *f)
+static void process_incoming_migration_co(void *opaque)
 {
+    QEMUFile *f = opaque;
     int ret;
 
     ret = qemu_loadvm_state(f);
+    qemu_set_fd_handler(qemu_get_fd(f), NULL, NULL, NULL);
     qemu_fclose(f);
     if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
@@ -105,6 +107,23 @@ void process_incoming_migration(QEMUFile *f)
     } else {
         runstate_set(RUN_STATE_PAUSED);
     }
+}
+
+static void enter_migration_coroutine(void *opaque)
+{
+    Coroutine *co = opaque;
+    qemu_coroutine_enter(co, NULL);
+}
+
+void process_incoming_migration(QEMUFile *f)
+{
+    Coroutine *co = qemu_coroutine_create(process_incoming_migration_co);
+    int fd = qemu_get_fd(f);
+
+    assert(fd != -1);
+    socket_set_nonblock(fd);
+    qemu_set_fd_handler(fd, enter_migration_coroutine, NULL, co);
+    qemu_coroutine_enter(co, f);
 }
 
 /* amount of nanoseconds we are willing to wait for migration to be down.
