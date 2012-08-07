@@ -213,6 +213,7 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 static int socket_close(void *opaque)
 {
     QEMUFileSocket *s = opaque;
+    closesocket(s->fd);
     g_free(s);
     return 0;
 }

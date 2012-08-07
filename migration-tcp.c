@@ -103,6 +103,8 @@ static void tcp_accept_incoming_migration(void *opaque)
 
     process_incoming_migration(f);
     qemu_fclose(f);
+    return;
+
 out:
     closesocket(c);
 }
