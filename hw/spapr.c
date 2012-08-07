@@ -105,6 +105,32 @@ int spapr_allocate_irq(int hint, enum xics_irq_type type)
     return irq;
 }
 
+/* Allocate block of consequtive IRQs, returns a number of the first */
+int spapr_allocate_irq_block(int num, enum xics_irq_type type)
+{
+    int first = -1;
+    int i;
+
+    for (i = 0; i < num; ++i) {
+        int irq;
+
+        irq = spapr_allocate_irq(0, type);
+        if (!irq) {
+            return -1;
+        }
+
+        if (0 == i) {
+            first = irq;
+        }
+
+        /* If the above doesn't create a consecutive block then that's
+         * an internal bug */
+        assert(irq == (first + i));
+    }
+
+    return first;
+}
+
 static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;

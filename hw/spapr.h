@@ -290,6 +290,7 @@ target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
                              target_ulong *args);
 
 int spapr_allocate_irq(int hint, enum xics_irq_type type);
+int spapr_allocate_irq_block(int num, enum xics_irq_type type);
 
 static inline int spapr_allocate_msi(int hint)
 {
