@@ -538,8 +538,6 @@ static void spapr_reset(void *opaque)
 {
     sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
 
-    fprintf(stderr, "sPAPR reset\n");
-
     /* flush out the hash table */
     memset(spapr->htab, 0, spapr->htab_size);
 
@@ -744,14 +742,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         exit(1);
     }
 
-    fprintf(stderr, "sPAPR memory map:\n");
-    fprintf(stderr, "RTAS                 : 0x%08lx..%08lx\n",
-            (unsigned long)spapr->rtas_addr,
-            (unsigned long)(spapr->rtas_addr + spapr->rtas_size - 1));
-    fprintf(stderr, "FDT                  : 0x%08lx..%08lx\n",
-            (unsigned long)spapr->fdt_addr,
-            (unsigned long)(spapr->fdt_addr + FDT_MAX_SIZE - 1));
-
     if (kernel_filename) {
         uint64_t lowaddr = 0;
 
@@ -767,8 +757,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                     kernel_filename);
             exit(1);
         }
-        fprintf(stderr, "Kernel               : 0x%08x..%08lx\n",
-                KERNEL_LOAD_ADDR, KERNEL_LOAD_ADDR + kernel_size - 1);
 
         /* load initrd */
         if (initrd_filename) {
@@ -783,8 +771,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                         initrd_filename);
                 exit(1);
             }
-            fprintf(stderr, "Ramdisk              : 0x%08lx..%08lx\n",
-                    (long)initrd_base, (long)(initrd_base + initrd_size - 1));
         } else {
             initrd_base = 0;
             initrd_size = 0;
@@ -798,10 +784,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         exit(1);
     }
     g_free(filename);
-    fprintf(stderr, "Firmware load        : 0x%08x..%08lx\n",
-            0, fw_size);
-    fprintf(stderr, "Firmware runtime     : 0x%08lx..%08lx\n",
-            load_limit, (unsigned long)spapr->fdt_addr);
 
     spapr->entry_point = 0x100;
 
