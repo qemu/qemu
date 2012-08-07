@@ -32,24 +32,35 @@
 
 #include "hw/pci_internals.h"
 
-static PCIDevice *find_dev(sPAPREnvironment *spapr,
-                           uint64_t buid, uint32_t config_addr)
+static sPAPRPHBState *find_phb(sPAPREnvironment *spapr, uint64_t buid)
 {
-    int devfn = (config_addr >> 8) & 0xFF;
     sPAPRPHBState *phb;
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        BusChild *kid;
-
         if (phb->buid != buid) {
             continue;
         }
+        return phb;
+    }
 
-        QTAILQ_FOREACH(kid, &phb->host_state.bus->qbus.children, sibling) {
-            PCIDevice *dev = (PCIDevice *)kid->child;
-            if (dev->devfn == devfn) {
-                return dev;
-            }
+    return NULL;
+}
+
+static PCIDevice *find_dev(sPAPREnvironment *spapr, uint64_t buid,
+                           uint32_t config_addr)
+{
+    sPAPRPHBState *phb = find_phb(spapr, buid);
+    BusChild *kid;
+    int devfn = (config_addr >> 8) & 0xFF;
+
+    if (!phb) {
+        return NULL;
+    }
+
+    QTAILQ_FOREACH(kid, &phb->host_state.bus->qbus.children, sibling) {
+        PCIDevice *dev = (PCIDevice *)kid->child;
+        if (dev->devfn == devfn) {
+            return dev;
         }
     }
 
