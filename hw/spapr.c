@@ -704,6 +704,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* Set up PCI */
+    spapr_pci_rtas_init();
+
     spapr_create_phb(spapr, "pci", SPAPR_PCI_BUID,
                      SPAPR_PCI_MEM_WIN_ADDR,
                      SPAPR_PCI_MEM_WIN_SIZE,

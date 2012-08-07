@@ -359,11 +359,6 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 
     sdc->init = spapr_phb_init;
     dc->props = spapr_phb_properties;
-
-    spapr_rtas_register("read-pci-config", rtas_read_pci_config);
-    spapr_rtas_register("write-pci-config", rtas_write_pci_config);
-    spapr_rtas_register("ibm,read-pci-config", rtas_ibm_read_pci_config);
-    spapr_rtas_register("ibm,write-pci-config", rtas_ibm_write_pci_config);
 }
 
 static TypeInfo spapr_phb_info = {
@@ -486,6 +481,14 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     spapr_dma_dt(fdt, bus_off, "ibm,dma-window", phb->dma);
 
     return 0;
+}
+
+void spapr_pci_rtas_init(void)
+{
+    spapr_rtas_register("read-pci-config", rtas_read_pci_config);
+    spapr_rtas_register("write-pci-config", rtas_write_pci_config);
+    spapr_rtas_register("ibm,read-pci-config", rtas_ibm_read_pci_config);
+    spapr_rtas_register("ibm,write-pci-config", rtas_ibm_write_pci_config);
 }
 
 static void register_types(void)

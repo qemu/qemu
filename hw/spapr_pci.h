@@ -63,4 +63,6 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
                           void *fdt);
 
+void spapr_pci_rtas_init(void);
+
 #endif /* __HW_SPAPR_PCI_H__ */
