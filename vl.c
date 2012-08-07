@@ -1464,13 +1464,22 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
     }
 }
 
-void qemu_system_reset(bool report)
+void qemu_devices_reset(void)
 {
     QEMUResetEntry *re, *nre;
 
     /* reset all devices */
     QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
+    }
+}
+
+void qemu_system_reset(bool report)
+{
+    if (current_machine && current_machine->reset) {
+        current_machine->reset();
+    } else {
+        qemu_devices_reset();
     }
     if (report) {
         monitor_protocol_event(QEVENT_RESET, NULL);
