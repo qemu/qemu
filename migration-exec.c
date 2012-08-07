@@ -87,7 +87,6 @@ static void exec_accept_incoming_migration(void *opaque)
 
     qemu_set_fd_handler2(qemu_get_fd(f), NULL, NULL, NULL, NULL);
     process_incoming_migration(f);
-    qemu_fclose(f);
 }
 
 void exec_start_incoming_migration(const char *command, Error **errp)

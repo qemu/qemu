@@ -85,7 +85,11 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
 
 void process_incoming_migration(QEMUFile *f)
 {
-    if (qemu_loadvm_state(f) < 0) {
+    int ret;
+
+    ret = qemu_loadvm_state(f);
+    qemu_fclose(f);
+    if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
         exit(0);
     }
