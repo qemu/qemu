@@ -1652,6 +1652,17 @@ static const cmdinfo_t map_cmd = {
        .oneline        = "prints the allocated areas of a file",
 };
 
+static int abort_f(int argc, char **argv)
+{
+    abort();
+}
+
+static const cmdinfo_t abort_cmd = {
+       .name           = "abort",
+       .cfunc          = abort_f,
+       .flags          = CMD_NOFILE_OK,
+       .oneline        = "simulate a program crash using abort(3)",
+};
 
 static int close_f(int argc, char **argv)
 {
@@ -1905,6 +1916,7 @@ int main(int argc, char **argv)
     add_command(&discard_cmd);
     add_command(&alloc_cmd);
     add_command(&map_cmd);
+    add_command(&abort_cmd);
 
     add_args_command(init_args_command);
     add_check_command(init_check_command);
