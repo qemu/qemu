@@ -27,6 +27,8 @@
 #include "hw/pci_host.h"
 #include "hw/xics.h"
 
+#define SPAPR_MSIX_MAX_DEVS 32
+
 typedef struct sPAPRPHBState {
     PCIHostState host_state;
 
@@ -36,12 +38,21 @@ typedef struct sPAPRPHBState {
 
     MemoryRegion memspace, iospace;
     target_phys_addr_t mem_win_addr, mem_win_size, io_win_addr, io_win_size;
-    MemoryRegion memwindow, iowindow;
+    target_phys_addr_t msi_win_addr;
+    MemoryRegion memwindow, iowindow, msiwindow;
+
+
     DMAContext *dma;
 
     struct {
         uint32_t irq;
     } lsi_table[PCI_NUM_PINS];
+
+    struct {
+        uint32_t config_addr;
+        uint32_t irq;
+        int nvec;
+    } msi_table[SPAPR_MSIX_MAX_DEVS];
 
     QLIST_ENTRY(sPAPRPHBState) list;
 } sPAPRPHBState;
@@ -57,7 +68,7 @@ static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 void spapr_create_phb(sPAPREnvironment *spapr,
                       const char *busname, uint64_t buid,
                       uint64_t mem_win_addr, uint64_t mem_win_size,
-                      uint64_t io_win_addr);
+                      uint64_t io_win_addr, uint64_t msi_win_addr);
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,

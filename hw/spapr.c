@@ -41,6 +41,7 @@
 #include "hw/spapr_vio.h"
 #include "hw/spapr_pci.h"
 #include "hw/xics.h"
+#include "hw/msi.h"
 
 #include "kvm.h"
 #include "kvm_ppc.h"
@@ -79,6 +80,7 @@
 #define SPAPR_PCI_MEM_WIN_ADDR  (0x10000000000ULL + 0xA0000000)
 #define SPAPR_PCI_MEM_WIN_SIZE  0x20000000
 #define SPAPR_PCI_IO_WIN_ADDR   (0x10000000000ULL + 0x80000000)
+#define SPAPR_PCI_MSI_WIN_ADDR  (0x10000000000ULL + 0x90000000)
 
 #define PHANDLE_XICP            0x00001111
 
@@ -619,6 +621,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long pteg_shift = 17;
     char *filename;
 
+    msi_supported = true;
+
     spapr = g_malloc0(sizeof(*spapr));
     QLIST_INIT(&spapr->phbs);
 
@@ -735,7 +739,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     spapr_create_phb(spapr, "pci", SPAPR_PCI_BUID,
                      SPAPR_PCI_MEM_WIN_ADDR,
                      SPAPR_PCI_MEM_WIN_SIZE,
-                     SPAPR_PCI_IO_WIN_ADDR);
+                     SPAPR_PCI_IO_WIN_ADDR,
+                     SPAPR_PCI_MSI_WIN_ADDR);
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
