@@ -311,17 +311,6 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
     return qemu_popen(popen_file, mode);
 }
 
-int qemu_stdio_fd(QEMUFile *f)
-{
-    QEMUFileStdio *p;
-    int fd;
-
-    p = (QEMUFileStdio *)f->opaque;
-    fd = fileno(p->stdio_file);
-
-    return fd;
-}
-
 static const QEMUFileOps stdio_file_read_ops = {
     .get_fd =     stdio_get_fd,
     .get_buffer = stdio_get_buffer,
