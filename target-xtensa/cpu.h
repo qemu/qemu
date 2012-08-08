@@ -351,6 +351,12 @@ typedef struct CPUXtensaState {
 #define cpu_signal_handler cpu_xtensa_signal_handler
 #define cpu_list xtensa_cpu_list
 
+#ifdef TARGET_WORDS_BIGENDIAN
+#define XTENSA_DEFAULT_CPU_MODEL "fsf"
+#else
+#define XTENSA_DEFAULT_CPU_MODEL "dc232b"
+#endif
+
 XtensaCPU *cpu_xtensa_init(const char *cpu_model);
 
 static inline CPUXtensaState *cpu_init(const char *cpu_model)

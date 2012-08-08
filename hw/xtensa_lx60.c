@@ -173,7 +173,7 @@ static void lx_init(const LxBoardDesc *board,
     int n;
 
     if (!cpu_model) {
-        cpu_model = "dc232b";
+        cpu_model = XTENSA_DEFAULT_CPU_MODEL;
     }
 
     for (n = 0; n < smp_cpus; n++) {
@@ -300,14 +300,14 @@ static void xtensa_lx200_init(ram_addr_t ram_size,
 
 static QEMUMachine xtensa_lx60_machine = {
     .name = "lx60",
-    .desc = "lx60 EVB (dc232b)",
+    .desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")",
     .init = xtensa_lx60_init,
     .max_cpus = 4,
 };
 
 static QEMUMachine xtensa_lx200_machine = {
     .name = "lx200",
-    .desc = "lx200 EVB (dc232b)",
+    .desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")",
     .init = xtensa_lx200_init,
     .max_cpus = 4,
 };

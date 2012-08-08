@@ -102,7 +102,7 @@ static void xtensa_sim_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     if (!cpu_model) {
-        cpu_model = "dc232b";
+        cpu_model = XTENSA_DEFAULT_CPU_MODEL;
     }
     sim_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
             initrd_filename, cpu_model);
@@ -110,7 +110,7 @@ static void xtensa_sim_init(ram_addr_t ram_size,
 
 static QEMUMachine xtensa_sim_machine = {
     .name = "sim",
-    .desc = "sim machine (dc232b)",
+    .desc = "sim machine (" XTENSA_DEFAULT_CPU_MODEL ")",
     .init = xtensa_sim_init,
     .max_cpus = 4,
 };
