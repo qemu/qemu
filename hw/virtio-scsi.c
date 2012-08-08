@@ -305,11 +305,17 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
             goto incorrect_lun;
         }
         QTAILQ_FOREACH_SAFE(r, &d->requests, next, next) {
-            if (r->tag == req->req.tmf->tag) {
+            VirtIOSCSIReq *cmd_req = r->hba_private;
+            if (cmd_req && cmd_req->req.cmd->tag == req->req.tmf->tag) {
                 break;
             }
         }
-        if (r && r->hba_private) {
+        if (r) {
+            /*
+             * Assert that the request has not been completed yet, we
+             * check for it in the loop above.
+             */
+            assert(r->hba_private);
             if (req->req.tmf->subtype == VIRTIO_SCSI_T_TMF_QUERY_TASK) {
                 /* "If the specified command is present in the task set, then
                  * return a service response set to FUNCTION SUCCEEDED".
