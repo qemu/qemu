@@ -234,6 +234,14 @@ static void buffered_rate_tick(void *opaque)
     buffered_put_buffer(s, NULL, 0, 0);
 }
 
+static const QEMUFileOps buffered_file_ops = {
+    .put_buffer =     buffered_put_buffer,
+    .close =          buffered_close,
+    .rate_limit =     buffered_rate_limit,
+    .get_rate_limit = buffered_get_rate_limit,
+    .set_rate_limit = buffered_set_rate_limit,
+};
+
 QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state)
 {
     QEMUFileBuffered *s;
@@ -243,10 +251,7 @@ QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state)
     s->migration_state = migration_state;
     s->xfer_limit = migration_state->bandwidth_limit / 10;
 
-    s->file = qemu_fopen_ops(s, buffered_put_buffer, NULL,
-                             buffered_close, buffered_rate_limit,
-                             buffered_set_rate_limit,
-			     buffered_get_rate_limit);
+    s->file = qemu_fopen_ops(s, &buffered_file_ops);
 
     s->timer = qemu_new_timer_ms(rt_clock, buffered_rate_tick, s);
 

@@ -59,12 +59,16 @@ typedef int (QEMUFileRateLimit)(void *opaque);
 typedef int64_t (QEMUFileSetRateLimit)(void *opaque, int64_t new_rate);
 typedef int64_t (QEMUFileGetRateLimit)(void *opaque);
 
-QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
-                         QEMUFileGetBufferFunc *get_buffer,
-                         QEMUFileCloseFunc *close,
-                         QEMUFileRateLimit *rate_limit,
-                         QEMUFileSetRateLimit *set_rate_limit,
-                         QEMUFileGetRateLimit *get_rate_limit);
+typedef struct QEMUFileOps {
+    QEMUFilePutBufferFunc *put_buffer;
+    QEMUFileGetBufferFunc *get_buffer;
+    QEMUFileCloseFunc *close;
+    QEMUFileRateLimit *rate_limit;
+    QEMUFileSetRateLimit *set_rate_limit;
+    QEMUFileGetRateLimit *get_rate_limit;
+} QEMUFileOps;
+
+QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops);
 QEMUFile *qemu_fopen(const char *filename, const char *mode);
 QEMUFile *qemu_fdopen(int fd, const char *mode);
 QEMUFile *qemu_fopen_socket(int fd);
