@@ -133,7 +133,6 @@ extern const VMStateDescription vmstate_pcie_device;
 
 #define VMSTATE_PCIE_DEVICE(_field, _state) {                        \
     .name       = (stringify(_field)),                               \
-    .version_id = 2,                                                 \
     .size       = sizeof(PCIDevice),                                 \
     .vmsd       = &vmstate_pcie_device,                              \
     .flags      = VMS_STRUCT,                                        \

@@ -439,7 +439,7 @@ const VMStateDescription vmstate_pci_device = {
 };
 
 const VMStateDescription vmstate_pcie_device = {
-    .name = "PCIDevice",
+    .name = "PCIEDevice",
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
