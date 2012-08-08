@@ -111,6 +111,7 @@ static void xtensa_sim_init(ram_addr_t ram_size,
 static QEMUMachine xtensa_sim_machine = {
     .name = "sim",
     .desc = "sim machine (" XTENSA_DEFAULT_CPU_MODEL ")",
+    .is_default = true,
     .init = xtensa_sim_init,
     .max_cpus = 4,
 };
