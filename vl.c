@@ -1298,6 +1298,7 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
+static int wakeup_requested;
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
@@ -1349,6 +1350,13 @@ static int qemu_suspend_requested(void)
 {
     int r = suspend_requested;
     suspend_requested = 0;
+    return r;
+}
+
+static int qemu_wakeup_requested(void)
+{
+    int r = wakeup_requested;
+    wakeup_requested = 0;
     return r;
 }
 
@@ -1459,7 +1467,7 @@ void qemu_system_wakeup_request(WakeupReason reason)
     runstate_set(RUN_STATE_RUNNING);
     monitor_protocol_event(QEVENT_WAKEUP, NULL);
     notifier_list_notify(&wakeup_notifiers, &reason);
-    reset_requested = 1;
+    wakeup_requested = 1;
     qemu_notify_event();
 }
 
@@ -1538,6 +1546,12 @@ static bool main_loop_should_exit(void)
             runstate_check(RUN_STATE_SHUTDOWN)) {
             runstate_set(RUN_STATE_PAUSED);
         }
+    }
+    if (qemu_wakeup_requested()) {
+        pause_all_vcpus();
+        cpu_synchronize_all_states();
+        qemu_system_reset(VMRESET_SILENT);
+        resume_all_vcpus();
     }
     if (qemu_powerdown_requested()) {
         monitor_protocol_event(QEVENT_POWERDOWN, NULL);
