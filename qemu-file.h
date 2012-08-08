@@ -47,6 +47,10 @@ typedef int (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
  */
 typedef int (QEMUFileCloseFunc)(void *opaque);
 
+/* Called to return the OS file descriptor associated to the QEMUFile.
+ */
+typedef int (QEMUFileGetFD)(void *opaque);
+
 /* Called to determine if the file has exceeded its bandwidth allocation.  The
  * bandwidth capping is a soft limit, not a hard limit.
  */
@@ -63,6 +67,7 @@ typedef struct QEMUFileOps {
     QEMUFilePutBufferFunc *put_buffer;
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
+    QEMUFileGetFD *get_fd;
     QEMUFileRateLimit *rate_limit;
     QEMUFileSetRateLimit *set_rate_limit;
     QEMUFileGetRateLimit *get_rate_limit;
@@ -74,6 +79,7 @@ QEMUFile *qemu_fdopen(int fd, const char *mode);
 QEMUFile *qemu_fopen_socket(int fd);
 QEMUFile *qemu_popen(FILE *popen_file, const char *mode);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
+int qemu_get_fd(QEMUFile *f);
 int qemu_stdio_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);

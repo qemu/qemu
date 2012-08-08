@@ -188,6 +188,13 @@ typedef struct QEMUFileSocket
     QEMUFile *file;
 } QEMUFileSocket;
 
+static int socket_get_fd(void *opaque)
+{
+    QEMUFileSocket *s = opaque;
+
+    return s->fd;
+}
+
 static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
 {
     QEMUFileSocket *s = opaque;
@@ -208,6 +215,13 @@ static int socket_close(void *opaque)
     QEMUFileSocket *s = opaque;
     g_free(s);
     return 0;
+}
+
+static int stdio_get_fd(void *opaque)
+{
+    QEMUFileStdio *s = opaque;
+
+    return fileno(s->stdio_file);
 }
 
 static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
@@ -253,11 +267,13 @@ static int stdio_fclose(void *opaque)
 }
 
 static const QEMUFileOps stdio_pipe_read_ops = {
+    .get_fd =     stdio_get_fd,
     .get_buffer = stdio_get_buffer,
     .close =      stdio_pclose
 };
 
 static const QEMUFileOps stdio_pipe_write_ops = {
+    .get_fd =     stdio_get_fd,
     .put_buffer = stdio_put_buffer,
     .close =      stdio_pclose
 };
@@ -307,11 +323,13 @@ int qemu_stdio_fd(QEMUFile *f)
 }
 
 static const QEMUFileOps stdio_file_read_ops = {
+    .get_fd =     stdio_get_fd,
     .get_buffer = stdio_get_buffer,
     .close =      stdio_fclose
 };
 
 static const QEMUFileOps stdio_file_write_ops = {
+    .get_fd =     stdio_get_fd,
     .put_buffer = stdio_put_buffer,
     .close =      stdio_fclose
 };
@@ -345,6 +363,7 @@ fail:
 }
 
 static const QEMUFileOps socket_read_ops = {
+    .get_fd =     socket_get_fd,
     .get_buffer = socket_get_buffer,
     .close =      socket_close
 };
@@ -490,6 +509,14 @@ static void qemu_fill_buffer(QEMUFile *f)
         qemu_file_set_error(f, -EIO);
     } else if (len != -EAGAIN)
         qemu_file_set_error(f, len);
+}
+
+int qemu_get_fd(QEMUFile *f)
+{
+    if (f->ops->get_fd) {
+        return f->ops->get_fd(f->opaque);
+    }
+    return -1;
 }
 
 /** Closes the file
