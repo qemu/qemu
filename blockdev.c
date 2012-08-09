@@ -377,6 +377,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 	}
     }
 
+    bdrv_flags |= BDRV_O_CACHE_WB;
     if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
         if (bdrv_parse_cache_flags(buf, &bdrv_flags) != 0) {
             error_report("invalid cache option");
