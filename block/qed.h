@@ -211,6 +211,11 @@ void *gencb_alloc(size_t len, BlockDriverCompletionFunc *cb, void *opaque);
 void gencb_complete(void *opaque, int ret);
 
 /**
+ * Header functions
+ */
+int qed_write_header_sync(BDRVQEDState *s);
+
+/**
  * L2 cache functions
  */
 void qed_init_l2_cache(L2TableCache *l2_cache);

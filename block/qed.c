@@ -89,7 +89,7 @@ static void qed_header_cpu_to_le(const QEDHeader *cpu, QEDHeader *le)
     le->backing_filename_size = cpu_to_le32(cpu->backing_filename_size);
 }
 
-static int qed_write_header_sync(BDRVQEDState *s)
+int qed_write_header_sync(BDRVQEDState *s)
 {
     QEDHeader le;
     int ret;
@@ -490,13 +490,6 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
             ret = qed_check(s, &result, true);
             if (ret) {
                 goto out;
-            }
-            if (!result.corruptions && !result.check_errors) {
-                /* Ensure fixes reach storage before clearing check bit */
-                bdrv_flush(s->bs);
-
-                s->header.features &= ~QED_F_NEED_CHECK;
-                qed_write_header_sync(s);
             }
         }
     }
