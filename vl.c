@@ -3345,6 +3345,11 @@ int main(int argc, char **argv, char **envp)
         ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
     }
 
+    if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL, 0)
+        != 0) {
+        exit(0);
+    }
+
     configure_accelerator();
 
     qemu_init_cpu_loop();
@@ -3499,9 +3504,6 @@ int main(int argc, char **argv, char **envp)
         vga_model = "cirrus";
     }
     select_vgahw(vga_model);
-
-    if (qemu_opts_foreach(qemu_find_opts("device"), device_help_func, NULL, 0) != 0)
-        exit(0);
 
     if (watchdog) {
         i = select_watchdog(watchdog);
