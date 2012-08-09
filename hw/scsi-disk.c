@@ -1712,7 +1712,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
-        if (r->req.cmd.lba > s->qdev.max_lba) {
+        if (r->req.cmd.lba > r->req.cmd.lba + nb_sectors ||
+            r->req.cmd.lba + nb_sectors - 1 > s->qdev.max_lba) {
             goto illegal_lba;
         }
 
