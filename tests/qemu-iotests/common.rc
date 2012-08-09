@@ -105,16 +105,16 @@ _make_test_img()
 
     # XXX(hch): have global image options?
     $QEMU_IMG create -f $IMGFMT $extra_img_options $TEST_IMG $image_size | \
-    	sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" | \
-    	sed -e "s#$TEST_DIR#TEST_DIR#g" | \
-    	sed -e "s#$IMGFMT#IMGFMT#g" | \
-	sed -e "s# encryption=off##g" | \
-	sed -e "s# cluster_size=[0-9]\\+##g" | \
-	sed -e "s# table_size=[0-9]\\+##g" | \
-	sed -e "s# compat='[^']*'##g" | \
-	sed -e "s# compat6=\\(on\\|off\\)##g" | \
-	sed -e "s# static=\\(on\\|off\\)##g" | \
-	sed -e "s# lazy_refcounts=\\(on\\|off\\)##g"
+        sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
+            -e "s#$TEST_DIR#TEST_DIR#g" \
+            -e "s#$IMGFMT#IMGFMT#g" \
+            -e "s# encryption=off##g" \
+            -e "s# cluster_size=[0-9]\\+##g" \
+            -e "s# table_size=[0-9]\\+##g" \
+            -e "s# compat='[^']*'##g" \
+            -e "s# compat6=\\(on\\|off\\)##g" \
+            -e "s# static=\\(on\\|off\\)##g" \
+            -e "s# lazy_refcounts=\\(on\\|off\\)##g"
 }
 
 _cleanup_test_img()
