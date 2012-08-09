@@ -297,6 +297,20 @@ _supported_os()
     _notrun "not suitable for this OS: $HOSTOS"
 }
 
+_unsupported_qemu_io_options()
+{
+    for bad_opt
+    do
+        for opt in $QEMU_IO_OPTIONS
+        do
+            if [ "$bad_opt" = "$opt" ]
+            then
+                _notrun "not suitable for qemu-io option: $bad_opt"
+            fi
+        done
+    done
+}
+
 # this test requires that a specified command (executable) exists
 #
 _require_command()
