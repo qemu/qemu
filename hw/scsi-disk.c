@@ -637,7 +637,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
         {
             buflen = 8;
             outbuf[4] = 0;
-            outbuf[5] = 0x60; /* write_same 10/16 supported */
+            outbuf[5] = 0xe0; /* unmap & write_same 10/16 all supported */
             outbuf[6] = s->qdev.conf.discard_granularity ? 2 : 1;
             outbuf[7] = 0;
             break;
@@ -1449,6 +1449,89 @@ invalid_field:
     return;
 }
 
+typedef struct UnmapCBData {
+    SCSIDiskReq *r;
+    uint8_t *inbuf;
+    int count;
+} UnmapCBData;
+
+static void scsi_unmap_complete(void *opaque, int ret)
+{
+    UnmapCBData *data = opaque;
+    SCSIDiskReq *r = data->r;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+    uint64_t sector_num;
+    uint32 nb_sectors;
+
+    r->req.aiocb = NULL;
+    if (ret < 0) {
+        if (scsi_handle_rw_error(r, -ret)) {
+            goto done;
+        }
+    }
+
+    if (data->count > 0 && !r->req.io_canceled) {
+        sector_num = ldq_be_p(&data->inbuf[0]);
+        nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
+        if (sector_num > sector_num + nb_sectors ||
+            sector_num + nb_sectors - 1 > s->qdev.max_lba) {
+            scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
+            goto done;
+        }
+
+        r->req.aiocb = bdrv_aio_discard(s->qdev.conf.bs,
+                                        sector_num * (s->qdev.blocksize / 512),
+                                        nb_sectors * (s->qdev.blocksize / 512),
+                                        scsi_unmap_complete, data);
+        data->count--;
+        data->inbuf += 16;
+        return;
+    }
+
+done:
+    if (data->count == 0) {
+        scsi_req_complete(&r->req, GOOD);
+    }
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
+    g_free(data);
+}
+
+static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
+{
+    uint8_t *p = inbuf;
+    int len = r->req.cmd.xfer;
+    UnmapCBData *data;
+
+    if (len < 8) {
+        goto invalid_param_len;
+    }
+    if (len < lduw_be_p(&p[0]) + 2) {
+        goto invalid_param_len;
+    }
+    if (len < lduw_be_p(&p[2]) + 8) {
+        goto invalid_param_len;
+    }
+    if (lduw_be_p(&p[2]) & 15) {
+        goto invalid_param_len;
+    }
+
+    data = g_new0(UnmapCBData, 1);
+    data->r = r;
+    data->inbuf = &p[8];
+    data->count = lduw_be_p(&p[2]) >> 4;
+
+    /* The matching unref is in scsi_unmap_complete, before data is freed.  */
+    scsi_req_ref(&r->req);
+    scsi_unmap_complete(data, 0);
+    return;
+
+invalid_param_len:
+    scsi_check_condition(r, SENSE_CODE(INVALID_PARAM_LEN));
+    return;
+}
+
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -1466,6 +1549,10 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
     case MODE_SELECT_10:
         /* This also clears the sense buffer for REQUEST SENSE.  */
         scsi_disk_emulate_mode_select(r, r->iov.iov_base);
+        break;
+
+    case UNMAP:
+        scsi_disk_emulate_unmap(r, r->iov.iov_base);
         break;
 
     default:
@@ -1701,6 +1788,9 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     case MODE_SELECT_10:
         DPRINTF("Mode Select(10) (len %lu)\n", (long)r->req.cmd.xfer);
+        break;
+    case UNMAP:
+        DPRINTF("Unmap (len %lu)\n", (long)r->req.cmd.xfer);
         break;
     case WRITE_SAME_10:
         nb_sectors = lduw_be_p(&req->cmd.buf[7]);
@@ -2067,6 +2157,7 @@ static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
     [SEEK_10]                         = &scsi_disk_emulate_reqops,
     [MODE_SELECT]                     = &scsi_disk_emulate_reqops,
     [MODE_SELECT_10]                  = &scsi_disk_emulate_reqops,
+    [UNMAP]                           = &scsi_disk_emulate_reqops,
     [WRITE_SAME_10]                   = &scsi_disk_emulate_reqops,
     [WRITE_SAME_16]                   = &scsi_disk_emulate_reqops,
 
