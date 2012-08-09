@@ -270,6 +270,20 @@ static int qcow2_mark_clean(BlockDriverState *bs)
     return 0;
 }
 
+static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
+                       BdrvCheckMode fix)
+{
+    int ret = qcow2_check_refcounts(bs, result, fix);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (fix && result->check_errors == 0 && result->corruptions == 0) {
+        return qcow2_mark_clean(bs);
+    }
+    return ret;
+}
+
 static int qcow2_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
@@ -474,12 +488,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         !bs->read_only) {
         BdrvCheckResult result = {0};
 
-        ret = qcow2_check_refcounts(bs, &result, BDRV_FIX_ERRORS);
-        if (ret < 0) {
-            goto fail;
-        }
-
-        ret = qcow2_mark_clean(bs);
+        ret = qcow2_check(bs, &result, BDRV_FIX_ERRORS);
         if (ret < 0) {
             goto fail;
         }
@@ -1566,13 +1575,6 @@ static int qcow2_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
     bdi->cluster_size = s->cluster_size;
     bdi->vm_state_offset = qcow2_vm_state_offset(s);
     return 0;
-}
-
-
-static int qcow2_check(BlockDriverState *bs, BdrvCheckResult *result,
-                       BdrvCheckMode fix)
-{
-    return qcow2_check_refcounts(bs, result, fix);
 }
 
 #if 0
