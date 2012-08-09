@@ -477,7 +477,7 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
     }
 
     /* If image was not closed cleanly, check consistency */
-    if (s->header.features & QED_F_NEED_CHECK) {
+    if (!(flags & BDRV_O_CHECK) && (s->header.features & QED_F_NEED_CHECK)) {
         /* Read-only images cannot be fixed.  There is no risk of corruption
          * since write operations are not possible.  Therefore, allow
          * potentially inconsistent images to be opened read-only.  This can

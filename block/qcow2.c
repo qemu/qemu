@@ -484,8 +484,8 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     qemu_co_mutex_init(&s->lock);
 
     /* Repair image if dirty */
-    if ((s->incompatible_features & QCOW2_INCOMPAT_DIRTY) &&
-        !bs->read_only) {
+    if (!(flags & BDRV_O_CHECK) && !bs->read_only &&
+        (s->incompatible_features & QCOW2_INCOMPAT_DIRTY)) {
         BdrvCheckResult result = {0};
 
         ret = qcow2_check(bs, &result, BDRV_FIX_ERRORS);
