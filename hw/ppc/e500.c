@@ -68,18 +68,18 @@ static void pci_map_create(void *fdt, uint32_t *pci_map, uint32_t mpic)
     int i;
     const uint32_t tmp[] = {
                              /* IDSEL 0x11 J17 Slot 1 */
-                             0x8800, 0x0, 0x0, 0x1, mpic, 0x2, 0x1, 0x0, 0x0,
-                             0x8800, 0x0, 0x0, 0x2, mpic, 0x3, 0x1, 0x0, 0x0,
-                             0x8800, 0x0, 0x0, 0x3, mpic, 0x4, 0x1, 0x0, 0x0,
-                             0x8800, 0x0, 0x0, 0x4, mpic, 0x1, 0x1, 0x0, 0x0,
+                             0x8800, 0x0, 0x0, 0x1, mpic, 0x2, 0x1,
+                             0x8800, 0x0, 0x0, 0x2, mpic, 0x3, 0x1,
+                             0x8800, 0x0, 0x0, 0x3, mpic, 0x4, 0x1,
+                             0x8800, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
 
                              /* IDSEL 0x12 J16 Slot 2 */
-                             0x9000, 0x0, 0x0, 0x1, mpic, 0x3, 0x1, 0x0, 0x0,
-                             0x9000, 0x0, 0x0, 0x2, mpic, 0x4, 0x1, 0x0, 0x0,
-                             0x9000, 0x0, 0x0, 0x3, mpic, 0x2, 0x1, 0x0, 0x0,
-                             0x9000, 0x0, 0x0, 0x4, mpic, 0x1, 0x1, 0x0, 0x0,
+                             0x9000, 0x0, 0x0, 0x1, mpic, 0x3, 0x1,
+                             0x9000, 0x0, 0x0, 0x2, mpic, 0x4, 0x1,
+                             0x9000, 0x0, 0x0, 0x3, mpic, 0x2, 0x1,
+                             0x9000, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
                            };
-    for (i = 0; i < ARRAY_SIZE(tmp); i++) {
+    for (i = 0; i < (7 * 8); i++) {
         pci_map[i] = cpu_to_be32(tmp[i]);
     }
 }
@@ -97,7 +97,7 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     qemu_devtree_setprop_cells(fdt, ser, "reg", offset, 0x100);
     qemu_devtree_setprop_cell(fdt, ser, "cell-index", idx);
     qemu_devtree_setprop_cell(fdt, ser, "clock-frequency", 0);
-    qemu_devtree_setprop_cells(fdt, ser, "interrupts", 42, 2, 0, 0);
+    qemu_devtree_setprop_cells(fdt, ser, "interrupts", 42, 2);
     qemu_devtree_setprop_phandle(fdt, ser, "interrupt-parent", mpic);
     qemu_devtree_setprop_string(fdt, "/aliases", alias, ser);
 
@@ -127,7 +127,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     uint32_t mpic_ph;
     char gutil[128];
     char pci[128];
-    uint32_t pci_map[9 * 8];
+    uint32_t pci_map[7 * 8];
     uint32_t pci_ranges[14] =
         {
             0x2000000, 0x0, 0xc0000000,
@@ -274,18 +274,15 @@ static int ppce500_load_device_tree(CPUPPCState *env,
              MPC8544_MPIC_REGS_BASE - MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, mpic);
     qemu_devtree_setprop_string(fdt, mpic, "device_type", "open-pic");
-    qemu_devtree_setprop_string(fdt, mpic, "compatible", "fsl,mpic");
+    qemu_devtree_setprop_string(fdt, mpic, "compatible", "chrp,open-pic");
     qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_BASE -
                                MPC8544_CCSRBAR_BASE, 0x40000);
     qemu_devtree_setprop_cell(fdt, mpic, "#address-cells", 0);
-    qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 4);
+    qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 2);
     mpic_ph = qemu_devtree_alloc_phandle(fdt);
     qemu_devtree_setprop_cell(fdt, mpic, "phandle", mpic_ph);
     qemu_devtree_setprop_cell(fdt, mpic, "linux,phandle", mpic_ph);
     qemu_devtree_setprop(fdt, mpic, "interrupt-controller", NULL, 0);
-    qemu_devtree_setprop(fdt, mpic, "big-endian", NULL, 0);
-    qemu_devtree_setprop(fdt, mpic, "single-cpu-affinity", NULL, 0);
-    qemu_devtree_setprop_cell(fdt, mpic, "last-interrupt-source", 255);
 
     /*
      * We have to generate ser1 first, because Linux takes the first
@@ -315,7 +312,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     pci_map_create(fdt, pci_map, qemu_devtree_get_phandle(fdt, mpic));
     qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, sizeof(pci_map));
     qemu_devtree_setprop_phandle(fdt, pci, "interrupt-parent", mpic);
-    qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2, 0, 0);
+    qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2);
     qemu_devtree_setprop_cells(fdt, pci, "bus-range", 0, 255);
     for (i = 0; i < 14; i++) {
         pci_ranges[i] = cpu_to_be32(pci_ranges[i]);
