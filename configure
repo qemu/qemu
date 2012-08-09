@@ -2256,7 +2256,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { return preadv == preadv; }
+int main(void) { return preadv(0, 0, 0, 0); }
 EOF
 preadv=no
 if compile_prog "" "" ; then
@@ -2552,7 +2552,7 @@ int main(void)
      * warning but not an error, and will proceed to fail the
      * qemu compile where we compile with -Werror.)
      */
-    return epoll_create1 == epoll_create1;
+    return (int)(uintptr_t)&epoll_create1;
 }
 EOF
 if compile_prog "" "" ; then
@@ -2945,7 +2945,7 @@ has_environ=no
 cat > $TMPC << EOF
 #include <unistd.h>
 int main(void) {
-    environ = environ;
+    environ = 0;
     return 0;
 }
 EOF
