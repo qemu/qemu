@@ -543,6 +543,19 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     return features;
 }
 
+static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
+{
+    VirtIOBlock *s = to_virtio_blk(vdev);
+    uint32_t features;
+
+    if (!(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        return;
+    }
+
+    features = vdev->guest_features;
+    bdrv_set_enable_write_cache(s->bs, !!(features & (1 << VIRTIO_BLK_F_WCE)));
+}
+
 static void virtio_blk_save(QEMUFile *f, void *opaque)
 {
     VirtIOBlock *s = opaque;
@@ -623,6 +636,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
     s->vdev.get_config = virtio_blk_update_config;
     s->vdev.set_config = virtio_blk_set_config;
     s->vdev.get_features = virtio_blk_get_features;
+    s->vdev.set_status = virtio_blk_set_status;
     s->vdev.reset = virtio_blk_reset;
     s->bs = blk->conf.bs;
     s->conf = &blk->conf;
