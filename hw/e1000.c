@@ -295,6 +295,7 @@ set_rx_control(E1000State *s, int index, uint32_t val)
     s->rxbuf_min_shift = ((val / E1000_RCTL_RDMTS_QUAT) & 3) + 1;
     DBGOUT(RX, "RCTL: %d, mac_reg[RCTL] = 0x%x\n", s->mac_reg[RDT],
            s->mac_reg[RCTL]);
+    qemu_flush_queued_packets(&s->nic->nc);
 }
 
 static void
@@ -926,6 +927,9 @@ set_rdt(E1000State *s, int index, uint32_t val)
 {
     s->check_rxov = 0;
     s->mac_reg[index] = val & 0xffff;
+    if (e1000_has_rxbufs(s, 1)) {
+        qemu_flush_queued_packets(&s->nic->nc);
+    }
 }
 
 static void
