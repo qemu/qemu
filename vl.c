@@ -1465,7 +1465,6 @@ void qemu_system_wakeup_request(WakeupReason reason)
         return;
     }
     runstate_set(RUN_STATE_RUNNING);
-    monitor_protocol_event(QEVENT_WAKEUP, NULL);
     notifier_list_notify(&wakeup_notifiers, &reason);
     wakeup_requested = 1;
     qemu_notify_event();
@@ -1552,6 +1551,7 @@ static bool main_loop_should_exit(void)
         cpu_synchronize_all_states();
         qemu_system_reset(VMRESET_SILENT);
         resume_all_vcpus();
+        monitor_protocol_event(QEVENT_WAKEUP, NULL);
     }
     if (qemu_powerdown_requested()) {
         monitor_protocol_event(QEVENT_POWERDOWN, NULL);
