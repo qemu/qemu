@@ -1045,6 +1045,7 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
 
     /* Note request is (bRequestType << 8) | bRequest */
     trace_usb_host_req_control(s->bus_num, s->addr, p, request, value, index);
+    assert(p->result == 0);
 
     switch (request) {
     case DeviceOutRequest | USB_REQ_SET_ADDRESS:
