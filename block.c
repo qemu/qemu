@@ -897,9 +897,9 @@ void bdrv_close(BlockDriverState *bs)
             bdrv_delete(bs->file);
             bs->file = NULL;
         }
-
-        bdrv_dev_change_media_cb(bs, false);
     }
+
+    bdrv_dev_change_media_cb(bs, false);
 
     /*throttling disk I/O limits*/
     if (bs->io_limits_enabled) {
