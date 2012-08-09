@@ -31,8 +31,9 @@
 #define VIRTIO_BLK_F_BLK_SIZE   6       /* Block size of disk is available*/
 #define VIRTIO_BLK_F_SCSI       7       /* Supports scsi command passthru */
 /* #define VIRTIO_BLK_F_IDENTIFY   8       ATA IDENTIFY supported, DEPRECATED */
-#define VIRTIO_BLK_F_WCACHE     9       /* write cache enabled */
+#define VIRTIO_BLK_F_WCE        9       /* write cache enabled */
 #define VIRTIO_BLK_F_TOPOLOGY   10      /* Topology information is available */
+#define VIRTIO_BLK_F_CONFIG_WCE 11      /* write cache configurable */
 
 #define VIRTIO_BLK_ID_BYTES     20      /* ID string length */
 
@@ -49,6 +50,7 @@ struct virtio_blk_config
     uint8_t alignment_offset;
     uint16_t min_io_size;
     uint32_t opt_io_size;
+    uint8_t wce;
 } QEMU_PACKED;
 
 /* These two define direction. */

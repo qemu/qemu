@@ -510,7 +510,17 @@ static void virtio_blk_update_config(VirtIODevice *vdev, uint8_t *config)
     blkcfg.size_max = 0;
     blkcfg.physical_block_exp = get_physical_block_exp(s->conf);
     blkcfg.alignment_offset = 0;
+    blkcfg.wce = bdrv_enable_write_cache(s->bs);
     memcpy(config, &blkcfg, sizeof(struct virtio_blk_config));
+}
+
+static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
+{
+    VirtIOBlock *s = to_virtio_blk(vdev);
+    struct virtio_blk_config blkcfg;
+
+    memcpy(&blkcfg, config, sizeof(blkcfg));
+    bdrv_set_enable_write_cache(s->bs, blkcfg.wce != 0);
 }
 
 static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
@@ -523,9 +533,10 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     features |= (1 << VIRTIO_BLK_F_BLK_SIZE);
     features |= (1 << VIRTIO_BLK_F_SCSI);
 
+    features |= (1 << VIRTIO_BLK_F_CONFIG_WCE);
     if (bdrv_enable_write_cache(s->bs))
-        features |= (1 << VIRTIO_BLK_F_WCACHE);
-    
+        features |= (1 << VIRTIO_BLK_F_WCE);
+
     if (bdrv_is_read_only(s->bs))
         features |= 1 << VIRTIO_BLK_F_RO;
 
@@ -610,6 +621,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, VirtIOBlkConf *blk)
                                           sizeof(VirtIOBlock));
 
     s->vdev.get_config = virtio_blk_update_config;
+    s->vdev.set_config = virtio_blk_set_config;
     s->vdev.get_features = virtio_blk_get_features;
     s->vdev.reset = virtio_blk_reset;
     s->bs = blk->conf.bs;
