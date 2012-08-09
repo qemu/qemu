@@ -175,6 +175,8 @@ static void scsi_aio_complete(void *opaque, int ret)
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
+    assert(r->req.aiocb != NULL);
+    r->req.aiocb = NULL;
     bdrv_acct_done(s->qdev.conf.bs, &r->acct);
 
     if (ret < 0) {
@@ -238,10 +240,9 @@ static void scsi_dma_complete(void *opaque, int ret)
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
 
-    if (r->req.aiocb != NULL) {
-        r->req.aiocb = NULL;
-        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
-    }
+    assert(r->req.aiocb != NULL);
+    r->req.aiocb = NULL;
+    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
@@ -270,10 +271,9 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     int n;
 
-    if (r->req.aiocb != NULL) {
-        r->req.aiocb = NULL;
-        bdrv_acct_done(s->qdev.conf.bs, &r->acct);
-    }
+    assert(r->req.aiocb != NULL);
+    r->req.aiocb = NULL;
+    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret)) {
