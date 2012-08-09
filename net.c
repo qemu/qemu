@@ -357,7 +357,12 @@ void qemu_flush_queued_packets(NetClientState *nc)
 {
     nc->receive_disabled = 0;
 
-    qemu_net_queue_flush(nc->send_queue);
+    if (qemu_net_queue_flush(nc->send_queue)) {
+        /* We emptied the queue successfully, signal to the IO thread to repoll
+         * the file descriptor (for tap, for example).
+         */
+        qemu_notify_event();
+    }
 }
 
 static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
