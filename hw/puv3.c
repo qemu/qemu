@@ -119,6 +119,7 @@ static QEMUMachine puv3_machine = {
     .name = "puv3",
     .desc = "PKUnity Version-3 based on UniCore32",
     .init = puv3_init,
+    .is_default = 1,
     .use_scsi = 0,
 };
 
