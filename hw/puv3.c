@@ -49,6 +49,7 @@ static void puv3_soc_init(CPUUniCore32State *env)
 
     /* Initialize minimal necessary devices for kernel booting */
     sysbus_create_simple("puv3_pm", PUV3_PM_BASE, NULL);
+    sysbus_create_simple("puv3_dma", PUV3_DMA_BASE, NULL);
     sysbus_create_simple("puv3_ost", PUV3_OST_BASE, irqs[PUV3_IRQS_OST0]);
     sysbus_create_varargs("puv3_gpio", PUV3_GPIO_BASE,
             irqs[PUV3_IRQS_GPIOLOW0], irqs[PUV3_IRQS_GPIOLOW1],
