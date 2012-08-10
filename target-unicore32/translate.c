@@ -2138,7 +2138,7 @@ static const char *cpu_mode_names[16] = {
     "UM18", "UM19", "UM1A", "EXTN", "UM1C", "UM1D", "UM1E", "SUSR"
 };
 
-#define UCF64_DUMP_STATE
+#undef UCF64_DUMP_STATE
 #ifdef UCF64_DUMP_STATE
 static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
         fprintf_function cpu_fprintf, int flags)
