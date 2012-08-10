@@ -2963,11 +2963,12 @@ if compile_prog "-Werror" "" ; then
 fi
 
 ########################################
-# check if we have valgrind/valgrind.h
+# check if we have valgrind/valgrind.h and valgrind/memcheck.h
 
 valgrind_h=no
 cat > $TMPC << EOF
 #include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
 int main(void) {
   return 0;
 }
