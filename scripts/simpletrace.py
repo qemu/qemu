@@ -71,7 +71,7 @@ def read_trace_file(edict, fobj):
 
     log_version = header[2]
     if log_version == 0:
-        raise ValueError('Older log format, not supported with this Qemu release!')
+        raise ValueError('Older log format, not supported with this QEMU release!')
 
     while True:
         rec = read_record(edict, fobj)
