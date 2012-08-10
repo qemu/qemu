@@ -562,7 +562,7 @@ static int xen_pt_exp_rom_bar_reg_write(XenPCIPassthroughState *s,
     return 0;
 }
 
-/* Header Type0 reg static infomation table */
+/* Header Type0 reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_header0[] = {
     /* Vendor ID reg */
     {
@@ -753,7 +753,7 @@ static XenPTRegInfo xen_pt_emu_reg_header0[] = {
  * Vital Product Data Capability
  */
 
-/* Vital Product Data Capability Structure reg static infomation table */
+/* Vital Product Data Capability Structure reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_vpd[] = {
     {
         .offset     = PCI_CAP_LIST_NEXT,
@@ -775,7 +775,7 @@ static XenPTRegInfo xen_pt_emu_reg_vpd[] = {
  * Vendor Specific Capability
  */
 
-/* Vendor Specific Capability Structure reg static infomation table */
+/* Vendor Specific Capability Structure reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_vendor[] = {
     {
         .offset     = PCI_CAP_LIST_NEXT,
@@ -866,7 +866,7 @@ static int xen_pt_linkctrl2_reg_init(XenPCIPassthroughState *s,
     return 0;
 }
 
-/* PCI Express Capability Structure reg static infomation table */
+/* PCI Express Capability Structure reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
     /* Next Pointer reg */
     {
@@ -981,7 +981,7 @@ static int xen_pt_pmcsr_reg_write(XenPCIPassthroughState *s,
     return 0;
 }
 
-/* Power Management Capability reg static infomation table */
+/* Power Management Capability reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_pm[] = {
     /* Next Pointer reg */
     {
@@ -1259,7 +1259,7 @@ static int xen_pt_msgdata_reg_write(XenPCIPassthroughState *s,
     return 0;
 }
 
-/* MSI Capability Structure reg static infomation table */
+/* MSI Capability Structure reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_msi[] = {
     /* Next Pointer reg */
     {
@@ -1396,7 +1396,7 @@ static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
     return 0;
 }
 
-/* MSI-X Capability Structure reg static infomation table */
+/* MSI-X Capability Structure reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_msix[] = {
     /* Next Pointer reg */
     {

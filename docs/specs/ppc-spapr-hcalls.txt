@@ -31,7 +31,7 @@ Arguments:
 
 Returns:
 
-  H_SUCCESS   : Successully called the RTAS function (RTAS result
+  H_SUCCESS   : Successfully called the RTAS function (RTAS result
                 will have been stored in the parameter block)
   H_PARAMETER : Unknown token
 
