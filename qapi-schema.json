@@ -2222,3 +2222,26 @@
 # Since: 1.2.0
 ##
 { 'command': 'query-machines', 'returns': ['MachineInfo'] }
+
+##
+# @CpuDefinitionInfo:
+#
+# Virtual CPU definition.
+#
+# @name: the name of the CPU definition
+#
+# Since: 1.2.0
+##
+{ 'type': 'CpuDefinitionInfo',
+  'data': { 'name': 'str' } }
+
+##
+# @query-cpu-definitions:
+#
+# Return a list of supported virtual CPU definitions
+#
+# Returns: a list of CpuDefInfo
+#
+# Since: 1.2.0
+##
+{ 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }
