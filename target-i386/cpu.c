@@ -28,6 +28,7 @@
 #include "qemu-config.h"
 
 #include "qapi/qapi-visit-core.h"
+#include "qmp-commands.h"
 
 #include "hyperv.h"
 
@@ -1123,6 +1124,27 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
     if (kvm_enabled()) {
         (*cpu_fprintf)(f, "x86 %16s\n", "[host]");
     }
+}
+
+CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+{
+    CpuDefinitionInfoList *cpu_list = NULL;
+    x86_def_t *def;
+
+    for (def = x86_defs; def; def = def->next) {
+        CpuDefinitionInfoList *entry;
+        CpuDefinitionInfo *info;
+
+        info = g_malloc0(sizeof(*info));
+        info->name = g_strdup(def->name);
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = cpu_list;
+        cpu_list = entry;
+    }
+
+    return cpu_list;
 }
 
 int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
