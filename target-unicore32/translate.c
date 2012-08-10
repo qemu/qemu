@@ -2139,11 +2139,11 @@ static const char *cpu_mode_names[16] = {
 };
 
 #define UCF64_DUMP_STATE
-void cpu_dump_state(CPUUniCore32State *env, FILE *f, fprintf_function cpu_fprintf,
-        int flags)
+#ifdef UCF64_DUMP_STATE
+static void cpu_dump_state_ucf64(CPUUniCore32State *env, FILE *f,
+        fprintf_function cpu_fprintf, int flags)
 {
     int i;
-#ifdef UCF64_DUMP_STATE
     union {
         uint32_t i;
         float s;
@@ -2155,7 +2155,28 @@ void cpu_dump_state(CPUUniCore32State *env, FILE *f, fprintf_function cpu_fprint
         float64 f64;
         double d;
     } d0;
+
+    for (i = 0; i < 16; i++) {
+        d.d = env->ucf64.regs[i];
+        s0.i = d.l.lower;
+        s1.i = d.l.upper;
+        d0.f64 = d.d;
+        cpu_fprintf(f, "s%02d=%08x(%8g) s%02d=%08x(%8g)",
+                    i * 2, (int)s0.i, s0.s,
+                    i * 2 + 1, (int)s1.i, s1.s);
+        cpu_fprintf(f, " d%02d=%" PRIx64 "(%8g)\n",
+                    i, (uint64_t)d0.f64, d0.d);
+    }
+    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->ucf64.xregs[UC32_UCF64_FPSCR]);
+}
+#else
+#define cpu_dump_state_ucf64(env, file, pr, flags)      do { } while (0)
 #endif
+
+void cpu_dump_state(CPUUniCore32State *env, FILE *f,
+        fprintf_function cpu_fprintf, int flags)
+{
+    int i;
     uint32_t psr;
 
     for (i = 0; i < 32; i++) {
@@ -2175,19 +2196,7 @@ void cpu_dump_state(CPUUniCore32State *env, FILE *f, fprintf_function cpu_fprint
                 psr & (1 << 28) ? 'V' : '-',
                 cpu_mode_names[psr & 0xf]);
 
-#ifdef UCF64_DUMP_STATE
-    for (i = 0; i < 16; i++) {
-        d.d = env->ucf64.regs[i];
-        s0.i = d.l.lower;
-        s1.i = d.l.upper;
-        d0.f64 = d.d;
-        cpu_fprintf(f, "s%02d=%08x(%8g) s%02d=%08x(%8g) d%02d=%" PRIx64 "(%8g)\n",
-                    i * 2, (int)s0.i, s0.s,
-                    i * 2 + 1, (int)s1.i, s1.s,
-                    i, (uint64_t)d0.f64, d0.d);
-    }
-    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->ucf64.xregs[UC32_UCF64_FPSCR]);
-#endif
+    cpu_dump_state_ucf64(env, f, cpu_fprintf, flags);
 }
 
 void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
