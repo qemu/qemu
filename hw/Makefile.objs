@@ -70,6 +70,7 @@ hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
 hw-obj-$(CONFIG_PUV3) += puv3_intc.o
 hw-obj-$(CONFIG_PUV3) += puv3_ost.o
 hw-obj-$(CONFIG_PUV3) += puv3_gpio.o
+hw-obj-$(CONFIG_PUV3) += puv3_pm.o
 
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
