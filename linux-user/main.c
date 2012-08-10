@@ -958,7 +958,8 @@ void cpu_loop(CPUUniCore32State *env)
                 }
             }
             break;
-        case UC32_EXCP_TRAP:
+        case UC32_EXCP_DTRAP:
+        case UC32_EXCP_ITRAP:
             info.si_signo = SIGSEGV;
             info.si_errno = 0;
             /* XXX: check env->error_code */
