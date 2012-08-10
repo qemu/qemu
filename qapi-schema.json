@@ -1377,9 +1377,7 @@
 #        4) A link type in the form 'link<subtype>' where subtype is a qdev
 #           device type name.  Link properties form the device model graph.
 #
-# Since: 1.1
-#
-# Notes: This type is experimental.  Its syntax may change in future releases.
+# Since: 1.2
 ##
 { 'type': 'ObjectPropertyInfo',
   'data': { 'name': 'str', 'type': 'str' } }
@@ -1396,10 +1394,7 @@
 # Returns: a list of @ObjectPropertyInfo that describe the properties of the
 #          object.
 #
-# Since: 1.1
-#
-# Notes: This command is experimental.  It's syntax may change in future
-#        releases.
+# Since: 1.2
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
@@ -1435,9 +1430,7 @@
 #          returns as #str pathnames.  All integer property types (u8, u16, etc)
 #          are returned as #int.
 #
-# Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
+# Since: 1.2
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
@@ -1456,9 +1449,7 @@
 # @value: a value who's type is appropriate for the property type.  See @qom-get
 #         for a description of type mapping.
 #
-# Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
+# Since: 1.2
 ##
 { 'command': 'qom-set',
   'data': { 'path': 'str', 'property': 'str', 'value': 'visitor' },
@@ -1717,8 +1708,6 @@
 # Returns: a list of @ObjectTypeInfo or an empty list if no results are found
 #
 # Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
 ##
 { 'command': 'qom-list-types',
   'data': { '*implements': 'str', '*abstract': 'bool' },
