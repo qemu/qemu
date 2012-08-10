@@ -46,6 +46,9 @@ static void puv3_soc_init(CPUUniCore32State *env)
     for (i = 0; i < PUV3_IRQS_NR; i++) {
         irqs[i] = qdev_get_gpio_in(dev, i);
     }
+
+    /* Initialize minimal necessary devices for kernel booting */
+    sysbus_create_simple("puv3_ost", PUV3_OST_BASE, irqs[PUV3_IRQS_OST0]);
 }
 
 static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)

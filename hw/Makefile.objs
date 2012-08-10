@@ -68,6 +68,7 @@ hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
 
 # PKUnity SoC devices
 hw-obj-$(CONFIG_PUV3) += puv3_intc.o
+hw-obj-$(CONFIG_PUV3) += puv3_ost.o
 
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
