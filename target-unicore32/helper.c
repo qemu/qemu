@@ -13,6 +13,7 @@
 #include "gdbstub.h"
 #include "helper.h"
 #include "host-utils.h"
+#include "console.h"
 
 #undef DEBUG_UC32
 
@@ -186,10 +187,50 @@ uint32_t helper_cp0_get(CPUUniCore32State *env, uint32_t creg, uint32_t cop)
     return 0;
 }
 
+#ifdef CONFIG_CURSES
+/*
+ * FIXME:
+ *     1. curses windows will be blank when switching back
+ *     2. backspace is not handled yet
+ */
+static void putc_on_screen(unsigned char ch)
+{
+    static WINDOW *localwin;
+    static int init;
+
+    if (!init) {
+        /* Assume 80 * 30 screen to minimize the implementation */
+        localwin = newwin(30, 80, 0, 0);
+        scrollok(localwin, TRUE);
+        init = TRUE;
+    }
+
+    if (isprint(ch)) {
+        wprintw(localwin, "%c", ch);
+    } else {
+        switch (ch) {
+        case '\n':
+            wprintw(localwin, "%c", ch);
+            break;
+        case '\r':
+            /* If '\r' is put before '\n', the curses window will destroy the
+             * last print line. And meanwhile, '\n' implifies '\r' inside. */
+            break;
+        default: /* Not handled, so just print it hex code */
+            wprintw(localwin, "-- 0x%x --", ch);
+        }
+    }
+
+    wrefresh(localwin);
+}
+#else
+#define putc_on_screen(c)               do { } while (0)
+#endif
+
 void helper_cp1_putc(target_ulong x)
 {
-    /* TODO: curses display should be added here for screen output. */
-    DPRINTF("%c", x);
+    putc_on_screen((unsigned char)x);   /* Output to screen */
+    DPRINTF("%c", x);                   /* Output to stdout */
 }
 #endif
 
