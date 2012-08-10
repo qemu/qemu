@@ -267,6 +267,26 @@ uint32_t HELPER(ror_cc)(uint32_t x, uint32_t i)
 void tlb_fill(CPUUniCore32State *env1, target_ulong addr, int is_write,
         int mmu_idx, uintptr_t retaddr)
 {
-    cpu_abort(env, "%s not supported yet\n", __func__);
+    TranslationBlock *tb;
+    CPUUniCore32State *saved_env;
+    unsigned long pc;
+    int ret;
+
+    saved_env = env;
+    env = env1;
+    ret = uc32_cpu_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    if (unlikely(ret)) {
+        if (retaddr) {
+            /* now we have a real cpu fault */
+            pc = (unsigned long)retaddr;
+            tb = tb_find_pc(pc);
+            if (tb) {/* the PC is inside the translated code.
+                        It means that we have a virtual CPU fault */
+                cpu_restore_state(tb, env, pc);
+            }
+        }
+        cpu_loop_exit(env);
+    }
+    env = saved_env;
 }
 #endif
