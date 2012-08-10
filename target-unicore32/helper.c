@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 GUAN Xue-tao
+ * Copyright (C) 2010-2012 Guan Xuetao
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -45,18 +45,26 @@ uint32_t HELPER(clz)(uint32_t x)
     return clz32(x);
 }
 
-void do_interrupt(CPUUniCore32State *env)
+#ifdef CONFIG_USER_ONLY
+void switch_mode(CPUUniCore32State *env, int mode)
 {
-    env->exception_index = -1;
+    if (mode != ASR_MODE_USER) {
+        cpu_abort(env, "Tried to switch out of user mode\n");
+    }
 }
 
-int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address, int rw,
-                              int mmu_idx)
+void do_interrupt(CPUUniCore32State *env)
 {
-    env->exception_index = UC32_EXCP_TRAP;
-    env->cp0.c4_faultaddr = address;
+    cpu_abort(env, "NO interrupt in user mode\n");
+}
+
+int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address,
+                              int access_type, int mmu_idx)
+{
+    cpu_abort(env, "NO mmu fault in user mode\n");
     return 1;
 }
+#endif
 
 /* These should probably raise undefined insn exceptions.  */
 void HELPER(set_cp)(CPUUniCore32State *env, uint32_t insn, uint32_t val)
@@ -82,13 +90,6 @@ uint32_t HELPER(get_cp0)(CPUUniCore32State *env, uint32_t insn)
 {
     cpu_abort(env, "cp0 insn %08x\n", insn);
     return 0;
-}
-
-void switch_mode(CPUUniCore32State *env, int mode)
-{
-    if (mode != ASR_MODE_USER) {
-        cpu_abort(env, "Tried to switch out of user mode\n");
-    }
 }
 
 void HELPER(set_r29_banked)(CPUUniCore32State *env, uint32_t mode, uint32_t val)
