@@ -38,6 +38,7 @@ static void puv3_soc_init(CPUUniCore32State *env)
 {
     qemu_irq *cpu_intc, irqs[PUV3_IRQS_NR];
     DeviceState *dev;
+    MemoryRegion *i8042 = g_new(MemoryRegion, 1);
     int i;
 
     /* Initialize interrupt controller */
@@ -57,6 +58,10 @@ static void puv3_soc_init(CPUUniCore32State *env)
             irqs[PUV3_IRQS_GPIOLOW4], irqs[PUV3_IRQS_GPIOLOW5],
             irqs[PUV3_IRQS_GPIOLOW6], irqs[PUV3_IRQS_GPIOLOW7],
             irqs[PUV3_IRQS_GPIOHIGH], NULL);
+
+    /* Keyboard (i8042), mouse disabled for nographic */
+    i8042_mm_init(irqs[PUV3_IRQS_PS2_KBD], NULL, i8042, PUV3_REGS_OFFSET, 4);
+    memory_region_add_subregion(get_system_memory(), PUV3_PS2_BASE, i8042);
 }
 
 static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
