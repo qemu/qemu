@@ -39,7 +39,8 @@
 
 #include "microblaze_boot.h"
 #include "microblaze_pic_cpu.h"
-#include "xilinx_axidma.h"
+
+#include "stream.h"
 
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (32 * 1024 * 1024)
@@ -76,7 +77,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
                           const char *initrd_filename, const char *cpu_model)
 {
     MemoryRegion *address_space_mem = get_system_memory();
-    DeviceState *dev;
+    DeviceState *dev, *dma, *eth0;
     MicroBlazeCPU *cpu;
     CPUMBState *env;
     DriveInfo *dinfo;
@@ -125,15 +126,18 @@ petalogix_ml605_init(ram_addr_t ram_size,
     /* 2 timers at irq 2 @ 100 Mhz.  */
     xilinx_timer_create(TIMER_BASEADDR, irq[2], 0, 100 * 1000000);
 
-    /* axi ethernet and dma initialization. TODO: Dynamically connect them.  */
-    {
-        static struct XilinxDMAConnection dmach;
+    /* axi ethernet and dma initialization. */
+    dma = qdev_create(NULL, "xlnx.axi-dma");
 
-        xilinx_axiethernet_create(&dmach, &nd_table[0], 0x82780000,
-                                  irq[3], 0x1000, 0x1000);
-        xilinx_axiethernetdma_create(&dmach, 0x84600000,
-                                     irq[1], irq[0], 100 * 1000000);
-    }
+    /* FIXME: attach to the sysbus instead */
+    object_property_add_child(container_get(qdev_get_machine(), "/unattached"),
+                                  "xilinx-dma", OBJECT(dma), NULL);
+
+    eth0 = xilinx_axiethernet_create(&nd_table[0], STREAM_SLAVE(dma),
+                                     0x82780000, irq[3], 0x1000, 0x1000);
+
+    xilinx_axiethernetdma_init(dma, STREAM_SLAVE(eth0),
+                               0x84600000, irq[1], irq[0], 100 * 1000000);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size, BINARY_DEVICE_TREE_FILE,
                                                             machine_cpu_reset);

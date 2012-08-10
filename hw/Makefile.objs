@@ -65,6 +65,7 @@ hw-obj-$(CONFIG_XILINX) += xilinx_timer.o
 hw-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
 hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axidma.o
 hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
+hw-obj-$(CONFIG_XILINX_AXI) += stream.o
 
 # PKUnity SoC devices
 hw-obj-$(CONFIG_PUV3) += puv3_intc.o
