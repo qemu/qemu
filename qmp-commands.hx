@@ -2217,3 +2217,10 @@ EQMP
         .args_type  = "implements:s?,abstract:b?",
         .mhandler.cmd_new = qmp_marshal_input_qom_list_types,
     },
+
+    {
+        .name       = "device-list-properties",
+        .args_type  = "typename:s",
+        .mhandler.cmd_new = qmp_marshal_input_device_list_properties,
+    },
+

@@ -1725,6 +1725,34 @@
   'returns': [ 'ObjectTypeInfo' ] }
 
 ##
+# @DevicePropertyInfo:
+#
+# Information about device properties.
+#
+# @name: the name of the property
+# @type: the typename of the property
+#
+# Since: 1.2
+##
+{ 'type': 'DevicePropertyInfo',
+  'data': { 'name': 'str', 'type': 'str' } }
+
+##
+# @device-list-properties:
+#
+# List properties associated with a device.
+#
+# @typename: the type name of a device
+#
+# Returns: a list of DevicePropertyInfo describing a devices properties
+#
+# Since: 1.2
+##
+{ 'command': 'device-list-properties',
+  'data': { 'typename': 'str'},
+  'returns': [ 'DevicePropertyInfo' ] }
+
+##
 # @migrate
 #
 # Migrates the current running guest to another Virtual Machine.
