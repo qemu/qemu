@@ -87,7 +87,7 @@ Perform a consistency check on the disk image @var{filename}.
 If @code{-r} is specified, qemu-img tries to repair any inconsistencies found
 during the check. @code{-r leaks} repairs only cluster leaks, whereas
 @code{-r all} fixes all kinds of errors, with a higher risk of choosing the
-wrong fix or hiding corruption that has already occured.
+wrong fix or hiding corruption that has already occurred.
 
 Only the formats @code{qcow2}, @code{qed} and @code{vdi} support
 consistency checks.

@@ -89,7 +89,7 @@ static void help(void)
            "  '-r' tries to repair any inconsistencies that are found during the check.\n"
            "       '-r leaks' repairs only cluster leaks, whereas '-r all' fixes all\n"
            "       kinds of errors, with a higher risk of choosing the wrong fix or\n"
-           "       hiding corruption that has already occured.\n"
+           "       hiding corruption that has already occurred.\n"
            "\n"
            "Parameters to snapshot subcommand:\n"
            "  'snapshot' is the name of the snapshot to create, apply or delete\n"
