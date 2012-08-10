@@ -2224,3 +2224,9 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_device_list_properties,
     },
 
+    {
+        .name       = "query-machines",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_machines,
+    },
+

@@ -1213,6 +1213,37 @@ QEMUMachine *find_default_machine(void)
     return NULL;
 }
 
+MachineInfoList *qmp_query_machines(Error **errp)
+{
+    MachineInfoList *mach_list = NULL;
+    QEMUMachine *m;
+
+    for (m = first_machine; m; m = m->next) {
+        MachineInfoList *entry;
+        MachineInfo *info;
+
+        info = g_malloc0(sizeof(*info));
+        if (m->is_default) {
+            info->has_is_default = true;
+            info->is_default = true;
+        }
+
+        if (m->alias) {
+            info->has_alias = true;
+            info->alias = g_strdup(m->alias);
+        }
+
+        info->name = g_strdup(m->name);
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = mach_list;
+        mach_list = entry;
+    }
+
+    return mach_list;
+}
+
 /***********************************************************/
 /* main execution loop */
 
