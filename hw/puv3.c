@@ -22,9 +22,30 @@
 #define KERNEL_LOAD_ADDR        0x03000000
 #define KERNEL_MAX_SIZE         0x00800000 /* Just a guess */
 
+static void puv3_intc_cpu_handler(void *opaque, int irq, int level)
+{
+    CPUUniCore32State *env = opaque;
+
+    assert(irq == 0);
+    if (level) {
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+    } else {
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+    }
+}
+
 static void puv3_soc_init(CPUUniCore32State *env)
 {
-    /* TODO */
+    qemu_irq *cpu_intc, irqs[PUV3_IRQS_NR];
+    DeviceState *dev;
+    int i;
+
+    /* Initialize interrupt controller */
+    cpu_intc = qemu_allocate_irqs(puv3_intc_cpu_handler, env, 1);
+    dev = sysbus_create_simple("puv3_intc", PUV3_INTC_BASE, *cpu_intc);
+    for (i = 0; i < PUV3_IRQS_NR; i++) {
+        irqs[i] = qdev_get_gpio_in(dev, i);
+    }
 }
 
 static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
