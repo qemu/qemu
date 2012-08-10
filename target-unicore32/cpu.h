@@ -122,10 +122,6 @@ void cpu_asr_write(CPUUniCore32State *env1, target_ulong val, target_ulong mask)
 #define UC32_HWCAP_CMOV                 4 /* 1 << 2 */
 #define UC32_HWCAP_UCF64                8 /* 1 << 3 */
 
-#define UC32_CPUID(env)                 (env->cp0.c0_cpuid)
-#define UC32_CPUID_UCV2                 0x40010863
-#define UC32_CPUID_ANY                  0xffffffff
-
 #define cpu_init                        uc32_cpu_init
 #define cpu_exec                        uc32_cpu_exec
 #define cpu_signal_handler              uc32_cpu_signal_handler
