@@ -33,9 +33,16 @@ typedef struct DisasContext {
     int condlabel;
     struct TranslationBlock *tb;
     int singlestep_enabled;
+#ifndef CONFIG_USER_ONLY
+    int user;
+#endif
 } DisasContext;
 
-#define IS_USER(s) 1
+#ifndef CONFIG_USER_ONLY
+#define IS_USER(s)      (s->user)
+#else
+#define IS_USER(s)      1
+#endif
 
 /* These instructions trap after executing, so defer them until after the
    conditional executions state has been updated.  */
@@ -1554,12 +1561,12 @@ static void do_misc(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* load/store I_offset and R_offset */
 static void do_ldst_ir(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
-    unsigned int i;
+    unsigned int mmu_idx;
     TCGv tmp;
     TCGv tmp2;
 
     tmp2 = load_reg(s, UCOP_REG_N);
-    i = (IS_USER(s) || (!UCOP_SET_P && UCOP_SET_W));
+    mmu_idx = (IS_USER(s) || (!UCOP_SET_P && UCOP_SET_W));
 
     /* immediate */
     if (UCOP_SET_P) {
@@ -1569,17 +1576,17 @@ static void do_ldst_ir(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
     if (UCOP_SET_L) {
         /* load */
         if (UCOP_SET_B) {
-            tmp = gen_ld8u(tmp2, i);
+            tmp = gen_ld8u(tmp2, mmu_idx);
         } else {
-            tmp = gen_ld32(tmp2, i);
+            tmp = gen_ld32(tmp2, mmu_idx);
         }
     } else {
         /* store */
         tmp = load_reg(s, UCOP_REG_D);
         if (UCOP_SET_B) {
-            gen_st8(tmp, tmp2, i);
+            gen_st8(tmp, tmp2, mmu_idx);
         } else {
-            gen_st32(tmp, tmp2, i);
+            gen_st32(tmp, tmp2, mmu_idx);
         }
     }
     if (!UCOP_SET_P) {
@@ -1682,7 +1689,7 @@ static void do_ldst_hwsb(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 /* load/store multiple words */
 static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
-    unsigned int val, i;
+    unsigned int val, i, mmu_idx;
     int j, n, reg, user, loaded_base;
     TCGv tmp;
     TCGv tmp2;
@@ -1703,6 +1710,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         }
     }
 
+    mmu_idx = (IS_USER(s) || (!UCOP_SET_P && UCOP_SET_W));
     addr = load_reg(s, UCOP_REG_N);
 
     /* compute total size */
@@ -1747,7 +1755,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         }
         if (UCOP_SET(i)) {
             if (UCOP_SET_L) { /* load */
-                tmp = gen_ld32(addr, IS_USER(s));
+                tmp = gen_ld32(addr, mmu_idx);
                 if (reg == 31) {
                     gen_bx(s, tmp);
                 } else if (user) {
@@ -1775,7 +1783,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
                 } else {
                     tmp = load_reg(s, reg);
                 }
-                gen_st32(tmp, addr, IS_USER(s));
+                gen_st32(tmp, addr, mmu_idx);
             }
             j++;
             /* no need to add after the last transfer */
@@ -1963,6 +1971,14 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
+
+#ifndef CONFIG_USER_ONLY
+    if ((env->uncached_asr & ASR_M) == ASR_MODE_USER) {
+        dc->user = 1;
+    } else {
+        dc->user = 0;
+    }
+#endif
 
     gen_icount_start();
     do {
