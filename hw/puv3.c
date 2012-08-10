@@ -49,6 +49,12 @@ static void puv3_soc_init(CPUUniCore32State *env)
 
     /* Initialize minimal necessary devices for kernel booting */
     sysbus_create_simple("puv3_ost", PUV3_OST_BASE, irqs[PUV3_IRQS_OST0]);
+    sysbus_create_varargs("puv3_gpio", PUV3_GPIO_BASE,
+            irqs[PUV3_IRQS_GPIOLOW0], irqs[PUV3_IRQS_GPIOLOW1],
+            irqs[PUV3_IRQS_GPIOLOW2], irqs[PUV3_IRQS_GPIOLOW3],
+            irqs[PUV3_IRQS_GPIOLOW4], irqs[PUV3_IRQS_GPIOLOW5],
+            irqs[PUV3_IRQS_GPIOLOW6], irqs[PUV3_IRQS_GPIOLOW7],
+            irqs[PUV3_IRQS_GPIOHIGH], NULL);
 }
 
 static void puv3_board_init(CPUUniCore32State *env, ram_addr_t ram_size)
