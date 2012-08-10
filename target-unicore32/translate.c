@@ -1,7 +1,7 @@
 /*
  *  UniCore32 translation
  *
- * Copyright (C) 2010-2011 GUAN Xue-tao
+ * Copyright (C) 2010-2012 Guan Xuetao
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -175,6 +175,73 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 #define ILLEGAL         cpu_abort(env,                                  \
                         "Illegal UniCore32 instruction %x at line %d!", \
                         insn, __LINE__)
+
+#ifndef CONFIG_USER_ONLY
+static void disas_cp0_insn(CPUUniCore32State *env, DisasContext *s,
+        uint32_t insn)
+{
+    TCGv tmp, tmp2, tmp3;
+    if ((insn & 0xfe000000) == 0xe0000000) {
+        tmp2 = new_tmp();
+        tmp3 = new_tmp();
+        tcg_gen_movi_i32(tmp2, UCOP_REG_N);
+        tcg_gen_movi_i32(tmp3, UCOP_IMM10);
+        if (UCOP_SET_L) {
+            tmp = new_tmp();
+            gen_helper_cp0_get(tmp, cpu_env, tmp2, tmp3);
+            store_reg(s, UCOP_REG_D, tmp);
+        } else {
+            tmp = load_reg(s, UCOP_REG_D);
+            gen_helper_cp0_set(cpu_env, tmp, tmp2, tmp3);
+            dead_tmp(tmp);
+        }
+        dead_tmp(tmp2);
+        dead_tmp(tmp3);
+        return;
+    }
+    ILLEGAL;
+}
+
+static void disas_ocd_insn(CPUUniCore32State *env, DisasContext *s,
+        uint32_t insn)
+{
+    TCGv tmp;
+
+    if ((insn & 0xff003fff) == 0xe1000400) {
+        /*
+         * movc rd, pp.nn, #imm9
+         *      rd: UCOP_REG_D
+         *      nn: UCOP_REG_N (must be 0)
+         *      imm9: 0
+         */
+        if (UCOP_REG_N == 0) {
+            tmp = new_tmp();
+            tcg_gen_movi_i32(tmp, 0);
+            store_reg(s, UCOP_REG_D, tmp);
+            return;
+        } else {
+            ILLEGAL;
+        }
+    }
+    if ((insn & 0xff003fff) == 0xe0000401) {
+        /*
+         * movc pp.nn, rn, #imm9
+         *      rn: UCOP_REG_D
+         *      nn: UCOP_REG_N (must be 1)
+         *      imm9: 1
+         */
+        if (UCOP_REG_N == 1) {
+            tmp = load_reg(s, UCOP_REG_D);
+            gen_helper_cp1_putc(tmp);
+            dead_tmp(tmp);
+            return;
+        } else {
+            ILLEGAL;
+        }
+    }
+    ILLEGAL;
+}
+#endif
 
 static inline void gen_set_asr(TCGv var, uint32_t mask)
 {
@@ -1124,9 +1191,18 @@ static void gen_exception_return(DisasContext *s, TCGv pc)
     s->is_jmp = DISAS_UPDATE;
 }
 
-static void disas_coproc_insn(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
+static void disas_coproc_insn(CPUUniCore32State *env, DisasContext *s,
+        uint32_t insn)
 {
     switch (UCOP_CPNUM) {
+#ifndef CONFIG_USER_ONLY
+    case 0:
+        disas_cp0_insn(env, s, insn);
+        break;
+    case 1:
+        disas_ocd_insn(env, s, insn);
+        break;
+#endif
     case 2:
         disas_ucf64_insn(env, s, insn);
         break;
