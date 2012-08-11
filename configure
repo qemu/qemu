@@ -543,6 +543,13 @@ fi
 : ${python=${PYTHON-python}}
 : ${smbd=${SMBD-/usr/sbin/smbd}}
 
+# Default objcc to clang if available, otherwise use CC
+if has clang; then
+  objcc=clang
+else
+  objcc="$cc"
+fi
+
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
@@ -585,6 +592,8 @@ for opt do
   --cc=*)
   ;;
   --host-cc=*) host_cc="$optarg"
+  ;;
+  --objcc=*) objcc="$optarg"
   ;;
   --make=*) make="$optarg"
   ;;
@@ -1028,6 +1037,7 @@ echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for code run at"
 echo "                           build time"
+echo "  --objcc=OBJCC            use Objective-C compiler OBJCC [$objcc]"
 echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
@@ -3058,6 +3068,7 @@ fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
+echo "Objective-C compiler $objcc"
 echo "CFLAGS            $CFLAGS"
 echo "QEMU_CFLAGS       $QEMU_CFLAGS"
 echo "LDFLAGS           $LDFLAGS"
@@ -3521,6 +3532,7 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
+echo "OBJCC=$objcc" >> $config_host_mak
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
