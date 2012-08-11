@@ -384,7 +384,7 @@ static void phy_update_link(lan9118_state *s)
     phy_update_irq(s);
 }
 
-static void lan9118_set_link(VLANClientState *nc)
+static void lan9118_set_link(NetClientState *nc)
 {
     phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);
 }
@@ -456,7 +456,7 @@ static void lan9118_reset(DeviceState *d)
     lan9118_reload_eeprom(s);
 }
 
-static int lan9118_can_receive(VLANClientState *nc)
+static int lan9118_can_receive(NetClientState *nc)
 {
     return 1;
 }
@@ -509,7 +509,7 @@ static int lan9118_filter(lan9118_state *s, const uint8_t *addr)
     }
 }
 
-static ssize_t lan9118_receive(VLANClientState *nc, const uint8_t *buf,
+static ssize_t lan9118_receive(NetClientState *nc, const uint8_t *buf,
                                size_t size)
 {
     lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
@@ -1304,7 +1304,7 @@ static const MemoryRegionOps lan9118_16bit_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void lan9118_cleanup(VLANClientState *nc)
+static void lan9118_cleanup(NetClientState *nc)
 {
     lan9118_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

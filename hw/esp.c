@@ -24,8 +24,6 @@
  */
 
 #include "sysbus.h"
-#include "pci.h"
-#include "scsi.h"
 #include "esp.h"
 #include "trace.h"
 #include "qemu-log.h"
@@ -37,114 +35,6 @@
  * and
  * http://www.ibiblio.org/pub/historic-linux/early-ports/Sparc/NCR/NCR53C9X.txt
  */
-
-#define ESP_REGS 16
-#define TI_BUFSZ 16
-
-typedef struct ESPState ESPState;
-
-struct ESPState {
-    uint8_t rregs[ESP_REGS];
-    uint8_t wregs[ESP_REGS];
-    qemu_irq irq;
-    uint8_t chip_id;
-    int32_t ti_size;
-    uint32_t ti_rptr, ti_wptr;
-    uint32_t status;
-    uint32_t dma;
-    uint8_t ti_buf[TI_BUFSZ];
-    SCSIBus bus;
-    SCSIDevice *current_dev;
-    SCSIRequest *current_req;
-    uint8_t cmdbuf[TI_BUFSZ];
-    uint32_t cmdlen;
-    uint32_t do_cmd;
-
-    /* The amount of data left in the current DMA transfer.  */
-    uint32_t dma_left;
-    /* The size of the current DMA transfer.  Zero if no transfer is in
-       progress.  */
-    uint32_t dma_counter;
-    int dma_enabled;
-
-    uint32_t async_len;
-    uint8_t *async_buf;
-
-    ESPDMAMemoryReadWriteFunc dma_memory_read;
-    ESPDMAMemoryReadWriteFunc dma_memory_write;
-    void *dma_opaque;
-    void (*dma_cb)(ESPState *s);
-};
-
-#define ESP_TCLO   0x0
-#define ESP_TCMID  0x1
-#define ESP_FIFO   0x2
-#define ESP_CMD    0x3
-#define ESP_RSTAT  0x4
-#define ESP_WBUSID 0x4
-#define ESP_RINTR  0x5
-#define ESP_WSEL   0x5
-#define ESP_RSEQ   0x6
-#define ESP_WSYNTP 0x6
-#define ESP_RFLAGS 0x7
-#define ESP_WSYNO  0x7
-#define ESP_CFG1   0x8
-#define ESP_RRES1  0x9
-#define ESP_WCCF   0x9
-#define ESP_RRES2  0xa
-#define ESP_WTEST  0xa
-#define ESP_CFG2   0xb
-#define ESP_CFG3   0xc
-#define ESP_RES3   0xd
-#define ESP_TCHI   0xe
-#define ESP_RES4   0xf
-
-#define CMD_DMA 0x80
-#define CMD_CMD 0x7f
-
-#define CMD_NOP      0x00
-#define CMD_FLUSH    0x01
-#define CMD_RESET    0x02
-#define CMD_BUSRESET 0x03
-#define CMD_TI       0x10
-#define CMD_ICCS     0x11
-#define CMD_MSGACC   0x12
-#define CMD_PAD      0x18
-#define CMD_SATN     0x1a
-#define CMD_RSTATN   0x1b
-#define CMD_SEL      0x41
-#define CMD_SELATN   0x42
-#define CMD_SELATNS  0x43
-#define CMD_ENSEL    0x44
-#define CMD_DISSEL   0x45
-
-#define STAT_DO 0x00
-#define STAT_DI 0x01
-#define STAT_CD 0x02
-#define STAT_ST 0x03
-#define STAT_MO 0x06
-#define STAT_MI 0x07
-#define STAT_PIO_MASK 0x06
-
-#define STAT_TC 0x10
-#define STAT_PE 0x20
-#define STAT_GE 0x40
-#define STAT_INT 0x80
-
-#define BUSID_DID 0x07
-
-#define INTR_FC 0x08
-#define INTR_BS 0x10
-#define INTR_DC 0x20
-#define INTR_RST 0x80
-
-#define SEQ_0 0x0
-#define SEQ_CD 0x4
-
-#define CFG1_RESREPT 0x40
-
-#define TCHI_FAS100A 0x4
-#define TCHI_AM53C974 0x12
 
 static void esp_raise_irq(ESPState *s)
 {
@@ -164,7 +54,7 @@ static void esp_lower_irq(ESPState *s)
     }
 }
 
-static void esp_dma_enable(ESPState *s, int irq, int level)
+void esp_dma_enable(ESPState *s, int irq, int level)
 {
     if (level) {
         s->dma_enabled = 1;
@@ -179,7 +69,7 @@ static void esp_dma_enable(ESPState *s, int irq, int level)
     }
 }
 
-static void esp_request_cancelled(SCSIRequest *req)
+void esp_request_cancelled(SCSIRequest *req)
 {
     ESPState *s = req->hba_private;
 
@@ -388,7 +278,7 @@ static void esp_do_dma(ESPState *s)
     esp_dma_done(s);
 }
 
-static void esp_command_complete(SCSIRequest *req, uint32_t status,
+void esp_command_complete(SCSIRequest *req, uint32_t status,
                                  size_t resid)
 {
     ESPState *s = req->hba_private;
@@ -413,7 +303,7 @@ static void esp_command_complete(SCSIRequest *req, uint32_t status,
     }
 }
 
-static void esp_transfer_data(SCSIRequest *req, uint32_t len)
+void esp_transfer_data(SCSIRequest *req, uint32_t len)
 {
     ESPState *s = req->hba_private;
 
@@ -465,7 +355,7 @@ static void handle_ti(ESPState *s)
     }
 }
 
-static void esp_hard_reset(ESPState *s)
+void esp_hard_reset(ESPState *s)
 {
     memset(s->rregs, 0, ESP_REGS);
     memset(s->wregs, 0, ESP_REGS);
@@ -493,7 +383,7 @@ static void parent_esp_reset(ESPState *s, int irq, int level)
     }
 }
 
-static uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
+uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
 {
     uint32_t old_val;
 
@@ -533,7 +423,7 @@ static uint64_t esp_reg_read(ESPState *s, uint32_t saddr)
     return s->rregs[saddr];
 }
 
-static void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
+void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
 {
     trace_esp_mem_writeb(saddr, s->wregs[saddr], val);
     switch (saddr) {
@@ -660,7 +550,7 @@ static bool esp_mem_accepts(void *opaque, target_phys_addr_t addr,
     return (size == 1) || (is_write && size == 4);
 }
 
-static const VMStateDescription vmstate_esp = {
+const VMStateDescription vmstate_esp = {
     .name ="esp",
     .version_id = 3,
     .minimum_version_id = 3,
@@ -816,377 +706,16 @@ static void sysbus_esp_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sysbus_esp_scsi;
 }
 
-static TypeInfo sysbus_esp_info = {
+static const TypeInfo sysbus_esp_info = {
     .name          = "esp",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysBusESPState),
     .class_init    = sysbus_esp_class_init,
 };
 
-#define DMA_CMD   0x0
-#define DMA_STC   0x1
-#define DMA_SPA   0x2
-#define DMA_WBC   0x3
-#define DMA_WAC   0x4
-#define DMA_STAT  0x5
-#define DMA_SMDLA 0x6
-#define DMA_WMAC  0x7
-
-#define DMA_CMD_MASK   0x03
-#define DMA_CMD_DIAG   0x04
-#define DMA_CMD_MDL    0x10
-#define DMA_CMD_INTE_P 0x20
-#define DMA_CMD_INTE_D 0x40
-#define DMA_CMD_DIR    0x80
-
-#define DMA_STAT_PWDN    0x01
-#define DMA_STAT_ERROR   0x02
-#define DMA_STAT_ABORT   0x04
-#define DMA_STAT_DONE    0x08
-#define DMA_STAT_SCSIINT 0x10
-#define DMA_STAT_BCMBLT  0x20
-
-#define SBAC_STATUS 0x1000
-
-typedef struct PCIESPState {
-    PCIDevice dev;
-    MemoryRegion io;
-    uint32_t dma_regs[8];
-    uint32_t sbac;
-    ESPState esp;
-} PCIESPState;
-
-static void esp_pci_handle_idle(PCIESPState *pci, uint32_t val)
-{
-    trace_esp_pci_dma_idle(val);
-    esp_dma_enable(&pci->esp, 0, 0);
-}
-
-static void esp_pci_handle_blast(PCIESPState *pci, uint32_t val)
-{
-    trace_esp_pci_dma_blast(val);
-    qemu_log_mask(LOG_UNIMP, "am53c974: cmd BLAST not implemented\n");
-}
-
-static void esp_pci_handle_abort(PCIESPState *pci, uint32_t val)
-{
-    trace_esp_pci_dma_abort(val);
-    if (pci->esp.current_req) {
-        scsi_req_cancel(pci->esp.current_req);
-    }
-}
-
-static void esp_pci_handle_start(PCIESPState *pci, uint32_t val)
-{
-    trace_esp_pci_dma_start(val);
-
-    pci->dma_regs[DMA_WBC] = pci->dma_regs[DMA_STC];
-    pci->dma_regs[DMA_WAC] = pci->dma_regs[DMA_SPA];
-    pci->dma_regs[DMA_WMAC] = pci->dma_regs[DMA_SMDLA];
-
-    pci->dma_regs[DMA_STAT] &= ~(DMA_STAT_BCMBLT | DMA_STAT_SCSIINT
-                               | DMA_STAT_DONE | DMA_STAT_ABORT
-                               | DMA_STAT_ERROR | DMA_STAT_PWDN);
-
-    esp_dma_enable(&pci->esp, 0, 1);
-}
-
-static void esp_pci_dma_write(PCIESPState *pci, uint32_t saddr, uint32_t val)
-{
-    trace_esp_pci_dma_write(saddr, pci->dma_regs[saddr], val);
-    switch (saddr) {
-    case DMA_CMD:
-        pci->dma_regs[saddr] = val;
-        switch (val & DMA_CMD_MASK) {
-        case 0x0: /* IDLE */
-            esp_pci_handle_idle(pci, val);
-            break;
-        case 0x1: /* BLAST */
-            esp_pci_handle_blast(pci, val);
-            break;
-        case 0x2: /* ABORT */
-            esp_pci_handle_abort(pci, val);
-            break;
-        case 0x3: /* START */
-            esp_pci_handle_start(pci, val);
-            break;
-        default: /* can't happen */
-            abort();
-        }
-        break;
-    case DMA_STC:
-    case DMA_SPA:
-    case DMA_SMDLA:
-        pci->dma_regs[saddr] = val;
-        break;
-    case DMA_STAT:
-        if (!(pci->sbac & SBAC_STATUS)) {
-            /* clear some bits on write */
-            uint32_t mask = DMA_STAT_ERROR | DMA_STAT_ABORT | DMA_STAT_DONE;
-            pci->dma_regs[DMA_STAT] &= ~(val & mask);
-        }
-        break;
-    default:
-        trace_esp_pci_error_invalid_write_dma(val, saddr);
-        return;
-    }
-}
-
-static uint32_t esp_pci_dma_read(PCIESPState *pci, uint32_t saddr)
-{
-    uint32_t val;
-
-    val = pci->dma_regs[saddr];
-    if (saddr == DMA_STAT) {
-        if (pci->esp.rregs[ESP_RSTAT] & STAT_INT) {
-            val |= DMA_STAT_SCSIINT;
-        }
-        if (pci->sbac & SBAC_STATUS) {
-            pci->dma_regs[DMA_STAT] &= ~(DMA_STAT_ERROR | DMA_STAT_ABORT |
-                                         DMA_STAT_DONE);
-        }
-    }
-
-    trace_esp_pci_dma_read(saddr, val);
-    return val;
-}
-
-static void esp_pci_io_write(void *opaque, target_phys_addr_t addr,
-                             uint64_t val, unsigned int size)
-{
-    PCIESPState *pci = opaque;
-
-    if (size < 4 || addr & 3) {
-        /* need to upgrade request: we only support 4-bytes accesses */
-        uint32_t current = 0, mask;
-        int shift;
-
-        if (addr < 0x40) {
-            current = pci->esp.wregs[addr >> 2];
-        } else if (addr < 0x60) {
-            current = pci->dma_regs[(addr - 0x40) >> 2];
-        } else if (addr < 0x74) {
-            current = pci->sbac;
-        }
-
-        shift = (4 - size) * 8;
-        mask = (~(uint32_t)0 << shift) >> shift;
-
-        shift = ((4 - (addr & 3)) & 3) * 8;
-        val <<= shift;
-        val |= current & ~(mask << shift);
-        addr &= ~3;
-        size = 4;
-    }
-
-    if (addr < 0x40) {
-        /* SCSI core reg */
-        esp_reg_write(&pci->esp, addr >> 2, val);
-    } else if (addr < 0x60) {
-        /* PCI DMA CCB */
-        esp_pci_dma_write(pci, (addr - 0x40) >> 2, val);
-    } else if (addr == 0x70) {
-        /* DMA SCSI Bus and control */
-        trace_esp_pci_sbac_write(pci->sbac, val);
-        pci->sbac = val;
-    } else {
-        trace_esp_pci_error_invalid_write((int)addr);
-    }
-}
-
-static uint64_t esp_pci_io_read(void *opaque, target_phys_addr_t addr,
-                                unsigned int size)
-{
-    PCIESPState *pci = opaque;
-    uint32_t ret;
-
-    if (addr < 0x40) {
-        /* SCSI core reg */
-        ret = esp_reg_read(&pci->esp, addr >> 2);
-    } else if (addr < 0x60) {
-        /* PCI DMA CCB */
-        ret = esp_pci_dma_read(pci, (addr - 0x40) >> 2);
-    } else if (addr == 0x70) {
-        /* DMA SCSI Bus and control */
-        trace_esp_pci_sbac_read(pci->sbac);
-        ret = pci->sbac;
-    } else {
-        /* Invalid region */
-        trace_esp_pci_error_invalid_read((int)addr);
-        ret = 0;
-    }
-
-    /* give only requested data */
-    ret >>= (addr & 3) * 8;
-    ret &= ~(~(uint64_t)0 << (8 * size));
-
-    return ret;
-}
-
-static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
-                                  DMADirection dir)
-{
-    dma_addr_t addr;
-    DMADirection expected_dir;
-
-    if (pci->dma_regs[DMA_CMD] & DMA_CMD_DIR) {
-        expected_dir = DMA_DIRECTION_FROM_DEVICE;
-    } else {
-        expected_dir = DMA_DIRECTION_TO_DEVICE;
-    }
-
-    if (dir != expected_dir) {
-        trace_esp_pci_error_invalid_dma_direction();
-        return;
-    }
-
-    if (pci->dma_regs[DMA_STAT] & DMA_CMD_MDL) {
-        qemu_log_mask(LOG_UNIMP, "am53c974: MDL transfer not implemented\n");
-    }
-
-    addr = pci->dma_regs[DMA_SPA];
-    if (pci->dma_regs[DMA_WBC] < len) {
-        len = pci->dma_regs[DMA_WBC];
-    }
-
-    pci_dma_rw(&pci->dev, addr, buf, len, dir);
-
-    /* update status registers */
-    pci->dma_regs[DMA_WBC] -= len;
-    pci->dma_regs[DMA_WAC] += len;
-}
-
-static void esp_pci_dma_memory_read(void *opaque, uint8_t *buf, int len)
-{
-    PCIESPState *pci = opaque;
-    esp_pci_dma_memory_rw(pci, buf, len, DMA_DIRECTION_TO_DEVICE);
-}
-
-static void esp_pci_dma_memory_write(void *opaque, uint8_t *buf, int len)
-{
-    PCIESPState *pci = opaque;
-    esp_pci_dma_memory_rw(pci, buf, len, DMA_DIRECTION_FROM_DEVICE);
-}
-
-static const MemoryRegionOps esp_pci_io_ops = {
-    .read = esp_pci_io_read,
-    .write = esp_pci_io_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 4,
-    },
-};
-
-static void esp_pci_hard_reset(DeviceState *dev)
-{
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev.qdev, dev);
-    esp_hard_reset(&pci->esp);
-    pci->dma_regs[DMA_CMD] &= ~(DMA_CMD_DIR | DMA_CMD_INTE_D | DMA_CMD_INTE_P
-                              | DMA_CMD_MDL | DMA_CMD_DIAG | DMA_CMD_MASK);
-    pci->dma_regs[DMA_WBC] &= ~0xffff;
-    pci->dma_regs[DMA_WAC] = 0xffffffff;
-    pci->dma_regs[DMA_STAT] &= ~(DMA_STAT_BCMBLT | DMA_STAT_SCSIINT
-                               | DMA_STAT_DONE | DMA_STAT_ABORT
-                               | DMA_STAT_ERROR);
-    pci->dma_regs[DMA_WMAC] = 0xfffffffd;
-}
-
-static const VMStateDescription vmstate_esp_pci_scsi = {
-    .name = "pciespscsi",
-    .version_id = 0,
-    .minimum_version_id = 0,
-    .minimum_version_id_old = 0,
-    .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, PCIESPState),
-        VMSTATE_BUFFER_UNSAFE(dma_regs, PCIESPState, 0, 8 * sizeof(uint32_t)),
-        VMSTATE_STRUCT(esp, PCIESPState, 0, vmstate_esp, ESPState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static void esp_pci_command_complete(SCSIRequest *req, uint32_t status,
-                                     size_t resid)
-{
-    ESPState *s = req->hba_private;
-    PCIESPState *pci = container_of(s, PCIESPState, esp);
-
-    esp_command_complete(req, status, resid);
-    pci->dma_regs[DMA_WBC] = 0;
-    pci->dma_regs[DMA_STAT] |= DMA_STAT_DONE;
-}
-
-static const struct SCSIBusInfo esp_pci_scsi_info = {
-    .tcq = false,
-    .max_target = ESP_MAX_DEVS,
-    .max_lun = 7,
-
-    .transfer_data = esp_transfer_data,
-    .complete = esp_pci_command_complete,
-    .cancel = esp_request_cancelled,
-};
-
-static int esp_pci_scsi_init(PCIDevice *dev)
-{
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev, dev);
-    ESPState *s = &pci->esp;
-    uint8_t *pci_conf;
-
-    pci_conf = pci->dev.config;
-
-    /* Interrupt pin A */
-    pci_conf[PCI_INTERRUPT_PIN] = 0x01;
-
-    s->dma_memory_read = esp_pci_dma_memory_read;
-    s->dma_memory_write = esp_pci_dma_memory_write;
-    s->dma_opaque = pci;
-    s->chip_id = TCHI_AM53C974;
-    memory_region_init_io(&pci->io, &esp_pci_io_ops, pci, "esp-io", 0x80);
-
-    pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &pci->io);
-    s->irq = pci->dev.irq[0];
-
-    scsi_bus_new(&s->bus, &dev->qdev, &esp_pci_scsi_info);
-    if (!dev->qdev.hotplugged) {
-        return scsi_bus_legacy_handle_cmdline(&s->bus);
-    }
-    return 0;
-}
-
-static void esp_pci_scsi_uninit(PCIDevice *d)
-{
-    PCIESPState *pci = DO_UPCAST(PCIESPState, dev, d);
-
-    memory_region_destroy(&pci->io);
-}
-
-static void esp_pci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = esp_pci_scsi_init;
-    k->exit = esp_pci_scsi_uninit;
-    k->vendor_id = PCI_VENDOR_ID_AMD;
-    k->device_id = PCI_DEVICE_ID_AMD_SCSI;
-    k->revision = 0x10;
-    k->class_id = PCI_CLASS_STORAGE_SCSI;
-    dc->desc = "AMD Am53c974 PCscsi-PCI SCSI adapter";
-    dc->reset = esp_pci_hard_reset;
-    dc->vmsd = &vmstate_esp_pci_scsi;
-}
-
-static TypeInfo esp_pci_info = {
-    .name = "am53c974",
-    .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIESPState),
-    .class_init = esp_pci_class_init,
-};
-
 static void esp_register_types(void)
 {
     type_register_static(&sysbus_esp_info);
-    type_register_static(&esp_pci_info);
 }
 
 type_init(esp_register_types)

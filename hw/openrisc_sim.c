@@ -126,7 +126,7 @@ static void openrisc_sim_init(ram_addr_t ram_size,
     serial_mm_init(get_system_memory(), 0x90000000, 0, cpu->env.irq[2],
                    115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
 
-    if (nd_table[0].vlan) {
+    if (nd_table[0].used) {
         openrisc_sim_net_init(get_system_memory(), 0x92000000,
                               0x92000400, cpu->env.irq[4], nd_table);
     }

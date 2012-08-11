@@ -284,7 +284,6 @@ int inet_connect_opts(QemuOpts *opts, Error **errp)
                         inet_strfamily(e->ai_family),
                         e->ai_canonname, uaddr, uport, strerror(errno));
             closesocket(sock);
-            sock = -1;
             continue;
         }
         freeaddrinfo(res);

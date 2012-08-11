@@ -13,18 +13,29 @@ from ordereddict import OrderedDict
 
 def tokenize(data):
     while len(data):
-        if data[0] in ['{', '}', ':', ',', '[', ']']:
-            yield data[0]
-            data = data[1:]
-        elif data[0] in ' \n':
-            data = data[1:]
-        elif data[0] == "'":
-            data = data[1:]
+        ch = data[0]
+        data = data[1:]
+        if ch in ['{', '}', ':', ',', '[', ']']:
+            yield ch
+        elif ch in ' \n':
+            None
+        elif ch == "'":
             string = ''
-            while data[0] != "'":
-                string += data[0]
+            esc = False
+            while True:
+                if (data == ''):
+                    raise Exception("Mismatched quotes")
+                ch = data[0]
                 data = data[1:]
-            data = data[1:]
+                if esc:
+                    string += ch
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == "'":
+                    break
+                else:
+                    string += ch
             yield string
 
 def parse(tokens):
@@ -131,6 +142,22 @@ def camel_case(name):
     return new_name
 
 def c_var(name):
+    # ANSI X3J11/88-090, 3.1.1
+    c89_words = set(['auto', 'break', 'case', 'char', 'const', 'continue',
+                     'default', 'do', 'double', 'else', 'enum', 'extern', 'float',
+                     'for', 'goto', 'if', 'int', 'long', 'register', 'return',
+                     'short', 'signed', 'sizeof', 'static', 'struct', 'switch',
+                     'typedef', 'union', 'unsigned', 'void', 'volatile', 'while'])
+    # ISO/IEC 9899:1999, 6.4.1
+    c99_words = set(['inline', 'restrict', '_Bool', '_Complex', '_Imaginary'])
+    # ISO/IEC 9899:2011, 6.4.1
+    c11_words = set(['_Alignas', '_Alignof', '_Atomic', '_Generic', '_Noreturn',
+                     '_Static_assert', '_Thread_local'])
+    # GCC http://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/C-Extensions.html
+    # excluding _.*
+    gcc_words = set(['asm', 'typeof'])
+    if name in c89_words | c99_words | c11_words | gcc_words:
+        return "q_" + name
     return name.replace('-', '_').lstrip("*")
 
 def c_fun(name):

@@ -764,7 +764,7 @@ out:
     return 0;
 }
 
-static int xen_pt_unregister_device(PCIDevice *d)
+static void xen_pt_unregister_device(PCIDevice *d)
 {
     XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
     uint8_t machine_irq = s->machine_irq;
@@ -814,8 +814,6 @@ static int xen_pt_unregister_device(PCIDevice *d)
     memory_listener_unregister(&s->memory_listener);
 
     xen_host_pci_device_put(&s->real_device);
-
-    return 0;
 }
 
 static Property xen_pci_passthrough_properties[] = {

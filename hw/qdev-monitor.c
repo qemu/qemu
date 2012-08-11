@@ -138,13 +138,13 @@ int qdev_device_help(QemuOpts *opts)
     ObjectClass *klass;
 
     driver = qemu_opt_get(opts, "driver");
-    if (driver && !strcmp(driver, "?")) {
+    if (driver && is_help_option(driver)) {
         bool show_no_user = false;
         object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, &show_no_user);
         return 1;
     }
 
-    if (!driver || !qemu_opt_get(opts, "?")) {
+    if (!driver || !qemu_opt_has_help_opt(opts)) {
         return 0;
     }
 

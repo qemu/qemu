@@ -233,7 +233,8 @@ EventNotifier *virtio_queue_get_guest_notifier(VirtQueue *vq);
 void virtio_queue_set_guest_notifier_fd_handler(VirtQueue *vq, bool assign,
                                                 bool with_irqfd);
 EventNotifier *virtio_queue_get_host_notifier(VirtQueue *vq);
-void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign);
+void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
+                                               bool set_handler);
 void virtio_queue_notify_vq(VirtQueue *vq);
 void virtio_irq(VirtQueue *vq);
 #endif

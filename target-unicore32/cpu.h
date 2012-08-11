@@ -1,15 +1,15 @@
 /*
  * UniCore32 virtual CPU header
  *
- * Copyright (C) 2010-2011 GUAN Xue-tao
+ * Copyright (C) 2010-2012 Guan Xuetao
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation, or (at your option) any
  * later version. See the COPYING file in the top-level directory.
  */
-#ifndef __CPU_UC32_H__
-#define __CPU_UC32_H__
+#ifndef QEMU_UNICORE32_CPU_H
+#define QEMU_UNICORE32_CPU_H
 
 #define TARGET_LONG_BITS                32
 #define TARGET_PAGE_BITS                12
@@ -89,8 +89,10 @@ typedef struct CPUUniCore32State {
 #define ASR_NZCV                (ASR_N | ASR_Z | ASR_C | ASR_V)
 #define ASR_RESERVED            (~(ASR_M | ASR_I | ASR_NZCV))
 
-#define UC32_EXCP_PRIV          (ASR_MODE_PRIV)
-#define UC32_EXCP_TRAP          (ASR_MODE_TRAP)
+#define UC32_EXCP_PRIV          (1)
+#define UC32_EXCP_ITRAP         (2)
+#define UC32_EXCP_DTRAP         (3)
+#define UC32_EXCP_INTR          (4)
 
 /* Return the current ASR value.  */
 target_ulong cpu_asr_read(CPUUniCore32State *env1);
@@ -119,10 +121,6 @@ void cpu_asr_write(CPUUniCore32State *env1, target_ulong val, target_ulong mask)
 
 #define UC32_HWCAP_CMOV                 4 /* 1 << 2 */
 #define UC32_HWCAP_UCF64                8 /* 1 << 3 */
-
-#define UC32_CPUID(env)                 (env->cp0.c0_cpuid)
-#define UC32_CPUID_UCV2                 0x40010863
-#define UC32_CPUID_ANY                  0xffffffff
 
 #define cpu_init                        uc32_cpu_init
 #define cpu_exec                        uc32_cpu_exec
@@ -189,4 +187,4 @@ static inline bool cpu_has_work(CPUUniCore32State *env)
         (CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
 }
 
-#endif /* __CPU_UC32_H__ */
+#endif /* QEMU_UNICORE32_CPU_H */

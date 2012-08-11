@@ -121,7 +121,7 @@ static void kzm_init(ram_addr_t ram_size,
     imx_timerp_create(0x53f98000, qdev_get_gpio_in(dev, 27), ccm);
     imx_timerg_create(0x53f90000, qdev_get_gpio_in(dev, 29), ccm);
 
-    if (nd_table[0].vlan) {
+    if (nd_table[0].used) {
         lan9118_init(&nd_table[0], 0xb6000000, qdev_get_gpio_in(dev, 52));
     }
 

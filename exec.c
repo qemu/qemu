@@ -2255,14 +2255,6 @@ static void phys_sections_clear(void)
     phys_sections_nb = 0;
 }
 
-/* register physical memory.
-   For RAM, 'size' must be a multiple of the target page size.
-   If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
-   io memory page.  The address used when calling the IO function is
-   the offset from the start of the region, plus region_offset.  Both
-   start_addr and region_offset are rounded down to a page boundary
-   before calculating this offset.  This should not be a problem unless
-   the low bits of start_addr and region_offset differ.  */
 static void register_subpage(MemoryRegionSection *section)
 {
     subpage_t *subpage;
@@ -2286,7 +2278,7 @@ static void register_subpage(MemoryRegionSection *section)
         subpage = container_of(existing->mr, subpage_t, iomem);
     }
     start = section->offset_within_address_space & ~TARGET_PAGE_MASK;
-    end = start + section->size;
+    end = start + section->size - 1;
     subpage_register(subpage, start, end, phys_section_add(section));
 }
 
@@ -2320,10 +2312,15 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
         remain.offset_within_address_space += now.size;
         remain.offset_within_region += now.size;
     }
-    now = remain;
-    now.size &= TARGET_PAGE_MASK;
-    if (now.size) {
-        register_multipage(&now);
+    while (remain.size >= TARGET_PAGE_SIZE) {
+        now = remain;
+        if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
+            now.size = TARGET_PAGE_SIZE;
+            register_subpage(&now);
+        } else {
+            now.size &= TARGET_PAGE_MASK;
+            register_multipage(&now);
+        }
         remain.size -= now.size;
         remain.offset_within_address_space += now.size;
         remain.offset_within_region += now.size;
@@ -2608,6 +2605,8 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
+    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
+           0, size >> TARGET_PAGE_BITS);
     cpu_physical_memory_set_dirty_range(new_block->offset, size, 0xff);
 
     if (kvm_enabled())

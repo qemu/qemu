@@ -27,9 +27,10 @@
 #include "qemu-error.h"
 #include "qemu-log.h"
 #include "qemu-timer.h"
+#include "hub.h"
 
 typedef struct DumpState {
-    VLANClientState nc;
+    NetClientState nc;
     int64_t start_ts;
     int fd;
     int pcap_caplen;
@@ -56,7 +57,7 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static ssize_t dump_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     DumpState *s = DO_UPCAST(DumpState, nc, nc);
     struct pcap_sf_pkthdr hdr;
@@ -85,7 +86,7 @@ static ssize_t dump_receive(VLANClientState *nc, const uint8_t *buf, size_t size
     return size;
 }
 
-static void dump_cleanup(VLANClientState *nc)
+static void dump_cleanup(NetClientState *nc)
 {
     DumpState *s = DO_UPCAST(DumpState, nc, nc);
 
@@ -99,11 +100,11 @@ static NetClientInfo net_dump_info = {
     .cleanup = dump_cleanup,
 };
 
-static int net_dump_init(VLANState *vlan, const char *device,
+static int net_dump_init(NetClientState *peer, const char *device,
                          const char *name, const char *filename, int len)
 {
     struct pcap_file_hdr hdr;
-    VLANClientState *nc;
+    NetClientState *nc;
     DumpState *s;
     struct tm tm;
     int fd;
@@ -128,7 +129,7 @@ static int net_dump_init(VLANState *vlan, const char *device,
         return -1;
     }
 
-    nc = qemu_new_net_client(&net_dump_info, vlan, NULL, device, name);
+    nc = qemu_new_net_client(&net_dump_info, peer, device, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
              "dump to %s (len=%d)", filename, len);
@@ -145,7 +146,7 @@ static int net_dump_init(VLANState *vlan, const char *device,
 }
 
 int net_init_dump(const NetClientOptions *opts, const char *name,
-                  VLANState *vlan)
+                  NetClientState *peer)
 {
     int len;
     const char *file;
@@ -155,12 +156,18 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP);
     dump = opts->dump;
 
-    assert(vlan);
+    assert(peer);
 
     if (dump->has_file) {
         file = dump->file;
     } else {
-        snprintf(def_file, sizeof(def_file), "qemu-vlan%d.pcap", vlan->id);
+        int id;
+        int ret;
+
+        ret = net_hub_id_for_client(peer, &id);
+        assert(ret == 0); /* peer must be on a hub */
+
+        snprintf(def_file, sizeof(def_file), "qemu-vlan%d.pcap", id);
         file = def_file;
     }
 
@@ -174,5 +181,5 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
         len = 65536;
     }
 
-    return net_dump_init(vlan, "dump", name, file, len);
+    return net_dump_init(peer, "dump", name, file, len);
 }

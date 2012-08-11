@@ -91,6 +91,8 @@ int graphic_depth = 15;
 #define QEMU_ARCH QEMU_ARCH_SPARC
 #elif defined(TARGET_XTENSA)
 #define QEMU_ARCH QEMU_ARCH_XTENSA
+#elif defined(TARGET_UNICORE32)
+#define QEMU_ARCH QEMU_ARCH_UNICORE32
 #endif
 
 const uint32_t arch_type = QEMU_ARCH;
@@ -680,7 +682,7 @@ void select_soundhw(const char *optarg)
 {
     struct soundhw *c;
 
-    if (*optarg == '?') {
+    if (is_help_option(optarg)) {
     show_valid_cards:
 
         printf("Valid sound card names (comma separated):\n");
@@ -688,7 +690,7 @@ void select_soundhw(const char *optarg)
             printf ("%-11s %s\n", c->name, c->descr);
         }
         printf("\n-soundhw all will enable all of the above\n");
-        exit(*optarg != '?');
+        exit(!is_help_option(optarg));
     }
     else {
         size_t l;

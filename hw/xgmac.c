@@ -308,7 +308,7 @@ static const MemoryRegionOps enet_mem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int eth_can_rx(VLANClientState *nc)
+static int eth_can_rx(NetClientState *nc)
 {
     struct XgmacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -316,7 +316,7 @@ static int eth_can_rx(VLANClientState *nc)
     return s->regs[DMA_CONTROL] & DMA_CONTROL_SR;
 }
 
-static ssize_t eth_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     struct XgmacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     static const unsigned char sa_bcast[6] = {0xff, 0xff, 0xff,
@@ -364,7 +364,7 @@ out:
     return ret;
 }
 
-static void eth_cleanup(VLANClientState *nc)
+static void eth_cleanup(NetClientState *nc)
 {
     struct XgmacState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     s->nic = NULL;

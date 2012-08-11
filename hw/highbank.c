@@ -284,7 +284,7 @@ static void highbank_init(ram_addr_t ram_size,
 
     sysbus_create_simple("sysbus-ahci", 0xffe08000, pic[83]);
 
-    if (nd_table[0].vlan) {
+    if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], "xgmac");
         dev = qdev_create(NULL, "xgmac");
         qdev_set_nic_properties(dev, &nd_table[0]);

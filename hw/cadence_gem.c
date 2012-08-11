@@ -405,7 +405,7 @@ static void phy_update_link(GemState *s)
     }
 }
 
-static int gem_can_receive(VLANClientState *nc)
+static int gem_can_receive(NetClientState *nc)
 {
     GemState *s;
 
@@ -602,7 +602,7 @@ static int gem_mac_address_filter(GemState *s, const uint8_t *packet)
  * gem_receive:
  * Fit a packet handed to us by QEMU into the receive descriptor ring.
  */
-static ssize_t gem_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     unsigned    desc[2];
     target_phys_addr_t packet_desc_addr, last_desc_addr;
@@ -1146,7 +1146,7 @@ static const MemoryRegionOps gem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void gem_cleanup(VLANClientState *nc)
+static void gem_cleanup(NetClientState *nc)
 {
     GemState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -1154,7 +1154,7 @@ static void gem_cleanup(VLANClientState *nc)
     s->nic = NULL;
 }
 
-static void gem_set_link(VLANClientState *nc)
+static void gem_set_link(NetClientState *nc)
 {
     DB_PRINT("\n");
     phy_update_link(DO_UPCAST(NICState, nc, nc)->opaque);

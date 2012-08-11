@@ -1317,6 +1317,7 @@ Each json-object contain the following:
                                 "nbd", "parallels", "qcow", "qcow2", "raw",
                                 "tftp", "vdi", "vmdk", "vpc", "vvfat"
          - "backing_file": backing file name (json-string, optional)
+         - "backing_file_depth": number of files in the backing file chain (json-int)
          - "encrypted": true if encrypted, false otherwise (json-bool)
          - "bps": limit total bytes per second (json-int)
          - "bps_rd": limit read bytes per second (json-int)
@@ -1345,6 +1346,7 @@ Example:
                "drv":"qcow2",
                "encrypted":false,
                "file":"disks/test.img",
+               "backing_file_depth":0,
                "bps":1000000,
                "bps_rd":0,
                "bps_wr":0,

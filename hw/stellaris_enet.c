@@ -78,7 +78,7 @@ static void stellaris_enet_update(stellaris_enet_state *s)
 }
 
 /* TODO: Implement MAC address filtering.  */
-static ssize_t stellaris_enet_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int n;
@@ -120,7 +120,7 @@ static ssize_t stellaris_enet_receive(VLANClientState *nc, const uint8_t *buf, s
     return size;
 }
 
-static int stellaris_enet_can_receive(VLANClientState *nc)
+static int stellaris_enet_can_receive(NetClientState *nc)
 {
     stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -381,7 +381,7 @@ static int stellaris_enet_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void stellaris_enet_cleanup(VLANClientState *nc)
+static void stellaris_enet_cleanup(NetClientState *nc)
 {
     stellaris_enet_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

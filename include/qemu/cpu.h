@@ -21,6 +21,7 @@
 #define QEMU_CPU_H
 
 #include "qemu/object.h"
+#include "qemu-thread.h"
 
 /**
  * SECTION:cpu
@@ -60,6 +61,12 @@ struct CPUState {
     /*< private >*/
     Object parent_obj;
     /*< public >*/
+
+    struct QemuThread *thread;
+#ifdef _WIN32
+    HANDLE hThread;
+#endif
+    bool thread_kicked;
 
     /* TODO Move common fields from CPUArchState here. */
 };

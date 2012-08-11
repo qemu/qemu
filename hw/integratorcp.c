@@ -493,7 +493,7 @@ static void integratorcp_init(ram_addr_t ram_size,
     sysbus_create_simple("pl050_keyboard", 0x18000000, pic[3]);
     sysbus_create_simple("pl050_mouse", 0x19000000, pic[4]);
     sysbus_create_varargs("pl181", 0x1c000000, pic[23], pic[24], NULL);
-    if (nd_table[0].vlan)
+    if (nd_table[0].used)
         smc91c111_init(&nd_table[0], 0xc8000000, pic[27]);
 
     sysbus_create_simple("pl110", 0xc0000000, pic[22]);

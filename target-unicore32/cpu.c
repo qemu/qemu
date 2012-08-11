@@ -1,7 +1,7 @@
 /*
  * QEMU UniCore32 CPU
  *
- * Copyright (c) 2010-2011 GUAN Xue-tao
+ * Copyright (c) 2010-2012 Guan Xuetao
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
  * This program is free software; you can redistribute it and/or modify
@@ -32,13 +32,16 @@ static void unicore_ii_cpu_initfn(Object *obj)
     UniCore32CPU *cpu = UNICORE32_CPU(obj);
     CPUUniCore32State *env = &cpu->env;
 
-    env->cp0.c0_cpuid = 0x40010863;
+    env->cp0.c0_cpuid = 0x4d000863;
+    env->cp0.c0_cachetype = 0x0d152152;
+    env->cp0.c1_sys = 0x2000;
+    env->cp0.c2_base = 0x0;
+    env->cp0.c3_faultstatus = 0x0;
+    env->cp0.c4_faultaddr = 0x0;
+    env->ucf64.xregs[UC32_UCF64_FPSCR] = 0;
 
     set_feature(env, UC32_HWCAP_CMOV);
     set_feature(env, UC32_HWCAP_UCF64);
-    env->ucf64.xregs[UC32_UCF64_FPSCR] = 0;
-    env->cp0.c0_cachetype = 0x1dd20d2;
-    env->cp0.c1_sys = 0x00090078;
 }
 
 static void uc32_any_cpu_initfn(Object *obj)
@@ -47,6 +50,7 @@ static void uc32_any_cpu_initfn(Object *obj)
     CPUUniCore32State *env = &cpu->env;
 
     env->cp0.c0_cpuid = 0xffffffff;
+    env->ucf64.xregs[UC32_UCF64_FPSCR] = 0;
 
     set_feature(env, UC32_HWCAP_CMOV);
     set_feature(env, UC32_HWCAP_UCF64);
@@ -65,8 +69,13 @@ static void uc32_cpu_initfn(Object *obj)
     cpu_exec_init(env);
     env->cpu_model_str = object_get_typename(obj);
 
+#ifdef CONFIG_USER_ONLY
     env->uncached_asr = ASR_MODE_USER;
     env->regs[31] = 0;
+#else
+    env->uncached_asr = ASR_MODE_PRIV;
+    env->regs[31] = 0x03000000;
+#endif
 
     tlb_flush(env, 1);
 }

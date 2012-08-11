@@ -156,12 +156,9 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env)
 
 static CPUDebugExcpHandler *debug_excp_handler;
 
-CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
+void cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
 {
-    CPUDebugExcpHandler *old_handler = debug_excp_handler;
-
     debug_excp_handler = handler;
-    return old_handler;
 }
 
 static void cpu_handle_debug_exception(CPUArchState *env)
@@ -447,6 +444,7 @@ int cpu_exec(CPUArchState *env)
 #elif defined(TARGET_UNICORE32)
                     if (interrupt_request & CPU_INTERRUPT_HARD
                         && !(env->uncached_asr & ASR_I)) {
+                        env->exception_index = UC32_EXCP_INTR;
                         do_interrupt(env);
                         next_tb = 0;
                     }

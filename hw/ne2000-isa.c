@@ -36,7 +36,7 @@ typedef struct ISANE2000State {
     NE2000State ne2000;
 } ISANE2000State;
 
-static void isa_ne2000_cleanup(VLANClientState *nc)
+static void isa_ne2000_cleanup(NetClientState *nc)
 {
     NE2000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
 

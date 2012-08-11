@@ -29,6 +29,8 @@
 
 /* host loopback address */
 struct in_addr loopback_addr;
+/* host loopback network mask */
+unsigned long loopback_mask;
 
 /* emulated hosts use the MAC addr 52:55:IP:IP:IP:IP */
 static const uint8_t special_ethaddr[ETH_ALEN] = {
@@ -191,6 +193,7 @@ static void slirp_init_once(void)
 #endif
 
     loopback_addr.s_addr = htonl(INADDR_LOOPBACK);
+    loopback_mask = htonl(IN_CLASSA_NET);
 }
 
 static void slirp_state_save(QEMUFile *f, void *opaque);

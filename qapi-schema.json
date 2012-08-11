@@ -398,6 +398,8 @@
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
+# @backing_file_depth: number of files in the backing file chain (since: 1.2)
+#
 # @encrypted: true if the backing device is encrypted
 #
 # @bps: total throughput limit in bytes per second is specified
@@ -418,9 +420,10 @@
 ##
 { 'type': 'BlockDeviceInfo',
   'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
-            '*backing_file': 'str', 'encrypted': 'bool',
-            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
-            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
+            '*backing_file': 'str', 'backing_file_depth': 'int',
+            'encrypted': 'bool', 'bps': 'int', 'bps_rd': 'int',
+            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int',
+            'iops_wr': 'int'} }
 
 ##
 # @BlockDeviceIoStatus:
@@ -1657,7 +1660,7 @@
 # Returns: Nothing on success
 #          If the job type does not support throttling, NotSupported
 #          If the speed value is invalid, InvalidParameter
-#          If streaming is not active on this device, DeviceNotActive
+#          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
@@ -1667,9 +1670,9 @@
 ##
 # @block-job-cancel:
 #
-# Stop an active block streaming operation.
+# Stop an active background block operation.
 #
-# This command returns immediately after marking the active block streaming
+# This command returns immediately after marking the active background block
 # operation for cancellation.  It is an error to call this command if no
 # operation is in progress.
 #
@@ -1677,16 +1680,15 @@
 # BLOCK_JOB_CANCELLED event.  Before that happens the job is still visible when
 # enumerated using query-block-jobs.
 #
-# The image file retains its backing file unless the streaming operation happens
-# to complete just as it is being cancelled.
-#
-# A new block streaming operation can be started at a later time to finish
-# copying all data from the backing file.
+# For streaming, the image file retains its backing file unless the streaming
+# operation happens to complete just as it is being cancelled.  A new streaming
+# operation can be started at a later time to finish copying all data from the
+# backing file.
 #
 # @device: the device name
 #
 # Returns: Nothing on success
-#          If streaming is not active on this device, DeviceNotActive
+#          If no background operation is active on this device, DeviceNotActive
 #          If cancellation already in progress, DeviceInUse
 #
 # Since: 1.1
@@ -2094,6 +2096,19 @@
     '*helper': 'str' } }
 
 ##
+# @NetdevHubPortOptions
+#
+# Connect two or more net clients through a software hub.
+#
+# @hubid: hub identifier number
+#
+# Since 1.2
+##
+{ 'type': 'NetdevHubPortOptions',
+  'data': {
+    'hubid':     'int32' } }
+
+##
 # @NetClientOptions
 #
 # A discriminated record of network device traits.
@@ -2102,14 +2117,15 @@
 ##
 { 'union': 'NetClientOptions',
   'data': {
-    'none':   'NetdevNoneOptions',
-    'nic':    'NetLegacyNicOptions',
-    'user':   'NetdevUserOptions',
-    'tap':    'NetdevTapOptions',
-    'socket': 'NetdevSocketOptions',
-    'vde':    'NetdevVdeOptions',
-    'dump':   'NetdevDumpOptions',
-    'bridge': 'NetdevBridgeOptions' } }
+    'none':     'NetdevNoneOptions',
+    'nic':      'NetLegacyNicOptions',
+    'user':     'NetdevUserOptions',
+    'tap':      'NetdevTapOptions',
+    'socket':   'NetdevSocketOptions',
+    'vde':      'NetdevVdeOptions',
+    'dump':     'NetdevDumpOptions',
+    'bridge':   'NetdevBridgeOptions',
+    'hubport':  'NetdevHubPortOptions' } }
 
 ##
 # @NetLegacy

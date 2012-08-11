@@ -247,6 +247,9 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status, size_t r
                the status read packet.  */
             usb_msd_send_status(s, p);
             s->mode = USB_MSDM_CBW;
+        } else if (s->mode == USB_MSDM_CSW) {
+            usb_msd_send_status(s, p);
+            s->mode = USB_MSDM_CBW;
         } else {
             if (s->data_len) {
                 int len = (p->iov.size - p->result);
@@ -383,6 +386,9 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             assert(le32_to_cpu(s->csw.residue) == 0);
             s->scsi_len = 0;
             s->req = scsi_req_new(s->scsi_dev, tag, 0, cbw.cmd, NULL);
+#ifdef DEBUG_MSD
+            scsi_req_print(s->req);
+#endif
             scsi_req_enqueue(s->req);
             if (s->req && s->req->cmd.xfer != SCSI_XFER_NONE) {
                 scsi_req_continue(s->req);
@@ -410,7 +416,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 }
             }
             if (p->result < p->iov.size) {
-                DPRINTF("Deferring packet %p\n", p);
+                DPRINTF("Deferring packet %p [wait data-out]\n", p);
                 s->packet = p;
                 ret = USB_RET_ASYNC;
             } else {
@@ -445,6 +451,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 
             if (s->req) {
                 /* still in flight */
+                DPRINTF("Deferring packet %p [wait status]\n", p);
                 s->packet = p;
                 ret = USB_RET_ASYNC;
             } else {
@@ -471,7 +478,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 }
             }
             if (p->result < p->iov.size) {
-                DPRINTF("Deferring packet %p\n", p);
+                DPRINTF("Deferring packet %p [wait data-in]\n", p);
                 s->packet = p;
                 ret = USB_RET_ASYNC;
             } else {

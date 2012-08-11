@@ -662,7 +662,10 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
         qcow2_cache_depends_on_flush(s->l2_table_cache);
     }
 
-    qcow2_cache_set_dependency(bs, s->l2_table_cache, s->refcount_block_cache);
+    if (qcow2_need_accurate_refcounts(s)) {
+        qcow2_cache_set_dependency(bs, s->l2_table_cache,
+                                   s->refcount_block_cache);
+    }
     ret = get_cluster_table(bs, m->offset, &l2_table, &l2_index);
     if (ret < 0) {
         goto err;

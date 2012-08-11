@@ -27,16 +27,40 @@ printf " '%s'" "$0" "$@" >> config.log
 echo >> config.log
 echo "#" >> config.log
 
+do_cc() {
+    # Run the compiler, capturing its output to the log.
+    echo $cc "$@" >> config.log
+    $cc "$@" >> config.log 2>&1 || return $?
+    # Test passed. If this is an --enable-werror build, rerun
+    # the test with -Werror and bail out if it fails. This
+    # makes warning-generating-errors in configure test code
+    # obvious to developers.
+    if test "$werror" != "yes"; then
+        return 0
+    fi
+    # Don't bother rerunning the compile if we were already using -Werror
+    case "$*" in
+        *-Werror*)
+           return 0
+        ;;
+    esac
+    echo $cc -Werror "$@" >> config.log
+    $cc -Werror "$@" >> config.log 2>&1 && return $?
+    echo "ERROR: configure test passed without -Werror but failed with -Werror."
+    echo "This is probably a bug in the configure script. The failing command"
+    echo "will be at the bottom of config.log."
+    echo "You can run configure with --disable-werror to bypass this check."
+    exit 1
+}
+
 compile_object() {
-  echo $cc $QEMU_CFLAGS -c -o $TMPO $TMPC >> config.log
-  $cc $QEMU_CFLAGS -c -o $TMPO $TMPC >> config.log 2>&1
+  do_cc $QEMU_CFLAGS -c -o $TMPO $TMPC
 }
 
 compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
-  echo $cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags >> config.log
-  $cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags >> config.log 2>&1
+  do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $LDFLAGS $local_ldflags
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -962,6 +986,7 @@ sparc64-softmmu \
 s390x-softmmu \
 xtensa-softmmu \
 xtensaeb-softmmu \
+unicore32-softmmu \
 "
 fi
 # the following are Linux specific
@@ -1412,7 +1437,6 @@ if test "$xen" != "no" ; then
   # Xen (any)
   cat > $TMPC <<EOF
 #include <xenctrl.h>
-#include <xs.h>
 int main(void) {
   return 0;
 }
@@ -1425,8 +1449,8 @@ EOF
     xen=no
 
   # Xen unstable
-  elif (
-      cat > $TMPC <<EOF
+  elif
+      cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xenstore.h>
 #include <stdint.h>
@@ -1446,12 +1470,12 @@ int main(void) {
 }
 EOF
       compile_prog "" "$xen_libs"
-    ) ; then
+    then
     xen_ctrl_version=420
     xen=yes
 
-  elif (
-      cat > $TMPC <<EOF
+  elif
+      cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xs.h>
 #include <stdint.h>
@@ -1460,9 +1484,8 @@ EOF
 # error HVM_MAX_VCPUS not defined
 #endif
 int main(void) {
-  xc_interface *xc;
   xs_daemon_open();
-  xc = xc_interface_open(0, 0, 0);
+  xc_interface_open(0, 0, 0);
   xc_hvm_set_mem_type(0, 0, HVMMEM_ram_ro, 0, 0);
   xc_gnttab_open(NULL, 0);
   xc_domain_add_to_physmap(0, 0, XENMAPSPACE_gmfn, 0, 0);
@@ -1470,13 +1493,13 @@ int main(void) {
 }
 EOF
       compile_prog "" "$xen_libs"
-    ) ; then
+    then
     xen_ctrl_version=410
     xen=yes
 
   # Xen 4.0.0
-  elif (
-      cat > $TMPC <<EOF
+  elif
+      cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xs.h>
 #include <stdint.h>
@@ -1497,13 +1520,13 @@ int main(void) {
 }
 EOF
       compile_prog "" "$xen_libs"
-    ) ; then
+    then
     xen_ctrl_version=400
     xen=yes
 
   # Xen 3.4.0
-  elif (
-      cat > $TMPC <<EOF
+  elif
+      cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xs.h>
 int main(void) {
@@ -1519,13 +1542,13 @@ int main(void) {
 }
 EOF
       compile_prog "" "$xen_libs"
-    ) ; then
+    then
     xen_ctrl_version=340
     xen=yes
 
   # Xen 3.3.0
-  elif (
-      cat > $TMPC <<EOF
+  elif
+      cat > $TMPC <<EOF &&
 #include <xenctrl.h>
 #include <xs.h>
 int main(void) {
@@ -1537,7 +1560,7 @@ int main(void) {
 }
 EOF
       compile_prog "" "$xen_libs"
-    ) ; then
+    then
     xen_ctrl_version=330
     xen=yes
 
@@ -2269,7 +2292,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { return preadv == preadv; }
+int main(void) { return preadv(0, 0, 0, 0); }
 EOF
 preadv=no
 if compile_prog "" "" ; then
@@ -2565,7 +2588,7 @@ int main(void)
      * warning but not an error, and will proceed to fail the
      * qemu compile where we compile with -Werror.)
      */
-    return epoll_create1 == epoll_create1;
+    return (int)(uintptr_t)&epoll_create1;
 }
 EOF
 if compile_prog "" "" ; then
@@ -2966,7 +2989,7 @@ has_environ=no
 cat > $TMPC << EOF
 #include <unistd.h>
 int main(void) {
-    environ = environ;
+    environ = 0;
     return 0;
 }
 EOF

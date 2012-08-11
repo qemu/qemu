@@ -81,7 +81,7 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
     SysBusDevice *s;
 
     /* This should be a 9215 but the 9118 is close enough */
-    if (nd_table[0].vlan) {
+    if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], "lan9118");
         dev = qdev_create(NULL, "lan9118");
         qdev_set_nic_properties(dev, &nd_table[0]);

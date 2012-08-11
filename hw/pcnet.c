@@ -1004,7 +1004,7 @@ static int pcnet_tdte_poll(PCNetState *s)
     return !!(CSR_CXST(s) & 0x8000);
 }
 
-int pcnet_can_receive(VLANClientState *nc)
+int pcnet_can_receive(NetClientState *nc)
 {
     PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     if (CSR_STOP(s) || CSR_SPND(s))
@@ -1015,7 +1015,7 @@ int pcnet_can_receive(VLANClientState *nc)
 
 #define MIN_BUF_SIZE 60
 
-ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
+ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
 {
     PCNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     int is_padr = 0, is_bcast = 0, is_ladr = 0;
@@ -1197,7 +1197,7 @@ ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
     return size_;
 }
 
-void pcnet_set_link_status(VLANClientState *nc)
+void pcnet_set_link_status(NetClientState *nc)
 {
     PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
 

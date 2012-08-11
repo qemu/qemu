@@ -101,7 +101,7 @@ ETEXI
         .name       = "block_job_cancel",
         .args_type  = "device:B",
         .params     = "device",
-        .help       = "stop an active block streaming operation",
+        .help       = "stop an active background block operation",
         .mhandler.cmd = hmp_block_job_cancel,
     },
 

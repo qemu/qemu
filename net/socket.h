@@ -28,6 +28,6 @@
 #include "qapi-types.h"
 
 int net_init_socket(const NetClientOptions *opts, const char *name,
-                    VLANState *vlan);
+                    NetClientState *peer);
 
 #endif /* QEMU_NET_SOCKET_H */

@@ -68,6 +68,13 @@ hw-obj-$(CONFIG_XILINX) += xilinx_uartlite.o
 hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axidma.o
 hw-obj-$(CONFIG_XILINX_AXI) += xilinx_axienet.o
 
+# PKUnity SoC devices
+hw-obj-$(CONFIG_PUV3) += puv3_intc.o
+hw-obj-$(CONFIG_PUV3) += puv3_ost.o
+hw-obj-$(CONFIG_PUV3) += puv3_gpio.o
+hw-obj-$(CONFIG_PUV3) += puv3_pm.o
+hw-obj-$(CONFIG_PUV3) += puv3_dma.o
+
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 
@@ -101,6 +108,7 @@ hw-obj-$(CONFIG_VLYNQ) += tnetw1130-vlynq.o
 hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
 hw-obj-$(CONFIG_MEGASAS_SCSI_PCI) += megasas.o
 hw-obj-$(CONFIG_ESP) += esp.o
+hw-obj-$(CONFIG_ESP_PCI) += esp-pci.o
 
 hw-obj-y += sysbus.o isa-bus.o
 hw-obj-y += qdev-addr.o

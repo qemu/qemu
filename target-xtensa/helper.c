@@ -54,8 +54,6 @@ static uint32_t check_hw_breakpoints(CPUXtensaState *env)
     return 0;
 }
 
-static CPUDebugExcpHandler *prev_debug_excp_handler;
-
 static void breakpoint_handler(CPUXtensaState *env)
 {
     if (env->watchpoint_hit) {
@@ -69,9 +67,6 @@ static void breakpoint_handler(CPUXtensaState *env)
             }
             cpu_resume_from_signal(env, NULL);
         }
-    }
-    if (prev_debug_excp_handler) {
-        prev_debug_excp_handler(env);
     }
 }
 
@@ -105,8 +100,7 @@ XtensaCPU *cpu_xtensa_init(const char *cpu_model)
 
     if (!debug_handler_inited && tcg_enabled()) {
         debug_handler_inited = 1;
-        prev_debug_excp_handler =
-            cpu_set_debug_excp_handler(breakpoint_handler);
+        cpu_set_debug_excp_handler(breakpoint_handler);
     }
 
     xtensa_irq_init(env);

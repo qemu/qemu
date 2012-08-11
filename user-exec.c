@@ -18,7 +18,9 @@
  */
 #include "config.h"
 #include "cpu.h"
+#ifndef CONFIG_TCG_PASS_AREG0
 #include "dyngen-exec.h"
+#endif
 #include "disas.h"
 #include "tcg.h"
 
@@ -58,9 +60,11 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
     struct sigcontext *uc = puc;
 #endif
 
+#ifndef CONFIG_TCG_PASS_AREG0
     env = env1;
 
     /* XXX: restore cpu registers saved in host registers */
+#endif
 
     if (puc) {
         /* XXX: use siglongjmp ? */
@@ -74,8 +78,8 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
         sigprocmask(SIG_SETMASK, &uc->sc_mask, NULL);
 #endif
     }
-    env->exception_index = -1;
-    longjmp(env->jmp_env, 1);
+    env1->exception_index = -1;
+    longjmp(env1->jmp_env, 1);
 }
 
 /* 'pc' is the host PC at which the exception was raised. 'address' is
@@ -90,9 +94,11 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
     TranslationBlock *tb;
     int ret;
 
+#ifndef CONFIG_TCG_PASS_AREG0
     if (cpu_single_env) {
         env = cpu_single_env; /* XXX: find a correct solution for multithread */
     }
+#endif
 #if defined(DEBUG_SIGNAL)
     qemu_printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
                 pc, address, is_write, *(unsigned long *)old_set);
@@ -104,7 +110,8 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);
+    ret = cpu_handle_mmu_fault(cpu_single_env, address, is_write,
+                               MMU_USER_IDX);
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }
@@ -116,13 +123,13 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
     if (tb) {
         /* the PC is inside the translated code. It means that we have
            a virtual CPU fault */
-        cpu_restore_state(tb, env, pc);
+        cpu_restore_state(tb, cpu_single_env, pc);
     }
 
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */
     sigprocmask(SIG_SETMASK, old_set, NULL);
-    exception_action(env);
+    exception_action(cpu_single_env);
 
     /* never comes here */
     return 1;
@@ -579,7 +586,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 int cpu_signal_handler(int host_signum, void *pinfo,
                        void *puc)
 {
-    struct siginfo *info = pinfo;
+    siginfo_t *info = pinfo;
     struct ucontext *uc = puc;
     uintptr_t pc = uc->uc_mcontext.sc_iaoq[0];
     uint32_t insn = *(uint32_t *)pc;

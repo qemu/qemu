@@ -227,6 +227,8 @@ void hmp_info_block(Monitor *mon)
             if (info->value->inserted->has_backing_file) {
                 monitor_printf(mon, " backing_file=");
                 monitor_print_filename(mon, info->value->inserted->backing_file);
+                monitor_printf(mon, " backing_file_depth=%" PRId64,
+                    info->value->inserted->backing_file_depth);
             }
             monitor_printf(mon, " ro=%d drv=%s encrypted=%d",
                            info->value->inserted->ro,

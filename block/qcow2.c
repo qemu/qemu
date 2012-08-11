@@ -214,6 +214,62 @@ static void report_unsupported_feature(BlockDriverState *bs,
     }
 }
 
+/*
+ * Sets the dirty bit and flushes afterwards if necessary.
+ *
+ * The incompatible_features bit is only set if the image file header was
+ * updated successfully.  Therefore it is not required to check the return
+ * value of this function.
+ */
+static int qcow2_mark_dirty(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t val;
+    int ret;
+
+    assert(s->qcow_version >= 3);
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_DIRTY) {
+        return 0; /* already dirty */
+    }
+
+    val = cpu_to_be64(s->incompatible_features | QCOW2_INCOMPAT_DIRTY);
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, incompatible_features),
+                      &val, sizeof(val));
+    if (ret < 0) {
+        return ret;
+    }
+    ret = bdrv_flush(bs->file);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* Only treat image as dirty if the header was updated successfully */
+    s->incompatible_features |= QCOW2_INCOMPAT_DIRTY;
+    return 0;
+}
+
+/*
+ * Clears the dirty bit and flushes before if necessary.  Only call this
+ * function when there are no pending requests, it does not guard against
+ * concurrent requests dirtying the image.
+ */
+static int qcow2_mark_clean(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+
+    if (s->incompatible_features & QCOW2_INCOMPAT_DIRTY) {
+        int ret = bdrv_flush(bs);
+        if (ret < 0) {
+            return ret;
+        }
+
+        s->incompatible_features &= ~QCOW2_INCOMPAT_DIRTY;
+        return qcow2_update_header(bs);
+    }
+    return 0;
+}
+
 static int qcow2_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
@@ -287,12 +343,13 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     s->compatible_features      = header.compatible_features;
     s->autoclear_features       = header.autoclear_features;
 
-    if (s->incompatible_features != 0) {
+    if (s->incompatible_features & ~QCOW2_INCOMPAT_MASK) {
         void *feature_table = NULL;
         qcow2_read_extensions(bs, header.header_length, ext_end,
                               &feature_table);
         report_unsupported_feature(bs, feature_table,
-                                   s->incompatible_features);
+                                   s->incompatible_features &
+                                   ~QCOW2_INCOMPAT_MASK);
         ret = -ENOTSUP;
         goto fail;
     }
@@ -411,6 +468,22 @@ static int qcow2_open(BlockDriverState *bs, int flags)
 
     /* Initialise locks */
     qemu_co_mutex_init(&s->lock);
+
+    /* Repair image if dirty */
+    if ((s->incompatible_features & QCOW2_INCOMPAT_DIRTY) &&
+        !bs->read_only) {
+        BdrvCheckResult result = {0};
+
+        ret = qcow2_check_refcounts(bs, &result, BDRV_FIX_ERRORS);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        ret = qcow2_mark_clean(bs);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
 
 #ifdef DEBUG_ALLOC
     {
@@ -714,6 +787,11 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             goto fail;
         }
 
+        if (l2meta.nb_clusters > 0 &&
+            (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS)) {
+            qcow2_mark_dirty(bs);
+        }
+
         cluster_offset = l2meta.cluster_offset;
         assert((cluster_offset & 511) == 0);
 
@@ -784,6 +862,8 @@ static void qcow2_close(BlockDriverState *bs)
 
     qcow2_cache_flush(bs, s->l2_table_cache);
     qcow2_cache_flush(bs, s->refcount_block_cache);
+
+    qcow2_mark_clean(bs);
 
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
@@ -949,7 +1029,16 @@ int qcow2_update_header(BlockDriverState *bs)
 
     /* Feature table */
     Qcow2Feature features[] = {
-        /* no feature defined yet */
+        {
+            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+            .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
+            .name = "dirty bit",
+        },
+        {
+            .type = QCOW2_FEAT_TYPE_COMPATIBLE,
+            .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
+            .name = "lazy refcounts",
+        },
     };
 
     ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
@@ -1132,6 +1221,11 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         header.crypt_method = cpu_to_be32(QCOW_CRYPT_NONE);
     }
 
+    if (flags & BLOCK_FLAG_LAZY_REFCOUNTS) {
+        header.compatible_features |=
+            cpu_to_be64(QCOW2_COMPAT_LAZY_REFCOUNTS);
+    }
+
     ret = bdrv_pwrite(bs, 0, &header, sizeof(header));
     if (ret < 0) {
         goto out;
@@ -1245,6 +1339,8 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options)
                     options->value.s);
                 return -EINVAL;
             }
+        } else if (!strcmp(options->name, BLOCK_OPT_LAZY_REFCOUNTS)) {
+            flags |= options->value.n ? BLOCK_FLAG_LAZY_REFCOUNTS : 0;
         }
         options++;
     }
@@ -1252,6 +1348,12 @@ static int qcow2_create(const char *filename, QEMUOptionParameter *options)
     if (backing_file && prealloc) {
         fprintf(stderr, "Backing file and preallocation cannot be used at "
             "the same time\n");
+        return -EINVAL;
+    }
+
+    if (version < 3 && (flags & BLOCK_FLAG_LAZY_REFCOUNTS)) {
+        fprintf(stderr, "Lazy refcounts only supported with compatibility "
+                "level 1.1 and above (use compat=1.1 or greater)\n");
         return -EINVAL;
     }
 
@@ -1441,10 +1543,12 @@ static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
         return ret;
     }
 
-    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
-    if (ret < 0) {
-        qemu_co_mutex_unlock(&s->lock);
-        return ret;
+    if (qcow2_need_accurate_refcounts(s)) {
+        ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+        if (ret < 0) {
+            qemu_co_mutex_unlock(&s->lock);
+            return ret;
+        }
     }
     qemu_co_mutex_unlock(&s->lock);
 
@@ -1558,6 +1662,11 @@ static QEMUOptionParameter qcow2_create_options[] = {
         .name = BLOCK_OPT_PREALLOC,
         .type = OPT_STRING,
         .help = "Preallocation mode (allowed values: off, metadata)"
+    },
+    {
+        .name = BLOCK_OPT_LAZY_REFCOUNTS,
+        .type = OPT_FLAG,
+        .help = "Postpone refcount updates",
     },
     { NULL }
 };

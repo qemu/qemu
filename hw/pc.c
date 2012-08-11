@@ -49,6 +49,7 @@
 #include "memory.h"
 #include "exec-memory.h"
 #include "arch_init.h"
+#include "bitmap.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -625,7 +626,7 @@ static void *bochs_bios_init(void)
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
     for (i = 0; i < max_cpus; i++) {
         for (j = 0; j < nb_numa_nodes; j++) {
-            if (node_cpumask[j] & (1 << i)) {
+            if (test_bit(i, node_cpumask[j])) {
                 numa_fw_cfg[i + 1] = cpu_to_le64(j);
                 break;
             }
@@ -857,12 +858,6 @@ void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd)
     nb_ne2k++;
 }
 
-int cpu_is_bsp(CPUX86State *env)
-{
-    /* We hard-wire the BSP to the first CPU. */
-    return env->cpu_index == 0;
-}
-
 DeviceState *cpu_get_current_apic(void)
 {
     if (cpu_single_env) {
@@ -910,15 +905,6 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
     }
 }
 
-static void pc_cpu_reset(void *opaque)
-{
-    X86CPU *cpu = opaque;
-    CPUX86State *env = &cpu->env;
-
-    cpu_reset(CPU(cpu));
-    env->halted = !cpu_is_bsp(env);
-}
-
 static X86CPU *pc_new_cpu(const char *cpu_model)
 {
     X86CPU *cpu;
@@ -933,8 +919,7 @@ static X86CPU *pc_new_cpu(const char *cpu_model)
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
         env->apic_state = apic_init(env, env->cpuid_apic_id);
     }
-    qemu_register_reset(pc_cpu_reset, cpu);
-    pc_cpu_reset(cpu);
+    cpu_reset(CPU(cpu));
     return cpu;
 }
 

@@ -1,0 +1,6 @@
+# For UniCore32 machines and boards
+
+# PKUnity-v3 SoC and board information
+obj-${CONFIG_PUV3} += puv3.o
+
+obj-y := $(addprefix ../,$(obj-y))

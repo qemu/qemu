@@ -330,7 +330,7 @@ HANDLE qemu_thread_get_handle(QemuThread *thread)
     return handle;
 }
 
-int qemu_thread_is_self(QemuThread *thread)
+bool qemu_thread_is_self(QemuThread *thread)
 {
     return GetCurrentThreadId() == thread->tid;
 }

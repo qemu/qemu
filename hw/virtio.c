@@ -1021,13 +1021,16 @@ static void virtio_queue_host_notifier_read(EventNotifier *n)
     }
 }
 
-void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign)
+void virtio_queue_set_host_notifier_fd_handler(VirtQueue *vq, bool assign,
+                                               bool set_handler)
 {
-    if (assign) {
+    if (assign && set_handler) {
         event_notifier_set_handler(&vq->host_notifier,
                                    virtio_queue_host_notifier_read);
     } else {
         event_notifier_set_handler(&vq->host_notifier, NULL);
+    }
+    if (!assign) {
         /* Test and clear notifier before after disabling event,
          * in case poll callback didn't have time to run. */
         virtio_queue_host_notifier_read(&vq->host_notifier);

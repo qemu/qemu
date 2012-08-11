@@ -1,0 +1,53 @@
+QA output created by 039
+
+== Checking that image is clean on shutdown ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x0
+No errors were found on the image.
+
+== Creating a dirty image file ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x1
+ERROR OFLAG_COPIED: offset=8000000000050000 refcount=0
+ERROR cluster 5 refcount=0 reference=1
+
+2 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+
+== Read-only access must still work ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x1
+
+== Repairing the image file must succeed ==
+ERROR OFLAG_COPIED: offset=8000000000050000 refcount=0
+Repairing cluster 5 refcount=0 reference=1
+No errors were found on the image.
+incompatible_features     0x0
+
+== Data should still be accessible after repair ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Opening a dirty image read/write should repair it ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x1
+ERROR OFLAG_COPIED: offset=8000000000050000 refcount=0
+Repairing cluster 5 refcount=0 reference=1
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x0
+
+== Creating an image file with lazy_refcounts=off ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+incompatible_features     0x0
+No errors were found on the image.
+*** done

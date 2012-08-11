@@ -405,6 +405,14 @@ M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: hw/s390-*.c
 
+UniCore32 Machines
+-------------
+PKUnity-3 SoC initramfs-with-busybox
+M: Guan Xuetao <gxt@mprc.pku.edu.cn>
+S: Maintained
+F: hw/puv3*
+F: hw/unicore32/
+
 X86 Machines
 ------------
 PC

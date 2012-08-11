@@ -673,7 +673,7 @@ static const MemoryRegionOps dp8393x_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int nic_can_receive(VLANClientState *nc)
+static int nic_can_receive(NetClientState *nc)
 {
     dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -722,7 +722,7 @@ static int receive_filter(dp8393xState *s, const uint8_t * buf, int size)
     return -1;
 }
 
-static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size)
+static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
 {
     dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t data[10];
@@ -858,7 +858,7 @@ static void nic_reset(void *opaque)
     dp8393x_update_irq(s);
 }
 
-static void nic_cleanup(VLANClientState *nc)
+static void nic_cleanup(NetClientState *nc)
 {
     dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
@@ -899,7 +899,6 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
     s->conf.macaddr = nd->macaddr;
-    s->conf.vlan = nd->vlan;
     s->conf.peer = nd->netdev;
 
     s->nic = qemu_new_nic(&net_dp83932_info, &s->conf, nd->model, nd->name, s);

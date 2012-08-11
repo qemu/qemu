@@ -357,7 +357,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 
 typedef void (CPUDebugExcpHandler)(CPUArchState *env);
 
-CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
+void cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 
 /* vl.c */
 extern int singlestep;

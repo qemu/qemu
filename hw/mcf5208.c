@@ -236,7 +236,7 @@ static void mcf5208evb_init(ram_addr_t ram_size,
         fprintf(stderr, "Too many NICs\n");
         exit(1);
     }
-    if (nd_table[0].vlan)
+    if (nd_table[0].used)
         mcf_fec_init(address_space_mem, &nd_table[0],
                      0xfc030000, pic + 36);
 

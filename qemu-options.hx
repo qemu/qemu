@@ -6,6 +6,10 @@ HXCOMM construct option structures, enums and help message for specified
 HXCOMM architectures.
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
+HXCOMM TODO : when we are able to change -help output without breaking
+HXCOMM libvirt we should update the help options which refer to -cpu ?,
+HXCOMM -driver ?, etc to use the preferred -cpu help etc instead.
+
 DEFHEADING(Standard options:)
 STEXI
 @table @option
@@ -2794,6 +2798,17 @@ DEF("qtest", HAS_ARG, QEMU_OPTION_qtest,
 DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log,
     "-qtest-log LOG  specify tracing options\n",
     QEMU_ARCH_ALL)
+
+#ifdef __linux__
+DEF("enable-fips", 0, QEMU_OPTION_enablefips,
+    "-enable-fips    enable FIPS 140-2 compliance\n",
+    QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -enable-fips
+@findex -enable-fips
+Enable FIPS 140-2 compliance mode.
+ETEXI
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

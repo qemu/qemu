@@ -46,7 +46,7 @@
 #define TARGET_NR_open		 45
 #define TARGET_NR_osf_old_sigaction	 46	/* not implemented */
 #define TARGET_NR_getxgid		 47
-#define TARGET_NR_osf_sigprocmask	 48
+#define TARGET_NR_sigprocmask    48
 #define TARGET_NR_osf_getlogin	 49	/* not implemented */
 #define TARGET_NR_osf_setlogin	 50	/* not implemented */
 #define TARGET_NR_acct		 51
