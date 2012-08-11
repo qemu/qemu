@@ -896,26 +896,26 @@ static char *parse_initiator_name(const char *target)
     QemuOptsList *list;
     QemuOpts *opts;
     const char *name = NULL;
+    const char *iscsi_name = qemu_get_vm_name();
 
     list = qemu_find_opts("iscsi");
-    if (!list) {
-        return g_strdup("iqn.2008-11.org.linux-kvm");
-    }
-
-    opts = qemu_opts_find(list, target);
-    if (opts == NULL) {
-        opts = QTAILQ_FIRST(&list->head);
+    if (list) {
+        opts = qemu_opts_find(list, target);
         if (!opts) {
-            return g_strdup("iqn.2008-11.org.linux-kvm");
+            opts = QTAILQ_FIRST(&list->head);
+        }
+        if (opts) {
+            name = qemu_opt_get(opts, "initiator-name");
         }
     }
 
-    name = qemu_opt_get(opts, "initiator-name");
-    if (!name) {
-        return g_strdup("iqn.2008-11.org.linux-kvm");
+    if (name) {
+        return g_strdup(name);
+    } else {
+        return g_strdup_printf("iqn.2008-11.org.linux-kvm%s%s",
+                               iscsi_name ? ":" : "",
+                               iscsi_name ? iscsi_name : "");
     }
-
-    return g_strdup(name);
 }
 
 /*
@@ -943,7 +943,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
         error_report("Failed to parse URL : %s %s", filename,
                      iscsi_get_error(iscsi));
         ret = -EINVAL;
-        goto failed;
+        goto out;
     }
 
     memset(iscsilun, 0, sizeof(IscsiLun));
@@ -954,13 +954,13 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     if (iscsi == NULL) {
         error_report("iSCSI: Failed to create iSCSI context.");
         ret = -ENOMEM;
-        goto failed;
+        goto out;
     }
 
     if (iscsi_set_targetname(iscsi, iscsi_url->target)) {
         error_report("iSCSI: Failed to set target name.");
         ret = -EINVAL;
-        goto failed;
+        goto out;
     }
 
     if (iscsi_url->user != NULL) {
@@ -969,7 +969,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
         if (ret != 0) {
             error_report("Failed to set initiator username and password");
             ret = -EINVAL;
-            goto failed;
+            goto out;
         }
     }
 
@@ -977,13 +977,13 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     if (parse_chap(iscsi, iscsi_url->target) != 0) {
         error_report("iSCSI: Failed to set CHAP user/password");
         ret = -EINVAL;
-        goto failed;
+        goto out;
     }
 
     if (iscsi_set_session_type(iscsi, ISCSI_SESSION_NORMAL) != 0) {
         error_report("iSCSI: Failed to set session type to normal.");
         ret = -EINVAL;
-        goto failed;
+        goto out;
     }
 
     iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
@@ -1004,7 +1004,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
         != 0) {
         error_report("iSCSI: Failed to start async connect.");
         ret = -EINVAL;
-        goto failed;
+        goto out;
     }
 
     while (!task.complete) {
@@ -1015,11 +1015,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
         error_report("iSCSI: Failed to connect to LUN : %s",
                      iscsi_get_error(iscsi));
         ret = -EINVAL;
-        goto failed;
-    }
-
-    if (iscsi_url != NULL) {
-        iscsi_destroy_url(iscsi_url);
+        goto out;
     }
 
     /* Medium changer or tape. We dont have any emulation for this so this must
@@ -1031,19 +1027,22 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
         bs->sg = 1;
     }
 
-    return 0;
+    ret = 0;
 
-failed:
+out:
     if (initiator_name != NULL) {
         g_free(initiator_name);
     }
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
     }
-    if (iscsi != NULL) {
-        iscsi_destroy_context(iscsi);
+
+    if (ret) {
+        if (iscsi != NULL) {
+            iscsi_destroy_context(iscsi);
+        }
+        memset(iscsilun, 0, sizeof(IscsiLun));
     }
-    memset(iscsilun, 0, sizeof(IscsiLun));
     return ret;
 }
 
