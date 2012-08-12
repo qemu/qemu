@@ -53,7 +53,7 @@ typedef struct DisasContext {
     int condjmp;
     /* The label that will be jumped to when the instruction is skipped.  */
     int condlabel;
-    /* Thumb-2 condtional execution bits.  */
+    /* Thumb-2 conditional execution bits.  */
     int condexec_mask;
     int condexec_cond;
     struct TranslationBlock *tb;
@@ -77,7 +77,7 @@ static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 #endif
 
 /* These instructions trap after executing, so defer them until after the
-   conditional executions state has been updated.  */
+   conditional execution state has been updated.  */
 #define DISAS_WFI 4
 #define DISAS_SWI 5
 
@@ -155,7 +155,7 @@ static void load_reg_var(DisasContext *s, TCGv var, int reg)
 {
     if (reg == 15) {
         uint32_t addr;
-        /* normaly, since we updated PC, we need only to add one insn */
+        /* normally, since we updated PC, we need only to add one insn */
         if (s->thumb)
             addr = (long)s->pc + 2;
         else
@@ -4897,7 +4897,7 @@ static int disas_neon_data_insn(CPUARMState * env, DisasContext *s, uint32_t ins
                     size--;
             }
             shift = (insn >> 16) & ((1 << (3 + size)) - 1);
-            /* To avoid excessive dumplication of ops we implement shift
+            /* To avoid excessive duplication of ops we implement shift
                by immediate using the variable shift operations.  */
             if (op < 8) {
                 /* Shift by immediate:
@@ -6402,7 +6402,7 @@ static void gen_logicq_cc(TCGv_i64 val)
 
 /* Load/Store exclusive instructions are implemented by remembering
    the value/address loaded, and seeing if these are the same
-   when the store is performed. This should be is sufficient to implement
+   when the store is performed. This should be sufficient to implement
    the architecturally mandated semantics, and avoids having to monitor
    regular stores.
 
@@ -9892,7 +9892,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     } else {
         /* While branches must always occur at the end of an IT block,
            there are a few other things that can cause us to terminate
-           the TB in the middel of an IT block:
+           the TB in the middle of an IT block:
             - Exception generating instructions (bkpt, swi, undefined).
             - Page boundaries.
             - Hardware watchpoints.

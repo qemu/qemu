@@ -281,7 +281,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             return len - ret;
         }
     case TARGET_SYS_READC:
-       /* XXX: Read from debug cosole. Not implemented.  */
+       /* XXX: Read from debug console. Not implemented.  */
         return 0;
     case TARGET_SYS_ISTTY:
         if (use_gdb_syscalls()) {

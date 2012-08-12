@@ -3209,6 +3209,11 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    if (machine == NULL) {
+        fprintf(stderr, "No machine found.\n");
+        exit(1);
+    }
+
     if (machine->hw_version) {
         qemu_set_version(machine->hw_version);
     }
@@ -3249,11 +3254,6 @@ int main(int argc, char **argv, char **envp)
     /* If all else fails use the install path specified when building. */
     if (!data_dir) {
         data_dir = CONFIG_QEMU_DATADIR;
-    }
-
-    if (machine == NULL) {
-        fprintf(stderr, "No machine found.\n");
-        exit(1);
     }
 
     /*
