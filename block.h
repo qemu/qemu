@@ -79,6 +79,7 @@ typedef struct BlockDevOps {
 #define BDRV_O_NO_FLUSH    0x0200 /* disable flushing on this disk */
 #define BDRV_O_COPY_ON_READ 0x0400 /* copy read backing sectors into image */
 #define BDRV_O_INCOMING    0x0800  /* consistency hint for incoming migration */
+#define BDRV_O_CHECK       0x1000  /* open solely for consistency check */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
 

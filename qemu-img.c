@@ -379,7 +379,7 @@ static int img_check(int argc, char **argv)
     BlockDriverState *bs;
     BdrvCheckResult result;
     int fix = 0;
-    int flags = BDRV_O_FLAGS;
+    int flags = BDRV_O_FLAGS | BDRV_O_CHECK;
 
     fmt = NULL;
     for(;;) {
