@@ -81,7 +81,7 @@ struct SDState {
     uint32_t card_status;
     uint8_t sd_status[64];
     uint32_t vhs;
-    int wp_switch;
+    bool wp_switch;
     unsigned long *wp_groups;
     uint64_t size;
     int blk_len;
@@ -91,12 +91,12 @@ struct SDState {
     int pwd_len;
     int function_group[6];
 
-    int spi;
+    bool spi;
     int current_cmd;
     /* True if we will handle the next command as an ACMD. Note that this does
      * *not* track the APP_CMD status bit!
      */
-    int expecting_acmd;
+    bool expecting_acmd;
     int blk_written;
     uint64_t data_start;
     uint32_t data_offset;
@@ -106,7 +106,7 @@ struct SDState {
     BlockDriverState *bdrv;
     uint8_t *buf;
 
-    int enable;
+    bool enable;
 };
 
 static void sd_set_mode(SDState *sd)
@@ -420,7 +420,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
 
     if (sd->wp_groups)
         g_free(sd->wp_groups);
-    sd->wp_switch = bdrv ? bdrv_is_read_only(bdrv) : 0;
+    sd->wp_switch = bdrv ? bdrv_is_read_only(bdrv) : false;
     sd->wp_groups = bitmap_new(sect);
     memset(sd->function_group, 0, sizeof(int) * 6);
     sd->erase_start = 0;
@@ -428,7 +428,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->size = size;
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
-    sd->expecting_acmd = 0;
+    sd->expecting_acmd = false;
 }
 
 static void sd_cardchange(void *opaque, bool load)
@@ -450,14 +450,14 @@ static const BlockDevOps sd_block_ops = {
    whether card should be in SSI or MMC/SD mode.  It is also up to the
    board to ensure that ssi transfers only occur when the chip select
    is asserted.  */
-SDState *sd_init(BlockDriverState *bs, int is_spi)
+SDState *sd_init(BlockDriverState *bs, bool is_spi)
 {
     SDState *sd;
 
     sd = (SDState *) g_malloc0(sizeof(SDState));
     sd->buf = qemu_blockalign(bs, 512);
     sd->spi = is_spi;
-    sd->enable = 1;
+    sd->enable = true;
     sd_reset(sd, bs);
     if (sd->bdrv) {
         bdrv_attach_dev_nofail(sd->bdrv, sd);
@@ -1129,7 +1129,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         if (sd->rca != rca)
             return sd_r0;
 
-        sd->expecting_acmd = 1;
+        sd->expecting_acmd = true;
         sd->card_status |= APP_CMD;
         return sd_r1;
 
@@ -1311,7 +1311,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
     if (sd->card_status & CARD_IS_LOCKED) {
         if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
-            sd->expecting_acmd = 0;
+            sd->expecting_acmd = false;
             fprintf(stderr, "SD: Card is locked\n");
             rtype = sd_illegal;
             goto send_response;
@@ -1322,7 +1322,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
     sd_set_mode(sd);
 
     if (sd->expecting_acmd) {
-        sd->expecting_acmd = 0;
+        sd->expecting_acmd = false;
         rtype = sd_app_command(sd, *req);
     } else {
         rtype = sd_normal_command(sd, *req);
@@ -1708,7 +1708,7 @@ int sd_data_ready(SDState *sd)
     return sd->state == sd_sendingdata_state;
 }
 
-void sd_enable(SDState *sd, int enable)
+void sd_enable(SDState *sd, bool enable)
 {
     sd->enable = enable;
 }
