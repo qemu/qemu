@@ -538,7 +538,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     double bwidth = 0;
     int ret;
     int i;
-    uint64_t expected_time;
+    uint64_t expected_downtime;
 
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
@@ -577,24 +577,24 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     bwidth = qemu_get_clock_ns(rt_clock) - bwidth;
     bwidth = (bytes_transferred - bytes_transferred_last) / bwidth;
 
-    /* if we haven't transferred anything this round, force expected_time to a
-     * a very high value, but without crashing */
+    /* if we haven't transferred anything this round, force
+     * expected_downtime to a very high value, but without
+     * crashing */
     if (bwidth == 0) {
         bwidth = 0.000001;
     }
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-    expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+    expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+    DPRINTF("ram_save_live: expected(%" PRIu64 ") <= max(" PRIu64 ")?\n",
+            expected_downtime, migrate_max_downtime());
 
-    DPRINTF("ram_save_live: expected(%" PRIu64 ") <= max(%" PRIu64 ")?\n",
-            expected_time, migrate_max_downtime());
-
-    if (expected_time <= migrate_max_downtime()) {
+    if (expected_downtime <= migrate_max_downtime()) {
         memory_global_sync_dirty_bitmap(get_system_memory());
-        expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+        expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
-        return expected_time <= migrate_max_downtime();
+        return expected_downtime <= migrate_max_downtime();
     }
     return 0;
 }
