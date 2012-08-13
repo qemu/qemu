@@ -53,7 +53,7 @@ static NotifierList migration_state_notifiers =
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
 
-static MigrationState *migrate_get_current(void)
+MigrationState *migrate_get_current(void)
 {
     static MigrationState current_migration = {
         .state = MIG_STATE_SETUP,
