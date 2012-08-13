@@ -195,6 +195,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_status = true;
         info->status = g_strdup("completed");
         info->total_time = s->total_time;
+        info->has_downtime = true;
+        info->downtime = s->downtime;
 
         info->has_ram = true;
         info->ram = g_malloc0(sizeof(*info->ram));
@@ -329,9 +331,10 @@ static void migrate_fd_put_ready(void *opaque)
         migrate_fd_error(s);
     } else if (ret == 1) {
         int old_vm_running = runstate_is_running();
-        int64_t end_time;
+        int64_t start_time, end_time;
 
         DPRINTF("done iterating\n");
+        start_time = qemu_get_clock_ms(rt_clock);
         qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
         vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
 
@@ -342,6 +345,7 @@ static void migrate_fd_put_ready(void *opaque)
         }
         end_time = qemu_get_clock_ms(rt_clock);
         s->total_time = end_time - s->total_time;
+        s->downtime = end_time - start_time;
         if (s->state != MIG_STATE_COMPLETED) {
             if (old_vm_running) {
                 vm_start();
