@@ -369,6 +369,14 @@ static void migration_bitmap_sync(void)
     RAMBlock *block;
     ram_addr_t addr;
     uint64_t num_dirty_pages_init = migration_dirty_pages;
+    MigrationState *s = migrate_get_current();
+    static int64_t start_time;
+    static int64_t num_dirty_pages_period;
+    int64_t end_time;
+
+    if (!start_time) {
+        start_time = qemu_get_clock_ms(rt_clock);
+    }
 
     trace_migration_bitmap_sync_start();
     memory_global_sync_dirty_bitmap(get_system_memory());
@@ -385,6 +393,16 @@ static void migration_bitmap_sync(void)
     }
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
+    num_dirty_pages_period += migration_dirty_pages - num_dirty_pages_init;
+    end_time = qemu_get_clock_ms(rt_clock);
+
+    /* more than 1 second = 1000 millisecons */
+    if (end_time > start_time + 1000) {
+        s->dirty_pages_rate = num_dirty_pages_period * 1000
+            / (end_time - start_time);
+        start_time = end_time;
+        num_dirty_pages_period = 0;
+    }
 }
 
 
