@@ -55,7 +55,7 @@ static unsigned int trace_idx;
 static unsigned int writeout_idx;
 static uint64_t dropped_events;
 static FILE *trace_fp;
-static char *trace_file_name = NULL;
+static char *trace_file_name;
 
 /* * Trace buffer entry */
 typedef struct {
@@ -329,18 +329,12 @@ bool st_set_trace_file(const char *file)
 {
     st_set_trace_file_enabled(false);
 
-    free(trace_file_name);
+    g_free(trace_file_name);
 
     if (!file) {
-        if (asprintf(&trace_file_name, CONFIG_TRACE_FILE, getpid()) < 0) {
-            trace_file_name = NULL;
-            return false;
-        }
+        trace_file_name = g_strdup_printf(CONFIG_TRACE_FILE, getpid());
     } else {
-        if (asprintf(&trace_file_name, "%s", file) < 0) {
-            trace_file_name = NULL;
-            return false;
-        }
+        trace_file_name = g_strdup_printf("%s", file);
     }
 
     st_set_trace_file_enabled(true);
