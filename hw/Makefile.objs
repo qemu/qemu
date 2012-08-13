@@ -74,6 +74,26 @@ hw-obj-$(CONFIG_PUV3) += puv3_gpio.o
 hw-obj-$(CONFIG_PUV3) += puv3_pm.o
 hw-obj-$(CONFIG_PUV3) += puv3_dma.o
 
+# ARM devices
+hw-obj-$(CONFIG_ARM_TIMER) += arm_timer.o
+hw-obj-$(CONFIG_PL011) += pl011.o
+hw-obj-$(CONFIG_PL022) += pl022.o
+hw-obj-$(CONFIG_PL031) += pl031.o
+hw-obj-$(CONFIG_PL041) += pl041.o lm4549.o
+hw-obj-$(CONFIG_PL050) += pl050.o
+hw-obj-$(CONFIG_PL061) += pl061.o
+hw-obj-$(CONFIG_PL080) += pl080.o
+hw-obj-$(CONFIG_PL110) += pl110.o
+hw-obj-$(CONFIG_PL181) += pl181.o
+hw-obj-$(CONFIG_PL190) += pl190.o
+hw-obj-$(CONFIG_PL310) += arm_l2x0.o
+hw-obj-$(CONFIG_VERSATILE_PCI) += versatile_pci.o
+hw-obj-$(CONFIG_VERSATILE_I2C) += versatile_i2c.o
+hw-obj-$(CONFIG_CADENCE) += cadence_uart.o
+hw-obj-$(CONFIG_CADENCE) += cadence_ttc.o
+hw-obj-$(CONFIG_CADENCE) += cadence_gem.o
+hw-obj-$(CONFIG_XGMAC) += xgmac.o
+
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
 

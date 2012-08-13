@@ -467,7 +467,7 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     s->gic.num_cpu = 1;
     /* Tell the common code we're an NVIC */
     s->gic.revision = 0xffffffff;
-    s->gic.num_irq = s->num_irq;
+    s->num_irq = s->gic.num_irq;
     nc->parent_init(dev);
     gic_init_irqs_and_distributor(&s->gic, s->num_irq);
     /* The NVIC and system controller register area looks like this:
@@ -498,14 +498,21 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     return 0;
 }
 
-static Property armv7m_nvic_properties[] = {
+static void armv7m_nvic_instance_init(Object *obj)
+{
+    /* We have a different default value for the num-irq property
+     * than our superclass. This function runs after qdev init
+     * has set the defaults from the Property array and before
+     * any user-specified property setting, so just modify the
+     * value in the gic_state struct.
+     */
+    gic_state *s = ARM_GIC_COMMON(obj);
     /* The ARM v7m may have anything from 0 to 496 external interrupt
      * IRQ lines. We default to 64. Other boards may differ and should
-     * set this property appropriately.
+     * set the num-irq property appropriately.
      */
-    DEFINE_PROP_UINT32("num-irq", nvic_state, num_irq, 64),
-    DEFINE_PROP_END_OF_LIST(),
-};
+    s->num_irq = 64;
+}
 
 static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 {
@@ -518,12 +525,12 @@ static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
     sdc->init = armv7m_nvic_init;
     dc->vmsd  = &vmstate_nvic;
     dc->reset = armv7m_nvic_reset;
-    dc->props = armv7m_nvic_properties;
 }
 
 static TypeInfo armv7m_nvic_info = {
     .name          = TYPE_NVIC,
     .parent        = TYPE_ARM_GIC_COMMON,
+    .instance_init = armv7m_nvic_instance_init,
     .instance_size = sizeof(nvic_state),
     .class_init    = armv7m_nvic_class_init,
     .class_size    = sizeof(NVICClass),
