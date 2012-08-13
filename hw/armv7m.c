@@ -227,6 +227,11 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     big_endian = 0;
 #endif
 
+    if (!kernel_filename) {
+        fprintf(stderr, "Guest image must be specified (using -kernel)\n");
+        exit(1);
+    }
+
     image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
                           NULL, big_endian, ELF_MACHINE, 1);
     if (image_size < 0) {
