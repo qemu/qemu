@@ -100,6 +100,10 @@ struct KVMState
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
+bool kvm_async_interrupts_allowed;
+bool kvm_irqfds_allowed;
+bool kvm_msi_via_irqfd_allowed;
+bool kvm_gsi_routing_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -852,18 +856,18 @@ static void kvm_handle_interrupt(CPUArchState *env, int mask)
     }
 }
 
-int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
+int kvm_set_irq(KVMState *s, int irq, int level)
 {
     struct kvm_irq_level event;
     int ret;
 
-    assert(kvm_irqchip_in_kernel());
+    assert(kvm_async_interrupts_enabled());
 
     event.level = level;
     event.irq = irq;
     ret = kvm_vm_ioctl(s, s->irqchip_inject_ioctl, &event);
     if (ret < 0) {
-        perror("kvm_set_irqchip_line");
+        perror("kvm_set_irq");
         abort();
     }
 
@@ -1088,7 +1092,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
 
     assert(route->kroute.type == KVM_IRQ_ROUTING_MSI);
 
-    return kvm_irqchip_set_irq(s, route->kroute.gsi, 1);
+    return kvm_set_irq(s, route->kroute.gsi, 1);
 }
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
@@ -1096,7 +1100,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     struct kvm_irq_routing_entry kroute;
     int virq;
 
-    if (!kvm_irqchip_in_kernel()) {
+    if (!kvm_gsi_routing_enabled()) {
         return -ENOSYS;
     }
 
@@ -1125,7 +1129,7 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
         .flags = assign ? 0 : KVM_IRQFD_FLAG_DEASSIGN,
     };
 
-    if (!kvm_irqchip_in_kernel()) {
+    if (!kvm_irqfds_enabled()) {
         return -ENOSYS;
     }
 
@@ -1201,10 +1205,34 @@ static int kvm_irqchip_create(KVMState *s)
         s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
     }
     kvm_kernel_irqchip = true;
+    /* If we have an in-kernel IRQ chip then we must have asynchronous
+     * interrupt delivery (though the reverse is not necessarily true)
+     */
+    kvm_async_interrupts_allowed = true;
 
     kvm_init_irq_routing(s);
 
     return 0;
+}
+
+static int kvm_max_vcpus(KVMState *s)
+{
+    int ret;
+
+    /* Find number of supported CPUs using the recommended
+     * procedure from the kernel API documentation to cope with
+     * older kernels that may be missing capabilities.
+     */
+    ret = kvm_check_extension(s, KVM_CAP_MAX_VCPUS);
+    if (ret) {
+        return ret;
+    }
+    ret = kvm_check_extension(s, KVM_CAP_NR_VCPUS);
+    if (ret) {
+        return ret;
+    }
+
+    return 4;
 }
 
 int kvm_init(void)
@@ -1216,6 +1244,7 @@ int kvm_init(void)
     const KVMCapabilityInfo *missing_cap;
     int ret;
     int i;
+    int max_vcpus;
 
     s = g_malloc0(sizeof(KVMState));
 
@@ -1253,6 +1282,14 @@ int kvm_init(void)
     if (ret > KVM_API_VERSION) {
         ret = -EINVAL;
         fprintf(stderr, "kvm version not supported\n");
+        goto err;
+    }
+
+    max_vcpus = kvm_max_vcpus(s);
+    if (smp_cpus > max_vcpus) {
+        ret = -EINVAL;
+        fprintf(stderr, "Number of SMP cpus requested (%d) exceeds max cpus "
+                "supported by KVM (%d)\n", smp_cpus, max_vcpus);
         goto err;
     }
 
@@ -1665,11 +1702,6 @@ int kvm_has_gsi_routing(void)
 #else
     return false;
 #endif
-}
-
-int kvm_allows_irq0_override(void)
-{
-    return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
 }
 
 void *kvm_vmalloc(ram_addr_t size)
