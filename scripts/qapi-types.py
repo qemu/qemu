@@ -70,7 +70,7 @@ const char *%(name)s_lookup[] = {
         ret += mcgen('''
     "%(value)s",
 ''',
-                     value=value.lower())
+                     value=value)
 
     ret += mcgen('''
     NULL,
@@ -78,6 +78,16 @@ const char *%(name)s_lookup[] = {
 
 ''')
     return ret
+
+def generate_enum_name(name):
+    if name.isupper():
+        return c_fun(name)
+    new_name = ''
+    for c in c_fun(name):
+        if c.isupper():
+            new_name += '_'
+        new_name += c
+    return new_name.lstrip('_').upper()
 
 def generate_enum(name, values):
     lookup_decl = mcgen('''
@@ -100,7 +110,7 @@ typedef enum %(name)s
     %(abbrev)s_%(value)s = %(i)d,
 ''',
                      abbrev=de_camel_case(name).upper(),
-                     value=c_fun(value).upper(),
+                     value=generate_enum_name(value),
                      i=i)
         i += 1
 
@@ -253,7 +263,8 @@ fdecl.write(mcgen('''
 #ifndef %(guard)s
 #define %(guard)s
 
-#include "qapi/qapi-types-core.h"
+#include "qemu-common.h"
+
 ''',
                   guard=guardname(h_file)))
 

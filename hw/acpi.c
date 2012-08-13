@@ -22,6 +22,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "acpi.h"
+#include "monitor.h"
 
 struct acpi_table_header {
     uint16_t _length;         /* our length, not actual part of the hdr */
@@ -386,6 +387,7 @@ void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val, char s4)
             break;
         default:
             if (sus_typ == s4) { /* S4 request */
+                monitor_protocol_event(QEVENT_SUSPEND_DISK, NULL);
                 qemu_system_shutdown_request();
             }
             break;

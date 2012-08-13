@@ -1213,6 +1213,37 @@ QEMUMachine *find_default_machine(void)
     return NULL;
 }
 
+MachineInfoList *qmp_query_machines(Error **errp)
+{
+    MachineInfoList *mach_list = NULL;
+    QEMUMachine *m;
+
+    for (m = first_machine; m; m = m->next) {
+        MachineInfoList *entry;
+        MachineInfo *info;
+
+        info = g_malloc0(sizeof(*info));
+        if (m->is_default) {
+            info->has_is_default = true;
+            info->is_default = true;
+        }
+
+        if (m->alias) {
+            info->has_alias = true;
+            info->alias = g_strdup(m->alias);
+        }
+
+        info->name = g_strdup(m->name);
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = mach_list;
+        mach_list = entry;
+    }
+
+    return mach_list;
+}
+
 /***********************************************************/
 /* main execution loop */
 
@@ -1298,6 +1329,7 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
+static int wakeup_requested;
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
@@ -1349,6 +1381,13 @@ static int qemu_suspend_requested(void)
 {
     int r = suspend_requested;
     suspend_requested = 0;
+    return r;
+}
+
+static int qemu_wakeup_requested(void)
+{
+    int r = wakeup_requested;
+    wakeup_requested = 0;
     return r;
 }
 
@@ -1457,9 +1496,8 @@ void qemu_system_wakeup_request(WakeupReason reason)
         return;
     }
     runstate_set(RUN_STATE_RUNNING);
-    monitor_protocol_event(QEVENT_WAKEUP, NULL);
     notifier_list_notify(&wakeup_notifiers, &reason);
-    reset_requested = 1;
+    wakeup_requested = 1;
     qemu_notify_event();
 }
 
@@ -1538,6 +1576,13 @@ static bool main_loop_should_exit(void)
             runstate_check(RUN_STATE_SHUTDOWN)) {
             runstate_set(RUN_STATE_PAUSED);
         }
+    }
+    if (qemu_wakeup_requested()) {
+        pause_all_vcpus();
+        cpu_synchronize_all_states();
+        qemu_system_reset(VMRESET_SILENT);
+        resume_all_vcpus();
+        monitor_protocol_event(QEVENT_WAKEUP, NULL);
     }
     if (qemu_powerdown_requested()) {
         monitor_protocol_event(QEVENT_POWERDOWN, NULL);

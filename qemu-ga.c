@@ -28,7 +28,6 @@
 #include "module.h"
 #include "signal.h"
 #include "qerror.h"
-#include "error_int.h"
 #include "qapi/qmp-core.h"
 #include "qga/channel.h"
 #ifdef _WIN32
@@ -515,7 +514,7 @@ static void process_event(JSONMessageParser *parser, QList *tokens)
         } else {
             g_warning("failed to parse event: %s", error_get_pretty(err));
         }
-        qdict_put_obj(qdict, "error", error_get_qobject(err));
+        qdict_put_obj(qdict, "error", qmp_build_error_object(err));
         error_free(err);
     } else {
         qdict = qobject_to_qdict(obj);
@@ -532,7 +531,7 @@ static void process_event(JSONMessageParser *parser, QList *tokens)
             qdict = qdict_new();
             g_warning("unrecognized payload format");
             error_set(&err, QERR_UNSUPPORTED);
-            qdict_put_obj(qdict, "error", error_get_qobject(err));
+            qdict_put_obj(qdict, "error", qmp_build_error_object(err));
             error_free(err);
         }
         ret = send_response(s, QOBJECT(qdict));

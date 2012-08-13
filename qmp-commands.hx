@@ -435,8 +435,8 @@ Example:
 -> { "execute": "inject-nmi" }
 <- { "return": {} }
 
-Note: inject-nmi is only supported for x86 guest currently, it will
-      returns "Unsupported" error for non-x86 guest.
+Note: inject-nmi fails when the guest doesn't support injecting.
+      Currently, only x86 guests do.
 
 EQMP
 
@@ -2368,3 +2368,22 @@ EQMP
         .args_type  = "implements:s?,abstract:b?",
         .mhandler.cmd_new = qmp_marshal_input_qom_list_types,
     },
+
+    {
+        .name       = "device-list-properties",
+        .args_type  = "typename:s",
+        .mhandler.cmd_new = qmp_marshal_input_device_list_properties,
+    },
+
+    {
+        .name       = "query-machines",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_machines,
+    },
+
+    {
+        .name       = "query-cpu-definitions",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_cpu_definitions,
+    },
+

@@ -162,7 +162,7 @@ int tcp_socket_outgoing(const char *address, uint16_t port)
 
 int tcp_socket_outgoing_spec(const char *address_and_port)
 {
-    return inet_connect(address_and_port, true, NULL);
+    return inet_connect(address_and_port, true, NULL, NULL);
 }
 
 int tcp_socket_incoming(const char *address, uint16_t port)

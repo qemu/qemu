@@ -16,6 +16,7 @@
 
 #include "qemu-common.h"
 #include "qapi-types.h"
+#include "qdict.h"
 
 void hmp_info_name(Monitor *mon);
 void hmp_info_version(Monitor *mon);

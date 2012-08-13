@@ -45,6 +45,7 @@
 #  define GCC_ATTR __attribute__((__unused__, format(gnu_printf, 1, 2)))
 #  define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
 # endif
+#define GCC_WEAK __attribute__((weak))
 #else
 #define GCC_ATTR /**/
 #define GCC_FMT_ATTR(n, m)

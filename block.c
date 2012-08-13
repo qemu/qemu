@@ -2445,6 +2445,7 @@ BlockInfoList *qmp_query_block(Error **errp)
             info->value->inserted->ro = bs->read_only;
             info->value->inserted->drv = g_strdup(bs->drv->format_name);
             info->value->inserted->encrypted = bs->encrypted;
+            info->value->inserted->encryption_key_missing = bdrv_key_required(bs);
             if (bs->backing_file[0]) {
                 info->value->inserted->has_backing_file = true;
                 info->value->inserted->backing_file = g_strdup(bs->backing_file);

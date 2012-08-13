@@ -3,6 +3,36 @@
 # QAPI Schema
 
 ##
+# @ErrorClass
+#
+# QEMU error classes
+#
+# @GenericError: this is used for errors that don't require a specific error
+#                class. This should be the default case for most errors
+#
+# @CommandNotFound: the requested command has not been found
+#
+# @DeviceEncrypted: the requested operation can't be fulfilled because the
+#                   selected device is encrypted
+#
+# @DeviceNotActive: a device has failed to be become active
+#
+# @DeviceNotFound: the requested device has not been found
+#
+# @KVMMissingCap: the requested operation can't be fulfilled because a
+#                 required KVM capability is missing
+#
+# @MigrationExpected: the requested operation can't be fulfilled because a
+#                     migration process is expected
+#
+# Since: 1.2
+##
+{ 'enum': 'ErrorClass',
+  'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
+            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap',
+            'MigrationExpected' ] }
+
+##
 # @NameInfo:
 #
 # Guest name information.
@@ -486,6 +516,9 @@
 #
 # @encrypted: true if the backing device is encrypted
 #
+# @encryption_key_missing: true if the backing device is encrypted but an
+#                          valid encryption key is missing
+#
 # @bps: total throughput limit in bytes per second is specified
 #
 # @bps_rd: read throughput limit in bytes per second is specified
@@ -505,9 +538,9 @@
 { 'type': 'BlockDeviceInfo',
   'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
             '*backing_file': 'str', 'backing_file_depth': 'int',
-            'encrypted': 'bool', 'bps': 'int', 'bps_rd': 'int',
-            'bps_wr': 'int', 'iops': 'int', 'iops_rd': 'int',
-            'iops_wr': 'int'} }
+            'encrypted': 'bool', 'encryption_key_missing': 'bool',
+            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
 
 ##
 # @BlockDeviceIoStatus:
@@ -709,7 +742,6 @@
 # Returns information about the current VNC server
 #
 # Returns: @VncInfo
-#          If VNC support is not compiled in, FeatureDisabled
 #
 # Since: 0.14.0
 ##
@@ -1093,9 +1125,6 @@
 #                       virtual address (defaults to CPU 0)
 #
 # Returns: Nothing on success
-#          If @cpu is not a valid VCPU, InvalidParameterValue
-#          If @filename cannot be opened, OpenFileFailed
-#          If an I/O error occurs while writing the file, IOError
 #
 # Since: 0.14.0
 #
@@ -1116,8 +1145,6 @@
 # @filename: the file to save the memory to as binary data
 #
 # Returns: Nothing on success
-#          If @filename cannot be opened, OpenFileFailed
-#          If an I/O error occurs while writing the file, IOError
 #
 # Since: 0.14.0
 #
@@ -1159,7 +1186,6 @@
 # Injects an Non-Maskable Interrupt into all guest's VCPUs.
 #
 # Returns:  If successful, nothing
-#           If the Virtual Machine doesn't support NMI injection, Unsupported
 #
 # Since:  0.14.0
 #
@@ -1210,7 +1236,6 @@
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #          If @device is not encrypted, DeviceNotEncrypted
-#          If @password is not valid for this device, InvalidPassword
 #
 # Notes:  Not all block formats support encryption and some that do are not
 #         able to validate that a password is correct.  Disk corruption may
@@ -1251,11 +1276,6 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If @size is negative, InvalidParameterValue
-#          If the block device has no medium inserted, DeviceHasNoMedium
-#          If the block device does not support resize, Unsupported
-#          If the block device is read-only, DeviceIsReadOnly
-#          If a long-running operation is using the device, DeviceInUse
 #
 # Since: 0.14.0
 ##
@@ -1317,10 +1337,6 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If @device is busy, DeviceInUse will be returned
-#          If @snapshot-file can't be created, OpenFileFailed
-#          If @snapshot-file can't be opened, OpenFileFailed
-#          If @format is invalid, InvalidBlockFormat
 #
 # Note: The transaction aborts on the first failure.  Therefore, there will
 # be only one device or snapshot file returned in an error condition, and
@@ -1349,8 +1365,6 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If @snapshot-file can't be opened, OpenFileFailed
-#          If @format is invalid, InvalidBlockFormat
 #
 # Since 0.14.0
 ##
@@ -1474,9 +1488,7 @@
 #        4) A link type in the form 'link<subtype>' where subtype is a qdev
 #           device type name.  Link properties form the device model graph.
 #
-# Since: 1.1
-#
-# Notes: This type is experimental.  Its syntax may change in future releases.
+# Since: 1.2
 ##
 { 'type': 'ObjectPropertyInfo',
   'data': { 'name': 'str', 'type': 'str' } }
@@ -1493,10 +1505,7 @@
 # Returns: a list of @ObjectPropertyInfo that describe the properties of the
 #          object.
 #
-# Since: 1.1
-#
-# Notes: This command is experimental.  It's syntax may change in future
-#        releases.
+# Since: 1.2
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
@@ -1532,9 +1541,7 @@
 #          returns as #str pathnames.  All integer property types (u8, u16, etc)
 #          are returned as #int.
 #
-# Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
+# Since: 1.2
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
@@ -1553,9 +1560,7 @@
 # @value: a value who's type is appropriate for the property type.  See @qom-get
 #         for a description of type mapping.
 #
-# Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
+# Since: 1.2
 ##
 { 'command': 'qom-set',
   'data': { 'path': 'str', 'property': 'str', 'value': 'visitor' },
@@ -1579,11 +1584,6 @@
 #
 # Returns: Nothing on success
 #          If Spice is not enabled, DeviceNotFound
-#          If @protocol does not support connected, InvalidParameter
-#          If @protocol is invalid, InvalidParameter
-#          If any other error occurs, SetPasswdFailed
-#
-# Notes: If VNC is not enabled, SetPasswdFailed is returned.
 #
 # Since: 0.14.0
 ##
@@ -1605,8 +1605,6 @@
 #
 # Returns: Nothing on success
 #          If @protocol is `spice' and Spice is not active, DeviceNotFound
-#          If an error occurs setting password expiration, SetPasswdFailed
-#          If @protocol is not `spice' or 'vnc', InvalidParameter
 #
 # Since: 0.14.0
 #
@@ -1629,8 +1627,6 @@
 #
 # Returns:  Nothing on success
 #           If @device is not a valid block device, DeviceNotFound
-#           If @device is not removable and @force is false, DeviceNotRemovable
-#           If @force is false and @device is locked, DeviceLocked
 #
 # Notes:    Ejecting a device will no media results in success
 #
@@ -1673,7 +1669,6 @@
 #
 # Returns: Nothing on success.
 #          If @device is not a valid block device, DeviceNotFound
-#          If @format is not a valid block format, InvalidBlockFormat
 #          If the new block device is encrypted, DeviceEncrypted.  Note that
 #          if this error is returned, the device has been opened successfully
 #          and an additional call to @block_passwd is required to set the
@@ -1709,7 +1704,6 @@
 #
 # Returns: Nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#          If the argument combination is invalid, InvalidParameterCombination
 #
 # Since: 1.1
 ##
@@ -1743,11 +1737,7 @@
 # @speed:  #optional the maximum speed, in bytes per second
 #
 # Returns: Nothing on success
-#          If streaming is already active on this device, DeviceInUse
 #          If @device does not exist, DeviceNotFound
-#          If image streaming is not supported by this device, NotSupported
-#          If @base does not exist, BaseNotFound
-#          If @speed is invalid, InvalidParameter
 #
 # Since: 1.1
 ##
@@ -1769,8 +1759,6 @@
 #          Defaults to 0.
 #
 # Returns: Nothing on success
-#          If the job type does not support throttling, NotSupported
-#          If the speed value is invalid, InvalidParameter
 #          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
@@ -1800,7 +1788,6 @@
 #
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
-#          If cancellation already in progress, DeviceInUse
 #
 # Since: 1.1
 ##
@@ -1832,12 +1819,38 @@
 # Returns: a list of @ObjectTypeInfo or an empty list if no results are found
 #
 # Since: 1.1
-#
-# Notes: This command is experimental and may change syntax in future releases.
 ##
 { 'command': 'qom-list-types',
   'data': { '*implements': 'str', '*abstract': 'bool' },
   'returns': [ 'ObjectTypeInfo' ] }
+
+##
+# @DevicePropertyInfo:
+#
+# Information about device properties.
+#
+# @name: the name of the property
+# @type: the typename of the property
+#
+# Since: 1.2
+##
+{ 'type': 'DevicePropertyInfo',
+  'data': { 'name': 'str', 'type': 'str' } }
+
+##
+# @device-list-properties:
+#
+# List properties associated with a device.
+#
+# @typename: the type name of a device
+#
+# Returns: a list of DevicePropertyInfo describing a devices properties
+#
+# Since: 1.2
+##
+{ 'command': 'device-list-properties',
+  'data': { 'typename': 'str'},
+  'returns': [ 'DevicePropertyInfo' ] }
 
 ##
 # @migrate
@@ -1870,8 +1883,6 @@
 # format.
 #
 # Returns: Nothing on success
-#          If @filename cannot be opened, OpenFileFailed
-#          If an I/O error occurs while writing the file, IOError
 #
 # Since: 1.1
 ##
@@ -1886,7 +1897,6 @@
 #
 # Returns: Nothing on success
 #          If @id is not a valid device, DeviceNotFound
-#          If the device does not support unplug, BusNoHotplug
 #
 # Notes: When this command completes, the device may not be removed from the
 #        guest.  Hot removal is an operation that requires guest cooperation.
@@ -1927,14 +1937,6 @@
 # want to dump all guest's memory, please specify the start @begin and @length
 #
 # Returns: nothing on success
-#          If @begin contains an invalid address, InvalidParameter
-#          If only one of @begin and @length is specified, MissingParameter
-#          If @protocol stats with "fd:", and the fd cannot be found, FdNotFound
-#          If @protocol starts with "file:", and the file cannot be
-#             opened, OpenFileFailed
-#          If @protocol does not start with "fd:" or "file:", InvalidParameter
-#          If an I/O error occurs while writing the file, IOError
-#          If the target does not support this command, Unsupported
 #
 # Since: 1.2
 ##
@@ -1961,10 +1963,6 @@
 #
 # Returns: Nothing on success
 #          If @type is not a valid network backend, DeviceNotFound
-#          If @id is not a valid identifier, InvalidParameterValue
-#          if @id already exists, DuplicateId
-#          If @props contains an invalid parameter for this backend,
-#            InvalidParameter
 ##
 { 'command': 'netdev_add',
   'data': {'type': 'str', 'id': 'str', '*props': '**'},
@@ -2284,8 +2282,6 @@
 # @fdname: file descriptor name
 #
 # Returns: Nothing on success
-#          If file descriptor was not received, FdNotSupplied
-#          If @fdname is not valid, InvalidParameterType
 #
 # Since: 0.14.0
 #
@@ -2305,8 +2301,58 @@
 # @fdname: file descriptor name
 #
 # Returns: Nothing on success
-#          If @fdname is not found, FdNotFound
 #
 # Since: 0.14.0
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
+
+##
+# @MachineInfo:
+#
+# Information describing a machine.
+#
+# @name: the name of the machine
+#
+# @alias: #optional an alias for the machine name
+#
+# @default: #optional whether the machine is default
+#
+# Since: 1.2.0
+##
+{ 'type': 'MachineInfo',
+  'data': { 'name': 'str', '*alias': 'str',
+            '*is-default': 'bool' } }
+
+##
+# @query-machines:
+#
+# Return a list of supported machines
+#
+# Returns: a list of MachineInfo
+#
+# Since: 1.2.0
+##
+{ 'command': 'query-machines', 'returns': ['MachineInfo'] }
+
+##
+# @CpuDefinitionInfo:
+#
+# Virtual CPU definition.
+#
+# @name: the name of the CPU definition
+#
+# Since: 1.2.0
+##
+{ 'type': 'CpuDefinitionInfo',
+  'data': { 'name': 'str' } }
+
+##
+# @query-cpu-definitions:
+#
+# Return a list of supported virtual CPU definitions
+#
+# Returns: a list of CpuDefInfo
+#
+# Since: 1.2.0
+##
+{ 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }

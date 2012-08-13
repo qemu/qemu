@@ -210,19 +210,17 @@ if you don't see these strings, then something went wrong.
 === Errors ===
 
 QMP commands should use the error interface exported by the error.h header
-file. The basic function used to set an error is the error_set() one.
+file. Basically, errors are set by calling the error_set() function.
 
 Let's say we don't accept the string "message" to contain the word "love". If
-it does contain it, we want the "hello-world" command to the return the
-InvalidParameter error.
-
-Only one change is required, and it's in the C implementation:
+it does contain it, we want the "hello-world" command to return an error:
 
 void qmp_hello_world(bool has_message, const char *message, Error **errp)
 {
     if (has_message) {
         if (strstr(message, "love")) {
-            error_set(errp, QERR_INVALID_PARAMETER, "message");
+            error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                      "the word 'love' is not allowed");
             return;
         }
         printf("%s\n", message);
@@ -231,30 +229,40 @@ void qmp_hello_world(bool has_message, const char *message, Error **errp)
     }
 }
 
-Let's test it. Build qemu, run it as defined in the "Testing" section, and
-then issue the following command:
+The first argument to the error_set() function is the Error pointer to pointer,
+which is passed to all QMP functions. The second argument is a ErrorClass
+value, which should be ERROR_CLASS_GENERIC_ERROR most of the time (more
+details about error classes are given below). The third argument is a human
+description of the error, this is a free-form printf-like string.
 
-{ "execute": "hello-world", "arguments": { "message": "we love qemu" } }
+Let's test the example above. Build qemu, run it as defined in the "Testing"
+section, and then issue the following command:
+
+{ "execute": "hello-world", "arguments": { "message": "all you need is love" } }
 
 The QMP server's response should be:
 
 {
     "error": {
-        "class": "InvalidParameter",
-        "desc": "Invalid parameter 'message'",
-        "data": {
-            "name": "message"
-        }
+        "class": "GenericError",
+        "desc": "the word 'love' is not allowed"
     }
 }
 
-Which is the InvalidParameter error.
+As a general rule, all QMP errors should use ERROR_CLASS_GENERIC_ERROR. There
+are two exceptions to this rule:
 
-When you have to return an error but you're unsure what error to return or
-which arguments an error takes, you should look at the qerror.h file. Note
-that you might be required to add new errors if needed.
+ 1. A non-generic ErrorClass value exists* for the failure you want to report
+    (eg. DeviceNotFound)
 
-FIXME: describe better the error API and how to add new errors.
+ 2. Management applications have to take special action on the failure you
+    want to report, hence you have to add a new ErrorClass value so that they
+    can check for it
+
+If the failure you want to report doesn't fall in one of the two cases above,
+just report ERROR_CLASS_GENERIC_ERROR.
+
+ * All existing ErrorClass values are defined in the qapi-schema.json file
 
 === Command Documentation ===
 
@@ -275,7 +283,6 @@ here goes "hello-world"'s new entry for the qapi-schema.json file:
 # @message: #optional string to be printed
 #
 # Returns: Nothing on success.
-#          If @message contains "love", InvalidParameter
 #
 # Notes: if @message is not provided, the "Hello, world" string will
 #        be printed instead
