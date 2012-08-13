@@ -32,6 +32,7 @@
 #include "hw.h"
 #include "block.h"
 #include "sd.h"
+#include "bitmap.h"
 
 //#define DEBUG_SD 1
 
@@ -81,7 +82,7 @@ struct SDState {
     uint8_t sd_status[64];
     uint32_t vhs;
     int wp_switch;
-    int *wp_groups;
+    unsigned long *wp_groups;
     uint64_t size;
     int blk_len;
     uint32_t erase_start;
@@ -415,7 +416,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     if (sd->wp_groups)
         g_free(sd->wp_groups);
     sd->wp_switch = bdrv ? bdrv_is_read_only(bdrv) : 0;
-    sd->wp_groups = (int *) g_malloc0(sizeof(int) * sect);
+    sd->wp_groups = bitmap_new(sect);
     memset(sd->function_group, 0, sizeof(int) * 6);
     sd->erase_start = 0;
     sd->erase_end = 0;
@@ -484,9 +485,11 @@ static void sd_erase(SDState *sd)
     sd->erase_end = 0;
     sd->csd[14] |= 0x40;
 
-    for (i = start; i <= end; i ++)
-        if (sd->wp_groups[i])
+    for (i = start; i <= end; i++) {
+        if (test_bit(i, sd->wp_groups)) {
             sd->card_status |= WP_ERASE_SKIP;
+        }
+    }
 }
 
 static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
@@ -496,9 +499,11 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
 
     wpnum = addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 
-    for (i = 0; i < 32; i ++, wpnum ++, addr += WPGROUP_SIZE)
-        if (addr < sd->size && sd->wp_groups[wpnum])
+    for (i = 0; i < 32; i++, wpnum++, addr += WPGROUP_SIZE) {
+        if (addr < sd->size && test_bit(wpnum, sd->wp_groups)) {
             ret |= (1 << i);
+        }
+    }
 
     return ret;
 }
@@ -536,8 +541,8 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
 
 static inline int sd_wp_addr(SDState *sd, uint32_t addr)
 {
-    return sd->wp_groups[addr >>
-            (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT)];
+    return test_bit(addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT),
+            sd->wp_groups);
 }
 
 static void sd_lock_command(SDState *sd)
@@ -560,8 +565,8 @@ static void sd_lock_command(SDState *sd)
             sd->card_status |= LOCK_UNLOCK_FAILED;
             return;
         }
-        memset(sd->wp_groups, 0, sizeof(int) * (sd->size >>
-                        (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT)));
+        bitmap_zero(sd->wp_groups,
+            (sd->size >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT)) + 1);
         sd->csd[14] &= ~0x10;
         sd->card_status &= ~CARD_IS_LOCKED;
         sd->pwd_len = 0;
@@ -1007,8 +1012,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
             }
 
             sd->state = sd_programming_state;
-            sd->wp_groups[addr >> (HWBLOCK_SHIFT +
-                            SECTOR_SHIFT + WPGROUP_SHIFT)] = 1;
+            set_bit(addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT),
+                    sd->wp_groups);
             /* Bzzzzzzztt .... Operation complete.  */
             sd->state = sd_transfer_state;
             return sd_r1b;
@@ -1027,8 +1032,8 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
             }
 
             sd->state = sd_programming_state;
-            sd->wp_groups[addr >> (HWBLOCK_SHIFT +
-                            SECTOR_SHIFT + WPGROUP_SHIFT)] = 0;
+            clear_bit(addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT),
+                    sd->wp_groups);
             /* Bzzzzzzztt .... Operation complete.  */
             sd->state = sd_transfer_state;
             return sd_r1b;
