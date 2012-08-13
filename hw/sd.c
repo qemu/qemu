@@ -539,7 +539,7 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
     sd->data[66] = crc & 0xff;
 }
 
-static inline int sd_wp_addr(SDState *sd, uint32_t addr)
+static inline int sd_wp_addr(SDState *sd, uint64_t addr)
 {
     return test_bit(addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT),
             sd->wp_groups);
