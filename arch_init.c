@@ -539,6 +539,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int ret;
     int i;
     uint64_t expected_downtime;
+    MigrationState *s = migrate_get_current();
 
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
@@ -593,6 +594,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     if (expected_downtime <= migrate_max_downtime()) {
         memory_global_sync_dirty_bitmap(get_system_memory());
         expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
+        s->expected_downtime = expected_downtime / 1000000; /* ns -> ms */
 
         return expected_downtime <= migrate_max_downtime();
     }

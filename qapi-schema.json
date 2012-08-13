@@ -442,6 +442,10 @@
 #        total downtime in milliseconds for the guest.
 #        (since 1.3)
 #
+# @expected-downtime: #optional only present while migration is active
+#        expected downtime in milliseconds for the guest in last walk
+#        of the dirty bitmap. (since 1.3)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
@@ -449,6 +453,7 @@
            '*disk': 'MigrationStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
            '*total-time': 'int',
+           '*expected-downtime': 'int',
            '*downtime': 'int'} }
 
 ##

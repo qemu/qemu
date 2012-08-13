@@ -169,6 +169,8 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_total_time = true;
         info->total_time = qemu_get_clock_ms(rt_clock)
             - s->total_time;
+        info->has_expected_downtime = true;
+        info->expected_downtime = s->expected_downtime;
 
         info->has_ram = true;
         info->ram = g_malloc0(sizeof(*info->ram));
