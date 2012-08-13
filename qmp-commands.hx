@@ -520,6 +520,50 @@ Example:
 <- { "return": {} }
 
 EQMP
+{
+        .name       = "migrate-set-cache-size",
+        .args_type  = "value:o",
+        .mhandler.cmd_new = qmp_marshal_input_migrate_set_cache_size,
+    },
+
+SQMP
+migrate-set-cache-size
+---------------------
+
+Set cache size to be used by XBZRLE migration, the cache size will be rounded
+down to the nearest power of 2
+
+Arguments:
+
+- "value": cache size in bytes (json-int)
+
+Example:
+
+-> { "execute": "migrate-set-cache-size", "arguments": { "value": 536870912 } }
+<- { "return": {} }
+
+EQMP
+    {
+        .name       = "query-migrate-cache-size",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_cache_size,
+    },
+
+SQMP
+query-migrate-cache-size
+---------------------
+
+Show cache size to be used by XBZRLE migration
+
+returns a json-object with the following information:
+- "size" : json-int
+
+Example:
+
+-> { "execute": "query-migrate-cache-size" }
+<- { "return": 67108864 }
+
+EQMP
 
     {
         .name       = "migrate_set_speed",
@@ -2078,12 +2122,24 @@ The main json-object contains the following:
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
+         - "total-time": total amount of ms since migration started.  If
+                         migration has ended, it returns the total migration time
+                         (json-int)
+         - "duplicate": number of duplicated pages (json-int)
+         - "normal" : number of normal pages transferred (json-int)
+         - "normal-bytes" : number of normal bytes transferred (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information (in bytes):
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
-
+- "xbzrle-cache": only present if XBZRLE is active.
+  It is a json-object with the following XBZRLE information:
+         - "cache-size": XBZRLE cache size
+         - "bytes": total XBZRLE bytes transferred
+         - "pages": number of XBZRLE compressed pages
+         - "cache-miss": number of cache misses
+         - "overflow": number of XBZRLE overflows
 Examples:
 
 1. Before the first migration
@@ -2094,7 +2150,19 @@ Examples:
 2. Migration is done and has succeeded
 
 -> { "execute": "query-migrate" }
-<- { "return": { "status": "completed" } }
+<- { "return": {
+        "status": "completed",
+        "ram":{
+          "transferred":123,
+          "remaining":123,
+          "total":246,
+          "total-time":12345,
+          "duplicate":123,
+          "normal":123,
+          "normal-bytes":123456
+        }
+     }
+   }
 
 3. Migration is done and has failed
 
@@ -2110,7 +2178,11 @@ Examples:
          "ram":{
             "transferred":123,
             "remaining":123,
-            "total":246
+            "total":246,
+            "total-time":12345,
+            "duplicate":123,
+            "normal":123,
+            "normal-bytes":123456
          }
       }
    }
@@ -2124,12 +2196,42 @@ Examples:
          "ram":{
             "total":1057024,
             "remaining":1053304,
-            "transferred":3720
+            "transferred":3720,
+            "total-time":12345,
+            "duplicate":123,
+            "normal":123,
+            "normal-bytes":123456
          },
          "disk":{
             "total":20971520,
             "remaining":20880384,
             "transferred":91136
+         }
+      }
+   }
+
+6. Migration is being performed and XBZRLE is active:
+
+-> { "execute": "query-migrate" }
+<- {
+      "return":{
+         "status":"active",
+         "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+         "ram":{
+            "total":1057024,
+            "remaining":1053304,
+            "transferred":3720,
+            "total-time":12345,
+            "duplicate":10,
+            "normal":3333,
+            "normal-bytes":3412992
+         },
+         "xbzrle-cache":{
+            "cache-size":67108864,
+            "bytes":20971520,
+            "pages":2444343,
+            "cache-miss":2244,
+            "overflow":34434
          }
       }
    }
@@ -2140,6 +2242,55 @@ EQMP
         .name       = "query-migrate",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_migrate,
+    },
+
+SQMP
+migrate-set-capabilities
+-------
+
+Enable/Disable migration capabilities
+
+- "xbzrle": xbzrle support
+
+Arguments:
+
+Example:
+
+-> { "execute": "migrate-set-capabilities" , "arguments":
+     { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+
+EQMP
+
+    {
+        .name       = "migrate-set-capabilities",
+        .args_type  = "capabilities:O",
+        .params     = "capability:s,state:b",
+	.mhandler.cmd_new = qmp_marshal_input_migrate_set_capabilities,
+    },
+SQMP
+query-migrate-capabilities
+-------
+
+Query current migration capabilities
+
+- "capabilities": migration capabilities state
+         - "xbzrle" : XBZRLE state (json-bool)
+
+Arguments:
+
+Example:
+
+-> { "execute": "query-migrate-capabilities" }
+<- { "return": {
+        "capabilities" :  [ { "capability" : "xbzrle", "state" : false } ]
+     }
+   }
+EQMP
+
+    {
+        .name       = "query-migrate-capabilities",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_capabilities,
     },
 
 SQMP

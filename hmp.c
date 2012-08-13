@@ -131,8 +131,21 @@ void hmp_info_mice(Monitor *mon)
 void hmp_info_migrate(Monitor *mon)
 {
     MigrationInfo *info;
+    MigrationCapabilityStatusList *caps, *cap;
 
     info = qmp_query_migrate(NULL);
+    caps = qmp_query_migrate_capabilities(NULL);
+
+    /* do not display parameters during setup */
+    if (info->has_status && caps) {
+        monitor_printf(mon, "capabilities: ");
+        for (cap = caps; cap; cap = cap->next) {
+            monitor_printf(mon, "%s: %s ",
+                           MigrationCapability_lookup[cap->value->capability],
+                           cap->value->state ? "on" : "off");
+        }
+        monitor_printf(mon, "\n");
+    }
 
     if (info->has_status) {
         monitor_printf(mon, "Migration status: %s\n", info->status);
@@ -147,6 +160,12 @@ void hmp_info_migrate(Monitor *mon)
                        info->ram->total >> 10);
         monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
                        info->ram->total_time);
+        monitor_printf(mon, "duplicate: %" PRIu64 " pages\n",
+                       info->ram->duplicate);
+        monitor_printf(mon, "normal: %" PRIu64 " pages\n",
+                       info->ram->normal);
+        monitor_printf(mon, "normal bytes: %" PRIu64 " kbytes\n",
+                       info->ram->normal_bytes >> 10);
     }
 
     if (info->has_disk) {
@@ -158,7 +177,46 @@ void hmp_info_migrate(Monitor *mon)
                        info->disk->total >> 10);
     }
 
+    if (info->has_xbzrle_cache) {
+        monitor_printf(mon, "cache size: %" PRIu64 " bytes\n",
+                       info->xbzrle_cache->cache_size);
+        monitor_printf(mon, "xbzrle transferred: %" PRIu64 " kbytes\n",
+                       info->xbzrle_cache->bytes >> 10);
+        monitor_printf(mon, "xbzrle pages: %" PRIu64 " pages\n",
+                       info->xbzrle_cache->pages);
+        monitor_printf(mon, "xbzrle cache miss: %" PRIu64 "\n",
+                       info->xbzrle_cache->cache_miss);
+        monitor_printf(mon, "xbzrle overflow : %" PRIu64 "\n",
+                       info->xbzrle_cache->overflow);
+    }
+
     qapi_free_MigrationInfo(info);
+    qapi_free_MigrationCapabilityStatusList(caps);
+}
+
+void hmp_info_migrate_capabilities(Monitor *mon)
+{
+    MigrationCapabilityStatusList *caps, *cap;
+
+    caps = qmp_query_migrate_capabilities(NULL);
+
+    if (caps) {
+        monitor_printf(mon, "capabilities: ");
+        for (cap = caps; cap; cap = cap->next) {
+            monitor_printf(mon, "%s: %s ",
+                           MigrationCapability_lookup[cap->value->capability],
+                           cap->value->state ? "on" : "off");
+        }
+        monitor_printf(mon, "\n");
+    }
+
+    qapi_free_MigrationCapabilityStatusList(caps);
+}
+
+void hmp_info_migrate_cache_size(Monitor *mon)
+{
+    monitor_printf(mon, "xbzrel cache size: %" PRId64 " kbytes\n",
+                   qmp_query_migrate_cache_size(NULL) >> 10);
 }
 
 void hmp_info_cpus(Monitor *mon)
@@ -731,10 +789,55 @@ void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
     qmp_migrate_set_downtime(value, NULL);
 }
 
+void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
+{
+    int64_t value = qdict_get_int(qdict, "value");
+    Error *err = NULL;
+
+    qmp_migrate_set_cache_size(value, &err);
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+}
+
 void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
 {
     int64_t value = qdict_get_int(qdict, "value");
     qmp_migrate_set_speed(value, NULL);
+}
+
+void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
+{
+    const char *cap = qdict_get_str(qdict, "capability");
+    bool state = qdict_get_bool(qdict, "state");
+    Error *err = NULL;
+    MigrationCapabilityStatusList *caps = g_malloc0(sizeof(*caps));
+    int i;
+
+    for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+        if (strcmp(cap, MigrationCapability_lookup[i]) == 0) {
+            caps->value = g_malloc0(sizeof(*caps->value));
+            caps->value->capability = i;
+            caps->value->state = state;
+            caps->next = NULL;
+            qmp_migrate_set_capabilities(caps, &err);
+            break;
+        }
+    }
+
+    if (i == MIGRATION_CAPABILITY_MAX) {
+        error_set(&err, QERR_INVALID_PARAMETER, cap);
+    }
+
+    qapi_free_MigrationCapabilityStatusList(caps);
+
+    if (err) {
+        monitor_printf(mon, "migrate_set_parameter: %s\n",
+                       error_get_pretty(err));
+        error_free(err);
+    }
 }
 
 void hmp_set_password(Monitor *mon, const QDict *qdict)

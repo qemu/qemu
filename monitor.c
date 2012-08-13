@@ -2655,6 +2655,20 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.info = hmp_info_migrate,
     },
     {
+        .name       = "migrate_capabilities",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current migration capabilities",
+        .mhandler.info = hmp_info_migrate_capabilities,
+    },
+    {
+        .name       = "migrate_cache_size",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current migration xbzrle cache size",
+        .mhandler.info = hmp_info_migrate_cache_size,
+    },
+    {
         .name       = "balloon",
         .args_type  = "",
         .params     = "",
