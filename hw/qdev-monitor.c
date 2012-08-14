@@ -443,7 +443,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         bus = qbus_find_recursive(sysbus_get_default(), NULL, k->bus_type);
         if (!bus) {
             qerror_report(QERR_NO_BUS_FOR_DEVICE,
-                          driver, k->bus_type);
+                          k->bus_type, driver);
             return NULL;
         }
     }
