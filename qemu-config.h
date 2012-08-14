@@ -6,6 +6,7 @@
 extern QemuOptsList qemu_fsdev_opts;
 extern QemuOptsList qemu_virtfs_opts;
 extern QemuOptsList qemu_spice_opts;
+extern QemuOptsList qemu_sandbox_opts;
 
 QemuOptsList *qemu_find_opts(const char *group);
 QemuOptsList *qemu_find_opts_err(const char *group, Error **errp);

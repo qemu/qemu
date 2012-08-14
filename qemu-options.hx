@@ -2723,6 +2723,16 @@ STEXI
 Old param mode (ARM only).
 ETEXI
 
+DEF("sandbox", HAS_ARG, QEMU_OPTION_sandbox, \
+    "-sandbox <arg>  Enable seccomp mode 2 system call filter (default 'off').\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -sandbox
+@findex -sandbox
+Enable Seccomp mode 2 system call filter. 'on' will enable syscall filtering and 'off' will
+disable it.  The default is 'off'.
+ETEXI
+
 DEF("readconfig", HAS_ARG, QEMU_OPTION_readconfig,
     "-readconfig <file>\n", QEMU_ARCH_ALL)
 STEXI

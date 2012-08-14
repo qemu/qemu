@@ -770,6 +770,26 @@ static int bt_parse(const char *opt)
     return 1;
 }
 
+static int parse_sandbox(QemuOpts *opts, void *opaque)
+{
+    /* FIXME: change this to true for 1.3 */
+    if (qemu_opt_get_bool(opts, "enable", false)) {
+#ifdef CONFIG_SECCOMP
+        if (seccomp_start() < 0) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                          "failed to install seccomp syscall filter in the kernel");
+            return -1;
+        }
+#else
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "sandboxing request but seccomp is not compiled into this build");
+        return -1;
+#endif
+    }
+
+    return 0;
+}
+
 /***********************************************************/
 /* QEMU Block devices */
 
@@ -2349,14 +2369,6 @@ int main(int argc, char **argv, char **envp)
     const char *trace_events = NULL;
     const char *trace_file = NULL;
 
-#ifdef CONFIG_SECCOMP
-    if (seccomp_start() < 0) {
-        fprintf(stderr,
-                "seccomp: failed to install syscall filter in the kernel\n");
-        exit(1);
-    }
-#endif
-
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
 
@@ -3260,12 +3272,22 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_qtest_log:
                 qtest_log = optarg;
                 break;
+            case QEMU_OPTION_sandbox:
+                opts = qemu_opts_parse(qemu_find_opts("sandbox"), optarg, 1);
+                if (!opts) {
+                    exit(0);
+                }
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
         }
     }
     loc_set_none();
+
+    if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
+        exit(1);
+    }
 
     if (machine == NULL) {
         fprintf(stderr, "No machine found.\n");
