@@ -140,6 +140,23 @@ struct mon_fd_t {
     QLIST_ENTRY(mon_fd_t) next;
 };
 
+/* file descriptor associated with a file descriptor set */
+typedef struct MonFdsetFd MonFdsetFd;
+struct MonFdsetFd {
+    int fd;
+    bool removed;
+    char *opaque;
+    QLIST_ENTRY(MonFdsetFd) next;
+};
+
+/* file descriptor set containing fds passed via SCM_RIGHTS */
+typedef struct MonFdset MonFdset;
+struct MonFdset {
+    int64_t id;
+    QLIST_HEAD(, MonFdsetFd) fds;
+    QLIST_ENTRY(MonFdset) next;
+};
+
 typedef struct MonitorControl {
     QObject *id;
     JSONMessageParser parser;
@@ -181,6 +198,7 @@ struct Monitor {
 #define QMP_ACCEPT_UNKNOWNS 1
 
 static QLIST_HEAD(mon_list, Monitor) mon_list;
+static QLIST_HEAD(mon_fdsets, MonFdset) mon_fdsets;
 
 static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
@@ -2364,6 +2382,177 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
     }
 
     return -1;
+}
+
+static void monitor_fdset_cleanup(MonFdset *mon_fdset)
+{
+    MonFdsetFd *mon_fdset_fd;
+    MonFdsetFd *mon_fdset_fd_next;
+
+    QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next, mon_fdset_fd_next) {
+        if (mon_fdset_fd->removed) {
+            close(mon_fdset_fd->fd);
+            g_free(mon_fdset_fd->opaque);
+            QLIST_REMOVE(mon_fdset_fd, next);
+            g_free(mon_fdset_fd);
+        }
+    }
+
+    if (QLIST_EMPTY(&mon_fdset->fds)) {
+        QLIST_REMOVE(mon_fdset, next);
+        g_free(mon_fdset);
+    }
+}
+
+AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
+                      const char *opaque, Error **errp)
+{
+    int fd;
+    Monitor *mon = cur_mon;
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    AddfdInfo *fdinfo;
+
+    fd = qemu_chr_fe_get_msgfd(mon->chr);
+    if (fd == -1) {
+        error_set(errp, QERR_FD_NOT_SUPPLIED);
+        goto error;
+    }
+
+    if (has_fdset_id) {
+        QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+            if (mon_fdset->id == fdset_id) {
+                break;
+            }
+        }
+        if (mon_fdset == NULL) {
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
+                      "an existing fdset-id");
+            goto error;
+        }
+    } else {
+        int64_t fdset_id_prev = -1;
+        MonFdset *mon_fdset_cur = QLIST_FIRST(&mon_fdsets);
+
+        /* Use first available fdset ID */
+        QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+            mon_fdset_cur = mon_fdset;
+            if (fdset_id_prev == mon_fdset_cur->id - 1) {
+                fdset_id_prev = mon_fdset_cur->id;
+                continue;
+            }
+            break;
+        }
+
+        mon_fdset = g_malloc0(sizeof(*mon_fdset));
+        mon_fdset->id = fdset_id_prev + 1;
+
+        /* The fdset list is ordered by fdset ID */
+        if (mon_fdset->id == 0) {
+            QLIST_INSERT_HEAD(&mon_fdsets, mon_fdset, next);
+        } else if (mon_fdset->id < mon_fdset_cur->id) {
+            QLIST_INSERT_BEFORE(mon_fdset_cur, mon_fdset, next);
+        } else {
+            QLIST_INSERT_AFTER(mon_fdset_cur, mon_fdset, next);
+        }
+    }
+
+    mon_fdset_fd = g_malloc0(sizeof(*mon_fdset_fd));
+    mon_fdset_fd->fd = fd;
+    mon_fdset_fd->removed = false;
+    if (has_opaque) {
+        mon_fdset_fd->opaque = g_strdup(opaque);
+    }
+    QLIST_INSERT_HEAD(&mon_fdset->fds, mon_fdset_fd, next);
+
+    fdinfo = g_malloc0(sizeof(*fdinfo));
+    fdinfo->fdset_id = mon_fdset->id;
+    fdinfo->fd = mon_fdset_fd->fd;
+
+    return fdinfo;
+
+error:
+    if (fd != -1) {
+        close(fd);
+    }
+    return NULL;
+}
+
+void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    char fd_str[60];
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        if (mon_fdset->id != fdset_id) {
+            continue;
+        }
+        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+            if (has_fd) {
+                if (mon_fdset_fd->fd != fd) {
+                    continue;
+                }
+                mon_fdset_fd->removed = true;
+                break;
+            } else {
+                mon_fdset_fd->removed = true;
+            }
+        }
+        if (has_fd && !mon_fdset_fd) {
+            goto error;
+        }
+        monitor_fdset_cleanup(mon_fdset);
+        return;
+    }
+
+error:
+    if (has_fd) {
+        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64 ", fd:%" PRId64,
+                 fdset_id, fd);
+    } else {
+        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64, fdset_id);
+    }
+    error_set(errp, QERR_FD_NOT_FOUND, fd_str);
+}
+
+FdsetInfoList *qmp_query_fdsets(Error **errp)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    FdsetInfoList *fdset_list = NULL;
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        FdsetInfoList *fdset_info = g_malloc0(sizeof(*fdset_info));
+        FdsetFdInfoList *fdsetfd_list = NULL;
+
+        fdset_info->value = g_malloc0(sizeof(*fdset_info->value));
+        fdset_info->value->fdset_id = mon_fdset->id;
+
+        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+            FdsetFdInfoList *fdsetfd_info;
+
+            fdsetfd_info = g_malloc0(sizeof(*fdsetfd_info));
+            fdsetfd_info->value = g_malloc0(sizeof(*fdsetfd_info->value));
+            fdsetfd_info->value->fd = mon_fdset_fd->fd;
+            if (mon_fdset_fd->opaque) {
+                fdsetfd_info->value->has_opaque = true;
+                fdsetfd_info->value->opaque = g_strdup(mon_fdset_fd->opaque);
+            } else {
+                fdsetfd_info->value->has_opaque = false;
+            }
+
+            fdsetfd_info->next = fdsetfd_list;
+            fdsetfd_list = fdsetfd_info;
+        }
+
+        fdset_info->value->fds = fdsetfd_list;
+
+        fdset_info->next = fdset_list;
+        fdset_list = fdset_info;
+    }
+
+    return fdset_list;
 }
 
 /* mon_cmds and info_cmds would be sorted at runtime */

@@ -970,6 +970,128 @@ Example:
 
 EQMP
 
+     {
+        .name       = "add-fd",
+        .args_type  = "fdset-id:i?,opaque:s?",
+        .params     = "add-fd fdset-id opaque",
+        .help       = "Add a file descriptor, that was passed via SCM rights, to an fd set",
+        .mhandler.cmd_new = qmp_marshal_input_add_fd,
+    },
+
+SQMP
+add-fd
+-------
+
+Add a file descriptor, that was passed via SCM rights, to an fd set.
+
+Arguments:
+
+- "fdset-id": The ID of the fd set to add the file descriptor to.
+              (json-int, optional)
+- "opaque": A free-form string that can be used to describe the fd.
+            (json-string, optional)
+
+Return a json-object with the following information:
+
+- "fdset-id": The ID of the fd set that the fd was added to. (json-int)
+- "fd": The file descriptor that was received via SCM rights and added to the
+        fd set. (json-int)
+
+Example:
+
+-> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
+<- { "return": { "fdset-id": 1, "fd": 3 } }
+
+Notes:
+
+(1) The list of fd sets is shared by all monitor connections.
+(2) If "fdset-id" is not specified, a new fd set will be created.
+
+EQMP
+
+     {
+        .name       = "remove-fd",
+        .args_type  = "fdset-id:i,fd:i?",
+        .params     = "remove-fd fdset-id fd",
+        .help       = "Remove a file descriptor from an fd set",
+        .mhandler.cmd_new = qmp_marshal_input_remove_fd,
+    },
+
+SQMP
+remove-fd
+---------
+
+Remove a file descriptor from an fd set.
+
+Arguments:
+
+- "fdset-id": The ID of the fd set that the file descriptor belongs to.
+              (json-int)
+- "fd": The file descriptor that is to be removed. (json-int, optional)
+
+Example:
+
+-> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
+<- { "return": {} }
+
+Notes:
+
+(1) The list of fd sets is shared by all monitor connections.
+(2) If "fd" is not specified, all file descriptors in "fdset-id" will be
+    removed.
+
+EQMP
+
+    {
+        .name       = "query-fdsets",
+        .args_type  = "",
+        .help       = "Return information describing all fd sets",
+        .mhandler.cmd_new = qmp_marshal_input_query_fdsets,
+    },
+
+SQMP
+query-fdsets
+-------------
+
+Return information describing all fd sets.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-fdsets" }
+<- { "return": [
+       {
+         "fds": [
+           {
+             "fd": 30,
+             "opaque": "rdonly:/path/to/file"
+           },
+           {
+             "fd": 24,
+             "opaque": "rdwr:/path/to/file"
+           }
+         ],
+         "fdset-id": 1
+       },
+       {
+         "fds": [
+           {
+             "fd": 28
+           },
+           {
+             "fd": 29
+           }
+         ],
+         "fdset-id": 0
+       }
+     ]
+   }
+
+Note: The list of fd sets is shared by all monitor connections.
+
+EQMP
+
     {
         .name       = "block_passwd",
         .args_type  = "device:B,password:s",
