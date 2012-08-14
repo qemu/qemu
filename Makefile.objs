@@ -97,6 +97,12 @@ common-obj-y += qemu-timer.o qemu-timer-common.o
 common-obj-$(CONFIG_SLIRP) += slirp/
 
 ######################################################################
+# libseccomp
+ifeq ($(CONFIG_SECCOMP),y)
+common-obj-y += qemu-seccomp.o
+endif
+
+######################################################################
 # libuser
 
 user-obj-y =

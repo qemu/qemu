@@ -218,6 +218,7 @@ zlib="yes"
 guest_agent="yes"
 libiscsi=""
 coroutine=""
+seccomp=""
 
 # parse CC options first
 for opt do
@@ -864,6 +865,10 @@ for opt do
   ;;
   --disable-guest-agent) guest_agent="no"
   ;;
+  --enable-seccomp) seccomp="yes"
+  ;;
+  --disable-seccomp) seccomp="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1152,6 +1157,8 @@ echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
 echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
+echo "  --disable-seccomp        disable seccomp support"
+echo "  --enable-seccomp         enables seccomp support"
 echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
 echo "                           gthread, ucontext, sigaltstack, windows"
 echo ""
@@ -1413,6 +1420,20 @@ EOF
     fi
 fi
 
+##########################################
+# libseccomp check
+
+if test "$seccomp" != "no" ; then
+    if $pkg_config libseccomp --modversion >/dev/null 2>&1; then
+        LIBS=`$pkg_config --libs libseccomp`
+	seccomp="yes"
+    else
+	seccomp="no"
+	if test "$seccomp" = "yes"; then
+            feature_not_found "libseccomp"
+	fi
+    fi
+fi
 ##########################################
 # xen probe
 
@@ -3143,6 +3164,7 @@ echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
+echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine_backend"
 
 if test "$sdl_too_old" = "yes"; then
@@ -3436,6 +3458,10 @@ fi
 
 if test "$libiscsi" = "yes" ; then
   echo "CONFIG_LIBISCSI=y" >> $config_host_mak
+fi
+
+if test "$seccomp" = "yes"; then
+  echo "CONFIG_SECCOMP=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
