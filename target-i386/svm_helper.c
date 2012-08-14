@@ -18,46 +18,50 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
+#include "cpu-all.h"
 #include "helper.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
 
 /* Secure Virtual Machine helpers */
 
 #if defined(CONFIG_USER_ONLY)
 
-void helper_vmrun(int aflag, int next_eip_addend)
+void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
 }
 
-void helper_vmmcall(void)
+void helper_vmmcall(CPUX86State *env)
 {
 }
 
-void helper_vmload(int aflag)
+void helper_vmload(CPUX86State *env, int aflag)
 {
 }
 
-void helper_vmsave(int aflag)
+void helper_vmsave(CPUX86State *env, int aflag)
 {
 }
 
-void helper_stgi(void)
+void helper_stgi(CPUX86State *env)
 {
 }
 
-void helper_clgi(void)
+void helper_clgi(CPUX86State *env)
 {
 }
 
-void helper_skinit(void)
+void helper_skinit(CPUX86State *env)
 {
 }
 
-void helper_invlpga(int aflag)
+void helper_invlpga(CPUX86State *env, int aflag)
 {
 }
 
-void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
+void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
 }
 
@@ -65,7 +69,8 @@ void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1)
 {
 }
 
-void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
+void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
+                                      uint64_t param)
 {
 }
 
@@ -74,13 +79,13 @@ void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
 {
 }
 
-void helper_svm_check_io(uint32_t port, uint32_t param,
+void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
                          uint32_t next_eip_addend)
 {
 }
 #else
 
-static inline void svm_save_seg(target_phys_addr_t addr,
+static inline void svm_save_seg(CPUX86State *env, target_phys_addr_t addr,
                                 const SegmentCache *sc)
 {
     stw_phys(addr + offsetof(struct vmcb_seg, selector),
@@ -93,7 +98,8 @@ static inline void svm_save_seg(target_phys_addr_t addr,
              ((sc->flags >> 8) & 0xff) | ((sc->flags >> 12) & 0x0f00));
 }
 
-static inline void svm_load_seg(target_phys_addr_t addr, SegmentCache *sc)
+static inline void svm_load_seg(CPUX86State *env, target_phys_addr_t addr,
+                                SegmentCache *sc)
 {
     unsigned int flags;
 
@@ -104,23 +110,23 @@ static inline void svm_load_seg(target_phys_addr_t addr, SegmentCache *sc)
     sc->flags = ((flags & 0xff) << 8) | ((flags & 0x0f00) << 12);
 }
 
-static inline void svm_load_seg_cache(target_phys_addr_t addr,
-                                      CPUX86State *env, int seg_reg)
+static inline void svm_load_seg_cache(CPUX86State *env, target_phys_addr_t addr,
+                                      int seg_reg)
 {
     SegmentCache sc1, *sc = &sc1;
 
-    svm_load_seg(addr, sc);
+    svm_load_seg(env, addr, sc);
     cpu_x86_load_seg_cache(env, seg_reg, sc->selector,
                            sc->base, sc->limit, sc->flags);
 }
 
-void helper_vmrun(int aflag, int next_eip_addend)
+void helper_vmrun(CPUX86State *env, int aflag, int next_eip_addend)
 {
     target_ulong addr;
     uint32_t event_inj;
     uint32_t int_ctl;
 
-    helper_svm_check_intercept_param(SVM_EXIT_VMRUN, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMRUN, 0);
 
     if (aflag == 2) {
         addr = EAX;
@@ -154,13 +160,13 @@ void helper_vmrun(int aflag, int next_eip_addend)
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rflags),
              cpu_compute_eflags(env));
 
-    svm_save_seg(env->vm_hsave + offsetof(struct vmcb, save.es),
+    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.es),
                  &env->segs[R_ES]);
-    svm_save_seg(env->vm_hsave + offsetof(struct vmcb, save.cs),
+    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.cs),
                  &env->segs[R_CS]);
-    svm_save_seg(env->vm_hsave + offsetof(struct vmcb, save.ss),
+    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.ss),
                  &env->segs[R_SS]);
-    svm_save_seg(env->vm_hsave + offsetof(struct vmcb, save.ds),
+    svm_save_seg(env, env->vm_hsave + offsetof(struct vmcb, save.ds),
                  &env->segs[R_DS]);
 
     stq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip),
@@ -233,14 +239,14 @@ void helper_vmrun(int aflag, int next_eip_addend)
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     CC_OP = CC_OP_EFLAGS;
 
-    svm_load_seg_cache(env->vm_vmcb + offsetof(struct vmcb, save.es),
-                       env, R_ES);
-    svm_load_seg_cache(env->vm_vmcb + offsetof(struct vmcb, save.cs),
-                       env, R_CS);
-    svm_load_seg_cache(env->vm_vmcb + offsetof(struct vmcb, save.ss),
-                       env, R_SS);
-    svm_load_seg_cache(env->vm_vmcb + offsetof(struct vmcb, save.ds),
-                       env, R_DS);
+    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.es),
+                       R_ES);
+    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.cs),
+                       R_CS);
+    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.ss),
+                       R_SS);
+    svm_load_seg_cache(env, env->vm_vmcb + offsetof(struct vmcb, save.ds),
+                       R_DS);
 
     EIP = ldq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip));
     env->eip = EIP;
@@ -320,17 +326,17 @@ void helper_vmrun(int aflag, int next_eip_addend)
     }
 }
 
-void helper_vmmcall(void)
+void helper_vmmcall(CPUX86State *env)
 {
-    helper_svm_check_intercept_param(SVM_EXIT_VMMCALL, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMMCALL, 0);
     raise_exception(env, EXCP06_ILLOP);
 }
 
-void helper_vmload(int aflag)
+void helper_vmload(CPUX86State *env, int aflag)
 {
     target_ulong addr;
 
-    helper_svm_check_intercept_param(SVM_EXIT_VMLOAD, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMLOAD, 0);
 
     if (aflag == 2) {
         addr = EAX;
@@ -340,17 +346,14 @@ void helper_vmload(int aflag)
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "vmload! " TARGET_FMT_lx
                   "\nFS: %016" PRIx64 " | " TARGET_FMT_lx "\n",
-                  addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
+                  addr, ldq_phys(addr + offsetof(struct vmcb,
+                                                          save.fs.base)),
                   env->segs[R_FS].base);
 
-    svm_load_seg_cache(addr + offsetof(struct vmcb, save.fs),
-                       env, R_FS);
-    svm_load_seg_cache(addr + offsetof(struct vmcb, save.gs),
-                       env, R_GS);
-    svm_load_seg(addr + offsetof(struct vmcb, save.tr),
-                 &env->tr);
-    svm_load_seg(addr + offsetof(struct vmcb, save.ldtr),
-                 &env->ldt);
+    svm_load_seg_cache(env, addr + offsetof(struct vmcb, save.fs), R_FS);
+    svm_load_seg_cache(env, addr + offsetof(struct vmcb, save.gs), R_GS);
+    svm_load_seg(env, addr + offsetof(struct vmcb, save.tr), &env->tr);
+    svm_load_seg(env, addr + offsetof(struct vmcb, save.ldtr), &env->ldt);
 
 #ifdef TARGET_X86_64
     env->kernelgsbase = ldq_phys(addr + offsetof(struct vmcb,
@@ -367,11 +370,11 @@ void helper_vmload(int aflag)
                                                  save.sysenter_eip));
 }
 
-void helper_vmsave(int aflag)
+void helper_vmsave(CPUX86State *env, int aflag)
 {
     target_ulong addr;
 
-    helper_svm_check_intercept_param(SVM_EXIT_VMSAVE, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_VMSAVE, 0);
 
     if (aflag == 2) {
         addr = EAX;
@@ -384,13 +387,13 @@ void helper_vmsave(int aflag)
                   addr, ldq_phys(addr + offsetof(struct vmcb, save.fs.base)),
                   env->segs[R_FS].base);
 
-    svm_save_seg(addr + offsetof(struct vmcb, save.fs),
+    svm_save_seg(env, addr + offsetof(struct vmcb, save.fs),
                  &env->segs[R_FS]);
-    svm_save_seg(addr + offsetof(struct vmcb, save.gs),
+    svm_save_seg(env, addr + offsetof(struct vmcb, save.gs),
                  &env->segs[R_GS]);
-    svm_save_seg(addr + offsetof(struct vmcb, save.tr),
+    svm_save_seg(env, addr + offsetof(struct vmcb, save.tr),
                  &env->tr);
-    svm_save_seg(addr + offsetof(struct vmcb, save.ldtr),
+    svm_save_seg(env, addr + offsetof(struct vmcb, save.ldtr),
                  &env->ldt);
 
 #ifdef TARGET_X86_64
@@ -408,30 +411,30 @@ void helper_vmsave(int aflag)
              env->sysenter_eip);
 }
 
-void helper_stgi(void)
+void helper_stgi(CPUX86State *env)
 {
-    helper_svm_check_intercept_param(SVM_EXIT_STGI, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_STGI, 0);
     env->hflags2 |= HF2_GIF_MASK;
 }
 
-void helper_clgi(void)
+void helper_clgi(CPUX86State *env)
 {
-    helper_svm_check_intercept_param(SVM_EXIT_CLGI, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_CLGI, 0);
     env->hflags2 &= ~HF2_GIF_MASK;
 }
 
-void helper_skinit(void)
+void helper_skinit(CPUX86State *env)
 {
-    helper_svm_check_intercept_param(SVM_EXIT_SKINIT, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_SKINIT, 0);
     /* XXX: not implemented */
     raise_exception(env, EXCP06_ILLOP);
 }
 
-void helper_invlpga(int aflag)
+void helper_invlpga(CPUX86State *env, int aflag)
 {
     target_ulong addr;
 
-    helper_svm_check_intercept_param(SVM_EXIT_INVLPGA, 0);
+    cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPGA, 0);
 
     if (aflag == 2) {
         addr = EAX;
@@ -444,7 +447,8 @@ void helper_invlpga(int aflag)
     tlb_flush_page(env, addr);
 }
 
-void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
+void helper_svm_check_intercept_param(CPUX86State *env, uint32_t type,
+                                      uint64_t param)
 {
     if (likely(!(env->hflags & HF_SVMI_MASK))) {
         return;
@@ -452,27 +456,27 @@ void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
     switch (type) {
     case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR0 + 8:
         if (env->intercept_cr_read & (1 << (type - SVM_EXIT_READ_CR0))) {
-            helper_vmexit(type, param);
+            helper_vmexit(env, type, param);
         }
         break;
     case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR0 + 8:
         if (env->intercept_cr_write & (1 << (type - SVM_EXIT_WRITE_CR0))) {
-            helper_vmexit(type, param);
+            helper_vmexit(env, type, param);
         }
         break;
     case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR0 + 7:
         if (env->intercept_dr_read & (1 << (type - SVM_EXIT_READ_DR0))) {
-            helper_vmexit(type, param);
+            helper_vmexit(env, type, param);
         }
         break;
     case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR0 + 7:
         if (env->intercept_dr_write & (1 << (type - SVM_EXIT_WRITE_DR0))) {
-            helper_vmexit(type, param);
+            helper_vmexit(env, type, param);
         }
         break;
     case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 31:
         if (env->intercept_exceptions & (1 << (type - SVM_EXIT_EXCP_BASE))) {
-            helper_vmexit(type, param);
+            helper_vmexit(env, type, param);
         }
         break;
     case SVM_EXIT_MSR:
@@ -499,36 +503,31 @@ void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
                 t0 %= 8;
                 break;
             default:
-                helper_vmexit(type, param);
+                helper_vmexit(env, type, param);
                 t0 = 0;
                 t1 = 0;
                 break;
             }
             if (ldub_phys(addr + t1) & ((1 << param) << t0)) {
-                helper_vmexit(type, param);
+                helper_vmexit(env, type, param);
             }
         }
         break;
     default:
         if (env->intercept & (1ULL << (type - SVM_EXIT_INTR))) {
-            helper_vmexit(type, param);
+            helper_vmexit(env, type, param);
         }
         break;
     }
 }
 
-void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
+void cpu_svm_check_intercept_param(CPUX86State *env, uint32_t type,
                                    uint64_t param)
 {
-    CPUX86State *saved_env;
-
-    saved_env = env;
-    env = env1;
-    helper_svm_check_intercept_param(type, param);
-    env = saved_env;
+    helper_svm_check_intercept_param(env, type, param);
 }
 
-void helper_svm_check_io(uint32_t port, uint32_t param,
+void helper_svm_check_io(CPUX86State *env, uint32_t port, uint32_t param,
                          uint32_t next_eip_addend)
 {
     if (env->intercept & (1ULL << (SVM_EXIT_IOIO - SVM_EXIT_INTR))) {
@@ -541,13 +540,13 @@ void helper_svm_check_io(uint32_t port, uint32_t param,
             /* next EIP */
             stq_phys(env->vm_vmcb + offsetof(struct vmcb, control.exit_info_2),
                      env->eip + next_eip_addend);
-            helper_vmexit(SVM_EXIT_IOIO, param | (port << 16));
+            helper_vmexit(env, SVM_EXIT_IOIO, param | (port << 16));
         }
     }
 }
 
 /* Note: currently only 32 bits of exit_code are used */
-void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
+void helper_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
     uint32_t int_ctl;
 
@@ -567,13 +566,13 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     }
 
     /* Save the VM state in the vmcb */
-    svm_save_seg(env->vm_vmcb + offsetof(struct vmcb, save.es),
+    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.es),
                  &env->segs[R_ES]);
-    svm_save_seg(env->vm_vmcb + offsetof(struct vmcb, save.cs),
+    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.cs),
                  &env->segs[R_CS]);
-    svm_save_seg(env->vm_vmcb + offsetof(struct vmcb, save.ss),
+    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.ss),
                  &env->segs[R_SS]);
-    svm_save_seg(env->vm_vmcb + offsetof(struct vmcb, save.ds),
+    svm_save_seg(env, env->vm_vmcb + offsetof(struct vmcb, save.ds),
                  &env->segs[R_DS]);
 
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.gdtr.base),
@@ -602,7 +601,8 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
 
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rflags),
              cpu_compute_eflags(env));
-    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip), env->eip);
+    stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rip),
+             env->eip);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rsp), ESP);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.rax), EAX);
     stq_phys(env->vm_vmcb + offsetof(struct vmcb, save.dr7), env->dr[7]);
@@ -645,14 +645,14 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
                     ~(CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C | DF_MASK));
     CC_OP = CC_OP_EFLAGS;
 
-    svm_load_seg_cache(env->vm_hsave + offsetof(struct vmcb, save.es),
-                       env, R_ES);
-    svm_load_seg_cache(env->vm_hsave + offsetof(struct vmcb, save.cs),
-                       env, R_CS);
-    svm_load_seg_cache(env->vm_hsave + offsetof(struct vmcb, save.ss),
-                       env, R_SS);
-    svm_load_seg_cache(env->vm_hsave + offsetof(struct vmcb, save.ds),
-                       env, R_DS);
+    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.es),
+                       R_ES);
+    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.cs),
+                       R_CS);
+    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.ss),
+                       R_SS);
+    svm_load_seg_cache(env, env->vm_hsave + offsetof(struct vmcb, save.ds),
+                       R_DS);
 
     EIP = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rip));
     ESP = ldq_phys(env->vm_hsave + offsetof(struct vmcb, save.rsp));
@@ -707,10 +707,9 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
     cpu_loop_exit(env);
 }
 
-void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1)
+void cpu_vmexit(CPUX86State *env, uint32_t exit_code, uint64_t exit_info_1)
 {
-    env = nenv;
-    helper_vmexit(exit_code, exit_info_1);
+    helper_vmexit(env, exit_code, exit_info_1);
 }
 
 #endif

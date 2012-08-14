@@ -18,7 +18,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "ioport.h"
 #include "helper.h"
 
@@ -27,7 +26,7 @@
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* check if Port I/O is allowed in TSS */
-static inline void check_io(int addr, int size)
+static inline void check_io(CPUX86State *env, int addr, int size)
 {
     int io_offset, val, mask;
 
@@ -37,13 +36,13 @@ static inline void check_io(int addr, int size)
         env->tr.limit < 103) {
         goto fail;
     }
-    io_offset = lduw_kernel(env->tr.base + 0x66);
+    io_offset = cpu_lduw_kernel(env, env->tr.base + 0x66);
     io_offset += (addr >> 3);
     /* Note: the check needs two bytes */
     if ((io_offset + 1) > env->tr.limit) {
         goto fail;
     }
-    val = lduw_kernel(env->tr.base + io_offset);
+    val = cpu_lduw_kernel(env, env->tr.base + io_offset);
     val >>= (addr & 7);
     mask = (1 << size) - 1;
     /* all bits must be zero to allow the I/O */
@@ -53,19 +52,19 @@ static inline void check_io(int addr, int size)
     }
 }
 
-void helper_check_iob(uint32_t t0)
+void helper_check_iob(CPUX86State *env, uint32_t t0)
 {
-    check_io(t0, 1);
+    check_io(env, t0, 1);
 }
 
-void helper_check_iow(uint32_t t0)
+void helper_check_iow(CPUX86State *env, uint32_t t0)
 {
-    check_io(t0, 2);
+    check_io(env, t0, 2);
 }
 
-void helper_check_iol(uint32_t t0)
+void helper_check_iol(CPUX86State *env, uint32_t t0)
 {
-    check_io(t0, 4);
+    check_io(env, t0, 4);
 }
 
 void helper_outb(uint32_t port, uint32_t data)
@@ -98,17 +97,17 @@ target_ulong helper_inl(uint32_t port)
     return cpu_inl(port);
 }
 
-void helper_into(int next_eip_addend)
+void helper_into(CPUX86State *env, int next_eip_addend)
 {
     int eflags;
 
-    eflags = helper_cc_compute_all(CC_OP);
+    eflags = cpu_cc_compute_all(env, CC_OP);
     if (eflags & CC_O) {
         raise_interrupt(env, EXCP04_INTO, 1, 0, next_eip_addend);
     }
 }
 
-void helper_single_step(void)
+void helper_single_step(CPUX86State *env)
 {
 #ifndef CONFIG_USER_ONLY
     check_hw_breakpoints(env, 1);
@@ -117,7 +116,7 @@ void helper_single_step(void)
     raise_exception(env, EXCP01_DB);
 }
 
-void helper_cpuid(void)
+void helper_cpuid(CPUX86State *env)
 {
     uint32_t eax, ebx, ecx, edx;
 
@@ -131,20 +130,20 @@ void helper_cpuid(void)
 }
 
 #if defined(CONFIG_USER_ONLY)
-target_ulong helper_read_crN(int reg)
+target_ulong helper_read_crN(CPUX86State *env, int reg)
 {
     return 0;
 }
 
-void helper_write_crN(int reg, target_ulong t0)
+void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
 {
 }
 
-void helper_movl_drN_T0(int reg, target_ulong t0)
+void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
 {
 }
 #else
-target_ulong helper_read_crN(int reg)
+target_ulong helper_read_crN(CPUX86State *env, int reg)
 {
     target_ulong val;
 
@@ -164,7 +163,7 @@ target_ulong helper_read_crN(int reg)
     return val;
 }
 
-void helper_write_crN(int reg, target_ulong t0)
+void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_WRITE_CR0 + reg, 0);
     switch (reg) {
@@ -189,7 +188,7 @@ void helper_write_crN(int reg, target_ulong t0)
     }
 }
 
-void helper_movl_drN_T0(int reg, target_ulong t0)
+void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
 {
     int i;
 
@@ -211,21 +210,21 @@ void helper_movl_drN_T0(int reg, target_ulong t0)
 }
 #endif
 
-void helper_lmsw(target_ulong t0)
+void helper_lmsw(CPUX86State *env, target_ulong t0)
 {
     /* only 4 lower bits of CR0 are modified. PE cannot be set to zero
        if already set to one. */
     t0 = (env->cr[0] & ~0xe) | (t0 & 0xf);
-    helper_write_crN(0, t0);
+    helper_write_crN(env, 0, t0);
 }
 
-void helper_invlpg(target_ulong addr)
+void helper_invlpg(CPUX86State *env, target_ulong addr)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_INVLPG, 0);
     tlb_flush_page(env, addr);
 }
 
-void helper_rdtsc(void)
+void helper_rdtsc(CPUX86State *env)
 {
     uint64_t val;
 
@@ -239,13 +238,13 @@ void helper_rdtsc(void)
     EDX = (uint32_t)(val >> 32);
 }
 
-void helper_rdtscp(void)
+void helper_rdtscp(CPUX86State *env)
 {
-    helper_rdtsc();
+    helper_rdtsc(env);
     ECX = (uint32_t)(env->tsc_aux);
 }
 
-void helper_rdpmc(void)
+void helper_rdpmc(CPUX86State *env)
 {
     if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception(env, EXCP0D_GPF);
@@ -258,15 +257,15 @@ void helper_rdpmc(void)
 }
 
 #if defined(CONFIG_USER_ONLY)
-void helper_wrmsr(void)
+void helper_wrmsr(CPUX86State *env)
 {
 }
 
-void helper_rdmsr(void)
+void helper_rdmsr(CPUX86State *env)
 {
 }
 #else
-void helper_wrmsr(void)
+void helper_wrmsr(CPUX86State *env)
 {
     uint64_t val;
 
@@ -413,7 +412,7 @@ void helper_wrmsr(void)
     }
 }
 
-void helper_rdmsr(void)
+void helper_rdmsr(CPUX86State *env)
 {
     uint64_t val;
 
@@ -554,7 +553,7 @@ void helper_rdmsr(void)
 }
 #endif
 
-static void do_hlt(void)
+static void do_hlt(CPUX86State *env)
 {
     env->hflags &= ~HF_INHIBIT_IRQ_MASK; /* needed if sti is just before */
     env->halted = 1;
@@ -562,15 +561,15 @@ static void do_hlt(void)
     cpu_loop_exit(env);
 }
 
-void helper_hlt(int next_eip_addend)
+void helper_hlt(CPUX86State *env, int next_eip_addend)
 {
     cpu_svm_check_intercept_param(env, SVM_EXIT_HLT, 0);
     EIP += next_eip_addend;
 
-    do_hlt();
+    do_hlt(env);
 }
 
-void helper_monitor(target_ulong ptr)
+void helper_monitor(CPUX86State *env, target_ulong ptr)
 {
     if ((uint32_t)ECX != 0) {
         raise_exception(env, EXCP0D_GPF);
@@ -579,7 +578,7 @@ void helper_monitor(target_ulong ptr)
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0);
 }
 
-void helper_mwait(int next_eip_addend)
+void helper_mwait(CPUX86State *env, int next_eip_addend)
 {
     if ((uint32_t)ECX != 0) {
         raise_exception(env, EXCP0D_GPF);
@@ -592,11 +591,11 @@ void helper_mwait(int next_eip_addend)
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {
-        do_hlt();
+        do_hlt(env);
     }
 }
 
-void helper_debug(void)
+void helper_debug(CPUX86State *env)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);

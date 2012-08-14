@@ -332,9 +332,17 @@ enum
     ARM_HWCAP_ARM_VFPv3D16  = 1 << 13,
 };
 
-#define TARGET_HAS_GUEST_VALIDATE_BASE
-/* We want the opportunity to check the suggested base */
-bool guest_validate_base(unsigned long guest_base)
+#define TARGET_HAS_VALIDATE_GUEST_SPACE
+/* Return 1 if the proposed guest space is suitable for the guest.
+ * Return 0 if the proposed guest space isn't suitable, but another
+ * address space should be tried.
+ * Return -1 if there is no way the proposed guest space can be
+ * valid regardless of the base.
+ * The guest code may leave a page mapped and populate it if the
+ * address is suitable.
+ */
+static int validate_guest_space(unsigned long guest_base,
+                                unsigned long guest_size)
 {
     unsigned long real_start, test_page_addr;
 
@@ -342,6 +350,15 @@ bool guest_validate_base(unsigned long guest_base)
      * commpage at 0xffff0fxx
      */
     test_page_addr = guest_base + (0xffff0f00 & qemu_host_page_mask);
+
+    /* If the commpage lies within the already allocated guest space,
+     * then there is no way we can allocate it.
+     */
+    if (test_page_addr >= guest_base
+        && test_page_addr <= (guest_base + guest_size)) {
+        return -1;
+    }
+
     /* Note it needs to be writeable to let us initialise it */
     real_start = (unsigned long)
                  mmap((void *)test_page_addr, qemu_host_page_size,
@@ -1418,13 +1435,104 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
-#ifndef TARGET_HAS_GUEST_VALIDATE_BASE
+#ifndef TARGET_HAS_VALIDATE_GUEST_SPACE
 /* If the guest doesn't have a validation function just agree */
-bool guest_validate_base(unsigned long guest_base)
+static int validate_guest_space(unsigned long guest_base,
+                                unsigned long guest_size)
 {
     return 1;
 }
 #endif
+
+unsigned long init_guest_space(unsigned long host_start,
+                               unsigned long host_size,
+                               unsigned long guest_start,
+                               bool fixed)
+{
+    unsigned long current_start, real_start;
+    int flags;
+
+    assert(host_start || host_size);
+
+    /* If just a starting address is given, then just verify that
+     * address.  */
+    if (host_start && !host_size) {
+        if (validate_guest_space(host_start, host_size) == 1) {
+            return host_start;
+        } else {
+            return (unsigned long)-1;
+        }
+    }
+
+    /* Setup the initial flags and start address.  */
+    current_start = host_start & qemu_host_page_mask;
+    flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE;
+    if (fixed) {
+        flags |= MAP_FIXED;
+    }
+
+    /* Otherwise, a non-zero size region of memory needs to be mapped
+     * and validated.  */
+    while (1) {
+        unsigned long real_size = host_size;
+
+        /* Do not use mmap_find_vma here because that is limited to the
+         * guest address space.  We are going to make the
+         * guest address space fit whatever we're given.
+         */
+        real_start = (unsigned long)
+            mmap((void *)current_start, host_size, PROT_NONE, flags, -1, 0);
+        if (real_start == (unsigned long)-1) {
+            return (unsigned long)-1;
+        }
+
+        /* Ensure the address is properly aligned.  */
+        if (real_start & ~qemu_host_page_mask) {
+            munmap((void *)real_start, host_size);
+            real_size = host_size + qemu_host_page_size;
+            real_start = (unsigned long)
+                mmap((void *)real_start, real_size, PROT_NONE, flags, -1, 0);
+            if (real_start == (unsigned long)-1) {
+                return (unsigned long)-1;
+            }
+            real_start = HOST_PAGE_ALIGN(real_start);
+        }
+
+        /* Check to see if the address is valid.  */
+        if (!host_start || real_start == current_start) {
+            int valid = validate_guest_space(real_start - guest_start,
+                                             real_size);
+            if (valid == 1) {
+                break;
+            } else if (valid == -1) {
+                return (unsigned long)-1;
+            }
+            /* valid == 0, so try again. */
+        }
+
+        /* That address didn't work.  Unmap and try a different one.
+         * The address the host picked because is typically right at
+         * the top of the host address space and leaves the guest with
+         * no usable address space.  Resort to a linear search.  We
+         * already compensated for mmap_min_addr, so this should not
+         * happen often.  Probably means we got unlucky and host
+         * address space randomization put a shared library somewhere
+         * inconvenient.
+         */
+        munmap((void *)real_start, host_size);
+        current_start += qemu_host_page_size;
+        if (host_start == current_start) {
+            /* Theoretically possible if host doesn't have any suitably
+             * aligned areas.  Normally the first mmap will fail.
+             */
+            return (unsigned long)-1;
+        }
+    }
+
+    qemu_log("Reserved 0x%lx bytes of guest address space\n", host_size);
+
+    return real_start;
+}
 
 static void probe_guest_base(const char *image_name,
                              abi_ulong loaddr, abi_ulong hiaddr)
@@ -1452,46 +1560,23 @@ static void probe_guest_base(const char *image_name,
             }
         }
         host_size = hiaddr - loaddr;
-        while (1) {
-            /* Do not use mmap_find_vma here because that is limited to the
-               guest address space.  We are going to make the
-               guest address space fit whatever we're given.  */
-            real_start = (unsigned long)
-                mmap((void *)host_start, host_size, PROT_NONE,
-                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
-            if (real_start == (unsigned long)-1) {
-                goto exit_perror;
-            }
-            guest_base = real_start - loaddr;
-            if ((real_start == host_start) &&
-                guest_validate_base(guest_base)) {
-                break;
-            }
-            /* That address didn't work.  Unmap and try a different one.
-               The address the host picked because is typically right at
-               the top of the host address space and leaves the guest with
-               no usable address space.  Resort to a linear search.  We
-               already compensated for mmap_min_addr, so this should not
-               happen often.  Probably means we got unlucky and host
-               address space randomization put a shared library somewhere
-               inconvenient.  */
-            munmap((void *)real_start, host_size);
-            host_start += qemu_host_page_size;
-            if (host_start == loaddr) {
-                /* Theoretically possible if host doesn't have any suitably
-                   aligned areas.  Normally the first mmap will fail.  */
-                errmsg = "Unable to find space for application";
-                goto exit_errmsg;
-            }
+
+        /* Setup the initial guest memory space with ranges gleaned from
+         * the ELF image that is being loaded.
+         */
+        real_start = init_guest_space(host_start, host_size, loaddr, false);
+        if (real_start == (unsigned long)-1) {
+            errmsg = "Unable to find space for application";
+            goto exit_errmsg;
         }
+        guest_base = real_start - loaddr;
+
         qemu_log("Relocating guest address space from 0x"
                  TARGET_ABI_FMT_lx " to 0x%lx\n",
                  loaddr, real_start);
     }
     return;
 
-exit_perror:
-    errmsg = strerror(errno);
 exit_errmsg:
     fprintf(stderr, "%s: %s\n", image_name, errmsg);
     exit(-1);

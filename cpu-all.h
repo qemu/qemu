@@ -274,6 +274,28 @@ extern unsigned long reserved_va;
 #define cpu_ldsw_code(env1, p) ldsw_raw(p)
 #define cpu_ldl_code(env1, p) ldl_raw(p)
 #define cpu_ldq_code(env1, p) ldq_raw(p)
+
+#define cpu_ldub_data(env, addr) ldub_raw(addr)
+#define cpu_lduw_data(env, addr) lduw_raw(addr)
+#define cpu_ldsw_data(env, addr) ldsw_raw(addr)
+#define cpu_ldl_data(env, addr) ldl_raw(addr)
+#define cpu_ldq_data(env, addr) ldq_raw(addr)
+
+#define cpu_stb_data(env, addr, data) stb_raw(addr, data)
+#define cpu_stw_data(env, addr, data) stw_raw(addr, data)
+#define cpu_stl_data(env, addr, data) stl_raw(addr, data)
+#define cpu_stq_data(env, addr, data) stq_raw(addr, data)
+
+#define cpu_ldub_kernel(env, addr) ldub_raw(addr)
+#define cpu_lduw_kernel(env, addr) lduw_raw(addr)
+#define cpu_ldsw_kernel(env, addr) ldsw_raw(addr)
+#define cpu_ldl_kernel(env, addr) ldl_raw(addr)
+#define cpu_ldq_kernel(env, addr) ldq_raw(addr)
+
+#define cpu_stb_kernel(env, addr, data) stb_raw(addr, data)
+#define cpu_stw_kernel(env, addr, data) stw_raw(addr, data)
+#define cpu_stl_kernel(env, addr, data) stl_raw(addr, data)
+#define cpu_stq_kernel(env, addr, data) stq_raw(addr, data)
 #endif
 
 #define ldub_kernel(p) ldub_raw(p)
