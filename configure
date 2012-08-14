@@ -275,6 +275,41 @@ EOF
   compile_object
 }
 
+if check_define __linux__ ; then
+  targetos="Linux"
+elif check_define _WIN32 ; then
+  targetos='MINGW32'
+elif check_define __OpenBSD__ ; then
+  targetos='OpenBSD'
+elif check_define __sun__ ; then
+  targetos='SunOS'
+elif check_define __HAIKU__ ; then
+  targetos='Haiku'
+else
+  targetos=`uname -s`
+fi
+
+# Some host OSes need non-standard checks for which CPU to use.
+# Note that these checks are broken for cross-compilation: if you're
+# cross-compiling to one of these OSes then you'll need to specify
+# the correct CPU with the --cpu option.
+case $targetos in
+Darwin)
+  # on Leopard most of the system is 32-bit, so we have to ask the kernel if we can
+  # run 64-bit userspace code.
+  # If the user didn't specify a CPU explicitly and the kernel says this is
+  # 64 bit hw, then assume x86_64. Otherwise fall through to the usual detection code.
+  if test -z "$cpu" && test "$(sysctl -n hw.optional.x86_64)" = "1"; then
+    cpu="x86_64"
+  fi
+  ;;
+SunOS)
+  # `uname -m` returns i86pc even on an x86_64 box, so default based on isainfo
+  if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
+    cpu="x86_64"
+  fi
+esac
+
 if test ! -z "$cpu" ; then
   # command line argument
   :
@@ -349,19 +384,6 @@ if test -z "$ARCH"; then
 fi
 
 # OS specific
-if check_define __linux__ ; then
-  targetos="Linux"
-elif check_define _WIN32 ; then
-  targetos='MINGW32'
-elif check_define __OpenBSD__ ; then
-  targetos='OpenBSD'
-elif check_define __sun__ ; then
-  targetos='SunOS'
-elif check_define __HAIKU__ ; then
-  targetos='Haiku'
-else
-  targetos=`uname -s`
-fi
 
 case $targetos in
 CYGWIN*)
@@ -411,12 +433,6 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  # on Leopard most of the system is 32-bit, so we have to ask the kernel it if we can
-  # run 64-bit userspace code
-  if [ "$cpu" = "i386" ] ; then
-    is_x86_64=`sysctl -n hw.optional.x86_64`
-    [ "$is_x86_64" = "1" ] && cpu=x86_64
-  fi
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
@@ -437,12 +453,6 @@ SunOS)
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
   needs_libsunmath="no"
   solarisrev=`uname -r | cut -f2 -d.`
-  # have to select again, because `uname -m` returns i86pc
-  # even on an x86_64 box.
-  solariscpu=`isainfo -k`
-  if test "${solariscpu}" = "amd64" ; then
-    cpu="x86_64"
-  fi
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     if test "$solarisrev" -le 9 ; then
       if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
