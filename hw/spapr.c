@@ -83,7 +83,6 @@
 #define PHANDLE_XICP            0x00001111
 
 sPAPREnvironment *spapr;
-bool spapr_has_graphics;
 
 qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
                             enum xics_irq_type type)
@@ -508,7 +507,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
         }
     }
 
-    if (!spapr_has_graphics) {
+    if (!spapr->has_graphics) {
         spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
     }
 
@@ -736,7 +735,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* Graphics */
     if (spapr_vga_init(QLIST_FIRST(&spapr->phbs)->host_state.bus)) {
-        spapr_has_graphics = true;
+        spapr->has_graphics = true;
     }
 
     if (rma_size < (MIN_RMA_SLOF << 20)) {

@@ -23,6 +23,7 @@ typedef struct sPAPREnvironment {
     int next_irq;
     int rtc_offset;
     char *cpu_model;
+    bool has_graphics;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
