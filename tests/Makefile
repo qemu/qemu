@@ -81,7 +81,7 @@ TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
 check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 
-qtest-obj-y = tests/libqtest.o $(oslib-obj-y)
+qtest-obj-y = tests/libqtest.o $(oslib-obj-y) $(tools-obj-y)
 $(check-qtest-y): $(qtest-obj-y)
 
 .PHONY: check-help

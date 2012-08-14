@@ -87,4 +87,9 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret);
 
 int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret);
 
+int monitor_fdset_get_fd(int64_t fdset_id, int flags);
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd);
+int monitor_fdset_dup_fd_remove(int dup_fd);
+int monitor_fdset_dup_fd_find(int dup_fd);
+
 #endif /* !MONITOR_H */

@@ -154,6 +154,7 @@ typedef struct MonFdset MonFdset;
 struct MonFdset {
     int64_t id;
     QLIST_HEAD(, MonFdsetFd) fds;
+    QLIST_HEAD(, MonFdsetFd) dup_fds;
     QLIST_ENTRY(MonFdset) next;
 };
 
@@ -2398,7 +2399,7 @@ static void monitor_fdset_cleanup(MonFdset *mon_fdset)
         }
     }
 
-    if (QLIST_EMPTY(&mon_fdset->fds)) {
+    if (QLIST_EMPTY(&mon_fdset->fds) && QLIST_EMPTY(&mon_fdset->dup_fds)) {
         QLIST_REMOVE(mon_fdset, next);
         g_free(mon_fdset);
     }
@@ -2553,6 +2554,89 @@ FdsetInfoList *qmp_query_fdsets(Error **errp)
     }
 
     return fdset_list;
+}
+
+int monitor_fdset_get_fd(int64_t fdset_id, int flags)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    int mon_fd_flags;
+
+#ifndef _WIN32
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        if (mon_fdset->id != fdset_id) {
+            continue;
+        }
+        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+            mon_fd_flags = fcntl(mon_fdset_fd->fd, F_GETFL);
+            if (mon_fd_flags == -1) {
+                return -1;
+            }
+
+            if ((flags & O_ACCMODE) == (mon_fd_flags & O_ACCMODE)) {
+                return mon_fdset_fd->fd;
+            }
+        }
+        errno = EACCES;
+        return -1;
+    }
+#endif
+
+    errno = ENOENT;
+    return -1;
+}
+
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd_dup;
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        if (mon_fdset->id != fdset_id) {
+            continue;
+        }
+        QLIST_FOREACH(mon_fdset_fd_dup, &mon_fdset->dup_fds, next) {
+            if (mon_fdset_fd_dup->fd == dup_fd) {
+                return -1;
+            }
+        }
+        mon_fdset_fd_dup = g_malloc0(sizeof(*mon_fdset_fd_dup));
+        mon_fdset_fd_dup->fd = dup_fd;
+        QLIST_INSERT_HEAD(&mon_fdset->dup_fds, mon_fdset_fd_dup, next);
+        return 0;
+    }
+    return -1;
+}
+
+static int monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd_dup;
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        QLIST_FOREACH(mon_fdset_fd_dup, &mon_fdset->dup_fds, next) {
+            if (mon_fdset_fd_dup->fd == dup_fd) {
+                if (remove) {
+                    QLIST_REMOVE(mon_fdset_fd_dup, next);
+                    if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
+                        monitor_fdset_cleanup(mon_fdset);
+                    }
+                }
+                return mon_fdset->id;
+            }
+        }
+    }
+    return -1;
+}
+
+int monitor_fdset_dup_fd_find(int dup_fd)
+{
+    return monitor_fdset_dup_fd_find_remove(dup_fd, false);
+}
+
+int monitor_fdset_dup_fd_remove(int dup_fd)
+{
+    return monitor_fdset_dup_fd_find_remove(dup_fd, true);
 }
 
 /* mon_cmds and info_cmds would be sorted at runtime */
