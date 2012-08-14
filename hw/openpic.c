@@ -130,6 +130,17 @@ enum {
 #define MPIC_CPU_REG_START        0x20000
 #define MPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
 
+/*
+ * Block Revision Register1 (BRR1): QEMU does not fully emulate
+ * any version on MPIC. So to start with, set the IP version to 0.
+ *
+ * NOTE: This is Freescale MPIC specific register. Keep it here till
+ * this code is refactored for different variants of OPENPIC and MPIC.
+ */
+#define FSL_BRR1_IPID (0x0040 << 16) /* 16 bit IP-block ID */
+#define FSL_BRR1_IPMJ (0x00 << 8) /* 8 bit IP major number */
+#define FSL_BRR1_IPMN 0x00 /* 8 bit IP minor number */
+
 enum mpic_ide_bits {
     IDR_EP     = 31,
     IDR_CI0     = 30,
@@ -595,6 +606,8 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
     if (addr & 0xF)
         return;
     switch (addr) {
+    case 0x00: /* Block Revision Register1 (BRR1) is Readonly */
+        break;
     case 0x40:
     case 0x50:
     case 0x60:
@@ -671,6 +684,7 @@ static uint32_t openpic_gbl_read (void *opaque, target_phys_addr_t addr)
     case 0x1090: /* PINT */
         retval = 0x00000000;
         break;
+    case 0x00: /* Block Revision Register1 (BRR1) */
     case 0x40:
     case 0x50:
     case 0x60:
@@ -893,6 +907,9 @@ static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
     dst = &opp->dst[idx];
     addr &= 0xFF0;
     switch (addr) {
+    case 0x00: /* Block Revision Register1 (BRR1) */
+        retval = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
+        break;
     case 0x80: /* PCTP */
         retval = dst->pctp;
         break;
