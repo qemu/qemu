@@ -574,7 +574,7 @@ static uint64_t dm9000_read(void *opaque, target_phys_addr_t address,
 
 
 
-static int dm9000_can_receive(VLANClientState *nc)
+static int dm9000_can_receive(NetClientState *nc)
 {
     dm9000_state *state = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t rx_space;
@@ -590,7 +590,8 @@ static int dm9000_can_receive(VLANClientState *nc)
     return 0;
 }
 
-static ssize_t dm9000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t
+dm9000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     dm9000_state *state = DO_UPCAST(NICState, nc, nc)->opaque;
     uint16_t rxptr = state->dm9k_rwpa;

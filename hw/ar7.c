@@ -3343,9 +3343,9 @@ static void ar7_serial_init(CPUMIPSState * env)
     serial_mm_write(ar7->serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20, 1);
 }
 
-static int ar7_nic_can_receive(VLANClientState *vc)
+static int ar7_nic_can_receive(NetClientState *ncs)
 {
-    CpmacState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    CpmacState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
     int enabled = (reg_read(s->addr, CPMAC_RXCONTROL) & RXCONTROL_RXEN) != 0;
 
     TRACE(CPMAC, logout("cpmac%u, enabled %d\n", s->index, enabled));
@@ -3353,9 +3353,10 @@ static int ar7_nic_can_receive(VLANClientState *vc)
     return enabled;
 }
 
-static ssize_t ar7_nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t ar7_nic_receive(NetClientState *ncs,
+                               const uint8_t *buf, size_t size)
 {
-    CpmacState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    CpmacState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
     uint8_t *cpmac = s->addr;
     uint32_t rxmbpenable = reg_read(cpmac, CPMAC_RXMBPENABLE);
     uint32_t rxmaxlen = reg_read(cpmac, CPMAC_RXMAXLEN);
@@ -3468,9 +3469,9 @@ static ssize_t ar7_nic_receive(VLANClientState *vc, const uint8_t * buf, size_t 
     return size;
 }
 
-static void ar7_nic_set_link_status(VLANClientState *vc)
+static void ar7_nic_set_link_status(NetClientState *ncs)
 {
-    //~ CpmacState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    //~ CpmacState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     MISSING();
 
@@ -3489,10 +3490,10 @@ static void ar7_nic_set_link_status(VLANClientState *vc)
 #endif
 }
 
-static void ar7_nic_cleanup(VLANClientState *vc)
+static void ar7_nic_cleanup(NetClientState *ncs)
 {
     /* TODO: check this code. */
-    //~ void *d = vc->opaque;
+    //~ void *d = ncs->opaque;
     MISSING();
 
 #if 0
@@ -3517,7 +3518,7 @@ static void ar7_nic_init(void)
     TRACE(CPMAC, logout("\n"));
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
-        if (nd->vlan) {
+        if (nd->used) {
             TRACE(CPMAC, logout("starting AR7 nic CPMAC%u\n", n));
             qemu_check_nic_model(nd, "ar7");
             if (n < 2) {

@@ -335,7 +335,7 @@ static void stcb_init(ram_addr_t _ram_size,
     stcb->soc->cpu->env.regs[15] = a9m2410_binfo.loader_start;
 
     nd = &nd_table[0];
-    if (nd->vlan) {
+    if (nd->used) {
         /*
          * SMSC 91C111 network controller on the baseboard
          * connected to CS line 1 and interrupt line
@@ -352,7 +352,7 @@ static void stcb_init(ram_addr_t _ram_size,
 
 #if 0
     nd = &nd_table[1];
-    if (nd->vlan) {
+    if (nd->used) {
         qemu_check_nic_model(nd, "ax88796");
         dev = qdev_create(NULL, "ax88796");
         qdev_set_nic_properties(dev, nd);

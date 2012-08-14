@@ -2172,9 +2172,9 @@ static inline int buffer_tcp(E100State *s, const uint8_t *pkt)
 #endif
 
 /* Eerpro100 receive functions */
-static int nic_can_receive(VLANClientState *vc)
+static int nic_can_receive(NetClientState *ncs)
 {
-    E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    E100State *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 
     int is_ready = (GET_RU_STATE == RU_READY);
     logout("%s\n", is_ready ? "EEPro100 receiver is ready"
@@ -2182,9 +2182,10 @@ static int nic_can_receive(VLANClientState *vc)
     return is_ready;
 }
 
-static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t
+nic_receive(NetClientState *ncs, const uint8_t *buf, size_t size)
 {
-    E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    E100State *s = DO_UPCAST(NICState, nc, ncs)->opaque;
     uint32_t rfd_addr = 0;
     rfd_t rfd = {0};
 
@@ -2301,9 +2302,9 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     return size;
 }
 
-static void nic_cleanup(VLANClientState *vc)
+static void nic_cleanup(NetClientState *ncs)
 {
-    //~ E100State *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    //~ E100State *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 
 #if 0
     qemu_del_timer(d->poll_timer);
@@ -2394,7 +2395,7 @@ static void e100_exit(PCIDevice *pci_dev)
     memory_region_destroy(&s->mmio_bar);
     memory_region_destroy(&s->io_bar);
     memory_region_destroy(&s->flash_bar);
-    qemu_del_vlan_client(&s->nic->nc);
+    qemu_del_net_client(&s->nic->nc);
 }
 
 static Property e100_properties[] = {

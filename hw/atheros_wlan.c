@@ -341,7 +341,7 @@ static void Atheros_WLAN_exit(PCIDevice *pci_dev)
 {
     Atheros_WLANState *s = DO_UPCAST(Atheros_WLANState, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar);
-    qemu_del_vlan_client(&s->nic->nc);
+    qemu_del_net_client(&s->nic->nc);
 }
 
 static void atheros_class_init(ObjectClass *klass, void *data)

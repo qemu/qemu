@@ -428,9 +428,9 @@ typedef struct {
 typedef descriptor_t rx_descriptor_t;
 typedef descriptor_t tx_descriptor_t;
 
-static int nic_can_receive(VLANClientState *vc)
+static int nic_can_receive(NetClientState *ncs)
 {
-    DP8381xState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    DP8381xState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 
     logout("\n");
 
@@ -452,12 +452,13 @@ typedef enum {
     CMDSTS_RUNT = BIT(21),
 } cmdsts_bit_t;
 
-static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size)
+static ssize_t
+nic_receive(NetClientState *ncs, const uint8_t *buf, size_t size)
 {
     static const uint8_t broadcast_macaddr[6] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-    DP8381xState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    DP8381xState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 #if 0
     uint8_t *p;
     int total_len, next, avail, len, index, mcast_idx;
@@ -1219,9 +1220,9 @@ static const MemoryRegionOps dp8381x_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void nic_cleanup(VLANClientState *vc)
+static void nic_cleanup(NetClientState *ncs)
 {
-    DP8381xState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    DP8381xState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 
     /* TODO: replace NULL by &dev->qdev. */
     unregister_savevm(NULL, "dp8381x", s);
@@ -1380,7 +1381,7 @@ static void dp8381x_exit(PCIDevice *pci_dev)
     DP8381xState *s = DO_UPCAST(DP8381xState, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar);
     memory_region_destroy(&s->io_bar);
-    qemu_del_vlan_client(&s->nic->nc);
+    qemu_del_net_client(&s->nic->nc);
 }
 
 static void qdev_dp8381x_reset(DeviceState *dev)

@@ -656,7 +656,7 @@ static void do_tx_packet(lan9118_state *s)
 
     /* FIXME: Honor TX disable, and allow queueing of packets.  */
     if (s->phy_control & 0x4000)  {
-        /* This assumes the receive routine doesn't touch the VLANClient.  */
+        /* This assumes the receive routine doesn't touch the net client.  */
         lan9118_receive(&s->nic->nc, s->txp->data, s->txp->len);
     } else {
         qemu_send_packet(&s->nic->nc, s->txp->data, s->txp->len);

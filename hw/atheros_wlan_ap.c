@@ -199,9 +199,9 @@ timer_done:
 }
 
 
-static int Atheros_WLAN_can_receive(VLANClientState *vc)
+static int Atheros_WLAN_can_receive(NetClientState *ncs)
 {
-    Atheros_WLANState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    Atheros_WLANState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 
     if (s->ap_state != Atheros_WLAN__STATE_ASSOCIATED) {
         // we are currently not connected
@@ -217,13 +217,13 @@ static int Atheros_WLAN_can_receive(VLANClientState *vc)
     return 1;
 }
 
-static ssize_t Atheros_WLAN_receive(VLANClientState *vc,
+static ssize_t Atheros_WLAN_receive(NetClientState *ncs,
                                     const uint8_t *buf, size_t size)
 {
-    Atheros_WLANState *s = DO_UPCAST(NICState, nc, vc)->opaque;
+    Atheros_WLANState *s = DO_UPCAST(NICState, nc, ncs)->opaque;
     struct mac80211_frame *frame;
 
-    if (!Atheros_WLAN_can_receive(vc)) {
+    if (!Atheros_WLAN_can_receive(ncs)) {
         // this should not happen, but in
         // case it does, let's simply drop
         // the packet
@@ -247,10 +247,10 @@ static ssize_t Atheros_WLAN_receive(VLANClientState *vc,
     return size;
 }
 
-static void Atheros_WLAN_cleanup(VLANClientState *vc)
+static void Atheros_WLAN_cleanup(NetClientState *ncs)
 {
 #if 0
-    Atheros_WLANState *d = vc->opaque;
+    Atheros_WLANState *d = ncs->opaque;
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif

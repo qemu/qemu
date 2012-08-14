@@ -645,9 +645,9 @@ static void nic_reset(void *opaque)
     TRACE(TNETW, logout("%p\n", opaque));
 }
 
-static int nic_can_receive(VLANClientState *vc)
+static int nic_can_receive(NetClientState *ncs)
 {
-    //~ tnetw1130_t *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    //~ tnetw1130_t *s = DO_UPCAST(NICState, nc, ncs)->opaque;
 
     TRACE(TNETW, logout("\n"));
 
@@ -655,17 +655,17 @@ static int nic_can_receive(VLANClientState *vc)
     return 0;
 }
 
-static ssize_t nic_receive(VLANClientState *vc,
+static ssize_t nic_receive(NetClientState *ncs,
                            const uint8_t * buf, size_t size)
 {
     TRACE(TNETW, logout("\n"));
     return size;
 }
 
-static void nic_cleanup(VLANClientState *vc)
+static void nic_cleanup(NetClientState *ncs)
 {
 #if 0
-    tnetw1130_t *s = DO_UPCAST(NICState, nc, nc)->opaque;
+    tnetw1130_t *s = DO_UPCAST(NICState, nc, ncs)->opaque;
     qemu_del_timer(d->poll_timer);
     qemu_free_timer(d->poll_timer);
 #endif
@@ -748,7 +748,7 @@ static void pci_tnetw1130_uninit(PCIDevice *pci_dev)
     TNETW1130State *s = DO_UPCAST(TNETW1130State, dev, pci_dev);
     memory_region_destroy(&s->mmio_bar0);
     memory_region_destroy(&s->mmio_bar1);
-    qemu_del_vlan_client(&s->tnetw1130.nic->nc);
+    qemu_del_net_client(&s->tnetw1130.nic->nc);
 }
 
 static const VMStateDescription vmstate_pci_tnetw1130 = {

@@ -179,7 +179,7 @@ static int vlynq_tnetw1130_uninit(VLYNQDevice *vlynq_dev)
     tnetw1130_t *s = &d->tnetw1130;
 
     //~ vmstate_unregister(s->vmstate, s);
-    qemu_del_vlan_client(&s->nic->nc);
+    qemu_del_net_client(&s->nic->nc);
     return 0;
 }
 
