@@ -63,6 +63,11 @@
 #include <linux/ppdev.h>
 #include <linux/parport.h>
 #endif
+
+#ifdef CONFIG_SECCOMP
+#include "qemu-seccomp.h"
+#endif
+
 #ifdef __sun__
 #include <sys/stat.h>
 #include <sys/ethernet.h>
@@ -2343,6 +2348,14 @@ int main(int argc, char **argv, char **envp)
     };
     const char *trace_events = NULL;
     const char *trace_file = NULL;
+
+#ifdef CONFIG_SECCOMP
+    if (seccomp_start() < 0) {
+        fprintf(stderr,
+                "seccomp: failed to install syscall filter in the kernel\n");
+        exit(1);
+    }
+#endif
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
