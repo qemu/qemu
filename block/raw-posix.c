@@ -572,8 +572,8 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
-              0644);
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
+                   0644);
     if (fd < 0) {
         result = -errno;
     } else {
@@ -846,7 +846,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
         if ( bsdPath[ 0 ] != '\0' ) {
             strcat(bsdPath,"s0");
             /* some CDs don't have a partition 0 */
-            fd = open(bsdPath, O_RDONLY | O_BINARY | O_LARGEFILE);
+            fd = qemu_open(bsdPath, O_RDONLY | O_BINARY | O_LARGEFILE);
             if (fd < 0) {
                 bsdPath[strlen(bsdPath)-1] = '1';
             } else {
@@ -903,7 +903,7 @@ static int fd_open(BlockDriverState *bs)
 #endif
             return -EIO;
         }
-        s->fd = open(bs->filename, s->open_flags & ~O_NONBLOCK);
+        s->fd = qemu_open(bs->filename, s->open_flags & ~O_NONBLOCK);
         if (s->fd < 0) {
             s->fd_error_time = get_clock();
             s->fd_got_error = 1;
@@ -977,7 +977,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    fd = open(filename, O_WRONLY | O_BINARY);
+    fd = qemu_open(filename, O_WRONLY | O_BINARY);
     if (fd < 0)
         return -errno;
 
@@ -1057,7 +1057,7 @@ static int floppy_probe_device(const char *filename)
         prio = 50;
     }
 
-    fd = open(filename, O_RDONLY | O_NONBLOCK);
+    fd = qemu_open(filename, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         goto out;
     }
@@ -1110,7 +1110,7 @@ static void floppy_eject(BlockDriverState *bs, bool eject_flag)
         close(s->fd);
         s->fd = -1;
     }
-    fd = open(bs->filename, s->open_flags | O_NONBLOCK);
+    fd = qemu_open(bs->filename, s->open_flags | O_NONBLOCK);
     if (fd >= 0) {
         if (ioctl(fd, FDEJECT, 0) < 0)
             perror("FDEJECT");
@@ -1160,7 +1160,7 @@ static int cdrom_probe_device(const char *filename)
     int prio = 0;
     struct stat st;
 
-    fd = open(filename, O_RDONLY | O_NONBLOCK);
+    fd = qemu_open(filename, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         goto out;
     }
@@ -1284,7 +1284,7 @@ static int cdrom_reopen(BlockDriverState *bs)
      */
     if (s->fd >= 0)
         close(s->fd);
-    fd = open(bs->filename, s->open_flags, 0644);
+    fd = qemu_open(bs->filename, s->open_flags, 0644);
     if (fd < 0) {
         s->fd = -1;
         return -EIO;
