@@ -2238,6 +2238,9 @@ static void unix_process_msgfd(CharDriverState *chr, struct msghdr *msg)
         if (fd < 0)
             continue;
 
+#ifndef MSG_CMSG_CLOEXEC
+        qemu_set_cloexec(fd);
+#endif
         if (s->msgfd != -1)
             close(s->msgfd);
         s->msgfd = fd;
@@ -2253,6 +2256,7 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
         struct cmsghdr cmsg;
         char control[CMSG_SPACE(sizeof(int))];
     } msg_control;
+    int flags = 0;
     ssize_t ret;
 
     iov[0].iov_base = buf;
@@ -2263,9 +2267,13 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
     msg.msg_control = &msg_control;
     msg.msg_controllen = sizeof(msg_control);
 
-    ret = recvmsg(s->fd, &msg, 0);
-    if (ret > 0 && s->is_unix)
+#ifdef MSG_CMSG_CLOEXEC
+    flags |= MSG_CMSG_CLOEXEC;
+#endif
+    ret = recvmsg(s->fd, &msg, flags);
+    if (ret > 0 && s->is_unix) {
         unix_process_msgfd(chr, &msg);
+    }
 
     return ret;
 }
