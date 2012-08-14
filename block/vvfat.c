@@ -1105,7 +1105,7 @@ static inline void vvfat_close_current_file(BDRVVVFATState *s)
     if(s->current_mapping) {
 	s->current_mapping = NULL;
 	if (s->current_fd) {
-		close(s->current_fd);
+		qemu_close(s->current_fd);
 		s->current_fd = 0;
 	}
     }
@@ -2230,7 +2230,7 @@ static int commit_one_file(BDRVVVFATState* s,
     }
     if (offset > 0) {
         if (lseek(fd, offset, SEEK_SET) != offset) {
-            close(fd);
+            qemu_close(fd);
             g_free(cluster);
             return -3;
         }
@@ -2251,13 +2251,13 @@ static int commit_one_file(BDRVVVFATState* s,
 	    (uint8_t*)cluster, (rest_size + 0x1ff) / 0x200);
 
         if (ret < 0) {
-            close(fd);
+            qemu_close(fd);
             g_free(cluster);
             return ret;
         }
 
         if (write(fd, cluster, rest_size) < 0) {
-            close(fd);
+            qemu_close(fd);
             g_free(cluster);
             return -2;
         }
@@ -2268,11 +2268,11 @@ static int commit_one_file(BDRVVVFATState* s,
 
     if (ftruncate(fd, size)) {
         perror("ftruncate()");
-        close(fd);
+        qemu_close(fd);
         g_free(cluster);
         return -4;
     }
-    close(fd);
+    qemu_close(fd);
     g_free(cluster);
 
     return commit_mappings(s, first_cluster, dir_index);

@@ -744,7 +744,7 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     }
 
  fail:
-    close(fd);
+    qemu_close(fd);
     return ret;
 }
 

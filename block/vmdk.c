@@ -1258,7 +1258,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 
     ret = 0;
  exit:
-    close(fd);
+    qemu_close(fd);
     return ret;
 }
 
@@ -1506,7 +1506,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     }
     ret = 0;
 exit:
-    close(fd);
+    qemu_close(fd);
     return ret;
 }
 

@@ -271,7 +271,7 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 out_free_buf:
     qemu_vfree(s->aligned_buf);
 out_close:
-    close(fd);
+    qemu_close(fd);
     return -errno;
 }
 
@@ -376,7 +376,7 @@ static void raw_close(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     if (s->fd >= 0) {
-        close(s->fd);
+        qemu_close(s->fd);
         s->fd = -1;
         if (s->aligned_buf != NULL)
             qemu_vfree(s->aligned_buf);
@@ -580,7 +580,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
         if (ftruncate(fd, total_size * BDRV_SECTOR_SIZE) != 0) {
             result = -errno;
         }
-        if (close(fd) != 0) {
+        if (qemu_close(fd) != 0) {
             result = -errno;
         }
     }
@@ -850,7 +850,7 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
             if (fd < 0) {
                 bsdPath[strlen(bsdPath)-1] = '1';
             } else {
-                close(fd);
+                qemu_close(fd);
             }
             filename = bsdPath;
         }
@@ -889,7 +889,7 @@ static int fd_open(BlockDriverState *bs)
     last_media_present = (s->fd >= 0);
     if (s->fd >= 0 &&
         (get_clock() - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
-        close(s->fd);
+        qemu_close(s->fd);
         s->fd = -1;
 #ifdef DEBUG_FLOPPY
         printf("Floppy closed\n");
@@ -988,7 +988,7 @@ static int hdev_create(const char *filename, QEMUOptionParameter *options)
     else if (lseek(fd, 0, SEEK_END) < total_size * BDRV_SECTOR_SIZE)
         ret = -ENOSPC;
 
-    close(fd);
+    qemu_close(fd);
     return ret;
 }
 
@@ -1038,7 +1038,7 @@ static int floppy_open(BlockDriverState *bs, const char *filename, int flags)
         return ret;
 
     /* close fd so that we can reopen it as needed */
-    close(s->fd);
+    qemu_close(s->fd);
     s->fd = -1;
     s->fd_media_changed = 1;
 
@@ -1072,7 +1072,7 @@ static int floppy_probe_device(const char *filename)
         prio = 100;
 
 outc:
-    close(fd);
+    qemu_close(fd);
 out:
     return prio;
 }
@@ -1107,14 +1107,14 @@ static void floppy_eject(BlockDriverState *bs, bool eject_flag)
     int fd;
 
     if (s->fd >= 0) {
-        close(s->fd);
+        qemu_close(s->fd);
         s->fd = -1;
     }
     fd = qemu_open(bs->filename, s->open_flags | O_NONBLOCK);
     if (fd >= 0) {
         if (ioctl(fd, FDEJECT, 0) < 0)
             perror("FDEJECT");
-        close(fd);
+        qemu_close(fd);
     }
 }
 
@@ -1175,7 +1175,7 @@ static int cdrom_probe_device(const char *filename)
         prio = 100;
 
 outc:
-    close(fd);
+    qemu_close(fd);
 out:
     return prio;
 }
@@ -1283,7 +1283,7 @@ static int cdrom_reopen(BlockDriverState *bs)
      * FreeBSD seems to not notice sometimes...
      */
     if (s->fd >= 0)
-        close(s->fd);
+        qemu_close(s->fd);
     fd = qemu_open(bs->filename, s->open_flags, 0644);
     if (fd < 0) {
         s->fd = -1;

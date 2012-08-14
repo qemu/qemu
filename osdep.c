@@ -107,6 +107,11 @@ int qemu_open(const char *name, int flags, ...)
     return ret;
 }
 
+int qemu_close(int fd)
+{
+    return close(fd);
+}
+
 /*
  * A variant of write(2) which handles partial write.
  *

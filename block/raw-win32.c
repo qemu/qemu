@@ -261,7 +261,7 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
         return -EIO;
     set_sparse(fd);
     ftruncate(fd, total_size * 512);
-    close(fd);
+    qemu_close(fd);
     return 0;
 }
 

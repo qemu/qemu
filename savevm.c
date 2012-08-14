@@ -513,7 +513,7 @@ static void qemu_fill_buffer(QEMUFile *f)
  *
  * Returns f->close() return value, or 0 if close function is not set.
  */
-static int qemu_close(QEMUFile *f)
+static int qemu_fclose_internal(QEMUFile *f)
 {
     int ret = 0;
     if (f->close) {
@@ -535,7 +535,7 @@ int qemu_fclose(QEMUFile *f)
 {
     int ret;
     qemu_fflush(f);
-    ret = qemu_close(f);
+    ret = qemu_fclose_internal(f);
     /* If any error was spotted before closing, we should report it
      * instead of the close() return value.
      */
