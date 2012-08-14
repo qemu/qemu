@@ -2473,7 +2473,7 @@ int xbzrle_encode_buffer(uint8_t *old_buf, uint8_t *new_buf, int slen,
         /* word at a time for speed, use of 32-bit long okay */
         if (!res) {
             /* truncation to 32-bit long okay */
-            long mask = 0x0101010101010101ULL;
+            long mask = (long)0x0101010101010101ULL;
             while (i < slen) {
                 xor = *(long *)(old_buf + i) ^ *(long *)(new_buf + i);
                 if ((xor - mask) & ~xor & (mask << 7)) {
