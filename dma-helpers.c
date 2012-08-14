@@ -24,8 +24,8 @@ static void do_dma_memory_set(dma_addr_t addr, uint8_t c, dma_addr_t len)
     while (len > 0) {
         l = len < FILLBUF_SIZE ? len : FILLBUF_SIZE;
         cpu_physical_memory_rw(addr, fillbuf, l, true);
-        len -= len;
-        addr += len;
+        len -= l;
+        addr += l;
     }
 }
 
