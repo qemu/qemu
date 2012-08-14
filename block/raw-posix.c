@@ -1052,8 +1052,10 @@ static int floppy_probe_device(const char *filename)
     struct floppy_struct fdparam;
     struct stat st;
 
-    if (strstart(filename, "/dev/fd", NULL))
+    if (strstart(filename, "/dev/fd", NULL) &&
+        !strstart(filename, "/dev/fdset/", NULL)) {
         prio = 50;
+    }
 
     fd = open(filename, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
