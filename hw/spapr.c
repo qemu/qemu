@@ -563,16 +563,21 @@ static void spapr_cpu_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
+/* Returns whether we want to use VGA or not */
 static int spapr_vga_init(PCIBus *pci_bus)
 {
-    if (std_vga_enabled) {
+    switch (vga_interface_type) {
+    case VGA_STD:
         pci_vga_init(pci_bus);
-    } else {
+        return 1;
+    case VGA_NONE:
+        return 0;
+    default:
         fprintf(stderr, "This vga model is not supported,"
                 "currently it only supports -vga std\n");
-        return 0;
+        exit(0);
+        break;
     }
-    return 1;
 }
 
 /* pSeries LPAR / sPAPR hardware init */
