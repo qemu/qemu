@@ -1187,21 +1187,22 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
             break;
         }
 
-        if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
-            ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
-            if (s->pstate == EST_INACTIVE) {
-                SET_LAST_RUN_CLOCK(s);
-            }
-            ehci_update_halt(s);
-            s->async_stepdown = 0;
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
-        }
-
         /* not supporting dynamic frame list size at the moment */
         if ((val & USBCMD_FLS) && !(s->usbcmd & USBCMD_FLS)) {
             fprintf(stderr, "attempt to set frame list size -- value %d\n",
                     val & USBCMD_FLS);
             val &= ~USBCMD_FLS;
+        }
+
+        if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
+            ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
+            if (s->pstate == EST_INACTIVE) {
+                SET_LAST_RUN_CLOCK(s);
+            }
+            s->usbcmd = val; /* Set usbcmd for ehci_update_halt() */
+            ehci_update_halt(s);
+            s->async_stepdown = 0;
+            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
         }
         break;
 
