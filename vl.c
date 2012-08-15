@@ -2659,6 +2659,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_m: {
                 int64_t value;
+                uint64_t sz;
                 char *end;
 
                 value = strtosz(optarg, &end);
@@ -2666,12 +2667,12 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "qemu: invalid ram size: %s\n", optarg);
                     exit(1);
                 }
-
-                if (value != (uint64_t)(ram_addr_t)value) {
+                sz = QEMU_ALIGN_UP((uint64_t)value, 8192);
+                ram_size = sz;
+                if (ram_size != sz) {
                     fprintf(stderr, "qemu: ram size too large\n");
                     exit(1);
                 }
-                ram_size = value;
                 break;
             }
             case QEMU_OPTION_mempath:
