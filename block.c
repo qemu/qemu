@@ -3534,7 +3534,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     /* But don't actually force it to the disk with cache=unsafe */
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
-        return 0;
+        goto flush_parent;
     }
 
     if (bs->drv->bdrv_co_flush_to_disk) {
@@ -3573,6 +3573,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     /* Now flush the underlying protocol.  It will also have BDRV_O_NO_FLUSH
      * in the case of cache=unsafe, so there are no useless flushes.
      */
+flush_parent:
     return bdrv_co_flush(bs->file);
 }
 
