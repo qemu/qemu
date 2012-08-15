@@ -29,7 +29,6 @@ void st_flush_trace_buffer(void);
 
 typedef struct {
     unsigned int tbuf_idx;
-    unsigned int next_tbuf_idx;
     unsigned int rec_off;
 } TraceBufferRecord;
 
