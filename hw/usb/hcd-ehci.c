@@ -575,7 +575,12 @@ static inline void ehci_update_irq(EHCIState *s)
 /* flag interrupt condition */
 static inline void ehci_raise_irq(EHCIState *s, int intr)
 {
-    s->usbsts_pending |= intr;
+    if (intr & (USBSTS_PCD | USBSTS_FLR | USBSTS_HSE)) {
+        s->usbsts |= intr;
+        ehci_update_irq(s);
+    } else {
+        s->usbsts_pending |= intr;
+    }
 }
 
 /*
@@ -2466,13 +2471,16 @@ static int usb_ehci_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ehci = {
     .name        = "ehci",
-    .version_id  = 1,
+    .version_id  = 2,
+    .minimum_version_id  = 1,
     .post_load   = usb_ehci_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, EHCIState),
         /* mmio registers */
         VMSTATE_UINT32(usbcmd, EHCIState),
         VMSTATE_UINT32(usbsts, EHCIState),
+        VMSTATE_UINT32_V(usbsts_pending, EHCIState, 2),
+        VMSTATE_UINT32_V(usbsts_frindex, EHCIState, 2),
         VMSTATE_UINT32(usbintr, EHCIState),
         VMSTATE_UINT32(frindex, EHCIState),
         VMSTATE_UINT32(ctrldssegment, EHCIState),
