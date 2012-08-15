@@ -76,6 +76,10 @@ static void
 iscsi_abort_task_cb(struct iscsi_context *iscsi, int status, void *command_data,
                     void *private_data)
 {
+    IscsiAIOCB *acb = (IscsiAIOCB *)private_data;
+
+    scsi_free_scsi_task(acb->task);
+    acb->task = NULL;
 }
 
 static void
@@ -84,15 +88,15 @@ iscsi_aio_cancel(BlockDriverAIOCB *blockacb)
     IscsiAIOCB *acb = (IscsiAIOCB *)blockacb;
     IscsiLun *iscsilun = acb->iscsilun;
 
-    acb->common.cb(acb->common.opaque, -ECANCELED);
     acb->canceled = 1;
 
-    /* send a task mgmt call to the target to cancel the task on the target */
-    iscsi_task_mgmt_abort_task_async(iscsilun->iscsi, acb->task,
-                                     iscsi_abort_task_cb, NULL);
+    acb->common.cb(acb->common.opaque, -ECANCELED);
 
-    /* then also cancel the task locally in libiscsi */
-    iscsi_scsi_task_cancel(iscsilun->iscsi, acb->task);
+    /* send a task mgmt call to the target to cancel the task on the target
+     * this also cancels the task in libiscsi
+     */
+    iscsi_task_mgmt_abort_task_async(iscsilun->iscsi, acb->task,
+                                     iscsi_abort_task_cb, &acb);
 }
 
 static AIOPool iscsi_aio_pool = {
@@ -179,11 +183,18 @@ iscsi_readv_writev_bh_cb(void *p)
 
     qemu_bh_delete(acb->bh);
 
-    if (acb->canceled == 0) {
+    if (!acb->canceled) {
         acb->common.cb(acb->common.opaque, acb->status);
     }
 
     qemu_aio_release(acb);
+
+    if (acb->canceled) {
+        return;
+    }
+
+    scsi_free_scsi_task(acb->task);
+    acb->task = NULL;
 }
 
 
@@ -197,10 +208,8 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
 
     g_free(acb->buf);
 
-    if (acb->canceled != 0) {
+    if (acb->canceled) {
         qemu_aio_release(acb);
-        scsi_free_scsi_task(acb->task);
-        acb->task = NULL;
         return;
     }
 
@@ -212,8 +221,6 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
     }
 
     iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
 }
 
 static int64_t sector_qemu2lun(int64_t sector, IscsiLun *iscsilun)
@@ -298,10 +305,8 @@ iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
 
     trace_iscsi_aio_read16_cb(iscsi, status, acb, acb->canceled);
 
-    if (acb->canceled != 0) {
+    if (acb->canceled) {
         qemu_aio_release(acb);
-        scsi_free_scsi_task(acb->task);
-        acb->task = NULL;
         return;
     }
 
@@ -313,8 +318,6 @@ iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
     }
 
     iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
 }
 
 static BlockDriverAIOCB *
@@ -414,10 +417,8 @@ iscsi_synccache10_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    if (acb->canceled != 0) {
+    if (acb->canceled) {
         qemu_aio_release(acb);
-        scsi_free_scsi_task(acb->task);
-        acb->task = NULL;
         return;
     }
 
@@ -429,8 +430,6 @@ iscsi_synccache10_cb(struct iscsi_context *iscsi, int status,
     }
 
     iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
 }
 
 static BlockDriverAIOCB *
@@ -468,10 +467,8 @@ iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    if (acb->canceled != 0) {
+    if (acb->canceled) {
         qemu_aio_release(acb);
-        scsi_free_scsi_task(acb->task);
-        acb->task = NULL;
         return;
     }
 
@@ -483,8 +480,6 @@ iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
     }
 
     iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
 }
 
 static BlockDriverAIOCB *
@@ -528,10 +523,8 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
 {
     IscsiAIOCB *acb = opaque;
 
-    if (acb->canceled != 0) {
+    if (acb->canceled) {
         qemu_aio_release(acb);
-        scsi_free_scsi_task(acb->task);
-        acb->task = NULL;
         return;
     }
 
@@ -560,8 +553,6 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     }
 
     iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
-    scsi_free_scsi_task(acb->task);
-    acb->task = NULL;
 }
 
 static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
