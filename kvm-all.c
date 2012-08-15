@@ -1237,10 +1237,6 @@ static int kvm_irqchip_create(KVMState *s)
         return ret;
     }
 
-    s->irqchip_inject_ioctl = KVM_IRQ_LINE;
-    if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
-        s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
-    }
     kvm_kernel_irqchip = true;
     /* If we have an in-kernel IRQ chip then we must have asynchronous
      * interrupt delivery (though the reverse is not necessarily true)
@@ -1388,6 +1384,11 @@ int kvm_init(void)
 #endif
 
     s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
+
+    s->irqchip_inject_ioctl = KVM_IRQ_LINE;
+    if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
+        s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
+    }
 
     ret = kvm_arch_init(s);
     if (ret < 0) {
