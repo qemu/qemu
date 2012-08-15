@@ -468,8 +468,14 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
     return prop_list;
 }
 
-CpuDefinitionInfoList GCC_WEAK *qmp_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList GCC_WEAK *arch_query_cpu_definitions(Error **errp)
 {
     error_set(errp, QERR_NOT_SUPPORTED);
     return NULL;
 }
+
+CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+{
+    return arch_query_cpu_definitions(errp);
+}
+

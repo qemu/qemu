@@ -27,7 +27,7 @@
 #include "gdbstub.h"
 #include <kvm.h>
 #include "kvm_ppc.h"
-#include "qmp-commands.h"
+#include "arch_init.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -10346,7 +10346,7 @@ void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf)
     }
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     int i;

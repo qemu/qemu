@@ -28,7 +28,7 @@
 #include "qemu-config.h"
 
 #include "qapi/qapi-visit-core.h"
-#include "qmp-commands.h"
+#include "arch_init.h"
 
 #include "hyperv.h"
 
@@ -1126,7 +1126,7 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
     }
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
 {
     CpuDefinitionInfoList *cpu_list = NULL;
     x86_def_t *def;
