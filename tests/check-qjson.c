@@ -466,6 +466,58 @@ static void simple_dict(void)
     }
 }
 
+/*
+ * this generates json of the form:
+ * a(0,m) = [0, 1, ..., m-1]
+ * a(n,m) = {
+ *            'key0': a(0,m),
+ *            'key1': a(1,m),
+ *            ...
+ *            'key(n-1)': a(n-1,m)
+ *          }
+ */
+static void gen_test_json(GString *gstr, int nest_level_max,
+                          int elem_count)
+{
+    int i;
+
+    g_assert(gstr);
+    if (nest_level_max == 0) {
+        g_string_append(gstr, "[");
+        for (i = 0; i < elem_count; i++) {
+            g_string_append_printf(gstr, "%d", i);
+            if (i < elem_count - 1) {
+                g_string_append_printf(gstr, ", ");
+            }
+        }
+        g_string_append(gstr, "]");
+        return;
+    }
+
+    g_string_append(gstr, "{");
+    for (i = 0; i < nest_level_max; i++) {
+        g_string_append_printf(gstr, "'key%d': ", i);
+        gen_test_json(gstr, i, elem_count);
+        if (i < nest_level_max - 1) {
+            g_string_append(gstr, ",");
+        }
+    }
+    g_string_append(gstr, "}");
+}
+
+static void large_dict(void)
+{
+    GString *gstr = g_string_new("");
+    QObject *obj;
+
+    gen_test_json(gstr, 10, 100);
+    obj = qobject_from_json(gstr->str);
+    g_assert(obj != NULL);
+
+    qobject_decref(obj);
+    g_string_free(gstr, true);
+}
+
 static void simple_list(void)
 {
     int i;
@@ -706,6 +758,7 @@ int main(int argc, char **argv)
     g_test_add_func("/literals/keyword", keyword_literal);
 
     g_test_add_func("/dicts/simple_dict", simple_dict);
+    g_test_add_func("/dicts/large_dict", large_dict);
     g_test_add_func("/lists/simple_list", simple_list);
 
     g_test_add_func("/whitespace/simple_whitespace", simple_whitespace);
