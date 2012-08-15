@@ -225,8 +225,7 @@ class TestSetSpeed(ImageStreamingTestCase):
         self.assert_no_active_streams()
 
         result = self.vm.qmp('block-stream', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/class', 'InvalidParameter')
-        self.assert_qmp(result, 'error/data/name', 'speed')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
         self.assert_no_active_streams()
 
@@ -234,8 +233,7 @@ class TestSetSpeed(ImageStreamingTestCase):
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=-1)
-        self.assert_qmp(result, 'error/class', 'InvalidParameter')
-        self.assert_qmp(result, 'error/data/name', 'speed')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
         self.cancel_and_wait()
 
