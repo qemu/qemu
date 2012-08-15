@@ -46,6 +46,11 @@ mkdir -p "$output/linux-headers/linux"
 for header in kvm.h kvm_para.h vhost.h virtio_config.h virtio_ring.h; do
     cp "$tmpdir/include/linux/$header" "$output/linux-headers/linux"
 done
+rm -rf "$output/linux-headers/asm-generic"
+mkdir -p "$output/linux-headers/asm-generic"
+for header in kvm_para.h; do
+    cp "$tmpdir/include/asm-generic/$header" "$output/linux-headers/asm-generic"
+done
 if [ -L "$linux/source" ]; then
     cp "$linux/source/COPYING" "$output/linux-headers"
 else
