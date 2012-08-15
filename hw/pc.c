@@ -344,32 +344,37 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     /* various important CMOS locations needed by PC/Bochs bios */
 
     /* memory size */
-    val = 640; /* base memory in K */
+    /* base memory (first MiB) */
+    val = MIN(ram_size / 1024, 640);
     rtc_set_memory(s, 0x15, val);
     rtc_set_memory(s, 0x16, val >> 8);
-
-    val = (ram_size / 1024) - 1024;
+    /* extended memory (next 64MiB) */
+    if (ram_size > 1024 * 1024) {
+        val = (ram_size - 1024 * 1024) / 1024;
+    } else {
+        val = 0;
+    }
     if (val > 65535)
         val = 65535;
     rtc_set_memory(s, 0x17, val);
     rtc_set_memory(s, 0x18, val >> 8);
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
-
-    if (above_4g_mem_size) {
-        rtc_set_memory(s, 0x5b, (unsigned int)above_4g_mem_size >> 16);
-        rtc_set_memory(s, 0x5c, (unsigned int)above_4g_mem_size >> 24);
-        rtc_set_memory(s, 0x5d, (uint64_t)above_4g_mem_size >> 32);
-    }
-
-    if (ram_size > (16 * 1024 * 1024))
-        val = (ram_size / 65536) - ((16 * 1024 * 1024) / 65536);
-    else
+    /* memory between 16MiB and 4GiB */
+    if (ram_size > 16 * 1024 * 1024) {
+        val = (ram_size - 16 * 1024 * 1024) / 65536;
+    } else {
         val = 0;
+    }
     if (val > 65535)
         val = 65535;
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
+    /* memory above 4GiB */
+    val = above_4g_mem_size / 65536;
+    rtc_set_memory(s, 0x5b, val);
+    rtc_set_memory(s, 0x5c, val >> 8);
+    rtc_set_memory(s, 0x5d, val >> 16);
 
     /* set the number of CPU */
     rtc_set_memory(s, 0x5f, smp_cpus - 1);
