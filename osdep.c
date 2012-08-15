@@ -48,6 +48,7 @@ extern int madvise(caddr_t, size_t, int);
 #include "qemu-common.h"
 #include "trace.h"
 #include "qemu_socket.h"
+#include "monitor.h"
 
 static bool fips_enabled = false;
 
@@ -78,6 +79,66 @@ int qemu_madvise(void *addr, size_t len, int advice)
 #endif
 }
 
+#ifndef _WIN32
+/*
+ * Dups an fd and sets the flags
+ */
+static int qemu_dup_flags(int fd, int flags)
+{
+    int ret;
+    int serrno;
+    int dup_flags;
+    int setfl_flags;
+
+#ifdef F_DUPFD_CLOEXEC
+    ret = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+#else
+    ret = dup(fd);
+    if (ret != -1) {
+        qemu_set_cloexec(ret);
+    }
+#endif
+    if (ret == -1) {
+        goto fail;
+    }
+
+    dup_flags = fcntl(ret, F_GETFL);
+    if (dup_flags == -1) {
+        goto fail;
+    }
+
+    if ((flags & O_SYNC) != (dup_flags & O_SYNC)) {
+        errno = EINVAL;
+        goto fail;
+    }
+
+    /* Set/unset flags that we can with fcntl */
+    setfl_flags = O_APPEND | O_ASYNC | O_DIRECT | O_NOATIME | O_NONBLOCK;
+    dup_flags &= ~setfl_flags;
+    dup_flags |= (flags & setfl_flags);
+    if (fcntl(ret, F_SETFL, dup_flags) == -1) {
+        goto fail;
+    }
+
+    /* Truncate the file in the cases that open() would truncate it */
+    if (flags & O_TRUNC ||
+            ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))) {
+        if (ftruncate(ret, 0) == -1) {
+            goto fail;
+        }
+    }
+
+    return ret;
+
+fail:
+    serrno = errno;
+    if (ret != -1) {
+        close(ret);
+    }
+    errno = serrno;
+    return -1;
+}
+#endif
 
 /*
  * Opens a file with FD_CLOEXEC set
@@ -86,6 +147,41 @@ int qemu_open(const char *name, int flags, ...)
 {
     int ret;
     int mode = 0;
+
+#ifndef _WIN32
+    const char *fdset_id_str;
+
+    /* Attempt dup of fd from fd set */
+    if (strstart(name, "/dev/fdset/", &fdset_id_str)) {
+        int64_t fdset_id;
+        int fd, dupfd;
+
+        fdset_id = qemu_parse_fdset(fdset_id_str);
+        if (fdset_id == -1) {
+            errno = EINVAL;
+            return -1;
+        }
+
+        fd = monitor_fdset_get_fd(fdset_id, flags);
+        if (fd == -1) {
+            return -1;
+        }
+
+        dupfd = qemu_dup_flags(fd, flags);
+        if (dupfd == -1) {
+            return -1;
+        }
+
+        ret = monitor_fdset_dup_fd_add(fdset_id, dupfd);
+        if (ret == -1) {
+            close(dupfd);
+            errno = EINVAL;
+            return -1;
+        }
+
+        return dupfd;
+    }
+#endif
 
     if (flags & O_CREAT) {
         va_list ap;
@@ -105,6 +201,26 @@ int qemu_open(const char *name, int flags, ...)
 #endif
 
     return ret;
+}
+
+int qemu_close(int fd)
+{
+    int64_t fdset_id;
+
+    /* Close fd that was dup'd from an fdset */
+    fdset_id = monitor_fdset_dup_fd_find(fd);
+    if (fdset_id != -1) {
+        int ret;
+
+        ret = close(fd);
+        if (ret == 0) {
+            monitor_fdset_dup_fd_remove(fd);
+        }
+
+        return ret;
+    }
+
+    return close(fd);
 }
 
 /*

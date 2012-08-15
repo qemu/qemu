@@ -1161,10 +1161,9 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
     VMDK4Header header;
     uint32_t tmp, magic, grains, gd_size, gt_size, gt_count;
 
-    fd = open(
-        filename,
-        O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
-        0644);
+    fd = qemu_open(filename,
+                   O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
+                   0644);
     if (fd < 0) {
         return -errno;
     }
@@ -1259,7 +1258,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 
     ret = 0;
  exit:
-    close(fd);
+    qemu_close(fd);
     return ret;
 }
 
@@ -1484,15 +1483,13 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
             (flags & BLOCK_FLAG_COMPAT6 ? 6 : 4),
             total_size / (int64_t)(63 * 16 * 512));
     if (split || flat) {
-        fd = open(
-                filename,
-                O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
-                0644);
+        fd = qemu_open(filename,
+                       O_WRONLY | O_CREAT | O_TRUNC | O_BINARY | O_LARGEFILE,
+                       0644);
     } else {
-        fd = open(
-                filename,
-                O_WRONLY | O_BINARY | O_LARGEFILE,
-                0644);
+        fd = qemu_open(filename,
+                       O_WRONLY | O_BINARY | O_LARGEFILE,
+                       0644);
     }
     if (fd < 0) {
         return -errno;
@@ -1509,7 +1506,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     }
     ret = 0;
 exit:
-    close(fd);
+    qemu_close(fd);
     return ret;
 }
 

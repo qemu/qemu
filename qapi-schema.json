@@ -2356,3 +2356,101 @@
 # Since: 1.2.0
 ##
 { 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'] }
+
+# @AddfdInfo:
+#
+# Information about a file descriptor that was added to an fd set.
+#
+# @fdset-id: The ID of the fd set that @fd was added to.
+#
+# @fd: The file descriptor that was received via SCM rights and
+#      added to the fd set.
+#
+# Since: 1.2.0
+##
+{ 'type': 'AddfdInfo', 'data': {'fdset-id': 'int', 'fd': 'int'} }
+
+##
+# @add-fd:
+#
+# Add a file descriptor, that was passed via SCM rights, to an fd set.
+#
+# @fdset-id: #optional The ID of the fd set to add the file descriptor to.
+#
+# @opaque: #optional A free-form string that can be used to describe the fd.
+#
+# Returns: @AddfdInfo on success
+#          If file descriptor was not received, FdNotSupplied
+#          If @fdset-id does not exist, InvalidParameterValue
+#
+# Notes: The list of fd sets is shared by all monitor connections.
+#
+#        If @fdset-id is not specified, a new fd set will be created.
+#
+# Since: 1.2.0
+##
+{ 'command': 'add-fd', 'data': {'*fdset-id': 'int', '*opaque': 'str'},
+  'returns': 'AddfdInfo' }
+
+##
+# @remove-fd:
+#
+# Remove a file descriptor from an fd set.
+#
+# @fdset-id: The ID of the fd set that the file descriptor belongs to.
+#
+# @fd: #optional The file descriptor that is to be removed.
+#
+# Returns: Nothing on success
+#          If @fdset-id or @fd is not found, FdNotFound
+#
+# Since: 1.2.0
+#
+# Notes: The list of fd sets is shared by all monitor connections.
+#
+#        If @fd is not specified, all file descriptors in @fdset-id
+#        will be removed.
+##
+{ 'command': 'remove-fd', 'data': {'fdset-id': 'int', '*fd': 'int'} }
+
+##
+# @FdsetFdInfo:
+#
+# Information about a file descriptor that belongs to an fd set.
+#
+# @fd: The file descriptor value.
+#
+# @opaque: #optional A free-form string that can be used to describe the fd.
+#
+# Since: 1.2.0
+##
+{ 'type': 'FdsetFdInfo',
+  'data': {'fd': 'int', '*opaque': 'str'} }
+
+##
+# @FdsetInfo:
+#
+# Information about an fd set.
+#
+# @fdset-id: The ID of the fd set.
+#
+# @fds: A list of file descriptors that belong to this fd set.
+#
+# Since: 1.2.0
+##
+{ 'type': 'FdsetInfo',
+  'data': {'fdset-id': 'int', 'fds': ['FdsetFdInfo']} }
+
+##
+# @query-fdsets:
+#
+# Return information describing all fd sets.
+#
+# Returns: A list of @FdsetInfo
+#
+# Since: 1.2.0
+#
+# Note: The list of fd sets is shared by all monitor connections.
+#
+##
+{ 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }

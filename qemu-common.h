@@ -167,6 +167,7 @@ int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
+int qemu_parse_fdset(const char *param);
 
 /*
  * strtosz() suffixes used to specify the default treatment of an
@@ -208,6 +209,7 @@ const char *path(const char *pathname);
 void *qemu_oom_check(void *ptr);
 
 int qemu_open(const char *name, int flags, ...);
+int qemu_close(int fd);
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;
 ssize_t qemu_send_full(int fd, const void *buf, size_t count, int flags)

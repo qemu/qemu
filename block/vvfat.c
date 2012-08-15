@@ -1105,7 +1105,7 @@ static inline void vvfat_close_current_file(BDRVVVFATState *s)
     if(s->current_mapping) {
 	s->current_mapping = NULL;
 	if (s->current_fd) {
-		close(s->current_fd);
+		qemu_close(s->current_fd);
 		s->current_fd = 0;
 	}
     }
@@ -1162,7 +1162,7 @@ static int open_file(BDRVVVFATState* s,mapping_t* mapping)
     if(!s->current_mapping ||
 	    strcmp(s->current_mapping->path,mapping->path)) {
 	/* open file */
-	int fd = open(mapping->path, O_RDONLY | O_BINARY | O_LARGEFILE);
+	int fd = qemu_open(mapping->path, O_RDONLY | O_BINARY | O_LARGEFILE);
 	if(fd<0)
 	    return -1;
 	vvfat_close_current_file(s);
@@ -2221,7 +2221,7 @@ static int commit_one_file(BDRVVVFATState* s,
     for (i = s->cluster_size; i < offset; i += s->cluster_size)
 	c = modified_fat_get(s, c);
 
-    fd = open(mapping->path, O_RDWR | O_CREAT | O_BINARY, 0666);
+    fd = qemu_open(mapping->path, O_RDWR | O_CREAT | O_BINARY, 0666);
     if (fd < 0) {
 	fprintf(stderr, "Could not open %s... (%s, %d)\n", mapping->path,
 		strerror(errno), errno);
@@ -2230,7 +2230,7 @@ static int commit_one_file(BDRVVVFATState* s,
     }
     if (offset > 0) {
         if (lseek(fd, offset, SEEK_SET) != offset) {
-            close(fd);
+            qemu_close(fd);
             g_free(cluster);
             return -3;
         }
@@ -2251,13 +2251,13 @@ static int commit_one_file(BDRVVVFATState* s,
 	    (uint8_t*)cluster, (rest_size + 0x1ff) / 0x200);
 
         if (ret < 0) {
-            close(fd);
+            qemu_close(fd);
             g_free(cluster);
             return ret;
         }
 
         if (write(fd, cluster, rest_size) < 0) {
-            close(fd);
+            qemu_close(fd);
             g_free(cluster);
             return -2;
         }
@@ -2268,11 +2268,11 @@ static int commit_one_file(BDRVVVFATState* s,
 
     if (ftruncate(fd, size)) {
         perror("ftruncate()");
-        close(fd);
+        qemu_close(fd);
         g_free(cluster);
         return -4;
     }
-    close(fd);
+    qemu_close(fd);
     g_free(cluster);
 
     return commit_mappings(s, first_cluster, dir_index);
