@@ -189,13 +189,9 @@ static inline DeviceState *isa_vga_init(ISABus *bus)
     return &dev->qdev;
 }
 
-DeviceState *pci_vga_init(PCIBus *bus);
 int isa_vga_mm_init(target_phys_addr_t vram_base,
                     target_phys_addr_t ctrl_base, int it_shift,
                     MemoryRegion *address_space);
-
-/* cirrus_vga.c */
-DeviceState *pci_cirrus_vga_init(PCIBus *bus);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)

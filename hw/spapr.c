@@ -41,10 +41,12 @@
 #include "hw/spapr_vio.h"
 #include "hw/spapr_pci.h"
 #include "hw/xics.h"
+#include "hw/msi.h"
 
 #include "kvm.h"
 #include "kvm_ppc.h"
 #include "pci.h"
+#include "vga-pci.h"
 
 #include "exec-memory.h"
 
@@ -78,16 +80,15 @@
 #define SPAPR_PCI_MEM_WIN_ADDR  (0x10000000000ULL + 0xA0000000)
 #define SPAPR_PCI_MEM_WIN_SIZE  0x20000000
 #define SPAPR_PCI_IO_WIN_ADDR   (0x10000000000ULL + 0x80000000)
+#define SPAPR_PCI_MSI_WIN_ADDR  (0x10000000000ULL + 0x90000000)
 
 #define PHANDLE_XICP            0x00001111
 
 sPAPREnvironment *spapr;
 
-qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
-                            enum xics_irq_type type)
+int spapr_allocate_irq(int hint, enum xics_irq_type type)
 {
-    uint32_t irq;
-    qemu_irq qirq;
+    int irq;
 
     if (hint) {
         irq = hint;
@@ -96,16 +97,40 @@ qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
         irq = spapr->next_irq++;
     }
 
-    qirq = xics_assign_irq(spapr->icp, irq, type);
-    if (!qirq) {
-        return NULL;
+    /* Configure irq type */
+    if (!xics_get_qirq(spapr->icp, irq)) {
+        return 0;
     }
 
-    if (irq_num) {
-        *irq_num = irq;
+    xics_set_irq_type(spapr->icp, irq, type);
+
+    return irq;
+}
+
+/* Allocate block of consequtive IRQs, returns a number of the first */
+int spapr_allocate_irq_block(int num, enum xics_irq_type type)
+{
+    int first = -1;
+    int i;
+
+    for (i = 0; i < num; ++i) {
+        int irq;
+
+        irq = spapr_allocate_irq(0, type);
+        if (!irq) {
+            return -1;
+        }
+
+        if (0 == i) {
+            first = irq;
+        }
+
+        /* If the above doesn't create a consecutive block then that's
+         * an internal bug */
+        assert(irq == (first + i));
     }
 
-    return qirq;
+    return first;
 }
 
 static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
@@ -257,6 +282,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
     }
     _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
+    _FDT((fdt_property_cell(fdt, "qemu,graphic-width", graphic_width)));
+    _FDT((fdt_property_cell(fdt, "qemu,graphic-height", graphic_height)));
+    _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -481,7 +509,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     }
 
     QLIST_FOREACH(phb, &spapr->phbs, list) {
-        ret = spapr_populate_pci_devices(phb, PHANDLE_XICP, fdt);
+        ret = spapr_populate_pci_dt(phb, PHANDLE_XICP, fdt);
     }
 
     if (ret < 0) {
@@ -503,7 +531,9 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
         }
     }
 
-    spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
+    if (!spapr->has_graphics) {
+        spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
+    }
 
     _FDT((fdt_pack(fdt)));
 
@@ -532,8 +562,6 @@ static void spapr_reset(void *opaque)
 {
     sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
 
-    fprintf(stderr, "sPAPR reset\n");
-
     /* flush out the hash table */
     memset(spapr->htab, 0, spapr->htab_size);
 
@@ -556,6 +584,23 @@ static void spapr_cpu_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
+/* Returns whether we want to use VGA or not */
+static int spapr_vga_init(PCIBus *pci_bus)
+{
+    switch (vga_interface_type) {
+    case VGA_STD:
+        pci_vga_init(pci_bus);
+        return 1;
+    case VGA_NONE:
+        return 0;
+    default:
+        fprintf(stderr, "This vga model is not supported,"
+                "currently it only supports -vga std\n");
+        exit(0);
+        break;
+    }
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *boot_device,
@@ -575,6 +620,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long load_limit, rtas_limit, fw_size;
     long pteg_shift = 17;
     char *filename;
+
+    msi_supported = true;
 
     spapr = g_malloc0(sizeof(*spapr));
     QLIST_INIT(&spapr->phbs);
@@ -687,10 +734,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* Set up PCI */
+    spapr_pci_rtas_init();
+
     spapr_create_phb(spapr, "pci", SPAPR_PCI_BUID,
                      SPAPR_PCI_MEM_WIN_ADDR,
                      SPAPR_PCI_MEM_WIN_SIZE,
-                     SPAPR_PCI_IO_WIN_ADDR);
+                     SPAPR_PCI_IO_WIN_ADDR,
+                     SPAPR_PCI_MSI_WIN_ADDR);
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -710,19 +760,16 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         spapr_vscsi_create(spapr->vio_bus);
     }
 
+    /* Graphics */
+    if (spapr_vga_init(QLIST_FIRST(&spapr->phbs)->host_state.bus)) {
+        spapr->has_graphics = true;
+    }
+
     if (rma_size < (MIN_RMA_SLOF << 20)) {
         fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
                 "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
         exit(1);
     }
-
-    fprintf(stderr, "sPAPR memory map:\n");
-    fprintf(stderr, "RTAS                 : 0x%08lx..%08lx\n",
-            (unsigned long)spapr->rtas_addr,
-            (unsigned long)(spapr->rtas_addr + spapr->rtas_size - 1));
-    fprintf(stderr, "FDT                  : 0x%08lx..%08lx\n",
-            (unsigned long)spapr->fdt_addr,
-            (unsigned long)(spapr->fdt_addr + FDT_MAX_SIZE - 1));
 
     if (kernel_filename) {
         uint64_t lowaddr = 0;
@@ -739,8 +786,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                     kernel_filename);
             exit(1);
         }
-        fprintf(stderr, "Kernel               : 0x%08x..%08lx\n",
-                KERNEL_LOAD_ADDR, KERNEL_LOAD_ADDR + kernel_size - 1);
 
         /* load initrd */
         if (initrd_filename) {
@@ -755,8 +800,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                         initrd_filename);
                 exit(1);
             }
-            fprintf(stderr, "Ramdisk              : 0x%08lx..%08lx\n",
-                    (long)initrd_base, (long)(initrd_base + initrd_size - 1));
         } else {
             initrd_base = 0;
             initrd_size = 0;
@@ -770,10 +813,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         exit(1);
     }
     g_free(filename);
-    fprintf(stderr, "Firmware load        : 0x%08x..%08lx\n",
-            0, fw_size);
-    fprintf(stderr, "Firmware runtime     : 0x%08lx..%08lx\n",
-            load_limit, (unsigned long)spapr->fdt_addr);
 
     spapr->entry_point = 0x100;
 

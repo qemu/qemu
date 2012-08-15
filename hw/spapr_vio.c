@@ -49,7 +49,7 @@
 #endif
 
 static Property spapr_vio_props[] = {
-    DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
+    DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, irq, 0), \
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -132,8 +132,8 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
         }
     }
 
-    if (dev->qirq) {
-        uint32_t ints_prop[] = {cpu_to_be32(dev->vio_irq_num), 0};
+    if (dev->irq) {
+        uint32_t ints_prop[] = {cpu_to_be32(dev->irq), 0};
 
         ret = fdt_setprop(fdt, node_off, "interrupts", ints_prop,
                           sizeof(ints_prop));
@@ -142,7 +142,7 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
         }
     }
 
-    ret = spapr_dma_dt(fdt, node_off, "ibm,my-dma-window", dev->dma);
+    ret = spapr_tcet_dma_dt(fdt, node_off, "ibm,my-dma-window", dev->dma);
     if (ret < 0) {
         return ret;
     }
@@ -306,7 +306,7 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
     dev->crq.qnext = (dev->crq.qnext + 16) % dev->crq.qsize;
 
     if (dev->signal_state & 1) {
-        qemu_irq_pulse(dev->qirq);
+        qemu_irq_pulse(spapr_vio_qirq(dev));
     }
 
     return 0;
@@ -459,8 +459,8 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
         dev->qdev.id = id;
     }
 
-    dev->qirq = spapr_allocate_msi(dev->vio_irq_num, &dev->vio_irq_num);
-    if (!dev->qirq) {
+    dev->irq = spapr_allocate_msi(dev->irq);
+    if (!dev->irq) {
         return -1;
     }
 

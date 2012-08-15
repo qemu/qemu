@@ -11,6 +11,7 @@
 #include "qemu-log.h"
 #include "sysemu.h"
 #include "vmware_vga.h"
+#include "vga-pci.h"
 
 
 /* PCI IO reads/writes, to byte-word addressable memory.  */

@@ -15,7 +15,7 @@ obj-$(CONFIG_PSERIES) += spapr_pci.o pci-hotplug.o spapr_iommu.o
 obj-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-y += ppc440_bamboo.o
 # PowerPC E500 boards
-obj-$(CONFIG_FDT) += ppce500_mpc8544ds.o mpc8544_guts.o ppce500_spin.o
+obj-$(CONFIG_FDT) += mpc8544_guts.o ppce500_spin.o
 # PowerPC 440 Xilinx ML507 reference board.
 obj-y += virtex_ml507.o
 # PowerPC OpenPIC
@@ -26,3 +26,5 @@ obj-$(CONFIG_FDT) += ../device_tree.o
 obj-y += xilinx_ethlite.o
 
 obj-y := $(addprefix ../,$(obj-y))
+
+obj-$(CONFIG_FDT) += e500.o mpc8544ds.o e500plat.o

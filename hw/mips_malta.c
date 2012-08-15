@@ -48,6 +48,7 @@
 #include "blockdev.h"
 #include "exec-memory.h"
 #include "sysbus.h"             /* SysBusDevice */
+#include "vga-pci.h"
 
 //#define DEBUG_BOARD_INIT
 

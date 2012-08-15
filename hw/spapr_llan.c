@@ -169,7 +169,7 @@ static ssize_t spapr_vlan_receive(NetClientState *nc, const uint8_t *buf,
     }
 
     if (sdev->signal_state & 1) {
-        qemu_irq_pulse(sdev->qirq);
+        qemu_irq_pulse(spapr_vio_qirq(sdev));
     }
 
     return size;

@@ -23,6 +23,7 @@ typedef struct sPAPREnvironment {
     int next_irq;
     int rtc_offset;
     char *cpu_model;
+    bool has_graphics;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
@@ -288,17 +289,17 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
                              target_ulong *args);
 
-qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num,
-                            enum xics_irq_type type);
+int spapr_allocate_irq(int hint, enum xics_irq_type type);
+int spapr_allocate_irq_block(int num, enum xics_irq_type type);
 
-static inline qemu_irq spapr_allocate_msi(uint32_t hint, uint32_t *irq_num)
+static inline int spapr_allocate_msi(int hint)
 {
-    return spapr_allocate_irq(hint, irq_num, XICS_MSI);
+    return spapr_allocate_irq(hint, XICS_MSI);
 }
 
-static inline qemu_irq spapr_allocate_lsi(uint32_t hint, uint32_t *irq_num)
+static inline int spapr_allocate_lsi(int hint)
 {
-    return spapr_allocate_irq(hint, irq_num, XICS_LSI);
+    return spapr_allocate_irq(hint, XICS_LSI);
 }
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
@@ -336,6 +337,8 @@ void spapr_iommu_init(void);
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
 void spapr_tce_free(DMAContext *dma);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
-                 DMAContext *dma);
+                 uint32_t liobn, uint64_t window, uint32_t size);
+int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
+                      DMAContext *dma);
 
 #endif /* !defined (__HW_SPAPR_H__) */
