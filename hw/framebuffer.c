@@ -28,7 +28,7 @@ void framebuffer_update_display(
     MemoryRegion *address_space,
     target_phys_addr_t base,
     int cols, /* Width in pixels.  */
-    int rows, /* Leight in pixels.  */
+    int rows, /* Height in pixels.  */
     int src_width, /* Length of source line, in bytes.  */
     int dest_row_pitch, /* Bytes between adjacent horizontal output pixels.  */
     int dest_col_pitch, /* Bytes between adjacent vertical output pixels.  */

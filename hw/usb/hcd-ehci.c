@@ -2010,7 +2010,7 @@ static void ehci_fill_queue(EHCIPacket *p)
         p->qtdaddr = qtdaddr;
         p->qtd = qtd;
         p->usb_status = ehci_execute(p, "queue");
-        assert(p->usb_status = USB_RET_ASYNC);
+        assert(p->usb_status == USB_RET_ASYNC);
         p->async = EHCI_ASYNC_INFLIGHT;
     }
 }

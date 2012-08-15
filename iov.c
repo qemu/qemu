@@ -146,6 +146,13 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
 {
     ssize_t ret;
     unsigned si, ei;            /* start and end indexes */
+    if (bytes == 0) {
+        /* Catch the do-nothing case early, as otherwise we will pass an
+         * empty iovec to sendmsg/recvmsg(), and not all implementations
+         * accept this.
+         */
+        return 0;
+    }
 
     /* Find the start position, skipping `offset' bytes:
      * first, skip all full-sized vector elements, */

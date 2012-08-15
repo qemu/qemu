@@ -677,7 +677,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
     }
 
     if (s->role_val == IVSHMEM_PEER) {
-        error_set(&s->migration_blocker, QERR_DEVICE_FEATURE_BLOCKS_MIGRATION, "ivshmem", "peer mode");
+        error_set(&s->migration_blocker, QERR_DEVICE_FEATURE_BLOCKS_MIGRATION,
+                  "peer mode", "ivshmem");
         migrate_add_blocker(s->migration_blocker);
     }
 
