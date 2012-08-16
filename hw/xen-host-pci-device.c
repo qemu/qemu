@@ -47,13 +47,13 @@ static int xen_host_pci_sysfs_path(const XenHostPCIDevice *d,
 }
 
 
-/* This size should be enough to read the first 7 lines of a ressource file */
-#define XEN_HOST_PCI_RESSOURCE_BUFFER_SIZE 400
+/* This size should be enough to read the first 7 lines of a resource file */
+#define XEN_HOST_PCI_RESOURCE_BUFFER_SIZE 400
 static int xen_host_pci_get_resource(XenHostPCIDevice *d)
 {
     int i, rc, fd;
     char path[PATH_MAX];
-    char buf[XEN_HOST_PCI_RESSOURCE_BUFFER_SIZE];
+    char buf[XEN_HOST_PCI_RESOURCE_BUFFER_SIZE];
     unsigned long long start, end, flags, size;
     char *endptr, *s;
     uint8_t type;
