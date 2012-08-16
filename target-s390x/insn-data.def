@@ -15,6 +15,13 @@
     C(0xc208, AGFI,    RIL_a, EI,  r1, i2, r1, 0, add, adds64)
     C(0xeb7a, AGSI,    SIY,   GIE, m1_64, i2, new, m1_64, add, adds64)
     C(0xecd9, AGHIK,   RIE_d, DO,  r3, i2, r1, 0, add, adds64)
+/* ADD HALFWORD */
+    C(0x4a00, AH,      RX_a,  Z,   r1, m2_16s, new, r1_32, add, adds32)
+    C(0xe37a, AHY,     RXY_a, LD,  r1, m2_16s, new, r1_32, add, adds32)
+/* ADD HALFWORD IMMEDIATE */
+    C(0xa70a, AHI,     RI_a,  Z,   r1, i2, new, r1_32, add, adds32)
+    C(0xa70b, AGHI,    RI_a,  Z,   r1, i2, r1, 0, add, adds64)
+
 /* ADD LOGICAL */
     C(0x1e00, ALR,     RR_a,  Z,   r1, r2, new, r1_32, add, addu32)
     C(0xb9fa, ALRK,    RRF_a, DO,  r2, r3, new, r1_32, add, addu32)
