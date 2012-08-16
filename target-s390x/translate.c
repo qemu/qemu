@@ -5005,6 +5005,13 @@ static void in1_m1_32s(DisasContext *s, DisasFields *f, DisasOps *o)
     tcg_gen_qemu_ld32s(o->in1, o->addr1, get_mem_index(s));
 }
 
+static void in1_m1_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in1_la1(s, f, o);
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32u(o->in1, o->addr1, get_mem_index(s));
+}
+
 static void in1_m1_64(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     in1_la1(s, f, o);
