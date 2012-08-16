@@ -49,6 +49,7 @@
 #include "vga-pci.h"
 
 #include "exec-memory.h"
+#include "hw/usb.h"
 
 #include <libfdt.h>
 
@@ -763,6 +764,15 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     /* Graphics */
     if (spapr_vga_init(QLIST_FIRST(&spapr->phbs)->host_state.bus)) {
         spapr->has_graphics = true;
+    }
+
+    if (usb_enabled) {
+        pci_create_simple(QLIST_FIRST(&spapr->phbs)->host_state.bus,
+                          -1, "pci-ohci");
+        if (spapr->has_graphics) {
+            usbdevice_create("keyboard");
+            usbdevice_create("mouse");
+        }
     }
 
     if (rma_size < (MIN_RMA_SLOF << 20)) {
