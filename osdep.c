@@ -113,7 +113,13 @@ static int qemu_dup_flags(int fd, int flags)
     }
 
     /* Set/unset flags that we can with fcntl */
-    setfl_flags = O_APPEND | O_ASYNC | O_DIRECT | O_NOATIME | O_NONBLOCK;
+    setfl_flags = O_APPEND | O_ASYNC | O_NONBLOCK;
+#ifdef O_NOATIME
+    setfl_flags |= O_NOATIME;
+#endif
+#ifdef O_DIRECT
+    setfl_flags |= O_DIRECT;
+#endif
     dup_flags &= ~setfl_flags;
     dup_flags |= (flags & setfl_flags);
     if (fcntl(ret, F_SETFL, dup_flags) == -1) {
