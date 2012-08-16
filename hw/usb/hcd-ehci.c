@@ -1966,7 +1966,6 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     }
     if (p != NULL) {
         ehci_qh_do_overlay(q);
-        ehci_flush_qh(q);
         if (p->async == EHCI_ASYNC_INFLIGHT) {
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         } else {
