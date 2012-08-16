@@ -50,6 +50,54 @@
     C(0xb9e4, NGRK,    RRF_a, DO,  r2, r3, r1, 0, and, nz64)
     C(0xe380, NG,      RXY_a, Z,   r1, m2_64, r1, 0, and, nz64)
 
+/* COMPARE */
+    C(0x1900, CR,      RR_a,  Z,   r1_o, r2_o, 0, 0, 0, cmps32)
+    C(0x5900, C,       RX_a,  Z,   r1_o, m2_32s, 0, 0, 0, cmps32)
+    C(0xe359, CY,      RXY_a, LD,  r1_o, m2_32s, 0, 0, 0, cmps32)
+    C(0xb920, CGR,     RRE,   Z,   r1_o, r2_o, 0, 0, 0, cmps64)
+    C(0xb930, CGFR,    RRE,   Z,   r1_o, r2_32s, 0, 0, 0, cmps64)
+    C(0xe320, CG,      RXY_a, Z,   r1_o, m2_64, 0, 0, 0, cmps64)
+    C(0xe330, CGF,     RXY_a, Z,   r1_o, m2_32s, 0, 0, 0, cmps64)
+/* COMPARE IMMEDIATE */
+    C(0xc20d, CFI,     RIL_a, EI,  r1, i2, 0, 0, 0, cmps32)
+    C(0xc20c, CGFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmps64)
+/* COMPARE HALFWORD */
+    C(0x4900, CH,      RX_a,  Z,   r1_o, m2_16s, 0, 0, 0, cmps32)
+    C(0xe379, CHY,     RXY_a, LD,  r1_o, m2_16s, 0, 0, 0, cmps32)
+    C(0xe334, CGH,     RXY_a, GIE, r1_o, m2_16s, 0, 0, 0, cmps64)
+/* COMPARE HALFWORD IMMEDIATE */
+    C(0xa70e, CHI,     RI_a,  Z,   r1_o, i2, 0, 0, 0, cmps32)
+    C(0xa70f, CGHI,    RI_a,  Z,   r1_o, i2, 0, 0, 0, cmps64)
+    C(0xe554, CHHSI,   SIL,   GIE, m1_16s, i2, 0, 0, 0, cmps64)
+    C(0xe55c, CHSI,    SIL,   GIE, m1_32s, i2, 0, 0, 0, cmps64)
+    C(0xe558, CGHSI,   SIL,   GIE, m1_64, i2, 0, 0, 0, cmps64)
+/* COMPARE HALFWORD RELATIVE LONG */
+    C(0xc605, CHRL,    RIL_a, GIE, r1_o, mri2_32s, 0, 0, 0, cmps32)
+    C(0xc604, CGHRL,   RIL_a, GIE, r1_o, mri2_64, 0, 0, 0, cmps64)
+
+/* COMPARE LOGICAL */
+    C(0x1500, CLR,     RR_a,  Z,   r1, r2, 0, 0, 0, cmpu32)
+    C(0x5500, CL,      RX_a,  Z,   r1, m2_32s, 0, 0, 0, cmpu32)
+    C(0xe355, CLY,     RXY_a, LD,  r1, m2_32s, 0, 0, 0, cmpu32)
+    C(0xb921, CLGR,    RRE,   Z,   r1, r2, 0, 0, 0, cmpu64)
+    C(0xb931, CLGFR,   RRE,   Z,   r1, r2_32u, 0, 0, 0, cmpu64)
+    C(0xe321, CLG,     RXY_a, Z,   r1, m2_64, 0, 0, 0, cmpu64)
+    C(0xe331, CLGF,    RXY_a, Z,   r1, m2_32u, 0, 0, 0, cmpu64)
+/* COMPARE LOGICAL IMMEDIATE */
+    C(0xc20f, CLFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmpu32)
+    C(0xc20e, CLGFI,   RIL_a, EI,  r1, i2_32u, 0, 0, 0, cmpu64)
+    C(0x9500, CLI,     SI,    Z,   m1_8u, i2_8u, 0, 0, 0, cmpu64)
+    C(0xeb55, CLIY,    SIY,   LD,  m1_8u, i2_8u, 0, 0, 0, cmpu64)
+    C(0xe555, CLHHSI,  SIL,   GIE, m1_16u, i2_16u, 0, 0, 0, cmpu64)
+    C(0xe55d, CLFHSI,  SIL,   GIE, m1_32u, i2_16u, 0, 0, 0, cmpu64)
+    C(0xe559, CLGHSI,  SIL,   GIE, m1_64, i2_16u, 0, 0, 0, cmpu64)
+/* COMPARE LOGICAL RELATIVE LONG */
+    C(0xc60f, CLRL,    RIL_b, GIE, r1_o, mri2_32u, 0, 0, 0, cmpu32)
+    C(0xc60a, CLGRL,   RIL_b, GIE, r1_o, mri2_64, 0, 0, 0, cmpu64)
+    C(0xc60e, CLGFRL,  RIL_b, GIE, r1_o, mri2_32u, 0, 0, 0, cmpu64)
+    C(0xc607, CLHRL,   RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu32)
+    C(0xc606, CLGHRL,  RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu64)
+
 /* EXCLUSIVE OR */
     C(0x1700, XR,      RR_a,  Z,   r1, r2, new, r1_32, xor, nz32)
     C(0xb9f7, XRK,     RRF_a, DO,  r2, r3, new, r1_32, xor, nz32)
