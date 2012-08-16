@@ -42,12 +42,20 @@ static TCGv_ptr cpu_env;
 #define GEN_HELPER 1
 #include "helper.h"
 
+
+/* Information that (most) every instruction needs to manipulate.  */
 typedef struct DisasContext DisasContext;
+typedef struct DisasInsn DisasInsn;
+typedef struct DisasFields DisasFields;
+
 struct DisasContext {
-    uint64_t pc;
-    int is_jmp;
-    enum cc_op cc_op;
     struct TranslationBlock *tb;
+    const DisasInsn *insn;
+    DisasFields *fields;
+    uint64_t pc, next_pc;
+    enum cc_op cc_op;
+    bool singlestep_enabled;
+    int is_jmp;
 };
 
 #define DISAS_EXCP 4
@@ -295,15 +303,12 @@ static inline uint64_t ld_code2(CPUS390XState *env, uint64_t pc)
 
 static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
 {
-    return (uint64_t)cpu_ldl_code(env, pc);
+    return (uint64_t)(uint32_t)cpu_ldl_code(env, pc);
 }
 
 static inline uint64_t ld_code6(CPUS390XState *env, uint64_t pc)
 {
-    uint64_t opc;
-    opc = (uint64_t)cpu_lduw_code(env, pc) << 32;
-    opc |= (uint64_t)(uint32_t)cpu_ldl_code(env, pc + 2);
-    return opc;
+    return (ld_code2(env, pc) << 32) | ld_code4(env, pc + 2);
 }
 
 static inline int get_mem_index(DisasContext *s)
@@ -607,17 +612,6 @@ static void set_cc_addu64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2,
     gen_op_update3_cc_i64(s, CC_OP_ADDU_64, v1, v2, vr);
 }
 
-static void set_cc_sub64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2, TCGv_i64 vr)
-{
-    gen_op_update3_cc_i64(s, CC_OP_SUB_64, v1, v2, vr);
-}
-
-static void set_cc_subu64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2,
-                          TCGv_i64 vr)
-{
-    gen_op_update3_cc_i64(s, CC_OP_SUBU_64, v1, v2, vr);
-}
-
 static void set_cc_abs64(DisasContext *s, TCGv_i64 v1)
 {
     gen_op_update1_cc_i64(s, CC_OP_ABS_64, v1);
@@ -642,12 +636,6 @@ static void set_cc_addu32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2,
 static void set_cc_sub32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2, TCGv_i32 vr)
 {
     gen_op_update3_cc_i32(s, CC_OP_SUB_32, v1, v2, vr);
-}
-
-static void set_cc_subu32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2,
-                          TCGv_i32 vr)
-{
-    gen_op_update3_cc_i32(s, CC_OP_SUBU_32, v1, v2, vr);
 }
 
 static void set_cc_abs32(DisasContext *s, TCGv_i32 v1)
@@ -1535,72 +1523,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
         tcg_temp_free_i64(tmp3);
         tcg_temp_free_i64(tmp4);
         break;
-    case 0x8: /* AG      R1,D2(X2,B2)     [RXY] */
-    case 0xa: /* ALG      R1,D2(X2,B2)     [RXY] */
-    case 0x18: /* AGF       R1,D2(X2,B2)     [RXY] */
-    case 0x1a: /* ALGF      R1,D2(X2,B2)     [RXY] */
-        if (op == 0x1a) {
-            tmp2 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld32u(tmp2, addr, get_mem_index(s));
-        } else if (op == 0x18) {
-            tmp2 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld32s(tmp2, addr, get_mem_index(s));
-        } else {
-            tmp2 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
-        }
-        tmp4 = load_reg(r1);
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_add_i64(tmp3, tmp4, tmp2);
-        store_reg(r1, tmp3);
-        switch (op) {
-        case 0x8:
-        case 0x18:
-            set_cc_add64(s, tmp4, tmp2, tmp3);
-            break;
-        case 0xa:
-        case 0x1a:
-            set_cc_addu64(s, tmp4, tmp2, tmp3);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        tcg_temp_free_i64(tmp4);
-        break;
-    case 0x9: /* SG      R1,D2(X2,B2)     [RXY] */
-    case 0xb: /* SLG      R1,D2(X2,B2)     [RXY] */
-    case 0x19: /* SGF      R1,D2(X2,B2)     [RXY] */
-    case 0x1b: /* SLGF     R1,D2(X2,B2)     [RXY] */
-        tmp2 = tcg_temp_new_i64();
-        if (op == 0x19) {
-            tcg_gen_qemu_ld32s(tmp2, addr, get_mem_index(s));
-        } else if (op == 0x1b) {
-            tcg_gen_qemu_ld32u(tmp2, addr, get_mem_index(s));
-        } else {
-            tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
-        }
-        tmp4 = load_reg(r1);
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_sub_i64(tmp3, tmp4, tmp2);
-        store_reg(r1, tmp3);
-        switch (op) {
-        case 0x9:
-        case 0x19:
-            set_cc_sub64(s, tmp4, tmp2, tmp3);
-            break;
-        case 0xb:
-        case 0x1b:
-            set_cc_subu64(s, tmp4, tmp2, tmp3);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        tcg_temp_free_i64(tmp4);
-        break;
     case 0xf: /* LRVG     R1,D2(X2,B2)     [RXE] */
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
@@ -1722,40 +1644,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
         tcg_gen_qemu_ld32u(tmp3, addr, get_mem_index(s));
         store_reg32_i64(r1, tmp3);
         tcg_temp_free_i64(tmp3);
-        break;
-    case 0x5a: /* AY R1,D2(X2,B2) [RXY] */
-    case 0x5b: /* SY R1,D2(X2,B2) [RXY] */
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = tcg_temp_new_i32();
-        tmp32_3 = tcg_temp_new_i32();
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld32s(tmp2, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_2, tmp2);
-        tcg_temp_free_i64(tmp2);
-        switch (op) {
-        case 0x5a:
-            tcg_gen_add_i32(tmp32_3, tmp32_1, tmp32_2);
-            break;
-        case 0x5b:
-            tcg_gen_sub_i32(tmp32_3, tmp32_1, tmp32_2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg32(r1, tmp32_3);
-        switch (op) {
-        case 0x5a:
-            set_cc_add32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        case 0x5b:
-            set_cc_sub32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
         break;
     case 0x71: /* LAY R1,D2(X2,B2) [RXY] */
         store_reg(r1, addr);
@@ -3350,68 +3238,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
         store_reg(r1, tmp2);
         tcg_temp_free_i64(tmp2);
         break;
-    case 0x8: /* AGR     R1,R2     [RRE] */
-    case 0xa: /* ALGR     R1,R2     [RRE] */
-        tmp = load_reg(r1);
-        tmp2 = load_reg(r2);
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_add_i64(tmp3, tmp, tmp2);
-        store_reg(r1, tmp3);
-        switch (op) {
-        case 0x8:
-            set_cc_add64(s, tmp, tmp2, tmp3);
-            break;
-        case 0xa:
-            set_cc_addu64(s, tmp, tmp2, tmp3);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
-    case 0x9: /* SGR     R1,R2     [RRE] */
-    case 0xb: /* SLGR     R1,R2     [RRE] */
-    case 0x1b: /* SLGFR     R1,R2     [RRE] */
-    case 0x19: /* SGFR     R1,R2     [RRE] */
-        tmp = load_reg(r1);
-        switch (op) {
-        case 0x1b:
-            tmp32_1 = load_reg32(r2);
-            tmp2 = tcg_temp_new_i64();
-            tcg_gen_extu_i32_i64(tmp2, tmp32_1);
-            tcg_temp_free_i32(tmp32_1);
-            break;
-        case 0x19:
-            tmp32_1 = load_reg32(r2);
-            tmp2 = tcg_temp_new_i64();
-            tcg_gen_ext_i32_i64(tmp2, tmp32_1);
-            tcg_temp_free_i32(tmp32_1);
-            break;
-        default:
-            tmp2 = load_reg(r2);
-            break;
-        }
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_sub_i64(tmp3, tmp, tmp2);
-        store_reg(r1, tmp3);
-        switch (op) {
-        case 0x9:
-        case 0x19:
-            set_cc_sub64(s, tmp, tmp2, tmp3);
-            break;
-        case 0xb:
-        case 0x1b:
-            set_cc_subu64(s, tmp, tmp2, tmp3);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
     case 0xc: /* MSGR      R1,R2     [RRE] */
     case 0x1c: /* MSGFR      R1,R2     [RRE] */
         tmp = load_reg(r1);
@@ -3468,29 +3294,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
         store_reg(r1, tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
-        break;
-    case 0x18: /* AGFR     R1,R2     [RRE] */
-    case 0x1a: /* ALGFR     R1,R2     [RRE] */
-        tmp32_1 = load_reg32(r2);
-        tmp2 = tcg_temp_new_i64();
-        if (op == 0x18) {
-            tcg_gen_ext_i32_i64(tmp2, tmp32_1);
-        } else {
-            tcg_gen_extu_i32_i64(tmp2, tmp32_1);
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tmp = load_reg(r1);
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_add_i64(tmp3, tmp, tmp2);
-        store_reg(r1, tmp3);
-        if (op == 0x18) {
-            set_cc_add64(s, tmp, tmp2, tmp3);
-        } else {
-            set_cc_addu64(s, tmp, tmp2, tmp3);
-        }
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
         break;
     case 0x0f: /* LRVGR    R1,R2     [RRE] */
         tcg_gen_bswap64_i64(regs[r1], regs[r2]);
@@ -3794,54 +3597,10 @@ static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2
 static void disas_c2(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int i2)
 {
-    TCGv_i64 tmp, tmp2, tmp3;
-    TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
+    TCGv_i64 tmp;
+    TCGv_i32 tmp32_1;
 
     switch (op) {
-    case 0x4: /* SLGFI R1,I2 [RIL] */
-    case 0xa: /* ALGFI R1,I2 [RIL] */
-        tmp = load_reg(r1);
-        tmp2 = tcg_const_i64((uint64_t)(uint32_t)i2);
-        tmp3 = tcg_temp_new_i64();
-        switch (op) {
-        case 0x4:
-            tcg_gen_sub_i64(tmp3, tmp, tmp2);
-            set_cc_subu64(s, tmp, tmp2, tmp3);
-            break;
-        case 0xa:
-            tcg_gen_add_i64(tmp3, tmp, tmp2);
-            set_cc_addu64(s, tmp, tmp2, tmp3);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg(r1, tmp3);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
-    case 0x5: /* SLFI R1,I2 [RIL] */
-    case 0xb: /* ALFI R1,I2 [RIL] */
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = tcg_const_i32(i2);
-        tmp32_3 = tcg_temp_new_i32();
-        switch (op) {
-        case 0x5:
-            tcg_gen_sub_i32(tmp32_3, tmp32_1, tmp32_2);
-            set_cc_subu32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        case 0xb:
-            tcg_gen_add_i32(tmp32_3, tmp32_1, tmp32_2);
-            set_cc_addu32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg32(r1, tmp32_3);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
-        break;
     case 0xc: /* CGFI R1,I2 [RIL] */
         tmp = load_reg(r1);
         cmp_s64c(s, tmp, (int64_t)i2);
@@ -4058,42 +3817,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         }
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x1a: /* AR     R1,R2     [RR] */
-    case 0x1e: /* ALR    R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = load_reg32(r2);
-        tmp32_3 = tcg_temp_new_i32();
-        tcg_gen_add_i32(tmp32_3, tmp32_1, tmp32_2);
-        store_reg32(r1, tmp32_3);
-        if (opc == 0x1a) {
-            set_cc_add32(s, tmp32_1, tmp32_2, tmp32_3);
-        } else {
-            set_cc_addu32(s, tmp32_1, tmp32_2, tmp32_3);
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
-        break;
-    case 0x1b: /* SR     R1,R2     [RR] */
-    case 0x1f: /* SLR    R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = load_reg32(r2);
-        tmp32_3 = tcg_temp_new_i32();
-        tcg_gen_sub_i32(tmp32_3, tmp32_1, tmp32_2);
-        store_reg32(r1, tmp32_3);
-        if (opc == 0x1b) {
-            set_cc_sub32(s, tmp32_1, tmp32_2, tmp32_3);
-        } else {
-            set_cc_subu32(s, tmp32_1, tmp32_2, tmp32_3);
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
         break;
     case 0x1c: /* MR     R1,R2     [RR] */
         /* reg(r1, r1+1) = reg(r1+1) * reg(r2) */
@@ -4379,51 +4102,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x5a: /* A      R1,D2(X2,B2)     [RX] */
-    case 0x5b: /* S      R1,D2(X2,B2)     [RX] */
-    case 0x5e: /* AL     R1,D2(X2,B2)     [RX] */
-    case 0x5f: /* SL     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = tcg_temp_new_i32();
-        tmp32_3 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32s(tmp, tmp, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_2, tmp);
-        switch (opc) {
-        case 0x5a:
-        case 0x5e:
-            tcg_gen_add_i32(tmp32_3, tmp32_1, tmp32_2);
-            break;
-        case 0x5b:
-        case 0x5f:
-            tcg_gen_sub_i32(tmp32_3, tmp32_1, tmp32_2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg32(r1, tmp32_3);
-        switch (opc) {
-        case 0x5a:
-            set_cc_add32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        case 0x5e:
-            set_cc_addu32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        case 0x5b:
-            set_cc_sub32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        case 0x5f:
-            set_cc_subu32(s, tmp32_1, tmp32_2, tmp32_3);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
         break;
     case 0x5c: /* M      R1,D2(X2,B2)        [RX] */
         /* reg(r1, r1+1) = reg(r1+1) * *(s32*)addr */
@@ -5131,9 +4809,699 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         gen_illegal_opcode(env, s, ilc);
         break;
     }
+}
+
+/* ====================================================================== */
+/* Define the insn format enumeration.  */
+#define F0(N)                         FMT_##N,
+#define F1(N, X1)                     F0(N)
+#define F2(N, X1, X2)                 F0(N)
+#define F3(N, X1, X2, X3)             F0(N)
+#define F4(N, X1, X2, X3, X4)         F0(N)
+#define F5(N, X1, X2, X3, X4, X5)     F0(N)
+
+typedef enum {
+#include "insn-format.def"
+} DisasFormat;
+
+#undef F0
+#undef F1
+#undef F2
+#undef F3
+#undef F4
+#undef F5
+
+/* Define a structure to hold the decoded fields.  We'll store each inside
+   an array indexed by an enum.  In order to conserve memory, we'll arrange
+   for fields that do not exist at the same time to overlap, thus the "C"
+   for compact.  For checking purposes there is an "O" for original index
+   as well that will be applied to availability bitmaps.  */
+
+enum DisasFieldIndexO {
+    FLD_O_r1,
+    FLD_O_r2,
+    FLD_O_r3,
+    FLD_O_m1,
+    FLD_O_m3,
+    FLD_O_m4,
+    FLD_O_b1,
+    FLD_O_b2,
+    FLD_O_b4,
+    FLD_O_d1,
+    FLD_O_d2,
+    FLD_O_d4,
+    FLD_O_x2,
+    FLD_O_l1,
+    FLD_O_l2,
+    FLD_O_i1,
+    FLD_O_i2,
+    FLD_O_i3,
+    FLD_O_i4,
+    FLD_O_i5
+};
+
+enum DisasFieldIndexC {
+    FLD_C_r1 = 0,
+    FLD_C_m1 = 0,
+    FLD_C_b1 = 0,
+    FLD_C_i1 = 0,
+
+    FLD_C_r2 = 1,
+    FLD_C_b2 = 1,
+    FLD_C_i2 = 1,
+
+    FLD_C_r3 = 2,
+    FLD_C_m3 = 2,
+    FLD_C_i3 = 2,
+
+    FLD_C_m4 = 3,
+    FLD_C_b4 = 3,
+    FLD_C_i4 = 3,
+    FLD_C_l1 = 3,
+
+    FLD_C_i5 = 4,
+    FLD_C_d1 = 4,
+
+    FLD_C_d2 = 5,
+
+    FLD_C_d4 = 6,
+    FLD_C_x2 = 6,
+    FLD_C_l2 = 6,
+
+    NUM_C_FIELD = 7
+};
+
+struct DisasFields {
+    unsigned op:8;
+    unsigned op2:8;
+    unsigned presentC:16;
+    unsigned int presentO;
+    int c[NUM_C_FIELD];
+};
+
+/* This is the way fields are to be accessed out of DisasFields.  */
+#define have_field(S, F)  have_field1((S), FLD_O_##F)
+#define get_field(S, F)   get_field1((S), FLD_O_##F, FLD_C_##F)
+
+static bool have_field1(const DisasFields *f, enum DisasFieldIndexO c)
+{
+    return (f->presentO >> c) & 1;
+}
+
+static int get_field1(const DisasFields *f, enum DisasFieldIndexO o,
+                      enum DisasFieldIndexC c)
+{
+    assert(have_field1(f, o));
+    return f->c[c];
+}
+
+/* Describe the layout of each field in each format.  */
+typedef struct DisasField {
+    unsigned int beg:8;
+    unsigned int size:8;
+    unsigned int type:2;
+    unsigned int indexC:6;
+    enum DisasFieldIndexO indexO:8;
+} DisasField;
+
+typedef struct DisasFormatInfo {
+    DisasField op[NUM_C_FIELD];
+} DisasFormatInfo;
+
+#define R(N, B)       {  B,  4, 0, FLD_C_r##N, FLD_O_r##N }
+#define M(N, B)       {  B,  4, 0, FLD_C_m##N, FLD_O_m##N }
+#define BD(N, BB, BD) { BB,  4, 0, FLD_C_b##N, FLD_O_b##N }, \
+                      { BD, 12, 0, FLD_C_d##N, FLD_O_d##N }
+#define BXD(N)        { 16,  4, 0, FLD_C_b##N, FLD_O_b##N }, \
+                      { 12,  4, 0, FLD_C_x##N, FLD_O_x##N }, \
+                      { 20, 12, 0, FLD_C_d##N, FLD_O_d##N }
+#define BDL(N)        { 16,  4, 0, FLD_C_b##N, FLD_O_b##N }, \
+                      { 20, 20, 2, FLD_C_d##N, FLD_O_d##N }
+#define BXDL(N)       { 16,  4, 0, FLD_C_b##N, FLD_O_b##N }, \
+                      { 12,  4, 0, FLD_C_x##N, FLD_O_x##N }, \
+                      { 20, 20, 2, FLD_C_d##N, FLD_O_d##N }
+#define I(N, B, S)    {  B,  S, 1, FLD_C_i##N, FLD_O_i##N }
+#define L(N, B, S)    {  B,  S, 0, FLD_C_l##N, FLD_O_l##N }
+
+#define F0(N)                     { { } },
+#define F1(N, X1)                 { { X1 } },
+#define F2(N, X1, X2)             { { X1, X2 } },
+#define F3(N, X1, X2, X3)         { { X1, X2, X3 } },
+#define F4(N, X1, X2, X3, X4)     { { X1, X2, X3, X4 } },
+#define F5(N, X1, X2, X3, X4, X5) { { X1, X2, X3, X4, X5 } },
+
+static const DisasFormatInfo format_info[] = {
+#include "insn-format.def"
+};
+
+#undef F0
+#undef F1
+#undef F2
+#undef F3
+#undef F4
+#undef F5
+#undef R
+#undef M
+#undef BD
+#undef BXD
+#undef BDL
+#undef BXDL
+#undef I
+#undef L
+
+/* Generally, we'll extract operands into this structures, operate upon
+   them, and store them back.  See the "in1", "in2", "prep", "wout" sets
+   of routines below for more details.  */
+typedef struct {
+    bool g_out, g_out2, g_in1, g_in2;
+    TCGv_i64 out, out2, in1, in2;
+    TCGv_i64 addr1;
+} DisasOps;
+
+/* Return values from translate_one, indicating the state of the TB.  */
+typedef enum {
+    /* Continue the TB.  */
+    NO_EXIT,
+    /* We have emitted one or more goto_tb.  No fixup required.  */
+    EXIT_GOTO_TB,
+    /* We are not using a goto_tb (for whatever reason), but have updated
+       the PC (for whatever reason), so there's no need to do it again on
+       exiting the TB.  */
+    EXIT_PC_UPDATED,
+    /* We are exiting the TB, but have neither emitted a goto_tb, nor
+       updated the PC for the next instruction to be executed.  */
+    EXIT_PC_STALE,
+    /* We are ending the TB with a noreturn function call, e.g. longjmp.
+       No following code will be executed.  */
+    EXIT_NORETURN,
+} ExitStatus;
+
+typedef enum DisasFacility {
+    FAC_Z,                  /* zarch (default) */
+    FAC_CASS,               /* compare and swap and store */
+    FAC_CASS2,              /* compare and swap and store 2*/
+    FAC_DFP,                /* decimal floating point */
+    FAC_DFPR,               /* decimal floating point rounding */
+    FAC_DO,                 /* distinct operands */
+    FAC_EE,                 /* execute extensions */
+    FAC_EI,                 /* extended immediate */
+    FAC_FPE,                /* floating point extension */
+    FAC_FPSSH,              /* floating point support sign handling */
+    FAC_FPRGR,              /* FPR-GR transfer */
+    FAC_GIE,                /* general instructions extension */
+    FAC_HFP_MA,             /* HFP multiply-and-add/subtract */
+    FAC_HW,                 /* high-word */
+    FAC_IEEEE_SIM,          /* IEEE exception sumilation */
+    FAC_LOC,                /* load/store on condition */
+    FAC_LD,                 /* long displacement */
+    FAC_PC,                 /* population count */
+    FAC_SCF,                /* store clock fast */
+    FAC_SFLE,               /* store facility list extended */
+} DisasFacility;
+
+struct DisasInsn {
+    unsigned opc:16;
+    DisasFormat fmt:6;
+    DisasFacility fac:6;
+
+    const char *name;
+
+    void (*help_in1)(DisasContext *, DisasFields *, DisasOps *);
+    void (*help_in2)(DisasContext *, DisasFields *, DisasOps *);
+    void (*help_prep)(DisasContext *, DisasFields *, DisasOps *);
+    void (*help_wout)(DisasContext *, DisasFields *, DisasOps *);
+    void (*help_cout)(DisasContext *, DisasOps *);
+    ExitStatus (*help_op)(DisasContext *, DisasOps *);
+
+    uint64_t data;
+};
+
+/* ====================================================================== */
+/* The operations.  These perform the bulk of the work for any insn,
+   usually after the operands have been loaded and output initialized.  */
+
+static ExitStatus op_add(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_add_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sub(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_sub_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+/* ====================================================================== */
+/* The "Cc OUTput" generators.  Given the generated output (and in some cases
+   the original inputs), update the various cc data structures in order to
+   be able to compute the new condition code.  */
+
+static void cout_adds32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_ADD_32, o->in1, o->in2, o->out);
+}
+
+static void cout_adds64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_ADD_64, o->in1, o->in2, o->out);
+}
+
+static void cout_addu32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_ADDU_32, o->in1, o->in2, o->out);
+}
+
+static void cout_addu64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_ADDU_64, o->in1, o->in2, o->out);
+}
+
+static void cout_subs32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_SUB_32, o->in1, o->in2, o->out);
+}
+
+static void cout_subs64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_SUB_64, o->in1, o->in2, o->out);
+}
+
+static void cout_subu32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_SUBU_32, o->in1, o->in2, o->out);
+}
+
+static void cout_subu64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update3_cc_i64(s, CC_OP_SUBU_64, o->in1, o->in2, o->out);
+}
+
+/* ====================================================================== */
+/* The "PREPeration" generators.  These initialize the DisasOps.OUT fields
+   with the TCG register to which we will write.  Used in combination with
+   the "wout" generators, in some cases we need a new temporary, and in
+   some cases we can write to a TCG global.  */
+
+static void prep_new(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->out = tcg_temp_new_i64();
+}
+
+static void prep_r1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->out = regs[get_field(f, r1)];
+    o->g_out = true;
+}
+
+/* ====================================================================== */
+/* The "Write OUTput" generators.  These generally perform some non-trivial
+   copy of data to TCG globals, or to main memory.  The trivial cases are
+   generally handled by having a "prep" generator install the TCG global
+   as the destination of the operation.  */
+
+static void wout_r1_32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    store_reg32_i64(get_field(f, r1), o->out);
+}
+
+static void wout_m1_32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st32(o->out, o->addr1, get_mem_index(s));
+}
+
+static void wout_m1_64(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st64(o->out, o->addr1, get_mem_index(s));
+}
+
+/* ====================================================================== */
+/* The "INput 1" generators.  These load the first operand to an insn.  */
+
+static void in1_r1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = load_reg(get_field(f, r1));
+}
+
+static void in1_r2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = load_reg(get_field(f, r2));
+}
+
+static void in1_r3(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = load_reg(get_field(f, r3));
+}
+
+static void in1_la1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->addr1 = get_address(s, 0, get_field(f, b1), get_field(f, d1));
+}
+
+static void in1_m1_32s(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in1_la1(s, f, o);
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32s(o->in1, o->addr1, get_mem_index(s));
+}
+
+static void in1_m1_64(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in1_la1(s, f, o);
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld64(o->in1, o->addr1, get_mem_index(s));
+}
+
+/* ====================================================================== */
+/* The "INput 2" generators.  These load the second operand to an insn.  */
+
+static void in2_r2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = load_reg(get_field(f, r2));
+}
+
+static void in2_r3(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = load_reg(get_field(f, r3));
+}
+
+static void in2_r2_32s(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_ext32s_i64(o->in2, regs[get_field(f, r2)]);
+}
+
+static void in2_r2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in2, regs[get_field(f, r2)]);
+}
+
+static void in2_a2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int x2 = have_field(f, x2) ? get_field(f, x2) : 0;
+    o->in2 = get_address(s, x2, get_field(f, b2), get_field(f, d2));
+}
+
+static void in2_m2_32s(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld32s(o->in2, o->in2, get_mem_index(s));
+}
+
+static void in2_m2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld32u(o->in2, o->in2, get_mem_index(s));
+}
+
+static void in2_m2_64(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld64(o->in2, o->in2, get_mem_index(s));
+}
+
+static void in2_i2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_const_i64(get_field(f, i2));
+}
+
+static void in2_i2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_const_i64((uint32_t)get_field(f, i2));
+}
+
+/* ====================================================================== */
+
+/* Find opc within the table of insns.  This is formulated as a switch
+   statement so that (1) we get compile-time notice of cut-paste errors
+   for duplicated opcodes, and (2) the compiler generates the binary
+   search tree, rather than us having to post-process the table.  */
+
+#define C(OPC, NM, FT, FC, I1, I2, P, W, OP, CC) \
+    D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, 0)
+
+#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) insn_ ## NM,
+
+enum DisasInsnEnum {
+#include "insn-data.def"
+};
+
+#undef D
+#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) { \
+    .opc = OPC,                           \
+    .fmt = FMT_##FT,                      \
+    .fac = FAC_##FC,                      \
+    .name = #NM,                          \
+    .help_in1 = in1_##I1,                 \
+    .help_in2 = in2_##I2,                 \
+    .help_prep = prep_##P,                \
+    .help_wout = wout_##W,                \
+    .help_cout = cout_##CC,               \
+    .help_op = op_##OP,                   \
+    .data = D                             \
+ },
+
+/* Allow 0 to be used for NULL in the table below.  */
+#define in1_0  NULL
+#define in2_0  NULL
+#define prep_0  NULL
+#define wout_0  NULL
+#define cout_0  NULL
+#define op_0  NULL
+
+static const DisasInsn insn_info[] = {
+#include "insn-data.def"
+};
+
+#undef D
+#define D(OPC, NM, FT, FC, I1, I2, P, W, OP, CC, D) \
+    case OPC: return &insn_info[insn_ ## NM];
+
+static const DisasInsn *lookup_opc(uint16_t opc)
+{
+    switch (opc) {
+#include "insn-data.def"
+    default:
+        return NULL;
+    }
+}
+
+#undef D
+#undef C
+
+/* Extract a field from the insn.  The INSN should be left-aligned in
+   the uint64_t so that we can more easily utilize the big-bit-endian
+   definitions we extract from the Principals of Operation.  */
+
+static void extract_field(DisasFields *o, const DisasField *f, uint64_t insn)
+{
+    uint32_t r, m;
+
+    if (f->size == 0) {
+        return;
+    }
+
+    /* Zero extract the field from the insn.  */
+    r = (insn << f->beg) >> (64 - f->size);
+
+    /* Sign-extend, or un-swap the field as necessary.  */
+    switch (f->type) {
+    case 0: /* unsigned */
+        break;
+    case 1: /* signed */
+        assert(f->size <= 32);
+        m = 1u << (f->size - 1);
+        r = (r ^ m) - m;
+        break;
+    case 2: /* dl+dh split, signed 20 bit. */
+        r = ((int8_t)r << 12) | (r >> 8);
+        break;
+    default:
+        abort();
+    }
+
+    /* Validate that the "compressed" encoding we selected above is valid.
+       I.e. we havn't make two different original fields overlap.  */
+    assert(((o->presentC >> f->indexC) & 1) == 0);
+    o->presentC |= 1 << f->indexC;
+    o->presentO |= 1 << f->indexO;
+
+    o->c[f->indexC] = r;
+}
+
+/* Lookup the insn at the current PC, extracting the operands into O and
+   returning the info struct for the insn.  Returns NULL for invalid insn.  */
+
+static const DisasInsn *extract_insn(CPUS390XState *env, DisasContext *s,
+                                     DisasFields *f)
+{
+    uint64_t insn, pc = s->pc;
+    int op, op2;
+    const DisasInsn *info;
+
+    insn = ld_code2(env, pc);
+    op = (insn >> 8) & 0xff;
+    switch (get_ilc(op)) {
+    case 1:
+        insn = insn << 48;
+        break;
+    case 2:
+        insn = ld_code4(env, pc) << 32;
+        break;
+    case 3:
+        insn = (insn << 48) | (ld_code4(env, pc + 2) << 16);
+        break;
+    default:
+        abort();
+    }
+
+    /* We can't actually determine the insn format until we've looked up
+       the full insn opcode.  Which we can't do without locating the
+       secondary opcode.  Assume by default that OP2 is at bit 40; for
+       those smaller insns that don't actually have a secondary opcode
+       this will correctly result in OP2 = 0. */
+    switch (op) {
+    case 0x01: /* E */
+    case 0x80: /* S */
+    case 0x82: /* S */
+    case 0x93: /* S */
+    case 0xb2: /* S, RRF, RRE */
+    case 0xb3: /* RRE, RRD, RRF */
+    case 0xb9: /* RRE, RRF */
+    case 0xe5: /* SSE, SIL */
+        op2 = (insn << 8) >> 56;
+        break;
+    case 0xa5: /* RI */
+    case 0xa7: /* RI */
+    case 0xc0: /* RIL */
+    case 0xc2: /* RIL */
+    case 0xc4: /* RIL */
+    case 0xc6: /* RIL */
+    case 0xc8: /* SSF */
+    case 0xcc: /* RIL */
+        op2 = (insn << 12) >> 60;
+        break;
+    case 0xd0 ... 0xdf: /* SS */
+    case 0xe1: /* SS */
+    case 0xe2: /* SS */
+    case 0xe8: /* SS */
+    case 0xe9: /* SS */
+    case 0xea: /* SS */
+    case 0xee ... 0xf3: /* SS */
+    case 0xf8 ... 0xfd: /* SS */
+        op2 = 0;
+        break;
+    default:
+        op2 = (insn << 40) >> 56;
+        break;
+    }
+
+    memset(f, 0, sizeof(*f));
+    f->op = op;
+    f->op2 = op2;
+
+    /* Lookup the instruction.  */
+    info = lookup_opc(op << 8 | op2);
+
+    /* If we found it, extract the operands.  */
+    if (info != NULL) {
+        DisasFormat fmt = info->fmt;
+        int i;
+
+        for (i = 0; i < NUM_C_FIELD; ++i) {
+            extract_field(f, &format_info[fmt].op[i], insn);
+        }
+    }
+    return info;
+}
+
+static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
+{
+    const DisasInsn *insn;
+    ExitStatus ret = NO_EXIT;
+    DisasFields f;
+    DisasOps o;
+
+    insn = extract_insn(env, s, &f);
 
     /* Instruction length is encoded in the opcode */
-    s->pc += (ilc * 2);
+    s->next_pc = s->pc + get_ilc(f.op) * 2;
+
+    /* If not found, try the old interpreter.  This includes ILLOPC.  */
+    if (insn == NULL) {
+        disas_s390_insn(env, s);
+        switch (s->is_jmp) {
+        case DISAS_NEXT:
+            ret = NO_EXIT;
+            break;
+        case DISAS_TB_JUMP:
+            ret = EXIT_GOTO_TB;
+            break;
+        case DISAS_JUMP:
+            ret = EXIT_PC_UPDATED;
+            break;
+        case DISAS_EXCP:
+            ret = EXIT_NORETURN;
+            break;
+        default:
+            abort();
+        }
+
+        s->pc = s->next_pc;
+        return ret;
+    }
+
+    /* Set up the strutures we use to communicate with the helpers. */
+    s->insn = insn;
+    s->fields = &f;
+    o.g_out = o.g_out2 = o.g_in1 = o.g_in2 = false;
+    TCGV_UNUSED_I64(o.out);
+    TCGV_UNUSED_I64(o.out2);
+    TCGV_UNUSED_I64(o.in1);
+    TCGV_UNUSED_I64(o.in2);
+    TCGV_UNUSED_I64(o.addr1);
+
+    /* Implement the instruction.  */
+    if (insn->help_in1) {
+        insn->help_in1(s, &f, &o);
+    }
+    if (insn->help_in2) {
+        insn->help_in2(s, &f, &o);
+    }
+    if (insn->help_prep) {
+        insn->help_prep(s, &f, &o);
+    }
+    if (insn->help_op) {
+        ret = insn->help_op(s, &o);
+    }
+    if (insn->help_wout) {
+        insn->help_wout(s, &f, &o);
+    }
+    if (insn->help_cout) {
+        insn->help_cout(s, &o);
+    }
+
+    /* Free any temporaries created by the helpers.  */
+    if (!TCGV_IS_UNUSED_I64(o.out) && !o.g_out) {
+        tcg_temp_free_i64(o.out);
+    }
+    if (!TCGV_IS_UNUSED_I64(o.out2) && !o.g_out2) {
+        tcg_temp_free_i64(o.out2);
+    }
+    if (!TCGV_IS_UNUSED_I64(o.in1) && !o.g_in1) {
+        tcg_temp_free_i64(o.in1);
+    }
+    if (!TCGV_IS_UNUSED_I64(o.in2) && !o.g_in2) {
+        tcg_temp_free_i64(o.in2);
+    }
+    if (!TCGV_IS_UNUSED_I64(o.addr1)) {
+        tcg_temp_free_i64(o.addr1);
+    }
+
+    /* Advance to the next instruction.  */
+    s->pc = s->next_pc;
+    return ret;
 }
 
 static inline void gen_intermediate_code_internal(CPUS390XState *env,
@@ -5147,6 +5515,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
     int j, lj = -1;
     int num_insns, max_insns;
     CPUBreakpoint *bp;
+    ExitStatus status;
 
     pc_start = tb->pc;
 
@@ -5155,10 +5524,11 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         pc_start &= 0x7fffffff;
     }
 
-    dc.pc = pc_start;
-    dc.is_jmp = DISAS_NEXT;
     dc.tb = tb;
+    dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
+    dc.singlestep_enabled = env->singlestep_enabled;
+    dc.is_jmp = DISAS_NEXT;
 
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
@@ -5194,7 +5564,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (++num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -5202,36 +5572,50 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
             tcg_gen_debug_insn_start(dc.pc);
         }
 
-        disas_s390_insn(env, &dc);
+        status = translate_one(env, &dc);
 
-        num_insns++;
-        if (env->singlestep_enabled) {
-            gen_debug(&dc);
+        /* If we reach a page boundary, are single stepping,
+           or exhaust instruction count, stop generation.  */
+        if (status == NO_EXIT
+            && (dc.pc >= next_page_start
+                || tcg_ctx.gen_opc_ptr >= gen_opc_end
+                || num_insns >= max_insns
+                || singlestep
+                || env->singlestep_enabled)) {
+            status = EXIT_PC_STALE;
         }
-    } while (!dc.is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end
-             && dc.pc < next_page_start
-             && num_insns < max_insns && !env->singlestep_enabled
-             && !singlestep);
-
-    if (!dc.is_jmp) {
-        update_psw_addr(&dc);
-    }
-
-    if (singlestep && dc.cc_op != CC_OP_DYNAMIC) {
-        gen_op_calc_cc(&dc);
-    } else {
-        /* next TB starts off with CC_OP_DYNAMIC, so make sure the cc op type
-           is in env */
-        gen_op_set_cc_op(&dc);
-    }
+    } while (status == NO_EXIT);
 
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
     }
-    /* Generate the return instruction */
-    if (dc.is_jmp != DISAS_TB_JUMP) {
-        tcg_gen_exit_tb(0);
+
+    switch (status) {
+    case EXIT_GOTO_TB:
+    case EXIT_NORETURN:
+        break;
+    case EXIT_PC_STALE:
+        update_psw_addr(&dc);
+        /* FALLTHRU */
+    case EXIT_PC_UPDATED:
+        if (singlestep && dc.cc_op != CC_OP_DYNAMIC) {
+            gen_op_calc_cc(&dc);
+        } else {
+            /* Next TB starts off with CC_OP_DYNAMIC,
+               so make sure the cc op type is in env */
+            gen_op_set_cc_op(&dc);
+        }
+        if (env->singlestep_enabled) {
+            gen_debug(&dc);
+        } else {
+            /* Generate the return instruction */
+            tcg_gen_exit_tb(0);
+        }
+        break;
+    default:
+        abort();
     }
+
     gen_icount_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
@@ -5244,6 +5628,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         tb->size = dc.pc - pc_start;
         tb->icount = num_insns;
     }
+
 #if defined(S390X_DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
