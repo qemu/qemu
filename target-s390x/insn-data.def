@@ -107,6 +107,26 @@
     C(0xb9e7, XGRK,    RRF_a, DO,  r2, r3, r1, 0, xor, nz64)
     C(0xe382, XG,      RXY_a, Z,   r1, m2_64, r1, 0, xor, nz64)
 
+/* LOAD */
+    C(0x1800, LR,      RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, 0)
+    C(0x5800, L,       RX_a,  Z,   0, a2, new, r1_32, ld32s, 0)
+    C(0xe358, LY,      RXY_a, Z,   0, a2, new, r1_32, ld32s, 0)
+    C(0xb904, LGR,     RRE,   Z,   0, r2_o, 0, r1, mov2, 0)
+    C(0xb914, LGFR,    RRE,   Z,   0, r2_32s, 0, r1, mov2, 0)
+    C(0xe304, LG,      RXY_a, Z,   0, a2, r1, 0, ld64, 0)
+    C(0xe314, LGF,     RXY_a, Z,   0, a2, r1, 0, ld32s, 0)
+/* LOAD IMMEDIATE */
+    C(0xc001, LGFI,    RIL_a, EI,  0, i2, 0, r1, mov2, 0)
+/* LOAD RELATIVE LONG */
+    C(0xc40d, LRL,     RIL_b, GIE, 0, ri2, new, r1_32, ld32s, 0)
+    C(0xc408, LGRL,    RIL_b, GIE, 0, ri2, r1, 0, ld64, 0)
+    C(0xc40c, LGFRL,   RIL_b, GIE, 0, ri2, r1, 0, ld32s, 0)
+/* LOAD LOGICAL */
+    C(0xb916, LLGFR,   RRE,   Z,   0, r2_32u, 0, r1, mov2, 0)
+    C(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld32u, 0)
+/* LOAD LOGICAL RELATIVE LONG */
+    C(0xc40e, LLGFRL,  RIL_b, GIE, 0, ri2, r1, 0, ld32u, 0)
+
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
     C(0x5c00, M,       RX_a,  Z,   r1p1_32s, m2_32s, new, r1_D32, mul, 0)
