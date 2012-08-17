@@ -249,6 +249,22 @@
     D(0xa50a, OILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1010)
     D(0xa50b, OILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1000)
 
+/* STORE */
+    C(0x5000, ST,      RX_a,  Z,   r1_o, a2, 0, 0, st32, 0)
+    C(0xe350, STY,     RXY_a, LD,  r1_o, a2, 0, 0, st32, 0)
+    C(0xe324, STG,     RXY_a, Z,   r1_o, a2, 0, 0, st64, 0)
+/* STORE RELATIVE LONG */
+    C(0xc40f, STRL,    RIL_b, GIE, r1_o, ri2, 0, 0, st32, 0)
+    C(0xc40b, STGRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st64, 0)
+/* STORE CHARACTER */
+    C(0x4200, STC,     RX_a,  Z,   r1_o, a2, 0, 0, st8, 0)
+    C(0xe372, STCY,    RXY_a, LD,  r1_o, a2, 0, 0, st8, 0)
+/* STORE HALFWORD */
+    C(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st16, 0)
+    C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
+/* STORE HALFWORD RELATIVE LONG */
+    C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+
 /* SUBTRACT */
     C(0x1b00, SR,      RR_a,  Z,   r1, r2, new, r1_32, sub, subs32)
     C(0xb9f9, SRK,     RRF_a, DO,  r2, r3, new, r1_32, sub, subs32)
