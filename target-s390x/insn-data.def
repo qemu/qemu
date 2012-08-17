@@ -121,6 +121,11 @@
     C(0xc40d, LRL,     RIL_b, GIE, 0, ri2, new, r1_32, ld32s, 0)
     C(0xc408, LGRL,    RIL_b, GIE, 0, ri2, r1, 0, ld64, 0)
     C(0xc40c, LGFRL,   RIL_b, GIE, 0, ri2, r1, 0, ld32s, 0)
+/* LOAD ADDRESS */
+    C(0x4100, LA,      RX_a,  Z,   0, a2, 0, r1, mov2, 0)
+    C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
+/* LOAD ADDRESS RELATIVE LONG */
+    C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
 /* LOAD LOGICAL */
     C(0xb916, LLGFR,   RRE,   Z,   0, r2_32u, 0, r1, mov2, 0)
     C(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld32u, 0)

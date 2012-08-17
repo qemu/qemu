@@ -1444,9 +1444,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
         tcg_gen_qemu_st32(tmp2, addr, get_mem_index(s));
         tcg_temp_free_i64(tmp2);
         break;
-    case 0x71: /* LAY R1,D2(X2,B2) [RXY] */
-        store_reg(r1, addr);
-        break;
     case 0x72: /* STCY R1,D2(X2,B2) [RXY] */
         tmp32_1 = load_reg32(r1);
         tmp2 = tcg_temp_new_i64();
@@ -3094,11 +3091,6 @@ static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2
     LOG_DISAS("disas_c0: op 0x%x r1 %d i2 %d\n", op, r1, i2);
 
     switch (op) {
-    case 0: /* larl r1, i2 */
-        tmp = tcg_const_i64(target);
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x4: /* BRCL     M1,I2     [RIL] */
         if (r1 == 15) { /* m1 == r1 */
             gen_goto_tb(s, 0, target);
@@ -3375,12 +3367,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_gen_qemu_st16(tmp2, tmp, get_mem_index(s));
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
-        break;
-    case 0x41:        /* la */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        store_reg(r1, tmp); /* FIXME: 31/24-bit addressing */
-        tcg_temp_free_i64(tmp);
         break;
     case 0x42: /* STC    R1,D2(X2,B2)     [RX] */
         insn = ld_code4(env, s->pc);
