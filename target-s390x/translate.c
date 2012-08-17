@@ -1349,23 +1349,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
               op, r1, x2, b2, d2);
     addr = get_address(s, x2, b2, d2);
     switch (op) {
-    case 0x2: /* LTG R1,D2(X2,B2) [RXY] */
-    case 0x4: /* LG r1,d2(x2,b2) */
-        tcg_gen_qemu_ld64(regs[r1], addr, get_mem_index(s));
-        if (op == 0x2) {
-            set_cc_s64(s, regs[r1]);
-        }
-        break;
-    case 0x12: /* LT R1,D2(X2,B2) [RXY] */
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32s(tmp2, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp2);
-        store_reg32(r1, tmp32_1);
-        set_cc_s32(s, tmp32_1);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0xd: /* DSG      R1,D2(X2,B2)     [RXY] */
     case 0x1d: /* DSGF      R1,D2(X2,B2)     [RXY] */
         tmp2 = tcg_temp_new_i64();
@@ -3192,16 +3175,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         store_reg32(r1, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
-    case 0x12: /* LTR    R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r2);
-        if (r1 != r2) {
-            store_reg32(r1, tmp32_1);
-        }
-        set_cc_s32(s, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x13: /* LCR    R1,R2     [RR] */
         insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
@@ -4393,6 +4366,16 @@ static void cout_nz32(DisasContext *s, DisasOps *o)
 static void cout_nz64(DisasContext *s, DisasOps *o)
 {
     gen_op_update1_cc_i64(s, CC_OP_NZ, o->out);
+}
+
+static void cout_s32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_LTGT0_32, o->out);
+}
+
+static void cout_s64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_LTGT0_64, o->out);
 }
 
 static void cout_subs32(DisasContext *s, DisasOps *o)

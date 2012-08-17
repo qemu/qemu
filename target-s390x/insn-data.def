@@ -126,6 +126,13 @@
     C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
 /* LOAD ADDRESS RELATIVE LONG */
     C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
+/* LOAD AND TEST */
+    C(0x1200, LTR,     RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, s32)
+    C(0xb902, LTGR,    RRE,   Z,   0, r2_o, 0, r1, mov2, s64)
+    C(0xb912, LTGFR,   RRE,   Z,   0, r2_32s, 0, r1, mov2, s64)
+    C(0xe312, LT,      RXY_a, EI,  0, a2, new, r1_32, ld32s, s64)
+    C(0xe302, LTG,     RXY_a, EI,  0, a2, r1, 0, ld64, s64)
+    C(0xe332, LTGF,    RXY_a, GIE, 0, a2, r1, 0, ld32s, s64)
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
