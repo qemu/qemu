@@ -382,12 +382,23 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     usb_packet_check_state(p, USB_PACKET_SETUP);
     assert(p->ep != NULL);
 
+    /* Submitting a new packet clears halt */
+    if (p->ep->halted) {
+        assert(QTAILQ_EMPTY(&p->ep->queue));
+        p->ep->halted = false;
+    }
+
     if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
         ret = usb_process_one(p);
         if (ret == USB_RET_ASYNC) {
             usb_packet_set_state(p, USB_PACKET_ASYNC);
             QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
         } else {
+            /*
+             * When pipelining is enabled usb-devices must always return async,
+             * otherwise packets can complete out of order!
+             */
+            assert(!p->ep->pipeline);
             p->result = ret;
             usb_packet_set_state(p, USB_PACKET_COMPLETE);
         }
@@ -397,6 +408,20 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
         QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
     }
     return ret;
+}
+
+static void __usb_packet_complete(USBDevice *dev, USBPacket *p)
+{
+    USBEndpoint *ep = p->ep;
+
+    assert(p->result != USB_RET_ASYNC && p->result != USB_RET_NAK);
+
+    if (p->result < 0) {
+        ep->halted = true;
+    }
+    usb_packet_set_state(p, USB_PACKET_COMPLETE);
+    QTAILQ_REMOVE(&ep->queue, p, queue);
+    dev->port->ops->complete(dev->port, p);
 }
 
 /* Notify the controller that an async packet is complete.  This should only
@@ -409,11 +434,9 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 
     usb_packet_check_state(p, USB_PACKET_ASYNC);
     assert(QTAILQ_FIRST(&ep->queue) == p);
-    usb_packet_set_state(p, USB_PACKET_COMPLETE);
-    QTAILQ_REMOVE(&ep->queue, p, queue);
-    dev->port->ops->complete(dev->port, p);
+    __usb_packet_complete(dev, p);
 
-    while (!QTAILQ_EMPTY(&ep->queue)) {
+    while (!ep->halted && !QTAILQ_EMPTY(&ep->queue)) {
         p = QTAILQ_FIRST(&ep->queue);
         if (p->state == USB_PACKET_ASYNC) {
             break;
@@ -425,9 +448,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
             break;
         }
         p->result = ret;
-        usb_packet_set_state(p, USB_PACKET_COMPLETE);
-        QTAILQ_REMOVE(&ep->queue, p, queue);
-        dev->port->ops->complete(dev->port, p);
+        __usb_packet_complete(ep->dev, p);
     }
 }
 

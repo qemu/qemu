@@ -179,6 +179,7 @@ struct USBEndpoint {
     uint8_t ifnum;
     int max_packet_size;
     bool pipeline;
+    bool halted;
     USBDevice *dev;
     QTAILQ_HEAD(, USBPacket) queue;
 };
