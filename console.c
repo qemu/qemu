@@ -1087,7 +1087,7 @@ void console_select(unsigned int index)
     if (s) {
         DisplayState *ds = s->ds;
 
-        if (active_console->cursor_timer) {
+        if (active_console && active_console->cursor_timer) {
             qemu_del_timer(active_console->cursor_timer);
         }
         active_console = s;
