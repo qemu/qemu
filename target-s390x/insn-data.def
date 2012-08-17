@@ -49,6 +49,13 @@
     C(0xb980, NGR,     RRE,   Z,   r1, r2, r1, 0, and, nz64)
     C(0xb9e4, NGRK,    RRF_a, DO,  r2, r3, r1, 0, and, nz64)
     C(0xe380, NG,      RXY_a, Z,   r1, m2_64, r1, 0, and, nz64)
+/* AND IMMEDIATE */
+    D(0xc00a, NIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, andi, 0, 0x2020)
+    D(0xc00b, NILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, andi, 0, 0x2000)
+    D(0xa504, NIHH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1030)
+    D(0xa505, NIHL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1020)
+    D(0xa506, NILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1010)
+    D(0xa507, NILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1000)
 
 /* COMPARE */
     C(0x1900, CR,      RR_a,  Z,   r1_o, r2_o, 0, 0, 0, cmps32)
@@ -106,6 +113,17 @@
     C(0xb982, XGR,     RRE,   Z,   r1, r2, r1, 0, xor, nz64)
     C(0xb9e7, XGRK,    RRF_a, DO,  r2, r3, r1, 0, xor, nz64)
     C(0xe382, XG,      RXY_a, Z,   r1, m2_64, r1, 0, xor, nz64)
+/* EXCLUSIVE OR IMMEDIATE */
+    D(0xc006, XIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2020)
+    D(0xc007, XILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2000)
+
+/* INSERT IMMEDIATE */
+    D(0xc008, IIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, insi, 0, 0x2020)
+    D(0xc009, IILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, insi, 0, 0x2000)
+    D(0xa500, IIHH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1030)
+    D(0xa501, IIHL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1020)
+    D(0xa502, IILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1010)
+    D(0xa503, IILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1000)
 
 /* LOAD */
     C(0x1800, LR,      RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, 0)
@@ -223,6 +241,13 @@
     C(0xb981, OGR,     RRE,   Z,   r1, r2, r1, 0, or, nz64)
     C(0xb9e6, OGRK,    RRF_a, DO,  r2, r3, r1, 0, or, nz64)
     C(0xe381, OG,      RXY_a, Z,   r1, m2_64, r1, 0, or, nz64)
+/* OR IMMEDIATE */
+    D(0xc00c, OIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, ori, 0, 0x2020)
+    D(0xc00d, OILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, ori, 0, 0x2000)
+    D(0xa508, OIHH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1030)
+    D(0xa509, OIHL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1020)
+    D(0xa50a, OILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1010)
+    D(0xa50b, OILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, ori, 0, 0x1000)
 
 /* SUBTRACT */
     C(0x1b00, SR,      RR_a,  Z,   r1, r2, new, r1_32, sub, subs32)

@@ -1875,141 +1875,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
     tcg_temp_free_i64(addr);
 }
 
-static void disas_a5(CPUS390XState *env, DisasContext *s, int op, int r1,
-                     int i2)
-{
-    TCGv_i64 tmp, tmp2;
-    TCGv_i32 tmp32;
-    LOG_DISAS("disas_a5: op 0x%x r1 %d i2 0x%x\n", op, r1, i2);
-    switch (op) {
-    case 0x0: /* IIHH     R1,I2     [RI] */
-        tmp = tcg_const_i64(i2);
-        tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 48, 16);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x1: /* IIHL     R1,I2     [RI] */
-        tmp = tcg_const_i64(i2);
-        tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 32, 16);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x2: /* IILH     R1,I2     [RI] */
-        tmp = tcg_const_i64(i2);
-        tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 16, 16);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x3: /* IILL     R1,I2     [RI] */
-        tmp = tcg_const_i64(i2);
-        tcg_gen_deposit_i64(regs[r1], regs[r1], tmp, 0, 16);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x4: /* NIHH     R1,I2     [RI] */
-    case 0x8: /* OIHH     R1,I2     [RI] */
-        tmp = load_reg(r1);
-        tmp32 = tcg_temp_new_i32();
-        switch (op) {
-        case 0x4:
-            tmp2 = tcg_const_i64((((uint64_t)i2) << 48)
-                               | 0x0000ffffffffffffULL);
-            tcg_gen_and_i64(tmp, tmp, tmp2);
-            break;
-        case 0x8:
-            tmp2 = tcg_const_i64(((uint64_t)i2) << 48);
-            tcg_gen_or_i64(tmp, tmp, tmp2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg(r1, tmp);
-        tcg_gen_shri_i64(tmp2, tmp, 48);
-        tcg_gen_trunc_i64_i32(tmp32, tmp2);
-        set_cc_nz_u32(s, tmp32);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x5: /* NIHL     R1,I2     [RI] */
-    case 0x9: /* OIHL     R1,I2     [RI] */
-        tmp = load_reg(r1);
-        tmp32 = tcg_temp_new_i32();
-        switch (op) {
-        case 0x5:
-            tmp2 = tcg_const_i64((((uint64_t)i2) << 32)
-                               | 0xffff0000ffffffffULL);
-            tcg_gen_and_i64(tmp, tmp, tmp2);
-            break;
-        case 0x9:
-            tmp2 = tcg_const_i64(((uint64_t)i2) << 32);
-            tcg_gen_or_i64(tmp, tmp, tmp2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg(r1, tmp);
-        tcg_gen_shri_i64(tmp2, tmp, 32);
-        tcg_gen_trunc_i64_i32(tmp32, tmp2);
-        tcg_gen_andi_i32(tmp32, tmp32, 0xffff);
-        set_cc_nz_u32(s, tmp32);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x6: /* NILH     R1,I2     [RI] */
-    case 0xa: /* OILH     R1,I2     [RI] */
-        tmp = load_reg(r1);
-        tmp32 = tcg_temp_new_i32();
-        switch (op) {
-        case 0x6:
-            tmp2 = tcg_const_i64((((uint64_t)i2) << 16)
-                               | 0xffffffff0000ffffULL);
-            tcg_gen_and_i64(tmp, tmp, tmp2);
-            break;
-        case 0xa:
-            tmp2 = tcg_const_i64(((uint64_t)i2) << 16);
-            tcg_gen_or_i64(tmp, tmp, tmp2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg(r1, tmp);
-        tcg_gen_shri_i64(tmp, tmp, 16);
-        tcg_gen_trunc_i64_i32(tmp32, tmp);
-        tcg_gen_andi_i32(tmp32, tmp32, 0xffff);
-        set_cc_nz_u32(s, tmp32);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x7: /* NILL     R1,I2     [RI] */
-    case 0xb: /* OILL     R1,I2     [RI] */
-        tmp = load_reg(r1);
-        tmp32 = tcg_temp_new_i32();
-        switch (op) {
-        case 0x7:
-            tmp2 = tcg_const_i64(i2 | 0xffffffffffff0000ULL);
-            tcg_gen_and_i64(tmp, tmp, tmp2);
-            break;
-        case 0xb:
-            tmp2 = tcg_const_i64(i2);
-            tcg_gen_or_i64(tmp, tmp, tmp2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg(r1, tmp);
-        tcg_gen_trunc_i64_i32(tmp32, tmp);
-        tcg_gen_andi_i32(tmp32, tmp32, 0xffff);
-        set_cc_nz_u32(s, tmp32);        /* signedness should not matter here */
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32);
-        tcg_temp_free_i64(tmp);
-        break;
-    default:
-        LOG_DISAS("illegal a5 operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        return;
-    }
-}
-
 static void disas_a7(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int i2)
 {
@@ -2918,44 +2783,6 @@ static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2
         gen_goto_tb(s, 0, target);
         s->is_jmp = DISAS_TB_JUMP;
         break;
-    case 0x7: /* XILF R1,I2 [RIL] */
-    case 0xb: /* NILF R1,I2 [RIL] */
-    case 0xd: /* OILF R1,I2 [RIL] */
-        tmp32_1 = load_reg32(r1);
-        switch (op) {
-        case 0x7:
-            tcg_gen_xori_i32(tmp32_1, tmp32_1, (uint32_t)i2);
-            break;
-        case 0xb:
-            tcg_gen_andi_i32(tmp32_1, tmp32_1, (uint32_t)i2);
-            break;
-        case 0xd:
-            tcg_gen_ori_i32(tmp32_1, tmp32_1, (uint32_t)i2);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg32(r1, tmp32_1);
-        set_cc_nz_u32(s, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x9: /* IILF R1,I2 [RIL] */
-        tmp32_1 = tcg_const_i32((uint32_t)i2);
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0xa: /* NIHF R1,I2 [RIL] */
-        tmp = load_reg(r1);
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_andi_i64(tmp, tmp, (((uint64_t)((uint32_t)i2)) << 32)
-                                   | 0xffffffffULL);
-        store_reg(r1, tmp);
-        tcg_gen_shri_i64(tmp, tmp, 32);
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp);
-        set_cc_nz_u32(s, tmp32_1);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     default:
         LOG_DISAS("illegal c0 operation 0x%x\n", op);
         gen_illegal_opcode(s);
@@ -3486,13 +3313,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0xa5:
-        insn = ld_code4(env, s->pc);
-        r1 = (insn >> 20) & 0xf;
-        op = (insn >> 16) & 0xf;
-        i2 = insn & 0xffff;
-        disas_a5(env, s, op, r1, i2);
         break;
     case 0xa7:
         insn = ld_code4(env, s->pc);
@@ -4112,6 +3932,31 @@ static ExitStatus op_and(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_andi(DisasContext *s, DisasOps *o)
+{
+    int shift = s->insn->data & 0xff;
+    int size = s->insn->data >> 8;
+    uint64_t mask = ((1ull << size) - 1) << shift;
+
+    assert(!o->g_in2);
+    tcg_gen_shli_i64(o->in2, o->in2, shift);
+    tcg_gen_ori_i64(o->in2, o->in2, ~mask);
+    tcg_gen_and_i64(o->out, o->in1, o->in2);
+
+    /* Produce the CC from only the bits manipulated.  */
+    tcg_gen_andi_i64(cc_dst, o->out, mask);
+    set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
+static ExitStatus op_insi(DisasContext *s, DisasOps *o)
+{
+    int shift = s->insn->data & 0xff;
+    int size = s->insn->data >> 8;
+    tcg_gen_deposit_i64(o->out, o->in1, o->in2, shift, size);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ld8s(DisasContext *s, DisasOps *o)
 {
     tcg_gen_qemu_ld8s(o->out, o->in2, get_mem_index(s));
@@ -4194,6 +4039,22 @@ static ExitStatus op_or(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_ori(DisasContext *s, DisasOps *o)
+{
+    int shift = s->insn->data & 0xff;
+    int size = s->insn->data >> 8;
+    uint64_t mask = ((1ull << size) - 1) << shift;
+
+    assert(!o->g_in2);
+    tcg_gen_shli_i64(o->in2, o->in2, shift);
+    tcg_gen_or_i64(o->out, o->in1, o->in2);
+
+    /* Produce the CC from only the bits manipulated.  */
+    tcg_gen_andi_i64(cc_dst, o->out, mask);
+    set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
 static ExitStatus op_sub(DisasContext *s, DisasOps *o)
 {
     tcg_gen_sub_i64(o->out, o->in1, o->in2);
@@ -4203,6 +4064,22 @@ static ExitStatus op_sub(DisasContext *s, DisasOps *o)
 static ExitStatus op_xor(DisasContext *s, DisasOps *o)
 {
     tcg_gen_xor_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_xori(DisasContext *s, DisasOps *o)
+{
+    int shift = s->insn->data & 0xff;
+    int size = s->insn->data >> 8;
+    uint64_t mask = ((1ull << size) - 1) << shift;
+
+    assert(!o->g_in2);
+    tcg_gen_shli_i64(o->in2, o->in2, shift);
+    tcg_gen_xor_i64(o->out, o->in1, o->in2);
+
+    /* Produce the CC from only the bits manipulated.  */
+    tcg_gen_andi_i64(cc_dst, o->out, mask);
+    set_cc_nz_u64(s, cc_dst);
     return NO_EXIT;
 }
 
