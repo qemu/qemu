@@ -126,11 +126,41 @@
     C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
 /* LOAD ADDRESS RELATIVE LONG */
     C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
+/* LOAD BYTE */
+    C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
+    C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
+    C(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld8s, 0)
+    C(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld8s, 0)
+/* LOAD HALFWORD */
+    C(0xb927, LHR,     RRE,   EI,  0, r2_16s, 0, r1_32, mov2, 0)
+    C(0xb907, LGHR,    RRE,   EI,  0, r2_16s, 0, r1, mov2, 0)
+    C(0x4800, LH,      RX_a,  Z,   0, a2, new, r1_32, ld16s, 0)
+    C(0xe378, LHY,     RXY_a, LD,  0, a2, new, r1_32, ld16s, 0)
+    C(0xe315, LGH,     RXY_a, Z,   0, a2, r1, 0, ld16s, 0)
+/* LOAD HALFWORD IMMEDIATE */
+    C(0xa708, LHI,     RI_a,  Z,   0, i2, 0, r1_32, mov2, 0)
+    C(0xa709, LGHI,    RI_a,  Z,   0, i2, 0, r1, mov2, 0)
+/* LOAD HALFWORD RELATIVE LONG */
+    C(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld16s, 0)
+    C(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld16s, 0)
 /* LOAD LOGICAL */
     C(0xb916, LLGFR,   RRE,   Z,   0, r2_32u, 0, r1, mov2, 0)
     C(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld32u, 0)
 /* LOAD LOGICAL RELATIVE LONG */
     C(0xc40e, LLGFRL,  RIL_b, GIE, 0, ri2, r1, 0, ld32u, 0)
+/* LOAD LOGICAL CHARACTER */
+    C(0xb994, LLCR,    RRE,   EI,  0, r2_8u, 0, r1_32, mov2, 0)
+    C(0xb984, LLGCR,   RRE,   EI,  0, r2_8u, 0, r1, mov2, 0)
+    C(0xe394, LLC,     RXY_a, EI,  0, a2, new, r1_32, ld8u, 0)
+    C(0xe390, LLGC,    RXY_a, Z,   0, a2, r1, 0, ld8u, 0)
+/* LOAD LOGICAL HALFWORD */
+    C(0xb995, LLHR,    RRE,   EI,  0, r2_16u, 0, r1_32, mov2, 0)
+    C(0xb985, LLGHR,   RRE,   EI,  0, r2_16u, 0, r1, mov2, 0)
+    C(0xe395, LLH,     RXY_a, EI,  0, a2, new, r1_32, ld16u, 0)
+    C(0xe391, LLGH,    RXY_a, Z,   0, a2, r1, 0, ld16u, 0)
+/* LOAD LOGICAL HALFWORD RELATIVE LONG */
+    C(0xc402, LLHRL,   RIL_b, GIE, 0, ri2, new, r1_32, ld16u, 0)
+    C(0xc406, LLGHRL,  RIL_b, GIE, 0, ri2, r1, 0, ld16u, 0)
 
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
