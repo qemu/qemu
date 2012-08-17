@@ -2084,19 +2084,11 @@ out:
 static int ehci_state_executing(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
-    int again = 0;
 
     assert(p != NULL);
     assert(p->qtdaddr == q->qtdaddr);
 
     ehci_execute_complete(q);
-    if (p->usb_status == USB_RET_ASYNC) {
-        goto out;
-    }
-    if (p->usb_status == USB_RET_PROCERR) {
-        again = -1;
-        goto out;
-    }
 
     // 4.10.3
     if (!q->async) {
@@ -2114,11 +2106,8 @@ static int ehci_state_executing(EHCIQueue *q)
         ehci_set_state(q->ehci, q->async, EST_WRITEBACK);
     }
 
-    again = 1;
-
-out:
     ehci_flush_qh(q);
-    return again;
+    return 1;
 }
 
 
