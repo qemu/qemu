@@ -45,8 +45,6 @@
 #define MAXPORTS (USB2_PORTS+USB3_PORTS)
 
 #define TD_QUEUE 24
-#define BG_XFERS 8
-#define BG_PKTS 8
 
 /* Very pessimistic, let's hope it's enough for all cases */
 #define EV_QUEUE (((3*TD_QUEUE)+16)*MAXSLOTS)
@@ -311,13 +309,11 @@ typedef struct XHCITransfer {
     bool running_retry;
     bool cancelled;
     bool complete;
-    bool backgrounded;
     unsigned int iso_pkts;
     unsigned int slotid;
     unsigned int epid;
     bool in_xfer;
     bool iso_xfer;
-    bool bg_xfer;
 
     unsigned int trb_count;
     unsigned int trb_alloced;
@@ -340,14 +336,9 @@ typedef struct XHCIEPContext {
     unsigned int comp_xfer;
     XHCITransfer transfers[TD_QUEUE];
     XHCITransfer *retry;
-    bool bg_running;
-    bool bg_updating;
-    unsigned int next_bg;
-    XHCITransfer bg_transfers[BG_XFERS];
     EPType type;
     dma_addr_t pctx;
     unsigned int max_psize;
-    bool has_bg;
     uint32_t state;
 } XHCIEPContext;
 
@@ -866,10 +857,6 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     epctx->pctx = pctx;
     epctx->max_psize = ctx[1]>>16;
     epctx->max_psize *= 1+((ctx[1]>>8)&0xff);
-    epctx->has_bg = false;
-    if (epctx->type == ET_ISO_IN) {
-        epctx->has_bg = true;
-    }
     DPRINTF("xhci: endpoint %d.%d max transaction (burst) size is %d\n",
             epid/2, epid%2, epctx->max_psize);
     for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
@@ -916,9 +903,6 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
             t->running_retry = 0;
             epctx->retry = NULL;
         }
-        if (t->backgrounded) {
-            t->backgrounded = 0;
-        }
         if (t->trbs) {
             g_free(t->trbs);
         }
@@ -931,25 +915,6 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
         t->trb_count = t->trb_alloced = 0;
         t->data_length = t->data_alloced = 0;
         xferi = (xferi + 1) % TD_QUEUE;
-    }
-    if (epctx->has_bg) {
-        xferi = epctx->next_bg;
-        for (i = 0; i < BG_XFERS; i++) {
-            XHCITransfer *t = &epctx->bg_transfers[xferi];
-            if (t->running_async) {
-                usb_cancel_packet(&t->packet);
-                t->running_async = 0;
-                t->cancelled = 1;
-                DPRINTF("xhci: cancelling bg transfer %d, waiting for it to complete...\n", i);
-                killed++;
-            }
-            if (t->data) {
-                g_free(t->data);
-            }
-
-            t->data = NULL;
-            xferi = (xferi + 1) % BG_XFERS;
-        }
     }
     return killed;
 }
@@ -1231,160 +1196,6 @@ static void xhci_stall_ep(XHCITransfer *xfer)
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer,
                        XHCIEPContext *epctx);
 
-static void xhci_bg_update(XHCIState *xhci, XHCIEPContext *epctx)
-{
-    if (epctx->bg_updating) {
-        return;
-    }
-    DPRINTF("xhci_bg_update(%p, %p)\n", xhci, epctx);
-    assert(epctx->has_bg);
-    DPRINTF("xhci: fg=%d bg=%d\n", epctx->comp_xfer, epctx->next_bg);
-    epctx->bg_updating = 1;
-    while (epctx->transfers[epctx->comp_xfer].backgrounded &&
-           epctx->bg_transfers[epctx->next_bg].complete) {
-        XHCITransfer *fg = &epctx->transfers[epctx->comp_xfer];
-        XHCITransfer *bg = &epctx->bg_transfers[epctx->next_bg];
-#if 0
-        DPRINTF("xhci: completing fg %d from bg %d.%d (stat: %d)\n",
-                epctx->comp_xfer, epctx->next_bg, bg->cur_pkt,
-                bg->usbxfer->iso_packet_desc[bg->cur_pkt].status
-               );
-#endif
-        assert(epctx->type == ET_ISO_IN);
-        assert(bg->iso_xfer);
-        assert(bg->in_xfer);
-        uint8_t *p = bg->data + bg->cur_pkt * bg->pktsize;
-#if 0
-        int len = bg->usbxfer->iso_packet_desc[bg->cur_pkt].actual_length;
-        fg->status = libusb_to_ccode(bg->usbxfer->iso_packet_desc[bg->cur_pkt].status);
-#else
-        int len = 0;
-        FIXME();
-#endif
-        fg->complete = 1;
-        fg->backgrounded = 0;
-
-        if (fg->status == CC_STALL_ERROR) {
-            xhci_stall_ep(fg);
-        }
-
-        xhci_xfer_data(fg, p, len, 1, 0, 1);
-
-        epctx->comp_xfer++;
-        if (epctx->comp_xfer == TD_QUEUE) {
-            epctx->comp_xfer = 0;
-        }
-        DPRINTF("next fg xfer: %d\n", epctx->comp_xfer);
-        bg->cur_pkt++;
-        if (bg->cur_pkt == bg->pkts) {
-            bg->complete = 0;
-            if (xhci_submit(xhci, bg, epctx) < 0) {
-                fprintf(stderr, "xhci: bg resubmit failed\n");
-            }
-            epctx->next_bg++;
-            if (epctx->next_bg == BG_XFERS) {
-                epctx->next_bg = 0;
-            }
-            DPRINTF("next bg xfer: %d\n", epctx->next_bg);
-
-        xhci_kick_ep(xhci, fg->slotid, fg->epid);
-        }
-    }
-    epctx->bg_updating = 0;
-}
-
-#if 0
-static void xhci_xfer_cb(struct libusb_transfer *transfer)
-{
-    XHCIState *xhci;
-    XHCITransfer *xfer;
-
-    xfer = (XHCITransfer *)transfer->user_data;
-    xhci = xfer->xhci;
-
-    DPRINTF("xhci_xfer_cb(slot=%d, ep=%d, status=%d)\n", xfer->slotid,
-            xfer->epid, transfer->status);
-
-    assert(xfer->slotid >= 1 && xfer->slotid <= MAXSLOTS);
-    assert(xfer->epid >= 1 && xfer->epid <= 31);
-
-    if (xfer->cancelled) {
-        DPRINTF("xhci: transfer cancelled, not reporting anything\n");
-        xfer->running = 0;
-        return;
-    }
-
-    XHCIEPContext *epctx;
-    XHCISlot *slot;
-    slot = &xhci->slots[xfer->slotid-1];
-    assert(slot->eps[xfer->epid-1]);
-    epctx = slot->eps[xfer->epid-1];
-
-    if (xfer->bg_xfer) {
-        DPRINTF("xhci: background transfer, updating\n");
-        xfer->complete = 1;
-        xfer->running = 0;
-        xhci_bg_update(xhci, epctx);
-        return;
-    }
-
-    if (xfer->iso_xfer) {
-        transfer->status = transfer->iso_packet_desc[0].status;
-        transfer->actual_length = transfer->iso_packet_desc[0].actual_length;
-    }
-
-    xfer->status = libusb_to_ccode(transfer->status);
-
-    xfer->complete = 1;
-    xfer->running = 0;
-
-    if (transfer->status == LIBUSB_TRANSFER_STALL)
-        xhci_stall_ep(xhci, epctx, xfer);
-
-    DPRINTF("xhci: transfer actual length = %d\n", transfer->actual_length);
-
-    if (xfer->in_xfer) {
-        if (xfer->epid == 1) {
-            xhci_xfer_data(xhci, xfer, xfer->data + 8,
-                           transfer->actual_length, 1, 0, 1);
-        } else {
-            xhci_xfer_data(xhci, xfer, xfer->data,
-                           transfer->actual_length, 1, 0, 1);
-        }
-    } else {
-        xhci_xfer_data(xhci, xfer, NULL, transfer->actual_length, 0, 0, 1);
-    }
-
-    xhci_kick_ep(xhci, xfer->slotid, xfer->epid);
-}
-
-static int xhci_hle_control(XHCIState *xhci, XHCITransfer *xfer,
-                            uint8_t bmRequestType, uint8_t bRequest,
-                            uint16_t wValue, uint16_t wIndex, uint16_t wLength)
-{
-    uint16_t type_req = (bmRequestType << 8) | bRequest;
-
-    switch (type_req) {
-        case 0x0000 | USB_REQ_SET_CONFIGURATION:
-            DPRINTF("xhci: HLE switch configuration\n");
-            return xhci_switch_config(xhci, xfer->slotid, wValue) == 0;
-        case 0x0100 | USB_REQ_SET_INTERFACE:
-            DPRINTF("xhci: HLE set interface altsetting\n");
-            return xhci_set_iface_alt(xhci, xfer->slotid, wIndex, wValue) == 0;
-        case 0x0200 | USB_REQ_CLEAR_FEATURE:
-            if (wValue == 0) { // endpoint halt
-                DPRINTF("xhci: HLE clear halt\n");
-                return xhci_clear_halt(xhci, xfer->slotid, wIndex);
-            }
-        case 0x0000 | USB_REQ_SET_ADDRESS:
-            fprintf(stderr, "xhci: warn: illegal SET_ADDRESS request\n");
-            return 0;
-        default:
-            return 0;
-    }
-}
-#endif
-
 static int xhci_setup_packet(XHCITransfer *xfer, USBDevice *dev)
 {
     USBEndpoint *ep;
@@ -1559,9 +1370,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         xfer->data_alloced = xfer->data_length;
     }
     if (epctx->type == ET_ISO_IN || epctx->type == ET_ISO_OUT) {
-        if (!xfer->bg_xfer) {
-            xfer->pkts = 1;
-        }
+        xfer->pkts = 1;
     } else {
         xfer->pkts = 0;
     }
@@ -1620,32 +1429,8 @@ static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext
 
     trace_usb_xhci_xfer_start(xfer, xfer->slotid, xfer->epid, length);
 
-    if (!epctx->has_bg) {
-        xfer->data_length = length;
-        xfer->backgrounded = 0;
-        return xhci_submit(xhci, xfer, epctx);
-    } else {
-        if (!epctx->bg_running) {
-            for (i = 0; i < BG_XFERS; i++) {
-                XHCITransfer *t = &epctx->bg_transfers[i];
-                t->xhci = xhci;
-                t->epid = xfer->epid;
-                t->slotid = xfer->slotid;
-                t->pkts = BG_PKTS;
-                t->pktsize = epctx->max_psize;
-                t->data_length = t->pkts * t->pktsize;
-                t->bg_xfer = 1;
-                if (xhci_submit(xhci, t, epctx) < 0) {
-                    fprintf(stderr, "xhci: bg submit failed\n");
-                    return -1;
-                }
-            }
-            epctx->bg_running = 1;
-        }
-        xfer->backgrounded = 1;
-        xhci_bg_update(xhci, epctx);
-        return 0;
-    }
+    xfer->data_length = length;
+    return xhci_submit(xhci, xfer, epctx);
 }
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid)
@@ -1695,7 +1480,7 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
 
     while (1) {
         XHCITransfer *xfer = &epctx->transfers[epctx->next_xfer];
-        if (xfer->running_async || xfer->running_retry || xfer->backgrounded) {
+        if (xfer->running_async || xfer->running_retry) {
             break;
         }
         length = xhci_ring_chain_length(xhci, &epctx->ring);
