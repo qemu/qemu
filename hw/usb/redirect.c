@@ -1028,11 +1028,14 @@ static int usbredir_handle_status(USBRedirDevice *dev,
     case usb_redir_stall:
         return USB_RET_STALL;
     case usb_redir_cancelled:
-        WARNING("returning cancelled packet to HC?\n");
-        return USB_RET_NAK;
+        /*
+         * When the usbredir-host unredirects a device, it will report a status
+         * of cancelled for all pending packets, followed by a disconnect msg.
+         */
+        return USB_RET_IOERROR;
     case usb_redir_inval:
         WARNING("got invalid param error from usb-host?\n");
-        return USB_RET_NAK;
+        return USB_RET_IOERROR;
     case usb_redir_babble:
         return USB_RET_BABBLE;
     case usb_redir_ioerror:
