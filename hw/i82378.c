@@ -225,7 +225,6 @@ static int pci_i82378_init(PCIDevice *dev)
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->io);
 
     memory_region_init_io(&s->mem, &i82378_mem_ops, s, "i82378-mem", 0x01000000);
-    memory_region_set_coalescing(&s->mem);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     /* Make I/O address read only */
