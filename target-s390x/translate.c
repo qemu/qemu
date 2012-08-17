@@ -2033,26 +2033,6 @@ static void disas_a5(CPUS390XState *env, DisasContext *s, int op, int r1,
         tcg_temp_free_i32(tmp32);
         tcg_temp_free_i64(tmp);
         break;
-    case 0xc: /* LLIHH     R1,I2     [RI] */
-        tmp = tcg_const_i64( ((uint64_t)i2) << 48 );
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0xd: /* LLIHL     R1,I2     [RI] */
-        tmp = tcg_const_i64( ((uint64_t)i2) << 32 );
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0xe: /* LLILH     R1,I2     [RI] */
-        tmp = tcg_const_i64( ((uint64_t)i2) << 16 );
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0xf: /* LLILL     R1,I2     [RI] */
-        tmp = tcg_const_i64(i2);
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
     default:
         LOG_DISAS("illegal a5 operation 0x%x\n", op);
         gen_illegal_opcode(s);
@@ -3042,16 +3022,6 @@ static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2
         set_cc_nz_u32(s, tmp32_1);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0xe: /* LLIHF R1,I2 [RIL] */
-        tmp = tcg_const_i64(((uint64_t)(uint32_t)i2) << 32);
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0xf: /* LLILF R1,I2 [RIL] */
-        tmp = tcg_const_i64((uint32_t)i2);
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
         break;
     default:
         LOG_DISAS("illegal c0 operation 0x%x\n", op);
@@ -4692,6 +4662,18 @@ static void in2_i2_16u(DisasContext *s, DisasFields *f, DisasOps *o)
 static void in2_i2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_const_i64((uint32_t)get_field(f, i2));
+}
+
+static void in2_i2_16u_shl(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    uint64_t i2 = (uint16_t)get_field(f, i2);
+    o->in2 = tcg_const_i64(i2 << s->insn->data);
+}
+
+static void in2_i2_32u_shl(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    uint64_t i2 = (uint32_t)get_field(f, i2);
+    o->in2 = tcg_const_i64(i2 << s->insn->data);
 }
 
 /* ====================================================================== */
