@@ -570,40 +570,10 @@ static void set_cc_addu64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2,
     gen_op_update3_cc_i64(s, CC_OP_ADDU_64, v1, v2, vr);
 }
 
-static void set_cc_abs64(DisasContext *s, TCGv_i64 v1)
-{
-    gen_op_update1_cc_i64(s, CC_OP_ABS_64, v1);
-}
-
-static void set_cc_nabs64(DisasContext *s, TCGv_i64 v1)
-{
-    gen_op_update1_cc_i64(s, CC_OP_NABS_64, v1);
-}
-
 static void set_cc_addu32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2,
                           TCGv_i32 vr)
 {
     gen_op_update3_cc_i32(s, CC_OP_ADDU_32, v1, v2, vr);
-}
-
-static void set_cc_abs32(DisasContext *s, TCGv_i32 v1)
-{
-    gen_op_update1_cc_i32(s, CC_OP_ABS_32, v1);
-}
-
-static void set_cc_nabs32(DisasContext *s, TCGv_i32 v1)
-{
-    gen_op_update1_cc_i32(s, CC_OP_NABS_32, v1);
-}
-
-static void set_cc_comp32(DisasContext *s, TCGv_i32 v1)
-{
-    gen_op_update1_cc_i32(s, CC_OP_COMP_32, v1);
-}
-
-static void set_cc_comp64(DisasContext *s, TCGv_i64 v1)
-{
-    gen_op_update1_cc_i64(s, CC_OP_COMP_64, v1);
 }
 
 static void set_cc_icm(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2)
@@ -2779,43 +2749,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
 
     LOG_DISAS("disas_b9: op 0x%x r1 %d r2 %d\n", op, r1, r2);
     switch (op) {
-    case 0x0: /* LPGR     R1,R2     [RRE] */
-    case 0x1: /* LNGR     R1,R2     [RRE] */
-    case 0x2: /* LTGR R1,R2 [RRE] */
-    case 0x3: /* LCGR     R1,R2     [RRE] */
-    case 0x10: /* LPGFR R1,R2 [RRE] */
-    case 0x11: /* LNFGR     R1,R2     [RRE] */
-    case 0x12: /* LTGFR R1,R2 [RRE] */
-    case 0x13: /* LCGFR    R1,R2     [RRE] */
-        if (op & 0x10) {
-            tmp = load_reg32_i64(r2);
-        } else {
-            tmp = load_reg(r2);
-        }
-        switch (op & 0xf) {
-        case 0x0: /* LP?GR */
-            set_cc_abs64(s, tmp);
-            gen_helper_abs_i64(tmp, tmp);
-            store_reg(r1, tmp);
-            break;
-        case 0x1: /* LN?GR */
-            set_cc_nabs64(s, tmp);
-            gen_helper_nabs_i64(tmp, tmp);
-            store_reg(r1, tmp);
-            break;
-        case 0x2: /* LT?GR */
-            if (r1 != r2) {
-                store_reg(r1, tmp);
-            }
-            set_cc_s64(s, tmp);
-            break;
-        case 0x3: /* LC?GR */
-            tcg_gen_neg_i64(regs[r1], tmp);
-            set_cc_comp64(s, regs[r1]);
-            break;
-        }
-        tcg_temp_free_i64(tmp);
-        break;
     case 0xd: /* DSGR      R1,R2     [RRE] */
     case 0x1d: /* DSGFR      R1,R2     [RRE] */
         tmp = load_reg(r1 + 1);
@@ -3126,33 +3059,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x10: /* LPR    R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r2);
-        set_cc_abs32(s, tmp32_1);
-        gen_helper_abs_i32(tmp32_1, tmp32_1);
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x11: /* LNR    R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r2);
-        set_cc_nabs32(s, tmp32_1);
-        gen_helper_nabs_i32(tmp32_1, tmp32_1);
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x13: /* LCR    R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r2);
-        tcg_gen_neg_i32(tmp32_1, tmp32_1);
-        store_reg32(r1, tmp32_1);
-        set_cc_comp32(s, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
         break;
     case 0x1d: /* DR     R1,R2               [RR] */
         insn = ld_code2(env, s->pc);
@@ -4188,6 +4094,12 @@ struct DisasInsn {
 /* The operations.  These perform the bulk of the work for any insn,
    usually after the operands have been loaded and output initialized.  */
 
+static ExitStatus op_abs(DisasContext *s, DisasOps *o)
+{
+    gen_helper_abs_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_add(DisasContext *s, DisasOps *o)
 {
     tcg_gen_add_i64(o->out, o->in1, o->in2);
@@ -4264,6 +4176,18 @@ static ExitStatus op_mul128(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_nabs(DisasContext *s, DisasOps *o)
+{
+    gen_helper_nabs_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_neg(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_neg_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_or(DisasContext *s, DisasOps *o)
 {
     tcg_gen_or_i64(o->out, o->in1, o->in2);
@@ -4286,6 +4210,16 @@ static ExitStatus op_xor(DisasContext *s, DisasOps *o)
 /* The "Cc OUTput" generators.  Given the generated output (and in some cases
    the original inputs), update the various cc data structures in order to
    be able to compute the new condition code.  */
+
+static void cout_abs32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_ABS_32, o->out);
+}
+
+static void cout_abs64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_ABS_64, o->out);
+}
 
 static void cout_adds32(DisasContext *s, DisasOps *o)
 {
@@ -4325,6 +4259,26 @@ static void cout_cmpu32(DisasContext *s, DisasOps *o)
 static void cout_cmpu64(DisasContext *s, DisasOps *o)
 {
     gen_op_update2_cc_i64(s, CC_OP_LTUGTU_64, o->in1, o->in2);
+}
+
+static void cout_nabs32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_NABS_32, o->out);
+}
+
+static void cout_nabs64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_NABS_64, o->out);
+}
+
+static void cout_neg32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_COMP_32, o->out);
+}
+
+static void cout_neg64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_COMP_64, o->out);
 }
 
 static void cout_nz32(DisasContext *s, DisasOps *o)

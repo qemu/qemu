@@ -138,6 +138,10 @@
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
     C(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld8s, 0)
     C(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld8s, 0)
+/* LOAD COMPLEMENT */
+    C(0x1300, LCR,     RR_a,  Z,   0, r2, new, r1_32, neg, neg32)
+    C(0xb903, LCGR,    RRE,   Z,   0, r2, r1, 0, neg, neg64)
+    C(0xb913, LCGFR,   RRE,   Z,   0, r2_32s, r1, 0, neg, neg64)
 /* LOAD HALFWORD */
     C(0xb927, LHR,     RRE,   EI,  0, r2_16s, 0, r1_32, mov2, 0)
     C(0xb907, LGHR,    RRE,   EI,  0, r2_16s, 0, r1, mov2, 0)
@@ -175,6 +179,14 @@
     D(0xa50d, LLIHL,   RI_a,  Z,  0, i2_16u_shl, 0, r1, mov2, 0, 32)
     D(0xa50e, LLILH,   RI_a,  Z,  0, i2_16u_shl, 0, r1, mov2, 0, 16)
     D(0xa50f, LLILL,   RI_a,  Z,  0, i2_16u_shl, 0, r1, mov2, 0, 0)
+/* LOAD NEGATIVE */
+    C(0x1100, LNR,     RR_a,  Z,   0, r2_32s, new, r1_32, nabs, nabs32)
+    C(0xb901, LNGR,    RRE,   Z,   0, r2, r1, 0, nabs, nabs64)
+    C(0xb911, LNGFR,   RRE,   Z,   0, r2_32s, r1, 0, nabs, nabs64)
+/* LOAD POSITIVE */
+    C(0x1000, LPR,     RR_a,  Z,   0, r2_32s, new, r1_32, abs, abs32)
+    C(0xb900, LPGR,    RRE,   Z,   0, r2, r1, 0, abs, abs64)
+    C(0xb910, LPGFR,   RRE,   Z,   0, r2_32s, r1, 0, abs, abs64)
 
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
