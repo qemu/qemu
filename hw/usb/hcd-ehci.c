@@ -1481,10 +1481,6 @@ static void ehci_execute_complete(EHCIQueue *q)
             assert(0);
             break;
         }
-    } else if ((p->usb_status > p->tbytes) && (p->pid == USB_TOKEN_IN)) {
-        p->usb_status = USB_RET_BABBLE;
-        q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_BABBLE);
-        ehci_raise_irq(q->ehci, USBSTS_ERRINT);
     } else {
         // TODO check 4.12 for splits
 

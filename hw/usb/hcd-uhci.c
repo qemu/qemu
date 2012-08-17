@@ -729,11 +729,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
         *int_mask |= 0x01;
 
     if (pid == USB_TOKEN_IN) {
-        if (len > max_len) {
-            ret = USB_RET_BABBLE;
-            goto out;
-        }
-
         if ((td->ctrl & TD_CTRL_SPD) && len < max_len) {
             *int_mask |= 0x02;
             /* short packet: do not update QH */
