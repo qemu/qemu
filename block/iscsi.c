@@ -73,6 +73,34 @@ struct IscsiTask {
 };
 
 static void
+iscsi_readv_writev_bh_cb(void *p)
+{
+    IscsiAIOCB *acb = p;
+
+    qemu_bh_delete(acb->bh);
+
+    if (acb->canceled == 0) {
+        acb->common.cb(acb->common.opaque, acb->status);
+    }
+
+    qemu_aio_release(acb);
+}
+
+static int
+iscsi_schedule_bh(QEMUBHFunc *cb, IscsiAIOCB *acb)
+{
+    acb->bh = qemu_bh_new(cb, acb);
+    if (!acb->bh) {
+        error_report("oom: could not create iscsi bh");
+        return -EIO;
+    }
+
+    qemu_bh_schedule(acb->bh);
+    return 0;
+}
+
+
+static void
 iscsi_abort_task_cb(struct iscsi_context *iscsi, int status, void *command_data,
                     void *private_data)
 {
@@ -156,34 +184,6 @@ iscsi_process_write(void *arg)
 
     iscsi_service(iscsi, POLLOUT);
     iscsi_set_events(iscsilun);
-}
-
-
-static int
-iscsi_schedule_bh(QEMUBHFunc *cb, IscsiAIOCB *acb)
-{
-    acb->bh = qemu_bh_new(cb, acb);
-    if (!acb->bh) {
-        error_report("oom: could not create iscsi bh");
-        return -EIO;
-    }
-
-    qemu_bh_schedule(acb->bh);
-    return 0;
-}
-
-static void
-iscsi_readv_writev_bh_cb(void *p)
-{
-    IscsiAIOCB *acb = p;
-
-    qemu_bh_delete(acb->bh);
-
-    if (acb->canceled == 0) {
-        acb->common.cb(acb->common.opaque, acb->status);
-    }
-
-    qemu_aio_release(acb);
 }
 
 
