@@ -2570,11 +2570,11 @@ FdsetInfoList *qmp_query_fdsets(Error **errp)
 
 int monitor_fdset_get_fd(int64_t fdset_id, int flags)
 {
+#ifndef _WIN32
     MonFdset *mon_fdset;
     MonFdsetFd *mon_fdset_fd;
     int mon_fd_flags;
 
-#ifndef _WIN32
     QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
         if (mon_fdset->id != fdset_id) {
             continue;
