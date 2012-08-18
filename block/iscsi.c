@@ -66,7 +66,7 @@ struct IscsiTask {
 };
 
 static void
-iscsi_readv_writev_bh_cb(void *p)
+iscsi_bh_cb(void *p)
 {
     IscsiAIOCB *acb = p;
 
@@ -79,17 +79,11 @@ iscsi_readv_writev_bh_cb(void *p)
     qemu_aio_release(acb);
 }
 
-static int
-iscsi_schedule_bh(QEMUBHFunc *cb, IscsiAIOCB *acb)
+static void
+iscsi_schedule_bh(IscsiAIOCB *acb)
 {
-    acb->bh = qemu_bh_new(cb, acb);
-    if (!acb->bh) {
-        error_report("oom: could not create iscsi bh");
-        return -EIO;
-    }
-
+    acb->bh = qemu_bh_new(iscsi_bh_cb, acb);
     qemu_bh_schedule(acb->bh);
-    return 0;
 }
 
 
@@ -204,7 +198,7 @@ iscsi_aio_write16_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
     scsi_free_scsi_task(acb->task);
     acb->task = NULL;
 }
@@ -306,7 +300,7 @@ iscsi_aio_read16_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
     scsi_free_scsi_task(acb->task);
     acb->task = NULL;
 }
@@ -422,7 +416,7 @@ iscsi_synccache10_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
     scsi_free_scsi_task(acb->task);
     acb->task = NULL;
 }
@@ -476,7 +470,7 @@ iscsi_unmap_cb(struct iscsi_context *iscsi, int status,
         acb->status = -EIO;
     }
 
-    iscsi_schedule_bh(iscsi_readv_writev_bh_cb, acb);
+    iscsi_schedule_bh(acb);
     scsi_free_scsi_task(acb->task);
     acb->task = NULL;
 }
