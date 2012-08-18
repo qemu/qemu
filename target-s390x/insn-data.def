@@ -62,6 +62,13 @@
     D(0xa506, NILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1010)
     D(0xa507, NILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, andi, 0, 0x1000)
 
+/* BRANCH AND SAVE */
+    C(0x0d00, BASR,    RR_a,  Z,   0, r2_nz, r1, 0, bas, 0)
+    C(0x4d00, BAS,     RX_a,  Z,   0, a2, r1, 0, bas, 0)
+/* BRANCH RELATIVE AND SAVE */
+    C(0xa705, BRAS,    RI_b,  Z,   0, 0, r1, 0, basi, 0)
+    C(0xc005, BRASL,   RIL_b, Z,   0, 0, r1, 0, basi, 0)
+
 /* COMPARE */
     C(0x1900, CR,      RR_a,  Z,   r1_o, r2_o, 0, 0, 0, cmps32)
     C(0x5900, C,       RX_a,  Z,   r1_o, m2_32s, 0, 0, 0, cmps32)

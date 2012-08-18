@@ -713,20 +713,23 @@ static inline TCGv_i64 decode_si(DisasContext *s, uint64_t insn, int *i2,
     return get_address(s, 0, *b1, *d1);
 }
 
+static int use_goto_tb(DisasContext *s, uint64_t dest)
+{
+    /* NOTE: we handle the case where the TB spans two pages here */
+    return (((dest & TARGET_PAGE_MASK) == (s->tb->pc & TARGET_PAGE_MASK)
+             || (dest & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))
+            && !s->singlestep_enabled
+            && !(s->tb->cflags & CF_LAST_IO));
+}
+
 static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong pc)
 {
-    TranslationBlock *tb;
-
     gen_update_cc_op(s);
 
-    tb = s->tb;
-    /* NOTE: we handle the case where the TB spans two pages here */
-    if ((pc & TARGET_PAGE_MASK) == (tb->pc & TARGET_PAGE_MASK) ||
-        (pc & TARGET_PAGE_MASK) == ((s->pc - 1) & TARGET_PAGE_MASK))  {
-        /* jump to same page: we can use a direct jump */
+    if (use_goto_tb(s, pc)) {
         tcg_gen_goto_tb(tb_num);
         tcg_gen_movi_i64(psw_addr, pc);
-        tcg_gen_exit_tb((tcg_target_long)tb + tb_num);
+        tcg_gen_exit_tb((tcg_target_long)s->tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         tcg_gen_movi_i64(psw_addr, pc);
@@ -1817,13 +1820,6 @@ static void disas_a7(CPUS390XState *env, DisasContext *s, int op, int r1,
     case 0x4: /* brc m1, i2 */
         gen_brc(r1, s, i2 * 2LL);
         return;
-    case 0x5: /* BRAS     R1,I2     [RI] */
-        tmp = tcg_const_i64(pc_to_link_info(s, s->pc + 4));
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        gen_goto_tb(s, 0, s->pc + i2 * 2LL);
-        s->is_jmp = DISAS_TB_JUMP;
-        break;
     case 0x6: /* BRCT     R1,I2     [RI] */
         tmp32_1 = load_reg32(r1);
         tcg_gen_subi_i32(tmp32_1, tmp32_1, 1);
@@ -2601,7 +2597,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
 
 static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2)
 {
-    TCGv_i64 tmp;
     TCGv_i32 tmp32_1, tmp32_2;
     uint64_t target = s->pc + i2 * 2LL;
     int l1;
@@ -2632,13 +2627,6 @@ static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2
         s->is_jmp = DISAS_TB_JUMP;
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x5: /* brasl r1, i2 */
-        tmp = tcg_const_i64(pc_to_link_info(s, s->pc + 6));
-        store_reg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        gen_goto_tb(s, 0, target);
-        s->is_jmp = DISAS_TB_JUMP;
         break;
     default:
         LOG_DISAS("illegal c0 operation 0x%x\n", op);
@@ -2719,19 +2707,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         s->is_jmp = DISAS_EXCP;
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0xd: /* BASR   R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp = tcg_const_i64(pc_to_link_info(s, s->pc + 2));
-        store_reg(r1, tmp);
-        if (r2) {
-            tmp2 = load_reg(r2);
-            tcg_gen_mov_i64(psw_addr, tmp2);
-            tcg_temp_free_i64(tmp2);
-            s->is_jmp = DISAS_JUMP;
-        }
-        tcg_temp_free_i64(tmp);
         break;
     case 0xe: /* MVCL   R1,R2     [RR] */
         insn = ld_code2(env, s->pc);
@@ -2845,16 +2820,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         gen_bcr(s, r1, tmp, s->pc + 4);
         tcg_temp_free_i64(tmp);
         s->is_jmp = DISAS_TB_JUMP;
-        break;
-    case 0x4d: /* BAS    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = tcg_const_i64(pc_to_link_info(s, s->pc + 4));
-        store_reg(r1, tmp2);
-        tcg_gen_mov_i64(psw_addr, tmp);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        s->is_jmp = DISAS_JUMP;
         break;
     case 0x4e: /* CVD    R1,D2(X2,B2)     [RX] */
         insn = ld_code4(env, s->pc);
@@ -3744,6 +3709,26 @@ struct DisasInsn {
 };
 
 /* ====================================================================== */
+/* Miscelaneous helpers, used by several operations.  */
+
+static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
+{
+    if (dest == s->next_pc) {
+        return NO_EXIT;
+    }
+    if (use_goto_tb(s, dest)) {
+        gen_update_cc_op(s);
+        tcg_gen_goto_tb(0);
+        tcg_gen_movi_i64(psw_addr, dest);
+        tcg_gen_exit_tb((tcg_target_long)s->tb);
+        return EXIT_GOTO_TB;
+    } else {
+        tcg_gen_movi_i64(psw_addr, dest);
+        return EXIT_PC_UPDATED;
+    }
+}
+
+/* ====================================================================== */
 /* The operations.  These perform the bulk of the work for any insn,
    usually after the operands have been loaded and output initialized.  */
 
@@ -3797,6 +3782,23 @@ static ExitStatus op_andi(DisasContext *s, DisasOps *o)
     tcg_gen_andi_i64(cc_dst, o->out, mask);
     set_cc_nz_u64(s, cc_dst);
     return NO_EXIT;
+}
+
+static ExitStatus op_bas(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->next_pc));
+    if (!TCGV_IS_UNUSED_I64(o->in2)) {
+        tcg_gen_mov_i64(psw_addr, o->in2);
+        return EXIT_PC_UPDATED;
+    } else {
+        return NO_EXIT;
+    }
+}
+
+static ExitStatus op_basi(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_movi_i64(o->out, pc_to_link_info(s, s->next_pc));
+    return help_goto_direct(s, s->pc + 2 * get_field(s->fields, i2));
 }
 
 static ExitStatus op_insi(DisasContext *s, DisasOps *o)
@@ -4285,6 +4287,14 @@ static void in2_r2_o(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = regs[get_field(f, r2)];
     o->g_in2 = true;
+}
+
+static void in2_r2_nz(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int r2 = get_field(f, r2);
+    if (r2 != 0) {
+        o->in2 = load_reg(r2);
+    }
 }
 
 static void in2_r2_8s(DisasContext *s, DisasFields *f, DisasOps *o)
