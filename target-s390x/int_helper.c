@@ -107,49 +107,6 @@ int64_t HELPER(nabs_i64)(int64_t val)
     }
 }
 
-/* add with carry 32-bit unsigned */
-uint32_t HELPER(addc_u32)(uint32_t cc, uint32_t v1, uint32_t v2)
-{
-    uint32_t res;
-
-    res = v1 + v2;
-    if (cc & 2) {
-        res++;
-    }
-
-    return res;
-}
-
-/* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slb)(CPUS390XState *env, uint32_t cc, uint32_t r1, uint32_t v2)
-{
-    uint32_t v1 = env->regs[r1];
-    uint32_t res = v1 + (~v2) + (cc >> 1);
-
-    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | res;
-    if (cc & 2) {
-        /* borrow */
-        return v1 ? 1 : 0;
-    } else {
-        return v1 ? 3 : 2;
-    }
-}
-
-/* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slbg)(CPUS390XState *env, uint32_t cc, uint32_t r1,
-                      uint64_t v1, uint64_t v2)
-{
-    uint64_t res = v1 + (~v2) + (cc >> 1);
-
-    env->regs[r1] = res;
-    if (cc & 2) {
-        /* borrow */
-        return v1 ? 1 : 0;
-    } else {
-        return v1 ? 3 : 2;
-    }
-}
-
 /* find leftmost one */
 uint32_t HELPER(flogr)(CPUS390XState *env, uint32_t r1, uint64_t v2)
 {

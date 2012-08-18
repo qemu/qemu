@@ -40,6 +40,11 @@
     C(0xecda, ALHSIK,  RIE_d, DO,  r3, i2, new, r1_32, add, addu32)
     C(0xeb7e, ALGSI,   SIY,   GIE, m1_64, i2, new, m1_64, add, addu64)
     C(0xecdb, ALGHSIK, RIE_d, DO,  r3, i2, r1, 0, add, addu64)
+/* ADD LOGICAL WITH CARRY */
+    C(0xb998, ALCR,    RRE,   Z,   r1, r2, new, r1_32, addc, addc32)
+    C(0xb988, ALCGR,   RRE,   Z,   r1, r2, r1, 0, addc, addc64)
+    C(0xe398, ALC,     RXY_a, Z,   r1, m2_32u, new, r1_32, addc, addc32)
+    C(0xe388, ALCG,    RXY_a, Z,   r1, m2_64, r1, 0, addc, addc64)
 
 /* AND */
     C(0x1400, NR,      RR_a,  Z,   r1, r2, new, r1_32, and, nz32)
@@ -291,3 +296,8 @@
 /* SUBTRACT LOGICAL IMMEDIATE */
     C(0xc205, SLFI,    RIL_a, EI,  r1, i2_32u, new, r1_32, sub, subu32)
     C(0xc204, SLGFI,   RIL_a, EI,  r1, i2_32u, r1, 0, sub, subu64)
+/* SUBTRACT LOGICAL WITH BORROW */
+    C(0xb999, SLBR,    RRE,   Z,   r1, r2, new, r1_32, subb, subb32)
+    C(0xb989, SLBGR,   RRE,   Z,   r1, r2, r1, 0, subb, subb64)
+    C(0xe399, SLB,     RXY_a, Z,   r1, m2_32u, new, r1_32, subb, subb32)
+    C(0xe389, SLBG,    RXY_a, Z,   r1, m2_64, r1, 0, subb, subb64)

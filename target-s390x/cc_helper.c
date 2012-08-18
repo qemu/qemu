@@ -146,22 +146,21 @@ static inline uint32_t cc_calc_add_64(CPUS390XState *env, int64_t a1,
     }
 }
 
-static inline uint32_t cc_calc_addu_64(CPUS390XState *env, uint64_t a1,
-                                       uint64_t a2, uint64_t ar)
+static uint32_t cc_calc_addu_64(CPUS390XState *env, uint64_t a1,
+                                uint64_t a2, uint64_t ar)
 {
-    if (ar == 0) {
-        if (a1) {
-            return 2;
-        } else {
-            return 0;
-        }
-    } else {
-        if (ar < a1 || ar < a2) {
-            return 3;
-        } else {
-            return 1;
-        }
-    }
+    return (ar != 0) + 2 * (ar < a1);
+}
+
+static uint32_t cc_calc_addc_64(CPUS390XState *env, uint64_t a1,
+                                uint64_t a2, uint64_t ar)
+{
+    /* Recover a2 + carry_in.  */
+    uint64_t a2c = ar - a1;
+    /* Check for a2+carry_in overflow, then a1+a2c overflow.  */
+    int carry_out = (a2c < a2) || (ar < a1);
+
+    return (ar != 0) + 2 * carry_out;
 }
 
 static inline uint32_t cc_calc_sub_64(CPUS390XState *env, int64_t a1,
@@ -192,6 +191,25 @@ static inline uint32_t cc_calc_subu_64(CPUS390XState *env, uint64_t a1,
             return 3;
         }
     }
+}
+
+static uint32_t cc_calc_subb_64(CPUS390XState *env, uint64_t a1,
+                                uint64_t a2, uint64_t ar)
+{
+    /* We had borrow-in if normal subtraction isn't equal.  */
+    int borrow_in = ar - (a1 - a2);
+    int borrow_out;
+
+    /* If a2 was ULONG_MAX, and borrow_in, then a2 is logically 65 bits,
+       and we must have had borrow out.  */
+    if (borrow_in && a2 == (uint64_t)-1) {
+        borrow_out = 1;
+    } else {
+        a2 += borrow_in;
+        borrow_out = (a2 > a1);
+    }
+
+    return (ar != 0) + 2 * !borrow_out;
 }
 
 static inline uint32_t cc_calc_abs_64(CPUS390XState *env, int64_t dst)
@@ -240,22 +258,21 @@ static inline uint32_t cc_calc_add_32(CPUS390XState *env, int32_t a1,
     }
 }
 
-static inline uint32_t cc_calc_addu_32(CPUS390XState *env, uint32_t a1,
-                                       uint32_t a2, uint32_t ar)
+static uint32_t cc_calc_addu_32(CPUS390XState *env, uint32_t a1,
+                                uint32_t a2, uint32_t ar)
 {
-    if (ar == 0) {
-        if (a1) {
-            return 2;
-        } else {
-            return 0;
-        }
-    } else {
-        if (ar < a1 || ar < a2) {
-            return 3;
-        } else {
-            return 1;
-        }
-    }
+    return (ar != 0) + 2 * (ar < a1);
+}
+
+static uint32_t cc_calc_addc_32(CPUS390XState *env, uint32_t a1,
+                                uint32_t a2, uint32_t ar)
+{
+    /* Recover a2 + carry_in.  */
+    uint32_t a2c = ar - a1;
+    /* Check for a2+carry_in overflow, then a1+a2c overflow.  */
+    int carry_out = (a2c < a2) || (ar < a1);
+
+    return (ar != 0) + 2 * carry_out;
 }
 
 static inline uint32_t cc_calc_sub_32(CPUS390XState *env, int32_t a1,
@@ -286,6 +303,25 @@ static inline uint32_t cc_calc_subu_32(CPUS390XState *env, uint32_t a1,
             return 3;
         }
     }
+}
+
+static uint32_t cc_calc_subb_32(CPUS390XState *env, uint32_t a1,
+                                uint32_t a2, uint32_t ar)
+{
+    /* We had borrow-in if normal subtraction isn't equal.  */
+    int borrow_in = ar - (a1 - a2);
+    int borrow_out;
+
+    /* If a2 was UINT_MAX, and borrow_in, then a2 is logically 65 bits,
+       and we must have had borrow out.  */
+    if (borrow_in && a2 == (uint32_t)-1) {
+        borrow_out = 1;
+    } else {
+        a2 += borrow_in;
+        borrow_out = (a2 > a1);
+    }
+
+    return (ar != 0) + 2 * !borrow_out;
 }
 
 static inline uint32_t cc_calc_abs_32(CPUS390XState *env, int32_t dst)
@@ -426,11 +462,17 @@ static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
     case CC_OP_ADDU_64:
         r =  cc_calc_addu_64(env, src, dst, vr);
         break;
+    case CC_OP_ADDC_64:
+        r =  cc_calc_addc_64(env, src, dst, vr);
+        break;
     case CC_OP_SUB_64:
         r =  cc_calc_sub_64(env, src, dst, vr);
         break;
     case CC_OP_SUBU_64:
         r =  cc_calc_subu_64(env, src, dst, vr);
+        break;
+    case CC_OP_SUBB_64:
+        r =  cc_calc_subb_64(env, src, dst, vr);
         break;
     case CC_OP_ABS_64:
         r =  cc_calc_abs_64(env, dst);
@@ -448,11 +490,17 @@ static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
     case CC_OP_ADDU_32:
         r =  cc_calc_addu_32(env, src, dst, vr);
         break;
+    case CC_OP_ADDC_32:
+        r =  cc_calc_addc_32(env, src, dst, vr);
+        break;
     case CC_OP_SUB_32:
         r =  cc_calc_sub_32(env, src, dst, vr);
         break;
     case CC_OP_SUBU_32:
         r =  cc_calc_subu_32(env, src, dst, vr);
+        break;
+    case CC_OP_SUBB_32:
+        r =  cc_calc_subb_32(env, src, dst, vr);
         break;
     case CC_OP_ABS_32:
         r =  cc_calc_abs_64(env, dst);
