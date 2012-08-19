@@ -327,7 +327,7 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
 static void fdctrl_reset_fifo(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
-static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0);
+static void fdctrl_raise_irq(FDCtrl *fdctrl);
 static FDrive *get_cur_drv(FDCtrl *fdctrl);
 
 static uint32_t fdctrl_read_statusA(FDCtrl *fdctrl);
@@ -799,6 +799,7 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
 /* Change IRQ state */
 static void fdctrl_reset_irq(FDCtrl *fdctrl)
 {
+    fdctrl->status0 = 0;
     if (!(fdctrl->sra & FD_SRA_INTPEND))
         return;
     FLOPPY_DPRINTF("Reset interrupt\n");
@@ -806,14 +807,13 @@ static void fdctrl_reset_irq(FDCtrl *fdctrl)
     fdctrl->sra &= ~FD_SRA_INTPEND;
 }
 
-static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
+static void fdctrl_raise_irq(FDCtrl *fdctrl)
 {
     /* Sparc mutation */
     if (fdctrl->sun4m && (fdctrl->msr & FD_MSR_CMDBUSY)) {
         /* XXX: not sure */
         fdctrl->msr &= ~FD_MSR_CMDBUSY;
         fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
-        fdctrl->status0 = status0;
         return;
     }
     if (!(fdctrl->sra & FD_SRA_INTPEND)) {
@@ -822,7 +822,6 @@ static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
     }
 
     fdctrl->reset_sensei = 0;
-    fdctrl->status0 = status0;
     FLOPPY_DPRINTF("Set interrupt status to 0x%02x\n", fdctrl->status0);
 }
 
@@ -851,7 +850,8 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
         fd_recalibrate(&fdctrl->drives[i]);
     fdctrl_reset_fifo(fdctrl);
     if (do_irq) {
-        fdctrl_raise_irq(fdctrl, FD_SR0_RDYCHG);
+        fdctrl->status0 |= FD_SR0_RDYCHG;
+        fdctrl_raise_irq(fdctrl);
         fdctrl->reset_sensei = FD_RESET_SENSEI_COUNT;
     }
 }
@@ -1169,7 +1169,7 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     fdctrl->msr &= ~FD_MSR_NONDMA;
 
     fdctrl_set_fifo(fdctrl, 7);
-    fdctrl_raise_irq(fdctrl, fdctrl->status0);
+    fdctrl_raise_irq(fdctrl);
 }
 
 /* Prepare a data transfer (either DMA or FIFO) */
@@ -1284,7 +1284,8 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     if (direction != FD_DIR_WRITE)
         fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 /* Prepare a transfer of deleted data */
@@ -1704,7 +1705,8 @@ static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
     fd_recalibrate(cur_drv);
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
@@ -1743,7 +1745,8 @@ static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
      */
     fd_seek(cur_drv, cur_drv->head, fdctrl->fifo[2], cur_drv->sect, 1);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
@@ -1814,7 +1817,8 @@ static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
@@ -1831,7 +1835,8 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static const struct {
