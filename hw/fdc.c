@@ -1239,7 +1239,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     /* Set the FIFO state */
     fdctrl->data_dir = direction;
     fdctrl->data_pos = 0;
-    fdctrl->msr |= FD_MSR_CMDBUSY;
+    assert(fdctrl->msr & FD_MSR_CMDBUSY);
     if (fdctrl->fifo[0] & 0x80)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
