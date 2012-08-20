@@ -1244,7 +1244,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
         fdctrl->data_state &= ~FD_STATE_MULTI;
-    if (fdctrl->fifo[5] == 00) {
+    if (fdctrl->fifo[5] == 0) {
         fdctrl->data_len = fdctrl->fifo[8];
     } else {
         int tmp;
