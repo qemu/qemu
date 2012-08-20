@@ -102,9 +102,19 @@ static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t
 static ssize_t net_socket_receive_dgram(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
+    ssize_t ret;
 
-    return sendto(s->fd, (const void *)buf, size, 0,
-                  (struct sockaddr *)&s->dgram_dst, sizeof(s->dgram_dst));
+    do {
+        ret = sendto(s->fd, buf, size, 0,
+                     (struct sockaddr *)&s->dgram_dst,
+                     sizeof(s->dgram_dst));
+    } while (ret == -1 && errno == EINTR);
+
+    if (ret == -1 && errno == EAGAIN) {
+        net_socket_write_poll(s, true);
+        return 0;
+    }
+    return ret;
 }
 
 static void net_socket_send(void *opaque)
