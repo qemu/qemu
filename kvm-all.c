@@ -1166,24 +1166,14 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
-int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
-    return kvm_irqchip_assign_irqfd(s, fd, virq, true);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, true);
 }
 
-int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
-    return kvm_irqchip_add_irqfd(s, event_notifier_get_fd(n), virq);
-}
-
-int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
-{
-    return kvm_irqchip_assign_irqfd(s, fd, virq, false);
-}
-
-int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq)
-{
-    return kvm_irqchip_remove_irqfd(s, event_notifier_get_fd(n), virq);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, false);
 }
 
 static int kvm_irqchip_create(KVMState *s)
