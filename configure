@@ -3834,14 +3834,19 @@ case "$target_arch2" in
   ;;
 esac
 
+upper() {
+    echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'
+}
+
 echo "TARGET_SHORT_ALIGNMENT=$target_short_alignment" >> $config_target_mak
 echo "TARGET_INT_ALIGNMENT=$target_int_alignment" >> $config_target_mak
 echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak
 echo "TARGET_LLONG_ALIGNMENT=$target_llong_alignment" >> $config_target_mak
 echo "TARGET_ARCH=$TARGET_ARCH" >> $config_target_mak
-target_arch_name="`echo $TARGET_ARCH | LC_ALL=C tr '[a-z]' '[A-Z]'`"
+target_arch_name="`upper $TARGET_ARCH`"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
 echo "TARGET_ARCH2=$target_arch2" >> $config_target_mak
+echo "TARGET_TYPE=TARGET_TYPE_`upper $target_arch2`" >> $config_target_mak
 echo "TARGET_BASE_ARCH=$TARGET_BASE_ARCH" >> $config_target_mak
 if [ "$TARGET_ABI_DIR" = "" ]; then
   TARGET_ABI_DIR=$TARGET_ARCH

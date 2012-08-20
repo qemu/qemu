@@ -44,6 +44,7 @@
 #include "exec-memory.h"
 #include "hw/pcspk.h"
 #include "qemu/page_cache.h"
+#include "qmp-commands.h"
 
 #ifdef DEBUG_ARCH_INIT
 #define DPRINTF(fmt, ...) \
@@ -1079,4 +1080,14 @@ int xen_available(void)
 #else
     return 0;
 #endif
+}
+
+
+TargetInfo *qmp_query_target(Error **errp)
+{
+    TargetInfo *info = g_malloc0(sizeof(*info));
+
+    info->arch = TARGET_TYPE;
+
+    return info;
 }

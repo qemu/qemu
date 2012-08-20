@@ -2509,3 +2509,8 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_query_cpu_definitions,
     },
 
+    {
+        .name       = "query-target",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_target,
+    },
