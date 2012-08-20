@@ -1,5 +1,5 @@
 /*
- * QEMU PowerPC MPC8544DS board emulation
+ * QEMU PowerPC e500-based platforms
  *
  * Copyright (C) 2009 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -16,20 +16,21 @@
 
 #include "config.h"
 #include "qemu-common.h"
+#include "e500.h"
 #include "net.h"
-#include "hw.h"
-#include "pc.h"
-#include "pci.h"
-#include "boards.h"
+#include "hw/hw.h"
+#include "hw/pc.h"
+#include "hw/pci.h"
+#include "hw/boards.h"
 #include "sysemu.h"
 #include "kvm.h"
 #include "kvm_ppc.h"
 #include "device_tree.h"
-#include "openpic.h"
-#include "ppc.h"
-#include "loader.h"
+#include "hw/openpic.h"
+#include "hw/ppc.h"
+#include "hw/loader.h"
 #include "elf.h"
-#include "sysbus.h"
+#include "hw/sysbus.h"
 #include "exec-memory.h"
 #include "host-utils.h"
 
@@ -42,6 +43,7 @@
 
 #define RAM_SIZES_ALIGN            (64UL << 20)
 
+/* TODO: parameterize */
 #define MPC8544_CCSRBAR_BASE       0xE0000000ULL
 #define MPC8544_CCSRBAR_SIZE       0x00100000ULL
 #define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000ULL)
@@ -66,18 +68,18 @@ static void pci_map_create(void *fdt, uint32_t *pci_map, uint32_t mpic)
     int i;
     const uint32_t tmp[] = {
                              /* IDSEL 0x11 J17 Slot 1 */
-                             0x8800, 0x0, 0x0, 0x1, mpic, 0x2, 0x1, 0x0, 0x0,
-                             0x8800, 0x0, 0x0, 0x2, mpic, 0x3, 0x1, 0x0, 0x0,
-                             0x8800, 0x0, 0x0, 0x3, mpic, 0x4, 0x1, 0x0, 0x0,
-                             0x8800, 0x0, 0x0, 0x4, mpic, 0x1, 0x1, 0x0, 0x0,
+                             0x8800, 0x0, 0x0, 0x1, mpic, 0x2, 0x1,
+                             0x8800, 0x0, 0x0, 0x2, mpic, 0x3, 0x1,
+                             0x8800, 0x0, 0x0, 0x3, mpic, 0x4, 0x1,
+                             0x8800, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
 
                              /* IDSEL 0x12 J16 Slot 2 */
-                             0x9000, 0x0, 0x0, 0x1, mpic, 0x3, 0x1, 0x0, 0x0,
-                             0x9000, 0x0, 0x0, 0x2, mpic, 0x4, 0x1, 0x0, 0x0,
-                             0x9000, 0x0, 0x0, 0x3, mpic, 0x2, 0x1, 0x0, 0x0,
-                             0x9000, 0x0, 0x0, 0x4, mpic, 0x1, 0x1, 0x0, 0x0,
+                             0x9000, 0x0, 0x0, 0x1, mpic, 0x3, 0x1,
+                             0x9000, 0x0, 0x0, 0x2, mpic, 0x4, 0x1,
+                             0x9000, 0x0, 0x0, 0x3, mpic, 0x2, 0x1,
+                             0x9000, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
                            };
-    for (i = 0; i < ARRAY_SIZE(tmp); i++) {
+    for (i = 0; i < (7 * 8); i++) {
         pci_map[i] = cpu_to_be32(tmp[i]);
     }
 }
@@ -95,7 +97,7 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     qemu_devtree_setprop_cells(fdt, ser, "reg", offset, 0x100);
     qemu_devtree_setprop_cell(fdt, ser, "cell-index", idx);
     qemu_devtree_setprop_cell(fdt, ser, "clock-frequency", 0);
-    qemu_devtree_setprop_cells(fdt, ser, "interrupts", 42, 2, 0, 0);
+    qemu_devtree_setprop_cells(fdt, ser, "interrupts", 42, 2);
     qemu_devtree_setprop_phandle(fdt, ser, "interrupt-parent", mpic);
     qemu_devtree_setprop_string(fdt, "/aliases", alias, ser);
 
@@ -104,31 +106,28 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
     }
 }
 
-static int mpc8544_load_device_tree(CPUPPCState *env,
+static int ppce500_load_device_tree(CPUPPCState *env,
+                                    PPCE500Params *params,
                                     target_phys_addr_t addr,
-                                    target_phys_addr_t ramsize,
                                     target_phys_addr_t initrd_base,
-                                    target_phys_addr_t initrd_size,
-                                    const char *kernel_cmdline)
+                                    target_phys_addr_t initrd_size)
 {
     int ret = -1;
-    uint64_t mem_reg_property[] = { 0, cpu_to_be64(ramsize) };
+    uint64_t mem_reg_property[] = { 0, cpu_to_be64(params->ram_size) };
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
     uint32_t clock_freq = 400000000;
     uint32_t tb_freq = 400000000;
     int i;
-    const char *compatible = "MPC8544DS\0MPC85xxDS";
-    int compatible_len = sizeof("MPC8544DS\0MPC85xxDS");
+    const char *toplevel_compat = NULL; /* user override */
     char compatible_sb[] = "fsl,mpc8544-immr\0simple-bus";
-    char model[] = "MPC8544DS";
     char soc[128];
     char mpic[128];
     uint32_t mpic_ph;
     char gutil[128];
     char pci[128];
-    uint32_t pci_map[9 * 8];
+    uint32_t pci_map[7 * 8];
     uint32_t pci_ranges[14] =
         {
             0x2000000, 0x0, 0xc0000000,
@@ -145,14 +144,9 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
-        const char *tmp;
         dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
         dtb_file = qemu_opt_get(machine_opts, "dtb");
-        tmp = qemu_opt_get(machine_opts, "dt_compatible");
-        if (tmp) {
-            compatible = tmp;
-            compatible_len = strlen(compatible) + 1;
-        }
+        toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
     }
 
     if (dtb_file) {
@@ -175,8 +169,6 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     }
 
     /* Manipulate device tree in memory. */
-    qemu_devtree_setprop_string(fdt, "/", "model", model);
-    qemu_devtree_setprop(fdt, "/", "compatible", compatible, compatible_len);
     qemu_devtree_setprop_cell(fdt, "/", "#address-cells", 2);
     qemu_devtree_setprop_cell(fdt, "/", "#size-cells", 2);
 
@@ -201,7 +193,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     }
 
     ret = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
-                                      kernel_cmdline);
+                                      params->kernel_cmdline);
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
@@ -282,18 +274,15 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
              MPC8544_MPIC_REGS_BASE - MPC8544_CCSRBAR_BASE);
     qemu_devtree_add_subnode(fdt, mpic);
     qemu_devtree_setprop_string(fdt, mpic, "device_type", "open-pic");
-    qemu_devtree_setprop_string(fdt, mpic, "compatible", "fsl,mpic");
+    qemu_devtree_setprop_string(fdt, mpic, "compatible", "chrp,open-pic");
     qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_BASE -
                                MPC8544_CCSRBAR_BASE, 0x40000);
     qemu_devtree_setprop_cell(fdt, mpic, "#address-cells", 0);
-    qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 4);
+    qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 2);
     mpic_ph = qemu_devtree_alloc_phandle(fdt);
     qemu_devtree_setprop_cell(fdt, mpic, "phandle", mpic_ph);
     qemu_devtree_setprop_cell(fdt, mpic, "linux,phandle", mpic_ph);
     qemu_devtree_setprop(fdt, mpic, "interrupt-controller", NULL, 0);
-    qemu_devtree_setprop(fdt, mpic, "big-endian", NULL, 0);
-    qemu_devtree_setprop(fdt, mpic, "single-cpu-affinity", NULL, 0);
-    qemu_devtree_setprop_cell(fdt, mpic, "last-interrupt-source", 255);
 
     /*
      * We have to generate ser1 first, because Linux takes the first
@@ -323,7 +312,7 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     pci_map_create(fdt, pci_map, qemu_devtree_get_phandle(fdt, mpic));
     qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, sizeof(pci_map));
     qemu_devtree_setprop_phandle(fdt, pci, "interrupt-parent", mpic);
-    qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2, 0, 0);
+    qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2);
     qemu_devtree_setprop_cells(fdt, pci, "bus-range", 0, 255);
     for (i = 0; i < 14; i++) {
         pci_ranges[i] = cpu_to_be32(pci_ranges[i]);
@@ -336,6 +325,13 @@ static int mpc8544_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_cell(fdt, pci, "#size-cells", 2);
     qemu_devtree_setprop_cell(fdt, pci, "#address-cells", 3);
     qemu_devtree_setprop_string(fdt, "/aliases", "pci0", pci);
+
+    params->fixup_devtree(params, fdt);
+
+    if (toplevel_compat) {
+        qemu_devtree_setprop(fdt, "/", "compatible", toplevel_compat,
+                             strlen(toplevel_compat) + 1);
+    }
 
 done:
     if (dumpdtb) {
@@ -388,7 +384,7 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
     env->tlb_dirty = true;
 }
 
-static void mpc8544ds_cpu_reset_sec(void *opaque)
+static void ppce500_cpu_reset_sec(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
@@ -401,7 +397,7 @@ static void mpc8544ds_cpu_reset_sec(void *opaque)
     env->exception_index = EXCP_HLT;
 }
 
-static void mpc8544ds_cpu_reset(void *opaque)
+static void ppce500_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     CPUPPCState *env = &cpu->env;
@@ -417,12 +413,7 @@ static void mpc8544ds_cpu_reset(void *opaque)
     mmubooke_create_initial_mapping(env);
 }
 
-static void mpc8544ds_init(ram_addr_t ram_size,
-                         const char *boot_device,
-                         const char *kernel_filename,
-                         const char *kernel_cmdline,
-                         const char *initrd_filename,
-                         const char *cpu_model)
+void ppce500_init(PPCE500Params *params)
 {
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -443,8 +434,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     CPUPPCState *firstenv = NULL;
 
     /* Setup CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = "e500v2_v30";
+    if (params->cpu_model == NULL) {
+        params->cpu_model = "e500v2_v30";
     }
 
     irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
@@ -453,7 +444,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         PowerPCCPU *cpu;
         qemu_irq *input;
 
-        cpu = cpu_ppc_init(cpu_model);
+        cpu = cpu_ppc_init(params->cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to initialize CPU!\n");
             exit(1);
@@ -478,11 +469,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
             /* Primary CPU */
             struct boot_info *boot_info;
             boot_info = g_malloc0(sizeof(struct boot_info));
-            qemu_register_reset(mpc8544ds_cpu_reset, cpu);
+            qemu_register_reset(ppce500_cpu_reset, cpu);
             env->load_info = boot_info;
         } else {
             /* Secondary CPUs */
-            qemu_register_reset(mpc8544ds_cpu_reset_sec, cpu);
+            qemu_register_reset(ppce500_cpu_reset_sec, cpu);
         }
     }
 
@@ -542,43 +533,45 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     sysbus_create_simple("e500-spin", MPC8544_SPIN_BASE, NULL);
 
     /* Load kernel. */
-    if (kernel_filename) {
-        kernel_size = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
+    if (params->kernel_filename) {
+        kernel_size = load_uimage(params->kernel_filename, &entry,
+                                  &loadaddr, NULL);
         if (kernel_size < 0) {
-            kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
-                                   &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);
+            kernel_size = load_elf(params->kernel_filename, NULL, NULL,
+                                   &elf_entry, &elf_lowaddr, NULL, 1,
+                                   ELF_MACHINE, 0);
             entry = elf_entry;
             loadaddr = elf_lowaddr;
         }
         /* XXX try again as binary */
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
+                    params->kernel_filename);
             exit(1);
         }
     }
 
     /* Load initrd. */
-    if (initrd_filename) {
+    if (params->initrd_filename) {
         initrd_base = (kernel_size + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
-        initrd_size = load_image_targphys(initrd_filename, initrd_base,
+        initrd_size = load_image_targphys(params->initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 
         if (initrd_size < 0) {
             fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
-                    initrd_filename);
+                    params->initrd_filename);
             exit(1);
         }
     }
 
     /* If we're loading a kernel directly, we must load the device tree too. */
-    if (kernel_filename) {
+    if (params->kernel_filename) {
         struct boot_info *boot_info;
         int dt_size;
 
         dt_base = (loadaddr + kernel_size + DTC_LOAD_PAD) & ~DTC_PAD_MASK;
-        dt_size = mpc8544_load_device_tree(env, dt_base, ram_size, initrd_base,
-                                           initrd_size, kernel_cmdline);
+        dt_size = ppce500_load_device_tree(env, params, dt_base, initrd_base,
+                                           initrd_size);
         if (dt_size < 0) {
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
@@ -594,17 +587,3 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         kvmppc_init();
     }
 }
-
-static QEMUMachine mpc8544ds_machine = {
-    .name = "mpc8544ds",
-    .desc = "mpc8544ds",
-    .init = mpc8544ds_init,
-    .max_cpus = 15,
-};
-
-static void mpc8544ds_machine_init(void)
-{
-    qemu_register_machine(&mpc8544ds_machine);
-}
-
-machine_init(mpc8544ds_machine_init);

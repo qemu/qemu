@@ -255,13 +255,13 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
-              0644);
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY,
+                   0644);
     if (fd < 0)
         return -EIO;
     set_sparse(fd);
     ftruncate(fd, total_size * 512);
-    close(fd);
+    qemu_close(fd);
     return 0;
 }
 

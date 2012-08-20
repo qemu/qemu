@@ -307,13 +307,9 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
         return -EINVAL;
     }
 
-    if (asprintf(&name, "%s-msix", dev->name) == -1) {
-        return -ENOMEM;
-    }
-
+    name = g_strdup_printf("%s-msix", dev->name);
     memory_region_init(&dev->msix_exclusive_bar, name, MSIX_EXCLUSIVE_BAR_SIZE);
-
-    free(name);
+    g_free(name);
 
     ret = msix_init(dev, nentries, &dev->msix_exclusive_bar, bar_nr,
                     MSIX_EXCLUSIVE_BAR_TABLE_OFFSET, &dev->msix_exclusive_bar,

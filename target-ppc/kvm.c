@@ -766,7 +766,7 @@ int kvm_arch_handle_exit(CPUPPCState *env, struct kvm_run *run)
         dprintf("handle PAPR hypercall\n");
         run->papr_hcall.ret = spapr_hypercall(env, run->papr_hcall.nr,
                                               run->papr_hcall.args);
-        ret = 1;
+        ret = 0;
         break;
 #endif
     default:

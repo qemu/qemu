@@ -435,8 +435,8 @@ Example:
 -> { "execute": "inject-nmi" }
 <- { "return": {} }
 
-Note: inject-nmi is only supported for x86 guest currently, it will
-      returns "Unsupported" error for non-x86 guest.
+Note: inject-nmi fails when the guest doesn't support injecting.
+      Currently, only x86 guests do.
 
 EQMP
 
@@ -518,6 +518,50 @@ Example:
 
 -> { "execute": "migrate_cancel" }
 <- { "return": {} }
+
+EQMP
+{
+        .name       = "migrate-set-cache-size",
+        .args_type  = "value:o",
+        .mhandler.cmd_new = qmp_marshal_input_migrate_set_cache_size,
+    },
+
+SQMP
+migrate-set-cache-size
+---------------------
+
+Set cache size to be used by XBZRLE migration, the cache size will be rounded
+down to the nearest power of 2
+
+Arguments:
+
+- "value": cache size in bytes (json-int)
+
+Example:
+
+-> { "execute": "migrate-set-cache-size", "arguments": { "value": 536870912 } }
+<- { "return": {} }
+
+EQMP
+    {
+        .name       = "query-migrate-cache-size",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_cache_size,
+    },
+
+SQMP
+query-migrate-cache-size
+---------------------
+
+Show cache size to be used by XBZRLE migration
+
+returns a json-object with the following information:
+- "size" : json-int
+
+Example:
+
+-> { "execute": "query-migrate-cache-size" }
+<- { "return": 67108864 }
 
 EQMP
 
@@ -923,6 +967,128 @@ Example:
 
 -> { "execute": "closefd", "arguments": { "fdname": "fd1" } }
 <- { "return": {} }
+
+EQMP
+
+     {
+        .name       = "add-fd",
+        .args_type  = "fdset-id:i?,opaque:s?",
+        .params     = "add-fd fdset-id opaque",
+        .help       = "Add a file descriptor, that was passed via SCM rights, to an fd set",
+        .mhandler.cmd_new = qmp_marshal_input_add_fd,
+    },
+
+SQMP
+add-fd
+-------
+
+Add a file descriptor, that was passed via SCM rights, to an fd set.
+
+Arguments:
+
+- "fdset-id": The ID of the fd set to add the file descriptor to.
+              (json-int, optional)
+- "opaque": A free-form string that can be used to describe the fd.
+            (json-string, optional)
+
+Return a json-object with the following information:
+
+- "fdset-id": The ID of the fd set that the fd was added to. (json-int)
+- "fd": The file descriptor that was received via SCM rights and added to the
+        fd set. (json-int)
+
+Example:
+
+-> { "execute": "add-fd", "arguments": { "fdset-id": 1 } }
+<- { "return": { "fdset-id": 1, "fd": 3 } }
+
+Notes:
+
+(1) The list of fd sets is shared by all monitor connections.
+(2) If "fdset-id" is not specified, a new fd set will be created.
+
+EQMP
+
+     {
+        .name       = "remove-fd",
+        .args_type  = "fdset-id:i,fd:i?",
+        .params     = "remove-fd fdset-id fd",
+        .help       = "Remove a file descriptor from an fd set",
+        .mhandler.cmd_new = qmp_marshal_input_remove_fd,
+    },
+
+SQMP
+remove-fd
+---------
+
+Remove a file descriptor from an fd set.
+
+Arguments:
+
+- "fdset-id": The ID of the fd set that the file descriptor belongs to.
+              (json-int)
+- "fd": The file descriptor that is to be removed. (json-int, optional)
+
+Example:
+
+-> { "execute": "remove-fd", "arguments": { "fdset-id": 1, "fd": 3 } }
+<- { "return": {} }
+
+Notes:
+
+(1) The list of fd sets is shared by all monitor connections.
+(2) If "fd" is not specified, all file descriptors in "fdset-id" will be
+    removed.
+
+EQMP
+
+    {
+        .name       = "query-fdsets",
+        .args_type  = "",
+        .help       = "Return information describing all fd sets",
+        .mhandler.cmd_new = qmp_marshal_input_query_fdsets,
+    },
+
+SQMP
+query-fdsets
+-------------
+
+Return information describing all fd sets.
+
+Arguments: None
+
+Example:
+
+-> { "execute": "query-fdsets" }
+<- { "return": [
+       {
+         "fds": [
+           {
+             "fd": 30,
+             "opaque": "rdonly:/path/to/file"
+           },
+           {
+             "fd": 24,
+             "opaque": "rdwr:/path/to/file"
+           }
+         ],
+         "fdset-id": 1
+       },
+       {
+         "fds": [
+           {
+             "fd": 28
+           },
+           {
+             "fd": 29
+           }
+         ],
+         "fdset-id": 0
+       }
+     ]
+   }
+
+Note: The list of fd sets is shared by all monitor connections.
 
 EQMP
 
@@ -2078,12 +2244,24 @@ The main json-object contains the following:
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
+         - "total-time": total amount of ms since migration started.  If
+                         migration has ended, it returns the total migration time
+                         (json-int)
+         - "duplicate": number of duplicated pages (json-int)
+         - "normal" : number of normal pages transferred (json-int)
+         - "normal-bytes" : number of normal bytes transferred (json-int)
 - "disk": only present if "status" is "active" and it is a block migration,
   it is a json-object with the following disk information (in bytes):
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
-
+- "xbzrle-cache": only present if XBZRLE is active.
+  It is a json-object with the following XBZRLE information:
+         - "cache-size": XBZRLE cache size
+         - "bytes": total XBZRLE bytes transferred
+         - "pages": number of XBZRLE compressed pages
+         - "cache-miss": number of cache misses
+         - "overflow": number of XBZRLE overflows
 Examples:
 
 1. Before the first migration
@@ -2094,7 +2272,19 @@ Examples:
 2. Migration is done and has succeeded
 
 -> { "execute": "query-migrate" }
-<- { "return": { "status": "completed" } }
+<- { "return": {
+        "status": "completed",
+        "ram":{
+          "transferred":123,
+          "remaining":123,
+          "total":246,
+          "total-time":12345,
+          "duplicate":123,
+          "normal":123,
+          "normal-bytes":123456
+        }
+     }
+   }
 
 3. Migration is done and has failed
 
@@ -2110,7 +2300,11 @@ Examples:
          "ram":{
             "transferred":123,
             "remaining":123,
-            "total":246
+            "total":246,
+            "total-time":12345,
+            "duplicate":123,
+            "normal":123,
+            "normal-bytes":123456
          }
       }
    }
@@ -2124,12 +2318,42 @@ Examples:
          "ram":{
             "total":1057024,
             "remaining":1053304,
-            "transferred":3720
+            "transferred":3720,
+            "total-time":12345,
+            "duplicate":123,
+            "normal":123,
+            "normal-bytes":123456
          },
          "disk":{
             "total":20971520,
             "remaining":20880384,
             "transferred":91136
+         }
+      }
+   }
+
+6. Migration is being performed and XBZRLE is active:
+
+-> { "execute": "query-migrate" }
+<- {
+      "return":{
+         "status":"active",
+         "capabilities" : [ { "capability": "xbzrle", "state" : true } ],
+         "ram":{
+            "total":1057024,
+            "remaining":1053304,
+            "transferred":3720,
+            "total-time":12345,
+            "duplicate":10,
+            "normal":3333,
+            "normal-bytes":3412992
+         },
+         "xbzrle-cache":{
+            "cache-size":67108864,
+            "bytes":20971520,
+            "pages":2444343,
+            "cache-miss":2244,
+            "overflow":34434
          }
       }
    }
@@ -2140,6 +2364,55 @@ EQMP
         .name       = "query-migrate",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_migrate,
+    },
+
+SQMP
+migrate-set-capabilities
+-------
+
+Enable/Disable migration capabilities
+
+- "xbzrle": xbzrle support
+
+Arguments:
+
+Example:
+
+-> { "execute": "migrate-set-capabilities" , "arguments":
+     { "capabilities": [ { "capability": "xbzrle", "state": true } ] } }
+
+EQMP
+
+    {
+        .name       = "migrate-set-capabilities",
+        .args_type  = "capabilities:O",
+        .params     = "capability:s,state:b",
+	.mhandler.cmd_new = qmp_marshal_input_migrate_set_capabilities,
+    },
+SQMP
+query-migrate-capabilities
+-------
+
+Query current migration capabilities
+
+- "capabilities": migration capabilities state
+         - "xbzrle" : XBZRLE state (json-bool)
+
+Arguments:
+
+Example:
+
+-> { "execute": "query-migrate-capabilities" }
+<- { "return": {
+        "capabilities" :  [ { "capability" : "xbzrle", "state" : false } ]
+     }
+   }
+EQMP
+
+    {
+        .name       = "query-migrate-capabilities",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate_capabilities,
     },
 
 SQMP
@@ -2217,3 +2490,22 @@ EQMP
         .args_type  = "implements:s?,abstract:b?",
         .mhandler.cmd_new = qmp_marshal_input_qom_list_types,
     },
+
+    {
+        .name       = "device-list-properties",
+        .args_type  = "typename:s",
+        .mhandler.cmd_new = qmp_marshal_input_device_list_properties,
+    },
+
+    {
+        .name       = "query-machines",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_machines,
+    },
+
+    {
+        .name       = "query-cpu-definitions",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_cpu_definitions,
+    },
+

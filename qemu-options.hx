@@ -37,7 +37,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
     "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
     "                kernel_irqchip=on|off controls accelerated irqchip support\n"
-    "                kvm_shadow_mem=size of KVM shadow MMU\n",
+    "                kvm_shadow_mem=size of KVM shadow MMU\n"
+    "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -54,6 +55,8 @@ to initialize.
 Enables in-kernel irqchip support for the chosen accelerator when available.
 @item kvm_shadow_mem=size
 Defines the size of the KVM shadow MMU.
+@item dump-guest-core=on|off
+Include guest memory in a core dump. The default is on.
 @end table
 ETEXI
 
@@ -1897,6 +1900,11 @@ images for the guest storage. Both disk and cdrom images are supported.
 Syntax for specifying iSCSI LUNs is
 ``iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>''
 
+By default qemu will use the iSCSI initiator-name
+'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from the command
+line or a configuration file.
+
+
 Example (without authentication):
 @example
 qemu-system-i386 -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
@@ -1925,6 +1933,9 @@ DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "       [,initiator-name=iqn]\n"
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 STEXI
+
+iSCSI parameters such as username and password can also be specified via
+a configuration file. See qemu-doc for more information and examples.
 
 @item NBD
 QEMU supports NBD (Network Block Devices) both using TCP protocol as well
@@ -2711,6 +2722,16 @@ STEXI
 @item -old-param
 @findex -old-param (ARM)
 Old param mode (ARM only).
+ETEXI
+
+DEF("sandbox", HAS_ARG, QEMU_OPTION_sandbox, \
+    "-sandbox <arg>  Enable seccomp mode 2 system call filter (default 'off').\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -sandbox
+@findex -sandbox
+Enable Seccomp mode 2 system call filter. 'on' will enable syscall filtering and 'off' will
+disable it.  The default is 'off'.
 ETEXI
 
 DEF("readconfig", HAS_ARG, QEMU_OPTION_readconfig,

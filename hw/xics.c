@@ -315,18 +315,24 @@ static void ics_eoi(struct ics_state *ics, int nr)
  * Exported functions
  */
 
-qemu_irq xics_assign_irq(struct icp_state *icp, int irq,
-                         enum xics_irq_type type)
+qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
 {
     if ((irq < icp->ics->offset)
         || (irq >= (icp->ics->offset + icp->ics->nr_irqs))) {
         return NULL;
     }
 
+    return icp->ics->qirqs[irq - icp->ics->offset];
+}
+
+void xics_set_irq_type(struct icp_state *icp, int irq,
+                       enum xics_irq_type type)
+{
+    assert((irq >= icp->ics->offset)
+           && (irq < (icp->ics->offset + icp->ics->nr_irqs)));
     assert((type == XICS_MSI) || (type == XICS_LSI));
 
     icp->ics->irqs[irq - icp->ics->offset].type = type;
-    return icp->ics->qirqs[irq - icp->ics->offset];
 }
 
 static target_ulong h_cppr(CPUPPCState *env, sPAPREnvironment *spapr,

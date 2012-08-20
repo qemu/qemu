@@ -158,9 +158,6 @@ install-libcacard: libcacard.la
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
 endif
 
-vscclient$(EXESUF): $(libcacard-y) $(oslib-obj-y) $(trace-obj-y) qemu-timer-common.o libcacard/vscclient.o
-	$(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^ $(libcacard_libs) $(LIBS),"  LINK  $@")
-
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
@@ -175,6 +172,9 @@ qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y)
 qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y)
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
+
+vscclient$(EXESUF): $(libcacard-y) $(oslib-obj-y) $(trace-obj-y) $(tools-obj-y) qemu-timer-common.o libcacard/vscclient.o
+	$(call quiet-command,$(CC) $(LDFLAGS) -o $@ $^ $(libcacard_libs) $(LIBS),"  LINK  $@")
 
 fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o oslib-posix.o $(trace-obj-y)
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
@@ -224,13 +224,10 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
-	rm -f *.o *.d *.a *.lo $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
+	find . -name '*.[od]' -exec rm -f {} +
+	rm -f *.a *.lo $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -Rf .libs
-	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d qapi/*.o qapi/*.d qga/*.o qga/*.d
-	rm -f qom/*.o qom/*.d libuser/qom/*.o libuser/qom/*.d
-	rm -f hw/usb/*.o hw/usb/*.d hw/*.o hw/*.d
 	rm -f qemu-img-cmds.h
-	rm -f trace/*.o trace/*.d
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
 	@# May not be present in GENERATED_HEADERS
 	rm -f trace-dtrace.h trace-dtrace.h-timestamp

@@ -19,6 +19,8 @@
  */
 
 #include "cpu.h"
+#include "memory.h"
+#include "cputlb.h"
 #include "dyngen-exec.h"
 #include "host-utils.h"
 #include "helper.h"
@@ -2360,12 +2362,9 @@ static void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
     }
 }
 
-static void ext_interrupt(CPUS390XState *env, int type, uint32_t param,
-                          uint64_t param64)
-{
-    cpu_inject_ext(env, type, param, param64);
-}
-
+/*
+ * ret < 0 indicates program check, ret = 0,1,2,3 -> cc
+ */
 int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
 {
     int r = 0;
@@ -2375,10 +2374,12 @@ int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
     printf("sclp(0x%x, 0x%" PRIx64 ")\n", sccb, code);
 #endif
 
+    /* basic checks */
+    if (!memory_region_is_ram(phys_page_find(sccb >> TARGET_PAGE_BITS)->mr)) {
+        return -PGM_ADDRESSING;
+    }
     if (sccb & ~0x7ffffff8ul) {
-        fprintf(stderr, "KVM: invalid sccb address 0x%x\n", sccb);
-        r = -1;
-        goto out;
+        return -PGM_SPECIFICATION;
     }
 
     switch(code) {
@@ -2391,36 +2392,30 @@ int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
             stb_phys(sccb + SCP_INCREMENT, 1 << shift);
             stw_phys(sccb + SCP_RESPONSE_CODE, 0x10);
 
-            if (kvm_enabled()) {
-#ifdef CONFIG_KVM
-                kvm_s390_interrupt_internal(env, KVM_S390_INT_SERVICE,
-                                            sccb & ~3, 0, 1);
-#endif
-            } else {
-                env->psw.addr += 4;
-                ext_interrupt(env, EXT_SERVICE, sccb & ~3, 0);
-            }
+            s390_sclp_extint(sccb & ~3);
             break;
         default:
 #ifdef DEBUG_HELPER
             printf("KVM: invalid sclp call 0x%x / 0x%" PRIx64 "x\n", sccb, code);
 #endif
-            r = -1;
+            r = 3;
             break;
     }
 
-out:
     return r;
 }
 
 /* SCLP service call */
 uint32_t HELPER(servc)(uint32_t r1, uint64_t r2)
 {
-    if (sclp_service_call(env, r1, r2)) {
-        return 3;
-    }
+    int r;
 
-    return 0;
+    r = sclp_service_call(env, r1, r2);
+    if (r < 0) {
+        program_interrupt(env, -r, 4);
+        return 0;
+    }
+    return r;
 }
 
 /* DIAG */

@@ -55,7 +55,7 @@ static unsigned int trace_idx;
 static unsigned int writeout_idx;
 static uint64_t dropped_events;
 static FILE *trace_fp;
-static char *trace_file_name = NULL;
+static char *trace_file_name;
 
 /* * Trace buffer entry */
 typedef struct {
@@ -70,7 +70,7 @@ typedef struct {
     uint64_t header_event_id; /* HEADER_EVENT_ID */
     uint64_t header_magic;    /* HEADER_MAGIC    */
     uint64_t header_version;  /* HEADER_VERSION  */
-} TraceRecordHeader;
+} TraceLogHeader;
 
 
 static void read_from_buffer(unsigned int idx, void *dataptr, size_t size);
@@ -231,13 +231,11 @@ int trace_record_start(TraceBufferRecord *rec, TraceEventID event, size_t datasi
     }
 
     idx = old_idx % TRACE_BUF_LEN;
-    /*  To check later if threshold crossed */
-    rec->next_tbuf_idx = new_idx % TRACE_BUF_LEN;
 
     rec_off = idx;
-    rec_off = write_to_buffer(rec_off, (uint8_t*)&event, sizeof(event));
-    rec_off = write_to_buffer(rec_off, (uint8_t*)&timestamp_ns, sizeof(timestamp_ns));
-    rec_off = write_to_buffer(rec_off, (uint8_t*)&rec_len, sizeof(rec_len));
+    rec_off = write_to_buffer(rec_off, &event, sizeof(event));
+    rec_off = write_to_buffer(rec_off, &timestamp_ns, sizeof(timestamp_ns));
+    rec_off = write_to_buffer(rec_off, &rec_len, sizeof(rec_len));
 
     rec->tbuf_idx = idx;
     rec->rec_off  = (idx + sizeof(TraceRecord)) % TRACE_BUF_LEN;
@@ -271,12 +269,11 @@ static unsigned int write_to_buffer(unsigned int idx, void *dataptr, size_t size
 
 void trace_record_finish(TraceBufferRecord *rec)
 {
-    uint8_t temp_rec[sizeof(TraceRecord)];
-    TraceRecord *record = (TraceRecord *) temp_rec;
-    read_from_buffer(rec->tbuf_idx, temp_rec, sizeof(TraceRecord));
+    TraceRecord record;
+    read_from_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
     smp_wmb(); /* write barrier before marking as valid */
-    record->event |= TRACE_RECORD_VALID;
-    write_to_buffer(rec->tbuf_idx, temp_rec, sizeof(TraceRecord));
+    record.event |= TRACE_RECORD_VALID;
+    write_to_buffer(rec->tbuf_idx, &record, sizeof(TraceRecord));
 
     if ((trace_idx - writeout_idx) > TRACE_BUF_FLUSH_THRESHOLD) {
         flush_trace_file(false);
@@ -295,7 +292,7 @@ void st_set_trace_file_enabled(bool enable)
     flush_trace_file(true);
 
     if (enable) {
-        static const TraceRecordHeader header = {
+        static const TraceLogHeader header = {
             .header_event_id = HEADER_EVENT_ID,
             .header_magic = HEADER_MAGIC,
             /* Older log readers will check for version at next location */
@@ -332,18 +329,12 @@ bool st_set_trace_file(const char *file)
 {
     st_set_trace_file_enabled(false);
 
-    free(trace_file_name);
+    g_free(trace_file_name);
 
     if (!file) {
-        if (asprintf(&trace_file_name, CONFIG_TRACE_FILE, getpid()) < 0) {
-            trace_file_name = NULL;
-            return false;
-        }
+        trace_file_name = g_strdup_printf(CONFIG_TRACE_FILE, getpid());
     } else {
-        if (asprintf(&trace_file_name, "%s", file) < 0) {
-            trace_file_name = NULL;
-            return false;
-        }
+        trace_file_name = g_strdup_printf("%s", file);
     }
 
     st_set_trace_file_enabled(true);

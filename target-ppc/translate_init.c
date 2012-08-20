@@ -27,6 +27,7 @@
 #include "gdbstub.h"
 #include <kvm.h>
 #include "kvm_ppc.h"
+#include "arch_init.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -10343,6 +10344,31 @@ void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf)
         (*cpu_fprintf)(f, "PowerPC %-16s PVR %08x\n",
                        ppc_defs[i].name, ppc_defs[i].pvr);
     }
+}
+
+CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+{
+    CpuDefinitionInfoList *cpu_list = NULL;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(ppc_defs); i++) {
+        CpuDefinitionInfoList *entry;
+        CpuDefinitionInfo *info;
+
+        if (!ppc_cpu_usable(&ppc_defs[i])) {
+            continue;
+        }
+
+        info = g_malloc0(sizeof(*info));
+        info->name = g_strdup(ppc_defs[i].name);
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = cpu_list;
+        cpu_list = entry;
+    }
+
+    return cpu_list;
 }
 
 /* CPUClass::reset() */

@@ -63,6 +63,11 @@
 #include <linux/ppdev.h>
 #include <linux/parport.h>
 #endif
+
+#ifdef CONFIG_SECCOMP
+#include "qemu-seccomp.h"
+#endif
+
 #ifdef __sun__
 #include <sys/stat.h>
 #include <sys/ethernet.h>
@@ -299,6 +304,11 @@ static struct {
     { .driver = "vmware-svga",          .flag = &default_vga       },
     { .driver = "qxl-vga",              .flag = &default_vga       },
 };
+
+const char *qemu_get_vm_name(void)
+{
+    return qemu_name;
+}
 
 static void res_free(void)
 {
@@ -767,6 +777,26 @@ static int bt_parse(const char *opt)
     return 1;
 }
 
+static int parse_sandbox(QemuOpts *opts, void *opaque)
+{
+    /* FIXME: change this to true for 1.3 */
+    if (qemu_opt_get_bool(opts, "enable", false)) {
+#ifdef CONFIG_SECCOMP
+        if (seccomp_start() < 0) {
+            qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                          "failed to install seccomp syscall filter in the kernel");
+            return -1;
+        }
+#else
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "sandboxing request but seccomp is not compiled into this build");
+        return -1;
+#endif
+    }
+
+    return 0;
+}
+
 /***********************************************************/
 /* QEMU Block devices */
 
@@ -1215,6 +1245,37 @@ QEMUMachine *find_default_machine(void)
     return NULL;
 }
 
+MachineInfoList *qmp_query_machines(Error **errp)
+{
+    MachineInfoList *mach_list = NULL;
+    QEMUMachine *m;
+
+    for (m = first_machine; m; m = m->next) {
+        MachineInfoList *entry;
+        MachineInfo *info;
+
+        info = g_malloc0(sizeof(*info));
+        if (m->is_default) {
+            info->has_is_default = true;
+            info->is_default = true;
+        }
+
+        if (m->alias) {
+            info->has_alias = true;
+            info->alias = g_strdup(m->alias);
+        }
+
+        info->name = g_strdup(m->name);
+
+        entry = g_malloc0(sizeof(*entry));
+        entry->value = info;
+        entry->next = mach_list;
+        mach_list = entry;
+    }
+
+    return mach_list;
+}
+
 /***********************************************************/
 /* main execution loop */
 
@@ -1300,6 +1361,7 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
+static int wakeup_requested;
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
@@ -1354,6 +1416,13 @@ static int qemu_suspend_requested(void)
     return r;
 }
 
+static int qemu_wakeup_requested(void)
+{
+    int r = wakeup_requested;
+    wakeup_requested = 0;
+    return r;
+}
+
 int qemu_powerdown_requested(void)
 {
     int r = powerdown_requested;
@@ -1402,13 +1471,22 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
     }
 }
 
-void qemu_system_reset(bool report)
+void qemu_devices_reset(void)
 {
     QEMUResetEntry *re, *nre;
 
     /* reset all devices */
     QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);
+    }
+}
+
+void qemu_system_reset(bool report)
+{
+    if (current_machine && current_machine->reset) {
+        current_machine->reset();
+    } else {
+        qemu_devices_reset();
     }
     if (report) {
         monitor_protocol_event(QEVENT_RESET, NULL);
@@ -1459,9 +1537,8 @@ void qemu_system_wakeup_request(WakeupReason reason)
         return;
     }
     runstate_set(RUN_STATE_RUNNING);
-    monitor_protocol_event(QEVENT_WAKEUP, NULL);
     notifier_list_notify(&wakeup_notifiers, &reason);
-    reset_requested = 1;
+    wakeup_requested = 1;
     qemu_notify_event();
 }
 
@@ -1540,6 +1617,13 @@ static bool main_loop_should_exit(void)
             runstate_check(RUN_STATE_SHUTDOWN)) {
             runstate_set(RUN_STATE_PAUSED);
         }
+    }
+    if (qemu_wakeup_requested()) {
+        pause_all_vcpus();
+        cpu_synchronize_all_states();
+        qemu_system_reset(VMRESET_SILENT);
+        resume_all_vcpus();
+        monitor_protocol_event(QEVENT_WAKEUP, NULL);
     }
     if (qemu_powerdown_requested()) {
         monitor_protocol_event(QEVENT_POWERDOWN, NULL);
@@ -2702,6 +2786,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_m: {
                 int64_t value;
+                uint64_t sz;
                 char *end;
 
                 value = strtosz(optarg, &end);
@@ -2709,12 +2794,12 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "qemu: invalid ram size: %s\n", optarg);
                     exit(1);
                 }
-
-                if (value != (uint64_t)(ram_addr_t)value) {
+                sz = QEMU_ALIGN_UP((uint64_t)value, 8192);
+                ram_size = sz;
+                if (ram_size != sz) {
                     fprintf(stderr, "qemu: ram size too large\n");
                     exit(1);
                 }
-                ram_size = value;
                 break;
             }
             case QEMU_OPTION_mempath:
@@ -3251,12 +3336,27 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_qtest_log:
                 qtest_log = optarg;
                 break;
+            case QEMU_OPTION_sandbox:
+                opts = qemu_opts_parse(qemu_find_opts("sandbox"), optarg, 1);
+                if (!opts) {
+                    exit(0);
+                }
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
         }
     }
     loc_set_none();
+
+    if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
+        exit(1);
+    }
+
+    if (machine == NULL) {
+        fprintf(stderr, "No machine found.\n");
+        exit(1);
+    }
 
     if (machine->hw_version) {
         qemu_set_version(machine->hw_version);
@@ -3298,11 +3398,6 @@ int main(int argc, char **argv, char **envp)
     /* If all else fails use the install path specified when building. */
     if (!data_dir) {
         data_dir = CONFIG_QEMU_DATADIR;
-    }
-
-    if (machine == NULL) {
-        fprintf(stderr, "No machine found.\n");
-        exit(1);
     }
 
     /*

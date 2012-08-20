@@ -2445,6 +2445,7 @@ BlockInfoList *qmp_query_block(Error **errp)
             info->value->inserted->ro = bs->read_only;
             info->value->inserted->drv = g_strdup(bs->drv->format_name);
             info->value->inserted->encrypted = bs->encrypted;
+            info->value->inserted->encryption_key_missing = bdrv_key_required(bs);
             if (bs->backing_file[0]) {
                 info->value->inserted->has_backing_file = true;
                 info->value->inserted->backing_file = g_strdup(bs->backing_file);
@@ -3533,7 +3534,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
     /* But don't actually force it to the disk with cache=unsafe */
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
-        return 0;
+        goto flush_parent;
     }
 
     if (bs->drv->bdrv_co_flush_to_disk) {
@@ -3572,6 +3573,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     /* Now flush the underlying protocol.  It will also have BDRV_O_NO_FLUSH
      * in the case of cache=unsafe, so there are no useless flushes.
      */
+flush_parent:
     return bdrv_co_flush(bs->file);
 }
 

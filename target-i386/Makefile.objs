@@ -3,14 +3,6 @@ obj-y += excp_helper.o fpu_helper.o cc_helper.o int_helper.o svm_helper.o
 obj-y += smm_helper.o misc_helper.o mem_helper.o seg_helper.o
 obj-$(CONFIG_SOFTMMU) += machine.o arch_memory_mapping.o arch_dump.o
 obj-$(CONFIG_KVM) += kvm.o hyperv.o
+obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-$(CONFIG_LINUX_USER) += ioport-user.o
 obj-$(CONFIG_BSD_USER) += ioport-user.o
-
-$(obj)/fpu_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/cc_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/int_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/svm_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/smm_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/misc_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/mem_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/seg_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

@@ -342,6 +342,7 @@ def gen_command_decl_prologue(header, guard, prefix=""):
 #define %(guard)s
 
 #include "%(prefix)sqapi-types.h"
+#include "qdict.h"
 #include "error.h"
 
 ''',

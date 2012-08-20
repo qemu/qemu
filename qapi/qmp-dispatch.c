@@ -14,8 +14,8 @@
 #include "qemu-objects.h"
 #include "qapi/qmp-core.h"
 #include "json-parser.h"
+#include "qapi-types.h"
 #include "error.h"
-#include "error_int.h"
 #include "qerror.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, Error **errp)
@@ -109,6 +109,13 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
     return ret;
 }
 
+QObject *qmp_build_error_object(Error *errp)
+{
+    return qobject_from_jsonf("{ 'class': %s, 'desc': %s }",
+                              ErrorClass_lookup[error_get_class(errp)],
+                              error_get_pretty(errp));
+}
+
 QObject *qmp_dispatch(QObject *request)
 {
     Error *err = NULL;
@@ -119,7 +126,7 @@ QObject *qmp_dispatch(QObject *request)
 
     rsp = qdict_new();
     if (err) {
-        qdict_put_obj(rsp, "error", error_get_qobject(err));
+        qdict_put_obj(rsp, "error", qmp_build_error_object(err));
         error_free(err);
     } else if (ret) {
         qdict_put_obj(rsp, "return", ret);

@@ -77,6 +77,7 @@ common-obj-y += qemu-char.o #aio.o
 common-obj-y += block-migration.o iohandler.o
 common-obj-y += pflib.o
 common-obj-y += bitmap.o bitops.o
+common-obj-y += page_cache.o
 
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
 common-obj-$(CONFIG_WIN32) += version.o
@@ -94,6 +95,12 @@ common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o qemu-timer-common.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
+
+######################################################################
+# libseccomp
+ifeq ($(CONFIG_SECCOMP),y)
+common-obj-y += qemu-seccomp.o
+endif
 
 ######################################################################
 # libuser
@@ -211,6 +218,7 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 # qapi
 
 qapi-obj-y = qapi/
+qapi-obj-y += qapi-types.o qapi-visit.o
 
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o

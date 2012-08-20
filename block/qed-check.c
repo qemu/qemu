@@ -194,6 +194,28 @@ static void qed_check_for_leaks(QEDCheck *check)
     }
 }
 
+/**
+ * Mark an image clean once it passes check or has been repaired
+ */
+static void qed_check_mark_clean(BDRVQEDState *s, BdrvCheckResult *result)
+{
+    /* Skip if there were unfixable corruptions or I/O errors */
+    if (result->corruptions > 0 || result->check_errors > 0) {
+        return;
+    }
+
+    /* Skip if image is already marked clean */
+    if (!(s->header.features & QED_F_NEED_CHECK)) {
+        return;
+    }
+
+    /* Ensure fixes reach storage before clearing check bit */
+    bdrv_flush(s->bs);
+
+    s->header.features &= ~QED_F_NEED_CHECK;
+    qed_write_header_sync(s);
+}
+
 int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
 {
     QEDCheck check = {
@@ -215,6 +237,10 @@ int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
     if (ret == 0) {
         /* Only check for leaks if entire image was scanned successfully */
         qed_check_for_leaks(&check);
+
+        if (fix) {
+            qed_check_mark_clean(s, result);
+        }
     }
 
     g_free(check.used_clusters);

@@ -1,3 +1,4 @@
+
 /* Common header file that is included by all of qemu.  */
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
@@ -172,6 +173,7 @@ int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
+int qemu_parse_fdset(const char *param);
 
 /*
  * strtosz() suffixes used to specify the default treatment of an
@@ -213,6 +215,7 @@ const char *path(const char *pathname);
 void *qemu_oom_check(void *ptr);
 
 int qemu_open(const char *name, int flags, ...);
+int qemu_close(int fd);
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;
 ssize_t qemu_send_full(int fd, const void *buf, size_t count, int flags)
@@ -382,6 +385,7 @@ bool buffer_is_zero(const void *buf, size_t len);
 void qemu_progress_init(int enabled, float min_skip);
 void qemu_progress_end(void);
 void qemu_progress_print(float delta, int max);
+const char *qemu_get_vm_name(void);
 
 #define QEMU_FILE_TYPE_BIOS   0
 #define QEMU_FILE_TYPE_KEYMAP 1
@@ -434,6 +438,26 @@ static inline uint64_t muldiv64(uint64_t a, uint32_t b, uint32_t c)
 /* Round number up to multiple */
 #define QEMU_ALIGN_UP(n, m) QEMU_ALIGN_DOWN((n) + (m) - 1, (m))
 
+static inline bool is_power_of_2(uint64_t value)
+{
+    if (!value) {
+        return 0;
+    }
+
+    return !(value & (value - 1));
+}
+
+/* round down to the nearest power of 2*/
+int64_t pow2floor(int64_t value);
+
 #include "module.h"
+
+/*
+ * Implementation of ULEB128 (http://en.wikipedia.org/wiki/LEB128)
+ * Input is limited to 14-bit numbers
+ */
+
+int uleb128_encode_small(uint8_t *out, uint32_t n);
+int uleb128_decode_small(const uint8_t *in, uint32_t *n);
 
 #endif

@@ -172,7 +172,6 @@ vhost_net="no"
 kvm="no"
 gprof="no"
 debug_tcg="no"
-debug_mon="no"
 debug="no"
 strip_opt="yes"
 tcg_interpreter="no"
@@ -221,6 +220,7 @@ zlib="yes"
 guest_agent="yes"
 libiscsi=""
 coroutine=""
+seccomp=""
 
 # parse CC options first
 for opt do
@@ -303,6 +303,41 @@ int main(void) { return 0; }
 EOF
   compile_object
 }
+
+if check_define __linux__ ; then
+  targetos="Linux"
+elif check_define _WIN32 ; then
+  targetos='MINGW32'
+elif check_define __OpenBSD__ ; then
+  targetos='OpenBSD'
+elif check_define __sun__ ; then
+  targetos='SunOS'
+elif check_define __HAIKU__ ; then
+  targetos='Haiku'
+else
+  targetos=`uname -s`
+fi
+
+# Some host OSes need non-standard checks for which CPU to use.
+# Note that these checks are broken for cross-compilation: if you're
+# cross-compiling to one of these OSes then you'll need to specify
+# the correct CPU with the --cpu option.
+case $targetos in
+Darwin)
+  # on Leopard most of the system is 32-bit, so we have to ask the kernel if we can
+  # run 64-bit userspace code.
+  # If the user didn't specify a CPU explicitly and the kernel says this is
+  # 64 bit hw, then assume x86_64. Otherwise fall through to the usual detection code.
+  if test -z "$cpu" && test "$(sysctl -n hw.optional.x86_64)" = "1"; then
+    cpu="x86_64"
+  fi
+  ;;
+SunOS)
+  # `uname -m` returns i86pc even on an x86_64 box, so default based on isainfo
+  if test -z "$cpu" && test "$(isainfo -k)" = "amd64"; then
+    cpu="x86_64"
+  fi
+esac
 
 if test ! -z "$cpu" ; then
   # command line argument
@@ -391,19 +426,6 @@ if test -z "$ARCH"; then
 fi
 
 # OS specific
-if check_define __linux__ ; then
-  targetos="Linux"
-elif check_define _WIN32 ; then
-  targetos='MINGW32'
-elif check_define __OpenBSD__ ; then
-  targetos='OpenBSD'
-elif check_define __sun__ ; then
-  targetos='SunOS'
-elif check_define __HAIKU__ ; then
-  targetos='Haiku'
-else
-  targetos=`uname -s`
-fi
 
 case $targetos in
 CYGWIN*)
@@ -453,12 +475,6 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  # on Leopard most of the system is 32-bit, so we have to ask the kernel it if we can
-  # run 64-bit userspace code
-  if [ "$cpu" = "i386" ] ; then
-    is_x86_64=`sysctl -n hw.optional.x86_64`
-    [ "$is_x86_64" = "1" ] && cpu=x86_64
-  fi
   if [ "$cpu" = "x86_64" ] ; then
     QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
     LDFLAGS="-arch x86_64 $LDFLAGS"
@@ -470,6 +486,9 @@ Darwin)
   audio_possible_drivers="coreaudio sdl fmod"
   LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
   libs_softmmu="-F/System/Library/Frameworks -framework Cocoa -framework IOKit $libs_softmmu"
+  # Disable attempts to use ObjectiveC features in os/object.h since they
+  # won't work when we're compiling with gcc as a C compiler.
+  QEMU_CFLAGS="-DOS_OBJECT_USE_OBJC=0 $QEMU_CFLAGS"
 ;;
 SunOS)
   solaris="yes"
@@ -479,12 +498,6 @@ SunOS)
   smbd="${SMBD-/usr/sfw/sbin/smbd}"
   needs_libsunmath="no"
   solarisrev=`uname -r | cut -f2 -d.`
-  # have to select again, because `uname -m` returns i86pc
-  # even on an x86_64 box.
-  solariscpu=`isainfo -k`
-  if test "${solariscpu}" = "amd64" ; then
-    cpu="x86_64"
-  fi
   if [ "$cpu" = "i386" -o "$cpu" = "x86_64" ] ; then
     if test "$solarisrev" -le 9 ; then
       if test -f /opt/SUNWspro/prod/lib/libsunmath.so.1; then
@@ -549,6 +562,13 @@ fi
 : ${python=${PYTHON-python}}
 : ${smbd=${SMBD-/usr/sbin/smbd}}
 
+# Default objcc to clang if available, otherwise use CC
+if has clang; then
+  objcc=clang
+else
+  objcc="$cc"
+fi
+
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
@@ -596,6 +616,8 @@ for opt do
   --cc=*)
   ;;
   --host-cc=*) host_cc="$optarg"
+  ;;
+  --objcc=*) objcc="$optarg"
   ;;
   --make=*) make="$optarg"
   ;;
@@ -680,14 +702,9 @@ for opt do
   ;;
   --disable-debug-tcg) debug_tcg="no"
   ;;
-  --enable-debug-mon) debug_mon="yes"
-  ;;
-  --disable-debug-mon) debug_mon="no"
-  ;;
   --enable-debug)
       # Enable debugging options that aren't excessively noisy
       debug_tcg="yes"
-      debug_mon="yes"
       debug="yes"
       strip_opt="no"
   ;;
@@ -875,6 +892,10 @@ for opt do
   ;;
   --disable-guest-agent) guest_agent="no"
   ;;
+  --enable-seccomp) seccomp="yes"
+  ;;
+  --disable-seccomp) seccomp="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1048,6 +1069,7 @@ echo "  --cross-prefix=PREFIX    use PREFIX for compile tools [$cross_prefix]"
 echo "  --cc=CC                  use C compiler CC [$cc]"
 echo "  --host-cc=CC             use C compiler CC [$host_cc] for code run at"
 echo "                           build time"
+echo "  --objcc=OBJCC            use Objective-C compiler OBJCC [$objcc]"
 echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
@@ -1162,6 +1184,8 @@ echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
 echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
+echo "  --disable-seccomp        disable seccomp support"
+echo "  --enable-seccomp         enables seccomp support"
 echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
 echo "                           gthread, ucontext, sigaltstack, windows"
 echo ""
@@ -1424,6 +1448,20 @@ EOF
     fi
 fi
 
+##########################################
+# libseccomp check
+
+if test "$seccomp" != "no" ; then
+    if $pkg_config libseccomp --modversion >/dev/null 2>&1; then
+        LIBS=`$pkg_config --libs libseccomp`
+	seccomp="yes"
+    else
+	seccomp="no"
+	if test "$seccomp" = "yes"; then
+            feature_not_found "libseccomp"
+	fi
+    fi
+fi
 ##########################################
 # xen probe
 
@@ -3108,6 +3146,7 @@ fi
 echo "Source path       $source_path"
 echo "C compiler        $cc"
 echo "Host C compiler   $host_cc"
+echo "Objective-C compiler $objcc"
 echo "CFLAGS            $CFLAGS"
 echo "QEMU_CFLAGS       $QEMU_CFLAGS"
 echo "LDFLAGS           $LDFLAGS"
@@ -3121,7 +3160,6 @@ echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
 echo "tcg debug enabled $debug_tcg"
-echo "Mon debug enabled $debug_mon"
 echo "gprof enabled     $gprof"
 echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
@@ -3184,6 +3222,7 @@ echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
+echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine_backend"
 
 if test "$sdl_too_old" = "yes"; then
@@ -3214,9 +3253,6 @@ echo "CONFIG_QEMU_HELPERDIR=\"$prefix/libexec\"" >> $config_host_mak
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
-fi
-if test "$debug_mon" = "yes" ; then
-  echo "CONFIG_DEBUG_MONITOR=y" >> $config_host_mak
 fi
 if test "$debug" = "yes" ; then
   echo "CONFIG_DEBUG_EXEC=y" >> $config_host_mak
@@ -3486,6 +3522,10 @@ if test "$libiscsi" = "yes" ; then
   echo "CONFIG_LIBISCSI=y" >> $config_host_mak
 fi
 
+if test "$seccomp" = "yes"; then
+  echo "CONFIG_SECCOMP=y" >> $config_host_mak
+fi
+
 # XXX: suppress that
 if [ "$bsd" = "yes" ] ; then
   echo "CONFIG_BSD=y" >> $config_host_mak
@@ -3580,6 +3620,7 @@ echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
+echo "OBJCC=$objcc" >> $config_host_mak
 echo "AR=$ar" >> $config_host_mak
 echo "OBJCOPY=$objcopy" >> $config_host_mak
 echo "LD=$ld" >> $config_host_mak
@@ -3625,15 +3666,23 @@ if test "$linux" = "yes" ; then
   mkdir -p linux-headers
   case "$cpu" in
   i386|x86_64)
-    symlink "$source_path/linux-headers/asm-x86" linux-headers/asm
+    linux_arch=x86
     ;;
   ppcemb|ppc|ppc64)
-    symlink "$source_path/linux-headers/asm-powerpc" linux-headers/asm
+    linux_arch=powerpc
     ;;
   s390x)
-    symlink "$source_path/linux-headers/asm-s390" linux-headers/asm
+    linux_arch=s390
+    ;;
+  *)
+    # For most CPUs the kernel architecture name and QEMU CPU name match.
+    linux_arch="$cpu"
     ;;
   esac
+    # For non-KVM architectures we will not have asm headers
+    if [ -e "$source_path/linux-headers/asm-$linux_arch" ]; then
+      symlink "$source_path/linux-headers/asm-$linux_arch" linux-headers/asm
+    fi
 fi
 
 for target in $target_list; do
@@ -3842,7 +3891,7 @@ symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 
 
 case "$target_arch2" in
-  alpha | or32 | sparc* | xtensa* | ppc*)
+  alpha | i386 | or32 | sparc* | x86_64 | xtensa* | ppc*)
     echo "CONFIG_TCG_PASS_AREG0=y" >> $config_target_mak
   ;;
 esac
@@ -3943,6 +3992,11 @@ if test "$target_user_only" = "yes" -a "$guest_base" = "yes"; then
 fi
 if test "$target_bsd_user" = "yes" ; then
   echo "CONFIG_BSD_USER=y" >> $config_target_mak
+fi
+
+# the static way of configuring available audio cards requires this workaround
+if test "$target_user_only" != "yes" && grep -q CONFIG_PCSPK $source_path/default-configs/$target.mak; then
+  echo "CONFIG_PCSPK=y" >> $config_target_mak
 fi
 
 # generate QEMU_CFLAGS/LDFLAGS for targets

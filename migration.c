@@ -43,6 +43,9 @@ enum {
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
 
+/* Migration XBZRLE default cache size */
+#define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
+
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
@@ -55,6 +58,7 @@ static MigrationState *migrate_get_current(void)
     static MigrationState current_migration = {
         .state = MIG_STATE_SETUP,
         .bandwidth_limit = MAX_THROTTLE,
+        .xbzrle_cache_size = DEFAULT_MIGRATE_CACHE_SIZE,
     };
 
     return &current_migration;
@@ -113,6 +117,43 @@ uint64_t migrate_max_downtime(void)
     return max_downtime;
 }
 
+MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
+{
+    MigrationCapabilityStatusList *head = NULL;
+    MigrationCapabilityStatusList *caps;
+    MigrationState *s = migrate_get_current();
+    int i;
+
+    for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+        if (head == NULL) {
+            head = g_malloc0(sizeof(*caps));
+            caps = head;
+        } else {
+            caps->next = g_malloc0(sizeof(*caps));
+            caps = caps->next;
+        }
+        caps->value =
+            g_malloc(sizeof(*caps->value));
+        caps->value->capability = i;
+        caps->value->state = s->enabled_capabilities[i];
+    }
+
+    return head;
+}
+
+static void get_xbzrle_cache_stats(MigrationInfo *info)
+{
+    if (migrate_use_xbzrle()) {
+        info->has_xbzrle_cache = true;
+        info->xbzrle_cache = g_malloc0(sizeof(*info->xbzrle_cache));
+        info->xbzrle_cache->cache_size = migrate_xbzrle_cache_size();
+        info->xbzrle_cache->bytes = xbzrle_mig_bytes_transferred();
+        info->xbzrle_cache->pages = xbzrle_mig_pages_transferred();
+        info->xbzrle_cache->cache_miss = xbzrle_mig_pages_cache_miss();
+        info->xbzrle_cache->overflow = xbzrle_mig_pages_overflow();
+    }
+}
+
 MigrationInfo *qmp_query_migrate(Error **errp)
 {
     MigrationInfo *info = g_malloc0(sizeof(*info));
@@ -133,6 +174,9 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->total = ram_bytes_total();
         info->ram->total_time = qemu_get_clock_ms(rt_clock)
             - s->total_time;
+        info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->normal = norm_mig_pages_transferred();
+        info->ram->normal_bytes = norm_mig_bytes_transferred();
 
         if (blk_mig_active()) {
             info->has_disk = true;
@@ -141,8 +185,12 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->remaining = blk_mig_bytes_remaining();
             info->disk->total = blk_mig_bytes_total();
         }
+
+        get_xbzrle_cache_stats(info);
         break;
     case MIG_STATE_COMPLETED:
+        get_xbzrle_cache_stats(info);
+
         info->has_status = true;
         info->status = g_strdup("completed");
 
@@ -152,6 +200,9 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->ram->remaining = 0;
         info->ram->total = ram_bytes_total();
         info->ram->total_time = s->total_time;
+        info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->normal = norm_mig_pages_transferred();
+        info->ram->normal_bytes = norm_mig_bytes_transferred();
         break;
     case MIG_STATE_ERROR:
         info->has_status = true;
@@ -164,6 +215,22 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     }
 
     return info;
+}
+
+void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
+                                  Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+    MigrationCapabilityStatusList *cap;
+
+    if (s->state == MIG_STATE_ACTIVE) {
+        error_set(errp, QERR_MIGRATION_ACTIVE);
+        return;
+    }
+
+    for (cap = params; cap; cap = cap->next) {
+        s->enabled_capabilities[cap->value->capability] = cap->value->state;
+    }
 }
 
 /* shared migration helpers */
@@ -375,10 +442,18 @@ static MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
     int64_t bandwidth_limit = s->bandwidth_limit;
+    bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
+    int64_t xbzrle_cache_size = s->xbzrle_cache_size;
+
+    memcpy(enabled_capabilities, s->enabled_capabilities,
+           sizeof(enabled_capabilities));
 
     memset(s, 0, sizeof(*s));
     s->bandwidth_limit = bandwidth_limit;
     s->params = *params;
+    memcpy(s->enabled_capabilities, enabled_capabilities,
+           sizeof(enabled_capabilities));
+    s->xbzrle_cache_size = xbzrle_cache_size;
 
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;
@@ -459,6 +534,25 @@ void qmp_migrate_cancel(Error **errp)
     migrate_fd_cancel(migrate_get_current());
 }
 
+void qmp_migrate_set_cache_size(int64_t value, Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+
+    /* Check for truncation */
+    if (value != (size_t)value) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cache size",
+                  "exceeding address space");
+        return;
+    }
+
+    s->xbzrle_cache_size = xbzrle_cache_resize(value);
+}
+
+int64_t qmp_query_migrate_cache_size(Error **errp)
+{
+    return migrate_xbzrle_cache_size();
+}
+
 void qmp_migrate_set_speed(int64_t value, Error **errp)
 {
     MigrationState *s;
@@ -477,4 +571,22 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     value *= 1e9;
     value = MAX(0, MIN(UINT64_MAX, value));
     max_downtime = (uint64_t)value;
+}
+
+int migrate_use_xbzrle(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_XBZRLE];
+}
+
+int64_t migrate_xbzrle_cache_size(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->xbzrle_cache_size;
 }

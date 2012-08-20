@@ -45,6 +45,13 @@
 #  define GCC_ATTR __attribute__((__unused__, format(gnu_printf, 1, 2)))
 #  define GCC_FMT_ATTR(n, m) __attribute__((format(gnu_printf, n, m)))
 # endif
+#if defined(_WIN32)
+#define GCC_WEAK __attribute__((weak))
+#define GCC_WEAK_DECL GCC_WEAK
+#else
+#define GCC_WEAK __attribute__((weak))
+#define GCC_WEAK_DECL
+#endif
 #else
 #define GCC_ATTR /**/
 #define GCC_FMT_ATTR(n, m)

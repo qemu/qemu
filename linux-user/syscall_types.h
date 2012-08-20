@@ -77,6 +77,9 @@ STRUCT(audio_buf_info,
 STRUCT(count_info,
        TYPE_INT, TYPE_INT, TYPE_INT)
 
+STRUCT(buffmem_desc,
+       TYPE_PTRVOID, TYPE_INT)
+
 STRUCT(mixer_info,
        MK_ARRAY(TYPE_CHAR, 16), MK_ARRAY(TYPE_CHAR, 32), TYPE_INT, MK_ARRAY(TYPE_INT, 10))
 

@@ -312,7 +312,9 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
 
 /* NOTE: this function can trigger an exception */
 /* NOTE2: the returned address is not exactly the physical address: it
-   is the offset relative to phys_ram_base */
+ * is actually a ram_addr_t (in system mode; the user mode emulation
+ * version of this function returns a guest virtual address).
+ */
 tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 {
     int mmu_idx, page_index, pd;

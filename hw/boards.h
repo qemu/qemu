@@ -12,11 +12,14 @@ typedef void QEMUMachineInitFunc(ram_addr_t ram_size,
                                  const char *initrd_filename,
                                  const char *cpu_model);
 
+typedef void QEMUMachineResetFunc(void);
+
 typedef struct QEMUMachine {
     const char *name;
     const char *alias;
     const char *desc;
     QEMUMachineInitFunc *init;
+    QEMUMachineResetFunc *reset;
     int use_scsi;
     int max_cpus;
     unsigned int no_serial:1,

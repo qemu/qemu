@@ -988,7 +988,7 @@ static void ttbr164_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 }
 
 static const ARMCPRegInfo lpae_cp_reginfo[] = {
-    /* NOP AMAIR0/1: the override is because these clash with tha rather
+    /* NOP AMAIR0/1: the override is because these clash with the rather
      * broadly specified TLB_LOCKDOWN entry in the generic cp_reginfo.
      */
     { .name = "AMAIR0", .cp = 15, .crn = 10, .crm = 3, .opc1 = 0, .opc2 = 0,
@@ -2899,8 +2899,8 @@ uint32_t HELPER(logicq_cc)(uint64_t val)
     return (val >> 32) | (val != 0);
 }
 
-/* VFP support.  We follow the convention used for VFP instrunctions:
-   Single precition routines have a "s" suffix, double precision a
+/* VFP support.  We follow the convention used for VFP instructions:
+   Single precision routines have a "s" suffix, double precision a
    "d" suffix.  */
 
 /* Convert host exception flags to vfp form.  */

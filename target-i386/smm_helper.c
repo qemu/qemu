@@ -18,18 +18,17 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 /* SMM support */
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_smm_enter(CPUX86State *env1)
+void do_smm_enter(CPUX86State *env)
 {
 }
 
-void helper_rsm(void)
+void helper_rsm(CPUX86State *env)
 {
 }
 
@@ -41,15 +40,11 @@ void helper_rsm(void)
 #define SMM_REVISION_ID 0x00020000
 #endif
 
-void do_smm_enter(CPUX86State *env1)
+void do_smm_enter(CPUX86State *env)
 {
     target_ulong sm_state;
     SegmentCache *dt;
     int i, offset;
-    CPUX86State *saved_env;
-
-    saved_env = env;
-    env = env1;
 
     qemu_log_mask(CPU_LOG_INT, "SMM: enter\n");
     log_cpu_state_mask(CPU_LOG_INT, env, X86_DUMP_CCOP);
@@ -180,10 +175,9 @@ void do_smm_enter(CPUX86State *env1)
     cpu_x86_update_cr4(env, 0);
     env->dr[7] = 0x00000400;
     CC_OP = CC_OP_EFLAGS;
-    env = saved_env;
 }
 
-void helper_rsm(void)
+void helper_rsm(CPUX86State *env)
 {
     target_ulong sm_state;
     int i, offset;

@@ -48,6 +48,7 @@
 #include "blockdev.h"
 #include "exec-memory.h"
 #include "sysbus.h"             /* SysBusDevice */
+#include "vga-pci.h"
 
 #undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)

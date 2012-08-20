@@ -79,7 +79,7 @@ def c(events):
                        )
                 # pointer var (not string)
                 elif type_.endswith('*'):
-                    out('    trace_record_write_u64(&rec, (uint64_t)(uint64_t *)%(name)s);',
+                    out('    trace_record_write_u64(&rec, (uintptr_t)(uint64_t *)%(name)s);',
                         name = name,
                        )
                 # primitive data type

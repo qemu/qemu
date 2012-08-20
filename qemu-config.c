@@ -362,6 +362,19 @@ static QemuOptsList qemu_global_opts = {
     },
 };
 
+QemuOptsList qemu_sandbox_opts = {
+    .name = "sandbox",
+    .implied_opt_name = "enable",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_sandbox_opts.head),
+    .desc = {
+        {
+            .name = "enable",
+            .type = QEMU_OPT_BOOL,
+        },
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_mon_opts = {
     .name = "mon",
     .implied_opt_name = "chardev",
@@ -595,6 +608,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "dt_compatible",
             .type = QEMU_OPT_STRING,
             .help = "Overrides the \"compatible\" property of the dt root node",
+        }, {
+            .name = "dump-guest-core",
+            .type = QEMU_OPT_BOOL,
+            .help = "Include guest memory in  a core dump",
         },
         { /* End of list */ }
     },
@@ -641,6 +658,7 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_machine_opts,
     &qemu_boot_opts,
     &qemu_iscsi_opts,
+    &qemu_sandbox_opts,
     NULL,
 };
 

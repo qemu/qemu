@@ -417,3 +417,65 @@ ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
 
     return ret;
 }
+
+DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
+                                                   Error **errp)
+{
+    ObjectClass *klass;
+    Property *prop;
+    DevicePropertyInfoList *prop_list = NULL;
+
+    klass = object_class_by_name(typename);
+    if (klass == NULL) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, typename);
+        return NULL;
+    }
+
+    klass = object_class_dynamic_cast(klass, TYPE_DEVICE);
+    if (klass == NULL) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                  "name", TYPE_DEVICE);
+        return NULL;
+    }
+
+    do {
+        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
+            DevicePropertyInfoList *entry;
+            DevicePropertyInfo *info;
+
+            /*
+             * TODO Properties without a parser are just for dirty hacks.
+             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
+             * for removal.  This conditional should be removed along with
+             * it.
+             */
+            if (!prop->info->set) {
+                continue;           /* no way to set it, don't show */
+            }
+
+            info = g_malloc0(sizeof(*info));
+            info->name = g_strdup(prop->name);
+            info->type = g_strdup(prop->info->legacy_name ?: prop->info->name);
+
+            entry = g_malloc0(sizeof(*entry));
+            entry->value = info;
+            entry->next = prop_list;
+            prop_list = entry;
+        }
+        klass = object_class_get_parent(klass);
+    } while (klass != object_class_by_name(TYPE_DEVICE));
+
+    return prop_list;
+}
+
+CpuDefinitionInfoList GCC_WEAK *arch_query_cpu_definitions(Error **errp)
+{
+    error_set(errp, QERR_NOT_SUPPORTED);
+    return NULL;
+}
+
+CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+{
+    return arch_query_cpu_definitions(errp);
+}
+

@@ -239,6 +239,7 @@ struct ObjectClass
 {
     /*< private >*/
     Type type;
+    GSList *interfaces;
 };
 
 /**
@@ -260,7 +261,6 @@ struct Object
 {
     /*< private >*/
     ObjectClass *class;
-    GSList *interfaces;
     QTAILQ_HEAD(, ObjectProperty) properties;
     uint32_t ref;
     Object *parent;
@@ -387,6 +387,16 @@ struct TypeInfo
     OBJECT_CLASS_CHECK(class, object_get_class(OBJECT(obj)), name)
 
 /**
+ * InterfaceInfo:
+ * @type: The name of the interface.
+ *
+ * The information associated with an interface.
+ */
+struct InterfaceInfo {
+    const char *type;
+};
+
+/**
  * InterfaceClass:
  * @parent_class: the base class
  *
@@ -396,26 +406,30 @@ struct TypeInfo
 struct InterfaceClass
 {
     ObjectClass parent_class;
-};
-
-/**
- * InterfaceInfo:
- * @type: The name of the interface.
- * @interface_initfn: This method is called during class initialization and is
- *   used to initialize an interface associated with a class.  This function
- *   should initialize any default virtual functions for a class and/or override
- *   virtual functions in a parent class.
- *
- * The information associated with an interface.
- */
-struct InterfaceInfo
-{
-    const char *type;
-
-    void (*interface_initfn)(ObjectClass *class, void *data);
+    /*< private >*/
+    ObjectClass *concrete_class;
 };
 
 #define TYPE_INTERFACE "interface"
+
+/**
+ * INTERFACE_CLASS:
+ * @klass: class to cast from
+ * Returns: An #InterfaceClass or raise an error if cast is invalid
+ */
+#define INTERFACE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(InterfaceClass, klass, TYPE_INTERFACE)
+
+/**
+ * INTERFACE_CHECK:
+ * @interface: the type to return
+ * @obj: the object to convert to an interface
+ * @name: the interface type name
+ *
+ * Returns: @obj casted to @interface if cast is valid, otherwise raise error.
+ */
+#define INTERFACE_CHECK(interface, obj, name) \
+    ((interface *)object_dynamic_cast_assert(OBJECT((obj)), (name)))
 
 /**
  * object_new:

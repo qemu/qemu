@@ -761,6 +761,7 @@ static int ata_passthrough_12_xfer_size(SCSIDevice *dev, uint8_t *buf)
     switch (length) {
     case 0:
     case 3: /* USB-specific.  */
+    default:
         xfer = 0;
         break;
     case 1:
@@ -784,6 +785,7 @@ static int ata_passthrough_16_xfer_size(SCSIDevice *dev, uint8_t *buf)
     switch (length) {
     case 0:
     case 3: /* USB-specific.  */
+    default:
         xfer = 0;
         break;
     case 1:

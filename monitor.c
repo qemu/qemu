@@ -140,6 +140,24 @@ struct mon_fd_t {
     QLIST_ENTRY(mon_fd_t) next;
 };
 
+/* file descriptor associated with a file descriptor set */
+typedef struct MonFdsetFd MonFdsetFd;
+struct MonFdsetFd {
+    int fd;
+    bool removed;
+    char *opaque;
+    QLIST_ENTRY(MonFdsetFd) next;
+};
+
+/* file descriptor set containing fds passed via SCM_RIGHTS */
+typedef struct MonFdset MonFdset;
+struct MonFdset {
+    int64_t id;
+    QLIST_HEAD(, MonFdsetFd) fds;
+    QLIST_HEAD(, MonFdsetFd) dup_fds;
+    QLIST_ENTRY(MonFdset) next;
+};
+
 typedef struct MonitorControl {
     QObject *id;
     JSONMessageParser parser;
@@ -172,45 +190,17 @@ struct Monitor {
     CPUArchState *mon_cpu;
     BlockDriverCompletionFunc *password_completion_cb;
     void *password_opaque;
-#ifdef CONFIG_DEBUG_MONITOR
-    int print_calls_nr;
-#endif
     QError *error;
     QLIST_HEAD(,mon_fd_t) fds;
     QLIST_ENTRY(Monitor) entry;
 };
 
-#ifdef CONFIG_DEBUG_MONITOR
-#define MON_DEBUG(fmt, ...) do {    \
-    fprintf(stderr, "Monitor: ");       \
-    fprintf(stderr, fmt, ## __VA_ARGS__); } while (0)
-
-static inline void mon_print_count_inc(Monitor *mon)
-{
-    mon->print_calls_nr++;
-}
-
-static inline void mon_print_count_init(Monitor *mon)
-{
-    mon->print_calls_nr = 0;
-}
-
-static inline int mon_print_count_get(const Monitor *mon)
-{
-    return mon->print_calls_nr;
-}
-
-#else /* !CONFIG_DEBUG_MONITOR */
-#define MON_DEBUG(fmt, ...) do { } while (0)
-static inline void mon_print_count_inc(Monitor *mon) { }
-static inline void mon_print_count_init(Monitor *mon) { }
-static inline int mon_print_count_get(const Monitor *mon) { return 0; }
-#endif /* CONFIG_DEBUG_MONITOR */
-
 /* QMP checker flags */
 #define QMP_ACCEPT_UNKNOWNS 1
 
 static QLIST_HEAD(mon_list, Monitor) mon_list;
+static QLIST_HEAD(mon_fdsets, MonFdset) mon_fdsets;
+static int mon_refcount;
 
 static mon_cmd_t mon_cmds[];
 static mon_cmd_t info_cmds[];
@@ -299,8 +289,6 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
     if (!mon)
         return;
 
-    mon_print_count_inc(mon);
-
     if (monitor_ctrl_mode(mon)) {
         return;
     }
@@ -385,16 +373,26 @@ static void monitor_json_emitter(Monitor *mon, const QObject *data)
     QDECREF(json);
 }
 
+static QDict *build_qmp_error_dict(const QError *err)
+{
+    QObject *obj;
+
+    obj = qobject_from_jsonf("{ 'error': { 'class': %s, 'desc': %p } }",
+                             ErrorClass_lookup[err->err_class],
+                             qerror_human(err));
+
+    return qobject_to_qdict(obj);
+}
+
 static void monitor_protocol_emitter(Monitor *mon, QObject *data)
 {
     QDict *qmp;
 
     trace_monitor_protocol_emitter(mon);
 
-    qmp = qdict_new();
-
     if (!monitor_has_error(mon)) {
         /* success response */
+        qmp = qdict_new();
         if (data) {
             qobject_incref(data);
             qdict_put_obj(qmp, "return", data);
@@ -404,9 +402,7 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
         }
     } else {
         /* error response */
-        qdict_put(mon->error->error, "desc", qerror_human(mon->error));
-        qdict_put(qmp, "error", mon->error->error);
-        QINCREF(mon->error->error);
+        qmp = build_qmp_error_dict(mon->error);
         QDECREF(mon->error);
         mon->error = NULL;
     }
@@ -456,6 +452,7 @@ static const char *monitor_event_names[] = {
     [QEVENT_BLOCK_JOB_CANCELLED] = "BLOCK_JOB_CANCELLED",
     [QEVENT_DEVICE_TRAY_MOVED] = "DEVICE_TRAY_MOVED",
     [QEVENT_SUSPEND] = "SUSPEND",
+    [QEVENT_SUSPEND_DISK] = "SUSPEND_DISK",
     [QEVENT_WAKEUP] = "WAKEUP",
     [QEVENT_BALLOON_CHANGE] = "BALLOON_CHANGE",
 };
@@ -2389,6 +2386,271 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
     return -1;
 }
 
+static void monitor_fdset_cleanup(MonFdset *mon_fdset)
+{
+    MonFdsetFd *mon_fdset_fd;
+    MonFdsetFd *mon_fdset_fd_next;
+
+    QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next, mon_fdset_fd_next) {
+        if (mon_fdset_fd->removed ||
+                (QLIST_EMPTY(&mon_fdset->dup_fds) && mon_refcount == 0)) {
+            close(mon_fdset_fd->fd);
+            g_free(mon_fdset_fd->opaque);
+            QLIST_REMOVE(mon_fdset_fd, next);
+            g_free(mon_fdset_fd);
+        }
+    }
+
+    if (QLIST_EMPTY(&mon_fdset->fds) && QLIST_EMPTY(&mon_fdset->dup_fds)) {
+        QLIST_REMOVE(mon_fdset, next);
+        g_free(mon_fdset);
+    }
+}
+
+static void monitor_fdsets_cleanup(void)
+{
+    MonFdset *mon_fdset;
+    MonFdset *mon_fdset_next;
+
+    QLIST_FOREACH_SAFE(mon_fdset, &mon_fdsets, next, mon_fdset_next) {
+        monitor_fdset_cleanup(mon_fdset);
+    }
+}
+
+AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
+                      const char *opaque, Error **errp)
+{
+    int fd;
+    Monitor *mon = cur_mon;
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    AddfdInfo *fdinfo;
+
+    fd = qemu_chr_fe_get_msgfd(mon->chr);
+    if (fd == -1) {
+        error_set(errp, QERR_FD_NOT_SUPPLIED);
+        goto error;
+    }
+
+    if (has_fdset_id) {
+        QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+            if (mon_fdset->id == fdset_id) {
+                break;
+            }
+        }
+        if (mon_fdset == NULL) {
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
+                      "an existing fdset-id");
+            goto error;
+        }
+    } else {
+        int64_t fdset_id_prev = -1;
+        MonFdset *mon_fdset_cur = QLIST_FIRST(&mon_fdsets);
+
+        /* Use first available fdset ID */
+        QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+            mon_fdset_cur = mon_fdset;
+            if (fdset_id_prev == mon_fdset_cur->id - 1) {
+                fdset_id_prev = mon_fdset_cur->id;
+                continue;
+            }
+            break;
+        }
+
+        mon_fdset = g_malloc0(sizeof(*mon_fdset));
+        mon_fdset->id = fdset_id_prev + 1;
+
+        /* The fdset list is ordered by fdset ID */
+        if (mon_fdset->id == 0) {
+            QLIST_INSERT_HEAD(&mon_fdsets, mon_fdset, next);
+        } else if (mon_fdset->id < mon_fdset_cur->id) {
+            QLIST_INSERT_BEFORE(mon_fdset_cur, mon_fdset, next);
+        } else {
+            QLIST_INSERT_AFTER(mon_fdset_cur, mon_fdset, next);
+        }
+    }
+
+    mon_fdset_fd = g_malloc0(sizeof(*mon_fdset_fd));
+    mon_fdset_fd->fd = fd;
+    mon_fdset_fd->removed = false;
+    if (has_opaque) {
+        mon_fdset_fd->opaque = g_strdup(opaque);
+    }
+    QLIST_INSERT_HEAD(&mon_fdset->fds, mon_fdset_fd, next);
+
+    fdinfo = g_malloc0(sizeof(*fdinfo));
+    fdinfo->fdset_id = mon_fdset->id;
+    fdinfo->fd = mon_fdset_fd->fd;
+
+    return fdinfo;
+
+error:
+    if (fd != -1) {
+        close(fd);
+    }
+    return NULL;
+}
+
+void qmp_remove_fd(int64_t fdset_id, bool has_fd, int64_t fd, Error **errp)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    char fd_str[60];
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        if (mon_fdset->id != fdset_id) {
+            continue;
+        }
+        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+            if (has_fd) {
+                if (mon_fdset_fd->fd != fd) {
+                    continue;
+                }
+                mon_fdset_fd->removed = true;
+                break;
+            } else {
+                mon_fdset_fd->removed = true;
+            }
+        }
+        if (has_fd && !mon_fdset_fd) {
+            goto error;
+        }
+        monitor_fdset_cleanup(mon_fdset);
+        return;
+    }
+
+error:
+    if (has_fd) {
+        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64 ", fd:%" PRId64,
+                 fdset_id, fd);
+    } else {
+        snprintf(fd_str, sizeof(fd_str), "fdset-id:%" PRId64, fdset_id);
+    }
+    error_set(errp, QERR_FD_NOT_FOUND, fd_str);
+}
+
+FdsetInfoList *qmp_query_fdsets(Error **errp)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    FdsetInfoList *fdset_list = NULL;
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        FdsetInfoList *fdset_info = g_malloc0(sizeof(*fdset_info));
+        FdsetFdInfoList *fdsetfd_list = NULL;
+
+        fdset_info->value = g_malloc0(sizeof(*fdset_info->value));
+        fdset_info->value->fdset_id = mon_fdset->id;
+
+        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+            FdsetFdInfoList *fdsetfd_info;
+
+            fdsetfd_info = g_malloc0(sizeof(*fdsetfd_info));
+            fdsetfd_info->value = g_malloc0(sizeof(*fdsetfd_info->value));
+            fdsetfd_info->value->fd = mon_fdset_fd->fd;
+            if (mon_fdset_fd->opaque) {
+                fdsetfd_info->value->has_opaque = true;
+                fdsetfd_info->value->opaque = g_strdup(mon_fdset_fd->opaque);
+            } else {
+                fdsetfd_info->value->has_opaque = false;
+            }
+
+            fdsetfd_info->next = fdsetfd_list;
+            fdsetfd_list = fdsetfd_info;
+        }
+
+        fdset_info->value->fds = fdsetfd_list;
+
+        fdset_info->next = fdset_list;
+        fdset_list = fdset_info;
+    }
+
+    return fdset_list;
+}
+
+int monitor_fdset_get_fd(int64_t fdset_id, int flags)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd;
+    int mon_fd_flags;
+
+#ifndef _WIN32
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        if (mon_fdset->id != fdset_id) {
+            continue;
+        }
+        QLIST_FOREACH(mon_fdset_fd, &mon_fdset->fds, next) {
+            mon_fd_flags = fcntl(mon_fdset_fd->fd, F_GETFL);
+            if (mon_fd_flags == -1) {
+                return -1;
+            }
+
+            if ((flags & O_ACCMODE) == (mon_fd_flags & O_ACCMODE)) {
+                return mon_fdset_fd->fd;
+            }
+        }
+        errno = EACCES;
+        return -1;
+    }
+#endif
+
+    errno = ENOENT;
+    return -1;
+}
+
+int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd_dup;
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        if (mon_fdset->id != fdset_id) {
+            continue;
+        }
+        QLIST_FOREACH(mon_fdset_fd_dup, &mon_fdset->dup_fds, next) {
+            if (mon_fdset_fd_dup->fd == dup_fd) {
+                return -1;
+            }
+        }
+        mon_fdset_fd_dup = g_malloc0(sizeof(*mon_fdset_fd_dup));
+        mon_fdset_fd_dup->fd = dup_fd;
+        QLIST_INSERT_HEAD(&mon_fdset->dup_fds, mon_fdset_fd_dup, next);
+        return 0;
+    }
+    return -1;
+}
+
+static int monitor_fdset_dup_fd_find_remove(int dup_fd, bool remove)
+{
+    MonFdset *mon_fdset;
+    MonFdsetFd *mon_fdset_fd_dup;
+
+    QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+        QLIST_FOREACH(mon_fdset_fd_dup, &mon_fdset->dup_fds, next) {
+            if (mon_fdset_fd_dup->fd == dup_fd) {
+                if (remove) {
+                    QLIST_REMOVE(mon_fdset_fd_dup, next);
+                    if (QLIST_EMPTY(&mon_fdset->dup_fds)) {
+                        monitor_fdset_cleanup(mon_fdset);
+                    }
+                }
+                return mon_fdset->id;
+            }
+        }
+    }
+    return -1;
+}
+
+int monitor_fdset_dup_fd_find(int dup_fd)
+{
+    return monitor_fdset_dup_fd_find_remove(dup_fd, false);
+}
+
+int monitor_fdset_dup_fd_remove(int dup_fd)
+{
+    return monitor_fdset_dup_fd_find_remove(dup_fd, true);
+}
+
 /* mon_cmds and info_cmds would be sorted at runtime */
 static mon_cmd_t mon_cmds[] = {
 #include "hmp-commands.h"
@@ -2653,6 +2915,20 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show migration status",
         .mhandler.info = hmp_info_migrate,
+    },
+    {
+        .name       = "migrate_capabilities",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current migration capabilities",
+        .mhandler.info = hmp_info_migrate_capabilities,
+    },
+    {
+        .name       = "migrate_cache_size",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show current migration xbzrle cache size",
+        .mhandler.info = hmp_info_migrate_cache_size,
     },
     {
         .name       = "balloon",
@@ -3860,8 +4136,6 @@ void monitor_set_error(Monitor *mon, QError *qerror)
     if (!mon->error) {
         mon->error = qerror;
     } else {
-        MON_DEBUG("Additional error report at %s:%d\n",
-                  qerror->file, qerror->linenr);
         QDECREF(qerror);
     }
 }
@@ -3875,36 +4149,7 @@ static void handler_audit(Monitor *mon, const mon_cmd_t *cmd, int ret)
          * Action: Report an internal error to the client if in QMP.
          */
         qerror_report(QERR_UNDEFINED_ERROR);
-        MON_DEBUG("command '%s' returned failure but did not pass an error\n",
-                  cmd->name);
     }
-
-#ifdef CONFIG_DEBUG_MONITOR
-    if (!ret && monitor_has_error(mon)) {
-        /*
-         * If it returns success, it must not have passed an error.
-         *
-         * Action: Report the passed error to the client.
-         */
-        MON_DEBUG("command '%s' returned success but passed an error\n",
-                  cmd->name);
-    }
-
-    if (mon_print_count_get(mon) > 0 && strcmp(cmd->name, "info") != 0) {
-        /*
-         * Handlers should not call Monitor print functions.
-         *
-         * Action: Ignore them in QMP.
-         *
-         * (XXX: we don't check any 'info' or 'query' command here
-         * because the user print function _is_ called by do_info(), hence
-         * we will trigger this check. This problem will go away when we
-         * make 'query' commands real and kill do_info())
-         */
-        MON_DEBUG("command '%s' called print functions %d time(s)\n",
-                  cmd->name, mon_print_count_get(mon));
-    }
-#endif
 }
 
 static void handle_user_command(Monitor *mon, const char *cmdline)
@@ -4433,8 +4678,6 @@ static void qmp_call_cmd(Monitor *mon, const mon_cmd_t *cmd,
     int ret;
     QObject *data = NULL;
 
-    mon_print_count_init(mon);
-
     ret = cmd->mhandler.cmd_new(mon, params, &data);
     handler_audit(mon, cmd, ret);
     monitor_protocol_emitter(mon, data);
@@ -4593,9 +4836,12 @@ static void monitor_control_event(void *opaque, int event)
         data = get_qmp_greeting();
         monitor_json_emitter(mon, data);
         qobject_decref(data);
+        mon_refcount++;
         break;
     case CHR_EVENT_CLOSED:
         json_message_parser_destroy(&mon->mc->parser);
+        mon_refcount--;
+        monitor_fdsets_cleanup();
         break;
     }
 }
@@ -4636,6 +4882,12 @@ static void monitor_event(void *opaque, int event)
             readline_show_prompt(mon->rs);
         }
         mon->reset_seen = 1;
+        mon_refcount++;
+        break;
+
+    case CHR_EVENT_CLOSED:
+        mon_refcount--;
+        monitor_fdsets_cleanup();
         break;
     }
 }

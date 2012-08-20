@@ -29,7 +29,7 @@
 #include "qemu-log.h"
 #include "qdev-addr.h"
 
-#include "xilinx_axidma.h"
+#include "stream.h"
 
 #define D(x)
 
@@ -77,7 +77,7 @@ enum {
     SDESC_STATUS_COMPLETE = (1 << 31)
 };
 
-struct AXIStream {
+struct Stream {
     QEMUBH *bh;
     ptimer_state *ptimer;
     qemu_irq irq;
@@ -94,9 +94,9 @@ struct XilinxAXIDMA {
     SysBusDevice busdev;
     MemoryRegion iomem;
     uint32_t freqhz;
-    void *dmach;
+    StreamSlave *tx_dev;
 
-    struct AXIStream streams[2];
+    struct Stream streams[2];
 };
 
 /*
@@ -113,27 +113,27 @@ static inline int stream_desc_eof(struct SDesc *d)
     return d->control & SDESC_CTRL_EOF;
 }
 
-static inline int stream_resetting(struct AXIStream *s)
+static inline int stream_resetting(struct Stream *s)
 {
     return !!(s->regs[R_DMACR] & DMACR_RESET);
 }
 
-static inline int stream_running(struct AXIStream *s)
+static inline int stream_running(struct Stream *s)
 {
     return s->regs[R_DMACR] & DMACR_RUNSTOP;
 }
 
-static inline int stream_halted(struct AXIStream *s)
+static inline int stream_halted(struct Stream *s)
 {
     return s->regs[R_DMASR] & DMASR_HALTED;
 }
 
-static inline int stream_idle(struct AXIStream *s)
+static inline int stream_idle(struct Stream *s)
 {
     return !!(s->regs[R_DMASR] & DMASR_IDLE);
 }
 
-static void stream_reset(struct AXIStream *s)
+static void stream_reset(struct Stream *s)
 {
     s->regs[R_DMASR] = DMASR_HALTED;  /* starts up halted.  */
     s->regs[R_DMACR] = 1 << 16; /* Starts with one in compl threshold.  */
@@ -159,7 +159,7 @@ static void stream_desc_show(struct SDesc *d)
 }
 #endif
 
-static void stream_desc_load(struct AXIStream *s, target_phys_addr_t addr)
+static void stream_desc_load(struct Stream *s, target_phys_addr_t addr)
 {
     struct SDesc *d = &s->desc;
     int i;
@@ -176,7 +176,7 @@ static void stream_desc_load(struct AXIStream *s, target_phys_addr_t addr)
     }
 }
 
-static void stream_desc_store(struct AXIStream *s, target_phys_addr_t addr)
+static void stream_desc_store(struct Stream *s, target_phys_addr_t addr)
 {
     struct SDesc *d = &s->desc;
     int i;
@@ -192,7 +192,7 @@ static void stream_desc_store(struct AXIStream *s, target_phys_addr_t addr)
     cpu_physical_memory_write(addr, (void *) d, sizeof *d);
 }
 
-static void stream_update_irq(struct AXIStream *s)
+static void stream_update_irq(struct Stream *s)
 {
     unsigned int pending, mask, irq;
 
@@ -204,7 +204,7 @@ static void stream_update_irq(struct AXIStream *s)
     qemu_set_irq(s->irq, !!irq);
 }
 
-static void stream_reload_complete_cnt(struct AXIStream *s)
+static void stream_reload_complete_cnt(struct Stream *s)
 {
     unsigned int comp_th;
     comp_th = (s->regs[R_DMACR] >> 16) & 0xff;
@@ -213,14 +213,14 @@ static void stream_reload_complete_cnt(struct AXIStream *s)
 
 static void timer_hit(void *opaque)
 {
-    struct AXIStream *s = opaque;
+    struct Stream *s = opaque;
 
     stream_reload_complete_cnt(s);
     s->regs[R_DMASR] |= DMASR_DLY_IRQ;
     stream_update_irq(s);
 }
 
-static void stream_complete(struct AXIStream *s)
+static void stream_complete(struct Stream *s)
 {
     unsigned int comp_delay;
 
@@ -240,8 +240,8 @@ static void stream_complete(struct AXIStream *s)
     }
 }
 
-static void stream_process_mem2s(struct AXIStream *s,
-                                 struct XilinxDMAConnection *dmach)
+static void stream_process_mem2s(struct Stream *s,
+                                 StreamSlave *tx_dev)
 {
     uint32_t prev_d;
     unsigned char txbuf[16 * 1024];
@@ -276,7 +276,7 @@ static void stream_process_mem2s(struct AXIStream *s,
         s->pos += txlen;
 
         if (stream_desc_eof(&s->desc)) {
-            xlx_dma_push_to_client(dmach, txbuf, s->pos, app);
+            stream_push(tx_dev, txbuf, s->pos, app);
             s->pos = 0;
             stream_complete(s);
         }
@@ -295,7 +295,7 @@ static void stream_process_mem2s(struct AXIStream *s,
     }
 }
 
-static void stream_process_s2mem(struct AXIStream *s,
+static void stream_process_s2mem(struct Stream *s,
                                  unsigned char *buf, size_t len, uint32_t *app)
 {
     uint32_t prev_d;
@@ -351,11 +351,11 @@ static void stream_process_s2mem(struct AXIStream *s,
     }
 }
 
-static
-void axidma_push(void *opaque, unsigned char *buf, size_t len, uint32_t *app)
+static void
+axidma_push(StreamSlave *obj, unsigned char *buf, size_t len, uint32_t *app)
 {
-    struct XilinxAXIDMA *d = opaque;
-    struct AXIStream *s = &d->streams[1];
+    struct XilinxAXIDMA *d = FROM_SYSBUS(typeof(*d), SYS_BUS_DEVICE(obj));
+    struct Stream *s = &d->streams[1];
 
     if (!app) {
         hw_error("No stream app data!\n");
@@ -368,7 +368,7 @@ static uint64_t axidma_read(void *opaque, target_phys_addr_t addr,
                             unsigned size)
 {
     struct XilinxAXIDMA *d = opaque;
-    struct AXIStream *s;
+    struct Stream *s;
     uint32_t r = 0;
     int sid;
 
@@ -403,7 +403,7 @@ static void axidma_write(void *opaque, target_phys_addr_t addr,
                          uint64_t value, unsigned size)
 {
     struct XilinxAXIDMA *d = opaque;
-    struct AXIStream *s;
+    struct Stream *s;
     int sid;
 
     sid = streamid_from_addr(addr);
@@ -440,7 +440,7 @@ static void axidma_write(void *opaque, target_phys_addr_t addr,
             s->regs[addr] = value;
             s->regs[R_DMASR] &= ~DMASR_IDLE; /* Not idle.  */
             if (!sid) {
-                stream_process_mem2s(s, d->dmach);
+                stream_process_mem2s(s, d->tx_dev);
             }
             break;
         default:
@@ -466,12 +466,6 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->streams[0].irq);
     sysbus_init_irq(dev, &s->streams[1].irq);
 
-    if (!s->dmach) {
-        hw_error("Unconnected DMA channel.\n");
-    }
-
-    xlx_dma_connect_dma(s->dmach, s, axidma_push);
-
     memory_region_init_io(&s->iomem, &axidma_ops, s,
                           "xlnx.axi-dma", R_MAX * 4 * 2);
     sysbus_init_mmio(dev, &s->iomem);
@@ -486,9 +480,16 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     return 0;
 }
 
+static void xilinx_axidma_initfn(Object *obj)
+{
+    struct XilinxAXIDMA *s = FROM_SYSBUS(typeof(*s), SYS_BUS_DEVICE(obj));
+
+    object_property_add_link(obj, "axistream-connected", TYPE_STREAM_SLAVE,
+                             (Object **) &s->tx_dev, NULL);
+}
+
 static Property axidma_properties[] = {
     DEFINE_PROP_UINT32("freqhz", struct XilinxAXIDMA, freqhz, 50000000),
-    DEFINE_PROP_PTR("dmach", struct XilinxAXIDMA, dmach),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -496,9 +497,11 @@ static void axidma_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    StreamSlaveClass *ssc = STREAM_SLAVE_CLASS(klass);
 
     k->init = xilinx_axidma_init;
     dc->props = axidma_properties;
+    ssc->push = axidma_push;
 }
 
 static TypeInfo axidma_info = {
@@ -506,6 +509,11 @@ static TypeInfo axidma_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(struct XilinxAXIDMA),
     .class_init    = axidma_class_init,
+    .instance_init = xilinx_axidma_initfn,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_STREAM_SLAVE },
+        { }
+    }
 };
 
 static void xilinx_axidma_register_types(void)

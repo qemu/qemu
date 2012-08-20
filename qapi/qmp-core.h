@@ -49,6 +49,7 @@ void qmp_disable_command(const char *name);
 void qmp_enable_command(const char *name);
 bool qmp_command_is_enabled(const char *name);
 char **qmp_get_command_list(void);
+QObject *qmp_build_error_object(Error *errp);
 
 #endif
 
