@@ -32,6 +32,7 @@
 #include "qemu-error.h"
 #include "qemu-option.h"
 #include "qemu_socket.h"
+#include "iov.h"
 
 typedef struct NetSocketState {
     NetClientState nc;
@@ -40,6 +41,7 @@ typedef struct NetSocketState {
     int state; /* 0 = getting length, 1 = getting data */
     unsigned int index;
     unsigned int packet_len;
+    unsigned int send_index;      /* number of bytes sent (only SOCK_STREAM) */
     uint8_t buf[4096];
     struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
     IOHandler *send_fn;           /* differs between SOCK_STREAM/SOCK_DGRAM */
@@ -88,15 +90,39 @@ static void net_socket_writable(void *opaque)
     qemu_flush_queued_packets(&s->nc);
 }
 
-/* XXX: we consider we can send the whole packet without blocking */
 static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
-    uint32_t len;
-    len = htonl(size);
+    uint32_t len = htonl(size);
+    struct iovec iov[] = {
+        {
+            .iov_base = &len,
+            .iov_len  = sizeof(len),
+        }, {
+            .iov_base = (void *)buf,
+            .iov_len  = size,
+        },
+    };
+    size_t remaining;
+    ssize_t ret;
 
-    send_all(s->fd, (const uint8_t *)&len, sizeof(len));
-    return send_all(s->fd, buf, size);
+    remaining = iov_size(iov, 2) - s->send_index;
+    ret = iov_send(s->fd, iov, 2, s->send_index, remaining);
+
+    if (ret == -1 && errno == EAGAIN) {
+        ret = 0; /* handled further down */
+    }
+    if (ret == -1) {
+        s->send_index = 0;
+        return -errno;
+    }
+    if (ret < (ssize_t)remaining) {
+        s->send_index += ret;
+        net_socket_write_poll(s, true);
+        return 0;
+    }
+    s->send_index = 0;
+    return size;
 }
 
 static ssize_t net_socket_receive_dgram(NetClientState *nc, const uint8_t *buf, size_t size)
