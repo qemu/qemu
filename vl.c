@@ -4415,7 +4415,6 @@ int main(int argc, char **argv, char **envp)
 
     os_setup_post();
 
-    resume_all_vcpus();
     main_loop();
     bdrv_close_all();
     pause_all_vcpus();
