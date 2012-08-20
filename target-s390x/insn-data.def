@@ -131,6 +131,20 @@
     C(0xc607, CLHRL,   RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu32)
     C(0xc606, CLGHRL,  RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu64)
 
+/* DIVIDE */
+    C(0x1d00, DR,      RR_a,  Z,   r1_D32, r2_32s, new_P, r1_P32, divs32, 0)
+    C(0x5d00, D,       RX_a,  Z,   r1_D32, m2_32s, new_P, r1_P32, divs32, 0)
+/* DIVIDE LOGICAL */
+    C(0xb997, DLR,     RRE,   Z,   r1_D32, r2_32u, new_P, r1_P32, divu32, 0)
+    C(0xe397, DL,      RXY_a, Z,   r1_D32, m2_32u, new_P, r1_P32, divu32, 0)
+    C(0xb987, DLGR,    RRE,   Z,   0, r2_o, r1_P, 0, divu64, 0)
+    C(0xe387, DLG,     RXY_a, Z,   0, m2_64, r1_P, 0, divu64, 0)
+/* DIVIDE SINGLE */
+    C(0xb90d, DSGR,    RRE,   Z,   r1p1, r2, r1_P, 0, divs64, 0)
+    C(0xb91d, DSGFR,   RRE,   Z,   r1p1, r2_32s, r1_P, 0, divs64, 0)
+    C(0xe30d, DSG,     RXY_a, Z,   r1p1, m2_64, r1_P, 0, divs64, 0)
+    C(0xe31d, DSGF,    RXY_a, Z,   r1p1, m2_32s, r1_P, 0, divs64, 0)
+
 /* EXCLUSIVE OR */
     C(0x1700, XR,      RR_a,  Z,   r1, r2, new, r1_32, xor, nz32)
     C(0xb9f7, XRK,     RRF_a, DO,  r2, r3, new, r1_32, xor, nz32)

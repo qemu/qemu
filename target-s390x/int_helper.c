@@ -37,32 +37,51 @@ uint64_t HELPER(mul128)(CPUS390XState *env, uint64_t v1, uint64_t v2)
     return reth;
 }
 
-/* 128 -> 64/64 unsigned division */
-void HELPER(dlg)(CPUS390XState *env, uint32_t r1, uint64_t v2)
+/* 64/32 -> 32 signed division */
+int64_t HELPER(divs32)(CPUS390XState *env, int64_t a, int64_t b)
 {
-    uint64_t divisor = v2;
+    env->retxl = a % (int32_t)b;
+    return a / (int32_t)b;
+}
 
-    if (!env->regs[r1]) {
+/* 64/32 -> 32 unsigned division */
+uint64_t HELPER(divu32)(CPUS390XState *env, uint64_t a, uint64_t b)
+{
+    env->retxl = a % (uint32_t)b;
+    return a / (uint32_t)b;
+}
+
+/* 64/64 -> 64 signed division */
+int64_t HELPER(divs64)(CPUS390XState *env, int64_t a, int64_t b)
+{
+    env->retxl = a % b;
+    return a / b;
+}
+
+/* 128 -> 64/64 unsigned division */
+uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                        uint64_t b)
+{
+    uint64_t ret;
+    if (ah == 0) {
         /* 64 -> 64/64 case */
-        env->regs[r1] = env->regs[r1 + 1] % divisor;
-        env->regs[r1 + 1] = env->regs[r1 + 1] / divisor;
-        return;
+        env->retxl = al % b;
+        ret = al / b;
     } else {
+        /* ??? Move i386 idivq helper to host-utils.  */
 #if HOST_LONG_BITS == 64 && defined(__GNUC__)
         /* assuming 64-bit hosts have __uint128_t */
-        __uint128_t dividend = (((__uint128_t)env->regs[r1]) << 64) |
-            (env->regs[r1 + 1]);
-        __uint128_t quotient = dividend / divisor;
-        __uint128_t remainder = dividend % divisor;
-
-        env->regs[r1 + 1] = quotient;
-        env->regs[r1] = remainder;
+        __uint128_t a = ((__uint128_t)ah << 64) | al;
+        __uint128_t q = a / b;
+        env->retxl = a % b;
+        ret = q;
 #else
         /* 32-bit hosts would need special wrapper functionality - just abort if
            we encounter such a case; it's very unlikely anyways. */
         cpu_abort(env, "128 -> 64/64 division not implemented\n");
 #endif
     }
+    return ret;
 }
 
 /* absolute value 32-bit */
