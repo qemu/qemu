@@ -30,8 +30,13 @@
 
 #include "sysbus.h"
 
+#define TYPE_PCI_HOST_BRIDGE "pci-host-bridge"
+#define PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(PCIHostState, (obj), TYPE_PCI_HOST_BRIDGE)
+
 struct PCIHostState {
     SysBusDevice busdev;
+
     MemoryRegion conf_mem;
     MemoryRegion data_mem;
     MemoryRegion mmcfg;

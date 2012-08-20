@@ -165,4 +165,16 @@ const MemoryRegionOps pci_host_data_be_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
+static const TypeInfo pci_host_type_info = {
+    .name = TYPE_PCI_HOST_BRIDGE,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .abstract = true,
+    .instance_size = sizeof(PCIHostState),
+};
 
+static void pci_host_register_types(void)
+{
+    type_register_static(&pci_host_type_info);
+}
+
+type_init(pci_host_register_types)
