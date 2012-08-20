@@ -336,3 +336,11 @@
     C(0xb989, SLBGR,   RRE,   Z,   r1, r2, r1, 0, subb, subb64)
     C(0xe399, SLB,     RXY_a, Z,   r1, m2_32u, new, r1_32, subb, subb32)
     C(0xe389, SLBG,    RXY_a, Z,   r1, m2_64, r1, 0, subb, subb64)
+
+/* TEST UNDER MASK */
+    C(0x9100, TM,      SI,    Z,   m1_8u, i2_8u, 0, 0, 0, tm32)
+    C(0xeb51, TMY,     SIY,   LD,  m1_8u, i2_8u, 0, 0, 0, tm32)
+    D(0xa702, TMHH,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 48)
+    D(0xa703, TMHL,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 32)
+    D(0xa700, TMLH,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 16)
+    D(0xa701, TMLL,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 0)

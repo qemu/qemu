@@ -20,6 +20,7 @@
 
 #include "cpu.h"
 #include "helper.h"
+#include "qemu/host-utils.h"
 
 /* #define DEBUG_HELPER */
 #ifdef DEBUG_HELPER
@@ -86,13 +87,11 @@ static inline uint32_t cc_calc_ltugtu_64(CPUS390XState *env, uint64_t src,
     }
 }
 
-static inline uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val,
-                                     uint32_t mask)
+static uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val, uint32_t mask)
 {
-    uint16_t r = val & mask;
+    uint32_t r = val & mask;
 
-    HELPER_LOG("%s: val 0x%x mask 0x%x\n", __func__, val, mask);
-    if (r == 0 || mask == 0) {
+    if (r == 0) {
         return 0;
     } else if (r == mask) {
         return 3;
@@ -101,23 +100,17 @@ static inline uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val,
     }
 }
 
-/* set condition code for test under mask */
-static inline uint32_t cc_calc_tm_64(CPUS390XState *env, uint64_t val,
-                                     uint32_t mask)
+static uint32_t cc_calc_tm_64(CPUS390XState *env, uint64_t val, uint64_t mask)
 {
-    uint16_t r = val & mask;
+    uint64_t r = val & mask;
 
-    HELPER_LOG("%s: val 0x%lx mask 0x%x r 0x%x\n", __func__, val, mask, r);
-    if (r == 0 || mask == 0) {
+    if (r == 0) {
         return 0;
     } else if (r == mask) {
         return 3;
     } else {
-        while (!(mask & 0x8000)) {
-            mask <<= 1;
-            val <<= 1;
-        }
-        if (val & 0x8000) {
+        int top = clz64(mask);
+        if ((int64_t)(val << top) < 0) {
             return 2;
         } else {
             return 1;
