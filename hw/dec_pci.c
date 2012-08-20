@@ -66,7 +66,7 @@ static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pci_device;
 }
 
-static TypeInfo dec_21154_pci_bridge_info = {
+static const TypeInfo dec_21154_pci_bridge_info = {
     .name          = "dec-21154-p2p-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridge),
@@ -119,7 +119,7 @@ static void dec_21154_pci_host_class_init(ObjectClass *klass, void *data)
     k->is_bridge = 1;
 }
 
-static TypeInfo dec_21154_pci_host_info = {
+static const TypeInfo dec_21154_pci_host_info = {
     .name          = "dec-21154",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -133,7 +133,7 @@ static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)
     sdc->init = pci_dec_21154_device_init;
 }
 
-static TypeInfo pci_dec_21154_device_info = {
+static const TypeInfo pci_dec_21154_device_info = {
     .name          = "dec-21154-sysbus",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(DECState),

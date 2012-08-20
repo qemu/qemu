@@ -612,7 +612,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
     dc->props = spapr_phb_properties;
 }
 
-static TypeInfo spapr_phb_info = {
+static const TypeInfo spapr_phb_info = {
     .name          = "spapr-pci-host-bridge",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(sPAPRPHBState),

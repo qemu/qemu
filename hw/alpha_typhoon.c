@@ -817,7 +817,7 @@ static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo typhoon_pcihost_info = {
+static const TypeInfo typhoon_pcihost_info = {
     .name          = "typhoon-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(TyphoonState),

@@ -134,7 +134,7 @@ static void grackle_pci_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo grackle_pci_info = {
+static const TypeInfo grackle_pci_info = {
     .name          = "grackle",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -150,7 +150,7 @@ static void pci_grackle_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo grackle_pci_host_info = {
+static const TypeInfo grackle_pci_host_info = {
     .name          = "grackle-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GrackleState),

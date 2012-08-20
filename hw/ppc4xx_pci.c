@@ -377,7 +377,7 @@ static void ppc4xx_host_bridge_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_OTHER;
 }
 
-static TypeInfo ppc4xx_host_bridge_info = {
+static const TypeInfo ppc4xx_host_bridge_info = {
     .name          = "ppc4xx-host-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -393,7 +393,7 @@ static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_ppc4xx_pci;
 }
 
-static TypeInfo ppc4xx_pcihost_info = {
+static const TypeInfo ppc4xx_pcihost_info = {
     .name          = "ppc4xx-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PPC4xxPCIState),

@@ -1147,7 +1147,7 @@ static void gt64120_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
 }
 
-static TypeInfo gt64120_pci_info = {
+static const TypeInfo gt64120_pci_info = {
     .name          = "gt64120_pci",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -1161,7 +1161,7 @@ static void gt64120_class_init(ObjectClass *klass, void *data)
     sdc->init = gt64120_init;
 }
 
-static TypeInfo gt64120_info = {
+static const TypeInfo gt64120_info = {
     .name          = "gt64120",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GT64120State),

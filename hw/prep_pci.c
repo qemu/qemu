@@ -166,7 +166,7 @@ static void raven_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo raven_info = {
+static const TypeInfo raven_info = {
     .name = "raven",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RavenPCIState),
@@ -183,7 +183,7 @@ static void raven_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo raven_pcihost_info = {
+static const TypeInfo raven_pcihost_info = {
     .name = "raven-pcihost",
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PREPPCIState),

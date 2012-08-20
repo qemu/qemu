@@ -350,7 +350,7 @@ static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static TypeInfo unin_main_pci_host_info = {
+static const TypeInfo unin_main_pci_host_info = {
     .name = "uni-north-pci",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -368,7 +368,7 @@ static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static TypeInfo u3_agp_pci_host_info = {
+static const TypeInfo u3_agp_pci_host_info = {
     .name = "u3-agp",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -386,7 +386,7 @@ static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static TypeInfo unin_agp_pci_host_info = {
+static const TypeInfo unin_agp_pci_host_info = {
     .name = "uni-north-agp",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -404,7 +404,7 @@ static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static TypeInfo unin_internal_pci_host_info = {
+static const TypeInfo unin_internal_pci_host_info = {
     .name = "uni-north-internal-pci",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -418,7 +418,7 @@ static void pci_unin_main_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_unin_main_init_device;
 }
 
-static TypeInfo pci_unin_main_info = {
+static const TypeInfo pci_unin_main_info = {
     .name          = "uni-north-pci-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UNINState),
@@ -432,7 +432,7 @@ static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_u3_agp_init_device;
 }
 
-static TypeInfo pci_u3_agp_info = {
+static const TypeInfo pci_u3_agp_info = {
     .name          = "u3-agp-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UNINState),
@@ -446,7 +446,7 @@ static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_unin_agp_init_device;
 }
 
-static TypeInfo pci_unin_agp_info = {
+static const TypeInfo pci_unin_agp_info = {
     .name          = "uni-north-agp-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UNINState),
@@ -460,7 +460,7 @@ static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_unin_internal_init_device;
 }
 
-static TypeInfo pci_unin_internal_info = {
+static const TypeInfo pci_unin_internal_info = {
     .name          = "uni-north-internal-pci-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(UNINState),

@@ -537,7 +537,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 }
 
-static TypeInfo piix3_info = {
+static const TypeInfo piix3_info = {
     .name          = "PIIX3",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX3State),
@@ -560,7 +560,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
-static TypeInfo piix3_xen_info = {
+static const TypeInfo piix3_xen_info = {
     .name          = "PIIX3-xen",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX3State),
@@ -584,7 +584,7 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_i440fx;
 }
 
-static TypeInfo i440fx_info = {
+static const TypeInfo i440fx_info = {
     .name          = "i440FX",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
@@ -601,7 +601,7 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo i440fx_pcihost_info = {
+static const TypeInfo i440fx_pcihost_info = {
     .name          = "i440FX-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(I440FXState),

@@ -781,7 +781,7 @@ static void bonito_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_bonito;
 }
 
-static TypeInfo bonito_info = {
+static const TypeInfo bonito_info = {
     .name          = "Bonito",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBonitoState),
@@ -797,7 +797,7 @@ static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo bonito_pcihost_info = {
+static const TypeInfo bonito_pcihost_info = {
     .name          = "Bonito-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BonitoState),

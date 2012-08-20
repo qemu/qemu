@@ -350,7 +350,7 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
     dc->desc = "Host bridge";
 }
 
-static TypeInfo e500_host_bridge_info = {
+static const TypeInfo e500_host_bridge_info = {
     .name          = "e500-host-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -366,7 +366,7 @@ static void e500_pcihost_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_ppce500_pci;
 }
 
-static TypeInfo e500_pcihost_info = {
+static const TypeInfo e500_pcihost_info = {
     .name          = "e500-pcihost",
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PPCE500PCIState),
