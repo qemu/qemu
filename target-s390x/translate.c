@@ -1004,43 +1004,6 @@ static void free_compare(DisasCompare *c)
     }
 }
 
-static void gen_jcc(DisasContext *s, uint32_t mask, int skip)
-{
-    DisasCompare c;
-    TCGCond cond;
-
-    disas_jcc(s, &c, mask);
-    cond = tcg_invert_cond(c.cond);
-
-    if (c.is_64) {
-        tcg_gen_brcond_i64(cond, c.u.s64.a, c.u.s64.b, skip);
-    } else {
-        tcg_gen_brcond_i32(cond, c.u.s32.a, c.u.s32.b, skip);
-    }
-
-    free_compare(&c);
-}
-
-static void gen_brc(uint32_t mask, DisasContext *s, int32_t offset)
-{
-    int skip;
-
-    if (mask == 0xf) {
-        /* unconditional */
-        gen_goto_tb(s, 0, s->pc + offset);
-    } else if (mask == 0) {
-        /* ignore cc and never match */
-        gen_goto_tb(s, 0, s->pc + 4);
-    } else {
-        skip = gen_new_label();
-        gen_jcc(s, mask, skip);
-        gen_goto_tb(s, 0, s->pc + offset);
-        gen_set_label(skip);
-        gen_goto_tb(s, 1, s->pc + 4);
-    }
-    s->is_jmp = DISAS_TB_JUMP;
-}
-
 static void gen_op_mvc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
 {
     TCGv_i64 tmp, tmp2;
@@ -1759,8 +1722,6 @@ static void disas_a7(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int i2)
 {
     TCGv_i64 tmp, tmp2;
-    TCGv_i32 tmp32_1;
-    int l1;
 
     LOG_DISAS("disas_a7: op 0x%x r1 %d i2 0x%x\n", op, r1, i2);
     switch (op) {
@@ -1787,35 +1748,6 @@ static void disas_a7(CPUS390XState *env, DisasContext *s, int op, int r1,
         cmp_64(s, tmp, tmp2, CC_OP_TM_64);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
-        break;
-    case 0x4: /* brc m1, i2 */
-        gen_brc(r1, s, i2 * 2LL);
-        return;
-    case 0x6: /* BRCT     R1,I2     [RI] */
-        tmp32_1 = load_reg32(r1);
-        tcg_gen_subi_i32(tmp32_1, tmp32_1, 1);
-        store_reg32(r1, tmp32_1);
-        gen_update_cc_op(s);
-        l1 = gen_new_label();
-        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp32_1, 0, l1);
-        gen_goto_tb(s, 0, s->pc + (i2 * 2LL));
-        gen_set_label(l1);
-        gen_goto_tb(s, 1, s->pc + 4);
-        s->is_jmp = DISAS_TB_JUMP;
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x7: /* BRCTG     R1,I2     [RI] */
-        tmp = load_reg(r1);
-        tcg_gen_subi_i64(tmp, tmp, 1);
-        store_reg(r1, tmp);
-        gen_update_cc_op(s);
-        l1 = gen_new_label();
-        tcg_gen_brcondi_i64(TCG_COND_EQ, tmp, 0, l1);
-        gen_goto_tb(s, 0, s->pc + (i2 * 2LL));
-        gen_set_label(l1);
-        gen_goto_tb(s, 1, s->pc + 4);
-        s->is_jmp = DISAS_TB_JUMP;
-        tcg_temp_free_i64(tmp);
         break;
     default:
         LOG_DISAS("illegal a7 operation 0x%x\n", op);
@@ -2574,7 +2506,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     uint64_t insn;
     int op, r1, r2, r3, d1, d2, x2, b1, b2, i, i2, r1b;
     TCGv_i32 vl;
-    int l1;
 
     opc = cpu_ldub_code(env, s->pc);
     LOG_DISAS("opc 0x%x\n", opc);
@@ -2586,32 +2517,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         /* set addressing mode, but we only do 64bit anyways */
         break;
 #endif
-    case 0x6: /* BCTR     R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_reg32(r1);
-        tcg_gen_subi_i32(tmp32_1, tmp32_1, 1);
-        store_reg32(r1, tmp32_1);
-
-        if (r2) {
-            gen_update_cc_op(s);
-            l1 = gen_new_label();
-            tcg_gen_brcondi_i32(TCG_COND_NE, tmp32_1, 0, l1);
-
-            /* not taking the branch, jump to after the instruction */
-            gen_goto_tb(s, 0, s->pc + 2);
-            gen_set_label(l1);
-
-            /* take the branch, move R2 into psw.addr */
-            tmp32_1 = load_reg32(r2);
-            tmp = tcg_temp_new_i64();
-            tcg_gen_extu_i32_i64(tmp, tmp32_1);
-            tcg_gen_mov_i64(psw_addr, tmp);
-            s->is_jmp = DISAS_JUMP;
-            tcg_temp_free_i32(tmp32_1);
-            tcg_temp_free_i64(tmp);
-        }
-        break;
     case 0xa: /* SVC    I         [RR] */
         insn = ld_code2(env, s->pc);
         debug_insn(insn);
@@ -2708,30 +2613,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
-        break;
-    case 0x46: /* BCT    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tcg_temp_free_i64(tmp);
-
-        tmp32_1 = load_reg32(r1);
-        tcg_gen_subi_i32(tmp32_1, tmp32_1, 1);
-        store_reg32(r1, tmp32_1);
-
-        gen_update_cc_op(s);
-        l1 = gen_new_label();
-        tcg_gen_brcondi_i32(TCG_COND_NE, tmp32_1, 0, l1);
-
-        /* not taking the branch, jump to after the instruction */
-        gen_goto_tb(s, 0, s->pc + 4);
-        gen_set_label(l1);
-
-        /* take the branch, move R2 into psw.addr */
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tcg_gen_mov_i64(psw_addr, tmp);
-        s->is_jmp = DISAS_JUMP;
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
         break;
     case 0x4e: /* CVD    R1,D2(X2,B2)     [RX] */
         insn = ld_code4(env, s->pc);
@@ -3839,6 +3720,49 @@ static ExitStatus op_bc(DisasContext *s, DisasOps *o)
     DisasCompare c;
 
     disas_jcc(s, &c, m1);
+    return help_branch(s, &c, is_imm, imm, o->in2);
+}
+
+static ExitStatus op_bct32(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    bool is_imm = have_field(s->fields, i2);
+    int imm = is_imm ? get_field(s->fields, i2) : 0;
+    DisasCompare c;
+    TCGv_i64 t;
+
+    c.cond = TCG_COND_NE;
+    c.is_64 = false;
+    c.g1 = false;
+    c.g2 = false;
+
+    t = tcg_temp_new_i64();
+    tcg_gen_subi_i64(t, regs[r1], 1);
+    store_reg32_i64(r1, t);
+    c.u.s32.a = tcg_temp_new_i32();
+    c.u.s32.b = tcg_const_i32(0);
+    tcg_gen_trunc_i64_i32(c.u.s32.a, t);
+    tcg_temp_free_i64(t);
+
+    return help_branch(s, &c, is_imm, imm, o->in2);
+}
+
+static ExitStatus op_bct64(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    bool is_imm = have_field(s->fields, i2);
+    int imm = is_imm ? get_field(s->fields, i2) : 0;
+    DisasCompare c;
+
+    c.cond = TCG_COND_NE;
+    c.is_64 = true;
+    c.g1 = true;
+    c.g2 = false;
+
+    tcg_gen_subi_i64(regs[r1], regs[r1], 1);
+    c.u.s64.a = regs[r1];
+    c.u.s64.b = tcg_const_i64(0);
+
     return help_branch(s, &c, is_imm, imm, o->in2);
 }
 
