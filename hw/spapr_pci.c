@@ -64,7 +64,7 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr, uint64_t buid,
                            uint32_t config_addr)
 {
     sPAPRPHBState *sphb = find_phb(spapr, buid);
-    PCIHostState *phb = &sphb->host_state;
+    PCIHostState *phb = PCI_HOST_BRIDGE(sphb);
     BusState *bus = BUS(phb->bus);
     BusChild *kid;
     int devfn = (config_addr >> 8) & 0xFF;
@@ -517,7 +517,7 @@ static DMAContext *spapr_pci_dma_context_fn(PCIBus *bus, void *opaque,
 static int spapr_phb_init(SysBusDevice *s)
 {
     sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, s);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     char *namebuf;
     int i;
     PCIBus *bus;
@@ -617,7 +617,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo spapr_phb_info = {
     .name          = TYPE_SPAPR_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(sPAPRPHBState),
     .class_init    = spapr_phb_class_init,
 };

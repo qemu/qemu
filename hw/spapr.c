@@ -743,7 +743,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                      SPAPR_PCI_MEM_WIN_SIZE,
                      SPAPR_PCI_IO_WIN_ADDR,
                      SPAPR_PCI_MSI_WIN_ADDR);
-    phb = &QLIST_FIRST(&spapr->phbs)->host_state;
+    phb = PCI_HOST_BRIDGE(QLIST_FIRST(&spapr->phbs));
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];

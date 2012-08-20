@@ -316,7 +316,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *address_space_io = get_system_io();
 
-    h = FROM_SYSBUS(PCIHostState, dev);
+    h = PCI_HOST_BRIDGE(dev);
     s = PPC_E500_PCI_HOST_BRIDGE(dev);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
@@ -374,7 +374,7 @@ static void e500_pcihost_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo e500_pcihost_info = {
     .name          = TYPE_PPC_E500_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPCE500PCIState),
     .class_init    = e500_pcihost_class_init,
 };

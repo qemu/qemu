@@ -338,7 +338,7 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
     PCIBus *b;
     int i;
 
-    h = FROM_SYSBUS(PCIHostState, dev);
+    h = PCI_HOST_BRIDGE(dev);
     s = PPC4xx_PCI_HOST_BRIDGE(dev);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
@@ -398,7 +398,7 @@ static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo ppc4xx_pcihost_info = {
     .name          = TYPE_PPC4xx_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC4xxPCIState),
     .class_init    = ppc4xx_pcihost_class_init,
 };

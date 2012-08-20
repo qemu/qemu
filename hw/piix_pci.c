@@ -225,7 +225,7 @@ static const VMStateDescription vmstate_i440fx = {
 
 static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
-    I440FXState *s = FROM_SYSBUS(I440FXState, dev);
+    PCIHostState *s = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&s->conf_mem, &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
@@ -267,12 +267,12 @@ static PCIBus *i440fx_common_init(const char *device_name,
     DeviceState *dev;
     PCIBus *b;
     PCIDevice *d;
-    I440FXState *s;
+    PCIHostState *s;
     PIIX3State *piix3;
     PCII440FXState *f;
 
     dev = qdev_create(NULL, "i440FX-pcihost");
-    s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
+    s = PCI_HOST_BRIDGE(dev);
     s->address_space = address_space_mem;
     b = pci_bus_new(&s->busdev.qdev, NULL, pci_address_space,
                     address_space_io, 0);
@@ -603,7 +603,7 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo i440fx_pcihost_info = {
     .name          = "i440FX-pcihost",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(I440FXState),
     .class_init    = i440fx_pcihost_class_init,
 };

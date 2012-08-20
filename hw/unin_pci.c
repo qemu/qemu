@@ -148,7 +148,7 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
 
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
-    h = FROM_SYSBUS(PCIHostState, dev);
+    h = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&h->conf_mem, &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
@@ -166,7 +166,7 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
     PCIHostState *h;
 
     /* Uninorth U3 AGP bus */
-    h = FROM_SYSBUS(PCIHostState, dev);
+    h = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&h->conf_mem, &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
@@ -183,7 +183,7 @@ static int pci_unin_agp_init_device(SysBusDevice *dev)
     PCIHostState *h;
 
     /* Uninorth AGP bus */
-    h = FROM_SYSBUS(PCIHostState, dev);
+    h = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&h->conf_mem, &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
@@ -199,7 +199,7 @@ static int pci_unin_internal_init_device(SysBusDevice *dev)
     PCIHostState *h;
 
     /* Uninorth internal bus */
-    h = FROM_SYSBUS(PCIHostState, dev);
+    h = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&h->conf_mem, &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
@@ -224,7 +224,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     dev = qdev_create(NULL, TYPE_UNI_NORTH_PCI_HOST_BRIDGE);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
-    h = FROM_SYSBUS(PCIHostState, s);
+    h = PCI_HOST_BRIDGE(s);
     d = UNI_NORTH_PCI_HOST_BRIDGE(dev);
     memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
     memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
@@ -289,7 +289,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     dev = qdev_create(NULL, TYPE_U3_AGP_HOST_BRIDGE);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
-    h = FROM_SYSBUS(PCIHostState, s);
+    h = PCI_HOST_BRIDGE(dev);
     d = U3_AGP_HOST_BRIDGE(dev);
 
     memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
@@ -427,7 +427,7 @@ static void pci_unin_main_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_unin_main_info = {
     .name          = TYPE_UNI_NORTH_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(UNINState),
     .class_init    = pci_unin_main_class_init,
 };
@@ -441,7 +441,7 @@ static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_u3_agp_info = {
     .name          = TYPE_U3_AGP_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(UNINState),
     .class_init    = pci_u3_agp_class_init,
 };
@@ -455,7 +455,7 @@ static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_unin_agp_info = {
     .name          = TYPE_UNI_NORTH_AGP_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(UNINState),
     .class_init    = pci_unin_agp_class_init,
 };
@@ -469,7 +469,7 @@ static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_unin_internal_info = {
     .name          = TYPE_UNI_NORTH_INTERNAL_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(UNINState),
     .class_init    = pci_unin_internal_class_init,
 };

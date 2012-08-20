@@ -91,7 +91,7 @@ static int pci_dec_21154_device_init(SysBusDevice *dev)
 {
     PCIHostState *phb;
 
-    phb = FROM_SYSBUS(PCIHostState, dev);
+    phb = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&phb->conf_mem, &pci_host_conf_le_ops,
                           dev, "pci-conf-idx", 0x1000);
@@ -136,7 +136,7 @@ static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo pci_dec_21154_device_info = {
     .name          = TYPE_DEC_21154,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(DECState),
     .class_init    = pci_dec_21154_device_class_init,
 };

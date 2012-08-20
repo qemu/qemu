@@ -715,7 +715,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     qdev_init_nofail(dev);
 
     s = TYPHOON_PCI_HOST_BRIDGE(dev);
-    phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(dev));
+    phb = PCI_HOST_BRIDGE(dev);
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
@@ -825,7 +825,7 @@ static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo typhoon_pcihost_info = {
     .name          = TYPE_TYPHOON_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(TyphoonState),
     .class_init    = typhoon_pcihost_class_init,
 };

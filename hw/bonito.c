@@ -416,7 +416,7 @@ static const MemoryRegionOps bonito_cop_ops = {
 static uint32_t bonito_sbridge_pciaddr(void *opaque, target_phys_addr_t addr)
 {
     PCIBonitoState *s = opaque;
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t cfgaddr;
     uint32_t idsel;
     uint32_t devno;
@@ -454,7 +454,7 @@ static void bonito_spciconf_writeb(void *opaque, target_phys_addr_t addr,
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -480,7 +480,7 @@ static void bonito_spciconf_writew(void *opaque, target_phys_addr_t addr,
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -508,7 +508,7 @@ static void bonito_spciconf_writel(void *opaque, target_phys_addr_t addr,
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -535,7 +535,7 @@ static uint32_t bonito_spciconf_readb(void *opaque, target_phys_addr_t addr)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -561,7 +561,7 @@ static uint32_t bonito_spciconf_readw(void *opaque, target_phys_addr_t addr)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -589,7 +589,7 @@ static uint32_t bonito_spciconf_readl(void *opaque, target_phys_addr_t addr)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, SYS_BUS_DEVICE(s->pcihost));
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
     uint32_t pciaddr;
     uint16_t status;
 
@@ -702,7 +702,7 @@ static const VMStateDescription vmstate_bonito = {
 
 static int bonito_pcihost_initfn(SysBusDevice *dev)
 {
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, dev);
+    PCIHostState *phb = PCI_HOST_BRIDGE(dev);
 
     phb->bus = pci_register_bus(DEVICE(dev), "pci",
                                 pci_bonito_set_irq, pci_bonito_map_irq, dev,
@@ -716,7 +716,7 @@ static int bonito_initfn(PCIDevice *dev)
 {
     PCIBonitoState *s = DO_UPCAST(PCIBonitoState, dev, dev);
     SysBusDevice *sysbus = SYS_BUS_DEVICE(s->pcihost);
-    PCIHostState *phb = FROM_SYSBUS(PCIHostState, sysbus);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
 
     /* Bonito North Bridge, built on FPGA, VENDOR_ID/DEVICE_ID are "undefined" */
     pci_config_set_prog_interface(dev->config, 0x00);
@@ -785,7 +785,7 @@ PCIBus *bonito_init(qemu_irq *pic)
     PCIDevice *d;
 
     dev = qdev_create(NULL, TYPE_BONITO_PCI_HOST_BRIDGE);
-    phb = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
+    phb = PCI_HOST_BRIDGE(dev);
     pcihost = BONITO_PCI_HOST_BRIDGE(dev);
     pcihost->pic = pic;
     qdev_init_nofail(dev);
@@ -833,7 +833,7 @@ static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo bonito_pcihost_info = {
     .name          = TYPE_BONITO_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(BonitoState),
     .class_init    = bonito_pcihost_class_init,
 };

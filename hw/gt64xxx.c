@@ -1095,7 +1095,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
     dev = qdev_create(NULL, TYPE_GT64120_PCI_HOST_BRIDGE);
     qdev_init_nofail(dev);
     d = GT64120_PCI_HOST_BRIDGE(dev);
-    phb = &d->pci;
+    phb = PCI_HOST_BRIDGE(dev);
     phb->bus = pci_register_bus(dev, "pci",
                                 gt64120_pci_set_irq, gt64120_pci_map_irq,
                                 pic,
@@ -1168,7 +1168,7 @@ static void gt64120_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo gt64120_info = {
     .name          = TYPE_GT64120_PCI_HOST_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(GT64120State),
     .class_init    = gt64120_class_init,
 };

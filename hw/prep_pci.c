@@ -103,7 +103,7 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
 
 static int raven_pcihost_init(SysBusDevice *dev)
 {
-    PCIHostState *h = FROM_SYSBUS(PCIHostState, dev);
+    PCIHostState *h = PCI_HOST_BRIDGE(dev);
     PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *address_space_io = get_system_io();
@@ -192,7 +192,7 @@ static void raven_pcihost_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo raven_pcihost_info = {
     .name = TYPE_RAVEN_PCI_HOST_BRIDGE,
-    .parent = TYPE_SYS_BUS_DEVICE,
+    .parent = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PREPPCIState),
     .class_init = raven_pcihost_class_init,
 };
