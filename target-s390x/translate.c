@@ -2371,17 +2371,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0xe: /* MVCL   R1,R2     [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r2);
-        potential_page_fault(s);
-        gen_helper_mvcl(cc_op, cpu_env, tmp32_1, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0x28: /* LDR    R1,R2               [RR] */
         insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
@@ -3604,6 +3593,18 @@ static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
     o->g_out = o->g_in2;
     TCGV_UNUSED_I64(o->in2);
     o->g_in2 = false;
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvcl(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r2 = tcg_const_i32(get_field(s->fields, r2));
+    potential_page_fault(s);
+    gen_helper_mvcl(cc_op, cpu_env, r1, r2);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r2);
+    set_cc_static(s);
     return NO_EXIT;
 }
 

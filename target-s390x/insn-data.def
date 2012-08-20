@@ -246,6 +246,9 @@
     C(0xb900, LPGR,    RRE,   Z,   0, r2, r1, 0, abs, abs64)
     C(0xb910, LPGFR,   RRE,   Z,   0, r2_32s, r1, 0, abs, abs64)
 
+/* MOVE LONG */
+    C(0x0e00, MVCL,    RR_a,  Z,   0, 0, 0, 0, mvcl, 0)
+
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
     C(0x5c00, M,       RX_a,  Z,   r1p1_32s, m2_32s, new, r1_D32, mul, 0)
