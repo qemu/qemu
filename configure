@@ -2399,8 +2399,7 @@ cat > $TMPC << EOF
 int main(void)
 {
     int pipefd[2];
-    pipe2(pipefd, O_CLOEXEC);
-    return 0;
+    return pipe2(pipefd, O_CLOEXEC);
 }
 EOF
 if compile_prog "" "" ; then
