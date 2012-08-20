@@ -344,3 +344,10 @@
     D(0xa703, TMHL,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 32)
     D(0xa700, TMLH,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 16)
     D(0xa701, TMLL,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 0)
+
+#ifndef CONFIG_USER_ONLY
+/* SET ADDRESSING MODE */
+    /* We only do 64-bit, so accept this as a no-op.
+       Let SAM24 and SAM31 signal illegal instruction.  */
+    C(0x010e, SAM64,   E,     Z,   0, 0, 0, 0, 0, 0)
+#endif /* CONFIG_USER_ONLY */

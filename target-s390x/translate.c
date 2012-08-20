@@ -2371,12 +2371,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-#ifndef CONFIG_USER_ONLY
-    case 0x01: /* SAM */
-        insn = ld_code2(env, s->pc);
-        /* set addressing mode, but we only do 64bit anyways */
-        break;
-#endif
     case 0xa: /* SVC    I         [RR] */
         insn = ld_code2(env, s->pc);
         debug_insn(insn);
