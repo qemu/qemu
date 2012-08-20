@@ -3519,7 +3519,10 @@ int main(int argc, char **argv, char **envp)
         guest_base = init_guest_space(guest_base, reserved_va, 0,
                                       have_guest_base);
         if (guest_base == (unsigned long)-1) {
-            fprintf(stderr, "Unable to reserve guest address space\n");
+            fprintf(stderr, "Unable to reserve 0x%lx bytes of virtual address "
+                    "space for use as guest address space (check your virtual "
+                    "memory ulimit setting or reserve less using -R option)\n",
+                    reserved_va);
             exit(1);
         }
 
