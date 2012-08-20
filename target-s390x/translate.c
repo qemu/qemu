@@ -2371,21 +2371,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0xa: /* SVC    I         [RR] */
-        insn = ld_code2(env, s->pc);
-        debug_insn(insn);
-        i = insn & 0xff;
-        update_psw_addr(s);
-        gen_op_calc_cc(s);
-        tmp32_1 = tcg_const_i32(i);
-        tmp32_2 = tcg_const_i32(s->next_pc - s->pc);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, int_svc_code));
-        tcg_gen_st_i32(tmp32_2, cpu_env, offsetof(CPUS390XState, int_svc_ilen));
-        gen_exception(EXCP_SVC);
-        s->is_jmp = DISAS_EXCP;
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0xe: /* MVCL   R1,R2     [RR] */
         insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
@@ -3715,6 +3700,25 @@ static ExitStatus op_subb(DisasContext *s, DisasOps *o)
     tcg_gen_add_i64(o->out, o->out, cc);
     tcg_temp_free_i64(cc);
     return NO_EXIT;
+}
+
+static ExitStatus op_svc(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 t;
+
+    update_psw_addr(s);
+    gen_op_calc_cc(s);
+
+    t = tcg_const_i32(get_field(s->fields, i1) & 0xff);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_code));
+    tcg_temp_free_i32(t);
+
+    t = tcg_const_i32(s->next_pc - s->pc);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_ilen));
+    tcg_temp_free_i32(t);
+
+    gen_exception(EXCP_SVC);
+    return EXIT_NORETURN;
 }
 
 static ExitStatus op_xor(DisasContext *s, DisasOps *o)
