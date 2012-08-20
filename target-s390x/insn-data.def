@@ -68,6 +68,12 @@
 /* BRANCH RELATIVE AND SAVE */
     C(0xa705, BRAS,    RI_b,  Z,   0, 0, r1, 0, basi, 0)
     C(0xc005, BRASL,   RIL_b, Z,   0, 0, r1, 0, basi, 0)
+/* BRANCH ON CONDITION */
+    C(0x0700, BCR,     RR_b,  Z,   0, r2_nz, 0, 0, bc, 0)
+    C(0x4700, BC,      RX_b,  Z,   0, a2, 0, 0, bc, 0)
+/* BRANCH RELATIVE ON CONDITION */
+    C(0xa704, BRC,     RI_c,  Z,   0, 0, 0, 0, bc, 0)
+    C(0xc004, BRCL,    RIL_c, Z,   0, 0, 0, 0, bc, 0)
 
 /* COMPARE */
     C(0x1900, CR,      RR_a,  Z,   r1_o, r2_o, 0, 0, 0, cmps32)
