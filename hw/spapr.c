@@ -612,6 +612,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 {
     PowerPCCPU *cpu;
     CPUPPCState *env;
+    PCIHostState *phb;
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -742,6 +743,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                      SPAPR_PCI_MEM_WIN_SIZE,
                      SPAPR_PCI_IO_WIN_ADDR,
                      SPAPR_PCI_MSI_WIN_ADDR);
+    phb = &QLIST_FIRST(&spapr->phbs)->host_state;
 
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -762,13 +764,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* Graphics */
-    if (spapr_vga_init(QLIST_FIRST(&spapr->phbs)->host_state.bus)) {
+    if (spapr_vga_init(phb->bus)) {
         spapr->has_graphics = true;
     }
 
     if (usb_enabled) {
-        pci_create_simple(QLIST_FIRST(&spapr->phbs)->host_state.bus,
-                          -1, "pci-ohci");
+        pci_create_simple(phb->bus, -1, "pci-ohci");
         if (spapr->has_graphics) {
             usbdevice_create("keyboard");
             usbdevice_create("mouse");

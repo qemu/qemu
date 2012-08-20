@@ -48,13 +48,13 @@
 
 static sPAPRPHBState *find_phb(sPAPREnvironment *spapr, uint64_t buid)
 {
-    sPAPRPHBState *phb;
+    sPAPRPHBState *sphb;
 
-    QLIST_FOREACH(phb, &spapr->phbs, list) {
-        if (phb->buid != buid) {
+    QLIST_FOREACH(sphb, &spapr->phbs, list) {
+        if (sphb->buid != buid) {
             continue;
         }
-        return phb;
+        return sphb;
     }
 
     return NULL;
@@ -63,7 +63,9 @@ static sPAPRPHBState *find_phb(sPAPREnvironment *spapr, uint64_t buid)
 static PCIDevice *find_dev(sPAPREnvironment *spapr, uint64_t buid,
                            uint32_t config_addr)
 {
-    sPAPRPHBState *phb = find_phb(spapr, buid);
+    sPAPRPHBState *sphb = find_phb(spapr, buid);
+    PCIHostState *phb = &sphb->host_state;
+    BusState *bus = BUS(phb->bus);
     BusChild *kid;
     int devfn = (config_addr >> 8) & 0xFF;
 
@@ -71,7 +73,7 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr, uint64_t buid,
         return NULL;
     }
 
-    QTAILQ_FOREACH(kid, &phb->host_state.bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
         PCIDevice *dev = (PCIDevice *)kid->child;
         if (dev->devfn == devfn) {
             return dev;
@@ -514,23 +516,24 @@ static DMAContext *spapr_pci_dma_context_fn(PCIBus *bus, void *opaque,
 
 static int spapr_phb_init(SysBusDevice *s)
 {
-    sPAPRPHBState *phb = DO_UPCAST(sPAPRPHBState, host_state.busdev, s);
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
+    PCIHostState *phb = FROM_SYSBUS(PCIHostState, s);
     char *namebuf;
     int i;
     PCIBus *bus;
 
-    phb->dtbusname = g_strdup_printf("pci@%" PRIx64, phb->buid);
-    namebuf = alloca(strlen(phb->dtbusname) + 32);
+    sphb->dtbusname = g_strdup_printf("pci@%" PRIx64, sphb->buid);
+    namebuf = alloca(strlen(sphb->dtbusname) + 32);
 
     /* Initialize memory regions */
-    sprintf(namebuf, "%s.mmio", phb->dtbusname);
-    memory_region_init(&phb->memspace, namebuf, INT64_MAX);
+    sprintf(namebuf, "%s.mmio", sphb->dtbusname);
+    memory_region_init(&sphb->memspace, namebuf, INT64_MAX);
 
-    sprintf(namebuf, "%s.mmio-alias", phb->dtbusname);
-    memory_region_init_alias(&phb->memwindow, namebuf, &phb->memspace,
-                             SPAPR_PCI_MEM_WIN_BUS_OFFSET, phb->mem_win_size);
-    memory_region_add_subregion(get_system_memory(), phb->mem_win_addr,
-                                &phb->memwindow);
+    sprintf(namebuf, "%s.mmio-alias", sphb->dtbusname);
+    memory_region_init_alias(&sphb->memwindow, namebuf, &sphb->memspace,
+                             SPAPR_PCI_MEM_WIN_BUS_OFFSET, sphb->mem_win_size);
+    memory_region_add_subregion(get_system_memory(), sphb->mem_win_addr,
+                                &sphb->memwindow);
 
     /* On ppc, we only have MMIO no specific IO space from the CPU
      * perspective.  In theory we ought to be able to embed the PCI IO
@@ -540,42 +543,42 @@ static int spapr_phb_init(SysBusDevice *s)
      * system io address space.  This hack to bounce things via
      * system_io works around the problem until all the users of
      * old_portion are updated */
-    sprintf(namebuf, "%s.io", phb->dtbusname);
-    memory_region_init(&phb->iospace, namebuf, SPAPR_PCI_IO_WIN_SIZE);
+    sprintf(namebuf, "%s.io", sphb->dtbusname);
+    memory_region_init(&sphb->iospace, namebuf, SPAPR_PCI_IO_WIN_SIZE);
     /* FIXME: fix to support multiple PHBs */
-    memory_region_add_subregion(get_system_io(), 0, &phb->iospace);
+    memory_region_add_subregion(get_system_io(), 0, &sphb->iospace);
 
-    sprintf(namebuf, "%s.io-alias", phb->dtbusname);
-    memory_region_init_io(&phb->iowindow, &spapr_io_ops, phb,
+    sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
+    memory_region_init_io(&sphb->iowindow, &spapr_io_ops, sphb,
                           namebuf, SPAPR_PCI_IO_WIN_SIZE);
-    memory_region_add_subregion(get_system_memory(), phb->io_win_addr,
-                                &phb->iowindow);
+    memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
+                                &sphb->iowindow);
 
     /* As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
      * we need to allocate some memory to catch those writes coming
      * from msi_notify()/msix_notify() */
     if (msi_supported) {
-        sprintf(namebuf, "%s.msi", phb->dtbusname);
-        memory_region_init_io(&phb->msiwindow, &spapr_msi_ops, phb,
+        sprintf(namebuf, "%s.msi", sphb->dtbusname);
+        memory_region_init_io(&sphb->msiwindow, &spapr_msi_ops, sphb,
                               namebuf, SPAPR_MSIX_MAX_DEVS * 0x10000);
-        memory_region_add_subregion(get_system_memory(), phb->msi_win_addr,
-                                    &phb->msiwindow);
+        memory_region_add_subregion(get_system_memory(), sphb->msi_win_addr,
+                                    &sphb->msiwindow);
     }
 
-    bus = pci_register_bus(&phb->host_state.busdev.qdev,
-                           phb->busname ? phb->busname : phb->dtbusname,
-                           pci_spapr_set_irq, pci_spapr_map_irq, phb,
-                           &phb->memspace, &phb->iospace,
+    bus = pci_register_bus(DEVICE(s),
+                           sphb->busname ? sphb->busname : sphb->dtbusname,
+                           pci_spapr_set_irq, pci_spapr_map_irq, sphb,
+                           &sphb->memspace, &sphb->iospace,
                            PCI_DEVFN(0, 0), PCI_NUM_PINS);
-    phb->host_state.bus = bus;
+    phb->bus = bus;
 
-    phb->dma_liobn = SPAPR_PCI_BASE_LIOBN | (pci_find_domain(bus) << 16);
-    phb->dma_window_start = 0;
-    phb->dma_window_size = 0x40000000;
-    phb->dma = spapr_tce_new_dma_context(phb->dma_liobn, phb->dma_window_size);
-    pci_setup_iommu(bus, spapr_pci_dma_context_fn, phb);
+    sphb->dma_liobn = SPAPR_PCI_BASE_LIOBN | (pci_find_domain(bus) << 16);
+    sphb->dma_window_start = 0;
+    sphb->dma_window_size = 0x40000000;
+    sphb->dma = spapr_tce_new_dma_context(sphb->dma_liobn, sphb->dma_window_size);
+    pci_setup_iommu(bus, spapr_pci_dma_context_fn, sphb);
 
-    QLIST_INSERT_HEAD(&spapr->phbs, phb, list);
+    QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);
 
     /* Initialize the LSI table */
     for (i = 0; i < PCI_NUM_PINS; i++) {
@@ -586,7 +589,7 @@ static int spapr_phb_init(SysBusDevice *s)
             return -1;
         }
 
-        phb->lsi_table[i].irq = irq;
+        sphb->lsi_table[i].irq = irq;
     }
 
     return 0;
@@ -613,7 +616,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spapr_phb_info = {
-    .name          = "spapr-pci-host-bridge",
+    .name          = TYPE_SPAPR_PCI_HOST_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(sPAPRPHBState),
     .class_init    = spapr_phb_class_init,
@@ -626,7 +629,7 @@ void spapr_create_phb(sPAPREnvironment *spapr,
 {
     DeviceState *dev;
 
-    dev = qdev_create(NULL, spapr_phb_info.name);
+    dev = qdev_create(NULL, TYPE_SPAPR_PCI_HOST_BRIDGE);
 
     if (busname) {
         qdev_prop_set_string(dev, "busname", g_strdup(busname));
@@ -750,8 +753,9 @@ void spapr_pci_rtas_init(void)
     }
 }
 
-static void register_types(void)
+static void spapr_pci_register_types(void)
 {
     type_register_static(&spapr_phb_info);
 }
-type_init(register_types)
+
+type_init(spapr_pci_register_types)
