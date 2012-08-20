@@ -45,6 +45,9 @@ struct PCITargetMap {
     uint32_t la;
 };
 
+#define PPC4xx_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(PPC4xxPCIState, (obj), TYPE_PPC4xx_PCI_HOST_BRIDGE)
+
 #define PPC4xx_PCI_NR_PMMS 3
 #define PPC4xx_PCI_NR_PTMS 2
 
@@ -335,17 +338,17 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
     PCIBus *b;
     int i;
 
-    h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-    s = DO_UPCAST(PPC4xxPCIState, pci_state, h);
+    h = FROM_SYSBUS(PCIHostState, dev);
+    s = PPC4xx_PCI_HOST_BRIDGE(dev);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
-    b = pci_register_bus(&s->pci_state.busdev.qdev, NULL, ppc4xx_pci_set_irq,
+    b = pci_register_bus(DEVICE(dev), NULL, ppc4xx_pci_set_irq,
                          ppc4xx_pci_map_irq, s->irq, get_system_memory(),
                          get_system_io(), 0, 4);
-    s->pci_state.bus = b;
+    h->bus = b;
 
     pci_create_simple(b, 0, "ppc4xx-host-bridge");
 
@@ -394,7 +397,7 @@ static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo ppc4xx_pcihost_info = {
-    .name          = "ppc4xx-pcihost",
+    .name          = TYPE_PPC4xx_PCI_HOST_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(PPC4xxPCIState),
     .class_init    = ppc4xx_pcihost_class_init,

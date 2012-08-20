@@ -216,7 +216,8 @@ static void bamboo_init(ram_addr_t ram_size,
                       ram_bases, ram_sizes, 1);
 
     /* PCI */
-    dev = sysbus_create_varargs("ppc4xx-pcihost", PPC440EP_PCI_CONFIG,
+    dev = sysbus_create_varargs(TYPE_PPC4xx_PCI_HOST_BRIDGE,
+                                PPC440EP_PCI_CONFIG,
                                 pic[pci_irq_nrs[0]], pic[pci_irq_nrs[1]],
                                 pic[pci_irq_nrs[2]], pic[pci_irq_nrs[3]],
                                 NULL);
