@@ -757,6 +757,7 @@ static void gen_op_calc_cc(DisasContext *s)
     }
 
     tcg_temp_free_i32(local_cc_op);
+    tcg_temp_free_i64(dummy);
 
     /* We now have cc in cc_op as constant */
     set_cc_static(s);
