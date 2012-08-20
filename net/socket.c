@@ -42,9 +42,51 @@ typedef struct NetSocketState {
     unsigned int packet_len;
     uint8_t buf[4096];
     struct sockaddr_in dgram_dst; /* contains inet host and port destination iff connectionless (SOCK_DGRAM) */
+    IOHandler *send_fn;           /* differs between SOCK_STREAM/SOCK_DGRAM */
+    bool read_poll;               /* waiting to receive data? */
+    bool write_poll;              /* waiting to transmit data? */
 } NetSocketState;
 
 static void net_socket_accept(void *opaque);
+static void net_socket_writable(void *opaque);
+
+/* Only read packets from socket when peer can receive them */
+static int net_socket_can_send(void *opaque)
+{
+    NetSocketState *s = opaque;
+
+    return qemu_can_send_packet(&s->nc);
+}
+
+static void net_socket_update_fd_handler(NetSocketState *s)
+{
+    qemu_set_fd_handler2(s->fd,
+                         s->read_poll  ? net_socket_can_send : NULL,
+                         s->read_poll  ? s->send_fn : NULL,
+                         s->write_poll ? net_socket_writable : NULL,
+                         s);
+}
+
+static void net_socket_read_poll(NetSocketState *s, bool enable)
+{
+    s->read_poll = enable;
+    net_socket_update_fd_handler(s);
+}
+
+static void net_socket_write_poll(NetSocketState *s, bool enable)
+{
+    s->write_poll = enable;
+    net_socket_update_fd_handler(s);
+}
+
+static void net_socket_writable(void *opaque)
+{
+    NetSocketState *s = opaque;
+
+    net_socket_write_poll(s, false);
+
+    qemu_flush_queued_packets(&s->nc);
+}
 
 /* XXX: we consider we can send the whole packet without blocking */
 static ssize_t net_socket_receive(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -81,7 +123,8 @@ static void net_socket_send(void *opaque)
     } else if (size == 0) {
         /* end of connection */
     eoc:
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        net_socket_read_poll(s, false);
+        net_socket_write_poll(s, false);
         if (s->listen_fd != -1) {
             qemu_set_fd_handler(s->listen_fd, net_socket_accept, NULL, s);
         }
@@ -152,7 +195,8 @@ static void net_socket_send_dgram(void *opaque)
         return;
     if (size == 0) {
         /* end of connection */
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        net_socket_read_poll(s, false);
+        net_socket_write_poll(s, false);
         return;
     }
     qemu_send_packet(&s->nc, s->buf, size);
@@ -243,7 +287,8 @@ static void net_socket_cleanup(NetClientState *nc)
 {
     NetSocketState *s = DO_UPCAST(NetSocketState, nc, nc);
     if (s->fd != -1) {
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        net_socket_read_poll(s, false);
+        net_socket_write_poll(s, false);
         close(s->fd);
         s->fd = -1;
     }
@@ -314,8 +359,8 @@ static NetSocketState *net_socket_fd_init_dgram(NetClientState *peer,
 
     s->fd = fd;
     s->listen_fd = -1;
-
-    qemu_set_fd_handler(s->fd, net_socket_send_dgram, NULL, s);
+    s->send_fn = net_socket_send_dgram;
+    net_socket_read_poll(s, true);
 
     /* mcast: save bound address as dst */
     if (is_connected) {
@@ -332,7 +377,8 @@ err:
 static void net_socket_connect(void *opaque)
 {
     NetSocketState *s = opaque;
-    qemu_set_fd_handler(s->fd, net_socket_send, NULL, s);
+    s->send_fn = net_socket_send;
+    net_socket_read_poll(s, true);
 }
 
 static NetClientInfo net_socket_info = {
