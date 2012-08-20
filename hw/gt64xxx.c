@@ -229,9 +229,14 @@
     target_phys_addr_t regname ##_length;     \
     MemoryRegion regname ##_mem
 
+#define TYPE_GT64120_PCI_HOST_BRIDGE "gt64120"
+
+#define GT64120_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(GT64120State, (obj), TYPE_GT64120_PCI_HOST_BRIDGE)
+
 typedef struct GT64120State {
-    SysBusDevice busdev;
     PCIHostState pci;
+
     uint32_t regs[GT_REGS];
     PCI_MAPPING_ENTRY(PCI0IO);
     PCI_MAPPING_ENTRY(ISD);
@@ -1083,31 +1088,31 @@ static void gt64120_reset(void *opaque)
 
 PCIBus *gt64120_register(qemu_irq *pic)
 {
-    SysBusDevice *s;
     GT64120State *d;
+    PCIHostState *phb;
     DeviceState *dev;
 
-    dev = qdev_create(NULL, "gt64120");
+    dev = qdev_create(NULL, TYPE_GT64120_PCI_HOST_BRIDGE);
     qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
-    d = FROM_SYSBUS(GT64120State, s);
-    d->pci.bus = pci_register_bus(&d->busdev.qdev, "pci",
-                                  gt64120_pci_set_irq, gt64120_pci_map_irq,
-                                  pic,
-                                  get_system_memory(),
-                                  get_system_io(),
-                                  PCI_DEVFN(18, 0), 4);
+    d = GT64120_PCI_HOST_BRIDGE(dev);
+    phb = &d->pci;
+    phb->bus = pci_register_bus(dev, "pci",
+                                gt64120_pci_set_irq, gt64120_pci_map_irq,
+                                pic,
+                                get_system_memory(),
+                                get_system_io(),
+                                PCI_DEVFN(18, 0), 4);
     memory_region_init_io(&d->ISD_mem, &isd_mem_ops, d, "isd-mem", 0x1000);
 
-    pci_create_simple(d->pci.bus, PCI_DEVFN(0, 0), "gt64120_pci");
-    return d->pci.bus;
+    pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
+    return phb->bus;
 }
 
 static int gt64120_init(SysBusDevice *dev)
 {
     GT64120State *s;
 
-    s = FROM_SYSBUS(GT64120State, dev);
+    s = GT64120_PCI_HOST_BRIDGE(dev);
 
     /* FIXME: This value is computed from registers during reset, but some
        devices (e.g. VGA card) need to know it when they are registered.
@@ -1162,7 +1167,7 @@ static void gt64120_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo gt64120_info = {
-    .name          = "gt64120",
+    .name          = TYPE_GT64120_PCI_HOST_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(GT64120State),
     .class_init    = gt64120_class_init,
