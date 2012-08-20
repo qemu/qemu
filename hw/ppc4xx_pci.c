@@ -52,7 +52,7 @@ struct PCITargetMap {
 #define PPC4xx_PCI_NR_PTMS 2
 
 struct PPC4xxPCIState {
-    PCIHostState pci_state;
+    PCIHostState parent_obj;
 
     struct PCIMasterMap pmm[PPC4xx_PCI_NR_PMMS];
     struct PCITargetMap ptm[PPC4xx_PCI_NR_PTMS];
@@ -96,16 +96,18 @@ static uint64_t pci4xx_cfgaddr_read(void *opaque, target_phys_addr_t addr,
                                     unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(ppc4xx_pci);
 
-    return ppc4xx_pci->pci_state.config_reg;
+    return phb->config_reg;
 }
 
 static void pci4xx_cfgaddr_write(void *opaque, target_phys_addr_t addr,
                                   uint64_t value, unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(ppc4xx_pci);
 
-    ppc4xx_pci->pci_state.config_reg = value & ~0x3;
+    phb->config_reg = value & ~0x3;
 }
 
 static const MemoryRegionOps pci4xx_cfgaddr_ops = {

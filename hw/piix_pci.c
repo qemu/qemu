@@ -36,7 +36,9 @@
  * http://download.intel.com/design/chipsets/datashts/29054901.pdf
  */
 
-typedef PCIHostState I440FXState;
+typedef struct I440FXState {
+    PCIHostState parent_obj;
+} I440FXState;
 
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
@@ -274,7 +276,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = PCI_HOST_BRIDGE(dev);
     s->address_space = address_space_mem;
-    b = pci_bus_new(&s->busdev.qdev, NULL, pci_address_space,
+    b = pci_bus_new(dev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
     object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev), NULL);

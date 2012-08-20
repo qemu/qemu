@@ -34,7 +34,7 @@
     OBJECT_CHECK(PREPPCIState, (obj), TYPE_RAVEN_PCI_HOST_BRIDGE)
 
 typedef struct PRePPCIState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 
     MemoryRegion intack;
     qemu_irq irq[4];
@@ -60,14 +60,16 @@ static void ppc_pci_io_write(void *opaque, target_phys_addr_t addr,
                              uint64_t val, unsigned int size)
 {
     PREPPCIState *s = opaque;
-    pci_data_write(s->host_state.bus, PPC_PCIIO_config(addr), val, size);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    pci_data_write(phb->bus, PPC_PCIIO_config(addr), val, size);
 }
 
 static uint64_t ppc_pci_io_read(void *opaque, target_phys_addr_t addr,
                                 unsigned int size)
 {
     PREPPCIState *s = opaque;
-    return pci_data_read(s->host_state.bus, PPC_PCIIO_config(addr), size);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    return pci_data_read(phb->bus, PPC_PCIIO_config(addr), size);
 }
 
 static const MemoryRegionOps PPC_PCIIO_ops = {

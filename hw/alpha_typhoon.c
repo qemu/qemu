@@ -46,7 +46,7 @@ typedef struct TyphoonPchip {
     OBJECT_CHECK(TyphoonState, (obj), TYPE_TYPHOON_PCI_HOST_BRIDGE)
 
 typedef struct TyphoonState {
-    PCIHostState host;
+    PCIHostState parent_obj;
 
     TyphoonCchip cchip;
     TyphoonPchip pchip;

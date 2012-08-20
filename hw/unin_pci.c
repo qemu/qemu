@@ -53,7 +53,7 @@ static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
     OBJECT_CHECK(UNINState, (obj), TYPE_U3_AGP_HOST_BRIDGE)
 
 typedef struct UNINState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
@@ -115,10 +115,11 @@ static void unin_data_write(void *opaque, target_phys_addr_t addr,
                             uint64_t val, unsigned len)
 {
     UNINState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     UNIN_DPRINTF("write addr %" TARGET_FMT_plx " len %d val %"PRIx64"\n",
                  addr, len, val);
-    pci_data_write(s->host_state.bus,
-                   unin_get_config_reg(s->host_state.config_reg, addr),
+    pci_data_write(phb->bus,
+                   unin_get_config_reg(phb->config_reg, addr),
                    val, len);
 }
 
@@ -126,10 +127,11 @@ static uint64_t unin_data_read(void *opaque, target_phys_addr_t addr,
                                unsigned len)
 {
     UNINState *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t val;
 
-    val = pci_data_read(s->host_state.bus,
-                        unin_get_config_reg(s->host_state.config_reg, addr),
+    val = pci_data_read(phb->bus,
+                        unin_get_config_reg(phb->config_reg, addr),
                         len);
     UNIN_DPRINTF("read addr %" TARGET_FMT_plx " len %d val %x\n",
                  addr, len, val);

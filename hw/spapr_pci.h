@@ -35,7 +35,7 @@
     OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
 
 typedef struct sPAPRPHBState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 
     uint64_t buid;
     char *busname;

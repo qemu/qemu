@@ -235,7 +235,7 @@
     OBJECT_CHECK(GT64120State, (obj), TYPE_GT64120_PCI_HOST_BRIDGE)
 
 typedef struct GT64120State {
-    PCIHostState pci;
+    PCIHostState parent_obj;
 
     uint32_t regs[GT_REGS];
     PCI_MAPPING_ENTRY(PCI0IO);
@@ -315,6 +315,7 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
                             uint64_t val, unsigned size)
 {
     GT64120State *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t saddr;
 
     if (!(s->regs[GT_CPU] & 0x00001000))
@@ -535,13 +536,15 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         /* not implemented */
         break;
     case GT_PCI0_CFGADDR:
-        s->pci.config_reg = val & 0x80fffffc;
+        phb->config_reg = val & 0x80fffffc;
         break;
     case GT_PCI0_CFGDATA:
-        if (!(s->regs[GT_PCI0_CMD] & 1) && (s->pci.config_reg & 0x00fff800))
+        if (!(s->regs[GT_PCI0_CMD] & 1) && (phb->config_reg & 0x00fff800)) {
             val = bswap32(val);
-        if (s->pci.config_reg & (1u << 31))
-            pci_data_write(s->pci.bus, s->pci.config_reg, val, 4);
+        }
+        if (phb->config_reg & (1u << 31)) {
+            pci_data_write(phb->bus, phb->config_reg, val, 4);
+        }
         break;
 
     /* Interrupts */
@@ -594,6 +597,7 @@ static uint64_t gt64120_readl (void *opaque,
                                target_phys_addr_t addr, unsigned size)
 {
     GT64120State *s = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
     uint32_t val;
     uint32_t saddr;
 
@@ -775,15 +779,17 @@ static uint64_t gt64120_readl (void *opaque,
 
     /* PCI Internal */
     case GT_PCI0_CFGADDR:
-        val = s->pci.config_reg;
+        val = phb->config_reg;
         break;
     case GT_PCI0_CFGDATA:
-        if (!(s->pci.config_reg & (1 << 31)))
+        if (!(phb->config_reg & (1 << 31))) {
             val = 0xffffffff;
-        else
-            val = pci_data_read(s->pci.bus, s->pci.config_reg, 4);
-        if (!(s->regs[GT_PCI0_CMD] & 1) && (s->pci.config_reg & 0x00fff800))
+        } else {
+            val = pci_data_read(phb->bus, phb->config_reg, 4);
+        }
+        if (!(s->regs[GT_PCI0_CMD] & 1) && (phb->config_reg & 0x00fff800)) {
             val = bswap32(val);
+        }
         break;
 
     case GT_PCI0_CMD:

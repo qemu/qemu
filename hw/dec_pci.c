@@ -43,7 +43,7 @@
 #define DEC_21154(obj) OBJECT_CHECK(DECState, (obj), TYPE_DEC_21154)
 
 typedef struct DECState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 } DECState;
 
 static int dec_map_irq(PCIDevice *pci_dev, int irq_num)

@@ -41,7 +41,7 @@
     OBJECT_CHECK(GrackleState, (obj), TYPE_GRACKLE_PCI_HOST_BRIDGE)
 
 typedef struct GrackleState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;

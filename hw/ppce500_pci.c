@@ -78,7 +78,7 @@ struct pci_inbound {
     OBJECT_CHECK(PPCE500PCIState, (obj), TYPE_PPC_E500_PCI_HOST_BRIDGE)
 
 struct PPCE500PCIState {
-    PCIHostState pci_state;
+    PCIHostState parent_obj;
 
     struct pci_outbound pob[PPCE500_PCI_NR_POBS];
     struct pci_inbound pib[PPCE500_PCI_NR_PIBS];
