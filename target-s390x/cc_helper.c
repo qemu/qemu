@@ -29,8 +29,7 @@
 #define HELPER_LOG(x...)
 #endif
 
-static inline uint32_t cc_calc_ltgt_32(CPUS390XState *env, int32_t src,
-                                       int32_t dst)
+static uint32_t cc_calc_ltgt_32(int32_t src, int32_t dst)
 {
     if (src == dst) {
         return 0;
@@ -41,30 +40,12 @@ static inline uint32_t cc_calc_ltgt_32(CPUS390XState *env, int32_t src,
     }
 }
 
-static inline uint32_t cc_calc_ltgt0_32(CPUS390XState *env, int32_t dst)
+static uint32_t cc_calc_ltgt0_32(int32_t dst)
 {
-    return cc_calc_ltgt_32(env, dst, 0);
+    return cc_calc_ltgt_32(dst, 0);
 }
 
-static inline uint32_t cc_calc_ltgt_64(CPUS390XState *env, int64_t src,
-                                       int64_t dst)
-{
-    if (src == dst) {
-        return 0;
-    } else if (src < dst) {
-        return 1;
-    } else {
-        return 2;
-    }
-}
-
-static inline uint32_t cc_calc_ltgt0_64(CPUS390XState *env, int64_t dst)
-{
-    return cc_calc_ltgt_64(env, dst, 0);
-}
-
-static inline uint32_t cc_calc_ltugtu_32(CPUS390XState *env, uint32_t src,
-                                         uint32_t dst)
+static uint32_t cc_calc_ltgt_64(int64_t src, int64_t dst)
 {
     if (src == dst) {
         return 0;
@@ -75,8 +56,12 @@ static inline uint32_t cc_calc_ltugtu_32(CPUS390XState *env, uint32_t src,
     }
 }
 
-static inline uint32_t cc_calc_ltugtu_64(CPUS390XState *env, uint64_t src,
-                                         uint64_t dst)
+static uint32_t cc_calc_ltgt0_64(int64_t dst)
+{
+    return cc_calc_ltgt_64(dst, 0);
+}
+
+static uint32_t cc_calc_ltugtu_32(uint32_t src, uint32_t dst)
 {
     if (src == dst) {
         return 0;
@@ -87,7 +72,18 @@ static inline uint32_t cc_calc_ltugtu_64(CPUS390XState *env, uint64_t src,
     }
 }
 
-static uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val, uint32_t mask)
+static uint32_t cc_calc_ltugtu_64(uint64_t src, uint64_t dst)
+{
+    if (src == dst) {
+        return 0;
+    } else if (src < dst) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+
+static uint32_t cc_calc_tm_32(uint32_t val, uint32_t mask)
 {
     uint32_t r = val & mask;
 
@@ -100,7 +96,7 @@ static uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val, uint32_t mask)
     }
 }
 
-static uint32_t cc_calc_tm_64(CPUS390XState *env, uint64_t val, uint64_t mask)
+static uint32_t cc_calc_tm_64(uint64_t val, uint64_t mask)
 {
     uint64_t r = val & mask;
 
@@ -118,13 +114,12 @@ static uint32_t cc_calc_tm_64(CPUS390XState *env, uint64_t val, uint64_t mask)
     }
 }
 
-static inline uint32_t cc_calc_nz(CPUS390XState *env, uint64_t dst)
+static uint32_t cc_calc_nz(uint64_t dst)
 {
     return !!dst;
 }
 
-static inline uint32_t cc_calc_add_64(CPUS390XState *env, int64_t a1,
-                                      int64_t a2, int64_t ar)
+static uint32_t cc_calc_add_64(int64_t a1, int64_t a2, int64_t ar)
 {
     if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar > 0)) {
         return 3; /* overflow */
@@ -139,14 +134,12 @@ static inline uint32_t cc_calc_add_64(CPUS390XState *env, int64_t a1,
     }
 }
 
-static uint32_t cc_calc_addu_64(CPUS390XState *env, uint64_t a1,
-                                uint64_t a2, uint64_t ar)
+static uint32_t cc_calc_addu_64(uint64_t a1, uint64_t a2, uint64_t ar)
 {
     return (ar != 0) + 2 * (ar < a1);
 }
 
-static uint32_t cc_calc_addc_64(CPUS390XState *env, uint64_t a1,
-                                uint64_t a2, uint64_t ar)
+static uint32_t cc_calc_addc_64(uint64_t a1, uint64_t a2, uint64_t ar)
 {
     /* Recover a2 + carry_in.  */
     uint64_t a2c = ar - a1;
@@ -156,8 +149,7 @@ static uint32_t cc_calc_addc_64(CPUS390XState *env, uint64_t a1,
     return (ar != 0) + 2 * carry_out;
 }
 
-static inline uint32_t cc_calc_sub_64(CPUS390XState *env, int64_t a1,
-                                      int64_t a2, int64_t ar)
+static uint32_t cc_calc_sub_64(int64_t a1, int64_t a2, int64_t ar)
 {
     if ((a1 > 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
         return 3; /* overflow */
@@ -172,8 +164,7 @@ static inline uint32_t cc_calc_sub_64(CPUS390XState *env, int64_t a1,
     }
 }
 
-static inline uint32_t cc_calc_subu_64(CPUS390XState *env, uint64_t a1,
-                                       uint64_t a2, uint64_t ar)
+static uint32_t cc_calc_subu_64(uint64_t a1, uint64_t a2, uint64_t ar)
 {
     if (ar == 0) {
         return 2;
@@ -186,8 +177,7 @@ static inline uint32_t cc_calc_subu_64(CPUS390XState *env, uint64_t a1,
     }
 }
 
-static uint32_t cc_calc_subb_64(CPUS390XState *env, uint64_t a1,
-                                uint64_t a2, uint64_t ar)
+static uint32_t cc_calc_subb_64(uint64_t a1, uint64_t a2, uint64_t ar)
 {
     /* We had borrow-in if normal subtraction isn't equal.  */
     int borrow_in = ar - (a1 - a2);
@@ -205,7 +195,7 @@ static uint32_t cc_calc_subb_64(CPUS390XState *env, uint64_t a1,
     return (ar != 0) + 2 * !borrow_out;
 }
 
-static inline uint32_t cc_calc_abs_64(CPUS390XState *env, int64_t dst)
+static uint32_t cc_calc_abs_64(int64_t dst)
 {
     if ((uint64_t)dst == 0x8000000000000000ULL) {
         return 3;
@@ -216,12 +206,12 @@ static inline uint32_t cc_calc_abs_64(CPUS390XState *env, int64_t dst)
     }
 }
 
-static inline uint32_t cc_calc_nabs_64(CPUS390XState *env, int64_t dst)
+static uint32_t cc_calc_nabs_64(int64_t dst)
 {
     return !!dst;
 }
 
-static inline uint32_t cc_calc_comp_64(CPUS390XState *env, int64_t dst)
+static uint32_t cc_calc_comp_64(int64_t dst)
 {
     if ((uint64_t)dst == 0x8000000000000000ULL) {
         return 3;
@@ -235,8 +225,7 @@ static inline uint32_t cc_calc_comp_64(CPUS390XState *env, int64_t dst)
 }
 
 
-static inline uint32_t cc_calc_add_32(CPUS390XState *env, int32_t a1,
-                                      int32_t a2, int32_t ar)
+static uint32_t cc_calc_add_32(int32_t a1, int32_t a2, int32_t ar)
 {
     if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar > 0)) {
         return 3; /* overflow */
@@ -251,14 +240,12 @@ static inline uint32_t cc_calc_add_32(CPUS390XState *env, int32_t a1,
     }
 }
 
-static uint32_t cc_calc_addu_32(CPUS390XState *env, uint32_t a1,
-                                uint32_t a2, uint32_t ar)
+static uint32_t cc_calc_addu_32(uint32_t a1, uint32_t a2, uint32_t ar)
 {
     return (ar != 0) + 2 * (ar < a1);
 }
 
-static uint32_t cc_calc_addc_32(CPUS390XState *env, uint32_t a1,
-                                uint32_t a2, uint32_t ar)
+static uint32_t cc_calc_addc_32(uint32_t a1, uint32_t a2, uint32_t ar)
 {
     /* Recover a2 + carry_in.  */
     uint32_t a2c = ar - a1;
@@ -268,8 +255,7 @@ static uint32_t cc_calc_addc_32(CPUS390XState *env, uint32_t a1,
     return (ar != 0) + 2 * carry_out;
 }
 
-static inline uint32_t cc_calc_sub_32(CPUS390XState *env, int32_t a1,
-                                      int32_t a2, int32_t ar)
+static uint32_t cc_calc_sub_32(int32_t a1, int32_t a2, int32_t ar)
 {
     if ((a1 > 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
         return 3; /* overflow */
@@ -284,8 +270,7 @@ static inline uint32_t cc_calc_sub_32(CPUS390XState *env, int32_t a1,
     }
 }
 
-static inline uint32_t cc_calc_subu_32(CPUS390XState *env, uint32_t a1,
-                                       uint32_t a2, uint32_t ar)
+static uint32_t cc_calc_subu_32(uint32_t a1, uint32_t a2, uint32_t ar)
 {
     if (ar == 0) {
         return 2;
@@ -298,8 +283,7 @@ static inline uint32_t cc_calc_subu_32(CPUS390XState *env, uint32_t a1,
     }
 }
 
-static uint32_t cc_calc_subb_32(CPUS390XState *env, uint32_t a1,
-                                uint32_t a2, uint32_t ar)
+static uint32_t cc_calc_subb_32(uint32_t a1, uint32_t a2, uint32_t ar)
 {
     /* We had borrow-in if normal subtraction isn't equal.  */
     int borrow_in = ar - (a1 - a2);
@@ -317,7 +301,7 @@ static uint32_t cc_calc_subb_32(CPUS390XState *env, uint32_t a1,
     return (ar != 0) + 2 * !borrow_out;
 }
 
-static inline uint32_t cc_calc_abs_32(CPUS390XState *env, int32_t dst)
+static uint32_t cc_calc_abs_32(int32_t dst)
 {
     if ((uint32_t)dst == 0x80000000UL) {
         return 3;
@@ -328,12 +312,12 @@ static inline uint32_t cc_calc_abs_32(CPUS390XState *env, int32_t dst)
     }
 }
 
-static inline uint32_t cc_calc_nabs_32(CPUS390XState *env, int32_t dst)
+static uint32_t cc_calc_nabs_32(int32_t dst)
 {
     return !!dst;
 }
 
-static inline uint32_t cc_calc_comp_32(CPUS390XState *env, int32_t dst)
+static uint32_t cc_calc_comp_32(int32_t dst)
 {
     if ((uint32_t)dst == 0x80000000UL) {
         return 3;
@@ -347,8 +331,7 @@ static inline uint32_t cc_calc_comp_32(CPUS390XState *env, int32_t dst)
 }
 
 /* calculate condition code for insert character under mask insn */
-static inline uint32_t cc_calc_icm_32(CPUS390XState *env, uint32_t mask,
-                                      uint32_t val)
+static uint32_t cc_calc_icm_32(uint32_t mask, uint32_t val)
 {
     uint32_t cc;
 
@@ -379,8 +362,7 @@ static inline uint32_t cc_calc_icm_32(CPUS390XState *env, uint32_t mask,
     return cc;
 }
 
-static inline uint32_t cc_calc_slag(CPUS390XState *env, uint64_t src,
-                                    uint64_t shift)
+static uint32_t cc_calc_slag(uint64_t src, uint64_t shift)
 {
     uint64_t mask = ((1ULL << shift) - 1ULL) << (64 - shift);
     uint64_t match, r;
@@ -409,7 +391,7 @@ static inline uint32_t cc_calc_slag(CPUS390XState *env, uint64_t src,
 }
 
 
-static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
+static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
                                   uint64_t src, uint64_t dst, uint64_t vr)
 {
     uint32_t r = 0;
@@ -423,93 +405,93 @@ static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         r = cc_op;
         break;
     case CC_OP_LTGT0_32:
-        r = cc_calc_ltgt0_32(env, dst);
+        r = cc_calc_ltgt0_32(dst);
         break;
     case CC_OP_LTGT0_64:
-        r =  cc_calc_ltgt0_64(env, dst);
+        r =  cc_calc_ltgt0_64(dst);
         break;
     case CC_OP_LTGT_32:
-        r =  cc_calc_ltgt_32(env, src, dst);
+        r =  cc_calc_ltgt_32(src, dst);
         break;
     case CC_OP_LTGT_64:
-        r =  cc_calc_ltgt_64(env, src, dst);
+        r =  cc_calc_ltgt_64(src, dst);
         break;
     case CC_OP_LTUGTU_32:
-        r =  cc_calc_ltugtu_32(env, src, dst);
+        r =  cc_calc_ltugtu_32(src, dst);
         break;
     case CC_OP_LTUGTU_64:
-        r =  cc_calc_ltugtu_64(env, src, dst);
+        r =  cc_calc_ltugtu_64(src, dst);
         break;
     case CC_OP_TM_32:
-        r =  cc_calc_tm_32(env, src, dst);
+        r =  cc_calc_tm_32(src, dst);
         break;
     case CC_OP_TM_64:
-        r =  cc_calc_tm_64(env, src, dst);
+        r =  cc_calc_tm_64(src, dst);
         break;
     case CC_OP_NZ:
-        r =  cc_calc_nz(env, dst);
+        r =  cc_calc_nz(dst);
         break;
     case CC_OP_ADD_64:
-        r =  cc_calc_add_64(env, src, dst, vr);
+        r =  cc_calc_add_64(src, dst, vr);
         break;
     case CC_OP_ADDU_64:
-        r =  cc_calc_addu_64(env, src, dst, vr);
+        r =  cc_calc_addu_64(src, dst, vr);
         break;
     case CC_OP_ADDC_64:
-        r =  cc_calc_addc_64(env, src, dst, vr);
+        r =  cc_calc_addc_64(src, dst, vr);
         break;
     case CC_OP_SUB_64:
-        r =  cc_calc_sub_64(env, src, dst, vr);
+        r =  cc_calc_sub_64(src, dst, vr);
         break;
     case CC_OP_SUBU_64:
-        r =  cc_calc_subu_64(env, src, dst, vr);
+        r =  cc_calc_subu_64(src, dst, vr);
         break;
     case CC_OP_SUBB_64:
-        r =  cc_calc_subb_64(env, src, dst, vr);
+        r =  cc_calc_subb_64(src, dst, vr);
         break;
     case CC_OP_ABS_64:
-        r =  cc_calc_abs_64(env, dst);
+        r =  cc_calc_abs_64(dst);
         break;
     case CC_OP_NABS_64:
-        r =  cc_calc_nabs_64(env, dst);
+        r =  cc_calc_nabs_64(dst);
         break;
     case CC_OP_COMP_64:
-        r =  cc_calc_comp_64(env, dst);
+        r =  cc_calc_comp_64(dst);
         break;
 
     case CC_OP_ADD_32:
-        r =  cc_calc_add_32(env, src, dst, vr);
+        r =  cc_calc_add_32(src, dst, vr);
         break;
     case CC_OP_ADDU_32:
-        r =  cc_calc_addu_32(env, src, dst, vr);
+        r =  cc_calc_addu_32(src, dst, vr);
         break;
     case CC_OP_ADDC_32:
-        r =  cc_calc_addc_32(env, src, dst, vr);
+        r =  cc_calc_addc_32(src, dst, vr);
         break;
     case CC_OP_SUB_32:
-        r =  cc_calc_sub_32(env, src, dst, vr);
+        r =  cc_calc_sub_32(src, dst, vr);
         break;
     case CC_OP_SUBU_32:
-        r =  cc_calc_subu_32(env, src, dst, vr);
+        r =  cc_calc_subu_32(src, dst, vr);
         break;
     case CC_OP_SUBB_32:
-        r =  cc_calc_subb_32(env, src, dst, vr);
+        r =  cc_calc_subb_32(src, dst, vr);
         break;
     case CC_OP_ABS_32:
-        r =  cc_calc_abs_64(env, dst);
+        r =  cc_calc_abs_32(dst);
         break;
     case CC_OP_NABS_32:
-        r =  cc_calc_nabs_64(env, dst);
+        r =  cc_calc_nabs_32(dst);
         break;
     case CC_OP_COMP_32:
-        r =  cc_calc_comp_32(env, dst);
+        r =  cc_calc_comp_32(dst);
         break;
 
     case CC_OP_ICM:
-        r =  cc_calc_icm_32(env, src, dst);
+        r =  cc_calc_icm_32(src, dst);
         break;
     case CC_OP_SLAG:
-        r =  cc_calc_slag(env, src, dst);
+        r =  cc_calc_slag(src, dst);
         break;
 
     case CC_OP_LTGT_F32:
