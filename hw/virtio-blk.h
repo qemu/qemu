@@ -107,6 +107,7 @@ struct VirtIOBlkConf
 };
 
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \
-        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field)
+        DEFINE_VIRTIO_COMMON_FEATURES(_state, _field), \
+        DEFINE_PROP_BIT("config-wce", _state, _field, VIRTIO_BLK_F_CONFIG_WCE, true)
 
 #endif
