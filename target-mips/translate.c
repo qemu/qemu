@@ -12768,8 +12768,9 @@ void cpu_state_reset(CPUMIPSState *env)
 
 #if defined(CONFIG_USER_ONLY)
     env->hflags = MIPS_HFLAG_UM;
-    /* Enable access to the SYNCI_Step register.  */
-    env->CP0_HWREna |= (1 << 1);
+    /* Enable access to the CPUNum, SYNCI_Step, CC, and CCRes RDHWR
+       hardware registers.  */
+    env->CP0_HWREna |= 0x0000000F;
     if (env->CP0_Config1 & (1 << CP0C1_FP)) {
         env->hflags |= MIPS_HFLAG_FPU;
     }
