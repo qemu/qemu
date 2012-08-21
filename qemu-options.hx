@@ -838,7 +838,23 @@ Enable SDL.
 ETEXI
 
 DEF("spice", HAS_ARG, QEMU_OPTION_spice,
-    "-spice <args>   enable spice\n", QEMU_ARCH_ALL)
+    "-spice [port=port][,tls-port=secured-port][,x509-dir=<dir>]\n"
+    "       [,x509-key-file=<file>][,x509-key-password=<file>]\n"
+    "       [,x509-cert-file=<file>][,x509-cacert-file=<file>]\n"
+    "       [,x509-dh-key-file=<file>][,addr=addr][,ipv4|ipv6]\n"
+    "       [,tls-ciphers=<list>]\n"
+    "       [,tls-channel=[main|display|cursor|inputs|record|playback]]\n"
+    "       [,plaintext-channel=[main|display|cursor|inputs|record|playback]]\n"
+    "       [,sasl][,password=<secret>][,disable-ticketing]\n"
+    "       [,image-compression=[auto_glz|auto_lz|quic|glz|lz|off]]\n"
+    "       [,jpeg-wan-compression=[auto|never|always]]\n"
+    "       [,zlib-glz-wan-compression=[auto|never|always]]\n"
+    "       [,streaming-video=[off|all|filter]][,disable-copy-paste]\n"
+    "       [,agent-mouse=[on|off]][,playback-compression=[on|off]]\n"
+    "       [,seamless-migration=[on|off]]\n"
+    "   enable spice\n"
+    "   at least one of {port, tls-port} is mandatory\n",
+    QEMU_ARCH_ALL)
 STEXI
 @item -spice @var{option}[,@var{option}[,...]]
 @findex -spice
