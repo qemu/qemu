@@ -160,6 +160,10 @@
 /* INSERT CHARACTER */
     C(0x4300, IC,      RX_a,  Z,   0, m2_8u, 0, r1_8, mov2, 0)
     C(0xe373, ICY,     RXY_a, LD,  0, m2_8u, 0, r1_8, mov2, 0)
+/* INSERT CHARACTERS UNDER MASK */
+    D(0xbf00, ICM,     RS_b,  Z,   0, a2, r1, 0, icm, 0, 0)
+    D(0xeb81, ICMY,    RSY_b, LD,  0, a2, r1, 0, icm, 0, 0)
+    D(0xeb80, ICMH,    RSY_b, Z,   0, a2, r1, 0, icm, 0, 32)
 /* INSERT IMMEDIATE */
     D(0xc008, IIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, insi, 0, 0x2020)
     D(0xc009, IILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, insi, 0, 0x2000)

@@ -331,35 +331,18 @@ static uint32_t cc_calc_comp_32(int32_t dst)
 }
 
 /* calculate condition code for insert character under mask insn */
-static uint32_t cc_calc_icm_32(uint32_t mask, uint32_t val)
+static uint32_t cc_calc_icm(uint64_t mask, uint64_t val)
 {
-    uint32_t cc;
-
-    HELPER_LOG("%s: mask 0x%x val %d\n", __func__, mask, val);
-    if (mask == 0xf) {
-        if (!val) {
-            return 0;
-        } else if (val & 0x80000000) {
+    if ((val & mask) == 0) {
+        return 0;
+    } else {
+        int top = clz64(mask);
+        if ((int64_t)(val << top) < 0) {
             return 1;
         } else {
             return 2;
         }
     }
-
-    if (!val || !mask) {
-        cc = 0;
-    } else {
-        while (mask != 1) {
-            mask >>= 1;
-            val >>= 8;
-        }
-        if (val & 0x80) {
-            cc = 1;
-        } else {
-            cc = 2;
-        }
-    }
-    return cc;
 }
 
 static uint32_t cc_calc_slag(uint64_t src, uint64_t shift)
@@ -488,7 +471,7 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         break;
 
     case CC_OP_ICM:
-        r =  cc_calc_icm_32(src, dst);
+        r =  cc_calc_icm(src, dst);
         break;
     case CC_OP_SLAG:
         r =  cc_calc_slag(src, dst);

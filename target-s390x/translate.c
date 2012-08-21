@@ -32,6 +32,7 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
+#include "qemu/host-utils.h"
 
 /* global register indexes */
 static TCGv_ptr cpu_env;
@@ -561,11 +562,6 @@ static inline void set_cc_s64(DisasContext *s, TCGv_i64 val)
     gen_op_update1_cc_i64(s, CC_OP_LTGT0_64, val);
 }
 
-static void set_cc_icm(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2)
-{
-    gen_op_update2_cc_i32(s, CC_OP_ICM, v1, v2);
-}
-
 static void set_cc_cmp_f32_i64(DisasContext *s, TCGv_i32 v1, TCGv_i64 v2)
 {
     tcg_gen_extu_i32_i64(cc_src, v1);
@@ -896,7 +892,6 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
 
     case CC_OP_LTGT0_64:
     case CC_OP_NZ:
-    case CC_OP_ICM:
         c->u.s64.a = cc_dst;
         c->u.s64.b = tcg_const_i64(0);
         c->g1 = true;
@@ -910,6 +905,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
 
     case CC_OP_TM_32:
     case CC_OP_TM_64:
+    case CC_OP_ICM:
         c->u.s64.a = tcg_temp_new_i64();
         c->u.s64.b = tcg_const_i64(0);
         tcg_gen_and_i64(c->u.s64.a, cc_src, cc_dst);
@@ -1520,18 +1516,6 @@ do_mh:
         tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
-        break;
-    case 0x80: /* ICMH      R1,M3,D2(B2)     [RSY] */
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        /* XXX split CC calculation out */
-        gen_helper_icmh(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
         break;
     default:
         LOG_DISAS("illegal eb operation 0x%x\n", op);
@@ -2361,7 +2345,7 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
 static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
     TCGv_i64 tmp, tmp2, tmp3, tmp4;
-    TCGv_i32 tmp32_1, tmp32_2, tmp32_3, tmp32_4;
+    TCGv_i32 tmp32_1, tmp32_2;
     unsigned char opc;
     uint64_t insn;
     int op, r1, r2, r3, d1, d2, x2, b1, b2, i, i2, r1b;
@@ -2785,60 +2769,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0xbf: /* ICM    R1,M3,D2(B2)     [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        if (r3 == 15) {
-            /* effectively a 32-bit load */
-            tmp = get_address(s, 0, b2, d2);
-            tmp32_1 = tcg_temp_new_i32();
-            tmp32_2 = tcg_const_i32(r3);
-            tcg_gen_qemu_ld32u(tmp, tmp, get_mem_index(s));
-            store_reg32_i64(r1, tmp);
-            tcg_gen_trunc_i64_i32(tmp32_1, tmp);
-            set_cc_icm(s, tmp32_2, tmp32_1);
-            tcg_temp_free_i64(tmp);
-            tcg_temp_free_i32(tmp32_1);
-            tcg_temp_free_i32(tmp32_2);
-        } else if (r3) {
-            uint32_t mask = 0x00ffffffUL;
-            uint32_t shift = 24;
-            int m3 = r3;
-            tmp = get_address(s, 0, b2, d2);
-            tmp2 = tcg_temp_new_i64();
-            tmp32_1 = load_reg32(r1);
-            tmp32_2 = tcg_temp_new_i32();
-            tmp32_3 = tcg_const_i32(r3);
-            tmp32_4 = tcg_const_i32(0);
-            while (m3) {
-                if (m3 & 8) {
-                    tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
-                    tcg_gen_trunc_i64_i32(tmp32_2, tmp2);
-                    if (shift) {
-                        tcg_gen_shli_i32(tmp32_2, tmp32_2, shift);
-                    }
-                    tcg_gen_andi_i32(tmp32_1, tmp32_1, mask);
-                    tcg_gen_or_i32(tmp32_1, tmp32_1, tmp32_2);
-                    tcg_gen_or_i32(tmp32_4, tmp32_4, tmp32_2);
-                    tcg_gen_addi_i64(tmp, tmp, 1);
-                }
-                m3 = (m3 << 1) & 0xf;
-                mask = (mask >> 8) | 0xff000000UL;
-                shift -= 8;
-            }
-            store_reg32(r1, tmp32_1);
-            set_cc_icm(s, tmp32_3, tmp32_4);
-            tcg_temp_free_i64(tmp);
-            tcg_temp_free_i64(tmp2);
-            tcg_temp_free_i32(tmp32_1);
-            tcg_temp_free_i32(tmp32_2);
-            tcg_temp_free_i32(tmp32_3);
-            tcg_temp_free_i32(tmp32_4);
-        } else {
-            /* i.e. env->cc = 0 */
-            gen_op_movi_cc(s, 0);
-        }
         break;
     case 0xd2: /* MVC    D1(L,B1),D2(B2)         [SS] */
     case 0xd4: /* NC     D1(L,B1),D2(B2)         [SS] */
@@ -3490,6 +3420,66 @@ static ExitStatus op_divu64(DisasContext *s, DisasOps *o)
 {
     gen_helper_divu64(o->out2, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out);
+    return NO_EXIT;
+}
+
+static ExitStatus op_icm(DisasContext *s, DisasOps *o)
+{
+    int m3 = get_field(s->fields, m3);
+    int pos, len, base = s->insn->data;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    uint64_t ccm;
+
+    switch (m3) {
+    case 0xf:
+        /* Effectively a 32-bit load.  */
+        tcg_gen_qemu_ld32u(tmp, o->in2, get_mem_index(s));
+        len = 32;
+        goto one_insert;
+
+    case 0xc:
+    case 0x6:
+    case 0x3:
+        /* Effectively a 16-bit load.  */
+        tcg_gen_qemu_ld16u(tmp, o->in2, get_mem_index(s));
+        len = 16;
+        goto one_insert;
+
+    case 0x8:
+    case 0x4:
+    case 0x2:
+    case 0x1:
+        /* Effectively an 8-bit load.  */
+        tcg_gen_qemu_ld8u(tmp, o->in2, get_mem_index(s));
+        len = 8;
+        goto one_insert;
+
+    one_insert:
+        pos = base + ctz32(m3) * 8;
+        tcg_gen_deposit_i64(o->out, o->out, tmp, pos, len);
+        ccm = ((1ull << len) - 1) << pos;
+        break;
+
+    default:
+        /* This is going to be a sequence of loads and inserts.  */
+        pos = base + 32 - 8;
+        ccm = 0;
+        while (m3) {
+            if (m3 & 0x8) {
+                tcg_gen_qemu_ld8u(tmp, o->in2, get_mem_index(s));
+                tcg_gen_addi_i64(o->in2, o->in2, 1);
+                tcg_gen_deposit_i64(o->out, o->out, tmp, pos, 8);
+                ccm |= 0xff << pos;
+            }
+            m3 = (m3 << 1) & 0xf;
+            pos -= 8;
+        }
+        break;
+    }
+
+    tcg_gen_movi_i64(tmp, ccm);
+    gen_op_update2_cc_i64(s, CC_OP_ICM, tmp, o->out);
+    tcg_temp_free_i64(tmp);
     return NO_EXIT;
 }
 

@@ -629,39 +629,6 @@ void HELPER(stcmh)(CPUS390XState *env, uint32_t r1, uint64_t address,
     }
 }
 
-/* insert character under mask high; same as icm, but operates on the
-   upper half of r1 */
-uint32_t HELPER(icmh)(CPUS390XState *env, uint32_t r1, uint64_t address,
-                      uint32_t mask)
-{
-    int pos = 56; /* top of the upper half of r1 */
-    uint64_t rmask = 0xff00000000000000ULL;
-    uint8_t val = 0;
-    int ccd = 0;
-    uint32_t cc = 0;
-
-    while (mask) {
-        if (mask & 8) {
-            env->regs[r1] &= ~rmask;
-            val = cpu_ldub_data(env, address);
-            if ((val & 0x80) && !ccd) {
-                cc = 1;
-            }
-            ccd = 1;
-            if (val && cc == 0) {
-                cc = 2;
-            }
-            env->regs[r1] |= (uint64_t)val << pos;
-            address++;
-        }
-        mask = (mask << 1) & 0xf;
-        pos -= 8;
-        rmask >>= 8;
-    }
-
-    return cc;
-}
-
 /* load access registers r1 to r3 from memory at a2 */
 void HELPER(lam)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
