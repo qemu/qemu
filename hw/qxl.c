@@ -1386,6 +1386,18 @@ async_common:
         QXLCookie *cookie = NULL;
         QXLRect update = d->ram->update_area;
 
+        if (d->ram->update_surface > NUM_SURFACES) {
+            qxl_set_guest_bug(d, "QXL_IO_UPDATE_AREA: invalid surface id %d\n",
+                              d->ram->update_surface);
+            return;
+        }
+        if (update.left >= update.right || update.top >= update.bottom) {
+            qxl_set_guest_bug(d,
+                    "QXL_IO_UPDATE_AREA: invalid area (%ux%u)x(%ux%u)\n",
+                    update.left, update.top, update.right, update.bottom);
+            return;
+        }
+
         if (async == QXL_ASYNC) {
             cookie = qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                     QXL_IO_UPDATE_AREA_ASYNC);
