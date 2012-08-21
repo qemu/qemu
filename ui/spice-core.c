@@ -46,6 +46,7 @@ static Notifier migration_state;
 static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
+static int spice_migration_completed;
 int using_spice = 0;
 
 static QemuThread me;
@@ -310,6 +311,7 @@ static void migrate_connect_complete_cb(SpiceMigrateInstance *sin)
 static void migrate_end_complete_cb(SpiceMigrateInstance *sin)
 {
     monitor_protocol_event(QEVENT_SPICE_MIGRATE_COMPLETED, NULL);
+    spice_migration_completed = true;
 }
 #endif
 
@@ -443,6 +445,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
     }
 
     info->enabled = true;
+    info->migrated = spice_migration_completed;
 
     addr = qemu_opt_get(opts, "addr");
     port = qemu_opt_get_number(opts, "port", 0);
@@ -496,6 +499,7 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 #ifndef SPICE_INTERFACE_MIGRATION
         spice_server_migrate_switch(spice_server);
         monitor_protocol_event(QEVENT_SPICE_MIGRATE_COMPLETED, NULL);
+        spice_migration_completed = true;
 #else
         spice_server_migrate_end(spice_server, true);
     } else if (migration_has_failed(s)) {

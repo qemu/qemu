@@ -413,6 +413,8 @@ void hmp_info_spice(Monitor *mon)
         monitor_printf(mon, "     address: %s:%" PRId64 " [tls]\n",
                        info->host, info->tls_port);
     }
+    monitor_printf(mon, "    migrated: %s\n",
+                   info->migrated ? "true" : "false");
     monitor_printf(mon, "        auth: %s\n", info->auth);
     monitor_printf(mon, "    compiled: %s\n", info->compiled_version);
     monitor_printf(mon, "  mouse-mode: %s\n",
