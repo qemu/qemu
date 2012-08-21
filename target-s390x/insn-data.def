@@ -157,6 +157,11 @@
     D(0xc006, XIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2020)
     D(0xc007, XILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2000)
 
+/* EXECUTE */
+    C(0x4400, EX,      RX_a,  Z,   r1_o, a2, 0, 0, ex, 0)
+/* EXECUTE RELATIVE LONG */
+    C(0xc600, EXRL,    RIL_b, EE,  r1_o, ri2, 0, 0, ex, 0)
+
 /* INSERT CHARACTER */
     C(0x4300, IC,      RX_a,  Z,   0, m2_8u, 0, r1_8, mov2, 0)
     C(0xe373, ICY,     RXY_a, LD,  0, m2_8u, 0, r1_8, mov2, 0)

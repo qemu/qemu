@@ -2355,19 +2355,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x44: /* EX     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = load_reg(r1);
-        tmp3 = tcg_const_i64(s->pc + 4);
-        update_psw_addr(s);
-        gen_op_calc_cc(s);
-        gen_helper_ex(cc_op, cpu_env, cc_op, tmp2, tmp, tmp3);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
     case 0x4e: /* CVD    R1,D2(X2,B2)     [RX] */
         insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
@@ -3420,6 +3407,32 @@ static ExitStatus op_divu64(DisasContext *s, DisasOps *o)
 {
     gen_helper_divu64(o->out2, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ex(DisasContext *s, DisasOps *o)
+{
+    /* ??? Perhaps a better way to implement EXECUTE is to set a bit in
+       tb->flags, (ab)use the tb->cs_base field as the address of
+       the template in memory, and grab 8 bits of tb->flags/cflags for
+       the contents of the register.  We would then recognize all this
+       in gen_intermediate_code_internal, generating code for exactly
+       one instruction.  This new TB then gets executed normally.
+
+       On the other hand, this seems to be mostly used for modifying
+       MVC inside of memcpy, which needs a helper call anyway.  So
+       perhaps this doesn't bear thinking about any further.  */
+
+    TCGv_i64 tmp;
+
+    update_psw_addr(s);
+    gen_op_calc_cc(s);
+
+    tmp = tcg_const_i64(s->next_pc);
+    gen_helper_ex(cc_op, cpu_env, cc_op, o->in1, o->in2, tmp);
+    tcg_temp_free_i64(tmp);
+
+    set_cc_static(s);
     return NO_EXIT;
 }
 
