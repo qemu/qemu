@@ -766,15 +766,27 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     return q;
 }
 
+static void ehci_cancel_queue(EHCIQueue *q)
+{
+    EHCIPacket *p;
+
+    p = QTAILQ_FIRST(&q->packets);
+    if (p == NULL) {
+        return;
+    }
+
+    trace_usb_ehci_queue_action(q, "cancel");
+    do {
+        ehci_free_packet(p);
+    } while ((p = QTAILQ_FIRST(&q->packets)) != NULL);
+}
+
 static void ehci_free_queue(EHCIQueue *q)
 {
     EHCIQueueHead *head = q->async ? &q->ehci->aqueues : &q->ehci->pqueues;
-    EHCIPacket *p;
 
     trace_usb_ehci_queue_action(q, "free");
-    while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
-        ehci_free_packet(p);
-    }
+    ehci_cancel_queue(q);
     QTAILQ_REMOVE(head, q, next);
     g_free(q);
 }
@@ -1796,9 +1808,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     if (q->dev != NULL && q->dev->addr != devaddr) {
         if (!QTAILQ_EMPTY(&q->packets)) {
             /* should not happen (guest bug) */
-            while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
-                ehci_free_packet(p);
-            }
+            ehci_cancel_queue(q);
         }
         q->dev = NULL;
     }
@@ -1959,10 +1969,10 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
 
     p = QTAILQ_FIRST(&q->packets);
-    while (p != NULL && p->qtdaddr != q->qtdaddr) {
+    if (p != NULL && p->qtdaddr != q->qtdaddr) {
         /* should not happen (guest bug) */
-        ehci_free_packet(p);
-        p = QTAILQ_FIRST(&q->packets);
+        ehci_cancel_queue(q);
+        p = NULL;
     }
     if (p != NULL) {
         ehci_qh_do_overlay(q);
