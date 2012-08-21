@@ -82,7 +82,9 @@ struct SimpleSpiceDisplay {
 
     QXLRect dirty;
     int notify;
+#if SPICE_SERVER_VERSION < 0x000b02 /* before 0.11.2 */
     int running;
+#endif
 
     /*
      * All struct members below this comment can be accessed from
@@ -129,5 +131,8 @@ void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
 void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd,
                                         uint32_t id, qxl_async_io async);
 void qemu_spice_wakeup(SimpleSpiceDisplay *ssd);
-void qemu_spice_start(SimpleSpiceDisplay *ssd);
-void qemu_spice_stop(SimpleSpiceDisplay *ssd);
+#if SPICE_SERVER_VERSION >= 0x000b02 /* before 0.11.2 */
+void qemu_spice_display_start(void);
+void qemu_spice_display_stop(void);
+#endif
+int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd);
