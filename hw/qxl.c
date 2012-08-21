@@ -958,9 +958,10 @@ static void qxl_update_irq(PCIQXLDevice *d)
 static void qxl_check_state(PCIQXLDevice *d)
 {
     QXLRam *ram = d->ram;
+    int spice_display_running = qemu_spice_display_is_running(&d->ssd);
 
-    assert(!d->ssd.running || SPICE_RING_IS_EMPTY(&ram->cmd_ring));
-    assert(!d->ssd.running || SPICE_RING_IS_EMPTY(&ram->cursor_ring));
+    assert(!spice_display_running || SPICE_RING_IS_EMPTY(&ram->cmd_ring));
+    assert(!spice_display_running || SPICE_RING_IS_EMPTY(&ram->cursor_ring));
 }
 
 static void qxl_reset_state(PCIQXLDevice *d)
@@ -1538,7 +1539,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     uint32_t old_pending;
     uint32_t le_events = cpu_to_le32(events);
 
-    assert(d->ssd.running);
+    assert(qemu_spice_display_is_running(&d->ssd));
     old_pending = __sync_fetch_and_or(&d->ram->int_pending, le_events);
     if ((old_pending & le_events) == le_events) {
         return;
