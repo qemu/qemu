@@ -1798,10 +1798,13 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         io_size = 16;
         break;
     case 3: /* qxl-3 */
-    default:
         pci_device_rev = QXL_DEFAULT_REVISION;
         io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
         break;
+    default:
+        error_report("Invalid revision %d for qxl device (max %d)",
+                     qxl->revision, QXL_DEFAULT_REVISION);
+        return -1;
     }
 
     pci_set_byte(&config[PCI_REVISION_ID], pci_device_rev);
