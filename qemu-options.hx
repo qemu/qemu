@@ -920,6 +920,9 @@ Enable/disable passing mouse events via vdagent.  Default is on.
 @item playback-compression=[on|off]
 Enable/disable audio stream compression (using celt 0.5.1).  Default is on.
 
+@item seamless-migration=[on|off]
+Enable/disable spice seamless migration. Default is off.
+
 @end table
 ETEXI
 
