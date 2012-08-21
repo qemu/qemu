@@ -379,6 +379,8 @@
     D(0xa701, TMLL,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 0)
 
 #ifndef CONFIG_USER_ONLY
+/* LOAD PSW */
+    C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
 /* SET ADDRESSING MODE */
     /* We only do 64-bit, so accept this as a no-op.
        Let SAM24 and SAM31 signal illegal instruction.  */

@@ -2356,26 +2356,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 
     switch (opc) {
 #ifndef CONFIG_USER_ONLY
-    case 0x82: /* LPSW     D2(B2)       [S] */
-        /* Load PSW */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
-        tcg_gen_addi_i64(tmp, tmp, 4);
-        tcg_gen_qemu_ld32u(tmp3, tmp, get_mem_index(s));
-        /* Convert the 32-bit PSW_MASK into the 64-bit PSW_MASK.  */
-        tcg_gen_shli_i64(tmp2, tmp2, 32);
-        gen_helper_load_psw(cpu_env, tmp2, tmp3);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        /* we need to keep cc_op intact */
-        s->is_jmp = DISAS_JUMP;
-        break;
     case 0x83: /* DIAG     R1,R3,D2     [RS] */
         /* Diagnose call (KVM hypercall) */
         check_privileged(s);
@@ -3510,6 +3490,27 @@ static ExitStatus op_ld64(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_ld64(o->out, o->in2, get_mem_index(s));
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_lpsw(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t1, t2;
+
+    check_privileged(s);
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld32u(t1, o->in2, get_mem_index(s));
+    tcg_gen_addi_i64(o->in2, o->in2, 4);
+    tcg_gen_qemu_ld32u(t2, o->in2, get_mem_index(s));
+    /* Convert the 32-bit PSW_MASK into the 64-bit PSW_MASK.  */
+    tcg_gen_shli_i64(t1, t1, 32);
+    gen_helper_load_psw(cpu_env, t1, t2);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    return EXIT_NORETURN;
+}
+#endif
 
 static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
 {
