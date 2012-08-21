@@ -2355,23 +2355,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-#ifndef CONFIG_USER_ONLY
-    case 0x83: /* DIAG     R1,R3,D2     [RS] */
-        /* Diagnose call (KVM hypercall) */
-        check_privileged(s);
-        potential_page_fault(s);
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp32_1 = tcg_const_i32(insn & 0xfff);
-        tmp2 = load_reg(2);
-        tmp3 = load_reg(1);
-        gen_helper_diag(tmp2, cpu_env, tmp32_1, tmp2, tmp3);
-        store_reg(2, tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
-#endif
     case 0x88: /* SRL    R1,D2(B2)        [RS] */
     case 0x89: /* SLL    R1,D2(B2)        [RS] */
     case 0x8a: /* SRA    R1,D2(B2)        [RS] */
@@ -3326,6 +3309,22 @@ static ExitStatus op_cvd(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(t1);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_diag(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 tmp;
+
+    check_privileged(s);
+    potential_page_fault(s);
+
+    /* We pretend the format is RX_a so that D2 is the field we want.  */
+    tmp = tcg_const_i32(get_field(s->fields, d2) & 0xfff);
+    gen_helper_diag(regs[2], cpu_env, tmp, regs[2], regs[1]);
+    tcg_temp_free_i32(tmp);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_divs32(DisasContext *s, DisasOps *o)
 {

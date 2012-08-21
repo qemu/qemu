@@ -379,6 +379,8 @@
     D(0xa701, TMLL,    RI_a,  Z,   r1_o, i2_16u_shl, 0, 0, 0, tm64, 0)
 
 #ifndef CONFIG_USER_ONLY
+/* DIAGNOSE (KVM hypercall) */
+    C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
 /* LOAD PSW */
     C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
 /* SET ADDRESSING MODE */
