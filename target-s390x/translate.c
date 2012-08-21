@@ -283,12 +283,6 @@ static inline void store_reg16(int reg, TCGv_i32 v)
 #endif
 }
 
-static inline void store_reg8(int reg, TCGv_i64 v)
-{
-    /* 8 bit register writes keep the upper bytes */
-    tcg_gen_deposit_i64(regs[reg], regs[reg], v, 0, 8);
-}
-
 static inline void store_freg32(int reg, TCGv_i32 v)
 {
     /* 32 bit register writes keep the lower half */
@@ -1244,7 +1238,7 @@ static void gen_op_clc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
 static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
                      int x2, int b2, int d2)
 {
-    TCGv_i64 addr, tmp2, tmp3;
+    TCGv_i64 addr, tmp2;
     TCGv_i32 tmp32_1;
 
     LOG_DISAS("disas_e3: op 0x%x r1 %d x2 %d b2 %d d2 %d\n",
@@ -1293,12 +1287,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
         tcg_temp_free_i32(tmp32_1);
         tcg_gen_qemu_st32(tmp2, addr, get_mem_index(s));
         tcg_temp_free_i64(tmp2);
-        break;
-    case 0x73: /* ICY R1,D2(X2,B2) [RXY] */
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld8u(tmp3, addr, get_mem_index(s));
-        store_reg8(r1, tmp3);
-        tcg_temp_free_i64(tmp3);
         break;
     default:
         LOG_DISAS("illegal e3 operation 0x%x\n", op);
@@ -2383,15 +2371,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x43: /* IC     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
-        store_reg8(r1, tmp2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x44: /* EX     R1,D2(X2,B2)     [RX] */
         insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
@@ -3922,6 +3901,12 @@ static void wout_r1(DisasContext *s, DisasFields *f, DisasOps *o)
     store_reg(get_field(f, r1), o->out);
 }
 
+static void wout_r1_8(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int r1 = get_field(f, r1);
+    tcg_gen_deposit_i64(regs[r1], regs[r1], o->out, 0, 8);
+}
+
 static void wout_r1_32(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     store_reg32_i64(get_field(f, r1), o->out);
@@ -4178,6 +4163,12 @@ static void in2_a2(DisasContext *s, DisasFields *f, DisasOps *o)
 static void in2_ri2(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_const_i64(s->pc + (int64_t)get_field(f, i2) * 2);
+}
+
+static void in2_m2_8u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld8u(o->in2, o->in2, get_mem_index(s));
 }
 
 static void in2_m2_16s(DisasContext *s, DisasFields *f, DisasOps *o)
