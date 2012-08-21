@@ -2356,22 +2356,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 
     switch (opc) {
 #ifndef CONFIG_USER_ONLY
-    case 0x80: /* SSM      D2(B2)       [S] */
-        /* Set System Mask */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_andi_i64(tmp3, psw_mask, ~0xff00000000000000ULL);
-        tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
-        tcg_gen_shli_i64(tmp2, tmp2, 56);
-        tcg_gen_or_i64(psw_mask, tmp3, tmp2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
     case 0x82: /* LPSW     D2(B2)       [S] */
         /* Load PSW */
         check_privileged(s);
@@ -3606,6 +3590,15 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     set_cc_nz_u64(s, cc_dst);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_st8(DisasContext *s, DisasOps *o)
 {

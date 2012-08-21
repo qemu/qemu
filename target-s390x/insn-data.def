@@ -383,4 +383,6 @@
     /* We only do 64-bit, so accept this as a no-op.
        Let SAM24 and SAM31 signal illegal instruction.  */
     C(0x010e, SAM64,   E,     Z,   0, 0, 0, 0, 0, 0)
+/* SET SYSTEM MASK */
+    C(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0)
 #endif /* CONFIG_USER_ONLY */
