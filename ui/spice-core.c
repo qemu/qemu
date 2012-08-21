@@ -585,6 +585,9 @@ void qemu_spice_init(void)
     int port, tls_port, len, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
+#if SPICE_SERVER_VERSION >= 0x000b02 /* 0.11.2 */
+    bool seamless_migration;
+#endif
 
     qemu_thread_get_self(&me);
 
@@ -728,6 +731,10 @@ void qemu_spice_init(void)
     spice_server_set_uuid(spice_server, qemu_uuid);
 #endif
 
+#if SPICE_SERVER_VERSION >= 0x000b02 /* 0.11.2 */
+    seamless_migration = qemu_opt_get_bool(opts, "seamless-migration", 0);
+    spice_server_set_seamless_migration(spice_server, seamless_migration);
+#endif
     if (0 != spice_server_init(spice_server, &core_interface)) {
         error_report("failed to initialize spice server");
         exit(1);
