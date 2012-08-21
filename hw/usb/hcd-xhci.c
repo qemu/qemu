@@ -380,8 +380,6 @@ struct XHCIState {
     XHCISlot slots[MAXSLOTS];
 
     /* Runtime Registers */
-    uint32_t mfindex;
-    /* note: we only support one interrupter */
     uint32_t iman;
     uint32_t imod;
     uint32_t erstsz;
@@ -389,6 +387,9 @@ struct XHCIState {
     uint32_t erstba_high;
     uint32_t erdp_low;
     uint32_t erdp_high;
+
+    int64_t mfindex_start;
+    QEMUTimer *mfwrap_timer;
 
     dma_addr_t er_start;
     uint32_t er_size;
@@ -409,6 +410,11 @@ typedef struct XHCIEvRingSeg {
     uint32_t size;
     uint32_t rsvd;
 } XHCIEvRingSeg;
+
+static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
+                         unsigned int epid);
+static void xhci_event(XHCIState *xhci, XHCIEvent *event);
+static void xhci_write_event(XHCIState *xhci, XHCIEvent *event);
 
 static const char *TRBType_names[] = {
     [TRB_RESERVED]                     = "TRB_RESERVED",
@@ -462,8 +468,36 @@ static const char *trb_name(XHCITRB *trb)
                        ARRAY_SIZE(TRBType_names));
 }
 
-static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
-                         unsigned int epid);
+static uint64_t xhci_mfindex_get(XHCIState *xhci)
+{
+    int64_t now = qemu_get_clock_ns(vm_clock);
+    return (now - xhci->mfindex_start) / 125000;
+}
+
+static void xhci_mfwrap_update(XHCIState *xhci)
+{
+    const uint32_t bits = USBCMD_RS | USBCMD_EWE;
+    uint32_t mfindex, left;
+    int64_t now;
+
+    if ((xhci->usbcmd & bits) == bits) {
+        now = qemu_get_clock_ns(vm_clock);
+        mfindex = ((now - xhci->mfindex_start) / 125000) & 0x3fff;
+        left = 0x4000 - mfindex;
+        qemu_mod_timer(xhci->mfwrap_timer, now + left * 125000);
+    } else {
+        qemu_del_timer(xhci->mfwrap_timer);
+    }
+}
+
+static void xhci_mfwrap_timer(void *opaque)
+{
+    XHCIState *xhci = opaque;
+    XHCIEvent wrap = { ER_MFINDEX_WRAP, CC_SUCCESS };
+
+    xhci_event(xhci, &wrap);
+    xhci_mfwrap_update(xhci);
+}
 
 static inline dma_addr_t xhci_addr64(uint32_t low, uint32_t high)
 {
@@ -793,6 +827,7 @@ static void xhci_run(XHCIState *xhci)
 {
     trace_usb_xhci_run();
     xhci->usbsts &= ~USBSTS_HCH;
+    xhci->mfindex_start = qemu_get_clock_ns(vm_clock);
 }
 
 static void xhci_stop(XHCIState *xhci)
@@ -2048,7 +2083,6 @@ static void xhci_reset(DeviceState *dev)
         xhci_update_port(xhci, xhci->ports + i, 0);
     }
 
-    xhci->mfindex = 0;
     xhci->iman = 0;
     xhci->imod = 0;
     xhci->erstsz = 0;
@@ -2062,6 +2096,9 @@ static void xhci_reset(DeviceState *dev)
     xhci->er_full = 0;
     xhci->ev_buffer_put = 0;
     xhci->ev_buffer_get = 0;
+
+    xhci->mfindex_start = qemu_get_clock_ns(vm_clock);
+    xhci_mfwrap_update(xhci);
 }
 
 static uint32_t xhci_cap_read(XHCIState *xhci, uint32_t reg)
@@ -2264,6 +2301,7 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
             xhci_stop(xhci);
         }
         xhci->usbcmd = val & 0xc0f;
+        xhci_mfwrap_update(xhci);
         if (val & USBCMD_HCRST) {
             xhci_reset(&xhci->pci_dev.qdev);
         }
@@ -2315,8 +2353,7 @@ static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
 
     switch (reg) {
     case 0x00: /* MFINDEX */
-        fprintf(stderr, "xhci_runtime_read: MFINDEX not yet implemented\n");
-        ret = xhci->mfindex;
+        ret = xhci_mfindex_get(xhci) & 0x3fff;
         break;
     case 0x20: /* IMAN */
         ret = xhci->iman;
@@ -2615,6 +2652,8 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     xhci->pci_dev.config[0x60] = 0x30; /* release number */
 
     usb_xhci_init(xhci, &dev->qdev);
+
+    xhci->mfwrap_timer = qemu_new_timer_ns(vm_clock, xhci_mfwrap_timer, xhci);
 
     xhci->irq = xhci->pci_dev.irq[0];
 
