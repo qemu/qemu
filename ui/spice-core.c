@@ -285,6 +285,7 @@ typedef struct SpiceMigration {
 } SpiceMigration;
 
 static void migrate_connect_complete_cb(SpiceMigrateInstance *sin);
+static void migrate_end_complete_cb(SpiceMigrateInstance *sin);
 
 static const SpiceMigrateInterface migrate_interface = {
     .base.type = SPICE_INTERFACE_MIGRATION,
@@ -292,7 +293,7 @@ static const SpiceMigrateInterface migrate_interface = {
     .base.major_version = SPICE_INTERFACE_MIGRATION_MAJOR,
     .base.minor_version = SPICE_INTERFACE_MIGRATION_MINOR,
     .migrate_connect_complete = migrate_connect_complete_cb,
-    .migrate_end_complete = NULL,
+    .migrate_end_complete = migrate_end_complete_cb,
 };
 
 static SpiceMigration spice_migrate;
@@ -304,6 +305,11 @@ static void migrate_connect_complete_cb(SpiceMigrateInstance *sin)
         sm->connect_complete.cb(sm->connect_complete.opaque, NULL);
     }
     sm->connect_complete.cb = NULL;
+}
+
+static void migrate_end_complete_cb(SpiceMigrateInstance *sin)
+{
+    monitor_protocol_event(QEVENT_SPICE_MIGRATE_COMPLETED, NULL);
 }
 #endif
 
@@ -489,6 +495,7 @@ static void migration_state_notifier(Notifier *notifier, void *data)
     } else if (migration_has_finished(s)) {
 #ifndef SPICE_INTERFACE_MIGRATION
         spice_server_migrate_switch(spice_server);
+        monitor_protocol_event(QEVENT_SPICE_MIGRATE_COMPLETED, NULL);
 #else
         spice_server_migrate_end(spice_server, true);
     } else if (migration_has_failed(s)) {
