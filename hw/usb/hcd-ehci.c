@@ -1816,11 +1816,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         q->dev = ehci_find_device(q->ehci, devaddr);
     }
 
-    if (p && p->async == EHCI_ASYNC_INFLIGHT) {
-        /* I/O still in progress -- skip queue */
-        ehci_set_state(ehci, async, EST_HORIZONTALQH);
-        goto out;
-    }
     if (p && p->async == EHCI_ASYNC_FINISHED) {
         /* I/O finished -- continue processing queue */
         trace_usb_ehci_packet_action(p->queue, p, "complete");
@@ -1969,27 +1964,40 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
 
     p = QTAILQ_FIRST(&q->packets);
-    if (p != NULL && p->qtdaddr != q->qtdaddr) {
-        /* should not happen (guest bug) */
-        ehci_cancel_queue(q);
-        p = NULL;
-    }
     if (p != NULL) {
-        ehci_qh_do_overlay(q);
+        if (p->qtdaddr != q->qtdaddr ||
+            (!NLPTR_TBIT(p->qtd.next) && (p->qtd.next != qtd.next)) ||
+            (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd.altnext)) ||
+            p->qtd.bufptr[0] != qtd.bufptr[0]) {
+            /* guest bug: guest updated active QH or qTD underneath us */
+            ehci_cancel_queue(q);
+            p = NULL;
+        } else {
+            p->qtd = qtd;
+            ehci_qh_do_overlay(q);
+        }
+    }
+
+    if (!(qtd.token & QTD_TOKEN_ACTIVE)) {
+        if (p != NULL) {
+            /* transfer canceled by guest (clear active) */
+            ehci_cancel_queue(q);
+            p = NULL;
+        }
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
+        again = 1;
+    } else if (p != NULL) {
         if (p->async == EHCI_ASYNC_INFLIGHT) {
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         } else {
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
         }
         again = 1;
-    } else if (qtd.token & QTD_TOKEN_ACTIVE) {
+    } else {
         p = ehci_alloc_packet(q);
         p->qtdaddr = q->qtdaddr;
         p->qtd = qtd;
         ehci_set_state(q->ehci, q->async, EST_EXECUTE);
-        again = 1;
-    } else {
-        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     }
 
