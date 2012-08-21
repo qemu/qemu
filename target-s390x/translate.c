@@ -2355,18 +2355,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x4e: /* CVD    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(tmp32_1, regs[r1]);
-        gen_helper_cvd(tmp2, tmp32_1);
-        tcg_gen_qemu_st64(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
 #ifndef CONFIG_USER_ONLY
     case 0x80: /* SSM      D2(B2)       [S] */
         /* Set System Mask */
@@ -3361,6 +3349,18 @@ static ExitStatus op_bct64(DisasContext *s, DisasOps *o)
     c.u.s64.b = tcg_const_i64(0);
 
     return help_branch(s, &c, is_imm, imm, o->in2);
+}
+
+static ExitStatus op_cvd(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+    tcg_gen_trunc_i64_i32(t2, o->in1);
+    gen_helper_cvd(t1, t2);
+    tcg_temp_free_i32(t2);
+    tcg_gen_qemu_st64(t1, o->in2, get_mem_index(s));
+    tcg_temp_free_i64(t1);
+    return NO_EXIT;
 }
 
 static ExitStatus op_divs32(DisasContext *s, DisasOps *o)
