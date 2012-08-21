@@ -747,14 +747,15 @@ static void vhost_eventfd_del(MemoryListener *listener,
 {
 }
 
-int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
+int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
+                   bool force)
 {
     uint64_t features;
     int r;
     if (devfd >= 0) {
         hdev->control = devfd;
     } else {
-        hdev->control = open("/dev/vhost-net", O_RDWR);
+        hdev->control = open(devpath, O_RDWR);
         if (hdev->control < 0) {
             return -errno;
         }
