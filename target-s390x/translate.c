@@ -2288,36 +2288,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x8c: /* SRDL   R1,D2(B2)        [RS] */
-    case 0x8d: /* SLDL   R1,D2(B2)        [RS] */
-    case 0x8e: /* SRDA   R1,D2(B2)        [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2); /* shift */
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = load_reg32(r1 + 1);
-        tcg_gen_concat_i32_i64(tmp2, tmp32_2, tmp32_1); /* operand */
-        switch (opc) {
-        case 0x8c:
-            tcg_gen_shr_i64(tmp2, tmp2, tmp);
-            break;
-        case 0x8d:
-            tcg_gen_shl_i64(tmp2, tmp2, tmp);
-            break;
-        case 0x8e:
-            tcg_gen_sar_i64(tmp2, tmp2, tmp);
-            set_cc_s64(s, tmp2);
-            break;
-        }
-        tcg_gen_shri_i64(tmp, tmp2, 32);
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp);
-        store_reg32(r1, tmp32_1);
-        tcg_gen_trunc_i64_i32(tmp32_2, tmp2);
-        store_reg32(r1 + 1, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x98: /* LM     R1,R3,D2(B2)     [RS] */
     case 0x90: /* STM    R1,R3,D2(B2)     [RS] */
         insn = ld_code4(env, s->pc);

@@ -335,6 +335,14 @@
     C(0x8800, SRL,     RS_a,  Z,   r1_32u, sh32, new, r1_32, srl, 0)
     C(0xebde, SRLK,    RSY_a, DO,  r3_32u, sh32, new, r1_32, srl, 0)
     C(0xeb0c, SRLG,    RSY_a, Z,   r3_o, sh64, r1, 0, srl, 0)
+/* SHIFT LEFT DOUBLE */
+    D(0x8f00, SLDA,    RS_a,  Z,   r1_D32, sh64, new, r1_D32, sla, 0, 31)
+/* SHIFT LEFT DOUBLE LOGICAL */
+    C(0x8d00, SLDL,    RS_a,  Z,   r1_D32, sh64, new, r1_D32, sll, 0)
+/* SHIFT RIGHT DOUBLE */
+    C(0x8e00, SRDA,    RS_a,  Z,   r1_D32, sh64, new, r1_D32, sra, s64)
+/* SHIFT RIGHT DOUBLE LOGICAL */
+    C(0x8c00, SRDL,    RS_a,  Z,   r1_D32, sh64, new, r1_D32, srl, 0)
 
 /* STORE */
     C(0x5000, ST,      RX_a,  Z,   r1_o, a2, 0, 0, st32, 0)
