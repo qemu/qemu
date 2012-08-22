@@ -149,6 +149,8 @@ void hmp_info_migrate(Monitor *mon)
 
     if (info->has_status) {
         monitor_printf(mon, "Migration status: %s\n", info->status);
+        monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
+                       info->total_time);
     }
 
     if (info->has_ram) {
@@ -158,8 +160,6 @@ void hmp_info_migrate(Monitor *mon)
                        info->ram->remaining >> 10);
         monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n",
                        info->ram->total >> 10);
-        monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
-                       info->ram->total_time);
         monitor_printf(mon, "duplicate: %" PRIu64 " pages\n",
                        info->ram->duplicate);
         monitor_printf(mon, "normal: %" PRIu64 " pages\n",
