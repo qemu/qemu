@@ -78,6 +78,39 @@
 
 #define NBD_OPT_EXPORT_NAME     (1 << 0)
 
+/* Definitions for opaque data types */
+
+typedef struct NBDRequest NBDRequest;
+
+struct NBDRequest {
+    QSIMPLEQ_ENTRY(NBDRequest) entry;
+    NBDClient *client;
+    uint8_t *data;
+};
+
+struct NBDExport {
+    BlockDriverState *bs;
+    off_t dev_offset;
+    off_t size;
+    uint32_t nbdflags;
+    QSIMPLEQ_HEAD(, NBDRequest) requests;
+};
+
+struct NBDClient {
+    int refcount;
+    void (*close)(NBDClient *client);
+
+    NBDExport *exp;
+    int sock;
+
+    Coroutine *recv_coroutine;
+
+    CoMutex send_lock;
+    Coroutine *send_coroutine;
+
+    int nb_requests;
+};
+
 /* That's all folks */
 
 ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
@@ -209,8 +242,9 @@ int unix_socket_outgoing(const char *path)
                   Request (type == 2)
 */
 
-static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
+static int nbd_send_negotiate(NBDClient *client)
 {
+    int csock = client->sock;
     char buf[8 + 8 + 8 + 128];
     int rc;
 
@@ -228,9 +262,9 @@ static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
     TRACE("Beginning negotiation.");
     memcpy(buf, "NBDMAGIC", 8);
     cpu_to_be64w((uint64_t*)(buf + 8), NBD_CLIENT_MAGIC);
-    cpu_to_be64w((uint64_t*)(buf + 16), size);
+    cpu_to_be64w((uint64_t*)(buf + 16), client->exp->size);
     cpu_to_be32w((uint32_t*)(buf + 24),
-                 flags | NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
+                 client->exp->nbdflags | NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
                  NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
     memset(buf + 28, 0, 124);
 
@@ -613,37 +647,6 @@ static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 
 #define MAX_NBD_REQUESTS 16
 
-typedef struct NBDRequest NBDRequest;
-
-struct NBDRequest {
-    QSIMPLEQ_ENTRY(NBDRequest) entry;
-    NBDClient *client;
-    uint8_t *data;
-};
-
-struct NBDExport {
-    BlockDriverState *bs;
-    off_t dev_offset;
-    off_t size;
-    uint32_t nbdflags;
-    QSIMPLEQ_HEAD(, NBDRequest) requests;
-};
-
-struct NBDClient {
-    int refcount;
-    void (*close)(NBDClient *client);
-
-    NBDExport *exp;
-    int sock;
-
-    Coroutine *recv_coroutine;
-
-    CoMutex send_lock;
-    Coroutine *send_coroutine;
-
-    int nb_requests;
-};
-
 static void nbd_client_get(NBDClient *client)
 {
     client->refcount++;
@@ -977,13 +980,14 @@ NBDClient *nbd_client_new(NBDExport *exp, int csock,
                           void (*close)(NBDClient *))
 {
     NBDClient *client;
-    if (nbd_send_negotiate(csock, exp->size, exp->nbdflags) < 0) {
-        return NULL;
-    }
     client = g_malloc0(sizeof(NBDClient));
     client->refcount = 1;
     client->exp = exp;
     client->sock = csock;
+    if (nbd_send_negotiate(client) < 0) {
+        g_free(client);
+        return NULL;
+    }
     client->close = close;
     qemu_co_mutex_init(&client->send_lock);
     qemu_set_fd_handler2(csock, nbd_can_read, nbd_read, NULL, client);
