@@ -721,7 +721,6 @@ void nbd_export_close(NBDExport *exp)
         g_free(first);
     }
 
-    bdrv_close(exp->bs);
     g_free(exp);
 }
 

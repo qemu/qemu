@@ -586,6 +586,7 @@ int main(int argc, char **argv)
     } while (!sigterm_reported && (persistent || !nbd_started || nb_fds > 0));
 
     nbd_export_close(exp);
+    bdrv_close(bs);
     if (sockpath) {
         unlink(sockpath);
     }
