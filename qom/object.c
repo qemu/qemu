@@ -373,8 +373,6 @@ static void object_deinit(Object *obj, TypeImpl *type)
     if (type_has_parent(type)) {
         object_deinit(obj, type_get_parent(type));
     }
-
-    object_unparent(obj);
 }
 
 void object_finalize(void *data)
@@ -411,8 +409,9 @@ Object *object_new(const char *typename)
 
 void object_delete(Object *obj)
 {
+    object_unparent(obj);
+    g_assert(obj->ref == 1);
     object_unref(obj);
-    g_assert(obj->ref == 0);
     g_free(obj);
 }
 
