@@ -508,4 +508,6 @@
     C(0xac00, STNSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
 /* STORE THEN OR SYSTEM MASK */
     C(0xad00, STOSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
+/* TEST PROTECTION */
+    C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
 #endif /* CONFIG_USER_ONLY */

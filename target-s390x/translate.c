@@ -1073,34 +1073,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
     tcg_temp_free_i64(addr);
 }
 
-#ifndef CONFIG_USER_ONLY
-static void disas_e5(CPUS390XState *env, DisasContext* s, uint64_t insn)
-{
-    TCGv_i64 tmp, tmp2;
-    int op = (insn >> 32) & 0xff;
-
-    tmp = get_address(s, 0, (insn >> 28) & 0xf, (insn >> 16) & 0xfff);
-    tmp2 = get_address(s, 0, (insn >> 12) & 0xf, insn & 0xfff);
-
-    LOG_DISAS("disas_e5: insn %" PRIx64 "\n", insn);
-    switch (op) {
-    case 0x01: /* TPROT    D1(B1),D2(B2)  [SSE] */
-        /* Test Protection */
-        potential_page_fault(s);
-        gen_helper_tprot(cc_op, tmp, tmp2);
-        set_cc_static(s);
-        break;
-    default:
-        LOG_DISAS("illegal e5 operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        break;
-    }
-
-    tcg_temp_free_i64(tmp);
-    tcg_temp_free_i64(tmp2);
-}
-#endif
-
 static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int r3, int b2, int d2)
 {
@@ -1996,15 +1968,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
            | ((insn << 4) & 0xff000)) << 12)) >> 12;
         disas_e3(env, s, op,  r1, x2, b2, d2 );
         break;
-#ifndef CONFIG_USER_ONLY
-    case 0xe5:
-        /* Test Protection */
-        check_privileged(s);
-        insn = ld_code6(env, s->pc);
-        debug_insn(insn);
-        disas_e5(env, s, insn);
-        break;
-#endif
     case 0xeb:
         insn = ld_code6(env, s->pc);
         debug_insn(insn);
@@ -3386,6 +3349,16 @@ static ExitStatus op_svc(DisasContext *s, DisasOps *o)
     gen_exception(EXCP_SVC);
     return EXIT_NORETURN;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_tprot(DisasContext *s, DisasOps *o)
+{
+    potential_page_fault(s);
+    gen_helper_tprot(cc_op, o->addr1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_tr(DisasContext *s, DisasOps *o)
 {
