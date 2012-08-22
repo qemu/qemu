@@ -403,6 +403,12 @@ L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/spapr*
 
+virtex_ml507
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/virtex_ml507.c
+
 SH4 Machines
 ------------
 R2D
