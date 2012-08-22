@@ -2007,22 +2007,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-#ifndef CONFIG_USER_ONLY
-    case 0xae: /* SIGP   R1,R3,D2(B2)     [RS] */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = load_reg(r3);
-        tmp32_1 = tcg_const_i32(r1);
-        potential_page_fault(s);
-        gen_helper_sigp(cc_op, cpu_env, tmp, tmp32_1, tmp2);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-#endif
     case 0xb2:
         insn = ld_code4(env, s->pc);
         op = (insn >> 16) & 0xff;
@@ -3193,6 +3177,18 @@ static ExitStatus op_rll64(DisasContext *s, DisasOps *o)
     tcg_gen_rotl_i64(o->out, o->in1, o->in2);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_sigp(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_sigp(cc_op, cpu_env, o->in2, r1, o->in1);
+    tcg_temp_free_i32(r1);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_sla(DisasContext *s, DisasOps *o)
 {
