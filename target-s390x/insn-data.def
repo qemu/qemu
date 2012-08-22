@@ -461,6 +461,10 @@
     C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
 /* LOAD PSW */
     C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
+/* LOAD REAL ADDRESS */
+    C(0xb100, LRA,     RX_a,  Z,   0, a2, r1, 0, lra, 0)
+    C(0xe313, LRAY,    RXY_a, LD,  0, a2, r1, 0, lra, 0)
+    C(0xe303, LRAG,    RXY_a, Z,   0, a2, r1, 0, lra, 0)
 /* MOVE TO PRIMARY */
     C(0xda00, MVCP,    SS_d,  Z,   la1, a2, 0, 0, mvcp, 0)
 /* MOVE TO SECONDARY */

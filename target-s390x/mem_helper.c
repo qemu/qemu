@@ -1127,7 +1127,7 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint32_t v1)
 }
 
 /* load real address */
-uint32_t HELPER(lra)(CPUS390XState *env, uint64_t addr, uint32_t r1)
+uint64_t HELPER(lra)(CPUS390XState *env, uint64_t addr)
 {
     uint32_t cc = 0;
     int old_exc = env->exception_index;
@@ -1151,14 +1151,7 @@ uint32_t HELPER(lra)(CPUS390XState *env, uint64_t addr, uint32_t r1)
     }
     env->exception_index = old_exc;
 
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
-            (ret & 0xffffffffULL);
-    } else {
-        env->regs[r1] = ret;
-    }
-
-    return cc;
+    env->cc_op = cc;
+    return ret;
 }
-
 #endif

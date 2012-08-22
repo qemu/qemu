@@ -2022,17 +2022,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
         break;
-    case 0xb1: /* LRA    R1,D2(X2, B2)     [RX] */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp32_1 = tcg_const_i32(r1);
-        potential_page_fault(s);
-        gen_helper_lra(cc_op, cpu_env, tmp, tmp32_1);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        break;
 #endif
     case 0xb2:
         insn = ld_code4(env, s->pc);
@@ -2938,6 +2927,15 @@ static ExitStatus op_ld64(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_lra(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_lra(o->out, cpu_env, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_lpsw(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 t1, t2;

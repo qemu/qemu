@@ -131,7 +131,7 @@ DEF_HELPER_4(sigp, i32, env, i64, i32, i64)
 DEF_HELPER_2(sacf, void, env, i64)
 DEF_HELPER_FLAGS_3(ipte, TCG_CALL_NO_RWG, void, env, i64, i64)
 DEF_HELPER_FLAGS_1(ptlb, TCG_CALL_NO_RWG, void, env)
-DEF_HELPER_3(lra, i32, env, i64, i32)
+DEF_HELPER_2(lra, i64, env, i64)
 DEF_HELPER_3(stura, void, env, i64, i32)
 #endif
 
