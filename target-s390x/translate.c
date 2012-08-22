@@ -1005,7 +1005,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
                      int x2, int b2, int d2)
 {
     TCGv_i64 addr, tmp2;
-    TCGv_i32 tmp32_1;
 
     LOG_DISAS("disas_e3: op 0x%x r1 %d x2 %d b2 %d d2 %d\n",
               op, r1, x2, b2, d2);
@@ -1016,15 +1015,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
         tcg_gen_qemu_ld32u(tmp2, addr, get_mem_index(s));
         tcg_gen_andi_i64(tmp2, tmp2, 0x7fffffffULL);
         store_reg(r1, tmp2);
-        tcg_temp_free_i64(tmp2);
-        break;
-    case 0x3e: /* STRV R1,D2(X2,B2) [RXY] */
-        tmp32_1 = load_reg32(r1);
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_bswap32_i32(tmp32_1, tmp32_1);
-        tcg_gen_extu_i32_i64(tmp2, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_gen_qemu_st32(tmp2, addr, get_mem_index(s));
         tcg_temp_free_i64(tmp2);
         break;
     default:
@@ -3738,6 +3728,12 @@ static void in1_la1(DisasContext *s, DisasFields *f, DisasOps *o)
     o->addr1 = get_address(s, 0, get_field(f, b1), get_field(f, d1));
 }
 
+static void in1_la2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int x2 = have_field(f, x2) ? get_field(f, x2) : 0;
+    o->addr1 = get_address(s, x2, get_field(f, b2), get_field(f, d2));
+}
+
 static void in1_m1_8u(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     in1_la1(s, f, o);
@@ -3782,6 +3778,24 @@ static void in1_m1_64(DisasContext *s, DisasFields *f, DisasOps *o)
 
 /* ====================================================================== */
 /* The "INput 2" generators.  These load the second operand to an insn.  */
+
+static void in2_r1_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = regs[get_field(f, r1)];
+    o->g_in2 = true;
+}
+
+static void in2_r1_16u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_ext16u_i64(o->in2, regs[get_field(f, r1)]);
+}
+
+static void in2_r1_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in2, regs[get_field(f, r1)]);
+}
 
 static void in2_r2(DisasContext *s, DisasFields *f, DisasOps *o)
 {

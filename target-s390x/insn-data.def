@@ -420,6 +420,10 @@
     C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
 /* STORE HALFWORD RELATIVE LONG */
     C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+/* STORE REVERSED */
+    C(0xe33f, STRVH,   RXY_a, Z,   la2, r1_16u, new, m1_16, rev16, 0)
+    C(0xe33e, STRV,    RXY_a, Z,   la2, r1_32u, new, m1_32, rev32, 0)
+    C(0xe32f, STRVG,   RXY_a, Z,   la2, r1_o, new, m1_64, rev64, 0)
 
 /* STORE FPC */
     C(0xb29c, STFPC,   S,     Z,   0, a2, new, m2_32, efpc, 0)
