@@ -1001,30 +1001,6 @@ static void free_compare(DisasCompare *c)
     }
 }
 
-static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
-                     int x2, int b2, int d2)
-{
-    TCGv_i64 addr, tmp2;
-
-    LOG_DISAS("disas_e3: op 0x%x r1 %d x2 %d b2 %d d2 %d\n",
-              op, r1, x2, b2, d2);
-    addr = get_address(s, x2, b2, d2);
-    switch (op) {
-    case 0x17: /* LLGT      R1,D2(X2,B2)     [RXY] */
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld32u(tmp2, addr, get_mem_index(s));
-        tcg_gen_andi_i64(tmp2, tmp2, 0x7fffffffULL);
-        store_reg(r1, tmp2);
-        tcg_temp_free_i64(tmp2);
-        break;
-    default:
-        LOG_DISAS("illegal e3 operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        break;
-    }
-    tcg_temp_free_i64(addr);
-}
-
 static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int x2, int b2, int d2, int r1b)
 {
@@ -1804,15 +1780,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
 
     LOG_DISAS("disas_b9: op 0x%x r1 %d r2 %d\n", op, r1, r2);
     switch (op) {
-    case 0x17: /* LLGTR      R1,R2     [RRE] */
-        tmp32_1 = load_reg32(r2);
-        tmp = tcg_temp_new_i64();
-        tcg_gen_andi_i32(tmp32_1, tmp32_1, 0x7fffffffUL);
-        tcg_gen_extu_i32_i64(tmp, tmp32_1);
-        store_reg(r1, tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x83: /* FLOGR R1,R2 [RRE] */
         tmp = load_reg(r2);
         tmp32_1 = tcg_const_i32(r1);
@@ -1857,17 +1824,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         r2 = insn & 0xf;
         op = (insn >> 16) & 0xff;
         disas_b9(env, s, op, r1, r2);
-        break;
-    case 0xe3:
-        insn = ld_code6(env, s->pc);
-        debug_insn(insn);
-        op = insn & 0xff;
-        r1 = (insn >> 36) & 0xf;
-        x2 = (insn >> 32) & 0xf;
-        b2 = (insn >> 28) & 0xf;
-        d2 = ((int)((((insn >> 16) & 0xfff)
-           | ((insn << 4) & 0xff000)) << 12)) >> 12;
-        disas_e3(env, s, op,  r1, x2, b2, d2 );
         break;
     case 0xed:
         insn = ld_code6(env, s->pc);
@@ -2651,6 +2607,12 @@ static ExitStatus op_insi(DisasContext *s, DisasOps *o)
     int shift = s->insn->data & 0xff;
     int size = s->insn->data >> 8;
     tcg_gen_deposit_i64(o->out, o->in1, o->in2, shift, size);
+    return NO_EXIT;
+}
+
+static ExitStatus op_llgt(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andi_i64(o->out, o->in2, 0x7fffffff);
     return NO_EXIT;
 }
 
