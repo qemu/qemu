@@ -57,9 +57,12 @@
 
 /* This is all part of the "official" NBD API */
 
+#define NBD_REQUEST_SIZE        (4 + 4 + 8 + 8 + 4)
 #define NBD_REPLY_SIZE          (4 + 4 + 8)
 #define NBD_REQUEST_MAGIC       0x25609513
 #define NBD_REPLY_MAGIC         0x67446698
+#define NBD_OPTS_MAGIC          0x49484156454F5054LL
+#define NBD_CLIENT_MAGIC        0x0000420281861253LL
 
 #define NBD_SET_SOCK            _IO(0xab, 0)
 #define NBD_SET_BLKSIZE         _IO(0xab, 1)
@@ -213,7 +216,7 @@ static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
 
     /* Negotiate
         [ 0 ..   7]   passwd   ("NBDMAGIC")
-        [ 8 ..  15]   magic    (0x00420281861253)
+        [ 8 ..  15]   magic    (NBD_CLIENT_MAGIC)
         [16 ..  23]   size
         [24 ..  27]   flags
         [28 .. 151]   reserved (0)
@@ -224,7 +227,7 @@ static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
 
     TRACE("Beginning negotiation.");
     memcpy(buf, "NBDMAGIC", 8);
-    cpu_to_be64w((uint64_t*)(buf + 8), 0x00420281861253LL);
+    cpu_to_be64w((uint64_t*)(buf + 8), NBD_CLIENT_MAGIC);
     cpu_to_be64w((uint64_t*)(buf + 16), size);
     cpu_to_be32w((uint32_t*)(buf + 24),
                  flags | NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
@@ -295,7 +298,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
         uint32_t namesize;
 
         TRACE("Checking magic (opts_magic)");
-        if (magic != 0x49484156454F5054LL) {
+        if (magic != NBD_OPTS_MAGIC) {
             LOG("Bad magic received");
             goto fail;
         }
@@ -334,7 +337,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     } else {
         TRACE("Checking magic (cli_magic)");
 
-        if (magic != 0x00420281861253LL) {
+        if (magic != NBD_CLIENT_MAGIC) {
             LOG("Bad magic received");
             goto fail;
         }
@@ -477,7 +480,7 @@ int nbd_client(int fd)
 
 ssize_t nbd_send_request(int csock, struct nbd_request *request)
 {
-    uint8_t buf[4 + 4 + 8 + 8 + 4];
+    uint8_t buf[NBD_REQUEST_SIZE];
     ssize_t ret;
 
     cpu_to_be32w((uint32_t*)buf, NBD_REQUEST_MAGIC);
@@ -504,7 +507,7 @@ ssize_t nbd_send_request(int csock, struct nbd_request *request)
 
 static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
 {
-    uint8_t buf[4 + 4 + 8 + 8 + 4];
+    uint8_t buf[NBD_REQUEST_SIZE];
     uint32_t magic;
     ssize_t ret;
 
@@ -582,7 +585,7 @@ ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
 
 static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 {
-    uint8_t buf[4 + 4 + 8];
+    uint8_t buf[NBD_REPLY_SIZE];
     ssize_t ret;
 
     /* Reply
