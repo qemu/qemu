@@ -1612,7 +1612,7 @@ PixelFormat qemu_different_endianness_pixelformat(int bpp)
     memset(&pf, 0x00, sizeof(PixelFormat));
 
     pf.bits_per_pixel = bpp;
-    pf.bytes_per_pixel = bpp / 8;
+    pf.bytes_per_pixel = DIV_ROUND_UP(bpp, 8);
     pf.depth = bpp == 32 ? 24 : bpp;
 
     switch (bpp) {
@@ -1661,13 +1661,12 @@ PixelFormat qemu_default_pixelformat(int bpp)
     memset(&pf, 0x00, sizeof(PixelFormat));
 
     pf.bits_per_pixel = bpp;
-    pf.bytes_per_pixel = bpp / 8;
+    pf.bytes_per_pixel = DIV_ROUND_UP(bpp, 8);
     pf.depth = bpp == 32 ? 24 : bpp;
 
     switch (bpp) {
         case 15:
             pf.bits_per_pixel = 16;
-            pf.bytes_per_pixel = 2;
             pf.rmask = 0x00007c00;
             pf.gmask = 0x000003E0;
             pf.bmask = 0x0000001F;
