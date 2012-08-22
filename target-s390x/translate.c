@@ -636,7 +636,8 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_TM_64:
     case CC_OP_LTGT_F32:
     case CC_OP_LTGT_F64:
-    case CC_OP_SLAG:
+    case CC_OP_SLA_32:
+    case CC_OP_SLA_64:
         /* 2 arguments */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, dummy);
         break;
@@ -1330,74 +1331,6 @@ static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
     LOG_DISAS("disas_eb: op 0x%x r1 %d r3 %d b2 %d d2 0x%x\n",
               op, r1, r3, b2, d2);
     switch (op) {
-    case 0xc: /* SRLG     R1,R3,D2(B2)     [RSY] */
-    case 0xd: /* SLLG     R1,R3,D2(B2)     [RSY] */
-    case 0xa: /* SRAG     R1,R3,D2(B2)     [RSY] */
-    case 0xb: /* SLAG     R1,R3,D2(B2)     [RSY] */
-    case 0x1c: /* RLLG     R1,R3,D2(B2)     [RSY] */
-        if (b2) {
-            tmp = get_address(s, 0, b2, d2);
-            tcg_gen_andi_i64(tmp, tmp, 0x3f);
-        } else {
-            tmp = tcg_const_i64(d2 & 0x3f);
-        }
-        switch (op) {
-        case 0xc:
-            tcg_gen_shr_i64(regs[r1], regs[r3], tmp);
-            break;
-        case 0xd:
-            tcg_gen_shl_i64(regs[r1], regs[r3], tmp);
-            break;
-        case 0xa:
-            tcg_gen_sar_i64(regs[r1], regs[r3], tmp);
-            break;
-        case 0xb:
-            tmp2 = tcg_temp_new_i64();
-            tmp3 = tcg_temp_new_i64();
-            gen_op_update2_cc_i64(s, CC_OP_SLAG, regs[r3], tmp);
-            tcg_gen_shl_i64(tmp2, regs[r3], tmp);
-            /* override sign bit with source sign */
-            tcg_gen_andi_i64(tmp2, tmp2, ~0x8000000000000000ULL);
-            tcg_gen_andi_i64(tmp3, regs[r3], 0x8000000000000000ULL);
-            tcg_gen_or_i64(regs[r1], tmp2, tmp3);
-            tcg_temp_free_i64(tmp2);
-            tcg_temp_free_i64(tmp3);
-            break;
-        case 0x1c:
-            tcg_gen_rotl_i64(regs[r1], regs[r3], tmp);
-            break;
-        default:
-            tcg_abort();
-            break;
-        }
-        if (op == 0xa) {
-            set_cc_s64(s, regs[r1]);
-        }
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x1d: /* RLL    R1,R3,D2(B2)        [RSY] */
-        if (b2) {
-            tmp = get_address(s, 0, b2, d2);
-            tcg_gen_andi_i64(tmp, tmp, 0x3f);
-        } else {
-            tmp = tcg_const_i64(d2 & 0x3f);
-        }
-        tmp32_1 = tcg_temp_new_i32();
-        tmp32_2 = load_reg32(r3);
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp);
-        switch (op) {
-        case 0x1d:
-            tcg_gen_rotl_i32(tmp32_1, tmp32_2, tmp32_1);
-            break;
-        default:
-            tcg_abort();
-            break;
-        }
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0x4:  /* LMG      R1,R3,D2(B2)     [RSE] */
     case 0x24: /* STMG     R1,R3,D2(B2)     [RSE] */
         stm_len = 8;
@@ -2355,35 +2288,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x88: /* SRL    R1,D2(B2)        [RS] */
-    case 0x89: /* SLL    R1,D2(B2)        [RS] */
-    case 0x8a: /* SRA    R1,D2(B2)        [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(tmp32_2, tmp);
-        tcg_gen_andi_i32(tmp32_2, tmp32_2, 0x3f);
-        switch (opc) {
-        case 0x88:
-            tcg_gen_shr_i32(tmp32_1, tmp32_1, tmp32_2);
-            break;
-        case 0x89:
-            tcg_gen_shl_i32(tmp32_1, tmp32_1, tmp32_2);
-            break;
-        case 0x8a:
-            tcg_gen_sar_i32(tmp32_1, tmp32_1, tmp32_2);
-            set_cc_s32(s, tmp32_1);
-            break;
-        default:
-            tcg_abort();
-        }
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0x8c: /* SRDL   R1,D2(B2)        [RS] */
     case 0x8d: /* SLDL   R1,D2(B2)        [RS] */
     case 0x8e: /* SRDA   R1,D2(B2)        [RS] */
@@ -3029,6 +2933,20 @@ struct DisasInsn {
 /* ====================================================================== */
 /* Miscelaneous helpers, used by several operations.  */
 
+static void help_l2_shift(DisasContext *s, DisasFields *f,
+                          DisasOps *o, int mask)
+{
+    int b2 = get_field(f, b2);
+    int d2 = get_field(f, d2);
+
+    if (b2 == 0) {
+        o->in2 = tcg_const_i64(d2 & mask);
+    } else {
+        o->in2 = get_address(s, 0, b2, d2);
+        tcg_gen_andi_i64(o->in2, o->in2, mask);
+    }
+}
+
 static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
 {
     if (dest == s->next_pc) {
@@ -3591,6 +3509,59 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_rll32(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    TCGv_i32 t2 = tcg_temp_new_i32();
+    TCGv_i32 to = tcg_temp_new_i32();
+    tcg_gen_trunc_i64_i32(t1, o->in1);
+    tcg_gen_trunc_i64_i32(t2, o->in2);
+    tcg_gen_rotl_i32(to, t1, t2);
+    tcg_gen_extu_i32_i64(o->out, to);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(to);
+    return NO_EXIT;
+}
+
+static ExitStatus op_rll64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_rotl_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sla(DisasContext *s, DisasOps *o)
+{
+    uint64_t sign = 1ull << s->insn->data;
+    enum cc_op cco = s->insn->data == 31 ? CC_OP_SLA_32 : CC_OP_SLA_64;
+    gen_op_update2_cc_i64(s, cco, o->in1, o->in2);
+    tcg_gen_shl_i64(o->out, o->in1, o->in2);
+    /* The arithmetic left shift is curious in that it does not affect
+       the sign bit.  Copy that over from the source unchanged.  */
+    tcg_gen_andi_i64(o->out, o->out, ~sign);
+    tcg_gen_andi_i64(o->in1, o->in1, sign);
+    tcg_gen_or_i64(o->out, o->out, o->in1);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sll(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_shl_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sra(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_sar_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_srl(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_shr_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
@@ -3961,6 +3932,18 @@ static void in1_r1_o(DisasContext *s, DisasFields *f, DisasOps *o)
     o->g_in1 = true;
 }
 
+static void in1_r1_32s(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_ext32s_i64(o->in1, regs[get_field(f, r1)]);
+}
+
+static void in1_r1_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in1, regs[get_field(f, r1)]);
+}
+
 static void in1_r1p1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     /* ??? Specification exception: r1 must be even.  */
@@ -4000,6 +3983,24 @@ static void in1_r2(DisasContext *s, DisasFields *f, DisasOps *o)
 static void in1_r3(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in1 = load_reg(get_field(f, r3));
+}
+
+static void in1_r3_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = regs[get_field(f, r3)];
+    o->g_in1 = true;
+}
+
+static void in1_r3_32s(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_ext32s_i64(o->in1, regs[get_field(f, r3)]);
+}
+
+static void in1_r3_32u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_ext32u_i64(o->in1, regs[get_field(f, r3)]);
 }
 
 static void in1_e1(DisasContext *s, DisasFields *f, DisasOps *o)
@@ -4151,6 +4152,16 @@ static void in2_a2(DisasContext *s, DisasFields *f, DisasOps *o)
 static void in2_ri2(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_const_i64(s->pc + (int64_t)get_field(f, i2) * 2);
+}
+
+static void in2_sh32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    help_l2_shift(s, f, o, 31);
+}
+
+static void in2_sh64(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    help_l2_shift(s, f, o, 63);
 }
 
 static void in2_m2_8u(DisasContext *s, DisasFields *f, DisasOps *o)
