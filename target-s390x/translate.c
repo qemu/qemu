@@ -1329,7 +1329,7 @@ static void disas_e5(CPUS390XState *env, DisasContext* s, uint64_t insn)
 static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int r3, int b2, int d2)
 {
-    TCGv_i64 tmp, tmp2;
+    TCGv_i64 tmp;
     TCGv_i32 tmp32_1, tmp32_2;
 
     LOG_DISAS("disas_eb: op 0x%x r1 %d r3 %d b2 %d d2 0x%x\n",
@@ -1394,13 +1394,6 @@ static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x52: /* MVIY D1(B1),I2 [SIY] */
-        tmp = get_address(s, 0, b2, d2); /* SIY -> this is the destination */
-        tmp2 = tcg_const_i64((r1 << 4) | r3);
-        tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
         break;
     default:
         LOG_DISAS("illegal eb operation 0x%x\n", op);
@@ -2240,14 +2233,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x92: /* MVI    D1(B1),I2        [SI] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_si(s, insn, &i2, &b1, &d1);
-        tmp2 = tcg_const_i64(i2);
-        tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x94: /* NI     D1(B1),I2        [SI] */
     case 0x96: /* OI     D1(B1),I2        [SI] */
     case 0x97: /* XI     D1(B1),I2        [SI] */
@@ -3910,6 +3895,16 @@ static void wout_cond_e1e2(DisasContext *s, DisasFields *f, DisasOps *o)
     if (get_field(f, r1) != get_field(f, r2)) {
         store_freg32_i64(get_field(f, r1), o->out);
     }
+}
+
+static void wout_m1_8(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st8(o->out, o->addr1, get_mem_index(s));
+}
+
+static void wout_m1_16(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st16(o->out, o->addr1, get_mem_index(s));
 }
 
 static void wout_m1_32(DisasContext *s, DisasFields *f, DisasOps *o)

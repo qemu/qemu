@@ -276,6 +276,12 @@
 /* LOAD MULTIPLE HIGH */
     C(0xeb96, LMH,     RSY_a, Z,   0, a2, 0, 0, lmh, 0)
 
+/* MOVE */
+    C(0xe544, MVHHI,   SIL,   GIE, la1, i2, 0, m1_16, mov2, 0)
+    C(0xe54c, MVHI,    SIL,   GIE, la1, i2, 0, m1_32, mov2, 0)
+    C(0xe548, MVGHI,   SIL,   GIE, la1, i2, 0, m1_64, mov2, 0)
+    C(0x9200, MVI,     SI,    Z,   la1, i2, 0, m1_8, mov2, 0)
+    C(0xeb52, MVIY,    SIY,   LD,  la1, i2, 0, m1_8, mov2, 0)
 /* MOVE LONG */
     C(0x0e00, MVCL,    RR_a,  Z,   0, 0, 0, 0, mvcl, 0)
 
