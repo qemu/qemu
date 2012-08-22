@@ -489,6 +489,7 @@ static int connect_to_sdog(const char *addr, const char *port)
             if (errno == EINTR) {
                 goto reconnect;
             }
+            close(fd);
             break;
         }
 
