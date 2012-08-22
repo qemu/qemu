@@ -175,6 +175,9 @@
 /* EXECUTE RELATIVE LONG */
     C(0xc600, EXRL,    RIL_b, EE,  r1_o, ri2, 0, 0, ex, 0)
 
+/* EXTRACT FPC */
+    C(0xb38c, EFPC,    RRE,   Z,   0, 0, new, r1_32, efpc, 0)
+
 /* INSERT CHARACTER */
     C(0x4300, IC,      RX_a,  Z,   0, m2_8u, 0, r1_8, mov2, 0)
     C(0xe373, ICY,     RXY_a, LD,  0, m2_8u, 0, r1_8, mov2, 0)
@@ -394,6 +397,9 @@
     C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
 /* STORE HALFWORD RELATIVE LONG */
     C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+
+/* STORE FPC */
+    C(0xb29c, STFPC,   S,     Z,   0, a2, new, m2_32, efpc, 0)
 
 /* STORE MULTIPLE */
     D(0x9000, STM,     RS_a,  Z,   0, a2, 0, 0, stm, 0, 4)

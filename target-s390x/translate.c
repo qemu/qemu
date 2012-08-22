@@ -1839,12 +1839,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
         tcg_temp_free_i32(tmp32_1);
         break;
-    case 0x8c: /* EFPC        R1                [RRE] */
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x94: /* CEFBR       R1,R2             [RRE] */
     case 0x95: /* CDFBR       R1,R2             [RRE] */
     case 0x96: /* CXFBR       R1,R2             [RRE] */
@@ -1997,7 +1991,7 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
 
 static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
-    TCGv_i64 tmp, tmp2;
+    TCGv_i64 tmp;
     TCGv_i32 tmp32_1, tmp32_2;
     unsigned char opc;
     uint64_t insn;
@@ -2010,24 +2004,7 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     case 0xb2:
         insn = ld_code4(env, s->pc);
         op = (insn >> 16) & 0xff;
-        switch (op) {
-        case 0x9c: /* STFPC    D2(B2) [S] */
-            d2 = insn & 0xfff;
-            b2 = (insn >> 12) & 0xf;
-            tmp32_1 = tcg_temp_new_i32();
-            tmp = tcg_temp_new_i64();
-            tmp2 = get_address(s, 0, b2, d2);
-            tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
-            tcg_gen_extu_i32_i64(tmp, tmp32_1);
-            tcg_gen_qemu_st32(tmp, tmp2, get_mem_index(s));
-            tcg_temp_free_i32(tmp32_1);
-            tcg_temp_free_i64(tmp);
-            tcg_temp_free_i64(tmp2);
-            break;
-        default:
-            disas_b2(env, s, op, insn);
-            break;
-        }
+        disas_b2(env, s, op, insn);
         break;
     case 0xb3:
         insn = ld_code4(env, s->pc);
@@ -2771,6 +2748,12 @@ static ExitStatus op_divu64(DisasContext *s, DisasOps *o)
 {
     gen_helper_divu64(o->out2, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out);
+    return NO_EXIT;
+}
+
+static ExitStatus op_efpc(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, fpc));
     return NO_EXIT;
 }
 
@@ -3698,6 +3681,11 @@ static void wout_m1_32(DisasContext *s, DisasFields *f, DisasOps *o)
 static void wout_m1_64(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     tcg_gen_qemu_st64(o->out, o->addr1, get_mem_index(s));
+}
+
+static void wout_m2_32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    tcg_gen_qemu_st32(o->out, o->in2, get_mem_index(s));
 }
 
 /* ====================================================================== */
