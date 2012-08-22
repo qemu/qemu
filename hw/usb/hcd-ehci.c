@@ -575,7 +575,12 @@ static inline void ehci_update_irq(EHCIState *s)
 /* flag interrupt condition */
 static inline void ehci_raise_irq(EHCIState *s, int intr)
 {
-    s->usbsts_pending |= intr;
+    if (intr & (USBSTS_PCD | USBSTS_FLR | USBSTS_HSE)) {
+        s->usbsts |= intr;
+        ehci_update_irq(s);
+    } else {
+        s->usbsts_pending |= intr;
+    }
 }
 
 /*
@@ -1182,21 +1187,22 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
             break;
         }
 
-        if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
-            ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
-            if (s->pstate == EST_INACTIVE) {
-                SET_LAST_RUN_CLOCK(s);
-            }
-            ehci_update_halt(s);
-            s->async_stepdown = 0;
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
-        }
-
         /* not supporting dynamic frame list size at the moment */
         if ((val & USBCMD_FLS) && !(s->usbcmd & USBCMD_FLS)) {
             fprintf(stderr, "attempt to set frame list size -- value %d\n",
                     val & USBCMD_FLS);
             val &= ~USBCMD_FLS;
+        }
+
+        if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
+            ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
+            if (s->pstate == EST_INACTIVE) {
+                SET_LAST_RUN_CLOCK(s);
+            }
+            s->usbcmd = val; /* Set usbcmd for ehci_update_halt() */
+            ehci_update_halt(s);
+            s->async_stepdown = 0;
+            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
         }
         break;
 
@@ -2466,13 +2472,16 @@ static int usb_ehci_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_ehci = {
     .name        = "ehci",
-    .version_id  = 1,
+    .version_id  = 2,
+    .minimum_version_id  = 1,
     .post_load   = usb_ehci_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(dev, EHCIState),
         /* mmio registers */
         VMSTATE_UINT32(usbcmd, EHCIState),
         VMSTATE_UINT32(usbsts, EHCIState),
+        VMSTATE_UINT32_V(usbsts_pending, EHCIState, 2),
+        VMSTATE_UINT32_V(usbsts_frindex, EHCIState, 2),
         VMSTATE_UINT32(usbintr, EHCIState),
         VMSTATE_UINT32(frindex, EHCIState),
         VMSTATE_UINT32(ctrldssegment, EHCIState),
