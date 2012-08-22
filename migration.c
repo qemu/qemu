@@ -166,14 +166,15 @@ MigrationInfo *qmp_query_migrate(Error **errp)
     case MIG_STATE_ACTIVE:
         info->has_status = true;
         info->status = g_strdup("active");
+        info->has_total_time = true;
+        info->total_time = qemu_get_clock_ms(rt_clock)
+            - s->total_time;
 
         info->has_ram = true;
         info->ram = g_malloc0(sizeof(*info->ram));
         info->ram->transferred = ram_bytes_transferred();
         info->ram->remaining = ram_bytes_remaining();
         info->ram->total = ram_bytes_total();
-        info->ram->total_time = qemu_get_clock_ms(rt_clock)
-            - s->total_time;
         info->ram->duplicate = dup_mig_pages_transferred();
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();
@@ -193,13 +194,13 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 
         info->has_status = true;
         info->status = g_strdup("completed");
+        info->total_time = s->total_time;
 
         info->has_ram = true;
         info->ram = g_malloc0(sizeof(*info->ram));
         info->ram->transferred = ram_bytes_transferred();
         info->ram->remaining = 0;
         info->ram->total = ram_bytes_total();
-        info->ram->total_time = s->total_time;
         info->ram->duplicate = dup_mig_pages_transferred();
         info->ram->normal = norm_mig_pages_transferred();
         info->ram->normal_bytes = norm_mig_bytes_transferred();

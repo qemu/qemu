@@ -24,11 +24,6 @@
 #define VIRTIO_SCSI_MAX_TARGET  255
 #define VIRTIO_SCSI_MAX_LUN     16383
 
-/* Feature Bits */
-#define VIRTIO_SCSI_F_INOUT                    0
-#define VIRTIO_SCSI_F_HOTPLUG                  1
-#define VIRTIO_SCSI_F_CHANGE                   2
-
 /* Response codes */
 #define VIRTIO_SCSI_S_OK                       0
 #define VIRTIO_SCSI_S_OVERRUN                  1
@@ -561,8 +556,6 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
                                          uint32_t requested_features)
 {
-    requested_features |= (1UL << VIRTIO_SCSI_F_HOTPLUG);
-    requested_features |= (1UL << VIRTIO_SCSI_F_CHANGE);
     return requested_features;
 }
 

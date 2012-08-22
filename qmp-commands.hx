@@ -2239,14 +2239,14 @@ The main json-object contains the following:
 
 - "status": migration status (json-string)
      - Possible values: "active", "completed", "failed", "cancelled"
+- "total-time": total amount of ms since migration started.  If
+                migration has ended, it returns the total migration
+		 time (json-int)
 - "ram": only present if "status" is "active", it is a json-object with the
   following RAM information (in bytes):
          - "transferred": amount transferred (json-int)
          - "remaining": amount remaining (json-int)
          - "total": total (json-int)
-         - "total-time": total amount of ms since migration started.  If
-                         migration has ended, it returns the total migration time
-                         (json-int)
          - "duplicate": number of duplicated pages (json-int)
          - "normal" : number of normal pages transferred (json-int)
          - "normal-bytes" : number of normal bytes transferred (json-int)

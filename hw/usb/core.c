@@ -107,6 +107,7 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
     }
 
     usb_packet_copy(p, s->setup_buf, p->iov.size);
+    p->result = 0;
     s->setup_len   = (s->setup_buf[7] << 8) | s->setup_buf[6];
     s->setup_index = 0;
 

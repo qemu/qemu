@@ -35,6 +35,7 @@
 #define VMDK4_FLAG_RGD (1 << 1)
 #define VMDK4_FLAG_COMPRESS (1 << 16)
 #define VMDK4_FLAG_MARKER (1 << 17)
+#define VMDK4_GD_AT_END 0xffffffffffffffffULL
 
 typedef struct {
     uint32_t version;
@@ -57,8 +58,8 @@ typedef struct {
     int64_t desc_offset;
     int64_t desc_size;
     int32_t num_gtes_per_gte;
-    int64_t gd_offset;
     int64_t rgd_offset;
+    int64_t gd_offset;
     int64_t grain_offset;
     char filler[1];
     char check_bytes[4];
@@ -114,6 +115,13 @@ typedef struct VmdkGrainMarker {
     uint32_t size;
     uint8_t  data[0];
 } VmdkGrainMarker;
+
+enum {
+    MARKER_END_OF_STREAM    = 0,
+    MARKER_GRAIN_TABLE      = 1,
+    MARKER_GRAIN_DIRECTORY  = 2,
+    MARKER_FOOTER           = 3,
+};
 
 static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -451,6 +459,54 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     if (header.capacity == 0 && header.desc_offset) {
         return vmdk_open_desc_file(bs, flags, header.desc_offset << 9);
     }
+
+    if (le64_to_cpu(header.gd_offset) == VMDK4_GD_AT_END) {
+        /*
+         * The footer takes precedence over the header, so read it in. The
+         * footer starts at offset -1024 from the end: One sector for the
+         * footer, and another one for the end-of-stream marker.
+         */
+        struct {
+            struct {
+                uint64_t val;
+                uint32_t size;
+                uint32_t type;
+                uint8_t pad[512 - 16];
+            } QEMU_PACKED footer_marker;
+
+            uint32_t magic;
+            VMDK4Header header;
+            uint8_t pad[512 - 4 - sizeof(VMDK4Header)];
+
+            struct {
+                uint64_t val;
+                uint32_t size;
+                uint32_t type;
+                uint8_t pad[512 - 16];
+            } QEMU_PACKED eos_marker;
+        } QEMU_PACKED footer;
+
+        ret = bdrv_pread(file,
+            bs->file->total_sectors * 512 - 1536,
+            &footer, sizeof(footer));
+        if (ret < 0) {
+            return ret;
+        }
+
+        /* Some sanity checks for the footer */
+        if (be32_to_cpu(footer.magic) != VMDK4_MAGIC ||
+            le32_to_cpu(footer.footer_marker.size) != 0  ||
+            le32_to_cpu(footer.footer_marker.type) != MARKER_FOOTER ||
+            le64_to_cpu(footer.eos_marker.val) != 0  ||
+            le32_to_cpu(footer.eos_marker.size) != 0  ||
+            le32_to_cpu(footer.eos_marker.type) != MARKER_END_OF_STREAM)
+        {
+            return -EINVAL;
+        }
+
+        header = footer.header;
+    }
+
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gte)
                         * le64_to_cpu(header.granularity);
     if (l1_entry_sectors == 0) {
