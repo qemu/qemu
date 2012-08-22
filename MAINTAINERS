@@ -352,6 +352,12 @@ L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc405_boards.c
 
+Bamboo
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/ppc440_bamboo.c
+
 e500
 M: Alexander Graf <agraf@suse.de>
 M: Scott Wood <scottwood@freescale.com>
@@ -479,6 +485,12 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/pci*
 F: hw/piix*
+
+ppc4xx
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/ppc4xx*.[hc]
 
 ppce500
 M: Alexander Graf <agraf@suse.de>
