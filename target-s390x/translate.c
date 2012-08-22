@@ -2233,31 +2233,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x94: /* NI     D1(B1),I2        [SI] */
-    case 0x96: /* OI     D1(B1),I2        [SI] */
-    case 0x97: /* XI     D1(B1),I2        [SI] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_si(s, insn, &i2, &b1, &d1);
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
-        switch (opc) {
-        case 0x94:
-            tcg_gen_andi_i64(tmp2, tmp2, i2);
-            break;
-        case 0x96:
-            tcg_gen_ori_i64(tmp2, tmp2, i2);
-            break;
-        case 0x97:
-            tcg_gen_xori_i64(tmp2, tmp2, i2);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
-        set_cc_nz_u64(s, tmp2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x9a: /* LAM      R1,R3,D2(B2)     [RS] */
         insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
