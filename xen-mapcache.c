@@ -320,10 +320,6 @@ void xen_invalidate_map_cache_entry(uint8_t *buffer)
     target_phys_addr_t size;
     int found = 0;
 
-    if (mapcache->last_address_vaddr == buffer) {
-        mapcache->last_address_index = -1;
-    }
-
     QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
         if (reventry->vaddr_req == buffer) {
             paddr_index = reventry->paddr_index;
@@ -341,6 +337,11 @@ void xen_invalidate_map_cache_entry(uint8_t *buffer)
     }
     QTAILQ_REMOVE(&mapcache->locked_entries, reventry, next);
     g_free(reventry);
+
+    if (mapcache->last_address_index == paddr_index) {
+        mapcache->last_address_index = -1;
+        mapcache->last_address_vaddr = NULL;
+    }
 
     entry = &mapcache->entry[paddr_index % mapcache->nr_buckets];
     while (entry && (entry->paddr_index != paddr_index || entry->size != size)) {
