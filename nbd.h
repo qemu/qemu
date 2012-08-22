@@ -85,6 +85,10 @@ void nbd_export_close(NBDExport *exp);
 void nbd_export_get(NBDExport *exp);
 void nbd_export_put(NBDExport *exp);
 
+NBDExport *nbd_export_find(const char *name);
+void nbd_export_set_name(NBDExport *exp, const char *name);
+void nbd_export_close_all(void);
+
 NBDClient *nbd_client_new(NBDExport *exp, int csock,
                           void (*close)(NBDClient *));
 void nbd_client_close(NBDClient *client);

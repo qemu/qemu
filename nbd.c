@@ -93,12 +93,16 @@ struct NBDExport {
     void (*close)(NBDExport *exp);
 
     BlockDriverState *bs;
+    char *name;
     off_t dev_offset;
     off_t size;
     uint32_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
     QSIMPLEQ_HEAD(, NBDRequest) requests;
+    QTAILQ_ENTRY(NBDExport) next;
 };
+
+static QTAILQ_HEAD(, NBDExport) exports = QTAILQ_HEAD_INITIALIZER(exports);
 
 struct NBDClient {
     int refcount;
@@ -740,6 +744,39 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     return exp;
 }
 
+NBDExport *nbd_export_find(const char *name)
+{
+    NBDExport *exp;
+    QTAILQ_FOREACH(exp, &exports, next) {
+        if (strcmp(name, exp->name) == 0) {
+            return exp;
+        }
+    }
+
+    return NULL;
+}
+
+void nbd_export_set_name(NBDExport *exp, const char *name)
+{
+    if (exp->name == name) {
+        return;
+    }
+
+    nbd_export_get(exp);
+    if (exp->name != NULL) {
+        g_free(exp->name);
+        exp->name = NULL;
+        QTAILQ_REMOVE(&exports, exp, next);
+        nbd_export_put(exp);
+    }
+    if (name != NULL) {
+        nbd_export_get(exp);
+        exp->name = g_strdup(name);
+        QTAILQ_INSERT_TAIL(&exports, exp, next);
+    }
+    nbd_export_put(exp);
+}
+
 void nbd_export_close(NBDExport *exp)
 {
     NBDClient *client, *next;
@@ -765,6 +802,8 @@ void nbd_export_put(NBDExport *exp)
     }
 
     if (--exp->refcount == 0) {
+        assert(exp->name == NULL);
+
         if (exp->close) {
             exp->close(exp);
         }
@@ -777,6 +816,16 @@ void nbd_export_put(NBDExport *exp)
         }
 
         g_free(exp);
+    }
+}
+
+void nbd_export_close_all(void)
+{
+    NBDExport *exp, *next;
+
+    QTAILQ_FOREACH_SAFE(exp, &exports, next, next) {
+        nbd_export_close(exp);
+        nbd_export_set_name(exp, NULL);
     }
 }
 
