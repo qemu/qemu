@@ -51,6 +51,7 @@ typedef enum qxl_async_io {
 enum {
     QXL_COOKIE_TYPE_IO,
     QXL_COOKIE_TYPE_RENDER_UPDATE_AREA,
+    QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG,
 };
 
 typedef struct QXLCookie {
