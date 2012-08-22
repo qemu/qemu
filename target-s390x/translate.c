@@ -1110,16 +1110,6 @@ static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
     LOG_DISAS("disas_eb: op 0x%x r1 %d r3 %d b2 %d d2 0x%x\n",
               op, r1, r3, b2, d2);
     switch (op) {
-    case 0x2c: /* STCMH R1,M3,D2(B2) [RSY] */
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_stcmh(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
 #ifndef CONFIG_USER_ONLY
     case 0x2f: /* LCTLG     R1,R3,D2(B2)     [RSE] */
         /* Load Control */
@@ -1967,8 +1957,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
 
 static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
-    TCGv_i64 tmp;
-    TCGv_i32 tmp32_1, tmp32_2;
     unsigned char opc;
     uint64_t insn;
     int op, r1, r2, r3, d2, x2, b2, r1b;
@@ -1996,18 +1984,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         r2 = insn & 0xf;
         op = (insn >> 16) & 0xff;
         disas_b9(env, s, op, r1, r2);
-        break;
-    case 0xbe: /* STCM R1,M3,D2(B2) [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_stcm(cpu_env, tmp32_1, tmp32_2, tmp);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
         break;
     case 0xe3:
         insn = ld_code6(env, s->pc);
@@ -3268,6 +3244,55 @@ static ExitStatus op_stam(DisasContext *s, DisasOps *o)
     gen_helper_stam(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stcm(DisasContext *s, DisasOps *o)
+{
+    int m3 = get_field(s->fields, m3);
+    int pos, base = s->insn->data;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+
+    pos = base + ctz32(m3) * 8;
+    switch (m3) {
+    case 0xf:
+        /* Effectively a 32-bit store.  */
+        tcg_gen_shri_i64(tmp, o->in1, pos);
+        tcg_gen_qemu_st32(tmp, o->in2, get_mem_index(s));
+        break;
+
+    case 0xc:
+    case 0x6:
+    case 0x3:
+        /* Effectively a 16-bit store.  */
+        tcg_gen_shri_i64(tmp, o->in1, pos);
+        tcg_gen_qemu_st16(tmp, o->in2, get_mem_index(s));
+        break;
+
+    case 0x8:
+    case 0x4:
+    case 0x2:
+    case 0x1:
+        /* Effectively an 8-bit store.  */
+        tcg_gen_shri_i64(tmp, o->in1, pos);
+        tcg_gen_qemu_st8(tmp, o->in2, get_mem_index(s));
+        break;
+
+    default:
+        /* This is going to be a sequence of shifts and stores.  */
+        pos = base + 32 - 8;
+        while (m3) {
+            if (m3 & 0x8) {
+                tcg_gen_shri_i64(tmp, o->in1, pos);
+                tcg_gen_qemu_st8(tmp, o->in2, get_mem_index(s));
+                tcg_gen_addi_i64(o->in2, o->in2, 1);
+            }
+            m3 = (m3 << 1) & 0xf;
+            pos -= 8;
+        }
+        break;
+    }
+    tcg_temp_free_i64(tmp);
     return NO_EXIT;
 }
 

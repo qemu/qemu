@@ -405,6 +405,10 @@
 /* STORE CHARACTER */
     C(0x4200, STC,     RX_a,  Z,   r1_o, a2, 0, 0, st8, 0)
     C(0xe372, STCY,    RXY_a, LD,  r1_o, a2, 0, 0, st8, 0)
+/* STORE CHARACTERS UNDER MASK */
+    D(0xbe00, STCM,    RS_b,  Z,   r1_o, a2, 0, 0, stcm, 0, 0)
+    D(0xeb2d, STCMY,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 0)
+    D(0xeb2c, STCMH,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 32)
 /* STORE HALFWORD */
     C(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st16, 0)
     C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)

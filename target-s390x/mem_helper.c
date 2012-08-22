@@ -304,27 +304,6 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
     return cc;
 }
 
-/* store character under mask */
-void HELPER(stcm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
-                  uint64_t addr)
-{
-    uint8_t r;
-
-    HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%lx\n", __func__, r1, mask,
-               addr);
-    while (mask) {
-        if (mask & 8) {
-            r = (r1 & 0xff000000UL) >> 24;
-            cpu_stb_data(env, addr, r);
-            HELPER_LOG("mask 0x%x %02x (0x%lx) ", mask, r, addr);
-            addr++;
-        }
-        mask = (mask << 1) & 0xf;
-        r1 <<= 8;
-    }
-    HELPER_LOG("\n");
-}
-
 static inline uint64_t get_address(CPUS390XState *env, int x2, int b2, int d2)
 {
     uint64_t r = d2;
@@ -606,22 +585,6 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
                   insn);
     }
     return cc;
-}
-
-/* store character under mask high operates on the upper half of r1 */
-void HELPER(stcmh)(CPUS390XState *env, uint32_t r1, uint64_t address,
-                   uint32_t mask)
-{
-    int pos = 56; /* top of the upper half of r1 */
-
-    while (mask) {
-        if (mask & 8) {
-            cpu_stb_data(env, address, (env->regs[r1] >> pos) & 0xff);
-            address++;
-        }
-        mask = (mask << 1) & 0xf;
-        pos -= 8;
-    }
 }
 
 /* load access registers r1 to r3 from memory at a2 */
