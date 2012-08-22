@@ -2226,7 +2226,7 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     TCGv_i32 tmp32_1, tmp32_2;
     unsigned char opc;
     uint64_t insn;
-    int op, r1, r2, r3, d1, d2, x2, b1, b2, i2, r1b;
+    int op, r1, r2, r3, d1, d2, x2, b1, b2, r1b;
     TCGv_i32 vl;
 
     opc = cpu_ldub_code(env, s->pc);
@@ -2284,23 +2284,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
 #ifndef CONFIG_USER_ONLY
-    case 0xac: /* STNSM   D1(B1),I2     [SI] */
-    case 0xad: /* STOSM   D1(B1),I2     [SI] */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        tmp = decode_si(s, insn, &i2, &b1, &d1);
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_shri_i64(tmp2, psw_mask, 56);
-        tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
-        if (opc == 0xac) {
-            tcg_gen_andi_i64(psw_mask, psw_mask,
-                    ((uint64_t)i2 << 56) | 0x00ffffffffffffffULL);
-        } else {
-            tcg_gen_ori_i64(psw_mask, psw_mask, (uint64_t)i2 << 56);
-        }
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0xae: /* SIGP   R1,R3,D2(B2)     [RS] */
         check_privileged(s);
         insn = ld_code4(env, s->pc);
@@ -3483,6 +3466,30 @@ static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stnosm(DisasContext *s, DisasOps *o)
+{
+    uint64_t i2 = get_field(s->fields, i2);
+    TCGv_i64 t;
+
+    check_privileged(s);
+
+    /* It is important to do what the instruction name says: STORE THEN.
+       If we let the output hook perform the store then if we fault and
+       restart, we'll have the wrong SYSTEM MASK in place.  */
+    t = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t, psw_mask, 56);
+    tcg_gen_qemu_st8(t, o->addr1, get_mem_index(s));
+    tcg_temp_free_i64(t);
+
+    if (s->fields->op == 0xac) {
+        tcg_gen_andi_i64(psw_mask, psw_mask,
+                         (i2 << 56) | 0x00ffffffffffffffull);
+    } else {
+        tcg_gen_ori_i64(psw_mask, psw_mask, i2 << 56);
+    }
     return NO_EXIT;
 }
 #endif
