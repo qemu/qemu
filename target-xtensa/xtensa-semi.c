@@ -218,6 +218,8 @@ void HELPER(simcall)(CPUXtensaState *env)
 
     default:
         qemu_log("%s(%d): not implemented\n", __func__, regs[2]);
+        regs[2] = -1;
+        regs[3] = ENOSYS;
         break;
     }
 }
