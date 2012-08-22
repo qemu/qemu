@@ -1146,30 +1146,6 @@ static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
         tcg_temp_free_i32(tmp32_2);
         break;
 #endif
-    case 0x30: /* CSG     R1,R3,D2(B2)     [RSY] */
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        /* XXX rewrite in tcg */
-        gen_helper_csg(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x3e: /* CDSG R1,R3,D2(B2) [RSY] */
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        /* XXX rewrite in tcg */
-        gen_helper_cdsg(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     default:
         LOG_DISAS("illegal eb operation 0x%x\n", op);
         gen_illegal_opcode(s);
@@ -2021,19 +1997,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         op = (insn >> 16) & 0xff;
         disas_b9(env, s, op, r1, r2);
         break;
-    case 0xba: /* CS     R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_cs(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0xbd: /* CLM    R1,M3,D2(B2)     [RS] */
         insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
@@ -2661,6 +2624,47 @@ static ExitStatus op_clcle(DisasContext *s, DisasOps *o)
     gen_helper_clcle(cc_op, cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cs(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    potential_page_fault(s);
+    gen_helper_cs(o->out, cpu_env, o->in1, o->in2, regs[r3]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_csg(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    potential_page_fault(s);
+    gen_helper_csg(o->out, cpu_env, o->in1, o->in2, regs[r3]);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cds(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    TCGv_i64 in3 = tcg_temp_new_i64();
+    tcg_gen_deposit_i64(in3, regs[r3 + 1], regs[r3], 32, 32);
+    potential_page_fault(s);
+    gen_helper_csg(o->out, cpu_env, o->in1, o->in2, in3);
+    tcg_temp_free_i64(in3);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cdsg(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    potential_page_fault(s);
+    /* XXX rewrite in tcg */
+    gen_helper_cdsg(cc_op, cpu_env, r1, o->in2, r3);
     set_cc_static(s);
     return NO_EXIT;
 }

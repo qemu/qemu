@@ -457,20 +457,18 @@ void HELPER(mvst)(CPUS390XState *env, uint32_t c, uint32_t r1, uint32_t r2)
 }
 
 /* compare and swap 64-bit */
-uint32_t HELPER(csg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
+uint64_t HELPER(csg)(CPUS390XState *env, uint64_t r1, uint64_t a2, uint64_t r3)
 {
     /* FIXME: locking? */
-    uint32_t cc;
     uint64_t v2 = cpu_ldq_data(env, a2);
-
-    if (env->regs[r1] == v2) {
-        cc = 0;
-        cpu_stq_data(env, a2, env->regs[r3]);
+    if (r1 == v2) {
+        cpu_stq_data(env, a2, r3);
+        env->cc_op = 0;
+        return r1;
     } else {
-        cc = 1;
-        env->regs[r1] = v2;
+        env->cc_op = 1;
+        return v2;
     }
-    return cc;
 }
 
 /* compare double and swap 64-bit */
@@ -497,21 +495,18 @@ uint32_t HELPER(cdsg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 }
 
 /* compare and swap 32-bit */
-uint32_t HELPER(cs)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
+uint64_t HELPER(cs)(CPUS390XState *env, uint64_t r1, uint64_t a2, uint64_t r3)
 {
     /* FIXME: locking? */
-    uint32_t cc;
     uint32_t v2 = cpu_ldl_data(env, a2);
-
-    HELPER_LOG("%s: r1 %d a2 0x%lx r3 %d\n", __func__, r1, a2, r3);
-    if (((uint32_t)env->regs[r1]) == v2) {
-        cc = 0;
-        cpu_stl_data(env, a2, (uint32_t)env->regs[r3]);
+    if ((uint32_t)r1 == v2) {
+        cpu_stl_data(env, a2, (uint32_t)r3);
+        env->cc_op = 0;
+        return r1;
     } else {
-        cc = 1;
-        env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | v2;
+        env->cc_op = 1;
+        return v2;
     }
-    return cc;
 }
 
 static uint32_t helper_icm(CPUS390XState *env, uint32_t r1, uint64_t address,

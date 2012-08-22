@@ -137,6 +137,15 @@
 /* COMPARE LOGICAL LONG EXTENDED */
     C(0xa900, CLCLE,   RS_a,  Z,   0, a2, 0, 0, clcle, 0)
 
+/* COMPARE AND SWAP */
+    C(0xba00, CS,      RS_a,  Z,   r1_o, a2, new, r1_32, cs, 0)
+    C(0xeb14, CSY,     RSY_a, LD,  r1_o, a2, new, r1_32, cs, 0)
+    C(0xeb30, CSG,     RSY_a, Z,   r1_o, a2, r1, 0, csg, 0)
+/* COMPARE DOUBLE AND SWAP */
+    C(0xbb00, CDS,     RS_a,  Z,   r1_D32, a2, new, r1_D32, cds, 0)
+    C(0xeb31, CDSY,    RSY_a, LD,  r1_D32, a2, new, r1_D32, cds, 0)
+    C(0xeb3e, CDSG,    RSY_a, Z,   0, a2, 0, 0, cdsg, 0)
+
 /* CONVERT TO DECIMAL */
     C(0x4e00, CVD,     RX_a,  Z,   r1_o, a2, 0, 0, cvd, 0)
     C(0xe326, CVDY,    RXY_a, LD,  r1_o, a2, 0, 0, cvd, 0)
