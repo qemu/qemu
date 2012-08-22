@@ -278,17 +278,6 @@ static inline void store_reg32h_i64(int reg, TCGv_i64 v)
     tcg_gen_deposit_i64(regs[reg], regs[reg], v, 32, 32);
 }
 
-static inline void store_reg16(int reg, TCGv_i32 v)
-{
-    /* 16 bit register writes keep the upper bytes */
-#if HOST_LONG_BITS == 32
-    tcg_gen_deposit_i32(TCGV_LOW(regs[reg]), TCGV_LOW(regs[reg]), v, 0, 16);
-#else
-    tcg_gen_deposit_i64(regs[reg], regs[reg],
-                        MAKE_TCGV_I64(GET_TCGV_I32(v)), 0, 16);
-#endif
-}
-
 static inline void store_freg32(int reg, TCGv_i32 v)
 {
     /* 32 bit register writes keep the lower half */
@@ -1022,39 +1011,12 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
               op, r1, x2, b2, d2);
     addr = get_address(s, x2, b2, d2);
     switch (op) {
-    case 0xf: /* LRVG     R1,D2(X2,B2)     [RXE] */
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
-        tcg_gen_bswap64_i64(tmp2, tmp2);
-        store_reg(r1, tmp2);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x17: /* LLGT      R1,D2(X2,B2)     [RXY] */
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld32u(tmp2, addr, get_mem_index(s));
         tcg_gen_andi_i64(tmp2, tmp2, 0x7fffffffULL);
         store_reg(r1, tmp2);
         tcg_temp_free_i64(tmp2);
-        break;
-    case 0x1e: /* LRV R1,D2(X2,B2) [RXY] */
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp2, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp2);
-        tcg_temp_free_i64(tmp2);
-        tcg_gen_bswap32_i32(tmp32_1, tmp32_1);
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x1f: /* LRVH R1,D2(X2,B2) [RXY] */
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld16u(tmp2, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp2);
-        tcg_temp_free_i64(tmp2);
-        tcg_gen_bswap16_i32(tmp32_1, tmp32_1);
-        store_reg16(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
         break;
     case 0x3e: /* STRV R1,D2(X2,B2) [RXY] */
         tmp32_1 = load_reg32(r1);
@@ -1860,15 +1822,6 @@ static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
         store_reg(r1, tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
-        break;
-    case 0x0f: /* LRVGR    R1,R2     [RRE] */
-        tcg_gen_bswap64_i64(regs[r1], regs[r2]);
-        break;
-    case 0x1f: /* LRVR     R1,R2     [RRE] */
-        tmp32_1 = load_reg32(r2);
-        tcg_gen_bswap32_i32(tmp32_1, tmp32_1);
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
         break;
     case 0x83: /* FLOGR R1,R2 [RRE] */
         tmp = load_reg(r2);
@@ -3023,6 +2976,24 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_rev16(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_bswap16_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_rev32(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_bswap32_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_rev64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_bswap64_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_rll32(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 t1 = tcg_temp_new_i32();
@@ -3576,6 +3547,12 @@ static void wout_r1_8(DisasContext *s, DisasFields *f, DisasOps *o)
     tcg_gen_deposit_i64(regs[r1], regs[r1], o->out, 0, 8);
 }
 
+static void wout_r1_16(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int r1 = get_field(f, r1);
+    tcg_gen_deposit_i64(regs[r1], regs[r1], o->out, 0, 16);
+}
+
 static void wout_r1_32(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     store_reg32_i64(get_field(f, r1), o->out);
@@ -3916,6 +3893,12 @@ static void in2_m2_16s(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     in2_a2(s, f, o);
     tcg_gen_qemu_ld16s(o->in2, o->in2, get_mem_index(s));
+}
+
+static void in2_m2_16u(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    in2_a2(s, f, o);
+    tcg_gen_qemu_ld16u(o->in2, o->in2, get_mem_index(s));
 }
 
 static void in2_m2_32s(DisasContext *s, DisasFields *f, DisasOps *o)
