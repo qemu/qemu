@@ -540,7 +540,8 @@ void ppce500_init(PPCE500Params *params)
 
     /* Load initrd. */
     if (params->initrd_filename) {
-        initrd_base = (kernel_size + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
+        initrd_base = (loadaddr + kernel_size + INITRD_LOAD_PAD) &
+            ~INITRD_PAD_MASK;
         initrd_size = load_image_targphys(params->initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 
