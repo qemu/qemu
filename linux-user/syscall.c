@@ -2794,7 +2794,7 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
     if (!lock_user_struct(VERIFY_WRITE, target_mb, msgp, 0))
         return -TARGET_EFAULT;
 
-    host_mb = malloc(msgsz+sizeof(long));
+    host_mb = g_malloc(msgsz+sizeof(long));
     ret = get_errno(msgrcv(msqid, host_mb, msgsz, tswapal(msgtyp), msgflg));
 
     if (ret > 0) {
@@ -2809,11 +2809,11 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
     }
 
     target_mb->mtype = tswapal(host_mb->mtype);
-    free(host_mb);
 
 end:
     if (target_mb)
         unlock_user_struct(target_mb, msgp, 1);
+    g_free(host_mb);
     return ret;
 }
 
