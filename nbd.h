@@ -84,6 +84,7 @@ void nbd_export_close(NBDExport *exp);
 
 NBDClient *nbd_client_new(NBDExport *exp, int csock,
                           void (*close)(NBDClient *));
+void nbd_client_close(NBDClient *client);
 void nbd_client_get(NBDClient *client);
 void nbd_client_put(NBDClient *client);
 
