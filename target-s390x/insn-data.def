@@ -269,6 +269,13 @@
     C(0xb900, LPGR,    RRE,   Z,   0, r2, r1, 0, abs, abs64)
     C(0xb910, LPGFR,   RRE,   Z,   0, r2_32s, r1, 0, abs, abs64)
 
+/* LOAD MULTIPLE */
+    C(0x9800, LM,      RS_a,  Z,   0, a2, 0, 0, lm32, 0)
+    C(0xeb98, LMY,     RSY_a, LD,  0, a2, 0, 0, lm32, 0)
+    C(0xeb04, LMG,     RSY_a, Z,   0, a2, 0, 0, lm64, 0)
+/* LOAD MULTIPLE HIGH */
+    C(0xeb96, LMH,     RSY_a, Z,   0, a2, 0, 0, lmh, 0)
+
 /* MOVE LONG */
     C(0x0e00, MVCL,    RR_a,  Z,   0, 0, 0, 0, mvcl, 0)
 
@@ -363,6 +370,13 @@
     C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
 /* STORE HALFWORD RELATIVE LONG */
     C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+
+/* STORE MULTIPLE */
+    D(0x9000, STM,     RS_a,  Z,   0, a2, 0, 0, stm, 0, 4)
+    D(0xeb90, STMY,    RSY_a, LD,  0, a2, 0, 0, stm, 0, 4)
+    D(0xeb24, STMG,    RSY_a, Z,   0, a2, 0, 0, stm, 0, 8)
+/* STORE MULTIPLE HIGH */
+    C(0xeb26, STMH,    RSY_a, Z,   0, a2, 0, 0, stmh, 0)
 
 /* SUBTRACT */
     C(0x1b00, SR,      RR_a,  Z,   r1, r2, new, r1_32, sub, subs32)
