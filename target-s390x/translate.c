@@ -1012,170 +1012,6 @@ static void free_compare(DisasCompare *c)
     }
 }
 
-static void gen_op_mvc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
-{
-    TCGv_i64 tmp, tmp2;
-    int i;
-    int l_memset = gen_new_label();
-    int l_out = gen_new_label();
-    TCGv_i64 dest = tcg_temp_local_new_i64();
-    TCGv_i64 src = tcg_temp_local_new_i64();
-    TCGv_i32 vl;
-
-    /* Find out if we should use the inline version of mvc */
-    switch (l) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-    case 4:
-    case 5:
-    case 6:
-    case 7:
-    case 11:
-    case 15:
-        /* use inline */
-        break;
-    default:
-        /* Fall back to helper */
-        vl = tcg_const_i32(l);
-        potential_page_fault(s);
-        gen_helper_mvc(cpu_env, vl, s1, s2);
-        tcg_temp_free_i32(vl);
-        return;
-    }
-
-    tcg_gen_mov_i64(dest, s1);
-    tcg_gen_mov_i64(src, s2);
-
-    if (!(s->tb->flags & FLAG_MASK_64)) {
-        /* XXX what if we overflow while moving? */
-        tcg_gen_andi_i64(dest, dest, 0x7fffffffUL);
-        tcg_gen_andi_i64(src, src, 0x7fffffffUL);
-    }
-
-    tmp = tcg_temp_new_i64();
-    tcg_gen_addi_i64(tmp, src, 1);
-    tcg_gen_brcond_i64(TCG_COND_EQ, dest, tmp, l_memset);
-    tcg_temp_free_i64(tmp);
-
-    switch (l) {
-    case 0:
-        tmp = tcg_temp_new_i64();
-
-        tcg_gen_qemu_ld8u(tmp, src, get_mem_index(s));
-        tcg_gen_qemu_st8(tmp, dest, get_mem_index(s));
-
-        tcg_temp_free_i64(tmp);
-        break;
-    case 1:
-        tmp = tcg_temp_new_i64();
-
-        tcg_gen_qemu_ld16u(tmp, src, get_mem_index(s));
-        tcg_gen_qemu_st16(tmp, dest, get_mem_index(s));
-
-        tcg_temp_free_i64(tmp);
-        break;
-    case 3:
-        tmp = tcg_temp_new_i64();
-
-        tcg_gen_qemu_ld32u(tmp, src, get_mem_index(s));
-        tcg_gen_qemu_st32(tmp, dest, get_mem_index(s));
-
-        tcg_temp_free_i64(tmp);
-        break;
-    case 4:
-        tmp = tcg_temp_new_i64();
-        tmp2 = tcg_temp_new_i64();
-
-        tcg_gen_qemu_ld32u(tmp, src, get_mem_index(s));
-        tcg_gen_addi_i64(src, src, 4);
-        tcg_gen_qemu_ld8u(tmp2, src, get_mem_index(s));
-        tcg_gen_qemu_st32(tmp, dest, get_mem_index(s));
-        tcg_gen_addi_i64(dest, dest, 4);
-        tcg_gen_qemu_st8(tmp2, dest, get_mem_index(s));
-
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
-    case 7:
-        tmp = tcg_temp_new_i64();
-
-        tcg_gen_qemu_ld64(tmp, src, get_mem_index(s));
-        tcg_gen_qemu_st64(tmp, dest, get_mem_index(s));
-
-        tcg_temp_free_i64(tmp);
-        break;
-    default:
-        /* The inline version can become too big for too uneven numbers, only
-           use it on known good lengths */
-        tmp = tcg_temp_new_i64();
-        tmp2 = tcg_const_i64(8);
-        for (i = 0; (i + 7) <= l; i += 8) {
-            tcg_gen_qemu_ld64(tmp, src, get_mem_index(s));
-            tcg_gen_qemu_st64(tmp, dest, get_mem_index(s));
-
-            tcg_gen_add_i64(src, src, tmp2);
-            tcg_gen_add_i64(dest, dest, tmp2);
-        }
-
-        tcg_temp_free_i64(tmp2);
-        tmp2 = tcg_const_i64(1);
-
-        for (; i <= l; i++) {
-            tcg_gen_qemu_ld8u(tmp, src, get_mem_index(s));
-            tcg_gen_qemu_st8(tmp, dest, get_mem_index(s));
-
-            tcg_gen_add_i64(src, src, tmp2);
-            tcg_gen_add_i64(dest, dest, tmp2);
-        }
-
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp);
-        break;
-    }
-
-    tcg_gen_br(l_out);
-
-    gen_set_label(l_memset);
-    /* memset case (dest == (src + 1)) */
-
-    tmp = tcg_temp_new_i64();
-    tmp2 = tcg_temp_new_i64();
-    /* fill tmp with the byte */
-    tcg_gen_qemu_ld8u(tmp, src, get_mem_index(s));
-    tcg_gen_shli_i64(tmp2, tmp, 8);
-    tcg_gen_or_i64(tmp, tmp, tmp2);
-    tcg_gen_shli_i64(tmp2, tmp, 16);
-    tcg_gen_or_i64(tmp, tmp, tmp2);
-    tcg_gen_shli_i64(tmp2, tmp, 32);
-    tcg_gen_or_i64(tmp, tmp, tmp2);
-    tcg_temp_free_i64(tmp2);
-
-    tmp2 = tcg_const_i64(8);
-
-    for (i = 0; (i + 7) <= l; i += 8) {
-        tcg_gen_qemu_st64(tmp, dest, get_mem_index(s));
-        tcg_gen_addi_i64(dest, dest, 8);
-    }
-
-    tcg_temp_free_i64(tmp2);
-    tmp2 = tcg_const_i64(1);
-
-    for (; i <= l; i++) {
-        tcg_gen_qemu_st8(tmp, dest, get_mem_index(s));
-        tcg_gen_addi_i64(dest, dest, 1);
-    }
-
-    tcg_temp_free_i64(tmp2);
-    tcg_temp_free_i64(tmp);
-
-    gen_set_label(l_out);
-
-    tcg_temp_free(dest);
-    tcg_temp_free(src);
-}
-
 static void gen_op_clc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
 {
     TCGv_i64 tmp;
@@ -2365,7 +2201,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
         break;
-    case 0xd2: /* MVC    D1(L,B1),D2(B2)         [SS] */
     case 0xd4: /* NC     D1(L,B1),D2(B2)         [SS] */
     case 0xd5: /* CLC    D1(L,B1),D2(B2)         [SS] */
     case 0xd6: /* OC     D1(L,B1),D2(B2)         [SS] */
@@ -2381,9 +2216,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tmp = get_address(s, 0, b1, d1);
         tmp2 = get_address(s, 0, b2, d2);
         switch (opc) {
-        case 0xd2:
-            gen_op_mvc(s, (insn >> 32) & 0xff, tmp, tmp2);
-            break;
         case 0xd4:
             potential_page_fault(s);
             gen_helper_nc(cc_op, cpu_env, vl, tmp, tmp2);
@@ -3319,6 +3151,15 @@ static ExitStatus op_movx(DisasContext *s, DisasOps *o)
     TCGV_UNUSED_I64(o->in1);
     TCGV_UNUSED_I64(o->in2);
     o->g_in1 = o->g_in2 = false;
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvc(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    potential_page_fault(s);
+    gen_helper_mvc(cpu_env, l, o->addr1, o->in2);
+    tcg_temp_free_i32(l);
     return NO_EXIT;
 }
 

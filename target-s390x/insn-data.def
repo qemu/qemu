@@ -286,6 +286,7 @@
     C(0xeb9a, LAMY,    RSY_a, LD,  0, a2, 0, 0, lam, 0)
 
 /* MOVE */
+    C(0xd200, MVC,     SS_a,  Z,   la1, a2, 0, 0, mvc, 0)
     C(0xe544, MVHHI,   SIL,   GIE, la1, i2, 0, m1_16, mov2, 0)
     C(0xe54c, MVHI,    SIL,   GIE, la1, i2, 0, m1_32, mov2, 0)
     C(0xe548, MVGHI,   SIL,   GIE, la1, i2, 0, m1_64, mov2, 0)
