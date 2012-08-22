@@ -349,7 +349,7 @@ PowerPC Machines
 405
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/ppc405_boards.c
 
 e500
