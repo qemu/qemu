@@ -77,6 +77,7 @@ int qemu_set_fd_handler2(int fd,
         ioh->fd_write = fd_write;
         ioh->opaque = opaque;
         ioh->deleted = 0;
+        qemu_notify_event();
     }
     return 0;
 }

@@ -375,6 +375,10 @@ static QEMUMachine pc_machine_v1_2 = {
             .driver   = "qxl",\
             .property = "vgamem_mb",\
             .value    = stringify(8),\
+        },{\
+            .driver   = "virtio-blk-pci",\
+            .property = "config-wce",\
+            .value    = "off",\
         }
 
 static QEMUMachine pc_machine_v1_1 = {

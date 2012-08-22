@@ -45,11 +45,14 @@ struct PCITargetMap {
     uint32_t la;
 };
 
+#define PPC4xx_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(PPC4xxPCIState, (obj), TYPE_PPC4xx_PCI_HOST_BRIDGE)
+
 #define PPC4xx_PCI_NR_PMMS 3
 #define PPC4xx_PCI_NR_PTMS 2
 
 struct PPC4xxPCIState {
-    PCIHostState pci_state;
+    PCIHostState parent_obj;
 
     struct PCIMasterMap pmm[PPC4xx_PCI_NR_PMMS];
     struct PCITargetMap ptm[PPC4xx_PCI_NR_PTMS];
@@ -93,16 +96,18 @@ static uint64_t pci4xx_cfgaddr_read(void *opaque, target_phys_addr_t addr,
                                     unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(ppc4xx_pci);
 
-    return ppc4xx_pci->pci_state.config_reg;
+    return phb->config_reg;
 }
 
 static void pci4xx_cfgaddr_write(void *opaque, target_phys_addr_t addr,
                                   uint64_t value, unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
+    PCIHostState *phb = PCI_HOST_BRIDGE(ppc4xx_pci);
 
-    ppc4xx_pci->pci_state.config_reg = value & ~0x3;
+    phb->config_reg = value & ~0x3;
 }
 
 static const MemoryRegionOps pci4xx_cfgaddr_ops = {
@@ -335,17 +340,17 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
     PCIBus *b;
     int i;
 
-    h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-    s = DO_UPCAST(PPC4xxPCIState, pci_state, h);
+    h = PCI_HOST_BRIDGE(dev);
+    s = PPC4xx_PCI_HOST_BRIDGE(dev);
 
     for (i = 0; i < ARRAY_SIZE(s->irq); i++) {
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
-    b = pci_register_bus(&s->pci_state.busdev.qdev, NULL, ppc4xx_pci_set_irq,
+    b = pci_register_bus(DEVICE(dev), NULL, ppc4xx_pci_set_irq,
                          ppc4xx_pci_map_irq, s->irq, get_system_memory(),
                          get_system_io(), 0, 4);
-    s->pci_state.bus = b;
+    h->bus = b;
 
     pci_create_simple(b, 0, "ppc4xx-host-bridge");
 
@@ -377,7 +382,7 @@ static void ppc4xx_host_bridge_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_OTHER;
 }
 
-static TypeInfo ppc4xx_host_bridge_info = {
+static const TypeInfo ppc4xx_host_bridge_info = {
     .name          = "ppc4xx-host-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -393,9 +398,9 @@ static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_ppc4xx_pci;
 }
 
-static TypeInfo ppc4xx_pcihost_info = {
-    .name          = "ppc4xx-pcihost",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+static const TypeInfo ppc4xx_pcihost_info = {
+    .name          = TYPE_PPC4xx_PCI_HOST_BRIDGE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PPC4xxPCIState),
     .class_init    = ppc4xx_pcihost_class_init,
 };

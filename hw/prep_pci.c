@@ -28,8 +28,14 @@
 #include "pc.h"
 #include "exec-memory.h"
 
+#define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"
+
+#define RAVEN_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(PREPPCIState, (obj), TYPE_RAVEN_PCI_HOST_BRIDGE)
+
 typedef struct PRePPCIState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
+
     MemoryRegion intack;
     qemu_irq irq[4];
 } PREPPCIState;
@@ -42,9 +48,10 @@ static inline uint32_t PPC_PCIIO_config(target_phys_addr_t addr)
 {
     int i;
 
-    for(i = 0; i < 11; i++) {
-        if ((addr & (1 << (11 + i))) != 0)
+    for (i = 0; i < 11; i++) {
+        if ((addr & (1 << (11 + i))) != 0) {
             break;
+        }
     }
     return (addr & 0x7ff) |  (i << 11);
 }
@@ -53,14 +60,16 @@ static void ppc_pci_io_write(void *opaque, target_phys_addr_t addr,
                              uint64_t val, unsigned int size)
 {
     PREPPCIState *s = opaque;
-    pci_data_write(s->host_state.bus, PPC_PCIIO_config(addr), val, size);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    pci_data_write(phb->bus, PPC_PCIIO_config(addr), val, size);
 }
 
 static uint64_t ppc_pci_io_read(void *opaque, target_phys_addr_t addr,
                                 unsigned int size)
 {
     PREPPCIState *s = opaque;
-    return pci_data_read(s->host_state.bus, PPC_PCIIO_config(addr), size);
+    PCIHostState *phb = PCI_HOST_BRIDGE(s);
+    return pci_data_read(phb->bus, PPC_PCIIO_config(addr), size);
 }
 
 static const MemoryRegionOps PPC_PCIIO_ops = {
@@ -96,8 +105,8 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
 
 static int raven_pcihost_init(SysBusDevice *dev)
 {
-    PCIHostState *h = FROM_SYSBUS(PCIHostState, dev);
-    PREPPCIState *s = DO_UPCAST(PREPPCIState, host_state, h);
+    PCIHostState *h = PCI_HOST_BRIDGE(dev);
+    PREPPCIState *s = RAVEN_PCI_HOST_BRIDGE(dev);
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *address_space_io = get_system_io();
     PCIBus *bus;
@@ -107,7 +116,7 @@ static int raven_pcihost_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
-    bus = pci_register_bus(&h->busdev.qdev, NULL,
+    bus = pci_register_bus(DEVICE(dev), NULL,
                            prep_set_irq, prep_map_irq, s->irq,
                            address_space_mem, address_space_io, 0, 4);
     h->bus = bus;
@@ -166,7 +175,7 @@ static void raven_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo raven_info = {
+static const TypeInfo raven_info = {
     .name = "raven",
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(RavenPCIState),
@@ -183,9 +192,9 @@ static void raven_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo raven_pcihost_info = {
-    .name = "raven-pcihost",
-    .parent = TYPE_SYS_BUS_DEVICE,
+static const TypeInfo raven_pcihost_info = {
+    .name = TYPE_RAVEN_PCI_HOST_BRIDGE,
+    .parent = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(PREPPCIState),
     .class_init = raven_pcihost_class_init,
 };

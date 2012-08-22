@@ -55,6 +55,7 @@ qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
                             int nb_cpus, qemu_irq **irqs);
 
 /* Grackle PCI */
+#define TYPE_GRACKLE_PCI_HOST_BRIDGE "grackle-pcihost"
 PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
                          MemoryRegion *address_space_mem,
                          MemoryRegion *address_space_io);

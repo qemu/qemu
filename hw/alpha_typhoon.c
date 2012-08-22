@@ -15,6 +15,8 @@
 #include "exec-memory.h"
 
 
+#define TYPE_TYPHOON_PCI_HOST_BRIDGE "typhoon-pcihost"
+
 typedef struct TyphoonCchip {
     MemoryRegion region;
     uint64_t misc;
@@ -40,8 +42,12 @@ typedef struct TyphoonPchip {
     TyphoonWindow win[4];
 } TyphoonPchip;
 
+#define TYPHOON_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(TyphoonState, (obj), TYPE_TYPHOON_PCI_HOST_BRIDGE)
+
 typedef struct TyphoonState {
-    PCIHostState host;
+    PCIHostState parent_obj;
+
     TyphoonCchip cchip;
     TyphoonPchip pchip;
     MemoryRegion dchip_region;
@@ -700,16 +706,16 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *addr_space_io = get_system_io();
     DeviceState *dev;
-    PCIHostState *p;
     TyphoonState *s;
+    PCIHostState *phb;
     PCIBus *b;
     int i;
 
-    dev = qdev_create(NULL, "typhoon-pcihost");
+    dev = qdev_create(NULL, TYPE_TYPHOON_PCI_HOST_BRIDGE);
     qdev_init_nofail(dev);
 
-    p = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-    s = container_of(p, TyphoonState, host);
+    s = TYPHOON_PCI_HOST_BRIDGE(dev);
+    phb = PCI_HOST_BRIDGE(dev);
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
@@ -763,10 +769,10 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     memory_region_add_subregion(addr_space, 0x801fc000000ULL,
                                 &s->pchip.reg_io);
 
-    b = pci_register_bus(&s->host.busdev.qdev, "pci",
+    b = pci_register_bus(dev, "pci",
                          typhoon_set_irq, sys_map_irq, s,
                          &s->pchip.reg_mem, addr_space_io, 0, 64);
-    s->host.bus = b;
+    phb->bus = b;
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
     memory_region_init_io(&s->pchip.reg_iack, &alpha_pci_iack_ops, b,
@@ -817,9 +823,9 @@ static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo typhoon_pcihost_info = {
-    .name          = "typhoon-pcihost",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+static const TypeInfo typhoon_pcihost_info = {
+    .name          = TYPE_TYPHOON_PCI_HOST_BRIDGE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(TyphoonState),
     .class_init    = typhoon_pcihost_class_init,
 };

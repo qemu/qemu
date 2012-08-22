@@ -29,8 +29,13 @@
 
 #define SPAPR_MSIX_MAX_DEVS 32
 
+#define TYPE_SPAPR_PCI_HOST_BRIDGE "spapr-pci-host-bridge"
+
+#define SPAPR_PCI_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(sPAPRPHBState, (obj), TYPE_SPAPR_PCI_HOST_BRIDGE)
+
 typedef struct sPAPRPHBState {
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 
     uint64_t buid;
     char *busname;

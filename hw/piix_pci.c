@@ -36,7 +36,9 @@
  * http://download.intel.com/design/chipsets/datashts/29054901.pdf
  */
 
-typedef PCIHostState I440FXState;
+typedef struct I440FXState {
+    PCIHostState parent_obj;
+} I440FXState;
 
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
 #define PIIX_NUM_PIRQS          4ULL    /* PIRQ[A-D] */
@@ -225,7 +227,7 @@ static const VMStateDescription vmstate_i440fx = {
 
 static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
-    I440FXState *s = FROM_SYSBUS(I440FXState, dev);
+    PCIHostState *s = PCI_HOST_BRIDGE(dev);
 
     memory_region_init_io(&s->conf_mem, &pci_host_conf_le_ops, s,
                           "pci-conf-idx", 4);
@@ -267,14 +269,14 @@ static PCIBus *i440fx_common_init(const char *device_name,
     DeviceState *dev;
     PCIBus *b;
     PCIDevice *d;
-    I440FXState *s;
+    PCIHostState *s;
     PIIX3State *piix3;
     PCII440FXState *f;
 
     dev = qdev_create(NULL, "i440FX-pcihost");
-    s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
+    s = PCI_HOST_BRIDGE(dev);
     s->address_space = address_space_mem;
-    b = pci_bus_new(&s->busdev.qdev, NULL, pci_address_space,
+    b = pci_bus_new(dev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
     object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev), NULL);
@@ -537,7 +539,7 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 }
 
-static TypeInfo piix3_info = {
+static const TypeInfo piix3_info = {
     .name          = "PIIX3",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX3State),
@@ -560,7 +562,7 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
-static TypeInfo piix3_xen_info = {
+static const TypeInfo piix3_xen_info = {
     .name          = "PIIX3-xen",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PIIX3State),
@@ -584,7 +586,7 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_i440fx;
 }
 
-static TypeInfo i440fx_info = {
+static const TypeInfo i440fx_info = {
     .name          = "i440FX",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCII440FXState),
@@ -601,9 +603,9 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     dc->no_user = 1;
 }
 
-static TypeInfo i440fx_pcihost_info = {
+static const TypeInfo i440fx_pcihost_info = {
     .name          = "i440FX-pcihost",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(I440FXState),
     .class_init    = i440fx_pcihost_class_init,
 };

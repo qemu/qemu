@@ -40,9 +40,10 @@
 #define DEC_DPRINTF(fmt, ...)
 #endif
 
+#define DEC_21154(obj) OBJECT_CHECK(DECState, (obj), TYPE_DEC_21154)
+
 typedef struct DECState {
-    SysBusDevice busdev;
-    PCIHostState host_state;
+    PCIHostState parent_obj;
 } DECState;
 
 static int dec_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -66,7 +67,7 @@ static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_pci_device;
 }
 
-static TypeInfo dec_21154_pci_bridge_info = {
+static const TypeInfo dec_21154_pci_bridge_info = {
     .name          = "dec-21154-p2p-bridge",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIBridge),
@@ -88,16 +89,16 @@ PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
 
 static int pci_dec_21154_device_init(SysBusDevice *dev)
 {
-    DECState *s;
+    PCIHostState *phb;
 
-    s = FROM_SYSBUS(DECState, dev);
+    phb = PCI_HOST_BRIDGE(dev);
 
-    memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
-                          &s->host_state, "pci-conf-idx", 0x1000);
-    memory_region_init_io(&s->host_state.data_mem, &pci_host_data_le_ops,
-                          &s->host_state, "pci-data-idx", 0x1000);
-    sysbus_init_mmio(dev, &s->host_state.conf_mem);
-    sysbus_init_mmio(dev, &s->host_state.data_mem);
+    memory_region_init_io(&phb->conf_mem, &pci_host_conf_le_ops,
+                          dev, "pci-conf-idx", 0x1000);
+    memory_region_init_io(&phb->data_mem, &pci_host_data_le_ops,
+                          dev, "pci-data-idx", 0x1000);
+    sysbus_init_mmio(dev, &phb->conf_mem);
+    sysbus_init_mmio(dev, &phb->data_mem);
     return 0;
 }
 
@@ -119,7 +120,7 @@ static void dec_21154_pci_host_class_init(ObjectClass *klass, void *data)
     k->is_bridge = 1;
 }
 
-static TypeInfo dec_21154_pci_host_info = {
+static const TypeInfo dec_21154_pci_host_info = {
     .name          = "dec-21154",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIDevice),
@@ -133,9 +134,9 @@ static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)
     sdc->init = pci_dec_21154_device_init;
 }
 
-static TypeInfo pci_dec_21154_device_info = {
-    .name          = "dec-21154-sysbus",
-    .parent        = TYPE_SYS_BUS_DEVICE,
+static const TypeInfo pci_dec_21154_device_info = {
+    .name          = TYPE_DEC_21154,
+    .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(DECState),
     .class_init    = pci_dec_21154_device_class_init,
 };
