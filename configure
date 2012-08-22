@@ -2701,6 +2701,9 @@ EOF
     spice="yes"
     libs_softmmu="$libs_softmmu $spice_libs"
     QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
+    if $pkg_config --atleast-version=0.12.0 spice-protocol >/dev/null 2>&1; then
+        spice_qxl_io_monitors_config_async="yes"
+    fi
   else
     if test "$spice" = "yes" ; then
       feature_not_found "spice"
@@ -3436,6 +3439,10 @@ fi
 
 if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
+fi
+
+if test "$spice_qxl_io_monitors_config_async" = "yes" ; then
+  echo "CONFIG_QXL_IO_MONITORS_CONFIG_ASYNC=y" >> $config_host_mak
 fi
 
 if test "$smartcard" = "yes" ; then

@@ -71,6 +71,8 @@ typedef struct PCIQXLDevice {
     } guest_surfaces;
     QXLPHYSICAL        guest_cursor;
 
+    QXLPHYSICAL        guest_monitors_config;
+
     QemuMutex          track_lock;
 
     /* thread signaling */
@@ -128,7 +130,12 @@ typedef struct PCIQXLDevice {
         }                                                               \
     } while (0)
 
+#if 0
+/* spice-server 0.12 is still in development */
+#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V12
+#else
 #define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V10
+#endif
 
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);
