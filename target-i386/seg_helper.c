@@ -937,7 +937,7 @@ void QEMU_NORETURN helper_syscall(CPUX86State *env, int next_eip_addend)
     cpu_loop_exit(env);
 }
 
-void QEMU_NORETURN helper_vsyscall(void)
+void QEMU_NORETURN helper_vsyscall(CPUX86State *env)
 {
     env->exception_index = EXCP_VSYSCALL;
     cpu_loop_exit(env);

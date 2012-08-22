@@ -7951,7 +7951,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
         /* Detect vsyscall */
         if (unlikely(pc_ptr >= TARGET_VSYSCALL_START
                      && pc_ptr < TARGET_VSYSCALL_END)) {
-            gen_helper_vsyscall();
+            gen_helper_vsyscall(cpu_env);
             break;
         }
 #endif

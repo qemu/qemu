@@ -58,7 +58,7 @@ DEF_HELPER_2(sysexit, void, env, int)
 DEF_HELPER_2(sysret, void, env, int)
 #if defined(CONFIG_USER_ONLY)
 DEF_HELPER_2(syscall, noreturn, env, int)
-DEF_HELPER_0(vsyscall, noreturn)
+DEF_HELPER_1(vsyscall, noreturn, env)
 #else
 DEF_HELPER_2(syscall, void, env, int)
 #endif
