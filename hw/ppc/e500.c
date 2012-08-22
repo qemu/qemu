@@ -36,7 +36,7 @@
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
-#define DTC_LOAD_PAD               0x500000
+#define DTC_LOAD_PAD               0x1800000
 #define DTC_PAD_MASK               0xFFFFF
 #define INITRD_LOAD_PAD            0x2000000
 #define INITRD_PAD_MASK            0xFFFFFF
