@@ -2001,7 +2001,7 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     TCGv_i32 tmp32_1, tmp32_2;
     unsigned char opc;
     uint64_t insn;
-    int op, r1, r2, r3, d1, d2, x2, b1, b2, r1b;
+    int op, r1, r2, r3, d2, x2, b2, r1b;
 
     opc = cpu_ldub_code(env, s->pc);
     LOG_DISAS("opc 0x%x\n", opc);
@@ -2139,31 +2139,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
         break;
-#ifndef CONFIG_USER_ONLY
-    case 0xda: /* MVCP     D1(R1,B1),D2(B2),R3   [SS] */
-    case 0xdb: /* MVCS     D1(R1,B1),D2(B2),R3   [SS] */
-        check_privileged(s);
-        potential_page_fault(s);
-        insn = ld_code6(env, s->pc);
-        r1 = (insn >> 36) & 0xf;
-        r3 = (insn >> 32) & 0xf;
-        b1 = (insn >> 28) & 0xf;
-        d1 = (insn >> 16) & 0xfff;
-        b2 = (insn >> 12) & 0xf;
-        d2 = insn & 0xfff;
-        /* XXX key in r3 */
-        tmp = get_address(s, 0, b1, d1);
-        tmp2 = get_address(s, 0, b2, d2);
-        if (opc == 0xda) {
-            gen_helper_mvcp(cc_op, cpu_env, regs[r1], tmp, tmp2);
-        } else {
-            gen_helper_mvcs(cc_op, cpu_env, regs[r1], tmp, tmp2);
-        }
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
-#endif
     case 0xe3:
         insn = ld_code6(env, s->pc);
         debug_insn(insn);
@@ -3110,6 +3085,28 @@ static ExitStatus op_mvcle(DisasContext *s, DisasOps *o)
     set_cc_static(s);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_mvcp(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, l1);
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_mvcp(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mvcs(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, l1);
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_mvcs(cc_op, cpu_env, regs[r1], o->addr1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_mul(DisasContext *s, DisasOps *o)
 {
