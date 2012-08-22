@@ -2014,36 +2014,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         r2 = insn & 0xf;
         disas_b3(env, s, op, r3, r1, r2);
         break;
-#ifndef CONFIG_USER_ONLY
-    case 0xb6: /* STCTL     R1,R3,D2(B2)     [RS] */
-        /* Store Control */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_stctl(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0xb7: /* LCTL      R1,R3,D2(B2)     [RS] */
-        /* Load Control */
-        check_privileged(s);
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_lctl(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-#endif
     case 0xb9:
         insn = ld_code4(env, s->pc);
         r1 = (insn >> 4) & 0xf;
@@ -2894,6 +2864,18 @@ static ExitStatus op_ld64(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_lctl(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_lctl(cpu_env, r1, o->in2, r3);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
+    return NO_EXIT;
+}
+
 static ExitStatus op_lra(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
@@ -3210,6 +3192,18 @@ static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stctl(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_stctl(cpu_env, r1, o->in2, r3);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
     return NO_EXIT;
 }
 
