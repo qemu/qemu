@@ -1997,19 +1997,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         op = (insn >> 16) & 0xff;
         disas_b9(env, s, op, r1, r2);
         break;
-    case 0xbd: /* CLM    R1,M3,D2(B2)     [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = load_reg32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_clm(cc_op, cpu_env, tmp32_1, tmp32_2, tmp);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0xbe: /* STCM R1,M3,D2(B2) [RS] */
         insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
@@ -2625,6 +2612,19 @@ static ExitStatus op_clcle(DisasContext *s, DisasOps *o)
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
     set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clm(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    tcg_gen_trunc_i64_i32(t1, o->in1);
+    potential_page_fault(s);
+    gen_helper_clm(cc_op, cpu_env, t1, m3, o->in2);
+    set_cc_static(s);
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(m3);
     return NO_EXIT;
 }
 
@@ -3710,6 +3710,12 @@ static void in1_r1_32u(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in1 = tcg_temp_new_i64();
     tcg_gen_ext32u_i64(o->in1, regs[get_field(f, r1)]);
+}
+
+static void in1_r1_sr32(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(o->in1, regs[get_field(f, r1)], 32);
 }
 
 static void in1_r1p1(DisasContext *s, DisasFields *f, DisasOps *o)

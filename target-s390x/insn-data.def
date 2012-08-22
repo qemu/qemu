@@ -136,6 +136,10 @@
     C(0xc606, CLGHRL,  RIL_b, GIE, r1_o, mri2_16u, 0, 0, 0, cmpu64)
 /* COMPARE LOGICAL LONG EXTENDED */
     C(0xa900, CLCLE,   RS_a,  Z,   0, a2, 0, 0, clcle, 0)
+/* COMPARE LOGICAL CHARACTERS UNDER MASK */
+    C(0xbd00, CLM,     RS_b,  Z,   r1_o, a2, 0, 0, clm, 0)
+    C(0xeb21, CLMY,    RSY_b, LD,  r1_o, a2, 0, 0, clm, 0)
+    C(0xeb20, CLMH,    RSY_b, Z,   r1_sr32, a2, 0, 0, clm, 0)
 
 /* COMPARE AND SWAP */
     C(0xba00, CS,      RS_a,  Z,   r1_o, a2, new, r1_32, cs, 0)
