@@ -119,6 +119,7 @@
     C(0xb931, CLGFR,   RRE,   Z,   r1, r2_32u, 0, 0, 0, cmpu64)
     C(0xe321, CLG,     RXY_a, Z,   r1, m2_64, 0, 0, 0, cmpu64)
     C(0xe331, CLGF,    RXY_a, Z,   r1, m2_32u, 0, 0, 0, cmpu64)
+    C(0xd500, CLC,     SS_a,  Z,   la1, a2, 0, 0, clc, 0)
 /* COMPARE LOGICAL IMMEDIATE */
     C(0xc20f, CLFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmpu32)
     C(0xc20e, CLGFI,   RIL_a, EI,  r1, i2_32u, 0, 0, 0, cmpu64)
