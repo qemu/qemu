@@ -945,7 +945,7 @@ DEF("vga", HAS_ARG, QEMU_OPTION_vga,
     "-vga [std|cirrus|vmware|qxl|xenfb|none]\n"
     "                select video card type\n", QEMU_ARCH_ALL)
 STEXI
-@item -vga @var{type}
+@item -vga @var{type}[,@var{prop}=@var{value}[,...]]
 @findex -vga
 Select type of VGA card to emulate. Valid values for @var{type} are
 @table @option
@@ -969,6 +969,12 @@ QXL paravirtual graphic card.  It is VGA compatible (including VESA
 Recommended choice when using the spice protocol.
 @item none
 Disable VGA card.
+@end table
+Valid optional properties are
+@table @option
+@item retrace=dumb|precise
+Select dumb (default) or precise VGA retrace logic, useful for some
+DOS games/demos.
 @end table
 ETEXI
 
