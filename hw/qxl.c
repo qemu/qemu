@@ -1910,6 +1910,7 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     if (qxl->id == 0) {
         vga_dirty_log_start(&qxl->vga);
     }
+    memory_region_set_flush_coalesced(&qxl->io_bar);
 
 
     pci_register_bar(&qxl->pci, QXL_IO_RANGE_INDEX,

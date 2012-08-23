@@ -361,6 +361,8 @@ uint32_t vga_ioport_read(void *opaque, uint32_t addr)
     VGACommonState *s = opaque;
     int val, index;
 
+    qemu_flush_coalesced_mmio_buffer();
+
     if (vga_ioport_invalid(s, addr)) {
         val = 0xff;
     } else {
@@ -452,6 +454,8 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
     VGACommonState *s = opaque;
     int index;
+
+    qemu_flush_coalesced_mmio_buffer();
 
     /* check port range access depending on color/monochrome mode */
     if (vga_ioport_invalid(s, addr)) {
@@ -2338,6 +2342,7 @@ MemoryRegion *vga_init_io(VGACommonState *s,
     vga_mem = g_malloc(sizeof(*vga_mem));
     memory_region_init_io(vga_mem, &vga_mem_ops, s,
                           "vga-lowmem", 0x20000);
+    memory_region_set_flush_coalesced(vga_mem);
 
     return vga_mem;
 }

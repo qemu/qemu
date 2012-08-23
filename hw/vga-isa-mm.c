@@ -107,6 +107,7 @@ static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
     s_ioport_ctrl = g_malloc(sizeof(*s_ioport_ctrl));
     memory_region_init_io(s_ioport_ctrl, &vga_mm_ctrl_ops, s,
                           "vga-mm-ctrl", 0x100000);
+    memory_region_set_flush_coalesced(s_ioport_ctrl);
 
     vga_io_memory = g_malloc(sizeof(*vga_io_memory));
     /* XXX: endianness? */
