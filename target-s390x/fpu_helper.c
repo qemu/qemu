@@ -266,27 +266,50 @@ uint64_t HELPER(dxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
     return RET128(ret);
 }
 
-/* 64-bit FP multiplication RR */
-void HELPER(mdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 32-bit FP multiplication */
+uint64_t HELPER(meeb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
-    env->fregs[f1].d = float64_mul(env->fregs[f1].d, env->fregs[f2].d,
-                                   &env->fpu_status);
+    float32 ret = float32_mul(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
-/* 128-bit FP multiplication RR */
-void HELPER(mxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 64-bit FP multiplication */
+uint64_t HELPER(mdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
-    CPU_QuadU v1;
-    CPU_QuadU v2;
-    CPU_QuadU res;
+    float64 ret = float64_mul(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
 
-    v1.ll.upper = env->fregs[f1].ll;
-    v1.ll.lower = env->fregs[f1 + 2].ll;
-    v2.ll.upper = env->fregs[f2].ll;
-    v2.ll.lower = env->fregs[f2 + 2].ll;
-    res.q = float128_mul(v1.q, v2.q, &env->fpu_status);
-    env->fregs[f1].ll = res.ll.upper;
-    env->fregs[f1 + 2].ll = res.ll.lower;
+/* 64/32-bit FP multiplication */
+uint64_t HELPER(mdeb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
+{
+    float64 ret = float32_to_float64(f2, &env->fpu_status);
+    ret = float64_mul(f1, ret, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* 128-bit FP multiplication */
+uint64_t HELPER(mxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                     uint64_t bh, uint64_t bl)
+{
+    float128 ret = float128_mul(make_float128(ah, al),
+                                make_float128(bh, bl),
+                                &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
+}
+
+/* 128/64-bit FP multiplication */
+uint64_t HELPER(mxdb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                      uint64_t f2)
+{
+    float128 ret = float64_to_float128(f2, &env->fpu_status);
+    ret = float128_mul(make_float128(ah, al), ret, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
 }
 
 /* convert 32-bit float to 64-bit float */
@@ -402,18 +425,6 @@ uint32_t HELPER(lcxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
     return set_cc_nz_f128(x1.q);
 }
 
-/* 32-bit FP multiplication RM */
-void HELPER(meeb)(CPUS390XState *env, uint32_t f1, uint32_t val)
-{
-    float32 v1 = env->fregs[f1].l.upper;
-    CPU_FloatU v2;
-
-    v2.l = val;
-    HELPER_LOG("%s: multiplying 0x%d from f%d and 0x%d\n", __func__,
-               v1, f1, v2.f);
-    env->fregs[f1].l.upper = float32_mul(v1, v2.f, &env->fpu_status);
-}
-
 /* 32-bit FP compare */
 uint32_t HELPER(ceb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
@@ -439,18 +450,6 @@ uint32_t HELPER(cxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
                                      &env->fpu_status);
     handle_exceptions(env, GETPC());
     return float_comp_to_cc(env, cmp);
-}
-
-/* 64-bit FP multiplication RM */
-void HELPER(mdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
-{
-    float64 v1 = env->fregs[f1].d;
-    CPU_DoubleU v2;
-
-    v2.ll = cpu_ldq_data(env, a2);
-    HELPER_LOG("%s: multiplying 0x%lx from f%d and 0x%ld\n", __func__,
-               v1, f1, v2.d);
-    env->fregs[f1].d = float64_mul(v1, v2.d, &env->fpu_status);
 }
 
 static void set_round_mode(CPUS390XState *env, int m3)
@@ -580,14 +579,6 @@ void HELPER(lzxr)(CPUS390XState *env, uint32_t f1)
     x.q = float64_to_float128(float64_zero, &env->fpu_status);
     env->fregs[f1].ll = x.ll.upper;
     env->fregs[f1 + 1].ll = x.ll.lower;
-}
-
-/* 32-bit FP multiplication RR */
-void HELPER(meebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
-{
-    env->fregs[f1].l.upper = float32_mul(env->fregs[f1].l.upper,
-                                         env->fregs[f2].l.upper,
-                                         &env->fpu_status);
 }
 
 /* 64-bit FP multiply and add RM */

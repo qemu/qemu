@@ -991,7 +991,7 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int x2, int b2, int d2, int r1b)
 {
     TCGv_i32 tmp_r1, tmp32;
-    TCGv_i64 addr, tmp;
+    TCGv_i64 addr;
     addr = get_address(s, x2, b2, d2);
     tmp_r1 = tcg_const_i32(r1);
     switch (op) {
@@ -1009,19 +1009,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
         potential_page_fault(s);
         gen_helper_tcxb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
-        break;
-    case 0x17: /* MEEB   R1,D2(X2,B2)       [RXE] */
-        tmp = tcg_temp_new_i64();
-        tmp32 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_meeb(cpu_env, tmp_r1, tmp32);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32);
-        break;
-    case 0x1c: /* MDB    R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_mdb(cpu_env, tmp_r1, addr);
         break;
     case 0x1e: /* MADB  R1,R3,D2(X2,B2) [RXF] */
         /* for RXF insns, r1 is R3 and r1b is R1 */
@@ -1452,12 +1439,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     case 0x15: /* SQBDR       R1,R2             [RRE] */
         FP_HELPER(sqdbr);
         break;
-    case 0x17: /* MEEBR       R1,R2             [RRE] */
-        FP_HELPER(meebr);
-        break;
-    case 0x1c: /* MDBR        R1,R2             [RRE] */
-        FP_HELPER(mdbr);
-        break;
     case 0xe: /* MAEBR  R1,R3,R2 [RRF] */
     case 0x1e: /* MADBR R1,R3,R2 [RRF] */
     case 0x1f: /* MSDBR R1,R3,R2 [RRF] */
@@ -1487,9 +1468,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x43: /* LCXBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcxbr);
-        break;
-    case 0x4c: /* MXBR        R1,R2             [RRE] */
-        FP_HELPER(mxbr);
         break;
     case 0x65: /* LXR         R1,R2             [RRE] */
         tmp = load_freg(r2);
@@ -2823,6 +2801,38 @@ static ExitStatus op_mul(DisasContext *s, DisasOps *o)
 static ExitStatus op_mul128(DisasContext *s, DisasOps *o)
 {
     gen_helper_mul128(o->out, cpu_env, o->in1, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_meeb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_meeb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mdeb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_mdeb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_mdb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_mxb(o->out, cpu_env, o->out, o->out2, o->in1, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mxdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_mxdb(o->out, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out2);
     return NO_EXIT;
 }
