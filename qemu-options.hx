@@ -1189,6 +1189,18 @@ Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
 ETEXI
 
+DEF("no-spurious-interrupt-hack", 0, QEMU_OPTION_no_spurious_interrupt_hack,
+    "-no-spurious-interrupt-hack     disable delivery of spurious interrupts\n",
+    QEMU_ARCH_I386)
+STEXI
+@item -no-spurious-interrupt-hack
+@findex -no-spurious-interrupt-hack
+Use it as a workaround for operating systems that drive PICs in a way that
+can generate spurious interrupts, but the OS doesn't handle spurious
+interrupts gracefully.  (e.g. late 80s/early 90s versions of ATT UNIX
+and derivatives)
+ETEXI
+
 HXCOMM Deprecated by -rtc
 DEF("rtc-td-hack", 0, QEMU_OPTION_rtc_td_hack, "", QEMU_ARCH_I386)
 

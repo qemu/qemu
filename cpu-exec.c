@@ -329,11 +329,15 @@ int cpu_exec(CPUArchState *env)
                                                           0);
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
-                            qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
-                            do_interrupt_x86_hardirq(env, intno, 1);
-                            /* ensure that no TB jump will be modified as
-                               the program flow was changed */
-                            next_tb = 0;
+                            if (intno >= 0) {
+                                qemu_log_mask(CPU_LOG_TB_IN_ASM,
+                                              "Servicing hardware INT=0x%02x\n",
+                                              intno);
+                                do_interrupt_x86_hardirq(env, intno, 1);
+                                /* ensure that no TB jump will be modified as
+                                   the program flow was changed */
+                                next_tb = 0;
+                            }
 #if !defined(CONFIG_USER_ONLY)
                         } else if ((interrupt_request & CPU_INTERRUPT_VIRQ) &&
                                    (env->eflags & IF_MASK) && 

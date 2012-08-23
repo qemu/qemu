@@ -204,6 +204,7 @@ CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
 int win2k_install_hack = 0;
+int no_spurious_interrupt_hack = 0;
 int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
@@ -3045,6 +3046,9 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_win2k_hack:
                 win2k_install_hack = 1;
+                break;
+            case QEMU_OPTION_no_spurious_interrupt_hack:
+                no_spurious_interrupt_hack = 1;
                 break;
             case QEMU_OPTION_rtc_td_hack: {
                 static GlobalProperty slew_lost_ticks[] = {

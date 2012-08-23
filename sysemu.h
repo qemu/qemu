@@ -117,6 +117,7 @@ extern int graphic_depth;
 extern DisplayType display_type;
 extern const char *keyboard_layout;
 extern int win2k_install_hack;
+extern int no_spurious_interrupt_hack;
 extern int alt_grab;
 extern int ctrl_grab;
 extern int usb_enabled;
