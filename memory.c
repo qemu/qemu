@@ -24,7 +24,6 @@
 #include "exec-obsolete.h"
 
 unsigned memory_region_transaction_depth = 0;
-static bool memory_region_update_pending = false;
 static bool global_dirty_log = false;
 
 static QTAILQ_HEAD(memory_listeners, MemoryListener) memory_listeners
@@ -732,31 +731,6 @@ static void address_space_update_topology(AddressSpace *as)
     address_space_update_ioeventfds(as);
 }
 
-static void memory_region_update_topology(MemoryRegion *mr)
-{
-    if (memory_region_transaction_depth) {
-        memory_region_update_pending |= !mr || mr->enabled;
-        return;
-    }
-
-    if (mr && !mr->enabled) {
-        return;
-    }
-
-    MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
-
-    if (address_space_memory.root) {
-        address_space_update_topology(&address_space_memory);
-    }
-    if (address_space_io.root) {
-        address_space_update_topology(&address_space_io);
-    }
-
-    MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
-
-    memory_region_update_pending = false;
-}
-
 void memory_region_transaction_begin(void)
 {
     ++memory_region_transaction_depth;
@@ -766,8 +740,17 @@ void memory_region_transaction_commit(void)
 {
     assert(memory_region_transaction_depth);
     --memory_region_transaction_depth;
-    if (!memory_region_transaction_depth && memory_region_update_pending) {
-        memory_region_update_topology(NULL);
+    if (!memory_region_transaction_depth) {
+        MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
+
+        if (address_space_memory.root) {
+            address_space_update_topology(&address_space_memory);
+        }
+        if (address_space_io.root) {
+            address_space_update_topology(&address_space_io);
+        }
+
+        MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
     }
 }
 
