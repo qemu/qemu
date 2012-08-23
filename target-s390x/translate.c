@@ -556,11 +556,6 @@ static inline void set_cc_s64(DisasContext *s, TCGv_i64 val)
     gen_op_update1_cc_i64(s, CC_OP_LTGT0_64, val);
 }
 
-static void gen_set_cc_nz_f32(DisasContext *s, TCGv_i32 v1)
-{
-    gen_op_update1_cc_i32(s, CC_OP_NZ_F32, v1);
-}
-
 /* CC value is in env->cc_op */
 static inline void set_cc_static(DisasContext *s)
 {
@@ -1000,19 +995,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
     addr = get_address(s, x2, b2, d2);
     tmp_r1 = tcg_const_i32(r1);
     switch (op) {
-    case 0xb: /* SEB    R1,D2(X2,B2)       [RXE] */
-        tmp = tcg_temp_new_i64();
-        tmp32 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_seb(cpu_env, tmp_r1, tmp32);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32);
-
-        tmp32 = load_freg32(r1);
-        gen_set_cc_nz_f32(s, tmp32);
-        tcg_temp_free_i32(tmp32);
-        break;
     case 0xd: /* DEB    R1,D2(X2,B2)       [RXE] */
         tmp = tcg_temp_new_i64();
         tmp32 = tcg_temp_new_i32();
@@ -1045,11 +1027,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
         gen_helper_meeb(cpu_env, tmp_r1, tmp32);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32);
-        break;
-    case 0x1b: /* SDB    R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_sdb(cc_op, cpu_env, tmp_r1, addr);
-        set_cc_static(s);
         break;
     case 0x1c: /* MDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
@@ -1479,9 +1456,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     case 0x3: /* LCEBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcebr);
         break;
-    case 0xb: /* SEBR        R1,R2             [RRE] */
-        FP_HELPER_CC(sebr);
-        break;
     case 0xd: /* DEBR        R1,R2             [RRE] */
         FP_HELPER(debr);
         break;
@@ -1496,9 +1470,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x17: /* MEEBR       R1,R2             [RRE] */
         FP_HELPER(meebr);
-        break;
-    case 0x1b: /* SDBR        R1,R2             [RRE] */
-        FP_HELPER_CC(sdbr);
         break;
     case 0x1c: /* MDBR        R1,R2             [RRE] */
         FP_HELPER(mdbr);
@@ -1535,9 +1506,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x43: /* LCXBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcxbr);
-        break;
-    case 0x4b: /* SXBR        R1,R2             [RRE] */
-        FP_HELPER_CC(sxbr);
         break;
     case 0x4c: /* MXBR        R1,R2             [RRE] */
         FP_HELPER(mxbr);
@@ -2952,6 +2920,25 @@ static ExitStatus op_rll32(DisasContext *s, DisasOps *o)
 static ExitStatus op_rll64(DisasContext *s, DisasOps *o)
 {
     tcg_gen_rotl_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_seb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_seb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sdb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sxb(o->out, cpu_env, o->out, o->out2, o->in1, o->in2);
+    return_low128(o->out2);
     return NO_EXIT;
 }
 

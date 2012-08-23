@@ -476,6 +476,11 @@
     C(0xb9e9, SGRK,    RRF_a, DO,  r2, r3, r1, 0, sub, subs64)
     C(0xe309, SG,      RXY_a, Z,   r1, m2_64, r1, 0, sub, subs64)
     C(0xe319, SGF,     RXY_a, Z,   r1, m2_32s, r1, 0, sub, subs64)
+    C(0xb30b, SEBR,    RRE,   Z,   e1, e2, new, e1, seb, f32)
+    C(0xb31b, SDBR,    RRE,   Z,   f1_o, f2_o, f1, 0, sdb, f64)
+    C(0xb34b, SXBR,    RRE,   Z,   0, x2_o, x1, 0, sxb, f128)
+    C(0xed0b, SEB,     RXE,   Z,   e1, m2_32u, new, e1, seb, f32)
+    C(0xed1b, SDB,     RXE,   Z,   f1_o, m2_64, f1, 0, sdb, f64)
 /* SUBTRACT HALFWORD */
     C(0x4b00, SH,      RX_a,  Z,   r1, m2_16s, new, r1_32, sub, subs32)
     C(0xe37b, SHY,     RXY_a, LD,  r1, m2_16s, new, r1_32, sub, subs32)
