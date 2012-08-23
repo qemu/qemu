@@ -311,6 +311,9 @@ static void memory_region_read_accessor(void *opaque,
     MemoryRegion *mr = opaque;
     uint64_t tmp;
 
+    if (mr->flush_coalesced_mmio) {
+        qemu_flush_coalesced_mmio_buffer();
+    }
     tmp = mr->ops->read(mr->opaque, addr, size);
     *value |= (tmp & mask) << shift;
 }
@@ -325,6 +328,9 @@ static void memory_region_write_accessor(void *opaque,
     MemoryRegion *mr = opaque;
     uint64_t tmp;
 
+    if (mr->flush_coalesced_mmio) {
+        qemu_flush_coalesced_mmio_buffer();
+    }
     tmp = (*value >> shift) & mask;
     mr->ops->write(mr->opaque, addr, tmp, size);
 }
@@ -826,6 +832,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->dirty_log_mask = 0;
     mr->ioeventfd_nb = 0;
     mr->ioeventfds = NULL;
+    mr->flush_coalesced_mmio = false;
 }
 
 static bool memory_region_access_valid(MemoryRegion *mr,
@@ -1176,11 +1183,15 @@ void memory_region_add_coalescing(MemoryRegion *mr,
     cmr->addr = addrrange_make(int128_make64(offset), int128_make64(size));
     QTAILQ_INSERT_TAIL(&mr->coalesced, cmr, link);
     memory_region_update_coalesced_range(mr);
+    memory_region_set_flush_coalesced(mr);
 }
 
 void memory_region_clear_coalescing(MemoryRegion *mr)
 {
     CoalescedMemoryRange *cmr;
+
+    qemu_flush_coalesced_mmio_buffer();
+    mr->flush_coalesced_mmio = false;
 
     while (!QTAILQ_EMPTY(&mr->coalesced)) {
         cmr = QTAILQ_FIRST(&mr->coalesced);
@@ -1188,6 +1199,19 @@ void memory_region_clear_coalescing(MemoryRegion *mr)
         g_free(cmr);
     }
     memory_region_update_coalesced_range(mr);
+}
+
+void memory_region_set_flush_coalesced(MemoryRegion *mr)
+{
+    mr->flush_coalesced_mmio = true;
+}
+
+void memory_region_clear_flush_coalesced(MemoryRegion *mr)
+{
+    qemu_flush_coalesced_mmio_buffer();
+    if (QTAILQ_EMPTY(&mr->coalesced)) {
+        mr->flush_coalesced_mmio = false;
+    }
 }
 
 void memory_region_add_eventfd(MemoryRegion *mr,
