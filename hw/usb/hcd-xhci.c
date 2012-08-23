@@ -36,13 +36,12 @@
 #define FIXME() do { fprintf(stderr, "FIXME %s:%d\n", \
                              __func__, __LINE__); abort(); } while (0)
 
-#define MAXSLOTS 8
-#define MAXINTRS 1
-
 #define USB2_PORTS 4
 #define USB3_PORTS 4
 
 #define MAXPORTS (USB2_PORTS+USB3_PORTS)
+#define MAXSLOTS MAXPORTS
+#define MAXINTRS 1 /* MAXPORTS */
 
 #define TD_QUEUE 24
 
@@ -53,16 +52,22 @@
 #define ER_FULL_HACK
 
 #define LEN_CAP         0x40
-#define OFF_OPER        LEN_CAP
 #define LEN_OPER        (0x400 + 0x10 * MAXPORTS)
-#define OFF_RUNTIME     ((OFF_OPER + LEN_OPER + 0x20) & ~0x1f)
-#define LEN_RUNTIME     (0x20 + MAXINTRS * 0x20)
-#define OFF_DOORBELL    (OFF_RUNTIME + LEN_RUNTIME)
+#define LEN_RUNTIME     ((MAXINTRS + 1) * 0x20)
 #define LEN_DOORBELL    ((MAXSLOTS + 1) * 0x20)
 
+#define OFF_OPER        LEN_CAP
+#define OFF_RUNTIME     0x1000
+#define OFF_DOORBELL    0x2000
 /* must be power of 2 */
-#define LEN_REGS        0x2000
+#define LEN_REGS        0x4000
 
+#if (OFF_OPER + LEN_OPER) > OFF_RUNTIME
+#error Increase OFF_RUNTIME
+#endif
+#if (OFF_RUNTIME + LEN_RUNTIME) > OFF_DOORBELL
+#error Increase OFF_DOORBELL
+#endif
 #if (OFF_DOORBELL + LEN_DOORBELL) > LEN_REGS
 # error Increase LEN_REGS
 #endif
