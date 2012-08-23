@@ -1530,7 +1530,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
     ep = usb_ep_get(p->queue->dev, p->pid, endp);
 
-    usb_packet_setup(&p->packet, p->pid, ep);
+    usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr);
     usb_packet_map(&p->packet, &p->sgl);
 
     trace_usb_ehci_packet_action(p->queue, p, action);
@@ -1552,7 +1552,8 @@ static int ehci_execute(EHCIPacket *p, const char *action)
  */
 
 static int ehci_process_itd(EHCIState *ehci,
-                            EHCIitd *itd)
+                            EHCIitd *itd,
+                            uint32_t addr)
 {
     USBDevice *dev;
     USBEndpoint *ep;
@@ -1598,7 +1599,7 @@ static int ehci_process_itd(EHCIState *ehci,
             dev = ehci_find_device(ehci, devaddr);
             ep = usb_ep_get(dev, pid, endp);
             if (ep->type == USB_ENDPOINT_XFER_ISOC) {
-                usb_packet_setup(&ehci->ipacket, pid, ep);
+                usb_packet_setup(&ehci->ipacket, pid, ep, addr);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 ret = usb_handle_packet(dev, &ehci->ipacket);
                 assert(ret != USB_RET_ASYNC);
@@ -1862,7 +1863,7 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
                sizeof(EHCIitd) >> 2);
     ehci_trace_itd(ehci, entry, &itd);
 
-    if (ehci_process_itd(ehci, &itd) != 0) {
+    if (ehci_process_itd(ehci, &itd, entry) != 0) {
         return -1;
     }
 

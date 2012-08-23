@@ -520,10 +520,11 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
     p->state = state;
 }
 
-void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep)
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id)
 {
     assert(!usb_packet_is_inflight(p));
     assert(p->iov.iov != NULL);
+    p->id = id;
     p->pid = pid;
     p->ep = ep;
     p->result = 0;

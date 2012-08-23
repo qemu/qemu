@@ -859,14 +859,14 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
      * for initial isochronous requests
      */
     async->queue->valid = 32;
-    async->isoc  = td->ctrl & TD_CTRL_IOS;
+    async->isoc = td->ctrl & TD_CTRL_IOS;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
     dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
     ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
-    usb_packet_setup(&async->packet, pid, ep);
+    usb_packet_setup(&async->packet, pid, ep, addr);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
 
