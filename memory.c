@@ -733,6 +733,7 @@ static void address_space_update_topology(AddressSpace *as)
 
 void memory_region_transaction_begin(void)
 {
+    qemu_flush_coalesced_mmio_buffer();
     ++memory_region_transaction_depth;
 }
 
