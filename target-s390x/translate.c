@@ -990,7 +990,7 @@ static void free_compare(DisasCompare *c)
 static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int x2, int b2, int d2, int r1b)
 {
-    TCGv_i32 tmp_r1, tmp32;
+    TCGv_i32 tmp_r1;
     TCGv_i64 addr;
     addr = get_address(s, x2, b2, d2);
     tmp_r1 = tcg_const_i32(r1);
@@ -1009,13 +1009,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
         potential_page_fault(s);
         gen_helper_tcxb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
-        break;
-    case 0x1e: /* MADB  R1,R3,D2(X2,B2) [RXF] */
-        /* for RXF insns, r1 is R3 and r1b is R1 */
-        tmp32 = tcg_const_i32(r1b);
-        potential_page_fault(s);
-        gen_helper_madb(cpu_env, tmp32, addr, tmp_r1);
-        tcg_temp_free_i32(tmp32);
         break;
     default:
         LOG_DISAS("illegal ed operation 0x%x\n", op);
@@ -1438,30 +1431,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x15: /* SQBDR       R1,R2             [RRE] */
         FP_HELPER(sqdbr);
-        break;
-    case 0xe: /* MAEBR  R1,R3,R2 [RRF] */
-    case 0x1e: /* MADBR R1,R3,R2 [RRF] */
-    case 0x1f: /* MSDBR R1,R3,R2 [RRF] */
-        /* for RRF insns, m3 is R1, r1 is R3, and r2 is R2 */
-        tmp32_1 = tcg_const_i32(m3);
-        tmp32_2 = tcg_const_i32(r2);
-        tmp32_3 = tcg_const_i32(r1);
-        switch (op) {
-        case 0xe:
-            gen_helper_maebr(cpu_env, tmp32_1, tmp32_3, tmp32_2);
-            break;
-        case 0x1e:
-            gen_helper_madbr(cpu_env, tmp32_1, tmp32_3, tmp32_2);
-            break;
-        case 0x1f:
-            gen_helper_msdbr(cpu_env, tmp32_1, tmp32_3, tmp32_2);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
         break;
     case 0x40: /* LPXBR       R1,R2             [RRE] */
         FP_HELPER_CC(lpxbr);
@@ -2834,6 +2803,36 @@ static ExitStatus op_mxdb(DisasContext *s, DisasOps *o)
 {
     gen_helper_mxdb(o->out, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_maeb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 r3 = load_freg32_i64(get_field(s->fields, r3));
+    gen_helper_maeb(o->out, cpu_env, o->in1, o->in2, r3);
+    tcg_temp_free_i64(r3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_madb(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    gen_helper_madb(o->out, cpu_env, o->in1, o->in2, fregs[r3]);
+    return NO_EXIT;
+}
+
+static ExitStatus op_mseb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 r3 = load_freg32_i64(get_field(s->fields, r3));
+    gen_helper_mseb(o->out, cpu_env, o->in1, o->in2, r3);
+    tcg_temp_free_i64(r3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_msdb(DisasContext *s, DisasOps *o)
+{
+    int r3 = get_field(s->fields, r3);
+    gen_helper_msdb(o->out, cpu_env, o->in1, o->in2, fregs[r3]);
     return NO_EXIT;
 }
 

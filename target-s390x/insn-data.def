@@ -391,6 +391,17 @@
     C(0xc201, MSFI,    RIL_a, GIE, r1_o, i2, new, r1_32, mul, 0)
     C(0xc200, MSGFI,   RIL_a, GIE, r1_o, i2, r1, 0, mul, 0)
 
+/* MULTIPLY AND ADD */
+    C(0xb30e, MAEBR,   RRD,   Z,   e1, e2, new, e1, maeb, 0)
+    C(0xb31e, MADBR,   RRD,   Z,   f1_o, f2_o, f1, 0, madb, 0)
+    C(0xed0e, MAEB,    RXF,   Z,   e1, m2_32u, new, e1, maeb, 0)
+    C(0xed1e, MADB,    RXF,   Z,   f1_o, m2_64, f1, 0, madb, 0)
+/* MULTIPLY AND SUBTRACT */
+    C(0xb30f, MSEBR,   RRD,   Z,   e1, e2, new, e1, mseb, 0)
+    C(0xb31f, MSDBR,   RRD,   Z,   f1_o, f2_o, f1, 0, msdb, 0)
+    C(0xed0f, MSEB,    RXF,   Z,   e1, m2_32u, new, e1, mseb, 0)
+    C(0xed1f, MSDB,    RXF,   Z,   f1_o, m2_64, f1, 0, msdb, 0)
+
 /* OR */
     C(0x1600, OR,      RR_a,  Z,   r1, r2, new, r1_32, or, nz32)
     C(0xb9f6, ORK,     RRF_a, DO,  r2, r3, new, r1_32, or, nz32)

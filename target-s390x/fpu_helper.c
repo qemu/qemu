@@ -581,47 +581,42 @@ void HELPER(lzxr)(CPUS390XState *env, uint32_t f1)
     env->fregs[f1 + 1].ll = x.ll.lower;
 }
 
-/* 64-bit FP multiply and add RM */
-void HELPER(madb)(CPUS390XState *env, uint32_t f1, uint64_t a2, uint32_t f3)
+/* 32-bit FP multiply and add */
+uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
+                      uint64_t f2, uint64_t f3)
 {
-    CPU_DoubleU v2;
-
-    HELPER_LOG("%s: f1 %d a2 0x%lx f3 %d\n", __func__, f1, a2, f3);
-    v2.ll = cpu_ldq_data(env, a2);
-    env->fregs[f1].d = float64_add(env->fregs[f1].d,
-                                   float64_mul(v2.d, env->fregs[f3].d,
-                                               &env->fpu_status),
-                                   &env->fpu_status);
+    float32 ret = float32_muladd(f2, f3, f1, 0, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
-/* 64-bit FP multiply and add RR */
-void HELPER(madbr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
+/* 64-bit FP multiply and add */
+uint64_t HELPER(madb)(CPUS390XState *env, uint64_t f1,
+                      uint64_t f2, uint64_t f3)
 {
-    HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __func__, f1, f2, f3);
-    env->fregs[f1].d = float64_add(float64_mul(env->fregs[f2].d,
-                                               env->fregs[f3].d,
-                                               &env->fpu_status),
-                                   env->fregs[f1].d, &env->fpu_status);
+    float64 ret = float64_muladd(f2, f3, f1, 0, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
-/* 64-bit FP multiply and subtract RR */
-void HELPER(msdbr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
+/* 32-bit FP multiply and subtract */
+uint64_t HELPER(mseb)(CPUS390XState *env, uint64_t f1,
+                      uint64_t f2, uint64_t f3)
 {
-    HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __func__, f1, f2, f3);
-    env->fregs[f1].d = float64_sub(float64_mul(env->fregs[f2].d,
-                                               env->fregs[f3].d,
-                                               &env->fpu_status),
-                                   env->fregs[f1].d, &env->fpu_status);
+    float32 ret = float32_muladd(f2, f3, f1, float_muladd_negate_c,
+                                 &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
-/* 32-bit FP multiply and add RR */
-void HELPER(maebr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
+/* 64-bit FP multiply and subtract */
+uint64_t HELPER(msdb)(CPUS390XState *env, uint64_t f1,
+                      uint64_t f2, uint64_t f3)
 {
-    env->fregs[f1].l.upper = float32_add(env->fregs[f1].l.upper,
-                                         float32_mul(env->fregs[f2].l.upper,
-                                                     env->fregs[f3].l.upper,
-                                                     &env->fpu_status),
-                                         &env->fpu_status);
+    float64 ret = float64_muladd(f2, f3, f1, float_muladd_negate_c,
+                                 &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
 /* test data class 32-bit */
