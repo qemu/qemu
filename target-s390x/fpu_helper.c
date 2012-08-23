@@ -613,8 +613,26 @@ uint32_t HELPER(tcxb)(uint64_t ah, uint64_t al, uint64_t m2)
     return cc;
 }
 
-/* square root 64-bit RR */
-void HELPER(sqdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* square root 32-bit */
+uint64_t HELPER(sqeb)(CPUS390XState *env, uint64_t f2)
 {
-    env->fregs[f1].d = float64_sqrt(env->fregs[f2].d, &env->fpu_status);
+    float32 ret = float32_sqrt(f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* square root 64-bit */
+uint64_t HELPER(sqdb)(CPUS390XState *env, uint64_t f2)
+{
+    float64 ret = float64_sqrt(f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* square root 128-bit */
+uint64_t HELPER(sqxb)(CPUS390XState *env, uint64_t ah, uint64_t al)
+{
+    float128 ret = float128_sqrt(make_float128(ah, al), &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
 }

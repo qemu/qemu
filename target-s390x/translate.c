@@ -1385,9 +1385,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     tcg_temp_free_i32(tmp32_2);
 
     switch (op) {
-    case 0x15: /* SQBDR       R1,R2             [RRE] */
-        FP_HELPER(sqdbr);
-        break;
     case 0x74: /* LZER        R1                [RRE] */
         tmp32_1 = tcg_const_i32(r1);
         gen_helper_lzer(cpu_env, tmp32_1);
@@ -2932,6 +2929,25 @@ static ExitStatus op_sdb(DisasContext *s, DisasOps *o)
 static ExitStatus op_sxb(DisasContext *s, DisasOps *o)
 {
     gen_helper_sxb(o->out, cpu_env, o->out, o->out2, o->in1, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sqeb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sqeb(o->out, cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sqdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sqdb(o->out, cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sqxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sqxb(o->out, cpu_env, o->in1, o->in2);
     return_low128(o->out2);
     return NO_EXIT;
 }

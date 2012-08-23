@@ -459,6 +459,13 @@
 /* SHIFT RIGHT DOUBLE LOGICAL */
     C(0x8c00, SRDL,    RS_a,  Z,   r1_D32, sh64, new, r1_D32, srl, 0)
 
+/* SQUARE ROOT */
+    C(0xb314, SQEBR,   RRE,   Z,   0, e2, new, e1, sqeb, 0)
+    C(0xb315, SQDBR,   RRE,   Z,   0, f2_o, f1, 0, sqdb, 0)
+    C(0xb316, SQXBR,   RRE,   Z,   0, x2_o, x1, 0, sqxb, 0)
+    C(0xed14, SQEB,    RXE,   Z,   0, m2_32u, new, e1, sqeb, 0)
+    C(0xed15, SQDB,    RXE,   Z,   0, m2_64, f1, 0, sqdb, 0)
+
 /* STORE */
     C(0x5000, ST,      RX_a,  Z,   r1_o, a2, 0, 0, st32, 0)
     C(0xe350, STY,     RXY_a, LD,  r1_o, a2, 0, 0, st32, 0)
