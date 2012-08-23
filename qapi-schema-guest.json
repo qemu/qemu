@@ -293,7 +293,7 @@
 ##
 # @GuestFsFreezeStatus
 #
-# An enumation of filesystem freeze states
+# An enumeration of filesystem freeze states
 #
 # @thawed: filesystems thawed/unfrozen
 #
