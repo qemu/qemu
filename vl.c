@@ -179,6 +179,7 @@ int main(int argc, char **argv)
 static const char *data_dir;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
+int vga_cga_hacks = 0;
 DisplayType display_type = DT_DEFAULT;
 int display_remote = 0;
 const char* keyboard_layout = NULL;
@@ -1748,6 +1749,28 @@ static void select_vgahw (const char *p)
             else if (strstart(opts, "precise", &nextopt))
                 vga_retrace_method = VGA_RETRACE_PRECISE;
             else goto invalid_vga;
+        } else if (strstart(opts, ",cga_hacks=", &nextopt)) {
+            opts = nextopt;
+            while (*opts) {
+                if (strstart(opts, "all", &nextopt)) {
+                    opts = nextopt;
+                    vga_cga_hacks |= ~0;
+                } else if (strstart(opts, "palette_blanking", &nextopt)) {
+                    opts = nextopt;
+                    vga_cga_hacks |= VGA_CGA_HACK_PALETTE_BLANKING;
+                } else if (strstart(opts, "font_height", &nextopt)) {
+                    opts = nextopt;
+                    vga_cga_hacks |= VGA_CGA_HACK_FONT_HEIGHT;
+                } else {
+                    break;
+                }
+
+                if (*opts == '+') {
+                    opts++;
+                } else {
+                    break;
+                }
+            }
         } else goto invalid_vga;
         opts = nextopt;
     }

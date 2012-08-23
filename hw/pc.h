@@ -176,6 +176,10 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
+#define VGA_CGA_HACK_PALETTE_BLANKING  (1<<0)
+#define VGA_CGA_HACK_FONT_HEIGHT       (1<<1)
+extern int vga_cga_hacks;
+
 static inline DeviceState *isa_vga_init(ISABus *bus)
 {
     ISADevice *dev;

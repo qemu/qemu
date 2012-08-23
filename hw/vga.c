@@ -547,14 +547,31 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write CR%x = 0x%02x\n", s->cr_index, val);
 #endif
         /* handle CR0-7 protection */
-        if ((s->cr[VGA_CRTC_V_SYNC_END] & VGA_CR11_LOCK_CR0_CR7) &&
-            s->cr_index <= VGA_CRTC_OVERFLOW) {
-            /* can always write bit 4 of CR7 */
-            if (s->cr_index == VGA_CRTC_OVERFLOW) {
-                s->cr[VGA_CRTC_OVERFLOW] = (s->cr[VGA_CRTC_OVERFLOW] & ~0x10) |
-                    (val & 0x10);
+        if (s->cr[VGA_CRTC_V_SYNC_END] & VGA_CR11_LOCK_CR0_CR7) {
+            if (s->cr_index <= VGA_CRTC_OVERFLOW) {
+                /* can always write bit 4 of CR7 */
+                if (s->cr_index == VGA_CRTC_OVERFLOW) {
+                    s->cr[VGA_CRTC_OVERFLOW] =
+                        (s->cr[VGA_CRTC_OVERFLOW] & ~0x10) | (val & 0x10);
+                }
+                return;
+            } else if ((vga_cga_hacks & VGA_CGA_HACK_FONT_HEIGHT) &&
+                       !(s->sr[VGA_SEQ_CLOCK_MODE] & VGA_SR01_CHAR_CLK_8DOTS)) {
+                /* extra CGA compatibility hacks (not in standard VGA) */
+                if (s->cr_index == VGA_CRTC_MAX_SCAN &&
+                    val == 7 &&
+                    (s->cr[VGA_CRTC_MAX_SCAN] & 0xf) == 0xf) {
+                    return;
+                } else if (s->cr_index == VGA_CRTC_CURSOR_START &&
+                           val == 6 &&
+                           (s->cr[VGA_CRTC_MAX_SCAN] & 0xf) == 0xf) {
+                    val = 0xd;
+                } else if (s->cr_index == VGA_CRTC_CURSOR_END &&
+                           val == 7 &&
+                           (s->cr[VGA_CRTC_MAX_SCAN] & 0xf) == 0xf) {
+                    val = 0xe;
+                }
             }
-            return;
         }
         s->cr[s->cr_index] = val;
 
@@ -1886,7 +1903,10 @@ static void vga_update_display(void *opaque)
         /* nothing to do */
     } else {
         full_update = 0;
-        if (!(s->ar_index & 0x20)) {
+        if (!(s->ar_index & 0x20) &&
+            /* extra CGA compatibility hacks (not in standard VGA */
+            (!(vga_cga_hacks & VGA_CGA_HACK_PALETTE_BLANKING) ||
+             (s->ar_index != 0 && s->ar_flip_flop))) {
             graphic_mode = GMODE_BLANK;
         } else {
             graphic_mode = s->gr[VGA_GFX_MISC] & VGA_GR06_GRAPHICS_MODE;
