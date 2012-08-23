@@ -238,11 +238,23 @@ int unix_socket_outgoing(const char *path)
     return unix_connect(path);
 }
 
-/* Basic flow
+/* Basic flow for negotiation
 
    Server         Client
-
    Negotiate
+
+   or
+
+   Server         Client
+   Negotiate #1
+                  Option
+   Negotiate #2
+
+   ----
+
+   followed by
+
+   Server         Client
                   Request
    Response
                   Request
@@ -250,20 +262,112 @@ int unix_socket_outgoing(const char *path)
                   ...
    ...
                   Request (type == 2)
+
 */
+
+static int nbd_receive_options(NBDClient *client)
+{
+    int csock = client->sock;
+    char name[256];
+    uint32_t tmp, length;
+    uint64_t magic;
+    int rc;
+
+    /* Client sends:
+        [ 0 ..   3]   reserved (0)
+        [ 4 ..  11]   NBD_OPTS_MAGIC
+        [12 ..  15]   NBD_OPT_EXPORT_NAME
+        [16 ..  19]   length
+        [20 ..  xx]   export name (length bytes)
+     */
+
+    rc = -EINVAL;
+    if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        LOG("read failed");
+        goto fail;
+    }
+    TRACE("Checking reserved");
+    if (tmp != 0) {
+        LOG("Bad reserved received");
+        goto fail;
+    }
+
+    if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
+        LOG("read failed");
+        goto fail;
+    }
+    TRACE("Checking reserved");
+    if (magic != be64_to_cpu(NBD_OPTS_MAGIC)) {
+        LOG("Bad magic received");
+        goto fail;
+    }
+
+    if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
+        LOG("read failed");
+        goto fail;
+    }
+    TRACE("Checking option");
+    if (tmp != be32_to_cpu(NBD_OPT_EXPORT_NAME)) {
+        LOG("Bad option received");
+        goto fail;
+    }
+
+    if (read_sync(csock, &length, sizeof(length)) != sizeof(length)) {
+        LOG("read failed");
+        goto fail;
+    }
+    TRACE("Checking length");
+    length = be32_to_cpu(length);
+    if (length > 255) {
+        LOG("Bad length received");
+        goto fail;
+    }
+    if (read_sync(csock, name, length) != length) {
+        LOG("read failed");
+        goto fail;
+    }
+    name[length] = '\0';
+
+    client->exp = nbd_export_find(name);
+    if (!client->exp) {
+        LOG("export not found");
+        goto fail;
+    }
+
+    QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
+    nbd_export_get(client->exp);
+
+    TRACE("Option negotiation succeeded.");
+    rc = 0;
+fail:
+    return rc;
+}
 
 static int nbd_send_negotiate(NBDClient *client)
 {
     int csock = client->sock;
     char buf[8 + 8 + 8 + 128];
     int rc;
+    const int myflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
+                         NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
 
-    /* Negotiate
-        [ 0 ..   7]   passwd   ("NBDMAGIC")
-        [ 8 ..  15]   magic    (NBD_CLIENT_MAGIC)
+    /* Negotiation header without options:
+        [ 0 ..   7]   passwd       ("NBDMAGIC")
+        [ 8 ..  15]   magic        (NBD_CLIENT_MAGIC)
         [16 ..  23]   size
-        [24 ..  27]   flags
-        [28 .. 151]   reserved (0)
+        [24 ..  25]   server flags (0)
+        [24 ..  27]   export flags
+        [28 .. 151]   reserved     (0)
+
+       Negotiation header with options, part 1:
+        [ 0 ..   7]   passwd       ("NBDMAGIC")
+        [ 8 ..  15]   magic        (NBD_OPTS_MAGIC)
+        [16 ..  17]   server flags (0)
+
+       part 2 (after options are sent):
+        [18 ..  25]   size
+        [26 ..  27]   export flags
+        [28 .. 151]   reserved     (0)
      */
 
     socket_set_block(csock);
@@ -271,16 +375,39 @@ static int nbd_send_negotiate(NBDClient *client)
 
     TRACE("Beginning negotiation.");
     memcpy(buf, "NBDMAGIC", 8);
-    cpu_to_be64w((uint64_t*)(buf + 8), NBD_CLIENT_MAGIC);
-    cpu_to_be64w((uint64_t*)(buf + 16), client->exp->size);
-    cpu_to_be32w((uint32_t*)(buf + 24),
-                 client->exp->nbdflags | NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_TRIM |
-                 NBD_FLAG_SEND_FLUSH | NBD_FLAG_SEND_FUA);
+    if (client->exp) {
+        assert ((client->exp->nbdflags & ~65535) == 0);
+        cpu_to_be64w((uint64_t*)(buf + 8), NBD_CLIENT_MAGIC);
+        cpu_to_be64w((uint64_t*)(buf + 16), client->exp->size);
+        cpu_to_be16w((uint16_t*)(buf + 26), client->exp->nbdflags | myflags);
+    } else {
+        cpu_to_be64w((uint64_t*)(buf + 8), NBD_OPTS_MAGIC);
+    }
     memset(buf + 28, 0, 124);
 
-    if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
-        LOG("write failed");
-        goto fail;
+    if (client->exp) {
+        if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+            LOG("write failed");
+            goto fail;
+        }
+    } else {
+        if (write_sync(csock, buf, 18) != 18) {
+            LOG("write failed");
+            goto fail;
+        }
+        rc = nbd_receive_options(client);
+        if (rc < 0) {
+            LOG("option negotiation failed");
+            goto fail;
+        }
+
+        assert ((client->exp->nbdflags & ~65535) == 0);
+        cpu_to_be64w((uint64_t*)(buf + 18), client->exp->size);
+        cpu_to_be16w((uint16_t*)(buf + 26), client->exp->nbdflags | myflags);
+        if (write_sync(csock, buf + 18, sizeof(buf) - 18) != sizeof(buf) - 18) {
+            LOG("write failed");
+            goto fail;
+        }
     }
 
     TRACE("Negotiation succeeded.");
@@ -673,8 +800,10 @@ void nbd_client_put(NBDClient *client)
         qemu_set_fd_handler2(client->sock, NULL, NULL, NULL, NULL);
         close(client->sock);
         client->sock = -1;
-        QTAILQ_REMOVE(&client->exp->clients, client, next);
-        nbd_export_put(client->exp);
+        if (client->exp) {
+            QTAILQ_REMOVE(&client->exp->clients, client, next);
+            nbd_export_put(client->exp);
+        }
         g_free(client);
     }
 }
@@ -1100,7 +1229,9 @@ NBDClient *nbd_client_new(NBDExport *exp, int csock,
     qemu_co_mutex_init(&client->send_lock);
     qemu_set_fd_handler2(csock, nbd_can_read, nbd_read, NULL, client);
 
-    QTAILQ_INSERT_TAIL(&exp->clients, client, next);
-    nbd_export_get(exp);
+    if (exp) {
+        QTAILQ_INSERT_TAIL(&exp->clients, client, next);
+        nbd_export_get(exp);
+    }
     return client;
 }
