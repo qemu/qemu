@@ -1577,8 +1577,6 @@ int kvm_cpu_exec(CPUArchState *env)
         qemu_mutex_lock_iothread();
         kvm_arch_post_run(env, run);
 
-        kvm_flush_coalesced_mmio_buffer();
-
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {
                 DPRINTF("io window exit\n");
