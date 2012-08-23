@@ -556,14 +556,6 @@ static inline void set_cc_s64(DisasContext *s, TCGv_i64 val)
     gen_op_update1_cc_i64(s, CC_OP_LTGT0_64, val);
 }
 
-static void set_cc_cmp_f32_i64(DisasContext *s, TCGv_i32 v1, TCGv_i64 v2)
-{
-    tcg_gen_extu_i32_i64(cc_src, v1);
-    tcg_gen_mov_i64(cc_dst, v2);
-    tcg_gen_discard_i64(cc_vr);
-    s->cc_op = CC_OP_LTGT_F32;
-}
-
 static void gen_set_cc_nz_f32(DisasContext *s, TCGv_i32 v1)
 {
     gen_op_update1_cc_i32(s, CC_OP_NZ_F32, v1);
@@ -628,10 +620,9 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_LTUGTU_64:
     case CC_OP_TM_32:
     case CC_OP_TM_64:
-    case CC_OP_LTGT_F32:
-    case CC_OP_LTGT_F64:
     case CC_OP_SLA_32:
     case CC_OP_SLA_64:
+    case CC_OP_NZ_F128:
         /* 2 arguments */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, dummy);
         break;
@@ -1009,35 +1000,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
     addr = get_address(s, x2, b2, d2);
     tmp_r1 = tcg_const_i32(r1);
     switch (op) {
-    case 0x4: /* LDEB R1,D2(X2,B2) [RXE] */
-        potential_page_fault(s);
-        gen_helper_ldeb(cpu_env, tmp_r1, addr);
-        break;
-    case 0x5: /* LXDB R1,D2(X2,B2) [RXE] */
-        potential_page_fault(s);
-        gen_helper_lxdb(cpu_env, tmp_r1, addr);
-        break;
-    case 0x9: /* CEB    R1,D2(X2,B2)       [RXE] */
-        tmp = tcg_temp_new_i64();
-        tmp32 = load_freg32(r1);
-        tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
-        set_cc_cmp_f32_i64(s, tmp32, tmp);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32);
-        break;
-    case 0xa: /* AEB    R1,D2(X2,B2)       [RXE] */
-        tmp = tcg_temp_new_i64();
-        tmp32 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_aeb(cpu_env, tmp_r1, tmp32);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32);
-
-        tmp32 = load_freg32(r1);
-        gen_set_cc_nz_f32(s, tmp32);
-        tcg_temp_free_i32(tmp32);
-        break;
     case 0xb: /* SEB    R1,D2(X2,B2)       [RXE] */
         tmp = tcg_temp_new_i64();
         tmp32 = tcg_temp_new_i32();
@@ -1083,16 +1045,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
         gen_helper_meeb(cpu_env, tmp_r1, tmp32);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32);
-        break;
-    case 0x19: /* CDB    R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_cdb(cc_op, cpu_env, tmp_r1, addr);
-        set_cc_static(s);
-        break;
-    case 0x1a: /* ADB    R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_adb(cc_op, cpu_env, tmp_r1, addr);
-        set_cc_static(s);
         break;
     case 0x1b: /* SDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
@@ -1524,23 +1476,8 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     case 0x0: /* LPEBR       R1,R2             [RRE] */
         FP_HELPER_CC(lpebr);
         break;
-    case 0x2: /* LTEBR       R1,R2             [RRE] */
-        FP_HELPER_CC(ltebr);
-        break;
     case 0x3: /* LCEBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcebr);
-        break;
-    case 0x4: /* LDEBR       R1,R2             [RRE] */
-        FP_HELPER(ldebr);
-        break;
-    case 0x5: /* LXDBR       R1,R2             [RRE] */
-        FP_HELPER(lxdbr);
-        break;
-    case 0x9: /* CEBR        R1,R2             [RRE] */
-        FP_HELPER_CC(cebr);
-        break;
-    case 0xa: /* AEBR        R1,R2             [RRE] */
-        FP_HELPER_CC(aebr);
         break;
     case 0xb: /* SEBR        R1,R2             [RRE] */
         FP_HELPER_CC(sebr);
@@ -1551,9 +1488,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     case 0x10: /* LPDBR       R1,R2             [RRE] */
         FP_HELPER_CC(lpdbr);
         break;
-    case 0x12: /* LTDBR       R1,R2             [RRE] */
-        FP_HELPER_CC(ltdbr);
-        break;
     case 0x13: /* LCDBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcdbr);
         break;
@@ -1562,12 +1496,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x17: /* MEEBR       R1,R2             [RRE] */
         FP_HELPER(meebr);
-        break;
-    case 0x19: /* CDBR        R1,R2             [RRE] */
-        FP_HELPER_CC(cdbr);
-        break;
-    case 0x1a: /* ADBR        R1,R2             [RRE] */
-        FP_HELPER_CC(adbr);
         break;
     case 0x1b: /* SDBR        R1,R2             [RRE] */
         FP_HELPER_CC(sdbr);
@@ -1605,26 +1533,8 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     case 0x40: /* LPXBR       R1,R2             [RRE] */
         FP_HELPER_CC(lpxbr);
         break;
-    case 0x42: /* LTXBR       R1,R2             [RRE] */
-        FP_HELPER_CC(ltxbr);
-        break;
     case 0x43: /* LCXBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcxbr);
-        break;
-    case 0x44: /* LEDBR       R1,R2             [RRE] */
-        FP_HELPER(ledbr);
-        break;
-    case 0x45: /* LDXBR       R1,R2             [RRE] */
-        FP_HELPER(ldxbr);
-        break;
-    case 0x46: /* LEXBR       R1,R2             [RRE] */
-        FP_HELPER(lexbr);
-        break;
-    case 0x49: /* CXBR        R1,R2             [RRE] */
-        FP_HELPER_CC(cxbr);
-        break;
-    case 0x4a: /* AXBR        R1,R2             [RRE] */
-        FP_HELPER_CC(axbr);
         break;
     case 0x4b: /* SXBR        R1,R2             [RRE] */
         FP_HELPER_CC(sxbr);
@@ -2260,6 +2170,25 @@ static ExitStatus op_addc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_aeb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_aeb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_adb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_adb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_axb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_axb(o->out, cpu_env, o->out, o->out2, o->in1, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_and(DisasContext *s, DisasOps *o)
 {
     tcg_gen_and_i64(o->out, o->in1, o->in2);
@@ -2352,6 +2281,27 @@ static ExitStatus op_bct64(DisasContext *s, DisasOps *o)
     c.u.s64.b = tcg_const_i64(0);
 
     return help_branch(s, &c, is_imm, imm, o->in2);
+}
+
+static ExitStatus op_ceb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_ceb(cc_op, cpu_env, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_cdb(cc_op, cpu_env, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_cxb(cc_op, cpu_env, o->out, o->out2, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
 }
 
 static ExitStatus op_clc(DisasContext *s, DisasOps *o)
@@ -2607,6 +2557,44 @@ static ExitStatus op_insi(DisasContext *s, DisasOps *o)
     int shift = s->insn->data & 0xff;
     int size = s->insn->data >> 8;
     tcg_gen_deposit_i64(o->out, o->in1, o->in2, shift, size);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ldeb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_ldeb(o->out, cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ledb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_ledb(o->out, cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ldxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_ldxb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lexb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_lexb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lxdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_lxdb(o->out, cpu_env, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_lxeb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_lxeb(o->out, cpu_env, o->in2);
+    return_low128(o->out2);
     return NO_EXIT;
 }
 
@@ -3369,6 +3357,21 @@ static void cout_cmpu64(DisasContext *s, DisasOps *o)
     gen_op_update2_cc_i64(s, CC_OP_LTUGTU_64, o->in1, o->in2);
 }
 
+static void cout_f32(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_NZ_F32, o->out);
+}
+
+static void cout_f64(DisasContext *s, DisasOps *o)
+{
+    gen_op_update1_cc_i64(s, CC_OP_NZ_F64, o->out);
+}
+
+static void cout_f128(DisasContext *s, DisasOps *o)
+{
+    gen_op_update2_cc_i64(s, CC_OP_NZ_F128, o->out, o->out2);
+}
+
 static void cout_nabs32(DisasContext *s, DisasOps *o)
 {
     gen_op_update1_cc_i64(s, CC_OP_NABS_32, o->out);
@@ -3482,6 +3485,21 @@ static void prep_r1_P(DisasContext *s, DisasFields *f, DisasOps *o)
     o->g_out = o->g_out2 = true;
 }
 
+static void prep_f1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->out = fregs[get_field(f, r1)];
+    o->g_out = true;
+}
+
+static void prep_x1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* ??? Specification exception: r1 must be < 14.  */
+    int r1 = get_field(f, r1);
+    o->out = fregs[r1];
+    o->out2 = fregs[(r1 + 2) & 15];
+    o->g_out = o->g_out2 = true;
+}
+
 /* ====================================================================== */
 /* The "Write OUTput" generators.  These generally perform some non-trivial
    copy of data to TCG globals, or to main memory.  The trivial cases are
@@ -3539,6 +3557,7 @@ static void wout_f1(DisasContext *s, DisasFields *f, DisasOps *o)
 
 static void wout_x1(DisasContext *s, DisasFields *f, DisasOps *o)
 {
+    /* ??? Specification exception: r1 must be < 14.  */
     int f1 = get_field(s->fields, r1);
     store_freg(f1, o->out);
     store_freg((f1 + 2) & 15, o->out2);
@@ -3683,6 +3702,15 @@ static void in1_f1_o(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in1 = fregs[get_field(f, r1)];
     o->g_in1 = true;
+}
+
+static void in1_x1_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* ??? Specification exception: r1 must be < 14.  */
+    int r1 = get_field(f, r1);
+    o->out = fregs[r1];
+    o->out2 = fregs[(r1 + 2) & 15];
+    o->g_out = o->g_out2 = true;
 }
 
 static void in1_la1(DisasContext *s, DisasFields *f, DisasOps *o)
@@ -3832,9 +3860,10 @@ static void in2_f2_o(DisasContext *s, DisasFields *f, DisasOps *o)
 
 static void in2_x2_o(DisasContext *s, DisasFields *f, DisasOps *o)
 {
-    int f2 = get_field(f, r2);
-    o->in1 = fregs[f2];
-    o->in2 = fregs[(f2 + 2) & 15];
+    /* ??? Specification exception: r1 must be < 14.  */
+    int r2 = get_field(f, r2);
+    o->in1 = fregs[r2];
+    o->in2 = fregs[(r2 + 2) & 15];
     o->g_in1 = o->g_in2 = true;
 }
 

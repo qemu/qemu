@@ -8,6 +8,11 @@
     C(0xb9e8, AGRK,    RRF_a, DO,  r2, r3, r1, 0, add, adds64)
     C(0xe308, AG,      RXY_a, Z,   r1, m2_64, r1, 0, add, adds64)
     C(0xe318, AGF,     RXY_a, Z,   r1, m2_32s, r1, 0, add, adds64)
+    C(0xb30a, AEBR,    RRE,   Z,   e1, e2, new, e1, aeb, f32)
+    C(0xb31a, ADBR,    RRE,   Z,   f1_o, f2_o, f1, 0, adb, f64)
+    C(0xb34a, AXBR,    RRE,   Z,   0, x2_o, x1, 0, axb, f128)
+    C(0xed0a, AEB,     RXE,   Z,   e1, m2_32u, new, e1, aeb, f32)
+    C(0xed1a, ADB,     RXE,   Z,   f1_o, m2_64, f1, 0, adb, f64)
 /* ADD IMMEDIATE */
     C(0xc209, AFI,     RIL_a, EI,  r1, i2, new, r1_32, add, adds32)
     C(0xeb6a, ASI,     SIY,   GIE, m1_32s, i2, new, m1_32, add, adds32)
@@ -94,6 +99,11 @@
     C(0xb930, CGFR,    RRE,   Z,   r1_o, r2_32s, 0, 0, 0, cmps64)
     C(0xe320, CG,      RXY_a, Z,   r1_o, m2_64, 0, 0, 0, cmps64)
     C(0xe330, CGF,     RXY_a, Z,   r1_o, m2_32s, 0, 0, 0, cmps64)
+    C(0xb309, CEBR,    RRE,   Z,   e1, e2, 0, 0, ceb, 0)
+    C(0xb319, CDBR,    RRE,   Z,   f1_o, f2_o, 0, 0, cdb, 0)
+    C(0xb349, CXBR,    RRE,   Z,   x1_o, x2_o, 0, 0, cxb, 0)
+    C(0xed09, CEB,     RXE,   Z,   e1, m2_32u, 0, 0, ceb, 0)
+    C(0xed19, CDB,     RXE,   Z,   f1_o, m2_64, 0, 0, cdb, 0)
 /* COMPARE IMMEDIATE */
     C(0xc20d, CFI,     RIL_a, EI,  r1, i2, 0, 0, 0, cmps32)
     C(0xc20c, CGFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmps64)
@@ -239,6 +249,9 @@
     C(0xe312, LT,      RXY_a, EI,  0, a2, new, r1_32, ld32s, s64)
     C(0xe302, LTG,     RXY_a, EI,  0, a2, r1, 0, ld64, s64)
     C(0xe332, LTGF,    RXY_a, GIE, 0, a2, r1, 0, ld32s, s64)
+    C(0xb302, LTEBR,   RRE,   Z,   0, e2, 0, cond_e1e2, mov2, f32)
+    C(0xb312, LTDBR,   RRE,   Z,   0, f2_o, 0, f1, mov2, f64)
+    C(0xb342, LTXBR,   RRE,   Z,   0, x2_o, 0, x1, movx, f128)
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
@@ -302,6 +315,18 @@
     C(0xe31f, LRVH,    RXY_a, Z,   0, m2_16u, new, r1_16, rev16, 0)
     C(0xe31e, LRV,     RXY_a, Z,   0, m2_32u, new, r1_32, rev32, 0)
     C(0xe30f, LRVG,    RXY_a, Z,   0, m2_64, r1, 0, rev64, 0)
+
+/* LOAD LENGTHENED */
+    C(0xb304, LDEBR,   RRE,   Z,   0, e2, f1, 0, ldeb, 0)
+    C(0xb305, LXDBR,   RRE,   Z,   0, f2_o, x1, 0, lxdb, 0)
+    C(0xb306, LXEBR,   RRE,   Z,   0, e2, x1, 0, lxeb, 0)
+    C(0xed04, LDEB,    RXE,   Z,   0, m2_32u, f1, 0, ldeb, 0)
+    C(0xed05, LXDB,    RXE,   Z,   0, m2_64, x1, 0, lxdb, 0)
+    C(0xed06, LXEB,    RXE,   Z,   0, m2_32u, x1, 0, lxeb, 0)
+/* LOAD ROUNDED */
+    C(0xb344, LEDBR,   RRE,   Z,   0, f2_o, new, e1, ledb, 0)
+    C(0xb345, LDXBR,   RRE,   Z,   0, x2_o, f1, 0, ldxb, 0)
+    C(0xb346, LEXBR,   RRE,   Z,   0, x2_o, new, e1, lexb, 0)
 
 /* LOAD MULTIPLE */
     C(0x9800, LM,      RS_a,  Z,   0, a2, 0, 0, lm32, 0)

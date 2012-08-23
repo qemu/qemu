@@ -471,11 +471,9 @@ enum cc_op {
     CC_OP_TM_32,                /* test under mask (32bit) */
     CC_OP_TM_64,                /* test under mask (64bit) */
 
-    CC_OP_LTGT_F32,             /* FP compare (32bit) */
-    CC_OP_LTGT_F64,             /* FP compare (64bit) */
-
     CC_OP_NZ_F32,               /* FP dst != 0 (32bit) */
     CC_OP_NZ_F64,               /* FP dst != 0 (64bit) */
+    CC_OP_NZ_F128,              /* FP dst != 0 (128bit) */
 
     CC_OP_ICM,                  /* insert characters under mask */
     CC_OP_SLA_32,               /* Calculate shift left signed (32bit) */
@@ -517,10 +515,9 @@ static const char *cc_names[] = {
     [CC_OP_COMP_64]   = "CC_OP_COMP_64",
     [CC_OP_TM_32]     = "CC_OP_TM_32",
     [CC_OP_TM_64]     = "CC_OP_TM_64",
-    [CC_OP_LTGT_F32]  = "CC_OP_LTGT_F32",
-    [CC_OP_LTGT_F64]  = "CC_OP_LTGT_F64",
     [CC_OP_NZ_F32]    = "CC_OP_NZ_F32",
     [CC_OP_NZ_F64]    = "CC_OP_NZ_F64",
+    [CC_OP_NZ_F128]   = "CC_OP_NZ_F128",
     [CC_OP_ICM]       = "CC_OP_ICM",
     [CC_OP_SLA_32]    = "CC_OP_SLA_32",
     [CC_OP_SLA_64]    = "CC_OP_SLA_64",
@@ -926,10 +923,9 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 }
 
 /* fpu_helper.c */
-uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2);
-uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2);
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
+uint32_t set_cc_nz_f128(float128 v);
 
 /* misc_helper.c */
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);

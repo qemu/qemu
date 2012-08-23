@@ -32,6 +32,52 @@
 #define HELPER_LOG(x...)
 #endif
 
+#define RET128(F) (env->retxl = F.low, F.high)
+
+#define convert_bit(mask, from, to) \
+    (to < from                      \
+     ? (mask / (from / to)) & to    \
+     : (mask & from) * (to / from))
+
+static void ieee_exception(CPUS390XState *env, uint32_t dxc, uintptr_t retaddr)
+{
+    /* Install the DXC code.  */
+    env->fpc = (env->fpc & ~0xff00) | (dxc << 8);
+    /* Trap.  */
+    runtime_exception(env, PGM_DATA, retaddr);
+}
+
+/* Should be called after any operation that may raise IEEE exceptions.  */
+static void handle_exceptions(CPUS390XState *env, uintptr_t retaddr)
+{
+    unsigned s390_exc, qemu_exc;
+
+    /* Get the exceptions raised by the current operation.  Reset the
+       fpu_status contents so that the next operation has a clean slate.  */
+    qemu_exc = env->fpu_status.float_exception_flags;
+    if (qemu_exc == 0) {
+        return;
+    }
+    env->fpu_status.float_exception_flags = 0;
+
+    /* Convert softfloat exception bits to s390 exception bits.  */
+    s390_exc = 0;
+    s390_exc |= convert_bit(qemu_exc, float_flag_invalid, 0x80);
+    s390_exc |= convert_bit(qemu_exc, float_flag_divbyzero, 0x40);
+    s390_exc |= convert_bit(qemu_exc, float_flag_overflow, 0x20);
+    s390_exc |= convert_bit(qemu_exc, float_flag_underflow, 0x10);
+    s390_exc |= convert_bit(qemu_exc, float_flag_inexact, 0x08);
+
+    /* Install the exceptions that we raised.  */
+    env->fpc |= s390_exc << 16;
+
+    /* Send signals for enabled exceptions.  */
+    s390_exc &= env->fpc >> 24;
+    if (s390_exc) {
+        ieee_exception(env, s390_exc, retaddr);
+    }
+}
+
 static inline int float_comp_to_cc(CPUS390XState *env, int float_compare)
 {
     switch (float_compare) {
@@ -46,19 +92,6 @@ static inline int float_comp_to_cc(CPUS390XState *env, int float_compare)
     default:
         cpu_abort(env, "unknown return value for float compare\n");
     }
-}
-
-/* condition codes for binary FP ops */
-uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2)
-{
-    return float_comp_to_cc(env, float32_compare_quiet(v1, v2,
-                                                       &env->fpu_status));
-}
-
-uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2)
-{
-    return float_comp_to_cc(env, float64_compare_quiet(v1, v2,
-                                                       &env->fpu_status));
 }
 
 /* condition codes for unary FP ops */
@@ -88,7 +121,7 @@ uint32_t set_cc_nz_f64(float64 v)
     }
 }
 
-static uint32_t set_cc_nz_f128(float128 v)
+uint32_t set_cc_nz_f128(float128 v)
 {
     if (float128_is_any_nan(v)) {
         return 3;
@@ -152,27 +185,31 @@ void HELPER(cefbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
                env->fregs[f1].l.upper, f1);
 }
 
-/* 32-bit FP addition RR */
-uint32_t HELPER(aebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 32-bit FP addition */
+uint64_t HELPER(aeb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
-    env->fregs[f1].l.upper = float32_add(env->fregs[f1].l.upper,
-                                         env->fregs[f2].l.upper,
-                                         &env->fpu_status);
-    HELPER_LOG("%s: adding 0x%d resulting in 0x%d in f%d\n", __func__,
-               env->fregs[f2].l.upper, env->fregs[f1].l.upper, f1);
-
-    return set_cc_nz_f32(env->fregs[f1].l.upper);
+    float32 ret = float32_add(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
-/* 64-bit FP addition RR */
-uint32_t HELPER(adbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 64-bit FP addition */
+uint64_t HELPER(adb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
-    env->fregs[f1].d = float64_add(env->fregs[f1].d, env->fregs[f2].d,
-                                   &env->fpu_status);
-    HELPER_LOG("%s: adding 0x%ld resulting in 0x%ld in f%d\n", __func__,
-               env->fregs[f2].d, env->fregs[f1].d, f1);
+    float64 ret = float64_add(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
 
-    return set_cc_nz_f64(env->fregs[f1].d);
+/* 128-bit FP addition */
+uint64_t HELPER(axb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                     uint64_t bh, uint64_t bl)
+{
+    float128 ret = float128_add(make_float128(ah, al),
+                                make_float128(bh, bl),
+                                &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
 }
 
 /* 32-bit FP subtraction RR */
@@ -246,50 +283,51 @@ void HELPER(mxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 }
 
 /* convert 32-bit float to 64-bit float */
-void HELPER(ldebr)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+uint64_t HELPER(ldeb)(CPUS390XState *env, uint64_t f2)
 {
-    env->fregs[r1].d = float32_to_float64(env->fregs[r2].l.upper,
-                                          &env->fpu_status);
+    float64 ret = float32_to_float64(f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
 /* convert 128-bit float to 64-bit float */
-void HELPER(ldxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+uint64_t HELPER(ldxb)(CPUS390XState *env, uint64_t ah, uint64_t al)
 {
-    CPU_QuadU x2;
-
-    x2.ll.upper = env->fregs[f2].ll;
-    x2.ll.lower = env->fregs[f2 + 2].ll;
-    env->fregs[f1].d = float128_to_float64(x2.q, &env->fpu_status);
-    HELPER_LOG("%s: to 0x%ld\n", __func__, env->fregs[f1].d);
+    float64 ret = float128_to_float64(make_float128(ah, al), &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
 /* convert 64-bit float to 128-bit float */
-void HELPER(lxdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+uint64_t HELPER(lxdb)(CPUS390XState *env, uint64_t f2)
 {
-    CPU_QuadU res;
+    float128 ret = float64_to_float128(f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
+}
 
-    res.q = float64_to_float128(env->fregs[f2].d, &env->fpu_status);
-    env->fregs[f1].ll = res.ll.upper;
-    env->fregs[f1 + 2].ll = res.ll.lower;
+/* convert 32-bit float to 128-bit float */
+uint64_t HELPER(lxeb)(CPUS390XState *env, uint64_t f2)
+{
+    float128 ret = float32_to_float128(f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
 }
 
 /* convert 64-bit float to 32-bit float */
-void HELPER(ledbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+uint64_t HELPER(ledb)(CPUS390XState *env, uint64_t f2)
 {
-    float64 d2 = env->fregs[f2].d;
-
-    env->fregs[f1].l.upper = float64_to_float32(d2, &env->fpu_status);
+    float32 ret = float64_to_float32(f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
 /* convert 128-bit float to 32-bit float */
-void HELPER(lexbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+uint64_t HELPER(lexb)(CPUS390XState *env, uint64_t ah, uint64_t al)
 {
-    CPU_QuadU x2;
-
-    x2.ll.upper = env->fregs[f2].ll;
-    x2.ll.lower = env->fregs[f2 + 2].ll;
-    env->fregs[f1].l.upper = float128_to_float32(x2.q, &env->fpu_status);
-    HELPER_LOG("%s: to 0x%d\n", __func__, env->fregs[f1].l.upper);
+    float32 ret = float128_to_float32(make_float128(ah, al), &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
 }
 
 /* absolute value of 32-bit float */
@@ -328,32 +366,6 @@ uint32_t HELPER(lpxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
     return set_cc_nz_f128(v1.q);
 }
 
-/* load and test 64-bit float */
-uint32_t HELPER(ltdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
-{
-    env->fregs[f1].d = env->fregs[f2].d;
-    return set_cc_nz_f64(env->fregs[f1].d);
-}
-
-/* load and test 32-bit float */
-uint32_t HELPER(ltebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
-{
-    env->fregs[f1].l.upper = env->fregs[f2].l.upper;
-    return set_cc_nz_f32(env->fregs[f1].l.upper);
-}
-
-/* load and test 128-bit float */
-uint32_t HELPER(ltxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
-{
-    CPU_QuadU x;
-
-    x.ll.upper = env->fregs[f2].ll;
-    x.ll.lower = env->fregs[f2 + 2].ll;
-    env->fregs[f1].ll = x.ll.upper;
-    env->fregs[f1 + 2].ll = x.ll.lower;
-    return set_cc_nz_f128(x.q);
-}
-
 /* load complement of 32-bit float */
 uint32_t HELPER(lcebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
@@ -383,18 +395,6 @@ uint32_t HELPER(lcxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
     return set_cc_nz_f128(x1.q);
 }
 
-/* 32-bit FP addition RM */
-void HELPER(aeb)(CPUS390XState *env, uint32_t f1, uint32_t val)
-{
-    float32 v1 = env->fregs[f1].l.upper;
-    CPU_FloatU v2;
-
-    v2.l = val;
-    HELPER_LOG("%s: adding 0x%d from f%d and 0x%d\n", __func__,
-               v1, f1, v2.f);
-    env->fregs[f1].l.upper = float32_add(v1, v2.f, &env->fpu_status);
-}
-
 /* 32-bit FP division RM */
 void HELPER(deb)(CPUS390XState *env, uint32_t f1, uint32_t val)
 {
@@ -419,66 +419,31 @@ void HELPER(meeb)(CPUS390XState *env, uint32_t f1, uint32_t val)
     env->fregs[f1].l.upper = float32_mul(v1, v2.f, &env->fpu_status);
 }
 
-/* 32-bit FP compare RR */
-uint32_t HELPER(cebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 32-bit FP compare */
+uint32_t HELPER(ceb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
-    float32 v1 = env->fregs[f1].l.upper;
-    float32 v2 = env->fregs[f2].l.upper;
-
-    HELPER_LOG("%s: comparing 0x%d from f%d and 0x%d\n", __func__,
-               v1, f1, v2);
-    return set_cc_f32(env, v1, v2);
+    int cmp = float32_compare_quiet(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return float_comp_to_cc(env, cmp);
 }
 
-/* 64-bit FP compare RR */
-uint32_t HELPER(cdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 64-bit FP compare */
+uint32_t HELPER(cdb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
-    float64 v1 = env->fregs[f1].d;
-    float64 v2 = env->fregs[f2].d;
-
-    HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%ld\n", __func__,
-               v1, f1, v2);
-    return set_cc_f64(env, v1, v2);
+    int cmp = float64_compare_quiet(f1, f2, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return float_comp_to_cc(env, cmp);
 }
 
-/* 128-bit FP compare RR */
-uint32_t HELPER(cxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
+/* 128-bit FP compare */
+uint32_t HELPER(cxb)(CPUS390XState *env, uint64_t ah, uint64_t al,
+                     uint64_t bh, uint64_t bl)
 {
-    CPU_QuadU v1;
-    CPU_QuadU v2;
-
-    v1.ll.upper = env->fregs[f1].ll;
-    v1.ll.lower = env->fregs[f1 + 2].ll;
-    v2.ll.upper = env->fregs[f2].ll;
-    v2.ll.lower = env->fregs[f2 + 2].ll;
-
-    return float_comp_to_cc(env, float128_compare_quiet(v1.q, v2.q,
-                                                   &env->fpu_status));
-}
-
-/* 64-bit FP compare RM */
-uint32_t HELPER(cdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
-{
-    float64 v1 = env->fregs[f1].d;
-    CPU_DoubleU v2;
-
-    v2.ll = cpu_ldq_data(env, a2);
-    HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%lx\n", __func__, v1,
-               f1, v2.d);
-    return set_cc_f64(env, v1, v2.d);
-}
-
-/* 64-bit FP addition RM */
-uint32_t HELPER(adb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
-{
-    float64 v1 = env->fregs[f1].d;
-    CPU_DoubleU v2;
-
-    v2.ll = cpu_ldq_data(env, a2);
-    HELPER_LOG("%s: adding 0x%lx from f%d and 0x%lx\n", __func__,
-               v1, f1, v2.d);
-    env->fregs[f1].d = v1 = float64_add(v1, v2.d, &env->fpu_status);
-    return set_cc_nz_f64(v1);
+    int cmp = float128_compare_quiet(make_float128(ah, al),
+                                     make_float128(bh, bl),
+                                     &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return float_comp_to_cc(env, cmp);
 }
 
 /* 32-bit FP subtraction RM */
@@ -672,23 +637,6 @@ uint32_t HELPER(sxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
     return set_cc_nz_f128(res.q);
 }
 
-/* 128-bit FP addition RR */
-uint32_t HELPER(axbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
-{
-    CPU_QuadU v1;
-    CPU_QuadU v2;
-    CPU_QuadU res;
-
-    v1.ll.upper = env->fregs[f1].ll;
-    v1.ll.lower = env->fregs[f1 + 2].ll;
-    v2.ll.upper = env->fregs[f2].ll;
-    v2.ll.lower = env->fregs[f2 + 2].ll;
-    res.q = float128_add(v1.q, v2.q, &env->fpu_status);
-    env->fregs[f1].ll = res.ll.upper;
-    env->fregs[f1 + 2].ll = res.ll.lower;
-    return set_cc_nz_f128(res.q);
-}
-
 /* 32-bit FP multiplication RR */
 void HELPER(meebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
@@ -745,28 +693,6 @@ void HELPER(maebr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
                                                      env->fregs[f3].l.upper,
                                                      &env->fpu_status),
                                          &env->fpu_status);
-}
-
-/* convert 32-bit float to 64-bit float */
-void HELPER(ldeb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
-{
-    uint32_t v2;
-
-    v2 = cpu_ldl_data(env, a2);
-    env->fregs[f1].d = float32_to_float64(v2,
-                                          &env->fpu_status);
-}
-
-/* convert 64-bit float to 128-bit float */
-void HELPER(lxdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
-{
-    CPU_DoubleU v2;
-    CPU_QuadU v1;
-
-    v2.ll = cpu_ldq_data(env, a2);
-    v1.q = float64_to_float128(v2.d, &env->fpu_status);
-    env->fregs[f1].ll = v1.ll.upper;
-    env->fregs[f1 + 2].ll = v1.ll.lower;
 }
 
 /* test data class 32-bit */

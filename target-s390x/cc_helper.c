@@ -505,17 +505,14 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         r =  cc_calc_sla_64(src, dst);
         break;
 
-    case CC_OP_LTGT_F32:
-        r = set_cc_f32(env, src, dst);
-        break;
-    case CC_OP_LTGT_F64:
-        r = set_cc_f64(env, src, dst);
-        break;
     case CC_OP_NZ_F32:
         r = set_cc_nz_f32(dst);
         break;
     case CC_OP_NZ_F64:
         r = set_cc_nz_f64(dst);
+        break;
+    case CC_OP_NZ_F128:
+        r = set_cc_nz_f128(make_float128(src, dst));
         break;
 
     default:
