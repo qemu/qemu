@@ -7409,8 +7409,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             modrm = ldub_code(s->pc++);
-            if ((modrm & 0xc0) != 0xc0)
-                goto illegal_op;
+            /* Ignore the mod bits (assume (modrm&0xc0)==0xc0).
+             * AMD documentation (24594.pdf) and testing of
+             * intel 386 and 486 processors all show that the mod bits
+             * are assumed to be 1's, regardless of actual values.
+             */
             rm = (modrm & 7) | REX_B(s);
             reg = ((modrm >> 3) & 7) | rex_r;
             if (CODE64(s))
@@ -7451,8 +7454,11 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
         } else {
             modrm = ldub_code(s->pc++);
-            if ((modrm & 0xc0) != 0xc0)
-                goto illegal_op;
+            /* Ignore the mod bits (assume (modrm&0xc0)==0xc0).
+             * AMD documentation (24594.pdf) and testing of
+             * intel 386 and 486 processors all show that the mod bits
+             * are assumed to be 1's, regardless of actual values.
+             */
             rm = (modrm & 7) | REX_B(s);
             reg = ((modrm >> 3) & 7) | rex_r;
             if (CODE64(s))
