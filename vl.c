@@ -2352,8 +2352,9 @@ int main(int argc, char **argv, char **envp)
     char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
     DisplayChangeListener *dcl;
-    int cyls, heads, secs, translation;
-    QemuOpts *hda_opts = NULL, *opts, *machine_opts;
+    char hdachs_params[512];  /* save -hdachs to apply to later -hda */
+    QemuOpts *hda_opts = NULL; /* save -hda to be modified by later -hdachs */
+    QemuOpts *opts, *machine_opts;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2408,8 +2409,7 @@ int main(int argc, char **argv, char **envp)
     cpu_model = NULL;
     ram_size = 0;
     snapshot = 0;
-    cyls = heads = secs = 0;
-    translation = BIOS_ATA_TRANSLATION_AUTO;
+    snprintf(hdachs_params, sizeof(hdachs_params), "%s", HD_OPTS);
 
     for (i = 0; i < MAX_NODES; i++) {
         node_mem[i] = 0;
@@ -2457,7 +2457,7 @@ int main(int argc, char **argv, char **envp)
         if (optind >= argc)
             break;
         if (argv[optind][0] != '-') {
-	    hda_opts = drive_add(IF_DEFAULT, 0, argv[optind++], HD_OPTS);
+            hda_opts = drive_add(IF_DEFAULT, 0, argv[optind++], hdachs_params);
         } else {
             const QEMUOption *popt;
 
@@ -2475,21 +2475,8 @@ int main(int argc, char **argv, char **envp)
                 cpu_model = optarg;
                 break;
             case QEMU_OPTION_hda:
-                {
-                    char buf[256];
-                    if (cyls == 0)
-                        snprintf(buf, sizeof(buf), "%s", HD_OPTS);
-                    else
-                        snprintf(buf, sizeof(buf),
-                                 "%s,cyls=%d,heads=%d,secs=%d%s",
-                                 HD_OPTS , cyls, heads, secs,
-                                 translation == BIOS_ATA_TRANSLATION_LBA ?
-                                 ",trans=lba" :
-                                 translation == BIOS_ATA_TRANSLATION_NONE ?
-                                 ",trans=none" : "");
-                    drive_add(IF_DEFAULT, 0, optarg, buf);
-                    break;
-                }
+                hda_opts = drive_add(IF_DEFAULT, 0, optarg, hdachs_params);
+                break;
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
@@ -2523,7 +2510,10 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_hdachs:
                 {
+                    int cyls, heads, secs, translation;
                     const char *p;
+                    cyls = heads = secs = 0;
+                    translation = BIOS_ATA_TRANSLATION_AUTO;
                     p = optarg;
                     cyls = strtol(p, (char **)&p, 0);
                     if (cyls < 1 || cyls > 16383)
@@ -2555,7 +2545,14 @@ int main(int argc, char **argv, char **envp)
                         fprintf(stderr, "qemu: invalid physical CHS format\n");
                         exit(1);
                     }
-		    if (hda_opts != NULL) {
+                    snprintf(hdachs_params, sizeof(hdachs_params),
+                             "%s,cyls=%d,heads=%d,secs=%d%s",
+                             HD_OPTS , cyls, heads, secs,
+                             translation == BIOS_ATA_TRANSLATION_LBA ?
+                             ",trans=lba" :
+                             translation == BIOS_ATA_TRANSLATION_NONE ?
+                             ",trans=none" : "");
+                    if (hda_opts != NULL) {
                         char num[16];
                         snprintf(num, sizeof(num), "%d", cyls);
                         qemu_opt_set(hda_opts, "cyls", num);
