@@ -79,8 +79,8 @@ struct USBRedirDevice {
     /* Data passed from chardev the fd_read cb to the usbredirparser read cb */
     const uint8_t *read_buf;
     int read_buf_size;
-    /* For async handling of open/close */
-    QEMUBH *open_close_bh;
+    /* For async handling of close */
+    QEMUBH *chardev_close_bh;
     /* To delay the usb attach in case of quick chardev close + open */
     QEMUTimer *attach_timer;
     int64_t next_attach_time;
@@ -784,18 +784,11 @@ static int usbredir_handle_control(USBDevice *udev, USBPacket *p,
  * from within the USBDevice data / control packet callbacks and doing a
  * usb_detach from within these callbacks is not a good idea.
  *
- * So we use a bh handler to take care of close events. We also handle
- * open events from this callback to make sure that a close directly followed
- * by an open gets handled in the right order.
+ * So we use a bh handler to take care of close events.
  */
-static void usbredir_open_close_bh(void *opaque)
+static void usbredir_chardev_close_bh(void *opaque)
 {
     USBRedirDevice *dev = opaque;
-    uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
-    char version[32];
-
-    strcpy(version, "qemu usb-redir guest ");
-    pstrcat(version, sizeof(version), qemu_get_version());
 
     usbredir_device_disconnect(dev);
 
@@ -803,36 +796,47 @@ static void usbredir_open_close_bh(void *opaque)
         usbredirparser_destroy(dev->parser);
         dev->parser = NULL;
     }
+}
 
-    if (dev->cs->opened) {
-        dev->parser = qemu_oom_check(usbredirparser_create());
-        dev->parser->priv = dev;
-        dev->parser->log_func = usbredir_log;
-        dev->parser->read_func = usbredir_read;
-        dev->parser->write_func = usbredir_write;
-        dev->parser->hello_func = usbredir_hello;
-        dev->parser->device_connect_func = usbredir_device_connect;
-        dev->parser->device_disconnect_func = usbredir_device_disconnect;
-        dev->parser->interface_info_func = usbredir_interface_info;
-        dev->parser->ep_info_func = usbredir_ep_info;
-        dev->parser->configuration_status_func = usbredir_configuration_status;
-        dev->parser->alt_setting_status_func = usbredir_alt_setting_status;
-        dev->parser->iso_stream_status_func = usbredir_iso_stream_status;
-        dev->parser->interrupt_receiving_status_func =
-            usbredir_interrupt_receiving_status;
-        dev->parser->bulk_streams_status_func = usbredir_bulk_streams_status;
-        dev->parser->control_packet_func = usbredir_control_packet;
-        dev->parser->bulk_packet_func = usbredir_bulk_packet;
-        dev->parser->iso_packet_func = usbredir_iso_packet;
-        dev->parser->interrupt_packet_func = usbredir_interrupt_packet;
-        dev->read_buf = NULL;
-        dev->read_buf_size = 0;
+static void usbredir_chardev_open(USBRedirDevice *dev)
+{
+    uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
+    char version[32];
 
-        usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
-        usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
-        usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE, 0);
-        usbredirparser_do_write(dev->parser);
-    }
+    /* Make sure any pending closes are handled (no-op if none pending) */
+    usbredir_chardev_close_bh(dev);
+    qemu_bh_cancel(dev->chardev_close_bh);
+
+    strcpy(version, "qemu usb-redir guest ");
+    pstrcat(version, sizeof(version), qemu_get_version());
+
+    dev->parser = qemu_oom_check(usbredirparser_create());
+    dev->parser->priv = dev;
+    dev->parser->log_func = usbredir_log;
+    dev->parser->read_func = usbredir_read;
+    dev->parser->write_func = usbredir_write;
+    dev->parser->hello_func = usbredir_hello;
+    dev->parser->device_connect_func = usbredir_device_connect;
+    dev->parser->device_disconnect_func = usbredir_device_disconnect;
+    dev->parser->interface_info_func = usbredir_interface_info;
+    dev->parser->ep_info_func = usbredir_ep_info;
+    dev->parser->configuration_status_func = usbredir_configuration_status;
+    dev->parser->alt_setting_status_func = usbredir_alt_setting_status;
+    dev->parser->iso_stream_status_func = usbredir_iso_stream_status;
+    dev->parser->interrupt_receiving_status_func =
+        usbredir_interrupt_receiving_status;
+    dev->parser->bulk_streams_status_func = usbredir_bulk_streams_status;
+    dev->parser->control_packet_func = usbredir_control_packet;
+    dev->parser->bulk_packet_func = usbredir_bulk_packet;
+    dev->parser->iso_packet_func = usbredir_iso_packet;
+    dev->parser->interrupt_packet_func = usbredir_interrupt_packet;
+    dev->read_buf = NULL;
+    dev->read_buf_size = 0;
+
+    usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
+    usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
+    usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE, 0);
+    usbredirparser_do_write(dev->parser);
 }
 
 static void usbredir_do_attach(void *opaque)
@@ -856,13 +860,13 @@ static int usbredir_chardev_can_read(void *opaque)
 {
     USBRedirDevice *dev = opaque;
 
-    if (dev->parser) {
-        /* usbredir_parser_do_read will consume *all* data we give it */
-        return 1024 * 1024;
-    } else {
-        /* usbredir_open_close_bh hasn't handled the open event yet */
+    if (!dev->parser) {
+        WARNING("chardev_can_read called on non open chardev!\n");
         return 0;
     }
+
+    /* usbredir_parser_do_read will consume *all* data we give it */
+    return 1024 * 1024;
 }
 
 static void usbredir_chardev_read(void *opaque, const uint8_t *buf, int size)
@@ -886,8 +890,10 @@ static void usbredir_chardev_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
+        usbredir_chardev_open(dev);
+        break;
     case CHR_EVENT_CLOSED:
-        qemu_bh_schedule(dev->open_close_bh);
+        qemu_bh_schedule(dev->chardev_close_bh);
         break;
     }
 }
@@ -917,7 +923,7 @@ static int usbredir_initfn(USBDevice *udev)
         }
     }
 
-    dev->open_close_bh = qemu_bh_new(usbredir_open_close_bh, dev);
+    dev->chardev_close_bh = qemu_bh_new(usbredir_chardev_close_bh, dev);
     dev->attach_timer = qemu_new_timer_ms(vm_clock, usbredir_do_attach, dev);
 
     QTAILQ_INIT(&dev->asyncq);
@@ -957,7 +963,7 @@ static void usbredir_handle_destroy(USBDevice *udev)
     qemu_chr_fe_close(dev->cs);
     qemu_chr_delete(dev->cs);
     /* Note must be done after qemu_chr_close, as that causes a close event */
-    qemu_bh_delete(dev->open_close_bh);
+    qemu_bh_delete(dev->chardev_close_bh);
 
     qemu_del_timer(dev->attach_timer);
     qemu_free_timer(dev->attach_timer);
