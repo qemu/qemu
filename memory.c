@@ -1076,8 +1076,9 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 {
     uint8_t mask = 1 << client;
 
+    memory_region_transaction_begin();
     mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
-    memory_region_update_topology(mr);
+    memory_region_transaction_commit();
 }
 
 bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
@@ -1110,16 +1111,18 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 {
     if (mr->readonly != readonly) {
+        memory_region_transaction_begin();
         mr->readonly = readonly;
-        memory_region_update_topology(mr);
+        memory_region_transaction_commit();
     }
 }
 
 void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
 {
     if (mr->readable != readable) {
+        memory_region_transaction_begin();
         mr->readable = readable;
-        memory_region_update_topology(mr);
+        memory_region_transaction_commit();
     }
 }
 
@@ -1230,6 +1233,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     };
     unsigned i;
 
+    memory_region_transaction_begin();
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
         if (memory_region_ioeventfd_before(mrfd, mr->ioeventfds[i])) {
             break;
@@ -1241,7 +1245,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
-    memory_region_update_topology(mr);
+    memory_region_transaction_commit();
 }
 
 void memory_region_del_eventfd(MemoryRegion *mr,
@@ -1260,6 +1264,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     };
     unsigned i;
 
+    memory_region_transaction_begin();
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
         if (memory_region_ioeventfd_equal(mrfd, mr->ioeventfds[i])) {
             break;
@@ -1271,7 +1276,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     --mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
-    memory_region_update_topology(mr);
+    memory_region_transaction_commit();
 }
 
 static void memory_region_add_subregion_common(MemoryRegion *mr,
@@ -1279,6 +1284,8 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
                                                MemoryRegion *subregion)
 {
     MemoryRegion *other;
+
+    memory_region_transaction_begin();
 
     assert(!subregion->parent);
     subregion->parent = mr;
@@ -1312,7 +1319,7 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
     }
     QTAILQ_INSERT_TAIL(&mr->subregions, subregion, subregions_link);
 done:
-    memory_region_update_topology(mr);
+    memory_region_transaction_commit();
 }
 
 
@@ -1338,10 +1345,11 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
 void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion)
 {
+    memory_region_transaction_begin();
     assert(subregion->parent == mr);
     subregion->parent = NULL;
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
-    memory_region_update_topology(mr);
+    memory_region_transaction_commit();
 }
 
 void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
@@ -1349,8 +1357,9 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     if (enabled == mr->enabled) {
         return;
     }
+    memory_region_transaction_begin();
     mr->enabled = enabled;
-    memory_region_update_topology(NULL);
+    memory_region_transaction_commit();
 }
 
 void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
@@ -1376,16 +1385,15 @@ void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
 
 void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
 {
-    target_phys_addr_t old_offset = mr->alias_offset;
-
     assert(mr->alias);
-    mr->alias_offset = offset;
 
-    if (offset == old_offset || !mr->parent) {
+    if (offset == mr->alias_offset) {
         return;
     }
 
-    memory_region_update_topology(mr);
+    memory_region_transaction_begin();
+    mr->alias_offset = offset;
+    memory_region_transaction_commit();
 }
 
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
@@ -1517,14 +1525,16 @@ void memory_listener_unregister(MemoryListener *listener)
 
 void set_system_memory_map(MemoryRegion *mr)
 {
+    memory_region_transaction_begin();
     address_space_memory.root = mr;
-    memory_region_update_topology(NULL);
+    memory_region_transaction_commit();
 }
 
 void set_system_io_map(MemoryRegion *mr)
 {
+    memory_region_transaction_begin();
     address_space_io.root = mr;
-    memory_region_update_topology(NULL);
+    memory_region_transaction_commit();
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)
