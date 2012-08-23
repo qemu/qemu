@@ -118,7 +118,7 @@
 ##
 # @RunState
 #
-# An enumation of VM run states.
+# An enumeration of VM run states.
 #
 # @debug: QEMU is running on a debugger
 #
@@ -785,7 +785,7 @@
 ##
 # @SpiceQueryMouseMode
 #
-# An enumation of Spice mouse states.
+# An enumeration of Spice mouse states.
 #
 # @client: Mouse cursor position is determined by the client.
 #
