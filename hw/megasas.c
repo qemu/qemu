@@ -661,7 +661,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     int num_ld_disks = 0;
     uint16_t sdev_id;
 
-    memset(&info, 0x0, cmd->iov_size);
+    memset(&info, 0x0, sizeof(info));
     if (cmd->iov_size < dcmd_size) {
         trace_megasas_dcmd_invalid_xfer_len(cmd->index, cmd->iov_size,
                                             dcmd_size);
@@ -698,8 +698,8 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     }
 
     memcpy(info.product_name, "MegaRAID SAS 8708EM2", 20);
-    snprintf(info.serial_number, 32, "QEMU%08lx",
-             (unsigned long)s & 0xFFFFFFFF);
+    snprintf(info.serial_number, sizeof(info.serial_number),
+             "QEMU%08" PRIxPTR, (uintptr_t)s & 0xFFFFFFFF);
     snprintf(info.package_version, 0x60, "%s-QEMU", QEMU_VERSION);
     memcpy(info.image_component[0].name, "APP", 3);
     memcpy(info.image_component[0].version, MEGASAS_VERSION "-QEMU", 9);
