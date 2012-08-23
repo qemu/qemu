@@ -620,13 +620,12 @@ uint64_t HELPER(msdb)(CPUS390XState *env, uint64_t f1,
 }
 
 /* test data class 32-bit */
-uint32_t HELPER(tceb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
+uint32_t HELPER(tceb)(uint64_t f1, uint64_t m2)
 {
-    float32 v1 = env->fregs[f1].l.upper;
+    float32 v1 = f1;
     int neg = float32_is_neg(v1);
     uint32_t cc = 0;
 
-    HELPER_LOG("%s: v1 0x%lx m2 0x%lx neg %d\n", __func__, (long)v1, m2, neg);
     if ((float32_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float32_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float32_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
@@ -636,19 +635,16 @@ uint32_t HELPER(tceb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
         /* assume normalized number */
         cc = 1;
     }
-
     /* FIXME: denormalized? */
     return cc;
 }
 
 /* test data class 64-bit */
-uint32_t HELPER(tcdb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
+uint32_t HELPER(tcdb)(uint64_t v1, uint64_t m2)
 {
-    float64 v1 = env->fregs[f1].d;
     int neg = float64_is_neg(v1);
     uint32_t cc = 0;
 
-    HELPER_LOG("%s: v1 0x%lx m2 0x%lx neg %d\n", __func__, v1, m2, neg);
     if ((float64_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float64_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float64_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
@@ -663,20 +659,16 @@ uint32_t HELPER(tcdb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
 }
 
 /* test data class 128-bit */
-uint32_t HELPER(tcxb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
+uint32_t HELPER(tcxb)(uint64_t ah, uint64_t al, uint64_t m2)
 {
-    CPU_QuadU v1;
+    float128 v1 = make_float128(ah, al);
+    int neg = float128_is_neg(v1);
     uint32_t cc = 0;
-    int neg;
 
-    v1.ll.upper = env->fregs[f1].ll;
-    v1.ll.lower = env->fregs[f1 + 2].ll;
-
-    neg = float128_is_neg(v1.q);
-    if ((float128_is_zero(v1.q) && (m2 & (1 << (11-neg)))) ||
-        (float128_is_infinity(v1.q) && (m2 & (1 << (5-neg)))) ||
-        (float128_is_any_nan(v1.q) && (m2 & (1 << (3-neg)))) ||
-        (float128_is_signaling_nan(v1.q) && (m2 & (1 << (1-neg))))) {
+    if ((float128_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
+        (float128_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
+        (float128_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
+        (float128_is_signaling_nan(v1) && (m2 & (1 << (1-neg))))) {
         cc = 1;
     } else if (m2 & (1 << (9-neg))) {
         /* assume normalized number */

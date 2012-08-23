@@ -987,38 +987,6 @@ static void free_compare(DisasCompare *c)
     }
 }
 
-static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
-                     int x2, int b2, int d2, int r1b)
-{
-    TCGv_i32 tmp_r1;
-    TCGv_i64 addr;
-    addr = get_address(s, x2, b2, d2);
-    tmp_r1 = tcg_const_i32(r1);
-    switch (op) {
-    case 0x10: /* TCEB   R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_tceb(cc_op, cpu_env, tmp_r1, addr);
-        set_cc_static(s);
-        break;
-    case 0x11: /* TCDB   R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_tcdb(cc_op, cpu_env, tmp_r1, addr);
-        set_cc_static(s);
-        break;
-    case 0x12: /* TCXB   R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_tcxb(cc_op, cpu_env, tmp_r1, addr);
-        set_cc_static(s);
-        break;
-    default:
-        LOG_DISAS("illegal ed operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        return;
-    }
-    tcg_temp_free_i32(tmp_r1);
-    tcg_temp_free_i64(addr);
-}
-
 static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
                      uint32_t insn)
 {
@@ -1602,7 +1570,7 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
     unsigned char opc;
     uint64_t insn;
-    int op, r1, r2, r3, d2, x2, b2, r1b;
+    int op, r1, r2, r3;
 
     opc = cpu_ldub_code(env, s->pc);
     LOG_DISAS("opc 0x%x\n", opc);
@@ -1627,17 +1595,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         r2 = insn & 0xf;
         op = (insn >> 16) & 0xff;
         disas_b9(env, s, op, r1, r2);
-        break;
-    case 0xed:
-        insn = ld_code6(env, s->pc);
-        debug_insn(insn);
-        op = insn & 0xff;
-        r1 = (insn >> 36) & 0xf;
-        x2 = (insn >> 32) & 0xf;
-        b2 = (insn >> 28) & 0xf;
-        d2 = (short)((insn >> 16) & 0xfff);
-        r1b = (insn >> 12) & 0xf;
-        disas_ed(env, s, op, r1, x2, b2, d2, r1b);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%x\n", opc);
@@ -3222,6 +3179,27 @@ static ExitStatus op_svc(DisasContext *s, DisasOps *o)
 
     gen_exception(EXCP_SVC);
     return EXIT_NORETURN;
+}
+
+static ExitStatus op_tceb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_tceb(cc_op, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_tcdb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_tcdb(cc_op, o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_tcxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_tcxb(cc_op, o->out, o->out2, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
 }
 
 #ifndef CONFIG_USER_ONLY
