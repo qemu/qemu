@@ -233,6 +233,8 @@ struct BlockDriverState {
     BlockDriverState *backing_hd;
     BlockDriverState *file;
 
+    NotifierList close_notifiers;
+
     /* number of in-flight copy-on-read requests */
     unsigned int copy_on_read_in_flight;
 

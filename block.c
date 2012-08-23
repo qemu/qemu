@@ -30,6 +30,7 @@
 #include "module.h"
 #include "qjson.h"
 #include "sysemu.h"
+#include "notify.h"
 #include "qemu-coroutine.h"
 #include "qmp-commands.h"
 #include "qemu-timer.h"
@@ -312,7 +313,14 @@ BlockDriverState *bdrv_new(const char *device_name)
         QTAILQ_INSERT_TAIL(&bdrv_states, bs, list);
     }
     bdrv_iostatus_disable(bs);
+    notifier_list_init(&bs->close_notifiers);
+
     return bs;
+}
+
+void bdrv_add_close_notifier(BlockDriverState *bs, Notifier *notify)
+{
+    notifier_list_add(&bs->close_notifiers, notify);
 }
 
 BlockDriver *bdrv_find_format(const char *format_name)
@@ -1102,6 +1110,7 @@ void bdrv_close(BlockDriverState *bs)
         block_job_cancel_sync(bs->job);
     }
     bdrv_drain_all();
+    notifier_list_notify(&bs->close_notifiers, bs);
 
     if (bs->drv) {
         if (bs == bs_snapshots) {
