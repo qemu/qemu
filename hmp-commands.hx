@@ -1310,6 +1310,51 @@ Remove all matches from the access control list, and set the default
 policy back to @code{deny}.
 ETEXI
 
+    {
+        .name       = "nbd_server_start",
+        .args_type  = "all:-a,writable:-w,uri:s",
+        .params     = "nbd_server_start [-a] [-w] host:port",
+        .help       = "serve block devices on the given host and port",
+        .mhandler.cmd = hmp_nbd_server_start,
+    },
+STEXI
+@item nbd_server_start @var{host}:@var{port}
+@findex nbd_server_start
+Start an NBD server on the given host and/or port.  If the @option{-a}
+option is included, all of the virtual machine's block devices that
+have an inserted media on them are automatically exported; in this case,
+the @option{-w} option makes the devices writable too.
+ETEXI
+
+    {
+        .name       = "nbd_server_add",
+        .args_type  = "writable:-w,device:B",
+        .params     = "nbd_server_add [-w] device",
+        .help       = "export a block device via NBD",
+        .mhandler.cmd = hmp_nbd_server_add,
+    },
+STEXI
+@item nbd_server_add @var{device}
+@findex nbd_server_add
+Export a block device through QEMU's NBD server, which must be started
+beforehand with @command{nbd_server_start}.  The @option{-w} option makes the
+exported device writable too.
+ETEXI
+
+    {
+        .name       = "nbd_server_stop",
+        .args_type  = "",
+        .params     = "nbd_server_stop",
+        .help       = "stop serving block devices using the NBD protocol",
+        .mhandler.cmd = hmp_nbd_server_stop,
+    },
+STEXI
+@item nbd_server_stop
+@findex nbd_server_stop
+Stop the QEMU embedded NBD server.
+ETEXI
+
+
 #if defined(TARGET_I386)
 
     {
