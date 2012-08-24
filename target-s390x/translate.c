@@ -1033,20 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x12: /* STAP     D2(B2)     [S] */
-        /* Store CPU Address */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, cpu_num));
-        tcg_gen_extu_i32_i64(tmp2, tmp32_1);
-        tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x21: /* IPTE     R1,R2      [RRE] */
         /* Invalidate PTE */
         check_privileged(s);
@@ -2856,6 +2842,16 @@ static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stap(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    /* ??? Surely cpu address != cpu number.  In any case the previous
+       version of this stored more than the required half-word, so it
+       is unlikely this has ever been tested.  */
+    tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, cpu_num));
     return NO_EXIT;
 }
 

@@ -658,6 +658,8 @@
 /* STORE CONTROL */
     C(0xb600, STCTL,   RS_a,  Z,   0, a2, 0, 0, stctl, 0)
     C(0xeb25, STCTG,   RSY_a, Z,   0, a2, 0, 0, stctg, 0)
+/* STORE CPU ADDRESS */
+    C(0xb212, STAP,    S,     Z,   la2, 0, new, m1_16, stap, 0)
 /* STORE CPU ID */
     C(0xb202, STIDP,   S,     Z,   la2, 0, new, m1_64, stidp, 0)
 /* STORE CPU TIMER */
