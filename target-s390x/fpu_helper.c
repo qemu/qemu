@@ -134,57 +134,6 @@ uint32_t set_cc_nz_f128(float128 v)
     }
 }
 
-/* convert 32-bit int to 64-bit float */
-void HELPER(cdfbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
-{
-    HELPER_LOG("%s: converting %d to f%d\n", __func__, v2, f1);
-    env->fregs[f1].d = int32_to_float64(v2, &env->fpu_status);
-}
-
-/* convert 32-bit int to 128-bit float */
-void HELPER(cxfbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
-{
-    CPU_QuadU v1;
-
-    v1.q = int32_to_float128(v2, &env->fpu_status);
-    env->fregs[f1].ll = v1.ll.upper;
-    env->fregs[f1 + 2].ll = v1.ll.lower;
-}
-
-/* convert 64-bit int to 32-bit float */
-void HELPER(cegbr)(CPUS390XState *env, uint32_t f1, int64_t v2)
-{
-    HELPER_LOG("%s: converting %ld to f%d\n", __func__, v2, f1);
-    env->fregs[f1].l.upper = int64_to_float32(v2, &env->fpu_status);
-}
-
-/* convert 64-bit int to 64-bit float */
-void HELPER(cdgbr)(CPUS390XState *env, uint32_t f1, int64_t v2)
-{
-    HELPER_LOG("%s: converting %ld to f%d\n", __func__, v2, f1);
-    env->fregs[f1].d = int64_to_float64(v2, &env->fpu_status);
-}
-
-/* convert 64-bit int to 128-bit float */
-void HELPER(cxgbr)(CPUS390XState *env, uint32_t f1, int64_t v2)
-{
-    CPU_QuadU x1;
-
-    x1.q = int64_to_float128(v2, &env->fpu_status);
-    HELPER_LOG("%s: converted %ld to 0x%lx and 0x%lx\n", __func__, v2,
-               x1.ll.upper, x1.ll.lower);
-    env->fregs[f1].ll = x1.ll.upper;
-    env->fregs[f1 + 2].ll = x1.ll.lower;
-}
-
-/* convert 32-bit int to 32-bit float */
-void HELPER(cefbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
-{
-    env->fregs[f1].l.upper = int32_to_float32(v2, &env->fpu_status);
-    HELPER_LOG("%s: converting %d to 0x%d in f%d\n", __func__, v2,
-               env->fregs[f1].l.upper, f1);
-}
-
 /* 32-bit FP addition */
 uint64_t HELPER(aeb)(CPUS390XState *env, uint64_t f1, uint64_t f2)
 {
@@ -414,6 +363,36 @@ static int swap_round_mode(CPUS390XState *env, int m3)
         break;
     }
     return ret;
+}
+
+/* convert 64-bit int to 32-bit float */
+uint64_t HELPER(cegb)(CPUS390XState *env, int64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float32 ret = int64_to_float32(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 64-bit int to 64-bit float */
+uint64_t HELPER(cdgb)(CPUS390XState *env, int64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float64 ret = int64_to_float64(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 64-bit int to 128-bit float */
+uint64_t HELPER(cxgb)(CPUS390XState *env, int64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float128 ret = int64_to_float128(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
 }
 
 /* convert 32-bit float to 64-bit int */

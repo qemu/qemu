@@ -170,6 +170,13 @@
     C(0xb3a8, CGEBR,   RRF_e, Z,   0, e2, r1, 0, cgeb, 0)
     C(0xb3a9, CGDBR,   RRF_e, Z,   0, f2_o, r1, 0, cgdb, 0)
     C(0xb3aa, CGXBR,   RRF_e, Z,   0, x2_o, r1, 0, cgxb, 0)
+/* CONVERT FROM FIXED */
+    C(0xb394, CEFBR,   RRF_e, Z,   0, r2_32s, new, e1, cegb, 0)
+    C(0xb395, CDFBR,   RRF_e, Z,   0, r2_32s, f1, 0, cdgb, 0)
+    C(0xb396, CXFBR,   RRF_e, Z,   0, r2_32s, x1, 0, cxgb, 0)
+    C(0xb3a4, CEGBR,   RRF_e, Z,   0, r2_o, new, e1, cegb, 0)
+    C(0xb3a5, CDGBR,   RRF_e, Z,   0, r2_o, f1, 0, cdgb, 0)
+    C(0xb3a6, CXGBR,   RRF_e, Z,   0, r2_o, x1, 0, cxgb, 0)
 
 /* DIVIDE */
     C(0x1d00, DR,      RR_a,  Z,   r1_D32, r2_32s, new_P, r1_P32, divs32, 0)

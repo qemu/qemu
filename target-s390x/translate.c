@@ -1381,8 +1381,7 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
 static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
                      int r1, int r2)
 {
-    TCGv_i64 tmp;
-    TCGv_i32 tmp32_1, tmp32_2;
+    TCGv_i32 tmp32_1;
     LOG_DISAS("disas_b3: op 0x%x m3 0x%x r1 %d r2 %d\n", op, m3, r1, r2);
 #define FP_HELPER(i) \
     tmp32_1 = tcg_const_i32(r1); \
@@ -1404,51 +1403,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         tmp32_1 = load_reg32(r1);
         tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
         tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x94: /* CEFBR       R1,R2             [RRE] */
-    case 0x95: /* CDFBR       R1,R2             [RRE] */
-    case 0x96: /* CXFBR       R1,R2             [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = load_reg32(r2);
-        switch (op) {
-        case 0x94:
-            gen_helper_cefbr(cpu_env, tmp32_1, tmp32_2);
-            break;
-        case 0x95:
-            gen_helper_cdfbr(cpu_env, tmp32_1, tmp32_2);
-            break;
-        case 0x96:
-            gen_helper_cxfbr(cpu_env, tmp32_1, tmp32_2);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0xa4: /* CEGBR       R1,R2             [RRE] */
-    case 0xa5: /* CDGBR       R1,R2             [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        tmp = load_reg(r2);
-        switch (op) {
-        case 0xa4:
-            gen_helper_cegbr(cpu_env, tmp32_1, tmp);
-            break;
-        case 0xa5:
-            gen_helper_cdgbr(cpu_env, tmp32_1, tmp);
-            break;
-        default:
-            tcg_abort();
-        }
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0xa6: /* CXGBR       R1,R2             [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        tmp = load_reg(r2);
-        gen_helper_cxgbr(cpu_env, tmp32_1, tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
         break;
     default:
         LOG_DISAS("illegal b3 operation 0x%x\n", op);
@@ -2141,6 +2095,31 @@ static ExitStatus op_cgxb(DisasContext *s, DisasOps *o)
     gen_helper_cgxb(o->out, cpu_env, o->in1, o->in2, m3);
     tcg_temp_free_i32(m3);
     gen_set_cc_nz_f128(s, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cegb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_cegb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cdgb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_cdgb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cxgb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_cxgb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return_low128(o->out2);
     return NO_EXIT;
 }
 
