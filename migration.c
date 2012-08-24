@@ -370,13 +370,13 @@ static void migrate_fd_cancel(MigrationState *s)
     migrate_fd_cleanup(s);
 }
 
-void migrate_fd_wait_for_unfreeze(MigrationState *s)
+int migrate_fd_wait_for_unfreeze(MigrationState *s)
 {
     int ret;
 
     DPRINTF("wait for unfreeze\n");
     if (s->state != MIG_STATE_ACTIVE)
-        return;
+        return -EINVAL;
 
     do {
         fd_set wfds;
@@ -388,8 +388,9 @@ void migrate_fd_wait_for_unfreeze(MigrationState *s)
     } while (ret == -1 && (s->get_error(s)) == EINTR);
 
     if (ret == -1) {
-        qemu_file_set_error(s->file, -s->get_error(s));
+        return -s->get_error(s);
     }
+    return 0;
 }
 
 int migrate_fd_close(MigrationState *s)

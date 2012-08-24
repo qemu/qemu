@@ -150,8 +150,12 @@ static int buffered_close(void *opaque)
         if (ret < 0) {
             break;
         }
-        if (s->freeze_output)
-            migrate_fd_wait_for_unfreeze(s->migration_state);
+        if (s->freeze_output) {
+            ret = migrate_fd_wait_for_unfreeze(s->migration_state);
+            if (ret < 0) {
+                break;
+            }
+        }
     }
 
     ret2 = migrate_fd_close(s->migration_state);
