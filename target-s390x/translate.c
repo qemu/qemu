@@ -1033,18 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x0a: /* SPKA     D2(B2)     [S] */
-        /* Set PSW Key from Address */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_andi_i64(tmp2, psw_mask, ~PSW_MASK_KEY);
-        tcg_gen_shli_i64(tmp, tmp, PSW_SHIFT_KEY - 4);
-        tcg_gen_or_i64(psw_mask, tmp2, tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x0d: /* PTLB                [S] */
         /* Purge TLB */
         check_privileged(s);
@@ -2872,6 +2860,14 @@ static ExitStatus op_sfpc(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_spka(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    tcg_gen_shri_i64(o->in2, o->in2, 4);
+    tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, PSW_SHIFT_KEY - 4, 4);
+    return NO_EXIT;
+}
+
 static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);

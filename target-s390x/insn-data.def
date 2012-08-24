@@ -640,6 +640,8 @@
     C(0xb206, SCKC,    S,     Z,   0, m2_64, 0, 0, sckc, 0)
 /* SET CPU TIMER */
     C(0xb208, SPT,     S,     Z,   0, m2_64, 0, 0, spt, 0)
+/* SET PSW KEY FROM ADDRESS */
+    C(0xb20a, SPKA,    S,     Z,   0, a2, 0, 0, spka, 0)
 /* SET SYSTEM MASK */
     C(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0)
 /* SIGNAL PROCESSOR */
