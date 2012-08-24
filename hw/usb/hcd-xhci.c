@@ -1196,13 +1196,38 @@ static void xhci_stall_ep(XHCITransfer *xfer)
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer,
                        XHCIEPContext *epctx);
 
-static int xhci_setup_packet(XHCITransfer *xfer, USBDevice *dev)
+static USBDevice *xhci_find_device(XHCIPort *port, uint8_t addr)
 {
+    if (!(port->portsc & PORTSC_PED)) {
+        return NULL;
+    }
+    return usb_find_device(&port->port, addr);
+}
+
+static int xhci_setup_packet(XHCITransfer *xfer)
+{
+    XHCIState *xhci = xfer->xhci;
+    XHCIPort *port;
+    USBDevice *dev;
     USBEndpoint *ep;
     int dir;
 
     dir = xfer->in_xfer ? USB_TOKEN_IN : USB_TOKEN_OUT;
-    ep = usb_ep_get(dev, dir, xfer->epid >> 1);
+
+    if (xfer->packet.ep) {
+        ep = xfer->packet.ep;
+        dev = ep->dev;
+    } else {
+        port = &xhci->ports[xhci->slots[xfer->slotid-1].port-1];
+        dev = xhci_find_device(port, xhci->slots[xfer->slotid-1].devaddr);
+        if (!dev) {
+            fprintf(stderr, "xhci: slot %d port %d has no device\n",
+                    xfer->slotid, xhci->slots[xfer->slotid-1].port);
+            return -1;
+        }
+        ep = usb_ep_get(dev, dir, xfer->epid >> 1);
+    }
+
     usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr);
     xhci_xfer_map(xfer);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
@@ -1260,20 +1285,10 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
     return 0;
 }
 
-static USBDevice *xhci_find_device(XHCIPort *port, uint8_t addr)
-{
-    if (!(port->portsc & PORTSC_PED)) {
-        return NULL;
-    }
-    return usb_find_device(&port->port, addr);
-}
-
 static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 {
     XHCITRB *trb_setup, *trb_status;
     uint8_t bmRequestType;
-    XHCIPort *port;
-    USBDevice *dev;
     int ret;
 
     trb_setup = &xfer->trbs[0];
@@ -1309,21 +1324,15 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 
     bmRequestType = trb_setup->parameter;
 
-    port = &xhci->ports[xhci->slots[xfer->slotid-1].port-1];
-    dev = xhci_find_device(port, xhci->slots[xfer->slotid-1].devaddr);
-    if (!dev) {
-        fprintf(stderr, "xhci: slot %d port %d has no device\n", xfer->slotid,
-                xhci->slots[xfer->slotid-1].port);
-        return -1;
-    }
-
     xfer->in_xfer = bmRequestType & USB_DIR_IN;
     xfer->iso_xfer = false;
 
-    xhci_setup_packet(xfer, dev);
+    if (xhci_setup_packet(xfer) < 0) {
+        return -1;
+    }
     xfer->packet.parameter = trb_setup->parameter;
 
-    ret = usb_handle_packet(dev, &xfer->packet);
+    ret = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
     xhci_complete_packet(xfer, ret);
     if (!xfer->running_async && !xfer->running_retry) {
@@ -1334,8 +1343,6 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
 {
-    XHCIPort *port;
-    USBDevice *dev;
     int ret;
 
     DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
@@ -1347,16 +1354,6 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     } else {
         xfer->pkts = 0;
     }
-
-    port = &xhci->ports[xhci->slots[xfer->slotid-1].port-1];
-    dev = xhci_find_device(port, xhci->slots[xfer->slotid-1].devaddr);
-    if (!dev) {
-        fprintf(stderr, "xhci: slot %d port %d has no device\n", xfer->slotid,
-                xhci->slots[xfer->slotid-1].port);
-        return -1;
-    }
-
-    xhci_setup_packet(xfer, dev);
 
     switch(epctx->type) {
     case ET_INTR_OUT:
@@ -1375,7 +1372,10 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         return -1;
     }
 
-    ret = usb_handle_packet(dev, &xfer->packet);
+    if (xhci_setup_packet(xfer) < 0) {
+        return -1;
+    }
+    ret = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
     xhci_complete_packet(xfer, ret);
     if (!xfer->running_async && !xfer->running_retry) {
@@ -1418,7 +1418,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
 
         trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
-        xhci_setup_packet(xfer, xfer->packet.ep->dev);
+        if (xhci_setup_packet(xfer) < 0) {
+            return;
+        }
         result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
         if (result == USB_RET_NAK) {
             return;
