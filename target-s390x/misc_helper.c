@@ -143,14 +143,6 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     tlb_flush_page(env, TARGET_PAGE_SIZE);
 }
 
-/* Set Clock */
-uint32_t HELPER(sck)(uint64_t a1)
-{
-    /* XXX not implemented - is it necessary? */
-
-    return 0;
-}
-
 static inline uint64_t clock_value(CPUS390XState *env)
 {
     uint64_t time;

@@ -1033,16 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x04: /* SCK       D2(B2)     [S] */
-        /* Set Clock */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_sck(cc_op, tmp);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x05: /* STCK     D2(B2)     [S] */
         /* Store Clock */
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
