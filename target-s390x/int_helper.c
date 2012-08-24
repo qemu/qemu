@@ -165,26 +165,10 @@ int64_t HELPER(nabs_i64)(int64_t val)
     }
 }
 
-/* find leftmost one */
-uint32_t HELPER(flogr)(CPUS390XState *env, uint32_t r1, uint64_t v2)
+/* count leading zeros, for find leftmost one */
+uint64_t HELPER(clz)(uint64_t v)
 {
-    uint64_t res = 0;
-    uint64_t ov2 = v2;
-
-    while (!(v2 & 0x8000000000000000ULL) && v2) {
-        v2 <<= 1;
-        res++;
-    }
-
-    if (!v2) {
-        env->regs[r1] = 64;
-        env->regs[r1 + 1] = 0;
-        return 0;
-    } else {
-        env->regs[r1] = res;
-        env->regs[r1 + 1] = ov2 & ~(0x8000000000000000ULL >> res);
-        return 2;
-    }
+    return clz64(v);
 }
 
 uint64_t HELPER(cvd)(int32_t bin)

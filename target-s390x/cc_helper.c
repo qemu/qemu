@@ -399,6 +399,11 @@ static uint32_t cc_calc_sla_64(uint64_t src, int shift)
     return 2;
 }
 
+static uint32_t cc_calc_flogr(uint64_t dst)
+{
+    return dst ? 2 : 0;
+}
+
 static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
                                   uint64_t src, uint64_t dst, uint64_t vr)
 {
@@ -503,6 +508,9 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         break;
     case CC_OP_SLA_64:
         r =  cc_calc_sla_64(src, dst);
+        break;
+    case CC_OP_FLOGR:
+        r = cc_calc_flogr(dst);
         break;
 
     case CC_OP_NZ_F32:

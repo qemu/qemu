@@ -620,6 +620,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_COMP_64:
     case CC_OP_NZ_F32:
     case CC_OP_NZ_F64:
+    case CC_OP_FLOGR:
         /* 1 argument */
         gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, dummy, cc_dst, dummy);
         break;
@@ -852,6 +853,20 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         account_inline_branch(s, old_cc_op);
         break;
 
+    case CC_OP_FLOGR:
+        switch (mask & 0xa) {
+        case 8: /* src == 0 -> no one bit found */
+            cond = TCG_COND_EQ;
+            break;
+        case 2: /* src != 0 -> one bit found */
+            cond = TCG_COND_NE;
+            break;
+        default:
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
     default:
     do_dynamic:
         /* Calculate cc value.  */
@@ -888,6 +903,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
 
     case CC_OP_LTGT0_64:
     case CC_OP_NZ:
+    case CC_OP_FLOGR:
         c->u.s64.a = cc_dst;
         c->u.s64.b = tcg_const_i64(0);
         c->g1 = true;
@@ -1414,29 +1430,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
 #undef FP_HELPER
 }
 
-static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
-                     int r2)
-{
-    TCGv_i64 tmp;
-    TCGv_i32 tmp32_1;
-
-    LOG_DISAS("disas_b9: op 0x%x r1 %d r2 %d\n", op, r1, r2);
-    switch (op) {
-    case 0x83: /* FLOGR R1,R2 [RRE] */
-        tmp = load_reg(r2);
-        tmp32_1 = tcg_const_i32(r1);
-        gen_helper_flogr(cc_op, cpu_env, tmp32_1, tmp);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    default:
-        LOG_DISAS("illegal b9 operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        break;
-    }
-}
-
 static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
     unsigned char opc;
@@ -1459,13 +1452,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         disas_b3(env, s, op, r3, r1, r2);
-        break;
-    case 0xb9:
-        insn = ld_code4(env, s->pc);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        op = (insn >> 16) & 0xff;
-        disas_b9(env, s, op, r1, r2);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%x\n", opc);
@@ -2327,6 +2313,26 @@ static ExitStatus op_ex(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(tmp);
 
     set_cc_static(s);
+    return NO_EXIT;
+}
+
+static ExitStatus op_flogr(DisasContext *s, DisasOps *o)
+{
+    /* We'll use the original input for cc computation, since we get to
+       compare that against 0, which ought to be better than comparing
+       the real output against 64.  It also lets cc_dst be a convenient
+       temporary during our computation.  */
+    gen_op_update1_cc_i64(s, CC_OP_FLOGR, o->in2);
+
+    /* R1 = IN ? CLZ(IN) : 64.  */
+    gen_helper_clz(o->out, o->in2);
+
+    /* R1+1 = IN & ~(found bit).  Note that we may attempt to shift this
+       value by 64, which is undefined.  But since the shift is 64 iff the
+       input is zero, we still get the correct result after and'ing.  */
+    tcg_gen_movi_i64(o->out2, 0x8000000000000000ull);
+    tcg_gen_shr_i64(o->out2, o->out2, o->out);
+    tcg_gen_andc_i64(o->out2, cc_dst, o->out2);
     return NO_EXIT;
 }
 

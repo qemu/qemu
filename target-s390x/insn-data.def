@@ -220,6 +220,9 @@
 /* EXTRACT FPC */
     C(0xb38c, EFPC,    RRE,   Z,   0, 0, new, r1_32, efpc, 0)
 
+/* FIND LEFTMOST ONE */
+    C(0xb983, FLOGR,   RRE,   EI,  0, r2_o, r1_P, 0, flogr, 0)
+
 /* INSERT CHARACTER */
     C(0x4300, IC,      RX_a,  Z,   0, m2_8u, 0, r1_8, mov2, 0)
     C(0xe373, ICY,     RXY_a, LD,  0, m2_8u, 0, r1_8, mov2, 0)

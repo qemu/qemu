@@ -478,6 +478,7 @@ enum cc_op {
     CC_OP_ICM,                  /* insert characters under mask */
     CC_OP_SLA_32,               /* Calculate shift left signed (32bit) */
     CC_OP_SLA_64,               /* Calculate shift left signed (64bit) */
+    CC_OP_FLOGR,                /* find leftmost one */
     CC_OP_MAX
 };
 
@@ -521,6 +522,7 @@ static const char *cc_names[] = {
     [CC_OP_ICM]       = "CC_OP_ICM",
     [CC_OP_SLA_32]    = "CC_OP_SLA_32",
     [CC_OP_SLA_64]    = "CC_OP_SLA_64",
+    [CC_OP_FLOGR]     = "CC_OP_FLOGR",
 };
 
 static inline const char *cc_name(int cc_op)
