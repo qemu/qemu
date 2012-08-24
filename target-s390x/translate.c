@@ -1033,11 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x0d: /* PTLB                [S] */
-        /* Purge TLB */
-        check_privileged(s);
-        gen_helper_ptlb(cpu_env);
-        break;
     case 0x10: /* SPX      D2(B2)     [S] */
         /* Set Prefix Register */
         check_privileged(s);
@@ -2724,6 +2719,15 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     set_cc_nz_u64(s, cc_dst);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_ptlb(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_ptlb(cpu_env);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_rev16(DisasContext *s, DisasOps *o)
 {
