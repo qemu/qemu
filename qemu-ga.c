@@ -438,7 +438,9 @@ static void become_daemon(const char *pidfile)
     return;
 
 fail:
-    unlink(pidfile);
+    if (pidfile) {
+        unlink(pidfile);
+    }
     g_critical("failed to daemonize");
     exit(EXIT_FAILURE);
 #endif
