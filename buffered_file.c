@@ -61,13 +61,6 @@ static void buffered_append(QEMUFileBuffered *s,
 static void buffered_flush(QEMUFileBuffered *s)
 {
     size_t offset = 0;
-    int error;
-
-    error = qemu_file_get_error(s->file);
-    if (error != 0) {
-        DPRINTF("flush when error, bailing: %s\n", strerror(-error));
-        return;
-    }
 
     DPRINTF("flushing %zu byte(s) of data\n", s->buffer_size);
 
