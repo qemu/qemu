@@ -325,9 +325,15 @@ typedef struct XHCITransfer {
     unsigned int pkts;
     unsigned int pktsize;
     unsigned int cur_pkt;
+
+    uint64_t mfindex_kick;
 } XHCITransfer;
 
 typedef struct XHCIEPContext {
+    XHCIState *xhci;
+    unsigned int slotid;
+    unsigned int epid;
+
     XHCIRing ring;
     unsigned int next_xfer;
     unsigned int comp_xfer;
@@ -337,6 +343,11 @@ typedef struct XHCIEPContext {
     dma_addr_t pctx;
     unsigned int max_psize;
     uint32_t state;
+
+    /* iso xfer scheduling */
+    unsigned int interval;
+    int64_t mfindex_last;
+    QEMUTimer *kick_timer;
 } XHCIEPContext;
 
 typedef struct XHCISlot {
@@ -856,6 +867,12 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
     epctx->state = state;
 }
 
+static void xhci_ep_kick_timer(void *opaque)
+{
+    XHCIEPContext *epctx = opaque;
+    xhci_kick_ep(epctx->xhci, epctx->slotid, epctx->epid);
+}
+
 static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
                                unsigned int epid, dma_addr_t pctx,
                                uint32_t *ctx)
@@ -877,6 +894,9 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
 
     epctx = g_malloc(sizeof(XHCIEPContext));
     memset(epctx, 0, sizeof(XHCIEPContext));
+    epctx->xhci = xhci;
+    epctx->slotid = slotid;
+    epctx->epid = epid;
 
     slot->eps[epid-1] = epctx;
 
@@ -894,6 +914,10 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     for (i = 0; i < ARRAY_SIZE(epctx->transfers); i++) {
         usb_packet_init(&epctx->transfers[i].packet);
     }
+
+    epctx->interval = 1 << (ctx[0] >> 16) & 0xff;
+    epctx->mfindex_last = 0;
+    epctx->kick_timer = qemu_new_timer_ns(vm_clock, xhci_ep_kick_timer, epctx);
 
     epctx->state = EP_RUNNING;
     ctx[0] &= ~EP_STATE_MASK;
@@ -934,6 +958,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
         if (t->running_retry) {
             t->running_retry = 0;
             epctx->retry = NULL;
+            qemu_del_timer(epctx->kick_timer);
         }
         if (t->trbs) {
             g_free(t->trbs);
@@ -969,6 +994,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
 
     xhci_set_ep_state(xhci, epctx, EP_DISABLED);
 
+    qemu_free_timer(epctx->kick_timer);
     g_free(epctx);
     slot->eps[epid-1] = NULL;
 
@@ -1376,29 +1402,70 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     return 0;
 }
 
+static void xhci_calc_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
+                               XHCIEPContext *epctx, uint64_t mfindex)
+{
+    if (xfer->trbs[0].control & TRB_TR_SIA) {
+        uint64_t asap = ((mfindex + epctx->interval - 1) &
+                         ~(epctx->interval-1));
+        if (asap >= epctx->mfindex_last &&
+            asap <= epctx->mfindex_last + epctx->interval * 4) {
+            xfer->mfindex_kick = epctx->mfindex_last + epctx->interval;
+        } else {
+            xfer->mfindex_kick = asap;
+        }
+    } else {
+        xfer->mfindex_kick = (xfer->trbs[0].control >> TRB_TR_FRAMEID_SHIFT)
+            & TRB_TR_FRAMEID_MASK;
+        xfer->mfindex_kick |= mfindex & ~0x3fff;
+        if (xfer->mfindex_kick < mfindex) {
+            xfer->mfindex_kick += 0x4000;
+        }
+    }
+}
+
+static void xhci_check_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
+                                XHCIEPContext *epctx, uint64_t mfindex)
+{
+    if (xfer->mfindex_kick > mfindex) {
+        qemu_mod_timer(epctx->kick_timer, qemu_get_clock_ns(vm_clock) +
+                       (xfer->mfindex_kick - mfindex) * 125000);
+        xfer->running_retry = 1;
+    } else {
+        epctx->mfindex_last = xfer->mfindex_kick;
+        qemu_del_timer(epctx->kick_timer);
+        xfer->running_retry = 0;
+    }
+}
+
+
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
 {
+    uint64_t mfindex;
     int ret;
 
     DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
 
     xfer->in_xfer = epctx->type>>2;
 
-    if (epctx->type == ET_ISO_IN || epctx->type == ET_ISO_OUT) {
-        xfer->pkts = 1;
-    } else {
-        xfer->pkts = 0;
-    }
-
     switch(epctx->type) {
     case ET_INTR_OUT:
     case ET_INTR_IN:
     case ET_BULK_OUT:
     case ET_BULK_IN:
+        xfer->pkts = 0;
+        xfer->iso_xfer = false;
         break;
     case ET_ISO_OUT:
     case ET_ISO_IN:
-        FIXME();
+        xfer->pkts = 1;
+        xfer->iso_xfer = true;
+        mfindex = xhci_mfindex_get(xhci);
+        xhci_calc_iso_kick(xhci, xfer, epctx, mfindex);
+        xhci_check_iso_kick(xhci, xfer, epctx, mfindex);
+        if (xfer->running_retry) {
+            return -1;
+        }
         break;
     default:
         fprintf(stderr, "xhci: unknown or unhandled EP "
@@ -1428,6 +1495,7 @@ static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid)
 {
     XHCIEPContext *epctx;
+    uint64_t mfindex;
     int length;
     int i;
 
@@ -1447,20 +1515,35 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
     }
 
     if (epctx->retry) {
-        /* retry nak'ed transfer */
         XHCITransfer *xfer = epctx->retry;
         int result;
 
         trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
-        if (xhci_setup_packet(xfer) < 0) {
-            return;
+        if (xfer->iso_xfer) {
+            /* retry delayed iso transfer */
+            mfindex = xhci_mfindex_get(xhci);
+            xhci_check_iso_kick(xhci, xfer, epctx, mfindex);
+            if (xfer->running_retry) {
+                return;
+            }
+            if (xhci_setup_packet(xfer) < 0) {
+                return;
+            }
+            result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+            assert(result != USB_RET_NAK);
+            xhci_complete_packet(xfer, result);
+        } else {
+            /* retry nak'ed transfer */
+            if (xhci_setup_packet(xfer) < 0) {
+                return;
+            }
+            result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+            if (result == USB_RET_NAK) {
+                return;
+            }
+            xhci_complete_packet(xfer, result);
         }
-        result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-        if (result == USB_RET_NAK) {
-            return;
-        }
-        xhci_complete_packet(xfer, result);
         assert(!xfer->running_retry);
         epctx->retry = NULL;
     }
@@ -1512,7 +1595,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             if (xhci_fire_transfer(xhci, xfer, epctx) >= 0) {
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
             } else {
-                fprintf(stderr, "xhci: error firing data transfer\n");
+                if (!xfer->iso_xfer) {
+                    fprintf(stderr, "xhci: error firing data transfer\n");
+                }
             }
         }
 
