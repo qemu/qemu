@@ -134,10 +134,8 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
-    uint32_t prefix;
-
-    prefix = cpu_ldl_data(env, a1);
-    env->psa = prefix & 0xfffff000;
+    uint32_t prefix = a1 & 0x7fffe000;
+    env->psa = prefix;
     qemu_log("prefix: %#x\n", prefix);
     tlb_flush_page(env, 0);
     tlb_flush_page(env, TARGET_PAGE_SIZE);
