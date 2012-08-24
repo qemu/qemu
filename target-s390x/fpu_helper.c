@@ -577,3 +577,20 @@ uint64_t HELPER(sqxb)(CPUS390XState *env, uint64_t ah, uint64_t al)
     handle_exceptions(env, GETPC());
     return RET128(ret);
 }
+
+/* set fpc */
+void HELPER(sfpc)(CPUS390XState *env, uint64_t fpc)
+{
+    static const int rnd[4] = {
+        float_round_nearest_even,
+        float_round_to_zero,
+        float_round_up,
+        float_round_down
+    };
+
+    /* Install everything in the main FPC.  */
+    env->fpc = fpc;
+
+    /* Install the rounding mode in the shadow fpu_status.  */
+    set_float_rounding_mode(rnd[fpc & 3], &env->fpu_status);
+}

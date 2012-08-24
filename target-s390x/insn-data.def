@@ -351,6 +351,9 @@
     C(0xb375, LZDR,    RRE,   Z,   0, 0, 0, f1, zero, 0)
     C(0xb376, LZXR,    RRE,   Z,   0, 0, 0, x1, zero2, 0)
 
+/* LOAD FPC */
+    C(0xb29d, LFPC,    S,     Z,   0, m2_32u, 0, 0, sfpc, 0)
+
 /* LOAD LENGTHENED */
     C(0xb304, LDEBR,   RRE,   Z,   0, e2, f1, 0, ldeb, 0)
     C(0xb305, LXDBR,   RRE,   Z,   0, f2_o, x1, 0, lxdb, 0)
@@ -454,6 +457,9 @@
 /* ROTATE LEFT SINGLE LOGICAL */
     C(0xeb1d, RLL,     RSY_a, Z,   r3_o, sh32, new, r1_32, rll32, 0)
     C(0xeb1c, RLLG,    RSY_a, Z,   r3_o, sh64, r1, 0, rll64, 0)
+
+/* SET FPC */
+    C(0xb384, SFPC,    RRE,   Z,   0, r1_o, 0, 0, sfpc, 0)
 
 /* SHIFT LEFT SINGLE */
     D(0x8b00, SLA,     RS_a,  Z,   r1, sh32, new, r1_32, sla, 0, 31)

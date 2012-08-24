@@ -1337,18 +1337,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
         break;
-    case 0x9d: /* LFPC      D2(B2)   [S] */
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp2);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0xb1: /* STFL     D2(B2)     [S] */
         /* Store Facility List (CPU features) at 200 */
         check_privileged(s);
@@ -1394,47 +1382,11 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     }
 }
 
-static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
-                     int r1, int r2)
-{
-    TCGv_i32 tmp32_1;
-    LOG_DISAS("disas_b3: op 0x%x m3 0x%x r1 %d r2 %d\n", op, m3, r1, r2);
-#define FP_HELPER(i) \
-    tmp32_1 = tcg_const_i32(r1); \
-    tmp32_2 = tcg_const_i32(r2); \
-    gen_helper_ ## i(cpu_env, tmp32_1, tmp32_2); \
-    tcg_temp_free_i32(tmp32_1); \
-    tcg_temp_free_i32(tmp32_2);
-
-#define FP_HELPER_CC(i) \
-    tmp32_1 = tcg_const_i32(r1); \
-    tmp32_2 = tcg_const_i32(r2); \
-    gen_helper_ ## i(cc_op, cpu_env, tmp32_1, tmp32_2); \
-    set_cc_static(s); \
-    tcg_temp_free_i32(tmp32_1); \
-    tcg_temp_free_i32(tmp32_2);
-
-    switch (op) {
-    case 0x84: /* SFPC        R1                [RRE] */
-        tmp32_1 = load_reg32(r1);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    default:
-        LOG_DISAS("illegal b3 operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        break;
-    }
-
-#undef FP_HELPER_CC
-#undef FP_HELPER
-}
-
 static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
     unsigned char opc;
     uint64_t insn;
-    int op, r1, r2, r3;
+    int op;
 
     opc = cpu_ldub_code(env, s->pc);
     LOG_DISAS("opc 0x%x\n", opc);
@@ -1444,14 +1396,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         insn = ld_code4(env, s->pc);
         op = (insn >> 16) & 0xff;
         disas_b2(env, s, op, insn);
-        break;
-    case 0xb3:
-        insn = ld_code4(env, s->pc);
-        op = (insn >> 16) & 0xff;
-        r3 = (insn >> 12) & 0xf; /* aka m3 */
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        disas_b3(env, s, op, r3, r1, r2);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%x\n", opc);
@@ -2978,6 +2922,12 @@ static ExitStatus op_sra(DisasContext *s, DisasOps *o)
 static ExitStatus op_srl(DisasContext *s, DisasOps *o)
 {
     tcg_gen_shr_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sfpc(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sfpc(cpu_env, o->in2);
     return NO_EXIT;
 }
 
