@@ -636,6 +636,8 @@
 /* SET CLOCK */
     /* ??? Not implemented - is it necessary? */
     C(0xb204, SCK,     S,     Z,   0, 0, 0, 0, 0, 0)
+/* SET CLOCK COMPARATOR */
+    C(0xb206, SCKC,    S,     Z,   0, m2_64, 0, 0, sckc, 0)
 /* SET SYSTEM MASK */
     C(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0)
 /* SIGNAL PROCESSOR */
@@ -643,6 +645,8 @@
 /* STORE CLOCK */
     C(0xb205, STCK,    S,     Z,   la2, 0, new, m1_64, stck, 0)
     C(0xb27c, STCKF,   S,     Z,   la2, 0, new, m1_64, stck, 0)
+/* STORE CLOCK COMPARATOR */
+    C(0xb207, STCKC,   S,     Z,   la2, 0, new, m1_64, stckc, 0)
 /* STORE CONTROL */
     C(0xb600, STCTL,   RS_a,  Z,   0, a2, 0, 0, stctl, 0)
     C(0xeb25, STCTG,   RSY_a, Z,   0, a2, 0, 0, stctg, 0)

@@ -1033,24 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x06: /* SCKC     D2(B2)     [S] */
-        /* Set Clock Comparator */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_sckc(cpu_env, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x07: /* STCKC    D2(B2)     [S] */
-        /* Store Clock Comparator */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_stckc(cpu_env, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x08: /* SPT      D2(B2)     [S] */
         /* Set CPU Timer */
         check_privileged(s);
@@ -2920,6 +2902,20 @@ static ExitStatus op_stck(DisasContext *s, DisasOps *o)
     gen_helper_stck(o->out, cpu_env);
     /* ??? We don't implement clock states.  */
     gen_op_movi_cc(s, 0);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sckc(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sckc(cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stckc(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_stckc(o->out, cpu_env);
     return NO_EXIT;
 }
 
