@@ -87,9 +87,6 @@ static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
 {
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_NETWORK_ETHERNET) {
-        /* Until qdev_free includes a call to object_unparent, we call it here
-         */
-        object_unparent(&d->qdev.parent_obj);
         qdev_free(&d->qdev);
     }
 }

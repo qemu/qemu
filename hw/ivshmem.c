@@ -366,6 +366,10 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
 {
     int i, guest_curr_max;
 
+    if (!ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
+        return;
+    }
+
     guest_curr_max = s->peers[posn].nb_eventfds;
 
     memory_region_transaction_begin();
