@@ -1021,12 +1021,11 @@ static void free_compare(DisasCompare *c)
 static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
                      uint32_t insn)
 {
-    TCGv_i64 tmp, tmp2, tmp3;
-    TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
-    int r1, r2;
 #ifndef CONFIG_USER_ONLY
+    TCGv_i64 tmp, tmp2, tmp3;
+    TCGv_i32 tmp32_1, tmp32_2;
+    int r1, r2;
     int r3, d2, b2;
-#endif
 
     r1 = (insn >> 4) & 0xf;
     r2 = insn & 0xf;
@@ -1034,19 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x5e: /* SRST     R1,R2     [RRE] */
-        tmp32_1 = load_reg32(0);
-        tmp32_2 = tcg_const_i32(r1);
-        tmp32_3 = tcg_const_i32(r2);
-        potential_page_fault(s);
-        gen_helper_srst(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
-        set_cc_static(s);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        tcg_temp_free_i32(tmp32_3);
-        break;
-
-#ifndef CONFIG_USER_ONLY
     case 0x02: /* STIDP     D2(B2)     [S] */
         /* Store CPU ID */
         check_privileged(s);
@@ -1314,12 +1300,14 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
         break;
-#endif
     default:
+#endif
         LOG_DISAS("illegal b2 operation 0x%x\n", op);
         gen_illegal_opcode(s);
+#ifndef CONFIG_USER_ONLY
         break;
     }
+#endif
 }
 
 static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
@@ -3133,6 +3121,15 @@ static ExitStatus op_stmh(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(t);
     tcg_temp_free_i64(t4);
     tcg_temp_free_i64(t32);
+    return NO_EXIT;
+}
+
+static ExitStatus op_srst(DisasContext *s, DisasOps *o)
+{
+    potential_page_fault(s);
+    gen_helper_srst(o->in1, cpu_env, regs[0], o->in1, o->in2);
+    set_cc_static(s);
+    return_low128(o->in2);
     return NO_EXIT;
 }
 

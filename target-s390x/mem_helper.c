@@ -331,25 +331,38 @@ static inline uint64_t get_address_31fix(CPUS390XState *env, int reg)
 }
 
 /* search string (c is byte to search, r2 is string, r1 end of string) */
-uint32_t HELPER(srst)(CPUS390XState *env, uint32_t c, uint32_t r1, uint32_t r2)
+uint64_t HELPER(srst)(CPUS390XState *env, uint64_t r0, uint64_t end,
+                      uint64_t str)
 {
-    uint64_t i;
-    uint32_t cc = 2;
-    uint64_t str = get_address_31fix(env, r2);
-    uint64_t end = get_address_31fix(env, r1);
+    uint32_t len;
+    uint8_t v, c = r0;
 
-    HELPER_LOG("%s: c %d *r1 0x%" PRIx64 " *r2 0x%" PRIx64 "\n", __func__,
-               c, env->regs[r1], env->regs[r2]);
+    str = fix_address(env, str);
+    end = fix_address(env, end);
 
-    for (i = str; i != end; i++) {
-        if (cpu_ldub_data(env, i) == c) {
-            env->regs[r1] = i;
-            cc = 1;
-            break;
+    /* Assume for now that R2 is unmodified.  */
+    env->retxl = str;
+
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  For now, lets cap at 8k.  */
+    for (len = 0; len < 0x2000; ++len) {
+        if (str + len == end) {
+            /* Character not found.  R1 & R2 are unmodified.  */
+            env->cc_op = 2;
+            return end;
+        }
+        v = cpu_ldub_data(env, str + len);
+        if (v == c) {
+            /* Character found.  Set R1 to the location; R2 is unmodified.  */
+            env->cc_op = 1;
+            return str + len;
         }
     }
 
-    return cc;
+    /* CPU-determined bytes processed.  Advance R2 to next byte to process.  */
+    env->retxl = str + len;
+    env->cc_op = 3;
+    return end;
 }
 
 /* unsigned string compare (c is string terminator) */

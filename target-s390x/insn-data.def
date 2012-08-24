@@ -471,6 +471,9 @@
     C(0xeb1d, RLL,     RSY_a, Z,   r3_o, sh32, new, r1_32, rll32, 0)
     C(0xeb1c, RLLG,    RSY_a, Z,   r3_o, sh64, r1, 0, rll64, 0)
 
+/* SEARCH STRING */
+    C(0xb25e, SRST,    RRE,   Z,   r1_o, r2_o, 0, 0, srst, 0)
+
 /* SET ACCESS */
     C(0xb24e, SAR,     RRE,   Z,   0, r2_o, 0, 0, sar, 0)
 /* SET FPC */
