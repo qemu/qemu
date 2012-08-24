@@ -97,12 +97,12 @@ static int net_hub_port_can_receive(NetClientState *nc)
             continue;
         }
 
-        if (!qemu_can_send_packet(&port->nc)) {
-            return 0;
+        if (qemu_can_send_packet(&port->nc)) {
+            return 1;
         }
     }
 
-    return 1;
+    return 0;
 }
 
 static ssize_t net_hub_port_receive(NetClientState *nc,
