@@ -1034,17 +1034,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x4e: /* SAR     R1,R2     [RRE] */
-        tmp32_1 = load_reg32(r2);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, aregs[r1]));
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x4f: /* EAR     R1,R2     [RRE] */
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, aregs[r2]));
-        store_reg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x54: /* MVPG     R1,R2     [RRE] */
         tmp = load_reg(0);
         tmp2 = load_reg(r1);
@@ -2230,6 +2219,13 @@ static ExitStatus op_dxb(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_ear(DisasContext *s, DisasOps *o)
+{
+    int r2 = get_field(s->fields, r2);
+    tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, aregs[r2]));
+    return NO_EXIT;
+}
+
 static ExitStatus op_efpc(DisasContext *s, DisasOps *o)
 {
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, fpc));
@@ -2861,6 +2857,13 @@ static ExitStatus op_rll32(DisasContext *s, DisasOps *o)
 static ExitStatus op_rll64(DisasContext *s, DisasOps *o)
 {
     tcg_gen_rotl_i64(o->out, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sar(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    tcg_gen_st32_i64(o->in2, cpu_env, offsetof(CPUS390XState, aregs[r1]));
     return NO_EXIT;
 }
 
