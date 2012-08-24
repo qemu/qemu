@@ -154,11 +154,9 @@ static inline uint64_t clock_value(CPUS390XState *env)
 }
 
 /* Store Clock */
-uint32_t HELPER(stck)(CPUS390XState *env, uint64_t a1)
+uint64_t HELPER(stck)(CPUS390XState *env)
 {
-    cpu_stq_data(env, a1, clock_value(env));
-
-    return 0;
+    return clock_value(env);
 }
 
 /* Store Clock Extended */
