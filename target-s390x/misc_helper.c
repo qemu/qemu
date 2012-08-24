@@ -196,10 +196,8 @@ uint64_t HELPER(stckc)(CPUS390XState *env)
 }
 
 /* Set CPU Timer */
-void HELPER(spt)(CPUS390XState *env, uint64_t a1)
+void HELPER(spt)(CPUS390XState *env, uint64_t time)
 {
-    uint64_t time = cpu_ldq_data(env, a1);
-
     if (time == -1ULL) {
         return;
     }
@@ -211,10 +209,10 @@ void HELPER(spt)(CPUS390XState *env, uint64_t a1)
 }
 
 /* Store CPU Timer */
-void HELPER(stpt)(CPUS390XState *env, uint64_t a1)
+uint64_t HELPER(stpt)(CPUS390XState *env)
 {
     /* XXX implement */
-    cpu_stq_data(env, a1, 0);
+    return 0;
 }
 
 /* Store System Information */

@@ -1033,24 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x08: /* SPT      D2(B2)     [S] */
-        /* Set CPU Timer */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_spt(cpu_env, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x09: /* STPT     D2(B2)     [S] */
-        /* Store CPU Timer */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_stpt(cpu_env, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x0a: /* SPKA     D2(B2)     [S] */
         /* Set PSW Key from Address */
         check_privileged(s);
@@ -2947,6 +2929,20 @@ static ExitStatus op_stidp(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, cpu_num));
+    return NO_EXIT;
+}
+
+static ExitStatus op_spt(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_spt(cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stpt(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_stpt(o->out, cpu_env);
     return NO_EXIT;
 }
 
