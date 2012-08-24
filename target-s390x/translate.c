@@ -1033,17 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x21: /* IPTE     R1,R2      [RRE] */
-        /* Invalidate PTE */
-        check_privileged(s);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        tmp = load_reg(r1);
-        tmp2 = load_reg(r2);
-        gen_helper_ipte(cpu_env, tmp, tmp2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x29: /* ISKE     R1,R2      [RRE] */
         /* Insert Storage Key Extended */
         check_privileged(s);
@@ -2212,6 +2201,15 @@ static ExitStatus op_ipm(DisasContext *s, DisasOps *o)
     tcg_temp_free_i64(t1);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_ipte(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_ipte(cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_ldeb(DisasContext *s, DisasOps *o)
 {

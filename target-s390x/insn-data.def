@@ -616,6 +616,8 @@
 #ifndef CONFIG_USER_ONLY
 /* DIAGNOSE (KVM hypercall) */
     C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
+/* INVALIDATE PAGE TABLE ENTRY */
+    C(0xb221, IPTE,    RRF_a, Z,   r1_o, r2_o, 0, 0, ipte, 0)
 /* LOAD CONTROL */
     C(0xb700, LCTL,    RS_a,  Z,   0, a2, 0, 0, lctl, 0)
     C(0xeb2f, LCTLG,   RSY_a, Z,   0, a2, 0, 0, lctlg, 0)
