@@ -1001,6 +1001,13 @@ static int rndis_keepalive_response(USBNetState *s,
     return 0;
 }
 
+/* Prepare to receive the next packet */
+static void usb_net_reset_in_buf(USBNetState *s)
+{
+    s->in_ptr = s->in_len = 0;
+    qemu_flush_queued_packets(&s->nic->nc);
+}
+
 static int rndis_parse(USBNetState *s, uint8_t *data, int length)
 {
     uint32_t msg_type;
@@ -1025,7 +1032,8 @@ static int rndis_parse(USBNetState *s, uint8_t *data, int length)
 
     case RNDIS_RESET_MSG:
         rndis_clear_responsequeue(s);
-        s->out_ptr = s->in_ptr = s->in_len = 0;
+        s->out_ptr = 0;
+        usb_net_reset_in_buf(s);
         return rndis_reset_response(s, (rndis_reset_msg_type *) data);
 
     case RNDIS_KEEPALIVE_MSG:
@@ -1135,7 +1143,7 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
     int ret = USB_RET_NAK;
 
     if (s->in_ptr > s->in_len) {
-        s->in_ptr = s->in_len = 0;
+        usb_net_reset_in_buf(s);
         ret = USB_RET_NAK;
         return ret;
     }
@@ -1152,7 +1160,7 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
     if (s->in_ptr >= s->in_len &&
                     (is_rndis(s) || (s->in_len & (64 - 1)) || !ret)) {
         /* no short packet necessary */
-        s->in_ptr = s->in_len = 0;
+        usb_net_reset_in_buf(s);
     }
 
 #ifdef TRAFFIC_DEBUG
@@ -1261,6 +1269,11 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     }
     if (total_size > sizeof(s->in_buf)) {
         return -1;
+    }
+
+    /* Only accept packet if input buffer is empty */
+    if (s->in_len > 0) {
+        return 0;
     }
 
     if (is_rndis(s)) {
