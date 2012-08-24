@@ -3569,7 +3569,7 @@ int main(int argc, char **argv, char **envp)
     ret = loader_exec(filename, target_argv, target_environ, regs,
         info, &bprm);
     if (ret != 0) {
-        printf("Error %d while loading %s\n", ret, filename);
+        printf("Error while loading %s: %s\n", filename, strerror(-ret));
         _exit(1);
     }
 
