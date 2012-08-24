@@ -747,42 +747,49 @@ uint32_t HELPER(clcle)(CPUS390XState *env, uint32_t r1, uint64_t a2,
 }
 
 /* checksum */
-void HELPER(cksm)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+uint64_t HELPER(cksm)(CPUS390XState *env, uint64_t r1,
+                      uint64_t src, uint64_t src_len)
 {
-    uint64_t src = get_address_31fix(env, r2);
-    uint64_t src_len = env->regs[(r2 + 1) & 15];
-    uint64_t cksm = (uint32_t)env->regs[r1];
+    uint64_t max_len, len;
+    uint64_t cksm = (uint32_t)r1;
 
-    while (src_len >= 4) {
-        cksm += cpu_ldl_data(env, src);
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  For now, lets cap at 8k.  */
+    max_len = (src_len > 0x2000 ? 0x2000 : src_len);
 
-        /* move to next word */
-        src_len -= 4;
-        src += 4;
+    /* Process full words as available.  */
+    for (len = 0; len + 4 <= max_len; len += 4, src += 4) {
+        cksm += (uint32_t)cpu_ldl_data(env, src);
     }
 
-    switch (src_len) {
-    case 0:
-        break;
+    switch (max_len - len) {
     case 1:
         cksm += cpu_ldub_data(env, src) << 24;
+        len += 1;
         break;
     case 2:
         cksm += cpu_lduw_data(env, src) << 16;
+        len += 2;
         break;
     case 3:
         cksm += cpu_lduw_data(env, src) << 16;
         cksm += cpu_ldub_data(env, src + 2) << 8;
+        len += 3;
         break;
     }
 
-    /* indicate we've processed everything */
-    env->regs[r2] = src + src_len;
-    env->regs[(r2 + 1) & 15] = 0;
+    /* Fold the carry from the checksum.  Note that we can see carry-out
+       during folding more than once (but probably not more than twice).  */
+    while (cksm > 0xffffffffull) {
+        cksm = (uint32_t)cksm + (cksm >> 32);
+    }
 
-    /* store result */
-    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
-        ((uint32_t)cksm + (cksm >> 32));
+    /* Indicate whether or not we've processed everything.  */
+    env->cc_op = (len == src_len ? 0 : 3);
+
+    /* Return both cksm and processed length.  */
+    env->retxl = cksm;
+    return len;
 }
 
 void HELPER(unpk)(CPUS390XState *env, uint32_t len, uint64_t dest,

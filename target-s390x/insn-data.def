@@ -91,6 +91,9 @@
     C(0xa706, BRCT,    RI_b,  Z,   0, 0, 0, 0, bct32, 0)
     C(0xa707, BRCTG,   RI_b,  Z,   0, 0, 0, 0, bct64, 0)
 
+/* CHECKSUM */
+    C(0xb241, CKSM,    RRE,   Z,   r1_o, ra2, new, r1_32, cksm, 0)
+
 /* COMPARE */
     C(0x1900, CR,      RR_a,  Z,   r1_o, r2_o, 0, 0, 0, cmps32)
     C(0x5900, C,       RX_a,  Z,   r1_o, m2_32s, 0, 0, 0, cmps32)

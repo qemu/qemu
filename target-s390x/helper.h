@@ -75,7 +75,7 @@ DEF_HELPER_3(sqxb, i64, env, i64, i64)
 DEF_HELPER_FLAGS_1(cvd, TCG_CALL_NO_RWG_SE, i64, s32)
 DEF_HELPER_4(unpk, void, env, i32, i64, i64)
 DEF_HELPER_4(tr, void, env, i32, i64, i64)
-DEF_HELPER_3(cksm, void, env, i32, i32)
+DEF_HELPER_4(cksm, i64, env, i64, i64, i64)
 DEF_HELPER_FLAGS_5(calc_cc, TCG_CALL_NO_RWG_SE, i32, env, i32, i64, i64, i64)
 DEF_HELPER_FLAGS_2(sfpc, TCG_CALL_NO_RWG, void, env, i64)
 
