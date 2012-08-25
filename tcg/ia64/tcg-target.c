@@ -1532,12 +1532,13 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     }
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
-    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
-                tcg_target_call_iarg_regs[1]);
-    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                tcg_target_call_iarg_regs[0]);
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                TCG_AREG0);
+    tcg_out_bundle(s, mII,
+                   tcg_opc_a5 (TCG_REG_P7, OPC_ADDL_A5, TCG_REG_R58,
+                               mem_index, TCG_REG_R0),
+                   tcg_opc_a4 (TCG_REG_P7, OPC_ADDS_A4,
+                               TCG_REG_R57, 0, TCG_REG_R56),
+                   tcg_opc_a4 (TCG_REG_P7, OPC_ADDS_A4,
+                               TCG_REG_R56, 0, TCG_AREG0));
 #endif
     if (!bswap || s_bits == 0) {
         tcg_out_bundle(s, miB,
@@ -1659,15 +1660,21 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
-    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
-                tcg_target_call_iarg_regs[2]);
-    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
-                tcg_target_call_iarg_regs[1]);
-    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
-                tcg_target_call_iarg_regs[0]);
-    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
-                TCG_AREG0);
-#endif
+    tcg_out_bundle(s, mII,
+                   tcg_opc_a5 (TCG_REG_P7, OPC_ADDL_A5, TCG_REG_R59,
+                               mem_index, TCG_REG_R0),
+                   tcg_opc_a4 (TCG_REG_P7, OPC_ADDS_A4,
+                               TCG_REG_R58, 0, TCG_REG_R57),
+                   tcg_opc_a4 (TCG_REG_P7, OPC_ADDS_A4,
+                               TCG_REG_R57, 0, TCG_REG_R56));
+    tcg_out_bundle(s, miB,
+                   tcg_opc_m4 (TCG_REG_P6, opc_st_m4[opc],
+                               data_reg, TCG_REG_R3),
+                   tcg_opc_a4 (TCG_REG_P7, OPC_ADDS_A4,
+                               TCG_REG_R56, 0, TCG_AREG0),
+                   tcg_opc_b5 (TCG_REG_P7, OPC_BR_CALL_SPTK_MANY_B5,
+                               TCG_REG_B0, TCG_REG_B6));
+#else
     tcg_out_bundle(s, miB,
                    tcg_opc_m4 (TCG_REG_P6, opc_st_m4[opc],
                                data_reg, TCG_REG_R3),
@@ -1675,6 +1682,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
                                mem_index, TCG_REG_R0),
                    tcg_opc_b5 (TCG_REG_P7, OPC_BR_CALL_SPTK_MANY_B5,
                                TCG_REG_B0, TCG_REG_B6));
+#endif
 }
 
 #else /* !CONFIG_SOFTMMU */
