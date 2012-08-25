@@ -107,7 +107,7 @@ enum {
 };
 
 static const int tcg_target_reg_alloc_order[] = {
-    TCG_REG_R34,
+    TCG_REG_R33,
     TCG_REG_R35,
     TCG_REG_R36,
     TCG_REG_R37,
@@ -2314,13 +2314,13 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     s->code_ptr += 16; /* skip GP */
 
     /* prologue */
-    tcg_out_bundle(s, mII,
+    tcg_out_bundle(s, miI,
                    tcg_opc_m34(TCG_REG_P0, OPC_ALLOC_M34,
-                               TCG_REG_R33, 32, 24, 0),
+                               TCG_REG_R34, 32, 24, 0),
+                   tcg_opc_a4 (TCG_REG_P0, OPC_ADDS_A4,
+                               TCG_AREG0, 0, TCG_REG_R32),
                    tcg_opc_i21(TCG_REG_P0, OPC_MOV_I21,
-                               TCG_REG_B6, TCG_REG_R33, 0),
-                   tcg_opc_i22(TCG_REG_P0, OPC_MOV_I22,
-                               TCG_REG_R32, TCG_REG_B0));
+                               TCG_REG_B6, TCG_REG_R33, 0));
 
     /* ??? If GUEST_BASE < 0x200000, we could load the register via
        an ADDL in the M slot of the next bundle.  */
@@ -2335,9 +2335,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tcg_out_bundle(s, miB,
                    tcg_opc_a4 (TCG_REG_P0, OPC_ADDS_A4,
-                               TCG_AREG0, 0, TCG_REG_R32),
-                   tcg_opc_a4 (TCG_REG_P0, OPC_ADDS_A4,
                                TCG_REG_R12, -frame_size, TCG_REG_R12),
+                   tcg_opc_i22(TCG_REG_P0, OPC_MOV_I22,
+                               TCG_REG_R32, TCG_REG_B0),
                    tcg_opc_b4 (TCG_REG_P0, OPC_BR_SPTK_MANY_B4, TCG_REG_B6));
 
     /* epilogue */
@@ -2351,7 +2351,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_bundle(s, miB,
                    tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
                    tcg_opc_i26(TCG_REG_P0, OPC_MOV_I_I26,
-                               TCG_REG_PFS, TCG_REG_R33),
+                               TCG_REG_PFS, TCG_REG_R34),
                    tcg_opc_b4 (TCG_REG_P0, OPC_BR_RET_SPTK_MANY_B4,
                                TCG_REG_B0));
 }
@@ -2403,7 +2403,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R12);  /* stack pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R13);  /* thread pointer */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R32);  /* return address */
-    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R33);  /* PFS */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_R34);  /* PFS */
 
     /* The following 3 are not in use, are call-saved, but *not* saved
        by the prologue.  Therefore we cannot use them without modifying
