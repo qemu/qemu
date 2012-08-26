@@ -6530,7 +6530,7 @@ static void glue(gen_, name)(DisasContext *ctx)                         \
     ra = gen_avr_ptr(rA(ctx->opcode));                                  \
     rb = gen_avr_ptr(rB(ctx->opcode));                                  \
     rd = gen_avr_ptr(rD(ctx->opcode));                                  \
-    gen_helper_##name(rd, cpu_env, ra, rb);                             \
+    gen_helper_##name(cpu_env, rd, ra, rb);                             \
     tcg_temp_free_ptr(ra);                                              \
     tcg_temp_free_ptr(rb);                                              \
     tcg_temp_free_ptr(rd);                                              \
