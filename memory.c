@@ -426,7 +426,7 @@ static void memory_region_iorange_write(IORange *iorange,
         if (mrp) {
             mrp->write(mr->opaque, offset, data);
         } else if (width == 2) {
-            mrp = find_portio(mr, offset - mrio->offset, 1, false);
+            mrp = find_portio(mr, offset - mrio->offset, 1, true);
             assert(mrp);
             mrp->write(mr->opaque, offset, data & 0xff);
             mrp->write(mr->opaque, offset + 1, data >> 8);
