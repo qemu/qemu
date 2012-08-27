@@ -946,7 +946,7 @@ uint64_t HELPER(iske)(CPUS390XState *env, uint64_t r2)
 }
 
 /* set storage key extended */
-void HELPER(sske)(CPUS390XState *env, uint32_t r1, uint64_t r2)
+void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
     uint64_t addr = get_address(env, 0, 0, r2);
 

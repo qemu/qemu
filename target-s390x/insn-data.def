@@ -650,6 +650,8 @@
     C(0xb210, SPX,     S,     Z,   0, m2_32u, 0, 0, spx, 0)
 /* SET PSW KEY FROM ADDRESS */
     C(0xb20a, SPKA,    S,     Z,   0, a2, 0, 0, spka, 0)
+/* SET STORAGE KEY EXTENDED */
+    C(0xb22b, SSKE,    RRF_c, Z,   r1_o, r2_o, 0, 0, sske, 0)
 /* SET SYSTEM MASK */
     C(0x8000, SSM,     S,     Z,   0, m2_8u, 0, 0, ssm, 0)
 /* SIGNAL PROCESSOR */

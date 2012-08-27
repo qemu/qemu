@@ -1045,17 +1045,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
         break;
-    case 0x2b: /* SSKE     R1,R2      [RRE] */
-        /* Set Storage Key Extended */
-        check_privileged(s);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        tmp32_1 = load_reg32(r1);
-        tmp = load_reg(r2);
-        gen_helper_sske(cpu_env, tmp32_1, tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x34: /* STCH ? */
         /* Store Subchannel */
         check_privileged(s);
@@ -2828,6 +2817,13 @@ static ExitStatus op_spka(DisasContext *s, DisasOps *o)
     check_privileged(s);
     tcg_gen_shri_i64(o->in2, o->in2, 4);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, PSW_SHIFT_KEY - 4, 4);
+    return NO_EXIT;
+}
+
+static ExitStatus op_sske(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sske(cpu_env, o->in1, o->in2);
     return NO_EXIT;
 }
 
