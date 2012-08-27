@@ -627,6 +627,8 @@
     C(0xeb2f, LCTLG,   RSY_a, Z,   0, a2, 0, 0, lctlg, 0)
 /* LOAD PSW */
     C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
+/* LOAD PSW EXTENDED */
+    C(0xb2b2, LPSWE,   S,     Z,   0, a2, 0, 0, lpswe, 0)
 /* LOAD REAL ADDRESS */
     C(0xb100, LRA,     RX_a,  Z,   0, a2, r1, 0, lra, 0)
     C(0xe313, LRAY,    RXY_a, LD,  0, a2, r1, 0, lra, 0)

@@ -1022,10 +1022,9 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
                      uint32_t insn)
 {
 #ifndef CONFIG_USER_ONLY
-    TCGv_i64 tmp, tmp2, tmp3;
+    TCGv_i64 tmp;
     TCGv_i32 tmp32_1;
     int r1, r2;
-    int r3, d2, b2;
 
     r1 = (insn >> 4) & 0xf;
     r2 = insn & 0xf;
@@ -1033,23 +1032,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0xb2: /* LPSWE    D2(B2)     [S] */
-        /* Load PSW Extended */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp3 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld64(tmp2, tmp, get_mem_index(s));
-        tcg_gen_addi_i64(tmp, tmp, 8);
-        tcg_gen_qemu_ld64(tmp3, tmp, get_mem_index(s));
-        gen_helper_load_psw(cpu_env, tmp2, tmp3);
-        /* we need to keep cc_op intact */
-        s->is_jmp = DISAS_JUMP;
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        break;
     case 0x20: /* SERVC     R1,R2     [RRE] */
         /* SCLP Service call (PV hypercall) */
         check_privileged(s);
@@ -2249,6 +2231,23 @@ static ExitStatus op_lpsw(DisasContext *s, DisasOps *o)
     tcg_gen_qemu_ld32u(t2, o->in2, get_mem_index(s));
     /* Convert the 32-bit PSW_MASK into the 64-bit PSW_MASK.  */
     tcg_gen_shli_i64(t1, t1, 32);
+    gen_helper_load_psw(cpu_env, t1, t2);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    return EXIT_NORETURN;
+}
+
+static ExitStatus op_lpswe(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t1, t2;
+
+    check_privileged(s);
+
+    t1 = tcg_temp_new_i64();
+    t2 = tcg_temp_new_i64();
+    tcg_gen_qemu_ld64(t1, o->in2, get_mem_index(s));
+    tcg_gen_addi_i64(o->in2, o->in2, 8);
+    tcg_gen_qemu_ld64(t2, o->in2, get_mem_index(s));
     gen_helper_load_psw(cpu_env, t1, t2);
     tcg_temp_free_i64(t1);
     tcg_temp_free_i64(t2);
