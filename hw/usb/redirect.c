@@ -1,7 +1,7 @@
 /*
  * USB redirector usb-guest
  *
- * Copyright (c) 2011 Red Hat, Inc.
+ * Copyright (c) 2011-2012 Red Hat, Inc.
  *
  * Red Hat Authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -99,7 +99,6 @@ struct AsyncURB {
     USBRedirDevice *dev;
     USBPacket *packet;
     uint32_t packet_id;
-    int get;
     union {
         struct usb_redir_control_packet_header control_packet;
         struct usb_redir_bulk_packet_header bulk_packet;
@@ -672,7 +671,6 @@ static int usbredir_get_config(USBRedirDevice *dev, USBPacket *p)
 
     DPRINTF("get config id %u\n", aurb->packet_id);
 
-    aurb->get = 1;
     usbredirparser_send_get_configuration(dev->parser, aurb->packet_id);
     usbredirparser_do_write(dev->parser);
     return USB_RET_ASYNC;
@@ -721,7 +719,6 @@ static int usbredir_get_interface(USBRedirDevice *dev, USBPacket *p,
     DPRINTF("get interface %d id %u\n", interface, aurb->packet_id);
 
     get_alt.interface = interface;
-    aurb->get = 1;
     usbredirparser_send_get_alt_setting(dev->parser, aurb->packet_id,
                                         &get_alt);
     usbredirparser_do_write(dev->parser);
@@ -1226,7 +1223,7 @@ static void usbredir_configuration_status(void *priv, uint32_t id,
         return;
     }
     if (aurb->packet) {
-        if (aurb->get) {
+        if (dev->dev.setup_buf[0] & USB_DIR_IN) {
             dev->dev.data_buf[0] = config_status->configuration;
             len = 1;
         }
@@ -1254,7 +1251,7 @@ static void usbredir_alt_setting_status(void *priv, uint32_t id,
         return;
     }
     if (aurb->packet) {
-        if (aurb->get) {
+        if (dev->dev.setup_buf[0] & USB_DIR_IN) {
             dev->dev.data_buf[0] = alt_setting_status->alt;
             len = 1;
         }
