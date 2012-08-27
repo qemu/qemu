@@ -355,8 +355,7 @@ static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
             ret = s->imr;
         }
     }
-    DPRINTF("read: addr=0x%02" TARGET_PRIxPHYS " val=0x%02x\n",
-            addr, ret);
+    DPRINTF("read: addr=0x%02x val=0x%02x\n", addr, ret);
     return ret;
 }
 
