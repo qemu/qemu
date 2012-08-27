@@ -46,6 +46,9 @@
     C(0xb9e9, SGRK,    RRF_a, DO,  r2, r3, r1, 0, sub, subs64)
     C(0xe309, SG,      RXY_a, Z,   r1, m2_64, r1, 0, sub, subs64)
     C(0xe319, SGF,     RXY_a, Z,   r1, m2_32s, r1, 0, sub, subs64)
+/* SUBTRACT HALFWORD */
+    C(0x4b00, SH,      RX_a,  Z,   r1, m2_16s, new, r1_32, sub, subs32)
+    C(0xe37b, SHY,     RXY_a, LD,  r1, m2_16s, new, r1_32, sub, subs32)
 /* SUBTRACT LOGICAL */
     C(0x1f00, SLR,     RR_a,  Z,   r1, r2, new, r1_32, sub, subu32)
     C(0xb9fb, SLRK,    RRF_a, DO,  r2, r3, new, r1_32, sub, subu32)
