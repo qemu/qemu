@@ -88,6 +88,7 @@ struct KVMState
     int pit_state2;
     int xsave, xcrs;
     int many_ioeventfds;
+    int intx_set_mask;
     /* The man page (and posix) say ioctl numbers are signed int, but
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
@@ -1386,6 +1387,8 @@ int kvm_init(void)
     s->direct_msi = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
 #endif
 
+    s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
+
     ret = kvm_arch_init(s);
     if (ret < 0) {
         goto err;
@@ -1738,6 +1741,11 @@ int kvm_has_gsi_routing(void)
 #else
     return false;
 #endif
+}
+
+int kvm_has_intx_set_mask(void)
+{
+    return kvm_state->intx_set_mask;
 }
 
 void *kvm_vmalloc(ram_addr_t size)
