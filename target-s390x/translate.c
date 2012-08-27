@@ -1033,15 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0xb1: /* STFL     D2(B2)     [S] */
-        /* Store Facility List (CPU features) at 200 */
-        check_privileged(s);
-        tmp2 = tcg_const_i64(0xc0000000);
-        tmp = tcg_const_i64(200);
-        tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0xb2: /* LPSWE    D2(B2)     [S] */
         /* Load PSW Extended */
         check_privileged(s);
@@ -2872,6 +2863,20 @@ static ExitStatus op_spt(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_spt(cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stfl(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 f, a;
+    /* We really ought to have more complete indication of facilities
+       that we implement.  Address this when STFLE is implemented.  */
+    check_privileged(s);
+    f = tcg_const_i64(0xc0000000);
+    a = tcg_const_i64(200);
+    tcg_gen_qemu_st32(f, a, get_mem_index(s));
+    tcg_temp_free_i64(f);
+    tcg_temp_free_i64(a);
     return NO_EXIT;
 }
 
