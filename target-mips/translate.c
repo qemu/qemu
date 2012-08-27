@@ -6805,7 +6805,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
             gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, fd);
+            gen_load_fpr32(fp1, ft);
             gen_helper_float_recip2_s(fp0, fp0, fp1);
             tcg_temp_free_i32(fp1);
             gen_store_fpr32(fp0, fd);
@@ -7543,7 +7543,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i64 fp1 = tcg_temp_new_i64();
 
             gen_load_fpr64(ctx, fp0, fs);
-            gen_load_fpr64(ctx, fp1, fd);
+            gen_load_fpr64(ctx, fp1, ft);
             gen_helper_float_recip2_ps(fp0, fp0, fp1);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp0, fd);
