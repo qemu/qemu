@@ -26,7 +26,6 @@
 #include "isa.h"
 #include "monitor.h"
 #include "qemu-timer.h"
-#include "sysemu.h"
 #include "i8259_internal.h"
 
 /* debug PIC */
@@ -194,20 +193,6 @@ int pic_read_irq(DeviceState *d)
                 pic_intack(slave_pic, irq2);
             } else {
                 /* spurious IRQ on slave controller */
-                if (no_spurious_interrupt_hack) {
-                    /* Pretend it was delivered and acknowledged.  If
-                     * it was spurious due to slave_pic->imr, then
-                     * as soon as the mask is cleared, the slave will
-                     * re-trigger IRQ2 on the master.  If it is spurious for
-                     * some other reason, make sure we don't keep trying
-                     * to half-process the same spurious interrupt over
-                     * and over again.
-                     */
-                    s->irr &= ~(1<<irq);
-                    s->last_irr &= ~(1<<irq);
-                    s->isr &= ~(1<<irq);
-                    return -1;
-                }
                 irq2 = 7;
             }
             intno = slave_pic->irq_base + irq2;
@@ -217,9 +202,6 @@ int pic_read_irq(DeviceState *d)
         pic_intack(s, irq);
     } else {
         /* spurious IRQ on host controller */
-        if (no_spurious_interrupt_hack) {
-            return -1;
-        }
         irq = 7;
         intno = s->irq_base + irq;
     }
