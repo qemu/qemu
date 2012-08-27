@@ -1022,27 +1022,7 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
                      uint32_t insn)
 {
 #ifndef CONFIG_USER_ONLY
-    TCGv_i64 tmp;
-    TCGv_i32 tmp32_1;
-    int r1, r2;
-
-    r1 = (insn >> 4) & 0xf;
-    r2 = insn & 0xf;
-
-    LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
-
     switch (op) {
-    case 0x20: /* SERVC     R1,R2     [RRE] */
-        /* SCLP Service call (PV hypercall) */
-        check_privileged(s);
-        potential_page_fault(s);
-        tmp32_1 = load_reg32(r2);
-        tmp = load_reg(r1);
-        gen_helper_servc(cc_op, cpu_env, tmp32_1, tmp);
-        set_cc_static(s);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
-        break;
     default:
 #endif
         LOG_DISAS("illegal b2 operation 0x%x\n", op);
@@ -2701,6 +2681,15 @@ static ExitStatus op_sqxb(DisasContext *s, DisasOps *o)
 }
 
 #ifndef CONFIG_USER_ONLY
+static ExitStatus op_servc(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_servc(cc_op, cpu_env, o->in2, o->in1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+
 static ExitStatus op_sigp(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));

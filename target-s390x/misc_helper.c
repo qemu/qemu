@@ -88,11 +88,9 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 }
 
 /* SCLP service call */
-uint32_t HELPER(servc)(CPUS390XState *env, uint32_t r1, uint64_t r2)
+uint32_t HELPER(servc)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 {
-    int r;
-
-    r = sclp_service_call(r1, r2);
+    int r = sclp_service_call(r1, r2);
     if (r < 0) {
         program_interrupt(env, -r, 4);
         return 0;

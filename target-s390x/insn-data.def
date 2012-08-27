@@ -641,6 +641,8 @@
     C(0xb20d, PTLB,    S,     Z,   0, 0, 0, 0, ptlb, 0)
 /* RESET REFERENCE BIT EXTENDED */
     C(0xb22a, RRBE,    RRE,   Z,   0, r2_o, 0, 0, rrbe, 0)
+/* SERVICE CALL LOGICAL PROCESSOR (PV hypercall) */
+    C(0xb220, SERVC,   RRE,   Z,   r1_o, r2_o, 0, 0, servc, 0)
 /* SET ADDRESSING MODE */
     /* We only do 64-bit, so accept this as a no-op.
        Let SAM24 and SAM31 signal illegal instruction.  */

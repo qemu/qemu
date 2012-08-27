@@ -80,7 +80,7 @@ DEF_HELPER_FLAGS_5(calc_cc, TCG_CALL_NO_RWG_SE, i32, env, i32, i64, i64, i64)
 DEF_HELPER_FLAGS_2(sfpc, TCG_CALL_NO_RWG, void, env, i64)
 
 #ifndef CONFIG_USER_ONLY
-DEF_HELPER_3(servc, i32, env, i32, i64)
+DEF_HELPER_3(servc, i32, env, i64, i64)
 DEF_HELPER_4(diag, i64, env, i32, i64, i64)
 DEF_HELPER_3(load_psw, void, env, i64, i64)
 DEF_HELPER_FLAGS_2(spx, TCG_CALL_NO_RWG, void, env, i64)
