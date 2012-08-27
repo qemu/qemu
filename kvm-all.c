@@ -963,6 +963,30 @@ static void kvm_add_routing_entry(KVMState *s,
     kvm_irqchip_commit_routes(s);
 }
 
+static int kvm_update_routing_entry(KVMState *s,
+                                    struct kvm_irq_routing_entry *new_entry)
+{
+    struct kvm_irq_routing_entry *entry;
+    int n;
+
+    for (n = 0; n < s->irq_routes->nr; n++) {
+        entry = &s->irq_routes->entries[n];
+        if (entry->gsi != new_entry->gsi) {
+            continue;
+        }
+
+        entry->type = new_entry->type;
+        entry->flags = new_entry->flags;
+        entry->u = new_entry->u;
+
+        kvm_irqchip_commit_routes(s);
+
+        return 0;
+    }
+
+    return -ESRCH;
+}
+
 void kvm_irqchip_add_irq_route(KVMState *s, int irq, int irqchip, int pin)
 {
     struct kvm_irq_routing_entry e;
@@ -1123,6 +1147,24 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     kvm_add_routing_entry(s, &kroute);
 
     return virq;
+}
+
+int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
+{
+    struct kvm_irq_routing_entry kroute;
+
+    if (!kvm_irqchip_in_kernel()) {
+        return -ENOSYS;
+    }
+
+    kroute.gsi = virq;
+    kroute.type = KVM_IRQ_ROUTING_MSI;
+    kroute.flags = 0;
+    kroute.u.msi.address_lo = (uint32_t)msg.address;
+    kroute.u.msi.address_hi = msg.address >> 32;
+    kroute.u.msi.data = msg.data;
+
+    return kvm_update_routing_entry(s, &kroute);
 }
 
 static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
