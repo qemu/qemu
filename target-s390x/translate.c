@@ -1033,19 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x79: /* SACF    D2(B2)     [S] */
-        /* Set Address Space Control Fast */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_sacf(cpu_env, tmp);
-        tcg_temp_free_i64(tmp);
-        /* addressing mode has changed, so end the block */
-        s->pc = s->next_pc;
-        update_psw_addr(s);
-        s->is_jmp = DISAS_JUMP;
-        break;
     case 0x7d: /* STSI     D2,(B2)     [S] */
         check_privileged(s);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
@@ -2680,6 +2667,14 @@ static ExitStatus op_rrbe(DisasContext *s, DisasOps *o)
     gen_helper_rrbe(cc_op, cpu_env, o->in2);
     set_cc_static(s);
     return NO_EXIT;
+}
+
+static ExitStatus op_sacf(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_sacf(cpu_env, o->in2);
+    /* Addressing mode has changed, so end the block.  */
+    return EXIT_PC_STALE;
 }
 #endif
 
