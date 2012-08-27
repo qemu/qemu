@@ -1033,15 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x78: /* STCKE    D2(B2)     [S] */
-        /* Store Clock Extended */
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_stcke(cc_op, cpu_env, tmp);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x79: /* SACF    D2(B2)     [S] */
         /* Set Address Space Control Fast */
         check_privileged(s);
@@ -2823,6 +2814,28 @@ static ExitStatus op_stap(DisasContext *s, DisasOps *o)
 static ExitStatus op_stck(DisasContext *s, DisasOps *o)
 {
     gen_helper_stck(o->out, cpu_env);
+    /* ??? We don't implement clock states.  */
+    gen_op_movi_cc(s, 0);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stcke(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 c1 = tcg_temp_new_i64();
+    TCGv_i64 c2 = tcg_temp_new_i64();
+    gen_helper_stck(c1, cpu_env);
+    /* Shift the 64-bit value into its place as a zero-extended
+       104-bit value.  Note that "bit positions 64-103 are always
+       non-zero so that they compare differently to STCK"; we set
+       the least significant bit to 1.  */
+    tcg_gen_shli_i64(c2, c1, 56);
+    tcg_gen_shri_i64(c1, c1, 8);
+    tcg_gen_ori_i64(c2, c2, 0x10000);
+    tcg_gen_qemu_st64(c1, o->in2, get_mem_index(s));
+    tcg_gen_addi_i64(o->in2, o->in2, 8);
+    tcg_gen_qemu_st64(c2, o->in2, get_mem_index(s));
+    tcg_temp_free_i64(c1);
+    tcg_temp_free_i64(c2);
     /* ??? We don't implement clock states.  */
     gen_op_movi_cc(s, 0);
     return NO_EXIT;

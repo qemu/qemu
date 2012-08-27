@@ -157,20 +157,6 @@ uint64_t HELPER(stck)(CPUS390XState *env)
     return clock_value(env);
 }
 
-/* Store Clock Extended */
-uint32_t HELPER(stcke)(CPUS390XState *env, uint64_t a1)
-{
-    cpu_stb_data(env, a1, 0);
-    /* basically the same value as stck */
-    cpu_stq_data(env, a1 + 1, clock_value(env) | env->cpu_num);
-    /* more fine grained than stck */
-    cpu_stq_data(env, a1 + 9, 0);
-    /* XXX programmable fields */
-    cpu_stw_data(env, a1 + 17, 0);
-
-    return 0;
-}
-
 /* Set Clock Comparator */
 void HELPER(sckc)(CPUS390XState *env, uint64_t time)
 {

@@ -663,6 +663,8 @@
 /* STORE CLOCK */
     C(0xb205, STCK,    S,     Z,   la2, 0, new, m1_64, stck, 0)
     C(0xb27c, STCKF,   S,     Z,   la2, 0, new, m1_64, stck, 0)
+/* STORE CLOCK EXTENDED */
+    C(0xb278, STCKE,   S,     Z,   0, a2, 0, 0, stcke, 0)
 /* STORE CLOCK COMPARATOR */
     C(0xb207, STCKC,   S,     Z,   la2, 0, new, m1_64, stckc, 0)
 /* STORE CONTROL */
