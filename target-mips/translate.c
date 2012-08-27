@@ -6900,7 +6900,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32(fp32_0, fs);
             gen_load_fpr32(fp32_1, ft);
-            tcg_gen_concat_i32_i64(fp64, fp32_0, fp32_1);
+            tcg_gen_concat_i32_i64(fp64, fp32_1, fp32_0);
             tcg_temp_free_i32(fp32_1);
             tcg_temp_free_i32(fp32_0);
             gen_store_fpr64(ctx, fp64, fd);
