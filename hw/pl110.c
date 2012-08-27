@@ -55,8 +55,8 @@ typedef struct {
     enum pl110_bppmode bpp;
     int invalidate;
     uint32_t mux_ctrl;
-    uint32_t pallette[256];
-    uint32_t raw_pallette[128];
+    uint32_t palette[256];
+    uint32_t raw_palette[128];
     qemu_irq irq;
 } pl110_state;
 
@@ -79,8 +79,8 @@ static const VMStateDescription vmstate_pl110 = {
         VMSTATE_INT32(rows, pl110_state),
         VMSTATE_UINT32(bpp, pl110_state),
         VMSTATE_INT32(invalidate, pl110_state),
-        VMSTATE_UINT32_ARRAY(pallette, pl110_state, 256),
-        VMSTATE_UINT32_ARRAY(raw_pallette, pl110_state, 128),
+        VMSTATE_UINT32_ARRAY(palette, pl110_state, 256),
+        VMSTATE_UINT32_ARRAY(raw_palette, pl110_state, 128),
         VMSTATE_UINT32_V(mux_ctrl, pl110_state, 2),
         VMSTATE_END_OF_LIST()
     }
@@ -236,7 +236,7 @@ static void pl110_update_display(void *opaque)
                                s->upbase, s->cols, s->rows,
                                src_width, dest_width, 0,
                                s->invalidate,
-                               fn, s->pallette,
+                               fn, s->palette,
                                &first, &last);
     if (first >= 0) {
         dpy_update(s->ds, 0, first, s->cols, last - first + 1);
@@ -253,13 +253,13 @@ static void pl110_invalidate_display(void * opaque)
     }
 }
 
-static void pl110_update_pallette(pl110_state *s, int n)
+static void pl110_update_palette(pl110_state *s, int n)
 {
     int i;
     uint32_t raw;
     unsigned int r, g, b;
 
-    raw = s->raw_pallette[n];
+    raw = s->raw_palette[n];
     n <<= 1;
     for (i = 0; i < 2; i++) {
         r = (raw & 0x1f) << 3;
@@ -271,17 +271,17 @@ static void pl110_update_pallette(pl110_state *s, int n)
         raw >>= 6;
         switch (ds_get_bits_per_pixel(s->ds)) {
         case 8:
-            s->pallette[n] = rgb_to_pixel8(r, g, b);
+            s->palette[n] = rgb_to_pixel8(r, g, b);
             break;
         case 15:
-            s->pallette[n] = rgb_to_pixel15(r, g, b);
+            s->palette[n] = rgb_to_pixel15(r, g, b);
             break;
         case 16:
-            s->pallette[n] = rgb_to_pixel16(r, g, b);
+            s->palette[n] = rgb_to_pixel16(r, g, b);
             break;
         case 24:
         case 32:
-            s->pallette[n] = rgb_to_pixel32(r, g, b);
+            s->palette[n] = rgb_to_pixel32(r, g, b);
             break;
         }
         n++;
@@ -314,7 +314,7 @@ static uint64_t pl110_read(void *opaque, target_phys_addr_t offset,
         return idregs[s->version][(offset - 0xfe0) >> 2];
     }
     if (offset >= 0x200 && offset < 0x400) {
-        return s->raw_pallette[(offset - 0x200) >> 2];
+        return s->raw_palette[(offset - 0x200) >> 2];
     }
     switch (offset >> 2) {
     case 0: /* LCDTiming0 */
@@ -364,10 +364,10 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
        is written to.  */
     s->invalidate = 1;
     if (offset >= 0x200 && offset < 0x400) {
-        /* Pallette.  */
+        /* Palette.  */
         n = (offset - 0x200) >> 2;
-        s->raw_pallette[(offset - 0x200) >> 2] = val;
-        pl110_update_pallette(s, n);
+        s->raw_palette[(offset - 0x200) >> 2] = val;
+        pl110_update_palette(s, n);
         return;
     }
     switch (offset >> 2) {
