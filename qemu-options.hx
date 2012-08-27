@@ -975,25 +975,6 @@ Valid optional properties are
 @item retrace=dumb|precise
 Select dumb (default) or precise VGA retrace logic, useful for some
 DOS games/demos.
-@item cga_hacks=@var{hack1}[+@var{hack2},[...]]
-Enable various extra CGA compatibility hacks for programs that are
-trying to directly set CGA modes without BIOS assistance nor
-real knowledge of EGA/VGA.  These might only work with -vga std.
-Valid hacks are
-@table @option
-@item palette_blanking
-Wait to blank the screen until palette registers seem to actually be
-modified, instead of blanking it as soon as the palette address bit (0x10)
-of the attribute address register (0x3c0) is cleared.
-@item font_height
-Ignore attempts to change the VGA font height (index 9),
-cursor start (index 10), and cursor end (index 11) of the CRTC control
-registers (0x3d5) if trying to set them to the default for CGA fonts
-instead of VGA fonts.
-@item all
-Enable all CGA hacks.  More CGA hacks may be added in future versions
-of qemu.
-@end table
 @end table
 ETEXI
 
