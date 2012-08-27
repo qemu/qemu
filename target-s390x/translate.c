@@ -1033,18 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x29: /* ISKE     R1,R2      [RRE] */
-        /* Insert Storage Key Extended */
-        check_privileged(s);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        tmp = load_reg(r2);
-        tmp2 = tcg_temp_new_i64();
-        gen_helper_iske(tmp2, cpu_env, tmp);
-        store_reg(r1, tmp2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x2a: /* RRBE     R1,R2      [RRE] */
         /* Set Storage Key Extended */
         check_privileged(s);
@@ -2207,6 +2195,13 @@ static ExitStatus op_ipte(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_ipte(cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_iske(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_iske(o->out, cpu_env, o->in2);
     return NO_EXIT;
 }
 #endif

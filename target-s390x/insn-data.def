@@ -616,6 +616,8 @@
 #ifndef CONFIG_USER_ONLY
 /* DIAGNOSE (KVM hypercall) */
     C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
+/* INSERT STORAGE KEY EXTENDED */
+    C(0xb229, ISKE,    RRE,   Z,   0, r2_o, new, r1_8, iske, 0)
 /* INVALIDATE PAGE TABLE ENTRY */
     C(0xb221, IPTE,    RRF_a, Z,   r1_o, r2_o, 0, 0, ipte, 0)
 /* LOAD CONTROL */
