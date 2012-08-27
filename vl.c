@@ -183,7 +183,6 @@ int main(int argc, char **argv)
 static const char *data_dir;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
-int vga_cga_hacks = 0;
 DisplayType display_type = DT_DEFAULT;
 int display_remote = 0;
 const char* keyboard_layout = NULL;
@@ -208,7 +207,6 @@ CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
 int win2k_install_hack = 0;
-int no_spurious_interrupt_hack = 0;
 int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
@@ -1757,28 +1755,6 @@ static void select_vgahw (const char *p)
             else if (strstart(opts, "precise", &nextopt))
                 vga_retrace_method = VGA_RETRACE_PRECISE;
             else goto invalid_vga;
-        } else if (strstart(opts, ",cga_hacks=", &nextopt)) {
-            opts = nextopt;
-            while (*opts) {
-                if (strstart(opts, "all", &nextopt)) {
-                    opts = nextopt;
-                    vga_cga_hacks |= ~0;
-                } else if (strstart(opts, "palette_blanking", &nextopt)) {
-                    opts = nextopt;
-                    vga_cga_hacks |= VGA_CGA_HACK_PALETTE_BLANKING;
-                } else if (strstart(opts, "font_height", &nextopt)) {
-                    opts = nextopt;
-                    vga_cga_hacks |= VGA_CGA_HACK_FONT_HEIGHT;
-                } else {
-                    break;
-                }
-
-                if (*opts == '+') {
-                    opts++;
-                } else {
-                    break;
-                }
-            }
         } else goto invalid_vga;
         opts = nextopt;
     }
@@ -2419,9 +2395,8 @@ int main(int argc, char **argv, char **envp)
     char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
     DisplayChangeListener *dcl;
-    char hdachs_params[512];  /* save -hdachs to apply to later -hda */
-    QemuOpts *hda_opts = NULL; /* save -hda to be modified by later -hdachs */
-    QemuOpts *opts, *machine_opts;
+    int cyls, heads, secs, translation;
+    QemuOpts *hda_opts = NULL, *opts, *machine_opts;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2484,7 +2459,8 @@ int main(int argc, char **argv, char **envp)
     cpu_model = NULL;
     ram_size = 0;
     snapshot = 0;
-    snprintf(hdachs_params, sizeof(hdachs_params), "%s", HD_OPTS);
+    cyls = heads = secs = 0;
+    translation = BIOS_ATA_TRANSLATION_AUTO;
 
     for (i = 0; i < MAX_NODES; i++) {
         node_mem[i] = 0;
@@ -2532,7 +2508,7 @@ int main(int argc, char **argv, char **envp)
         if (optind >= argc)
             break;
         if (argv[optind][0] != '-') {
-            hda_opts = drive_add(IF_DEFAULT, 0, argv[optind++], hdachs_params);
+	    hda_opts = drive_add(IF_DEFAULT, 0, argv[optind++], HD_OPTS);
         } else {
             const QEMUOption *popt;
 
@@ -2550,8 +2526,21 @@ int main(int argc, char **argv, char **envp)
                 cpu_model = optarg;
                 break;
             case QEMU_OPTION_hda:
-                hda_opts = drive_add(IF_DEFAULT, 0, optarg, hdachs_params);
-                break;
+                {
+                    char buf[256];
+                    if (cyls == 0)
+                        snprintf(buf, sizeof(buf), "%s", HD_OPTS);
+                    else
+                        snprintf(buf, sizeof(buf),
+                                 "%s,cyls=%d,heads=%d,secs=%d%s",
+                                 HD_OPTS , cyls, heads, secs,
+                                 translation == BIOS_ATA_TRANSLATION_LBA ?
+                                 ",trans=lba" :
+                                 translation == BIOS_ATA_TRANSLATION_NONE ?
+                                 ",trans=none" : "");
+                    drive_add(IF_DEFAULT, 0, optarg, buf);
+                    break;
+                }
             case QEMU_OPTION_hdb:
             case QEMU_OPTION_hdc:
             case QEMU_OPTION_hdd:
@@ -2585,10 +2574,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_hdachs:
                 {
-                    int cyls, heads, secs, translation;
                     const char *p;
-                    cyls = heads = secs = 0;
-                    translation = BIOS_ATA_TRANSLATION_AUTO;
                     p = optarg;
                     cyls = strtol(p, (char **)&p, 0);
                     if (cyls < 1 || cyls > 16383)
@@ -2620,14 +2606,7 @@ int main(int argc, char **argv, char **envp)
                         fprintf(stderr, "qemu: invalid physical CHS format\n");
                         exit(1);
                     }
-                    snprintf(hdachs_params, sizeof(hdachs_params),
-                             "%s,cyls=%d,heads=%d,secs=%d%s",
-                             HD_OPTS , cyls, heads, secs,
-                             translation == BIOS_ATA_TRANSLATION_LBA ?
-                             ",trans=lba" :
-                             translation == BIOS_ATA_TRANSLATION_NONE ?
-                             ",trans=none" : "");
-                    if (hda_opts != NULL) {
+		    if (hda_opts != NULL) {
                         char num[16];
                         snprintf(num, sizeof(num), "%d", cyls);
                         qemu_opt_set(hda_opts, "cyls", num);
@@ -3097,9 +3076,6 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_win2k_hack:
                 win2k_install_hack = 1;
-                break;
-            case QEMU_OPTION_no_spurious_interrupt_hack:
-                no_spurious_interrupt_hack = 1;
                 break;
             case QEMU_OPTION_rtc_td_hack: {
                 static GlobalProperty slew_lost_ticks[] = {

@@ -6805,7 +6805,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
             gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, fd);
+            gen_load_fpr32(fp1, ft);
             gen_helper_float_recip2_s(fp0, fp0, fp1);
             tcg_temp_free_i32(fp1);
             gen_store_fpr32(fp0, fd);
@@ -6900,7 +6900,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32(fp32_0, fs);
             gen_load_fpr32(fp32_1, ft);
-            tcg_gen_concat_i32_i64(fp64, fp32_0, fp32_1);
+            tcg_gen_concat_i32_i64(fp64, fp32_1, fp32_0);
             tcg_temp_free_i32(fp32_1);
             tcg_temp_free_i32(fp32_0);
             gen_store_fpr64(ctx, fp64, fd);
@@ -7543,7 +7543,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i64 fp1 = tcg_temp_new_i64();
 
             gen_load_fpr64(ctx, fp0, fs);
-            gen_load_fpr64(ctx, fp1, fd);
+            gen_load_fpr64(ctx, fp1, ft);
             gen_helper_float_recip2_ps(fp0, fp0, fp1);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp0, fd);
@@ -7742,8 +7742,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     } else if (index == 0) {
         gen_load_gpr(t0, base);
     } else {
-        gen_load_gpr(t0, index);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[index]);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
@@ -8112,7 +8111,11 @@ gen_rdhwr (CPUMIPSState *env, DisasContext *ctx, int rt, int rd)
 {
     TCGv t0;
 
+#if !defined(CONFIG_USER_ONLY)
+    /* The Linux kernel will emulate rdhwr if it's not supported natively.
+       Therefore only check the ISA in system mode.  */
     check_insn(env, ctx, ISA_MIPS32R2);
+#endif
     t0 = tcg_temp_new();
 
     switch (rd) {

@@ -2055,8 +2055,8 @@ static void cirrus_vga_mem_write(void *opaque,
 	}
     } else {
 #ifdef DEBUG_CIRRUS
-        printf("cirrus: mem_writeb " TARGET_FMT_plx " value %" PRIx64 "\n",
-               addr, mem_value);
+        printf("cirrus: mem_writeb " TARGET_FMT_plx " value %02x\n", addr,
+               mem_value);
 #endif
     }
 }

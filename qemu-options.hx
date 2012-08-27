@@ -945,7 +945,7 @@ DEF("vga", HAS_ARG, QEMU_OPTION_vga,
     "-vga [std|cirrus|vmware|qxl|xenfb|none]\n"
     "                select video card type\n", QEMU_ARCH_ALL)
 STEXI
-@item -vga @var{type}[,@var{prop}=@var{value}[,...]]
+@item -vga @var{type}
 @findex -vga
 Select type of VGA card to emulate. Valid values for @var{type} are
 @table @option
@@ -969,31 +969,6 @@ QXL paravirtual graphic card.  It is VGA compatible (including VESA
 Recommended choice when using the spice protocol.
 @item none
 Disable VGA card.
-@end table
-Valid optional properties are
-@table @option
-@item retrace=dumb|precise
-Select dumb (default) or precise VGA retrace logic, useful for some
-DOS games/demos.
-@item cga_hacks=@var{hack1}[+@var{hack2},[...]]
-Enable various extra CGA compatibility hacks for programs that are
-trying to directly set CGA modes without BIOS assistance nor
-real knowledge of EGA/VGA.  These might only work with -vga std.
-Valid hacks are
-@table @option
-@item palette_blanking
-Wait to blank the screen until palette registers seem to actually be
-modified, instead of blanking it as soon as the palette address bit (0x10)
-of the attribute address register (0x3c0) is cleared.
-@item font_height
-Ignore attempts to change the VGA font height (index 9),
-cursor start (index 10), and cursor end (index 11) of the CRTC control
-registers (0x3d5) if trying to set them to the default for CGA fonts
-instead of VGA fonts.
-@item all
-Enable all CGA hacks.  More CGA hacks may be added in future versions
-of qemu.
-@end table
 @end table
 ETEXI
 
@@ -1187,18 +1162,6 @@ STEXI
 Use it when installing Windows 2000 to avoid a disk full bug. After
 Windows 2000 is installed, you no longer need this option (this option
 slows down the IDE transfers).
-ETEXI
-
-DEF("no-spurious-interrupt-hack", 0, QEMU_OPTION_no_spurious_interrupt_hack,
-    "-no-spurious-interrupt-hack     disable delivery of spurious interrupts\n",
-    QEMU_ARCH_I386)
-STEXI
-@item -no-spurious-interrupt-hack
-@findex -no-spurious-interrupt-hack
-Use it as a workaround for operating systems that drive PICs in a way that
-can generate spurious interrupts, but the OS doesn't handle spurious
-interrupts gracefully.  (e.g. late 80s/early 90s versions of ATT UNIX
-and derivatives)
 ETEXI
 
 HXCOMM Deprecated by -rtc
