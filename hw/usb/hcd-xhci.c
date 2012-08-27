@@ -465,6 +465,45 @@ static const char *TRBType_names[] = {
     [CR_VENDOR_NEC_CHALLENGE_RESPONSE] = "CR_VENDOR_NEC_CHALLENGE_RESPONSE",
 };
 
+static const char *TRBCCode_names[] = {
+    [CC_INVALID]                       = "CC_INVALID",
+    [CC_SUCCESS]                       = "CC_SUCCESS",
+    [CC_DATA_BUFFER_ERROR]             = "CC_DATA_BUFFER_ERROR",
+    [CC_BABBLE_DETECTED]               = "CC_BABBLE_DETECTED",
+    [CC_USB_TRANSACTION_ERROR]         = "CC_USB_TRANSACTION_ERROR",
+    [CC_TRB_ERROR]                     = "CC_TRB_ERROR",
+    [CC_STALL_ERROR]                   = "CC_STALL_ERROR",
+    [CC_RESOURCE_ERROR]                = "CC_RESOURCE_ERROR",
+    [CC_BANDWIDTH_ERROR]               = "CC_BANDWIDTH_ERROR",
+    [CC_NO_SLOTS_ERROR]                = "CC_NO_SLOTS_ERROR",
+    [CC_INVALID_STREAM_TYPE_ERROR]     = "CC_INVALID_STREAM_TYPE_ERROR",
+    [CC_SLOT_NOT_ENABLED_ERROR]        = "CC_SLOT_NOT_ENABLED_ERROR",
+    [CC_EP_NOT_ENABLED_ERROR]          = "CC_EP_NOT_ENABLED_ERROR",
+    [CC_SHORT_PACKET]                  = "CC_SHORT_PACKET",
+    [CC_RING_UNDERRUN]                 = "CC_RING_UNDERRUN",
+    [CC_RING_OVERRUN]                  = "CC_RING_OVERRUN",
+    [CC_VF_ER_FULL]                    = "CC_VF_ER_FULL",
+    [CC_PARAMETER_ERROR]               = "CC_PARAMETER_ERROR",
+    [CC_BANDWIDTH_OVERRUN]             = "CC_BANDWIDTH_OVERRUN",
+    [CC_CONTEXT_STATE_ERROR]           = "CC_CONTEXT_STATE_ERROR",
+    [CC_NO_PING_RESPONSE_ERROR]        = "CC_NO_PING_RESPONSE_ERROR",
+    [CC_EVENT_RING_FULL_ERROR]         = "CC_EVENT_RING_FULL_ERROR",
+    [CC_INCOMPATIBLE_DEVICE_ERROR]     = "CC_INCOMPATIBLE_DEVICE_ERROR",
+    [CC_MISSED_SERVICE_ERROR]          = "CC_MISSED_SERVICE_ERROR",
+    [CC_COMMAND_RING_STOPPED]          = "CC_COMMAND_RING_STOPPED",
+    [CC_COMMAND_ABORTED]               = "CC_COMMAND_ABORTED",
+    [CC_STOPPED]                       = "CC_STOPPED",
+    [CC_STOPPED_LENGTH_INVALID]        = "CC_STOPPED_LENGTH_INVALID",
+    [CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR]
+    = "CC_MAX_EXIT_LATENCY_TOO_LARGE_ERROR",
+    [CC_ISOCH_BUFFER_OVERRUN]          = "CC_ISOCH_BUFFER_OVERRUN",
+    [CC_EVENT_LOST_ERROR]              = "CC_EVENT_LOST_ERROR",
+    [CC_UNDEFINED_ERROR]               = "CC_UNDEFINED_ERROR",
+    [CC_INVALID_STREAM_ID_ERROR]       = "CC_INVALID_STREAM_ID_ERROR",
+    [CC_SECONDARY_BANDWIDTH_ERROR]     = "CC_SECONDARY_BANDWIDTH_ERROR",
+    [CC_SPLIT_TRANSACTION_ERROR]       = "CC_SPLIT_TRANSACTION_ERROR",
+};
+
 static const char *lookup_name(uint32_t index, const char **list, uint32_t llen)
 {
     if (index >= llen || list[index] == NULL) {
@@ -477,6 +516,12 @@ static const char *trb_name(XHCITRB *trb)
 {
     return lookup_name(TRB_TYPE(*trb), TRBType_names,
                        ARRAY_SIZE(TRBType_names));
+}
+
+static const char *event_name(XHCIEvent *event)
+{
+    return lookup_name(event->ccode, TRBCCode_names,
+                       ARRAY_SIZE(TRBCCode_names));
 }
 
 static uint64_t xhci_mfindex_get(XHCIState *xhci)
@@ -574,7 +619,8 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event)
     ev_trb.control = cpu_to_le32(ev_trb.control);
 
     trace_usb_xhci_queue_event(xhci->er_ep_idx, trb_name(&ev_trb),
-                               ev_trb.parameter, ev_trb.status, ev_trb.control);
+                               event_name(event), ev_trb.parameter,
+                               ev_trb.status, ev_trb.control);
 
     addr = xhci->er_start + TRB_SIZE*xhci->er_ep_idx;
     pci_dma_write(&xhci->pci_dev, addr, &ev_trb, TRB_SIZE);
