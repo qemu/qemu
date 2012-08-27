@@ -614,6 +614,8 @@
     C(0xf300, UNPK,    SS_a,  Z,   la1, a2, 0, 0, unpk, 0)
 
 #ifndef CONFIG_USER_ONLY
+/* COMPARE AND SWAP AND PURGE */
+    C(0xb250, CSP,     RRE,   Z,   0, ra2, 0, 0, csp, 0)
 /* DIAGNOSE (KVM hypercall) */
     C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
 /* INSERT STORAGE KEY EXTENDED */

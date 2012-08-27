@@ -984,16 +984,16 @@ uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 }
 
 /* compare and swap and purge */
-uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint32_t r2)
+uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 {
     uint32_t cc;
     uint32_t o1 = env->regs[r1];
-    uint64_t a2 = get_address_31fix(env, r2) & ~3ULL;
+    uint64_t a2 = r2 & ~3ULL;
     uint32_t o2 = cpu_ldl_data(env, a2);
 
     if (o1 == o2) {
         cpu_stl_data(env, a2, env->regs[(r1 + 1) & 15]);
-        if (env->regs[r2] & 0x3) {
+        if (r2 & 0x3) {
             /* flush TLB / ALB */
             tlb_flush(env, 1);
         }

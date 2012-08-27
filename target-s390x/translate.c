@@ -1033,18 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x50: /* CSP      R1,R2      [RRE] */
-        /* Compare And Swap And Purge */
-        check_privileged(s);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r2);
-        gen_helper_csp(cc_op, cpu_env, tmp32_1, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0x78: /* STCKE    D2(B2)     [S] */
         /* Store Clock Extended */
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
@@ -1900,6 +1888,18 @@ static ExitStatus op_csg(DisasContext *s, DisasOps *o)
     set_cc_static(s);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_csp(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    check_privileged(s);
+    gen_helper_csp(cc_op, cpu_env, r1, o->in2);
+    tcg_temp_free_i32(r1);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_cds(DisasContext *s, DisasOps *o)
 {
