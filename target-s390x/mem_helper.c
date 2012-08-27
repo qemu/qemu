@@ -1093,9 +1093,9 @@ void HELPER(ptlb)(CPUS390XState *env)
 }
 
 /* store using real address */
-void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint32_t v1)
+void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
 {
-    stw_phys(get_address(env, 0, 0, addr), v1);
+    stw_phys(get_address(env, 0, 0, addr), (uint32_t)v1);
 }
 
 /* load real address */

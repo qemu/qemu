@@ -1033,18 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x46: /* STURA    R1,R2      [RRE] */
-        /* Store Using Real Address */
-        check_privileged(s);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        tmp32_1 = load_reg32(r1);
-        tmp = load_reg(r2);
-        potential_page_fault(s);
-        gen_helper_stura(cpu_env, tmp, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x50: /* CSP      R1,R2      [RRE] */
         /* Compare And Swap And Purge */
         check_privileged(s);
@@ -2943,6 +2931,14 @@ static ExitStatus op_stnosm(DisasContext *s, DisasOps *o)
     } else {
         tcg_gen_ori_i64(psw_mask, psw_mask, i2 << 56);
     }
+    return NO_EXIT;
+}
+
+static ExitStatus op_stura(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_stura(cpu_env, o->in2, o->in1);
     return NO_EXIT;
 }
 #endif
