@@ -958,7 +958,7 @@ void HELPER(sske)(CPUS390XState *env, uint64_t r1, uint64_t r2)
 }
 
 /* reset reference bit extended */
-uint32_t HELPER(rrbe)(CPUS390XState *env, uint32_t r1, uint64_t r2)
+uint32_t HELPER(rrbe)(CPUS390XState *env, uint64_t r2)
 {
     uint8_t re;
     uint8_t key;

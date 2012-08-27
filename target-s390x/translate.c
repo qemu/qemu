@@ -1033,18 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x2a: /* RRBE     R1,R2      [RRE] */
-        /* Set Storage Key Extended */
-        check_privileged(s);
-        r1 = (insn >> 4) & 0xf;
-        r2 = insn & 0xf;
-        tmp32_1 = load_reg32(r1);
-        tmp = load_reg(r2);
-        gen_helper_rrbe(cc_op, cpu_env, tmp32_1, tmp);
-        set_cc_static(s);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x34: /* STCH ? */
         /* Store Subchannel */
         check_privileged(s);
@@ -2715,6 +2703,16 @@ static ExitStatus op_rll64(DisasContext *s, DisasOps *o)
     tcg_gen_rotl_i64(o->out, o->in1, o->in2);
     return NO_EXIT;
 }
+
+#ifndef CONFIG_USER_ONLY
+static ExitStatus op_rrbe(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    gen_helper_rrbe(cc_op, cpu_env, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
+#endif
 
 static ExitStatus op_sar(DisasContext *s, DisasOps *o)
 {
