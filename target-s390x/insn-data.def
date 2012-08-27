@@ -680,6 +680,8 @@
     C(0xb209, STPT,    S,     Z,   la2, 0, new, m1_64, stpt, 0)
 /* STORE PREFIX */
     C(0xb211, STPX,    S,     Z,   la2, 0, new, m1_32, stpx, 0)
+/* STORE SYSTEM INFORMATION */
+    C(0xb27d, STSI,    S,     Z,   0, a2, 0, 0, stsi, 0)
 /* STORE THEN AND SYSTEM MASK */
     C(0xac00, STNSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
 /* STORE THEN OR SYSTEM MASK */

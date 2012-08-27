@@ -1023,7 +1023,7 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
 {
 #ifndef CONFIG_USER_ONLY
     TCGv_i64 tmp, tmp2, tmp3;
-    TCGv_i32 tmp32_1, tmp32_2;
+    TCGv_i32 tmp32_1;
     int r1, r2;
     int r3, d2, b2;
 
@@ -1033,19 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x7d: /* STSI     D2,(B2)     [S] */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = load_reg32(0);
-        tmp32_2 = load_reg32(1);
-        potential_page_fault(s);
-        gen_helper_stsi(cc_op, cpu_env, tmp, tmp32_1, tmp32_2);
-        set_cc_static(s);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0xb1: /* STFL     D2(B2)     [S] */
         /* Store Facility List (CPU features) at 200 */
         check_privileged(s);
@@ -2892,6 +2879,15 @@ static ExitStatus op_stpt(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_stpt(o->out, cpu_env);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stsi(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_stsi(cc_op, cpu_env, o->in2, regs[0], regs[1]);
+    set_cc_static(s);
     return NO_EXIT;
 }
 

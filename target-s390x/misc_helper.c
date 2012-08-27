@@ -200,8 +200,8 @@ uint64_t HELPER(stpt)(CPUS390XState *env)
 }
 
 /* Store System Information */
-uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint32_t r0,
-                      uint32_t r1)
+uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0,
+                      uint64_t r0, uint64_t r1)
 {
     int cc = 0;
     int sel1, sel2;
