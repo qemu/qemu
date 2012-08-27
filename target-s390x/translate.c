@@ -79,12 +79,7 @@ static uint64_t inline_branch_hit[CC_OP_MAX];
 static uint64_t inline_branch_miss[CC_OP_MAX];
 #endif
 
-static inline void debug_insn(uint64_t insn)
-{
-    LOG_DISAS("insn: 0x%" PRIx64 "\n", insn);
-}
-
-static inline uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
+static uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
 {
     if (!(s->tb->flags & FLAG_MASK_64)) {
         if (s->tb->flags & FLAG_MASK_32) {
@@ -200,112 +195,58 @@ void s390x_translate_init(void)
 #include "helper.h"
 }
 
-static inline TCGv_i64 load_reg(int reg)
+static TCGv_i64 load_reg(int reg)
 {
     TCGv_i64 r = tcg_temp_new_i64();
     tcg_gen_mov_i64(r, regs[reg]);
     return r;
 }
 
-static inline TCGv_i64 load_freg(int reg)
-{
-    TCGv_i64 r = tcg_temp_new_i64();
-    tcg_gen_mov_i64(r, fregs[reg]);
-    return r;
-}
-
-static inline TCGv_i32 load_freg32(int reg)
-{
-    TCGv_i32 r = tcg_temp_new_i32();
-#if HOST_LONG_BITS == 32
-    tcg_gen_mov_i32(r, TCGV_HIGH(fregs[reg]));
-#else
-    tcg_gen_shri_i64(MAKE_TCGV_I64(GET_TCGV_I32(r)), fregs[reg], 32);
-#endif
-    return r;
-}
-
-static inline TCGv_i64 load_freg32_i64(int reg)
+static TCGv_i64 load_freg32_i64(int reg)
 {
     TCGv_i64 r = tcg_temp_new_i64();
     tcg_gen_shri_i64(r, fregs[reg], 32);
     return r;
 }
 
-static inline TCGv_i32 load_reg32(int reg)
-{
-    TCGv_i32 r = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(r, regs[reg]);
-    return r;
-}
-
-static inline TCGv_i64 load_reg32_i64(int reg)
-{
-    TCGv_i64 r = tcg_temp_new_i64();
-    tcg_gen_ext32s_i64(r, regs[reg]);
-    return r;
-}
-
-static inline void store_reg(int reg, TCGv_i64 v)
+static void store_reg(int reg, TCGv_i64 v)
 {
     tcg_gen_mov_i64(regs[reg], v);
 }
 
-static inline void store_freg(int reg, TCGv_i64 v)
+static void store_freg(int reg, TCGv_i64 v)
 {
     tcg_gen_mov_i64(fregs[reg], v);
 }
 
-static inline void store_reg32(int reg, TCGv_i32 v)
-{
-    /* 32 bit register writes keep the upper half */
-#if HOST_LONG_BITS == 32
-    tcg_gen_mov_i32(TCGV_LOW(regs[reg]), v);
-#else
-    tcg_gen_deposit_i64(regs[reg], regs[reg],
-                        MAKE_TCGV_I64(GET_TCGV_I32(v)), 0, 32);
-#endif
-}
-
-static inline void store_reg32_i64(int reg, TCGv_i64 v)
+static void store_reg32_i64(int reg, TCGv_i64 v)
 {
     /* 32 bit register writes keep the upper half */
     tcg_gen_deposit_i64(regs[reg], regs[reg], v, 0, 32);
 }
 
-static inline void store_reg32h_i64(int reg, TCGv_i64 v)
+static void store_reg32h_i64(int reg, TCGv_i64 v)
 {
     tcg_gen_deposit_i64(regs[reg], regs[reg], v, 32, 32);
 }
 
-static inline void store_freg32(int reg, TCGv_i32 v)
-{
-    /* 32 bit register writes keep the lower half */
-#if HOST_LONG_BITS == 32
-    tcg_gen_mov_i32(TCGV_HIGH(fregs[reg]), v);
-#else
-    tcg_gen_deposit_i64(fregs[reg], fregs[reg],
-                        MAKE_TCGV_I64(GET_TCGV_I32(v)), 32, 32);
-#endif
-}
-
-static inline void store_freg32_i64(int reg, TCGv_i64 v)
+static void store_freg32_i64(int reg, TCGv_i64 v)
 {
     tcg_gen_deposit_i64(fregs[reg], fregs[reg], v, 32, 32);
 }
 
-static inline void return_low128(TCGv_i64 dest)
+static void return_low128(TCGv_i64 dest)
 {
     tcg_gen_ld_i64(dest, cpu_env, offsetof(CPUS390XState, retxl));
 }
 
-static inline void update_psw_addr(DisasContext *s)
+static void update_psw_addr(DisasContext *s)
 {
     /* psw.addr */
     tcg_gen_movi_i64(psw_addr, s->pc);
 }
 
-static inline void potential_page_fault(DisasContext *s)
+static void potential_page_fault(DisasContext *s)
 {
 #ifndef CONFIG_USER_ONLY
     update_psw_addr(s);
@@ -328,7 +269,7 @@ static inline uint64_t ld_code6(CPUS390XState *env, uint64_t pc)
     return (ld_code2(env, pc) << 32) | ld_code4(env, pc + 2);
 }
 
-static inline int get_mem_index(DisasContext *s)
+static int get_mem_index(DisasContext *s)
 {
     switch (s->tb->flags & FLAG_MASK_ASC) {
     case PSW_ASC_PRIMARY >> 32:
@@ -440,28 +381,11 @@ static void gen_op_update1_cc_i64(DisasContext *s, enum cc_op op, TCGv_i64 dst)
     s->cc_op = op;
 }
 
-static void gen_op_update1_cc_i32(DisasContext *s, enum cc_op op, TCGv_i32 dst)
-{
-    tcg_gen_discard_i64(cc_src);
-    tcg_gen_extu_i32_i64(cc_dst, dst);
-    tcg_gen_discard_i64(cc_vr);
-    s->cc_op = op;
-}
-
 static void gen_op_update2_cc_i64(DisasContext *s, enum cc_op op, TCGv_i64 src,
                                   TCGv_i64 dst)
 {
     tcg_gen_mov_i64(cc_src, src);
     tcg_gen_mov_i64(cc_dst, dst);
-    tcg_gen_discard_i64(cc_vr);
-    s->cc_op = op;
-}
-
-static void gen_op_update2_cc_i32(DisasContext *s, enum cc_op op, TCGv_i32 src,
-                                  TCGv_i32 dst)
-{
-    tcg_gen_extu_i32_i64(cc_src, src);
-    tcg_gen_extu_i32_i64(cc_dst, dst);
     tcg_gen_discard_i64(cc_vr);
     s->cc_op = op;
 }
@@ -475,104 +399,28 @@ static void gen_op_update3_cc_i64(DisasContext *s, enum cc_op op, TCGv_i64 src,
     s->cc_op = op;
 }
 
-static inline void set_cc_nz_u32(DisasContext *s, TCGv_i32 val)
-{
-    gen_op_update1_cc_i32(s, CC_OP_NZ, val);
-}
-
-static inline void set_cc_nz_u64(DisasContext *s, TCGv_i64 val)
+static void set_cc_nz_u64(DisasContext *s, TCGv_i64 val)
 {
     gen_op_update1_cc_i64(s, CC_OP_NZ, val);
 }
 
-static inline void gen_set_cc_nz_f32(DisasContext *s, TCGv_i64 val)
+static void gen_set_cc_nz_f32(DisasContext *s, TCGv_i64 val)
 {
     gen_op_update1_cc_i64(s, CC_OP_NZ_F32, val);
 }
 
-static inline void gen_set_cc_nz_f64(DisasContext *s, TCGv_i64 val)
+static void gen_set_cc_nz_f64(DisasContext *s, TCGv_i64 val)
 {
     gen_op_update1_cc_i64(s, CC_OP_NZ_F64, val);
 }
 
-static inline void gen_set_cc_nz_f128(DisasContext *s, TCGv_i64 vh, TCGv_i64 vl)
+static void gen_set_cc_nz_f128(DisasContext *s, TCGv_i64 vh, TCGv_i64 vl)
 {
     gen_op_update2_cc_i64(s, CC_OP_NZ_F128, vh, vl);
 }
 
-static inline void cmp_32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2,
-                          enum cc_op cond)
-{
-    gen_op_update2_cc_i32(s, cond, v1, v2);
-}
-
-static inline void cmp_64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2,
-                          enum cc_op cond)
-{
-    gen_op_update2_cc_i64(s, cond, v1, v2);
-}
-
-static inline void cmp_s32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2)
-{
-    cmp_32(s, v1, v2, CC_OP_LTGT_32);
-}
-
-static inline void cmp_u32(DisasContext *s, TCGv_i32 v1, TCGv_i32 v2)
-{
-    cmp_32(s, v1, v2, CC_OP_LTUGTU_32);
-}
-
-static inline void cmp_s32c(DisasContext *s, TCGv_i32 v1, int32_t v2)
-{
-    /* XXX optimize for the constant? put it in s? */
-    TCGv_i32 tmp = tcg_const_i32(v2);
-    cmp_32(s, v1, tmp, CC_OP_LTGT_32);
-    tcg_temp_free_i32(tmp);
-}
-
-static inline void cmp_u32c(DisasContext *s, TCGv_i32 v1, uint32_t v2)
-{
-    TCGv_i32 tmp = tcg_const_i32(v2);
-    cmp_32(s, v1, tmp, CC_OP_LTUGTU_32);
-    tcg_temp_free_i32(tmp);
-}
-
-static inline void cmp_s64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2)
-{
-    cmp_64(s, v1, v2, CC_OP_LTGT_64);
-}
-
-static inline void cmp_u64(DisasContext *s, TCGv_i64 v1, TCGv_i64 v2)
-{
-    cmp_64(s, v1, v2, CC_OP_LTUGTU_64);
-}
-
-static inline void cmp_s64c(DisasContext *s, TCGv_i64 v1, int64_t v2)
-{
-    TCGv_i64 tmp = tcg_const_i64(v2);
-    cmp_s64(s, v1, tmp);
-    tcg_temp_free_i64(tmp);
-}
-
-static inline void cmp_u64c(DisasContext *s, TCGv_i64 v1, uint64_t v2)
-{
-    TCGv_i64 tmp = tcg_const_i64(v2);
-    cmp_u64(s, v1, tmp);
-    tcg_temp_free_i64(tmp);
-}
-
-static inline void set_cc_s32(DisasContext *s, TCGv_i32 val)
-{
-    gen_op_update1_cc_i32(s, CC_OP_LTGT0_32, val);
-}
-
-static inline void set_cc_s64(DisasContext *s, TCGv_i64 val)
-{
-    gen_op_update1_cc_i64(s, CC_OP_LTGT0_64, val);
-}
-
 /* CC value is in env->cc_op */
-static inline void set_cc_static(DisasContext *s)
+static void set_cc_static(DisasContext *s)
 {
     tcg_gen_discard_i64(cc_src);
     tcg_gen_discard_i64(cc_dst);
@@ -580,14 +428,14 @@ static inline void set_cc_static(DisasContext *s)
     s->cc_op = CC_OP_STATIC;
 }
 
-static inline void gen_op_set_cc_op(DisasContext *s)
+static void gen_op_set_cc_op(DisasContext *s)
 {
     if (s->cc_op != CC_OP_DYNAMIC && s->cc_op != CC_OP_STATIC) {
         tcg_gen_movi_i32(cc_op, s->cc_op);
     }
 }
 
-static inline void gen_update_cc_op(DisasContext *s)
+static void gen_update_cc_op(DisasContext *s)
 {
     gen_op_set_cc_op(s);
 }
@@ -667,51 +515,6 @@ static void gen_op_calc_cc(DisasContext *s)
     set_cc_static(s);
 }
 
-static inline void decode_rr(DisasContext *s, uint64_t insn, int *r1, int *r2)
-{
-    debug_insn(insn);
-
-    *r1 = (insn >> 4) & 0xf;
-    *r2 = insn & 0xf;
-}
-
-static inline TCGv_i64 decode_rx(DisasContext *s, uint64_t insn, int *r1,
-                                 int *x2, int *b2, int *d2)
-{
-    debug_insn(insn);
-
-    *r1 = (insn >> 20) & 0xf;
-    *x2 = (insn >> 16) & 0xf;
-    *b2 = (insn >> 12) & 0xf;
-    *d2 = insn & 0xfff;
-
-    return get_address(s, *x2, *b2, *d2);
-}
-
-static inline void decode_rs(DisasContext *s, uint64_t insn, int *r1, int *r3,
-                             int *b2, int *d2)
-{
-    debug_insn(insn);
-
-    *r1 = (insn >> 20) & 0xf;
-    /* aka m3 */
-    *r3 = (insn >> 16) & 0xf;
-    *b2 = (insn >> 12) & 0xf;
-    *d2 = insn & 0xfff;
-}
-
-static inline TCGv_i64 decode_si(DisasContext *s, uint64_t insn, int *i2,
-                                 int *b1, int *d1)
-{
-    debug_insn(insn);
-
-    *i2 = (insn >> 16) & 0xff;
-    *b1 = (insn >> 12) & 0xf;
-    *d1 = insn & 0xfff;
-
-    return get_address(s, 0, *b1, *d1);
-}
-
 static int use_goto_tb(DisasContext *s, uint64_t dest)
 {
     /* NOTE: we handle the case where the TB spans two pages here */
@@ -721,29 +524,14 @@ static int use_goto_tb(DisasContext *s, uint64_t dest)
             && !(s->tb->cflags & CF_LAST_IO));
 }
 
-static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong pc)
-{
-    gen_update_cc_op(s);
-
-    if (use_goto_tb(s, pc)) {
-        tcg_gen_goto_tb(tb_num);
-        tcg_gen_movi_i64(psw_addr, pc);
-        tcg_gen_exit_tb((tcg_target_long)s->tb + tb_num);
-    } else {
-        /* jump to another page: currently not optimized */
-        tcg_gen_movi_i64(psw_addr, pc);
-        tcg_gen_exit_tb(0);
-    }
-}
-
-static inline void account_noninline_branch(DisasContext *s, int cc_op)
+static void account_noninline_branch(DisasContext *s, int cc_op)
 {
 #ifdef DEBUG_INLINE_BRANCHES
     inline_branch_miss[cc_op]++;
 #endif
 }
 
-static inline void account_inline_branch(DisasContext *s, int cc_op)
+static void account_inline_branch(DisasContext *s, int cc_op)
 {
 #ifdef DEBUG_INLINE_BRANCHES
     inline_branch_hit[cc_op]++;
@@ -1015,43 +803,6 @@ static void free_compare(DisasCompare *c)
         } else {
             tcg_temp_free_i32(c->u.s32.b);
         }
-    }
-}
-
-static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
-                     uint32_t insn)
-{
-#ifndef CONFIG_USER_ONLY
-    switch (op) {
-    default:
-#endif
-        LOG_DISAS("illegal b2 operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-#ifndef CONFIG_USER_ONLY
-        break;
-    }
-#endif
-}
-
-static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
-{
-    unsigned char opc;
-    uint64_t insn;
-    int op;
-
-    opc = cpu_ldub_code(env, s->pc);
-    LOG_DISAS("opc 0x%x\n", opc);
-
-    switch (opc) {
-    case 0xb2:
-        insn = ld_code4(env, s->pc);
-        op = (insn >> 16) & 0xff;
-        disas_b2(env, s, op, insn);
-        break;
-    default:
-        qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%x\n", opc);
-        gen_illegal_opcode(s);
-        break;
     }
 }
 
@@ -4108,30 +3859,15 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     DisasFields f;
     DisasOps o;
 
+    /* Search for the insn in the table.  */
     insn = extract_insn(env, s, &f);
 
-    /* If not found, try the old interpreter.  This includes ILLOPC.  */
+    /* Not found means unimplemented/illegal opcode.  */
     if (insn == NULL) {
-        disas_s390_insn(env, s);
-        switch (s->is_jmp) {
-        case DISAS_NEXT:
-            ret = NO_EXIT;
-            break;
-        case DISAS_TB_JUMP:
-            ret = EXIT_GOTO_TB;
-            break;
-        case DISAS_JUMP:
-            ret = EXIT_PC_UPDATED;
-            break;
-        case DISAS_EXCP:
-            ret = EXIT_NORETURN;
-            break;
-        default:
-            abort();
-        }
-
-        s->pc = s->next_pc;
-        return ret;
+        qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%02x%02x\n",
+                      f.op, f.op2);
+        gen_illegal_opcode(s);
+        return EXIT_NORETURN;
     }
 
     /* Set up the strutures we use to communicate with the helpers. */
