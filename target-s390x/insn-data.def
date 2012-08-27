@@ -680,4 +680,18 @@
     C(0xad00, STOSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
 /* TEST PROTECTION */
     C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
+
+/* I/O Instructions.  For each we simply indicate non-operation.  */
+    C(0xb276, XSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb230, CSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb231, HSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb232, MSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb23b, RCHP,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb238, RSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb233, SSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb234, STSCH,   S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb235, TSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    /* ??? Not listed in PoO ninth edition, but there's a linux driver that
+       uses it: "A CHSC subchannel is usually present on LPAR only."  */
+    C(0xb25f, CHSC,    S,     Z,   0, 0, 0, 0, subchannel, 0)
 #endif /* CONFIG_USER_ONLY */

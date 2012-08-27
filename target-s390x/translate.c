@@ -1033,11 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x34: /* STCH ? */
-        /* Store Subchannel */
-        check_privileged(s);
-        gen_op_movi_cc(s, 3);
-        break;
     case 0x46: /* STURA    R1,R2      [RRE] */
         /* Store Using Real Address */
         check_privileged(s);
@@ -1061,11 +1056,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x5f: /* CHSC ? */
-        /* Channel Subsystem Call */
-        check_privileged(s);
-        gen_op_movi_cc(s, 3);
         break;
     case 0x78: /* STCKE    D2(B2)     [S] */
         /* Store Clock Extended */
@@ -2913,6 +2903,14 @@ static ExitStatus op_spx(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     gen_helper_spx(cpu_env, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_subchannel(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    /* Not operational.  */
+    gen_op_movi_cc(s, 3);
     return NO_EXIT;
 }
 
