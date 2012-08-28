@@ -96,7 +96,6 @@ struct USBRedirDevice {
 };
 
 struct AsyncURB {
-    USBRedirDevice *dev;
     USBPacket *packet;
     uint32_t packet_id;
     QTAILQ_ENTRY(AsyncURB)next;
@@ -245,7 +244,6 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
 static AsyncURB *async_alloc(USBRedirDevice *dev, USBPacket *p)
 {
     AsyncURB *aurb = (AsyncURB *) g_malloc0(sizeof(AsyncURB));
-    aurb->dev = dev;
     aurb->packet = p;
     aurb->packet_id = dev->packet_id;
     QTAILQ_INSERT_TAIL(&dev->asyncq, aurb, next);
