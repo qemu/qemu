@@ -152,6 +152,7 @@ struct USBDesc {
     USBDescID                 id;
     const USBDescDevice       *full;
     const USBDescDevice       *high;
+    const USBDescDevice       *super;
     const char* const         *str;
 };
 

@@ -359,6 +359,9 @@ static void usb_desc_setdefaults(USBDevice *dev)
     case USB_SPEED_HIGH:
         dev->device = desc->high;
         break;
+    case USB_SPEED_SUPER:
+        dev->device = desc->super;
+        break;
     }
     usb_desc_set_config(dev, 0);
 }
@@ -376,6 +379,9 @@ void usb_desc_init(USBDevice *dev)
     if (desc->high) {
         dev->speedmask |= USB_SPEED_MASK_HIGH;
     }
+    if (desc->super) {
+        dev->speedmask |= USB_SPEED_MASK_SUPER;
+    }
     usb_desc_setdefaults(dev);
 }
 
@@ -384,7 +390,9 @@ void usb_desc_attach(USBDevice *dev)
     const USBDesc *desc = usb_device_get_usb_desc(dev);
 
     assert(desc != NULL);
-    if (desc->high && (dev->port->speedmask & USB_SPEED_MASK_HIGH)) {
+    if (desc->super && (dev->port->speedmask & USB_SPEED_MASK_SUPER)) {
+        dev->speed = USB_SPEED_SUPER;
+    } else if (desc->high && (dev->port->speedmask & USB_SPEED_MASK_HIGH)) {
         dev->speed = USB_SPEED_HIGH;
     } else if (desc->full && (dev->port->speedmask & USB_SPEED_MASK_FULL)) {
         dev->speed = USB_SPEED_FULL;
