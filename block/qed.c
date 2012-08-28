@@ -1363,9 +1363,20 @@ static int coroutine_fn bdrv_qed_co_write_zeroes(BlockDriverState *bs,
                                                  int nb_sectors)
 {
     BlockDriverAIOCB *blockacb;
+    BDRVQEDState *s = bs->opaque;
     QEDWriteZeroesCB cb = { .done = false };
     QEMUIOVector qiov;
     struct iovec iov;
+
+    /* Refuse if there are untouched backing file sectors */
+    if (bs->backing_hd) {
+        if (qed_offset_into_cluster(s, sector_num * BDRV_SECTOR_SIZE) != 0) {
+            return -ENOTSUP;
+        }
+        if (qed_offset_into_cluster(s, nb_sectors * BDRV_SECTOR_SIZE) != 0) {
+            return -ENOTSUP;
+        }
+    }
 
     /* Zero writes start without an I/O buffer.  If a buffer becomes necessary
      * then it will be allocated during request processing.
