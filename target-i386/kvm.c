@@ -63,6 +63,7 @@ static bool has_msr_star;
 static bool has_msr_hsave_pa;
 static bool has_msr_tsc_deadline;
 static bool has_msr_async_pf_en;
+static bool has_msr_pv_eoi_en;
 static bool has_msr_misc_enable;
 static int lm_capable_kernel;
 
@@ -454,6 +455,8 @@ int kvm_arch_init_vcpu(CPUX86State *env)
     }
 
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
+
+    has_msr_pv_eoi_en = c->eax & (1 << KVM_FEATURE_PV_EOI);
 
     cpu_x86_cpuid(env, 0, 0, &limit, &unused, &unused, &unused);
 
@@ -1017,6 +1020,10 @@ static int kvm_put_msrs(CPUX86State *env, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN,
                               env->async_pf_en_msr);
         }
+        if (has_msr_pv_eoi_en) {
+            kvm_msr_entry_set(&msrs[n++], MSR_KVM_PV_EOI_EN,
+                              env->pv_eoi_en_msr);
+        }
         if (hyperv_hypercall_available()) {
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
@@ -1259,6 +1266,9 @@ static int kvm_get_msrs(CPUX86State *env)
     if (has_msr_async_pf_en) {
         msrs[n++].index = MSR_KVM_ASYNC_PF_EN;
     }
+    if (has_msr_pv_eoi_en) {
+        msrs[n++].index = MSR_KVM_PV_EOI_EN;
+    }
 
     if (env->mcg_cap) {
         msrs[n++].index = MSR_MCG_STATUS;
@@ -1337,6 +1347,9 @@ static int kvm_get_msrs(CPUX86State *env)
             break;
         case MSR_KVM_ASYNC_PF_EN:
             env->async_pf_en_msr = msrs[i].data;
+            break;
+        case MSR_KVM_PV_EOI_EN:
+            env->pv_eoi_en_msr = msrs[i].data;
             break;
         }
     }
