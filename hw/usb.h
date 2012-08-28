@@ -377,6 +377,8 @@ void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
+USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
+                                    uint64_t id);
 
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
