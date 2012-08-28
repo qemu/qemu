@@ -63,6 +63,12 @@ typedef struct USBDescriptor {
             uint8_t           bRefresh;        /* only audio ep */
             uint8_t           bSynchAddress;   /* only audio ep */
         } endpoint;
+        struct {
+            uint8_t           bMaxBurst;
+            uint8_t           bmAttributes;
+            uint8_t           wBytesPerInterval_lo;
+            uint8_t           wBytesPerInterval_hi;
+        } super_endpoint;
     } u;
 } QEMU_PACKED USBDescriptor;
 
@@ -139,6 +145,11 @@ struct USBDescEndpoint {
 
     uint8_t                   is_audio; /* has bRefresh + bSynchAddress */
     uint8_t                   *extra;
+
+    /* superspeed endpoint companion */
+    uint8_t                   bMaxBurst;
+    uint8_t                   bmAttributes_super;
+    uint16_t                  wBytesPerInterval;
 };
 
 struct USBDescOther {
@@ -156,16 +167,21 @@ struct USBDesc {
     const char* const         *str;
 };
 
+#define USB_DESC_FLAG_SUPER (1 << 1)
+
 /* generate usb packages from structs */
 int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len);
 int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len);
-int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len);
-int usb_desc_iface_group(const USBDescIfaceAssoc *iad, uint8_t *dest,
-                         size_t len);
-int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len);
-int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len);
+int usb_desc_config(const USBDescConfig *conf, int flags,
+                    uint8_t *dest, size_t len);
+int usb_desc_iface_group(const USBDescIfaceAssoc *iad, int flags,
+                         uint8_t *dest, size_t len);
+int usb_desc_iface(const USBDescIface *iface, int flags,
+                   uint8_t *dest, size_t len);
+int usb_desc_endpoint(const USBDescEndpoint *ep, int flags,
+                      uint8_t *dest, size_t len);
 int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len);
 
 /* control message emulation helpers */

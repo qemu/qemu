@@ -137,6 +137,7 @@
 #define USB_DT_INTERFACE_ASSOC          0x0B
 #define USB_DT_CS_INTERFACE             0x24
 #define USB_DT_CS_ENDPOINT              0x25
+#define USB_DT_ENDPOINT_COMPANION       0x30
 
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1
