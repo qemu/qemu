@@ -1465,7 +1465,7 @@ static int ehci_process_itd(EHCIState *ehci,
 
             dev = ehci_find_device(ehci, devaddr);
             ep = usb_ep_get(dev, pid, endp);
-            if (ep->type == USB_ENDPOINT_XFER_ISOC) {
+            if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
                 usb_packet_setup(&ehci->ipacket, pid, ep);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 ret = usb_handle_packet(dev, &ehci->ipacket);
