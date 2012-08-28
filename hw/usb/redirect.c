@@ -99,11 +99,6 @@ struct AsyncURB {
     USBRedirDevice *dev;
     USBPacket *packet;
     uint32_t packet_id;
-    union {
-        struct usb_redir_control_packet_header control_packet;
-        struct usb_redir_bulk_packet_header bulk_packet;
-        struct usb_redir_interrupt_packet_header interrupt_packet;
-    };
     QTAILQ_ENTRY(AsyncURB)next;
 };
 
@@ -500,7 +495,6 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
     bulk_packet.endpoint  = ep;
     bulk_packet.length    = p->iov.size;
     bulk_packet.stream_id = 0;
-    aurb->bulk_packet = bulk_packet;
 
     if (ep & USB_DIR_IN) {
         usbredirparser_send_bulk_packet(dev->parser, aurb->packet_id,
@@ -581,7 +575,6 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
 
         interrupt_packet.endpoint  = ep;
         interrupt_packet.length    = p->iov.size;
-        aurb->interrupt_packet     = interrupt_packet;
 
         usb_packet_copy(p, buf, p->iov.size);
         usbredir_log_data(dev, "interrupt data out:", buf, p->iov.size);
@@ -762,7 +755,6 @@ static int usbredir_handle_control(USBDevice *udev, USBPacket *p,
     control_packet.value       = value;
     control_packet.index       = index;
     control_packet.length      = length;
-    aurb->control_packet       = control_packet;
 
     if (control_packet.requesttype & USB_DIR_IN) {
         usbredirparser_send_control_packet(dev->parser, aurb->packet_id,
@@ -1326,14 +1318,6 @@ static void usbredir_control_packet(void *priv, uint32_t id,
         return;
     }
 
-    aurb->control_packet.status = control_packet->status;
-    aurb->control_packet.length = control_packet->length;
-    if (memcmp(&aurb->control_packet, control_packet,
-               sizeof(*control_packet))) {
-        ERROR("return control packet mismatch, please report this!\n");
-        len = USB_RET_NAK;
-    }
-
     if (aurb->packet) {
         len = usbredir_handle_status(dev, control_packet->status, len);
         if (len > 0) {
@@ -1369,12 +1353,6 @@ static void usbredir_bulk_packet(void *priv, uint32_t id,
     if (!aurb) {
         free(data);
         return;
-    }
-
-    if (aurb->bulk_packet.endpoint != bulk_packet->endpoint ||
-            aurb->bulk_packet.stream_id != bulk_packet->stream_id) {
-        ERROR("return bulk packet mismatch, please report this!\n");
-        len = USB_RET_NAK;
     }
 
     if (aurb->packet) {
@@ -1453,11 +1431,6 @@ static void usbredir_interrupt_packet(void *priv, uint32_t id,
         AsyncURB *aurb = async_find(dev, id);
         if (!aurb) {
             return;
-        }
-
-        if (aurb->interrupt_packet.endpoint != interrupt_packet->endpoint) {
-            ERROR("return int packet mismatch, please report this!\n");
-            len = USB_RET_NAK;
         }
 
         if (aurb->packet) {
