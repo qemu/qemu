@@ -461,7 +461,7 @@ static void qemu_file_set_if_error(QEMUFile *f, int ret)
  *
  * In case of error, last_error is set.
  */
-void qemu_fflush(QEMUFile *f)
+static void qemu_fflush(QEMUFile *f)
 {
     if (!f->put_buffer)
         return;
