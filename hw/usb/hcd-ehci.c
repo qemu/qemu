@@ -2,6 +2,11 @@
  * QEMU USB EHCI Emulation
  *
  * Copyright(c) 2008  Emutex Ltd. (address@hidden)
+ * Copyright(c) 2011-2012 Red Hat, Inc.
+ *
+ * Red Hat Authors:
+ * Gerd Hoffmann <kraxel@redhat.com>
+ * Hans de Goede <hdegoede@redhat.com>
  *
  * EHCI project was started by Mark Burkley, with contributions by
  * Niels de Vos.  David S. Ahern continued working on it.  Kevin Wolf,
