@@ -69,6 +69,31 @@ typedef struct USBDescriptor {
             uint8_t           wBytesPerInterval_lo;
             uint8_t           wBytesPerInterval_hi;
         } super_endpoint;
+        struct {
+            uint8_t           wTotalLength_lo;
+            uint8_t           wTotalLength_hi;
+            uint8_t           bNumDeviceCaps;
+        } bos;
+        struct {
+            uint8_t           bDevCapabilityType;
+            union {
+                struct {
+                    uint8_t   bmAttributes_1;
+                    uint8_t   bmAttributes_2;
+                    uint8_t   bmAttributes_3;
+                    uint8_t   bmAttributes_4;
+                } usb2_ext;
+                struct {
+                    uint8_t   bmAttributes;
+                    uint8_t   wSpeedsSupported_lo;
+                    uint8_t   wSpeedsSupported_hi;
+                    uint8_t   bFunctionalitySupport;
+                    uint8_t   bU1DevExitLat;
+                    uint8_t   wU2DevExitLat_lo;
+                    uint8_t   wU2DevExitLat_hi;
+                } super;
+            } u;
+        } cap;
     } u;
 } QEMU_PACKED USBDescriptor;
 

@@ -258,6 +258,111 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
     return bLength;
 }
 
+static int usb_desc_cap_usb2_ext(const USBDesc *desc, uint8_t *dest, size_t len)
+{
+    uint8_t  bLength = 0x07;
+    USBDescriptor *d = (void *)dest;
+
+    if (len < bLength) {
+        return -1;
+    }
+
+    d->bLength                          = bLength;
+    d->bDescriptorType                  = USB_DT_DEVICE_CAPABILITY;
+    d->u.cap.bDevCapabilityType         = USB_DEV_CAP_USB2_EXT;
+
+    d->u.cap.u.usb2_ext.bmAttributes_1  = (1 << 1);  /* LPM */
+    d->u.cap.u.usb2_ext.bmAttributes_2  = 0;
+    d->u.cap.u.usb2_ext.bmAttributes_3  = 0;
+    d->u.cap.u.usb2_ext.bmAttributes_4  = 0;
+
+    return bLength;
+}
+
+static int usb_desc_cap_super(const USBDesc *desc, uint8_t *dest, size_t len)
+{
+    uint8_t  bLength = 0x0a;
+    USBDescriptor *d = (void *)dest;
+
+    if (len < bLength) {
+        return -1;
+    }
+
+    d->bLength                           = bLength;
+    d->bDescriptorType                   = USB_DT_DEVICE_CAPABILITY;
+    d->u.cap.bDevCapabilityType          = USB_DEV_CAP_SUPERSPEED;
+
+    d->u.cap.u.super.bmAttributes        = 0;
+    d->u.cap.u.super.wSpeedsSupported_lo = 0;
+    d->u.cap.u.super.wSpeedsSupported_hi = 0;
+    d->u.cap.u.super.bFunctionalitySupport = 0;
+    d->u.cap.u.super.bU1DevExitLat       = 0x0a;
+    d->u.cap.u.super.wU2DevExitLat_lo    = 0x20;
+    d->u.cap.u.super.wU2DevExitLat_hi    = 0;
+
+    if (desc->full) {
+        d->u.cap.u.super.wSpeedsSupported_lo |= (1 << 1);
+        d->u.cap.u.super.bFunctionalitySupport = 1;
+    }
+    if (desc->high) {
+        d->u.cap.u.super.wSpeedsSupported_lo |= (1 << 2);
+        if (!d->u.cap.u.super.bFunctionalitySupport) {
+            d->u.cap.u.super.bFunctionalitySupport = 2;
+        }
+    }
+    if (desc->super) {
+        d->u.cap.u.super.wSpeedsSupported_lo |= (1 << 3);
+        if (!d->u.cap.u.super.bFunctionalitySupport) {
+            d->u.cap.u.super.bFunctionalitySupport = 3;
+        }
+    }
+
+    return bLength;
+}
+
+static int usb_desc_bos(const USBDesc *desc, uint8_t *dest, size_t len)
+{
+    uint8_t  bLength = 0x05;
+    uint16_t wTotalLength = 0;
+    uint8_t  bNumDeviceCaps = 0;
+    USBDescriptor *d = (void *)dest;
+    int rc;
+
+    if (len < bLength) {
+        return -1;
+    }
+
+    d->bLength                      = bLength;
+    d->bDescriptorType              = USB_DT_BOS;
+
+    wTotalLength += bLength;
+
+    if (desc->high != NULL) {
+        rc = usb_desc_cap_usb2_ext(desc, dest + wTotalLength,
+                                   len - wTotalLength);
+        if (rc < 0) {
+            return rc;
+        }
+        wTotalLength += rc;
+        bNumDeviceCaps++;
+    }
+
+    if (desc->super != NULL) {
+        rc = usb_desc_cap_super(desc, dest + wTotalLength,
+                                len - wTotalLength);
+        if (rc < 0) {
+            return rc;
+        }
+        wTotalLength += rc;
+        bNumDeviceCaps++;
+    }
+
+    d->u.bos.wTotalLength_lo = usb_lo(wTotalLength);
+    d->u.bos.wTotalLength_hi = usb_hi(wTotalLength);
+    d->u.bos.bNumDeviceCaps  = bNumDeviceCaps;
+    return wTotalLength;
+}
+
 /* ------------------------------------------------------------------ */
 
 static void usb_desc_ep_init(USBDevice *dev)
@@ -570,6 +675,10 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
             buf[0x01] = USB_DT_OTHER_SPEED_CONFIG;
         }
         trace_usb_desc_other_speed_config(dev->addr, index, len, ret);
+        break;
+    case USB_DT_BOS:
+        ret = usb_desc_bos(desc, buf, sizeof(buf));
+        trace_usb_desc_bos(dev->addr, len, ret);
         break;
 
     case USB_DT_DEBUG:
