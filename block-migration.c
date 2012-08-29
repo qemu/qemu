@@ -423,10 +423,9 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
 
 error:
     DPRINTF("Error reading sector %" PRId64 "\n", sector);
-    qemu_file_set_error(f, ret);
     g_free(blk->buf);
     g_free(blk);
-    return 0;
+    return ret;
 }
 
 /* return value:
@@ -440,7 +439,7 @@ static int blk_mig_save_dirty_block(QEMUFile *f, int is_async)
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
         ret = mig_save_device_dirty(f, bmds, is_async);
-        if (ret == 0) {
+        if (ret <= 0) {
             break;
         }
     }
@@ -600,11 +599,16 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
                 block_mig_state.bulk_completed = 1;
             }
         } else {
-            if (blk_mig_save_dirty_block(f, 1) != 0) {
+            ret = blk_mig_save_dirty_block(f, 1);
+            if (ret != 0) {
                 /* no more dirty blocks */
                 break;
             }
         }
+    }
+    if (ret) {
+        blk_mig_cleanup();
+        return ret;
     }
 
     ret = flush_blks(f);
@@ -637,18 +641,16 @@ static int block_save_complete(QEMUFile *f, void *opaque)
        all async read completed */
     assert(block_mig_state.submitted == 0);
 
-    while (blk_mig_save_dirty_block(f, 0) == 0) {
-        /* Do nothing */
-    }
+    do {
+        ret = blk_mig_save_dirty_block(f, 0);
+    } while (ret == 0);
+
     blk_mig_cleanup();
-
-    /* report completion */
-    qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
-
-    ret = qemu_file_get_error(f);
     if (ret) {
         return ret;
     }
+    /* report completion */
+    qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
 
     DPRINTF("Block migration completed\n");
 
