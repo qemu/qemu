@@ -232,6 +232,5 @@ static inline void qemu_get_sbe64s(QEMUFile *f, int64_t *pv)
 }
 
 int64_t qemu_ftell(QEMUFile *f);
-int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
 
 #endif
