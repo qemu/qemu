@@ -459,23 +459,22 @@ static void qemu_file_set_if_error(QEMUFile *f, int ret)
 
 /** Flushes QEMUFile buffer
  *
- * In case of error, last_error is set.
  */
-static void qemu_fflush(QEMUFile *f)
+static int qemu_fflush(QEMUFile *f)
 {
+    int ret = 0;
+
     if (!f->put_buffer)
-        return;
+        return 0;
 
     if (f->is_write && f->buf_index > 0) {
-        int len;
-
-        len = f->put_buffer(f->opaque, f->buf, f->buf_offset, f->buf_index);
-        if (len > 0)
+        ret = f->put_buffer(f->opaque, f->buf, f->buf_offset, f->buf_index);
+        if (ret >= 0) {
             f->buf_offset += f->buf_index;
-        else
-            qemu_file_set_error(f, -EINVAL);
+        }
         f->buf_index = 0;
     }
+    return ret;
 }
 
 static void qemu_fill_buffer(QEMUFile *f)
@@ -533,9 +532,13 @@ static int qemu_fclose_internal(QEMUFile *f)
  */
 int qemu_fclose(QEMUFile *f)
 {
-    int ret;
-    qemu_fflush(f);
-    ret = qemu_fclose_internal(f);
+    int ret, ret2;
+    ret = qemu_fflush(f);
+    ret2 = qemu_fclose_internal(f);
+
+    if (ret >= 0) {
+        ret = ret2;
+    }
     /* If any error was spotted before closing, we should report it
      * instead of the close() return value.
      */
@@ -570,8 +573,10 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         f->buf_index += l;
         buf += l;
         size -= l;
-        if (f->buf_index >= IO_BUF_SIZE)
-            qemu_fflush(f);
+        if (f->buf_index >= IO_BUF_SIZE) {
+            int ret = qemu_fflush(f);
+            qemu_file_set_if_error(f, ret);
+        }
     }
 }
 
@@ -585,8 +590,10 @@ void qemu_put_byte(QEMUFile *f, int v)
 
     f->buf[f->buf_index++] = v;
     f->is_write = 1;
-    if (f->buf_index >= IO_BUF_SIZE)
-        qemu_fflush(f);
+    if (f->buf_index >= IO_BUF_SIZE) {
+        int ret = qemu_fflush(f);
+        qemu_file_set_if_error(f, ret);
+    }
 }
 
 static void qemu_file_skip(QEMUFile *f, int size)
