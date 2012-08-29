@@ -703,6 +703,7 @@ static TypeInfo arm_gic_info = {
     .parent = TYPE_ARM_GIC_COMMON,
     .instance_size = sizeof(gic_state),
     .class_init = arm_gic_class_init,
+    .class_size = sizeof(ARMGICClass),
 };
 
 static void arm_gic_register_types(void)
