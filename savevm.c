@@ -445,18 +445,6 @@ void qemu_file_set_error(QEMUFile *f, int ret)
     f->last_error = ret;
 }
 
-/** Sets last_error conditionally
- *
- * Sets last_error only if ret is negative _and_ no error
- * was set before.
- */
-static void qemu_file_set_if_error(QEMUFile *f, int ret)
-{
-    if (ret < 0 && !f->last_error) {
-        qemu_file_set_error(f, ret);
-    }
-}
-
 /** Flushes QEMUFile buffer
  *
  */
@@ -544,13 +532,17 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
 
-    if (!f->last_error && f->is_write == 0 && f->buf_index > 0) {
+    if (f->last_error) {
+        return;
+    }
+
+    if (f->is_write == 0 && f->buf_index > 0) {
         fprintf(stderr,
                 "Attempted to write to buffer while read buffer is not empty\n");
         abort();
     }
 
-    while (!f->last_error && size > 0) {
+    while (size > 0) {
         l = IO_BUF_SIZE - f->buf_index;
         if (l > size)
             l = size;
@@ -561,14 +553,21 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         size -= l;
         if (f->buf_index >= IO_BUF_SIZE) {
             int ret = qemu_fflush(f);
-            qemu_file_set_if_error(f, ret);
+            if (ret < 0) {
+                qemu_file_set_error(f, ret);
+                break;
+            }
         }
     }
 }
 
 void qemu_put_byte(QEMUFile *f, int v)
 {
-    if (!f->last_error && f->is_write == 0 && f->buf_index > 0) {
+    if (f->last_error) {
+        return;
+    }
+
+    if (f->is_write == 0 && f->buf_index > 0) {
         fprintf(stderr,
                 "Attempted to write to buffer while read buffer is not empty\n");
         abort();
@@ -578,7 +577,9 @@ void qemu_put_byte(QEMUFile *f, int v)
     f->is_write = 1;
     if (f->buf_index >= IO_BUF_SIZE) {
         int ret = qemu_fflush(f);
-        qemu_file_set_if_error(f, ret);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+        }
     }
 }
 
