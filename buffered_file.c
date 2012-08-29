@@ -120,8 +120,6 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
     error = buffered_flush(s);
     if (error < 0) {
         DPRINTF("buffered flush error. bailing: %s\n", strerror(-error));
-        qemu_file_set_error(s->file, error);
-
         return error;
     }
 
