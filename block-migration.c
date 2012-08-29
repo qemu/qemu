@@ -444,9 +444,10 @@ static int blk_mig_save_dirty_block(QEMUFile *f, int is_async)
     return ret;
 }
 
-static void flush_blks(QEMUFile* f)
+static int flush_blks(QEMUFile *f)
 {
     BlkMigBlock *blk;
+    int ret = 0;
 
     DPRINTF("%s Enter submitted %d read_done %d transferred %d\n",
             __FUNCTION__, block_mig_state.submitted, block_mig_state.read_done,
@@ -457,7 +458,7 @@ static void flush_blks(QEMUFile* f)
             break;
         }
         if (blk->ret < 0) {
-            qemu_file_set_error(f, blk->ret);
+            ret = blk->ret;
             break;
         }
         blk_send(f, blk);
@@ -474,6 +475,7 @@ static void flush_blks(QEMUFile* f)
     DPRINTF("%s Exit submitted %d read_done %d transferred %d\n", __FUNCTION__,
             block_mig_state.submitted, block_mig_state.read_done,
             block_mig_state.transferred);
+    return ret;
 }
 
 static int64_t get_remaining_dirty(void)
@@ -555,9 +557,7 @@ static int block_save_setup(QEMUFile *f, void *opaque)
     /* start track dirty blocks */
     set_dirty_tracking(1);
 
-    flush_blks(f);
-
-    ret = qemu_file_get_error(f);
+    ret = flush_blks(f);
     if (ret) {
         blk_mig_cleanup();
         return ret;
@@ -577,9 +577,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     DPRINTF("Enter save live iterate submitted %d transferred %d\n",
             block_mig_state.submitted, block_mig_state.transferred);
 
-    flush_blks(f);
-
-    ret = qemu_file_get_error(f);
+    ret = flush_blks(f);
     if (ret) {
         blk_mig_cleanup();
         return ret;
@@ -605,9 +603,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
         }
     }
 
-    flush_blks(f);
-
-    ret = qemu_file_get_error(f);
+    ret = flush_blks(f);
     if (ret) {
         blk_mig_cleanup();
         return ret;
@@ -625,9 +621,7 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     DPRINTF("Enter save live complete submitted %d transferred %d\n",
             block_mig_state.submitted, block_mig_state.transferred);
 
-    flush_blks(f);
-
-    ret = qemu_file_get_error(f);
+    ret = flush_blks(f);
     if (ret) {
         blk_mig_cleanup();
         return ret;
