@@ -90,6 +90,16 @@
 /* BRANCH RELATIVE ON COUNT */
     C(0xa706, BRCT,    RI_b,  Z,   0, 0, 0, 0, bct32, 0)
     C(0xa707, BRCTG,   RI_b,  Z,   0, 0, 0, 0, bct64, 0)
+/* BRANCH ON INDEX */
+    D(0x8600, BXH,     RS_a,  Z,   0, a2, 0, 0, bx32, 0, 0)
+    D(0x8700, BXLE,    RS_a,  Z,   0, a2, 0, 0, bx32, 0, 1)
+    D(0xeb44, BXHG,    RSY_a, Z,   0, a2, 0, 0, bx64, 0, 0)
+    D(0xeb45, BXLEG,   RSY_a, Z,   0, a2, 0, 0, bx64, 0, 1)
+/* BRANCH RELATIVE ON INDEX */
+    D(0x8400, BRXH,    RSI,   Z,   0, 0, 0, 0, bx32, 0, 0)
+    D(0x8500, BRXLE,   RSI,   Z,   0, 0, 0, 0, bx32, 0, 1)
+    D(0xec44, BRXHG,   RIE_e, Z,   0, 0, 0, 0, bx64, 0, 0)
+    D(0xec45, BRXHLE,  RIE_e, Z,   0, 0, 0, 0, bx64, 0, 1)
 
 /* CHECKSUM */
     C(0xb241, CKSM,    RRE,   Z,   r1_o, ra2, new, r1_32, cksm, 0)

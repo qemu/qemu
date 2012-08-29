@@ -1355,6 +1355,58 @@ static ExitStatus op_bct64(DisasContext *s, DisasOps *o)
     return help_branch(s, &c, is_imm, imm, o->in2);
 }
 
+static ExitStatus op_bx32(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    bool is_imm = have_field(s->fields, i2);
+    int imm = is_imm ? get_field(s->fields, i2) : 0;
+    DisasCompare c;
+    TCGv_i64 t;
+
+    c.cond = (s->insn->data ? TCG_COND_LE : TCG_COND_GT);
+    c.is_64 = false;
+    c.g1 = false;
+    c.g2 = false;
+
+    t = tcg_temp_new_i64();
+    tcg_gen_add_i64(t, regs[r1], regs[r3]);
+    c.u.s32.a = tcg_temp_new_i32();
+    c.u.s32.b = tcg_temp_new_i32();
+    tcg_gen_trunc_i64_i32(c.u.s32.a, t);
+    tcg_gen_trunc_i64_i32(c.u.s32.b, regs[r3 | 1]);
+    store_reg32_i64(r1, t);
+    tcg_temp_free_i64(t);
+
+    return help_branch(s, &c, is_imm, imm, o->in2);
+}
+
+static ExitStatus op_bx64(DisasContext *s, DisasOps *o)
+{
+    int r1 = get_field(s->fields, r1);
+    int r3 = get_field(s->fields, r3);
+    bool is_imm = have_field(s->fields, i2);
+    int imm = is_imm ? get_field(s->fields, i2) : 0;
+    DisasCompare c;
+
+    c.cond = (s->insn->data ? TCG_COND_LE : TCG_COND_GT);
+    c.is_64 = true;
+
+    if (r1 == (r3 | 1)) {
+        c.u.s64.b = load_reg(r3 | 1);
+        c.g2 = false;
+    } else {
+        c.u.s64.b = regs[r3 | 1];
+        c.g2 = true;
+    }
+
+    tcg_gen_add_i64(regs[r1], regs[r1], regs[r3]);
+    c.u.s64.a = regs[r1];
+    c.g1 = true;
+
+    return help_branch(s, &c, is_imm, imm, o->in2);
+}
+
 static ExitStatus op_ceb(DisasContext *s, DisasOps *o)
 {
     gen_helper_ceb(cc_op, cpu_env, o->in1, o->in2);
