@@ -429,14 +429,18 @@ error:
     return 0;
 }
 
+/* return value:
+ * 0: too much data for max_downtime
+ * 1: few enough data for max_downtime
+*/
 static int blk_mig_save_dirty_block(QEMUFile *f, int is_async)
 {
     BlkMigDevState *bmds;
-    int ret = 0;
+    int ret = 1;
 
     QSIMPLEQ_FOREACH(bmds, &block_mig_state.bmds_list, entry) {
-        if (mig_save_device_dirty(f, bmds, is_async) == 0) {
-            ret = 1;
+        ret = mig_save_device_dirty(f, bmds, is_async);
+        if (ret == 0) {
             break;
         }
     }
@@ -596,7 +600,7 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
                 block_mig_state.bulk_completed = 1;
             }
         } else {
-            if (blk_mig_save_dirty_block(f, 1) == 0) {
+            if (blk_mig_save_dirty_block(f, 1) != 0) {
                 /* no more dirty blocks */
                 break;
             }
@@ -633,7 +637,7 @@ static int block_save_complete(QEMUFile *f, void *opaque)
        all async read completed */
     assert(block_mig_state.submitted == 0);
 
-    while (blk_mig_save_dirty_block(f, 0) != 0) {
+    while (blk_mig_save_dirty_block(f, 0) == 0) {
         /* Do nothing */
     }
     blk_mig_cleanup();
