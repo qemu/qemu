@@ -130,6 +130,7 @@ static int virtio_pci_load_config(void * opaque, QEMUFile *f)
     if (ret) {
         return ret;
     }
+    msix_unuse_all_vectors(&proxy->pci_dev);
     msix_load(&proxy->pci_dev, f);
     if (msix_present(&proxy->pci_dev)) {
         qemu_get_be16s(f, &proxy->vdev->config_vector);
@@ -278,6 +279,7 @@ void virtio_pci_reset(DeviceState *d)
     virtio_pci_stop_ioeventfd(proxy);
     virtio_reset(proxy->vdev);
     msix_reset(&proxy->pci_dev);
+    msix_unuse_all_vectors(&proxy->pci_dev);
     proxy->flags &= ~VIRTIO_PCI_FLAG_BUS_MASTER_BUG;
 }
 
