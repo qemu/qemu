@@ -506,22 +506,6 @@ static void qemu_fill_buffer(QEMUFile *f)
         qemu_file_set_error(f, len);
 }
 
-/** Calls close function and set last_error if needed
- *
- * Internal function. qemu_fflush() must be called before this.
- *
- * Returns f->close() return value, or 0 if close function is not set.
- */
-static int qemu_fclose_internal(QEMUFile *f)
-{
-    int ret = 0;
-    if (f->close) {
-        ret = f->close(f->opaque);
-        qemu_file_set_if_error(f, ret);
-    }
-    return ret;
-}
-
 /** Closes the file
  *
  * Returns negative error value if any error happened on previous operations or
@@ -532,12 +516,14 @@ static int qemu_fclose_internal(QEMUFile *f)
  */
 int qemu_fclose(QEMUFile *f)
 {
-    int ret, ret2;
+    int ret;
     ret = qemu_fflush(f);
-    ret2 = qemu_fclose_internal(f);
 
-    if (ret >= 0) {
-        ret = ret2;
+    if (f->close) {
+        int ret2 = f->close(f->opaque);
+        if (ret >= 0) {
+            ret = ret2;
+        }
     }
     /* If any error was spotted before closing, we should report it
      * instead of the close() return value.
