@@ -1461,7 +1461,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     SCSIDiskReq *r = data->r;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint64_t sector_num;
-    uint32 nb_sectors;
+    uint32_t nb_sectors;
 
     r->req.aiocb = NULL;
     if (ret < 0) {
