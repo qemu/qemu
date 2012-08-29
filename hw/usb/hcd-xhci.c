@@ -1145,7 +1145,7 @@ static TRBCCode xhci_set_ep_dequeue(XHCIState *xhci, unsigned int slotid,
         return CC_TRB_ERROR;
     }
 
-    DPRINTF("xhci_set_ep_dequeue(%d, %d, %016"PRIx64")\n", slotid, epid, pdequeue);
+    trace_usb_xhci_ep_set_dequeue(slotid, epid, pdequeue);
     dequeue = xhci_mask64(pdequeue);
 
     slot = &xhci->slots[slotid-1];

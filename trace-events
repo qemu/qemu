@@ -323,6 +323,7 @@ usb_xhci_slot_evaluate(uint32_t slotid) "slotid %d"
 usb_xhci_slot_reset(uint32_t slotid) "slotid %d"
 usb_xhci_ep_enable(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_disable(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
+usb_xhci_ep_set_dequeue(uint32_t slotid, uint32_t epid, uint64_t param) "slotid %d, epid %d, ptr %016" PRIx64
 usb_xhci_ep_kick(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_stop(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_reset(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
