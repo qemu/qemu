@@ -38,6 +38,7 @@
 #define MEGASAS_MAX_SECTORS 0xFFFF      /* No real limit */
 #define MEGASAS_MAX_ARRAYS 128
 
+#define MEGASAS_HBA_SERIAL "QEMU123456"
 #define NAA_LOCALLY_ASSIGNED_ID 0x3ULL
 #define IEEE_COMPANY_LOCALLY_ASSIGNED 0x525400
 
@@ -93,6 +94,7 @@ typedef struct MegasasState {
     int boot_event;
 
     uint64_t sas_addr;
+    char *hba_serial;
 
     uint64_t reply_queue_pa;
     void *reply_queue;
@@ -698,8 +700,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     }
 
     memcpy(info.product_name, "MegaRAID SAS 8708EM2", 20);
-    snprintf(info.serial_number, 32, "QEMU%08lx",
-             (unsigned long)s & 0xFFFFFFFF);
+    snprintf(info.serial_number, 32, "%s", s->hba_serial);
     snprintf(info.package_version, 0x60, "%s-QEMU", QEMU_VERSION);
     memcpy(info.image_component[0].name, "APP", 3);
     memcpy(info.image_component[0].version, MEGASAS_VERSION "-QEMU", 9);
@@ -2132,6 +2133,9 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->sas_addr |= (PCI_SLOT(dev->devfn) << 8);
         s->sas_addr |= PCI_FUNC(dev->devfn);
     }
+    if (!s->hba_serial) {
+	s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
+    }
     if (s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
         s->fw_sge = MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE;
     } else if (s->fw_sge >= 128 - MFI_PASS_FRAME_SIZE) {
@@ -2166,6 +2170,7 @@ static Property megasas_properties[] = {
                        MEGASAS_DEFAULT_SGE),
     DEFINE_PROP_UINT32("max_cmds", MegasasState, fw_cmds,
                        MEGASAS_DEFAULT_FRAMES),
+    DEFINE_PROP_STRING("hba_serial", MegasasState, hba_serial),
     DEFINE_PROP_HEX64("sas_address", MegasasState, sas_addr, 0),
 #ifdef USE_MSIX
     DEFINE_PROP_BIT("use_msix", MegasasState, flags,

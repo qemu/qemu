@@ -721,7 +721,12 @@ iscsi_readcapacity10_cb(struct iscsi_context *iscsi, int status,
     }
 
     itask->iscsilun->block_size = rc10->block_size;
-    itask->iscsilun->num_blocks = rc10->lba + 1;
+    if (rc10->lba == 0) {
+        /* blank disk loaded */
+        itask->iscsilun->num_blocks = 0;
+    } else {
+        itask->iscsilun->num_blocks = rc10->lba + 1;
+    }
     itask->bs->total_sectors    = itask->iscsilun->num_blocks *
                                itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
 
