@@ -664,7 +664,7 @@ int qemu_get_byte(QEMUFile *f)
     return result;
 }
 
-int64_t qemu_ftell(QEMUFile *f)
+static int64_t qemu_ftell(QEMUFile *f)
 {
     return f->buf_offset - f->buf_size + f->buf_index;
 }
