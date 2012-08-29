@@ -1036,6 +1036,7 @@ static void eepro100_ru_command(EEPRO100State * s, uint8_t val)
         }
         set_ru_state(s, ru_ready);
         s->ru_offset = e100_read_reg4(s, SCBPointer);
+        qemu_flush_queued_packets(&s->nic->nc);
         TRACE(OTHER, logout("val=0x%02x (rx start)\n", val));
         break;
     case RX_RESUME:
@@ -1770,7 +1771,8 @@ static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
     if (rfd_command & COMMAND_EL) {
         /* EL bit is set, so this was the last frame. */
         logout("receive: Running out of frames\n");
-        set_ru_state(s, ru_suspended);
+        set_ru_state(s, ru_no_resources);
+        eepro100_rnr_interrupt(s);
     }
     if (rfd_command & COMMAND_S) {
         /* S bit is set. */
