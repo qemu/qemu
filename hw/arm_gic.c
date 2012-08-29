@@ -955,6 +955,7 @@ static TypeInfo arm_gic_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(gic_state),
     .class_init = arm_gic_class_init,
+    .class_size = sizeof(SysBusDeviceClass),
 };
 
 static void arm_gic_register_types(void)
