@@ -780,6 +780,14 @@ static void ehci_cancel_queue(EHCIQueue *q)
     } while ((p = QTAILQ_FIRST(&q->packets)) != NULL);
 }
 
+static void ehci_reset_queue(EHCIQueue *q)
+{
+    trace_usb_ehci_queue_action(q, "reset");
+    ehci_cancel_queue(q);
+    q->dev = NULL;
+    q->qtdaddr = 0;
+}
+
 static void ehci_free_queue(EHCIQueue *q)
 {
     EHCIQueueHead *head = q->async ? &q->ehci->aqueues : &q->ehci->pqueues;
@@ -1755,8 +1763,9 @@ out:
 static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 {
     EHCIPacket *p;
-    uint32_t entry, devaddr;
+    uint32_t entry, devaddr, endp;
     EHCIQueue *q;
+    EHCIqh qh;
 
     entry = ehci_get_fetch_addr(ehci, async);
     q = ehci_find_queue_by_qh(ehci, entry, async);
@@ -1774,17 +1783,25 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
 
     get_dwords(ehci, NLPTR_GET(q->qhaddr),
-               (uint32_t *) &q->qh, sizeof(EHCIqh) >> 2);
-    ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &q->qh);
+               (uint32_t *) &qh, sizeof(EHCIqh) >> 2);
+    ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &qh);
 
-    devaddr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
-    if (q->dev != NULL && q->dev->addr != devaddr) {
-        if (!QTAILQ_EMPTY(&q->packets)) {
-            /* should not happen (guest bug) */
-            ehci_cancel_queue(q);
-        }
-        q->dev = NULL;
+    /*
+     * The overlay area of the qh should never be changed by the guest,
+     * except when idle, in which case the reset is a nop.
+     */
+    devaddr = get_field(qh.epchar, QH_EPCHAR_DEVADDR);
+    endp    = get_field(qh.epchar, QH_EPCHAR_EP);
+    if ((devaddr != get_field(q->qh.epchar, QH_EPCHAR_DEVADDR)) ||
+        (endp    != get_field(q->qh.epchar, QH_EPCHAR_EP)) ||
+        (memcmp(&qh.current_qtd, &q->qh.current_qtd,
+                                 9 * sizeof(uint32_t)) != 0) ||
+        (q->dev != NULL && q->dev->addr != devaddr)) {
+        ehci_reset_queue(q);
+        p = NULL;
     }
+    q->qh = qh;
+
     if (q->dev == NULL) {
         q->dev = ehci_find_device(q->ehci, devaddr);
     }
