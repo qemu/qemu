@@ -501,7 +501,7 @@ static void qemu_fill_buffer(QEMUFile *f)
         f->buf_size += len;
         f->buf_offset += len;
     } else if (len == 0) {
-        f->last_error = -EIO;
+        qemu_file_set_error(f, -EIO);
     } else if (len != -EAGAIN)
         qemu_file_set_error(f, len);
 }
