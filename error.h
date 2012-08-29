@@ -30,6 +30,12 @@ typedef struct Error Error;
 void error_set(Error **err, ErrorClass err_class, const char *fmt, ...) GCC_FMT_ATTR(3, 4);
 
 /**
+ * Same as error_set(), but sets a generic error
+ */
+#define error_setg(err, fmt, ...) \
+    error_set(err, ERROR_CLASS_GENERIC_ERROR, fmt, ## __VA_ARGS__)
+
+/**
  * Returns true if an indirect pointer to an error is pointing to a valid
  * error object.
  */
