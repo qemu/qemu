@@ -440,7 +440,7 @@ int qemu_file_get_error(QEMUFile *f)
     return f->last_error;
 }
 
-void qemu_file_set_error(QEMUFile *f, int ret)
+static void qemu_file_set_error(QEMUFile *f, int ret)
 {
     f->last_error = ret;
 }
