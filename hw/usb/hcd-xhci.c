@@ -23,6 +23,7 @@
 #include "hw/usb.h"
 #include "hw/pci.h"
 #include "hw/msi.h"
+#include "hw/msix.h"
 #include "trace.h"
 
 //#define DEBUG_XHCI
@@ -59,6 +60,8 @@
 #define OFF_OPER        LEN_CAP
 #define OFF_RUNTIME     0x1000
 #define OFF_DOORBELL    0x2000
+#define OFF_MSIX_TABLE  0x3000
+#define OFF_MSIX_PBA    0x3800
 /* must be power of 2 */
 #define LEN_REGS        0x4000
 
@@ -411,6 +414,7 @@ struct XHCIState {
     uint32_t erstba_high;
     uint32_t erdp_low;
     uint32_t erdp_high;
+    bool     msix_used;
 
     int64_t mfindex_start;
     QEMUTimer *mfwrap_timer;
@@ -437,6 +441,7 @@ typedef struct XHCIEvRingSeg {
 
 enum xhci_flags {
     XHCI_FLAG_USE_MSI = 1,
+    XHCI_FLAG_USE_MSI_X,
 };
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
@@ -616,7 +621,8 @@ static void xhci_intx_update(XHCIState *xhci)
 {
     int level = 0;
 
-    if (msi_enabled(&xhci->pci_dev)) {
+    if (msix_enabled(&xhci->pci_dev) ||
+        msi_enabled(&xhci->pci_dev)) {
         return;
     }
 
@@ -630,6 +636,30 @@ static void xhci_intx_update(XHCIState *xhci)
     qemu_set_irq(xhci->irq, level);
 }
 
+static void xhci_msix_update(XHCIState *xhci)
+{
+    bool enabled;
+
+    if (!msix_enabled(&xhci->pci_dev)) {
+        return;
+    }
+
+    enabled = xhci->iman & IMAN_IE;
+    if (enabled == xhci->msix_used) {
+        return;
+    }
+
+    if (enabled) {
+        trace_usb_xhci_irq_msix_use(0);
+        msix_vector_use(&xhci->pci_dev, 0);
+        xhci->msix_used = true;
+    } else {
+        trace_usb_xhci_irq_msix_unuse(0);
+        msix_vector_unuse(&xhci->pci_dev, 0);
+        xhci->msix_used = false;
+    }
+}
+
 static void xhci_intr_raise(XHCIState *xhci)
 {
     if (!(xhci->iman & IMAN_IP) ||
@@ -638,6 +668,12 @@ static void xhci_intr_raise(XHCIState *xhci)
     }
 
     if (!(xhci->usbcmd & USBCMD_INTE)) {
+        return;
+    }
+
+    if (msix_enabled(&xhci->pci_dev)) {
+        trace_usb_xhci_irq_msix(0);
+        msix_notify(&xhci->pci_dev, 0);
         return;
     }
 
@@ -2282,6 +2318,7 @@ static void xhci_reset(DeviceState *dev)
     xhci->erstba_high = 0;
     xhci->erdp_low = 0;
     xhci->erdp_high = 0;
+    xhci->msix_used = 0;
 
     xhci->er_ep_idx = 0;
     xhci->er_pcs = 1;
@@ -2590,6 +2627,7 @@ static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         xhci->iman &= ~IMAN_IE;
         xhci->iman |= val & IMAN_IE;
         xhci_intx_update(xhci);
+        xhci_msix_update(xhci);
         break;
     case 0x24: /* IMOD */
         xhci->imod = val;
@@ -2883,6 +2921,12 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     if (xhci->flags & (1 << XHCI_FLAG_USE_MSI)) {
         msi_init(&xhci->pci_dev, 0x70, MAXINTRS, true, false);
     }
+    if (xhci->flags & (1 << XHCI_FLAG_USE_MSI_X)) {
+        msix_init(&xhci->pci_dev, MAXINTRS,
+                  &xhci->mem, 0, OFF_MSIX_TABLE,
+                  &xhci->mem, 0, OFF_MSIX_PBA,
+                  0x90);
+    }
 
     return 0;
 }
@@ -2894,6 +2938,7 @@ static const VMStateDescription vmstate_xhci = {
 
 static Property xhci_properties[] = {
     DEFINE_PROP_BIT("msi",    XHCIState, flags, XHCI_FLAG_USE_MSI, true),
+    DEFINE_PROP_BIT("msix",   XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
     DEFINE_PROP_UINT32("p2",  XHCIState, numports_2, 4),
     DEFINE_PROP_UINT32("p3",  XHCIState, numports_3, 4),
     DEFINE_PROP_END_OF_LIST(),
