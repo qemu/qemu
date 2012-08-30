@@ -1987,10 +1987,19 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     } else if (p != NULL) {
-        if (p->async == EHCI_ASYNC_INFLIGHT) {
+        switch (p->async) {
+        case EHCI_ASYNC_NONE:
+            /* Previously nacked packet (likely interrupt ep) */
+           ehci_set_state(q->ehci, q->async, EST_EXECUTE);
+           break;
+        case EHCI_ASYNC_INFLIGHT:
+            /* Unfinyshed async handled packet, go horizontal */
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-        } else {
+            break;
+        case EHCI_ASYNC_FINISHED:
+            /* Should never happen, as this case is caught by fetchqh */
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
+            break;
         }
         again = 1;
     } else {
