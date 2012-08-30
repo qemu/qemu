@@ -662,8 +662,11 @@ static void xhci_msix_update(XHCIState *xhci)
 
 static void xhci_intr_raise(XHCIState *xhci)
 {
-    if (!(xhci->iman & IMAN_IP) ||
-        !(xhci->iman & IMAN_IE)) {
+    xhci->erdp_low |= ERDP_EHB;
+    xhci->iman |= IMAN_IP;
+    xhci->usbsts |= USBSTS_EINT;
+
+    if (!(xhci->iman & IMAN_IE)) {
         return;
     }
 
@@ -784,9 +787,6 @@ static void xhci_events_update(XHCIState *xhci)
     }
 
     if (do_irq) {
-        xhci->erdp_low |= ERDP_EHB;
-        xhci->iman |= IMAN_IP;
-        xhci->usbsts |= USBSTS_EINT;
         xhci_intr_raise(xhci);
     }
 
@@ -846,10 +846,6 @@ static void xhci_event(XHCIState *xhci, XHCIEvent *event)
     } else {
         xhci_write_event(xhci, event);
     }
-
-    xhci->erdp_low |= ERDP_EHB;
-    xhci->iman |= IMAN_IP;
-    xhci->usbsts |= USBSTS_EINT;
 
     xhci_intr_raise(xhci);
 }
