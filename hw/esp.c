@@ -87,7 +87,9 @@ static uint32_t get_cmd(ESPState *s, uint8_t *buf)
 
     target = s->wregs[ESP_WBUSID] & BUSID_DID;
     if (s->dma) {
-        dmalen = s->rregs[ESP_TCLO] | (s->rregs[ESP_TCMID] << 8);
+        dmalen = s->rregs[ESP_TCLO];
+        dmalen |= s->rregs[ESP_TCMID] << 8;
+        dmalen |= s->rregs[ESP_TCHI] << 16;
         s->dma_memory_read(s->dma_opaque, buf, dmalen);
     } else {
         dmalen = s->ti_size;
@@ -226,6 +228,7 @@ static void esp_dma_done(ESPState *s)
     s->rregs[ESP_RFLAGS] = 0;
     s->rregs[ESP_TCLO] = 0;
     s->rregs[ESP_TCMID] = 0;
+    s->rregs[ESP_TCHI] = 0;
     esp_raise_irq(s);
 }
 
@@ -328,7 +331,9 @@ static void handle_ti(ESPState *s)
         return;
     }
 
-    dmalen = s->rregs[ESP_TCLO] | (s->rregs[ESP_TCMID] << 8);
+    dmalen = s->rregs[ESP_TCLO];
+    dmalen |= s->rregs[ESP_TCMID] << 8;
+    dmalen |= s->rregs[ESP_TCHI] << 16;
     if (dmalen==0) {
       dmalen=0x10000;
     }
@@ -429,6 +434,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
     switch (saddr) {
     case ESP_TCLO:
     case ESP_TCMID:
+    case ESP_TCHI:
         s->rregs[ESP_RSTAT] &= ~STAT_TC;
         break;
     case ESP_FIFO:
@@ -448,6 +454,7 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
             /* Reload DMA counter.  */
             s->rregs[ESP_TCLO] = s->wregs[ESP_TCLO];
             s->rregs[ESP_TCMID] = s->wregs[ESP_TCMID];
+            s->rregs[ESP_TCHI] = s->wregs[ESP_TCHI];
         } else {
             s->dma = 0;
         }
@@ -530,12 +537,11 @@ void esp_reg_write(ESPState *s, uint32_t saddr, uint64_t val)
     case ESP_WBUSID ... ESP_WSYNO:
         break;
     case ESP_CFG1:
+    case ESP_CFG2: case ESP_CFG3:
+    case ESP_RES3: case ESP_RES4:
         s->rregs[saddr] = val;
         break;
     case ESP_WCCF ... ESP_WTEST:
-        break;
-    case ESP_CFG2 ... ESP_RES4:
-        s->rregs[saddr] = val;
         break;
     default:
         trace_esp_error_invalid_write(val, saddr);

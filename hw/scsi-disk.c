@@ -1461,7 +1461,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     SCSIDiskReq *r = data->r;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint64_t sector_num;
-    uint32 nb_sectors;
+    uint32_t nb_sectors;
 
     r->req.aiocb = NULL;
     if (ret < 0) {
@@ -2421,6 +2421,7 @@ static TypeInfo scsi_cd_info = {
 #ifdef __linux__
 static Property scsi_block_properties[] = {
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.bs),
+    DEFINE_PROP_INT32("bootindex", SCSIDiskState, qdev.conf.bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

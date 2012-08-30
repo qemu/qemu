@@ -255,10 +255,10 @@ struct kernel_statfs {
 };
 
 struct target_dirent {
-	abi_long	d_ino;
-	abi_long	d_off;
-	unsigned short	d_reclen;
-	char		d_name[256]; /* We must not include limits.h! */
+        abi_long        d_ino;
+        abi_long        d_off;
+        unsigned short  d_reclen;
+        char            d_name[];
 };
 
 struct target_dirent64 {

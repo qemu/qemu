@@ -336,6 +336,15 @@ static void msix_free_irq_entries(PCIDevice *dev)
     }
 }
 
+static void msix_clear_all_vectors(PCIDevice *dev)
+{
+    int vector;
+
+    for (vector = 0; vector < dev->msix_entries_nr; ++vector) {
+        msix_clr_pending(dev, vector);
+    }
+}
+
 /* Clean up resources for the device. */
 void msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
 {
@@ -390,7 +399,7 @@ void msix_load(PCIDevice *dev, QEMUFile *f)
         return;
     }
 
-    msix_free_irq_entries(dev);
+    msix_clear_all_vectors(dev);
     qemu_get_buffer(f, dev->msix_table, n * PCI_MSIX_ENTRY_SIZE);
     qemu_get_buffer(f, dev->msix_pba, (n + 7) / 8);
     msix_update_function_masked(dev);
@@ -436,7 +445,7 @@ void msix_reset(PCIDevice *dev)
     if (!msix_present(dev)) {
         return;
     }
-    msix_free_irq_entries(dev);
+    msix_clear_all_vectors(dev);
     dev->config[dev->msix_cap + MSIX_CONTROL_OFFSET] &=
 	    ~dev->wmask[dev->msix_cap + MSIX_CONTROL_OFFSET];
     memset(dev->msix_table, 0, dev->msix_entries_nr * PCI_MSIX_ENTRY_SIZE);
