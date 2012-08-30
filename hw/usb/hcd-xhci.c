@@ -386,7 +386,7 @@ struct XHCIState {
     /* properties */
     uint32_t numports_2;
     uint32_t numports_3;
-    uint32_t msi;
+    uint32_t flags;
 
     /* Operational Registers */
     uint32_t usbcmd;
@@ -434,6 +434,10 @@ typedef struct XHCIEvRingSeg {
     uint32_t size;
     uint32_t rsvd;
 } XHCIEvRingSeg;
+
+enum xhci_flags {
+    XHCI_FLAG_USE_MSI = 1,
+};
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid);
@@ -617,7 +621,7 @@ static void xhci_irq_update(XHCIState *xhci)
         level = 1;
     }
 
-    if (xhci->msi && msi_enabled(&xhci->pci_dev)) {
+    if (msi_enabled(&xhci->pci_dev)) {
         if (level) {
             trace_usb_xhci_irq_msi(0);
             msi_notify(&xhci->pci_dev, 0);
@@ -2857,23 +2861,11 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     ret = pcie_cap_init(&xhci->pci_dev, 0xa0, PCI_EXP_TYPE_ENDPOINT, 0);
     assert(ret >= 0);
 
-    if (xhci->msi) {
-        ret = msi_init(&xhci->pci_dev, 0x70, 1, true, false);
-        assert(ret >= 0);
+    if (xhci->flags & (1 << XHCI_FLAG_USE_MSI)) {
+        msi_init(&xhci->pci_dev, 0x70, MAXINTRS, true, false);
     }
 
     return 0;
-}
-
-static void xhci_write_config(PCIDevice *dev, uint32_t addr, uint32_t val,
-                              int len)
-{
-    XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev, dev);
-
-    pci_default_write_config(dev, addr, val, len);
-    if (xhci->msi) {
-        msi_write_config(dev, addr, val, len);
-    }
 }
 
 static const VMStateDescription vmstate_xhci = {
@@ -2882,7 +2874,7 @@ static const VMStateDescription vmstate_xhci = {
 };
 
 static Property xhci_properties[] = {
-    DEFINE_PROP_UINT32("msi", XHCIState, msi, 0),
+    DEFINE_PROP_BIT("msi",    XHCIState, flags, XHCI_FLAG_USE_MSI, true),
     DEFINE_PROP_UINT32("p2",  XHCIState, numports_2, 4),
     DEFINE_PROP_UINT32("p3",  XHCIState, numports_3, 4),
     DEFINE_PROP_END_OF_LIST(),
@@ -2902,7 +2894,6 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_SERIAL_USB;
     k->revision     = 0x03;
     k->is_express   = 1;
-    k->config_write = xhci_write_config;
 }
 
 static TypeInfo xhci_info = {
