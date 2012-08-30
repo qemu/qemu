@@ -2586,37 +2586,43 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 
 static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
 {
-    XHCIInterrupter *intr = &xhci->intr[0];
-    uint32_t ret;
+    uint32_t ret = 0;
 
-    switch (reg) {
-    case 0x00: /* MFINDEX */
-        ret = xhci_mfindex_get(xhci) & 0x3fff;
-        break;
-    case 0x20: /* IMAN */
-        ret = intr->iman;
-        break;
-    case 0x24: /* IMOD */
-        ret = intr->imod;
-        break;
-    case 0x28: /* ERSTSZ */
-        ret = intr->erstsz;
-        break;
-    case 0x30: /* ERSTBA low */
-        ret = intr->erstba_low;
-        break;
-    case 0x34: /* ERSTBA high */
-        ret = intr->erstba_high;
-        break;
-    case 0x38: /* ERDP low */
-        ret = intr->erdp_low;
-        break;
-    case 0x3c: /* ERDP high */
-        ret = intr->erdp_high;
-        break;
-    default:
-        fprintf(stderr, "xhci_runtime_read: reg 0x%x unimplemented\n", reg);
-        ret = 0;
+    if (reg < 0x20) {
+        switch (reg) {
+        case 0x00: /* MFINDEX */
+            ret = xhci_mfindex_get(xhci) & 0x3fff;
+            break;
+        default:
+            fprintf(stderr, "xhci_runtime_read: reg 0x%x unimplemented\n", reg);
+            break;
+        }
+    } else {
+        int v = (reg - 0x20) / 0x20;
+        XHCIInterrupter *intr = &xhci->intr[v];
+        switch (reg & 0x1f) {
+        case 0x00: /* IMAN */
+            ret = intr->iman;
+            break;
+        case 0x04: /* IMOD */
+            ret = intr->imod;
+            break;
+        case 0x08: /* ERSTSZ */
+            ret = intr->erstsz;
+            break;
+        case 0x10: /* ERSTBA low */
+            ret = intr->erstba_low;
+            break;
+        case 0x14: /* ERSTBA high */
+            ret = intr->erstba_high;
+            break;
+        case 0x18: /* ERDP low */
+            ret = intr->erdp_low;
+            break;
+        case 0x1c: /* ERDP high */
+            ret = intr->erdp_high;
+            break;
+        }
     }
 
     trace_usb_xhci_runtime_read(reg, ret);
@@ -2625,43 +2631,51 @@ static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
 
 static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 {
-    XHCIInterrupter *intr = &xhci->intr[0];
+    int v = (reg - 0x20) / 0x20;
+    XHCIInterrupter *intr = &xhci->intr[v];
     trace_usb_xhci_runtime_write(reg, val);
 
-    switch (reg) {
-    case 0x20: /* IMAN */
+    if (reg < 0x20) {
+        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", reg);
+        return;
+    }
+
+    switch (reg & 0x1f) {
+    case 0x00: /* IMAN */
         if (val & IMAN_IP) {
             intr->iman &= ~IMAN_IP;
         }
         intr->iman &= ~IMAN_IE;
         intr->iman |= val & IMAN_IE;
-        xhci_intx_update(xhci);
-        xhci_msix_update(xhci, 0);
+        if (v == 0) {
+            xhci_intx_update(xhci);
+        }
+        xhci_msix_update(xhci, v);
         break;
-    case 0x24: /* IMOD */
+    case 0x04: /* IMOD */
         intr->imod = val;
         break;
-    case 0x28: /* ERSTSZ */
+    case 0x08: /* ERSTSZ */
         intr->erstsz = val & 0xffff;
         break;
-    case 0x30: /* ERSTBA low */
+    case 0x10: /* ERSTBA low */
         /* XXX NEC driver bug: it doesn't align this to 64 bytes
         intr->erstba_low = val & 0xffffffc0; */
         intr->erstba_low = val & 0xfffffff0;
         break;
-    case 0x34: /* ERSTBA high */
+    case 0x14: /* ERSTBA high */
         intr->erstba_high = val;
-        xhci_er_reset(xhci, 0);
+        xhci_er_reset(xhci, v);
         break;
-    case 0x38: /* ERDP low */
+    case 0x18: /* ERDP low */
         if (val & ERDP_EHB) {
             intr->erdp_low &= ~ERDP_EHB;
         }
         intr->erdp_low = (val & ~ERDP_EHB) | (intr->erdp_low & ERDP_EHB);
         break;
-    case 0x3c: /* ERDP high */
+    case 0x1c: /* ERDP high */
         intr->erdp_high = val;
-        xhci_events_update(xhci, 0);
+        xhci_events_update(xhci, v);
         break;
     default:
         fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", reg);
