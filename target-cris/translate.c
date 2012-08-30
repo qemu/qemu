@@ -211,9 +211,9 @@ static inline void t_gen_mov_preg_TN(DisasContext *dc, int r, TCGv tn)
 		tcg_gen_andi_tl(cpu_PR[r], tn, 3);
 	else {
 		if (r == PR_PID) 
-			gen_helper_tlb_flush_pid(tn);
+                        gen_helper_tlb_flush_pid(cpu_env, tn);
 		if (dc->tb_flags & S_FLAG && r == PR_SPC) 
-			gen_helper_spc_write(tn);
+                        gen_helper_spc_write(cpu_env, tn);
 		else if (r == PR_CCS)
 			dc->cpustate_changed = 1;
 		tcg_gen_mov_tl(cpu_PR[r], tn);
@@ -278,7 +278,7 @@ static void cris_lock_irq(DisasContext *dc)
 static inline void t_gen_raise_exception(uint32_t index)
 {
         TCGv_i32 tmp = tcg_const_i32(index);
-	gen_helper_raise_exception(tmp);
+        gen_helper_raise_exception(cpu_env, tmp);
         tcg_temp_free_i32(tmp);
 }
 
@@ -624,17 +624,17 @@ static void cris_evaluate_flags(DisasContext *dc)
 	switch (dc->cc_op)
 	{
 	case CC_OP_MCP:
-		gen_helper_evaluate_flags_mcp(cpu_PR[PR_CCS],
+                gen_helper_evaluate_flags_mcp(cpu_PR[PR_CCS], cpu_env,
 					cpu_PR[PR_CCS], cc_src,
 					cc_dest, cc_result);
 		break;
 	case CC_OP_MULS:
-		gen_helper_evaluate_flags_muls(cpu_PR[PR_CCS],
+                gen_helper_evaluate_flags_muls(cpu_PR[PR_CCS], cpu_env,
 					cpu_PR[PR_CCS], cc_result,
 					cpu_PR[PR_MOF]);
 		break;
 	case CC_OP_MULU:
-		gen_helper_evaluate_flags_mulu(cpu_PR[PR_CCS],
+                gen_helper_evaluate_flags_mulu(cpu_PR[PR_CCS], cpu_env,
 					cpu_PR[PR_CCS], cc_result,
 					cpu_PR[PR_MOF]);
 		break;
@@ -648,15 +648,15 @@ static void cris_evaluate_flags(DisasContext *dc)
 		switch (dc->cc_size)
 		{
 		case 4:
-			gen_helper_evaluate_flags_move_4(cpu_PR[PR_CCS],
-						cpu_PR[PR_CCS], cc_result);
+                        gen_helper_evaluate_flags_move_4(cpu_PR[PR_CCS],
+                                           cpu_env, cpu_PR[PR_CCS], cc_result);
 			break;
 		case 2:
-			gen_helper_evaluate_flags_move_2(cpu_PR[PR_CCS],
-						cpu_PR[PR_CCS], cc_result);
+                        gen_helper_evaluate_flags_move_2(cpu_PR[PR_CCS],
+                                           cpu_env, cpu_PR[PR_CCS], cc_result);
 			break;
 		default:
-			gen_helper_evaluate_flags();
+                        gen_helper_evaluate_flags(cpu_env);
 			break;
 		}
 		break;
@@ -666,21 +666,21 @@ static void cris_evaluate_flags(DisasContext *dc)
 	case CC_OP_SUB:
 	case CC_OP_CMP:
 		if (dc->cc_size == 4)
-			gen_helper_evaluate_flags_sub_4(cpu_PR[PR_CCS],
+                        gen_helper_evaluate_flags_sub_4(cpu_PR[PR_CCS], cpu_env,
 				cpu_PR[PR_CCS], cc_src, cc_dest, cc_result);
 		else
-			gen_helper_evaluate_flags();
+                        gen_helper_evaluate_flags(cpu_env);
 
 		break;
 	default:
 		switch (dc->cc_size)
 		{
 			case 4:
-			gen_helper_evaluate_flags_alu_4(cpu_PR[PR_CCS],
+                        gen_helper_evaluate_flags_alu_4(cpu_PR[PR_CCS], cpu_env,
 				cpu_PR[PR_CCS], cc_src, cc_dest, cc_result);
 				break;
 			default:
-				gen_helper_evaluate_flags();
+                                gen_helper_evaluate_flags(cpu_env);
 				break;
 		}
 		break;
@@ -1475,7 +1475,7 @@ static int dec_btstq(DisasContext *dc)
 
 	cris_cc_mask(dc, CC_MASK_NZ);
 	cris_evaluate_flags(dc);
-	gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->op2],
+        gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->op2],
 			tcg_const_tl(dc->op1), cpu_PR[PR_CCS]);
 	cris_alu(dc, CC_OP_MOVE,
 		 cpu_R[dc->op2], cpu_R[dc->op2], cpu_R[dc->op2], 4);
@@ -1925,7 +1925,7 @@ static int dec_btst_r(DisasContext *dc)
 		    dc->op1, dc->op2);
 	cris_cc_mask(dc, CC_MASK_NZ);
 	cris_evaluate_flags(dc);
-	gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->op2],
+        gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->op2],
 			cpu_R[dc->op1], cpu_PR[PR_CCS]);
 	cris_alu(dc, CC_OP_MOVE, cpu_R[dc->op2],
 		 cpu_R[dc->op2], cpu_R[dc->op2], 4);
@@ -2135,14 +2135,16 @@ static int dec_move_rs(DisasContext *dc)
 {
 	LOG_DIS("move $r%u, $s%u\n", dc->op1, dc->op2);
 	cris_cc_mask(dc, 0);
-	gen_helper_movl_sreg_reg(tcg_const_tl(dc->op2), tcg_const_tl(dc->op1));
+        gen_helper_movl_sreg_reg(cpu_env, tcg_const_tl(dc->op2),
+                                 tcg_const_tl(dc->op1));
 	return 2;
 }
 static int dec_move_sr(DisasContext *dc)
 {
 	LOG_DIS("move $s%u, $r%u\n", dc->op2, dc->op1);
 	cris_cc_mask(dc, 0);
-	gen_helper_movl_reg_sreg(tcg_const_tl(dc->op1), tcg_const_tl(dc->op2));
+        gen_helper_movl_reg_sreg(cpu_env, tcg_const_tl(dc->op1),
+                                 tcg_const_tl(dc->op2));
 	return 2;
 }
 
@@ -2906,14 +2908,14 @@ static int dec_rfe_etc(DisasContext *dc)
 			/* rfe.  */
 			LOG_DIS("rfe\n");
 			cris_evaluate_flags(dc);
-			gen_helper_rfe();
+                        gen_helper_rfe(cpu_env);
 			dc->is_jmp = DISAS_UPDATE;
 			break;
 		case 5:
 			/* rfn.  */
 			LOG_DIS("rfn\n");
 			cris_evaluate_flags(dc);
-			gen_helper_rfn();
+                        gen_helper_rfn(cpu_env);
 			dc->is_jmp = DISAS_UPDATE;
 			break;
 		case 6:
