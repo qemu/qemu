@@ -1470,6 +1470,13 @@ async_common:
             return;
         }
 
+        if (update.left < 0 || update.top < 0 || update.left >= update.right ||
+            update.top >= update.bottom) {
+            qxl_set_guest_bug(d, "QXL_IO_UPDATE_AREA: "
+                              "invalid area(%d,%d,%d,%d)\n", update.left,
+                              update.right, update.top, update.bottom);
+            break;
+        }
         if (async == QXL_ASYNC) {
             cookie = qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                     QXL_IO_UPDATE_AREA_ASYNC);
