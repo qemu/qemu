@@ -2518,7 +2518,7 @@ static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
 
 static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
 {
-    trace_usb_xhci_runtime_read(reg, val);
+    trace_usb_xhci_runtime_write(reg, val);
 
     switch (reg) {
     case 0x20: /* IMAN */
