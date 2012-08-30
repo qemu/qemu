@@ -289,7 +289,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             } else {
                 /* BTST */
                 cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-                gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->dst],
+                gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->dst],
                            tcg_const_tl(imm), cpu_PR[PR_CCS]);
             }
             break;
@@ -723,7 +723,7 @@ static unsigned int dec10_reg(DisasContext *dc)
                 LOG_DIS("btst $r%d, $r%d sz=%d\n", dc->src, dc->dst, size);
                 cris_cc_mask(dc, CC_MASK_NZVC);
                 cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-                gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->dst],
+                gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->dst],
                            cpu_R[dc->src], cpu_PR[PR_CCS]);
                 break;
             case CRISV10_REG_DSTEP:

@@ -79,7 +79,7 @@ void tlb_fill(CPUCRISState *env1, target_ulong addr, int is_write, int mmu_idx,
                 cpu_restore_state(tb, env, retaddr);
 
 		/* Evaluate flags after retranslation.  */
-                helper_top_evaluate_flags();
+                helper_top_evaluate_flags(env);
             }
         }
         cpu_loop_exit(env);
@@ -89,13 +89,13 @@ void tlb_fill(CPUCRISState *env1, target_ulong addr, int is_write, int mmu_idx,
 
 #endif
 
-void helper_raise_exception(uint32_t index)
+void helper_raise_exception(CPUCRISState *env, uint32_t index)
 {
 	env->exception_index = index;
         cpu_loop_exit(env);
 }
 
-void helper_tlb_flush_pid(uint32_t pid)
+void helper_tlb_flush_pid(CPUCRISState *env, uint32_t pid)
 {
 #if !defined(CONFIG_USER_ONLY)
 	pid &= 0xff;
@@ -104,7 +104,7 @@ void helper_tlb_flush_pid(uint32_t pid)
 #endif
 }
 
-void helper_spc_write(uint32_t new_spc)
+void helper_spc_write(CPUCRISState *env, uint32_t new_spc)
 {
 #if !defined(CONFIG_USER_ONLY)
 	tlb_flush_page(env, env->pregs[PR_SPC]);
@@ -121,7 +121,7 @@ void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
 #define EXTRACT_FIELD(src, start, end) \
 	    (((src) >> start) & ((1 << (end - start + 1)) - 1))
 
-void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
+void helper_movl_sreg_reg(CPUCRISState *env, uint32_t sreg, uint32_t reg)
 {
 	uint32_t srs;
 	srs = env->pregs[PR_SRS];
@@ -171,7 +171,7 @@ void helper_movl_sreg_reg (uint32_t sreg, uint32_t reg)
 #endif
 }
 
-void helper_movl_reg_sreg (uint32_t reg, uint32_t sreg)
+void helper_movl_reg_sreg(CPUCRISState *env, uint32_t reg, uint32_t sreg)
 {
 	uint32_t srs;
 	env->pregs[PR_SRS] &= 3;
@@ -216,7 +216,7 @@ static void cris_ccs_rshift(CPUCRISState *env)
 	env->pregs[PR_CCS] = ccs;
 }
 
-void helper_rfe(void)
+void helper_rfe(CPUCRISState *env)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
@@ -232,7 +232,7 @@ void helper_rfe(void)
 		env->pregs[PR_CCS] |= P_FLAG;
 }
 
-void helper_rfn(void)
+void helper_rfn(CPUCRISState *env)
 {
 	int rflag = env->pregs[PR_CCS] & R_FLAG;
 
@@ -256,7 +256,7 @@ uint32_t helper_lz(uint32_t t0)
 	return clz32(t0);
 }
 
-uint32_t helper_btst(uint32_t t0, uint32_t t1, uint32_t ccs)
+uint32_t helper_btst(CPUCRISState *env, uint32_t t0, uint32_t t1, uint32_t ccs)
 {
 	/* FIXME: clean this up.  */
 
@@ -284,7 +284,8 @@ uint32_t helper_btst(uint32_t t0, uint32_t t1, uint32_t ccs)
 	return ccs;
 }
 
-static inline uint32_t evaluate_flags_writeback(uint32_t flags, uint32_t ccs)
+static inline uint32_t evaluate_flags_writeback(CPUCRISState *env,
+                                                uint32_t flags, uint32_t ccs)
 {
 	unsigned int x, z, mask;
 
@@ -303,7 +304,8 @@ static inline uint32_t evaluate_flags_writeback(uint32_t flags, uint32_t ccs)
 	return ccs;
 }
 
-uint32_t helper_evaluate_flags_muls(uint32_t ccs, uint32_t res, uint32_t mof)
+uint32_t helper_evaluate_flags_muls(CPUCRISState *env,
+                                    uint32_t ccs, uint32_t res, uint32_t mof)
 {
 	uint32_t flags = 0;
 	int64_t tmp;
@@ -321,10 +323,11 @@ uint32_t helper_evaluate_flags_muls(uint32_t ccs, uint32_t res, uint32_t mof)
 	if ((dneg && mof != -1)
 	    || (!dneg && mof != 0))
 		flags |= V_FLAG;
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
 
-uint32_t helper_evaluate_flags_mulu(uint32_t ccs, uint32_t res, uint32_t mof)
+uint32_t helper_evaluate_flags_mulu(CPUCRISState *env,
+                                    uint32_t ccs, uint32_t res, uint32_t mof)
 {
 	uint32_t flags = 0;
 	uint64_t tmp;
@@ -339,10 +342,10 @@ uint32_t helper_evaluate_flags_mulu(uint32_t ccs, uint32_t res, uint32_t mof)
 	if (mof)
 		flags |= V_FLAG;
 
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
 
-uint32_t helper_evaluate_flags_mcp(uint32_t ccs,
+uint32_t helper_evaluate_flags_mcp(CPUCRISState *env, uint32_t ccs,
 				   uint32_t src, uint32_t dst, uint32_t res)
 {
 	uint32_t flags = 0;
@@ -368,10 +371,10 @@ uint32_t helper_evaluate_flags_mcp(uint32_t ccs,
 			flags |= R_FLAG;
 	}
 
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
 
-uint32_t helper_evaluate_flags_alu_4(uint32_t ccs,
+uint32_t helper_evaluate_flags_alu_4(CPUCRISState *env, uint32_t ccs,
 				     uint32_t src, uint32_t dst, uint32_t res)
 {
 	uint32_t flags = 0;
@@ -397,10 +400,10 @@ uint32_t helper_evaluate_flags_alu_4(uint32_t ccs,
 			flags |= C_FLAG;
 	}
 
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
 
-uint32_t helper_evaluate_flags_sub_4(uint32_t ccs,
+uint32_t helper_evaluate_flags_sub_4(CPUCRISState *env, uint32_t ccs,
 				     uint32_t src, uint32_t dst, uint32_t res)
 {
 	uint32_t flags = 0;
@@ -427,10 +430,11 @@ uint32_t helper_evaluate_flags_sub_4(uint32_t ccs,
 	}
 
 	flags ^= C_FLAG;
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
 
-uint32_t helper_evaluate_flags_move_4(uint32_t ccs, uint32_t res)
+uint32_t helper_evaluate_flags_move_4(CPUCRISState *env,
+                                      uint32_t ccs, uint32_t res)
 {
 	uint32_t flags = 0;
 
@@ -439,9 +443,10 @@ uint32_t helper_evaluate_flags_move_4(uint32_t ccs, uint32_t res)
 	else if (res == 0L)
 		flags |= Z_FLAG;
 
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
-uint32_t helper_evaluate_flags_move_2(uint32_t ccs, uint32_t res)
+uint32_t helper_evaluate_flags_move_2(CPUCRISState *env,
+                                      uint32_t ccs, uint32_t res)
 {
 	uint32_t flags = 0;
 
@@ -450,12 +455,12 @@ uint32_t helper_evaluate_flags_move_2(uint32_t ccs, uint32_t res)
 	else if (res == 0)
 		flags |= Z_FLAG;
 
-	return evaluate_flags_writeback(flags, ccs);
+        return evaluate_flags_writeback(env, flags, ccs);
 }
 
 /* TODO: This is expensive. We could split things up and only evaluate part of
    CCR on a need to know basis. For now, we simply re-evaluate everything.  */
-void  helper_evaluate_flags(void)
+void helper_evaluate_flags(CPUCRISState *env)
 {
 	uint32_t src, dst, res;
 	uint32_t flags = 0;
@@ -571,25 +576,26 @@ void  helper_evaluate_flags(void)
 	if (env->cc_op == CC_OP_SUB || env->cc_op == CC_OP_CMP)
 		flags ^= C_FLAG;
 
-	env->pregs[PR_CCS] = evaluate_flags_writeback(flags, env->pregs[PR_CCS]);
+        env->pregs[PR_CCS] = evaluate_flags_writeback(env, flags,
+                                                      env->pregs[PR_CCS]);
 }
 
-void helper_top_evaluate_flags(void)
+void helper_top_evaluate_flags(CPUCRISState *env)
 {
 	switch (env->cc_op)
 	{
 		case CC_OP_MCP:
-			env->pregs[PR_CCS] = helper_evaluate_flags_mcp(
+                        env->pregs[PR_CCS] = helper_evaluate_flags_mcp(env,
 					env->pregs[PR_CCS], env->cc_src,
 					env->cc_dest, env->cc_result);
 			break;
 		case CC_OP_MULS:
-			env->pregs[PR_CCS] = helper_evaluate_flags_muls(
+                        env->pregs[PR_CCS] = helper_evaluate_flags_muls(env,
 					env->pregs[PR_CCS], env->cc_result,
 					env->pregs[PR_MOF]);
 			break;
 		case CC_OP_MULU:
-			env->pregs[PR_CCS] = helper_evaluate_flags_mulu(
+                        env->pregs[PR_CCS] = helper_evaluate_flags_mulu(env,
 					env->pregs[PR_CCS], env->cc_result,
 					env->pregs[PR_MOF]);
 			break;
@@ -604,18 +610,18 @@ void helper_top_evaluate_flags(void)
 		{
 			case 4:
 				env->pregs[PR_CCS] =
-					helper_evaluate_flags_move_4(
+                                        helper_evaluate_flags_move_4(env,
 							env->pregs[PR_CCS],
 							env->cc_result);
 				break;
 			case 2:
 				env->pregs[PR_CCS] =
-					helper_evaluate_flags_move_2(
+                                        helper_evaluate_flags_move_2(env,
 							env->pregs[PR_CCS],
 							env->cc_result);
 				break;
 			default:
-				helper_evaluate_flags();
+                                helper_evaluate_flags(env);
 				break;
 		}
 		break;
@@ -626,12 +632,12 @@ void helper_top_evaluate_flags(void)
 		case CC_OP_CMP:
 			if (env->cc_size == 4)
 				env->pregs[PR_CCS] =
-					helper_evaluate_flags_sub_4(
+                                        helper_evaluate_flags_sub_4(env,
 						env->pregs[PR_CCS],
 						env->cc_src, env->cc_dest,
 						env->cc_result);
 			else
-				helper_evaluate_flags();
+                                helper_evaluate_flags(env);
 			break;
 		default:
 		{
@@ -639,13 +645,13 @@ void helper_top_evaluate_flags(void)
 			{
 			case 4:
 				env->pregs[PR_CCS] =
-					helper_evaluate_flags_alu_4(
+                                        helper_evaluate_flags_alu_4(env,
 						env->pregs[PR_CCS],
 						env->cc_src, env->cc_dest,
 						env->cc_result);
 				break;
 			default:
-				helper_evaluate_flags();
+                                helper_evaluate_flags(env);
 				break;
 			}
 		}
