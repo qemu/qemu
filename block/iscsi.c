@@ -167,12 +167,6 @@ iscsi_set_events(IscsiLun *iscsilun)
 
     }
 
-    /* If we just added an event, the callback might be delayed
-     * unless we call qemu_notify_event().
-     */
-    if (ev & ~iscsilun->events) {
-        qemu_notify_event();
-    }
     iscsilun->events = ev;
 }
 
