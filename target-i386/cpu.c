@@ -33,7 +33,9 @@
 #include "hyperv.h"
 
 #include "hw/hw.h"
+#if defined(CONFIG_KVM)
 #include <linux/kvm_para.h>
+#endif
 
 /* feature flags taken from "Intel Processor Identification and the CPUID
  * Instruction" and AMD's "CPUID Specification".  In cases of disagreement
