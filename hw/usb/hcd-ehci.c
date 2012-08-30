@@ -1194,6 +1194,15 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
             val &= ~USBCMD_FLS;
         }
 
+        if (val & USBCMD_IAAD) {
+            /*
+             * Process IAAD immediately, otherwise the Linux IAAD watchdog may
+             * trigger and re-use a qh without us seeing the unlink.
+             */
+            s->async_stepdown = 0;
+            qemu_bh_schedule(s->async_bh);
+        }
+
         if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
             ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
             if (s->pstate == EST_INACTIVE) {
