@@ -44,6 +44,7 @@ static const QDevAlias qdev_alias_table[] = {
     { "virtio-serial-s390", "virtio-serial", QEMU_ARCH_S390X },
     { "lsi53c895a", "lsi" },
     { "ich9-ahci", "ahci" },
+    { "kvm-pci-assign", "pci-assign" },
     { }
 };
 
