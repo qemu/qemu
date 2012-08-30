@@ -612,24 +612,43 @@ static XHCIPort *xhci_lookup_port(XHCIState *xhci, struct USBPort *uport)
     return &xhci->ports[index];
 }
 
-static void xhci_irq_update(XHCIState *xhci)
+static void xhci_intx_update(XHCIState *xhci)
 {
     int level = 0;
 
-    if (xhci->iman & IMAN_IP && xhci->iman & IMAN_IE &&
+    if (msi_enabled(&xhci->pci_dev)) {
+        return;
+    }
+
+    if (xhci->iman & IMAN_IP &&
+        xhci->iman & IMAN_IE &&
         xhci->usbcmd & USBCMD_INTE) {
         level = 1;
     }
 
-    if (msi_enabled(&xhci->pci_dev)) {
-        if (level) {
-            trace_usb_xhci_irq_msi(0);
-            msi_notify(&xhci->pci_dev, 0);
-        }
-    } else {
-        trace_usb_xhci_irq_intx(level);
-        qemu_set_irq(xhci->irq, level);
+    trace_usb_xhci_irq_intx(level);
+    qemu_set_irq(xhci->irq, level);
+}
+
+static void xhci_intr_raise(XHCIState *xhci)
+{
+    if (!(xhci->iman & IMAN_IP) ||
+        !(xhci->iman & IMAN_IE)) {
+        return;
     }
+
+    if (!(xhci->usbcmd & USBCMD_INTE)) {
+        return;
+    }
+
+    if (msi_enabled(&xhci->pci_dev)) {
+        trace_usb_xhci_irq_msi(0);
+        msi_notify(&xhci->pci_dev, 0);
+        return;
+    }
+
+    trace_usb_xhci_irq_intx(1);
+    qemu_set_irq(xhci->irq, 1);
 }
 
 static inline int xhci_running(XHCIState *xhci)
@@ -732,7 +751,7 @@ static void xhci_events_update(XHCIState *xhci)
         xhci->erdp_low |= ERDP_EHB;
         xhci->iman |= IMAN_IP;
         xhci->usbsts |= USBSTS_EINT;
-        xhci_irq_update(xhci);
+        xhci_intr_raise(xhci);
     }
 
     if (xhci->er_full && xhci->ev_buffer_put == xhci->ev_buffer_get) {
@@ -796,7 +815,7 @@ static void xhci_event(XHCIState *xhci, XHCIEvent *event)
     xhci->iman |= IMAN_IP;
     xhci->usbsts |= USBSTS_EINT;
 
-    xhci_irq_update(xhci);
+    xhci_intr_raise(xhci);
 }
 
 static void xhci_ring_init(XHCIState *xhci, XHCIRing *ring,
@@ -2479,13 +2498,13 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         if (val & USBCMD_HCRST) {
             xhci_reset(&xhci->pci_dev.qdev);
         }
-        xhci_irq_update(xhci);
+        xhci_intx_update(xhci);
         break;
 
     case 0x04: /* USBSTS */
         /* these bits are write-1-to-clear */
         xhci->usbsts &= ~(val & (USBSTS_HSE|USBSTS_EINT|USBSTS_PCD|USBSTS_SRE));
-        xhci_irq_update(xhci);
+        xhci_intx_update(xhci);
         break;
 
     case 0x14: /* DNCTRL */
@@ -2570,7 +2589,7 @@ static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         }
         xhci->iman &= ~IMAN_IE;
         xhci->iman |= val & IMAN_IE;
-        xhci_irq_update(xhci);
+        xhci_intx_update(xhci);
         break;
     case 0x24: /* IMOD */
         xhci->imod = val;
