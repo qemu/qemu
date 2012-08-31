@@ -82,9 +82,12 @@ s3c24xx_gpio_write_f(void *opaque, target_phys_addr_t addr_, uint64_t value,
                      unsigned size)
 {
     S3C24xxGpioState *s = opaque;
-    uint32_t addr = (addr_ >> 2) & 0x3f;
+    uint32_t addr = (addr_ >> 2);
 
     assert(addr < S3C_GPIO_MAX);
+
+    assert(!(addr > 0x3f));
+    addr &= 0x3f;
 
     if (addr == (S3C_GPIO_EINT_MASK>>2)) {
         value &= ~0xf; /* cannot mask EINT0-EINT3 */
@@ -122,6 +125,9 @@ s3c24xx_gpio_read_f(void *opaque, target_phys_addr_t addr_, unsigned size)
     uint32_t ret;
 
     assert(addr < S3C_GPIO_MAX);
+
+    assert(!(addr > 0x3f));
+    addr &= 0x3f;
 
     ret = s->gpio_reg[addr];
 
