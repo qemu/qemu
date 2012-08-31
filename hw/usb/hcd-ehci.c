@@ -1241,6 +1241,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
              */
             s->async_stepdown = 0;
             qemu_bh_schedule(s->async_bh);
+            trace_usb_ehci_doorbell_ring();
         }
 
         if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
@@ -2335,7 +2336,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
         if (ehci->usbcmd & USBCMD_IAAD) {
             /* Remove all unseen qhs from the async qhs queue */
             ehci_queues_rip_unused(ehci, async, 1);
-            DPRINTF("ASYNC: doorbell request acknowledged\n");
+            trace_usb_ehci_doorbell_ack();
             ehci->usbcmd &= ~USBCMD_IAAD;
             ehci_raise_irq(ehci, USBSTS_IAA);
         }
