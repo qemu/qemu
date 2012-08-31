@@ -1427,6 +1427,34 @@ static ExitStatus op_bx64(DisasContext *s, DisasOps *o)
     return help_branch(s, &c, is_imm, imm, o->in2);
 }
 
+static ExitStatus op_cj(DisasContext *s, DisasOps *o)
+{
+    int imm, m3 = get_field(s->fields, m3);
+    bool is_imm;
+    DisasCompare c;
+
+    /* Bit 3 of the m3 field is reserved and should be zero.
+       Choose to ignore it wrt the ltgt_cond table above.  */
+    c.cond = ltgt_cond[m3 & 14];
+    if (s->insn->data) {
+        c.cond = tcg_unsigned_cond(c.cond);
+    }
+    c.is_64 = c.g1 = c.g2 = true;
+    c.u.s64.a = o->in1;
+    c.u.s64.b = o->in2;
+
+    is_imm = have_field(s->fields, i4);
+    if (is_imm) {
+        imm = get_field(s->fields, i4);
+    } else {
+        imm = 0;
+        o->out = get_address(s, 0, get_field(s->fields, b4),
+                             get_field(s->fields, d4));
+    }
+
+    return help_branch(s, &c, is_imm, imm, o->out);
+}
+
 static ExitStatus op_ceb(DisasContext *s, DisasOps *o)
 {
     gen_helper_ceb(cc_op, cpu_env, o->in1, o->in2);

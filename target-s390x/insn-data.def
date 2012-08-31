@@ -166,6 +166,25 @@
 /* COMPARE LOGICAL STRING */
     C(0xb25d, CLST,    RRE,   Z,   r1_o, r2_o, 0, 0, clst, 0)
 
+/* COMPARE AND BRANCH */
+    D(0xecf6, CRB,     RRS,   GIE, r1_32s, r2_32s, 0, 0, cj, 0, 0)
+    D(0xece4, CGRB,    RRS,   GIE, r1_o, r2_o, 0, 0, cj, 0, 0)
+    D(0xec76, CRJ,     RIE_b, GIE, r1_32s, r2_32s, 0, 0, cj, 0, 0)
+    D(0xec64, CGRJ,    RIE_b, GIE, r1_o, r2_o, 0, 0, cj, 0, 0)
+    D(0xecfe, CIB,     RIS,   GIE, r1_32s, i2, 0, 0, cj, 0, 0)
+    D(0xecfc, CGIB,    RIS,   GIE, r1_o, i2, 0, 0, cj, 0, 0)
+    D(0xec7e, CIJ,     RIE_c, GIE, r1_32s, i2, 0, 0, cj, 0, 0)
+    D(0xec7c, CGIJ,    RIE_c, GIE, r1_o, i2, 0, 0, cj, 0, 0)
+/* COMPARE LOGICAL AND BRANCH */
+    D(0xecf7, CLRB,    RRS,   GIE, r1_32u, r2_32u, 0, 0, cj, 0, 1)
+    D(0xece5, CLGRB,   RRS,   GIE, r1_o, r2_o, 0, 0, cj, 0, 1)
+    D(0xec77, CLRJ,    RIE_b, GIE, r1_32u, r2_32u, 0, 0, cj, 0, 1)
+    D(0xec65, CLGRJ,   RIE_b, GIE, r1_o, r2_o, 0, 0, cj, 0, 1)
+    D(0xecff, CLIB,    RIS,   GIE, r1_32u, i2_8u, 0, 0, cj, 0, 1)
+    D(0xecfd, CLGIB,   RIS,   GIE, r1_o, i2_8u, 0, 0, cj, 0, 1)
+    D(0xec7f, CLIJ,    RIE_c, GIE, r1_32u, i2_8u, 0, 0, cj, 0, 1)
+    D(0xec7d, CLGIJ,   RIE_c, GIE, r1_o, i2_8u, 0, 0, cj, 0, 1)
+
 /* COMPARE AND SWAP */
     C(0xba00, CS,      RS_a,  Z,   r1_o, a2, new, r1_32, cs, 0)
     C(0xeb14, CSY,     RSY_a, LD,  r1_o, a2, new, r1_32, cs, 0)
