@@ -2429,6 +2429,89 @@ static ExitStatus op_ptlb(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
+{
+    int i3 = get_field(s->fields, i3);
+    int i4 = get_field(s->fields, i4);
+    int i5 = get_field(s->fields, i5);
+    int do_zero = i4 & 0x80;
+    uint64_t mask, imask, pmask;
+    int pos, len, rot;
+
+    /* Adjust the arguments for the specific insn.  */
+    switch (s->fields->op2) {
+    case 0x55: /* risbg */
+        i3 &= 63;
+        i4 &= 63;
+        pmask = ~0;
+        break;
+    case 0x5d: /* risbhg */
+        i3 &= 31;
+        i4 &= 31;
+        pmask = 0xffffffff00000000ull;
+        break;
+    case 0x51: /* risblg */
+        i3 &= 31;
+        i4 &= 31;
+        pmask = 0x00000000ffffffffull;
+        break;
+    default:
+        abort();
+    }
+
+    /* MASK is the set of bits to be inserted from R2.
+       Take care for I3/I4 wraparound.  */
+    mask = pmask >> i3;
+    if (i3 <= i4) {
+        mask ^= pmask >> i4 >> 1;
+    } else {
+        mask |= ~(pmask >> i4 >> 1);
+    }
+    mask &= pmask;
+
+    /* IMASK is the set of bits to be kept from R1.  In the case of the high/low
+       insns, we need to keep the other half of the register.  */
+    imask = ~mask | ~pmask;
+    if (do_zero) {
+        if (s->fields->op2 == 0x55) {
+            imask = 0;
+        } else {
+            imask = ~pmask;
+        }
+    }
+
+    /* In some cases we can implement this with deposit, which can be more
+       efficient on some hosts.  */
+    if (~mask == imask && i3 <= i4) {
+        if (s->fields->op2 == 0x5d) {
+            i3 += 32, i4 += 32;
+        }
+        /* Note that we rotate the bits to be inserted to the lsb, not to
+           the position as described in the PoO.  */
+        len = i4 - i3 + 1;
+        pos = 63 - i4;
+        rot = (i5 - pos) & 63;
+    } else {
+        pos = len = -1;
+        rot = i5 & 63;
+    }
+
+    /* Rotate the input as necessary.  */
+    tcg_gen_rotli_i64(o->in2, o->in2, rot);
+
+    /* Insert the selected bits into the output.  */
+    if (pos >= 0) {
+        tcg_gen_deposit_i64(o->out, o->out, o->in2, pos, len);
+    } else if (imask == 0) {
+        tcg_gen_andi_i64(o->out, o->in2, mask);
+    } else {
+        tcg_gen_andi_i64(o->in2, o->in2, mask);
+        tcg_gen_andi_i64(o->out, o->out, imask);
+        tcg_gen_or_i64(o->out, o->out, o->in2);
+    }
+    return NO_EXIT;
+}
+
 static ExitStatus op_rev16(DisasContext *s, DisasOps *o)
 {
     tcg_gen_bswap16_i64(o->out, o->in2);

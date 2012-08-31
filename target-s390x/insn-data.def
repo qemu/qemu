@@ -500,6 +500,11 @@
     C(0xeb1d, RLL,     RSY_a, Z,   r3_o, sh32, new, r1_32, rll32, 0)
     C(0xeb1c, RLLG,    RSY_a, Z,   r3_o, sh64, r1, 0, rll64, 0)
 
+/* ROTATE THEN INSERT SELECTED BITS */
+    C(0xec55, RISBG,   RIE_f, GIE, 0, r2, r1, 0, risbg, s64)
+    C(0xec5d, RISBHG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
+    C(0xec51, RISBLG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
+
 /* SEARCH STRING */
     C(0xb25e, SRST,    RRE,   Z,   r1_o, r2_o, 0, 0, srst, 0)
 
