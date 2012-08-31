@@ -512,9 +512,9 @@ STEXI
 @item sendkey @var{keys}
 @findex sendkey
 
-Send @var{keys} to the emulator. @var{keys} could be the name of the
-key or @code{#} followed by the raw value in either decimal or hexadecimal
-format. Use @code{-} to press several keys simultaneously. Example:
+Send @var{keys} to the guest. @var{keys} could be the name of the
+key or the raw value in hexadecimal format. Use @code{-} to press
+several keys simultaneously. Example:
 @example
 sendkey ctrl-alt-f1
 @end example
