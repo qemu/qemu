@@ -217,6 +217,16 @@ void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, 
 
     return ret
 
+def generate_enum_declaration(name, members, genlist=True):
+    ret = ""
+    if genlist:
+        ret += mcgen('''
+void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp);
+''',
+                     name=name)
+
+    return ret
+
 def generate_decl_enum(name, members, genlist=True):
     return mcgen('''
 
@@ -335,10 +345,12 @@ for expr in exprs:
         ret += generate_declaration(expr['union'], expr['data'])
         fdecl.write(ret)
     elif expr.has_key('enum'):
-        ret = generate_visit_enum(expr['enum'], expr['data'])
+        ret = generate_visit_list(expr['enum'], expr['data'])
+        ret += generate_visit_enum(expr['enum'], expr['data'])
         fdef.write(ret)
 
         ret = generate_decl_enum(expr['enum'], expr['data'])
+        ret += generate_enum_declaration(expr['enum'], expr['data'])
         fdecl.write(ret)
 
 fdecl.write('''
