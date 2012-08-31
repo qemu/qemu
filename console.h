@@ -6,6 +6,7 @@
 #include "notify.h"
 #include "monitor.h"
 #include "trace.h"
+#include "qapi-types.h"
 
 /* keyboard/mouse support */
 
@@ -396,5 +397,10 @@ static inline int vnc_display_pw_expire(DisplayState *ds, time_t expires)
 
 /* curses.c */
 void curses_display_init(DisplayState *ds, int full_screen);
+
+/* input.c */
+extern const int key_defs[];
+int index_from_key(const char *key);
+int index_from_keycode(int code);
 
 #endif
