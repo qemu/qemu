@@ -264,6 +264,8 @@ usb_ehci_queue_action(void *q, const char *action) "q %p: %s"
 usb_ehci_packet_action(void *q, void *p, const char *action) "q %p p %p: %s"
 usb_ehci_irq(uint32_t level, uint32_t frindex, uint32_t sts, uint32_t mask) "level %d, frindex 0x%04x, sts 0x%x, mask 0x%x"
 usb_ehci_guest_bug(const char *reason) "%s"
+usb_ehci_doorbell_ring(void) ""
+usb_ehci_doorbell_ack(void) ""
 
 # hw/usb/hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="
