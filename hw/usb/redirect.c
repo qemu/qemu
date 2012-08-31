@@ -107,27 +107,27 @@ static void usbredir_interface_info(void *priv,
     struct usb_redir_interface_info_header *interface_info);
 static void usbredir_ep_info(void *priv,
     struct usb_redir_ep_info_header *ep_info);
-static void usbredir_configuration_status(void *priv, uint32_t id,
+static void usbredir_configuration_status(void *priv, uint64_t id,
     struct usb_redir_configuration_status_header *configuration_status);
-static void usbredir_alt_setting_status(void *priv, uint32_t id,
+static void usbredir_alt_setting_status(void *priv, uint64_t id,
     struct usb_redir_alt_setting_status_header *alt_setting_status);
-static void usbredir_iso_stream_status(void *priv, uint32_t id,
+static void usbredir_iso_stream_status(void *priv, uint64_t id,
     struct usb_redir_iso_stream_status_header *iso_stream_status);
-static void usbredir_interrupt_receiving_status(void *priv, uint32_t id,
+static void usbredir_interrupt_receiving_status(void *priv, uint64_t id,
     struct usb_redir_interrupt_receiving_status_header
     *interrupt_receiving_status);
-static void usbredir_bulk_streams_status(void *priv, uint32_t id,
+static void usbredir_bulk_streams_status(void *priv, uint64_t id,
     struct usb_redir_bulk_streams_status_header *bulk_streams_status);
-static void usbredir_control_packet(void *priv, uint32_t id,
+static void usbredir_control_packet(void *priv, uint64_t id,
     struct usb_redir_control_packet_header *control_packet,
     uint8_t *data, int data_len);
-static void usbredir_bulk_packet(void *priv, uint32_t id,
+static void usbredir_bulk_packet(void *priv, uint64_t id,
     struct usb_redir_bulk_packet_header *bulk_packet,
     uint8_t *data, int data_len);
-static void usbredir_iso_packet(void *priv, uint32_t id,
+static void usbredir_iso_packet(void *priv, uint64_t id,
     struct usb_redir_iso_packet_header *iso_packet,
     uint8_t *data, int data_len);
-static void usbredir_interrupt_packet(void *priv, uint32_t id,
+static void usbredir_interrupt_packet(void *priv, uint64_t id,
     struct usb_redir_interrupt_packet_header *interrupt_header,
     uint8_t *data, int data_len);
 
@@ -805,6 +805,7 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
 
     usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
+    usbredirparser_caps_set_cap(caps, usb_redir_cap_64bits_ids);
     usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE, 0);
     usbredirparser_do_write(dev->parser);
 }
@@ -1182,15 +1183,15 @@ static void usbredir_ep_info(void *priv,
     }
 }
 
-static void usbredir_configuration_status(void *priv, uint32_t id,
+static void usbredir_configuration_status(void *priv, uint64_t id,
     struct usb_redir_configuration_status_header *config_status)
 {
     USBRedirDevice *dev = priv;
     USBPacket *p;
     int len = 0;
 
-    DPRINTF("set config status %d config %d id %u\n", config_status->status,
-            config_status->configuration, id);
+    DPRINTF("set config status %d config %d id %"PRIu64"\n",
+            config_status->status, config_status->configuration, id);
 
     p = usbredir_find_packet_by_id(dev, 0, id);
     if (p) {
@@ -1203,16 +1204,15 @@ static void usbredir_configuration_status(void *priv, uint32_t id,
     }
 }
 
-static void usbredir_alt_setting_status(void *priv, uint32_t id,
+static void usbredir_alt_setting_status(void *priv, uint64_t id,
     struct usb_redir_alt_setting_status_header *alt_setting_status)
 {
     USBRedirDevice *dev = priv;
     USBPacket *p;
     int len = 0;
 
-    DPRINTF("alt status %d intf %d alt %d id: %u\n",
-            alt_setting_status->status,
-            alt_setting_status->interface,
+    DPRINTF("alt status %d intf %d alt %d id: %"PRIu64"\n",
+            alt_setting_status->status, alt_setting_status->interface,
             alt_setting_status->alt, id);
 
     p = usbredir_find_packet_by_id(dev, 0, id);
@@ -1227,13 +1227,13 @@ static void usbredir_alt_setting_status(void *priv, uint32_t id,
     }
 }
 
-static void usbredir_iso_stream_status(void *priv, uint32_t id,
+static void usbredir_iso_stream_status(void *priv, uint64_t id,
     struct usb_redir_iso_stream_status_header *iso_stream_status)
 {
     USBRedirDevice *dev = priv;
     uint8_t ep = iso_stream_status->endpoint;
 
-    DPRINTF("iso status %d ep %02X id %u\n", iso_stream_status->status,
+    DPRINTF("iso status %d ep %02X id %"PRIu64"\n", iso_stream_status->status,
             ep, id);
 
     if (!dev->dev.attached || !dev->endpoint[EP2I(ep)].iso_started) {
@@ -1247,14 +1247,14 @@ static void usbredir_iso_stream_status(void *priv, uint32_t id,
     }
 }
 
-static void usbredir_interrupt_receiving_status(void *priv, uint32_t id,
+static void usbredir_interrupt_receiving_status(void *priv, uint64_t id,
     struct usb_redir_interrupt_receiving_status_header
     *interrupt_receiving_status)
 {
     USBRedirDevice *dev = priv;
     uint8_t ep = interrupt_receiving_status->endpoint;
 
-    DPRINTF("interrupt recv status %d ep %02X id %u\n",
+    DPRINTF("interrupt recv status %d ep %02X id %"PRIu64"\n",
             interrupt_receiving_status->status, ep, id);
 
     if (!dev->dev.attached || !dev->endpoint[EP2I(ep)].interrupt_started) {
@@ -1269,12 +1269,12 @@ static void usbredir_interrupt_receiving_status(void *priv, uint32_t id,
     }
 }
 
-static void usbredir_bulk_streams_status(void *priv, uint32_t id,
+static void usbredir_bulk_streams_status(void *priv, uint64_t id,
     struct usb_redir_bulk_streams_status_header *bulk_streams_status)
 {
 }
 
-static void usbredir_control_packet(void *priv, uint32_t id,
+static void usbredir_control_packet(void *priv, uint64_t id,
     struct usb_redir_control_packet_header *control_packet,
     uint8_t *data, int data_len)
 {
@@ -1282,7 +1282,7 @@ static void usbredir_control_packet(void *priv, uint32_t id,
     USBPacket *p;
     int len = control_packet->length;
 
-    DPRINTF("ctrl-in status %d len %d id %u\n", control_packet->status,
+    DPRINTF("ctrl-in status %d len %d id %"PRIu64"\n", control_packet->status,
             len, id);
 
     p = usbredir_find_packet_by_id(dev, 0, id);
@@ -1304,7 +1304,7 @@ static void usbredir_control_packet(void *priv, uint32_t id,
     free(data);
 }
 
-static void usbredir_bulk_packet(void *priv, uint32_t id,
+static void usbredir_bulk_packet(void *priv, uint64_t id,
     struct usb_redir_bulk_packet_header *bulk_packet,
     uint8_t *data, int data_len)
 {
@@ -1313,8 +1313,8 @@ static void usbredir_bulk_packet(void *priv, uint32_t id,
     int len = bulk_packet->length;
     USBPacket *p;
 
-    DPRINTF("bulk-in status %d ep %02X len %d id %u\n", bulk_packet->status,
-            ep, len, id);
+    DPRINTF("bulk-in status %d ep %02X len %d id %"PRIu64"\n",
+            bulk_packet->status, ep, len, id);
 
     p = usbredir_find_packet_by_id(dev, ep, id);
     if (p) {
@@ -1335,15 +1335,15 @@ static void usbredir_bulk_packet(void *priv, uint32_t id,
     free(data);
 }
 
-static void usbredir_iso_packet(void *priv, uint32_t id,
+static void usbredir_iso_packet(void *priv, uint64_t id,
     struct usb_redir_iso_packet_header *iso_packet,
     uint8_t *data, int data_len)
 {
     USBRedirDevice *dev = priv;
     uint8_t ep = iso_packet->endpoint;
 
-    DPRINTF2("iso-in status %d ep %02X len %d id %u\n", iso_packet->status, ep,
-             data_len, id);
+    DPRINTF2("iso-in status %d ep %02X len %d id %"PRIu64"\n",
+             iso_packet->status, ep, data_len, id);
 
     if (dev->endpoint[EP2I(ep)].type != USB_ENDPOINT_XFER_ISOC) {
         ERROR("received iso packet for non iso endpoint %02X\n", ep);
@@ -1361,14 +1361,14 @@ static void usbredir_iso_packet(void *priv, uint32_t id,
     bufp_alloc(dev, data, data_len, iso_packet->status, ep);
 }
 
-static void usbredir_interrupt_packet(void *priv, uint32_t id,
+static void usbredir_interrupt_packet(void *priv, uint64_t id,
     struct usb_redir_interrupt_packet_header *interrupt_packet,
     uint8_t *data, int data_len)
 {
     USBRedirDevice *dev = priv;
     uint8_t ep = interrupt_packet->endpoint;
 
-    DPRINTF("interrupt-in status %d ep %02X len %d id %u\n",
+    DPRINTF("interrupt-in status %d ep %02X len %d id %"PRIu64"\n",
             interrupt_packet->status, ep, data_len, id);
 
     if (dev->endpoint[EP2I(ep)].type != USB_ENDPOINT_XFER_INT) {
