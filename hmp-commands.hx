@@ -505,7 +505,7 @@ ETEXI
         .args_type  = "keys:s,hold-time:i?",
         .params     = "keys [hold_ms]",
         .help       = "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)",
-        .mhandler.cmd = do_sendkey,
+        .mhandler.cmd = hmp_send_key,
     },
 
 STEXI

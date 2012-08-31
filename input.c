@@ -28,6 +28,7 @@
 #include "console.h"
 #include "error.h"
 #include "qmp-commands.h"
+#include "qapi-types.h"
 
 static QEMUPutKBDEvent *qemu_put_kbd_event;
 static void *qemu_put_kbd_event_opaque;
@@ -37,7 +38,7 @@ static QTAILQ_HEAD(, QEMUPutMouseEntry) mouse_handlers =
 static NotifierList mouse_mode_notifiers = 
     NOTIFIER_LIST_INITIALIZER(mouse_mode_notifiers);
 
-const int key_defs[] = {
+static const int key_defs[] = {
     [Q_KEY_CODE_SHIFT] = 0x2a,
     [Q_KEY_CODE_SHIFT_R] = 0x36,
 
@@ -221,6 +222,70 @@ int index_from_keycode(int code)
 
     /* Return Q_KEY_CODE_MAX if the code is invalid */
     return i;
+}
+
+static QKeyCodeList *keycodes;
+static QEMUTimer *key_timer;
+
+static void release_keys(void *opaque)
+{
+    int keycode;
+    QKeyCodeList *p;
+
+    for (p = keycodes; p != NULL; p = p->next) {
+        keycode = key_defs[p->value];
+        if (keycode & 0x80) {
+            kbd_put_keycode(0xe0);
+        }
+        kbd_put_keycode(keycode | 0x80);
+    }
+    qapi_free_QKeyCodeList(keycodes);
+    keycodes = NULL;
+}
+
+void qmp_send_key(QKeyCodeList *keys, bool has_hold_time, int64_t hold_time,
+                  Error **errp)
+{
+    int keycode;
+    QKeyCodeList *p, *keylist, *head = NULL, *tmp = NULL;
+
+    if (!key_timer) {
+        key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
+    }
+
+    if (keycodes != NULL) {
+        qemu_del_timer(key_timer);
+        release_keys(NULL);
+    }
+    if (!has_hold_time) {
+        hold_time = 100;
+    }
+
+    for (p = keys; p != NULL; p = p->next) {
+        keylist = g_malloc0(sizeof(*keylist));
+        keylist->value = p->value;
+        keylist->next = NULL;
+
+        if (!head) {
+            head = keylist;
+        }
+        if (tmp) {
+            tmp->next = keylist;
+        }
+        tmp = keylist;
+
+        /* key down events */
+        keycode = key_defs[p->value];
+        if (keycode & 0x80) {
+            kbd_put_keycode(0xe0);
+        }
+        kbd_put_keycode(keycode & 0x7f);
+    }
+    keycodes = head;
+
+    /* delayed key up events */
+    qemu_mod_timer(key_timer, qemu_get_clock_ns(vm_clock) +
+                   muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
 void qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
