@@ -747,12 +747,6 @@ static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
 
 static void ehci_free_packet(EHCIPacket *p)
 {
-    trace_usb_ehci_packet_action(p->queue, p, "free");
-    if (p->async == EHCI_ASYNC_INFLIGHT) {
-        usb_cancel_packet(&p->packet);
-        usb_packet_unmap(&p->packet, &p->sgl);
-        qemu_sglist_destroy(&p->sgl);
-    }
     if (p->async == EHCI_ASYNC_FINISHED) {
         int state = ehci_get_state(p->queue->ehci, p->queue->async);
         /* This is a normal, but rare condition (cancel racing completion) */
@@ -762,6 +756,12 @@ static void ehci_free_packet(EHCIPacket *p)
         ehci_set_state(p->queue->ehci, p->queue->async, state);
         /* state_writeback recurses into us with async == EHCI_ASYNC_NONE!! */
         return;
+    }
+    trace_usb_ehci_packet_action(p->queue, p, "free");
+    if (p->async == EHCI_ASYNC_INFLIGHT) {
+        usb_cancel_packet(&p->packet);
+        usb_packet_unmap(&p->packet, &p->sgl);
+        qemu_sglist_destroy(&p->sgl);
     }
     QTAILQ_REMOVE(&p->queue->packets, p, next);
     usb_packet_cleanup(&p->packet);
