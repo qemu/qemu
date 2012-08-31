@@ -424,6 +424,7 @@ static void usb_uas_scsi_free_request(SCSIBus *bus, void *priv)
     }
     QTAILQ_REMOVE(&uas->requests, req, next);
     g_free(req);
+    usb_uas_start_next_transfer(uas);
 }
 
 static UASRequest *usb_uas_find_request(UASDevice *uas, uint16_t tag)
@@ -456,7 +457,6 @@ static void usb_uas_scsi_command_complete(SCSIRequest *r,
                                           uint32_t status, size_t resid)
 {
     UASRequest *req = r->hba_private;
-    UASDevice *uas = req->uas;
 
     trace_usb_uas_scsi_complete(req->uas->dev.addr, req->tag, status, resid);
     req->complete = true;
@@ -465,7 +465,6 @@ static void usb_uas_scsi_command_complete(SCSIRequest *r,
     }
     usb_uas_queue_sense(req, status);
     scsi_req_unref(req->req);
-    usb_uas_start_next_transfer(uas);
 }
 
 static void usb_uas_scsi_request_cancelled(SCSIRequest *r)

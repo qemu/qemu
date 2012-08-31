@@ -748,6 +748,22 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     return TD_RESULT_COMPLETE;
 
 out:
+    /*
+     * We should not do any further processing on a queue with errors!
+     * This is esp. important for bulk endpoints with pipelining enabled
+     * (redirection to a real USB device), where we must cancel all the
+     * transfers after this one so that:
+     * 1) If they've completed already, they are not processed further
+     *    causing more stalls, originating from the same failed transfer
+     * 2) If still in flight, they are cancelled before the guest does
+     *    a clear stall, otherwise the guest and device can loose sync!
+     */
+    while (!QTAILQ_EMPTY(&async->queue->asyncs)) {
+        UHCIAsync *as = QTAILQ_FIRST(&async->queue->asyncs);
+        uhci_async_unlink(as);
+        uhci_async_cancel(as);
+    }
+
     switch(ret) {
     case USB_RET_STALL:
         td->ctrl |= TD_CTRL_STALL;
@@ -843,14 +859,14 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
      * for initial isochronous requests
      */
     async->queue->valid = 32;
-    async->isoc  = td->ctrl & TD_CTRL_IOS;
+    async->isoc = td->ctrl & TD_CTRL_IOS;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
     dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
     ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
-    usb_packet_setup(&async->packet, pid, ep);
+    usb_packet_setup(&async->packet, pid, ep, addr);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
 

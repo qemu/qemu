@@ -543,7 +543,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
         qdev_print_props(mon, dev, DEVICE_CLASS(class)->props, indent);
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
-    bus_print_dev(dev->parent_bus, mon, dev, indent + 2);
+    bus_print_dev(dev->parent_bus, mon, dev, indent);
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         qbus_print(mon, child, indent);
     }
