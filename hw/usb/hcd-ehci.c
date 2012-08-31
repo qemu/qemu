@@ -716,6 +716,12 @@ static void ehci_trace_sitd(EHCIState *s, target_phys_addr_t addr,
                         (bool)(sitd->results & SITD_RESULTS_ACTIVE));
 }
 
+static void ehci_trace_guest_bug(EHCIState *s, const char *message)
+{
+    trace_usb_ehci_guest_bug(message);
+    fprintf(stderr, "ehci warning: %s\n", message);
+}
+
 static inline bool ehci_enabled(EHCIState *s)
 {
     return s->usbcmd & USBCMD_RUNSTOP;
@@ -785,27 +791,33 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     return q;
 }
 
-static void ehci_cancel_queue(EHCIQueue *q)
+static int ehci_cancel_queue(EHCIQueue *q)
 {
     EHCIPacket *p;
+    int packets = 0;
 
     p = QTAILQ_FIRST(&q->packets);
     if (p == NULL) {
-        return;
+        return 0;
     }
 
     trace_usb_ehci_queue_action(q, "cancel");
     do {
         ehci_free_packet(p);
+        packets++;
     } while ((p = QTAILQ_FIRST(&q->packets)) != NULL);
+    return packets;
 }
 
-static void ehci_reset_queue(EHCIQueue *q)
+static int ehci_reset_queue(EHCIQueue *q)
 {
+    int packets;
+
     trace_usb_ehci_queue_action(q, "reset");
-    ehci_cancel_queue(q);
+    packets = ehci_cancel_queue(q);
     q->dev = NULL;
     q->qtdaddr = 0;
+    return packets;
 }
 
 static void ehci_free_queue(EHCIQueue *q)
@@ -1817,7 +1829,9 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         (memcmp(&qh.current_qtd, &q->qh.current_qtd,
                                  9 * sizeof(uint32_t)) != 0) ||
         (q->dev != NULL && q->dev->addr != devaddr)) {
-        ehci_reset_queue(q);
+        if (ehci_reset_queue(q) > 0) {
+            ehci_trace_guest_bug(ehci, "guest updated active QH");
+        }
         p = NULL;
     }
     q->qh = qh;
@@ -1979,8 +1993,8 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             (!NLPTR_TBIT(p->qtd.next) && (p->qtd.next != qtd.next)) ||
             (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd.altnext)) ||
             p->qtd.bufptr[0] != qtd.bufptr[0]) {
-            /* guest bug: guest updated active QH or qTD underneath us */
             ehci_cancel_queue(q);
+            ehci_trace_guest_bug(q->ehci, "guest updated active QH or qTD");
             p = NULL;
         } else {
             p->qtd = qtd;
