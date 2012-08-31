@@ -125,6 +125,39 @@ class TestSingleDrive(ImageStreamingTestCase):
         result = self.vm.qmp('block-stream', device='nonexistent')
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
 
+
+class TestSmallerBackingFile(ImageStreamingTestCase):
+    backing_len = 1 * 1024 * 1024 # MB
+    image_len = 2 * backing_len
+
+    def setUp(self):
+        self.create_image(backing_img, self.backing_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img, str(self.image_len))
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    # If this hangs, then you are missing a fix to complete streaming when the
+    # end of the backing file is reached.
+    def test_stream(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block-stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+        self.vm.shutdown()
+
+
 class TestStreamStop(ImageStreamingTestCase):
     image_len = 8 * 1024 * 1024 * 1024 # GB
 
