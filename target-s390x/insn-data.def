@@ -500,6 +500,11 @@
     C(0x9600, OI,      SI,    Z,   m1_8u, i2_8u, new, m1_8, or, nz64)
     C(0xeb56, OIY,     SIY,   LD,  m1_8u, i2_8u, new, m1_8, or, nz64)
 
+/* PREFETCH */
+    /* Implemented as nops of course.  */
+    C(0xe336, PFD,     RXY_b, GIE, 0, 0, 0, 0, 0, 0)
+    C(0xc602, PFDRL,   RIL_c, GIE, 0, 0, 0, 0, 0, 0)
+
 /* ROTATE LEFT SINGLE LOGICAL */
     C(0xeb1d, RLL,     RSY_a, Z,   r3_o, sh32, new, r1_32, rll32, 0)
     C(0xeb1c, RLLG,    RSY_a, Z,   r3_o, sh64, r1, 0, rll64, 0)
