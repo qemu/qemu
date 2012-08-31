@@ -1480,9 +1480,9 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
     char keyname_buf[16];
     char *separator;
     int keyname_len, keycode, i;
-    const char *string = qdict_get_str(qdict, "string");
-    int has_hold_time = qdict_haskey(qdict, "hold_time");
-    int hold_time = qdict_get_try_int(qdict, "hold_time", -1);
+    const char *keys = qdict_get_str(qdict, "keys");
+    int has_hold_time = qdict_haskey(qdict, "hold-time");
+    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
 
     if (nb_pending_keycodes > 0) {
         qemu_del_timer(key_timer);
@@ -1492,10 +1492,10 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
         hold_time = 100;
     i = 0;
     while (1) {
-        separator = strchr(string, '-');
-        keyname_len = separator ? separator - string : strlen(string);
+        separator = strchr(keys, '-');
+        keyname_len = separator ? separator - keys : strlen(keys);
         if (keyname_len > 0) {
-            pstrcpy(keyname_buf, sizeof(keyname_buf), string);
+            pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
             if (keyname_len > sizeof(keyname_buf) - 1) {
                 monitor_printf(mon, "invalid key: '%s...'\n", keyname_buf);
                 return;
@@ -1521,7 +1521,7 @@ static void do_sendkey(Monitor *mon, const QDict *qdict)
         }
         if (!separator)
             break;
-        string = separator + 1;
+        keys = separator + 1;
     }
     nb_pending_keycodes = i;
     /* key down events */
