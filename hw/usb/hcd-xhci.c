@@ -264,6 +264,10 @@ typedef enum TRBCCode {
 
 #define TRB_LK_TC           (1<<1)
 
+#define TRB_INTR_SHIFT          22
+#define TRB_INTR_MASK       0x3ff
+#define TRB_INTR(t)         (((t).status >> TRB_INTR_SHIFT) & TRB_INTR_MASK)
+
 #define EP_TYPE_MASK        0x7
 #define EP_TYPE_SHIFT           3
 
@@ -806,9 +810,15 @@ static void xhci_events_update(XHCIState *xhci, int v)
 
 static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v)
 {
-    XHCIInterrupter *intr = &xhci->intr[v];
+    XHCIInterrupter *intr;
     dma_addr_t erdp;
     unsigned int dp_idx;
+
+    if (v >= MAXINTRS) {
+        DPRINTF("intr nr out of range (%d >= %d)\n", v, MAXINTRS);
+        return;
+    }
+    intr = &xhci->intr[v];
 
     if (intr->er_full) {
         DPRINTF("xhci_event(): ER full, queueing\n");
@@ -1377,7 +1387,7 @@ static void xhci_xfer_report(XHCITransfer *xfer)
                 DPRINTF("xhci_xfer_data: EDTLA=%d\n", event.length);
                 edtla = 0;
             }
-            xhci_event(xhci, &event, 0 /* FIXME */);
+            xhci_event(xhci, &event, TRB_INTR(*trb));
             reported = 1;
             if (xfer->status != CC_SUCCESS) {
                 return;
@@ -2253,7 +2263,7 @@ static void xhci_process_commands(XHCIState *xhci)
             break;
         }
         event.slotid = slotid;
-        xhci_event(xhci, &event, 0 /* FIXME */);
+        xhci_event(xhci, &event, 0);
     }
 }
 
@@ -2283,7 +2293,7 @@ static void xhci_update_port(XHCIState *xhci, XHCIPort *port, int is_detach)
         port->portsc |= PORTSC_CSC;
         XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
                          port->portnr << 24};
-        xhci_event(xhci, &ev, 0 /* FIXME */);
+        xhci_event(xhci, &ev, 0);
         DPRINTF("xhci: port change event for port %d\n", port->portnr);
     }
 }
@@ -2562,7 +2572,7 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         if (xhci->crcr_low & (CRCR_CA|CRCR_CS) && (xhci->crcr_low & CRCR_CRR)) {
             XHCIEvent event = {ER_COMMAND_COMPLETE, CC_COMMAND_RING_STOPPED};
             xhci->crcr_low &= ~CRCR_CRR;
-            xhci_event(xhci, &event, 0 /* FIXME */);
+            xhci_event(xhci, &event, 0);
             DPRINTF("xhci: command ring stopped (CRCR=%08x)\n", xhci->crcr_low);
         } else {
             dma_addr_t base = xhci_addr64(xhci->crcr_low & ~0x3f, val);
@@ -2805,7 +2815,7 @@ static void xhci_wakeup(USBPort *usbport)
         return;
     }
     port->portsc |= PORTSC_PLC;
-    xhci_event(xhci, &ev, 0 /* FIXME */);
+    xhci_event(xhci, &ev, 0);
 }
 
 static void xhci_complete(USBPort *port, USBPacket *packet)
