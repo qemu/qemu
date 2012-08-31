@@ -2512,6 +2512,59 @@ static ExitStatus op_risbg(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_rosbg(DisasContext *s, DisasOps *o)
+{
+    int i3 = get_field(s->fields, i3);
+    int i4 = get_field(s->fields, i4);
+    int i5 = get_field(s->fields, i5);
+    uint64_t mask;
+
+    /* If this is a test-only form, arrange to discard the result.  */
+    if (i3 & 0x80) {
+        o->out = tcg_temp_new_i64();
+        o->g_out = false;
+    }
+
+    i3 &= 63;
+    i4 &= 63;
+    i5 &= 63;
+
+    /* MASK is the set of bits to be operated on from R2.
+       Take care for I3/I4 wraparound.  */
+    mask = ~0ull >> i3;
+    if (i3 <= i4) {
+        mask ^= ~0ull >> i4 >> 1;
+    } else {
+        mask |= ~(~0ull >> i4 >> 1);
+    }
+
+    /* Rotate the input as necessary.  */
+    tcg_gen_rotli_i64(o->in2, o->in2, i5);
+
+    /* Operate.  */
+    switch (s->fields->op2) {
+    case 0x55: /* AND */
+        tcg_gen_ori_i64(o->in2, o->in2, ~mask);
+        tcg_gen_and_i64(o->out, o->out, o->in2);
+        break;
+    case 0x56: /* OR */
+        tcg_gen_andi_i64(o->in2, o->in2, mask);
+        tcg_gen_or_i64(o->out, o->out, o->in2);
+        break;
+    case 0x57: /* XOR */
+        tcg_gen_andi_i64(o->in2, o->in2, mask);
+        tcg_gen_xor_i64(o->out, o->out, o->in2);
+        break;
+    default:
+        abort();
+    }
+
+    /* Set the CC.  */
+    tcg_gen_andi_i64(cc_dst, o->out, mask);
+    set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
 static ExitStatus op_rev16(DisasContext *s, DisasOps *o)
 {
     tcg_gen_bswap16_i64(o->out, o->in2);

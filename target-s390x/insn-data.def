@@ -508,6 +508,10 @@
     C(0xec55, RISBG,   RIE_f, GIE, 0, r2, r1, 0, risbg, s64)
     C(0xec5d, RISBHG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
     C(0xec51, RISBLG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
+/* ROTATE_THEN <OP> SELECTED BITS */
+    C(0xec54, RNSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
+    C(0xec56, ROSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
+    C(0xec57, RXSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
 
 /* SEARCH STRING */
     C(0xb25e, SRST,    RRE,   Z,   r1_o, r2_o, 0, 0, srst, 0)
