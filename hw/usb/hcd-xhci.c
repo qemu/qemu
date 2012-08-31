@@ -1392,7 +1392,7 @@ static int xhci_setup_packet(XHCITransfer *xfer, USBDevice *dev)
 
     dir = xfer->in_xfer ? USB_TOKEN_IN : USB_TOKEN_OUT;
     ep = usb_ep_get(dev, dir, xfer->epid >> 1);
-    usb_packet_setup(&xfer->packet, dir, ep);
+    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr);
     usb_packet_addbuf(&xfer->packet, xfer->data, xfer->data_length);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
             xfer->packet.pid, dev->addr, ep->nr);

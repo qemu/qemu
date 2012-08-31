@@ -766,15 +766,27 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     return q;
 }
 
+static void ehci_cancel_queue(EHCIQueue *q)
+{
+    EHCIPacket *p;
+
+    p = QTAILQ_FIRST(&q->packets);
+    if (p == NULL) {
+        return;
+    }
+
+    trace_usb_ehci_queue_action(q, "cancel");
+    do {
+        ehci_free_packet(p);
+    } while ((p = QTAILQ_FIRST(&q->packets)) != NULL);
+}
+
 static void ehci_free_queue(EHCIQueue *q)
 {
     EHCIQueueHead *head = q->async ? &q->ehci->aqueues : &q->ehci->pqueues;
-    EHCIPacket *p;
 
     trace_usb_ehci_queue_action(q, "free");
-    while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
-        ehci_free_packet(p);
-    }
+    ehci_cancel_queue(q);
     QTAILQ_REMOVE(head, q, next);
     g_free(q);
 }
@@ -1194,6 +1206,15 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
             val &= ~USBCMD_FLS;
         }
 
+        if (val & USBCMD_IAAD) {
+            /*
+             * Process IAAD immediately, otherwise the Linux IAAD watchdog may
+             * trigger and re-use a qh without us seeing the unlink.
+             */
+            s->async_stepdown = 0;
+            qemu_bh_schedule(s->async_bh);
+        }
+
         if (((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & val) !=
             ((USBCMD_RUNSTOP | USBCMD_PSE | USBCMD_ASE) & s->usbcmd)) {
             if (s->pstate == EST_INACTIVE) {
@@ -1530,7 +1551,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
     ep = usb_ep_get(p->queue->dev, p->pid, endp);
 
-    usb_packet_setup(&p->packet, p->pid, ep);
+    usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr);
     usb_packet_map(&p->packet, &p->sgl);
 
     trace_usb_ehci_packet_action(p->queue, p, action);
@@ -1552,7 +1573,8 @@ static int ehci_execute(EHCIPacket *p, const char *action)
  */
 
 static int ehci_process_itd(EHCIState *ehci,
-                            EHCIitd *itd)
+                            EHCIitd *itd,
+                            uint32_t addr)
 {
     USBDevice *dev;
     USBEndpoint *ep;
@@ -1597,8 +1619,8 @@ static int ehci_process_itd(EHCIState *ehci,
 
             dev = ehci_find_device(ehci, devaddr);
             ep = usb_ep_get(dev, pid, endp);
-            if (ep->type == USB_ENDPOINT_XFER_ISOC) {
-                usb_packet_setup(&ehci->ipacket, pid, ep);
+            if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
+                usb_packet_setup(&ehci->ipacket, pid, ep, addr);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 ret = usb_handle_packet(dev, &ehci->ipacket);
                 assert(ret != USB_RET_ASYNC);
@@ -1786,9 +1808,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     if (q->dev != NULL && q->dev->addr != devaddr) {
         if (!QTAILQ_EMPTY(&q->packets)) {
             /* should not happen (guest bug) */
-            while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
-                ehci_free_packet(p);
-            }
+            ehci_cancel_queue(q);
         }
         q->dev = NULL;
     }
@@ -1796,11 +1816,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         q->dev = ehci_find_device(q->ehci, devaddr);
     }
 
-    if (p && p->async == EHCI_ASYNC_INFLIGHT) {
-        /* I/O still in progress -- skip queue */
-        ehci_set_state(ehci, async, EST_HORIZONTALQH);
-        goto out;
-    }
     if (p && p->async == EHCI_ASYNC_FINISHED) {
         /* I/O finished -- continue processing queue */
         trace_usb_ehci_packet_action(p->queue, p, "complete");
@@ -1862,7 +1877,7 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
                sizeof(EHCIitd) >> 2);
     ehci_trace_itd(ehci, entry, &itd);
 
-    if (ehci_process_itd(ehci, &itd) != 0) {
+    if (ehci_process_itd(ehci, &itd, entry) != 0) {
         return -1;
     }
 
@@ -1949,28 +1964,49 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
 
     p = QTAILQ_FIRST(&q->packets);
-    while (p != NULL && p->qtdaddr != q->qtdaddr) {
-        /* should not happen (guest bug) */
-        ehci_free_packet(p);
-        p = QTAILQ_FIRST(&q->packets);
-    }
     if (p != NULL) {
-        ehci_qh_do_overlay(q);
-        ehci_flush_qh(q);
-        if (p->async == EHCI_ASYNC_INFLIGHT) {
-            ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
+        if (p->qtdaddr != q->qtdaddr ||
+            (!NLPTR_TBIT(p->qtd.next) && (p->qtd.next != qtd.next)) ||
+            (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd.altnext)) ||
+            p->qtd.bufptr[0] != qtd.bufptr[0]) {
+            /* guest bug: guest updated active QH or qTD underneath us */
+            ehci_cancel_queue(q);
+            p = NULL;
         } else {
+            p->qtd = qtd;
+            ehci_qh_do_overlay(q);
+        }
+    }
+
+    if (!(qtd.token & QTD_TOKEN_ACTIVE)) {
+        if (p != NULL) {
+            /* transfer canceled by guest (clear active) */
+            ehci_cancel_queue(q);
+            p = NULL;
+        }
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
+        again = 1;
+    } else if (p != NULL) {
+        switch (p->async) {
+        case EHCI_ASYNC_NONE:
+            /* Previously nacked packet (likely interrupt ep) */
+           ehci_set_state(q->ehci, q->async, EST_EXECUTE);
+           break;
+        case EHCI_ASYNC_INFLIGHT:
+            /* Unfinyshed async handled packet, go horizontal */
+            ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
+            break;
+        case EHCI_ASYNC_FINISHED:
+            /* Should never happen, as this case is caught by fetchqh */
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
+            break;
         }
         again = 1;
-    } else if (qtd.token & QTD_TOKEN_ACTIVE) {
+    } else {
         p = ehci_alloc_packet(q);
         p->qtdaddr = q->qtdaddr;
         p->qtd = qtd;
         ehci_set_state(q->ehci, q->async, EST_EXECUTE);
-        again = 1;
-    } else {
-        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     }
 
@@ -2075,19 +2111,11 @@ out:
 static int ehci_state_executing(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
-    int again = 0;
 
     assert(p != NULL);
     assert(p->qtdaddr == q->qtdaddr);
 
     ehci_execute_complete(q);
-    if (p->usb_status == USB_RET_ASYNC) {
-        goto out;
-    }
-    if (p->usb_status == USB_RET_PROCERR) {
-        again = -1;
-        goto out;
-    }
 
     // 4.10.3
     if (!q->async) {
@@ -2105,11 +2133,8 @@ static int ehci_state_executing(EHCIQueue *q)
         ehci_set_state(q->ehci, q->async, EST_WRITEBACK);
     }
 
-    again = 1;
-
-out:
     ehci_flush_qh(q);
-    return again;
+    return 1;
 }
 
 
@@ -2138,6 +2163,19 @@ static int ehci_state_writeback(EHCIQueue *q)
      * bit is clear.
      */
     if (q->qh.token & QTD_TOKEN_HALT) {
+        /*
+         * We should not do any further processing on a halted queue!
+         * This is esp. important for bulk endpoints with pipelining enabled
+         * (redirection to a real USB device), where we must cancel all the
+         * transfers after this one so that:
+         * 1) If they've completed already, they are not processed further
+         *    causing more stalls, originating from the same failed transfer
+         * 2) If still in flight, they are cancelled before the guest does
+         *    a clear stall, otherwise the guest and device can loose sync!
+         */
+        while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
+            ehci_free_packet(p);
+        }
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     } else {
