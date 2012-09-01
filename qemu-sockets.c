@@ -353,7 +353,7 @@ int inet_dgram_opts(QemuOpts *opts)
     if (0 != (rc = getaddrinfo(addr, port, &ai, &local))) {
         fprintf(stderr,"getaddrinfo(%s,%s): %s\n", addr, port,
                 gai_strerror(rc));
-        return -1;
+        goto err;
     }
 
     /* create socket */
