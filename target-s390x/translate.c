@@ -1530,6 +1530,60 @@ static ExitStatus op_cgxb(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_clfeb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_clfeb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    gen_set_cc_nz_f32(s, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clfdb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_clfdb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    gen_set_cc_nz_f64(s, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clfxb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_clfxb(o->out, cpu_env, o->in1, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    gen_set_cc_nz_f128(s, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clgeb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_clgeb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    gen_set_cc_nz_f32(s, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clgdb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_clgdb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    gen_set_cc_nz_f64(s, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_clgxb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_clgxb(o->out, cpu_env, o->in1, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    gen_set_cc_nz_f128(s, o->in1, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_cegb(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));

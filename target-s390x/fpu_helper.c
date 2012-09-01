@@ -457,6 +457,72 @@ uint64_t HELPER(cfxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m3)
     return ret;
 }
 
+/* convert 32-bit float to 64-bit uint */
+uint64_t HELPER(clgeb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    uint64_t ret;
+    v2 = float32_to_float64(v2, &env->fpu_status);
+    ret = float64_to_uint64(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 64-bit float to 64-bit uint */
+uint64_t HELPER(clgdb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    uint64_t ret = float64_to_uint64(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 128-bit float to 64-bit uint */
+uint64_t HELPER(clgxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float128 v2 = make_float128(h, l);
+    /* ??? Not 100% correct.  */
+    uint64_t ret = float128_to_int64(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 32-bit float to 32-bit uint */
+uint64_t HELPER(clfeb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    uint32_t ret = float32_to_uint32(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 64-bit float to 32-bit uint */
+uint64_t HELPER(clfdb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    uint32_t ret = float64_to_uint32(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 128-bit float to 32-bit uint */
+uint64_t HELPER(clfxb)(CPUS390XState *env, uint64_t h, uint64_t l, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float128 v2 = make_float128(h, l);
+    /* Not 100% correct.  */
+    uint32_t ret = float128_to_int64(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
 /* 32-bit FP multiply and add */
 uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
