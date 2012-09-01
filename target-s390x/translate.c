@@ -2558,6 +2558,12 @@ static ExitStatus op_ori(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_popcnt(DisasContext *s, DisasOps *o)
+{
+    gen_helper_popcnt(o->out, o->in2);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_ptlb(DisasContext *s, DisasOps *o)
 {

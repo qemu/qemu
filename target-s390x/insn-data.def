@@ -539,6 +539,9 @@
     C(0xe336, PFD,     RXY_b, GIE, 0, 0, 0, 0, 0, 0)
     C(0xc602, PFDRL,   RIL_c, GIE, 0, 0, 0, 0, 0, 0)
 
+/* POPULATION COUNT */
+    C(0xb9e1, POPCNT,  RRE,   PC,  0, r2_o, r1, 0, popcnt, nz64)
+
 /* ROTATE LEFT SINGLE LOGICAL */
     C(0xeb1d, RLL,     RSY_a, Z,   r3_o, sh32, new, r1_32, rll32, 0)
     C(0xeb1c, RLLG,    RSY_a, Z,   r3_o, sh64, r1, 0, rll64, 0)
