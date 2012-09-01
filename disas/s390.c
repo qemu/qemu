@@ -673,7 +673,9 @@ static const struct s390_operand s390_operands[] =
    This is just a workaround for existing code e.g. glibc.  */
 #define INSTR_RRE_RR_OPT 4, { R_24,RO_28,0,0,0,0 }             /* efpc, sfpc */
 #define INSTR_RRF_F0FF   4, { F_16,F_24,F_28,0,0,0 }           /* e.g. madbr */
-#define INSTR_RRF_F0FF2  4, { F_24,F_16,F_28,0,0,0 }           /* e.g. cpsdr */
+/* QEMU-MOD */
+#define INSTR_RRF_F0FF2  4, { F_24,F_28,F_16,0,0,0 }           /* e.g. cpsdr */
+/* QEMU-END */
 #define INSTR_RRF_F0FR   4, { F_24,F_16,R_28,0,0,0 }           /* e.g. iedtr */
 #define INSTR_RRF_FUFF   4, { F_24,F_16,F_28,U4_20,0,0 }       /* e.g. didbr */
 #define INSTR_RRF_RURR   4, { R_24,R_28,R_16,U4_20,0,0 }       /* e.g. .insn */
