@@ -224,7 +224,7 @@ uint32_t lm4549_write_samples(lm4549_state *s, uint32_t left, uint32_t right)
        This model supports 16-bit playback.
     */
 
-    if (s->buffer_level >= LM4549_BUFFER_SIZE) {
+    if (s->buffer_level > LM4549_BUFFER_SIZE - 2) {
         DPRINTF("write_sample Buffer full\n");
         return 0;
     }
