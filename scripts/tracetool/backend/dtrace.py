@@ -87,7 +87,7 @@ def stap(events):
         if len(e.args) > 0:
             for name in e.args.names():
                 # Append underscore to reserved keywords
-                if name in ('limit', 'in', 'next', 'self'):
+                if name in ('limit', 'in', 'next', 'self', 'function'):
                     name += '_'
                 out('  %s = $arg%d;' % (name, i))
                 i += 1
