@@ -41,6 +41,24 @@
     C(0xeb7e, ALGSI,   SIY,   GIE, m1_64, i2, new, m1_64, add, addu64)
     C(0xecdb, ALGHSIK, RIE_d, DO,  r3, i2, r1, 0, add, addu64)
 
+/* AND */
+    C(0x1400, NR,      RR_a,  Z,   r1, r2, new, r1_32, and, nz32)
+    C(0xb9f4, NRK,     RRF_a, DO,  r2, r3, new, r1_32, and, nz32)
+    C(0x5400, N,       RX_a,  Z,   r1, m2_32s, new, r1_32, and, nz32)
+    C(0xe354, NY,      RXY_a, LD,  r1, m2_32s, new, r1_32, and, nz32)
+    C(0xb980, NGR,     RRE,   Z,   r1, r2, r1, 0, and, nz64)
+    C(0xb9e4, NGRK,    RRF_a, DO,  r2, r3, r1, 0, and, nz64)
+    C(0xe380, NG,      RXY_a, Z,   r1, m2_64, r1, 0, and, nz64)
+
+/* EXCLUSIVE OR */
+    C(0x1700, XR,      RR_a,  Z,   r1, r2, new, r1_32, xor, nz32)
+    C(0xb9f7, XRK,     RRF_a, DO,  r2, r3, new, r1_32, xor, nz32)
+    C(0x5700, X,       RX_a,  Z,   r1, m2_32s, new, r1_32, xor, nz32)
+    C(0xe357, XY,      RXY_a, LD,  r1, m2_32s, new, r1_32, xor, nz32)
+    C(0xb982, XGR,     RRE,   Z,   r1, r2, r1, 0, xor, nz64)
+    C(0xb9e7, XGRK,    RRF_a, DO,  r2, r3, r1, 0, xor, nz64)
+    C(0xe382, XG,      RXY_a, Z,   r1, m2_64, r1, 0, xor, nz64)
+
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
     C(0x5c00, M,       RX_a,  Z,   r1p1_32s, m2_32s, new, r1_D32, mul, 0)
@@ -67,6 +85,15 @@
 /* MULTIPLY SINGLE IMMEDIATE */
     C(0xc201, MSFI,    RIL_a, GIE, r1_o, i2, new, r1_32, mul, 0)
     C(0xc200, MSGFI,   RIL_a, GIE, r1_o, i2, r1, 0, mul, 0)
+
+/* OR */
+    C(0x1600, OR,      RR_a,  Z,   r1, r2, new, r1_32, or, nz32)
+    C(0xb9f6, ORK,     RRF_a, DO,  r2, r3, new, r1_32, or, nz32)
+    C(0x5600, O,       RX_a,  Z,   r1, m2_32s, new, r1_32, or, nz32)
+    C(0xe356, OY,      RXY_a, LD,  r1, m2_32s, new, r1_32, or, nz32)
+    C(0xb981, OGR,     RRE,   Z,   r1, r2, r1, 0, or, nz64)
+    C(0xb9e6, OGRK,    RRF_a, DO,  r2, r3, r1, 0, or, nz64)
+    C(0xe381, OG,      RXY_a, Z,   r1, m2_64, r1, 0, or, nz64)
 
 /* SUBTRACT */
     C(0x1b00, SR,      RR_a,  Z,   r1, r2, new, r1_32, sub, subs32)
