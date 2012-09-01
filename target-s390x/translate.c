@@ -2747,6 +2747,35 @@ static ExitStatus op_sigp(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_soc(DisasContext *s, DisasOps *o)
+{
+    DisasCompare c;
+    TCGv_i64 a;
+    int lab, r1;
+
+    disas_jcc(s, &c, get_field(s->fields, m3));
+
+    lab = gen_new_label();
+    if (c.is_64) {
+        tcg_gen_brcond_i64(c.cond, c.u.s64.a, c.u.s64.b, lab);
+    } else {
+        tcg_gen_brcond_i32(c.cond, c.u.s32.a, c.u.s32.b, lab);
+    }
+    free_compare(&c);
+
+    r1 = get_field(s->fields, r1);
+    a = get_address(s, 0, get_field(s->fields, b2), get_field(s->fields, d2));
+    if (s->insn->data) {
+        tcg_gen_qemu_st64(regs[r1], a, get_mem_index(s));
+    } else {
+        tcg_gen_qemu_st32(regs[r1], a, get_mem_index(s));
+    }
+    tcg_temp_free_i64(a);
+
+    gen_set_label(lab);
+    return NO_EXIT;
+}
+
 static ExitStatus op_sla(DisasContext *s, DisasOps *o)
 {
     uint64_t sign = 1ull << s->insn->data;
