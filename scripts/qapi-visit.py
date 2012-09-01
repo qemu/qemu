@@ -157,7 +157,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     if (!error_is_set(errp)) {
         visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
         if (!err) {
-            if (!obj || *obj) {
+            if (obj && *obj) {
                 visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
                 if (!err) {
                     switch ((*obj)->kind) {
