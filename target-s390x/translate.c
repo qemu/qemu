@@ -1609,6 +1609,31 @@ static ExitStatus op_cxgb(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_celgb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_celgb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cdlgb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_cdlgb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_cxlgb(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
+    gen_helper_cxlgb(o->out, cpu_env, o->in2, m3);
+    tcg_temp_free_i32(m3);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_cksm(DisasContext *s, DisasOps *o)
 {
     int r2 = get_field(s->fields, r2);

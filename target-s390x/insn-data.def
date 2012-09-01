@@ -233,6 +233,13 @@
     C(0xb3ac, CLGEBR,  RRF_e, FPE, 0, e2, r1, 0, clgeb, 0)
     C(0xb3ad, CLGDBR,  RRF_e, FPE, 0, f2_o, r1, 0, clgdb, 0)
     C(0xb3ae, CLGXBR,  RRF_e, FPE, 0, x2_o, r1, 0, clgxb, 0)
+/* CONVERT FROM LOGICAL */
+    C(0xb390, CELFBR,  RRF_e, FPE, 0, r2_32u, new, e1, celgb, 0)
+    C(0xb391, CDLFBR,  RRF_e, FPE, 0, r2_32u, f1, 0, cdlgb, 0)
+    C(0xb392, CXLFBR,  RRF_e, FPE, 0, r2_32u, x1, 0, cxlgb, 0)
+    C(0xb3a0, CELGBR,  RRF_e, FPE, 0, r2_o, new, e1, celgb, 0)
+    C(0xb3a1, CDLGBR,  RRF_e, FPE, 0, r2_o, f1, 0, cdlgb, 0)
+    C(0xb3a2, CXLGBR,  RRF_e, FPE, 0, r2_o, x1, 0, cxlgb, 0)
 
 /* DIVIDE */
     C(0x1d00, DR,      RR_a,  Z,   r1_D32, r2_32s, new_P, r1_P32, divs32, 0)

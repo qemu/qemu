@@ -395,6 +395,37 @@ uint64_t HELPER(cxgb)(CPUS390XState *env, int64_t v2, uint32_t m3)
     return RET128(ret);
 }
 
+/* convert 64-bit uint to 32-bit float */
+uint64_t HELPER(celgb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float32 ret = uint64_to_float32(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 64-bit uint to 64-bit float */
+uint64_t HELPER(cdlgb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    float64 ret = uint64_to_float64(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return ret;
+}
+
+/* convert 64-bit uint to 128-bit float */
+uint64_t HELPER(cxlgb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
+{
+    int hold = swap_round_mode(env, m3);
+    /* ??? Not 50% correct.  */
+    float128 ret = int64_to_float128(v2, &env->fpu_status);
+    set_float_rounding_mode(hold, &env->fpu_status);
+    handle_exceptions(env, GETPC());
+    return RET128(ret);
+}
+
 /* convert 32-bit float to 64-bit int */
 uint64_t HELPER(cgeb)(CPUS390XState *env, uint64_t v2, uint32_t m3)
 {
