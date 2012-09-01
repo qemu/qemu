@@ -104,6 +104,9 @@
 /* CHECKSUM */
     C(0xb241, CKSM,    RRE,   Z,   r1_o, ra2, new, r1_32, cksm, 0)
 
+/* COPY SIGN */
+    C(0xb372, CPSDR,   RRF_b, FPSSH, f3_o, f2_o, f1, 0, cps, 0)
+
 /* COMPARE */
     C(0x1900, CR,      RR_a,  Z,   r1_o, r2_o, 0, 0, 0, cmps32)
     C(0x5900, C,       RX_a,  Z,   r1_o, m2_32s, 0, 0, 0, cmps32)

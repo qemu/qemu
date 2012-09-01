@@ -1719,6 +1719,16 @@ static ExitStatus op_clst(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_cps(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+    tcg_gen_andi_i64(t, o->in1, 0x8000000000000000ull);
+    tcg_gen_andi_i64(o->out, o->in2, 0x7fffffffffffffffull);
+    tcg_gen_or_i64(o->out, o->out, t);
+    tcg_temp_free_i64(t);
+    return NO_EXIT;
+}
+
 static ExitStatus op_cs(DisasContext *s, DisasOps *o)
 {
     int r3 = get_field(s->fields, r3);
@@ -3799,6 +3809,12 @@ static void in1_x1_o(DisasContext *s, DisasFields *f, DisasOps *o)
     o->out = fregs[r1];
     o->out2 = fregs[(r1 + 2) & 15];
     o->g_out = o->g_out2 = true;
+}
+
+static void in1_f3_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = fregs[get_field(f, r3)];
+    o->g_in1 = true;
 }
 
 static void in1_la1(DisasContext *s, DisasFields *f, DisasOps *o)
