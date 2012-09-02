@@ -38,10 +38,10 @@ struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
     int (*map_address) (struct CPUMIPSState *env, target_phys_addr_t *physical, int *prot, target_ulong address, int rw, int access_type);
-    void (*helper_tlbwi) (void);
-    void (*helper_tlbwr) (void);
-    void (*helper_tlbp) (void);
-    void (*helper_tlbr) (void);
+    void (*helper_tlbwi)(struct CPUMIPSState *env);
+    void (*helper_tlbwr)(struct CPUMIPSState *env);
+    void (*helper_tlbp)(struct CPUMIPSState *env);
+    void (*helper_tlbr)(struct CPUMIPSState *env);
     union {
         struct {
             r4k_tlb_t tlb[MIPS_TLB_MAX];
@@ -485,10 +485,10 @@ int fixed_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int 
                            target_ulong address, int rw, int access_type);
 int r4k_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
                      target_ulong address, int rw, int access_type);
-void r4k_helper_tlbwi (void);
-void r4k_helper_tlbwr (void);
-void r4k_helper_tlbp (void);
-void r4k_helper_tlbr (void);
+void r4k_helper_tlbwi(CPUMIPSState *env);
+void r4k_helper_tlbwr(CPUMIPSState *env);
+void r4k_helper_tlbp(CPUMIPSState *env);
+void r4k_helper_tlbr(CPUMIPSState *env);
 
 void cpu_unassigned_access(CPUMIPSState *env, target_phys_addr_t addr,
                            int is_write, int is_exec, int unused, int size);
