@@ -1803,7 +1803,7 @@ static void disas_e3(DisasContext* s, int op, int r1, int x2, int b2, int d2)
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_const_i32(r1);
         tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
-        gen_helper_mlg(tmp32_1, tmp2);
+        gen_helper_mlg(cpu_env, tmp32_1, tmp2);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
         break;
@@ -1811,7 +1811,7 @@ static void disas_e3(DisasContext* s, int op, int r1, int x2, int b2, int d2)
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_const_i32(r1);
         tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
-        gen_helper_dlg(tmp32_1, tmp2);
+        gen_helper_dlg(cpu_env, tmp32_1, tmp2);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
         break;
@@ -1837,7 +1837,7 @@ static void disas_e3(DisasContext* s, int op, int r1, int x2, int b2, int d2)
         tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
         /* XXX possible optimization point */
         gen_op_calc_cc(s);
-        gen_helper_slbg(cc_op, cc_op, tmp32_1, regs[r1], tmp2);
+        gen_helper_slbg(cc_op, cpu_env, cc_op, tmp32_1, regs[r1], tmp2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
@@ -1917,7 +1917,7 @@ static void disas_e3(DisasContext* s, int op, int r1, int x2, int b2, int d2)
         tcg_gen_trunc_i64_i32(tmp32_2, tmp2);
         /* XXX possible optimization point */
         gen_op_calc_cc(s);
-        gen_helper_slb(cc_op, cc_op, tmp32_1, tmp32_2);
+        gen_helper_slb(cc_op, cpu_env, cc_op, tmp32_1, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
@@ -3535,7 +3535,7 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
     case 0x83: /* FLOGR R1,R2 [RRE] */
         tmp = load_reg(r2);
         tmp32_1 = tcg_const_i32(r1);
-        gen_helper_flogr(cc_op, tmp32_1, tmp);
+        gen_helper_flogr(cc_op, cpu_env, tmp32_1, tmp);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -3555,7 +3555,7 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
     case 0x87: /* DLGR      R1,R2     [RRE] */
         tmp32_1 = tcg_const_i32(r1);
         tmp = load_reg(r2);
-        gen_helper_dlg(tmp32_1, tmp);
+        gen_helper_dlg(cpu_env, tmp32_1, tmp);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         break;
@@ -3580,7 +3580,7 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
         tmp2 = load_reg(r2);
         tmp32_1 = tcg_const_i32(r1);
         gen_op_calc_cc(s);
-        gen_helper_slbg(cc_op, cc_op, tmp32_1, tmp, tmp2);
+        gen_helper_slbg(cc_op, cpu_env, cc_op, tmp32_1, tmp, tmp2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
@@ -3647,7 +3647,7 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
         tmp32_1 = load_reg32(r2);
         tmp32_2 = tcg_const_i32(r1);
         gen_op_calc_cc(s);
-        gen_helper_slb(cc_op, cc_op, tmp32_2, tmp32_1);
+        gen_helper_slb(cc_op, cpu_env, cc_op, tmp32_2, tmp32_1);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);

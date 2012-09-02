@@ -19,7 +19,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "helper.h"
 
@@ -31,7 +30,7 @@
 #endif
 
 /* 64/64 -> 128 unsigned multiplication */
-void HELPER(mlg)(uint32_t r1, uint64_t v2)
+void HELPER(mlg)(CPUS390XState *env, uint32_t r1, uint64_t v2)
 {
 #if HOST_LONG_BITS == 64 && defined(__GNUC__)
     /* assuming 64-bit hosts have __uint128_t */
@@ -46,7 +45,7 @@ void HELPER(mlg)(uint32_t r1, uint64_t v2)
 }
 
 /* 128 -> 64/64 unsigned division */
-void HELPER(dlg)(uint32_t r1, uint64_t v2)
+void HELPER(dlg)(CPUS390XState *env, uint32_t r1, uint64_t v2)
 {
     uint64_t divisor = v2;
 
@@ -129,7 +128,7 @@ uint32_t HELPER(addc_u32)(uint32_t cc, uint32_t v1, uint32_t v2)
 }
 
 /* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slb)(uint32_t cc, uint32_t r1, uint32_t v2)
+uint32_t HELPER(slb)(CPUS390XState *env, uint32_t cc, uint32_t r1, uint32_t v2)
 {
     uint32_t v1 = env->regs[r1];
     uint32_t res = v1 + (~v2) + (cc >> 1);
@@ -144,7 +143,8 @@ uint32_t HELPER(slb)(uint32_t cc, uint32_t r1, uint32_t v2)
 }
 
 /* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slbg)(uint32_t cc, uint32_t r1, uint64_t v1, uint64_t v2)
+uint32_t HELPER(slbg)(CPUS390XState *env, uint32_t cc, uint32_t r1,
+                      uint64_t v1, uint64_t v2)
 {
     uint64_t res = v1 + (~v2) + (cc >> 1);
 
@@ -158,7 +158,7 @@ uint32_t HELPER(slbg)(uint32_t cc, uint32_t r1, uint64_t v1, uint64_t v2)
 }
 
 /* find leftmost one */
-uint32_t HELPER(flogr)(uint32_t r1, uint64_t v2)
+uint32_t HELPER(flogr)(CPUS390XState *env, uint32_t r1, uint64_t v2)
 {
     uint64_t res = 0;
     uint64_t ov2 = v2;
