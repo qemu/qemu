@@ -19,10 +19,10 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
-#if !defined(CONFIG_USER_ONLY)
+/* temporarily disabled due to wrapper use */
+#if 0 && !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif
 
@@ -33,7 +33,7 @@
 #define HELPER_LOG(x...)
 #endif
 
-static inline int float_comp_to_cc(int float_compare)
+static inline int float_comp_to_cc(CPUS390XState *env, int float_compare)
 {
     switch (float_compare) {
     case float_relation_equal:
@@ -50,14 +50,16 @@ static inline int float_comp_to_cc(int float_compare)
 }
 
 /* condition codes for binary FP ops */
-uint32_t set_cc_f32(float32 v1, float32 v2)
+uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2)
 {
-    return float_comp_to_cc(float32_compare_quiet(v1, v2, &env->fpu_status));
+    return float_comp_to_cc(env, float32_compare_quiet(v1, v2,
+                                                       &env->fpu_status));
 }
 
-uint32_t set_cc_f64(float64 v1, float64 v2)
+uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2)
 {
-    return float_comp_to_cc(float64_compare_quiet(v1, v2, &env->fpu_status));
+    return float_comp_to_cc(env, float64_compare_quiet(v1, v2,
+                                                       &env->fpu_status));
 }
 
 /* condition codes for unary FP ops */
@@ -101,14 +103,14 @@ static uint32_t set_cc_nz_f128(float128 v)
 }
 
 /* convert 32-bit int to 64-bit float */
-void HELPER(cdfbr)(uint32_t f1, int32_t v2)
+void HELPER(cdfbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
 {
     HELPER_LOG("%s: converting %d to f%d\n", __func__, v2, f1);
     env->fregs[f1].d = int32_to_float64(v2, &env->fpu_status);
 }
 
 /* convert 32-bit int to 128-bit float */
-void HELPER(cxfbr)(uint32_t f1, int32_t v2)
+void HELPER(cxfbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
 {
     CPU_QuadU v1;
 
@@ -118,21 +120,21 @@ void HELPER(cxfbr)(uint32_t f1, int32_t v2)
 }
 
 /* convert 64-bit int to 32-bit float */
-void HELPER(cegbr)(uint32_t f1, int64_t v2)
+void HELPER(cegbr)(CPUS390XState *env, uint32_t f1, int64_t v2)
 {
     HELPER_LOG("%s: converting %ld to f%d\n", __func__, v2, f1);
     env->fregs[f1].l.upper = int64_to_float32(v2, &env->fpu_status);
 }
 
 /* convert 64-bit int to 64-bit float */
-void HELPER(cdgbr)(uint32_t f1, int64_t v2)
+void HELPER(cdgbr)(CPUS390XState *env, uint32_t f1, int64_t v2)
 {
     HELPER_LOG("%s: converting %ld to f%d\n", __func__, v2, f1);
     env->fregs[f1].d = int64_to_float64(v2, &env->fpu_status);
 }
 
 /* convert 64-bit int to 128-bit float */
-void HELPER(cxgbr)(uint32_t f1, int64_t v2)
+void HELPER(cxgbr)(CPUS390XState *env, uint32_t f1, int64_t v2)
 {
     CPU_QuadU x1;
 
@@ -144,7 +146,7 @@ void HELPER(cxgbr)(uint32_t f1, int64_t v2)
 }
 
 /* convert 32-bit int to 32-bit float */
-void HELPER(cefbr)(uint32_t f1, int32_t v2)
+void HELPER(cefbr)(CPUS390XState *env, uint32_t f1, int32_t v2)
 {
     env->fregs[f1].l.upper = int32_to_float32(v2, &env->fpu_status);
     HELPER_LOG("%s: converting %d to 0x%d in f%d\n", __func__, v2,
@@ -152,7 +154,7 @@ void HELPER(cefbr)(uint32_t f1, int32_t v2)
 }
 
 /* 32-bit FP addition RR */
-uint32_t HELPER(aebr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(aebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].l.upper = float32_add(env->fregs[f1].l.upper,
                                          env->fregs[f2].l.upper,
@@ -164,7 +166,7 @@ uint32_t HELPER(aebr)(uint32_t f1, uint32_t f2)
 }
 
 /* 64-bit FP addition RR */
-uint32_t HELPER(adbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(adbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_add(env->fregs[f1].d, env->fregs[f2].d,
                                    &env->fpu_status);
@@ -175,7 +177,7 @@ uint32_t HELPER(adbr)(uint32_t f1, uint32_t f2)
 }
 
 /* 32-bit FP subtraction RR */
-uint32_t HELPER(sebr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(sebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].l.upper = float32_sub(env->fregs[f1].l.upper,
                                          env->fregs[f2].l.upper,
@@ -187,7 +189,7 @@ uint32_t HELPER(sebr)(uint32_t f1, uint32_t f2)
 }
 
 /* 64-bit FP subtraction RR */
-uint32_t HELPER(sdbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(sdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_sub(env->fregs[f1].d, env->fregs[f2].d,
                                    &env->fpu_status);
@@ -198,7 +200,7 @@ uint32_t HELPER(sdbr)(uint32_t f1, uint32_t f2)
 }
 
 /* 32-bit FP division RR */
-void HELPER(debr)(uint32_t f1, uint32_t f2)
+void HELPER(debr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].l.upper = float32_div(env->fregs[f1].l.upper,
                                          env->fregs[f2].l.upper,
@@ -206,7 +208,7 @@ void HELPER(debr)(uint32_t f1, uint32_t f2)
 }
 
 /* 128-bit FP division RR */
-void HELPER(dxbr)(uint32_t f1, uint32_t f2)
+void HELPER(dxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
@@ -222,14 +224,14 @@ void HELPER(dxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* 64-bit FP multiplication RR */
-void HELPER(mdbr)(uint32_t f1, uint32_t f2)
+void HELPER(mdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_mul(env->fregs[f1].d, env->fregs[f2].d,
                                    &env->fpu_status);
 }
 
 /* 128-bit FP multiplication RR */
-void HELPER(mxbr)(uint32_t f1, uint32_t f2)
+void HELPER(mxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
@@ -245,14 +247,14 @@ void HELPER(mxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* convert 32-bit float to 64-bit float */
-void HELPER(ldebr)(uint32_t r1, uint32_t r2)
+void HELPER(ldebr)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
     env->fregs[r1].d = float32_to_float64(env->fregs[r2].l.upper,
                                           &env->fpu_status);
 }
 
 /* convert 128-bit float to 64-bit float */
-void HELPER(ldxbr)(uint32_t f1, uint32_t f2)
+void HELPER(ldxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x2;
 
@@ -263,7 +265,7 @@ void HELPER(ldxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* convert 64-bit float to 128-bit float */
-void HELPER(lxdbr)(uint32_t f1, uint32_t f2)
+void HELPER(lxdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU res;
 
@@ -273,7 +275,7 @@ void HELPER(lxdbr)(uint32_t f1, uint32_t f2)
 }
 
 /* convert 64-bit float to 32-bit float */
-void HELPER(ledbr)(uint32_t f1, uint32_t f2)
+void HELPER(ledbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     float64 d2 = env->fregs[f2].d;
 
@@ -281,7 +283,7 @@ void HELPER(ledbr)(uint32_t f1, uint32_t f2)
 }
 
 /* convert 128-bit float to 32-bit float */
-void HELPER(lexbr)(uint32_t f1, uint32_t f2)
+void HELPER(lexbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x2;
 
@@ -292,7 +294,7 @@ void HELPER(lexbr)(uint32_t f1, uint32_t f2)
 }
 
 /* absolute value of 32-bit float */
-uint32_t HELPER(lpebr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(lpebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     float32 v1;
     float32 v2 = env->fregs[f2].d;
@@ -303,7 +305,7 @@ uint32_t HELPER(lpebr)(uint32_t f1, uint32_t f2)
 }
 
 /* absolute value of 64-bit float */
-uint32_t HELPER(lpdbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(lpdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     float64 v1;
     float64 v2 = env->fregs[f2].d;
@@ -314,7 +316,7 @@ uint32_t HELPER(lpdbr)(uint32_t f1, uint32_t f2)
 }
 
 /* absolute value of 128-bit float */
-uint32_t HELPER(lpxbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(lpxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
@@ -328,21 +330,21 @@ uint32_t HELPER(lpxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* load and test 64-bit float */
-uint32_t HELPER(ltdbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(ltdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = env->fregs[f2].d;
     return set_cc_nz_f64(env->fregs[f1].d);
 }
 
 /* load and test 32-bit float */
-uint32_t HELPER(ltebr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(ltebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].l.upper = env->fregs[f2].l.upper;
     return set_cc_nz_f32(env->fregs[f1].l.upper);
 }
 
 /* load and test 128-bit float */
-uint32_t HELPER(ltxbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(ltxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x;
 
@@ -354,7 +356,7 @@ uint32_t HELPER(ltxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* load complement of 32-bit float */
-uint32_t HELPER(lcebr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(lcebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].l.upper = float32_chs(env->fregs[f2].l.upper);
 
@@ -362,7 +364,7 @@ uint32_t HELPER(lcebr)(uint32_t f1, uint32_t f2)
 }
 
 /* load complement of 64-bit float */
-uint32_t HELPER(lcdbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(lcdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_chs(env->fregs[f2].d);
 
@@ -370,7 +372,7 @@ uint32_t HELPER(lcdbr)(uint32_t f1, uint32_t f2)
 }
 
 /* load complement of 128-bit float */
-uint32_t HELPER(lcxbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(lcxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x1, x2;
 
@@ -383,7 +385,7 @@ uint32_t HELPER(lcxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* 32-bit FP addition RM */
-void HELPER(aeb)(uint32_t f1, uint32_t val)
+void HELPER(aeb)(CPUS390XState *env, uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
@@ -395,7 +397,7 @@ void HELPER(aeb)(uint32_t f1, uint32_t val)
 }
 
 /* 32-bit FP division RM */
-void HELPER(deb)(uint32_t f1, uint32_t val)
+void HELPER(deb)(CPUS390XState *env, uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
@@ -407,7 +409,7 @@ void HELPER(deb)(uint32_t f1, uint32_t val)
 }
 
 /* 32-bit FP multiplication RM */
-void HELPER(meeb)(uint32_t f1, uint32_t val)
+void HELPER(meeb)(CPUS390XState *env, uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
@@ -419,29 +421,29 @@ void HELPER(meeb)(uint32_t f1, uint32_t val)
 }
 
 /* 32-bit FP compare RR */
-uint32_t HELPER(cebr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(cebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     float32 v1 = env->fregs[f1].l.upper;
     float32 v2 = env->fregs[f2].l.upper;
 
     HELPER_LOG("%s: comparing 0x%d from f%d and 0x%d\n", __func__,
                v1, f1, v2);
-    return set_cc_f32(v1, v2);
+    return set_cc_f32(env, v1, v2);
 }
 
 /* 64-bit FP compare RR */
-uint32_t HELPER(cdbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(cdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     float64 v1 = env->fregs[f1].d;
     float64 v2 = env->fregs[f2].d;
 
     HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%ld\n", __func__,
                v1, f1, v2);
-    return set_cc_f64(v1, v2);
+    return set_cc_f64(env, v1, v2);
 }
 
 /* 128-bit FP compare RR */
-uint32_t HELPER(cxbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(cxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
@@ -451,29 +453,29 @@ uint32_t HELPER(cxbr)(uint32_t f1, uint32_t f2)
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
 
-    return float_comp_to_cc(float128_compare_quiet(v1.q, v2.q,
+    return float_comp_to_cc(env, float128_compare_quiet(v1.q, v2.q,
                                                    &env->fpu_status));
 }
 
 /* 64-bit FP compare RM */
-uint32_t HELPER(cdb)(uint32_t f1, uint64_t a2)
+uint32_t HELPER(cdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
 
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%lx\n", __func__, v1,
                f1, v2.d);
-    return set_cc_f64(v1, v2.d);
+    return set_cc_f64(env, v1, v2.d);
 }
 
 /* 64-bit FP addition RM */
-uint32_t HELPER(adb)(uint32_t f1, uint64_t a2)
+uint32_t HELPER(adb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
 
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     HELPER_LOG("%s: adding 0x%lx from f%d and 0x%lx\n", __func__,
                v1, f1, v2.d);
     env->fregs[f1].d = v1 = float64_add(v1, v2.d, &env->fpu_status);
@@ -481,7 +483,7 @@ uint32_t HELPER(adb)(uint32_t f1, uint64_t a2)
 }
 
 /* 32-bit FP subtraction RM */
-void HELPER(seb)(uint32_t f1, uint32_t val)
+void HELPER(seb)(CPUS390XState *env, uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
@@ -491,41 +493,41 @@ void HELPER(seb)(uint32_t f1, uint32_t val)
 }
 
 /* 64-bit FP subtraction RM */
-uint32_t HELPER(sdb)(uint32_t f1, uint64_t a2)
+uint32_t HELPER(sdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
 
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     env->fregs[f1].d = v1 = float64_sub(v1, v2.d, &env->fpu_status);
     return set_cc_nz_f64(v1);
 }
 
 /* 64-bit FP multiplication RM */
-void HELPER(mdb)(uint32_t f1, uint64_t a2)
+void HELPER(mdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
 
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     HELPER_LOG("%s: multiplying 0x%lx from f%d and 0x%ld\n", __func__,
                v1, f1, v2.d);
     env->fregs[f1].d = float64_mul(v1, v2.d, &env->fpu_status);
 }
 
 /* 64-bit FP division RM */
-void HELPER(ddb)(uint32_t f1, uint64_t a2)
+void HELPER(ddb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
 
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     HELPER_LOG("%s: dividing 0x%lx from f%d by 0x%ld\n", __func__,
                v1, f1, v2.d);
     env->fregs[f1].d = float64_div(v1, v2.d, &env->fpu_status);
 }
 
-static void set_round_mode(int m3)
+static void set_round_mode(CPUS390XState *env, int m3)
 {
     switch (m3) {
     case 0:
@@ -553,33 +555,36 @@ static void set_round_mode(int m3)
 }
 
 /* convert 32-bit float to 64-bit int */
-uint32_t HELPER(cgebr)(uint32_t r1, uint32_t f2, uint32_t m3)
+uint32_t HELPER(cgebr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
+                       uint32_t m3)
 {
     float32 v2 = env->fregs[f2].l.upper;
 
-    set_round_mode(m3);
+    set_round_mode(env, m3);
     env->regs[r1] = float32_to_int64(v2, &env->fpu_status);
     return set_cc_nz_f32(v2);
 }
 
 /* convert 64-bit float to 64-bit int */
-uint32_t HELPER(cgdbr)(uint32_t r1, uint32_t f2, uint32_t m3)
+uint32_t HELPER(cgdbr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
+                       uint32_t m3)
 {
     float64 v2 = env->fregs[f2].d;
 
-    set_round_mode(m3);
+    set_round_mode(env, m3);
     env->regs[r1] = float64_to_int64(v2, &env->fpu_status);
     return set_cc_nz_f64(v2);
 }
 
 /* convert 128-bit float to 64-bit int */
-uint32_t HELPER(cgxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
+uint32_t HELPER(cgxbr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
+                       uint32_t m3)
 {
     CPU_QuadU v2;
 
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
-    set_round_mode(m3);
+    set_round_mode(env, m3);
     env->regs[r1] = float128_to_int64(v2.q, &env->fpu_status);
     if (float128_is_any_nan(v2.q)) {
         return 3;
@@ -593,29 +598,32 @@ uint32_t HELPER(cgxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 }
 
 /* convert 32-bit float to 32-bit int */
-uint32_t HELPER(cfebr)(uint32_t r1, uint32_t f2, uint32_t m3)
+uint32_t HELPER(cfebr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
+                       uint32_t m3)
 {
     float32 v2 = env->fregs[f2].l.upper;
 
-    set_round_mode(m3);
+    set_round_mode(env, m3);
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
         float32_to_int32(v2, &env->fpu_status);
     return set_cc_nz_f32(v2);
 }
 
 /* convert 64-bit float to 32-bit int */
-uint32_t HELPER(cfdbr)(uint32_t r1, uint32_t f2, uint32_t m3)
+uint32_t HELPER(cfdbr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
+                       uint32_t m3)
 {
     float64 v2 = env->fregs[f2].d;
 
-    set_round_mode(m3);
+    set_round_mode(env, m3);
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
         float64_to_int32(v2, &env->fpu_status);
     return set_cc_nz_f64(v2);
 }
 
 /* convert 128-bit float to 32-bit int */
-uint32_t HELPER(cfxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
+uint32_t HELPER(cfxbr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
+                       uint32_t m3)
 {
     CPU_QuadU v2;
 
@@ -627,19 +635,19 @@ uint32_t HELPER(cfxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 }
 
 /* load 32-bit FP zero */
-void HELPER(lzer)(uint32_t f1)
+void HELPER(lzer)(CPUS390XState *env, uint32_t f1)
 {
     env->fregs[f1].l.upper = float32_zero;
 }
 
 /* load 64-bit FP zero */
-void HELPER(lzdr)(uint32_t f1)
+void HELPER(lzdr)(CPUS390XState *env, uint32_t f1)
 {
     env->fregs[f1].d = float64_zero;
 }
 
 /* load 128-bit FP zero */
-void HELPER(lzxr)(uint32_t f1)
+void HELPER(lzxr)(CPUS390XState *env, uint32_t f1)
 {
     CPU_QuadU x;
 
@@ -649,7 +657,7 @@ void HELPER(lzxr)(uint32_t f1)
 }
 
 /* 128-bit FP subtraction RR */
-uint32_t HELPER(sxbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(sxbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
@@ -666,7 +674,7 @@ uint32_t HELPER(sxbr)(uint32_t f1, uint32_t f2)
 }
 
 /* 128-bit FP addition RR */
-uint32_t HELPER(axbr)(uint32_t f1, uint32_t f2)
+uint32_t HELPER(axbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
@@ -683,7 +691,7 @@ uint32_t HELPER(axbr)(uint32_t f1, uint32_t f2)
 }
 
 /* 32-bit FP multiplication RR */
-void HELPER(meebr)(uint32_t f1, uint32_t f2)
+void HELPER(meebr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].l.upper = float32_mul(env->fregs[f1].l.upper,
                                          env->fregs[f2].l.upper,
@@ -691,19 +699,19 @@ void HELPER(meebr)(uint32_t f1, uint32_t f2)
 }
 
 /* 64-bit FP division RR */
-void HELPER(ddbr)(uint32_t f1, uint32_t f2)
+void HELPER(ddbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_div(env->fregs[f1].d, env->fregs[f2].d,
                                    &env->fpu_status);
 }
 
 /* 64-bit FP multiply and add RM */
-void HELPER(madb)(uint32_t f1, uint64_t a2, uint32_t f3)
+void HELPER(madb)(CPUS390XState *env, uint32_t f1, uint64_t a2, uint32_t f3)
 {
     CPU_DoubleU v2;
 
     HELPER_LOG("%s: f1 %d a2 0x%lx f3 %d\n", __func__, f1, a2, f3);
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     env->fregs[f1].d = float64_add(env->fregs[f1].d,
                                    float64_mul(v2.d, env->fregs[f3].d,
                                                &env->fpu_status),
@@ -711,7 +719,7 @@ void HELPER(madb)(uint32_t f1, uint64_t a2, uint32_t f3)
 }
 
 /* 64-bit FP multiply and add RR */
-void HELPER(madbr)(uint32_t f1, uint32_t f3, uint32_t f2)
+void HELPER(madbr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
 {
     HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __func__, f1, f2, f3);
     env->fregs[f1].d = float64_add(float64_mul(env->fregs[f2].d,
@@ -721,7 +729,7 @@ void HELPER(madbr)(uint32_t f1, uint32_t f3, uint32_t f2)
 }
 
 /* 64-bit FP multiply and subtract RR */
-void HELPER(msdbr)(uint32_t f1, uint32_t f3, uint32_t f2)
+void HELPER(msdbr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
 {
     HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __func__, f1, f2, f3);
     env->fregs[f1].d = float64_sub(float64_mul(env->fregs[f2].d,
@@ -731,7 +739,7 @@ void HELPER(msdbr)(uint32_t f1, uint32_t f3, uint32_t f2)
 }
 
 /* 32-bit FP multiply and add RR */
-void HELPER(maebr)(uint32_t f1, uint32_t f3, uint32_t f2)
+void HELPER(maebr)(CPUS390XState *env, uint32_t f1, uint32_t f3, uint32_t f2)
 {
     env->fregs[f1].l.upper = float32_add(env->fregs[f1].l.upper,
                                          float32_mul(env->fregs[f2].l.upper,
@@ -741,29 +749,29 @@ void HELPER(maebr)(uint32_t f1, uint32_t f3, uint32_t f2)
 }
 
 /* convert 32-bit float to 64-bit float */
-void HELPER(ldeb)(uint32_t f1, uint64_t a2)
+void HELPER(ldeb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     uint32_t v2;
 
-    v2 = ldl(a2);
+    v2 = cpu_ldl_data(env, a2);
     env->fregs[f1].d = float32_to_float64(v2,
                                           &env->fpu_status);
 }
 
 /* convert 64-bit float to 128-bit float */
-void HELPER(lxdb)(uint32_t f1, uint64_t a2)
+void HELPER(lxdb)(CPUS390XState *env, uint32_t f1, uint64_t a2)
 {
     CPU_DoubleU v2;
     CPU_QuadU v1;
 
-    v2.ll = ldq(a2);
+    v2.ll = cpu_ldq_data(env, a2);
     v1.q = float64_to_float128(v2.d, &env->fpu_status);
     env->fregs[f1].ll = v1.ll.upper;
     env->fregs[f1 + 2].ll = v1.ll.lower;
 }
 
 /* test data class 32-bit */
-uint32_t HELPER(tceb)(uint32_t f1, uint64_t m2)
+uint32_t HELPER(tceb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
 {
     float32 v1 = env->fregs[f1].l.upper;
     int neg = float32_is_neg(v1);
@@ -785,7 +793,7 @@ uint32_t HELPER(tceb)(uint32_t f1, uint64_t m2)
 }
 
 /* test data class 64-bit */
-uint32_t HELPER(tcdb)(uint32_t f1, uint64_t m2)
+uint32_t HELPER(tcdb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
 {
     float64 v1 = env->fregs[f1].d;
     int neg = float64_is_neg(v1);
@@ -806,7 +814,7 @@ uint32_t HELPER(tcdb)(uint32_t f1, uint64_t m2)
 }
 
 /* test data class 128-bit */
-uint32_t HELPER(tcxb)(uint32_t f1, uint64_t m2)
+uint32_t HELPER(tcxb)(CPUS390XState *env, uint32_t f1, uint64_t m2)
 {
     CPU_QuadU v1;
     uint32_t cc = 0;
@@ -830,7 +838,7 @@ uint32_t HELPER(tcxb)(uint32_t f1, uint64_t m2)
 }
 
 /* square root 64-bit RR */
-void HELPER(sqdbr)(uint32_t f1, uint32_t f2)
+void HELPER(sqdbr)(CPUS390XState *env, uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_sqrt(env->fregs[f2].d, &env->fpu_status);
 }
