@@ -1,5 +1,5 @@
 /*
- *  S/390 helper routines
+ *  S/390 misc helper routines
  *
  *  Copyright (c) 2009 Ulrich Hecht
  *  Copyright (c) 2009 Alexander Graf
