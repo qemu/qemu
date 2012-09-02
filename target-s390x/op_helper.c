@@ -352,49 +352,6 @@ void HELPER(stcm)(uint32_t r1, uint32_t mask, uint64_t addr)
     HELPER_LOG("\n");
 }
 
-/* 64/64 -> 128 unsigned multiplication */
-void HELPER(mlg)(uint32_t r1, uint64_t v2)
-{
-#if HOST_LONG_BITS == 64 && defined(__GNUC__)
-    /* assuming 64-bit hosts have __uint128_t */
-    __uint128_t res = (__uint128_t)env->regs[r1 + 1];
-
-    res *= (__uint128_t)v2;
-    env->regs[r1] = (uint64_t)(res >> 64);
-    env->regs[r1 + 1] = (uint64_t)res;
-#else
-    mulu64(&env->regs[r1 + 1], &env->regs[r1], env->regs[r1 + 1], v2);
-#endif
-}
-
-/* 128 -> 64/64 unsigned division */
-void HELPER(dlg)(uint32_t r1, uint64_t v2)
-{
-    uint64_t divisor = v2;
-
-    if (!env->regs[r1]) {
-        /* 64 -> 64/64 case */
-        env->regs[r1] = env->regs[r1 + 1] % divisor;
-        env->regs[r1 + 1] = env->regs[r1 + 1] / divisor;
-        return;
-    } else {
-#if HOST_LONG_BITS == 64 && defined(__GNUC__)
-        /* assuming 64-bit hosts have __uint128_t */
-        __uint128_t dividend = (((__uint128_t)env->regs[r1]) << 64) |
-            (env->regs[r1 + 1]);
-        __uint128_t quotient = dividend / divisor;
-        __uint128_t remainder = dividend % divisor;
-
-        env->regs[r1 + 1] = quotient;
-        env->regs[r1] = remainder;
-#else
-        /* 32-bit hosts would need special wrapper functionality - just abort if
-           we encounter such a case; it's very unlikely anyways. */
-        cpu_abort(env, "128 -> 64/64 division not implemented\n");
-#endif
-    }
-}
-
 static inline uint64_t get_address(int x2, int b2, int d2)
 {
     uint64_t r = d2;
@@ -677,61 +634,6 @@ uint32_t HELPER(ex)(uint32_t cc, uint64_t v1, uint64_t addr, uint64_t ret)
     return cc;
 }
 
-/* absolute value 32-bit */
-uint32_t HELPER(abs_i32)(int32_t val)
-{
-    if (val < 0) {
-        return -val;
-    } else {
-        return val;
-    }
-}
-
-/* negative absolute value 32-bit */
-int32_t HELPER(nabs_i32)(int32_t val)
-{
-    if (val < 0) {
-        return val;
-    } else {
-        return -val;
-    }
-}
-
-/* absolute value 64-bit */
-uint64_t HELPER(abs_i64)(int64_t val)
-{
-    HELPER_LOG("%s: val 0x%" PRIx64 "\n", __func__, val);
-
-    if (val < 0) {
-        return -val;
-    } else {
-        return val;
-    }
-}
-
-/* negative absolute value 64-bit */
-int64_t HELPER(nabs_i64)(int64_t val)
-{
-    if (val < 0) {
-        return val;
-    } else {
-        return -val;
-    }
-}
-
-/* add with carry 32-bit unsigned */
-uint32_t HELPER(addc_u32)(uint32_t cc, uint32_t v1, uint32_t v2)
-{
-    uint32_t res;
-
-    res = v1 + v2;
-    if (cc & 2) {
-        res++;
-    }
-
-    return res;
-}
-
 /* store character under mask high operates on the upper half of r1 */
 void HELPER(stcmh)(uint32_t r1, uint64_t address, uint32_t mask)
 {
@@ -936,57 +838,6 @@ uint32_t HELPER(clcle)(uint32_t r1, uint64_t a2, uint32_t r3)
     return cc;
 }
 
-/* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slb)(uint32_t cc, uint32_t r1, uint32_t v2)
-{
-    uint32_t v1 = env->regs[r1];
-    uint32_t res = v1 + (~v2) + (cc >> 1);
-
-    env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | res;
-    if (cc & 2) {
-        /* borrow */
-        return v1 ? 1 : 0;
-    } else {
-        return v1 ? 3 : 2;
-    }
-}
-
-/* subtract unsigned v2 from v1 with borrow */
-uint32_t HELPER(slbg)(uint32_t cc, uint32_t r1, uint64_t v1, uint64_t v2)
-{
-    uint64_t res = v1 + (~v2) + (cc >> 1);
-
-    env->regs[r1] = res;
-    if (cc & 2) {
-        /* borrow */
-        return v1 ? 1 : 0;
-    } else {
-        return v1 ? 3 : 2;
-    }
-}
-
-/* find leftmost one */
-uint32_t HELPER(flogr)(uint32_t r1, uint64_t v2)
-{
-    uint64_t res = 0;
-    uint64_t ov2 = v2;
-
-    while (!(v2 & 0x8000000000000000ULL) && v2) {
-        v2 <<= 1;
-        res++;
-    }
-
-    if (!v2) {
-        env->regs[r1] = 64;
-        env->regs[r1 + 1] = 0;
-        return 0;
-    } else {
-        env->regs[r1] = res;
-        env->regs[r1 + 1] = ov2 & ~(0x8000000000000000ULL >> res);
-        return 2;
-    }
-}
-
 /* checksum */
 void HELPER(cksm)(uint32_t r1, uint32_t r2)
 {
@@ -1024,27 +875,6 @@ void HELPER(cksm)(uint32_t r1, uint32_t r2)
     /* store result */
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
         ((uint32_t)cksm + (cksm >> 32));
-}
-
-uint64_t HELPER(cvd)(int32_t bin)
-{
-    /* positive 0 */
-    uint64_t dec = 0x0c;
-    int shift = 4;
-
-    if (bin < 0) {
-        bin = -bin;
-        dec = 0x0d;
-    }
-
-    for (shift = 4; (shift < 64) && bin; shift += 4) {
-        int current_number = bin % 10;
-
-        dec |= (current_number) << shift;
-        bin /= 10;
-    }
-
-    return dec;
 }
 
 void HELPER(unpk)(uint32_t len, uint64_t dest, uint64_t src)
