@@ -2206,11 +2206,11 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
     switch (op) {
     case 0x4: /* LDEB R1,D2(X2,B2) [RXE] */
         potential_page_fault(s);
-        gen_helper_ldeb(tmp_r1, addr);
+        gen_helper_ldeb(cpu_env, tmp_r1, addr);
         break;
     case 0x5: /* LXDB R1,D2(X2,B2) [RXE] */
         potential_page_fault(s);
-        gen_helper_lxdb(tmp_r1, addr);
+        gen_helper_lxdb(cpu_env, tmp_r1, addr);
         break;
     case 0x9: /* CEB    R1,D2(X2,B2)       [RXE] */
         tmp = tcg_temp_new_i64();
@@ -2225,7 +2225,7 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         tmp32 = tcg_temp_new_i32();
         tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
         tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_aeb(tmp_r1, tmp32);
+        gen_helper_aeb(cpu_env, tmp_r1, tmp32);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32);
 
@@ -2238,7 +2238,7 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         tmp32 = tcg_temp_new_i32();
         tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
         tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_seb(tmp_r1, tmp32);
+        gen_helper_seb(cpu_env, tmp_r1, tmp32);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32);
 
@@ -2251,23 +2251,23 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         tmp32 = tcg_temp_new_i32();
         tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
         tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_deb(tmp_r1, tmp32);
+        gen_helper_deb(cpu_env, tmp_r1, tmp32);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32);
         break;
     case 0x10: /* TCEB   R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_tceb(cc_op, tmp_r1, addr);
+        gen_helper_tceb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
         break;
     case 0x11: /* TCDB   R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_tcdb(cc_op, tmp_r1, addr);
+        gen_helper_tcdb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
         break;
     case 0x12: /* TCXB   R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_tcxb(cc_op, tmp_r1, addr);
+        gen_helper_tcxb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
         break;
     case 0x17: /* MEEB   R1,D2(X2,B2)       [RXE] */
@@ -2275,38 +2275,38 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         tmp32 = tcg_temp_new_i32();
         tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
         tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_meeb(tmp_r1, tmp32);
+        gen_helper_meeb(cpu_env, tmp_r1, tmp32);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32);
         break;
     case 0x19: /* CDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_cdb(cc_op, tmp_r1, addr);
+        gen_helper_cdb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
         break;
     case 0x1a: /* ADB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_adb(cc_op, tmp_r1, addr);
+        gen_helper_adb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
         break;
     case 0x1b: /* SDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_sdb(cc_op, tmp_r1, addr);
+        gen_helper_sdb(cc_op, cpu_env, tmp_r1, addr);
         set_cc_static(s);
         break;
     case 0x1c: /* MDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_mdb(tmp_r1, addr);
+        gen_helper_mdb(cpu_env, tmp_r1, addr);
         break;
     case 0x1d: /* DDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
-        gen_helper_ddb(tmp_r1, addr);
+        gen_helper_ddb(cpu_env, tmp_r1, addr);
         break;
     case 0x1e: /* MADB  R1,R3,D2(X2,B2) [RXF] */
         /* for RXF insns, r1 is R3 and r1b is R1 */
         tmp32 = tcg_const_i32(r1b);
         potential_page_fault(s);
-        gen_helper_madb(tmp32, addr, tmp_r1);
+        gen_helper_madb(cpu_env, tmp32, addr, tmp_r1);
         tcg_temp_free_i32(tmp32);
         break;
     default:
@@ -3001,14 +3001,14 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
 #define FP_HELPER(i) \
     tmp32_1 = tcg_const_i32(r1); \
     tmp32_2 = tcg_const_i32(r2); \
-    gen_helper_ ## i (tmp32_1, tmp32_2); \
+    gen_helper_ ## i(cpu_env, tmp32_1, tmp32_2); \
     tcg_temp_free_i32(tmp32_1); \
     tcg_temp_free_i32(tmp32_2);
 
 #define FP_HELPER_CC(i) \
     tmp32_1 = tcg_const_i32(r1); \
     tmp32_2 = tcg_const_i32(r2); \
-    gen_helper_ ## i (cc_op, tmp32_1, tmp32_2); \
+    gen_helper_ ## i(cc_op, cpu_env, tmp32_1, tmp32_2); \
     set_cc_static(s); \
     tcg_temp_free_i32(tmp32_1); \
     tcg_temp_free_i32(tmp32_2);
@@ -3080,13 +3080,13 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp32_3 = tcg_const_i32(r1);
         switch (op) {
         case 0xe:
-            gen_helper_maebr(tmp32_1, tmp32_3, tmp32_2);
+            gen_helper_maebr(cpu_env, tmp32_1, tmp32_3, tmp32_2);
             break;
         case 0x1e:
-            gen_helper_madbr(tmp32_1, tmp32_3, tmp32_2);
+            gen_helper_madbr(cpu_env, tmp32_1, tmp32_3, tmp32_2);
             break;
         case 0x1f:
-            gen_helper_msdbr(tmp32_1, tmp32_3, tmp32_2);
+            gen_helper_msdbr(cpu_env, tmp32_1, tmp32_3, tmp32_2);
             break;
         default:
             tcg_abort();
@@ -3138,17 +3138,17 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         break;
     case 0x74: /* LZER        R1                [RRE] */
         tmp32_1 = tcg_const_i32(r1);
-        gen_helper_lzer(tmp32_1);
+        gen_helper_lzer(cpu_env, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x75: /* LZDR        R1                [RRE] */
         tmp32_1 = tcg_const_i32(r1);
-        gen_helper_lzdr(tmp32_1);
+        gen_helper_lzdr(cpu_env, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x76: /* LZXR        R1                [RRE] */
         tmp32_1 = tcg_const_i32(r1);
-        gen_helper_lzxr(tmp32_1);
+        gen_helper_lzxr(cpu_env, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x84: /* SFPC        R1                [RRE] */
@@ -3169,13 +3169,13 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp32_2 = load_reg32(r2);
         switch (op) {
         case 0x94:
-            gen_helper_cefbr(tmp32_1, tmp32_2);
+            gen_helper_cefbr(cpu_env, tmp32_1, tmp32_2);
             break;
         case 0x95:
-            gen_helper_cdfbr(tmp32_1, tmp32_2);
+            gen_helper_cdfbr(cpu_env, tmp32_1, tmp32_2);
             break;
         case 0x96:
-            gen_helper_cxfbr(tmp32_1, tmp32_2);
+            gen_helper_cxfbr(cpu_env, tmp32_1, tmp32_2);
             break;
         default:
             tcg_abort();
@@ -3191,13 +3191,13 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp32_3 = tcg_const_i32(m3);
         switch (op) {
         case 0x98:
-            gen_helper_cfebr(cc_op, tmp32_1, tmp32_2, tmp32_3);
+            gen_helper_cfebr(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
             break;
         case 0x99:
-            gen_helper_cfdbr(cc_op, tmp32_1, tmp32_2, tmp32_3);
+            gen_helper_cfdbr(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
             break;
         case 0x9a:
-            gen_helper_cfxbr(cc_op, tmp32_1, tmp32_2, tmp32_3);
+            gen_helper_cfxbr(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
             break;
         default:
             tcg_abort();
@@ -3213,10 +3213,10 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp = load_reg(r2);
         switch (op) {
         case 0xa4:
-            gen_helper_cegbr(tmp32_1, tmp);
+            gen_helper_cegbr(cpu_env, tmp32_1, tmp);
             break;
         case 0xa5:
-            gen_helper_cdgbr(tmp32_1, tmp);
+            gen_helper_cdgbr(cpu_env, tmp32_1, tmp);
             break;
         default:
             tcg_abort();
@@ -3227,7 +3227,7 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
     case 0xa6: /* CXGBR       R1,R2             [RRE] */
         tmp32_1 = tcg_const_i32(r1);
         tmp = load_reg(r2);
-        gen_helper_cxgbr(tmp32_1, tmp);
+        gen_helper_cxgbr(cpu_env, tmp32_1, tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
         break;
@@ -3235,7 +3235,7 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
         tmp32_3 = tcg_const_i32(m3);
-        gen_helper_cgebr(cc_op, tmp32_1, tmp32_2, tmp32_3);
+        gen_helper_cgebr(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -3245,7 +3245,7 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
         tmp32_3 = tcg_const_i32(m3);
-        gen_helper_cgdbr(cc_op, tmp32_1, tmp32_2, tmp32_3);
+        gen_helper_cgdbr(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -3255,7 +3255,7 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
         tmp32_3 = tcg_const_i32(m3);
-        gen_helper_cgxbr(cc_op, tmp32_1, tmp32_2, tmp32_3);
+        gen_helper_cgxbr(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);

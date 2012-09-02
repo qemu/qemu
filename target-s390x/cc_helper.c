@@ -473,10 +473,10 @@ static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
         break;
 
     case CC_OP_LTGT_F32:
-        r = set_cc_f32(src, dst);
+        r = set_cc_f32(env, src, dst);
         break;
     case CC_OP_LTGT_F64:
-        r = set_cc_f64(src, dst);
+        r = set_cc_f64(env, src, dst);
         break;
     case CC_OP_NZ_F32:
         r = set_cc_nz_f32(dst);

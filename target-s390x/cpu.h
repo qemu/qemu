@@ -1000,12 +1000,22 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 }
 
 /* fpu_helper.c */
-uint32_t set_cc_f32(float32 v1, float32 v2);
-uint32_t set_cc_f64(float64 v1, float64 v2);
+uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2);
+uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2);
 uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
 
 /* misc_helper.c */
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilc);
 
+/* temporary wrappers */
+uint32_t cpu_ldub_data(CPUS390XState *env, target_ulong ptr);
+uint32_t cpu_lduw_data(CPUS390XState *env, target_ulong ptr);
+uint32_t cpu_ldl_data(CPUS390XState *env, target_ulong ptr);
+uint64_t cpu_ldq_data(CPUS390XState *env, target_ulong ptr);
+
+void cpu_stb_data(CPUS390XState *env, target_ulong ptr, uint32_t data);
+void cpu_stw_data(CPUS390XState *env, target_ulong ptr, uint32_t data);
+void cpu_stl_data(CPUS390XState *env, target_ulong ptr, uint32_t data);
+void cpu_stq_data(CPUS390XState *env, target_ulong ptr, uint64_t data);
 #endif
