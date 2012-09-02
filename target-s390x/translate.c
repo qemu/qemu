@@ -667,14 +667,9 @@ static void set_cc_cmp_f32_i64(DisasContext *s, TCGv_i32 v1, TCGv_i64 v2)
     s->cc_op = CC_OP_LTGT_F32;
 }
 
-static void set_cc_nz_f32(DisasContext *s, TCGv_i32 v1)
+static void gen_set_cc_nz_f32(DisasContext *s, TCGv_i32 v1)
 {
     gen_op_update1_cc_i32(s, CC_OP_NZ_F32, v1);
-}
-
-static inline void set_cc_nz_f64(DisasContext *s, TCGv_i64 v1)
-{
-    gen_op_update1_cc_i64(s, CC_OP_NZ_F64, v1);
 }
 
 /* CC value is in env->cc_op */
@@ -2235,7 +2230,7 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         tcg_temp_free_i32(tmp32);
 
         tmp32 = load_freg32(r1);
-        set_cc_nz_f32(s, tmp32);
+        gen_set_cc_nz_f32(s, tmp32);
         tcg_temp_free_i32(tmp32);
         break;
     case 0xb: /* SEB    R1,D2(X2,B2)       [RXE] */
@@ -2248,7 +2243,7 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         tcg_temp_free_i32(tmp32);
 
         tmp32 = load_freg32(r1);
-        set_cc_nz_f32(s, tmp32);
+        gen_set_cc_nz_f32(s, tmp32);
         tcg_temp_free_i32(tmp32);
         break;
     case 0xd: /* DEB    R1,D2(X2,B2)       [RXE] */
