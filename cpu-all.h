@@ -260,14 +260,6 @@ extern unsigned long reserved_va;
 #define stfl(p, v) stfl_raw(p, v)
 #define stfq(p, v) stfq_raw(p, v)
 
-#ifndef CONFIG_TCG_PASS_AREG0
-#define ldub_code(p) ldub_raw(p)
-#define ldsb_code(p) ldsb_raw(p)
-#define lduw_code(p) lduw_raw(p)
-#define ldsw_code(p) ldsw_raw(p)
-#define ldl_code(p) ldl_raw(p)
-#define ldq_code(p) ldq_raw(p)
-#else
 #define cpu_ldub_code(env1, p) ldub_raw(p)
 #define cpu_ldsb_code(env1, p) ldsb_raw(p)
 #define cpu_lduw_code(env1, p) lduw_raw(p)
@@ -296,7 +288,6 @@ extern unsigned long reserved_va;
 #define cpu_stw_kernel(env, addr, data) stw_raw(addr, data)
 #define cpu_stl_kernel(env, addr, data) stl_raw(addr, data)
 #define cpu_stq_kernel(env, addr, data) stq_raw(addr, data)
-#endif
 
 #define ldub_kernel(p) ldub_raw(p)
 #define ldsb_kernel(p) ldsb_raw(p)
@@ -313,7 +304,6 @@ extern unsigned long reserved_va;
 #define stfl_kernel(p, v) stfl_raw(p, v)
 #define stfq_kernel(p, vt) stfq_raw(p, v)
 
-#ifdef CONFIG_TCG_PASS_AREG0
 #define cpu_ldub_data(env, addr) ldub_raw(addr)
 #define cpu_lduw_data(env, addr) lduw_raw(addr)
 #define cpu_ldl_data(env, addr) ldl_raw(addr)
@@ -321,7 +311,6 @@ extern unsigned long reserved_va;
 #define cpu_stb_data(env, addr, data) stb_raw(addr, data)
 #define cpu_stw_data(env, addr, data) stw_raw(addr, data)
 #define cpu_stl_data(env, addr, data) stl_raw(addr, data)
-#endif
 #endif /* defined(CONFIG_USER_ONLY) */
 
 /* page related stuff */

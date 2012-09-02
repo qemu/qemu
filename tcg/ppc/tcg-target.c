@@ -248,17 +248,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R4);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R5);
 #if TARGET_LONG_BITS == 64
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R6);
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R7);
-#endif
-#endif
-#else /* !AREG0 */
-#if TARGET_LONG_BITS == 64
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R5);
 #endif
 #endif
         break;
@@ -268,17 +262,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R4);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R5);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R6);
 #if TARGET_LONG_BITS == 64
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R7);
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R8);
-#endif
-#endif
-#else /* !AREG0 */
-#if TARGET_LONG_BITS == 64
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_R6);
 #endif
 #endif
         break;
@@ -290,11 +278,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R5);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R6);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R7);
-#if defined(CONFIG_TCG_PASS_AREG0)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R8);
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R9);
-#endif
 #endif
         break;
 #else
@@ -541,7 +527,6 @@ static void tcg_out_call (TCGContext *s, tcg_target_long arg, int const_arg)
 
 #include "../../softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -559,25 +544,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 #endif
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
@@ -647,9 +613,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_mov (s, TCG_TYPE_I32, ir++, TCG_AREG0);
-#endif
 #if TARGET_LONG_BITS == 32
     tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #else
@@ -849,9 +813,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_mov (s, TCG_TYPE_I32, ir++, TCG_AREG0);
-#endif
 #if TARGET_LONG_BITS == 32
     tcg_out_mov (s, TCG_TYPE_I32, ir++, addr_reg);
 #else

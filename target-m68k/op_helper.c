@@ -192,9 +192,6 @@ void HELPER(divu)(CPUM68KState *env, uint32_t word)
     quot = num / den;
     rem = num % den;
     flags = 0;
-    /* Avoid using a PARAM1 of zero.  This breaks dyngen because it uses
-       the address of a symbol, and gcc knows symbols can't have address
-       zero.  */
     if (word && quot > 0xffff)
         flags |= CCF_V;
     if (quot == 0)

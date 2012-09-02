@@ -96,7 +96,6 @@ typedef enum TCGReg {
 #define TCG_TARGET_EXTEND_ARGS 1
 
 enum {
-    /* Note: must be synced with dyngen-exec.h */
     TCG_AREG0 = TCG_REG_R10,
 };
 

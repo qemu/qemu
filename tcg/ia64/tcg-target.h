@@ -140,7 +140,6 @@ typedef enum {
 #define TCG_TARGET_HAS_not_i32          0 /* xor r1, -1, r3 */
 #define TCG_TARGET_HAS_not_i64          0 /* xor r1, -1, r3 */
 
-/* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R7
 
 /* Guest base is supported */

@@ -1452,7 +1452,6 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
                                TCG_REG_P7, TCG_REG_R3, TCG_REG_R57));
 }
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -1461,16 +1460,6 @@ static const void * const qemu_ld_helpers[4] = {
     helper_ldl_mmu,
     helper_ldq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-#endif
 
 static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 {
@@ -1530,7 +1519,6 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
                        tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1, TCG_REG_R1, TCG_REG_R2),
                        tcg_opc_i18(TCG_REG_P0, OPC_NOP_I18, 0));
     }
-#ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
     tcg_out_bundle(s, mII,
                    tcg_opc_a5 (TCG_REG_P7, OPC_ADDL_A5, TCG_REG_R58,
@@ -1539,7 +1527,6 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
                                TCG_REG_R57, 0, TCG_REG_R56),
                    tcg_opc_a4 (TCG_REG_P7, OPC_ADDS_A4,
                                TCG_REG_R56, 0, TCG_AREG0));
-#endif
     if (!bswap || s_bits == 0) {
         tcg_out_bundle(s, miB,
                        tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
@@ -1570,7 +1557,6 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     }
 }
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
    uintxx_t val, int mmu_idx) */
 static const void * const qemu_st_helpers[4] = {
@@ -1579,16 +1565,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 
 static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 {
@@ -1658,7 +1634,6 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         data_reg = TCG_REG_R2;
     }
 
-#ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
     tcg_out_bundle(s, mII,
                    tcg_opc_a5 (TCG_REG_P7, OPC_ADDL_A5, TCG_REG_R59,
@@ -1674,15 +1649,6 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
                                TCG_REG_R56, 0, TCG_AREG0),
                    tcg_opc_b5 (TCG_REG_P7, OPC_BR_CALL_SPTK_MANY_B5,
                                TCG_REG_B0, TCG_REG_B6));
-#else
-    tcg_out_bundle(s, miB,
-                   tcg_opc_m4 (TCG_REG_P6, opc_st_m4[opc],
-                               data_reg, TCG_REG_R3),
-                   tcg_opc_a5 (TCG_REG_P7, OPC_ADDL_A5, TCG_REG_R58,
-                               mem_index, TCG_REG_R0),
-                   tcg_opc_b5 (TCG_REG_P7, OPC_BR_CALL_SPTK_MANY_B5,
-                               TCG_REG_B0, TCG_REG_B6));
-#endif
 }
 
 #else /* !CONFIG_SOFTMMU */
