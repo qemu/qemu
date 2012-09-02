@@ -4,4 +4,3 @@ obj-$(CONFIG_SOFTMMU) += machine.o
 obj-$(CONFIG_KVM) += kvm.o
 
 $(obj)/mem_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
-$(obj)/misc_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)

@@ -595,7 +595,7 @@ uint32_t HELPER(ex)(uint32_t cc, uint64_t v1, uint64_t addr, uint64_t ret)
         env->psw.addr = ret - 4;
         env->int_svc_code = (insn | v1) & 0xff;
         env->int_svc_ilc = 4;
-        helper_exception(EXCP_SVC);
+        helper_exception(env, EXCP_SVC);
     } else if ((insn & 0xff00) == 0xbf00) {
         uint32_t insn2, r1, r3, b2, d2;
 

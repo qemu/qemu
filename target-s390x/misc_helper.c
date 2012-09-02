@@ -21,7 +21,6 @@
 #include "cpu.h"
 #include "memory.h"
 #include "cputlb.h"
-#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "helper.h"
 #include <string.h>
@@ -32,7 +31,10 @@
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
+/* temporarily disabled due to wrapper use */
+#if 0
 #include "softmmu_exec.h"
+#endif
 #include "sysemu.h"
 #endif
 
@@ -44,7 +46,7 @@
 #endif
 
 /* raise an exception */
-void HELPER(exception)(uint32_t excp)
+void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
     HELPER_LOG("%s: exception %d\n", __func__, excp);
     env->exception_index = excp;
@@ -112,7 +114,7 @@ int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
 }
 
 /* SCLP service call */
-uint32_t HELPER(servc)(uint32_t r1, uint64_t r2)
+uint32_t HELPER(servc)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 {
     int r;
 
@@ -125,7 +127,8 @@ uint32_t HELPER(servc)(uint32_t r1, uint64_t r2)
 }
 
 /* DIAG */
-uint64_t HELPER(diag)(uint32_t num, uint64_t mem, uint64_t code)
+uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
+                      uint64_t code)
 {
     uint64_t r;
 
@@ -155,17 +158,17 @@ uint64_t HELPER(diag)(uint32_t num, uint64_t mem, uint64_t code)
 }
 
 /* Store CPU ID */
-void HELPER(stidp)(uint64_t a1)
+void HELPER(stidp)(CPUS390XState *env, uint64_t a1)
 {
-    stq(a1, env->cpu_num);
+    cpu_stq_data(env, a1, env->cpu_num);
 }
 
 /* Set Prefix */
-void HELPER(spx)(uint64_t a1)
+void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {
     uint32_t prefix;
 
-    prefix = ldl(a1);
+    prefix = cpu_ldl_data(env, a1);
     env->psa = prefix & 0xfffff000;
     qemu_log("prefix: %#x\n", prefix);
     tlb_flush_page(env, 0);
@@ -191,31 +194,31 @@ static inline uint64_t clock_value(CPUS390XState *env)
 }
 
 /* Store Clock */
-uint32_t HELPER(stck)(uint64_t a1)
+uint32_t HELPER(stck)(CPUS390XState *env, uint64_t a1)
 {
-    stq(a1, clock_value(env));
+    cpu_stq_data(env, a1, clock_value(env));
 
     return 0;
 }
 
 /* Store Clock Extended */
-uint32_t HELPER(stcke)(uint64_t a1)
+uint32_t HELPER(stcke)(CPUS390XState *env, uint64_t a1)
 {
-    stb(a1, 0);
+    cpu_stb_data(env, a1, 0);
     /* basically the same value as stck */
-    stq(a1 + 1, clock_value(env) | env->cpu_num);
+    cpu_stq_data(env, a1 + 1, clock_value(env) | env->cpu_num);
     /* more fine grained than stck */
-    stq(a1 + 9, 0);
+    cpu_stq_data(env, a1 + 9, 0);
     /* XXX programmable fields */
-    stw(a1 + 17, 0);
+    cpu_stw_data(env, a1 + 17, 0);
 
     return 0;
 }
 
 /* Set Clock Comparator */
-void HELPER(sckc)(uint64_t a1)
+void HELPER(sckc)(CPUS390XState *env, uint64_t a1)
 {
-    uint64_t time = ldq(a1);
+    uint64_t time = cpu_ldq_data(env, a1);
 
     if (time == -1ULL) {
         return;
@@ -230,16 +233,16 @@ void HELPER(sckc)(uint64_t a1)
 }
 
 /* Store Clock Comparator */
-void HELPER(stckc)(uint64_t a1)
+void HELPER(stckc)(CPUS390XState *env, uint64_t a1)
 {
     /* XXX implement */
-    stq(a1, 0);
+    cpu_stq_data(env, a1, 0);
 }
 
 /* Set CPU Timer */
-void HELPER(spt)(uint64_t a1)
+void HELPER(spt)(CPUS390XState *env, uint64_t a1)
 {
-    uint64_t time = ldq(a1);
+    uint64_t time = cpu_ldq_data(env, a1);
 
     if (time == -1ULL) {
         return;
@@ -252,14 +255,15 @@ void HELPER(spt)(uint64_t a1)
 }
 
 /* Store CPU Timer */
-void HELPER(stpt)(uint64_t a1)
+void HELPER(stpt)(CPUS390XState *env, uint64_t a1)
 {
     /* XXX implement */
-    stq(a1, 0);
+    cpu_stq_data(env, a1, 0);
 }
 
 /* Store System Information */
-uint32_t HELPER(stsi)(uint64_t a0, uint32_t r0, uint32_t r1)
+uint32_t HELPER(stsi)(CPUS390XState *env, uint64_t a0, uint32_t r0,
+                      uint32_t r1)
 {
     int cc = 0;
     int sel1, sel2;
@@ -384,7 +388,8 @@ uint32_t HELPER(stsi)(uint64_t a0, uint32_t r0, uint32_t r1)
     return cc;
 }
 
-uint32_t HELPER(sigp)(uint64_t order_code, uint32_t r1, uint64_t cpu_addr)
+uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
+                      uint64_t cpu_addr)
 {
     int cc = 0;
 
