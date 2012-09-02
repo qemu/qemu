@@ -19,10 +19,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
-static void cpu_restore_state_from_retaddr(uintptr_t retaddr)
+static void cpu_restore_state_from_retaddr(CPUSH4State *env, uintptr_t retaddr)
 {
     TranslationBlock *tb;
 
@@ -53,26 +52,22 @@ static void cpu_restore_state_from_retaddr(uintptr_t retaddr)
 #define SHIFT 3
 #include "softmmu_template.h"
 
-void tlb_fill(CPUSH4State *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUSH4State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    CPUSH4State *saved_env;
     int ret;
 
-    saved_env = env;
-    env = env1;
     ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
-        cpu_restore_state_from_retaddr(retaddr);
+        cpu_restore_state_from_retaddr(env, retaddr);
         cpu_loop_exit(env);
     }
-    env = saved_env;
 }
 
 #endif
 
-void helper_ldtlb(void)
+void helper_ldtlb(CPUSH4State *env)
 {
 #ifdef CONFIG_USER_ONLY
     /* XXXXX */
@@ -82,40 +77,41 @@ void helper_ldtlb(void)
 #endif
 }
 
-static inline void raise_exception(int index, uintptr_t retaddr)
+static inline void raise_exception(CPUSH4State *env, int index,
+                                   uintptr_t retaddr)
 {
     env->exception_index = index;
-    cpu_restore_state_from_retaddr(retaddr);
+    cpu_restore_state_from_retaddr(env, retaddr);
     cpu_loop_exit(env);
 }
 
-void helper_raise_illegal_instruction(void)
+void helper_raise_illegal_instruction(CPUSH4State *env)
 {
-    raise_exception(0x180, GETPC());
+    raise_exception(env, 0x180, GETPC());
 }
 
-void helper_raise_slot_illegal_instruction(void)
+void helper_raise_slot_illegal_instruction(CPUSH4State *env)
 {
-    raise_exception(0x1a0, GETPC());
+    raise_exception(env, 0x1a0, GETPC());
 }
 
-void helper_raise_fpu_disable(void)
+void helper_raise_fpu_disable(CPUSH4State *env)
 {
-    raise_exception(0x800, GETPC());
+    raise_exception(env, 0x800, GETPC());
 }
 
-void helper_raise_slot_fpu_disable(void)
+void helper_raise_slot_fpu_disable(CPUSH4State *env)
 {
-    raise_exception(0x820, GETPC());
+    raise_exception(env, 0x820, GETPC());
 }
 
-void helper_debug(void)
+void helper_debug(CPUSH4State *env)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);
 }
 
-void helper_sleep(uint32_t next_pc)
+void helper_sleep(CPUSH4State *env, uint32_t next_pc)
 {
     env->halted = 1;
     env->in_sleep = 1;
@@ -124,13 +120,13 @@ void helper_sleep(uint32_t next_pc)
     cpu_loop_exit(env);
 }
 
-void helper_trapa(uint32_t tra)
+void helper_trapa(CPUSH4State *env, uint32_t tra)
 {
     env->tra = tra << 2;
-    raise_exception(0x160, GETPC());
+    raise_exception(env, 0x160, GETPC());
 }
 
-void helper_movcal(uint32_t address, uint32_t value)
+void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
 {
     if (cpu_sh4_is_cached (env, address))
     {
@@ -144,7 +140,7 @@ void helper_movcal(uint32_t address, uint32_t value)
     }
 }
 
-void helper_discard_movcal_backup(void)
+void helper_discard_movcal_backup(CPUSH4State *env)
 {
     memory_content *current = env->movcal_backup;
 
@@ -158,7 +154,7 @@ void helper_discard_movcal_backup(void)
     } 
 }
 
-void helper_ocbi(uint32_t address)
+void helper_ocbi(CPUSH4State *env, uint32_t address)
 {
     memory_content **current = &(env->movcal_backup);
     while (*current)
@@ -167,7 +163,7 @@ void helper_ocbi(uint32_t address)
 	if ((a & ~0x1F) == (address & ~0x1F))
 	{
 	    memory_content *next = (*current)->next;
-	    stl(a, (*current)->value);
+            cpu_stl_data(env, a, (*current)->value);
 	    
 	    if (next == NULL)
 	    {
@@ -181,7 +177,7 @@ void helper_ocbi(uint32_t address)
     }
 }
 
-uint32_t helper_addc(uint32_t arg0, uint32_t arg1)
+uint32_t helper_addc(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp1;
 
@@ -197,7 +193,7 @@ uint32_t helper_addc(uint32_t arg0, uint32_t arg1)
     return arg1;
 }
 
-uint32_t helper_addv(uint32_t arg0, uint32_t arg1)
+uint32_t helper_addv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     uint32_t dest, src, ans;
 
@@ -236,7 +232,7 @@ uint32_t helper_addv(uint32_t arg0, uint32_t arg1)
 #define SETM env->sr |= SR_M
 #define CLRM env->sr &= ~SR_M
 
-uint32_t helper_div1(uint32_t arg0, uint32_t arg1)
+uint32_t helper_div1(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp2;
     uint8_t old_q, tmp1 = 0xff;
@@ -344,7 +340,7 @@ uint32_t helper_div1(uint32_t arg0, uint32_t arg1)
     return arg1;
 }
 
-void helper_macl(uint32_t arg0, uint32_t arg1)
+void helper_macl(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     int64_t res;
 
@@ -360,7 +356,7 @@ void helper_macl(uint32_t arg0, uint32_t arg1)
     }
 }
 
-void helper_macw(uint32_t arg0, uint32_t arg1)
+void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     int64_t res;
 
@@ -379,7 +375,7 @@ void helper_macw(uint32_t arg0, uint32_t arg1)
     }
 }
 
-uint32_t helper_subc(uint32_t arg0, uint32_t arg1)
+uint32_t helper_subc(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     uint32_t tmp0, tmp1;
 
@@ -395,7 +391,7 @@ uint32_t helper_subc(uint32_t arg0, uint32_t arg1)
     return arg1;
 }
 
-uint32_t helper_subv(uint32_t arg0, uint32_t arg1)
+uint32_t helper_subv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     int32_t dest, src, ans;
 
@@ -424,17 +420,17 @@ uint32_t helper_subv(uint32_t arg0, uint32_t arg1)
     return arg1;
 }
 
-static inline void set_t(void)
+static inline void set_t(CPUSH4State *env)
 {
     env->sr |= SR_T;
 }
 
-static inline void clr_t(void)
+static inline void clr_t(CPUSH4State *env)
 {
     env->sr &= ~SR_T;
 }
 
-void helper_ld_fpscr(uint32_t val)
+void helper_ld_fpscr(CPUSH4State *env, uint32_t val)
 {
     env->fpscr = val & FPSCR_MASK;
     if ((val & FPSCR_RM_MASK) == FPSCR_RM_ZERO) {
@@ -445,7 +441,7 @@ void helper_ld_fpscr(uint32_t val)
     set_flush_to_zero((val & FPSCR_DN) != 0, &env->fp_status);
 }
 
-static void update_fpscr(uintptr_t retaddr)
+static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
 {
     int xcpt, cause, enable;
 
@@ -479,7 +475,7 @@ static void update_fpscr(uintptr_t retaddr)
         cause = (env->fpscr & FPSCR_CAUSE_MASK) >> FPSCR_CAUSE_SHIFT;
         enable = (env->fpscr & FPSCR_ENABLE_MASK) >> FPSCR_ENABLE_SHIFT;
         if (cause & enable) {
-            cpu_restore_state_from_retaddr(retaddr);
+            cpu_restore_state_from_retaddr(env, retaddr);
             env->exception_index = 0x120;
             cpu_loop_exit(env);
         }
@@ -496,156 +492,156 @@ float64 helper_fabs_DT(float64 t0)
     return float64_abs(t0);
 }
 
-float32 helper_fadd_FT(float32 t0, float32 t1)
+float32 helper_fadd_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_add(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float64 helper_fadd_DT(float64 t0, float64 t1)
+float64 helper_fadd_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_add(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-void helper_fcmp_eq_FT(float32 t0, float32 t1)
+void helper_fcmp_eq_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float32_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
-        update_fpscr(GETPC());
+        update_fpscr(env, GETPC());
     } else if (relation == float_relation_equal) {
-	set_t();
+        set_t(env);
     } else {
-	clr_t();
+        clr_t(env);
     }
 }
 
-void helper_fcmp_eq_DT(float64 t0, float64 t1)
+void helper_fcmp_eq_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float64_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
-        update_fpscr(GETPC());
+        update_fpscr(env, GETPC());
     } else if (relation == float_relation_equal) {
-	set_t();
+        set_t(env);
     } else {
-	clr_t();
+        clr_t(env);
     }
 }
 
-void helper_fcmp_gt_FT(float32 t0, float32 t1)
+void helper_fcmp_gt_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float32_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
-        update_fpscr(GETPC());
+        update_fpscr(env, GETPC());
     } else if (relation == float_relation_greater) {
-	set_t();
+        set_t(env);
     } else {
-	clr_t();
+        clr_t(env);
     }
 }
 
-void helper_fcmp_gt_DT(float64 t0, float64 t1)
+void helper_fcmp_gt_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     int relation;
 
     set_float_exception_flags(0, &env->fp_status);
     relation = float64_compare(t0, t1, &env->fp_status);
     if (unlikely(relation == float_relation_unordered)) {
-        update_fpscr(GETPC());
+        update_fpscr(env, GETPC());
     } else if (relation == float_relation_greater) {
-	set_t();
+        set_t(env);
     } else {
-	clr_t();
+        clr_t(env);
     }
 }
 
-float64 helper_fcnvsd_FT_DT(float32 t0)
+float64 helper_fcnvsd_FT_DT(CPUSH4State *env, float32 t0)
 {
     float64 ret;
     set_float_exception_flags(0, &env->fp_status);
     ret = float32_to_float64(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return ret;
 }
 
-float32 helper_fcnvds_DT_FT(float64 t0)
+float32 helper_fcnvds_DT_FT(CPUSH4State *env, float64 t0)
 {
     float32 ret;
     set_float_exception_flags(0, &env->fp_status);
     ret = float64_to_float32(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return ret;
 }
 
-float32 helper_fdiv_FT(float32 t0, float32 t1)
+float32 helper_fdiv_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_div(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float64 helper_fdiv_DT(float64 t0, float64 t1)
+float64 helper_fdiv_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_div(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float32 helper_float_FT(uint32_t t0)
+float32 helper_float_FT(CPUSH4State *env, uint32_t t0)
 {
     float32 ret;
     set_float_exception_flags(0, &env->fp_status);
     ret = int32_to_float32(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return ret;
 }
 
-float64 helper_float_DT(uint32_t t0)
+float64 helper_float_DT(CPUSH4State *env, uint32_t t0)
 {
     float64 ret;
     set_float_exception_flags(0, &env->fp_status);
     ret = int32_to_float64(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return ret;
 }
 
-float32 helper_fmac_FT(float32 t0, float32 t1, float32 t2)
+float32 helper_fmac_FT(CPUSH4State *env, float32 t0, float32 t1, float32 t2)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_mul(t0, t1, &env->fp_status);
     t0 = float32_add(t0, t2, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float32 helper_fmul_FT(float32 t0, float32 t1)
+float32 helper_fmul_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_mul(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float64 helper_fmul_DT(float64 t0, float64 t1)
+float64 helper_fmul_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_mul(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
@@ -654,57 +650,57 @@ float32 helper_fneg_T(float32 t0)
     return float32_chs(t0);
 }
 
-float32 helper_fsqrt_FT(float32 t0)
+float32 helper_fsqrt_FT(CPUSH4State *env, float32 t0)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_sqrt(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float64 helper_fsqrt_DT(float64 t0)
+float64 helper_fsqrt_DT(CPUSH4State *env, float64 t0)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_sqrt(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float32 helper_fsub_FT(float32 t0, float32 t1)
+float32 helper_fsub_FT(CPUSH4State *env, float32 t0, float32 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float32_sub(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-float64 helper_fsub_DT(float64 t0, float64 t1)
+float64 helper_fsub_DT(CPUSH4State *env, float64 t0, float64 t1)
 {
     set_float_exception_flags(0, &env->fp_status);
     t0 = float64_sub(t0, t1, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return t0;
 }
 
-uint32_t helper_ftrc_FT(float32 t0)
+uint32_t helper_ftrc_FT(CPUSH4State *env, float32 t0)
 {
     uint32_t ret;
     set_float_exception_flags(0, &env->fp_status);
     ret = float32_to_int32_round_to_zero(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return ret;
 }
 
-uint32_t helper_ftrc_DT(float64 t0)
+uint32_t helper_ftrc_DT(CPUSH4State *env, float64 t0)
 {
     uint32_t ret;
     set_float_exception_flags(0, &env->fp_status);
     ret = float64_to_int32_round_to_zero(t0, &env->fp_status);
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
     return ret;
 }
 
-void helper_fipr(uint32_t m, uint32_t n)
+void helper_fipr(CPUSH4State *env, uint32_t m, uint32_t n)
 {
     int bank, i;
     float32 r, p;
@@ -719,12 +715,12 @@ void helper_fipr(uint32_t m, uint32_t n)
                         &env->fp_status);
         r = float32_add(r, p, &env->fp_status);
     }
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
 
     env->fregs[bank + n + 3] = r;
 }
 
-void helper_ftrv(uint32_t n)
+void helper_ftrv(CPUSH4State *env, uint32_t n)
 {
     int bank_matrix, bank_vector;
     int i, j;
@@ -743,7 +739,7 @@ void helper_ftrv(uint32_t n)
             r[i] = float32_add(r[i], p, &env->fp_status);
         }
     }
-    update_fpscr(GETPC());
+    update_fpscr(env, GETPC());
 
     for (i = 0 ; i < 4 ; i++) {
         env->fregs[bank_vector + i] = r[i];
