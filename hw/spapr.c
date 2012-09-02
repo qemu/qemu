@@ -840,7 +840,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         spapr->has_graphics = true;
     }
 
-    if (usb_enabled) {
+    if (usb_enabled(spapr->has_graphics)) {
         pci_create_simple(phb->bus, -1, "pci-ohci");
         if (spapr->has_graphics) {
             usbdevice_create("keyboard");
