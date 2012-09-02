@@ -1,6 +1,5 @@
 #include <assert.h>
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 #include "host-utils.h"
 
@@ -18,55 +17,55 @@
 #define SHIFT 3
 #include "softmmu_template.h"
 
-void helper_raise_exception(uint32_t index)
+void helper_raise_exception(CPULM32State *env, uint32_t index)
 {
     env->exception_index = index;
     cpu_loop_exit(env);
 }
 
-void helper_hlt(void)
+void helper_hlt(CPULM32State *env)
 {
     env->halted = 1;
     env->exception_index = EXCP_HLT;
     cpu_loop_exit(env);
 }
 
-void helper_wcsr_im(uint32_t im)
+void helper_wcsr_im(CPULM32State *env, uint32_t im)
 {
     lm32_pic_set_im(env->pic_state, im);
 }
 
-void helper_wcsr_ip(uint32_t im)
+void helper_wcsr_ip(CPULM32State *env, uint32_t im)
 {
     lm32_pic_set_ip(env->pic_state, im);
 }
 
-void helper_wcsr_jtx(uint32_t jtx)
+void helper_wcsr_jtx(CPULM32State *env, uint32_t jtx)
 {
     lm32_juart_set_jtx(env->juart_state, jtx);
 }
 
-void helper_wcsr_jrx(uint32_t jrx)
+void helper_wcsr_jrx(CPULM32State *env, uint32_t jrx)
 {
     lm32_juart_set_jrx(env->juart_state, jrx);
 }
 
-uint32_t helper_rcsr_im(void)
+uint32_t helper_rcsr_im(CPULM32State *env)
 {
     return lm32_pic_get_im(env->pic_state);
 }
 
-uint32_t helper_rcsr_ip(void)
+uint32_t helper_rcsr_ip(CPULM32State *env)
 {
     return lm32_pic_get_ip(env->pic_state);
 }
 
-uint32_t helper_rcsr_jtx(void)
+uint32_t helper_rcsr_jtx(CPULM32State *env)
 {
     return lm32_juart_get_jtx(env->juart_state);
 }
 
-uint32_t helper_rcsr_jrx(void)
+uint32_t helper_rcsr_jrx(CPULM32State *env)
 {
     return lm32_juart_get_jrx(env->juart_state);
 }
@@ -74,16 +73,11 @@ uint32_t helper_rcsr_jrx(void)
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPULM32State *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPULM32State *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     TranslationBlock *tb;
-    CPULM32State *saved_env;
     int ret;
-
-    saved_env = env;
-    env = env1;
 
     ret = cpu_lm32_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
@@ -98,7 +92,6 @@ void tlb_fill(CPULM32State *env1, target_ulong addr, int is_write, int mmu_idx,
         }
         cpu_loop_exit(env);
     }
-    env = saved_env;
 }
 #endif
 

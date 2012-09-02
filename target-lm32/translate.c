@@ -116,7 +116,7 @@ static inline void t_gen_raise_exception(DisasContext *dc, uint32_t index)
 {
     TCGv_i32 tmp = tcg_const_i32(index);
 
-    gen_helper_raise_exception(tmp);
+    gen_helper_raise_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
 }
 
@@ -179,7 +179,7 @@ static void dec_and(DisasContext *dc)
     } else  {
         if (dc->r0 == 0 && dc->r1 == 0 && dc->r2 == 0) {
             tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
-            gen_helper_hlt();
+            gen_helper_hlt(cpu_env);
         } else {
             tcg_gen_and_tl(cpu_R[dc->r2], cpu_R[dc->r0], cpu_R[dc->r1]);
         }
@@ -601,10 +601,10 @@ static void dec_rcsr(DisasContext *dc)
         tcg_gen_mov_tl(cpu_R[dc->r2], cpu_ie);
         break;
     case CSR_IM:
-        gen_helper_rcsr_im(cpu_R[dc->r2]);
+        gen_helper_rcsr_im(cpu_R[dc->r2], cpu_env);
         break;
     case CSR_IP:
-        gen_helper_rcsr_ip(cpu_R[dc->r2]);
+        gen_helper_rcsr_ip(cpu_R[dc->r2], cpu_env);
         break;
     case CSR_CC:
         tcg_gen_mov_tl(cpu_R[dc->r2], cpu_cc);
@@ -622,10 +622,10 @@ static void dec_rcsr(DisasContext *dc)
         tcg_gen_mov_tl(cpu_R[dc->r2], cpu_deba);
         break;
     case CSR_JTX:
-        gen_helper_rcsr_jtx(cpu_R[dc->r2]);
+        gen_helper_rcsr_jtx(cpu_R[dc->r2], cpu_env);
         break;
     case CSR_JRX:
-        gen_helper_rcsr_jrx(cpu_R[dc->r2]);
+        gen_helper_rcsr_jrx(cpu_R[dc->r2], cpu_env);
         break;
     case CSR_ICC:
     case CSR_DCC:
@@ -812,7 +812,7 @@ static void dec_wcsr(DisasContext *dc)
         if (use_icount) {
             gen_io_start();
         }
-        gen_helper_wcsr_im(cpu_R[dc->r1]);
+        gen_helper_wcsr_im(cpu_env, cpu_R[dc->r1]);
         tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
         if (use_icount) {
             gen_io_end();
@@ -824,7 +824,7 @@ static void dec_wcsr(DisasContext *dc)
         if (use_icount) {
             gen_io_start();
         }
-        gen_helper_wcsr_ip(cpu_R[dc->r1]);
+        gen_helper_wcsr_ip(cpu_env, cpu_R[dc->r1]);
         tcg_gen_movi_tl(cpu_pc, dc->pc + 4);
         if (use_icount) {
             gen_io_end();
@@ -844,10 +844,10 @@ static void dec_wcsr(DisasContext *dc)
         tcg_gen_mov_tl(cpu_deba, cpu_R[dc->r1]);
         break;
     case CSR_JTX:
-        gen_helper_wcsr_jtx(cpu_R[dc->r1]);
+        gen_helper_wcsr_jtx(cpu_env, cpu_R[dc->r1]);
         break;
     case CSR_JRX:
-        gen_helper_wcsr_jrx(cpu_R[dc->r1]);
+        gen_helper_wcsr_jrx(cpu_env, cpu_R[dc->r1]);
         break;
     case CSR_DC:
         tcg_gen_mov_tl(cpu_dc, cpu_R[dc->r1]);
@@ -940,15 +940,13 @@ static const DecoderInfo decinfo[] = {
     dec_cmpne
 };
 
-static inline void decode(DisasContext *dc)
+static inline void decode(DisasContext *dc, uint32_t ir)
 {
-    uint32_t ir;
-
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
         tcg_gen_debug_insn_start(dc->pc);
     }
 
-    dc->ir = ir = ldl_code(dc->pc);
+    dc->ir = ir;
     LOG_DIS("%8.8x\t", dc->ir);
 
     /* try guessing 'empty' instruction memory, although it may be a valid
@@ -1068,7 +1066,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
             gen_io_start();
         }
 
-        decode(dc);
+        decode(dc, cpu_ldl_code(env, dc->pc));
         dc->pc += 4;
         num_insns++;
 
