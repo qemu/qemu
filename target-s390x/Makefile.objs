@@ -1,5 +1,7 @@
 obj-y += translate.o op_helper.o helper.o cpu.o interrupt.o
+obj-y += fpu_helper.o
 obj-$(CONFIG_SOFTMMU) += machine.o
 obj-$(CONFIG_KVM) += kvm.o
 
 $(obj)/op_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+$(obj)/fpu_helper.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
