@@ -31,13 +31,13 @@
 #include <linux/kvm.h>
 #endif
 
-#if !defined (CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 #include "sysemu.h"
 #endif
 
 /*****************************************************************************/
 /* Softmmu support */
-#if !defined (CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
@@ -95,7 +95,7 @@ void tlb_fill(CPUS390XState *env1, target_ulong addr, int is_write, int mmu_idx,
 /* raise an exception */
 void HELPER(exception)(uint32_t excp)
 {
-    HELPER_LOG("%s: exception %d\n", __FUNCTION__, excp);
+    HELPER_LOG("%s: exception %d\n", __func__, excp);
     env->exception_index = excp;
     cpu_loop_exit(env);
 }
@@ -164,7 +164,7 @@ uint32_t HELPER(nc)(uint32_t l, uint64_t dest, uint64_t src)
     uint32_t cc = 0;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
-               __FUNCTION__, l, dest, src);
+               __func__, l, dest, src);
     for (i = 0; i <= l; i++) {
         x = ldub(dest + i) & ldub(src + i);
         if (x) {
@@ -183,7 +183,7 @@ uint32_t HELPER(xc)(uint32_t l, uint64_t dest, uint64_t src)
     uint32_t cc = 0;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
-               __FUNCTION__, l, dest, src);
+               __func__, l, dest, src);
 
 #ifndef CONFIG_USER_ONLY
     /* xor with itself is the same as memset(0) */
@@ -217,7 +217,7 @@ uint32_t HELPER(oc)(uint32_t l, uint64_t dest, uint64_t src)
     uint32_t cc = 0;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
-               __FUNCTION__, l, dest, src);
+               __func__, l, dest, src);
     for (i = 0; i <= l; i++) {
         x = ldub(dest + i) | ldub(src + i);
         if (x) {
@@ -236,7 +236,7 @@ void HELPER(mvc)(uint32_t l, uint64_t dest, uint64_t src)
     uint32_t l_64 = (l + 1) / 8;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
-               __FUNCTION__, l, dest, src);
+               __func__, l, dest, src);
 
 #ifndef CONFIG_USER_ONLY
     if ((l > 32) &&
@@ -278,10 +278,11 @@ void HELPER(mvc)(uint32_t l, uint64_t dest, uint64_t src)
 uint32_t HELPER(clc)(uint32_t l, uint64_t s1, uint64_t s2)
 {
     int i;
-    unsigned char x,y;
+    unsigned char x, y;
     uint32_t cc;
+
     HELPER_LOG("%s l %d s1 %" PRIx64 " s2 %" PRIx64 "\n",
-               __FUNCTION__, l, s1, s2);
+               __func__, l, s1, s2);
     for (i = 0; i <= l; i++) {
         x = ldub(s1 + i);
         y = ldub(s2 + i);
@@ -295,7 +296,7 @@ uint32_t HELPER(clc)(uint32_t l, uint64_t s1, uint64_t s2)
         }
     }
     cc = 0;
-done:
+ done:
     HELPER_LOG("\n");
     return cc;
 }
@@ -303,9 +304,10 @@ done:
 /* compare logical under mask */
 uint32_t HELPER(clm)(uint32_t r1, uint32_t mask, uint64_t addr)
 {
-    uint8_t r,d;
+    uint8_t r, d;
     uint32_t cc;
-    HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%" PRIx64 "\n", __FUNCTION__, r1,
+
+    HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%" PRIx64 "\n", __func__, r1,
                mask, addr);
     cc = 0;
     while (mask) {
@@ -313,7 +315,7 @@ uint32_t HELPER(clm)(uint32_t r1, uint32_t mask, uint64_t addr)
             d = ldub(addr);
             r = (r1 & 0xff000000UL) >> 24;
             HELPER_LOG("mask 0x%x %02x/%02x (0x%" PRIx64 ") ", mask, r, d,
-                        addr);
+                       addr);
             if (r < d) {
                 cc = 1;
                 break;
@@ -334,7 +336,8 @@ uint32_t HELPER(clm)(uint32_t r1, uint32_t mask, uint64_t addr)
 void HELPER(stcm)(uint32_t r1, uint32_t mask, uint64_t addr)
 {
     uint8_t r;
-    HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%lx\n", __FUNCTION__, r1, mask,
+
+    HELPER_LOG("%s: r1 0x%x mask 0x%x addr 0x%lx\n", __func__, r1, mask,
                addr);
     while (mask) {
         if (mask & 8) {
@@ -355,6 +358,7 @@ void HELPER(mlg)(uint32_t r1, uint64_t v2)
 #if HOST_LONG_BITS == 64 && defined(__GNUC__)
     /* assuming 64-bit hosts have __uint128_t */
     __uint128_t res = (__uint128_t)env->regs[r1 + 1];
+
     res *= (__uint128_t)v2;
     env->regs[r1] = (uint64_t)(res >> 64);
     env->regs[r1 + 1] = (uint64_t)res;
@@ -370,18 +374,18 @@ void HELPER(dlg)(uint32_t r1, uint64_t v2)
 
     if (!env->regs[r1]) {
         /* 64 -> 64/64 case */
-        env->regs[r1] = env->regs[r1+1] % divisor;
-        env->regs[r1+1] = env->regs[r1+1] / divisor;
+        env->regs[r1] = env->regs[r1 + 1] % divisor;
+        env->regs[r1 + 1] = env->regs[r1 + 1] / divisor;
         return;
     } else {
-
 #if HOST_LONG_BITS == 64 && defined(__GNUC__)
         /* assuming 64-bit hosts have __uint128_t */
         __uint128_t dividend = (((__uint128_t)env->regs[r1]) << 64) |
-                               (env->regs[r1+1]);
+            (env->regs[r1 + 1]);
         __uint128_t quotient = dividend / divisor;
-        env->regs[r1+1] = quotient;
         __uint128_t remainder = dividend % divisor;
+
+        env->regs[r1 + 1] = quotient;
         env->regs[r1] = remainder;
 #else
         /* 32-bit hosts would need special wrapper functionality - just abort if
@@ -431,7 +435,7 @@ uint32_t HELPER(srst)(uint32_t c, uint32_t r1, uint32_t r2)
     uint64_t str = get_address_31fix(r2);
     uint64_t end = get_address_31fix(r1);
 
-    HELPER_LOG("%s: c %d *r1 0x%" PRIx64 " *r2 0x%" PRIx64 "\n", __FUNCTION__,
+    HELPER_LOG("%s: c %d *r1 0x%" PRIx64 " *r2 0x%" PRIx64 "\n", __func__,
                c, env->regs[r1], env->regs[r2]);
 
     for (i = str; i != end; i++) {
@@ -452,11 +456,12 @@ uint32_t HELPER(clst)(uint32_t c, uint32_t r1, uint32_t r2)
     uint64_t s2 = get_address_31fix(r2);
     uint8_t v1, v2;
     uint32_t cc;
+
     c = c & 0xff;
 #ifdef CONFIG_USER_ONLY
     if (!c) {
         HELPER_LOG("%s: comparing '%s' and '%s'\n",
-                   __FUNCTION__, (char*)g2h(s1), (char*)g2h(s2));
+                   __func__, (char *)g2h(s1), (char *)g2h(s2));
     }
 #endif
     for (;;) {
@@ -501,10 +506,11 @@ void HELPER(mvst)(uint32_t c, uint32_t r1, uint32_t r2)
     uint64_t dest = get_address_31fix(r1);
     uint64_t src = get_address_31fix(r2);
     uint8_t v;
+
     c = c & 0xff;
 #ifdef CONFIG_USER_ONLY
     if (!c) {
-        HELPER_LOG("%s: copy '%s' to 0x%lx\n", __FUNCTION__, (char*)g2h(src),
+        HELPER_LOG("%s: copy '%s' to 0x%lx\n", __func__, (char *)g2h(src),
                    dest);
     }
 #endif
@@ -526,6 +532,7 @@ uint32_t HELPER(csg)(uint32_t r1, uint64_t a2, uint32_t r3)
     /* FIXME: locking? */
     uint32_t cc;
     uint64_t v2 = ldq(a2);
+
     if (env->regs[r1] == v2) {
         cc = 0;
         stq(a2, env->regs[r3]);
@@ -564,8 +571,9 @@ uint32_t HELPER(cs)(uint32_t r1, uint64_t a2, uint32_t r3)
 {
     /* FIXME: locking? */
     uint32_t cc;
-    HELPER_LOG("%s: r1 %d a2 0x%lx r3 %d\n", __FUNCTION__, r1, a2, r3);
     uint32_t v2 = ldl(a2);
+
+    HELPER_LOG("%s: r1 %d a2 0x%lx r3 %d\n", __func__, r1, a2, r3);
     if (((uint32_t)env->regs[r1]) == v2) {
         cc = 0;
         stl(a2, (uint32_t)env->regs[r3]);
@@ -612,14 +620,16 @@ static uint32_t helper_icm(uint32_t r1, uint64_t address, uint32_t mask)
    it does not change the program counter
    in other words: tricky...
    currently implemented by interpreting the cases it is most commonly used in
- */
+*/
 uint32_t HELPER(ex)(uint32_t cc, uint64_t v1, uint64_t addr, uint64_t ret)
 {
     uint16_t insn = lduw_code(addr);
-    HELPER_LOG("%s: v1 0x%lx addr 0x%lx insn 0x%x\n", __FUNCTION__, v1, addr,
-             insn);
+
+    HELPER_LOG("%s: v1 0x%lx addr 0x%lx insn 0x%x\n", __func__, v1, addr,
+               insn);
     if ((insn & 0xf0ff) == 0xd000) {
         uint32_t l, insn2, b1, b2, d1, d2;
+
         l = v1 & 0xff;
         insn2 = ldl_code(addr + 2);
         b1 = (insn2 >> 28) & 0xf;
@@ -645,13 +655,14 @@ uint32_t HELPER(ex)(uint32_t cc, uint64_t v1, uint64_t addr, uint64_t ret)
         }
     } else if ((insn & 0xff00) == 0x0a00) {
         /* supervisor call */
-        HELPER_LOG("%s: svc %ld via execute\n", __FUNCTION__, (insn|v1) & 0xff);
+        HELPER_LOG("%s: svc %ld via execute\n", __func__, (insn | v1) & 0xff);
         env->psw.addr = ret - 4;
-        env->int_svc_code = (insn|v1) & 0xff;
+        env->int_svc_code = (insn | v1) & 0xff;
         env->int_svc_ilc = 4;
         helper_exception(EXCP_SVC);
     } else if ((insn & 0xff00) == 0xbf00) {
         uint32_t insn2, r1, r3, b2, d2;
+
         insn2 = ldl_code(addr + 2);
         r1 = (insn2 >> 20) & 0xf;
         r3 = (insn2 >> 16) & 0xf;
@@ -659,7 +670,7 @@ uint32_t HELPER(ex)(uint32_t cc, uint64_t v1, uint64_t addr, uint64_t ret)
         d2 = insn2 & 0xfff;
         cc = helper_icm(r1, get_address(0, b2, d2), r3);
     } else {
-abort:
+    abort:
         cpu_abort(env, "EXECUTE on instruction prefix 0x%x not implemented\n",
                   insn);
     }
@@ -689,7 +700,7 @@ int32_t HELPER(nabs_i32)(int32_t val)
 /* absolute value 64-bit */
 uint64_t HELPER(abs_i64)(int64_t val)
 {
-    HELPER_LOG("%s: val 0x%" PRIx64 "\n", __FUNCTION__, val);
+    HELPER_LOG("%s: val 0x%" PRIx64 "\n", __func__, val);
 
     if (val < 0) {
         return -val;
@@ -774,9 +785,9 @@ void HELPER(ipm)(uint32_t cc, uint32_t r1)
     uint64_t r = env->regs[r1];
 
     r &= 0xffffffff00ffffffULL;
-    r |= (cc << 28) | ( (env->psw.mask >> 40) & 0xf );
+    r |= (cc << 28) | ((env->psw.mask >> 40) & 0xf);
     env->regs[r1] = r;
-    HELPER_LOG("%s: cc %d psw.mask 0x%lx r1 0x%lx\n", __FUNCTION__,
+    HELPER_LOG("%s: cc %d psw.mask 0x%lx r1 0x%lx\n", __func__,
                cc, env->psw.mask, r);
 }
 
@@ -908,7 +919,7 @@ uint32_t HELPER(clcle)(uint32_t r1, uint64_t a2, uint32_t r3)
     uint64_t srclen = env->regs[r3 + 1];
     uint64_t src = get_address_31fix(r3);
     uint8_t pad = a2 & 0xff;
-    uint8_t v1 = 0,v2 = 0;
+    uint8_t v1 = 0, v2 = 0;
     uint32_t cc = 0;
 
     if (!(destlen || srclen)) {
@@ -1036,7 +1047,7 @@ static uint32_t set_cc_nz_f128(float128 v)
 /* convert 32-bit int to 64-bit float */
 void HELPER(cdfbr)(uint32_t f1, int32_t v2)
 {
-    HELPER_LOG("%s: converting %d to f%d\n", __FUNCTION__, v2, f1);
+    HELPER_LOG("%s: converting %d to f%d\n", __func__, v2, f1);
     env->fregs[f1].d = int32_to_float64(v2, &env->fpu_status);
 }
 
@@ -1044,6 +1055,7 @@ void HELPER(cdfbr)(uint32_t f1, int32_t v2)
 void HELPER(cxfbr)(uint32_t f1, int32_t v2)
 {
     CPU_QuadU v1;
+
     v1.q = int32_to_float128(v2, &env->fpu_status);
     env->fregs[f1].ll = v1.ll.upper;
     env->fregs[f1 + 2].ll = v1.ll.lower;
@@ -1052,14 +1064,14 @@ void HELPER(cxfbr)(uint32_t f1, int32_t v2)
 /* convert 64-bit int to 32-bit float */
 void HELPER(cegbr)(uint32_t f1, int64_t v2)
 {
-    HELPER_LOG("%s: converting %ld to f%d\n", __FUNCTION__, v2, f1);
+    HELPER_LOG("%s: converting %ld to f%d\n", __func__, v2, f1);
     env->fregs[f1].l.upper = int64_to_float32(v2, &env->fpu_status);
 }
 
 /* convert 64-bit int to 64-bit float */
 void HELPER(cdgbr)(uint32_t f1, int64_t v2)
 {
-    HELPER_LOG("%s: converting %ld to f%d\n", __FUNCTION__, v2, f1);
+    HELPER_LOG("%s: converting %ld to f%d\n", __func__, v2, f1);
     env->fregs[f1].d = int64_to_float64(v2, &env->fpu_status);
 }
 
@@ -1067,8 +1079,9 @@ void HELPER(cdgbr)(uint32_t f1, int64_t v2)
 void HELPER(cxgbr)(uint32_t f1, int64_t v2)
 {
     CPU_QuadU x1;
+
     x1.q = int64_to_float128(v2, &env->fpu_status);
-    HELPER_LOG("%s: converted %ld to 0x%lx and 0x%lx\n", __FUNCTION__, v2,
+    HELPER_LOG("%s: converted %ld to 0x%lx and 0x%lx\n", __func__, v2,
                x1.ll.upper, x1.ll.lower);
     env->fregs[f1].ll = x1.ll.upper;
     env->fregs[f1 + 2].ll = x1.ll.lower;
@@ -1078,7 +1091,7 @@ void HELPER(cxgbr)(uint32_t f1, int64_t v2)
 void HELPER(cefbr)(uint32_t f1, int32_t v2)
 {
     env->fregs[f1].l.upper = int32_to_float32(v2, &env->fpu_status);
-    HELPER_LOG("%s: converting %d to 0x%d in f%d\n", __FUNCTION__, v2,
+    HELPER_LOG("%s: converting %d to 0x%d in f%d\n", __func__, v2,
                env->fregs[f1].l.upper, f1);
 }
 
@@ -1088,7 +1101,7 @@ uint32_t HELPER(aebr)(uint32_t f1, uint32_t f2)
     env->fregs[f1].l.upper = float32_add(env->fregs[f1].l.upper,
                                          env->fregs[f2].l.upper,
                                          &env->fpu_status);
-    HELPER_LOG("%s: adding 0x%d resulting in 0x%d in f%d\n", __FUNCTION__,
+    HELPER_LOG("%s: adding 0x%d resulting in 0x%d in f%d\n", __func__,
                env->fregs[f2].l.upper, env->fregs[f1].l.upper, f1);
 
     return set_cc_nz_f32(env->fregs[f1].l.upper);
@@ -1099,7 +1112,7 @@ uint32_t HELPER(adbr)(uint32_t f1, uint32_t f2)
 {
     env->fregs[f1].d = float64_add(env->fregs[f1].d, env->fregs[f2].d,
                                    &env->fpu_status);
-    HELPER_LOG("%s: adding 0x%ld resulting in 0x%ld in f%d\n", __FUNCTION__,
+    HELPER_LOG("%s: adding 0x%ld resulting in 0x%ld in f%d\n", __func__,
                env->fregs[f2].d, env->fregs[f1].d, f1);
 
     return set_cc_nz_f64(env->fregs[f1].d);
@@ -1111,7 +1124,7 @@ uint32_t HELPER(sebr)(uint32_t f1, uint32_t f2)
     env->fregs[f1].l.upper = float32_sub(env->fregs[f1].l.upper,
                                          env->fregs[f2].l.upper,
                                          &env->fpu_status);
-    HELPER_LOG("%s: adding 0x%d resulting in 0x%d in f%d\n", __FUNCTION__,
+    HELPER_LOG("%s: adding 0x%d resulting in 0x%d in f%d\n", __func__,
                env->fregs[f2].l.upper, env->fregs[f1].l.upper, f1);
 
     return set_cc_nz_f32(env->fregs[f1].l.upper);
@@ -1123,7 +1136,7 @@ uint32_t HELPER(sdbr)(uint32_t f1, uint32_t f2)
     env->fregs[f1].d = float64_sub(env->fregs[f1].d, env->fregs[f2].d,
                                    &env->fpu_status);
     HELPER_LOG("%s: subtracting 0x%ld resulting in 0x%ld in f%d\n",
-               __FUNCTION__, env->fregs[f2].d, env->fregs[f1].d, f1);
+               __func__, env->fregs[f2].d, env->fregs[f1].d, f1);
 
     return set_cc_nz_f64(env->fregs[f1].d);
 }
@@ -1140,12 +1153,13 @@ void HELPER(debr)(uint32_t f1, uint32_t f2)
 void HELPER(dxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
+    CPU_QuadU v2;
+    CPU_QuadU res;
+
     v1.ll.upper = env->fregs[f1].ll;
     v1.ll.lower = env->fregs[f1 + 2].ll;
-    CPU_QuadU v2;
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
-    CPU_QuadU res;
     res.q = float128_div(v1.q, v2.q, &env->fpu_status);
     env->fregs[f1].ll = res.ll.upper;
     env->fregs[f1 + 2].ll = res.ll.lower;
@@ -1162,12 +1176,13 @@ void HELPER(mdbr)(uint32_t f1, uint32_t f2)
 void HELPER(mxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
+    CPU_QuadU v2;
+    CPU_QuadU res;
+
     v1.ll.upper = env->fregs[f1].ll;
     v1.ll.lower = env->fregs[f1 + 2].ll;
-    CPU_QuadU v2;
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
-    CPU_QuadU res;
     res.q = float128_mul(v1.q, v2.q, &env->fpu_status);
     env->fregs[f1].ll = res.ll.upper;
     env->fregs[f1 + 2].ll = res.ll.lower;
@@ -1184,16 +1199,18 @@ void HELPER(ldebr)(uint32_t r1, uint32_t r2)
 void HELPER(ldxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x2;
+
     x2.ll.upper = env->fregs[f2].ll;
     x2.ll.lower = env->fregs[f2 + 2].ll;
     env->fregs[f1].d = float128_to_float64(x2.q, &env->fpu_status);
-    HELPER_LOG("%s: to 0x%ld\n", __FUNCTION__, env->fregs[f1].d);
+    HELPER_LOG("%s: to 0x%ld\n", __func__, env->fregs[f1].d);
 }
 
 /* convert 64-bit float to 128-bit float */
 void HELPER(lxdbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU res;
+
     res.q = float64_to_float128(env->fregs[f2].d, &env->fpu_status);
     env->fregs[f1].ll = res.ll.upper;
     env->fregs[f1 + 2].ll = res.ll.lower;
@@ -1203,6 +1220,7 @@ void HELPER(lxdbr)(uint32_t f1, uint32_t f2)
 void HELPER(ledbr)(uint32_t f1, uint32_t f2)
 {
     float64 d2 = env->fregs[f2].d;
+
     env->fregs[f1].l.upper = float64_to_float32(d2, &env->fpu_status);
 }
 
@@ -1210,10 +1228,11 @@ void HELPER(ledbr)(uint32_t f1, uint32_t f2)
 void HELPER(lexbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x2;
+
     x2.ll.upper = env->fregs[f2].ll;
     x2.ll.lower = env->fregs[f2 + 2].ll;
     env->fregs[f1].l.upper = float128_to_float32(x2.q, &env->fpu_status);
-    HELPER_LOG("%s: to 0x%d\n", __FUNCTION__, env->fregs[f1].l.upper);
+    HELPER_LOG("%s: to 0x%d\n", __func__, env->fregs[f1].l.upper);
 }
 
 /* absolute value of 32-bit float */
@@ -1221,6 +1240,7 @@ uint32_t HELPER(lpebr)(uint32_t f1, uint32_t f2)
 {
     float32 v1;
     float32 v2 = env->fregs[f2].d;
+
     v1 = float32_abs(v2);
     env->fregs[f1].d = v1;
     return set_cc_nz_f32(v1);
@@ -1231,6 +1251,7 @@ uint32_t HELPER(lpdbr)(uint32_t f1, uint32_t f2)
 {
     float64 v1;
     float64 v2 = env->fregs[f2].d;
+
     v1 = float64_abs(v2);
     env->fregs[f1].d = v1;
     return set_cc_nz_f64(v1);
@@ -1241,6 +1262,7 @@ uint32_t HELPER(lpxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
     CPU_QuadU v2;
+
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
     v1.q = float128_abs(v2.q);
@@ -1267,6 +1289,7 @@ uint32_t HELPER(ltebr)(uint32_t f1, uint32_t f2)
 uint32_t HELPER(ltxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x;
+
     x.ll.upper = env->fregs[f2].ll;
     x.ll.lower = env->fregs[f2 + 2].ll;
     env->fregs[f1].ll = x.ll.upper;
@@ -1294,6 +1317,7 @@ uint32_t HELPER(lcdbr)(uint32_t f1, uint32_t f2)
 uint32_t HELPER(lcxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU x1, x2;
+
     x2.ll.upper = env->fregs[f2].ll;
     x2.ll.lower = env->fregs[f2 + 2].ll;
     x1.q = float128_chs(x2.q);
@@ -1307,8 +1331,9 @@ void HELPER(aeb)(uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
+
     v2.l = val;
-    HELPER_LOG("%s: adding 0x%d from f%d and 0x%d\n", __FUNCTION__,
+    HELPER_LOG("%s: adding 0x%d from f%d and 0x%d\n", __func__,
                v1, f1, v2.f);
     env->fregs[f1].l.upper = float32_add(v1, v2.f, &env->fpu_status);
 }
@@ -1318,8 +1343,9 @@ void HELPER(deb)(uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
+
     v2.l = val;
-    HELPER_LOG("%s: dividing 0x%d from f%d by 0x%d\n", __FUNCTION__,
+    HELPER_LOG("%s: dividing 0x%d from f%d by 0x%d\n", __func__,
                v1, f1, v2.f);
     env->fregs[f1].l.upper = float32_div(v1, v2.f, &env->fpu_status);
 }
@@ -1329,8 +1355,9 @@ void HELPER(meeb)(uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
+
     v2.l = val;
-    HELPER_LOG("%s: multiplying 0x%d from f%d and 0x%d\n", __FUNCTION__,
+    HELPER_LOG("%s: multiplying 0x%d from f%d and 0x%d\n", __func__,
                v1, f1, v2.f);
     env->fregs[f1].l.upper = float32_mul(v1, v2.f, &env->fpu_status);
 }
@@ -1340,7 +1367,8 @@ uint32_t HELPER(cebr)(uint32_t f1, uint32_t f2)
 {
     float32 v1 = env->fregs[f1].l.upper;
     float32 v2 = env->fregs[f2].l.upper;
-    HELPER_LOG("%s: comparing 0x%d from f%d and 0x%d\n", __FUNCTION__,
+
+    HELPER_LOG("%s: comparing 0x%d from f%d and 0x%d\n", __func__,
                v1, f1, v2);
     return set_cc_f32(v1, v2);
 }
@@ -1350,7 +1378,8 @@ uint32_t HELPER(cdbr)(uint32_t f1, uint32_t f2)
 {
     float64 v1 = env->fregs[f1].d;
     float64 v2 = env->fregs[f2].d;
-    HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%ld\n", __FUNCTION__,
+
+    HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%ld\n", __func__,
                v1, f1, v2);
     return set_cc_f64(v1, v2);
 }
@@ -1359,14 +1388,15 @@ uint32_t HELPER(cdbr)(uint32_t f1, uint32_t f2)
 uint32_t HELPER(cxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
+    CPU_QuadU v2;
+
     v1.ll.upper = env->fregs[f1].ll;
     v1.ll.lower = env->fregs[f1 + 2].ll;
-    CPU_QuadU v2;
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
 
     return float_comp_to_cc(float128_compare_quiet(v1.q, v2.q,
-                            &env->fpu_status));
+                                                   &env->fpu_status));
 }
 
 /* 64-bit FP compare RM */
@@ -1374,8 +1404,9 @@ uint32_t HELPER(cdb)(uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
+
     v2.ll = ldq(a2);
-    HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%lx\n", __FUNCTION__, v1,
+    HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%lx\n", __func__, v1,
                f1, v2.d);
     return set_cc_f64(v1, v2.d);
 }
@@ -1385,8 +1416,9 @@ uint32_t HELPER(adb)(uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
+
     v2.ll = ldq(a2);
-    HELPER_LOG("%s: adding 0x%lx from f%d and 0x%lx\n", __FUNCTION__,
+    HELPER_LOG("%s: adding 0x%lx from f%d and 0x%lx\n", __func__,
                v1, f1, v2.d);
     env->fregs[f1].d = v1 = float64_add(v1, v2.d, &env->fpu_status);
     return set_cc_nz_f64(v1);
@@ -1397,6 +1429,7 @@ void HELPER(seb)(uint32_t f1, uint32_t val)
 {
     float32 v1 = env->fregs[f1].l.upper;
     CPU_FloatU v2;
+
     v2.l = val;
     env->fregs[f1].l.upper = float32_sub(v1, v2.f, &env->fpu_status);
 }
@@ -1406,6 +1439,7 @@ uint32_t HELPER(sdb)(uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
+
     v2.ll = ldq(a2);
     env->fregs[f1].d = v1 = float64_sub(v1, v2.d, &env->fpu_status);
     return set_cc_nz_f64(v1);
@@ -1416,8 +1450,9 @@ void HELPER(mdb)(uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
+
     v2.ll = ldq(a2);
-    HELPER_LOG("%s: multiplying 0x%lx from f%d and 0x%ld\n", __FUNCTION__,
+    HELPER_LOG("%s: multiplying 0x%lx from f%d and 0x%ld\n", __func__,
                v1, f1, v2.d);
     env->fregs[f1].d = float64_mul(v1, v2.d, &env->fpu_status);
 }
@@ -1427,8 +1462,9 @@ void HELPER(ddb)(uint32_t f1, uint64_t a2)
 {
     float64 v1 = env->fregs[f1].d;
     CPU_DoubleU v2;
+
     v2.ll = ldq(a2);
-    HELPER_LOG("%s: dividing 0x%lx from f%d by 0x%ld\n", __FUNCTION__,
+    HELPER_LOG("%s: dividing 0x%lx from f%d by 0x%ld\n", __func__,
                v1, f1, v2.d);
     env->fregs[f1].d = float64_div(v1, v2.d, &env->fpu_status);
 }
@@ -1464,6 +1500,7 @@ static void set_round_mode(int m3)
 uint32_t HELPER(cgebr)(uint32_t r1, uint32_t f2, uint32_t m3)
 {
     float32 v2 = env->fregs[f2].l.upper;
+
     set_round_mode(m3);
     env->regs[r1] = float32_to_int64(v2, &env->fpu_status);
     return set_cc_nz_f32(v2);
@@ -1473,6 +1510,7 @@ uint32_t HELPER(cgebr)(uint32_t r1, uint32_t f2, uint32_t m3)
 uint32_t HELPER(cgdbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 {
     float64 v2 = env->fregs[f2].d;
+
     set_round_mode(m3);
     env->regs[r1] = float64_to_int64(v2, &env->fpu_status);
     return set_cc_nz_f64(v2);
@@ -1482,6 +1520,7 @@ uint32_t HELPER(cgdbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 uint32_t HELPER(cgxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 {
     CPU_QuadU v2;
+
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
     set_round_mode(m3);
@@ -1501,9 +1540,10 @@ uint32_t HELPER(cgxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 uint32_t HELPER(cfebr)(uint32_t r1, uint32_t f2, uint32_t m3)
 {
     float32 v2 = env->fregs[f2].l.upper;
+
     set_round_mode(m3);
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
-                     float32_to_int32(v2, &env->fpu_status);
+        float32_to_int32(v2, &env->fpu_status);
     return set_cc_nz_f32(v2);
 }
 
@@ -1511,9 +1551,10 @@ uint32_t HELPER(cfebr)(uint32_t r1, uint32_t f2, uint32_t m3)
 uint32_t HELPER(cfdbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 {
     float64 v2 = env->fregs[f2].d;
+
     set_round_mode(m3);
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
-                     float64_to_int32(v2, &env->fpu_status);
+        float64_to_int32(v2, &env->fpu_status);
     return set_cc_nz_f64(v2);
 }
 
@@ -1521,10 +1562,11 @@ uint32_t HELPER(cfdbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 uint32_t HELPER(cfxbr)(uint32_t r1, uint32_t f2, uint32_t m3)
 {
     CPU_QuadU v2;
+
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
-                     float128_to_int32(v2.q, &env->fpu_status);
+        float128_to_int32(v2.q, &env->fpu_status);
     return set_cc_nz_f128(v2.q);
 }
 
@@ -1544,6 +1586,7 @@ void HELPER(lzdr)(uint32_t f1)
 void HELPER(lzxr)(uint32_t f1)
 {
     CPU_QuadU x;
+
     x.q = float64_to_float128(float64_zero, &env->fpu_status);
     env->fregs[f1].ll = x.ll.upper;
     env->fregs[f1 + 1].ll = x.ll.lower;
@@ -1553,12 +1596,13 @@ void HELPER(lzxr)(uint32_t f1)
 uint32_t HELPER(sxbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
+    CPU_QuadU v2;
+    CPU_QuadU res;
+
     v1.ll.upper = env->fregs[f1].ll;
     v1.ll.lower = env->fregs[f1 + 2].ll;
-    CPU_QuadU v2;
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
-    CPU_QuadU res;
     res.q = float128_sub(v1.q, v2.q, &env->fpu_status);
     env->fregs[f1].ll = res.ll.upper;
     env->fregs[f1 + 2].ll = res.ll.lower;
@@ -1569,12 +1613,13 @@ uint32_t HELPER(sxbr)(uint32_t f1, uint32_t f2)
 uint32_t HELPER(axbr)(uint32_t f1, uint32_t f2)
 {
     CPU_QuadU v1;
+    CPU_QuadU v2;
+    CPU_QuadU res;
+
     v1.ll.upper = env->fregs[f1].ll;
     v1.ll.lower = env->fregs[f1 + 2].ll;
-    CPU_QuadU v2;
     v2.ll.upper = env->fregs[f2].ll;
     v2.ll.lower = env->fregs[f2 + 2].ll;
-    CPU_QuadU res;
     res.q = float128_add(v1.q, v2.q, &env->fpu_status);
     env->fregs[f1].ll = res.ll.upper;
     env->fregs[f1 + 2].ll = res.ll.lower;
@@ -1599,8 +1644,9 @@ void HELPER(ddbr)(uint32_t f1, uint32_t f2)
 /* 64-bit FP multiply and add RM */
 void HELPER(madb)(uint32_t f1, uint64_t a2, uint32_t f3)
 {
-    HELPER_LOG("%s: f1 %d a2 0x%lx f3 %d\n", __FUNCTION__, f1, a2, f3);
     CPU_DoubleU v2;
+
+    HELPER_LOG("%s: f1 %d a2 0x%lx f3 %d\n", __func__, f1, a2, f3);
     v2.ll = ldq(a2);
     env->fregs[f1].d = float64_add(env->fregs[f1].d,
                                    float64_mul(v2.d, env->fregs[f3].d,
@@ -1611,7 +1657,7 @@ void HELPER(madb)(uint32_t f1, uint64_t a2, uint32_t f3)
 /* 64-bit FP multiply and add RR */
 void HELPER(madbr)(uint32_t f1, uint32_t f3, uint32_t f2)
 {
-    HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __FUNCTION__, f1, f2, f3);
+    HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __func__, f1, f2, f3);
     env->fregs[f1].d = float64_add(float64_mul(env->fregs[f2].d,
                                                env->fregs[f3].d,
                                                &env->fpu_status),
@@ -1621,7 +1667,7 @@ void HELPER(madbr)(uint32_t f1, uint32_t f3, uint32_t f2)
 /* 64-bit FP multiply and subtract RR */
 void HELPER(msdbr)(uint32_t f1, uint32_t f3, uint32_t f2)
 {
-    HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __FUNCTION__, f1, f2, f3);
+    HELPER_LOG("%s: f1 %d f2 %d f3 %d\n", __func__, f1, f2, f3);
     env->fregs[f1].d = float64_sub(float64_mul(env->fregs[f2].d,
                                                env->fregs[f3].d,
                                                &env->fpu_status),
@@ -1642,6 +1688,7 @@ void HELPER(maebr)(uint32_t f1, uint32_t f3, uint32_t f2)
 void HELPER(ldeb)(uint32_t f1, uint64_t a2)
 {
     uint32_t v2;
+
     v2 = ldl(a2);
     env->fregs[f1].d = float32_to_float64(v2,
                                           &env->fpu_status);
@@ -1651,8 +1698,9 @@ void HELPER(ldeb)(uint32_t f1, uint64_t a2)
 void HELPER(lxdb)(uint32_t f1, uint64_t a2)
 {
     CPU_DoubleU v2;
-    v2.ll = ldq(a2);
     CPU_QuadU v1;
+
+    v2.ll = ldq(a2);
     v1.q = float64_to_float128(v2.d, &env->fpu_status);
     env->fregs[f1].ll = v1.ll.upper;
     env->fregs[f1 + 2].ll = v1.ll.lower;
@@ -1665,7 +1713,7 @@ uint32_t HELPER(tceb)(uint32_t f1, uint64_t m2)
     int neg = float32_is_neg(v1);
     uint32_t cc = 0;
 
-    HELPER_LOG("%s: v1 0x%lx m2 0x%lx neg %d\n", __FUNCTION__, (long)v1, m2, neg);
+    HELPER_LOG("%s: v1 0x%lx m2 0x%lx neg %d\n", __func__, (long)v1, m2, neg);
     if ((float32_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float32_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float32_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
@@ -1687,7 +1735,7 @@ uint32_t HELPER(tcdb)(uint32_t f1, uint64_t m2)
     int neg = float64_is_neg(v1);
     uint32_t cc = 0;
 
-    HELPER_LOG("%s: v1 0x%lx m2 0x%lx neg %d\n", __FUNCTION__, v1, m2, neg);
+    HELPER_LOG("%s: v1 0x%lx m2 0x%lx neg %d\n", __func__, v1, m2, neg);
     if ((float64_is_zero(v1) && (m2 & (1 << (11-neg)))) ||
         (float64_is_infinity(v1) && (m2 & (1 << (5-neg)))) ||
         (float64_is_any_nan(v1) && (m2 & (1 << (3-neg)))) ||
@@ -1706,10 +1754,12 @@ uint32_t HELPER(tcxb)(uint32_t f1, uint64_t m2)
 {
     CPU_QuadU v1;
     uint32_t cc = 0;
+    int neg;
+
     v1.ll.upper = env->fregs[f1].ll;
     v1.ll.lower = env->fregs[f1 + 2].ll;
 
-    int neg = float128_is_neg(v1.q);
+    neg = float128_is_neg(v1.q);
     if ((float128_is_zero(v1.q) && (m2 & (1 << (11-neg)))) ||
         (float128_is_infinity(v1.q) && (m2 & (1 << (5-neg)))) ||
         (float128_is_any_nan(v1.q) && (m2 & (1 << (3-neg)))) ||
@@ -1787,7 +1837,7 @@ void HELPER(cksm)(uint32_t r1, uint32_t r2)
 
     /* store result */
     env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
-                    ((uint32_t)cksm + (cksm >> 32));
+        ((uint32_t)cksm + (cksm >> 32));
 }
 
 static inline uint32_t cc_calc_ltgt_32(CPUS390XState *env, int32_t src,
@@ -1848,10 +1898,12 @@ static inline uint32_t cc_calc_ltugtu_64(CPUS390XState *env, uint64_t src,
     }
 }
 
-static inline uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val, uint32_t mask)
+static inline uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val,
+                                     uint32_t mask)
 {
-    HELPER_LOG("%s: val 0x%x mask 0x%x\n", __FUNCTION__, val, mask);
     uint16_t r = val & mask;
+
+    HELPER_LOG("%s: val 0x%x mask 0x%x\n", __func__, val, mask);
     if (r == 0 || mask == 0) {
         return 0;
     } else if (r == mask) {
@@ -1862,10 +1914,12 @@ static inline uint32_t cc_calc_tm_32(CPUS390XState *env, uint32_t val, uint32_t 
 }
 
 /* set condition code for test under mask */
-static inline uint32_t cc_calc_tm_64(CPUS390XState *env, uint64_t val, uint32_t mask)
+static inline uint32_t cc_calc_tm_64(CPUS390XState *env, uint64_t val,
+                                     uint32_t mask)
 {
     uint16_t r = val & mask;
-    HELPER_LOG("%s: val 0x%lx mask 0x%x r 0x%x\n", __FUNCTION__, val, mask, r);
+
+    HELPER_LOG("%s: val 0x%lx mask 0x%x r 0x%x\n", __func__, val, mask, r);
     if (r == 0 || mask == 0) {
         return 0;
     } else if (r == mask) {
@@ -1888,8 +1942,8 @@ static inline uint32_t cc_calc_nz(CPUS390XState *env, uint64_t dst)
     return !!dst;
 }
 
-static inline uint32_t cc_calc_add_64(CPUS390XState *env, int64_t a1, int64_t a2,
-                                      int64_t ar)
+static inline uint32_t cc_calc_add_64(CPUS390XState *env, int64_t a1,
+                                      int64_t a2, int64_t ar)
 {
     if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar > 0)) {
         return 3; /* overflow */
@@ -1904,8 +1958,8 @@ static inline uint32_t cc_calc_add_64(CPUS390XState *env, int64_t a1, int64_t a2
     }
 }
 
-static inline uint32_t cc_calc_addu_64(CPUS390XState *env, uint64_t a1, uint64_t a2,
-                                       uint64_t ar)
+static inline uint32_t cc_calc_addu_64(CPUS390XState *env, uint64_t a1,
+                                       uint64_t a2, uint64_t ar)
 {
     if (ar == 0) {
         if (a1) {
@@ -1915,15 +1969,15 @@ static inline uint32_t cc_calc_addu_64(CPUS390XState *env, uint64_t a1, uint64_t
         }
     } else {
         if (ar < a1 || ar < a2) {
-          return 3;
+            return 3;
         } else {
-          return 1;
+            return 1;
         }
     }
 }
 
-static inline uint32_t cc_calc_sub_64(CPUS390XState *env, int64_t a1, int64_t a2,
-                                      int64_t ar)
+static inline uint32_t cc_calc_sub_64(CPUS390XState *env, int64_t a1,
+                                      int64_t a2, int64_t ar)
 {
     if ((a1 > 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
         return 3; /* overflow */
@@ -1938,8 +1992,8 @@ static inline uint32_t cc_calc_sub_64(CPUS390XState *env, int64_t a1, int64_t a2
     }
 }
 
-static inline uint32_t cc_calc_subu_64(CPUS390XState *env, uint64_t a1, uint64_t a2,
-                                       uint64_t ar)
+static inline uint32_t cc_calc_subu_64(CPUS390XState *env, uint64_t a1,
+                                       uint64_t a2, uint64_t ar)
 {
     if (ar == 0) {
         return 2;
@@ -1982,8 +2036,8 @@ static inline uint32_t cc_calc_comp_64(CPUS390XState *env, int64_t dst)
 }
 
 
-static inline uint32_t cc_calc_add_32(CPUS390XState *env, int32_t a1, int32_t a2,
-                                      int32_t ar)
+static inline uint32_t cc_calc_add_32(CPUS390XState *env, int32_t a1,
+                                      int32_t a2, int32_t ar)
 {
     if ((a1 > 0 && a2 > 0 && ar < 0) || (a1 < 0 && a2 < 0 && ar > 0)) {
         return 3; /* overflow */
@@ -1998,26 +2052,26 @@ static inline uint32_t cc_calc_add_32(CPUS390XState *env, int32_t a1, int32_t a2
     }
 }
 
-static inline uint32_t cc_calc_addu_32(CPUS390XState *env, uint32_t a1, uint32_t a2,
-                                       uint32_t ar)
+static inline uint32_t cc_calc_addu_32(CPUS390XState *env, uint32_t a1,
+                                       uint32_t a2, uint32_t ar)
 {
     if (ar == 0) {
         if (a1) {
-          return 2;
+            return 2;
         } else {
-          return 0;
+            return 0;
         }
     } else {
         if (ar < a1 || ar < a2) {
-          return 3;
+            return 3;
         } else {
-          return 1;
+            return 1;
         }
     }
 }
 
-static inline uint32_t cc_calc_sub_32(CPUS390XState *env, int32_t a1, int32_t a2,
-                                      int32_t ar)
+static inline uint32_t cc_calc_sub_32(CPUS390XState *env, int32_t a1,
+                                      int32_t a2, int32_t ar)
 {
     if ((a1 > 0 && a2 < 0 && ar < 0) || (a1 < 0 && a2 > 0 && ar > 0)) {
         return 3; /* overflow */
@@ -2032,8 +2086,8 @@ static inline uint32_t cc_calc_sub_32(CPUS390XState *env, int32_t a1, int32_t a2
     }
 }
 
-static inline uint32_t cc_calc_subu_32(CPUS390XState *env, uint32_t a1, uint32_t a2,
-                                       uint32_t ar)
+static inline uint32_t cc_calc_subu_32(CPUS390XState *env, uint32_t a1,
+                                       uint32_t a2, uint32_t ar)
 {
     if (ar == 0) {
         return 2;
@@ -2076,11 +2130,12 @@ static inline uint32_t cc_calc_comp_32(CPUS390XState *env, int32_t dst)
 }
 
 /* calculate condition code for insert character under mask insn */
-static inline uint32_t cc_calc_icm_32(CPUS390XState *env, uint32_t mask, uint32_t val)
+static inline uint32_t cc_calc_icm_32(CPUS390XState *env, uint32_t mask,
+                                      uint32_t val)
 {
-    HELPER_LOG("%s: mask 0x%x val %d\n", __FUNCTION__, mask, val);
     uint32_t cc;
 
+    HELPER_LOG("%s: mask 0x%x val %d\n", __func__, mask, val);
     if (mask == 0xf) {
         if (!val) {
             return 0;
@@ -2107,7 +2162,8 @@ static inline uint32_t cc_calc_icm_32(CPUS390XState *env, uint32_t mask, uint32_
     return cc;
 }
 
-static inline uint32_t cc_calc_slag(CPUS390XState *env, uint64_t src, uint64_t shift)
+static inline uint32_t cc_calc_slag(CPUS390XState *env, uint64_t src,
+                                    uint64_t shift)
 {
     uint64_t mask = ((1ULL << shift) - 1ULL) << (64 - shift);
     uint64_t match, r;
@@ -2136,8 +2192,8 @@ static inline uint32_t cc_calc_slag(CPUS390XState *env, uint64_t src, uint64_t s
 }
 
 
-static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src,
-                                  uint64_t dst, uint64_t vr)
+static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
+                                  uint64_t src, uint64_t dst, uint64_t vr)
 {
     uint32_t r = 0;
 
@@ -2244,7 +2300,7 @@ static inline uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t s
         cpu_abort(env, "Unknown CC operation: %s\n", cc_name(cc_op));
     }
 
-    HELPER_LOG("%s: %15s 0x%016lx 0x%016lx 0x%016lx = %d\n", __FUNCTION__,
+    HELPER_LOG("%s: %15s 0x%016lx 0x%016lx 0x%016lx = %d\n", __func__,
                cc_name(cc_op), src, dst, vr, r);
     return r;
 }
@@ -2334,6 +2390,7 @@ void HELPER(tr)(uint32_t len, uint64_t array, uint64_t trans)
     for (i = 0; i <= len; i++) {
         uint8_t byte = ldub(array + i);
         uint8_t new_byte = ldub(trans + byte);
+
         stb(array + i, new_byte);
     }
 }
@@ -2363,7 +2420,7 @@ static void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
 }
 
 /*
- * ret < 0 indicates program check, ret = 0,1,2,3 -> cc
+ * ret < 0 indicates program check, ret = 0, 1, 2, 3 -> cc
  */
 int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
 {
@@ -2382,24 +2439,24 @@ int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
         return -PGM_SPECIFICATION;
     }
 
-    switch(code) {
-        case SCLP_CMDW_READ_SCP_INFO:
-        case SCLP_CMDW_READ_SCP_INFO_FORCED:
-            while ((ram_size >> (20 + shift)) > 65535) {
-                shift++;
-            }
-            stw_phys(sccb + SCP_MEM_CODE, ram_size >> (20 + shift));
-            stb_phys(sccb + SCP_INCREMENT, 1 << shift);
-            stw_phys(sccb + SCP_RESPONSE_CODE, 0x10);
+    switch (code) {
+    case SCLP_CMDW_READ_SCP_INFO:
+    case SCLP_CMDW_READ_SCP_INFO_FORCED:
+        while ((ram_size >> (20 + shift)) > 65535) {
+            shift++;
+        }
+        stw_phys(sccb + SCP_MEM_CODE, ram_size >> (20 + shift));
+        stb_phys(sccb + SCP_INCREMENT, 1 << shift);
+        stw_phys(sccb + SCP_RESPONSE_CODE, 0x10);
 
-            s390_sclp_extint(sccb & ~3);
-            break;
-        default:
+        s390_sclp_extint(sccb & ~3);
+        break;
+    default:
 #ifdef DEBUG_HELPER
-            printf("KVM: invalid sclp call 0x%x / 0x%" PRIx64 "x\n", sccb, code);
+        printf("KVM: invalid sclp call 0x%x / 0x%" PRIx64 "x\n", sccb, code);
 #endif
-            r = 3;
-            break;
+        r = 3;
+        break;
     }
 
     return r;
@@ -2479,7 +2536,7 @@ static inline uint64_t clock_value(CPUS390XState *env)
     uint64_t time;
 
     time = env->tod_offset +
-           time2tod(qemu_get_clock_ns(vm_clock) - env->tod_basetime);
+        time2tod(qemu_get_clock_ns(vm_clock) - env->tod_basetime);
 
     return time;
 }
@@ -2502,7 +2559,6 @@ uint32_t HELPER(stcke)(uint64_t a1)
     stq(a1 + 9, 0);
     /* XXX programmable fields */
     stw(a1 + 17, 0);
-
 
     return 0;
 }
@@ -2584,7 +2640,7 @@ uint32_t HELPER(stsi)(uint64_t a0, uint32_t r0, uint32_t r1)
             ebcdic_put(sysib.model, "QEMU            ", 16);
             ebcdic_put(sysib.sequence, "QEMU            ", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
-            cpu_physical_memory_rw(a0, (uint8_t*)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
         } else if ((sel1 == 2) && (sel2 == 1)) {
             /* Basic Machine CPU */
             struct sysib_121 sysib;
@@ -2594,7 +2650,7 @@ uint32_t HELPER(stsi)(uint64_t a0, uint32_t r0, uint32_t r1)
             ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
             ebcdic_put(sysib.plant, "QEMU", 4);
             stw_p(&sysib.cpu_addr, env->cpu_num);
-            cpu_physical_memory_rw(a0, (uint8_t*)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
         } else if ((sel1 == 2) && (sel2 == 2)) {
             /* Basic Machine CPUs */
             struct sysib_122 sysib;
@@ -2606,68 +2662,68 @@ uint32_t HELPER(stsi)(uint64_t a0, uint32_t r0, uint32_t r1)
             stw_p(&sysib.active_cpus, 1);
             stw_p(&sysib.standby_cpus, 0);
             stw_p(&sysib.reserved_cpus, 0);
-            cpu_physical_memory_rw(a0, (uint8_t*)&sysib, sizeof(sysib), 1);
+            cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
         } else {
             cc = 3;
         }
         break;
     case STSI_LEVEL_2:
-    {
-        if ((sel1 == 2) && (sel2 == 1)) {
-            /* LPAR CPU */
-            struct sysib_221 sysib;
+        {
+            if ((sel1 == 2) && (sel2 == 1)) {
+                /* LPAR CPU */
+                struct sysib_221 sysib;
 
-            memset(&sysib, 0, sizeof(sysib));
-            /* XXX make different for different CPUs? */
-            ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
-            ebcdic_put(sysib.plant, "QEMU", 4);
-            stw_p(&sysib.cpu_addr, env->cpu_num);
-            stw_p(&sysib.cpu_id, 0);
-            cpu_physical_memory_rw(a0, (uint8_t*)&sysib, sizeof(sysib), 1);
-        } else if ((sel1 == 2) && (sel2 == 2)) {
-            /* LPAR CPUs */
-            struct sysib_222 sysib;
+                memset(&sysib, 0, sizeof(sysib));
+                /* XXX make different for different CPUs? */
+                ebcdic_put(sysib.sequence, "QEMUQEMUQEMUQEMU", 16);
+                ebcdic_put(sysib.plant, "QEMU", 4);
+                stw_p(&sysib.cpu_addr, env->cpu_num);
+                stw_p(&sysib.cpu_id, 0);
+                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            } else if ((sel1 == 2) && (sel2 == 2)) {
+                /* LPAR CPUs */
+                struct sysib_222 sysib;
 
-            memset(&sysib, 0, sizeof(sysib));
-            stw_p(&sysib.lpar_num, 0);
-            sysib.lcpuc = 0;
-            /* XXX change when SMP comes */
-            stw_p(&sysib.total_cpus, 1);
-            stw_p(&sysib.conf_cpus, 1);
-            stw_p(&sysib.standby_cpus, 0);
-            stw_p(&sysib.reserved_cpus, 0);
-            ebcdic_put(sysib.name, "QEMU    ", 8);
-            stl_p(&sysib.caf, 1000);
-            stw_p(&sysib.dedicated_cpus, 0);
-            stw_p(&sysib.shared_cpus, 0);
-            cpu_physical_memory_rw(a0, (uint8_t*)&sysib, sizeof(sysib), 1);
-        } else {
-            cc = 3;
+                memset(&sysib, 0, sizeof(sysib));
+                stw_p(&sysib.lpar_num, 0);
+                sysib.lcpuc = 0;
+                /* XXX change when SMP comes */
+                stw_p(&sysib.total_cpus, 1);
+                stw_p(&sysib.conf_cpus, 1);
+                stw_p(&sysib.standby_cpus, 0);
+                stw_p(&sysib.reserved_cpus, 0);
+                ebcdic_put(sysib.name, "QEMU    ", 8);
+                stl_p(&sysib.caf, 1000);
+                stw_p(&sysib.dedicated_cpus, 0);
+                stw_p(&sysib.shared_cpus, 0);
+                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            } else {
+                cc = 3;
+            }
+            break;
         }
-        break;
-    }
     case STSI_LEVEL_3:
-    {
-        if ((sel1 == 2) && (sel2 == 2)) {
-            /* VM CPUs */
-            struct sysib_322 sysib;
+        {
+            if ((sel1 == 2) && (sel2 == 2)) {
+                /* VM CPUs */
+                struct sysib_322 sysib;
 
-            memset(&sysib, 0, sizeof(sysib));
-            sysib.count = 1;
-            /* XXX change when SMP comes */
-            stw_p(&sysib.vm[0].total_cpus, 1);
-            stw_p(&sysib.vm[0].conf_cpus, 1);
-            stw_p(&sysib.vm[0].standby_cpus, 0);
-            stw_p(&sysib.vm[0].reserved_cpus, 0);
-            ebcdic_put(sysib.vm[0].name, "KVMguest", 8);
-            stl_p(&sysib.vm[0].caf, 1000);
-            ebcdic_put(sysib.vm[0].cpi, "KVM/Linux       ", 16);
-            cpu_physical_memory_rw(a0, (uint8_t*)&sysib, sizeof(sysib), 1);
-        } else {
-            cc = 3;
+                memset(&sysib, 0, sizeof(sysib));
+                sysib.count = 1;
+                /* XXX change when SMP comes */
+                stw_p(&sysib.vm[0].total_cpus, 1);
+                stw_p(&sysib.vm[0].conf_cpus, 1);
+                stw_p(&sysib.vm[0].standby_cpus, 0);
+                stw_p(&sysib.vm[0].reserved_cpus, 0);
+                ebcdic_put(sysib.vm[0].name, "KVMguest", 8);
+                stl_p(&sysib.vm[0].caf, 1000);
+                ebcdic_put(sysib.vm[0].cpi, "KVM/Linux       ", 16);
+                cpu_physical_memory_rw(a0, (uint8_t *)&sysib, sizeof(sysib), 1);
+            } else {
+                cc = 3;
+            }
+            break;
         }
-        break;
-    }
     case STSI_LEVEL_CURRENT:
         env->regs[0] = STSI_LEVEL_3;
         break;
@@ -2781,6 +2837,7 @@ uint32_t HELPER(rrbe)(uint32_t r1, uint64_t r2)
 {
     uint8_t re;
     uint8_t key;
+
     if (r2 > ram_size) {
         return 0;
     }
@@ -2865,7 +2922,7 @@ static uint32_t mvc_asc(int64_t l, uint64_t a1, uint64_t mode1, uint64_t a2,
 uint32_t HELPER(mvcs)(uint64_t l, uint64_t a1, uint64_t a2)
 {
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
-               __FUNCTION__, l, a1, a2);
+               __func__, l, a1, a2);
 
     return mvc_asc(l, a1, PSW_ASC_SECONDARY, a2, PSW_ASC_PRIMARY);
 }
@@ -2873,7 +2930,7 @@ uint32_t HELPER(mvcs)(uint64_t l, uint64_t a1, uint64_t a2)
 uint32_t HELPER(mvcp)(uint64_t l, uint64_t a1, uint64_t a2)
 {
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
-               __FUNCTION__, l, a1, a2);
+               __func__, l, a1, a2);
 
     return mvc_asc(l, a1, PSW_ASC_PRIMARY, a2, PSW_ASC_SECONDARY);
 }
@@ -2883,9 +2940,9 @@ uint32_t HELPER(sigp)(uint64_t order_code, uint32_t r1, uint64_t cpu_addr)
     int cc = 0;
 
     HELPER_LOG("%s: %016" PRIx64 " %08x %016" PRIx64 "\n",
-               __FUNCTION__, order_code, r1, cpu_addr);
+               __func__, order_code, r1, cpu_addr);
 
-    /* Remember: Use "R1 or R1+1, whichever is the odd-numbered register"
+    /* Remember: Use "R1 or R1 + 1, whichever is the odd-numbered register"
        as parameter (input). Status (output) is always R1. */
 
     switch (order_code) {
@@ -2901,7 +2958,7 @@ uint32_t HELPER(sigp)(uint64_t order_code, uint32_t r1, uint64_t cpu_addr)
         env->regs[r1] &= 0xffffffff00000000ULL;
         cc = 1;
         break;
-#if !defined (CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
     case SIGP_RESTART:
         qemu_system_reset_request();
         cpu_loop_exit(env);
@@ -2922,7 +2979,7 @@ uint32_t HELPER(sigp)(uint64_t order_code, uint32_t r1, uint64_t cpu_addr)
 
 void HELPER(sacf)(uint64_t a1)
 {
-    HELPER_LOG("%s: %16" PRIx64 "\n", __FUNCTION__, a1);
+    HELPER_LOG("%s: %16" PRIx64 "\n", __func__, a1);
 
     switch (a1 & 0xf00) {
     case 0x000:
@@ -2953,13 +3010,13 @@ void HELPER(ipte)(uint64_t pte_addr, uint64_t vaddr)
     /* XXX broadcast to other CPUs */
 
     /* XXX Linux is nice enough to give us the exact pte address.
-           According to spec we'd have to find it out ourselves */
+       According to spec we'd have to find it out ourselves */
     /* XXX Linux is fine with overwriting the pte, the spec requires
-           us to only set the invalid bit */
+       us to only set the invalid bit */
     stq_phys(pte_addr, pte | _PAGE_INVALID);
 
     /* XXX we exploit the fact that Linux passes the exact virtual
-           address here - it's not obliged to! */
+       address here - it's not obliged to! */
     tlb_flush_page(env, page);
 
     /* XXX 31-bit hack */
@@ -3008,7 +3065,8 @@ uint32_t HELPER(lra)(uint64_t addr, uint32_t r1)
     env->exception_index = old_exc;
 
     if (!(env->psw.mask & PSW_MASK_64)) {
-        env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) | (ret & 0xffffffffULL);
+        env->regs[r1] = (env->regs[r1] & 0xffffffff00000000ULL) |
+            (ret & 0xffffffffULL);
     } else {
         env->regs[r1] = ret;
     }
