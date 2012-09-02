@@ -21,8 +21,7 @@
 #include "cpu.h"
 #include "helper.h"
 
-/* temporarily disabled due to wrapper use */
-#if 0 && !defined(CONFIG_USER_ONLY)
+#if !defined(CONFIG_USER_ONLY)
 #include "softmmu_exec.h"
 #endif
 

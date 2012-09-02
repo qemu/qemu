@@ -499,14 +499,14 @@ static void do_program_interrupt(CPUS390XState *env)
 
     switch (ilc) {
     case ILC_LATER:
-        ilc = get_ilc(ldub_code(env->psw.addr));
+        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr));
         break;
     case ILC_LATER_INC:
-        ilc = get_ilc(ldub_code(env->psw.addr));
+        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr));
         env->psw.addr += ilc * 2;
         break;
     case ILC_LATER_INC_2:
-        ilc = get_ilc(ldub_code(env->psw.addr)) * 2;
+        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr)) * 2;
         env->psw.addr += ilc;
         break;
     }

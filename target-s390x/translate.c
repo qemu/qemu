@@ -276,19 +276,19 @@ static inline void potential_page_fault(DisasContext *s)
 
 static inline uint64_t ld_code2(uint64_t pc)
 {
-    return (uint64_t)lduw_code(pc);
+    return (uint64_t)cpu_lduw_code(cpu_single_env, pc);
 }
 
 static inline uint64_t ld_code4(uint64_t pc)
 {
-    return (uint64_t)ldl_code(pc);
+    return (uint64_t)cpu_ldl_code(cpu_single_env, pc);
 }
 
 static inline uint64_t ld_code6(uint64_t pc)
 {
     uint64_t opc;
-    opc = (uint64_t)lduw_code(pc) << 32;
-    opc |= (uint64_t)(uint32_t)ldl_code(pc+2);
+    opc = (uint64_t)cpu_lduw_code(cpu_single_env, pc) << 32;
+    opc |= (uint64_t)(uint32_t)cpu_ldl_code(cpu_single_env, pc + 2);
     return opc;
 }
 
@@ -1263,7 +1263,7 @@ static void gen_op_mvc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
         /* Fall back to helper */
         vl = tcg_const_i32(l);
         potential_page_fault(s);
-        gen_helper_mvc(vl, s1, s2);
+        gen_helper_mvc(cpu_env, vl, s1, s2);
         tcg_temp_free_i32(vl);
         return;
     }
@@ -1455,7 +1455,7 @@ static void gen_op_clc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
 
     potential_page_fault(s);
     vl = tcg_const_i32(l);
-    gen_helper_clc(cc_op, vl, s1, s2);
+    gen_helper_clc(cc_op, cpu_env, vl, s1, s2);
     tcg_temp_free_i32(vl);
     set_cc_static(s);
 }
@@ -2094,7 +2094,7 @@ do_mh:
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_stcmh(tmp32_1, tmp, tmp32_2);
+        gen_helper_stcmh(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -2107,7 +2107,7 @@ do_mh:
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_lctlg(tmp32_1, tmp, tmp32_2);
+        gen_helper_lctlg(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -2119,7 +2119,7 @@ do_mh:
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_stctg(tmp32_1, tmp, tmp32_2);
+        gen_helper_stctg(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -2131,7 +2131,7 @@ do_mh:
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
         /* XXX rewrite in tcg */
-        gen_helper_csg(cc_op, tmp32_1, tmp, tmp32_2);
+        gen_helper_csg(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -2143,7 +2143,7 @@ do_mh:
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
         /* XXX rewrite in tcg */
-        gen_helper_cdsg(cc_op, tmp32_1, tmp, tmp32_2);
+        gen_helper_cdsg(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -2183,7 +2183,7 @@ do_mh:
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
         /* XXX split CC calculation out */
-        gen_helper_icmh(cc_op, tmp32_1, tmp, tmp32_2);
+        gen_helper_icmh(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -2635,7 +2635,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
         potential_page_fault(s);
-        gen_helper_cksm(tmp32_1, tmp32_2);
+        gen_helper_cksm(cpu_env, tmp32_1, tmp32_2);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
         gen_op_movi_cc(s, 0);
@@ -2664,7 +2664,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp2 = load_reg(r1);
         tmp3 = load_reg(r2);
         potential_page_fault(s);
-        gen_helper_mvpg(tmp, tmp2, tmp3);
+        gen_helper_mvpg(cpu_env, tmp, tmp2, tmp3);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
@@ -2676,7 +2676,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_2 = tcg_const_i32(r1);
         tmp32_3 = tcg_const_i32(r2);
         potential_page_fault(s);
-        gen_helper_mvst(tmp32_1, tmp32_2, tmp32_3);
+        gen_helper_mvst(cpu_env, tmp32_1, tmp32_2, tmp32_3);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
         tcg_temp_free_i32(tmp32_3);
@@ -2687,7 +2687,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_2 = tcg_const_i32(r1);
         tmp32_3 = tcg_const_i32(r2);
         potential_page_fault(s);
-        gen_helper_clst(cc_op, tmp32_1, tmp32_2, tmp32_3);
+        gen_helper_clst(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -2698,7 +2698,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_2 = tcg_const_i32(r1);
         tmp32_3 = tcg_const_i32(r2);
         potential_page_fault(s);
-        gen_helper_srst(cc_op, tmp32_1, tmp32_2, tmp32_3);
+        gen_helper_srst(cc_op, cpu_env, tmp32_1, tmp32_2, tmp32_3);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -2785,7 +2785,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
     case 0x0d: /* PTLB                [S] */
         /* Purge TLB */
         check_privileged(s, ilc);
-        gen_helper_ptlb();
+        gen_helper_ptlb(cpu_env);
         break;
     case 0x10: /* SPX      D2(B2)     [S] */
         /* Set Prefix Register */
@@ -2828,7 +2828,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         r2 = insn & 0xf;
         tmp = load_reg(r1);
         tmp2 = load_reg(r2);
-        gen_helper_ipte(tmp, tmp2);
+        gen_helper_ipte(cpu_env, tmp, tmp2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         break;
@@ -2839,7 +2839,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         r2 = insn & 0xf;
         tmp = load_reg(r2);
         tmp2 = tcg_temp_new_i64();
-        gen_helper_iske(tmp2, tmp);
+        gen_helper_iske(tmp2, cpu_env, tmp);
         store_reg(r1, tmp2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
@@ -2851,7 +2851,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         r2 = insn & 0xf;
         tmp32_1 = load_reg32(r1);
         tmp = load_reg(r2);
-        gen_helper_rrbe(cc_op, tmp32_1, tmp);
+        gen_helper_rrbe(cc_op, cpu_env, tmp32_1, tmp);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
@@ -2863,7 +2863,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         r2 = insn & 0xf;
         tmp32_1 = load_reg32(r1);
         tmp = load_reg(r2);
-        gen_helper_sske(tmp32_1, tmp);
+        gen_helper_sske(cpu_env, tmp32_1, tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
         break;
@@ -2880,7 +2880,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_1 = load_reg32(r1);
         tmp = load_reg(r2);
         potential_page_fault(s);
-        gen_helper_stura(tmp, tmp32_1);
+        gen_helper_stura(cpu_env, tmp, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
         break;
@@ -2891,7 +2891,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         r2 = insn & 0xf;
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
-        gen_helper_csp(cc_op, tmp32_1, tmp32_2);
+        gen_helper_csp(cc_op, cpu_env, tmp32_1, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -3865,7 +3865,7 @@ static void disas_s390_insn(DisasContext *s)
     int ilc;
     int l1;
 
-    opc = ldub_code(s->pc);
+    opc = cpu_ldub_code(cpu_single_env, s->pc);
     LOG_DISAS("opc 0x%x\n", opc);
 
     ilc = get_ilc(opc);
@@ -3951,7 +3951,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
         potential_page_fault(s);
-        gen_helper_mvcl(cc_op, tmp32_1, tmp32_2);
+        gen_helper_mvcl(cc_op, cpu_env, tmp32_1, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4165,7 +4165,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp3 = tcg_const_i64(s->pc + 4);
         update_psw_addr(s);
         gen_op_calc_cc(s);
-        gen_helper_ex(cc_op, cc_op, tmp2, tmp, tmp3);
+        gen_helper_ex(cc_op, cpu_env, cc_op, tmp2, tmp, tmp3);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
@@ -4694,7 +4694,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_lam(tmp32_1, tmp, tmp32_2);
+        gen_helper_lam(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4706,7 +4706,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_stam(tmp32_1, tmp, tmp32_2);
+        gen_helper_stam(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4732,7 +4732,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_mvcle(cc_op, tmp32_1, tmp, tmp32_2);
+        gen_helper_mvcle(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -4745,7 +4745,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_clcle(cc_op, tmp32_1, tmp, tmp32_2);
+        gen_helper_clcle(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -4789,7 +4789,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp32_1 = tcg_const_i32(r1);
         potential_page_fault(s);
-        gen_helper_lra(cc_op, tmp, tmp32_1);
+        gen_helper_lra(cc_op, cpu_env, tmp, tmp32_1);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -4835,7 +4835,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_stctl(tmp32_1, tmp, tmp32_2);
+        gen_helper_stctl(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4849,7 +4849,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_lctl(tmp32_1, tmp, tmp32_2);
+        gen_helper_lctl(cpu_env, tmp32_1, tmp, tmp32_2);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4869,7 +4869,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_cs(cc_op, tmp32_1, tmp, tmp32_2);
+        gen_helper_cs(cc_op, cpu_env, tmp32_1, tmp, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -4882,7 +4882,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = load_reg32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_clm(cc_op, tmp32_1, tmp32_2, tmp);
+        gen_helper_clm(cc_op, cpu_env, tmp32_1, tmp32_2, tmp);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -4895,7 +4895,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = load_reg32(r1);
         tmp32_2 = tcg_const_i32(r3);
         potential_page_fault(s);
-        gen_helper_stcm(tmp32_1, tmp32_2, tmp);
+        gen_helper_stcm(cpu_env, tmp32_1, tmp32_2, tmp);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4992,7 +4992,7 @@ static void disas_s390_insn(DisasContext *s)
             break;
         case 0xd4:
             potential_page_fault(s);
-            gen_helper_nc(cc_op, vl, tmp, tmp2);
+            gen_helper_nc(cc_op, cpu_env, vl, tmp, tmp2);
             set_cc_static(s);
             break;
         case 0xd5:
@@ -5000,22 +5000,22 @@ static void disas_s390_insn(DisasContext *s)
             break;
         case 0xd6:
             potential_page_fault(s);
-            gen_helper_oc(cc_op, vl, tmp, tmp2);
+            gen_helper_oc(cc_op, cpu_env, vl, tmp, tmp2);
             set_cc_static(s);
             break;
         case 0xd7:
             potential_page_fault(s);
-            gen_helper_xc(cc_op, vl, tmp, tmp2);
+            gen_helper_xc(cc_op, cpu_env, vl, tmp, tmp2);
             set_cc_static(s);
             break;
         case 0xdc:
             potential_page_fault(s);
-            gen_helper_tr(vl, tmp, tmp2);
+            gen_helper_tr(cpu_env, vl, tmp, tmp2);
             set_cc_static(s);
             break;
         case 0xf3:
             potential_page_fault(s);
-            gen_helper_unpk(vl, tmp, tmp2);
+            gen_helper_unpk(cpu_env, vl, tmp, tmp2);
             break;
         default:
             tcg_abort();
@@ -5040,9 +5040,9 @@ static void disas_s390_insn(DisasContext *s)
         tmp2 = get_address(s, 0, b1, d1);
         tmp3 = get_address(s, 0, b2, d2);
         if (opc == 0xda) {
-            gen_helper_mvcp(cc_op, tmp, tmp2, tmp3);
+            gen_helper_mvcp(cc_op, cpu_env, tmp, tmp2, tmp3);
         } else {
-            gen_helper_mvcs(cc_op, tmp, tmp2, tmp3);
+            gen_helper_mvcs(cc_op, cpu_env, tmp, tmp2, tmp3);
         }
         set_cc_static(s);
         tcg_temp_free_i64(tmp);

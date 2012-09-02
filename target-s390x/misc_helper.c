@@ -31,10 +31,7 @@
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-/* temporarily disabled due to wrapper use */
-#if 0
 #include "softmmu_exec.h"
-#endif
 #include "sysemu.h"
 #endif
 
