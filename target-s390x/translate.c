@@ -312,7 +312,7 @@ static inline void gen_debug(DisasContext *s)
     TCGv_i32 tmp = tcg_const_i32(EXCP_DEBUG);
     update_psw_addr(s);
     gen_op_calc_cc(s);
-    gen_helper_exception(tmp);
+    gen_helper_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     s->is_jmp = DISAS_EXCP;
 }
@@ -324,7 +324,7 @@ static void gen_illegal_opcode(DisasContext *s, int ilc)
     TCGv_i32 tmp = tcg_const_i32(EXCP_SPEC);
     update_psw_addr(s);
     gen_op_calc_cc(s);
-    gen_helper_exception(tmp);
+    gen_helper_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
     s->is_jmp = DISAS_EXCP;
 }
@@ -377,7 +377,7 @@ static void gen_program_exception(DisasContext *s, int ilc, int code)
 
     /* trigger exception */
     tmp = tcg_const_i32(EXCP_PGM);
-    gen_helper_exception(tmp);
+    gen_helper_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
 
     /* end TB here */
@@ -2712,7 +2712,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_stidp(tmp);
+        gen_helper_stidp(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x04: /* SCK       D2(B2)     [S] */
@@ -2730,7 +2730,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_stck(cc_op, tmp);
+        gen_helper_stck(cc_op, cpu_env, tmp);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         break;
@@ -2740,7 +2740,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_sckc(tmp);
+        gen_helper_sckc(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x07: /* STCKC    D2(B2)     [S] */
@@ -2749,7 +2749,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_stckc(tmp);
+        gen_helper_stckc(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x08: /* SPT      D2(B2)     [S] */
@@ -2758,7 +2758,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_spt(tmp);
+        gen_helper_spt(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x09: /* STPT     D2(B2)     [S] */
@@ -2767,7 +2767,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_stpt(tmp);
+        gen_helper_stpt(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x0a: /* SPKA     D2(B2)     [S] */
@@ -2793,7 +2793,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_spx(tmp);
+        gen_helper_spx(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x11: /* STPX     D2(B2)     [S] */
@@ -2906,7 +2906,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_stcke(cc_op, tmp);
+        gen_helper_stcke(cc_op, cpu_env, tmp);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         break;
@@ -2930,7 +2930,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_1 = load_reg32(0);
         tmp32_2 = load_reg32(1);
         potential_page_fault(s);
-        gen_helper_stsi(cc_op, tmp, tmp32_1, tmp32_2);
+        gen_helper_stsi(cc_op, cpu_env, tmp, tmp32_1, tmp32_2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i32(tmp32_1);
@@ -2980,7 +2980,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         potential_page_fault(s);
         tmp32_1 = load_reg32(r2);
         tmp = load_reg(r1);
-        gen_helper_servc(cc_op, tmp32_1, tmp);
+        gen_helper_servc(cc_op, cpu_env, tmp32_1, tmp);
         set_cc_static(s);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp);
@@ -3926,7 +3926,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_3 = tcg_const_i32(EXCP_SVC);
         tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, int_svc_code));
         tcg_gen_st_i32(tmp32_2, cpu_env, offsetof(CPUS390XState, int_svc_ilc));
-        gen_helper_exception(tmp32_3);
+        gen_helper_exception(cpu_env, tmp32_3);
         s->is_jmp = DISAS_EXCP;
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i32(tmp32_2);
@@ -4543,7 +4543,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(insn & 0xfff);
         tmp2 = load_reg(2);
         tmp3 = load_reg(1);
-        gen_helper_diag(tmp2, tmp32_1, tmp2, tmp3);
+        gen_helper_diag(tmp2, cpu_env, tmp32_1, tmp2, tmp3);
         store_reg(2, tmp2);
         tcg_temp_free_i32(tmp32_1);
         tcg_temp_free_i64(tmp2);
@@ -4777,7 +4777,7 @@ static void disas_s390_insn(DisasContext *s)
         tmp2 = load_reg(r3);
         tmp32_1 = tcg_const_i32(r1);
         potential_page_fault(s);
-        gen_helper_sigp(cc_op, tmp, tmp32_1, tmp2);
+        gen_helper_sigp(cc_op, cpu_env, tmp, tmp32_1, tmp2);
         set_cc_static(s);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
