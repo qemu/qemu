@@ -2547,12 +2547,16 @@ sub process {
 					$line !~ /\#\s*else/) {
 			my $allowed = 0;
 
-			# Check the pre-context.
-			if (substr($line, 0, $-[0]) =~ /(\}\s*)$/) {
-                            print "APW: ALLOWED: pre<$pre> line<$line>\n"
-                                if $dbg_adv_apw;
-                            $allowed = 1;
-			}
+                        # Check the pre-context.
+                        if (substr($line, 0, $-[0]) =~ /(\}\s*)$/) {
+                            my $pre = $1;
+
+                            if ($line !~ /else/) {
+                                print "APW: ALLOWED: pre<$pre> line<$line>\n"
+                                    if $dbg_adv_apw;
+                                $allowed = 1;
+                            }
+                        }
 
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, $-[0]);
