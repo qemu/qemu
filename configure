@@ -3829,7 +3829,7 @@ symlink "$source_path/Makefile.target" "$target_dir/Makefile"
 
 
 case "$target_arch2" in
-  alpha | arm* | i386 | lm32 | m68k | or32 | s390x | sparc* | unicore32 | x86_64 | xtensa* | ppc*)
+  alpha | arm* | i386 | lm32 | m68k | microblaze* | or32 | s390x | sparc* | unicore32 | x86_64 | xtensa* | ppc*)
     echo "CONFIG_TCG_PASS_AREG0=y" >> $config_target_mak
   ;;
 esac
