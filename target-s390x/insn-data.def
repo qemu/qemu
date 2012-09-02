@@ -484,6 +484,7 @@
     C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
 /* LOAD CONTROL */
     C(0xb700, LCTL,    RS_a,  Z,   0, a2, 0, 0, lctl, 0)
+    C(0xeb2f, LCTLG,   RSY_a, Z,   0, a2, 0, 0, lctlg, 0)
 /* LOAD PSW */
     C(0x8200, LPSW,    S,     Z,   0, a2, 0, 0, lpsw, 0)
 /* LOAD REAL ADDRESS */
@@ -504,6 +505,7 @@
     C(0xae00, SIGP,    RS_a,  Z,   r3_o, a2, 0, 0, sigp, 0)
 /* STORE CONTROL */
     C(0xb600, STCTL,   RS_a,  Z,   0, a2, 0, 0, stctl, 0)
+    C(0xeb25, STCTG,   RSY_a, Z,   0, a2, 0, 0, stctg, 0)
 /* STORE THEN AND SYSTEM MASK */
     C(0xac00, STNSM,   SI,    Z,   la1, 0, 0, 0, stnosm, 0)
 /* STORE THEN OR SYSTEM MASK */

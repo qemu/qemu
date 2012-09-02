@@ -1073,48 +1073,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
     tcg_temp_free_i64(addr);
 }
 
-static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
-                     int r3, int b2, int d2)
-{
-    TCGv_i64 tmp;
-    TCGv_i32 tmp32_1, tmp32_2;
-
-    LOG_DISAS("disas_eb: op 0x%x r1 %d r3 %d b2 %d d2 0x%x\n",
-              op, r1, r3, b2, d2);
-    switch (op) {
-#ifndef CONFIG_USER_ONLY
-    case 0x2f: /* LCTLG     R1,R3,D2(B2)     [RSE] */
-        /* Load Control */
-        check_privileged(s);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_lctlg(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x25: /* STCTG     R1,R3,D2(B2)     [RSE] */
-        /* Store Control */
-        check_privileged(s);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_stctg(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-#endif
-    default:
-        LOG_DISAS("illegal eb operation 0x%x\n", op);
-        gen_illegal_opcode(s);
-        break;
-    }
-}
-
 static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
                      int x2, int b2, int d2, int r1b)
 {
@@ -1968,17 +1926,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
            | ((insn << 4) & 0xff000)) << 12)) >> 12;
         disas_e3(env, s, op,  r1, x2, b2, d2 );
         break;
-    case 0xeb:
-        insn = ld_code6(env, s->pc);
-        debug_insn(insn);
-        op = insn & 0xff;
-        r1 = (insn >> 36) & 0xf;
-        r3 = (insn >> 32) & 0xf;
-        b2 = (insn >> 28) & 0xf;
-        d2 = ((int)((((insn >> 16) & 0xfff)
-           | ((insn << 4) & 0xff000)) << 12)) >> 12;
-        disas_eb(env, s, op, r1, r3, b2, d2);
-        break;
     case 0xed:
         insn = ld_code6(env, s->pc);
         debug_insn(insn);
@@ -2819,6 +2766,17 @@ static ExitStatus op_lctl(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_lctlg(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_lctlg(cpu_env, r1, o->in2, r3);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
+    return NO_EXIT;
+}
 static ExitStatus op_lra(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
@@ -3135,6 +3093,18 @@ static ExitStatus op_ssm(DisasContext *s, DisasOps *o)
 {
     check_privileged(s);
     tcg_gen_deposit_i64(psw_mask, psw_mask, o->in2, 56, 8);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stctg(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    check_privileged(s);
+    potential_page_fault(s);
+    gen_helper_stctg(cpu_env, r1, o->in2, r3);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
     return NO_EXIT;
 }
 
