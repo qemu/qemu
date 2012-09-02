@@ -125,7 +125,6 @@ typedef enum {
 #define TCG_TARGET_HAS_deposit_i64      0
 #endif
 
-/* Note: must be synced with dyngen-exec.h */
 #ifdef CONFIG_SOLARIS
 #define TCG_AREG0 TCG_REG_G2
 #elif defined(__sparc_v9__)

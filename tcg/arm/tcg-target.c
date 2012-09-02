@@ -176,7 +176,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
            so don't use these. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#if defined(CONFIG_TCG_PASS_AREG0) && (TARGET_LONG_BITS == 64)
+#if TARGET_LONG_BITS == 64
         /* If we're passing env to the helper as r0 and need a regpair
          * for the address then r2 will be overwritten as we're setting
          * up the args to the helper.
@@ -204,8 +204,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
            use these. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R1);
-#if defined(CONFIG_SOFTMMU) && \
-    defined(CONFIG_TCG_PASS_AREG0) && (TARGET_LONG_BITS == 64)
+#if defined(CONFIG_SOFTMMU) && (TARGET_LONG_BITS == 64)
         /* Avoid clashes with registers being used for helper args */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
@@ -223,7 +222,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 #ifdef CONFIG_SOFTMMU
         /* r2 is still needed to load data_reg, so don't use it. */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R2);
-#if defined(CONFIG_TCG_PASS_AREG0) && (TARGET_LONG_BITS == 64)
+#if TARGET_LONG_BITS == 64
         /* Avoid clashes with registers being used for helper args */
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_R3);
 #endif
@@ -954,7 +953,6 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
 
 #include "../../softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -972,25 +970,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 
 /* Helper routines for marshalling helper function arguments into
  * the correct registers and stack.
@@ -1203,9 +1182,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
      * trash by moving the earlier arguments into them.
      */
     argreg = TCG_REG_R0;
-#ifdef CONFIG_TCG_PASS_AREG0
     argreg = tcg_out_arg_reg32(s, argreg, TCG_AREG0);
-#endif
 #if TARGET_LONG_BITS == 64
     argreg = tcg_out_arg_reg64(s, argreg, addr_reg, addr_reg2);
 #else
@@ -1421,9 +1398,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
      * trash by moving the earlier arguments into them.
      */
     argreg = TCG_REG_R0;
-#ifdef CONFIG_TCG_PASS_AREG0
     argreg = tcg_out_arg_reg32(s, argreg, TCG_AREG0);
-#endif
 #if TARGET_LONG_BITS == 64
     argreg = tcg_out_arg_reg64(s, argreg, addr_reg, addr_reg2);
 #else

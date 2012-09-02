@@ -18,9 +18,6 @@
  */
 #include "config.h"
 #include "cpu.h"
-#ifndef CONFIG_TCG_PASS_AREG0
-#include "dyngen-exec.h"
-#endif
 #include "disas.h"
 #include "tcg.h"
 
@@ -60,12 +57,6 @@ void cpu_resume_from_signal(CPUArchState *env1, void *puc)
     struct sigcontext *uc = puc;
 #endif
 
-#ifndef CONFIG_TCG_PASS_AREG0
-    env = env1;
-
-    /* XXX: restore cpu registers saved in host registers */
-#endif
-
     if (puc) {
         /* XXX: use siglongjmp ? */
 #ifdef __linux__
@@ -93,11 +84,6 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     TranslationBlock *tb;
     int ret;
 
-#ifndef CONFIG_TCG_PASS_AREG0
-    if (cpu_single_env) {
-        env = cpu_single_env; /* XXX: find a correct solution for multithread */
-    }
-#endif
 #if defined(DEBUG_SIGNAL)
     qemu_printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
                 pc, address, is_write, *(unsigned long *)old_set);

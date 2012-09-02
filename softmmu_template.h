@@ -54,23 +54,11 @@
 #define ADDR_READ addr_read
 #endif
 
-#ifndef CONFIG_TCG_PASS_AREG0
-#define ENV_PARAM
-#define ENV_VAR
-#define CPU_PREFIX
-#define HELPER_PREFIX __
-#else
-#define ENV_PARAM CPUArchState *env,
-#define ENV_VAR env,
-#define CPU_PREFIX cpu_
-#define HELPER_PREFIX helper_
-#endif
-
-static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
+static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
                                                         target_ulong addr,
                                                         int mmu_idx,
                                                         uintptr_t retaddr);
-static inline DATA_TYPE glue(io_read, SUFFIX)(ENV_PARAM
+static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
                                               target_phys_addr_t physaddr,
                                               target_ulong addr,
                                               uintptr_t retaddr)
@@ -104,9 +92,8 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(ENV_PARAM
 
 /* handle all cases except unaligned access which span two pages */
 DATA_TYPE
-glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
-                                                       target_ulong addr,
-                                                       int mmu_idx)
+glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
+                                         int mmu_idx)
 {
     DATA_TYPE res;
     int index;
@@ -126,15 +113,15 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
                 goto do_unaligned_access;
             retaddr = GETPC();
             ioaddr = env->iotlb[mmu_idx][index];
-            res = glue(io_read, SUFFIX)(ENV_VAR ioaddr, addr, retaddr);
+            res = glue(io_read, SUFFIX)(env, ioaddr, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
             /* slow unaligned access (it spans two pages or IO) */
         do_unaligned_access:
             retaddr = GETPC();
 #ifdef ALIGNED_ONLY
-            do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
-            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_VAR addr,
+            res = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(env, addr,
                                                          mmu_idx, retaddr);
         } else {
             /* unaligned/aligned access in the same page */
@@ -142,7 +129,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
                 retaddr = GETPC();
-                do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+                do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
             }
 #endif
             addend = env->tlb_table[mmu_idx][index].addend;
@@ -154,7 +141,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
         retaddr = GETPC();
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
-            do_unaligned_access(ENV_VAR addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
 #endif
         tlb_fill(env, addr, READ_ACCESS_TYPE, mmu_idx, retaddr);
         goto redo;
@@ -164,7 +151,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
 
 /* handle all unaligned cases */
 static DATA_TYPE
-glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
+glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env,
                                        target_ulong addr,
                                        int mmu_idx,
                                        uintptr_t retaddr)
@@ -183,15 +170,15 @@ glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             ioaddr = env->iotlb[mmu_idx][index];
-            res = glue(io_read, SUFFIX)(ENV_VAR ioaddr, addr, retaddr);
+            res = glue(io_read, SUFFIX)(env, ioaddr, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* slow unaligned access (it spans two pages) */
             addr1 = addr & ~(DATA_SIZE - 1);
             addr2 = addr1 + DATA_SIZE;
-            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_VAR addr1,
+            res1 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(env, addr1,
                                                           mmu_idx, retaddr);
-            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_VAR addr2,
+            res2 = glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(env, addr2,
                                                           mmu_idx, retaddr);
             shift = (addr & (DATA_SIZE - 1)) * 8;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -216,13 +203,13 @@ glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
 
 #ifndef SOFTMMU_CODE_ACCESS
 
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
                                                    target_ulong addr,
                                                    DATA_TYPE val,
                                                    int mmu_idx,
                                                    uintptr_t retaddr);
 
-static inline void glue(io_write, SUFFIX)(ENV_PARAM
+static inline void glue(io_write, SUFFIX)(CPUArchState *env,
                                           target_phys_addr_t physaddr,
                                           DATA_TYPE val,
                                           target_ulong addr,
@@ -253,10 +240,9 @@ static inline void glue(io_write, SUFFIX)(ENV_PARAM
 #endif /* SHIFT > 2 */
 }
 
-void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
-                                                            target_ulong addr,
-                                                            DATA_TYPE val,
-                                                            int mmu_idx)
+void glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
+                                              target_ulong addr, DATA_TYPE val,
+                                              int mmu_idx)
 {
     target_phys_addr_t ioaddr;
     target_ulong tlb_addr;
@@ -273,14 +259,14 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
                 goto do_unaligned_access;
             retaddr = GETPC();
             ioaddr = env->iotlb[mmu_idx][index];
-            glue(io_write, SUFFIX)(ENV_VAR ioaddr, val, addr, retaddr);
+            glue(io_write, SUFFIX)(env, ioaddr, val, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             retaddr = GETPC();
 #ifdef ALIGNED_ONLY
-            do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
 #endif
-            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_VAR addr, val,
+            glue(glue(slow_st, SUFFIX), MMUSUFFIX)(env, addr, val,
                                                    mmu_idx, retaddr);
         } else {
             /* aligned/unaligned access in the same page */
@@ -288,7 +274,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
 #ifdef ALIGNED_ONLY
             if ((addr & (DATA_SIZE - 1)) != 0) {
                 retaddr = GETPC();
-                do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
+                do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
             }
 #endif
             addend = env->tlb_table[mmu_idx][index].addend;
@@ -300,7 +286,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
         retaddr = GETPC();
 #ifdef ALIGNED_ONLY
         if ((addr & (DATA_SIZE - 1)) != 0)
-            do_unaligned_access(ENV_VAR addr, 1, mmu_idx, retaddr);
+            do_unaligned_access(env, addr, 1, mmu_idx, retaddr);
 #endif
         tlb_fill(env, addr, 1, mmu_idx, retaddr);
         goto redo;
@@ -308,7 +294,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
 }
 
 /* handles all unaligned cases */
-static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
+static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(CPUArchState *env,
                                                    target_ulong addr,
                                                    DATA_TYPE val,
                                                    int mmu_idx,
@@ -327,7 +313,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             ioaddr = env->iotlb[mmu_idx][index];
-            glue(io_write, SUFFIX)(ENV_VAR ioaddr, val, addr, retaddr);
+            glue(io_write, SUFFIX)(env, ioaddr, val, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
             /* XXX: not efficient, but simple */
@@ -335,11 +321,11 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
              * previous page from the TLB cache.  */
             for(i = DATA_SIZE - 1; i >= 0; i--) {
 #ifdef TARGET_WORDS_BIGENDIAN
-                glue(slow_stb, MMUSUFFIX)(ENV_VAR addr + i,
+                glue(slow_stb, MMUSUFFIX)(env, addr + i,
                                           val >> (((DATA_SIZE - 1) * 8) - (i * 8)),
                                           mmu_idx, retaddr);
 #else
-                glue(slow_stb, MMUSUFFIX)(ENV_VAR addr + i,
+                glue(slow_stb, MMUSUFFIX)(env, addr + i,
                                           val >> (i * 8),
                                           mmu_idx, retaddr);
 #endif
@@ -366,7 +352,3 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
 #undef USUFFIX
 #undef DATA_SIZE
 #undef ADDR_READ
-#undef ENV_PARAM
-#undef ENV_VAR
-#undef CPU_PREFIX
-#undef HELPER_PREFIX

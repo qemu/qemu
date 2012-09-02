@@ -235,9 +235,7 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R3);
 #ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
-#endif
 #endif
         break;
     case 'S':                   /* qemu_st constraint */
@@ -247,9 +245,7 @@ static int target_parse_constraint (TCGArgConstraint *ct, const char **pct_str)
 #ifdef CONFIG_SOFTMMU
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R4);
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R5);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg (ct->u.regs, TCG_REG_R6);
-#endif
 #endif
         break;
     case 'Z':
@@ -558,7 +554,6 @@ static void tcg_out_ldsta (TCGContext *s, int ret, int addr,
 
 #include "../../softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -576,25 +571,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 
 static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
                               int addr_reg, int s_bits, int offset)
@@ -676,9 +652,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_mov (s, TCG_TYPE_I64, ir++, TCG_AREG0);
-#endif
     tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
     tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
 
@@ -827,9 +801,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 
     /* slow path */
     ir = 3;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_mov (s, TCG_TYPE_I64, ir++, TCG_AREG0);
-#endif
     tcg_out_mov (s, TCG_TYPE_I64, ir++, addr_reg);
     tcg_out_rld (s, RLDICL, ir++, data_reg, 0, 64 - (1 << (3 + opc)));
     tcg_out_movi (s, TCG_TYPE_I64, ir++, mem_index);
