@@ -19,7 +19,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 /* #define DEBUG_HELPER */
@@ -500,14 +499,14 @@ uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
     return do_calc_cc(env, cc_op, src, dst, vr);
 }
 
-uint32_t HELPER(calc_cc)(uint32_t cc_op, uint64_t src, uint64_t dst,
-                         uint64_t vr)
+uint32_t HELPER(calc_cc)(CPUS390XState *env, uint32_t cc_op, uint64_t src,
+                         uint64_t dst, uint64_t vr)
 {
     return do_calc_cc(env, cc_op, src, dst, vr);
 }
 
 /* insert psw mask and condition code into r1 */
-void HELPER(ipm)(uint32_t cc, uint32_t r1)
+void HELPER(ipm)(CPUS390XState *env, uint32_t cc, uint32_t r1)
 {
     uint64_t r = env->regs[r1];
 
@@ -519,13 +518,13 @@ void HELPER(ipm)(uint32_t cc, uint32_t r1)
 }
 
 #ifndef CONFIG_USER_ONLY
-void HELPER(load_psw)(uint64_t mask, uint64_t addr)
+void HELPER(load_psw)(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     load_psw(env, mask, addr);
     cpu_loop_exit(env);
 }
 
-void HELPER(sacf)(uint64_t a1)
+void HELPER(sacf)(CPUS390XState *env, uint64_t a1)
 {
     HELPER_LOG("%s: %16" PRIx64 "\n", __func__, a1);
 

@@ -722,7 +722,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_NZ_F32:
     case CC_OP_NZ_F64:
         /* 1 argument */
-        gen_helper_calc_cc(cc_op, local_cc_op, dummy, cc_dst, dummy);
+        gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, dummy, cc_dst, dummy);
         break;
     case CC_OP_ICM:
     case CC_OP_LTGT_32:
@@ -735,7 +735,7 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_LTGT_F64:
     case CC_OP_SLAG:
         /* 2 arguments */
-        gen_helper_calc_cc(cc_op, local_cc_op, cc_src, cc_dst, dummy);
+        gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, dummy);
         break;
     case CC_OP_ADD_64:
     case CC_OP_ADDU_64:
@@ -746,11 +746,11 @@ static void gen_op_calc_cc(DisasContext *s)
     case CC_OP_SUB_32:
     case CC_OP_SUBU_32:
         /* 3 arguments */
-        gen_helper_calc_cc(cc_op, local_cc_op, cc_src, cc_dst, cc_vr);
+        gen_helper_calc_cc(cc_op, cpu_env, local_cc_op, cc_src, cc_dst, cc_vr);
         break;
     case CC_OP_DYNAMIC:
         /* unknown operation - assume 3 arguments and cc_op in env */
-        gen_helper_calc_cc(cc_op, cc_op, cc_src, cc_dst, cc_vr);
+        gen_helper_calc_cc(cc_op, cpu_env, cc_op, cc_src, cc_dst, cc_vr);
         break;
     default:
         tcg_abort();
@@ -2628,7 +2628,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
     case 0x22: /* IPM    R1               [RRE] */
         tmp32_1 = tcg_const_i32(r1);
         gen_op_calc_cc(s);
-        gen_helper_ipm(cc_op, tmp32_1);
+        gen_helper_ipm(cpu_env, cc_op, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x41: /* CKSM    R1,R2     [RRE] */
@@ -2916,7 +2916,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
-        gen_helper_sacf(tmp);
+        gen_helper_sacf(cpu_env, tmp);
         tcg_temp_free_i64(tmp);
         /* addressing mode has changed, so end the block */
         s->pc += ilc * 2;
@@ -2967,7 +2967,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tcg_gen_qemu_ld64(tmp2, tmp, get_mem_index(s));
         tcg_gen_addi_i64(tmp, tmp, 8);
         tcg_gen_qemu_ld64(tmp3, tmp, get_mem_index(s));
-        gen_helper_load_psw(tmp2, tmp3);
+        gen_helper_load_psw(cpu_env, tmp2, tmp3);
         /* we need to keep cc_op intact */
         s->is_jmp = DISAS_JUMP;
         tcg_temp_free_i64(tmp);
@@ -4527,7 +4527,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
         tcg_gen_addi_i64(tmp, tmp, 4);
         tcg_gen_qemu_ld32u(tmp3, tmp, get_mem_index(s));
-        gen_helper_load_psw(tmp2, tmp3);
+        gen_helper_load_psw(cpu_env, tmp2, tmp3);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i64(tmp3);
