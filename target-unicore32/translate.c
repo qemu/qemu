@@ -253,7 +253,7 @@ static void disas_ocd_insn(CPUUniCore32State *env, DisasContext *s,
 static inline void gen_set_asr(TCGv var, uint32_t mask)
 {
     TCGv tmp_mask = tcg_const_i32(mask);
-    gen_helper_asr_write(var, tmp_mask);
+    gen_helper_asr_write(cpu_env, var, tmp_mask);
     tcg_temp_free_i32(tmp_mask);
 }
 /* Set NZCV flags from the high 4 bits of var.  */
@@ -263,7 +263,7 @@ static void gen_exception(int excp)
 {
     TCGv tmp = new_tmp();
     tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(tmp);
+    gen_helper_exception(cpu_env, tmp);
     dead_tmp(tmp);
 }
 
@@ -416,16 +416,16 @@ static inline void gen_uc32_shift_reg(TCGv var, int shiftop,
     if (flags) {
         switch (shiftop) {
         case 0:
-            gen_helper_shl_cc(var, var, shift);
+            gen_helper_shl_cc(var, cpu_env, var, shift);
             break;
         case 1:
-            gen_helper_shr_cc(var, var, shift);
+            gen_helper_shr_cc(var, cpu_env, var, shift);
             break;
         case 2:
-            gen_helper_sar_cc(var, var, shift);
+            gen_helper_sar_cc(var, cpu_env, var, shift);
             break;
         case 3:
-            gen_helper_ror_cc(var, var, shift);
+            gen_helper_ror_cc(var, cpu_env, var, shift);
             break;
         }
     } else {
@@ -1323,11 +1323,11 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
             if (IS_USER(s)) {
                 ILLEGAL;
             }
-            gen_helper_sub_cc(tmp, tmp, tmp2);
+            gen_helper_sub_cc(tmp, cpu_env, tmp, tmp2);
             gen_exception_return(s, tmp);
         } else {
             if (UCOP_SET_S) {
-                gen_helper_sub_cc(tmp, tmp, tmp2);
+                gen_helper_sub_cc(tmp, cpu_env, tmp, tmp2);
             } else {
                 tcg_gen_sub_i32(tmp, tmp, tmp2);
             }
@@ -1336,7 +1336,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x03:
         if (UCOP_SET_S) {
-            gen_helper_sub_cc(tmp, tmp2, tmp);
+            gen_helper_sub_cc(tmp, cpu_env, tmp2, tmp);
         } else {
             tcg_gen_sub_i32(tmp, tmp2, tmp);
         }
@@ -1344,7 +1344,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x04:
         if (UCOP_SET_S) {
-            gen_helper_add_cc(tmp, tmp, tmp2);
+            gen_helper_add_cc(tmp, cpu_env, tmp, tmp2);
         } else {
             tcg_gen_add_i32(tmp, tmp, tmp2);
         }
@@ -1352,7 +1352,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x05:
         if (UCOP_SET_S) {
-            gen_helper_adc_cc(tmp, tmp, tmp2);
+            gen_helper_adc_cc(tmp, cpu_env, tmp, tmp2);
         } else {
             gen_add_carry(tmp, tmp, tmp2);
         }
@@ -1360,7 +1360,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x06:
         if (UCOP_SET_S) {
-            gen_helper_sbc_cc(tmp, tmp, tmp2);
+            gen_helper_sbc_cc(tmp, cpu_env, tmp, tmp2);
         } else {
             gen_sub_carry(tmp, tmp, tmp2);
         }
@@ -1368,7 +1368,7 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x07:
         if (UCOP_SET_S) {
-            gen_helper_sbc_cc(tmp, tmp2, tmp);
+            gen_helper_sbc_cc(tmp, cpu_env, tmp2, tmp);
         } else {
             gen_sub_carry(tmp, tmp2, tmp);
         }
@@ -1390,13 +1390,13 @@ static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
         break;
     case 0x0a:
         if (UCOP_SET_S) {
-            gen_helper_sub_cc(tmp, tmp, tmp2);
+            gen_helper_sub_cc(tmp, cpu_env, tmp, tmp2);
         }
         dead_tmp(tmp);
         break;
     case 0x0b:
         if (UCOP_SET_S) {
-            gen_helper_add_cc(tmp, tmp, tmp2);
+            gen_helper_add_cc(tmp, cpu_env, tmp, tmp2);
         }
         dead_tmp(tmp);
         break;
@@ -1536,7 +1536,7 @@ static void do_misc(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
             tmp = load_cpu_field(bsr);
         } else {
             tmp = new_tmp();
-            gen_helper_asr_read(tmp);
+            gen_helper_asr_read(tmp, cpu_env);
         }
         store_reg(s, UCOP_REG_D, tmp);
         return;
@@ -1760,7 +1760,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
                     gen_bx(s, tmp);
                 } else if (user) {
                     tmp2 = tcg_const_i32(reg);
-                    gen_helper_set_user_reg(tmp2, tmp);
+                    gen_helper_set_user_reg(cpu_env, tmp2, tmp);
                     tcg_temp_free_i32(tmp2);
                     dead_tmp(tmp);
                 } else if (reg == UCOP_REG_N) {
@@ -1778,7 +1778,7 @@ static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
                 } else if (user) {
                     tmp = new_tmp();
                     tmp2 = tcg_const_i32(reg);
-                    gen_helper_get_user_reg(tmp, tmp2);
+                    gen_helper_get_user_reg(tmp, cpu_env, tmp2);
                     tcg_temp_free_i32(tmp2);
                 } else {
                     tmp = load_reg(s, reg);
@@ -1861,7 +1861,7 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 {
     unsigned int insn;
 
-    insn = ldl_code(s->pc);
+    insn = cpu_ldl_code(env, s->pc);
     s->pc += 4;
 
     /* UniCore instructions class:
