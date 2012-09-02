@@ -260,9 +260,9 @@ static TCGv gen_ldst(DisasContext *s, int opsize, TCGv addr, TCGv val,
 static inline uint32_t read_im32(DisasContext *s)
 {
     uint32_t im;
-    im = ((uint32_t)lduw_code(s->pc)) << 16;
+    im = ((uint32_t)cpu_lduw_code(cpu_single_env, s->pc)) << 16;
     s->pc += 2;
-    im |= lduw_code(s->pc);
+    im |= cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     return im;
 }
@@ -297,7 +297,7 @@ static TCGv gen_lea_indexed(DisasContext *s, int opsize, TCGv base)
     uint32_t bd, od;
 
     offset = s->pc;
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
 
     if ((ext & 0x800) == 0 && !m68k_feature(s->env, M68K_FEATURE_WORD_INDEX))
@@ -311,7 +311,7 @@ static TCGv gen_lea_indexed(DisasContext *s, int opsize, TCGv base)
         if ((ext & 0x30) > 0x10) {
             /* base displacement */
             if ((ext & 0x30) == 0x20) {
-                bd = (int16_t)lduw_code(s->pc);
+                bd = (int16_t)cpu_lduw_code(cpu_single_env, s->pc);
                 s->pc += 2;
             } else {
                 bd = read_im32(s);
@@ -360,7 +360,7 @@ static TCGv gen_lea_indexed(DisasContext *s, int opsize, TCGv base)
             if ((ext & 3) > 1) {
                 /* outer displacement */
                 if ((ext & 3) == 2) {
-                    od = (int16_t)lduw_code(s->pc);
+                    od = (int16_t)cpu_lduw_code(cpu_single_env, s->pc);
                     s->pc += 2;
                 } else {
                     od = read_im32(s);
@@ -514,7 +514,7 @@ static TCGv gen_lea(DisasContext *s, uint16_t insn, int opsize)
     case 5: /* Indirect displacement.  */
         reg = AREG(insn, 0);
         tmp = tcg_temp_new();
-        ext = lduw_code(s->pc);
+        ext = cpu_lduw_code(cpu_single_env, s->pc);
         s->pc += 2;
         tcg_gen_addi_i32(tmp, reg, (int16_t)ext);
         return tmp;
@@ -524,7 +524,7 @@ static TCGv gen_lea(DisasContext *s, uint16_t insn, int opsize)
     case 7: /* Other */
         switch (insn & 7) {
         case 0: /* Absolute short.  */
-            offset = ldsw_code(s->pc);
+            offset = cpu_ldsw_code(cpu_single_env, s->pc);
             s->pc += 2;
             return tcg_const_i32(offset);
         case 1: /* Absolute long.  */
@@ -532,7 +532,7 @@ static TCGv gen_lea(DisasContext *s, uint16_t insn, int opsize)
             return tcg_const_i32(offset);
         case 2: /* pc displacement  */
             offset = s->pc;
-            offset += ldsw_code(s->pc);
+            offset += cpu_ldsw_code(cpu_single_env, s->pc);
             s->pc += 2;
             return tcg_const_i32(offset);
         case 3: /* pc index+displacement.  */
@@ -638,17 +638,19 @@ static TCGv gen_ea(DisasContext *s, uint16_t insn, int opsize, TCGv val,
             /* Sign extend values for consistency.  */
             switch (opsize) {
             case OS_BYTE:
-                if (what == EA_LOADS)
-                    offset = ldsb_code(s->pc + 1);
-                else
-                    offset = ldub_code(s->pc + 1);
+                if (what == EA_LOADS) {
+                    offset = cpu_ldsb_code(cpu_single_env, s->pc + 1);
+                } else {
+                    offset = cpu_ldub_code(cpu_single_env, s->pc + 1);
+                }
                 s->pc += 2;
                 break;
             case OS_WORD:
-                if (what == EA_LOADS)
-                    offset = ldsw_code(s->pc);
-                else
-                    offset = lduw_code(s->pc);
+                if (what == EA_LOADS) {
+                    offset = cpu_ldsw_code(cpu_single_env, s->pc);
+                } else {
+                    offset = cpu_lduw_code(cpu_single_env, s->pc);
+                }
                 s->pc += 2;
                 break;
             case OS_LONG:
@@ -815,7 +817,7 @@ static void gen_exception(DisasContext *s, uint32_t where, int nr)
 {
     gen_flush_cc_op(s);
     gen_jmp_im(s, where);
-    gen_helper_raise_exception(tcg_const_i32(nr));
+    gen_helper_raise_exception(cpu_env, tcg_const_i32(nr));
 }
 
 static inline void gen_addr_fault(DisasContext *s)
@@ -934,7 +936,7 @@ DISAS_INSN(divl)
     TCGv reg;
     uint16_t ext;
 
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     if (ext & 0x87f8) {
         gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
@@ -1086,7 +1088,7 @@ DISAS_INSN(movem)
     TCGv tmp;
     int is_load;
 
-    mask = lduw_code(s->pc);
+    mask = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     tmp = gen_lea(s, insn, OS_LONG);
     if (IS_NULL_QREG(tmp)) {
@@ -1130,7 +1132,7 @@ DISAS_INSN(bitop_im)
         opsize = OS_LONG;
     op = (insn >> 6) & 3;
 
-    bitnum = lduw_code(s->pc);
+    bitnum = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     if (bitnum & 0xff00) {
         disas_undef(s, insn);
@@ -1383,7 +1385,7 @@ static void gen_set_sr(DisasContext *s, uint16_t insn, int ccr_only)
     else if ((insn & 0x3f) == 0x3c)
       {
         uint16_t val;
-        val = lduw_code(s->pc);
+        val = cpu_lduw_code(cpu_single_env, s->pc);
         s->pc += 2;
         gen_set_sr_im(s, val, ccr_only);
       }
@@ -1507,7 +1509,7 @@ DISAS_INSN(mull)
 
     /* The upper 32 bits of the product are discarded, so
        muls.l and mulu.l are functionally equivalent.  */
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     if (ext & 0x87ff) {
         gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
@@ -1528,7 +1530,7 @@ DISAS_INSN(link)
     TCGv reg;
     TCGv tmp;
 
-    offset = ldsw_code(s->pc);
+    offset = cpu_ldsw_code(cpu_single_env, s->pc);
     s->pc += 2;
     reg = AREG(insn, 0);
     tmp = tcg_temp_new();
@@ -1649,7 +1651,7 @@ DISAS_INSN(branch)
     op = (insn >> 8) & 0xf;
     offset = (int8_t)insn;
     if (offset == 0) {
-        offset = ldsw_code(s->pc);
+        offset = cpu_ldsw_code(cpu_single_env, s->pc);
         s->pc += 2;
     } else if (offset == -1) {
         offset = read_im32(s);
@@ -1934,13 +1936,13 @@ DISAS_INSN(strldsr)
     uint32_t addr;
 
     addr = s->pc - 2;
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     if (ext != 0x46FC) {
         gen_exception(s, addr, EXCP_UNSUPPORTED);
         return;
     }
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     if (IS_USER(s) || (ext & SR_S) == 0) {
         gen_exception(s, addr, EXCP_PRIVILEGE);
@@ -2008,7 +2010,7 @@ DISAS_INSN(stop)
         return;
     }
 
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
 
     gen_set_sr_im(s, ext, 0);
@@ -2035,7 +2037,7 @@ DISAS_INSN(movec)
         return;
     }
 
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
 
     if (ext & 0x8000) {
@@ -2100,7 +2102,7 @@ DISAS_INSN(fpu)
     int set_dest;
     int opsize;
 
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
     opmode = ext & 0x7f;
     switch ((ext >> 13) & 7) {
@@ -2136,7 +2138,7 @@ DISAS_INSN(fpu)
                 tcg_gen_addi_i32(tmp32, tmp32, -8);
                 break;
             case 5:
-                offset = ldsw_code(s->pc);
+                offset = cpu_ldsw_code(cpu_single_env, s->pc);
                 s->pc += 2;
                 tcg_gen_addi_i32(tmp32, tmp32, offset);
                 break;
@@ -2250,12 +2252,12 @@ DISAS_INSN(fpu)
                 tcg_gen_addi_i32(tmp32, tmp32, -8);
                 break;
             case 5:
-                offset = ldsw_code(s->pc);
+                offset = cpu_ldsw_code(cpu_single_env, s->pc);
                 s->pc += 2;
                 tcg_gen_addi_i32(tmp32, tmp32, offset);
                 break;
             case 7:
-                offset = ldsw_code(s->pc);
+                offset = cpu_ldsw_code(cpu_single_env, s->pc);
                 offset += s->pc - 2;
                 s->pc += 2;
                 tcg_gen_addi_i32(tmp32, tmp32, offset);
@@ -2381,10 +2383,10 @@ DISAS_INSN(fbcc)
     int l1;
 
     addr = s->pc;
-    offset = ldsw_code(s->pc);
+    offset = cpu_ldsw_code(cpu_single_env, s->pc);
     s->pc += 2;
     if (insn & (1 << 6)) {
-        offset = (offset << 16) | lduw_code(s->pc);
+        offset = (offset << 16) | cpu_lduw_code(cpu_single_env, s->pc);
         s->pc += 2;
     }
 
@@ -2506,7 +2508,7 @@ DISAS_INSN(mac)
         s->done_mac = 1;
     }
 
-    ext = lduw_code(s->pc);
+    ext = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
 
     acc = ((insn >> 7) & 1) | ((ext >> 3) & 2);
@@ -2941,7 +2943,7 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 {
     uint16_t insn;
 
-    insn = lduw_code(s->pc);
+    insn = cpu_lduw_code(cpu_single_env, s->pc);
     s->pc += 2;
 
     opcode_table[insn](s, insn);
@@ -3028,7 +3030,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
             gen_flush_cc_op(dc);
             tcg_gen_movi_i32(QREG_PC, dc->pc);
         }
-        gen_helper_raise_exception(tcg_const_i32(EXCP_DEBUG));
+        gen_helper_raise_exception(cpu_env, tcg_const_i32(EXCP_DEBUG));
     } else {
         switch(dc->is_jmp) {
         case DISAS_NEXT:
