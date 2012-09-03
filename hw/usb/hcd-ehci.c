@@ -2045,7 +2045,10 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;
         case EHCI_ASYNC_FINISHED:
-            /* Should never happen, as this case is caught by fetchqh */
+            /*
+             * We get here when advqueue moves to a packet which is already
+             * finished, which can happen with packets queued up by fill_queue
+             */
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
             break;
         }
