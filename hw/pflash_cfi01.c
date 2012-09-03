@@ -711,7 +711,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base,
     pfl->cfi_table[0x33] = 'I';
 
     pfl->cfi_table[0x34] = '1';
-    pfl->cfi_table[0x35] = '1';
+    pfl->cfi_table[0x35] = '0';
 
     pfl->cfi_table[0x36] = 0x00;
     pfl->cfi_table[0x37] = 0x00;
@@ -722,6 +722,8 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base,
 
     pfl->cfi_table[0x3b] = 0x00;
     pfl->cfi_table[0x3c] = 0x00;
+
+    pfl->cfi_table[0x3f] = 0x01; /* Number of protection fields */
 
     return pfl;
 }
