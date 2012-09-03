@@ -1197,6 +1197,9 @@ static void usbredir_ep_info(void *priv,
                                      usb_redir_cap_ep_info_max_packet_size)) {
             usb_ep->max_packet_size = ep_info->max_packet_size[i];
         }
+        if (ep_info->type[i] == usb_redir_type_bulk) {
+            usb_ep->pipeline = true;
+        }
     }
 }
 
