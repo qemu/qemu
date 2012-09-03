@@ -361,10 +361,10 @@ static int wm8750_tx(I2CSlave *i2c, uint8_t data)
     uint16_t value;
 
     if (s->i2c_len >= 2) {
-        printf("%s: long message (%i bytes)\n", __FUNCTION__, s->i2c_len);
 #ifdef VERBOSE
-        return 1;
+        printf("%s: long message (%i bytes)\n", __func__, s->i2c_len);
 #endif
+        return 1;
     }
     s->i2c_data[s->i2c_len ++] = data;
     if (s->i2c_len != 2)
