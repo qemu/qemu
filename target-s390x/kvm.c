@@ -383,6 +383,26 @@ int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
     return 0;
 }
 
+int kvm_arch_insert_hw_breakpoint(target_ulong addr,
+                                  target_ulong len, int type)
+{
+    return -ENOSYS;
+}
+
+int kvm_arch_remove_hw_breakpoint(target_ulong addr,
+                                  target_ulong len, int type)
+{
+    return -ENOSYS;
+}
+
+void kvm_arch_remove_all_hw_breakpoints(void)
+{
+}
+
+void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
+{
+}
+
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 {
 }
@@ -844,6 +864,11 @@ static int handle_tsch(S390CPU *cpu)
     return ret;
 }
 
+static int kvm_arch_handle_debug_exit(S390CPU *cpu)
+{
+    return -ENOSYS;
+}
+
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     S390CPU *cpu = S390_CPU(cs);
@@ -858,6 +883,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
             break;
         case KVM_EXIT_S390_TSCH:
             ret = handle_tsch(cpu);
+            break;
+        case KVM_EXIT_DEBUG:
+            ret = kvm_arch_handle_debug_exit(cpu);
             break;
         default:
             fprintf(stderr, "Unknown KVM exit: %d\n", run->exit_reason);
