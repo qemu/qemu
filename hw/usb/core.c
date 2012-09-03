@@ -398,7 +398,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
              * When pipelining is enabled usb-devices must always return async,
              * otherwise packets can complete out of order!
              */
-            assert(!p->ep->pipeline);
+            assert(!p->ep->pipeline || QTAILQ_EMPTY(&p->ep->queue));
             if (ret != USB_RET_NAK) {
                 p->result = ret;
                 usb_packet_set_state(p, USB_PACKET_COMPLETE);
