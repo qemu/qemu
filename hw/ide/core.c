@@ -53,8 +53,6 @@ static const int smart_attributes[][12] = {
     { 0x0c, 0x03, 0x00, 0x64, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
     /* airflow-temperature-celsius */
     { 190,  0x03, 0x00, 0x45, 0x45, 0x1f, 0x00, 0x1f, 0x1f, 0x00, 0x00, 0x32},
-    /* end of list */
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 };
 
 static int ide_handle_rw_error(IDEState *s, int error, int op);
@@ -1468,9 +1466,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	case SMART_READ_THRESH:
 		memset(s->io_buffer, 0, 0x200);
 		s->io_buffer[0] = 0x01; /* smart struct version */
-		for (n=0; n<30; n++) {
-		if (smart_attributes[n][0] == 0)
-			break;
+		for (n = 0; n < ARRAY_SIZE(smart_attributes); n++) {
 		s->io_buffer[2+0+(n*12)] = smart_attributes[n][0];
 		s->io_buffer[2+1+(n*12)] = smart_attributes[n][11];
 		}
@@ -1484,10 +1480,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	case SMART_READ_DATA:
 		memset(s->io_buffer, 0, 0x200);
 		s->io_buffer[0] = 0x01; /* smart struct version */
-		for (n=0; n<30; n++) {
-		    if (smart_attributes[n][0] == 0) {
-			break;
-		    }
+		for (n = 0; n < ARRAY_SIZE(smart_attributes); n++) {
 		    int i;
 		    for(i = 0; i < 11; i++) {
 			s->io_buffer[2+i+(n*12)] = smart_attributes[n][i];
