@@ -820,12 +820,16 @@ static int ehci_reset_queue(EHCIQueue *q)
     return packets;
 }
 
-static void ehci_free_queue(EHCIQueue *q)
+static void ehci_free_queue(EHCIQueue *q, const char *warn)
 {
     EHCIQueueHead *head = q->async ? &q->ehci->aqueues : &q->ehci->pqueues;
+    int cancelled;
 
     trace_usb_ehci_queue_action(q, "free");
-    ehci_cancel_queue(q);
+    cancelled = ehci_cancel_queue(q);
+    if (warn && cancelled > 0) {
+        ehci_trace_guest_bug(q->ehci, warn);
+    }
     QTAILQ_REMOVE(head, q, next);
     g_free(q);
 }
@@ -847,6 +851,7 @@ static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
 static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
+    const char *warn = (async && !flush) ? "guest unlinked busy QH" : NULL;
     uint64_t maxage = FRAME_TIMER_NS * ehci->maxframes * 4;
     EHCIQueue *q, *tmp;
 
@@ -859,7 +864,7 @@ static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
         if (!flush && ehci->last_run_ns < q->ts + maxage) {
             continue;
         }
-        ehci_free_queue(q);
+        ehci_free_queue(q, warn);
     }
 }
 
@@ -872,17 +877,18 @@ static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev, int async)
         if (q->dev != dev) {
             continue;
         }
-        ehci_free_queue(q);
+        ehci_free_queue(q, NULL);
     }
 }
 
 static void ehci_queues_rip_all(EHCIState *ehci, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
+    const char *warn = async ? "guest stopped busy async schedule" : NULL;
     EHCIQueue *q, *tmp;
 
     QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
-        ehci_free_queue(q);
+        ehci_free_queue(q, warn);
     }
 }
 
@@ -1549,7 +1555,8 @@ static int ehci_execute(EHCIPacket *p, const char *action)
 
     p->tbytes = (p->qtd.token & QTD_TOKEN_TBYTES_MASK) >> QTD_TOKEN_TBYTES_SH;
     if (p->tbytes > BUFF_SIZE) {
-        fprintf(stderr, "Request for more bytes than allowed\n");
+        ehci_trace_guest_bug(p->queue->ehci,
+                             "guest requested more bytes than allowed");
         return USB_RET_PROCERR;
     }
 
