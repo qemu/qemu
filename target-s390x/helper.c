@@ -489,6 +489,18 @@ hwaddr s390_cpu_get_phys_page_debug(CPUState *cs, vaddr vaddr)
     return raddr;
 }
 
+hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
+{
+    hwaddr phys_addr;
+    target_ulong page;
+
+    page = vaddr & TARGET_PAGE_MASK;
+    phys_addr = cpu_get_phys_page_debug(cs, page);
+    phys_addr += (vaddr & ~TARGET_PAGE_MASK);
+
+    return phys_addr;
+}
+
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
     if (mask & PSW_MASK_WAIT) {
