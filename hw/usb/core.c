@@ -399,8 +399,10 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
              * otherwise packets can complete out of order!
              */
             assert(!p->ep->pipeline);
-            p->result = ret;
-            usb_packet_set_state(p, USB_PACKET_COMPLETE);
+            if (ret != USB_RET_NAK) {
+                p->result = ret;
+                usb_packet_set_state(p, USB_PACKET_COMPLETE);
+            }
         }
     } else {
         ret = USB_RET_ASYNC;
