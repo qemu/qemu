@@ -811,16 +811,21 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
     usbredirparser_do_write(dev->parser);
 }
 
+static void usbredir_reject_device(USBRedirDevice *dev)
+{
+    usbredir_device_disconnect(dev);
+    if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter)) {
+        usbredirparser_send_filter_reject(dev->parser);
+        usbredirparser_do_write(dev->parser);
+    }
+}
+
 static void usbredir_do_attach(void *opaque)
 {
     USBRedirDevice *dev = opaque;
 
     if (usb_device_attach(&dev->dev) != 0) {
-        usbredir_device_disconnect(dev);
-        if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter)) {
-            usbredirparser_send_filter_reject(dev->parser);
-            usbredirparser_do_write(dev->parser);
-        }
+        usbredir_reject_device(dev);
     }
 }
 
@@ -986,11 +991,7 @@ static int usbredir_check_filter(USBRedirDevice *dev)
     return 0;
 
 error:
-    usbredir_device_disconnect(dev);
-    if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter)) {
-        usbredirparser_send_filter_reject(dev->parser);
-        usbredirparser_do_write(dev->parser);
-    }
+    usbredir_reject_device(dev);
     return -1;
 }
 
