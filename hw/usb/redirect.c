@@ -805,6 +805,7 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
 
     usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
+    usbredirparser_caps_set_cap(caps, usb_redir_cap_ep_info_max_packet_size);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_64bits_ids);
     usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE, 0);
     usbredirparser_do_write(dev->parser);
@@ -1180,6 +1181,10 @@ static void usbredir_ep_info(void *priv,
                             i & 0x0f);
         usb_ep->type = dev->endpoint[i].type;
         usb_ep->ifnum = dev->endpoint[i].interface;
+        if (usbredirparser_peer_has_cap(dev->parser,
+                                     usb_redir_cap_ep_info_max_packet_size)) {
+            usb_ep->max_packet_size = ep_info->max_packet_size[i];
+        }
     }
 }
 
