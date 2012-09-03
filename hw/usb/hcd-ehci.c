@@ -345,6 +345,7 @@ typedef struct EHCIState EHCIState;
 
 enum async_state {
     EHCI_ASYNC_NONE = 0,
+    EHCI_ASYNC_INITIALIZED,
     EHCI_ASYNC_INFLIGHT,
     EHCI_ASYNC_FINISHED,
 };
@@ -764,6 +765,10 @@ static void ehci_free_packet(EHCIPacket *p)
         return;
     }
     trace_usb_ehci_packet_action(p->queue, p, "free");
+    if (p->async == EHCI_ASYNC_INITIALIZED) {
+        usb_packet_unmap(&p->packet, &p->sgl);
+        qemu_sglist_destroy(&p->sgl);
+    }
     if (p->async == EHCI_ASYNC_INFLIGHT) {
         usb_cancel_packet(&p->packet);
         usb_packet_unmap(&p->packet, &p->sgl);
@@ -1485,8 +1490,8 @@ static void ehci_execute_complete(EHCIQueue *q)
 
     assert(p != NULL);
     assert(p->qtdaddr == q->qtdaddr);
-    assert(p->async != EHCI_ASYNC_INFLIGHT);
-    p->async = EHCI_ASYNC_NONE;
+    assert(p->async == EHCI_ASYNC_INITIALIZED ||
+           p->async == EHCI_ASYNC_FINISHED);
 
     DPRINTF("execute_complete: qhaddr 0x%x, next %x, qtdaddr 0x%x, status %d\n",
             q->qhaddr, q->qh.next, q->qtdaddr, q->usb_status);
@@ -1531,6 +1536,7 @@ static void ehci_execute_complete(EHCIQueue *q)
     ehci_finish_transfer(q, p->usb_status);
     usb_packet_unmap(&p->packet, &p->sgl);
     qemu_sglist_destroy(&p->sgl);
+    p->async = EHCI_ASYNC_NONE;
 
     q->qh.token ^= QTD_TOKEN_DTOGGLE;
     q->qh.token &= ~QTD_TOKEN_ACTIVE;
@@ -1547,6 +1553,9 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     USBEndpoint *ep;
     int ret;
     int endp;
+
+    assert(p->async == EHCI_ASYNC_NONE ||
+           p->async == EHCI_ASYNC_INITIALIZED);
 
     if (!(p->qtd.token & QTD_TOKEN_ACTIVE)) {
         fprintf(stderr, "Attempting to execute inactive qtd\n");
@@ -1576,15 +1585,18 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         break;
     }
 
-    if (ehci_init_transfer(p) != 0) {
-        return USB_RET_PROCERR;
-    }
-
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
     ep = usb_ep_get(p->queue->dev, p->pid, endp);
 
-    usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr);
-    usb_packet_map(&p->packet, &p->sgl);
+    if (p->async == EHCI_ASYNC_NONE) {
+        if (ehci_init_transfer(p) != 0) {
+            return USB_RET_PROCERR;
+        }
+
+        usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr);
+        usb_packet_map(&p->packet, &p->sgl);
+        p->async = EHCI_ASYNC_INITIALIZED;
+    }
 
     trace_usb_ehci_packet_action(p->queue, p, action);
     ret = usb_handle_packet(p->queue->dev, &p->packet);
@@ -2021,11 +2033,15 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     } else if (p != NULL) {
         switch (p->async) {
         case EHCI_ASYNC_NONE:
+            /* Should never happen packet should at least be initialized */
+            assert(0);
+            break;
+        case EHCI_ASYNC_INITIALIZED:
             /* Previously nacked packet (likely interrupt ep) */
-           ehci_set_state(q->ehci, q->async, EST_EXECUTE);
-           break;
+            ehci_set_state(q->ehci, q->async, EST_EXECUTE);
+            break;
         case EHCI_ASYNC_INFLIGHT:
-            /* Unfinyshed async handled packet, go horizontal */
+            /* Unfinished async handled packet, go horizontal */
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;
         case EHCI_ASYNC_FINISHED:
