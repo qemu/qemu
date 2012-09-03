@@ -2076,7 +2076,7 @@ static int ehci_state_horizqh(EHCIQueue *q)
     return again;
 }
 
-static void ehci_fill_queue(EHCIPacket *p)
+static int ehci_fill_queue(EHCIPacket *p)
 {
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
@@ -2100,9 +2100,13 @@ static void ehci_fill_queue(EHCIPacket *p)
         p->qtdaddr = qtdaddr;
         p->qtd = qtd;
         p->usb_status = ehci_execute(p, "queue");
+        if (p->usb_status == USB_RET_PROCERR) {
+            break;
+        }
         assert(p->usb_status == USB_RET_ASYNC);
         p->async = EHCI_ASYNC_INFLIGHT;
     }
+    return p->usb_status;
 }
 
 static int ehci_state_execute(EHCIQueue *q)
@@ -2144,8 +2148,7 @@ static int ehci_state_execute(EHCIQueue *q)
         trace_usb_ehci_packet_action(p->queue, p, "async");
         p->async = EHCI_ASYNC_INFLIGHT;
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-        again = 1;
-        ehci_fill_queue(p);
+        again = (ehci_fill_queue(p) == USB_RET_PROCERR) ? -1 : 1;
         goto out;
     }
 
