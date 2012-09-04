@@ -114,9 +114,9 @@ tcp_respond(struct tcpcb *tp, struct tcpiphdr *ti, struct mbuf *m,
 	int win = 0;
 
 	DEBUG_CALL("tcp_respond");
-	DEBUG_ARG("tp = %lx", (long)tp);
-	DEBUG_ARG("ti = %lx", (long)ti);
-	DEBUG_ARG("m = %lx", (long)m);
+	DEBUG_ARG("tp = %p", tp);
+	DEBUG_ARG("ti = %p", ti);
+	DEBUG_ARG("m = %p", m);
 	DEBUG_ARG("ack = %u", ack);
 	DEBUG_ARG("seq = %u", seq);
 	DEBUG_ARG("flags = %x", flags);
