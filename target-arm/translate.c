@@ -199,7 +199,7 @@ static void store_reg(DisasContext *s, int reg, TCGv var)
 static inline void gen_set_cpsr(TCGv var, uint32_t mask)
 {
     TCGv tmp_mask = tcg_const_i32(mask);
-    gen_helper_cpsr_write(var, tmp_mask);
+    gen_helper_cpsr_write(cpu_env, var, tmp_mask);
     tcg_temp_free_i32(tmp_mask);
 }
 /* Set NZCV flags from the high 4 bits of var.  */
@@ -209,7 +209,7 @@ static void gen_exception(int excp)
 {
     TCGv tmp = tcg_temp_new_i32();
     tcg_gen_movi_i32(tmp, excp);
-    gen_helper_exception(tmp);
+    gen_helper_exception(cpu_env, tmp);
     tcg_temp_free_i32(tmp);
 }
 
@@ -7719,7 +7719,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                             tmp = gen_ld32(addr, IS_USER(s));
                             if (user) {
                                 tmp2 = tcg_const_i32(i);
-                                gen_helper_set_user_reg(tmp2, tmp);
+                                gen_helper_set_user_reg(cpu_env, tmp2, tmp);
                                 tcg_temp_free_i32(tmp2);
                                 tcg_temp_free_i32(tmp);
                             } else if (i == rn) {
@@ -9913,7 +9913,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
             /* nothing more to generate */
             break;
         case DISAS_WFI:
-            gen_helper_wfi();
+            gen_helper_wfi(cpu_env);
             break;
         case DISAS_SWI:
             gen_exception(EXCP_SWI);

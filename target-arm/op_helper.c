@@ -23,7 +23,7 @@
 #define SIGNBIT (uint32_t)0x80000000
 #define SIGNBIT64 ((uint64_t)1 << 63)
 
-static void raise_exception(int tt)
+static void raise_exception(CPUARMState *env, int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit(env);
@@ -93,7 +93,7 @@ void tlb_fill(CPUARMState *env1, target_ulong addr, int is_write, int mmu_idx,
                 cpu_restore_state(tb, env, retaddr);
             }
         }
-        raise_exception(env->exception_index);
+        raise_exception(env, env->exception_index);
     }
     env = saved_env;
 }
@@ -230,14 +230,14 @@ uint32_t HELPER(usat16)(uint32_t x, uint32_t shift)
     return res;
 }
 
-void HELPER(wfi)(void)
+void HELPER(wfi)(CPUARMState *env)
 {
     env->exception_index = EXCP_HLT;
     env->halted = 1;
     cpu_loop_exit(env);
 }
 
-void HELPER(exception)(uint32_t excp)
+void HELPER(exception)(CPUARMState *env, uint32_t excp)
 {
     env->exception_index = excp;
     cpu_loop_exit(env);
@@ -248,7 +248,7 @@ uint32_t HELPER(cpsr_read)(void)
     return cpsr_read(env) & ~CPSR_EXEC;
 }
 
-void HELPER(cpsr_write)(uint32_t val, uint32_t mask)
+void HELPER(cpsr_write)(CPUARMState *env, uint32_t val, uint32_t mask)
 {
     cpsr_write(env, val, mask);
 }
@@ -271,7 +271,7 @@ uint32_t HELPER(get_user_reg)(uint32_t regno)
     return val;
 }
 
-void HELPER(set_user_reg)(uint32_t regno, uint32_t val)
+void HELPER(set_user_reg)(CPUARMState *env, uint32_t regno, uint32_t val)
 {
     if (regno == 13) {
         env->banked_r13[0] = val;
@@ -290,7 +290,7 @@ void HELPER(set_cp_reg)(CPUARMState *env, void *rip, uint32_t value)
     const ARMCPRegInfo *ri = rip;
     int excp = ri->writefn(env, ri, value);
     if (excp) {
-        raise_exception(excp);
+        raise_exception(env, excp);
     }
 }
 
@@ -300,7 +300,7 @@ uint32_t HELPER(get_cp_reg)(CPUARMState *env, void *rip)
     uint64_t value;
     int excp = ri->readfn(env, ri, &value);
     if (excp) {
-        raise_exception(excp);
+        raise_exception(env, excp);
     }
     return value;
 }
@@ -310,7 +310,7 @@ void HELPER(set_cp_reg64)(CPUARMState *env, void *rip, uint64_t value)
     const ARMCPRegInfo *ri = rip;
     int excp = ri->writefn(env, ri, value);
     if (excp) {
-        raise_exception(excp);
+        raise_exception(env, excp);
     }
 }
 
@@ -320,7 +320,7 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
     uint64_t value;
     int excp = ri->readfn(env, ri, &value);
     if (excp) {
-        raise_exception(excp);
+        raise_exception(env, excp);
     }
     return value;
 }

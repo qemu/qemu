@@ -50,10 +50,10 @@ DEF_HELPER_2(usad8, i32, i32, i32)
 DEF_HELPER_1(logicq_cc, i32, i64)
 
 DEF_HELPER_3(sel_flags, i32, i32, i32, i32)
-DEF_HELPER_1(exception, void, i32)
-DEF_HELPER_0(wfi, void)
+DEF_HELPER_2(exception, void, env, i32)
+DEF_HELPER_1(wfi, void, env)
 
-DEF_HELPER_2(cpsr_write, void, i32, i32)
+DEF_HELPER_3(cpsr_write, void, env, i32, i32)
 DEF_HELPER_0(cpsr_read, i32)
 
 DEF_HELPER_3(v7m_msr, void, env, i32, i32)
@@ -68,7 +68,7 @@ DEF_HELPER_2(get_r13_banked, i32, env, i32)
 DEF_HELPER_3(set_r13_banked, void, env, i32, i32)
 
 DEF_HELPER_1(get_user_reg, i32, i32)
-DEF_HELPER_2(set_user_reg, void, i32, i32)
+DEF_HELPER_3(set_user_reg, void, env, i32, i32)
 
 DEF_HELPER_1(vfp_get_fpscr, i32, env)
 DEF_HELPER_2(vfp_set_fpscr, void, env, i32)
