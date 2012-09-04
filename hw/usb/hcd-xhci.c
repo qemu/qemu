@@ -2474,8 +2474,10 @@ static void xhci_mem_write(void *ptr, target_phys_addr_t addr,
 static const MemoryRegionOps xhci_mem_ops = {
     .read = xhci_mem_read,
     .write = xhci_mem_write,
-    .valid.min_access_size = 4,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
