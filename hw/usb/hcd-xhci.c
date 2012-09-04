@@ -2746,8 +2746,10 @@ static void xhci_doorbell_write(void *ptr, target_phys_addr_t reg,
 
 static const MemoryRegionOps xhci_cap_ops = {
     .read = xhci_cap_read,
-    .valid.min_access_size = 4,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
