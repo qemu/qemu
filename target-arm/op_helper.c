@@ -17,7 +17,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "helper.h"
 
 #define SIGNBIT (uint32_t)0x80000000
@@ -72,16 +71,12 @@ uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
 /* try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPUARMState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUARMState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     TranslationBlock *tb;
-    CPUARMState *saved_env;
     int ret;
 
-    saved_env = env;
-    env = env1;
     ret = cpu_arm_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {
@@ -95,7 +90,6 @@ void tlb_fill(CPUARMState *env1, target_ulong addr, int is_write, int mmu_idx,
         }
         raise_exception(env, env->exception_index);
     }
-    env = saved_env;
 }
 #endif
 
