@@ -404,6 +404,10 @@ struct XHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
+    MemoryRegion mem_cap;
+    MemoryRegion mem_oper;
+    MemoryRegion mem_runtime;
+    MemoryRegion mem_doorbell;
     const char *name;
     unsigned int devaddr;
 
@@ -2343,8 +2347,9 @@ static void xhci_reset(DeviceState *dev)
     xhci_mfwrap_update(xhci);
 }
 
-static uint32_t xhci_cap_read(XHCIState *xhci, uint32_t reg)
+static uint64_t xhci_cap_read(void *ptr, target_phys_addr_t reg, unsigned size)
 {
+    XHCIState *xhci = ptr;
     uint32_t ret;
 
     switch (reg) {
@@ -2401,7 +2406,7 @@ static uint32_t xhci_cap_read(XHCIState *xhci, uint32_t reg)
         ret = 0x00000000; /* reserved */
         break;
     default:
-        fprintf(stderr, "xhci_cap_read: reg %d unimplemented\n", reg);
+        fprintf(stderr, "xhci_cap_read: reg %d unimplemented\n", (int)reg);
         ret = 0;
     }
 
@@ -2482,8 +2487,9 @@ static void xhci_port_write(XHCIState *xhci, uint32_t reg, uint32_t val)
     }
 }
 
-static uint32_t xhci_oper_read(XHCIState *xhci, uint32_t reg)
+static uint64_t xhci_oper_read(void *ptr, target_phys_addr_t reg, unsigned size)
 {
+    XHCIState *xhci = ptr;
     uint32_t ret;
 
     if (reg >= 0x400) {
@@ -2519,7 +2525,7 @@ static uint32_t xhci_oper_read(XHCIState *xhci, uint32_t reg)
         ret = xhci->config;
         break;
     default:
-        fprintf(stderr, "xhci_oper_read: reg 0x%x unimplemented\n", reg);
+        fprintf(stderr, "xhci_oper_read: reg 0x%x unimplemented\n", (int)reg);
         ret = 0;
     }
 
@@ -2527,8 +2533,11 @@ static uint32_t xhci_oper_read(XHCIState *xhci, uint32_t reg)
     return ret;
 }
 
-static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
+static void xhci_oper_write(void *ptr, target_phys_addr_t reg,
+                            uint64_t val, unsigned size)
 {
+    XHCIState *xhci = ptr;
+
     if (reg >= 0x400) {
         xhci_port_write(xhci, reg - 0x400, val);
         return;
@@ -2586,12 +2595,14 @@ static void xhci_oper_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         xhci->config = val & 0xff;
         break;
     default:
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", reg);
+        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", (int)reg);
     }
 }
 
-static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
+static uint64_t xhci_runtime_read(void *ptr, target_phys_addr_t reg,
+                                  unsigned size)
 {
+    XHCIState *xhci = ptr;
     uint32_t ret = 0;
 
     if (reg < 0x20) {
@@ -2600,7 +2611,8 @@ static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
             ret = xhci_mfindex_get(xhci) & 0x3fff;
             break;
         default:
-            fprintf(stderr, "xhci_runtime_read: reg 0x%x unimplemented\n", reg);
+            fprintf(stderr, "xhci_runtime_read: reg 0x%x unimplemented\n",
+                    (int)reg);
             break;
         }
     } else {
@@ -2635,14 +2647,16 @@ static uint32_t xhci_runtime_read(XHCIState *xhci, uint32_t reg)
     return ret;
 }
 
-static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
+static void xhci_runtime_write(void *ptr, target_phys_addr_t reg,
+                               uint64_t val, unsigned size)
 {
+    XHCIState *xhci = ptr;
     int v = (reg - 0x20) / 0x20;
     XHCIInterrupter *intr = &xhci->intr[v];
     trace_usb_xhci_runtime_write(reg, val);
 
     if (reg < 0x20) {
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", reg);
+        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", (int)reg);
         return;
     }
 
@@ -2684,19 +2698,24 @@ static void xhci_runtime_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         xhci_events_update(xhci, v);
         break;
     default:
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", reg);
+        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n",
+                (int)reg);
     }
 }
 
-static uint32_t xhci_doorbell_read(XHCIState *xhci, uint32_t reg)
+static uint64_t xhci_doorbell_read(void *ptr, target_phys_addr_t reg,
+                                   unsigned size)
 {
     /* doorbells always read as 0 */
     trace_usb_xhci_doorbell_read(reg, 0);
     return 0;
 }
 
-static void xhci_doorbell_write(XHCIState *xhci, uint32_t reg, uint32_t val)
+static void xhci_doorbell_write(void *ptr, target_phys_addr_t reg,
+                                uint64_t val, unsigned size)
 {
+    XHCIState *xhci = ptr;
+
     trace_usb_xhci_doorbell_write(reg, val);
 
     if (!xhci_running(xhci)) {
@@ -2710,69 +2729,47 @@ static void xhci_doorbell_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         if (val == 0) {
             xhci_process_commands(xhci);
         } else {
-            fprintf(stderr, "xhci: bad doorbell 0 write: 0x%x\n", val);
+            fprintf(stderr, "xhci: bad doorbell 0 write: 0x%x\n",
+                    (uint32_t)val);
         }
     } else {
         if (reg > MAXSLOTS) {
-            fprintf(stderr, "xhci: bad doorbell %d\n", reg);
+            fprintf(stderr, "xhci: bad doorbell %d\n", (int)reg);
         } else if (val > 31) {
-            fprintf(stderr, "xhci: bad doorbell %d write: 0x%x\n", reg, val);
+            fprintf(stderr, "xhci: bad doorbell %d write: 0x%x\n",
+                    (int)reg, (uint32_t)val);
         } else {
             xhci_kick_ep(xhci, reg, val);
         }
     }
 }
 
-static uint64_t xhci_mem_read(void *ptr, target_phys_addr_t addr,
-                              unsigned size)
-{
-    XHCIState *xhci = ptr;
+static const MemoryRegionOps xhci_cap_ops = {
+    .read = xhci_cap_read,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
-    /* Only aligned reads are allowed on xHCI */
-    if (addr & 3) {
-        fprintf(stderr, "xhci_mem_read: Mis-aligned read\n");
-        return 0;
-    }
+static const MemoryRegionOps xhci_oper_ops = {
+    .read = xhci_oper_read,
+    .write = xhci_oper_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
-    if (addr < LEN_CAP) {
-        return xhci_cap_read(xhci, addr);
-    } else if (addr >= OFF_OPER && addr < (OFF_OPER + LEN_OPER)) {
-        return xhci_oper_read(xhci, addr - OFF_OPER);
-    } else if (addr >= OFF_RUNTIME && addr < (OFF_RUNTIME + LEN_RUNTIME)) {
-        return xhci_runtime_read(xhci, addr - OFF_RUNTIME);
-    } else if (addr >= OFF_DOORBELL && addr < (OFF_DOORBELL + LEN_DOORBELL)) {
-        return xhci_doorbell_read(xhci, addr - OFF_DOORBELL);
-    } else {
-        fprintf(stderr, "xhci_mem_read: Bad offset %x\n", (int)addr);
-        return 0;
-    }
-}
+static const MemoryRegionOps xhci_runtime_ops = {
+    .read = xhci_runtime_read,
+    .write = xhci_runtime_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
-static void xhci_mem_write(void *ptr, target_phys_addr_t addr,
-                           uint64_t val, unsigned size)
-{
-    XHCIState *xhci = ptr;
-
-    /* Only aligned writes are allowed on xHCI */
-    if (addr & 3) {
-        fprintf(stderr, "xhci_mem_write: Mis-aligned write\n");
-        return;
-    }
-
-    if (addr >= OFF_OPER && addr < (OFF_OPER + LEN_OPER)) {
-        xhci_oper_write(xhci, addr - OFF_OPER, val);
-    } else if (addr >= OFF_RUNTIME && addr < (OFF_RUNTIME + LEN_RUNTIME)) {
-        xhci_runtime_write(xhci, addr - OFF_RUNTIME, val);
-    } else if (addr >= OFF_DOORBELL && addr < (OFF_DOORBELL + LEN_DOORBELL)) {
-        xhci_doorbell_write(xhci, addr - OFF_DOORBELL, val);
-    } else {
-        fprintf(stderr, "xhci_mem_write: Bad offset %x\n", (int)addr);
-    }
-}
-
-static const MemoryRegionOps xhci_mem_ops = {
-    .read = xhci_mem_read,
-    .write = xhci_mem_write,
+static const MemoryRegionOps xhci_doorbell_ops = {
+    .read = xhci_doorbell_read,
+    .write = xhci_doorbell_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -2938,8 +2935,21 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 
     xhci->irq = xhci->pci_dev.irq[0];
 
-    memory_region_init_io(&xhci->mem, &xhci_mem_ops, xhci,
-                          "xhci", LEN_REGS);
+    memory_region_init(&xhci->mem, "xhci", LEN_REGS);
+    memory_region_init_io(&xhci->mem_cap, &xhci_cap_ops, xhci,
+                          "capabilities", LEN_CAP);
+    memory_region_init_io(&xhci->mem_oper, &xhci_oper_ops, xhci,
+                          "operational", 0x400 + 0x10 * xhci->numports);
+    memory_region_init_io(&xhci->mem_runtime, &xhci_runtime_ops, xhci,
+                          "runtime", LEN_RUNTIME);
+    memory_region_init_io(&xhci->mem_doorbell, &xhci_doorbell_ops, xhci,
+                          "doorbell", LEN_DOORBELL);
+
+    memory_region_add_subregion(&xhci->mem, 0,            &xhci->mem_cap);
+    memory_region_add_subregion(&xhci->mem, OFF_OPER,     &xhci->mem_oper);
+    memory_region_add_subregion(&xhci->mem, OFF_RUNTIME,  &xhci->mem_runtime);
+    memory_region_add_subregion(&xhci->mem, OFF_DOORBELL, &xhci->mem_doorbell);
+
     pci_register_bar(&xhci->pci_dev, 0,
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
                      &xhci->mem);
