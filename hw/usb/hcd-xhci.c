@@ -42,7 +42,7 @@
 
 #define MAXPORTS (MAXPORTS_2+MAXPORTS_3)
 #define MAXSLOTS MAXPORTS
-#define MAXINTRS 1 /* MAXPORTS */
+#define MAXINTRS MAXPORTS
 
 #define TD_QUEUE 24
 
@@ -73,10 +73,6 @@
 #endif
 #if (OFF_DOORBELL + LEN_DOORBELL) > LEN_REGS
 # error Increase LEN_REGS
-#endif
-
-#if MAXINTRS > 1
-# error TODO: only one interrupter supported
 #endif
 
 /* bit definitions */
