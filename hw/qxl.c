@@ -944,6 +944,26 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
     }
 }
 
+#if SPICE_SERVER_VERSION >= 0x000b04
+
+/* called from spice server thread context only */
+static void interface_set_client_capabilities(QXLInstance *sin,
+                                              uint8_t client_present,
+                                              uint8_t caps[58])
+{
+    PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
+
+    qxl->shadow_rom.client_present = client_present;
+    memcpy(qxl->shadow_rom.client_capabilities, caps, sizeof(caps));
+    qxl->rom->client_present = client_present;
+    memcpy(qxl->rom->client_capabilities, caps, sizeof(caps));
+    qxl_rom_set_dirty(qxl);
+
+    qxl_send_events(qxl, QXL_INTERRUPT_CLIENT);
+}
+
+#endif
+
 static const QXLInterface qxl_interface = {
     .base.type               = SPICE_INTERFACE_QXL,
     .base.description        = "qxl gpu",
@@ -965,6 +985,9 @@ static const QXLInterface qxl_interface = {
     .flush_resources         = interface_flush_resources,
     .async_complete          = interface_async_complete,
     .update_area_complete    = interface_update_area_complete,
+#if SPICE_SERVER_VERSION >= 0x000b04
+    .set_client_capabilities = interface_set_client_capabilities,
+#endif
 };
 
 static void qxl_enter_vga_mode(PCIQXLDevice *d)
