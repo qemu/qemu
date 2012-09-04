@@ -645,7 +645,7 @@ static int pmsav5_insn_ap_read(CPUARMState *env, const ARMCPRegInfo *ri,
 static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t *value)
 {
-    if (ri->crm > 8) {
+    if (ri->crm >= 8) {
         return EXCP_UDEF;
     }
     *value = env->cp15.c6_region[ri->crm];
@@ -655,7 +655,7 @@ static int arm946_prbs_read(CPUARMState *env, const ARMCPRegInfo *ri,
 static int arm946_prbs_write(CPUARMState *env, const ARMCPRegInfo *ri,
                              uint64_t value)
 {
-    if (ri->crm > 8) {
+    if (ri->crm >= 8) {
         return EXCP_UDEF;
     }
     env->cp15.c6_region[ri->crm] = value;
