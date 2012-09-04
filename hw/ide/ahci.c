@@ -1175,7 +1175,6 @@ void ahci_init(AHCIState *s, DeviceState *qdev, DMAContext *dma, int ports)
         ad->port_no = i;
         ad->port.dma = &ad->dma;
         ad->port.dma->ops = &ahci_dma_ops;
-        ad->port_regs.cmd = PORT_CMD_SPIN_UP | PORT_CMD_POWER_ON;
     }
 }
 
@@ -1199,6 +1198,7 @@ void ahci_reset(AHCIState *s)
         pr->irq_stat = 0;
         pr->irq_mask = 0;
         pr->scr_ctl = 0;
+        pr->cmd = PORT_CMD_SPIN_UP | PORT_CMD_POWER_ON;
         ahci_reset_port(s, i);
     }
 }
