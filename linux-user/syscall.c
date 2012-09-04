@@ -3628,9 +3628,7 @@ static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
         unlock_user(argptr, arg, target_size);
     }
 out:
-    if (big_buf) {
-        free(big_buf);
-    }
+    g_free(big_buf);
     return ret;
 }
 
