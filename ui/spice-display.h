@@ -32,8 +32,6 @@
 #define MEMSLOT_GROUP_GUEST 1
 #define NUM_MEMSLOTS_GROUPS 2
 
-#define NUM_SURFACES 1024
-
 /*
  * Internal enum to differenciate between options for
  * io calls that have a sync (old) version and an _async (new)
@@ -80,6 +78,7 @@ struct SimpleSpiceDisplay {
     QXLInstance qxl;
     uint32_t unique;
     QemuPfConv *conv;
+    int32_t num_surfaces;
 
     QXLRect dirty;
     int notify;

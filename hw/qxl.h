@@ -40,7 +40,6 @@ typedef struct PCIQXLDevice {
     uint32_t           revision;
 
     int32_t            num_memslots;
-    int32_t            num_surfaces;
 
     uint32_t           current_async;
     QemuMutex          async_lock;
@@ -65,7 +64,7 @@ typedef struct PCIQXLDevice {
     } guest_primary;
 
     struct surfaces {
-        QXLPHYSICAL    cmds[NUM_SURFACES];
+        QXLPHYSICAL    *cmds;
         uint32_t       count;
         uint32_t       max;
     } guest_surfaces;

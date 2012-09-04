@@ -317,6 +317,9 @@ void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
     qemu_mutex_init(&ssd->lock);
     ssd->mouse_x = -1;
     ssd->mouse_y = -1;
+    if (ssd->num_surfaces == 0) {
+        ssd->num_surfaces = 1024;
+    }
     ssd->bufsize = (16 * 1024 * 1024);
     ssd->buf = g_malloc(ssd->bufsize);
 }
@@ -427,7 +430,7 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->num_memslots_groups = NUM_MEMSLOTS_GROUPS;
     info->internal_groupslot_id = 0;
     info->qxl_ram_size = ssd->bufsize;
-    info->n_surfaces = NUM_SURFACES;
+    info->n_surfaces = ssd->num_surfaces;
 }
 
 static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
