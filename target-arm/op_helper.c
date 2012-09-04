@@ -29,7 +29,7 @@ static void raise_exception(CPUARMState *env, int tt)
     cpu_loop_exit(env);
 }
 
-uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
+uint32_t HELPER(neon_tbl)(CPUARMState *env, uint32_t ireg, uint32_t def,
                           uint32_t rn, uint32_t maxindex)
 {
     uint32_t val;
@@ -101,7 +101,7 @@ void tlb_fill(CPUARMState *env1, target_ulong addr, int is_write, int mmu_idx,
 
 /* FIXME: Pass an explicit pointer to QF to CPUARMState, and move saturating
    instructions into helper.c  */
-uint32_t HELPER(add_setq)(uint32_t a, uint32_t b)
+uint32_t HELPER(add_setq)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a + b;
     if (((res ^ a) & SIGNBIT) && !((a ^ b) & SIGNBIT))
@@ -109,7 +109,7 @@ uint32_t HELPER(add_setq)(uint32_t a, uint32_t b)
     return res;
 }
 
-uint32_t HELPER(add_saturate)(uint32_t a, uint32_t b)
+uint32_t HELPER(add_saturate)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a + b;
     if (((res ^ a) & SIGNBIT) && !((a ^ b) & SIGNBIT)) {
@@ -119,7 +119,7 @@ uint32_t HELPER(add_saturate)(uint32_t a, uint32_t b)
     return res;
 }
 
-uint32_t HELPER(sub_saturate)(uint32_t a, uint32_t b)
+uint32_t HELPER(sub_saturate)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a - b;
     if (((res ^ a) & SIGNBIT) && ((a ^ b) & SIGNBIT)) {
@@ -129,7 +129,7 @@ uint32_t HELPER(sub_saturate)(uint32_t a, uint32_t b)
     return res;
 }
 
-uint32_t HELPER(double_saturate)(int32_t val)
+uint32_t HELPER(double_saturate)(CPUARMState *env, int32_t val)
 {
     uint32_t res;
     if (val >= 0x40000000) {
@@ -144,7 +144,7 @@ uint32_t HELPER(double_saturate)(int32_t val)
     return res;
 }
 
-uint32_t HELPER(add_usaturate)(uint32_t a, uint32_t b)
+uint32_t HELPER(add_usaturate)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a + b;
     if (res < a) {
@@ -154,7 +154,7 @@ uint32_t HELPER(add_usaturate)(uint32_t a, uint32_t b)
     return res;
 }
 
-uint32_t HELPER(sub_usaturate)(uint32_t a, uint32_t b)
+uint32_t HELPER(sub_usaturate)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t res = a - b;
     if (res > a) {
@@ -165,7 +165,7 @@ uint32_t HELPER(sub_usaturate)(uint32_t a, uint32_t b)
 }
 
 /* Signed saturation.  */
-static inline uint32_t do_ssat(int32_t val, int shift)
+static inline uint32_t do_ssat(CPUARMState *env, int32_t val, int shift)
 {
     int32_t top;
     uint32_t mask;
@@ -183,7 +183,7 @@ static inline uint32_t do_ssat(int32_t val, int shift)
 }
 
 /* Unsigned saturation.  */
-static inline uint32_t do_usat(int32_t val, int shift)
+static inline uint32_t do_usat(CPUARMState *env, int32_t val, int shift)
 {
     uint32_t max;
 
@@ -199,34 +199,34 @@ static inline uint32_t do_usat(int32_t val, int shift)
 }
 
 /* Signed saturate.  */
-uint32_t HELPER(ssat)(uint32_t x, uint32_t shift)
+uint32_t HELPER(ssat)(CPUARMState *env, uint32_t x, uint32_t shift)
 {
-    return do_ssat(x, shift);
+    return do_ssat(env, x, shift);
 }
 
 /* Dual halfword signed saturate.  */
-uint32_t HELPER(ssat16)(uint32_t x, uint32_t shift)
+uint32_t HELPER(ssat16)(CPUARMState *env, uint32_t x, uint32_t shift)
 {
     uint32_t res;
 
-    res = (uint16_t)do_ssat((int16_t)x, shift);
-    res |= do_ssat(((int32_t)x) >> 16, shift) << 16;
+    res = (uint16_t)do_ssat(env, (int16_t)x, shift);
+    res |= do_ssat(env, ((int32_t)x) >> 16, shift) << 16;
     return res;
 }
 
 /* Unsigned saturate.  */
-uint32_t HELPER(usat)(uint32_t x, uint32_t shift)
+uint32_t HELPER(usat)(CPUARMState *env, uint32_t x, uint32_t shift)
 {
-    return do_usat(x, shift);
+    return do_usat(env, x, shift);
 }
 
 /* Dual halfword unsigned saturate.  */
-uint32_t HELPER(usat16)(uint32_t x, uint32_t shift)
+uint32_t HELPER(usat16)(CPUARMState *env, uint32_t x, uint32_t shift)
 {
     uint32_t res;
 
-    res = (uint16_t)do_usat((int16_t)x, shift);
-    res |= do_usat(((int32_t)x) >> 16, shift) << 16;
+    res = (uint16_t)do_usat(env, (int16_t)x, shift);
+    res |= do_usat(env, ((int32_t)x) >> 16, shift) << 16;
     return res;
 }
 
@@ -243,7 +243,7 @@ void HELPER(exception)(CPUARMState *env, uint32_t excp)
     cpu_loop_exit(env);
 }
 
-uint32_t HELPER(cpsr_read)(void)
+uint32_t HELPER(cpsr_read)(CPUARMState *env)
 {
     return cpsr_read(env) & ~CPSR_EXEC;
 }
@@ -254,7 +254,7 @@ void HELPER(cpsr_write)(CPUARMState *env, uint32_t val, uint32_t mask)
 }
 
 /* Access to user mode registers from privileged modes.  */
-uint32_t HELPER(get_user_reg)(uint32_t regno)
+uint32_t HELPER(get_user_reg)(CPUARMState *env, uint32_t regno)
 {
     uint32_t val;
 
@@ -329,7 +329,7 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
 
-uint32_t HELPER (add_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER (add_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     result = a + b;
@@ -339,7 +339,7 @@ uint32_t HELPER (add_cc)(uint32_t a, uint32_t b)
     return result;
 }
 
-uint32_t HELPER(adc_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(adc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     if (!env->CF) {
@@ -354,7 +354,7 @@ uint32_t HELPER(adc_cc)(uint32_t a, uint32_t b)
     return result;
 }
 
-uint32_t HELPER(sub_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(sub_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     result = a - b;
@@ -364,7 +364,7 @@ uint32_t HELPER(sub_cc)(uint32_t a, uint32_t b)
     return result;
 }
 
-uint32_t HELPER(sbc_cc)(uint32_t a, uint32_t b)
+uint32_t HELPER(sbc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
     if (!env->CF) {
@@ -381,7 +381,7 @@ uint32_t HELPER(sbc_cc)(uint32_t a, uint32_t b)
 
 /* Similarly for variable shift instructions.  */
 
-uint32_t HELPER(shl)(uint32_t x, uint32_t i)
+uint32_t HELPER(shl)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32)
@@ -389,7 +389,7 @@ uint32_t HELPER(shl)(uint32_t x, uint32_t i)
     return x << shift;
 }
 
-uint32_t HELPER(shr)(uint32_t x, uint32_t i)
+uint32_t HELPER(shr)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32)
@@ -397,7 +397,7 @@ uint32_t HELPER(shr)(uint32_t x, uint32_t i)
     return (uint32_t)x >> shift;
 }
 
-uint32_t HELPER(sar)(uint32_t x, uint32_t i)
+uint32_t HELPER(sar)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32)
@@ -405,7 +405,7 @@ uint32_t HELPER(sar)(uint32_t x, uint32_t i)
     return (int32_t)x >> shift;
 }
 
-uint32_t HELPER(shl_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(shl_cc)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32) {
@@ -421,7 +421,7 @@ uint32_t HELPER(shl_cc)(uint32_t x, uint32_t i)
     return x;
 }
 
-uint32_t HELPER(shr_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(shr_cc)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32) {
@@ -437,7 +437,7 @@ uint32_t HELPER(shr_cc)(uint32_t x, uint32_t i)
     return x;
 }
 
-uint32_t HELPER(sar_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(sar_cc)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
     if (shift >= 32) {
@@ -450,7 +450,7 @@ uint32_t HELPER(sar_cc)(uint32_t x, uint32_t i)
     return x;
 }
 
-uint32_t HELPER(ror_cc)(uint32_t x, uint32_t i)
+uint32_t HELPER(ror_cc)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift1, shift;
     shift1 = i & 0xff;
