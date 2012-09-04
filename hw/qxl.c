@@ -1359,11 +1359,9 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
 
     d->mode = QXL_MODE_COMPAT;
     d->cmdflags = QXL_COMMAND_FLAG_COMPAT;
-#ifdef QXL_COMMAND_FLAG_COMPAT_16BPP /* new in spice 0.6.1 */
     if (mode->bits == 16) {
         d->cmdflags |= QXL_COMMAND_FLAG_COMPAT_16BPP;
     }
-#endif
     d->shadow_rom.mode = cpu_to_le32(modenr);
     d->rom->mode = cpu_to_le32(modenr);
     qxl_rom_set_dirty(d);
