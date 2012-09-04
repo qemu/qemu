@@ -107,7 +107,7 @@ int qemu_file_get_error(QEMUFile *f);
 /* Try to send any outstanding data.  This function is useful when output is
  * halted due to rate limiting or EAGAIN errors occur as it can be used to
  * resume output. */
-void qemu_file_put_notify(QEMUFile *f);
+int qemu_file_put_notify(QEMUFile *f);
 
 static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)
 {

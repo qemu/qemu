@@ -287,10 +287,11 @@ static void migrate_fd_completed(MigrationState *s)
 static void migrate_fd_put_notify(void *opaque)
 {
     MigrationState *s = opaque;
+    int ret;
 
     qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    qemu_file_put_notify(s->file);
-    if (s->file && qemu_file_get_error(s->file)) {
+    ret = qemu_file_put_notify(s->file);
+    if (ret) {
         migrate_fd_error(s);
     }
 }
