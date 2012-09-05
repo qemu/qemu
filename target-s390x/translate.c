@@ -1385,21 +1385,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     tcg_temp_free_i32(tmp32_2);
 
     switch (op) {
-    case 0x74: /* LZER        R1                [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        gen_helper_lzer(cpu_env, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x75: /* LZDR        R1                [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        gen_helper_lzdr(cpu_env, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x76: /* LZXR        R1                [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        gen_helper_lzxr(cpu_env, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x84: /* SFPC        R1                [RRE] */
         tmp32_1 = load_reg32(r1);
         tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
@@ -3307,6 +3292,20 @@ static ExitStatus op_xori(DisasContext *s, DisasOps *o)
     /* Produce the CC from only the bits manipulated.  */
     tcg_gen_andi_i64(cc_dst, o->out, mask);
     set_cc_nz_u64(s, cc_dst);
+    return NO_EXIT;
+}
+
+static ExitStatus op_zero(DisasContext *s, DisasOps *o)
+{
+    o->out = tcg_const_i64(0);
+    return NO_EXIT;
+}
+
+static ExitStatus op_zero2(DisasContext *s, DisasOps *o)
+{
+    o->out = tcg_const_i64(0);
+    o->out2 = o->out;
+    o->g_out2 = true;
     return NO_EXIT;
 }
 

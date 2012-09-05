@@ -329,6 +329,10 @@
     C(0xe31f, LRVH,    RXY_a, Z,   0, m2_16u, new, r1_16, rev16, 0)
     C(0xe31e, LRV,     RXY_a, Z,   0, m2_32u, new, r1_32, rev32, 0)
     C(0xe30f, LRVG,    RXY_a, Z,   0, m2_64, r1, 0, rev64, 0)
+/* LOAD ZERO */
+    C(0xb374, LZER,    RRE,   Z,   0, 0, 0, e1, zero, 0)
+    C(0xb375, LZDR,    RRE,   Z,   0, 0, 0, f1, zero, 0)
+    C(0xb376, LZXR,    RRE,   Z,   0, 0, 0, x1, zero2, 0)
 
 /* LOAD LENGTHENED */
     C(0xb304, LDEBR,   RRE,   Z,   0, e2, f1, 0, ldeb, 0)

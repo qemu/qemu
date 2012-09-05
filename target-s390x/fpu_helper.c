@@ -494,28 +494,6 @@ uint32_t HELPER(cfxbr)(CPUS390XState *env, uint32_t r1, uint32_t f2,
     return set_cc_nz_f128(v2.q);
 }
 
-/* load 32-bit FP zero */
-void HELPER(lzer)(CPUS390XState *env, uint32_t f1)
-{
-    env->fregs[f1].l.upper = float32_zero;
-}
-
-/* load 64-bit FP zero */
-void HELPER(lzdr)(CPUS390XState *env, uint32_t f1)
-{
-    env->fregs[f1].d = float64_zero;
-}
-
-/* load 128-bit FP zero */
-void HELPER(lzxr)(CPUS390XState *env, uint32_t f1)
-{
-    CPU_QuadU x;
-
-    x.q = float64_to_float128(float64_zero, &env->fpu_status);
-    env->fregs[f1].ll = x.ll.upper;
-    env->fregs[f1 + 1].ll = x.ll.lower;
-}
-
 /* 32-bit FP multiply and add */
 uint64_t HELPER(maeb)(CPUS390XState *env, uint64_t f1,
                       uint64_t f2, uint64_t f3)
