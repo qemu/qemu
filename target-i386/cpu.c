@@ -1513,20 +1513,23 @@ void x86_cpudef_setup(void)
     static const char *model_with_versions[] = { "qemu32", "qemu64", "athlon" };
 
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
-        builtin_x86_defs[i].next = x86_defs;
-        builtin_x86_defs[i].flags = 1;
+        x86_def_t *def = &builtin_x86_defs[i];
+        def->next = x86_defs;
+        def->flags = 1;
 
         /* Look for specific "cpudef" models that */
         /* have the QEMU version in .model_id */
         for (j = 0; j < ARRAY_SIZE(model_with_versions); j++) {
-            if (strcmp(model_with_versions[j], builtin_x86_defs[i].name) == 0) {
-                pstrcpy(builtin_x86_defs[i].model_id, sizeof(builtin_x86_defs[i].model_id), "QEMU Virtual CPU version ");
-                pstrcat(builtin_x86_defs[i].model_id, sizeof(builtin_x86_defs[i].model_id), qemu_get_version());
+            if (strcmp(model_with_versions[j], def->name) == 0) {
+                pstrcpy(def->model_id, sizeof(def->model_id),
+                        "QEMU Virtual CPU version ");
+                pstrcat(def->model_id, sizeof(def->model_id),
+                        qemu_get_version());
                 break;
             }
         }
 
-        x86_defs = &builtin_x86_defs[i];
+        x86_defs = def;
     }
 #if !defined(CONFIG_USER_ONLY)
     qemu_opts_foreach(qemu_find_opts("cpudef"), cpudef_register, NULL, 0);
