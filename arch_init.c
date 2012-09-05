@@ -562,7 +562,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         if ((i & 63) == 0) {
             uint64_t t1 = (qemu_get_clock_ns(rt_clock) - bwidth) / 1000000;
             if (t1 > MAX_WAIT) {
-                DPRINTF("big wait: " PRIu64 " milliseconds, %d iterations\n",
+                DPRINTF("big wait: %" PRIu64 " milliseconds, %d iterations\n",
                         t1, i);
                 break;
             }
@@ -587,7 +587,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
     expected_time = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
 
-    DPRINTF("ram_save_live: expected(" PRIu64 ") <= max(" PRIu64 ")?\n",
+    DPRINTF("ram_save_live: expected(%" PRIu64 ") <= max(%" PRIu64 ")?\n",
             expected_time, migrate_max_downtime());
 
     if (expected_time <= migrate_max_downtime()) {
@@ -799,8 +799,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     } while (!(flags & RAM_SAVE_FLAG_EOS));
 
 done:
-    DPRINTF("Completed load of VM with exit code %d seq iteration " PRIu64 "\n",
-            ret, seq_iter);
+    DPRINTF("Completed load of VM with exit code %d seq iteration "
+            "%" PRIu64 "\n", ret, seq_iter);
     return ret;
 }
 
