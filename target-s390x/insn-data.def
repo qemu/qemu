@@ -173,6 +173,13 @@
     C(0xb914, LGFR,    RRE,   Z,   0, r2_32s, 0, r1, mov2, 0)
     C(0xe304, LG,      RXY_a, Z,   0, a2, r1, 0, ld64, 0)
     C(0xe314, LGF,     RXY_a, Z,   0, a2, r1, 0, ld32s, 0)
+    C(0x2800, LDR,     RR_a,  Z,   0, f2_o, 0, f1, mov2, 0)
+    C(0x6800, LD,      RX_a,  Z,   0, m2_64, 0, f1, mov2, 0)
+    C(0xed65, LDY,     RXY_a, LD,  0, m2_64, 0, f1, mov2, 0)
+    C(0x3800, LER,     RR_a,  Z,   0, e2, 0, cond_e1e2, mov2, 0)
+    C(0x7800, LE,      RX_a,  Z,   0, m2_32u, 0, e1, mov2, 0)
+    C(0xed64, LEY,     RXY_a, LD,  0, m2_32u, 0, e1, mov2, 0)
+    C(0xb365, LXR,     RRE,   Z,   0, x2_o, 0, x1, movx, 0)
 /* LOAD IMMEDIATE */
     C(0xc001, LGFI,    RIL_a, EI,  0, i2, 0, r1, mov2, 0)
 /* LOAD RELATIVE LONG */

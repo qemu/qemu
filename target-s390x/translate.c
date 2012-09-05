@@ -224,6 +224,13 @@ static inline TCGv_i32 load_freg32(int reg)
     return r;
 }
 
+static inline TCGv_i64 load_freg32_i64(int reg)
+{
+    TCGv_i64 r = tcg_temp_new_i64();
+    tcg_gen_shri_i64(r, fregs[reg], 32);
+    return r;
+}
+
 static inline TCGv_i32 load_reg32(int reg)
 {
     TCGv_i32 r = tcg_temp_new_i32();
@@ -291,6 +298,11 @@ static inline void store_freg32(int reg, TCGv_i32 v)
     tcg_gen_deposit_i64(fregs[reg], fregs[reg],
                         MAKE_TCGV_I64(GET_TCGV_I32(v)), 32, 32);
 #endif
+}
+
+static inline void store_freg32_i64(int reg, TCGv_i64 v)
+{
+    tcg_gen_deposit_i64(fregs[reg], fregs[reg], v, 32, 32);
 }
 
 static inline void return_low128(TCGv_i64 dest)
@@ -2371,20 +2383,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x28: /* LDR    R1,R2               [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp = load_freg(r2);
-        store_freg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
-    case 0x38: /* LER    R1,R2               [RR] */
-        insn = ld_code2(env, s->pc);
-        decode_rr(s, insn, &r1, &r2);
-        tmp32_1 = load_freg32(r2);
-        store_freg32(r1, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x43: /* IC     R1,D2(X2,B2)     [RX] */
         insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
@@ -2427,15 +2425,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         break;
-    case 0x68: /* LD    R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = tcg_temp_new_i64();
-        tcg_gen_qemu_ld64(tmp2, tmp, get_mem_index(s));
-        store_freg(r1, tmp2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
     case 0x70: /* STE R1,D2(X2,B2) [RX] */
         insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
@@ -2443,18 +2432,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tmp32_1 = load_freg32(r1);
         tcg_gen_extu_i32_i64(tmp2, tmp32_1);
         tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
-    case 0x78: /* LE     R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32_1, tmp2);
-        store_freg32(r1, tmp32_1);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
@@ -3596,6 +3573,18 @@ static ExitStatus op_mov2(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_movx(DisasContext *s, DisasOps *o)
+{
+    o->out = o->in1;
+    o->out2 = o->in2;
+    o->g_out = o->g_in1;
+    o->g_out2 = o->g_in2;
+    TCGV_UNUSED_I64(o->in1);
+    TCGV_UNUSED_I64(o->in2);
+    o->g_in1 = o->g_in2 = false;
+    return NO_EXIT;
+}
+
 static ExitStatus op_mvcl(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
@@ -3955,10 +3944,34 @@ static void wout_r1_D32(DisasContext *s, DisasFields *f, DisasOps *o)
     store_reg32_i64(r1, o->out);
 }
 
+static void wout_e1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    store_freg32_i64(get_field(f, r1), o->out);
+}
+
+static void wout_f1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    store_freg(get_field(f, r1), o->out);
+}
+
+static void wout_x1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int f1 = get_field(s->fields, r1);
+    store_freg(f1, o->out);
+    store_freg((f1 + 2) & 15, o->out2);
+}
+
 static void wout_cond_r1r2_32(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     if (get_field(f, r1) != get_field(f, r2)) {
         store_reg32_i64(get_field(f, r1), o->out);
+    }
+}
+
+static void wout_cond_e1e2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    if (get_field(f, r1) != get_field(f, r2)) {
+        store_freg32_i64(get_field(f, r1), o->out);
     }
 }
 
@@ -4135,6 +4148,25 @@ static void in2_r2_32u(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in2 = tcg_temp_new_i64();
     tcg_gen_ext32u_i64(o->in2, regs[get_field(f, r2)]);
+}
+
+static void in2_e2(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = load_freg32_i64(get_field(f, r2));
+}
+
+static void in2_f2_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in2 = fregs[get_field(f, r2)];
+    o->g_in2 = true;
+}
+
+static void in2_x2_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    int f2 = get_field(f, r2);
+    o->in1 = fregs[f2];
+    o->in2 = fregs[(f2 + 2) & 15];
+    o->g_in1 = o->g_in2 = true;
 }
 
 static void in2_a2(DisasContext *s, DisasFields *f, DisasOps *o)
