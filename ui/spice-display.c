@@ -164,7 +164,7 @@ int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
 #endif
 }
 
-static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
+static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 {
     SimpleSpiceUpdate *update;
     QXLDrawable *drawable;
@@ -175,7 +175,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     struct timespec time_space;
 
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
-        return NULL;
+        return;
     };
 
     trace_qemu_spice_create_update(
@@ -239,7 +239,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     cmd->data = (uintptr_t)drawable;
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
-    return update;
+    QTAILQ_INSERT_TAIL(&ssd->updates, update, next);
 }
 
 /*
@@ -315,6 +315,7 @@ void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
 {
     ssd->ds = ds;
     qemu_mutex_init(&ssd->lock);
+    QTAILQ_INIT(&ssd->updates);
     ssd->mouse_x = -1;
     ssd->mouse_y = -1;
     if (ssd->num_surfaces == 0) {
@@ -345,6 +346,8 @@ void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
 
 void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
 {
+    SimpleSpiceUpdate *update;
+
     dprint(1, "%s:\n", __FUNCTION__);
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
@@ -352,9 +355,9 @@ void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
     ssd->conv = NULL;
 
     qemu_mutex_lock(&ssd->lock);
-    if (ssd->update != NULL) {
-        qemu_spice_destroy_update(ssd, ssd->update);
-        ssd->update = NULL;
+    while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
+        QTAILQ_REMOVE(&ssd->updates, update, next);
+        qemu_spice_destroy_update(ssd, update);
     }
     qemu_mutex_unlock(&ssd->lock);
     qemu_spice_destroy_host_primary(ssd);
@@ -384,8 +387,8 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
     vga_hw_update();
 
     qemu_mutex_lock(&ssd->lock);
-    if (ssd->update == NULL) {
-        ssd->update = qemu_spice_create_update(ssd);
+    if (QTAILQ_EMPTY(&ssd->updates)) {
+        qemu_spice_create_update(ssd);
         ssd->notify++;
     }
     qemu_spice_cursor_refresh_unlocked(ssd);
@@ -442,9 +445,9 @@ static int interface_get_command(QXLInstance *sin, struct QXLCommandExt *ext)
     dprint(3, "%s:\n", __FUNCTION__);
 
     qemu_mutex_lock(&ssd->lock);
-    if (ssd->update != NULL) {
-        update = ssd->update;
-        ssd->update = NULL;
+    update = QTAILQ_FIRST(&ssd->updates);
+    if (update != NULL) {
+        QTAILQ_REMOVE(&ssd->updates, update, next);
         *ext = update->ext;
         ret = true;
     }

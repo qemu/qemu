@@ -92,7 +92,7 @@ struct SimpleSpiceDisplay {
      * to them must be protected by the lock.
      */
     QemuMutex lock;
-    SimpleSpiceUpdate *update;
+    QTAILQ_HEAD(, SimpleSpiceUpdate) updates;
     QEMUCursor *cursor;
     int mouse_x, mouse_y;
 };
@@ -102,6 +102,7 @@ struct SimpleSpiceUpdate {
     QXLImage image;
     QXLCommandExt ext;
     uint8_t *bitmap;
+    QTAILQ_ENTRY(SimpleSpiceUpdate) next;
 };
 
 int qemu_spice_rect_is_empty(const QXLRect* r);
