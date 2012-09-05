@@ -38,7 +38,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
     "                kernel_irqchip=on|off controls accelerated irqchip support\n"
     "                kvm_shadow_mem=size of KVM shadow MMU\n"
-    "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n",
+    "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
+    "                mem-merge=on|off controls memory merge support (default: on)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -57,6 +58,10 @@ Enables in-kernel irqchip support for the chosen accelerator when available.
 Defines the size of the KVM shadow MMU.
 @item dump-guest-core=on|off
 Include guest memory in a core dump. The default is on.
+@item mem-merge=on|off
+Enables or disables memory merge support. This feature, when supported by
+the host, de-duplicates identical memory pages among VMs instances
+(enabled by default).
 @end table
 ETEXI
 

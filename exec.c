@@ -2525,6 +2525,19 @@ void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
     }
 }
 
+static int memory_try_enable_merging(void *addr, size_t len)
+{
+    QemuOpts *opts;
+
+    opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (opts && !qemu_opt_get_bool(opts, "mem-merge", true)) {
+        /* disabled by the user */
+        return 0;
+    }
+
+    return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
+}
+
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr)
 {
@@ -2544,7 +2557,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
             new_block->host = file_ram_alloc(new_block, size, mem_path);
             if (!new_block->host) {
                 new_block->host = qemu_vmalloc(size);
-                qemu_madvise(new_block->host, size, QEMU_MADV_MERGEABLE);
+                memory_try_enable_merging(new_block->host, size);
             }
 #else
             fprintf(stderr, "-mem-path option unsupported\n");
@@ -2559,7 +2572,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
             } else {
                 new_block->host = qemu_vmalloc(size);
             }
-            qemu_madvise(new_block->host, size, QEMU_MADV_MERGEABLE);
+            memory_try_enable_merging(new_block->host, size);
         }
     }
     new_block->length = size;
@@ -2689,7 +2702,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                             length, addr);
                     exit(1);
                 }
-                qemu_madvise(vaddr, length, QEMU_MADV_MERGEABLE);
+                memory_try_enable_merging(vaddr, length);
                 qemu_ram_setup_dump(vaddr, length);
             }
             return;
