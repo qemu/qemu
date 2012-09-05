@@ -801,26 +801,39 @@ static int ata_passthrough_16_xfer_size(SCSIDevice *dev, uint8_t *buf)
     return xfer * unit;
 }
 
-static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+uint32_t scsi_data_cdb_length(uint8_t *buf)
+{
+    if ((buf[0] >> 5) == 0 && buf[4] == 0) {
+        return 256;
+    } else {
+        return scsi_cdb_length(buf);
+    }
+}
+
+uint32_t scsi_cdb_length(uint8_t *buf)
 {
     switch (buf[0] >> 5) {
     case 0:
-        cmd->xfer = buf[4];
+        return buf[4];
         break;
     case 1:
     case 2:
-        cmd->xfer = lduw_be_p(&buf[7]);
+        return lduw_be_p(&buf[7]);
         break;
     case 4:
-        cmd->xfer = ldl_be_p(&buf[10]) & 0xffffffffULL;
+        return ldl_be_p(&buf[10]) & 0xffffffffULL;
         break;
     case 5:
-        cmd->xfer = ldl_be_p(&buf[6]) & 0xffffffffULL;
+        return ldl_be_p(&buf[6]) & 0xffffffffULL;
         break;
     default:
         return -1;
     }
+}
 
+static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
+{
+    cmd->xfer = scsi_cdb_length(buf);
     switch (buf[0]) {
     case TEST_UNIT_READY:
     case REWIND:
