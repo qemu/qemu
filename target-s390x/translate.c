@@ -58,6 +58,18 @@ struct DisasContext {
     int is_jmp;
 };
 
+/* Information carried about a condition to be evaluated.  */
+typedef struct {
+    TCGCond cond:8;
+    bool is_64;
+    bool g1;
+    bool g2;
+    union {
+        struct { TCGv_i64 a, b; } s64;
+        struct { TCGv_i32 a, b; } s32;
+    } u;
+} DisasCompare;
+
 #define DISAS_EXCP 4
 
 static void gen_op_calc_cc(DisasContext *s);
@@ -840,357 +852,281 @@ static inline void account_noninline_branch(DisasContext *s, int cc_op)
 #endif
 }
 
-static inline void account_inline_branch(DisasContext *s)
+static inline void account_inline_branch(DisasContext *s, int cc_op)
 {
 #ifdef DEBUG_INLINE_BRANCHES
-    inline_branch_hit[s->cc_op]++;
+    inline_branch_hit[cc_op]++;
 #endif
+}
+
+/* Table of mask values to comparison codes, given a comparison as input.
+   For a true comparison CC=3 will never be set, but we treat this
+   conservatively for possible use when CC=3 indicates overflow.  */
+static const TCGCond ltgt_cond[16] = {
+    TCG_COND_NEVER,  TCG_COND_NEVER,     /*    |    |    | x */
+    TCG_COND_GT,     TCG_COND_NEVER,     /*    |    | GT | x */
+    TCG_COND_LT,     TCG_COND_NEVER,     /*    | LT |    | x */
+    TCG_COND_NE,     TCG_COND_NEVER,     /*    | LT | GT | x */
+    TCG_COND_EQ,     TCG_COND_NEVER,     /* EQ |    |    | x */
+    TCG_COND_GE,     TCG_COND_NEVER,     /* EQ |    | GT | x */
+    TCG_COND_LE,     TCG_COND_NEVER,     /* EQ | LT |    | x */
+    TCG_COND_ALWAYS, TCG_COND_ALWAYS,    /* EQ | LT | GT | x */
+};
+
+/* Table of mask values to comparison codes, given a logic op as input.
+   For such, only CC=0 and CC=1 should be possible.  */
+static const TCGCond nz_cond[16] = {
+    /*    |    | x | x */
+    TCG_COND_NEVER, TCG_COND_NEVER, TCG_COND_NEVER, TCG_COND_NEVER,
+    /*    | NE | x | x */
+    TCG_COND_NE, TCG_COND_NE, TCG_COND_NE, TCG_COND_NE,
+    /* EQ |    | x | x */
+    TCG_COND_EQ, TCG_COND_EQ, TCG_COND_EQ, TCG_COND_EQ,
+    /* EQ | NE | x | x */
+    TCG_COND_ALWAYS, TCG_COND_ALWAYS, TCG_COND_ALWAYS, TCG_COND_ALWAYS,
+};
+
+/* Interpret MASK in terms of S->CC_OP, and fill in C with all the
+   details required to generate a TCG comparison.  */
+static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
+{
+    TCGCond cond;
+    enum cc_op old_cc_op = s->cc_op;
+
+    if (mask == 15 || mask == 0) {
+        c->cond = (mask ? TCG_COND_ALWAYS : TCG_COND_NEVER);
+        c->u.s32.a = cc_op;
+        c->u.s32.b = cc_op;
+        c->g1 = c->g2 = true;
+        c->is_64 = false;
+        return;
+    }
+
+    /* Find the TCG condition for the mask + cc op.  */
+    switch (old_cc_op) {
+    case CC_OP_LTGT0_32:
+    case CC_OP_LTGT0_64:
+    case CC_OP_LTGT_32:
+    case CC_OP_LTGT_64:
+        cond = ltgt_cond[mask];
+        if (cond == TCG_COND_NEVER) {
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
+    case CC_OP_LTUGTU_32:
+    case CC_OP_LTUGTU_64:
+        cond = tcg_unsigned_cond(ltgt_cond[mask]);
+        if (cond == TCG_COND_NEVER) {
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
+    case CC_OP_NZ:
+        cond = nz_cond[mask];
+        if (cond == TCG_COND_NEVER) {
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
+    case CC_OP_TM_32:
+    case CC_OP_TM_64:
+        switch (mask) {
+        case 8:
+            cond = TCG_COND_EQ;
+            break;
+        case 4 | 2 | 1:
+            cond = TCG_COND_NE;
+            break;
+        default:
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
+    case CC_OP_ICM:
+        switch (mask) {
+        case 8:
+            cond = TCG_COND_EQ;
+            break;
+        case 4 | 2 | 1:
+        case 4 | 2:
+            cond = TCG_COND_NE;
+            break;
+        default:
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
+    default:
+    do_dynamic:
+        /* Calculate cc value.  */
+        gen_op_calc_cc(s);
+        /* FALLTHRU */
+
+    case CC_OP_STATIC:
+        /* Jump based on CC.  We'll load up the real cond below;
+           the assignment here merely avoids a compiler warning.  */
+        account_noninline_branch(s, old_cc_op);
+        old_cc_op = CC_OP_STATIC;
+        cond = TCG_COND_NEVER;
+        break;
+    }
+
+    /* Load up the arguments of the comparison.  */
+    c->is_64 = true;
+    c->g1 = c->g2 = false;
+    switch (old_cc_op) {
+    case CC_OP_LTGT0_32:
+        c->is_64 = false;
+        c->u.s32.a = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(c->u.s32.a, cc_dst);
+        c->u.s32.b = tcg_const_i32(0);
+        break;
+    case CC_OP_LTGT_32:
+    case CC_OP_LTUGTU_32:
+        c->is_64 = false;
+        c->u.s32.a = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(c->u.s32.a, cc_src);
+        c->u.s32.b = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(c->u.s32.b, cc_dst);
+        break;
+
+    case CC_OP_LTGT0_64:
+    case CC_OP_NZ:
+    case CC_OP_ICM:
+        c->u.s64.a = cc_dst;
+        c->u.s64.b = tcg_const_i64(0);
+        c->g1 = true;
+        break;
+    case CC_OP_LTGT_64:
+    case CC_OP_LTUGTU_64:
+        c->u.s64.a = cc_src;
+        c->u.s64.b = cc_dst;
+        c->g1 = c->g2 = true;
+        break;
+
+    case CC_OP_TM_32:
+    case CC_OP_TM_64:
+        c->u.s64.a = tcg_temp_new_i64();
+        c->u.s64.b = tcg_const_i64(0);
+        tcg_gen_and_i64(c->u.s64.a, cc_src, cc_dst);
+        break;
+
+    case CC_OP_STATIC:
+        c->is_64 = false;
+        c->u.s32.a = cc_op;
+        c->g1 = true;
+        switch (mask) {
+        case 0x8 | 0x4 | 0x2: /* cc != 3 */
+            cond = TCG_COND_NE;
+            c->u.s32.b = tcg_const_i32(3);
+            break;
+        case 0x8 | 0x4 | 0x1: /* cc != 2 */
+            cond = TCG_COND_NE;
+            c->u.s32.b = tcg_const_i32(2);
+            break;
+        case 0x8 | 0x2 | 0x1: /* cc != 1 */
+            cond = TCG_COND_NE;
+            c->u.s32.b = tcg_const_i32(1);
+            break;
+        case 0x8 | 0x2: /* cc == 0 || cc == 2 => (cc & 1) == 0 */
+            cond = TCG_COND_EQ;
+            c->g1 = false;
+            c->u.s32.a = tcg_temp_new_i32();
+            c->u.s32.b = tcg_const_i32(0);
+            tcg_gen_andi_i32(c->u.s32.a, cc_op, 1);
+            break;
+        case 0x8 | 0x4: /* cc < 2 */
+            cond = TCG_COND_LTU;
+            c->u.s32.b = tcg_const_i32(2);
+            break;
+        case 0x8: /* cc == 0 */
+            cond = TCG_COND_EQ;
+            c->u.s32.b = tcg_const_i32(0);
+            break;
+        case 0x4 | 0x2 | 0x1: /* cc != 0 */
+            cond = TCG_COND_NE;
+            c->u.s32.b = tcg_const_i32(0);
+            break;
+        case 0x4 | 0x1: /* cc == 1 || cc == 3 => (cc & 1) != 0 */
+            cond = TCG_COND_NE;
+            c->g1 = false;
+            c->u.s32.a = tcg_temp_new_i32();
+            c->u.s32.b = tcg_const_i32(0);
+            tcg_gen_andi_i32(c->u.s32.a, cc_op, 1);
+            break;
+        case 0x4: /* cc == 1 */
+            cond = TCG_COND_EQ;
+            c->u.s32.b = tcg_const_i32(1);
+            break;
+        case 0x2 | 0x1: /* cc > 1 */
+            cond = TCG_COND_GTU;
+            c->u.s32.b = tcg_const_i32(1);
+            break;
+        case 0x2: /* cc == 2 */
+            cond = TCG_COND_EQ;
+            c->u.s32.b = tcg_const_i32(2);
+            break;
+        case 0x1: /* cc == 3 */
+            cond = TCG_COND_EQ;
+            c->u.s32.b = tcg_const_i32(3);
+            break;
+        default:
+            /* CC is masked by something else: (8 >> cc) & mask.  */
+            cond = TCG_COND_NE;
+            c->g1 = false;
+            c->u.s32.a = tcg_const_i32(8);
+            c->u.s32.b = tcg_const_i32(0);
+            tcg_gen_shr_i32(c->u.s32.a, c->u.s32.a, cc_op);
+            tcg_gen_andi_i32(c->u.s32.a, c->u.s32.a, mask);
+            break;
+        }
+        break;
+
+    default:
+        abort();
+    }
+    c->cond = cond;
+}
+
+static void free_compare(DisasCompare *c)
+{
+    if (!c->g1) {
+        if (c->is_64) {
+            tcg_temp_free_i64(c->u.s64.a);
+        } else {
+            tcg_temp_free_i32(c->u.s32.a);
+        }
+    }
+    if (!c->g2) {
+        if (c->is_64) {
+            tcg_temp_free_i64(c->u.s64.b);
+        } else {
+            tcg_temp_free_i32(c->u.s32.b);
+        }
+    }
 }
 
 static void gen_jcc(DisasContext *s, uint32_t mask, int skip)
 {
-    TCGv_i32 tmp, tmp2, r;
-    TCGv_i64 tmp64;
-    int old_cc_op;
+    DisasCompare c;
+    TCGCond cond;
 
-    switch (s->cc_op) {
-    case CC_OP_LTGT0_32:
-        tmp = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(tmp, cc_dst);
-        switch (mask) {
-        case 0x8 | 0x4: /* dst <= 0 */
-            tcg_gen_brcondi_i32(TCG_COND_GT, tmp, 0, skip);
-            break;
-        case 0x8 | 0x2: /* dst >= 0 */
-            tcg_gen_brcondi_i32(TCG_COND_LT, tmp, 0, skip);
-            break;
-        case 0x8: /* dst == 0 */
-            tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, skip);
-            break;
-        case 0x7: /* dst != 0 */
-        case 0x6: /* dst != 0 */
-            tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, skip);
-            break;
-        case 0x4: /* dst < 0 */
-            tcg_gen_brcondi_i32(TCG_COND_GE, tmp, 0, skip);
-            break;
-        case 0x2: /* dst > 0 */
-            tcg_gen_brcondi_i32(TCG_COND_LE, tmp, 0, skip);
-            break;
-        default:
-            tcg_temp_free_i32(tmp);
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        tcg_temp_free_i32(tmp);
-        break;
-    case CC_OP_LTGT0_64:
-        switch (mask) {
-        case 0x8 | 0x4: /* dst <= 0 */
-            tcg_gen_brcondi_i64(TCG_COND_GT, cc_dst, 0, skip);
-            break;
-        case 0x8 | 0x2: /* dst >= 0 */
-            tcg_gen_brcondi_i64(TCG_COND_LT, cc_dst, 0, skip);
-            break;
-        case 0x8: /* dst == 0 */
-            tcg_gen_brcondi_i64(TCG_COND_NE, cc_dst, 0, skip);
-            break;
-        case 0x7: /* dst != 0 */
-        case 0x6: /* dst != 0 */
-            tcg_gen_brcondi_i64(TCG_COND_EQ, cc_dst, 0, skip);
-            break;
-        case 0x4: /* dst < 0 */
-            tcg_gen_brcondi_i64(TCG_COND_GE, cc_dst, 0, skip);
-            break;
-        case 0x2: /* dst > 0 */
-            tcg_gen_brcondi_i64(TCG_COND_LE, cc_dst, 0, skip);
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        break;
-    case CC_OP_LTGT_32:
-        tmp = tcg_temp_new_i32();
-        tmp2 = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(tmp, cc_src);
-        tcg_gen_trunc_i64_i32(tmp2, cc_dst);
-        switch (mask) {
-        case 0x8 | 0x4: /* src <= dst */
-            tcg_gen_brcond_i32(TCG_COND_GT, tmp, tmp2, skip);
-            break;
-        case 0x8 | 0x2: /* src >= dst */
-            tcg_gen_brcond_i32(TCG_COND_LT, tmp, tmp2, skip);
-            break;
-        case 0x8: /* src == dst */
-            tcg_gen_brcond_i32(TCG_COND_NE, tmp, tmp2, skip);
-            break;
-        case 0x7: /* src != dst */
-        case 0x6: /* src != dst */
-            tcg_gen_brcond_i32(TCG_COND_EQ, tmp, tmp2, skip);
-            break;
-        case 0x4: /* src < dst */
-            tcg_gen_brcond_i32(TCG_COND_GE, tmp, tmp2, skip);
-            break;
-        case 0x2: /* src > dst */
-            tcg_gen_brcond_i32(TCG_COND_LE, tmp, tmp2, skip);
-            break;
-        default:
-            tcg_temp_free_i32(tmp);
-            tcg_temp_free_i32(tmp2);
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        tcg_temp_free_i32(tmp);
-        tcg_temp_free_i32(tmp2);
-        break;
-    case CC_OP_LTGT_64:
-        switch (mask) {
-        case 0x8 | 0x4: /* src <= dst */
-            tcg_gen_brcond_i64(TCG_COND_GT, cc_src, cc_dst, skip);
-            break;
-        case 0x8 | 0x2: /* src >= dst */
-            tcg_gen_brcond_i64(TCG_COND_LT, cc_src, cc_dst, skip);
-            break;
-        case 0x8: /* src == dst */
-            tcg_gen_brcond_i64(TCG_COND_NE, cc_src, cc_dst, skip);
-            break;
-        case 0x7: /* src != dst */
-        case 0x6: /* src != dst */
-            tcg_gen_brcond_i64(TCG_COND_EQ, cc_src, cc_dst, skip);
-            break;
-        case 0x4: /* src < dst */
-            tcg_gen_brcond_i64(TCG_COND_GE, cc_src, cc_dst, skip);
-            break;
-        case 0x2: /* src > dst */
-            tcg_gen_brcond_i64(TCG_COND_LE, cc_src, cc_dst, skip);
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        break;
-    case CC_OP_LTUGTU_32:
-        tmp = tcg_temp_new_i32();
-        tmp2 = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(tmp, cc_src);
-        tcg_gen_trunc_i64_i32(tmp2, cc_dst);
-        switch (mask) {
-        case 0x8 | 0x4: /* src <= dst */
-            tcg_gen_brcond_i32(TCG_COND_GTU, tmp, tmp2, skip);
-            break;
-        case 0x8 | 0x2: /* src >= dst */
-            tcg_gen_brcond_i32(TCG_COND_LTU, tmp, tmp2, skip);
-            break;
-        case 0x8: /* src == dst */
-            tcg_gen_brcond_i32(TCG_COND_NE, tmp, tmp2, skip);
-            break;
-        case 0x7: /* src != dst */
-        case 0x6: /* src != dst */
-            tcg_gen_brcond_i32(TCG_COND_EQ, tmp, tmp2, skip);
-            break;
-        case 0x4: /* src < dst */
-            tcg_gen_brcond_i32(TCG_COND_GEU, tmp, tmp2, skip);
-            break;
-        case 0x2: /* src > dst */
-            tcg_gen_brcond_i32(TCG_COND_LEU, tmp, tmp2, skip);
-            break;
-        default:
-            tcg_temp_free_i32(tmp);
-            tcg_temp_free_i32(tmp2);
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        tcg_temp_free_i32(tmp);
-        tcg_temp_free_i32(tmp2);
-        break;
-    case CC_OP_LTUGTU_64:
-        switch (mask) {
-        case 0x8 | 0x4: /* src <= dst */
-            tcg_gen_brcond_i64(TCG_COND_GTU, cc_src, cc_dst, skip);
-            break;
-        case 0x8 | 0x2: /* src >= dst */
-            tcg_gen_brcond_i64(TCG_COND_LTU, cc_src, cc_dst, skip);
-            break;
-        case 0x8: /* src == dst */
-            tcg_gen_brcond_i64(TCG_COND_NE, cc_src, cc_dst, skip);
-            break;
-        case 0x7: /* src != dst */
-        case 0x6: /* src != dst */
-            tcg_gen_brcond_i64(TCG_COND_EQ, cc_src, cc_dst, skip);
-            break;
-        case 0x4: /* src < dst */
-            tcg_gen_brcond_i64(TCG_COND_GEU, cc_src, cc_dst, skip);
-            break;
-        case 0x2: /* src > dst */
-            tcg_gen_brcond_i64(TCG_COND_LEU, cc_src, cc_dst, skip);
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        break;
-    case CC_OP_NZ:
-        switch (mask) {
-        /* dst == 0 || dst != 0 */
-        case 0x8 | 0x4:
-        case 0x8 | 0x4 | 0x2:
-        case 0x8 | 0x4 | 0x2 | 0x1:
-        case 0x8 | 0x4 | 0x1:
-            break;
-        /* dst == 0 */
-        case 0x8:
-        case 0x8 | 0x2:
-        case 0x8 | 0x2 | 0x1:
-        case 0x8 | 0x1:
-            tcg_gen_brcondi_i64(TCG_COND_NE, cc_dst, 0, skip);
-            break;
-        /* dst != 0 */
-        case 0x4:
-        case 0x4 | 0x2:
-        case 0x4 | 0x2 | 0x1:
-        case 0x4 | 0x1:
-            tcg_gen_brcondi_i64(TCG_COND_EQ, cc_dst, 0, skip);
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        break;
-    case CC_OP_TM_32:
-        tmp = tcg_temp_new_i32();
-        tmp2 = tcg_temp_new_i32();
+    disas_jcc(s, &c, mask);
+    cond = tcg_invert_cond(c.cond);
 
-        tcg_gen_trunc_i64_i32(tmp, cc_src);
-        tcg_gen_trunc_i64_i32(tmp2, cc_dst);
-        tcg_gen_and_i32(tmp, tmp, tmp2);
-        switch (mask) {
-        case 0x8: /* val & mask == 0 */
-            tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, skip);
-            break;
-        case 0x4 | 0x2 | 0x1: /* val & mask != 0 */
-            tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, skip);
-            break;
-        default:
-            tcg_temp_free_i32(tmp);
-            tcg_temp_free_i32(tmp2);
-            goto do_dynamic;
-        }
-        tcg_temp_free_i32(tmp);
-        tcg_temp_free_i32(tmp2);
-        account_inline_branch(s);
-        break;
-    case CC_OP_TM_64:
-        tmp64 = tcg_temp_new_i64();
-
-        tcg_gen_and_i64(tmp64, cc_src, cc_dst);
-        switch (mask) {
-        case 0x8: /* val & mask == 0 */
-            tcg_gen_brcondi_i64(TCG_COND_NE, tmp64, 0, skip);
-            break;
-        case 0x4 | 0x2 | 0x1: /* val & mask != 0 */
-            tcg_gen_brcondi_i64(TCG_COND_EQ, tmp64, 0, skip);
-            break;
-        default:
-            tcg_temp_free_i64(tmp64);
-            goto do_dynamic;
-        }
-        tcg_temp_free_i64(tmp64);
-        account_inline_branch(s);
-        break;
-    case CC_OP_ICM:
-        switch (mask) {
-        case 0x8: /* val == 0 */
-            tcg_gen_brcondi_i64(TCG_COND_NE, cc_dst, 0, skip);
-            break;
-        case 0x4 | 0x2 | 0x1: /* val != 0 */
-        case 0x4 | 0x2: /* val != 0 */
-            tcg_gen_brcondi_i64(TCG_COND_EQ, cc_dst, 0, skip);
-            break;
-        default:
-            goto do_dynamic;
-        }
-        account_inline_branch(s);
-        break;
-    case CC_OP_STATIC:
-        old_cc_op = s->cc_op;
-        goto do_dynamic_nocccalc;
-    case CC_OP_DYNAMIC:
-    default:
-do_dynamic:
-        old_cc_op = s->cc_op;
-        /* calculate cc value */
-        gen_op_calc_cc(s);
-
-do_dynamic_nocccalc:
-        /* jump based on cc */
-        account_noninline_branch(s, old_cc_op);
-
-        switch (mask) {
-        case 0x8 | 0x4 | 0x2 | 0x1:
-            /* always true */
-            break;
-        case 0x8 | 0x4 | 0x2: /* cc != 3 */
-            tcg_gen_brcondi_i32(TCG_COND_EQ, cc_op, 3, skip);
-            break;
-        case 0x8 | 0x4 | 0x1: /* cc != 2 */
-            tcg_gen_brcondi_i32(TCG_COND_EQ, cc_op, 2, skip);
-            break;
-        case 0x8 | 0x2 | 0x1: /* cc != 1 */
-            tcg_gen_brcondi_i32(TCG_COND_EQ, cc_op, 1, skip);
-            break;
-        case 0x8 | 0x2: /* cc == 0 || cc == 2 */
-            tmp = tcg_temp_new_i32();
-            tcg_gen_andi_i32(tmp, cc_op, 1);
-            tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, skip);
-            tcg_temp_free_i32(tmp);
-            break;
-        case 0x8 | 0x4: /* cc < 2 */
-            tcg_gen_brcondi_i32(TCG_COND_GEU, cc_op, 2, skip);
-            break;
-        case 0x8: /* cc == 0 */
-            tcg_gen_brcondi_i32(TCG_COND_NE, cc_op, 0, skip);
-            break;
-        case 0x4 | 0x2 | 0x1: /* cc != 0 */
-            tcg_gen_brcondi_i32(TCG_COND_EQ, cc_op, 0, skip);
-            break;
-        case 0x4 | 0x1: /* cc == 1 || cc == 3 */
-            tmp = tcg_temp_new_i32();
-            tcg_gen_andi_i32(tmp, cc_op, 1);
-            tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, skip);
-            tcg_temp_free_i32(tmp);
-            break;
-        case 0x4: /* cc == 1 */
-            tcg_gen_brcondi_i32(TCG_COND_NE, cc_op, 1, skip);
-            break;
-        case 0x2 | 0x1: /* cc > 1 */
-            tcg_gen_brcondi_i32(TCG_COND_LEU, cc_op, 1, skip);
-            break;
-        case 0x2: /* cc == 2 */
-            tcg_gen_brcondi_i32(TCG_COND_NE, cc_op, 2, skip);
-            break;
-        case 0x1: /* cc == 3 */
-            tcg_gen_brcondi_i32(TCG_COND_NE, cc_op, 3, skip);
-            break;
-        default: /* cc is masked by something else */
-            tmp = tcg_const_i32(3);
-            /* 3 - cc */
-            tcg_gen_sub_i32(tmp, tmp, cc_op);
-            tmp2 = tcg_const_i32(1);
-            /* 1 << (3 - cc) */
-            tcg_gen_shl_i32(tmp2, tmp2, tmp);
-            r = tcg_const_i32(mask);
-            /* mask & (1 << (3 - cc)) */
-            tcg_gen_and_i32(r, r, tmp2);
-            tcg_temp_free_i32(tmp);
-            tcg_temp_free_i32(tmp2);
-
-            tcg_gen_brcondi_i32(TCG_COND_EQ, r, 0, skip);
-            tcg_temp_free_i32(r);
-            break;
-        }
-        break;
+    if (c.is_64) {
+        tcg_gen_brcond_i64(cond, c.u.s64.a, c.u.s64.b, skip);
+    } else {
+        tcg_gen_brcond_i32(cond, c.u.s32.a, c.u.s32.b, skip);
     }
+
+    free_compare(&c);
 }
 
 static void gen_bcr(DisasContext *s, uint32_t mask, TCGv_i64 target,
