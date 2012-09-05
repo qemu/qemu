@@ -364,6 +364,10 @@
 /* LOAD LOGICAL THIRTY ONE BITS */
     C(0xb917, LLGTR,   RRE,   Z,  0, r2_o, r1, 0, llgt, 0)
     C(0xe317, LLGT,    RXY_a, Z,  0, m2_32u, r1, 0, llgt, 0)
+/* LOAD FPR FROM GR */
+    C(0xb3c1, LDGR,    RRE,   FPRGR, 0, r2_o, 0, f1, mov2, 0)
+/* LOAD GR FROM FPR */
+    C(0xb3cd, LGDR,    RRE,   FPRGR, 0, f2_o, 0, r1, mov2, 0)
 /* LOAD NEGATIVE */
     C(0x1100, LNR,     RR_a,  Z,   0, r2_32s, new, r1_32, nabs, nabs32)
     C(0xb901, LNGR,    RRE,   Z,   0, r2, r1, 0, nabs, nabs64)
