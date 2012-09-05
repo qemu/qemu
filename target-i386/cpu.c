@@ -240,7 +240,6 @@ typedef struct x86_def_t {
     uint32_t xlevel;
     char model_id[48];
     int vendor_override;
-    uint32_t flags;
     /* Store the results of Centaur's CPUID instructions */
     uint32_t ext4_features;
     uint32_t xlevel2;
@@ -1299,7 +1298,7 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     char buf[256];
 
     for (def = x86_defs; def; def = def->next) {
-        snprintf(buf, sizeof (buf), def->flags ? "[%s]": "%s", def->name);
+        snprintf(buf, sizeof(buf), "%s", def->name);
         (*cpu_fprintf)(f, "x86 %16s  %-48s\n", buf, def->model_id);
     }
     if (kvm_enabled()) {
@@ -1393,16 +1392,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-/* copy vendor id string to 32 bit register, nul pad as needed
- */
-static void cpyid(const char *s, uint32_t *id)
-{
-    char *d = (char *)id;
-    char i;
-
-    for (i = sizeof (*id); i--; )
-        *d++ = *s ? *s++ : '\0';
-}
 
 /* interpret radix and convert from string to arbitrary scalar,
  * otherwise flag failure
@@ -1416,87 +1405,6 @@ static void cpyid(const char *s, uint32_t *id)
     *str && !*pend ? (*pval = ul) : (*perr = 1);        \
 }
 
-/* map cpuid options to feature bits, otherwise return failure
- * (option tags in *str are delimited by whitespace)
- */
-static void setfeatures(uint32_t *pval, const char *str,
-    const char **featureset, int *perr)
-{
-    const char *p, *q;
-
-    for (q = p = str; *p || *q; q = p) {
-        while (iswhite(*p))
-            q = ++p;
-        while (*p && !iswhite(*p))
-            ++p;
-        if (!*q && !*p)
-            return;
-        if (!lookup_feature(pval, q, p, featureset)) {
-            fprintf(stderr, "error: feature \"%.*s\" not available in set\n",
-                (int)(p - q), q);
-            *perr = 1;
-            return;
-        }
-    }
-}
-
-/* map config file options to x86_def_t form
- */
-static int cpudef_setfield(const char *name, const char *str, void *opaque)
-{
-    x86_def_t *def = opaque;
-    int err = 0;
-
-    if (!strcmp(name, "name")) {
-        g_free((void *)def->name);
-        def->name = g_strdup(str);
-    } else if (!strcmp(name, "model_id")) {
-        strncpy(def->model_id, str, sizeof (def->model_id));
-    } else if (!strcmp(name, "level")) {
-        setscalar(&def->level, str, &err)
-    } else if (!strcmp(name, "vendor")) {
-        cpyid(&str[0], &def->vendor1);
-        cpyid(&str[4], &def->vendor2);
-        cpyid(&str[8], &def->vendor3);
-    } else if (!strcmp(name, "family")) {
-        setscalar(&def->family, str, &err)
-    } else if (!strcmp(name, "model")) {
-        setscalar(&def->model, str, &err)
-    } else if (!strcmp(name, "stepping")) {
-        setscalar(&def->stepping, str, &err)
-    } else if (!strcmp(name, "feature_edx")) {
-        setfeatures(&def->features, str, feature_name, &err);
-    } else if (!strcmp(name, "feature_ecx")) {
-        setfeatures(&def->ext_features, str, ext_feature_name, &err);
-    } else if (!strcmp(name, "extfeature_edx")) {
-        setfeatures(&def->ext2_features, str, ext2_feature_name, &err);
-    } else if (!strcmp(name, "extfeature_ecx")) {
-        setfeatures(&def->ext3_features, str, ext3_feature_name, &err);
-    } else if (!strcmp(name, "xlevel")) {
-        setscalar(&def->xlevel, str, &err)
-    } else {
-        fprintf(stderr, "error: unknown option [%s = %s]\n", name, str);
-        return (1);
-    }
-    if (err) {
-        fprintf(stderr, "error: bad option value [%s = %s]\n", name, str);
-        return (1);
-    }
-    return (0);
-}
-
-/* register config file entry as x86_def_t
- */
-static int cpudef_register(QemuOpts *opts, void *opaque)
-{
-    x86_def_t *def = g_malloc0(sizeof (x86_def_t));
-
-    qemu_opt_foreach(opts, cpudef_setfield, def, 1);
-    def->next = x86_defs;
-    x86_defs = def;
-    return (0);
-}
-
 void cpu_clear_apic_feature(CPUX86State *env)
 {
     env->cpuid_features &= ~CPUID_APIC;
@@ -1504,8 +1412,7 @@ void cpu_clear_apic_feature(CPUX86State *env)
 
 #endif /* !CONFIG_USER_ONLY */
 
-/* register "cpudef" models defined in configuration file.  Here we first
- * preload any built-in definitions
+/* Initialize list of CPU models, filling some non-static fields if necessary
  */
 void x86_cpudef_setup(void)
 {
@@ -1515,7 +1422,6 @@ void x86_cpudef_setup(void)
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); ++i) {
         x86_def_t *def = &builtin_x86_defs[i];
         def->next = x86_defs;
-        def->flags = 1;
 
         /* Look for specific "cpudef" models that */
         /* have the QEMU version in .model_id */
@@ -1531,9 +1437,6 @@ void x86_cpudef_setup(void)
 
         x86_defs = def;
     }
-#if !defined(CONFIG_USER_ONLY)
-    qemu_opts_foreach(qemu_find_opts("cpudef"), cpudef_register, NULL, 0);
-#endif
 }
 
 static void get_cpuid_vendor(CPUX86State *env, uint32_t *ebx,
