@@ -1565,6 +1565,12 @@ void qemu_system_shutdown_request(void)
     qemu_notify_event();
 }
 
+static void qemu_system_powerdown(void)
+{
+    monitor_protocol_event(QEVENT_POWERDOWN, NULL);
+    notifier_list_notify(&powerdown_notifiers, NULL);
+}
+
 void qemu_system_powerdown_request(void)
 {
     powerdown_requested = 1;
@@ -1587,8 +1593,6 @@ void qemu_system_vmstop_request(RunState state)
     vmstop_requested = state;
     qemu_notify_event();
 }
-
-qemu_irq qemu_system_powerdown;
 
 static bool main_loop_should_exit(void)
 {
@@ -1626,9 +1630,7 @@ static bool main_loop_should_exit(void)
         monitor_protocol_event(QEVENT_WAKEUP, NULL);
     }
     if (qemu_powerdown_requested()) {
-        monitor_protocol_event(QEVENT_POWERDOWN, NULL);
-        notifier_list_notify(&powerdown_notifiers, NULL);
-        qemu_irq_raise(qemu_system_powerdown);
+        qemu_system_powerdown();
     }
     if (qemu_vmstop_requested(&r)) {
         vm_stop(r);

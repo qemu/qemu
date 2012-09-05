@@ -62,7 +62,6 @@ int qemu_reset_requested(void);
 int qemu_powerdown_requested(void);
 void qemu_system_killed(int signal, pid_t pid);
 void qemu_kill_report(void);
-extern qemu_irq qemu_system_powerdown;
 void qemu_devices_reset(void);
 void qemu_system_reset(bool report);
 
