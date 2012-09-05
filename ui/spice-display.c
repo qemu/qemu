@@ -164,7 +164,8 @@ int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
 #endif
 }
 
-static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
+static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
+                                         QXLRect *rect)
 {
     SimpleSpiceUpdate *update;
     QXLDrawable *drawable;
@@ -174,24 +175,20 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     int by, bw, bh;
     struct timespec time_space;
 
-    if (qemu_spice_rect_is_empty(&ssd->dirty)) {
-        return;
-    };
-
     trace_qemu_spice_create_update(
-           ssd->dirty.left, ssd->dirty.right,
-           ssd->dirty.top, ssd->dirty.bottom);
+           rect->left, rect->right,
+           rect->top, rect->bottom);
 
     update   = g_malloc0(sizeof(*update));
     drawable = &update->drawable;
     image    = &update->image;
     cmd      = &update->ext.cmd;
 
-    bw       = ssd->dirty.right - ssd->dirty.left;
-    bh       = ssd->dirty.bottom - ssd->dirty.top;
+    bw       = rect->right - rect->left;
+    bh       = rect->bottom - rect->top;
     update->bitmap = g_malloc(bw * bh * 4);
 
-    drawable->bbox            = ssd->dirty;
+    drawable->bbox            = *rect;
     drawable->clip.type       = SPICE_CLIP_TYPE_NONE;
     drawable->effect          = QXL_EFFECT_OPAQUE;
     drawable->release_info.id = (uintptr_t)update;
@@ -226,8 +223,8 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     }
 
     src = ds_get_data(ssd->ds) +
-        ssd->dirty.top * ds_get_linesize(ssd->ds) +
-        ssd->dirty.left * ds_get_bytes_per_pixel(ssd->ds);
+        rect->top * ds_get_linesize(ssd->ds) +
+        rect->left * ds_get_bytes_per_pixel(ssd->ds);
     dst = update->bitmap;
     for (by = 0; by < bh; by++) {
         qemu_pf_conv_run(ssd->conv, dst, src, bw);
@@ -238,8 +235,16 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     cmd->type = QXL_CMD_DRAW;
     cmd->data = (uintptr_t)drawable;
 
-    memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     QTAILQ_INSERT_TAIL(&ssd->updates, update, next);
+}
+
+static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
+{
+    if (qemu_spice_rect_is_empty(&ssd->dirty)) {
+        return;
+    };
+    qemu_spice_create_one_update(ssd, &ssd->dirty);
+    memset(&ssd->dirty, 0, sizeof(ssd->dirty));
 }
 
 /*
