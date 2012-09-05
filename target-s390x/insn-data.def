@@ -279,6 +279,9 @@
     C(0xeb04, LMG,     RSY_a, Z,   0, a2, 0, 0, lm64, 0)
 /* LOAD MULTIPLE HIGH */
     C(0xeb96, LMH,     RSY_a, Z,   0, a2, 0, 0, lmh, 0)
+/* LOAD ACCESS MULTIPLE */
+    C(0x9a00, LAM,     RS_a,  Z,   0, a2, 0, 0, lam, 0)
+    C(0xeb9a, LAMY,    RSY_a, LD,  0, a2, 0, 0, lam, 0)
 
 /* MOVE */
     C(0xe544, MVHHI,   SIL,   GIE, la1, i2, 0, m1_16, mov2, 0)
@@ -389,6 +392,9 @@
     D(0xeb24, STMG,    RSY_a, Z,   0, a2, 0, 0, stm, 0, 8)
 /* STORE MULTIPLE HIGH */
     C(0xeb26, STMH,    RSY_a, Z,   0, a2, 0, 0, stmh, 0)
+/* STORE ACCESS MULTIPLE */
+    C(0x9b00, STAM,    RS_a,  Z,   0, a2, 0, 0, stam, 0)
+    C(0xeb9b, STAMY,   RSY_a, LD,  0, a2, 0, 0, stam, 0)
 
 /* SUBTRACT */
     C(0x1b00, SR,      RR_a,  Z,   r1, r2, new, r1_32, sub, subs32)

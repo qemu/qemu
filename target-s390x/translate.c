@@ -2233,30 +2233,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
     LOG_DISAS("opc 0x%x\n", opc);
 
     switch (opc) {
-    case 0x9a: /* LAM      R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_lam(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
-    case 0x9b: /* STAM     R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(env, s->pc);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        tmp32_1 = tcg_const_i32(r1);
-        tmp32_2 = tcg_const_i32(r3);
-        potential_page_fault(s);
-        gen_helper_stam(cpu_env, tmp32_1, tmp, tmp32_2);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32_1);
-        tcg_temp_free_i32(tmp32_2);
-        break;
     case 0xa8: /* MVCLE   R1,R3,D2(B2)     [RS] */
         insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
@@ -3265,6 +3241,17 @@ static ExitStatus op_lpsw(DisasContext *s, DisasOps *o)
 }
 #endif
 
+static ExitStatus op_lam(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    potential_page_fault(s);
+    gen_helper_lam(cpu_env, r1, o->in2, r3);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
+    return NO_EXIT;
+}
+
 static ExitStatus op_lm32(DisasContext *s, DisasOps *o)
 {
     int r1 = get_field(s->fields, r1);
@@ -3515,6 +3502,17 @@ static ExitStatus op_st32(DisasContext *s, DisasOps *o)
 static ExitStatus op_st64(DisasContext *s, DisasOps *o)
 {
     tcg_gen_qemu_st64(o->in1, o->in2, get_mem_index(s));
+    return NO_EXIT;
+}
+
+static ExitStatus op_stam(DisasContext *s, DisasOps *o)
+{
+    TCGv_i32 r1 = tcg_const_i32(get_field(s->fields, r1));
+    TCGv_i32 r3 = tcg_const_i32(get_field(s->fields, r3));
+    potential_page_fault(s);
+    gen_helper_stam(cpu_env, r1, o->in2, r3);
+    tcg_temp_free_i32(r1);
+    tcg_temp_free_i32(r3);
     return NO_EXIT;
 }
 
