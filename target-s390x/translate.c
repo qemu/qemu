@@ -2045,6 +2045,36 @@ static ExitStatus op_ld64(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_loc(DisasContext *s, DisasOps *o)
+{
+    DisasCompare c;
+
+    disas_jcc(s, &c, get_field(s->fields, m3));
+
+    if (c.is_64) {
+        tcg_gen_movcond_i64(c.cond, o->out, c.u.s64.a, c.u.s64.b,
+                            o->in2, o->in1);
+        free_compare(&c);
+    } else {
+        TCGv_i32 t32 = tcg_temp_new_i32();
+        TCGv_i64 t, z;
+
+        tcg_gen_setcond_i32(c.cond, t32, c.u.s32.a, c.u.s32.b);
+        free_compare(&c);
+
+        t = tcg_temp_new_i64();
+        tcg_gen_extu_i32_i64(t, t32);
+        tcg_temp_free_i32(t32);
+
+        z = tcg_const_i64(0);
+        tcg_gen_movcond_i64(TCG_COND_NE, o->out, t, z, o->in2, o->in1);
+        tcg_temp_free_i64(t);
+        tcg_temp_free_i64(z);
+    }
+
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_lctl(DisasContext *s, DisasOps *o)
 {

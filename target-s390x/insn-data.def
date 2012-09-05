@@ -390,6 +390,11 @@
     C(0xb301, LNEBR,   RRE,   Z,   0, e2, new, e1, nabsf32, f32)
     C(0xb311, LNDBR,   RRE,   Z,   0, f2_o, f1, 0, nabsf64, f64)
     C(0xb341, LNXBR,   RRE,   Z,   0, x2_o, x1, 0, nabsf128, f128)
+/* LOAD ON CONDITION */
+    C(0xb9f2, LOCR,    RRF_c, LOC, r1, r2, new, r1_32, loc, 0)
+    C(0xb9e2, LOCGR,   RRF_c, LOC, r1, r2, r1, 0, loc, 0)
+    C(0xebf2, LOC,     RSY_b, LOC, r1, m2_32u, new, r1_32, loc, 0)
+    C(0xebe2, LOCG,    RSY_b, LOC, r1, m2_64, r1, 0, loc, 0)
 /* LOAD POSITIVE */
     C(0x1000, LPR,     RR_a,  Z,   0, r2_32s, new, r1_32, abs, abs32)
     C(0xb900, LPGR,    RRE,   Z,   0, r2, r1, 0, abs, abs64)
