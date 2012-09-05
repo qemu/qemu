@@ -304,36 +304,30 @@ uint32_t HELPER(clm)(CPUS390XState *env, uint32_t r1, uint32_t mask,
     return cc;
 }
 
+static inline uint64_t fix_address(CPUS390XState *env, uint64_t a)
+{
+    /* 31-Bit mode */
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        a &= 0x7fffffff;
+    }
+    return a;
+}
+
 static inline uint64_t get_address(CPUS390XState *env, int x2, int b2, int d2)
 {
     uint64_t r = d2;
-
     if (x2) {
         r += env->regs[x2];
     }
-
     if (b2) {
         r += env->regs[b2];
     }
-
-    /* 31-Bit mode */
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        r &= 0x7fffffff;
-    }
-
-    return r;
+    return fix_address(env, r);
 }
 
 static inline uint64_t get_address_31fix(CPUS390XState *env, int reg)
 {
-    uint64_t r = env->regs[reg];
-
-    /* 31-Bit mode */
-    if (!(env->psw.mask & PSW_MASK_64)) {
-        r &= 0x7fffffff;
-    }
-
-    return r;
+    return fix_address(env, env->regs[reg]);
 }
 
 /* search string (c is byte to search, r2 is string, r1 end of string) */
@@ -359,39 +353,40 @@ uint32_t HELPER(srst)(CPUS390XState *env, uint32_t c, uint32_t r1, uint32_t r2)
 }
 
 /* unsigned string compare (c is string terminator) */
-uint32_t HELPER(clst)(CPUS390XState *env, uint32_t c, uint32_t r1, uint32_t r2)
+uint64_t HELPER(clst)(CPUS390XState *env, uint64_t c, uint64_t s1, uint64_t s2)
 {
-    uint64_t s1 = get_address_31fix(env, r1);
-    uint64_t s2 = get_address_31fix(env, r2);
-    uint8_t v1, v2;
-    uint32_t cc;
+    uint32_t len;
 
     c = c & 0xff;
-#ifdef CONFIG_USER_ONLY
-    if (!c) {
-        HELPER_LOG("%s: comparing '%s' and '%s'\n",
-                   __func__, (char *)g2h(s1), (char *)g2h(s2));
-    }
-#endif
-    for (;;) {
-        v1 = cpu_ldub_data(env, s1);
-        v2 = cpu_ldub_data(env, s2);
-        if ((v1 == c || v2 == c) || (v1 != v2)) {
-            break;
+    s1 = fix_address(env, s1);
+    s2 = fix_address(env, s2);
+
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  For now, lets cap at 8k.  */
+    for (len = 0; len < 0x2000; ++len) {
+        uint8_t v1 = cpu_ldub_data(env, s1 + len);
+        uint8_t v2 = cpu_ldub_data(env, s2 + len);
+        if (v1 == v2) {
+            if (v1 == c) {
+                /* Equal.  CC=0, and don't advance the registers.  */
+                env->cc_op = 0;
+                env->retxl = s2;
+                return s1;
+            }
+        } else {
+            /* Unequal.  CC={1,2}, and advance the registers.  Note that
+               the terminator need not be zero, but the string that contains
+               the terminator is by definition "low".  */
+            env->cc_op = (v1 == c ? 1 : v2 == c ? 2 : v1 < v2 ? 1 : 2);
+            env->retxl = s2 + len;
+            return s1 + len;
         }
-        s1++;
-        s2++;
     }
 
-    if (v1 == v2) {
-        cc = 0;
-    } else {
-        cc = (v1 < v2) ? 1 : 2;
-        /* FIXME: 31-bit mode! */
-        env->regs[r1] = s1;
-        env->regs[r2] = s2;
-    }
-    return cc;
+    /* CPU-determined bytes equal; advance the registers.  */
+    env->cc_op = 3;
+    env->retxl = s2 + len;
+    return s1 + len;
 }
 
 /* move page */
@@ -407,29 +402,31 @@ void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 }
 
 /* string copy (c is string terminator) */
-void HELPER(mvst)(CPUS390XState *env, uint32_t c, uint32_t r1, uint32_t r2)
+uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
 {
-    uint64_t dest = get_address_31fix(env, r1);
-    uint64_t src = get_address_31fix(env, r2);
-    uint8_t v;
+    uint32_t len;
 
     c = c & 0xff;
-#ifdef CONFIG_USER_ONLY
-    if (!c) {
-        HELPER_LOG("%s: copy '%s' to 0x%lx\n", __func__, (char *)g2h(src),
-                   dest);
-    }
-#endif
-    for (;;) {
-        v = cpu_ldub_data(env, src);
-        cpu_stb_data(env, dest, v);
+    d = fix_address(env, d);
+    s = fix_address(env, s);
+
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  For now, lets cap at 8k.  */
+    for (len = 0; len < 0x2000; ++len) {
+        uint8_t v = cpu_ldub_data(env, s + len);
+        cpu_stb_data(env, d + len, v);
         if (v == c) {
-            break;
+            /* Complete.  Set CC=1 and advance R1.  */
+            env->cc_op = 1;
+            env->retxl = s;
+            return d + len;
         }
-        src++;
-        dest++;
     }
-    env->regs[r1] = dest; /* FIXME: 31-bit mode! */
+
+    /* Incomplete.  Set CC=3 and signal to advance R1 and R2.  */
+    env->cc_op = 3;
+    env->retxl = s + len;
+    return d + len;
 }
 
 /* compare and swap 64-bit */

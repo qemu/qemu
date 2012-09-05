@@ -153,6 +153,8 @@
     C(0xbd00, CLM,     RS_b,  Z,   r1_o, a2, 0, 0, clm, 0)
     C(0xeb21, CLMY,    RSY_b, LD,  r1_o, a2, 0, 0, clm, 0)
     C(0xeb20, CLMH,    RSY_b, Z,   r1_sr32, a2, 0, 0, clm, 0)
+/* COMPARE LOGICAL STRING */
+    C(0xb25d, CLST,    RRE,   Z,   r1_o, r2_o, 0, 0, clst, 0)
 
 /* COMPARE AND SWAP */
     C(0xba00, CS,      RS_a,  Z,   r1_o, a2, new, r1_32, cs, 0)
@@ -396,6 +398,8 @@
     C(0xa800, MVCLE,   RS_a,  Z,   0, a2, 0, 0, mvcle, 0)
 /* MOVE PAGE */
     C(0xb254, MVPG,    RRE,   Z,   r1_o, r2_o, 0, 0, mvpg, 0)
+/* MOVE STRING */
+    C(0xb255, MVST,    RRE,   Z,   r1_o, r2_o, 0, 0, mvst, 0)
 
 /* MULTIPLY */
     C(0x1c00, MR,      RR_a,  Z,   r1p1_32s, r2_32s, new, r1_D32, mul, 0)
