@@ -156,6 +156,70 @@
             'running', 'save-vm', 'shutdown', 'suspended', 'watchdog' ] }
 
 ##
+# @SnapshotInfo
+#
+# @id: unique snapshot id
+#
+# @name: user chosen name
+#
+# @vm-state-size: size of the VM state
+#
+# @date-sec: UTC date of the snapshot in seconds
+#
+# @date-nsec: fractional part in nano seconds to be used with date-sec
+#
+# @vm-clock-sec: VM clock relative to boot in seconds
+#
+# @vm-clock-nsec: fractional part in nano seconds to be used with vm-clock-sec
+#
+# Since: 1.3
+#
+##
+
+{ 'type': 'SnapshotInfo',
+  'data': { 'id': 'str', 'name': 'str', 'vm-state-size': 'int',
+            'date-sec': 'int', 'date-nsec': 'int',
+            'vm-clock-sec': 'int', 'vm-clock-nsec': 'int' } }
+
+##
+# @ImageInfo:
+#
+# Information about a QEMU image file
+#
+# @filename: name of the image file
+#
+# @format: format of the image file
+#
+# @virtual-size: maximum capacity in bytes of the image
+#
+# @actual-size: #optional actual size on disk in bytes of the image
+#
+# @dirty-flag: #optional true if image is not cleanly closed
+#
+# @cluster-size: #optional size of a cluster in bytes
+#
+# @encrypted: #optional true if the image is encrypted
+#
+# @backing-filename: #optional name of the backing file
+#
+# @full-backing-filename: #optional full path of the backing file
+#
+# @backing-filename-format: #optional the format of the backing file
+#
+# @snapshots: #optional list of VM snapshots
+#
+# Since: 1.3
+#
+##
+
+{ 'type': 'ImageInfo',
+  'data': {'filename': 'str', 'format': 'str', '*dirty-flag': 'bool',
+           '*actual-size': 'int', 'virtual-size': 'int',
+           '*cluster-size': 'int', '*encrypted': 'bool',
+           '*backing-filename': 'str', '*full-backing-filename': 'str',
+           '*backing-filename-format': 'str', '*snapshots': ['SnapshotInfo'] } }
+
+##
 # @StatusInfo:
 #
 # Information about VCPU run state
