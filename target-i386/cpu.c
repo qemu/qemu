@@ -1073,8 +1073,8 @@ static void listflags(char *buf, int bufsize, uint32_t fbits,
         }
 }
 
-/* generate CPU information */
-void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
+/* generate CPU information. */
+void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
     x86_def_t *def;
     char buf[256];
