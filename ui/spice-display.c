@@ -171,8 +171,8 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
     QXLDrawable *drawable;
     QXLImage *image;
     QXLCommand *cmd;
-    uint8_t *src, *dst;
-    int by, bw, bh;
+    uint8_t *src, *mirror, *dst;
+    int by, bw, bh, offset, bytes;
     struct timespec time_space;
 
     trace_qemu_spice_create_update(
@@ -216,19 +216,18 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
     image->bitmap.palette = 0;
     image->bitmap.format = SPICE_BITMAP_FMT_32BIT;
 
-    if (ssd->conv == NULL) {
-        PixelFormat dst = qemu_default_pixelformat(32);
-        ssd->conv = qemu_pf_conv_get(&dst, &ssd->ds->surface->pf);
-        assert(ssd->conv);
-    }
-
-    src = ds_get_data(ssd->ds) +
+    offset =
         rect->top * ds_get_linesize(ssd->ds) +
         rect->left * ds_get_bytes_per_pixel(ssd->ds);
+    bytes = ds_get_bytes_per_pixel(ssd->ds) * bw;
+    src = ds_get_data(ssd->ds) + offset;
+    mirror = ssd->ds_mirror + offset;
     dst = update->bitmap;
     for (by = 0; by < bh; by++) {
-        qemu_pf_conv_run(ssd->conv, dst, src, bw);
+        memcpy(mirror, src, bytes);
+        qemu_pf_conv_run(ssd->conv, dst, mirror, bw);
         src += ds_get_linesize(ssd->ds);
+        mirror += ds_get_linesize(ssd->ds);
         dst += image->bitmap.stride;
     }
 
@@ -243,6 +242,17 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     if (qemu_spice_rect_is_empty(&ssd->dirty)) {
         return;
     };
+
+    if (ssd->conv == NULL) {
+        PixelFormat dst = qemu_default_pixelformat(32);
+        ssd->conv = qemu_pf_conv_get(&dst, &ssd->ds->surface->pf);
+        assert(ssd->conv);
+    }
+    if (ssd->ds_mirror == NULL) {
+        int size = ds_get_height(ssd->ds) * ds_get_linesize(ssd->ds);
+        ssd->ds_mirror = g_malloc0(size);
+    }
+
     qemu_spice_create_one_update(ssd, &ssd->dirty);
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
 }
@@ -358,6 +368,8 @@ void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     qemu_pf_conv_put(ssd->conv);
     ssd->conv = NULL;
+    g_free(ssd->ds_mirror);
+    ssd->ds_mirror = NULL;
 
     qemu_mutex_lock(&ssd->lock);
     while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {

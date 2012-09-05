@@ -72,6 +72,7 @@ typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
 struct SimpleSpiceDisplay {
     DisplayState *ds;
+    uint8_t *ds_mirror;
     void *buf;
     int bufsize;
     QXLWorker *worker;
