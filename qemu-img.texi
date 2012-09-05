@@ -129,12 +129,13 @@ created as a copy on write image of the specified base image; the
 @var{backing_file} should have the same content as the input's base image,
 however the path, image format, etc may differ.
 
-@item info [-f @var{fmt}] @var{filename}
+@item info [-f @var{fmt}] [--output=@var{ofmt}] @var{filename}
 
 Give information about the disk image @var{filename}. Use it in
 particular to know the size reserved on disk which can be different
 from the displayed size. If VM snapshots are stored in the disk image,
-they are displayed too.
+they are displayed too. The command can output in the format @var{ofmt}
+which is either @code{human} or @code{json}.
 
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 
