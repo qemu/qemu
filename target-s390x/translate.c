@@ -1034,12 +1034,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x22: /* IPM    R1               [RRE] */
-        tmp32_1 = tcg_const_i32(r1);
-        gen_op_calc_cc(s);
-        gen_helper_ipm(cpu_env, cc_op, tmp32_1);
-        tcg_temp_free_i32(tmp32_1);
-        break;
     case 0x41: /* CKSM    R1,R2     [RRE] */
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
@@ -2345,6 +2339,25 @@ static ExitStatus op_insi(DisasContext *s, DisasOps *o)
     int shift = s->insn->data & 0xff;
     int size = s->insn->data >> 8;
     tcg_gen_deposit_i64(o->out, o->in1, o->in2, shift, size);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ipm(DisasContext *s, DisasOps *o)
+{
+    TCGv_i64 t1;
+
+    gen_op_calc_cc(s);
+    tcg_gen_andi_i64(o->out, o->out, ~0xff000000ull);
+
+    t1 = tcg_temp_new_i64();
+    tcg_gen_shli_i64(t1, psw_mask, 20);
+    tcg_gen_shri_i64(t1, t1, 36);
+    tcg_gen_or_i64(o->out, o->out, t1);
+
+    tcg_gen_extu_i32_i64(t1, cc_op);
+    tcg_gen_shli_i64(t1, t1, 28);
+    tcg_gen_or_i64(o->out, o->out, t1);
+    tcg_temp_free_i64(t1);
     return NO_EXIT;
 }
 

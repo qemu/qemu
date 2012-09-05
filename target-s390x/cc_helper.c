@@ -544,18 +544,6 @@ uint32_t HELPER(calc_cc)(CPUS390XState *env, uint32_t cc_op, uint64_t src,
     return do_calc_cc(env, cc_op, src, dst, vr);
 }
 
-/* insert psw mask and condition code into r1 */
-void HELPER(ipm)(CPUS390XState *env, uint32_t cc, uint32_t r1)
-{
-    uint64_t r = env->regs[r1];
-
-    r &= 0xffffffff00ffffffULL;
-    r |= (cc << 28) | ((env->psw.mask >> 40) & 0xf);
-    env->regs[r1] = r;
-    HELPER_LOG("%s: cc %d psw.mask 0x%lx r1 0x%lx\n", __func__,
-               cc, env->psw.mask, r);
-}
-
 #ifndef CONFIG_USER_ONLY
 void HELPER(load_psw)(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {

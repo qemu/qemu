@@ -237,6 +237,8 @@
     D(0xa501, IIHL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1020)
     D(0xa502, IILH,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1010)
     D(0xa503, IILL,    RI_a,  Z,   r1_o, i2_16u, r1, 0, insi, 0, 0x1000)
+/* INSERT PROGRAM MASK */
+    C(0xb222, IPM,     RRE,   Z,   0, 0, r1, 0, ipm, 0)
 
 /* LOAD */
     C(0x1800, LR,      RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, 0)
