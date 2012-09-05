@@ -67,6 +67,7 @@ typedef struct PIIX4PMState {
     qemu_irq smi_irq;
     int kvm_enabled;
     Notifier machine_ready;
+    Notifier powerdown_notifier;
 
     /* for pci hotplug */
     struct pci_status pci0_status;
@@ -362,9 +363,9 @@ static void piix4_reset(void *opaque)
     piix4_update_hotplug(s);
 }
 
-static void piix4_powerdown(void *opaque, int irq, int power_failing)
+static void piix4_pm_powerdown_req(Notifier *n, void *opaque)
 {
-    PIIX4PMState *s = opaque;
+    PIIX4PMState *s = container_of(n, PIIX4PMState, powerdown_notifier);
 
     assert(s != NULL);
     acpi_pm1_evt_power_down(&s->ar);
@@ -416,7 +417,8 @@ static int piix4_pm_initfn(PCIDevice *dev)
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
     acpi_gpe_init(&s->ar, GPE_LEN);
 
-    qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
+    s->powerdown_notifier.notify = piix4_pm_powerdown_req;
+    qemu_register_powerdown_notifier(&s->powerdown_notifier);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
     s->machine_ready.notify = piix4_pm_machine_ready;
