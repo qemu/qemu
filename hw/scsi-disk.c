@@ -1449,6 +1449,18 @@ invalid_field:
     return;
 }
 
+static inline bool check_lba_range(SCSIDiskState *s,
+                                   uint64_t sector_num, uint32_t nb_sectors)
+{
+    /*
+     * The first line tests that no overflow happens when computing the last
+     * sector.  The second line tests that the last accessed sector is in
+     * range.
+     */
+    return (sector_num <= sector_num + nb_sectors &&
+            sector_num + nb_sectors - 1 <= s->qdev.max_lba);
+}
+
 typedef struct UnmapCBData {
     SCSIDiskReq *r;
     uint8_t *inbuf;
@@ -1473,8 +1485,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     if (data->count > 0 && !r->req.io_canceled) {
         sector_num = ldq_be_p(&data->inbuf[0]);
         nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
-        if (sector_num > sector_num + nb_sectors ||
-            sector_num + nb_sectors - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, sector_num, nb_sectors)) {
             scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
             goto done;
         }
@@ -1802,8 +1813,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + nb_sectors ||
-            r->req.cmd.lba + nb_sectors - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, nb_sectors)) {
             goto illegal_lba;
         }
 
@@ -1878,8 +1888,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + len ||
-            r->req.cmd.lba + len - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
@@ -1907,8 +1916,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + len ||
-            r->req.cmd.lba + len - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
