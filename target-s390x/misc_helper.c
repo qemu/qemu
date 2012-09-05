@@ -131,12 +131,6 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
     return r;
 }
 
-/* Store CPU ID */
-void HELPER(stidp)(CPUS390XState *env, uint64_t a1)
-{
-    cpu_stq_data(env, a1, env->cpu_num);
-}
-
 /* Set Prefix */
 void HELPER(spx)(CPUS390XState *env, uint64_t a1)
 {

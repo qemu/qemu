@@ -1033,15 +1033,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x02: /* STIDP     D2(B2)     [S] */
-        /* Store CPU ID */
-        check_privileged(s);
-        decode_rs(s, insn, &r1, &r3, &b2, &d2);
-        tmp = get_address(s, 0, b2, d2);
-        potential_page_fault(s);
-        gen_helper_stidp(cpu_env, tmp);
-        tcg_temp_free_i64(tmp);
-        break;
     case 0x04: /* SCK       D2(B2)     [S] */
         /* Set Clock */
         check_privileged(s);
@@ -2964,6 +2955,13 @@ static ExitStatus op_stctl(DisasContext *s, DisasOps *o)
     gen_helper_stctl(cpu_env, r1, o->in2, r3);
     tcg_temp_free_i32(r1);
     tcg_temp_free_i32(r3);
+    return NO_EXIT;
+}
+
+static ExitStatus op_stidp(DisasContext *s, DisasOps *o)
+{
+    check_privileged(s);
+    tcg_gen_ld32u_i64(o->out, cpu_env, offsetof(CPUS390XState, cpu_num));
     return NO_EXIT;
 }
 
