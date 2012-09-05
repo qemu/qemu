@@ -2367,25 +2367,6 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
         break;
-    case 0x60: /* STD    R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = load_freg(r1);
-        tcg_gen_qemu_st64(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        break;
-    case 0x70: /* STE R1,D2(X2,B2) [RX] */
-        insn = ld_code4(env, s->pc);
-        tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = load_freg32(r1);
-        tcg_gen_extu_i32_i64(tmp2, tmp32_1);
-        tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
-        break;
 #ifndef CONFIG_USER_ONLY
     case 0x80: /* SSM      D2(B2)       [S] */
         /* Set System Mask */
@@ -4026,6 +4007,17 @@ static void in1_r2(DisasContext *s, DisasFields *f, DisasOps *o)
 static void in1_r3(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in1 = load_reg(get_field(f, r3));
+}
+
+static void in1_e1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = load_freg32_i64(get_field(f, r1));
+}
+
+static void in1_f1_o(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    o->in1 = fregs[get_field(f, r1)];
+    o->g_in1 = true;
 }
 
 static void in1_la1(DisasContext *s, DisasFields *f, DisasOps *o)
