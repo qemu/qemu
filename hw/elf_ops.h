@@ -269,6 +269,17 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 addr = ph->p_paddr;
             }
 
+            /* the entry pointer in the ELF header is a virtual
+             * address, if the text segments paddr and vaddr differ
+             * we need to adjust the entry */
+            if (pentry && !translate_fn &&
+                    ph->p_vaddr != ph->p_paddr &&
+                    ehdr.e_entry >= ph->p_vaddr &&
+                    ehdr.e_entry < ph->p_vaddr + ph->p_filesz &&
+                    ph->p_flags & PF_X) {
+                *pentry = ehdr.e_entry - ph->p_vaddr + ph->p_paddr;
+            }
+
             snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
             rom_add_blob_fixed(label, data, mem_size, addr);
 
