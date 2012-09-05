@@ -1355,6 +1355,8 @@ static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
 static int wakeup_requested;
+static NotifierList powerdown_notifiers =
+    NOTIFIER_LIST_INITIALIZER(powerdown_notifiers);
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
@@ -1569,6 +1571,11 @@ void qemu_system_powerdown_request(void)
     qemu_notify_event();
 }
 
+void qemu_register_powerdown_notifier(Notifier *notifier)
+{
+    notifier_list_add(&powerdown_notifiers, notifier);
+}
+
 void qemu_system_debug_request(void)
 {
     debug_requested = 1;
@@ -1620,6 +1627,7 @@ static bool main_loop_should_exit(void)
     }
     if (qemu_powerdown_requested()) {
         monitor_protocol_event(QEVENT_POWERDOWN, NULL);
+        notifier_list_notify(&powerdown_notifiers, NULL);
         qemu_irq_raise(qemu_system_powerdown);
     }
     if (qemu_vmstop_requested(&r)) {
