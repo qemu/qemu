@@ -472,6 +472,17 @@ static void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
     }
 }
 
+static qemu_irq  slavio_system_powerdown;
+
+static void slavio_powerdown_req(Notifier *n, void *opaque)
+{
+    qemu_irq_raise(slavio_system_powerdown);
+}
+
+static Notifier slavio_system_powerdown_notifier = {
+    .notify = slavio_powerdown_req
+};
+
 #define MISC_LEDS 0x01600000
 #define MISC_CFG  0x01800000
 #define MISC_DIAG 0x01a00000
@@ -514,7 +525,8 @@ static void slavio_misc_init(target_phys_addr_t base,
     }
     sysbus_connect_irq(s, 0, irq);
     sysbus_connect_irq(s, 1, fdc_tc);
-    qemu_system_powerdown = qdev_get_gpio_in(dev, 0);
+    slavio_system_powerdown = qdev_get_gpio_in(dev, 0);
+    qemu_register_powerdown_notifier(&slavio_system_powerdown_notifier);
 }
 
 static void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
