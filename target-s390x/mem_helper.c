@@ -398,12 +398,9 @@ uint32_t HELPER(clst)(CPUS390XState *env, uint32_t c, uint32_t r1, uint32_t r2)
 void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 {
     /* XXX missing r0 handling */
+    env->cc_op = 0;
 #ifdef CONFIG_USER_ONLY
-    int i;
-
-    for (i = 0; i < TARGET_PAGE_SIZE; i++) {
-        cpu_stb_data(env, r1 + i, cpu_ldub_data(env, r2 + i));
-    }
+    memmove(g2h(r1), g2h(r2), TARGET_PAGE_SIZE);
 #else
     mvc_fast_memmove(env, TARGET_PAGE_SIZE, r1, r2);
 #endif

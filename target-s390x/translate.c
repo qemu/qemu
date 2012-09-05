@@ -1034,18 +1034,6 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
     LOG_DISAS("disas_b2: op 0x%x r1 %d r2 %d\n", op, r1, r2);
 
     switch (op) {
-    case 0x54: /* MVPG     R1,R2     [RRE] */
-        tmp = load_reg(0);
-        tmp2 = load_reg(r1);
-        tmp3 = load_reg(r2);
-        potential_page_fault(s);
-        gen_helper_mvpg(cpu_env, tmp, tmp2, tmp3);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i64(tmp3);
-        /* XXX check CCO bit and set CC accordingly */
-        gen_op_movi_cc(s, 0);
-        break;
     case 0x55: /* MVST     R1,R2     [RRE] */
         tmp32_1 = load_reg32(0);
         tmp32_2 = tcg_const_i32(r1);
@@ -2653,6 +2641,14 @@ static ExitStatus op_mvcs(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 #endif
+
+static ExitStatus op_mvpg(DisasContext *s, DisasOps *o)
+{
+    potential_page_fault(s);
+    gen_helper_mvpg(cpu_env, regs[0], o->in1, o->in2);
+    set_cc_static(s);
+    return NO_EXIT;
+}
 
 static ExitStatus op_mul(DisasContext *s, DisasOps *o)
 {
