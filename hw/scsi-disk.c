@@ -1808,11 +1808,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("Unmap (len %lu)\n", (long)r->req.cmd.xfer);
         break;
     case WRITE_SAME_10:
-        nb_sectors = lduw_be_p(&req->cmd.buf[7]);
-        goto write_same;
     case WRITE_SAME_16:
-        nb_sectors = ldl_be_p(&req->cmd.buf[10]) & 0xffffffffULL;
-    write_same:
+        nb_sectors = scsi_data_cdb_length(r->req.cmd.buf);
         if (bdrv_is_read_only(s->qdev.conf.bs)) {
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
@@ -1872,7 +1869,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
-    int32_t len;
+    uint32_t len;
     uint8_t command;
 
     command = buf[0];
@@ -1882,13 +1879,13 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
 
+    len = scsi_data_cdb_length(r->req.cmd.buf);
     switch (command) {
     case READ_6:
     case READ_10:
     case READ_12:
     case READ_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
-        DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
+        DPRINTF("Read (sector %" PRId64 ", count %u)\n", r->req.cmd.lba, len);
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
@@ -1913,8 +1910,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case VERIFY_10:
     case VERIFY_12:
     case VERIFY_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
-        DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
+        DPRINTF("Write %s(sector %" PRId64 ", count %u)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
         if (r->req.cmd.buf[1] & 0xe0) {
