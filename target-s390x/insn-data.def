@@ -120,6 +120,10 @@
 /* COMPARE IMMEDIATE */
     C(0xc20d, CFI,     RIL_a, EI,  r1, i2, 0, 0, 0, cmps32)
     C(0xc20c, CGFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmps64)
+/* COMPARE RELATIVE LONG */
+    C(0xc60d, CRL,     RIL_b, GIE, r1, mri2_32s, 0, 0, 0, cmps32)
+    C(0xc608, CGRL,    RIL_b, GIE, r1, mri2_64, 0, 0, 0, cmps64)
+    C(0xc60c, CGFRL,   RIL_b, GIE, r1, mri2_32s, 0, 0, 0, cmps64)
 /* COMPARE HALFWORD */
     C(0x4900, CH,      RX_a,  Z,   r1_o, m2_16s, 0, 0, 0, cmps32)
     C(0xe379, CHY,     RXY_a, LD,  r1_o, m2_16s, 0, 0, 0, cmps32)
