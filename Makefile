@@ -298,7 +298,6 @@ install-confdir:
 
 install-sysconfig: install-datadir install-confdir
 	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
-	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/cpus-x86_64.conf "$(DESTDIR)$(qemu_datadir)"
 
 install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig install-datadir
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
