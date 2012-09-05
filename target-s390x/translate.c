@@ -97,7 +97,7 @@ void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
     }
 
     for (i = 0; i < 16; i++) {
-        cpu_fprintf(f, "F%02d=%016" PRIx64, i, *(uint64_t *)&env->fregs[i]);
+        cpu_fprintf(f, "F%02d=%016" PRIx64, i, env->fregs[i].ll);
         if ((i % 4) == 3) {
             cpu_fprintf(f, "\n");
         } else {
@@ -134,21 +134,22 @@ static TCGv_i64 cc_src;
 static TCGv_i64 cc_dst;
 static TCGv_i64 cc_vr;
 
-static char cpu_reg_names[10*3 + 6*4];
+static char cpu_reg_names[32][4];
 static TCGv_i64 regs[16];
+static TCGv_i64 fregs[16];
 
 static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 
 void s390x_translate_init(void)
 {
     int i;
-    size_t cpu_reg_names_size = sizeof(cpu_reg_names);
-    char *p;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    psw_addr = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, psw.addr),
+    psw_addr = tcg_global_mem_new_i64(TCG_AREG0,
+                                      offsetof(CPUS390XState, psw.addr),
                                       "psw_addr");
-    psw_mask = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, psw.mask),
+    psw_mask = tcg_global_mem_new_i64(TCG_AREG0,
+                                      offsetof(CPUS390XState, psw.mask),
                                       "psw_mask");
 
     cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUS390XState, cc_op),
@@ -160,13 +161,18 @@ void s390x_translate_init(void)
     cc_vr = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, cc_vr),
                                    "cc_vr");
 
-    p = cpu_reg_names;
     for (i = 0; i < 16; i++) {
-        snprintf(p, cpu_reg_names_size, "r%d", i);
+        snprintf(cpu_reg_names[i], sizeof(cpu_reg_names[0]), "r%d", i);
         regs[i] = tcg_global_mem_new(TCG_AREG0,
-                                     offsetof(CPUS390XState, regs[i]), p);
-        p += (i < 10) ? 3 : 4;
-        cpu_reg_names_size -= (i < 10) ? 3 : 4;
+                                     offsetof(CPUS390XState, regs[i]),
+                                     cpu_reg_names[i]);
+    }
+
+    for (i = 0; i < 16; i++) {
+        snprintf(cpu_reg_names[i + 16], sizeof(cpu_reg_names[0]), "f%d", i);
+        fregs[i] = tcg_global_mem_new(TCG_AREG0,
+                                      offsetof(CPUS390XState, fregs[i].d),
+                                      cpu_reg_names[i + 16]);
     }
 }
 
@@ -180,14 +186,18 @@ static inline TCGv_i64 load_reg(int reg)
 static inline TCGv_i64 load_freg(int reg)
 {
     TCGv_i64 r = tcg_temp_new_i64();
-    tcg_gen_ld_i64(r, cpu_env, offsetof(CPUS390XState, fregs[reg].d));
+    tcg_gen_mov_i64(r, fregs[reg]);
     return r;
 }
 
 static inline TCGv_i32 load_freg32(int reg)
 {
     TCGv_i32 r = tcg_temp_new_i32();
-    tcg_gen_ld_i32(r, cpu_env, offsetof(CPUS390XState, fregs[reg].l.upper));
+#if HOST_LONG_BITS == 32
+    tcg_gen_mov_i32(r, TCGV_HIGH(fregs[reg]));
+#else
+    tcg_gen_shri_i64(MAKE_TCGV_I64(GET_TCGV_I32(r)), fregs[reg], 32);
+#endif
     return r;
 }
 
@@ -212,39 +222,35 @@ static inline void store_reg(int reg, TCGv_i64 v)
 
 static inline void store_freg(int reg, TCGv_i64 v)
 {
-    tcg_gen_st_i64(v, cpu_env, offsetof(CPUS390XState, fregs[reg].d));
+    tcg_gen_mov_i64(fregs[reg], v);
 }
 
 static inline void store_reg32(int reg, TCGv_i32 v)
 {
+    /* 32 bit register writes keep the upper half */
 #if HOST_LONG_BITS == 32
     tcg_gen_mov_i32(TCGV_LOW(regs[reg]), v);
 #else
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(tmp, v);
-    /* 32 bit register writes keep the upper half */
-    tcg_gen_deposit_i64(regs[reg], regs[reg], tmp, 0, 32);
-    tcg_temp_free_i64(tmp);
+    tcg_gen_deposit_i64(regs[reg], regs[reg],
+                        MAKE_TCGV_I64(GET_TCGV_I32(v)), 0, 32);
 #endif
 }
 
 static inline void store_reg32_i64(int reg, TCGv_i64 v)
 {
     /* 32 bit register writes keep the upper half */
-#if HOST_LONG_BITS == 32
-    tcg_gen_mov_i32(TCGV_LOW(regs[reg]), TCGV_LOW(v));
-#else
     tcg_gen_deposit_i64(regs[reg], regs[reg], v, 0, 32);
-#endif
 }
 
 static inline void store_reg16(int reg, TCGv_i32 v)
 {
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(tmp, v);
     /* 16 bit register writes keep the upper bytes */
-    tcg_gen_deposit_i64(regs[reg], regs[reg], tmp, 0, 16);
-    tcg_temp_free_i64(tmp);
+#if HOST_LONG_BITS == 32
+    tcg_gen_deposit_i32(TCGV_LOW(regs[reg]), TCGV_LOW(regs[reg]), v, 0, 16);
+#else
+    tcg_gen_deposit_i64(regs[reg], regs[reg],
+                        MAKE_TCGV_I64(GET_TCGV_I32(v)), 0, 16);
+#endif
 }
 
 static inline void store_reg8(int reg, TCGv_i64 v)
@@ -255,7 +261,13 @@ static inline void store_reg8(int reg, TCGv_i64 v)
 
 static inline void store_freg32(int reg, TCGv_i32 v)
 {
-    tcg_gen_st_i32(v, cpu_env, offsetof(CPUS390XState, fregs[reg].l.upper));
+    /* 32 bit register writes keep the lower half */
+#if HOST_LONG_BITS == 32
+    tcg_gen_mov_i32(TCGV_HIGH(fregs[reg]), v);
+#else
+    tcg_gen_deposit_i64(fregs[reg], fregs[reg],
+                        MAKE_TCGV_I64(GET_TCGV_I32(v)), 32, 32);
+#endif
 }
 
 static inline void update_psw_addr(DisasContext *s)
