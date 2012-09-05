@@ -759,11 +759,8 @@ int init_timer_alarm(void)
         goto fail;
     }
 
-    /* first event is at time 0 */
     atexit(quit_timers);
-    t->pending = true;
     alarm_timer = t;
-
     return 0;
 
 fail:
