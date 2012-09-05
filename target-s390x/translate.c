@@ -1385,34 +1385,8 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     tcg_temp_free_i32(tmp32_2);
 
     switch (op) {
-    case 0x0: /* LPEBR       R1,R2             [RRE] */
-        FP_HELPER_CC(lpebr);
-        break;
-    case 0x3: /* LCEBR       R1,R2             [RRE] */
-        FP_HELPER_CC(lcebr);
-        break;
-    case 0x10: /* LPDBR       R1,R2             [RRE] */
-        FP_HELPER_CC(lpdbr);
-        break;
-    case 0x13: /* LCDBR       R1,R2             [RRE] */
-        FP_HELPER_CC(lcdbr);
-        break;
     case 0x15: /* SQBDR       R1,R2             [RRE] */
         FP_HELPER(sqdbr);
-        break;
-    case 0x40: /* LPXBR       R1,R2             [RRE] */
-        FP_HELPER_CC(lpxbr);
-        break;
-    case 0x43: /* LCXBR       R1,R2             [RRE] */
-        FP_HELPER_CC(lcxbr);
-        break;
-    case 0x65: /* LXR         R1,R2             [RRE] */
-        tmp = load_freg(r2);
-        store_freg(r1, tmp);
-        tcg_temp_free_i64(tmp);
-        tmp = load_freg(r2 + 2);
-        store_freg(r1 + 2, tmp);
-        tcg_temp_free_i64(tmp);
         break;
     case 0x74: /* LZER        R1                [RRE] */
         tmp32_1 = tcg_const_i32(r1);
@@ -1994,6 +1968,25 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
 static ExitStatus op_abs(DisasContext *s, DisasOps *o)
 {
     gen_helper_abs_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_absf32(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andi_i64(o->out, o->in2, 0x7fffffffull);
+    return NO_EXIT;
+}
+
+static ExitStatus op_absf64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andi_i64(o->out, o->in2, 0x7fffffffffffffffull);
+    return NO_EXIT;
+}
+
+static ExitStatus op_absf128(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_andi_i64(o->out, o->in1, 0x7fffffffffffffffull);
+    tcg_gen_mov_i64(o->out2, o->in2);
     return NO_EXIT;
 }
 
@@ -2799,6 +2792,25 @@ static ExitStatus op_nabs(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_nabsf32(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_ori_i64(o->out, o->in2, 0x80000000ull);
+    return NO_EXIT;
+}
+
+static ExitStatus op_nabsf64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_ori_i64(o->out, o->in2, 0x8000000000000000ull);
+    return NO_EXIT;
+}
+
+static ExitStatus op_nabsf128(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_ori_i64(o->out, o->in1, 0x8000000000000000ull);
+    tcg_gen_mov_i64(o->out2, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_nc(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
@@ -2812,6 +2824,25 @@ static ExitStatus op_nc(DisasContext *s, DisasOps *o)
 static ExitStatus op_neg(DisasContext *s, DisasOps *o)
 {
     tcg_gen_neg_i64(o->out, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_negf32(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_xori_i64(o->out, o->in2, 0x80000000ull);
+    return NO_EXIT;
+}
+
+static ExitStatus op_negf64(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_xori_i64(o->out, o->in2, 0x8000000000000000ull);
+    return NO_EXIT;
+}
+
+static ExitStatus op_negf128(DisasContext *s, DisasOps *o)
+{
+    tcg_gen_xori_i64(o->out, o->in1, 0x8000000000000000ull);
+    tcg_gen_mov_i64(o->out2, o->in2);
     return NO_EXIT;
 }
 
