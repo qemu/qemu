@@ -433,7 +433,11 @@ int get_tmp_filename(char *filename, int size)
         return -EOVERFLOW;
     }
     fd = mkstemp(filename);
-    if (fd < 0 || close(fd)) {
+    if (fd < 0) {
+        return -errno;
+    }
+    if (close(fd) != 0) {
+        unlink(filename);
         return -errno;
     }
     return 0;
