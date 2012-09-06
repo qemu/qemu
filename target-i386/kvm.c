@@ -165,7 +165,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                      * so add missing bits according to the AMD spec:
                      */
                     cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
-                    ret |= cpuid_1_edx & 0x183f3ff;
+                    ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
                     break;
                 }
                 break;

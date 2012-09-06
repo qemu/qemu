@@ -409,6 +409,7 @@
 #define CPUID_EXT_HYPERVISOR  (1 << 31)
 
 #define CPUID_EXT2_FPU     (1 << 0)
+#define CPUID_EXT2_VME     (1 << 1)
 #define CPUID_EXT2_DE      (1 << 2)
 #define CPUID_EXT2_PSE     (1 << 3)
 #define CPUID_EXT2_TSC     (1 << 4)
@@ -435,6 +436,17 @@
 #define CPUID_EXT2_LM      (1 << 29)
 #define CPUID_EXT2_3DNOWEXT (1 << 30)
 #define CPUID_EXT2_3DNOW   (1 << 31)
+
+/* CPUID[8000_0001].EDX bits that are aliase of CPUID[1].EDX bits on AMD CPUs */
+#define CPUID_EXT2_AMD_ALIASES (CPUID_EXT2_FPU | CPUID_EXT2_VME | \
+                                CPUID_EXT2_DE | CPUID_EXT2_PSE | \
+                                CPUID_EXT2_TSC | CPUID_EXT2_MSR | \
+                                CPUID_EXT2_PAE | CPUID_EXT2_MCE | \
+                                CPUID_EXT2_CX8 | CPUID_EXT2_APIC | \
+                                CPUID_EXT2_MTRR | CPUID_EXT2_PGE | \
+                                CPUID_EXT2_MCA | CPUID_EXT2_CMOV | \
+                                CPUID_EXT2_PAT | CPUID_EXT2_PSE36 | \
+                                CPUID_EXT2_MMX | CPUID_EXT2_FXSR)
 
 #define CPUID_EXT3_LAHF_LM (1 << 0)
 #define CPUID_EXT3_CMP_LEG (1 << 1)
