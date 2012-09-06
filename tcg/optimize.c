@@ -331,6 +331,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(sar):
         CASE_OP_32_64(rotl):
         CASE_OP_32_64(rotr):
+        CASE_OP_32_64(or):
+        CASE_OP_32_64(xor):
             if (temps[args[1]].state == TCG_TEMP_CONST) {
                 /* Proceed with possible constant folding. */
                 break;
