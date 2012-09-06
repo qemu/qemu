@@ -318,6 +318,24 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 args[2] = tmp;
             }
             break;
+        CASE_OP_32_64(brcond):
+            if (temps[args[0]].state == TCG_TEMP_CONST
+                && temps[args[1]].state != TCG_TEMP_CONST) {
+                tmp = args[0];
+                args[0] = args[1];
+                args[1] = tmp;
+                args[2] = tcg_swap_cond(args[2]);
+            }
+            break;
+        CASE_OP_32_64(setcond):
+            if (temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[2]].state != TCG_TEMP_CONST) {
+                tmp = args[1];
+                args[1] = args[2];
+                args[2] = tmp;
+                args[3] = tcg_swap_cond(args[3]);
+            }
+            break;
         default:
             break;
         }
