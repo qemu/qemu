@@ -322,6 +322,26 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
+        /* Simplify expressions for "shift/rot r, 0, a => movi r, 0" */
+        switch (op) {
+        CASE_OP_32_64(shl):
+        CASE_OP_32_64(shr):
+        CASE_OP_32_64(sar):
+        CASE_OP_32_64(rotl):
+        CASE_OP_32_64(rotr):
+            if (temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[1]].val == 0) {
+                gen_opc_buf[op_index] = op_to_movi(op);
+                tcg_opt_gen_movi(gen_args, args[0], 0, nb_temps, nb_globals);
+                args += 3;
+                gen_args += 2;
+                continue;
+            }
+            break;
+        default:
+            break;
+        }
+
         /* Simplify expression for "op r, a, 0 => mov r, a" cases */
         switch (op) {
         CASE_OP_32_64(add):
