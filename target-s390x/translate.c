@@ -1705,6 +1705,35 @@ static ExitStatus op_cvd(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_ct(DisasContext *s, DisasOps *o)
+{
+    int m3 = get_field(s->fields, m3);
+    int lab = gen_new_label();
+    TCGv_i32 t;
+    TCGCond c;
+
+    /* Bit 3 of the m3 field is reserved and should be zero.
+       Choose to ignore it wrt the ltgt_cond table above.  */
+    c = tcg_invert_cond(ltgt_cond[m3 & 14]);
+    if (s->insn->data) {
+        c = tcg_unsigned_cond(c);
+    }
+    tcg_gen_brcond_i64(c, o->in1, o->in2, lab);
+
+    /* Set DXC to 0xff.  */
+    t = tcg_temp_new_i32();
+    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
+    tcg_gen_ori_i32(t, t, 0xff00);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, fpc));
+    tcg_temp_free_i32(t);
+
+    /* Trap.  */
+    gen_program_exception(s, PGM_DATA);
+
+    gen_set_label(lab);
+    return NO_EXIT;
+}
+
 #ifndef CONFIG_USER_ONLY
 static ExitStatus op_diag(DisasContext *s, DisasOps *o)
 {
