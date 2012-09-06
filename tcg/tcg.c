@@ -2059,22 +2059,29 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     }
 #endif
 
+#ifdef CONFIG_PROFILER
+    s->opt_time -= profile_getclock();
+#endif
+
 #ifdef USE_TCG_OPTIMIZATIONS
     gen_opparam_ptr =
         tcg_optimize(s, gen_opc_ptr, gen_opparam_buf, tcg_op_defs);
 #endif
 
 #ifdef CONFIG_PROFILER
+    s->opt_time += profile_getclock();
     s->la_time -= profile_getclock();
 #endif
+
     tcg_liveness_analysis(s);
+
 #ifdef CONFIG_PROFILER
     s->la_time += profile_getclock();
 #endif
 
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP_OPT))) {
-        qemu_log("OP after liveness analysis:\n");
+        qemu_log("OP after optimization and liveness analysis:\n");
         tcg_dump_ops(s);
         qemu_log("\n");
     }
@@ -2241,6 +2248,9 @@ void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
                 (double)s->interm_time / tot * 100.0);
     cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 
                 (double)s->code_time / tot * 100.0);
+    cpu_fprintf(f, "optim./code time    %0.1f%%\n",
+                (double)s->opt_time / (s->code_time ? s->code_time : 1)
+                * 100.0);
     cpu_fprintf(f, "liveness/code time  %0.1f%%\n", 
                 (double)s->la_time / (s->code_time ? s->code_time : 1) * 100.0);
     cpu_fprintf(f, "cpu_restore count   %" PRId64 "\n",
