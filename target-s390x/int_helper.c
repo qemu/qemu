@@ -38,22 +38,54 @@ uint64_t HELPER(mul128)(CPUS390XState *env, uint64_t v1, uint64_t v2)
 }
 
 /* 64/32 -> 32 signed division */
-int64_t HELPER(divs32)(CPUS390XState *env, int64_t a, int64_t b)
+int64_t HELPER(divs32)(CPUS390XState *env, int64_t a, int64_t b64)
 {
-    env->retxl = a % (int32_t)b;
-    return a / (int32_t)b;
+    int32_t ret, b = b64;
+    int64_t q;
+
+    if (b == 0) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    ret = q = a / b;
+    env->retxl = a % b;
+
+    /* Catch non-representable quotient.  */
+    if (ret != q) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    return ret;
 }
 
 /* 64/32 -> 32 unsigned division */
-uint64_t HELPER(divu32)(CPUS390XState *env, uint64_t a, uint64_t b)
+uint64_t HELPER(divu32)(CPUS390XState *env, uint64_t a, uint64_t b64)
 {
-    env->retxl = a % (uint32_t)b;
-    return a / (uint32_t)b;
+    uint32_t ret, b = b64;
+    uint64_t q;
+
+    if (b == 0) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    ret = q = a / b;
+    env->retxl = a % b;
+
+    /* Catch non-representable quotient.  */
+    if (ret != q) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
+
+    return ret;
 }
 
 /* 64/64 -> 64 signed division */
 int64_t HELPER(divs64)(CPUS390XState *env, int64_t a, int64_t b)
 {
+    /* Catch divide by zero, and non-representable quotient (MIN / -1).  */
+    if (b == 0 || (b == -1 && a == (1ll << 63))) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
     env->retxl = a % b;
     return a / b;
 }
@@ -63,6 +95,10 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
                         uint64_t b)
 {
     uint64_t ret;
+    /* Signal divide by zero.  */
+    if (b == 0) {
+        runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+    }
     if (ah == 0) {
         /* 64 -> 64/64 case */
         env->retxl = al % b;
@@ -75,6 +111,9 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
         __uint128_t q = a / b;
         env->retxl = a % b;
         ret = q;
+        if (ret != q) {
+            runtime_exception(env, PGM_FIXPT_DIVIDE, GETPC());
+        }
 #else
         /* 32-bit hosts would need special wrapper functionality - just abort if
            we encounter such a case; it's very unlikely anyways. */

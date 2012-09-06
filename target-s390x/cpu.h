@@ -931,5 +931,7 @@ uint32_t set_cc_nz_f64(float64 v);
 
 /* misc_helper.c */
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
+void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
+                                     uintptr_t retaddr);
 
 #endif

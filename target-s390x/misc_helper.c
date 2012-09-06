@@ -41,6 +41,26 @@
 #define HELPER_LOG(x...)
 #endif
 
+/* Raise an exception dynamically from a helper function.  */
+void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
+                                     uintptr_t retaddr)
+{
+    int t;
+
+    env->exception_index = EXCP_PGM;
+    env->int_pgm_code = excp;
+
+    /* Use the (ultimate) callers address to find the insn that trapped.  */
+    cpu_restore_state(env, retaddr);
+
+    /* Advance past the insn.  */
+    t = cpu_ldub_code(env, env->psw.addr);
+    env->int_pgm_ilen = t = get_ilen(t);
+    env->psw.addr += 2 * t;
+
+    cpu_loop_exit(env);
+}
+
 /* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
