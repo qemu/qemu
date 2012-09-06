@@ -1431,10 +1431,10 @@ if test "$seccomp" != "no" ; then
         LIBS=`$pkg_config --libs libseccomp`
 	seccomp="yes"
     else
-	seccomp="no"
 	if test "$seccomp" = "yes"; then
             feature_not_found "libseccomp"
 	fi
+	seccomp="no"
     fi
 fi
 ##########################################
