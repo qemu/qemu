@@ -603,6 +603,32 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 args += 4;
                 break;
             }
+        CASE_OP_32_64(brcond):
+            if (temps[args[0]].state == TCG_TEMP_CONST
+                && temps[args[1]].state == TCG_TEMP_CONST) {
+                if (do_constant_folding_cond(op, temps[args[0]].val,
+                                             temps[args[1]].val, args[2])) {
+                    memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                    gen_opc_buf[op_index] = INDEX_op_br;
+                    gen_args[0] = args[3];
+                    gen_args += 1;
+                    args += 4;
+                } else {
+                    gen_opc_buf[op_index] = INDEX_op_nop;
+                    args += 4;
+                }
+                break;
+            } else {
+                memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                reset_temp(args[0], nb_temps, nb_globals);
+                gen_args[0] = args[0];
+                gen_args[1] = args[1];
+                gen_args[2] = args[2];
+                gen_args[3] = args[3];
+                gen_args += 4;
+                args += 4;
+                break;
+            }
         case INDEX_op_call:
             nb_call_args = (args[0] >> 16) + (args[0] & 0xffff);
             if (!(args[nb_call_args + 1] & (TCG_CALL_CONST | TCG_CALL_PURE))) {
@@ -624,7 +650,6 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         case INDEX_op_set_label:
         case INDEX_op_jmp:
         case INDEX_op_br:
-        CASE_OP_32_64(brcond):
             memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
             for (i = 0; i < def->nb_args; i++) {
                 *gen_args = *args;
