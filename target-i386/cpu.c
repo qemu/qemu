@@ -61,15 +61,19 @@ static const char *ext_feature_name[] = {
     "tsc-deadline", "aes", "xsave", "osxsave",
     "avx", NULL, NULL, "hypervisor",
 };
+/* Feature names that are already defined on feature_name[] but are set on
+ * CPUID[8000_0001].EDX on AMD CPUs don't have their names on
+ * ext2_feature_name[]. They are copied automatically to cpuid_ext2_features
+ * if and only if CPU vendor is AMD.
+ */
 static const char *ext2_feature_name[] = {
-    "fpu", "vme", "de", "pse",
-    "tsc", "msr", "pae", "mce",
-    "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall",
-    "mtrr", "pge", "mca", "cmov",
-    "pat", "pse36", NULL, NULL /* Linux mp */,
-    "nx|xd", NULL, "mmxext", "mmx",
-    "fxsr", "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
-    NULL, "lm|i64", "3dnowext", "3dnow",
+    NULL /* fpu */, NULL /* vme */, NULL /* de */, NULL /* pse */,
+    NULL /* tsc */, NULL /* msr */, NULL /* pae */, NULL /* mce */,
+    NULL /* cx8 */ /* AMD CMPXCHG8B */, NULL /* apic */, NULL, "syscall",
+    NULL /* mtrr */, NULL /* pge */, NULL /* mca */, NULL /* cmov */,
+    NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
+    "nx|xd", NULL, "mmxext", NULL /* mmx */,
+    NULL /* fxsr */, "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
 };
 static const char *ext3_feature_name[] = {
     "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
@@ -1374,6 +1378,17 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     env->cpuid_xlevel2 = def->xlevel2;
     object_property_set_int(OBJECT(cpu), (int64_t)def->tsc_khz * 1000,
                             "tsc-frequency", &error);
+
+    /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
+     * CPUID[1].EDX.
+     */
+    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
+            env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
+            env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
+        env->cpuid_ext2_features &= ~CPUID_EXT2_AMD_ALIASES;
+        env->cpuid_ext2_features |= (def->features & CPUID_EXT2_AMD_ALIASES);
+    }
+
     if (!kvm_enabled()) {
         env->cpuid_features &= TCG_FEATURES;
         env->cpuid_ext_features &= TCG_EXT_FEATURES;
