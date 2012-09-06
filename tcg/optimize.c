@@ -360,6 +360,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
         /* Simplify expression for "op r, a, 0 => movi r, 0" cases */
         switch (op) {
+        CASE_OP_32_64(and):
         CASE_OP_32_64(mul):
             if ((temps[args[2]].state == TCG_TEMP_CONST
                 && temps[args[2]].val == 0)) {
