@@ -267,6 +267,67 @@ static TCGArg do_constant_folding(TCGOpcode op, TCGArg x, TCGArg y)
     return res;
 }
 
+static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
+                                       TCGArg y, TCGCond c)
+{
+    switch (op_bits(op)) {
+    case 32:
+        switch (c) {
+        case TCG_COND_EQ:
+            return (uint32_t)x == (uint32_t)y;
+        case TCG_COND_NE:
+            return (uint32_t)x != (uint32_t)y;
+        case TCG_COND_LT:
+            return (int32_t)x < (int32_t)y;
+        case TCG_COND_GE:
+            return (int32_t)x >= (int32_t)y;
+        case TCG_COND_LE:
+            return (int32_t)x <= (int32_t)y;
+        case TCG_COND_GT:
+            return (int32_t)x > (int32_t)y;
+        case TCG_COND_LTU:
+            return (uint32_t)x < (uint32_t)y;
+        case TCG_COND_GEU:
+            return (uint32_t)x >= (uint32_t)y;
+        case TCG_COND_LEU:
+            return (uint32_t)x <= (uint32_t)y;
+        case TCG_COND_GTU:
+            return (uint32_t)x > (uint32_t)y;
+        }
+        break;
+    case 64:
+        switch (c) {
+        case TCG_COND_EQ:
+            return (uint64_t)x == (uint64_t)y;
+        case TCG_COND_NE:
+            return (uint64_t)x != (uint64_t)y;
+        case TCG_COND_LT:
+            return (int64_t)x < (int64_t)y;
+        case TCG_COND_GE:
+            return (int64_t)x >= (int64_t)y;
+        case TCG_COND_LE:
+            return (int64_t)x <= (int64_t)y;
+        case TCG_COND_GT:
+            return (int64_t)x > (int64_t)y;
+        case TCG_COND_LTU:
+            return (uint64_t)x < (uint64_t)y;
+        case TCG_COND_GEU:
+            return (uint64_t)x >= (uint64_t)y;
+        case TCG_COND_LEU:
+            return (uint64_t)x <= (uint64_t)y;
+        case TCG_COND_GTU:
+            return (uint64_t)x > (uint64_t)y;
+        }
+        break;
+    }
+
+    fprintf(stderr,
+            "Unrecognized bitness %d or condition %d in "
+            "do_constant_folding_cond.\n", op_bits(op), c);
+    tcg_abort();
+}
+
+
 /* Propagate constants and copies, fold constant expressions. */
 static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                                     TCGArg *args, TCGOpDef *tcg_op_defs)
@@ -520,6 +581,26 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 gen_args[2] = args[2];
                 gen_args += 3;
                 args += 3;
+                break;
+            }
+        CASE_OP_32_64(setcond):
+            if (temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[2]].state == TCG_TEMP_CONST) {
+                gen_opc_buf[op_index] = op_to_movi(op);
+                tmp = do_constant_folding_cond(op, temps[args[1]].val,
+                                               temps[args[2]].val, args[3]);
+                tcg_opt_gen_movi(gen_args, args[0], tmp, nb_temps, nb_globals);
+                gen_args += 2;
+                args += 4;
+                break;
+            } else {
+                reset_temp(args[0], nb_temps, nb_globals);
+                gen_args[0] = args[0];
+                gen_args[1] = args[1];
+                gen_args[2] = args[2];
+                gen_args[3] = args[3];
+                gen_args += 4;
+                args += 4;
                 break;
             }
         case INDEX_op_call:
