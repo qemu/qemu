@@ -322,7 +322,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
-        /* Simplify expression if possible. */
+        /* Simplify expression for "op r, a, 0 => mov r, a" cases */
         switch (op) {
         CASE_OP_32_64(add):
         CASE_OP_32_64(sub):
@@ -352,6 +352,12 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 continue;
             }
             break;
+        default:
+            break;
+        }
+
+        /* Simplify expression for "op r, a, 0 => movi r, 0" cases */
+        switch (op) {
         CASE_OP_32_64(mul):
             if ((temps[args[2]].state == TCG_TEMP_CONST
                 && temps[args[2]].val == 0)) {
@@ -362,6 +368,12 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 continue;
             }
             break;
+        default:
+            break;
+        }
+
+        /* Simplify expression for "op r, a, a => mov r, a" cases */
+        switch (op) {
         CASE_OP_32_64(or):
         CASE_OP_32_64(and):
             if (args[1] == args[2]) {
