@@ -98,6 +98,23 @@ test_\name:
     s32i    a3, a2, 0
 .endm
 
+.macro dump r
+#ifdef DEBUG
+.data
+.align 4
+1: .word 0
+.text
+    movi    a4, 1b
+    s32i    a2, a4, 0
+    movi    a2, 4
+    movi    a3, 1
+    movi    a5, 4
+    simcall
+    movi    a4, 1b
+    l32i    a2, a4, 0
+#endif
+.endm
+
 #define glue(a, b) _glue(a, b)
 #define _glue(a, b) a ## b
 
