@@ -110,7 +110,9 @@ static uint32_t errno_h2g(int host_errno)
         [ENOMEM]        = TARGET_ENOMEM,
         [EACCES]        = TARGET_EACCES,
         [EFAULT]        = TARGET_EFAULT,
+#ifdef ENOTBLK
         [ENOTBLK]       = TARGET_ENOTBLK,
+#endif
         [EBUSY]         = TARGET_EBUSY,
         [EEXIST]        = TARGET_EEXIST,
         [EXDEV]         = TARGET_EXDEV,
@@ -121,7 +123,9 @@ static uint32_t errno_h2g(int host_errno)
         [ENFILE]        = TARGET_ENFILE,
         [EMFILE]        = TARGET_EMFILE,
         [ENOTTY]        = TARGET_ENOTTY,
+#ifdef ETXTBSY
         [ETXTBSY]       = TARGET_ETXTBSY,
+#endif
         [EFBIG]         = TARGET_EFBIG,
         [ENOSPC]        = TARGET_ENOSPC,
         [ESPIPE]        = TARGET_ESPIPE,
@@ -131,7 +135,9 @@ static uint32_t errno_h2g(int host_errno)
         [EDOM]          = TARGET_EDOM,
         [ERANGE]        = TARGET_ERANGE,
         [ENOSYS]        = TARGET_ENOSYS,
+#ifdef ELOOP
         [ELOOP]         = TARGET_ELOOP,
+#endif
     };
 
     if (host_errno == 0) {
