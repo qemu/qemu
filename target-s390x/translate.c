@@ -55,7 +55,6 @@ struct DisasContext {
     uint64_t pc, next_pc;
     enum cc_op cc_op;
     bool singlestep_enabled;
-    int is_jmp;
 };
 
 /* Information carried about a condition to be evaluated.  */
@@ -71,8 +70,6 @@ typedef struct {
 } DisasCompare;
 
 #define DISAS_EXCP 4
-
-static void gen_op_calc_cc(DisasContext *s);
 
 #ifdef DEBUG_INLINE_BRANCHES
 static uint64_t inline_branch_hit[CC_OP_MAX];
@@ -246,12 +243,17 @@ static void update_psw_addr(DisasContext *s)
     tcg_gen_movi_i64(psw_addr, s->pc);
 }
 
+static void update_cc_op(DisasContext *s)
+{
+    if (s->cc_op != CC_OP_DYNAMIC && s->cc_op != CC_OP_STATIC) {
+        tcg_gen_movi_i32(cc_op, s->cc_op);
+    }
+}
+
 static void potential_page_fault(DisasContext *s)
 {
-#ifndef CONFIG_USER_ONLY
     update_psw_addr(s);
-    gen_op_calc_cc(s);
-#endif
+    update_cc_op(s);
 }
 
 static inline uint64_t ld_code2(CPUS390XState *env, uint64_t pc)
@@ -309,13 +311,10 @@ static void gen_program_exception(DisasContext *s, int code)
     update_psw_addr(s);
 
     /* Save off cc.  */
-    gen_op_calc_cc(s);
+    update_cc_op(s);
 
     /* Trigger exception.  */
     gen_exception(EXCP_PGM);
-
-    /* End TB here.  */
-    s->is_jmp = DISAS_EXCP;
 }
 
 static inline void gen_illegal_opcode(DisasContext *s)
@@ -428,23 +427,40 @@ static void set_cc_static(DisasContext *s)
     s->cc_op = CC_OP_STATIC;
 }
 
-static void gen_op_set_cc_op(DisasContext *s)
-{
-    if (s->cc_op != CC_OP_DYNAMIC && s->cc_op != CC_OP_STATIC) {
-        tcg_gen_movi_i32(cc_op, s->cc_op);
-    }
-}
-
-static void gen_update_cc_op(DisasContext *s)
-{
-    gen_op_set_cc_op(s);
-}
-
 /* calculates cc into cc_op */
 static void gen_op_calc_cc(DisasContext *s)
 {
-    TCGv_i32 local_cc_op = tcg_const_i32(s->cc_op);
-    TCGv_i64 dummy = tcg_const_i64(0);
+    TCGv_i32 local_cc_op;
+    TCGv_i64 dummy;
+
+    TCGV_UNUSED_I32(local_cc_op);
+    TCGV_UNUSED_I64(dummy);
+    switch (s->cc_op) {
+    default:
+        dummy = tcg_const_i64(0);
+        /* FALLTHRU */
+    case CC_OP_ADD_64:
+    case CC_OP_ADDU_64:
+    case CC_OP_ADDC_64:
+    case CC_OP_SUB_64:
+    case CC_OP_SUBU_64:
+    case CC_OP_SUBB_64:
+    case CC_OP_ADD_32:
+    case CC_OP_ADDU_32:
+    case CC_OP_ADDC_32:
+    case CC_OP_SUB_32:
+    case CC_OP_SUBU_32:
+    case CC_OP_SUBB_32:
+        local_cc_op = tcg_const_i32(s->cc_op);
+        break;
+    case CC_OP_CONST0:
+    case CC_OP_CONST1:
+    case CC_OP_CONST2:
+    case CC_OP_CONST3:
+    case CC_OP_STATIC:
+    case CC_OP_DYNAMIC:
+        break;
+    }
 
     switch (s->cc_op) {
     case CC_OP_CONST0:
@@ -508,8 +524,12 @@ static void gen_op_calc_cc(DisasContext *s)
         tcg_abort();
     }
 
-    tcg_temp_free_i32(local_cc_op);
-    tcg_temp_free_i64(dummy);
+    if (!TCGV_IS_UNUSED_I32(local_cc_op)) {
+        tcg_temp_free_i32(local_cc_op);
+    }
+    if (!TCGV_IS_UNUSED_I64(dummy)) {
+        tcg_temp_free_i64(dummy);
+    }
 
     /* We now have cc in cc_op as constant */
     set_cc_static(s);
@@ -1054,7 +1074,7 @@ static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
         return NO_EXIT;
     }
     if (use_goto_tb(s, dest)) {
-        gen_update_cc_op(s);
+        update_cc_op(s);
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
         tcg_gen_exit_tb((tcg_target_long)s->tb);
@@ -1103,7 +1123,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
     if (use_goto_tb(s, s->next_pc)) {
         if (is_imm && use_goto_tb(s, dest)) {
             /* Both exits can use goto_tb.  */
-            gen_update_cc_op(s);
+            update_cc_op(s);
 
             lab = gen_new_label();
             if (c->is_64) {
@@ -1141,7 +1161,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
             }
 
             /* Branch not taken.  */
-            gen_update_cc_op(s);
+            update_cc_op(s);
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(psw_addr, s->next_pc);
             tcg_gen_exit_tb((tcg_target_long)s->tb + 0);
@@ -1749,7 +1769,7 @@ static ExitStatus op_ex(DisasContext *s, DisasOps *o)
     TCGv_i64 tmp;
 
     update_psw_addr(s);
-    gen_op_calc_cc(s);
+    update_cc_op(s);
 
     tmp = tcg_const_i64(s->next_pc);
     gen_helper_ex(cc_op, cpu_env, cc_op, o->in1, o->in2, tmp);
@@ -2913,7 +2933,7 @@ static ExitStatus op_svc(DisasContext *s, DisasOps *o)
     TCGv_i32 t;
 
     update_psw_addr(s);
-    gen_op_calc_cc(s);
+    update_cc_op(s);
 
     t = tcg_const_i32(get_field(s->fields, i1) & 0xff);
     tcg_gen_st_i32(t, cpu_env, offsetof(CPUS390XState, int_svc_code));
@@ -3999,7 +4019,6 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
     dc.pc = pc_start;
     dc.cc_op = CC_OP_DYNAMIC;
     do_debug = dc.singlestep_enabled = env->singlestep_enabled;
-    dc.is_jmp = DISAS_NEXT;
 
     gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
@@ -4073,17 +4092,13 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         update_psw_addr(&dc);
         /* FALLTHRU */
     case EXIT_PC_UPDATED:
-        if (singlestep && dc.cc_op != CC_OP_DYNAMIC) {
-            gen_op_calc_cc(&dc);
-        } else {
-            /* Next TB starts off with CC_OP_DYNAMIC,
-               so make sure the cc op type is in env */
-            gen_op_set_cc_op(&dc);
-        }
+        /* Next TB starts off with CC_OP_DYNAMIC, so make sure the
+           cc op type is in env */
+        update_cc_op(&dc);
+        /* Exit the TB, either by raising a debug exception or by return.  */
         if (do_debug) {
             gen_exception(EXCP_DEBUG);
         } else {
-            /* Generate the return instruction */
             tcg_gen_exit_tb(0);
         }
         break;
