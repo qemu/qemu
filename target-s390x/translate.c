@@ -995,15 +995,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
     addr = get_address(s, x2, b2, d2);
     tmp_r1 = tcg_const_i32(r1);
     switch (op) {
-    case 0xd: /* DEB    R1,D2(X2,B2)       [RXE] */
-        tmp = tcg_temp_new_i64();
-        tmp32 = tcg_temp_new_i32();
-        tcg_gen_qemu_ld32u(tmp, addr, get_mem_index(s));
-        tcg_gen_trunc_i64_i32(tmp32, tmp);
-        gen_helper_deb(cpu_env, tmp_r1, tmp32);
-        tcg_temp_free_i64(tmp);
-        tcg_temp_free_i32(tmp32);
-        break;
     case 0x10: /* TCEB   R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
         gen_helper_tceb(cc_op, cpu_env, tmp_r1, addr);
@@ -1031,10 +1022,6 @@ static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
     case 0x1c: /* MDB    R1,D2(X2,B2)       [RXE] */
         potential_page_fault(s);
         gen_helper_mdb(cpu_env, tmp_r1, addr);
-        break;
-    case 0x1d: /* DDB    R1,D2(X2,B2)       [RXE] */
-        potential_page_fault(s);
-        gen_helper_ddb(cpu_env, tmp_r1, addr);
         break;
     case 0x1e: /* MADB  R1,R3,D2(X2,B2) [RXF] */
         /* for RXF insns, r1 is R3 and r1b is R1 */
@@ -1456,9 +1443,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
     case 0x3: /* LCEBR       R1,R2             [RRE] */
         FP_HELPER_CC(lcebr);
         break;
-    case 0xd: /* DEBR        R1,R2             [RRE] */
-        FP_HELPER(debr);
-        break;
     case 0x10: /* LPDBR       R1,R2             [RRE] */
         FP_HELPER_CC(lpdbr);
         break;
@@ -1473,9 +1457,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x1c: /* MDBR        R1,R2             [RRE] */
         FP_HELPER(mdbr);
-        break;
-    case 0x1d: /* DDBR        R1,R2             [RRE] */
-        FP_HELPER(ddbr);
         break;
     case 0xe: /* MAEBR  R1,R3,R2 [RRF] */
     case 0x1e: /* MADBR R1,R3,R2 [RRF] */
@@ -1509,9 +1490,6 @@ static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
         break;
     case 0x4c: /* MXBR        R1,R2             [RRE] */
         FP_HELPER(mxbr);
-        break;
-    case 0x4d: /* DXBR        R1,R2             [RRE] */
-        FP_HELPER(dxbr);
         break;
     case 0x65: /* LXR         R1,R2             [RRE] */
         tmp = load_freg(r2);
@@ -2425,6 +2403,25 @@ static ExitStatus op_divu64(DisasContext *s, DisasOps *o)
 {
     gen_helper_divu64(o->out2, cpu_env, o->out, o->out2, o->in2);
     return_low128(o->out);
+    return NO_EXIT;
+}
+
+static ExitStatus op_deb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_deb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_ddb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_ddb(o->out, cpu_env, o->in1, o->in2);
+    return NO_EXIT;
+}
+
+static ExitStatus op_dxb(DisasContext *s, DisasOps *o)
+{
+    gen_helper_dxb(o->out, cpu_env, o->out, o->out2, o->in1, o->in2);
+    return_low128(o->out2);
     return NO_EXIT;
 }
 

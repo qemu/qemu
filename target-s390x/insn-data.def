@@ -167,6 +167,11 @@
 /* DIVIDE */
     C(0x1d00, DR,      RR_a,  Z,   r1_D32, r2_32s, new_P, r1_P32, divs32, 0)
     C(0x5d00, D,       RX_a,  Z,   r1_D32, m2_32s, new_P, r1_P32, divs32, 0)
+    C(0xb30d, DEBR,    RRE,   Z,   e1, e2, new, e1, deb, 0)
+    C(0xb31d, DDBR,    RRE,   Z,   f1_o, f2_o, f1, 0, ddb, 0)
+    C(0xb34d, DXBR,    RRE,   Z,   0, x2_o, x1, 0, dxb, 0)
+    C(0xed0d, DEB,     RXE,   Z,   e1, m2_32u, new, e1, deb, 0)
+    C(0xed1d, DDB,     RXE,   Z,   f1_o, m2_64, f1, 0, ddb, 0)
 /* DIVIDE LOGICAL */
     C(0xb997, DLR,     RRE,   Z,   r1_D32, r2_32u, new_P, r1_P32, divu32, 0)
     C(0xe397, DL,      RXY_a, Z,   r1_D32, m2_32u, new_P, r1_P32, divu32, 0)
