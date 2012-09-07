@@ -953,6 +953,11 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
 
+    if (runstate_check(RUN_STATE_INMIGRATE) ||
+        runstate_check(RUN_STATE_POSTMIGRATE)) {
+        return;
+    }
+
     qxl->shadow_rom.client_present = client_present;
     memcpy(qxl->shadow_rom.client_capabilities, caps, sizeof(caps));
     qxl->rom->client_present = client_present;
