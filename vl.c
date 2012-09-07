@@ -2632,7 +2632,8 @@ int main(int argc, char **argv, char **envp)
                 {
                     static const char * const params[] = {
                         "order", "once", "menu",
-                        "splash", "splash-time", NULL
+                        "splash", "splash-time",
+                        "reboot-timeout", NULL
                     };
                     char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
