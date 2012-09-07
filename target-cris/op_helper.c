@@ -19,7 +19,6 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
 #include "mmu.h"
 #include "helper.h"
 #include "host-utils.h"
@@ -55,16 +54,11 @@
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
-/* XXX: fix it to restore all registers */
-void tlb_fill(CPUCRISState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
     TranslationBlock *tb;
-    CPUCRISState *saved_env;
     int ret;
-
-    saved_env = env;
-    env = env1;
 
     D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
           env->pc, env->debug1, (void *)retaddr);
@@ -84,7 +78,6 @@ void tlb_fill(CPUCRISState *env1, target_ulong addr, int is_write, int mmu_idx,
         }
         cpu_loop_exit(env);
     }
-    env = saved_env;
 }
 
 #endif
