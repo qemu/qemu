@@ -151,7 +151,7 @@ static void do_interruptv10(CPUCRISState *env)
 	}
 
 	/* Now that we are in kernel mode, load the handlers address.  */
-	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+        env->pc = cpu_ldl_code(env, env->pregs[PR_EBP] + ex_vec * 4);
 	env->locked_irq = 1;
 	env->pregs[PR_CCS] |= F_FLAG_V10; /* set F.  */
 
@@ -233,7 +233,7 @@ void do_interrupt(CPUCRISState *env)
 	/* Now that we are in kernel mode, load the handlers address.
 	   This load may not fault, real hw leaves that behaviour as
 	   undefined.  */
-	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
+        env->pc = cpu_ldl_code(env, env->pregs[PR_EBP] + ex_vec * 4);
 
 	/* Clear the excption_index to avoid spurios hw_aborts for recursive
 	   bus faults.  */
