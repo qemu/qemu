@@ -28,7 +28,6 @@
  */
 #include "hw.h"
 #include "pci.h"
-#include "vga-pci.h"
 #include "console.h"
 #include "vga_int.h"
 #include "loader.h"
@@ -2968,11 +2967,6 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
          pci_register_bar(&d->dev, 1, 0, &s->cirrus_mmio_io);
      }
      return 0;
-}
-
-DeviceState *pci_cirrus_vga_init(PCIBus *bus)
-{
-    return &pci_create_simple(bus, -1, "cirrus-vga")->qdev;
 }
 
 static void cirrus_vga_class_init(ObjectClass *klass, void *data)

@@ -105,10 +105,7 @@ typedef enum {
 } VGAInterfaceType;
 
 extern int vga_interface_type;
-#define cirrus_vga_enabled (vga_interface_type == VGA_CIRRUS)
-#define std_vga_enabled (vga_interface_type == VGA_STD)
 #define xenfb_enabled (vga_interface_type == VGA_XENFB)
-#define vmsvga_enabled (vga_interface_type == VGA_VMWARE)
 #define qxl_enabled (vga_interface_type == VGA_QXL)
 
 extern int graphic_width;

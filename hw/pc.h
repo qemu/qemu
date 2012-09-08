@@ -176,19 +176,6 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-static inline DeviceState *isa_std_vga_init(ISABus *bus)
-{
-    ISADevice *dev;
-
-    dev = isa_try_create(bus, "isa-vga");
-    if (!dev) {
-        fprintf(stderr, "Warning: isa-vga not available\n");
-        return NULL;
-    }
-    qdev_init_nofail(&dev->qdev);
-    return &dev->qdev;
-}
-
 int isa_vga_mm_init(target_phys_addr_t vram_base,
                     target_phys_addr_t ctrl_base, int it_shift,
                     MemoryRegion *address_space);

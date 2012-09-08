@@ -25,7 +25,6 @@
 #include "loader.h"
 #include "console.h"
 #include "pci.h"
-#include "vmware_vga.h"
 
 #undef VERBOSE
 #define HW_RECT_ACCEL

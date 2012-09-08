@@ -24,7 +24,6 @@
 #include "hw.h"
 #include "console.h"
 #include "pci.h"
-#include "vga-pci.h"
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
@@ -68,11 +67,6 @@ static int pci_std_vga_initfn(PCIDevice *dev)
      }
 
      return 0;
-}
-
-DeviceState *pci_std_vga_init(PCIBus *bus)
-{
-    return &pci_create_simple(bus, -1, "VGA")->qdev;
 }
 
 static Property vga_pci_properties[] = {
