@@ -1509,11 +1509,13 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
         tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R4, mem_index);
 #ifdef CONFIG_TCG_PASS_AREG0
         /* XXX/FIXME: suboptimal */
-        tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[3],
+                    tcg_target_call_iarg_regs[2]);
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
                     tcg_target_call_iarg_regs[1]);
-        tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[1],
                     tcg_target_call_iarg_regs[0]);
-        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
                     TCG_AREG0);
 #endif
         tgen_calli(s, (tcg_target_ulong)qemu_st_helpers[s_bits]);
@@ -1521,13 +1523,11 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
         tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
 #ifdef CONFIG_TCG_PASS_AREG0
         /* XXX/FIXME: suboptimal */
-        tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
-                    tcg_target_call_iarg_regs[2]);
         tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
                     tcg_target_call_iarg_regs[1]);
-        tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[1],
                     tcg_target_call_iarg_regs[0]);
-        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
                     TCG_AREG0);
 #endif
         tgen_calli(s, (tcg_target_ulong)qemu_ld_helpers[s_bits]);
