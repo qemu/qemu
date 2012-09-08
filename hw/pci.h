@@ -334,6 +334,9 @@ PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,
                                const char *default_devaddr);
+
+PCIDevice *pci_vga_init(PCIBus *bus);
+
 int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *bus, PCIDevice *d, void *opaque),
