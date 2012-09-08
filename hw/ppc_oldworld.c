@@ -43,7 +43,6 @@
 #include "kvm_ppc.h"
 #include "blockdev.h"
 #include "exec-memory.h"
-#include "vga-pci.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -250,7 +249,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     pci_bus = pci_grackle_init(0xfec00000, pic,
                                get_system_memory(),
                                get_system_io());
-    pci_std_vga_init(pci_bus);
+    pci_vga_init(pci_bus);
 
     escc_mem = escc_init(0, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
