@@ -611,7 +611,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     memory_region_add_subregion(sysmem, 0x80000000, PPC_io_memory);
 
     /* init basic PC hardware */
-    pci_vga_init(pci_bus);
+    pci_std_vga_init(pci_bus);
 
     if (serial_hds[0])
         serial_isa_init(isa_bus, 0, serial_hds[0]);

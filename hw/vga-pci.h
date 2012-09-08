@@ -4,7 +4,7 @@
 #include "qemu-common.h"
 
 /* vga-pci.c */
-DeviceState *pci_vga_init(PCIBus *bus);
+DeviceState *pci_std_vga_init(PCIBus *bus);
 
 /* cirrus_vga.c */
 DeviceState *pci_cirrus_vga_init(PCIBus *bus);

@@ -128,6 +128,6 @@ void alpha_pci_vga_setup(PCIBus *pci_bus)
     /* If VGA is enabled at all, and one of the above didn't work, then
        fallback to Standard VGA.  */
     if (vga_interface_type != VGA_NONE) {
-        pci_vga_init(pci_bus);
+        pci_std_vga_init(pci_bus);
     }
 }

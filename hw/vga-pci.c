@@ -47,7 +47,7 @@ static const VMStateDescription vmstate_vga_pci = {
     }
 };
 
-static int pci_vga_initfn(PCIDevice *dev)
+static int pci_std_vga_initfn(PCIDevice *dev)
 {
      PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
      VGACommonState *s = &d->vga;
@@ -70,7 +70,7 @@ static int pci_vga_initfn(PCIDevice *dev)
      return 0;
 }
 
-DeviceState *pci_vga_init(PCIBus *bus)
+DeviceState *pci_std_vga_init(PCIBus *bus)
 {
     return &pci_create_simple(bus, -1, "VGA")->qdev;
 }
@@ -86,7 +86,7 @@ static void vga_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug = 1;
-    k->init = pci_vga_initfn;
+    k->init = pci_std_vga_initfn;
     k->romfile = "vgabios-stdvga.bin";
     k->vendor_id = PCI_VENDOR_ID_QEMU;
     k->device_id = PCI_DEVICE_ID_QEMU_VGA;
