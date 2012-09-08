@@ -47,6 +47,8 @@ ISADevice *isa_create(ISABus *bus, const char *name);
 ISADevice *isa_try_create(ISABus *bus, const char *name);
 ISADevice *isa_create_simple(ISABus *bus, const char *name);
 
+ISADevice *isa_vga_init(ISABus *bus);
+
 /**
  * isa_register_ioport: Install an I/O port region on the ISA bus.
  *
