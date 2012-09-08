@@ -67,7 +67,6 @@
 #include "hw/usb.h"
 #include "blockdev.h"
 #include "exec-memory.h"
-#include "vga-pci.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -330,7 +329,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         machine_arch = ARCH_MAC99;
     }
     /* init basic PC hardware */
-    pci_std_vga_init(pci_bus);
+    pci_vga_init(pci_bus);
 
     escc_mem = escc_init(0, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
