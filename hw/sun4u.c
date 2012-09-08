@@ -39,7 +39,6 @@
 #include "elf.h"
 #include "blockdev.h"
 #include "exec-memory.h"
-#include "vga-pci.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS
@@ -821,7 +820,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     ivec_irqs = qemu_allocate_irqs(cpu_set_ivec_irq, env, IVEC_MAX);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_bus2,
                            &pci_bus3, &pbm_irqs);
-    pci_std_vga_init(pci_bus);
+    pci_vga_init(pci_bus);
 
     // XXX Should be pci_bus3
     isa_bus = pci_ebus_init(pci_bus, -1, pbm_irqs);
