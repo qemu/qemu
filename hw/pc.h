@@ -176,7 +176,7 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-static inline DeviceState *isa_vga_init(ISABus *bus)
+static inline DeviceState *isa_std_vga_init(ISABus *bus)
 {
     ISADevice *dev;
 

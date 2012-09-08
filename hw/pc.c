@@ -1016,7 +1016,7 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
         if (pci_bus) {
             dev = pci_std_vga_init(pci_bus);
         } else {
-            dev = isa_vga_init(isa_bus);
+            dev = isa_std_vga_init(isa_bus);
         }
     }
 
