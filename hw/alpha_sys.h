@@ -19,6 +19,4 @@ extern const MemoryRegionOps alpha_pci_bw_io_ops;
 extern const MemoryRegionOps alpha_pci_conf1_ops;
 extern const MemoryRegionOps alpha_pci_iack_ops;
 
-void alpha_pci_vga_setup(PCIBus *pci_bus);
-
 #endif

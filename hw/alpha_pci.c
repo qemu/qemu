@@ -10,8 +10,6 @@
 #include "alpha_sys.h"
 #include "qemu-log.h"
 #include "sysemu.h"
-#include "vmware_vga.h"
-#include "vga-pci.h"
 
 
 /* PCI IO reads/writes, to byte-word addressable memory.  */
@@ -109,25 +107,3 @@ const MemoryRegionOps alpha_pci_iack_ops = {
         .max_access_size = 4,
     },
 };
-
-void alpha_pci_vga_setup(PCIBus *pci_bus)
-{
-    switch (vga_interface_type) {
-#ifdef CONFIG_SPICE
-    case VGA_QXL:
-        pci_create_simple(pci_bus, -1, "qxl-vga");
-        return;
-#endif
-    case VGA_CIRRUS:
-        pci_cirrus_vga_init(pci_bus);
-        return;
-    case VGA_VMWARE:
-        pci_vmsvga_init(pci_bus);
-        return;
-    }
-    /* If VGA is enabled at all, and one of the above didn't work, then
-       fallback to Standard VGA.  */
-    if (vga_interface_type != VGA_NONE) {
-        pci_std_vga_init(pci_bus);
-    }
-}
