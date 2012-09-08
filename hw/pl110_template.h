@@ -129,14 +129,14 @@ static drawfn glue(pl110_draw_fn_,BITS)[48] =
 
 static void glue(pl110_draw_line1_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *pallette = opaque;
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
 #ifdef SWAP_PIXELS
-#define FN(x, y) COPY_PIXEL(d, pallette[(data >> (y + 7 - (x))) & 1]);
+#define FN(x, y) COPY_PIXEL(d, palette[(data >> (y + 7 - (x))) & 1]);
 #else
-#define FN(x, y) COPY_PIXEL(d, pallette[(data >> ((x) + y)) & 1]);
+#define FN(x, y) COPY_PIXEL(d, palette[(data >> ((x) + y)) & 1]);
 #endif
 #ifdef SWAP_WORDS
         FN_8(24)
@@ -157,14 +157,14 @@ static void glue(pl110_draw_line1_,NAME)(void *opaque, uint8_t *d, const uint8_t
 
 static void glue(pl110_draw_line2_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *pallette = opaque;
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
 #ifdef SWAP_PIXELS
-#define FN(x, y) COPY_PIXEL(d, pallette[(data >> (y + 6 - (x)*2)) & 3]);
+#define FN(x, y) COPY_PIXEL(d, palette[(data >> (y + 6 - (x)*2)) & 3]);
 #else
-#define FN(x, y) COPY_PIXEL(d, pallette[(data >> ((x)*2 + y)) & 3]);
+#define FN(x, y) COPY_PIXEL(d, palette[(data >> ((x)*2 + y)) & 3]);
 #endif
 #ifdef SWAP_WORDS
         FN_4(0, 24)
@@ -185,14 +185,14 @@ static void glue(pl110_draw_line2_,NAME)(void *opaque, uint8_t *d, const uint8_t
 
 static void glue(pl110_draw_line4_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *pallette = opaque;
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
 #ifdef SWAP_PIXELS
-#define FN(x, y) COPY_PIXEL(d, pallette[(data >> (y + 4 - (x)*4)) & 0xf]);
+#define FN(x, y) COPY_PIXEL(d, palette[(data >> (y + 4 - (x)*4)) & 0xf]);
 #else
-#define FN(x, y) COPY_PIXEL(d, pallette[(data >> ((x)*4 + y)) & 0xf]);
+#define FN(x, y) COPY_PIXEL(d, palette[(data >> ((x)*4 + y)) & 0xf]);
 #endif
 #ifdef SWAP_WORDS
         FN_2(0, 24)
@@ -213,11 +213,11 @@ static void glue(pl110_draw_line4_,NAME)(void *opaque, uint8_t *d, const uint8_t
 
 static void glue(pl110_draw_line8_,NAME)(void *opaque, uint8_t *d, const uint8_t *src, int width, int deststep)
 {
-    uint32_t *pallette = opaque;
+    uint32_t *palette = opaque;
     uint32_t data;
     while (width > 0) {
         data = *(uint32_t *)src;
-#define FN(x) COPY_PIXEL(d, pallette[(data >> (x)) & 0xff]);
+#define FN(x) COPY_PIXEL(d, palette[(data >> (x)) & 0xff]);
 #ifdef SWAP_WORDS
         FN(24)
         FN(16)

@@ -3458,7 +3458,7 @@ void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
 	}
 	srs = env->pregs[PR_SRS];
 	cpu_fprintf(f, "\nsupport function regs bank %x:\n", srs);
-	if (srs < 256) {
+	if (srs < ARRAY_SIZE(env->sregs)) {
 		for (i = 0; i < 16; i++) {
 			cpu_fprintf(f, "s%2.2d=%8.8x ",
 				    i, env->sregs[srs][i]);
