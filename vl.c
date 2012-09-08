@@ -1700,17 +1700,18 @@ static const QEMUOption qemu_options[] = {
 
 static bool vga_available(void)
 {
-    return qdev_exists("VGA") || qdev_exists("isa-vga");
+    return object_class_by_name("VGA") || object_class_by_name("isa-vga");
 }
 
 static bool cirrus_vga_available(void)
 {
-    return qdev_exists("cirrus-vga") || qdev_exists("isa-cirrus-vga");
+    return object_class_by_name("cirrus-vga")
+           || object_class_by_name("isa-cirrus-vga");
 }
 
 static bool vmware_vga_available(void)
 {
-    return qdev_exists("vmware-svga");
+    return object_class_by_name("vmware-svga");
 }
 
 static void select_vgahw (const char *p)
