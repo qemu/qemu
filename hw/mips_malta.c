@@ -33,7 +33,6 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pci.h"
-#include "vmware_vga.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "arch_init.h"
@@ -48,7 +47,6 @@
 #include "blockdev.h"
 #include "exec-memory.h"
 #include "sysbus.h"             /* SysBusDevice */
-#include "vga-pci.h"
 
 //#define DEBUG_BOARD_INIT
 
@@ -987,13 +985,7 @@ void mips_malta_init (ram_addr_t ram_size,
     network_init();
 
     /* Optional PCI video card */
-    if (cirrus_vga_enabled) {
-        pci_cirrus_vga_init(pci_bus);
-    } else if (vmsvga_enabled) {
-        pci_vmsvga_init(pci_bus);
-    } else if (std_vga_enabled) {
-        pci_std_vga_init(pci_bus);
-    }
+    pci_vga_init(pci_bus);
 }
 
 static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
