@@ -1714,6 +1714,11 @@ static bool vmware_vga_available(void)
     return object_class_by_name("vmware-svga");
 }
 
+static bool qxl_vga_available(void)
+{
+    return object_class_by_name("qxl-vga");
+}
+
 static void select_vgahw (const char *p)
 {
     const char *opts;
@@ -1743,7 +1748,12 @@ static void select_vgahw (const char *p)
     } else if (strstart(p, "xenfb", &opts)) {
         vga_interface_type = VGA_XENFB;
     } else if (strstart(p, "qxl", &opts)) {
-        vga_interface_type = VGA_QXL;
+        if (qxl_vga_available()) {
+            vga_interface_type = VGA_QXL;
+        } else {
+            fprintf(stderr, "Error: QXL VGA not available\n");
+            exit(0);
+        }
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);
