@@ -8047,7 +8047,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
         else
 #endif
             disas_flags = !dc->code32;
-        log_target_disas(pc_start, pc_ptr - pc_start, disas_flags);
+        log_target_disas(env, pc_start, pc_ptr - pc_start, disas_flags);
         qemu_log("\n");
     }
 #endif

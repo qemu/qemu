@@ -7,6 +7,11 @@
 #include "cpu.h"
 #include "disas.h"
 
+typedef struct CPUDebug {
+    struct disassemble_info info;
+    CPUArchState *env;
+} CPUDebug;
+
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
 struct syminfo *syminfos = NULL;
 
@@ -32,7 +37,9 @@ target_read_memory (bfd_vma memaddr,
                     int length,
                     struct disassemble_info *info)
 {
-    cpu_memory_rw_debug(cpu_single_env, memaddr, myaddr, length, 0);
+    CPUDebug *s = container_of(info, CPUDebug, info);
+
+    cpu_memory_rw_debug(s->env, memaddr, myaddr, length, 0);
     return 0;
 }
 
@@ -158,32 +165,35 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
     ppc  - nonzero means little endian
     other targets - unused
  */
-void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
+void target_disas(FILE *out, CPUArchState *env, target_ulong code,
+                  target_ulong size, int flags)
 {
     target_ulong pc;
     int count;
-    struct disassemble_info disasm_info;
+    CPUDebug s;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
-    INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
+    INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
 
-    disasm_info.read_memory_func = target_read_memory;
-    disasm_info.buffer_vma = code;
-    disasm_info.buffer_length = size;
-    disasm_info.print_address_func = generic_print_target_address;
+    s.env = env;
+    s.info.read_memory_func = target_read_memory;
+    s.info.buffer_vma = code;
+    s.info.buffer_length = size;
+    s.info.print_address_func = generic_print_target_address;
 
 #ifdef TARGET_WORDS_BIGENDIAN
-    disasm_info.endian = BFD_ENDIAN_BIG;
+    s.info.endian = BFD_ENDIAN_BIG;
 #else
-    disasm_info.endian = BFD_ENDIAN_LITTLE;
+    s.info.endian = BFD_ENDIAN_LITTLE;
 #endif
 #if defined(TARGET_I386)
-    if (flags == 2)
-        disasm_info.mach = bfd_mach_x86_64;
-    else if (flags == 1)
-        disasm_info.mach = bfd_mach_i386_i8086;
-    else
-        disasm_info.mach = bfd_mach_i386_i386;
+    if (flags == 2) {
+        s.info.mach = bfd_mach_x86_64;
+    } else if (flags == 1) {
+        s.info.mach = bfd_mach_i386_i8086;
+    } else {
+        s.info.mach = bfd_mach_i386_i386;
+    }
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
     if (flags & 1) {
@@ -193,27 +203,28 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     }
     if (flags & 2) {
 #ifdef TARGET_WORDS_BIGENDIAN
-        disasm_info.endian = BFD_ENDIAN_LITTLE;
+        s.info.endian = BFD_ENDIAN_LITTLE;
 #else
-        disasm_info.endian = BFD_ENDIAN_BIG;
+        s.info.endian = BFD_ENDIAN_BIG;
 #endif
     }
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
-    disasm_info.mach = bfd_mach_sparc_v9b;
+    s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
-    if (flags >> 16)
-        disasm_info.endian = BFD_ENDIAN_LITTLE;
+    if (flags >> 16) {
+        s.info.endian = BFD_ENDIAN_LITTLE;
+    }
     if (flags & 0xFFFF) {
         /* If we have a precise definitions of the instructions set, use it */
-        disasm_info.mach = flags & 0xFFFF;
+        s.info.mach = flags & 0xFFFF;
     } else {
 #ifdef TARGET_PPC64
-        disasm_info.mach = bfd_mach_ppc64;
+        s.info.mach = bfd_mach_ppc64;
 #else
-        disasm_info.mach = bfd_mach_ppc;
+        s.info.mach = bfd_mach_ppc;
 #endif
     }
     print_insn = print_insn_ppc;
@@ -226,27 +237,27 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
     print_insn = print_insn_little_mips;
 #endif
 #elif defined(TARGET_SH4)
-    disasm_info.mach = bfd_mach_sh4;
+    s.info.mach = bfd_mach_sh4;
     print_insn = print_insn_sh;
 #elif defined(TARGET_ALPHA)
-    disasm_info.mach = bfd_mach_alpha_ev6;
+    s.info.mach = bfd_mach_alpha_ev6;
     print_insn = print_insn_alpha;
 #elif defined(TARGET_CRIS)
     if (flags != 32) {
-        disasm_info.mach = bfd_mach_cris_v0_v10;
+        s.info.mach = bfd_mach_cris_v0_v10;
         print_insn = print_insn_crisv10;
     } else {
-        disasm_info.mach = bfd_mach_cris_v32;
+        s.info.mach = bfd_mach_cris_v32;
         print_insn = print_insn_crisv32;
     }
 #elif defined(TARGET_S390X)
-    disasm_info.mach = bfd_mach_s390_64;
+    s.info.mach = bfd_mach_s390_64;
     print_insn = print_insn_s390;
 #elif defined(TARGET_MICROBLAZE)
-    disasm_info.mach = bfd_arch_microblaze;
+    s.info.mach = bfd_arch_microblaze;
     print_insn = print_insn_microblaze;
 #elif defined(TARGET_LM32)
-    disasm_info.mach = bfd_mach_lm32;
+    s.info.mach = bfd_mach_lm32;
     print_insn = print_insn_lm32;
 #else
     fprintf(out, "0x" TARGET_FMT_lx
@@ -256,14 +267,14 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 
     for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
-	count = print_insn(pc, &disasm_info);
+	count = print_insn(pc, &s.info);
 #if 0
         {
             int i;
             uint8_t b;
             fprintf(out, " {");
             for(i = 0; i < count; i++) {
-                target_read_memory(pc + i, &b, 1, &disasm_info);
+                target_read_memory(pc + i, &b, 1, &s.info);
                 fprintf(out, " %02x", b);
             }
             fprintf(out, " }");
@@ -287,28 +298,28 @@ void disas(FILE *out, void *code, unsigned long size)
 {
     uintptr_t pc;
     int count;
-    struct disassemble_info disasm_info;
+    CPUDebug s;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
-    INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
-    disasm_info.print_address_func = generic_print_host_address;
+    INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
+    s.info.print_address_func = generic_print_host_address;
 
-    disasm_info.buffer = code;
-    disasm_info.buffer_vma = (uintptr_t)code;
-    disasm_info.buffer_length = size;
+    s.info.buffer = code;
+    s.info.buffer_vma = (uintptr_t)code;
+    s.info.buffer_length = size;
 
 #ifdef HOST_WORDS_BIGENDIAN
-    disasm_info.endian = BFD_ENDIAN_BIG;
+    s.info.endian = BFD_ENDIAN_BIG;
 #else
-    disasm_info.endian = BFD_ENDIAN_LITTLE;
+    s.info.endian = BFD_ENDIAN_LITTLE;
 #endif
 #if defined(CONFIG_TCG_INTERPRETER)
     print_insn = print_insn_tci;
 #elif defined(__i386__)
-    disasm_info.mach = bfd_mach_i386_i386;
+    s.info.mach = bfd_mach_i386_i386;
     print_insn = print_insn_i386;
 #elif defined(__x86_64__)
-    disasm_info.mach = bfd_mach_x86_64;
+    s.info.mach = bfd_mach_x86_64;
     print_insn = print_insn_i386;
 #elif defined(_ARCH_PPC)
     print_insn = print_insn_ppc;
@@ -316,7 +327,7 @@ void disas(FILE *out, void *code, unsigned long size)
     print_insn = print_insn_alpha;
 #elif defined(__sparc__)
     print_insn = print_insn_sparc;
-    disasm_info.mach = bfd_mach_sparc_v9b;
+    s.info.mach = bfd_mach_sparc_v9b;
 #elif defined(__arm__)
     print_insn = print_insn_arm;
 #elif defined(__MIPSEB__)
@@ -338,7 +349,7 @@ void disas(FILE *out, void *code, unsigned long size)
 #endif
     for (pc = (uintptr_t)code; size > 0; pc += count, size -= count) {
         fprintf(out, "0x%08" PRIxPTR ":  ", pc);
-	count = print_insn(pc, &disasm_info);
+        count = print_insn(pc, &s.info);
 	fprintf(out, "\n");
 	if (count < 0)
 	    break;
@@ -366,16 +377,17 @@ const char *lookup_symbol(target_ulong orig_addr)
 #include "monitor.h"
 
 static int monitor_disas_is_physical;
-static CPUArchState *monitor_disas_env;
 
 static int
 monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
                      struct disassemble_info *info)
 {
+    CPUDebug *s = container_of(info, CPUDebug, info);
+
     if (monitor_disas_is_physical) {
         cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
-        cpu_memory_rw_debug(monitor_disas_env, memaddr,myaddr, length, 0);
+        cpu_memory_rw_debug(s->env, memaddr,myaddr, length, 0);
     }
     return 0;
 }
@@ -394,30 +406,31 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
     int count, i;
-    struct disassemble_info disasm_info;
+    CPUDebug s;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
-    INIT_DISASSEMBLE_INFO(disasm_info, (FILE *)mon, monitor_fprintf);
+    INIT_DISASSEMBLE_INFO(s.info, (FILE *)mon, monitor_fprintf);
 
-    monitor_disas_env = env;
+    s.env = env;
     monitor_disas_is_physical = is_physical;
-    disasm_info.read_memory_func = monitor_read_memory;
-    disasm_info.print_address_func = generic_print_target_address;
+    s.info.read_memory_func = monitor_read_memory;
+    s.info.print_address_func = generic_print_target_address;
 
-    disasm_info.buffer_vma = pc;
+    s.info.buffer_vma = pc;
 
 #ifdef TARGET_WORDS_BIGENDIAN
-    disasm_info.endian = BFD_ENDIAN_BIG;
+    s.info.endian = BFD_ENDIAN_BIG;
 #else
-    disasm_info.endian = BFD_ENDIAN_LITTLE;
+    s.info.endian = BFD_ENDIAN_LITTLE;
 #endif
 #if defined(TARGET_I386)
-    if (flags == 2)
-        disasm_info.mach = bfd_mach_x86_64;
-    else if (flags == 1)
-        disasm_info.mach = bfd_mach_i386_i8086;
-    else
-        disasm_info.mach = bfd_mach_i386_i386;
+    if (flags == 2) {
+        s.info.mach = bfd_mach_x86_64;
+    } else if (flags == 1) {
+        s.info.mach = bfd_mach_i386_i8086;
+    } else {
+        s.info.mach = bfd_mach_i386_i386;
+    }
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
     print_insn = print_insn_arm;
@@ -426,13 +439,13 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
-    disasm_info.mach = bfd_mach_sparc_v9b;
+    s.info.mach = bfd_mach_sparc_v9b;
 #endif
 #elif defined(TARGET_PPC)
 #ifdef TARGET_PPC64
-    disasm_info.mach = bfd_mach_ppc64;
+    s.info.mach = bfd_mach_ppc64;
 #else
-    disasm_info.mach = bfd_mach_ppc;
+    s.info.mach = bfd_mach_ppc;
 #endif
     print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
@@ -444,13 +457,13 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
     print_insn = print_insn_little_mips;
 #endif
 #elif defined(TARGET_SH4)
-    disasm_info.mach = bfd_mach_sh4;
+    s.info.mach = bfd_mach_sh4;
     print_insn = print_insn_sh;
 #elif defined(TARGET_S390X)
-    disasm_info.mach = bfd_mach_s390_64;
+    s.info.mach = bfd_mach_s390_64;
     print_insn = print_insn_s390;
 #elif defined(TARGET_LM32)
-    disasm_info.mach = bfd_mach_lm32;
+    s.info.mach = bfd_mach_lm32;
     print_insn = print_insn_lm32;
 #else
     monitor_printf(mon, "0x" TARGET_FMT_lx
@@ -460,7 +473,7 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
 
     for(i = 0; i < nb_insn; i++) {
 	monitor_printf(mon, "0x" TARGET_FMT_lx ":  ", pc);
-	count = print_insn(pc, &disasm_info);
+        count = print_insn(pc, &s.info);
 	monitor_printf(mon, "\n");
 	if (count < 0)
 	    break;

@@ -9790,7 +9790,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
         flags = env->bfd_mach;
         flags |= ctx.le_mode << 16;
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(pc_start, ctx.nip - pc_start, flags);
+        log_target_disas(env, pc_start, ctx.nip - pc_start, flags);
         qemu_log("\n");
     }
 #endif
