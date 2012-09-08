@@ -27,7 +27,6 @@
 #include "fdc.h"
 #include "ide.h"
 #include "pci.h"
-#include "vmware_vga.h"
 #include "monitor.h"
 #include "fw_cfg.h"
 #include "hpet_emul.h"
@@ -51,7 +50,6 @@
 #include "exec-memory.h"
 #include "arch_init.h"
 #include "bitmap.h"
-#include "vga-pci.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -992,34 +990,13 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
 {
     DeviceState *dev = NULL;
 
-    if (cirrus_vga_enabled) {
-        if (pci_bus) {
-            dev = pci_cirrus_vga_init(pci_bus);
-        } else {
-            dev = &isa_create_simple(isa_bus, "isa-cirrus-vga")->qdev;
-        }
-    } else if (vmsvga_enabled) {
-        if (pci_bus) {
-            dev = pci_vmsvga_init(pci_bus);
-        } else {
-            fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __FUNCTION__);
-        }
-#ifdef CONFIG_SPICE
-    } else if (qxl_enabled) {
-        if (pci_bus) {
-            dev = &pci_create_simple(pci_bus, -1, "qxl-vga")->qdev;
-        } else {
-            fprintf(stderr, "%s: qxl: no PCI bus\n", __FUNCTION__);
-        }
-#endif
-    } else if (std_vga_enabled) {
-        if (pci_bus) {
-            dev = pci_std_vga_init(pci_bus);
-        } else {
-            dev = isa_std_vga_init(isa_bus);
-        }
+    if (pci_bus) {
+        PCIDevice *pcidev = pci_vga_init(pci_bus);
+        dev = pcidev ? &pcidev->qdev : NULL;
+    } else if (isa_bus) {
+        ISADevice *isadev = isa_vga_init(isa_bus);
+        dev = isadev ? &isadev->qdev : NULL;
     }
-
     return dev;
 }
 
