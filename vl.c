@@ -3617,8 +3617,12 @@ int main(int argc, char **argv, char **envp)
         exit(1);
 
     /* If no default VGA is requested, the default is "none".  */
-    if (default_vga && cirrus_vga_available()) {
-        vga_model = "cirrus";
+    if (default_vga) {
+        if (cirrus_vga_available()) {
+            vga_model = "cirrus";
+        } else if (vga_available()) {
+            vga_model = "std";
+        }
     }
     select_vgahw(vga_model);
 
