@@ -356,6 +356,7 @@
     C(0xb303, LCEBR,   RRE,   Z,   0, e2, new, e1, negf32, f32)
     C(0xb313, LCDBR,   RRE,   Z,   0, f2_o, f1, 0, negf64, f64)
     C(0xb343, LCXBR,   RRE,   Z,   0, x2_o, x1, 0, negf128, f128)
+    C(0xb373, LCDFR,   RRE,   FPSSH, 0, f2_o, f1, 0, negf64, 0)
 /* LOAD HALFWORD */
     C(0xb927, LHR,     RRE,   EI,  0, r2_16s, 0, r1_32, mov2, 0)
     C(0xb907, LGHR,    RRE,   EI,  0, r2_16s, 0, r1, mov2, 0)
