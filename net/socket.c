@@ -629,7 +629,7 @@ int net_init_socket(const NetClientOptions *opts, const char *name,
     if (sock->has_fd) {
         int fd;
 
-        fd = net_handle_fd_param(cur_mon, sock->fd);
+        fd = monitor_handle_fd_param(cur_mon, sock->fd);
         if (fd == -1 || !net_socket_fd_init(peer, "socket", name, fd, 1)) {
             return -1;
         }

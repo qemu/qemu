@@ -168,8 +168,6 @@ int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret);
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
-int net_handle_fd_param(Monitor *mon, const char *param);
-
 #define POLYNOMIAL 0x04c11db6
 unsigned compute_mcast_idx(const uint8_t *ep);
 

@@ -522,24 +522,6 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
     return -1;
 }
 
-int net_handle_fd_param(Monitor *mon, const char *param)
-{
-    int fd;
-
-    if (!qemu_isdigit(param[0]) && mon) {
-
-        fd = monitor_get_fd(mon, param);
-        if (fd == -1) {
-            error_report("No file descriptor named %s found", param);
-            return -1;
-        }
-    } else {
-        fd = qemu_parse_fd(param);
-    }
-
-    return fd;
-}
-
 static int net_init_nic(const NetClientOptions *opts, const char *name,
                         NetClientState *peer)
 {

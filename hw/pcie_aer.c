@@ -738,6 +738,11 @@ void pcie_aer_root_init(PCIDevice *dev)
                  PCI_ERR_ROOT_CMD_EN_MASK);
     pci_set_long(dev->w1cmask + pos + PCI_ERR_ROOT_STATUS,
                  PCI_ERR_ROOT_STATUS_REPORT_MASK);
+    /* PCI_ERR_ROOT_IRQ is RO but devices change it using a
+     * device-specific method.
+     */
+    pci_set_long(dev->cmask + pos + PCI_ERR_ROOT_STATUS,
+                 ~PCI_ERR_ROOT_IRQ);
 }
 
 void pcie_aer_root_reset(PCIDevice *dev)

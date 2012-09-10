@@ -109,7 +109,7 @@ struct vhost_net *vhost_net_init(NetClientState *backend, int devfd,
         (1 << VHOST_NET_F_VIRTIO_NET_HDR);
     net->backend = r;
 
-    r = vhost_dev_init(&net->dev, devfd, force);
+    r = vhost_dev_init(&net->dev, devfd, "/dev/vhost-net", force);
     if (r < 0) {
         goto fail;
     }

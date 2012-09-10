@@ -2407,6 +2407,24 @@ int monitor_fdset_dup_fd_remove(int dup_fd)
     return monitor_fdset_dup_fd_find_remove(dup_fd, true);
 }
 
+int monitor_handle_fd_param(Monitor *mon, const char *fdname)
+{
+    int fd;
+
+    if (!qemu_isdigit(fdname[0]) && mon) {
+
+        fd = monitor_get_fd(mon, fdname);
+        if (fd == -1) {
+            error_report("No file descriptor named %s found", fdname);
+            return -1;
+        }
+    } else {
+        fd = qemu_parse_fd(fdname);
+    }
+
+    return fd;
+}
+
 /* mon_cmds and info_cmds would be sorted at runtime */
 static mon_cmd_t mon_cmds[] = {
 #include "hmp-commands.h"
