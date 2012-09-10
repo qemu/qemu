@@ -6,6 +6,8 @@
 #include "notify.h"
 #include "monitor.h"
 #include "trace.h"
+#include "qapi-types.h"
+#include "error.h"
 
 /* keyboard/mouse support */
 
@@ -343,7 +345,8 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 
 typedef void (*vga_hw_update_ptr)(void *);
 typedef void (*vga_hw_invalidate_ptr)(void *);
-typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch);
+typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch,
+                                       Error **errp);
 typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
 
 DisplayState *graphic_console_init(vga_hw_update_ptr update,
@@ -354,7 +357,6 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
 
 void vga_hw_update(void);
 void vga_hw_invalidate(void);
-void vga_hw_screen_dump(const char *filename);
 void vga_hw_text_update(console_ch_t *chardata);
 
 int is_graphic_console(void);
@@ -396,5 +398,9 @@ static inline int vnc_display_pw_expire(DisplayState *ds, time_t expires)
 
 /* curses.c */
 void curses_display_init(DisplayState *ds, int full_screen);
+
+/* input.c */
+int index_from_key(const char *key);
+int index_from_keycode(int code);
 
 #endif

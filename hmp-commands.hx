@@ -194,8 +194,7 @@ ETEXI
         .args_type  = "filename:F",
         .params     = "filename",
         .help       = "save screen into PPM image 'filename'",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_screen_dump,
+        .mhandler.cmd = hmp_screen_dump,
     },
 
 STEXI
@@ -502,19 +501,19 @@ ETEXI
 
     {
         .name       = "sendkey",
-        .args_type  = "string:s,hold_time:i?",
+        .args_type  = "keys:s,hold-time:i?",
         .params     = "keys [hold_ms]",
         .help       = "send keys to the VM (e.g. 'sendkey ctrl-alt-f1', default hold time=100 ms)",
-        .mhandler.cmd = do_sendkey,
+        .mhandler.cmd = hmp_send_key,
     },
 
 STEXI
 @item sendkey @var{keys}
 @findex sendkey
 
-Send @var{keys} to the emulator. @var{keys} could be the name of the
-key or @code{#} followed by the raw value in either decimal or hexadecimal
-format. Use @code{-} to press several keys simultaneously. Example:
+Send @var{keys} to the guest. @var{keys} could be the name of the
+key or the raw value in hexadecimal format. Use @code{-} to press
+several keys simultaneously. Example:
 @example
 sendkey ctrl-alt-f1
 @end example

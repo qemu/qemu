@@ -71,5 +71,7 @@ void hmp_netdev_add(Monitor *mon, const QDict *qdict);
 void hmp_netdev_del(Monitor *mon, const QDict *qdict);
 void hmp_getfd(Monitor *mon, const QDict *qdict);
 void hmp_closefd(Monitor *mon, const QDict *qdict);
+void hmp_send_key(Monitor *mon, const QDict *qdict);
+void hmp_screen_dump(Monitor *mon, const QDict *qdict);
 
 #endif

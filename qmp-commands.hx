@@ -146,10 +146,7 @@ EQMP
     {
         .name       = "screendump",
         .args_type  = "filename:F",
-        .params     = "filename",
-        .help       = "save screen into PPM image 'filename'",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_screen_dump,
+        .mhandler.cmd_new = qmp_marshal_input_screendump,
     },
 
 SQMP
@@ -330,6 +327,34 @@ Arguments:
 Example:
 
 -> { "execute": "device_del", "arguments": { "id": "net1" } }
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "send-key",
+        .args_type  = "keys:O,hold-time:i?",
+        .mhandler.cmd_new = qmp_marshal_input_send_key,
+    },
+
+SQMP
+send-key
+----------
+
+Send keys to VM.
+
+Arguments:
+
+keys array:
+    - "key": key sequence (a json-array of key enum values)
+
+- hold-time: time to delay key up events, milliseconds. Defaults to 100
+             (json-int, optional)
+
+Example:
+
+-> { "execute": "send-key",
+     "arguments": { 'keys': [ 'ctrl', 'alt', 'delete' ] } }
 <- { "return": {} }
 
 EQMP

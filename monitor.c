@@ -1016,12 +1016,6 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
     return -1;
 }
 
-static int do_screen_dump(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    vga_hw_screen_dump(qdict_get_str(qdict, "filename"));
-    return 0;
-}
-
 static void do_logfile(Monitor *mon, const QDict *qdict)
 {
     cpu_set_log_filename(qdict_get_str(qdict, "filename"));
@@ -1288,245 +1282,6 @@ static void do_sum(Monitor *mon, const QDict *qdict)
         sum += val;
     }
     monitor_printf(mon, "%05d\n", sum);
-}
-
-typedef struct {
-    int keycode;
-    const char *name;
-} KeyDef;
-
-static const KeyDef key_defs[] = {
-    { 0x2a, "shift" },
-    { 0x36, "shift_r" },
-
-    { 0x38, "alt" },
-    { 0xb8, "alt_r" },
-    { 0x64, "altgr" },
-    { 0xe4, "altgr_r" },
-    { 0x1d, "ctrl" },
-    { 0x9d, "ctrl_r" },
-
-    { 0xdd, "menu" },
-
-    { 0x01, "esc" },
-
-    { 0x02, "1" },
-    { 0x03, "2" },
-    { 0x04, "3" },
-    { 0x05, "4" },
-    { 0x06, "5" },
-    { 0x07, "6" },
-    { 0x08, "7" },
-    { 0x09, "8" },
-    { 0x0a, "9" },
-    { 0x0b, "0" },
-    { 0x0c, "minus" },
-    { 0x0d, "equal" },
-    { 0x0e, "backspace" },
-
-    { 0x0f, "tab" },
-    { 0x10, "q" },
-    { 0x11, "w" },
-    { 0x12, "e" },
-    { 0x13, "r" },
-    { 0x14, "t" },
-    { 0x15, "y" },
-    { 0x16, "u" },
-    { 0x17, "i" },
-    { 0x18, "o" },
-    { 0x19, "p" },
-    { 0x1a, "bracket_left" },
-    { 0x1b, "bracket_right" },
-    { 0x1c, "ret" },
-
-    { 0x1e, "a" },
-    { 0x1f, "s" },
-    { 0x20, "d" },
-    { 0x21, "f" },
-    { 0x22, "g" },
-    { 0x23, "h" },
-    { 0x24, "j" },
-    { 0x25, "k" },
-    { 0x26, "l" },
-    { 0x27, "semicolon" },
-    { 0x28, "apostrophe" },
-    { 0x29, "grave_accent" },
-
-    { 0x2b, "backslash" },
-    { 0x2c, "z" },
-    { 0x2d, "x" },
-    { 0x2e, "c" },
-    { 0x2f, "v" },
-    { 0x30, "b" },
-    { 0x31, "n" },
-    { 0x32, "m" },
-    { 0x33, "comma" },
-    { 0x34, "dot" },
-    { 0x35, "slash" },
-
-    { 0x37, "asterisk" },
-
-    { 0x39, "spc" },
-    { 0x3a, "caps_lock" },
-    { 0x3b, "f1" },
-    { 0x3c, "f2" },
-    { 0x3d, "f3" },
-    { 0x3e, "f4" },
-    { 0x3f, "f5" },
-    { 0x40, "f6" },
-    { 0x41, "f7" },
-    { 0x42, "f8" },
-    { 0x43, "f9" },
-    { 0x44, "f10" },
-    { 0x45, "num_lock" },
-    { 0x46, "scroll_lock" },
-
-    { 0xb5, "kp_divide" },
-    { 0x37, "kp_multiply" },
-    { 0x4a, "kp_subtract" },
-    { 0x4e, "kp_add" },
-    { 0x9c, "kp_enter" },
-    { 0x53, "kp_decimal" },
-    { 0x54, "sysrq" },
-
-    { 0x52, "kp_0" },
-    { 0x4f, "kp_1" },
-    { 0x50, "kp_2" },
-    { 0x51, "kp_3" },
-    { 0x4b, "kp_4" },
-    { 0x4c, "kp_5" },
-    { 0x4d, "kp_6" },
-    { 0x47, "kp_7" },
-    { 0x48, "kp_8" },
-    { 0x49, "kp_9" },
-
-    { 0x56, "<" },
-
-    { 0x57, "f11" },
-    { 0x58, "f12" },
-
-    { 0xb7, "print" },
-
-    { 0xc7, "home" },
-    { 0xc9, "pgup" },
-    { 0xd1, "pgdn" },
-    { 0xcf, "end" },
-
-    { 0xcb, "left" },
-    { 0xc8, "up" },
-    { 0xd0, "down" },
-    { 0xcd, "right" },
-
-    { 0xd2, "insert" },
-    { 0xd3, "delete" },
-#if defined(TARGET_SPARC) && !defined(TARGET_SPARC64)
-    { 0xf0, "stop" },
-    { 0xf1, "again" },
-    { 0xf2, "props" },
-    { 0xf3, "undo" },
-    { 0xf4, "front" },
-    { 0xf5, "copy" },
-    { 0xf6, "open" },
-    { 0xf7, "paste" },
-    { 0xf8, "find" },
-    { 0xf9, "cut" },
-    { 0xfa, "lf" },
-    { 0xfb, "help" },
-    { 0xfc, "meta_l" },
-    { 0xfd, "meta_r" },
-    { 0xfe, "compose" },
-#endif
-    { 0, NULL },
-};
-
-static int get_keycode(const char *key)
-{
-    const KeyDef *p;
-    char *endp;
-    int ret;
-
-    for(p = key_defs; p->name != NULL; p++) {
-        if (!strcmp(key, p->name))
-            return p->keycode;
-    }
-    if (strstart(key, "0x", NULL)) {
-        ret = strtoul(key, &endp, 0);
-        if (*endp == '\0' && ret >= 0x01 && ret <= 0xff)
-            return ret;
-    }
-    return -1;
-}
-
-#define MAX_KEYCODES 16
-static uint8_t keycodes[MAX_KEYCODES];
-static int nb_pending_keycodes;
-static QEMUTimer *key_timer;
-
-static void release_keys(void *opaque)
-{
-    int keycode;
-
-    while (nb_pending_keycodes > 0) {
-        nb_pending_keycodes--;
-        keycode = keycodes[nb_pending_keycodes];
-        if (keycode & 0x80)
-            kbd_put_keycode(0xe0);
-        kbd_put_keycode(keycode | 0x80);
-    }
-}
-
-static void do_sendkey(Monitor *mon, const QDict *qdict)
-{
-    char keyname_buf[16];
-    char *separator;
-    int keyname_len, keycode, i;
-    const char *string = qdict_get_str(qdict, "string");
-    int has_hold_time = qdict_haskey(qdict, "hold_time");
-    int hold_time = qdict_get_try_int(qdict, "hold_time", -1);
-
-    if (nb_pending_keycodes > 0) {
-        qemu_del_timer(key_timer);
-        release_keys(NULL);
-    }
-    if (!has_hold_time)
-        hold_time = 100;
-    i = 0;
-    while (1) {
-        separator = strchr(string, '-');
-        keyname_len = separator ? separator - string : strlen(string);
-        if (keyname_len > 0) {
-            pstrcpy(keyname_buf, sizeof(keyname_buf), string);
-            if (keyname_len > sizeof(keyname_buf) - 1) {
-                monitor_printf(mon, "invalid key: '%s...'\n", keyname_buf);
-                return;
-            }
-            if (i == MAX_KEYCODES) {
-                monitor_printf(mon, "too many keys\n");
-                return;
-            }
-            keyname_buf[keyname_len] = 0;
-            keycode = get_keycode(keyname_buf);
-            if (keycode < 0) {
-                monitor_printf(mon, "unknown key: '%s'\n", keyname_buf);
-                return;
-            }
-            keycodes[i++] = keycode;
-        }
-        if (!separator)
-            break;
-        string = separator + 1;
-    }
-    nb_pending_keycodes = i;
-    /* key down events */
-    for (i = 0; i < nb_pending_keycodes; i++) {
-        keycode = keycodes[i];
-        if (keycode & 0x80)
-            kbd_put_keycode(0xe0);
-        kbd_put_keycode(keycode & 0x7f);
-    }
-    /* delayed key up events */
-    qemu_mod_timer(key_timer, qemu_get_clock_ns(vm_clock) +
-                   muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 
 static int mouse_button_state;
@@ -4315,7 +4070,6 @@ static void monitor_find_completion(const char *cmdline)
     int nb_args, i, len;
     const char *ptype, *str;
     const mon_cmd_t *cmd;
-    const KeyDef *key;
 
     parse_cmdline(cmdline, &nb_args, args);
 #ifdef DEBUG_COMPLETION
@@ -4389,8 +4143,8 @@ static void monitor_find_completion(const char *cmdline)
                 if (sep)
                     str = sep + 1;
                 readline_set_completion_index(cur_mon->rs, strlen(str));
-                for(key = key_defs; key->name != NULL; key++) {
-                    cmd_completion(str, key->name);
+                for (i = 0; i < Q_KEY_CODE_MAX; i++) {
+                    cmd_completion(str, QKeyCode_lookup[i]);
                 }
             } else if (!strcmp(cmd->name, "help|?")) {
                 readline_set_completion_index(cur_mon->rs, strlen(str));
@@ -4926,7 +4680,6 @@ void monitor_init(CharDriverState *chr, int flags)
     Monitor *mon;
 
     if (is_first_init) {
-        key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
         monitor_protocol_event_init();
         is_first_init = 0;
     }
