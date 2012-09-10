@@ -566,6 +566,11 @@
     C(0xb24e, SAR,     RRE,   Z,   0, r2_o, 0, 0, sar, 0)
 /* SET FPC */
     C(0xb384, SFPC,    RRE,   Z,   0, r1_o, 0, 0, sfpc, 0)
+/* SET BFP ROUNDING MODE */
+    C(0xb299, SRNM,    S,     Z,   0, 0, 0, 0, srnm, 0)
+    C(0xb2b8, SRNMB,   S,     FPE, 0, 0, 0, 0, srnm, 0)
+/* SET DFP ROUNDING MODE */
+    C(0xb2b9, SRNMT,   S,     DFP, 0, 0, 0, 0, srnm, 0)
 
 /* SHIFT LEFT SINGLE */
     D(0x8b00, SLA,     RS_a,  Z,   r1, sh32, new, r1_32, sla, 0, 31)
