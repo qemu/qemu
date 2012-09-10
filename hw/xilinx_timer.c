@@ -24,6 +24,7 @@
 
 #include "sysbus.h"
 #include "ptimer.h"
+#include "qemu-log.h"
 
 #define D(x)
 
@@ -189,7 +190,7 @@ static void timer_hit(void *opaque)
 {
     struct xlx_timer *xt = opaque;
     struct timerblock *t = xt->parent;
-    D(fprintf(stderr, "%s %d\n", __func__, timer));
+    D(fprintf(stderr, "%s %d\n", __func__, xt->nr));
     xt->regs[R_TCSR] |= TCSR_TINT;
 
     if (xt->regs[R_TCSR] & TCSR_ARHT)
