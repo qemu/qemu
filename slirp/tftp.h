@@ -33,6 +33,7 @@ struct tftp_t {
 struct tftp_session {
     Slirp *slirp;
     char *filename;
+    int fd;
 
     struct in_addr client_ip;
     uint16_t client_port;

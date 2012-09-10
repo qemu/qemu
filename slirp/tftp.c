@@ -37,6 +37,10 @@ static inline void tftp_session_update(struct tftp_session *spt)
 
 static void tftp_session_terminate(struct tftp_session *spt)
 {
+    if (spt->fd >= 0) {
+        close(spt->fd);
+        spt->fd = -1;
+    }
     g_free(spt->filename);
     spt->slirp = NULL;
 }
@@ -54,7 +58,7 @@ static int tftp_session_allocate(Slirp *slirp, struct tftp_t *tp)
 
     /* sessions time out after 5 inactive seconds */
     if ((int)(curtime - spt->timestamp) > 5000) {
-        g_free(spt->filename);
+        tftp_session_terminate(spt);
         goto found;
     }
   }
@@ -64,6 +68,7 @@ static int tftp_session_allocate(Slirp *slirp, struct tftp_t *tp)
  found:
   memset(spt, 0, sizeof(*spt));
   memcpy(&spt->client_ip, &tp->ip.ip_src, sizeof(spt->client_ip));
+  spt->fd = -1;
   spt->client_port = tp->udp.uh_sport;
   spt->slirp = slirp;
 
@@ -95,24 +100,23 @@ static int tftp_session_find(Slirp *slirp, struct tftp_t *tp)
 static int tftp_read_data(struct tftp_session *spt, uint16_t block_nr,
                           uint8_t *buf, int len)
 {
-  int fd;
-  int bytes_read = 0;
+    int bytes_read = 0;
 
-  fd = open(spt->filename, O_RDONLY | O_BINARY);
+    if (spt->fd < 0) {
+        spt->fd = open(spt->filename, O_RDONLY | O_BINARY);
+    }
 
-  if (fd < 0) {
-    return -1;
-  }
+    if (spt->fd < 0) {
+        return -1;
+    }
 
-  if (len) {
-    lseek(fd, block_nr * 512, SEEK_SET);
+    if (len) {
+        lseek(spt->fd, block_nr * 512, SEEK_SET);
 
-    bytes_read = read(fd, buf, len);
-  }
+        bytes_read = read(spt->fd, buf, len);
+    }
 
-  close(fd);
-
-  return bytes_read;
+    return bytes_read;
 }
 
 static int tftp_send_oack(struct tftp_session *spt,
