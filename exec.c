@@ -3536,6 +3536,13 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
             /* ROM/RAM case */
             ptr = qemu_get_ram_ptr(addr1);
             memcpy(ptr, buf, l);
+            if (!cpu_physical_memory_is_dirty(addr1)) {
+                /* invalidate code */
+                tb_invalidate_phys_page_range(addr1, addr1 + l, 0);
+                /* set dirty bit */
+                cpu_physical_memory_set_dirty_flags(
+                    addr1, (0xff & ~CODE_DIRTY_FLAG));
+            }
             qemu_put_ram_ptr(ptr);
         }
         len -= l;
