@@ -2413,7 +2413,7 @@ static void ehci_update_frindex(EHCIState *ehci, int frames)
         if (ehci->frindex == 0x00004000) {
             ehci_raise_irq(ehci, USBSTS_FLR);
             ehci->frindex = 0;
-            if (ehci->usbsts_frindex > 0x00004000) {
+            if (ehci->usbsts_frindex >= 0x00004000) {
                 ehci->usbsts_frindex -= 0x00004000;
             } else {
                 ehci->usbsts_frindex = 0;
