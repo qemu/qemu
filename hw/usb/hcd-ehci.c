@@ -139,6 +139,7 @@
 #define NB_PORTS         6        // Number of downstream ports
 #define BUFF_SIZE        5*4096   // Max bytes to transfer per transaction
 #define MAX_QH           100      // Max allowable queue heads in a chain
+#define MIN_FR_PER_TICK  3        // Min frames to process when catching up
 
 /*  Internal periodic / asynchronous schedule state machine states
  */
@@ -2448,6 +2449,19 @@ static void ehci_frame_timer(void *opaque)
         }
 
         for (i = 0; i < frames; i++) {
+            /*
+             * If we're running behind schedule, we should not catch up
+             * too fast, as that will make some guests unhappy:
+             * 1) We must process a minimum of MIN_FR_PER_TICK frames,
+             *    otherwise we will never catch up
+             * 2) Process frames until the guest has requested an irq (IOC)
+             */
+            if (i >= MIN_FR_PER_TICK) {
+                ehci_commit_irq(ehci);
+                if ((ehci->usbsts & USBINTR_MASK) & ehci->usbintr) {
+                    break;
+                }
+            }
             ehci_update_frindex(ehci, 1);
             ehci_advance_periodic_state(ehci);
             ehci->last_run_ns += FRAME_TIMER_NS;
