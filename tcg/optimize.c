@@ -107,15 +107,12 @@ static TCGOpcode op_to_movi(TCGOpcode op)
     }
 }
 
-static void tcg_opt_gen_mov(TCGContext *s, TCGArg *gen_args, TCGArg dst,
-                            TCGArg src, int nb_temps, int nb_globals)
+static void tcg_opt_gen_mov(TCGArg *gen_args, TCGArg dst, TCGArg src,
+                            int nb_temps, int nb_globals)
 {
         reset_temp(dst, nb_temps, nb_globals);
         assert(temps[src].state != TCG_TEMP_COPY);
-        /* Don't try to copy if one of temps is a global or either one
-           is local and another is register */
-        if (src >= nb_globals && dst >= nb_globals &&
-            tcg_arg_is_local(s, src) == tcg_arg_is_local(s, dst)) {
+        if (src >= nb_globals) {
             assert(temps[src].state != TCG_TEMP_CONST);
             if (temps[src].state != TCG_TEMP_HAS_COPY) {
                 temps[src].state = TCG_TEMP_HAS_COPY;
@@ -444,7 +441,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                     gen_opc_buf[op_index] = INDEX_op_nop;
                 } else {
                     gen_opc_buf[op_index] = op_to_mov(op);
-                    tcg_opt_gen_mov(s, gen_args, args[0], args[1],
+                    tcg_opt_gen_mov(gen_args, args[0], args[1],
                                     nb_temps, nb_globals);
                     gen_args += 2;
                 }
@@ -482,7 +479,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                     gen_opc_buf[op_index] = INDEX_op_nop;
                 } else {
                     gen_opc_buf[op_index] = op_to_mov(op);
-                    tcg_opt_gen_mov(s, gen_args, args[0], args[1], nb_temps,
+                    tcg_opt_gen_mov(gen_args, args[0], args[1], nb_temps,
                                     nb_globals);
                     gen_args += 2;
                 }
@@ -507,7 +504,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 break;
             }
             if (temps[args[1]].state != TCG_TEMP_CONST) {
-                tcg_opt_gen_mov(s, gen_args, args[0], args[1],
+                tcg_opt_gen_mov(gen_args, args[0], args[1],
                                 nb_temps, nb_globals);
                 gen_args += 2;
                 args += 2;
