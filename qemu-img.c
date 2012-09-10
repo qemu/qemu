@@ -226,7 +226,8 @@ static int print_block_option_help(const char *filename, const char *fmt)
 
 static BlockDriverState *bdrv_new_open(const char *filename,
                                        const char *fmt,
-                                       int flags)
+                                       int flags,
+                                       bool require_io)
 {
     BlockDriverState *bs;
     BlockDriver *drv;
@@ -251,7 +252,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
         goto fail;
     }
 
-    if (bdrv_is_encrypted(bs)) {
+    if (bdrv_is_encrypted(bs) && require_io) {
         printf("Disk image '%s' is encrypted.\n", filename);
         if (read_password(password, sizeof(password)) < 0) {
             error_report("No password given");
@@ -418,7 +419,7 @@ static int img_check(int argc, char **argv)
     }
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, flags);
+    bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
@@ -525,7 +526,7 @@ static int img_commit(int argc, char **argv)
         return -1;
     }
 
-    bs = bdrv_new_open(filename, fmt, flags);
+    bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
@@ -767,7 +768,7 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BDRV_O_FLAGS);
+        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BDRV_O_FLAGS, true);
         if (!bs[bs_i]) {
             error_report("Could not open '%s'", argv[optind + bs_i]);
             ret = -1;
@@ -886,7 +887,7 @@ static int img_convert(int argc, char **argv)
         return -1;
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt, flags);
+    out_bs = bdrv_new_open(out_filename, out_fmt, flags, true);
     if (!out_bs) {
         ret = -1;
         goto out;
@@ -1305,7 +1306,7 @@ static int img_info(int argc, char **argv)
         return 1;
     }
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING);
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING, false);
     if (!bs) {
         return 1;
     }
@@ -1396,7 +1397,7 @@ static int img_snapshot(int argc, char **argv)
     filename = argv[optind++];
 
     /* Open the image */
-    bs = bdrv_new_open(filename, NULL, bdrv_oflags);
+    bs = bdrv_new_open(filename, NULL, bdrv_oflags, true);
     if (!bs) {
         return 1;
     }
@@ -1514,7 +1515,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    bs = bdrv_new_open(filename, fmt, flags);
+    bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
@@ -1787,7 +1788,7 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR, true);
     if (!bs) {
         ret = -1;
         goto out;
