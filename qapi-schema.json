@@ -808,6 +808,9 @@
 #
 # @enabled: true if the SPICE server is enabled, false otherwise
 #
+# @migrated: true if the last guest migration completed and spice
+#            migration had completed as well. false otherwise.
+#
 # @host: #optional The hostname the SPICE server is bound to.  This depends on
 #        the name resolution on the host and may be an IP address.
 #
@@ -833,7 +836,7 @@
 # Since: 0.14.0
 ##
 { 'type': 'SpiceInfo',
-  'data': {'enabled': 'bool', '*host': 'str', '*port': 'int',
+  'data': {'enabled': 'bool', 'migrated': 'bool', '*host': 'str', '*port': 'int',
            '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
            'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']} }
 

@@ -537,6 +537,9 @@ QemuOptsList qemu_spice_opts = {
         },{
             .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "seamless-migration",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },

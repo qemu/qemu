@@ -40,7 +40,6 @@ typedef struct PCIQXLDevice {
     uint32_t           revision;
 
     int32_t            num_memslots;
-    int32_t            num_surfaces;
 
     uint32_t           current_async;
     QemuMutex          async_lock;
@@ -65,11 +64,13 @@ typedef struct PCIQXLDevice {
     } guest_primary;
 
     struct surfaces {
-        QXLPHYSICAL    cmds[NUM_SURFACES];
+        QXLPHYSICAL    *cmds;
         uint32_t       count;
         uint32_t       max;
     } guest_surfaces;
     QXLPHYSICAL        guest_cursor;
+
+    QXLPHYSICAL        guest_monitors_config;
 
     QemuMutex          track_lock;
 
@@ -128,7 +129,12 @@ typedef struct PCIQXLDevice {
         }                                                               \
     } while (0)
 
+#if 0
+/* spice-server 0.12 is still in development */
+#define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V12
+#else
 #define QXL_DEFAULT_REVISION QXL_REVISION_STABLE_V10
+#endif
 
 /* qxl.c */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL phys, int group_id);
