@@ -1297,11 +1297,6 @@ static void tcg_liveness_analysis(TCGContext *s)
                 args--;
             }
             break;
-        case INDEX_op_set_label:
-            args--;
-            /* mark end of basic block */
-            tcg_la_bb_end(s, dead_temps);
-            break;
         case INDEX_op_debug_insn_start:
             args -= def->nb_args;
             break;
