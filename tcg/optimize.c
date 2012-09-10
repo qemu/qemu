@@ -39,8 +39,7 @@ typedef enum {
     TCG_TEMP_UNDEF = 0,
     TCG_TEMP_CONST,
     TCG_TEMP_COPY,
-    TCG_TEMP_HAS_COPY,
-    TCG_TEMP_ANY
+    TCG_TEMP_HAS_COPY
 } tcg_temp_state;
 
 struct tcg_temp_info {
@@ -52,7 +51,7 @@ struct tcg_temp_info {
 
 static struct tcg_temp_info temps[TCG_MAX_TEMPS];
 
-/* Reset TEMP's state to TCG_TEMP_ANY.  If TEMP was a representative of some
+/* Reset TEMP's state to TCG_TEMP_UNDEF.  If TEMP was a representative of some
    class of equivalent temp's, a new representative should be chosen in this
    class. */
 static void reset_temp(TCGArg temp, int nb_temps, int nb_globals)
@@ -69,7 +68,7 @@ static void reset_temp(TCGArg temp, int nb_temps, int nb_globals)
         }
         for (i = temps[temp].next_copy; i != temp; i = temps[i].next_copy) {
             if (new_base == (TCGArg)-1) {
-                temps[i].state = TCG_TEMP_ANY;
+                temps[i].state = TCG_TEMP_UNDEF;
             } else {
                 temps[i].val = new_base;
             }
@@ -81,9 +80,9 @@ static void reset_temp(TCGArg temp, int nb_temps, int nb_globals)
         temps[temps[temp].prev_copy].next_copy = temps[temp].next_copy;
         new_base = temps[temp].val;
     }
-    temps[temp].state = TCG_TEMP_ANY;
+    temps[temp].state = TCG_TEMP_UNDEF;
     if (new_base != (TCGArg)-1 && temps[new_base].next_copy == new_base) {
-        temps[new_base].state = TCG_TEMP_ANY;
+        temps[new_base].state = TCG_TEMP_UNDEF;
     }
 }
 
