@@ -56,6 +56,8 @@ int qemu_set_fd_handler2(int fd,
 {
     IOHandlerRecord *ioh;
 
+    assert(fd >= 0);
+
     if (!fd_read && !fd_write) {
         QLIST_FOREACH(ioh, &io_handlers, next) {
             if (ioh->fd == fd) {
