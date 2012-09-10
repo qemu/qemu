@@ -217,6 +217,7 @@ usb_redir=""
 opengl=""
 zlib="yes"
 guest_agent="yes"
+want_tools="yes"
 libiscsi=""
 coroutine=""
 seccomp=""
@@ -867,6 +868,10 @@ for opt do
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
+  ;;
+  --enable-tools) want_tools="yes"
+  ;;
+  --disable-tools) want_tools="no"
   ;;
   --enable-seccomp) seccomp="yes"
   ;;
@@ -3043,9 +3048,14 @@ fi
 qemu_confdir=$sysconfdir$confsuffix
 qemu_datadir=$datadir$confsuffix
 
-tools=
-if test "$softmmu" = yes ; then
+tools=""
+if test "$want_tools" = "yes" ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+    tools="qemu-nbd\$(EXESUF) $tools"
+  fi
+fi
+if test "$softmmu" = yes ; then
   if test "$virtfs" != no ; then
     if test "$cap" = yes && test "$linux" = yes && test "$attr" = yes ; then
       virtfs=yes
@@ -3059,14 +3069,13 @@ if test "$softmmu" = yes ; then
     fi
   fi
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-      tools="qemu-nbd\$(EXESUF) $tools"
     if [ "$guest_agent" = "yes" ]; then
       tools="qemu-ga\$(EXESUF) $tools"
     fi
   fi
-fi
-if test "$smartcard_nss" = "yes" ; then
-  tools="vscclient\$(EXESUF) $tools"
+  if test "$smartcard_nss" = "yes" ; then
+    tools="vscclient\$(EXESUF) $tools"
+  fi
 fi
 
 # Mac OS X ships with a broken assembler
