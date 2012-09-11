@@ -398,9 +398,11 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
              * When pipelining is enabled usb-devices must always return async,
              * otherwise packets can complete out of order!
              */
-            assert(!p->ep->pipeline);
-            p->result = ret;
-            usb_packet_set_state(p, USB_PACKET_COMPLETE);
+            assert(!p->ep->pipeline || QTAILQ_EMPTY(&p->ep->queue));
+            if (ret != USB_RET_NAK) {
+                p->result = ret;
+                usb_packet_set_state(p, USB_PACKET_COMPLETE);
+            }
         }
     } else {
         ret = USB_RET_ASYNC;
@@ -723,4 +725,19 @@ void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     uep->pipeline = enabled;
+}
+
+USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
+                                    uint64_t id)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    USBPacket *p;
+
+    while ((p = QTAILQ_FIRST(&uep->queue)) != NULL) {
+        if (p->id == id) {
+            return p;
+        }
+    }
+
+    return NULL;
 }

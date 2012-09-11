@@ -39,6 +39,10 @@
 #include <sys/eventfd.h>
 #endif
 
+#ifdef CONFIG_VALGRIND_H
+#include <valgrind/memcheck.h>
+#endif
+
 /* KVM uses PAGE_SIZE in its definition of COALESCED_MMIO_MAX */
 #define PAGE_SIZE TARGET_PAGE_SIZE
 
@@ -84,6 +88,7 @@ struct KVMState
     int pit_state2;
     int xsave, xcrs;
     int many_ioeventfds;
+    int intx_set_mask;
     /* The man page (and posix) say ioctl numbers are signed int, but
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
@@ -959,6 +964,30 @@ static void kvm_add_routing_entry(KVMState *s,
     kvm_irqchip_commit_routes(s);
 }
 
+static int kvm_update_routing_entry(KVMState *s,
+                                    struct kvm_irq_routing_entry *new_entry)
+{
+    struct kvm_irq_routing_entry *entry;
+    int n;
+
+    for (n = 0; n < s->irq_routes->nr; n++) {
+        entry = &s->irq_routes->entries[n];
+        if (entry->gsi != new_entry->gsi) {
+            continue;
+        }
+
+        entry->type = new_entry->type;
+        entry->flags = new_entry->flags;
+        entry->u = new_entry->u;
+
+        kvm_irqchip_commit_routes(s);
+
+        return 0;
+    }
+
+    return -ESRCH;
+}
+
 void kvm_irqchip_add_irq_route(KVMState *s, int irq, int irqchip, int pin)
 {
     struct kvm_irq_routing_entry e;
@@ -1121,6 +1150,24 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     return virq;
 }
 
+int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
+{
+    struct kvm_irq_routing_entry kroute;
+
+    if (!kvm_irqchip_in_kernel()) {
+        return -ENOSYS;
+    }
+
+    kroute.gsi = virq;
+    kroute.type = KVM_IRQ_ROUTING_MSI;
+    kroute.flags = 0;
+    kroute.u.msi.address_lo = (uint32_t)msg.address;
+    kroute.u.msi.address_hi = msg.address >> 32;
+    kroute.u.msi.data = msg.data;
+
+    return kvm_update_routing_entry(s, &kroute);
+}
+
 static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
 {
     struct kvm_irqfd irqfd = {
@@ -1162,24 +1209,14 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
-int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq)
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
-    return kvm_irqchip_assign_irqfd(s, fd, virq, true);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, true);
 }
 
-int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
-    return kvm_irqchip_add_irqfd(s, event_notifier_get_fd(n), virq);
-}
-
-int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq)
-{
-    return kvm_irqchip_assign_irqfd(s, fd, virq, false);
-}
-
-int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq)
-{
-    return kvm_irqchip_remove_irqfd(s, event_notifier_get_fd(n), virq);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, false);
 }
 
 static int kvm_irqchip_create(KVMState *s)
@@ -1349,6 +1386,8 @@ int kvm_init(void)
 #ifdef KVM_CAP_IRQ_ROUTING
     s->direct_msi = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
 #endif
+
+    s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
 
     ret = kvm_arch_init(s);
     if (ret < 0) {
@@ -1704,6 +1743,11 @@ int kvm_has_gsi_routing(void)
 #endif
 }
 
+int kvm_has_intx_set_mask(void)
+{
+    return kvm_state->intx_set_mask;
+}
+
 void *kvm_vmalloc(ram_addr_t size)
 {
 #ifdef TARGET_S390X
@@ -1719,6 +1763,9 @@ void *kvm_vmalloc(ram_addr_t size)
 
 void kvm_setup_guest_memory(void *start, size_t size)
 {
+#ifdef CONFIG_VALGRIND_H
+    VALGRIND_MAKE_MEM_DEFINED(start, size);
+#endif
     if (!kvm_has_sync_mmu()) {
         int ret = qemu_madvise(start, size, QEMU_MADV_DONTFORK);
 

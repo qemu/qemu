@@ -117,6 +117,7 @@ int kvm_has_xcrs(void);
 int kvm_has_pit_state2(void);
 int kvm_has_many_ioeventfds(void);
 int kvm_has_gsi_routing(void);
+int kvm_has_intx_set_mask(void);
 
 #ifdef NEED_CPU_H
 int kvm_init_vcpu(CPUArchState *env);
@@ -270,10 +271,9 @@ int kvm_set_ioeventfd_mmio(int fd, uint32_t adr, uint32_t val, bool assign,
 int kvm_set_ioeventfd_pio_word(int fd, uint16_t adr, uint16_t val, bool assign);
 
 int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg);
+int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
 
-int kvm_irqchip_add_irqfd(KVMState *s, int fd, int virq);
-int kvm_irqchip_remove_irqfd(KVMState *s, int fd, int virq);
-int kvm_irqchip_add_irq_notifier(KVMState *s, EventNotifier *n, int virq);
-int kvm_irqchip_remove_irq_notifier(KVMState *s, EventNotifier *n, int virq);
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
+int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
 #endif

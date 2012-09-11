@@ -135,8 +135,15 @@
 #define USB_DT_OTHER_SPEED_CONFIG       0x07
 #define USB_DT_DEBUG                    0x0A
 #define USB_DT_INTERFACE_ASSOC          0x0B
+#define USB_DT_BOS                      0x0F
+#define USB_DT_DEVICE_CAPABILITY        0x10
 #define USB_DT_CS_INTERFACE             0x24
 #define USB_DT_CS_ENDPOINT              0x25
+#define USB_DT_ENDPOINT_COMPANION       0x30
+
+#define USB_DEV_CAP_WIRELESS            0x01
+#define USB_DEV_CAP_USB2_EXT            0x02
+#define USB_DEV_CAP_SUPERSPEED          0x03
 
 #define USB_ENDPOINT_XFER_CONTROL	0
 #define USB_ENDPOINT_XFER_ISOC		1
@@ -377,6 +384,8 @@ void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
+USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
+                                    uint64_t id);
 
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);

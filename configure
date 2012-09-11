@@ -127,7 +127,7 @@ cc_i386=i386-pc-linux-gnu-gcc
 libs_qga=""
 debug_info="yes"
 
-target_list=""
+target_list="DEFAULT"
 
 # Default value for a variable defining feature "foo".
 #  * foo="no"  feature will only be used if --enable-foo arg is given
@@ -184,6 +184,7 @@ datadir="\${prefix}/share"
 qemu_docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
+libexecdir="\${prefix}/libexec"
 includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
 confsuffix="/qemu"
@@ -218,6 +219,7 @@ usb_redir=""
 opengl=""
 zlib="yes"
 guest_agent="yes"
+want_tools="yes"
 libiscsi=""
 coroutine=""
 seccomp=""
@@ -656,6 +658,8 @@ for opt do
   ;;
   --libdir=*) libdir="$optarg"
   ;;
+  --libexecdir=*) libexecdir="$optarg"
+  ;;
   --includedir=*) includedir="$optarg"
   ;;
   --datadir=*) datadir="$optarg"
@@ -666,7 +670,7 @@ for opt do
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
-  --sbindir=*|--libexecdir=*|--sharedstatedir=*|--localstatedir=*|\
+  --sbindir=*|--sharedstatedir=*|--localstatedir=*|\
   --oldincludedir=*|--datarootdir=*|--infodir=*|--localedir=*|\
   --htmldir=*|--dvidir=*|--pdfdir=*|--psdir=*)
     # These switches are silently ignored, for compatibility with
@@ -891,6 +895,10 @@ for opt do
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
+  ;;
+  --enable-tools) want_tools="yes"
+  ;;
+  --disable-tools) want_tools="no"
   ;;
   --enable-seccomp) seccomp="yes"
   ;;
@@ -1342,15 +1350,10 @@ if ! "$python" -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_
   exit 1
 fi
 
-if test -z "$target_list" ; then
-    target_list="$default_target_list"
-else
-    target_list=`echo "$target_list" | sed -e 's/,/ /g'`
+if test "$target_list" = "DEFAULT" ; then
+    target_list=`echo "$default_target_list" | sed -e 's/,/ /g'`
 fi
-if test -z "$target_list" ; then
-    echo "No targets enabled"
-    exit 1
-fi
+
 # see if system emulation was really requested
 case " $target_list " in
   *"-softmmu "*) softmmu=yes
@@ -2799,7 +2802,7 @@ fi
 
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
-    if $pkg_config --atleast-version=0.3.4 libusbredirparser >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=0.5 libusbredirparser >/dev/null 2>&1 ; then
         usb_redir="yes"
         usb_redir_cflags=$($pkg_config --cflags libusbredirparser 2>/dev/null)
         usb_redir_libs=$($pkg_config --libs libusbredirparser 2>/dev/null)
@@ -3012,11 +3015,12 @@ if compile_prog "-Werror" "" ; then
 fi
 
 ########################################
-# check if we have valgrind/valgrind.h
+# check if we have valgrind/valgrind.h and valgrind/memcheck.h
 
 valgrind_h=no
 cat > $TMPC << EOF
 #include <valgrind/valgrind.h>
+#include <valgrind/memcheck.h>
 int main(void) {
   return 0;
 }
@@ -3101,9 +3105,14 @@ fi
 qemu_confdir=$sysconfdir$confsuffix
 qemu_datadir=$datadir$confsuffix
 
-tools=
-if test "$softmmu" = yes ; then
+tools=""
+if test "$want_tools" = "yes" ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+    tools="qemu-nbd\$(EXESUF) $tools"
+  fi
+fi
+if test "$softmmu" = yes ; then
   if test "$virtfs" != no ; then
     if test "$cap" = yes && test "$linux" = yes && test "$attr" = yes ; then
       virtfs=yes
@@ -3117,14 +3126,13 @@ if test "$softmmu" = yes ; then
     fi
   fi
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-      tools="qemu-nbd\$(EXESUF) $tools"
     if [ "$guest_agent" = "yes" ]; then
       tools="qemu-ga\$(EXESUF) $tools"
     fi
   fi
-fi
-if test "$smartcard_nss" = "yes" ; then
-  tools="vscclient\$(EXESUF) $tools"
+  if test "$smartcard_nss" = "yes" ; then
+    tools="vscclient\$(EXESUF) $tools"
+  fi
 fi
 
 # Mac OS X ships with a broken assembler
@@ -3142,6 +3150,7 @@ echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $qemu_datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
+echo "libexec directory `eval echo $libexecdir`"
 echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
@@ -3246,14 +3255,14 @@ echo all: >> $config_host_mak
 echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
+echo "libexecdir=$libexecdir" >> $config_host_mak
 echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
-echo "libexecdir=\${prefix}/libexec" >> $config_host_mak
-echo "CONFIG_QEMU_HELPERDIR=\"$prefix/libexec\"" >> $config_host_mak
+echo "CONFIG_QEMU_HELPERDIR=\"$libexecdir\"" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
