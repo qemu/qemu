@@ -197,9 +197,26 @@ static void trigger_ascii_console_data(void *opaque, int n, int level)
     sclp_service_interrupt(0);
 }
 
+static const VMStateDescription vmstate_sclpconsole = {
+    .name = "sclpconsole",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(event.event_pending, SCLPConsole),
+        VMSTATE_UINT8_ARRAY(iov, SCLPConsole, SIZE_BUFFER_VT220),
+        VMSTATE_UINT32(iov_sclp, SCLPConsole),
+        VMSTATE_UINT32(iov_bs, SCLPConsole),
+        VMSTATE_UINT32(iov_data_len, SCLPConsole),
+        VMSTATE_UINT32(iov_sclp_rest, SCLPConsole),
+        VMSTATE_END_OF_LIST()
+     }
+};
+
 /* qemu object creation and initialization functions */
 
 /* tell character layer our call-back functions */
+
 static int console_init(SCLPEvent *event)
 {
     static bool console_available;
@@ -242,6 +259,7 @@ static void console_class_init(ObjectClass *klass, void *data)
     SCLPEventClass *ec = SCLP_EVENT_CLASS(klass);
 
     dc->props = console_properties;
+    dc->vmsd = &vmstate_sclpconsole;
     ec->init = console_init;
     ec->exit = console_exit;
     ec->get_send_mask = send_mask;
