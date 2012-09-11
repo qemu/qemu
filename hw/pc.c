@@ -53,9 +53,6 @@
 #include "bitmap.h"
 #include "vga-pci.h"
 
-/* output Bochs bios info messages */
-//#define DEBUG_BIOS
-
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
 
@@ -534,17 +531,6 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
     static int shutdown_index = 0;
 
     switch(addr) {
-        /* Bochs BIOS messages */
-    case 0x400:
-    case 0x401:
-        /* used to be panic, now unused */
-        break;
-    case 0x402:
-    case 0x403:
-#ifdef DEBUG_BIOS
-        fprintf(stderr, "%c", val);
-#endif
-        break;
     case 0x8900:
         /* same as Bochs power off */
         if (val == shutdown_str[shutdown_index]) {
@@ -558,16 +544,9 @@ static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
         }
         break;
 
-        /* LGPL'ed VGA BIOS messages */
     case 0x501:
     case 0x502:
         exit((val << 1) | 1);
-    case 0x500:
-    case 0x503:
-#ifdef DEBUG_BIOS
-        fprintf(stderr, "%c", val);
-#endif
-        break;
     }
 }
 
@@ -596,17 +575,11 @@ static void *bochs_bios_init(void)
     uint64_t *numa_fw_cfg;
     int i, j;
 
-    register_ioport_write(0x400, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x401, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x402, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x403, 1, 1, bochs_bios_write, NULL);
     register_ioport_write(0x8900, 1, 1, bochs_bios_write, NULL);
 
     register_ioport_write(0x501, 1, 1, bochs_bios_write, NULL);
     register_ioport_write(0x501, 1, 2, bochs_bios_write, NULL);
     register_ioport_write(0x502, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x500, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x503, 1, 1, bochs_bios_write, NULL);
 
     fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
 
