@@ -287,23 +287,6 @@ target_ulong helper_602_mfrom(target_ulong arg)
     for (index = ARRAY_SIZE(r->element)-1; index >= 0; index--)
 #endif
 
-/* If X is a NaN, store the corresponding QNaN into RESULT.  Otherwise,
- * execute the following block.  */
-#define DO_HANDLE_NAN(result, x)                        \
-    if (float32_is_any_nan(x)) {                        \
-        CPU_FloatU __f;                                 \
-        __f.f = x;                                      \
-        __f.l = __f.l | (1 << 22);  /* Set QNaN bit. */ \
-        result = __f.f;                                 \
-    } else
-
-#define HANDLE_NAN1(result, x)                  \
-    DO_HANDLE_NAN(result, x)
-#define HANDLE_NAN2(result, x, y)                       \
-    DO_HANDLE_NAN(result, x) DO_HANDLE_NAN(result, y)
-#define HANDLE_NAN3(result, x, y, z)                                    \
-    DO_HANDLE_NAN(result, x) DO_HANDLE_NAN(result, y) DO_HANDLE_NAN(result, z)
-
 /* Saturating arithmetic helpers.  */
 #define SATCVT(from, to, from_type, to_type, min, max)          \
     static inline to_type cvt##from##to(from_type x, int *sat)  \
@@ -1413,10 +1396,6 @@ VUPK(lsh, s32, s16, UPKLO)
 #undef UPKHI
 #undef UPKLO
 
-#undef DO_HANDLE_NAN
-#undef HANDLE_NAN1
-#undef HANDLE_NAN2
-#undef HANDLE_NAN3
 #undef VECTOR_FOR_INORDER_I
 #undef HI_IDX
 #undef LO_IDX
