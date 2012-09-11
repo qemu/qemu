@@ -78,6 +78,7 @@ enum {
     STR_SERIALNUMBER,
     STR_CONFIG_FULL,
     STR_CONFIG_HIGH,
+    STR_CONFIG_SUPER,
 };
 
 static const USBDescStrings desc_strings = {
@@ -86,6 +87,7 @@ static const USBDescStrings desc_strings = {
     [STR_SERIALNUMBER] = "1",
     [STR_CONFIG_FULL]  = "Full speed config (usb 1.1)",
     [STR_CONFIG_HIGH]  = "High speed config (usb 2.0)",
+    [STR_CONFIG_SUPER] = "Super speed config (usb 3.0)",
 };
 
 static const USBDescIface desc_iface_full = {
@@ -158,6 +160,43 @@ static const USBDescDevice desc_device_high = {
     },
 };
 
+static const USBDescIface desc_iface_super = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 2,
+    .bInterfaceClass               = USB_CLASS_MASS_STORAGE,
+    .bInterfaceSubClass            = 0x06, /* SCSI */
+    .bInterfaceProtocol            = 0x50, /* Bulk */
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 1024,
+            .bMaxBurst             = 15,
+        },{
+            .bEndpointAddress      = USB_DIR_OUT | 0x02,
+            .bmAttributes          = USB_ENDPOINT_XFER_BULK,
+            .wMaxPacketSize        = 1024,
+            .bMaxBurst             = 15,
+        },
+    }
+};
+
+static const USBDescDevice desc_device_super = {
+    .bcdUSB                        = 0x0300,
+    .bMaxPacketSize0               = 9,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_SUPER,
+            .bmAttributes          = 0xc0,
+            .nif = 1,
+            .ifs = &desc_iface_super,
+        },
+    },
+};
+
 static const USBDesc desc = {
     .id = {
         .idVendor          = 0x46f4, /* CRC16() of "QEMU" */
@@ -167,9 +206,10 @@ static const USBDesc desc = {
         .iProduct          = STR_PRODUCT,
         .iSerialNumber     = STR_SERIALNUMBER,
     },
-    .full = &desc_device_full,
-    .high = &desc_device_high,
-    .str  = desc_strings,
+    .full  = &desc_device_full,
+    .high  = &desc_device_high,
+    .super = &desc_device_super,
+    .str   = desc_strings,
 };
 
 static void usb_msd_copy_data(MSDState *s, USBPacket *p)

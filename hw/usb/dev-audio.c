@@ -217,7 +217,7 @@ static const USBDescIface desc_iface[] = {
 };
 
 static const USBDescDevice desc_device = {
-    .bcdUSB                        = 0x0200,
+    .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 64,
     .bNumConfigurations            = 1,
     .confs = (USBDescConfig[]) {
