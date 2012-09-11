@@ -409,9 +409,7 @@ VARITH(uwm, u32)
         int i;                                                          \
                                                                         \
         for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
-                r->f[i] = func(a->f[i], b->f[i], &env->vec_status);     \
-            }                                                           \
+            r->f[i] = func(a->f[i], b->f[i], &env->vec_status);         \
         }                                                               \
     }
 VARITHFP(addfp, float32_add)
@@ -1039,9 +1037,7 @@ void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
-        }
+        r->f[i] = float32_div(float32_one, b->f[i], &env->vec_status);
     }
 }
 
@@ -1054,9 +1050,7 @@ void helper_vrefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
                                                                 \
         set_float_rounding_mode(rounding, &s);                  \
         for (i = 0; i < ARRAY_SIZE(r->f); i++) {                \
-            HANDLE_NAN1(r->f[i], b->f[i]) {                     \
-                r->f[i] = float32_round_to_int (b->f[i], &s);   \
-            }                                                   \
+            r->f[i] = float32_round_to_int (b->f[i], &s);       \
         }                                                       \
     }
 VRFI(n, float_round_nearest_even)
@@ -1089,11 +1083,9 @@ void helper_vrsqrtefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            float32 t = float32_sqrt(b->f[i], &env->vec_status);
+        float32 t = float32_sqrt(b->f[i], &env->vec_status);
 
-            r->f[i] = float32_div(float32_one, t, &env->vec_status);
-        }
+        r->f[i] = float32_div(float32_one, t, &env->vec_status);
     }
 }
 
@@ -1109,9 +1101,7 @@ void helper_vexptefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            r->f[i] = float32_exp2(b->f[i], &env->vec_status);
-        }
+        r->f[i] = float32_exp2(b->f[i], &env->vec_status);
     }
 }
 
@@ -1120,9 +1110,7 @@ void helper_vlogefp(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *b)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(r->f); i++) {
-        HANDLE_NAN1(r->f[i], b->f[i]) {
-            r->f[i] = float32_log2(b->f[i], &env->vec_status);
-        }
+        r->f[i] = float32_log2(b->f[i], &env->vec_status);
     }
 }
 
