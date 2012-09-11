@@ -432,7 +432,7 @@ static void s3c24xx_invalidate_display(void *opaque)
 }
 
 static void s3c24xx_screen_dump(void *opaque, const char *filename,
-                                bool cswitch)
+                                bool cswitch, Error **errp)
 {
     /* TODO */
 }

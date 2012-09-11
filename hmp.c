@@ -19,6 +19,7 @@
 #include "qemu-timer.h"
 #include "qmp-commands.h"
 #include "monitor.h"
+#include "console.h"
 
 static void hmp_handle_error(Monitor *mon, Error **errp)
 {
@@ -413,6 +414,8 @@ void hmp_info_spice(Monitor *mon)
         monitor_printf(mon, "     address: %s:%" PRId64 " [tls]\n",
                        info->host, info->tls_port);
     }
+    monitor_printf(mon, "    migrated: %s\n",
+                   info->migrated ? "true" : "false");
     monitor_printf(mon, "        auth: %s\n", info->auth);
     monitor_printf(mon, "    compiled: %s\n", info->compiled_version);
     monitor_printf(mon, "  mouse-mode: %s\n",
@@ -1101,4 +1104,67 @@ void hmp_closefd(Monitor *mon, const QDict *qdict)
 
     qmp_closefd(fdname, &errp);
     hmp_handle_error(mon, &errp);
+}
+
+void hmp_send_key(Monitor *mon, const QDict *qdict)
+{
+    const char *keys = qdict_get_str(qdict, "keys");
+    QKeyCodeList *keylist, *head = NULL, *tmp = NULL;
+    int has_hold_time = qdict_haskey(qdict, "hold-time");
+    int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
+    Error *err = NULL;
+    char keyname_buf[16];
+    char *separator;
+    int keyname_len, idx;
+
+    while (1) {
+        separator = strchr(keys, '-');
+        keyname_len = separator ? separator - keys : strlen(keys);
+        pstrcpy(keyname_buf, sizeof(keyname_buf), keys);
+
+        /* Be compatible with old interface, convert user inputted "<" */
+        if (!strncmp(keyname_buf, "<", 1) && keyname_len == 1) {
+            pstrcpy(keyname_buf, sizeof(keyname_buf), "less");
+            keyname_len = 4;
+        }
+        keyname_buf[keyname_len] = 0;
+
+        idx = index_from_key(keyname_buf);
+        if (idx == Q_KEY_CODE_MAX) {
+            monitor_printf(mon, "invalid parameter: %s\n", keyname_buf);
+            break;
+        }
+
+        keylist = g_malloc0(sizeof(*keylist));
+        keylist->value = idx;
+        keylist->next = NULL;
+
+        if (!head) {
+            head = keylist;
+        }
+        if (tmp) {
+            tmp->next = keylist;
+        }
+        tmp = keylist;
+
+        if (!separator) {
+            break;
+        }
+        keys = separator + 1;
+    }
+
+    if (idx != Q_KEY_CODE_MAX) {
+        qmp_send_key(head, has_hold_time, hold_time, &err);
+    }
+    hmp_handle_error(mon, &err);
+    qapi_free_QKeyCodeList(head);
+}
+
+void hmp_screen_dump(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+
+    qmp_screendump(filename, &err);
+    hmp_handle_error(mon, &err);
 }

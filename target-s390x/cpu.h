@@ -999,4 +999,13 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
     env->psw.addr = tb->pc;
 }
 
+/* fpu_helper.c */
+uint32_t set_cc_f32(CPUS390XState *env, float32 v1, float32 v2);
+uint32_t set_cc_f64(CPUS390XState *env, float64 v1, float64 v2);
+uint32_t set_cc_nz_f32(float32 v);
+uint32_t set_cc_nz_f64(float64 v);
+
+/* misc_helper.c */
+void program_interrupt(CPUS390XState *env, uint32_t code, int ilc);
+
 #endif

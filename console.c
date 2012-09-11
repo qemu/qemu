@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "console.h"
 #include "qemu-timer.h"
+#include "qmp-commands.h"
 
 //#define DEBUG_CONSOLE
 #define DEFAULT_BACKSCROLL 512
@@ -176,7 +177,7 @@ void vga_hw_invalidate(void)
         active_console->hw_invalidate(active_console->hw);
 }
 
-void vga_hw_screen_dump(const char *filename)
+void qmp_screendump(const char *filename, Error **errp)
 {
     TextConsole *previous_active_console;
     bool cswitch;
@@ -190,9 +191,9 @@ void vga_hw_screen_dump(const char *filename)
         console_select(0);
     }
     if (consoles[0] && consoles[0]->hw_screen_dump) {
-        consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch);
+        consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch, errp);
     } else {
-        error_report("screen dump not implemented");
+        error_setg(errp, "device doesn't support screendump\n");
     }
 
     if (cswitch) {

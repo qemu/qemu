@@ -23,6 +23,7 @@
  */
 
 #include <hw/hw.h>
+#include "error.h"
 #include "memory.h"
 
 #define ST01_V_RETRACE      0x08
@@ -204,7 +205,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val);
 uint32_t vga_mem_readb(VGACommonState *s, target_phys_addr_t addr);
 void vga_mem_writeb(VGACommonState *s, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
-int ppm_save(const char *filename, struct DisplaySurface *ds);
+void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
 void vga_init_vbe(VGACommonState *s, MemoryRegion *address_space);
