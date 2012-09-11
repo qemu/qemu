@@ -378,8 +378,15 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         op = gen_opc_buf[op_index];
         def = &tcg_op_defs[op];
         /* Do copy propagation */
-        if (!(def->flags & (TCG_OPF_CALL_CLOBBER | TCG_OPF_SIDE_EFFECTS))) {
-            assert(op != INDEX_op_call);
+        if (op == INDEX_op_call) {
+            int nb_oargs = args[0] >> 16;
+            int nb_iargs = args[0] & 0xffff;
+            for (i = nb_oargs + 1; i < nb_oargs + nb_iargs + 1; i++) {
+                if (temps[args[i]].state == TCG_TEMP_COPY) {
+                    args[i] = find_better_copy(s, args[i]);
+                }
+            }
+        } else {
             for (i = def->nb_oargs; i < def->nb_oargs + def->nb_iargs; i++) {
                 if (temps[args[i]].state == TCG_TEMP_COPY) {
                     args[i] = find_better_copy(s, args[i]);
