@@ -674,19 +674,40 @@ uint64_t HELPER(sqxb)(CPUS390XState *env, uint64_t ah, uint64_t al)
     return RET128(ret);
 }
 
+static const int fpc_to_rnd[4] = {
+    float_round_nearest_even,
+    float_round_to_zero,
+    float_round_up,
+    float_round_down
+};
+
 /* set fpc */
 void HELPER(sfpc)(CPUS390XState *env, uint64_t fpc)
 {
-    static const int rnd[4] = {
-        float_round_nearest_even,
-        float_round_to_zero,
-        float_round_up,
-        float_round_down
-    };
-
     /* Install everything in the main FPC.  */
     env->fpc = fpc;
 
     /* Install the rounding mode in the shadow fpu_status.  */
-    set_float_rounding_mode(rnd[fpc & 3], &env->fpu_status);
+    set_float_rounding_mode(fpc_to_rnd[fpc & 3], &env->fpu_status);
+}
+
+/* set fpc and signal */
+void HELPER(sfas)(CPUS390XState *env, uint64_t val)
+{
+    uint32_t signalling = env->fpc;
+    uint32_t source = val;
+    uint32_t s390_exc;
+
+    /* The contents of the source operand are placed in the FPC register;
+       then the flags in the FPC register are set to the logical OR of the
+       signalling flags and the source flags.  */
+    env->fpc = source | (signalling & 0x00ff0000);
+    set_float_rounding_mode(fpc_to_rnd[source & 3], &env->fpu_status);
+
+    /* If any signalling flag is 1 and the corresponding source mask
+       is also 1, a simulated-iee-exception trap occurs.  */
+    s390_exc = (signalling >> 16) & (source >> 24);
+    if (s390_exc) {
+        ieee_exception(env, s390_exc | 3, GETPC());
+    }
 }

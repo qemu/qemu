@@ -433,6 +433,8 @@
 
 /* LOAD FPC */
     C(0xb29d, LFPC,    S,     Z,   0, m2_32u, 0, 0, sfpc, 0)
+/* LOAD FPC AND SIGNAL */
+    C(0xb2bd, LFAS,    S,     IEEEE_SIM, 0, m2_32u, 0, 0, sfas, 0)
 
 /* LOAD LENGTHENED */
     C(0xb304, LDEBR,   RRE,   Z,   0, e2, f1, 0, ldeb, 0)
@@ -566,6 +568,8 @@
     C(0xb24e, SAR,     RRE,   Z,   0, r2_o, 0, 0, sar, 0)
 /* SET FPC */
     C(0xb384, SFPC,    RRE,   Z,   0, r1_o, 0, 0, sfpc, 0)
+/* SET FPC AND SIGNAL */
+    C(0xb385, SFASR,   RRE,   IEEEE_SIM, 0, r1_o, 0, 0, sfas, 0)
 /* SET BFP ROUNDING MODE */
     C(0xb299, SRNM,    S,     Z,   0, 0, 0, 0, srnm, 0)
     C(0xb2b8, SRNMB,   S,     FPE, 0, 0, 0, 0, srnm, 0)

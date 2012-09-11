@@ -2921,6 +2921,12 @@ static ExitStatus op_sfpc(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_sfas(DisasContext *s, DisasOps *o)
+{
+    gen_helper_sfas(cpu_env, o->in2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_srnm(DisasContext *s, DisasOps *o)
 {
     int b2 = get_field(s->fields, b2);
