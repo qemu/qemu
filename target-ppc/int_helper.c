@@ -414,6 +414,8 @@ VARITH(uwm, u32)
     }
 VARITHFP(addfp, float32_add)
 VARITHFP(subfp, float32_sub)
+VARITHFP(minfp, float32_min)
+VARITHFP(maxfp, float32_max)
 #undef VARITHFP
 
 #define VARITHSAT_CASE(type, op, cvt, element)                          \
@@ -727,27 +729,6 @@ VMINMAX(uh, u16)
 VMINMAX(uw, u32)
 #undef VMINMAX_DO
 #undef VMINMAX
-
-#define VMINMAXFP(suffix, rT, rF)                                       \
-    void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
-                          ppc_avr_t *b)                                 \
-    {                                                                   \
-        int i;                                                          \
-                                                                        \
-        for (i = 0; i < ARRAY_SIZE(r->f); i++) {                        \
-            HANDLE_NAN2(r->f[i], a->f[i], b->f[i]) {                    \
-                if (float32_lt_quiet(a->f[i], b->f[i],                  \
-                                     &env->vec_status)) {               \
-                    r->f[i] = rT->f[i];                                 \
-                } else {                                                \
-                    r->f[i] = rF->f[i];                                 \
-                }                                                       \
-            }                                                           \
-        }                                                               \
-    }
-VMINMAXFP(minfp, a, b)
-VMINMAXFP(maxfp, b, a)
-#undef VMINMAXFP
 
 void helper_vmladduhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
