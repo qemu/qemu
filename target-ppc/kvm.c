@@ -60,6 +60,7 @@ static int cap_booke_sregs;
 static int cap_ppc_smt;
 static int cap_ppc_rma;
 static int cap_spapr_tce;
+static int cap_hior;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -86,6 +87,7 @@ int kvm_arch_init(KVMState *s)
     cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
     cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
+    cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -467,6 +469,53 @@ int kvm_arch_put_registers(CPUPPCState *env, int level)
     if (env->tlb_dirty) {
         kvm_sw_tlb_put(env);
         env->tlb_dirty = false;
+    }
+
+    if (cap_segstate && (level >= KVM_PUT_RESET_STATE)) {
+        struct kvm_sregs sregs;
+
+        sregs.pvr = env->spr[SPR_PVR];
+
+        sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+
+        /* Sync SLB */
+#ifdef TARGET_PPC64
+        for (i = 0; i < 64; i++) {
+            sregs.u.s.ppc64.slb[i].slbe = env->slb[i].esid;
+            sregs.u.s.ppc64.slb[i].slbv = env->slb[i].vsid;
+        }
+#endif
+
+        /* Sync SRs */
+        for (i = 0; i < 16; i++) {
+            sregs.u.s.ppc32.sr[i] = env->sr[i];
+        }
+
+        /* Sync BATs */
+        for (i = 0; i < 8; i++) {
+            sregs.u.s.ppc32.dbat[i] = ((uint64_t)env->DBAT[1][i] << 32)
+                | env->DBAT[0][i];
+            sregs.u.s.ppc32.ibat[i] = ((uint64_t)env->IBAT[1][i] << 32)
+                | env->IBAT[0][i];
+        }
+
+        ret = kvm_vcpu_ioctl(env, KVM_SET_SREGS, &sregs);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    if (cap_hior && (level >= KVM_PUT_RESET_STATE)) {
+        uint64_t hior = env->spr[SPR_HIOR];
+        struct kvm_one_reg reg = {
+            .id = KVM_REG_PPC_HIOR,
+            .addr = (uintptr_t) &hior,
+        };
+
+        ret = kvm_vcpu_ioctl(env, KVM_SET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
     }
 
     return ret;
@@ -946,52 +995,14 @@ int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
 void kvmppc_set_papr(CPUPPCState *env)
 {
     struct kvm_enable_cap cap = {};
-    struct kvm_one_reg reg = {};
-    struct kvm_sregs sregs = {};
     int ret;
-    uint64_t hior = env->spr[SPR_HIOR];
 
     cap.cap = KVM_CAP_PPC_PAPR;
     ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &cap);
 
     if (ret) {
-        goto fail;
+        cpu_abort(env, "This KVM version does not support PAPR\n");
     }
-
-    /*
-     * XXX We set HIOR here. It really should be a qdev property of
-     *     the CPU node, but we don't have CPUs converted to qdev yet.
-     *
-     *     Once we have qdev CPUs, move HIOR to a qdev property and
-     *     remove this chunk.
-     */
-    reg.id = KVM_REG_PPC_HIOR;
-    reg.addr = (uintptr_t)&hior;
-    ret = kvm_vcpu_ioctl(env, KVM_SET_ONE_REG, &reg);
-    if (ret) {
-        fprintf(stderr, "Couldn't set HIOR. Maybe you're running an old \n"
-                        "kernel with support for HV KVM but no PAPR PR \n"
-                        "KVM in which case things will work. If they don't \n"
-                        "please update your host kernel!\n");
-    }
-
-    /* Set SDR1 so kernel space finds the HTAB */
-    ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
-    if (ret) {
-        goto fail;
-    }
-
-    sregs.u.s.sdr1 = env->spr[SPR_SDR1];
-
-    ret = kvm_vcpu_ioctl(env, KVM_SET_SREGS, &sregs);
-    if (ret) {
-        goto fail;
-    }
-
-    return;
-
-fail:
-    cpu_abort(env, "This KVM version does not support PAPR\n");
 }
 
 int kvmppc_smt_threads(void)
