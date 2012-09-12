@@ -1010,6 +1010,7 @@ int kvmppc_smt_threads(void)
     return cap_ppc_smt ? cap_ppc_smt : 1;
 }
 
+#ifdef TARGET_PPC64
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 {
     void *rma;
@@ -1052,6 +1053,16 @@ off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 
     return size;
 }
+
+uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift)
+{
+    if (cap_ppc_rma >= 2) {
+        return current_size;
+    }
+    return MIN(current_size,
+               getrampagesize() << (hash_shift - 7));
+}
+#endif
 
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
 {
@@ -1109,6 +1120,24 @@ int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
         /* Leak the table */
     }
 
+    return 0;
+}
+
+int kvmppc_reset_htab(int shift_hint)
+{
+    uint32_t shift = shift_hint;
+
+    if (kvm_enabled() &&
+        kvm_check_extension(kvm_state, KVM_CAP_PPC_ALLOC_HTAB)) {
+        int ret;
+        ret = kvm_vm_ioctl(kvm_state, KVM_PPC_ALLOCATE_HTAB, &shift);
+        if (ret < 0) {
+            return ret;
+        }
+        return shift;
+    }
+
+    /* For now.. */
     return 0;
 }
 

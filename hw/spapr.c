@@ -85,6 +85,8 @@
 
 #define PHANDLE_XICP            0x00001111
 
+#define HTAB_SIZE(spapr)        (1ULL << ((spapr)->htab_shift))
+
 sPAPREnvironment *spapr;
 
 int spapr_allocate_irq(int hint, enum xics_irq_type type)
@@ -134,12 +136,13 @@ int spapr_allocate_irq_block(int num, enum xics_irq_type type)
     return first;
 }
 
-static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
+static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;
     CPUPPCState *env;
     char cpu_model[32];
     int smt = kvmppc_smt_threads();
+    uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
     assert(spapr->cpu_model);
 
@@ -163,8 +166,16 @@ static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
             return offset;
         }
 
-        ret = fdt_setprop(fdt, offset, "ibm,associativity", associativity,
-                          sizeof(associativity));
+        if (nb_numa_nodes > 1) {
+            ret = fdt_setprop(fdt, offset, "ibm,associativity", associativity,
+                              sizeof(associativity));
+            if (ret < 0) {
+                return ret;
+            }
+        }
+
+        ret = fdt_setprop(fdt, offset, "ibm,pft-size",
+                          pft_size_prop, sizeof(pft_size_prop));
         if (ret < 0) {
             return ret;
         }
@@ -206,36 +217,6 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
     return (p - prop) * sizeof(uint32_t);
 }
 
-static void *spapr_create_fdt_skel(const char *cpu_model,
-                                   target_phys_addr_t rma_size,
-                                   target_phys_addr_t initrd_base,
-                                   target_phys_addr_t initrd_size,
-                                   target_phys_addr_t kernel_size,
-                                   const char *boot_device,
-                                   const char *kernel_cmdline,
-                                   long hash_shift)
-{
-    void *fdt;
-    CPUPPCState *env;
-    uint64_t mem_reg_property[2];
-    uint32_t start_prop = cpu_to_be32(initrd_base);
-    uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
-    uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
-    char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
-        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk";
-    char qemu_hypertas_prop[] = "hcall-memop1";
-    uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
-    int i;
-    char *modelname;
-    int smt = kvmppc_smt_threads();
-    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
-    uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
-    uint32_t associativity[] = {cpu_to_be32(0x4), cpu_to_be32(0x0),
-                                cpu_to_be32(0x0), cpu_to_be32(0x0),
-                                cpu_to_be32(0x0)};
-    char mem_name[32];
-    target_phys_addr_t node0_size, mem_start;
-
 #define _FDT(exp) \
     do { \
         int ret = (exp);                                           \
@@ -245,6 +226,27 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
             exit(1);                                               \
         }                                                          \
     } while (0)
+
+
+static void *spapr_create_fdt_skel(const char *cpu_model,
+                                   target_phys_addr_t initrd_base,
+                                   target_phys_addr_t initrd_size,
+                                   target_phys_addr_t kernel_size,
+                                   const char *boot_device,
+                                   const char *kernel_cmdline)
+{
+    void *fdt;
+    CPUPPCState *env;
+    uint32_t start_prop = cpu_to_be32(initrd_base);
+    uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
+    char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
+        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk";
+    char qemu_hypertas_prop[] = "hcall-memop1";
+    uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
+    uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
+    char *modelname;
+    int i, smt = kvmppc_smt_threads();
+    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
 
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
@@ -288,55 +290,6 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
 
     _FDT((fdt_end_node(fdt)));
-
-    /* memory node(s) */
-    node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
-    if (rma_size > node0_size) {
-        rma_size = node0_size;
-    }
-
-    /* RMA */
-    mem_reg_property[0] = 0;
-    mem_reg_property[1] = cpu_to_be64(rma_size);
-    _FDT((fdt_begin_node(fdt, "memory@0")));
-    _FDT((fdt_property_string(fdt, "device_type", "memory")));
-    _FDT((fdt_property(fdt, "reg", mem_reg_property,
-        sizeof(mem_reg_property))));
-    _FDT((fdt_property(fdt, "ibm,associativity", associativity,
-        sizeof(associativity))));
-    _FDT((fdt_end_node(fdt)));
-
-    /* RAM: Node 0 */
-    if (node0_size > rma_size) {
-        mem_reg_property[0] = cpu_to_be64(rma_size);
-        mem_reg_property[1] = cpu_to_be64(node0_size - rma_size);
-
-        sprintf(mem_name, "memory@" TARGET_FMT_lx, rma_size);
-        _FDT((fdt_begin_node(fdt, mem_name)));
-        _FDT((fdt_property_string(fdt, "device_type", "memory")));
-        _FDT((fdt_property(fdt, "reg", mem_reg_property,
-                           sizeof(mem_reg_property))));
-        _FDT((fdt_property(fdt, "ibm,associativity", associativity,
-                           sizeof(associativity))));
-        _FDT((fdt_end_node(fdt)));
-    }
-
-    /* RAM: Node 1 and beyond */
-    mem_start = node0_size;
-    for (i = 1; i < nb_numa_nodes; i++) {
-        mem_reg_property[0] = cpu_to_be64(mem_start);
-        mem_reg_property[1] = cpu_to_be64(node_mem[i]);
-        associativity[3] = associativity[4] = cpu_to_be32(i);
-        sprintf(mem_name, "memory@" TARGET_FMT_lx, mem_start);
-        _FDT((fdt_begin_node(fdt, mem_name)));
-        _FDT((fdt_property_string(fdt, "device_type", "memory")));
-        _FDT((fdt_property(fdt, "reg", mem_reg_property,
-            sizeof(mem_reg_property))));
-        _FDT((fdt_property(fdt, "ibm,associativity", associativity,
-            sizeof(associativity))));
-        _FDT((fdt_end_node(fdt)));
-        mem_start += node_mem[i];
-    }
 
     /* cpus */
     _FDT((fdt_begin_node(fdt, "cpus")));
@@ -389,8 +342,6 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_property_cell(fdt, "timebase-frequency", tbfreq)));
         _FDT((fdt_property_cell(fdt, "clock-frequency", cpufreq)));
         _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
-        _FDT((fdt_property(fdt, "ibm,pft-size",
-                           pft_size_prop, sizeof(pft_size_prop))));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
 
@@ -489,6 +440,68 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     return fdt;
 }
 
+static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
+{
+    uint32_t associativity[] = {cpu_to_be32(0x4), cpu_to_be32(0x0),
+                                cpu_to_be32(0x0), cpu_to_be32(0x0),
+                                cpu_to_be32(0x0)};
+    char mem_name[32];
+    target_phys_addr_t node0_size, mem_start;
+    uint64_t mem_reg_property[2];
+    int i, off;
+
+    /* memory node(s) */
+    node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
+    if (spapr->rma_size > node0_size) {
+        spapr->rma_size = node0_size;
+    }
+
+    /* RMA */
+    mem_reg_property[0] = 0;
+    mem_reg_property[1] = cpu_to_be64(spapr->rma_size);
+    off = fdt_add_subnode(fdt, 0, "memory@0");
+    _FDT(off);
+    _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
+    _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
+                      sizeof(mem_reg_property))));
+    _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
+                      sizeof(associativity))));
+
+    /* RAM: Node 0 */
+    if (node0_size > spapr->rma_size) {
+        mem_reg_property[0] = cpu_to_be64(spapr->rma_size);
+        mem_reg_property[1] = cpu_to_be64(node0_size - spapr->rma_size);
+
+        sprintf(mem_name, "memory@" TARGET_FMT_lx, spapr->rma_size);
+        off = fdt_add_subnode(fdt, 0, mem_name);
+        _FDT(off);
+        _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
+        _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
+                          sizeof(mem_reg_property))));
+        _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
+                          sizeof(associativity))));
+    }
+
+    /* RAM: Node 1 and beyond */
+    mem_start = node0_size;
+    for (i = 1; i < nb_numa_nodes; i++) {
+        mem_reg_property[0] = cpu_to_be64(mem_start);
+        mem_reg_property[1] = cpu_to_be64(node_mem[i]);
+        associativity[3] = associativity[4] = cpu_to_be32(i);
+        sprintf(mem_name, "memory@" TARGET_FMT_lx, mem_start);
+        off = fdt_add_subnode(fdt, 0, mem_name);
+        _FDT(off);
+        _FDT((fdt_setprop_string(fdt, off, "device_type", "memory")));
+        _FDT((fdt_setprop(fdt, off, "reg", mem_reg_property,
+                          sizeof(mem_reg_property))));
+        _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
+                          sizeof(associativity))));
+        mem_start += node_mem[i];
+    }
+
+    return 0;
+}
+
 static void spapr_finalize_fdt(sPAPREnvironment *spapr,
                                target_phys_addr_t fdt_addr,
                                target_phys_addr_t rtas_addr,
@@ -502,6 +515,12 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 
     /* open out the base tree into a temp buffer for the final tweaks */
     _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
+
+    ret = spapr_populate_memory(spapr, fdt);
+    if (ret < 0) {
+        fprintf(stderr, "couldn't setup memory nodes in fdt\n");
+        exit(1);
+    }
 
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
     if (ret < 0) {
@@ -525,11 +544,9 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     }
 
     /* Advertise NUMA via ibm,associativity */
-    if (nb_numa_nodes > 1) {
-        ret = spapr_set_associativity(fdt, spapr);
-        if (ret < 0) {
-            fprintf(stderr, "Couldn't set up NUMA device tree properties\n");
-        }
+    ret = spapr_fixup_cpu_dt(fdt, spapr);
+    if (ret < 0) {
+        fprintf(stderr, "Couldn't finalize CPU device tree properties\n");
     }
 
     if (!spapr->has_graphics) {
@@ -559,10 +576,39 @@ static void emulate_spapr_hypercall(CPUPPCState *env)
     env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
 }
 
+static void spapr_reset_htab(sPAPREnvironment *spapr)
+{
+    long shift;
+
+    /* allocate hash page table.  For now we always make this 16mb,
+     * later we should probably make it scale to the size of guest
+     * RAM */
+
+    shift = kvmppc_reset_htab(spapr->htab_shift);
+
+    if (shift > 0) {
+        /* Kernel handles htab, we don't need to allocate one */
+        spapr->htab_shift = shift;
+    } else {
+        if (!spapr->htab) {
+            /* Allocate an htab if we don't yet have one */
+            spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
+        }
+
+        /* And clear it */
+        memset(spapr->htab, 0, HTAB_SIZE(spapr));
+    }
+
+    /* Update the RMA size if necessary */
+    if (spapr->vrma_adjust) {
+        spapr->rma_size = kvmppc_rma_size(ram_size, spapr->htab_shift);
+    }
+}
+
 static void ppc_spapr_reset(void)
 {
-    /* flush out the hash table */
-    memset(spapr->htab, 0, spapr->htab_size);
+    /* Reset the hash table & recalc the RMA */
+    spapr_reset_htab(spapr);
 
     qemu_devices_reset();
 
@@ -591,6 +637,12 @@ static void spapr_cpu_reset(void *opaque)
     env->halted = 1;
 
     env->spr[SPR_HIOR] = 0;
+
+    env->external_htab = spapr->htab;
+    env->htab_base = -1;
+    env->htab_mask = HTAB_SIZE(spapr) - 1;
+    env->spr[SPR_SDR1] = (unsigned long)spapr->htab |
+        (spapr->htab_shift - 18);
 }
 
 /* Returns whether we want to use VGA or not */
@@ -624,11 +676,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    target_phys_addr_t rma_alloc_size, rma_size;
+    target_phys_addr_t rma_alloc_size;
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;
-    long pteg_shift = 17;
     char *filename;
 
     msi_supported = true;
@@ -645,19 +696,38 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         hw_error("qemu: Unable to create RMA\n");
         exit(1);
     }
+
     if (rma_alloc_size && (rma_alloc_size < ram_size)) {
-        rma_size = rma_alloc_size;
+        spapr->rma_size = rma_alloc_size;
     } else {
-        rma_size = ram_size;
+        spapr->rma_size = ram_size;
+
+        /* With KVM, we don't actually know whether KVM supports an
+         * unbounded RMA (PR KVM) or is limited by the hash table size
+         * (HV KVM using VRMA), so we always assume the latter
+         *
+         * In that case, we also limit the initial allocations for RTAS
+         * etc... to 256M since we have no way to know what the VRMA size
+         * is going to be as it depends on the size of the hash table
+         * isn't determined yet.
+         */
+        if (kvm_enabled()) {
+            spapr->vrma_adjust = 1;
+            spapr->rma_size = MIN(spapr->rma_size, 0x10000000);
+        }
     }
 
     /* We place the device tree and RTAS just below either the top of the RMA,
      * or just below 2GB, whichever is lowere, so that it can be
      * processed with 32-bit real mode code if necessary */
-    rtas_limit = MIN(rma_size, 0x80000000);
+    rtas_limit = MIN(spapr->rma_size, 0x80000000);
     spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
     spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
     load_limit = spapr->fdt_addr - FW_OVERHEAD;
+
+    /* For now, always aim for a 16MB hash table */
+    /* FIXME: we should change this default based on RAM size */
+    spapr->htab_shift = 24;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -694,25 +764,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         memory_region_init_ram(ram, "ppc_spapr.ram", nonrma_size);
         vmstate_register_ram_global(ram);
         memory_region_add_subregion(sysmem, nonrma_base, ram);
-    }
-
-    /* allocate hash page table.  For now we always make this 16mb,
-     * later we should probably make it scale to the size of guest
-     * RAM.  FIXME: setting the htab information in the CPU env really
-     * belongs at CPU reset time, but we can get away with it for now
-     * because the PAPR guest is not permitted to write SDR1 so in
-     * fact these settings will never change during the run */
-    spapr->htab_size = 1ULL << (pteg_shift + 7);
-    spapr->htab = qemu_memalign(spapr->htab_size, spapr->htab_size);
-
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        env->external_htab = spapr->htab;
-        env->htab_base = -1;
-        env->htab_mask = spapr->htab_size - 1;
-
-        /* Tell KVM that we're in PAPR mode */
-        env->spr[SPR_SDR1] = (unsigned long)spapr->htab |
-                             ((pteg_shift + 7) - 18);
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
@@ -787,7 +838,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
     }
 
-    if (rma_size < (MIN_RMA_SLOF << 20)) {
+    if (spapr->rma_size < (MIN_RMA_SLOF << 20)) {
         fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
                 "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
         exit(1);
@@ -839,11 +890,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     spapr->entry_point = 0x100;
 
     /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model, rma_size,
+    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
                                             initrd_base, initrd_size,
                                             kernel_size,
-                                            boot_device, kernel_cmdline,
-                                            pteg_shift + 7);
+                                            boot_device, kernel_cmdline);
     assert(spapr->fdt_skel != NULL);
 }
 

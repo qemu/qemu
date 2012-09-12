@@ -15,7 +15,9 @@ typedef struct sPAPREnvironment {
 
     target_phys_addr_t ram_limit;
     void *htab;
-    long htab_size;
+    long htab_shift;
+    target_phys_addr_t rma_size;
+    int vrma_adjust;
     target_phys_addr_t fdt_addr, rtas_addr;
     long rtas_size;
     void *fdt_skel;
