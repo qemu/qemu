@@ -34,6 +34,7 @@
 #include "monitor.h"
 #include "trace.h"
 #include "dma.h"
+#include "sysemu.h"
 
 #define EHCI_DEBUG   0
 
@@ -2572,6 +2573,32 @@ static int usb_ehci_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static void usb_ehci_vm_state_change(void *opaque, int running, RunState state)
+{
+    EHCIState *ehci = opaque;
+
+    /*
+     * We don't migrate the EHCIQueue-s, instead we rebuild them for the
+     * schedule in guest memory. We must do the rebuilt ASAP, so that
+     * USB-devices which have async handled packages have a packet in the
+     * ep queue to match the completion with.
+     */
+    if (state == RUN_STATE_RUNNING) {
+        ehci_advance_async_state(ehci);
+    }
+
+    /*
+     * The schedule rebuilt from guest memory could cause the migration dest
+     * to miss a QH unlink, and fail to cancel packets, since the unlinked QH
+     * will never have existed on the destination. Therefor we must flush the
+     * async schedule on savevm to catch any not yet noticed unlinks.
+     */
+    if (state == RUN_STATE_SAVE_VM) {
+        ehci_advance_async_state(ehci);
+        ehci_queues_rip_unseen(ehci, 1);
+    }
+}
+
 static const VMStateDescription vmstate_ehci = {
     .name        = "ehci",
     .version_id  = 2,
@@ -2721,6 +2748,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     usb_packet_init(&s->ipacket);
 
     qemu_register_reset(ehci_reset, s);
+    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
 
     memory_region_init(&s->mem, "ehci", MMIO_SIZE);
     memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
