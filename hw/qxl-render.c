@@ -234,7 +234,7 @@ int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext)
         return 1;
     }
 
-    if (!qxl->ssd.ds->mouse_set || !qxl->ssd.ds->cursor_define) {
+    if (!dpy_cursor_define_supported(qxl->ssd.ds)) {
         return 0;
     }
 

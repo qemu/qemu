@@ -210,7 +210,7 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     LedState *s = opaque;
     char buf[2];
 
-    dpy_cursor(s->ds, -1, -1);
+    dpy_text_cursor(s->ds, -1, -1);
     qemu_console_resize(s->ds, 2, 1);
 
     /* TODO: draw the segments */

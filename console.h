@@ -164,6 +164,9 @@ struct DisplayChangeListener {
                      int w, int h, uint32_t c);
     void (*dpy_text_cursor)(struct DisplayState *s, int x, int y);
 
+    void (*dpy_mouse_set)(struct DisplayState *s, int x, int y, int on);
+    void (*dpy_cursor_define)(struct DisplayState *s, QEMUCursor *cursor);
+
     QLIST_ENTRY(DisplayChangeListener) next;
 };
 
@@ -180,9 +183,6 @@ struct DisplayState {
 
     struct DisplayAllocator* allocator;
     QLIST_HEAD(, DisplayChangeListener) listeners;
-
-    void (*mouse_set)(int x, int y, int on);
-    void (*cursor_define)(QEMUCursor *cursor);
 
     struct DisplayState *next;
 };
@@ -304,7 +304,7 @@ static inline void dpy_fill(struct DisplayState *s, int x, int y,
     }
 }
 
-static inline void dpy_cursor(struct DisplayState *s, int x, int y)
+static inline void dpy_text_cursor(struct DisplayState *s, int x, int y)
 {
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
@@ -312,6 +312,37 @@ static inline void dpy_cursor(struct DisplayState *s, int x, int y)
             dcl->dpy_text_cursor(s, x, y);
         }
     }
+}
+
+static inline void dpy_mouse_set(struct DisplayState *s, int x, int y, int on)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_mouse_set) {
+            dcl->dpy_mouse_set(s, x, y, on);
+        }
+    }
+}
+
+static inline void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_cursor_define) {
+            dcl->dpy_cursor_define(s, cursor);
+        }
+    }
+}
+
+static inline bool dpy_cursor_define_supported(struct DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_cursor_define) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static inline int ds_get_linesize(DisplayState *ds)

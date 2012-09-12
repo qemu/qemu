@@ -404,12 +404,12 @@ void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
 void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
     if (ssd->cursor) {
-        ssd->ds->cursor_define(ssd->cursor);
+        dpy_cursor_define(ssd->ds, ssd->cursor);
         cursor_put(ssd->cursor);
         ssd->cursor = NULL;
     }
     if (ssd->mouse_x != -1 && ssd->mouse_y != -1) {
-        ssd->ds->mouse_set(ssd->mouse_x, ssd->mouse_y, 1);
+        dpy_mouse_set(ssd->ds, ssd->mouse_x, ssd->mouse_y, 1);
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
     }

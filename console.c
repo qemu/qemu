@@ -1242,7 +1242,7 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
         s->text_y[1] = 0;
     }
     if (s->cursor_invalidate) {
-        dpy_cursor(s->ds, s->x, s->y);
+        dpy_text_cursor(s->ds, s->x, s->y);
         s->cursor_invalidate = 0;
     }
 }

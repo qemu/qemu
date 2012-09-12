@@ -802,7 +802,7 @@ static void vnc_dpy_copy(DisplayState *ds, int src_x, int src_y, int dst_x, int 
     }
 }
 
-static void vnc_mouse_set(int x, int y, int visible)
+static void vnc_mouse_set(DisplayState *ds, int x, int y, int visible)
 {
     /* can we ask the client(s) to move the pointer ??? */
 }
@@ -829,7 +829,7 @@ static int vnc_cursor_define(VncState *vs)
     return -1;
 }
 
-static void vnc_dpy_cursor_define(QEMUCursor *c)
+static void vnc_dpy_cursor_define(DisplayState *ds, QEMUCursor *c)
 {
     VncDisplay *vd = vnc_display;
     VncState *vs;
@@ -2757,9 +2757,9 @@ void vnc_display_init(DisplayState *ds)
     dcl->dpy_update = vnc_dpy_update;
     dcl->dpy_resize = vnc_dpy_resize;
     dcl->dpy_setdata = vnc_dpy_setdata;
+    dcl->dpy_mouse_set = vnc_mouse_set;
+    dcl->dpy_cursor_define = vnc_dpy_cursor_define;
     register_displaychangelistener(ds, dcl);
-    ds->mouse_set = vnc_mouse_set;
-    ds->cursor_define = vnc_dpy_cursor_define;
 }
 
 

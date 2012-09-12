@@ -2070,11 +2070,11 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             s->cr[VGA_CRTC_CURSOR_END] != s->cursor_end || full_update) {
             cursor_visible = !(s->cr[VGA_CRTC_CURSOR_START] & 0x20);
             if (cursor_visible && cursor_offset < size && cursor_offset >= 0)
-                dpy_cursor(s->ds,
-                           TEXTMODE_X(cursor_offset),
-                           TEXTMODE_Y(cursor_offset));
+                dpy_text_cursor(s->ds,
+                                TEXTMODE_X(cursor_offset),
+                                TEXTMODE_Y(cursor_offset));
             else
-                dpy_cursor(s->ds, -1, -1);
+                dpy_text_cursor(s->ds, -1, -1);
             s->cursor_offset = cursor_offset;
             s->cursor_start = s->cr[VGA_CRTC_CURSOR_START];
             s->cursor_end = s->cr[VGA_CRTC_CURSOR_END];
@@ -2135,7 +2135,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     /* Display a message */
     s->last_width = 60;
     s->last_height = height = 3;
-    dpy_cursor(s->ds, -1, -1);
+    dpy_text_cursor(s->ds, -1, -1);
     s->ds->surface->width = s->last_width;
     s->ds->surface->height = height;
     dpy_resize(s->ds);

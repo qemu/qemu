@@ -905,7 +905,7 @@ static void sdl_fill(DisplayState *ds, int x, int y, int w, int h, uint32_t c)
     SDL_FillRect(real_screen, &dst, c);
 }
 
-static void sdl_mouse_warp(int x, int y, int on)
+static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
 {
     if (on) {
         if (!guest_cursor)
@@ -921,7 +921,7 @@ static void sdl_mouse_warp(int x, int y, int on)
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(QEMUCursor *c)
+static void sdl_mouse_define(DisplayState *ds, QEMUCursor *c)
 {
     uint8_t *image, *mask;
     int bpl;
@@ -1025,8 +1025,8 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     dcl->dpy_refresh = sdl_refresh;
     dcl->dpy_setdata = sdl_setdata;
     dcl->dpy_fill = sdl_fill;
-    ds->mouse_set = sdl_mouse_warp;
-    ds->cursor_define = sdl_mouse_define;
+    dcl->dpy_mouse_set = sdl_mouse_warp;
+    dcl->dpy_cursor_define = sdl_mouse_define;
     register_displaychangelistener(ds, dcl);
 
     da = g_malloc0(sizeof(DisplayAllocator));
