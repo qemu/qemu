@@ -291,17 +291,17 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
                              target_ulong *args);
 
-int spapr_allocate_irq(int hint, enum xics_irq_type type);
-int spapr_allocate_irq_block(int num, enum xics_irq_type type);
+int spapr_allocate_irq(int hint, bool lsi);
+int spapr_allocate_irq_block(int num, bool lsi);
 
 static inline int spapr_allocate_msi(int hint)
 {
-    return spapr_allocate_irq(hint, XICS_MSI);
+    return spapr_allocate_irq(hint, false);
 }
 
 static inline int spapr_allocate_lsi(int hint)
 {
-    return spapr_allocate_irq(hint, XICS_LSI);
+    return spapr_allocate_irq(hint, true);
 }
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)

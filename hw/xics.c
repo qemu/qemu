@@ -170,7 +170,7 @@ struct ics_irq_state {
 #define XICS_STATUS_REJECTED           0x4
 #define XICS_STATUS_MASKED_PENDING     0x8
     uint8_t status;
-    enum xics_irq_type type;
+    bool lsi;
 };
 
 struct ics_state {
@@ -244,7 +244,7 @@ static void ics_set_irq(void *opaque, int srcno, int val)
     struct ics_state *ics = (struct ics_state *)opaque;
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (irq->type == XICS_LSI) {
+    if (irq->lsi) {
         set_irq_lsi(ics, srcno, val);
     } else {
         set_irq_msi(ics, srcno, val);
@@ -278,7 +278,7 @@ static void ics_write_xive(struct ics_state *ics, int nr, int server,
     irq->server = server;
     irq->priority = priority;
 
-    if (irq->type == XICS_LSI) {
+    if (irq->lsi) {
         write_xive_lsi(ics, srcno);
     } else {
         write_xive_msi(ics, srcno);
@@ -301,7 +301,7 @@ static void ics_resend(struct ics_state *ics)
         struct ics_irq_state *irq = ics->irqs + i;
 
         /* FIXME: filter by server#? */
-        if (irq->type == XICS_LSI) {
+        if (irq->lsi) {
             resend_lsi(ics, i);
         } else {
             resend_msi(ics, i);
@@ -314,7 +314,7 @@ static void ics_eoi(struct ics_state *ics, int nr)
     int srcno = nr - ics->offset;
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (irq->type == XICS_LSI) {
+    if (irq->lsi) {
         irq->status &= ~XICS_STATUS_SENT;
     }
 }
@@ -333,14 +333,12 @@ qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
     return icp->ics->qirqs[irq - icp->ics->offset];
 }
 
-void xics_set_irq_type(struct icp_state *icp, int irq,
-                       enum xics_irq_type type)
+void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi)
 {
     assert((irq >= icp->ics->offset)
            && (irq < (icp->ics->offset + icp->ics->nr_irqs)));
-    assert((type == XICS_MSI) || (type == XICS_LSI));
 
-    icp->ics->irqs[irq - icp->ics->offset].type = type;
+    icp->ics->irqs[irq - icp->ics->offset].lsi = lsi;
 }
 
 static target_ulong h_cppr(CPUPPCState *env, sPAPREnvironment *spapr,

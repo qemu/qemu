@@ -89,7 +89,7 @@
 
 sPAPREnvironment *spapr;
 
-int spapr_allocate_irq(int hint, enum xics_irq_type type)
+int spapr_allocate_irq(int hint, bool lsi)
 {
     int irq;
 
@@ -105,13 +105,13 @@ int spapr_allocate_irq(int hint, enum xics_irq_type type)
         return 0;
     }
 
-    xics_set_irq_type(spapr->icp, irq, type);
+    xics_set_irq_type(spapr->icp, irq, lsi);
 
     return irq;
 }
 
 /* Allocate block of consequtive IRQs, returns a number of the first */
-int spapr_allocate_irq_block(int num, enum xics_irq_type type)
+int spapr_allocate_irq_block(int num, bool lsi)
 {
     int first = -1;
     int i;
@@ -119,7 +119,7 @@ int spapr_allocate_irq_block(int num, enum xics_irq_type type)
     for (i = 0; i < num; ++i) {
         int irq;
 
-        irq = spapr_allocate_irq(0, type);
+        irq = spapr_allocate_irq(0, lsi);
         if (!irq) {
             return -1;
         }
