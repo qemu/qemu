@@ -98,6 +98,7 @@ struct USBRedirDevice {
     struct usbredirparser *parser;
     struct endp_data endpoint[MAX_ENDPOINTS];
     struct PacketIdQueue cancelled;
+    struct PacketIdQueue already_in_flight;
     /* Data for device filtering */
     struct usb_redir_device_connect_header device_info;
     struct usb_redir_interface_info_header interface_info;
@@ -316,6 +317,34 @@ static int usbredir_is_cancelled(USBRedirDevice *dev, uint64_t id)
     return packet_id_queue_remove(&dev->cancelled, id);
 }
 
+static void usbredir_fill_already_in_flight_from_ep(USBRedirDevice *dev,
+    struct USBEndpoint *ep)
+{
+    static USBPacket *p;
+
+    QTAILQ_FOREACH(p, &ep->queue, queue) {
+        packet_id_queue_add(&dev->already_in_flight, p->id);
+    }
+}
+
+static void usbredir_fill_already_in_flight(USBRedirDevice *dev)
+{
+    int ep;
+    struct USBDevice *udev = &dev->dev;
+
+    usbredir_fill_already_in_flight_from_ep(dev, &udev->ep_ctl);
+
+    for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
+        usbredir_fill_already_in_flight_from_ep(dev, &udev->ep_in[ep]);
+        usbredir_fill_already_in_flight_from_ep(dev, &udev->ep_out[ep]);
+    }
+}
+
+static int usbredir_already_in_flight(USBRedirDevice *dev, uint64_t id)
+{
+    return packet_id_queue_remove(&dev->already_in_flight, id);
+}
+
 static USBPacket *usbredir_find_packet_by_id(USBRedirDevice *dev,
     uint8_t ep, uint64_t id)
 {
@@ -531,6 +560,10 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
 
     DPRINTF("bulk-out ep %02X len %zd id %"PRIu64"\n", ep, p->iov.size, p->id);
 
+    if (usbredir_already_in_flight(dev, p->id)) {
+        return USB_RET_ASYNC;
+    }
+
     bulk_packet.endpoint  = ep;
     bulk_packet.length    = p->iov.size;
     bulk_packet.stream_id = 0;
@@ -610,6 +643,10 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
 
         DPRINTF("interrupt-out ep %02X len %zd id %"PRIu64"\n", ep,
                 p->iov.size, p->id);
+
+        if (usbredir_already_in_flight(dev, p->id)) {
+            return USB_RET_ASYNC;
+        }
 
         interrupt_packet.endpoint  = ep;
         interrupt_packet.length    = p->iov.size;
@@ -752,6 +789,10 @@ static int usbredir_handle_control(USBDevice *udev, USBPacket *p,
 {
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
     struct usb_redir_control_packet_header control_packet;
+
+    if (usbredir_already_in_flight(dev, p->id)) {
+        return USB_RET_ASYNC;
+    }
 
     /* Special cases for certain standard device requests */
     switch (request) {
@@ -959,6 +1000,7 @@ static int usbredir_initfn(USBDevice *udev)
     dev->attach_timer = qemu_new_timer_ms(vm_clock, usbredir_do_attach, dev);
 
     packet_id_queue_init(&dev->cancelled, dev, "cancelled");
+    packet_id_queue_init(&dev->already_in_flight, dev, "already-in-flight");
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
@@ -980,6 +1022,7 @@ static void usbredir_cleanup_device_queues(USBRedirDevice *dev)
     int i;
 
     packet_id_queue_empty(&dev->cancelled);
+    packet_id_queue_empty(&dev->already_in_flight);
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         usbredir_free_bufpq(dev, I2EP(i));
     }
