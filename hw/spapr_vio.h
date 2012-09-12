@@ -60,7 +60,6 @@ typedef struct VIOsPAPRDeviceClass {
 struct VIOsPAPRDevice {
     DeviceState qdev;
     uint32_t reg;
-    uint32_t flags;
     uint32_t irq;
     target_ulong signal_state;
     VIOsPAPR_CRQ crq;
