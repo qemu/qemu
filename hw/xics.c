@@ -489,11 +489,36 @@ static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0); /* Success */
 }
 
+static void xics_reset(void *opaque)
+{
+    struct icp_state *icp = (struct icp_state *)opaque;
+    struct ics_state *ics = icp->ics;
+    int i;
+
+    for (i = 0; i < icp->nr_servers; i++) {
+        icp->ss[i].xirr = 0;
+        icp->ss[i].pending_priority = 0;
+        icp->ss[i].mfrr = 0xff;
+        /* Make all outputs are deasserted */
+        qemu_set_irq(icp->ss[i].output, 0);
+    }
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        /* Reset everything *except* the type */
+        ics->irqs[i].server = 0;
+        ics->irqs[i].asserted = 0;
+        ics->irqs[i].sent = 0;
+        ics->irqs[i].rejected = 0;
+        ics->irqs[i].masked_pending = 0;
+        ics->irqs[i].priority = 0xff;
+        ics->irqs[i].saved_priority = 0xff;
+    }
+}
+
 struct icp_state *xics_system_init(int nr_irqs)
 {
     CPUPPCState *env;
     int max_server_num;
-    int i;
     struct icp_state *icp;
     struct ics_state *ics;
 
@@ -507,10 +532,6 @@ struct icp_state *xics_system_init(int nr_irqs)
     icp = g_malloc0(sizeof(*icp));
     icp->nr_servers = max_server_num + 1;
     icp->ss = g_malloc0(icp->nr_servers*sizeof(struct icp_server_state));
-
-    for (i = 0; i < icp->nr_servers; i++) {
-        icp->ss[i].mfrr = 0xff;
-    }
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         struct icp_server_state *ss = &icp->ss[env->cpu_index];
@@ -539,11 +560,6 @@ struct icp_state *xics_system_init(int nr_irqs)
     icp->ics = ics;
     ics->icp = icp;
 
-    for (i = 0; i < nr_irqs; i++) {
-        ics->irqs[i].priority = 0xff;
-        ics->irqs[i].saved_priority = 0xff;
-    }
-
     ics->qirqs = qemu_allocate_irqs(ics_set_irq, ics, nr_irqs);
 
     spapr_register_hypercall(H_CPPR, h_cppr);
@@ -555,6 +571,8 @@ struct icp_state *xics_system_init(int nr_irqs)
     spapr_rtas_register("ibm,get-xive", rtas_get_xive);
     spapr_rtas_register("ibm,int-off", rtas_int_off);
     spapr_rtas_register("ibm,int-on", rtas_int_on);
+
+    qemu_register_reset(xics_reset, icp);
 
     return icp;
 }
