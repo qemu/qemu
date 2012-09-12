@@ -141,6 +141,7 @@ static void qxl_ring_set_dirty(PCIQXLDevice *qxl);
 
 void qxl_set_guest_bug(PCIQXLDevice *qxl, const char *msg, ...)
 {
+    trace_qxl_set_guest_bug(qxl->id);
     qxl_send_events(qxl, QXL_INTERRUPT_ERROR);
     qxl->guest_bug = 1;
     if (qxl->guestdebug) {
@@ -1408,7 +1409,7 @@ static void ioport_write(void *opaque, target_phys_addr_t addr,
             break;
         }
         trace_qxl_io_unexpected_vga_mode(d->id,
-            io_port, io_port_to_string(io_port));
+            addr, val, io_port_to_string(io_port));
         /* be nice to buggy guest drivers */
         if (io_port >= QXL_IO_UPDATE_AREA_ASYNC &&
             io_port < QXL_IO_RANGE_SIZE) {
@@ -1607,9 +1608,9 @@ cancel_async:
 static uint64_t ioport_read(void *opaque, target_phys_addr_t addr,
                             unsigned size)
 {
-    PCIQXLDevice *d = opaque;
+    PCIQXLDevice *qxl = opaque;
 
-    trace_qxl_io_read_unexpected(d->id);
+    trace_qxl_io_read_unexpected(qxl->id);
     return 0xff;
 }
 
@@ -1639,6 +1640,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     uint32_t old_pending;
     uint32_t le_events = cpu_to_le32(events);
 
+    trace_qxl_send_events(d->id, events);
     assert(qemu_spice_display_is_running(&d->ssd));
     old_pending = __sync_fetch_and_or(&d->ram->int_pending, le_events);
     if ((old_pending & le_events) == le_events) {
