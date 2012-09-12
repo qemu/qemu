@@ -544,6 +544,8 @@ static target_ulong h_cede(CPUPPCState *env, sPAPREnvironment *spapr,
     hreg_compute_hflags(env);
     if (!cpu_has_work(env)) {
         env->halted = 1;
+        env->exception_index = EXCP_HLT;
+        env->exit_request = 1;
     }
     return H_SUCCESS;
 }
