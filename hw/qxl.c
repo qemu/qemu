@@ -18,6 +18,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <zlib.h>
+
 #include "qemu-common.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
@@ -971,6 +973,79 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 
 #endif
 
+#if defined(CONFIG_QXL_CLIENT_MONITORS_CONFIG) \
+    && SPICE_SERVER_VERSION >= 0x000b05
+
+static uint32_t qxl_crc32(const uint8_t *p, unsigned len)
+{
+    /*
+     * zlib xors the seed with 0xffffffff, and xors the result
+     * again with 0xffffffff; Both are not done with linux's crc32,
+     * which we want to be compatible with, so undo that.
+     */
+    return crc32(0xffffffff, p, len) ^ 0xffffffff;
+}
+
+/* called from main context only */
+static int interface_client_monitors_config(QXLInstance *sin,
+                                        VDAgentMonitorsConfig *monitors_config)
+{
+    PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
+    QXLRom *rom = memory_region_get_ram_ptr(&qxl->rom_bar);
+    int i;
+
+    /*
+     * Older windows drivers set int_mask to 0 when their ISR is called,
+     * then later set it to ~0. So it doesn't relate to the actual interrupts
+     * handled. However, they are old, so clearly they don't support this
+     * interrupt
+     */
+    if (qxl->ram->int_mask == 0 || qxl->ram->int_mask == ~0 ||
+        !(qxl->ram->int_mask & QXL_INTERRUPT_CLIENT_MONITORS_CONFIG)) {
+        trace_qxl_client_monitors_config_unsupported_by_guest(qxl->id,
+                                                            qxl->ram->int_mask,
+                                                            monitors_config);
+        return 0;
+    }
+    if (!monitors_config) {
+        return 1;
+    }
+    memset(&rom->client_monitors_config, 0,
+           sizeof(rom->client_monitors_config));
+    rom->client_monitors_config.count = monitors_config->num_of_monitors;
+    /* monitors_config->flags ignored */
+    if (rom->client_monitors_config.count >=
+            ARRAY_SIZE(rom->client_monitors_config.heads)) {
+        trace_qxl_client_monitors_config_capped(qxl->id,
+                                monitors_config->num_of_monitors,
+                                ARRAY_SIZE(rom->client_monitors_config.heads));
+        rom->client_monitors_config.count =
+            ARRAY_SIZE(rom->client_monitors_config.heads);
+    }
+    for (i = 0 ; i < rom->client_monitors_config.count ; ++i) {
+        VDAgentMonConfig *monitor = &monitors_config->monitors[i];
+        QXLURect *rect = &rom->client_monitors_config.heads[i];
+        /* monitor->depth ignored */
+        rect->left = monitor->x;
+        rect->top = monitor->y;
+        rect->right = monitor->x + monitor->width;
+        rect->bottom = monitor->y + monitor->height;
+    }
+    rom->client_monitors_config_crc = qxl_crc32(
+            (const uint8_t *)&rom->client_monitors_config,
+            sizeof(rom->client_monitors_config));
+    trace_qxl_client_monitors_config_crc(qxl->id,
+            sizeof(rom->client_monitors_config),
+            rom->client_monitors_config_crc);
+
+    trace_qxl_interrupt_client_monitors_config(qxl->id,
+                        rom->client_monitors_config.count,
+                        rom->client_monitors_config.heads);
+    qxl_send_events(qxl, QXL_INTERRUPT_CLIENT_MONITORS_CONFIG);
+    return 1;
+}
+#endif
+
 static const QXLInterface qxl_interface = {
     .base.type               = SPICE_INTERFACE_QXL,
     .base.description        = "qxl gpu",
@@ -994,6 +1069,10 @@ static const QXLInterface qxl_interface = {
     .update_area_complete    = interface_update_area_complete,
 #if SPICE_SERVER_VERSION >= 0x000b04
     .set_client_capabilities = interface_set_client_capabilities,
+#endif
+#if SPICE_SERVER_VERSION >= 0x000b05 && \
+    defined(CONFIG_QXL_CLIENT_MONITORS_CONFIG)
+    .client_monitors_config = interface_client_monitors_config,
 #endif
 };
 
