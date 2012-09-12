@@ -595,6 +595,15 @@ static int spapr_phb_init(SysBusDevice *s)
     return 0;
 }
 
+static void spapr_phb_reset(DeviceState *qdev)
+{
+    SysBusDevice *s = sysbus_from_qdev(qdev);
+    sPAPRPHBState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
+
+    /* Reset the IOMMU state */
+    spapr_tce_reset(sphb->dma);
+}
+
 static Property spapr_phb_properties[] = {
     DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, 0),
     DEFINE_PROP_STRING("busname", sPAPRPHBState, busname),
@@ -613,6 +622,7 @@ static void spapr_phb_class_init(ObjectClass *klass, void *data)
 
     sdc->init = spapr_phb_init;
     dc->props = spapr_phb_properties;
+    dc->reset = spapr_phb_reset;
 }
 
 static const TypeInfo spapr_phb_info = {
