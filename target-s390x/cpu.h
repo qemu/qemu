@@ -116,7 +116,7 @@ static inline void cpu_clone_regs(CPUS390XState *env, target_ulong newsp)
     if (newsp) {
         env->regs[15] = newsp;
     }
-    env->regs[0] = 0;
+    env->regs[2] = 0;
 }
 #endif
 
