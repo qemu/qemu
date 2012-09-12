@@ -51,7 +51,7 @@ typedef struct TranslationBlock TranslationBlock;
 #else
 #define MAX_OPC_PARAM_PER_ARG 1
 #endif
-#define MAX_OPC_PARAM_IARGS 4
+#define MAX_OPC_PARAM_IARGS 5
 #define MAX_OPC_PARAM_OARGS 1
 #define MAX_OPC_PARAM_ARGS (MAX_OPC_PARAM_IARGS + MAX_OPC_PARAM_OARGS)
 
