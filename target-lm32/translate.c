@@ -1027,11 +1027,6 @@ static void gen_intermediate_code_internal(CPULM32State *env,
         cpu_abort(env, "LM32: unaligned PC=%x\n", pc_start);
     }
 
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log("-----------------------------------------\n");
-        log_cpu_state(env, 0);
-    }
-
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
     lj = -1;
     num_insns = 0;
