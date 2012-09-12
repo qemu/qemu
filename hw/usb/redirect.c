@@ -57,6 +57,7 @@ struct endp_data {
     uint8_t type;
     uint8_t interval;
     uint8_t interface; /* bInterfaceNumber this ep belongs to */
+    uint16_t max_packet_size; /* In bytes, not wMaxPacketSize format !! */
     uint8_t iso_started;
     uint8_t iso_error; /* For reporting iso errors to the HC */
     uint8_t interrupt_started;
@@ -1278,7 +1279,8 @@ static void usbredir_ep_info(void *priv,
         usb_ep->ifnum = dev->endpoint[i].interface;
         if (usbredirparser_peer_has_cap(dev->parser,
                                      usb_redir_cap_ep_info_max_packet_size)) {
-            usb_ep->max_packet_size = ep_info->max_packet_size[i];
+            dev->endpoint[i].max_packet_size =
+                usb_ep->max_packet_size = ep_info->max_packet_size[i];
         }
         if (ep_info->type[i] == usb_redir_type_bulk) {
             usb_ep->pipeline = true;
