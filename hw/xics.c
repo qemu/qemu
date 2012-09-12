@@ -270,13 +270,14 @@ static void write_xive_lsi(struct ics_state *ics, int srcno)
 }
 
 static void ics_write_xive(struct ics_state *ics, int nr, int server,
-                           uint8_t priority)
+                           uint8_t priority, uint8_t saved_priority)
 {
     int srcno = nr - ics->offset;
     struct ics_irq_state *irq = ics->irqs + srcno;
 
     irq->server = server;
     irq->priority = priority;
+    irq->saved_priority = saved_priority;
 
     if (irq->lsi) {
         write_xive_lsi(ics, srcno);
@@ -405,7 +406,7 @@ static void rtas_set_xive(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    ics_write_xive(ics, nr, server, priority);
+    ics_write_xive(ics, nr, server, priority, priority);
 
     rtas_st(rets, 0, 0); /* Success */
 }
@@ -453,14 +454,8 @@ static void rtas_int_off(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    /* This is a NOP for now, since the described PAPR semantics don't
-     * seem to gel with what Linux does */
-#if 0
-    struct ics_irq_state *irq = xics->irqs + (nr - xics->offset);
-
-    irq->saved_priority = irq->priority;
-    ics_write_xive_msi(xics, nr, irq->server, 0xff);
-#endif
+    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server, 0xff,
+                   ics->irqs[nr - ics->offset].priority);
 
     rtas_st(rets, 0, 0); /* Success */
 }
@@ -484,13 +479,9 @@ static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    /* This is a NOP for now, since the described PAPR semantics don't
-     * seem to gel with what Linux does */
-#if 0
-    struct ics_irq_state *irq = xics->irqs + (nr - xics->offset);
-
-    ics_write_xive_msi(xics, nr, irq->server, irq->saved_priority);
-#endif
+    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server,
+                   ics->irqs[nr - ics->offset].saved_priority,
+                   ics->irqs[nr - ics->offset].saved_priority);
 
     rtas_st(rets, 0, 0); /* Success */
 }
