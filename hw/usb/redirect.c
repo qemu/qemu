@@ -65,8 +65,8 @@ struct endp_data {
     uint8_t bufpq_prefilled;
     uint8_t bufpq_dropping_packets;
     QTAILQ_HEAD(, buf_packet) bufpq;
-    int bufpq_size;
-    int bufpq_target_size;
+    int32_t bufpq_size;
+    int32_t bufpq_target_size;
 };
 
 struct PacketIdQueueEntry {
@@ -237,6 +237,11 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
     USBRedirDevice *dev = priv;
 
     if (!dev->cs->opened) {
+        return 0;
+    }
+
+    /* Don't send new data to the chardev until our state is fully synced */
+    if (!runstate_check(RUN_STATE_RUNNING)) {
         return 0;
     }
 
@@ -858,6 +863,7 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
 {
     uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
     char version[32];
+    int flags = 0;
 
     /* Make sure any pending closes are handled (no-op if none pending) */
     usbredir_chardev_close_bh(dev);
@@ -893,7 +899,12 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
     usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_ep_info_max_packet_size);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_64bits_ids);
-    usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE, 0);
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        flags |= usbredirparser_fl_no_hello;
+    }
+    usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE,
+                        flags);
     usbredirparser_do_write(dev->parser);
 }
 
@@ -939,6 +950,11 @@ static int usbredir_chardev_can_read(void *opaque)
         return 0;
     }
 
+    /* Don't read new data from the chardev until our state is fully synced */
+    if (!runstate_check(RUN_STATE_RUNNING)) {
+        return 0;
+    }
+
     /* usbredir_parser_do_read will consume *all* data we give it */
     return 1024 * 1024;
 }
@@ -975,6 +991,15 @@ static void usbredir_chardev_event(void *opaque, int event)
 /*
  * init + destroy
  */
+
+static void usbredir_vm_state_change(void *priv, int running, RunState state)
+{
+    USBRedirDevice *dev = priv;
+
+    if (state == RUN_STATE_RUNNING && dev->parser != NULL) {
+        usbredirparser_do_write(dev->parser); /* Flush any pending writes */
+    }
+}
 
 static int usbredir_initfn(USBDevice *udev)
 {
@@ -1014,6 +1039,7 @@ static int usbredir_initfn(USBDevice *udev)
     qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
+    qemu_add_vm_change_state_handler(usbredir_vm_state_change, dev);
     add_boot_device_path(dev->bootindex, &udev->qdev, NULL);
     return 0;
 }
@@ -1503,6 +1529,322 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
     }
 }
 
+/*
+ * Migration code
+ */
+
+static void usbredir_pre_save(void *priv)
+{
+    USBRedirDevice *dev = priv;
+
+    usbredir_fill_already_in_flight(dev);
+}
+
+static int usbredir_post_load(void *priv, int version_id)
+{
+    USBRedirDevice *dev = priv;
+    struct USBEndpoint *usb_ep;
+    int i;
+
+    switch (dev->device_info.speed) {
+    case usb_redir_speed_low:
+        dev->dev.speed = USB_SPEED_LOW;
+        break;
+    case usb_redir_speed_full:
+        dev->dev.speed = USB_SPEED_FULL;
+        break;
+    case usb_redir_speed_high:
+        dev->dev.speed = USB_SPEED_HIGH;
+        break;
+    case usb_redir_speed_super:
+        dev->dev.speed = USB_SPEED_SUPER;
+        break;
+    default:
+        dev->dev.speed = USB_SPEED_FULL;
+    }
+    dev->dev.speedmask = (1 << dev->dev.speed);
+
+    for (i = 0; i < MAX_ENDPOINTS; i++) {
+        usb_ep = usb_ep_get(&dev->dev,
+                            (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT,
+                            i & 0x0f);
+        usb_ep->type = dev->endpoint[i].type;
+        usb_ep->ifnum = dev->endpoint[i].interface;
+        usb_ep->max_packet_size = dev->endpoint[i].max_packet_size;
+        if (dev->endpoint[i].type == usb_redir_type_bulk) {
+            usb_ep->pipeline = true;
+        }
+    }
+    return 0;
+}
+
+/* For usbredirparser migration */
+static void usbredir_put_parser(QEMUFile *f, void *priv, size_t unused)
+{
+    USBRedirDevice *dev = priv;
+    uint8_t *data;
+    int len;
+
+    if (dev->parser == NULL) {
+        qemu_put_be32(f, 0);
+        return;
+    }
+
+    usbredirparser_serialize(dev->parser, &data, &len);
+    qemu_oom_check(data);
+
+    qemu_put_be32(f, len);
+    qemu_put_buffer(f, data, len);
+
+    free(data);
+}
+
+static int usbredir_get_parser(QEMUFile *f, void *priv, size_t unused)
+{
+    USBRedirDevice *dev = priv;
+    uint8_t *data;
+    int len, ret;
+
+    len = qemu_get_be32(f);
+    if (len == 0) {
+        return 0;
+    }
+
+    /*
+     * Our chardev should be open already at this point, otherwise
+     * the usbredir channel will be broken (ie spice without seamless)
+     */
+    if (dev->parser == NULL) {
+        ERROR("get_parser called with closed chardev, failing migration\n");
+        return -1;
+    }
+
+    data = g_malloc(len);
+    qemu_get_buffer(f, data, len);
+
+    ret = usbredirparser_unserialize(dev->parser, data, len);
+
+    g_free(data);
+
+    return ret;
+}
+
+static const VMStateInfo usbredir_parser_vmstate_info = {
+    .name = "usb-redir-parser",
+    .put  = usbredir_put_parser,
+    .get  = usbredir_get_parser,
+};
+
+
+/* For buffered packets (iso/irq) queue migration */
+static void usbredir_put_bufpq(QEMUFile *f, void *priv, size_t unused)
+{
+    struct endp_data *endp = priv;
+    struct buf_packet *bufp;
+    int remain = endp->bufpq_size;
+
+    qemu_put_be32(f, endp->bufpq_size);
+    QTAILQ_FOREACH(bufp, &endp->bufpq, next) {
+        qemu_put_be32(f, bufp->len);
+        qemu_put_be32(f, bufp->status);
+        qemu_put_buffer(f, bufp->data, bufp->len);
+        remain--;
+    }
+    assert(remain == 0);
+}
+
+static int usbredir_get_bufpq(QEMUFile *f, void *priv, size_t unused)
+{
+    struct endp_data *endp = priv;
+    struct buf_packet *bufp;
+    int i;
+
+    endp->bufpq_size = qemu_get_be32(f);
+    for (i = 0; i < endp->bufpq_size; i++) {
+        bufp = g_malloc(sizeof(struct buf_packet));
+        bufp->len = qemu_get_be32(f);
+        bufp->status = qemu_get_be32(f);
+        bufp->data = qemu_oom_check(malloc(bufp->len)); /* regular malloc! */
+        qemu_get_buffer(f, bufp->data, bufp->len);
+        QTAILQ_INSERT_TAIL(&endp->bufpq, bufp, next);
+    }
+    return 0;
+}
+
+static const VMStateInfo usbredir_ep_bufpq_vmstate_info = {
+    .name = "usb-redir-bufpq",
+    .put  = usbredir_put_bufpq,
+    .get  = usbredir_get_bufpq,
+};
+
+
+/* For endp_data migration */
+static const VMStateDescription usbredir_ep_vmstate = {
+    .name = "usb-redir-ep",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(type, struct endp_data),
+        VMSTATE_UINT8(interval, struct endp_data),
+        VMSTATE_UINT8(interface, struct endp_data),
+        VMSTATE_UINT16(max_packet_size, struct endp_data),
+        VMSTATE_UINT8(iso_started, struct endp_data),
+        VMSTATE_UINT8(iso_error, struct endp_data),
+        VMSTATE_UINT8(interrupt_started, struct endp_data),
+        VMSTATE_UINT8(interrupt_error, struct endp_data),
+        VMSTATE_UINT8(bufpq_prefilled, struct endp_data),
+        VMSTATE_UINT8(bufpq_dropping_packets, struct endp_data),
+        {
+            .name         = "bufpq",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,
+            .info         = &usbredir_ep_bufpq_vmstate_info,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_INT32(bufpq_target_size, struct endp_data),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
+/* For PacketIdQueue migration */
+static void usbredir_put_packet_id_q(QEMUFile *f, void *priv, size_t unused)
+{
+    struct PacketIdQueue *q = priv;
+    USBRedirDevice *dev = q->dev;
+    struct PacketIdQueueEntry *e;
+    int remain = q->size;
+
+    DPRINTF("put_packet_id_q %s size %d\n", q->name, q->size);
+    qemu_put_be32(f, q->size);
+    QTAILQ_FOREACH(e, &q->head, next) {
+        qemu_put_be64(f, e->id);
+        remain--;
+    }
+    assert(remain == 0);
+}
+
+static int usbredir_get_packet_id_q(QEMUFile *f, void *priv, size_t unused)
+{
+    struct PacketIdQueue *q = priv;
+    USBRedirDevice *dev = q->dev;
+    int i, size;
+    uint64_t id;
+
+    size = qemu_get_be32(f);
+    DPRINTF("get_packet_id_q %s size %d\n", q->name, size);
+    for (i = 0; i < size; i++) {
+        id = qemu_get_be64(f);
+        packet_id_queue_add(q, id);
+    }
+    assert(q->size == size);
+    return 0;
+}
+
+static const VMStateInfo usbredir_ep_packet_id_q_vmstate_info = {
+    .name = "usb-redir-packet-id-q",
+    .put  = usbredir_put_packet_id_q,
+    .get  = usbredir_get_packet_id_q,
+};
+
+static const VMStateDescription usbredir_ep_packet_id_queue_vmstate = {
+    .name = "usb-redir-packet-id-queue",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        {
+            .name         = "queue",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,
+            .info         = &usbredir_ep_packet_id_q_vmstate_info,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
+/* For usb_redir_device_connect_header migration */
+static const VMStateDescription usbredir_device_info_vmstate = {
+    .name = "usb-redir-device-info",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(speed, struct usb_redir_device_connect_header),
+        VMSTATE_UINT8(device_class, struct usb_redir_device_connect_header),
+        VMSTATE_UINT8(device_subclass, struct usb_redir_device_connect_header),
+        VMSTATE_UINT8(device_protocol, struct usb_redir_device_connect_header),
+        VMSTATE_UINT16(vendor_id, struct usb_redir_device_connect_header),
+        VMSTATE_UINT16(product_id, struct usb_redir_device_connect_header),
+        VMSTATE_UINT16(device_version_bcd,
+                       struct usb_redir_device_connect_header),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
+/* For usb_redir_interface_info_header migration */
+static const VMStateDescription usbredir_interface_info_vmstate = {
+    .name = "usb-redir-interface-info",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(interface_count,
+                       struct usb_redir_interface_info_header),
+        VMSTATE_UINT8_ARRAY(interface,
+                            struct usb_redir_interface_info_header, 32),
+        VMSTATE_UINT8_ARRAY(interface_class,
+                            struct usb_redir_interface_info_header, 32),
+        VMSTATE_UINT8_ARRAY(interface_subclass,
+                            struct usb_redir_interface_info_header, 32),
+        VMSTATE_UINT8_ARRAY(interface_protocol,
+                            struct usb_redir_interface_info_header, 32),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+
+/* And finally the USBRedirDevice vmstate itself */
+static const VMStateDescription usbredir_vmstate = {
+    .name = "usb-redir",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_save = usbredir_pre_save,
+    .post_load = usbredir_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_USB_DEVICE(dev, USBRedirDevice),
+        VMSTATE_TIMER(attach_timer, USBRedirDevice),
+        {
+            .name         = "parser",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,
+            .info         = &usbredir_parser_vmstate_info,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_STRUCT_ARRAY(endpoint, USBRedirDevice, MAX_ENDPOINTS, 1,
+                             usbredir_ep_vmstate, struct endp_data),
+        VMSTATE_STRUCT(cancelled, USBRedirDevice, 1,
+                       usbredir_ep_packet_id_queue_vmstate,
+                       struct PacketIdQueue),
+        VMSTATE_STRUCT(already_in_flight, USBRedirDevice, 1,
+                       usbredir_ep_packet_id_queue_vmstate,
+                       struct PacketIdQueue),
+        VMSTATE_STRUCT(device_info, USBRedirDevice, 1,
+                       usbredir_device_info_vmstate,
+                       struct usb_redir_device_connect_header),
+        VMSTATE_STRUCT(interface_info, USBRedirDevice, 1,
+                       usbredir_interface_info_vmstate,
+                       struct usb_redir_interface_info_header),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static Property usbredir_properties[] = {
     DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
     DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, 0),
@@ -1523,6 +1865,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usbredir_handle_reset;
     uc->handle_data    = usbredir_handle_data;
     uc->handle_control = usbredir_handle_control;
+    dc->vmsd           = &usbredir_vmstate;
     dc->props          = usbredir_properties;
 }
 
