@@ -581,8 +581,16 @@ static void spapr_reset(void *opaque)
 static void spapr_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
 
     cpu_reset(CPU(cpu));
+
+    /* All CPUs start halted.  CPU0 is unhalted from the machine level
+     * reset code and the rest are explicitly started up by the guest
+     * using an RTAS call */
+    env->halted = 1;
+
+    env->spr[SPR_HIOR] = 0;
 }
 
 /* Returns whether we want to use VGA or not */
@@ -665,11 +673,16 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
-        qemu_register_reset(spapr_cpu_reset, cpu);
 
-        env->hreset_vector = 0x60;
+        /* PAPR always has exception vectors in RAM not ROM */
         env->hreset_excp_prefix = 0;
-        env->gpr[3] = env->cpu_index;
+
+        /* Tell KVM that we're in PAPR mode */
+        if (kvm_enabled()) {
+            kvmppc_set_papr(env);
+        }
+
+        qemu_register_reset(spapr_cpu_reset, cpu);
     }
 
     /* allocate RAM */
@@ -685,7 +698,10 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
-     * RAM */
+     * RAM.  FIXME: setting the htab information in the CPU env really
+     * belongs at CPU reset time, but we can get away with it for now
+     * because the PAPR guest is not permitted to write SDR1 so in
+     * fact these settings will never change during the run */
     spapr->htab_size = 1ULL << (pteg_shift + 7);
     spapr->htab = qemu_memalign(spapr->htab_size, spapr->htab_size);
 
@@ -697,11 +713,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         /* Tell KVM that we're in PAPR mode */
         env->spr[SPR_SDR1] = (unsigned long)spapr->htab |
                              ((pteg_shift + 7) - 18);
-        env->spr[SPR_HIOR] = 0;
-
-        if (kvm_enabled()) {
-            kvmppc_set_papr(env);
-        }
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
@@ -826,11 +837,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     g_free(filename);
 
     spapr->entry_point = 0x100;
-
-    /* SLOF will startup the secondary CPUs using RTAS */
-    for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        env->halted = 1;
-    }
 
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(cpu_model, rma_size,
