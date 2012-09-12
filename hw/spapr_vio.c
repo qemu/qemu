@@ -324,9 +324,7 @@ static void spapr_vio_quiesce_one(VIOsPAPRDevice *dev)
     }
     dev->dma = spapr_tce_new_dma_context(liobn, pc->rtce_window_size);
 
-    dev->crq.qladdr = 0;
-    dev->crq.qsize = 0;
-    dev->crq.qnext = 0;
+    free_crq(dev);
 }
 
 static void rtas_set_tce_bypass(sPAPREnvironment *spapr, uint32_t token,
@@ -409,9 +407,10 @@ static void spapr_vio_busdev_reset(DeviceState *qdev)
     VIOsPAPRDevice *dev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
 
-    if (dev->crq.qsize) {
-        free_crq(dev);
-    }
+    /* Shut down the request queue and TCEs if necessary */
+    spapr_vio_quiesce_one(dev);
+
+    dev->signal_state = 0;
 
     if (pc->reset) {
         pc->reset(dev);
