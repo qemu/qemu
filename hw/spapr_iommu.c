@@ -42,6 +42,7 @@ struct sPAPRTCETable {
     uint32_t liobn;
     uint32_t window_size;
     sPAPRTCE *table;
+    bool bypass;
     int fd;
     QLIST_ENTRY(sPAPRTCETable) list;
 };
@@ -77,6 +78,12 @@ static int spapr_tce_translate(DMAContext *dma,
     fprintf(stderr, "spapr_tce_translate liobn=0x%" PRIx32 " addr=0x"
             DMA_ADDR_FMT "\n", tcet->liobn, addr);
 #endif
+
+    if (tcet->bypass) {
+        *paddr = addr;
+        *len = (target_phys_addr_t)-1;
+        return 0;
+    }
 
     /* Check if we are in bound */
     if (addr >= tcet->window_size) {
@@ -162,15 +169,21 @@ void spapr_tce_free(DMAContext *dma)
     }
 }
 
+void spapr_tce_set_bypass(DMAContext *dma, bool bypass)
+{
+    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
+
+    tcet->bypass = bypass;
+}
+
 void spapr_tce_reset(DMAContext *dma)
 {
-    if (dma) {
-        sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
-        size_t table_size = (tcet->window_size >> SPAPR_TCE_PAGE_SHIFT)
-            * sizeof(sPAPRTCE);
+    sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
+    size_t table_size = (tcet->window_size >> SPAPR_TCE_PAGE_SHIFT)
+        * sizeof(sPAPRTCE);
 
-        memset(tcet->table, 0, table_size);
-    }
+    tcet->bypass = false;
+    memset(tcet->table, 0, table_size);
 }
 
 static target_ulong put_tce_emu(sPAPRTCETable *tcet, target_ulong ioba,

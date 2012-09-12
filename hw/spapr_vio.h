@@ -131,7 +131,6 @@ void spapr_vscsi_create(VIOsPAPRBus *bus);
 
 VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus);
 
-int spapr_tce_set_bypass(uint32_t unit, uint32_t enable);
 void spapr_vio_quiesce(void);
 
 #endif /* _HW_SPAPR_VIO_H */

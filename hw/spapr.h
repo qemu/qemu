@@ -339,6 +339,7 @@ void spapr_iommu_init(void);
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
 void spapr_tce_free(DMAContext *dma);
 void spapr_tce_reset(DMAContext *dma);
+void spapr_tce_set_bypass(DMAContext *dma, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
