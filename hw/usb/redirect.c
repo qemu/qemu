@@ -142,6 +142,8 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
 static int usbredir_handle_status(USBRedirDevice *dev,
                                        int status, int actual_len);
 
+#define VERSION "qemu usb-redir guest " QEMU_VERSION
+
 /*
  * Logging stuff
  */
@@ -863,7 +865,6 @@ static void usbredir_chardev_close_bh(void *opaque)
 static void usbredir_chardev_open(USBRedirDevice *dev)
 {
     uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
-    char version[32];
     int flags = 0;
 
     /* Make sure any pending closes are handled (no-op if none pending) */
@@ -871,9 +872,6 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
     qemu_bh_cancel(dev->chardev_close_bh);
 
     DPRINTF("creating usbredirparser\n");
-
-    strcpy(version, "qemu usb-redir guest ");
-    pstrcat(version, sizeof(version), qemu_get_version());
 
     dev->parser = qemu_oom_check(usbredirparser_create());
     dev->parser->priv = dev;
@@ -906,7 +904,7 @@ static void usbredir_chardev_open(USBRedirDevice *dev)
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         flags |= usbredirparser_fl_no_hello;
     }
-    usbredirparser_init(dev->parser, version, caps, USB_REDIR_CAPS_SIZE,
+    usbredirparser_init(dev->parser, VERSION, caps, USB_REDIR_CAPS_SIZE,
                         flags);
     usbredirparser_do_write(dev->parser);
 }
