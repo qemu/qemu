@@ -559,12 +559,12 @@ static void emulate_spapr_hypercall(CPUPPCState *env)
     env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
 }
 
-static void spapr_reset(void *opaque)
+static void ppc_spapr_reset(void)
 {
-    sPAPREnvironment *spapr = (sPAPREnvironment *)opaque;
-
     /* flush out the hash table */
     memset(spapr->htab, 0, spapr->htab_size);
+
+    qemu_devices_reset();
 
     /* Load the fdt */
     spapr_finalize_fdt(spapr, spapr->fdt_addr, spapr->rtas_addr,
@@ -845,14 +845,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                                             boot_device, kernel_cmdline,
                                             pteg_shift + 7);
     assert(spapr->fdt_skel != NULL);
-
-    qemu_register_reset(spapr_reset, spapr);
 }
 
 static QEMUMachine spapr_machine = {
     .name = "pseries",
     .desc = "pSeries Logical Partition (PAPR compliant)",
     .init = ppc_spapr_init,
+    .reset = ppc_spapr_reset,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
     .use_scsi = 1,
