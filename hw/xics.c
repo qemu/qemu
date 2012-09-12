@@ -165,11 +165,12 @@ struct ics_irq_state {
     int server;
     uint8_t priority;
     uint8_t saved_priority;
+#define XICS_STATUS_ASSERTED           0x1
+#define XICS_STATUS_SENT               0x2
+#define XICS_STATUS_REJECTED           0x4
+#define XICS_STATUS_MASKED_PENDING     0x8
+    uint8_t status;
     enum xics_irq_type type;
-    int asserted:1;
-    int sent:1;
-    int rejected:1;
-    int masked_pending:1;
 };
 
 struct ics_state {
@@ -191,8 +192,8 @@ static void resend_msi(struct ics_state *ics, int srcno)
     struct ics_irq_state *irq = ics->irqs + srcno;
 
     /* FIXME: filter by server#? */
-    if (irq->rejected) {
-        irq->rejected = 0;
+    if (irq->status & XICS_STATUS_REJECTED) {
+        irq->status &= ~XICS_STATUS_REJECTED;
         if (irq->priority != 0xff) {
             icp_irq(ics->icp, irq->server, srcno + ics->offset,
                     irq->priority);
@@ -204,8 +205,10 @@ static void resend_lsi(struct ics_state *ics, int srcno)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if ((irq->priority != 0xff) && irq->asserted && !irq->sent) {
-        irq->sent = 1;
+    if ((irq->priority != 0xff)
+        && (irq->status & XICS_STATUS_ASSERTED)
+        && !(irq->status & XICS_STATUS_SENT)) {
+        irq->status |= XICS_STATUS_SENT;
         icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
     }
 }
@@ -216,7 +219,7 @@ static void set_irq_msi(struct ics_state *ics, int srcno, int val)
 
     if (val) {
         if (irq->priority == 0xff) {
-            irq->masked_pending = 1;
+            irq->status |= XICS_STATUS_MASKED_PENDING;
             /* masked pending */ ;
         } else  {
             icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
@@ -228,7 +231,11 @@ static void set_irq_lsi(struct ics_state *ics, int srcno, int val)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    irq->asserted = val;
+    if (val) {
+        irq->status |= XICS_STATUS_ASSERTED;
+    } else {
+        irq->status &= ~XICS_STATUS_ASSERTED;
+    }
     resend_lsi(ics, srcno);
 }
 
@@ -248,11 +255,12 @@ static void write_xive_msi(struct ics_state *ics, int srcno)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (!irq->masked_pending || (irq->priority == 0xff)) {
+    if (!(irq->status & XICS_STATUS_MASKED_PENDING)
+        || (irq->priority == 0xff)) {
         return;
     }
 
-    irq->masked_pending = 0;
+    irq->status &= ~XICS_STATUS_MASKED_PENDING;
     icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
 }
 
@@ -281,8 +289,8 @@ static void ics_reject(struct ics_state *ics, int nr)
 {
     struct ics_irq_state *irq = ics->irqs + nr - ics->offset;
 
-    irq->rejected = 1; /* Irrelevant but harmless for LSI */
-    irq->sent = 0; /* Irrelevant but harmless for MSI */
+    irq->status |= XICS_STATUS_REJECTED; /* Irrelevant but harmless for LSI */
+    irq->status &= ~XICS_STATUS_SENT; /* Irrelevant but harmless for MSI */
 }
 
 static void ics_resend(struct ics_state *ics)
@@ -307,7 +315,7 @@ static void ics_eoi(struct ics_state *ics, int nr)
     struct ics_irq_state *irq = ics->irqs + srcno;
 
     if (irq->type == XICS_LSI) {
-        irq->sent = 0;
+        irq->status &= ~XICS_STATUS_SENT;
     }
 }
 
@@ -506,10 +514,7 @@ static void xics_reset(void *opaque)
     for (i = 0; i < ics->nr_irqs; i++) {
         /* Reset everything *except* the type */
         ics->irqs[i].server = 0;
-        ics->irqs[i].asserted = 0;
-        ics->irqs[i].sent = 0;
-        ics->irqs[i].rejected = 0;
-        ics->irqs[i].masked_pending = 0;
+        ics->irqs[i].status = 0;
         ics->irqs[i].priority = 0xff;
         ics->irqs[i].saved_priority = 0xff;
     }
