@@ -863,12 +863,6 @@ static int tcg_target_const_match(tcg_target_long val,
     return arg_ct->ct & TCG_CT_CONST;
 }
 
-/* Maximum number of register used for input function arguments. */
-static int tcg_target_get_call_iarg_regs_count(int flags)
-{
-    return ARRAY_SIZE(tcg_target_call_iarg_regs);
-}
-
 static void tcg_target_init(TCGContext *s)
 {
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)

@@ -89,7 +89,6 @@ static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        tcg_target_long arg2);
 static int tcg_target_const_match(tcg_target_long val,
                                   const TCGArgConstraint *arg_ct);
-static int tcg_target_get_call_iarg_regs_count(int flags);
 
 TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) { #s, oargs, iargs, cargs, iargs + oargs + cargs, flags },
@@ -1853,7 +1852,7 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
 
     flags = args[nb_oargs + nb_iargs];
 
-    nb_regs = tcg_target_get_call_iarg_regs_count(flags);
+    nb_regs = ARRAY_SIZE(tcg_target_call_iarg_regs);
     if (nb_regs > nb_params)
         nb_regs = nb_params;
 

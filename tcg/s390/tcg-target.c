@@ -356,11 +356,6 @@ static void patch_reloc(uint8_t *code_ptr, int type,
     }
 }
 
-static int tcg_target_get_call_iarg_regs_count(int flags)
-{
-    return sizeof(tcg_target_call_iarg_regs) / sizeof(int);
-}
-
 /* parse target specific constraints */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 {
