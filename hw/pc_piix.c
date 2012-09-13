@@ -358,14 +358,30 @@ static QEMUMachine pc_machine_v1_3 = {
     .is_default = 1,
 };
 
+#define PC_COMPAT_1_2 \
+        {\
+            .driver   = "nec-usb-xhci",\
+            .property = "msi",\
+            .value    = "off",\
+        },{\
+            .driver   = "nec-usb-xhci",\
+            .property = "msix",\
+            .value    = "off",\
+        }
+
 static QEMUMachine pc_machine_v1_2 = {
     .name = "pc-1.2",
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        PC_COMPAT_1_2,
+        { /* end of list */ }
+    },
 };
 
 #define PC_COMPAT_1_1 \
+        PC_COMPAT_1_2,\
         {\
             .driver   = "virtio-scsi-pci",\
             .property = "hotplug",\
