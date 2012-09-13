@@ -97,7 +97,7 @@ static int tftp_session_find(Slirp *slirp, struct tftp_t *tp)
   return -1;
 }
 
-static int tftp_read_data(struct tftp_session *spt, uint16_t block_nr,
+static int tftp_read_data(struct tftp_session *spt, uint32_t block_nr,
                           uint8_t *buf, int len)
 {
     int bytes_read = 0;
@@ -197,18 +197,13 @@ out:
   tftp_session_terminate(spt);
 }
 
-static int tftp_send_data(struct tftp_session *spt,
-                          uint16_t block_nr,
-			  struct tftp_t *recv_tp)
+static int tftp_send_next_block(struct tftp_session *spt,
+                                struct tftp_t *recv_tp)
 {
   struct sockaddr_in saddr, daddr;
   struct mbuf *m;
   struct tftp_t *tp;
   int nobytes;
-
-  if (block_nr < 1) {
-    return -1;
-  }
 
   m = m_get(spt->slirp);
 
@@ -223,7 +218,7 @@ static int tftp_send_data(struct tftp_session *spt,
   m->m_data += sizeof(struct udpiphdr);
 
   tp->tp_op = htons(TFTP_DATA);
-  tp->x.tp_data.tp_block_nr = htons(block_nr);
+  tp->x.tp_data.tp_block_nr = htons((spt->block_nr + 1) & 0xffff);
 
   saddr.sin_addr = recv_tp->ip.ip_dst;
   saddr.sin_port = recv_tp->udp.uh_dport;
@@ -231,7 +226,7 @@ static int tftp_send_data(struct tftp_session *spt,
   daddr.sin_addr = spt->client_ip;
   daddr.sin_port = spt->client_port;
 
-  nobytes = tftp_read_data(spt, block_nr - 1, tp->x.tp_data.tp_buf, 512);
+  nobytes = tftp_read_data(spt, spt->block_nr, tp->x.tp_data.tp_buf, 512);
 
   if (nobytes < 0) {
     m_free(m);
@@ -255,6 +250,7 @@ static int tftp_send_data(struct tftp_session *spt,
     tftp_session_terminate(spt);
   }
 
+  spt->block_nr++;
   return 0;
 }
 
@@ -373,7 +369,8 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
       }
   }
 
-  tftp_send_data(spt, 1, tp);
+  spt->block_nr = 0;
+  tftp_send_next_block(spt, tp);
 }
 
 static void tftp_handle_ack(Slirp *slirp, struct tftp_t *tp, int pktlen)
@@ -386,9 +383,8 @@ static void tftp_handle_ack(Slirp *slirp, struct tftp_t *tp, int pktlen)
     return;
   }
 
-  if (tftp_send_data(&slirp->tftp_sessions[s],
-		     ntohs(tp->x.tp_data.tp_block_nr) + 1,
-		     tp) < 0) {
+  if (tftp_send_next_block(&slirp->tftp_sessions[s],
+                           tp) < 0) {
     return;
   }
 }
