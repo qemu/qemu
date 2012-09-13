@@ -60,10 +60,10 @@ bool qemu_aio_wait(void);
  * Code that invokes AIO completion functions should rely on this function
  * instead of qemu_set_fd_handler[2].
  */
-int qemu_aio_set_fd_handler(int fd,
-                            IOHandler *io_read,
-                            IOHandler *io_write,
-                            AioFlushHandler *io_flush,
-                            void *opaque);
+void qemu_aio_set_fd_handler(int fd,
+                             IOHandler *io_read,
+                             IOHandler *io_write,
+                             AioFlushHandler *io_flush,
+                             void *opaque);
 
 #endif

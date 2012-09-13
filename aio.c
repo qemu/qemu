@@ -53,11 +53,11 @@ static AioHandler *find_aio_handler(int fd)
     return NULL;
 }
 
-int qemu_aio_set_fd_handler(int fd,
-                            IOHandler *io_read,
-                            IOHandler *io_write,
-                            AioFlushHandler *io_flush,
-                            void *opaque)
+void qemu_aio_set_fd_handler(int fd,
+                             IOHandler *io_read,
+                             IOHandler *io_write,
+                             AioFlushHandler *io_flush,
+                             void *opaque)
 {
     AioHandler *node;
 
@@ -93,8 +93,6 @@ int qemu_aio_set_fd_handler(int fd,
     }
 
     qemu_set_fd_handler2(fd, NULL, io_read, io_write, opaque);
-
-    return 0;
 }
 
 void qemu_aio_flush(void)
