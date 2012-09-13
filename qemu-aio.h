@@ -15,6 +15,7 @@
 #define QEMU_AIO_H
 
 #include "qemu-common.h"
+#include "qemu-queue.h"
 #include "event_notifier.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
@@ -43,6 +44,15 @@ typedef void QEMUBHFunc(void *opaque);
 typedef void IOHandler(void *opaque);
 
 typedef struct AioContext {
+    /* The list of registered AIO handlers */
+    QLIST_HEAD(, AioHandler) aio_handlers;
+
+    /* This is a simple lock used to protect the aio_handlers list.
+     * Specifically, it's used to ensure that no callbacks are removed while
+     * we're walking and dispatching callbacks.
+     */
+    int walking_handlers;
+
     /* Anchor of the list of Bottom Halves belonging to the context */
     struct QEMUBH *first_bh;
 
@@ -121,7 +131,7 @@ void qemu_bh_delete(QEMUBH *bh);
 
 /* Flush any pending AIO operation. This function will block until all
  * outstanding AIO operations have been completed or cancelled. */
-void qemu_aio_flush(void);
+void aio_flush(AioContext *ctx);
 
 /* Wait for a single AIO completion to occur.  This function will wait
  * until a single AIO event has completed and it will ensure something
@@ -129,7 +139,7 @@ void qemu_aio_flush(void);
  * result of executing I/O completion or bh callbacks.
  *
  * Return whether there is still any pending AIO operation.  */
-bool qemu_aio_wait(void);
+bool aio_wait(AioContext *ctx);
 
 #ifdef CONFIG_POSIX
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
@@ -142,11 +152,12 @@ typedef int (AioFlushHandler)(void *opaque);
  * Code that invokes AIO completion functions should rely on this function
  * instead of qemu_set_fd_handler[2].
  */
-void qemu_aio_set_fd_handler(int fd,
-                             IOHandler *io_read,
-                             IOHandler *io_write,
-                             AioFlushHandler *io_flush,
-                             void *opaque);
+void aio_set_fd_handler(AioContext *ctx,
+                        int fd,
+                        IOHandler *io_read,
+                        IOHandler *io_write,
+                        AioFlushHandler *io_flush,
+                        void *opaque);
 #endif
 
 /* Register an event notifier and associated callbacks.  Behaves very similarly
@@ -156,8 +167,25 @@ void qemu_aio_set_fd_handler(int fd,
  * Code that invokes AIO completion functions should rely on this function
  * instead of event_notifier_set_handler.
  */
+void aio_set_event_notifier(AioContext *ctx,
+                            EventNotifier *notifier,
+                            EventNotifierHandler *io_read,
+                            AioFlushEventNotifierHandler *io_flush);
+
+/* Functions to operate on the main QEMU AioContext.  */
+
+void qemu_aio_flush(void);
+bool qemu_aio_wait(void);
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
                                  EventNotifierHandler *io_read,
                                  AioFlushEventNotifierHandler *io_flush);
+
+#ifdef CONFIG_POSIX
+void qemu_aio_set_fd_handler(int fd,
+                             IOHandler *io_read,
+                             IOHandler *io_write,
+                             AioFlushHandler *io_flush,
+                             void *opaque);
+#endif
 
 #endif

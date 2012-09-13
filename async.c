@@ -136,7 +136,13 @@ void aio_bh_update_timeout(AioContext *ctx, uint32_t *timeout)
     }
 }
 
+
 AioContext *aio_context_new(void)
 {
     return g_new0(AioContext, 1);
+}
+
+void aio_flush(AioContext *ctx)
+{
+    while (aio_wait(ctx));
 }
