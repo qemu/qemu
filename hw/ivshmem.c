@@ -71,6 +71,8 @@ typedef struct IVShmemState {
     MemoryRegion bar;
     MemoryRegion ivshmem;
     uint64_t ivshmem_size; /* size of shared memory region */
+    uint32_t ivshmem_attr;
+    uint32_t ivshmem_64bit;
     int shm_fd; /* shared memory file descriptor */
 
     Peer *peers;
@@ -339,7 +341,7 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
     /* region for shared memory */
-    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
+    pci_register_bar(&s->dev, 2, s->ivshmem_attr, &s->bar);
 }
 
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
@@ -690,6 +692,11 @@ static int pci_ivshmem_init(PCIDevice *dev)
                      &s->ivshmem_mmio);
 
     memory_region_init(&s->bar, "ivshmem-bar2-container", s->ivshmem_size);
+    s->ivshmem_attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
+        PCI_BASE_ADDRESS_MEM_PREFETCH;
+    if (s->ivshmem_64bit) {
+        s->ivshmem_attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+    }
 
     if ((s->server_chr != NULL) &&
                         (strncmp(s->server_chr->filename, "unix:", 5) == 0)) {
@@ -715,8 +722,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
         /* allocate/initialize space for interrupt handling */
         s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
 
-        pci_register_bar(&s->dev, 2,
-                         PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
+        pci_register_bar(&s->dev, 2, s->ivshmem_attr, &s->bar);
 
         s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
@@ -786,6 +792,7 @@ static Property ivshmem_properties[] = {
     DEFINE_PROP_BIT("msi", IVShmemState, features, IVSHMEM_MSI, true),
     DEFINE_PROP_STRING("shm", IVShmemState, shmobj),
     DEFINE_PROP_STRING("role", IVShmemState, role),
+    DEFINE_PROP_UINT32("use64", IVShmemState, ivshmem_64bit, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
