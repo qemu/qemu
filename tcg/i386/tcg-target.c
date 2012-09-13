@@ -75,9 +75,7 @@ static const int tcg_target_call_iarg_regs[] = {
     TCG_REG_R8,
     TCG_REG_R9,
 #else
-    TCG_REG_EAX,
-    TCG_REG_EDX,
-    TCG_REG_ECX
+    /* 32 bit mode uses stack based calling convention (GCC default). */
 #endif
 };
 
@@ -129,11 +127,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
 /* maximum number of register used for input function arguments */
 static inline int tcg_target_get_call_iarg_regs_count(int flags)
 {
-    if (TCG_TARGET_REG_BITS == 64) {
-        return ARRAY_SIZE(tcg_target_call_iarg_regs);
-    }
-
-    return 0;
+    return ARRAY_SIZE(tcg_target_call_iarg_regs);
 }
 
 /* parse target specific constraints */
