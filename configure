@@ -581,6 +581,14 @@ if test "$mingw32" = "yes" ; then
   # MinGW needs -mthreads for TLS and macro _MT.
   QEMU_CFLAGS="-mthreads $QEMU_CFLAGS"
   QEMU_CFLAGS="-I\$(SRC_PATH)/hosts/w32/include $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wextra $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-unused-parameter $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-missing-field-initializers $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-sign-compare $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-override-init $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-error=format $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-error=format-extra-args $QEMU_CFLAGS"
+  QEMU_CFLAGS="-Wno-error=parentheses $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
 cat > $TMPC << EOF
 int main(void) { return 0; }
