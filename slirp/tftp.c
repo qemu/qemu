@@ -120,13 +120,13 @@ static int tftp_read_data(struct tftp_session *spt, uint32_t block_nr,
 }
 
 static int tftp_send_oack(struct tftp_session *spt,
-                          const char *key, uint32_t value,
+                          const char *keys[], uint32_t values[], int nb,
                           struct tftp_t *recv_tp)
 {
     struct sockaddr_in saddr, daddr;
     struct mbuf *m;
     struct tftp_t *tp;
-    int n = 0;
+    int i, n = 0;
 
     m = m_get(spt->slirp);
 
@@ -140,10 +140,12 @@ static int tftp_send_oack(struct tftp_session *spt,
     m->m_data += sizeof(struct udpiphdr);
 
     tp->tp_op = htons(TFTP_OACK);
-    n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%s",
-                  key) + 1;
-    n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%u",
-                  value) + 1;
+    for (i = 0; i < nb; i++) {
+        n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%s",
+                      keys[i]) + 1;
+        n += snprintf(tp->x.tp_buf + n, sizeof(tp->x.tp_buf) - n, "%u",
+                      values[i]) + 1;
+    }
 
     saddr.sin_addr = recv_tp->ip.ip_dst;
     saddr.sin_port = recv_tp->udp.uh_dport;
@@ -259,6 +261,9 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
   int s, k;
   size_t prefix_len;
   char *req_fname;
+  const char *option_name[2];
+  uint32_t option_value[2];
+  int nb_options = 0;
 
   /* check if a session already exists and if so terminate it */
   s = tftp_session_find(slirp, tp);
@@ -336,7 +341,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
       return;
   }
 
-  while (k < pktlen) {
+  while (k < pktlen && nb_options < ARRAY_SIZE(option_name)) {
       const char *key, *value;
 
       key = &tp->x.tp_buf[k];
@@ -363,9 +368,28 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
 	      }
 	  }
 
-	  tftp_send_oack(spt, "tsize", tsize, tp);
-	  return;
+          option_name[nb_options] = "tsize";
+          option_value[nb_options] = tsize;
+          nb_options++;
+      } else if (strcasecmp(key, "blksize") == 0) {
+          int blksize = atoi(value);
+
+          /* If blksize option is bigger than what we will
+           * emit, accept the option with our packet size.
+           * Otherwise, simply do as we didn't see the option.
+           */
+          if (blksize >= 512) {
+              option_name[nb_options] = "blksize";
+              option_value[nb_options] = 512;
+              nb_options++;
+          }
       }
+  }
+
+  if (nb_options > 0) {
+      assert(nb_options <= ARRAY_SIZE(option_name));
+      tftp_send_oack(spt, option_name, option_value, nb_options, tp);
+      return;
   }
 
   spt->block_nr = 0;
