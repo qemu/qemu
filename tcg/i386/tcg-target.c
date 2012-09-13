@@ -118,7 +118,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
 static inline int tcg_target_get_call_iarg_regs_count(int flags)
 {
     if (TCG_TARGET_REG_BITS == 64) {
-        return 6;
+        return ARRAY_SIZE(tcg_target_call_iarg_regs);
     }
 
     return 0;
