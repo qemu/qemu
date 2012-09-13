@@ -197,8 +197,8 @@ out:
   tftp_session_terminate(spt);
 }
 
-static int tftp_send_next_block(struct tftp_session *spt,
-                                struct tftp_t *recv_tp)
+static void tftp_send_next_block(struct tftp_session *spt,
+                                 struct tftp_t *recv_tp)
 {
   struct sockaddr_in saddr, daddr;
   struct mbuf *m;
@@ -208,7 +208,7 @@ static int tftp_send_next_block(struct tftp_session *spt,
   m = m_get(spt->slirp);
 
   if (!m) {
-    return -1;
+    return;
   }
 
   memset(m->m_data, 0, m->m_size);
@@ -235,7 +235,7 @@ static int tftp_send_next_block(struct tftp_session *spt,
 
     tftp_send_error(spt, 1, "File not found", tp);
 
-    return -1;
+    return;
   }
 
   m->m_len = sizeof(struct tftp_t) - (512 - nobytes) -
@@ -251,7 +251,6 @@ static int tftp_send_next_block(struct tftp_session *spt,
   }
 
   spt->block_nr++;
-  return 0;
 }
 
 static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
@@ -383,10 +382,7 @@ static void tftp_handle_ack(Slirp *slirp, struct tftp_t *tp, int pktlen)
     return;
   }
 
-  if (tftp_send_next_block(&slirp->tftp_sessions[s],
-                           tp) < 0) {
-    return;
-  }
+  tftp_send_next_block(&slirp->tftp_sessions[s], tp);
 }
 
 static void tftp_handle_error(Slirp *slirp, struct tftp_t *tp, int pktlen)
