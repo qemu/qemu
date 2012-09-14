@@ -360,3 +360,8 @@ int qemu_create_pidfile(const char *filename)
     /* keep pidfile open & locked forever */
     return 0;
 }
+
+bool is_daemonized(void)
+{
+    return daemonize;
+}
