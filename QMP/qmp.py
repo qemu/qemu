@@ -162,3 +162,8 @@ class QEMUMonitorProtocol:
     def close(self):
         self.__sock.close()
         self.__sockfile.close()
+
+    timeout = socket.timeout
+
+    def settimeout(self, timeout):
+        self.__sock.settimeout(timeout)
