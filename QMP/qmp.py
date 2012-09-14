@@ -49,7 +49,6 @@ class QEMUMonitorProtocol:
         return socket.socket(family, socket.SOCK_STREAM)
 
     def __negotiate_capabilities(self):
-        self.__sockfile = self.__sock.makefile()
         greeting = self.__json_read()
         if greeting is None or not greeting.has_key('QMP'):
             raise QMPConnectError
@@ -73,7 +72,7 @@ class QEMUMonitorProtocol:
 
     error = socket.error
 
-    def connect(self):
+    def connect(self, negotiate=True):
         """
         Connect to the QMP Monitor and perform capabilities negotiation.
 
@@ -83,7 +82,9 @@ class QEMUMonitorProtocol:
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
         self.__sock.connect(self.__address)
-        return self.__negotiate_capabilities()
+        self.__sockfile = self.__sock.makefile()
+        if negotiate:
+            return self.__negotiate_capabilities()
 
     def accept(self):
         """
