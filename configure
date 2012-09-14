@@ -1286,10 +1286,6 @@ if test -z "$target_list" ; then
 else
     target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 fi
-if test -z "$target_list" ; then
-    echo "No targets enabled"
-    exit 1
-fi
 # see if system emulation was really requested
 case " $target_list " in
   *"-softmmu "*) softmmu=yes

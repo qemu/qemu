@@ -52,8 +52,13 @@ SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory) BUILD_DIR=$(BUILD_DIR)
 SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
 SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %/config-devices.mak.d, $(TARGET_DIRS))
 
+ifeq ($(SUBDIR_DEVICES_MAK),)
+config-all-devices.mak:
+	$(call quiet-command,echo '# no devices' > $@,"  GEN   $@")
+else
 config-all-devices.mak: $(SUBDIR_DEVICES_MAK)
 	$(call quiet-command,cat $(SUBDIR_DEVICES_MAK) | grep =y | sort -u > $@,"  GEN   $@")
+endif
 
 -include $(SUBDIR_DEVICES_MAK_DEP)
 
