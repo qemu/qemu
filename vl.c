@@ -3657,7 +3657,9 @@ int main(int argc, char **argv, char **envp)
         break;
 #if defined(CONFIG_CURSES)
     case DT_CURSES:
-        curses_display_init(ds, full_screen);
+        if (!is_daemonized()) {
+            curses_display_init(ds, full_screen);
+        }
         break;
 #endif
 #if defined(CONFIG_SDL)
