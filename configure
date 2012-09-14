@@ -4158,7 +4158,7 @@ fi
 if test "$ARCH" = "tci"; then
   linker_script=""
 else
-  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
+  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/ldscripts/\$(ARCH).ld"
 fi
 
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
