@@ -99,10 +99,10 @@ void do_interrupt(CPUS390XState *env)
 int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong address,
                                int rw, int mmu_idx)
 {
-    /* fprintf(stderr, "%s: address 0x%lx rw %d mmu_idx %d\n",
-       __func__, address, rw, mmu_idx); */
-    env->exception_index = EXCP_ADDR;
-    /* FIXME: find out how this works on a real machine */
+    env->exception_index = EXCP_PGM;
+    env->int_pgm_code = PGM_ADDRESSING;
+    /* On real machines this value is dropped into LowMem.  Since this
+       is userland, simply put this someplace that cpu_loop can find it.  */
     env->__excp_addr = address;
     return 1;
 }
@@ -111,11 +111,11 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong address,
 
 /* Ensure to exit the TB after this call! */
 static void trigger_pgm_exception(CPUS390XState *env, uint32_t code,
-                                  uint32_t ilc)
+                                  uint32_t ilen)
 {
     env->exception_index = EXCP_PGM;
     env->int_pgm_code = code;
-    env->int_pgm_ilc = ilc;
+    env->int_pgm_ilen = ilen;
 }
 
 static int trans_bits(CPUS390XState *env, uint64_t mode)
@@ -143,30 +143,30 @@ static int trans_bits(CPUS390XState *env, uint64_t mode)
 static void trigger_prot_fault(CPUS390XState *env, target_ulong vaddr,
                                uint64_t mode)
 {
-    int ilc = ILC_LATER_INC_2;
+    int ilen = ILEN_LATER_INC;
     int bits = trans_bits(env, mode) | 4;
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
     stq_phys(env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, PGM_PROTECTION, ilc);
+    trigger_pgm_exception(env, PGM_PROTECTION, ilen);
 }
 
 static void trigger_page_fault(CPUS390XState *env, target_ulong vaddr,
                                uint32_t type, uint64_t asc, int rw)
 {
-    int ilc = ILC_LATER;
+    int ilen = ILEN_LATER;
     int bits = trans_bits(env, asc);
 
+    /* Code accesses have an undefined ilc.  */
     if (rw == 2) {
-        /* code has is undefined ilc */
-        ilc = 2;
+        ilen = 2;
     }
 
     DPRINTF("%s: vaddr=%016" PRIx64 " bits=%d\n", __func__, vaddr, bits);
 
     stq_phys(env->psa + offsetof(LowCore, trans_exc_code), vaddr | bits);
-    trigger_pgm_exception(env, type, ilc);
+    trigger_pgm_exception(env, type, ilen);
 }
 
 static int mmu_translate_asce(CPUS390XState *env, target_ulong vaddr,
@@ -406,7 +406,7 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
     if (raddr > (ram_size + virtio_size)) {
         DPRINTF("%s: aaddr %" PRIx64 " > ram_size %" PRIx64 "\n", __func__,
                 (uint64_t)aaddr, (uint64_t)ram_size);
-        trigger_pgm_exception(env, PGM_ADDRESSING, ILC_LATER);
+        trigger_pgm_exception(env, PGM_ADDRESSING, ILEN_LATER);
         return 1;
     }
 
@@ -480,9 +480,9 @@ static void do_svc_interrupt(CPUS390XState *env)
     lowcore = cpu_physical_memory_map(env->psa, &len, 1);
 
     lowcore->svc_code = cpu_to_be16(env->int_svc_code);
-    lowcore->svc_ilc = cpu_to_be16(env->int_svc_ilc);
+    lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
     lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + (env->int_svc_ilc));
+    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
     mask = be64_to_cpu(lowcore->svc_new_psw.mask);
     addr = be64_to_cpu(lowcore->svc_new_psw.addr);
 
@@ -496,28 +496,26 @@ static void do_program_interrupt(CPUS390XState *env)
     uint64_t mask, addr;
     LowCore *lowcore;
     hwaddr len = TARGET_PAGE_SIZE;
-    int ilc = env->int_pgm_ilc;
+    int ilen = env->int_pgm_ilen;
 
-    switch (ilc) {
-    case ILC_LATER:
-        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr));
+    switch (ilen) {
+    case ILEN_LATER:
+        ilen = get_ilen(cpu_ldub_code(env, env->psw.addr));
         break;
-    case ILC_LATER_INC:
-        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr));
-        env->psw.addr += ilc * 2;
+    case ILEN_LATER_INC:
+        ilen = get_ilen(cpu_ldub_code(env, env->psw.addr));
+        env->psw.addr += ilen;
         break;
-    case ILC_LATER_INC_2:
-        ilc = get_ilc(cpu_ldub_code(env, env->psw.addr)) * 2;
-        env->psw.addr += ilc;
-        break;
+    default:
+        assert(ilen == 2 || ilen == 4 || ilen == 6);
     }
 
-    qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilc=%d\n",
-                  __func__, env->int_pgm_code, ilc);
+    qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilen=%d\n",
+                  __func__, env->int_pgm_code, ilen);
 
     lowcore = cpu_physical_memory_map(env->psa, &len, 1);
 
-    lowcore->pgm_ilc = cpu_to_be16(ilc);
+    lowcore->pgm_ilen = cpu_to_be16(ilen);
     lowcore->pgm_code = cpu_to_be16(env->int_pgm_code);
     lowcore->program_old_psw.mask = cpu_to_be64(get_psw_mask(env));
     lowcore->program_old_psw.addr = cpu_to_be64(env->psw.addr);
@@ -527,7 +525,7 @@ static void do_program_interrupt(CPUS390XState *env)
     cpu_physical_memory_unmap(lowcore, len, 1, len);
 
     DPRINTF("%s: %x %x %" PRIx64 " %" PRIx64 "\n", __func__,
-            env->int_pgm_code, ilc, env->psw.mask,
+            env->int_pgm_code, ilen, env->psw.mask,
             env->psw.addr);
 
     load_psw(env, mask, addr);

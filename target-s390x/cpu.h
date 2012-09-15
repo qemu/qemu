@@ -79,10 +79,10 @@ typedef struct CPUS390XState {
     uint64_t psa;
 
     uint32_t int_pgm_code;
-    uint32_t int_pgm_ilc;
+    uint32_t int_pgm_ilen;
 
     uint32_t int_svc_code;
-    uint32_t int_svc_ilc;
+    uint32_t int_svc_ilen;
 
     uint64_t cregs[16]; /* control registers */
 
@@ -253,25 +253,31 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
              ((env->psw.mask & PSW_MASK_32) ? FLAG_MASK_32 : 0);
 }
 
-static inline int get_ilc(uint8_t opc)
+/* While the PoO talks about ILC (a number between 1-3) what is actually
+   stored in LowCore is shifted left one bit (an even between 2-6).  As
+   this is the actual length of the insn and therefore more useful, that
+   is what we want to pass around and manipulate.  To make sure that we
+   have applied this distinction universally, rename the "ILC" to "ILEN".  */
+static inline int get_ilen(uint8_t opc)
 {
     switch (opc >> 6) {
     case 0:
-        return 1;
+        return 2;
     case 1:
     case 2:
-        return 2;
-    case 3:
-        return 3;
+        return 4;
+    default:
+        return 6;
     }
-
-    return 0;
 }
 
-#define ILC_LATER       0x20
-#define ILC_LATER_INC   0x21
-#define ILC_LATER_INC_2 0x22
-
+#ifndef CONFIG_USER_ONLY
+/* In several cases of runtime exceptions, we havn't recorded the true
+   instruction length.  Use these codes when raising exceptions in order
+   to re-compute the length by examining the insn in memory.  */
+#define ILEN_LATER       0x20
+#define ILEN_LATER_INC   0x21
+#endif
 
 S390CPU *cpu_s390x_init(const char *cpu_model);
 void s390x_translate_init(void);
@@ -352,20 +358,9 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 
 #include "exec/exec-all.h"
 
-#ifdef CONFIG_USER_ONLY
-
-#define EXCP_OPEX 1 /* operation exception (sigill) */
-#define EXCP_SVC 2 /* supervisor call (syscall) */
-#define EXCP_ADDR 5 /* addressing exception */
-#define EXCP_SPEC 6 /* specification exception */
-
-#else
-
 #define EXCP_EXT 1 /* external interrupt */
 #define EXCP_SVC 2 /* supervisor call (syscall) */
 #define EXCP_PGM 3 /* program interruption */
-
-#endif /* CONFIG_USER_ONLY */
 
 #define INTERRUPT_EXT        (1 << 0)
 #define INTERRUPT_TOD        (1 << 1)
@@ -532,9 +527,9 @@ typedef struct LowCore
     uint32_t        ext_params;               /* 0x080 */
     uint16_t        cpu_addr;                 /* 0x084 */
     uint16_t        ext_int_code;             /* 0x086 */
-    uint16_t        svc_ilc;                  /* 0x088 */
+    uint16_t        svc_ilen;                 /* 0x088 */
     uint16_t        svc_code;                 /* 0x08a */
-    uint16_t        pgm_ilc;                  /* 0x08c */
+    uint16_t        pgm_ilen;                 /* 0x08c */
     uint16_t        pgm_code;                 /* 0x08e */
     uint32_t        data_exc_code;            /* 0x090 */
     uint16_t        mon_class_num;            /* 0x094 */
@@ -924,6 +919,6 @@ uint32_t set_cc_nz_f32(float32 v);
 uint32_t set_cc_nz_f64(float64 v);
 
 /* misc_helper.c */
-void program_interrupt(CPUS390XState *env, uint32_t code, int ilc);
+void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
 
 #endif

@@ -41,7 +41,7 @@
 #define HELPER_LOG(x...)
 #endif
 
-/* raise an exception */
+/* Raise an exception statically from a TB.  */
 void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 {
     HELPER_LOG("%s: exception %d\n", __func__, excp);
@@ -50,7 +50,7 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 }
 
 #ifndef CONFIG_USER_ONLY
-void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
+void program_interrupt(CPUS390XState *env, uint32_t code, int ilen)
 {
     qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
                   env->psw.addr);
@@ -61,7 +61,7 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
 #endif
     } else {
         env->int_pgm_code = code;
-        env->int_pgm_ilc = ilc;
+        env->int_pgm_ilen = ilen;
         env->exception_index = EXCP_PGM;
         cpu_loop_exit(env);
     }
@@ -105,7 +105,7 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
     }
 
     if (r) {
-        program_interrupt(env, PGM_OPERATION, ILC_LATER_INC);
+        program_interrupt(env, PGM_OPERATION, ILEN_LATER_INC);
     }
 
     return r;

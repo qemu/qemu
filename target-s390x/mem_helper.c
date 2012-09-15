@@ -594,7 +594,7 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
         HELPER_LOG("%s: svc %ld via execute\n", __func__, (insn | v1) & 0xff);
         env->psw.addr = ret - 4;
         env->int_svc_code = (insn | v1) & 0xff;
-        env->int_svc_ilc = 4;
+        env->int_svc_ilen = 4;
         helper_exception(env, EXCP_SVC);
     } else if ((insn & 0xff00) == 0xbf00) {
         uint32_t insn2, r1, r3, b2, d2;
