@@ -8868,6 +8868,19 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     }
 #endif
+#ifdef TARGET_NR_gethostname
+    case TARGET_NR_gethostname:
+    {
+        char *name = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+        if (name) {
+            ret = get_errno(gethostname(name, arg2));
+            unlock_user(name, arg1, arg2);
+        } else {
+            ret = -TARGET_EFAULT;
+        }
+        break;
+    }
+#endif
     default:
     unimplemented:
         gemu_log("qemu: Unsupported syscall: %d\n", num);
