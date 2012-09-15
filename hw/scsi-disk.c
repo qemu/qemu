@@ -678,7 +678,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
      * is actually implemented, but we're good enough.
      */
     outbuf[2] = 5;
-    outbuf[3] = 2; /* Format 2 */
+    outbuf[3] = 2 | 0x10; /* Format 2, HiSup */
 
     if (buflen > 36) {
         outbuf[4] = buflen - 5; /* Additional Length = (Len - 1) - 4 */
