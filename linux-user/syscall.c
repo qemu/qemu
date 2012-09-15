@@ -4918,7 +4918,7 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
 
 /* Map host to target signal numbers for the wait family of syscalls.
    Assume all other status bits are the same.  */
-static int host_to_target_waitstatus(int status)
+int host_to_target_waitstatus(int status)
 {
     if (WIFSIGNALED(status)) {
         return host_to_target_signal(WTERMSIG(status)) | (status & ~0x7f);
