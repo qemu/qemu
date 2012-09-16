@@ -339,16 +339,6 @@ static void gen_delayed_conditional_jump(DisasContext * ctx)
     gen_jump(ctx);
 }
 
-static inline void gen_set_t(void)
-{
-    tcg_gen_ori_i32(cpu_sr, cpu_sr, SR_T);
-}
-
-static inline void gen_clr_t(void)
-{
-    tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
-}
-
 static inline void gen_cmp(int cond, TCGv t0, TCGv t1)
 {
     TCGv t;
@@ -519,7 +509,7 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_S);
 	return;
     case 0x0008:		/* clrt */
-	gen_clr_t();
+        tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
 	return;
     case 0x0038:		/* ldtlb */
 	CHECK_PRIVILEGED
@@ -537,7 +527,7 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_ori_i32(cpu_sr, cpu_sr, SR_S);
 	return;
     case 0x0018:		/* sett */
-	gen_set_t();
+        tcg_gen_ori_i32(cpu_sr, cpu_sr, SR_T);
 	return;
     case 0xfbfd:		/* frchg */
 	tcg_gen_xori_i32(cpu_fpscr, cpu_fpscr, FPSCR_FR);
@@ -1660,7 +1650,7 @@ static void _decode_opc(DisasContext * ctx)
         */
         if (ctx->features & SH_FEATURE_SH4A) {
 	    int label = gen_new_label();
-	    gen_clr_t();
+            tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
 	    tcg_gen_or_i32(cpu_sr, cpu_sr, cpu_ldst);
 	    tcg_gen_brcondi_i32(TCG_COND_EQ, cpu_ldst, 0, label);
 	    tcg_gen_qemu_st32(REG(0), REG(B11_8), ctx->memidx);
