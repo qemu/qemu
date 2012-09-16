@@ -274,21 +274,21 @@ static inline void potential_page_fault(DisasContext *s)
 #endif
 }
 
-static inline uint64_t ld_code2(uint64_t pc)
+static inline uint64_t ld_code2(CPUS390XState *env, uint64_t pc)
 {
-    return (uint64_t)cpu_lduw_code(cpu_single_env, pc);
+    return (uint64_t)cpu_lduw_code(env, pc);
 }
 
-static inline uint64_t ld_code4(uint64_t pc)
+static inline uint64_t ld_code4(CPUS390XState *env, uint64_t pc)
 {
-    return (uint64_t)cpu_ldl_code(cpu_single_env, pc);
+    return (uint64_t)cpu_ldl_code(env, pc);
 }
 
-static inline uint64_t ld_code6(uint64_t pc)
+static inline uint64_t ld_code6(CPUS390XState *env, uint64_t pc)
 {
     uint64_t opc;
-    opc = (uint64_t)cpu_lduw_code(cpu_single_env, pc) << 32;
-    opc |= (uint64_t)(uint32_t)cpu_ldl_code(cpu_single_env, pc + 2);
+    opc = (uint64_t)cpu_lduw_code(env, pc) << 32;
+    opc |= (uint64_t)(uint32_t)cpu_ldl_code(env, pc + 2);
     return opc;
 }
 
@@ -319,7 +319,7 @@ static inline void gen_debug(DisasContext *s)
 
 #ifdef CONFIG_USER_ONLY
 
-static void gen_illegal_opcode(DisasContext *s, int ilc)
+static void gen_illegal_opcode(CPUS390XState *env, DisasContext *s, int ilc)
 {
     TCGv_i32 tmp = tcg_const_i32(EXCP_SPEC);
     update_psw_addr(s);
@@ -331,20 +331,20 @@ static void gen_illegal_opcode(DisasContext *s, int ilc)
 
 #else /* CONFIG_USER_ONLY */
 
-static void debug_print_inst(DisasContext *s, int ilc)
+static void debug_print_inst(CPUS390XState *env, DisasContext *s, int ilc)
 {
 #ifdef DEBUG_ILLEGAL_INSTRUCTIONS
     uint64_t inst = 0;
 
     switch (ilc & 3) {
     case 1:
-        inst = ld_code2(s->pc);
+        inst = ld_code2(env, s->pc);
         break;
     case 2:
-        inst = ld_code4(s->pc);
+        inst = ld_code4(env, s->pc);
         break;
     case 3:
-        inst = ld_code6(s->pc);
+        inst = ld_code6(env, s->pc);
         break;
     }
 
@@ -353,11 +353,12 @@ static void debug_print_inst(DisasContext *s, int ilc)
 #endif
 }
 
-static void gen_program_exception(DisasContext *s, int ilc, int code)
+static void gen_program_exception(CPUS390XState *env, DisasContext *s, int ilc,
+                                  int code)
 {
     TCGv_i32 tmp;
 
-    debug_print_inst(s, ilc);
+    debug_print_inst(env, s, ilc);
 
     /* remember what pgm exeption this was */
     tmp = tcg_const_i32(code);
@@ -385,20 +386,21 @@ static void gen_program_exception(DisasContext *s, int ilc, int code)
 }
 
 
-static void gen_illegal_opcode(DisasContext *s, int ilc)
+static void gen_illegal_opcode(CPUS390XState *env, DisasContext *s, int ilc)
 {
-    gen_program_exception(s, ilc, PGM_SPECIFICATION);
+    gen_program_exception(env, s, ilc, PGM_SPECIFICATION);
 }
 
-static void gen_privileged_exception(DisasContext *s, int ilc)
+static void gen_privileged_exception(CPUS390XState *env, DisasContext *s,
+                                     int ilc)
 {
-    gen_program_exception(s, ilc, PGM_PRIVILEGED);
+    gen_program_exception(env, s, ilc, PGM_PRIVILEGED);
 }
 
-static void check_privileged(DisasContext *s, int ilc)
+static void check_privileged(CPUS390XState *env, DisasContext *s, int ilc)
 {
     if (s->tb->flags & (PSW_MASK_PSTATE >> 32)) {
-        gen_privileged_exception(s, ilc);
+        gen_privileged_exception(env, s, ilc);
     }
 }
 
@@ -1460,7 +1462,8 @@ static void gen_op_clc(DisasContext *s, int l, TCGv_i64 s1, TCGv_i64 s2)
     set_cc_static(s);
 }
 
-static void disas_e3(DisasContext* s, int op, int r1, int x2, int b2, int d2)
+static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
+                     int x2, int b2, int d2)
 {
     TCGv_i64 addr, tmp, tmp2, tmp3, tmp4;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
@@ -1925,14 +1928,14 @@ static void disas_e3(DisasContext* s, int op, int r1, int x2, int b2, int d2)
         break;
     default:
         LOG_DISAS("illegal e3 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 3);
+        gen_illegal_opcode(env, s, 3);
         break;
     }
     tcg_temp_free_i64(addr);
 }
 
 #ifndef CONFIG_USER_ONLY
-static void disas_e5(DisasContext* s, uint64_t insn)
+static void disas_e5(CPUS390XState *env, DisasContext* s, uint64_t insn)
 {
     TCGv_i64 tmp, tmp2;
     int op = (insn >> 32) & 0xff;
@@ -1950,7 +1953,7 @@ static void disas_e5(DisasContext* s, uint64_t insn)
         break;
     default:
         LOG_DISAS("illegal e5 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 3);
+        gen_illegal_opcode(env, s, 3);
         break;
     }
 
@@ -1959,7 +1962,8 @@ static void disas_e5(DisasContext* s, uint64_t insn)
 }
 #endif
 
-static void disas_eb(DisasContext *s, int op, int r1, int r3, int b2, int d2)
+static void disas_eb(CPUS390XState *env, DisasContext *s, int op, int r1,
+                     int r3, int b2, int d2)
 {
     TCGv_i64 tmp, tmp2, tmp3, tmp4;
     TCGv_i32 tmp32_1, tmp32_2;
@@ -2102,7 +2106,7 @@ do_mh:
 #ifndef CONFIG_USER_ONLY
     case 0x2f: /* LCTLG     R1,R3,D2(B2)     [RSE] */
         /* Load Control */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
@@ -2114,7 +2118,7 @@ do_mh:
         break;
     case 0x25: /* STCTG     R1,R3,D2(B2)     [RSE] */
         /* Store Control */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r3);
@@ -2191,13 +2195,13 @@ do_mh:
         break;
     default:
         LOG_DISAS("illegal eb operation 0x%x\n", op);
-        gen_illegal_opcode(s, ilc);
+        gen_illegal_opcode(env, s, ilc);
         break;
     }
 }
 
-static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
-                     int r1b)
+static void disas_ed(CPUS390XState *env, DisasContext *s, int op, int r1,
+                     int x2, int b2, int d2, int r1b)
 {
     TCGv_i32 tmp_r1, tmp32;
     TCGv_i64 addr, tmp;
@@ -2311,14 +2315,15 @@ static void disas_ed(DisasContext *s, int op, int r1, int x2, int b2, int d2,
         break;
     default:
         LOG_DISAS("illegal ed operation 0x%x\n", op);
-        gen_illegal_opcode(s, 3);
+        gen_illegal_opcode(env, s, 3);
         return;
     }
     tcg_temp_free_i32(tmp_r1);
     tcg_temp_free_i64(addr);
 }
 
-static void disas_a5(DisasContext *s, int op, int r1, int i2)
+static void disas_a5(CPUS390XState *env, DisasContext *s, int op, int r1,
+                     int i2)
 {
     TCGv_i64 tmp, tmp2;
     TCGv_i32 tmp32;
@@ -2467,12 +2472,13 @@ static void disas_a5(DisasContext *s, int op, int r1, int i2)
         break;
     default:
         LOG_DISAS("illegal a5 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 2);
+        gen_illegal_opcode(env, s, 2);
         return;
     }
 }
 
-static void disas_a7(DisasContext *s, int op, int r1, int i2)
+static void disas_a7(CPUS390XState *env, DisasContext *s, int op, int r1,
+                     int i2)
 {
     TCGv_i64 tmp, tmp2;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
@@ -2604,12 +2610,13 @@ static void disas_a7(DisasContext *s, int op, int r1, int i2)
         break;
     default:
         LOG_DISAS("illegal a7 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 2);
+        gen_illegal_opcode(env, s, 2);
         return;
     }
 }
 
-static void disas_b2(DisasContext *s, int op, uint32_t insn)
+static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
+                     uint32_t insn)
 {
     TCGv_i64 tmp, tmp2, tmp3;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
@@ -2708,7 +2715,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
 #ifndef CONFIG_USER_ONLY
     case 0x02: /* STIDP     D2(B2)     [S] */
         /* Store CPU ID */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2717,7 +2724,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x04: /* SCK       D2(B2)     [S] */
         /* Set Clock */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2736,7 +2743,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x06: /* SCKC     D2(B2)     [S] */
         /* Set Clock Comparator */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2745,7 +2752,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x07: /* STCKC    D2(B2)     [S] */
         /* Store Clock Comparator */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2754,7 +2761,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x08: /* SPT      D2(B2)     [S] */
         /* Set CPU Timer */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2763,7 +2770,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x09: /* STPT     D2(B2)     [S] */
         /* Store CPU Timer */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2772,7 +2779,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x0a: /* SPKA     D2(B2)     [S] */
         /* Set PSW Key from Address */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
@@ -2784,12 +2791,12 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x0d: /* PTLB                [S] */
         /* Purge TLB */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         gen_helper_ptlb(cpu_env);
         break;
     case 0x10: /* SPX      D2(B2)     [S] */
         /* Set Prefix Register */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2798,7 +2805,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x11: /* STPX     D2(B2)     [S] */
         /* Store Prefix */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
@@ -2809,7 +2816,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x12: /* STAP     D2(B2)     [S] */
         /* Store CPU Address */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
@@ -2823,7 +2830,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x21: /* IPTE     R1,R2      [RRE] */
         /* Invalidate PTE */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         tmp = load_reg(r1);
@@ -2834,7 +2841,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x29: /* ISKE     R1,R2      [RRE] */
         /* Insert Storage Key Extended */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         tmp = load_reg(r2);
@@ -2846,7 +2853,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x2a: /* RRBE     R1,R2      [RRE] */
         /* Set Storage Key Extended */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         tmp32_1 = load_reg32(r1);
@@ -2858,7 +2865,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x2b: /* SSKE     R1,R2      [RRE] */
         /* Set Storage Key Extended */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         tmp32_1 = load_reg32(r1);
@@ -2869,12 +2876,12 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x34: /* STCH ? */
         /* Store Subchannel */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         gen_op_movi_cc(s, 3);
         break;
     case 0x46: /* STURA    R1,R2      [RRE] */
         /* Store Using Real Address */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         tmp32_1 = load_reg32(r1);
@@ -2886,7 +2893,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x50: /* CSP      R1,R2      [RRE] */
         /* Compare And Swap And Purge */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         tmp32_1 = tcg_const_i32(r1);
@@ -2898,7 +2905,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x5f: /* CHSC ? */
         /* Channel Subsystem Call */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         gen_op_movi_cc(s, 3);
         break;
     case 0x78: /* STCKE    D2(B2)     [S] */
@@ -2912,7 +2919,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x79: /* SACF    D2(B2)     [S] */
         /* Store Clock Extended */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         potential_page_fault(s);
@@ -2924,7 +2931,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         s->is_jmp = DISAS_EXCP;
         break;
     case 0x7d: /* STSI     D2,(B2)     [S] */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = load_reg32(0);
@@ -2950,7 +2957,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0xb1: /* STFL     D2(B2)     [S] */
         /* Store Facility List (CPU features) at 200 */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         tmp2 = tcg_const_i64(0xc0000000);
         tmp = tcg_const_i64(200);
         tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
@@ -2959,7 +2966,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0xb2: /* LPSWE    D2(B2)     [S] */
         /* Load PSW Extended */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
@@ -2976,7 +2983,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x20: /* SERVC     R1,R2     [RRE] */
         /* SCLP Service call (PV hypercall) */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         potential_page_fault(s);
         tmp32_1 = load_reg32(r2);
         tmp = load_reg(r1);
@@ -2988,12 +2995,13 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
 #endif
     default:
         LOG_DISAS("illegal b2 operation 0x%x\n", op);
-        gen_illegal_opcode(s, ilc);
+        gen_illegal_opcode(env, s, ilc);
         break;
     }
 }
 
-static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
+static void disas_b3(CPUS390XState *env, DisasContext *s, int op, int m3,
+                     int r1, int r2)
 {
     TCGv_i64 tmp;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
@@ -3263,7 +3271,7 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         break;
     default:
         LOG_DISAS("illegal b3 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 2);
+        gen_illegal_opcode(env, s, 2);
         break;
     }
 
@@ -3271,7 +3279,8 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
 #undef FP_HELPER
 }
 
-static void disas_b9(DisasContext *s, int op, int r1, int r2)
+static void disas_b9(CPUS390XState *env, DisasContext *s, int op, int r1,
+                     int r2)
 {
     TCGv_i64 tmp, tmp2, tmp3;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
@@ -3654,12 +3663,12 @@ static void disas_b9(DisasContext *s, int op, int r1, int r2)
         break;
     default:
         LOG_DISAS("illegal b9 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 2);
+        gen_illegal_opcode(env, s, 2);
         break;
     }
 }
 
-static void disas_c0(DisasContext *s, int op, int r1, int i2)
+static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2)
 {
     TCGv_i64 tmp;
     TCGv_i32 tmp32_1, tmp32_2;
@@ -3755,12 +3764,13 @@ static void disas_c0(DisasContext *s, int op, int r1, int i2)
         break;
     default:
         LOG_DISAS("illegal c0 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 3);
+        gen_illegal_opcode(env, s, 3);
         break;
     }
 }
 
-static void disas_c2(DisasContext *s, int op, int r1, int i2)
+static void disas_c2(CPUS390XState *env, DisasContext *s, int op, int r1,
+                     int i2)
 {
     TCGv_i64 tmp, tmp2, tmp3;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3;
@@ -3832,7 +3842,7 @@ static void disas_c2(DisasContext *s, int op, int r1, int i2)
         break;
     default:
         LOG_DISAS("illegal c2 operation 0x%x\n", op);
-        gen_illegal_opcode(s, 3);
+        gen_illegal_opcode(env, s, 3);
         break;
     }
 }
@@ -3854,7 +3864,7 @@ static void gen_and_or_xor_i32(int opc, TCGv_i32 tmp, TCGv_i32 tmp2)
     }
 }
 
-static void disas_s390_insn(DisasContext *s)
+static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
 {
     TCGv_i64 tmp, tmp2, tmp3, tmp4;
     TCGv_i32 tmp32_1, tmp32_2, tmp32_3, tmp32_4;
@@ -3865,7 +3875,7 @@ static void disas_s390_insn(DisasContext *s)
     int ilc;
     int l1;
 
-    opc = cpu_ldub_code(cpu_single_env, s->pc);
+    opc = cpu_ldub_code(env, s->pc);
     LOG_DISAS("opc 0x%x\n", opc);
 
     ilc = get_ilc(opc);
@@ -3873,12 +3883,12 @@ static void disas_s390_insn(DisasContext *s)
     switch (opc) {
 #ifndef CONFIG_USER_ONLY
     case 0x01: /* SAM */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         /* set addressing mode, but we only do 64bit anyways */
         break;
 #endif
     case 0x6: /* BCTR     R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r1);
         tcg_gen_subi_i32(tmp32_1, tmp32_1, 1);
@@ -3904,7 +3914,7 @@ static void disas_s390_insn(DisasContext *s)
         }
         break;
     case 0x7: /* BCR    M1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         if (r2) {
             tmp = load_reg(r2);
@@ -3916,7 +3926,7 @@ static void disas_s390_insn(DisasContext *s)
         }
         break;
     case 0xa: /* SVC    I         [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         debug_insn(insn);
         i = insn & 0xff;
         update_psw_addr(s);
@@ -3933,7 +3943,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_3);
         break;
     case 0xd: /* BASR   R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp = tcg_const_i64(pc_to_link_info(s, s->pc + 2));
         store_reg(r1, tmp);
@@ -3946,7 +3956,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp);
         break;
     case 0xe: /* MVCL   R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = tcg_const_i32(r1);
         tmp32_2 = tcg_const_i32(r2);
@@ -3957,7 +3967,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0x10: /* LPR    R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r2);
         set_cc_abs32(s, tmp32_1);
@@ -3966,7 +3976,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x11: /* LNR    R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r2);
         set_cc_nabs32(s, tmp32_1);
@@ -3975,7 +3985,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x12: /* LTR    R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r2);
         if (r1 != r2) {
@@ -3985,7 +3995,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x13: /* LCR    R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r2);
         tcg_gen_neg_i32(tmp32_1, tmp32_1);
@@ -3996,7 +4006,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x14: /* NR     R1,R2     [RR] */
     case 0x16: /* OR     R1,R2     [RR] */
     case 0x17: /* XR     R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_2 = load_reg32(r2);
         tmp32_1 = load_reg32(r1);
@@ -4007,7 +4017,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0x18: /* LR     R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r2);
         store_reg32(r1, tmp32_1);
@@ -4015,7 +4025,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x15: /* CLR    R1,R2     [RR] */
     case 0x19: /* CR     R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = load_reg32(r2);
@@ -4029,7 +4039,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x1a: /* AR     R1,R2     [RR] */
     case 0x1e: /* ALR    R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = load_reg32(r2);
@@ -4047,7 +4057,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x1b: /* SR     R1,R2     [RR] */
     case 0x1f: /* SLR    R1,R2     [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = load_reg32(r2);
@@ -4065,7 +4075,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x1c: /* MR     R1,R2     [RR] */
         /* reg(r1, r1+1) = reg(r1+1) * reg(r2) */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp2 = load_reg(r2);
         tmp3 = load_reg((r1 + 1) & 15);
@@ -4079,7 +4089,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp3);
         break;
     case 0x1d: /* DR     R1,R2               [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = load_reg32(r1 + 1);
@@ -4114,21 +4124,21 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp3);
         break;
     case 0x28: /* LDR    R1,R2               [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp = load_freg(r2);
         store_freg(r1, tmp);
         tcg_temp_free_i64(tmp);
         break;
     case 0x38: /* LER    R1,R2               [RR] */
-        insn = ld_code2(s->pc);
+        insn = ld_code2(env, s->pc);
         decode_rr(s, insn, &r1, &r2);
         tmp32_1 = load_freg32(r2);
         store_freg32(r1, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x40: /* STH    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = load_reg(r1);
         tcg_gen_qemu_st16(tmp2, tmp, get_mem_index(s));
@@ -4136,13 +4146,13 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x41:        /* la */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         store_reg(r1, tmp); /* FIXME: 31/24-bit addressing */
         tcg_temp_free_i64(tmp);
         break;
     case 0x42: /* STC    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = load_reg(r1);
         tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
@@ -4150,7 +4160,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x43: /* IC     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
@@ -4159,7 +4169,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x44: /* EX     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = load_reg(r1);
         tmp3 = tcg_const_i64(s->pc + 4);
@@ -4172,7 +4182,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp3);
         break;
     case 0x46: /* BCT    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tcg_temp_free_i64(tmp);
 
@@ -4196,14 +4206,14 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp);
         break;
     case 0x47: /* BC     M1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         gen_bcr(s, r1, tmp, s->pc + 4);
         tcg_temp_free_i64(tmp);
         s->is_jmp = DISAS_TB_JUMP;
         break;
     case 0x48: /* LH     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld16s(tmp2, tmp, get_mem_index(s));
@@ -4212,7 +4222,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x49: /* CH     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = tcg_temp_new_i32();
@@ -4228,7 +4238,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x4a: /* AH     R1,D2(X2,B2)     [RX] */
     case 0x4b: /* SH     R1,D2(X2,B2)     [RX] */
     case 0x4c: /* MH     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = load_reg32(r1);
@@ -4261,7 +4271,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x4d: /* BAS    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_const_i64(pc_to_link_info(s, s->pc + 4));
         store_reg(r1, tmp2);
@@ -4271,7 +4281,7 @@ static void disas_s390_insn(DisasContext *s)
         s->is_jmp = DISAS_JUMP;
         break;
     case 0x4e: /* CVD    R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_temp_new_i32();
@@ -4283,7 +4293,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x50: /* st r1, d2(x2, b2) */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = load_reg(r1);
         tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
@@ -4291,7 +4301,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x55: /* CL     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_temp_new_i32();
@@ -4307,7 +4317,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x54: /* N      R1,D2(X2,B2)     [RX] */
     case 0x56: /* O      R1,D2(X2,B2)     [RX] */
     case 0x57: /* X      R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = load_reg32(r1);
@@ -4323,7 +4333,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0x58: /* l r1, d2(x2, b2) */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_temp_new_i32();
@@ -4335,7 +4345,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x59: /* C      R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_temp_new_i32();
@@ -4352,7 +4362,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x5b: /* S      R1,D2(X2,B2)     [RX] */
     case 0x5e: /* AL     R1,D2(X2,B2)     [RX] */
     case 0x5f: /* SL     R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = tcg_temp_new_i32();
@@ -4395,7 +4405,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x5c: /* M      R1,D2(X2,B2)        [RX] */
         /* reg(r1, r1+1) = reg(r1+1) * *(s32*)addr */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld32s(tmp2, tmp, get_mem_index(s));
@@ -4411,7 +4421,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp3);
         break;
     case 0x5d: /* D      R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp3 = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp32_1 = load_reg32(r1);
         tmp32_2 = load_reg32(r1 + 1);
@@ -4445,7 +4455,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp3);
         break;
     case 0x60: /* STD    R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = load_freg(r1);
         tcg_gen_qemu_st64(tmp2, tmp, get_mem_index(s));
@@ -4453,7 +4463,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x68: /* LD    R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld64(tmp2, tmp, get_mem_index(s));
@@ -4462,7 +4472,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x70: /* STE R1,D2(X2,B2) [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = load_freg32(r1);
@@ -4473,7 +4483,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x71: /* MS      R1,D2(X2,B2)     [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = load_reg32(r1);
@@ -4488,7 +4498,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0x78: /* LE     R1,D2(X2,B2)        [RX] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_temp_new_i32();
@@ -4502,8 +4512,8 @@ static void disas_s390_insn(DisasContext *s)
 #ifndef CONFIG_USER_ONLY
     case 0x80: /* SSM      D2(B2)       [S] */
         /* Set System Mask */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
@@ -4518,8 +4528,8 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x82: /* LPSW     D2(B2)       [S] */
         /* Load PSW */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
@@ -4536,9 +4546,9 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x83: /* DIAG     R1,R3,D2     [RS] */
         /* Diagnose call (KVM hypercall) */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         potential_page_fault(s);
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp32_1 = tcg_const_i32(insn & 0xfff);
         tmp2 = load_reg(2);
@@ -4553,7 +4563,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x88: /* SRL    R1,D2(B2)        [RS] */
     case 0x89: /* SLL    R1,D2(B2)        [RS] */
     case 0x8a: /* SRA    R1,D2(B2)        [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = load_reg32(r1);
@@ -4582,7 +4592,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x8c: /* SRDL   R1,D2(B2)        [RS] */
     case 0x8d: /* SLDL   R1,D2(B2)        [RS] */
     case 0x8e: /* SRDA   R1,D2(B2)        [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2); /* shift */
         tmp2 = tcg_temp_new_i64();
@@ -4611,7 +4621,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0x98: /* LM     R1,R3,D2(B2)     [RS] */
     case 0x90: /* STM    R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
 
         tmp = get_address(s, 0, b2, d2);
@@ -4637,7 +4647,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp4);
         break;
     case 0x91: /* TM     D1(B1),I2        [SI] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_si(s, insn, &i2, &b1, &d1);
         tmp2 = tcg_const_i64(i2);
         tcg_gen_qemu_ld8u(tmp, tmp, get_mem_index(s));
@@ -4646,7 +4656,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x92: /* MVI    D1(B1),I2        [SI] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_si(s, insn, &i2, &b1, &d1);
         tmp2 = tcg_const_i64(i2);
         tcg_gen_qemu_st8(tmp2, tmp, get_mem_index(s));
@@ -4656,7 +4666,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0x94: /* NI     D1(B1),I2        [SI] */
     case 0x96: /* OI     D1(B1),I2        [SI] */
     case 0x97: /* XI     D1(B1),I2        [SI] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_si(s, insn, &i2, &b1, &d1);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
@@ -4679,7 +4689,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x95: /* CLI    D1(B1),I2        [SI] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_si(s, insn, &i2, &b1, &d1);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_qemu_ld8u(tmp2, tmp, get_mem_index(s));
@@ -4688,7 +4698,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0x9a: /* LAM      R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4700,7 +4710,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0x9b: /* STAM     R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4712,21 +4722,21 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0xa5:
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         r1 = (insn >> 20) & 0xf;
         op = (insn >> 16) & 0xf;
         i2 = insn & 0xffff;
-        disas_a5(s, op, r1, i2);
+        disas_a5(env, s, op, r1, i2);
         break;
     case 0xa7:
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         r1 = (insn >> 20) & 0xf;
         op = (insn >> 16) & 0xf;
         i2 = (short)insn;
-        disas_a7(s, op, r1, i2);
+        disas_a7(env, s, op, r1, i2);
         break;
     case 0xa8: /* MVCLE   R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4739,7 +4749,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0xa9: /* CLCLE   R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4754,8 +4764,8 @@ static void disas_s390_insn(DisasContext *s)
 #ifndef CONFIG_USER_ONLY
     case 0xac: /* STNSM   D1(B1),I2     [SI] */
     case 0xad: /* STOSM   D1(B1),I2     [SI] */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_si(s, insn, &i2, &b1, &d1);
         tmp2 = tcg_temp_new_i64();
         tcg_gen_shri_i64(tmp2, psw_mask, 56);
@@ -4770,8 +4780,8 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i64(tmp2);
         break;
     case 0xae: /* SIGP   R1,R3,D2(B2)     [RS] */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = load_reg(r3);
@@ -4784,8 +4794,8 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0xb1: /* LRA    R1,D2(X2, B2)     [RX] */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         tmp = decode_rx(s, insn, &r1, &x2, &b2, &d2);
         tmp32_1 = tcg_const_i32(r1);
         potential_page_fault(s);
@@ -4796,7 +4806,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
 #endif
     case 0xb2:
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         op = (insn >> 16) & 0xff;
         switch (op) {
         case 0x9c: /* STFPC    D2(B2) [S] */
@@ -4813,23 +4823,23 @@ static void disas_s390_insn(DisasContext *s)
             tcg_temp_free_i64(tmp2);
             break;
         default:
-            disas_b2(s, op, insn);
+            disas_b2(env, s, op, insn);
             break;
         }
         break;
     case 0xb3:
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         op = (insn >> 16) & 0xff;
         r3 = (insn >> 12) & 0xf; /* aka m3 */
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
-        disas_b3(s, op, r3, r1, r2);
+        disas_b3(env, s, op, r3, r1, r2);
         break;
 #ifndef CONFIG_USER_ONLY
     case 0xb6: /* STCTL     R1,R3,D2(B2)     [RS] */
         /* Store Control */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4842,8 +4852,8 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0xb7: /* LCTL      R1,R3,D2(B2)     [RS] */
         /* Load Control */
-        check_privileged(s, ilc);
-        insn = ld_code4(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4856,14 +4866,14 @@ static void disas_s390_insn(DisasContext *s)
         break;
 #endif
     case 0xb9:
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         r1 = (insn >> 4) & 0xf;
         r2 = insn & 0xf;
         op = (insn >> 16) & 0xff;
-        disas_b9(s, op, r1, r2);
+        disas_b9(env, s, op, r1, r2);
         break;
     case 0xba: /* CS     R1,R3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = tcg_const_i32(r1);
@@ -4876,7 +4886,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0xbd: /* CLM    R1,M3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = load_reg32(r1);
@@ -4889,7 +4899,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0xbe: /* STCM R1,M3,D2(B2) [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp32_1 = load_reg32(r1);
@@ -4901,7 +4911,7 @@ static void disas_s390_insn(DisasContext *s)
         tcg_temp_free_i32(tmp32_2);
         break;
     case 0xbf: /* ICM    R1,M3,D2(B2)     [RS] */
-        insn = ld_code4(s->pc);
+        insn = ld_code4(env, s->pc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         if (r3 == 15) {
             /* effectively a 32-bit load */
@@ -4956,16 +4966,16 @@ static void disas_s390_insn(DisasContext *s)
         break;
     case 0xc0:
     case 0xc2:
-        insn = ld_code6(s->pc);
+        insn = ld_code6(env, s->pc);
         r1 = (insn >> 36) & 0xf;
         op = (insn >> 32) & 0xf;
         i2 = (int)insn;
         switch (opc) {
         case 0xc0:
-            disas_c0(s, op, r1, i2);
+            disas_c0(env, s, op, r1, i2);
             break;
         case 0xc2:
-            disas_c2(s, op, r1, i2);
+            disas_c2(env, s, op, r1, i2);
             break;
         default:
             tcg_abort();
@@ -4978,7 +4988,7 @@ static void disas_s390_insn(DisasContext *s)
     case 0xd7: /* XC     D1(L,B1),D2(B2)         [SS] */
     case 0xdc: /* TR     D1(L,B1),D2(B2)         [SS] */
     case 0xf3: /* UNPK   D1(L1,B1),D2(L2,B2)     [SS] */
-        insn = ld_code6(s->pc);
+        insn = ld_code6(env, s->pc);
         vl = tcg_const_i32((insn >> 32) & 0xff);
         b1 = (insn >> 28) & 0xf;
         b2 = (insn >> 12) & 0xf;
@@ -5026,9 +5036,9 @@ static void disas_s390_insn(DisasContext *s)
 #ifndef CONFIG_USER_ONLY
     case 0xda: /* MVCP     D1(R1,B1),D2(B2),R3   [SS] */
     case 0xdb: /* MVCS     D1(R1,B1),D2(B2),R3   [SS] */
-        check_privileged(s, ilc);
+        check_privileged(env, s, ilc);
         potential_page_fault(s);
-        insn = ld_code6(s->pc);
+        insn = ld_code6(env, s->pc);
         r1 = (insn >> 36) & 0xf;
         r3 = (insn >> 32) & 0xf;
         b1 = (insn >> 28) & 0xf;
@@ -5051,7 +5061,7 @@ static void disas_s390_insn(DisasContext *s)
         break;
 #endif
     case 0xe3:
-        insn = ld_code6(s->pc);
+        insn = ld_code6(env, s->pc);
         debug_insn(insn);
         op = insn & 0xff;
         r1 = (insn >> 36) & 0xf;
@@ -5059,19 +5069,19 @@ static void disas_s390_insn(DisasContext *s)
         b2 = (insn >> 28) & 0xf;
         d2 = ((int)((((insn >> 16) & 0xfff)
            | ((insn << 4) & 0xff000)) << 12)) >> 12;
-        disas_e3(s, op,  r1, x2, b2, d2 );
+        disas_e3(env, s, op,  r1, x2, b2, d2 );
         break;
 #ifndef CONFIG_USER_ONLY
     case 0xe5:
         /* Test Protection */
-        check_privileged(s, ilc);
-        insn = ld_code6(s->pc);
+        check_privileged(env, s, ilc);
+        insn = ld_code6(env, s->pc);
         debug_insn(insn);
-        disas_e5(s, insn);
+        disas_e5(env, s, insn);
         break;
 #endif
     case 0xeb:
-        insn = ld_code6(s->pc);
+        insn = ld_code6(env, s->pc);
         debug_insn(insn);
         op = insn & 0xff;
         r1 = (insn >> 36) & 0xf;
@@ -5079,10 +5089,10 @@ static void disas_s390_insn(DisasContext *s)
         b2 = (insn >> 28) & 0xf;
         d2 = ((int)((((insn >> 16) & 0xfff)
            | ((insn << 4) & 0xff000)) << 12)) >> 12;
-        disas_eb(s, op, r1, r3, b2, d2);
+        disas_eb(env, s, op, r1, r3, b2, d2);
         break;
     case 0xed:
-        insn = ld_code6(s->pc);
+        insn = ld_code6(env, s->pc);
         debug_insn(insn);
         op = insn & 0xff;
         r1 = (insn >> 36) & 0xf;
@@ -5090,11 +5100,11 @@ static void disas_s390_insn(DisasContext *s)
         b2 = (insn >> 28) & 0xf;
         d2 = (short)((insn >> 16) & 0xfff);
         r1b = (insn >> 12) & 0xf;
-        disas_ed(s, op, r1, x2, b2, d2, r1b);
+        disas_ed(env, s, op, r1, x2, b2, d2, r1b);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "unimplemented opcode 0x%x\n", opc);
-        gen_illegal_opcode(s, ilc);
+        gen_illegal_opcode(env, s, ilc);
         break;
     }
 
@@ -5167,7 +5177,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         LOG_DISAS("pc " TARGET_FMT_lx "\n",
                   dc.pc);
 #endif
-        disas_s390_insn(&dc);
+        disas_s390_insn(env, &dc);
 
         num_insns++;
         if (env->singlestep_enabled) {

@@ -183,9 +183,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
             tcg_regset_set32(ct->u.regs, 0, 0xffff);
             tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[0]);
             tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[1]);
-#ifdef CONFIG_TCG_PASS_AREG0
             tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[2]);
-#endif
         } else {
             tcg_regset_set32(ct->u.regs, 0, 0xff);
             tcg_regset_reset_reg(ct->u.regs, TCG_REG_EAX);
@@ -965,7 +963,6 @@ static void tcg_out_jmp(TCGContext *s, tcg_target_long dest)
 
 #include "../../softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void *qemu_ld_helpers[4] = {
@@ -983,25 +980,6 @@ static const void *qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static void *qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static void *qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 
 /* Perform the TLB load and compare.
 
@@ -1220,16 +1198,13 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     }
     tcg_out_push(s, args[addrlo_idx]);
     stack_adjust += 4;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_push(s, TCG_AREG0);
     stack_adjust += 4;
-#endif
 #else
     /* The first argument is already loaded with addrlo.  */
     arg_idx = 1;
     tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[arg_idx],
                  mem_index);
-#ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
     tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[3],
                 tcg_target_call_iarg_regs[2]);
@@ -1239,7 +1214,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                 tcg_target_call_iarg_regs[0]);
     tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
                 TCG_AREG0);
-#endif
 #endif
 
     tcg_out_calli(s, (tcg_target_long)qemu_ld_helpers[s_bits]);
@@ -1436,16 +1410,13 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     }
     tcg_out_push(s, args[addrlo_idx]);
     stack_adjust += 4;
-#ifdef CONFIG_TCG_PASS_AREG0
     tcg_out_push(s, TCG_AREG0);
     stack_adjust += 4;
-#endif
 #else
     tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
                 tcg_target_call_iarg_regs[1], data_reg);
     tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2], mem_index);
     stack_adjust = 0;
-#ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
     tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[3],
                 tcg_target_call_iarg_regs[2]);
@@ -1455,7 +1426,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                 tcg_target_call_iarg_regs[0]);
     tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0],
                 TCG_AREG0);
-#endif
 #endif
 
     tcg_out_calli(s, (tcg_target_long)qemu_st_helpers[s_bits]);

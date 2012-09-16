@@ -325,11 +325,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     mmu_idx = cpu_mmu_index(env1);
     if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
                  (addr & TARGET_PAGE_MASK))) {
-#ifdef CONFIG_TCG_PASS_AREG0
         cpu_ldub_code(env1, addr);
-#else
-        ldub_code(addr);
-#endif
     }
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(pd);
@@ -348,7 +344,6 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 #define MMUSUFFIX _cmmu
 #undef GETPC
 #define GETPC() ((uintptr_t)0)
-#define env cpu_single_env
 #define SOFTMMU_CODE_ACCESS
 
 #define SHIFT 0

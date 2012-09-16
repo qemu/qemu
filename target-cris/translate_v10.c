@@ -164,8 +164,8 @@ static unsigned int crisv10_post_memaddr(DisasContext *dc, unsigned int size)
     return insn_len;
 }
 
-static int dec10_prep_move_m(DisasContext *dc, int s_ext, int memsize,
-                           TCGv dst)
+static int dec10_prep_move_m(CPUCRISState *env, DisasContext *dc,
+                             int s_ext, int memsize, TCGv dst)
 {
     unsigned int rs;
     uint32_t imm;
@@ -182,17 +182,17 @@ static int dec10_prep_move_m(DisasContext *dc, int s_ext, int memsize,
         if (memsize != 4) {
             if (s_ext) {
                 if (memsize == 1)
-                    imm = ldsb_code(dc->pc + 2);
+                    imm = cpu_ldsb_code(env, dc->pc + 2);
                 else
-                    imm = ldsw_code(dc->pc + 2);
+                    imm = cpu_ldsw_code(env, dc->pc + 2);
             } else {
                 if (memsize == 1)
-                    imm = ldub_code(dc->pc + 2);
+                    imm = cpu_ldub_code(env, dc->pc + 2);
                 else
-                    imm = lduw_code(dc->pc + 2);
+                    imm = cpu_lduw_code(env, dc->pc + 2);
             }
         } else
-            imm = ldl_code(dc->pc + 2);
+            imm = cpu_ldl_code(env, dc->pc + 2);
 
         tcg_gen_movi_tl(dst, imm);
 
@@ -289,7 +289,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             } else {
                 /* BTST */
                 cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-                gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->dst],
+                gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->dst],
                            tcg_const_tl(imm), cpu_PR[PR_CCS]);
             }
             break;
@@ -723,7 +723,7 @@ static unsigned int dec10_reg(DisasContext *dc)
                 LOG_DIS("btst $r%d, $r%d sz=%d\n", dc->src, dc->dst, size);
                 cris_cc_mask(dc, CC_MASK_NZVC);
                 cris_update_cc_op(dc, CC_OP_FLAGS, 4);
-                gen_helper_btst(cpu_PR[PR_CCS], cpu_R[dc->dst],
+                gen_helper_btst(cpu_PR[PR_CCS], cpu_env, cpu_R[dc->dst],
                            cpu_R[dc->src], cpu_PR[PR_CCS]);
                 break;
             case CRISV10_REG_DSTEP:
@@ -752,7 +752,8 @@ static unsigned int dec10_reg(DisasContext *dc)
     return insn_len;
 }
 
-static unsigned int dec10_ind_move_m_r(DisasContext *dc, unsigned int size)
+static unsigned int dec10_ind_move_m_r(CPUCRISState *env, DisasContext *dc,
+                                       unsigned int size)
 {
     unsigned int insn_len = 2;
     TCGv t;
@@ -762,7 +763,7 @@ static unsigned int dec10_ind_move_m_r(DisasContext *dc, unsigned int size)
 
     cris_cc_mask(dc, CC_MASK_NZVC);
     t = tcg_temp_new();
-    insn_len += dec10_prep_move_m(dc, 0, size, t);
+    insn_len += dec10_prep_move_m(env, dc, 0, size, t);
     cris_alu(dc, CC_OP_MOVE, cpu_R[dc->dst], cpu_R[dc->dst], t, size);
     if (dc->dst == 15) {
         tcg_gen_mov_tl(env_btarget, cpu_R[dc->dst]);
@@ -789,7 +790,7 @@ static unsigned int dec10_ind_move_r_m(DisasContext *dc, unsigned int size)
     return insn_len;
 }
 
-static unsigned int dec10_ind_move_m_pr(DisasContext *dc)
+static unsigned int dec10_ind_move_m_pr(CPUCRISState *env, DisasContext *dc)
 {
     unsigned int insn_len = 2, rd = dc->dst;
     TCGv t, addr;
@@ -799,7 +800,7 @@ static unsigned int dec10_ind_move_m_pr(DisasContext *dc)
 
     addr = tcg_temp_new();
     t = tcg_temp_new();
-    insn_len += dec10_prep_move_m(dc, 0, 4, t);
+    insn_len += dec10_prep_move_m(env, dc, 0, 4, t);
     if (rd == 15) {
         tcg_gen_mov_tl(env_btarget, t);
         cris_prepare_jmp(dc, JMP_INDIRECT);
@@ -899,14 +900,15 @@ static void dec10_movem_m_r(DisasContext *dc)
     tcg_temp_free(t0);
 }
 
-static int dec10_ind_alu(DisasContext *dc, int op, unsigned int size)
+static int dec10_ind_alu(CPUCRISState *env, DisasContext *dc,
+                         int op, unsigned int size)
 {
     int insn_len = 0;
     int rd = dc->dst;
     TCGv t[2];
 
     cris_alu_m_alloc_temps(t);
-    insn_len += dec10_prep_move_m(dc, 0, size, t[0]);
+    insn_len += dec10_prep_move_m(env, dc, 0, size, t[0]);
     cris_alu(dc, op, cpu_R[dc->dst], cpu_R[rd], t[0], size);
     if (dc->dst == 15) {
         tcg_gen_mov_tl(env_btarget, cpu_R[dc->dst]);
@@ -920,14 +922,15 @@ static int dec10_ind_alu(DisasContext *dc, int op, unsigned int size)
     return insn_len;
 }
 
-static int dec10_ind_bound(DisasContext *dc, unsigned int size)
+static int dec10_ind_bound(CPUCRISState *env, DisasContext *dc,
+                           unsigned int size)
 {
     int insn_len = 0;
     int rd = dc->dst;
     TCGv t;
 
     t = tcg_temp_local_new();
-    insn_len += dec10_prep_move_m(dc, 0, size, t);
+    insn_len += dec10_prep_move_m(env, dc, 0, size, t);
     cris_alu(dc, CC_OP_BOUND, cpu_R[dc->dst], cpu_R[rd], t, 4);
     if (dc->dst == 15) {
         tcg_gen_mov_tl(env_btarget, cpu_R[dc->dst]);
@@ -940,7 +943,7 @@ static int dec10_ind_bound(DisasContext *dc, unsigned int size)
     return insn_len;
 }
 
-static int dec10_alux_m(DisasContext *dc, int op)
+static int dec10_alux_m(CPUCRISState *env, DisasContext *dc, int op)
 {
     unsigned int size = (dc->size & 1) ? 2 : 1;
     unsigned int sx = !!(dc->size & 2);
@@ -953,7 +956,7 @@ static int dec10_alux_m(DisasContext *dc, int op)
     t = tcg_temp_new();
 
     cris_cc_mask(dc, CC_MASK_NZVC);
-    insn_len += dec10_prep_move_m(dc, sx, size, t);
+    insn_len += dec10_prep_move_m(env, dc, sx, size, t);
     cris_alu(dc, op, cpu_R[dc->dst], cpu_R[rd], t, 4);
     if (dc->dst == 15) {
         tcg_gen_mov_tl(env_btarget, cpu_R[dc->dst]);
@@ -966,7 +969,7 @@ static int dec10_alux_m(DisasContext *dc, int op)
     return insn_len;
 }
 
-static int dec10_dip(DisasContext *dc)
+static int dec10_dip(CPUCRISState *env, DisasContext *dc)
 {
     int insn_len = 2;
     uint32_t imm;
@@ -974,7 +977,7 @@ static int dec10_dip(DisasContext *dc)
     LOG_DIS("dip pc=%x opcode=%d r%d r%d\n",
               dc->pc, dc->opcode, dc->src, dc->dst);
     if (dc->src == 15) {
-        imm = ldl_code(dc->pc + 2);
+        imm = cpu_ldl_code(env, dc->pc + 2);
         tcg_gen_movi_tl(cpu_PR[PR_PREFIX], imm);
         if (dc->postinc)
             insn_len += 4;
@@ -989,7 +992,7 @@ static int dec10_dip(DisasContext *dc)
     return insn_len;
 }
 
-static int dec10_bdap_m(DisasContext *dc, int size)
+static int dec10_bdap_m(CPUCRISState *env, DisasContext *dc, int size)
 {
     int insn_len = 2;
     int rd = dc->dst;
@@ -1014,13 +1017,13 @@ static int dec10_bdap_m(DisasContext *dc, int size)
     }
 #endif
     /* Now the rest of the modes are truly indirect.  */
-    insn_len += dec10_prep_move_m(dc, 1, size, cpu_PR[PR_PREFIX]);
+    insn_len += dec10_prep_move_m(env, dc, 1, size, cpu_PR[PR_PREFIX]);
     tcg_gen_add_tl(cpu_PR[PR_PREFIX], cpu_PR[PR_PREFIX], cpu_R[rd]);
     cris_set_prefix(dc);
     return insn_len;
 }
 
-static unsigned int dec10_ind(DisasContext *dc)
+static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
 {
     unsigned int insn_len = 2;
     unsigned int size = dec10_size(dc->size);
@@ -1031,7 +1034,7 @@ static unsigned int dec10_ind(DisasContext *dc)
     if (dc->size != 3) {
         switch (dc->opcode) {
             case CRISV10_IND_MOVE_M_R:
-                return dec10_ind_move_m_r(dc, size);
+                return dec10_ind_move_m_r(env, dc, size);
                 break;
             case CRISV10_IND_MOVE_R_M:
                 return dec10_ind_move_r_m(dc, size);
@@ -1039,7 +1042,7 @@ static unsigned int dec10_ind(DisasContext *dc)
             case CRISV10_IND_CMP:
                 LOG_DIS("cmp size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
-                insn_len += dec10_ind_alu(dc, CC_OP_CMP, size);
+                insn_len += dec10_ind_alu(env, dc, CC_OP_CMP, size);
                 break;
             case CRISV10_IND_TEST:
                 LOG_DIS("test size=%d op=%d %d\n",  size, dc->src, dc->dst);
@@ -1047,7 +1050,7 @@ static unsigned int dec10_ind(DisasContext *dc)
                 cris_evaluate_flags(dc);
                 cris_cc_mask(dc, CC_MASK_NZVC);
                 cris_alu_m_alloc_temps(t);
-                insn_len += dec10_prep_move_m(dc, 0, size, t[0]);
+                insn_len += dec10_prep_move_m(env, dc, 0, size, t[0]);
                 tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~3);
                 cris_alu(dc, CC_OP_CMP, cpu_R[dc->dst],
                          t[0], tcg_const_tl(0), size);
@@ -1056,39 +1059,39 @@ static unsigned int dec10_ind(DisasContext *dc)
             case CRISV10_IND_ADD:
                 LOG_DIS("add size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
-                insn_len += dec10_ind_alu(dc, CC_OP_ADD, size);
+                insn_len += dec10_ind_alu(env, dc, CC_OP_ADD, size);
                 break;
             case CRISV10_IND_SUB:
                 LOG_DIS("sub size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
-                insn_len += dec10_ind_alu(dc, CC_OP_SUB, size);
+                insn_len += dec10_ind_alu(env, dc, CC_OP_SUB, size);
                 break;
             case CRISV10_IND_BOUND:
                 LOG_DIS("bound size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
-                insn_len += dec10_ind_bound(dc, size);
+                insn_len += dec10_ind_bound(env, dc, size);
                 break;
             case CRISV10_IND_AND:
                 LOG_DIS("and size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
-                insn_len += dec10_ind_alu(dc, CC_OP_AND, size);
+                insn_len += dec10_ind_alu(env, dc, CC_OP_AND, size);
                 break;
             case CRISV10_IND_OR:
                 LOG_DIS("or size=%d op=%d %d\n",  size, dc->src, dc->dst);
                 cris_cc_mask(dc, CC_MASK_NZVC);
-                insn_len += dec10_ind_alu(dc, CC_OP_OR, size);
+                insn_len += dec10_ind_alu(env, dc, CC_OP_OR, size);
                 break;
             case CRISV10_IND_MOVX:
-                insn_len = dec10_alux_m(dc, CC_OP_MOVE);
+                insn_len = dec10_alux_m(env, dc, CC_OP_MOVE);
                 break;
             case CRISV10_IND_ADDX:
-                insn_len = dec10_alux_m(dc, CC_OP_ADD);
+                insn_len = dec10_alux_m(env, dc, CC_OP_ADD);
                 break;
             case CRISV10_IND_SUBX:
-                insn_len = dec10_alux_m(dc, CC_OP_SUB);
+                insn_len = dec10_alux_m(env, dc, CC_OP_SUB);
                 break;
             case CRISV10_IND_CMPX:
-                insn_len = dec10_alux_m(dc, CC_OP_CMP);
+                insn_len = dec10_alux_m(env, dc, CC_OP_CMP);
                 break;
             case CRISV10_IND_MUL:
                 /* This is a reg insn coded in the mem indir space.  */
@@ -1097,7 +1100,7 @@ static unsigned int dec10_ind(DisasContext *dc)
                 dec10_reg_mul(dc, size, dc->ir & (1 << 10));
                 break;
             case CRISV10_IND_BDAP_M:
-                insn_len = dec10_bdap_m(dc, size);
+                insn_len = dec10_bdap_m(env, dc, size);
                 break;
             default:
                 LOG_DIS("pc=%x var-ind.%d %d r%d r%d\n",
@@ -1110,7 +1113,7 @@ static unsigned int dec10_ind(DisasContext *dc)
 
     switch (dc->opcode) {
         case CRISV10_IND_MOVE_M_SPR:
-            insn_len = dec10_ind_move_m_pr(dc);
+            insn_len = dec10_ind_move_m_pr(env, dc);
             break;
         case CRISV10_IND_MOVE_SPR_M:
             insn_len = dec10_ind_move_pr_m(dc);
@@ -1119,7 +1122,7 @@ static unsigned int dec10_ind(DisasContext *dc)
             if (dc->src == 15) {
                 LOG_DIS("jump.%d %d r%d r%d direct\n", size,
                          dc->opcode, dc->src, dc->dst);
-                imm = ldl_code(dc->pc + 2);
+                imm = cpu_ldl_code(env, dc->pc + 2);
                 if (dc->mode == CRISV10_MODE_AUTOINC)
                     insn_len += size;
 
@@ -1168,24 +1171,24 @@ static unsigned int dec10_ind(DisasContext *dc)
             dc->delayed_branch--; /* v10 has no dslot here.  */
             break;
         case CRISV10_IND_MOVX:
-            insn_len = dec10_alux_m(dc, CC_OP_MOVE);
+            insn_len = dec10_alux_m(env, dc, CC_OP_MOVE);
             break;
         case CRISV10_IND_ADDX:
-            insn_len = dec10_alux_m(dc, CC_OP_ADD);
+            insn_len = dec10_alux_m(env, dc, CC_OP_ADD);
             break;
         case CRISV10_IND_SUBX:
-            insn_len = dec10_alux_m(dc, CC_OP_SUB);
+            insn_len = dec10_alux_m(env, dc, CC_OP_SUB);
             break;
         case CRISV10_IND_CMPX:
-            insn_len = dec10_alux_m(dc, CC_OP_CMP);
+            insn_len = dec10_alux_m(env, dc, CC_OP_CMP);
             break;
         case CRISV10_IND_DIP:
-            insn_len = dec10_dip(dc);
+            insn_len = dec10_dip(env, dc);
             break;
         case CRISV10_IND_BCC_M:
 
             cris_cc_mask(dc, 0);
-            imm = ldsw_code(dc->pc + 2);
+            imm = cpu_ldsw_code(env, dc->pc + 2);
             simm = (int16_t)imm;
             simm += 4;
 
@@ -1202,7 +1205,7 @@ static unsigned int dec10_ind(DisasContext *dc)
     return insn_len;
 }
 
-static unsigned int crisv10_decoder(DisasContext *dc)
+static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
 {
     unsigned int insn_len = 2;
 
@@ -1210,7 +1213,7 @@ static unsigned int crisv10_decoder(DisasContext *dc)
         tcg_gen_debug_insn_start(dc->pc);
 
     /* Load a halfword onto the instruction register.  */
-    dc->ir = lduw_code(dc->pc);
+    dc->ir = cpu_lduw_code(env, dc->pc);
 
     /* Now decode it.  */
     dc->opcode   = EXTRACT_FIELD(dc->ir, 6, 9);
@@ -1235,7 +1238,7 @@ static unsigned int crisv10_decoder(DisasContext *dc)
             break;
         case CRISV10_MODE_AUTOINC:
         case CRISV10_MODE_INDIRECT:
-            insn_len = dec10_ind(dc);
+            insn_len = dec10_ind(env, dc);
             break;
     }
 

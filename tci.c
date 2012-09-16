@@ -25,7 +25,6 @@
 #endif
 
 #include "qemu-common.h"
-#include "dyngen-exec.h"        /* env */
 #include "exec-all.h"           /* MAX_OPC_PARAM_IARGS */
 #include "tcg-op.h"
 
@@ -62,17 +61,6 @@ uintptr_t tci_tb_ptr;
 #endif
 
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
-
-#if !defined(CONFIG_TCG_PASS_AREG0)
-# define helper_ldb_mmu(env, addr, mmu_idx) __ldb_mmu(addr, mmu_idx)
-# define helper_ldw_mmu(env, addr, mmu_idx) __ldw_mmu(addr, mmu_idx)
-# define helper_ldl_mmu(env, addr, mmu_idx) __ldl_mmu(addr, mmu_idx)
-# define helper_ldq_mmu(env, addr, mmu_idx) __ldq_mmu(addr, mmu_idx)
-# define helper_stb_mmu(env, addr, val, mmu_idx) __stb_mmu(addr, val, mmu_idx)
-# define helper_stw_mmu(env, addr, val, mmu_idx) __stw_mmu(addr, val, mmu_idx)
-# define helper_stl_mmu(env, addr, val, mmu_idx) __stl_mmu(addr, val, mmu_idx)
-# define helper_stq_mmu(env, addr, val, mmu_idx) __stq_mmu(addr, val, mmu_idx)
-#endif /* !CONFIG_TCG_PASS_AREG0 */
 
 static tcg_target_ulong tci_read_reg(TCGReg index)
 {

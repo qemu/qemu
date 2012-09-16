@@ -59,11 +59,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-#ifdef CONFIG_TCG_PASS_AREG0
 #define ARG_OFFSET 1
-#else
-#define ARG_OFFSET 0
-#endif
 
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_L0,
@@ -161,9 +157,7 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O1);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O2);
-#ifdef CONFIG_TCG_PASS_AREG0
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O3);
-#endif
         break;
     case 'I':
         ct->ct |= TCG_CT_CONST_S11;
@@ -715,7 +709,6 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 #include "../../softmmu_defs.h"
 
-#ifdef CONFIG_TCG_PASS_AREG0
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -733,25 +726,6 @@ static const void * const qemu_st_helpers[4] = {
     helper_stl_mmu,
     helper_stq_mmu,
 };
-#else
-/* legacy helper signature: __ld_mmu(target_ulong addr, int
-   mmu_idx) */
-static const void * const qemu_ld_helpers[4] = {
-    __ldb_mmu,
-    __ldw_mmu,
-    __ldl_mmu,
-    __ldq_mmu,
-};
-
-/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
-   int mmu_idx) */
-static const void * const qemu_st_helpers[4] = {
-    __stb_mmu,
-    __stw_mmu,
-    __stl_mmu,
-    __stq_mmu,
-};
-#endif
 #endif
 
 #if TARGET_LONG_BITS == 32
@@ -834,7 +808,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 
     /* mov */
     tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
-#ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
     tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
                 tcg_target_call_iarg_regs[2]);
@@ -844,7 +817,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                 tcg_target_call_iarg_regs[0]);
     tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
                 TCG_AREG0);
-#endif
 
     /* XXX: move that code at the end of the TB */
     /* qemu_ld_helper[s_bits](arg0, arg1) */
@@ -1061,7 +1033,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     /* mov */
     tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
 
-#ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
     tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
                 tcg_target_call_iarg_regs[2]);
@@ -1071,7 +1042,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                 tcg_target_call_iarg_regs[0]);
     tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
                 TCG_AREG0);
-#endif
     /* XXX: move that code at the end of the TB */
     /* qemu_st_helper[s_bits](arg0, arg1, arg2) */
     tcg_out32(s, CALL | ((((tcg_target_ulong)qemu_st_helpers[s_bits]
