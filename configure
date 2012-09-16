@@ -1359,8 +1359,9 @@ if ! "$python" -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_
 fi
 
 if test "$target_list" = "DEFAULT" ; then
-    target_list=`echo "$default_target_list" | sed -e 's/,/ /g'`
+    target_list=$default_target_list
 fi
+target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 
 # see if system emulation was really requested
 case " $target_list " in
