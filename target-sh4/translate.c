@@ -751,7 +751,6 @@ static void _decode_opc(DisasContext * ctx)
 	    tcg_gen_shli_i32(high, REG(B7_4), 16);
 	    low = tcg_temp_new();
 	    tcg_gen_shri_i32(low, REG(B11_8), 16);
-	    tcg_gen_ext16u_i32(low, low);
 	    tcg_gen_or_i32(REG(B11_8), high, low);
 	    tcg_temp_free(low);
 	    tcg_temp_free(high);
