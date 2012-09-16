@@ -30,6 +30,7 @@
 TCGContext tcg_ctx;
 
 uint16_t gen_opc_buf[OPC_BUF_SIZE];
+// TODO: move gen_opparam_buf to tcg/tcg.c and make it a local array.
 TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
 
 target_ulong gen_opc_pc[OPC_BUF_SIZE];
