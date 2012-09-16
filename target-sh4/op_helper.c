@@ -623,8 +623,7 @@ float64 helper_float_DT(CPUSH4State *env, uint32_t t0)
 float32 helper_fmac_FT(CPUSH4State *env, float32 t0, float32 t1, float32 t2)
 {
     set_float_exception_flags(0, &env->fp_status);
-    t0 = float32_mul(t0, t1, &env->fp_status);
-    t0 = float32_add(t0, t2, &env->fp_status);
+    t0 = float32_muladd(t0, t1, t2, 0, &env->fp_status);
     update_fpscr(env, GETPC());
     return t0;
 }
