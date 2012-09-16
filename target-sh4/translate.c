@@ -427,30 +427,33 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define CHECK_NOT_DELAY_SLOT \
   if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL))     \
   {                                                           \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                      \
       gen_helper_raise_slot_illegal_instruction(cpu_env);     \
-      ctx->bstate = BS_EXCP;                                  \
+      ctx->bstate = BS_BRANCH;                                \
       return;                                                 \
   }
 
 #define CHECK_PRIVILEGED                                        \
   if (IS_USER(ctx)) {                                           \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                        \
       if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
           gen_helper_raise_slot_illegal_instruction(cpu_env);   \
       } else {                                                  \
           gen_helper_raise_illegal_instruction(cpu_env);        \
       }                                                         \
-      ctx->bstate = BS_EXCP;                                    \
+      ctx->bstate = BS_BRANCH;                                  \
       return;                                                   \
   }
 
 #define CHECK_FPU_ENABLED                                       \
   if (ctx->flags & SR_FD) {                                     \
+      tcg_gen_movi_i32(cpu_pc, ctx->pc);                        \
       if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) { \
           gen_helper_raise_slot_fpu_disable(cpu_env);           \
       } else {                                                  \
           gen_helper_raise_fpu_disable(cpu_env);                \
       }                                                         \
-      ctx->bstate = BS_EXCP;                                    \
+      ctx->bstate = BS_BRANCH;                                  \
       return;                                                   \
   }
 
@@ -541,7 +544,8 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x001b:		/* sleep */
 	CHECK_PRIVILEGED
-        gen_helper_sleep(cpu_env, tcg_const_i32(ctx->pc + 2));
+        tcg_gen_movi_i32(cpu_pc, ctx->pc + 2);
+        gen_helper_sleep(cpu_env);
 	return;
     }
 
@@ -1411,6 +1415,7 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    TCGv imm;
 	    CHECK_NOT_DELAY_SLOT
+            tcg_gen_movi_i32(cpu_pc, ctx->pc);
 	    imm = tcg_const_i32(B7_0);
             gen_helper_trapa(cpu_env, imm);
 	    tcg_temp_free(imm);
@@ -1909,12 +1914,13 @@ static void _decode_opc(DisasContext * ctx)
 	    ctx->opcode, ctx->pc);
     fflush(stderr);
 #endif
+    tcg_gen_movi_i32(cpu_pc, ctx->pc);
     if (ctx->flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
         gen_helper_raise_slot_illegal_instruction(cpu_env);
     } else {
         gen_helper_raise_illegal_instruction(cpu_env);
     }
-    ctx->bstate = BS_EXCP;
+    ctx->bstate = BS_BRANCH;
 }
 
 static void decode_opc(DisasContext * ctx)
@@ -1992,7 +1998,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 		    /* We have hit a breakpoint - make sure PC is up-to-date */
 		    tcg_gen_movi_i32(cpu_pc, ctx.pc);
                     gen_helper_debug(cpu_env);
-		    ctx.bstate = BS_EXCP;
+                    ctx.bstate = BS_BRANCH;
 		    break;
 		}
 	    }

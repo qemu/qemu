@@ -21,7 +21,8 @@
 #include "cpu.h"
 #include "helper.h"
 
-static void cpu_restore_state_from_retaddr(CPUSH4State *env, uintptr_t retaddr)
+static inline void cpu_restore_state_from_retaddr(CPUSH4State *env,
+                                                  uintptr_t retaddr)
 {
     TranslationBlock *tb;
 
@@ -77,8 +78,8 @@ void helper_ldtlb(CPUSH4State *env)
 #endif
 }
 
-static inline void raise_exception(CPUSH4State *env, int index,
-                                   uintptr_t retaddr)
+static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
+                                                 uintptr_t retaddr)
 {
     env->exception_index = index;
     cpu_restore_state_from_retaddr(env, retaddr);
@@ -87,43 +88,40 @@ static inline void raise_exception(CPUSH4State *env, int index,
 
 void helper_raise_illegal_instruction(CPUSH4State *env)
 {
-    raise_exception(env, 0x180, GETPC());
+    raise_exception(env, 0x180, 0);
 }
 
 void helper_raise_slot_illegal_instruction(CPUSH4State *env)
 {
-    raise_exception(env, 0x1a0, GETPC());
+    raise_exception(env, 0x1a0, 0);
 }
 
 void helper_raise_fpu_disable(CPUSH4State *env)
 {
-    raise_exception(env, 0x800, GETPC());
+    raise_exception(env, 0x800, 0);
 }
 
 void helper_raise_slot_fpu_disable(CPUSH4State *env)
 {
-    raise_exception(env, 0x820, GETPC());
+    raise_exception(env, 0x820, 0);
 }
 
 void helper_debug(CPUSH4State *env)
 {
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    raise_exception(env, EXCP_DEBUG, 0);
 }
 
-void helper_sleep(CPUSH4State *env, uint32_t next_pc)
+void helper_sleep(CPUSH4State *env)
 {
     env->halted = 1;
     env->in_sleep = 1;
-    env->exception_index = EXCP_HLT;
-    env->pc = next_pc;
-    cpu_loop_exit(env);
+    raise_exception(env, EXCP_HLT, 0);
 }
 
 void helper_trapa(CPUSH4State *env, uint32_t tra)
 {
     env->tra = tra << 2;
-    raise_exception(env, 0x160, GETPC());
+    raise_exception(env, 0x160, 0);
 }
 
 void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
@@ -385,9 +383,7 @@ static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
         cause = (env->fpscr & FPSCR_CAUSE_MASK) >> FPSCR_CAUSE_SHIFT;
         enable = (env->fpscr & FPSCR_ENABLE_MASK) >> FPSCR_ENABLE_SHIFT;
         if (cause & enable) {
-            cpu_restore_state_from_retaddr(env, retaddr);
-            env->exception_index = 0x120;
-            cpu_loop_exit(env);
+            raise_exception(env, 0x120, retaddr);
         }
     }
 }

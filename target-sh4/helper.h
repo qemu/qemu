@@ -1,13 +1,13 @@
 #include "def-helper.h"
 
 DEF_HELPER_1(ldtlb, void, env)
-DEF_HELPER_1(raise_illegal_instruction, void, env)
-DEF_HELPER_1(raise_slot_illegal_instruction, void, env)
-DEF_HELPER_1(raise_fpu_disable, void, env)
-DEF_HELPER_1(raise_slot_fpu_disable, void, env)
-DEF_HELPER_1(debug, void, env)
-DEF_HELPER_2(sleep, void, env, i32)
-DEF_HELPER_2(trapa, void, env, i32)
+DEF_HELPER_1(raise_illegal_instruction, noreturn, env)
+DEF_HELPER_1(raise_slot_illegal_instruction, noreturn, env)
+DEF_HELPER_1(raise_fpu_disable, noreturn, env)
+DEF_HELPER_1(raise_slot_fpu_disable, noreturn, env)
+DEF_HELPER_1(debug, noreturn, env)
+DEF_HELPER_1(sleep, noreturn, env)
+DEF_HELPER_2(trapa, noreturn, env, i32)
 
 DEF_HELPER_3(movcal, void, env, i32, i32)
 DEF_HELPER_1(discard_movcal_backup, void, env)
