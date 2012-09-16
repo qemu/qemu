@@ -761,7 +761,24 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_add_i32(REG(B11_8), REG(B11_8), REG(B7_4));
 	return;
     case 0x300e:		/* addc Rm,Rn */
-        gen_helper_addc(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));
+        {
+            TCGv t0, t1, t2;
+            t0 = tcg_temp_new();
+            tcg_gen_andi_i32(t0, cpu_sr, SR_T);
+            t1 = tcg_temp_new();
+            tcg_gen_add_i32(t1, REG(B7_4), REG(B11_8));
+            tcg_gen_add_i32(t0, t0, t1);
+            t2 = tcg_temp_new();
+            tcg_gen_setcond_i32(TCG_COND_GTU, t2, REG(B11_8), t1);
+            tcg_gen_setcond_i32(TCG_COND_GTU, t1, t1, t0);
+            tcg_gen_or_i32(t1, t1, t2);
+            tcg_temp_free(t2);
+            tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
+            tcg_gen_or_i32(cpu_sr, cpu_sr, t1);
+            tcg_temp_free(t1);
+            tcg_gen_mov_i32(REG(B11_8), t0);
+            tcg_temp_free(t0);
+        }
 	return;
     case 0x300f:		/* addv Rm,Rn */
         gen_helper_addv(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));
@@ -1013,7 +1030,24 @@ static void _decode_opc(DisasContext * ctx)
 	tcg_gen_sub_i32(REG(B11_8), REG(B11_8), REG(B7_4));
 	return;
     case 0x300a:		/* subc Rm,Rn */
-        gen_helper_subc(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));
+        {
+            TCGv t0, t1, t2;
+            t0 = tcg_temp_new();
+            tcg_gen_andi_i32(t0, cpu_sr, SR_T);
+            t1 = tcg_temp_new();
+            tcg_gen_sub_i32(t1, REG(B11_8), REG(B7_4));
+            tcg_gen_sub_i32(t0, t1, t0);
+            t2 = tcg_temp_new();
+            tcg_gen_setcond_i32(TCG_COND_LTU, t2, REG(B11_8), t1);
+            tcg_gen_setcond_i32(TCG_COND_LTU, t1, t1, t0);
+            tcg_gen_or_i32(t1, t1, t2);
+            tcg_temp_free(t2);
+            tcg_gen_andi_i32(cpu_sr, cpu_sr, ~SR_T);
+            tcg_gen_or_i32(cpu_sr, cpu_sr, t1);
+            tcg_temp_free(t1);
+            tcg_gen_mov_i32(REG(B11_8), t0);
+            tcg_temp_free(t0);
+        }
 	return;
     case 0x300b:		/* subv Rm,Rn */
         gen_helper_subv(REG(B11_8), cpu_env, REG(B7_4), REG(B11_8));

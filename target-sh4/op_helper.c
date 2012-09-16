@@ -177,22 +177,6 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
     }
 }
 
-uint32_t helper_addc(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    uint32_t tmp0, tmp1;
-
-    tmp1 = arg0 + arg1;
-    tmp0 = arg1;
-    arg1 = tmp1 + (env->sr & 1);
-    if (tmp0 > tmp1)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    if (tmp1 > arg1)
-	env->sr |= SR_T;
-    return arg1;
-}
-
 uint32_t helper_addv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 {
     uint32_t dest, src, ans;
@@ -373,22 +357,6 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 	    env->macl = 0x7fffffff;
 	}
     }
-}
-
-uint32_t helper_subc(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    uint32_t tmp0, tmp1;
-
-    tmp1 = arg1 - arg0;
-    tmp0 = arg1;
-    arg1 = tmp1 - (env->sr & SR_T);
-    if (tmp0 < tmp1)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    if (tmp1 < arg1)
-	env->sr |= SR_T;
-    return arg1;
 }
 
 uint32_t helper_subv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
