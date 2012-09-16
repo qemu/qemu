@@ -32,8 +32,6 @@
 typedef struct DisasContext {
     struct TranslationBlock *tb;
     target_ulong pc;
-    uint32_t sr;
-    uint32_t fpscr;
     uint16_t opcode;
     uint32_t flags;
     int bstate;
@@ -47,7 +45,7 @@ typedef struct DisasContext {
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(ctx) 1
 #else
-#define IS_USER(ctx) (!(ctx->sr & SR_MD))
+#define IS_USER(ctx) (!(ctx->flags & SR_MD))
 #endif
 
 enum {
@@ -413,15 +411,15 @@ static inline void gen_store_fpr64 (TCGv_i64 t, int reg)
 #define B11_8 ((ctx->opcode >> 8) & 0xf)
 #define B15_12 ((ctx->opcode >> 12) & 0xf)
 
-#define REG(x) ((x) < 8 && (ctx->sr & (SR_MD | SR_RB)) == (SR_MD | SR_RB) ? \
-		(cpu_gregs[x + 16]) : (cpu_gregs[x]))
+#define REG(x) ((x) < 8 && (ctx->flags & (SR_MD | SR_RB)) == (SR_MD | SR_RB) \
+                ? (cpu_gregs[x + 16]) : (cpu_gregs[x]))
 
-#define ALTREG(x) ((x) < 8 && (ctx->sr & (SR_MD | SR_RB)) != (SR_MD | SR_RB) \
+#define ALTREG(x) ((x) < 8 && (ctx->flags & (SR_MD | SR_RB)) != (SR_MD | SR_RB)\
 		? (cpu_gregs[x + 16]) : (cpu_gregs[x]))
 
-#define FREG(x) (ctx->fpscr & FPSCR_FR ? (x) ^ 0x10 : (x))
+#define FREG(x) (ctx->flags & FPSCR_FR ? (x) ^ 0x10 : (x))
 #define XHACK(x) ((((x) & 1 ) << 4) | ((x) & 0xe))
-#define XREG(x) (ctx->fpscr & FPSCR_FR ? XHACK(x) ^ 0x10 : XHACK(x))
+#define XREG(x) (ctx->flags & FPSCR_FR ? XHACK(x) ^ 0x10 : XHACK(x))
 #define DREG(x) FREG(x) /* Assumes lsb of (x) is always 0 */
 
 #define CHECK_NOT_DELAY_SLOT \
@@ -537,7 +535,7 @@ static void _decode_opc(DisasContext * ctx)
 	ctx->bstate = BS_STOP;
 	return;
     case 0xf3fd:		/* fschg */
-	tcg_gen_xori_i32(cpu_fpscr, cpu_fpscr, FPSCR_SZ);
+        tcg_gen_xori_i32(cpu_fpscr, cpu_fpscr, FPSCR_SZ);
 	ctx->bstate = BS_STOP;
 	return;
     case 0x0009:		/* nop */
@@ -1080,7 +1078,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00c: /* fmov {F,D,X}Rm,{F,D,X}Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_SZ) {
+        if (ctx->flags & FPSCR_SZ) {
 	    TCGv_i64 fp = tcg_temp_new_i64();
 	    gen_load_fpr64(fp, XREG(B7_4));
 	    gen_store_fpr64(fp, XREG(B11_8));
@@ -1091,7 +1089,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00a: /* fmov {F,D,X}Rm,@Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_SZ) {
+        if (ctx->flags & FPSCR_SZ) {
 	    TCGv addr_hi = tcg_temp_new();
 	    int fr = XREG(B7_4);
 	    tcg_gen_addi_i32(addr_hi, REG(B11_8), 4);
@@ -1104,7 +1102,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf008: /* fmov @Rm,{F,D,X}Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_SZ) {
+        if (ctx->flags & FPSCR_SZ) {
 	    TCGv addr_hi = tcg_temp_new();
 	    int fr = XREG(B11_8);
 	    tcg_gen_addi_i32(addr_hi, REG(B7_4), 4);
@@ -1117,7 +1115,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf009: /* fmov @Rm+,{F,D,X}Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_SZ) {
+        if (ctx->flags & FPSCR_SZ) {
 	    TCGv addr_hi = tcg_temp_new();
 	    int fr = XREG(B11_8);
 	    tcg_gen_addi_i32(addr_hi, REG(B7_4), 4);
@@ -1132,7 +1130,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf00b: /* fmov {F,D,X}Rm,@-Rn - FPSCR: Nothing */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_SZ) {
+        if (ctx->flags & FPSCR_SZ) {
 	    TCGv addr = tcg_temp_new_i32();
 	    int fr = XREG(B7_4);
 	    tcg_gen_subi_i32(addr, REG(B11_8), 4);
@@ -1155,7 +1153,7 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    TCGv addr = tcg_temp_new_i32();
 	    tcg_gen_add_i32(addr, REG(B7_4), REG(0));
-	    if (ctx->fpscr & FPSCR_SZ) {
+            if (ctx->flags & FPSCR_SZ) {
 		int fr = XREG(B11_8);
 		tcg_gen_qemu_ld32u(cpu_fregs[fr	 ], addr, ctx->memidx);
 		tcg_gen_addi_i32(addr, addr, 4);
@@ -1171,7 +1169,7 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    TCGv addr = tcg_temp_new();
 	    tcg_gen_add_i32(addr, REG(B11_8), REG(0));
-	    if (ctx->fpscr & FPSCR_SZ) {
+            if (ctx->flags & FPSCR_SZ) {
 		int fr = XREG(B7_4);
 		tcg_gen_qemu_ld32u(cpu_fregs[fr	 ], addr, ctx->memidx);
 		tcg_gen_addi_i32(addr, addr, 4);
@@ -1190,7 +1188,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf005: /* fcmp/gt Rm,Rn - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
 	{
 	    CHECK_FPU_ENABLED
-	    if (ctx->fpscr & FPSCR_PR) {
+            if (ctx->flags & FPSCR_PR) {
                 TCGv_i64 fp0, fp1;
 
 		if (ctx->opcode & 0x0110)
@@ -1259,7 +1257,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf00e: /* fmac FR0,RM,Rn */
         {
             CHECK_FPU_ENABLED
-            if (ctx->fpscr & FPSCR_PR) {
+            if (ctx->flags & FPSCR_PR) {
                 break; /* illegal instruction */
             } else {
                 gen_helper_fmac_FT(cpu_fregs[FREG(B11_8)], cpu_env,
@@ -1789,7 +1787,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf02d: /* float FPUL,FRn/DRn - FPSCR: R[PR,Enable.I]/W[Cause,Flag] */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_PR) {
+        if (ctx->flags & FPSCR_PR) {
 	    TCGv_i64 fp;
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
@@ -1804,7 +1802,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf03d: /* ftrc FRm/DRm,FPUL - FPSCR: R[PR,Enable.V]/W[Cause,Flag] */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_PR) {
+        if (ctx->flags & FPSCR_PR) {
 	    TCGv_i64 fp;
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
@@ -1825,7 +1823,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf05d: /* fabs FRn/DRn */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_PR) {
+        if (ctx->flags & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    TCGv_i64 fp = tcg_temp_new_i64();
@@ -1839,7 +1837,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf06d: /* fsqrt FRn */
 	CHECK_FPU_ENABLED
-	if (ctx->fpscr & FPSCR_PR) {
+        if (ctx->flags & FPSCR_PR) {
 	    if (ctx->opcode & 0x0100)
 		break; /* illegal instruction */
 	    TCGv_i64 fp = tcg_temp_new_i64();
@@ -1857,13 +1855,13 @@ static void _decode_opc(DisasContext * ctx)
 	break;
     case 0xf08d: /* fldi0 FRn - FPSCR: R[PR] */
 	CHECK_FPU_ENABLED
-	if (!(ctx->fpscr & FPSCR_PR)) {
+        if (!(ctx->flags & FPSCR_PR)) {
 	    tcg_gen_movi_i32(cpu_fregs[FREG(B11_8)], 0);
 	}
 	return;
     case 0xf09d: /* fldi1 FRn - FPSCR: R[PR] */
 	CHECK_FPU_ENABLED
-	if (!(ctx->fpscr & FPSCR_PR)) {
+        if (!(ctx->flags & FPSCR_PR)) {
 	    tcg_gen_movi_i32(cpu_fregs[FREG(B11_8)], 0x3f800000);
 	}
 	return;
@@ -1887,7 +1885,7 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0xf0ed: /* fipr FVm,FVn */
         CHECK_FPU_ENABLED
-        if ((ctx->fpscr & FPSCR_PR) == 0) {
+        if ((ctx->flags & FPSCR_PR) == 0) {
             TCGv m, n;
             m = tcg_const_i32((ctx->opcode >> 8) & 3);
             n = tcg_const_i32((ctx->opcode >> 10) & 3);
@@ -1900,7 +1898,7 @@ static void _decode_opc(DisasContext * ctx)
     case 0xf0fd: /* ftrv XMTRX,FVn */
         CHECK_FPU_ENABLED
         if ((ctx->opcode & 0x0300) == 0x0100 &&
-            (ctx->fpscr & FPSCR_PR) == 0) {
+            (ctx->flags & FPSCR_PR) == 0) {
             TCGv n;
             n = tcg_const_i32((ctx->opcode >> 10) & 3);
             gen_helper_ftrv(cpu_env, n);
@@ -1974,16 +1972,14 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     ctx.pc = pc_start;
     ctx.flags = (uint32_t)tb->flags;
     ctx.bstate = BS_NONE;
-    ctx.sr = env->sr;
-    ctx.fpscr = env->fpscr;
-    ctx.memidx = (env->sr & SR_MD) == 0 ? 1 : 0;
+    ctx.memidx = (ctx.flags & SR_MD) == 0 ? 1 : 0;
     /* We don't know if the delayed pc came from a dynamic or static branch,
        so assume it is a dynamic branch.  */
     ctx.delayed_pc = -1; /* use delayed pc from env pointer */
     ctx.tb = tb;
     ctx.singlestep_enabled = env->singlestep_enabled;
     ctx.features = env->features;
-    ctx.has_movcal = (tb->flags & TB_FLAG_PENDING_MOVCA);
+    ctx.has_movcal = (ctx.flags & TB_FLAG_PENDING_MOVCA);
 
     ii = -1;
     num_insns = 0;
