@@ -177,35 +177,6 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
     }
 }
 
-uint32_t helper_addv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    uint32_t dest, src, ans;
-
-    if ((int32_t) arg1 >= 0)
-	dest = 0;
-    else
-	dest = 1;
-    if ((int32_t) arg0 >= 0)
-	src = 0;
-    else
-	src = 1;
-    src += dest;
-    arg1 += arg0;
-    if ((int32_t) arg1 >= 0)
-	ans = 0;
-    else
-	ans = 1;
-    ans += dest;
-    if (src == 0 || src == 2) {
-	if (ans == 1)
-	    env->sr |= SR_T;
-	else
-	    env->sr &= ~SR_T;
-    } else
-	env->sr &= ~SR_T;
-    return arg1;
-}
-
 #define T (env->sr & SR_T)
 #define Q (env->sr & SR_Q ? 1 : 0)
 #define M (env->sr & SR_M ? 1 : 0)
@@ -357,35 +328,6 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
 	    env->macl = 0x7fffffff;
 	}
     }
-}
-
-uint32_t helper_subv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    int32_t dest, src, ans;
-
-    if ((int32_t) arg1 >= 0)
-	dest = 0;
-    else
-	dest = 1;
-    if ((int32_t) arg0 >= 0)
-	src = 0;
-    else
-	src = 1;
-    src += dest;
-    arg1 -= arg0;
-    if ((int32_t) arg1 >= 0)
-	ans = 0;
-    else
-	ans = 1;
-    ans += dest;
-    if (src == 1) {
-	if (ans == 1)
-	    env->sr |= SR_T;
-	else
-	    env->sr &= ~SR_T;
-    } else
-	env->sr &= ~SR_T;
-    return arg1;
 }
 
 static inline void set_t(CPUSH4State *env)
