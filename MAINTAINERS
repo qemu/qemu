@@ -531,6 +531,12 @@ M: Anthony Liguori <aliguori@us.ibm.com>
 S: Maintained
 F: qemu-char.c
 
+CPU
+M: Andreas Färber <afaerber@suse.de>
+S: Supported
+F: qom/cpu.c
+F: include/qemu/cpu.h
+
 Device Tree
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
 M: Alexander Graf <agraf@suse.de>
