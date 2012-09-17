@@ -92,7 +92,7 @@ struct KVMState
     /* The man page (and posix) say ioctl numbers are signed int, but
      * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
      * unsigned, and treating them as signed here can break things */
-    unsigned irqchip_inject_ioctl;
+    unsigned irq_set_ioctl;
 #ifdef KVM_CAP_IRQ_ROUTING
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
@@ -870,13 +870,13 @@ int kvm_set_irq(KVMState *s, int irq, int level)
 
     event.level = level;
     event.irq = irq;
-    ret = kvm_vm_ioctl(s, s->irqchip_inject_ioctl, &event);
+    ret = kvm_vm_ioctl(s, s->irq_set_ioctl, &event);
     if (ret < 0) {
         perror("kvm_set_irq");
         abort();
     }
 
-    return (s->irqchip_inject_ioctl == KVM_IRQ_LINE) ? 1 : event.status;
+    return (s->irq_set_ioctl == KVM_IRQ_LINE) ? 1 : event.status;
 }
 
 #ifdef KVM_CAP_IRQ_ROUTING
@@ -1237,10 +1237,6 @@ static int kvm_irqchip_create(KVMState *s)
         return ret;
     }
 
-    s->irqchip_inject_ioctl = KVM_IRQ_LINE;
-    if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
-        s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
-    }
     kvm_kernel_irqchip = true;
     /* If we have an in-kernel IRQ chip then we must have asynchronous
      * interrupt delivery (though the reverse is not necessarily true)
@@ -1388,6 +1384,11 @@ int kvm_init(void)
 #endif
 
     s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
+
+    s->irq_set_ioctl = KVM_IRQ_LINE;
+    if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
+        s->irq_set_ioctl = KVM_IRQ_LINE_STATUS;
+    }
 
     ret = kvm_arch_init(s);
     if (ret < 0) {
@@ -1575,8 +1576,6 @@ int kvm_cpu_exec(CPUArchState *env)
 
         qemu_mutex_lock_iothread();
         kvm_arch_post_run(env, run);
-
-        kvm_flush_coalesced_mmio_buffer();
 
         if (run_ret < 0) {
             if (run_ret == -EINTR || run_ret == -EAGAIN) {

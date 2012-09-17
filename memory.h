@@ -133,6 +133,7 @@ struct MemoryRegion {
     bool enabled;
     bool rom_device;
     bool warning_printed; /* For reservations */
+    bool flush_coalesced_mmio;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
@@ -519,6 +520,31 @@ void memory_region_add_coalescing(MemoryRegion *mr,
  * @mr: the memory region to be updated.
  */
 void memory_region_clear_coalescing(MemoryRegion *mr);
+
+/**
+ * memory_region_set_flush_coalesced: Enforce memory coalescing flush before
+ *                                    accesses.
+ *
+ * Ensure that pending coalesced MMIO request are flushed before the memory
+ * region is accessed. This property is automatically enabled for all regions
+ * passed to memory_region_set_coalescing() and memory_region_add_coalescing().
+ *
+ * @mr: the memory region to be updated.
+ */
+void memory_region_set_flush_coalesced(MemoryRegion *mr);
+
+/**
+ * memory_region_clear_flush_coalesced: Disable memory coalescing flush before
+ *                                      accesses.
+ *
+ * Clear the automatic coalesced MMIO flushing enabled via
+ * memory_region_set_flush_coalesced. Note that this service has no effect on
+ * memory regions that have MMIO coalescing enabled for themselves. For them,
+ * automatic flushing will stop once coalescing is disabled.
+ *
+ * @mr: the memory region to be updated.
+ */
+void memory_region_clear_flush_coalesced(MemoryRegion *mr);
 
 /**
  * memory_region_add_eventfd: Request an eventfd to be triggered when a word
