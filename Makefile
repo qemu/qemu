@@ -141,16 +141,6 @@ ALL_SUBDIRS=$(TARGET_DIRS) $(patsubst %,pc-bios/%, $(ROMS))
 
 recurse-all: $(SUBDIR_RULES) $(ROMSUBDIR_RULES)
 
-audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
-
-QEMU_CFLAGS+=$(CURL_CFLAGS)
-
-ui/cocoa.o: ui/cocoa.m
-
-ui/sdl.o audio/sdlaudio.o ui/sdl_zoom.o hw/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
-
-ui/vnc.o: QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
-
 bt-host.o: QEMU_CFLAGS += $(BLUEZ_CFLAGS)
 
 version.o: $(SRC_PATH)/version.rc config-host.h

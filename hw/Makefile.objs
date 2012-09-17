@@ -204,3 +204,5 @@ ifeq ($(CONFIG_PCI), y)
 obj-$(CONFIG_KVM) += ivshmem.o
 obj-$(CONFIG_LINUX) += vfio_pci.o
 endif
+
+$(obj)/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS) 
