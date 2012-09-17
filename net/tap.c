@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-#include "net/tap.h"
+#include "tap.h"
 
 #include "config-host.h"
 
@@ -34,6 +34,7 @@
 #include <net/if.h>
 
 #include "net.h"
+#include "clients.h"
 #include "monitor.h"
 #include "sysemu.h"
 #include "qemu-char.h"

@@ -21,11 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "net/socket.h"
-
 #include "config-host.h"
 
 #include "net.h"
+#include "clients.h"
 #include "monitor.h"
 #include "qemu-char.h"
 #include "qemu-common.h"

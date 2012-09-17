@@ -30,7 +30,8 @@
 #include <sys/wait.h>
 #endif
 #include "net.h"
-#include "net/hub.h"
+#include "clients.h"
+#include "hub.h"
 #include "monitor.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"

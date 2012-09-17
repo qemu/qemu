@@ -21,17 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "net.h"
-
 #include "config-host.h"
 
-#include "net/tap.h"
-#include "net/socket.h"
-#include "net/dump.h"
-#include "net/slirp.h"
-#include "net/vde.h"
+#include "net.h"
+#include "net/clients.h"
 #include "net/hub.h"
+#include "net/slirp.h"
 #include "net/util.h"
+
 #include "monitor.h"
 #include "qemu-common.h"
 #include "qemu_socket.h"

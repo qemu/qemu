@@ -21,13 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "net/vde.h"
-
 #include "config-host.h"
 
 #include <libvdeplug.h>
 
 #include "net.h"
+#include "clients.h"
 #include "qemu-char.h"
 #include "qemu-common.h"
 #include "qemu-option.h"

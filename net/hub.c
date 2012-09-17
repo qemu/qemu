@@ -14,6 +14,7 @@
 
 #include "monitor.h"
 #include "net.h"
+#include "clients.h"
 #include "hub.h"
 #include "iov.h"
 
