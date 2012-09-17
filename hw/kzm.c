@@ -5,7 +5,7 @@
  * Written by Hans at OK-Labs
  * Updated by Peter Chubb.
  *
- * This code is licenced under the GPL, version 2 or later.
+ * This code is licensed under the GPL, version 2 or later.
  * See the file `COPYING' in the top level directory.
  *
  * It (partially) emulates a Kyoto Microcomputer

@@ -3,10 +3,10 @@
  *
  * Copyright (c) 2008 OK Labs
  * Copyright (c) 2011 NICTA Pty Ltd
- * Originally Written by Hans Jiang
+ * Originally written by Hans Jiang
  * Updated by Peter Chubb
  *
- * This code is licenced under GPL version 2 or later.  See
+ * This code is licensed under GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  *
  */

@@ -6,9 +6,9 @@
  *
  * Copyright (c) 2008 OKL
  * Copyright (c) 2011 NICTA Pty Ltd
- * Originally Written by Hans Jiang
+ * Originally written by Hans Jiang
  *
- * This code is licenced under the GPL version 2 or later.  See
+ * This code is licensed under the GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  *
  * TODO: implement vectors.

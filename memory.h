@@ -253,9 +253,9 @@ void memory_region_init_ram(MemoryRegion *mr,
                             uint64_t size);
 
 /**
- * memory_region_init_ram:  Initialize RAM memory region from a user-provided.
- *                          pointer.  Accesses into the region will modify
- *                          memory directly.
+ * memory_region_init_ram_ptr:  Initialize RAM memory region from a
+ *                              user-provided pointer.  Accesses into the
+ *                              region will modify memory directly.
  *
  * @mr: the #MemoryRegion to be initialized.
  * @name: the name of the region.
@@ -607,7 +607,8 @@ void memory_region_add_subregion(MemoryRegion *mr,
                                  target_phys_addr_t offset,
                                  MemoryRegion *subregion);
 /**
- * memory_region_add_subregion: Add a subregion to a container, with overlap.
+ * memory_region_add_subregion_overlap: Add a subregion to a container
+ *                                      with overlap.
  *
  * Adds a subregion at @offset.  The subregion may overlap with other
  * subregions.  Conflicts are resolved by having a higher @priority hide a
@@ -769,7 +770,7 @@ void memory_listener_unregister(MemoryListener *listener);
 void memory_global_dirty_log_start(void);
 
 /**
- * memory_global_dirty_log_stop: begin dirty logging for all regions
+ * memory_global_dirty_log_stop: end dirty logging for all regions
  */
 void memory_global_dirty_log_stop(void);
 

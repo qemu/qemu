@@ -89,19 +89,6 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 }
 #endif
 
-/* timers for rdtsc */
-
-#if 0
-
-static uint64_t emu_time;
-
-int64_t cpu_get_real_ticks(void)
-{
-    return emu_time++;
-}
-
-#endif
-
 #if defined(CONFIG_USE_NPTL)
 /***********************************************************/
 /* Helper routines for implementing atomic operations.  */

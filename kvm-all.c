@@ -1410,13 +1410,11 @@ int kvm_init(void)
     return 0;
 
 err:
-    if (s) {
-        if (s->vmfd >= 0) {
-            close(s->vmfd);
-        }
-        if (s->fd != -1) {
-            close(s->fd);
-        }
+    if (s->vmfd >= 0) {
+        close(s->vmfd);
+    }
+    if (s->fd != -1) {
+        close(s->fd);
     }
     g_free(s);
 
