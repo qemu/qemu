@@ -63,7 +63,8 @@ xilinx_axiethernet_create(NICInfo *nd, StreamSlave *peer,
     qdev_set_nic_properties(dev, nd);
     qdev_prop_set_uint32(dev, "rxmem", rxmem);
     qdev_prop_set_uint32(dev, "txmem", txmem);
-    object_property_set_link(OBJECT(dev), OBJECT(peer), "tx_dev", &errp);
+    object_property_set_link(OBJECT(dev), OBJECT(peer), "axistream-connected",
+                             &errp);
     assert_no_error(errp);
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
@@ -80,7 +81,8 @@ xilinx_axiethernetdma_init(DeviceState *dev, StreamSlave *peer,
     Error *errp = NULL;
 
     qdev_prop_set_uint32(dev, "freqhz", freqhz);
-    object_property_set_link(OBJECT(dev), OBJECT(peer), "tx_dev", &errp);
+    object_property_set_link(OBJECT(dev), OBJECT(peer), "axistream-connected",
+                             &errp);
     assert_no_error(errp);
     qdev_init_nofail(dev);
 
