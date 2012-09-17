@@ -1986,7 +1986,7 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
         vdi_index = pos / SD_DATA_OBJ_SIZE;
         offset = pos % SD_DATA_OBJ_SIZE;
 
-        data_len = MIN(remaining, SD_DATA_OBJ_SIZE);
+        data_len = MIN(remaining, SD_DATA_OBJ_SIZE - offset);
 
         vmstate_oid = vid_to_vmstate_oid(s->inode.vdi_id, vdi_index);
 
@@ -2007,6 +2007,7 @@ static int do_load_save_vmstate(BDRVSheepdogState *s, uint8_t *data,
         }
 
         pos += data_len;
+        data += data_len;
         remaining -= data_len;
     }
     ret = size;

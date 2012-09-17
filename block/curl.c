@@ -542,8 +542,7 @@ static void curl_close(BlockDriverState *bs)
     }
     if (s->multi)
         curl_multi_cleanup(s->multi);
-    if (s->url)
-        free(s->url);
+    g_free(s->url);
 }
 
 static int64_t curl_getlength(BlockDriverState *bs)

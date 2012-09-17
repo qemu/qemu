@@ -1186,6 +1186,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     memory_region_init_io(&s->io_bar, &vmsvga_io_ops, &s->chip,
                           "vmsvga-io", 0x10);
+    memory_region_set_flush_coalesced(&s->io_bar);
     pci_register_bar(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 
     vmsvga_init(&s->chip, pci_address_space(dev),

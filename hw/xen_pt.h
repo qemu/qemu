@@ -96,7 +96,7 @@ typedef struct XenPTRegion {
  * - do NOT use ALL F for init_val, otherwise the tbl will not be registered.
  */
 
-/* emulated register infomation */
+/* emulated register information */
 struct XenPTRegInfo {
     uint32_t offset;
     uint32_t size;
@@ -140,7 +140,7 @@ typedef int (*xen_pt_reg_size_init_fn)
     (XenPCIPassthroughState *, const XenPTRegGroupInfo *,
      uint32_t base_offset, uint8_t *size);
 
-/* emulated register group infomation */
+/* emulated register group information */
 struct XenPTRegGroupInfo {
     uint8_t grp_id;
     XenPTRegisterGroupType grp_type;

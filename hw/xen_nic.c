@@ -415,6 +415,7 @@ static void net_event(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
     net_tx_packets(netdev);
+    qemu_flush_queued_packets(&netdev->nic->nc);
 }
 
 static int net_free(struct XenDevice *xendev)

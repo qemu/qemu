@@ -133,6 +133,7 @@ struct MemoryRegion {
     bool enabled;
     bool rom_device;
     bool warning_printed; /* For reservations */
+    bool flush_coalesced_mmio;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
@@ -252,9 +253,9 @@ void memory_region_init_ram(MemoryRegion *mr,
                             uint64_t size);
 
 /**
- * memory_region_init_ram:  Initialize RAM memory region from a user-provided.
- *                          pointer.  Accesses into the region will modify
- *                          memory directly.
+ * memory_region_init_ram_ptr:  Initialize RAM memory region from a
+ *                              user-provided pointer.  Accesses into the
+ *                              region will modify memory directly.
  *
  * @mr: the #MemoryRegion to be initialized.
  * @name: the name of the region.
@@ -521,6 +522,31 @@ void memory_region_add_coalescing(MemoryRegion *mr,
 void memory_region_clear_coalescing(MemoryRegion *mr);
 
 /**
+ * memory_region_set_flush_coalesced: Enforce memory coalescing flush before
+ *                                    accesses.
+ *
+ * Ensure that pending coalesced MMIO request are flushed before the memory
+ * region is accessed. This property is automatically enabled for all regions
+ * passed to memory_region_set_coalescing() and memory_region_add_coalescing().
+ *
+ * @mr: the memory region to be updated.
+ */
+void memory_region_set_flush_coalesced(MemoryRegion *mr);
+
+/**
+ * memory_region_clear_flush_coalesced: Disable memory coalescing flush before
+ *                                      accesses.
+ *
+ * Clear the automatic coalesced MMIO flushing enabled via
+ * memory_region_set_flush_coalesced. Note that this service has no effect on
+ * memory regions that have MMIO coalescing enabled for themselves. For them,
+ * automatic flushing will stop once coalescing is disabled.
+ *
+ * @mr: the memory region to be updated.
+ */
+void memory_region_clear_flush_coalesced(MemoryRegion *mr);
+
+/**
  * memory_region_add_eventfd: Request an eventfd to be triggered when a word
  *                            is written to a location.
  *
@@ -581,7 +607,8 @@ void memory_region_add_subregion(MemoryRegion *mr,
                                  target_phys_addr_t offset,
                                  MemoryRegion *subregion);
 /**
- * memory_region_add_subregion: Add a subregion to a container, with overlap.
+ * memory_region_add_subregion_overlap: Add a subregion to a container
+ *                                      with overlap.
  *
  * Adds a subregion at @offset.  The subregion may overlap with other
  * subregions.  Conflicts are resolved by having a higher @priority hide a
@@ -743,7 +770,7 @@ void memory_listener_unregister(MemoryListener *listener);
 void memory_global_dirty_log_start(void);
 
 /**
- * memory_global_dirty_log_stop: begin dirty logging for all regions
+ * memory_global_dirty_log_stop: end dirty logging for all regions
  */
 void memory_global_dirty_log_stop(void);
 

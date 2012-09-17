@@ -126,7 +126,7 @@ cc_i386=i386-pc-linux-gnu-gcc
 libs_qga=""
 debug_info="yes"
 
-target_list="DEFAULT"
+target_list=""
 
 # Default value for a variable defining feature "foo".
 #  * foo="no"  feature will only be used if --enable-foo arg is given
@@ -1355,11 +1355,11 @@ if ! "$python" -c 'import sys; sys.exit(sys.version_info < (2,4) or sys.version_
   exit 1
 fi
 
-if test "$target_list" = "DEFAULT" ; then
-    target_list=$default_target_list
+if test -z "$target_list" ; then
+    target_list="$default_target_list"
+else
+    target_list=`echo "$target_list" | sed -e 's/,/ /g'`
 fi
-target_list=`echo "$target_list" | sed -e 's/,/ /g'`
-
 # see if system emulation was really requested
 case " $target_list " in
   *"-softmmu "*) softmmu=yes
@@ -1465,10 +1465,10 @@ if test "$seccomp" != "no" ; then
         LIBS=`$pkg_config --libs libseccomp`
 	seccomp="yes"
     else
-	seccomp="no"
 	if test "$seccomp" = "yes"; then
             feature_not_found "libseccomp"
 	fi
+	seccomp="no"
     fi
 fi
 ##########################################
@@ -2786,6 +2786,9 @@ EOF
     if $pkg_config --atleast-version=0.12.0 spice-protocol >/dev/null 2>&1; then
         spice_qxl_io_monitors_config_async="yes"
     fi
+    if $pkg_config --atleast-version=0.12.2 spice-protocol > /dev/null 2>&1; then
+        spice_qxl_client_monitors_config="yes"
+    fi
   else
     if test "$spice" = "yes" ; then
       feature_not_found "spice"
@@ -3549,6 +3552,10 @@ fi
 
 if test "$spice_qxl_io_monitors_config_async" = "yes" ; then
   echo "CONFIG_QXL_IO_MONITORS_CONFIG_ASYNC=y" >> $config_host_mak
+fi
+
+if test "$spice_qxl_client_monitors_config" = "yes" ; then
+  echo "CONFIG_QXL_CLIENT_MONITORS_CONFIG=y" >> $config_host_mak
 fi
 
 if test "$smartcard" = "yes" ; then
