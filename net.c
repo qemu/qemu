@@ -357,7 +357,12 @@ void qemu_flush_queued_packets(NetClientState *nc)
 {
     nc->receive_disabled = 0;
 
-    qemu_net_queue_flush(nc->send_queue);
+    if (qemu_net_queue_flush(nc->send_queue)) {
+        /* We emptied the queue successfully, signal to the IO thread to repoll
+         * the file descriptor (for tap, for example).
+         */
+        qemu_notify_event();
+    }
 }
 
 static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
@@ -418,16 +423,27 @@ ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                                 void *opaque)
 {
     NetClientState *nc = opaque;
+    int ret;
 
     if (nc->link_down) {
         return iov_size(iov, iovcnt);
     }
 
-    if (nc->info->receive_iov) {
-        return nc->info->receive_iov(nc, iov, iovcnt);
-    } else {
-        return nc_sendv_compat(nc, iov, iovcnt);
+    if (nc->receive_disabled) {
+        return 0;
     }
+
+    if (nc->info->receive_iov) {
+        ret = nc->info->receive_iov(nc, iov, iovcnt);
+    } else {
+        ret = nc_sendv_compat(nc, iov, iovcnt);
+    }
+
+    if (ret == 0) {
+        nc->receive_disabled = 1;
+    }
+
+    return ret;
 }
 
 ssize_t qemu_sendv_packet_async(NetClientState *sender,

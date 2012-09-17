@@ -1362,6 +1362,7 @@ Valid values for @var{type} are
 Not all devices are supported on all targets.  Use -net nic,model=?
 for a list of available devices for your target.
 
+@item -netdev user,id=@var{id}[,@var{option}][,@var{option}][,...]
 @item -net user[,@var{option}][,@var{option}][,...]
 Use the user mode network stack which requires no administrator
 privilege to run. Valid options are:
@@ -1370,6 +1371,7 @@ privilege to run. Valid options are:
 @item vlan=@var{n}
 Connect user mode stack to VLAN @var{n} (@var{n} = 0 is the default).
 
+@item id=@var{id}
 @item name=@var{name}
 Assign symbolic name for use in monitor commands.
 
@@ -1495,6 +1497,7 @@ processed and applied to -net user. Mixing them with the new configuration
 syntax gives undefined results. Their use for new applications is discouraged
 as they will be removed from future versions.
 
+@item -netdev tap,id=@var{id}[,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,helper=@var{helper}]
 @item -net tap[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,helper=@var{helper}]
 Connect the host TAP network interface @var{name} to VLAN @var{n}.
 
@@ -1534,6 +1537,7 @@ qemu-system-i386 linux.img \
                  -net nic -net tap,"helper=/usr/local/libexec/qemu-bridge-helper"
 @end example
 
+@item -netdev bridge,id=@var{id}[,br=@var{bridge}][,helper=@var{helper}]
 @item -net bridge[,vlan=@var{n}][,name=@var{name}][,br=@var{bridge}][,helper=@var{helper}]
 Connect a host TAP network interface to a host bridge device.
 
@@ -1556,6 +1560,7 @@ qemu-system-i386 linux.img -net bridge -net nic,model=virtio
 qemu-system-i386 linux.img -net bridge,br=qemubr0 -net nic,model=virtio
 @end example
 
+@item -netdev socket,id=@var{id}[,fd=@var{h}][,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
 @item -net socket[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}] [,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
 
 Connect the VLAN @var{n} to a remote VLAN in another QEMU virtual
@@ -1578,6 +1583,7 @@ qemu-system-i386 linux.img \
                  -net socket,connect=127.0.0.1:1234
 @end example
 
+@item -netdev socket,id=@var{id}[,fd=@var{h}][,mcast=@var{maddr}:@var{port}[,localaddr=@var{addr}]]
 @item -net socket[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,mcast=@var{maddr}:@var{port}[,localaddr=@var{addr}]]
 
 Create a VLAN @var{n} shared with another QEMU virtual
@@ -1629,6 +1635,7 @@ qemu-system-i386 linux.img \
                  -net socket,mcast=239.192.168.1:1102,localaddr=1.2.3.4
 @end example
 
+@item -netdev vde,id=@var{id}[,sock=@var{socketpath}][,port=@var{n}][,group=@var{groupname}][,mode=@var{octalmode}]
 @item -net vde[,vlan=@var{n}][,name=@var{name}][,sock=@var{socketpath}] [,port=@var{n}][,group=@var{groupname}][,mode=@var{octalmode}]
 Connect VLAN @var{n} to PORT @var{n} of a vde switch running on host and
 listening for incoming connections on @var{socketpath}. Use GROUP @var{groupname}
