@@ -628,7 +628,6 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     VdiHeader header;
     size_t i;
     size_t bmap_size;
-    uint32_t *bmap;
 
     logout("\n");
 
@@ -693,21 +692,21 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
         result = -errno;
     }
 
-    bmap = NULL;
     if (bmap_size > 0) {
-        bmap = (uint32_t *)g_malloc0(bmap_size);
-    }
-    for (i = 0; i < blocks; i++) {
-        if (image_type == VDI_TYPE_STATIC) {
-            bmap[i] = i;
-        } else {
-            bmap[i] = VDI_UNALLOCATED;
+        uint32_t *bmap = g_malloc0(bmap_size);
+        for (i = 0; i < blocks; i++) {
+            if (image_type == VDI_TYPE_STATIC) {
+                bmap[i] = i;
+            } else {
+                bmap[i] = VDI_UNALLOCATED;
+            }
         }
+        if (write(fd, bmap, bmap_size) < 0) {
+            result = -errno;
+        }
+        g_free(bmap);
     }
-    if (write(fd, bmap, bmap_size) < 0) {
-        result = -errno;
-    }
-    g_free(bmap);
+
     if (image_type == VDI_TYPE_STATIC) {
         if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
             result = -errno;

@@ -433,7 +433,11 @@ int get_tmp_filename(char *filename, int size)
         return -EOVERFLOW;
     }
     fd = mkstemp(filename);
-    if (fd < 0 || close(fd)) {
+    if (fd < 0) {
+        return -errno;
+    }
+    if (close(fd) != 0) {
+        unlink(filename);
         return -errno;
     }
     return 0;
@@ -897,9 +901,9 @@ void bdrv_close(BlockDriverState *bs)
             bdrv_delete(bs->file);
             bs->file = NULL;
         }
-
-        bdrv_dev_change_media_cb(bs, false);
     }
+
+    bdrv_dev_change_media_cb(bs, false);
 
     /*throttling disk I/O limits*/
     if (bs->io_limits_enabled) {

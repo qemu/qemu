@@ -21,12 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include "qapi-visit.h"
+#include "qapi/qmp-output-visitor.h"
+#include "qjson.h"
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "qemu-error.h"
 #include "osdep.h"
 #include "sysemu.h"
 #include "block_int.h"
+#include <getopt.h>
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -84,6 +88,7 @@ static void help(void)
            "  '-p' show progress of command (only certain commands)\n"
            "  '-S' indicates the consecutive number of bytes that must contain only zeros\n"
            "       for qemu-img to create a sparse image during conversion\n"
+           "  '--output' takes the format in which the output must be done (human or json)\n"
            "\n"
            "Parameters to check subcommand:\n"
            "  '-r' tries to repair any inconsistencies that are found during the check.\n"
@@ -221,7 +226,8 @@ static int print_block_option_help(const char *filename, const char *fmt)
 
 static BlockDriverState *bdrv_new_open(const char *filename,
                                        const char *fmt,
-                                       int flags)
+                                       int flags,
+                                       bool require_io)
 {
     BlockDriverState *bs;
     BlockDriver *drv;
@@ -246,7 +252,7 @@ static BlockDriverState *bdrv_new_open(const char *filename,
         goto fail;
     }
 
-    if (bdrv_is_encrypted(bs)) {
+    if (bdrv_is_encrypted(bs) && require_io) {
         printf("Disk image '%s' is encrypted.\n", filename);
         if (read_password(password, sizeof(password)) < 0) {
             error_report("No password given");
@@ -413,7 +419,7 @@ static int img_check(int argc, char **argv)
     }
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, flags);
+    bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
@@ -520,7 +526,7 @@ static int img_commit(int argc, char **argv)
         return -1;
     }
 
-    bs = bdrv_new_open(filename, fmt, flags);
+    bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
@@ -762,7 +768,7 @@ static int img_convert(int argc, char **argv)
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
-        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BDRV_O_FLAGS);
+        bs[bs_i] = bdrv_new_open(argv[optind + bs_i], fmt, BDRV_O_FLAGS, true);
         if (!bs[bs_i]) {
             error_report("Could not open '%s'", argv[optind + bs_i]);
             ret = -1;
@@ -881,7 +887,7 @@ static int img_convert(int argc, char **argv)
         return -1;
     }
 
-    out_bs = bdrv_new_open(out_filename, out_fmt, flags);
+    out_bs = bdrv_new_open(out_filename, out_fmt, flags, true);
     if (!out_bs) {
         ret = -1;
         goto out;
@@ -1102,21 +1108,174 @@ static void dump_snapshots(BlockDriverState *bs)
     g_free(sn_tab);
 }
 
-static int img_info(int argc, char **argv)
+static void collect_snapshots(BlockDriverState *bs , ImageInfo *info)
 {
-    int c;
-    const char *filename, *fmt;
-    BlockDriverState *bs;
-    char size_buf[128], dsize_buf[128];
+    int i, sn_count;
+    QEMUSnapshotInfo *sn_tab = NULL;
+    SnapshotInfoList *info_list, *cur_item = NULL;
+    sn_count = bdrv_snapshot_list(bs, &sn_tab);
+
+    for (i = 0; i < sn_count; i++) {
+        info->has_snapshots = true;
+        info_list = g_new0(SnapshotInfoList, 1);
+
+        info_list->value                = g_new0(SnapshotInfo, 1);
+        info_list->value->id            = g_strdup(sn_tab[i].id_str);
+        info_list->value->name          = g_strdup(sn_tab[i].name);
+        info_list->value->vm_state_size = sn_tab[i].vm_state_size;
+        info_list->value->date_sec      = sn_tab[i].date_sec;
+        info_list->value->date_nsec     = sn_tab[i].date_nsec;
+        info_list->value->vm_clock_sec  = sn_tab[i].vm_clock_nsec / 1000000000;
+        info_list->value->vm_clock_nsec = sn_tab[i].vm_clock_nsec % 1000000000;
+
+        /* XXX: waiting for the qapi to support qemu-queue.h types */
+        if (!cur_item) {
+            info->snapshots = cur_item = info_list;
+        } else {
+            cur_item->next = info_list;
+            cur_item = info_list;
+        }
+
+    }
+
+    g_free(sn_tab);
+}
+
+static void dump_json_image_info(ImageInfo *info)
+{
+    Error *errp = NULL;
+    QString *str;
+    QmpOutputVisitor *ov = qmp_output_visitor_new();
+    QObject *obj;
+    visit_type_ImageInfo(qmp_output_get_visitor(ov),
+                         &info, NULL, &errp);
+    obj = qmp_output_get_qobject(ov);
+    str = qobject_to_json_pretty(obj);
+    assert(str != NULL);
+    printf("%s\n", qstring_get_str(str));
+    qobject_decref(obj);
+    qmp_output_visitor_cleanup(ov);
+    QDECREF(str);
+}
+
+static void collect_image_info(BlockDriverState *bs,
+                   ImageInfo *info,
+                   const char *filename,
+                   const char *fmt)
+{
     uint64_t total_sectors;
-    int64_t allocated_size;
     char backing_filename[1024];
     char backing_filename2[1024];
     BlockDriverInfo bdi;
 
+    bdrv_get_geometry(bs, &total_sectors);
+
+    info->filename        = g_strdup(filename);
+    info->format          = g_strdup(bdrv_get_format_name(bs));
+    info->virtual_size    = total_sectors * 512;
+    info->actual_size     = bdrv_get_allocated_file_size(bs);
+    info->has_actual_size = info->actual_size >= 0;
+    if (bdrv_is_encrypted(bs)) {
+        info->encrypted = true;
+        info->has_encrypted = true;
+    }
+    if (bdrv_get_info(bs, &bdi) >= 0) {
+        if (bdi.cluster_size != 0) {
+            info->cluster_size = bdi.cluster_size;
+            info->has_cluster_size = true;
+        }
+        info->dirty_flag = bdi.is_dirty;
+        info->has_dirty_flag = true;
+    }
+    bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
+    if (backing_filename[0] != '\0') {
+        info->backing_filename = g_strdup(backing_filename);
+        info->has_backing_filename = true;
+        bdrv_get_full_backing_filename(bs, backing_filename2,
+                                       sizeof(backing_filename2));
+
+        if (strcmp(backing_filename, backing_filename2) != 0) {
+            info->full_backing_filename =
+                        g_strdup(backing_filename2);
+            info->has_full_backing_filename = true;
+        }
+
+        if (bs->backing_format[0]) {
+            info->backing_filename_format = g_strdup(bs->backing_format);
+            info->has_backing_filename_format = true;
+        }
+    }
+}
+
+static void dump_human_image_info(ImageInfo *info)
+{
+    char size_buf[128], dsize_buf[128];
+    if (!info->has_actual_size) {
+        snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
+    } else {
+        get_human_readable_size(dsize_buf, sizeof(dsize_buf),
+                                info->actual_size);
+    }
+    get_human_readable_size(size_buf, sizeof(size_buf), info->virtual_size);
+    printf("image: %s\n"
+           "file format: %s\n"
+           "virtual size: %s (%" PRId64 " bytes)\n"
+           "disk size: %s\n",
+           info->filename, info->format, size_buf,
+           info->virtual_size,
+           dsize_buf);
+
+    if (info->has_encrypted && info->encrypted) {
+        printf("encrypted: yes\n");
+    }
+
+    if (info->has_cluster_size) {
+        printf("cluster_size: %" PRId64 "\n", info->cluster_size);
+    }
+
+    if (info->has_dirty_flag && info->dirty_flag) {
+        printf("cleanly shut down: no\n");
+    }
+
+    if (info->has_backing_filename) {
+        printf("backing file: %s", info->backing_filename);
+        if (info->has_full_backing_filename) {
+            printf(" (actual path: %s)", info->full_backing_filename);
+        }
+        putchar('\n');
+        if (info->has_backing_filename_format) {
+            printf("backing file format: %s\n", info->backing_filename_format);
+        }
+    }
+}
+
+enum {OPTION_OUTPUT = 256};
+
+typedef enum OutputFormat {
+    OFORMAT_JSON,
+    OFORMAT_HUMAN,
+} OutputFormat;
+
+static int img_info(int argc, char **argv)
+{
+    int c;
+    OutputFormat output_format = OFORMAT_HUMAN;
+    const char *filename, *fmt, *output;
+    BlockDriverState *bs;
+    ImageInfo *info;
+
     fmt = NULL;
+    output = NULL;
     for(;;) {
-        c = getopt(argc, argv, "f:h");
+        int option_index = 0;
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"format", required_argument, 0, 'f'},
+            {"output", required_argument, 0, OPTION_OUTPUT},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, "f:h",
+                        long_options, &option_index);
         if (c == -1) {
             break;
         }
@@ -1128,6 +1287,9 @@ static int img_info(int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
+        case OPTION_OUTPUT:
+            output = optarg;
+            break;
         }
     }
     if (optind >= argc) {
@@ -1135,48 +1297,35 @@ static int img_info(int argc, char **argv)
     }
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING);
+    if (output && !strcmp(output, "json")) {
+        output_format = OFORMAT_JSON;
+    } else if (output && !strcmp(output, "human")) {
+        output_format = OFORMAT_HUMAN;
+    } else if (output) {
+        error_report("--output must be used with human or json as argument.");
+        return 1;
+    }
+
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING, false);
     if (!bs) {
         return 1;
     }
-    bdrv_get_geometry(bs, &total_sectors);
-    get_human_readable_size(size_buf, sizeof(size_buf), total_sectors * 512);
-    allocated_size = bdrv_get_allocated_file_size(bs);
-    if (allocated_size < 0) {
-        snprintf(dsize_buf, sizeof(dsize_buf), "unavailable");
-    } else {
-        get_human_readable_size(dsize_buf, sizeof(dsize_buf),
-                                allocated_size);
+
+    info = g_new0(ImageInfo, 1);
+    collect_image_info(bs, info, filename, fmt);
+
+    switch (output_format) {
+    case OFORMAT_HUMAN:
+        dump_human_image_info(info);
+        dump_snapshots(bs);
+        break;
+    case OFORMAT_JSON:
+        collect_snapshots(bs, info);
+        dump_json_image_info(info);
+        break;
     }
-    printf("image: %s\n"
-           "file format: %s\n"
-           "virtual size: %s (%" PRId64 " bytes)\n"
-           "disk size: %s\n",
-           filename, bdrv_get_format_name(bs), size_buf,
-           (total_sectors * 512),
-           dsize_buf);
-    if (bdrv_is_encrypted(bs)) {
-        printf("encrypted: yes\n");
-    }
-    if (bdrv_get_info(bs, &bdi) >= 0) {
-        if (bdi.cluster_size != 0) {
-            printf("cluster_size: %d\n", bdi.cluster_size);
-        }
-        if (bdi.is_dirty) {
-            printf("cleanly shut down: no\n");
-        }
-    }
-    bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
-    if (backing_filename[0] != '\0') {
-        bdrv_get_full_backing_filename(bs, backing_filename2,
-                                       sizeof(backing_filename2));
-        printf("backing file: %s", backing_filename);
-        if (strcmp(backing_filename, backing_filename2) != 0) {
-            printf(" (actual path: %s)", backing_filename2);
-        }
-        putchar('\n');
-    }
-    dump_snapshots(bs);
+
+    qapi_free_ImageInfo(info);
     bdrv_delete(bs);
     return 0;
 }
@@ -1248,7 +1397,7 @@ static int img_snapshot(int argc, char **argv)
     filename = argv[optind++];
 
     /* Open the image */
-    bs = bdrv_new_open(filename, NULL, bdrv_oflags);
+    bs = bdrv_new_open(filename, NULL, bdrv_oflags, true);
     if (!bs) {
         return 1;
     }
@@ -1366,7 +1515,7 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    bs = bdrv_new_open(filename, fmt, flags);
+    bs = bdrv_new_open(filename, fmt, flags, true);
     if (!bs) {
         return 1;
     }
@@ -1639,7 +1788,7 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR);
+    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR, true);
     if (!bs) {
         ret = -1;
         goto out;
