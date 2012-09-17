@@ -14,6 +14,9 @@ MAKEFLAGS += -rR
 # Flags for dependency generation
 QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 
+# Same as -I$(SRC_PATH) -I., but for the nested source/object directories
+QEMU_CFLAGS += -I$(<D) -I$(@D)
+
 %.o: %.c
 	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 

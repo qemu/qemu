@@ -145,8 +145,6 @@ audio/audio.o audio/fmodaudio.o: QEMU_CFLAGS += $(FMOD_CFLAGS)
 
 QEMU_CFLAGS+=$(CURL_CFLAGS)
 
-QEMU_CFLAGS += -I$(SRC_PATH)/include
-
 ui/cocoa.o: ui/cocoa.m
 
 ui/sdl.o audio/sdlaudio.o ui/sdl_zoom.o hw/baum.o: QEMU_CFLAGS += $(SDL_CFLAGS)
