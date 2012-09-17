@@ -1393,18 +1393,6 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 
 #if !defined(CONFIG_USER_ONLY)
 
-/* interpret radix and convert from string to arbitrary scalar,
- * otherwise flag failure
- */
-#define setscalar(pval, str, perr)                      \
-{                                                       \
-    char *pend;                                         \
-    unsigned long ul;                                   \
-                                                        \
-    ul = strtoul(str, &pend, 0);                        \
-    *str && !*pend ? (*pval = ul) : (*perr = 1);        \
-}
-
 void cpu_clear_apic_feature(CPUX86State *env)
 {
     env->cpuid_features &= ~CPUID_APIC;
