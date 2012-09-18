@@ -689,6 +689,17 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             tci_write_reg32(t0, (t1 >> t2) | (t1 << (32 - t2)));
             break;
 #endif
+#if TCG_TARGET_HAS_deposit_i32
+        case INDEX_op_deposit_i32:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r32(&tb_ptr);
+            t2 = tci_read_r32(&tb_ptr);
+            tmp16 = *tb_ptr++;
+            tmp8 = *tb_ptr++;
+            tmp32 = (((1 << tmp8) - 1) << tmp16);
+            tci_write_reg32(t0, (t1 & ~tmp32) | ((t2 << tmp16) & tmp32));
+            break;
+#endif
         case INDEX_op_brcond_i32:
             t0 = tci_read_r32(&tb_ptr);
             t1 = tci_read_ri32(&tb_ptr);
@@ -934,6 +945,17 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
         case INDEX_op_rotl_i64:
         case INDEX_op_rotr_i64:
             TODO();
+            break;
+#endif
+#if TCG_TARGET_HAS_deposit_i64
+        case INDEX_op_deposit_i64:
+            t0 = *tb_ptr++;
+            t1 = tci_read_r64(&tb_ptr);
+            t2 = tci_read_r64(&tb_ptr);
+            tmp16 = *tb_ptr++;
+            tmp8 = *tb_ptr++;
+            tmp64 = (((1ULL << tmp8) - 1) << tmp16);
+            tci_write_reg64(t0, (t1 & ~tmp64) | ((t2 << tmp16) & tmp64));
             break;
 #endif
         case INDEX_op_brcond_i64:
