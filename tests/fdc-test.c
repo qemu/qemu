@@ -55,6 +55,8 @@ enum {
 };
 
 enum {
+    BUSY    = 0x10,
+    NONDMA  = 0x20,
     RQM     = 0x80,
     DIO     = 0x40,
 
@@ -153,6 +155,69 @@ static uint8_t send_read_command(void)
 
     st0 = floppy_recv();
     if (st0 != 0x60) {
+        ret = 1;
+    }
+
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+    floppy_recv();
+
+    return ret;
+}
+
+static uint8_t send_read_no_dma_command(int nb_sect, uint8_t expected_st0)
+{
+    uint8_t drive = 0;
+    uint8_t head = 0;
+    uint8_t cyl = 0;
+    uint8_t sect_addr = 1;
+    uint8_t sect_size = 2;
+    uint8_t eot = nb_sect;
+    uint8_t gap = 0x1b;
+    uint8_t gpl = 0xff;
+
+    uint8_t msr = 0;
+    uint8_t st0;
+
+    uint8_t ret = 0;
+
+    floppy_send(CMD_READ);
+    floppy_send(head << 2 | drive);
+    g_assert(!get_irq(FLOPPY_IRQ));
+    floppy_send(cyl);
+    floppy_send(head);
+    floppy_send(sect_addr);
+    floppy_send(sect_size);
+    floppy_send(eot);
+    floppy_send(gap);
+    floppy_send(gpl);
+
+    uint16_t i = 0;
+    uint8_t n = 2;
+    for (; i < n; i++) {
+        msr = inb(FLOPPY_BASE + reg_msr);
+        if (msr == (BUSY | NONDMA | DIO | RQM)) {
+            break;
+        }
+        sleep(1);
+    }
+
+    if (i >= n) {
+        return 1;
+    }
+
+    /* Non-DMA mode */
+    for (i = 0; i < 512 * 2 * nb_sect; i++) {
+        msr = inb(FLOPPY_BASE + reg_msr);
+        assert_bit_set(msr, BUSY | RQM | DIO);
+        inb(FLOPPY_BASE + reg_fifo);
+    }
+
+    st0 = floppy_recv();
+    if (st0 != expected_st0) {
         ret = 1;
     }
 
@@ -327,6 +392,36 @@ static void test_relative_seek(void)
     g_assert(pcn == 0);
 }
 
+static void test_read_no_dma_1(void)
+{
+    uint8_t ret;
+
+    outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
+    send_seek(0);
+    ret = send_read_no_dma_command(1, 0x24); /* FIXME: should be 0x04 */
+    g_assert(ret == 0);
+}
+
+static void test_read_no_dma_18(void)
+{
+    uint8_t ret;
+
+    outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
+    send_seek(0);
+    ret = send_read_no_dma_command(18, 0x24); /* FIXME: should be 0x04 */
+    g_assert(ret == 0);
+}
+
+static void test_read_no_dma_19(void)
+{
+    uint8_t ret;
+
+    outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
+    send_seek(0);
+    ret = send_read_no_dma_command(19, 0x20);
+    g_assert(ret == 0);
+}
+
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
@@ -377,6 +472,9 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/sense_interrupt", test_sense_interrupt);
     qtest_add_func("/fdc/relative_seek", test_relative_seek);
     qtest_add_func("/fdc/media_insert", test_media_insert);
+    qtest_add_func("/fdc/read_no_dma_1", test_read_no_dma_1);
+    qtest_add_func("/fdc/read_no_dma_18", test_read_no_dma_18);
+    qtest_add_func("/fdc/read_no_dma_19", test_read_no_dma_19);
     qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
 
     ret = g_test_run();
