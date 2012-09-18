@@ -540,6 +540,22 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             break;
         }
 
+        /* Simplify expression for "op r, a, a => movi r, 0" cases */
+        switch (op) {
+        CASE_OP_32_64(sub):
+        CASE_OP_32_64(xor):
+            if (temps_are_copies(args[1], args[2])) {
+                gen_opc_buf[op_index] = op_to_movi(op);
+                tcg_opt_gen_movi(gen_args, args[0], 0);
+                gen_args += 2;
+                args += 3;
+                continue;
+            }
+            break;
+        default:
+            break;
+        }
+
         /* Propagate constants through copy operations and do constant
            folding.  Constants will be substituted to arguments by register
            allocator where needed and possible.  Also detect copies. */
