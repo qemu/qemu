@@ -376,6 +376,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/media_change", test_media_change);
     qtest_add_func("/fdc/sense_interrupt", test_sense_interrupt);
     qtest_add_func("/fdc/relative_seek", test_relative_seek);
+    qtest_add_func("/fdc/media_insert", test_media_insert);
     qtest_add_func("/fdc/fuzz-registers", fuzz_registers);
 
     ret = g_test_run();
