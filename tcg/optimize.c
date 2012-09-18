@@ -292,58 +292,88 @@ static TCGArg do_constant_folding(TCGOpcode op, TCGArg x, TCGArg y)
     return res;
 }
 
+/* Return 2 if the condition can't be simplified, and the result
+   of the condition (0 or 1) if it can */
 static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
                                        TCGArg y, TCGCond c)
 {
-    switch (op_bits(op)) {
-    case 32:
-        switch (c) {
-        case TCG_COND_EQ:
-            return (uint32_t)x == (uint32_t)y;
-        case TCG_COND_NE:
-            return (uint32_t)x != (uint32_t)y;
-        case TCG_COND_LT:
-            return (int32_t)x < (int32_t)y;
-        case TCG_COND_GE:
-            return (int32_t)x >= (int32_t)y;
-        case TCG_COND_LE:
-            return (int32_t)x <= (int32_t)y;
-        case TCG_COND_GT:
-            return (int32_t)x > (int32_t)y;
-        case TCG_COND_LTU:
-            return (uint32_t)x < (uint32_t)y;
-        case TCG_COND_GEU:
-            return (uint32_t)x >= (uint32_t)y;
-        case TCG_COND_LEU:
-            return (uint32_t)x <= (uint32_t)y;
-        case TCG_COND_GTU:
-            return (uint32_t)x > (uint32_t)y;
+    if (temps[x].state == TCG_TEMP_CONST && temps[y].state == TCG_TEMP_CONST) {
+        switch (op_bits(op)) {
+        case 32:
+            switch (c) {
+            case TCG_COND_EQ:
+                return (uint32_t)temps[x].val == (uint32_t)temps[y].val;
+            case TCG_COND_NE:
+                return (uint32_t)temps[x].val != (uint32_t)temps[y].val;
+            case TCG_COND_LT:
+                return (int32_t)temps[x].val < (int32_t)temps[y].val;
+            case TCG_COND_GE:
+                return (int32_t)temps[x].val >= (int32_t)temps[y].val;
+            case TCG_COND_LE:
+                return (int32_t)temps[x].val <= (int32_t)temps[y].val;
+            case TCG_COND_GT:
+                return (int32_t)temps[x].val > (int32_t)temps[y].val;
+            case TCG_COND_LTU:
+                return (uint32_t)temps[x].val < (uint32_t)temps[y].val;
+            case TCG_COND_GEU:
+                return (uint32_t)temps[x].val >= (uint32_t)temps[y].val;
+            case TCG_COND_LEU:
+                return (uint32_t)temps[x].val <= (uint32_t)temps[y].val;
+            case TCG_COND_GTU:
+                return (uint32_t)temps[x].val > (uint32_t)temps[y].val;
+            }
+            break;
+        case 64:
+            switch (c) {
+            case TCG_COND_EQ:
+                return (uint64_t)temps[x].val == (uint64_t)temps[y].val;
+            case TCG_COND_NE:
+                return (uint64_t)temps[x].val != (uint64_t)temps[y].val;
+            case TCG_COND_LT:
+                return (int64_t)temps[x].val < (int64_t)temps[y].val;
+            case TCG_COND_GE:
+                return (int64_t)temps[x].val >= (int64_t)temps[y].val;
+            case TCG_COND_LE:
+                return (int64_t)temps[x].val <= (int64_t)temps[y].val;
+            case TCG_COND_GT:
+                return (int64_t)temps[x].val > (int64_t)temps[y].val;
+            case TCG_COND_LTU:
+                return (uint64_t)temps[x].val < (uint64_t)temps[y].val;
+            case TCG_COND_GEU:
+                return (uint64_t)temps[x].val >= (uint64_t)temps[y].val;
+            case TCG_COND_LEU:
+                return (uint64_t)temps[x].val <= (uint64_t)temps[y].val;
+            case TCG_COND_GTU:
+                return (uint64_t)temps[x].val > (uint64_t)temps[y].val;
+            }
+            break;
         }
-        break;
-    case 64:
+    } else if (temps_are_copies(x, y)) {
         switch (c) {
-        case TCG_COND_EQ:
-            return (uint64_t)x == (uint64_t)y;
-        case TCG_COND_NE:
-            return (uint64_t)x != (uint64_t)y;
-        case TCG_COND_LT:
-            return (int64_t)x < (int64_t)y;
-        case TCG_COND_GE:
-            return (int64_t)x >= (int64_t)y;
-        case TCG_COND_LE:
-            return (int64_t)x <= (int64_t)y;
         case TCG_COND_GT:
-            return (int64_t)x > (int64_t)y;
         case TCG_COND_LTU:
-            return (uint64_t)x < (uint64_t)y;
-        case TCG_COND_GEU:
-            return (uint64_t)x >= (uint64_t)y;
-        case TCG_COND_LEU:
-            return (uint64_t)x <= (uint64_t)y;
+        case TCG_COND_LT:
         case TCG_COND_GTU:
-            return (uint64_t)x > (uint64_t)y;
+        case TCG_COND_NE:
+            return 0;
+        case TCG_COND_GE:
+        case TCG_COND_GEU:
+        case TCG_COND_LE:
+        case TCG_COND_LEU:
+        case TCG_COND_EQ:
+            return 1;
         }
-        break;
+    } else if (temps[y].state == TCG_TEMP_CONST && temps[y].val == 0) {
+        switch (c) {
+        case TCG_COND_LTU:
+            return 0;
+        case TCG_COND_GEU:
+            return 1;
+        default:
+            return 2;
+        }
+    } else {
+        return 2;
     }
 
     fprintf(stderr,
@@ -636,11 +666,9 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             args += 3;
             break;
         CASE_OP_32_64(setcond):
-            if (temps[args[1]].state == TCG_TEMP_CONST
-                && temps[args[2]].state == TCG_TEMP_CONST) {
+            tmp = do_constant_folding_cond(op, args[1], args[2], args[3]);
+            if (tmp != 2) {
                 gen_opc_buf[op_index] = op_to_movi(op);
-                tmp = do_constant_folding_cond(op, temps[args[1]].val,
-                                               temps[args[2]].val, args[3]);
                 tcg_opt_gen_movi(gen_args, args[0], tmp);
                 gen_args += 2;
             } else {
@@ -654,10 +682,9 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             args += 4;
             break;
         CASE_OP_32_64(brcond):
-            if (temps[args[0]].state == TCG_TEMP_CONST
-                && temps[args[1]].state == TCG_TEMP_CONST) {
-                if (do_constant_folding_cond(op, temps[args[0]].val,
-                                             temps[args[1]].val, args[2])) {
+            tmp = do_constant_folding_cond(op, args[0], args[1], args[2]);
+            if (tmp != 2) {
+                if (tmp) {
                     memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
                     gen_opc_buf[op_index] = INDEX_op_br;
                     gen_args[0] = args[3];
@@ -677,10 +704,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             args += 4;
             break;
         CASE_OP_32_64(movcond):
-            if (temps[args[1]].state == TCG_TEMP_CONST
-                && temps[args[2]].state == TCG_TEMP_CONST) {
-                tmp = do_constant_folding_cond(op, temps[args[1]].val,
-                                               temps[args[2]].val, args[5]);
+            tmp = do_constant_folding_cond(op, args[1], args[2], args[5]);
+            if (tmp != 2) {
                 if (temps_are_copies(args[0], args[4-tmp])) {
                     gen_opc_buf[op_index] = INDEX_op_nop;
                 } else if (temps[args[4-tmp]].state == TCG_TEMP_CONST) {
