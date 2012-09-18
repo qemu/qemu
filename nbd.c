@@ -90,6 +90,8 @@ struct NBDRequest {
 
 struct NBDExport {
     int refcount;
+    void (*close)(NBDExport *exp);
+
     BlockDriverState *bs;
     off_t dev_offset;
     off_t size;
@@ -723,7 +725,8 @@ static void nbd_request_put(NBDRequest *req)
 }
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
-                          off_t size, uint32_t nbdflags)
+                          off_t size, uint32_t nbdflags,
+                          void (*close)(NBDExport *))
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     QSIMPLEQ_INIT(&exp->requests);
@@ -733,6 +736,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
     exp->size = size == -1 ? bdrv_getlength(bs) : size;
+    exp->close = close;
     return exp;
 }
 
@@ -761,6 +765,10 @@ void nbd_export_put(NBDExport *exp)
     }
 
     if (--exp->refcount == 0) {
+        if (exp->close) {
+            exp->close(exp);
+        }
+
         while (!QSIMPLEQ_EMPTY(&exp->requests)) {
             NBDRequest *first = QSIMPLEQ_FIRST(&exp->requests);
             QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
