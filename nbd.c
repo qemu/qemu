@@ -89,6 +89,7 @@ struct NBDRequest {
 };
 
 struct NBDExport {
+    int refcount;
     BlockDriverState *bs;
     off_t dev_offset;
     off_t size;
@@ -664,6 +665,7 @@ void nbd_client_put(NBDClient *client)
         qemu_set_fd_handler2(client->sock, NULL, NULL, NULL, NULL);
         close(client->sock);
         client->sock = -1;
+        nbd_export_put(client->exp);
         g_free(client);
     }
 }
@@ -722,6 +724,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     QSIMPLEQ_INIT(&exp->requests);
+    exp->refcount = 1;
     exp->bs = bs;
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
@@ -731,14 +734,34 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
 
 void nbd_export_close(NBDExport *exp)
 {
-    while (!QSIMPLEQ_EMPTY(&exp->requests)) {
-        NBDRequest *first = QSIMPLEQ_FIRST(&exp->requests);
-        QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
-        qemu_vfree(first->data);
-        g_free(first);
+    assert(exp->refcount == 1);
+
+    /* stub */
+}
+
+void nbd_export_get(NBDExport *exp)
+{
+    assert(exp->refcount > 0);
+    exp->refcount++;
+}
+
+void nbd_export_put(NBDExport *exp)
+{
+    assert(exp->refcount > 0);
+    if (exp->refcount == 1) {
+        nbd_export_close(exp);
     }
 
-    g_free(exp);
+    if (--exp->refcount == 0) {
+        while (!QSIMPLEQ_EMPTY(&exp->requests)) {
+            NBDRequest *first = QSIMPLEQ_FIRST(&exp->requests);
+            QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
+            qemu_vfree(first->data);
+            g_free(first);
+        }
+
+        g_free(exp);
+    }
 }
 
 static int nbd_can_read(void *opaque);
@@ -1011,5 +1034,7 @@ NBDClient *nbd_client_new(NBDExport *exp, int csock,
     client->close = close;
     qemu_co_mutex_init(&client->send_lock);
     qemu_set_fd_handler2(csock, nbd_can_read, nbd_read, NULL, client);
+
+    nbd_export_get(exp);
     return client;
 }
