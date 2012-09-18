@@ -914,6 +914,7 @@ void nbd_export_close(NBDExport *exp)
     QTAILQ_FOREACH_SAFE(client, &exp->clients, next, next) {
         nbd_client_close(client);
     }
+    nbd_export_set_name(exp, NULL);
     nbd_export_put(exp);
 }
 
@@ -948,13 +949,17 @@ void nbd_export_put(NBDExport *exp)
     }
 }
 
+BlockDriverState *nbd_export_get_blockdev(NBDExport *exp)
+{
+    return exp->bs;
+}
+
 void nbd_export_close_all(void)
 {
     NBDExport *exp, *next;
 
     QTAILQ_FOREACH_SAFE(exp, &exports, next, next) {
         nbd_export_close(exp);
-        nbd_export_set_name(exp, NULL);
     }
 }
 
