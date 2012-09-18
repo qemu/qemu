@@ -94,6 +94,7 @@ struct NBDExport {
     off_t dev_offset;
     off_t size;
     uint32_t nbdflags;
+    QTAILQ_HEAD(, NBDClient) clients;
     QSIMPLEQ_HEAD(, NBDRequest) requests;
 };
 
@@ -109,6 +110,7 @@ struct NBDClient {
     CoMutex send_lock;
     Coroutine *send_coroutine;
 
+    QTAILQ_ENTRY(NBDClient) next;
     int nb_requests;
     bool closing;
 };
@@ -665,6 +667,7 @@ void nbd_client_put(NBDClient *client)
         qemu_set_fd_handler2(client->sock, NULL, NULL, NULL, NULL);
         close(client->sock);
         client->sock = -1;
+        QTAILQ_REMOVE(&client->exp->clients, client, next);
         nbd_export_put(client->exp);
         g_free(client);
     }
@@ -725,6 +728,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
     QSIMPLEQ_INIT(&exp->requests);
     exp->refcount = 1;
+    QTAILQ_INIT(&exp->clients);
     exp->bs = bs;
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
@@ -734,9 +738,13 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
 
 void nbd_export_close(NBDExport *exp)
 {
-    assert(exp->refcount == 1);
+    NBDClient *client, *next;
 
-    /* stub */
+    nbd_export_get(exp);
+    QTAILQ_FOREACH_SAFE(client, &exp->clients, next, next) {
+        nbd_client_close(client);
+    }
+    nbd_export_put(exp);
 }
 
 void nbd_export_get(NBDExport *exp)
@@ -1035,6 +1043,7 @@ NBDClient *nbd_client_new(NBDExport *exp, int csock,
     qemu_co_mutex_init(&client->send_lock);
     qemu_set_fd_handler2(csock, nbd_can_read, nbd_read, NULL, client);
 
+    QTAILQ_INSERT_TAIL(&exp->clients, client, next);
     nbd_export_get(exp);
     return client;
 }
