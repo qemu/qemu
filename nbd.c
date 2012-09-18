@@ -647,12 +647,12 @@ static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 
 #define MAX_NBD_REQUESTS 16
 
-static void nbd_client_get(NBDClient *client)
+void nbd_client_get(NBDClient *client)
 {
     client->refcount++;
 }
 
-static void nbd_client_put(NBDClient *client)
+void nbd_client_put(NBDClient *client)
 {
     if (--client->refcount == 0) {
         g_free(client);
