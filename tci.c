@@ -36,17 +36,19 @@
         tcg_abort(); \
     } while (0)
 
-#if MAX_OPC_PARAM_IARGS != 4
+#if MAX_OPC_PARAM_IARGS != 5
 # error Fix needed, number of supported input arguments changed!
 #endif
 #if TCG_TARGET_REG_BITS == 32
 typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong, tcg_target_ulong);
 #else
 typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
-                                    tcg_target_ulong, tcg_target_ulong);
+                                    tcg_target_ulong, tcg_target_ulong,
+                                    tcg_target_ulong);
 #endif
 
 /* TCI can optionally use a global register variable for env. */
@@ -489,14 +491,17 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
                                           tci_read_reg(TCG_REG_R5),
                                           tci_read_reg(TCG_REG_R6),
                                           tci_read_reg(TCG_REG_R7),
-                                          tci_read_reg(TCG_REG_R8));
+                                          tci_read_reg(TCG_REG_R8),
+                                          tci_read_reg(TCG_REG_R9),
+                                          tci_read_reg(TCG_REG_R10));
             tci_write_reg(TCG_REG_R0, tmp64);
             tci_write_reg(TCG_REG_R1, tmp64 >> 32);
 #else
             tmp64 = ((helper_function)t0)(tci_read_reg(TCG_REG_R0),
                                           tci_read_reg(TCG_REG_R1),
                                           tci_read_reg(TCG_REG_R2),
-                                          tci_read_reg(TCG_REG_R3));
+                                          tci_read_reg(TCG_REG_R3),
+                                          tci_read_reg(TCG_REG_R5));
             tci_write_reg(TCG_REG_R0, tmp64);
 #endif
             break;
