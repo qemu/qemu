@@ -349,6 +349,7 @@ enum {
     FD_DIR_SCANE   = 2,
     FD_DIR_SCANL   = 3,
     FD_DIR_SCANH   = 4,
+    FD_DIR_VERIFY  = 5,
 };
 
 enum {
@@ -1266,14 +1267,21 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         if (((direction == FD_DIR_SCANE || direction == FD_DIR_SCANL ||
               direction == FD_DIR_SCANH) && dma_mode == 0) ||
             (direction == FD_DIR_WRITE && dma_mode == 2) ||
-            (direction == FD_DIR_READ && dma_mode == 1)) {
+            (direction == FD_DIR_READ && dma_mode == 1) ||
+            (direction == FD_DIR_VERIFY)) {
             /* No access is allowed until DMA transfer has completed */
             fdctrl->msr &= ~FD_MSR_RQM;
-            /* Now, we just have to wait for the DMA controller to
-             * recall us...
-             */
-            DMA_hold_DREQ(fdctrl->dma_chann);
-            DMA_schedule(fdctrl->dma_chann);
+            if (direction != FD_DIR_VERIFY) {
+                /* Now, we just have to wait for the DMA controller to
+                 * recall us...
+                 */
+                DMA_hold_DREQ(fdctrl->dma_chann);
+                DMA_schedule(fdctrl->dma_chann);
+            } else {
+                /* Start transfer */
+                fdctrl_transfer_handler(fdctrl, fdctrl->dma_chann, 0,
+                                        fdctrl->data_len);
+            }
             return;
         } else {
             FLOPPY_DPRINTF("bad dma_mode=%d direction=%d\n", dma_mode,
@@ -1375,6 +1383,9 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                 fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
                 goto transfer_error;
             }
+            break;
+        case FD_DIR_VERIFY:
+            /* VERIFY commands */
             break;
         default:
             /* SCAN commands */
@@ -1858,7 +1869,7 @@ static const struct {
     { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
     { FD_CMD_READ_DELETED, 0x1f, "READ DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_READ },
     { FD_CMD_SCAN_EQUAL, 0x1f, "SCAN EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANE },
-    { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_unimplemented },
+    { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_start_transfer, FD_DIR_VERIFY },
     { FD_CMD_SCAN_LOW_OR_EQUAL, 0x1f, "SCAN LOW OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANL },
     { FD_CMD_SCAN_HIGH_OR_EQUAL, 0x1f, "SCAN HIGH OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANH },
     { FD_CMD_WRITE_DELETED, 0x3f, "WRITE DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_WRITE },
