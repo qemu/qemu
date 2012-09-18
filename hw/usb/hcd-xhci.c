@@ -363,7 +363,7 @@ typedef struct XHCIEPContext {
 typedef struct XHCISlot {
     bool enabled;
     dma_addr_t ctx;
-    unsigned int port;
+    USBPort *uport;
     unsigned int devaddr;
     XHCIEPContext * eps[31];
 } XHCISlot;
@@ -1230,7 +1230,7 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
         ep |= 0x80;
     }
 
-    dev = xhci->ports[xhci->slots[slotid-1].port-1].uport->dev;
+    dev = xhci->slots[slotid-1].uport->dev;
     if (!dev) {
         return CC_USB_TRANSACTION_ERROR;
     }
@@ -1412,18 +1412,9 @@ static void xhci_stall_ep(XHCITransfer *xfer)
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer,
                        XHCIEPContext *epctx);
 
-static USBDevice *xhci_find_device(XHCIPort *port, uint8_t addr)
-{
-    if (!(port->portsc & PORTSC_PED)) {
-        return NULL;
-    }
-    return usb_find_device(port->uport, addr);
-}
-
 static int xhci_setup_packet(XHCITransfer *xfer)
 {
     XHCIState *xhci = xfer->xhci;
-    XHCIPort *port;
     USBDevice *dev;
     USBEndpoint *ep;
     int dir;
@@ -1434,13 +1425,12 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         ep = xfer->packet.ep;
         dev = ep->dev;
     } else {
-        port = &xhci->ports[xhci->slots[xfer->slotid-1].port-1];
-        dev = xhci_find_device(port, xhci->slots[xfer->slotid-1].devaddr);
-        if (!dev) {
-            fprintf(stderr, "xhci: slot %d port %d has no device\n",
-                    xfer->slotid, xhci->slots[xfer->slotid-1].port);
+        if (!xhci->slots[xfer->slotid-1].uport) {
+            fprintf(stderr, "xhci: slot %d has no device\n",
+                    xfer->slotid);
             return -1;
         }
+        dev = xhci->slots[xfer->slotid-1].uport->dev;
         ep = usb_ep_get(dev, dir, xfer->epid >> 1);
     }
 
@@ -1772,7 +1762,7 @@ static TRBCCode xhci_enable_slot(XHCIState *xhci, unsigned int slotid)
     trace_usb_xhci_slot_enable(slotid);
     assert(slotid >= 1 && slotid <= MAXSLOTS);
     xhci->slots[slotid-1].enabled = 1;
-    xhci->slots[slotid-1].port = 0;
+    xhci->slots[slotid-1].uport = NULL;
     memset(xhci->slots[slotid-1].eps, 0, sizeof(XHCIEPContext*)*31);
 
     return CC_SUCCESS;
@@ -1795,17 +1785,42 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
     return CC_SUCCESS;
 }
 
+static USBPort *xhci_lookup_uport(XHCIState *xhci, uint32_t *slot_ctx)
+{
+    USBPort *uport;
+    char path[32];
+    int i, pos, port;
+
+    port = (slot_ctx[1]>>16) & 0xFF;
+    port = xhci->ports[port-1].uport->index+1;
+    pos = snprintf(path, sizeof(path), "%d", port);
+    for (i = 0; i < 5; i++) {
+        port = (slot_ctx[0] >> 4*i) & 0x0f;
+        if (!port) {
+            break;
+        }
+        pos += snprintf(path + pos, sizeof(path) - pos, ".%d", port);
+    }
+
+    QTAILQ_FOREACH(uport, &xhci->bus.used, next) {
+        if (strcmp(uport->path, path) == 0) {
+            return uport;
+        }
+    }
+    return NULL;
+}
+
 static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
                                   uint64_t pictx, bool bsr)
 {
     XHCISlot *slot;
+    USBPort *uport;
     USBDevice *dev;
     dma_addr_t ictx, octx, dcbaap;
     uint64_t poctx;
     uint32_t ictl_ctx[2];
     uint32_t slot_ctx[4];
     uint32_t ep0_ctx[5];
-    unsigned int port;
     int i;
     TRBCCode res;
 
@@ -1837,27 +1852,28 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     DPRINTF("xhci: input ep0 context: %08x %08x %08x %08x %08x\n",
             ep0_ctx[0], ep0_ctx[1], ep0_ctx[2], ep0_ctx[3], ep0_ctx[4]);
 
-    port = (slot_ctx[1]>>16) & 0xFF;
-    dev = xhci->ports[port-1].uport->dev;
-
-    if (port < 1 || port > xhci->numports) {
-        fprintf(stderr, "xhci: bad port %d\n", port);
+    uport = xhci_lookup_uport(xhci, slot_ctx);
+    if (uport == NULL) {
+        fprintf(stderr, "xhci: port not found\n");
         return CC_TRB_ERROR;
-    } else if (!dev) {
-        fprintf(stderr, "xhci: port %d not connected\n", port);
+    }
+
+    dev = uport->dev;
+    if (!dev) {
+        fprintf(stderr, "xhci: port %s not connected\n", uport->path);
         return CC_USB_TRANSACTION_ERROR;
     }
 
     for (i = 0; i < MAXSLOTS; i++) {
-        if (xhci->slots[i].port == port) {
-            fprintf(stderr, "xhci: port %d already assigned to slot %d\n",
-                    port, i+1);
+        if (xhci->slots[i].uport == uport) {
+            fprintf(stderr, "xhci: port %s already assigned to slot %d\n",
+                    uport->path, i+1);
             return CC_TRB_ERROR;
         }
     }
 
     slot = &xhci->slots[slotid-1];
-    slot->port = port;
+    slot->uport = uport;
     slot->ctx = octx;
 
     if (bsr) {
@@ -2821,9 +2837,17 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
     xhci_kick_ep(xfer->xhci, xfer->slotid, xfer->epid);
 }
 
-static void xhci_child_detach(USBPort *port, USBDevice *child)
+static void xhci_child_detach(USBPort *uport, USBDevice *child)
 {
-    FIXME();
+    USBBus *bus = usb_bus_from_device(child);
+    XHCIState *xhci = container_of(bus, XHCIState, bus);
+    int i;
+
+    for (i = 0; i < MAXSLOTS; i++) {
+        if (xhci->slots[i].uport == uport) {
+            xhci->slots[i].uport = NULL;
+        }
+    }
 }
 
 static USBPortOps xhci_port_ops = {
