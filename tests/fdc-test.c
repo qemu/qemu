@@ -217,7 +217,7 @@ static void test_read_without_media(void)
     g_assert(ret == 0);
 }
 
-static void test_media_change(void)
+static void test_media_insert(void)
 {
     uint8_t dir;
 
@@ -245,6 +245,13 @@ static void test_media_change(void)
     assert_bit_clear(dir, DSKCHG);
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_clear(dir, DSKCHG);
+}
+
+static void test_media_change(void)
+{
+    uint8_t dir;
+
+    test_media_insert();
 
     /* Eject the floppy and check that DSKCHG is set. Reading it out doesn't
      * reset the bit. */
