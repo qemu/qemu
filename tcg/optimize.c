@@ -524,7 +524,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         switch (op) {
         CASE_OP_32_64(or):
         CASE_OP_32_64(and):
-            if (args[1] == args[2]) {
+            if (temps_are_copies(args[1], args[2])) {
                 if (temps_are_copies(args[0], args[1])) {
                     gen_opc_buf[op_index] = INDEX_op_nop;
                 } else {
