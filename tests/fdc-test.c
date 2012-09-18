@@ -50,6 +50,7 @@ enum {
     CMD_SENSE_INT           = 0x08,
     CMD_READ_ID             = 0x0a,
     CMD_SEEK                = 0x0f,
+    CMD_VERIFY              = 0x16,
     CMD_READ                = 0xe6,
     CMD_RELATIVE_SEEK_OUT   = 0x8f,
     CMD_RELATIVE_SEEK_IN    = 0xcf,
@@ -113,7 +114,7 @@ static void ack_irq(uint8_t *pcn)
     g_assert(!get_irq(FLOPPY_IRQ));
 }
 
-static uint8_t send_read_command(void)
+static uint8_t send_read_command(uint8_t cmd)
 {
     uint8_t drive = 0;
     uint8_t head = 0;
@@ -129,7 +130,7 @@ static uint8_t send_read_command(void)
 
     uint8_t ret = 0;
 
-    floppy_send(CMD_READ);
+    floppy_send(cmd);
     floppy_send(head << 2 | drive);
     g_assert(!get_irq(FLOPPY_IRQ));
     floppy_send(cyl);
@@ -279,7 +280,7 @@ static void test_read_without_media(void)
 {
     uint8_t ret;
 
-    ret = send_read_command();
+    ret = send_read_command(CMD_READ);
     g_assert(ret == 0);
 }
 
@@ -487,6 +488,14 @@ static void test_read_no_dma_19(void)
     g_assert(ret == 0);
 }
 
+static void test_verify(void)
+{
+    uint8_t ret;
+
+    ret = send_read_command(CMD_VERIFY);
+    g_assert(ret == 0);
+}
+
 /* success if no crash or abort */
 static void fuzz_registers(void)
 {
@@ -537,6 +546,7 @@ int main(int argc, char **argv)
     qtest_add_func("/fdc/sense_interrupt", test_sense_interrupt);
     qtest_add_func("/fdc/relative_seek", test_relative_seek);
     qtest_add_func("/fdc/read_id", test_read_id);
+    qtest_add_func("/fdc/verify", test_verify);
     qtest_add_func("/fdc/media_insert", test_media_insert);
     qtest_add_func("/fdc/read_no_dma_1", test_read_no_dma_1);
     qtest_add_func("/fdc/read_no_dma_18", test_read_no_dma_18);
