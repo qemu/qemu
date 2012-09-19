@@ -2519,6 +2519,59 @@
     'opts': 'NetClientOptions' } }
 
 ##
+# @InetSocketAddress
+#
+# Captures a socket address or address range in the Internet namespace.
+#
+# @host: host part of the address
+#
+# @port: port part of the address, or lowest port if @to is present
+#
+# @to: highest port to try
+#
+# @ipv4: whether to accept IPv4 addresses, default try both IPv4 and IPv6
+#        #optional
+#
+# @ipv6: whether to accept IPv6 addresses, default try both IPv4 and IPv6
+#        #optional
+#
+# Since 1.3
+##
+{ 'type': 'InetSocketAddress',
+  'data': {
+    'host': 'str',
+    'port': 'str',
+    '*to': 'uint16',
+    '*ipv4': 'bool',
+    '*ipv6': 'bool' } }
+
+##
+# @UnixSocketAddress
+#
+# Captures a socket address in the local ("Unix socket") namespace.
+#
+# @path: filesystem path to use
+#
+# Since 1.3
+##
+{ 'type': 'UnixSocketAddress',
+  'data': {
+    'path': 'str' } }
+
+##
+# @SocketAddress
+#
+# Captures the address of a socket, which could also be a named file descriptor
+#
+# Since 1.3
+##
+{ 'union': 'SocketAddress',
+  'data': {
+    'inet': 'InetSocketAddress',
+    'unix': 'UnixSocketAddress',
+    'fd': 'String' } }
+
+##
 # @getfd:
 #
 # Receive a file descriptor via SCM rights and assign it a name
