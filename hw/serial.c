@@ -718,7 +718,7 @@ const MemoryRegionOps serial_io_ops = {
 };
 
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
-                         CharDriverState *chr)
+                         CharDriverState *chr, MemoryRegion *system_io)
 {
     SerialState *s;
 
@@ -732,7 +732,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     vmstate_register(NULL, base, &vmstate_serial, s);
 
     memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
-    memory_region_add_subregion(get_system_io(), base, &s->io);
+    memory_region_add_subregion(system_io, base, &s->io);
 
     return s;
 }
