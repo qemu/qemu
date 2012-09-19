@@ -36,4 +36,6 @@ DEF_HELPER_3(wsr_ibreaka, void, env, i32, i32)
 DEF_HELPER_3(wsr_dbreaka, void, env, i32, i32)
 DEF_HELPER_3(wsr_dbreakc, void, env, i32, i32)
 
+DEF_HELPER_2(wur_fcr, void, env, i32)
+
 #include "def-helper.h"

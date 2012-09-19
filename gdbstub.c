@@ -1696,6 +1696,10 @@ static int cpu_gdb_read_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
         GET_REG32(env->uregs[reg->targno & 0xff]);
         break;
 
+    case 4: /*f*/
+        GET_REG32(float32_val(env->fregs[reg->targno & 0x0f]));
+        break;
+
     case 8: /*a*/
         GET_REG32(env->regs[reg->targno & 0x0f]);
         break;
@@ -1734,6 +1738,10 @@ static int cpu_gdb_write_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
 
     case 3: /*UR*/
         env->uregs[reg->targno & 0xff] = tmp;
+        break;
+
+    case 4: /*f*/
+        env->fregs[reg->targno & 0x0f] = make_float32(tmp);
         break;
 
     case 8: /*a*/

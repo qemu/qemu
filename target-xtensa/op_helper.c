@@ -771,3 +771,16 @@ void HELPER(wsr_dbreakc)(CPUXtensaState *env, uint32_t i, uint32_t v)
     }
     env->sregs[DBREAKC + i] = v;
 }
+
+void HELPER(wur_fcr)(CPUXtensaState *env, uint32_t v)
+{
+    static const int rounding_mode[] = {
+        float_round_nearest_even,
+        float_round_to_zero,
+        float_round_up,
+        float_round_down,
+    };
+
+    env->uregs[FCR] = v & 0xfffff07f;
+    set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
+}

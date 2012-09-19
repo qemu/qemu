@@ -70,6 +70,7 @@ typedef struct DisasContext {
 static TCGv_ptr cpu_env;
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_R[16];
+static TCGv_i32 cpu_FR[16];
 static TCGv_i32 cpu_SR[256];
 static TCGv_i32 cpu_UR[256];
 
@@ -155,6 +156,12 @@ void xtensa_translate_init(void)
         "ar8", "ar9", "ar10", "ar11",
         "ar12", "ar13", "ar14", "ar15",
     };
+    static const char * const fregnames[] = {
+        "f0", "f1", "f2", "f3",
+        "f4", "f5", "f6", "f7",
+        "f8", "f9", "f10", "f11",
+        "f12", "f13", "f14", "f15",
+    };
     int i;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
@@ -165,6 +172,12 @@ void xtensa_translate_init(void)
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
                 offsetof(CPUXtensaState, regs[i]),
                 regnames[i]);
+    }
+
+    for (i = 0; i < 16; i++) {
+        cpu_FR[i] = tcg_global_mem_new_i32(TCG_AREG0,
+                offsetof(CPUXtensaState, fregs[i]),
+                fregnames[i]);
     }
 
     for (i = 0; i < 256; ++i) {
@@ -689,6 +702,23 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         }
     } else {
         qemu_log("WSR %d not implemented, ", sr);
+    }
+}
+
+static void gen_wur(uint32_t ur, TCGv_i32 s)
+{
+    switch (ur) {
+    case FCR:
+        gen_helper_wur_fcr(cpu_env, s);
+        break;
+
+    case FSR:
+        tcg_gen_andi_i32(cpu_UR[ur], s, 0xffffff80);
+        break;
+
+    default:
+        tcg_gen_mov_i32(cpu_UR[ur], s);
+        break;
     }
 }
 
@@ -1761,13 +1791,11 @@ static void disas_xtensa_insn(DisasContext *dc)
 
             case 15: /*WUR*/
                 gen_window_check1(dc, RRR_T);
-                {
-                    if (uregnames[RSR_SR]) {
-                        tcg_gen_mov_i32(cpu_UR[RSR_SR], cpu_R[RRR_T]);
-                    } else {
-                        qemu_log("WUR %d not implemented, ", RSR_SR);
-                        TBD();
-                    }
+                if (uregnames[RSR_SR]) {
+                    gen_wur(RSR_SR, cpu_R[RRR_T]);
+                } else {
+                    qemu_log("WUR %d not implemented, ", RSR_SR);
+                    TBD();
                 }
                 break;
 
@@ -2729,6 +2757,16 @@ void cpu_dump_state(CPUXtensaState *env, FILE *f, fprintf_function cpu_fprintf,
     for (i = 0; i < env->config->nareg; ++i) {
         cpu_fprintf(f, "AR%02d=%08x%c", i, env->phys_regs[i],
                 (i % 4) == 3 ? '\n' : ' ');
+    }
+
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_FP_COPROCESSOR)) {
+        cpu_fprintf(f, "\n");
+
+        for (i = 0; i < 16; ++i) {
+            cpu_fprintf(f, "F%02d=%08x (%+10.8e)%c", i,
+                    float32_val(env->fregs[i]),
+                    *(float *)&env->fregs[i], (i % 2) == 1 ? '\n' : ' ');
+        }
     }
 }
 

@@ -36,6 +36,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "cpu-defs.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -325,6 +326,8 @@ typedef struct CPUXtensaState {
     uint32_t sregs[256];
     uint32_t uregs[256];
     uint32_t phys_regs[MAX_NAREG];
+    float32 fregs[16];
+    float_status fp_status;
 
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
