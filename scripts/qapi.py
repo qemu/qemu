@@ -156,7 +156,9 @@ def c_var(name, protect=True):
     # GCC http://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/C-Extensions.html
     # excluding _.*
     gcc_words = set(['asm', 'typeof'])
-    if protect and (name in c89_words | c99_words | c11_words | gcc_words):
+    # namespace pollution:
+    polluted_words = set(['unix'])
+    if protect and (name in c89_words | c99_words | c11_words | gcc_words | polluted_words):
         return "q_" + name
     return name.replace('-', '_').lstrip("*")
 
