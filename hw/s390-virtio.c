@@ -285,8 +285,8 @@ static void s390_init(QEMUMachineInitArgs *args)
         }
 
         /* we have to overwrite values in the kernel image, which are "rom" */
-        memcpy(rom_ptr(INITRD_PARM_START), &initrd_offset, 8);
-        memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
+        stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
+        stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
     }
 
     if (rom_ptr(KERN_PARM_AREA)) {
