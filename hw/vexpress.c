@@ -29,8 +29,12 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "exec-memory.h"
+#include "blockdev.h"
+#include "flash.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0
+#define VEXPRESS_FLASH_SIZE (64 * 1024 * 1024)
+#define VEXPRESS_FLASH_SECT_SIZE (256 * 1024)
 
 static struct arm_boot_info vexpress_binfo;
 
@@ -355,6 +359,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     qemu_irq pic[64];
     uint32_t proc_id;
     uint32_t sys_id;
+    DriveInfo *dinfo;
     ram_addr_t vram_size, sram_size;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *vram = g_new(MemoryRegion, 1);
@@ -410,8 +415,25 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
-    /* VE_NORFLASH0: not modelled */
-    /* VE_NORFLASH1: not modelled */
+    dinfo = drive_get_next(IF_PFLASH);
+    if (!pflash_cfi01_register(map[VE_NORFLASH0], NULL, "vexpress.flash0",
+            VEXPRESS_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
+            VEXPRESS_FLASH_SECT_SIZE,
+            VEXPRESS_FLASH_SIZE / VEXPRESS_FLASH_SECT_SIZE, 4,
+            0x00, 0x89, 0x00, 0x18, 0)) {
+        fprintf(stderr, "vexpress: error registering flash 0.\n");
+        exit(1);
+    }
+
+    dinfo = drive_get_next(IF_PFLASH);
+    if (!pflash_cfi01_register(map[VE_NORFLASH1], NULL, "vexpress.flash1",
+            VEXPRESS_FLASH_SIZE, dinfo ? dinfo->bdrv : NULL,
+            VEXPRESS_FLASH_SECT_SIZE,
+            VEXPRESS_FLASH_SIZE / VEXPRESS_FLASH_SECT_SIZE, 4,
+            0x00, 0x89, 0x00, 0x18, 0)) {
+        fprintf(stderr, "vexpress: error registering flash 1.\n");
+        exit(1);
+    }
 
     sram_size = 0x2000000;
     memory_region_init_ram(sram, "vexpress.sram", sram_size);
