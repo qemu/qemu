@@ -820,19 +820,34 @@ static void tcg_out_comclr(TCGContext *s, int cond, TCGArg ret,
     tcg_out32(s, op);
 }
 
+static TCGCond const tcg_high_cond[] = {
+    [TCG_COND_EQ] = TCG_COND_EQ,
+    [TCG_COND_NE] = TCG_COND_NE,
+    [TCG_COND_LT] = TCG_COND_LT,
+    [TCG_COND_LE] = TCG_COND_LT,
+    [TCG_COND_GT] = TCG_COND_GT,
+    [TCG_COND_GE] = TCG_COND_GT,
+    [TCG_COND_LTU] = TCG_COND_LTU,
+    [TCG_COND_LEU] = TCG_COND_LTU,
+    [TCG_COND_GTU] = TCG_COND_GTU,
+    [TCG_COND_GEU] = TCG_COND_GTU
+};
+
 static void tcg_out_brcond2(TCGContext *s, int cond, TCGArg al, TCGArg ah,
                             TCGArg bl, int blconst, TCGArg bh, int bhconst,
                             int label_index)
 {
     switch (cond) {
     case TCG_COND_EQ:
-    case TCG_COND_NE:
-        tcg_out_comclr(s, tcg_invert_cond(cond), TCG_REG_R0, al, bl, blconst);
-        tcg_out_brcond(s, cond, ah, bh, bhconst, label_index);
+        tcg_out_comclr(s, TCG_COND_NE, TCG_REG_R0, al, bl, blconst);
+        tcg_out_brcond(s, TCG_COND_EQ, ah, bh, bhconst, label_index);
         break;
-
+    case TCG_COND_NE:
+        tcg_out_brcond(s, TCG_COND_NE, al, bl, bhconst, label_index);
+        tcg_out_brcond(s, TCG_COND_NE, ah, bh, bhconst, label_index);
+        break;
     default:
-        tcg_out_brcond(s, cond, ah, bh, bhconst, label_index);
+        tcg_out_brcond(s, tcg_high_cond[cond], ah, bh, bhconst, label_index);
         tcg_out_comclr(s, TCG_COND_NE, TCG_REG_R0, ah, bh, bhconst);
         tcg_out_brcond(s, tcg_unsigned_cond(cond),
                        al, bl, blconst, label_index);
@@ -853,9 +868,8 @@ static void tcg_out_setcond2(TCGContext *s, int cond, TCGArg ret,
 {
     int scratch = TCG_REG_R20;
 
-    if (ret != al && ret != ah
-        && (blconst || ret != bl)
-        && (bhconst || ret != bh)) {
+    /* Note that the low parts are fully consumed before scratch is set.  */
+    if (ret != ah && (bhconst || ret != bh)) {
         scratch = ret;
     }
 
@@ -867,13 +881,32 @@ static void tcg_out_setcond2(TCGContext *s, int cond, TCGArg ret,
         tcg_out_movi(s, TCG_TYPE_I32, scratch, cond == TCG_COND_NE);
         break;
 
-    default:
+    case TCG_COND_GE:
+    case TCG_COND_GEU:
+    case TCG_COND_LT:
+    case TCG_COND_LTU:
+        /* Optimize compares with low part zero.  */
+        if (bl == 0) {
+            tcg_out_setcond(s, cond, ret, ah, bh, bhconst);
+            return;
+        }
+        /* FALLTHRU */
+
+    case TCG_COND_LE:
+    case TCG_COND_LEU:
+    case TCG_COND_GT:
+    case TCG_COND_GTU:
+        /* <= : ah < bh | (ah == bh && al <= bl) */
         tcg_out_setcond(s, tcg_unsigned_cond(cond), scratch, al, bl, blconst);
         tcg_out_comclr(s, TCG_COND_EQ, TCG_REG_R0, ah, bh, bhconst);
         tcg_out_movi(s, TCG_TYPE_I32, scratch, 0);
-        tcg_out_comclr(s, cond, TCG_REG_R0, ah, bh, bhconst);
+        tcg_out_comclr(s, tcg_invert_cond(tcg_high_cond[cond]),
+                       TCG_REG_R0, ah, bh, bhconst);
         tcg_out_movi(s, TCG_TYPE_I32, scratch, 1);
         break;
+
+    default:
+        tcg_abort();
     }
 
     tcg_out_mov(s, TCG_TYPE_I32, ret, scratch);
