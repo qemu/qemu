@@ -438,7 +438,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0x3d] = 0x01; // interrupt pin 1
 
     /* APM */
-    apm_init(&s->apm, apm_ctrl_changed, s);
+    apm_init(dev, &s->apm, apm_ctrl_changed, s);
 
     register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
 

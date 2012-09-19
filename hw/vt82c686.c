@@ -427,7 +427,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     register_ioport_write(s->smb_io_base, 0xf, 1, smb_ioport_writeb, &s->smb);
     register_ioport_read(s->smb_io_base, 0xf, 1, smb_ioport_readb, &s->smb);
 
-    apm_init(&s->apm, NULL, s);
+    apm_init(dev, &s->apm, NULL, s);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
     acpi_pm1_cnt_init(&s->ar);

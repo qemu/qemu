@@ -472,7 +472,7 @@ static int ich9_lpc_initfn(PCIDevice *d)
     lpc->isa_bus = isa_bus;
 
     ich9_cc_init(lpc);
-    apm_init(&lpc->apm, ich9_apm_ctrl_changed, lpc);
+    apm_init(d, &lpc->apm, ich9_apm_ctrl_changed, lpc);
     return 0;
 }
 
