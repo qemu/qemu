@@ -480,54 +480,91 @@ err:
 }
 
 /* compatibility wrapper */
-static void inet_parse(QemuOpts *opts, const char *str, Error **errp)
+static InetSocketAddress *inet_parse(const char *str, Error **errp)
 {
+    InetSocketAddress *addr;
     const char *optstr, *h;
-    char addr[64];
+    char host[64];
     char port[33];
+    int to;
     int pos;
+
+    addr = g_new0(InetSocketAddress, 1);
 
     /* parse address */
     if (str[0] == ':') {
         /* no host given */
-        addr[0] = '\0';
-        if (1 != sscanf(str,":%32[^,]%n",port,&pos)) {
+        host[0] = '\0';
+        if (1 != sscanf(str, ":%32[^,]%n", port, &pos)) {
             error_setg(errp, "error parsing port in address '%s'", str);
-            return;
+            goto fail;
         }
     } else if (str[0] == '[') {
         /* IPv6 addr */
-        if (2 != sscanf(str,"[%64[^]]]:%32[^,]%n",addr,port,&pos)) {
+        if (2 != sscanf(str, "[%64[^]]]:%32[^,]%n", host, port, &pos)) {
             error_setg(errp, "error parsing IPv6 address '%s'", str);
-            return;
+            goto fail;
         }
-        qemu_opt_set(opts, "ipv6", "on");
+        addr->ipv6 = addr->has_ipv6 = true;
     } else if (qemu_isdigit(str[0])) {
         /* IPv4 addr */
-        if (2 != sscanf(str,"%64[0-9.]:%32[^,]%n",addr,port,&pos)) {
+        if (2 != sscanf(str, "%64[0-9.]:%32[^,]%n", host, port, &pos)) {
             error_setg(errp, "error parsing IPv4 address '%s'", str);
-            return;
+            goto fail;
         }
-        qemu_opt_set(opts, "ipv4", "on");
+        addr->ipv4 = addr->has_ipv4 = true;
     } else {
         /* hostname */
-        if (2 != sscanf(str,"%64[^:]:%32[^,]%n",addr,port,&pos)) {
+        if (2 != sscanf(str, "%64[^:]:%32[^,]%n", host, port, &pos)) {
             error_setg(errp, "error parsing address '%s'", str);
-            return;
+            goto fail;
         }
     }
-    qemu_opt_set(opts, "host", addr);
-    qemu_opt_set(opts, "port", port);
+
+    addr->host = g_strdup(host);
+    addr->port = g_strdup(port);
 
     /* parse options */
     optstr = str + pos;
     h = strstr(optstr, ",to=");
-    if (h)
-        qemu_opt_set(opts, "to", h+4);
-    if (strstr(optstr, ",ipv4"))
-        qemu_opt_set(opts, "ipv4", "on");
-    if (strstr(optstr, ",ipv6"))
-        qemu_opt_set(opts, "ipv6", "on");
+    if (h) {
+        if (1 != sscanf(str, "%d%n", &to, &pos) ||
+            (str[pos] != '\0' && str[pos] != ',')) {
+            error_setg(errp, "error parsing to= argument");
+            goto fail;
+        }
+        addr->has_to = true;
+        addr->to = to;
+    }
+    if (strstr(optstr, ",ipv4")) {
+        addr->ipv4 = addr->has_ipv4 = true;
+    }
+    if (strstr(optstr, ",ipv6")) {
+        addr->ipv6 = addr->has_ipv6 = true;
+    }
+    return addr;
+
+fail:
+    qapi_free_InetSocketAddress(addr);
+    return NULL;
+}
+
+static void inet_addr_to_opts(QemuOpts *opts, InetSocketAddress *addr)
+{
+    bool ipv4 = addr->ipv4 || !addr->has_ipv4;
+    bool ipv6 = addr->ipv6 || !addr->has_ipv6;
+
+    if (!ipv4 || !ipv6) {
+        qemu_opt_set_bool(opts, "ipv4", ipv4);
+        qemu_opt_set_bool(opts, "ipv6", ipv6);
+    }
+    if (addr->has_to) {
+        char to[20];
+        snprintf(to, sizeof(to), "%d", addr->to);
+        qemu_opt_set(opts, "to", to);
+    }
+    qemu_opt_set(opts, "host", addr->host);
+    qemu_opt_set(opts, "port", addr->port);
 }
 
 int inet_listen(const char *str, char *ostr, int olen,
@@ -536,11 +573,13 @@ int inet_listen(const char *str, char *ostr, int olen,
     QemuOpts *opts;
     char *optstr;
     int sock = -1;
-    Error *local_err = NULL;
+    InetSocketAddress *addr;
 
-    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
-    inet_parse(opts, str, &local_err);
-    if (local_err == NULL) {
+    addr = inet_parse(str, errp);
+    if (addr != NULL) {
+        opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+        inet_addr_to_opts(opts, addr);
+        qapi_free_InetSocketAddress(addr);
         sock = inet_listen_opts(opts, port_offset, errp);
         if (sock != -1 && ostr) {
             optstr = strchr(str, ',');
@@ -556,10 +595,8 @@ int inet_listen(const char *str, char *ostr, int olen,
                          optstr ? optstr : "");
             }
         }
-    } else {
-        error_propagate(errp, local_err);
+        qemu_opts_del(opts);
     }
-    qemu_opts_del(opts);
     return sock;
 }
 
@@ -575,16 +612,16 @@ int inet_connect(const char *str, Error **errp)
 {
     QemuOpts *opts;
     int sock = -1;
-    Error *local_err = NULL;
+    InetSocketAddress *addr;
 
-    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
-    inet_parse(opts, str, &local_err);
-    if (local_err == NULL) {
+    addr = inet_parse(str, errp);
+    if (addr != NULL) {
+        opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+        inet_addr_to_opts(opts, addr);
+        qapi_free_InetSocketAddress(addr);
         sock = inet_connect_opts(opts, errp, NULL, NULL);
-    } else {
-        error_propagate(errp, local_err);
+        qemu_opts_del(opts);
     }
-    qemu_opts_del(opts);
     return sock;
 }
 
@@ -607,18 +644,18 @@ int inet_nonblocking_connect(const char *str,
 {
     QemuOpts *opts;
     int sock = -1;
-    Error *local_err = NULL;
+    InetSocketAddress *addr;
 
     g_assert(callback != NULL);
 
-    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
-    inet_parse(opts, str, &local_err);
-    if (local_err == NULL) {
+    addr = inet_parse(str, errp);
+    if (addr != NULL) {
+        opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+        inet_addr_to_opts(opts, addr);
+        qapi_free_InetSocketAddress(addr);
         sock = inet_connect_opts(opts, errp, callback, opaque);
-    } else {
-        error_propagate(errp, local_err);
+        qemu_opts_del(opts);
     }
-    qemu_opts_del(opts);
     return sock;
 }
 
