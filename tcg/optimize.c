@@ -632,21 +632,17 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 i--;
             }
             break;
-        case INDEX_op_set_label:
-        case INDEX_op_jmp:
-        case INDEX_op_br:
-            memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
-            for (i = 0; i < def->nb_args; i++) {
-                *gen_args = *args;
-                args++;
-                gen_args++;
-            }
-            break;
         default:
             /* Default case: we do know nothing about operation so no
-               propagation is done.  We only trash output args.  */
-            for (i = 0; i < def->nb_oargs; i++) {
-                reset_temp(args[i], nb_temps, nb_globals);
+               propagation is done.  We trash everything if the operation
+               is the end of a basic block, otherwise we only trash the
+               output args.  */
+            if (def->flags & TCG_OPF_BB_END) {
+                memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+            } else {
+                for (i = 0; i < def->nb_oargs; i++) {
+                    reset_temp(args[i], nb_temps, nb_globals);
+                }
             }
             for (i = 0; i < def->nb_args; i++) {
                 gen_args[i] = args[i];
