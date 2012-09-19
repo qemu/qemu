@@ -434,7 +434,10 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(eqv):
         CASE_OP_32_64(nand):
         CASE_OP_32_64(nor):
-            if (temps[args[1]].state == TCG_TEMP_CONST) {
+            /* Prefer the constant in second argument, and then the form
+               op a, a, b, which is better handled on non-RISC hosts. */
+            if (temps[args[1]].state == TCG_TEMP_CONST || (args[0] == args[2]
+                && temps[args[2]].state != TCG_TEMP_CONST)) {
                 tmp = args[1];
                 args[1] = args[2];
                 args[2] = tmp;
