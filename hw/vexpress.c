@@ -62,7 +62,6 @@ enum {
     VE_COMPACTFLASH,
     VE_CLCD,
     VE_NORFLASH0,
-    VE_NORFLASH0ALIAS,
     VE_NORFLASH1,
     VE_SRAM,
     VE_VIDEORAM,
@@ -104,9 +103,8 @@ static target_phys_addr_t motherboard_legacy_map[] = {
 };
 
 static target_phys_addr_t motherboard_aseries_map[] = {
-    /* CS0: 0x00000000 .. 0x0c000000 */
-    [VE_NORFLASH0] = 0x00000000,
-    [VE_NORFLASH0ALIAS] = 0x08000000,
+    /* CS0: 0x08000000 .. 0x0c000000 */
+    [VE_NORFLASH0] = 0x08000000,
     /* CS4: 0x0c000000 .. 0x10000000 */
     [VE_NORFLASH1] = 0x0c000000,
     /* CS5: 0x10000000 .. 0x14000000 */
@@ -413,7 +411,6 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
     /* VE_NORFLASH0: not modelled */
-    /* VE_NORFLASH0ALIAS: not modelled */
     /* VE_NORFLASH1: not modelled */
 
     sram_size = 0x2000000;
