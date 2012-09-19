@@ -1907,7 +1907,66 @@ static void disas_xtensa_insn(DisasContext *dc)
 
         case 10: /*FP0*/
             HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
-            TBD();
+            switch (OP2) {
+            case 0: /*ADD.Sf*/
+                gen_helper_add_s(cpu_FR[RRR_R], cpu_env,
+                        cpu_FR[RRR_S], cpu_FR[RRR_T]);
+                break;
+
+            case 1: /*SUB.Sf*/
+                gen_helper_sub_s(cpu_FR[RRR_R], cpu_env,
+                        cpu_FR[RRR_S], cpu_FR[RRR_T]);
+                break;
+
+            case 2: /*MUL.Sf*/
+                gen_helper_mul_s(cpu_FR[RRR_R], cpu_env,
+                        cpu_FR[RRR_S], cpu_FR[RRR_T]);
+                break;
+
+            case 4: /*MADD.Sf*/
+                gen_helper_madd_s(cpu_FR[RRR_R], cpu_env,
+                        cpu_FR[RRR_R], cpu_FR[RRR_S], cpu_FR[RRR_T]);
+                break;
+
+            case 5: /*MSUB.Sf*/
+                gen_helper_msub_s(cpu_FR[RRR_R], cpu_env,
+                        cpu_FR[RRR_R], cpu_FR[RRR_S], cpu_FR[RRR_T]);
+                break;
+
+            case 15: /*FP1OP*/
+                switch (RRR_T) {
+                case 0: /*MOV.Sf*/
+                    tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_FR[RRR_S]);
+                    break;
+
+                case 1: /*ABS.Sf*/
+                    gen_helper_abs_s(cpu_FR[RRR_R], cpu_FR[RRR_S]);
+                    break;
+
+                case 4: /*RFRf*/
+                    gen_window_check1(dc, RRR_R);
+                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_FR[RRR_S]);
+                    break;
+
+                case 5: /*WFRf*/
+                    gen_window_check1(dc, RRR_S);
+                    tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_R[RRR_S]);
+                    break;
+
+                case 6: /*NEG.Sf*/
+                    gen_helper_neg_s(cpu_FR[RRR_R], cpu_FR[RRR_S]);
+                    break;
+
+                default: /*reserved*/
+                    RESERVED();
+                    break;
+                }
+                break;
+
+            default: /*reserved*/
+                RESERVED();
+                break;
+            }
             break;
 
         case 11: /*FP1*/

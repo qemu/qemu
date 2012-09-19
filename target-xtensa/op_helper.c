@@ -784,3 +784,40 @@ void HELPER(wur_fcr)(CPUXtensaState *env, uint32_t v)
     env->uregs[FCR] = v & 0xfffff07f;
     set_float_rounding_mode(rounding_mode[v & 3], &env->fp_status);
 }
+
+float32 HELPER(abs_s)(float32 v)
+{
+    return float32_abs(v);
+}
+
+float32 HELPER(neg_s)(float32 v)
+{
+    return float32_chs(v);
+}
+
+float32 HELPER(add_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    return float32_add(a, b, &env->fp_status);
+}
+
+float32 HELPER(sub_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    return float32_sub(a, b, &env->fp_status);
+}
+
+float32 HELPER(mul_s)(CPUXtensaState *env, float32 a, float32 b)
+{
+    return float32_mul(a, b, &env->fp_status);
+}
+
+float32 HELPER(madd_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
+{
+    return float32_muladd(b, c, a, 0,
+            &env->fp_status);
+}
+
+float32 HELPER(msub_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
+{
+    return float32_muladd(b, c, a, float_muladd_negate_product,
+            &env->fp_status);
+}

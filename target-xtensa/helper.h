@@ -37,5 +37,12 @@ DEF_HELPER_3(wsr_dbreaka, void, env, i32, i32)
 DEF_HELPER_3(wsr_dbreakc, void, env, i32, i32)
 
 DEF_HELPER_2(wur_fcr, void, env, i32)
+DEF_HELPER_FLAGS_1(abs_s, TCG_CALL_CONST | TCG_CALL_PURE, f32, f32)
+DEF_HELPER_FLAGS_1(neg_s, TCG_CALL_CONST | TCG_CALL_PURE, f32, f32)
+DEF_HELPER_3(add_s, f32, env, f32, f32)
+DEF_HELPER_3(sub_s, f32, env, f32, f32)
+DEF_HELPER_3(mul_s, f32, env, f32, f32)
+DEF_HELPER_4(madd_s, f32, env, f32, f32, f32)
+DEF_HELPER_4(msub_s, f32, env, f32, f32, f32)
 
 #include "def-helper.h"
