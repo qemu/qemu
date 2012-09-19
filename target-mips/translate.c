@@ -446,6 +446,103 @@ enum {
     OPC_BC2     = (0x08 << 21) | OPC_CP2,
 };
 
+#define MASK_LMI(op)  (MASK_OP_MAJOR(op) | (op & (0x1F << 21)) | (op & 0x1F))
+
+enum {
+    OPC_PADDSH  = (24 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDUSH = (25 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDH   = (26 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDW   = (27 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDSB  = (28 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDUSB = (29 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDB   = (30 << 21) | (0x00) | OPC_CP2,
+    OPC_PADDD   = (31 << 21) | (0x00) | OPC_CP2,
+
+    OPC_PSUBSH  = (24 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBUSH = (25 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBH   = (26 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBW   = (27 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBSB  = (28 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBUSB = (29 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBB   = (30 << 21) | (0x01) | OPC_CP2,
+    OPC_PSUBD   = (31 << 21) | (0x01) | OPC_CP2,
+
+    OPC_PSHUFH   = (24 << 21) | (0x02) | OPC_CP2,
+    OPC_PACKSSWH = (25 << 21) | (0x02) | OPC_CP2,
+    OPC_PACKSSHB = (26 << 21) | (0x02) | OPC_CP2,
+    OPC_PACKUSHB = (27 << 21) | (0x02) | OPC_CP2,
+    OPC_XOR_CP2  = (28 << 21) | (0x02) | OPC_CP2,
+    OPC_NOR_CP2  = (29 << 21) | (0x02) | OPC_CP2,
+    OPC_AND_CP2  = (30 << 21) | (0x02) | OPC_CP2,
+    OPC_PANDN    = (31 << 21) | (0x02) | OPC_CP2,
+
+    OPC_PUNPCKLHW = (24 << 21) | (0x03) | OPC_CP2,
+    OPC_PUNPCKHHW = (25 << 21) | (0x03) | OPC_CP2,
+    OPC_PUNPCKLBH = (26 << 21) | (0x03) | OPC_CP2,
+    OPC_PUNPCKHBH = (27 << 21) | (0x03) | OPC_CP2,
+    OPC_PINSRH_0  = (28 << 21) | (0x03) | OPC_CP2,
+    OPC_PINSRH_1  = (29 << 21) | (0x03) | OPC_CP2,
+    OPC_PINSRH_2  = (30 << 21) | (0x03) | OPC_CP2,
+    OPC_PINSRH_3  = (31 << 21) | (0x03) | OPC_CP2,
+
+    OPC_PAVGH   = (24 << 21) | (0x08) | OPC_CP2,
+    OPC_PAVGB   = (25 << 21) | (0x08) | OPC_CP2,
+    OPC_PMAXSH  = (26 << 21) | (0x08) | OPC_CP2,
+    OPC_PMINSH  = (27 << 21) | (0x08) | OPC_CP2,
+    OPC_PMAXUB  = (28 << 21) | (0x08) | OPC_CP2,
+    OPC_PMINUB  = (29 << 21) | (0x08) | OPC_CP2,
+
+    OPC_PCMPEQW = (24 << 21) | (0x09) | OPC_CP2,
+    OPC_PCMPGTW = (25 << 21) | (0x09) | OPC_CP2,
+    OPC_PCMPEQH = (26 << 21) | (0x09) | OPC_CP2,
+    OPC_PCMPGTH = (27 << 21) | (0x09) | OPC_CP2,
+    OPC_PCMPEQB = (28 << 21) | (0x09) | OPC_CP2,
+    OPC_PCMPGTB = (29 << 21) | (0x09) | OPC_CP2,
+
+    OPC_PSLLW   = (24 << 21) | (0x0A) | OPC_CP2,
+    OPC_PSLLH   = (25 << 21) | (0x0A) | OPC_CP2,
+    OPC_PMULLH  = (26 << 21) | (0x0A) | OPC_CP2,
+    OPC_PMULHH  = (27 << 21) | (0x0A) | OPC_CP2,
+    OPC_PMULUW  = (28 << 21) | (0x0A) | OPC_CP2,
+    OPC_PMULHUH = (29 << 21) | (0x0A) | OPC_CP2,
+
+    OPC_PSRLW     = (24 << 21) | (0x0B) | OPC_CP2,
+    OPC_PSRLH     = (25 << 21) | (0x0B) | OPC_CP2,
+    OPC_PSRAW     = (26 << 21) | (0x0B) | OPC_CP2,
+    OPC_PSRAH     = (27 << 21) | (0x0B) | OPC_CP2,
+    OPC_PUNPCKLWD = (28 << 21) | (0x0B) | OPC_CP2,
+    OPC_PUNPCKHWD = (29 << 21) | (0x0B) | OPC_CP2,
+
+    OPC_ADDU_CP2 = (24 << 21) | (0x0C) | OPC_CP2,
+    OPC_OR_CP2   = (25 << 21) | (0x0C) | OPC_CP2,
+    OPC_ADD_CP2  = (26 << 21) | (0x0C) | OPC_CP2,
+    OPC_DADD_CP2 = (27 << 21) | (0x0C) | OPC_CP2,
+    OPC_SEQU_CP2 = (28 << 21) | (0x0C) | OPC_CP2,
+    OPC_SEQ_CP2  = (29 << 21) | (0x0C) | OPC_CP2,
+
+    OPC_SUBU_CP2 = (24 << 21) | (0x0D) | OPC_CP2,
+    OPC_PASUBUB  = (25 << 21) | (0x0D) | OPC_CP2,
+    OPC_SUB_CP2  = (26 << 21) | (0x0D) | OPC_CP2,
+    OPC_DSUB_CP2 = (27 << 21) | (0x0D) | OPC_CP2,
+    OPC_SLTU_CP2 = (28 << 21) | (0x0D) | OPC_CP2,
+    OPC_SLT_CP2  = (29 << 21) | (0x0D) | OPC_CP2,
+
+    OPC_SLL_CP2  = (24 << 21) | (0x0E) | OPC_CP2,
+    OPC_DSLL_CP2 = (25 << 21) | (0x0E) | OPC_CP2,
+    OPC_PEXTRH   = (26 << 21) | (0x0E) | OPC_CP2,
+    OPC_PMADDHW  = (27 << 21) | (0x0E) | OPC_CP2,
+    OPC_SLEU_CP2 = (28 << 21) | (0x0E) | OPC_CP2,
+    OPC_SLE_CP2  = (29 << 21) | (0x0E) | OPC_CP2,
+
+    OPC_SRL_CP2  = (24 << 21) | (0x0F) | OPC_CP2,
+    OPC_DSRL_CP2 = (25 << 21) | (0x0F) | OPC_CP2,
+    OPC_SRA_CP2  = (26 << 21) | (0x0F) | OPC_CP2,
+    OPC_DSRA_CP2 = (27 << 21) | (0x0F) | OPC_CP2,
+    OPC_BIADD    = (28 << 21) | (0x0F) | OPC_CP2,
+    OPC_PMOVMSKB = (29 << 21) | (0x0F) | OPC_CP2,
+};
+
+
 #define MASK_CP3(op)       MASK_OP_MAJOR(op) | (op & 0x3F)
 
 enum {
@@ -2388,8 +2485,8 @@ static void gen_cl (DisasContext *ctx, uint32_t opc,
 }
 
 /* Godson integer instructions */
-static void gen_loongson_integer (DisasContext *ctx, uint32_t opc,
-                                int rd, int rs, int rt)
+static void gen_loongson_integer(DisasContext *ctx, uint32_t opc,
+                                 int rd, int rs, int rt)
 {
     const char *opn = "loongson";
     TCGv t0, t1;
@@ -2600,6 +2697,278 @@ static void gen_loongson_integer (DisasContext *ctx, uint32_t opc,
     MIPS_DEBUG("%s %s, %s", opn, regnames[rd], regnames[rs]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
+}
+
+/* Loongson multimedia instructions */
+static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
+{
+    const char *opn = "loongson_cp2";
+    uint32_t opc, shift_max;
+    TCGv_i64 t0, t1;
+
+    opc = MASK_LMI(ctx->opcode);
+    switch (opc) {
+    case OPC_ADD_CP2:
+    case OPC_SUB_CP2:
+    case OPC_DADD_CP2:
+    case OPC_DSUB_CP2:
+        t0 = tcg_temp_local_new_i64();
+        t1 = tcg_temp_local_new_i64();
+        break;
+    default:
+        t0 = tcg_temp_new_i64();
+        t1 = tcg_temp_new_i64();
+        break;
+    }
+
+    gen_load_fpr64(ctx, t0, rs);
+    gen_load_fpr64(ctx, t1, rt);
+
+#define LMI_HELPER(UP, LO) \
+    case OPC_##UP: gen_helper_##LO(t0, t0, t1); opn = #LO; break
+#define LMI_HELPER_1(UP, LO) \
+    case OPC_##UP: gen_helper_##LO(t0, t0); opn = #LO; break
+#define LMI_DIRECT(UP, LO, OP) \
+    case OPC_##UP: tcg_gen_##OP##_i64(t0, t0, t1); opn = #LO; break
+
+    switch (opc) {
+    LMI_HELPER(PADDSH, paddsh);
+    LMI_HELPER(PADDUSH, paddush);
+    LMI_HELPER(PADDH, paddh);
+    LMI_HELPER(PADDW, paddw);
+    LMI_HELPER(PADDSB, paddsb);
+    LMI_HELPER(PADDUSB, paddusb);
+    LMI_HELPER(PADDB, paddb);
+
+    LMI_HELPER(PSUBSH, psubsh);
+    LMI_HELPER(PSUBUSH, psubush);
+    LMI_HELPER(PSUBH, psubh);
+    LMI_HELPER(PSUBW, psubw);
+    LMI_HELPER(PSUBSB, psubsb);
+    LMI_HELPER(PSUBUSB, psubusb);
+    LMI_HELPER(PSUBB, psubb);
+
+    LMI_HELPER(PSHUFH, pshufh);
+    LMI_HELPER(PACKSSWH, packsswh);
+    LMI_HELPER(PACKSSHB, packsshb);
+    LMI_HELPER(PACKUSHB, packushb);
+
+    LMI_HELPER(PUNPCKLHW, punpcklhw);
+    LMI_HELPER(PUNPCKHHW, punpckhhw);
+    LMI_HELPER(PUNPCKLBH, punpcklbh);
+    LMI_HELPER(PUNPCKHBH, punpckhbh);
+    LMI_HELPER(PUNPCKLWD, punpcklwd);
+    LMI_HELPER(PUNPCKHWD, punpckhwd);
+
+    LMI_HELPER(PAVGH, pavgh);
+    LMI_HELPER(PAVGB, pavgb);
+    LMI_HELPER(PMAXSH, pmaxsh);
+    LMI_HELPER(PMINSH, pminsh);
+    LMI_HELPER(PMAXUB, pmaxub);
+    LMI_HELPER(PMINUB, pminub);
+
+    LMI_HELPER(PCMPEQW, pcmpeqw);
+    LMI_HELPER(PCMPGTW, pcmpgtw);
+    LMI_HELPER(PCMPEQH, pcmpeqh);
+    LMI_HELPER(PCMPGTH, pcmpgth);
+    LMI_HELPER(PCMPEQB, pcmpeqb);
+    LMI_HELPER(PCMPGTB, pcmpgtb);
+
+    LMI_HELPER(PSLLW, psllw);
+    LMI_HELPER(PSLLH, psllh);
+    LMI_HELPER(PSRLW, psrlw);
+    LMI_HELPER(PSRLH, psrlh);
+    LMI_HELPER(PSRAW, psraw);
+    LMI_HELPER(PSRAH, psrah);
+
+    LMI_HELPER(PMULLH, pmullh);
+    LMI_HELPER(PMULHH, pmulhh);
+    LMI_HELPER(PMULHUH, pmulhuh);
+    LMI_HELPER(PMADDHW, pmaddhw);
+
+    LMI_HELPER(PASUBUB, pasubub);
+    LMI_HELPER_1(BIADD, biadd);
+    LMI_HELPER_1(PMOVMSKB, pmovmskb);
+
+    LMI_DIRECT(PADDD, paddd, add);
+    LMI_DIRECT(PSUBD, psubd, sub);
+    LMI_DIRECT(XOR_CP2, xor, xor);
+    LMI_DIRECT(NOR_CP2, nor, nor);
+    LMI_DIRECT(AND_CP2, and, and);
+    LMI_DIRECT(PANDN, pandn, andc);
+    LMI_DIRECT(OR, or, or);
+
+    case OPC_PINSRH_0:
+        tcg_gen_deposit_i64(t0, t0, t1, 0, 16);
+        opn = "pinsrh_0";
+        break;
+    case OPC_PINSRH_1:
+        tcg_gen_deposit_i64(t0, t0, t1, 16, 16);
+        opn = "pinsrh_1";
+        break;
+    case OPC_PINSRH_2:
+        tcg_gen_deposit_i64(t0, t0, t1, 32, 16);
+        opn = "pinsrh_2";
+        break;
+    case OPC_PINSRH_3:
+        tcg_gen_deposit_i64(t0, t0, t1, 48, 16);
+        opn = "pinsrh_3";
+        break;
+
+    case OPC_PEXTRH:
+        tcg_gen_andi_i64(t1, t1, 3);
+        tcg_gen_shli_i64(t1, t1, 4);
+        tcg_gen_shr_i64(t0, t0, t1);
+        tcg_gen_ext16u_i64(t0, t0);
+        opn = "pextrh";
+        break;
+
+    case OPC_ADDU_CP2:
+        tcg_gen_add_i64(t0, t0, t1);
+        tcg_gen_ext32s_i64(t0, t0);
+        opn = "addu";
+        break;
+    case OPC_SUBU_CP2:
+        tcg_gen_sub_i64(t0, t0, t1);
+        tcg_gen_ext32s_i64(t0, t0);
+        opn = "addu";
+        break;
+
+    case OPC_SLL_CP2:
+        opn = "sll";
+        shift_max = 32;
+        goto do_shift;
+    case OPC_SRL_CP2:
+        opn = "srl";
+        shift_max = 32;
+        goto do_shift;
+    case OPC_SRA_CP2:
+        opn = "sra";
+        shift_max = 32;
+        goto do_shift;
+    case OPC_DSLL_CP2:
+        opn = "dsll";
+        shift_max = 64;
+        goto do_shift;
+    case OPC_DSRL_CP2:
+        opn = "dsrl";
+        shift_max = 64;
+        goto do_shift;
+    case OPC_DSRA_CP2:
+        opn = "dsra";
+        shift_max = 64;
+        goto do_shift;
+    do_shift:
+        /* Make sure shift count isn't TCG undefined behaviour.  */
+        tcg_gen_andi_i64(t1, t1, shift_max - 1);
+
+        switch (opc) {
+        case OPC_SLL_CP2:
+        case OPC_DSLL_CP2:
+            tcg_gen_shl_i64(t0, t0, t1);
+            break;
+        case OPC_SRA_CP2:
+        case OPC_DSRA_CP2:
+            /* Since SRA is UndefinedResult without sign-extended inputs,
+               we can treat SRA and DSRA the same.  */
+            tcg_gen_sar_i64(t0, t0, t1);
+            break;
+        case OPC_SRL_CP2:
+            /* We want to shift in zeros for SRL; zero-extend first.  */
+            tcg_gen_ext32u_i64(t0, t0);
+            /* FALLTHRU */
+        case OPC_DSRL_CP2:
+            tcg_gen_shr_i64(t0, t0, t1);
+            break;
+        }
+
+        if (shift_max == 32) {
+            tcg_gen_ext32s_i64(t0, t0);
+        }
+
+        /* Shifts larger than MAX produce zero.  */
+        tcg_gen_setcondi_i64(TCG_COND_LTU, t1, t1, shift_max);
+        tcg_gen_neg_i64(t1, t1);
+        tcg_gen_and_i64(t0, t0, t1);
+        break;
+
+    case OPC_ADD_CP2:
+    case OPC_DADD_CP2:
+        {
+            TCGv_i64 t2 = tcg_temp_new_i64();
+            int lab = gen_new_label();
+
+            tcg_gen_mov_i64(t2, t0);
+            tcg_gen_add_i64(t0, t1, t2);
+            if (opc == OPC_ADD_CP2) {
+                tcg_gen_ext32s_i64(t0, t0);
+            }
+            tcg_gen_xor_i64(t1, t1, t2);
+            tcg_gen_xor_i64(t2, t2, t0);
+            tcg_gen_andc_i64(t1, t2, t1);
+            tcg_temp_free_i64(t2);
+            tcg_gen_brcondi_i64(TCG_COND_GE, t1, 0, lab);
+            generate_exception(ctx, EXCP_OVERFLOW);
+            gen_set_label(lab);
+
+            opn = (opc == OPC_ADD_CP2 ? "add" : "dadd");
+            break;
+        }
+
+    case OPC_SUB_CP2:
+    case OPC_DSUB_CP2:
+        {
+            TCGv_i64 t2 = tcg_temp_new_i64();
+            int lab = gen_new_label();
+
+            tcg_gen_mov_i64(t2, t0);
+            tcg_gen_sub_i64(t0, t1, t2);
+            if (opc == OPC_SUB_CP2) {
+                tcg_gen_ext32s_i64(t0, t0);
+            }
+            tcg_gen_xor_i64(t1, t1, t2);
+            tcg_gen_xor_i64(t2, t2, t0);
+            tcg_gen_and_i64(t1, t1, t2);
+            tcg_temp_free_i64(t2);
+            tcg_gen_brcondi_i64(TCG_COND_GE, t1, 0, lab);
+            generate_exception(ctx, EXCP_OVERFLOW);
+            gen_set_label(lab);
+
+            opn = (opc == OPC_SUB_CP2 ? "sub" : "dsub");
+            break;
+        }
+
+    case OPC_PMULUW:
+        tcg_gen_ext32u_i64(t0, t0);
+        tcg_gen_ext32u_i64(t1, t1);
+        tcg_gen_mul_i64(t0, t0, t1);
+        opn = "pmuluw";
+        break;
+
+    case OPC_SEQU_CP2:
+    case OPC_SEQ_CP2:
+    case OPC_SLTU_CP2:
+    case OPC_SLT_CP2:
+    case OPC_SLEU_CP2:
+    case OPC_SLE_CP2:
+        /* ??? Document is unclear: Set FCC[CC].  Does that mean the
+           FD field is the CC field?  */
+    default:
+        MIPS_INVAL(opn);
+        generate_exception(ctx, EXCP_RI);
+        return;
+    }
+
+#undef LMI_HELPER
+#undef LMI_DIRECT
+
+    gen_store_fpr64(ctx, t0, rd);
+
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s %s, %s, %s", opn,
+               fregnames[rd], fregnames[rs], fregnames[rt]);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
 }
 
 /* Traps */
@@ -12327,9 +12696,13 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
     case OPC_LDC2:
     case OPC_SWC2:
     case OPC_SDC2:
-    case OPC_CP2:
         /* COP2: Not implemented. */
         generate_exception_err(ctx, EXCP_CpU, 2);
+        break;
+    case OPC_CP2:
+        check_insn(env, ctx, INSN_LOONGSON2F);
+        /* Note that these instructions use different fields.  */
+        gen_loongson_multimedia(ctx, sa, rd, rt);
         break;
 
     case OPC_CP3:
