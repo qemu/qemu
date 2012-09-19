@@ -271,7 +271,7 @@
     C(0xb982, XGR,     RRE,   Z,   r1, r2, r1, 0, xor, nz64)
     C(0xb9e7, XGRK,    RRF_a, DO,  r2, r3, r1, 0, xor, nz64)
     C(0xe382, XG,      RXY_a, Z,   r1, m2_64, r1, 0, xor, nz64)
-    C(0xd700, XC,      SS_a,  Z,   la1, a2, 0, 0, xc, 0)
+    C(0xd700, XC,      SS_a,  Z,   0, 0, 0, 0, xc, 0)
 /* EXCLUSIVE OR IMMEDIATE */
     D(0xc006, XIHF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2020)
     D(0xc007, XILF,    RIL_a, EI,  r1_o, i2_32u, r1, 0, xori, 0, 0x2000)

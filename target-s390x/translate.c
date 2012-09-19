@@ -3403,10 +3403,54 @@ static ExitStatus op_unpk(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_xc(DisasContext *s, DisasOps *o)
 {
-    TCGv_i32 l = tcg_const_i32(get_field(s->fields, l1));
+    int d1 = get_field(s->fields, d1);
+    int d2 = get_field(s->fields, d2);
+    int b1 = get_field(s->fields, b1);
+    int b2 = get_field(s->fields, b2);
+    int l = get_field(s->fields, l1);
+    TCGv_i32 t32;
+
+    o->addr1 = get_address(s, 0, b1, d1);
+
+    /* If the addresses are identical, this is a store/memset of zero.  */
+    if (b1 == b2 && d1 == d2 && (l + 1) <= 32) {
+        o->in2 = tcg_const_i64(0);
+
+        l++;
+        while (l >= 8) {
+            tcg_gen_qemu_st64(o->in2, o->addr1, get_mem_index(s));
+            l -= 8;
+            if (l > 0) {
+                tcg_gen_addi_i64(o->addr1, o->addr1, 8);
+            }
+        }
+        if (l >= 4) {
+            tcg_gen_qemu_st32(o->in2, o->addr1, get_mem_index(s));
+            l -= 4;
+            if (l > 0) {
+                tcg_gen_addi_i64(o->addr1, o->addr1, 4);
+            }
+        }
+        if (l >= 2) {
+            tcg_gen_qemu_st16(o->in2, o->addr1, get_mem_index(s));
+            l -= 2;
+            if (l > 0) {
+                tcg_gen_addi_i64(o->addr1, o->addr1, 2);
+            }
+        }
+        if (l) {
+            tcg_gen_qemu_st8(o->in2, o->addr1, get_mem_index(s));
+        }
+        gen_op_movi_cc(s, 0);
+        return NO_EXIT;
+    }
+
+    /* But in general we'll defer to a helper.  */
+    o->in2 = get_address(s, 0, b2, d2);
+    t32 = tcg_const_i32(l);
     potential_page_fault(s);
-    gen_helper_xc(cc_op, cpu_env, l, o->addr1, o->in2);
-    tcg_temp_free_i32(l);
+    gen_helper_xc(cc_op, cpu_env, t32, o->addr1, o->in2);
+    tcg_temp_free_i32(t32);
     set_cc_static(s);
     return NO_EXIT;
 }
