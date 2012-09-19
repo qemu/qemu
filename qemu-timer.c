@@ -372,21 +372,20 @@ bool qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
 
 void qemu_run_timers(QEMUClock *clock)
 {
-    QEMUTimer **ptimer_head, *ts;
+    QEMUTimer *ts;
     int64_t current_time;
    
     if (!clock->enabled)
         return;
 
     current_time = qemu_get_clock_ns(clock);
-    ptimer_head = &clock->active_timers;
     for(;;) {
-        ts = *ptimer_head;
+        ts = clock->active_timers;
         if (!qemu_timer_expired_ns(ts, current_time)) {
             break;
         }
         /* remove timer from the list before calling the callback */
-        *ptimer_head = ts->next;
+        clock->active_timers = ts->next;
         ts->next = NULL;
 
         /* run the callback (the timer list can be modified) */
