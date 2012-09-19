@@ -2019,7 +2019,86 @@ static void disas_xtensa_insn(DisasContext *dc)
 
         case 11: /*FP1*/
             HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
-            TBD();
+
+#define gen_compare(rel, br, a, b) \
+    do { \
+        TCGv_i32 bit = tcg_const_i32(1 << br); \
+        \
+        gen_helper_##rel(cpu_env, bit, cpu_FR[a], cpu_FR[b]); \
+        tcg_temp_free(bit); \
+    } while (0)
+
+            switch (OP2) {
+            case 1: /*UN.Sf*/
+                gen_compare(un_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 2: /*OEQ.Sf*/
+                gen_compare(oeq_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 3: /*UEQ.Sf*/
+                gen_compare(ueq_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 4: /*OLT.Sf*/
+                gen_compare(olt_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 5: /*ULT.Sf*/
+                gen_compare(ult_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 6: /*OLE.Sf*/
+                gen_compare(ole_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 7: /*ULE.Sf*/
+                gen_compare(ule_s, RRR_R, RRR_S, RRR_T);
+                break;
+
+#undef gen_compare
+
+            case 8: /*MOVEQZ.Sf*/
+            case 9: /*MOVNEZ.Sf*/
+            case 10: /*MOVLTZ.Sf*/
+            case 11: /*MOVGEZ.Sf*/
+                gen_window_check1(dc, RRR_T);
+                {
+                    static const TCGCond cond[] = {
+                        TCG_COND_NE,
+                        TCG_COND_EQ,
+                        TCG_COND_GE,
+                        TCG_COND_LT
+                    };
+                    int label = gen_new_label();
+                    tcg_gen_brcondi_i32(cond[OP2 - 8], cpu_R[RRR_T], 0, label);
+                    tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_FR[RRR_S]);
+                    gen_set_label(label);
+                }
+                break;
+
+            case 12: /*MOVF.Sf*/
+            case 13: /*MOVT.Sf*/
+                HAS_OPTION(XTENSA_OPTION_BOOLEAN);
+                {
+                    int label = gen_new_label();
+                    TCGv_i32 tmp = tcg_temp_new_i32();
+
+                    tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << RRR_T);
+                    tcg_gen_brcondi_i32(
+                            OP2 & 1 ? TCG_COND_EQ : TCG_COND_NE,
+                            tmp, 0, label);
+                    tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_FR[RRR_S]);
+                    gen_set_label(label);
+                    tcg_temp_free(tmp);
+                }
+                break;
+
+            default: /*reserved*/
+                RESERVED();
+                break;
+            }
             break;
 
         default: /*reserved*/

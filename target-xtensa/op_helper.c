@@ -858,3 +858,50 @@ float32 HELPER(uitof)(CPUXtensaState *env, uint32_t v, uint32_t scale)
     return float32_scalbn(uint32_to_float32(v, &env->fp_status),
             (int32_t)scale, &env->fp_status);
 }
+
+static inline void set_br(CPUXtensaState *env, bool v, uint32_t br)
+{
+    if (v) {
+        env->sregs[BR] |= br;
+    } else {
+        env->sregs[BR] &= ~br;
+    }
+}
+
+void HELPER(un_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_unordered_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(oeq_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_eq_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(ueq_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    int v = float32_compare_quiet(a, b, &env->fp_status);
+    set_br(env, v == float_relation_equal || v == float_relation_unordered, br);
+}
+
+void HELPER(olt_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_lt_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(ult_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    int v = float32_compare_quiet(a, b, &env->fp_status);
+    set_br(env, v == float_relation_less || v == float_relation_unordered, br);
+}
+
+void HELPER(ole_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    set_br(env, float32_le_quiet(a, b, &env->fp_status), br);
+}
+
+void HELPER(ule_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
+{
+    int v = float32_compare_quiet(a, b, &env->fp_status);
+    set_br(env, v != float_relation_greater, br);
+}
