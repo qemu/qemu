@@ -48,6 +48,7 @@ block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 block-obj-y += block/
+block-obj-y += $(qapi-obj-y) qapi-types.o qapi-visit.o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
@@ -239,9 +240,9 @@ QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
 	qga-obj-y \
-	block-obj-y \
 	qom-obj-y \
 	qapi-obj-y \
+	block-obj-y \
 	user-obj-y \
 	common-obj-y \
 	extra-obj-y
