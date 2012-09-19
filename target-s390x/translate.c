@@ -174,6 +174,10 @@ void s390x_translate_init(void)
                                       offsetof(CPUS390XState, fregs[i].d),
                                       cpu_reg_names[i + 16]);
     }
+
+    /* register helpers */
+#define GEN_HELPER 2
+#include "helper.h"
 }
 
 static inline TCGv_i64 load_reg(int reg)
