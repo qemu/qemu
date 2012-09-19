@@ -65,6 +65,8 @@ typedef struct DisasContext {
     bool debug;
     bool icount;
     TCGv_i32 next_icount;
+
+    unsigned cpenable;
 } DisasContext;
 
 static TCGv_ptr cpu_env;
@@ -331,6 +333,15 @@ static void gen_check_privilege(DisasContext *dc)
     }
 }
 
+static void gen_check_cpenable(DisasContext *dc, unsigned cp)
+{
+    if (option_enabled(dc, XTENSA_OPTION_COPROCESSOR) &&
+            !(dc->cpenable & (1 << cp))) {
+        gen_exception_cause(dc, COPROCESSOR0_DISABLED + cp);
+        dc->is_jmp = DISAS_UPDATE;
+    }
+}
+
 static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
 {
     tcg_gen_mov_i32(cpu_pc, dest);
@@ -579,6 +590,13 @@ static void gen_wsr_dbreakc(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     }
 }
 
+static void gen_wsr_cpenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], v, 0xff);
+    /* This can change tb->flags, so exit tb */
+    gen_jumpi_check_loop_end(dc, -1);
+}
+
 static void gen_wsr_intset(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v,
@@ -681,6 +699,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [DBREAKA + 1] = gen_wsr_dbreaka,
         [DBREAKC] = gen_wsr_dbreakc,
         [DBREAKC + 1] = gen_wsr_dbreakc,
+        [CPENABLE] = gen_wsr_cpenable,
         [INTSET] = gen_wsr_intset,
         [INTCLEAR] = gen_wsr_intclear,
         [INTENABLE] = gen_wsr_intenable,
@@ -1850,6 +1869,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 5: /*SSXUf*/
                 HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
                 gen_window_check2(dc, RRR_S, RRR_T);
+                gen_check_cpenable(dc, 0);
                 {
                     TCGv_i32 addr = tcg_temp_new_i32();
                     tcg_gen_add_i32(addr, cpu_R[RRR_S], cpu_R[RRR_T]);
@@ -1909,26 +1929,31 @@ static void disas_xtensa_insn(DisasContext *dc)
             HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
             switch (OP2) {
             case 0: /*ADD.Sf*/
+                gen_check_cpenable(dc, 0);
                 gen_helper_add_s(cpu_FR[RRR_R], cpu_env,
                         cpu_FR[RRR_S], cpu_FR[RRR_T]);
                 break;
 
             case 1: /*SUB.Sf*/
+                gen_check_cpenable(dc, 0);
                 gen_helper_sub_s(cpu_FR[RRR_R], cpu_env,
                         cpu_FR[RRR_S], cpu_FR[RRR_T]);
                 break;
 
             case 2: /*MUL.Sf*/
+                gen_check_cpenable(dc, 0);
                 gen_helper_mul_s(cpu_FR[RRR_R], cpu_env,
                         cpu_FR[RRR_S], cpu_FR[RRR_T]);
                 break;
 
             case 4: /*MADD.Sf*/
+                gen_check_cpenable(dc, 0);
                 gen_helper_madd_s(cpu_FR[RRR_R], cpu_env,
                         cpu_FR[RRR_R], cpu_FR[RRR_S], cpu_FR[RRR_T]);
                 break;
 
             case 5: /*MSUB.Sf*/
+                gen_check_cpenable(dc, 0);
                 gen_helper_msub_s(cpu_FR[RRR_R], cpu_env,
                         cpu_FR[RRR_R], cpu_FR[RRR_S], cpu_FR[RRR_T]);
                 break;
@@ -1939,6 +1964,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 11: /*CEIL.Sf*/
             case 14: /*UTRUNC.Sf*/
                 gen_window_check1(dc, RRR_R);
+                gen_check_cpenable(dc, 0);
                 {
                     static const unsigned rounding_mode_const[] = {
                         float_round_nearest_even,
@@ -1967,6 +1993,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 12: /*FLOAT.Sf*/
             case 13: /*UFLOAT.Sf*/
                 gen_window_check1(dc, RRR_S);
+                gen_check_cpenable(dc, 0);
                 {
                     TCGv_i32 scale = tcg_const_i32(-RRR_T);
 
@@ -1984,24 +2011,29 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 15: /*FP1OP*/
                 switch (RRR_T) {
                 case 0: /*MOV.Sf*/
+                    gen_check_cpenable(dc, 0);
                     tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_FR[RRR_S]);
                     break;
 
                 case 1: /*ABS.Sf*/
+                    gen_check_cpenable(dc, 0);
                     gen_helper_abs_s(cpu_FR[RRR_R], cpu_FR[RRR_S]);
                     break;
 
                 case 4: /*RFRf*/
                     gen_window_check1(dc, RRR_R);
+                    gen_check_cpenable(dc, 0);
                     tcg_gen_mov_i32(cpu_R[RRR_R], cpu_FR[RRR_S]);
                     break;
 
                 case 5: /*WFRf*/
                     gen_window_check1(dc, RRR_S);
+                    gen_check_cpenable(dc, 0);
                     tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_R[RRR_S]);
                     break;
 
                 case 6: /*NEG.Sf*/
+                    gen_check_cpenable(dc, 0);
                     gen_helper_neg_s(cpu_FR[RRR_R], cpu_FR[RRR_S]);
                     break;
 
@@ -2024,6 +2056,7 @@ static void disas_xtensa_insn(DisasContext *dc)
     do { \
         TCGv_i32 bit = tcg_const_i32(1 << br); \
         \
+        gen_check_cpenable(dc, 0); \
         gen_helper_##rel(cpu_env, bit, cpu_FR[a], cpu_FR[b]); \
         tcg_temp_free(bit); \
     } while (0)
@@ -2064,6 +2097,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 10: /*MOVLTZ.Sf*/
             case 11: /*MOVGEZ.Sf*/
                 gen_window_check1(dc, RRR_T);
+                gen_check_cpenable(dc, 0);
                 {
                     static const TCGCond cond[] = {
                         TCG_COND_NE,
@@ -2081,6 +2115,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 12: /*MOVF.Sf*/
             case 13: /*MOVT.Sf*/
                 HAS_OPTION(XTENSA_OPTION_BOOLEAN);
+                gen_check_cpenable(dc, 0);
                 {
                     int label = gen_new_label();
                     TCGv_i32 tmp = tcg_temp_new_i32();
@@ -2336,6 +2371,7 @@ static void disas_xtensa_insn(DisasContext *dc)
         case 12: /*SSIUf*/
             HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
             gen_window_check1(dc, RRI8_S);
+            gen_check_cpenable(dc, 0);
             {
                 TCGv_i32 addr = tcg_temp_new_i32();
                 tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2);
@@ -2853,6 +2889,8 @@ static void gen_intermediate_code_internal(
     dc.ccount_delta = 0;
     dc.debug = tb->flags & XTENSA_TBFLAG_DEBUG;
     dc.icount = tb->flags & XTENSA_TBFLAG_ICOUNT;
+    dc.cpenable = (tb->flags & XTENSA_TBFLAG_CPENABLE_MASK) >>
+        XTENSA_TBFLAG_CPENABLE_SHIFT;
 
     init_litbase(&dc);
     init_sar_tracker(&dc);
