@@ -1843,8 +1843,33 @@ static void disas_xtensa_insn(DisasContext *dc)
             break;
 
         case 8: /*LSCXp*/
-            HAS_OPTION(XTENSA_OPTION_COPROCESSOR);
-            TBD();
+            switch (OP2) {
+            case 0: /*LSXf*/
+            case 1: /*LSXUf*/
+            case 4: /*SSXf*/
+            case 5: /*SSXUf*/
+                HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
+                gen_window_check2(dc, RRR_S, RRR_T);
+                {
+                    TCGv_i32 addr = tcg_temp_new_i32();
+                    tcg_gen_add_i32(addr, cpu_R[RRR_S], cpu_R[RRR_T]);
+                    gen_load_store_alignment(dc, 2, addr, false);
+                    if (OP2 & 0x4) {
+                        tcg_gen_qemu_st32(cpu_FR[RRR_R], addr, dc->cring);
+                    } else {
+                        tcg_gen_qemu_ld32u(cpu_FR[RRR_R], addr, dc->cring);
+                    }
+                    if (OP2 & 0x1) {
+                        tcg_gen_mov_i32(cpu_R[RRR_S], addr);
+                    }
+                    tcg_temp_free(addr);
+                }
+                break;
+
+            default: /*reserved*/
+                RESERVED();
+                break;
+            }
             break;
 
         case 9: /*LSC4*/
@@ -2118,8 +2143,33 @@ static void disas_xtensa_insn(DisasContext *dc)
         break;
 
     case 3: /*LSCIp*/
-        HAS_OPTION(XTENSA_OPTION_COPROCESSOR);
-        TBD();
+        switch (RRI8_R) {
+        case 0: /*LSIf*/
+        case 4: /*SSIf*/
+        case 8: /*LSIUf*/
+        case 12: /*SSIUf*/
+            HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
+            gen_window_check1(dc, RRI8_S);
+            {
+                TCGv_i32 addr = tcg_temp_new_i32();
+                tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2);
+                gen_load_store_alignment(dc, 2, addr, false);
+                if (RRI8_R & 0x4) {
+                    tcg_gen_qemu_st32(cpu_FR[RRI8_T], addr, dc->cring);
+                } else {
+                    tcg_gen_qemu_ld32u(cpu_FR[RRI8_T], addr, dc->cring);
+                }
+                if (RRI8_R & 0x8) {
+                    tcg_gen_mov_i32(cpu_R[RRI8_S], addr);
+                }
+                tcg_temp_free(addr);
+            }
+            break;
+
+        default: /*reserved*/
+            RESERVED();
+            break;
+        }
         break;
 
     case 4: /*MAC16d*/
