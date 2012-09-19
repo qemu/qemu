@@ -367,25 +367,41 @@ static TCGv_i64 get_address(DisasContext *s, int x2, int b2, int d2)
     return tmp;
 }
 
+static inline bool live_cc_data(DisasContext *s)
+{
+    return (s->cc_op != CC_OP_DYNAMIC
+            && s->cc_op != CC_OP_STATIC
+            && s->cc_op > 3);
+}
+
 static inline void gen_op_movi_cc(DisasContext *s, uint32_t val)
 {
+    if (live_cc_data(s)) {
+        tcg_gen_discard_i64(cc_src);
+        tcg_gen_discard_i64(cc_dst);
+        tcg_gen_discard_i64(cc_vr);
+    }
     s->cc_op = CC_OP_CONST0 + val;
 }
 
 static void gen_op_update1_cc_i64(DisasContext *s, enum cc_op op, TCGv_i64 dst)
 {
-    tcg_gen_discard_i64(cc_src);
+    if (live_cc_data(s)) {
+        tcg_gen_discard_i64(cc_src);
+        tcg_gen_discard_i64(cc_vr);
+    }
     tcg_gen_mov_i64(cc_dst, dst);
-    tcg_gen_discard_i64(cc_vr);
     s->cc_op = op;
 }
 
 static void gen_op_update2_cc_i64(DisasContext *s, enum cc_op op, TCGv_i64 src,
                                   TCGv_i64 dst)
 {
+    if (live_cc_data(s)) {
+        tcg_gen_discard_i64(cc_vr);
+    }
     tcg_gen_mov_i64(cc_src, src);
     tcg_gen_mov_i64(cc_dst, dst);
-    tcg_gen_discard_i64(cc_vr);
     s->cc_op = op;
 }
 
@@ -421,9 +437,11 @@ static void gen_set_cc_nz_f128(DisasContext *s, TCGv_i64 vh, TCGv_i64 vl)
 /* CC value is in env->cc_op */
 static void set_cc_static(DisasContext *s)
 {
-    tcg_gen_discard_i64(cc_src);
-    tcg_gen_discard_i64(cc_dst);
-    tcg_gen_discard_i64(cc_vr);
+    if (live_cc_data(s)) {
+        tcg_gen_discard_i64(cc_src);
+        tcg_gen_discard_i64(cc_dst);
+        tcg_gen_discard_i64(cc_vr);
+    }
     s->cc_op = CC_OP_STATIC;
 }
 
