@@ -1431,7 +1431,8 @@ static void gen_arith_imm (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
 }
 
 /* Logic with immediate operand */
-static void gen_logic_imm (CPUMIPSState *env, uint32_t opc, int rt, int rs, int16_t imm)
+static void gen_logic_imm(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
+                          int rt, int rs, int16_t imm)
 {
     target_ulong uimm;
     const char *opn = "imm logic";
@@ -1474,7 +1475,8 @@ static void gen_logic_imm (CPUMIPSState *env, uint32_t opc, int rt, int rs, int1
 }
 
 /* Set on less than with immediate operand */
-static void gen_slt_imm (CPUMIPSState *env, uint32_t opc, int rt, int rs, int16_t imm)
+static void gen_slt_imm(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
+                        int rt, int rs, int16_t imm)
 {
     target_ulong uimm = (target_long)imm; /* Sign extend to 32/64 bits */
     const char *opn = "imm arith";
@@ -1775,7 +1777,8 @@ static void gen_arith (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
 }
 
 /* Conditional move */
-static void gen_cond_move (CPUMIPSState *env, uint32_t opc, int rd, int rs, int rt)
+static void gen_cond_move(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
+                          int rd, int rs, int rt)
 {
     const char *opn = "cond move";
     int l1;
@@ -1813,7 +1816,8 @@ static void gen_cond_move (CPUMIPSState *env, uint32_t opc, int rd, int rs, int 
 }
 
 /* Logic */
-static void gen_logic (CPUMIPSState *env, uint32_t opc, int rd, int rs, int rt)
+static void gen_logic(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
+                      int rd, int rs, int rt)
 {
     const char *opn = "logic";
 
@@ -1874,7 +1878,8 @@ static void gen_logic (CPUMIPSState *env, uint32_t opc, int rd, int rs, int rt)
 }
 
 /* Set on lower than */
-static void gen_slt (CPUMIPSState *env, uint32_t opc, int rd, int rs, int rt)
+static void gen_slt(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
+                    int rd, int rs, int rt)
 {
     const char *opn = "slt";
     TCGv t0, t1;
@@ -8778,10 +8783,10 @@ static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
         gen_arith_imm(env, ctx, OPC_ADDIU, rx, rx, imm);
         break;
     case M16_OPC_SLTI:
-        gen_slt_imm(env, OPC_SLTI, 24, rx, imm);
+        gen_slt_imm(env, ctx, OPC_SLTI, 24, rx, imm);
         break;
     case M16_OPC_SLTIU:
-        gen_slt_imm(env, OPC_SLTIU, 24, rx, imm);
+        gen_slt_imm(env, ctx, OPC_SLTIU, 24, rx, imm);
         break;
     case M16_OPC_I8:
         switch (funct) {
@@ -8992,15 +8997,13 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
     case M16_OPC_SLTI:
         {
             int16_t imm = (uint8_t) ctx->opcode;
-
-            gen_slt_imm(env, OPC_SLTI, 24, rx, imm);
+            gen_slt_imm(env, ctx, OPC_SLTI, 24, rx, imm);
         }
         break;
     case M16_OPC_SLTIU:
         {
             int16_t imm = (uint8_t) ctx->opcode;
-
-            gen_slt_imm(env, OPC_SLTIU, 24, rx, imm);
+            gen_slt_imm(env, ctx, OPC_SLTIU, 24, rx, imm);
         }
         break;
     case M16_OPC_I8:
@@ -9075,8 +9078,7 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
     case M16_OPC_CMPI:
         {
             int16_t imm = (uint8_t) ctx->opcode;
-
-            gen_logic_imm(env, OPC_XORI, 24, rx, imm);
+            gen_logic_imm(env, ctx, OPC_XORI, 24, rx, imm);
         }
         break;
 #if defined(TARGET_MIPS64)
@@ -9188,10 +9190,10 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
             }
             break;
         case RR_SLT:
-            gen_slt(env, OPC_SLT, 24, rx, ry);
+            gen_slt(env, ctx, OPC_SLT, 24, rx, ry);
             break;
         case RR_SLTU:
-            gen_slt(env, OPC_SLTU, 24, rx, ry);
+            gen_slt(env, ctx, OPC_SLTU, 24, rx, ry);
             break;
         case RR_BREAK:
             generate_exception(ctx, EXCP_BREAK);
@@ -9212,22 +9214,22 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
             break;
 #endif
         case RR_CMP:
-            gen_logic(env, OPC_XOR, 24, rx, ry);
+            gen_logic(env, ctx, OPC_XOR, 24, rx, ry);
             break;
         case RR_NEG:
             gen_arith(env, ctx, OPC_SUBU, rx, 0, ry);
             break;
         case RR_AND:
-            gen_logic(env, OPC_AND, rx, rx, ry);
+            gen_logic(env, ctx, OPC_AND, rx, rx, ry);
             break;
         case RR_OR:
-            gen_logic(env, OPC_OR, rx, rx, ry);
+            gen_logic(env, ctx, OPC_OR, rx, rx, ry);
             break;
         case RR_XOR:
-            gen_logic(env, OPC_XOR, rx, rx, ry);
+            gen_logic(env, ctx, OPC_XOR, rx, rx, ry);
             break;
         case RR_NOT:
-            gen_logic(env, OPC_NOR, rx, ry, 0);
+            gen_logic(env, ctx, OPC_NOR, rx, ry, 0);
             break;
         case RR_MFHI:
             gen_HILO(ctx, OPC_MFHI, rx);
@@ -9849,7 +9851,7 @@ static void gen_andi16 (CPUMIPSState *env, DisasContext *ctx)
     int rs = mmreg(uMIPS_RS(ctx->opcode));
     int encoded = ZIMM(ctx->opcode, 0, 4);
 
-    gen_logic_imm(env, OPC_ANDI, rd, rs, decoded_imm[encoded]);
+    gen_logic_imm(env, ctx, OPC_ANDI, rd, rs, decoded_imm[encoded]);
 }
 
 static void gen_ldst_multiple (DisasContext *ctx, uint32_t opc, int reglist,
@@ -9911,25 +9913,25 @@ static void gen_pool16c_insn (CPUMIPSState *env, DisasContext *ctx, int *is_bran
     case NOT16 + 1:
     case NOT16 + 2:
     case NOT16 + 3:
-        gen_logic(env, OPC_NOR, rd, rs, 0);
+        gen_logic(env, ctx, OPC_NOR, rd, rs, 0);
         break;
     case XOR16 + 0:
     case XOR16 + 1:
     case XOR16 + 2:
     case XOR16 + 3:
-        gen_logic(env, OPC_XOR, rd, rd, rs);
+        gen_logic(env, ctx, OPC_XOR, rd, rd, rs);
         break;
     case AND16 + 0:
     case AND16 + 1:
     case AND16 + 2:
     case AND16 + 3:
-        gen_logic(env, OPC_AND, rd, rd, rs);
+        gen_logic(env, ctx, OPC_AND, rd, rd, rs);
         break;
     case OR16 + 0:
     case OR16 + 1:
     case OR16 + 2:
     case OR16 + 3:
-        gen_logic(env, OPC_OR, rd, rd, rs);
+        gen_logic(env, ctx, OPC_OR, rd, rd, rs);
         break;
     case LWM16 + 0:
     case LWM16 + 1:
@@ -10743,7 +10745,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             case XOR32:
                 mips32_op = OPC_XOR;
             do_logic:
-                gen_logic(env, mips32_op, rd, rs, rt);
+                gen_logic(env, ctx, mips32_op, rd, rs, rt);
                 break;
                 /* Set less than */
             case SLT:
@@ -10752,7 +10754,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             case SLTU:
                 mips32_op = OPC_SLTU;
             do_slt:
-                gen_slt(env, mips32_op, rd, rs, rt);
+                gen_slt(env, ctx, mips32_op, rd, rs, rt);
                 break;
             default:
                 goto pool32a_invalid;
@@ -10768,7 +10770,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             case MOVZ:
                 mips32_op = OPC_MOVZ;
             do_cmov:
-                gen_cond_move(env, mips32_op, rd, rs, rt);
+                gen_cond_move(env, ctx, mips32_op, rd, rs, rt);
                 break;
             case LWXS:
                 gen_ldxs(ctx, rs, rt, rd);
@@ -11181,7 +11183,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                target. */
             break;
         case LUI:
-            gen_logic_imm(env, OPC_LUI, rs, -1, imm);
+            gen_logic_imm(env, ctx, OPC_LUI, rs, -1, imm);
             break;
         case SYNCI:
             break;
@@ -11300,7 +11302,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
     case ANDI32:
         mips32_op = OPC_ANDI;
     do_logici:
-        gen_logic_imm(env, mips32_op, rt, rs, imm);
+        gen_logic_imm(env, ctx, mips32_op, rt, rs, imm);
         break;
 
         /* Set less than immediate */
@@ -11310,7 +11312,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
     case SLTIU32:
         mips32_op = OPC_SLTIU;
     do_slti:
-        gen_slt_imm(env, mips32_op, rt, rs, imm);
+        gen_slt_imm(env, ctx, mips32_op, rt, rs, imm);
         break;
     case JALX32:
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
@@ -11787,7 +11789,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         case OPC_MOVZ:
             check_insn(env, ctx, ISA_MIPS4 | ISA_MIPS32 |
                                  INSN_LOONGSON2E | INSN_LOONGSON2F);
-            gen_cond_move(env, op1, rd, rs, rt);
+            gen_cond_move(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_ADD ... OPC_SUBU:
             gen_arith(env, ctx, op1, rd, rs, rt);
@@ -11814,13 +11816,13 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             break;
         case OPC_SLT:          /* Set on less than */
         case OPC_SLTU:
-            gen_slt(env, op1, rd, rs, rt);
+            gen_slt(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_AND:          /* Logic*/
         case OPC_OR:
         case OPC_NOR:
         case OPC_XOR:
-            gen_logic(env, op1, rd, rs, rt);
+            gen_logic(env, ctx, op1, rd, rs, rt);
             break;
         case OPC_MULT ... OPC_DIVU:
             if (sa) {
@@ -12221,13 +12223,13 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
          break;
     case OPC_SLTI: /* Set on less than with immediate opcode */
     case OPC_SLTIU:
-         gen_slt_imm(env, op, rt, rs, imm);
+         gen_slt_imm(env, ctx, op, rt, rs, imm);
          break;
     case OPC_ANDI: /* Arithmetic with immediate opcode */
     case OPC_LUI:
     case OPC_ORI:
     case OPC_XORI:
-         gen_logic_imm(env, op, rt, rs, imm);
+         gen_logic_imm(env, ctx, op, rt, rs, imm);
          break;
     case OPC_J ... OPC_JAL: /* Jump */
          offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
