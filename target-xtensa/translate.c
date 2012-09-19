@@ -1933,6 +1933,54 @@ static void disas_xtensa_insn(DisasContext *dc)
                         cpu_FR[RRR_R], cpu_FR[RRR_S], cpu_FR[RRR_T]);
                 break;
 
+            case 8: /*ROUND.Sf*/
+            case 9: /*TRUNC.Sf*/
+            case 10: /*FLOOR.Sf*/
+            case 11: /*CEIL.Sf*/
+            case 14: /*UTRUNC.Sf*/
+                gen_window_check1(dc, RRR_R);
+                {
+                    static const unsigned rounding_mode_const[] = {
+                        float_round_nearest_even,
+                        float_round_to_zero,
+                        float_round_down,
+                        float_round_up,
+                        [6] = float_round_to_zero,
+                    };
+                    TCGv_i32 rounding_mode = tcg_const_i32(
+                            rounding_mode_const[OP2 & 7]);
+                    TCGv_i32 scale = tcg_const_i32(RRR_T);
+
+                    if (OP2 == 14) {
+                        gen_helper_ftoui(cpu_R[RRR_R], cpu_FR[RRR_S],
+                                rounding_mode, scale);
+                    } else {
+                        gen_helper_ftoi(cpu_R[RRR_R], cpu_FR[RRR_S],
+                                rounding_mode, scale);
+                    }
+
+                    tcg_temp_free(rounding_mode);
+                    tcg_temp_free(scale);
+                }
+                break;
+
+            case 12: /*FLOAT.Sf*/
+            case 13: /*UFLOAT.Sf*/
+                gen_window_check1(dc, RRR_S);
+                {
+                    TCGv_i32 scale = tcg_const_i32(-RRR_T);
+
+                    if (OP2 == 13) {
+                        gen_helper_uitof(cpu_FR[RRR_R], cpu_env,
+                                cpu_R[RRR_S], scale);
+                    } else {
+                        gen_helper_itof(cpu_FR[RRR_R], cpu_env,
+                                cpu_R[RRR_S], scale);
+                    }
+                    tcg_temp_free(scale);
+                }
+                break;
+
             case 15: /*FP1OP*/
                 switch (RRR_T) {
                 case 0: /*MOV.Sf*/

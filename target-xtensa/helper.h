@@ -44,5 +44,9 @@ DEF_HELPER_3(sub_s, f32, env, f32, f32)
 DEF_HELPER_3(mul_s, f32, env, f32, f32)
 DEF_HELPER_4(madd_s, f32, env, f32, f32, f32)
 DEF_HELPER_4(msub_s, f32, env, f32, f32, f32)
+DEF_HELPER_FLAGS_3(ftoi, TCG_CALL_CONST | TCG_CALL_PURE, i32, f32, i32, i32)
+DEF_HELPER_FLAGS_3(ftoui, TCG_CALL_CONST | TCG_CALL_PURE, i32, f32, i32, i32)
+DEF_HELPER_3(itof, f32, env, i32, i32)
+DEF_HELPER_3(uitof, f32, env, i32, i32)
 
 #include "def-helper.h"

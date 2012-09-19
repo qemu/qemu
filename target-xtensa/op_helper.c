@@ -821,3 +821,40 @@ float32 HELPER(msub_s)(CPUXtensaState *env, float32 a, float32 b, float32 c)
     return float32_muladd(b, c, a, float_muladd_negate_product,
             &env->fp_status);
 }
+
+uint32_t HELPER(ftoi)(float32 v, uint32_t rounding_mode, uint32_t scale)
+{
+    float_status fp_status = {0};
+
+    set_float_rounding_mode(rounding_mode, &fp_status);
+    return float32_to_int32(
+            float32_scalbn(v, scale, &fp_status), &fp_status);
+}
+
+uint32_t HELPER(ftoui)(float32 v, uint32_t rounding_mode, uint32_t scale)
+{
+    float_status fp_status = {0};
+    float32 res;
+
+    set_float_rounding_mode(rounding_mode, &fp_status);
+
+    res = float32_scalbn(v, scale, &fp_status);
+
+    if (float32_is_neg(v) && !float32_is_any_nan(v)) {
+        return float32_to_int32(res, &fp_status);
+    } else {
+        return float32_to_uint32(res, &fp_status);
+    }
+}
+
+float32 HELPER(itof)(CPUXtensaState *env, uint32_t v, uint32_t scale)
+{
+    return float32_scalbn(int32_to_float32(v, &env->fp_status),
+            (int32_t)scale, &env->fp_status);
+}
+
+float32 HELPER(uitof)(CPUXtensaState *env, uint32_t v, uint32_t scale)
+{
+    return float32_scalbn(uint32_to_float32(v, &env->fp_status),
+            (int32_t)scale, &env->fp_status);
+}
