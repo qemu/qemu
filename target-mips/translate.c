@@ -9855,6 +9855,7 @@ static void gen_andi16 (CPUMIPSState *env, DisasContext *ctx)
 static void gen_ldst_multiple (DisasContext *ctx, uint32_t opc, int reglist,
                                int base, int16_t offset)
 {
+    const char *opn = "ldst_multiple";
     TCGv t0, t1;
     TCGv_i32 t2;
 
@@ -9874,19 +9875,24 @@ static void gen_ldst_multiple (DisasContext *ctx, uint32_t opc, int reglist,
     switch (opc) {
     case LWM32:
         gen_helper_lwm(cpu_env, t0, t1, t2);
+        opn = "lwm";
         break;
     case SWM32:
         gen_helper_swm(cpu_env, t0, t1, t2);
+        opn = "swm";
         break;
 #ifdef TARGET_MIPS64
     case LDM:
         gen_helper_ldm(cpu_env, t0, t1, t2);
+        opn = "ldm";
         break;
     case SDM:
         gen_helper_sdm(cpu_env, t0, t1, t2);
+        opn = "sdm";
         break;
 #endif
     }
+    (void)opn;
     MIPS_DEBUG("%s, %x, %d(%s)", opn, reglist, offset, regnames[base]);
     tcg_temp_free(t0);
     tcg_temp_free(t1);
