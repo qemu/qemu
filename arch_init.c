@@ -922,11 +922,16 @@ void select_soundhw(const char *optarg)
     if (is_help_option(optarg)) {
     show_valid_cards:
 
+#ifdef HAS_AUDIO_CHOICE
         printf("Valid sound card names (comma separated):\n");
         for (c = soundhw; c->name; ++c) {
             printf ("%-11s %s\n", c->name, c->descr);
         }
         printf("\n-soundhw all will enable all of the above\n");
+#else
+        printf("Machine has no user-selectable audio hardware "
+               "(it may or may not have always-present audio hardware).\n");
+#endif
         exit(!is_help_option(optarg));
     }
     else {
