@@ -138,6 +138,14 @@ typedef struct BDRVRawState {
 #endif
 } BDRVRawState;
 
+typedef struct BDRVRawReopenState {
+    int fd;
+    int open_flags;
+#ifdef CONFIG_LINUX_AIO
+    int use_aio;
+#endif
+} BDRVRawReopenState;
+
 static int fd_open(BlockDriverState *bs);
 static int64_t raw_getlength(BlockDriverState *bs);
 
@@ -289,6 +297,109 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->type = FTYPE_FILE;
     return raw_open_common(bs, filename, flags, 0);
 }
+
+static int raw_reopen_prepare(BDRVReopenState *state,
+                              BlockReopenQueue *queue, Error **errp)
+{
+    BDRVRawState *s;
+    BDRVRawReopenState *raw_s;
+    int ret = 0;
+
+    assert(state != NULL);
+    assert(state->bs != NULL);
+
+    s = state->bs->opaque;
+
+    state->opaque = g_malloc0(sizeof(BDRVRawReopenState));
+    raw_s = state->opaque;
+
+#ifdef CONFIG_LINUX_AIO
+    raw_s->use_aio = s->use_aio;
+
+    /* we can use s->aio_ctx instead of a copy, because the use_aio flag is
+     * valid in the 'false' condition even if aio_ctx is set, and raw_set_aio()
+     * won't override aio_ctx if aio_ctx is non-NULL */
+    if (raw_set_aio(&s->aio_ctx, &raw_s->use_aio, state->flags)) {
+        return -1;
+    }
+#endif
+
+    raw_parse_flags(state->flags, &raw_s->open_flags);
+
+    raw_s->fd = -1;
+
+    int fcntl_flags = O_APPEND | O_ASYNC | O_NONBLOCK;
+#ifdef O_NOATIME
+    fcntl_flags |= O_NOATIME;
+#endif
+
+    if ((raw_s->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
+        /* dup the original fd */
+        /* TODO: use qemu fcntl wrapper */
+#ifdef F_DUPFD_CLOEXEC
+        raw_s->fd = fcntl(s->fd, F_DUPFD_CLOEXEC, 0);
+#else
+        raw_s->fd = dup(s->fd);
+        if (raw_s->fd != -1) {
+            qemu_set_cloexec(raw_s->fd);
+        }
+#endif
+        if (raw_s->fd >= 0) {
+            ret = fcntl_setfl(raw_s->fd, raw_s->open_flags);
+            if (ret) {
+                qemu_close(raw_s->fd);
+                raw_s->fd = -1;
+            }
+        }
+    }
+
+    /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
+    if (raw_s->fd == -1) {
+        assert(!(raw_s->open_flags & O_CREAT));
+        raw_s->fd = qemu_open(state->bs->filename, raw_s->open_flags);
+        if (raw_s->fd == -1) {
+            ret = -1;
+        }
+    }
+    return ret;
+}
+
+
+static void raw_reopen_commit(BDRVReopenState *state)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawState *s = state->bs->opaque;
+
+    s->open_flags = raw_s->open_flags;
+
+    qemu_close(s->fd);
+    s->fd = raw_s->fd;
+#ifdef CONFIG_LINUX_AIO
+    s->use_aio = raw_s->use_aio;
+#endif
+
+    g_free(state->opaque);
+    state->opaque = NULL;
+}
+
+
+static void raw_reopen_abort(BDRVReopenState *state)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+
+     /* nothing to do if NULL, we didn't get far enough */
+    if (raw_s == NULL) {
+        return;
+    }
+
+    if (raw_s->fd >= 0) {
+        qemu_close(raw_s->fd);
+        raw_s->fd = -1;
+    }
+    g_free(state->opaque);
+    state->opaque = NULL;
+}
+
 
 /* XXX: use host sector size if necessary with:
 #ifdef DIOCGSECTORSIZE
@@ -740,6 +851,9 @@ static BlockDriver bdrv_file = {
     .instance_size = sizeof(BDRVRawState),
     .bdrv_probe = NULL, /* no probe for protocols */
     .bdrv_file_open = raw_open,
+    .bdrv_reopen_prepare = raw_reopen_prepare,
+    .bdrv_reopen_commit = raw_reopen_commit,
+    .bdrv_reopen_abort = raw_reopen_abort,
     .bdrv_close = raw_close,
     .bdrv_create = raw_create,
     .bdrv_co_discard = raw_co_discard,
