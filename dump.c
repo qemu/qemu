@@ -836,9 +836,8 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
 
 #if !defined(WIN32)
     if (strstart(file, "fd:", &p)) {
-        fd = monitor_get_fd(cur_mon, p);
+        fd = monitor_get_fd(cur_mon, p, errp);
         if (fd == -1) {
-            error_set(errp, QERR_FD_NOT_FOUND, p);
             return;
         }
     }
