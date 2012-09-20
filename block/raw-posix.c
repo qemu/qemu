@@ -185,6 +185,28 @@ static int raw_normalize_devicepath(const char **filename)
 }
 #endif
 
+static void raw_parse_flags(int bdrv_flags, int *open_flags)
+{
+    assert(open_flags != NULL);
+
+    *open_flags |= O_BINARY;
+    *open_flags &= ~O_ACCMODE;
+    if (bdrv_flags & BDRV_O_RDWR) {
+        *open_flags |= O_RDWR;
+    } else {
+        *open_flags |= O_RDONLY;
+    }
+
+    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
+     * and O_DIRECT for no caching. */
+    if ((bdrv_flags & BDRV_O_NOCACHE)) {
+        *open_flags |= O_DIRECT;
+    }
+    if (!(bdrv_flags & BDRV_O_CACHE_WB)) {
+        *open_flags |= O_DSYNC;
+    }
+}
+
 #ifdef CONFIG_LINUX_AIO
 static int raw_set_aio(void **aio_ctx, int *use_aio, int bdrv_flags)
 {
@@ -228,20 +250,8 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         return ret;
     }
 
-    s->open_flags = open_flags | O_BINARY;
-    s->open_flags &= ~O_ACCMODE;
-    if (bdrv_flags & BDRV_O_RDWR) {
-        s->open_flags |= O_RDWR;
-    } else {
-        s->open_flags |= O_RDONLY;
-    }
-
-    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
-     * and O_DIRECT for no caching. */
-    if ((bdrv_flags & BDRV_O_NOCACHE))
-        s->open_flags |= O_DIRECT;
-    if (!(bdrv_flags & BDRV_O_CACHE_WB))
-        s->open_flags |= O_DSYNC;
+    s->open_flags = open_flags;
+    raw_parse_flags(bdrv_flags, &s->open_flags);
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
