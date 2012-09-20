@@ -355,7 +355,6 @@ enum {
 enum {
     FD_STATE_MULTI  = 0x01,	/* multi track flag */
     FD_STATE_FORMAT = 0x02,	/* format flag */
-    FD_STATE_SEEK   = 0x04,	/* seek flag */
 };
 
 enum {
@@ -497,7 +496,6 @@ enum {
 };
 
 #define FD_MULTI_TRACK(state) ((state) & FD_STATE_MULTI)
-#define FD_DID_SEEK(state) ((state) & FD_STATE_SEEK)
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct FDCtrl {
@@ -1422,8 +1420,6 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         fdctrl->data_dir == FD_DIR_SCANL ||
         fdctrl->data_dir == FD_DIR_SCANH)
         status2 = FD_SR2_SEH;
-    if (FD_DID_SEEK(fdctrl->data_state))
-        status0 |= FD_SR0_SEEK;
     fdctrl->data_len -= len;
     fdctrl_stop_transfer(fdctrl, status0, status1, status2);
  transfer_error:
@@ -1517,7 +1513,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
         fdctrl->fifo[5] = ks;
         return;
     case 1:
-        fdctrl->data_state |= FD_STATE_SEEK;
+        fdctrl->status0 |= FD_SR0_SEEK;
         break;
     default:
         break;
@@ -1531,10 +1527,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
         if (cur_drv->sect == cur_drv->last_sect) {
             fdctrl->data_state &= ~FD_STATE_FORMAT;
             /* Last sector done */
-            if (FD_DID_SEEK(fdctrl->data_state))
-                fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
-            else
-                fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         } else {
             /* More to do */
             fdctrl->data_pos = 0;
@@ -1661,7 +1654,6 @@ static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
         fdctrl->data_state &= ~FD_STATE_MULTI;
-    fdctrl->data_state &= ~FD_STATE_SEEK;
     cur_drv->bps =
         fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
 #if 0
