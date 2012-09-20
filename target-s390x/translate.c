@@ -577,30 +577,29 @@ static void account_inline_branch(DisasContext *s, int cc_op)
 }
 
 /* Table of mask values to comparison codes, given a comparison as input.
-   For a true comparison CC=3 will never be set, but we treat this
-   conservatively for possible use when CC=3 indicates overflow.  */
+   For such, CC=3 should not be possible.  */
 static const TCGCond ltgt_cond[16] = {
     TCG_COND_NEVER,  TCG_COND_NEVER,     /*    |    |    | x */
-    TCG_COND_GT,     TCG_COND_NEVER,     /*    |    | GT | x */
-    TCG_COND_LT,     TCG_COND_NEVER,     /*    | LT |    | x */
-    TCG_COND_NE,     TCG_COND_NEVER,     /*    | LT | GT | x */
-    TCG_COND_EQ,     TCG_COND_NEVER,     /* EQ |    |    | x */
-    TCG_COND_GE,     TCG_COND_NEVER,     /* EQ |    | GT | x */
-    TCG_COND_LE,     TCG_COND_NEVER,     /* EQ | LT |    | x */
+    TCG_COND_GT,     TCG_COND_GT,        /*    |    | GT | x */
+    TCG_COND_LT,     TCG_COND_LT,        /*    | LT |    | x */
+    TCG_COND_NE,     TCG_COND_NE,        /*    | LT | GT | x */
+    TCG_COND_EQ,     TCG_COND_EQ,        /* EQ |    |    | x */
+    TCG_COND_GE,     TCG_COND_GE,        /* EQ |    | GT | x */
+    TCG_COND_LE,     TCG_COND_LE,        /* EQ | LT |    | x */
     TCG_COND_ALWAYS, TCG_COND_ALWAYS,    /* EQ | LT | GT | x */
 };
 
 /* Table of mask values to comparison codes, given a logic op as input.
    For such, only CC=0 and CC=1 should be possible.  */
 static const TCGCond nz_cond[16] = {
-    /*    |    | x | x */
-    TCG_COND_NEVER, TCG_COND_NEVER, TCG_COND_NEVER, TCG_COND_NEVER,
-    /*    | NE | x | x */
-    TCG_COND_NE, TCG_COND_NE, TCG_COND_NE, TCG_COND_NE,
-    /* EQ |    | x | x */
-    TCG_COND_EQ, TCG_COND_EQ, TCG_COND_EQ, TCG_COND_EQ,
-    /* EQ | NE | x | x */
-    TCG_COND_ALWAYS, TCG_COND_ALWAYS, TCG_COND_ALWAYS, TCG_COND_ALWAYS,
+    TCG_COND_NEVER, TCG_COND_NEVER,      /*    |    | x | x */
+    TCG_COND_NEVER, TCG_COND_NEVER,
+    TCG_COND_NE, TCG_COND_NE,            /*    | NE | x | x */
+    TCG_COND_NE, TCG_COND_NE,
+    TCG_COND_EQ, TCG_COND_EQ,            /* EQ |    | x | x */
+    TCG_COND_EQ, TCG_COND_EQ,
+    TCG_COND_ALWAYS, TCG_COND_ALWAYS,    /* EQ | NE | x | x */
+    TCG_COND_ALWAYS, TCG_COND_ALWAYS,
 };
 
 /* Interpret MASK in terms of S->CC_OP, and fill in C with all the
@@ -1463,9 +1462,7 @@ static ExitStatus op_cj(DisasContext *s, DisasOps *o)
     bool is_imm;
     DisasCompare c;
 
-    /* Bit 3 of the m3 field is reserved and should be zero.
-       Choose to ignore it wrt the ltgt_cond table above.  */
-    c.cond = ltgt_cond[m3 & 14];
+    c.cond = ltgt_cond[m3];
     if (s->insn->data) {
         c.cond = tcg_unsigned_cond(c.cond);
     }
@@ -1831,9 +1828,7 @@ static ExitStatus op_ct(DisasContext *s, DisasOps *o)
     TCGv_i32 t;
     TCGCond c;
 
-    /* Bit 3 of the m3 field is reserved and should be zero.
-       Choose to ignore it wrt the ltgt_cond table above.  */
-    c = tcg_invert_cond(ltgt_cond[m3 & 14]);
+    c = tcg_invert_cond(ltgt_cond[m3]);
     if (s->insn->data) {
         c = tcg_unsigned_cond(c);
     }
