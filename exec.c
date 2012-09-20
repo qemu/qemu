@@ -59,8 +59,7 @@
 
 #include "cputlb.h"
 
-#define WANT_EXEC_OBSOLETE
-#include "exec-obsolete.h"
+#include "memory-internal.h"
 
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH

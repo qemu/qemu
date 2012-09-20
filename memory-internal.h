@@ -16,12 +16,8 @@
  * The functions declared here will be removed soon.
  */
 
-#ifndef EXEC_OBSOLETE_H
-#define EXEC_OBSOLETE_H
-
-#ifndef WANT_EXEC_OBSOLETE
-#error Do not include exec-obsolete.h
-#endif
+#ifndef MEMORY_INTERNAL_H
+#define MEMORY_INTERNAL_H
 
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen.h"

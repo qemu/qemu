@@ -20,8 +20,7 @@
 #include "kvm.h"
 #include <assert.h>
 
-#define WANT_EXEC_OBSOLETE
-#include "exec-obsolete.h"
+#include "memory-internal.h"
 
 unsigned memory_region_transaction_depth = 0;
 static bool global_dirty_log = false;
