@@ -92,9 +92,6 @@ static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
     if (flags & BDRV_O_NOCACHE) {
         *overlapped |= FILE_FLAG_NO_BUFFERING;
     }
-    if (!(flags & BDRV_O_CACHE_WB)) {
-        *overlapped |= FILE_FLAG_WRITE_THROUGH;
-    }
 }
 
 static int raw_open(BlockDriverState *bs, const char *filename, int flags)

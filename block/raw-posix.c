@@ -202,9 +202,6 @@ static void raw_parse_flags(int bdrv_flags, int *open_flags)
     if ((bdrv_flags & BDRV_O_NOCACHE)) {
         *open_flags |= O_DIRECT;
     }
-    if (!(bdrv_flags & BDRV_O_CACHE_WB)) {
-        *open_flags |= O_DSYNC;
-    }
 }
 
 #ifdef CONFIG_LINUX_AIO

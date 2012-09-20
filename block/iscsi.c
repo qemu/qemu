@@ -268,10 +268,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     acb->task->xfer_dir = SCSI_XFER_WRITE;
     acb->task->cdb_size = 16;
     acb->task->cdb[0] = 0x8a;
-    if (!(bs->open_flags & BDRV_O_CACHE_WB)) {
-        /* set FUA on writes when cache mode is write through */
-        acb->task->cdb[1] |= 0x04;
-    }
     lba = sector_qemu2lun(sector_num, iscsilun);
     *(uint32_t *)&acb->task->cdb[2]  = htonl(lba >> 32);
     *(uint32_t *)&acb->task->cdb[6]  = htonl(lba & 0xffffffff);
