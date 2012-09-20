@@ -692,6 +692,49 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         account_inline_branch(s, old_cc_op);
         break;
 
+    case CC_OP_ADDU_32:
+    case CC_OP_ADDU_64:
+        switch (mask) {
+        case 8 | 2: /* vr == 0 */
+            cond = TCG_COND_EQ;
+            break;
+        case 4 | 1: /* vr != 0 */
+            cond = TCG_COND_NE;
+            break;
+        case 8 | 4: /* no carry -> vr >= src */
+            cond = TCG_COND_GEU;
+            break;
+        case 2 | 1: /* carry -> vr < src */
+            cond = TCG_COND_LTU;
+            break;
+        default:
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
+    case CC_OP_SUBU_32:
+    case CC_OP_SUBU_64:
+        /* Note that CC=0 is impossible; treat it as dont-care.  */
+        switch (mask & 7) {
+        case 2: /* zero -> op1 == op2 */
+            cond = TCG_COND_EQ;
+            break;
+        case 4 | 1: /* !zero -> op1 != op2 */
+            cond = TCG_COND_NE;
+            break;
+        case 4: /* borrow (!carry) -> op1 < op2 */
+            cond = TCG_COND_LTU;
+            break;
+        case 2 | 1: /* !borrow (carry) -> op1 >= op2 */
+            cond = TCG_COND_GEU;
+            break;
+        default:
+            goto do_dynamic;
+        }
+        account_inline_branch(s, old_cc_op);
+        break;
+
     default:
     do_dynamic:
         /* Calculate cc value.  */
@@ -719,6 +762,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
     case CC_OP_LTGT_32:
     case CC_OP_LTUGTU_32:
+    case CC_OP_SUBU_32:
         c->is_64 = false;
         c->u.s32.a = tcg_temp_new_i32();
         tcg_gen_trunc_i64_i32(c->u.s32.a, cc_src);
@@ -735,6 +779,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         break;
     case CC_OP_LTGT_64:
     case CC_OP_LTUGTU_64:
+    case CC_OP_SUBU_64:
         c->u.s64.a = cc_src;
         c->u.s64.b = cc_dst;
         c->g1 = c->g2 = true;
@@ -746,6 +791,29 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         c->u.s64.a = tcg_temp_new_i64();
         c->u.s64.b = tcg_const_i64(0);
         tcg_gen_and_i64(c->u.s64.a, cc_src, cc_dst);
+        break;
+
+    case CC_OP_ADDU_32:
+        c->is_64 = false;
+        c->u.s32.a = tcg_temp_new_i32();
+        c->u.s32.b = tcg_temp_new_i32();
+        tcg_gen_trunc_i64_i32(c->u.s32.a, cc_vr);
+        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
+            tcg_gen_movi_i32(c->u.s32.b, 0);
+        } else {
+            tcg_gen_trunc_i64_i32(c->u.s32.b, cc_src);
+        }
+        break;
+
+    case CC_OP_ADDU_64:
+        c->u.s64.a = cc_vr;
+        c->g1 = true;
+        if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
+            c->u.s64.b = tcg_const_i64(0);
+        } else {
+            c->u.s64.b = cc_src;
+            c->g2 = true;
+        }
         break;
 
     case CC_OP_STATIC:
