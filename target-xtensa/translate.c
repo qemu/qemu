@@ -2520,7 +2520,9 @@ static void disas_xtensa_insn(DisasContext *dc)
         break;
     }
 
-    gen_check_loop_end(dc, 0);
+    if (dc->is_jmp == DISAS_NEXT) {
+        gen_check_loop_end(dc, 0);
+    }
     dc->pc = dc->next_pc;
 
     return;
