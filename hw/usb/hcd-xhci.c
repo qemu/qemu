@@ -285,6 +285,8 @@ typedef enum TRBCCode {
 #define SLOT_CONTEXT_ENTRIES_MASK 0x1f
 #define SLOT_CONTEXT_ENTRIES_SHIFT 27
 
+typedef struct XHCIState XHCIState;
+
 typedef enum EPType {
     ET_INVALID = 0,
     ET_ISO_OUT,
@@ -303,14 +305,14 @@ typedef struct XHCIRing {
 } XHCIRing;
 
 typedef struct XHCIPort {
+    XHCIState *xhci;
     uint32_t portsc;
     uint32_t portnr;
     USBPort  *uport;
     uint32_t speedmask;
+    char name[16];
+    MemoryRegion mem;
 } XHCIPort;
-
-struct XHCIState;
-typedef struct XHCIState XHCIState;
 
 typedef struct XHCITransfer {
     XHCIState *xhci;
@@ -2430,20 +2432,14 @@ static uint64_t xhci_cap_read(void *ptr, target_phys_addr_t reg, unsigned size)
     return ret;
 }
 
-static uint32_t xhci_port_read(XHCIState *xhci, uint32_t reg)
+static uint64_t xhci_port_read(void *ptr, target_phys_addr_t reg, unsigned size)
 {
-    uint32_t port = reg >> 4;
+    XHCIPort *port = ptr;
     uint32_t ret;
 
-    if (port >= xhci->numports) {
-        fprintf(stderr, "xhci_port_read: port %d out of bounds\n", port);
-        ret = 0;
-        goto out;
-    }
-
-    switch (reg & 0xf) {
+    switch (reg) {
     case 0x00: /* PORTSC */
-        ret = xhci->ports[port].portsc;
+        ret = port->portsc;
         break;
     case 0x04: /* PORTPMSC */
     case 0x08: /* PORTLI */
@@ -2452,30 +2448,25 @@ static uint32_t xhci_port_read(XHCIState *xhci, uint32_t reg)
     case 0x0c: /* reserved */
     default:
         fprintf(stderr, "xhci_port_read (port %d): reg 0x%x unimplemented\n",
-                port, reg);
+                port->portnr, (uint32_t)reg);
         ret = 0;
     }
 
-out:
-    trace_usb_xhci_port_read(port, reg & 0x0f, ret);
+    trace_usb_xhci_port_read(port->portnr, reg, ret);
     return ret;
 }
 
-static void xhci_port_write(XHCIState *xhci, uint32_t reg, uint32_t val)
+static void xhci_port_write(void *ptr, target_phys_addr_t reg,
+                            uint64_t val, unsigned size)
 {
-    uint32_t port = reg >> 4;
+    XHCIPort *port = ptr;
     uint32_t portsc;
 
-    trace_usb_xhci_port_write(port, reg & 0x0f, val);
+    trace_usb_xhci_port_write(port->portnr, reg, val);
 
-    if (port >= xhci->numports) {
-        fprintf(stderr, "xhci_port_read: port %d out of bounds\n", port);
-        return;
-    }
-
-    switch (reg & 0xf) {
+    switch (reg) {
     case 0x00: /* PORTSC */
-        portsc = xhci->ports[port].portsc;
+        portsc = port->portsc;
         /* write-1-to-clear bits*/
         portsc &= ~(val & (PORTSC_CSC|PORTSC_PEC|PORTSC_WRC|PORTSC_OCC|
                            PORTSC_PRC|PORTSC_PLC|PORTSC_CEC));
@@ -2490,16 +2481,16 @@ static void xhci_port_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         /* write-1-to-start bits */
         if (val & PORTSC_PR) {
             DPRINTF("xhci: port %d reset\n", port);
-            usb_device_reset(xhci->ports[port].uport->dev);
+            usb_device_reset(port->uport->dev);
             portsc |= PORTSC_PRC | PORTSC_PED;
         }
-        xhci->ports[port].portsc = portsc;
+        port->portsc = portsc;
         break;
     case 0x04: /* PORTPMSC */
     case 0x08: /* PORTLI */
     default:
         fprintf(stderr, "xhci_port_write (port %d): reg 0x%x unimplemented\n",
-                port, reg);
+                port->portnr, (uint32_t)reg);
     }
 }
 
@@ -2507,10 +2498,6 @@ static uint64_t xhci_oper_read(void *ptr, target_phys_addr_t reg, unsigned size)
 {
     XHCIState *xhci = ptr;
     uint32_t ret;
-
-    if (reg >= 0x400) {
-        return xhci_port_read(xhci, reg - 0x400);
-    }
 
     switch (reg) {
     case 0x00: /* USBCMD */
@@ -2553,11 +2540,6 @@ static void xhci_oper_write(void *ptr, target_phys_addr_t reg,
                             uint64_t val, unsigned size)
 {
     XHCIState *xhci = ptr;
-
-    if (reg >= 0x400) {
-        xhci_port_write(xhci, reg - 0x400, val);
-        return;
-    }
 
     trace_usb_xhci_oper_write(reg, val);
 
@@ -2777,6 +2759,14 @@ static const MemoryRegionOps xhci_oper_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static const MemoryRegionOps xhci_port_ops = {
+    .read = xhci_port_read,
+    .write = xhci_port_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static const MemoryRegionOps xhci_runtime_ops = {
     .read = xhci_runtime_read,
     .write = xhci_runtime_write,
@@ -2850,7 +2840,7 @@ static void xhci_child_detach(USBPort *uport, USBDevice *child)
     }
 }
 
-static USBPortOps xhci_port_ops = {
+static USBPortOps xhci_uport_ops = {
     .attach   = xhci_attach,
     .detach   = xhci_detach,
     .wakeup   = xhci_wakeup,
@@ -2930,6 +2920,7 @@ static void usb_xhci_init(XHCIState *xhci, DeviceState *dev)
                 USB_SPEED_MASK_LOW  |
                 USB_SPEED_MASK_FULL |
                 USB_SPEED_MASK_HIGH;
+            snprintf(port->name, sizeof(port->name), "usb2 port #%d", i+1);
             speedmask |= port->speedmask;
         }
         if (i < xhci->numports_3) {
@@ -2937,16 +2928,17 @@ static void usb_xhci_init(XHCIState *xhci, DeviceState *dev)
             port->portnr = i + 1 + xhci->numports_2;
             port->uport = &xhci->uports[i];
             port->speedmask = USB_SPEED_MASK_SUPER;
+            snprintf(port->name, sizeof(port->name), "usb3 port #%d", i+1);
             speedmask |= port->speedmask;
         }
         usb_register_port(&xhci->bus, &xhci->uports[i], xhci, i,
-                          &xhci_port_ops, speedmask);
+                          &xhci_uport_ops, speedmask);
     }
 }
 
 static int usb_xhci_initfn(struct PCIDevice *dev)
 {
-    int ret;
+    int i, ret;
 
     XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev, dev);
 
@@ -2965,7 +2957,7 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     memory_region_init_io(&xhci->mem_cap, &xhci_cap_ops, xhci,
                           "capabilities", LEN_CAP);
     memory_region_init_io(&xhci->mem_oper, &xhci_oper_ops, xhci,
-                          "operational", 0x400 + 0x10 * xhci->numports);
+                          "operational", 0x400);
     memory_region_init_io(&xhci->mem_runtime, &xhci_runtime_ops, xhci,
                           "runtime", LEN_RUNTIME);
     memory_region_init_io(&xhci->mem_doorbell, &xhci_doorbell_ops, xhci,
@@ -2975,6 +2967,15 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     memory_region_add_subregion(&xhci->mem, OFF_OPER,     &xhci->mem_oper);
     memory_region_add_subregion(&xhci->mem, OFF_RUNTIME,  &xhci->mem_runtime);
     memory_region_add_subregion(&xhci->mem, OFF_DOORBELL, &xhci->mem_doorbell);
+
+    for (i = 0; i < xhci->numports; i++) {
+        XHCIPort *port = &xhci->ports[i];
+        uint32_t offset = OFF_OPER + 0x400 + 0x10 * i;
+        port->xhci = xhci;
+        memory_region_init_io(&port->mem, &xhci_port_ops, port,
+                              port->name, 0x10);
+        memory_region_add_subregion(&xhci->mem, offset, &port->mem);
+    }
 
     pci_register_bar(&xhci->pci_dev, 0,
                      PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64,
