@@ -1344,18 +1344,28 @@ static ExitStatus op_add(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_addc(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 cc;
+    DisasCompare cmp;
+    TCGv_i64 carry;
 
     tcg_gen_add_i64(o->out, o->in1, o->in2);
 
-    /* XXX possible optimization point */
-    gen_op_calc_cc(s);
-    cc = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(cc, cc_op);
-    tcg_gen_shri_i64(cc, cc, 1);
+    /* The carry flag is the msb of CC, therefore the branch mask that would
+       create that comparison is 3.  Feeding the generated comparison to
+       setcond produces the carry flag that we desire.  */
+    disas_jcc(s, &cmp, 3);
+    carry = tcg_temp_new_i64();
+    if (cmp.is_64) {
+        tcg_gen_setcond_i64(cmp.cond, carry, cmp.u.s64.a, cmp.u.s64.b);
+    } else {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_setcond_i32(cmp.cond, t, cmp.u.s32.a, cmp.u.s32.b);
+        tcg_gen_extu_i32_i64(carry, t);
+        tcg_temp_free_i32(t);
+    }
+    free_compare(&cmp);
 
-    tcg_gen_add_i64(o->out, o->out, cc);
-    tcg_temp_free_i64(cc);
+    tcg_gen_add_i64(o->out, o->out, carry);
+    tcg_temp_free_i64(carry);
     return NO_EXIT;
 }
 
@@ -3397,19 +3407,27 @@ static ExitStatus op_sub(DisasContext *s, DisasOps *o)
 
 static ExitStatus op_subb(DisasContext *s, DisasOps *o)
 {
-    TCGv_i64 cc;
+    DisasCompare cmp;
+    TCGv_i64 borrow;
 
-    assert(!o->g_in2);
-    tcg_gen_not_i64(o->in2, o->in2);
-    tcg_gen_add_i64(o->out, o->in1, o->in2);
+    tcg_gen_sub_i64(o->out, o->in1, o->in2);
 
-    /* XXX possible optimization point */
-    gen_op_calc_cc(s);
-    cc = tcg_temp_new_i64();
-    tcg_gen_extu_i32_i64(cc, cc_op);
-    tcg_gen_shri_i64(cc, cc, 1);
-    tcg_gen_add_i64(o->out, o->out, cc);
-    tcg_temp_free_i64(cc);
+    /* The !borrow flag is the msb of CC.  Since we want the inverse of
+       that, we ask for a comparison of CC=0 | CC=1 -> mask of 8 | 4.  */
+    disas_jcc(s, &cmp, 8 | 4);
+    borrow = tcg_temp_new_i64();
+    if (cmp.is_64) {
+        tcg_gen_setcond_i64(cmp.cond, borrow, cmp.u.s64.a, cmp.u.s64.b);
+    } else {
+        TCGv_i32 t = tcg_temp_new_i32();
+        tcg_gen_setcond_i32(cmp.cond, t, cmp.u.s32.a, cmp.u.s32.b);
+        tcg_gen_extu_i32_i64(borrow, t);
+        tcg_temp_free_i32(t);
+    }
+    free_compare(&cmp);
+
+    tcg_gen_sub_i64(o->out, o->out, borrow);
+    tcg_temp_free_i64(borrow);
     return NO_EXIT;
 }
 
