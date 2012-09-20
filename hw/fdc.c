@@ -1179,7 +1179,6 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv;
     uint8_t kh, kt, ks;
-    int did_seek = 0;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1213,7 +1212,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         fdctrl->fifo[5] = ks;
         return;
     case 1:
-        did_seek = 1;
+        fdctrl->status0 |= FD_SR0_SEEK;
         break;
     default:
         break;
@@ -1240,10 +1239,6 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
         fdctrl->data_state &= ~FD_STATE_MULTI;
-    if (did_seek)
-        fdctrl->data_state |= FD_STATE_SEEK;
-    else
-        fdctrl->data_state &= ~FD_STATE_SEEK;
     if (fdctrl->fifo[5] == 00) {
         fdctrl->data_len = fdctrl->fifo[8];
     } else {
@@ -1286,7 +1281,6 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     if (direction != FD_DIR_WRITE)
         fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
-    fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
 }
 
