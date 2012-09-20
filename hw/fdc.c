@@ -1123,11 +1123,13 @@ static int fdctrl_seek_to_next_sect(FDCtrl *fdctrl, FDrive *cur_drv)
             } else {
                 new_head = 0;
                 new_track++;
+                fdctrl->status0 |= FD_SR0_SEEK;
                 if ((cur_drv->flags & FDISK_DBL_SIDES) == 0) {
                     ret = 0;
                 }
             }
         } else {
+            fdctrl->status0 |= FD_SR0_SEEK;
             new_track++;
             ret = 0;
         }
@@ -1458,7 +1460,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
          * then from status mode to command mode
          */
         if (fdctrl->msr & FD_MSR_NONDMA) {
-            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         } else {
             fdctrl_reset_fifo(fdctrl);
             fdctrl_reset_irq(fdctrl);
@@ -1922,7 +1924,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
          * then from status mode to command mode
          */
         if (fdctrl->data_pos == fdctrl->data_len)
-            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         return;
     }
     if (fdctrl->data_pos == 0) {
