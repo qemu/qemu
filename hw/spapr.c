@@ -725,9 +725,16 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
     load_limit = spapr->fdt_addr - FW_OVERHEAD;
 
-    /* For now, always aim for a 16MB hash table */
-    /* FIXME: we should change this default based on RAM size */
-    spapr->htab_shift = 24;
+    /* We aim for a hash table of size 1/128 the size of RAM.  The
+     * normal rule of thumb is 1/64 the size of RAM, but that's much
+     * more than needed for the Linux guests we support. */
+    spapr->htab_shift = 18; /* Minimum architected size */
+    while (spapr->htab_shift <= 46) {
+        if ((1ULL << (spapr->htab_shift + 7)) >= ram_size) {
+            break;
+        }
+        spapr->htab_shift++;
+    }
 
     /* init CPUs */
     if (cpu_model == NULL) {
