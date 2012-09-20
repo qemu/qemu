@@ -139,6 +139,13 @@ struct BlockDriver {
     int instance_size;
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
+
+    /* For handling image reopen for split or non-split files */
+    int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
+                               BlockReopenQueue *queue, Error **errp);
+    void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
+    void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
+
     int (*bdrv_open)(BlockDriverState *bs, int flags);
     int (*bdrv_file_open)(BlockDriverState *bs, const char *filename, int flags);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
@@ -336,6 +343,7 @@ struct BlockDriverState {
 
     /* long-running background operation */
     BlockJob *job;
+
 };
 
 int get_tmp_filename(char *filename, int size);
