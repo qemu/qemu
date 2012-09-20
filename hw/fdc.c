@@ -1149,10 +1149,14 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
                                  uint8_t status1, uint8_t status2)
 {
     FDrive *cur_drv;
-
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl->status0 = status0 | FD_SR0_SEEK | (cur_drv->head << 2) |
-                      GET_CUR_DRV(fdctrl);
+
+    fdctrl->status0 &= ~(FD_SR0_DS0 | FD_SR0_DS1 | FD_SR0_HEAD);
+    fdctrl->status0 |= GET_CUR_DRV(fdctrl);
+    if (cur_drv->head) {
+        fdctrl->status0 |= FD_SR0_HEAD;
+    }
+    fdctrl->status0 |= status0;
 
     FLOPPY_DPRINTF("transfer status: %02x %02x %02x (%02x)\n",
                    status0, status1, status2, fdctrl->status0);

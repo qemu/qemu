@@ -154,7 +154,7 @@ static uint8_t send_read_command(void)
     }
 
     st0 = floppy_recv();
-    if (st0 != 0x60) {
+    if (st0 != 0x40) {
         ret = 1;
     }
 
@@ -398,7 +398,7 @@ static void test_read_no_dma_1(void)
 
     outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
     send_seek(0);
-    ret = send_read_no_dma_command(1, 0x24); /* FIXME: should be 0x04 */
+    ret = send_read_no_dma_command(1, 0x04);
     g_assert(ret == 0);
 }
 
@@ -408,7 +408,7 @@ static void test_read_no_dma_18(void)
 
     outb(FLOPPY_BASE + reg_dor, inb(FLOPPY_BASE + reg_dor) & ~0x08);
     send_seek(0);
-    ret = send_read_no_dma_command(18, 0x24); /* FIXME: should be 0x04 */
+    ret = send_read_no_dma_command(18, 0x04);
     g_assert(ret == 0);
 }
 
