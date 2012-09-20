@@ -1501,13 +1501,11 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 int bdrv_commit(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    BlockDriver *backing_drv;
     int64_t sector, total_sectors;
     int n, ro, open_flags;
-    int ret = 0, rw_ret = 0;
+    int ret = 0;
     uint8_t *buf;
     char filename[1024];
-    BlockDriverState *bs_rw, *bs_ro;
 
     if (!drv)
         return -ENOMEDIUM;
@@ -1516,42 +1514,18 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bs->backing_hd->keep_read_only) {
-        return -EACCES;
-    }
-
     if (bdrv_in_use(bs) || bdrv_in_use(bs->backing_hd)) {
         return -EBUSY;
     }
 
-    backing_drv = bs->backing_hd->drv;
     ro = bs->backing_hd->read_only;
     strncpy(filename, bs->backing_hd->filename, sizeof(filename));
     open_flags =  bs->backing_hd->open_flags;
 
     if (ro) {
-        /* re-open as RW */
-        bdrv_delete(bs->backing_hd);
-        bs->backing_hd = NULL;
-        bs_rw = bdrv_new("");
-        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR,
-            backing_drv);
-        if (rw_ret < 0) {
-            bdrv_delete(bs_rw);
-            /* try to re-open read-only */
-            bs_ro = bdrv_new("");
-            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR,
-                backing_drv);
-            if (ret < 0) {
-                bdrv_delete(bs_ro);
-                /* drive not functional anymore */
-                bs->drv = NULL;
-                return ret;
-            }
-            bs->backing_hd = bs_ro;
-            return rw_ret;
+        if (bdrv_reopen(bs->backing_hd, open_flags | BDRV_O_RDWR, NULL)) {
+            return -EACCES;
         }
-        bs->backing_hd = bs_rw;
     }
 
     total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
@@ -1588,20 +1562,8 @@ ro_cleanup:
     g_free(buf);
 
     if (ro) {
-        /* re-open as RO */
-        bdrv_delete(bs->backing_hd);
-        bs->backing_hd = NULL;
-        bs_ro = bdrv_new("");
-        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR,
-            backing_drv);
-        if (ret < 0) {
-            bdrv_delete(bs_ro);
-            /* drive not functional anymore */
-            bs->drv = NULL;
-            return ret;
-        }
-        bs->backing_hd = bs_ro;
-        bs->backing_hd->keep_read_only = 0;
+        /* ignoring error return here */
+        bdrv_reopen(bs->backing_hd, open_flags & ~BDRV_O_RDWR, NULL);
     }
 
     return ret;
