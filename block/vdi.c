@@ -454,6 +454,12 @@ static int vdi_open(BlockDriverState *bs, int flags)
     return -1;
 }
 
+static int vdi_reopen_prepare(BDRVReopenState *state,
+                              BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
+}
+
 static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
@@ -761,6 +767,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_probe = vdi_probe,
     .bdrv_open = vdi_open,
     .bdrv_close = vdi_close,
+    .bdrv_reopen_prepare = vdi_reopen_prepare,
     .bdrv_create = vdi_create,
     .bdrv_co_is_allocated = vdi_co_is_allocated,
     .bdrv_make_empty = vdi_make_empty,
