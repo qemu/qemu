@@ -186,23 +186,11 @@ static const int key_defs[] = {
 
 int index_from_key(const char *key)
 {
-    int i, keycode;
-    char *endp;
+    int i;
 
     for (i = 0; QKeyCode_lookup[i] != NULL; i++) {
         if (!strcmp(key, QKeyCode_lookup[i])) {
             break;
-        }
-    }
-
-    if (strstart(key, "0x", NULL)) {
-        keycode = strtoul(key, &endp, 0);
-        if (*endp == '\0' && keycode >= 0x01 && keycode <= 0xff) {
-            for (i = 0; i < Q_KEY_CODE_MAX; i++) {
-                if (keycode == key_defs[i]) {
-                    break;
-                }
-            }
         }
     }
 
