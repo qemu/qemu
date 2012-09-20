@@ -133,8 +133,6 @@ typedef struct BDRVRawState {
     int use_aio;
     void *aio_ctx;
 #endif
-    uint8_t *aligned_buf;
-    unsigned aligned_buf_size;
 #ifdef CONFIG_XFS
     bool is_xfs : 1;
 #endif
@@ -259,23 +257,10 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         return ret;
     }
     s->fd = fd;
-    s->aligned_buf = NULL;
-
-    if ((bdrv_flags & BDRV_O_NOCACHE)) {
-        /*
-         * Allocate a buffer for read/modify/write cycles.  Chose the size
-         * pessimistically as we don't know the block size yet.
-         */
-        s->aligned_buf_size = 32 * MAX_BLOCKSIZE;
-        s->aligned_buf = qemu_memalign(MAX_BLOCKSIZE, s->aligned_buf_size);
-        if (s->aligned_buf == NULL) {
-            goto out_close;
-        }
-    }
 
     /* We're falling back to POSIX AIO in some cases so init always */
     if (paio_init() < 0) {
-        goto out_free_buf;
+        goto out_close;
     }
 
 #ifdef CONFIG_LINUX_AIO
@@ -292,8 +277,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 
     return 0;
 
-out_free_buf:
-    qemu_vfree(s->aligned_buf);
 out_close:
     qemu_close(fd);
     return -errno;
@@ -402,8 +385,6 @@ static void raw_close(BlockDriverState *bs)
     if (s->fd >= 0) {
         qemu_close(s->fd);
         s->fd = -1;
-        if (s->aligned_buf != NULL)
-            qemu_vfree(s->aligned_buf);
     }
 }
 
