@@ -37,12 +37,12 @@
 #define FIXME() do { fprintf(stderr, "FIXME %s:%d\n", \
                              __func__, __LINE__); abort(); } while (0)
 
-#define MAXPORTS_2 8
-#define MAXPORTS_3 8
+#define MAXPORTS_2 15
+#define MAXPORTS_3 15
 
 #define MAXPORTS (MAXPORTS_2+MAXPORTS_3)
-#define MAXSLOTS MAXPORTS
-#define MAXINTRS MAXPORTS
+#define MAXSLOTS 64
+#define MAXINTRS 16
 
 #define TD_QUEUE 24
 
