@@ -39,22 +39,6 @@
 #define HPTE_V_1TB_SEG          0x4000000000000000ULL
 #define HPTE_V_VRMA_MASK        0x4001ffffff000000ULL
 
-#define HPTE_V_HVLOCK           0x40ULL
-
-static inline int lock_hpte(void *hpte, target_ulong bits)
-{
-    uint64_t pteh;
-
-    pteh = ldq_p(hpte);
-
-    /* We're protected by qemu's global lock here */
-    if (pteh & bits) {
-        return 0;
-    }
-    stq_p(hpte, pteh | HPTE_V_HVLOCK);
-    return 1;
-}
-
 static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
                                      target_ulong pte_index)
 {
@@ -151,8 +135,7 @@ static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
             if (i == 8) {
                 return H_PTEG_FULL;
             }
-            if (((ldq_p(hpte) & HPTE_V_VALID) == 0) &&
-                lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID)) {
+            if ((ldq_p(hpte) & HPTE_V_VALID) == 0) {
                 break;
             }
             hpte += HASH_PTE_SIZE_64;
@@ -160,7 +143,7 @@ static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
     } else {
         i = 0;
         hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
-        if (!lock_hpte(hpte, HPTE_V_HVLOCK | HPTE_V_VALID)) {
+        if (ldq_p(hpte) & HPTE_V_VALID) {
             return H_PTEG_FULL;
         }
     }
@@ -168,7 +151,6 @@ static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
     /* eieio();  FIXME: need some sort of barrier for smp? */
     stq_p(hpte, pteh);
 
-    assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
     args[0] = pte_index + i;
     return H_SUCCESS;
 }
@@ -193,11 +175,6 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
     }
 
     hpte = env->external_htab + (ptex * HASH_PTE_SIZE_64);
-    while (!lock_hpte(hpte, HPTE_V_HVLOCK)) {
-        /* We have no real concurrency in qemu soft-emulation, so we
-         * will never actually have a contested lock */
-        assert(0);
-    }
 
     v = ldq_p(hpte);
     r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
@@ -205,16 +182,13 @@ static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
     if ((v & HPTE_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn) ||
         ((flags & H_ANDCOND) && (v & avpn) != 0)) {
-        stq_p(hpte, v & ~HPTE_V_HVLOCK);
-        assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
         return REMOVE_NOT_FOUND;
     }
-    *vp = v & ~HPTE_V_HVLOCK;
+    *vp = v;
     *rp = r;
     stq_p(hpte, 0);
     rb = compute_tlbie_rb(v, r, ptex);
     ppc_tlb_invalidate_one(env, rb);
-    assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
     return REMOVE_SUCCESS;
 }
 
@@ -324,19 +298,12 @@ static target_ulong h_protect(CPUPPCState *env, sPAPREnvironment *spapr,
     }
 
     hpte = env->external_htab + (pte_index * HASH_PTE_SIZE_64);
-    while (!lock_hpte(hpte, HPTE_V_HVLOCK)) {
-        /* We have no real concurrency in qemu soft-emulation, so we
-         * will never actually have a contested lock */
-        assert(0);
-    }
 
     v = ldq_p(hpte);
     r = ldq_p(hpte + (HASH_PTE_SIZE_64/2));
 
     if ((v & HPTE_V_VALID) == 0 ||
         ((flags & H_AVPN) && (v & ~0x7fULL) != avpn)) {
-        stq_p(hpte, v & ~HPTE_V_HVLOCK);
-        assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
         return H_NOT_FOUND;
     }
 
@@ -350,8 +317,7 @@ static target_ulong h_protect(CPUPPCState *env, sPAPREnvironment *spapr,
     ppc_tlb_invalidate_one(env, rb);
     stq_p(hpte + (HASH_PTE_SIZE_64/2), r);
     /* Don't need a memory barrier, due to qemu's global lock */
-    stq_p(hpte, v & ~HPTE_V_HVLOCK);
-    assert(!(ldq_p(hpte) & HPTE_V_HVLOCK));
+    stq_p(hpte, v);
     return H_SUCCESS;
 }
 
