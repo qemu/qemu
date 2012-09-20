@@ -812,8 +812,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
-    bs->keep_read_only = !(flags & BDRV_O_ALLOW_RDWR);
-
     /* Open the image */
     ret = bdrv_open_common(bs, filename, flags, drv);
     if (ret < 0) {
