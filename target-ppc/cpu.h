@@ -1079,7 +1079,6 @@ struct CPUPPCState {
     int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
 
     /* Power management */
-    int power_mode;
     int (*check_pow)(CPUPPCState *env);
 
 #if !defined(CONFIG_USER_ONLY)
