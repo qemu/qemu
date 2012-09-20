@@ -228,6 +228,23 @@ static int *keycodes;
 static int keycodes_size;
 static QEMUTimer *key_timer;
 
+static int keycode_from_keyvalue(const KeyValue *value)
+{
+    if (value->kind == KEY_VALUE_KIND_QCODE) {
+        return key_defs[value->qcode];
+    } else {
+        assert(value->kind == KEY_VALUE_KIND_NUMBER);
+        return value->number;
+    }
+}
+
+static void free_keycodes(void)
+{
+    g_free(keycodes);
+    keycodes = NULL;
+    keycodes_size = 0;
+}
+
 static void release_keys(void *opaque)
 {
     int i;
@@ -239,16 +256,14 @@ static void release_keys(void *opaque)
         kbd_put_keycode(keycodes[i]| 0x80);
     }
 
-    g_free(keycodes);
-    keycodes = NULL;
-    keycodes_size = 0;
+    free_keycodes();
 }
 
-void qmp_send_key(QKeyCodeList *keys, bool has_hold_time, int64_t hold_time,
+void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                   Error **errp)
 {
     int keycode;
-    QKeyCodeList *p;
+    KeyValueList *p;
 
     if (!key_timer) {
         key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
@@ -265,7 +280,13 @@ void qmp_send_key(QKeyCodeList *keys, bool has_hold_time, int64_t hold_time,
 
     for (p = keys; p != NULL; p = p->next) {
         /* key down events */
-        keycode = key_defs[p->value];
+        keycode = keycode_from_keyvalue(p->value);
+        if (keycode < 0x01 || keycode > 0xff) {
+            error_setg(errp, "invalid hex keycode 0x%x\n", keycode);
+            free_keycodes();
+            return;
+        }
+
         if (keycode & 0x80) {
             kbd_put_keycode(0xe0);
         }

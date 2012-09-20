@@ -2621,12 +2621,26 @@
              'lf', 'help', 'meta_l', 'meta_r', 'compose' ] }
 
 ##
+# @KeyValue
+#
+# Represents a keyboard key.
+#
+# Since: 1.3.0
+##
+{ 'union': 'KeyValue',
+  'data': {
+    'number': 'int',
+    'qcode': 'QKeyCode' } }
+
+##
 # @send-key:
 #
 # Send keys to guest.
 #
-# @keys: key sequence. 'keys' is the name of the key. Use a JSON array to
-#        press several keys simultaneously.
+# @keys: An array of @KeyValue elements. All @KeyValues in this array are
+#        simultaneously sent to the guest. A @KeyValue.number value is sent
+#        directly to the guest, while @KeyValue.qcode must be a valid
+#        @QKeyCode value
 #
 # @hold-time: #optional time to delay key up events, milliseconds. Defaults
 #             to 100
@@ -2638,7 +2652,7 @@
 #
 ##
 { 'command': 'send-key',
-  'data': { 'keys': ['QKeyCode'], '*hold-time': 'int' } }
+  'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
 
 ##
 # @screendump:
