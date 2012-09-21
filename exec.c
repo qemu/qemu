@@ -543,8 +543,7 @@ static void code_gen_alloc(unsigned long tb_size)
             code_gen_buffer_size = (800 * 1024 * 1024);
 #elif defined(__sparc_v9__)
         // Map the buffer below 2G, so we can use direct calls and branches
-        flags |= MAP_FIXED;
-        start = (void *) 0x60000000UL;
+        start = (void *) 0x40000000UL;
         if (code_gen_buffer_size > (512 * 1024 * 1024))
             code_gen_buffer_size = (512 * 1024 * 1024);
 #elif defined(__arm__)
@@ -584,8 +583,7 @@ static void code_gen_alloc(unsigned long tb_size)
             code_gen_buffer_size = (800 * 1024 * 1024);
 #elif defined(__sparc_v9__)
         // Map the buffer below 2G, so we can use direct calls and branches
-        flags |= MAP_FIXED;
-        addr = (void *) 0x60000000UL;
+        addr = (void *) 0x40000000UL;
         if (code_gen_buffer_size > (512 * 1024 * 1024)) {
             code_gen_buffer_size = (512 * 1024 * 1024);
         }
