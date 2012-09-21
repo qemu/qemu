@@ -937,11 +937,7 @@ void tcg_dump_ops(TCGContext *s)
                                                        args[nb_oargs + i]));
                 }
             }
-        } else if (c == INDEX_op_movi_i32 
-#if TCG_TARGET_REG_BITS == 64
-                   || c == INDEX_op_movi_i64
-#endif
-                   ) {
+        } else if (c == INDEX_op_movi_i32 || c == INDEX_op_movi_i64) {
             tcg_target_ulong val;
             TCGHelperInfo *th;
 
@@ -993,14 +989,11 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_brcond_i32:
             case INDEX_op_setcond_i32:
             case INDEX_op_movcond_i32:
-#if TCG_TARGET_REG_BITS == 32
             case INDEX_op_brcond2_i32:
             case INDEX_op_setcond2_i32:
-#else
             case INDEX_op_brcond_i64:
             case INDEX_op_setcond_i64:
             case INDEX_op_movcond_i64:
-#endif
                 if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
                     qemu_log(",%s", cond_name[args[k++]]);
                 } else {
@@ -2095,16 +2088,12 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #endif
         switch(opc) {
         case INDEX_op_mov_i32:
-#if TCG_TARGET_REG_BITS == 64
         case INDEX_op_mov_i64:
-#endif
             dead_args = s->op_dead_args[op_index];
             tcg_reg_alloc_mov(s, def, args, dead_args);
             break;
         case INDEX_op_movi_i32:
-#if TCG_TARGET_REG_BITS == 64
         case INDEX_op_movi_i64:
-#endif
             tcg_reg_alloc_movi(s, args);
             break;
         case INDEX_op_debug_insn_start:
