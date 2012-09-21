@@ -111,7 +111,6 @@ source_path=`dirname "$0"`
 cpu=""
 interp_prefix="/usr/gnemul/qemu-%M"
 static="no"
-sparc_cpu=""
 cross_prefix=""
 audio_drv_list=""
 audio_card_list="ac97 es1370 sb16 hda"
@@ -239,21 +238,6 @@ for opt do
   ;;
   --disable-debug-info) debug_info="no"
   ;;
-  --sparc_cpu=*)
-    sparc_cpu="$optarg"
-    case $sparc_cpu in
-    v7|v8|v8plus|v8plusa)
-      cpu="sparc"
-    ;;
-    v9)
-      cpu="sparc64"
-    ;;
-    *)
-      echo "undefined SPARC architecture. Exiting";
-      exit 1
-    ;;
-    esac
-  ;;
   esac
 done
 # OS specific
@@ -341,8 +325,6 @@ elif check_define __i386__ ; then
 elif check_define __x86_64__ ; then
   cpu="x86_64"
 elif check_define __sparc__ ; then
-  # We can't check for 64 bit (when gcc is biarch) or V8PLUSA
-  # They must be specified using --sparc_cpu
   if check_define __arch64__ ; then
     cpu="sparc64"
   else
@@ -788,8 +770,6 @@ for opt do
   ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
-  --sparc_cpu=*)
-  ;;
   --enable-werror) werror="yes"
   ;;
   --disable-werror) werror="no"
@@ -873,31 +853,19 @@ for opt do
   esac
 done
 
-#
-# If cpu ~= sparc and  sparc_cpu hasn't been defined, plug in the right
-# QEMU_CFLAGS/LDFLAGS (assume sparc_v8plus for 32-bit and sparc_v9 for 64-bit)
-#
 host_guest_base="no"
 case "$cpu" in
-    sparc) case $sparc_cpu in
-           v7|v8)
-             QEMU_CFLAGS="-mcpu=${sparc_cpu} -D__sparc_${sparc_cpu}__ $QEMU_CFLAGS"
-           ;;
-           v8plus|v8plusa)
-             QEMU_CFLAGS="-mcpu=ultrasparc -D__sparc_${sparc_cpu}__ $QEMU_CFLAGS"
-           ;;
-           *) # sparc_cpu not defined in the command line
-             QEMU_CFLAGS="-mcpu=ultrasparc -D__sparc_v8plus__ $QEMU_CFLAGS"
-           esac
+    sparc)
            LDFLAGS="-m32 $LDFLAGS"
-           QEMU_CFLAGS="-m32 -ffixed-g2 -ffixed-g3 $QEMU_CFLAGS"
+           QEMU_CFLAGS="-m32 -mcpu=ultrasparc $QEMU_CFLAGS"
+           QEMU_CFLAGS="-ffixed-g2 -ffixed-g3 $QEMU_CFLAGS"
            if test "$solaris" = "no" ; then
              QEMU_CFLAGS="-ffixed-g1 -ffixed-g6 $QEMU_CFLAGS"
            fi
            ;;
     sparc64)
-           QEMU_CFLAGS="-m64 -mcpu=ultrasparc -D__sparc_v9__ $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
+           QEMU_CFLAGS="-m64 -mcpu=ultrasparc $QEMU_CFLAGS"
            QEMU_CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $QEMU_CFLAGS"
            if test "$solaris" != "no" ; then
              QEMU_CFLAGS="-ffixed-g1 $QEMU_CFLAGS"

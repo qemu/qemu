@@ -86,7 +86,7 @@ static int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
-#if defined(__arm__) || defined(__sparc_v9__)
+#if defined(__arm__) || defined(__sparc__)
 /* The prologue must be reachable with a direct jump. ARM and Sparc64
  have limited branch ranges (possibly also PPC) so place it in a
  section close to code segment. */
@@ -541,7 +541,7 @@ static void code_gen_alloc(unsigned long tb_size)
         /* Cannot map more than that */
         if (code_gen_buffer_size > (800 * 1024 * 1024))
             code_gen_buffer_size = (800 * 1024 * 1024);
-#elif defined(__sparc_v9__)
+#elif defined(__sparc__) && HOST_LONG_BITS == 64
         // Map the buffer below 2G, so we can use direct calls and branches
         start = (void *) 0x40000000UL;
         if (code_gen_buffer_size > (512 * 1024 * 1024))
@@ -581,7 +581,7 @@ static void code_gen_alloc(unsigned long tb_size)
         /* Cannot map more than that */
         if (code_gen_buffer_size > (800 * 1024 * 1024))
             code_gen_buffer_size = (800 * 1024 * 1024);
-#elif defined(__sparc_v9__)
+#elif defined(__sparc__) && HOST_LONG_BITS == 64
         // Map the buffer below 2G, so we can use direct calls and branches
         addr = (void *) 0x40000000UL;
         if (code_gen_buffer_size > (512 * 1024 * 1024)) {

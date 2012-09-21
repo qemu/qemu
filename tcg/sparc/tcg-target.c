@@ -621,18 +621,10 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 
     default:
         tcg_out_cmp(s, c1, c2, c2const);
-#if defined(__sparc_v9__) || defined(__sparc_v8plus__)
         tcg_out_movi_imm13(s, ret, 0);
-        tcg_out32 (s, ARITH_MOVCC | INSN_RD(ret)
-                   | INSN_RS1(tcg_cond_to_bcond[cond])
-                   | MOVCC_ICC | INSN_IMM11(1));
-#else
-        t = gen_new_label();
-        tcg_out_branch_i32(s, INSN_COND(tcg_cond_to_bcond[cond], 1), t);
-        tcg_out_movi_imm13(s, ret, 1);
-        tcg_out_movi_imm13(s, ret, 0);
-        tcg_out_label(s, t, s->code_ptr);
-#endif
+        tcg_out32(s, ARITH_MOVCC | INSN_RD(ret)
+                  | INSN_RS1(tcg_cond_to_bcond[cond])
+                  | MOVCC_ICC | INSN_IMM11(1));
         return;
     }
 
@@ -742,7 +734,7 @@ static const void * const qemu_st_helpers[4] = {
 #endif
 #endif
 
-#ifdef __arch64__
+#if TCG_TARGET_REG_BITS == 64
 #define HOST_LD_OP LDX
 #define HOST_ST_OP STX
 #define HOST_SLL_OP SHIFT_SLLX
@@ -1600,11 +1592,9 @@ static void tcg_target_init(TCGContext *s)
 
 #if TCG_TARGET_REG_BITS == 64
 # define ELF_HOST_MACHINE  EM_SPARCV9
-#elif defined(__sparc_v8plus__)
+#else
 # define ELF_HOST_MACHINE  EM_SPARC32PLUS
 # define ELF_HOST_FLAGS    EF_SPARC_32PLUS
-#else
-# define ELF_HOST_MACHINE  EM_SPARC
 #endif
 
 typedef struct {

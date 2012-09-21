@@ -218,7 +218,7 @@ static inline int64_t cpu_get_real_ticks(void)
     return val;
 }
 
-#elif defined(__sparc_v8plus__) || defined(__sparc_v8plusa__) || defined(__sparc_v9__)
+#elif defined(__sparc__)
 
 static inline int64_t cpu_get_real_ticks (void)
 {
@@ -227,6 +227,8 @@ static inline int64_t cpu_get_real_ticks (void)
     asm volatile("rd %%tick,%0" : "=r"(rval));
     return rval;
 #else
+    /* We need an %o or %g register for this.  For recent enough gcc
+       there is an "h" constraint for that.  Don't bother with that.  */
     union {
         uint64_t i64;
         struct {
@@ -234,8 +236,8 @@ static inline int64_t cpu_get_real_ticks (void)
             uint32_t low;
         }       i32;
     } rval;
-    asm volatile("rd %%tick,%1; srlx %1,32,%0"
-                 : "=r"(rval.i32.high), "=r"(rval.i32.low));
+    asm volatile("rd %%tick,%%g1; srlx %%g1,32,%0; mov %%g1,%1"
+                 : "=r"(rval.i32.high), "=r"(rval.i32.low) : : "g1");
     return rval.i64;
 #endif
 }
