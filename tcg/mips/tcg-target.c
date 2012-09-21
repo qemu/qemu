@@ -328,6 +328,7 @@ enum {
     OPC_BGEZ     = OPC_REGIMM | (0x01 << 16),
 
     OPC_SPECIAL3 = 0x1f << 26,
+    OPC_INS      = OPC_SPECIAL3 | 0x004,
     OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
     OPC_SEH      = OPC_SPECIAL3 | 0x620,
@@ -1455,6 +1456,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_ext16s(s, args[0], args[1]);
         break;
 
+    case INDEX_op_deposit_i32:
+        tcg_out_opc_imm(s, OPC_INS, args[0], args[2],
+                        ((args[3] + args[4] - 1) << 11) | (args[3] << 6));
+        break;
+
     case INDEX_op_brcond_i32:
         tcg_out_brcond(s, args[2], args[0], args[1], args[3]);
         break;
@@ -1549,6 +1555,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
 
     { INDEX_op_ext8s_i32, { "r", "rZ" } },
     { INDEX_op_ext16s_i32, { "r", "rZ" } },
+
+    { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
