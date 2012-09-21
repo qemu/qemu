@@ -67,7 +67,8 @@ typedef enum {
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_I6
-#ifdef __arch64__
+
+#if TCG_TARGET_REG_BITS == 64
 // Reserve space for AREG0
 #define TCG_TARGET_STACK_MINFRAME (176 + 4 * (int)sizeof(long) + \
                                    TCG_STATIC_CALL_ARGS_SIZE)
@@ -81,7 +82,7 @@ typedef enum {
 #define TCG_TARGET_STACK_ALIGN 8
 #endif
 
-#ifdef __arch64__
+#if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_EXTEND_ARGS 1
 #endif
 
@@ -129,7 +130,7 @@ typedef enum {
 
 #ifdef CONFIG_SOLARIS
 #define TCG_AREG0 TCG_REG_G2
-#elif defined(__sparc_v9__)
+#elif HOST_LONG_BITS == 64
 #define TCG_AREG0 TCG_REG_G5
 #else
 #define TCG_AREG0 TCG_REG_G6
