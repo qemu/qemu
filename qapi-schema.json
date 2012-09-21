@@ -2007,26 +2007,33 @@
 # supported on i386 and x86_64.
 #
 # @paging: if true, do paging to get guest's memory mapping. This allows
-# using gdb to process the core file. However, setting @paging to false
-# may be desirable because of two reasons:
+#          using gdb to process the core file.
 #
-#   1. The guest may be in a catastrophic state or can have corrupted
-#      memory, which cannot be trusted
-#   2. The guest can be in real-mode even if paging is enabled. For example,
-#      the guest uses ACPI to sleep, and ACPI sleep state goes in real-mode
+#          IMPORTANT: this option can make QEMU allocate several gigabytes
+#                     of RAM. This can happen for a large guest, or a
+#                     malicious guest pretending to be large.
+#
+#          Also, paging=true has the following limitations:
+#
+#             1. The guest may be in a catastrophic state or can have corrupted
+#                memory, which cannot be trusted
+#             2. The guest can be in real-mode even if paging is enabled. For
+#                example, the guest uses ACPI to sleep, and ACPI sleep state
+#                goes in real-mode
 #
 # @protocol: the filename or file descriptor of the vmcore. The supported
-# protocols are:
+#            protocols are:
 #
-#   1. file: the protocol starts with "file:", and the following string is
-#      the file's path.
-#   2. fd: the protocol starts with "fd:", and the following string is the
-#      fd's name.
+#            1. file: the protocol starts with "file:", and the following
+#               string is the file's path.
+#            2. fd: the protocol starts with "fd:", and the following string
+#               is the fd's name.
 #
 # @begin: #optional if specified, the starting physical address.
 #
 # @length: #optional if specified, the memory size, in bytes. If you don't
-# want to dump all guest's memory, please specify the start @begin and @length
+#          want to dump all guest's memory, please specify the start @begin
+#          and @length
 #
 # Returns: nothing on success
 #
@@ -2035,6 +2042,7 @@
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
             '*length': 'int' } }
+
 ##
 # @netdev_add:
 #
