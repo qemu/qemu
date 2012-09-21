@@ -426,27 +426,15 @@ static ExitStatus gen_bcond_internal(DisasContext *ctx, TCGCond cond,
 
         return EXIT_GOTO_TB;
     } else {
-        int lab_over = gen_new_label();
+        TCGv_i64 z = tcg_const_i64(0);
+        TCGv_i64 d = tcg_const_i64(dest);
+        TCGv_i64 p = tcg_const_i64(ctx->pc);
 
-        /* ??? Consider using either
-             movi pc, next
-             addi tmp, pc, disp
-             movcond pc, cond, 0, tmp, pc
-           or
-             setcond tmp, cond, 0
-             movi pc, next
-             neg tmp, tmp
-             andi tmp, tmp, disp
-             add pc, pc, tmp
-           The current diamond subgraph surely isn't efficient.  */
+        tcg_gen_movcond_i64(cond, cpu_pc, cmp, z, d, p);
 
-        tcg_gen_brcondi_i64(cond, cmp, 0, lab_true);
-        tcg_gen_movi_i64(cpu_pc, ctx->pc);
-        tcg_gen_br(lab_over);
-        gen_set_label(lab_true);
-        tcg_gen_movi_i64(cpu_pc, dest);
-        gen_set_label(lab_over);
-
+        tcg_temp_free_i64(z);
+        tcg_temp_free_i64(d);
+        tcg_temp_free_i64(p);
         return EXIT_PC_UPDATED;
     }
 }
@@ -521,61 +509,67 @@ static ExitStatus gen_fbcond(DisasContext *ctx, TCGCond cond, int ra,
 static void gen_cmov(TCGCond cond, int ra, int rb, int rc,
                      int islit, uint8_t lit, int mask)
 {
-    TCGCond inv_cond = tcg_invert_cond(cond);
-    int l1;
-
-    if (unlikely(rc == 31))
-        return;
-
-    l1 = gen_new_label();
-
-    if (ra != 31) {
-        if (mask) {
-            TCGv tmp = tcg_temp_new();
-            tcg_gen_andi_i64(tmp, cpu_ir[ra], 1);
-            tcg_gen_brcondi_i64(inv_cond, tmp, 0, l1);
-            tcg_temp_free(tmp);
-        } else
-            tcg_gen_brcondi_i64(inv_cond, cpu_ir[ra], 0, l1);
-    } else {
-        /* Very uncommon case - Do not bother to optimize.  */
-        TCGv tmp = tcg_const_i64(0);
-        tcg_gen_brcondi_i64(inv_cond, tmp, 0, l1);
-        tcg_temp_free(tmp);
-    }
-
-    if (islit)
-        tcg_gen_movi_i64(cpu_ir[rc], lit);
-    else
-        tcg_gen_mov_i64(cpu_ir[rc], cpu_ir[rb]);
-    gen_set_label(l1);
-}
-
-static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
-{
-    TCGv cmp_tmp;
-    int l1;
+    TCGv_i64 c1, z, v1;
 
     if (unlikely(rc == 31)) {
         return;
     }
 
-    cmp_tmp = tcg_temp_new();
-    if (unlikely(ra == 31)) {
-        tcg_gen_movi_i64(cmp_tmp, 0);
+    if (ra == 31) {
+        /* Very uncommon case - Do not bother to optimize.  */
+        c1 = tcg_const_i64(0);
+    } else if (mask) {
+        c1 = tcg_const_i64(1);
+        tcg_gen_and_i64(c1, c1, cpu_ir[ra]);
     } else {
-        gen_fold_mzero(cond, cmp_tmp, cpu_fir[ra]);
+        c1 = cpu_ir[ra];
+    }
+    if (islit) {
+        v1 = tcg_const_i64(lit);
+    } else {
+        v1 = cpu_ir[rb];
+    }
+    z = tcg_const_i64(0);
+
+    tcg_gen_movcond_i64(cond, cpu_ir[rc], c1, z, v1, cpu_ir[rc]);
+
+    tcg_temp_free_i64(z);
+    if (ra == 31 || mask) {
+        tcg_temp_free_i64(c1);
+    }
+    if (islit) {
+        tcg_temp_free_i64(v1);
+    }
+}
+
+static void gen_fcmov(TCGCond cond, int ra, int rb, int rc)
+{
+    TCGv_i64 c1, z, v1;
+
+    if (unlikely(rc == 31)) {
+        return;
     }
 
-    l1 = gen_new_label();
-    tcg_gen_brcondi_i64(tcg_invert_cond(cond), cmp_tmp, 0, l1);
-    tcg_temp_free(cmp_tmp);
+    c1 = tcg_temp_new_i64();
+    if (unlikely(ra == 31)) {
+        tcg_gen_movi_i64(c1, 0);
+    } else {
+        gen_fold_mzero(cond, c1, cpu_fir[ra]);
+    }
+    if (rb == 31) {
+        v1 = tcg_const_i64(0);
+    } else {
+        v1 = cpu_fir[rb];
+    }
+    z = tcg_const_i64(0);
 
-    if (rb != 31)
-        tcg_gen_mov_i64(cpu_fir[rc], cpu_fir[rb]);
-    else
-        tcg_gen_movi_i64(cpu_fir[rc], 0);
-    gen_set_label(l1);
+    tcg_gen_movcond_i64(cond, cpu_fir[rc], c1, z, v1, cpu_fir[rc]);
+
+    tcg_temp_free_i64(z);
+    tcg_temp_free_i64(c1);
+    if (rb == 31) {
+        tcg_temp_free_i64(v1);
+    }
 }
 
 #define QUAL_RM_N       0x080   /* Round mode nearest even */
