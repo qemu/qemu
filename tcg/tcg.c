@@ -991,16 +991,15 @@ void tcg_dump_ops(TCGContext *s)
             }
             switch (c) {
             case INDEX_op_brcond_i32:
+            case INDEX_op_setcond_i32:
+            case INDEX_op_movcond_i32:
 #if TCG_TARGET_REG_BITS == 32
             case INDEX_op_brcond2_i32:
-#elif TCG_TARGET_REG_BITS == 64
-            case INDEX_op_brcond_i64:
-#endif
-            case INDEX_op_setcond_i32:
-#if TCG_TARGET_REG_BITS == 32
             case INDEX_op_setcond2_i32:
-#elif TCG_TARGET_REG_BITS == 64
+#else
+            case INDEX_op_brcond_i64:
             case INDEX_op_setcond_i64:
+            case INDEX_op_movcond_i64:
 #endif
                 if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
                     qemu_log(",%s", cond_name[args[k++]]);
