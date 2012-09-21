@@ -68,7 +68,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 /* check if we really need so many registers :P */
-static const int tcg_target_reg_alloc_order[] = {
+static const TCGReg tcg_target_reg_alloc_order[] = {
     TCG_REG_S0,
     TCG_REG_S1,
     TCG_REG_S2,
@@ -94,14 +94,14 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_V1
 };
 
-static const int tcg_target_call_iarg_regs[4] = {
+static const TCGReg tcg_target_call_iarg_regs[4] = {
     TCG_REG_A0,
     TCG_REG_A1,
     TCG_REG_A2,
     TCG_REG_A3
 };
 
-static const int tcg_target_call_oarg_regs[2] = {
+static const TCGReg tcg_target_call_oarg_regs[2] = {
     TCG_REG_V0,
     TCG_REG_V1
 };
@@ -327,7 +327,8 @@ enum {
 /*
  * Type reg
  */
-static inline void tcg_out_opc_reg(TCGContext *s, int opc, int rd, int rs, int rt)
+static inline void tcg_out_opc_reg(TCGContext *s, int opc,
+                                   TCGReg rd, TCGReg rs, TCGReg rt)
 {
     int32_t inst;
 
@@ -341,7 +342,8 @@ static inline void tcg_out_opc_reg(TCGContext *s, int opc, int rd, int rs, int r
 /*
  * Type immediate
  */
-static inline void tcg_out_opc_imm(TCGContext *s, int opc, int rt, int rs, int imm)
+static inline void tcg_out_opc_imm(TCGContext *s, int opc,
+                                   TCGReg rt, TCGReg rs, TCGArg imm)
 {
     int32_t inst;
 
@@ -355,7 +357,8 @@ static inline void tcg_out_opc_imm(TCGContext *s, int opc, int rt, int rs, int i
 /*
  * Type branch
  */
-static inline void tcg_out_opc_br(TCGContext *s, int opc, int rt, int rs)
+static inline void tcg_out_opc_br(TCGContext *s, int opc,
+                                  TCGReg rt, TCGReg rs)
 {
     /* We pay attention here to not modify the branch target by reading
        the existing value and using it again. This ensure that caches and
@@ -368,7 +371,8 @@ static inline void tcg_out_opc_br(TCGContext *s, int opc, int rt, int rs)
 /*
  * Type sa
  */
-static inline void tcg_out_opc_sa(TCGContext *s, int opc, int rd, int rt, int sa)
+static inline void tcg_out_opc_sa(TCGContext *s, int opc,
+                                  TCGReg rd, TCGReg rt, TCGArg sa)
 {
     int32_t inst;
 
@@ -407,7 +411,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
     }
 }
 
-static inline void tcg_out_bswap16(TCGContext *s, int ret, int arg)
+static inline void tcg_out_bswap16(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     /* ret and arg can't be register at */
     if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
@@ -422,7 +426,7 @@ static inline void tcg_out_bswap16(TCGContext *s, int ret, int arg)
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
 }
 
-static inline void tcg_out_bswap16s(TCGContext *s, int ret, int arg)
+static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     /* ret and arg can't be register at */
     if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
@@ -437,7 +441,7 @@ static inline void tcg_out_bswap16s(TCGContext *s, int ret, int arg)
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
 }
 
-static inline void tcg_out_bswap32(TCGContext *s, int ret, int arg)
+static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
 {
     /* ret and arg must be different and can't be register at */
     if (ret == arg || ret == TCG_REG_AT || arg == TCG_REG_AT) {
@@ -458,7 +462,7 @@ static inline void tcg_out_bswap32(TCGContext *s, int ret, int arg)
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
 }
 
-static inline void tcg_out_ext8s(TCGContext *s, int ret, int arg)
+static inline void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
 #ifdef _MIPS_ARCH_MIPS32R2
     tcg_out_opc_reg(s, OPC_SEB, ret, 0, arg);
@@ -468,7 +472,7 @@ static inline void tcg_out_ext8s(TCGContext *s, int ret, int arg)
 #endif
 }
 
-static inline void tcg_out_ext16s(TCGContext *s, int ret, int arg)
+static inline void tcg_out_ext16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
 #ifdef _MIPS_ARCH_MIPS32R2
     tcg_out_opc_reg(s, OPC_SEH, ret, 0, arg);
@@ -478,8 +482,8 @@ static inline void tcg_out_ext16s(TCGContext *s, int ret, int arg)
 #endif
 }
 
-static inline void tcg_out_ldst(TCGContext *s, int opc, int arg,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_ldst(TCGContext *s, int opc, TCGArg arg,
+                                TCGReg arg1, TCGArg arg2)
 {
     if (arg2 == (int16_t) arg2) {
         tcg_out_opc_imm(s, opc, arg, arg1, arg2);
@@ -502,7 +506,7 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
     tcg_out_ldst(s, OPC_SW, arg, arg1, arg2);
 }
 
-static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
+static inline void tcg_out_addi(TCGContext *s, TCGReg reg, TCGArg val)
 {
     if (val == (int16_t)val) {
         tcg_out_opc_imm(s, OPC_ADDIU, reg, reg, val);
@@ -543,7 +547,7 @@ DEFINE_TCG_OUT_CALL_IARG(tcg_out_call_iarg_reg16, TCGReg arg)
 #undef DEFINE_TCG_OUT_CALL_IARG_GET_ARG
 #define DEFINE_TCG_OUT_CALL_IARG_GET_ARG(A) \
     tcg_out_movi(s, TCG_TYPE_I32, A, arg);
-DEFINE_TCG_OUT_CALL_IARG(tcg_out_call_iarg_imm32, uint32_t arg)
+DEFINE_TCG_OUT_CALL_IARG(tcg_out_call_iarg_imm32, TCGArg arg)
 #undef DEFINE_TCG_OUT_CALL_IARG_GET_ARG
 
 /* We don't use the macro for this one to avoid an unnecessary reg-reg
@@ -573,8 +577,8 @@ static inline void tcg_out_call_iarg_reg64(TCGContext *s, int *arg_num,
 #endif
 }
 
-static void tcg_out_brcond(TCGContext *s, TCGCond cond, int arg1,
-                           int arg2, int label_index)
+static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGArg arg1,
+                           TCGArg arg2, int label_index)
 {
     TCGLabel *l = &s->labels[label_index];
 
@@ -631,8 +635,9 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, int arg1,
 
 /* XXX: we implement it at the target level to avoid having to
    handle cross basic blocks temporaries */
-static void tcg_out_brcond2(TCGContext *s, TCGCond cond, int arg1,
-                            int arg2, int arg3, int arg4, int label_index)
+static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGArg arg1,
+                            TCGArg arg2, TCGArg arg3, TCGArg arg4,
+                            int label_index)
 {
     void *label_ptr;
 
@@ -694,8 +699,8 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, int arg1,
     reloc_pc16(label_ptr, (tcg_target_long) s->code_ptr);
 }
 
-static void tcg_out_setcond(TCGContext *s, TCGCond cond, int ret,
-                            int arg1, int arg2)
+static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
+                            TCGArg arg1, TCGArg arg2)
 {
     switch (cond) {
     case TCG_COND_EQ:
@@ -754,8 +759,8 @@ static void tcg_out_setcond(TCGContext *s, TCGCond cond, int ret,
 
 /* XXX: we implement it at the target level to avoid having to
    handle cross basic blocks temporaries */
-static void tcg_out_setcond2(TCGContext *s, TCGCond cond, int ret,
-                             int arg1, int arg2, int arg3, int arg4)
+static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
+                             TCGArg arg1, TCGArg arg2, TCGArg arg3, TCGArg arg4)
 {
     switch (cond) {
     case TCG_COND_EQ:
@@ -842,7 +847,7 @@ static const void * const qemu_st_helpers[4] = {
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_regl, data_regl, data_regh, data_reg1, data_reg2;
+    TCGReg addr_regl, data_regl, data_regh, data_reg1, data_reg2;
 #if defined(CONFIG_SOFTMMU)
     void *label1_ptr, *label2_ptr;
     int arg_num;
@@ -850,7 +855,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     int addr_meml;
 # if TARGET_LONG_BITS == 64
     uint8_t *label3_ptr;
-    int addr_regh, addr_memh;
+    TCGReg addr_regh;
+    int addr_memh;
 # endif
 #endif
     data_regl = *args++;
@@ -1026,7 +1032,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_regl, data_regl, data_regh, data_reg1, data_reg2;
+    TCGReg addr_regl, data_regl, data_regh, data_reg1, data_reg2;
 #if defined(CONFIG_SOFTMMU)
     uint8_t *label1_ptr, *label2_ptr;
     int arg_num;
@@ -1036,7 +1042,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #if TARGET_LONG_BITS == 64
 # if defined(CONFIG_SOFTMMU)
     uint8_t *label3_ptr;
-    int addr_regh, addr_memh;
+    TCGReg addr_regh;
+    int addr_memh;
 # endif
 #endif
     data_regl = *args++;
