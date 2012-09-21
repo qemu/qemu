@@ -1072,10 +1072,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_goto_tb:
         if (s->tb_jmp_offset) {
             /* direct jump method */
-            tcg_out_sethi(s, TCG_REG_T1, args[0] & 0xffffe000);
-            tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_T1) |
-                      INSN_IMM13((args[0] & 0x1fff)));
+            uint32_t old_insn = *(uint32_t *)s->code_ptr;
             s->tb_jmp_offset[args[0]] = s->code_ptr - s->code_buf;
+            /* Make sure to preserve links during retranslation.  */
+            tcg_out32(s, CALL | (old_insn & ~INSN_OP(-1)));
         } else {
             /* indirect jump method */
             tcg_out_ld_ptr(s, TCG_REG_T1,
@@ -1594,4 +1594,19 @@ void tcg_register_jit(void *buf, size_t buf_size)
     debug_frame.fde.func_len = buf_size;
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
+}
+
+void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
+{
+    uint32_t *ptr = (uint32_t *)jmp_addr;
+    tcg_target_long disp = (tcg_target_long)(addr - jmp_addr) >> 2;
+
+    /* We can reach the entire address space for 32-bit.  For 64-bit
+       the code_gen_buffer can't be larger than 2GB.  */
+    if (TCG_TARGET_REG_BITS == 64 && !check_fit_tl(disp, 30)) {
+        tcg_abort();
+    }
+
+    *ptr = CALL | (disp & 0x3fffffff);
+    flush_icache_range(jmp_addr, jmp_addr + 4);
 }
