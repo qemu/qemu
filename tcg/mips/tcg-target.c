@@ -1529,7 +1529,6 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_S5,
     TCG_REG_S6,
     TCG_REG_S7,
-    TCG_REG_GP,
     TCG_REG_FP,
     TCG_REG_RA,       /* should be last for ABI compliance */
 };
@@ -1595,6 +1594,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_T0);   /* internal use */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_RA);   /* return address */
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_SP);   /* stack pointer */
+    tcg_regset_set_reg(s->reserved_regs, TCG_REG_GP);   /* global pointer */
 
     tcg_add_target_add_op_defs(mips_op_defs);
     tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
