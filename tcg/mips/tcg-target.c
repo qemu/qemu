@@ -326,6 +326,7 @@ enum {
     OPC_BGEZ     = OPC_REGIMM | (0x01 << 16),
 
     OPC_SPECIAL3 = 0x1f << 26,
+    OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
     OPC_SEH      = OPC_SPECIAL3 | 0x620,
 };
@@ -419,36 +420,45 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 static inline void tcg_out_bswap16(TCGContext *s, TCGReg ret, TCGReg arg)
 {
+#ifdef _MIPS_ARCH_MIPS32R2
+    tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+#else
     /* ret and arg can't be register at */
     if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
         tcg_abort();
     }
 
     tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
-    tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, TCG_REG_AT, 0x00ff);
-
     tcg_out_opc_sa(s, OPC_SLL, ret, arg, 8);
     tcg_out_opc_imm(s, OPC_ANDI, ret, ret, 0xff00);
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+#endif
 }
 
 static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
+#ifdef _MIPS_ARCH_MIPS32R2
+    tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+    tcg_out_opc_reg(s, OPC_SEH, ret, 0, ret);
+#else
     /* ret and arg can't be register at */
     if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
         tcg_abort();
     }
 
     tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
-    tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, TCG_REG_AT, 0xff);
-
     tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
     tcg_out_opc_sa(s, OPC_SRA, ret, ret, 16);
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+#endif
 }
 
 static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
 {
+#ifdef _MIPS_ARCH_MIPS32R2
+    tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+    tcg_out_opc_sa(s, OPC_ROTR, ret, ret, 16);
+#else
     /* ret and arg must be different and can't be register at */
     if (ret == arg || ret == TCG_REG_AT || arg == TCG_REG_AT) {
         tcg_abort();
@@ -466,6 +476,7 @@ static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
     tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
     tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, TCG_REG_AT, 0xff00);
     tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+#endif
 }
 
 static inline void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
@@ -1188,7 +1199,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
         break;
     case 1:
         if (TCG_NEED_BSWAP) {
-            tcg_out_bswap16(s, TCG_REG_T0, data_reg1);
+            tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_T0, data_reg1, 0xffff);
+            tcg_out_bswap16(s, TCG_REG_T0, TCG_REG_T0);
             tcg_out_opc_imm(s, OPC_SH, TCG_REG_T0, TCG_REG_A0, 0);
         } else {
             tcg_out_opc_imm(s, OPC_SH, data_reg1, TCG_REG_A0, 0);
@@ -1409,6 +1421,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
+    /* The bswap routines do not work on non-R2 CPU. In that case
+       we let TCG generating the corresponding code. */
+    case INDEX_op_bswap16_i32:
+        tcg_out_bswap16(s, args[0], args[1]);
+        break;
+    case INDEX_op_bswap32_i32:
+        tcg_out_bswap32(s, args[0], args[1]);
+        break;
+
     case INDEX_op_ext8s_i32:
         tcg_out_ext8s(s, args[0], args[1]);
         break;
@@ -1502,6 +1523,9 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "rZ", "ri" } },
     { INDEX_op_shr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
+
+    { INDEX_op_bswap16_i32, { "r", "r" } },
+    { INDEX_op_bswap32_i32, { "r", "r" } },
 
     { INDEX_op_ext8s_i32, { "r", "rZ" } },
     { INDEX_op_ext16s_i32, { "r", "rZ" } },
