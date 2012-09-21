@@ -307,6 +307,12 @@ dest = (t1 cond t2)
 
 Set DEST to 1 if (T1 cond T2) is true, otherwise set to 0.
 
+* movcond_i32/i64 cond, dest, c1, c2, v1, v2
+
+dest = (c1 cond c2 ? v1 : v2)
+
+Set DEST to V1 if (C1 cond C2) is true, otherwise set to V2.
+
 ********* Type conversions
 
 * ext_i32_i64 t0, t1
