@@ -392,7 +392,8 @@ Exit the current TB and return the value t0 (word type).
 
 Exit the current TB and jump to the TB index 'index' (constant) if the
 current TB was linked to this TB. Otherwise execute the next
-instructions.
+instructions. Only indices 0 and 1 are valid and tcg_gen_goto_tb may be issued
+at most once with each slot index per TB.
 
 * qemu_ld8u t0, t1, flags
 qemu_ld8s t0, t1, flags
