@@ -334,6 +334,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
     const TCGOpDef *def;
     TCGArg *gen_args;
     TCGArg tmp;
+    TCGCond cond;
+
     /* Array VALS has an element for each temp.
        If this temp holds a constant then its value is kept in VALS' element.
        If this temp is a copy of other ones then this equivalence class'
@@ -395,13 +397,24 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             }
             break;
         CASE_OP_32_64(movcond):
+            cond = args[5];
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state != TCG_TEMP_CONST) {
                 tmp = args[1];
                 args[1] = args[2];
                 args[2] = tmp;
-                args[5] = tcg_swap_cond(args[5]);
+                cond = tcg_swap_cond(cond);
             }
+            /* For movcond, we canonicalize the "false" input reg to match
+               the destination reg so that the tcg backend can implement
+               a "move if true" operation.  */
+            if (args[0] == args[3]) {
+                tmp = args[3];
+                args[3] = args[4];
+                args[4] = tmp;
+                cond = tcg_invert_cond(cond);
+            }
+            args[5] = cond;
         default:
             break;
         }
