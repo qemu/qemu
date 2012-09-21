@@ -1538,11 +1538,15 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int i, frame_size;
 
-    /* reserve some stack space */
+    /* reserve some stack space, also for TCG temps. */
     frame_size = ARRAY_SIZE(tcg_target_callee_save_regs) * 4
-                 + TCG_STATIC_CALL_ARGS_SIZE;
+                 + TCG_STATIC_CALL_ARGS_SIZE
+                 + CPU_TEMP_BUF_NLONGS * sizeof(long);
     frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) &
                  ~(TCG_TARGET_STACK_ALIGN - 1);
+    tcg_set_frame(s, TCG_REG_SP, ARRAY_SIZE(tcg_target_callee_save_regs) * 4
+                  + TCG_STATIC_CALL_ARGS_SIZE,
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     /* TB prologue */
     tcg_out_addi(s, TCG_REG_SP, -frame_size);
@@ -1597,6 +1601,4 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_GP);   /* global pointer */
 
     tcg_add_target_add_op_defs(mips_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
