@@ -300,9 +300,11 @@ enum {
     OPC_SPECIAL  = 0x00 << 26,
     OPC_SLL      = OPC_SPECIAL | 0x00,
     OPC_SRL      = OPC_SPECIAL | 0x02,
+    OPC_ROTR     = OPC_SPECIAL | (0x01 << 21) | 0x02,
     OPC_SRA      = OPC_SPECIAL | 0x03,
     OPC_SLLV     = OPC_SPECIAL | 0x04,
     OPC_SRLV     = OPC_SPECIAL | 0x06,
+    OPC_ROTRV    = OPC_SPECIAL | (0x01 <<  6) | 0x06,
     OPC_SRAV     = OPC_SPECIAL | 0x07,
     OPC_JR       = OPC_SPECIAL | 0x08,
     OPC_JALR     = OPC_SPECIAL | 0x09,
@@ -1420,6 +1422,22 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_opc_reg(s, OPC_SRLV, args[0], args[2], args[1]);
         }
         break;
+    case INDEX_op_rotl_i32:
+        if (const_args[2]) {
+            tcg_out_opc_sa(s, OPC_ROTR, args[0], args[1], 0x20 - args[2]);
+        } else {
+            tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_AT, 32);
+            tcg_out_opc_reg(s, OPC_SUBU, TCG_REG_AT, TCG_REG_AT, args[2]);
+            tcg_out_opc_reg(s, OPC_ROTRV, args[0], TCG_REG_AT, args[1]);
+        }
+        break;
+    case INDEX_op_rotr_i32:
+        if (const_args[2]) {
+            tcg_out_opc_sa(s, OPC_ROTR, args[0], args[1], args[2]);
+        } else {
+            tcg_out_opc_reg(s, OPC_ROTRV, args[0], args[2], args[1]);
+        }
+        break;
 
     /* The bswap routines do not work on non-R2 CPU. In that case
        we let TCG generating the corresponding code. */
@@ -1523,6 +1541,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "rZ", "ri" } },
     { INDEX_op_shr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_rotr_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_rotl_i32, { "r", "rZ", "ri" } },
 
     { INDEX_op_bswap16_i32, { "r", "r" } },
     { INDEX_op_bswap32_i32, { "r", "r" } },
