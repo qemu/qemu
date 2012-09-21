@@ -582,12 +582,9 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
 static int ram_save_iterate(QEMUFile *f, void *opaque)
 {
-    uint64_t bytes_transferred_last;
-    double bwidth = 0;
     int ret;
     int i;
-    uint64_t expected_downtime;
-    MigrationState *s = migrate_get_current();
+    int64_t t0;
 
     qemu_mutex_lock_ramlist();
 
@@ -595,9 +592,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         reset_ram_globals();
     }
 
-    bytes_transferred_last = bytes_transferred;
-    bwidth = qemu_get_clock_ns(rt_clock);
-
+    t0 = qemu_get_clock_ns(rt_clock);
     i = 0;
     while ((ret = qemu_file_rate_limit(f)) == 0) {
         int bytes_sent;
@@ -615,7 +610,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
            iterations
         */
         if ((i & 63) == 0) {
-            uint64_t t1 = (qemu_get_clock_ns(rt_clock) - bwidth) / 1000000;
+            uint64_t t1 = (qemu_get_clock_ns(rt_clock) - t0) / 1000000;
             if (t1 > MAX_WAIT) {
                 DPRINTF("big wait: %" PRIu64 " milliseconds, %d iterations\n",
                         t1, i);
@@ -629,31 +624,10 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         return ret;
     }
 
-    bwidth = qemu_get_clock_ns(rt_clock) - bwidth;
-    bwidth = (bytes_transferred - bytes_transferred_last) / bwidth;
-
-    /* if we haven't transferred anything this round, force
-     * expected_downtime to a very high value, but without
-     * crashing */
-    if (bwidth == 0) {
-        bwidth = 0.000001;
-    }
-
     qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
-    expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
-    DPRINTF("ram_save_live: expected(%" PRIu64 ") <= max(" PRIu64 ")?\n",
-            expected_downtime, migrate_max_downtime());
-
-    if (expected_downtime <= migrate_max_downtime()) {
-        migration_bitmap_sync();
-        expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
-        s->expected_downtime = expected_downtime / 1000000; /* ns -> ms */
-
-        return expected_downtime <= migrate_max_downtime();
-    }
-    return 0;
+    return i;
 }
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
@@ -681,6 +655,19 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     return 0;
+}
+
+static uint64_t ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
+{
+    uint64_t remaining_size;
+
+    remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
+
+    if (remaining_size < max_size) {
+        migration_bitmap_sync();
+        remaining_size = ram_save_remaining() * TARGET_PAGE_SIZE;
+    }
+    return remaining_size;
 }
 
 static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
@@ -869,6 +856,7 @@ SaveVMHandlers savevm_ram_handlers = {
     .save_live_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
     .save_live_complete = ram_save_complete,
+    .save_live_pending = ram_save_pending,
     .load_state = ram_load,
     .cancel = ram_migration_cancel,
 };

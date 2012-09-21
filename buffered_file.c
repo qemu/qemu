@@ -181,13 +181,15 @@ static int64_t buffered_get_rate_limit(void *opaque)
     return s->xfer_limit;
 }
 
-/* 10ms  xfer_limit is the limit that we should write each 10ms */
+/* 100ms  xfer_limit is the limit that we should write each 100ms */
 #define BUFFER_DELAY 100
 
 static void *buffered_file_thread(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
-    int64_t expire_time = qemu_get_clock_ms(rt_clock) + BUFFER_DELAY;
+    int64_t initial_time = qemu_get_clock_ms(rt_clock);
+    int64_t max_size = 0;
+    bool last_round = false;
 
     while (true) {
         int64_t current_time = qemu_get_clock_ms(rt_clock);
@@ -195,13 +197,22 @@ static void *buffered_file_thread(void *opaque)
         if (s->migration_state->complete) {
             break;
         }
-        if (current_time >= expire_time) {
+        if (current_time >= initial_time + BUFFER_DELAY) {
+            uint64_t transferred_bytes = s->bytes_xfer;
+            uint64_t time_spent = current_time - initial_time;
+            double bandwidth = transferred_bytes / time_spent;
+            max_size = bandwidth * migrate_max_downtime() / 1000000;
+
+            DPRINTF("transferred %" PRIu64 " time_spent %" PRIu64
+                    " bandwidth %g max_size %" PRId64 "\n",
+                    transferred_bytes, time_spent, bandwidth, max_size);
+
             s->bytes_xfer = 0;
-            expire_time = current_time + BUFFER_DELAY;
+            initial_time = current_time;
         }
-        if (s->bytes_xfer >= s->xfer_limit) {
+        if (!last_round && (s->bytes_xfer >= s->xfer_limit)) {
             /* usleep expects microseconds */
-            g_usleep((expire_time - current_time)*1000);
+            g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
         if (buffered_flush(s) < 0) {
             break;
@@ -210,7 +221,7 @@ static void *buffered_file_thread(void *opaque)
         DPRINTF("file is ready\n");
         if (s->bytes_xfer < s->xfer_limit) {
             DPRINTF("notifying client\n");
-            migrate_fd_put_ready(s->migration_state);
+            last_round = migrate_fd_put_ready(s->migration_state, max_size);
         }
     }
 
