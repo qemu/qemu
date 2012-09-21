@@ -442,59 +442,6 @@ uint64_t HELPER(mvst)(CPUS390XState *env, uint64_t c, uint64_t d, uint64_t s)
     return d + len;
 }
 
-/* compare and swap 64-bit */
-uint64_t HELPER(csg)(CPUS390XState *env, uint64_t r1, uint64_t a2, uint64_t r3)
-{
-    /* FIXME: locking? */
-    uint64_t v2 = cpu_ldq_data(env, a2);
-    if (r1 == v2) {
-        cpu_stq_data(env, a2, r3);
-        env->cc_op = 0;
-        return r1;
-    } else {
-        env->cc_op = 1;
-        return v2;
-    }
-}
-
-/* compare double and swap 64-bit */
-uint32_t HELPER(cdsg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
-{
-    /* FIXME: locking? */
-    uint32_t cc;
-    uint64_t v2_hi = cpu_ldq_data(env, a2);
-    uint64_t v2_lo = cpu_ldq_data(env, a2 + 8);
-    uint64_t v1_hi = env->regs[r1];
-    uint64_t v1_lo = env->regs[r1 + 1];
-
-    if ((v1_hi == v2_hi) && (v1_lo == v2_lo)) {
-        cc = 0;
-        cpu_stq_data(env, a2, env->regs[r3]);
-        cpu_stq_data(env, a2 + 8, env->regs[r3 + 1]);
-    } else {
-        cc = 1;
-        env->regs[r1] = v2_hi;
-        env->regs[r1 + 1] = v2_lo;
-    }
-
-    return cc;
-}
-
-/* compare and swap 32-bit */
-uint64_t HELPER(cs)(CPUS390XState *env, uint64_t r1, uint64_t a2, uint64_t r3)
-{
-    /* FIXME: locking? */
-    uint32_t v2 = cpu_ldl_data(env, a2);
-    if ((uint32_t)r1 == v2) {
-        cpu_stl_data(env, a2, (uint32_t)r3);
-        env->cc_op = 0;
-        return r1;
-    } else {
-        env->cc_op = 1;
-        return v2;
-    }
-}
-
 static uint32_t helper_icm(CPUS390XState *env, uint32_t r1, uint64_t address,
                            uint32_t mask)
 {

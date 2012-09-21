@@ -193,13 +193,13 @@
     D(0xec7d, CLGIJ,   RIE_c, GIE, r1_o, i2_8u, 0, 0, cj, 0, 1)
 
 /* COMPARE AND SWAP */
-    C(0xba00, CS,      RS_a,  Z,   r1_o, a2, new, r1_32, cs, 0)
-    C(0xeb14, CSY,     RSY_a, LD,  r1_o, a2, new, r1_32, cs, 0)
-    C(0xeb30, CSG,     RSY_a, Z,   r1_o, a2, r1, 0, csg, 0)
+    D(0xba00, CS,      RS_a,  Z,   r3_32u, r1_32u, new, r1_32, cs, 0, 0)
+    D(0xeb14, CSY,     RSY_a, LD,  r3_32u, r1_32u, new, r1_32, cs, 0, 0)
+    D(0xeb30, CSG,     RSY_a, Z,   r3_o, r1_o, new, r1, cs, 0, 1)
 /* COMPARE DOUBLE AND SWAP */
-    C(0xbb00, CDS,     RS_a,  Z,   r1_D32, a2, new, r1_D32, cds, 0)
-    C(0xeb31, CDSY,    RSY_a, LD,  r1_D32, a2, new, r1_D32, cds, 0)
-    C(0xeb3e, CDSG,    RSY_a, Z,   0, a2, 0, 0, cdsg, 0)
+    D(0xbb00, CDS,     RS_a,  Z,   r3_D32, r1_D32, new, r1_D32, cs, 0, 1)
+    D(0xeb31, CDSY,    RSY_a, LD,  r3_D32, r1_D32, new, r1_D32, cs, 0, 1)
+    C(0xeb3e, CDSG,    RSY_a, Z,   0, 0, 0, 0, cdsg, 0)
 
 /* COMPARE AND TRAP */
     D(0xb972, CRT,     RRF_c, GIE, r1_32s, r2_32s, 0, 0, ct, 0, 0)
