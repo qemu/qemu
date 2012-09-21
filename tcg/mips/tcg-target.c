@@ -278,6 +278,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
 enum {
     OPC_BEQ      = 0x04 << 26,
     OPC_BNE      = 0x05 << 26,
+    OPC_BLEZ     = 0x06 << 26,
+    OPC_BGTZ     = 0x07 << 26,
     OPC_ADDIU    = 0x09 << 26,
     OPC_SLTI     = 0x0A << 26,
     OPC_SLTIU    = 0x0B << 26,
@@ -318,6 +320,10 @@ enum {
     OPC_NOR      = OPC_SPECIAL | 0x27,
     OPC_SLT      = OPC_SPECIAL | 0x2A,
     OPC_SLTU     = OPC_SPECIAL | 0x2B,
+
+    OPC_REGIMM   = 0x01 << 26,
+    OPC_BLTZ     = OPC_REGIMM | (0x00 << 16),
+    OPC_BGEZ     = OPC_REGIMM | (0x01 << 16),
 
     OPC_SPECIAL3 = 0x1f << 26,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
@@ -590,32 +596,48 @@ static void tcg_out_brcond(TCGContext *s, TCGCond cond, TCGArg arg1,
         tcg_out_opc_br(s, OPC_BNE, arg1, arg2);
         break;
     case TCG_COND_LT:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg1, arg2);
-        tcg_out_opc_br(s, OPC_BNE, TCG_REG_AT, TCG_REG_ZERO);
+        if (arg2 == 0) {
+            tcg_out_opc_br(s, OPC_BLTZ, 0, arg1);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg1, arg2);
+            tcg_out_opc_br(s, OPC_BNE, TCG_REG_AT, TCG_REG_ZERO);
+        }
         break;
     case TCG_COND_LTU:
         tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, arg1, arg2);
         tcg_out_opc_br(s, OPC_BNE, TCG_REG_AT, TCG_REG_ZERO);
         break;
     case TCG_COND_GE:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg1, arg2);
-        tcg_out_opc_br(s, OPC_BEQ, TCG_REG_AT, TCG_REG_ZERO);
+        if (arg2 == 0) {
+            tcg_out_opc_br(s, OPC_BGEZ, 0, arg1);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg1, arg2);
+            tcg_out_opc_br(s, OPC_BEQ, TCG_REG_AT, TCG_REG_ZERO);
+        }
         break;
     case TCG_COND_GEU:
         tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, arg1, arg2);
         tcg_out_opc_br(s, OPC_BEQ, TCG_REG_AT, TCG_REG_ZERO);
         break;
     case TCG_COND_LE:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg2, arg1);
-        tcg_out_opc_br(s, OPC_BEQ, TCG_REG_AT, TCG_REG_ZERO);
+        if (arg2 == 0) {
+            tcg_out_opc_br(s, OPC_BLEZ, 0, arg1);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg2, arg1);
+            tcg_out_opc_br(s, OPC_BEQ, TCG_REG_AT, TCG_REG_ZERO);
+        }
         break;
     case TCG_COND_LEU:
         tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, arg2, arg1);
         tcg_out_opc_br(s, OPC_BEQ, TCG_REG_AT, TCG_REG_ZERO);
         break;
     case TCG_COND_GT:
-        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg2, arg1);
-        tcg_out_opc_br(s, OPC_BNE, TCG_REG_AT, TCG_REG_ZERO);
+        if (arg2 == 0) {
+            tcg_out_opc_br(s, OPC_BGTZ, 0, arg1);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, arg2, arg1);
+            tcg_out_opc_br(s, OPC_BNE, TCG_REG_AT, TCG_REG_ZERO);
+        }
         break;
     case TCG_COND_GTU:
         tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, arg2, arg1);
