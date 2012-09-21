@@ -86,7 +86,15 @@ typedef enum {
 #define TCG_TARGET_HAS_orc_i32          0
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
+
+/* optional instructions only implemented on MIPS4, MIPS32 and Loongson 2 */
+#if defined(_MIPS_ARCH_MIPS4) || defined(_MIPS_ARCH_MIPS32) || \
+    defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_LOONGSON2E) || \
+    defined(_MIPS_ARCH_LOONGSON2F)
+#define TCG_TARGET_HAS_movcond_i32      1
+#else
 #define TCG_TARGET_HAS_movcond_i32      0
+#endif
 
 /* optional instructions only implemented on MIPS32R2 */
 #ifdef _MIPS_ARCH_MIPS32R2

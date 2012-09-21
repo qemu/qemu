@@ -308,6 +308,8 @@ enum {
     OPC_SRAV     = OPC_SPECIAL | 0x07,
     OPC_JR       = OPC_SPECIAL | 0x08,
     OPC_JALR     = OPC_SPECIAL | 0x09,
+    OPC_MOVZ     = OPC_SPECIAL | 0x0A,
+    OPC_MOVN     = OPC_SPECIAL | 0x0B,
     OPC_MFHI     = OPC_SPECIAL | 0x10,
     OPC_MFLO     = OPC_SPECIAL | 0x12,
     OPC_MULT     = OPC_SPECIAL | 0x18,
@@ -733,6 +735,68 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGArg arg1,
     }
 
     reloc_pc16(label_ptr, (tcg_target_long) s->code_ptr);
+}
+
+static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
+                            TCGArg c1, TCGArg c2, TCGArg v)
+{
+    switch (cond) {
+    case TCG_COND_EQ:
+        if (c1 == 0) {
+            tcg_out_opc_reg(s, OPC_MOVZ, ret, v, c2);
+        } else if (c2 == 0) {
+            tcg_out_opc_reg(s, OPC_MOVZ, ret, v, c1);
+        } else {
+            tcg_out_opc_reg(s, OPC_XOR, TCG_REG_AT, c1, c2);
+            tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_REG_AT);
+        }
+        break;
+    case TCG_COND_NE:
+        if (c1 == 0) {
+            tcg_out_opc_reg(s, OPC_MOVN, ret, v, c2);
+        } else if (c2 == 0) {
+            tcg_out_opc_reg(s, OPC_MOVN, ret, v, c1);
+        } else {
+            tcg_out_opc_reg(s, OPC_XOR, TCG_REG_AT, c1, c2);
+            tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_REG_AT);
+        }
+        break;
+    case TCG_COND_LT:
+        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, c1, c2);
+        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_LTU:
+        tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, c1, c2);
+        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_GE:
+        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, c1, c2);
+        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_GEU:
+        tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, c1, c2);
+        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_LE:
+        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, c2, c1);
+        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_LEU:
+        tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, c2, c1);
+        tcg_out_opc_reg(s, OPC_MOVZ, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_GT:
+        tcg_out_opc_reg(s, OPC_SLT, TCG_REG_AT, c2, c1);
+        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_REG_AT);
+        break;
+    case TCG_COND_GTU:
+        tcg_out_opc_reg(s, OPC_SLTU, TCG_REG_AT, c2, c1);
+        tcg_out_opc_reg(s, OPC_MOVN, ret, v, TCG_REG_AT);
+        break;
+    default:
+        tcg_abort();
+        break;
+    }
 }
 
 static void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGReg ret,
@@ -1468,6 +1532,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_brcond2(s, args[4], args[0], args[1], args[2], args[3], args[5]);
         break;
 
+    case INDEX_op_movcond_i32:
+        tcg_out_movcond(s, args[5], args[0], args[1], args[2], args[3]);
+        break;
+
     case INDEX_op_setcond_i32:
         tcg_out_setcond(s, args[3], args[0], args[1], args[2]);
         break;
@@ -1559,6 +1627,7 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
+    { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "0" } },
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
