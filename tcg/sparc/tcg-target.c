@@ -488,30 +488,33 @@ static inline void tcg_out_nop(TCGContext *s)
 static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
 {
     TCGLabel *l = &s->labels[label_index];
+    uint32_t off22;
 
     if (l->has_value) {
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x2)
-                      | INSN_OFF22(l->u.value - (unsigned long)s->code_ptr)));
+        off22 = INSN_OFF22(l->u.value - (unsigned long)s->code_ptr);
     } else {
+        /* Make sure to preserve destinations during retranslation.  */
+        off22 = *(uint32_t *)s->code_ptr & INSN_OFF22(-1);
         tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP22, label_index, 0);
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x2) | 0));
     }
+    tcg_out32(s, INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x2) | off22);
 }
 
 #if TCG_TARGET_REG_BITS == 64
 static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
 {
     TCGLabel *l = &s->labels[label_index];
+    uint32_t off19;
 
     if (l->has_value) {
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
-                      (0x5 << 19) |
-                      INSN_OFF19(l->u.value - (unsigned long)s->code_ptr)));
+        off19 = INSN_OFF19(l->u.value - (unsigned long)s->code_ptr);
     } else {
+        /* Make sure to preserve destinations during retranslation.  */
+        off19 = *(uint32_t *)s->code_ptr & INSN_OFF19(-1);
         tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, label_index, 0);
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
-                      (0x5 << 19) | 0));
     }
+    tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
+                  (0x5 << 19) | off19));
 }
 #endif
 
