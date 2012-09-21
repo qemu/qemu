@@ -132,9 +132,10 @@ static inline void tlb_flush(CPUArchState *env, int flush_global)
 #define CODE_GEN_AVG_BLOCK_SIZE 64
 #endif
 
-#if defined(_ARCH_PPC) || defined(__x86_64__) || defined(__arm__) || defined(__i386__)
-#define USE_DIRECT_JUMP
-#elif defined(CONFIG_TCG_INTERPRETER)
+#if defined(__arm__) || defined(_ARCH_PPC) \
+    || defined(__x86_64__) || defined(__i386__) \
+    || defined(__sparc__) \
+    || defined(CONFIG_TCG_INTERPRETER)
 #define USE_DIRECT_JUMP
 #endif
 
@@ -244,6 +245,8 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     __asm __volatile__ ("swi 0x9f0002" : : "r" (_beg), "r" (_end), "r" (_flg));
 #endif
 }
+#elif defined(__sparc__)
+void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr);
 #else
 #error tb_set_jmp_target1 is missing
 #endif
