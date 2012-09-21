@@ -1778,12 +1778,30 @@ static void disas_xtensa_insn(DisasContext *dc)
         case 5:
             gen_window_check2(dc, RRR_R, RRR_T);
             {
-                int shiftimm = RRR_S | (OP1 << 4);
+                int shiftimm = RRR_S | ((OP1 & 1) << 4);
                 int maskimm = (1 << (OP2 + 1)) - 1;
 
                 TCGv_i32 tmp = tcg_temp_new_i32();
-                tcg_gen_shri_i32(tmp, cpu_R[RRR_T], shiftimm);
-                tcg_gen_andi_i32(cpu_R[RRR_R], tmp, maskimm);
+
+                if (shiftimm) {
+                    tcg_gen_shri_i32(tmp, cpu_R[RRR_T], shiftimm);
+                } else {
+                    tcg_gen_mov_i32(tmp, cpu_R[RRR_T]);
+                }
+
+                switch (maskimm) {
+                case 0xff:
+                    tcg_gen_ext8u_i32(cpu_R[RRR_R], tmp);
+                    break;
+
+                case 0xffff:
+                    tcg_gen_ext16u_i32(cpu_R[RRR_R], tmp);
+                    break;
+
+                default:
+                    tcg_gen_andi_i32(cpu_R[RRR_R], tmp, maskimm);
+                    break;
+                }
                 tcg_temp_free(tmp);
             }
             break;
@@ -2502,7 +2520,9 @@ static void disas_xtensa_insn(DisasContext *dc)
         break;
     }
 
-    gen_check_loop_end(dc, 0);
+    if (dc->is_jmp == DISAS_NEXT) {
+        gen_check_loop_end(dc, 0);
+    }
     dc->pc = dc->next_pc;
 
     return;

@@ -34,6 +34,7 @@
 #include "monitor.h"
 #include "trace.h"
 #include "dma.h"
+#include "sysemu.h"
 
 #define EHCI_DEBUG   0
 
@@ -139,6 +140,7 @@
 #define NB_PORTS         6        // Number of downstream ports
 #define BUFF_SIZE        5*4096   // Max bytes to transfer per transaction
 #define MAX_QH           100      // Max allowable queue heads in a chain
+#define MIN_FR_PER_TICK  3        // Min frames to process when catching up
 
 /*  Internal periodic / asynchronous schedule state machine states
  */
@@ -389,6 +391,9 @@ struct EHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
+    MemoryRegion mem_caps;
+    MemoryRegion mem_opreg;
+    MemoryRegion mem_ports;
     int companion_count;
 
     /* properties */
@@ -398,10 +403,10 @@ struct EHCIState {
      *  EHCI spec version 1.0 Section 2.3
      *  Host Controller Operational Registers
      */
+    uint8_t caps[OPREGBASE];
     union {
-        uint8_t mmio[MMIO_SIZE];
+        uint32_t opreg[(PORTSC_BEGIN-OPREGBASE)/sizeof(uint32_t)];
         struct {
-            uint8_t cap[OPREGBASE];
             uint32_t usbcmd;
             uint32_t usbsts;
             uint32_t usbintr;
@@ -411,9 +416,9 @@ struct EHCIState {
             uint32_t asynclistaddr;
             uint32_t notused[9];
             uint32_t configflag;
-            uint32_t portsc[NB_PORTS];
         };
     };
+    uint32_t portsc[NB_PORTS];
 
     /*
      *  Internal states, shadow registers, etc
@@ -471,22 +476,12 @@ static const char *ehci_state_names[] = {
 };
 
 static const char *ehci_mmio_names[] = {
-    [CAPLENGTH]         = "CAPLENGTH",
-    [HCIVERSION]        = "HCIVERSION",
-    [HCSPARAMS]         = "HCSPARAMS",
-    [HCCPARAMS]         = "HCCPARAMS",
     [USBCMD]            = "USBCMD",
     [USBSTS]            = "USBSTS",
     [USBINTR]           = "USBINTR",
     [FRINDEX]           = "FRINDEX",
     [PERIODICLISTBASE]  = "P-LIST BASE",
     [ASYNCLISTADDR]     = "A-LIST ADDR",
-    [PORTSC_BEGIN]      = "PORTSC #0",
-    [PORTSC_BEGIN + 4]  = "PORTSC #1",
-    [PORTSC_BEGIN + 8]  = "PORTSC #2",
-    [PORTSC_BEGIN + 12] = "PORTSC #3",
-    [PORTSC_BEGIN + 16] = "PORTSC #4",
-    [PORTSC_BEGIN + 20] = "PORTSC #5",
     [CONFIGFLAG]        = "CONFIGFLAG",
 };
 
@@ -509,7 +504,8 @@ static const char *state2str(uint32_t state)
 
 static const char *addr2str(target_phys_addr_t addr)
 {
-    return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names), addr);
+    return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names),
+                  addr + OPREGBASE);
 }
 
 static void ehci_trace_usbsts(uint32_t mask, int state)
@@ -853,10 +849,10 @@ static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
     return NULL;
 }
 
-static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
+static void ehci_queues_rip_unused(EHCIState *ehci, int async)
 {
     EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
-    const char *warn = (async && !flush) ? "guest unlinked busy QH" : NULL;
+    const char *warn = async ? "guest unlinked busy QH" : NULL;
     uint64_t maxage = FRAME_TIMER_NS * ehci->maxframes * 4;
     EHCIQueue *q, *tmp;
 
@@ -866,10 +862,22 @@ static void ehci_queues_rip_unused(EHCIState *ehci, int async, int flush)
             q->ts = ehci->last_run_ns;
             continue;
         }
-        if (!flush && ehci->last_run_ns < q->ts + maxage) {
+        if (ehci->last_run_ns < q->ts + maxage) {
             continue;
         }
         ehci_free_queue(q, warn);
+    }
+}
+
+static void ehci_queues_rip_unseen(EHCIState *ehci, int async)
+{
+    EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
+    EHCIQueue *q, *tmp;
+
+    QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
+        if (!q->seen) {
+            ehci_free_queue(q, NULL);
+        }
     }
 }
 
@@ -1018,7 +1026,7 @@ static int ehci_register_companion(USBBus *bus, USBPort *ports[],
     }
 
     s->companion_count++;
-    s->mmio[0x05] = (s->companion_count << 4) | portcount;
+    s->caps[0x05] = (s->companion_count << 4) | portcount;
 
     return 0;
 }
@@ -1063,7 +1071,8 @@ static void ehci_reset(void *opaque)
         }
     }
 
-    memset(&s->mmio[OPREGBASE], 0x00, MMIO_SIZE - OPREGBASE);
+    memset(&s->opreg, 0x00, sizeof(s->opreg));
+    memset(&s->portsc, 0x00, sizeof(s->portsc));
 
     s->usbcmd = NB_MAXINTRATE << USBCMD_ITC_SH;
     s->usbsts = USBSTS_HALT;
@@ -1090,48 +1099,33 @@ static void ehci_reset(void *opaque)
     qemu_bh_cancel(s->async_bh);
 }
 
-static uint32_t ehci_mem_readb(void *ptr, target_phys_addr_t addr)
+static uint64_t ehci_caps_read(void *ptr, target_phys_addr_t addr,
+                               unsigned size)
+{
+    EHCIState *s = ptr;
+    return s->caps[addr];
+}
+
+static uint64_t ehci_opreg_read(void *ptr, target_phys_addr_t addr,
+                                unsigned size)
 {
     EHCIState *s = ptr;
     uint32_t val;
 
-    val = s->mmio[addr];
-
+    val = s->opreg[addr >> 2];
+    trace_usb_ehci_opreg_read(addr + OPREGBASE, addr2str(addr), val);
     return val;
 }
 
-static uint32_t ehci_mem_readw(void *ptr, target_phys_addr_t addr)
+static uint64_t ehci_port_read(void *ptr, target_phys_addr_t addr,
+                               unsigned size)
 {
     EHCIState *s = ptr;
     uint32_t val;
 
-    val = s->mmio[addr] | (s->mmio[addr+1] << 8);
-
+    val = s->portsc[addr >> 2];
+    trace_usb_ehci_portsc_read(addr + PORTSC_BEGIN, addr >> 2, val);
     return val;
-}
-
-static uint32_t ehci_mem_readl(void *ptr, target_phys_addr_t addr)
-{
-    EHCIState *s = ptr;
-    uint32_t val;
-
-    val = s->mmio[addr] | (s->mmio[addr+1] << 8) |
-          (s->mmio[addr+2] << 16) | (s->mmio[addr+3] << 24);
-
-    trace_usb_ehci_mmio_readl(addr, addr2str(addr), val);
-    return val;
-}
-
-static void ehci_mem_writeb(void *ptr, target_phys_addr_t addr, uint32_t val)
-{
-    fprintf(stderr, "EHCI doesn't handle byte writes to MMIO\n");
-    exit(1);
-}
-
-static void ehci_mem_writew(void *ptr, target_phys_addr_t addr, uint32_t val)
-{
-    fprintf(stderr, "EHCI doesn't handle 16-bit writes to MMIO\n");
-    exit(1);
 }
 
 static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
@@ -1162,10 +1156,16 @@ static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
     }
 }
 
-static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
+static void ehci_port_write(void *ptr, target_phys_addr_t addr,
+                            uint64_t val, unsigned size)
 {
+    EHCIState *s = ptr;
+    int port = addr >> 2;
     uint32_t *portsc = &s->portsc[port];
+    uint32_t old = *portsc;
     USBDevice *dev = s->ports[port].dev;
+
+    trace_usb_ehci_portsc_write(addr + PORTSC_BEGIN, addr >> 2, val);
 
     /* Clear rwc bits */
     *portsc &= ~(val & PORTSC_RWC_MASK);
@@ -1198,39 +1198,20 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
 
     *portsc &= ~PORTSC_RO_MASK;
     *portsc |= val;
+    trace_usb_ehci_portsc_change(addr + PORTSC_BEGIN, addr >> 2, *portsc, old);
 }
 
-static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
+static void ehci_opreg_write(void *ptr, target_phys_addr_t addr,
+                             uint64_t val, unsigned size)
 {
     EHCIState *s = ptr;
-    uint32_t *mmio = (uint32_t *)(&s->mmio[addr]);
+    uint32_t *mmio = s->opreg + (addr >> 2);
     uint32_t old = *mmio;
     int i;
 
-    trace_usb_ehci_mmio_writel(addr, addr2str(addr), val);
+    trace_usb_ehci_opreg_write(addr + OPREGBASE, addr2str(addr), val);
 
-    /* Only aligned reads are allowed on OHCI */
-    if (addr & 3) {
-        fprintf(stderr, "usb-ehci: Mis-aligned write to addr 0x"
-                TARGET_FMT_plx "\n", addr);
-        return;
-    }
-
-    if (addr >= PORTSC && addr < PORTSC + 4 * NB_PORTS) {
-        handle_port_status_write(s, (addr-PORTSC)/4, val);
-        trace_usb_ehci_mmio_change(addr, addr2str(addr), *mmio, old);
-        return;
-    }
-
-    if (addr < OPREGBASE) {
-        fprintf(stderr, "usb-ehci: write attempt to read-only register"
-                TARGET_FMT_plx "\n", addr);
-        return;
-    }
-
-
-    /* Do any register specific pre-write processing here.  */
-    switch(addr) {
+    switch (addr + OPREGBASE) {
     case USBCMD:
         if (val & USBCMD_HCRESET) {
             ehci_reset(s);
@@ -1241,7 +1222,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         /* not supporting dynamic frame list size at the moment */
         if ((val & USBCMD_FLS) && !(s->usbcmd & USBCMD_FLS)) {
             fprintf(stderr, "attempt to set frame list size -- value %d\n",
-                    val & USBCMD_FLS);
+                    (int)val & USBCMD_FLS);
             val &= ~USBCMD_FLS;
         }
 
@@ -1308,7 +1289,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
     }
 
     *mmio = val;
-    trace_usb_ehci_mmio_change(addr, addr2str(addr), *mmio, old);
+    trace_usb_ehci_opreg_change(addr + OPREGBASE, addr2str(addr), *mmio, old);
 }
 
 
@@ -1732,7 +1713,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
         ehci_set_usbsts(ehci, USBSTS_REC);
     }
 
-    ehci_queues_rip_unused(ehci, async, 0);
+    ehci_queues_rip_unused(ehci, async);
 
     /*  Find the head of the list (4.9.1.1) */
     for(i = 0; i < MAX_QH; i++) {
@@ -2364,7 +2345,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
          */
         if (ehci->usbcmd & USBCMD_IAAD) {
             /* Remove all unseen qhs from the async qhs queue */
-            ehci_queues_rip_unused(ehci, async, 1);
+            ehci_queues_rip_unseen(ehci, async);
             trace_usb_ehci_doorbell_ack();
             ehci->usbcmd &= ~USBCMD_IAAD;
             ehci_raise_irq(ehci, USBSTS_IAA);
@@ -2417,7 +2398,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         ehci_set_fetch_addr(ehci, async,entry);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
-        ehci_queues_rip_unused(ehci, async, 0);
+        ehci_queues_rip_unused(ehci, async);
         break;
 
     default:
@@ -2446,7 +2427,7 @@ static void ehci_update_frindex(EHCIState *ehci, int frames)
         if (ehci->frindex == 0x00004000) {
             ehci_raise_irq(ehci, USBSTS_FLR);
             ehci->frindex = 0;
-            if (ehci->usbsts_frindex > 0x00004000) {
+            if (ehci->usbsts_frindex >= 0x00004000) {
                 ehci->usbsts_frindex -= 0x00004000;
             } else {
                 ehci->usbsts_frindex = 0;
@@ -2481,6 +2462,19 @@ static void ehci_frame_timer(void *opaque)
         }
 
         for (i = 0; i < frames; i++) {
+            /*
+             * If we're running behind schedule, we should not catch up
+             * too fast, as that will make some guests unhappy:
+             * 1) We must process a minimum of MIN_FR_PER_TICK frames,
+             *    otherwise we will never catch up
+             * 2) Process frames until the guest has requested an irq (IOC)
+             */
+            if (i >= MIN_FR_PER_TICK) {
+                ehci_commit_irq(ehci);
+                if ((ehci->usbsts & USBINTR_MASK) & ehci->usbintr) {
+                    break;
+                }
+            }
             ehci_update_frindex(ehci, 1);
             ehci_advance_periodic_state(ehci);
             ehci->last_run_ns += FRAME_TIMER_NS;
@@ -2520,11 +2514,28 @@ static void ehci_async_bh(void *opaque)
     ehci_advance_async_state(ehci);
 }
 
-static const MemoryRegionOps ehci_mem_ops = {
-    .old_mmio = {
-        .read = { ehci_mem_readb, ehci_mem_readw, ehci_mem_readl },
-        .write = { ehci_mem_writeb, ehci_mem_writew, ehci_mem_writel },
-    },
+static const MemoryRegionOps ehci_mmio_caps_ops = {
+    .read = ehci_caps_read,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static const MemoryRegionOps ehci_mmio_opreg_ops = {
+    .read = ehci_opreg_read,
+    .write = ehci_opreg_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static const MemoryRegionOps ehci_mmio_port_ops = {
+    .read = ehci_port_read,
+    .write = ehci_port_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -2560,6 +2571,32 @@ static int usb_ehci_post_load(void *opaque, int version_id)
     }
 
     return 0;
+}
+
+static void usb_ehci_vm_state_change(void *opaque, int running, RunState state)
+{
+    EHCIState *ehci = opaque;
+
+    /*
+     * We don't migrate the EHCIQueue-s, instead we rebuild them for the
+     * schedule in guest memory. We must do the rebuilt ASAP, so that
+     * USB-devices which have async handled packages have a packet in the
+     * ep queue to match the completion with.
+     */
+    if (state == RUN_STATE_RUNNING) {
+        ehci_advance_async_state(ehci);
+    }
+
+    /*
+     * The schedule rebuilt from guest memory could cause the migration dest
+     * to miss a QH unlink, and fail to cancel packets, since the unlinked QH
+     * will never have existed on the destination. Therefor we must flush the
+     * async schedule on savevm to catch any not yet noticed unlinks.
+     */
+    if (state == RUN_STATE_SAVE_VM) {
+        ehci_advance_async_state(ehci);
+        ehci_queues_rip_unseen(ehci, 1);
+    }
 }
 
 static const VMStateDescription vmstate_ehci = {
@@ -2681,19 +2718,19 @@ static int usb_ehci_initfn(PCIDevice *dev)
     pci_conf[0x6e] = 0x00;
     pci_conf[0x6f] = 0xc0;  // USBLEFCTLSTS
 
-    // 2.2 host controller interface version
-    s->mmio[0x00] = (uint8_t) OPREGBASE;
-    s->mmio[0x01] = 0x00;
-    s->mmio[0x02] = 0x00;
-    s->mmio[0x03] = 0x01;        // HC version
-    s->mmio[0x04] = NB_PORTS;    // Number of downstream ports
-    s->mmio[0x05] = 0x00;        // No companion ports at present
-    s->mmio[0x06] = 0x00;
-    s->mmio[0x07] = 0x00;
-    s->mmio[0x08] = 0x80;        // We can cache whole frame, not 64-bit capable
-    s->mmio[0x09] = 0x68;        // EECP
-    s->mmio[0x0a] = 0x00;
-    s->mmio[0x0b] = 0x00;
+    /* 2.2 host controller interface version */
+    s->caps[0x00] = (uint8_t) OPREGBASE;
+    s->caps[0x01] = 0x00;
+    s->caps[0x02] = 0x00;
+    s->caps[0x03] = 0x01;        /* HC version */
+    s->caps[0x04] = NB_PORTS;    /* Number of downstream ports */
+    s->caps[0x05] = 0x00;        /* No companion ports at present */
+    s->caps[0x06] = 0x00;
+    s->caps[0x07] = 0x00;
+    s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
+    s->caps[0x09] = 0x68;        /* EECP */
+    s->caps[0x0a] = 0x00;
+    s->caps[0x0b] = 0x00;
 
     s->irq = s->dev.irq[3];
 
@@ -2711,8 +2748,20 @@ static int usb_ehci_initfn(PCIDevice *dev)
     usb_packet_init(&s->ipacket);
 
     qemu_register_reset(ehci_reset, s);
+    qemu_add_vm_change_state_handler(usb_ehci_vm_state_change, s);
 
-    memory_region_init_io(&s->mem, &ehci_mem_ops, s, "ehci", MMIO_SIZE);
+    memory_region_init(&s->mem, "ehci", MMIO_SIZE);
+    memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
+                          "capabilities", OPREGBASE);
+    memory_region_init_io(&s->mem_opreg, &ehci_mmio_opreg_ops, s,
+                          "operational", PORTSC_BEGIN - OPREGBASE);
+    memory_region_init_io(&s->mem_ports, &ehci_mmio_port_ops, s,
+                          "ports", PORTSC_END - PORTSC_BEGIN);
+
+    memory_region_add_subregion(&s->mem, 0,            &s->mem_caps);
+    memory_region_add_subregion(&s->mem, OPREGBASE,    &s->mem_opreg);
+    memory_region_add_subregion(&s->mem, PORTSC_BEGIN, &s->mem_ports);
+
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     return 0;

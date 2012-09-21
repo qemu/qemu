@@ -334,6 +334,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
     const TCGOpDef *def;
     TCGArg *gen_args;
     TCGArg tmp;
+    TCGCond cond;
+
     /* Array VALS has an element for each temp.
        If this temp holds a constant then its value is kept in VALS' element.
        If this temp is a copy of other ones then this equivalence class'
@@ -394,6 +396,25 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 args[3] = tcg_swap_cond(args[3]);
             }
             break;
+        CASE_OP_32_64(movcond):
+            cond = args[5];
+            if (temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[2]].state != TCG_TEMP_CONST) {
+                tmp = args[1];
+                args[1] = args[2];
+                args[2] = tmp;
+                cond = tcg_swap_cond(cond);
+            }
+            /* For movcond, we canonicalize the "false" input reg to match
+               the destination reg so that the tcg backend can implement
+               a "move if true" operation.  */
+            if (args[0] == args[3]) {
+                tmp = args[3];
+                args[3] = args[4];
+                args[4] = tmp;
+                cond = tcg_invert_cond(cond);
+            }
+            args[5] = cond;
         default:
             break;
         }
@@ -613,6 +634,38 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 gen_args += 4;
             }
             args += 4;
+            break;
+        CASE_OP_32_64(movcond):
+            if (temps[args[1]].state == TCG_TEMP_CONST
+                && temps[args[2]].state == TCG_TEMP_CONST) {
+                tmp = do_constant_folding_cond(op, temps[args[1]].val,
+                                               temps[args[2]].val, args[5]);
+                if (args[0] == args[4-tmp]
+                    || (temps[args[4-tmp]].state == TCG_TEMP_COPY
+                        && temps[args[4-tmp]].val == args[0])) {
+                    gen_opc_buf[op_index] = INDEX_op_nop;
+                } else if (temps[args[4-tmp]].state == TCG_TEMP_CONST) {
+                    gen_opc_buf[op_index] = op_to_movi(op);
+                    tcg_opt_gen_movi(gen_args, args[0], temps[args[4-tmp]].val,
+                                     nb_temps, nb_globals);
+                    gen_args += 2;
+                } else {
+                    gen_opc_buf[op_index] = op_to_mov(op);
+                    tcg_opt_gen_mov(gen_args, args[0], args[4-tmp],
+                                    nb_temps, nb_globals);
+                    gen_args += 2;
+                }
+            } else {
+                reset_temp(args[0], nb_temps, nb_globals);
+                gen_args[0] = args[0];
+                gen_args[1] = args[1];
+                gen_args[2] = args[2];
+                gen_args[3] = args[3];
+                gen_args[4] = args[4];
+                gen_args[5] = args[5];
+                gen_args += 6;
+            }
+            args += 6;
             break;
         case INDEX_op_call:
             nb_call_args = (args[0] >> 16) + (args[0] & 0xffff);

@@ -79,6 +79,7 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_nand_i64         0
 #define TCG_TARGET_HAS_nor_i64          0
 #define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_movcond_i64      0
 #endif
 
 #ifndef TCG_TARGET_deposit_i32_valid
@@ -343,7 +344,7 @@ struct TCGContext {
 
     /* goto_tb support */
     uint8_t *code_buf;
-    unsigned long *tb_next;
+    uintptr_t *tb_next;
     uint16_t *tb_next_offset;
     uint16_t *tb_jmp_offset; /* != NULL if USE_DIRECT_JUMP */
 

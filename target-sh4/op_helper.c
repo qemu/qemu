@@ -20,7 +20,8 @@
 #include "cpu.h"
 #include "helper.h"
 
-static void cpu_restore_state_from_retaddr(CPUSH4State *env, uintptr_t retaddr)
+static inline void cpu_restore_state_from_retaddr(CPUSH4State *env,
+                                                  uintptr_t retaddr)
 {
     TranslationBlock *tb;
 
@@ -80,7 +81,7 @@ void helper_ldtlb(CPUSH4State *env)
 #endif
 }
 
-static inline QEMU_NORETURN void raise_exception(CPUSH4State *env, int index,
+static inline void QEMU_NORETURN raise_exception(CPUSH4State *env, int index,
                                                  uintptr_t retaddr)
 {
     env->exception_index = index;
@@ -90,43 +91,40 @@ static inline QEMU_NORETURN void raise_exception(CPUSH4State *env, int index,
 
 void QEMU_NORETURN helper_raise_illegal_instruction(CPUSH4State *env)
 {
-    raise_exception(env, 0x180, GETPC());
+    raise_exception(env, 0x180, 0);
 }
 
 void QEMU_NORETURN helper_raise_slot_illegal_instruction(CPUSH4State *env)
 {
-    raise_exception(env, 0x1a0, GETPC());
+    raise_exception(env, 0x1a0, 0);
 }
 
 void QEMU_NORETURN helper_raise_fpu_disable(CPUSH4State *env)
 {
-    raise_exception(env, 0x800, GETPC());
+    raise_exception(env, 0x800, 0);
 }
 
 void QEMU_NORETURN helper_raise_slot_fpu_disable(CPUSH4State *env)
 {
-    raise_exception(env, 0x820, GETPC());
+    raise_exception(env, 0x820, 0);
 }
 
 void QEMU_NORETURN helper_debug(CPUSH4State *env)
 {
-    env->exception_index = EXCP_DEBUG;
-    cpu_loop_exit(env);
+    raise_exception(env, EXCP_DEBUG, 0);
 }
 
-void QEMU_NORETURN helper_sleep(CPUSH4State *env, uint32_t next_pc)
+void QEMU_NORETURN helper_sleep(CPUSH4State *env)
 {
     env->halted = 1;
     env->in_sleep = 1;
-    env->exception_index = EXCP_HLT;
-    env->pc = next_pc;
-    cpu_loop_exit(env);
+    raise_exception(env, EXCP_HLT, 0);
 }
 
 void QEMU_NORETURN helper_trapa(CPUSH4State *env, uint32_t tra)
 {
     env->tra = tra << 2;
-    raise_exception(env, 0x160, GETPC());
+    raise_exception(env, 0x160, 0);
 }
 
 void helper_movcal(CPUSH4State *env, uint32_t address, uint32_t value)
@@ -178,51 +176,6 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
 	    break;
 	}
     }
-}
-
-uint32_t helper_addc(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    uint32_t tmp0, tmp1;
-
-    tmp1 = arg0 + arg1;
-    tmp0 = arg1;
-    arg1 = tmp1 + (env->sr & 1);
-    if (tmp0 > tmp1)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    if (tmp1 > arg1)
-	env->sr |= SR_T;
-    return arg1;
-}
-
-uint32_t helper_addv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    uint32_t dest, src, ans;
-
-    if ((int32_t) arg1 >= 0)
-	dest = 0;
-    else
-	dest = 1;
-    if ((int32_t) arg0 >= 0)
-	src = 0;
-    else
-	src = 1;
-    src += dest;
-    arg1 += arg0;
-    if ((int32_t) arg1 >= 0)
-	ans = 0;
-    else
-	ans = 1;
-    ans += dest;
-    if (src == 0 || src == 2) {
-	if (ans == 1)
-	    env->sr |= SR_T;
-	else
-	    env->sr &= ~SR_T;
-    } else
-	env->sr &= ~SR_T;
-    return arg1;
 }
 
 #define T (env->sr & SR_T)
@@ -378,51 +331,6 @@ void helper_macw(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
     }
 }
 
-uint32_t helper_subc(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    uint32_t tmp0, tmp1;
-
-    tmp1 = arg1 - arg0;
-    tmp0 = arg1;
-    arg1 = tmp1 - (env->sr & SR_T);
-    if (tmp0 < tmp1)
-	env->sr |= SR_T;
-    else
-	env->sr &= ~SR_T;
-    if (tmp1 < arg1)
-	env->sr |= SR_T;
-    return arg1;
-}
-
-uint32_t helper_subv(CPUSH4State *env, uint32_t arg0, uint32_t arg1)
-{
-    int32_t dest, src, ans;
-
-    if ((int32_t) arg1 >= 0)
-	dest = 0;
-    else
-	dest = 1;
-    if ((int32_t) arg0 >= 0)
-	src = 0;
-    else
-	src = 1;
-    src += dest;
-    arg1 -= arg0;
-    if ((int32_t) arg1 >= 0)
-	ans = 0;
-    else
-	ans = 1;
-    ans += dest;
-    if (src == 1) {
-	if (ans == 1)
-	    env->sr |= SR_T;
-	else
-	    env->sr &= ~SR_T;
-    } else
-	env->sr &= ~SR_T;
-    return arg1;
-}
-
 static inline void set_t(CPUSH4State *env)
 {
     env->sr |= SR_T;
@@ -478,9 +386,7 @@ static void update_fpscr(CPUSH4State *env, uintptr_t retaddr)
         cause = (env->fpscr & FPSCR_CAUSE_MASK) >> FPSCR_CAUSE_SHIFT;
         enable = (env->fpscr & FPSCR_ENABLE_MASK) >> FPSCR_ENABLE_SHIFT;
         if (cause & enable) {
-            cpu_restore_state_from_retaddr(env, retaddr);
-            env->exception_index = 0x120;
-            cpu_loop_exit(env);
+            raise_exception(env, 0x120, retaddr);
         }
     }
 }
@@ -626,8 +532,7 @@ float64 helper_float_DT(CPUSH4State *env, uint32_t t0)
 float32 helper_fmac_FT(CPUSH4State *env, float32 t0, float32 t1, float32 t2)
 {
     set_float_exception_flags(0, &env->fp_status);
-    t0 = float32_mul(t0, t1, &env->fp_status);
-    t0 = float32_add(t0, t2, &env->fp_status);
+    t0 = float32_muladd(t0, t1, t2, 0, &env->fp_status);
     update_fpscr(env, GETPC());
     return t0;
 }
