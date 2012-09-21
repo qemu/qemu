@@ -100,18 +100,11 @@ static void dump_error(DumpState *s, const char *reason)
 static int fd_write_vmcore(void *buf, size_t size, void *opaque)
 {
     DumpState *s = opaque;
-    int fd = s->fd;
-    size_t writen_size;
+    size_t written_size;
 
-    /* The fd may be passed from user, and it can be non-blocked */
-    while (size) {
-        writen_size = qemu_write_full(fd, buf, size);
-        if (writen_size != size && errno != EAGAIN) {
-            return -1;
-        }
-
-        buf += writen_size;
-        size -= writen_size;
+    written_size = qemu_write_full(s->fd, buf, size);
+    if (written_size != size) {
+        return -1;
     }
 
     return 0;
