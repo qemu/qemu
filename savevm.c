@@ -343,21 +343,6 @@ QEMUFile *qemu_fopen_socket(int fd)
     return s->file;
 }
 
-static int file_put_buffer(void *opaque, const uint8_t *buf,
-                            int64_t pos, int size)
-{
-    QEMUFileStdio *s = opaque;
-    fseek(s->stdio_file, pos, SEEK_SET);
-    return fwrite(buf, 1, size, s->stdio_file);
-}
-
-static int file_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
-{
-    QEMUFileStdio *s = opaque;
-    fseek(s->stdio_file, pos, SEEK_SET);
-    return fread(buf, 1, size, s->stdio_file);
-}
-
 QEMUFile *qemu_fopen(const char *filename, const char *mode)
 {
     QEMUFileStdio *s;
@@ -376,10 +361,10 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
         goto fail;
     
     if(mode[0] == 'w') {
-        s->file = qemu_fopen_ops(s, file_put_buffer, NULL, stdio_fclose, 
+        s->file = qemu_fopen_ops(s, stdio_put_buffer, NULL, stdio_fclose,
 				 NULL, NULL, NULL);
     } else {
-        s->file = qemu_fopen_ops(s, NULL, file_get_buffer, stdio_fclose, 
+        s->file = qemu_fopen_ops(s, NULL, stdio_get_buffer, stdio_fclose,
 			       NULL, NULL, NULL);
     }
     return s->file;
