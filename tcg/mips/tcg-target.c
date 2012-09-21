@@ -842,18 +842,16 @@ static const void * const qemu_st_helpers[4] = {
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_regl, addr_meml;
-    int data_regl, data_regh, data_reg1, data_reg2;
-    int mem_index, s_bits;
+    int addr_regl, data_regl, data_regh, data_reg1, data_reg2;
 #if defined(CONFIG_SOFTMMU)
     void *label1_ptr, *label2_ptr;
     int arg_num;
-#endif
-#if TARGET_LONG_BITS == 64
-# if defined(CONFIG_SOFTMMU)
+    int mem_index, s_bits;
+    int addr_meml;
+# if TARGET_LONG_BITS == 64
     uint8_t *label3_ptr;
-# endif
     int addr_regh, addr_memh;
+# endif
 #endif
     data_regl = *args++;
     if (opc == 3)
@@ -861,11 +859,22 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
     else
         data_regh = 0;
     addr_regl = *args++;
-#if TARGET_LONG_BITS == 64
+#if defined(CONFIG_SOFTMMU)
+# if TARGET_LONG_BITS == 64
     addr_regh = *args++;
-#endif
+#  if defined(TCG_TARGET_WORDS_BIGENDIAN)
+    addr_memh = 0;
+    addr_meml = 4;
+#  else
+    addr_memh = 4;
+    addr_meml = 0;
+#  endif
+# else
+    addr_meml = 0;
+# endif
     mem_index = *args;
     s_bits = opc & 3;
+#endif
 
     if (opc == 3) {
 #if defined(TCG_TARGET_WORDS_BIGENDIAN)
@@ -879,18 +888,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
         data_reg1 = data_regl;
         data_reg2 = 0;
     }
-#if TARGET_LONG_BITS == 64
-# if defined(TCG_TARGET_WORDS_BIGENDIAN)
-    addr_memh = 0;
-    addr_meml = 4;
-# else
-    addr_memh = 4;
-    addr_meml = 0;
-# endif
-#else
-    addr_meml = 0;
-#endif
-
 #if defined(CONFIG_SOFTMMU)
     tcg_out_opc_sa(s, OPC_SRL, TCG_REG_A0, addr_regl, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
     tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_A0, TCG_REG_A0, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
@@ -1029,23 +1026,44 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                             int opc)
 {
-    int addr_regl, addr_meml;
-    int data_regl, data_regh, data_reg1, data_reg2;
-    int mem_index, s_bits;
+    int addr_regl, data_regl, data_regh, data_reg1, data_reg2;
 #if defined(CONFIG_SOFTMMU)
     uint8_t *label1_ptr, *label2_ptr;
     int arg_num;
+    int mem_index, s_bits;
+    int addr_meml;
 #endif
 #if TARGET_LONG_BITS == 64
 # if defined(CONFIG_SOFTMMU)
     uint8_t *label3_ptr;
-# endif
     int addr_regh, addr_memh;
+# endif
 #endif
-
     data_regl = *args++;
     if (opc == 3) {
         data_regh = *args++;
+    } else {
+        data_regh = 0;
+    }
+    addr_regl = *args++;
+#if defined(CONFIG_SOFTMMU)
+# if TARGET_LONG_BITS == 64
+    addr_regh = *args++;
+#  if defined(TCG_TARGET_WORDS_BIGENDIAN)
+    addr_memh = 0;
+    addr_meml = 4;
+#  else
+    addr_memh = 4;
+    addr_meml = 0;
+#  endif
+# else
+    addr_meml = 0;
+# endif
+    mem_index = *args;
+    s_bits = opc;
+#endif
+
+    if (opc == 3) {
 #if defined(TCG_TARGET_WORDS_BIGENDIAN)
         data_reg1 = data_regh;
         data_reg2 = data_regl;
@@ -1056,23 +1074,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     } else {
         data_reg1 = data_regl;
         data_reg2 = 0;
-        data_regh = 0;
     }
-    addr_regl = *args++;
-#if TARGET_LONG_BITS == 64
-    addr_regh = *args++;
-# if defined(TCG_TARGET_WORDS_BIGENDIAN)
-    addr_memh = 0;
-    addr_meml = 4;
-# else
-    addr_memh = 4;
-    addr_meml = 0;
-# endif
-#else
-    addr_meml = 0;
-#endif
-    mem_index = *args;
-    s_bits = opc;
 
 #if defined(CONFIG_SOFTMMU)
     tcg_out_opc_sa(s, OPC_SRL, TCG_REG_A0, addr_regl, TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
