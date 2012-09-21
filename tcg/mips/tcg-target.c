@@ -1453,24 +1453,24 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_st16_i32, { "rZ", "r" } },
     { INDEX_op_st_i32, { "rZ", "r" } },
 
-    { INDEX_op_add_i32, { "r", "rZ", "rJZ" } },
+    { INDEX_op_add_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_rem_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_remu_i32, { "r", "rZ", "rZ" } },
-    { INDEX_op_sub_i32, { "r", "rZ", "rJZ" } },
+    { INDEX_op_sub_i32, { "r", "rZ", "rJ" } },
 
-    { INDEX_op_and_i32, { "r", "rZ", "rIZ" } },
+    { INDEX_op_and_i32, { "r", "rZ", "rI" } },
     { INDEX_op_nor_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_not_i32, { "r", "rZ" } },
     { INDEX_op_or_i32, { "r", "rZ", "rIZ" } },
     { INDEX_op_xor_i32, { "r", "rZ", "rIZ" } },
 
-    { INDEX_op_shl_i32, { "r", "rZ", "riZ" } },
-    { INDEX_op_shr_i32, { "r", "rZ", "riZ" } },
-    { INDEX_op_sar_i32, { "r", "rZ", "riZ" } },
+    { INDEX_op_shl_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_shr_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
 
     { INDEX_op_ext8s_i32, { "r", "rZ" } },
     { INDEX_op_ext16s_i32, { "r", "rZ" } },
@@ -1479,8 +1479,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
-    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJZ", "rJZ" } },
-    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rJZ", "rJZ" } },
+    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
     { INDEX_op_brcond2_i32, { "rZ", "rZ", "rZ", "rZ" } },
 
 #if TARGET_LONG_BITS == 32
