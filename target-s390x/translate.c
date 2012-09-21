@@ -331,37 +331,29 @@ static inline void check_privileged(DisasContext *s)
 
 static TCGv_i64 get_address(DisasContext *s, int x2, int b2, int d2)
 {
-    TCGv_i64 tmp;
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    bool need_31 = !(s->tb->flags & FLAG_MASK_64);
 
-    /* 31-bitify the immediate part; register contents are dealt with below */
-    if (!(s->tb->flags & FLAG_MASK_64)) {
-        d2 &= 0x7fffffffUL;
-    }
+    /* Note that d2 is limited to 20 bits, signed.  If we crop negative
+       displacements early we create larger immedate addends.  */
 
-    if (x2) {
-        if (d2) {
-            tmp = tcg_const_i64(d2);
-            tcg_gen_add_i64(tmp, tmp, regs[x2]);
-        } else {
-            tmp = load_reg(x2);
-        }
-        if (b2) {
-            tcg_gen_add_i64(tmp, tmp, regs[b2]);
-        }
+    /* Note that addi optimizes the imm==0 case.  */
+    if (b2 && x2) {
+        tcg_gen_add_i64(tmp, regs[b2], regs[x2]);
+        tcg_gen_addi_i64(tmp, tmp, d2);
     } else if (b2) {
-        if (d2) {
-            tmp = tcg_const_i64(d2);
-            tcg_gen_add_i64(tmp, tmp, regs[b2]);
-        } else {
-            tmp = load_reg(b2);
-        }
+        tcg_gen_addi_i64(tmp, regs[b2], d2);
+    } else if (x2) {
+        tcg_gen_addi_i64(tmp, regs[x2], d2);
     } else {
-        tmp = tcg_const_i64(d2);
+        if (need_31) {
+            d2 &= 0x7fffffff;
+            need_31 = false;
+        }
+        tcg_gen_movi_i64(tmp, d2);
     }
-
-    /* 31-bit mode mask if there are values loaded from registers */
-    if (!(s->tb->flags & FLAG_MASK_64) && (x2 || b2)) {
-        tcg_gen_andi_i64(tmp, tmp, 0x7fffffffUL);
+    if (need_31) {
+        tcg_gen_andi_i64(tmp, tmp, 0x7fffffff);
     }
 
     return tmp;
