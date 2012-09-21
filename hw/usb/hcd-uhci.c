@@ -1000,6 +1000,9 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
         }
         assert(ret == TD_RESULT_ASYNC_START);
         assert(int_mask == 0);
+        if (ptd.ctrl & TD_CTRL_SPD) {
+            break;
+        }
         plink = ptd.link;
     }
 }
@@ -1097,7 +1100,7 @@ static void uhci_process_frame(UHCIState *s)
 
         case TD_RESULT_ASYNC_START:
             trace_usb_uhci_td_async(curr_qh & ~0xf, link & ~0xf);
-            if (is_valid(td.link)) {
+            if (is_valid(td.link) && !(td.ctrl & TD_CTRL_SPD)) {
                 uhci_fill_queue(s, &td);
             }
             link = curr_qh ? qh.link : td.link;

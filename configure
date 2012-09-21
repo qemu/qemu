@@ -2795,7 +2795,7 @@ if test "$usb_redir" != "no" ; then
         usb_redir_cflags=$($pkg_config --cflags libusbredirparser 2>/dev/null)
         usb_redir_libs=$($pkg_config --libs libusbredirparser 2>/dev/null)
         QEMU_CFLAGS="$QEMU_CFLAGS $usb_redir_cflags"
-        LIBS="$LIBS $usb_redir_libs"
+        libs_softmmu="$libs_softmmu $usb_redir_libs"
     else
         if test "$usb_redir" = "yes"; then
             feature_not_found "usb-redir"
