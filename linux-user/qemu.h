@@ -289,46 +289,29 @@ static inline int access_ok(int type, abi_ulong addr, abi_ulong size)
  * struct has been locked - usually with lock_user_struct().
  */
 #define __put_user(x, hptr)\
-({\
+({ __typeof(*hptr) pu_ = (x);\
     switch(sizeof(*hptr)) {\
-    case 1:\
-        *(uint8_t *)(hptr) = (uint8_t)(typeof(*hptr))(x);\
-        break;\
-    case 2:\
-        *(uint16_t *)(hptr) = tswap16((uint16_t)(typeof(*hptr))(x));\
-        break;\
-    case 4:\
-        *(uint32_t *)(hptr) = tswap32((uint32_t)(typeof(*hptr))(x));\
-        break;\
-    case 8:\
-        *(uint64_t *)(hptr) = tswap64((typeof(*hptr))(x));\
-        break;\
-    default:\
-        abort();\
+    case 1: break;\
+    case 2: pu_ = tswap16(pu_); break; \
+    case 4: pu_ = tswap32(pu_); break; \
+    case 8: pu_ = tswap64(pu_); break; \
+    default: abort();\
     }\
+    memcpy(hptr, &pu_, sizeof(pu_)); \
     0;\
 })
 
 #define __get_user(x, hptr) \
-({\
+({ __typeof(*hptr) gu_; \
+    memcpy(&gu_, hptr, sizeof(gu_)); \
     switch(sizeof(*hptr)) {\
-    case 1:\
-        x = (typeof(*hptr))*(uint8_t *)(hptr);\
-        break;\
-    case 2:\
-        x = (typeof(*hptr))tswap16(*(uint16_t *)(hptr));\
-        break;\
-    case 4:\
-        x = (typeof(*hptr))tswap32(*(uint32_t *)(hptr));\
-        break;\
-    case 8:\
-        x = (typeof(*hptr))tswap64(*(uint64_t *)(hptr));\
-        break;\
-    default:\
-        /* avoid warning */\
-        x = 0;\
-        abort();\
+    case 1: break; \
+    case 2: gu_ = tswap16(gu_); break; \
+    case 4: gu_ = tswap32(gu_); break; \
+    case 8: gu_ = tswap64(gu_); break; \
+    default: abort();\
     }\
+    (x) = gu_; \
     0;\
 })
 
