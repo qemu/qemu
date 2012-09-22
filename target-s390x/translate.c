@@ -1212,6 +1212,7 @@ static void gen_bcr(DisasContext *s, uint32_t mask, TCGv_i64 target,
 
     if (mask == 0xf) {
         /* unconditional */
+        gen_update_cc_op(s);
         tcg_gen_mov_i64(psw_addr, target);
         tcg_gen_exit_tb(0);
     } else if (mask == 0) {
@@ -1223,6 +1224,7 @@ static void gen_bcr(DisasContext *s, uint32_t mask, TCGv_i64 target,
         tcg_gen_mov_i64(new_addr, target);
         skip = gen_new_label();
         gen_jcc(s, mask, skip);
+        gen_update_cc_op(s);
         tcg_gen_mov_i64(psw_addr, new_addr);
         tcg_temp_free_i64(new_addr);
         tcg_gen_exit_tb(0);
