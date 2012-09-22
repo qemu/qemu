@@ -2933,7 +2933,7 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
         tcg_temp_free_i64(tmp);
         break;
     case 0x79: /* SACF    D2(B2)     [S] */
-        /* Store Clock Extended */
+        /* Set Address Space Control Fast */
         check_privileged(env, s, ilc);
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
@@ -2943,7 +2943,7 @@ static void disas_b2(CPUS390XState *env, DisasContext *s, int op,
         /* addressing mode has changed, so end the block */
         s->pc += ilc * 2;
         update_psw_addr(s);
-        s->is_jmp = DISAS_EXCP;
+        s->is_jmp = DISAS_JUMP;
         break;
     case 0x7d: /* STSI     D2,(B2)     [S] */
         check_privileged(env, s, ilc);
