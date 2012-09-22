@@ -1681,8 +1681,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                  + CPU_TEMP_BUF_NLONGS * sizeof(long);
     frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) &
                  ~(TCG_TARGET_STACK_ALIGN - 1);
-    tcg_set_frame(s, TCG_REG_SP, ARRAY_SIZE(tcg_target_callee_save_regs) * 4
-                  + TCG_STATIC_CALL_ARGS_SIZE,
+    tcg_set_frame(s, TCG_REG_SP, frame_size
+                  - CPU_TEMP_BUF_NLONGS * sizeof(long),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     /* TB prologue */
