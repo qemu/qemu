@@ -425,7 +425,7 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 static inline void tcg_out_bswap16(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#ifdef _MIPS_ARCH_MIPS32R2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
     tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
 #else
     /* ret and arg can't be register at */
@@ -442,7 +442,7 @@ static inline void tcg_out_bswap16(TCGContext *s, TCGReg ret, TCGReg arg)
 
 static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#ifdef _MIPS_ARCH_MIPS32R2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
     tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
     tcg_out_opc_reg(s, OPC_SEH, ret, 0, ret);
 #else
@@ -460,7 +460,7 @@ static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
 
 static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#ifdef _MIPS_ARCH_MIPS32R2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
     tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
     tcg_out_opc_sa(s, OPC_ROTR, ret, ret, 16);
 #else
@@ -486,7 +486,7 @@ static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
 
 static inline void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#ifdef _MIPS_ARCH_MIPS32R2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
     tcg_out_opc_reg(s, OPC_SEB, ret, 0, arg);
 #else
     tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
@@ -496,7 +496,7 @@ static inline void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
 
 static inline void tcg_out_ext16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#ifdef _MIPS_ARCH_MIPS32R2
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
     tcg_out_opc_reg(s, OPC_SEH, ret, 0, arg);
 #else
     tcg_out_opc_sa(s, OPC_SLL, ret, arg, 16);
