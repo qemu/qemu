@@ -530,6 +530,15 @@ do {\
     abort();\
 } while (0)
 
+#ifdef CONFIG_DEBUG_TCG
+# define tcg_debug_assert(X) do { assert(X); } while (0)
+#elif QEMU_GNUC_PREREQ(4, 5)
+# define tcg_debug_assert(X) \
+    do { if (!(X)) { __builtin_unreachable(); } } while (0)
+#else
+# define tcg_debug_assert(X) do { (void)(X); } while (0)
+#endif
+
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 
 #if TCG_TARGET_REG_BITS == 32
