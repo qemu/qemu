@@ -1809,36 +1809,6 @@ static inline void tcg_gen_discard_i64(TCGv_i64 arg)
 #endif
 }
 
-static inline void tcg_gen_concat_i32_i64(TCGv_i64 dest, TCGv_i32 low, TCGv_i32 high)
-{
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_mov_i32(TCGV_LOW(dest), low);
-    tcg_gen_mov_i32(TCGV_HIGH(dest), high);
-#else
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    /* This extension is only needed for type correctness.
-       We may be able to do better given target specific information.  */
-    tcg_gen_extu_i32_i64(tmp, high);
-    tcg_gen_shli_i64(tmp, tmp, 32);
-    tcg_gen_extu_i32_i64(dest, low);
-    tcg_gen_or_i64(dest, dest, tmp);
-    tcg_temp_free_i64(tmp);
-#endif
-}
-
-static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low, TCGv_i64 high)
-{
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_concat_i32_i64(dest, TCGV_LOW(low), TCGV_LOW(high));
-#else
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_ext32u_i64(dest, low);
-    tcg_gen_shli_i64(tmp, high, 32);
-    tcg_gen_or_i64(dest, dest, tmp);
-    tcg_temp_free_i64(tmp);
-#endif
-}
-
 static inline void tcg_gen_andc_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
     if (TCG_TARGET_HAS_andc_i32) {
@@ -2179,6 +2149,36 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
     tcg_gen_or_i64(ret, ret, t1);
 
     tcg_temp_free_i64(t1);
+}
+
+static inline void tcg_gen_concat_i32_i64(TCGv_i64 dest, TCGv_i32 low,
+                                          TCGv_i32 high)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_mov_i32(TCGV_LOW(dest), low);
+    tcg_gen_mov_i32(TCGV_HIGH(dest), high);
+#else
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    /* These extensions are only needed for type correctness.
+       We may be able to do better given target specific information.  */
+    tcg_gen_extu_i32_i64(tmp, high);
+    tcg_gen_extu_i32_i64(dest, low);
+    /* If deposit is available, use it.  Otherwise use the extra
+       knowledge that we have of the zero-extensions above.  */
+    if (TCG_TARGET_HAS_deposit_i64 && TCG_TARGET_deposit_i64_valid(32, 32)) {
+        tcg_gen_deposit_i64(dest, dest, tmp, 32, 32);
+    } else {
+        tcg_gen_shli_i64(tmp, tmp, 32);
+        tcg_gen_or_i64(dest, dest, tmp);
+    }
+    tcg_temp_free_i64(tmp);
+#endif
+}
+
+static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low,
+                                        TCGv_i64 high)
+{
+    tcg_gen_deposit_i64(dest, low, high, 32, 32);
 }
 
 static inline void tcg_gen_movcond_i32(TCGCond cond, TCGv_i32 ret,
