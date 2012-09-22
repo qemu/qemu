@@ -2081,6 +2081,10 @@ static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
     uint32_t mask;
     TCGv_i32 t1;
 
+    tcg_debug_assert(ofs < 32);
+    tcg_debug_assert(len <= 32);
+    tcg_debug_assert(ofs + len <= 32);
+
     if (ofs == 0 && len == 32) {
         tcg_gen_mov_i32(ret, arg2);
         return;
@@ -2111,6 +2115,10 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
 {
     uint64_t mask;
     TCGv_i64 t1;
+
+    tcg_debug_assert(ofs < 64);
+    tcg_debug_assert(len <= 64);
+    tcg_debug_assert(ofs + len <= 64);
 
     if (ofs == 0 && len == 64) {
         tcg_gen_mov_i64(ret, arg2);
