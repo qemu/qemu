@@ -390,6 +390,7 @@ struct TCGContext {
 
 #ifdef CONFIG_DEBUG_TCG
     int temps_in_use;
+    int goto_tb_issue_mask;
 #endif
 };
 

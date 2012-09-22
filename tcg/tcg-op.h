@@ -2275,8 +2275,15 @@ static inline void tcg_gen_exit_tb(tcg_target_long val)
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
 
-static inline void tcg_gen_goto_tb(int idx)
+static inline void tcg_gen_goto_tb(unsigned idx)
 {
+    /* We only support two chained exits.  */
+    tcg_debug_assert(idx <= 1);
+#ifdef CONFIG_DEBUG_TCG
+    /* Verify that we havn't seen this numbered exit before.  */
+    tcg_debug_assert((tcg_ctx.goto_tb_issue_mask & (1 << idx)) == 0);
+    tcg_ctx.goto_tb_issue_mask |= 1 << idx;
+#endif
     tcg_gen_op1i(INDEX_op_goto_tb, idx);
 }
 
