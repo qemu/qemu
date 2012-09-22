@@ -68,6 +68,12 @@
 /* Declaration of ffs() is missing in MinGW's strings.h. */
 int ffs(int i);
 
+/* Missing POSIX functions. Don't use MinGW-w64 macros. */
+#undef gmtime_r
+struct tm *gmtime_r(const time_t *timep, struct tm *result);
+#undef localtime_r
+struct tm *localtime_r(const time_t *timep, struct tm *result);
+
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}
 static inline void os_setup_post(void) {}
