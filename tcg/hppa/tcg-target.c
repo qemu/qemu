@@ -912,6 +912,18 @@ static void tcg_out_setcond2(TCGContext *s, int cond, TCGArg ret,
     tcg_out_mov(s, TCG_TYPE_I32, ret, scratch);
 }
 
+static void tcg_out_movcond(TCGContext *s, int cond, TCGArg ret,
+                            TCGArg c1, TCGArg c2, int c2const,
+                            TCGArg v1, int v1const)
+{
+    tcg_out_comclr(s, tcg_invert_cond(cond), TCG_REG_R0, c1, c2, c2const);
+    if (v1const) {
+        tcg_out_movi(s, TCG_TYPE_I32, ret, v1);
+    } else {
+        tcg_out_mov(s, TCG_TYPE_I32, ret, v1);
+    }
+}
+
 #if defined(CONFIG_SOFTMMU)
 #include "../../softmmu_defs.h"
 
@@ -1520,6 +1532,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                          args[3], const_args[3], args[4], const_args[4]);
         break;
 
+    case INDEX_op_movcond_i32:
+        tcg_out_movcond(s, args[5], args[0], args[1], args[2], const_args[2],
+                        args[3], const_args[3]);
+        break;
+
     case INDEX_op_add2_i32:
         tcg_out_add2(s, args[0], args[1], args[2], args[3],
                      args[4], args[5], const_args[4]);
@@ -1627,6 +1644,10 @@ static const TCGTargetOpDef hppa_op_defs[] = {
 
     { INDEX_op_setcond_i32, { "r", "rZ", "rI" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rI", "rI" } },
+
+    /* ??? We can actually support a signed 14-bit arg3, but we
+       only have existing constraints for a signed 11-bit.  */
+    { INDEX_op_movcond_i32, { "r", "rZ", "rI", "rI", "0" } },
 
     { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rI", "rZ" } },
     { INDEX_op_sub2_i32, { "r", "r", "rI", "rZ", "rK", "rZ" } },
