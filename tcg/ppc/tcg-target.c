@@ -390,6 +390,7 @@ static int tcg_target_const_match(tcg_target_long val,
 #define ORC    XO31(412)
 #define EQV    XO31(284)
 #define NAND   XO31(476)
+#define ISEL   XO31( 15)
 
 #define LBZX   XO31( 87)
 #define LHZX   XO31(279)
@@ -1269,6 +1270,72 @@ static void tcg_out_setcond2 (TCGContext *s, const TCGArg *args,
         );
 }
 
+static void tcg_out_movcond (TCGContext *s, TCGCond cond,
+                             TCGArg dest,
+                             TCGArg c1, TCGArg c2,
+                             TCGArg v1, TCGArg v2,
+                             int const_c2)
+{
+    tcg_out_cmp (s, cond, c1, c2, const_c2, 7);
+
+    if (1) {
+        /* At least here on 7747A bit twiddling hacks are outperformed
+           by jumpy code (the testing was not scientific) */
+        if (dest == v2) {
+            cond = tcg_invert_cond (cond);
+            v2 = v1;
+        }
+        else {
+            if (dest != v1) {
+                tcg_out_mov (s, TCG_TYPE_I32, dest, v1);
+            }
+        }
+        /* Branch forward over one insn */
+        tcg_out32 (s, tcg_to_bc[cond] | 8);
+        tcg_out_mov (s, TCG_TYPE_I32, dest, v2);
+    }
+    else {
+        /* isel version, "if (1)" above should be replaced once a way
+           to figure out availability of isel on the underlying
+           hardware is found */
+        int tab, bc;
+
+        switch (cond) {
+        case TCG_COND_EQ:
+            tab = TAB (dest, v1, v2);
+            bc = CR_EQ;
+            break;
+        case TCG_COND_NE:
+            tab = TAB (dest, v2, v1);
+            bc = CR_EQ;
+            break;
+        case TCG_COND_LTU:
+        case TCG_COND_LT:
+            tab = TAB (dest, v1, v2);
+            bc = CR_LT;
+            break;
+        case TCG_COND_GEU:
+        case TCG_COND_GE:
+            tab = TAB (dest, v2, v1);
+            bc = CR_LT;
+            break;
+        case TCG_COND_LEU:
+        case TCG_COND_LE:
+            tab = TAB (dest, v2, v1);
+            bc = CR_GT;
+            break;
+        case TCG_COND_GTU:
+        case TCG_COND_GT:
+            tab = TAB (dest, v1, v2);
+            bc = CR_GT;
+            break;
+        default:
+            tcg_abort ();
+        }
+        tcg_out32 (s, ISEL | tab | ((bc + 28) << 6));
+    }
+}
+
 static void tcg_out_brcond (TCGContext *s, TCGCond cond,
                             TCGArg arg1, TCGArg arg2, int const_arg2,
                             int label_index)
@@ -1826,6 +1893,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             );
         break;
 
+    case INDEX_op_movcond_i32:
+        tcg_out_movcond (s, args[5], args[0],
+                         args[1], args[2],
+                         args[3], args[4],
+                         const_args[2]);
+        break;
+
     default:
         tcg_dump_ops (s);
         tcg_abort ();
@@ -1922,6 +1996,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_ext16u_i32, { "r", "r" } },
 
     { INDEX_op_deposit_i32, { "r", "0", "r" } },
+    { INDEX_op_movcond_i32, { "r", "r", "ri", "r", "r" } },
 
     { -1 },
 };
