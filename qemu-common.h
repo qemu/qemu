@@ -223,9 +223,14 @@ int qemu_pipe(int pipefd[2]);
 #endif
 
 #ifdef _WIN32
+/* MinGW needs a type cast for the 'buf' argument. */
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
+    sendto(sockfd, (const void *)buf, len, flags, destaddr, addrlen)
 #else
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
+#define qemu_sendto(sockfd, buf, len, flags, destaddr, addrlen) \
+    sendto(sockfd, buf, len, flags, destaddr, addrlen)
 #endif
 
 /* Error handling.  */
