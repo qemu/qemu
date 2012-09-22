@@ -3706,6 +3706,11 @@ static void disas_c0(CPUS390XState *env, DisasContext *s, int op, int r1, int i2
         tcg_temp_free_i64(tmp);
         break;
     case 0x4: /* BRCL     M1,I2     [RIL] */
+        if (r1 == 15) { /* m1 == r1 */
+            gen_goto_tb(s, 0, target);
+            s->is_jmp = DISAS_TB_JUMP;
+            break;
+        }
         /* m1 & (1 << (3 - cc)) */
         tmp32_1 = tcg_const_i32(3);
         tmp32_2 = tcg_const_i32(1);
