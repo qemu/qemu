@@ -518,18 +518,34 @@ static inline void tcg_gen_and_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     }
 }
 
-static inline void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
+static inline void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, uint32_t arg2)
 {
-    /* some cases can be optimized here */
-    if (arg2 == 0) {
+    TCGv_i32 t0;
+    /* Some cases can be optimized here.  */
+    switch (arg2) {
+    case 0:
         tcg_gen_movi_i32(ret, 0);
-    } else if (arg2 == 0xffffffff) {
+        return;
+    case 0xffffffffu:
         tcg_gen_mov_i32(ret, arg1);
-    } else {
-        TCGv_i32 t0 = tcg_const_i32(arg2);
-        tcg_gen_and_i32(ret, arg1, t0);
-        tcg_temp_free_i32(t0);
+        return;
+    case 0xffu:
+        /* Don't recurse with tcg_gen_ext8u_i32.  */
+        if (TCG_TARGET_HAS_ext8u_i32) {
+            tcg_gen_op2_i32(INDEX_op_ext8u_i32, ret, arg1);
+            return;
+        }
+        break;
+    case 0xffffu:
+        if (TCG_TARGET_HAS_ext16u_i32) {
+            tcg_gen_op2_i32(INDEX_op_ext16u_i32, ret, arg1);
+            return;
+        }
+        break;
     }
+    t0 = tcg_const_i32(arg2);
+    tcg_gen_and_i32(ret, arg1, t0);
+    tcg_temp_free_i32(t0);
 }
 
 static inline void tcg_gen_or_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -1120,9 +1136,38 @@ static inline void tcg_gen_and_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     }
 }
 
-static inline void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
+static inline void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, uint64_t arg2)
 {
-    TCGv_i64 t0 = tcg_const_i64(arg2);
+    TCGv_i64 t0;
+    /* Some cases can be optimized here.  */
+    switch (arg2) {
+    case 0:
+        tcg_gen_movi_i64(ret, 0);
+        return;
+    case 0xffffffffffffffffull:
+        tcg_gen_mov_i64(ret, arg1);
+        return;
+    case 0xffull:
+        /* Don't recurse with tcg_gen_ext8u_i32.  */
+        if (TCG_TARGET_HAS_ext8u_i64) {
+            tcg_gen_op2_i64(INDEX_op_ext8u_i64, ret, arg1);
+            return;
+        }
+        break;
+    case 0xffffu:
+        if (TCG_TARGET_HAS_ext16u_i64) {
+            tcg_gen_op2_i64(INDEX_op_ext16u_i64, ret, arg1);
+            return;
+        }
+        break;
+    case 0xffffffffull:
+        if (TCG_TARGET_HAS_ext32u_i64) {
+            tcg_gen_op2_i64(INDEX_op_ext32u_i64, ret, arg1);
+            return;
+        }
+        break;
+    }
+    t0 = tcg_const_i64(arg2);
     tcg_gen_and_i64(ret, arg1, t0);
     tcg_temp_free_i64(t0);
 }
