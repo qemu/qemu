@@ -304,3 +304,25 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     g_free(dupname);
     return retval;
 }
+
+void qemu_devtree_dumpdtb(void *fdt, int size)
+{
+    QemuOpts *machine_opts;
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        const char *dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
+        if (dumpdtb) {
+            /* Dump the dtb to a file and quit */
+            FILE *f = fopen(dumpdtb, "wb");
+            size_t len;
+            len = fwrite(fdt, size, 1, f);
+            fclose(f);
+            if (len != size) {
+                exit(1);
+            }
+            exit(0);
+        }
+    }
+
+}

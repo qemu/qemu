@@ -139,12 +139,10 @@ static int ppce500_load_device_tree(CPUPPCState *env,
             0x0, 0x10000,
         };
     QemuOpts *machine_opts;
-    const char *dumpdtb = NULL;
     const char *dtb_file = NULL;
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
-        dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
         dtb_file = qemu_opt_get(machine_opts, "dtb");
         toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
     }
@@ -334,18 +332,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     }
 
 done:
-    if (dumpdtb) {
-        /* Dump the dtb to a file and quit */
-        FILE *f = fopen(dumpdtb, "wb");
-        size_t len;
-        len = fwrite(fdt, fdt_size, 1, f);
-        fclose(f);
-        if (len != fdt_size) {
-            exit(1);
-        }
-        exit(0);
-    }
-
+    qemu_devtree_dumpdtb(fdt, fdt_size);
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     if (ret < 0) {
         goto out;
