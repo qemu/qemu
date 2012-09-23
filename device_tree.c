@@ -314,14 +314,7 @@ void qemu_devtree_dumpdtb(void *fdt, int size)
         const char *dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
         if (dumpdtb) {
             /* Dump the dtb to a file and quit */
-            FILE *f = fopen(dumpdtb, "wb");
-            size_t len;
-            len = fwrite(fdt, size, 1, f);
-            fclose(f);
-            if (len != size) {
-                exit(1);
-            }
-            exit(0);
+            exit(g_file_set_contents(dumpdtb, fdt, size, NULL) ? 0 : 1);
         }
     }
 
