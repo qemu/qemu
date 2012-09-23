@@ -80,17 +80,34 @@ typedef enum {
 #define TCG_TARGET_HAS_div_i32          1
 #define TCG_TARGET_HAS_not_i32          1
 #define TCG_TARGET_HAS_nor_i32          1
-#define TCG_TARGET_HAS_rot_i32          0
 #define TCG_TARGET_HAS_ext8s_i32        1
 #define TCG_TARGET_HAS_ext16s_i32       1
-#define TCG_TARGET_HAS_bswap32_i32      0
-#define TCG_TARGET_HAS_bswap16_i32      0
 #define TCG_TARGET_HAS_andc_i32         0
 #define TCG_TARGET_HAS_orc_i32          0
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
-#define TCG_TARGET_HAS_deposit_i32      0
+
+/* optional instructions only implemented on MIPS4, MIPS32 and Loongson 2 */
+#if defined(_MIPS_ARCH_MIPS4) || defined(_MIPS_ARCH_MIPS32) || \
+    defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_LOONGSON2E) || \
+    defined(_MIPS_ARCH_LOONGSON2F)
+#define TCG_TARGET_HAS_movcond_i32      1
+#else
 #define TCG_TARGET_HAS_movcond_i32      0
+#endif
+
+/* optional instructions only implemented on MIPS32R2 */
+#ifdef _MIPS_ARCH_MIPS32R2
+#define TCG_TARGET_HAS_bswap16_i32      1
+#define TCG_TARGET_HAS_bswap32_i32      1
+#define TCG_TARGET_HAS_rot_i32          1
+#define TCG_TARGET_HAS_deposit_i32      1
+#else
+#define TCG_TARGET_HAS_bswap16_i32      0
+#define TCG_TARGET_HAS_bswap32_i32      0
+#define TCG_TARGET_HAS_rot_i32          0
+#define TCG_TARGET_HAS_deposit_i32      0
+#endif
 
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_neg_i32          0 /* sub  rd, zero, rt   */

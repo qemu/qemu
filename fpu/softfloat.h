@@ -219,7 +219,7 @@ void float_raise( int8 flags STATUS_PARAM);
 enum {
     float_muladd_negate_c = 1,
     float_muladd_negate_product = 2,
-    float_muladd_negate_result = 3,
+    float_muladd_negate_result = 4,
 };
 
 /*----------------------------------------------------------------------------
@@ -250,6 +250,11 @@ float32 float16_to_float32( float16, flag STATUS_PARAM );
 int float16_is_quiet_nan( float16 );
 int float16_is_signaling_nan( float16 );
 float16 float16_maybe_silence_nan( float16 );
+
+INLINE int float16_is_any_nan(float16 a)
+{
+    return ((float16_val(a) & ~0x8000) > 0x7c00);
+}
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.

@@ -176,12 +176,6 @@ static const int tcg_target_call_oarg_regs[] = {
     TCG_REG_R8
 };
 
-/* maximum number of register used for input function arguments */
-static inline int tcg_target_get_call_iarg_regs_count(int flags)
-{
-    return 8;
-}
-
 /*
  * opcode formation
  */

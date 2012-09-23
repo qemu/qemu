@@ -74,30 +74,29 @@ void qemu_vfree(void *ptr)
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-#if !defined(gmtime_r)
+/* FIXME: add proper locking */
 struct tm *gmtime_r(const time_t *timep, struct tm *result)
 {
     struct tm *p = gmtime(timep);
-    memset(result, 0, sizeof(*result);
+    memset(result, 0, sizeof(*result));
     if (p) {
         *result = *p;
         p = result;
     }
     return p;
 }
-#endif
 
-#if !defined(localtime_r)
+/* FIXME: add proper locking */
 struct tm *localtime_r(const time_t *timep, struct tm *result)
 {
-    struct tm *p = gmtime(timep);
+    struct tm *p = localtime(timep);
+    memset(result, 0, sizeof(*result));
     if (p) {
         *result = *p;
         p = result;
     }
     return p;
 }
-#endif
 
 void socket_set_block(int fd)
 {

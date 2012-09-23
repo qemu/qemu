@@ -36,6 +36,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "cpu-defs.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -325,6 +326,8 @@ typedef struct CPUXtensaState {
     uint32_t sregs[256];
     uint32_t uregs[256];
     uint32_t phys_regs[MAX_NAREG];
+    float32 fregs[16];
+    float_status fp_status;
 
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
@@ -465,6 +468,8 @@ static inline int cpu_mmu_index(CPUXtensaState *env)
 #define XTENSA_TBFLAG_LITBASE 0x8
 #define XTENSA_TBFLAG_DEBUG 0x10
 #define XTENSA_TBFLAG_ICOUNT 0x20
+#define XTENSA_TBFLAG_CPENABLE_MASK 0x3fc0
+#define XTENSA_TBFLAG_CPENABLE_SHIFT 6
 
 static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -487,6 +492,9 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
         if (xtensa_get_cintlevel(env) < env->sregs[ICOUNTLEVEL]) {
             *flags |= XTENSA_TBFLAG_ICOUNT;
         }
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_COPROCESSOR)) {
+        *flags |= env->sregs[CPENABLE] << XTENSA_TBFLAG_CPENABLE_SHIFT;
     }
 }
 
