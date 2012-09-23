@@ -351,7 +351,7 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
     for (; num > 0; num--, sec++) {
         if (s->bdrv_cur) {
             int erasesec = s->secs_cur + (sec >> 5);
-            if (bdrv_write(s->bdrv_cur, sec, blankbuf, 1)) {
+            if (bdrv_write(s->bdrv_cur, sec, blankbuf, 1) < 0) {
                 goto fail;
             }
             if (bdrv_read(s->bdrv_cur, erasesec, tmpbuf, 1) < 0) {
