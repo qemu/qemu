@@ -117,16 +117,20 @@ void qemu_bh_delete(QEMUBH *bh)
     bh->deleted = 1;
 }
 
-void aio_bh_update_timeout(AioContext *ctx, uint32_t *timeout)
+static gboolean
+aio_ctx_prepare(GSource *source, gint    *timeout)
 {
+    AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
+    bool scheduled = false;
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
+            scheduled = true;
             if (bh->idle) {
                 /* idle bottom halves will be polled at least
                  * every 10ms */
-                *timeout = MIN(10, *timeout);
+                *timeout = 10;
             } else {
                 /* non-idle bottom halves will be executed
                  * immediately */
@@ -135,21 +139,8 @@ void aio_bh_update_timeout(AioContext *ctx, uint32_t *timeout)
             }
         }
     }
-}
 
-static gboolean
-aio_ctx_prepare(GSource *source, gint    *timeout)
-{
-    AioContext *ctx = (AioContext *) source;
-    uint32_t wait = -1;
-    aio_bh_update_timeout(ctx, &wait);
-
-    if (wait != -1) {
-        *timeout = MIN(*timeout, wait);
-        return wait == 0;
-    }
-
-    return false;
+    return scheduled;
 }
 
 static gboolean

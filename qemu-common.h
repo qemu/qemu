@@ -218,7 +218,6 @@ ssize_t qemu_recv_full(int fd, void *buf, size_t count, int flags)
     QEMU_WARN_UNUSED_RESULT;
 
 #ifndef _WIN32
-int qemu_eventfd(int pipefd[2]);
 int qemu_pipe(int pipefd[2]);
 #endif
 

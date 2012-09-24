@@ -125,7 +125,6 @@ void aio_notify(AioContext *ctx);
  * These are internal functions used by the QEMU main loop.
  */
 int aio_bh_poll(AioContext *ctx);
-void aio_bh_update_timeout(AioContext *ctx, uint32_t *timeout);
 
 /**
  * qemu_bh_schedule: Schedule a bottom half.
