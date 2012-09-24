@@ -147,7 +147,10 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
 void virtqueue_map_sg(struct iovec *sg, target_phys_addr_t *addr,
     size_t num_sg, int is_write);
 int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem);
-int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes);
+int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
+                          unsigned int out_bytes);
+void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
+                               unsigned int *out_bytes);
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq);
 
