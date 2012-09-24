@@ -54,9 +54,6 @@ static QemuOptsList dummy_opts = {
         },{
             .name = "ipv6",
             .type = QEMU_OPT_BOOL,
-        },{
-            .name = "block",
-            .type = QEMU_OPT_BOOL,
         },
         { /* end if list */ }
     },
@@ -294,11 +291,22 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
     return res;
 }
 
-int inet_connect_opts(QemuOpts *opts, bool *in_progress, Error **errp)
+/**
+ * Create a socket and connect it to an address.
+ *
+ * @opts: QEMU options, recognized parameters strings "host" and "port",
+ *        bools "ipv4" and "ipv6".
+ * @block: set true for blocking socket
+ * @in_progress: set to true in case of ongoing connect
+ * @errp: set on error
+ *
+ * Returns: -1 on error, file descriptor on success.
+ */
+int inet_connect_opts(QemuOpts *opts, bool block, bool *in_progress,
+                      Error **errp)
 {
     struct addrinfo *res, *e;
     int sock = -1;
-    bool block = qemu_opt_get_bool(opts, "block", 0);
 
     res = inet_parse_connect_opts(opts, errp);
     if (!res) {
@@ -515,17 +523,47 @@ int inet_listen(const char *str, char *ostr, int olen,
     return sock;
 }
 
-int inet_connect(const char *str, bool block, bool *in_progress, Error **errp)
+/**
+ * Create a blocking socket and connect it to an address.
+ *
+ * @str: address string
+ * @errp: set in case of an error
+ *
+ * Returns -1 in case of error, file descriptor on success
+ **/
+int inet_connect(const char *str, Error **errp)
 {
     QemuOpts *opts;
     int sock = -1;
 
     opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
     if (inet_parse(opts, str) == 0) {
-        if (block) {
-            qemu_opt_set(opts, "block", "on");
-        }
-        sock = inet_connect_opts(opts, in_progress, errp);
+        sock = inet_connect_opts(opts, true, NULL, errp);
+    } else {
+        error_set(errp, QERR_SOCKET_CREATE_FAILED);
+    }
+    qemu_opts_del(opts);
+    return sock;
+}
+
+/**
+ * Create a non-blocking socket and connect it to an address.
+ *
+ * @str: address string
+ * @in_progress: set to true in case of ongoing connect
+ * @errp: set in case of an error
+ *
+ * Returns: -1 on error, file descriptor on success.
+ **/
+int inet_nonblocking_connect(const char *str, bool *in_progress,
+                             Error **errp)
+{
+    QemuOpts *opts;
+    int sock = -1;
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+    if (inet_parse(opts, str) == 0) {
+        sock = inet_connect_opts(opts, false, in_progress, errp);
     } else {
         error_set(errp, QERR_SOCKET_CREATE_FAILED);
     }
