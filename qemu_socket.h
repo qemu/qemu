@@ -38,15 +38,21 @@ void socket_set_block(int fd);
 void socket_set_nonblock(int fd);
 int send_all(int fd, const void *buf, int len1);
 
-/* New, ipv6-ready socket helper functions, see qemu-sockets.c */
+/* callback function for nonblocking connect
+ * valid fd on success, negative error code on failure
+ */
+typedef void NonBlockingConnectHandler(int fd, void *opaque);
+
 int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp);
 int inet_listen(const char *str, char *ostr, int olen,
                 int socktype, int port_offset, Error **errp);
-int inet_connect_opts(QemuOpts *opts, bool block, bool *in_progress,
-                      Error **errp);
+int inet_connect_opts(QemuOpts *opts, Error **errp,
+                      NonBlockingConnectHandler *callback, void *opaque);
 int inet_connect(const char *str, Error **errp);
-int inet_nonblocking_connect(const char *str, bool *in_progress,
-                             Error **errp);
+int inet_nonblocking_connect(const char *str,
+                             NonBlockingConnectHandler *callback,
+                             void *opaque, Error **errp);
+
 int inet_dgram_opts(QemuOpts *opts);
 const char *inet_strfamily(int family);
 
