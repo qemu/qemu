@@ -79,6 +79,14 @@ void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
 {
     int i;
 
+    if (env->cc_op > 3) {
+        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
+                    env->psw.mask, env->psw.addr, cc_name(env->cc_op));
+    } else {
+        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
+                    env->psw.mask, env->psw.addr, env->cc_op);
+    }
+
     for (i = 0; i < 16; i++) {
         cpu_fprintf(f, "R%02d=%016" PRIx64, i, env->regs[i]);
         if ((i % 4) == 3) {
@@ -97,8 +105,6 @@ void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
         }
     }
 
-    cpu_fprintf(f, "\n");
-
 #ifndef CONFIG_USER_ONLY
     for (i = 0; i < 16; i++) {
         cpu_fprintf(f, "C%02d=%016" PRIx64, i, env->cregs[i]);
@@ -110,22 +116,14 @@ void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
     }
 #endif
 
-    cpu_fprintf(f, "\n");
-
-    if (env->cc_op > 3) {
-        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %15s\n",
-                    env->psw.mask, env->psw.addr, cc_name(env->cc_op));
-    } else {
-        cpu_fprintf(f, "PSW=mask %016" PRIx64 " addr %016" PRIx64 " cc %02x\n",
-                    env->psw.mask, env->psw.addr, env->cc_op);
-    }
-
 #ifdef DEBUG_INLINE_BRANCHES
     for (i = 0; i < CC_OP_MAX; i++) {
         cpu_fprintf(f, "  %15s = %10ld\t%10ld\n", cc_name(i),
                     inline_branch_miss[i], inline_branch_hit[i]);
     }
 #endif
+
+    cpu_fprintf(f, "\n");
 }
 
 static TCGv_i64 psw_addr;
