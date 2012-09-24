@@ -3007,7 +3007,7 @@ float32 float16_to_float32(float16 a, flag ieee STATUS_PARAM)
         if (aSig) {
             return commonNaNToFloat32(float16ToCommonNaN(a STATUS_VAR) STATUS_VAR);
         }
-        return packFloat32(aSign, 0xff, aSig << 13);
+        return packFloat32(aSign, 0xff, 0);
     }
     if (aExp == 0) {
         int8 shiftCount;
