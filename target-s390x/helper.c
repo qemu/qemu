@@ -454,18 +454,19 @@ void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 
     env->psw.addr = addr;
     env->psw.mask = mask;
-    env->cc_op = (mask >> 13) & 3;
+    env->cc_op = (mask >> 44) & 3;
 }
 
 static uint64_t get_psw_mask(CPUS390XState *env)
 {
-    uint64_t r = env->psw.mask;
+    uint64_t r;
 
     env->cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst, env->cc_vr);
 
-    r &= ~(3ULL << 13);
+    r = env->psw.mask;
+    r &= ~PSW_MASK_CC;
     assert(!(env->cc_op & ~3));
-    r |= env->cc_op << 13;
+    r |= (uint64_t)env->cc_op << 44;
 
     return r;
 }

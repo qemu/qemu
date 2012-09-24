@@ -4559,6 +4559,8 @@ static void disas_s390_insn(CPUS390XState *env, DisasContext *s)
         tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
         tcg_gen_addi_i64(tmp, tmp, 4);
         tcg_gen_qemu_ld32u(tmp3, tmp, get_mem_index(s));
+        /* Convert the 32-bit PSW_MASK into the 64-bit PSW_MASK.  */
+        tcg_gen_shli_i64(tmp2, tmp2, 32);
         gen_helper_load_psw(cpu_env, tmp2, tmp3);
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
