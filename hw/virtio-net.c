@@ -516,17 +516,15 @@ static void work_around_broken_dhclient(struct virtio_net_hdr *hdr,
     }
 }
 
-static int receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
-                          const void *buf, size_t size)
+static void receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
+                           const void *buf, size_t size)
 {
-    int offset = 0;
-
     if (n->has_vnet_hdr) {
         /* FIXME this cast is evil */
         void *wbuf = (void *)buf;
-        work_around_broken_dhclient(wbuf, wbuf + offset, size - offset);
-        offset = sizeof(struct virtio_net_hdr);
-        iov_from_buf(iov, iov_cnt, 0, buf, offset);
+        work_around_broken_dhclient(wbuf, wbuf + n->host_hdr_len,
+                                    size - n->host_hdr_len);
+        iov_from_buf(iov, iov_cnt, 0, buf, sizeof(struct virtio_net_hdr));
     } else {
         struct virtio_net_hdr hdr = {
             .flags = 0,
@@ -534,8 +532,6 @@ static int receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
         };
         iov_from_buf(iov, iov_cnt, 0, &hdr, sizeof hdr);
     }
-
-    return offset;
 }
 
 static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
@@ -642,8 +638,8 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
                                     sizeof(mhdr.num_buffers));
             }
 
-            offset += receive_header(n, sg, elem.in_num,
-                                     buf + offset, size - offset);
+            receive_header(n, sg, elem.in_num, buf + offset, size - offset);
+            offset += n->host_hdr_len;
             total += n->guest_hdr_len;
             guest_offset = n->guest_hdr_len;
         } else {
