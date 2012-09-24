@@ -720,12 +720,7 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
         struct iovec *out_sg = &elem.out_sg[0];
         struct iovec sg[VIRTQUEUE_MAX_SIZE];
 
-        /* hdr_len refers to the header received from the guest */
-        hdr_len = n->mergeable_rx_bufs ?
-            sizeof(struct virtio_net_hdr_mrg_rxbuf) :
-            sizeof(struct virtio_net_hdr);
-
-        if (out_num < 1 || out_sg->iov_len != hdr_len) {
+        if (out_num < 1) {
             error_report("virtio-net header not in first element");
             exit(1);
         }
@@ -747,7 +742,7 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
             out_sg = sg;
         }
 
-        len = hdr_len;
+        len = n->guest_hdr_len;
 
         ret = qemu_sendv_packet_async(&n->nic->nc, out_sg, out_num,
                                       virtio_net_tx_complete);
