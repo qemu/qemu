@@ -504,39 +504,36 @@ static int virtio_net_has_buffers(VirtIONet *n, int bufsize)
  * cache.
  */
 static void work_around_broken_dhclient(struct virtio_net_hdr *hdr,
-                                        const uint8_t *buf, size_t size)
+                                        uint8_t *buf, size_t size)
 {
     if ((hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) && /* missing csum */
         (size > 27 && size < 1500) && /* normal sized MTU */
         (buf[12] == 0x08 && buf[13] == 0x00) && /* ethertype == IPv4 */
         (buf[23] == 17) && /* ip.protocol == UDP */
         (buf[34] == 0 && buf[35] == 67)) { /* udp.srcport == bootps */
-        /* FIXME this cast is evil */
-        net_checksum_calculate((uint8_t *)buf, size);
+        net_checksum_calculate(buf, size);
         hdr->flags &= ~VIRTIO_NET_HDR_F_NEEDS_CSUM;
     }
 }
 
-static int receive_header(VirtIONet *n, struct iovec *iov, int iovcnt,
-                          const void *buf, size_t size, size_t hdr_len)
+static int receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
+                          const void *buf, size_t size)
 {
-    struct virtio_net_hdr *hdr = (struct virtio_net_hdr *)iov[0].iov_base;
     int offset = 0;
 
-    hdr->flags = 0;
-    hdr->gso_type = VIRTIO_NET_HDR_GSO_NONE;
-
     if (n->has_vnet_hdr) {
-        memcpy(hdr, buf, sizeof(*hdr));
-        offset = sizeof(*hdr);
-        work_around_broken_dhclient(hdr, buf + offset, size - offset);
+        /* FIXME this cast is evil */
+        void *wbuf = (void *)buf;
+        work_around_broken_dhclient(wbuf, wbuf + offset, size - offset);
+        offset = sizeof(struct virtio_net_hdr);
+        iov_from_buf(iov, iov_cnt, 0, buf, offset);
+    } else {
+        struct virtio_net_hdr hdr = {
+            .flags = 0,
+            .gso_type = VIRTIO_NET_HDR_GSO_NONE
+        };
+        iov_from_buf(iov, iov_cnt, 0, &hdr, sizeof hdr);
     }
-
-    /* We only ever receive a struct virtio_net_hdr from the tapfd,
-     * but we may be passing along a larger header to the guest.
-     */
-    iov[0].iov_base += hdr_len;
-    iov[0].iov_len  -= hdr_len;
 
     return offset;
 }
@@ -598,7 +595,8 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
     struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
-    size_t offset, i;
+    const struct iovec *sg = elem.in_sg;
+    size_t offset, i, guest_offset;
 
     if (!virtio_net_can_receive(&n->nic->nc))
         return -1;
@@ -615,7 +613,7 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
     while (offset < size) {
         VirtQueueElement elem;
         int len, total;
-        struct iovec sg[VIRTQUEUE_MAX_SIZE];
+        const struct iovec *sg = elem.in_sg;
 
         total = 0;
 
@@ -640,20 +638,20 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
             exit(1);
         }
 
-        memcpy(&sg, &elem.in_sg[0], sizeof(sg[0]) * elem.in_num);
-
         if (i == 0) {
             if (n->mergeable_rx_bufs)
                 mhdr = (struct virtio_net_hdr_mrg_rxbuf *)sg[0].iov_base;
 
             offset += receive_header(n, sg, elem.in_num,
-                                     buf + offset, size - offset,
-                                     n->guest_hdr_len);
+                                     buf + offset, size - offset);
             total += n->guest_hdr_len;
+            guest_offset = n->guest_hdr_len;
+        } else {
+            guest_offset = 0;
         }
 
         /* copy in packet.  ugh */
-        len = iov_from_buf(sg, elem.in_num, 0,
+        len = iov_from_buf(sg, elem.in_num, guest_offset,
                            buf + offset, size - offset);
         total += len;
         offset += len;
