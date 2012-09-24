@@ -45,6 +45,8 @@ void aio_set_event_notifier(AioContext *ctx,
     /* Are we deleting the fd handler? */
     if (!io_notify) {
         if (node) {
+            g_source_remove_poll(&ctx->source, &node->pfd);
+
             /* If the lock is held, just mark the node as deleted */
             if (ctx->walking_handlers) {
                 node->deleted = 1;
@@ -66,6 +68,8 @@ void aio_set_event_notifier(AioContext *ctx,
             node->pfd.fd = (uintptr_t)event_notifier_get_handle(e);
             node->pfd.events = G_IO_IN;
             QLIST_INSERT_HEAD(&ctx->aio_handlers, node, node);
+
+            g_source_add_poll(&ctx->source, &node->pfd);
         }
         /* Update handler with latest information */
         node->io_notify = io_notify;

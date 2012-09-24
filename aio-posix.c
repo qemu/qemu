@@ -56,6 +56,8 @@ void aio_set_fd_handler(AioContext *ctx,
     /* Are we deleting the fd handler? */
     if (!io_read && !io_write) {
         if (node) {
+            g_source_remove_poll(&ctx->source, &node->pfd);
+
             /* If the lock is held, just mark the node as deleted */
             if (ctx->walking_handlers) {
                 node->deleted = 1;
@@ -75,6 +77,8 @@ void aio_set_fd_handler(AioContext *ctx,
             node = g_malloc0(sizeof(AioHandler));
             node->pfd.fd = fd;
             QLIST_INSERT_HEAD(&ctx->aio_handlers, node, node);
+
+            g_source_add_poll(&ctx->source, &node->pfd);
         }
         /* Update handler with latest information */
         node->io_read = io_read;

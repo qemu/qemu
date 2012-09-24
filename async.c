@@ -136,10 +136,73 @@ void aio_bh_update_timeout(AioContext *ctx, uint32_t *timeout)
     }
 }
 
+static gboolean
+aio_ctx_prepare(GSource *source, gint    *timeout)
+{
+    AioContext *ctx = (AioContext *) source;
+    uint32_t wait = -1;
+    aio_bh_update_timeout(ctx, &wait);
+
+    if (wait != -1) {
+        *timeout = MIN(*timeout, wait);
+        return wait == 0;
+    }
+
+    return false;
+}
+
+static gboolean
+aio_ctx_check(GSource *source)
+{
+    AioContext *ctx = (AioContext *) source;
+    QEMUBH *bh;
+
+    for (bh = ctx->first_bh; bh; bh = bh->next) {
+        if (!bh->deleted && bh->scheduled) {
+            return true;
+	}
+    }
+    return aio_pending(ctx);
+}
+
+static gboolean
+aio_ctx_dispatch(GSource     *source,
+                 GSourceFunc  callback,
+                 gpointer     user_data)
+{
+    AioContext *ctx = (AioContext *) source;
+
+    assert(callback == NULL);
+    aio_poll(ctx, false);
+    return true;
+}
+
+static GSourceFuncs aio_source_funcs = {
+    aio_ctx_prepare,
+    aio_ctx_check,
+    aio_ctx_dispatch,
+    NULL
+};
+
+GSource *aio_get_g_source(AioContext *ctx)
+{
+    g_source_ref(&ctx->source);
+    return &ctx->source;
+}
 
 AioContext *aio_context_new(void)
 {
-    return g_new0(AioContext, 1);
+    return (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+}
+
+void aio_context_ref(AioContext *ctx)
+{
+    g_source_ref(&ctx->source);
+}
+
+void aio_context_unref(AioContext *ctx)
+{
+    g_source_unref(&ctx->source);
 }
 
 void aio_flush(AioContext *ctx)
