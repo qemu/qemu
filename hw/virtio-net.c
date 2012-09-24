@@ -544,9 +544,7 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
     if (n->promisc)
         return 1;
 
-    if (n->has_vnet_hdr) {
-        ptr += sizeof(struct virtio_net_hdr);
-    }
+    ptr += n->host_hdr_len;
 
     if (!memcmp(&ptr[12], vlan, sizeof(vlan))) {
         int vid = be16_to_cpup((uint16_t *)(ptr + 14)) & 0xfff;
