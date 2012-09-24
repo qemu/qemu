@@ -241,7 +241,7 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                                   elem->in_sg[i].iov_len,
                                   1, size);
 
-        offset += elem->in_sg[i].iov_len;
+        offset += size;
     }
 
     for (i = 0; i < elem->out_num; i++)
