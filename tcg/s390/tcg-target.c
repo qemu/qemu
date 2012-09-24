@@ -1113,7 +1113,7 @@ static void tgen64_xori(TCGContext *s, TCGReg dest, tcg_target_ulong val)
 static int tgen_cmp(TCGContext *s, TCGType type, TCGCond c, TCGReg r1,
                     TCGArg c2, int c2const)
 {
-    bool is_unsigned = (c > TCG_COND_GT);
+    bool is_unsigned = is_unsigned_cond(c);
     if (c2const) {
         if (c2 == 0) {
             if (type == TCG_TYPE_I32) {
