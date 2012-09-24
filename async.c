@@ -30,6 +30,7 @@
 /* bottom halves (can be seen as timers which expire ASAP) */
 
 struct QEMUBH {
+    AioContext *ctx;
     QEMUBHFunc *cb;
     void *opaque;
     QEMUBH *next;
@@ -42,6 +43,7 @@ QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
     bh = g_malloc0(sizeof(QEMUBH));
+    bh->ctx = ctx;
     bh->cb = cb;
     bh->opaque = opaque;
     bh->next = ctx->first_bh;
@@ -101,8 +103,7 @@ void qemu_bh_schedule(QEMUBH *bh)
         return;
     bh->scheduled = 1;
     bh->idle = 0;
-    /* stop the currently executing CPU to execute the BH ASAP */
-    qemu_notify_event();
+    aio_notify(bh->ctx);
 }
 
 void qemu_bh_cancel(QEMUBH *bh)
@@ -177,11 +178,20 @@ aio_ctx_dispatch(GSource     *source,
     return true;
 }
 
+static void
+aio_ctx_finalize(GSource     *source)
+{
+    AioContext *ctx = (AioContext *) source;
+
+    aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL);
+    event_notifier_cleanup(&ctx->notifier);
+}
+
 static GSourceFuncs aio_source_funcs = {
     aio_ctx_prepare,
     aio_ctx_check,
     aio_ctx_dispatch,
-    NULL
+    aio_ctx_finalize
 };
 
 GSource *aio_get_g_source(AioContext *ctx)
@@ -190,9 +200,21 @@ GSource *aio_get_g_source(AioContext *ctx)
     return &ctx->source;
 }
 
+void aio_notify(AioContext *ctx)
+{
+    event_notifier_set(&ctx->notifier);
+}
+
 AioContext *aio_context_new(void)
 {
-    return (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    AioContext *ctx;
+    ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    event_notifier_init(&ctx->notifier, false);
+    aio_set_event_notifier(ctx, &ctx->notifier, 
+                           (EventNotifierHandler *)
+                           event_notifier_test_and_clear, NULL);
+
+    return ctx;
 }
 
 void aio_context_ref(AioContext *ctx)

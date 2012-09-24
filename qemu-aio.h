@@ -62,6 +62,9 @@ typedef struct AioContext {
      * no callbacks are removed while we're walking and dispatching callbacks.
      */
     int walking_bh;
+
+    /* Used for aio_notify.  */
+    EventNotifier notifier;
 } AioContext;
 
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
@@ -100,6 +103,21 @@ void aio_context_unref(AioContext *ctx);
  * is opaque and must be allocated prior to its use.
  */
 QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
+
+/**
+ * aio_notify: Force processing of pending events.
+ *
+ * Similar to signaling a condition variable, aio_notify forces
+ * aio_wait to exit, so that the next call will re-examine pending events.
+ * The caller of aio_notify will usually call aio_wait again very soon,
+ * or go through another iteration of the GLib main loop.  Hence, aio_notify
+ * also has the side effect of recalculating the sets of file descriptors
+ * that the main loop waits for.
+ *
+ * Calling aio_notify is rarely necessary, because for example scheduling
+ * a bottom half calls it already.
+ */
+void aio_notify(AioContext *ctx);
 
 /**
  * aio_bh_poll: Poll bottom halves for an AioContext.
