@@ -36,7 +36,7 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt);
  * such "large" value is -1 (sinice size_t is unsigned),
  * so specifying `-1' as `bytes' means 'up to the end of iovec'.
  */
-size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
+size_t iov_from_buf(const struct iovec *iov, unsigned int iov_cnt,
                     size_t offset, const void *buf, size_t bytes);
 size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
                   size_t offset, void *buf, size_t bytes);
