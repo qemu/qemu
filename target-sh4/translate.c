@@ -1924,7 +1924,7 @@ static void decode_opc(DisasContext * ctx)
 {
     uint32_t old_flags = ctx->flags;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
         tcg_gen_debug_insn_start(ctx->pc);
     }
 

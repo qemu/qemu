@@ -2394,8 +2394,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     TCGv_i64 cpu_src1_64, cpu_src2_64, cpu_dst_64;
     target_long simm;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
         tcg_gen_debug_insn_start(dc->pc);
+    }
 
     opc = GET_FIELD(insn, 0, 1);
 

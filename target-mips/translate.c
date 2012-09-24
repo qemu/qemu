@@ -12124,8 +12124,9 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         gen_set_label(l1);
     }
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
         tcg_gen_debug_insn_start(ctx->pc);
+    }
 
     op = MASK_OP_MAJOR(ctx->opcode);
     rs = (ctx->opcode >> 21) & 0x1f;
