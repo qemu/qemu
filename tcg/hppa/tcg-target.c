@@ -732,7 +732,7 @@ static void tcg_out_branch(TCGContext *s, int label_index, int nul)
     }
 }
 
-static const uint8_t tcg_cond_to_cmp_cond[10] =
+static const uint8_t tcg_cond_to_cmp_cond[] =
 {
     [TCG_COND_EQ] = COND_EQ,
     [TCG_COND_NE] = COND_EQ | COND_FALSE,

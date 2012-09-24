@@ -418,7 +418,7 @@ enum {
     CR_SO
 };
 
-static const uint32_t tcg_to_bc[10] = {
+static const uint32_t tcg_to_bc[] = {
     [TCG_COND_EQ]  = BC | BI (7, CR_EQ) | BO_COND_TRUE,
     [TCG_COND_NE]  = BC | BI (7, CR_EQ) | BO_COND_FALSE,
     [TCG_COND_LT]  = BC | BI (7, CR_LT) | BO_COND_TRUE,

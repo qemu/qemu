@@ -268,7 +268,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define S390_CC_ALWAYS  15
 
 /* Condition codes that result from a COMPARE and COMPARE LOGICAL.  */
-static const uint8_t tcg_cond_to_s390_cond[10] = {
+static const uint8_t tcg_cond_to_s390_cond[] = {
     [TCG_COND_EQ]  = S390_CC_EQ,
     [TCG_COND_NE]  = S390_CC_NE,
     [TCG_COND_LT]  = S390_CC_LT,
@@ -284,7 +284,7 @@ static const uint8_t tcg_cond_to_s390_cond[10] = {
 /* Condition codes that result from a LOAD AND TEST.  Here, we have no
    unsigned instruction variation, however since the test is vs zero we
    can re-map the outcomes appropriately.  */
-static const uint8_t tcg_cond_to_ltr_cond[10] = {
+static const uint8_t tcg_cond_to_ltr_cond[] = {
     [TCG_COND_EQ]  = S390_CC_EQ,
     [TCG_COND_NE]  = S390_CC_NE,
     [TCG_COND_LT]  = S390_CC_LT,

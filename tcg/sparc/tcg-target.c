@@ -512,7 +512,7 @@ static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
 }
 #endif
 
-static const uint8_t tcg_cond_to_bcond[10] = {
+static const uint8_t tcg_cond_to_bcond[] = {
     [TCG_COND_EQ] = COND_E,
     [TCG_COND_NE] = COND_NE,
     [TCG_COND_LT] = COND_L,
