@@ -534,7 +534,7 @@ void qemu_aio_flush(void)
 
 bool qemu_aio_wait(void)
 {
-    return aio_wait(qemu_aio_context);
+    return aio_poll(qemu_aio_context, true);
 }
 
 void qemu_aio_set_fd_handler(int fd,

@@ -144,5 +144,5 @@ AioContext *aio_context_new(void)
 
 void aio_flush(AioContext *ctx)
 {
-    while (aio_wait(ctx));
+    while (aio_poll(ctx, true));
 }

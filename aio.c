@@ -93,13 +93,16 @@ void aio_set_event_notifier(AioContext *ctx,
                        (AioFlushHandler *)io_flush, notifier);
 }
 
-bool aio_wait(AioContext *ctx)
+bool aio_poll(AioContext *ctx, bool blocking)
 {
+    static struct timeval tv0;
     AioHandler *node;
     fd_set rdfds, wrfds;
     int max_fd = -1;
     int ret;
-    bool busy;
+    bool busy, progress;
+
+    progress = false;
 
     /*
      * If there are callbacks left that have been queued, we need to call then.
@@ -107,6 +110,11 @@ bool aio_wait(AioContext *ctx)
      * does not need a complete flush (as is the case for qemu_aio_wait loops).
      */
     if (aio_bh_poll(ctx)) {
+        blocking = false;
+        progress = true;
+    }
+
+    if (progress && !blocking) {
         return true;
     }
 
@@ -142,11 +150,11 @@ bool aio_wait(AioContext *ctx)
 
     /* No AIO operations?  Get us out of here */
     if (!busy) {
-        return false;
+        return progress;
     }
 
     /* wait until next event */
-    ret = select(max_fd, &rdfds, &wrfds, NULL, NULL);
+    ret = select(max_fd, &rdfds, &wrfds, NULL, blocking ? NULL : &tv0);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
@@ -161,11 +169,13 @@ bool aio_wait(AioContext *ctx)
             if (!node->deleted &&
                 FD_ISSET(node->fd, &rdfds) &&
                 node->io_read) {
+                progress = true;
                 node->io_read(node->opaque);
             }
             if (!node->deleted &&
                 FD_ISSET(node->fd, &wrfds) &&
                 node->io_write) {
+                progress = true;
                 node->io_write(node->opaque);
             }
 
@@ -181,5 +191,5 @@ bool aio_wait(AioContext *ctx)
         }
     }
 
-    return true;
+    return progress;
 }

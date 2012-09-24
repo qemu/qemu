@@ -133,13 +133,22 @@ void qemu_bh_delete(QEMUBH *bh);
  * outstanding AIO operations have been completed or cancelled. */
 void aio_flush(AioContext *ctx);
 
-/* Wait for a single AIO completion to occur.  This function will wait
- * until a single AIO event has completed and it will ensure something
- * has moved before returning. This can issue new pending aio as
- * result of executing I/O completion or bh callbacks.
+/* Progress in completing AIO work to occur.  This can issue new pending
+ * aio as a result of executing I/O completion or bh callbacks.
  *
- * Return whether there is still any pending AIO operation.  */
-bool aio_wait(AioContext *ctx);
+ * If there is no pending AIO operation or completion (bottom half),
+ * return false.  If there are pending bottom halves, return true.
+ *
+ * If there are no pending bottom halves, but there are pending AIO
+ * operations, it may not be possible to make any progress without
+ * blocking.  If @blocking is true, this function will wait until one
+ * or more AIO events have completed, to ensure something has moved
+ * before returning.
+ *
+ * If @blocking is false, this function will also return false if the
+ * function cannot make any progress without blocking.
+ */
+bool aio_poll(AioContext *ctx, bool blocking);
 
 #ifdef CONFIG_POSIX
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
