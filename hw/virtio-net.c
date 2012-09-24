@@ -228,6 +228,20 @@ static int peer_has_ufo(VirtIONet *n)
     return n->has_ufo;
 }
 
+static void virtio_net_set_mrg_rx_bufs(VirtIONet *n, int mergeable_rx_bufs)
+{
+    n->mergeable_rx_bufs = mergeable_rx_bufs;
+
+    n->guest_hdr_len = n->mergeable_rx_bufs ?
+        sizeof(struct virtio_net_hdr_mrg_rxbuf) : sizeof(struct virtio_net_hdr);
+
+    if (peer_has_vnet_hdr(n) &&
+        tap_has_vnet_hdr_len(n->nic->nc.peer, n->guest_hdr_len)) {
+        tap_set_vnet_hdr_len(n->nic->nc.peer, n->guest_hdr_len);
+        n->host_hdr_len = n->guest_hdr_len;
+    }
+}
+
 static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIONet *n = to_virtio_net(vdev);
@@ -280,9 +294,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
 {
     VirtIONet *n = to_virtio_net(vdev);
 
-    n->mergeable_rx_bufs = !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF));
-    n->guest_hdr_len = n->mergeable_rx_bufs ?
-        sizeof(struct virtio_net_hdr_mrg_rxbuf) : sizeof(struct virtio_net_hdr);
+    virtio_net_set_mrg_rx_bufs(n, !!(features & (1 << VIRTIO_NET_F_MRG_RXBUF)));
 
     if (n->has_vnet_hdr) {
         tap_set_offload(n->nic->nc.peer,
@@ -898,9 +910,8 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_buffer(f, n->mac, ETH_ALEN);
     n->tx_waiting = qemu_get_be32(f);
-    n->mergeable_rx_bufs = qemu_get_be32(f);
-    n->guest_hdr_len = n->mergeable_rx_bufs ?
-        sizeof(struct virtio_net_hdr_mrg_rxbuf) : sizeof(struct virtio_net_hdr);
+
+    virtio_net_set_mrg_rx_bufs(n, qemu_get_be32(f));
 
     if (version_id >= 3)
         n->status = qemu_get_be16(f);
@@ -1050,8 +1061,7 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
 
     n->tx_waiting = 0;
     n->tx_burst = net->txburst;
-    n->mergeable_rx_bufs = 0;
-    n->guest_hdr_len = sizeof(struct virtio_net_hdr);
+    virtio_net_set_mrg_rx_bufs(n, 0);
     n->promisc = 1; /* for compatibility */
 
     n->mac_table.macs = g_malloc0(MAC_TABLE_ENTRIES * ETH_ALEN);
