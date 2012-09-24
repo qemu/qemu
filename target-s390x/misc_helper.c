@@ -53,7 +53,8 @@ void HELPER(exception)(CPUS390XState *env, uint32_t excp)
 #ifndef CONFIG_USER_ONLY
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
 {
-    qemu_log("program interrupt at %#" PRIx64 "\n", env->psw.addr);
+    qemu_log_mask(CPU_LOG_INT, "program interrupt at %#" PRIx64 "\n",
+                  env->psw.addr);
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
