@@ -240,7 +240,9 @@ static int migrate_fd_cleanup(MigrationState *s)
 {
     int ret = 0;
 
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    if (s->fd != -1) {
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    }
 
     if (s->file) {
         DPRINTF("closing file\n");
