@@ -205,6 +205,7 @@ static AioContext *qemu_aio_context;
 int qemu_init_main_loop(void)
 {
     int ret;
+    GSource *src;
 
     init_clocks();
     init_timer_alarm();
@@ -222,6 +223,9 @@ int qemu_init_main_loop(void)
     }
 
     qemu_aio_context = aio_context_new();
+    src = aio_get_g_source(qemu_aio_context);
+    g_source_attach(src, NULL);
+    g_source_unref(src);
     return 0;
 }
 
@@ -484,8 +488,6 @@ int main_loop_wait(int nonblocking)
 
     if (nonblocking) {
         timeout = 0;
-    } else {
-        aio_bh_update_timeout(qemu_aio_context, &timeout);
     }
 
     /* poll any events */
@@ -508,10 +510,6 @@ int main_loop_wait(int nonblocking)
 
     qemu_run_all_timers();
 
-    /* Check bottom-halves last in case any of the earlier events triggered
-       them.  */
-    qemu_bh_poll();
-
     return ret;
 }
 
@@ -520,11 +518,6 @@ int main_loop_wait(int nonblocking)
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 {
     return aio_bh_new(qemu_aio_context, cb, opaque);
-}
-
-int qemu_bh_poll(void)
-{
-    return aio_bh_poll(qemu_aio_context);
 }
 
 void qemu_aio_flush(void)
@@ -546,16 +539,12 @@ void qemu_aio_set_fd_handler(int fd,
 {
     aio_set_fd_handler(qemu_aio_context, fd, io_read, io_write, io_flush,
                        opaque);
-
-    qemu_set_fd_handler2(fd, NULL, io_read, io_write, opaque);
 }
+#endif
 
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
                                  EventNotifierHandler *io_read,
                                  AioFlushEventNotifierHandler *io_flush)
 {
-    qemu_aio_set_fd_handler(event_notifier_get_fd(notifier),
-                            (IOHandler *)io_read, NULL,
-                            (AioFlushHandler *)io_flush, notifier);
+    aio_set_event_notifier(qemu_aio_context, notifier, io_read, io_flush);
 }
-#endif
