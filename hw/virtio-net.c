@@ -690,7 +690,7 @@ static void virtio_net_tx_complete(NetClientState *nc, ssize_t len)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    virtqueue_push(n->tx_vq, &n->async_tx.elem, n->async_tx.len);
+    virtqueue_push(n->tx_vq, &n->async_tx.elem, 0);
     virtio_notify(&n->vdev, n->tx_vq);
 
     n->async_tx.elem.out_num = n->async_tx.len = 0;
@@ -754,7 +754,7 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
 
         len += ret;
 
-        virtqueue_push(vq, &elem, len);
+        virtqueue_push(vq, &elem, 0);
         virtio_notify(&n->vdev, vq);
 
         if (++num_packets >= n->tx_burst) {
