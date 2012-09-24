@@ -302,14 +302,31 @@ static inline TCGCond tcg_swap_cond(TCGCond c)
     return c & 6 ? (TCGCond)(c ^ 9) : c;
 }
 
+/* Create an "unsigned" version of a "signed" comparison.  */
 static inline TCGCond tcg_unsigned_cond(TCGCond c)
 {
     return c & 2 ? (TCGCond)(c ^ 6) : c;
 }
 
+/* Must a comparison be considered unsigned?  */
 static inline bool is_unsigned_cond(TCGCond c)
 {
     return (c & 4) != 0;
+}
+
+/* Create a "high" version of a double-word comparison.
+   This removes equality from a LTE or GTE comparison.  */
+static inline TCGCond tcg_high_cond(TCGCond c)
+{
+    switch (c) {
+    case TCG_COND_GE:
+    case TCG_COND_LE:
+    case TCG_COND_GEU:
+    case TCG_COND_LEU:
+        return (TCGCond)(c ^ 8);
+    default:
+        return c;
+    }
 }
 
 #define TEMP_VAL_DEAD  0
