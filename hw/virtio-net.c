@@ -202,16 +202,19 @@ static void virtio_net_reset(VirtIODevice *vdev)
     memset(n->vlans, 0, MAX_VLAN >> 3);
 }
 
-static int peer_has_vnet_hdr(VirtIONet *n)
+static void peer_test_vnet_hdr(VirtIONet *n)
 {
     if (!n->nic->nc.peer)
-        return 0;
+        return;
 
     if (n->nic->nc.peer->info->type != NET_CLIENT_OPTIONS_KIND_TAP)
-        return 0;
+        return;
 
     n->has_vnet_hdr = tap_has_vnet_hdr(n->nic->nc.peer);
+}
 
+static int peer_has_vnet_hdr(VirtIONet *n)
+{
     return n->has_vnet_hdr;
 }
 
@@ -231,10 +234,7 @@ static uint32_t virtio_net_get_features(VirtIODevice *vdev, uint32_t features)
 
     features |= (1 << VIRTIO_NET_F_MAC);
 
-    if (peer_has_vnet_hdr(n)) {
-        tap_using_vnet_hdr(n->nic->nc.peer, 1);
-        n->host_hdr_len = sizeof(struct virtio_net_hdr);
-    } else {
+    if (!peer_has_vnet_hdr(n)) {
         features &= ~(0x1 << VIRTIO_NET_F_CSUM);
         features &= ~(0x1 << VIRTIO_NET_F_HOST_TSO4);
         features &= ~(0x1 << VIRTIO_NET_F_HOST_TSO6);
@@ -940,8 +940,6 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         if (n->has_vnet_hdr) {
-            tap_using_vnet_hdr(n->nic->nc.peer, 1);
-            n->host_hdr_len = sizeof(struct virtio_net_hdr);
             tap_set_offload(n->nic->nc.peer,
                     (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_CSUM) & 1,
                     (n->vdev.guest_features >> VIRTIO_NET_F_GUEST_TSO4) & 1,
@@ -1040,6 +1038,13 @@ VirtIODevice *virtio_net_init(DeviceState *dev, NICConf *conf,
     n->status = VIRTIO_NET_S_LINK_UP;
 
     n->nic = qemu_new_nic(&net_virtio_info, conf, object_get_typename(OBJECT(dev)), dev->id, n);
+    peer_test_vnet_hdr(n);
+    if (peer_has_vnet_hdr(n)) {
+        tap_using_vnet_hdr(n->nic->nc.peer, 1);
+        n->host_hdr_len = sizeof(struct virtio_net_hdr);
+    } else {
+        n->host_hdr_len = 0;
+    }
 
     qemu_format_nic_info_str(&n->nic->nc, conf->macaddr.a);
 
