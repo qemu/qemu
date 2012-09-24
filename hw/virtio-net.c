@@ -594,8 +594,9 @@ static int receive_filter(VirtIONet *n, const uint8_t *buf, int size)
 static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     VirtIONet *n = DO_UPCAST(NICState, nc, nc)->opaque;
-    struct virtio_net_hdr_mrg_rxbuf *mhdr = NULL;
-    const struct iovec *sg = elem.in_sg;
+    struct iovec mhdr_sg[VIRTQUEUE_MAX_SIZE];
+    struct virtio_net_hdr_mrg_rxbuf mhdr;
+    unsigned mhdr_cnt = 0;
     size_t offset, i, guest_offset;
 
     if (!virtio_net_can_receive(&n->nic->nc))
@@ -633,14 +634,13 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
             exit(1);
         }
 
-        if (!n->mergeable_rx_bufs && elem.in_sg[0].iov_len != n->guest_hdr_len) {
-            error_report("virtio-net header not in first element");
-            exit(1);
-        }
-
         if (i == 0) {
-            if (n->mergeable_rx_bufs)
-                mhdr = (struct virtio_net_hdr_mrg_rxbuf *)sg[0].iov_base;
+            if (n->mergeable_rx_bufs) {
+                mhdr_cnt = iov_copy(mhdr_sg, ARRAY_SIZE(mhdr_sg),
+                                    sg, elem.in_num,
+                                    offsetof(typeof(mhdr), num_buffers),
+                                    sizeof(mhdr.num_buffers));
+            }
 
             offset += receive_header(n, sg, elem.in_num,
                                      buf + offset, size - offset);
@@ -673,8 +673,11 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
         virtqueue_fill(n->rx_vq, &elem, total, i++);
     }
 
-    if (mhdr) {
-        stw_p(&mhdr->num_buffers, i);
+    if (mhdr_cnt) {
+        stw_p(&mhdr.num_buffers, i);
+        iov_from_buf(mhdr_sg, mhdr_cnt,
+                     0,
+                     &mhdr.num_buffers, sizeof mhdr.num_buffers);
     }
 
     virtqueue_flush(n->rx_vq, i);
