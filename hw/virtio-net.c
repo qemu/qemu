@@ -631,6 +631,7 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
         }
 
         if (i == 0) {
+            assert(offset == 0);
             if (n->mergeable_rx_bufs) {
                 mhdr_cnt = iov_copy(mhdr_sg, ARRAY_SIZE(mhdr_sg),
                                     sg, elem.in_num,
@@ -638,8 +639,8 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
                                     sizeof(mhdr.num_buffers));
             }
 
-            receive_header(n, sg, elem.in_num, buf + offset, size - offset);
-            offset += n->host_hdr_len;
+            receive_header(n, sg, elem.in_num, buf, size);
+            offset = n->host_hdr_len;
             total += n->guest_hdr_len;
             guest_offset = n->guest_hdr_len;
         } else {
