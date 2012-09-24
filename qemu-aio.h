@@ -133,6 +133,13 @@ void qemu_bh_delete(QEMUBH *bh);
  * outstanding AIO operations have been completed or cancelled. */
 void aio_flush(AioContext *ctx);
 
+/* Return whether there are any pending callbacks from the GSource
+ * attached to the AioContext.
+ *
+ * This is used internally in the implementation of the GSource.
+ */
+bool aio_pending(AioContext *ctx);
+
 /* Progress in completing AIO work to occur.  This can issue new pending
  * aio as a result of executing I/O completion or bh callbacks.
  *

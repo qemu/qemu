@@ -20,7 +20,7 @@
 
 struct AioHandler
 {
-    int fd;
+    GPollFD pfd;
     IOHandler *io_read;
     IOHandler *io_write;
     AioFlushHandler *io_flush;
@@ -34,7 +34,7 @@ static AioHandler *find_aio_handler(AioContext *ctx, int fd)
     AioHandler *node;
 
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-        if (node->fd == fd)
+        if (node->pfd.fd == fd)
             if (!node->deleted)
                 return node;
     }
@@ -57,9 +57,10 @@ void aio_set_fd_handler(AioContext *ctx,
     if (!io_read && !io_write) {
         if (node) {
             /* If the lock is held, just mark the node as deleted */
-            if (ctx->walking_handlers)
+            if (ctx->walking_handlers) {
                 node->deleted = 1;
-            else {
+                node->pfd.revents = 0;
+            } else {
                 /* Otherwise, delete it for real.  We can't just mark it as
                  * deleted because deleted nodes are only cleaned up after
                  * releasing the walking_handlers lock.
@@ -72,7 +73,7 @@ void aio_set_fd_handler(AioContext *ctx,
         if (node == NULL) {
             /* Alloc and insert if it's not already there */
             node = g_malloc0(sizeof(AioHandler));
-            node->fd = fd;
+            node->pfd.fd = fd;
             QLIST_INSERT_HEAD(&ctx->aio_handlers, node, node);
         }
         /* Update handler with latest information */
@@ -80,6 +81,9 @@ void aio_set_fd_handler(AioContext *ctx,
         node->io_write = io_write;
         node->io_flush = io_flush;
         node->opaque = opaque;
+
+        node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP : 0);
+        node->pfd.events |= (io_write ? G_IO_OUT : 0);
     }
 }
 
@@ -91,6 +95,32 @@ void aio_set_event_notifier(AioContext *ctx,
     aio_set_fd_handler(ctx, event_notifier_get_fd(notifier),
                        (IOHandler *)io_read, NULL,
                        (AioFlushHandler *)io_flush, notifier);
+}
+
+bool aio_pending(AioContext *ctx)
+{
+    AioHandler *node;
+
+    QLIST_FOREACH(node, &ctx->aio_handlers, node) {
+        int revents;
+
+        /*
+         * FIXME: right now we cannot get G_IO_HUP and G_IO_ERR because
+         * main-loop.c is still select based (due to the slirp legacy).
+         * If main-loop.c ever switches to poll, G_IO_ERR should be
+         * tested too.  Dispatching G_IO_ERR to both handlers should be
+         * okay, since handlers need to be ready for spurious wakeups.
+         */
+        revents = node->pfd.revents & node->pfd.events;
+        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read) {
+            return true;
+        }
+        if (revents & (G_IO_OUT | G_IO_ERR) && node->io_write) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool aio_poll(AioContext *ctx, bool blocking)
@@ -112,6 +142,43 @@ bool aio_poll(AioContext *ctx, bool blocking)
     if (aio_bh_poll(ctx)) {
         blocking = false;
         progress = true;
+    }
+
+    /*
+     * Then dispatch any pending callbacks from the GSource.
+     *
+     * We have to walk very carefully in case qemu_aio_set_fd_handler is
+     * called while we're walking.
+     */
+    node = QLIST_FIRST(&ctx->aio_handlers);
+    while (node) {
+        AioHandler *tmp;
+        int revents;
+
+        ctx->walking_handlers++;
+
+        revents = node->pfd.revents & node->pfd.events;
+        node->pfd.revents = 0;
+
+        /* See comment in aio_pending.  */
+        if (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR) && node->io_read) {
+            node->io_read(node->opaque);
+            progress = true;
+        }
+        if (revents & (G_IO_OUT | G_IO_ERR) && node->io_write) {
+            node->io_write(node->opaque);
+            progress = true;
+        }
+
+        tmp = node;
+        node = QLIST_NEXT(node, node);
+
+        ctx->walking_handlers--;
+
+        if (!ctx->walking_handlers && tmp->deleted) {
+            QLIST_REMOVE(tmp, node);
+            g_free(tmp);
+        }
     }
 
     if (progress && !blocking) {
@@ -137,12 +204,12 @@ bool aio_poll(AioContext *ctx, bool blocking)
             busy = true;
         }
         if (!node->deleted && node->io_read) {
-            FD_SET(node->fd, &rdfds);
-            max_fd = MAX(max_fd, node->fd + 1);
+            FD_SET(node->pfd.fd, &rdfds);
+            max_fd = MAX(max_fd, node->pfd.fd + 1);
         }
         if (!node->deleted && node->io_write) {
-            FD_SET(node->fd, &wrfds);
-            max_fd = MAX(max_fd, node->fd + 1);
+            FD_SET(node->pfd.fd, &wrfds);
+            max_fd = MAX(max_fd, node->pfd.fd + 1);
         }
     }
 
@@ -167,16 +234,16 @@ bool aio_poll(AioContext *ctx, bool blocking)
             ctx->walking_handlers++;
 
             if (!node->deleted &&
-                FD_ISSET(node->fd, &rdfds) &&
+                FD_ISSET(node->pfd.fd, &rdfds) &&
                 node->io_read) {
-                progress = true;
                 node->io_read(node->opaque);
+                progress = true;
             }
             if (!node->deleted &&
-                FD_ISSET(node->fd, &wrfds) &&
+                FD_ISSET(node->pfd.fd, &wrfds) &&
                 node->io_write) {
-                progress = true;
                 node->io_write(node->opaque);
+                progress = true;
             }
 
             tmp = node;
