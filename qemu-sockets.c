@@ -24,6 +24,7 @@
 
 #include "qemu_socket.h"
 #include "qemu-common.h" /* for qemu_isdigit */
+#include "main-loop.h"
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
@@ -214,14 +215,66 @@ listen:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(struct addrinfo *addr, bool block,
-                             bool *in_progress)
+/* Struct to store connect state for non blocking connect */
+typedef struct ConnectState {
+    int fd;
+    struct addrinfo *addr_list;
+    struct addrinfo *current_addr;
+    NonBlockingConnectHandler *callback;
+    void *opaque;
+} ConnectState;
+
+static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
+                             ConnectState *connect_state);
+
+static void wait_for_connect(void *opaque)
+{
+    ConnectState *s = opaque;
+    int val = 0, rc = 0;
+    socklen_t valsize = sizeof(val);
+    bool in_progress;
+
+    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+
+    do {
+        rc = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
+    } while (rc == -1 && socket_error() == EINTR);
+
+    /* update rc to contain error */
+    if (!rc && val) {
+        rc = -1;
+    }
+
+    /* connect error */
+    if (rc < 0) {
+        closesocket(s->fd);
+        s->fd = rc;
+    }
+
+    /* try to connect to the next address on the list */
+    while (s->current_addr->ai_next != NULL && s->fd < 0) {
+        s->current_addr = s->current_addr->ai_next;
+        s->fd = inet_connect_addr(s->current_addr, &in_progress, s);
+        /* connect in progress */
+        if (in_progress) {
+            return;
+        }
+    }
+
+    freeaddrinfo(s->addr_list);
+    if (s->callback) {
+        s->callback(s->fd, s->opaque);
+    }
+    g_free(s);
+    return;
+}
+
+static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
+                             ConnectState *connect_state)
 {
     int sock, rc;
 
-    if (in_progress) {
-        *in_progress = false;
-    }
+    *in_progress = false;
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
@@ -230,7 +283,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool block,
         return -1;
     }
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-    if (!block) {
+    if (connect_state != NULL) {
         socket_set_nonblock(sock);
     }
     /* connect to peer */
@@ -241,10 +294,11 @@ static int inet_connect_addr(struct addrinfo *addr, bool block,
         }
     } while (rc == -EINTR);
 
-    if (!block && QEMU_SOCKET_RC_INPROGRESS(rc)) {
-        if (in_progress) {
-            *in_progress = true;
-        }
+    if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
+        connect_state->fd = sock;
+        qemu_set_fd_handler2(sock, NULL, NULL, wait_for_connect,
+                             connect_state);
+        *in_progress = true;
     } else if (rc < 0) {
         closesocket(sock);
         return -1;
@@ -260,6 +314,7 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
     const char *port;
 
     memset(&ai, 0, sizeof(ai));
+
     ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
@@ -296,36 +351,55 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
  *
  * @opts: QEMU options, recognized parameters strings "host" and "port",
  *        bools "ipv4" and "ipv6".
- * @block: set true for blocking socket
- * @in_progress: set to true in case of ongoing connect
  * @errp: set on error
+ * @callback: callback function for non-blocking connect
+ * @opaque: opaque for callback function
  *
  * Returns: -1 on error, file descriptor on success.
+ *
+ * If @callback is non-null, the connect is non-blocking.  If this
+ * function succeeds, callback will be called when the connection
+ * completes, with the file descriptor on success, or -1 on error.
  */
-int inet_connect_opts(QemuOpts *opts, bool block, bool *in_progress,
-                      Error **errp)
+int inet_connect_opts(QemuOpts *opts, Error **errp,
+                      NonBlockingConnectHandler *callback, void *opaque)
 {
     struct addrinfo *res, *e;
     int sock = -1;
+    bool in_progress;
+    ConnectState *connect_state = NULL;
 
     res = inet_parse_connect_opts(opts, errp);
     if (!res) {
         return -1;
     }
 
-    if (in_progress) {
-        *in_progress = false;
+    if (callback != NULL) {
+        connect_state = g_malloc0(sizeof(*connect_state));
+        connect_state->addr_list = res;
+        connect_state->callback = callback;
+        connect_state->opaque = opaque;
     }
 
     for (e = res; e != NULL; e = e->ai_next) {
-        sock = inet_connect_addr(e, block, in_progress);
-        if (sock >= 0) {
+        if (connect_state != NULL) {
+            connect_state->current_addr = e;
+        }
+        sock = inet_connect_addr(e, &in_progress, connect_state);
+        if (in_progress) {
+            return sock;
+        } else if (sock >= 0) {
+            /* non blocking socket immediate success, call callback */
+            if (callback != NULL) {
+                callback(sock, opaque);
+            }
             break;
         }
     }
     if (sock < 0) {
         error_set(errp, QERR_SOCKET_CONNECT_FAILED);
     }
+    g_free(connect_state);
     freeaddrinfo(res);
     return sock;
 }
@@ -538,7 +612,7 @@ int inet_connect(const char *str, Error **errp)
 
     opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
     if (inet_parse(opts, str) == 0) {
-        sock = inet_connect_opts(opts, true, NULL, errp);
+        sock = inet_connect_opts(opts, errp, NULL, NULL);
     } else {
         error_set(errp, QERR_SOCKET_CREATE_FAILED);
     }
@@ -548,22 +622,29 @@ int inet_connect(const char *str, Error **errp)
 
 /**
  * Create a non-blocking socket and connect it to an address.
+ * Calls the callback function with fd in case of success or -1 in case of
+ * error.
  *
  * @str: address string
- * @in_progress: set to true in case of ongoing connect
+ * @callback: callback function that is called when connect completes,
+ *            cannot be NULL.
+ * @opaque: opaque for callback function
  * @errp: set in case of an error
  *
- * Returns: -1 on error, file descriptor on success.
+ * Returns: -1 on immediate error, file descriptor on success.
  **/
-int inet_nonblocking_connect(const char *str, bool *in_progress,
-                             Error **errp)
+int inet_nonblocking_connect(const char *str,
+                             NonBlockingConnectHandler *callback,
+                             void *opaque, Error **errp)
 {
     QemuOpts *opts;
     int sock = -1;
 
+    g_assert(callback != NULL);
+
     opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
     if (inet_parse(opts, str) == 0) {
-        sock = inet_connect_opts(opts, false, in_progress, errp);
+        sock = inet_connect_opts(opts, errp, callback, opaque);
     } else {
         error_set(errp, QERR_SOCKET_CREATE_FAILED);
     }
