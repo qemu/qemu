@@ -338,7 +338,7 @@ static unsigned virtqueue_next_desc(target_phys_addr_t desc_pa,
 int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
 {
     unsigned int idx;
-    int total_bufs, in_total, out_total;
+    unsigned int total_bufs, in_total, out_total;
 
     idx = vq->last_avail_idx;
 
