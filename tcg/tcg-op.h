@@ -2212,6 +2212,25 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
                                        TCGv_i64 c1, TCGv_i64 c2,
                                        TCGv_i64 v1, TCGv_i64 v2)
 {
+#if TCG_TARGET_REG_BITS == 32
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    tcg_gen_op6i_i32(INDEX_op_setcond2_i32, t0,
+                     TCGV_LOW(c1), TCGV_HIGH(c1),
+                     TCGV_LOW(c2), TCGV_HIGH(c2), cond);
+    tcg_gen_neg_i32(t0, t0);
+
+    tcg_gen_and_i32(t1, TCGV_LOW(v1), t0);
+    tcg_gen_andc_i32(TCGV_LOW(ret), TCGV_LOW(v2), t0);
+    tcg_gen_or_i32(TCGV_LOW(ret), TCGV_LOW(ret), t1);
+
+    tcg_gen_and_i32(t1, TCGV_HIGH(v1), t0);
+    tcg_gen_andc_i32(TCGV_HIGH(ret), TCGV_HIGH(v2), t0);
+    tcg_gen_or_i32(TCGV_HIGH(ret), TCGV_HIGH(ret), t1);
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+#else
     if (TCG_TARGET_HAS_movcond_i64) {
         tcg_gen_op6i_i64(INDEX_op_movcond_i64, ret, c1, c2, v1, v2, cond);
     } else {
@@ -2225,6 +2244,7 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     }
+#endif
 }
 
 /***************************************/
