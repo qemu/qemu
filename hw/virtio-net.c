@@ -715,10 +715,10 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
     }
 
     while (virtqueue_pop(vq, &elem)) {
-        ssize_t ret, len = 0;
+        ssize_t ret, len;
         unsigned int out_num = elem.out_num;
         struct iovec *out_sg = &elem.out_sg[0];
-        unsigned hdr_len;
+        struct iovec sg[VIRTQUEUE_MAX_SIZE];
 
         /* hdr_len refers to the header received from the guest */
         hdr_len = n->mergeable_rx_bufs ?
@@ -730,17 +730,24 @@ static int32_t virtio_net_flush_tx(VirtIONet *n, VirtQueue *vq)
             exit(1);
         }
 
-        /* ignore the header if GSO is not supported */
-        if (!n->has_vnet_hdr) {
-            out_num--;
-            out_sg++;
-            len += hdr_len;
-        } else if (n->mergeable_rx_bufs) {
-            /* tapfd expects a struct virtio_net_hdr */
-            hdr_len -= sizeof(struct virtio_net_hdr);
-            out_sg->iov_len -= hdr_len;
-            len += hdr_len;
+        /*
+         * If host wants to see the guest header as is, we can
+         * pass it on unchanged. Otherwise, copy just the parts
+         * that host is interested in.
+         */
+        assert(n->host_hdr_len <= n->guest_hdr_len);
+        if (n->host_hdr_len != n->guest_hdr_len) {
+            unsigned sg_num = iov_copy(sg, ARRAY_SIZE(sg),
+                                       out_sg, out_num,
+                                       0, n->host_hdr_len);
+            sg_num += iov_copy(sg + sg_num, ARRAY_SIZE(sg) - sg_num,
+                             out_sg, out_num,
+                             n->guest_hdr_len, -1);
+            out_num = sg_num;
+            out_sg = sg;
         }
+
+        len = hdr_len;
 
         ret = qemu_sendv_packet_async(&n->nic->nc, out_sg, out_num,
                                       virtio_net_tx_complete);
