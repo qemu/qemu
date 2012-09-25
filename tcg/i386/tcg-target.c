@@ -1907,7 +1907,9 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_setcond_i32, { "q", "r", "ri" } },
 
     { INDEX_op_deposit_i32, { "Q", "0", "Q" } },
+#if TCG_TARGET_HAS_movcond_i32
     { INDEX_op_movcond_i32, { "r", "r", "ri", "r", "0" } },
+#endif
 
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
