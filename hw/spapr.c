@@ -573,7 +573,12 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 
 static void emulate_spapr_hypercall(CPUPPCState *env)
 {
-    env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
+    if (msr_pr) {
+        hcall_dprintf("Hypercall made with MSR[PR]=1\n");
+        env->gpr[3] = H_PRIVILEGE;
+    } else {
+        env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
+    }
 }
 
 static void spapr_reset_htab(sPAPREnvironment *spapr)

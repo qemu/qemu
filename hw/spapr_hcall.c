@@ -681,11 +681,6 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
 target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
                              target_ulong *args)
 {
-    if (msr_pr) {
-        hcall_dprintf("Hypercall made with MSR[PR]=1\n");
-        return H_PRIVILEGE;
-    }
-
     if ((opcode <= MAX_HCALL_OPCODE)
         && ((opcode & 0x3) == 0)) {
         spapr_hcall_fn fn = papr_hypercall_table[opcode / 4];
