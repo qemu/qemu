@@ -46,6 +46,7 @@
 #include "exec-memory.h"
 #include "hw/pcspk.h"
 #include "qemu/page_cache.h"
+#include "qemu-config.h"
 #include "qmp-commands.h"
 #include "trace.h"
 

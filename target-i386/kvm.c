@@ -27,6 +27,7 @@
 #include "cpu.h"
 #include "gdbstub.h"
 #include "host-utils.h"
+#include "qemu-config.h"
 #include "hw/pc.h"
 #include "hw/apic.h"
 #include "ioport.h"

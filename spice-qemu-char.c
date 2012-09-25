@@ -1,6 +1,7 @@
 #include "config-host.h"
 #include "trace.h"
 #include "ui/qemu-spice.h"
+#include "qemu-char.h"
 #include <spice.h>
 #include <spice-experimental.h>
 

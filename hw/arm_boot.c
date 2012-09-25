@@ -15,6 +15,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "device_tree.h"
+#include "qemu-config.h"
 
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000

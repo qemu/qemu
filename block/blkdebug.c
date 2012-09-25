@@ -23,6 +23,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu-config.h"
 #include "block_int.h"
 #include "module.h"
 

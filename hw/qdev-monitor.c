@@ -21,6 +21,7 @@
 #include "monitor.h"
 #include "qmp-commands.h"
 #include "arch_init.h"
+#include "qemu-config.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them

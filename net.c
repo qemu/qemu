@@ -32,6 +32,7 @@
 #include "monitor.h"
 #include "qemu-common.h"
 #include "qemu_socket.h"
+#include "qemu-config.h"
 #include "qmp-commands.h"
 #include "hw/qdev.h"
 #include "iov.h"

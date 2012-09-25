@@ -5,6 +5,7 @@
 #include "hw/block-common.h"
 #include "net/hub.h"
 #include "qapi/qapi-visit-core.h"
+#include "qemu-char.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {

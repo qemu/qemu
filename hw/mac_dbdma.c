@@ -39,6 +39,7 @@
 #include "hw.h"
 #include "isa.h"
 #include "mac_dbdma.h"
+#include "main-loop.h"
 
 /* debug DBDMA */
 //#define DEBUG_DBDMA

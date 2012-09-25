@@ -23,6 +23,7 @@
  */
 #include <alsa/asoundlib.h>
 #include "qemu-common.h"
+#include "main-loop.h"
 #include "qemu-char.h"
 #include "audio.h"
 

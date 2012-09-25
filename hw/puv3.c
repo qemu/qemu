@@ -8,6 +8,8 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
+
+#include "qemu-common.h"
 #include "console.h"
 #include "elf.h"
 #include "exec-memory.h"

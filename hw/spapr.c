@@ -49,6 +49,7 @@
 
 #include "exec-memory.h"
 #include "hw/usb.h"
+#include "qemu-config.h"
 
 #include <libfdt.h>
 

@@ -28,6 +28,7 @@
 #include "hw/usb/desc.h"
 #include "net.h"
 #include "qemu-queue.h"
+#include "qemu-config.h"
 #include "sysemu.h"
 #include "iov.h"
 

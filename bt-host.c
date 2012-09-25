@@ -21,6 +21,7 @@
 #include "qemu-char.h"
 #include "net.h"
 #include "bt-host.h"
+#include "main-loop.h"
 
 #ifndef _WIN32
 # include <errno.h>

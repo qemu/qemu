@@ -27,6 +27,7 @@
 #include <poll.h>
 #include <arpa/inet.h>
 #include "qemu-common.h"
+#include "qemu-config.h"
 #include "qemu-error.h"
 #include "block_int.h"
 #include "trace.h"

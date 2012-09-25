@@ -31,6 +31,7 @@
 #include <sys/soundcard.h>
 #endif
 #include "qemu-common.h"
+#include "main-loop.h"
 #include "host-utils.h"
 #include "qemu-char.h"
 #include "audio.h"

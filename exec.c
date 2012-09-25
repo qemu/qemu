@@ -33,6 +33,7 @@
 #include "kvm.h"
 #include "hw/xen.h"
 #include "qemu-timer.h"
+#include "qemu-config.h"
 #include "memory.h"
 #include "dma.h"
 #include "exec-memory.h"

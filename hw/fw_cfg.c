@@ -27,6 +27,7 @@
 #include "fw_cfg.h"
 #include "sysbus.h"
 #include "qemu-error.h"
+#include "qemu-config.h"
 
 /* debug firmware config */
 //#define DEBUG_FW_CFG

@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "isa.h"
+#include "main-loop.h"
 
 /* #define DEBUG_DMA */
 
