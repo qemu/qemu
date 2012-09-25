@@ -30,18 +30,11 @@
 #endif
 
 /* 64/64 -> 128 unsigned multiplication */
-void HELPER(mlg)(CPUS390XState *env, uint32_t r1, uint64_t v2)
+uint64_t HELPER(mul128)(CPUS390XState *env, uint64_t v1, uint64_t v2)
 {
-#if HOST_LONG_BITS == 64 && defined(__GNUC__)
-    /* assuming 64-bit hosts have __uint128_t */
-    __uint128_t res = (__uint128_t)env->regs[r1 + 1];
-
-    res *= (__uint128_t)v2;
-    env->regs[r1] = (uint64_t)(res >> 64);
-    env->regs[r1 + 1] = (uint64_t)res;
-#else
-    mulu64(&env->regs[r1 + 1], &env->regs[r1], env->regs[r1 + 1], v2);
-#endif
+    uint64_t reth;
+    mulu64(&env->retxl, &reth, v1, v2);
+    return reth;
 }
 
 /* 128 -> 64/64 unsigned division */

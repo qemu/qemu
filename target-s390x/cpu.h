@@ -60,17 +60,20 @@ typedef struct ExtQueue {
 } ExtQueue;
 
 typedef struct CPUS390XState {
-    uint64_t regs[16];	/* GP registers */
-
-    uint32_t aregs[16];	/* access registers */
-
-    uint32_t fpc;	/* floating-point control register */
+    uint64_t regs[16];     /* GP registers */
     CPU_DoubleU fregs[16]; /* FP registers */
+    uint32_t aregs[16];    /* access registers */
+
+    uint32_t fpc;          /* floating-point control register */
+    uint32_t cc_op;
+
     float_status fpu_status; /* passed to softfloat lib */
+
+    /* The low part of a 128-bit return, or remainder of a divide.  */
+    uint64_t retxl;
 
     PSW psw;
 
-    uint32_t cc_op;
     uint64_t cc_src;
     uint64_t cc_dst;
     uint64_t cc_vr;
@@ -86,8 +89,8 @@ typedef struct CPUS390XState {
 
     uint64_t cregs[16]; /* control registers */
 
-    int pending_int;
     ExtQueue ext_queue[MAX_EXT_QUEUE];
+    int pending_int;
 
     int ext_index;
 

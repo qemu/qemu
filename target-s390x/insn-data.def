@@ -54,6 +54,8 @@
 /* MULTIPLY LOGICAL */
     C(0xb996, MLR,     RRE,   Z,   r1p1_32u, r2_32u, new, r1_D32, mul, 0)
     C(0xe396, ML,      RXY_a, Z,   r1p1_32u, m2_32u, new, r1_D32, mul, 0)
+    C(0xb986, MLGR,    RRE,   Z,   r1p1, r2_o, r1_P, 0, mul128, 0)
+    C(0xe386, MLG,     RXY_a, Z,   r1p1, m2_64, r1_P, 0, mul128, 0)
 /* MULTIPLY SINGLE */
     C(0xb252, MSR,     RRE,   Z,   r1_o, r2_o, new, r1_32, mul, 0)
     C(0x7100, MS,      RX_a,  Z,   r1_o, m2_32s, new, r1_32, mul, 0)

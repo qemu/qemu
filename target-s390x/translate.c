@@ -293,6 +293,11 @@ static inline void store_freg32(int reg, TCGv_i32 v)
 #endif
 }
 
+static inline void return_low128(TCGv_i64 dest)
+{
+    tcg_gen_ld_i64(dest, cpu_env, offsetof(CPUS390XState, retxl));
+}
+
 static inline void update_psw_addr(DisasContext *s)
 {
     /* psw.addr */
@@ -1562,14 +1567,6 @@ static void disas_e3(CPUS390XState *env, DisasContext* s, int op, int r1,
         }
         set_cc_nz_u64(s, regs[r1]);
         tcg_temp_free_i64(tmp3);
-        break;
-    case 0x86: /* MLG      R1,D2(X2,B2)     [RXY] */
-        tmp2 = tcg_temp_new_i64();
-        tmp32_1 = tcg_const_i32(r1);
-        tcg_gen_qemu_ld64(tmp2, addr, get_mem_index(s));
-        gen_helper_mlg(cpu_env, tmp32_1, tmp2);
-        tcg_temp_free_i64(tmp2);
-        tcg_temp_free_i32(tmp32_1);
         break;
     case 0x87: /* DLG      R1,D2(X2,B2)     [RXY] */
         tmp2 = tcg_temp_new_i64();
@@ -4732,6 +4729,13 @@ static ExitStatus op_mul(DisasContext *s, DisasOps *o)
     return NO_EXIT;
 }
 
+static ExitStatus op_mul128(DisasContext *s, DisasOps *o)
+{
+    gen_helper_mul128(o->out, cpu_env, o->in1, o->in2);
+    return_low128(o->out2);
+    return NO_EXIT;
+}
+
 static ExitStatus op_sub(DisasContext *s, DisasOps *o)
 {
     tcg_gen_sub_i64(o->out, o->in1, o->in2);
@@ -4800,6 +4804,15 @@ static void prep_r1(DisasContext *s, DisasFields *f, DisasOps *o)
     o->g_out = true;
 }
 
+static void prep_r1_P(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* ??? Specification exception: r1 must be even.  */
+    int r1 = get_field(f, r1);
+    o->out = regs[r1];
+    o->out2 = regs[(r1 + 1) & 15];
+    o->g_out = o->g_out2 = true;
+}
+
 /* ====================================================================== */
 /* The "Write OUTput" generators.  These generally perform some non-trivial
    copy of data to TCG globals, or to main memory.  The trivial cases are
@@ -4842,6 +4855,13 @@ static void in1_r1_o(DisasContext *s, DisasFields *f, DisasOps *o)
 {
     o->in1 = regs[get_field(f, r1)];
     o->g_in1 = true;
+}
+
+static void in1_r1p1(DisasContext *s, DisasFields *f, DisasOps *o)
+{
+    /* ??? Specification exception: r1 must be even.  */
+    int r1 = get_field(f, r1);
+    o->in1 = load_reg((r1 + 1) & 15);
 }
 
 static void in1_r1p1_32s(DisasContext *s, DisasFields *f, DisasOps *o)
