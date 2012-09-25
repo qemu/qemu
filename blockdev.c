@@ -805,6 +805,11 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
     QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
         /* This removes our old bs from the bdrv_states, and adds the new bs */
         bdrv_append(states->new_bs, states->old_bs);
+        /* We don't need (or want) to use the transactional
+         * bdrv_reopen_multiple() across all the entries at once, because we
+         * don't want to abort all of them if one of them fails the reopen */
+        bdrv_reopen(states->new_bs, states->new_bs->open_flags & ~BDRV_O_RDWR,
+                    NULL);
     }
 
     /* success */
