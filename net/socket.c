@@ -131,9 +131,9 @@ static ssize_t net_socket_receive_dgram(NetClientState *nc, const uint8_t *buf, 
     ssize_t ret;
 
     do {
-        ret = sendto(s->fd, buf, size, 0,
-                     (struct sockaddr *)&s->dgram_dst,
-                     sizeof(s->dgram_dst));
+        ret = qemu_sendto(s->fd, buf, size, 0,
+                          (struct sockaddr *)&s->dgram_dst,
+                          sizeof(s->dgram_dst));
     } while (ret == -1 && errno == EINTR);
 
     if (ret == -1 && errno == EAGAIN) {

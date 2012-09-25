@@ -1064,7 +1064,7 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
 {
     X86CPU *cpu = X86_CPU(obj);
     const int64_t min = 0;
-    const int64_t max = INT_MAX;
+    const int64_t max = INT64_MAX;
     int64_t value;
 
     visit_type_int(v, &value, name, errp);
