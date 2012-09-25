@@ -1114,14 +1114,12 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
         goto out;
     }
 
-    if (flags & BDRV_O_CACHE_WB) {
-        s->cache_enabled = 1;
-        s->flush_fd = connect_to_sdog(s->addr, s->port);
-        if (s->flush_fd < 0) {
-            error_report("failed to connect");
-            ret = s->flush_fd;
-            goto out;
-        }
+    s->cache_enabled = 1;
+    s->flush_fd = connect_to_sdog(s->addr, s->port);
+    if (s->flush_fd < 0) {
+        error_report("failed to connect");
+        ret = s->flush_fd;
+        goto out;
     }
 
     if (snapid || tag[0] != '\0') {

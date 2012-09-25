@@ -133,12 +133,18 @@ typedef struct BDRVRawState {
     int use_aio;
     void *aio_ctx;
 #endif
-    uint8_t *aligned_buf;
-    unsigned aligned_buf_size;
 #ifdef CONFIG_XFS
     bool is_xfs : 1;
 #endif
 } BDRVRawState;
+
+typedef struct BDRVRawReopenState {
+    int fd;
+    int open_flags;
+#ifdef CONFIG_LINUX_AIO
+    int use_aio;
+#endif
+} BDRVRawReopenState;
 
 static int fd_open(BlockDriverState *bs);
 static int64_t raw_getlength(BlockDriverState *bs);
@@ -185,6 +191,57 @@ static int raw_normalize_devicepath(const char **filename)
 }
 #endif
 
+static void raw_parse_flags(int bdrv_flags, int *open_flags)
+{
+    assert(open_flags != NULL);
+
+    *open_flags |= O_BINARY;
+    *open_flags &= ~O_ACCMODE;
+    if (bdrv_flags & BDRV_O_RDWR) {
+        *open_flags |= O_RDWR;
+    } else {
+        *open_flags |= O_RDONLY;
+    }
+
+    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
+     * and O_DIRECT for no caching. */
+    if ((bdrv_flags & BDRV_O_NOCACHE)) {
+        *open_flags |= O_DIRECT;
+    }
+}
+
+#ifdef CONFIG_LINUX_AIO
+static int raw_set_aio(void **aio_ctx, int *use_aio, int bdrv_flags)
+{
+    int ret = -1;
+    assert(aio_ctx != NULL);
+    assert(use_aio != NULL);
+    /*
+     * Currently Linux do AIO only for files opened with O_DIRECT
+     * specified so check NOCACHE flag too
+     */
+    if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
+                      (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
+
+        /* if non-NULL, laio_init() has already been run */
+        if (*aio_ctx == NULL) {
+            *aio_ctx = laio_init();
+            if (!*aio_ctx) {
+                goto error;
+            }
+        }
+        *use_aio = 1;
+    } else {
+        *use_aio = 0;
+    }
+
+    ret = 0;
+
+error:
+    return ret;
+}
+#endif
+
 static int raw_open_common(BlockDriverState *bs, const char *filename,
                            int bdrv_flags, int open_flags)
 {
@@ -196,20 +253,8 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         return ret;
     }
 
-    s->open_flags = open_flags | O_BINARY;
-    s->open_flags &= ~O_ACCMODE;
-    if (bdrv_flags & BDRV_O_RDWR) {
-        s->open_flags |= O_RDWR;
-    } else {
-        s->open_flags |= O_RDONLY;
-    }
-
-    /* Use O_DSYNC for write-through caching, no flags for write-back caching,
-     * and O_DIRECT for no caching. */
-    if ((bdrv_flags & BDRV_O_NOCACHE))
-        s->open_flags |= O_DIRECT;
-    if (!(bdrv_flags & BDRV_O_CACHE_WB))
-        s->open_flags |= O_DSYNC;
+    s->open_flags = open_flags;
+    raw_parse_flags(bdrv_flags, &s->open_flags);
 
     s->fd = -1;
     fd = qemu_open(filename, s->open_flags, 0644);
@@ -220,45 +265,17 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
         return ret;
     }
     s->fd = fd;
-    s->aligned_buf = NULL;
-
-    if ((bdrv_flags & BDRV_O_NOCACHE)) {
-        /*
-         * Allocate a buffer for read/modify/write cycles.  Chose the size
-         * pessimistically as we don't know the block size yet.
-         */
-        s->aligned_buf_size = 32 * MAX_BLOCKSIZE;
-        s->aligned_buf = qemu_memalign(MAX_BLOCKSIZE, s->aligned_buf_size);
-        if (s->aligned_buf == NULL) {
-            goto out_close;
-        }
-    }
 
     /* We're falling back to POSIX AIO in some cases so init always */
     if (paio_init() < 0) {
-        goto out_free_buf;
+        goto out_close;
     }
 
 #ifdef CONFIG_LINUX_AIO
-    /*
-     * Currently Linux do AIO only for files opened with O_DIRECT
-     * specified so check NOCACHE flag too
-     */
-    if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
-                      (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
-
-        s->aio_ctx = laio_init();
-        if (!s->aio_ctx) {
-            goto out_free_buf;
-        }
-        s->use_aio = 1;
-    } else
-#endif
-    {
-#ifdef CONFIG_LINUX_AIO
-        s->use_aio = 0;
-#endif
+    if (raw_set_aio(&s->aio_ctx, &s->use_aio, bdrv_flags)) {
+        goto out_close;
     }
+#endif
 
 #ifdef CONFIG_XFS
     if (platform_test_xfs_fd(s->fd)) {
@@ -268,8 +285,6 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
 
     return 0;
 
-out_free_buf:
-    qemu_vfree(s->aligned_buf);
 out_close:
     qemu_close(fd);
     return -errno;
@@ -282,6 +297,109 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->type = FTYPE_FILE;
     return raw_open_common(bs, filename, flags, 0);
 }
+
+static int raw_reopen_prepare(BDRVReopenState *state,
+                              BlockReopenQueue *queue, Error **errp)
+{
+    BDRVRawState *s;
+    BDRVRawReopenState *raw_s;
+    int ret = 0;
+
+    assert(state != NULL);
+    assert(state->bs != NULL);
+
+    s = state->bs->opaque;
+
+    state->opaque = g_malloc0(sizeof(BDRVRawReopenState));
+    raw_s = state->opaque;
+
+#ifdef CONFIG_LINUX_AIO
+    raw_s->use_aio = s->use_aio;
+
+    /* we can use s->aio_ctx instead of a copy, because the use_aio flag is
+     * valid in the 'false' condition even if aio_ctx is set, and raw_set_aio()
+     * won't override aio_ctx if aio_ctx is non-NULL */
+    if (raw_set_aio(&s->aio_ctx, &raw_s->use_aio, state->flags)) {
+        return -1;
+    }
+#endif
+
+    raw_parse_flags(state->flags, &raw_s->open_flags);
+
+    raw_s->fd = -1;
+
+    int fcntl_flags = O_APPEND | O_ASYNC | O_NONBLOCK;
+#ifdef O_NOATIME
+    fcntl_flags |= O_NOATIME;
+#endif
+
+    if ((raw_s->open_flags & ~fcntl_flags) == (s->open_flags & ~fcntl_flags)) {
+        /* dup the original fd */
+        /* TODO: use qemu fcntl wrapper */
+#ifdef F_DUPFD_CLOEXEC
+        raw_s->fd = fcntl(s->fd, F_DUPFD_CLOEXEC, 0);
+#else
+        raw_s->fd = dup(s->fd);
+        if (raw_s->fd != -1) {
+            qemu_set_cloexec(raw_s->fd);
+        }
+#endif
+        if (raw_s->fd >= 0) {
+            ret = fcntl_setfl(raw_s->fd, raw_s->open_flags);
+            if (ret) {
+                qemu_close(raw_s->fd);
+                raw_s->fd = -1;
+            }
+        }
+    }
+
+    /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
+    if (raw_s->fd == -1) {
+        assert(!(raw_s->open_flags & O_CREAT));
+        raw_s->fd = qemu_open(state->bs->filename, raw_s->open_flags);
+        if (raw_s->fd == -1) {
+            ret = -1;
+        }
+    }
+    return ret;
+}
+
+
+static void raw_reopen_commit(BDRVReopenState *state)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+    BDRVRawState *s = state->bs->opaque;
+
+    s->open_flags = raw_s->open_flags;
+
+    qemu_close(s->fd);
+    s->fd = raw_s->fd;
+#ifdef CONFIG_LINUX_AIO
+    s->use_aio = raw_s->use_aio;
+#endif
+
+    g_free(state->opaque);
+    state->opaque = NULL;
+}
+
+
+static void raw_reopen_abort(BDRVReopenState *state)
+{
+    BDRVRawReopenState *raw_s = state->opaque;
+
+     /* nothing to do if NULL, we didn't get far enough */
+    if (raw_s == NULL) {
+        return;
+    }
+
+    if (raw_s->fd >= 0) {
+        qemu_close(raw_s->fd);
+        raw_s->fd = -1;
+    }
+    g_free(state->opaque);
+    state->opaque = NULL;
+}
+
 
 /* XXX: use host sector size if necessary with:
 #ifdef DIOCGSECTORSIZE
@@ -330,7 +448,7 @@ static BlockDriverAIOCB *raw_aio_submit(BlockDriverState *bs,
      * boundary.  Check if this is the case or tell the low-level
      * driver that it needs to copy the buffer.
      */
-    if (s->aligned_buf) {
+    if ((bs->open_flags & BDRV_O_NOCACHE)) {
         if (!qiov_is_aligned(bs, qiov)) {
             type |= QEMU_AIO_MISALIGNED;
 #ifdef CONFIG_LINUX_AIO
@@ -378,8 +496,6 @@ static void raw_close(BlockDriverState *bs)
     if (s->fd >= 0) {
         qemu_close(s->fd);
         s->fd = -1;
-        if (s->aligned_buf != NULL)
-            qemu_vfree(s->aligned_buf);
     }
 }
 
@@ -735,6 +851,9 @@ static BlockDriver bdrv_file = {
     .instance_size = sizeof(BDRVRawState),
     .bdrv_probe = NULL, /* no probe for protocols */
     .bdrv_file_open = raw_open,
+    .bdrv_reopen_prepare = raw_reopen_prepare,
+    .bdrv_reopen_commit = raw_reopen_commit,
+    .bdrv_reopen_abort = raw_reopen_abort,
     .bdrv_close = raw_close,
     .bdrv_create = raw_create,
     .bdrv_co_discard = raw_co_discard,

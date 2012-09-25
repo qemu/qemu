@@ -80,6 +80,7 @@ typedef struct BlockDevOps {
 #define BDRV_O_COPY_ON_READ 0x0400 /* copy read backing sectors into image */
 #define BDRV_O_INCOMING    0x0800  /* consistency hint for incoming migration */
 #define BDRV_O_CHECK       0x1000  /* open solely for consistency check */
+#define BDRV_O_ALLOW_RDWR  0x2000  /* allow reopen to change from r/o to r/w */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
 
@@ -95,6 +96,15 @@ typedef enum {
 typedef enum {
     BDRV_ACTION_REPORT, BDRV_ACTION_IGNORE, BDRV_ACTION_STOP
 } BlockQMPEventAction;
+
+typedef QSIMPLEQ_HEAD(BlockReopenQueue, BlockReopenQueueEntry) BlockReopenQueue;
+
+typedef struct BDRVReopenState {
+    BlockDriverState *bs;
+    int flags;
+    void *opaque;
+} BDRVReopenState;
+
 
 void bdrv_iostatus_enable(BlockDriverState *bs);
 void bdrv_iostatus_reset(BlockDriverState *bs);
@@ -130,6 +140,14 @@ int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv);
+BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
+                                    BlockDriverState *bs, int flags);
+int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp);
+int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp);
+int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
+                        BlockReopenQueue *queue, Error **errp);
+void bdrv_reopen_commit(BDRVReopenState *reopen_state);
+void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 void bdrv_close(BlockDriverState *bs);
 int bdrv_attach_dev(BlockDriverState *bs, void *dev);
 void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev);
