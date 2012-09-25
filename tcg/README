@@ -141,7 +141,7 @@ Define label 'label' at the current program point.
 
 Jump to label.
 
-* brcond_i32/i64 cond, t0, t1, label
+* brcond_i32/i64 t0, t1, cond, label
 
 Conditional jump if t0 cond t1 is true. cond can be:
     TCG_COND_EQ
@@ -301,13 +301,13 @@ This operation would be equivalent to
 
 ********* Conditional moves
 
-* setcond_i32/i64 cond, dest, t1, t2
+* setcond_i32/i64 dest, t1, t2, cond
 
 dest = (t1 cond t2)
 
 Set DEST to 1 if (T1 cond T2) is true, otherwise set to 0.
 
-* movcond_i32/i64 cond, dest, c1, c2, v1, v2
+* movcond_i32/i64 dest, c1, c2, v1, v2, cond
 
 dest = (c1 cond c2 ? v1 : v2)
 
@@ -360,7 +360,7 @@ The following opcodes are internal to TCG.  Thus they are to be implemented by
 32-bit host code generators, but are not to be emitted by guest translators.
 They are emitted as needed by inline functions within "tcg-op.h".
 
-* brcond2_i32 cond, t0_low, t0_high, t1_low, t1_high, label
+* brcond2_i32 t0_low, t0_high, t1_low, t1_high, cond, label
 
 Similar to brcond, except that the 64-bit values T0 and T1
 are formed from two 32-bit arguments.
@@ -377,7 +377,7 @@ is returned in two 32-bit outputs.
 Similar to mul, except two 32-bit (unsigned) inputs T1 and T2 yielding
 the full 64-bit product T0.  The later is returned in two 32-bit outputs.
 
-* setcond2_i32 cond, dest, t1_low, t1_high, t2_low, t2_high
+* setcond2_i32 dest, t1_low, t1_high, t2_low, t2_high, cond
 
 Similar to setcond, except that the 64-bit values T1 and T2 are
 formed from two 32-bit arguments.  The result is a 32-bit value.
