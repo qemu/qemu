@@ -65,6 +65,7 @@ common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net.o net/
 common-obj-y += qom/
 common-obj-y += readline.o console.o cursor.o
+common-obj-y += qemu-pixman.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
