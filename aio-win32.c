@@ -75,6 +75,8 @@ void aio_set_event_notifier(AioContext *ctx,
         node->io_notify = io_notify;
         node->io_flush = io_flush;
     }
+
+    aio_notify(ctx);
 }
 
 bool aio_pending(AioContext *ctx)

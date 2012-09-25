@@ -89,6 +89,8 @@ void aio_set_fd_handler(AioContext *ctx,
         node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP : 0);
         node->pfd.events |= (io_write ? G_IO_OUT : 0);
     }
+
+    aio_notify(ctx);
 }
 
 void aio_set_event_notifier(AioContext *ctx,
