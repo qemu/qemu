@@ -1294,9 +1294,10 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
     return s;
 }
 
-static DisplaySurface* defaultallocator_create_displaysurface(int width, int height)
+DisplaySurface *qemu_create_displaysurface(DisplayState *ds,
+                                           int width, int height)
 {
-    DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
+    DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
     int linesize = width * 4;
     qemu_alloc_display(surface, width, height, linesize,
@@ -1304,13 +1305,15 @@ static DisplaySurface* defaultallocator_create_displaysurface(int width, int hei
     return surface;
 }
 
-static DisplaySurface* defaultallocator_resize_displaysurface(DisplaySurface *surface,
-                                          int width, int height)
+DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
+                                           int width, int height)
 {
     int linesize = width * 4;
-    qemu_alloc_display(surface, width, height, linesize,
+
+    trace_displaysurface_resize(ds, ds->surface, width, height);
+    qemu_alloc_display(ds->surface, width, height, linesize,
                        qemu_default_pixelformat(32), 0);
-    return surface;
+    return ds->surface;
 }
 
 void qemu_alloc_display(DisplaySurface *surface, int width, int height,
@@ -1323,7 +1326,7 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
     surface->pf = pf;
     if (surface->flags & QEMU_ALLOCATED_FLAG) {
         data = g_realloc(surface->data,
-                            surface->linesize * surface->height);
+                         surface->linesize * surface->height);
     } else {
         data = g_malloc(surface->linesize * surface->height);
     }
@@ -1334,7 +1337,7 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
 #endif
 }
 
-DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
+DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
                                               int linesize, uint8_t *data)
 {
     DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
@@ -1351,20 +1354,17 @@ DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
     return surface;
 }
 
-static void defaultallocator_free_displaysurface(DisplaySurface *surface)
+void qemu_free_displaysurface(DisplayState *ds)
 {
-    if (surface == NULL)
+    trace_displaysurface_free(ds, ds->surface);
+    if (ds->surface == NULL) {
         return;
-    if (surface->flags & QEMU_ALLOCATED_FLAG)
-        g_free(surface->data);
-    g_free(surface);
+    }
+    if (ds->surface->flags & QEMU_ALLOCATED_FLAG) {
+        g_free(ds->surface->data);
+    }
+    g_free(ds->surface);
 }
-
-static struct DisplayAllocator default_allocator = {
-    defaultallocator_create_displaysurface,
-    defaultallocator_resize_displaysurface,
-    defaultallocator_free_displaysurface
-};
 
 static void dumb_display_init(void)
 {
@@ -1372,7 +1372,6 @@ static void dumb_display_init(void)
     int width = 640;
     int height = 480;
 
-    ds->allocator = &default_allocator;
     if (is_fixedsize_console()) {
         width = active_console->g_width;
         height = active_console->g_height;
@@ -1402,18 +1401,6 @@ DisplayState *get_displaystate(void)
     return display_state;
 }
 
-DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da)
-{
-    if(ds->allocator ==  &default_allocator) {
-        DisplaySurface *surf;
-        surf = da->create_displaysurface(ds_get_width(ds), ds_get_height(ds));
-        defaultallocator_free_displaysurface(ds->surface);
-        ds->surface = surf;
-        ds->allocator = da;
-    }
-    return ds->allocator;
-}
-
 DisplayState *graphic_console_init(vga_hw_update_ptr update,
                                    vga_hw_invalidate_ptr invalidate,
                                    vga_hw_screen_dump_ptr screen_dump,
@@ -1424,7 +1411,6 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
     DisplayState *ds;
 
     ds = (DisplayState *) g_malloc0(sizeof(DisplayState));
-    ds->allocator = &default_allocator; 
     ds->surface = qemu_create_displaysurface(ds, 640, 480);
 
     s = new_console(ds, GRAPHIC_CONSOLE);

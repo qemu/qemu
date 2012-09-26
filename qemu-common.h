@@ -262,7 +262,6 @@ typedef struct DriveInfo DriveInfo;
 typedef struct DisplayState DisplayState;
 typedef struct DisplayChangeListener DisplayChangeListener;
 typedef struct DisplaySurface DisplaySurface;
-typedef struct DisplayAllocator DisplayAllocator;
 typedef struct PixelFormat PixelFormat;
 typedef struct QemuConsole QemuConsole;
 typedef struct CharDriverState CharDriverState;

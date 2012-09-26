@@ -107,7 +107,6 @@ void kbd_put_keysym(int keysym);
 
 #define QEMU_BIG_ENDIAN_FLAG    0x01
 #define QEMU_ALLOCATED_FLAG     0x02
-#define QEMU_REALPIXELS_FLAG    0x04
 
 struct PixelFormat {
     uint8_t bits_per_pixel;
@@ -172,12 +171,6 @@ struct DisplayChangeListener {
     QLIST_ENTRY(DisplayChangeListener) next;
 };
 
-struct DisplayAllocator {
-    DisplaySurface* (*create_displaysurface)(int width, int height);
-    DisplaySurface* (*resize_displaysurface)(DisplaySurface *surface, int width, int height);
-    void (*free_displaysurface)(DisplaySurface *surface);
-};
-
 struct DisplayState {
     struct DisplaySurface *surface;
     void *opaque;
@@ -185,7 +178,6 @@ struct DisplayState {
     bool have_gfx;
     bool have_text;
 
-    struct DisplayAllocator* allocator;
     QLIST_HEAD(, DisplayChangeListener) listeners;
 
     struct DisplayState *next;
@@ -200,24 +192,11 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
-DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da);
-
-static inline DisplaySurface* qemu_create_displaysurface(DisplayState *ds, int width, int height)
-{
-    return ds->allocator->create_displaysurface(width, height);    
-}
-
-static inline DisplaySurface* qemu_resize_displaysurface(DisplayState *ds, int width, int height)
-{
-    trace_displaysurface_resize(ds, ds->surface, width, height);
-    return ds->allocator->resize_displaysurface(ds->surface, width, height);
-}
-
-static inline void qemu_free_displaysurface(DisplayState *ds)
-{
-    trace_displaysurface_free(ds, ds->surface);
-    ds->allocator->free_displaysurface(ds->surface);
-}
+DisplaySurface *qemu_create_displaysurface(DisplayState *ds,
+                                           int width, int height);
+DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
+                                           int width, int height);
+void qemu_free_displaysurface(DisplayState *ds);
 
 static inline int is_surface_bgr(DisplaySurface *surface)
 {
@@ -229,8 +208,7 @@ static inline int is_surface_bgr(DisplaySurface *surface)
 
 static inline int is_buffer_shared(DisplaySurface *surface)
 {
-    return (!(surface->flags & QEMU_ALLOCATED_FLAG) &&
-            !(surface->flags & QEMU_REALPIXELS_FLAG));
+    return !(surface->flags & QEMU_ALLOCATED_FLAG);
 }
 
 void gui_setup_refresh(DisplayState *ds);
