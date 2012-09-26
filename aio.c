@@ -122,7 +122,7 @@ bool aio_wait(AioContext *ctx)
          * Otherwise, if there are no AIO requests, qemu_aio_wait() would
          * wait indefinitely.
          */
-        if (node->io_flush) {
+        if (!node->deleted && node->io_flush) {
             if (node->io_flush(node->opaque) == 0) {
                 continue;
             }
