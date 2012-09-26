@@ -467,6 +467,21 @@ static inline void tcg_out_movi32(TCGContext *s,
     }
 }
 
+static inline void tcg_out_dat_rI(TCGContext *s, int cond, int opc, TCGArg dst,
+                                  TCGArg lhs, TCGArg rhs, int rhs_is_const)
+{
+    /* Emit either the reg,imm or reg,reg form of a data-processing insn.
+     * rhs must satisfy the "rI" constraint.
+     */
+    if (rhs_is_const) {
+        int rot = encode_imm(rhs);
+        assert(rot >= 0);
+        tcg_out_dat_imm(s, cond, opc, dst, lhs, rotl(rhs, rot) | (rot << 7));
+    } else {
+        tcg_out_dat_reg(s, cond, opc, dst, lhs, rhs, SHIFT_IMM_LSL(0));
+    }
+}
+
 static inline void tcg_out_mul32(TCGContext *s,
                 int cond, int rd, int rs, int rm)
 {
@@ -1576,14 +1591,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         c = ARITH_EOR;
         /* Fall through.  */
     gen_arith:
-        if (const_args[2]) {
-            int rot;
-            rot = encode_imm(args[2]);
-            tcg_out_dat_imm(s, COND_AL, c,
-                            args[0], args[1], rotl(args[2], rot) | (rot << 7));
-        } else
-            tcg_out_dat_reg(s, COND_AL, c,
-                            args[0], args[1], args[2], SHIFT_IMM_LSL(0));
+        tcg_out_dat_rI(s, COND_AL, c, args[0], args[1], args[2], const_args[2]);
         break;
     case INDEX_op_add2_i32:
         tcg_out_dat_reg2(s, COND_AL, ARITH_ADD, ARITH_ADC,
@@ -1643,15 +1651,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_brcond_i32:
-        if (const_args[1]) {
-            int rot;
-            rot = encode_imm(args[1]);
-            tcg_out_dat_imm(s, COND_AL, ARITH_CMP, 0,
-                            args[0], rotl(args[1], rot) | (rot << 7));
-        } else {
-            tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
-                            args[0], args[1], SHIFT_IMM_LSL(0));
-        }
+        tcg_out_dat_rI(s, COND_AL, ARITH_CMP, 0,
+                       args[0], args[1], const_args[1]);
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[2]], args[3]);
         break;
     case INDEX_op_brcond2_i32:
@@ -1670,15 +1671,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_goto_label(s, tcg_cond_to_arm_cond[args[4]], args[5]);
         break;
     case INDEX_op_setcond_i32:
-        if (const_args[2]) {
-            int rot;
-            rot = encode_imm(args[2]);
-            tcg_out_dat_imm(s, COND_AL, ARITH_CMP, 0,
-                            args[1], rotl(args[2], rot) | (rot << 7));
-        } else {
-            tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0,
-                            args[1], args[2], SHIFT_IMM_LSL(0));
-        }
+        tcg_out_dat_rI(s, COND_AL, ARITH_CMP, 0,
+                       args[1], args[2], const_args[2]);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[args[3]],
                         ARITH_MOV, args[0], 0, 1);
         tcg_out_dat_imm(s, tcg_cond_to_arm_cond[tcg_invert_cond(args[3])],
