@@ -117,12 +117,18 @@ static uint64_t pl190_read(void *opaque, target_phys_addr_t offset,
         return s->protected;
     case 12: /* VECTADDR */
         /* Read vector address at the start of an ISR.  Increases the
-           current priority level to that of the current interrupt.  */
-        for (i = 0; i < s->priority; i++)
-          {
-            if ((s->level | s->soft_level) & s->prio_mask[i])
-              break;
-          }
+         * current priority level to that of the current interrupt.
+         *
+         * Since an enabled interrupt X at priority P causes prio_mask[Y]
+         * to have bit X set for all Y > P, this loop will stop with
+         * i == the priority of the highest priority set interrupt.
+         */
+        for (i = 0; i < s->priority; i++) {
+            if ((s->level | s->soft_level) & s->prio_mask[i + 1]) {
+                break;
+            }
+        }
+
         /* Reading this value with no pending interrupts is undefined.
            We return the default address.  */
         if (i == PL190_NUM_PRIO)
