@@ -487,12 +487,6 @@ static int qemu_rbd_open(BlockDriverState *bs, const char *filename, int flags)
         rados_conf_set(s->cluster, "rbd_cache", "false");
     } else {
         rados_conf_set(s->cluster, "rbd_cache", "true");
-        if (!(flags & BDRV_O_CACHE_WB)) {
-            r = rados_conf_set(s->cluster, "rbd_cache_max_dirty", "0");
-            if (r < 0) {
-                rados_conf_set(s->cluster, "rbd_cache", "false");
-            }
-        }
     }
 
     if (strstr(conf, "conf=") == NULL) {

@@ -167,12 +167,6 @@ iscsi_set_events(IscsiLun *iscsilun)
 
     }
 
-    /* If we just added an event, the callback might be delayed
-     * unless we call qemu_notify_event().
-     */
-    if (ev & ~iscsilun->events) {
-        qemu_notify_event();
-    }
     iscsilun->events = ev;
 }
 
@@ -268,10 +262,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     acb->task->xfer_dir = SCSI_XFER_WRITE;
     acb->task->cdb_size = 16;
     acb->task->cdb[0] = 0x8a;
-    if (!(bs->open_flags & BDRV_O_CACHE_WB)) {
-        /* set FUA on writes when cache mode is write through */
-        acb->task->cdb[1] |= 0x04;
-    }
     lba = sector_qemu2lun(sector_num, iscsilun);
     *(uint32_t *)&acb->task->cdb[2]  = htonl(lba >> 32);
     *(uint32_t *)&acb->task->cdb[6]  = htonl(lba & 0xffffffff);
@@ -628,9 +618,17 @@ static BlockDriverAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     return &acb->common;
 }
 
+
+static void ioctl_cb(void *opaque, int status)
+{
+    int *p_status = opaque;
+    *p_status = status;
+}
+
 static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
 {
     IscsiLun *iscsilun = bs->opaque;
+    int status;
 
     switch (req) {
     case SG_GET_VERSION_NUM:
@@ -639,6 +637,15 @@ static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
     case SG_GET_SCSI_ID:
         ((struct sg_scsi_id *)buf)->scsi_type = iscsilun->type;
         break;
+    case SG_IO:
+        status = -EINPROGRESS;
+        iscsi_aio_ioctl(bs, req, buf, ioctl_cb, &status);
+
+        while (status == -EINPROGRESS) {
+            qemu_aio_wait();
+        }
+
+        return 0;
     default:
         return -1;
     }

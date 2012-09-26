@@ -189,6 +189,17 @@ static void n8x0_nand_setup(struct n800_s *s)
     /* XXX: in theory should also update the OOB for both pages */
 }
 
+static qemu_irq n8x0_system_powerdown;
+
+static void n8x0_powerdown_req(Notifier *n, void *opaque)
+{
+    qemu_irq_raise(n8x0_system_powerdown);
+}
+
+static Notifier n8x0_system_powerdown_notifier = {
+    .notify = n8x0_powerdown_req
+};
+
 static void n8x0_i2c_setup(struct n800_s *s)
 {
     DeviceState *dev;
@@ -201,7 +212,8 @@ static void n8x0_i2c_setup(struct n800_s *s)
                           qdev_get_gpio_in(s->mpu->ih[0],
                                            OMAP_INT_24XX_SYS_NIRQ));
 
-    qemu_system_powerdown = qdev_get_gpio_in(dev, 3);
+    n8x0_system_powerdown = qdev_get_gpio_in(dev, 3);
+    qemu_register_powerdown_notifier(&n8x0_system_powerdown_notifier);
 
     /* Attach a TMP105 PM chip (A0 wired to ground) */
     dev = i2c_create_slave(i2c, "tmp105", N8X0_TMP105_ADDR);

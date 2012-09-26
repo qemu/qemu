@@ -300,6 +300,40 @@ static int vmdk_is_cid_valid(BlockDriverState *bs)
     return 1;
 }
 
+/* Queue extents, if any, for reopen() */
+static int vmdk_reopen_prepare(BDRVReopenState *state,
+                               BlockReopenQueue *queue, Error **errp)
+{
+    BDRVVmdkState *s;
+    int ret = -1;
+    int i;
+    VmdkExtent *e;
+
+    assert(state != NULL);
+    assert(state->bs != NULL);
+
+    if (queue == NULL) {
+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                 "No reopen queue for VMDK extents");
+        goto exit;
+    }
+
+    s = state->bs->opaque;
+
+    assert(s != NULL);
+
+    for (i = 0; i < s->num_extents; i++) {
+        e = &s->extents[i];
+        if (e->file != state->bs->file) {
+            bdrv_reopen_queue(queue, e->file, state->flags);
+        }
+    }
+    ret = 0;
+
+exit:
+    return ret;
+}
+
 static int vmdk_parent_open(BlockDriverState *bs)
 {
     char *p_name;
@@ -1646,6 +1680,7 @@ static BlockDriver bdrv_vmdk = {
     .instance_size  = sizeof(BDRVVmdkState),
     .bdrv_probe     = vmdk_probe,
     .bdrv_open      = vmdk_open,
+    .bdrv_reopen_prepare = vmdk_reopen_prepare,
     .bdrv_read      = vmdk_co_read,
     .bdrv_write     = vmdk_co_write,
     .bdrv_close     = vmdk_close,

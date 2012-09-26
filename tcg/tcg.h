@@ -390,6 +390,7 @@ struct TCGContext {
 
 #ifdef CONFIG_DEBUG_TCG
     int temps_in_use;
+    int goto_tb_issue_mask;
 #endif
 };
 
@@ -529,6 +530,15 @@ do {\
     fprintf(stderr, "%s:%d: tcg fatal error\n", __FILE__, __LINE__);\
     abort();\
 } while (0)
+
+#ifdef CONFIG_DEBUG_TCG
+# define tcg_debug_assert(X) do { assert(X); } while (0)
+#elif QEMU_GNUC_PREREQ(4, 5)
+# define tcg_debug_assert(X) \
+    do { if (!(X)) { __builtin_unreachable(); } } while (0)
+#else
+# define tcg_debug_assert(X) do { (void)(X); } while (0)
+#endif
 
 void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs);
 

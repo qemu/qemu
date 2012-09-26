@@ -668,7 +668,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
         open_flags |= BDRV_O_RDWR;
     }
 
-    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
+    bs->read_only = !(open_flags & BDRV_O_RDWR);
 
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
@@ -808,6 +808,10 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         goto unlink_and_fail;
     }
 
+    if (flags & BDRV_O_RDWR) {
+        flags |= BDRV_O_ALLOW_RDWR;
+    }
+
     /* Open the image */
     ret = bdrv_open_common(bs, filename, flags, drv);
     if (ret < 0) {
@@ -837,12 +841,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
             bdrv_close(bs);
             return ret;
         }
-        if (bs->is_temporary) {
-            bs->backing_hd->keep_read_only = !(flags & BDRV_O_RDWR);
-        } else {
-            /* base image inherits from "parent" */
-            bs->backing_hd->keep_read_only = bs->keep_read_only;
-        }
     }
 
     if (!bdrv_key_required(bs)) {
@@ -862,6 +860,238 @@ unlink_and_fail:
     }
     return ret;
 }
+
+typedef struct BlockReopenQueueEntry {
+     bool prepared;
+     BDRVReopenState state;
+     QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
+} BlockReopenQueueEntry;
+
+/*
+ * Adds a BlockDriverState to a simple queue for an atomic, transactional
+ * reopen of multiple devices.
+ *
+ * bs_queue can either be an existing BlockReopenQueue that has had QSIMPLE_INIT
+ * already performed, or alternatively may be NULL a new BlockReopenQueue will
+ * be created and initialized. This newly created BlockReopenQueue should be
+ * passed back in for subsequent calls that are intended to be of the same
+ * atomic 'set'.
+ *
+ * bs is the BlockDriverState to add to the reopen queue.
+ *
+ * flags contains the open flags for the associated bs
+ *
+ * returns a pointer to bs_queue, which is either the newly allocated
+ * bs_queue, or the existing bs_queue being used.
+ *
+ */
+BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
+                                    BlockDriverState *bs, int flags)
+{
+    assert(bs != NULL);
+
+    BlockReopenQueueEntry *bs_entry;
+    if (bs_queue == NULL) {
+        bs_queue = g_new0(BlockReopenQueue, 1);
+        QSIMPLEQ_INIT(bs_queue);
+    }
+
+    if (bs->file) {
+        bdrv_reopen_queue(bs_queue, bs->file, flags);
+    }
+
+    bs_entry = g_new0(BlockReopenQueueEntry, 1);
+    QSIMPLEQ_INSERT_TAIL(bs_queue, bs_entry, entry);
+
+    bs_entry->state.bs = bs;
+    bs_entry->state.flags = flags;
+
+    return bs_queue;
+}
+
+/*
+ * Reopen multiple BlockDriverStates atomically & transactionally.
+ *
+ * The queue passed in (bs_queue) must have been built up previous
+ * via bdrv_reopen_queue().
+ *
+ * Reopens all BDS specified in the queue, with the appropriate
+ * flags.  All devices are prepared for reopen, and failure of any
+ * device will cause all device changes to be abandonded, and intermediate
+ * data cleaned up.
+ *
+ * If all devices prepare successfully, then the changes are committed
+ * to all devices.
+ *
+ */
+int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
+{
+    int ret = -1;
+    BlockReopenQueueEntry *bs_entry, *next;
+    Error *local_err = NULL;
+
+    assert(bs_queue != NULL);
+
+    bdrv_drain_all();
+
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        if (bdrv_reopen_prepare(&bs_entry->state, bs_queue, &local_err)) {
+            error_propagate(errp, local_err);
+            goto cleanup;
+        }
+        bs_entry->prepared = true;
+    }
+
+    /* If we reach this point, we have success and just need to apply the
+     * changes
+     */
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        bdrv_reopen_commit(&bs_entry->state);
+    }
+
+    ret = 0;
+
+cleanup:
+    QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
+        if (ret && bs_entry->prepared) {
+            bdrv_reopen_abort(&bs_entry->state);
+        }
+        g_free(bs_entry);
+    }
+    g_free(bs_queue);
+    return ret;
+}
+
+
+/* Reopen a single BlockDriverState with the specified flags. */
+int bdrv_reopen(BlockDriverState *bs, int bdrv_flags, Error **errp)
+{
+    int ret = -1;
+    Error *local_err = NULL;
+    BlockReopenQueue *queue = bdrv_reopen_queue(NULL, bs, bdrv_flags);
+
+    ret = bdrv_reopen_multiple(queue, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+    }
+    return ret;
+}
+
+
+/*
+ * Prepares a BlockDriverState for reopen. All changes are staged in the
+ * 'opaque' field of the BDRVReopenState, which is used and allocated by
+ * the block driver layer .bdrv_reopen_prepare()
+ *
+ * bs is the BlockDriverState to reopen
+ * flags are the new open flags
+ * queue is the reopen queue
+ *
+ * Returns 0 on success, non-zero on error.  On error errp will be set
+ * as well.
+ *
+ * On failure, bdrv_reopen_abort() will be called to clean up any data.
+ * It is the responsibility of the caller to then call the abort() or
+ * commit() for any other BDS that have been left in a prepare() state
+ *
+ */
+int bdrv_reopen_prepare(BDRVReopenState *reopen_state, BlockReopenQueue *queue,
+                        Error **errp)
+{
+    int ret = -1;
+    Error *local_err = NULL;
+    BlockDriver *drv;
+
+    assert(reopen_state != NULL);
+    assert(reopen_state->bs->drv != NULL);
+    drv = reopen_state->bs->drv;
+
+    /* if we are to stay read-only, do not allow permission change
+     * to r/w */
+    if (!(reopen_state->bs->open_flags & BDRV_O_ALLOW_RDWR) &&
+        reopen_state->flags & BDRV_O_RDWR) {
+        error_set(errp, QERR_DEVICE_IS_READ_ONLY,
+                  reopen_state->bs->device_name);
+        goto error;
+    }
+
+
+    ret = bdrv_flush(reopen_state->bs);
+    if (ret) {
+        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "Error (%s) flushing drive",
+                  strerror(-ret));
+        goto error;
+    }
+
+    if (drv->bdrv_reopen_prepare) {
+        ret = drv->bdrv_reopen_prepare(reopen_state, queue, &local_err);
+        if (ret) {
+            if (local_err != NULL) {
+                error_propagate(errp, local_err);
+            } else {
+                error_set(errp, QERR_OPEN_FILE_FAILED,
+                          reopen_state->bs->filename);
+            }
+            goto error;
+        }
+    } else {
+        /* It is currently mandatory to have a bdrv_reopen_prepare()
+         * handler for each supported drv. */
+        error_set(errp, QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+                  drv->format_name, reopen_state->bs->device_name,
+                 "reopening of file");
+        ret = -1;
+        goto error;
+    }
+
+    ret = 0;
+
+error:
+    return ret;
+}
+
+/*
+ * Takes the staged changes for the reopen from bdrv_reopen_prepare(), and
+ * makes them final by swapping the staging BlockDriverState contents into
+ * the active BlockDriverState contents.
+ */
+void bdrv_reopen_commit(BDRVReopenState *reopen_state)
+{
+    BlockDriver *drv;
+
+    assert(reopen_state != NULL);
+    drv = reopen_state->bs->drv;
+    assert(drv != NULL);
+
+    /* If there are any driver level actions to take */
+    if (drv->bdrv_reopen_commit) {
+        drv->bdrv_reopen_commit(reopen_state);
+    }
+
+    /* set BDS specific flags now */
+    reopen_state->bs->open_flags         = reopen_state->flags;
+    reopen_state->bs->enable_write_cache = !!(reopen_state->flags &
+                                              BDRV_O_CACHE_WB);
+    reopen_state->bs->read_only = !(reopen_state->flags & BDRV_O_RDWR);
+}
+
+/*
+ * Abort the reopen, and delete and free the staged changes in
+ * reopen_state
+ */
+void bdrv_reopen_abort(BDRVReopenState *reopen_state)
+{
+    BlockDriver *drv;
+
+    assert(reopen_state != NULL);
+    drv = reopen_state->bs->drv;
+    assert(drv != NULL);
+
+    if (drv->bdrv_reopen_abort) {
+        drv->bdrv_reopen_abort(reopen_state);
+    }
+}
+
 
 void bdrv_close(BlockDriverState *bs)
 {
@@ -1269,13 +1499,11 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix)
 int bdrv_commit(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    BlockDriver *backing_drv;
     int64_t sector, total_sectors;
     int n, ro, open_flags;
-    int ret = 0, rw_ret = 0;
+    int ret = 0;
     uint8_t *buf;
     char filename[1024];
-    BlockDriverState *bs_rw, *bs_ro;
 
     if (!drv)
         return -ENOMEDIUM;
@@ -1284,42 +1512,18 @@ int bdrv_commit(BlockDriverState *bs)
         return -ENOTSUP;
     }
 
-    if (bs->backing_hd->keep_read_only) {
-        return -EACCES;
-    }
-
     if (bdrv_in_use(bs) || bdrv_in_use(bs->backing_hd)) {
         return -EBUSY;
     }
 
-    backing_drv = bs->backing_hd->drv;
     ro = bs->backing_hd->read_only;
     strncpy(filename, bs->backing_hd->filename, sizeof(filename));
     open_flags =  bs->backing_hd->open_flags;
 
     if (ro) {
-        /* re-open as RW */
-        bdrv_delete(bs->backing_hd);
-        bs->backing_hd = NULL;
-        bs_rw = bdrv_new("");
-        rw_ret = bdrv_open(bs_rw, filename, open_flags | BDRV_O_RDWR,
-            backing_drv);
-        if (rw_ret < 0) {
-            bdrv_delete(bs_rw);
-            /* try to re-open read-only */
-            bs_ro = bdrv_new("");
-            ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR,
-                backing_drv);
-            if (ret < 0) {
-                bdrv_delete(bs_ro);
-                /* drive not functional anymore */
-                bs->drv = NULL;
-                return ret;
-            }
-            bs->backing_hd = bs_ro;
-            return rw_ret;
+        if (bdrv_reopen(bs->backing_hd, open_flags | BDRV_O_RDWR, NULL)) {
+            return -EACCES;
         }
-        bs->backing_hd = bs_rw;
     }
 
     total_sectors = bdrv_getlength(bs) >> BDRV_SECTOR_BITS;
@@ -1356,20 +1560,8 @@ ro_cleanup:
     g_free(buf);
 
     if (ro) {
-        /* re-open as RO */
-        bdrv_delete(bs->backing_hd);
-        bs->backing_hd = NULL;
-        bs_ro = bdrv_new("");
-        ret = bdrv_open(bs_ro, filename, open_flags & ~BDRV_O_RDWR,
-            backing_drv);
-        if (ret < 0) {
-            bdrv_delete(bs_ro);
-            /* drive not functional anymore */
-            bs->drv = NULL;
-            return ret;
-        }
-        bs->backing_hd = bs_ro;
-        bs->backing_hd->keep_read_only = 0;
+        /* ignoring error return here */
+        bdrv_reopen(bs->backing_hd, open_flags & ~BDRV_O_RDWR, NULL);
     }
 
     return ret;
@@ -2168,6 +2360,13 @@ int bdrv_enable_write_cache(BlockDriverState *bs)
 void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce)
 {
     bs->enable_write_cache = wce;
+
+    /* so a reopen() will preserve wce */
+    if (wce) {
+        bs->open_flags |= BDRV_O_CACHE_WB;
+    } else {
+        bs->open_flags &= ~BDRV_O_CACHE_WB;
+    }
 }
 
 int bdrv_is_encrypted(BlockDriverState *bs)

@@ -265,6 +265,12 @@ static int vpc_open(BlockDriverState *bs, int flags)
     return err;
 }
 
+static int vpc_reopen_prepare(BDRVReopenState *state,
+                              BlockReopenQueue *queue, Error **errp)
+{
+    return 0;
+}
+
 /*
  * Returns the absolute byte offset of the given sector in the image file.
  * If the sector is not allocated, -1 is returned instead.
@@ -783,6 +789,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_probe     = vpc_probe,
     .bdrv_open      = vpc_open,
     .bdrv_close     = vpc_close,
+    .bdrv_reopen_prepare = vpc_reopen_prepare,
     .bdrv_create    = vpc_create,
 
     .bdrv_read              = vpc_co_read,

@@ -678,7 +678,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
      * is actually implemented, but we're good enough.
      */
     outbuf[2] = 5;
-    outbuf[3] = 2; /* Format 2 */
+    outbuf[3] = 2 | 0x10; /* Format 2, HiSup */
 
     if (buflen > 36) {
         outbuf[4] = buflen - 5; /* Additional Length = (Len - 1) - 4 */
@@ -1449,6 +1449,22 @@ invalid_field:
     return;
 }
 
+static inline bool check_lba_range(SCSIDiskState *s,
+                                   uint64_t sector_num, uint32_t nb_sectors)
+{
+    /*
+     * The first line tests that no overflow happens when computing the last
+     * sector.  The second line tests that the last accessed sector is in
+     * range.
+     *
+     * Careful, the computations should not underflow for nb_sectors == 0,
+     * and a 0-block read to the first LBA beyond the end of device is
+     * valid.
+     */
+    return (sector_num <= sector_num + nb_sectors &&
+            sector_num + nb_sectors <= s->qdev.max_lba + 1);
+}
+
 typedef struct UnmapCBData {
     SCSIDiskReq *r;
     uint8_t *inbuf;
@@ -1473,8 +1489,7 @@ static void scsi_unmap_complete(void *opaque, int ret)
     if (data->count > 0 && !r->req.io_canceled) {
         sector_num = ldq_be_p(&data->inbuf[0]);
         nb_sectors = ldl_be_p(&data->inbuf[8]) & 0xffffffffULL;
-        if (sector_num > sector_num + nb_sectors ||
-            sector_num + nb_sectors - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, sector_num, nb_sectors)) {
             scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
             goto done;
         }
@@ -1793,17 +1808,13 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("Unmap (len %lu)\n", (long)r->req.cmd.xfer);
         break;
     case WRITE_SAME_10:
-        nb_sectors = lduw_be_p(&req->cmd.buf[7]);
-        goto write_same;
     case WRITE_SAME_16:
-        nb_sectors = ldl_be_p(&req->cmd.buf[10]) & 0xffffffffULL;
-    write_same:
+        nb_sectors = scsi_data_cdb_length(r->req.cmd.buf);
         if (bdrv_is_read_only(s->qdev.conf.bs)) {
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + nb_sectors ||
-            r->req.cmd.lba + nb_sectors - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, nb_sectors)) {
             goto illegal_lba;
         }
 
@@ -1858,7 +1869,7 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
-    int32_t len;
+    uint32_t len;
     uint8_t command;
 
     command = buf[0];
@@ -1868,18 +1879,17 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
 
+    len = scsi_data_cdb_length(r->req.cmd.buf);
     switch (command) {
     case READ_6:
     case READ_10:
     case READ_12:
     case READ_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
-        DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
+        DPRINTF("Read (sector %" PRId64 ", count %u)\n", r->req.cmd.lba, len);
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + len ||
-            r->req.cmd.lba + len - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
@@ -1900,15 +1910,13 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
     case VERIFY_10:
     case VERIFY_12:
     case VERIFY_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
-        DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
+        DPRINTF("Write %s(sector %" PRId64 ", count %u)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
         if (r->req.cmd.buf[1] & 0xe0) {
             goto illegal_request;
         }
-        if (r->req.cmd.lba > r->req.cmd.lba + len ||
-            r->req.cmd.lba + len - 1 > s->qdev.max_lba) {
+        if (!check_lba_range(s, r->req.cmd.lba, len)) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);

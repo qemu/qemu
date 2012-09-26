@@ -321,7 +321,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
         }
         pfl->wcycle++;
         pfl->cmd = cmd;
-        return;
+        break;
     case 1:
         switch (pfl->cmd) {
         case 0x10: /* Single Byte Program */
@@ -376,7 +376,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
         default:
             goto error_flash;
         }
-        return;
+        break;
     case 2:
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
@@ -407,7 +407,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
         default:
             goto error_flash;
         }
-        return;
+        break;
     case 3: /* Confirm mode */
         switch (pfl->cmd) {
         case 0xe8: /* Block write */
@@ -423,7 +423,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
         default:
             goto error_flash;
         }
-        return;
+        break;
     default:
         /* Should never happen */
         DPRINTF("%s: invalid write state\n",  __func__);

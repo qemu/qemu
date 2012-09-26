@@ -3543,6 +3543,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     }
     env->implver = implver;
     env->amask = amask;
+    env->cpu_model_str = cpu_model;
 
     qemu_init_vcpu(env);
     return env;

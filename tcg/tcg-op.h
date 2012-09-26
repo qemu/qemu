@@ -518,18 +518,34 @@ static inline void tcg_gen_and_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
     }
 }
 
-static inline void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
+static inline void tcg_gen_andi_i32(TCGv_i32 ret, TCGv_i32 arg1, uint32_t arg2)
 {
-    /* some cases can be optimized here */
-    if (arg2 == 0) {
+    TCGv_i32 t0;
+    /* Some cases can be optimized here.  */
+    switch (arg2) {
+    case 0:
         tcg_gen_movi_i32(ret, 0);
-    } else if (arg2 == 0xffffffff) {
+        return;
+    case 0xffffffffu:
         tcg_gen_mov_i32(ret, arg1);
-    } else {
-        TCGv_i32 t0 = tcg_const_i32(arg2);
-        tcg_gen_and_i32(ret, arg1, t0);
-        tcg_temp_free_i32(t0);
+        return;
+    case 0xffu:
+        /* Don't recurse with tcg_gen_ext8u_i32.  */
+        if (TCG_TARGET_HAS_ext8u_i32) {
+            tcg_gen_op2_i32(INDEX_op_ext8u_i32, ret, arg1);
+            return;
+        }
+        break;
+    case 0xffffu:
+        if (TCG_TARGET_HAS_ext16u_i32) {
+            tcg_gen_op2_i32(INDEX_op_ext16u_i32, ret, arg1);
+            return;
+        }
+        break;
     }
+    t0 = tcg_const_i32(arg2);
+    tcg_gen_and_i32(ret, arg1, t0);
+    tcg_temp_free_i32(t0);
 }
 
 static inline void tcg_gen_or_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
@@ -543,9 +559,9 @@ static inline void tcg_gen_or_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 static inline void tcg_gen_ori_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
-    /* some cases can be optimized here */
-    if (arg2 == 0xffffffff) {
-        tcg_gen_movi_i32(ret, 0xffffffff);
+    /* Some cases can be optimized here.  */
+    if (arg2 == -1) {
+        tcg_gen_movi_i32(ret, -1);
     } else if (arg2 == 0) {
         tcg_gen_mov_i32(ret, arg1);
     } else {
@@ -566,9 +582,12 @@ static inline void tcg_gen_xor_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 
 static inline void tcg_gen_xori_i32(TCGv_i32 ret, TCGv_i32 arg1, int32_t arg2)
 {
-    /* some cases can be optimized here */
+    /* Some cases can be optimized here.  */
     if (arg2 == 0) {
         tcg_gen_mov_i32(ret, arg1);
+    } else if (arg2 == -1 && TCG_TARGET_HAS_not_i32) {
+        /* Don't recurse with tcg_gen_not_i32.  */
+        tcg_gen_op2_i32(INDEX_op_not_i32, ret, arg1);
     } else {
         TCGv_i32 t0 = tcg_const_i32(arg2);
         tcg_gen_xor_i32(ret, arg1, t0);
@@ -1120,9 +1139,38 @@ static inline void tcg_gen_and_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     }
 }
 
-static inline void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
+static inline void tcg_gen_andi_i64(TCGv_i64 ret, TCGv_i64 arg1, uint64_t arg2)
 {
-    TCGv_i64 t0 = tcg_const_i64(arg2);
+    TCGv_i64 t0;
+    /* Some cases can be optimized here.  */
+    switch (arg2) {
+    case 0:
+        tcg_gen_movi_i64(ret, 0);
+        return;
+    case 0xffffffffffffffffull:
+        tcg_gen_mov_i64(ret, arg1);
+        return;
+    case 0xffull:
+        /* Don't recurse with tcg_gen_ext8u_i32.  */
+        if (TCG_TARGET_HAS_ext8u_i64) {
+            tcg_gen_op2_i64(INDEX_op_ext8u_i64, ret, arg1);
+            return;
+        }
+        break;
+    case 0xffffu:
+        if (TCG_TARGET_HAS_ext16u_i64) {
+            tcg_gen_op2_i64(INDEX_op_ext16u_i64, ret, arg1);
+            return;
+        }
+        break;
+    case 0xffffffffull:
+        if (TCG_TARGET_HAS_ext32u_i64) {
+            tcg_gen_op2_i64(INDEX_op_ext32u_i64, ret, arg1);
+            return;
+        }
+        break;
+    }
+    t0 = tcg_const_i64(arg2);
     tcg_gen_and_i64(ret, arg1, t0);
     tcg_temp_free_i64(t0);
 }
@@ -1138,9 +1186,16 @@ static inline void tcg_gen_or_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_ori_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 {
-    TCGv_i64 t0 = tcg_const_i64(arg2);
-    tcg_gen_or_i64(ret, arg1, t0);
-    tcg_temp_free_i64(t0);
+    /* Some cases can be optimized here.  */
+    if (arg2 == -1) {
+        tcg_gen_movi_i64(ret, -1);
+    } else if (arg2 == 0) {
+        tcg_gen_mov_i64(ret, arg1);
+    } else {
+        TCGv_i64 t0 = tcg_const_i64(arg2);
+        tcg_gen_or_i64(ret, arg1, t0);
+        tcg_temp_free_i64(t0);
+    }
 }
 
 static inline void tcg_gen_xor_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -1154,9 +1209,17 @@ static inline void tcg_gen_xor_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
 static inline void tcg_gen_xori_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 {
-    TCGv_i64 t0 = tcg_const_i64(arg2);
-    tcg_gen_xor_i64(ret, arg1, t0);
-    tcg_temp_free_i64(t0);
+    /* Some cases can be optimized here.  */
+    if (arg2 == 0) {
+        tcg_gen_mov_i64(ret, arg1);
+    } else if (arg2 == -1 && TCG_TARGET_HAS_not_i64) {
+        /* Don't recurse with tcg_gen_not_i64.  */
+        tcg_gen_op2_i64(INDEX_op_not_i64, ret, arg1);
+    } else {
+        TCGv_i64 t0 = tcg_const_i64(arg2);
+        tcg_gen_xor_i64(ret, arg1, t0);
+        tcg_temp_free_i64(t0);
+    }
 }
 
 static inline void tcg_gen_shl_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -1746,36 +1809,6 @@ static inline void tcg_gen_discard_i64(TCGv_i64 arg)
 #endif
 }
 
-static inline void tcg_gen_concat_i32_i64(TCGv_i64 dest, TCGv_i32 low, TCGv_i32 high)
-{
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_mov_i32(TCGV_LOW(dest), low);
-    tcg_gen_mov_i32(TCGV_HIGH(dest), high);
-#else
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    /* This extension is only needed for type correctness.
-       We may be able to do better given target specific information.  */
-    tcg_gen_extu_i32_i64(tmp, high);
-    tcg_gen_shli_i64(tmp, tmp, 32);
-    tcg_gen_extu_i32_i64(dest, low);
-    tcg_gen_or_i64(dest, dest, tmp);
-    tcg_temp_free_i64(tmp);
-#endif
-}
-
-static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low, TCGv_i64 high)
-{
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_concat_i32_i64(dest, TCGV_LOW(low), TCGV_LOW(high));
-#else
-    TCGv_i64 tmp = tcg_temp_new_i64();
-    tcg_gen_ext32u_i64(dest, low);
-    tcg_gen_shli_i64(tmp, high, 32);
-    tcg_gen_or_i64(dest, dest, tmp);
-    tcg_temp_free_i64(tmp);
-#endif
-}
-
 static inline void tcg_gen_andc_i32(TCGv_i32 ret, TCGv_i32 arg1, TCGv_i32 arg2)
 {
     if (TCG_TARGET_HAS_andc_i32) {
@@ -2048,6 +2081,10 @@ static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
     uint32_t mask;
     TCGv_i32 t1;
 
+    tcg_debug_assert(ofs < 32);
+    tcg_debug_assert(len <= 32);
+    tcg_debug_assert(ofs + len <= 32);
+
     if (ofs == 0 && len == 32) {
         tcg_gen_mov_i32(ret, arg2);
         return;
@@ -2078,6 +2115,10 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
 {
     uint64_t mask;
     TCGv_i64 t1;
+
+    tcg_debug_assert(ofs < 64);
+    tcg_debug_assert(len <= 64);
+    tcg_debug_assert(ofs + len <= 64);
 
     if (ofs == 0 && len == 64) {
         tcg_gen_mov_i64(ret, arg2);
@@ -2118,6 +2159,36 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
     tcg_temp_free_i64(t1);
 }
 
+static inline void tcg_gen_concat_i32_i64(TCGv_i64 dest, TCGv_i32 low,
+                                          TCGv_i32 high)
+{
+#if TCG_TARGET_REG_BITS == 32
+    tcg_gen_mov_i32(TCGV_LOW(dest), low);
+    tcg_gen_mov_i32(TCGV_HIGH(dest), high);
+#else
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    /* These extensions are only needed for type correctness.
+       We may be able to do better given target specific information.  */
+    tcg_gen_extu_i32_i64(tmp, high);
+    tcg_gen_extu_i32_i64(dest, low);
+    /* If deposit is available, use it.  Otherwise use the extra
+       knowledge that we have of the zero-extensions above.  */
+    if (TCG_TARGET_HAS_deposit_i64 && TCG_TARGET_deposit_i64_valid(32, 32)) {
+        tcg_gen_deposit_i64(dest, dest, tmp, 32, 32);
+    } else {
+        tcg_gen_shli_i64(tmp, tmp, 32);
+        tcg_gen_or_i64(dest, dest, tmp);
+    }
+    tcg_temp_free_i64(tmp);
+#endif
+}
+
+static inline void tcg_gen_concat32_i64(TCGv_i64 dest, TCGv_i64 low,
+                                        TCGv_i64 high)
+{
+    tcg_gen_deposit_i64(dest, low, high, 32, 32);
+}
+
 static inline void tcg_gen_movcond_i32(TCGCond cond, TCGv_i32 ret,
                                        TCGv_i32 c1, TCGv_i32 c2,
                                        TCGv_i32 v1, TCGv_i32 v2)
@@ -2141,6 +2212,33 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
                                        TCGv_i64 c1, TCGv_i64 c2,
                                        TCGv_i64 v1, TCGv_i64 v2)
 {
+#if TCG_TARGET_REG_BITS == 32
+    TCGv_i32 t0 = tcg_temp_new_i32();
+    TCGv_i32 t1 = tcg_temp_new_i32();
+    tcg_gen_op6i_i32(INDEX_op_setcond2_i32, t0,
+                     TCGV_LOW(c1), TCGV_HIGH(c1),
+                     TCGV_LOW(c2), TCGV_HIGH(c2), cond);
+
+    if (TCG_TARGET_HAS_movcond_i32) {
+        tcg_gen_movi_i32(t1, 0);
+        tcg_gen_movcond_i32(TCG_COND_NE, TCGV_LOW(ret), t0, t1,
+                            TCGV_LOW(v1), TCGV_LOW(v2));
+        tcg_gen_movcond_i32(TCG_COND_NE, TCGV_HIGH(ret), t0, t1,
+                            TCGV_HIGH(v1), TCGV_HIGH(v2));
+    } else {
+        tcg_gen_neg_i32(t0, t0);
+
+        tcg_gen_and_i32(t1, TCGV_LOW(v1), t0);
+        tcg_gen_andc_i32(TCGV_LOW(ret), TCGV_LOW(v2), t0);
+        tcg_gen_or_i32(TCGV_LOW(ret), TCGV_LOW(ret), t1);
+
+        tcg_gen_and_i32(t1, TCGV_HIGH(v1), t0);
+        tcg_gen_andc_i32(TCGV_HIGH(ret), TCGV_HIGH(v2), t0);
+        tcg_gen_or_i32(TCGV_HIGH(ret), TCGV_HIGH(ret), t1);
+    }
+    tcg_temp_free_i32(t0);
+    tcg_temp_free_i32(t1);
+#else
     if (TCG_TARGET_HAS_movcond_i64) {
         tcg_gen_op6i_i64(INDEX_op_movcond_i64, ret, c1, c2, v1, v2, cond);
     } else {
@@ -2154,6 +2252,7 @@ static inline void tcg_gen_movcond_i64(TCGCond cond, TCGv_i64 ret,
         tcg_temp_free_i64(t0);
         tcg_temp_free_i64(t1);
     }
+#endif
 }
 
 /***************************************/
@@ -2204,8 +2303,15 @@ static inline void tcg_gen_exit_tb(tcg_target_long val)
     tcg_gen_op1i(INDEX_op_exit_tb, val);
 }
 
-static inline void tcg_gen_goto_tb(int idx)
+static inline void tcg_gen_goto_tb(unsigned idx)
 {
+    /* We only support two chained exits.  */
+    tcg_debug_assert(idx <= 1);
+#ifdef CONFIG_DEBUG_TCG
+    /* Verify that we havn't seen this numbered exit before.  */
+    tcg_debug_assert((tcg_ctx.goto_tb_issue_mask & (1 << idx)) == 0);
+    tcg_ctx.goto_tb_issue_mask |= 1 << idx;
+#endif
     tcg_gen_op1i(INDEX_op_goto_tb, idx);
 }
 

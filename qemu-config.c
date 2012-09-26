@@ -645,6 +645,9 @@ QemuOptsList qemu_boot_opts = {
         }, {
             .name = "splash-time",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "reboot-timeout",
+            .type = QEMU_OPT_STRING,
         },
         { /*End of list */ }
     },

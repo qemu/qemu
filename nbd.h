@@ -79,9 +79,22 @@ typedef struct NBDExport NBDExport;
 typedef struct NBDClient NBDClient;
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
-                          off_t size, uint32_t nbdflags);
+                          off_t size, uint32_t nbdflags,
+                          void (*close)(NBDExport *));
 void nbd_export_close(NBDExport *exp);
+void nbd_export_get(NBDExport *exp);
+void nbd_export_put(NBDExport *exp);
+
+BlockDriverState *nbd_export_get_blockdev(NBDExport *exp);
+
+NBDExport *nbd_export_find(const char *name);
+void nbd_export_set_name(NBDExport *exp, const char *name);
+void nbd_export_close_all(void);
+
 NBDClient *nbd_client_new(NBDExport *exp, int csock,
                           void (*close)(NBDClient *));
+void nbd_client_close(NBDClient *client);
+void nbd_client_get(NBDClient *client);
+void nbd_client_put(NBDClient *client);
 
 #endif

@@ -114,12 +114,10 @@ static gboolean register_signal_handlers(void)
     ret = sigaction(SIGINT, &sigact, NULL);
     if (ret == -1) {
         g_error("error configuring signal handler: %s", strerror(errno));
-        return false;
     }
     ret = sigaction(SIGTERM, &sigact, NULL);
     if (ret == -1) {
         g_error("error configuring signal handler: %s", strerror(errno));
-        return false;
     }
 
     return true;
