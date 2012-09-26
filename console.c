@@ -1319,18 +1319,23 @@ DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
 void qemu_alloc_display(DisplaySurface *surface, int width, int height,
                         int linesize, PixelFormat pf, int newflags)
 {
-    void *data;
     surface->width = width;
     surface->height = height;
     surface->linesize = linesize;
     surface->pf = pf;
-    if (surface->flags & QEMU_ALLOCATED_FLAG) {
-        data = g_realloc(surface->data,
-                         surface->linesize * surface->height);
-    } else {
-        data = g_malloc(surface->linesize * surface->height);
-    }
-    surface->data = (uint8_t *)data;
+
+    qemu_pixman_image_unref(surface->image);
+    surface->image = NULL;
+    surface->data = NULL;
+
+    surface->format = qemu_pixman_get_format(&pf);
+    assert(surface->format != 0);
+    surface->image = pixman_image_create_bits(surface->format,
+                                              width, height,
+                                              NULL, linesize);
+    assert(surface->image != NULL);
+
+    surface->data = (uint8_t *)pixman_image_get_data(surface->image);
     surface->flags = newflags | QEMU_ALLOCATED_FLAG;
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags |= QEMU_BIG_ENDIAN_FLAG;
@@ -1338,14 +1343,22 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
 }
 
 DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
-                                              int linesize, uint8_t *data)
+                                                int linesize, uint8_t *data)
 {
-    DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
+    DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
     surface->width = width;
     surface->height = height;
     surface->linesize = linesize;
     surface->pf = qemu_default_pixelformat(bpp);
+
+    surface->format = qemu_pixman_get_format(&surface->pf);
+    assert(surface->format != 0);
+    surface->image = pixman_image_create_bits(surface->format,
+                                              width, height,
+                                              (void *)data, linesize);
+    assert(surface->image != NULL);
+
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_BIG_ENDIAN_FLAG;
 #endif
@@ -1360,9 +1373,7 @@ void qemu_free_displaysurface(DisplayState *ds)
     if (ds->surface == NULL) {
         return;
     }
-    if (ds->surface->flags & QEMU_ALLOCATED_FLAG) {
-        g_free(ds->surface->data);
-    }
+    qemu_pixman_image_unref(ds->surface->image);
     g_free(ds->surface);
 }
 

@@ -2,6 +2,7 @@
 #define CONSOLE_H
 
 #include "qemu-char.h"
+#include "qemu-pixman.h"
 #include "qdict.h"
 #include "notify.h"
 #include "monitor.h"
@@ -119,6 +120,8 @@ struct PixelFormat {
 };
 
 struct DisplaySurface {
+    pixman_format_code_t format;
+    pixman_image_t *image;
     uint8_t flags;
     int width;
     int height;
