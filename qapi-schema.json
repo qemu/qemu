@@ -1399,7 +1399,7 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
-# 'absolute-paths'.
+#        'absolute-paths'.
 ##
 { 'type': 'BlockdevSnapshot',
   'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
@@ -1453,7 +1453,7 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
-# 'absolute-paths'.
+#        'absolute-paths'.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
