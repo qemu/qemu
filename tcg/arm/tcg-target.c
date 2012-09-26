@@ -1572,6 +1572,15 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_movi_i32:
         tcg_out_movi32(s, COND_AL, args[0], args[1]);
         break;
+    case INDEX_op_movcond_i32:
+        /* Constraints mean that v2 is always in the same register as dest,
+         * so we only need to do "if condition passed, move v1 to dest".
+         */
+        tcg_out_dat_rI(s, COND_AL, ARITH_CMP, 0,
+                       args[1], args[2], const_args[2]);
+        tcg_out_dat_rI(s, tcg_cond_to_arm_cond[args[5]],
+                       ARITH_MOV, args[0], 0, args[3], const_args[3]);
+        break;
     case INDEX_op_add_i32:
         c = ARITH_ADD;
         goto gen_arith;
@@ -1782,6 +1791,7 @@ static const TCGTargetOpDef arm_op_defs[] = {
 
     { INDEX_op_brcond_i32, { "r", "rI" } },
     { INDEX_op_setcond_i32, { "r", "r", "rI" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rI", "rI", "0" } },
 
     /* TODO: "r", "r", "r", "r", "ri", "ri" */
     { INDEX_op_add2_i32, { "r", "r", "r", "r", "r", "r" } },
