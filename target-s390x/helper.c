@@ -511,7 +511,8 @@ static void do_program_interrupt(CPUS390XState *env)
         break;
     }
 
-    qemu_log("%s: code=0x%x ilc=%d\n", __func__, env->int_pgm_code, ilc);
+    qemu_log_mask(CPU_LOG_INT, "%s: code=0x%x ilc=%d\n",
+                  __func__, env->int_pgm_code, ilc);
 
     lowcore = cpu_physical_memory_map(env->psa, &len, 1);
 
@@ -575,8 +576,8 @@ static void do_ext_interrupt(CPUS390XState *env)
 
 void do_interrupt(CPUS390XState *env)
 {
-    qemu_log("%s: %d at pc=%" PRIx64 "\n", __func__, env->exception_index,
-             env->psw.addr);
+    qemu_log_mask(CPU_LOG_INT, "%s: %d at pc=%" PRIx64 "\n",
+                  __func__, env->exception_index, env->psw.addr);
 
     s390_add_running_cpu(env);
     /* handle external interrupts */

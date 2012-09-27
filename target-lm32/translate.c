@@ -942,7 +942,7 @@ static const DecoderInfo decinfo[] = {
 
 static inline void decode(DisasContext *dc, uint32_t ir)
 {
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
         tcg_gen_debug_insn_start(dc->pc);
     }
 

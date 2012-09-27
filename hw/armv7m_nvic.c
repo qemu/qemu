@@ -489,7 +489,8 @@ static int armv7m_nvic_init(SysBusDevice *dev)
      */
     memory_region_init_alias(&s->gic_iomem_alias, "nvic-gic", &s->gic.iomem,
                              0x100, 0xc00);
-    memory_region_add_subregion_overlap(&s->container, 0x100, &s->gic.iomem, 1);
+    memory_region_add_subregion_overlap(&s->container, 0x100,
+                                        &s->gic_iomem_alias, 1);
     /* Map the whole thing into system memory at the location required
      * by the v7M architecture.
      */

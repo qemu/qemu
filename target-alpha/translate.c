@@ -3421,7 +3421,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
         insn = cpu_ldl_code(env, ctx.pc);
         num_insns++;
 
-	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
+	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
             tcg_gen_debug_insn_start(ctx.pc);
         }
 
