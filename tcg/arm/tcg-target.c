@@ -1197,20 +1197,11 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     case 1:
     case 2:
     default:
-        if (data_reg != TCG_REG_R0) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            data_reg, 0, TCG_REG_R0, SHIFT_IMM_LSL(0));
-        }
+        tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
         break;
     case 3:
-        if (data_reg != TCG_REG_R0) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            data_reg, 0, TCG_REG_R0, SHIFT_IMM_LSL(0));
-        }
-        if (data_reg2 != TCG_REG_R1) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            data_reg2, 0, TCG_REG_R1, SHIFT_IMM_LSL(0));
-        }
+        tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
+        tcg_out_mov_reg(s, COND_AL, data_reg2, TCG_REG_R1);
         break;
     }
 
