@@ -1294,30 +1294,8 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
     return s;
 }
 
-DisplaySurface *qemu_create_displaysurface(DisplayState *ds,
-                                           int width, int height)
-{
-    DisplaySurface *surface = g_new0(DisplaySurface, 1);
-
-    int linesize = width * 4;
-    qemu_alloc_display(surface, width, height, linesize,
-                       qemu_default_pixelformat(32), 0);
-    return surface;
-}
-
-DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
-                                           int width, int height)
-{
-    int linesize = width * 4;
-
-    trace_displaysurface_resize(ds, ds->surface, width, height);
-    qemu_alloc_display(ds->surface, width, height, linesize,
-                       qemu_default_pixelformat(32), 0);
-    return ds->surface;
-}
-
-void qemu_alloc_display(DisplaySurface *surface, int width, int height,
-                        int linesize, PixelFormat pf, int newflags)
+static void qemu_alloc_display(DisplaySurface *surface, int width, int height,
+                               int linesize, PixelFormat pf, int newflags)
 {
     surface->width = width;
     surface->height = height;
@@ -1340,6 +1318,28 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags |= QEMU_BIG_ENDIAN_FLAG;
 #endif
+}
+
+DisplaySurface *qemu_create_displaysurface(DisplayState *ds,
+                                           int width, int height)
+{
+    DisplaySurface *surface = g_new0(DisplaySurface, 1);
+
+    int linesize = width * 4;
+    qemu_alloc_display(surface, width, height, linesize,
+                       qemu_default_pixelformat(32), 0);
+    return surface;
+}
+
+DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
+                                           int width, int height)
+{
+    int linesize = width * 4;
+
+    trace_displaysurface_resize(ds, ds->surface, width, height);
+    qemu_alloc_display(ds->surface, width, height, linesize,
+                       qemu_default_pixelformat(32), 0);
+    return ds->surface;
 }
 
 DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
