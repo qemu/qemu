@@ -613,7 +613,7 @@ static void qemu_tcg_init_cpu_signals(void)
 }
 #endif /* _WIN32 */
 
-QemuMutex qemu_global_mutex;
+static QemuMutex qemu_global_mutex;
 static QemuCond qemu_io_proceeded_cond;
 static bool iothread_requesting_mutex;
 
