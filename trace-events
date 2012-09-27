@@ -79,7 +79,7 @@ commit_start(void *bs, void *base, void *top, void *s, void *co, void *opaque) "
 
 # blockdev.c
 qmp_block_job_cancel(void *job) "job %p"
-block_stream_cb(void *bs, void *job, int ret) "bs %p job %p ret %d"
+block_job_cb(void *bs, void *job, int ret) "bs %p job %p ret %d"
 qmp_block_stream(void *bs, void *job) "bs %p job %p"
 
 # hw/virtio-blk.c

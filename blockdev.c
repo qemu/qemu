@@ -1070,12 +1070,12 @@ static QObject *qobject_from_block_job(BlockJob *job)
                               job->speed);
 }
 
-static void block_stream_cb(void *opaque, int ret)
+static void block_job_cb(void *opaque, int ret)
 {
     BlockDriverState *bs = opaque;
     QObject *obj;
 
-    trace_block_stream_cb(bs, bs->job, ret);
+    trace_block_job_cb(bs, bs->job, ret);
 
     assert(bs->job);
     obj = qobject_from_block_job(bs->job);
@@ -1117,7 +1117,7 @@ void qmp_block_stream(const char *device, bool has_base,
     }
 
     stream_start(bs, base_bs, base, has_speed ? speed : 0,
-                 block_stream_cb, bs, &local_err);
+                 block_job_cb, bs, &local_err);
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
         return;
