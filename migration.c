@@ -243,21 +243,13 @@ static int migrate_fd_cleanup(MigrationState *s)
 {
     int ret = 0;
 
-    if (s->fd != -1) {
-        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    }
-
     if (s->file) {
         DPRINTF("closing file\n");
         ret = qemu_fclose(s->file);
         s->file = NULL;
     }
 
-    if (s->fd != -1) {
-        close(s->fd);
-        s->fd = -1;
-    }
-
+    migrate_fd_close(s);
     return ret;
 }
 
@@ -393,8 +385,13 @@ int migrate_fd_wait_for_unfreeze(MigrationState *s)
 
 int migrate_fd_close(MigrationState *s)
 {
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    return s->close(s);
+    int rc = 0;
+    if (s->fd != -1) {
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+        rc = s->close(s);
+        s->fd = -1;
+    }
+    return rc;
 }
 
 void add_migration_state_change_notifier(Notifier *notify)
