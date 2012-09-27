@@ -1614,12 +1614,17 @@ static int usbredir_get_parser(QEMUFile *f, void *priv, size_t unused)
     }
 
     /*
-     * Our chardev should be open already at this point, otherwise
-     * the usbredir channel will be broken (ie spice without seamless)
+     * If our chardev is not open already at this point the usbredir connection
+     * has been broken (non seamless migration, or restore from disk).
+     *
+     * In this case create a temporary parser to receive the migration data,
+     * and schedule the close_bh to report the device as disconnected to the
+     * guest and to destroy the parser again.
      */
     if (dev->parser == NULL) {
-        ERROR("get_parser called with closed chardev, failing migration\n");
-        return -1;
+        WARNING("usb-redir connection broken during migration\n");
+        usbredir_create_parser(dev);
+        qemu_bh_schedule(dev->chardev_close_bh);
     }
 
     data = g_malloc(len);
