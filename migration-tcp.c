@@ -45,7 +45,7 @@ static int tcp_close(MigrationState *s)
     int r = 0;
     DPRINTF("tcp_close\n");
     if (s->fd != -1) {
-        if (close(s->fd) < 0) {
+        if (closesocket(s->fd) < 0) {
             r = -errno;
         }
         s->fd = -1;
@@ -89,7 +89,7 @@ static void tcp_accept_incoming_migration(void *opaque)
         c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
     } while (c == -1 && socket_error() == EINTR);
     qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
-    close(s);
+    closesocket(s);
 
     DPRINTF("accepted migration\n");
 
@@ -107,7 +107,7 @@ static void tcp_accept_incoming_migration(void *opaque)
     process_incoming_migration(f);
     qemu_fclose(f);
 out:
-    close(c);
+    closesocket(c);
 }
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
