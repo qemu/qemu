@@ -463,4 +463,20 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp);
 
+/**
+ * commit_start:
+ * @bs: Top Block device
+ * @base: Block device that will be written into, and become the new top
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @on_error: The action to take upon error.
+ * @cb: Completion function for the job.
+ * @opaque: Opaque pointer value passed to @cb.
+ * @errp: Error object.
+ *
+ */
+void commit_start(BlockDriverState *bs, BlockDriverState *base,
+                 BlockDriverState *top, int64_t speed,
+                 BlockErrorAction on_error, BlockDriverCompletionFunc *cb,
+                 void *opaque, Error **errp);
+
 #endif /* BLOCK_INT_H */
