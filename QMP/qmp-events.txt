@@ -50,7 +50,8 @@ Emitted when a block job has been cancelled.
 
 Data:
 
-- "type":     Job type ("stream" for image streaming, json-string)
+- "type":     Job type (json-string; "stream" for image streaming
+                                     "commit" for block commit)
 - "device":   Device name (json-string)
 - "len":      Maximum progress value (json-int)
 - "offset":   Current progress value (json-int)
@@ -73,7 +74,8 @@ Emitted when a block job has completed.
 
 Data:
 
-- "type":     Job type ("stream" for image streaming, json-string)
+- "type":     Job type (json-string; "stream" for image streaming
+                                     "commit" for block commit)
 - "device":   Device name (json-string)
 - "len":      Maximum progress value (json-int)
 - "offset":   Current progress value (json-int)

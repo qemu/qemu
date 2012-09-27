@@ -792,6 +792,12 @@ EQMP
     },
 
     {
+        .name       = "block-commit",
+        .args_type  = "device:B,base:s?,top:s,speed:o?",
+        .mhandler.cmd_new = qmp_marshal_input_block_commit,
+    },
+
+    {
         .name       = "block-job-set-speed",
         .args_type  = "device:B,speed:o",
         .mhandler.cmd_new = qmp_marshal_input_block_job_set_speed,
