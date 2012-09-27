@@ -44,11 +44,8 @@ static int unix_close(MigrationState *s)
 {
     int r = 0;
     DPRINTF("unix_close\n");
-    if (s->fd != -1) {
-        if (close(s->fd) < 0) {
-            r = -errno;
-        }
-        s->fd = -1;
+    if (close(s->fd) < 0) {
+        r = -errno;
     }
     return r;
 }

@@ -44,11 +44,8 @@ static int tcp_close(MigrationState *s)
 {
     int r = 0;
     DPRINTF("tcp_close\n");
-    if (s->fd != -1) {
-        if (closesocket(s->fd) < 0) {
-            r = -errno;
-        }
-        s->fd = -1;
+    if (closesocket(s->fd) < 0) {
+        r = -socket_error();
     }
     return r;
 }
