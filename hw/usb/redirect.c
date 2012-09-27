@@ -862,14 +862,10 @@ static void usbredir_chardev_close_bh(void *opaque)
     }
 }
 
-static void usbredir_chardev_open(USBRedirDevice *dev)
+static void usbredir_create_parser(USBRedirDevice *dev)
 {
     uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
     int flags = 0;
-
-    /* Make sure any pending closes are handled (no-op if none pending) */
-    usbredir_chardev_close_bh(dev);
-    qemu_bh_cancel(dev->chardev_close_bh);
 
     DPRINTF("creating usbredirparser\n");
 
@@ -982,7 +978,10 @@ static void usbredir_chardev_event(void *opaque, int event)
     switch (event) {
     case CHR_EVENT_OPENED:
         DPRINTF("chardev open\n");
-        usbredir_chardev_open(dev);
+        /* Make sure any pending closes are handled (no-op if none pending) */
+        usbredir_chardev_close_bh(dev);
+        qemu_bh_cancel(dev->chardev_close_bh);
+        usbredir_create_parser(dev);
         break;
     case CHR_EVENT_CLOSED:
         DPRINTF("chardev close\n");
