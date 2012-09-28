@@ -241,6 +241,9 @@ static inline void register_displaychangelistener(DisplayState *ds, DisplayChang
 {
     QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
     gui_setup_refresh(ds);
+    if (dcl->dpy_gfx_resize) {
+        dcl->dpy_gfx_resize(ds);
+    }
 }
 
 static inline void unregister_displaychangelistener(DisplayState *ds,

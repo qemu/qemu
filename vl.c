@@ -3876,7 +3876,6 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     /* display setup */
-    dpy_gfx_resize(ds);
     text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
