@@ -282,7 +282,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
                 inet_strfamily(addr->ai_family), strerror(errno));
         return -1;
     }
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
     if (connect_state != NULL) {
         socket_set_nonblock(sock);
     }
