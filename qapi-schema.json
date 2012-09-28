@@ -1098,6 +1098,9 @@
 #
 # @len: the maximum progress value
 #
+# @busy: false if the job is known to be in a quiescent state, with
+#        no pending I/O.  Since 1.3.
+#
 # @offset: the current progress value
 #
 # @speed: the rate limit, bytes per second
@@ -1106,7 +1109,7 @@
 ##
 { 'type': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'speed': 'int'} }
+           'offset': 'int', 'busy': 'bool', 'speed': 'int'} }
 
 ##
 # @query-block-jobs:

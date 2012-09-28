@@ -168,6 +168,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
     info->type   = g_strdup(job->job_type->job_type);
     info->device = g_strdup(bdrv_get_device_name(job->bs));
     info->len    = job->len;
+    info->busy   = job->busy;
     info->offset = job->offset;
     info->speed  = job->speed;
     return info;
