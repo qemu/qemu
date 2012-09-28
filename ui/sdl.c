@@ -899,12 +899,6 @@ static void sdl_refresh(DisplayState *ds)
     }
 }
 
-static void sdl_fill(DisplayState *ds, int x, int y, int w, int h, uint32_t c)
-{
-    SDL_Rect dst = { x, y, w, h };
-    SDL_FillRect(real_screen, &dst, c);
-}
-
 static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
 {
     if (on) {
@@ -1024,7 +1018,6 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     dcl->dpy_gfx_resize = sdl_resize;
     dcl->dpy_refresh = sdl_refresh;
     dcl->dpy_gfx_setdata = sdl_setdata;
-    dcl->dpy_gfx_fill = sdl_fill;
     dcl->dpy_mouse_set = sdl_mouse_warp;
     dcl->dpy_cursor_define = sdl_mouse_define;
     register_displaychangelistener(ds, dcl);

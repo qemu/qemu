@@ -161,8 +161,6 @@ struct DisplayChangeListener {
     void (*dpy_gfx_setdata)(struct DisplayState *s);
     void (*dpy_gfx_copy)(struct DisplayState *s, int src_x, int src_y,
                          int dst_x, int dst_y, int w, int h);
-    void (*dpy_gfx_fill)(struct DisplayState *s, int x, int y,
-                         int w, int h, uint32_t c);
 
     void (*dpy_text_cursor)(struct DisplayState *s, int x, int y);
     void (*dpy_text_resize)(struct DisplayState *s, int w, int h);
@@ -302,17 +300,6 @@ static inline void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
             dcl->dpy_gfx_copy(s, src_x, src_y, dst_x, dst_y, w, h);
         } else { /* TODO */
             dcl->dpy_gfx_update(s, dst_x, dst_y, w, h);
-        }
-    }
-}
-
-static inline void dpy_gfx_fill(struct DisplayState *s, int x, int y,
-                                int w, int h, uint32_t c)
-{
-    struct DisplayChangeListener *dcl;
-    QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->dpy_gfx_fill) {
-            dcl->dpy_gfx_fill(s, x, y, w, h, c);
         }
     }
 }
