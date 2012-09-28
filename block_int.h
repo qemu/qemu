@@ -425,15 +425,13 @@ void block_job_cancel(BlockJob *job);
 bool block_job_is_cancelled(BlockJob *job);
 
 /**
- * block_job_cancel:
+ * block_job_cancel_sync:
  * @job: The job to be canceled.
  *
- * Asynchronously cancel the job and wait for it to reach a quiescent
- * state.  Note that the completion callback will still be called
- * asynchronously, hence it is *not* valid to call #bdrv_delete
- * immediately after #block_job_cancel_sync.  Users of block jobs
- * will usually protect the BlockDriverState objects with a reference
- * count, should this be a concern.
+ * Synchronously cancel the job.  The completion callback is called
+ * before the function returns.  The job may actually complete
+ * instead of canceling itself; the circumstances under which this
+ * happens depend on the kind of job that is active.
  *
  * Returns the return value from the job if the job actually completed
  * during the call, or -ECANCELED if it was canceled.
