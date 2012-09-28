@@ -1387,7 +1387,7 @@ void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
 }
 
 void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                               BlockQMPEventAction action, int is_read)
+                               BlockErrorAction action, int is_read)
 {
     QObject *data;
     const char *action_str;
@@ -2474,14 +2474,14 @@ void bdrv_set_io_limits(BlockDriverState *bs,
     bs->io_limits_enabled = bdrv_io_limits_enabled(bs);
 }
 
-void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
-                       BlockErrorAction on_write_error)
+void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
+                       BlockdevOnError on_write_error)
 {
     bs->on_read_error = on_read_error;
     bs->on_write_error = on_write_error;
 }
 
-BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read)
+BlockdevOnError bdrv_get_on_error(BlockDriverState *bs, int is_read)
 {
     return is_read ? bs->on_read_error : bs->on_write_error;
 }

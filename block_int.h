@@ -262,7 +262,7 @@ struct BlockDriverState {
 
     /* NOTE: the following infos are only hints for real hardware
        drivers. They are not used by the block driver */
-    BlockErrorAction on_read_error, on_write_error;
+    BlockdevOnError on_read_error, on_write_error;
     bool iostatus_enabled;
     BlockDeviceIoStatus iostatus;
     char device_name[32];

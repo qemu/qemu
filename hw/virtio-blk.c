@@ -66,7 +66,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
     int is_read)
 {
-    BlockErrorAction action = bdrv_get_on_error(req->dev->bs, is_read);
+    BlockdevOnError action = bdrv_get_on_error(req->dev->bs, is_read);
     VirtIOBlock *s = req->dev;
 
     if (action == BLOCK_ERR_IGNORE) {
