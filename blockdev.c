@@ -1232,19 +1232,8 @@ static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
     BlockJob *job = bs->job;
 
     if (job) {
-        BlockJobInfoList *elem;
-        BlockJobInfo *info = g_new(BlockJobInfo, 1);
-        *info = (BlockJobInfo){
-            .type   = g_strdup(job->job_type->job_type),
-            .device = g_strdup(bdrv_get_device_name(bs)),
-            .len    = job->len,
-            .offset = job->offset,
-            .speed  = job->speed,
-        };
-
-        elem = g_new0(BlockJobInfoList, 1);
-        elem->value = info;
-
+        BlockJobInfoList *elem = g_new0(BlockJobInfoList, 1);
+        elem->value = block_job_query(bs->job);
         (*prev)->next = elem;
         *prev = elem;
     }

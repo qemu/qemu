@@ -161,3 +161,14 @@ void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
         job->busy = true;
     }
 }
+
+BlockJobInfo *block_job_query(BlockJob *job)
+{
+    BlockJobInfo *info = g_new0(BlockJobInfo, 1);
+    info->type   = g_strdup(job->job_type->job_type);
+    info->device = g_strdup(bdrv_get_device_name(job->bs));
+    info->len    = job->len;
+    info->offset = job->offset;
+    info->speed  = job->speed;
+    return info;
+}

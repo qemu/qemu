@@ -163,6 +163,14 @@ void block_job_cancel(BlockJob *job);
 bool block_job_is_cancelled(BlockJob *job);
 
 /**
+ * block_job_query:
+ * @job: The job to get information about.
+ *
+ * Return information about a job.
+ */
+BlockJobInfo *block_job_query(BlockJob *job);
+
+/**
  * block_job_cancel_sync:
  * @job: The job to be canceled.
  *
