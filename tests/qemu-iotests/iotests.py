@@ -138,6 +138,13 @@ class QMPTestCase(unittest.TestCase):
                     self.fail('invalid index "%s" in path "%s" in "%s"' % (idx, path, str(d)))
         return d
 
+    def assert_qmp_absent(self, d, path):
+        try:
+            result = self.dictpath(d, path)
+        except AssertionError:
+            return
+        self.fail('path "%s" has value "%s"' % (path, str(result)))
+
     def assert_qmp(self, d, path, value):
         '''Assert that the value for a specific path in a QMP dict matches'''
         result = self.dictpath(d, path)
