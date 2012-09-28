@@ -241,13 +241,13 @@ static void drive_put_ref_bh_schedule(DriveInfo *dinfo)
 static int parse_block_error_action(const char *buf, int is_read)
 {
     if (!strcmp(buf, "ignore")) {
-        return BLOCK_ERR_IGNORE;
+        return BLOCKDEV_ON_ERROR_IGNORE;
     } else if (!is_read && !strcmp(buf, "enospc")) {
-        return BLOCK_ERR_STOP_ENOSPC;
+        return BLOCKDEV_ON_ERROR_ENOSPC;
     } else if (!strcmp(buf, "stop")) {
-        return BLOCK_ERR_STOP_ANY;
+        return BLOCKDEV_ON_ERROR_STOP;
     } else if (!strcmp(buf, "report")) {
-        return BLOCK_ERR_REPORT;
+        return BLOCKDEV_ON_ERROR_REPORT;
     } else {
         error_report("'%s' invalid %s error action",
                      buf, is_read ? "read" : "write");
@@ -433,7 +433,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
         return NULL;
     }
 
-    on_write_error = BLOCK_ERR_STOP_ENOSPC;
+    on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO && type != IF_NONE) {
             error_report("werror is not supported by this bus type");
@@ -446,7 +446,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
         }
     }
 
-    on_read_error = BLOCK_ERR_REPORT;
+    on_read_error = BLOCKDEV_ON_ERROR_REPORT;
     if ((buf = qemu_opt_get(opts, "rerror")) != NULL) {
         if (type != IF_IDE && type != IF_VIRTIO && type != IF_SCSI && type != IF_NONE) {
             error_report("rerror is not supported by this bus type");
@@ -1143,7 +1143,7 @@ void qmp_block_commit(const char *device,
     /* This will be part of the QMP command, if/when the
      * BlockdevOnError change for blkmirror makes it in
      */
-    BlockErrorAction on_error = BLOCK_ERR_REPORT;
+    BlockdevOnError on_error = BLOCKDEV_ON_ERROR_REPORT;
 
     /* drain all i/o before commits */
     bdrv_drain_all();

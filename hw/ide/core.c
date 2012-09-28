@@ -559,13 +559,13 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     int is_read = (op & BM_STATUS_RETRY_READ);
     BlockdevOnError action = bdrv_get_on_error(s->bs, is_read);
 
-    if (action == BLOCK_ERR_IGNORE) {
+    if (action == BLOCKDEV_ON_ERROR_IGNORE) {
         bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_IGNORE, is_read);
         return 0;
     }
 
-    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
-            || action == BLOCK_ERR_STOP_ANY) {
+    if ((error == ENOSPC && action == BLOCKDEV_ON_ERROR_ENOSPC)
+            || action == BLOCKDEV_ON_ERROR_STOP) {
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
         s->bus->error_status = op;
         bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_STOP, is_read);

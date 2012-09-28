@@ -390,13 +390,13 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     BlockdevOnError action = bdrv_get_on_error(s->qdev.conf.bs, is_read);
 
-    if (action == BLOCK_ERR_IGNORE) {
+    if (action == BLOCKDEV_ON_ERROR_IGNORE) {
         bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_IGNORE, is_read);
         return 0;
     }
 
-    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
-            || action == BLOCK_ERR_STOP_ANY) {
+    if ((error == ENOSPC && action == BLOCKDEV_ON_ERROR_ENOSPC)
+            || action == BLOCKDEV_ON_ERROR_STOP) {
 
         bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);

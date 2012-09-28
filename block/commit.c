@@ -34,7 +34,7 @@ typedef struct CommitBlockJob {
     BlockDriverState *active;
     BlockDriverState *top;
     BlockDriverState *base;
-    BlockErrorAction on_error;
+    BlockdevOnError on_error;
     int base_flags;
     int orig_overlay_flags;
 } CommitBlockJob;
@@ -126,9 +126,9 @@ wait:
             bytes_written += n * BDRV_SECTOR_SIZE;
         }
         if (ret < 0) {
-            if (s->on_error == BLOCK_ERR_STOP_ANY    ||
-                s->on_error == BLOCK_ERR_REPORT      ||
-                (s->on_error == BLOCK_ERR_STOP_ENOSPC && ret == -ENOSPC)) {
+            if (s->on_error == BLOCKDEV_ON_ERROR_STOP ||
+                s->on_error == BLOCKDEV_ON_ERROR_REPORT||
+                (s->on_error == BLOCKDEV_ON_ERROR_ENOSPC && ret == -ENOSPC)) {
                 goto exit_free_buf;
             } else {
                 n = 0;
@@ -182,7 +182,7 @@ static BlockJobType commit_job_type = {
 
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                   BlockDriverState *top, int64_t speed,
-                  BlockErrorAction on_error, BlockDriverCompletionFunc *cb,
+                  BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp)
 {
     CommitBlockJob *s;
@@ -192,8 +192,8 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     BlockDriverState *overlay_bs;
     Error *local_err = NULL;
 
-    if ((on_error == BLOCK_ERR_STOP_ANY ||
-         on_error == BLOCK_ERR_STOP_ENOSPC) &&
+    if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
+         on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
         !bdrv_iostatus_is_enabled(bs)) {
         error_set(errp, QERR_INVALID_PARAMETER_COMBINATION);
         return;

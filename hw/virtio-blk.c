@@ -69,13 +69,13 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
     BlockdevOnError action = bdrv_get_on_error(req->dev->bs, is_read);
     VirtIOBlock *s = req->dev;
 
-    if (action == BLOCK_ERR_IGNORE) {
+    if (action == BLOCKDEV_ON_ERROR_IGNORE) {
         bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_IGNORE, is_read);
         return 0;
     }
 
-    if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
-            || action == BLOCK_ERR_STOP_ANY) {
+    if ((error == ENOSPC && action == BLOCKDEV_ON_ERROR_ENOSPC)
+            || action == BLOCKDEV_ON_ERROR_STOP) {
         req->next = s->rq;
         s->rq = req;
         bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_STOP, is_read);

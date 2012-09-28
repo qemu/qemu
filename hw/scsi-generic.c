@@ -400,11 +400,11 @@ static int scsi_generic_initfn(SCSIDevice *s)
         return -1;
     }
 
-    if (bdrv_get_on_error(s->conf.bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
+    if (bdrv_get_on_error(s->conf.bs, 0) != BLOCKDEV_ON_ERROR_ENOSPC) {
         error_report("Device doesn't support drive option werror");
         return -1;
     }
-    if (bdrv_get_on_error(s->conf.bs, 1) != BLOCK_ERR_REPORT) {
+    if (bdrv_get_on_error(s->conf.bs, 1) != BLOCKDEV_ON_ERROR_REPORT) {
         error_report("Device doesn't support drive option rerror");
         return -1;
     }

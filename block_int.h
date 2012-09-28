@@ -323,7 +323,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
  */
 void commit_start(BlockDriverState *bs, BlockDriverState *base,
                  BlockDriverState *top, int64_t speed,
-                 BlockErrorAction on_error, BlockDriverCompletionFunc *cb,
+                 BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
                  void *opaque, Error **errp);
 
 #endif /* BLOCK_INT_H */
