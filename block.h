@@ -108,8 +108,6 @@ void bdrv_iostatus_reset(BlockDriverState *bs);
 void bdrv_iostatus_disable(BlockDriverState *bs);
 bool bdrv_iostatus_is_enabled(const BlockDriverState *bs);
 void bdrv_iostatus_set_err(BlockDriverState *bs, int error);
-void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                               BlockErrorAction action, bool is_read);
 void bdrv_info_print(Monitor *mon, const QObject *data);
 void bdrv_info(Monitor *mon, QObject **ret_data);
 void bdrv_stats_print(Monitor *mon, const QObject *data);
@@ -282,6 +280,9 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
                        BlockdevOnError on_write_error);
 BlockdevOnError bdrv_get_on_error(BlockDriverState *bs, bool is_read);
+BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int error);
+void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
+                       bool is_read, int error);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);

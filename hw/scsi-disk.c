@@ -388,21 +388,9 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
 {
     bool is_read = (r->req.cmd.xfer == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-    BlockdevOnError action = bdrv_get_on_error(s->qdev.conf.bs, is_read);
+    BlockErrorAction action = bdrv_get_error_action(s->qdev.conf.bs, is_read, error);
 
-    if (action == BLOCKDEV_ON_ERROR_IGNORE) {
-        bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_IGNORE, is_read);
-        return 0;
-    }
-
-    if ((error == ENOSPC && action == BLOCKDEV_ON_ERROR_ENOSPC)
-            || action == BLOCKDEV_ON_ERROR_STOP) {
-
-        bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(RUN_STATE_IO_ERROR);
-        bdrv_iostatus_set_err(s->qdev.conf.bs, error);
-        scsi_req_retry(&r->req);
-    } else {
+    if (action == BDRV_ACTION_REPORT) {
         switch (error) {
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
@@ -417,9 +405,12 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;
         }
-        bdrv_emit_qmp_error_event(s->qdev.conf.bs, BDRV_ACTION_REPORT, is_read);
     }
-    return 1;
+    bdrv_error_action(s->qdev.conf.bs, action, is_read, error);
+    if (action == BDRV_ACTION_STOP) {
+        scsi_req_retry(&r->req);
+    }
+    return action != BDRV_ACTION_IGNORE;
 }
 
 static void scsi_write_complete(void * opaque, int ret)

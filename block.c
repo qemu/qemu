@@ -29,6 +29,7 @@
 #include "blockjob.h"
 #include "module.h"
 #include "qjson.h"
+#include "sysemu.h"
 #include "qemu-coroutine.h"
 #include "qmp-commands.h"
 #include "qemu-timer.h"
@@ -1386,8 +1387,8 @@ void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
     }
 }
 
-void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                               BlockErrorAction action, bool is_read)
+static void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
+                                      BlockErrorAction action, bool is_read)
 {
     QObject *data;
     const char *action_str;
@@ -2484,6 +2485,39 @@ void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
 BlockdevOnError bdrv_get_on_error(BlockDriverState *bs, bool is_read)
 {
     return is_read ? bs->on_read_error : bs->on_write_error;
+}
+
+BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int error)
+{
+    BlockdevOnError on_err = is_read ? bs->on_read_error : bs->on_write_error;
+
+    switch (on_err) {
+    case BLOCKDEV_ON_ERROR_ENOSPC:
+        return (error == ENOSPC) ? BDRV_ACTION_STOP : BDRV_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_STOP:
+        return BDRV_ACTION_STOP;
+    case BLOCKDEV_ON_ERROR_REPORT:
+        return BDRV_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_IGNORE:
+        return BDRV_ACTION_IGNORE;
+    default:
+        abort();
+    }
+}
+
+/* This is done by device models because, while the block layer knows
+ * about the error, it does not know whether an operation comes from
+ * the device or the block layer (from a job, for example).
+ */
+void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
+                       bool is_read, int error)
+{
+    assert(error >= 0);
+    bdrv_emit_qmp_error_event(bs, action, is_read);
+    if (action == BDRV_ACTION_STOP) {
+        vm_stop(RUN_STATE_IO_ERROR);
+        bdrv_iostatus_set_err(bs, error);
+    }
 }
 
 int bdrv_is_read_only(BlockDriverState *bs)
@@ -4226,14 +4260,10 @@ void bdrv_iostatus_reset(BlockDriverState *bs)
     }
 }
 
-/* XXX: Today this is set by device models because it makes the implementation
-   quite simple. However, the block layer knows about the error, so it's
-   possible to implement this without device models being involved */
 void bdrv_iostatus_set_err(BlockDriverState *bs, int error)
 {
-    if (bdrv_iostatus_is_enabled(bs) &&
-        bs->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
-        assert(error >= 0);
+    assert(bdrv_iostatus_is_enabled(bs));
+    if (bs->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
         bs->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
                                          BLOCK_DEVICE_IO_STATUS_FAILED;
     }

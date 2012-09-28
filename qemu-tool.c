@@ -19,6 +19,7 @@
 #include "qemu-log.h"
 #include "migration.h"
 #include "main-loop.h"
+#include "sysemu.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"
 
@@ -36,6 +37,11 @@ const char *qemu_get_vm_name(void)
 }
 
 Monitor *cur_mon;
+
+void vm_stop(RunState state)
+{
+    abort();
+}
 
 int monitor_cur_is_qmp(void)
 {

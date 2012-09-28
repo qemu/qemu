@@ -557,31 +557,21 @@ void ide_dma_error(IDEState *s)
 static int ide_handle_rw_error(IDEState *s, int error, int op)
 {
     bool is_read = (op & BM_STATUS_RETRY_READ) != 0;
-    BlockdevOnError action = bdrv_get_on_error(s->bs, is_read);
+    BlockErrorAction action = bdrv_get_error_action(s->bs, is_read, error);
 
-    if (action == BLOCKDEV_ON_ERROR_IGNORE) {
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_IGNORE, is_read);
-        return 0;
-    }
-
-    if ((error == ENOSPC && action == BLOCKDEV_ON_ERROR_ENOSPC)
-            || action == BLOCKDEV_ON_ERROR_STOP) {
+    if (action == BDRV_ACTION_STOP) {
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
         s->bus->error_status = op;
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(RUN_STATE_IO_ERROR);
-        bdrv_iostatus_set_err(s->bs, error);
-    } else {
+    } else if (action == BDRV_ACTION_REPORT) {
         if (op & BM_STATUS_DMA_RETRY) {
             dma_buf_commit(s);
             ide_dma_error(s);
         } else {
             ide_rw_error(s);
         }
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
-
-    return 1;
+    bdrv_error_action(s->bs, action, is_read, error);
+    return action != BDRV_ACTION_IGNORE;
 }
 
 void ide_dma_cb(void *opaque, int ret)

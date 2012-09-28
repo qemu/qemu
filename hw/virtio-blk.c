@@ -66,29 +66,20 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
     bool is_read)
 {
-    BlockdevOnError action = bdrv_get_on_error(req->dev->bs, is_read);
+    BlockErrorAction action = bdrv_get_error_action(req->dev->bs, is_read, error);
     VirtIOBlock *s = req->dev;
 
-    if (action == BLOCKDEV_ON_ERROR_IGNORE) {
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_IGNORE, is_read);
-        return 0;
-    }
-
-    if ((error == ENOSPC && action == BLOCKDEV_ON_ERROR_ENOSPC)
-            || action == BLOCKDEV_ON_ERROR_STOP) {
+    if (action == BDRV_ACTION_STOP) {
         req->next = s->rq;
         s->rq = req;
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(RUN_STATE_IO_ERROR);
-        bdrv_iostatus_set_err(s->bs, error);
-    } else {
+    } else if (action == BDRV_ACTION_REPORT) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
         bdrv_acct_done(s->bs, &req->acct);
         g_free(req);
-        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
 
-    return 1;
+    bdrv_error_action(s->bs, action, is_read, error);
+    return action != BDRV_ACTION_IGNORE;
 }
 
 static void virtio_blk_rw_complete(void *opaque, int ret)
