@@ -99,12 +99,28 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     job->speed = speed;
 }
 
-void block_job_cancel(BlockJob *job)
+void block_job_pause(BlockJob *job)
 {
-    job->cancelled = true;
+    job->paused = true;
+}
+
+bool block_job_is_paused(BlockJob *job)
+{
+    return job->paused;
+}
+
+void block_job_resume(BlockJob *job)
+{
+    job->paused = false;
     if (job->co && !job->busy) {
         qemu_coroutine_enter(job->co, NULL);
     }
+}
+
+void block_job_cancel(BlockJob *job)
+{
+    job->cancelled = true;
+    block_job_resume(job);
 }
 
 bool block_job_is_cancelled(BlockJob *job)
@@ -154,12 +170,20 @@ int block_job_cancel_sync(BlockJob *job)
 
 void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
 {
+    assert(job->busy);
+
     /* Check cancellation *before* setting busy = false, too!  */
-    if (!block_job_is_cancelled(job)) {
-        job->busy = false;
-        co_sleep_ns(clock, ns);
-        job->busy = true;
+    if (block_job_is_cancelled(job)) {
+        return;
     }
+
+    job->busy = false;
+    if (block_job_is_paused(job)) {
+        qemu_coroutine_yield();
+    } else {
+        co_sleep_ns(clock, ns);
+    }
+    job->busy = true;
 }
 
 BlockJobInfo *block_job_query(BlockJob *job)
@@ -169,6 +193,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
     info->device = g_strdup(bdrv_get_device_name(job->bs));
     info->len    = job->len;
     info->busy   = job->busy;
+    info->paused = job->paused;
     info->offset = job->offset;
     info->speed  = job->speed;
     return info;

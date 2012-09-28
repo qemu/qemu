@@ -1221,6 +1221,10 @@ void qmp_block_job_cancel(const char *device, Error **errp)
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
+    if (job->paused) {
+        error_set(errp, QERR_BLOCK_JOB_PAUSED, device);
+        return;
+    }
 
     trace_qmp_block_job_cancel(job);
     block_job_cancel(job);
