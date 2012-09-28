@@ -64,7 +64,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
-    int is_read)
+    bool is_read)
 {
     BlockdevOnError action = bdrv_get_on_error(req->dev->bs, is_read);
     VirtIOBlock *s = req->dev;
@@ -98,7 +98,7 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     trace_virtio_blk_rw_complete(req, ret);
 
     if (ret) {
-        int is_read = !(ldl_p(&req->out->type) & VIRTIO_BLK_T_OUT);
+        bool is_read = !(ldl_p(&req->out->type) & VIRTIO_BLK_T_OUT);
         if (virtio_blk_handle_rw_error(req, -ret, is_read))
             return;
     }

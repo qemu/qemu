@@ -238,7 +238,7 @@ static void drive_put_ref_bh_schedule(DriveInfo *dinfo)
     qemu_bh_schedule(s->bh);
 }
 
-static int parse_block_error_action(const char *buf, int is_read)
+static int parse_block_error_action(const char *buf, bool is_read)
 {
     if (!strcmp(buf, "ignore")) {
         return BLOCKDEV_ON_ERROR_IGNORE;

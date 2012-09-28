@@ -556,7 +556,7 @@ void ide_dma_error(IDEState *s)
 
 static int ide_handle_rw_error(IDEState *s, int error, int op)
 {
-    int is_read = (op & BM_STATUS_RETRY_READ);
+    bool is_read = (op & BM_STATUS_RETRY_READ) != 0;
     BlockdevOnError action = bdrv_get_on_error(s->bs, is_read);
 
     if (action == BLOCKDEV_ON_ERROR_IGNORE) {
