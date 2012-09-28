@@ -196,7 +196,7 @@ static void jazz_led_update_display(void *opaque)
     }
 
     s->state = REDRAW_NONE;
-    dpy_update(ds, 0, 0, ds_get_width(ds), ds_get_height(ds));
+    dpy_gfx_update(ds, 0, 0, ds_get_width(ds), ds_get_height(ds));
 }
 
 static void jazz_led_invalidate_display(void *opaque)
@@ -218,7 +218,7 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     console_write_ch(chardata++, 0x00200100 | buf[0]);
     console_write_ch(chardata++, 0x00200100 | buf[1]);
 
-    dpy_update(s->ds, 0, 0, 2, 1);
+    dpy_text_update(s->ds, 0, 0, 2, 1);
 }
 
 static int jazz_led_post_load(void *opaque, int version_id)

@@ -1351,7 +1351,7 @@ static void sm501_draw_crt(SM501State * s)
 	} else {
 	    if (y_start >= 0) {
 		/* flush to display */
-		dpy_update(s->ds, 0, y_start, width, y - y_start);
+                dpy_gfx_update(s->ds, 0, y_start, width, y - y_start);
 		y_start = -1;
 	    }
 	}
@@ -1362,7 +1362,7 @@ static void sm501_draw_crt(SM501State * s)
 
     /* complete flush to display */
     if (y_start >= 0)
-	dpy_update(s->ds, 0, y_start, width, y - y_start);
+        dpy_gfx_update(s->ds, 0, y_start, width, y - y_start);
 
     /* clear dirty flags */
     if (page_min != ~0l) {

@@ -1376,7 +1376,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
        size until the guest activates the display.  */
     ds = get_displaystate();
     ds->surface = qemu_resize_displaysurface(ds, 800, 480);
-    dpy_resize(ds);
+    dpy_gfx_resize(ds);
 }
 
 static struct arm_boot_info n800_binfo = {

@@ -268,8 +268,8 @@ static void tcx_update_display(void *opaque)
         } else {
             if (y_start >= 0) {
                 /* flush to display */
-                dpy_update(ts->ds, 0, y_start,
-                           ts->width, y - y_start);
+                dpy_gfx_update(ts->ds, 0, y_start,
+                               ts->width, y - y_start);
                 y_start = -1;
             }
             d += dd * 4;
@@ -278,8 +278,8 @@ static void tcx_update_display(void *opaque)
     }
     if (y_start >= 0) {
         /* flush to display */
-        dpy_update(ts->ds, 0, y_start,
-                   ts->width, y - y_start);
+        dpy_gfx_update(ts->ds, 0, y_start,
+                       ts->width, y - y_start);
     }
     /* reset modified pages */
     if (page_max >= page_min) {
@@ -344,8 +344,8 @@ static void tcx24_update_display(void *opaque)
         } else {
             if (y_start >= 0) {
                 /* flush to display */
-                dpy_update(ts->ds, 0, y_start,
-                           ts->width, y - y_start);
+                dpy_gfx_update(ts->ds, 0, y_start,
+                               ts->width, y - y_start);
                 y_start = -1;
             }
             d += dd * 4;
@@ -356,8 +356,8 @@ static void tcx24_update_display(void *opaque)
     }
     if (y_start >= 0) {
         /* flush to display */
-        dpy_update(ts->ds, 0, y_start,
-                   ts->width, y - y_start);
+        dpy_gfx_update(ts->ds, 0, y_start,
+                       ts->width, y - y_start);
     }
     /* reset modified pages */
     if (page_max >= page_min) {

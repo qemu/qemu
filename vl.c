@@ -1375,11 +1375,18 @@ void gui_setup_refresh(DisplayState *ds)
 {
     DisplayChangeListener *dcl;
     bool need_timer = false;
+    bool have_gfx = false;
+    bool have_text = false;
 
     QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->dpy_refresh != NULL) {
             need_timer = true;
-            break;
+        }
+        if (dcl->dpy_gfx_update != NULL) {
+            have_gfx = true;
+        }
+        if (dcl->dpy_text_update != NULL) {
+            have_text = true;
         }
     }
 
@@ -1392,6 +1399,9 @@ void gui_setup_refresh(DisplayState *ds)
         qemu_free_timer(ds->gui_timer);
         ds->gui_timer = NULL;
     }
+
+    ds->have_gfx = have_gfx;
+    ds->have_text = have_text;
 }
 
 struct vm_change_state_entry {
@@ -3866,7 +3876,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     /* display setup */
-    dpy_resize(ds);
+    dpy_gfx_resize(ds);
     text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {

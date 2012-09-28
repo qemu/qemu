@@ -2753,10 +2753,10 @@ void vnc_display_init(DisplayState *ds)
     qemu_mutex_init(&vs->mutex);
     vnc_start_worker_thread();
 
-    dcl->dpy_copy = vnc_dpy_copy;
-    dcl->dpy_update = vnc_dpy_update;
-    dcl->dpy_resize = vnc_dpy_resize;
-    dcl->dpy_setdata = vnc_dpy_setdata;
+    dcl->dpy_gfx_copy = vnc_dpy_copy;
+    dcl->dpy_gfx_update = vnc_dpy_update;
+    dcl->dpy_gfx_resize = vnc_dpy_resize;
+    dcl->dpy_gfx_setdata = vnc_dpy_setdata;
     dcl->dpy_mouse_set = vnc_mouse_set;
     dcl->dpy_cursor_define = vnc_dpy_cursor_define;
     register_displaychangelistener(ds, dcl);

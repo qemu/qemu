@@ -321,14 +321,14 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     for (; line > 0; line --, src += bypl, dst += bypl)
         memcpy(dst, src, width);
 
-    dpy_update(s->vga.ds, x, y, w, h);
+    dpy_gfx_update(s->vga.ds, x, y, w, h);
 }
 
 static inline void vmsvga_update_screen(struct vmsvga_state_s *s)
 {
     memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr,
            s->bypp * s->width * s->height);
-    dpy_update(s->vga.ds, 0, 0, s->width, s->height);
+    dpy_gfx_update(s->vga.ds, 0, 0, s->width, s->height);
 }
 
 static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,

@@ -219,7 +219,7 @@ static void omap_update_display(void *opaque)
                                draw_line, omap_lcd->palette,
                                &first, &last);
     if (first >= 0) {
-        dpy_update(omap_lcd->state, 0, first, width, last - first + 1);
+        dpy_gfx_update(omap_lcd->state, 0, first, width, last - first + 1);
     }
     omap_lcd->invalidate = 0;
 }

@@ -571,8 +571,8 @@ static void display_refresh(struct DisplayState *ds)
 }
 
 static DisplayChangeListener display_listener = {
-    .dpy_update  = display_update,
-    .dpy_resize  = display_resize,
+    .dpy_gfx_update  = display_update,
+    .dpy_gfx_resize  = display_resize,
     .dpy_refresh = display_refresh,
 };
 

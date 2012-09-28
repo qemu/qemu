@@ -123,17 +123,17 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                     qxl->guest_primary.surface.width,
                     qxl->guest_primary.surface.height);
         }
-        dpy_resize(vga->ds);
+        dpy_gfx_resize(vga->ds);
     }
     for (i = 0; i < qxl->num_dirty_rects; i++) {
         if (qemu_spice_rect_is_empty(qxl->dirty+i)) {
             break;
         }
         qxl_blit(qxl, qxl->dirty+i);
-        dpy_update(vga->ds,
-                   qxl->dirty[i].left, qxl->dirty[i].top,
-                   qxl->dirty[i].right - qxl->dirty[i].left,
-                   qxl->dirty[i].bottom - qxl->dirty[i].top);
+        dpy_gfx_update(vga->ds,
+                       qxl->dirty[i].left, qxl->dirty[i].top,
+                       qxl->dirty[i].right - qxl->dirty[i].left,
+                       qxl->dirty[i].bottom - qxl->dirty[i].top);
     }
     qxl->num_dirty_rects = 0;
 }

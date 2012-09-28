@@ -871,20 +871,20 @@ static void pxa2xx_update_display(void *opaque)
     if (miny >= 0) {
         switch (s->orientation) {
         case 0:
-            dpy_update(s->ds, 0, miny, s->xres, maxy - miny + 1);
+            dpy_gfx_update(s->ds, 0, miny, s->xres, maxy - miny + 1);
             break;
         case 90:
-            dpy_update(s->ds, miny, 0, maxy - miny + 1, s->xres);
+            dpy_gfx_update(s->ds, miny, 0, maxy - miny + 1, s->xres);
             break;
         case 180:
             maxy = s->yres - maxy - 1;
             miny = s->yres - miny - 1;
-            dpy_update(s->ds, 0, maxy, s->xres, miny - maxy + 1);
+            dpy_gfx_update(s->ds, 0, maxy, s->xres, miny - maxy + 1);
             break;
         case 270:
             maxy = s->yres - maxy - 1;
             miny = s->yres - miny - 1;
-            dpy_update(s->ds, maxy, 0, miny - maxy + 1, s->xres);
+            dpy_gfx_update(s->ds, maxy, 0, miny - maxy + 1, s->xres);
             break;
         }
     }

@@ -638,30 +638,33 @@ static void console_refresh(QemuConsole *s)
 
     if (s != active_console)
         return;
-    if (!ds_get_bits_per_pixel(s->ds)) {
+
+    if (s->ds->have_text) {
         s->text_x[0] = 0;
         s->text_y[0] = 0;
         s->text_x[1] = s->width - 1;
         s->text_y[1] = s->height - 1;
         s->cursor_invalidate = 1;
-        return;
     }
 
-    vga_fill_rect(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds),
-                  color_table[0][COLOR_BLACK]);
-    y1 = s->y_displayed;
-    for(y = 0; y < s->height; y++) {
-        c = s->cells + y1 * s->width;
-        for(x = 0; x < s->width; x++) {
-            vga_putcharxy(s->ds, x, y, c->ch,
-                          &(c->t_attrib));
-            c++;
+    if (s->ds->have_gfx) {
+        vga_fill_rect(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds),
+                      color_table[0][COLOR_BLACK]);
+        y1 = s->y_displayed;
+        for (y = 0; y < s->height; y++) {
+            c = s->cells + y1 * s->width;
+            for (x = 0; x < s->width; x++) {
+                vga_putcharxy(s->ds, x, y, c->ch,
+                              &(c->t_attrib));
+                c++;
+            }
+            if (++y1 == s->total_height) {
+                y1 = 0;
+            }
         }
-        if (++y1 == s->total_height)
-            y1 = 0;
+        console_show_cursor(s, 1);
+        dpy_gfx_update(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds));
     }
-    console_show_cursor(s, 1);
-    dpy_update(s->ds, 0, 0, ds_get_width(s->ds), ds_get_height(s->ds));
 }
 
 static void console_scroll(int ydelta)
@@ -1094,17 +1097,17 @@ void console_select(unsigned int index)
             qemu_del_timer(active_console->cursor_timer);
         }
         active_console = s;
-        if (ds_get_bits_per_pixel(s->ds)) {
+        if (ds->have_gfx) {
             ds->surface = qemu_resize_displaysurface(ds, s->g_width, s->g_height);
-        } else {
-            s->ds->surface->width = s->width;
-            s->ds->surface->height = s->height;
+            dpy_gfx_resize(ds);
+        }
+        if (ds->have_text) {
+            dpy_text_resize(ds, s->width, s->height);
         }
         if (s->cursor_timer) {
             qemu_mod_timer(s->cursor_timer,
                    qemu_get_clock_ms(rt_clock) + CONSOLE_CURSOR_PERIOD / 2);
         }
-        dpy_resize(s->ds);
         vga_hw_invalidate();
     }
 }
@@ -1123,10 +1126,10 @@ static int console_puts(CharDriverState *chr, const uint8_t *buf, int len)
         console_putchar(s, buf[i]);
     }
     console_show_cursor(s, 1);
-    if (ds_get_bits_per_pixel(s->ds) && s->update_x0 < s->update_x1) {
-        dpy_update(s->ds, s->update_x0, s->update_y0,
-                   s->update_x1 - s->update_x0,
-                   s->update_y1 - s->update_y0);
+    if (s->ds->have_gfx && s->update_x0 < s->update_x1) {
+        dpy_gfx_update(s->ds, s->update_x0, s->update_y0,
+                       s->update_x1 - s->update_x0,
+                       s->update_y1 - s->update_y0);
     }
     return len;
 }
@@ -1234,8 +1237,8 @@ static void text_console_update(void *opaque, console_ch_t *chardata)
                                 (s->cells[src].t_attrib.fgcol << 12) |
                                 (s->cells[src].t_attrib.bgcol << 8) |
                                 (s->cells[src].t_attrib.bold << 21));
-        dpy_update(s->ds, s->text_x[0], s->text_y[0],
-                   s->text_x[1] - s->text_x[0], i - s->text_y[0]);
+        dpy_text_update(s->ds, s->text_x[0], s->text_y[0],
+                        s->text_x[1] - s->text_x[0], i - s->text_y[0]);
         s->text_x[0] = s->width;
         s->text_y[0] = s->height;
         s->text_x[1] = 0;
@@ -1596,7 +1599,7 @@ void qemu_console_resize(DisplayState *ds, int width, int height)
     s->g_height = height;
     if (is_graphic_console()) {
         ds->surface = qemu_resize_displaysurface(ds, width, height);
-        dpy_resize(ds);
+        dpy_gfx_resize(ds);
     }
 }
 
@@ -1604,7 +1607,7 @@ void qemu_console_copy(DisplayState *ds, int src_x, int src_y,
                        int dst_x, int dst_y, int w, int h)
 {
     if (is_graphic_console()) {
-        dpy_copy(ds, src_x, src_y, dst_x, dst_y, w, h);
+        dpy_gfx_copy(ds, src_x, src_y, dst_x, dst_y, w, h);
     }
 }
 

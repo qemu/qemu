@@ -454,7 +454,7 @@ static void tc6393xb_draw_graphic(TC6393xbState *s, int full_update)
             return;
     }
 
-    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+    dpy_gfx_update(s->ds, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void tc6393xb_draw_blank(TC6393xbState *s, int full_update)
@@ -472,7 +472,7 @@ static void tc6393xb_draw_blank(TC6393xbState *s, int full_update)
         d += ds_get_linesize(s->ds);
     }
 
-    dpy_update(s->ds, 0, 0, s->scr_width, s->scr_height);
+    dpy_gfx_update(s->ds, 0, 0, s->scr_width, s->scr_height);
 }
 
 static void tc6393xb_update_display(void *opaque)

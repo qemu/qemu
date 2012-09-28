@@ -154,15 +154,19 @@ struct DisplayChangeListener {
     int idle;
     uint64_t gui_timer_interval;
 
-    void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
-    void (*dpy_resize)(struct DisplayState *s);
-    void (*dpy_setdata)(struct DisplayState *s);
     void (*dpy_refresh)(struct DisplayState *s);
-    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y,
-                     int dst_x, int dst_y, int w, int h);
-    void (*dpy_fill)(struct DisplayState *s, int x, int y,
-                     int w, int h, uint32_t c);
+
+    void (*dpy_gfx_update)(struct DisplayState *s, int x, int y, int w, int h);
+    void (*dpy_gfx_resize)(struct DisplayState *s);
+    void (*dpy_gfx_setdata)(struct DisplayState *s);
+    void (*dpy_gfx_copy)(struct DisplayState *s, int src_x, int src_y,
+                         int dst_x, int dst_y, int w, int h);
+    void (*dpy_gfx_fill)(struct DisplayState *s, int x, int y,
+                         int w, int h, uint32_t c);
+
     void (*dpy_text_cursor)(struct DisplayState *s, int x, int y);
+    void (*dpy_text_resize)(struct DisplayState *s, int w, int h);
+    void (*dpy_text_update)(struct DisplayState *s, int x, int y, int w, int h);
 
     void (*dpy_mouse_set)(struct DisplayState *s, int x, int y, int on);
     void (*dpy_cursor_define)(struct DisplayState *s, QEMUCursor *cursor);
@@ -180,6 +184,8 @@ struct DisplayState {
     struct DisplaySurface *surface;
     void *opaque;
     struct QEMUTimer *gui_timer;
+    bool have_gfx;
+    bool have_text;
 
     struct DisplayAllocator* allocator;
     QLIST_HEAD(, DisplayChangeListener) listeners;
@@ -244,28 +250,32 @@ static inline void unregister_displaychangelistener(DisplayState *ds,
     gui_setup_refresh(ds);
 }
 
-static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
+static inline void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
 {
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->dpy_update(s, x, y, w, h);
+        if (dcl->dpy_gfx_update) {
+            dcl->dpy_gfx_update(s, x, y, w, h);
+        }
     }
 }
 
-static inline void dpy_resize(DisplayState *s)
+static inline void dpy_gfx_resize(DisplayState *s)
 {
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        dcl->dpy_resize(s);
+        if (dcl->dpy_gfx_resize) {
+            dcl->dpy_gfx_resize(s);
+        }
     }
 }
 
-static inline void dpy_setdata(DisplayState *s)
+static inline void dpy_gfx_setdata(DisplayState *s)
 {
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->dpy_setdata) {
-            dcl->dpy_setdata(s);
+        if (dcl->dpy_gfx_setdata) {
+            dcl->dpy_gfx_setdata(s);
         }
     }
 }
@@ -280,26 +290,26 @@ static inline void dpy_refresh(DisplayState *s)
     }
 }
 
-static inline void dpy_copy(struct DisplayState *s, int src_x, int src_y,
+static inline void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
                              int dst_x, int dst_y, int w, int h)
 {
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->dpy_copy) {
-            dcl->dpy_copy(s, src_x, src_y, dst_x, dst_y, w, h);
+        if (dcl->dpy_gfx_copy) {
+            dcl->dpy_gfx_copy(s, src_x, src_y, dst_x, dst_y, w, h);
         } else { /* TODO */
-            dcl->dpy_update(s, dst_x, dst_y, w, h);
+            dcl->dpy_gfx_update(s, dst_x, dst_y, w, h);
         }
     }
 }
 
-static inline void dpy_fill(struct DisplayState *s, int x, int y,
-                             int w, int h, uint32_t c)
+static inline void dpy_gfx_fill(struct DisplayState *s, int x, int y,
+                                int w, int h, uint32_t c)
 {
     struct DisplayChangeListener *dcl;
     QLIST_FOREACH(dcl, &s->listeners, next) {
-        if (dcl->dpy_fill) {
-            dcl->dpy_fill(s, x, y, w, h, c);
+        if (dcl->dpy_gfx_fill) {
+            dcl->dpy_gfx_fill(s, x, y, w, h, c);
         }
     }
 }
@@ -310,6 +320,26 @@ static inline void dpy_text_cursor(struct DisplayState *s, int x, int y)
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->dpy_text_cursor) {
             dcl->dpy_text_cursor(s, x, y);
+        }
+    }
+}
+
+static inline void dpy_text_update(DisplayState *s, int x, int y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_text_update) {
+            dcl->dpy_text_update(s, x, y, w, h);
+        }
+    }
+}
+
+static inline void dpy_text_resize(DisplayState *s, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_text_resize) {
+            dcl->dpy_text_resize(s, w, h);
         }
     }
 }

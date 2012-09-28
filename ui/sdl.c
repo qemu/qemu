@@ -553,7 +553,7 @@ static void sdl_scale(DisplayState *ds, int width, int height)
     if (!is_buffer_shared(ds->surface)) {
         ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds),
                                                  ds_get_height(ds));
-        dpy_resize(ds);
+        dpy_gfx_resize(ds);
     }
 }
 
@@ -1020,11 +1020,11 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
 
     dcl = g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_update = sdl_update;
-    dcl->dpy_resize = sdl_resize;
+    dcl->dpy_gfx_update = sdl_update;
+    dcl->dpy_gfx_resize = sdl_resize;
     dcl->dpy_refresh = sdl_refresh;
-    dcl->dpy_setdata = sdl_setdata;
-    dcl->dpy_fill = sdl_fill;
+    dcl->dpy_gfx_setdata = sdl_setdata;
+    dcl->dpy_gfx_fill = sdl_fill;
     dcl->dpy_mouse_set = sdl_mouse_warp;
     dcl->dpy_cursor_define = sdl_mouse_define;
     register_displaychangelistener(ds, dcl);
@@ -1034,7 +1034,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     da->resize_displaysurface = sdl_resize_displaysurface;
     da->free_displaysurface = sdl_free_displaysurface;
     if (register_displayallocator(ds, da) == da) {
-        dpy_resize(ds);
+        dpy_gfx_resize(ds);
     }
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;

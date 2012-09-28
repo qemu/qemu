@@ -1456,8 +1456,8 @@ static void vga_draw_text(VGACommonState *s, int full_update)
             ch_attr_ptr++;
         }
         if (cx_max != -1) {
-            dpy_update(s->ds, cx_min * cw, cy * cheight,
-                       (cx_max - cx_min + 1) * cw, cheight);
+            dpy_gfx_update(s->ds, cx_min * cw, cy * cheight,
+                           (cx_max - cx_min + 1) * cw, cheight);
         }
         dest += linesize * cheight;
         line1 = line + cheight;
@@ -1688,7 +1688,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
             s->ds->surface->pf = qemu_different_endianness_pixelformat(depth);
 #endif
-            dpy_resize(s->ds);
+            dpy_gfx_resize(s->ds);
         } else {
             qemu_console_resize(s->ds, disp_width, height);
         }
@@ -1702,7 +1702,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     } else if (is_buffer_shared(s->ds->surface) &&
                (full_update || s->ds->surface->data != s->vram_ptr + (s->start_addr * 4))) {
         s->ds->surface->data = s->vram_ptr + (s->start_addr * 4);
-        dpy_setdata(s->ds);
+        dpy_gfx_setdata(s->ds);
     }
 
     s->rgb_to_pixel =
@@ -1807,8 +1807,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         } else {
             if (y_start >= 0) {
                 /* flush to display */
-                dpy_update(s->ds, 0, y_start,
-                           disp_width, y - y_start);
+                dpy_gfx_update(s->ds, 0, y_start,
+                               disp_width, y - y_start);
                 y_start = -1;
             }
         }
@@ -1828,8 +1828,8 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
     if (y_start >= 0) {
         /* flush to display */
-        dpy_update(s->ds, 0, y_start,
-                   disp_width, y - y_start);
+        dpy_gfx_update(s->ds, 0, y_start,
+                       disp_width, y - y_start);
     }
     /* reset modified pages */
     if (page_max >= page_min) {
@@ -1863,8 +1863,8 @@ static void vga_draw_blank(VGACommonState *s, int full_update)
         memset(d, val, w);
         d += ds_get_linesize(s->ds);
     }
-    dpy_update(s->ds, 0, 0,
-               s->last_scr_width, s->last_scr_height);
+    dpy_gfx_update(s->ds, 0, 0,
+                   s->last_scr_width, s->last_scr_height);
 }
 
 #define GMODE_TEXT     0
@@ -2052,9 +2052,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             cw != s->last_cw || cheight != s->last_ch) {
             s->last_scr_width = width * cw;
             s->last_scr_height = height * cheight;
-            s->ds->surface->width = width;
-            s->ds->surface->height = height;
-            dpy_resize(s->ds);
+            dpy_text_resize(s->ds, width, height);
             s->last_width = width;
             s->last_height = height;
             s->last_ch = cheight;
@@ -2087,7 +2085,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             for (i = 0; i < size; src ++, dst ++, i ++)
                 console_write_ch(dst, VMEM2CHTYPE(le32_to_cpu(*src)));
 
-            dpy_update(s->ds, 0, 0, width, height);
+            dpy_text_update(s->ds, 0, 0, width, height);
         } else {
             c_max = 0;
 
@@ -2110,7 +2108,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
 
             if (c_min <= c_max) {
                 i = TEXTMODE_Y(c_min);
-                dpy_update(s->ds, 0, i, width, TEXTMODE_Y(c_max) - i + 1);
+                dpy_text_update(s->ds, 0, i, width, TEXTMODE_Y(c_max) - i + 1);
             }
         }
 
@@ -2136,9 +2134,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     s->last_width = 60;
     s->last_height = height = 3;
     dpy_text_cursor(s->ds, -1, -1);
-    s->ds->surface->width = s->last_width;
-    s->ds->surface->height = height;
-    dpy_resize(s->ds);
+    dpy_text_resize(s->ds, s->last_width, height);
 
     for (dst = chardata, i = 0; i < s->last_width * height; i ++)
         console_write_ch(dst ++, ' ');
@@ -2149,7 +2145,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     for (i = 0; i < size; i ++)
         console_write_ch(dst ++, 0x00200100 | msg_buffer[i]);
 
-    dpy_update(s->ds, 0, 0, s->last_width, height);
+    dpy_text_update(s->ds, 0, 0, s->last_width, height);
 }
 
 static uint64_t vga_mem_read(void *opaque, hwaddr addr,

@@ -1307,7 +1307,7 @@ static void exynos4210_fimd_update(void *opaque)
             fimd_copy_line_toqemu(global_width, s->ifb + global_width * line *
                     RGBA_SIZE, d + global_width * line * bpp);
         }
-        dpy_update(s->console, 0, 0, global_width, global_height);
+        dpy_gfx_update(s->console, 0, 0, global_width, global_height);
     }
     s->invalidate = false;
     s->vidintcon[1] |= FIMD_VIDINT_INTFRMPEND;

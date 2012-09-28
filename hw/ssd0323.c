@@ -260,7 +260,7 @@ static void ssd0323_update_display(void *opaque)
         }
     }
     s->redraw = 0;
-    dpy_update(s->ds, 0, 0, 128 * MAGNIFY, 64 * MAGNIFY);
+    dpy_gfx_update(s->ds, 0, 0, 128 * MAGNIFY, 64 * MAGNIFY);
 }
 
 static void ssd0323_invalidate_display(void * opaque)
