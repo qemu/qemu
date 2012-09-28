@@ -31,6 +31,7 @@
 #include "qemu-timer.h"
 #include "qapi-types.h"
 #include "qerror.h"
+#include "monitor.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4
@@ -286,6 +287,9 @@ void bdrv_set_io_limits(BlockDriverState *bs,
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
 #endif
+void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
+                               enum MonitorEvent ev,
+                               BlockErrorAction action, bool is_read);
 
 /**
  * stream_start:

@@ -1387,8 +1387,9 @@ void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
     }
 }
 
-static void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                                      BlockErrorAction action, bool is_read)
+void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
+                               enum MonitorEvent ev,
+                               BlockErrorAction action, bool is_read)
 {
     QObject *data;
     const char *action_str;
@@ -1411,7 +1412,7 @@ static void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
                               bdrv->device_name,
                               action_str,
                               is_read ? "read" : "write");
-    monitor_protocol_event(QEVENT_BLOCK_IO_ERROR, data);
+    monitor_protocol_event(ev, data);
 
     qobject_decref(data);
 }
@@ -2513,7 +2514,7 @@ void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
                        bool is_read, int error)
 {
     assert(error >= 0);
-    bdrv_emit_qmp_error_event(bs, action, is_read);
+    bdrv_emit_qmp_error_event(bs, QEVENT_BLOCK_IO_ERROR, action, is_read);
     if (action == BDRV_ACTION_STOP) {
         vm_stop(RUN_STATE_IO_ERROR);
         bdrv_iostatus_set_err(bs, error);

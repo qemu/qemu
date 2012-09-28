@@ -1131,11 +1131,14 @@
 #
 # @speed: the rate limit, bytes per second
 #
+# @io-status: the status of the job (since 1.3)
+#
 # Since: 1.1
 ##
 { 'type': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int'} }
+           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
+           'io-status': 'BlockDeviceIoStatus'} }
 
 ##
 # @query-block-jobs:
@@ -1957,6 +1960,8 @@
 # This command returns immediately after resuming a paused background block
 # operation.  It is an error to call this command if no operation is in
 # progress.  Resuming an already running job is not an error.
+#
+# This command also clears the error status of the job.
 #
 # @device: the device name
 #
