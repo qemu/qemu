@@ -6,9 +6,11 @@
 #include "qemu-option.h"
 #include "qemu-coroutine.h"
 #include "qobject.h"
+#include "qapi-types.h"
 
 /* block.c */
 typedef struct BlockDriver BlockDriver;
+typedef struct BlockJob BlockJob;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
