@@ -1213,7 +1213,29 @@ void qmp_block_job_set_speed(const char *device, int64_t speed, Error **errp)
     block_job_set_speed(job, speed, errp);
 }
 
-void qmp_block_job_cancel(const char *device, Error **errp)
+void qmp_block_job_cancel(const char *device,
+                          bool has_force, bool force, Error **errp)
+{
+    BlockJob *job = find_block_job(device);
+
+    if (!has_force) {
+        force = false;
+    }
+
+    if (!job) {
+        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
+        return;
+    }
+    if (job->paused && !force) {
+        error_set(errp, QERR_BLOCK_JOB_PAUSED, device);
+        return;
+    }
+
+    trace_qmp_block_job_cancel(job);
+    block_job_cancel(job);
+}
+
+void qmp_block_job_pause(const char *device, Error **errp)
 {
     BlockJob *job = find_block_job(device);
 
@@ -1221,13 +1243,22 @@ void qmp_block_job_cancel(const char *device, Error **errp)
         error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
-    if (job->paused) {
-        error_set(errp, QERR_BLOCK_JOB_PAUSED, device);
+
+    trace_qmp_block_job_pause(job);
+    block_job_pause(job);
+}
+
+void qmp_block_job_resume(const char *device, Error **errp)
+{
+    BlockJob *job = find_block_job(device);
+
+    if (!job) {
+        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
         return;
     }
 
-    trace_qmp_block_job_cancel(job);
-    block_job_cancel(job);
+    trace_qmp_block_job_resume(job);
+    block_job_resume(job);
 }
 
 static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)

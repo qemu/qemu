@@ -805,8 +805,18 @@ EQMP
 
     {
         .name       = "block-job-cancel",
-        .args_type  = "device:B",
+        .args_type  = "device:B,force:b?",
         .mhandler.cmd_new = qmp_marshal_input_block_job_cancel,
+    },
+    {
+        .name       = "block-job-pause",
+        .args_type  = "device:B",
+        .mhandler.cmd_new = qmp_marshal_input_block_job_pause,
+    },
+    {
+        .name       = "block-job-resume",
+        .args_type  = "device:B",
+        .mhandler.cmd_new = qmp_marshal_input_block_job_resume,
     },
     {
         .name       = "transaction",
