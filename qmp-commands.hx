@@ -787,7 +787,7 @@ EQMP
 
     {
         .name       = "block-stream",
-        .args_type  = "device:B,base:s?,speed:o?",
+        .args_type  = "device:B,base:s?,speed:o?,on-error:s?",
         .mhandler.cmd_new = qmp_marshal_input_block_stream,
     },
 

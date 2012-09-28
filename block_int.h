@@ -299,6 +299,7 @@ void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
  * @base_id: The file name that will be written to @bs as the new
  * backing file if the job completes.  Ignored if @base is %NULL.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @on_error: The action to take upon error.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
@@ -310,7 +311,7 @@ void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
  * @base_id in the written image and to @base in the live BlockDriverState.
  */
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
-                  const char *base_id, int64_t speed,
+                  const char *base_id, int64_t speed, BlockdevOnError on_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp);
 

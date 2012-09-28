@@ -930,7 +930,8 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
 
     qmp_block_stream(device, base != NULL, base,
-                     qdict_haskey(qdict, "speed"), speed, &error);
+                     qdict_haskey(qdict, "speed"), speed,
+                     BLOCKDEV_ON_ERROR_REPORT, true, &error);
 
     hmp_handle_error(mon, &error);
 }
