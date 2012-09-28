@@ -25,7 +25,6 @@
 #include "iov.h"
 #include "scsi.h"
 #include "scsi-defs.h"
-#include "block_int.h"
 #include "trace.h"
 
 #include "mfi.h"
