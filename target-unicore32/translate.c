@@ -1932,8 +1932,6 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
         }
         ILLEGAL;
     }
-
-    return;
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for

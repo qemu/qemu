@@ -231,7 +231,6 @@ udp_input(register struct mbuf *m, int iphlen)
 	return;
 bad:
 	m_free(m);
-	return;
 }
 
 int udp_output2(struct socket *so, struct mbuf *m,

@@ -89,7 +89,6 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 done:
     bdrv_acct_done(s->bs, &s->acct);
     io->dma_end(opaque);
-    return;
 }
 
 static void pmac_ide_transfer_cb(void *opaque, int ret)

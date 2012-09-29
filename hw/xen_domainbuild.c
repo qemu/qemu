@@ -153,7 +153,6 @@ static void xen_domain_poll(void *opaque)
 
 quit:
     qemu_system_shutdown_request();
-    return;
 }
 
 static int xen_domain_watcher(void)

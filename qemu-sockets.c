@@ -266,7 +266,6 @@ static void wait_for_connect(void *opaque)
         s->callback(s->fd, s->opaque);
     }
     g_free(s);
-    return;
 }
 
 static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,

@@ -619,7 +619,6 @@ void start_auth_sasl(VncState *vs)
 
  authabort:
     vnc_client_error(vs);
-    return;
 }
 
 

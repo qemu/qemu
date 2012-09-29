@@ -193,8 +193,6 @@ static void exynos4210_irq_handler(void *opaque, int irq, int level)
 
     /* Bypass */
     qemu_set_irq(s->board_irqs[irq], level);
-
-    return;
 }
 
 /*
@@ -410,8 +408,6 @@ static void exynos4210_irq_gate_handler(void *opaque, int irq, int level)
     }
 
     qemu_irq_lower(s->out);
-
-    return;
 }
 
 static void exynos4210_irq_gate_reset(DeviceState *d)

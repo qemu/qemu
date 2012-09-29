@@ -807,7 +807,6 @@ static void xhci_events_update(XHCIState *xhci, int v)
         DPRINTF("xhci_events_update(): event ring no longer full\n");
         intr->er_full = 0;
     }
-    return;
 }
 
 static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v)

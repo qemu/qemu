@@ -1286,8 +1286,6 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
     fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
-
-    return;
 }
 
 /* Prepare a transfer of deleted data */

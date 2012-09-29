@@ -786,7 +786,6 @@ static void bt_hci_lmp_connection_request(struct bt_link_s *link)
     memcpy(&params.dev_class, &link->host->class, sizeof(params.dev_class));
     params.link_type	= ACL_LINK;
     bt_hci_event(hci, EVT_CONN_REQUEST, &params, EVT_CONN_REQUEST_SIZE);
-    return;
 }
 
 static void bt_hci_conn_accept_timeout(void *opaque)

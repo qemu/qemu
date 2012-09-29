@@ -89,5 +89,4 @@ err:
     if (dinfo) {
         drive_put_ref(dinfo);
     }
-    return;
 }

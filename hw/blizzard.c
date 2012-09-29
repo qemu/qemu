@@ -878,8 +878,6 @@ void s1d13745_write_block(void *opaque, int dc,
         len -= 2;
         buf += 2;
     }
-
-    return;
 }
 
 static void blizzard_update_display(void *opaque)
