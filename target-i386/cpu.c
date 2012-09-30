@@ -58,15 +58,19 @@ static const char *ext_feature_name[] = {
     "tsc-deadline", "aes", "xsave", "osxsave",
     "avx", NULL, NULL, "hypervisor",
 };
+/* Feature names that are already defined on feature_name[] but are set on
+ * CPUID[8000_0001].EDX on AMD CPUs don't have their names on
+ * ext2_feature_name[]. They are copied automatically to cpuid_ext2_features
+ * if and only if CPU vendor is AMD.
+ */
 static const char *ext2_feature_name[] = {
-    "fpu", "vme", "de", "pse",
-    "tsc", "msr", "pae", "mce",
-    "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall",
-    "mtrr", "pge", "mca", "cmov",
-    "pat", "pse36", NULL, NULL /* Linux mp */,
-    "nx|xd", NULL, "mmxext", "mmx",
-    "fxsr", "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
-    NULL, "lm|i64", "3dnowext", "3dnow",
+    NULL /* fpu */, NULL /* vme */, NULL /* de */, NULL /* pse */,
+    NULL /* tsc */, NULL /* msr */, NULL /* pae */, NULL /* mce */,
+    NULL /* cx8 */ /* AMD CMPXCHG8B */, NULL /* apic */, NULL, "syscall",
+    NULL /* mtrr */, NULL /* pge */, NULL /* mca */, NULL /* cmov */,
+    NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
+    "nx|xd", NULL, "mmxext", NULL /* mmx */,
+    NULL /* fxsr */, "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
 };
 static const char *ext3_feature_name[] = {
     "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
@@ -255,7 +259,6 @@ typedef struct x86_def_t {
           CPUID_MSR | CPUID_MCE | CPUID_CX8 | CPUID_PGE | CPUID_CMOV | \
           CPUID_PAT | CPUID_FXSR | CPUID_MMX | CPUID_SSE | CPUID_SSE2 | \
           CPUID_PAE | CPUID_SEP | CPUID_APIC)
-#define EXT2_FEATURE_MASK 0x0183F3FF
 
 #define TCG_FEATURES (CPUID_FP87 | CPUID_PSE | CPUID_TSC | CPUID_MSR | \
           CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC | CPUID_SEP | \
@@ -273,7 +276,7 @@ typedef struct x86_def_t {
           /* missing:
           CPUID_EXT_DTES64, CPUID_EXT_DSCPL, CPUID_EXT_VMX, CPUID_EXT_EST,
           CPUID_EXT_TM2, CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_XSAVE */
-#define TCG_EXT2_FEATURES ((TCG_FEATURES & EXT2_FEATURE_MASK) | \
+#define TCG_EXT2_FEATURES ((TCG_FEATURES & CPUID_EXT2_AMD_ALIASES) | \
           CPUID_EXT2_NX | CPUID_EXT2_MMXEXT | CPUID_EXT2_RDTSCP | \
           CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT)
           /* missing:
@@ -302,7 +305,7 @@ static x86_def_t builtin_x86_defs[] = {
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
             CPUID_PSE36,
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_POPCNT,
-        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) |
+        .ext2_features = (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .ext3_features = CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM |
             CPUID_EXT3_ABM | CPUID_EXT3_SSE4A,
@@ -322,7 +325,7 @@ static x86_def_t builtin_x86_defs[] = {
             CPUID_PSE36 | CPUID_VME | CPUID_HT,
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_CX16 |
             CPUID_EXT_POPCNT,
-        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) |
+        .ext2_features = (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX |
             CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT | CPUID_EXT2_MMXEXT |
             CPUID_EXT2_FFXSR | CPUID_EXT2_PDPE1GB | CPUID_EXT2_RDTSCP,
@@ -370,7 +373,7 @@ static x86_def_t builtin_x86_defs[] = {
         /* Missing: CPUID_EXT_POPCNT, CPUID_EXT_MONITOR */
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_CX16,
         /* Missing: CPUID_EXT2_PDPE1GB, CPUID_EXT2_RDTSCP */
-        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) |
+        .ext2_features = (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         /* Missing: CPUID_EXT3_LAHF_LM, CPUID_EXT3_CMP_LEG, CPUID_EXT3_EXTAPIC,
                     CPUID_EXT3_CR8LEG, CPUID_EXT3_ABM, CPUID_EXT3_SSE4A,
@@ -399,7 +402,7 @@ static x86_def_t builtin_x86_defs[] = {
         .features = PPRO_FEATURES |
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA | CPUID_PSE36,
         .ext_features = CPUID_EXT_SSE3,
-        .ext2_features = PPRO_FEATURES & EXT2_FEATURE_MASK,
+        .ext2_features = PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES,
         .ext3_features = 0,
         .xlevel = 0x80000008,
         .model_id = "Common 32-bit KVM processor"
@@ -464,8 +467,10 @@ static x86_def_t builtin_x86_defs[] = {
         .family = 6,
         .model = 2,
         .stepping = 3,
-        .features = PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR | CPUID_MCA,
-        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
+        .features = PPRO_FEATURES | CPUID_PSE36 | CPUID_VME | CPUID_MTRR |
+            CPUID_MCA,
+        .ext2_features = (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
+            CPUID_EXT2_MMXEXT | CPUID_EXT2_3DNOW | CPUID_EXT2_3DNOWEXT,
         .xlevel = 0x80000008,
     },
     {
@@ -481,7 +486,8 @@ static x86_def_t builtin_x86_defs[] = {
             /* Some CPUs got no CPUID_SEP */
         .ext_features = CPUID_EXT_SSE3 | CPUID_EXT_MONITOR | CPUID_EXT_SSSE3 |
             CPUID_EXT_DSCPL | CPUID_EXT_EST | CPUID_EXT_TM2 | CPUID_EXT_XTPR,
-        .ext2_features = (PPRO_FEATURES & EXT2_FEATURE_MASK) | CPUID_EXT2_NX,
+        .ext2_features = (PPRO_FEATURES & CPUID_EXT2_AMD_ALIASES) |
+            CPUID_EXT2_NX,
         .ext3_features = CPUID_EXT3_LAHF_LM,
         .xlevel = 0x8000000A,
         .model_id = "Intel(R) Atom(TM) CPU N270   @ 1.60GHz",
@@ -1303,13 +1309,13 @@ void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     }
     (*cpu_fprintf)(f, "\nRecognized CPUID flags:\n");
     listflags(buf, sizeof(buf), (uint32_t)~0, feature_name, 1);
-    (*cpu_fprintf)(f, "  f_edx: %s\n", buf);
+    (*cpu_fprintf)(f, "  %s\n", buf);
     listflags(buf, sizeof(buf), (uint32_t)~0, ext_feature_name, 1);
-    (*cpu_fprintf)(f, "  f_ecx: %s\n", buf);
+    (*cpu_fprintf)(f, "  %s\n", buf);
     listflags(buf, sizeof(buf), (uint32_t)~0, ext2_feature_name, 1);
-    (*cpu_fprintf)(f, "  extf_edx: %s\n", buf);
+    (*cpu_fprintf)(f, "  %s\n", buf);
     listflags(buf, sizeof(buf), (uint32_t)~0, ext3_feature_name, 1);
-    (*cpu_fprintf)(f, "  extf_ecx: %s\n", buf);
+    (*cpu_fprintf)(f, "  %s\n", buf);
 }
 
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
@@ -1369,6 +1375,17 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     env->cpuid_xlevel2 = def->xlevel2;
     object_property_set_int(OBJECT(cpu), (int64_t)def->tsc_khz * 1000,
                             "tsc-frequency", &error);
+
+    /* On AMD CPUs, some CPUID[8000_0001].EDX bits must match the bits on
+     * CPUID[1].EDX.
+     */
+    if (env->cpuid_vendor1 == CPUID_VENDOR_AMD_1 &&
+            env->cpuid_vendor2 == CPUID_VENDOR_AMD_2 &&
+            env->cpuid_vendor3 == CPUID_VENDOR_AMD_3) {
+        env->cpuid_ext2_features &= ~CPUID_EXT2_AMD_ALIASES;
+        env->cpuid_ext2_features |= (def->features & CPUID_EXT2_AMD_ALIASES);
+    }
+
     if (!kvm_enabled()) {
         env->cpuid_features &= TCG_FEATURES;
         env->cpuid_ext_features &= TCG_EXT_FEATURES;
