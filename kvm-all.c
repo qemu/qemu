@@ -755,9 +755,16 @@ static void kvm_log_global_stop(struct MemoryListener *listener)
     assert(r >= 0);
 }
 
-static void kvm_mem_ioeventfd_add(MemoryRegionSection *section,
-                                  bool match_data, uint64_t data, int fd)
+static void kvm_log_nop(struct MemoryListener *listener)
 {
+}
+
+static void kvm_mem_ioeventfd_add(MemoryListener *listener,
+                                  MemoryRegionSection *section,
+                                  bool match_data, uint64_t data,
+                                  EventNotifier *e)
+{
+    int fd = event_notifier_get_fd(e);
     int r;
 
     assert(match_data && section->size <= 8);
@@ -769,9 +776,12 @@ static void kvm_mem_ioeventfd_add(MemoryRegionSection *section,
     }
 }
 
-static void kvm_mem_ioeventfd_del(MemoryRegionSection *section,
-                                  bool match_data, uint64_t data, int fd)
+static void kvm_mem_ioeventfd_del(MemoryListener *listener,
+                                  MemoryRegionSection *section,
+                                  bool match_data, uint64_t data,
+                                  EventNotifier *e)
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
@@ -781,9 +791,12 @@ static void kvm_mem_ioeventfd_del(MemoryRegionSection *section,
     }
 }
 
-static void kvm_io_ioeventfd_add(MemoryRegionSection *section,
-                                 bool match_data, uint64_t data, int fd)
+static void kvm_io_ioeventfd_add(MemoryListener *listener,
+                                 MemoryRegionSection *section,
+                                 bool match_data, uint64_t data,
+                                 EventNotifier *e)
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     assert(match_data && section->size == 2);
@@ -795,44 +808,19 @@ static void kvm_io_ioeventfd_add(MemoryRegionSection *section,
     }
 }
 
-static void kvm_io_ioeventfd_del(MemoryRegionSection *section,
-                                 bool match_data, uint64_t data, int fd)
+static void kvm_io_ioeventfd_del(MemoryListener *listener,
+                                 MemoryRegionSection *section,
+                                 bool match_data, uint64_t data,
+                                 EventNotifier *e)
 
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
                                    data, false);
     if (r < 0) {
         abort();
-    }
-}
-
-static void kvm_eventfd_add(MemoryListener *listener,
-                            MemoryRegionSection *section,
-                            bool match_data, uint64_t data,
-                            EventNotifier *e)
-{
-    if (section->address_space == get_system_memory()) {
-        kvm_mem_ioeventfd_add(section, match_data, data,
-			      event_notifier_get_fd(e));
-    } else {
-        kvm_io_ioeventfd_add(section, match_data, data,
-			     event_notifier_get_fd(e));
-    }
-}
-
-static void kvm_eventfd_del(MemoryListener *listener,
-                            MemoryRegionSection *section,
-                            bool match_data, uint64_t data,
-                            EventNotifier *e)
-{
-    if (section->address_space == get_system_memory()) {
-        kvm_mem_ioeventfd_del(section, match_data, data,
-			      event_notifier_get_fd(e));
-    } else {
-        kvm_io_ioeventfd_del(section, match_data, data,
-			     event_notifier_get_fd(e));
     }
 }
 
@@ -847,8 +835,24 @@ static MemoryListener kvm_memory_listener = {
     .log_sync = kvm_log_sync,
     .log_global_start = kvm_log_global_start,
     .log_global_stop = kvm_log_global_stop,
-    .eventfd_add = kvm_eventfd_add,
-    .eventfd_del = kvm_eventfd_del,
+    .eventfd_add = kvm_mem_ioeventfd_add,
+    .eventfd_del = kvm_mem_ioeventfd_del,
+    .priority = 10,
+};
+
+static MemoryListener kvm_io_listener = {
+    .begin = kvm_begin,
+    .commit = kvm_commit,
+    .region_add = kvm_region_nop,
+    .region_del = kvm_region_nop,
+    .region_nop = kvm_region_nop,
+    .log_start = kvm_region_nop,
+    .log_stop = kvm_region_nop,
+    .log_sync = kvm_region_nop,
+    .log_global_start = kvm_log_nop,
+    .log_global_stop = kvm_log_nop,
+    .eventfd_add = kvm_io_ioeventfd_add,
+    .eventfd_del = kvm_io_ioeventfd_del,
     .priority = 10,
 };
 
@@ -1401,7 +1405,8 @@ int kvm_init(void)
     }
 
     kvm_state = s;
-    memory_listener_register(&kvm_memory_listener, NULL);
+    memory_listener_register(&kvm_memory_listener, get_system_memory());
+    memory_listener_register(&kvm_io_listener, get_system_io());
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 
