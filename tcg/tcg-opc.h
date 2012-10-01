@@ -38,7 +38,6 @@ DEF(discard, 1, 0, 0, 0)
 
 DEF(set_label, 0, 0, 1, TCG_OPF_BB_END)
 DEF(call, 0, 1, 2, TCG_OPF_SIDE_EFFECTS) /* variable number of parameters */
-DEF(jmp, 0, 1, 0, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 DEF(br, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
 
 #define IMPL(X) (X ? 0 : TCG_OPF_NOT_PRESENT)

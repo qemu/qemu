@@ -69,7 +69,6 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_exit_tb, { NULL } },
     { INDEX_op_goto_tb, { NULL } },
     { INDEX_op_call, { RI } },
-    { INDEX_op_jmp, { RI } },
     { INDEX_op_br, { NULL } },
 
     { INDEX_op_mov_i32, { R, R } },
@@ -582,9 +581,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_call:
         tcg_out_ri(s, const_args[0], args[0]);
-        break;
-    case INDEX_op_jmp:
-        TODO();
         break;
     case INDEX_op_setcond_i32:
         tcg_out_r(s, args[0]);

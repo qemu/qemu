@@ -1322,10 +1322,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, args[0], 0);
         tcg_out_nop(s);
         break;
-    case INDEX_op_jmp:
-        tcg_out_opc_reg(s, OPC_JR, 0, args[0], 0);
-        tcg_out_nop(s);
-        break;
     case INDEX_op_br:
         tcg_out_brcond(s, TCG_COND_EQ, TCG_REG_ZERO, TCG_REG_ZERO, args[0]);
         break;
@@ -1577,7 +1573,6 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "C" } },
-    { INDEX_op_jmp, { "r" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

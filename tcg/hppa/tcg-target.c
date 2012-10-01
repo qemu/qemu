@@ -1353,11 +1353,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
-    case INDEX_op_jmp:
-        fprintf(stderr, "unimplemented jmp\n");
-        tcg_abort();
-        break;
-
     case INDEX_op_br:
         tcg_out_branch(s, args[0], 1);
         break;
@@ -1592,7 +1587,6 @@ static const TCGTargetOpDef hppa_op_defs[] = {
     { INDEX_op_goto_tb, { } },
 
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "r" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

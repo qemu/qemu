@@ -1916,9 +1916,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_goto_tb:
         tcg_out_goto_tb(s, args[0]);
         break;
-    case INDEX_op_jmp:
-        tcg_out_jmp(s, args[0]);
-        break;
 
     case INDEX_op_movi_i32:
         tcg_out_movi(s, TCG_TYPE_I32, args[0], args[1]);
@@ -2156,7 +2153,6 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_call, { "r" } },
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
-    { INDEX_op_jmp, { "r" } },
 
     { INDEX_op_mov_i32, { "r", "r" } },
     { INDEX_op_movi_i32, { "r" } },

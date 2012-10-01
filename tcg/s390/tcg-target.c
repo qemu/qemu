@@ -2037,11 +2037,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-    case INDEX_op_jmp:
-        /* This one is obsolete and never emitted.  */
-        tcg_abort();
-        break;
-
     default:
         fprintf(stderr,"unimplemented opc 0x%x\n",opc);
         tcg_abort();
@@ -2052,7 +2047,6 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

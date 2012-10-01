@@ -1097,7 +1097,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         /* delay slot */
         tcg_out_nop(s);
         break;
-    case INDEX_op_jmp:
     case INDEX_op_br:
         tcg_out_branch_i32(s, COND_A, args[0]);
         tcg_out_nop(s);
@@ -1367,7 +1366,6 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },
