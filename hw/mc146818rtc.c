@@ -519,7 +519,9 @@ static void rtc_get_time(RTCState *s, struct tm *tm)
     tm->tm_wday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
     tm->tm_mday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
     tm->tm_mon = rtc_from_bcd(s, s->cmos_data[RTC_MONTH]) - 1;
-    tm->tm_year = rtc_from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year - 1900;
+    tm->tm_year =
+        rtc_from_bcd(s, s->cmos_data[RTC_YEAR]) + s->base_year +
+        rtc_from_bcd(s, s->cmos_data[RTC_CENTURY]) * 100 - 1900;
 }
 
 static void rtc_set_time(RTCState *s)
@@ -552,10 +554,9 @@ static void rtc_set_cmos(RTCState *s, const struct tm *tm)
     s->cmos_data[RTC_DAY_OF_WEEK] = rtc_to_bcd(s, tm->tm_wday + 1);
     s->cmos_data[RTC_DAY_OF_MONTH] = rtc_to_bcd(s, tm->tm_mday);
     s->cmos_data[RTC_MONTH] = rtc_to_bcd(s, tm->tm_mon + 1);
-    year = (tm->tm_year - s->base_year) % 100;
-    if (year < 0)
-        year += 100;
-    s->cmos_data[RTC_YEAR] = rtc_to_bcd(s, year);
+    year = tm->tm_year + 1900 - s->base_year;
+    s->cmos_data[RTC_YEAR] = rtc_to_bcd(s, year % 100);
+    s->cmos_data[RTC_CENTURY] = rtc_to_bcd(s, year / 100);
 }
 
 static void rtc_update_time(RTCState *s)
@@ -673,7 +674,6 @@ static void rtc_set_date_from_host(ISADevice *dev)
 {
     RTCState *s = DO_UPCAST(RTCState, dev, dev);
     struct tm tm;
-    int val;
 
     qemu_get_timedate(&tm, 0);
 
@@ -683,9 +683,6 @@ static void rtc_set_date_from_host(ISADevice *dev)
 
     /* set the CMOS date */
     rtc_set_cmos(s, &tm);
-
-    val = rtc_to_bcd(s, (tm.tm_year / 100) + 19);
-    rtc_set_memory(dev, RTC_CENTURY, val);
 }
 
 static int rtc_post_load(void *opaque, int version_id)
@@ -809,6 +806,18 @@ static int rtc_initfn(ISADevice *dev)
     s->cmos_data[RTC_REG_B] = 0x02;
     s->cmos_data[RTC_REG_C] = 0x00;
     s->cmos_data[RTC_REG_D] = 0x80;
+
+    /* This is for historical reasons.  The default base year qdev property
+     * was set to 2000 for most machine types before the century byte was
+     * implemented.
+     *
+     * This if statement means that the century byte will be always 0
+     * (at least until 2079...) for base_year = 1980, but will be set
+     * correctly for base_year = 2000.
+     */
+    if (s->base_year == 2000) {
+        s->base_year = 0;
+    }
 
     rtc_set_date_from_host(dev);
 
