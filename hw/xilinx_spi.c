@@ -320,8 +320,12 @@ static int xilinx_spi_init(SysBusDevice *dev)
     XilinxSPI *s = FROM_SYSBUS(typeof(*s), dev);
 
     DB_PRINT("\n");
+
+    s->spi = ssi_create_bus(&dev->qdev, "spi");
+
     sysbus_init_irq(dev, &s->irq);
     s->cs_lines = g_new(qemu_irq, s->num_cs);
+    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi);
     for (i = 0; i < s->num_cs; ++i) {
         sysbus_init_irq(dev, &s->cs_lines[i]);
     }
@@ -330,8 +334,6 @@ static int xilinx_spi_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->mmio);
 
     s->irqline = -1;
-
-    s->spi = ssi_create_bus(&dev->qdev, "spi");
 
     fifo8_create(&s->tx_fifo, FIFO_CAPACITY);
     fifo8_create(&s->rx_fifo, FIFO_CAPACITY);

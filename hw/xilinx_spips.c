@@ -289,6 +289,9 @@ static int xilinx_spips_init(SysBusDevice *dev)
 
     DB_PRINT("inited device model\n");
 
+    s->spi = ssi_create_bus(&dev->qdev, "spi");
+
+    ssi_auto_connect_slaves(DEVICE(s), s->cs_lines, s->spi);
     sysbus_init_irq(dev, &s->irq);
     for (i = 0; i < NUM_CS_LINES; ++i) {
         sysbus_init_irq(dev, &s->cs_lines[i]);
@@ -298,7 +301,6 @@ static int xilinx_spips_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->iomem);
 
     s->irqline = -1;
-    s->spi = ssi_create_bus(&dev->qdev, "spi");
 
     fifo8_create(&s->rx_fifo, RXFF_A);
     fifo8_create(&s->tx_fifo, TXFF_A);
