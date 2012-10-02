@@ -364,8 +364,6 @@ static void access_with_adjusted_size(target_phys_addr_t addr,
     }
 }
 
-static AddressSpace address_space_memory;
-
 static const MemoryRegionPortio *find_portio(MemoryRegion *mr, uint64_t offset,
                                              unsigned width, bool write)
 {
@@ -453,8 +451,6 @@ const IORangeOps memory_region_iorange_ops = {
     .write = memory_region_iorange_write,
     .destructor = memory_region_iorange_destructor,
 };
-
-static AddressSpace address_space_io;
 
 static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
 {
@@ -1543,18 +1539,6 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = NULL;
     memory_region_transaction_commit();
-}
-
-void set_system_memory_map(MemoryRegion *mr)
-{
-    address_space_init(&address_space_memory, mr);
-    address_space_memory.name = "memory";
-}
-
-void set_system_io_map(MemoryRegion *mr)
-{
-    address_space_init(&address_space_io, mr);
-    address_space_io.name = "I/O";
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)

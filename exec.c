@@ -116,6 +116,9 @@ RAMList ram_list = { .blocks = QLIST_HEAD_INITIALIZER(ram_list.blocks) };
 static MemoryRegion *system_memory;
 static MemoryRegion *system_io;
 
+static AddressSpace address_space_io;
+static AddressSpace address_space_memory;
+
 MemoryRegion io_mem_ram, io_mem_rom, io_mem_unassigned, io_mem_notdirty;
 static MemoryRegion io_mem_subpage_ram;
 
@@ -3235,11 +3238,13 @@ static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
     memory_region_init(system_memory, "system", INT64_MAX);
-    set_system_memory_map(system_memory);
+    address_space_init(&address_space_memory, system_memory);
+    address_space_memory.name = "memory";
 
     system_io = g_malloc(sizeof(*system_io));
     memory_region_init(system_io, "io", 65536);
-    set_system_io_map(system_io);
+    address_space_init(&address_space_io, system_io);
+    address_space_io.name = "I/O";
 
     memory_listener_register(&core_memory_listener, system_memory);
     memory_listener_register(&io_memory_listener, system_io);
