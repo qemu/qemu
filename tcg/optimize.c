@@ -796,6 +796,41 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             }
             goto do_default;
 
+        case INDEX_op_add2_i32:
+        case INDEX_op_sub2_i32:
+            if (temps[args[2]].state == TCG_TEMP_CONST
+                && temps[args[3]].state == TCG_TEMP_CONST
+                && temps[args[4]].state == TCG_TEMP_CONST
+                && temps[args[5]].state == TCG_TEMP_CONST) {
+                uint32_t al = temps[args[2]].val;
+                uint32_t ah = temps[args[3]].val;
+                uint32_t bl = temps[args[4]].val;
+                uint32_t bh = temps[args[5]].val;
+                uint64_t a = ((uint64_t)ah << 32) | al;
+                uint64_t b = ((uint64_t)bh << 32) | bl;
+                TCGArg rl, rh;
+
+                if (op == INDEX_op_add2_i32) {
+                    a += b;
+                } else {
+                    a -= b;
+                }
+
+                /* We emit the extra nop when we emit the add2/sub2.  */
+                assert(gen_opc_buf[op_index + 1] == INDEX_op_nop);
+
+                rl = args[0];
+                rh = args[1];
+                gen_opc_buf[op_index] = INDEX_op_movi_i32;
+                gen_opc_buf[++op_index] = INDEX_op_movi_i32;
+                tcg_opt_gen_movi(&gen_args[0], rl, (uint32_t)a);
+                tcg_opt_gen_movi(&gen_args[2], rh, (uint32_t)(a >> 32));
+                gen_args += 4;
+                args += 6;
+                break;
+            }
+            goto do_default;
+
         case INDEX_op_brcond2_i32:
             tmp = do_constant_folding_cond2(&args[0], &args[2], args[4]);
             if (tmp != 2) {
