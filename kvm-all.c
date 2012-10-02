@@ -454,9 +454,10 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
     return ret;
 }
 
-int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
+static void kvm_coalesce_mmio_region(MemoryListener *listener,
+                                     MemoryRegionSection *secion,
+                                     target_phys_addr_t start, target_phys_addr_t size)
 {
-    int ret = -ENOSYS;
     KVMState *s = kvm_state;
 
     if (s->coalesced_mmio) {
@@ -466,15 +467,14 @@ int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
         zone.size = size;
         zone.pad = 0;
 
-        ret = kvm_vm_ioctl(s, KVM_REGISTER_COALESCED_MMIO, &zone);
+        (void)kvm_vm_ioctl(s, KVM_REGISTER_COALESCED_MMIO, &zone);
     }
-
-    return ret;
 }
 
-int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
+static void kvm_uncoalesce_mmio_region(MemoryListener *listener,
+                                       MemoryRegionSection *secion,
+                                       target_phys_addr_t start, target_phys_addr_t size)
 {
-    int ret = -ENOSYS;
     KVMState *s = kvm_state;
 
     if (s->coalesced_mmio) {
@@ -484,10 +484,8 @@ int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
         zone.size = size;
         zone.pad = 0;
 
-        ret = kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
+        (void)kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
     }
-
-    return ret;
 }
 
 int kvm_check_extension(KVMState *s, unsigned int extension)
@@ -817,6 +815,8 @@ static MemoryListener kvm_memory_listener = {
     .log_global_stop = kvm_log_global_stop,
     .eventfd_add = kvm_mem_ioeventfd_add,
     .eventfd_del = kvm_mem_ioeventfd_del,
+    .coalesced_mmio_add = kvm_coalesce_mmio_region,
+    .coalesced_mmio_del = kvm_uncoalesce_mmio_region,
     .priority = 10,
 };
 

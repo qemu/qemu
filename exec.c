@@ -2305,19 +2305,6 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
     }
 }
 
-
-void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
-{
-    if (kvm_enabled())
-        kvm_coalesce_mmio_region(addr, size);
-}
-
-void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
-{
-    if (kvm_enabled())
-        kvm_uncoalesce_mmio_region(addr, size);
-}
-
 void qemu_flush_coalesced_mmio_buffer(void)
 {
     if (kvm_enabled())

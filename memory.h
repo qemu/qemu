@@ -217,6 +217,10 @@ struct MemoryListener {
                         bool match_data, uint64_t data, EventNotifier *e);
     void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
                         bool match_data, uint64_t data, EventNotifier *e);
+    void (*coalesced_mmio_add)(MemoryListener *listener, MemoryRegionSection *section,
+                               target_phys_addr_t addr, target_phys_addr_t len);
+    void (*coalesced_mmio_del)(MemoryListener *listener, MemoryRegionSection *section,
+                               target_phys_addr_t addr, target_phys_addr_t len);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
     MemoryRegion *address_space_filter;

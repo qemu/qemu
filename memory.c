@@ -1136,11 +1136,19 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
     FlatRange *fr;
     CoalescedMemoryRange *cmr;
     AddrRange tmp;
+    MemoryRegionSection section;
 
     FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         if (fr->mr == mr) {
-            qemu_unregister_coalesced_mmio(int128_get64(fr->addr.start),
-                                           int128_get64(fr->addr.size));
+            section = (MemoryRegionSection) {
+                .address_space = as->root,
+                .offset_within_address_space = int128_get64(fr->addr.start),
+                .size = int128_get64(fr->addr.size),
+            };
+
+            MEMORY_LISTENER_CALL(coalesced_mmio_del, Reverse, &section,
+                                 int128_get64(fr->addr.start),
+                                 int128_get64(fr->addr.size));
             QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
                 tmp = addrrange_shift(cmr->addr,
                                       int128_sub(fr->addr.start,
@@ -1149,8 +1157,9 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
                     continue;
                 }
                 tmp = addrrange_intersection(tmp, fr->addr);
-                qemu_register_coalesced_mmio(int128_get64(tmp.start),
-                                             int128_get64(tmp.size));
+                MEMORY_LISTENER_CALL(coalesced_mmio_add, Forward, &section,
+                                     int128_get64(tmp.start),
+                                     int128_get64(tmp.size));
             }
         }
     }
