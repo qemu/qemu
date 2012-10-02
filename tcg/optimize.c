@@ -388,6 +388,23 @@ static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
     tcg_abort();
 }
 
+static bool swap_commutative(TCGArg dest, TCGArg *p1, TCGArg *p2)
+{
+    TCGArg a1 = *p1, a2 = *p2;
+    int sum = 0;
+    sum += temps[a1].state == TCG_TEMP_CONST;
+    sum -= temps[a2].state == TCG_TEMP_CONST;
+
+    /* Prefer the constant in second argument, and then the form
+       op a, a, b, which is better handled on non-RISC hosts. */
+    if (sum > 0 || (sum == 0 && dest == a2)) {
+        *p1 = a2;
+        *p2 = a1;
+        return true;
+    }
+    return false;
+}
+
 /* Propagate constants and copies, fold constant expressions. */
 static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                                     TCGArg *args, TCGOpDef *tcg_op_defs)
@@ -397,7 +414,6 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
     const TCGOpDef *def;
     TCGArg *gen_args;
     TCGArg tmp;
-    TCGCond cond;
 
     /* Array VALS has an element for each temp.
        If this temp holds a constant then its value is kept in VALS' element.
@@ -440,52 +456,28 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(eqv):
         CASE_OP_32_64(nand):
         CASE_OP_32_64(nor):
-            /* Prefer the constant in second argument, and then the form
-               op a, a, b, which is better handled on non-RISC hosts. */
-            if (temps[args[1]].state == TCG_TEMP_CONST || (args[0] == args[2]
-                && temps[args[2]].state != TCG_TEMP_CONST)) {
-                tmp = args[1];
-                args[1] = args[2];
-                args[2] = tmp;
-            }
+            swap_commutative(args[0], &args[1], &args[2]);
             break;
         CASE_OP_32_64(brcond):
-            if (temps[args[0]].state == TCG_TEMP_CONST
-                && temps[args[1]].state != TCG_TEMP_CONST) {
-                tmp = args[0];
-                args[0] = args[1];
-                args[1] = tmp;
+            if (swap_commutative(-1, &args[0], &args[1])) {
                 args[2] = tcg_swap_cond(args[2]);
             }
             break;
         CASE_OP_32_64(setcond):
-            if (temps[args[1]].state == TCG_TEMP_CONST
-                && temps[args[2]].state != TCG_TEMP_CONST) {
-                tmp = args[1];
-                args[1] = args[2];
-                args[2] = tmp;
+            if (swap_commutative(args[0], &args[1], &args[2])) {
                 args[3] = tcg_swap_cond(args[3]);
             }
             break;
         CASE_OP_32_64(movcond):
-            cond = args[5];
-            if (temps[args[1]].state == TCG_TEMP_CONST
-                && temps[args[2]].state != TCG_TEMP_CONST) {
-                tmp = args[1];
-                args[1] = args[2];
-                args[2] = tmp;
-                cond = tcg_swap_cond(cond);
+            if (swap_commutative(-1, &args[1], &args[2])) {
+                args[5] = tcg_swap_cond(args[5]);
             }
             /* For movcond, we canonicalize the "false" input reg to match
                the destination reg so that the tcg backend can implement
                a "move if true" operation.  */
-            if (args[0] == args[3]) {
-                tmp = args[3];
-                args[3] = args[4];
-                args[4] = tmp;
-                cond = tcg_invert_cond(cond);
+            if (swap_commutative(args[0], &args[4], &args[3])) {
+                args[5] = tcg_invert_cond(args[5]);
             }
-            args[5] = cond;
         default:
             break;
         }
