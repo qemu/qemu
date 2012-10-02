@@ -2105,7 +2105,6 @@ static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
 
     fd = inet_dgram_opts(opts, &local_err);
     if (fd < 0) {
-        fprintf(stderr, "inet_dgram_opts failed\n");
         goto return_err;
     }
 
