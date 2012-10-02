@@ -353,6 +353,16 @@ void helper_sti(CPUX86State *env)
     env->eflags |= IF_MASK;
 }
 
+void helper_clac(CPUX86State *env)
+{
+    env->eflags &= ~AC_MASK;
+}
+
+void helper_stac(CPUX86State *env)
+{
+    env->eflags |= AC_MASK;
+}
+
 #if 0
 /* vm86plus instructions */
 void helper_cli_vm(CPUX86State *env)

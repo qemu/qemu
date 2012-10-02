@@ -474,6 +474,11 @@ M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: hw/usb*
 
+VFIO
+M: Alex Williamson <alex.williamson@redhat.com>
+S: Supported
+F: hw/vfio*
+
 vhost
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
