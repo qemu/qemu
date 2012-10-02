@@ -601,14 +601,6 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     }
 }
 
-static void xen_pt_begin(MemoryListener *l)
-{
-}
-
-static void xen_pt_commit(MemoryListener *l)
-{
-}
-
 static void xen_pt_region_add(MemoryListener *l, MemoryRegionSection *sec)
 {
     XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
@@ -641,52 +633,15 @@ static void xen_pt_io_region_del(MemoryListener *l, MemoryRegionSection *sec)
     xen_pt_region_update(s, sec, false);
 }
 
-static void xen_pt_region_nop(MemoryListener *l, MemoryRegionSection *s)
-{
-}
-
-static void xen_pt_log_fns(MemoryListener *l, MemoryRegionSection *s)
-{
-}
-
-static void xen_pt_log_global_fns(MemoryListener *l)
-{
-}
-
-static void xen_pt_eventfd_fns(MemoryListener *l, MemoryRegionSection *s,
-                               bool match_data, uint64_t data, EventNotifier *n)
-{
-}
-
 static const MemoryListener xen_pt_memory_listener = {
-    .begin = xen_pt_begin,
-    .commit = xen_pt_commit,
     .region_add = xen_pt_region_add,
-    .region_nop = xen_pt_region_nop,
     .region_del = xen_pt_region_del,
-    .log_start = xen_pt_log_fns,
-    .log_stop = xen_pt_log_fns,
-    .log_sync = xen_pt_log_fns,
-    .log_global_start = xen_pt_log_global_fns,
-    .log_global_stop = xen_pt_log_global_fns,
-    .eventfd_add = xen_pt_eventfd_fns,
-    .eventfd_del = xen_pt_eventfd_fns,
     .priority = 10,
 };
 
 static const MemoryListener xen_pt_io_listener = {
-    .begin = xen_pt_begin,
-    .commit = xen_pt_commit,
     .region_add = xen_pt_io_region_add,
-    .region_nop = xen_pt_region_nop,
     .region_del = xen_pt_io_region_del,
-    .log_start = xen_pt_log_fns,
-    .log_stop = xen_pt_log_fns,
-    .log_sync = xen_pt_log_fns,
-    .log_global_start = xen_pt_log_global_fns,
-    .log_global_stop = xen_pt_log_global_fns,
-    .eventfd_add = xen_pt_eventfd_fns,
-    .eventfd_del = xen_pt_eventfd_fns,
     .priority = 10,
 };
 
