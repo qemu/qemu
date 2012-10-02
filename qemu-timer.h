@@ -79,9 +79,20 @@ static inline QEMUTimer *qemu_new_timer_ms(QEMUClock *clock, QEMUTimerCB *cb,
     return qemu_new_timer(clock, SCALE_MS, cb, opaque);
 }
 
+static inline QEMUTimer *qemu_new_timer_us(QEMUClock *clock, QEMUTimerCB *cb,
+                                           void *opaque)
+{
+    return qemu_new_timer(clock, SCALE_US, cb, opaque);
+}
+
 static inline int64_t qemu_get_clock_ms(QEMUClock *clock)
 {
     return qemu_get_clock_ns(clock) / SCALE_MS;
+}
+
+static inline int64_t qemu_get_clock_us(QEMUClock *clock)
+{
+    return qemu_get_clock_ns(clock) / SCALE_US;
 }
 
 static inline int64_t get_ticks_per_sec(void)
