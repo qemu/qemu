@@ -164,10 +164,12 @@ typedef struct AddressSpace AddressSpace;
  */
 struct AddressSpace {
     /* All fields are private. */
+    const char *name;
     MemoryRegion *root;
     struct FlatView *current_map;
     int ioeventfd_nb;
     struct MemoryRegionIoeventfd *ioeventfds;
+    QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 };
 
 typedef struct MemoryRegionSection MemoryRegionSection;
