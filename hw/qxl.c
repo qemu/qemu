@@ -1461,7 +1461,7 @@ static void ioport_write(void *opaque, target_phys_addr_t addr,
     qxl_async_io async = QXL_SYNC;
     uint32_t orig_io_port = io_port;
 
-    if (d->guest_bug && !io_port == QXL_IO_RESET) {
+    if (d->guest_bug && io_port != QXL_IO_RESET) {
         return;
     }
 
