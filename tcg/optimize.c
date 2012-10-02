@@ -405,6 +405,22 @@ static bool swap_commutative(TCGArg dest, TCGArg *p1, TCGArg *p2)
     return false;
 }
 
+static bool swap_commutative2(TCGArg *p1, TCGArg *p2)
+{
+    int sum = 0;
+    sum += temps[p1[0]].state == TCG_TEMP_CONST;
+    sum += temps[p1[1]].state == TCG_TEMP_CONST;
+    sum -= temps[p2[0]].state == TCG_TEMP_CONST;
+    sum -= temps[p2[1]].state == TCG_TEMP_CONST;
+    if (sum > 0) {
+        TCGArg t;
+        t = p1[0], p1[0] = p2[0], p2[0] = t;
+        t = p1[1], p1[1] = p2[1], p2[1] = t;
+        return true;
+    }
+    return false;
+}
+
 /* Propagate constants and copies, fold constant expressions. */
 static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                                     TCGArg *args, TCGOpDef *tcg_op_defs)
@@ -482,6 +498,16 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         case INDEX_op_add2_i32:
             swap_commutative(args[0], &args[2], &args[4]);
             swap_commutative(args[1], &args[3], &args[5]);
+            break;
+        case INDEX_op_brcond2_i32:
+            if (swap_commutative2(&args[0], &args[2])) {
+                args[4] = tcg_swap_cond(args[4]);
+            }
+            break;
+        case INDEX_op_setcond2_i32:
+            if (swap_commutative2(&args[1], &args[3])) {
+                args[5] = tcg_swap_cond(args[5]);
+            }
             break;
         default:
             break;
