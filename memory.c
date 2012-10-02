@@ -216,16 +216,7 @@ struct FlatView {
     unsigned nr_allocated;
 };
 
-typedef struct AddressSpace AddressSpace;
 typedef struct AddressSpaceOps AddressSpaceOps;
-
-/* A system address space - I/O, memory, etc. */
-struct AddressSpace {
-    MemoryRegion *root;
-    FlatView *current_map;
-    int ioeventfd_nb;
-    MemoryRegionIoeventfd *ioeventfds;
-};
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
     for (var = (view)->ranges; var < (view)->ranges + (view)->nr; ++var)
@@ -1510,7 +1501,7 @@ void memory_listener_unregister(MemoryListener *listener)
     QTAILQ_REMOVE(&memory_listeners, listener, link);
 }
 
-static void address_space_init(AddressSpace *as, MemoryRegion *root)
+void address_space_init(AddressSpace *as, MemoryRegion *root)
 {
     memory_region_transaction_begin();
     as->root = root;

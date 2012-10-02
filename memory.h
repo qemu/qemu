@@ -157,6 +157,19 @@ struct MemoryRegionPortio {
 
 #define PORTIO_END_OF_LIST() { }
 
+typedef struct AddressSpace AddressSpace;
+
+/**
+ * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
+ */
+struct AddressSpace {
+    /* All fields are private. */
+    MemoryRegion *root;
+    struct FlatView *current_map;
+    int ioeventfd_nb;
+    struct MemoryRegionIoeventfd *ioeventfds;
+};
+
 typedef struct MemoryRegionSection MemoryRegionSection;
 
 /**
@@ -775,6 +788,14 @@ void memory_global_dirty_log_start(void);
 void memory_global_dirty_log_stop(void);
 
 void mtree_info(fprintf_function mon_printf, void *f);
+
+/**
+ * address_space_init: initializes an address space
+ *
+ * @as: an uninitialized #AddressSpace
+ * @root: a #MemoryRegion that routes addesses for the address space
+ */
+void address_space_init(AddressSpace *as, MemoryRegion *root);
 
 #endif
 
