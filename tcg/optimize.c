@@ -478,6 +478,11 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             if (swap_commutative(args[0], &args[4], &args[3])) {
                 args[5] = tcg_invert_cond(args[5]);
             }
+            break;
+        case INDEX_op_add2_i32:
+            swap_commutative(args[0], &args[2], &args[4]);
+            swap_commutative(args[1], &args[3], &args[5]);
+            break;
         default:
             break;
         }
