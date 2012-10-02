@@ -752,6 +752,45 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             }
             goto do_default;
 
+        case INDEX_op_brcond2_i32:
+            /* Simplify LT/GE comparisons vs zero to a single compare
+               vs the high word of the input.  */
+            if ((args[4] == TCG_COND_LT || args[4] == TCG_COND_GE)
+                && temps[args[2]].state == TCG_TEMP_CONST
+                && temps[args[3]].state == TCG_TEMP_CONST
+                && temps[args[2]].val == 0
+                && temps[args[3]].val == 0) {
+                gen_opc_buf[op_index] = INDEX_op_brcond_i32;
+                gen_args[0] = args[1];
+                gen_args[1] = args[3];
+                gen_args[2] = args[4];
+                gen_args[3] = args[5];
+                gen_args += 4;
+                args += 6;
+                memset(temps, 0, nb_temps * sizeof(struct tcg_temp_info));
+                break;
+            }
+            goto do_default;
+
+        case INDEX_op_setcond2_i32:
+            /* Simplify LT/GE comparisons vs zero to a single compare
+               vs the high word of the input.  */
+            if ((args[5] == TCG_COND_LT || args[5] == TCG_COND_GE)
+                && temps[args[3]].state == TCG_TEMP_CONST
+                && temps[args[4]].state == TCG_TEMP_CONST
+                && temps[args[3]].val == 0
+                && temps[args[4]].val == 0) {
+                gen_opc_buf[op_index] = INDEX_op_setcond_i32;
+                gen_args[0] = args[0];
+                gen_args[1] = args[2];
+                gen_args[2] = args[4];
+                gen_args[3] = args[5];
+                gen_args += 4;
+                args += 6;
+                break;
+            }
+            goto do_default;
+
         case INDEX_op_call:
             nb_call_args = (args[0] >> 16) + (args[0] & 0xffff);
             if (!(args[nb_call_args + 1] & (TCG_CALL_CONST | TCG_CALL_PURE))) {
