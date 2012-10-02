@@ -1338,6 +1338,25 @@ static void tcg_liveness_analysis(TCGContext *s)
             }
             goto do_not_remove;
 
+        case INDEX_op_mulu2_i32:
+            args -= 4;
+            nb_iargs = 2;
+            nb_oargs = 2;
+            /* Likewise, test for the high part of the operation dead.  */
+            if (dead_temps[args[1]]) {
+                if (dead_temps[args[0]]) {
+                    goto do_remove;
+                }
+                gen_opc_buf[op_index] = op = INDEX_op_mul_i32;
+                args[1] = args[2];
+                args[2] = args[3];
+                assert(gen_opc_buf[op_index + 1] == INDEX_op_nop);
+                tcg_set_nop(s, gen_opc_buf + op_index + 1, args + 3, 1);
+                /* Fall through and mark the single-word operation live.  */
+                nb_oargs = 1;
+            }
+            goto do_not_remove;
+
         default:
             /* XXX: optimize by hardcoding common cases (e.g. triadic ops) */
             args -= def->nb_args;

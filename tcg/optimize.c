@@ -543,6 +543,9 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             swap_commutative(args[0], &args[2], &args[4]);
             swap_commutative(args[1], &args[3], &args[5]);
             break;
+        case INDEX_op_mulu2_i32:
+            swap_commutative(args[0], &args[2], &args[3]);
+            break;
         case INDEX_op_brcond2_i32:
             if (swap_commutative2(&args[0], &args[2])) {
                 args[4] = tcg_swap_cond(args[4]);
@@ -827,6 +830,29 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 tcg_opt_gen_movi(&gen_args[2], rh, (uint32_t)(a >> 32));
                 gen_args += 4;
                 args += 6;
+                break;
+            }
+            goto do_default;
+
+        case INDEX_op_mulu2_i32:
+            if (temps[args[2]].state == TCG_TEMP_CONST
+                && temps[args[3]].state == TCG_TEMP_CONST) {
+                uint32_t a = temps[args[2]].val;
+                uint32_t b = temps[args[3]].val;
+                uint64_t r = (uint64_t)a * b;
+                TCGArg rl, rh;
+
+                /* We emit the extra nop when we emit the mulu2.  */
+                assert(gen_opc_buf[op_index + 1] == INDEX_op_nop);
+
+                rl = args[0];
+                rh = args[1];
+                gen_opc_buf[op_index] = INDEX_op_movi_i32;
+                gen_opc_buf[++op_index] = INDEX_op_movi_i32;
+                tcg_opt_gen_movi(&gen_args[0], rl, (uint32_t)r);
+                tcg_opt_gen_movi(&gen_args[2], rh, (uint32_t)(r >> 32));
+                gen_args += 4;
+                args += 4;
                 break;
             }
             goto do_default;
