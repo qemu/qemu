@@ -3194,30 +3194,10 @@ static void core_region_add(MemoryListener *listener,
     cpu_register_physical_memory_log(section, section->readonly);
 }
 
-static void core_region_del(MemoryListener *listener,
-                            MemoryRegionSection *section)
-{
-}
-
 static void core_region_nop(MemoryListener *listener,
                             MemoryRegionSection *section)
 {
     cpu_register_physical_memory_log(section, section->readonly);
-}
-
-static void core_log_start(MemoryListener *listener,
-                           MemoryRegionSection *section)
-{
-}
-
-static void core_log_stop(MemoryListener *listener,
-                          MemoryRegionSection *section)
-{
-}
-
-static void core_log_sync(MemoryListener *listener,
-                          MemoryRegionSection *section)
-{
 }
 
 static void core_log_global_start(MemoryListener *listener)
@@ -3228,26 +3208,6 @@ static void core_log_global_start(MemoryListener *listener)
 static void core_log_global_stop(MemoryListener *listener)
 {
     cpu_physical_memory_set_dirty_tracking(0);
-}
-
-static void core_eventfd_add(MemoryListener *listener,
-                             MemoryRegionSection *section,
-                             bool match_data, uint64_t data, EventNotifier *e)
-{
-}
-
-static void core_eventfd_del(MemoryListener *listener,
-                             MemoryRegionSection *section,
-                             bool match_data, uint64_t data, EventNotifier *e)
-{
-}
-
-static void io_begin(MemoryListener *listener)
-{
-}
-
-static void io_commit(MemoryListener *listener)
-{
 }
 
 static void io_region_add(MemoryListener *listener,
@@ -3268,75 +3228,19 @@ static void io_region_del(MemoryListener *listener,
     isa_unassign_ioport(section->offset_within_address_space, section->size);
 }
 
-static void io_region_nop(MemoryListener *listener,
-                          MemoryRegionSection *section)
-{
-}
-
-static void io_log_start(MemoryListener *listener,
-                         MemoryRegionSection *section)
-{
-}
-
-static void io_log_stop(MemoryListener *listener,
-                        MemoryRegionSection *section)
-{
-}
-
-static void io_log_sync(MemoryListener *listener,
-                        MemoryRegionSection *section)
-{
-}
-
-static void io_log_global_start(MemoryListener *listener)
-{
-}
-
-static void io_log_global_stop(MemoryListener *listener)
-{
-}
-
-static void io_eventfd_add(MemoryListener *listener,
-                           MemoryRegionSection *section,
-                           bool match_data, uint64_t data, EventNotifier *e)
-{
-}
-
-static void io_eventfd_del(MemoryListener *listener,
-                           MemoryRegionSection *section,
-                           bool match_data, uint64_t data, EventNotifier *e)
-{
-}
-
 static MemoryListener core_memory_listener = {
     .begin = core_begin,
     .commit = core_commit,
     .region_add = core_region_add,
-    .region_del = core_region_del,
     .region_nop = core_region_nop,
-    .log_start = core_log_start,
-    .log_stop = core_log_stop,
-    .log_sync = core_log_sync,
     .log_global_start = core_log_global_start,
     .log_global_stop = core_log_global_stop,
-    .eventfd_add = core_eventfd_add,
-    .eventfd_del = core_eventfd_del,
     .priority = 0,
 };
 
 static MemoryListener io_memory_listener = {
-    .begin = io_begin,
-    .commit = io_commit,
     .region_add = io_region_add,
     .region_del = io_region_del,
-    .region_nop = io_region_nop,
-    .log_start = io_log_start,
-    .log_stop = io_log_stop,
-    .log_sync = io_log_sync,
-    .log_global_start = io_log_global_start,
-    .log_global_stop = io_log_global_stop,
-    .eventfd_add = io_eventfd_add,
-    .eventfd_del = io_eventfd_del,
     .priority = 0,
 };
 
