@@ -216,7 +216,7 @@ typedef struct ConnectState {
 } ConnectState;
 
 static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
-                             ConnectState *connect_state);
+                             ConnectState *connect_state, Error **errp);
 
 static void wait_for_connect(void *opaque)
 {
@@ -246,7 +246,7 @@ static void wait_for_connect(void *opaque)
     if (s->current_addr) {
         while (s->current_addr->ai_next != NULL && s->fd < 0) {
             s->current_addr = s->current_addr->ai_next;
-            s->fd = inet_connect_addr(s->current_addr, &in_progress, s);
+            s->fd = inet_connect_addr(s->current_addr, &in_progress, s, NULL);
             /* connect in progress */
             if (in_progress) {
                 return;
@@ -263,7 +263,7 @@ static void wait_for_connect(void *opaque)
 }
 
 static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
-                             ConnectState *connect_state)
+                             ConnectState *connect_state, Error **errp)
 {
     int sock, rc;
 
@@ -271,8 +271,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
-        fprintf(stderr, "%s: socket(%s): %s\n", __func__,
-                inet_strfamily(addr->ai_family), strerror(errno));
+        error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
         return -1;
     }
     qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
@@ -293,6 +292,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
                              connect_state);
         *in_progress = true;
     } else if (rc < 0) {
+        error_set_errno(errp, errno, QERR_SOCKET_CONNECT_FAILED);
         closesocket(sock);
         return -1;
     }
@@ -375,7 +375,7 @@ int inet_connect_opts(QemuOpts *opts, Error **errp,
         if (connect_state != NULL) {
             connect_state->current_addr = e;
         }
-        sock = inet_connect_addr(e, &in_progress, connect_state);
+        sock = inet_connect_addr(e, &in_progress, connect_state, errp);
         if (in_progress) {
             return sock;
         } else if (sock >= 0) {
@@ -385,9 +385,6 @@ int inet_connect_opts(QemuOpts *opts, Error **errp,
             }
             break;
         }
-    }
-    if (sock < 0) {
-        error_set(errp, QERR_SOCKET_CONNECT_FAILED);
     }
     g_free(connect_state);
     freeaddrinfo(res);
