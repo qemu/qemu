@@ -1427,7 +1427,8 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
     }
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
-    if (error_is_set(&error)) {
+    if (error) {
+        fprintf(stderr, "%s\n", error_get_pretty(error));
         error_free(error);
         return -1;
     }
