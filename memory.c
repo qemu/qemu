@@ -99,13 +99,17 @@ static bool memory_listener_match(MemoryListener *listener,
         switch (_direction) {                                           \
         case Forward:                                                   \
             QTAILQ_FOREACH(_listener, &memory_listeners, link) {        \
-                _listener->_callback(_listener, ##_args);               \
+                if (_listener->_callback) {                             \
+                    _listener->_callback(_listener, ##_args);           \
+                }                                                       \
             }                                                           \
             break;                                                      \
         case Reverse:                                                   \
             QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
                                    memory_listeners, link) {            \
-                _listener->_callback(_listener, ##_args);               \
+                if (_listener->_callback) {                             \
+                    _listener->_callback(_listener, ##_args);           \
+                }                                                       \
             }                                                           \
             break;                                                      \
         default:                                                        \
@@ -120,7 +124,8 @@ static bool memory_listener_match(MemoryListener *listener,
         switch (_direction) {                                           \
         case Forward:                                                   \
             QTAILQ_FOREACH(_listener, &memory_listeners, link) {        \
-                if (memory_listener_match(_listener, _section)) {       \
+                if (_listener->_callback                                \
+                    && memory_listener_match(_listener, _section)) {    \
                     _listener->_callback(_listener, _section, ##_args); \
                 }                                                       \
             }                                                           \
@@ -128,7 +133,8 @@ static bool memory_listener_match(MemoryListener *listener,
         case Reverse:                                                   \
             QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
                                    memory_listeners, link) {            \
-                if (memory_listener_match(_listener, _section)) {       \
+                if (_listener->_callback                                \
+                    && memory_listener_match(_listener, _section)) {    \
                     _listener->_callback(_listener, _section, ##_args); \
                 }                                                       \
             }                                                           \
@@ -1470,8 +1476,11 @@ static void listener_add_address_space(MemoryListener *listener,
     }
 
     if (global_dirty_log) {
-        listener->log_global_start(listener);
+        if (listener->log_global_start) {
+            listener->log_global_start(listener);
+        }
     }
+
     FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         MemoryRegionSection section = {
             .mr = fr->mr,
@@ -1481,7 +1490,9 @@ static void listener_add_address_space(MemoryListener *listener,
             .offset_within_address_space = int128_get64(fr->addr.start),
             .readonly = fr->readonly,
         };
-        listener->region_add(listener, &section);
+        if (listener->region_add) {
+            listener->region_add(listener, &section);
+        }
     }
 }
 
