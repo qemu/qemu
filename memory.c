@@ -222,7 +222,7 @@ typedef struct AddressSpaceOps AddressSpaceOps;
 /* A system address space - I/O, memory, etc. */
 struct AddressSpace {
     MemoryRegion *root;
-    FlatView current_map;
+    FlatView *current_map;
     int ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
 };
@@ -631,7 +631,7 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     AddrRange tmp;
     unsigned i;
 
-    FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
+    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         for (i = 0; i < fr->mr->ioeventfd_nb; ++i) {
             tmp = addrrange_shift(fr->mr->ioeventfds[i].addr,
                                   int128_sub(fr->addr.start,
@@ -719,13 +719,13 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
 static void address_space_update_topology(AddressSpace *as)
 {
-    FlatView old_view = as->current_map;
+    FlatView old_view = *as->current_map;
     FlatView new_view = generate_memory_topology(as->root);
 
     address_space_update_topology_pass(as, old_view, new_view, false);
     address_space_update_topology_pass(as, old_view, new_view, true);
 
-    as->current_map = new_view;
+    *as->current_map = new_view;
     flatview_destroy(&old_view);
     address_space_update_ioeventfds(as);
 }
@@ -1083,7 +1083,7 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 {
     FlatRange *fr;
 
-    FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
+    FOR_EACH_FLAT_RANGE(fr, address_space_memory.current_map) {
         if (fr->mr == mr) {
             MEMORY_LISTENER_UPDATE_REGION(fr, &address_space_memory,
                                           Forward, log_sync);
@@ -1135,7 +1135,7 @@ static void memory_region_update_coalesced_range(MemoryRegion *mr)
     CoalescedMemoryRange *cmr;
     AddrRange tmp;
 
-    FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
+    FOR_EACH_FLAT_RANGE(fr, address_space_memory.current_map) {
         if (fr->mr == mr) {
             qemu_unregister_coalesced_mmio(int128_get64(fr->addr.start),
                                            int128_get64(fr->addr.size));
@@ -1399,7 +1399,7 @@ static int cmp_flatrange_addr(const void *addr_, const void *fr_)
 
 static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
 {
-    return bsearch(&addr, as->current_map.ranges, as->current_map.nr,
+    return bsearch(&addr, as->current_map->ranges, as->current_map->nr,
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
@@ -1416,7 +1416,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
         return ret;
     }
 
-    while (fr > as->current_map.ranges
+    while (fr > as->current_map->ranges
            && addrrange_intersects(fr[-1].addr, range)) {
         --fr;
     }
@@ -1437,7 +1437,7 @@ void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
     AddressSpace *as = memory_region_to_address_space(address_space);
     FlatRange *fr;
 
-    FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
+    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         MEMORY_LISTENER_UPDATE_REGION(fr, as, Forward, log_sync);
     }
 }
@@ -1459,6 +1459,10 @@ static void listener_add_address_space(MemoryListener *listener,
 {
     FlatRange *fr;
 
+    if (!as->root) {
+        return;
+    }
+
     if (listener->address_space_filter
         && listener->address_space_filter != as->root) {
         return;
@@ -1467,7 +1471,7 @@ static void listener_add_address_space(MemoryListener *listener,
     if (global_dirty_log) {
         listener->log_global_start(listener);
     }
-    FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
+    FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         MemoryRegionSection section = {
             .mr = fr->mr,
             .address_space = as->root,
@@ -1506,18 +1510,23 @@ void memory_listener_unregister(MemoryListener *listener)
     QTAILQ_REMOVE(&memory_listeners, listener, link);
 }
 
-void set_system_memory_map(MemoryRegion *mr)
+static void address_space_init(AddressSpace *as, MemoryRegion *root)
 {
     memory_region_transaction_begin();
-    address_space_memory.root = mr;
+    as->root = root;
+    as->current_map = g_new(FlatView, 1);
+    flatview_init(as->current_map);
     memory_region_transaction_commit();
+}
+
+void set_system_memory_map(MemoryRegion *mr)
+{
+    address_space_init(&address_space_memory, mr);
 }
 
 void set_system_io_map(MemoryRegion *mr)
 {
-    memory_region_transaction_begin();
-    address_space_io.root = mr;
-    memory_region_transaction_commit();
+    address_space_init(&address_space_io, mr);
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)
