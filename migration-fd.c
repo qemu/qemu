@@ -97,7 +97,7 @@ static void fd_accept_incoming_migration(void *opaque)
     qemu_fclose(f);
 }
 
-int fd_start_incoming_migration(const char *infd)
+void fd_start_incoming_migration(const char *infd, Error **errp)
 {
     int fd;
     QEMUFile *f;
@@ -107,11 +107,9 @@ int fd_start_incoming_migration(const char *infd)
     fd = strtol(infd, NULL, 0);
     f = qemu_fdopen(fd, "rb");
     if(f == NULL) {
-        DPRINTF("Unable to apply qemu wrapper to file descriptor\n");
-        return -errno;
+        error_setg_errno(errp, errno, "failed to open the source descriptor");
+        return;
     }
 
     qemu_set_fd_handler2(fd, NULL, fd_accept_incoming_migration, NULL, f);
-
-    return 0;
 }

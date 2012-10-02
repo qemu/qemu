@@ -92,19 +92,17 @@ static void exec_accept_incoming_migration(void *opaque)
     qemu_fclose(f);
 }
 
-int exec_start_incoming_migration(const char *command)
+void exec_start_incoming_migration(const char *command, Error **errp)
 {
     QEMUFile *f;
 
     DPRINTF("Attempting to start an incoming migration\n");
     f = qemu_popen_cmd(command, "r");
     if(f == NULL) {
-        DPRINTF("Unable to apply qemu wrapper to popen file\n");
-        return -errno;
+        error_setg_errno(errp, errno, "failed to popen the migration source");
+        return;
     }
 
     qemu_set_fd_handler2(qemu_stdio_fd(f), NULL,
 			 exec_accept_incoming_migration, NULL, f);
-
-    return 0;
 }

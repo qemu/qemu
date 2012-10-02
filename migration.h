@@ -49,7 +49,7 @@ struct MigrationState
 
 void process_incoming_migration(QEMUFile *f);
 
-int qemu_start_incoming_migration(const char *uri, Error **errp);
+void qemu_start_incoming_migration(const char *uri, Error **errp);
 
 uint64_t migrate_max_downtime(void);
 
@@ -57,19 +57,19 @@ void do_info_migrate_print(Monitor *mon, const QObject *data);
 
 void do_info_migrate(Monitor *mon, QObject **ret_data);
 
-int exec_start_incoming_migration(const char *host_port);
+void exec_start_incoming_migration(const char *host_port, Error **errp);
 
 void exec_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
 
-int tcp_start_incoming_migration(const char *host_port, Error **errp);
+void tcp_start_incoming_migration(const char *host_port, Error **errp);
 
 void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
 
-int unix_start_incoming_migration(const char *path, Error **errp);
+void unix_start_incoming_migration(const char *path, Error **errp);
 
 void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp);
 
-int fd_start_incoming_migration(const char *path);
+void fd_start_incoming_migration(const char *path, Error **errp);
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp);
 

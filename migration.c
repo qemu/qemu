@@ -64,26 +64,23 @@ MigrationState *migrate_get_current(void)
     return &current_migration;
 }
 
-int qemu_start_incoming_migration(const char *uri, Error **errp)
+void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
-    int ret;
 
     if (strstart(uri, "tcp:", &p))
-        ret = tcp_start_incoming_migration(p, errp);
+        tcp_start_incoming_migration(p, errp);
 #if !defined(WIN32)
     else if (strstart(uri, "exec:", &p))
-        ret =  exec_start_incoming_migration(p);
+        exec_start_incoming_migration(p, errp);
     else if (strstart(uri, "unix:", &p))
-        ret = unix_start_incoming_migration(p, errp);
+        unix_start_incoming_migration(p, errp);
     else if (strstart(uri, "fd:", &p))
-        ret = fd_start_incoming_migration(p);
+        fd_start_incoming_migration(p, errp);
 #endif
     else {
-        fprintf(stderr, "unknown migration protocol: %s\n", uri);
-        ret = -EPROTONOSUPPORT;
+        error_setg(errp, "unknown migration protocol: %s\n", uri);
     }
-    return ret;
 }
 
 void process_incoming_migration(QEMUFile *f)
