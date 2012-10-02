@@ -2850,7 +2850,7 @@ char *vnc_display_local_addr(DisplayState *ds)
     return vnc_socket_local_addr("%s:%s", vs->lsock);
 }
 
-int vnc_display_open(DisplayState *ds, const char *display)
+void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
 {
     VncDisplay *vs = ds ? (VncDisplay *)ds->opaque : vnc_display;
     const char *options;
@@ -2868,11 +2868,13 @@ int vnc_display_open(DisplayState *ds, const char *display)
 #endif
     int lock_key_sync = 1;
 
-    if (!vnc_display)
-        return -1;
+    if (!vnc_display) {
+        error_setg(errp, "VNC display not active");
+        return;
+    }
     vnc_display_close(ds);
     if (strcmp(display, "none") == 0)
-        return 0;
+        return;
 
     vs->display = g_strdup(display);
     vs->share_policy = VNC_SHARE_POLICY_ALLOW_EXCLUSIVE;
@@ -2882,10 +2884,10 @@ int vnc_display_open(DisplayState *ds, const char *display)
         options++;
         if (strncmp(options, "password", 8) == 0) {
             if (fips_get_state()) {
-                fprintf(stderr,
-                        "VNC password auth disabled due to FIPS mode, "
-                        "consider using the VeNCrypt or SASL authentication "
-                        "methods as an alternative\n");
+                error_setg(errp,
+                           "VNC password auth disabled due to FIPS mode, "
+                           "consider using the VeNCrypt or SASL authentication "
+                           "methods as an alternative");
                 goto fail;
             }
             password = 1; /* Require password auth */
@@ -2916,13 +2918,13 @@ int vnc_display_open(DisplayState *ds, const char *display)
 
                 VNC_DEBUG("Trying certificate path '%s'\n", path);
                 if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
-                    fprintf(stderr, "Failed to find x509 certificates/keys in %s\n", path);
+                    error_setg(errp, "Failed to find x509 certificates/keys in %s", path);
                     g_free(path);
                     goto fail;
                 }
                 g_free(path);
             } else {
-                fprintf(stderr, "No certificate path provided\n");
+                error_setg(errp, "No certificate path provided");
                 goto fail;
             }
 #endif
@@ -2942,7 +2944,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
             } else if (strncmp(options+6, "force-shared", 12) == 0) {
                 vs->share_policy = VNC_SHARE_POLICY_FORCE_SHARED;
             } else {
-                fprintf(stderr, "unknown vnc share= option\n");
+                error_setg(errp, "unknown vnc share= option");
                 goto fail;
             }
         }
@@ -3044,8 +3046,8 @@ int vnc_display_open(DisplayState *ds, const char *display)
 
 #ifdef CONFIG_VNC_SASL
     if ((saslErr = sasl_server_init(NULL, "qemu")) != SASL_OK) {
-        fprintf(stderr, "Failed to initialize SASL auth %s",
-                sasl_errstring(saslErr, NULL, NULL));
+        error_setg(errp, "Failed to initialize SASL auth: %s",
+                   sasl_errstring(saslErr, NULL, NULL));
         goto fail;
     }
 #endif
@@ -3056,9 +3058,9 @@ int vnc_display_open(DisplayState *ds, const char *display)
         int csock;
         vs->lsock = -1;
         if (strncmp(display, "unix:", 5) == 0) {
-            csock = unix_connect(display+5, NULL);
+            csock = unix_connect(display+5, errp);
         } else {
-            csock = inet_connect(display, NULL);
+            csock = inet_connect(display, errp);
         }
         if (csock < 0) {
             goto fail;
@@ -3070,10 +3072,10 @@ int vnc_display_open(DisplayState *ds, const char *display)
         dpy = g_malloc(256);
         if (strncmp(display, "unix:", 5) == 0) {
             pstrcpy(dpy, 256, "unix:");
-            vs->lsock = unix_listen(display+5, dpy+5, 256-5, NULL);
+            vs->lsock = unix_listen(display+5, dpy+5, 256-5, errp);
         } else {
             vs->lsock = inet_listen(display, dpy, 256,
-                                    SOCK_STREAM, 5900, NULL);
+                                    SOCK_STREAM, 5900, errp);
         }
         if (vs->lsock < 0) {
             g_free(dpy);
@@ -3083,12 +3085,14 @@ int vnc_display_open(DisplayState *ds, const char *display)
         vs->display = dpy;
         qemu_set_fd_handler2(vs->lsock, NULL, vnc_listen_read, NULL, vs);
     }
-    return 0;
+    return;
 
 fail:
+    if (!error_is_set(errp)) {
+        error_set(errp, QERR_VNC_SERVER_FAILED, display);
+    }
     g_free(vs->display);
     vs->display = NULL;
-    return -1;
 }
 
 void vnc_display_add_client(DisplayState *ds, int csock, int skipauth)

@@ -3711,10 +3711,13 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_VNC
     /* init remote displays */
     if (vnc_display) {
+        Error *local_err = NULL;
         vnc_display_init(ds);
-        if (vnc_display_open(ds, vnc_display) < 0) {
-            fprintf(stderr, "Failed to start VNC server on `%s'\n",
-                    vnc_display);
+        vnc_display_open(ds, vnc_display, &local_err);
+        if (local_err != NULL) {
+            fprintf(stderr, "Failed to start VNC server on `%s': %s\n",
+                    vnc_display, error_get_pretty(local_err));
+            error_free(local_err);
             exit(1);
         }
 
