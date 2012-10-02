@@ -1307,8 +1307,39 @@ static void tcg_liveness_analysis(TCGContext *s)
             break;
         case INDEX_op_end:
             break;
-            /* XXX: optimize by hardcoding common cases (e.g. triadic ops) */
+
+        case INDEX_op_add2_i32:
+        case INDEX_op_sub2_i32:
+            args -= 6;
+            nb_iargs = 4;
+            nb_oargs = 2;
+            /* Test if the high part of the operation is dead, but not
+               the low part.  The result can be optimized to a simple
+               add or sub.  This happens often for x86_64 guest when the
+               cpu mode is set to 32 bit.  */
+            if (dead_temps[args[1]]) {
+                if (dead_temps[args[0]]) {
+                    goto do_remove;
+                }
+                /* Create the single operation plus nop.  */
+                if (op == INDEX_op_add2_i32) {
+                    op = INDEX_op_add_i32;
+                } else {
+                    op = INDEX_op_sub_i32;
+                }
+                gen_opc_buf[op_index] = op;
+                args[1] = args[2];
+                args[2] = args[4];
+                assert(gen_opc_buf[op_index + 1] == INDEX_op_nop);
+                tcg_set_nop(s, gen_opc_buf + op_index + 1, args + 3, 3);
+                /* Fall through and mark the single-word operation live.  */
+                nb_iargs = 2;
+                nb_oargs = 1;
+            }
+            goto do_not_remove;
+
         default:
+            /* XXX: optimize by hardcoding common cases (e.g. triadic ops) */
             args -= def->nb_args;
             nb_iargs = def->nb_iargs;
             nb_oargs = def->nb_oargs;
@@ -1322,6 +1353,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                     if (!dead_temps[arg])
                         goto do_not_remove;
                 }
+            do_remove:
                 tcg_set_nop(s, gen_opc_buf + op_index, args, def->nb_args);
 #ifdef CONFIG_PROFILER
                 s->del_op_count++;
