@@ -326,6 +326,7 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          uint8_t devfn_min, int nirq);
 void pci_bus_set_route_irq_fn(PCIBus *, pci_route_irq_fn);
 PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin);
+bool pci_intx_route_changed(PCIINTxRoute *old, PCIINTxRoute *new);
 void pci_bus_fire_intx_routing_notifier(PCIBus *bus);
 void pci_device_set_intx_routing_notifier(PCIDevice *dev,
                                           PCIINTxRoutingNotifier notifier);
