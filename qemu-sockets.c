@@ -403,7 +403,7 @@ int inet_connect_opts(QemuOpts *opts, Error **errp,
     return sock;
 }
 
-int inet_dgram_opts(QemuOpts *opts)
+int inet_dgram_opts(QemuOpts *opts, Error **errp)
 {
     struct addrinfo ai, *peer = NULL, *local = NULL;
     const char *addr;
@@ -653,7 +653,7 @@ int inet_nonblocking_connect(const char *str,
 
 #ifndef _WIN32
 
-int unix_listen_opts(QemuOpts *opts)
+int unix_listen_opts(QemuOpts *opts, Error **errp)
 {
     struct sockaddr_un un;
     const char *path = qemu_opt_get(opts, "path");
@@ -701,7 +701,7 @@ err:
     return -1;
 }
 
-int unix_connect_opts(QemuOpts *opts)
+int unix_connect_opts(QemuOpts *opts, Error **errp)
 {
     struct sockaddr_un un;
     const char *path = qemu_opt_get(opts, "path");
@@ -731,7 +731,7 @@ int unix_connect_opts(QemuOpts *opts)
 }
 
 /* compatibility wrapper */
-int unix_listen(const char *str, char *ostr, int olen)
+int unix_listen(const char *str, char *ostr, int olen, Error **errp)
 {
     QemuOpts *opts;
     char *path, *optstr;
@@ -752,7 +752,7 @@ int unix_listen(const char *str, char *ostr, int olen)
         qemu_opt_set(opts, "path", str);
     }
 
-    sock = unix_listen_opts(opts);
+    sock = unix_listen_opts(opts, errp);
 
     if (sock != -1 && ostr)
         snprintf(ostr, olen, "%s%s", qemu_opt_get(opts, "path"), optstr ? optstr : "");
@@ -760,42 +760,42 @@ int unix_listen(const char *str, char *ostr, int olen)
     return sock;
 }
 
-int unix_connect(const char *path)
+int unix_connect(const char *path, Error **errp)
 {
     QemuOpts *opts;
     int sock;
 
     opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
     qemu_opt_set(opts, "path", path);
-    sock = unix_connect_opts(opts);
+    sock = unix_connect_opts(opts, errp);
     qemu_opts_del(opts);
     return sock;
 }
 
 #else
 
-int unix_listen_opts(QemuOpts *opts)
+int unix_listen_opts(QemuOpts *opts, Error **errp)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
     errno = ENOTSUP;
     return -1;
 }
 
-int unix_connect_opts(QemuOpts *opts)
+int unix_connect_opts(QemuOpts *opts, Error **errp)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
     errno = ENOTSUP;
     return -1;
 }
 
-int unix_listen(const char *path, char *ostr, int olen)
+int unix_listen(const char *path, char *ostr, int olen, Error **errp)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
     errno = ENOTSUP;
     return -1;
 }
 
-int unix_connect(const char *path)
+int unix_connect(const char *path, Error **errp)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
     errno = ENOTSUP;

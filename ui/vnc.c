@@ -3065,7 +3065,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     if (reverse) {
         /* connect to viewer */
         if (strncmp(display, "unix:", 5) == 0)
-            vs->lsock = unix_connect(display+5);
+            vs->lsock = unix_connect(display+5, NULL);
         else
             vs->lsock = inet_connect(display, NULL);
         if (-1 == vs->lsock) {
@@ -3085,7 +3085,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
         dpy = g_malloc(256);
         if (strncmp(display, "unix:", 5) == 0) {
             pstrcpy(dpy, 256, "unix:");
-            vs->lsock = unix_listen(display+5, dpy+5, 256-5);
+            vs->lsock = unix_listen(display+5, dpy+5, 256-5, NULL);
         } else {
             vs->lsock = inet_listen(display, dpy, 256,
                                     SOCK_STREAM, 5900, NULL);

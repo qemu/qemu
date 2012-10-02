@@ -230,12 +230,12 @@ int unix_socket_incoming(const char *path)
     char *ostr = NULL;
     int olen = 0;
 
-    return unix_listen(path, ostr, olen);
+    return unix_listen(path, ostr, olen, NULL);
 }
 
 int unix_socket_outgoing(const char *path)
 {
-    return unix_connect(path);
+    return unix_connect(path, NULL);
 }
 
 /* Basic flow for negotiation

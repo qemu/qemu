@@ -2102,7 +2102,7 @@ static CharDriverState *qemu_chr_open_udp(QemuOpts *opts)
     chr = g_malloc0(sizeof(CharDriverState));
     s = g_malloc0(sizeof(NetCharDriver));
 
-    fd = inet_dgram_opts(opts);
+    fd = inet_dgram_opts(opts, NULL);
     if (fd < 0) {
         fprintf(stderr, "inet_dgram_opts failed\n");
         goto return_err;
@@ -2448,9 +2448,9 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
 
     if (is_unix) {
         if (is_listen) {
-            fd = unix_listen_opts(opts);
+            fd = unix_listen_opts(opts, NULL);
         } else {
-            fd = unix_connect_opts(opts);
+            fd = unix_connect_opts(opts, NULL);
         }
     } else {
         if (is_listen) {
