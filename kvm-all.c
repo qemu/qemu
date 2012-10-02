@@ -1375,8 +1375,8 @@ int kvm_init(void)
     }
 
     kvm_state = s;
-    memory_listener_register(&kvm_memory_listener, get_system_memory());
-    memory_listener_register(&kvm_io_listener, get_system_io());
+    memory_listener_register(&kvm_memory_listener, &address_space_memory);
+    memory_listener_register(&kvm_io_listener, &address_space_io);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 

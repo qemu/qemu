@@ -187,7 +187,7 @@ typedef struct MemoryRegionSection MemoryRegionSection;
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
-    MemoryRegion *address_space;
+    AddressSpace *address_space;
     target_phys_addr_t offset_within_region;
     uint64_t size;
     target_phys_addr_t offset_within_address_space;
@@ -223,7 +223,7 @@ struct MemoryListener {
                                target_phys_addr_t addr, target_phys_addr_t len);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
-    MemoryRegion *address_space_filter;
+    AddressSpace *address_space_filter;
     QTAILQ_ENTRY(MemoryListener) link;
 };
 
@@ -774,7 +774,7 @@ void memory_region_transaction_commit(void);
  * @listener: an object containing the callbacks to be called
  * @filter: if non-%NULL, only regions in this address space will be observed
  */
-void memory_listener_register(MemoryListener *listener, MemoryRegion *filter);
+void memory_listener_register(MemoryListener *listener, AddressSpace *filter);
 
 /**
  * memory_listener_unregister: undo the effect of memory_listener_register()

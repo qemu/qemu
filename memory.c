@@ -147,7 +147,7 @@ static bool memory_listener_match(MemoryListener *listener,
 #define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback)            \
     MEMORY_LISTENER_CALL(callback, dir, (&(MemoryRegionSection) {       \
         .mr = (fr)->mr,                                                 \
-        .address_space = (as)->root,                                    \
+        .address_space = (as),                                          \
         .offset_within_region = (fr)->offset_in_region,                 \
         .size = int128_get64((fr)->addr.size),                          \
         .offset_within_address_space = int128_get64((fr)->addr.start),  \
@@ -593,7 +593,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                                   fds_new[inew]))) {
             fd = &fds_old[iold];
             section = (MemoryRegionSection) {
-                .address_space = as->root,
+                .address_space = as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
                 .size = int128_get64(fd->addr.size),
             };
@@ -606,7 +606,7 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                                          fds_old[iold]))) {
             fd = &fds_new[inew];
             section = (MemoryRegionSection) {
-                .address_space = as->root,
+                .address_space = as,
                 .offset_within_address_space = int128_get64(fd->addr.start),
                 .size = int128_get64(fd->addr.size),
             };
@@ -1137,7 +1137,7 @@ static void memory_region_update_coalesced_range_as(MemoryRegion *mr, AddressSpa
     FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         if (fr->mr == mr) {
             section = (MemoryRegionSection) {
-                .address_space = as->root,
+                .address_space = as,
                 .offset_within_address_space = int128_get64(fr->addr.start),
                 .size = int128_get64(fr->addr.size),
             };
@@ -1476,7 +1476,7 @@ static void listener_add_address_space(MemoryListener *listener,
     FlatRange *fr;
 
     if (listener->address_space_filter
-        && listener->address_space_filter != as->root) {
+        && listener->address_space_filter != as) {
         return;
     }
 
@@ -1489,7 +1489,7 @@ static void listener_add_address_space(MemoryListener *listener,
     FOR_EACH_FLAT_RANGE(fr, as->current_map) {
         MemoryRegionSection section = {
             .mr = fr->mr,
-            .address_space = as->root,
+            .address_space = as,
             .offset_within_region = fr->offset_in_region,
             .size = int128_get64(fr->addr.size),
             .offset_within_address_space = int128_get64(fr->addr.start),
@@ -1501,7 +1501,7 @@ static void listener_add_address_space(MemoryListener *listener,
     }
 }
 
-void memory_listener_register(MemoryListener *listener, MemoryRegion *filter)
+void memory_listener_register(MemoryListener *listener, AddressSpace *filter)
 {
     MemoryListener *other = NULL;
     AddressSpace *as;

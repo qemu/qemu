@@ -792,7 +792,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
-    memory_listener_register(&hdev->memory_listener, get_system_memory());
+    memory_listener_register(&hdev->memory_listener, &address_space_memory);
     hdev->force = force;
     return 0;
 fail:

@@ -749,8 +749,8 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
 out:
-    memory_listener_register(&s->memory_listener, get_system_memory());
-    memory_listener_register(&s->io_listener, get_system_io());
+    memory_listener_register(&s->memory_listener, &address_space_memory);
+    memory_listener_register(&s->io_listener, &address_space_io);
     XEN_PT_LOG(d, "Real physical device %02x:%02x.%d registered successfuly!\n",
                bus, slot, func);
 

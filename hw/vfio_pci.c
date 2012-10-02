@@ -1507,8 +1507,7 @@ static int vfio_connect_container(VFIOGroup *group)
         container->iommu_data.listener = vfio_memory_listener;
         container->iommu_data.release = vfio_listener_release;
 
-        memory_listener_register(&container->iommu_data.listener,
-                                 get_system_memory());
+        memory_listener_register(&container->iommu_data.listener, &address_space_memory);
     } else {
         error_report("vfio: No available IOMMU models\n");
         g_free(container);
