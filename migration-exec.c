@@ -60,22 +60,18 @@ static int exec_close(MigrationState *s)
     return ret;
 }
 
-int exec_start_outgoing_migration(MigrationState *s, const char *command)
+void exec_start_outgoing_migration(MigrationState *s, const char *command, Error **errp)
 {
     FILE *f;
 
     f = popen(command, "w");
     if (f == NULL) {
-        DPRINTF("Unable to popen exec target\n");
-        goto err_after_popen;
+        error_setg_errno(errp, errno, "failed to popen the migration target");
+        return;
     }
 
     s->fd = fileno(f);
-    if (s->fd == -1) {
-        DPRINTF("Unable to retrieve file descriptor for popen'd handle\n");
-        goto err_after_open;
-    }
-
+    assert(s->fd != -1);
     socket_set_nonblock(s->fd);
 
     s->opaque = qemu_popen(f, "w");
@@ -85,12 +81,6 @@ int exec_start_outgoing_migration(MigrationState *s, const char *command)
     s->write = file_write;
 
     migrate_fd_connect(s);
-    return 0;
-
-err_after_open:
-    pclose(f);
-err_after_popen:
-    return -1;
 }
 
 static void exec_accept_incoming_migration(void *opaque)

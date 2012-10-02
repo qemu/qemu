@@ -68,20 +68,13 @@ static void unix_wait_for_connect(int fd, void *opaque)
     }
 }
 
-int unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp)
+void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp)
 {
-    Error *local_err = NULL;
-
     s->get_error = unix_errno;
     s->write = unix_write;
     s->close = unix_close;
 
-    s->fd = unix_nonblocking_connect(path, unix_wait_for_connect, s, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
-        return -1;
-    }
-    return 0;
+    s->fd = unix_nonblocking_connect(path, unix_wait_for_connect, s, errp);
 }
 
 static void unix_accept_incoming_migration(void *opaque)

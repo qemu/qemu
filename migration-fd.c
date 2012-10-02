@@ -73,30 +73,19 @@ static int fd_close(MigrationState *s)
     return 0;
 }
 
-int fd_start_outgoing_migration(MigrationState *s, const char *fdname)
+void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
 {
-    s->fd = monitor_get_fd(cur_mon, fdname, NULL);
+    s->fd = monitor_get_fd(cur_mon, fdname, errp);
     if (s->fd == -1) {
-        DPRINTF("fd_migration: invalid file descriptor identifier\n");
-        goto err_after_get_fd;
+        return;
     }
 
-    if (fcntl(s->fd, F_SETFL, O_NONBLOCK) == -1) {
-        DPRINTF("Unable to set nonblocking mode on file descriptor\n");
-        goto err_after_open;
-    }
-
+    fcntl(s->fd, F_SETFL, O_NONBLOCK);
     s->get_error = fd_errno;
     s->write = fd_write;
     s->close = fd_close;
 
     migrate_fd_connect(s);
-    return 0;
-
-err_after_open:
-    close(s->fd);
-err_after_get_fd:
-    return -1;
 }
 
 static void fd_accept_incoming_migration(void *opaque)

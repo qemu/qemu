@@ -487,7 +487,6 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     MigrationState *s = migrate_get_current();
     MigrationParams params;
     const char *p;
-    int ret;
 
     params.blk = blk;
     params.shared = inc;
@@ -509,27 +508,23 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     s = migrate_init(&params);
 
     if (strstart(uri, "tcp:", &p)) {
-        ret = tcp_start_outgoing_migration(s, p, &local_err);
+        tcp_start_outgoing_migration(s, p, &local_err);
 #if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
-        ret = exec_start_outgoing_migration(s, p);
+        exec_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "unix:", &p)) {
-        ret = unix_start_outgoing_migration(s, p, &local_err);
+        unix_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "fd:", &p)) {
-        ret = fd_start_outgoing_migration(s, p);
+        fd_start_outgoing_migration(s, p, &local_err);
 #endif
     } else {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "uri", "a valid migration protocol");
         return;
     }
 
-    if (ret < 0 || local_err) {
+    if (local_err) {
         migrate_fd_error(s);
-        if (!local_err) {
-            error_set_errno(errp, -ret, QERR_UNDEFINED_ERROR);
-        } else {
-            error_propagate(errp, local_err);
-        }
+        error_propagate(errp, local_err);
         return;
     }
 

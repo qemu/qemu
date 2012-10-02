@@ -59,20 +59,19 @@ void do_info_migrate(Monitor *mon, QObject **ret_data);
 
 int exec_start_incoming_migration(const char *host_port);
 
-int exec_start_outgoing_migration(MigrationState *s, const char *host_port);
+void exec_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
 
 int tcp_start_incoming_migration(const char *host_port, Error **errp);
 
-int tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
-                                 Error **errp);
+void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp);
 
 int unix_start_incoming_migration(const char *path, Error **errp);
 
-int unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp);
+void unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp);
 
 int fd_start_incoming_migration(const char *path);
 
-int fd_start_outgoing_migration(MigrationState *s, const char *fdname);
+void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp);
 
 void migrate_fd_error(MigrationState *s);
 
