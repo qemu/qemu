@@ -882,8 +882,7 @@ static int assign_intx(AssignedDevice *dev)
     intx_route = pci_device_route_intx_to_irq(&dev->dev, dev->intpin);
     assert(intx_route.mode != PCI_INTX_INVERTED);
 
-    if (dev->intx_route.mode == intx_route.mode &&
-        dev->intx_route.irq == intx_route.irq) {
+    if (!pci_intx_route_changed(&dev->intx_route, &intx_route)) {
         return 0;
     }
 
