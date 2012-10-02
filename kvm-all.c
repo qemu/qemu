@@ -703,14 +703,6 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     }
 }
 
-static void kvm_begin(MemoryListener *listener)
-{
-}
-
-static void kvm_commit(MemoryListener *listener)
-{
-}
-
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -721,11 +713,6 @@ static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     kvm_set_phys_mem(section, false);
-}
-
-static void kvm_region_nop(MemoryListener *listener,
-                           MemoryRegionSection *section)
-{
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -753,10 +740,6 @@ static void kvm_log_global_stop(struct MemoryListener *listener)
 
     r = kvm_set_migration_log(0);
     assert(r >= 0);
-}
-
-static void kvm_log_nop(struct MemoryListener *listener)
-{
 }
 
 static void kvm_mem_ioeventfd_add(MemoryListener *listener,
@@ -825,11 +808,8 @@ static void kvm_io_ioeventfd_del(MemoryListener *listener,
 }
 
 static MemoryListener kvm_memory_listener = {
-    .begin = kvm_begin,
-    .commit = kvm_commit,
     .region_add = kvm_region_add,
     .region_del = kvm_region_del,
-    .region_nop = kvm_region_nop,
     .log_start = kvm_log_start,
     .log_stop = kvm_log_stop,
     .log_sync = kvm_log_sync,
@@ -841,16 +821,6 @@ static MemoryListener kvm_memory_listener = {
 };
 
 static MemoryListener kvm_io_listener = {
-    .begin = kvm_begin,
-    .commit = kvm_commit,
-    .region_add = kvm_region_nop,
-    .region_del = kvm_region_nop,
-    .region_nop = kvm_region_nop,
-    .log_start = kvm_region_nop,
-    .log_stop = kvm_region_nop,
-    .log_sync = kvm_region_nop,
-    .log_global_start = kvm_log_nop,
-    .log_global_stop = kvm_log_nop,
     .eventfd_add = kvm_io_ioeventfd_add,
     .eventfd_del = kvm_io_ioeventfd_del,
     .priority = 10,
