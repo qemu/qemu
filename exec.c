@@ -3166,7 +3166,7 @@ static void core_begin(MemoryListener *listener)
     phys_section_watch = dummy_section(&io_mem_watch);
 }
 
-static void core_commit(MemoryListener *listener)
+static void tcg_commit(MemoryListener *listener)
 {
     CPUArchState *env;
 
@@ -3220,7 +3220,6 @@ static void io_region_del(MemoryListener *listener,
 
 static MemoryListener core_memory_listener = {
     .begin = core_begin,
-    .commit = core_commit,
     .region_add = core_region_add,
     .region_nop = core_region_nop,
     .log_global_start = core_log_global_start,
@@ -3232,6 +3231,10 @@ static MemoryListener io_memory_listener = {
     .region_add = io_region_add,
     .region_del = io_region_del,
     .priority = 0,
+};
+
+static MemoryListener tcg_memory_listener = {
+    .commit = tcg_commit,
 };
 
 static void memory_map_init(void)
@@ -3248,6 +3251,7 @@ static void memory_map_init(void)
 
     memory_listener_register(&core_memory_listener, system_memory);
     memory_listener_register(&io_memory_listener, system_io);
+    memory_listener_register(&tcg_memory_listener, system_memory);
 }
 
 MemoryRegion *get_system_memory(void)
