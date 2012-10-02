@@ -79,7 +79,6 @@ int tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
 
     s->fd = inet_nonblocking_connect(host_port, tcp_wait_for_connect, s, &local_err);
     if (local_err != NULL) {
-        migrate_fd_error(s);
         error_propagate(errp, local_err);
         return -1;
     }

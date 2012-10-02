@@ -524,6 +524,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (ret < 0 || local_err) {
+        migrate_fd_error(s);
         if (!local_err) {
             error_set_errno(errp, -ret, QERR_UNDEFINED_ERROR);
         } else {

@@ -111,7 +111,6 @@ int unix_start_outgoing_migration(MigrationState *s, const char *path)
 
     if (ret < 0) {
         DPRINTF("connect failed\n");
-        migrate_fd_error(s);
         return ret;
     }
     migrate_fd_connect(s);
