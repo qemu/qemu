@@ -120,8 +120,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
 
     if ((qemu_opt_get(opts, "host") == NULL) ||
         (qemu_opt_get(opts, "port") == NULL)) {
-        fprintf(stderr, "%s: host and/or port not specified\n", __FUNCTION__);
-        error_set(errp, QERR_SOCKET_CREATE_FAILED);
+        error_setg(errp, "host and/or port not specified");
         return -1;
     }
     pstrcpy(port, sizeof(port), qemu_opt_get(opts, "port"));
@@ -138,9 +137,8 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
         snprintf(port, sizeof(port), "%d", atoi(port) + port_offset);
     rc = getaddrinfo(strlen(addr) ? addr : NULL, port, &ai, &res);
     if (rc != 0) {
-        fprintf(stderr,"getaddrinfo(%s,%s): %s\n", addr, port,
-                gai_strerror(rc));
-        error_set(errp, QERR_SOCKET_CREATE_FAILED);
+        error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
+                   gai_strerror(rc));
         return -1;
     }
 
@@ -151,10 +149,8 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
 		        NI_NUMERICHOST | NI_NUMERICSERV);
         slisten = qemu_socket(e->ai_family, e->ai_socktype, e->ai_protocol);
         if (slisten < 0) {
-            fprintf(stderr,"%s: socket(%s): %s\n", __FUNCTION__,
-                    inet_strfamily(e->ai_family), strerror(errno));
             if (!e->ai_next) {
-                error_set(errp, QERR_SOCKET_CREATE_FAILED);
+                error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
             }
             continue;
         }
@@ -176,24 +172,19 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
                 goto listen;
             }
             if (p == port_max) {
-                fprintf(stderr,"%s: bind(%s,%s,%d): %s\n", __FUNCTION__,
-                        inet_strfamily(e->ai_family), uaddr, inet_getport(e),
-                        strerror(errno));
                 if (!e->ai_next) {
-                    error_set(errp, QERR_SOCKET_BIND_FAILED);
+                    error_set_errno(errp, errno, QERR_SOCKET_BIND_FAILED);
                 }
             }
         }
         closesocket(slisten);
     }
-    fprintf(stderr, "%s: FAILED\n", __FUNCTION__);
     freeaddrinfo(res);
     return -1;
 
 listen:
     if (listen(slisten,1) != 0) {
-        error_set(errp, QERR_SOCKET_LISTEN_FAILED);
-        perror("listen");
+        error_set_errno(errp, errno, QERR_SOCKET_LISTEN_FAILED);
         closesocket(slisten);
         freeaddrinfo(res);
         return -1;
@@ -324,9 +315,7 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
     addr = qemu_opt_get(opts, "host");
     port = qemu_opt_get(opts, "port");
     if (addr == NULL || port == NULL) {
-        fprintf(stderr,
-                "inet_parse_connect_opts: host and/or port not specified\n");
-        error_set(errp, QERR_SOCKET_CREATE_FAILED);
+        error_setg(errp, "host and/or port not specified");
         return NULL;
     }
 
@@ -340,9 +329,8 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
     /* lookup */
     rc = getaddrinfo(addr, port, &ai, &res);
     if (rc != 0) {
-        fprintf(stderr, "getaddrinfo(%s,%s): %s\n", addr, port,
-                gai_strerror(rc));
-        error_set(errp, QERR_SOCKET_CREATE_FAILED);
+        error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
+                   gai_strerror(rc));
         return NULL;
     }
     return res;
