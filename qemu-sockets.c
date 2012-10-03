@@ -252,16 +252,19 @@ static void wait_for_connect(void *opaque)
     }
 
     /* try to connect to the next address on the list */
-    while (s->current_addr->ai_next != NULL && s->fd < 0) {
-        s->current_addr = s->current_addr->ai_next;
-        s->fd = inet_connect_addr(s->current_addr, &in_progress, s);
-        /* connect in progress */
-        if (in_progress) {
-            return;
+    if (s->current_addr) {
+        while (s->current_addr->ai_next != NULL && s->fd < 0) {
+            s->current_addr = s->current_addr->ai_next;
+            s->fd = inet_connect_addr(s->current_addr, &in_progress, s);
+            /* connect in progress */
+            if (in_progress) {
+                return;
+            }
         }
+
+        freeaddrinfo(s->addr_list);
     }
 
-    freeaddrinfo(s->addr_list);
     if (s->callback) {
         s->callback(s->fd, s->opaque);
     }
@@ -701,11 +704,13 @@ err:
     return -1;
 }
 
-int unix_connect_opts(QemuOpts *opts, Error **errp)
+int unix_connect_opts(QemuOpts *opts, Error **errp,
+                      NonBlockingConnectHandler *callback, void *opaque)
 {
     struct sockaddr_un un;
     const char *path = qemu_opt_get(opts, "path");
-    int sock;
+    ConnectState *connect_state = NULL;
+    int sock, rc;
 
     if (NULL == path) {
         fprintf(stderr, "unix connect: no path specified\n");
@@ -717,16 +722,44 @@ int unix_connect_opts(QemuOpts *opts, Error **errp)
         perror("socket(unix)");
         return -1;
     }
+    if (callback != NULL) {
+        connect_state = g_malloc0(sizeof(*connect_state));
+        connect_state->callback = callback;
+        connect_state->opaque = opaque;
+        socket_set_nonblock(sock);
+    }
 
     memset(&un, 0, sizeof(un));
     un.sun_family = AF_UNIX;
     snprintf(un.sun_path, sizeof(un.sun_path), "%s", path);
-    if (connect(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
-        fprintf(stderr, "connect(unix:%s): %s\n", path, strerror(errno));
-        close(sock);
-	return -1;
+
+    /* connect to peer */
+    do {
+        rc = 0;
+        if (connect(sock, (struct sockaddr *) &un, sizeof(un)) < 0) {
+            rc = -socket_error();
+        }
+    } while (rc == -EINTR);
+
+    if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
+        connect_state->fd = sock;
+        qemu_set_fd_handler2(sock, NULL, NULL, wait_for_connect,
+                             connect_state);
+        return sock;
+    } else if (rc >= 0) {
+        /* non blocking socket immediate success, call callback */
+        if (callback != NULL) {
+            callback(sock, opaque);
+        }
     }
 
+    if (rc < 0) {
+        fprintf(stderr, "connect(unix:%s): %s\n", path, strerror(errno));
+        close(sock);
+        sock = -1;
+    }
+
+    g_free(connect_state);
     return sock;
 }
 
@@ -739,7 +772,8 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
     return -1;
 }
 
-int unix_connect_opts(QemuOpts *opts, Error **errp)
+int unix_connect_opts(QemuOpts *opts, Error **errp,
+                      NonBlockingConnectHandler *callback, void *opaque)
 {
     fprintf(stderr, "unix sockets are not available on windows\n");
     errno = ENOTSUP;
@@ -784,7 +818,24 @@ int unix_connect(const char *path, Error **errp)
 
     opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
     qemu_opt_set(opts, "path", path);
-    sock = unix_connect_opts(opts, errp);
+    sock = unix_connect_opts(opts, errp, NULL, NULL);
+    qemu_opts_del(opts);
+    return sock;
+}
+
+
+int unix_nonblocking_connect(const char *path,
+                             NonBlockingConnectHandler *callback,
+                             void *opaque, Error **errp)
+{
+    QemuOpts *opts;
+    int sock = -1;
+
+    g_assert(callback != NULL);
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+    qemu_opt_set(opts, "path", path);
+    sock = unix_connect_opts(opts, errp, callback, opaque);
     qemu_opts_del(opts);
     return sock;
 }

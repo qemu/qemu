@@ -58,8 +58,12 @@ const char *inet_strfamily(int family);
 
 int unix_listen_opts(QemuOpts *opts, Error **errp);
 int unix_listen(const char *path, char *ostr, int olen, Error **errp);
-int unix_connect_opts(QemuOpts *opts, Error **errp);
+int unix_connect_opts(QemuOpts *opts, Error **errp,
+                      NonBlockingConnectHandler *callback, void *opaque);
 int unix_connect(const char *path, Error **errp);
+int unix_nonblocking_connect(const char *str,
+                             NonBlockingConnectHandler *callback,
+                             void *opaque, Error **errp);
 
 /* Old, ipv4 only bits.  Don't use for new code. */
 int parse_host_port(struct sockaddr_in *saddr, const char *str);
