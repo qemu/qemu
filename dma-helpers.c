@@ -14,7 +14,8 @@
 
 /* #define DEBUG_IOMMU */
 
-static void do_dma_memory_set(dma_addr_t addr, uint8_t c, dma_addr_t len)
+static void do_dma_memory_set(AddressSpace *as,
+                              dma_addr_t addr, uint8_t c, dma_addr_t len)
 {
 #define FILLBUF_SIZE 512
     uint8_t fillbuf[FILLBUF_SIZE];
@@ -23,7 +24,7 @@ static void do_dma_memory_set(dma_addr_t addr, uint8_t c, dma_addr_t len)
     memset(fillbuf, c, FILLBUF_SIZE);
     while (len > 0) {
         l = len < FILLBUF_SIZE ? len : FILLBUF_SIZE;
-        cpu_physical_memory_rw(addr, fillbuf, l, true);
+        address_space_rw(as, addr, fillbuf, l, true);
         len -= l;
         addr += l;
     }
@@ -36,7 +37,7 @@ int dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c, dma_addr_t len)
     if (dma_has_iommu(dma)) {
         return iommu_dma_memory_set(dma, addr, c, len);
     }
-    do_dma_memory_set(addr, c, len);
+    do_dma_memory_set(dma->as, addr, c, len);
 
     return 0;
 }
@@ -332,8 +333,7 @@ int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
             plen = len;
         }
 
-        cpu_physical_memory_rw(paddr, buf, plen,
-                               dir == DMA_DIRECTION_FROM_DEVICE);
+        address_space_rw(dma->as, paddr, buf, plen, dir == DMA_DIRECTION_FROM_DEVICE);
 
         len -= plen;
         addr += plen;
@@ -366,7 +366,7 @@ int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
             plen = len;
         }
 
-        do_dma_memory_set(paddr, c, plen);
+        do_dma_memory_set(dma->as, paddr, c, plen);
 
         len -= plen;
         addr += plen;
@@ -375,13 +375,14 @@ int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
     return 0;
 }
 
-void dma_context_init(DMAContext *dma, DMATranslateFunc translate,
+void dma_context_init(DMAContext *dma, AddressSpace *as, DMATranslateFunc translate,
                       DMAMapFunc map, DMAUnmapFunc unmap)
 {
 #ifdef DEBUG_IOMMU
     fprintf(stderr, "dma_context_init(%p, %p, %p, %p)\n",
             dma, translate, map, unmap);
 #endif
+    dma->as = as;
     dma->translate = translate;
     dma->map = map;
     dma->unmap = unmap;
@@ -407,14 +408,13 @@ void *iommu_dma_memory_map(DMAContext *dma, dma_addr_t addr, dma_addr_t *len,
     /*
      * If this is true, the virtual region is contiguous,
      * but the translated physical region isn't. We just
-     * clamp *len, much like cpu_physical_memory_map() does.
+     * clamp *len, much like address_space_map() does.
      */
     if (plen < *len) {
         *len = plen;
     }
 
-    buf = cpu_physical_memory_map(paddr, &plen,
-                                  dir == DMA_DIRECTION_FROM_DEVICE);
+    buf = address_space_map(dma->as, paddr, &plen, dir == DMA_DIRECTION_FROM_DEVICE);
     *len = plen;
 
     return buf;
@@ -428,8 +428,7 @@ void iommu_dma_memory_unmap(DMAContext *dma, void *buffer, dma_addr_t len,
         return;
     }
 
-    cpu_physical_memory_unmap(buffer, len,
-                              dir == DMA_DIRECTION_FROM_DEVICE,
-                              access_len);
+    address_space_unmap(dma->as, buffer, len, dir == DMA_DIRECTION_FROM_DEVICE,
+                        access_len);
 
 }

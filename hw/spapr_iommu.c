@@ -21,6 +21,7 @@
 #include "qdev.h"
 #include "kvm_ppc.h"
 #include "dma.h"
+#include "exec-memory.h"
 
 #include "hw/spapr.h"
 
@@ -124,7 +125,7 @@ DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size)
     }
 
     tcet = g_malloc0(sizeof(*tcet));
-    dma_context_init(&tcet->dma, spapr_tce_translate, NULL, NULL);
+    dma_context_init(&tcet->dma, &address_space_memory, spapr_tce_translate, NULL, NULL);
 
     tcet->liobn = liobn;
     tcet->window_size = window_size;

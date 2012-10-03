@@ -11,6 +11,7 @@
 #define DMA_H
 
 #include <stdio.h>
+#include "memory.h"
 #include "hw/hw.h"
 #include "block.h"
 #include "kvm.h"
@@ -61,6 +62,7 @@ typedef void DMAUnmapFunc(DMAContext *dma,
                           dma_addr_t access_len);
 
 struct DMAContext {
+    AddressSpace *as;
     DMATranslateFunc *translate;
     DMAMapFunc *map;
     DMAUnmapFunc *unmap;
@@ -93,7 +95,7 @@ static inline void dma_barrier(DMAContext *dma, DMADirection dir)
 
 static inline bool dma_has_iommu(DMAContext *dma)
 {
-    return !!dma;
+    return dma && dma->translate;
 }
 
 /* Checks that the given range of addresses is valid for DMA.  This is
@@ -120,8 +122,7 @@ static inline int dma_memory_rw_relaxed(DMAContext *dma, dma_addr_t addr,
 {
     if (!dma_has_iommu(dma)) {
         /* Fast-path for no IOMMU */
-        cpu_physical_memory_rw(addr, buf, len,
-                               dir == DMA_DIRECTION_FROM_DEVICE);
+        address_space_rw(dma->as, addr, buf, len, dir == DMA_DIRECTION_FROM_DEVICE);
         return 0;
     } else {
         return iommu_dma_memory_rw(dma, addr, buf, len, dir);
@@ -179,8 +180,7 @@ static inline void *dma_memory_map(DMAContext *dma,
         target_phys_addr_t xlen = *len;
         void *p;
 
-        p = cpu_physical_memory_map(addr, &xlen,
-                                    dir == DMA_DIRECTION_FROM_DEVICE);
+        p = address_space_map(dma->as, addr, &xlen, dir == DMA_DIRECTION_FROM_DEVICE);
         *len = xlen;
         return p;
     } else {
@@ -196,9 +196,8 @@ static inline void dma_memory_unmap(DMAContext *dma,
                                     DMADirection dir, dma_addr_t access_len)
 {
     if (!dma_has_iommu(dma)) {
-        cpu_physical_memory_unmap(buffer, (target_phys_addr_t)len,
-                                  dir == DMA_DIRECTION_FROM_DEVICE,
-                                  access_len);
+        address_space_unmap(dma->as, buffer, (target_phys_addr_t)len,
+                            dir == DMA_DIRECTION_FROM_DEVICE, access_len);
     } else {
         iommu_dma_memory_unmap(dma, buffer, len, dir, access_len);
     }
@@ -242,7 +241,7 @@ DEFINE_LDST_DMA(q, q, 64, be);
 
 #undef DEFINE_LDST_DMA
 
-void dma_context_init(DMAContext *dma, DMATranslateFunc translate,
+void dma_context_init(DMAContext *dma, AddressSpace *as, DMATranslateFunc translate,
                       DMAMapFunc map, DMAUnmapFunc unmap);
 
 struct ScatterGatherEntry {
