@@ -14,6 +14,7 @@
 #include "hw/pc.h"
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"
+#include "qmp-commands.h"
 
 #include "range.h"
 #include "xen-mapcache.h"
@@ -36,6 +37,7 @@
 
 static MemoryRegion ram_memory, ram_640k, ram_lo, ram_hi;
 static MemoryRegion *framebuffer;
+static bool xen_in_migration;
 
 /* Compatibility with older version */
 #if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
@@ -552,10 +554,14 @@ static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)
 
 static void xen_log_global_start(MemoryListener *listener)
 {
+    if (xen_enabled()) {
+        xen_in_migration = true;
+    }
 }
 
 static void xen_log_global_stop(MemoryListener *listener)
 {
+    xen_in_migration = false;
 }
 
 static void xen_eventfd_add(MemoryListener *listener,
@@ -587,6 +593,15 @@ static MemoryListener xen_memory_listener = {
     .eventfd_del = xen_eventfd_del,
     .priority = 10,
 };
+
+void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
+    if (enable) {
+        memory_global_dirty_log_start();
+    } else {
+        memory_global_dirty_log_stop();
+    }
+}
 
 /* VCPU Operations, MMIO, IO ring ... */
 
