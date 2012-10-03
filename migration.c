@@ -371,13 +371,6 @@ bool migration_has_failed(MigrationState *s)
             s->state == MIG_STATE_ERROR);
 }
 
-void migrate_fd_connect(MigrationState *s)
-{
-    s->state = MIG_STATE_ACTIVE;
-    s->first_time = true;
-    qemu_fopen_ops_buffered(s);
-}
-
 static MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
@@ -803,10 +796,12 @@ static const QEMUFileOps buffered_file_ops = {
     .set_rate_limit = buffered_set_rate_limit,
 };
 
-void qemu_fopen_ops_buffered(MigrationState *migration_state)
+void migrate_fd_connect(MigrationState *migration_state)
 {
     QEMUFileBuffered *s;
 
+    migration_state->state = MIG_STATE_ACTIVE;
+    migration_state->first_time = true;
     s = g_malloc0(sizeof(*s));
 
     s->migration_state = migration_state;
