@@ -3427,6 +3427,7 @@ static void invalidate_and_set_dirty(target_phys_addr_t addr,
         /* set dirty bit */
         cpu_physical_memory_set_dirty_flags(addr, (0xff & ~CODE_DIRTY_FLAG));
     }
+    xen_modified_memory(addr, length);
 }
 
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
