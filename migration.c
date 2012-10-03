@@ -483,6 +483,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  Error **errp)
 {
+    Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     MigrationParams params;
     const char *p;
@@ -508,7 +509,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     s = migrate_init(&params);
 
     if (strstart(uri, "tcp:", &p)) {
-        ret = tcp_start_outgoing_migration(s, p, errp);
+        ret = tcp_start_outgoing_migration(s, p, &local_err);
 #if !defined(WIN32)
     } else if (strstart(uri, "exec:", &p)) {
         ret = exec_start_outgoing_migration(s, p);
@@ -522,11 +523,11 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
-    if (ret < 0) {
-        if (!error_is_set(errp)) {
-            DPRINTF("migration failed: %s\n", strerror(-ret));
-            /* FIXME: we should return meaningful errors */
-            error_set(errp, QERR_UNDEFINED_ERROR);
+    if (ret < 0 || local_err) {
+        if (!local_err) {
+            error_set_errno(errp, -ret, QERR_UNDEFINED_ERROR);
+        } else {
+            error_propagate(errp, local_err);
         }
         return;
     }

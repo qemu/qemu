@@ -71,14 +71,16 @@ static void tcp_wait_for_connect(int fd, void *opaque)
 int tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
                                  Error **errp)
 {
+    Error *local_err = NULL;
+
     s->get_error = socket_errno;
     s->write = socket_write;
     s->close = tcp_close;
 
-    s->fd = inet_nonblocking_connect(host_port, tcp_wait_for_connect, s,
-                                     errp);
-    if (error_is_set(errp)) {
+    s->fd = inet_nonblocking_connect(host_port, tcp_wait_for_connect, s, &local_err);
+    if (local_err != NULL) {
         migrate_fd_error(s);
+        error_propagate(errp, local_err);
         return -1;
     }
 
