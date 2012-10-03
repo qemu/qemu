@@ -40,8 +40,8 @@
 #else
 #define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
 #endif
-#define QGA_PIDFILE_DEFAULT "/var/run/qemu-ga.pid"
-#define QGA_STATEDIR_DEFAULT "/tmp"
+#define QGA_STATEDIR_DEFAULT CONFIG_QEMU_LOCALSTATEDIR "/run"
+#define QGA_PIDFILE_DEFAULT QGA_STATEDIR_DEFAULT "/qemu-ga.pid"
 #define QGA_SENTINEL_BYTE 0xFF
 
 struct GAState {
