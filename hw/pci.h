@@ -211,6 +211,7 @@ struct PCIDevice {
     int32_t devfn;
     char name[64];
     PCIIORegion io_regions[PCI_NUM_REGIONS];
+    AddressSpace bus_master_as;
     DMAContext *dma;
 
     /* do not access the following fields */

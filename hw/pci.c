@@ -33,6 +33,7 @@
 #include "qmp-commands.h"
 #include "msi.h"
 #include "msix.h"
+#include "exec-memory.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI
@@ -777,6 +778,13 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_dev->bus = bus;
     if (bus->dma_context_fn) {
         pci_dev->dma = bus->dma_context_fn(bus, bus->dma_context_opaque, devfn);
+    } else {
+        /* FIXME: Make dma_context_fn use MemoryRegions instead, so this path is
+         * taken unconditionally */
+        /* FIXME: inherit memory region from bus creator */
+        address_space_init(&pci_dev->bus_master_as, get_system_memory());
+        pci_dev->dma = g_new(DMAContext, 1);
+        dma_context_init(pci_dev->dma, &pci_dev->bus_master_as, NULL, NULL, NULL);
     }
     pci_dev->devfn = devfn;
     pstrcpy(pci_dev->name, sizeof(pci_dev->name), name);
@@ -830,6 +838,12 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
     qemu_free_irqs(pci_dev->irq);
     pci_dev->bus->devices[pci_dev->devfn] = NULL;
     pci_config_free(pci_dev);
+
+    if (!pci_dev->bus->dma_context_fn) {
+        address_space_destroy(&pci_dev->bus_master_as);
+        g_free(pci_dev->dma);
+        pci_dev->dma = NULL;
+    }
 }
 
 static void pci_unregister_io_regions(PCIDevice *pci_dev)
