@@ -255,7 +255,7 @@ static bool ga_open_pidfile(const char *pidfile)
         g_critical("Failed to truncate pid file");
         goto fail;
     }
-    sprintf(pidstr, "%d", getpid());
+    snprintf(pidstr, sizeof(pidstr), "%d\n", getpid());
     if (write(pidfd, pidstr, strlen(pidstr)) != strlen(pidstr)) {
         g_critical("Failed to write pid file");
         goto fail;
