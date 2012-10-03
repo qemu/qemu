@@ -169,6 +169,7 @@ struct AddressSpace {
     struct FlatView *current_map;
     int ioeventfd_nb;
     struct MemoryRegionIoeventfd *ioeventfds;
+    struct AddressSpaceDispatch *dispatch;
     QTAILQ_ENTRY(AddressSpace) address_spaces_link;
 };
 
@@ -802,6 +803,67 @@ void mtree_info(fprintf_function mon_printf, void *f);
  * @root: a #MemoryRegion that routes addesses for the address space
  */
 void address_space_init(AddressSpace *as, MemoryRegion *root);
+
+/**
+ * address_space_rw: read from or write to an address space.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ * @is_write: indicates the transfer direction
+ */
+void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
+                      int len, bool is_write);
+
+/**
+ * address_space_write: write to address space.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ */
+void address_space_write(AddressSpace *as, target_phys_addr_t addr,
+                         const uint8_t *buf, int len);
+
+/**
+ * address_space_read: read from an address space.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ */
+void address_space_read(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf, int len);
+
+/* address_space_map: map a physical memory region into a host virtual address
+ *
+ * May map a subset of the requested range, given by and returned in @plen.
+ * May return %NULL if resources needed to perform the mapping are exhausted.
+ * Use only for reads OR writes - not for read-modify-write operations.
+ * Use cpu_register_map_client() to know when retrying the map operation is
+ * likely to succeed.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @plen: pointer to length of buffer; updated on return
+ * @is_write: indicates the transfer direction
+ */
+void *address_space_map(AddressSpace *as, target_phys_addr_t addr,
+                        target_phys_addr_t *plen, bool is_write);
+
+/* address_space_unmap: Unmaps a memory region previously mapped by address_space_map()
+ *
+ * Will also mark the memory as dirty if @is_write == %true.  @access_len gives
+ * the amount of memory that was actually read or written by the caller.
+ *
+ * @as: #AddressSpace used
+ * @addr: address within that address space
+ * @len: buffer length as returned by address_space_map()
+ * @access_len: amount of data actually transferred
+ * @is_write: indicates the transfer direction
+ */
+void address_space_unmap(AddressSpace *as, void *buffer, target_phys_addr_t len,
+                         int is_write, target_phys_addr_t access_len);
+
 
 #endif
 

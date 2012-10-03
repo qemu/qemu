@@ -1539,6 +1539,7 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = NULL;
     memory_region_transaction_commit();
+    address_space_init_dispatch(as);
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)

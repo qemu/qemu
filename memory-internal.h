@@ -22,6 +22,26 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen.h"
 
+typedef struct PhysPageEntry PhysPageEntry;
+
+struct PhysPageEntry {
+    uint16_t is_leaf : 1;
+     /* index into phys_sections (is_leaf) or phys_map_nodes (!is_leaf) */
+    uint16_t ptr : 15;
+};
+
+typedef struct AddressSpaceDispatch AddressSpaceDispatch;
+
+struct AddressSpaceDispatch {
+    /* This is a multi-level map on the physical address space.
+     * The bottom level has pointers to MemoryRegionSections.
+     */
+    PhysPageEntry phys_map;
+    MemoryListener listener;
+};
+
+void address_space_init_dispatch(AddressSpace *as);
+
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
 ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
@@ -30,8 +50,6 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 
 struct MemoryRegion;
 struct MemoryRegionSection;
-void cpu_register_physical_memory_log(struct MemoryRegionSection *section,
-                                      bool readonly);
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
