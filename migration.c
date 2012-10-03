@@ -669,12 +669,6 @@ static bool migrate_fd_put_ready(MigrationState *s, uint64_t max_size)
     bool last_round = false;
 
     qemu_mutex_lock_iothread();
-    if (s->state != MIG_STATE_ACTIVE) {
-        DPRINTF("put_ready returning because of non-active state\n");
-        qemu_mutex_unlock_iothread();
-        return false;
-    }
-
     DPRINTF("iterate\n");
     pending_size = qemu_savevm_state_pending(s->file, max_size);
     DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
@@ -737,9 +731,17 @@ static void *buffered_file_thread(void *opaque)
     while (true) {
         int64_t current_time = qemu_get_clock_ms(rt_clock);
 
-        if (s->complete) {
+        qemu_mutex_lock_iothread();
+        if (s->state != MIG_STATE_ACTIVE) {
+            DPRINTF("put_ready returning because of non-active state\n");
+            qemu_mutex_unlock_iothread();
             break;
         }
+        if (s->complete) {
+            qemu_mutex_unlock_iothread();
+            break;
+        }
+        qemu_mutex_unlock_iothread();
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = s->bytes_xfer;
             uint64_t time_spent = current_time - initial_time;
