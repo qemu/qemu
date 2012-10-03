@@ -19,7 +19,6 @@
 #include "monitor/monitor.h"
 #include "migration/qemu-file.h"
 #include "block/block.h"
-#include "qemu/sockets.h"
 
 //#define DEBUG_MIGRATION_FD
 
