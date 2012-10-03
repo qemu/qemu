@@ -342,6 +342,23 @@ static int xen_pt_cmd_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 #define XEN_PT_BAR_IO_RO_MASK     0x00000003  /* BAR ReadOnly mask(I/O) */
 #define XEN_PT_BAR_IO_EMU_MASK    0xFFFFFFFC  /* BAR emul mask(I/O) */
 
+static bool is_64bit_bar(PCIIORegion *r)
+{
+    return !!(r->type & PCI_BASE_ADDRESS_MEM_TYPE_64);
+}
+
+static uint64_t xen_pt_get_bar_size(PCIIORegion *r)
+{
+    if (is_64bit_bar(r)) {
+        uint64_t size64;
+        size64 = (r + 1)->size;
+        size64 <<= 32;
+        size64 += r->size;
+        return size64;
+    }
+    return r->size;
+}
+
 static XenPTBarFlag xen_pt_bar_reg_parse(XenPCIPassthroughState *s,
                                          XenPTRegInfo *reg)
 {
@@ -366,7 +383,7 @@ static XenPTBarFlag xen_pt_bar_reg_parse(XenPCIPassthroughState *s,
 
     /* check unused BAR */
     r = &d->io_regions[index];
-    if (r->size == 0) {
+    if (!xen_pt_get_bar_size(r)) {
         return XEN_PT_BAR_FLAG_UNUSED;
     }
 
@@ -481,7 +498,12 @@ static int xen_pt_bar_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     switch (s->bases[index].bar_flag) {
     case XEN_PT_BAR_FLAG_MEM:
         bar_emu_mask = XEN_PT_BAR_MEM_EMU_MASK;
-        bar_ro_mask = XEN_PT_BAR_MEM_RO_MASK | (r_size - 1);
+        if (!r_size) {
+            /* low 32 bits mask for 64 bit bars */
+            bar_ro_mask = XEN_PT_BAR_ALLF;
+        } else {
+            bar_ro_mask = XEN_PT_BAR_MEM_RO_MASK | (r_size - 1);
+        }
         break;
     case XEN_PT_BAR_FLAG_IO:
         bar_emu_mask = XEN_PT_BAR_IO_EMU_MASK;
@@ -489,7 +511,7 @@ static int xen_pt_bar_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
         break;
     case XEN_PT_BAR_FLAG_UPPER:
         bar_emu_mask = XEN_PT_BAR_ALLF;
-        bar_ro_mask = 0;    /* all upper 32bit are R/W */
+        bar_ro_mask = r_size ? r_size - 1 : 0;
         break;
     default:
         break;
@@ -501,21 +523,12 @@ static int xen_pt_bar_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
 
     /* check whether we need to update the virtual region address or not */
     switch (s->bases[index].bar_flag) {
+    case XEN_PT_BAR_FLAG_UPPER:
     case XEN_PT_BAR_FLAG_MEM:
         /* nothing to do */
         break;
     case XEN_PT_BAR_FLAG_IO:
         /* nothing to do */
-        break;
-    case XEN_PT_BAR_FLAG_UPPER:
-        if (cfg_entry->data) {
-            if (cfg_entry->data != (XEN_PT_BAR_ALLF & ~bar_ro_mask)) {
-                XEN_PT_WARN(d, "Guest attempt to set high MMIO Base Address. "
-                            "Ignore mapping. "
-                            "(offset: 0x%02x, high address: 0x%08x)\n",
-                            reg->offset, cfg_entry->data);
-            }
-        }
         break;
     default:
         break;
