@@ -507,7 +507,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
                                  bitmap);
     if (rc < 0) {
         if (rc != -ENODATA) {
-            fprintf(stderr, "xen: track_dirty_vram failed (0x" TARGET_FMT_plx
+            memory_region_set_dirty(framebuffer, 0, size);
+            DPRINTF("xen: track_dirty_vram failed (0x" TARGET_FMT_plx
                     ", 0x" TARGET_FMT_plx "): %s\n",
                     start_addr, start_addr + size, strerror(-rc));
         }
