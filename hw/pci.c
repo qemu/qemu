@@ -782,7 +782,11 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
         /* FIXME: Make dma_context_fn use MemoryRegions instead, so this path is
          * taken unconditionally */
         /* FIXME: inherit memory region from bus creator */
-        address_space_init(&pci_dev->bus_master_as, get_system_memory());
+        memory_region_init_alias(&pci_dev->bus_master_enable_region, "bus master",
+                                 get_system_memory(), 0,
+                                 memory_region_size(get_system_memory()));
+        memory_region_set_enabled(&pci_dev->bus_master_enable_region, false);
+        address_space_init(&pci_dev->bus_master_as, &pci_dev->bus_master_enable_region);
         pci_dev->dma = g_new(DMAContext, 1);
         dma_context_init(pci_dev->dma, &pci_dev->bus_master_as, NULL, NULL, NULL);
     }
@@ -841,6 +845,7 @@ static void do_pci_unregister_device(PCIDevice *pci_dev)
 
     if (!pci_dev->bus->dma_context_fn) {
         address_space_destroy(&pci_dev->bus_master_as);
+        memory_region_destroy(&pci_dev->bus_master_enable_region);
         g_free(pci_dev->dma);
         pci_dev->dma = NULL;
     }
@@ -1065,8 +1070,12 @@ void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
         range_covers_byte(addr, l, PCI_COMMAND))
         pci_update_mappings(d);
 
-    if (range_covers_byte(addr, l, PCI_COMMAND))
+    if (range_covers_byte(addr, l, PCI_COMMAND)) {
         pci_update_irq_disabled(d, was_irq_disabled);
+        memory_region_set_enabled(&d->bus_master_enable_region,
+                                  pci_get_word(d->config + PCI_COMMAND)
+                                    & PCI_COMMAND_MASTER);
+    }
 
     msi_write_config(d, addr, val, l);
     msix_write_config(d, addr, val, l);
