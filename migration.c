@@ -321,71 +321,6 @@ ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
     return ret;
 }
 
-bool migrate_fd_put_ready(MigrationState *s, uint64_t max_size)
-{
-    int ret;
-    uint64_t pending_size;
-    bool last_round = false;
-
-    qemu_mutex_lock_iothread();
-    if (s->state != MIG_STATE_ACTIVE) {
-        DPRINTF("put_ready returning because of non-active state\n");
-        qemu_mutex_unlock_iothread();
-        return false;
-    }
-    if (s->first_time) {
-        s->first_time = false;
-        DPRINTF("beginning savevm\n");
-        ret = qemu_savevm_state_begin(s->file, &s->params);
-        if (ret < 0) {
-            DPRINTF("failed, %d\n", ret);
-            migrate_fd_error(s);
-            qemu_mutex_unlock_iothread();
-            return false;
-        }
-    }
-
-    DPRINTF("iterate\n");
-    pending_size = qemu_savevm_state_pending(s->file, max_size);
-    DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
-    if (pending_size >= max_size) {
-        ret = qemu_savevm_state_iterate(s->file);
-        if (ret < 0) {
-            migrate_fd_error(s);
-        }
-    } else {
-        int old_vm_running = runstate_is_running();
-        int64_t start_time, end_time;
-
-        DPRINTF("done iterating\n");
-        start_time = qemu_get_clock_ms(rt_clock);
-        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-        if (old_vm_running) {
-            vm_stop(RUN_STATE_FINISH_MIGRATE);
-        } else {
-            vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-        }
-
-        if (qemu_savevm_state_complete(s->file) < 0) {
-            migrate_fd_error(s);
-        } else {
-            migrate_fd_completed(s);
-        }
-        end_time = qemu_get_clock_ms(rt_clock);
-        s->total_time = end_time - s->total_time;
-        s->downtime = end_time - start_time;
-        if (s->state != MIG_STATE_COMPLETED) {
-            if (old_vm_running) {
-                vm_start();
-            }
-        }
-        last_round = true;
-    }
-    qemu_mutex_unlock_iothread();
-
-    return last_round;
-}
-
 static void migrate_fd_cancel(MigrationState *s)
 {
     if (s->state != MIG_STATE_ACTIVE)
@@ -746,6 +681,71 @@ static int64_t buffered_get_rate_limit(void *opaque)
     QEMUFileBuffered *s = opaque;
 
     return s->xfer_limit;
+}
+
+static bool migrate_fd_put_ready(MigrationState *s, uint64_t max_size)
+{
+    int ret;
+    uint64_t pending_size;
+    bool last_round = false;
+
+    qemu_mutex_lock_iothread();
+    if (s->state != MIG_STATE_ACTIVE) {
+        DPRINTF("put_ready returning because of non-active state\n");
+        qemu_mutex_unlock_iothread();
+        return false;
+    }
+    if (s->first_time) {
+        s->first_time = false;
+        DPRINTF("beginning savevm\n");
+        ret = qemu_savevm_state_begin(s->file, &s->params);
+        if (ret < 0) {
+            DPRINTF("failed, %d\n", ret);
+            migrate_fd_error(s);
+            qemu_mutex_unlock_iothread();
+            return false;
+        }
+    }
+
+    DPRINTF("iterate\n");
+    pending_size = qemu_savevm_state_pending(s->file, max_size);
+    DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
+    if (pending_size >= max_size) {
+        ret = qemu_savevm_state_iterate(s->file);
+        if (ret < 0) {
+            migrate_fd_error(s);
+        }
+    } else {
+        int old_vm_running = runstate_is_running();
+        int64_t start_time, end_time;
+
+        DPRINTF("done iterating\n");
+        start_time = qemu_get_clock_ms(rt_clock);
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+        if (old_vm_running) {
+            vm_stop(RUN_STATE_FINISH_MIGRATE);
+        } else {
+            vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+        }
+
+        if (qemu_savevm_state_complete(s->file) < 0) {
+            migrate_fd_error(s);
+        } else {
+            migrate_fd_completed(s);
+        }
+        end_time = qemu_get_clock_ms(rt_clock);
+        s->total_time = end_time - s->total_time;
+        s->downtime = end_time - start_time;
+        if (s->state != MIG_STATE_COMPLETED) {
+            if (old_vm_running) {
+                vm_start();
+            }
+        }
+        last_round = true;
+    }
+    qemu_mutex_unlock_iothread();
+
+    return last_round;
 }
 
 static void *buffered_file_thread(void *opaque)
