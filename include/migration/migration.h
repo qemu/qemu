@@ -129,4 +129,5 @@ int64_t migrate_xbzrle_cache_size(void);
 
 int64_t xbzrle_cache_resize(int64_t new_size);
 
+void qemu_fopen_ops_buffered(MigrationState *migration_state);
 #endif
