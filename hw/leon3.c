@@ -210,7 +210,7 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
     }
 }
 
-QEMUMachine leon3_generic_machine = {
+static QEMUMachine leon3_generic_machine = {
     .name     = "leon3_generic",
     .desc     = "Leon-3 generic",
     .init     = leon3_generic_hw_init,
