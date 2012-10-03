@@ -455,8 +455,6 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         error_propagate(errp, local_err);
         return;
     }
-
-    notifier_list_notify(&migration_state_notifiers, s);
 }
 
 void qmp_migrate_cancel(Error **errp)
@@ -814,4 +812,5 @@ void migrate_fd_connect(MigrationState *migration_state)
 
     qemu_thread_create(&s->thread, buffered_file_thread, s,
                        QEMU_THREAD_DETACHED);
+    notifier_list_notify(&migration_state_notifiers, s);
 }
