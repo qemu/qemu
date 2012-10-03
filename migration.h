@@ -66,9 +66,9 @@ int tcp_start_incoming_migration(const char *host_port, Error **errp);
 int tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
                                  Error **errp);
 
-int unix_start_incoming_migration(const char *path);
+int unix_start_incoming_migration(const char *path, Error **errp);
 
-int unix_start_outgoing_migration(MigrationState *s, const char *path);
+int unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp);
 
 int fd_start_incoming_migration(const char *path);
 

@@ -75,7 +75,7 @@ int qemu_start_incoming_migration(const char *uri, Error **errp)
     else if (strstart(uri, "exec:", &p))
         ret =  exec_start_incoming_migration(p);
     else if (strstart(uri, "unix:", &p))
-        ret = unix_start_incoming_migration(p);
+        ret = unix_start_incoming_migration(p, errp);
     else if (strstart(uri, "fd:", &p))
         ret = fd_start_incoming_migration(p);
 #endif
@@ -514,7 +514,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(uri, "exec:", &p)) {
         ret = exec_start_outgoing_migration(s, p);
     } else if (strstart(uri, "unix:", &p)) {
-        ret = unix_start_outgoing_migration(s, p);
+        ret = unix_start_outgoing_migration(s, p, &local_err);
     } else if (strstart(uri, "fd:", &p)) {
         ret = fd_start_outgoing_migration(s, p);
 #endif

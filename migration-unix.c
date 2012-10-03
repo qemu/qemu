@@ -53,67 +53,34 @@ static int unix_close(MigrationState *s)
     return r;
 }
 
-static void unix_wait_for_connect(void *opaque)
+static void unix_wait_for_connect(int fd, void *opaque)
 {
     MigrationState *s = opaque;
-    int val, ret;
-    socklen_t valsize = sizeof(val);
 
-    DPRINTF("connect completed\n");
-    do {
-        ret = getsockopt(s->fd, SOL_SOCKET, SO_ERROR, (void *) &val, &valsize);
-    } while (ret == -1 && errno == EINTR);
-
-    if (ret < 0) {
+    if (fd < 0) {
+        DPRINTF("migrate connect error\n");
+        s->fd = -1;
         migrate_fd_error(s);
-        return;
-    }
-
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-
-    if (val == 0)
+    } else {
+        DPRINTF("migrate connect success\n");
+        s->fd = fd;
         migrate_fd_connect(s);
-    else {
-        DPRINTF("error connecting %d\n", val);
-        migrate_fd_error(s);
     }
 }
 
-int unix_start_outgoing_migration(MigrationState *s, const char *path)
+int unix_start_outgoing_migration(MigrationState *s, const char *path, Error **errp)
 {
-    struct sockaddr_un addr;
-    int ret;
+    Error *local_err = NULL;
 
-    addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
     s->get_error = unix_errno;
     s->write = unix_write;
     s->close = unix_close;
 
-    s->fd = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
-    if (s->fd == -1) {
-        DPRINTF("Unable to open socket");
-        return -errno;
+    s->fd = unix_nonblocking_connect(path, unix_wait_for_connect, s, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return -1;
     }
-
-    socket_set_nonblock(s->fd);
-
-    do {
-        ret = connect(s->fd, (struct sockaddr *)&addr, sizeof(addr));
-        if (ret == -1) {
-            ret = -errno;
-        }
-        if (ret == -EINPROGRESS || ret == -EWOULDBLOCK) {
-	    qemu_set_fd_handler2(s->fd, NULL, NULL, unix_wait_for_connect, s);
-            return 0;
-        }
-    } while (ret == -EINTR);
-
-    if (ret < 0) {
-        DPRINTF("connect failed\n");
-        return ret;
-    }
-    migrate_fd_connect(s);
     return 0;
 }
 
@@ -151,43 +118,16 @@ out2:
     close(s);
 }
 
-int unix_start_incoming_migration(const char *path)
+int unix_start_incoming_migration(const char *path, Error **errp)
 {
-    struct sockaddr_un addr;
     int s;
-    int ret;
 
-    DPRINTF("Attempting to start an incoming migration\n");
-
-    s = qemu_socket(PF_UNIX, SOCK_STREAM, 0);
-    if (s == -1) {
-        fprintf(stderr, "Could not open unix socket: %s\n", strerror(errno));
-        return -errno;
-    }
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
-
-    unlink(addr.sun_path);
-    if (bind(s, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-        ret = -errno;
-        fprintf(stderr, "bind(unix:%s): %s\n", addr.sun_path, strerror(errno));
-        goto err;
-    }
-    if (listen(s, 1) == -1) {
-        fprintf(stderr, "listen(unix:%s): %s\n", addr.sun_path,
-                strerror(errno));
-        ret = -errno;
-        goto err;
+    s = unix_listen(path, NULL, 0, errp);
+    if (s < 0) {
+        return -1;
     }
 
     qemu_set_fd_handler2(s, NULL, unix_accept_incoming_migration, NULL,
                          (void *)(intptr_t)s);
-
     return 0;
-
-err:
-    close(s);
-    return ret;
 }
