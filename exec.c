@@ -2328,33 +2328,36 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
     }
 }
 
+static int qemu_target_backtrace(target_ulong *array, size_t size)
+{
+    int n = 0;
+    if (size >= 2) {
 #if defined(TARGET_ARM)
-#include <disas.h>
-static const char *backtrace(char *buffer, size_t length)
-{
-    char *p = buffer;
-    if (cpu_single_env) {
-        const char *symbol;
-        symbol = lookup_symbol(cpu_single_env->regs[15]);
-        p += sprintf(p, "[%s]", symbol);
-        symbol = lookup_symbol(cpu_single_env->regs[14]);
-        p += sprintf(p, "[%s]", symbol);
-    } else {
-        p += sprintf(p, "[cpu not running]");
-    }
-    assert((p - buffer) < length);
-    return buffer;
-}
+        array[0] = cpu_single_env->regs[15];
+        array[1] = cpu_single_env->regs[14];
 #elif defined(TARGET_MIPS)
+        array[0] = cpu_single_env->active_tc.PC;
+        array[1] = cpu_single_env->active_tc.gpr[31];
+#else
+        array[0] = 0;
+        array[1] = 0;
+#endif
+        n = 2;
+    }
+    return n;
+}
+
 #include <disas.h>
-static const char *backtrace(char *buffer, size_t length)
+const char *qemu_sprint_backtrace(char *buffer, size_t length)
 {
     char *p = buffer;
     if (cpu_single_env) {
+        target_ulong caller[2];
         const char *symbol;
-        symbol = lookup_symbol(cpu_single_env->active_tc.PC);
+        qemu_target_backtrace(caller, 2);
+        symbol = lookup_symbol(caller[0]);
         p += sprintf(p, "[%s]", symbol);
-        symbol = lookup_symbol(cpu_single_env->active_tc.gpr[31]);
+        symbol = lookup_symbol(caller[1]);
         p += sprintf(p, "[%s]", symbol);
     } else {
         p += sprintf(p, "[cpu not running]");
@@ -2362,12 +2365,6 @@ static const char *backtrace(char *buffer, size_t length)
     assert((p - buffer) < length);
     return buffer;
 }
-#else
-static const char *backtrace(char *buffer, size_t length)
-{
-    return "unknown caller";
-}
-#endif /* TARGET_MIPS */
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
 {
@@ -2908,7 +2905,7 @@ static uint64_t unassigned_mem_read(void *opaque, target_phys_addr_t addr,
     if (trace_unassigned) {
         char buffer[256];
         fprintf(stderr, "Unassigned mem read " TARGET_FMT_plx " %s\n",
-                addr, backtrace(buffer, sizeof(buffer)));
+                addr, qemu_sprint_backtrace(buffer, sizeof(buffer)));
     }
     //~ vm_stop(0);
 #if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
@@ -2923,7 +2920,7 @@ static void unassigned_mem_write(void *opaque, target_phys_addr_t addr,
     if (trace_unassigned) {
         char buffer[256];
         fprintf(stderr, "Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64" %s\n",
-                addr, val, backtrace(buffer, sizeof(buffer)));
+                addr, val, qemu_sprint_backtrace(buffer, sizeof(buffer)));
     }
 #if defined(TARGET_ALPHA) || defined(TARGET_SPARC) || defined(TARGET_MICROBLAZE)
     cpu_unassigned_access(cpu_single_env, addr, 1, 0, 0, size);
