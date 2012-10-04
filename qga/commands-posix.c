@@ -828,7 +828,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             }
 
             memset(&ifr, 0, sizeof(ifr));
-            strncpy(ifr.ifr_name,  info->value->name, IF_NAMESIZE);
+            pstrcpy(ifr.ifr_name, IF_NAMESIZE, info->value->name);
             if (ioctl(sock, SIOCGIFHWADDR, &ifr) == -1) {
                 snprintf(err_msg, sizeof(err_msg),
                          "failed to get MAC address of %s: %s",
