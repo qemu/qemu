@@ -130,7 +130,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     int i, max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
-    int has_kvm_features = 0;
+    bool found = false;
 
     max = 1;
     while ((cpuid = try_get_cpuid(s, max)) == NULL) {
@@ -140,9 +140,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     for (i = 0; i < cpuid->nent; ++i) {
         if (cpuid->entries[i].function == function &&
             cpuid->entries[i].index == index) {
-            if (cpuid->entries[i].function == KVM_CPUID_FEATURES) {
-                has_kvm_features = 1;
-            }
+            found = true;
             switch (reg) {
             case R_EAX:
                 ret = cpuid->entries[i].eax;
@@ -181,7 +179,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     g_free(cpuid);
 
     /* fallback for older kernels */
-    if (!has_kvm_features && (function == KVM_CPUID_FEATURES)) {
+    if ((function == KVM_CPUID_FEATURES) && !found) {
         ret = get_para_features(s);
     }
 
