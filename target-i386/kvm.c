@@ -98,6 +98,19 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     return cpuid;
 }
 
+/* Run KVM_GET_SUPPORTED_CPUID ioctl(), allocating a buffer large enough
+ * for all entries.
+ */
+static struct kvm_cpuid2 *get_supported_cpuid(KVMState *s)
+{
+    struct kvm_cpuid2 *cpuid;
+    int max = 1;
+    while ((cpuid = try_get_cpuid(s, max)) == NULL) {
+        max *= 2;
+    }
+    return cpuid;
+}
+
 struct kvm_para_features {
     int cap;
     int feature;
@@ -166,15 +179,11 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                                       uint32_t index, int reg)
 {
     struct kvm_cpuid2 *cpuid;
-    int max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
     bool found = false;
 
-    max = 1;
-    while ((cpuid = try_get_cpuid(s, max)) == NULL) {
-        max *= 2;
-    }
+    cpuid = get_supported_cpuid(s);
 
     struct kvm_cpuid_entry2 *entry = cpuid_find_entry(cpuid, function, index);
     if (entry) {
