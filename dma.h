@@ -31,7 +31,7 @@ struct QEMUSGList {
     DMAContext *dma;
 };
 
-#if defined(TARGET_PHYS_ADDR_BITS)
+#ifndef CONFIG_USER_ONLY
 
 /*
  * When an IOMMU is present, bus addresses become distinct from
