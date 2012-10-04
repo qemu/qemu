@@ -362,6 +362,10 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
        the device tree top */
     dt_end = bi->dt_base + bi->dt_size;
     ps = booke206_page_size_to_tlb(dt_end) + 1;
+    if (ps & 1) {
+        /* e500v2 can only do even TLB size bits */
+        ps++;
+    }
     size = (ps << MAS1_TSIZE_SHIFT);
     tlb->mas1 = MAS1_VALID | size;
     tlb->mas2 = 0;
