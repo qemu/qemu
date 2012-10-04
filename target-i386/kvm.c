@@ -155,21 +155,26 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                 break;
             case R_EDX:
                 ret = cpuid->entries[i].edx;
-                switch (function) {
-                case 1:
-                    /* KVM before 2.6.30 misreports the following features */
-                    ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
-                    break;
-                case 0x80000001:
-                    /* On Intel, kvm returns cpuid according to the Intel spec,
-                     * so add missing bits according to the AMD spec:
-                     */
-                    cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
-                    ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
-                    break;
-                }
                 break;
             }
+        }
+    }
+
+    /* Fixups for the data returned by KVM, below */
+
+    if (reg == R_EDX) {
+        switch (function) {
+        case 1:
+            /* KVM before 2.6.30 misreports the following features */
+            ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
+            break;
+        case 0x80000001:
+            /* On Intel, kvm returns cpuid according to the Intel spec,
+             * so add missing bits according to the AMD spec:
+             */
+            cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
+            ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
+            break;
         }
     }
 
