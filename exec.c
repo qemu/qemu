@@ -72,7 +72,6 @@
 /* make various TB consistency checks */
 //#define DEBUG_TB_CHECK
 
-//#define DEBUG_IOPORT
 //#define DEBUG_SUBPAGE
 
 #if !defined(CONFIG_USER_ONLY)
