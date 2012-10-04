@@ -1384,6 +1384,8 @@ static void filter_features_for_kvm(X86CPU *cpu)
         kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
     env->cpuid_svm_features  &=
         kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
+    env->cpuid_7_0_ebx_features &=
+        kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX);
     env->cpuid_kvm_features &=
         kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
     env->cpuid_ext4_features &=
