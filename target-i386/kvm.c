@@ -145,11 +145,28 @@ static uint32_t cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry, int reg)
     return ret;
 }
 
+/* Find matching entry for function/index on kvm_cpuid2 struct
+ */
+static struct kvm_cpuid_entry2 *cpuid_find_entry(struct kvm_cpuid2 *cpuid,
+                                                 uint32_t function,
+                                                 uint32_t index)
+{
+    int i;
+    for (i = 0; i < cpuid->nent; ++i) {
+        if (cpuid->entries[i].function == function &&
+            cpuid->entries[i].index == index) {
+            return &cpuid->entries[i];
+        }
+    }
+    /* not found: */
+    return NULL;
+}
+
 uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                                       uint32_t index, int reg)
 {
     struct kvm_cpuid2 *cpuid;
-    int i, max;
+    int max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
     bool found = false;
@@ -159,13 +176,10 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         max *= 2;
     }
 
-    for (i = 0; i < cpuid->nent; ++i) {
-        if (cpuid->entries[i].function == function &&
-            cpuid->entries[i].index == index) {
-            struct kvm_cpuid_entry2 *entry = &cpuid->entries[i];
-            found = true;
-            ret = cpuid_entry_get_reg(entry, reg);
-        }
+    struct kvm_cpuid_entry2 *entry = cpuid_find_entry(cpuid, function, index);
+    if (entry) {
+        found = true;
+        ret = cpuid_entry_get_reg(entry, reg);
     }
 
     /* Fixups for the data returned by KVM, below */
