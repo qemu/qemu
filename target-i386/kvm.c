@@ -196,6 +196,11 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     if (function == 1 && reg == R_EDX) {
         /* KVM before 2.6.30 misreports the following features */
         ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
+    } else if (function == 1 && reg == R_ECX) {
+        /* We can set the hypervisor flag, even if KVM does not return it on
+         * GET_SUPPORTED_CPUID
+         */
+        ret |= CPUID_EXT_HYPERVISOR;
     } else if (function == 0x80000001 && reg == R_EDX) {
         /* On Intel, kvm returns cpuid according to the Intel spec,
          * so add missing bits according to the AMD spec:
@@ -399,10 +404,8 @@ int kvm_arch_init_vcpu(CPUX86State *env)
 
     env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
 
-    i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
     j = env->cpuid_ext_features & CPUID_EXT_TSC_DEADLINE_TIMER;
     env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
-    env->cpuid_ext_features |= i;
     if (j && kvm_irqchip_in_kernel() &&
         kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
         env->cpuid_ext_features |= CPUID_EXT_TSC_DEADLINE_TIMER;
