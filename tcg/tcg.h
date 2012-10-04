@@ -367,7 +367,6 @@ struct TCGContext {
     TCGPool *pool_first, *pool_current, *pool_first_large;
     TCGLabel *labels;
     int nb_labels;
-    TCGTemp *temps; /* globals first, temps after */
     int nb_globals;
     int nb_temps;
     /* index of free temps, -1 if none */
@@ -393,7 +392,7 @@ struct TCGContext {
     int frame_reg;
 
     uint8_t *code_ptr;
-    TCGTemp static_temps[TCG_MAX_TEMPS];
+    TCGTemp temps[TCG_MAX_TEMPS]; /* globals first, temps after */
 
     TCGHelperInfo *helpers;
     int nb_helpers;

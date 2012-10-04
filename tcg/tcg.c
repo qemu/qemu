@@ -242,7 +242,6 @@ void tcg_context_init(TCGContext *s)
     int *sorted_args;
 
     memset(s, 0, sizeof(*s));
-    s->temps = s->static_temps;
     s->nb_globals = 0;
     
     /* Count total number of arguments and allocate the corresponding
