@@ -3694,7 +3694,6 @@ TARGET_ABI_DIR=""
 
 case "$target_arch2" in
   i386)
-    target_phys_bits=64
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
@@ -3702,7 +3701,6 @@ case "$target_arch2" in
     target_long_alignment=8
   ;;
   alpha)
-    target_phys_bits=64
     target_long_alignment=8
     target_nptl="yes"
   ;;
@@ -3711,22 +3709,18 @@ case "$target_arch2" in
     bflt="yes"
     target_nptl="yes"
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
-    target_phys_bits=64
     target_llong_alignment=4
     target_libs_softmmu="$fdt_libs"
   ;;
   cris)
     target_nptl="yes"
-    target_phys_bits=32
   ;;
   lm32)
-    target_phys_bits=32
     target_libs_softmmu="$opengl_libs"
   ;;
   m68k)
     bflt="yes"
     gdb_xml_files="cf-core.xml cf-fp.xml"
-    target_phys_bits=32
     target_int_alignment=2
     target_long_alignment=2
     target_llong_alignment=2
@@ -3735,36 +3729,30 @@ case "$target_arch2" in
     TARGET_ARCH=microblaze
     bflt="yes"
     target_nptl="yes"
-    target_phys_bits=32
     target_libs_softmmu="$fdt_libs"
   ;;
   mips|mipsel)
     TARGET_ARCH=mips
     echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
     target_nptl="yes"
-    target_phys_bits=64
   ;;
   mipsn32|mipsn32el)
     TARGET_ARCH=mipsn32
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
-    target_phys_bits=64
   ;;
   mips64|mips64el)
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
-    target_phys_bits=64
     target_long_alignment=8
   ;;
   or32)
     TARGET_ARCH=openrisc
     TARGET_BASE_ARCH=openrisc
-    target_phys_bits=32
   ;;
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_phys_bits=64
     target_nptl="yes"
     target_libs_softmmu="$fdt_libs"
   ;;
@@ -3772,7 +3760,6 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_phys_bits=64
     target_nptl="yes"
     target_libs_softmmu="$fdt_libs"
   ;;
@@ -3780,7 +3767,6 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=ppc
     TARGET_ABI_DIR=ppc
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_phys_bits=64
     target_long_alignment=8
     target_libs_softmmu="$fdt_libs"
   ;;
@@ -3790,21 +3776,17 @@ case "$target_arch2" in
     TARGET_ABI_DIR=ppc
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_phys_bits=64
     target_libs_softmmu="$fdt_libs"
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
     bflt="yes"
     target_nptl="yes"
-    target_phys_bits=32
   ;;
   sparc)
-    target_phys_bits=64
   ;;
   sparc64)
     TARGET_BASE_ARCH=sparc
-    target_phys_bits=64
     target_long_alignment=8
   ;;
   sparc32plus)
@@ -3812,11 +3794,9 @@ case "$target_arch2" in
     TARGET_BASE_ARCH=sparc
     TARGET_ABI_DIR=sparc
     echo "TARGET_ABI32=y" >> $config_target_mak
-    target_phys_bits=64
   ;;
   s390x)
     target_nptl="yes"
-    target_phys_bits=64
     target_long_alignment=8
   ;;
   unicore32)
@@ -3824,7 +3804,6 @@ case "$target_arch2" in
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
-    target_phys_bits=32
   ;;
   *)
     echo "Unsupported target CPU"
@@ -3859,7 +3838,6 @@ echo "TARGET_ABI_DIR=$TARGET_ABI_DIR" >> $config_target_mak
 case "$target_arch2" in
   i386|x86_64)
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
-      target_phys_bits=64
       echo "CONFIG_XEN=y" >> $config_target_mak
       if test "$xen_pci_passthrough" = yes; then
         echo "CONFIG_XEN_PCI_PASSTHROUGH=y" >> "$config_target_mak"
@@ -3899,11 +3877,10 @@ if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak
 fi
 if test "$target_softmmu" = "yes" ; then
-  echo "TARGET_PHYS_ADDR_BITS=$target_phys_bits" >> $config_target_mak
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
   echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
-  echo "HWDIR=../libhw$target_phys_bits" >> $config_target_mak
-  echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
+  echo "HWDIR=../libhw" >> $config_target_mak
+  echo "subdir-$target: subdir-libhw" >> $config_host_mak
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
   fi
@@ -4145,11 +4122,8 @@ for rom in seabios vgabios ; do
     echo "LD=$ld" >> $config_mak
 done
 
-for hwlib in 32 64; do
-  d=libhw$hwlib
-  symlink "$source_path/Makefile.hw" "$d/Makefile"
-  echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak
-done
+d=libhw
+symlink "$source_path/Makefile.hw" "$d/Makefile"
 
 d=libuser
 symlink "$source_path/Makefile.user" "$d/Makefile"

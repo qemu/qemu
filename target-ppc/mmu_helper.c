@@ -1032,12 +1032,10 @@ static int ppcemb_tlb_check(CPUPPCState *env, ppcemb_tlb_t *tlb,
         return -1;
     }
     *raddrp = (tlb->RPN & mask) | (address & ~mask);
-#if (TARGET_PHYS_ADDR_BITS >= 36)
     if (ext) {
         /* Extend the physical address to 36 bits */
-        *raddrp |= (target_phys_addr_t)(tlb->RPN & 0xF) << 32;
+        *raddrp |= (uint64_t)(tlb->RPN & 0xF) << 32;
     }
-#endif
 
     return 0;
 }

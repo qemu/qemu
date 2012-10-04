@@ -4,9 +4,6 @@ include ../config-host.mak
 include config-devices.mak
 include config-target.mak
 include $(SRC_PATH)/rules.mak
-ifneq ($(HWDIR),)
-include $(HWDIR)/config.mak
-endif
 
 $(call set-vpath, $(SRC_PATH))
 ifdef CONFIG_LINUX

@@ -210,13 +210,7 @@ static target_phys_addr_t intel_hda_addr(uint32_t lbase, uint32_t ubase)
 {
     target_phys_addr_t addr;
 
-#if TARGET_PHYS_ADDR_BITS == 32
-    addr = lbase;
-#else
-    addr = ubase;
-    addr <<= 32;
-    addr |= lbase;
-#endif
+    addr = ((uint64_t)ubase << 32) | lbase;
     return addr;
 }
 

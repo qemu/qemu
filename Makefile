@@ -214,7 +214,7 @@ $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
 qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(tools-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y)
 
-QEMULIBS=libhw32 libhw64 libuser libdis libdis-user
+QEMULIBS=libhw libuser libdis libdis-user
 
 clean:
 # avoid old build problems by removing potentially incorrect old files

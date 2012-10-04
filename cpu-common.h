@@ -21,7 +21,7 @@ enum device_endian {
 };
 
 /* address in the RAM (different from a physical address) */
-#if defined(CONFIG_XEN_BACKEND) && TARGET_PHYS_ADDR_BITS == 64
+#if defined(CONFIG_XEN_BACKEND)
 typedef uint64_t ram_addr_t;
 #  define RAM_ADDR_MAX UINT64_MAX
 #  define RAM_ADDR_FMT "%" PRIx64
