@@ -61,18 +61,6 @@ static int acpi_checksum(const uint8_t *data, int len)
     return (-sum) & 0xff;
 }
 
-/* like strncpy() but zero-fills the tail of destination */
-static void strzcpy(char *dst, const char *src, size_t size)
-{
-    size_t len = strlen(src);
-    if (len >= size) {
-        len = size;
-    } else {
-      memset(dst + len, 0, size - len);
-    }
-    memcpy(dst, src, len);
-}
-
 /* XXX fixme: this function uses obsolete argument parsing interface */
 int acpi_table_add(const char *t)
 {
@@ -157,7 +145,8 @@ int acpi_table_add(const char *t)
     hdr._length = cpu_to_le16(len);
 
     if (get_param_value(buf, sizeof(buf), "sig", t)) {
-        strzcpy(hdr.sig, buf, sizeof(hdr.sig));
+        /* strncpy is justified: the field need not be NUL-terminated. */
+        strncpy(hdr.sig, buf, sizeof(hdr.sig));
         ++changed;
     }
 
@@ -187,12 +176,14 @@ int acpi_table_add(const char *t)
     }
 
     if (get_param_value(buf, sizeof(buf), "oem_id", t)) {
-        strzcpy(hdr.oem_id, buf, sizeof(hdr.oem_id));
+        /* strncpy is justified: the field need not be NUL-terminated. */
+        strncpy(hdr.oem_id, buf, sizeof(hdr.oem_id));
         ++changed;
     }
 
     if (get_param_value(buf, sizeof(buf), "oem_table_id", t)) {
-        strzcpy(hdr.oem_table_id, buf, sizeof(hdr.oem_table_id));
+        /* strncpy is justified: the field need not be NUL-terminated. */
+        strncpy(hdr.oem_table_id, buf, sizeof(hdr.oem_table_id));
         ++changed;
     }
 
@@ -207,7 +198,8 @@ int acpi_table_add(const char *t)
     }
 
     if (get_param_value(buf, sizeof(buf), "asl_compiler_id", t)) {
-        strzcpy(hdr.asl_compiler_id, buf, sizeof(hdr.asl_compiler_id));
+        /* strncpy is justified: the field need not be NUL-terminated. */
+        strncpy(hdr.asl_compiler_id, buf, sizeof(hdr.asl_compiler_id));
         ++changed;
     }
 
