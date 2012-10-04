@@ -140,19 +140,20 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
     for (i = 0; i < cpuid->nent; ++i) {
         if (cpuid->entries[i].function == function &&
             cpuid->entries[i].index == index) {
+            struct kvm_cpuid_entry2 *entry = &cpuid->entries[i];
             found = true;
             switch (reg) {
             case R_EAX:
-                ret = cpuid->entries[i].eax;
+                ret = entry->eax;
                 break;
             case R_EBX:
-                ret = cpuid->entries[i].ebx;
+                ret = entry->ebx;
                 break;
             case R_ECX:
-                ret = cpuid->entries[i].ecx;
+                ret = entry->ecx;
                 break;
             case R_EDX:
-                ret = cpuid->entries[i].edx;
+                ret = entry->edx;
                 break;
             }
         }
