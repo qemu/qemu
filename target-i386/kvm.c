@@ -123,6 +123,28 @@ static int get_para_features(KVMState *s)
 }
 
 
+/* Returns the value for a specific register on the cpuid entry
+ */
+static uint32_t cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry, int reg)
+{
+    uint32_t ret = 0;
+    switch (reg) {
+    case R_EAX:
+        ret = entry->eax;
+        break;
+    case R_EBX:
+        ret = entry->ebx;
+        break;
+    case R_ECX:
+        ret = entry->ecx;
+        break;
+    case R_EDX:
+        ret = entry->edx;
+        break;
+    }
+    return ret;
+}
+
 uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                                       uint32_t index, int reg)
 {
@@ -142,20 +164,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
             cpuid->entries[i].index == index) {
             struct kvm_cpuid_entry2 *entry = &cpuid->entries[i];
             found = true;
-            switch (reg) {
-            case R_EAX:
-                ret = entry->eax;
-                break;
-            case R_EBX:
-                ret = entry->ebx;
-                break;
-            case R_ECX:
-                ret = entry->ecx;
-                break;
-            case R_EDX:
-                ret = entry->edx;
-                break;
-            }
+            ret = cpuid_entry_get_reg(entry, reg);
         }
     }
 
