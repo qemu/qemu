@@ -410,29 +410,11 @@ int kvm_arch_init_vcpu(CPUX86State *env)
         struct kvm_cpuid2 cpuid;
         struct kvm_cpuid_entry2 entries[100];
     } QEMU_PACKED cpuid_data;
-    KVMState *s = env->kvm_state;
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
     int r;
-
-    env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
-
-    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
-
-    env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
-                                                             0, R_EDX);
-    env->cpuid_ext3_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
-                                                             0, R_ECX);
-    env->cpuid_svm_features  &= kvm_arch_get_supported_cpuid(s, 0x8000000A,
-                                                             0, R_EDX);
-
-    env->cpuid_kvm_features &=
-            kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
-
-    env->cpuid_ext4_features &= kvm_arch_get_supported_cpuid(s, 0xC0000001,
-                                                             0, R_EDX);
 
     cpuid_i = 0;
 

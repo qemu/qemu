@@ -1368,6 +1368,32 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
+#ifdef CONFIG_KVM
+static void filter_features_for_kvm(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    KVMState *s = kvm_state;
+
+    env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
+
+    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
+
+    env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
+                                                             0, R_EDX);
+    env->cpuid_ext3_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
+                                                             0, R_ECX);
+    env->cpuid_svm_features  &= kvm_arch_get_supported_cpuid(s, 0x8000000A,
+                                                             0, R_EDX);
+
+    env->cpuid_kvm_features &=
+            kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+
+    env->cpuid_ext4_features &= kvm_arch_get_supported_cpuid(s, 0xC0000001,
+                                                             0, R_EDX);
+
+}
+#endif
+
 int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 {
     CPUX86State *env = &cpu->env;
@@ -1425,6 +1451,10 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
             );
         env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
+    } else {
+#ifdef CONFIG_KVM
+        filter_features_for_kvm(cpu);
+#endif
     }
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error_is_set(&error)) {
