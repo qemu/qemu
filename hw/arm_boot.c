@@ -347,6 +347,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int initrd_size;
     int n;
     int is_linux;
+    bool no_loader = false;
     uint64_t elf_entry;
     target_phys_addr_t entry;
     QemuOpts *machine_opts;
@@ -385,10 +386,18 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
                                   &is_linux);
     }
     if (kernel_size < 0) {
-        entry = info->loader_start + KERNEL_LOAD_ADDR;
+        target_phys_addr_t kernel_load_addr = KERNEL_LOAD_ADDR;
+        no_loader = (info->loader_start == 0);
+        if (no_loader) {
+            kernel_load_addr = 0;
+        }
+        entry = info->loader_start + kernel_load_addr;
         kernel_size = load_image_targphys(info->kernel_filename, entry,
-                                          info->ram_size - KERNEL_LOAD_ADDR);
+                                          info->ram_size - kernel_load_addr);
         is_linux = 1;
+    } else if (entry == info->loader_start) {
+        /* Don't map bootloader memory if it conflicts with the kernel image. */
+        no_loader = true;
     }
     if (kernel_size < 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",
@@ -440,8 +449,10 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         for (n = 0; n < sizeof(bootloader) / 4; n++) {
             bootloader[n] = tswap32(bootloader[n]);
         }
-        rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
-                           info->loader_start);
+        if (!no_loader) {
+            rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
+                               info->loader_start);
+        }
         if (info->nb_cpus > 1) {
             info->write_secondary_boot(cpu, info);
         }
