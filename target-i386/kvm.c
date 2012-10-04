@@ -431,6 +431,9 @@ int kvm_arch_init_vcpu(CPUX86State *env)
     env->cpuid_kvm_features &=
             kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
 
+    env->cpuid_ext4_features &= kvm_arch_get_supported_cpuid(s, 0xC0000001,
+                                                             0, R_EDX);
+
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
@@ -572,8 +575,6 @@ int kvm_arch_init_vcpu(CPUX86State *env)
 
     /* Call Centaur's CPUID instructions they are supported. */
     if (env->cpuid_xlevel2 > 0) {
-        env->cpuid_ext4_features &=
-            kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
         cpu_x86_cpuid(env, 0xC0000000, 0, &limit, &unused, &unused, &unused);
 
         for (i = 0xC0000000; i <= limit; i++) {
