@@ -209,6 +209,13 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                 kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
             ret |= CPUID_EXT_TSC_DEADLINE_TIMER;
         }
+
+        /* x2apic is reported by GET_SUPPORTED_CPUID, but it can't be enabled
+         * without the in-kernel irqchip
+         */
+        if (!kvm_irqchip_in_kernel()) {
+            ret &= ~CPUID_EXT_X2APIC;
+        }
     } else if (function == 0x80000001 && reg == R_EDX) {
         /* On Intel, kvm returns cpuid according to the Intel spec,
          * so add missing bits according to the AMD spec:
