@@ -201,6 +201,14 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
          * GET_SUPPORTED_CPUID
          */
         ret |= CPUID_EXT_HYPERVISOR;
+        /* tsc-deadline flag is not returned by GET_SUPPORTED_CPUID, but it
+         * can be enabled if the kernel has KVM_CAP_TSC_DEADLINE_TIMER,
+         * and the irqchip is in the kernel.
+         */
+        if (kvm_irqchip_in_kernel() &&
+                kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
+            ret |= CPUID_EXT_TSC_DEADLINE_TIMER;
+        }
     } else if (function == 0x80000001 && reg == R_EDX) {
         /* On Intel, kvm returns cpuid according to the Intel spec,
          * so add missing bits according to the AMD spec:
@@ -404,12 +412,7 @@ int kvm_arch_init_vcpu(CPUX86State *env)
 
     env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
 
-    j = env->cpuid_ext_features & CPUID_EXT_TSC_DEADLINE_TIMER;
     env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
-    if (j && kvm_irqchip_in_kernel() &&
-        kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
-        env->cpuid_ext_features |= CPUID_EXT_TSC_DEADLINE_TIMER;
-    }
 
     env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
                                                              0, R_EDX);
