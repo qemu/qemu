@@ -428,6 +428,9 @@ int kvm_arch_init_vcpu(CPUX86State *env)
     env->cpuid_svm_features  &= kvm_arch_get_supported_cpuid(s, 0x8000000A,
                                                              0, R_EDX);
 
+    env->cpuid_kvm_features &=
+            kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
@@ -448,8 +451,7 @@ int kvm_arch_init_vcpu(CPUX86State *env)
     c = &cpuid_data.entries[cpuid_i++];
     memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_FEATURES;
-    c->eax = env->cpuid_kvm_features &
-        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+    c->eax = env->cpuid_kvm_features;
 
     if (hyperv_enabled()) {
         memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
