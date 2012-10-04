@@ -1169,8 +1169,7 @@ vcard_emul_options(const char *args)
             NEXT_TOKEN(vname)
             NEXT_TOKEN(type_params)
             type_params_length = MIN(type_params_length, sizeof(type_str)-1);
-            strncpy(type_str, type_params, type_params_length);
-            type_str[type_params_length] = 0;
+            pstrcpy(type_str, type_params_length, type_params);
             type = vcard_emul_type_from_string(type_str);
 
             NEXT_TOKEN(type_params)
