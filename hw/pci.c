@@ -1962,7 +1962,7 @@ static char *pcibus_get_fw_dev_path(DeviceState *dev)
                    PCI_SLOT(d->devfn));
     if (PCI_FUNC(d->devfn))
         snprintf(path + off, sizeof(path) + off, ",%x", PCI_FUNC(d->devfn));
-    return strdup(path);
+    return g_strdup(path);
 }
 
 static char *pcibus_get_dev_path(DeviceState *dev)

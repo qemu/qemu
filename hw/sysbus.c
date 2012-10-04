@@ -211,7 +211,7 @@ static char *sysbus_get_fw_dev_path(DeviceState *dev)
         snprintf(path + off, sizeof(path) - off, "@i%04x", s->pio[0]);
     }
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 void sysbus_add_memory(SysBusDevice *dev, target_phys_addr_t addr,
