@@ -6,10 +6,6 @@ HXCOMM construct option structures, enums and help message for specified
 HXCOMM architectures.
 HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
-HXCOMM TODO : when we are able to change -help output without breaking
-HXCOMM libvirt we should update the help options which refer to -cpu ?,
-HXCOMM -driver ?, etc to use the preferred -cpu help etc instead.
-
 DEFHEADING(Standard options:)
 STEXI
 @table @option
@@ -33,7 +29,7 @@ ETEXI
 
 DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "-machine [type=]name[,prop[=value][,...]]\n"
-    "                selects emulated machine (-machine ? for list)\n"
+    "                selects emulated machine ('-machine help' for list)\n"
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
     "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
     "                kernel_irqchip=on|off controls accelerated irqchip support\n"
@@ -44,7 +40,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
 @findex -machine
-Select the emulated machine by @var{name}. Use @code{-machine ?} to list
+Select the emulated machine by @var{name}. Use @code{-machine help} to list
 available machines. Supported machine properties are:
 @table @option
 @item accel=@var{accels1}[:@var{accels2}[:...]]
@@ -69,11 +65,11 @@ HXCOMM Deprecated by -machine
 DEF("M", HAS_ARG, QEMU_OPTION_M, "", QEMU_ARCH_ALL)
 
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
-    "-cpu cpu        select CPU (-cpu ? for list)\n", QEMU_ARCH_ALL)
+    "-cpu cpu        select CPU ('-cpu help' for list)\n", QEMU_ARCH_ALL)
 STEXI
 @item -cpu @var{model}
 @findex -cpu
-Select CPU model (-cpu ? for list and additional feature selection)
+Select CPU model (@code{-cpu help} for list and additional feature selection)
 ETEXI
 
 DEF("smp", HAS_ARG, QEMU_OPTION_smp,
@@ -463,12 +459,12 @@ ETEXI
 DEF("soundhw", HAS_ARG, QEMU_OPTION_soundhw,
     "-soundhw c1,... enable audio support\n"
     "                and only specified sound cards (comma separated list)\n"
-    "                use -soundhw ? to get the list of supported cards\n"
-    "                use -soundhw all to enable all of them\n", QEMU_ARCH_ALL)
+    "                use '-soundhw help' to get the list of supported cards\n"
+    "                use '-soundhw all' to enable all of them\n", QEMU_ARCH_ALL)
 STEXI
 @item -soundhw @var{card1}[,@var{card2},...] or -soundhw all
 @findex -soundhw
-Enable audio and selected sound hardware. Use ? to print all
+Enable audio and selected sound hardware. Use 'help' to print all
 available sound hardware.
 
 @example
@@ -477,7 +473,7 @@ qemu-system-i386 -soundhw es1370 disk.img
 qemu-system-i386 -soundhw ac97 disk.img
 qemu-system-i386 -soundhw hda disk.img
 qemu-system-i386 -soundhw all disk.img
-qemu-system-i386 -soundhw ?
+qemu-system-i386 -soundhw help
 @end example
 
 Note that Linux's i810_audio OSS kernel (for AC97) module might
@@ -566,16 +562,16 @@ DEF("device", HAS_ARG, QEMU_OPTION_device,
     "-device driver[,prop[=value][,...]]\n"
     "                add device (based on driver)\n"
     "                prop=value,... sets driver properties\n"
-    "                use -device ? to print all possible drivers\n"
-    "                use -device driver,? to print all possible properties\n",
+    "                use '-device help' to print all possible drivers\n"
+    "                use '-device driver,help' to print all possible properties\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -device @var{driver}[,@var{prop}[=@var{value}][,...]]
 @findex -device
 Add device @var{driver}.  @var{prop}=@var{value} sets driver
 properties.  Valid properties depend on the driver.  To get help on
-possible drivers and properties, use @code{-device ?} and
-@code{-device @var{driver},?}.
+possible drivers and properties, use @code{-device help} and
+@code{-device @var{driver},help}.
 ETEXI
 
 DEFHEADING()
@@ -1365,7 +1361,7 @@ Valid values for @var{type} are
 @code{virtio}, @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
 @code{e1000}, @code{smc91c111}, @code{lance} and @code{mcf_fec}.
-Not all devices are supported on all targets.  Use -net nic,model=?
+Not all devices are supported on all targets.  Use @code{-net nic,model=help}
 for a list of available devices for your target.
 
 @item -netdev user,id=@var{id}[,@var{option}][,@var{option}][,...]
@@ -2398,7 +2394,7 @@ Shorthand for -gdb tcp::1234, i.e. open a gdbserver on TCP port 1234
 ETEXI
 
 DEF("d", HAS_ARG, QEMU_OPTION_d, \
-    "-d item1,...    output log to /tmp/qemu.log (use -d ? for a list of log items)\n",
+    "-d item1,...    output log to /tmp/qemu.log (use '-d help' for a list of log items)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -d
@@ -2533,13 +2529,13 @@ ETEXI
 
 DEF("clock", HAS_ARG, QEMU_OPTION_clock, \
     "-clock          force the use of the given methods for timer alarm.\n" \
-    "                To see what timers are available use -clock ?\n",
+    "                To see what timers are available use '-clock help'\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -clock @var{method}
 @findex -clock
 Force the use of the given methods for timer alarm. To see what timers
-are available use -clock ?.
+are available use @code{-clock help}.
 ETEXI
 
 HXCOMM Options deprecated by -rtc
@@ -2608,7 +2604,7 @@ watchdog with a single timer, or @code{i6300esb} (Intel 6300ESB I/O
 controller hub) which is a much more featureful PCI-based dual-timer
 watchdog.  Choose a model for which your guest has drivers.
 
-Use @code{-watchdog ?} to list available hardware models.  Only one
+Use @code{-watchdog help} to list available hardware models.  Only one
 watchdog can be enabled for a guest.
 ETEXI
 
