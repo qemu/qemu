@@ -4118,27 +4118,24 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     case 0x2f: /* V9 movr */
                         {
                             int cond = GET_FIELD_SP(insn, 10, 12);
-                            int l1;
+                            DisasCompare cmp;
 
-                            cpu_src1 = get_src1(insn, cpu_src1);
+                            gen_compare_reg(&cmp, cond, cpu_src1);
 
-                            l1 = gen_new_label();
-
-                            tcg_gen_brcondi_tl(gen_tcg_cond_reg[cond],
-                                              cpu_src1, 0, l1);
-                            if (IS_IMM) {       /* immediate */
-                                TCGv r_const;
-
+                            /* The get_src2 above loaded the normal 13-bit
+                               immediate field, not the 10-bit field we have
+                               in movr.  But it did handle the reg case.  */
+                            if (IS_IMM) {
                                 simm = GET_FIELD_SPs(insn, 0, 9);
-                                r_const = tcg_const_tl(simm);
-                                gen_movl_TN_reg(rd, r_const);
-                                tcg_temp_free(r_const);
-                            } else {
-                                rs2 = GET_FIELD_SP(insn, 0, 4);
-                                gen_movl_reg_TN(rs2, cpu_tmp0);
-                                gen_movl_TN_reg(rd, cpu_tmp0);
+                                tcg_gen_movi_tl(cpu_src2, simm);
                             }
-                            gen_set_label(l1);
+
+                            gen_movl_reg_TN(rd, cpu_dst);
+                            tcg_gen_movcond_tl(cmp.cond, cpu_dst,
+                                               cmp.c1, cmp.c2,
+                                               cpu_src2, cpu_dst);
+                            free_compare(&cmp);
+                            gen_movl_TN_reg(rd, cpu_dst);
                             break;
                         }
 #endif
