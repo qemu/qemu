@@ -1337,8 +1337,7 @@ static inline void gen_cond_reg(TCGv r_dst, int cond, TCGv r_src)
 }
 #endif
 
-static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
-                      TCGv r_cond)
+static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
@@ -1368,10 +1367,10 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
             tcg_gen_mov_tl(cpu_pc, cpu_npc);
         }
     } else {
-        flush_cond(dc, r_cond);
-        gen_cond(r_cond, cc, cond, dc);
+        flush_cond(dc, cpu_cond);
+        gen_cond(cpu_cond, cc, cond, dc);
         if (a) {
-            gen_branch_a(dc, target, dc->npc, r_cond);
+            gen_branch_a(dc, target, dc->npc, cpu_cond);
             dc->is_br = 1;
         } else {
             dc->pc = dc->npc;
@@ -1387,8 +1386,7 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
     }
 }
 
-static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
-                      TCGv r_cond)
+static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
 {
     unsigned int cond = GET_FIELD(insn, 3, 6), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
@@ -1418,10 +1416,10 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
             tcg_gen_mov_tl(cpu_pc, cpu_npc);
         }
     } else {
-        flush_cond(dc, r_cond);
-        gen_fcond(r_cond, cc, cond);
+        flush_cond(dc, cpu_cond);
+        gen_fcond(cpu_cond, cc, cond);
         if (a) {
-            gen_branch_a(dc, target, dc->npc, r_cond);
+            gen_branch_a(dc, target, dc->npc, cpu_cond);
             dc->is_br = 1;
         } else {
             dc->pc = dc->npc;
@@ -1439,7 +1437,7 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
 
 #ifdef TARGET_SPARC64
 static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
-                          TCGv r_cond, TCGv r_reg)
+                          TCGv r_reg)
 {
     unsigned int cond = GET_FIELD_SP(insn, 25, 27), a = (insn & (1 << 29));
     target_ulong target = dc->pc + offset;
@@ -1447,10 +1445,10 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     if (unlikely(AM_CHECK(dc))) {
         target &= 0xffffffffULL;
     }
-    flush_cond(dc, r_cond);
-    gen_cond_reg(r_cond, cond, r_reg);
+    flush_cond(dc, cpu_cond);
+    gen_cond_reg(cpu_cond, cond, r_reg);
     if (a) {
-        gen_branch_a(dc, target, dc->npc, r_cond);
+        gen_branch_a(dc, target, dc->npc, cpu_cond);
         dc->is_br = 1;
     } else {
         dc->pc = dc->npc;
@@ -2421,9 +2419,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     target <<= 2;
                     cc = GET_FIELD_SP(insn, 20, 21);
                     if (cc == 0)
-                        do_branch(dc, target, insn, 0, cpu_cond);
+                        do_branch(dc, target, insn, 0);
                     else if (cc == 2)
-                        do_branch(dc, target, insn, 1, cpu_cond);
+                        do_branch(dc, target, insn, 1);
                     else
                         goto illegal_insn;
                     goto jmp_insn;
@@ -2435,7 +2433,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     target = sign_extend(target, 16);
                     target <<= 2;
                     cpu_src1 = get_src1(insn, cpu_src1);
-                    do_branch_reg(dc, target, insn, cpu_cond, cpu_src1);
+                    do_branch_reg(dc, target, insn, cpu_src1);
                     goto jmp_insn;
                 }
             case 0x5:           /* V9 FBPcc */
@@ -2446,7 +2444,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     target = GET_FIELD_SP(insn, 0, 18);
                     target = sign_extend(target, 19);
                     target <<= 2;
-                    do_fbranch(dc, target, insn, cc, cpu_cond);
+                    do_fbranch(dc, target, insn, cc);
                     goto jmp_insn;
                 }
 #else
@@ -2460,7 +2458,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     target = GET_FIELD(insn, 10, 31);
                     target = sign_extend(target, 22);
                     target <<= 2;
-                    do_branch(dc, target, insn, 0, cpu_cond);
+                    do_branch(dc, target, insn, 0);
                     goto jmp_insn;
                 }
             case 0x6:           /* FBN+x */
@@ -2470,7 +2468,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     target = GET_FIELD(insn, 10, 31);
                     target = sign_extend(target, 22);
                     target <<= 2;
-                    do_fbranch(dc, target, insn, 0, cpu_cond);
+                    do_fbranch(dc, target, insn, 0);
                     goto jmp_insn;
                 }
             case 0x4:           /* SETHI */
