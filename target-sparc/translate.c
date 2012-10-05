@@ -1136,7 +1136,7 @@ static inline void save_npc(DisasContext *dc, TCGv cond)
     }
 }
 
-static inline void save_state(DisasContext *dc, TCGv cond)
+static inline void save_state(DisasContext *dc)
 {
     tcg_gen_movi_tl(cpu_pc, dc->pc);
     /* flush pending conditional evaluations before exposing cpu state */
@@ -1144,7 +1144,7 @@ static inline void save_state(DisasContext *dc, TCGv cond)
         dc->cc_op = CC_OP_FLAGS;
         gen_helper_compute_psr(cpu_env);
     }
-    save_npc(dc, cond);
+    save_npc(dc, cpu_cond);
 }
 
 static inline void gen_mov_pc_npc(DisasContext *dc, TCGv cond)
@@ -1621,7 +1621,7 @@ static int gen_trap_ifnofpu(DisasContext *dc)
     if (!dc->fpu_enabled) {
         TCGv_i32 r_const;
 
-        save_state(dc, cpu_cond);
+        save_state(dc);
         r_const = tcg_const_i32(TT_NFPU_INSN);
         gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
@@ -2529,7 +2529,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 
                 cond = GET_FIELD(insn, 3, 6);
                 if (cond == 0x8) { /* Trap Always */
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     if ((dc->def->features & CPU_FEATURE_HYPV) &&
                         supervisor(dc))
                         tcg_gen_andi_tl(cpu_dst, cpu_dst, UA2005_HTRAP_MASK);
@@ -2546,7 +2546,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     /* V9 icc/xcc */
                     int cc = GET_FIELD_SP(insn, 11, 12);
 
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     if (cc == 0)
                         gen_cond(r_cond, 0, cond, dc);
                     else if (cc == 2)
@@ -2554,7 +2554,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     else
                         goto illegal_insn;
 #else
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_cond(r_cond, 0, cond, dc);
 #endif
                     l1 = gen_new_label();
@@ -2854,7 +2854,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 break;
             } else if (xop == 0x2b) { /* rdtbr / V9 flushw */
 #ifdef TARGET_SPARC64
-                save_state(dc, cpu_cond);
+                save_state(dc);
                 gen_helper_flushw(cpu_env);
 #else
                 if (!supervisor(dc))
@@ -2871,7 +2871,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
-                save_state(dc, cpu_cond);
+                save_state(dc);
                 switch (xop) {
                 case 0x1: /* fmovs */
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
@@ -3046,7 +3046,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
-                save_state(dc, cpu_cond);
+                save_state(dc);
 #ifdef TARGET_SPARC64
                 if ((xop & 0x11f) == 0x005) { // V9 fmovsr
                     int l1;
@@ -3607,14 +3607,14 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         dc->cc_op = CC_OP_TSUB;
                         break;
                     case 0x22: /* taddcctv */
-                        save_state(dc, cpu_cond);
+                        save_state(dc);
                         gen_op_tadd_ccTV(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_TADDTV);
                         dc->cc_op = CC_OP_TADDTV;
                         break;
                     case 0x23: /* tsubcctv */
-                        save_state(dc, cpu_cond);
+                        save_state(dc);
                         gen_op_tsub_ccTV(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_TSUBTV);
@@ -3691,7 +3691,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             case 0x6: /* V9 wrfprs */
                                 tcg_gen_xor_tl(cpu_dst, cpu_src1, cpu_src2);
                                 tcg_gen_trunc_tl_i32(cpu_fprs, cpu_dst);
-                                save_state(dc, cpu_cond);
+                                save_state(dc);
                                 gen_op_next_insn();
                                 tcg_gen_exit_tb(0);
                                 dc->is_br = 1;
@@ -3818,7 +3818,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             gen_helper_wrpsr(cpu_env, cpu_dst);
                             tcg_gen_movi_i32(cpu_cc_op, CC_OP_FLAGS);
                             dc->cc_op = CC_OP_FLAGS;
-                            save_state(dc, cpu_cond);
+                            save_state(dc);
                             gen_op_next_insn();
                             tcg_gen_exit_tb(0);
                             dc->is_br = 1;
@@ -3898,7 +3898,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     TCGv r_tmp = tcg_temp_local_new();
 
                                     tcg_gen_mov_tl(r_tmp, cpu_tmp0);
-                                    save_state(dc, cpu_cond);
+                                    save_state(dc);
                                     gen_helper_wrpstate(cpu_env, r_tmp);
                                     tcg_temp_free(r_tmp);
                                     dc->npc = DYNAMIC_PC;
@@ -3909,7 +3909,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                     TCGv r_tmp = tcg_temp_local_new();
 
                                     tcg_gen_mov_tl(r_tmp, cpu_tmp0);
-                                    save_state(dc, cpu_cond);
+                                    save_state(dc);
                                     tcg_gen_trunc_tl_i32(cpu_tmp32, r_tmp);
                                     tcg_temp_free(r_tmp);
                                     tcg_gen_st_i32(cpu_tmp32, cpu_env,
@@ -3991,7 +3991,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             switch (rd) {
                             case 0: // hpstate
                                 // XXX gen_op_wrhpstate();
-                                save_state(dc, cpu_cond);
+                                save_state(dc);
                                 gen_op_next_insn();
                                 tcg_gen_exit_tb(0);
                                 dc->is_br = 1;
@@ -4559,7 +4559,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             } else if (xop == 0x39) { /* V9 return */
                 TCGv_i32 r_const;
 
-                save_state(dc, cpu_cond);
+                save_state(dc);
                 cpu_src1 = get_src1(insn, cpu_src1);
                 if (IS_IMM) {   /* immediate */
                     simm = GET_FIELDs(insn, 19, 31);
@@ -4635,12 +4635,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     /* nop */
                     break;
                 case 0x3c:      /* save */
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_helper_save(cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x3d:      /* restore */
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_helper_restore(cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -4723,7 +4723,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     else {
                         TCGv_i32 r_const;
 
-                        save_state(dc, cpu_cond);
+                        save_state(dc);
                         r_const = tcg_const_i32(7);
                         /* XXX remove alignment check */
                         gen_helper_check_align(cpu_env, cpu_addr, r_const);
@@ -4774,7 +4774,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 4, 0);
                     break;
                 case 0x11:      /* lduba, load unsigned byte alternate */
@@ -4784,7 +4784,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 1, 0);
                     break;
                 case 0x12:      /* lduha, load unsigned halfword alternate */
@@ -4794,7 +4794,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 2, 0);
                     break;
                 case 0x13:      /* ldda, load double word alternate */
@@ -4806,7 +4806,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #endif
                     if (rd & 1)
                         goto illegal_insn;
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ldda_asi(cpu_val, cpu_addr, insn, rd);
                     goto skip_move;
                 case 0x19:      /* ldsba, load signed byte alternate */
@@ -4816,7 +4816,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 1, 1);
                     break;
                 case 0x1a:      /* ldsha, load signed halfword alternate */
@@ -4826,7 +4826,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 2, 1);
                     break;
                 case 0x1d:      /* ldstuba -- XXX: should be atomically */
@@ -4836,7 +4836,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ldstub_asi(cpu_val, cpu_addr, insn);
                     break;
                 case 0x1f:      /* swapa, swap reg with alt. memory. Also
@@ -4848,7 +4848,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_movl_reg_TN(rd, cpu_val);
                     gen_swap_asi(cpu_val, cpu_addr, insn);
                     break;
@@ -4870,11 +4870,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_ld64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x18: /* V9 ldswa */
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 4, 1);
                     break;
                 case 0x1b: /* V9 ldxa */
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ld_asi(cpu_val, cpu_addr, insn, 8, 0);
                     break;
                 case 0x2d: /* V9 prefetch, no effect */
@@ -4883,7 +4883,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ldf_asi(cpu_addr, insn, 4, rd);
                     gen_update_fprs_dirty(rd);
                     goto skip_move;
@@ -4891,7 +4891,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ldf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     goto skip_move;
@@ -4902,7 +4902,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_ldf_asi(cpu_addr, insn, 16, QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     goto skip_move;
@@ -4918,7 +4918,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 if (gen_trap_ifnofpu(dc)) {
                     goto jmp_insn;
                 }
-                save_state(dc, cpu_cond);
+                save_state(dc);
                 switch (xop) {
                 case 0x20:      /* ldf, load fpreg */
                     gen_address_mask(dc, cpu_addr);
@@ -4989,7 +4989,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     else {
                         TCGv_i32 r_const;
 
-                        save_state(dc, cpu_cond);
+                        save_state(dc);
                         gen_address_mask(dc, cpu_addr);
                         r_const = tcg_const_i32(7);
                         /* XXX remove alignment check */
@@ -5008,7 +5008,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_st_asi(cpu_val, cpu_addr, insn, 4);
                     dc->npc = DYNAMIC_PC;
                     break;
@@ -5019,7 +5019,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_st_asi(cpu_val, cpu_addr, insn, 1);
                     dc->npc = DYNAMIC_PC;
                     break;
@@ -5030,7 +5030,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (!supervisor(dc))
                         goto priv_insn;
 #endif
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_st_asi(cpu_val, cpu_addr, insn, 2);
                     dc->npc = DYNAMIC_PC;
                     break;
@@ -5044,7 +5044,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (rd & 1)
                         goto illegal_insn;
                     else {
-                        save_state(dc, cpu_cond);
+                        save_state(dc);
                         gen_stda_asi(cpu_val, cpu_addr, insn, rd);
                     }
                     break;
@@ -5055,7 +5055,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_st64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x1e: /* V9 stxa */
-                    save_state(dc, cpu_cond);
+                    save_state(dc);
                     gen_st_asi(cpu_val, cpu_addr, insn, 8);
                     dc->npc = DYNAMIC_PC;
                     break;
@@ -5067,7 +5067,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 if (gen_trap_ifnofpu(dc)) {
                     goto jmp_insn;
                 }
-                save_state(dc, cpu_cond);
+                save_state(dc);
                 switch (xop) {
                 case 0x24: /* stf, store fpreg */
                     gen_address_mask(dc, cpu_addr);
@@ -5124,7 +5124,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     goto illegal_insn;
                 }
             } else if (xop > 0x33 && xop < 0x3f) {
-                save_state(dc, cpu_cond);
+                save_state(dc);
                 switch (xop) {
 #ifdef TARGET_SPARC64
                 case 0x34: /* V9 stfa */
@@ -5194,7 +5194,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     {
         TCGv_i32 r_const;
 
-        save_state(dc, cpu_cond);
+        save_state(dc);
         r_const = tcg_const_i32(TT_ILL_INSN);
         gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
@@ -5205,7 +5205,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     {
         TCGv_i32 r_const;
 
-        save_state(dc, cpu_cond);
+        save_state(dc);
         r_const = tcg_const_i32(TT_UNIMP_FLUSH);
         gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
@@ -5217,7 +5217,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     {
         TCGv_i32 r_const;
 
-        save_state(dc, cpu_cond);
+        save_state(dc);
         r_const = tcg_const_i32(TT_PRIV_INSN);
         gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
@@ -5226,13 +5226,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     goto egress;
 #endif
  nfpu_insn:
-    save_state(dc, cpu_cond);
+    save_state(dc);
     gen_op_fpexception_im(FSR_FTT_UNIMPFPOP);
     dc->is_br = 1;
     goto egress;
 #if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
  nfq_insn:
-    save_state(dc, cpu_cond);
+    save_state(dc);
     gen_op_fpexception_im(FSR_FTT_SEQ_ERROR);
     dc->is_br = 1;
     goto egress;
@@ -5242,7 +5242,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     {
         TCGv r_const;
 
-        save_state(dc, cpu_cond);
+        save_state(dc);
         r_const = tcg_const_i32(TT_NCP_INSN);
         gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free(r_const);
@@ -5308,7 +5308,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     if (dc->pc != pc_start)
-                        save_state(dc, cpu_cond);
+                        save_state(dc);
                     gen_helper_debug(cpu_env);
                     tcg_gen_exit_tb(0);
                     dc->is_br = 1;
