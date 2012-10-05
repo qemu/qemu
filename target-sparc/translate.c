@@ -582,22 +582,21 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
 
 static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
 {
-    TCGv r_temp;
-    int l1;
+    TCGv r_temp, zero;
 
-    l1 = gen_new_label();
     r_temp = tcg_temp_new();
 
     /* old op:
     if (!(env->y & 1))
         T1 = 0;
     */
+    zero = tcg_const_tl(0);
     tcg_gen_andi_tl(cpu_cc_src, src1, 0xffffffff);
     tcg_gen_andi_tl(r_temp, cpu_y, 0x1);
     tcg_gen_andi_tl(cpu_cc_src2, src2, 0xffffffff);
-    tcg_gen_brcondi_tl(TCG_COND_NE, r_temp, 0, l1);
-    tcg_gen_movi_tl(cpu_cc_src2, 0);
-    gen_set_label(l1);
+    tcg_gen_movcond_tl(TCG_COND_EQ, cpu_cc_src2, r_temp, zero,
+                       zero, cpu_cc_src2);
+    tcg_temp_free(zero);
 
     // b2 = T0 & 1;
     // env->y = (b2 << 31) | (env->y >> 1);
