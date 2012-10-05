@@ -4075,38 +4075,34 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         {
                             int cc = GET_FIELD_SP(insn, 11, 12);
                             int cond = GET_FIELD_SP(insn, 14, 17);
-                            TCGv r_cond;
-                            int l1;
+                            DisasCompare cmp;
 
-                            r_cond = tcg_temp_new();
                             if (insn & (1 << 18)) {
-                                if (cc == 0)
-                                    gen_cond(r_cond, 0, cond, dc);
-                                else if (cc == 2)
-                                    gen_cond(r_cond, 1, cond, dc);
-                                else
+                                if (cc == 0) {
+                                    gen_compare(&cmp, 0, cond, dc);
+                                } else if (cc == 2) {
+                                    gen_compare(&cmp, 1, cond, dc);
+                                } else {
                                     goto illegal_insn;
+                                }
                             } else {
-                                gen_fcond(r_cond, cc, cond);
+                                gen_fcompare(&cmp, cc, cond);
                             }
 
-                            l1 = gen_new_label();
-
-                            tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
-                            if (IS_IMM) {       /* immediate */
-                                TCGv r_const;
-
+                            /* The get_src2 above loaded the normal 13-bit
+                               immediate field, not the 11-bit field we have
+                               in movcc.  But it did handle the reg case.  */
+                            if (IS_IMM) {
                                 simm = GET_FIELD_SPs(insn, 0, 10);
-                                r_const = tcg_const_tl(simm);
-                                gen_movl_TN_reg(rd, r_const);
-                                tcg_temp_free(r_const);
-                            } else {
-                                rs2 = GET_FIELD_SP(insn, 0, 4);
-                                gen_movl_reg_TN(rs2, cpu_tmp0);
-                                gen_movl_TN_reg(rd, cpu_tmp0);
+                                tcg_gen_movi_tl(cpu_src2, simm);
                             }
-                            gen_set_label(l1);
-                            tcg_temp_free(r_cond);
+
+                            gen_movl_reg_TN(rd, cpu_dst);
+                            tcg_gen_movcond_tl(cmp.cond, cpu_dst,
+                                               cmp.c1, cmp.c2,
+                                               cpu_src2, cpu_dst);
+                            free_compare(&cmp);
+                            gen_movl_TN_reg(rd, cpu_dst);
                             break;
                         }
                     case 0x2d: /* V9 sdivx */
