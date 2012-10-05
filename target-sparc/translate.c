@@ -1046,83 +1046,153 @@ static void free_compare(DisasCompare *cmp)
     }
 }
 
-static void gen_compare(DisasCompare *cmp, unsigned int cc, unsigned int cond,
+static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                         DisasContext *dc)
 {
+    static int subcc_cond[16] = {
+        -1, /* never */
+        TCG_COND_EQ,
+        TCG_COND_LE,
+        TCG_COND_LT,
+        TCG_COND_LEU,
+        TCG_COND_LTU,
+        -1, /* neg */
+        -1, /* overflow */
+        -1, /* always */
+        TCG_COND_NE,
+        TCG_COND_GT,
+        TCG_COND_GE,
+        TCG_COND_GTU,
+        TCG_COND_GEU,
+        -1, /* pos */
+        -1, /* no overflow */
+    };
+
     TCGv_i32 r_src;
     TCGv r_dst;
 
-    /* For now we still generate a straight boolean result.  */
-    cmp->cond = TCG_COND_NE;
-    cmp->is_bool = true;
-    cmp->g1 = cmp->g2 = false;
-    cmp->c1 = r_dst = tcg_temp_new();
-    cmp->c2 = tcg_const_tl(0);
-
 #ifdef TARGET_SPARC64
-    if (cc)
+    if (xcc) {
         r_src = cpu_xcc;
-    else
+    } else {
         r_src = cpu_psr;
+    }
 #else
     r_src = cpu_psr;
 #endif
+
     switch (dc->cc_op) {
-    case CC_OP_FLAGS:
+    case CC_OP_SUB:
+        switch (cond) {
+        case 6:  /* neg */
+        case 14: /* pos */
+            cmp->cond = (cond == 6 ? TCG_COND_LT : TCG_COND_GE);
+            cmp->is_bool = false;
+            cmp->g2 = false;
+            cmp->c2 = tcg_const_tl(0);
+#ifdef TARGET_SPARC64
+            if (!xcc) {
+                cmp->g1 = false;
+                cmp->c1 = tcg_temp_new();
+                tcg_gen_ext32s_tl(cmp->c1, cpu_cc_dst);
+                break;
+            }
+#endif
+            cmp->g1 = true;
+            cmp->c1 = cpu_cc_dst;
+            break;
+
+        case 0: /* never */
+        case 8: /* always */
+        case 7: /* overflow */
+        case 15: /* !overflow */
+            goto do_dynamic;
+
+        default:
+            cmp->cond = subcc_cond[cond];
+            cmp->is_bool = false;
+#ifdef TARGET_SPARC64
+            if (!xcc) {
+                /* Note that sign-extension works for unsigned compares as
+                   long as both operands are sign-extended.  */
+                cmp->g1 = cmp->g2 = false;
+                cmp->c1 = tcg_temp_new();
+                cmp->c2 = tcg_temp_new();
+                tcg_gen_ext32s_tl(cmp->c1, cpu_cc_src);
+                tcg_gen_ext32s_tl(cmp->c2, cpu_cc_src2);
+            }
+#endif
+            cmp->g1 = cmp->g2 = true;
+            cmp->c1 = cpu_cc_src;
+            cmp->c2 = cpu_cc_src2;
+            break;
+        }
         break;
+
     default:
+    do_dynamic:
         gen_helper_compute_psr(cpu_env);
         dc->cc_op = CC_OP_FLAGS;
-        break;
-    }
-    switch (cond) {
-    case 0x0:
-        gen_op_eval_bn(r_dst);
-        break;
-    case 0x1:
-        gen_op_eval_be(r_dst, r_src);
-        break;
-    case 0x2:
-        gen_op_eval_ble(r_dst, r_src);
-        break;
-    case 0x3:
-        gen_op_eval_bl(r_dst, r_src);
-        break;
-    case 0x4:
-        gen_op_eval_bleu(r_dst, r_src);
-        break;
-    case 0x5:
-        gen_op_eval_bcs(r_dst, r_src);
-        break;
-    case 0x6:
-        gen_op_eval_bneg(r_dst, r_src);
-        break;
-    case 0x7:
-        gen_op_eval_bvs(r_dst, r_src);
-        break;
-    case 0x8:
-        gen_op_eval_ba(r_dst);
-        break;
-    case 0x9:
-        gen_op_eval_bne(r_dst, r_src);
-        break;
-    case 0xa:
-        gen_op_eval_bg(r_dst, r_src);
-        break;
-    case 0xb:
-        gen_op_eval_bge(r_dst, r_src);
-        break;
-    case 0xc:
-        gen_op_eval_bgu(r_dst, r_src);
-        break;
-    case 0xd:
-        gen_op_eval_bcc(r_dst, r_src);
-        break;
-    case 0xe:
-        gen_op_eval_bpos(r_dst, r_src);
-        break;
-    case 0xf:
-        gen_op_eval_bvc(r_dst, r_src);
+        /* FALLTHRU */
+
+    case CC_OP_FLAGS:
+        /* We're going to generate a boolean result.  */
+        cmp->cond = TCG_COND_NE;
+        cmp->is_bool = true;
+        cmp->g1 = cmp->g2 = false;
+        cmp->c1 = r_dst = tcg_temp_new();
+        cmp->c2 = tcg_const_tl(0);
+
+        switch (cond) {
+        case 0x0:
+            gen_op_eval_bn(r_dst);
+            break;
+        case 0x1:
+            gen_op_eval_be(r_dst, r_src);
+            break;
+        case 0x2:
+            gen_op_eval_ble(r_dst, r_src);
+            break;
+        case 0x3:
+            gen_op_eval_bl(r_dst, r_src);
+            break;
+        case 0x4:
+            gen_op_eval_bleu(r_dst, r_src);
+            break;
+        case 0x5:
+            gen_op_eval_bcs(r_dst, r_src);
+            break;
+        case 0x6:
+            gen_op_eval_bneg(r_dst, r_src);
+            break;
+        case 0x7:
+            gen_op_eval_bvs(r_dst, r_src);
+            break;
+        case 0x8:
+            gen_op_eval_ba(r_dst);
+            break;
+        case 0x9:
+            gen_op_eval_bne(r_dst, r_src);
+            break;
+        case 0xa:
+            gen_op_eval_bg(r_dst, r_src);
+            break;
+        case 0xb:
+            gen_op_eval_bge(r_dst, r_src);
+            break;
+        case 0xc:
+            gen_op_eval_bgu(r_dst, r_src);
+            break;
+        case 0xd:
+            gen_op_eval_bcc(r_dst, r_src);
+            break;
+        case 0xe:
+            gen_op_eval_bpos(r_dst, r_src);
+            break;
+        case 0xf:
+            gen_op_eval_bvc(r_dst, r_src);
+            break;
+        }
         break;
     }
 }
