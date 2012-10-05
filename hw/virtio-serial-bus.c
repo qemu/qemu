@@ -287,6 +287,7 @@ ssize_t virtio_serial_write(VirtIOSerialPort *port, const uint8_t *buf,
 size_t virtio_serial_guest_ready(VirtIOSerialPort *port)
 {
     VirtQueue *vq = port->ivq;
+    unsigned int bytes;
 
     if (!virtio_queue_ready(vq) ||
         !(port->vser->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK) ||
@@ -296,14 +297,8 @@ size_t virtio_serial_guest_ready(VirtIOSerialPort *port)
     if (use_multiport(port->vser) && !port->guest_connected) {
         return 0;
     }
-
-    if (virtqueue_avail_bytes(vq, 4096, 0)) {
-        return 4096;
-    }
-    if (virtqueue_avail_bytes(vq, 1, 0)) {
-        return 1;
-    }
-    return 0;
+    virtqueue_get_avail_bytes(vq, &bytes, NULL);
+    return bytes;
 }
 
 static void flush_queued_data_bh(void *opaque)

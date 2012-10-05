@@ -26,7 +26,7 @@
 # include <sys/socket.h>
 #endif
 
-size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
+size_t iov_from_buf(const struct iovec *iov, unsigned int iov_cnt,
                     size_t offset, const void *buf, size_t bytes)
 {
     size_t done;
