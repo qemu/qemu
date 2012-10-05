@@ -2098,6 +2098,19 @@
 { 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
 
 ##
+# @xen-set-global-dirty-log
+#
+# Enable or disable the global dirty log mode.
+#
+# @enable: true to enable, false to disable.
+#
+# Returns: nothing
+#
+# Since: 1.3
+##
+{ 'command': 'xen-set-global-dirty-log', 'data': { 'enable': 'bool' } }
+
+##
 # @device_del:
 #
 # Remove a device from a guest

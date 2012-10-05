@@ -493,6 +493,30 @@ Example:
 EQMP
 
     {
+        .name       = "xen-set-global-dirty-log",
+        .args_type  = "enable:b",
+        .mhandler.cmd_new = qmp_marshal_input_xen_set_global_dirty_log,
+    },
+
+SQMP
+xen-set-global-dirty-log
+-------
+
+Enable or disable the global dirty log mode.
+
+Arguments:
+
+- "enable": Enable it or disable it.
+
+Example:
+
+-> { "execute": "xen-set-global-dirty-log",
+     "arguments": { "enable": true } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "migrate",
         .args_type  = "detach:-d,blk:-b,inc:-i,uri:s",
         .mhandler.cmd_new = qmp_marshal_input_migrate,
