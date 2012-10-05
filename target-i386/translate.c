@@ -6502,10 +6502,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (s->cc_op != CC_OP_DYNAMIC)
             gen_op_set_cc_op(s->cc_op);
         gen_compute_eflags(cpu_cc_src);
+        tcg_gen_discard_tl(cpu_cc_dst);
+        s->cc_op = CC_OP_EFLAGS;
+
         tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, CC_O);
         tcg_gen_andi_tl(cpu_T[0], cpu_T[0], CC_S | CC_Z | CC_A | CC_P | CC_C);
         tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, cpu_T[0]);
-        s->cc_op = CC_OP_EFLAGS;
         break;
     case 0x9f: /* lahf */
         if (CODE64(s) && !(s->cpuid_ext3_features & CPUID_EXT3_LAHF_LM))
