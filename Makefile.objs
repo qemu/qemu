@@ -90,10 +90,13 @@ common-obj-y += hw/
 common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
+common-obj-y += dma-helpers.o
 common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_POSIX) += compatfd.o
 common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o qemu-timer-common.o
+common-obj-y += qtest.o
+common-obj-y += vl.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 
@@ -114,11 +117,6 @@ user-obj-y += module.o
 user-obj-y += qemu-user.o
 user-obj-y += $(trace-obj-y)
 user-obj-y += qom/
-
-######################################################################
-# libhw
-
-hw-obj-y = vl.o dma-helpers.o qtest.o hw/
 
 ######################################################################
 # libdis
@@ -240,7 +238,6 @@ vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
-	hw-obj-y \
 	qga-obj-y \
 	block-obj-y \
 	qom-obj-y \

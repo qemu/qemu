@@ -3914,8 +3914,6 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
   echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
-  echo "HWDIR=../libhw" >> $config_target_mak
-  echo "subdir-$target: subdir-libhw" >> $config_host_mak
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
   fi
@@ -4156,9 +4154,6 @@ for rom in seabios vgabios ; do
     echo "IASL=iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
-
-d=libhw
-symlink "$source_path/Makefile.hw" "$d/Makefile"
 
 d=libuser
 symlink "$source_path/Makefile.user" "$d/Makefile"

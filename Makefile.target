@@ -154,7 +154,6 @@ all-obj-y += $(addprefix ../, $(universal-obj-y))
 ifdef CONFIG_SOFTMMU
 all-obj-y += $(addprefix ../, $(common-obj-y))
 all-obj-y += $(addprefix ../libdis/, $(libdis-y))
-all-obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
 all-obj-y += $(addprefix ../, $(trace-obj-y))
 else
 all-obj-y += $(addprefix ../libuser/, $(user-obj-y))
