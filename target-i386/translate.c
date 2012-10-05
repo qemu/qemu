@@ -1090,55 +1090,55 @@ static void gen_setcc_slow(DisasContext *s, int jcc_op, TCGv reg, bool inv)
     }
 }
 
-/* return true if setcc_slow is not needed (WARNING: must be kept in
-   sync with gen_jcc1) */
-static int is_fast_jcc_case(DisasContext *s, int b)
+/* perform a conditional store into register 'reg' according to jump opcode
+   value 'b'. In the fast case, T0 is guaranted not to be used. */
+static inline void gen_setcc1(DisasContext *s, int b, TCGv reg)
 {
-    int jcc_op;
+    int inv, jcc_op, size, cond;
+    TCGv t0;
+
+    inv = b & 1;
     jcc_op = (b >> 1) & 7;
-    switch(s->cc_op) {
-        /* we optimize the cmp/jcc case */
+
+    switch (s->cc_op) {
+        /* we optimize relational operators for the cmp/jcc case */
     case CC_OP_SUBB:
     case CC_OP_SUBW:
     case CC_OP_SUBL:
     case CC_OP_SUBQ:
-        if (jcc_op == JCC_O || jcc_op == JCC_P)
+        size = s->cc_op - CC_OP_SUBB;
+        switch (jcc_op) {
+        case JCC_BE:
+            cond = inv ? TCG_COND_GTU : TCG_COND_LEU;
+            tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
+            gen_extu(size, cpu_tmp4);
+            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, false);
+            tcg_gen_setcond_tl(cond, reg, cpu_tmp4, t0);
+            break;
+
+        case JCC_L:
+            cond = inv ? TCG_COND_GE : TCG_COND_LT;
+            goto fast_jcc_l;
+        case JCC_LE:
+            cond = inv ? TCG_COND_GT : TCG_COND_LE;
+        fast_jcc_l:
+            tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
+            gen_exts(size, cpu_tmp4);
+            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, true);
+            tcg_gen_setcond_tl(cond, reg, cpu_tmp4, t0);
+            break;
+
+        default:
             goto slow_jcc;
+        }
         break;
 
-        /* some jumps are easy to compute */
-    case CC_OP_ADDB:
-    case CC_OP_ADDW:
-    case CC_OP_ADDL:
-    case CC_OP_ADDQ:
-
-    case CC_OP_LOGICB:
-    case CC_OP_LOGICW:
-    case CC_OP_LOGICL:
-    case CC_OP_LOGICQ:
-
-    case CC_OP_INCB:
-    case CC_OP_INCW:
-    case CC_OP_INCL:
-    case CC_OP_INCQ:
-
-    case CC_OP_DECB:
-    case CC_OP_DECW:
-    case CC_OP_DECL:
-    case CC_OP_DECQ:
-
-    case CC_OP_SHLB:
-    case CC_OP_SHLW:
-    case CC_OP_SHLL:
-    case CC_OP_SHLQ:
-        if (jcc_op != JCC_Z && jcc_op != JCC_S)
-            goto slow_jcc;
-        break;
     default:
     slow_jcc:
-        return 0;
+        /* gen_setcc_slow actually generates good code for JC, JZ and JS */
+        gen_setcc_slow(s, jcc_op, reg, inv);
+        break;
     }
-    return 1;
 }
 
 /* generate a conditional jump to label 'l1' according to jump opcode
@@ -2487,28 +2487,7 @@ static inline void gen_jcc(DisasContext *s, int b,
 
 static void gen_setcc(DisasContext *s, int b)
 {
-    int inv, jcc_op, l1;
-    TCGv t0;
-
-    if (is_fast_jcc_case(s, b)) {
-        /* nominal case: we use a jump */
-        /* XXX: make it faster by adding new instructions in TCG */
-        t0 = tcg_temp_local_new();
-        tcg_gen_movi_tl(t0, 0);
-        l1 = gen_new_label();
-        gen_jcc1(s, b ^ 1, l1);
-        tcg_gen_movi_tl(t0, 1);
-        gen_set_label(l1);
-        tcg_gen_mov_tl(cpu_T[0], t0);
-        tcg_temp_free(t0);
-    } else {
-        /* slow case: it is more efficient not to generate a jump,
-           although it is questionnable whether this optimization is
-           worth to */
-        inv = b & 1;
-        jcc_op = (b >> 1) & 7;
-        gen_setcc_slow(s, jcc_op, cpu_T[0], inv);
-    }
+    gen_setcc1(s, b, cpu_T[0]);
 }
 
 static inline void gen_op_movl_T0_seg(int seg_reg)
