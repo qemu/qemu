@@ -355,30 +355,6 @@ uint32_t HELPER(sbc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 
 /* Similarly for variable shift instructions.  */
 
-uint32_t HELPER(shl)(CPUARMState *env, uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift >= 32)
-        return 0;
-    return x << shift;
-}
-
-uint32_t HELPER(shr)(CPUARMState *env, uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift >= 32)
-        return 0;
-    return (uint32_t)x >> shift;
-}
-
-uint32_t HELPER(sar)(CPUARMState *env, uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift >= 32)
-        shift = 31;
-    return (int32_t)x >> shift;
-}
-
 uint32_t HELPER(shl_cc)(CPUARMState *env, uint32_t x, uint32_t i)
 {
     int shift = i & 0xff;
