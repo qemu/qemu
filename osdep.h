@@ -108,6 +108,11 @@ void qemu_vfree(void *ptr);
 #else
 #define QEMU_MADV_DONTDUMP QEMU_MADV_INVALID
 #endif
+#ifdef MADV_HUGEPAGE
+#define QEMU_MADV_HUGEPAGE MADV_HUGEPAGE
+#else
+#define QEMU_MADV_HUGEPAGE QEMU_MADV_INVALID
+#endif
 
 #elif defined(CONFIG_POSIX_MADVISE)
 
