@@ -493,10 +493,11 @@ int kvm_arch_put_registers(CPUPPCState *env, int level)
 
         /* Sync BATs */
         for (i = 0; i < 8; i++) {
-            sregs.u.s.ppc32.dbat[i] = ((uint64_t)env->DBAT[1][i] << 32)
-                | env->DBAT[0][i];
-            sregs.u.s.ppc32.ibat[i] = ((uint64_t)env->IBAT[1][i] << 32)
-                | env->IBAT[0][i];
+            /* Beware. We have to swap upper and lower bits here */
+            sregs.u.s.ppc32.dbat[i] = ((uint64_t)env->DBAT[0][i] << 32)
+                | env->DBAT[1][i];
+            sregs.u.s.ppc32.ibat[i] = ((uint64_t)env->IBAT[0][i] << 32)
+                | env->IBAT[1][i];
         }
 
         ret = kvm_vcpu_ioctl(env, KVM_SET_SREGS, &sregs);
