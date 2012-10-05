@@ -3280,6 +3280,10 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_semihosting:
                 semihosting_enabled = 1;
                 break;
+            case QEMU_OPTION_tdf:
+                fprintf(stderr, "Warning: user space PIT time drift fix "
+                                "is no longer supported.\n");
+                break;
             case QEMU_OPTION_name:
                 qemu_name = g_strdup(optarg);
 		 {
