@@ -1118,10 +1118,10 @@ static inline void gen_generic_branch(target_ulong npc1, target_ulong npc2,
 
 /* call this function before using the condition register as it may
    have been set for a jump */
-static inline void flush_cond(DisasContext *dc, TCGv cond)
+static inline void flush_cond(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cond);
+        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
         dc->npc = DYNAMIC_PC;
     }
 }
@@ -1367,7 +1367,7 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
             tcg_gen_mov_tl(cpu_pc, cpu_npc);
         }
     } else {
-        flush_cond(dc, cpu_cond);
+        flush_cond(dc);
         gen_cond(cpu_cond, cc, cond, dc);
         if (a) {
             gen_branch_a(dc, target, dc->npc, cpu_cond);
@@ -1416,7 +1416,7 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
             tcg_gen_mov_tl(cpu_pc, cpu_npc);
         }
     } else {
-        flush_cond(dc, cpu_cond);
+        flush_cond(dc);
         gen_fcond(cpu_cond, cc, cond);
         if (a) {
             gen_branch_a(dc, target, dc->npc, cpu_cond);
@@ -1445,7 +1445,7 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     if (unlikely(AM_CHECK(dc))) {
         target &= 0xffffffffULL;
     }
-    flush_cond(dc, cpu_cond);
+    flush_cond(dc);
     gen_cond_reg(cpu_cond, cond, r_reg);
     if (a) {
         gen_branch_a(dc, target, dc->npc, cpu_cond);
