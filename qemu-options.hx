@@ -2888,6 +2888,9 @@ STEXI
 Enable FIPS 140-2 compliance mode.
 ETEXI
 
+HXCOMM Deprecated by -machine accel=tcg property
+DEF("no-kvm", HAS_ARG, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
+
 HXCOMM Deprecated by kvm-pit driver properties
 DEF("no-kvm-pit-reinjection", HAS_ARG, QEMU_OPTION_no_kvm_pit_reinjection,
     "", QEMU_ARCH_I386)

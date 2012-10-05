@@ -3171,6 +3171,10 @@ int main(int argc, char **argv, char **envp)
                     machine = machine_parse(optarg);
                 }
                 break;
+             case QEMU_OPTION_no_kvm:
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "accel=tcg", 0);
+                break;
             case QEMU_OPTION_no_kvm_pit: {
                 fprintf(stderr, "Warning: KVM PIT can no longer be disabled "
                                 "separately.\n");
