@@ -38,6 +38,8 @@ DEF_HELPER_3(udiv, tl, env, tl, tl)
 DEF_HELPER_3(udiv_cc, tl, env, tl, tl)
 DEF_HELPER_3(sdiv, tl, env, tl, tl)
 DEF_HELPER_3(sdiv_cc, tl, env, tl, tl)
+DEF_HELPER_3(taddcctv, tl, env, tl, tl)
+DEF_HELPER_3(tsubcctv, tl, env, tl, tl)
 #ifdef TARGET_SPARC64
 DEF_HELPER_3(sdivx, s64, env, s64, s64)
 DEF_HELPER_3(udivx, i64, env, i64, i64)

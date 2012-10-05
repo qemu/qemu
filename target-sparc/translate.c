@@ -336,43 +336,6 @@ static inline void gen_mov_reg_C(TCGv reg, TCGv_i32 src)
     tcg_gen_andi_tl(reg, reg, 0x1);
 }
 
-static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
-{
-    TCGv r_temp;
-    TCGv_i32 r_const;
-    int l1;
-
-    l1 = gen_new_label();
-
-    r_temp = tcg_temp_new();
-    tcg_gen_xor_tl(r_temp, src1, src2);
-    tcg_gen_not_tl(r_temp, r_temp);
-    tcg_gen_xor_tl(cpu_tmp0, src1, dst);
-    tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
-    tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
-    r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(cpu_env, r_const);
-    tcg_temp_free_i32(r_const);
-    gen_set_label(l1);
-    tcg_temp_free(r_temp);
-}
-
-static inline void gen_tag_tv(TCGv src1, TCGv src2)
-{
-    int l1;
-    TCGv_i32 r_const;
-
-    l1 = gen_new_label();
-    tcg_gen_or_tl(cpu_tmp0, src1, src2);
-    tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0x3);
-    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, l1);
-    r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(cpu_env, r_const);
-    tcg_temp_free_i32(r_const);
-    gen_set_label(l1);
-}
-
 static inline void gen_op_addi_cc(TCGv dst, TCGv src1, target_long src2)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
@@ -517,45 +480,6 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     }
 }
 
-static inline void gen_op_tadd_cc(TCGv dst, TCGv src1, TCGv src2)
-{
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_mov_tl(cpu_cc_src2, src2);
-    tcg_gen_add_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
-static inline void gen_op_tadd_ccTV(TCGv dst, TCGv src1, TCGv src2)
-{
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_mov_tl(cpu_cc_src2, src2);
-    gen_tag_tv(cpu_cc_src, cpu_cc_src2);
-    tcg_gen_add_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    gen_add_tv(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
-static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
-{
-    TCGv r_temp;
-    TCGv_i32 r_const;
-    int l1;
-
-    l1 = gen_new_label();
-
-    r_temp = tcg_temp_new();
-    tcg_gen_xor_tl(r_temp, src1, src2);
-    tcg_gen_xor_tl(cpu_tmp0, src1, dst);
-    tcg_gen_and_tl(r_temp, r_temp, cpu_tmp0);
-    tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
-    tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
-    r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(cpu_env, r_const);
-    tcg_temp_free_i32(r_const);
-    gen_set_label(l1);
-    tcg_temp_free(r_temp);
-}
-
 static inline void gen_op_subi_cc(TCGv dst, TCGv src1, target_long src2, DisasContext *dc)
 {
     tcg_gen_mov_tl(cpu_cc_src, src1);
@@ -654,24 +578,6 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
         tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUBX);
         dc->cc_op = CC_OP_SUBX;
     }
-}
-
-static inline void gen_op_tsub_cc(TCGv dst, TCGv src1, TCGv src2)
-{
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_mov_tl(cpu_cc_src2, src2);
-    tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
-}
-
-static inline void gen_op_tsub_ccTV(TCGv dst, TCGv src1, TCGv src2)
-{
-    tcg_gen_mov_tl(cpu_cc_src, src1);
-    tcg_gen_mov_tl(cpu_cc_src2, src2);
-    gen_tag_tv(cpu_cc_src, cpu_cc_src2);
-    tcg_gen_sub_tl(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    gen_sub_tv(cpu_cc_dst, cpu_cc_src, cpu_cc_src2);
-    tcg_gen_mov_tl(dst, cpu_cc_dst);
 }
 
 static inline void gen_op_mulscc(TCGv dst, TCGv src1, TCGv src2)
@@ -3602,29 +3508,27 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     cpu_src2 = get_src2(insn, cpu_src2);
                     switch (xop) {
                     case 0x20: /* taddcc */
-                        gen_op_tadd_cc(cpu_dst, cpu_src1, cpu_src2);
+                        gen_op_add_cc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_TADD);
                         dc->cc_op = CC_OP_TADD;
                         break;
                     case 0x21: /* tsubcc */
-                        gen_op_tsub_cc(cpu_dst, cpu_src1, cpu_src2);
+                        gen_op_sub_cc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_TSUB);
                         dc->cc_op = CC_OP_TSUB;
                         break;
                     case 0x22: /* taddcctv */
-                        save_state(dc);
-                        gen_op_tadd_ccTV(cpu_dst, cpu_src1, cpu_src2);
+                        gen_helper_taddcctv(cpu_dst, cpu_env,
+                                            cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
-                        tcg_gen_movi_i32(cpu_cc_op, CC_OP_TADDTV);
                         dc->cc_op = CC_OP_TADDTV;
                         break;
                     case 0x23: /* tsubcctv */
-                        save_state(dc);
-                        gen_op_tsub_ccTV(cpu_dst, cpu_src1, cpu_src2);
+                        gen_helper_tsubcctv(cpu_dst, cpu_env,
+                                            cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
-                        tcg_gen_movi_i32(cpu_cc_op, CC_OP_TSUBTV);
                         dc->cc_op = CC_OP_TSUBTV;
                         break;
                     case 0x24: /* mulscc */
