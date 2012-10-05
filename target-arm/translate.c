@@ -9970,19 +9970,6 @@ void cpu_dump_state(CPUARMState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;
-#if 0
-    union {
-        uint32_t i;
-        float s;
-    } s0, s1;
-    CPU_DoubleU d;
-    /* ??? This assumes float64 and double have the same layout.
-       Oh well, it's only debug dumps.  */
-    union {
-        float64 f64;
-        double d;
-    } d0;
-#endif
     uint32_t psr;
 
     for(i=0;i<16;i++) {
@@ -10002,20 +9989,23 @@ void cpu_dump_state(CPUARMState *env, FILE *f, fprintf_function cpu_fprintf,
                 psr & CPSR_T ? 'T' : 'A',
                 cpu_mode_names[psr & 0xf], (psr & 0x10) ? 32 : 26);
 
-#if 0
-    for (i = 0; i < 16; i++) {
-        d.d = env->vfp.regs[i];
-        s0.i = d.l.lower;
-        s1.i = d.l.upper;
-        d0.f64 = d.d;
-        cpu_fprintf(f, "s%02d=%08x(%8g) s%02d=%08x(%8g) d%02d=%08x%08x(%8g)\n",
-                    i * 2, (int)s0.i, s0.s,
-                    i * 2 + 1, (int)s1.i, s1.s,
-                    i, (int)(uint32_t)d.l.upper, (int)(uint32_t)d.l.lower,
-                    d0.d);
+    if (flags & CPU_DUMP_FPU) {
+        int numvfpregs = 0;
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            numvfpregs += 16;
+        }
+        if (arm_feature(env, ARM_FEATURE_VFP3)) {
+            numvfpregs += 16;
+        }
+        for (i = 0; i < numvfpregs; i++) {
+            uint64_t v = float64_val(env->vfp.regs[i]);
+            cpu_fprintf(f, "s%02d=%08x s%02d=%08x d%02d=%016" PRIx64 "\n",
+                        i * 2, (uint32_t)v,
+                        i * 2 + 1, (uint32_t)(v >> 32),
+                        i, v);
+        }
+        cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
     }
-    cpu_fprintf(f, "FPSCR: %08x\n", (int)env->vfp.xregs[ARM_VFP_FPSCR]);
-#endif
 }
 
 void restore_state_to_opc(CPUARMState *env, TranslationBlock *tb, int pc_pos)
