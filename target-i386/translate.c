@@ -857,21 +857,49 @@ static void gen_compute_eflags(DisasContext *s, TCGv reg)
     tcg_gen_extu_i32_tl(reg, cpu_tmp2_i32);
 }
 
+/* compute eflags.P to reg */
+static void gen_compute_eflags_p(DisasContext *s, TCGv reg)
+{
+    gen_compute_eflags(s, reg);
+    tcg_gen_shri_tl(reg, reg, 2);
+    tcg_gen_andi_tl(reg, reg, 1);
+}
+
+/* compute eflags.S to reg */
+static void gen_compute_eflags_s(DisasContext *s, TCGv reg)
+{
+    gen_compute_eflags(s, reg);
+    tcg_gen_shri_tl(reg, reg, 7);
+    tcg_gen_andi_tl(reg, reg, 1);
+}
+
+/* compute eflags.O to reg */
+static void gen_compute_eflags_o(DisasContext *s, TCGv reg)
+{
+    gen_compute_eflags(s, reg);
+    tcg_gen_shri_tl(reg, reg, 11);
+    tcg_gen_andi_tl(reg, reg, 1);
+}
+
+/* compute eflags.Z to reg */
+static void gen_compute_eflags_z(DisasContext *s, TCGv reg)
+{
+    gen_compute_eflags(s, reg);
+    tcg_gen_shri_tl(reg, reg, 6);
+    tcg_gen_andi_tl(reg, reg, 1);
+}
+
 static inline void gen_setcc_slow_T0(DisasContext *s, int jcc_op)
 {
     switch(jcc_op) {
     case JCC_O:
-        gen_compute_eflags(s, cpu_T[0]);
-        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 11);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        gen_compute_eflags_o(s, cpu_T[0]);
         break;
     case JCC_B:
         gen_compute_eflags_c(s, cpu_T[0]);
         break;
     case JCC_Z:
-        gen_compute_eflags(s, cpu_T[0]);
-        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 6);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        gen_compute_eflags_z(s, cpu_T[0]);
         break;
     case JCC_BE:
         gen_compute_eflags(s, cpu_tmp0);
@@ -880,14 +908,10 @@ static inline void gen_setcc_slow_T0(DisasContext *s, int jcc_op)
         tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
         break;
     case JCC_S:
-        gen_compute_eflags(s, cpu_T[0]);
-        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 7);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        gen_compute_eflags_s(s, cpu_T[0]);
         break;
     case JCC_P:
-        gen_compute_eflags(s, cpu_T[0]);
-        tcg_gen_shri_tl(cpu_T[0], cpu_T[0], 2);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        gen_compute_eflags_p(s, cpu_T[0]);
         break;
     case JCC_L:
         gen_compute_eflags(s, cpu_tmp0);
