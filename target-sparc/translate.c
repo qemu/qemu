@@ -5177,16 +5177,6 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     dc->singlestep = (env->singlestep_enabled || singlestep);
     gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
 
-    cpu_tmp0 = tcg_temp_new();
-    cpu_tmp32 = tcg_temp_new_i32();
-    cpu_tmp64 = tcg_temp_new_i64();
-
-    cpu_dst = tcg_temp_local_new();
-
-    // loads and stores
-    cpu_val = tcg_temp_local_new();
-    cpu_addr = tcg_temp_local_new();
-
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
@@ -5222,8 +5212,23 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             gen_io_start();
         last_pc = dc->pc;
         insn = cpu_ldl_code(env, dc->pc);
+
+        cpu_tmp0 = tcg_temp_new();
+        cpu_tmp32 = tcg_temp_new_i32();
+        cpu_tmp64 = tcg_temp_new_i64();
+        cpu_dst = tcg_temp_new();
+        cpu_val = tcg_temp_new();
+        cpu_addr = tcg_temp_new();
+
         disas_sparc_insn(dc, insn);
         num_insns++;
+
+        tcg_temp_free(cpu_addr);
+        tcg_temp_free(cpu_val);
+        tcg_temp_free(cpu_dst);
+        tcg_temp_free_i64(cpu_tmp64);
+        tcg_temp_free_i32(cpu_tmp32);
+        tcg_temp_free(cpu_tmp0);
 
         if (dc->is_br)
             break;
@@ -5244,23 +5249,18 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
              num_insns < max_insns);
 
  exit_gen_loop:
-    tcg_temp_free(cpu_addr);
-    tcg_temp_free(cpu_val);
-    tcg_temp_free(cpu_dst);
-    tcg_temp_free_i64(cpu_tmp64);
-    tcg_temp_free_i32(cpu_tmp32);
-    tcg_temp_free(cpu_tmp0);
-
-    if (tb->cflags & CF_LAST_IO)
+    if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
+    }
     if (!dc->is_br) {
         if (dc->pc != DYNAMIC_PC &&
             (dc->npc != DYNAMIC_PC && dc->npc != JUMP_PC)) {
             /* static PC and NPC: we can use direct chaining */
             gen_goto_tb(dc, 0, dc->pc, dc->npc);
         } else {
-            if (dc->pc != DYNAMIC_PC)
+            if (dc->pc != DYNAMIC_PC) {
                 tcg_gen_movi_tl(cpu_pc, dc->pc);
+            }
             save_npc(dc);
             tcg_gen_exit_tb(0);
         }
