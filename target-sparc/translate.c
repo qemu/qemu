@@ -1098,21 +1098,20 @@ static inline void gen_branch_a(DisasContext *dc, target_ulong pc1,
     gen_goto_tb(dc, 1, pc2 + 4, pc2 + 8);
 }
 
-static inline void gen_generic_branch(target_ulong npc1, target_ulong npc2,
-                                      TCGv r_cond)
+static inline void gen_generic_branch(DisasContext *dc)
 {
     int l1, l2;
 
     l1 = gen_new_label();
     l2 = gen_new_label();
 
-    tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_cond, 0, l1);
 
-    tcg_gen_movi_tl(cpu_npc, npc1);
+    tcg_gen_movi_tl(cpu_npc, dc->jump_pc[0]);
     tcg_gen_br(l2);
 
     gen_set_label(l1);
-    tcg_gen_movi_tl(cpu_npc, npc2);
+    tcg_gen_movi_tl(cpu_npc, dc->jump_pc[1]);
     gen_set_label(l2);
 }
 
@@ -1121,7 +1120,7 @@ static inline void gen_generic_branch(target_ulong npc1, target_ulong npc2,
 static inline void flush_cond(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+        gen_generic_branch(dc);
         dc->npc = DYNAMIC_PC;
     }
 }
@@ -1129,7 +1128,7 @@ static inline void flush_cond(DisasContext *dc)
 static inline void save_npc(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+        gen_generic_branch(dc);
         dc->npc = DYNAMIC_PC;
     } else if (dc->npc != DYNAMIC_PC) {
         tcg_gen_movi_tl(cpu_npc, dc->npc);
@@ -1150,7 +1149,7 @@ static inline void save_state(DisasContext *dc)
 static inline void gen_mov_pc_npc(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
+        gen_generic_branch(dc);
         tcg_gen_mov_tl(cpu_pc, cpu_npc);
         dc->pc = DYNAMIC_PC;
     } else if (dc->npc == DYNAMIC_PC) {
