@@ -1147,10 +1147,10 @@ static inline void save_state(DisasContext *dc)
     save_npc(dc, cpu_cond);
 }
 
-static inline void gen_mov_pc_npc(DisasContext *dc, TCGv cond)
+static inline void gen_mov_pc_npc(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cond);
+        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
         tcg_gen_mov_tl(cpu_pc, cpu_npc);
         dc->pc = DYNAMIC_PC;
     } else if (dc->npc == DYNAMIC_PC) {
@@ -2499,7 +2499,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             gen_movl_TN_reg(15, r_const);
             tcg_temp_free(r_const);
             target += dc->pc;
-            gen_mov_pc_npc(dc, cpu_cond);
+            gen_mov_pc_npc(dc);
 #ifdef TARGET_SPARC64
             if (unlikely(AM_CHECK(dc))) {
                 target &= 0xffffffffULL;
@@ -4573,7 +4573,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         tcg_gen_mov_tl(cpu_dst, cpu_src1);
                 }
                 gen_helper_restore(cpu_env);
-                gen_mov_pc_npc(dc, cpu_cond);
+                gen_mov_pc_npc(dc);
                 r_const = tcg_const_i32(3);
                 gen_helper_check_align(cpu_env, cpu_dst, r_const);
                 tcg_temp_free_i32(r_const);
@@ -4603,7 +4603,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         r_pc = tcg_const_tl(dc->pc);
                         gen_movl_TN_reg(rd, r_pc);
                         tcg_temp_free(r_pc);
-                        gen_mov_pc_npc(dc, cpu_cond);
+                        gen_mov_pc_npc(dc);
                         r_const = tcg_const_i32(3);
                         gen_helper_check_align(cpu_env, cpu_dst, r_const);
                         tcg_temp_free_i32(r_const);
@@ -4619,7 +4619,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 
                         if (!supervisor(dc))
                             goto priv_insn;
-                        gen_mov_pc_npc(dc, cpu_cond);
+                        gen_mov_pc_npc(dc);
                         r_const = tcg_const_i32(3);
                         gen_helper_check_align(cpu_env, cpu_dst, r_const);
                         tcg_temp_free_i32(r_const);
