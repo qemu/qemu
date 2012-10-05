@@ -944,45 +944,6 @@ static void do_trace_print_events(Monitor *mon)
     trace_print_events((FILE *)mon, &monitor_fprintf);
 }
 
-static int add_graphics_client(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    const char *protocol  = qdict_get_str(qdict, "protocol");
-    const char *fdname = qdict_get_str(qdict, "fdname");
-    CharDriverState *s;
-
-    if (strcmp(protocol, "spice") == 0) {
-        int fd = monitor_get_fd(mon, fdname);
-        int skipauth = qdict_get_try_bool(qdict, "skipauth", 0);
-        int tls = qdict_get_try_bool(qdict, "tls", 0);
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
-            return -1;
-        }
-        if (qemu_spice_display_add_client(fd, skipauth, tls) < 0) {
-            close(fd);
-        }
-        return 0;
-#ifdef CONFIG_VNC
-    } else if (strcmp(protocol, "vnc") == 0) {
-	int fd = monitor_get_fd(mon, fdname);
-        int skipauth = qdict_get_try_bool(qdict, "skipauth", 0);
-	vnc_display_add_client(NULL, fd, skipauth);
-	return 0;
-#endif
-    } else if ((s = qemu_chr_find(protocol)) != NULL) {
-	int fd = monitor_get_fd(mon, fdname);
-	if (qemu_chr_add_client(s, fd) < 0) {
-	    qerror_report(QERR_ADD_CLIENT_FAILED);
-	    return -1;
-	}
-	return 0;
-    }
-
-    qerror_report(QERR_INVALID_PARAMETER, "protocol");
-    return -1;
-}
-
 static int client_migrate_info(Monitor *mon, const QDict *qdict,
                                MonitorCompletion cb, void *opaque)
 {
@@ -2118,7 +2079,7 @@ static void do_loadvm(Monitor *mon, const QDict *qdict)
     }
 }
 
-int monitor_get_fd(Monitor *mon, const char *fdname)
+int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
 {
     mon_fd_t *monfd;
 
@@ -2139,6 +2100,7 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
         return fd;
     }
 
+    error_setg(errp, "File descriptor named '%s' has not been found", fdname);
     return -1;
 }
 
@@ -2410,12 +2372,14 @@ int monitor_fdset_dup_fd_remove(int dup_fd)
 int monitor_handle_fd_param(Monitor *mon, const char *fdname)
 {
     int fd;
+    Error *local_err = NULL;
 
     if (!qemu_isdigit(fdname[0]) && mon) {
 
-        fd = monitor_get_fd(mon, fdname);
+        fd = monitor_get_fd(mon, fdname, &local_err);
         if (fd == -1) {
-            error_report("No file descriptor named %s found", fdname);
+            qerror_report_err(local_err);
+            error_free(local_err);
             return -1;
         }
     } else {

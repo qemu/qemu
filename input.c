@@ -186,23 +186,11 @@ static const int key_defs[] = {
 
 int index_from_key(const char *key)
 {
-    int i, keycode;
-    char *endp;
+    int i;
 
     for (i = 0; QKeyCode_lookup[i] != NULL; i++) {
         if (!strcmp(key, QKeyCode_lookup[i])) {
             break;
-        }
-    }
-
-    if (strstart(key, "0x", NULL)) {
-        keycode = strtoul(key, &endp, 0);
-        if (*endp == '\0' && keycode >= 0x01 && keycode <= 0xff) {
-            for (i = 0; i < Q_KEY_CODE_MAX; i++) {
-                if (keycode == key_defs[i]) {
-                    break;
-                }
-            }
         }
     }
 
@@ -224,30 +212,46 @@ int index_from_keycode(int code)
     return i;
 }
 
-static QKeyCodeList *keycodes;
+static int *keycodes;
+static int keycodes_size;
 static QEMUTimer *key_timer;
+
+static int keycode_from_keyvalue(const KeyValue *value)
+{
+    if (value->kind == KEY_VALUE_KIND_QCODE) {
+        return key_defs[value->qcode];
+    } else {
+        assert(value->kind == KEY_VALUE_KIND_NUMBER);
+        return value->number;
+    }
+}
+
+static void free_keycodes(void)
+{
+    g_free(keycodes);
+    keycodes = NULL;
+    keycodes_size = 0;
+}
 
 static void release_keys(void *opaque)
 {
-    int keycode;
-    QKeyCodeList *p;
+    int i;
 
-    for (p = keycodes; p != NULL; p = p->next) {
-        keycode = key_defs[p->value];
-        if (keycode & 0x80) {
+    for (i = 0; i < keycodes_size; i++) {
+        if (keycodes[i] & 0x80) {
             kbd_put_keycode(0xe0);
         }
-        kbd_put_keycode(keycode | 0x80);
+        kbd_put_keycode(keycodes[i]| 0x80);
     }
-    qapi_free_QKeyCodeList(keycodes);
-    keycodes = NULL;
+
+    free_keycodes();
 }
 
-void qmp_send_key(QKeyCodeList *keys, bool has_hold_time, int64_t hold_time,
+void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
                   Error **errp)
 {
     int keycode;
-    QKeyCodeList *p, *keylist, *head = NULL, *tmp = NULL;
+    KeyValueList *p;
 
     if (!key_timer) {
         key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
@@ -257,31 +261,28 @@ void qmp_send_key(QKeyCodeList *keys, bool has_hold_time, int64_t hold_time,
         qemu_del_timer(key_timer);
         release_keys(NULL);
     }
+
     if (!has_hold_time) {
         hold_time = 100;
     }
 
     for (p = keys; p != NULL; p = p->next) {
-        keylist = g_malloc0(sizeof(*keylist));
-        keylist->value = p->value;
-        keylist->next = NULL;
-
-        if (!head) {
-            head = keylist;
-        }
-        if (tmp) {
-            tmp->next = keylist;
-        }
-        tmp = keylist;
-
         /* key down events */
-        keycode = key_defs[p->value];
+        keycode = keycode_from_keyvalue(p->value);
+        if (keycode < 0x01 || keycode > 0xff) {
+            error_setg(errp, "invalid hex keycode 0x%x\n", keycode);
+            free_keycodes();
+            return;
+        }
+
         if (keycode & 0x80) {
             kbd_put_keycode(0xe0);
         }
         kbd_put_keycode(keycode & 0x7f);
+
+        keycodes = g_realloc(keycodes, sizeof(int) * (keycodes_size + 1));
+        keycodes[keycodes_size++] = keycode;
     }
-    keycodes = head;
 
     /* delayed key up events */
     qemu_mod_timer(key_timer, qemu_get_clock_ns(vm_clock) +

@@ -1042,11 +1042,12 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
 {
     Error *errp = NULL;
     int paging = qdict_get_try_bool(qdict, "paging", 0);
-    const char *file = qdict_get_str(qdict, "protocol");
+    const char *file = qdict_get_str(qdict, "filename");
     bool has_begin = qdict_haskey(qdict, "begin");
     bool has_length = qdict_haskey(qdict, "length");
     int64_t begin = 0;
     int64_t length = 0;
+    char *prot;
 
     if (has_begin) {
         begin = qdict_get_int(qdict, "begin");
@@ -1055,9 +1056,12 @@ void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
         length = qdict_get_int(qdict, "length");
     }
 
-    qmp_dump_guest_memory(paging, file, has_begin, begin, has_length, length,
+    prot = g_strconcat("file:", file, NULL);
+
+    qmp_dump_guest_memory(paging, prot, has_begin, begin, has_length, length,
                           &errp);
     hmp_handle_error(mon, &errp);
+    g_free(prot);
 }
 
 void hmp_netdev_add(Monitor *mon, const QDict *qdict)
@@ -1109,13 +1113,13 @@ void hmp_closefd(Monitor *mon, const QDict *qdict)
 void hmp_send_key(Monitor *mon, const QDict *qdict)
 {
     const char *keys = qdict_get_str(qdict, "keys");
-    QKeyCodeList *keylist, *head = NULL, *tmp = NULL;
+    KeyValueList *keylist, *head = NULL, *tmp = NULL;
     int has_hold_time = qdict_haskey(qdict, "hold-time");
     int hold_time = qdict_get_try_int(qdict, "hold-time", -1);
     Error *err = NULL;
     char keyname_buf[16];
     char *separator;
-    int keyname_len, idx;
+    int keyname_len;
 
     while (1) {
         separator = strchr(keys, '-');
@@ -1129,15 +1133,8 @@ void hmp_send_key(Monitor *mon, const QDict *qdict)
         }
         keyname_buf[keyname_len] = 0;
 
-        idx = index_from_key(keyname_buf);
-        if (idx == Q_KEY_CODE_MAX) {
-            monitor_printf(mon, "invalid parameter: %s\n", keyname_buf);
-            break;
-        }
-
         keylist = g_malloc0(sizeof(*keylist));
-        keylist->value = idx;
-        keylist->next = NULL;
+        keylist->value = g_malloc0(sizeof(*keylist->value));
 
         if (!head) {
             head = keylist;
@@ -1147,17 +1144,39 @@ void hmp_send_key(Monitor *mon, const QDict *qdict)
         }
         tmp = keylist;
 
+        if (strstart(keyname_buf, "0x", NULL)) {
+            char *endp;
+            int value = strtoul(keyname_buf, &endp, 0);
+            if (*endp != '\0') {
+                goto err_out;
+            }
+            keylist->value->kind = KEY_VALUE_KIND_NUMBER;
+            keylist->value->number = value;
+        } else {
+            int idx = index_from_key(keyname_buf);
+            if (idx == Q_KEY_CODE_MAX) {
+                goto err_out;
+            }
+            keylist->value->kind = KEY_VALUE_KIND_QCODE;
+            keylist->value->qcode = idx;
+        }
+
         if (!separator) {
             break;
         }
         keys = separator + 1;
     }
 
-    if (idx != Q_KEY_CODE_MAX) {
-        qmp_send_key(head, has_hold_time, hold_time, &err);
-    }
+    qmp_send_key(head, has_hold_time, hold_time, &err);
     hmp_handle_error(mon, &err);
-    qapi_free_QKeyCodeList(head);
+
+out:
+    qapi_free_KeyValueList(head);
+    return;
+
+err_out:
+    monitor_printf(mon, "invalid parameter: %s\n", keyname_buf);
+    goto out;
 }
 
 void hmp_screen_dump(Monitor *mon, const QDict *qdict)

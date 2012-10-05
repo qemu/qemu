@@ -33,6 +33,31 @@
             'MigrationExpected' ] }
 
 ##
+# @add_client
+#
+# Allow client connections for VNC, Spice and socket based
+# character devices to be passed in to QEMU via SCM_RIGHTS.
+#
+# @protocol: protocol name. Valid names are "vnc", "spice" or the
+#            name of a character device (eg. from -chardev id=XXXX)
+#
+# @fdname: file descriptor name previously passed via 'getfd' command
+#
+# @skipauth: #optional whether to skip authentication. Only applies
+#            to "vnc" and "spice" protocols
+#
+# @tls: #optional whether to perform TLS. Only applies to the "spice"
+#       protocol
+#
+# Returns: nothing on success.
+#
+# Since: 0.14.0
+##
+{ 'command': 'add_client',
+  'data': { 'protocol': 'str', 'fdname': 'str', '*skipauth': 'bool',
+            '*tls': 'bool' } }
+
+##
 # @NameInfo:
 #
 # Guest name information.
@@ -1374,7 +1399,7 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
-# 'absolute-paths'.
+#        'absolute-paths'.
 ##
 { 'type': 'BlockdevSnapshot',
   'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
@@ -1428,7 +1453,7 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
 # @mode: #optional whether and how QEMU should create a new image, default is
-# 'absolute-paths'.
+#        'absolute-paths'.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1982,26 +2007,33 @@
 # supported on i386 and x86_64.
 #
 # @paging: if true, do paging to get guest's memory mapping. This allows
-# using gdb to process the core file. However, setting @paging to false
-# may be desirable because of two reasons:
+#          using gdb to process the core file.
 #
-#   1. The guest may be in a catastrophic state or can have corrupted
-#      memory, which cannot be trusted
-#   2. The guest can be in real-mode even if paging is enabled. For example,
-#      the guest uses ACPI to sleep, and ACPI sleep state goes in real-mode
+#          IMPORTANT: this option can make QEMU allocate several gigabytes
+#                     of RAM. This can happen for a large guest, or a
+#                     malicious guest pretending to be large.
+#
+#          Also, paging=true has the following limitations:
+#
+#             1. The guest may be in a catastrophic state or can have corrupted
+#                memory, which cannot be trusted
+#             2. The guest can be in real-mode even if paging is enabled. For
+#                example, the guest uses ACPI to sleep, and ACPI sleep state
+#                goes in real-mode
 #
 # @protocol: the filename or file descriptor of the vmcore. The supported
-# protocols are:
+#            protocols are:
 #
-#   1. file: the protocol starts with "file:", and the following string is
-#      the file's path.
-#   2. fd: the protocol starts with "fd:", and the following string is the
-#      fd's name.
+#            1. file: the protocol starts with "file:", and the following
+#               string is the file's path.
+#            2. fd: the protocol starts with "fd:", and the following string
+#               is the fd's name.
 #
 # @begin: #optional if specified, the starting physical address.
 #
 # @length: #optional if specified, the memory size, in bytes. If you don't
-# want to dump all guest's memory, please specify the start @begin and @length
+#          want to dump all guest's memory, please specify the start @begin
+#          and @length
 #
 # Returns: nothing on success
 #
@@ -2010,6 +2042,7 @@
 { 'command': 'dump-guest-memory',
   'data': { 'paging': 'bool', 'protocol': 'str', '*begin': 'int',
             '*length': 'int' } }
+
 ##
 # @netdev_add:
 #
@@ -2588,12 +2621,26 @@
              'lf', 'help', 'meta_l', 'meta_r', 'compose' ] }
 
 ##
+# @KeyValue
+#
+# Represents a keyboard key.
+#
+# Since: 1.3.0
+##
+{ 'union': 'KeyValue',
+  'data': {
+    'number': 'int',
+    'qcode': 'QKeyCode' } }
+
+##
 # @send-key:
 #
 # Send keys to guest.
 #
-# @keys: key sequence. 'keys' is the name of the key. Use a JSON array to
-#        press several keys simultaneously.
+# @keys: An array of @KeyValue elements. All @KeyValues in this array are
+#        simultaneously sent to the guest. A @KeyValue.number value is sent
+#        directly to the guest, while @KeyValue.qcode must be a valid
+#        @QKeyCode value
 #
 # @hold-time: #optional time to delay key up events, milliseconds. Defaults
 #             to 100
@@ -2605,7 +2652,7 @@
 #
 ##
 { 'command': 'send-key',
-  'data': { 'keys': ['QKeyCode'], '*hold-time': 'int' } }
+  'data': { 'keys': ['KeyValue'], '*hold-time': 'int' } }
 
 ##
 # @screendump:
