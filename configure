@@ -3733,7 +3733,6 @@ case "$target_arch2" in
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
-    target_phys_bits=64
     target_long_alignment=8
   ;;
   alpha)
@@ -3836,7 +3835,6 @@ case "$target_arch2" in
     target_long_alignment=8
   ;;
   unicore32)
-    target_phys_bits=32
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
