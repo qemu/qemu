@@ -277,15 +277,6 @@ static void gen_sbfx(TCGv var, int shift, int width)
     }
 }
 
-/* Bitfield insertion.  Insert val into base.  Clobbers base and val.  */
-static void gen_bfi(TCGv dest, TCGv base, TCGv val, int shift, uint32_t mask)
-{
-    tcg_gen_andi_i32(val, val, mask);
-    tcg_gen_shli_i32(val, val, shift);
-    tcg_gen_andi_i32(base, base, ~(mask << shift));
-    tcg_gen_or_i32(dest, base, val);
-}
-
 /* Return (b << 32) + a. Mark inputs as dead */
 static TCGv_i64 gen_addq_msw(TCGv_i64 a, TCGv b)
 {
@@ -2660,12 +2651,12 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         switch (size) {
                         case 0:
                             tmp2 = neon_load_reg(rn, pass);
-                            gen_bfi(tmp, tmp2, tmp, offset, 0xff);
+                            tcg_gen_deposit_i32(tmp, tmp2, tmp, offset, 8);
                             tcg_temp_free_i32(tmp2);
                             break;
                         case 1:
                             tmp2 = neon_load_reg(rn, pass);
-                            gen_bfi(tmp, tmp2, tmp, offset, 0xffff);
+                            tcg_gen_deposit_i32(tmp, tmp2, tmp, offset, 16);
                             tcg_temp_free_i32(tmp2);
                             break;
                         case 2:
@@ -4021,7 +4012,8 @@ static int disas_neon_ls_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                     }
                     if (size != 2) {
                         tmp2 = neon_load_reg(rd, pass);
-                        gen_bfi(tmp, tmp2, tmp, shift, size ? 0xffff : 0xff);
+                        tcg_gen_deposit_i32(tmp, tmp2, tmp,
+                                            shift, size ? 16 : 8);
                         tcg_temp_free_i32(tmp2);
                     }
                     neon_store_reg(rd, pass, tmp);
@@ -7625,7 +7617,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
                         }
                         if (i != 32) {
                             tmp2 = load_reg(s, rd);
-                            gen_bfi(tmp, tmp2, tmp, shift, (1u << i) - 1);
+                            tcg_gen_deposit_i32(tmp, tmp2, tmp, shift, i);
                             tcg_temp_free_i32(tmp2);
                         }
                         store_reg(s, rd, tmp);
@@ -8736,7 +8728,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                         imm = imm + 1 - shift;
                         if (imm != 32) {
                             tmp2 = load_reg(s, rd);
-                            gen_bfi(tmp, tmp2, tmp, shift, (1u << imm) - 1);
+                            tcg_gen_deposit_i32(tmp, tmp2, tmp, shift, imm);
                             tcg_temp_free_i32(tmp2);
                         }
                         break;
