@@ -2594,41 +2594,23 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
             if (xop == 0x3a) {  /* generate trap */
-                int cond;
+                int cond = GET_FIELD(insn, 3, 6);
+                TCGv_i32 trap;
+                int l1 = -1, mask;
 
-                cpu_src1 = get_src1(insn, cpu_src1);
-                if (IS_IMM) {
-                    rs2 = GET_FIELD(insn, 25, 31);
-                    tcg_gen_addi_tl(cpu_dst, cpu_src1, rs2);
-                } else {
-                    rs2 = GET_FIELD(insn, 27, 31);
-                    if (rs2 != 0) {
-                        gen_movl_reg_TN(rs2, cpu_src2);
-                        tcg_gen_add_tl(cpu_dst, cpu_src1, cpu_src2);
-                    } else
-                        tcg_gen_mov_tl(cpu_dst, cpu_src1);
+                if (cond == 0) {
+                    /* Trap never.  */
+                    break;
                 }
 
-                cond = GET_FIELD(insn, 3, 6);
-                if (cond == 0x8) { /* Trap Always */
-                    save_state(dc);
-                    if ((dc->def->features & CPU_FEATURE_HYPV) &&
-                        supervisor(dc))
-                        tcg_gen_andi_tl(cpu_dst, cpu_dst, UA2005_HTRAP_MASK);
-                    else
-                        tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
-                    tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
-                    tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
-                    gen_helper_raise_exception(cpu_env, cpu_tmp32);
+                save_state(dc);
 
-                } else if (cond != 0) {
+                if (cond != 8) {
+                    /* Conditional trap.  */
                     DisasCompare cmp;
-                    int l1;
 #ifdef TARGET_SPARC64
                     /* V9 icc/xcc */
                     int cc = GET_FIELD_SP(insn, 11, 12);
-
-                    save_state(dc);
                     if (cc == 0) {
                         gen_compare(&cmp, 0, cond, dc);
                     } else if (cc == 2) {
@@ -2637,27 +2619,60 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto illegal_insn;
                     }
 #else
-                    save_state(dc);
                     gen_compare(&cmp, 0, cond, dc);
 #endif
                     l1 = gen_new_label();
                     tcg_gen_brcond_tl(tcg_invert_cond(cmp.cond),
                                       cmp.c1, cmp.c2, l1);
                     free_compare(&cmp);
-
-                    if ((dc->def->features & CPU_FEATURE_HYPV) &&
-                        supervisor(dc))
-                        tcg_gen_andi_tl(cpu_dst, cpu_dst, UA2005_HTRAP_MASK);
-                    else
-                        tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
-                    tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
-                    tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
-                    gen_helper_raise_exception(cpu_env, cpu_tmp32);
-
-                    gen_set_label(l1);
                 }
-                gen_op_next_insn();
-                tcg_gen_exit_tb(0);
+
+                mask = ((dc->def->features & CPU_FEATURE_HYPV) && supervisor(dc)
+                        ? UA2005_HTRAP_MASK : V8_TRAP_MASK);
+
+                /* Don't use the normal temporaries, as they may well have
+                   gone out of scope with the branch above.  While we're
+                   doing that we might as well pre-truncate to 32-bit.  */
+                trap = tcg_temp_new_i32();
+
+                rs1 = GET_FIELD_SP(insn, 14, 18);
+                if (IS_IMM) {
+                    rs2 = GET_FIELD_SP(insn, 0, 6);
+                    if (rs1 == 0) {
+                        tcg_gen_movi_i32(trap, (rs2 & mask) + TT_TRAP);
+                        /* Signal that the trap value is fully constant.  */
+                        mask = 0;
+                    } else {
+                        TCGv t1 = tcg_temp_new();
+                        gen_movl_reg_TN(rs1, t1);
+                        tcg_gen_trunc_tl_i32(trap, t1);
+                        tcg_temp_free(t1);
+                        tcg_gen_addi_i32(trap, trap, rs2);
+                    }
+                } else {
+                    TCGv t1 = tcg_temp_new();
+                    TCGv t2 = tcg_temp_new();
+                    rs2 = GET_FIELD_SP(insn, 0, 4);
+                    gen_movl_reg_TN(rs1, t1);
+                    gen_movl_reg_TN(rs2, t2);
+                    tcg_gen_add_tl(t1, t1, t2);
+                    tcg_gen_trunc_tl_i32(trap, t1);
+                    tcg_temp_free(t1);
+                    tcg_temp_free(t2);
+                }
+                if (mask != 0) {
+                    tcg_gen_andi_i32(trap, trap, mask);
+                    tcg_gen_addi_i32(trap, trap, TT_TRAP);
+                }
+
+                gen_helper_raise_exception(cpu_env, trap);
+                tcg_temp_free_i32(trap);
+
+                if (cond != 8) {
+                    gen_set_label(l1);
+                    gen_op_next_insn();
+                    tcg_gen_exit_tb(0);
+                }
                 dc->is_br = 1;
                 goto jmp_insn;
             } else if (xop == 0x28) {
