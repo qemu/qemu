@@ -51,7 +51,7 @@
 
 /* global register indexes */
 static TCGv_ptr cpu_env;
-static TCGv cpu_A0, cpu_cc_src, cpu_cc_dst, cpu_cc_tmp;
+static TCGv cpu_A0, cpu_cc_src, cpu_cc_dst;
 static TCGv_i32 cpu_cc_op;
 static TCGv cpu_regs[CPU_NB_REGS];
 /* local temps */
@@ -1706,10 +1706,11 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
 static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1, 
                            int is_right)
 {
-    int label1;
-
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
+    gen_compute_eflags(cpu_cc_src);
+    tcg_gen_discard_tl(cpu_cc_dst);
+    s->cc_op = CC_OP_EFLAGS;
 
     /* load */
     if (op1 == OR_TMP0)
@@ -1757,17 +1758,6 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_st_T0_A0(ot + s->mem_index);
     else
         gen_op_mov_reg_T0(ot, op1);
-
-    /* update eflags */
-    label1 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_cc_tmp, -1, label1);
-
-    tcg_gen_mov_tl(cpu_cc_src, cpu_cc_tmp);
-    tcg_gen_discard_tl(cpu_cc_dst);
-    tcg_gen_movi_i32(cpu_cc_op, CC_OP_EFLAGS);
-        
-    gen_set_label(label1);
-    s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
 }
 
 /* XXX: add faster immediate case */
@@ -7763,8 +7753,6 @@ void optimize_flags_init(void)
                                     "cc_src");
     cpu_cc_dst = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_dst),
                                     "cc_dst");
-    cpu_cc_tmp = tcg_global_mem_new(TCG_AREG0, offsetof(CPUX86State, cc_tmp),
-                                    "cc_tmp");
 
 #ifdef TARGET_X86_64
     cpu_regs[R_EAX] = tcg_global_mem_new_i64(TCG_AREG0,
