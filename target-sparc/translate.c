@@ -1107,19 +1107,15 @@ static inline void gen_branch_a(DisasContext *dc, target_ulong pc1,
 
 static inline void gen_generic_branch(DisasContext *dc)
 {
-    int l1, l2;
+    TCGv npc0 = tcg_const_tl(dc->jump_pc[0]);
+    TCGv npc1 = tcg_const_tl(dc->jump_pc[1]);
+    TCGv zero = tcg_const_tl(0);
 
-    l1 = gen_new_label();
-    l2 = gen_new_label();
+    tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, zero, npc0, npc1);
 
-    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_cond, 0, l1);
-
-    tcg_gen_movi_tl(cpu_npc, dc->jump_pc[0]);
-    tcg_gen_br(l2);
-
-    gen_set_label(l1);
-    tcg_gen_movi_tl(cpu_npc, dc->jump_pc[1]);
-    gen_set_label(l2);
+    tcg_temp_free(npc0);
+    tcg_temp_free(npc1);
+    tcg_temp_free(zero);
 }
 
 /* call this function before using the condition register as it may
