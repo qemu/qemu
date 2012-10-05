@@ -86,6 +86,13 @@ typedef struct DisasContext {
     int n_t32;
 } DisasContext;
 
+typedef struct {
+    TCGCond cond;
+    bool is_bool;
+    bool g1, g2;
+    TCGv c1, c2;
+} DisasCompare;
+
 // This function uses non-native bit order
 #define GET_FIELD(X, FROM, TO)                                  \
     ((X) >> (31 - (TO)) & ((1 << ((TO) - (FROM) + 1)) - 1))
@@ -1166,10 +1173,28 @@ static inline void gen_op_next_insn(void)
     tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
 }
 
-static inline void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond,
-                            DisasContext *dc)
+static void free_compare(DisasCompare *cmp)
+{
+    if (!cmp->g1) {
+        tcg_temp_free(cmp->c1);
+    }
+    if (!cmp->g2) {
+        tcg_temp_free(cmp->c2);
+    }
+}
+
+static void gen_compare(DisasCompare *cmp, unsigned int cc, unsigned int cond,
+                        DisasContext *dc)
 {
     TCGv_i32 r_src;
+    TCGv r_dst;
+
+    /* For now we still generate a straight boolean result.  */
+    cmp->cond = TCG_COND_NE;
+    cmp->is_bool = true;
+    cmp->g1 = cmp->g2 = false;
+    cmp->c1 = r_dst = tcg_temp_new();
+    cmp->c2 = tcg_const_tl(0);
 
 #ifdef TARGET_SPARC64
     if (cc)
@@ -1239,9 +1264,17 @@ static inline void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond,
     }
 }
 
-static inline void gen_fcond(TCGv r_dst, unsigned int cc, unsigned int cond)
+static void gen_fcompare(DisasCompare *cmp, unsigned int cc, unsigned int cond)
 {
     unsigned int offset;
+    TCGv r_dst;
+
+    /* For now we still generate a straight boolean result.  */
+    cmp->cond = TCG_COND_NE;
+    cmp->is_bool = true;
+    cmp->g1 = cmp->g2 = false;
+    cmp->c1 = r_dst = tcg_temp_new();
+    cmp->c2 = tcg_const_tl(0);
 
     switch (cc) {
     default:
@@ -1311,6 +1344,37 @@ static inline void gen_fcond(TCGv r_dst, unsigned int cc, unsigned int cond)
     }
 }
 
+static void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond,
+                     DisasContext *dc)
+{
+    DisasCompare cmp;
+    gen_compare(&cmp, cc, cond, dc);
+
+    /* The interface is to return a boolean in r_dst.  */
+    if (cmp.is_bool) {
+        tcg_gen_mov_tl(r_dst, cmp.c1);
+    } else {
+        tcg_gen_setcond_tl(cmp.cond, r_dst, cmp.c1, cmp.c2);
+    }
+
+    free_compare(&cmp);
+}
+
+static void gen_fcond(TCGv r_dst, unsigned int cc, unsigned int cond)
+{
+    DisasCompare cmp;
+    gen_fcompare(&cmp, cc, cond);
+
+    /* The interface is to return a boolean in r_dst.  */
+    if (cmp.is_bool) {
+        tcg_gen_mov_tl(r_dst, cmp.c1);
+    } else {
+        tcg_gen_setcond_tl(cmp.cond, r_dst, cmp.c1, cmp.c2);
+    }
+
+    free_compare(&cmp);
+}
+
 #ifdef TARGET_SPARC64
 // Inverted logic
 static const int gen_tcg_cond_reg[8] = {
@@ -1324,15 +1388,25 @@ static const int gen_tcg_cond_reg[8] = {
     TCG_COND_LT,
 };
 
+static void gen_compare_reg(DisasCompare *cmp, int cond, TCGv r_src)
+{
+    cmp->cond = tcg_invert_cond(gen_tcg_cond_reg[cond]);
+    cmp->is_bool = false;
+    cmp->g1 = true;
+    cmp->g2 = false;
+    cmp->c1 = r_src;
+    cmp->c2 = tcg_const_tl(0);
+}
+
 static inline void gen_cond_reg(TCGv r_dst, int cond, TCGv r_src)
 {
-    int l1;
+    DisasCompare cmp;
+    gen_compare_reg(&cmp, cond, r_src);
 
-    l1 = gen_new_label();
-    tcg_gen_movi_tl(r_dst, 0);
-    tcg_gen_brcondi_tl(gen_tcg_cond_reg[cond], r_src, 0, l1);
-    tcg_gen_movi_tl(r_dst, 1);
-    gen_set_label(l1);
+    /* The interface is to return a boolean in r_dst.  */
+    tcg_gen_setcond_tl(cmp.cond, r_dst, cmp.c1, cmp.c2);
+
+    free_compare(&cmp);
 }
 #endif
 
