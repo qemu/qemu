@@ -2281,6 +2281,57 @@ static inline TCGv get_src2(unsigned int insn, TCGv def)
 }
 
 #ifdef TARGET_SPARC64
+static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
+{
+    TCGv_i32 c32, zero, dst, s1, s2;
+
+    /* We have two choices here: extend the 32 bit data and use movcond_i64,
+       or fold the comparison down to 32 bits and use movcond_i32.  Choose
+       the later.  */
+    c32 = tcg_temp_new_i32();
+    if (cmp->is_bool) {
+        tcg_gen_trunc_i64_i32(c32, cmp->c1);
+    } else {
+        TCGv_i64 c64 = tcg_temp_new_i64();
+        tcg_gen_setcond_i64(cmp->cond, c64, cmp->c1, cmp->c2);
+        tcg_gen_trunc_i64_i32(c32, c64);
+        tcg_temp_free_i64(c64);
+    }
+
+    s1 = gen_load_fpr_F(dc, rs);
+    s2 = gen_load_fpr_F(dc, rd);
+    dst = gen_dest_fpr_F();
+    zero = tcg_const_i32(0);
+
+    tcg_gen_movcond_i32(TCG_COND_NE, dst, c32, zero, s1, s2);
+
+    tcg_temp_free_i32(c32);
+    tcg_temp_free_i32(zero);
+    gen_store_fpr_F(dc, rd, dst);
+}
+
+static void gen_fmovd(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
+{
+    TCGv_i64 dst = gen_dest_fpr_D();
+    tcg_gen_movcond_i64(cmp->cond, dst, cmp->c1, cmp->c2,
+                        gen_load_fpr_D(dc, rs),
+                        gen_load_fpr_D(dc, rd));
+    gen_store_fpr_D(dc, rd, dst);
+}
+
+static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
+{
+    int qd = QFPREG(rd);
+    int qs = QFPREG(rs);
+
+    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2], cmp->c1, cmp->c2,
+                        cpu_fpr[qs / 2], cpu_fpr[qd / 2]);
+    tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2 + 1], cmp->c1, cmp->c2,
+                        cpu_fpr[qs / 2 + 1], cpu_fpr[qd / 2 + 1]);
+
+    gen_update_fprs_dirty(qd);
+}
+
 static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 {
     TCGv_i32 r_tl = tcg_temp_new_i32();
@@ -3163,168 +3214,86 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #endif
                 switch (xop) {
 #ifdef TARGET_SPARC64
-#define FMOVSCC(fcc)                                                    \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();                        \
+#define FMOVCC(fcc, sz)                                                 \
+                    do {                                                \
+                        DisasCompare cmp;                               \
                         cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_fcond(r_cond, fcc, cond);                   \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        cpu_src1_32 = gen_load_fpr_F(dc, rs2);          \
-                        gen_store_fpr_F(dc, rd, cpu_src1_32);           \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
-#define FMOVDCC(fcc)                                                    \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();                        \
-                        cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_fcond(r_cond, fcc, cond);                   \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        cpu_src1_64 = gen_load_fpr_D(dc, rs2);          \
-                        gen_store_fpr_D(dc, rd, cpu_src1_64);           \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
-#define FMOVQCC(fcc)                                                    \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();                        \
-                        cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_fcond(r_cond, fcc, cond);                   \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        gen_move_Q(rd, rs2);                            \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
+                        gen_fcompare(&cmp, fcc, cond);                  \
+                        gen_fmov##sz(dc, &cmp, rd, rs2);                \
+                        free_compare(&cmp);                             \
+                    } while (0)
+
                     case 0x001: /* V9 fmovscc %fcc0 */
-                        FMOVSCC(0);
+                        FMOVCC(0, s);
                         break;
                     case 0x002: /* V9 fmovdcc %fcc0 */
-                        FMOVDCC(0);
+                        FMOVCC(0, d);
                         break;
                     case 0x003: /* V9 fmovqcc %fcc0 */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        FMOVQCC(0);
+                        FMOVCC(0, q);
                         break;
                     case 0x041: /* V9 fmovscc %fcc1 */
-                        FMOVSCC(1);
+                        FMOVCC(1, s);
                         break;
                     case 0x042: /* V9 fmovdcc %fcc1 */
-                        FMOVDCC(1);
+                        FMOVCC(1, d);
                         break;
                     case 0x043: /* V9 fmovqcc %fcc1 */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        FMOVQCC(1);
+                        FMOVCC(1, q);
                         break;
                     case 0x081: /* V9 fmovscc %fcc2 */
-                        FMOVSCC(2);
+                        FMOVCC(2, s);
                         break;
                     case 0x082: /* V9 fmovdcc %fcc2 */
-                        FMOVDCC(2);
+                        FMOVCC(2, d);
                         break;
                     case 0x083: /* V9 fmovqcc %fcc2 */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        FMOVQCC(2);
+                        FMOVCC(2, q);
                         break;
                     case 0x0c1: /* V9 fmovscc %fcc3 */
-                        FMOVSCC(3);
+                        FMOVCC(3, s);
                         break;
                     case 0x0c2: /* V9 fmovdcc %fcc3 */
-                        FMOVDCC(3);
+                        FMOVCC(3, d);
                         break;
                     case 0x0c3: /* V9 fmovqcc %fcc3 */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        FMOVQCC(3);
+                        FMOVCC(3, q);
                         break;
-#undef FMOVSCC
-#undef FMOVDCC
-#undef FMOVQCC
-#define FMOVSCC(icc)                                                    \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();                        \
+#undef FMOVCC
+#define FMOVCC(xcc, sz)                                                 \
+                    do {                                                \
+                        DisasCompare cmp;                               \
                         cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_cond(r_cond, icc, cond, dc);                \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        cpu_src1_32 = gen_load_fpr_F(dc, rs2);          \
-                        gen_store_fpr_F(dc, rd, cpu_src1_32);           \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
-#define FMOVDCC(icc)                                                    \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();                        \
-                        cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_cond(r_cond, icc, cond, dc);                \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        cpu_src1_64 = gen_load_fpr_D(dc, rs2);          \
-                        gen_store_fpr_D(dc, rd, cpu_src1_64);           \
-                        gen_update_fprs_dirty(DFPREG(rd));              \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
-#define FMOVQCC(icc)                                                    \
-                    {                                                   \
-                        TCGv r_cond;                                    \
-                        int l1;                                         \
-                                                                        \
-                        l1 = gen_new_label();                           \
-                        r_cond = tcg_temp_new();                        \
-                        cond = GET_FIELD_SP(insn, 14, 17);              \
-                        gen_cond(r_cond, icc, cond, dc);                \
-                        tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
-                                           0, l1);                      \
-                        gen_move_Q(rd, rs2);                            \
-                        gen_set_label(l1);                              \
-                        tcg_temp_free(r_cond);                          \
-                    }
+                        gen_compare(&cmp, xcc, cond, dc);               \
+                        gen_fmov##sz(dc, &cmp, rd, rs2);                \
+                        free_compare(&cmp);                             \
+                    } while (0)
 
                     case 0x101: /* V9 fmovscc %icc */
-                        FMOVSCC(0);
+                        FMOVCC(0, s);
                         break;
                     case 0x102: /* V9 fmovdcc %icc */
-                        FMOVDCC(0);
+                        FMOVCC(0, d);
                         break;
                     case 0x103: /* V9 fmovqcc %icc */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        FMOVQCC(0);
+                        FMOVCC(0, q);
                         break;
                     case 0x181: /* V9 fmovscc %xcc */
-                        FMOVSCC(1);
+                        FMOVCC(1, s);
                         break;
                     case 0x182: /* V9 fmovdcc %xcc */
-                        FMOVDCC(1);
+                        FMOVCC(1, d);
                         break;
                     case 0x183: /* V9 fmovqcc %xcc */
                         CHECK_FPU_FEATURE(dc, FLOAT128);
-                        FMOVQCC(1);
+                        FMOVCC(1, q);
                         break;
-#undef FMOVSCC
-#undef FMOVDCC
-#undef FMOVQCC
+#undef FMOVCC
 #endif
                     case 0x51: /* fcmps, V9 %fcc */
                         cpu_src1_32 = gen_load_fpr_F(dc, rs1);
