@@ -1597,14 +1597,16 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1,
         gen_op_mov_reg_v(ot, op1, t0);
     }
     
-    /* update eflags */
+    /* update eflags.  It is needed anyway most of the time, do it always.  */
     if (s->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s->cc_op);
+    gen_compute_eflags(cpu_cc_src);
+    tcg_gen_discard_tl(cpu_cc_dst);
+    s->cc_op = CC_OP_EFLAGS;
 
     label2 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, label2);
 
-    gen_compute_eflags(cpu_cc_src);
     tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~(CC_O | CC_C));
     tcg_gen_xor_tl(cpu_tmp0, t2, t0);
     tcg_gen_lshift(cpu_tmp0, cpu_tmp0, 11 - (data_bits - 1));
@@ -1615,12 +1617,8 @@ static void gen_rot_rm_T1(DisasContext *s, int ot, int op1,
     }
     tcg_gen_andi_tl(t0, t0, CC_C);
     tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t0);
-    
-    tcg_gen_discard_tl(cpu_cc_dst);
-    tcg_gen_movi_i32(cpu_cc_op, CC_OP_EFLAGS);
-        
+
     gen_set_label(label2);
-    s->cc_op = CC_OP_DYNAMIC; /* cannot predict flags after */
 
     tcg_temp_free(t0);
     tcg_temp_free(t1);
@@ -1684,6 +1682,9 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
             gen_op_set_cc_op(s->cc_op);
 
         gen_compute_eflags(cpu_cc_src);
+        tcg_gen_discard_tl(cpu_cc_dst);
+        s->cc_op = CC_OP_EFLAGS;
+
         tcg_gen_andi_tl(cpu_cc_src, cpu_cc_src, ~(CC_O | CC_C));
         tcg_gen_xor_tl(cpu_tmp0, t1, t0);
         tcg_gen_lshift(cpu_tmp0, cpu_tmp0, 11 - (data_bits - 1));
@@ -1694,10 +1695,6 @@ static void gen_rot_rm_im(DisasContext *s, int ot, int op1, int op2,
         }
         tcg_gen_andi_tl(t0, t0, CC_C);
         tcg_gen_or_tl(cpu_cc_src, cpu_cc_src, t0);
-
-        tcg_gen_discard_tl(cpu_cc_dst);
-        tcg_gen_movi_i32(cpu_cc_op, CC_OP_EFLAGS);
-        s->cc_op = CC_OP_EFLAGS;
     }
 
     tcg_temp_free(t0);
