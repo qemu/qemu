@@ -954,7 +954,7 @@ static int is_fast_jcc_case(DisasContext *s, int b)
 
 /* generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
-static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
+static inline void gen_jcc1(DisasContext *s, int b, int l1)
 {
     int inv, jcc_op, size, cond;
     TCGv t0;
@@ -962,14 +962,14 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
     inv = b & 1;
     jcc_op = (b >> 1) & 7;
 
-    switch(cc_op) {
+    switch (s->cc_op) {
         /* we optimize the cmp/jcc case */
     case CC_OP_SUBB:
     case CC_OP_SUBW:
     case CC_OP_SUBL:
     case CC_OP_SUBQ:
         
-        size = cc_op - CC_OP_SUBB;
+        size = s->cc_op - CC_OP_SUBB;
         switch(jcc_op) {
         case JCC_Z:
         fast_jcc_z:
@@ -1053,10 +1053,10 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
     case CC_OP_SARQ:
         switch(jcc_op) {
         case JCC_Z:
-            size = (cc_op - CC_OP_ADDB) & 3;
+            size = (s->cc_op - CC_OP_ADDB) & 3;
             goto fast_jcc_z;
         case JCC_S:
-            size = (cc_op - CC_OP_ADDB) & 3;
+            size = (s->cc_op - CC_OP_ADDB) & 3;
             goto fast_jcc_s;
         default:
             goto slow_jcc;
@@ -1197,7 +1197,7 @@ static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
     gen_ ## op(s, ot);                                                        \
     gen_op_add_reg_im(s->aflag, R_ECX, -1);                                   \
     gen_op_set_cc_op(s->cc_op);                                               \
-    gen_jcc1(s, s->cc_op, (JCC_Z << 1) | (nz ^ 1), l2);                       \
+    gen_jcc1(s, (JCC_Z << 1) | (nz ^ 1), l2);                                 \
     if (!s->jmp_opt)                                                          \
         gen_op_jz_ecx(s->aflag, l2);                                          \
     gen_jmp(s, cur_eip);                                                      \
@@ -2303,13 +2303,15 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
 static inline void gen_jcc(DisasContext *s, int b,
                            target_ulong val, target_ulong next_eip)
 {
-    int l1, l2, cc_op;
+    int l1, l2;
 
-    cc_op = s->cc_op;
-    gen_update_cc_op(s);
+    if (s->cc_op != CC_OP_DYNAMIC) {
+        gen_op_set_cc_op(s->cc_op);
+    }
     if (s->jmp_opt) {
         l1 = gen_new_label();
-        gen_jcc1(s, cc_op, b, l1);
+        gen_jcc1(s, b, l1);
+        s->cc_op = CC_OP_DYNAMIC;
         
         gen_goto_tb(s, 0, next_eip);
 
@@ -2320,7 +2322,8 @@ static inline void gen_jcc(DisasContext *s, int b,
 
         l1 = gen_new_label();
         l2 = gen_new_label();
-        gen_jcc1(s, cc_op, b, l1);
+        gen_jcc1(s, b, l1);
+        s->cc_op = CC_OP_DYNAMIC;
 
         gen_jmp_im(next_eip);
         tcg_gen_br(l2);
@@ -2343,7 +2346,7 @@ static void gen_setcc(DisasContext *s, int b)
         t0 = tcg_temp_local_new();
         tcg_gen_movi_tl(t0, 0);
         l1 = gen_new_label();
-        gen_jcc1(s, s->cc_op, b ^ 1, l1);
+        gen_jcc1(s, b ^ 1, l1);
         tcg_gen_movi_tl(t0, 1);
         gen_set_label(l1);
         tcg_gen_mov_tl(cpu_T[0], t0);
@@ -6027,7 +6030,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     };
                     op1 = fcmov_cc[op & 3] | (((op >> 3) & 1) ^ 1);
                     l1 = gen_new_label();
-                    gen_jcc1(s, s->cc_op, op1, l1);
+                    gen_jcc1(s, op1, l1);
                     gen_helper_fmov_ST0_STN(cpu_env, tcg_const_i32(opreg));
                     gen_set_label(l1);
                 }
@@ -6418,7 +6421,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             if (ot == OT_LONG) {
                 /* XXX: specific Intel behaviour ? */
                 l1 = gen_new_label();
-                gen_jcc1(s, s->cc_op, b ^ 1, l1);
+                gen_jcc1(s, b ^ 1, l1);
                 tcg_gen_mov_tl(cpu_regs[reg], t0);
                 gen_set_label(l1);
                 tcg_gen_ext32u_tl(cpu_regs[reg], cpu_regs[reg]);
@@ -6426,7 +6429,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #endif
             {
                 l1 = gen_new_label();
-                gen_jcc1(s, s->cc_op, b ^ 1, l1);
+                gen_jcc1(s, b ^ 1, l1);
                 gen_op_mov_reg_v(ot, reg, t0);
                 gen_set_label(l1);
             }
