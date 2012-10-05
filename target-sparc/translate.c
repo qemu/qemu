@@ -2573,13 +2573,15 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 gen_helper_raise_exception(cpu_env, trap);
                 tcg_temp_free_i32(trap);
 
-                if (cond != 8) {
+                if (cond == 8) {
+                    /* An unconditional trap ends the TB.  */
+                    dc->is_br = 1;
+                    goto jmp_insn;
+                } else {
+                    /* A conditional trap falls through to the next insn.  */
                     gen_set_label(l1);
-                    gen_op_next_insn();
-                    tcg_gen_exit_tb(0);
+                    break;
                 }
-                dc->is_br = 1;
-                goto jmp_insn;
             } else if (xop == 0x28) {
                 rs1 = GET_FIELD(insn, 13, 17);
                 switch(rs1) {
