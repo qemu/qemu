@@ -1126,10 +1126,10 @@ static inline void flush_cond(DisasContext *dc)
     }
 }
 
-static inline void save_npc(DisasContext *dc, TCGv cond)
+static inline void save_npc(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
-        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cond);
+        gen_generic_branch(dc->jump_pc[0], dc->jump_pc[1], cpu_cond);
         dc->npc = DYNAMIC_PC;
     } else if (dc->npc != DYNAMIC_PC) {
         tcg_gen_movi_tl(cpu_npc, dc->npc);
@@ -1144,7 +1144,7 @@ static inline void save_state(DisasContext *dc)
         dc->cc_op = CC_OP_FLAGS;
         gen_helper_compute_psr(cpu_env);
     }
-    save_npc(dc, cpu_cond);
+    save_npc(dc);
 }
 
 static inline void gen_mov_pc_npc(DisasContext *dc)
@@ -5372,7 +5372,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         } else {
             if (dc->pc != DYNAMIC_PC)
                 tcg_gen_movi_tl(cpu_pc, dc->pc);
-            save_npc(dc, cpu_cond);
+            save_npc(dc);
             tcg_gen_exit_tb(0);
         }
     }
