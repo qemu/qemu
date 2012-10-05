@@ -3176,6 +3176,21 @@ int main(int argc, char **argv, char **envp)
                                 "separately.\n");
                 break;
             }
+            case QEMU_OPTION_no_kvm_pit_reinjection: {
+                static GlobalProperty kvm_pit_lost_tick_policy[] = {
+                    {
+                        .driver   = "kvm-pit",
+                        .property = "lost_tick_policy",
+                        .value    = "discard",
+                    },
+                    { /* end of list */ }
+                };
+
+                fprintf(stderr, "Warning: option deprecated, use "
+                        "lost_tick_policy property of kvm-pit instead.\n");
+                qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
+                break;
+            }
             case QEMU_OPTION_usb:
                 machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
                 if (machine_opts) {
