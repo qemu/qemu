@@ -323,17 +323,17 @@ static inline void gen_op_mov_reg_T1(int ot, int reg)
 static inline void gen_op_mov_reg_A0(int size, int reg)
 {
     switch(size) {
-    case 0:
+    case OT_BYTE:
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_A0, 0, 16);
         break;
     default: /* XXX this shouldn't be reached;  abort? */
-    case 1:
+    case OT_WORD:
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a mov. */
         tcg_gen_ext32u_tl(cpu_regs[reg], cpu_A0);
         break;
 #ifdef TARGET_X86_64
-    case 2:
+    case OT_LONG:
         tcg_gen_mov_tl(cpu_regs[reg], cpu_A0);
         break;
 #endif
@@ -398,11 +398,11 @@ static inline void gen_op_jmp_T0(void)
 static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
 {
     switch(size) {
-    case 0:
+    case OT_BYTE:
         tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0, 0, 16);
         break;
-    case 1:
+    case OT_WORD:
         tcg_gen_addi_tl(cpu_tmp0, cpu_regs[reg], val);
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a nop. */
@@ -410,7 +410,7 @@ static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
         tcg_gen_mov_tl(cpu_regs[reg], cpu_tmp0);
         break;
 #ifdef TARGET_X86_64
-    case 2:
+    case OT_LONG:
         tcg_gen_addi_tl(cpu_regs[reg], cpu_regs[reg], val);
         break;
 #endif
@@ -420,11 +420,11 @@ static inline void gen_op_add_reg_im(int size, int reg, int32_t val)
 static inline void gen_op_add_reg_T0(int size, int reg)
 {
     switch(size) {
-    case 0:
+    case OT_BYTE:
         tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
         tcg_gen_deposit_tl(cpu_regs[reg], cpu_regs[reg], cpu_tmp0, 0, 16);
         break;
-    case 1:
+    case OT_WORD:
         tcg_gen_add_tl(cpu_tmp0, cpu_regs[reg], cpu_T[0]);
         /* For x86_64, this sets the higher half of register to zero.
            For i386, this is equivalent to a nop. */
@@ -432,7 +432,7 @@ static inline void gen_op_add_reg_T0(int size, int reg)
         tcg_gen_mov_tl(cpu_regs[reg], cpu_tmp0);
         break;
 #ifdef TARGET_X86_64
-    case 2:
+    case OT_LONG:
         tcg_gen_add_tl(cpu_regs[reg], cpu_regs[reg], cpu_T[0]);
         break;
 #endif
@@ -506,14 +506,14 @@ static inline void gen_op_lds_T0_A0(int idx)
 {
     int mem_index = (idx >> 2) - 1;
     switch(idx & 3) {
-    case 0:
+    case OT_BYTE:
         tcg_gen_qemu_ld8s(cpu_T[0], cpu_A0, mem_index);
         break;
-    case 1:
+    case OT_WORD:
         tcg_gen_qemu_ld16s(cpu_T[0], cpu_A0, mem_index);
         break;
     default:
-    case 2:
+    case OT_LONG:
         tcg_gen_qemu_ld32s(cpu_T[0], cpu_A0, mem_index);
         break;
     }
@@ -523,17 +523,17 @@ static inline void gen_op_ld_v(int idx, TCGv t0, TCGv a0)
 {
     int mem_index = (idx >> 2) - 1;
     switch(idx & 3) {
-    case 0:
+    case OT_BYTE:
         tcg_gen_qemu_ld8u(t0, a0, mem_index);
         break;
-    case 1:
+    case OT_WORD:
         tcg_gen_qemu_ld16u(t0, a0, mem_index);
         break;
-    case 2:
+    case OT_LONG:
         tcg_gen_qemu_ld32u(t0, a0, mem_index);
         break;
     default:
-    case 3:
+    case OT_QUAD:
         /* Should never happen on 32-bit targets.  */
 #ifdef TARGET_X86_64
         tcg_gen_qemu_ld64(t0, a0, mem_index);
@@ -562,17 +562,17 @@ static inline void gen_op_st_v(int idx, TCGv t0, TCGv a0)
 {
     int mem_index = (idx >> 2) - 1;
     switch(idx & 3) {
-    case 0:
+    case OT_BYTE:
         tcg_gen_qemu_st8(t0, a0, mem_index);
         break;
-    case 1:
+    case OT_WORD:
         tcg_gen_qemu_st16(t0, a0, mem_index);
         break;
-    case 2:
+    case OT_LONG:
         tcg_gen_qemu_st32(t0, a0, mem_index);
         break;
     default:
-    case 3:
+    case OT_QUAD:
         /* Should never happen on 32-bit targets.  */
 #ifdef TARGET_X86_64
         tcg_gen_qemu_st64(t0, a0, mem_index);
@@ -710,21 +710,31 @@ static inline void gen_op_jz_ecx(int size, int label1)
 static void gen_helper_in_func(int ot, TCGv v, TCGv_i32 n)
 {
     switch (ot) {
-    case 0: gen_helper_inb(v, n); break;
-    case 1: gen_helper_inw(v, n); break;
-    case 2: gen_helper_inl(v, n); break;
+    case OT_BYTE:
+        gen_helper_inb(v, n);
+        break;
+    case OT_WORD:
+        gen_helper_inw(v, n);
+        break;
+    case OT_LONG:
+        gen_helper_inl(v, n);
+        break;
     }
-
 }
 
 static void gen_helper_out_func(int ot, TCGv_i32 v, TCGv_i32 n)
 {
     switch (ot) {
-    case 0: gen_helper_outb(v, n); break;
-    case 1: gen_helper_outw(v, n); break;
-    case 2: gen_helper_outl(v, n); break;
+    case OT_BYTE:
+        gen_helper_outb(v, n);
+        break;
+    case OT_WORD:
+        gen_helper_outw(v, n);
+        break;
+    case OT_LONG:
+        gen_helper_outl(v, n);
+        break;
     }
-
 }
 
 static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
@@ -741,13 +751,13 @@ static void gen_check_io(DisasContext *s, int ot, target_ulong cur_eip,
         state_saved = 1;
         tcg_gen_trunc_tl_i32(cpu_tmp2_i32, cpu_T[0]);
         switch (ot) {
-        case 0:
+        case OT_BYTE:
             gen_helper_check_iob(cpu_env, cpu_tmp2_i32);
             break;
-        case 1:
+        case OT_WORD:
             gen_helper_check_iow(cpu_env, cpu_tmp2_i32);
             break;
-        case 2:
+        case OT_LONG:
             gen_helper_check_iol(cpu_env, cpu_tmp2_i32);
             break;
         }
@@ -1781,34 +1791,34 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
     
     if (is_right) {
         switch (ot) {
-        case 0:
+        case OT_BYTE:
             gen_helper_rcrb(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case 1:
+        case OT_WORD:
             gen_helper_rcrw(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case 2:
+        case OT_LONG:
             gen_helper_rcrl(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #ifdef TARGET_X86_64
-        case 3:
+        case OT_QUAD:
             gen_helper_rcrq(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #endif
         }
     } else {
         switch (ot) {
-        case 0:
+        case OT_BYTE:
             gen_helper_rclb(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case 1:
+        case OT_WORD:
             gen_helper_rclw(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
-        case 2:
+        case OT_LONG:
             gen_helper_rcll(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #ifdef TARGET_X86_64
-        case 3:
+        case OT_QUAD:
             gen_helper_rclq(cpu_T[0], cpu_env, cpu_T[0], cpu_T[1]);
             break;
 #endif
