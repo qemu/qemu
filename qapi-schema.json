@@ -1113,6 +1113,29 @@
 { 'command': 'query-pci', 'returns': ['PciInfo'] }
 
 ##
+# @BlockdevOnError:
+#
+# An enumeration of possible behaviors for errors on I/O operations.
+# The exact meaning depends on whether the I/O was initiated by a guest
+# or by a block job
+#
+# @report: for guest operations, report the error to the guest;
+#          for jobs, cancel the job
+#
+# @ignore: ignore the error, only report a QMP event (BLOCK_IO_ERROR
+#          or BLOCK_JOB_ERROR)
+#
+# @enospc: same as @stop on ENOSPC, same as @report otherwise.
+#
+# @stop: for guest operations, stop the virtual machine;
+#        for jobs, pause the job
+#
+# Since: 1.3
+##
+{ 'enum': 'BlockdevOnError',
+  'data': ['report', 'ignore', 'enospc', 'stop'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
@@ -1123,15 +1146,24 @@
 #
 # @len: the maximum progress value
 #
+# @busy: false if the job is known to be in a quiescent state, with
+#        no pending I/O.  Since 1.3.
+#
+# @paused: whether the job is paused or, if @busy is true, will
+#          pause itself as soon as possible.  Since 1.3.
+#
 # @offset: the current progress value
 #
 # @speed: the rate limit, bytes per second
+#
+# @io-status: the status of the job (since 1.3)
 #
 # Since: 1.1
 ##
 { 'type': 'BlockJobInfo',
   'data': {'type': 'str', 'device': 'str', 'len': 'int',
-           'offset': 'int', 'speed': 'int'} }
+           'offset': 'int', 'busy': 'bool', 'paused': 'bool', 'speed': 'int',
+           'io-status': 'BlockDeviceIoStatus'} }
 
 ##
 # @query-block-jobs:
@@ -1493,6 +1525,40 @@
   'returns': 'str' }
 
 ##
+# @block-commit
+#
+# Live commit of data from overlay image nodes into backing nodes - i.e.,
+# writes data between 'top' and 'base' into 'base'.
+#
+# @device:  the name of the device
+#
+# @base:   #optional The file name of the backing image to write data into.
+#                    If not specified, this is the deepest backing image
+#
+# @top:              The file name of the backing image within the image chain,
+#                    which contains the topmost data to be committed down.
+#                    Note, the active layer as 'top' is currently unsupported.
+#
+#                    If top == base, that is an error.
+#
+#
+# @speed:  #optional the maximum speed, in bytes per second
+#
+# Returns: Nothing on success
+#          If commit or stream is already active on this device, DeviceInUse
+#          If @device does not exist, DeviceNotFound
+#          If image commit is not supported by this device, NotSupported
+#          If @base or @top is invalid, a generic error is returned
+#          If @top is the active layer, or omitted, a generic error is returned
+#          If @speed is invalid, InvalidParameter
+#
+# Since: 1.3
+#
+##
+{ 'command': 'block-commit',
+  'data': { 'device': 'str', '*base': 'str', 'top': 'str',
+            '*speed': 'int' } }
+
 # @migrate_cancel
 #
 # Cancel the current executing migration process.
@@ -1828,13 +1894,18 @@
 #
 # @speed:  #optional the maximum speed, in bytes per second
 #
+# @on-error: #optional the action to take on an error (default report).
+#            'stop' and 'enospc' can only be used if the block device
+#            supports io-status (see BlockInfo).  Since 1.3.
+#
 # Returns: Nothing on success
 #          If @device does not exist, DeviceNotFound
 #
 # Since: 1.1
 ##
-{ 'command': 'block-stream', 'data': { 'device': 'str', '*base': 'str',
-                                       '*speed': 'int' } }
+{ 'command': 'block-stream',
+  'data': { 'device': 'str', '*base': 'str', '*speed': 'int',
+            '*on-error': 'BlockdevOnError' } }
 
 ##
 # @block-job-set-speed:
@@ -1878,12 +1949,58 @@
 #
 # @device: the device name
 #
+# @force: #optional whether to allow cancellation of a paused job (default
+#         false).  Since 1.3.
+#
 # Returns: Nothing on success
 #          If no background operation is active on this device, DeviceNotActive
 #
 # Since: 1.1
 ##
-{ 'command': 'block-job-cancel', 'data': { 'device': 'str' } }
+{ 'command': 'block-job-cancel', 'data': { 'device': 'str', '*force': 'bool' } }
+
+##
+# @block-job-pause:
+#
+# Pause an active background block operation.
+#
+# This command returns immediately after marking the active background block
+# operation for pausing.  It is an error to call this command if no
+# operation is in progress.  Pausing an already paused job has no cumulative
+# effect; a single block-job-resume command will resume the job.
+#
+# The operation will pause as soon as possible.  No event is emitted when
+# the operation is actually paused.  Cancelling a paused job automatically
+# resumes it.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If no background operation is active on this device, DeviceNotActive
+#
+# Since: 1.3
+##
+{ 'command': 'block-job-pause', 'data': { 'device': 'str' } }
+
+##
+# @block-job-resume:
+#
+# Resume an active background block operation.
+#
+# This command returns immediately after resuming a paused background block
+# operation.  It is an error to call this command if no operation is in
+# progress.  Resuming an already running job is not an error.
+#
+# This command also clears the error status of the job.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If no background operation is active on this device, DeviceNotActive
+#
+# Since: 1.3
+##
+{ 'command': 'block-job-resume', 'data': { 'device': 'str' } }
 
 ##
 # @ObjectTypeInfo:

@@ -930,7 +930,8 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
 
     qmp_block_stream(device, base != NULL, base,
-                     qdict_haskey(qdict, "speed"), speed, &error);
+                     qdict_haskey(qdict, "speed"), speed,
+                     BLOCKDEV_ON_ERROR_REPORT, true, &error);
 
     hmp_handle_error(mon, &error);
 }
@@ -950,8 +951,29 @@ void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
+    bool force = qdict_get_try_bool(qdict, "force", 0);
 
-    qmp_block_job_cancel(device, &error);
+    qmp_block_job_cancel(device, true, force, &error);
+
+    hmp_handle_error(mon, &error);
+}
+
+void hmp_block_job_pause(Monitor *mon, const QDict *qdict)
+{
+    Error *error = NULL;
+    const char *device = qdict_get_str(qdict, "device");
+
+    qmp_block_job_pause(device, &error);
+
+    hmp_handle_error(mon, &error);
+}
+
+void hmp_block_job_resume(Monitor *mon, const QDict *qdict)
+{
+    Error *error = NULL;
+    const char *device = qdict_get_str(qdict, "device");
+
+    qmp_block_job_resume(device, &error);
 
     hmp_handle_error(mon, &error);
 }

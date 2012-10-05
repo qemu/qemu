@@ -519,6 +519,8 @@ static void blk_mig_cleanup(void)
     BlkMigDevState *bmds;
     BlkMigBlock *blk;
 
+    bdrv_drain_all();
+
     set_dirty_tracking(0);
 
     while ((bmds = QSIMPLEQ_FIRST(&block_mig_state.bmds_list)) != NULL) {

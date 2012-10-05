@@ -13,6 +13,7 @@
 
 #include "trace.h"
 #include "block_int.h"
+#include "blockjob.h"
 #include "qemu/ratelimit.h"
 
 enum {
@@ -30,6 +31,7 @@ typedef struct StreamBlockJob {
     BlockJob common;
     RateLimit limit;
     BlockDriverState *base;
+    BlockdevOnError on_error;
     char backing_file_id[1024];
 } StreamBlockJob;
 
@@ -77,6 +79,7 @@ static void coroutine_fn stream_run(void *opaque)
     BlockDriverState *bs = s->common.bs;
     BlockDriverState *base = s->base;
     int64_t sector_num, end;
+    int error = 0;
     int ret = 0;
     int n = 0;
     void *buf;
@@ -141,7 +144,19 @@ wait:
             ret = stream_populate(bs, sector_num, n, buf);
         }
         if (ret < 0) {
-            break;
+            BlockErrorAction action =
+                block_job_error_action(&s->common, s->common.bs, s->on_error,
+                                       true, -ret);
+            if (action == BDRV_ACTION_STOP) {
+                n = 0;
+                continue;
+            }
+            if (error == 0) {
+                error = ret;
+            }
+            if (action == BDRV_ACTION_REPORT) {
+                break;
+            }
         }
         ret = 0;
 
@@ -152,6 +167,9 @@ wait:
     if (!base) {
         bdrv_disable_copy_on_read(bs);
     }
+
+    /* Do not remove the backing file if an error was there but ignored.  */
+    ret = error;
 
     if (!block_job_is_cancelled(&s->common) && sector_num == end && ret == 0) {
         const char *base_id = NULL, *base_fmt = NULL;
@@ -188,10 +206,18 @@ static BlockJobType stream_job_type = {
 
 void stream_start(BlockDriverState *bs, BlockDriverState *base,
                   const char *base_id, int64_t speed,
+                  BlockdevOnError on_error,
                   BlockDriverCompletionFunc *cb,
                   void *opaque, Error **errp)
 {
     StreamBlockJob *s;
+
+    if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
+         on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
+        !bdrv_iostatus_is_enabled(bs)) {
+        error_set(errp, QERR_INVALID_PARAMETER, "on-error");
+        return;
+    }
 
     s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
     if (!s) {
@@ -203,6 +229,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
         pstrcpy(s->backing_file_id, sizeof(s->backing_file_id), base_id);
     }
 
+    s->on_error = on_error;
     s->common.co = qemu_coroutine_create(stream_run);
     trace_stream_start(bs, base, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);

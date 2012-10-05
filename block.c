@@ -26,8 +26,10 @@
 #include "trace.h"
 #include "monitor.h"
 #include "block_int.h"
+#include "blockjob.h"
 #include "module.h"
 #include "qjson.h"
+#include "sysemu.h"
 #include "qemu-coroutine.h"
 #include "qmp-commands.h"
 #include "qemu-timer.h"
@@ -1386,7 +1388,8 @@ void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
 }
 
 void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
-                               BlockQMPEventAction action, int is_read)
+                               enum MonitorEvent ev,
+                               BlockErrorAction action, bool is_read)
 {
     QObject *data;
     const char *action_str;
@@ -1409,7 +1412,7 @@ void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
                               bdrv->device_name,
                               action_str,
                               is_read ? "read" : "write");
-    monitor_protocol_event(QEVENT_BLOCK_IO_ERROR, data);
+    monitor_protocol_event(ev, data);
 
     qobject_decref(data);
 }
@@ -1723,6 +1726,149 @@ int bdrv_change_backing_file(BlockDriverState *bs,
     }
     return ret;
 }
+
+/*
+ * Finds the image layer in the chain that has 'bs' as its backing file.
+ *
+ * active is the current topmost image.
+ *
+ * Returns NULL if bs is not found in active's image chain,
+ * or if active == bs.
+ */
+BlockDriverState *bdrv_find_overlay(BlockDriverState *active,
+                                    BlockDriverState *bs)
+{
+    BlockDriverState *overlay = NULL;
+    BlockDriverState *intermediate;
+
+    assert(active != NULL);
+    assert(bs != NULL);
+
+    /* if bs is the same as active, then by definition it has no overlay
+     */
+    if (active == bs) {
+        return NULL;
+    }
+
+    intermediate = active;
+    while (intermediate->backing_hd) {
+        if (intermediate->backing_hd == bs) {
+            overlay = intermediate;
+            break;
+        }
+        intermediate = intermediate->backing_hd;
+    }
+
+    return overlay;
+}
+
+typedef struct BlkIntermediateStates {
+    BlockDriverState *bs;
+    QSIMPLEQ_ENTRY(BlkIntermediateStates) entry;
+} BlkIntermediateStates;
+
+
+/*
+ * Drops images above 'base' up to and including 'top', and sets the image
+ * above 'top' to have base as its backing file.
+ *
+ * Requires that the overlay to 'top' is opened r/w, so that the backing file
+ * information in 'bs' can be properly updated.
+ *
+ * E.g., this will convert the following chain:
+ * bottom <- base <- intermediate <- top <- active
+ *
+ * to
+ *
+ * bottom <- base <- active
+ *
+ * It is allowed for bottom==base, in which case it converts:
+ *
+ * base <- intermediate <- top <- active
+ *
+ * to
+ *
+ * base <- active
+ *
+ * Error conditions:
+ *  if active == top, that is considered an error
+ *
+ */
+int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
+                           BlockDriverState *base)
+{
+    BlockDriverState *intermediate;
+    BlockDriverState *base_bs = NULL;
+    BlockDriverState *new_top_bs = NULL;
+    BlkIntermediateStates *intermediate_state, *next;
+    int ret = -EIO;
+
+    QSIMPLEQ_HEAD(states_to_delete, BlkIntermediateStates) states_to_delete;
+    QSIMPLEQ_INIT(&states_to_delete);
+
+    if (!top->drv || !base->drv) {
+        goto exit;
+    }
+
+    new_top_bs = bdrv_find_overlay(active, top);
+
+    if (new_top_bs == NULL) {
+        /* we could not find the image above 'top', this is an error */
+        goto exit;
+    }
+
+    /* special case of new_top_bs->backing_hd already pointing to base - nothing
+     * to do, no intermediate images */
+    if (new_top_bs->backing_hd == base) {
+        ret = 0;
+        goto exit;
+    }
+
+    intermediate = top;
+
+    /* now we will go down through the list, and add each BDS we find
+     * into our deletion queue, until we hit the 'base'
+     */
+    while (intermediate) {
+        intermediate_state = g_malloc0(sizeof(BlkIntermediateStates));
+        intermediate_state->bs = intermediate;
+        QSIMPLEQ_INSERT_TAIL(&states_to_delete, intermediate_state, entry);
+
+        if (intermediate->backing_hd == base) {
+            base_bs = intermediate->backing_hd;
+            break;
+        }
+        intermediate = intermediate->backing_hd;
+    }
+    if (base_bs == NULL) {
+        /* something went wrong, we did not end at the base. safely
+         * unravel everything, and exit with error */
+        goto exit;
+    }
+
+    /* success - we can delete the intermediate states, and link top->base */
+    ret = bdrv_change_backing_file(new_top_bs, base_bs->filename,
+                                   base_bs->drv ? base_bs->drv->format_name : "");
+    if (ret) {
+        goto exit;
+    }
+    new_top_bs->backing_hd = base_bs;
+
+
+    QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
+        /* so that bdrv_close() does not recursively close the chain */
+        intermediate_state->bs->backing_hd = NULL;
+        bdrv_delete(intermediate_state->bs);
+    }
+    ret = 0;
+
+exit:
+    QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
+        g_free(intermediate_state);
+    }
+    return ret;
+}
+
 
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
                                    size_t size)
@@ -2330,16 +2476,49 @@ void bdrv_set_io_limits(BlockDriverState *bs,
     bs->io_limits_enabled = bdrv_io_limits_enabled(bs);
 }
 
-void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
-                       BlockErrorAction on_write_error)
+void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
+                       BlockdevOnError on_write_error)
 {
     bs->on_read_error = on_read_error;
     bs->on_write_error = on_write_error;
 }
 
-BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read)
+BlockdevOnError bdrv_get_on_error(BlockDriverState *bs, bool is_read)
 {
     return is_read ? bs->on_read_error : bs->on_write_error;
+}
+
+BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int error)
+{
+    BlockdevOnError on_err = is_read ? bs->on_read_error : bs->on_write_error;
+
+    switch (on_err) {
+    case BLOCKDEV_ON_ERROR_ENOSPC:
+        return (error == ENOSPC) ? BDRV_ACTION_STOP : BDRV_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_STOP:
+        return BDRV_ACTION_STOP;
+    case BLOCKDEV_ON_ERROR_REPORT:
+        return BDRV_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_IGNORE:
+        return BDRV_ACTION_IGNORE;
+    default:
+        abort();
+    }
+}
+
+/* This is done by device models because, while the block layer knows
+ * about the error, it does not know whether an operation comes from
+ * the device or the block layer (from a job, for example).
+ */
+void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
+                       bool is_read, int error)
+{
+    assert(error >= 0);
+    bdrv_emit_qmp_error_event(bs, QEVENT_BLOCK_IO_ERROR, action, is_read);
+    if (action == BDRV_ACTION_STOP) {
+        vm_stop(RUN_STATE_IO_ERROR);
+        bdrv_iostatus_set_err(bs, error);
+    }
 }
 
 int bdrv_is_read_only(BlockDriverState *bs)
@@ -2972,6 +3151,22 @@ int bdrv_get_backing_file_depth(BlockDriverState *bs)
     }
 
     return 1 + bdrv_get_backing_file_depth(bs->backing_hd);
+}
+
+BlockDriverState *bdrv_find_base(BlockDriverState *bs)
+{
+    BlockDriverState *curr_bs = NULL;
+
+    if (!bs) {
+        return NULL;
+    }
+
+    curr_bs = bs;
+
+    while (curr_bs->backing_hd) {
+        curr_bs = curr_bs->backing_hd;
+    }
+    return curr_bs;
 }
 
 #define NB_SUFFIXES 4
@@ -4049,9 +4244,9 @@ void bdrv_iostatus_enable(BlockDriverState *bs)
 bool bdrv_iostatus_is_enabled(const BlockDriverState *bs)
 {
     return (bs->iostatus_enabled &&
-           (bs->on_write_error == BLOCK_ERR_STOP_ENOSPC ||
-            bs->on_write_error == BLOCK_ERR_STOP_ANY    ||
-            bs->on_read_error == BLOCK_ERR_STOP_ANY));
+           (bs->on_write_error == BLOCKDEV_ON_ERROR_ENOSPC ||
+            bs->on_write_error == BLOCKDEV_ON_ERROR_STOP   ||
+            bs->on_read_error == BLOCKDEV_ON_ERROR_STOP));
 }
 
 void bdrv_iostatus_disable(BlockDriverState *bs)
@@ -4066,14 +4261,10 @@ void bdrv_iostatus_reset(BlockDriverState *bs)
     }
 }
 
-/* XXX: Today this is set by device models because it makes the implementation
-   quite simple. However, the block layer knows about the error, so it's
-   possible to implement this without device models being involved */
 void bdrv_iostatus_set_err(BlockDriverState *bs, int error)
 {
-    if (bdrv_iostatus_is_enabled(bs) &&
-        bs->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
-        assert(error >= 0);
+    assert(bdrv_iostatus_is_enabled(bs));
+    if (bs->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
         bs->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
                                          BLOCK_DEVICE_IO_STATUS_FAILED;
     }
@@ -4246,131 +4437,4 @@ out:
     }
 
     return ret;
-}
-
-void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
-                       int64_t speed, BlockDriverCompletionFunc *cb,
-                       void *opaque, Error **errp)
-{
-    BlockJob *job;
-
-    if (bs->job || bdrv_in_use(bs)) {
-        error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
-        return NULL;
-    }
-    bdrv_set_in_use(bs, 1);
-
-    job = g_malloc0(job_type->instance_size);
-    job->job_type      = job_type;
-    job->bs            = bs;
-    job->cb            = cb;
-    job->opaque        = opaque;
-    job->busy          = true;
-    bs->job = job;
-
-    /* Only set speed when necessary to avoid NotSupported error */
-    if (speed != 0) {
-        Error *local_err = NULL;
-
-        block_job_set_speed(job, speed, &local_err);
-        if (error_is_set(&local_err)) {
-            bs->job = NULL;
-            g_free(job);
-            bdrv_set_in_use(bs, 0);
-            error_propagate(errp, local_err);
-            return NULL;
-        }
-    }
-    return job;
-}
-
-void block_job_complete(BlockJob *job, int ret)
-{
-    BlockDriverState *bs = job->bs;
-
-    assert(bs->job == job);
-    job->cb(job->opaque, ret);
-    bs->job = NULL;
-    g_free(job);
-    bdrv_set_in_use(bs, 0);
-}
-
-void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
-{
-    Error *local_err = NULL;
-
-    if (!job->job_type->set_speed) {
-        error_set(errp, QERR_NOT_SUPPORTED);
-        return;
-    }
-    job->job_type->set_speed(job, speed, &local_err);
-    if (error_is_set(&local_err)) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    job->speed = speed;
-}
-
-void block_job_cancel(BlockJob *job)
-{
-    job->cancelled = true;
-    if (job->co && !job->busy) {
-        qemu_coroutine_enter(job->co, NULL);
-    }
-}
-
-bool block_job_is_cancelled(BlockJob *job)
-{
-    return job->cancelled;
-}
-
-struct BlockCancelData {
-    BlockJob *job;
-    BlockDriverCompletionFunc *cb;
-    void *opaque;
-    bool cancelled;
-    int ret;
-};
-
-static void block_job_cancel_cb(void *opaque, int ret)
-{
-    struct BlockCancelData *data = opaque;
-
-    data->cancelled = block_job_is_cancelled(data->job);
-    data->ret = ret;
-    data->cb(data->opaque, ret);
-}
-
-int block_job_cancel_sync(BlockJob *job)
-{
-    struct BlockCancelData data;
-    BlockDriverState *bs = job->bs;
-
-    assert(bs->job == job);
-
-    /* Set up our own callback to store the result and chain to
-     * the original callback.
-     */
-    data.job = job;
-    data.cb = job->cb;
-    data.opaque = job->opaque;
-    data.ret = -EINPROGRESS;
-    job->cb = block_job_cancel_cb;
-    job->opaque = &data;
-    block_job_cancel(job);
-    while (data.ret == -EINPROGRESS) {
-        qemu_aio_wait();
-    }
-    return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
-}
-
-void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns)
-{
-    /* Check cancellation *before* setting busy = false, too!  */
-    if (!block_job_is_cancelled(job)) {
-        job->busy = false;
-        co_sleep_ns(clock, ns);
-        job->busy = true;
-    }
 }
