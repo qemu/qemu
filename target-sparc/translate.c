@@ -768,44 +768,6 @@ static inline void gen_op_smul(TCGv dst, TCGv src1, TCGv src2)
     gen_op_multiply(dst, src1, src2, 1);
 }
 
-#ifdef TARGET_SPARC64
-static inline void gen_trap_ifdivzero_tl(TCGv divisor)
-{
-    TCGv_i32 r_const;
-    int l1;
-
-    l1 = gen_new_label();
-    tcg_gen_brcondi_tl(TCG_COND_NE, divisor, 0, l1);
-    r_const = tcg_const_i32(TT_DIV_ZERO);
-    gen_helper_raise_exception(cpu_env, r_const);
-    tcg_temp_free_i32(r_const);
-    gen_set_label(l1);
-}
-
-static inline void gen_op_sdivx(TCGv dst, TCGv src1, TCGv src2)
-{
-    int l1, l2;
-    TCGv r_temp1, r_temp2;
-
-    l1 = gen_new_label();
-    l2 = gen_new_label();
-    r_temp1 = tcg_temp_local_new();
-    r_temp2 = tcg_temp_local_new();
-    tcg_gen_mov_tl(r_temp1, src1);
-    tcg_gen_mov_tl(r_temp2, src2);
-    gen_trap_ifdivzero_tl(r_temp2);
-    tcg_gen_brcondi_tl(TCG_COND_NE, r_temp1, INT64_MIN, l1);
-    tcg_gen_brcondi_tl(TCG_COND_NE, r_temp2, -1, l1);
-    tcg_gen_movi_i64(dst, INT64_MIN);
-    tcg_gen_br(l2);
-    gen_set_label(l1);
-    tcg_gen_div_i64(dst, r_temp1, r_temp2);
-    gen_set_label(l2);
-    tcg_temp_free(r_temp1);
-    tcg_temp_free(r_temp2);
-}
-#endif
-
 // 1
 static inline void gen_op_eval_ba(TCGv dst)
 {
@@ -3591,17 +3553,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         break;
 #ifdef TARGET_SPARC64
                     case 0xd: /* V9 udivx */
-                        {
-                            TCGv r_temp1, r_temp2;
-                            r_temp1 = tcg_temp_local_new();
-                            r_temp2 = tcg_temp_local_new();
-                            tcg_gen_mov_tl(r_temp1, cpu_src1);
-                            tcg_gen_mov_tl(r_temp2, cpu_src2);
-                            gen_trap_ifdivzero_tl(r_temp2);
-                            tcg_gen_divu_i64(cpu_dst, r_temp1, r_temp2);
-                            tcg_temp_free(r_temp1);
-                            tcg_temp_free(r_temp2);
-                        }
+                        gen_helper_udivx(cpu_dst, cpu_env, cpu_src1, cpu_src2);
                         break;
 #endif
                     case 0xe: /* udiv */
@@ -4102,7 +4054,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             break;
                         }
                     case 0x2d: /* V9 sdivx */
-                        gen_op_sdivx(cpu_dst, cpu_src1, cpu_src2);
+                        gen_helper_sdivx(cpu_dst, cpu_env, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         break;
                     case 0x2e: /* V9 popc */

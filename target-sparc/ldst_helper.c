@@ -2390,9 +2390,8 @@ void cpu_unassigned_access(CPUSPARCState *env, target_phys_addr_t addr,
 #endif
 #endif
 
-#if !defined(CONFIG_USER_ONLY)
 /* XXX: make it generic ? */
-static void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr)
+void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr)
 {
     TranslationBlock *tb;
 
@@ -2407,6 +2406,7 @@ static void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr)
     }
 }
 
+#if !defined(CONFIG_USER_ONLY)
 void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
                          int is_user, uintptr_t retaddr)
 {

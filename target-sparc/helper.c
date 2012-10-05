@@ -75,6 +75,7 @@ static target_ulong helper_udiv_common(CPUSPARCState *env, target_ulong a,
     x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
+        cpu_restore_state2(env, GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
     }
 
@@ -113,6 +114,7 @@ static target_ulong helper_sdiv_common(CPUSPARCState *env, target_ulong a,
     x1 = (b & 0xffffffff);
 
     if (x1 == 0) {
+        cpu_restore_state2(env, GETPC());
         helper_raise_exception(env, TT_DIV_ZERO);
     }
 
@@ -139,3 +141,29 @@ target_ulong helper_sdiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     return helper_sdiv_common(env, a, b, 1);
 }
+
+#ifdef TARGET_SPARC64
+int64_t helper_sdivx(CPUSPARCState *env, int64_t a, int64_t b)
+{
+    if (b == 0) {
+        /* Raise divide by zero trap.  */
+        cpu_restore_state2(env, GETPC());
+        helper_raise_exception(env, TT_DIV_ZERO);
+    } else if (b == -1) {
+        /* Avoid overflow trap with i386 divide insn.  */
+        return -a;
+    } else {
+        return a / b;
+    }
+}
+
+uint64_t helper_udivx(CPUSPARCState *env, uint64_t a, uint64_t b)
+{
+    if (b == 0) {
+        /* Raise divide by zero trap.  */
+        cpu_restore_state2(env, GETPC());
+        helper_raise_exception(env, TT_DIV_ZERO);
+    }
+    return a / b;
+}
+#endif
