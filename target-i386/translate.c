@@ -1043,53 +1043,54 @@ static void gen_compute_eflags_z(DisasContext *s, TCGv reg, bool inv)
     }
 }
 
-static inline void gen_setcc_slow_T0(DisasContext *s, int jcc_op, bool inv)
+static void gen_setcc_slow(DisasContext *s, int jcc_op, TCGv reg, bool inv)
 {
+    assert(!TCGV_EQUAL(reg, cpu_cc_src));
     switch(jcc_op) {
     case JCC_O:
-        gen_compute_eflags_o(s, cpu_T[0]);
+        gen_compute_eflags_o(s, reg);
         break;
     case JCC_B:
-        gen_compute_eflags_c(s, cpu_T[0], inv);
+        gen_compute_eflags_c(s, reg, inv);
         inv = false;
         break;
     case JCC_Z:
-        gen_compute_eflags_z(s, cpu_T[0], inv);
+        gen_compute_eflags_z(s, reg, inv);
         inv = false;
         break;
     case JCC_BE:
         gen_compute_eflags(s);
-        tcg_gen_shri_tl(cpu_T[0], cpu_cc_src, 6);
-        tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_cc_src);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        tcg_gen_shri_tl(reg, cpu_cc_src, 6);
+        tcg_gen_or_tl(reg, reg, cpu_cc_src);
+        tcg_gen_andi_tl(reg, reg, 1);
         break;
     case JCC_S:
-        gen_compute_eflags_s(s, cpu_T[0], inv);
+        gen_compute_eflags_s(s, reg, inv);
         inv = false;
         break;
     case JCC_P:
-        gen_compute_eflags_p(s, cpu_T[0]);
+        gen_compute_eflags_p(s, reg);
         break;
     case JCC_L:
         gen_compute_eflags(s);
-        tcg_gen_shri_tl(cpu_T[0], cpu_cc_src, 11); /* CC_O */
+        tcg_gen_shri_tl(reg, cpu_cc_src, 11); /* CC_O */
         tcg_gen_shri_tl(cpu_tmp0, cpu_cc_src, 7); /* CC_S */
-        tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_tmp0);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        tcg_gen_xor_tl(reg, reg, cpu_tmp0);
+        tcg_gen_andi_tl(reg, reg, 1);
         break;
     default:
     case JCC_LE:
         gen_compute_eflags(s);
-        tcg_gen_shri_tl(cpu_T[0], cpu_cc_src, 11); /* CC_O */
+        tcg_gen_shri_tl(reg, cpu_cc_src, 11); /* CC_O */
         tcg_gen_shri_tl(cpu_tmp4, cpu_cc_src, 7); /* CC_S */
         tcg_gen_shri_tl(cpu_tmp0, cpu_cc_src, 6); /* CC_Z */
-        tcg_gen_xor_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
-        tcg_gen_or_tl(cpu_T[0], cpu_T[0], cpu_tmp0);
-        tcg_gen_andi_tl(cpu_T[0], cpu_T[0], 1);
+        tcg_gen_xor_tl(reg, reg, cpu_tmp4);
+        tcg_gen_or_tl(reg, reg, cpu_tmp0);
+        tcg_gen_andi_tl(reg, reg, 1);
         break;
     }
     if (inv) {
-        tcg_gen_xori_tl(cpu_T[0], cpu_T[0], 1);
+        tcg_gen_xori_tl(reg, reg, 1);
     }
 }
 
@@ -1256,7 +1257,7 @@ static inline void gen_jcc1(DisasContext *s, int b, int l1)
         break;
     default:
     slow_jcc:
-        gen_setcc_slow_T0(s, jcc_op, false);
+        gen_setcc_slow(s, jcc_op, cpu_T[0], false);
         tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, 
                            cpu_T[0], 0, l1);
         break;
@@ -2510,7 +2511,7 @@ static void gen_setcc(DisasContext *s, int b)
            worth to */
         inv = b & 1;
         jcc_op = (b >> 1) & 7;
-        gen_setcc_slow_T0(s, jcc_op, inv);
+        gen_setcc_slow(s, jcc_op, cpu_T[0], inv);
     }
 }
 
