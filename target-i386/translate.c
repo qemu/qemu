@@ -1112,6 +1112,7 @@ static inline void gen_scas(DisasContext *s, int ot)
     gen_op_cmpl_T0_T1_cc();
     gen_op_movl_T0_Dshift(ot);
     gen_op_add_reg_T0(s->aflag, R_EDI);
+    s->cc_op = CC_OP_SUBB + ot;
 }
 
 static inline void gen_cmps(DisasContext *s, int ot)
@@ -1124,6 +1125,7 @@ static inline void gen_cmps(DisasContext *s, int ot)
     gen_op_movl_T0_Dshift(ot);
     gen_op_add_reg_T0(s->aflag, R_ESI);
     gen_op_add_reg_T0(s->aflag, R_EDI);
+    s->cc_op = CC_OP_SUBB + ot;
 }
 
 static inline void gen_ins(DisasContext *s, int ot)
@@ -1194,11 +1196,12 @@ static inline void gen_repz_ ## op(DisasContext *s, int ot,                   \
     l2 = gen_jz_ecx_string(s, next_eip);                                      \
     gen_ ## op(s, ot);                                                        \
     gen_op_add_reg_im(s->aflag, R_ECX, -1);                                   \
-    gen_op_set_cc_op(CC_OP_SUBB + ot);                                        \
-    gen_jcc1(s, CC_OP_SUBB + ot, (JCC_Z << 1) | (nz ^ 1), l2);                \
+    gen_op_set_cc_op(s->cc_op);                                               \
+    gen_jcc1(s, s->cc_op, (JCC_Z << 1) | (nz ^ 1), l2);                       \
     if (!s->jmp_opt)                                                          \
         gen_op_jz_ecx(s->aflag, l2);                                          \
     gen_jmp(s, cur_eip);                                                      \
+    s->cc_op = CC_OP_DYNAMIC;                                                 \
 }
 
 GEN_REPZ(movs)
@@ -6088,7 +6091,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_repz_scas(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 0);
         } else {
             gen_scas(s, ot);
-            s->cc_op = CC_OP_SUBB + ot;
         }
         break;
 
@@ -6104,7 +6106,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_repz_cmps(s, ot, pc_start - s->cs_base, s->pc - s->cs_base, 0);
         } else {
             gen_cmps(s, ot);
-            s->cc_op = CC_OP_SUBB + ot;
         }
         break;
     case 0x6c: /* insS */
