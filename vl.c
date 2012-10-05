@@ -3171,6 +3171,11 @@ int main(int argc, char **argv, char **envp)
                     machine = machine_parse(optarg);
                 }
                 break;
+            case QEMU_OPTION_no_kvm_pit: {
+                fprintf(stderr, "Warning: KVM PIT can no longer be disabled "
+                                "separately.\n");
+                break;
+            }
             case QEMU_OPTION_usb:
                 machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
                 if (machine_opts) {
