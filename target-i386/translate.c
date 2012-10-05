@@ -659,38 +659,45 @@ static inline void gen_op_movl_T0_Dshift(int ot)
     tcg_gen_shli_tl(cpu_T[0], cpu_T[0], ot);
 };
 
+static TCGv gen_ext_tl(TCGv dst, TCGv src, int size, bool sign)
+{
+    switch (size) {
+    case OT_BYTE:
+        if (sign) {
+            tcg_gen_ext8s_tl(dst, src);
+        } else {
+            tcg_gen_ext8u_tl(dst, src);
+        }
+        return dst;
+    case OT_WORD:
+        if (sign) {
+            tcg_gen_ext16s_tl(dst, src);
+        } else {
+            tcg_gen_ext16u_tl(dst, src);
+        }
+        return dst;
+#ifdef TARGET_X86_64
+    case OT_LONG:
+        if (sign) {
+            tcg_gen_ext32s_tl(dst, src);
+        } else {
+            tcg_gen_ext32u_tl(dst, src);
+        }
+        return dst;
+#endif
+    default:
+        return src;
+    }
+}
+
 static void gen_extu(int ot, TCGv reg)
 {
-    switch(ot) {
-    case OT_BYTE:
-        tcg_gen_ext8u_tl(reg, reg);
-        break;
-    case OT_WORD:
-        tcg_gen_ext16u_tl(reg, reg);
-        break;
-    case OT_LONG:
-        tcg_gen_ext32u_tl(reg, reg);
-        break;
-    default:
-        break;
-    }
+    gen_ext_tl(reg, reg, ot, false);
 }
 
 static void gen_exts(int ot, TCGv reg)
 {
-    switch(ot) {
-    case OT_BYTE:
-        tcg_gen_ext8s_tl(reg, reg);
-        break;
-    case OT_WORD:
-        tcg_gen_ext16s_tl(reg, reg);
-        break;
-    case OT_LONG:
-        tcg_gen_ext32s_tl(reg, reg);
-        break;
-    default:
-        break;
-    }
+    gen_ext_tl(reg, reg, ot, true);
 }
 
 static inline void gen_op_jnz_ecx(int size, int label1)
@@ -966,54 +973,15 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
         switch(jcc_op) {
         case JCC_Z:
         fast_jcc_z:
-            switch(size) {
-            case 0:
-                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0xff);
-                t0 = cpu_tmp0;
-                break;
-            case 1:
-                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0xffff);
-                t0 = cpu_tmp0;
-                break;
-#ifdef TARGET_X86_64
-            case 2:
-                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0xffffffff);
-                t0 = cpu_tmp0;
-                break;
-#endif
-            default:
-                t0 = cpu_cc_dst;
-                break;
-            }
+            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_dst, size, false);
             tcg_gen_brcondi_tl(inv ? TCG_COND_NE : TCG_COND_EQ, t0, 0, l1);
             break;
         case JCC_S:
         fast_jcc_s:
-            switch(size) {
-            case 0:
-                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x80);
-                tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
-                                   0, l1);
-                break;
-            case 1:
-                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x8000);
-                tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
-                                   0, l1);
-                break;
-#ifdef TARGET_X86_64
-            case 2:
-                tcg_gen_andi_tl(cpu_tmp0, cpu_cc_dst, 0x80000000);
-                tcg_gen_brcondi_tl(inv ? TCG_COND_EQ : TCG_COND_NE, cpu_tmp0, 
-                                   0, l1);
-                break;
-#endif
-            default:
-                tcg_gen_brcondi_tl(inv ? TCG_COND_GE : TCG_COND_LT, cpu_cc_dst, 
-                                   0, l1);
-                break;
-            }
+            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_dst, size, true);
+            tcg_gen_brcondi_tl(inv ? TCG_COND_GE : TCG_COND_LT, t0, 0, l1);
             break;
-            
+
         case JCC_B:
             cond = inv ? TCG_COND_GEU : TCG_COND_LTU;
             goto fast_jcc_b;
@@ -1021,28 +989,8 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
             cond = inv ? TCG_COND_GTU : TCG_COND_LEU;
         fast_jcc_b:
             tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
-            switch(size) {
-            case 0:
-                t0 = cpu_tmp0;
-                tcg_gen_andi_tl(cpu_tmp4, cpu_tmp4, 0xff);
-                tcg_gen_andi_tl(t0, cpu_cc_src, 0xff);
-                break;
-            case 1:
-                t0 = cpu_tmp0;
-                tcg_gen_andi_tl(cpu_tmp4, cpu_tmp4, 0xffff);
-                tcg_gen_andi_tl(t0, cpu_cc_src, 0xffff);
-                break;
-#ifdef TARGET_X86_64
-            case 2:
-                t0 = cpu_tmp0;
-                tcg_gen_andi_tl(cpu_tmp4, cpu_tmp4, 0xffffffff);
-                tcg_gen_andi_tl(t0, cpu_cc_src, 0xffffffff);
-                break;
-#endif
-            default:
-                t0 = cpu_cc_src;
-                break;
-            }
+            gen_extu(size, cpu_tmp4);
+            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, false);
             tcg_gen_brcond_tl(cond, cpu_tmp4, t0, l1);
             break;
             
@@ -1053,28 +1001,8 @@ static inline void gen_jcc1(DisasContext *s, int cc_op, int b, int l1)
             cond = inv ? TCG_COND_GT : TCG_COND_LE;
         fast_jcc_l:
             tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
-            switch(size) {
-            case 0:
-                t0 = cpu_tmp0;
-                tcg_gen_ext8s_tl(cpu_tmp4, cpu_tmp4);
-                tcg_gen_ext8s_tl(t0, cpu_cc_src);
-                break;
-            case 1:
-                t0 = cpu_tmp0;
-                tcg_gen_ext16s_tl(cpu_tmp4, cpu_tmp4);
-                tcg_gen_ext16s_tl(t0, cpu_cc_src);
-                break;
-#ifdef TARGET_X86_64
-            case 2:
-                t0 = cpu_tmp0;
-                tcg_gen_ext32s_tl(cpu_tmp4, cpu_tmp4);
-                tcg_gen_ext32s_tl(t0, cpu_cc_src);
-                break;
-#endif
-            default:
-                t0 = cpu_cc_src;
-                break;
-            }
+            gen_exts(size, cpu_tmp4);
+            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, true);
             tcg_gen_brcond_tl(cond, cpu_tmp4, t0, l1);
             break;
             
