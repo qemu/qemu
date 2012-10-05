@@ -1373,6 +1373,7 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
         gen_op_ld_T0_A0(ot + s1->mem_index);
     if (s1->cc_op != CC_OP_DYNAMIC)
         gen_op_set_cc_op(s1->cc_op);
+    gen_compute_eflags_c(cpu_cc_src);
     if (c > 0) {
         tcg_gen_addi_tl(cpu_T[0], cpu_T[0], 1);
         s1->cc_op = CC_OP_INCB + ot;
@@ -1384,7 +1385,6 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
         gen_op_mov_reg_T0(ot, d);
     else
         gen_op_st_T0_A0(ot + s1->mem_index);
-    gen_compute_eflags_c(cpu_cc_src);
     tcg_gen_mov_tl(cpu_cc_dst, cpu_T[0]);
 }
 
