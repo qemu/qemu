@@ -2613,25 +2613,28 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_helper_raise_exception(cpu_env, cpu_tmp32);
 
                 } else if (cond != 0) {
-                    TCGv r_cond = tcg_temp_new();
+                    DisasCompare cmp;
                     int l1;
 #ifdef TARGET_SPARC64
                     /* V9 icc/xcc */
                     int cc = GET_FIELD_SP(insn, 11, 12);
 
                     save_state(dc);
-                    if (cc == 0)
-                        gen_cond(r_cond, 0, cond, dc);
-                    else if (cc == 2)
-                        gen_cond(r_cond, 1, cond, dc);
-                    else
+                    if (cc == 0) {
+                        gen_compare(&cmp, 0, cond, dc);
+                    } else if (cc == 2) {
+                        gen_compare(&cmp, 1, cond, dc);
+                    } else {
                         goto illegal_insn;
+                    }
 #else
                     save_state(dc);
-                    gen_cond(r_cond, 0, cond, dc);
+                    gen_compare(&cmp, 0, cond, dc);
 #endif
                     l1 = gen_new_label();
-                    tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
+                    tcg_gen_brcond_tl(tcg_invert_cond(cmp.cond),
+                                      cmp.c1, cmp.c2, l1);
+                    free_compare(&cmp);
 
                     if ((dc->def->features & CPU_FEATURE_HYPV) &&
                         supervisor(dc))
@@ -2643,7 +2646,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_helper_raise_exception(cpu_env, cpu_tmp32);
 
                     gen_set_label(l1);
-                    tcg_temp_free(r_cond);
                 }
                 gen_op_next_insn();
                 tcg_gen_exit_tb(0);
