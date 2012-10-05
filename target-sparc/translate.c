@@ -3051,44 +3051,30 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
                 save_state(dc);
-#ifdef TARGET_SPARC64
-                if ((xop & 0x11f) == 0x005) { // V9 fmovsr
-                    int l1;
 
-                    l1 = gen_new_label();
-                    cond = GET_FIELD_SP(insn, 14, 17);
-                    cpu_src1 = get_src1(insn, cpu_src1);
-                    tcg_gen_brcondi_tl(gen_tcg_cond_reg[cond], cpu_src1,
-                                       0, l1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    gen_store_fpr_F(dc, rd, cpu_src1_32);
-                    gen_set_label(l1);
+#ifdef TARGET_SPARC64
+#define FMOVR(sz)                                                  \
+                do {                                               \
+                    DisasCompare cmp;                              \
+                    cond = GET_FIELD_SP(insn, 14, 17);             \
+                    cpu_src1 = get_src1(insn, cpu_src1);           \
+                    gen_compare_reg(&cmp, cond, cpu_src1);         \
+                    gen_fmov##sz(dc, &cmp, rd, rs2);               \
+                    free_compare(&cmp);                            \
+                } while (0)
+
+                if ((xop & 0x11f) == 0x005) { /* V9 fmovsr */
+                    FMOVR(s);
                     break;
                 } else if ((xop & 0x11f) == 0x006) { // V9 fmovdr
-                    int l1;
-
-                    l1 = gen_new_label();
-                    cond = GET_FIELD_SP(insn, 14, 17);
-                    cpu_src1 = get_src1(insn, cpu_src1);
-                    tcg_gen_brcondi_tl(gen_tcg_cond_reg[cond], cpu_src1,
-                                       0, l1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    gen_store_fpr_D(dc, rd, cpu_src1_64);
-                    gen_set_label(l1);
+                    FMOVR(d);
                     break;
                 } else if ((xop & 0x11f) == 0x007) { // V9 fmovqr
-                    int l1;
-
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    l1 = gen_new_label();
-                    cond = GET_FIELD_SP(insn, 14, 17);
-                    cpu_src1 = get_src1(insn, cpu_src1);
-                    tcg_gen_brcondi_tl(gen_tcg_cond_reg[cond], cpu_src1,
-                                       0, l1);
-                    gen_move_Q(rd, rs2);
-                    gen_set_label(l1);
+                    FMOVR(q);
                     break;
                 }
+#undef FMOVR
 #endif
                 switch (xop) {
 #ifdef TARGET_SPARC64
