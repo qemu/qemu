@@ -241,7 +241,7 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                                   elem->in_sg[i].iov_len,
                                   1, size);
 
-        offset += elem->in_sg[i].iov_len;
+        offset += size;
     }
 
     for (i = 0; i < elem->out_num; i++)
@@ -335,10 +335,11 @@ static unsigned virtqueue_next_desc(target_phys_addr_t desc_pa,
     return next;
 }
 
-int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
+void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
+                               unsigned int *out_bytes)
 {
     unsigned int idx;
-    int total_bufs, in_total, out_total;
+    unsigned int total_bufs, in_total, out_total;
 
     idx = vq->last_avail_idx;
 
@@ -380,13 +381,9 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
             }
 
             if (vring_desc_flags(desc_pa, i) & VRING_DESC_F_WRITE) {
-                if (in_bytes > 0 &&
-                    (in_total += vring_desc_len(desc_pa, i)) >= in_bytes)
-                    return 1;
+                in_total += vring_desc_len(desc_pa, i);
             } else {
-                if (out_bytes > 0 &&
-                    (out_total += vring_desc_len(desc_pa, i)) >= out_bytes)
-                    return 1;
+                out_total += vring_desc_len(desc_pa, i);
             }
         } while ((i = virtqueue_next_desc(desc_pa, i, max)) != max);
 
@@ -395,7 +392,24 @@ int virtqueue_avail_bytes(VirtQueue *vq, int in_bytes, int out_bytes)
         else
             total_bufs++;
     }
+    if (in_bytes) {
+        *in_bytes = in_total;
+    }
+    if (out_bytes) {
+        *out_bytes = out_total;
+    }
+}
 
+int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
+                          unsigned int out_bytes)
+{
+    unsigned int in_total, out_total;
+
+    virtqueue_get_avail_bytes(vq, &in_total, &out_total);
+    if ((in_bytes && in_bytes < in_total)
+        || (out_bytes && out_bytes < out_total)) {
+        return 1;
+    }
     return 0;
 }
 

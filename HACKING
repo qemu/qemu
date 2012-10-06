@@ -91,10 +91,11 @@ emulators.
 
 4. String manipulation
 
-Do not use the strncpy function.  According to the man page, it does
-*not* guarantee a NULL-terminated buffer, which makes it extremely dangerous
-to use.  Instead, use functionally equivalent function:
-void pstrcpy(char *buf, int buf_size, const char *str)
+Do not use the strncpy function.  As mentioned in the man page, it does *not*
+guarantee a NULL-terminated buffer, which makes it extremely dangerous to use.
+It also zeros trailing destination bytes out to the specified length.  Instead,
+use this similar function when possible, but note its different signature:
+void pstrcpy(char *dest, int dest_buf_size, const char *src)
 
 Don't use strcat because it can't check for buffer overflows, but:
 char *pstrcat(char *buf, int buf_size, const char *s)

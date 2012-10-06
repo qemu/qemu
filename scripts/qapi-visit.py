@@ -173,7 +173,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
                 break;
 ''',
                 abbrev = de_camel_case(name).upper(),
-                enum = c_fun(de_camel_case(key)).upper(),
+                enum = c_fun(de_camel_case(key),False).upper(),
                 c_type=members[key],
                 c_name=c_fun(key))
 

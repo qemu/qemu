@@ -866,14 +866,14 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
         s->port = 0;
     }
 
-    strncpy(vdi, p, SD_MAX_VDI_LEN);
+    pstrcpy(vdi, SD_MAX_VDI_LEN, p);
 
     p = strchr(vdi, ':');
     if (p) {
         *p++ = '\0';
         *snapid = strtoul(p, NULL, 10);
         if (*snapid == 0) {
-            strncpy(tag, p, SD_MAX_VDI_TAG_LEN);
+            pstrcpy(tag, SD_MAX_VDI_TAG_LEN, p);
         }
     } else {
         *snapid = CURRENT_VDI_ID; /* search current vdi */
@@ -900,7 +900,10 @@ static int find_vdi_name(BDRVSheepdogState *s, char *filename, uint32_t snapid,
         return fd;
     }
 
-    memset(buf, 0, sizeof(buf));
+    /* This pair of strncpy calls ensures that the buffer is zero-filled,
+     * which is desirable since we'll soon be sending those bytes, and
+     * don't want the send_req to read uninitialized data.
+     */
     strncpy(buf, filename, SD_MAX_VDI_LEN);
     strncpy(buf + SD_MAX_VDI_LEN, tag, SD_MAX_VDI_TAG_LEN);
 
@@ -1149,7 +1152,7 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
     s->max_dirty_data_idx = 0;
 
     bs->total_sectors = s->inode.vdi_size / SECTOR_SIZE;
-    strncpy(s->name, vdi, sizeof(s->name));
+    pstrcpy(s->name, sizeof(s->name), vdi);
     qemu_co_mutex_init(&s->lock);
     g_free(buf);
     return 0;
@@ -1177,8 +1180,11 @@ static int do_sd_create(char *filename, int64_t vdi_size,
         return fd;
     }
 
+    /* FIXME: would it be better to fail (e.g., return -EIO) when filename
+     * does not fit in buf?  For now, just truncate and avoid buffer overrun.
+     */
     memset(buf, 0, sizeof(buf));
-    strncpy(buf, filename, SD_MAX_VDI_LEN);
+    pstrcpy(buf, sizeof(buf), filename);
 
     memset(&hdr, 0, sizeof(hdr));
     hdr.opcode = SD_OP_NEW_VDI;
@@ -1752,6 +1758,9 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 
     s->inode.vm_state_size = sn_info->vm_state_size;
     s->inode.vm_clock_nsec = sn_info->vm_clock_nsec;
+    /* It appears that inode.tag does not require a NUL terminator,
+     * which means this use of strncpy is ok.
+     */
     strncpy(s->inode.tag, sn_info->name, sizeof(s->inode.tag));
     /* we don't need to update entire object */
     datalen = SD_INODE_SIZE - sizeof(s->inode.data_vdi_id);
@@ -1811,13 +1820,13 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 
     memcpy(old_s, s, sizeof(BDRVSheepdogState));
 
-    memset(vdi, 0, sizeof(vdi));
-    strncpy(vdi, s->name, sizeof(vdi));
+    pstrcpy(vdi, sizeof(vdi), s->name);
 
-    memset(tag, 0, sizeof(tag));
     snapid = strtoul(snapshot_id, NULL, 10);
-    if (!snapid) {
-        strncpy(tag, s->name, sizeof(tag));
+    if (snapid) {
+        tag[0] = 0;
+    } else {
+        pstrcpy(tag, sizeof(tag), s->name);
     }
 
     ret = find_vdi_name(s, vdi, snapid, tag, &vid, 1);
@@ -1946,8 +1955,9 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 
             snprintf(sn_tab[found].id_str, sizeof(sn_tab[found].id_str), "%u",
                      inode.snap_id);
-            strncpy(sn_tab[found].name, inode.tag,
-                    MIN(sizeof(sn_tab[found].name), sizeof(inode.tag)));
+            pstrcpy(sn_tab[found].name,
+                    MIN(sizeof(sn_tab[found].name), sizeof(inode.tag)),
+                    inode.tag);
             found++;
         }
     }

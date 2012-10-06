@@ -19,7 +19,7 @@
  * mfence on 32 bit as well, e.g. if built with -march=pentium-m.
  * However, on i386, there seem to be known bugs as recently as 4.3.
  * */
-#if defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+#if QEMU_GNUC_PREREQ(4, 4)
 #define smp_mb() __sync_synchronize()
 #else
 #define smp_mb() asm volatile("lock; addl $0,0(%%esp) " ::: "memory")

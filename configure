@@ -221,6 +221,7 @@ want_tools="yes"
 libiscsi=""
 coroutine=""
 seccomp=""
+glusterfs=""
 
 # parse CC options first
 for opt do
@@ -891,6 +892,10 @@ for opt do
   ;;
   --disable-seccomp) seccomp="no"
   ;;
+  --disable-glusterfs) glusterfs="no"
+  ;;
+  --enable-glusterfs) glusterfs="yes"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -1163,6 +1168,8 @@ echo "  --disable-seccomp        disable seccomp support"
 echo "  --enable-seccomp         enables seccomp support"
 echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
 echo "                           gthread, ucontext, sigaltstack, windows"
+echo "  --enable-glusterfs       enable GlusterFS backend"
+echo "  --disable-glusterfs      disable GlusterFS backend"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2347,6 +2354,29 @@ EOF
   fi
 fi
 
+##########################################
+# glusterfs probe
+if test "$glusterfs" != "no" ; then
+  cat > $TMPC <<EOF
+#include <glusterfs/api/glfs.h>
+int main(void) {
+    (void) glfs_new("volume");
+    return 0;
+}
+EOF
+  glusterfs_libs="-lgfapi -lgfrpc -lgfxdr"
+  if compile_prog "" "$glusterfs_libs" ; then
+    glusterfs=yes
+    libs_tools="$glusterfs_libs $libs_tools"
+    libs_softmmu="$glusterfs_libs $libs_softmmu"
+  else
+    if test "$glusterfs" = "yes" ; then
+      feature_not_found "GlusterFS backend support"
+    fi
+    glusterfs=no
+  fi
+fi
+
 #
 # Check for xxxat() functions when we are building linux-user
 # emulator.  This is done because older glibc versions don't
@@ -2800,10 +2830,10 @@ fi
 
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
-    if $pkg_config --atleast-version=0.5 libusbredirparser >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=0.5 libusbredirparser-0.5 >/dev/null 2>&1 ; then
         usb_redir="yes"
-        usb_redir_cflags=$($pkg_config --cflags libusbredirparser 2>/dev/null)
-        usb_redir_libs=$($pkg_config --libs libusbredirparser 2>/dev/null)
+        usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5 2>/dev/null)
+        usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5 2>/dev/null)
         QEMU_CFLAGS="$QEMU_CFLAGS $usb_redir_cflags"
         libs_softmmu="$libs_softmmu $usb_redir_libs"
     else
@@ -3236,6 +3266,7 @@ echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine_backend"
+echo "GlusterFS support $glusterfs"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3584,6 +3615,10 @@ fi
 
 if test "$has_environ" = "yes" ; then
   echo "CONFIG_HAS_ENVIRON=y" >> $config_host_mak
+fi
+
+if test "$glusterfs" = "yes" ; then
+  echo "CONFIG_GLUSTERFS=y" >> $config_host_mak
 fi
 
 # USB host support
@@ -3949,8 +3984,6 @@ fi
 if test "$target_softmmu" = "yes" ; then
   echo "CONFIG_SOFTMMU=y" >> $config_target_mak
   echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
-  echo "HWDIR=../libhw" >> $config_target_mak
-  echo "subdir-$target: subdir-libhw" >> $config_host_mak
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
   fi
@@ -4192,9 +4225,6 @@ for rom in seabios vgabios ; do
     echo "IASL=iasl" >> $config_mak
     echo "LD=$ld" >> $config_mak
 done
-
-d=libhw
-symlink "$source_path/Makefile.hw" "$d/Makefile"
 
 d=libuser
 symlink "$source_path/Makefile.user" "$d/Makefile"

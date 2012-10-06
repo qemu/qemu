@@ -99,9 +99,10 @@ ETEXI
 
     {
         .name       = "block_job_cancel",
-        .args_type  = "device:B",
-        .params     = "device",
-        .help       = "stop an active background block operation",
+        .args_type  = "force:-f,device:B",
+        .params     = "[-f] device",
+        .help       = "stop an active background block operation (use -f"
+                      "\n\t\t\t if the operation is currently paused)",
         .mhandler.cmd = hmp_block_job_cancel,
     },
 
@@ -109,6 +110,34 @@ STEXI
 @item block_job_cancel
 @findex block_job_cancel
 Stop an active block streaming operation.
+ETEXI
+
+    {
+        .name       = "block_job_pause",
+        .args_type  = "device:B",
+        .params     = "device",
+        .help       = "pause an active background block operation",
+        .mhandler.cmd = hmp_block_job_pause,
+    },
+
+STEXI
+@item block_job_pause
+@findex block_job_pause
+Pause an active block streaming operation.
+ETEXI
+
+    {
+        .name       = "block_job_resume",
+        .args_type  = "device:B",
+        .params     = "device",
+        .help       = "resume a paused background block operation",
+        .mhandler.cmd = hmp_block_job_resume,
+    },
+
+STEXI
+@item block_job_resume
+@findex block_job_resume
+Resume a paused block streaming operation.
 ETEXI
 
     {
@@ -914,12 +943,11 @@ ETEXI
 #if defined(CONFIG_HAVE_CORE_DUMP)
     {
         .name       = "dump-guest-memory",
-        .args_type  = "paging:-p,protocol:s,begin:i?,length:i?",
-        .params     = "[-p] protocol [begin] [length]",
+        .args_type  = "paging:-p,filename:F,begin:i?,length:i?",
+        .params     = "[-p] filename [begin] [length]",
         .help       = "dump guest memory to file"
                       "\n\t\t\t begin(optional): the starting physical address"
                       "\n\t\t\t length(optional): the memory size, in bytes",
-        .user_print = monitor_user_noop,
         .mhandler.cmd = hmp_dump_guest_memory,
     },
 
@@ -929,8 +957,7 @@ STEXI
 @findex dump-guest-memory
 Dump guest memory to @var{protocol}. The file can be processed with crash or
 gdb.
-  protocol: destination file(started with "file:") or destination file
-            descriptor (started with "fd:")
+  filename: dump file name
     paging: do paging to get guest's memory mapping
      begin: the starting physical address. It's optional, and should be
             specified with length together.

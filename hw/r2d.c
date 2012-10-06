@@ -332,6 +332,8 @@ static void r2d_init(ram_addr_t ram_size,
     }
 
     if (kernel_cmdline) {
+        /* I see no evidence that this .kernel_cmdline buffer requires
+           NUL-termination, so using strncpy should be ok. */
         strncpy(boot_params.kernel_cmdline, kernel_cmdline,
                 sizeof(boot_params.kernel_cmdline));
     }

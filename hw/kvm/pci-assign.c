@@ -579,15 +579,9 @@ static int get_real_device(AssignedDevice *pci_dev, uint16_t r_seg,
     snprintf(name, sizeof(name), "%sconfig", dir);
 
     if (pci_dev->configfd_name && *pci_dev->configfd_name) {
-        if (qemu_isdigit(pci_dev->configfd_name[0])) {
-            dev->config_fd = strtol(pci_dev->configfd_name, NULL, 0);
-        } else {
-            dev->config_fd = monitor_get_fd(cur_mon, pci_dev->configfd_name);
-            if (dev->config_fd < 0) {
-                error_report("%s: (%s) unkown", __func__,
-                             pci_dev->configfd_name);
-                return 1;
-            }
+        dev->config_fd = monitor_handle_fd_param(cur_mon, pci_dev->configfd_name);
+        if (dev->config_fd < 0) {
+            return 1;
         }
     } else {
         dev->config_fd = open(name, O_RDWR);

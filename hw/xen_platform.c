@@ -85,8 +85,10 @@ static void log_writeb(PCIXenPlatformState *s, char val)
 
 static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
 {
+    /* We have to ignore passthrough devices */
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
-            PCI_CLASS_NETWORK_ETHERNET) {
+            PCI_CLASS_NETWORK_ETHERNET
+            && strcmp(d->name, "xen-pci-passthrough") != 0) {
         qdev_free(&d->qdev);
     }
 }
@@ -98,8 +100,10 @@ static void pci_unplug_nics(PCIBus *bus)
 
 static void unplug_disks(PCIBus *b, PCIDevice *d, void *o)
 {
+    /* We have to ignore passthrough devices */
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
-            PCI_CLASS_STORAGE_IDE) {
+            PCI_CLASS_STORAGE_IDE
+            && strcmp(d->name, "xen-pci-passthrough") != 0) {
         qdev_unplug(&(d->qdev), NULL);
     }
 }

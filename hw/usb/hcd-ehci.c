@@ -373,6 +373,7 @@ struct EHCIQueue {
     uint32_t seen;
     uint64_t ts;
     int async;
+    int transact_ctr;
 
     /* cached data from guest - needs to be flushed
      * when guest removes an entry (doorbell, handshake sequence)
@@ -1837,6 +1838,11 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
     q->qh = qh;
 
+    q->transact_ctr = get_field(q->qh.epcap, QH_EPCAP_MULT);
+    if (q->transact_ctr == 0) { /* Guest bug in some versions of windows */
+        q->transact_ctr = 4;
+    }
+
     if (q->dev == NULL) {
         q->dev = ehci_find_device(q->ehci, devaddr);
     }
@@ -2014,11 +2020,8 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     } else if (p != NULL) {
         switch (p->async) {
         case EHCI_ASYNC_NONE:
-            /* Should never happen packet should at least be initialized */
-            assert(0);
-            break;
         case EHCI_ASYNC_INITIALIZED:
-            /* Previously nacked packet (likely interrupt ep) */
+            /* Not yet executed (MULT), or previously nacked (int) packet */
             ehci_set_state(q->ehci, q->async, EST_EXECUTE);
             break;
         case EHCI_ASYNC_INFLIGHT:
@@ -2107,15 +2110,12 @@ static int ehci_state_execute(EHCIQueue *q)
 
     // TODO verify enough time remains in the uframe as in 4.4.1.1
     // TODO write back ptr to async list when done or out of time
-    // TODO Windows does not seem to ever set the MULT field
 
-    if (!q->async) {
-        int transactCtr = get_field(q->qh.epcap, QH_EPCAP_MULT);
-        if (!transactCtr) {
-            ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-            again = 1;
-            goto out;
-        }
+    /* 4.10.3, bottom of page 82, go horizontal on transaction counter == 0 */
+    if (!q->async && q->transact_ctr == 0) {
+        ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
+        again = 1;
+        goto out;
     }
 
     if (q->async) {
@@ -2132,7 +2132,11 @@ static int ehci_state_execute(EHCIQueue *q)
         trace_usb_ehci_packet_action(p->queue, p, "async");
         p->async = EHCI_ASYNC_INFLIGHT;
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-        again = (ehci_fill_queue(p) == USB_RET_PROCERR) ? -1 : 1;
+        if (q->async) {
+            again = (ehci_fill_queue(p) == USB_RET_PROCERR) ? -1 : 1;
+        } else {
+            again = 1;
+        }
         goto out;
     }
 
@@ -2152,13 +2156,9 @@ static int ehci_state_executing(EHCIQueue *q)
 
     ehci_execute_complete(q);
 
-    // 4.10.3
-    if (!q->async) {
-        int transactCtr = get_field(q->qh.epcap, QH_EPCAP_MULT);
-        transactCtr--;
-        set_field(&q->qh.epcap, transactCtr, QH_EPCAP_MULT);
-        // 4.10.3, bottom of page 82, should exit this state when transaction
-        // counter decrements to 0
+    /* 4.10.3 */
+    if (!q->async && q->transact_ctr > 0) {
+        q->transact_ctr--;
     }
 
     /* 4.10.5 */

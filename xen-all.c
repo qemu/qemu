@@ -14,6 +14,7 @@
 #include "hw/pc.h"
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"
+#include "qmp-commands.h"
 
 #include "range.h"
 #include "xen-mapcache.h"
@@ -36,6 +37,7 @@
 
 static MemoryRegion ram_memory, ram_640k, ram_lo, ram_hi;
 static MemoryRegion *framebuffer;
+static bool xen_in_migration;
 
 /* Compatibility with older version */
 #if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
@@ -505,7 +507,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
                                  bitmap);
     if (rc < 0) {
         if (rc != -ENODATA) {
-            fprintf(stderr, "xen: track_dirty_vram failed (0x" TARGET_FMT_plx
+            memory_region_set_dirty(framebuffer, 0, size);
+            DPRINTF("xen: track_dirty_vram failed (0x" TARGET_FMT_plx
                     ", 0x" TARGET_FMT_plx "): %s\n",
                     start_addr, start_addr + size, strerror(-rc));
         }
@@ -552,10 +555,14 @@ static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)
 
 static void xen_log_global_start(MemoryListener *listener)
 {
+    if (xen_enabled()) {
+        xen_in_migration = true;
+    }
 }
 
 static void xen_log_global_stop(MemoryListener *listener)
 {
+    xen_in_migration = false;
 }
 
 static void xen_eventfd_add(MemoryListener *listener,
@@ -587,6 +594,15 @@ static MemoryListener xen_memory_listener = {
     .eventfd_del = xen_eventfd_del,
     .priority = 10,
 };
+
+void qmp_xen_set_global_dirty_log(bool enable, Error **errp)
+{
+    if (enable) {
+        memory_global_dirty_log_start();
+    } else {
+        memory_global_dirty_log_stop();
+    }
+}
 
 /* VCPU Operations, MMIO, IO ring ... */
 
@@ -1212,4 +1228,25 @@ void xen_shutdown_fatal_error(const char *fmt, ...)
     fprintf(stderr, "Will destroy the domain.\n");
     /* destroy the domain */
     qemu_system_shutdown_request();
+}
+
+void xen_modified_memory(ram_addr_t start, ram_addr_t length)
+{
+    if (unlikely(xen_in_migration)) {
+        int rc;
+        ram_addr_t start_pfn, nb_pages;
+
+        if (length == 0) {
+            length = TARGET_PAGE_SIZE;
+        }
+        start_pfn = start >> TARGET_PAGE_BITS;
+        nb_pages = ((start + length + TARGET_PAGE_SIZE - 1) >> TARGET_PAGE_BITS)
+            - start_pfn;
+        rc = xc_hvm_modified_memory(xen_xc, xen_domid, start_pfn, nb_pages);
+        if (rc) {
+            fprintf(stderr,
+                    "%s failed for "RAM_ADDR_FMT" ("RAM_ADDR_FMT"): %i, %s\n",
+                    __func__, start, nb_pages, rc, strerror(-rc));
+        }
+    }
 }

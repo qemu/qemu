@@ -1408,8 +1408,7 @@ static int relative_path(char *dest, int dest_size,
         return -1;
     }
     if (path_is_absolute(target)) {
-        dest[dest_size - 1] = '\0';
-        strncpy(dest, target, dest_size - 1);
+        pstrcpy(dest, dest_size, target);
         return 0;
     }
     while (base[i] == target[i]) {

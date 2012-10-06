@@ -42,7 +42,8 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = cutils.o iov.o cache-utils.o qemu-option.o module.o async.o
-block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o qemu-sockets.o
+block-obj-y += nbd.o block.o blockjob.o aio.o aes.o qemu-config.o
+block-obj-y += qemu-progress.o qemu-sockets.o uri.o
 block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
@@ -59,7 +60,7 @@ endif
 # suppress *all* target specific code in case of system emulation, i.e. a
 # single QEMU executable should support all CPUs and machines.
 
-common-obj-y = $(block-obj-y) blockdev.o
+common-obj-y = $(block-obj-y) blockdev.o block/
 common-obj-y += net.o net/
 common-obj-y += qom/
 common-obj-y += readline.o console.o cursor.o
@@ -89,10 +90,13 @@ common-obj-y += hw/
 common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
+common-obj-y += dma-helpers.o
 common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_POSIX) += compatfd.o
 common-obj-y += notify.o event_notifier.o
 common-obj-y += qemu-timer.o qemu-timer-common.o
+common-obj-y += qtest.o
+common-obj-y += vl.o
 
 common-obj-$(CONFIG_SLIRP) += slirp/
 
@@ -113,11 +117,6 @@ user-obj-y += module.o
 user-obj-y += qemu-user.o
 user-obj-y += $(trace-obj-y)
 user-obj-y += qom/
-
-######################################################################
-# libhw
-
-hw-obj-y = vl.o dma-helpers.o qtest.o hw/
 
 ######################################################################
 # libdis
@@ -239,7 +238,6 @@ vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
-	hw-obj-y \
 	qga-obj-y \
 	block-obj-y \
 	qom-obj-y \

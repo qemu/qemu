@@ -1096,6 +1096,7 @@ int qcow2_update_header(BlockDriverState *bs)
             goto fail;
         }
 
+        /* Using strncpy is ok here, since buf is not NUL-terminated. */
         strncpy(buf, bs->backing_file, buflen);
 
         header->backing_file_offset = cpu_to_be64(buf - ((char*) header));

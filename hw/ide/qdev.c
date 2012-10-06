@@ -60,7 +60,7 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
     snprintf(path, sizeof(path), "%s@%d", qdev_fw_name(dev),
              ((IDEBus*)dev->parent_bus)->bus_id);
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 static int ide_qdev_init(DeviceState *qdev)

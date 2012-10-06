@@ -479,3 +479,46 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     return arch_query_cpu_definitions(errp);
 }
 
+void qmp_add_client(const char *protocol, const char *fdname,
+                    bool has_skipauth, bool skipauth, bool has_tls, bool tls,
+                    Error **errp)
+{
+    CharDriverState *s;
+    int fd;
+
+    fd = monitor_get_fd(cur_mon, fdname, errp);
+    if (fd < 0) {
+        return;
+    }
+
+    if (strcmp(protocol, "spice") == 0) {
+        if (!using_spice) {
+            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+            close(fd);
+            return;
+        }
+        skipauth = has_skipauth ? skipauth : false;
+        tls = has_tls ? tls : false;
+        if (qemu_spice_display_add_client(fd, skipauth, tls) < 0) {
+            error_setg(errp, "spice failed to add client");
+            close(fd);
+        }
+        return;
+#ifdef CONFIG_VNC
+    } else if (strcmp(protocol, "vnc") == 0) {
+        skipauth = has_skipauth ? skipauth : false;
+        vnc_display_add_client(NULL, fd, skipauth);
+        return;
+#endif
+    } else if ((s = qemu_chr_find(protocol)) != NULL) {
+        if (qemu_chr_add_client(s, fd) < 0) {
+            error_setg(errp, "failed to add client");
+            close(fd);
+            return;
+        }
+        return;
+    }
+
+    error_setg(errp, "protocol '%s' is invalid", protocol);
+    close(fd);
+}

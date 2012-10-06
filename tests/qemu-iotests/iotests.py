@@ -19,6 +19,7 @@
 import os
 import re
 import subprocess
+import string
 import unittest
 import sys; sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'QMP'))
 import qmp
@@ -96,9 +97,14 @@ class VM(object):
             os.remove(self._qemu_log_path)
             self._popen = None
 
+    underscore_to_dash = string.maketrans('_', '-')
     def qmp(self, cmd, **args):
         '''Invoke a QMP command and return the result dict'''
-        return self._qmp.cmd(cmd, args=args)
+        qmp_args = dict()
+        for k in args.keys():
+            qmp_args[k.translate(self.underscore_to_dash)] = args[k]
+
+        return self._qmp.cmd(cmd, args=qmp_args)
 
     def get_qmp_events(self, wait=False):
         '''Poll for queued QMP events and return a list of dicts'''
@@ -131,6 +137,13 @@ class QMPTestCase(unittest.TestCase):
                 except IndexError:
                     self.fail('invalid index "%s" in path "%s" in "%s"' % (idx, path, str(d)))
         return d
+
+    def assert_qmp_absent(self, d, path):
+        try:
+            result = self.dictpath(d, path)
+        except AssertionError:
+            return
+        self.fail('path "%s" has value "%s"' % (path, str(result)))
 
     def assert_qmp(self, d, path, value):
         '''Assert that the value for a specific path in a QMP dict matches'''

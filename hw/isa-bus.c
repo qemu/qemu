@@ -236,7 +236,7 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
         snprintf(path + off, sizeof(path) - off, "@%04x", d->ioport_id);
     }
 
-    return strdup(path);
+    return g_strdup(path);
 }
 
 MemoryRegion *isa_address_space(ISADevice *dev)

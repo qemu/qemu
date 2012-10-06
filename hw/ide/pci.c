@@ -188,7 +188,7 @@ static void bmdma_restart_bh(void *opaque)
 {
     BMDMAState *bm = opaque;
     IDEBus *bus = bm->bus;
-    int is_read;
+    bool is_read;
     int error_status;
 
     qemu_bh_delete(bm->bh);
@@ -198,7 +198,7 @@ static void bmdma_restart_bh(void *opaque)
         return;
     }
 
-    is_read = !!(bus->error_status & BM_STATUS_RETRY_READ);
+    is_read = (bus->error_status & BM_STATUS_RETRY_READ) != 0;
 
     /* The error status must be cleared before resubmitting the request: The
      * request may fail again, and this case can only be distinguished if the

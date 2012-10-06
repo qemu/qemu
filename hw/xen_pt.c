@@ -410,14 +410,17 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s)
             if (r->type & XEN_HOST_PCI_REGION_TYPE_PREFETCH) {
                 type |= PCI_BASE_ADDRESS_MEM_PREFETCH;
             }
+            if (r->type & XEN_HOST_PCI_REGION_TYPE_MEM_64) {
+                type |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+            }
         }
 
         memory_region_init_io(&s->bar[i], &ops, &s->dev,
                               "xen-pci-pt-bar", r->size);
         pci_register_bar(&s->dev, i, type, &s->bar[i]);
 
-        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%08"PRIx64
-                   " base_addr=0x%08"PRIx64" type: %#x)\n",
+        XEN_PT_LOG(&s->dev, "IO region %i registered (size=0x%lx"PRIx64
+                   " base_addr=0x%lx"PRIx64" type: %#x)\n",
                    i, r->size, r->base_addr, type);
     }
 

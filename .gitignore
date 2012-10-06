@@ -12,7 +12,6 @@ trace-dtrace.dtrace
 *-linux-user
 *-bsd-user
 libdis*
-libhw
 libuser
 linux-headers/asm
 qapi-generated

@@ -24,6 +24,7 @@
 #endif
 
 #ifndef CONFIG_USER_ONLY
+#include "hw/xen.h"
 
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
@@ -111,6 +112,7 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
     for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         cpu_physical_memory_set_dirty_flags(addr, dirty_flags);
     }
+    xen_modified_memory(addr, length);
 }
 
 static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,

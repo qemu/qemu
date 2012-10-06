@@ -38,6 +38,7 @@ typedef enum MonitorEvent {
     QEVENT_SPICE_DISCONNECTED,
     QEVENT_BLOCK_JOB_COMPLETED,
     QEVENT_BLOCK_JOB_CANCELLED,
+    QEVENT_BLOCK_JOB_ERROR,
     QEVENT_DEVICE_TRAY_MOVED,
     QEVENT_SUSPEND,
     QEVENT_SUSPEND_DISK,
@@ -66,7 +67,7 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
                                   BlockDriverCompletionFunc *completion_cb,
                                   void *opaque);
 
-int monitor_get_fd(Monitor *mon, const char *fdname);
+int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp);
 int monitor_handle_fd_param(Monitor *mon, const char *fdname);
 
 void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)

@@ -148,8 +148,7 @@ void os_set_proc_name(const char *s)
     char name[16];
     if (!s)
         return;
-    name[sizeof(name) - 1] = 0;
-    strncpy(name, s, sizeof(name));
+    pstrcpy(name, sizeof(name), s);
     /* Could rewrite argv[0] too, but that's a bit more complicated.
        This simple way is enough for `top'. */
     if (prctl(PR_SET_NAME, name)) {
