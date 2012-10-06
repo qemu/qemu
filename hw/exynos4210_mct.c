@@ -574,8 +574,6 @@ static void exynos4210_gfrc_event(void *opaque)
     exynos4210_gfrc_set_count(&s->g_timer, distance);
 
     exynos4210_gfrc_start(&s->g_timer);
-
-    return;
 }
 
 /*

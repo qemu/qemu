@@ -107,5 +107,4 @@ void framebuffer_update_display(
                               DIRTY_MEMORY_VGA);
     *first_row = first;
     *last_row = last;
-    return;
 }

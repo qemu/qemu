@@ -88,8 +88,7 @@ supported.
 
 * Branches:
 
-Use the instruction 'br' to jump to a label. Use 'jmp' to jump to an
-explicit address. Conditional branches can only jump to labels.
+Use the instruction 'br' to jump to a label.
 
 3.3) Code Optimizations
 
@@ -128,10 +127,6 @@ call function 'ptr' (pointer type)
 <params> optional 32 bit or 64 bit parameters
 
 ********* Jumps/Labels
-
-* jmp t0
-
-Absolute jump to address t0 (pointer type).
 
 * set_label $label
 

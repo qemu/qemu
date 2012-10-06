@@ -1092,7 +1092,6 @@ static void xen_read_physmap(XenIOState *state)
         QLIST_INSERT_HEAD(&state->physmap, physmap, list);
     }
     free(entries);
-    return;
 }
 
 int xen_hvm_init(void)

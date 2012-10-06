@@ -349,8 +349,30 @@ PowerPC Machines
 405
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
-S: Maintained
+S: Odd Fixes
 F: hw/ppc405_boards.c
+
+Bamboo
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/ppc440_bamboo.c
+
+e500
+M: Alexander Graf <agraf@suse.de>
+M: Scott Wood <scottwood@freescale.com>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/ppc/e500.[hc]
+F: hw/ppc/e500plat.c
+
+mpc8544ds
+M: Alexander Graf <agraf@suse.de>
+M: Scott Wood <scottwood@freescale.com>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/ppc/mpc8544ds.c
+F: hw/mpc8544_guts.c
 
 New World
 M: Alexander Graf <agraf@suse.de>
@@ -373,6 +395,19 @@ L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc_prep.c
 F: hw/prep_pci.[hc]
+
+sPAPR
+M: David Gibson <david@gibson.dropbear.id.au>
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/spapr*
+
+virtex_ml507
+M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/virtex_ml507.c
 
 SH4 Machines
 ------------
@@ -456,6 +491,19 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/pci*
 F: hw/piix*
+
+ppc4xx
+M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
+S: Odd Fixes
+F: hw/ppc4xx*.[hc]
+
+ppce500
+M: Alexander Graf <agraf@suse.de>
+M: Scott Wood <scottwood@freescale.com>
+L: qemu-ppc@nongnu.org
+S: Supported
+F: hw/ppce500_*
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>

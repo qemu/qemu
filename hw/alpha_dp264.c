@@ -77,7 +77,7 @@ static void clipper_init(ram_addr_t ram_size,
     isa_create_simple(isa_bus, "i8042");
 
     /* VGA setup.  Don't bother loading the bios.  */
-    alpha_pci_vga_setup(pci_bus);
+    pci_vga_init(pci_bus);
 
     /* Serial code setup.  */
     for (i = 0; i < MAX_SERIAL_PORTS; ++i) {

@@ -1030,7 +1030,6 @@ static void numa_add(const char *optarg)
         }
         nb_numa_nodes++;
     }
-    return;
 }
 
 static void smp_parse(const char *optarg)
@@ -1707,17 +1706,23 @@ static const QEMUOption qemu_options[] = {
 
 static bool vga_available(void)
 {
-    return qdev_exists("VGA") || qdev_exists("isa-vga");
+    return object_class_by_name("VGA") || object_class_by_name("isa-vga");
 }
 
 static bool cirrus_vga_available(void)
 {
-    return qdev_exists("cirrus-vga") || qdev_exists("isa-cirrus-vga");
+    return object_class_by_name("cirrus-vga")
+           || object_class_by_name("isa-cirrus-vga");
 }
 
 static bool vmware_vga_available(void)
 {
-    return qdev_exists("vmware-svga");
+    return object_class_by_name("vmware-svga");
+}
+
+static bool qxl_vga_available(void)
+{
+    return object_class_by_name("qxl-vga");
 }
 
 static void select_vgahw (const char *p)
@@ -1749,7 +1754,12 @@ static void select_vgahw (const char *p)
     } else if (strstart(p, "xenfb", &opts)) {
         vga_interface_type = VGA_XENFB;
     } else if (strstart(p, "qxl", &opts)) {
-        vga_interface_type = VGA_QXL;
+        if (qxl_vga_available()) {
+            vga_interface_type = VGA_QXL;
+        } else {
+            fprintf(stderr, "Error: QXL VGA not available\n");
+            exit(0);
+        }
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
         fprintf(stderr, "Unknown vga type: %s\n", p);
@@ -3660,8 +3670,12 @@ int main(int argc, char **argv, char **envp)
         exit(1);
 
     /* If no default VGA is requested, the default is "none".  */
-    if (default_vga && cirrus_vga_available()) {
-        vga_model = "cirrus";
+    if (default_vga) {
+        if (cirrus_vga_available()) {
+            vga_model = "cirrus";
+        } else if (vga_available()) {
+            vga_model = "std";
+        }
     }
     select_vgahw(vga_model);
 

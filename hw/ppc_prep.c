@@ -39,7 +39,6 @@
 #include "blockdev.h"
 #include "arch_init.h"
 #include "exec-memory.h"
-#include "vga-pci.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO

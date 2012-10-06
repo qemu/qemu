@@ -2756,7 +2756,6 @@ static void setup_frame(int sig, struct target_sigaction * ka,
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
     force_sig(TARGET_SIGSEGV/*, current*/);
-    return;
 }
 
 long do_sigreturn(CPUMIPSState *regs)
@@ -2865,7 +2864,6 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
 give_sigsegv:
     unlock_user_struct(frame, frame_addr, 1);
     force_sig(TARGET_SIGSEGV/*, current*/);
-    return;
 }
 
 long do_rt_sigreturn(CPUMIPSState *env)

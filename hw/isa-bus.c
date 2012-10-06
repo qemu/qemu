@@ -19,6 +19,7 @@
 #include "hw.h"
 #include "monitor.h"
 #include "sysbus.h"
+#include "sysemu.h"
 #include "isa.h"
 #include "exec-memory.h"
 
@@ -164,6 +165,25 @@ ISADevice *isa_create_simple(ISABus *bus, const char *name)
     dev = isa_create(bus, name);
     qdev_init_nofail(&dev->qdev);
     return dev;
+}
+
+ISADevice *isa_vga_init(ISABus *bus)
+{
+    switch (vga_interface_type) {
+    case VGA_CIRRUS:
+        return isa_create_simple(bus, "isa-cirrus-vga");
+    case VGA_QXL:
+        fprintf(stderr, "%s: qxl: no PCI bus\n", __func__);
+        return NULL;
+    case VGA_STD:
+        return isa_create_simple(bus, "isa-vga");
+    case VGA_VMWARE:
+        fprintf(stderr, "%s: vmware_vga: no PCI bus\n", __func__);
+        return NULL;
+    case VGA_NONE:
+    default:
+        return NULL;
+    }
 }
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent)

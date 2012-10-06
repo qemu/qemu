@@ -15,7 +15,9 @@ typedef struct sPAPREnvironment {
 
     target_phys_addr_t ram_limit;
     void *htab;
-    long htab_size;
+    long htab_shift;
+    target_phys_addr_t rma_size;
+    int vrma_adjust;
     target_phys_addr_t fdt_addr, rtas_addr;
     long rtas_size;
     void *fdt_skel;
@@ -289,17 +291,17 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
                              target_ulong *args);
 
-int spapr_allocate_irq(int hint, enum xics_irq_type type);
-int spapr_allocate_irq_block(int num, enum xics_irq_type type);
+int spapr_allocate_irq(int hint, bool lsi);
+int spapr_allocate_irq_block(int num, bool lsi);
 
 static inline int spapr_allocate_msi(int hint)
 {
-    return spapr_allocate_irq(hint, XICS_MSI);
+    return spapr_allocate_irq(hint, false);
 }
 
 static inline int spapr_allocate_lsi(int hint)
 {
-    return spapr_allocate_irq(hint, XICS_LSI);
+    return spapr_allocate_irq(hint, true);
 }
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
@@ -336,6 +338,8 @@ typedef struct sPAPRTCE {
 void spapr_iommu_init(void);
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
 void spapr_tce_free(DMAContext *dma);
+void spapr_tce_reset(DMAContext *dma);
+void spapr_tce_set_bypass(DMAContext *dma, bool bypass);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,

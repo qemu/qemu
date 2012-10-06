@@ -442,7 +442,6 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
     pfl->bypass = 0;
     pfl->wcycle = 0;
     pfl->cmd = 0;
-    return;
 }
 
 

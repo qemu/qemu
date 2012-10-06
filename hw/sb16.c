@@ -822,7 +822,6 @@ static void complete (SB16State *s)
 
     ldebug ("\n");
     s->cmd = -1;
-    return;
 }
 
 static void legacy_reset (SB16State *s)

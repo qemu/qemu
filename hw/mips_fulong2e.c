@@ -392,7 +392,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     network_init();
 }
 
-QEMUMachine mips_fulong2e_machine = {
+static QEMUMachine mips_fulong2e_machine = {
     .name = "fulong2e",
     .desc = "Fulong 2e mini pc",
     .init = mips_fulong2e_init,

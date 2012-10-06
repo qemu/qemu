@@ -67,7 +67,6 @@
 #include "hw/usb.h"
 #include "blockdev.h"
 #include "exec-memory.h"
-#include "vga-pci.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510

@@ -335,7 +335,7 @@ enum arm_cond_code_e {
     COND_AL = 0xe,
 };
 
-static const uint8_t tcg_cond_to_arm_cond[10] = {
+static const uint8_t tcg_cond_to_arm_cond[] = {
     [TCG_COND_EQ] = COND_EQ,
     [TCG_COND_NE] = COND_NE,
     [TCG_COND_LT] = COND_LT,
@@ -1197,20 +1197,11 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     case 1:
     case 2:
     default:
-        if (data_reg != TCG_REG_R0) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            data_reg, 0, TCG_REG_R0, SHIFT_IMM_LSL(0));
-        }
+        tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
         break;
     case 3:
-        if (data_reg != TCG_REG_R0) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            data_reg, 0, TCG_REG_R0, SHIFT_IMM_LSL(0));
-        }
-        if (data_reg2 != TCG_REG_R1) {
-            tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
-                            data_reg2, 0, TCG_REG_R1, SHIFT_IMM_LSL(0));
-        }
+        tcg_out_mov_reg(s, COND_AL, data_reg, TCG_REG_R0);
+        tcg_out_mov_reg(s, COND_AL, data_reg2, TCG_REG_R1);
         break;
     }
 
@@ -1530,12 +1521,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         else
             tcg_out_callr(s, COND_AL, args[0]);
         break;
-    case INDEX_op_jmp:
-        if (const_args[0])
-            tcg_out_goto(s, COND_AL, args[0]);
-        else
-            tcg_out_bx(s, COND_AL, args[0]);
-        break;
     case INDEX_op_br:
         tcg_out_goto_label(s, COND_AL, args[0]);
         break;
@@ -1769,7 +1754,6 @@ static const TCGTargetOpDef arm_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

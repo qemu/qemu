@@ -338,7 +338,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define JCC_JLE 0xe
 #define JCC_JG  0xf
 
-static const uint8_t tcg_cond_to_jcc[10] = {
+static const uint8_t tcg_cond_to_jcc[] = {
     [TCG_COND_EQ] = JCC_JE,
     [TCG_COND_NE] = JCC_JNE,
     [TCG_COND_LT] = JCC_JL,
@@ -1513,14 +1513,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
             tcg_out_modrm(s, OPC_GRP5, EXT5_CALLN_Ev, args[0]);
         }
         break;
-    case INDEX_op_jmp:
-        if (const_args[0]) {
-            tcg_out_jmp(s, args[0]);
-        } else {
-            /* jmp *reg */
-            tcg_out_modrm(s, OPC_GRP5, EXT5_JMPN_Ev, args[0]);
-        }
-        break;
     case INDEX_op_br:
         tcg_out_jxx(s, JCC_JMP, args[0], 0);
         break;
@@ -1848,7 +1840,6 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_exit_tb, { } },
     { INDEX_op_goto_tb, { } },
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "ri" } },
     { INDEX_op_br, { } },
     { INDEX_op_mov_i32, { "r", "r" } },
     { INDEX_op_movi_i32, { "r" } },

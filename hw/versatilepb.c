@@ -211,7 +211,8 @@ static void versatile_init(ram_addr_t ram_size,
 
     cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("pl190", 0x10140000,
-                                cpu_pic[0], cpu_pic[1], NULL);
+                                cpu_pic[ARM_PIC_CPU_IRQ],
+                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
     for (n = 0; n < 32; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }

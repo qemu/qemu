@@ -34,7 +34,6 @@ int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
 static bool qdev_hot_removed = false;
 
-/* Register a new device type.  */
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
@@ -50,11 +49,6 @@ const char *qdev_fw_name(DeviceState *dev)
     }
 
     return object_get_typename(OBJECT(dev));
-}
-
-bool qdev_exists(const char *name)
-{
-    return !!object_class_by_name(name);
 }
 
 static void qdev_property_add_legacy(DeviceState *dev, Property *prop,

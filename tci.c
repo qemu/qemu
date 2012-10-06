@@ -505,7 +505,6 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             tci_write_reg(TCG_REG_R0, tmp64);
 #endif
             break;
-        case INDEX_op_jmp:
         case INDEX_op_br:
             label = tci_read_label(&tb_ptr);
             assert(tb_ptr == old_code_ptr + op_size);

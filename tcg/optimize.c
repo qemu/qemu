@@ -321,6 +321,8 @@ static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
                 return (uint32_t)temps[x].val <= (uint32_t)temps[y].val;
             case TCG_COND_GTU:
                 return (uint32_t)temps[x].val > (uint32_t)temps[y].val;
+            default:
+                break;
             }
             break;
         case 64:
@@ -345,6 +347,8 @@ static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
                 return (uint64_t)temps[x].val <= (uint64_t)temps[y].val;
             case TCG_COND_GTU:
                 return (uint64_t)temps[x].val > (uint64_t)temps[y].val;
+            default:
+                break;
             }
             break;
         }
@@ -362,6 +366,8 @@ static TCGArg do_constant_folding_cond(TCGOpcode op, TCGArg x,
         case TCG_COND_LEU:
         case TCG_COND_EQ:
             return 1;
+        default:
+            break;
         }
     } else if (temps[y].state == TCG_TEMP_CONST && temps[y].val == 0) {
         switch (c) {

@@ -576,7 +576,6 @@ bad_target:
      */
     usb_uas_queue_response(uas, req->tag, UAS_RC_INVALID_INFO_UNIT, 0);
     g_free(req);
-    return;
 }
 
 static void usb_uas_task(UASDevice *uas, uas_ui *ui)
@@ -640,7 +639,6 @@ bad_target:
 
 incorrect_lun:
     usb_uas_queue_response(uas, tag, UAS_RC_INCORRECT_LUN, 0);
-    return;
 }
 
 static int usb_uas_handle_data(USBDevice *dev, USBPacket *p)

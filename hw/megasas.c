@@ -652,7 +652,6 @@ static void megasas_finish_dcmd(MegasasCmd *cmd, uint32_t iov_size)
         }
     }
     cmd->iov_size = 0;
-    return;
 }
 
 static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)

@@ -732,7 +732,7 @@ static void tcg_out_branch(TCGContext *s, int label_index, int nul)
     }
 }
 
-static const uint8_t tcg_cond_to_cmp_cond[10] =
+static const uint8_t tcg_cond_to_cmp_cond[] =
 {
     [TCG_COND_EQ] = COND_EQ,
     [TCG_COND_NE] = COND_EQ | COND_FALSE,
@@ -814,19 +814,6 @@ static void tcg_out_comclr(TCGContext *s, int cond, TCGArg ret,
     tcg_out32(s, op);
 }
 
-static TCGCond const tcg_high_cond[] = {
-    [TCG_COND_EQ] = TCG_COND_EQ,
-    [TCG_COND_NE] = TCG_COND_NE,
-    [TCG_COND_LT] = TCG_COND_LT,
-    [TCG_COND_LE] = TCG_COND_LT,
-    [TCG_COND_GT] = TCG_COND_GT,
-    [TCG_COND_GE] = TCG_COND_GT,
-    [TCG_COND_LTU] = TCG_COND_LTU,
-    [TCG_COND_LEU] = TCG_COND_LTU,
-    [TCG_COND_GTU] = TCG_COND_GTU,
-    [TCG_COND_GEU] = TCG_COND_GTU
-};
-
 static void tcg_out_brcond2(TCGContext *s, int cond, TCGArg al, TCGArg ah,
                             TCGArg bl, int blconst, TCGArg bh, int bhconst,
                             int label_index)
@@ -841,7 +828,7 @@ static void tcg_out_brcond2(TCGContext *s, int cond, TCGArg al, TCGArg ah,
         tcg_out_brcond(s, TCG_COND_NE, ah, bh, bhconst, label_index);
         break;
     default:
-        tcg_out_brcond(s, tcg_high_cond[cond], ah, bh, bhconst, label_index);
+        tcg_out_brcond(s, tcg_high_cond(cond), ah, bh, bhconst, label_index);
         tcg_out_comclr(s, TCG_COND_NE, TCG_REG_R0, ah, bh, bhconst);
         tcg_out_brcond(s, tcg_unsigned_cond(cond),
                        al, bl, blconst, label_index);
@@ -894,7 +881,7 @@ static void tcg_out_setcond2(TCGContext *s, int cond, TCGArg ret,
         tcg_out_setcond(s, tcg_unsigned_cond(cond), scratch, al, bl, blconst);
         tcg_out_comclr(s, TCG_COND_EQ, TCG_REG_R0, ah, bh, bhconst);
         tcg_out_movi(s, TCG_TYPE_I32, scratch, 0);
-        tcg_out_comclr(s, tcg_invert_cond(tcg_high_cond[cond]),
+        tcg_out_comclr(s, tcg_invert_cond(tcg_high_cond(cond)),
                        TCG_REG_R0, ah, bh, bhconst);
         tcg_out_movi(s, TCG_TYPE_I32, scratch, 1);
         break;
@@ -1353,11 +1340,6 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         }
         break;
 
-    case INDEX_op_jmp:
-        fprintf(stderr, "unimplemented jmp\n");
-        tcg_abort();
-        break;
-
     case INDEX_op_br:
         tcg_out_branch(s, args[0], 1);
         break;
@@ -1592,7 +1574,6 @@ static const TCGTargetOpDef hppa_op_defs[] = {
     { INDEX_op_goto_tb, { } },
 
     { INDEX_op_call, { "ri" } },
-    { INDEX_op_jmp, { "r" } },
     { INDEX_op_br, { } },
 
     { INDEX_op_mov_i32, { "r", "r" } },

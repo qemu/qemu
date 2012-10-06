@@ -96,6 +96,8 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
 static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val);
 
 static const char * const cond_name[] = {
+    [TCG_COND_NEVER] = "never",
+    [TCG_COND_ALWAYS] = "always",
     [TCG_COND_EQ] = "eq",
     [TCG_COND_NE] = "ne",
     [TCG_COND_LT] = "lt",
