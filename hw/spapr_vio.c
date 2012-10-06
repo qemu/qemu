@@ -316,17 +316,10 @@ int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq)
 
 static void spapr_vio_quiesce_one(VIOsPAPRDevice *dev)
 {
-    VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
-    uint32_t liobn = SPAPR_VIO_BASE_LIOBN | dev->reg;
-
     if (dev->dma) {
-        spapr_tce_free(dev->dma);
+        spapr_tce_reset(dev->dma);
     }
-    dev->dma = spapr_tce_new_dma_context(liobn, pc->rtce_window_size);
-
-    dev->crq.qladdr = 0;
-    dev->crq.qsize = 0;
-    dev->crq.qnext = 0;
+    free_crq(dev);
 }
 
 static void rtas_set_tce_bypass(sPAPREnvironment *spapr, uint32_t token,
@@ -348,15 +341,13 @@ static void rtas_set_tce_bypass(sPAPREnvironment *spapr, uint32_t token,
         rtas_st(rets, 0, -3);
         return;
     }
-    if (enable) {
-        spapr_tce_free(dev->dma);
-        dev->dma = NULL;
-    } else {
-        VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
-        uint32_t liobn = SPAPR_VIO_BASE_LIOBN | dev->reg;
 
-        dev->dma = spapr_tce_new_dma_context(liobn, pc->rtce_window_size);
+    if (!dev->dma) {
+        rtas_st(rets, 0, -3);
+        return;
     }
+
+    spapr_tce_set_bypass(dev->dma, !!enable);
 
     rtas_st(rets, 0, 0);
 }
@@ -409,9 +400,10 @@ static void spapr_vio_busdev_reset(DeviceState *qdev)
     VIOsPAPRDevice *dev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
 
-    if (dev->crq.qsize) {
-        free_crq(dev);
-    }
+    /* Shut down the request queue and TCEs if necessary */
+    spapr_vio_quiesce_one(dev);
+
+    dev->signal_state = 0;
 
     if (pc->reset) {
         pc->reset(dev);
@@ -422,7 +414,6 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
 {
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
-    uint32_t liobn;
     char *id;
 
     if (dev->reg != -1) {
@@ -464,8 +455,10 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
         return -1;
     }
 
-    liobn = SPAPR_VIO_BASE_LIOBN | dev->reg;
-    dev->dma = spapr_tce_new_dma_context(liobn, pc->rtce_window_size);
+    if (pc->rtce_window_size) {
+        uint32_t liobn = SPAPR_VIO_BASE_LIOBN | dev->reg;
+        dev->dma = spapr_tce_new_dma_context(liobn, pc->rtce_window_size);
+    }
 
     return pc->init(dev);
 }

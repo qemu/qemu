@@ -82,7 +82,7 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_betls(f, &env->hflags);
     qemu_put_betls(f, &env->hflags_nmsr);
     qemu_put_sbe32s(f, &env->mmu_idx);
-    qemu_put_sbe32s(f, &env->power_mode);
+    qemu_put_sbe32(f, 0);
 }
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
@@ -167,7 +167,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_betls(f, &env->hflags);
     qemu_get_betls(f, &env->hflags_nmsr);
     qemu_get_sbe32s(f, &env->mmu_idx);
-    qemu_get_sbe32s(f, &env->power_mode);
+    qemu_get_sbe32(f); /* Discard unused power_mode */
 
     return 0;
 }

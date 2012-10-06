@@ -191,7 +191,8 @@ enum {
 typedef struct ppc4xx_pob_t ppc4xx_pob_t;
 struct ppc4xx_pob_t {
     uint32_t bear;
-    uint32_t besr[2];
+    uint32_t besr0;
+    uint32_t besr1;
 };
 
 static uint32_t dcr_read_pob (void *opaque, int dcrn)
@@ -205,8 +206,10 @@ static uint32_t dcr_read_pob (void *opaque, int dcrn)
         ret = pob->bear;
         break;
     case POB0_BESR0:
+        ret = pob->besr0;
+        break;
     case POB0_BESR1:
-        ret = pob->besr[dcrn - POB0_BESR0];
+        ret = pob->besr1;
         break;
     default:
         /* Avoid gcc warning */
@@ -227,9 +230,12 @@ static void dcr_write_pob (void *opaque, int dcrn, uint32_t val)
         /* Read only */
         break;
     case POB0_BESR0:
+        /* Write-clear */
+        pob->besr0 &= ~val;
+        break;
     case POB0_BESR1:
         /* Write-clear */
-        pob->besr[dcrn - POB0_BESR0] &= ~val;
+        pob->besr1 &= ~val;
         break;
     }
 }
@@ -241,8 +247,8 @@ static void ppc4xx_pob_reset (void *opaque)
     pob = opaque;
     /* No error */
     pob->bear = 0x00000000;
-    pob->besr[0] = 0x0000000;
-    pob->besr[1] = 0x0000000;
+    pob->besr0 = 0x0000000;
+    pob->besr1 = 0x0000000;
 }
 
 static void ppc4xx_pob_init(CPUPPCState *env)

@@ -36,7 +36,7 @@
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
-#define DTC_LOAD_PAD               0x500000
+#define DTC_LOAD_PAD               0x1800000
 #define DTC_PAD_MASK               0xFFFFF
 #define INITRD_LOAD_PAD            0x2000000
 #define INITRD_PAD_MASK            0xFFFFFF
@@ -139,12 +139,10 @@ static int ppce500_load_device_tree(CPUPPCState *env,
             0x0, 0x10000,
         };
     QemuOpts *machine_opts;
-    const char *dumpdtb = NULL;
     const char *dtb_file = NULL;
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
-        dumpdtb = qemu_opt_get(machine_opts, "dumpdtb");
         dtb_file = qemu_opt_get(machine_opts, "dtb");
         toplevel_compat = qemu_opt_get(machine_opts, "dt_compatible");
     }
@@ -334,18 +332,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     }
 
 done:
-    if (dumpdtb) {
-        /* Dump the dtb to a file and quit */
-        FILE *f = fopen(dumpdtb, "wb");
-        size_t len;
-        len = fwrite(fdt, fdt_size, 1, f);
-        fclose(f);
-        if (len != fdt_size) {
-            exit(1);
-        }
-        exit(0);
-    }
-
+    qemu_devtree_dumpdtb(fdt, fdt_size);
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     if (ret < 0) {
         goto out;
@@ -375,6 +362,10 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
        the device tree top */
     dt_end = bi->dt_base + bi->dt_size;
     ps = booke206_page_size_to_tlb(dt_end) + 1;
+    if (ps & 1) {
+        /* e500v2 can only do even TLB size bits */
+        ps++;
+    }
     size = (ps << MAS1_TSIZE_SHIFT);
     tlb->mas1 = MAS1_VALID | size;
     tlb->mas2 = 0;
@@ -553,7 +544,8 @@ void ppce500_init(PPCE500Params *params)
 
     /* Load initrd. */
     if (params->initrd_filename) {
-        initrd_base = (kernel_size + INITRD_LOAD_PAD) & ~INITRD_PAD_MASK;
+        initrd_base = (loadaddr + kernel_size + INITRD_LOAD_PAD) &
+            ~INITRD_PAD_MASK;
         initrd_size = load_image_targphys(params->initrd_filename, initrd_base,
                                           ram_size - initrd_base);
 

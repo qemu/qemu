@@ -49,4 +49,6 @@ int qemu_devtree_add_subnode(void *fdt, const char *name);
                              sizeof(qdt_tmp));                                \
     } while (0)
 
+void qemu_devtree_dumpdtb(void *fdt, int size);
+
 #endif /* __DEVICE_TREE_H__ */

@@ -165,11 +165,12 @@ struct ics_irq_state {
     int server;
     uint8_t priority;
     uint8_t saved_priority;
-    enum xics_irq_type type;
-    int asserted:1;
-    int sent:1;
-    int rejected:1;
-    int masked_pending:1;
+#define XICS_STATUS_ASSERTED           0x1
+#define XICS_STATUS_SENT               0x2
+#define XICS_STATUS_REJECTED           0x4
+#define XICS_STATUS_MASKED_PENDING     0x8
+    uint8_t status;
+    bool lsi;
 };
 
 struct ics_state {
@@ -191,8 +192,8 @@ static void resend_msi(struct ics_state *ics, int srcno)
     struct ics_irq_state *irq = ics->irqs + srcno;
 
     /* FIXME: filter by server#? */
-    if (irq->rejected) {
-        irq->rejected = 0;
+    if (irq->status & XICS_STATUS_REJECTED) {
+        irq->status &= ~XICS_STATUS_REJECTED;
         if (irq->priority != 0xff) {
             icp_irq(ics->icp, irq->server, srcno + ics->offset,
                     irq->priority);
@@ -204,8 +205,10 @@ static void resend_lsi(struct ics_state *ics, int srcno)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if ((irq->priority != 0xff) && irq->asserted && !irq->sent) {
-        irq->sent = 1;
+    if ((irq->priority != 0xff)
+        && (irq->status & XICS_STATUS_ASSERTED)
+        && !(irq->status & XICS_STATUS_SENT)) {
+        irq->status |= XICS_STATUS_SENT;
         icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
     }
 }
@@ -216,7 +219,7 @@ static void set_irq_msi(struct ics_state *ics, int srcno, int val)
 
     if (val) {
         if (irq->priority == 0xff) {
-            irq->masked_pending = 1;
+            irq->status |= XICS_STATUS_MASKED_PENDING;
             /* masked pending */ ;
         } else  {
             icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
@@ -228,7 +231,11 @@ static void set_irq_lsi(struct ics_state *ics, int srcno, int val)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    irq->asserted = val;
+    if (val) {
+        irq->status |= XICS_STATUS_ASSERTED;
+    } else {
+        irq->status &= ~XICS_STATUS_ASSERTED;
+    }
     resend_lsi(ics, srcno);
 }
 
@@ -237,7 +244,7 @@ static void ics_set_irq(void *opaque, int srcno, int val)
     struct ics_state *ics = (struct ics_state *)opaque;
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (irq->type == XICS_LSI) {
+    if (irq->lsi) {
         set_irq_lsi(ics, srcno, val);
     } else {
         set_irq_msi(ics, srcno, val);
@@ -248,11 +255,12 @@ static void write_xive_msi(struct ics_state *ics, int srcno)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (!irq->masked_pending || (irq->priority == 0xff)) {
+    if (!(irq->status & XICS_STATUS_MASKED_PENDING)
+        || (irq->priority == 0xff)) {
         return;
     }
 
-    irq->masked_pending = 0;
+    irq->status &= ~XICS_STATUS_MASKED_PENDING;
     icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
 }
 
@@ -262,15 +270,16 @@ static void write_xive_lsi(struct ics_state *ics, int srcno)
 }
 
 static void ics_write_xive(struct ics_state *ics, int nr, int server,
-                           uint8_t priority)
+                           uint8_t priority, uint8_t saved_priority)
 {
     int srcno = nr - ics->offset;
     struct ics_irq_state *irq = ics->irqs + srcno;
 
     irq->server = server;
     irq->priority = priority;
+    irq->saved_priority = saved_priority;
 
-    if (irq->type == XICS_LSI) {
+    if (irq->lsi) {
         write_xive_lsi(ics, srcno);
     } else {
         write_xive_msi(ics, srcno);
@@ -281,8 +290,8 @@ static void ics_reject(struct ics_state *ics, int nr)
 {
     struct ics_irq_state *irq = ics->irqs + nr - ics->offset;
 
-    irq->rejected = 1; /* Irrelevant but harmless for LSI */
-    irq->sent = 0; /* Irrelevant but harmless for MSI */
+    irq->status |= XICS_STATUS_REJECTED; /* Irrelevant but harmless for LSI */
+    irq->status &= ~XICS_STATUS_SENT; /* Irrelevant but harmless for MSI */
 }
 
 static void ics_resend(struct ics_state *ics)
@@ -293,7 +302,7 @@ static void ics_resend(struct ics_state *ics)
         struct ics_irq_state *irq = ics->irqs + i;
 
         /* FIXME: filter by server#? */
-        if (irq->type == XICS_LSI) {
+        if (irq->lsi) {
             resend_lsi(ics, i);
         } else {
             resend_msi(ics, i);
@@ -306,8 +315,8 @@ static void ics_eoi(struct ics_state *ics, int nr)
     int srcno = nr - ics->offset;
     struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (irq->type == XICS_LSI) {
-        irq->sent = 0;
+    if (irq->lsi) {
+        irq->status &= ~XICS_STATUS_SENT;
     }
 }
 
@@ -325,14 +334,12 @@ qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
     return icp->ics->qirqs[irq - icp->ics->offset];
 }
 
-void xics_set_irq_type(struct icp_state *icp, int irq,
-                       enum xics_irq_type type)
+void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi)
 {
     assert((irq >= icp->ics->offset)
            && (irq < (icp->ics->offset + icp->ics->nr_irqs)));
-    assert((type == XICS_MSI) || (type == XICS_LSI));
 
-    icp->ics->irqs[irq - icp->ics->offset].type = type;
+    icp->ics->irqs[irq - icp->ics->offset].lsi = lsi;
 }
 
 static target_ulong h_cppr(CPUPPCState *env, sPAPREnvironment *spapr,
@@ -399,7 +406,7 @@ static void rtas_set_xive(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    ics_write_xive(ics, nr, server, priority);
+    ics_write_xive(ics, nr, server, priority, priority);
 
     rtas_st(rets, 0, 0); /* Success */
 }
@@ -447,14 +454,8 @@ static void rtas_int_off(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    /* This is a NOP for now, since the described PAPR semantics don't
-     * seem to gel with what Linux does */
-#if 0
-    struct ics_irq_state *irq = xics->irqs + (nr - xics->offset);
-
-    irq->saved_priority = irq->priority;
-    ics_write_xive_msi(xics, nr, irq->server, 0xff);
-#endif
+    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server, 0xff,
+                   ics->irqs[nr - ics->offset].priority);
 
     rtas_st(rets, 0, 0); /* Success */
 }
@@ -478,22 +479,40 @@ static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    /* This is a NOP for now, since the described PAPR semantics don't
-     * seem to gel with what Linux does */
-#if 0
-    struct ics_irq_state *irq = xics->irqs + (nr - xics->offset);
-
-    ics_write_xive_msi(xics, nr, irq->server, irq->saved_priority);
-#endif
+    ics_write_xive(ics, nr, ics->irqs[nr - ics->offset].server,
+                   ics->irqs[nr - ics->offset].saved_priority,
+                   ics->irqs[nr - ics->offset].saved_priority);
 
     rtas_st(rets, 0, 0); /* Success */
+}
+
+static void xics_reset(void *opaque)
+{
+    struct icp_state *icp = (struct icp_state *)opaque;
+    struct ics_state *ics = icp->ics;
+    int i;
+
+    for (i = 0; i < icp->nr_servers; i++) {
+        icp->ss[i].xirr = 0;
+        icp->ss[i].pending_priority = 0;
+        icp->ss[i].mfrr = 0xff;
+        /* Make all outputs are deasserted */
+        qemu_set_irq(icp->ss[i].output, 0);
+    }
+
+    for (i = 0; i < ics->nr_irqs; i++) {
+        /* Reset everything *except* the type */
+        ics->irqs[i].server = 0;
+        ics->irqs[i].status = 0;
+        ics->irqs[i].priority = 0xff;
+        ics->irqs[i].saved_priority = 0xff;
+    }
 }
 
 struct icp_state *xics_system_init(int nr_irqs)
 {
     CPUPPCState *env;
     int max_server_num;
-    int i;
     struct icp_state *icp;
     struct ics_state *ics;
 
@@ -507,10 +526,6 @@ struct icp_state *xics_system_init(int nr_irqs)
     icp = g_malloc0(sizeof(*icp));
     icp->nr_servers = max_server_num + 1;
     icp->ss = g_malloc0(icp->nr_servers*sizeof(struct icp_server_state));
-
-    for (i = 0; i < icp->nr_servers; i++) {
-        icp->ss[i].mfrr = 0xff;
-    }
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         struct icp_server_state *ss = &icp->ss[env->cpu_index];
@@ -539,11 +554,6 @@ struct icp_state *xics_system_init(int nr_irqs)
     icp->ics = ics;
     ics->icp = icp;
 
-    for (i = 0; i < nr_irqs; i++) {
-        ics->irqs[i].priority = 0xff;
-        ics->irqs[i].saved_priority = 0xff;
-    }
-
     ics->qirqs = qemu_allocate_irqs(ics_set_irq, ics, nr_irqs);
 
     spapr_register_hypercall(H_CPPR, h_cppr);
@@ -555,6 +565,8 @@ struct icp_state *xics_system_init(int nr_irqs)
     spapr_rtas_register("ibm,get-xive", rtas_get_xive);
     spapr_rtas_register("ibm,int-off", rtas_int_off);
     spapr_rtas_register("ibm,int-on", rtas_int_on);
+
+    qemu_register_reset(xics_reset, icp);
 
     return icp;
 }
