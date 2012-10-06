@@ -472,7 +472,6 @@ static void tcx_dac_writel(void *opaque, target_phys_addr_t addr, uint64_t val,
     default:
         break;
     }
-    return;
 }
 
 static const MemoryRegionOps tcx_dac_ops = {

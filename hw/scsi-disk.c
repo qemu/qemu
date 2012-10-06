@@ -1437,7 +1437,6 @@ invalid_param_len:
 
 invalid_field:
     scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
-    return;
 }
 
 static inline bool check_lba_range(SCSIDiskState *s,
@@ -1535,7 +1534,6 @@ static void scsi_disk_emulate_unmap(SCSIDiskReq *r, uint8_t *inbuf)
 
 invalid_param_len:
     scsi_check_condition(r, SENSE_CODE(INVALID_PARAM_LEN));
-    return;
 }
 
 static void scsi_disk_emulate_write_data(SCSIRequest *req)

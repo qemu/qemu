@@ -366,7 +366,6 @@ void msix_uninit(PCIDevice *dev, MemoryRegion *table_bar, MemoryRegion *pba_bar)
     g_free(dev->msix_entry_used);
     dev->msix_entry_used = NULL;
     dev->cap_present &= ~QEMU_PCI_CAP_MSIX;
-    return;
 }
 
 void msix_uninit_exclusive_bar(PCIDevice *dev)

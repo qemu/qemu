@@ -830,7 +830,6 @@ exit:
     QSIMPLEQ_FOREACH_SAFE(states, &snap_bdrv_states, entry, next) {
         g_free(states);
     }
-    return;
 }
 
 

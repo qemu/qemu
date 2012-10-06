@@ -149,7 +149,6 @@ static void ivshmem_IntrStatus_write(IVShmemState *s, uint32_t val)
     s->intrstatus = val;
 
     ivshmem_update_irq(s, val);
-    return;
 }
 
 static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
@@ -510,8 +509,6 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
         ivshmem_add_eventfd(s, incoming_posn, guest_max_eventfd);
     }
-
-    return;
 }
 
 /* Select the MSI-X vectors used by device.
@@ -536,7 +533,6 @@ static void ivshmem_reset(DeviceState *d)
 
     s->intrstatus = 0;
     ivshmem_use_msix(s);
-    return;
 }
 
 static uint64_t ivshmem_get_size(IVShmemState * s) {

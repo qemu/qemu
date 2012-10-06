@@ -1023,7 +1023,6 @@ static void numa_add(const char *optarg)
         }
         nb_numa_nodes++;
     }
-    return;
 }
 
 static void smp_parse(const char *optarg)

@@ -2201,7 +2201,6 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
  the_end:
     if (saved_vm_running)
         vm_start();
-    return;
 }
 
 int load_vmstate(const char *name)

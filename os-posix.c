@@ -193,7 +193,6 @@ void os_parse_cmd_args(int index, const char *optarg)
         break;
 #endif
     }
-    return;
 }
 
 static void change_process_uid(void)

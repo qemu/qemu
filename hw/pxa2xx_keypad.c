@@ -172,7 +172,6 @@ static void pxa27x_keyboard_event (PXA2xxKeyPadState *kp, int keycode)
         kp->kpc |= KPC_MI;
         qemu_irq_raise(kp->irq);
     }
-    return;
 }
 
 static uint64_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset,
