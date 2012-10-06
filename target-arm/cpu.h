@@ -423,8 +423,6 @@ void armv7m_nvic_complete_irq(void *opaque, int irq);
     (((cp) << 16) | ((is64) << 15) | ((crn) << 11) |    \
      ((crm) << 7) | ((opc1) << 3) | (opc2))
 
-#define DECODE_CPREG_CRN(enc) (((enc) >> 7) & 0xf)
-
 /* ARMCPRegInfo type field bits. If the SPECIAL bit is set this is a
  * special-behaviour cp reg and bits [15..8] indicate what behaviour
  * it has. Otherwise it is a simple cp reg, where CONST indicates that

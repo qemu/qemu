@@ -323,16 +323,6 @@ uint64_t HELPER(get_cp_reg64)(CPUARMState *env, void *rip)
    The only way to do that in TCG is a conditional branch, which clobbers
    all our temporaries.  For now implement these as helper functions.  */
 
-uint32_t HELPER (add_cc)(CPUARMState *env, uint32_t a, uint32_t b)
-{
-    uint32_t result;
-    result = a + b;
-    env->NF = env->ZF = result;
-    env->CF = result < a;
-    env->VF = (a ^ b ^ -1) & (a ^ result);
-    return result;
-}
-
 uint32_t HELPER(adc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 {
     uint32_t result;
@@ -345,16 +335,6 @@ uint32_t HELPER(adc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
     }
     env->VF = (a ^ b ^ -1) & (a ^ result);
     env->NF = env->ZF = result;
-    return result;
-}
-
-uint32_t HELPER(sub_cc)(CPUARMState *env, uint32_t a, uint32_t b)
-{
-    uint32_t result;
-    result = a - b;
-    env->NF = env->ZF = result;
-    env->CF = a >= b;
-    env->VF = (a ^ b) & (a ^ result);
     return result;
 }
 
@@ -374,30 +354,6 @@ uint32_t HELPER(sbc_cc)(CPUARMState *env, uint32_t a, uint32_t b)
 }
 
 /* Similarly for variable shift instructions.  */
-
-uint32_t HELPER(shl)(CPUARMState *env, uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift >= 32)
-        return 0;
-    return x << shift;
-}
-
-uint32_t HELPER(shr)(CPUARMState *env, uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift >= 32)
-        return 0;
-    return (uint32_t)x >> shift;
-}
-
-uint32_t HELPER(sar)(CPUARMState *env, uint32_t x, uint32_t i)
-{
-    int shift = i & 0xff;
-    if (shift >= 32)
-        shift = 31;
-    return (int32_t)x >> shift;
-}
 
 uint32_t HELPER(shl_cc)(CPUARMState *env, uint32_t x, uint32_t i)
 {
