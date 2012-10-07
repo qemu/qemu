@@ -2414,6 +2414,40 @@ static inline void gen_jcc(DisasContext *s, int b,
     }
 }
 
+static void gen_cmovcc1(CPUX86State *env, DisasContext *s, int ot, int b,
+                        int modrm, int reg)
+{
+    int l1, mod = (modrm >> 6) & 3;
+    TCGv t0 = tcg_temp_local_new();
+
+    if (mod != 3) {
+        int reg_addr, offset_addr;
+        gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
+        gen_op_ld_v(ot + s->mem_index, t0, cpu_A0);
+    } else {
+        int rm = (modrm & 7) | REX_B(s);
+        gen_op_mov_v_reg(ot, t0, rm);
+    }
+
+    l1 = gen_new_label();
+    gen_jcc1(s, b ^ 1, l1);
+    switch (ot) {
+#ifdef TARGET_X86_64
+    case OT_LONG:
+        tcg_gen_mov_tl(cpu_regs[reg], t0);
+        gen_set_label(l1);
+        tcg_gen_ext32u_tl(cpu_regs[reg], cpu_regs[reg]);
+        break;
+#endif
+    default:
+        gen_op_mov_reg_v(ot, reg, t0);
+        gen_set_label(l1);
+        break;
+    }
+
+    tcg_temp_free(t0);
+}
+
 static inline void gen_op_movl_T0_seg(int seg_reg)
 {
     tcg_gen_ld32u_tl(cpu_T[0], cpu_env, 
@@ -6427,40 +6461,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_ldst_modrm(env, s, modrm, OT_BYTE, OR_TMP0, 1);
         break;
     case 0x140 ... 0x14f: /* cmov Gv, Ev */
-        {
-            int l1;
-            TCGv t0;
-
-            ot = dflag + OT_WORD;
-            modrm = cpu_ldub_code(env, s->pc++);
-            reg = ((modrm >> 3) & 7) | rex_r;
-            mod = (modrm >> 6) & 3;
-            t0 = tcg_temp_local_new();
-            if (mod != 3) {
-                gen_lea_modrm(env, s, modrm, &reg_addr, &offset_addr);
-                gen_op_ld_v(ot + s->mem_index, t0, cpu_A0);
-            } else {
-                rm = (modrm & 7) | REX_B(s);
-                gen_op_mov_v_reg(ot, t0, rm);
-            }
-#ifdef TARGET_X86_64
-            if (ot == OT_LONG) {
-                /* XXX: specific Intel behaviour ? */
-                l1 = gen_new_label();
-                gen_jcc1(s, b ^ 1, l1);
-                tcg_gen_mov_tl(cpu_regs[reg], t0);
-                gen_set_label(l1);
-                tcg_gen_ext32u_tl(cpu_regs[reg], cpu_regs[reg]);
-            } else
-#endif
-            {
-                l1 = gen_new_label();
-                gen_jcc1(s, b ^ 1, l1);
-                gen_op_mov_reg_v(ot, reg, t0);
-                gen_set_label(l1);
-            }
-            tcg_temp_free(t0);
-        }
+        ot = dflag + OT_WORD;
+        modrm = cpu_ldub_code(env, s->pc++);
+        reg = ((modrm >> 3) & 7) | rex_r;
+        gen_cmovcc1(env, s, ot, b, modrm, reg);
         break;
 
         /************************/
