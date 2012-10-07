@@ -804,6 +804,18 @@ void mtree_info(fprintf_function mon_printf, void *f);
  */
 void address_space_init(AddressSpace *as, MemoryRegion *root);
 
+
+/**
+ * address_space_destroy: destroy an address space
+ *
+ * Releases all resources associated with an address space.  After an address space
+ * is destroyed, its root memory region (given by address_space_init()) may be destroyed
+ * as well.
+ *
+ * @as: address space to be destroyed
+ */
+void address_space_destroy(AddressSpace *as);
+
 /**
  * address_space_rw: read from or write to an address space.
  *

@@ -3234,6 +3234,16 @@ void address_space_init_dispatch(AddressSpace *as)
     memory_listener_register(&d->listener, as);
 }
 
+void address_space_destroy_dispatch(AddressSpace *as)
+{
+    AddressSpaceDispatch *d = as->dispatch;
+
+    memory_listener_unregister(&d->listener);
+    destroy_l2_mapping(&d->phys_map, P_L2_LEVELS - 1);
+    g_free(d);
+    as->dispatch = NULL;
+}
+
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));

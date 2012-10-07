@@ -41,6 +41,7 @@ struct AddressSpaceDispatch {
 };
 
 void address_space_init_dispatch(AddressSpace *as);
+void address_space_destroy_dispatch(AddressSpace *as);
 
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);

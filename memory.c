@@ -564,8 +564,10 @@ static FlatView generate_memory_topology(MemoryRegion *mr)
 
     flatview_init(&view);
 
-    render_memory_region(&view, mr, int128_zero(),
-                         addrrange_make(int128_zero(), int128_2_64()), false);
+    if (mr) {
+        render_memory_region(&view, mr, int128_zero(),
+                             addrrange_make(int128_zero(), int128_2_64()), false);
+    }
     flatview_simplify(&view);
 
     return view;
@@ -1540,6 +1542,18 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     as->name = NULL;
     memory_region_transaction_commit();
     address_space_init_dispatch(as);
+}
+
+void address_space_destroy(AddressSpace *as)
+{
+    /* Flush out anything from MemoryListeners listening in on this */
+    memory_region_transaction_begin();
+    as->root = NULL;
+    memory_region_transaction_commit();
+    QTAILQ_REMOVE(&address_spaces, as, address_spaces_link);
+    address_space_destroy_dispatch(as);
+    flatview_destroy(as->current_map);
+    g_free(as->current_map);
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)
