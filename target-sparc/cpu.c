@@ -792,7 +792,6 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
 
     cpu_fprintf(f, "pc: " TARGET_FMT_lx "  npc: " TARGET_FMT_lx "\n", env->pc,
                 env->npc);
-    cpu_fprintf(f, "General Registers:\n");
 
     for (i = 0; i < 8; i++) {
         if (i % REGS_PER_LINE == 0) {
@@ -803,7 +802,6 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
             cpu_fprintf(f, "\n");
         }
     }
-    cpu_fprintf(f, "\nCurrent Register Window:\n");
     for (x = 0; x < 3; x++) {
         for (i = 0; i < 8; i++) {
             if (i % REGS_PER_LINE == 0) {
@@ -817,10 +815,10 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
             }
         }
     }
-    cpu_fprintf(f, "\nFloating Point Registers:\n");
+
     for (i = 0; i < TARGET_DPREGS; i++) {
         if ((i & 3) == 0) {
-            cpu_fprintf(f, "%%f%02d:", i * 2);
+            cpu_fprintf(f, "%%f%02d: ", i * 2);
         }
         cpu_fprintf(f, " %016" PRIx64, env->fpr[i].ll);
         if ((i & 3) == 3) {
@@ -850,6 +848,7 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
                 env->fsr, env->y);
 #endif
+    cpu_fprintf(f, "\n");
 }
 
 static void sparc_cpu_initfn(Object *obj)
