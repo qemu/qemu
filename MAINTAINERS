@@ -641,7 +641,7 @@ F: monitor.c
 
 Network device layer
 M: Anthony Liguori <aliguori@us.ibm.com>
-M: Stefan Hajnoczi <stefanha@gmail.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: net/
 T: git git://github.com/stefanha/qemu.git net
@@ -661,7 +661,7 @@ F: slirp/
 T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Tracing
-M: Stefan Hajnoczi <stefanha@gmail.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: trace/
 F: scripts/tracetool.py
