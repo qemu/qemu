@@ -1178,117 +1178,16 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
    value 'b'. In the fast case, T0 is guaranted not to be used. */
 static inline void gen_jcc1(DisasContext *s, int b, int l1)
 {
-    int inv, jcc_op, size, cond;
-    TCGv t0;
+    CCPrepare cc = gen_prepare_cc(s, b, cpu_T[0]);
 
-    inv = b & 1;
-    jcc_op = (b >> 1) & 7;
-
-    switch (s->cc_op) {
-        /* we optimize the cmp/jcc case */
-    case CC_OP_SUBB:
-    case CC_OP_SUBW:
-    case CC_OP_SUBL:
-    case CC_OP_SUBQ:
-        
-        size = s->cc_op - CC_OP_SUBB;
-        switch(jcc_op) {
-        case JCC_Z:
-        fast_jcc_z:
-            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_dst, size, false);
-            tcg_gen_brcondi_tl(inv ? TCG_COND_NE : TCG_COND_EQ, t0, 0, l1);
-            break;
-        case JCC_S:
-        fast_jcc_s:
-            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_dst, size, true);
-            tcg_gen_brcondi_tl(inv ? TCG_COND_GE : TCG_COND_LT, t0, 0, l1);
-            break;
-
-        case JCC_B:
-            cond = inv ? TCG_COND_GEU : TCG_COND_LTU;
-            goto fast_jcc_b;
-        case JCC_BE:
-            cond = inv ? TCG_COND_GTU : TCG_COND_LEU;
-        fast_jcc_b:
-            tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
-            gen_extu(size, cpu_tmp4);
-            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, false);
-            tcg_gen_brcond_tl(cond, cpu_tmp4, t0, l1);
-            break;
-            
-        case JCC_L:
-            cond = inv ? TCG_COND_GE : TCG_COND_LT;
-            goto fast_jcc_l;
-        case JCC_LE:
-            cond = inv ? TCG_COND_GT : TCG_COND_LE;
-        fast_jcc_l:
-            tcg_gen_add_tl(cpu_tmp4, cpu_cc_dst, cpu_cc_src);
-            gen_exts(size, cpu_tmp4);
-            t0 = gen_ext_tl(cpu_tmp0, cpu_cc_src, size, true);
-            tcg_gen_brcond_tl(cond, cpu_tmp4, t0, l1);
-            break;
-            
-        default:
-            goto slow_jcc;
-        }
-        break;
-        
-        /* some jumps are easy to compute */
-    case CC_OP_ADDB:
-    case CC_OP_ADDW:
-    case CC_OP_ADDL:
-    case CC_OP_ADDQ:
-        
-    case CC_OP_ADCB:
-    case CC_OP_ADCW:
-    case CC_OP_ADCL:
-    case CC_OP_ADCQ:
-        
-    case CC_OP_SBBB:
-    case CC_OP_SBBW:
-    case CC_OP_SBBL:
-    case CC_OP_SBBQ:
-        
-    case CC_OP_LOGICB:
-    case CC_OP_LOGICW:
-    case CC_OP_LOGICL:
-    case CC_OP_LOGICQ:
-        
-    case CC_OP_INCB:
-    case CC_OP_INCW:
-    case CC_OP_INCL:
-    case CC_OP_INCQ:
-        
-    case CC_OP_DECB:
-    case CC_OP_DECW:
-    case CC_OP_DECL:
-    case CC_OP_DECQ:
-        
-    case CC_OP_SHLB:
-    case CC_OP_SHLW:
-    case CC_OP_SHLL:
-    case CC_OP_SHLQ:
-        
-    case CC_OP_SARB:
-    case CC_OP_SARW:
-    case CC_OP_SARL:
-    case CC_OP_SARQ:
-        switch(jcc_op) {
-        case JCC_Z:
-            size = (s->cc_op - CC_OP_ADDB) & 3;
-            goto fast_jcc_z;
-        case JCC_S:
-            size = (s->cc_op - CC_OP_ADDB) & 3;
-            goto fast_jcc_s;
-        default:
-            goto slow_jcc;
-        }
-        break;
-    default:
-    slow_jcc:
-        gen_setcc1(s, b, cpu_T[0]);
-        tcg_gen_brcondi_tl(TCG_COND_NE, cpu_T[0], 0, l1);
-        break;
+    if (cc.mask != -1) {
+        tcg_gen_andi_tl(cpu_T[0], cc.reg, cc.mask);
+        cc.reg = cpu_T[0];
+    }
+    if (cc.use_reg2) {
+        tcg_gen_brcond_tl(cc.cond, cc.reg, cc.reg2, l1);
+    } else {
+        tcg_gen_brcondi_tl(cc.cond, cc.reg, cc.imm, l1);
     }
 }
 
