@@ -786,6 +786,24 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
+static int vfio_dma_unmap(VFIOContainer *container,
+                          target_phys_addr_t iova, ram_addr_t size)
+{
+    struct vfio_iommu_type1_dma_unmap unmap = {
+        .argsz = sizeof(unmap),
+        .flags = 0,
+        .iova = iova,
+        .size = size,
+    };
+
+    if (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
+        DPRINTF("VFIO_UNMAP_DMA: %d\n", -errno);
+        return -errno;
+    }
+
+    return 0;
+}
+
 static int vfio_dma_map(VFIOContainer *container, target_phys_addr_t iova,
                         ram_addr_t size, void *vaddr, bool readonly)
 {
@@ -803,24 +821,6 @@ static int vfio_dma_map(VFIOContainer *container, target_phys_addr_t iova,
 
     if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map)) {
         DPRINTF("VFIO_MAP_DMA: %d\n", -errno);
-        return -errno;
-    }
-
-    return 0;
-}
-
-static int vfio_dma_unmap(VFIOContainer *container,
-                          target_phys_addr_t iova, ram_addr_t size)
-{
-    struct vfio_iommu_type1_dma_unmap unmap = {
-        .argsz = sizeof(unmap),
-        .flags = 0,
-        .iova = iova,
-        .size = size,
-    };
-
-    if (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
-        DPRINTF("VFIO_UNMAP_DMA: %d\n", -errno);
         return -errno;
     }
 
