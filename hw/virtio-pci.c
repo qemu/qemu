@@ -374,52 +374,39 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
     return ret;
 }
 
-static uint32_t virtio_pci_config_readb(void *opaque, uint32_t addr)
+static uint64_t virtio_pci_config_read(void *opaque, hwaddr addr,
+                                       unsigned size)
 {
     VirtIOPCIProxy *proxy = opaque;
     uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
-    if (addr < config)
+    uint64_t val = 0;
+    if (addr < config) {
         return virtio_ioport_read(proxy, addr);
+    }
     addr -= config;
-    return virtio_config_readb(proxy->vdev, addr);
-}
 
-static uint32_t virtio_pci_config_readw(void *opaque, uint32_t addr)
-{
-    VirtIOPCIProxy *proxy = opaque;
-    uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
-    uint16_t val;
-    if (addr < config)
-        return virtio_ioport_read(proxy, addr);
-    addr -= config;
-    val = virtio_config_readw(proxy->vdev, addr);
-    if (virtio_is_big_endian()) {
-        /*
-         * virtio is odd, ioports are LE but config space is target native
-         * endian. However, in qemu, all PIO is LE, so we need to re-swap
-         * on BE targets
-         */
-        val = bswap16(val);
+    switch (size) {
+    case 1:
+        val = virtio_config_readb(proxy->vdev, addr);
+        break;
+    case 2:
+        val = virtio_config_readw(proxy->vdev, addr);
+        if (virtio_is_big_endian()) {
+            val = bswap16(val);
+        }
+        break;
+    case 4:
+        val = virtio_config_readl(proxy->vdev, addr);
+        if (virtio_is_big_endian()) {
+            val = bswap32(val);
+        }
+        break;
     }
     return val;
 }
 
-static uint32_t virtio_pci_config_readl(void *opaque, uint32_t addr)
-{
-    VirtIOPCIProxy *proxy = opaque;
-    uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
-    uint32_t val;
-    if (addr < config)
-        return virtio_ioport_read(proxy, addr);
-    addr -= config;
-    val = virtio_config_readl(proxy->vdev, addr);
-    if (virtio_is_big_endian()) {
-        val = bswap32(val);
-    }
-    return val;
-}
-
-static void virtio_pci_config_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void virtio_pci_config_write(void *opaque, hwaddr addr,
+                                    uint64_t val, unsigned size)
 {
     VirtIOPCIProxy *proxy = opaque;
     uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
@@ -428,51 +415,36 @@ static void virtio_pci_config_writeb(void *opaque, uint32_t addr, uint32_t val)
         return;
     }
     addr -= config;
-    virtio_config_writeb(proxy->vdev, addr, val);
+    /*
+     * Virtio-PCI is odd. Ioports are LE but config space is target native
+     * endian.
+     */
+    switch (size) {
+    case 1:
+        virtio_config_writeb(proxy->vdev, addr, val);
+        break;
+    case 2:
+        if (virtio_is_big_endian()) {
+            val = bswap16(val);
+        }
+        virtio_config_writew(proxy->vdev, addr, val);
+        break;
+    case 4:
+        if (virtio_is_big_endian()) {
+            val = bswap32(val);
+        }
+        virtio_config_writel(proxy->vdev, addr, val);
+        break;
+    }
 }
-
-static void virtio_pci_config_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    VirtIOPCIProxy *proxy = opaque;
-    uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
-    if (addr < config) {
-        virtio_ioport_write(proxy, addr, val);
-        return;
-    }
-    addr -= config;
-    if (virtio_is_big_endian()) {
-        val = bswap16(val);
-    }
-    virtio_config_writew(proxy->vdev, addr, val);
-}
-
-static void virtio_pci_config_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    VirtIOPCIProxy *proxy = opaque;
-    uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
-    if (addr < config) {
-        virtio_ioport_write(proxy, addr, val);
-        return;
-    }
-    addr -= config;
-    if (virtio_is_big_endian()) {
-        val = bswap32(val);
-    }
-    virtio_config_writel(proxy->vdev, addr, val);
-}
-
-static const MemoryRegionPortio virtio_portio[] = {
-    { 0, 0x10000, 1, .write = virtio_pci_config_writeb, },
-    { 0, 0x10000, 2, .write = virtio_pci_config_writew, },
-    { 0, 0x10000, 4, .write = virtio_pci_config_writel, },
-    { 0, 0x10000, 1, .read = virtio_pci_config_readb, },
-    { 0, 0x10000, 2, .read = virtio_pci_config_readw, },
-    { 0, 0x10000, 4, .read = virtio_pci_config_readl, },
-    PORTIO_END_OF_LIST()
-};
 
 static const MemoryRegionOps virtio_pci_config_ops = {
-    .old_portio = virtio_portio,
+    .read = virtio_pci_config_read,
+    .write = virtio_pci_config_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
