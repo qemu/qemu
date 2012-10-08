@@ -1040,41 +1040,6 @@ static CCPrepare gen_prepare_eflags_z(DisasContext *s, TCGv reg)
     }
 }
 
-#define gen_compute_eflags_c(s, reg, inv) \
-    gen_do_setcc(reg, gen_prepare_eflags_c(s, reg), inv)
-
-static void gen_do_setcc(TCGv reg, struct CCPrepare cc, bool inv)
-{
-    if (inv) {
-        cc.cond = tcg_invert_cond(cc.cond);
-    }
-
-    if (cc.no_setcond) {
-        if (cc.cond == TCG_COND_EQ) {
-            tcg_gen_xori_tl(reg, cc.reg, 1);
-        } else {
-            tcg_gen_mov_tl(reg, cc.reg);
-        }
-        return;
-    }
-
-    if (cc.cond == TCG_COND_NE && !cc.use_reg2 && cc.imm == 0 &&
-        cc.mask != 0 && (cc.mask & (cc.mask - 1)) == 0) {
-        tcg_gen_shri_tl(reg, cc.reg, ctztl(cc.mask));
-        tcg_gen_andi_tl(reg, reg, 1);
-        return;
-    }
-    if (cc.mask != -1) {
-        tcg_gen_andi_tl(reg, cc.reg, cc.mask);
-        cc.reg = reg;
-    }
-    if (cc.use_reg2) {
-        tcg_gen_setcond_tl(cc.cond, reg, cc.reg, cc.reg2);
-    } else {
-        tcg_gen_setcondi_tl(cc.cond, reg, cc.reg, cc.imm);
-    }
-}
-
 /* perform a conditional store into register 'reg' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
 static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
@@ -1172,8 +1137,40 @@ static CCPrepare gen_prepare_cc(DisasContext *s, int b, TCGv reg)
     return cc;
 }
 
-#define gen_setcc1(s, b, reg) \
-    gen_do_setcc(reg, gen_prepare_cc(s, b, reg), false)
+static void gen_setcc1(DisasContext *s, int b, TCGv reg)
+{
+    CCPrepare cc = gen_prepare_cc(s, b, reg);
+
+    if (cc.no_setcond) {
+        if (cc.cond == TCG_COND_EQ) {
+            tcg_gen_xori_tl(reg, cc.reg, 1);
+        } else {
+            tcg_gen_mov_tl(reg, cc.reg);
+        }
+        return;
+    }
+
+    if (cc.cond == TCG_COND_NE && !cc.use_reg2 && cc.imm == 0 &&
+        cc.mask != 0 && (cc.mask & (cc.mask - 1)) == 0) {
+        tcg_gen_shri_tl(reg, cc.reg, ctztl(cc.mask));
+        tcg_gen_andi_tl(reg, reg, 1);
+        return;
+    }
+    if (cc.mask != -1) {
+        tcg_gen_andi_tl(reg, cc.reg, cc.mask);
+        cc.reg = reg;
+    }
+    if (cc.use_reg2) {
+        tcg_gen_setcond_tl(cc.cond, reg, cc.reg, cc.reg2);
+    } else {
+        tcg_gen_setcondi_tl(cc.cond, reg, cc.reg, cc.imm);
+    }
+}
+
+static inline void gen_compute_eflags_c(DisasContext *s, TCGv reg)
+{
+    gen_setcc1(s, JCC_B << 1, reg);
+}
 
 /* generate a conditional jump to label 'l1' according to jump opcode
    value 'b'. In the fast case, T0 is guaranted not to be used. */
@@ -1399,7 +1396,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
     }
     switch(op) {
     case OP_ADCL:
-        gen_compute_eflags_c(s1, cpu_tmp4, false);
+        gen_compute_eflags_c(s1, cpu_tmp4);
         tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         tcg_gen_add_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
         if (d != OR_TMP0)
@@ -1414,7 +1411,7 @@ static void gen_op(DisasContext *s1, int op, int ot, int d)
         set_cc_op(s1, CC_OP_DYNAMIC);
         break;
     case OP_SBBL:
-        gen_compute_eflags_c(s1, cpu_tmp4, false);
+        gen_compute_eflags_c(s1, cpu_tmp4);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_T[1]);
         tcg_gen_sub_tl(cpu_T[0], cpu_T[0], cpu_tmp4);
         if (d != OR_TMP0)
@@ -1488,7 +1485,7 @@ static void gen_inc(DisasContext *s1, int ot, int d, int c)
         gen_op_mov_TN_reg(ot, 0, d);
     else
         gen_op_ld_T0_A0(ot + s1->mem_index);
-    gen_compute_eflags_c(s1, cpu_cc_src, false);
+    gen_compute_eflags_c(s1, cpu_cc_src);
     if (c > 0) {
         tcg_gen_addi_tl(cpu_T[0], cpu_T[0], 1);
         set_cc_op(s1, CC_OP_INCB + ot);
@@ -2415,11 +2412,6 @@ static inline void gen_jcc(DisasContext *s, int b,
         gen_set_label(l2);
         gen_eob(s);
     }
-}
-
-static void gen_setcc(DisasContext *s, int b)
-{
-    gen_setcc1(s, b, cpu_T[0]);
 }
 
 static inline void gen_op_movl_T0_seg(int seg_reg)
@@ -6431,7 +6423,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 
     case 0x190 ... 0x19f: /* setcc Gv */
         modrm = cpu_ldub_code(env, s->pc++);
-        gen_setcc(s, b);
+        gen_setcc1(s, b, cpu_T[0]);
         gen_ldst_modrm(env, s, modrm, OT_BYTE, OR_TMP0, 1);
         break;
     case 0x140 ... 0x14f: /* cmov Gv, Ev */
@@ -6889,7 +6881,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     case 0xd6: /* salc */
         if (CODE64(s))
             goto illegal_op;
-        gen_compute_eflags_c(s, cpu_T[0], false);
+        gen_compute_eflags_c(s, cpu_T[0]);
         tcg_gen_neg_tl(cpu_T[0], cpu_T[0]);
         gen_op_mov_reg_T0(OT_BYTE, R_EAX);
         break;
