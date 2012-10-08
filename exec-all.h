@@ -296,7 +296,8 @@ extern int tb_invalidated_flag;
 #if defined(CONFIG_TCG_INTERPRETER)
 /* Alpha and SH4 user mode emulations and Softmmu call GETPC().
    For all others, GETPC remains undefined (which makes TCI a little faster. */
-# if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4)
+# if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4) \
+     || defined(TARGET_SPARC)
 extern uintptr_t tci_tb_ptr;
 #  define GETPC() tci_tb_ptr
 # endif
