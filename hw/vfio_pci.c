@@ -819,12 +819,19 @@ static int vfio_dma_map(VFIOContainer *container, target_phys_addr_t iova,
         map.flags |= VFIO_DMA_MAP_FLAG_WRITE;
     }
 
-    if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map)) {
-        DPRINTF("VFIO_MAP_DMA: %d\n", -errno);
-        return -errno;
+    /*
+     * Try the mapping, if it fails with EBUSY, unmap the region and try
+     * again.  This shouldn't be necessary, but we sometimes see it in
+     * the the VGA ROM space.
+     */
+    if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0 ||
+        (errno == EBUSY && vfio_dma_unmap(container, iova, size) == 0 &&
+         ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0)) {
+        return 0;
     }
 
-    return 0;
+    DPRINTF("VFIO_MAP_DMA: %d\n", -errno);
+    return -errno;
 }
 
 static void vfio_listener_dummy1(MemoryListener *listener)
