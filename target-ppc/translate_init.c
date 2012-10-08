@@ -10425,9 +10425,10 @@ static void ppc_cpu_reset(CPUState *s)
     env->error_code = 0;
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    env->vpa = 0;
-    env->slb_shadow = 0;
-    env->dispatch_trace_log = 0;
+    env->vpa_addr = 0;
+    env->slb_shadow_addr = 0;
+    env->slb_shadow_size = 0;
+    env->dtl_addr = 0;
     env->dtl_size = 0;
 #endif /* TARGET_PPC64 */
 
