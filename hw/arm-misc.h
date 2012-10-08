@@ -65,4 +65,8 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
    ticks.  */
 extern int system_clock_scale;
 
+/* Multiplication factor to convert from external reference clock ticks to
+ * qemu timer ticks. */
+extern int external_ref_clock_scale;
+
 #endif /* !ARM_MISC_H */

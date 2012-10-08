@@ -65,6 +65,7 @@ static const uint8_t nvic_id[] = {
 #define SYSTICK_COUNTFLAG (1 << 16)
 
 int system_clock_scale;
+int external_ref_clock_scale = 1000;
 
 /* Conversion factor from qemu timer to SysTick frequencies.  */
 static inline int64_t systick_scale(nvic_state *s)
@@ -72,7 +73,7 @@ static inline int64_t systick_scale(nvic_state *s)
     if (s->systick.control & SYSTICK_CLKSOURCE)
         return system_clock_scale;
     else
-        return 1000;
+        return external_ref_clock_scale;
 }
 
 static void systick_reload(nvic_state *s, int reset)
