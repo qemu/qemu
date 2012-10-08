@@ -907,7 +907,7 @@ static int vfio_dma_map(VFIOContainer *container, target_phys_addr_t iova,
     struct vfio_iommu_type1_dma_map map = {
         .argsz = sizeof(map),
         .flags = VFIO_DMA_MAP_FLAG_READ,
-        .vaddr = (__u64)(intptr_t)vaddr,
+        .vaddr = (__u64)(uintptr_t)vaddr,
         .iova = iova,
         .size = size,
     };
