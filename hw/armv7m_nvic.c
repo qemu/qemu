@@ -138,6 +138,26 @@ void armv7m_nvic_complete_irq(void *opaque, int irq)
     gic_complete_irq(&s->gic, 0, irq);
 }
 
+static uint32_t nvic_readb(void *opaque, uint32_t offset)
+{
+    nvic_state *s = (nvic_state *)opaque;
+    uint32_t val;
+    int irq;
+
+    if (offset < 0xd18) {
+        goto bad_reg;
+    } else if (offset < 0xd24) {
+        irq = offset - 0xd14;
+        val = s->gic.priority1[irq][0];
+    } else {
+        goto bad_reg;
+    }
+    return val;
+bad_reg:
+    hw_error("NVIC: Bad read offset 0x%x\n", offset);
+    return 0;
+}
+
 static uint32_t nvic_readl(void *opaque, uint32_t offset)
 {
     nvic_state *s = (nvic_state *)opaque;
@@ -285,6 +305,25 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
     }
 }
 
+static void nvic_writeb(void *opaque, uint32_t offset, uint32_t value)
+{
+    nvic_state *s = (nvic_state *)opaque;
+    int irq;
+
+    if (offset < 0xd18) {
+        goto bad_reg;
+    } else if (offset < 0xd24) {
+        irq = offset - 0xd14;
+        s->gic.priority1[irq][0] = value;
+        gic_update(&s->gic);
+    } else {
+        goto bad_reg;
+    }
+    return;
+bad_reg:
+    hw_error("NVIC: Bad read offset 0x%x\n", offset);
+}
+
 static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
 {
     nvic_state *s = (nvic_state *)opaque;
@@ -408,6 +447,8 @@ static uint64_t nvic_sysreg_read(void *opaque, target_phys_addr_t addr,
     }
     if (size == 4) {
         return nvic_readl(opaque, offset);
+    } else if (size == 1) {
+        return nvic_readb(opaque, offset);
     }
     hw_error("NVIC: Bad read of size %d at offset 0x%x\n", size, offset);
 }
@@ -418,6 +459,9 @@ static void nvic_sysreg_write(void *opaque, target_phys_addr_t addr,
     uint32_t offset = addr;
     if (size == 4) {
         nvic_writel(opaque, offset, value);
+        return;
+    } else if (size == 1) {
+        nvic_writeb(opaque, offset, value);
         return;
     }
     hw_error("NVIC: Bad write of size %d at offset 0x%x\n", size, offset);
