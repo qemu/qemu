@@ -721,7 +721,7 @@ static void vfio_bar_write(void *opaque, target_phys_addr_t addr,
      * which access will service the interrupt, so we're potentially
      * getting quite a few host interrupts per guest interrupt.
      */
-    vfio_eoi(DO_UPCAST(VFIODevice, bars[bar->nr], bar));
+    vfio_eoi(container_of(bar, VFIODevice, bars[bar->nr]));
 }
 
 static uint64_t vfio_bar_read(void *opaque,
@@ -761,7 +761,7 @@ static uint64_t vfio_bar_read(void *opaque,
             __func__, bar->nr, addr, size, data);
 
     /* Same as write above */
-    vfio_eoi(DO_UPCAST(VFIODevice, bars[bar->nr], bar));
+    vfio_eoi(container_of(bar, VFIODevice, bars[bar->nr]));
 
     return data;
 }
