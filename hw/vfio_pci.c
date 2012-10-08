@@ -248,24 +248,12 @@ static void vfio_eoi(VFIODevice *vdev)
     vfio_unmask_intx(vdev);
 }
 
-typedef struct QEMU_PACKED VFIOIRQSetFD {
-    struct vfio_irq_set irq_set;
-    int32_t fd;
-} VFIOIRQSetFD;
-
 static int vfio_enable_intx(VFIODevice *vdev)
 {
-    VFIOIRQSetFD irq_set_fd = {
-        .irq_set = {
-            .argsz = sizeof(irq_set_fd),
-            .flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER,
-            .index = VFIO_PCI_INTX_IRQ_INDEX,
-            .start = 0,
-            .count = 1,
-        },
-    };
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
-    int ret;
+    int ret, argsz;
+    struct vfio_irq_set *irq_set;
+    int32_t *pfd;
 
     if (!pin) {
         return 0;
@@ -280,12 +268,24 @@ static int vfio_enable_intx(VFIODevice *vdev)
         return ret;
     }
 
-    irq_set_fd.fd = event_notifier_get_fd(&vdev->intx.interrupt);
-    qemu_set_fd_handler(irq_set_fd.fd, vfio_intx_interrupt, NULL, vdev);
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
 
-    if (ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set_fd)) {
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER;
+    irq_set->index = VFIO_PCI_INTX_IRQ_INDEX;
+    irq_set->start = 0;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+
+    *pfd = event_notifier_get_fd(&vdev->intx.interrupt);
+    qemu_set_fd_handler(*pfd, vfio_intx_interrupt, NULL, vdev);
+
+    ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+    g_free(irq_set);
+    if (ret) {
         error_report("vfio: Error: Failed to setup INTx fd: %m\n");
-        qemu_set_fd_handler(irq_set_fd.fd, NULL, NULL, vdev);
+        qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->intx.interrupt);
         return -errno;
     }
@@ -426,18 +426,25 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
             error_report("vfio: failed to enable vectors, %d\n", ret);
         }
     } else {
-        VFIOIRQSetFD irq_set_fd = {
-            .irq_set = {
-                .argsz = sizeof(irq_set_fd),
-                .flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                         VFIO_IRQ_SET_ACTION_TRIGGER,
-                .index = VFIO_PCI_MSIX_IRQ_INDEX,
-                .start = nr,
-                .count = 1,
-            },
-            .fd = event_notifier_get_fd(&vector->interrupt),
-        };
-        ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set_fd);
+        int argsz;
+        struct vfio_irq_set *irq_set;
+        int32_t *pfd;
+
+        argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+        irq_set = g_malloc0(argsz);
+        irq_set->argsz = argsz;
+        irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                         VFIO_IRQ_SET_ACTION_TRIGGER;
+        irq_set->index = VFIO_PCI_MSIX_IRQ_INDEX;
+        irq_set->start = nr;
+        irq_set->count = 1;
+        pfd = (int32_t *)&irq_set->data;
+
+        *pfd = event_notifier_get_fd(&vector->interrupt);
+
+        ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+        g_free(irq_set);
         if (ret) {
             error_report("vfio: failed to modify vector, %d\n", ret);
         }
@@ -450,17 +457,9 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
 {
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
     VFIOMSIVector *vector = &vdev->msi_vectors[nr];
-    VFIOIRQSetFD irq_set_fd = {
-        .irq_set = {
-            .argsz = sizeof(irq_set_fd),
-            .flags = VFIO_IRQ_SET_DATA_EVENTFD |
-                     VFIO_IRQ_SET_ACTION_TRIGGER,
-            .index = VFIO_PCI_MSIX_IRQ_INDEX,
-            .start = nr,
-            .count = 1,
-        },
-        .fd = -1,
-    };
+    int argsz;
+    struct vfio_irq_set *irq_set;
+    int32_t *pfd;
 
     DPRINTF("%s(%04x:%02x:%02x.%x) vector %d released\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
@@ -472,7 +471,23 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
      * bouncing through userspace and let msix.c drop it?  Not sure.
      */
     msix_vector_unuse(pdev, nr);
-    ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set_fd);
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD |
+                     VFIO_IRQ_SET_ACTION_TRIGGER;
+    irq_set->index = VFIO_PCI_MSIX_IRQ_INDEX;
+    irq_set->start = nr;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+
+    *pfd = -1;
+
+    ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+    g_free(irq_set);
 
     if (vector->virq < 0) {
         qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
