@@ -26,6 +26,7 @@
 #include "serial.h"
 #include "qemu-char.h"
 #include "qemu-timer.h"
+#include "exec-memory.h"
 
 //#define DEBUG_SERIAL
 
@@ -305,7 +306,8 @@ static void serial_xmit(void *opaque)
 }
 
 
-static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
 {
     SerialState *s = opaque;
 
@@ -451,7 +453,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t serial_ioport_read(void *opaque, uint32_t addr)
+static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
 {
     SerialState *s = opaque;
     uint32_t ret;
@@ -620,7 +622,7 @@ static int serial_post_load(void *opaque, int version_id)
         s->fcr_vmstate = 0;
     }
     /* Initialize fcr via setter to perform essential side-effects */
-    serial_ioport_write(s, 0x02, s->fcr_vmstate);
+    serial_ioport_write(s, 0x02, s->fcr_vmstate, 1);
     serial_update_parameters(s);
     return 0;
 }
@@ -705,13 +707,14 @@ void serial_set_frequency(SerialState *s, uint32_t frequency)
     serial_update_parameters(s);
 }
 
-static const MemoryRegionPortio serial_portio[] = {
-    { 0, 8, 1, .read = serial_ioport_read, .write = serial_ioport_write },
-    PORTIO_END_OF_LIST()
-};
-
 const MemoryRegionOps serial_io_ops = {
-    .old_portio = serial_portio
+    .read = serial_ioport_read,
+    .write = serial_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
@@ -728,8 +731,9 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     vmstate_register(NULL, base, &vmstate_serial, s);
 
-    register_ioport_write(base, 8, 1, serial_ioport_write, s);
-    register_ioport_read(base, 8, 1, serial_ioport_read, s);
+    memory_region_init_io(&s->io, &serial_io_ops, s, "serial", 8);
+    memory_region_add_subregion(get_system_io(), base, &s->io);
+
     return s;
 }
 
@@ -738,7 +742,7 @@ static uint64_t serial_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     SerialState *s = opaque;
-    return serial_ioport_read(s, addr >> s->it_shift);
+    return serial_ioport_read(s, addr >> s->it_shift, 1);
 }
 
 static void serial_mm_write(void *opaque, hwaddr addr,
@@ -746,7 +750,7 @@ static void serial_mm_write(void *opaque, hwaddr addr,
 {
     SerialState *s = opaque;
     value &= ~0u >> (32 - (size * 8));
-    serial_ioport_write(s, addr >> s->it_shift, value);
+    serial_ioport_write(s, addr >> s->it_shift, value, 1);
 }
 
 static const MemoryRegionOps serial_mm_ops[3] = {
