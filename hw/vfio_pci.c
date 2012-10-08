@@ -72,8 +72,6 @@ static void vfio_disable_irqindex(VFIODevice *vdev, int index)
     };
 
     ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
-
-    vdev->interrupt = VFIO_INT_NONE;
 }
 
 /*
@@ -278,10 +276,6 @@ static int vfio_enable_vectors(VFIODevice *vdev, bool msix)
 
     g_free(irq_set);
 
-    if (!ret) {
-        vdev->interrupt = msix ? VFIO_INT_MSIX : VFIO_INT_MSI;
-    }
-
     return ret;
 }
 
@@ -295,15 +289,6 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
     DPRINTF("%s(%04x:%02x:%02x.%x) vector %d used\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
             vdev->host.function, nr);
-
-    if (vdev->interrupt != VFIO_INT_MSIX) {
-        vfio_disable_interrupts(vdev);
-    }
-
-    if (!vdev->msi_vectors) {
-        vdev->msi_vectors = g_malloc0(vdev->msix->entries *
-                                      sizeof(VFIOMSIVector));
-    }
 
     vector = &vdev->msi_vectors[nr];
     vector->vdev = vdev;
@@ -457,6 +442,23 @@ static void msi_set_qsize(PCIDevice *pdev, uint8_t size)
     pci_set_word(config + PCI_MSI_FLAGS, flags);
 }
 
+static void vfio_enable_msix(VFIODevice *vdev)
+{
+    vfio_disable_interrupts(vdev);
+
+    vdev->msi_vectors = g_malloc0(vdev->msix->entries * sizeof(VFIOMSIVector));
+
+    vdev->interrupt = VFIO_INT_MSIX;
+
+    if (msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
+                                  vfio_msix_vector_release)) {
+        error_report("vfio: msix_set_vector_notifiers failed\n");
+    }
+
+    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+}
+
 static void vfio_enable_msi(VFIODevice *vdev)
 {
     int ret, i;
@@ -529,17 +531,43 @@ retry:
 
     msi_set_qsize(&vdev->pdev, vdev->nr_vectors);
 
+    vdev->interrupt = VFIO_INT_MSI;
+
     DPRINTF("%s(%04x:%02x:%02x.%x) Enabled %d MSI vectors\n", __func__,
             vdev->host.domain, vdev->host.bus, vdev->host.slot,
             vdev->host.function, vdev->nr_vectors);
 }
 
-static void vfio_disable_msi_x(VFIODevice *vdev, bool msix)
+static void vfio_disable_msi_common(VFIODevice *vdev)
+{
+    g_free(vdev->msi_vectors);
+    vdev->msi_vectors = NULL;
+    vdev->nr_vectors = 0;
+    vdev->interrupt = VFIO_INT_NONE;
+
+    vfio_enable_intx(vdev);
+}
+
+static void vfio_disable_msix(VFIODevice *vdev)
+{
+    msix_unset_vector_notifiers(&vdev->pdev);
+
+    if (vdev->nr_vectors) {
+        vfio_disable_irqindex(vdev, VFIO_PCI_MSIX_IRQ_INDEX);
+    }
+
+    vfio_disable_msi_common(vdev);
+
+    DPRINTF("%s(%04x:%02x:%02x.%x, msi%s)\n", __func__,
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function, msix ? "x" : "");
+}
+
+static void vfio_disable_msi(VFIODevice *vdev)
 {
     int i;
 
-    vfio_disable_irqindex(vdev, msix ? VFIO_PCI_MSIX_IRQ_INDEX :
-                                       VFIO_PCI_MSI_IRQ_INDEX);
+    vfio_disable_irqindex(vdev, VFIO_PCI_MSI_IRQ_INDEX);
 
     for (i = 0; i < vdev->nr_vectors; i++) {
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
@@ -558,26 +586,15 @@ static void vfio_disable_msi_x(VFIODevice *vdev, bool msix)
                                 NULL, NULL, NULL);
         }
 
-        if (msix) {
-            msix_vector_unuse(&vdev->pdev, i);
-        }
-
         event_notifier_cleanup(&vector->interrupt);
     }
 
-    g_free(vdev->msi_vectors);
-    vdev->msi_vectors = NULL;
-    vdev->nr_vectors = 0;
+    vfio_disable_msi_common(vdev);
 
-    if (!msix) {
-        msi_set_qsize(&vdev->pdev, 0); /* Actually still means 1 vector */
-    }
+    msi_set_qsize(&vdev->pdev, 0); /* Actually still means 1 vector */
 
-    DPRINTF("%s(%04x:%02x:%02x.%x, msi%s)\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, msix ? "x" : "");
-
-    vfio_enable_intx(vdev);
+    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
 }
 
 /*
@@ -763,7 +780,7 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
         if (!was_enabled && is_enabled) {
             vfio_enable_msi(vdev);
         } else if (was_enabled && !is_enabled) {
-            vfio_disable_msi_x(vdev, false);
+            vfio_disable_msi(vdev);
         }
     }
 
@@ -776,9 +793,9 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
         is_enabled = msix_enabled(pdev);
 
         if (!was_enabled && is_enabled) {
-            /* vfio_msix_vector_use handles this automatically */
+            vfio_enable_msix(vdev);
         } else if (was_enabled && !is_enabled) {
-            vfio_disable_msi_x(vdev, true);
+            vfio_disable_msix(vdev);
         }
     }
 }
@@ -973,10 +990,10 @@ static void vfio_disable_interrupts(VFIODevice *vdev)
         vfio_disable_intx(vdev);
         break;
     case VFIO_INT_MSI:
-        vfio_disable_msi_x(vdev, false);
+        vfio_disable_msi(vdev);
         break;
     case VFIO_INT_MSIX:
-        vfio_disable_msi_x(vdev, true);
+        vfio_disable_msix(vdev);
         break;
     }
 }
@@ -1094,15 +1111,6 @@ static int vfio_setup_msix(VFIODevice *vdev, int pos)
         return ret;
     }
 
-    ret = msix_set_vector_notifiers(&vdev->pdev, vfio_msix_vector_use,
-                                    vfio_msix_vector_release);
-    if (ret) {
-        error_report("vfio: msix_set_vector_notifiers failed %d\n", ret);
-        msix_uninit(&vdev->pdev, &vdev->bars[vdev->msix->table_bar].mem,
-                    &vdev->bars[vdev->msix->pba_bar].mem);
-        return ret;
-    }
-
     return 0;
 }
 
@@ -1111,12 +1119,6 @@ static void vfio_teardown_msi(VFIODevice *vdev)
     msi_uninit(&vdev->pdev);
 
     if (vdev->msix) {
-        /* FIXME: Why can't unset just silently do nothing?? */
-        if (vdev->pdev.msix_vector_use_notifier &&
-            vdev->pdev.msix_vector_release_notifier) {
-            msix_unset_vector_notifiers(&vdev->pdev);
-        }
-
         msix_uninit(&vdev->pdev, &vdev->bars[vdev->msix->table_bar].mem,
                     &vdev->bars[vdev->msix->pba_bar].mem);
     }
