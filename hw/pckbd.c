@@ -194,7 +194,8 @@ static void kbd_update_aux_irq(void *opaque, int level)
     kbd_update_irq(s);
 }
 
-static uint32_t kbd_read_status(void *opaque, uint32_t addr)
+static uint64_t kbd_read_status(void *opaque, hwaddr addr,
+                                unsigned size)
 {
     KBDState *s = opaque;
     int val;
@@ -223,7 +224,8 @@ static void outport_write(KBDState *s, uint32_t val)
     }
 }
 
-static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
+static void kbd_write_command(void *opaque, hwaddr addr,
+                              uint64_t val, unsigned size)
 {
     KBDState *s = opaque;
 
@@ -303,12 +305,13 @@ static void kbd_write_command(void *opaque, uint32_t addr, uint32_t val)
         /* ignore that */
         break;
     default:
-        fprintf(stderr, "qemu: unsupported keyboard cmd=0x%02x\n", val);
+        fprintf(stderr, "qemu: unsupported keyboard cmd=0x%02x\n", (int)val);
         break;
     }
 }
 
-static uint32_t kbd_read_data(void *opaque, uint32_t addr)
+static uint64_t kbd_read_data(void *opaque, hwaddr addr,
+                              unsigned size)
 {
     KBDState *s = opaque;
     uint32_t val;
@@ -322,7 +325,8 @@ static uint32_t kbd_read_data(void *opaque, uint32_t addr)
     return val;
 }
 
-static void kbd_write_data(void *opaque, uint32_t addr, uint32_t val)
+static void kbd_write_data(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
 {
     KBDState *s = opaque;
 
@@ -385,9 +389,9 @@ static uint32_t kbd_mm_readb (void *opaque, hwaddr addr)
     KBDState *s = opaque;
 
     if (addr & s->mask)
-        return kbd_read_status(s, 0) & 0xff;
+        return kbd_read_status(s, 0, 1) & 0xff;
     else
-        return kbd_read_data(s, 0) & 0xff;
+        return kbd_read_data(s, 0, 1) & 0xff;
 }
 
 static void kbd_mm_writeb (void *opaque, hwaddr addr, uint32_t value)
@@ -395,9 +399,9 @@ static void kbd_mm_writeb (void *opaque, hwaddr addr, uint32_t value)
     KBDState *s = opaque;
 
     if (addr & s->mask)
-        kbd_write_command(s, 0, value & 0xff);
+        kbd_write_command(s, 0, value & 0xff, 1);
     else
-        kbd_write_data(s, 0, value & 0xff);
+        kbd_write_data(s, 0, value & 0xff, 1);
 }
 
 static const MemoryRegionOps i8042_mmio_ops = {
@@ -459,22 +463,24 @@ static const VMStateDescription vmstate_kbd_isa = {
     }
 };
 
-static const MemoryRegionPortio i8042_data_portio[] = {
-    { 0, 1, 1, .read = kbd_read_data, .write = kbd_write_data },
-    PORTIO_END_OF_LIST()
-};
-
-static const MemoryRegionPortio i8042_cmd_portio[] = {
-    { 0, 1, 1, .read = kbd_read_status, .write = kbd_write_command },
-    PORTIO_END_OF_LIST()
-};
-
 static const MemoryRegionOps i8042_data_ops = {
-    .old_portio = i8042_data_portio
+    .read = kbd_read_data,
+    .write = kbd_write_data,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps i8042_cmd_ops = {
-    .old_portio = i8042_cmd_portio
+    .read = kbd_read_status,
+    .write = kbd_write_command,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int i8042_initfn(ISADevice *dev)
