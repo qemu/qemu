@@ -1891,16 +1891,31 @@ static void vfio_pci_reset(DeviceState *dev)
 {
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
+    uint16_t cmd;
 
-    if (!vdev->reset_works) {
-        return;
+    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+
+    vfio_disable_interrupts(vdev);
+
+    /*
+     * Stop any ongoing DMA by disconecting I/O, MMIO, and bus master.
+     * Also put INTx Disable in known state.
+     */
+    cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
+    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+             PCI_COMMAND_INTX_DISABLE);
+    vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
+
+    if (vdev->reset_works) {
+        if (ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
+            error_report("vfio: Error unable to reset physical device "
+                         "(%04x:%02x:%02x.%x): %m\n", vdev->host.domain,
+                         vdev->host.bus, vdev->host.slot, vdev->host.function);
+        }
     }
 
-    if (ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
-        error_report("vfio: Error unable to reset physical device "
-                     "(%04x:%02x:%02x.%x): %m\n", vdev->host.domain,
-                     vdev->host.bus, vdev->host.slot, vdev->host.function);
-    }
+    vfio_enable_intx(vdev);
 }
 
 static Property vfio_pci_dev_properties[] = {
