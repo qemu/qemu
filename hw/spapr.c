@@ -232,7 +232,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                    hwaddr initrd_size,
                                    hwaddr kernel_size,
                                    const char *boot_device,
-                                   const char *kernel_cmdline)
+                                   const char *kernel_cmdline,
+                                   uint32_t epow_irq)
 {
     void *fdt;
     CPUPPCState *env;
@@ -403,6 +404,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property(fdt, "ibm,associativity-reference-points",
         refpoints, sizeof(refpoints))));
 
+    _FDT((fdt_property_cell(fdt, "rtas-error-log-max", RTAS_ERROR_LOG_MAX)));
+
     _FDT((fdt_end_node(fdt)));
 
     /* interrupt controller */
@@ -432,6 +435,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
 
     _FDT((fdt_end_node(fdt)));
+
+    /* event-sources */
+    spapr_events_fdt_skel(fdt, epow_irq);
 
     _FDT((fdt_end_node(fdt))); /* close root node */
     _FDT((fdt_finish(fdt)));
@@ -795,6 +801,9 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     spapr->icp = xics_system_init(XICS_IRQS);
     spapr->next_irq = 16;
 
+    /* Set up EPOW events infrastructure */
+    spapr_events_init(spapr);
+
     /* Set up IOMMU */
     spapr_iommu_init();
 
@@ -903,7 +912,8 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
                                             initrd_base, initrd_size,
                                             kernel_size,
-                                            boot_device, kernel_cmdline);
+                                            boot_device, kernel_cmdline,
+                                            spapr->epow_irq);
     assert(spapr->fdt_skel != NULL);
 }
 
