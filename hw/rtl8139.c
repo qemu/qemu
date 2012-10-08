@@ -3187,38 +3187,6 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
 
 /* */
 
-static void rtl8139_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
-{
-    rtl8139_io_writeb(opaque, addr & 0xFF, val);
-}
-
-static void rtl8139_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    rtl8139_io_writew(opaque, addr & 0xFF, val);
-}
-
-static void rtl8139_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    rtl8139_io_writel(opaque, addr & 0xFF, val);
-}
-
-static uint32_t rtl8139_ioport_readb(void *opaque, uint32_t addr)
-{
-    return rtl8139_io_readb(opaque, addr & 0xFF);
-}
-
-static uint32_t rtl8139_ioport_readw(void *opaque, uint32_t addr)
-{
-    return rtl8139_io_readw(opaque, addr & 0xFF);
-}
-
-static uint32_t rtl8139_ioport_readl(void *opaque, uint32_t addr)
-{
-    return rtl8139_io_readl(opaque, addr & 0xFF);
-}
-
-/* */
-
 static void rtl8139_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     rtl8139_io_writeb(opaque, addr & 0xFF, val);
@@ -3386,18 +3354,44 @@ static const VMStateDescription vmstate_rtl8139 = {
 /***********************************************************/
 /* PCI RTL8139 definitions */
 
-static const MemoryRegionPortio rtl8139_portio[] = {
-    { 0, 0x100, 1, .read = rtl8139_ioport_readb, },
-    { 0, 0x100, 1, .write = rtl8139_ioport_writeb, },
-    { 0, 0x100, 2, .read = rtl8139_ioport_readw, },
-    { 0, 0x100, 2, .write = rtl8139_ioport_writew, },
-    { 0, 0x100, 4, .read = rtl8139_ioport_readl, },
-    { 0, 0x100, 4, .write = rtl8139_ioport_writel, },
-    PORTIO_END_OF_LIST()
-};
+static void rtl8139_ioport_write(void *opaque, hwaddr addr,
+                                 uint64_t val, unsigned size)
+{
+    switch (size) {
+    case 1:
+        rtl8139_io_writeb(opaque, addr, val);
+        break;
+    case 2:
+        rtl8139_io_writew(opaque, addr, val);
+        break;
+    case 4:
+        rtl8139_io_writel(opaque, addr, val);
+        break;
+    }
+}
+
+static uint64_t rtl8139_ioport_read(void *opaque, hwaddr addr,
+                                    unsigned size)
+{
+    switch (size) {
+    case 1:
+        return rtl8139_io_readb(opaque, addr);
+    case 2:
+        return rtl8139_io_readw(opaque, addr);
+    case 4:
+        return rtl8139_io_readl(opaque, addr);
+    }
+
+    return -1;
+}
 
 static const MemoryRegionOps rtl8139_io_ops = {
-    .old_portio = rtl8139_portio,
+    .read = rtl8139_ioport_read,
+    .write = rtl8139_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
