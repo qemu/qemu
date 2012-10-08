@@ -508,20 +508,6 @@ static MSIMessage msi_get_msg(PCIDevice *pdev, unsigned int vector)
     return msg;
 }
 
-/* So should this */
-static void msi_set_qsize(PCIDevice *pdev, uint8_t size)
-{
-    uint8_t *config = pdev->config + pdev->msi_cap;
-    uint16_t flags;
-
-    flags = pci_get_word(config + PCI_MSI_FLAGS);
-    flags = le16_to_cpu(flags);
-    flags &= ~PCI_MSI_FLAGS_QSIZE;
-    flags |= (size & 0x7) << 4;
-    flags = cpu_to_le16(flags);
-    pci_set_word(config + PCI_MSI_FLAGS, flags);
-}
-
 static void vfio_enable_msix(VFIODevice *vdev)
 {
     vfio_disable_interrupts(vdev);
@@ -609,8 +595,6 @@ retry:
         return;
     }
 
-    msi_set_qsize(&vdev->pdev, vdev->nr_vectors);
-
     vdev->interrupt = VFIO_INT_MSI;
 
     DPRINTF("%s(%04x:%02x:%02x.%x) Enabled %d MSI vectors\n", __func__,
@@ -670,8 +654,6 @@ static void vfio_disable_msi(VFIODevice *vdev)
     }
 
     vfio_disable_msi_common(vdev);
-
-    msi_set_qsize(&vdev->pdev, 0); /* Actually still means 1 vector */
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function);
