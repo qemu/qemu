@@ -322,20 +322,11 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
      * increase them as needed.
      */
     if (vdev->nr_vectors < nr + 1) {
-        int i;
-
         vfio_disable_irqindex(vdev, VFIO_PCI_MSIX_IRQ_INDEX);
         vdev->nr_vectors = nr + 1;
         ret = vfio_enable_vectors(vdev, true);
         if (ret) {
             error_report("vfio: failed to enable vectors, %d\n", ret);
-        }
-
-        /* We don't know if we've missed interrupts in the interim... */
-        for (i = 0; i < vdev->msix->entries; i++) {
-            if (vdev->msi_vectors[i].use) {
-                msix_notify(&vdev->pdev, i);
-            }
         }
     } else {
         VFIOIRQSetFD irq_set_fd = {
@@ -353,12 +344,6 @@ static int vfio_msix_vector_use(PCIDevice *pdev,
         if (ret) {
             error_report("vfio: failed to modify vector, %d\n", ret);
         }
-
-        /*
-         * If we were connected to the hardware PBA we could skip this,
-         * until then, a spurious interrupt is better than starvation.
-         */
-        msix_notify(&vdev->pdev, nr);
     }
 
     return 0;
