@@ -1084,14 +1084,6 @@ static int vfio_setup_msi(VFIODevice *vdev, int pos)
     bool msi_64bit, msi_maskbit;
     int ret, entries;
 
-    /*
-     * TODO: don't peek into msi_supported, let msi_init fail and
-     * check for ENOTSUP
-     */
-    if (!msi_supported) {
-        return 0;
-    }
-
     if (pread(vdev->fd, &ctrl, sizeof(ctrl),
               vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
         return -errno;
@@ -1107,6 +1099,9 @@ static int vfio_setup_msi(VFIODevice *vdev, int pos)
 
     ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit);
     if (ret < 0) {
+        if (ret == -ENOTSUP) {
+            return 0;
+        }
         error_report("vfio: msi_init failed\n");
         return ret;
     }
@@ -1173,20 +1168,15 @@ static int vfio_setup_msix(VFIODevice *vdev, int pos)
 {
     int ret;
 
-    /*
-     * TODO: don't peek into msi_supported, let msix_init fail and
-     * check for ENOTSUP
-     */
-    if (!msi_supported) {
-        return 0;
-    }
-
     ret = msix_init(&vdev->pdev, vdev->msix->entries,
                     &vdev->bars[vdev->msix->table_bar].mem,
                     vdev->msix->table_bar, vdev->msix->table_offset,
                     &vdev->bars[vdev->msix->pba_bar].mem,
                     vdev->msix->pba_bar, vdev->msix->pba_offset, pos);
     if (ret < 0) {
+        if (ret == -ENOTSUP) {
+            return 0;
+        }
         error_report("vfio: msix_init failed\n");
         return ret;
     }
