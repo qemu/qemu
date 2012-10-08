@@ -285,6 +285,8 @@ static int vfio_enable_intx(VFIODevice *vdev)
 
     if (ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set_fd)) {
         error_report("vfio: Error: Failed to setup INTx fd: %m\n");
+        qemu_set_fd_handler(irq_set_fd.fd, NULL, NULL, vdev);
+        event_notifier_cleanup(&vdev->intx.interrupt);
         return -errno;
     }
 
