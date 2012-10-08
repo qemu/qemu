@@ -1712,7 +1712,10 @@ static void do_v7m_exception_exit(CPUARMState *env)
     env->regs[3] = v7m_pop(env);
     env->regs[12] = v7m_pop(env);
     env->regs[14] = v7m_pop(env);
-    env->regs[15] = v7m_pop(env);
+    /* If this is a "simulated" stack frame built by an operating system, the
+     * thumb state bit (bit 0) may be set. We need to make sure it is cleared
+     * when restoring the program counter. */
+    env->regs[15] = v7m_pop(env) & 0xfffffffe;
     xpsr = v7m_pop(env);
     xpsr_write(env, xpsr, 0xfffffdff);
     /* Undo stack alignment.  */
