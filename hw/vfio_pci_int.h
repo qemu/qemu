@@ -36,8 +36,8 @@ typedef struct VFIOINTx {
     EventNotifier interrupt; /* eventfd triggered on interrupt */
     EventNotifier unmask; /* eventfd for unmask on QEMU bypass */
     PCIINTxRoute route; /* routing info for QEMU bypass */
-    bool disabled;
-    char *intx;
+    uint32_t mmap_timeout; /* delay to re-enable mmaps after interrupt */
+    QEMUTimer *mmap_timer; /* enable mmaps after periods w/o interrupts */
 } VFIOINTx;
 
 struct VFIODevice;

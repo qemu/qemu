@@ -92,6 +92,34 @@ static void vfio_unmask_intx(VFIODevice *vdev)
     ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
 }
 
+/*
+ * Disabling BAR mmaping can be slow, but toggling it around INTx can
+ * also be a huge overhead.  We try to get the best of both worlds by
+ * waiting until an interrupt to disable mmaps (subsequent transitions
+ * to the same state are effectively no overhead).  If the interrupt has
+ * been serviced and the time gap is long enough, we re-enable mmaps for
+ * performance.  This works well for things like graphics cards, which
+ * may not use their interrupt at all and are penalized to an unusable
+ * level by read/write BAR traps.  Other devices, like NICs, have more
+ * regular interrupts and see much better latency by staying in non-mmap
+ * mode.  We therefore set the default mmap_timeout such that a ping
+ * is just enough to keep the mmap disabled.  Users can experiment with
+ * other options with the x-intx-mmap-timeout-ms parameter (a value of
+ * zero disables the timer).
+ */
+static void vfio_intx_mmap_enable(void *opaque)
+{
+    VFIODevice *vdev = opaque;
+
+    if (vdev->intx.pending) {
+        qemu_mod_timer(vdev->intx.mmap_timer,
+                       qemu_get_clock_ms(vm_clock) + vdev->intx.mmap_timeout);
+        return;
+    }
+
+    vfio_mmap_set_enabled(vdev, true);
+}
+
 static void vfio_intx_interrupt(void *opaque)
 {
     VFIODevice *vdev = opaque;
@@ -106,6 +134,11 @@ static void vfio_intx_interrupt(void *opaque)
 
     vdev->intx.pending = true;
     qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 1);
+    vfio_mmap_set_enabled(vdev, false);
+    if (vdev->intx.mmap_timeout) {
+        qemu_mod_timer(vdev->intx.mmap_timer,
+                       qemu_get_clock_ms(vm_clock) + vdev->intx.mmap_timeout);
+    }
 }
 
 static void vfio_eoi(VFIODevice *vdev)
@@ -141,7 +174,7 @@ static int vfio_enable_intx(VFIODevice *vdev)
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
     int ret;
 
-    if (vdev->intx.disabled || !pin) {
+    if (!pin) {
         return 0;
     }
 
@@ -162,16 +195,6 @@ static int vfio_enable_intx(VFIODevice *vdev)
         return -errno;
     }
 
-    /*
-     * Disable mmaps so we can trap on BAR accesses.  We interpret any
-     * access as a response to an interrupt and unmask the physical
-     * device.  The device will re-assert if the interrupt is still
-     * pending.  We'll likely retrigger on the host multiple times per
-     * guest interrupt, but without EOI notification it's better than
-     * nothing.  Acceleration paths through KVM will avoid this.
-     */
-    vfio_mmap_set_enabled(vdev, false);
-
     vdev->interrupt = VFIO_INT_INTx;
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
@@ -184,6 +207,7 @@ static void vfio_disable_intx(VFIODevice *vdev)
 {
     int fd;
 
+    qemu_del_timer(vdev->intx.mmap_timer);
     vfio_disable_irqindex(vdev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
     qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
@@ -1766,17 +1790,8 @@ static int vfio_initfn(PCIDevice *pdev)
     }
 
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
-        if (vdev->intx.intx && strcmp(vdev->intx.intx, "off")) {
-            error_report("vfio: Unknown option x-intx=%s, "
-                         "valid options: \"off\".\n", vdev->intx.intx);
-            ret = -EINVAL;
-            goto out_teardown;
-        }
-
-        if (vdev->intx.intx && !strcmp(vdev->intx.intx, "off")) {
-            vdev->intx.disabled = true;
-        }
-
+        vdev->intx.mmap_timer = qemu_new_timer_ms(vm_clock,
+                                                  vfio_intx_mmap_enable, vdev);
         ret = vfio_enable_intx(vdev);
         if (ret) {
             goto out_teardown;
@@ -1802,6 +1817,9 @@ static void vfio_exitfn(PCIDevice *pdev)
 
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
+    if (vdev->intx.mmap_timer) {
+        qemu_free_timer(vdev->intx.mmap_timer);
+    }
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
     vfio_put_device(vdev);
@@ -1826,7 +1844,8 @@ static void vfio_pci_reset(DeviceState *dev)
 
 static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("host", VFIODevice, host),
-    DEFINE_PROP_STRING("x-intx", VFIODevice, intx.intx),
+    DEFINE_PROP_UINT32("x-intx-mmap-timeout-ms", VFIODevice,
+                       intx.mmap_timeout, 1100),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIODevice, vfiofd_name),
