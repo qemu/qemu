@@ -1874,16 +1874,16 @@ static void tcg_reg_alloc_op(TCGContext *s,
     iarg_end: ;
     }
     
+    /* mark dead temporaries and free the associated registers */
+    for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
+        if (IS_DEAD_ARG(i)) {
+            temp_dead(s, args[i]);
+        }
+    }
+
     if (def->flags & TCG_OPF_BB_END) {
         tcg_reg_alloc_bb_end(s, allocated_regs);
     } else {
-        /* mark dead temporaries and free the associated registers */
-        for(i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
-            if (IS_DEAD_ARG(i)) {
-                temp_dead(s, args[i]);
-            }
-        }
-        
         if (def->flags & TCG_OPF_CALL_CLOBBER) {
             /* XXX: permit generic clobber register list ? */ 
             for(reg = 0; reg < TCG_TARGET_NB_REGS; reg++) {
