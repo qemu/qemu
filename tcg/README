@@ -349,6 +349,9 @@ st32_i64 t0, t1, offset
 write(t0, t1 + offset)
 Write 8, 16, 32 or 64 bits to host memory.
 
+All this opcodes assume that the pointed host memory doesn't correspond
+to a global. In the latter case the behaviour is unpredictable.
+
 ********* 64-bit target on 32-bit host support
 
 The following opcodes are internal to TCG.  Thus they are to be implemented by
