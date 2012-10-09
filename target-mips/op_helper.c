@@ -3031,95 +3031,54 @@ FLOAT_BINOP(mul)
 FLOAT_BINOP(div)
 #undef FLOAT_BINOP
 
-/* ternary operations */
-#define FLOAT_TERNOP(name1, name2)                                        \
-uint64_t helper_float_ ## name1 ## name2 ## _d(CPUMIPSState *env,         \
-                                               uint64_t fdt0,             \
-                                               uint64_t fdt1,             \
-                                               uint64_t fdt2)             \
-{                                                                         \
-    fdt0 = float64_ ## name1 (fdt0, fdt1, &env->active_fpu.fp_status);          \
-    return float64_ ## name2 (fdt0, fdt2, &env->active_fpu.fp_status);          \
-}                                                                         \
-                                                                          \
-uint32_t helper_float_ ## name1 ## name2 ## _s(CPUMIPSState *env,         \
-                                               uint32_t fst0,             \
-                                               uint32_t fst1,             \
-                                               uint32_t fst2)             \
-{                                                                         \
-    fst0 = float32_ ## name1 (fst0, fst1, &env->active_fpu.fp_status);          \
-    return float32_ ## name2 (fst0, fst2, &env->active_fpu.fp_status);          \
-}                                                                         \
-                                                                          \
-uint64_t helper_float_ ## name1 ## name2 ## _ps(CPUMIPSState *env,        \
-                                                uint64_t fdt0,            \
-                                                uint64_t fdt1,            \
-                                                uint64_t fdt2)            \
-{                                                                         \
-    uint32_t fst0 = fdt0 & 0XFFFFFFFF;                                    \
-    uint32_t fsth0 = fdt0 >> 32;                                          \
-    uint32_t fst1 = fdt1 & 0XFFFFFFFF;                                    \
-    uint32_t fsth1 = fdt1 >> 32;                                          \
-    uint32_t fst2 = fdt2 & 0XFFFFFFFF;                                    \
-    uint32_t fsth2 = fdt2 >> 32;                                          \
-                                                                          \
-    fst0 = float32_ ## name1 (fst0, fst1, &env->active_fpu.fp_status);          \
-    fsth0 = float32_ ## name1 (fsth0, fsth1, &env->active_fpu.fp_status);       \
-    fst2 = float32_ ## name2 (fst0, fst2, &env->active_fpu.fp_status);          \
-    fsth2 = float32_ ## name2 (fsth0, fsth2, &env->active_fpu.fp_status);       \
-    return ((uint64_t)fsth2 << 32) | fst2;                                \
+/* FMA based operations */
+#define FLOAT_FMA(name, type)                                        \
+uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,              \
+                                     uint64_t fdt0, uint64_t fdt1,   \
+                                     uint64_t fdt2)                  \
+{                                                                    \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);        \
+    fdt0 = float64_muladd(fdt0, fdt1, fdt2, type,                    \
+                         &env->active_fpu.fp_status);                \
+    update_fcr31(env);                                               \
+    return fdt0;                                                     \
+}                                                                    \
+                                                                     \
+uint32_t helper_float_ ## name ## _s(CPUMIPSState *env,              \
+                                     uint32_t fst0, uint32_t fst1,   \
+                                     uint32_t fst2)                  \
+{                                                                    \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);        \
+    fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
+                         &env->active_fpu.fp_status);                \
+    update_fcr31(env);                                               \
+    return fst0;                                                     \
+}                                                                    \
+                                                                     \
+uint64_t helper_float_ ## name ## _ps(CPUMIPSState *env,             \
+                                      uint64_t fdt0, uint64_t fdt1,  \
+                                      uint64_t fdt2)                 \
+{                                                                    \
+    uint32_t fst0 = fdt0 & 0XFFFFFFFF;                               \
+    uint32_t fsth0 = fdt0 >> 32;                                     \
+    uint32_t fst1 = fdt1 & 0XFFFFFFFF;                               \
+    uint32_t fsth1 = fdt1 >> 32;                                     \
+    uint32_t fst2 = fdt2 & 0XFFFFFFFF;                               \
+    uint32_t fsth2 = fdt2 >> 32;                                     \
+                                                                     \
+    set_float_exception_flags(0, &env->active_fpu.fp_status);        \
+    fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
+                          &env->active_fpu.fp_status);               \
+    fsth0 = float32_muladd(fsth0, fsth1, fsth2, type,                \
+                           &env->active_fpu.fp_status);              \
+    update_fcr31(env);                                               \
+    return ((uint64_t)fsth0 << 32) | fst0;                           \
 }
-
-FLOAT_TERNOP(mul, add)
-FLOAT_TERNOP(mul, sub)
-#undef FLOAT_TERNOP
-
-/* negated ternary operations */
-#define FLOAT_NTERNOP(name1, name2)                                       \
-uint64_t helper_float_n ## name1 ## name2 ## _d(CPUMIPSState *env,        \
-                                                uint64_t fdt0,            \
-                                                uint64_t fdt1,            \
-                                                uint64_t fdt2)            \
-{                                                                         \
-    fdt0 = float64_ ## name1 (fdt0, fdt1, &env->active_fpu.fp_status);          \
-    fdt2 = float64_ ## name2 (fdt0, fdt2, &env->active_fpu.fp_status);          \
-    return float64_chs(fdt2);                                             \
-}                                                                         \
-                                                                          \
-uint32_t helper_float_n ## name1 ## name2 ## _s(CPUMIPSState *env,        \
-                                                uint32_t fst0,            \
-                                                uint32_t fst1,            \
-                                                uint32_t fst2)            \
-{                                                                         \
-    fst0 = float32_ ## name1 (fst0, fst1, &env->active_fpu.fp_status);          \
-    fst2 = float32_ ## name2 (fst0, fst2, &env->active_fpu.fp_status);          \
-    return float32_chs(fst2);                                             \
-}                                                                         \
-                                                                          \
-uint64_t helper_float_n ## name1 ## name2 ## _ps(CPUMIPSState *env,       \
-                                                 uint64_t fdt0,           \
-                                                 uint64_t fdt1,           \
-                                                 uint64_t fdt2)           \
-{                                                                         \
-    uint32_t fst0 = fdt0 & 0XFFFFFFFF;                                    \
-    uint32_t fsth0 = fdt0 >> 32;                                          \
-    uint32_t fst1 = fdt1 & 0XFFFFFFFF;                                    \
-    uint32_t fsth1 = fdt1 >> 32;                                          \
-    uint32_t fst2 = fdt2 & 0XFFFFFFFF;                                    \
-    uint32_t fsth2 = fdt2 >> 32;                                          \
-                                                                          \
-    fst0 = float32_ ## name1 (fst0, fst1, &env->active_fpu.fp_status);          \
-    fsth0 = float32_ ## name1 (fsth0, fsth1, &env->active_fpu.fp_status);       \
-    fst2 = float32_ ## name2 (fst0, fst2, &env->active_fpu.fp_status);          \
-    fsth2 = float32_ ## name2 (fsth0, fsth2, &env->active_fpu.fp_status);       \
-    fst2 = float32_chs(fst2);                                             \
-    fsth2 = float32_chs(fsth2);                                           \
-    return ((uint64_t)fsth2 << 32) | fst2;                                \
-}
-
-FLOAT_NTERNOP(mul, add)
-FLOAT_NTERNOP(mul, sub)
-#undef FLOAT_NTERNOP
+FLOAT_FMA(madd, 0)
+FLOAT_FMA(msub, float_muladd_negate_c)
+FLOAT_FMA(nmadd, float_muladd_negate_result)
+FLOAT_FMA(nmsub, float_muladd_negate_result | float_muladd_negate_c)
+#undef FLOAT_FMA
 
 /* MIPS specific binary operations */
 uint64_t helper_float_recip2_d(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)

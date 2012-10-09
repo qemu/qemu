@@ -254,10 +254,10 @@ FOP_PROTO(rsqrt2)
 DEF_HELPER_4(float_ ## op ## _s, i32, env, i32, i32, i32)  \
 DEF_HELPER_4(float_ ## op ## _d, i64, env, i64, i64, i64)  \
 DEF_HELPER_4(float_ ## op ## _ps, i64, env, i64, i64, i64)
-FOP_PROTO(muladd)
-FOP_PROTO(mulsub)
-FOP_PROTO(nmuladd)
-FOP_PROTO(nmulsub)
+FOP_PROTO(madd)
+FOP_PROTO(msub)
+FOP_PROTO(nmadd)
+FOP_PROTO(nmsub)
 #undef FOP_PROTO
 
 #define FOP_PROTO(op)                                    \
