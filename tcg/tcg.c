@@ -1180,31 +1180,27 @@ static inline void tcg_set_nop(TCGContext *s, uint16_t *opc_ptr,
     }
 }
 
-/* liveness analysis: end of function: globals are live, temps are
-   dead. */
-/* XXX: at this stage, not used as there would be little gains because
-   most TBs end with a conditional jump. */
-static inline void tcg_la_func_end(TCGContext *s, uint8_t *dead_temps)
+/* liveness analysis: end of function: all temps are dead, and globals
+   should be in memory. */
+static inline void tcg_la_func_end(TCGContext *s, uint8_t *dead_temps,
+                                   uint8_t *mem_temps)
 {
-    memset(dead_temps, 0, s->nb_globals);
-    memset(dead_temps + s->nb_globals, 1, s->nb_temps - s->nb_globals);
+    memset(dead_temps, 1, s->nb_temps);
+    memset(mem_temps, 1, s->nb_globals);
+    memset(mem_temps + s->nb_globals, 0, s->nb_temps - s->nb_globals);
 }
 
-/* liveness analysis: end of basic block: globals are live, temps are
-   dead, local temps are live. */
-static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps)
+/* liveness analysis: end of basic block: all temps are dead, globals
+   and local temps should be in memory. */
+static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps,
+                                 uint8_t *mem_temps)
 {
     int i;
-    TCGTemp *ts;
 
-    memset(dead_temps, 0, s->nb_globals);
-    ts = &s->temps[s->nb_globals];
+    memset(dead_temps, 1, s->nb_temps);
+    memset(mem_temps, 1, s->nb_globals);
     for(i = s->nb_globals; i < s->nb_temps; i++) {
-        if (ts->temp_local)
-            dead_temps[i] = 0;
-        else
-            dead_temps[i] = 1;
-        ts++;
+        mem_temps[i] = s->temps[i].temp_local;
     }
 }
 
@@ -1217,7 +1213,7 @@ static void tcg_liveness_analysis(TCGContext *s)
     TCGOpcode op;
     TCGArg *args;
     const TCGOpDef *def;
-    uint8_t *dead_temps;
+    uint8_t *dead_temps, *mem_temps;
     uint16_t dead_args;
     uint8_t sync_args;
     
@@ -1229,7 +1225,8 @@ static void tcg_liveness_analysis(TCGContext *s)
     s->op_sync_args = tcg_malloc(nb_ops * sizeof(uint8_t));
     
     dead_temps = tcg_malloc(s->nb_temps);
-    memset(dead_temps, 1, s->nb_temps);
+    mem_temps = tcg_malloc(s->nb_temps);
+    tcg_la_func_end(s, dead_temps, mem_temps);
 
     args = gen_opparam_ptr;
     op_index = nb_ops - 1;
@@ -1253,8 +1250,9 @@ static void tcg_liveness_analysis(TCGContext *s)
                 if (call_flags & TCG_CALL_PURE) {
                     for(i = 0; i < nb_oargs; i++) {
                         arg = args[i];
-                        if (!dead_temps[arg])
+                        if (!dead_temps[arg] || mem_temps[arg]) {
                             goto do_not_remove_call;
+                        }
                     }
                     tcg_set_nop(s, gen_opc_buf + op_index, 
                                 args - 1, nb_args);
@@ -1269,12 +1267,17 @@ static void tcg_liveness_analysis(TCGContext *s)
                         if (dead_temps[arg]) {
                             dead_args |= (1 << i);
                         }
+                        if (mem_temps[arg]) {
+                            sync_args |= (1 << i);
+                        }
                         dead_temps[arg] = 1;
+                        mem_temps[arg] = 0;
                     }
                     
                     if (!(call_flags & TCG_CALL_CONST)) {
-                        /* globals are live (they may be used by the call) */
-                        memset(dead_temps, 0, s->nb_globals);
+                        /* globals should go back to memory */
+                        memset(dead_temps, 1, s->nb_globals);
+                        memset(mem_temps, 1, s->nb_globals);
                     }
 
                     /* input args are live */
@@ -1304,6 +1307,7 @@ static void tcg_liveness_analysis(TCGContext *s)
             args--;
             /* mark the temporary as dead */
             dead_temps[args[0]] = 1;
+            mem_temps[args[0]] = 0;
             break;
         case INDEX_op_end:
             break;
@@ -1369,8 +1373,9 @@ static void tcg_liveness_analysis(TCGContext *s)
             if (!(def->flags & TCG_OPF_SIDE_EFFECTS) && nb_oargs != 0) {
                 for(i = 0; i < nb_oargs; i++) {
                     arg = args[i];
-                    if (!dead_temps[arg])
+                    if (!dead_temps[arg] || mem_temps[arg]) {
                         goto do_not_remove;
+                    }
                 }
             do_remove:
                 tcg_set_nop(s, gen_opc_buf + op_index, args, def->nb_args);
@@ -1388,15 +1393,20 @@ static void tcg_liveness_analysis(TCGContext *s)
                     if (dead_temps[arg]) {
                         dead_args |= (1 << i);
                     }
+                    if (mem_temps[arg]) {
+                        sync_args |= (1 << i);
+                    }
                     dead_temps[arg] = 1;
+                    mem_temps[arg] = 0;
                 }
 
                 /* if end of basic block, update */
                 if (def->flags & TCG_OPF_BB_END) {
-                    tcg_la_bb_end(s, dead_temps);
+                    tcg_la_bb_end(s, dead_temps, mem_temps);
                 } else if (def->flags & TCG_OPF_CALL_CLOBBER) {
-                    /* globals are live */
-                    memset(dead_temps, 0, s->nb_globals);
+                    /* globals should go back to memory */
+                    memset(dead_temps, 1, s->nb_globals);
+                    memset(mem_temps, 1, s->nb_globals);
                 }
 
                 /* input args are live */
