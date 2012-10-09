@@ -1648,8 +1648,14 @@ static inline void temp_sync(TCGContext *s, int temp, TCGRegSet allocated_regs)
    temporary registers needs to be allocated to store a constant. */
 static inline void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
 {
+#ifdef USE_LIVENESS_ANALYSIS
+    /* The liveness analysis already ensures that globals are back
+       in memory. Keep an assert for safety. */
+    assert(s->temps[temp].val_type == TEMP_VAL_MEM || s->temps[temp].fixed_reg);
+#else
     temp_sync(s, temp, allocated_regs);
     temp_dead(s, temp);
+#endif
 }
 
 /* save globals to their canonical location and assume they can be
@@ -1676,7 +1682,13 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
         if (ts->temp_local) {
             temp_save(s, i, allocated_regs);
         } else {
+#ifdef USE_LIVENESS_ANALYSIS
+            /* The liveness analysis already ensures that temps are dead.
+               Keep an assert for safety. */
+            assert(ts->val_type == TEMP_VAL_DEAD);
+#else
             temp_dead(s, i);
+#endif
         }
     }
 
