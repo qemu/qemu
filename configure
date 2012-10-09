@@ -198,7 +198,7 @@ cocoa="no"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
-guest_base=""
+guest_base="yes"
 uname_release=""
 mixemu="no"
 aix="no"
@@ -867,62 +867,35 @@ for opt do
   esac
 done
 
-host_guest_base="no"
 case "$cpu" in
     sparc)
            LDFLAGS="-m32 $LDFLAGS"
            QEMU_CFLAGS="-m32 -mcpu=ultrasparc $QEMU_CFLAGS"
-           host_guest_base="yes"
            ;;
     sparc64)
            LDFLAGS="-m64 $LDFLAGS"
            QEMU_CFLAGS="-m64 -mcpu=ultrasparc $QEMU_CFLAGS"
-           host_guest_base="yes"
            ;;
     s390)
            QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
            LDFLAGS="-m31 $LDFLAGS"
-           host_guest_base="yes"
            ;;
     s390x)
            QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
-           host_guest_base="yes"
            ;;
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
            LDFLAGS="-m32 $LDFLAGS"
            cc_i386='$(CC) -m32'
-           host_guest_base="yes"
            ;;
     x86_64)
            QEMU_CFLAGS="-m64 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
-           host_guest_base="yes"
            ;;
-    arm*)
-           host_guest_base="yes"
-           ;;
-    ppc*)
-           host_guest_base="yes"
-           ;;
-    mips*)
-           host_guest_base="yes"
-           ;;
-    ia64*)
-           host_guest_base="yes"
-           ;;
-    hppa*)
-           host_guest_base="yes"
-           ;;
-    unicore32*)
-           host_guest_base="yes"
-           ;;
+    # No special flags required for other host CPUs
 esac
-
-[ -z "$guest_base" ] && guest_base="$host_guest_base"
-
 
 default_target_list=""
 
