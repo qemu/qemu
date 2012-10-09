@@ -776,7 +776,11 @@ static void tcg_reg_alloc_start(TCGContext *s)
     }
     for(i = s->nb_globals; i < s->nb_temps; i++) {
         ts = &s->temps[i];
-        ts->val_type = TEMP_VAL_DEAD;
+        if (ts->temp_local) {
+            ts->val_type = TEMP_VAL_MEM;
+        } else {
+            ts->val_type = TEMP_VAL_DEAD;
+        }
         ts->mem_allocated = 0;
         ts->fixed_reg = 0;
     }
