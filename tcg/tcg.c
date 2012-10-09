@@ -1714,64 +1714,80 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
                               const TCGArg *args, uint16_t dead_args,
                               uint8_t sync_args)
 {
+    TCGRegSet allocated_regs;
     TCGTemp *ts, *ots;
-    int reg;
-    const TCGArgConstraint *arg_ct;
+    const TCGArgConstraint *arg_ct, *oarg_ct;
 
+    tcg_regset_set(allocated_regs, s->reserved_regs);
     ots = &s->temps[args[0]];
     ts = &s->temps[args[1]];
-    arg_ct = &def->args_ct[0];
+    oarg_ct = &def->args_ct[0];
+    arg_ct = &def->args_ct[1];
 
-    /* XXX: always mark arg dead if IS_DEAD_ARG(1) */
-    if (ts->val_type == TEMP_VAL_REG) {
+    /* If the source value is not in a register, and we're going to be
+       forced to have it in a register in order to perform the copy,
+       then copy the SOURCE value into its own register first.  That way
+       we don't have to reload SOURCE the next time it is used. */
+    if (((NEED_SYNC_ARG(0) || ots->fixed_reg) && ts->val_type != TEMP_VAL_REG)
+        || ts->val_type == TEMP_VAL_MEM) {
+        ts->reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
+        if (ts->val_type == TEMP_VAL_MEM) {
+            tcg_out_ld(s, ts->type, ts->reg, ts->mem_reg, ts->mem_offset);
+            ts->mem_coherent = 1;
+        } else if (ts->val_type == TEMP_VAL_CONST) {
+            tcg_out_movi(s, ts->type, ts->reg, ts->val);
+        }
+        s->reg_to_temp[ts->reg] = args[1];
+        ts->val_type = TEMP_VAL_REG;
+    }
+
+    if (IS_DEAD_ARG(0) && !ots->fixed_reg) {
+        /* mov to a non-saved dead register makes no sense (even with
+           liveness analysis disabled). */
+        assert(NEED_SYNC_ARG(0));
+        /* The code above should have moved the temp to a register. */
+        assert(ts->val_type == TEMP_VAL_REG);
+        if (!ots->mem_allocated) {
+            temp_allocate_frame(s, args[0]);
+        }
+        tcg_out_st(s, ots->type, ts->reg, ots->mem_reg, ots->mem_offset);
+        if (IS_DEAD_ARG(1)) {
+            temp_dead(s, args[1]);
+        }
+        temp_dead(s, args[0]);
+    } else if (ts->val_type == TEMP_VAL_CONST) {
+        /* propagate constant */
+        if (ots->val_type == TEMP_VAL_REG) {
+            s->reg_to_temp[ots->reg] = -1;
+        }
+        ots->val_type = TEMP_VAL_CONST;
+        ots->val = ts->val;
+    } else {
+        /* The code in the first if block should have moved the
+           temp to a register. */
+        assert(ts->val_type == TEMP_VAL_REG);
         if (IS_DEAD_ARG(1) && !ts->fixed_reg && !ots->fixed_reg) {
             /* the mov can be suppressed */
-            if (ots->val_type == TEMP_VAL_REG)
+            if (ots->val_type == TEMP_VAL_REG) {
                 s->reg_to_temp[ots->reg] = -1;
-            reg = ts->reg;
+            }
+            ots->reg = ts->reg;
             temp_dead(s, args[1]);
         } else {
-            if (ots->val_type == TEMP_VAL_REG) {
-                reg = ots->reg;
-            } else {
-                reg = tcg_reg_alloc(s, arg_ct->u.regs, s->reserved_regs);
+            if (ots->val_type != TEMP_VAL_REG) {
+                /* When allocating a new register, make sure to not spill the
+                   input one. */
+                tcg_regset_set_reg(allocated_regs, ts->reg);
+                ots->reg = tcg_reg_alloc(s, oarg_ct->u.regs, allocated_regs);
             }
-            if (ts->reg != reg) {
-                tcg_out_mov(s, ots->type, reg, ts->reg);
-            }
+            tcg_out_mov(s, ots->type, ots->reg, ts->reg);
         }
-    } else if (ts->val_type == TEMP_VAL_MEM) {
-        if (ots->val_type == TEMP_VAL_REG) {
-            reg = ots->reg;
-        } else {
-            reg = tcg_reg_alloc(s, arg_ct->u.regs, s->reserved_regs);
+        ots->val_type = TEMP_VAL_REG;
+        ots->mem_coherent = 0;
+        s->reg_to_temp[ots->reg] = args[0];
+        if (NEED_SYNC_ARG(0)) {
+            tcg_reg_sync(s, ots->reg);
         }
-        tcg_out_ld(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
-    } else if (ts->val_type == TEMP_VAL_CONST) {
-        if (ots->fixed_reg) {
-            reg = ots->reg;
-            tcg_out_movi(s, ots->type, reg, ts->val);
-        } else {
-            /* propagate constant */
-            if (ots->val_type == TEMP_VAL_REG)
-                s->reg_to_temp[ots->reg] = -1;
-            ots->val_type = TEMP_VAL_CONST;
-            ots->val = ts->val;
-            if (NEED_SYNC_ARG(0)) {
-                temp_sync(s, args[0], s->reserved_regs);
-            }
-            return;
-        }
-    } else {
-        tcg_abort();
-    }
-    s->reg_to_temp[reg] = args[0];
-    ots->reg = reg;
-    ots->val_type = TEMP_VAL_REG;
-    ots->mem_coherent = 0;
-
-    if (NEED_SYNC_ARG(0)) {
-        tcg_reg_sync(s, reg);
     }
 }
 
