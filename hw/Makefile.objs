@@ -36,6 +36,8 @@ hw-obj-$(CONFIG_SMARTCARD) += ccid-card-passthru.o
 hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 hw-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
 
+hw-obj-y += clktree.o
+
 # PPC devices
 hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
 hw-obj-$(CONFIG_I82378) += i82378.o

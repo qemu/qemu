@@ -1,3 +1,62 @@
+QEMU with STM32 Microcontroller Implementation
+
+OVERVIEW
+This is a copy of QEMU that has been modified to include an implementation
+of the STM32 microcontroller.  It also implements an Olimex STM32_P103
+developmentvboard.  This project runs the demos located in the
+stm32_p103_demos project located at: https://github.com/beckus/stm32_p103_demos .
+
+Commands for a typical build:
+./configure --disable-werror --enable-debug --target-list="arm-softmmu"
+make
+
+Useful make commands when rebuilding:
+    make defconfig
+    make clean
+
+The generated executable is arm-softmmu/qemu-system-arm .
+
+Other configure options which control the STM32 implementation:
+
+    --extra-cflags=-DDEBUG_CLKTREE
+        Print out clock tree debug statements.
+
+    --extra-cflags=-DDEBUG_STM32_RCC
+        Print RCC debug statements.
+
+    --extra-cflags=-DDEBUG_STM32_UART
+        Print UART debug statements.
+
+    --extra-cflags=-DSTM32_UART_NO_BAUD_DELAY
+        Disable the BAUD rate timing simulation
+        (i.e. the UART will transmit or receive as fast as possible, rather than
+        using a realistic delay).
+
+    --extra-cflags=-DSTM32_UART_ENABLE_OVERRUN
+        Enable setting of the overrun flag if a character is
+        received before the last one is processed.  If this is not set, the UART
+        will not receive the next character until the previous one is read by
+        software.  Although less realisitic, this is safer in case the VM is
+        running slow.
+
+Other QEMU configure options which are useful for troubleshooting:
+    --extra-cflags=-DDEBUG_GIC
+
+qemu-system-arm options which are useful for trobuleshooting:
+    -d ?
+        To see available log levels
+
+    -d cpu,in_asm
+        Enable logging to view the CPU state during execution and the ARM
+        instructions which are being executed.  I believe --enable-debug must be
+        used for this to work.
+        By default, you can find the output in /tmp/qemu.log:
+
+
+
+
+The original QEMU README follows:
+
 Read the documentation in qemu-doc.html or on http://wiki.qemu.org
 
 - QEMU team
