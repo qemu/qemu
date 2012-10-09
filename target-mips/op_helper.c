@@ -594,32 +594,19 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
-#ifdef CONFIG_USER_ONLY
-#undef ldfun
-#define ldfun(env, addr) ldl_raw(addr)
-#else
-    uint32_t (*ldfun)(CPUMIPSState *env, target_ulong);
-
-    switch (mem_idx)
-    {
-    case 0: ldfun = cpu_ldl_kernel; break;
-    case 1: ldfun = cpu_ldl_super; break;
-    default:
-    case 2: ldfun = cpu_ldl_user; break;
-    }
-#endif
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            env->active_tc.gpr[multiple_regs[i]] = (target_long)ldfun(env, addr);
+            env->active_tc.gpr[multiple_regs[i]] =
+                (target_long)do_lw(env, addr, mem_idx);
             addr += 4;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] = (target_long)ldfun(env, addr);
+        env->active_tc.gpr[31] = (target_long)do_lw(env, addr, mem_idx);
     }
 }
 
@@ -628,32 +615,18 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
-#ifdef CONFIG_USER_ONLY
-#undef stfun
-#define stfun(env, addr, val) stl_raw(addr, val)
-#else
-    void (*stfun)(CPUMIPSState *env, target_ulong, uint32_t);
-
-    switch (mem_idx)
-    {
-    case 0: stfun = cpu_stl_kernel; break;
-    case 1: stfun = cpu_stl_super; break;
-     default:
-    case 2: stfun = cpu_stl_user; break;
-    }
-#endif
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            stfun(env, addr, env->active_tc.gpr[multiple_regs[i]]);
+            do_sw(env, addr, env->active_tc.gpr[multiple_regs[i]], mem_idx);
             addr += 4;
         }
     }
 
     if (do_r31) {
-        stfun(env, addr, env->active_tc.gpr[31]);
+        do_sw(env, addr, env->active_tc.gpr[31], mem_idx);
     }
 }
 
@@ -663,32 +636,18 @@ void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
-#ifdef CONFIG_USER_ONLY
-#undef ldfun
-#define ldfun(env, addr) ldq_raw(addr)
-#else
-    uint64_t (*ldfun)(CPUMIPSState *env, target_ulong);
-
-    switch (mem_idx)
-    {
-    case 0: ldfun = cpu_ldq_kernel; break;
-    case 1: ldfun = cpu_ldq_super; break;
-    default:
-    case 2: ldfun = cpu_ldq_user; break;
-    }
-#endif
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            env->active_tc.gpr[multiple_regs[i]] = ldfun(env, addr);
+            env->active_tc.gpr[multiple_regs[i]] = do_ld(env, addr, mem_idx);
             addr += 8;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] = ldfun(env, addr);
+        env->active_tc.gpr[31] = do_ld(env, addr, mem_idx);
     }
 }
 
@@ -697,32 +656,18 @@ void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 {
     target_ulong base_reglist = reglist & 0xf;
     target_ulong do_r31 = reglist & 0x10;
-#ifdef CONFIG_USER_ONLY
-#undef stfun
-#define stfun(env, addr, val) stq_raw(addr, val)
-#else
-    void (*stfun)(CPUMIPSState *env, target_ulong, uint64_t);
-
-    switch (mem_idx)
-    {
-    case 0: stfun = cpu_stq_kernel; break;
-    case 1: stfun = cpu_stq_super; break;
-     default:
-    case 2: stfun = cpu_stq_user; break;
-    }
-#endif
 
     if (base_reglist > 0 && base_reglist <= ARRAY_SIZE (multiple_regs)) {
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            stfun(env, addr, env->active_tc.gpr[multiple_regs[i]]);
+            do_sd(env, addr, env->active_tc.gpr[multiple_regs[i]], mem_idx);
             addr += 8;
         }
     }
 
     if (do_r31) {
-        stfun(env, addr, env->active_tc.gpr[31]);
+        do_sd(env, addr, env->active_tc.gpr[31], mem_idx);
     }
 }
 #endif
