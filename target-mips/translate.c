@@ -1814,13 +1814,14 @@ static void gen_st_cond (DisasContext *ctx, uint32_t opc, int rt,
     const char *opn = "st_cond";
     TCGv t0, t1;
 
+#ifdef CONFIG_USER_ONLY
     t0 = tcg_temp_local_new();
-
-    gen_base_offset_addr(ctx, t0, base, offset);
-    /* Don't do NOP if destination is zero: we must perform the actual
-       memory access. */
-
     t1 = tcg_temp_local_new();
+#else
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+#endif
+    gen_base_offset_addr(ctx, t0, base, offset);
     gen_load_gpr(t1, rt);
     switch (opc) {
 #if defined(TARGET_MIPS64)
