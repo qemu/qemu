@@ -1580,7 +1580,7 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
                     int rt, int base, int16_t offset)
 {
     const char *opn = "ld";
-    TCGv t0, t1;
+    TCGv t0, t1, t2;
 
     if (rt == 0 && env->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F)) {
         /* Loongson CPU uses a load to zero register for prefetch.
@@ -1612,21 +1612,45 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "lld";
         break;
     case OPC_LDL:
-        save_cpu_state(ctx, 1);
         t1 = tcg_temp_new();
+        tcg_gen_andi_tl(t1, t0, 7);
+#ifndef TARGET_WORDS_BIGENDIAN
+        tcg_gen_xori_tl(t1, t1, 7);
+#endif
+        tcg_gen_shli_tl(t1, t1, 3);
+        tcg_gen_andi_tl(t0, t0, ~7);
+        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_shl_tl(t0, t0, t1);
+        tcg_gen_xori_tl(t1, t1, 63);
+        t2 = tcg_const_tl(0x7fffffffffffffffull);
+        tcg_gen_shr_tl(t2, t2, t1);
         gen_load_gpr(t1, rt);
-        gen_helper_1e2i(ldl, t1, t1, t0, ctx->mem_idx);
-        gen_store_gpr(t1, rt);
+        tcg_gen_and_tl(t1, t1, t2);
+        tcg_temp_free(t2);
+        tcg_gen_or_tl(t0, t0, t1);
         tcg_temp_free(t1);
+        gen_store_gpr(t0, rt);
         opn = "ldl";
         break;
     case OPC_LDR:
-        save_cpu_state(ctx, 1);
         t1 = tcg_temp_new();
+        tcg_gen_andi_tl(t1, t0, 7);
+#ifdef TARGET_WORDS_BIGENDIAN
+        tcg_gen_xori_tl(t1, t1, 7);
+#endif
+        tcg_gen_shli_tl(t1, t1, 3);
+        tcg_gen_andi_tl(t0, t0, ~7);
+        tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
+        tcg_gen_shr_tl(t0, t0, t1);
+        tcg_gen_xori_tl(t1, t1, 63);
+        t2 = tcg_const_tl(0xfffffffffffffffeull);
+        tcg_gen_shl_tl(t2, t2, t1);
         gen_load_gpr(t1, rt);
-        gen_helper_1e2i(ldr, t1, t1, t0, ctx->mem_idx);
-        gen_store_gpr(t1, rt);
+        tcg_gen_and_tl(t1, t1, t2);
+        tcg_temp_free(t2);
+        tcg_gen_or_tl(t0, t0, t1);
         tcg_temp_free(t1);
+        gen_store_gpr(t0, rt);
         opn = "ldr";
         break;
     case OPC_LDPC:
@@ -1672,21 +1696,46 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "lbu";
         break;
     case OPC_LWL:
-        save_cpu_state(ctx, 1);
         t1 = tcg_temp_new();
+        tcg_gen_andi_tl(t1, t0, 3);
+#ifndef TARGET_WORDS_BIGENDIAN
+        tcg_gen_xori_tl(t1, t1, 3);
+#endif
+        tcg_gen_shli_tl(t1, t1, 3);
+        tcg_gen_andi_tl(t0, t0, ~3);
+        tcg_gen_qemu_ld32u(t0, t0, ctx->mem_idx);
+        tcg_gen_shl_tl(t0, t0, t1);
+        tcg_gen_xori_tl(t1, t1, 31);
+        t2 = tcg_const_tl(0x7fffffffull);
+        tcg_gen_shr_tl(t2, t2, t1);
         gen_load_gpr(t1, rt);
-        gen_helper_1e2i(lwl, t1, t1, t0, ctx->mem_idx);
-        gen_store_gpr(t1, rt);
+        tcg_gen_and_tl(t1, t1, t2);
+        tcg_temp_free(t2);
+        tcg_gen_or_tl(t0, t0, t1);
         tcg_temp_free(t1);
+        tcg_gen_ext32s_tl(t0, t0);
+        gen_store_gpr(t0, rt);
         opn = "lwl";
         break;
     case OPC_LWR:
-        save_cpu_state(ctx, 1);
         t1 = tcg_temp_new();
+        tcg_gen_andi_tl(t1, t0, 3);
+#ifdef TARGET_WORDS_BIGENDIAN
+        tcg_gen_xori_tl(t1, t1, 3);
+#endif
+        tcg_gen_shli_tl(t1, t1, 3);
+        tcg_gen_andi_tl(t0, t0, ~3);
+        tcg_gen_qemu_ld32u(t0, t0, ctx->mem_idx);
+        tcg_gen_shr_tl(t0, t0, t1);
+        tcg_gen_xori_tl(t1, t1, 31);
+        t2 = tcg_const_tl(0xfffffffeull);
+        tcg_gen_shl_tl(t2, t2, t1);
         gen_load_gpr(t1, rt);
-        gen_helper_1e2i(lwr, t1, t1, t0, ctx->mem_idx);
-        gen_store_gpr(t1, rt);
+        tcg_gen_and_tl(t1, t1, t2);
+        tcg_temp_free(t2);
+        tcg_gen_or_tl(t0, t0, t1);
         tcg_temp_free(t1);
+        gen_store_gpr(t0, rt);
         opn = "lwr";
         break;
     case OPC_LL:

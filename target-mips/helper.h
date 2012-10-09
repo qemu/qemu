@@ -4,13 +4,9 @@ DEF_HELPER_3(raise_exception_err, noreturn, env, i32, int)
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 
 #ifdef TARGET_MIPS64
-DEF_HELPER_4(ldl, tl, env, tl, tl, int)
-DEF_HELPER_4(ldr, tl, env, tl, tl, int)
 DEF_HELPER_4(sdl, void, env, tl, tl, int)
 DEF_HELPER_4(sdr, void, env, tl, tl, int)
 #endif
-DEF_HELPER_4(lwl, tl, env, tl, tl, int)
-DEF_HELPER_4(lwr, tl, env, tl, tl, int)
 DEF_HELPER_4(swl, void, env, tl, tl, int)
 DEF_HELPER_4(swr, void, env, tl, tl, int)
 
