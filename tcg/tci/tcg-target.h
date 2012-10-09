@@ -102,9 +102,6 @@
 #define TCG_TARGET_HAS_movcond_i64      0
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-/* Offset to user memory in user mode. */
-#define TCG_TARGET_HAS_GUEST_BASE
-
 /* Number of registers available.
    For 32 bit hosts, we need more than 8 registers (call arguments). */
 /* #define TCG_TARGET_NB_REGS 8 */

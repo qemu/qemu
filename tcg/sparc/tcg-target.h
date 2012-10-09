@@ -124,8 +124,6 @@ typedef enum {
 #define TCG_TARGET_HAS_movcond_i64      0
 #endif
 
-#define TCG_TARGET_HAS_GUEST_BASE
-
 #define TCG_AREG0 TCG_REG_I0
 
 static inline void flush_icache_range(tcg_target_ulong start,
