@@ -2359,35 +2359,32 @@ static void gen_cond_move(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
                           int rd, int rs, int rt)
 {
     const char *opn = "cond move";
-    int l1;
+    TCGv t0, t1, t2;
 
     if (rd == 0) {
-        /* If no destination, treat it as a NOP.
-           For add & sub, we must generate the overflow exception when needed. */
+        /* If no destination, treat it as a NOP. */
         MIPS_DEBUG("NOP");
         return;
     }
 
-    l1 = gen_new_label();
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rt);
+    t1 = tcg_const_tl(0);
+    t2 = tcg_temp_new();
+    gen_load_gpr(t2, rs);
     switch (opc) {
     case OPC_MOVN:
-        if (likely(rt != 0))
-            tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[rt], 0, l1);
-        else
-            tcg_gen_br(l1);
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_gpr[rd], t0, t1, t2, cpu_gpr[rd]);
         opn = "movn";
         break;
     case OPC_MOVZ:
-        if (likely(rt != 0))
-            tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[rt], 0, l1);
+        tcg_gen_movcond_tl(TCG_COND_EQ, cpu_gpr[rd], t0, t1, t2, cpu_gpr[rd]);
         opn = "movz";
         break;
     }
-    if (rs != 0)
-        tcg_gen_mov_tl(cpu_gpr[rd], cpu_gpr[rs]);
-    else
-        tcg_gen_movi_tl(cpu_gpr[rd], 0);
-    gen_set_label(l1);
+    tcg_temp_free(t2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
 
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %s, %s", opn, regnames[rd], regnames[rs], regnames[rt]);
