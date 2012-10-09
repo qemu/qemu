@@ -1856,6 +1856,9 @@ void r4k_helper_tlbp(CPUMIPSState *env)
         mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
         tag = env->CP0_EntryHi & ~mask;
         VPN = tlb->VPN & ~mask;
+#if defined(TARGET_MIPS64)
+        tag &= env->SEGMask;
+#endif
         /* Check ASID, virtual page number & size */
         if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
             /* TLB match */
@@ -1871,6 +1874,9 @@ void r4k_helper_tlbp(CPUMIPSState *env)
             mask = tlb->PageMask | ~(TARGET_PAGE_MASK << 1);
             tag = env->CP0_EntryHi & ~mask;
             VPN = tlb->VPN & ~mask;
+#if defined(TARGET_MIPS64)
+            tag &= env->SEGMask;
+#endif
             /* Check ASID, virtual page number & size */
             if ((tlb->G == 1 || tlb->ASID == ASID) && VPN == tag) {
                 r4k_mips_tlb_flush_extra (env, i);
