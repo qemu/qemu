@@ -1050,7 +1050,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                         DisasContext *dc)
 {
     static int subcc_cond[16] = {
-        -1, /* never */
+        TCG_COND_NEVER,
         TCG_COND_EQ,
         TCG_COND_LE,
         TCG_COND_LT,
@@ -1058,7 +1058,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         TCG_COND_LTU,
         -1, /* neg */
         -1, /* overflow */
-        -1, /* always */
+        TCG_COND_ALWAYS,
         TCG_COND_NE,
         TCG_COND_GT,
         TCG_COND_GE,
@@ -1066,6 +1066,25 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         TCG_COND_GEU,
         -1, /* pos */
         -1, /* no overflow */
+    };
+
+    static int logic_cond[16] = {
+        TCG_COND_NEVER,
+        TCG_COND_EQ,     /* eq:  Z */
+        TCG_COND_LE,     /* le:  Z | (N ^ V) -> Z | N */
+        TCG_COND_LT,     /* lt:  N ^ V -> N */
+        TCG_COND_EQ,     /* leu: C | Z -> Z */
+        TCG_COND_NEVER,  /* ltu: C -> 0 */
+        TCG_COND_LT,     /* neg: N */
+        TCG_COND_NEVER,  /* vs:  V -> 0 */
+        TCG_COND_ALWAYS,
+        TCG_COND_NE,     /* ne:  !Z */
+        TCG_COND_GT,     /* gt:  !(Z | (N ^ V)) -> !(Z | N) */
+        TCG_COND_GE,     /* ge:  !(N ^ V) -> !N */
+        TCG_COND_NE,     /* gtu: !(C | Z) -> !Z */
+        TCG_COND_ALWAYS, /* geu: !C -> 1 */
+        TCG_COND_GE,     /* pos: !N */
+        TCG_COND_ALWAYS, /* vc:  !V -> 1 */
     };
 
     TCGv_i32 r_src;
@@ -1082,28 +1101,31 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 #endif
 
     switch (dc->cc_op) {
+    case CC_OP_LOGIC:
+        cmp->cond = logic_cond[cond];
+    do_compare_dst_0:
+        cmp->is_bool = false;
+        cmp->g2 = false;
+        cmp->c2 = tcg_const_tl(0);
+#ifdef TARGET_SPARC64
+        if (!xcc) {
+            cmp->g1 = false;
+            cmp->c1 = tcg_temp_new();
+            tcg_gen_ext32s_tl(cmp->c1, cpu_cc_dst);
+            break;
+        }
+#endif
+        cmp->g1 = true;
+        cmp->c1 = cpu_cc_dst;
+        break;
+
     case CC_OP_SUB:
         switch (cond) {
         case 6:  /* neg */
         case 14: /* pos */
             cmp->cond = (cond == 6 ? TCG_COND_LT : TCG_COND_GE);
-            cmp->is_bool = false;
-            cmp->g2 = false;
-            cmp->c2 = tcg_const_tl(0);
-#ifdef TARGET_SPARC64
-            if (!xcc) {
-                cmp->g1 = false;
-                cmp->c1 = tcg_temp_new();
-                tcg_gen_ext32s_tl(cmp->c1, cpu_cc_dst);
-                break;
-            }
-#endif
-            cmp->g1 = true;
-            cmp->c1 = cpu_cc_dst;
-            break;
+            goto do_compare_dst_0;
 
-        case 0: /* never */
-        case 8: /* always */
         case 7: /* overflow */
         case 15: /* !overflow */
             goto do_dynamic;
