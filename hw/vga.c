@@ -1346,6 +1346,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->last_scr_width = width * cw;
         s->last_scr_height = height * cheight;
         qemu_console_resize(s->ds, s->last_scr_width, s->last_scr_height);
+        dpy_text_resize(s->ds, width, height);
         s->last_depth = 0;
         s->last_width = width;
         s->last_height = height;
@@ -1358,6 +1359,14 @@ static void vga_draw_text(VGACommonState *s, int full_update)
     full_update |= update_palette16(s);
     palette = s->last_palette;
     x_incr = cw * ((ds_get_bits_per_pixel(s->ds) + 7) >> 3);
+
+    if (full_update) {
+        s->full_update_text = 1;
+    }
+    if (s->full_update_gfx) {
+        s->full_update_gfx = 0;
+        full_update |= 1;
+    }
 
     cursor_offset = ((s->cr[VGA_CRTC_CURSOR_HI] << 8) |
                      s->cr[VGA_CRTC_CURSOR_LO]) - s->start_addr;
@@ -2052,12 +2061,22 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
             cw != s->last_cw || cheight != s->last_ch) {
             s->last_scr_width = width * cw;
             s->last_scr_height = height * cheight;
+            qemu_console_resize(s->ds, s->last_scr_width, s->last_scr_height);
             dpy_text_resize(s->ds, width, height);
+            s->last_depth = 0;
             s->last_width = width;
             s->last_height = height;
             s->last_ch = cheight;
             s->last_cw = cw;
             full_update = 1;
+        }
+
+        if (full_update) {
+            s->full_update_gfx = 1;
+        }
+        if (s->full_update_text) {
+            s->full_update_text = 0;
+            full_update |= 1;
         }
 
         /* Update "hardware" cursor */
