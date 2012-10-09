@@ -268,10 +268,6 @@ typedef int TCGv_i64;
 #define TCG_CALL_NO_RWG_SE      (TCG_CALL_NO_RWG | TCG_CALL_NO_SE)
 #define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
 
-/* compatibility call flags, they should be eventually be removed */
-#define TCG_CALL_PURE           TCG_CALL_NO_SIDE_EFFECTS
-#define TCG_CALL_CONST          TCG_CALL_NO_READ_GLOBALS
-
 /* used to align parameters */
 #define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)
 #define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
