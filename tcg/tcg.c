@@ -1517,22 +1517,33 @@ static void temp_allocate_frame(TCGContext *s, int temp)
     s->current_frame_offset += (tcg_target_long)sizeof(tcg_target_long);
 }
 
-/* free register 'reg' by spilling the corresponding temporary if necessary */
-static void tcg_reg_free(TCGContext *s, int reg)
+/* sync register 'reg' by saving it to the corresponding temporary */
+static inline void tcg_reg_sync(TCGContext *s, int reg)
 {
     TCGTemp *ts;
     int temp;
 
     temp = s->reg_to_temp[reg];
-    if (temp != -1) {
-        ts = &s->temps[temp];
-        assert(ts->val_type == TEMP_VAL_REG);
-        if (!ts->mem_coherent) {
-            if (!ts->mem_allocated) 
-                temp_allocate_frame(s, temp);
-            tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
+    ts = &s->temps[temp];
+    assert(ts->val_type == TEMP_VAL_REG);
+    if (!ts->mem_coherent && !ts->fixed_reg) {
+        if (!ts->mem_allocated) {
+            temp_allocate_frame(s, temp);
         }
-        ts->val_type = TEMP_VAL_MEM;
+        tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
+    }
+    ts->mem_coherent = 1;
+}
+
+/* free register 'reg' by spilling the corresponding temporary if necessary */
+static void tcg_reg_free(TCGContext *s, int reg)
+{
+    int temp;
+
+    temp = s->reg_to_temp[reg];
+    if (temp != -1) {
+        tcg_reg_sync(s, reg);
+        s->temps[temp].val_type = TEMP_VAL_MEM;
         s->reg_to_temp[reg] = -1;
     }
 }
