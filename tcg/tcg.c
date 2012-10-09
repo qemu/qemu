@@ -1407,9 +1407,8 @@ static void tcg_liveness_analysis(TCGContext *s)
                 /* if end of basic block, update */
                 if (def->flags & TCG_OPF_BB_END) {
                     tcg_la_bb_end(s, dead_temps, mem_temps);
-                } else if (def->flags & TCG_OPF_CALL_CLOBBER) {
-                    /* globals should go back to memory */
-                    memset(dead_temps, 1, s->nb_globals);
+                } else if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+                    /* globals should be synced to memory */
                     memset(mem_temps, 1, s->nb_globals);
                 }
 
@@ -1670,6 +1669,23 @@ static void save_globals(TCGContext *s, TCGRegSet allocated_regs)
     }
 }
 
+/* sync globals to their canonical location and assume they can be
+   read by the following code. 'allocated_regs' is used in case a
+   temporary registers needs to be allocated to store a constant. */
+static void sync_globals(TCGContext *s, TCGRegSet allocated_regs)
+{
+    int i;
+
+    for (i = 0; i < s->nb_globals; i++) {
+#ifdef USE_LIVENESS_ANALYSIS
+        assert(s->temps[i].val_type != TEMP_VAL_REG || s->temps[i].fixed_reg ||
+               s->temps[i].mem_coherent);
+#else
+        temp_sync(s, i, allocated_regs);
+#endif
+    }
+}
+
 /* at the end of a basic block, we assume all temporaries are dead and
    all globals are stored at their canonical location. */
 static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
@@ -1907,12 +1923,11 @@ static void tcg_reg_alloc_op(TCGContext *s,
                     tcg_reg_free(s, reg);
                 }
             }
-            /* XXX: for load/store we could do that only for the slow path
-               (i.e. when a memory callback is called) */
-            
-            /* store globals and free associated registers (we assume the insn
-               can modify any global. */
-            save_globals(s, allocated_regs);
+        }
+        if (def->flags & TCG_OPF_SIDE_EFFECTS) {
+            /* sync globals if the op has side effects and might trigger
+               an exception. */
+            sync_globals(s, allocated_regs);
         }
         
         /* satisfy the output constraints */

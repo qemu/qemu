@@ -530,8 +530,8 @@ enum {
     TCG_OPF_BB_END       = 0x01,
     /* Instruction clobbers call registers and potentially update globals.  */
     TCG_OPF_CALL_CLOBBER = 0x02,
-    /* Instruction has side effects: it cannot be removed
-       if its outputs are not used.  */
+    /* Instruction has side effects: it cannot be removed if its outputs
+       are not used, and might trigger exceptions.  */
     TCG_OPF_SIDE_EFFECTS = 0x04,
     /* Instruction operands are 64-bits (otherwise 32-bits).  */
     TCG_OPF_64BIT        = 0x08,
