@@ -230,6 +230,7 @@ enum {
     OPC_CMP4_LT_A6            = 0x18400000000ull,
     OPC_CMP4_LTU_A6           = 0x1a400000000ull,
     OPC_CMP4_EQ_A6            = 0x1c400000000ull,
+    OPC_DEP_I14               = 0x0ae00000000ull,
     OPC_DEP_Z_I12             = 0x0a600000000ull,
     OPC_EXTR_I11              = 0x0a400002000ull,
     OPC_EXTR_U_I11            = 0x0a400000000ull,
@@ -497,6 +498,18 @@ static inline uint64_t tcg_opc_i12(int qp, uint64_t opc, int r1,
            | ((len & 0x3f) << 27)
            | ((pos & 0x3f) << 20)
            | ((r2 & 0x7f) << 13)
+           | ((r1 & 0x7f) << 6)
+           | (qp & 0x3f);
+}
+
+static inline uint64_t tcg_opc_i14(int qp, uint64_t opc, int r1, uint64_t imm,
+                                   int r3, uint64_t pos, uint64_t len)
+{
+    return opc
+           | ((imm & 0x01) << 36)
+           | ((len & 0x3f) << 27)
+           | ((r3 & 0x7f) << 20)
+           | ((pos & 0x3f) << 14)
            | ((r1 & 0x7f) << 6)
            | (qp & 0x3f);
 }
@@ -1444,9 +1457,7 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
                                     uint64_t offset_addend)
 {
     tcg_out_bundle(s, mII,
-                   tcg_opc_a5 (TCG_REG_P0, OPC_ADDL_A5, TCG_REG_R3,
-                               TARGET_PAGE_MASK | ((1 << s_bits) - 1),
-                               TCG_REG_R0),
+                   tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
                    tcg_opc_i11(TCG_REG_P0, OPC_EXTR_U_I11, TCG_REG_R2,
                                addr_reg, TARGET_PAGE_BITS, CPU_TLB_BITS - 1),
                    tcg_opc_i12(TCG_REG_P0, OPC_DEP_Z_I12, TCG_REG_R2,
@@ -1468,8 +1479,9 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
                                (TARGET_LONG_BITS == 32
                                 ? OPC_LD4_M3 : OPC_LD8_M3), TCG_REG_R56,
                                TCG_REG_R2, offset_addend - offset_rw),
-                   tcg_opc_a1 (TCG_REG_P0, OPC_AND_A1, TCG_REG_R3,
-                               TCG_REG_R3, TCG_REG_R57),
+                   tcg_opc_i14(TCG_REG_P0, OPC_DEP_I14, TCG_REG_R3, 0,
+                               TCG_REG_R57, 63 - s_bits,
+                               TARGET_PAGE_BITS - s_bits - 1),
                    tcg_opc_a6 (TCG_REG_P0, OPC_CMP_EQ_A6, TCG_REG_P6,
                                TCG_REG_P7, TCG_REG_R3, TCG_REG_R56));
 }
