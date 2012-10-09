@@ -1005,14 +1005,17 @@ static inline void save_npc(DisasContext *dc)
     }
 }
 
-static inline void save_state(DisasContext *dc)
+static inline void update_psr(DisasContext *dc)
 {
-    tcg_gen_movi_tl(cpu_pc, dc->pc);
-    /* flush pending conditional evaluations before exposing cpu state */
     if (dc->cc_op != CC_OP_FLAGS) {
         dc->cc_op = CC_OP_FLAGS;
         gen_helper_compute_psr(cpu_env);
     }
+}
+
+static inline void save_state(DisasContext *dc)
+{
+    tcg_gen_movi_tl(cpu_pc, dc->pc);
     save_npc(dc);
 }
 
@@ -2704,7 +2707,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 rdccr */
-                    gen_helper_compute_psr(cpu_env);
+                    update_psr(dc);
                     gen_helper_rdccr(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -2783,10 +2786,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #if !defined(CONFIG_USER_ONLY)
             } else if (xop == 0x29) { /* rdpsr / UA2005 rdhpr */
 #ifndef TARGET_SPARC64
-                if (!supervisor(dc))
+                if (!supervisor(dc)) {
                     goto priv_insn;
-                gen_helper_compute_psr(cpu_env);
-                dc->cc_op = CC_OP_FLAGS;
+                }
+                update_psr(dc);
                 gen_helper_rdpsr(cpu_dst, cpu_env);
 #else
                 CHECK_IU_FEATURE(dc, HYPV);
@@ -3612,7 +3615,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         dc->cc_op = CC_OP_TSUBTV;
                         break;
                     case 0x24: /* mulscc */
-                        gen_helper_compute_psr(cpu_env);
+                        update_psr(dc);
                         gen_op_mulscc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
@@ -4651,12 +4654,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
 
-            /* flush pending conditional evaluations before exposing
-               cpu state */
-            if (dc->cc_op != CC_OP_FLAGS) {
-                dc->cc_op = CC_OP_FLAGS;
-                gen_helper_compute_psr(cpu_env);
-            }
             cpu_src1 = get_src1(insn, cpu_src1);
             if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
                 rs2 = GET_FIELD(insn, 27, 31);
@@ -5506,10 +5503,5 @@ void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb, int pc_pos)
         }
     } else {
         env->npc = npc;
-    }
-
-    /* flush pending conditional evaluations before exposing cpu state */
-    if (CC_OP != CC_OP_FLAGS) {
-        helper_compute_psr(env);
     }
 }

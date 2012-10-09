@@ -1114,6 +1114,11 @@ void cpu_loop (CPUSPARCState *env)
     while (1) {
         trapnr = cpu_sparc_exec (env);
 
+        /* Compute PSR before exposing state.  */
+        if (env->cc_op != CC_OP_FLAGS) {
+            cpu_get_psr(env);
+        }
+
         switch (trapnr) {
 #ifndef TARGET_SPARC64
         case 0x88:
