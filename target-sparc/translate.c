@@ -1120,6 +1120,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                 cmp->c2 = tcg_temp_new();
                 tcg_gen_ext32s_tl(cmp->c1, cpu_cc_src);
                 tcg_gen_ext32s_tl(cmp->c2, cpu_cc_src2);
+                break;
             }
 #endif
             cmp->g1 = cmp->g2 = true;
