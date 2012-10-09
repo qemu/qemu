@@ -1564,6 +1564,24 @@ static int tcg_reg_alloc(TCGContext *s, TCGRegSet reg1, TCGRegSet reg2)
     tcg_abort();
 }
 
+/* mark a temporary as dead. */
+static inline void temp_dead(TCGContext *s, int temp)
+{
+    TCGTemp *ts;
+
+    ts = &s->temps[temp];
+    if (!ts->fixed_reg) {
+        if (ts->val_type == TEMP_VAL_REG) {
+            s->reg_to_temp[ts->reg] = -1;
+        }
+        if (temp < s->nb_globals || (ts->temp_local && ts->mem_allocated)) {
+            ts->val_type = TEMP_VAL_MEM;
+        } else {
+            ts->val_type = TEMP_VAL_DEAD;
+        }
+    }
+}
+
 /* save a temporary to memory. 'allocated_regs' is used in case a
    temporary registers needs to be allocated to store a constant. */
 static void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
@@ -1621,10 +1639,7 @@ static void tcg_reg_alloc_bb_end(TCGContext *s, TCGRegSet allocated_regs)
         if (ts->temp_local) {
             temp_save(s, i, allocated_regs);
         } else {
-            if (ts->val_type == TEMP_VAL_REG) {
-                s->reg_to_temp[ts->reg] = -1;
-            }
-            ts->val_type = TEMP_VAL_DEAD;
+            temp_dead(s, i);
         }
     }
 
@@ -1673,8 +1688,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
             if (ots->val_type == TEMP_VAL_REG)
                 s->reg_to_temp[ots->reg] = -1;
             reg = ts->reg;
-            s->reg_to_temp[reg] = -1;
-            ts->val_type = TEMP_VAL_DEAD;
+            temp_dead(s, args[1]);
         } else {
             if (ots->val_type == TEMP_VAL_REG) {
                 reg = ots->reg;
@@ -1801,14 +1815,8 @@ static void tcg_reg_alloc_op(TCGContext *s,
     } else {
         /* mark dead temporaries and free the associated registers */
         for(i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
-            arg = args[i];
             if (IS_DEAD_ARG(i)) {
-                ts = &s->temps[arg];
-                if (!ts->fixed_reg) {
-                    if (ts->val_type == TEMP_VAL_REG)
-                        s->reg_to_temp[ts->reg] = -1;
-                    ts->val_type = TEMP_VAL_DEAD;
-                }
+                temp_dead(s, args[i]);
             }
         }
         
@@ -1848,11 +1856,12 @@ static void tcg_reg_alloc_op(TCGContext *s,
             tcg_regset_set_reg(allocated_regs, reg);
             /* if a fixed register is used, then a move will be done afterwards */
             if (!ts->fixed_reg) {
-                if (ts->val_type == TEMP_VAL_REG)
-                    s->reg_to_temp[ts->reg] = -1;
                 if (IS_DEAD_ARG(i)) {
-                    ts->val_type = TEMP_VAL_DEAD;
+                    temp_dead(s, args[i]);
                 } else {
+                    if (ts->val_type == TEMP_VAL_REG) {
+                        s->reg_to_temp[ts->reg] = -1;
+                    }
                     ts->val_type = TEMP_VAL_REG;
                     ts->reg = reg;
                     /* temp value is modified, so the value kept in memory is
@@ -2011,14 +2020,8 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     
     /* mark dead temporaries and free the associated registers */
     for(i = nb_oargs; i < nb_iargs + nb_oargs; i++) {
-        arg = args[i];
         if (IS_DEAD_ARG(i)) {
-            ts = &s->temps[arg];
-            if (!ts->fixed_reg) {
-                if (ts->val_type == TEMP_VAL_REG)
-                    s->reg_to_temp[ts->reg] = -1;
-                ts->val_type = TEMP_VAL_DEAD;
-            }
+            temp_dead(s, args[i]);
         }
     }
     
@@ -2048,11 +2051,12 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
                 tcg_out_mov(s, ts->type, ts->reg, reg);
             }
         } else {
-            if (ts->val_type == TEMP_VAL_REG)
-                s->reg_to_temp[ts->reg] = -1;
             if (IS_DEAD_ARG(i)) {
-                ts->val_type = TEMP_VAL_DEAD;
+                temp_dead(s, args[i]);
             } else {
+                if (ts->val_type == TEMP_VAL_REG) {
+                    s->reg_to_temp[ts->reg] = -1;
+                }
                 ts->val_type = TEMP_VAL_REG;
                 ts->reg = reg;
                 ts->mem_coherent = 0;
@@ -2167,16 +2171,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
             args += args[0];
             goto next;
         case INDEX_op_discard:
-            {
-                TCGTemp *ts;
-                ts = &s->temps[args[0]];
-                /* mark the temporary as dead */
-                if (!ts->fixed_reg) {
-                    if (ts->val_type == TEMP_VAL_REG)
-                        s->reg_to_temp[ts->reg] = -1;
-                    ts->val_type = TEMP_VAL_DEAD;
-                }
-            }
+            temp_dead(s, args[0]);
             break;
         case INDEX_op_set_label:
             tcg_reg_alloc_bb_end(s, s->reserved_regs);
