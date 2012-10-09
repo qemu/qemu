@@ -381,6 +381,9 @@ struct TCGContext {
     /* liveness analysis */
     uint16_t *op_dead_args; /* for each operation, each bit tells if the
                                corresponding argument is dead */
+    uint8_t *op_sync_args;  /* for each operation, each bit tells if the
+                               corresponding output argument needs to be
+                               sync to memory. */
     
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */
