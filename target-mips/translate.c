@@ -2653,60 +2653,48 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
     TCGv t0, t1;
     unsigned int acc;
 
-    switch (opc) {
-    case OPC_DIV:
-    case OPC_DIVU:
-#if defined(TARGET_MIPS64)
-    case OPC_DDIV:
-    case OPC_DDIVU:
-#endif
-        t0 = tcg_temp_local_new();
-        t1 = tcg_temp_local_new();
-        break;
-    default:
-        t0 = tcg_temp_new();
-        t1 = tcg_temp_new();
-        break;
-    }
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
 
     gen_load_gpr(t0, rs);
     gen_load_gpr(t1, rt);
+
     switch (opc) {
     case OPC_DIV:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
+            TCGv t2 = tcg_temp_new();
+            TCGv t3 = tcg_temp_new();
             tcg_gen_ext32s_tl(t0, t0);
             tcg_gen_ext32s_tl(t1, t1);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, INT_MIN, l2);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1, l2);
-
-            tcg_gen_mov_tl(cpu_LO[0], t0);
-            tcg_gen_movi_tl(cpu_HI[0], 0);
-            tcg_gen_br(l1);
-            gen_set_label(l2);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, INT_MIN);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1);
+            tcg_gen_and_tl(t2, t2, t3);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
+            tcg_gen_or_tl(t2, t2, t3);
+            tcg_gen_movi_tl(t3, 0);
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
             tcg_gen_div_tl(cpu_LO[0], t0, t1);
             tcg_gen_rem_tl(cpu_HI[0], t0, t1);
             tcg_gen_ext32s_tl(cpu_LO[0], cpu_LO[0]);
             tcg_gen_ext32s_tl(cpu_HI[0], cpu_HI[0]);
-            gen_set_label(l1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
         }
         opn = "div";
         break;
     case OPC_DIVU:
         {
-            int l1 = gen_new_label();
-
+            TCGv t2 = tcg_const_tl(0);
+            TCGv t3 = tcg_const_tl(1);
             tcg_gen_ext32u_tl(t0, t0);
             tcg_gen_ext32u_tl(t1, t1);
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
             tcg_gen_divu_tl(cpu_LO[0], t0, t1);
             tcg_gen_remu_tl(cpu_HI[0], t0, t1);
             tcg_gen_ext32s_tl(cpu_LO[0], cpu_LO[0]);
             tcg_gen_ext32s_tl(cpu_HI[0], cpu_HI[0]);
-            gen_set_label(l1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
         }
         opn = "divu";
         break;
@@ -2759,30 +2747,31 @@ static void gen_muldiv (DisasContext *ctx, uint32_t opc,
 #if defined(TARGET_MIPS64)
     case OPC_DDIV:
         {
-            int l1 = gen_new_label();
-            int l2 = gen_new_label();
-
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t0, -1LL << 63, l2);
-            tcg_gen_brcondi_tl(TCG_COND_NE, t1, -1LL, l2);
-            tcg_gen_mov_tl(cpu_LO[0], t0);
-            tcg_gen_movi_tl(cpu_HI[0], 0);
-            tcg_gen_br(l1);
-            gen_set_label(l2);
-            tcg_gen_div_i64(cpu_LO[0], t0, t1);
-            tcg_gen_rem_i64(cpu_HI[0], t0, t1);
-            gen_set_label(l1);
+            TCGv t2 = tcg_temp_new();
+            TCGv t3 = tcg_temp_new();
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t2, t0, -1LL << 63);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, -1LL);
+            tcg_gen_and_tl(t2, t2, t3);
+            tcg_gen_setcondi_tl(TCG_COND_EQ, t3, t1, 0);
+            tcg_gen_or_tl(t2, t2, t3);
+            tcg_gen_movi_tl(t3, 0);
+            tcg_gen_movcond_tl(TCG_COND_NE, t1, t2, t3, t2, t1);
+            tcg_gen_div_tl(cpu_LO[0], t0, t1);
+            tcg_gen_rem_tl(cpu_HI[0], t0, t1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
         }
         opn = "ddiv";
         break;
     case OPC_DDIVU:
         {
-            int l1 = gen_new_label();
-
-            tcg_gen_brcondi_tl(TCG_COND_EQ, t1, 0, l1);
+            TCGv t2 = tcg_const_tl(0);
+            TCGv t3 = tcg_const_tl(1);
+            tcg_gen_movcond_tl(TCG_COND_EQ, t1, t1, t2, t3, t1);
             tcg_gen_divu_i64(cpu_LO[0], t0, t1);
             tcg_gen_remu_i64(cpu_HI[0], t0, t1);
-            gen_set_label(l1);
+            tcg_temp_free(t3);
+            tcg_temp_free(t2);
         }
         opn = "ddivu";
         break;
