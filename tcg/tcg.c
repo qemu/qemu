@@ -1705,6 +1705,9 @@ static void tcg_reg_alloc_movi(TCGContext *s, const TCGArg *args,
     if (NEED_SYNC_ARG(0)) {
         temp_sync(s, args[0], s->reserved_regs);
     }
+    if (IS_DEAD_ARG(0)) {
+        temp_dead(s, args[0]);
+    }
 }
 
 static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
