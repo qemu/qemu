@@ -2269,9 +2269,12 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     int frame_size;
 
     /* reserve some stack space */
-    frame_size = TCG_STATIC_CALL_ARGS_SIZE;
+    frame_size = TCG_STATIC_CALL_ARGS_SIZE +
+                 CPU_TEMP_BUF_NLONGS * sizeof(long);
     frame_size = (frame_size + TCG_TARGET_STACK_ALIGN - 1) &
                  ~(TCG_TARGET_STACK_ALIGN - 1);
+    tcg_set_frame(s, TCG_REG_CALL_STACK, TCG_STATIC_CALL_ARGS_SIZE,
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 
     /* First emit adhoc function descriptor */
     *(uint64_t *)(s->code_ptr) = (uint64_t)s->code_ptr + 16; /* entry point */
@@ -2378,6 +2381,4 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R6);
 
     tcg_add_target_add_op_defs(ia64_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
-                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
