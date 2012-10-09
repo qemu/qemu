@@ -1404,6 +1404,34 @@ static inline void tcg_out_setcond(TCGContext *s, TCGCond cond, TCGArg ret,
                    tcg_opc_a5(TCG_REG_P7, OPC_ADDL_A5, ret, 0, TCG_REG_R0));
 }
 
+static inline void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGArg ret,
+                                   TCGArg c1, TCGArg c2,
+                                   TCGArg v1, int const_v1,
+                                   TCGArg v2, int const_v2, int cmp4)
+{
+    uint64_t opc1, opc2;
+
+    if (const_v1) {
+        opc1 = tcg_opc_a5(TCG_REG_P6, OPC_ADDL_A5, ret, v1, TCG_REG_R0);
+    } else if (ret == v1) {
+        opc1 = tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0);
+    } else {
+        opc1 = tcg_opc_a4(TCG_REG_P6, OPC_ADDS_A4, ret, 0, v1);
+    }
+    if (const_v2) {
+        opc2 = tcg_opc_a5(TCG_REG_P7, OPC_ADDL_A5, ret, v2, TCG_REG_R0);
+    } else if (ret == v2) {
+        opc2 = tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0);
+    } else {
+        opc2 = tcg_opc_a4(TCG_REG_P7, OPC_ADDS_A4, ret, 0, v2);
+    }
+
+    tcg_out_bundle(s, MmI,
+                   tcg_opc_cmp_a(TCG_REG_P0, cond, c1, c2, cmp4),
+                   opc1,
+                   opc2);
+}
+
 #if defined(CONFIG_SOFTMMU)
 
 #include "../../softmmu_defs.h"
@@ -2106,6 +2134,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_setcond_i64:
         tcg_out_setcond(s, args[3], args[0], args[1], args[2], 0);
         break;
+    case INDEX_op_movcond_i32:
+        tcg_out_movcond(s, args[5], args[0], args[1], args[2],
+                        args[3], const_args[3], args[4], const_args[4], 1);
+        break;
+    case INDEX_op_movcond_i64:
+        tcg_out_movcond(s, args[5], args[0], args[1], args[2],
+                        args[3], const_args[3], args[4], const_args[4], 0);
+        break;
 
     case INDEX_op_qemu_ld8u:
         tcg_out_qemu_ld(s, args, 0);
@@ -2196,6 +2232,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
 
     { INDEX_op_brcond_i32, { "rI", "rI" } },
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
+    { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rI", "rI" } },
 
     { INDEX_op_mov_i64, { "r", "r" } },
     { INDEX_op_movi_i64, { "r" } },
@@ -2245,6 +2282,7 @@ static const TCGTargetOpDef ia64_op_defs[] = {
 
     { INDEX_op_brcond_i64, { "rI", "rI" } },
     { INDEX_op_setcond_i64, { "r", "rZ", "rZ" } },
+    { INDEX_op_movcond_i64, { "r", "rZ", "rZ", "rI", "rI" } },
 
     { INDEX_op_qemu_ld8u, { "r", "r" } },
     { INDEX_op_qemu_ld8s, { "r", "r" } },
