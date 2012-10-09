@@ -2465,12 +2465,16 @@ static inline void update_fcr31(CPUMIPSState *env)
 /* unary operations, modifying fp status  */
 uint64_t helper_float_sqrt_d(CPUMIPSState *env, uint64_t fdt0)
 {
-    return float64_sqrt(fdt0, &env->active_fpu.fp_status);
+    fdt0 = float64_sqrt(fdt0, &env->active_fpu.fp_status);
+    update_fcr31(env);
+    return fdt0;
 }
 
 uint32_t helper_float_sqrt_s(CPUMIPSState *env, uint32_t fst0)
 {
-    return float32_sqrt(fst0, &env->active_fpu.fp_status);
+    fst0 = float32_sqrt(fst0, &env->active_fpu.fp_status);
+    update_fcr31(env);
+    return fst0;
 }
 
 uint64_t helper_float_cvtd_s(CPUMIPSState *env, uint32_t fst0)
@@ -2537,14 +2541,24 @@ uint64_t helper_float_cvtpw_ps(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t wt2;
     uint32_t wth2;
+    int excp, excph;
 
     wt2 = float32_to_int32(fdt0 & 0XFFFFFFFF, &env->active_fpu.fp_status);
-    wth2 = float32_to_int32(fdt0 >> 32, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID)) {
+    excp = get_float_exception_flags(&env->active_fpu.fp_status);
+    if (excp & (float_flag_overflow | float_flag_invalid)) {
         wt2 = FLOAT_SNAN32;
+    }
+
+    set_float_exception_flags(0, &env->active_fpu.fp_status);
+    wth2 = float32_to_int32(fdt0 >> 32, &env->active_fpu.fp_status);
+    excph = get_float_exception_flags(&env->active_fpu.fp_status);
+    if (excph & (float_flag_overflow | float_flag_invalid)) {
         wth2 = FLOAT_SNAN32;
     }
+
+    set_float_exception_flags(excp | excph, &env->active_fpu.fp_status);
+    update_fcr31(env);
+
     return ((uint64_t)wth2 << 32) | wt2;
 }
 
@@ -2950,8 +2964,6 @@ uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,            \
                                                                    \
     dt2 = float64_ ## name (fdt0, fdt1, &env->active_fpu.fp_status);     \
     update_fcr31(env);                                             \
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INVALID)                \
-        dt2 = FLOAT_QNAN64;                                        \
     return dt2;                                                    \
 }                                                                  \
                                                                    \
@@ -2962,8 +2974,6 @@ uint32_t helper_float_ ## name ## _s(CPUMIPSState *env,            \
                                                                    \
     wt2 = float32_ ## name (fst0, fst1, &env->active_fpu.fp_status);     \
     update_fcr31(env);                                             \
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INVALID)                \
-        wt2 = FLOAT_QNAN32;                                        \
     return wt2;                                                    \
 }                                                                  \
                                                                    \
@@ -2981,10 +2991,6 @@ uint64_t helper_float_ ## name ## _ps(CPUMIPSState *env,           \
     wt2 = float32_ ## name (fst0, fst1, &env->active_fpu.fp_status);     \
     wth2 = float32_ ## name (fsth0, fsth1, &env->active_fpu.fp_status);  \
     update_fcr31(env);                                             \
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INVALID) {              \
-        wt2 = FLOAT_QNAN32;                                        \
-        wth2 = FLOAT_QNAN32;                                       \
-    }                                                              \
     return ((uint64_t)wth2 << 32) | wt2;                           \
 }
 
