@@ -1593,37 +1593,41 @@ static inline void temp_dead(TCGContext *s, int temp)
     }
 }
 
-/* save a temporary to memory. 'allocated_regs' is used in case a
+/* sync a temporary to memory. 'allocated_regs' is used in case a
    temporary registers needs to be allocated to store a constant. */
-static void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
+static inline void temp_sync(TCGContext *s, int temp, TCGRegSet allocated_regs)
 {
     TCGTemp *ts;
-    int reg;
 
     ts = &s->temps[temp];
     if (!ts->fixed_reg) {
         switch(ts->val_type) {
+        case TEMP_VAL_CONST:
+            ts->reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type],
+                                    allocated_regs);
+            ts->val_type = TEMP_VAL_REG;
+            s->reg_to_temp[ts->reg] = temp;
+            ts->mem_coherent = 0;
+            tcg_out_movi(s, ts->type, ts->reg, ts->val);
+            /* fallthrough*/
         case TEMP_VAL_REG:
-            tcg_reg_free(s, ts->reg);
+            tcg_reg_sync(s, ts->reg);
             break;
         case TEMP_VAL_DEAD:
-            ts->val_type = TEMP_VAL_MEM;
-            break;
-        case TEMP_VAL_CONST:
-            reg = tcg_reg_alloc(s, tcg_target_available_regs[ts->type], 
-                                allocated_regs);
-            if (!ts->mem_allocated) 
-                temp_allocate_frame(s, temp);
-            tcg_out_movi(s, ts->type, reg, ts->val);
-            tcg_out_st(s, ts->type, reg, ts->mem_reg, ts->mem_offset);
-            ts->val_type = TEMP_VAL_MEM;
-            break;
         case TEMP_VAL_MEM:
             break;
         default:
             tcg_abort();
         }
     }
+}
+
+/* save a temporary to memory. 'allocated_regs' is used in case a
+   temporary registers needs to be allocated to store a constant. */
+static inline void temp_save(TCGContext *s, int temp, TCGRegSet allocated_regs)
+{
+    temp_sync(s, temp, allocated_regs);
+    temp_dead(s, temp);
 }
 
 /* save globals to their canonical location and assume they can be
