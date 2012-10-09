@@ -611,6 +611,22 @@ static inline void tcg_out_bswap16(TCGContext *s, int cond, int rd, int rn)
     }
 }
 
+/* swap the two low bytes assuming that the two high input bytes and the
+   two high output bit can hold any value. */
+static inline void tcg_out_bswap16st(TCGContext *s, int cond, int rd, int rn)
+{
+    if (use_armv6_instructions) {
+        /* rev16 */
+        tcg_out32(s, 0x06bf0fb0 | (cond << 28) | (rd << 12) | rn);
+    } else {
+        tcg_out_dat_reg(s, cond, ARITH_MOV,
+                        TCG_REG_R8, 0, rn, SHIFT_IMM_LSR(8));
+        tcg_out_dat_imm(s, cond, ARITH_AND, TCG_REG_R8, TCG_REG_R8, 0xff);
+        tcg_out_dat_reg(s, cond, ARITH_ORR,
+                        rd, TCG_REG_R8, rn, SHIFT_IMM_LSL(8));
+    }
+}
+
 static inline void tcg_out_bswap32(TCGContext *s, int cond, int rd, int rn)
 {
     if (use_armv6_instructions) {
@@ -1367,7 +1383,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         break;
     case 1:
         if (bswap) {
-            tcg_out_bswap16(s, COND_EQ, TCG_REG_R0, data_reg);
+            tcg_out_bswap16st(s, COND_EQ, TCG_REG_R0, data_reg);
             tcg_out_st16_r(s, COND_EQ, TCG_REG_R0, addr_reg, TCG_REG_R1);
         } else {
             tcg_out_st16_r(s, COND_EQ, data_reg, addr_reg, TCG_REG_R1);
@@ -1453,7 +1469,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         break;
     case 1:
         if (bswap) {
-            tcg_out_bswap16(s, COND_AL, TCG_REG_R0, data_reg);
+            tcg_out_bswap16st(s, COND_AL, TCG_REG_R0, data_reg);
             tcg_out_st16_8(s, COND_AL, TCG_REG_R0, addr_reg, 0);
         } else {
             tcg_out_st16_8(s, COND_AL, data_reg, addr_reg, 0);
