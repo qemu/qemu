@@ -915,7 +915,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
 
         case INDEX_op_call:
             nb_call_args = (args[0] >> 16) + (args[0] & 0xffff);
-            if (!(args[nb_call_args + 1] & (TCG_CALL_CONST | TCG_CALL_PURE))) {
+            if (!(args[nb_call_args + 1] & (TCG_CALL_NO_READ_GLOBALS |
+                                            TCG_CALL_NO_WRITE_GLOBALS))) {
                 for (i = 0; i < nb_globals; i++) {
                     reset_temp(i);
                 }

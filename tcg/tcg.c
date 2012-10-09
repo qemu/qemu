@@ -1251,7 +1251,7 @@ static void tcg_liveness_analysis(TCGContext *s)
 
                 /* pure functions can be removed if their result is not
                    used */
-                if (call_flags & TCG_CALL_PURE) {
+                if (call_flags & TCG_CALL_NO_SIDE_EFFECTS) {
                     for(i = 0; i < nb_oargs; i++) {
                         arg = args[i];
                         if (!dead_temps[arg] || mem_temps[arg]) {
@@ -1277,11 +1277,15 @@ static void tcg_liveness_analysis(TCGContext *s)
                         dead_temps[arg] = 1;
                         mem_temps[arg] = 0;
                     }
-                    
-                    if (!(call_flags & TCG_CALL_CONST)) {
+
+                    if (!(call_flags & TCG_CALL_NO_READ_GLOBALS)) {
+                        /* globals should be synced to memory */
+                        memset(mem_temps, 1, s->nb_globals);
+                    }
+                    if (!(call_flags & (TCG_CALL_NO_WRITE_GLOBALS |
+                                        TCG_CALL_NO_READ_GLOBALS))) {
                         /* globals should go back to memory */
                         memset(dead_temps, 1, s->nb_globals);
-                        memset(mem_temps, 1, s->nb_globals);
                     }
 
                     /* input args are live */
@@ -2128,10 +2132,14 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
             tcg_reg_free(s, reg);
         }
     }
-    
-    /* store globals and free associated registers (we assume the call
-       can modify any global. */
-    if (!(flags & TCG_CALL_CONST)) {
+
+    /* Save globals if they might be written by the helper, sync them if
+       they might be read. */
+    if (flags & TCG_CALL_NO_READ_GLOBALS) {
+        /* Nothing to do */
+    } else if (flags & TCG_CALL_NO_WRITE_GLOBALS) {
+        sync_globals(s, allocated_regs);
+    } else {
         save_globals(s, allocated_regs);
     }
 

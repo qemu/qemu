@@ -401,10 +401,10 @@ static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
 }
 
 /* Note: Both tcg_gen_helper32() and tcg_gen_helper64() are currently
-   reserved for helpers in tcg-runtime.c. These helpers are all const
-   and pure, hence the call to tcg_gen_callN() with TCG_CALL_CONST |
-   TCG_CALL_PURE. This may need to be adjusted if these functions
-   start to be used with other helpers. */
+   reserved for helpers in tcg-runtime.c. These helpers all do not read
+   globals and do not have side effects, hence the call to tcg_gen_callN()
+   with TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS. This may need
+   to be adjusted if these functions start to be used with other helpers. */
 static inline void tcg_gen_helper32(void *func, int sizemask, TCGv_i32 ret,
                                     TCGv_i32 a, TCGv_i32 b)
 {
@@ -413,8 +413,9 @@ static inline void tcg_gen_helper32(void *func, int sizemask, TCGv_i32 ret,
     fn = tcg_const_ptr(func);
     args[0] = GET_TCGV_I32(a);
     args[1] = GET_TCGV_I32(b);
-    tcg_gen_callN(&tcg_ctx, fn, TCG_CALL_CONST | TCG_CALL_PURE, sizemask,
-                  GET_TCGV_I32(ret), 2, args);
+    tcg_gen_callN(&tcg_ctx, fn,
+                  TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS,
+                  sizemask, GET_TCGV_I32(ret), 2, args);
     tcg_temp_free_ptr(fn);
 }
 
@@ -426,8 +427,9 @@ static inline void tcg_gen_helper64(void *func, int sizemask, TCGv_i64 ret,
     fn = tcg_const_ptr(func);
     args[0] = GET_TCGV_I64(a);
     args[1] = GET_TCGV_I64(b);
-    tcg_gen_callN(&tcg_ctx, fn, TCG_CALL_CONST | TCG_CALL_PURE, sizemask,
-                  GET_TCGV_I64(ret), 2, args);
+    tcg_gen_callN(&tcg_ctx, fn,
+                  TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_SIDE_EFFECTS,
+                  sizemask, GET_TCGV_I64(ret), 2, args);
     tcg_temp_free_ptr(fn);
 }
 

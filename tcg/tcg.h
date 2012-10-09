@@ -253,14 +253,24 @@ typedef int TCGv_i64;
 #define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
 
 /* call flags */
-/* A pure function only reads its arguments and TCG global variables
-   and cannot raise exceptions. Hence a call to a pure function can be
-   safely suppressed if the return value is not used. */
-#define TCG_CALL_PURE           0x0010 
-/* A const function only reads its arguments and does not use TCG
-   global variables. Hence a call to such a function does not
-   save TCG global variables back to their canonical location. */
-#define TCG_CALL_CONST          0x0020
+/* Helper does not read globals (either directly or through an exception). It
+   implies TCG_CALL_NO_WRITE_GLOBALS. */
+#define TCG_CALL_NO_READ_GLOBALS    0x0010
+/* Helper does not write globals */
+#define TCG_CALL_NO_WRITE_GLOBALS   0x0020
+/* Helper can be safely suppressed if the return value is not used. */
+#define TCG_CALL_NO_SIDE_EFFECTS    0x0040
+
+/* convenience version of most used call flags */
+#define TCG_CALL_NO_RWG         TCG_CALL_NO_READ_GLOBALS
+#define TCG_CALL_NO_WG          TCG_CALL_NO_WRITE_GLOBALS
+#define TCG_CALL_NO_SE          TCG_CALL_NO_SIDE_EFFECTS
+#define TCG_CALL_NO_RWG_SE      (TCG_CALL_NO_RWG | TCG_CALL_NO_SE)
+#define TCG_CALL_NO_WG_SE       (TCG_CALL_NO_WG | TCG_CALL_NO_SE)
+
+/* compatibility call flags, they should be eventually be removed */
+#define TCG_CALL_PURE           TCG_CALL_NO_SIDE_EFFECTS
+#define TCG_CALL_CONST          TCG_CALL_NO_READ_GLOBALS
 
 /* used to align parameters */
 #define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)
