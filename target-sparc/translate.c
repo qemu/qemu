@@ -143,7 +143,7 @@ static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
     if (src & 1) {
         return MAKE_TCGV_I32(GET_TCGV_I64(cpu_fpr[src / 2]));
     } else {
-        TCGv_i32 ret = tcg_temp_local_new_i32();
+        TCGv_i32 ret = tcg_temp_new_i32();
         TCGv_i64 t = tcg_temp_new_i64();
 
         tcg_gen_shri_i64(t, cpu_fpr[src / 2], 32);
@@ -3885,28 +3885,16 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 tcg_gen_mov_tl(cpu_tbr, cpu_tmp0);
                                 break;
                             case 6: // pstate
-                                {
-                                    TCGv r_tmp = tcg_temp_local_new();
-
-                                    tcg_gen_mov_tl(r_tmp, cpu_tmp0);
-                                    save_state(dc);
-                                    gen_helper_wrpstate(cpu_env, r_tmp);
-                                    tcg_temp_free(r_tmp);
-                                    dc->npc = DYNAMIC_PC;
-                                }
+                                save_state(dc);
+                                gen_helper_wrpstate(cpu_env, cpu_tmp0);
+                                dc->npc = DYNAMIC_PC;
                                 break;
                             case 7: // tl
-                                {
-                                    TCGv r_tmp = tcg_temp_local_new();
-
-                                    tcg_gen_mov_tl(r_tmp, cpu_tmp0);
-                                    save_state(dc);
-                                    tcg_gen_trunc_tl_i32(cpu_tmp32, r_tmp);
-                                    tcg_temp_free(r_tmp);
-                                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
-                                                   offsetof(CPUSPARCState, tl));
-                                    dc->npc = DYNAMIC_PC;
-                                }
+                                save_state(dc);
+                                tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
+                                tcg_gen_st_i32(cpu_tmp32, cpu_env,
+                                               offsetof(CPUSPARCState, tl));
+                                dc->npc = DYNAMIC_PC;
                                 break;
                             case 8: // pil
                                 gen_helper_wrpil(cpu_env, cpu_tmp0);
