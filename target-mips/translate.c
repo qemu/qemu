@@ -1591,7 +1591,6 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
     }
 
     t0 = tcg_temp_new();
-    t1 = tcg_temp_new();
     gen_base_offset_addr(ctx, t0, base, offset);
 
     switch (opc) {
@@ -1614,29 +1613,35 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LDL:
         save_cpu_state(ctx, 1);
+        t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
         gen_helper_1e2i(ldl, t1, t1, t0, ctx->mem_idx);
         gen_store_gpr(t1, rt);
+        tcg_temp_free(t1);
         opn = "ldl";
         break;
     case OPC_LDR:
         save_cpu_state(ctx, 1);
+        t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
         gen_helper_1e2i(ldr, t1, t1, t0, ctx->mem_idx);
         gen_store_gpr(t1, rt);
+        tcg_temp_free(t1);
         opn = "ldr";
         break;
     case OPC_LDPC:
-        tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
+        t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
+        tcg_temp_free(t1);
         tcg_gen_qemu_ld64(t0, t0, ctx->mem_idx);
         gen_store_gpr(t0, rt);
         opn = "ldpc";
         break;
 #endif
     case OPC_LWPC:
-        tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
+        t1 = tcg_const_tl(pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
+        tcg_temp_free(t1);
         tcg_gen_qemu_ld32s(t0, t0, ctx->mem_idx);
         gen_store_gpr(t0, rt);
         opn = "lwpc";
@@ -1668,16 +1673,20 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LWL:
         save_cpu_state(ctx, 1);
+        t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
         gen_helper_1e2i(lwl, t1, t1, t0, ctx->mem_idx);
         gen_store_gpr(t1, rt);
+        tcg_temp_free(t1);
         opn = "lwl";
         break;
     case OPC_LWR:
         save_cpu_state(ctx, 1);
+        t1 = tcg_temp_new();
         gen_load_gpr(t1, rt);
         gen_helper_1e2i(lwr, t1, t1, t0, ctx->mem_idx);
         gen_store_gpr(t1, rt);
+        tcg_temp_free(t1);
         opn = "lwr";
         break;
     case OPC_LL:
@@ -1690,7 +1699,6 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
     (void)opn; /* avoid a compiler warning */
     MIPS_DEBUG("%s %s, %d(%s)", opn, regnames[rt], offset, regnames[base]);
     tcg_temp_free(t0);
-    tcg_temp_free(t1);
 }
 
 /* Store */
