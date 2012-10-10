@@ -1913,7 +1913,7 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
     qdev_prop_set_uint8(env->apic_state, "id", env->cpuid_apic_id);
     /* TODO: convert to link<> */
     apic = APIC_COMMON(env->apic_state);
-    apic->cpu_env = env;
+    apic->cpu = cpu;
 
     if (qdev_init(env->apic_state)) {
         error_setg(errp, "APIC device '%s' could not be initialized",
