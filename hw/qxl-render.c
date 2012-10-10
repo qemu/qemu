@@ -24,7 +24,7 @@
 static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
     uint8_t *src;
-    uint8_t *dst = qxl->vga.ds->surface->data;
+    uint8_t *dst = ds_get_data(qxl->vga.ds);
     int len, i;
 
     if (is_buffer_shared(qxl->vga.ds->surface)) {
