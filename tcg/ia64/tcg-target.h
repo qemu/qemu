@@ -133,8 +133,11 @@ typedef enum {
 #define TCG_TARGET_HAS_rot_i64          1
 #define TCG_TARGET_HAS_movcond_i32      1
 #define TCG_TARGET_HAS_movcond_i64      1
-#define TCG_TARGET_HAS_deposit_i32      0
-#define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_deposit_i32      1
+#define TCG_TARGET_HAS_deposit_i64      1
+
+#define TCG_TARGET_deposit_i32_valid(ofs, len) ((len) <= 16)
+#define TCG_TARGET_deposit_i64_valid(ofs, len) ((len) <= 16)
 
 /* optional instructions automatically implemented */
 #define TCG_TARGET_HAS_neg_i32          0 /* sub r1, r0, r3 */

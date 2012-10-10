@@ -231,6 +231,7 @@ enum {
     OPC_CMP4_LTU_A6           = 0x1a400000000ull,
     OPC_CMP4_EQ_A6            = 0x1c400000000ull,
     OPC_DEP_I14               = 0x0ae00000000ull,
+    OPC_DEP_I15               = 0x08000000000ull,
     OPC_DEP_Z_I12             = 0x0a600000000ull,
     OPC_EXTR_I11              = 0x0a400002000ull,
     OPC_EXTR_U_I11            = 0x0a400000000ull,
@@ -510,6 +511,18 @@ static inline uint64_t tcg_opc_i14(int qp, uint64_t opc, int r1, uint64_t imm,
            | ((len & 0x3f) << 27)
            | ((r3 & 0x7f) << 20)
            | ((pos & 0x3f) << 14)
+           | ((r1 & 0x7f) << 6)
+           | (qp & 0x3f);
+}
+
+static inline uint64_t tcg_opc_i15(int qp, uint64_t opc, int r1, int r2,
+                                   int r3, uint64_t pos, uint64_t len)
+{
+    return opc
+           | ((pos & 0x3f) << 31)
+           | ((len & 0x0f) << 27)
+           | ((r3 & 0x7f) << 20)
+           | ((r2 & 0x7f) << 13)
            | ((r1 & 0x7f) << 6)
            | (qp & 0x3f);
 }
@@ -1325,6 +1338,37 @@ static inline void tcg_out_bswap64(TCGContext *s, TCGArg ret, TCGArg arg)
                    tcg_opc_i3 (TCG_REG_P0, OPC_MUX1_I3, ret, arg, 0xb));
 }
 
+static inline void tcg_out_deposit(TCGContext *s, TCGArg ret, TCGArg a1,
+                                   TCGArg a2, int const_a2, int pos, int len)
+{
+    uint64_t i1 = 0, i2 = 0;
+    int cpos = 63 - pos, lm1 = len - 1;
+
+    if (const_a2) {
+        /* Truncate the value of a constant a2 to the width of the field.  */
+        int mask = (1u << len) - 1;
+        a2 &= mask;
+
+        if (a2 == 0 || a2 == mask) {
+            /* 1-bit signed constant inserted into register.  */
+            i2 = tcg_opc_i14(TCG_REG_P0, OPC_DEP_I14, ret, a2, a1, cpos, lm1);
+        } else {
+            /* Otherwise, load any constant into a temporary.  Do this into
+               the first I slot to help out with cross-unit delays.  */
+            i1 = tcg_opc_a5(TCG_REG_P0, OPC_ADDL_A5,
+                            TCG_REG_R2, a2, TCG_REG_R0);
+            a2 = TCG_REG_R2;
+        }
+    }
+    if (i2 == 0) {
+        i2 = tcg_opc_i15(TCG_REG_P0, OPC_DEP_I15, ret, a2, a1, cpos, lm1);
+    }
+    tcg_out_bundle(s, (i1 ? mII : miI),
+                   tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
+                   i1 ? i1 : tcg_opc_i18(TCG_REG_P0, OPC_NOP_I18, 0),
+                   i2);
+}
+
 static inline uint64_t tcg_opc_cmp_a(int qp, TCGCond cond, TCGArg arg1,
                                      TCGArg arg2, int cmp4)
 {
@@ -2130,6 +2174,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_bswap64(s, args[0], args[1]);
         break;
 
+    case INDEX_op_deposit_i32:
+    case INDEX_op_deposit_i64:
+        tcg_out_deposit(s, args[0], args[1], args[2], const_args[2],
+                        args[3], args[4]);
+        break;
+
     case INDEX_op_brcond_i32:
         tcg_out_brcond(s, args[2], args[0], const_args[0],
                        args[1], const_args[1], args[3], 1);
@@ -2293,6 +2343,9 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_brcond_i64, { "rI", "rI" } },
     { INDEX_op_setcond_i64, { "r", "rZ", "rZ" } },
     { INDEX_op_movcond_i64, { "r", "rZ", "rZ", "rI", "rI" } },
+
+    { INDEX_op_deposit_i32, { "r", "rZ", "ri" } },
+    { INDEX_op_deposit_i64, { "r", "rZ", "ri" } },
 
     { INDEX_op_qemu_ld8u, { "r", "r" } },
     { INDEX_op_qemu_ld8s, { "r", "r" } },
