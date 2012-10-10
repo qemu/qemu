@@ -826,8 +826,16 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
     USBEndpoint *ep;
 
     /* Is active ? */
-    if (!(td->ctrl & TD_CTRL_ACTIVE))
+    if (!(td->ctrl & TD_CTRL_ACTIVE)) {
+        /*
+         * ehci11d spec page 22: "Even if the Active bit in the TD is already
+         * cleared when the TD is fetched ... an IOC interrupt is generated"
+         */
+        if (td->ctrl & TD_CTRL_IOC) {
+                *int_mask |= 0x01;
+        }
         return TD_RESULT_NEXT_QH;
+    }
 
     async = uhci_async_find_td(s, addr, td);
     if (async) {
