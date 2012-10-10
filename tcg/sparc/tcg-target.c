@@ -704,6 +704,22 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
         break;
     }
 }
+
+static void tcg_out_addsub2(TCGContext *s, TCGArg rl, TCGArg rh,
+                            TCGArg al, TCGArg ah, TCGArg bl, int blconst,
+                            TCGArg bh, int bhconst, int opl, int oph)
+{
+    TCGArg tmp = TCG_REG_T1;
+
+    /* Note that the low parts are fully consumed before tmp is set.  */
+    if (rl != ah && (bhconst || rl != bh)) {
+        tmp = rl;
+    }
+
+    tcg_out_arithc(s, tmp, al, bl, blconst, opl);
+    tcg_out_arithc(s, rh, ah, bh, bhconst, oph);
+    tcg_out_mov(s, TCG_TYPE_I32, rl, tmp);
+}
 #endif
 
 /* Generate global QEMU prologue and epilogue code */
@@ -1243,16 +1259,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                              args[4], const_args[4]);
         break;
     case INDEX_op_add2_i32:
-        tcg_out_arithc(s, args[0], args[2], args[4], const_args[4],
-                       ARITH_ADDCC);
-        tcg_out_arithc(s, args[1], args[3], args[5], const_args[5],
-                       ARITH_ADDX);
+        tcg_out_addsub2(s, args[0], args[1], args[2], args[3],
+                        args[4], const_args[4], args[5], const_args[5],
+                        ARITH_ADDCC, ARITH_ADDX);
         break;
     case INDEX_op_sub2_i32:
-        tcg_out_arithc(s, args[0], args[2], args[4], const_args[4],
-                       ARITH_SUBCC);
-        tcg_out_arithc(s, args[1], args[3], args[5], const_args[5],
-                       ARITH_SUBX);
+        tcg_out_addsub2(s, args[0], args[1], args[2], args[3],
+                        args[4], const_args[4], args[5], const_args[5],
+                        ARITH_SUBCC, ARITH_SUBX);
         break;
     case INDEX_op_mulu2_i32:
         tcg_out_arithc(s, args[0], args[2], args[3], const_args[3],
