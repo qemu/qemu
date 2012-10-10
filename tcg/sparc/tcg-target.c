@@ -180,6 +180,9 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     case 'J':
         ct->ct |= TCG_CT_CONST_S13;
         break;
+    case 'Z':
+        ct->ct |= TCG_CT_CONST_ZERO;
+        break;
     default:
         return -1;
     }
@@ -192,17 +195,19 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
 static inline int tcg_target_const_match(tcg_target_long val,
                                          const TCGArgConstraint *arg_ct)
 {
-    int ct;
+    int ct = arg_ct->ct;
 
-    ct = arg_ct->ct;
-    if (ct & TCG_CT_CONST)
+    if (ct & TCG_CT_CONST) {
         return 1;
-    else if ((ct & TCG_CT_CONST_S11) && check_fit_tl(val, 11))
+    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
         return 1;
-    else if ((ct & TCG_CT_CONST_S13) && check_fit_tl(val, 13))
+    } else if ((ct & TCG_CT_CONST_S11) && check_fit_tl(val, 11)) {
         return 1;
-    else
+    } else if ((ct & TCG_CT_CONST_S13) && check_fit_tl(val, 13)) {
+        return 1;
+    } else {
         return 0;
+    }
 }
 
 #define INSN_OP(x)  ((x) << 30)
@@ -1411,40 +1416,40 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_ld16u_i32, { "r", "r" } },
     { INDEX_op_ld16s_i32, { "r", "r" } },
     { INDEX_op_ld_i32, { "r", "r" } },
-    { INDEX_op_st8_i32, { "r", "r" } },
-    { INDEX_op_st16_i32, { "r", "r" } },
-    { INDEX_op_st_i32, { "r", "r" } },
+    { INDEX_op_st8_i32, { "rZ", "r" } },
+    { INDEX_op_st16_i32, { "rZ", "r" } },
+    { INDEX_op_st_i32, { "rZ", "r" } },
 
-    { INDEX_op_add_i32, { "r", "r", "rJ" } },
-    { INDEX_op_mul_i32, { "r", "r", "rJ" } },
-    { INDEX_op_div_i32, { "r", "r", "rJ" } },
-    { INDEX_op_divu_i32, { "r", "r", "rJ" } },
-    { INDEX_op_rem_i32, { "r", "r", "rJ" } },
-    { INDEX_op_remu_i32, { "r", "r", "rJ" } },
-    { INDEX_op_sub_i32, { "r", "r", "rJ" } },
-    { INDEX_op_and_i32, { "r", "r", "rJ" } },
-    { INDEX_op_andc_i32, { "r", "r", "rJ" } },
-    { INDEX_op_or_i32, { "r", "r", "rJ" } },
-    { INDEX_op_orc_i32, { "r", "r", "rJ" } },
-    { INDEX_op_xor_i32, { "r", "r", "rJ" } },
+    { INDEX_op_add_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_mul_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_div_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_divu_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_rem_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_remu_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_sub_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_and_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_andc_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_or_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_orc_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_xor_i32, { "r", "rZ", "rJ" } },
 
-    { INDEX_op_shl_i32, { "r", "r", "rJ" } },
-    { INDEX_op_shr_i32, { "r", "r", "rJ" } },
-    { INDEX_op_sar_i32, { "r", "r", "rJ" } },
+    { INDEX_op_shl_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_shr_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_sar_i32, { "r", "rZ", "rJ" } },
 
     { INDEX_op_neg_i32, { "r", "rJ" } },
     { INDEX_op_not_i32, { "r", "rJ" } },
 
-    { INDEX_op_brcond_i32, { "r", "rJ" } },
-    { INDEX_op_setcond_i32, { "r", "r", "rJ" } },
-    { INDEX_op_movcond_i32, { "r", "r", "rJ", "rI", "0" } },
+    { INDEX_op_brcond_i32, { "rZ", "rJ" } },
+    { INDEX_op_setcond_i32, { "r", "rZ", "rJ" } },
+    { INDEX_op_movcond_i32, { "r", "rZ", "rJ", "rI", "0" } },
 
 #if TCG_TARGET_REG_BITS == 32
-    { INDEX_op_brcond2_i32, { "r", "r", "rJ", "rJ" } },
-    { INDEX_op_setcond2_i32, { "r", "r", "r", "rJ", "rJ" } },
-    { INDEX_op_add2_i32, { "r", "r", "r", "r", "rJ", "rJ" } },
-    { INDEX_op_sub2_i32, { "r", "r", "r", "r", "rJ", "rJ" } },
-    { INDEX_op_mulu2_i32, { "r", "r", "r", "rJ" } },
+    { INDEX_op_brcond2_i32, { "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_add2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_sub2_i32, { "r", "r", "rZ", "rZ", "rJ", "rJ" } },
+    { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rJ" } },
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
@@ -1457,27 +1462,27 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_ld32u_i64, { "r", "r" } },
     { INDEX_op_ld32s_i64, { "r", "r" } },
     { INDEX_op_ld_i64, { "r", "r" } },
-    { INDEX_op_st8_i64, { "r", "r" } },
-    { INDEX_op_st16_i64, { "r", "r" } },
-    { INDEX_op_st32_i64, { "r", "r" } },
-    { INDEX_op_st_i64, { "r", "r" } },
+    { INDEX_op_st8_i64, { "rZ", "r" } },
+    { INDEX_op_st16_i64, { "rZ", "r" } },
+    { INDEX_op_st32_i64, { "rZ", "r" } },
+    { INDEX_op_st_i64, { "rZ", "r" } },
 
-    { INDEX_op_add_i64, { "r", "r", "rJ" } },
-    { INDEX_op_mul_i64, { "r", "r", "rJ" } },
-    { INDEX_op_div_i64, { "r", "r", "rJ" } },
-    { INDEX_op_divu_i64, { "r", "r", "rJ" } },
-    { INDEX_op_rem_i64, { "r", "r", "rJ" } },
-    { INDEX_op_remu_i64, { "r", "r", "rJ" } },
-    { INDEX_op_sub_i64, { "r", "r", "rJ" } },
-    { INDEX_op_and_i64, { "r", "r", "rJ" } },
-    { INDEX_op_andc_i64, { "r", "r", "rJ" } },
-    { INDEX_op_or_i64, { "r", "r", "rJ" } },
-    { INDEX_op_orc_i64, { "r", "r", "rJ" } },
-    { INDEX_op_xor_i64, { "r", "r", "rJ" } },
+    { INDEX_op_add_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_mul_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_div_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_divu_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_rem_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_remu_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_sub_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_and_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_andc_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_or_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_orc_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_xor_i64, { "r", "rZ", "rJ" } },
 
-    { INDEX_op_shl_i64, { "r", "r", "rJ" } },
-    { INDEX_op_shr_i64, { "r", "r", "rJ" } },
-    { INDEX_op_sar_i64, { "r", "r", "rJ" } },
+    { INDEX_op_shl_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_shr_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_sar_i64, { "r", "rZ", "rJ" } },
 
     { INDEX_op_neg_i64, { "r", "rJ" } },
     { INDEX_op_not_i64, { "r", "rJ" } },
@@ -1485,9 +1490,9 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_ext32s_i64, { "r", "ri" } },
     { INDEX_op_ext32u_i64, { "r", "ri" } },
 
-    { INDEX_op_brcond_i64, { "r", "rJ" } },
-    { INDEX_op_setcond_i64, { "r", "r", "rJ" } },
-    { INDEX_op_movcond_i64, { "r", "r", "rJ", "rI", "0" } },
+    { INDEX_op_brcond_i64, { "rZ", "rJ" } },
+    { INDEX_op_setcond_i64, { "r", "rZ", "rJ" } },
+    { INDEX_op_movcond_i64, { "r", "rZ", "rJ", "rI", "0" } },
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
