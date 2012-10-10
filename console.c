@@ -1715,18 +1715,15 @@ PixelFormat qemu_default_pixelformat(int bpp)
             pf.rmask = 0x00FF0000;
             pf.gmask = 0x0000FF00;
             pf.bmask = 0x000000FF;
-            pf.amax = 255;
             pf.rmax = 255;
             pf.gmax = 255;
             pf.bmax = 255;
-            pf.ashift = 24;
             pf.rshift = 16;
             pf.gshift = 8;
             pf.bshift = 0;
             pf.rbits = 8;
             pf.gbits = 8;
             pf.bbits = 8;
-            pf.abits = 8;
             break;
         default:
             break;
