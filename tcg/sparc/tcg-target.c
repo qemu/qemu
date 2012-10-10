@@ -337,7 +337,9 @@ static void tcg_out_arithc(TCGContext *s, int rd, int rs1,
 static inline void tcg_out_mov(TCGContext *s, TCGType type,
                                TCGReg ret, TCGReg arg)
 {
-    tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
+    if (ret != arg) {
+        tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
+    }
 }
 
 static inline void tcg_out_sethi(TCGContext *s, int ret, uint32_t arg)
@@ -671,33 +673,29 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
                                  TCGArg bl, int blconst,
                                  TCGArg bh, int bhconst)
 {
-    int lab;
+    int tmp = TCG_REG_T1;
+
+    /* Note that the low parts are fully consumed before tmp is set.  */
+    if (ret != ah && (bhconst || ret != bh)) {
+        tmp = ret;
+    }
 
     switch (cond) {
     case TCG_COND_EQ:
-        tcg_out_setcond_i32(s, TCG_COND_EQ, TCG_REG_T1, al, bl, blconst);
-        tcg_out_setcond_i32(s, TCG_COND_EQ, ret, ah, bh, bhconst);
-        tcg_out_arith(s, ret, ret, TCG_REG_T1, ARITH_AND);
-        break;
-
     case TCG_COND_NE:
-        tcg_out_setcond_i32(s, TCG_COND_NE, TCG_REG_T1, al, al, blconst);
-        tcg_out_setcond_i32(s, TCG_COND_NE, ret, ah, bh, bhconst);
-        tcg_out_arith(s, ret, ret, TCG_REG_T1, ARITH_OR);
+        tcg_out_setcond_i32(s, cond, tmp, al, bl, blconst);
+        tcg_out_cmp(s, ah, bh, bhconst);
+        tcg_out_mov(s, TCG_TYPE_I32, ret, tmp);
+        tcg_out_movcc(s, TCG_COND_NE, MOVCC_ICC, ret, cond == TCG_COND_NE, 1);
         break;
 
     default:
-        lab = gen_new_label();
-
+        /* <= : ah < bh | (ah == bh && al <= bl) */
+        tcg_out_setcond_i32(s, tcg_unsigned_cond(cond), tmp, al, bl, blconst);
         tcg_out_cmp(s, ah, bh, bhconst);
-        tcg_out_branch_i32(s, INSN_COND(tcg_cond_to_bcond[cond], 1), lab);
-        tcg_out_movi_imm13(s, ret, 1);
-        tcg_out_branch_i32(s, INSN_COND(COND_NE, 1), lab);
-        tcg_out_movi_imm13(s, ret, 0);
-
-        tcg_out_setcond_i32(s, tcg_unsigned_cond(cond), ret, al, bl, blconst);
-
-        tcg_out_label(s, lab, s->code_ptr);
+        tcg_out_mov(s, TCG_TYPE_I32, ret, tmp);
+        tcg_out_movcc(s, TCG_COND_NE, MOVCC_ICC, ret, 0, 1);
+        tcg_out_movcc(s, tcg_high_cond(cond), MOVCC_ICC, ret, 1, 1);
         break;
     }
 }
