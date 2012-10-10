@@ -124,6 +124,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define INSN_RS2(x) (x)
 #define INSN_ASI(x) ((x) << 5)
 
+#define INSN_IMM10(x) ((1 << 13) | ((x) & 0x3ff))
 #define INSN_IMM11(x) ((1 << 13) | ((x) & 0x7ff))
 #define INSN_IMM13(x) ((1 << 13) | ((x) & 0x1fff))
 #define INSN_OFF16(x) ((((x) >> 2) & 0x3fff) | ((((x) >> 16) & 3) << 20))
@@ -185,6 +186,7 @@ static const int tcg_target_call_oarg_regs[] = {
 #define ARITH_UDIVX (INSN_OP(2) | INSN_OP3(0x0d))
 #define ARITH_SDIVX (INSN_OP(2) | INSN_OP3(0x2d))
 #define ARITH_MOVCC (INSN_OP(2) | INSN_OP3(0x2c))
+#define ARITH_MOVR (INSN_OP(2) | INSN_OP3(0x2f))
 
 #define SHIFT_SLL  (INSN_OP(2) | INSN_OP3(0x25))
 #define SHIFT_SRL  (INSN_OP(2) | INSN_OP3(0x26))
@@ -605,12 +607,28 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGArg arg1,
     tcg_out_nop(s);
 }
 
+static void tcg_out_movr(TCGContext *s, TCGCond cond, TCGArg ret, TCGArg c1,
+                         TCGArg v1, int v1const)
+{
+    tcg_out32(s, ARITH_MOVR | INSN_RD(ret) | INSN_RS1(c1)
+              | (tcg_cond_to_rcond[cond] << 10)
+              | (v1const ? INSN_IMM10(v1) : INSN_RS2(v1)));
+}
+
 static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
                                 TCGArg c1, TCGArg c2, int c2const,
                                 TCGArg v1, int v1const)
 {
-    tcg_out_cmp(s, c1, c2, c2const);
-    tcg_out_movcc(s, cond, MOVCC_XCC, ret, v1, v1const);
+    /* For 64-bit signed comparisons vs zero, we can avoid the compare.
+       Note that the immediate range is one bit smaller, so we must check
+       for that as well.  */
+    if (c2 == 0 && !is_unsigned_cond(cond)
+        && (!v1const || check_fit_tl(v1, 10))) {
+        tcg_out_movr(s, cond, ret, c1, v1, v1const);
+    } else {
+        tcg_out_cmp(s, c1, c2, c2const);
+        tcg_out_movcc(s, cond, MOVCC_XCC, ret, v1, v1const);
+    }
 }
 #else
 static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
@@ -706,9 +724,16 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
                                 TCGArg c1, TCGArg c2, int c2const)
 {
-    tcg_out_cmp(s, c1, c2, c2const);
-    tcg_out_movi_imm13(s, ret, 0);
-    tcg_out_movcc(s, cond, MOVCC_XCC, ret, 1, 1);
+    /* For 64-bit signed comparisons vs zero, we can avoid the compare
+       if the input does not overlap the output.  */
+    if (c2 == 0 && !is_unsigned_cond(cond) && c1 != ret) {
+        tcg_out_movi_imm13(s, ret, 0);
+        tcg_out_movr(s, cond, ret, c1, 1, 1);
+    } else {
+        tcg_out_cmp(s, c1, c2, c2const);
+        tcg_out_movi_imm13(s, ret, 0);
+        tcg_out_movcc(s, cond, MOVCC_XCC, ret, 1, 1);
+    }
 }
 #else
 static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
