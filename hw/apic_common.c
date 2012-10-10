@@ -368,7 +368,6 @@ static const VMStateDescription vmstate_apic_common = {
 
 static Property apic_properties_common[] = {
     DEFINE_PROP_UINT8("id", APICCommonState, id, -1),
-    DEFINE_PROP_PTR("cpu_env", APICCommonState, cpu_env),
     DEFINE_PROP_BIT("vapic", APICCommonState, vapic_control, VAPIC_ENABLE_BIT,
                     true),
     DEFINE_PROP_END_OF_LIST(),

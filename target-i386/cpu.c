@@ -41,6 +41,7 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen.h"
 #include "hw/sysbus.h"
+#include "hw/apic_internal.h"
 #endif
 
 /* feature flags taken from "Intel Processor Identification and the CPUID
@@ -1892,6 +1893,7 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
 {
     static int apic_mapped;
     CPUX86State *env = &cpu->env;
+    APICCommonState *apic;
     const char *apic_type = "apic";
 
     if (kvm_irqchip_in_kernel()) {
@@ -1910,7 +1912,8 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
                               OBJECT(env->apic_state), NULL);
     qdev_prop_set_uint8(env->apic_state, "id", env->cpuid_apic_id);
     /* TODO: convert to link<> */
-    qdev_prop_set_ptr(env->apic_state, "cpu_env", env);
+    apic = APIC_COMMON(env->apic_state);
+    apic->cpu_env = env;
 
     if (qdev_init(env->apic_state)) {
         error_setg(errp, "APIC device '%s' could not be initialized",
