@@ -617,32 +617,37 @@ static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
 static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
                                 TCGArg c1, TCGArg c2, int c2const)
 {
-    TCGArg t;
-
     /* For 32-bit comparisons, we can play games with ADDX/SUBX.  */
     switch (cond) {
+    case TCG_COND_LTU:
+    case TCG_COND_GEU:
+        /* The result of the comparison is in the carry bit.  */
+        break;
+
     case TCG_COND_EQ:
     case TCG_COND_NE:
+        /* For equality, we can transform to inequality vs zero.  */
         if (c2 != 0) {
             tcg_out_arithc(s, ret, c1, c2, c2const, ARITH_XOR);
         }
         c1 = TCG_REG_G0, c2 = ret, c2const = 0;
-        cond = (cond == TCG_COND_EQ ? TCG_COND_LEU : TCG_COND_LTU);
+        cond = (cond == TCG_COND_EQ ? TCG_COND_GEU : TCG_COND_LTU);
 	break;
 
     case TCG_COND_GTU:
-    case TCG_COND_GEU:
-        if (c2const && c2 != 0) {
-            tcg_out_movi_imm13(s, TCG_REG_T1, c2);
-            c2 = TCG_REG_T1;
-        }
-        t = c1, c1 = c2, c2 = t, c2const = 0;
-        cond = tcg_swap_cond(cond);
-        break;
-
-    case TCG_COND_LTU:
     case TCG_COND_LEU:
-        break;
+        /* If we don't need to load a constant into a register, we can
+           swap the operands on GTU/LEU.  There's no benefit to loading
+           the constant into a temporary register.  */
+        if (!c2const || c2 == 0) {
+            TCGArg t = c1;
+            c1 = c2;
+            c2 = t;
+            c2const = 0;
+            cond = tcg_swap_cond(cond);
+            break;
+        }
+        /* FALLTHRU */
 
     default:
         tcg_out_cmp(s, c1, c2, c2const);
