@@ -1709,8 +1709,13 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         s->last_depth = depth;
         full_update = 1;
     } else if (is_buffer_shared(s->ds->surface) &&
-               (full_update || s->ds->surface->data != s->vram_ptr + (s->start_addr * 4))) {
-        s->ds->surface->data = s->vram_ptr + (s->start_addr * 4);
+               (full_update || ds_get_data(s->ds) != s->vram_ptr
+                + (s->start_addr * 4))) {
+        qemu_free_displaysurface(s->ds);
+        s->ds->surface = qemu_create_displaysurface_from(disp_width,
+                height, depth,
+                s->line_offset,
+                s->vram_ptr + (s->start_addr * 4));
         dpy_gfx_setdata(s->ds);
     }
 
