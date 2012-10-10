@@ -539,6 +539,22 @@ static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond,
     tcg_out_nop(s);
 }
 
+static void tcg_out_movcc(TCGContext *s, TCGCond cond, int cc, TCGArg ret,
+                          TCGArg v1, int v1const)
+{
+    tcg_out32(s, ARITH_MOVCC | cc | INSN_RD(ret)
+              | INSN_RS1(tcg_cond_to_bcond[cond])
+              | (v1const ? INSN_IMM11(v1) : INSN_RS2(v1)));
+}
+
+static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
+                                TCGArg c1, TCGArg c2, int c2const,
+                                TCGArg v1, int v1const)
+{
+    tcg_out_cmp(s, c1, c2, c2const);
+    tcg_out_movcc(s, cond, MOVCC_ICC, ret, v1, v1const);
+}
+
 #if TCG_TARGET_REG_BITS == 64
 static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond,
                                TCGArg arg1, TCGArg arg2, int const_arg2,
@@ -547,6 +563,14 @@ static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond,
     tcg_out_cmp(s, arg1, arg2, const_arg2);
     tcg_out_branch_i64(s, tcg_cond_to_bcond[cond], label_index);
     tcg_out_nop(s);
+}
+
+static void tcg_out_movcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
+                                TCGArg c1, TCGArg c2, int c2const,
+                                TCGArg v1, int v1const)
+{
+    tcg_out_cmp(s, c1, c2, c2const);
+    tcg_out_movcc(s, cond, MOVCC_XCC, ret, v1, v1const);
 }
 #else
 static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
@@ -621,9 +645,7 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
     default:
         tcg_out_cmp(s, c1, c2, c2const);
         tcg_out_movi_imm13(s, ret, 0);
-        tcg_out32(s, ARITH_MOVCC | INSN_RD(ret)
-                  | INSN_RS1(tcg_cond_to_bcond[cond])
-                  | MOVCC_ICC | INSN_IMM11(1));
+        tcg_out_movcc(s, cond, MOVCC_ICC, ret, 1, 1);
         return;
     }
 
@@ -641,9 +663,7 @@ static void tcg_out_setcond_i64(TCGContext *s, TCGCond cond, TCGArg ret,
 {
     tcg_out_cmp(s, c1, c2, c2const);
     tcg_out_movi_imm13(s, ret, 0);
-    tcg_out32 (s, ARITH_MOVCC | INSN_RD(ret)
-               | INSN_RS1(tcg_cond_to_bcond[cond])
-               | MOVCC_XCC | INSN_IMM11(1));
+    tcg_out_movcc(s, cond, MOVCC_XCC, ret, 1, 1);
 }
 #else
 static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
@@ -1202,6 +1222,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_setcond_i32(s, args[3], args[0], args[1],
                             args[2], const_args[2]);
         break;
+    case INDEX_op_movcond_i32:
+        tcg_out_movcond_i32(s, args[5], args[0], args[1],
+                            args[2], const_args[2], args[3], const_args[3]);
+        break;
 
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_brcond2_i32:
@@ -1337,7 +1361,10 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_setcond_i64(s, args[3], args[0], args[1],
                             args[2], const_args[2]);
         break;
-
+    case INDEX_op_movcond_i64:
+        tcg_out_movcond_i64(s, args[5], args[0], args[1],
+                            args[2], const_args[2], args[3], const_args[3]);
+        break;
 #endif
     gen_arith:
         tcg_out_arithc(s, args[0], args[1], args[2], const_args[2], c);
@@ -1392,6 +1419,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_brcond_i32, { "r", "rJ" } },
     { INDEX_op_setcond_i32, { "r", "r", "rJ" } },
+    { INDEX_op_movcond_i32, { "r", "r", "rJ", "rI", "0" } },
 
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_brcond2_i32, { "r", "r", "rJ", "rJ" } },
@@ -1441,6 +1469,7 @@ static const TCGTargetOpDef sparc_op_defs[] = {
 
     { INDEX_op_brcond_i64, { "r", "rJ" } },
     { INDEX_op_setcond_i64, { "r", "r", "rJ" } },
+    { INDEX_op_movcond_i64, { "r", "r", "rJ", "rI", "0" } },
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
