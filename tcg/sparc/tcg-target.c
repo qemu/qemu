@@ -693,9 +693,18 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
     switch (cond) {
     case TCG_COND_EQ:
     case TCG_COND_NE:
-        tcg_out_setcond_i32(s, cond, tmp, al, bl, blconst);
-        tcg_out_cmp(s, ah, bh, bhconst);
-        tcg_out_mov(s, TCG_TYPE_I32, ret, tmp);
+        if (bl == 0 && bh == 0) {
+            if (cond == TCG_COND_EQ) {
+                tcg_out_arith(s, TCG_REG_G0, al, ah, ARITH_ORCC);
+                tcg_out_movi(s, TCG_TYPE_I32, ret, 1);
+            } else {
+                tcg_out_arith(s, ret, al, ah, ARITH_ORCC);
+            }
+        } else {
+            tcg_out_setcond_i32(s, cond, tmp, al, bl, blconst);
+            tcg_out_cmp(s, ah, bh, bhconst);
+            tcg_out_mov(s, TCG_TYPE_I32, ret, tmp);
+        }
         tcg_out_movcc(s, TCG_COND_NE, MOVCC_ICC, ret, cond == TCG_COND_NE, 1);
         break;
 
