@@ -126,6 +126,7 @@ static const int tcg_target_call_oarg_regs[] = {
 
 #define INSN_IMM11(x) ((1 << 13) | ((x) & 0x7ff))
 #define INSN_IMM13(x) ((1 << 13) | ((x) & 0x1fff))
+#define INSN_OFF16(x) ((((x) >> 2) & 0x3fff) | ((((x) >> 16) & 3) << 20))
 #define INSN_OFF19(x) (((x) >> 2) & 0x07ffff)
 #define INSN_COND(x) ((x) << 25)
 
@@ -147,6 +148,13 @@ static const int tcg_target_call_oarg_regs[] = {
 #define COND_VC    0xf
 #define BA         (INSN_OP(0) | INSN_COND(COND_A) | INSN_OP2(0x2))
 
+#define RCOND_Z    1
+#define RCOND_LEZ  2
+#define RCOND_LZ   3
+#define RCOND_NZ   5
+#define RCOND_GZ   6
+#define RCOND_GEZ  7
+
 #define MOVCC_ICC  (1 << 18)
 #define MOVCC_XCC  (1 << 18 | 1 << 12)
 
@@ -155,6 +163,8 @@ static const int tcg_target_call_oarg_regs[] = {
 #define BPCC_PT    (1 << 19)
 #define BPCC_PN    0
 #define BPCC_A     (1 << 29)
+
+#define BPR_PT     BPCC_PT
 
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
 #define ARITH_ADDCC (INSN_OP(2) | INSN_OP3(0x10))
@@ -250,6 +260,16 @@ static void patch_reloc(uint8_t *code_ptr, int type,
             tcg_abort();
         }
         *(uint32_t *)code_ptr = value;
+        break;
+    case R_SPARC_WDISP16:
+        value -= (long)code_ptr;
+        if (!check_fit_tl(value >> 2, 16)) {
+            tcg_abort();
+        }
+        insn = *(uint32_t *)code_ptr;
+        insn &= ~INSN_OFF16(-1);
+        insn |= INSN_OFF16(value);
+        *(uint32_t *)code_ptr = insn;
         break;
     case R_SPARC_WDISP19:
         value -= (long)code_ptr;
@@ -502,6 +522,15 @@ static const uint8_t tcg_cond_to_bcond[] = {
     [TCG_COND_GTU] = COND_GU,
 };
 
+static const uint8_t tcg_cond_to_rcond[] = {
+    [TCG_COND_EQ] = RCOND_Z,
+    [TCG_COND_NE] = RCOND_NZ,
+    [TCG_COND_LT] = RCOND_LZ,
+    [TCG_COND_GT] = RCOND_GZ,
+    [TCG_COND_LE] = RCOND_LEZ,
+    [TCG_COND_GE] = RCOND_GEZ
+};
+
 static void tcg_out_bpcc0(TCGContext *s, int scond, int flags, int off19)
 {
     tcg_out32(s, INSN_OP(0) | INSN_OP2(1) | INSN_COND(scond) | flags | off19);
@@ -555,8 +584,24 @@ static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGArg arg1,
                                TCGArg arg2, int const_arg2, int label)
 {
-    tcg_out_cmp(s, arg1, arg2, const_arg2);
-    tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_XCC | BPCC_PT, label);
+    /* For 64-bit signed comparisons vs zero, we can avoid the compare.  */
+    if (arg2 == 0 && !is_unsigned_cond(cond)) {
+        TCGLabel *l = &s->labels[label];
+        int off16;
+
+        if (l->has_value) {
+            off16 = INSN_OFF16(l->u.value - (unsigned long)s->code_ptr);
+        } else {
+            /* Make sure to preserve destinations during retranslation.  */
+            off16 = *(uint32_t *)s->code_ptr & INSN_OFF16(-1);
+            tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP16, label, 0);
+        }
+        tcg_out32(s, INSN_OP(0) | INSN_OP2(3) | BPR_PT | INSN_RS1(arg1)
+                  | INSN_COND(tcg_cond_to_rcond[cond]) | off16);
+    } else {
+        tcg_out_cmp(s, arg1, arg2, const_arg2);
+        tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_XCC | BPCC_PT, label);
+    }
     tcg_out_nop(s);
 }
 
