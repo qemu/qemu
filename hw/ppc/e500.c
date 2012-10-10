@@ -46,13 +46,15 @@
 /* TODO: parameterize */
 #define MPC8544_CCSRBAR_BASE       0xE0000000ULL
 #define MPC8544_CCSRBAR_SIZE       0x00100000ULL
-#define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000ULL)
-#define MPC8544_SERIAL0_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4500ULL)
-#define MPC8544_SERIAL1_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4600ULL)
-#define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + 0x8000ULL)
+#define MPC8544_MPIC_REGS_OFFSET   0x40000ULL
+#define MPC8544_SERIAL0_REGS_OFFSET 0x4500ULL
+#define MPC8544_SERIAL1_REGS_OFFSET 0x4600ULL
+#define MPC8544_PCI_REGS_OFFSET    0x8000ULL
+#define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + \
+                                    MPC8544_PCI_REGS_OFFSET)
 #define MPC8544_PCI_REGS_SIZE      0x1000ULL
 #define MPC8544_PCI_IO             0xE1000000ULL
-#define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000ULL)
+#define MPC8544_UTIL_OFFSET        0xe0000ULL
 #define MPC8544_SPIN_BASE          0xEF000000ULL
 
 struct boot_info
@@ -267,13 +269,12 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
 
-    snprintf(mpic, sizeof(mpic), "%s/pic@%llx", soc,
-             MPC8544_MPIC_REGS_BASE - MPC8544_CCSRBAR_BASE);
+    snprintf(mpic, sizeof(mpic), "%s/pic@%llx", soc, MPC8544_MPIC_REGS_OFFSET);
     qemu_devtree_add_subnode(fdt, mpic);
     qemu_devtree_setprop_string(fdt, mpic, "device_type", "open-pic");
     qemu_devtree_setprop_string(fdt, mpic, "compatible", "chrp,open-pic");
-    qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_BASE -
-                               MPC8544_CCSRBAR_BASE, 0x40000);
+    qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_OFFSET,
+                               0x40000);
     qemu_devtree_setprop_cell(fdt, mpic, "#address-cells", 0);
     qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 2);
     mpic_ph = qemu_devtree_alloc_phandle(fdt);
@@ -286,17 +287,16 @@ static int ppce500_load_device_tree(CPUPPCState *env,
      * device it finds in the dt as serial output device. And we generate
      * devices in reverse order to the dt.
      */
-    dt_serial_create(fdt, MPC8544_SERIAL1_REGS_BASE - MPC8544_CCSRBAR_BASE,
+    dt_serial_create(fdt, MPC8544_SERIAL1_REGS_OFFSET,
                      soc, mpic, "serial1", 1, false);
-    dt_serial_create(fdt, MPC8544_SERIAL0_REGS_BASE - MPC8544_CCSRBAR_BASE,
+    dt_serial_create(fdt, MPC8544_SERIAL0_REGS_OFFSET,
                      soc, mpic, "serial0", 0, true);
 
     snprintf(gutil, sizeof(gutil), "%s/global-utilities@%llx", soc,
-             MPC8544_UTIL_BASE - MPC8544_CCSRBAR_BASE);
+             MPC8544_UTIL_OFFSET);
     qemu_devtree_add_subnode(fdt, gutil);
     qemu_devtree_setprop_string(fdt, gutil, "compatible", "fsl,mpc8544-guts");
-    qemu_devtree_setprop_cells(fdt, gutil, "reg", MPC8544_UTIL_BASE -
-                               MPC8544_CCSRBAR_BASE, 0x1000);
+    qemu_devtree_setprop_cells(fdt, gutil, "reg", MPC8544_UTIL_OFFSET, 0x1000);
     qemu_devtree_setprop(fdt, gutil, "fsl,has-rstcr", NULL, 0);
 
     snprintf(pci, sizeof(pci), "/pci@%llx", MPC8544_PCI_REGS_BASE);
@@ -422,6 +422,8 @@ void ppce500_init(PPCE500Params *params)
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
     CPUPPCState *firstenv = NULL;
+    MemoryRegion *ccsr;
+    SysBusDevice *s;
 
     /* Setup CPUs */
     if (params->cpu_model == NULL) {
@@ -450,7 +452,8 @@ void ppce500_init(PPCE500Params *params)
         irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
-        env->mpic_cpu_base = MPC8544_MPIC_REGS_BASE + 0x20000;
+        env->mpic_cpu_base = MPC8544_CCSRBAR_BASE +
+                              MPC8544_MPIC_REGS_OFFSET + 0x20000;
 
         ppc_booke_timers_init(env, 400000000, PPC_TIMER_E500);
 
@@ -477,8 +480,12 @@ void ppce500_init(PPCE500Params *params)
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
+    ccsr = g_malloc0(sizeof(MemoryRegion));
+    memory_region_init(ccsr, "e500-ccsr", MPC8544_CCSRBAR_SIZE);
+    memory_region_add_subregion(address_space_mem, MPC8544_CCSRBAR_BASE, ccsr);
+
     /* MPIC */
-    mpic = mpic_init(address_space_mem, MPC8544_MPIC_REGS_BASE,
+    mpic = mpic_init(ccsr, MPC8544_MPIC_REGS_OFFSET,
                      smp_cpus, irqs, NULL);
 
     if (!mpic) {
@@ -487,25 +494,35 @@ void ppce500_init(PPCE500Params *params)
 
     /* Serial */
     if (serial_hds[0]) {
-        serial_mm_init(address_space_mem, MPC8544_SERIAL0_REGS_BASE,
+        serial_mm_init(ccsr, MPC8544_SERIAL0_REGS_OFFSET,
                        0, mpic[12+26], 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
-        serial_mm_init(address_space_mem, MPC8544_SERIAL1_REGS_BASE,
+        serial_mm_init(ccsr, MPC8544_SERIAL1_REGS_OFFSET,
                        0, mpic[12+26], 399193,
                        serial_hds[1], DEVICE_BIG_ENDIAN);
     }
 
     /* General Utility device */
-    sysbus_create_simple("mpc8544-guts", MPC8544_UTIL_BASE, NULL);
+    dev = qdev_create(NULL, "mpc8544-guts");
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(ccsr, MPC8544_UTIL_OFFSET,
+                                sysbus_mmio_get_region(s, 0));
 
     /* PCI */
-    dev = sysbus_create_varargs("e500-pcihost", MPC8544_PCI_REGS_BASE,
-                                mpic[pci_irq_nrs[0]], mpic[pci_irq_nrs[1]],
-                                mpic[pci_irq_nrs[2]], mpic[pci_irq_nrs[3]],
-                                NULL);
+    dev = qdev_create(NULL, "e500-pcihost");
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(s, 0, mpic[pci_irq_nrs[0]]);
+    sysbus_connect_irq(s, 1, mpic[pci_irq_nrs[1]]);
+    sysbus_connect_irq(s, 2, mpic[pci_irq_nrs[2]]);
+    sysbus_connect_irq(s, 3, mpic[pci_irq_nrs[3]]);
+    memory_region_add_subregion(ccsr, MPC8544_PCI_REGS_OFFSET,
+                                sysbus_mmio_get_region(s, 0));
+
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
