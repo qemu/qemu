@@ -985,7 +985,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int sizeop)
 {
     int addrlo_idx = 1, datalo, datahi, addr_reg;
 #if defined(CONFIG_SOFTMMU)
-    int memi_idx, memi, n;
+    int memi_idx, memi, n, datafull;
     uint32_t *label_ptr;
 #endif
 
@@ -1002,12 +1002,13 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int sizeop)
     addr_reg = tcg_out_tlb_load(s, addrlo_idx, memi, sizeop, args,
                                 offsetof(CPUTLBEntry, addr_write));
 
+    datafull = datalo;
     if (TCG_TARGET_REG_BITS == 32 && sizeop == 3) {
         /* Reconstruct the full 64-bit value.  */
         tcg_out_arithi(s, TCG_REG_T1, datalo, 0, SHIFT_SRL);
         tcg_out_arithi(s, TCG_REG_O2, datahi, 32, SHIFT_SLLX);
         tcg_out_arith(s, TCG_REG_O2, TCG_REG_T1, TCG_REG_O2, ARITH_OR);
-        datalo = TCG_REG_O2;
+        datafull = TCG_REG_O2;
     }
 
     /* The fast path is exactly one insn.  Thus we can perform the entire
@@ -1018,7 +1019,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int sizeop)
                   | ((TARGET_LONG_BITS == 64) << 21)
                   | (1 << 29) | (1 << 19)));
     /* delay slot */
-    tcg_out_ldst_rr(s, datalo, addr_reg, TCG_REG_O1, qemu_st_opc[sizeop]);
+    tcg_out_ldst_rr(s, datafull, addr_reg, TCG_REG_O1, qemu_st_opc[sizeop]);
 
     /* TLB Miss.  */
 
