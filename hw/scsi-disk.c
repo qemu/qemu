@@ -652,7 +652,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     if (buflen > SCSI_MAX_INQUIRY_LEN) {
         buflen = SCSI_MAX_INQUIRY_LEN;
     }
-    memset(outbuf, 0, buflen);
 
     outbuf[0] = s->qdev.type & 0x1f;
     outbuf[1] = (s->features & (1 << SCSI_DISK_F_REMOVABLE)) ? 0x80 : 0;
@@ -1596,24 +1595,26 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     }
 
+    /*
+     * FIXME: we shouldn't return anything bigger than 4k, but the code
+     * requires the buffer to be as big as req->cmd.xfer in several
+     * places.  So, do not allow CDBs with a very large ALLOCATION
+     * LENGTH.  The real fix would be to modify scsi_read_data and
+     * dma_buf_read, so that they return data beyond the buflen
+     * as all zeros.
+     */
+    if (req->cmd.xfer > 65536) {
+        goto illegal_request;
+    }
+    r->buflen = MAX(4096, req->cmd.xfer);
+
     if (!r->iov.iov_base) {
-        /*
-         * FIXME: we shouldn't return anything bigger than 4k, but the code
-         * requires the buffer to be as big as req->cmd.xfer in several
-         * places.  So, do not allow CDBs with a very large ALLOCATION
-         * LENGTH.  The real fix would be to modify scsi_read_data and
-         * dma_buf_read, so that they return data beyond the buflen
-         * as all zeros.
-         */
-        if (req->cmd.xfer > 65536) {
-            goto illegal_request;
-        }
-        r->buflen = MAX(4096, req->cmd.xfer);
         r->iov.iov_base = qemu_blockalign(s->qdev.conf.bs, r->buflen);
     }
 
     buflen = req->cmd.xfer;
     outbuf = r->iov.iov_base;
+    memset(outbuf, 0, r->buflen);
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
         assert(!s->tray_open && bdrv_is_inserted(s->qdev.conf.bs));
@@ -1694,12 +1695,14 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         outbuf[5] = 0;
         outbuf[6] = s->qdev.blocksize >> 8;
         outbuf[7] = 0;
-        buflen = 8;
         break;
     case REQUEST_SENSE:
         /* Just return "NO SENSE".  */
         buflen = scsi_build_sense(NULL, 0, outbuf, r->buflen,
                                   (req->cmd.buf[1] & 1) == 0);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
         break;
     case MECHANISM_STATUS:
         buflen = scsi_emulate_mechanism_status(s, outbuf);
@@ -1770,7 +1773,6 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             }
 
             /* Protection, exponent and lowest lba field left blank. */
-            buflen = req->cmd.xfer;
             break;
         }
         DPRINTF("Unsupported Service Action In\n");
@@ -1827,7 +1829,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
     assert(!r->req.aiocb);
-    r->iov.iov_len = MIN(buflen, req->cmd.xfer);
+    r->iov.iov_len = MIN(r->buflen, req->cmd.xfer);
     if (r->iov.iov_len == 0) {
         scsi_req_complete(&r->req, GOOD);
     }
