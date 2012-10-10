@@ -561,33 +561,24 @@ static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
     /* Note that we fill one of the delay slots with the second compare.  */
     switch (cond) {
     case TCG_COND_EQ:
-        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_NE], 0);
-        tcg_out_branch_i32(s, cc, label_next);
+        tcg_out_branch_i32(s, COND_NE, label_next);
         tcg_out_cmp(s, al, bl, blconst);
-        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_EQ], 0);
-        tcg_out_branch_i32(s, cc, label_dest);
+        tcg_out_branch_i32(s, COND_E, label_dest);
         break;
 
     case TCG_COND_NE:
-        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_NE], 0);
-        tcg_out_branch_i32(s, cc, label_dest);
+        tcg_out_branch_i32(s, COND_NE, label_dest);
         tcg_out_cmp(s, al, bl, blconst);
-        tcg_out_branch_i32(s, cc, label_dest);
+        tcg_out_branch_i32(s, COND_NE, label_dest);
         break;
 
     default:
-        /* ??? One could fairly easily special-case 64-bit unsigned
-           compares against 32-bit zero-extended constants.  For instance,
-           we know that (unsigned)AH < 0 is false and need not emit it.
-           Similarly, (unsigned)AH > 0 being true implies AH != 0, so the
-           second branch will never be taken.  */
-        cc = INSN_COND(tcg_cond_to_bcond[cond], 0);
+        cc = tcg_cond_to_bcond[tcg_high_cond(cond)];
         tcg_out_branch_i32(s, cc, label_dest);
         tcg_out_nop(s);
-        cc = INSN_COND(tcg_cond_to_bcond[TCG_COND_NE], 0);
-        tcg_out_branch_i32(s, cc, label_next);
+        tcg_out_branch_i32(s, COND_NE, label_next);
         tcg_out_cmp(s, al, bl, blconst);
-        cc = INSN_COND(tcg_cond_to_bcond[tcg_unsigned_cond(cond)], 0);
+        cc = tcg_cond_to_bcond[tcg_unsigned_cond(cond)];
         tcg_out_branch_i32(s, cc, label_dest);
         break;
     }
