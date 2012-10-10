@@ -115,101 +115,6 @@ static const int tcg_target_call_oarg_regs[] = {
     TCG_REG_O3,
 };
 
-static inline int check_fit_tl(tcg_target_long val, unsigned int bits)
-{
-    return (val << ((sizeof(tcg_target_long) * 8 - bits))
-            >> (sizeof(tcg_target_long) * 8 - bits)) == val;
-}
-
-static inline int check_fit_i32(uint32_t val, unsigned int bits)
-{
-    return ((val << (32 - bits)) >> (32 - bits)) == val;
-}
-
-static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
-{
-    value += addend;
-    switch (type) {
-    case R_SPARC_32:
-        if (value != (uint32_t)value)
-            tcg_abort();
-        *(uint32_t *)code_ptr = value;
-        break;
-    case R_SPARC_WDISP22:
-        value -= (long)code_ptr;
-        value >>= 2;
-        if (!check_fit_tl(value, 22))
-            tcg_abort();
-        *(uint32_t *)code_ptr = ((*(uint32_t *)code_ptr) & ~0x3fffff) | value;
-        break;
-    case R_SPARC_WDISP19:
-        value -= (long)code_ptr;
-        value >>= 2;
-        if (!check_fit_tl(value, 19))
-            tcg_abort();
-        *(uint32_t *)code_ptr = ((*(uint32_t *)code_ptr) & ~0x7ffff) | value;
-        break;
-    default:
-        tcg_abort();
-    }
-}
-
-/* parse target specific constraints */
-static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
-{
-    const char *ct_str;
-
-    ct_str = *pct_str;
-    switch (ct_str[0]) {
-    case 'r':
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
-        break;
-    case 'L': /* qemu_ld/st constraint */
-        ct->ct |= TCG_CT_REG;
-        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
-        // Helper args
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O0);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O1);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O2);
-        break;
-    case 'I':
-        ct->ct |= TCG_CT_CONST_S11;
-        break;
-    case 'J':
-        ct->ct |= TCG_CT_CONST_S13;
-        break;
-    case 'Z':
-        ct->ct |= TCG_CT_CONST_ZERO;
-        break;
-    default:
-        return -1;
-    }
-    ct_str++;
-    *pct_str = ct_str;
-    return 0;
-}
-
-/* test if a constant matches the constraint */
-static inline int tcg_target_const_match(tcg_target_long val,
-                                         const TCGArgConstraint *arg_ct)
-{
-    int ct = arg_ct->ct;
-
-    if (ct & TCG_CT_CONST) {
-        return 1;
-    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
-        return 1;
-    } else if ((ct & TCG_CT_CONST_S11) && check_fit_tl(val, 11)) {
-        return 1;
-    } else if ((ct & TCG_CT_CONST_S13) && check_fit_tl(val, 13)) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 #define INSN_OP(x)  ((x) << 30)
 #define INSN_OP2(x) ((x) << 22)
 #define INSN_OP3(x) ((x) << 19)
@@ -222,9 +127,8 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define INSN_IMM11(x) ((1 << 13) | ((x) & 0x7ff))
 #define INSN_IMM13(x) ((1 << 13) | ((x) & 0x1fff))
 #define INSN_OFF19(x) (((x) >> 2) & 0x07ffff)
-#define INSN_OFF22(x) (((x) >> 2) & 0x3fffff)
+#define INSN_COND(x) ((x) << 25)
 
-#define INSN_COND(x, a) (((x) << 25) | ((a) << 29))
 #define COND_N     0x0
 #define COND_E     0x1
 #define COND_LE    0x2
@@ -241,10 +145,16 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define COND_CC    0xd
 #define COND_POS   0xe
 #define COND_VC    0xf
-#define BA         (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x2))
+#define BA         (INSN_OP(0) | INSN_COND(COND_A) | INSN_OP2(0x2))
 
 #define MOVCC_ICC  (1 << 18)
 #define MOVCC_XCC  (1 << 18 | 1 << 12)
+
+#define BPCC_ICC   0
+#define BPCC_XCC   (2 << 20)
+#define BPCC_PT    (1 << 19)
+#define BPCC_PN    0
+#define BPCC_A     (1 << 29)
 
 #define ARITH_ADD  (INSN_OP(2) | INSN_OP3(0x00))
 #define ARITH_ADDCC (INSN_OP(2) | INSN_OP3(0x10))
@@ -317,6 +227,99 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define STH_LE     (STHA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STW_LE     (STWA  | INSN_ASI(ASI_PRIMARY_LITTLE))
 #define STX_LE     (STXA  | INSN_ASI(ASI_PRIMARY_LITTLE))
+
+static inline int check_fit_tl(tcg_target_long val, unsigned int bits)
+{
+    return (val << ((sizeof(tcg_target_long) * 8 - bits))
+            >> (sizeof(tcg_target_long) * 8 - bits)) == val;
+}
+
+static inline int check_fit_i32(uint32_t val, unsigned int bits)
+{
+    return ((val << (32 - bits)) >> (32 - bits)) == val;
+}
+
+static void patch_reloc(uint8_t *code_ptr, int type,
+                        tcg_target_long value, tcg_target_long addend)
+{
+    uint32_t insn;
+    value += addend;
+    switch (type) {
+    case R_SPARC_32:
+        if (value != (uint32_t)value) {
+            tcg_abort();
+        }
+        *(uint32_t *)code_ptr = value;
+        break;
+    case R_SPARC_WDISP19:
+        value -= (long)code_ptr;
+        if (!check_fit_tl(value >> 2, 19)) {
+            tcg_abort();
+        }
+        insn = *(uint32_t *)code_ptr;
+        insn &= ~INSN_OFF19(-1);
+        insn |= INSN_OFF19(value);
+        *(uint32_t *)code_ptr = insn;
+        break;
+    default:
+        tcg_abort();
+    }
+}
+
+/* parse target specific constraints */
+static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
+{
+    const char *ct_str;
+
+    ct_str = *pct_str;
+    switch (ct_str[0]) {
+    case 'r':
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
+        break;
+    case 'L': /* qemu_ld/st constraint */
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set32(ct->u.regs, 0, 0xffffffff);
+        // Helper args
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O0);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O1);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O2);
+        break;
+    case 'I':
+        ct->ct |= TCG_CT_CONST_S11;
+        break;
+    case 'J':
+        ct->ct |= TCG_CT_CONST_S13;
+        break;
+    case 'Z':
+        ct->ct |= TCG_CT_CONST_ZERO;
+        break;
+    default:
+        return -1;
+    }
+    ct_str++;
+    *pct_str = ct_str;
+    return 0;
+}
+
+/* test if a constant matches the constraint */
+static inline int tcg_target_const_match(tcg_target_long val,
+                                         const TCGArgConstraint *arg_ct)
+{
+    int ct = arg_ct->ct;
+
+    if (ct & TCG_CT_CONST) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_ZERO) && val == 0) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_S11) && check_fit_tl(val, 11)) {
+        return 1;
+    } else if ((ct & TCG_CT_CONST_S13) && check_fit_tl(val, 13)) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
 
 static inline void tcg_out_arith(TCGContext *s, int rd, int rs1, int rs2,
                                  int op)
@@ -486,39 +489,6 @@ static inline void tcg_out_nop(TCGContext *s)
     tcg_out_sethi(s, TCG_REG_G0, 0);
 }
 
-static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
-{
-    TCGLabel *l = &s->labels[label_index];
-    uint32_t off22;
-
-    if (l->has_value) {
-        off22 = INSN_OFF22(l->u.value - (unsigned long)s->code_ptr);
-    } else {
-        /* Make sure to preserve destinations during retranslation.  */
-        off22 = *(uint32_t *)s->code_ptr & INSN_OFF22(-1);
-        tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP22, label_index, 0);
-    }
-    tcg_out32(s, INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x2) | off22);
-}
-
-#if TCG_TARGET_REG_BITS == 64
-static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
-{
-    TCGLabel *l = &s->labels[label_index];
-    uint32_t off19;
-
-    if (l->has_value) {
-        off19 = INSN_OFF19(l->u.value - (unsigned long)s->code_ptr);
-    } else {
-        /* Make sure to preserve destinations during retranslation.  */
-        off19 = *(uint32_t *)s->code_ptr & INSN_OFF19(-1);
-        tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, label_index, 0);
-    }
-    tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
-                  (0x5 << 19) | off19));
-}
-#endif
-
 static const uint8_t tcg_cond_to_bcond[] = {
     [TCG_COND_EQ] = COND_E,
     [TCG_COND_NE] = COND_NE,
@@ -532,17 +502,36 @@ static const uint8_t tcg_cond_to_bcond[] = {
     [TCG_COND_GTU] = COND_GU,
 };
 
+static void tcg_out_bpcc0(TCGContext *s, int scond, int flags, int off19)
+{
+    tcg_out32(s, INSN_OP(0) | INSN_OP2(1) | INSN_COND(scond) | flags | off19);
+}
+
+static void tcg_out_bpcc(TCGContext *s, int scond, int flags, int label)
+{
+    TCGLabel *l = &s->labels[label];
+    int off19;
+
+    if (l->has_value) {
+        off19 = INSN_OFF19(l->u.value - (unsigned long)s->code_ptr);
+    } else {
+        /* Make sure to preserve destinations during retranslation.  */
+        off19 = *(uint32_t *)s->code_ptr & INSN_OFF19(-1);
+        tcg_out_reloc(s, s->code_ptr, R_SPARC_WDISP19, label, 0);
+    }
+    tcg_out_bpcc0(s, scond, flags, off19);
+}
+
 static void tcg_out_cmp(TCGContext *s, TCGArg c1, TCGArg c2, int c2const)
 {
     tcg_out_arithc(s, TCG_REG_G0, c1, c2, c2const, ARITH_SUBCC);
 }
 
-static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond,
-                               TCGArg arg1, TCGArg arg2, int const_arg2,
-                               int label_index)
+static void tcg_out_brcond_i32(TCGContext *s, TCGCond cond, TCGArg arg1,
+                               TCGArg arg2, int const_arg2, int label)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2);
-    tcg_out_branch_i32(s, tcg_cond_to_bcond[cond], label_index);
+    tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_ICC | BPCC_PT, label);
     tcg_out_nop(s);
 }
 
@@ -563,12 +552,11 @@ static void tcg_out_movcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 }
 
 #if TCG_TARGET_REG_BITS == 64
-static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond,
-                               TCGArg arg1, TCGArg arg2, int const_arg2,
-                               int label_index)
+static void tcg_out_brcond_i64(TCGContext *s, TCGCond cond, TCGArg arg1,
+                               TCGArg arg2, int const_arg2, int label)
 {
     tcg_out_cmp(s, arg1, arg2, const_arg2);
-    tcg_out_branch_i64(s, tcg_cond_to_bcond[cond], label_index);
+    tcg_out_bpcc(s, tcg_cond_to_bcond[cond], BPCC_XCC | BPCC_PT, label);
     tcg_out_nop(s);
 }
 
@@ -585,32 +573,32 @@ static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
                                 TCGArg bl, int blconst,
                                 TCGArg bh, int bhconst, int label_dest)
 {
-    int cc, label_next = gen_new_label();
+    int scond, label_next = gen_new_label();
 
     tcg_out_cmp(s, ah, bh, bhconst);
 
     /* Note that we fill one of the delay slots with the second compare.  */
     switch (cond) {
     case TCG_COND_EQ:
-        tcg_out_branch_i32(s, COND_NE, label_next);
+        tcg_out_bpcc(s, COND_NE, BPCC_ICC | BPCC_PT, label_next);
         tcg_out_cmp(s, al, bl, blconst);
-        tcg_out_branch_i32(s, COND_E, label_dest);
+        tcg_out_bpcc(s, COND_E, BPCC_ICC | BPCC_PT, label_dest);
         break;
 
     case TCG_COND_NE:
-        tcg_out_branch_i32(s, COND_NE, label_dest);
+        tcg_out_bpcc(s, COND_NE, BPCC_ICC | BPCC_PT, label_dest);
         tcg_out_cmp(s, al, bl, blconst);
-        tcg_out_branch_i32(s, COND_NE, label_dest);
+        tcg_out_bpcc(s, COND_NE, BPCC_ICC | BPCC_PT, label_dest);
         break;
 
     default:
-        cc = tcg_cond_to_bcond[tcg_high_cond(cond)];
-        tcg_out_branch_i32(s, cc, label_dest);
+        scond = tcg_cond_to_bcond[tcg_high_cond(cond)];
+        tcg_out_bpcc(s, scond, BPCC_ICC | BPCC_PT, label_dest);
         tcg_out_nop(s);
-        tcg_out_branch_i32(s, COND_NE, label_next);
+        tcg_out_bpcc(s, COND_NE, BPCC_ICC | BPCC_PT, label_next);
         tcg_out_cmp(s, al, bl, blconst);
-        cc = tcg_cond_to_bcond[tcg_unsigned_cond(cond)];
-        tcg_out_branch_i32(s, cc, label_dest);
+        scond = tcg_cond_to_bcond[tcg_unsigned_cond(cond)];
+        tcg_out_bpcc(s, scond, BPCC_ICC | BPCC_PT, label_dest);
         break;
     }
     tcg_out_nop(s);
@@ -903,8 +891,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int sizeop)
 
         /* bne,pn %[xi]cc, label0 */
         label_ptr[0] = (uint32_t *)s->code_ptr;
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(COND_NE, 0) | INSN_OP2(0x1)
-                      | ((TARGET_LONG_BITS == 64) << 21)));
+        tcg_out_bpcc0(s, COND_NE, BPCC_PN
+                      | (TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC), 0);
 
         /* TLB Hit.  */
         /* Load all 64-bits into an O/G register.  */
@@ -919,8 +907,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int sizeop)
 
         /* b,a,pt label1 */
         label_ptr[1] = (uint32_t *)s->code_ptr;
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(COND_A, 0) | INSN_OP2(0x1)
-                      | (1 << 29) | (1 << 19)));
+        tcg_out_bpcc0(s, COND_A, BPCC_A | BPCC_PT, 0);
     } else {
         /* The fast path is exactly one insn.  Thus we can perform the
            entire TLB Hit in the (annulled) delay slot of the branch
@@ -929,9 +916,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int sizeop)
         /* beq,a,pt %[xi]cc, label0 */
         label_ptr[0] = NULL;
         label_ptr[1] = (uint32_t *)s->code_ptr;
-        tcg_out32(s, (INSN_OP(0) | INSN_COND(COND_E, 0) | INSN_OP2(0x1)
-                      | ((TARGET_LONG_BITS == 64) << 21)
-                      | (1 << 29) | (1 << 19)));
+        tcg_out_bpcc0(s, COND_E, BPCC_A | BPCC_PT
+                      | (TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC), 0);
         /* delay slot */
         tcg_out_ldst_rr(s, datalo, addr_reg, TCG_REG_O1, qemu_ld_opc[sizeop]);
     }
@@ -1050,9 +1036,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int sizeop)
        TLB Hit in the (annulled) delay slot of the branch over TLB Miss.  */
     /* beq,a,pt %[xi]cc, label0 */
     label_ptr = (uint32_t *)s->code_ptr;
-    tcg_out32(s, (INSN_OP(0) | INSN_COND(COND_E, 0) | INSN_OP2(0x1)
-                  | ((TARGET_LONG_BITS == 64) << 21)
-                  | (1 << 29) | (1 << 19)));
+    tcg_out_bpcc0(s, COND_E, BPCC_A | BPCC_PT
+                  | (TARGET_LONG_BITS == 64 ? BPCC_XCC : BPCC_ICC), 0);
     /* delay slot */
     tcg_out_ldst_rr(s, datafull, addr_reg, TCG_REG_O1, qemu_st_opc[sizeop]);
 
@@ -1143,7 +1128,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_nop(s);
         break;
     case INDEX_op_br:
-        tcg_out_branch_i32(s, COND_A, args[0]);
+        tcg_out_bpcc(s, COND_A, BPCC_PT, args[0]);
         tcg_out_nop(s);
         break;
     case INDEX_op_movi_i32:
