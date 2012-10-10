@@ -38,23 +38,36 @@ void qemu_set_irq(qemu_irq irq, int level)
     irq->handler(irq->opaque, irq->n, level);
 }
 
-qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
+qemu_irq *qemu_extend_irqs(qemu_irq *old, int n_old, qemu_irq_handler handler,
+                           void *opaque, int n)
 {
     qemu_irq *s;
     struct IRQState *p;
     int i;
 
-    s = (qemu_irq *)g_malloc0(sizeof(qemu_irq) * n);
-    p = (struct IRQState *)g_malloc0(sizeof(struct IRQState) * n);
-    for (i = 0; i < n; i++) {
-        p->handler = handler;
-        p->opaque = opaque;
-        p->n = i;
+    if (!old) {
+        n_old = 0;
+    }
+    s = old ? g_renew(qemu_irq, old, n + n_old) : g_new(qemu_irq, n);
+    p = old ? g_renew(struct IRQState, s[0], n + n_old) :
+                g_new(struct IRQState, n);
+    for (i = 0; i < n + n_old; i++) {
+        if (i >= n_old) {
+            p->handler = handler;
+            p->opaque = opaque;
+            p->n = i;
+        }
         s[i] = p;
         p++;
     }
     return s;
 }
+
+qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
+{
+    return qemu_extend_irqs(NULL, 0, handler, opaque, n);
+}
+
 
 void qemu_free_irqs(qemu_irq *s)
 {

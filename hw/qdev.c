@@ -285,9 +285,9 @@ BusState *qdev_get_parent_bus(DeviceState *dev)
 
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n)
 {
-    assert(dev->num_gpio_in == 0);
-    dev->num_gpio_in = n;
-    dev->gpio_in = qemu_allocate_irqs(handler, dev, n);
+    dev->gpio_in = qemu_extend_irqs(dev->gpio_in, dev->num_gpio_in, handler,
+                                        dev, n);
+    dev->num_gpio_in += n;
 }
 
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n)

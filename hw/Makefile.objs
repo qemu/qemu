@@ -38,6 +38,7 @@ common-obj-$(CONFIG_SMARTCARD) += ccid-card-passthru.o
 common-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
 common-obj-$(CONFIG_SDHCI) += sdhci.o
+common-obj-y += fifo.o
 
 # PPC devices
 common-obj-$(CONFIG_PREP_PCI) += prep_pci.o
@@ -187,6 +188,7 @@ common-obj-y += scsi-disk.o cdrom.o hd-geometry.o block-common.o
 common-obj-y += scsi-generic.o scsi-bus.o
 common-obj-y += hid.o
 common-obj-$(CONFIG_SSI) += ssi.o
+common-obj-$(CONFIG_SSI_M25P80) += m25p80.o
 common-obj-$(CONFIG_SSI_SD) += ssi-sd.o
 common-obj-$(CONFIG_SD) += sd.o
 common-obj-$(CONFIG_VLYNQ) += vlynq.o

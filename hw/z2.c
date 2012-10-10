@@ -161,10 +161,11 @@ static int zipit_lcd_init(SSISlave *dev)
 
 static VMStateDescription vmstate_zipit_lcd_state = {
     .name = "zipit-lcd",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
     .fields = (VMStateField[]) {
+        VMSTATE_SSI_SLAVE(ssidev, ZipitLCD),
         VMSTATE_INT32(selected, ZipitLCD),
         VMSTATE_INT32(enabled, ZipitLCD),
         VMSTATE_BUFFER(buf, ZipitLCD),

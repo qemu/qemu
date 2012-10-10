@@ -268,6 +268,7 @@ S: Maintained
 F: hw/xilinx_zynq.c
 F: hw/zynq_slcr.c
 F: hw/cadence_*
+F: hw/xilinx_spips.c
 
 CRIS Machines
 -------------
@@ -517,6 +518,12 @@ M: Paul Brook <paul@codesourcery.com>
 S: Odd Fixes
 F: hw/lsi53c895a.c
 
+SSI
+M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
+S: Maintained
+F: hw/ssi.*
+F: hw/m25p80.c
+
 USB
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
@@ -565,6 +572,7 @@ F: hw/xilinx_intc.c
 F: hw/xilinx_ethlite.c
 F: hw/xilinx_timer.c
 F: hw/xilinx.h
+F: hw/xilinx_spi.c
 
 Subsystems
 ----------
