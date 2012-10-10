@@ -1297,14 +1297,10 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type)
 static void qemu_alloc_display(DisplaySurface *surface, int width, int height,
                                int linesize, PixelFormat pf, int newflags)
 {
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = linesize;
     surface->pf = pf;
 
     qemu_pixman_image_unref(surface->image);
     surface->image = NULL;
-    surface->data = NULL;
 
     surface->format = qemu_pixman_get_format(&pf);
     assert(surface->format != 0);
@@ -1313,7 +1309,6 @@ static void qemu_alloc_display(DisplaySurface *surface, int width, int height,
                                               NULL, linesize);
     assert(surface->image != NULL);
 
-    surface->data = (uint8_t *)pixman_image_get_data(surface->image);
     surface->flags = newflags | QEMU_ALLOCATED_FLAG;
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags |= QEMU_BIG_ENDIAN_FLAG;
@@ -1347,9 +1342,6 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
 {
     DisplaySurface *surface = g_new0(DisplaySurface, 1);
 
-    surface->width = width;
-    surface->height = height;
-    surface->linesize = linesize;
     surface->pf = qemu_default_pixelformat(bpp);
 
     surface->format = qemu_pixman_get_format(&surface->pf);
@@ -1362,7 +1354,6 @@ DisplaySurface *qemu_create_displaysurface_from(int width, int height, int bpp,
 #ifdef HOST_WORDS_BIGENDIAN
     surface->flags = QEMU_BIG_ENDIAN_FLAG;
 #endif
-    surface->data = data;
 
     return surface;
 }

@@ -123,10 +123,6 @@ struct DisplaySurface {
     pixman_format_code_t format;
     pixman_image_t *image;
     uint8_t flags;
-    int width;
-    int height;
-    int linesize;        /* bytes per line */
-    uint8_t *data;
 
     struct PixelFormat pf;
 };
@@ -346,32 +342,39 @@ static inline bool dpy_cursor_define_supported(struct DisplayState *s)
 
 static inline int ds_get_linesize(DisplayState *ds)
 {
-    return ds->surface->linesize;
+    return pixman_image_get_stride(ds->surface->image);
 }
 
 static inline uint8_t* ds_get_data(DisplayState *ds)
 {
-    return ds->surface->data;
+    return (void *)pixman_image_get_data(ds->surface->image);
 }
 
 static inline int ds_get_width(DisplayState *ds)
 {
-    return ds->surface->width;
+    return pixman_image_get_width(ds->surface->image);
 }
 
 static inline int ds_get_height(DisplayState *ds)
 {
-    return ds->surface->height;
+    return pixman_image_get_height(ds->surface->image);
 }
 
 static inline int ds_get_bits_per_pixel(DisplayState *ds)
 {
-    return ds->surface->pf.bits_per_pixel;
+    int bits = PIXMAN_FORMAT_BPP(ds->surface->format);
+    return bits;
 }
 
 static inline int ds_get_bytes_per_pixel(DisplayState *ds)
 {
-    return ds->surface->pf.bytes_per_pixel;
+    int bits = PIXMAN_FORMAT_BPP(ds->surface->format);
+    return (bits + 7) / 8;
+}
+
+static inline pixman_format_code_t ds_get_format(DisplayState *ds)
+{
+    return ds->surface->format;
 }
 
 #ifdef CONFIG_CURSES
