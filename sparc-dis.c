@@ -3270,6 +3270,6 @@ print_insn_sparc (bfd_vma memaddr, disassemble_info *info)
     }
 
   info->insn_type = dis_noninsn;        /* Mark as non-valid instruction.  */
-  (*info->fprintf_func) (stream, _("unknown"));
+  (*info->fprintf_func) (stream, ".long %#08lx", insn);
   return sizeof (buffer);
 }
