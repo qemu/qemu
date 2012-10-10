@@ -2393,13 +2393,12 @@ void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
 
 void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp)
 {
+    int width = pixman_image_get_width(ds->image);
+    int height = pixman_image_get_height(ds->image);
     FILE *f;
-    uint8_t *d, *d1;
-    uint32_t v;
-    int y, x;
-    uint8_t r, g, b;
+    int y;
     int ret;
-    char *linebuf, *pbuf;
+    pixman_image_t *linebuf;
 
     trace_ppm_save(filename, ds);
     f = fopen(filename, "wb");
@@ -2408,33 +2407,17 @@ void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp)
                    strerror(errno));
         return;
     }
-    ret = fprintf(f, "P6\n%d %d\n%d\n", ds->width, ds->height, 255);
+    ret = fprintf(f, "P6\n%d %d\n%d\n", width, height, 255);
     if (ret < 0) {
         linebuf = NULL;
         goto write_err;
     }
-    linebuf = g_malloc(ds->width * 3);
-    d1 = ds->data;
-    for(y = 0; y < ds->height; y++) {
-        d = d1;
-        pbuf = linebuf;
-        for(x = 0; x < ds->width; x++) {
-            if (ds->pf.bits_per_pixel == 32)
-                v = *(uint32_t *)d;
-            else
-                v = (uint32_t) (*(uint16_t *)d);
-            /* Limited to 8 or fewer bits per channel: */
-            r = ((v >> ds->pf.rshift) & ds->pf.rmax) << (8 - ds->pf.rbits);
-            g = ((v >> ds->pf.gshift) & ds->pf.gmax) << (8 - ds->pf.gbits);
-            b = ((v >> ds->pf.bshift) & ds->pf.bmax) << (8 - ds->pf.bbits);
-            *pbuf++ = r;
-            *pbuf++ = g;
-            *pbuf++ = b;
-            d += ds->pf.bytes_per_pixel;
-        }
-        d1 += ds->linesize;
+    linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, width);
+    for (y = 0; y < height; y++) {
+        qemu_pixman_linebuf_fill(linebuf, ds->image, width, y);
         clearerr(f);
-        ret = fwrite(linebuf, 1, pbuf - linebuf, f);
+        ret = fwrite(pixman_image_get_data(linebuf), 1,
+                     pixman_image_get_stride(linebuf), f);
         (void)ret;
         if (ferror(f)) {
             goto write_err;
@@ -2442,7 +2425,7 @@ void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp)
     }
 
 out:
-    g_free(linebuf);
+    qemu_pixman_image_unref(linebuf);
     fclose(f);
     return;
 
