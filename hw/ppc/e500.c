@@ -17,6 +17,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "e500.h"
+#include "e500-ccsr.h"
 #include "net.h"
 #include "hw/hw.h"
 #include "hw/serial.h"
@@ -422,8 +423,9 @@ void ppce500_init(PPCE500Params *params)
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
     CPUPPCState *firstenv = NULL;
-    MemoryRegion *ccsr;
+    MemoryRegion *ccsr_addr_space;
     SysBusDevice *s;
+    PPCE500CCSRState *ccsr;
 
     /* Setup CPUs */
     if (params->cpu_model == NULL) {
@@ -480,12 +482,17 @@ void ppce500_init(PPCE500Params *params)
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
-    ccsr = g_malloc0(sizeof(MemoryRegion));
-    memory_region_init(ccsr, "e500-ccsr", MPC8544_CCSRBAR_SIZE);
-    memory_region_add_subregion(address_space_mem, MPC8544_CCSRBAR_BASE, ccsr);
+    dev = qdev_create(NULL, "e500-ccsr");
+    object_property_add_child(qdev_get_machine(), "e500-ccsr",
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+    ccsr = CCSR(dev);
+    ccsr_addr_space = &ccsr->ccsr_space;
+    memory_region_add_subregion(address_space_mem, MPC8544_CCSRBAR_BASE,
+                                ccsr_addr_space);
 
     /* MPIC */
-    mpic = mpic_init(ccsr, MPC8544_MPIC_REGS_OFFSET,
+    mpic = mpic_init(ccsr_addr_space, MPC8544_MPIC_REGS_OFFSET,
                      smp_cpus, irqs, NULL);
 
     if (!mpic) {
@@ -494,13 +501,13 @@ void ppce500_init(PPCE500Params *params)
 
     /* Serial */
     if (serial_hds[0]) {
-        serial_mm_init(ccsr, MPC8544_SERIAL0_REGS_OFFSET,
+        serial_mm_init(ccsr_addr_space, MPC8544_SERIAL0_REGS_OFFSET,
                        0, mpic[12+26], 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
-        serial_mm_init(ccsr, MPC8544_SERIAL1_REGS_OFFSET,
+        serial_mm_init(ccsr_addr_space, MPC8544_SERIAL1_REGS_OFFSET,
                        0, mpic[12+26], 399193,
                        serial_hds[1], DEVICE_BIG_ENDIAN);
     }
@@ -509,7 +516,7 @@ void ppce500_init(PPCE500Params *params)
     dev = qdev_create(NULL, "mpc8544-guts");
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
-    memory_region_add_subregion(ccsr, MPC8544_UTIL_OFFSET,
+    memory_region_add_subregion(ccsr_addr_space, MPC8544_UTIL_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 
     /* PCI */
@@ -520,7 +527,7 @@ void ppce500_init(PPCE500Params *params)
     sysbus_connect_irq(s, 1, mpic[pci_irq_nrs[1]]);
     sysbus_connect_irq(s, 2, mpic[pci_irq_nrs[2]]);
     sysbus_connect_irq(s, 3, mpic[pci_irq_nrs[3]]);
-    memory_region_add_subregion(ccsr, MPC8544_PCI_REGS_OFFSET,
+    memory_region_add_subregion(ccsr_addr_space, MPC8544_PCI_REGS_OFFSET,
                                 sysbus_mmio_get_region(s, 0));
 
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
@@ -595,3 +602,33 @@ void ppce500_init(PPCE500Params *params)
         kvmppc_init();
     }
 }
+
+static int e500_ccsr_initfn(SysBusDevice *dev)
+{
+    PPCE500CCSRState *ccsr;
+
+    ccsr = CCSR(dev);
+    memory_region_init(&ccsr->ccsr_space, "e500-ccsr",
+                       MPC8544_CCSRBAR_SIZE);
+    return 0;
+}
+
+static void e500_ccsr_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = e500_ccsr_initfn;
+}
+
+static const TypeInfo e500_ccsr_info = {
+    .name          = TYPE_CCSR,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PPCE500CCSRState),
+    .class_init    = e500_ccsr_class_init,
+};
+
+static void e500_register_types(void)
+{
+    type_register_static(&e500_ccsr_info);
+}
+
+type_init(e500_register_types)

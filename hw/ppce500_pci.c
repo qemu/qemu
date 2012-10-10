@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "hw/ppc/e500-ccsr.h"
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
@@ -92,6 +93,19 @@ struct PPCE500PCIState {
     MemoryRegion pio;
 };
 
+#define TYPE_PPC_E500_PCI_BRIDGE "e500-host-bridge"
+#define PPC_E500_PCI_BRIDGE(obj) \
+    OBJECT_CHECK(PPCE500PCIBridgeState, (obj), TYPE_PPC_E500_PCI_BRIDGE)
+
+struct PPCE500PCIBridgeState {
+    /*< private >*/
+    PCIDevice parent;
+    /*< public >*/
+
+    MemoryRegion bar0;
+};
+
+typedef struct PPCE500PCIBridgeState PPCE500PCIBridgeState;
 typedef struct PPCE500PCIState PPCE500PCIState;
 
 static uint64_t pci_reg_read4(void *opaque, hwaddr addr,
@@ -310,6 +324,18 @@ static const VMStateDescription vmstate_ppce500_pci = {
 
 #include "exec-memory.h"
 
+static int e500_pcihost_bridge_initfn(PCIDevice *d)
+{
+    PPCE500PCIBridgeState *b = PPC_E500_PCI_BRIDGE(d);
+    PPCE500CCSRState *ccsr = CCSR(container_get(qdev_get_machine(),
+                                  "/e500-ccsr"));
+
+    memory_region_init_alias(&b->bar0, "e500-pci-bar0", &ccsr->ccsr_space,
+                             0, int128_get64(ccsr->ccsr_space.size));
+    pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &b->bar0);
+    return 0;
+}
+
 static int e500_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *h;
@@ -355,6 +381,7 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    k->init = e500_pcihost_bridge_initfn;
     k->vendor_id = PCI_VENDOR_ID_FREESCALE;
     k->device_id = PCI_DEVICE_ID_MPC8533E;
     k->class_id = PCI_CLASS_PROCESSOR_POWERPC;
@@ -364,7 +391,7 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
 static const TypeInfo e500_host_bridge_info = {
     .name          = "e500-host-bridge",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
+    .instance_size = sizeof(PPCE500PCIBridgeState),
     .class_init    = e500_host_bridge_class_init,
 };
 
