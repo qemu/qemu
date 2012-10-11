@@ -714,11 +714,13 @@ void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 
 #ifndef CONFIG_USER_ONLY
 /* SMP helpers.  */
-static int mips_vpe_is_wfi(CPUMIPSState *c)
+static bool mips_vpe_is_wfi(MIPSCPU *c)
 {
+    CPUMIPSState *env = &c->env;
+
     /* If the VPE is halted but otherwise active, it means it's waiting for
        an interrupt.  */
-    return c->halted && mips_vpe_active(c);
+    return env->halted && mips_vpe_active(env);
 }
 
 static inline void mips_vpe_wake(CPUMIPSState *c)
@@ -742,7 +744,7 @@ static inline void mips_tc_wake(MIPSCPU *cpu, int tc)
     CPUMIPSState *c = &cpu->env;
 
     /* FIXME: TC reschedule.  */
-    if (mips_vpe_active(c) && !mips_vpe_is_wfi(c)) {
+    if (mips_vpe_active(c) && !mips_vpe_is_wfi(cpu)) {
         mips_vpe_wake(c);
     }
 }
@@ -1899,9 +1901,11 @@ target_ulong helper_evpe(CPUMIPSState *env)
     target_ulong prev = env->mvp->CP0_MVPControl;
 
     do {
+        MIPSCPU *other_cpu = mips_env_get_cpu(other_cpu_env);
+
         if (other_cpu_env != env
             /* If the VPE is WFI, don't disturb its sleep.  */
-            && !mips_vpe_is_wfi(other_cpu_env)) {
+            && !mips_vpe_is_wfi(other_cpu)) {
             /* Enable the VPE.  */
             other_cpu_env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
             mips_vpe_wake(other_cpu_env); /* And wake it up.  */
