@@ -1145,74 +1145,6 @@ static int send_palette_rect(VncState *vs, int x, int y,
     return (bytes >= 0);
 }
 
-#if defined(CONFIG_VNC_JPEG) || defined(CONFIG_VNC_PNG)
-static void rgb_prepare_row24(VncState *vs, uint8_t *dst, int x, int y,
-                              int count)
-{
-    VncDisplay *vd = vs->vd;
-    uint32_t *fbptr;
-    uint32_t pix;
-
-    fbptr = vnc_server_fb_ptr(vd, x, y);
-
-    while (count--) {
-        pix = *fbptr++;
-        *dst++ = (uint8_t)(pix >> vs->ds->surface->pf.rshift);
-        *dst++ = (uint8_t)(pix >> vs->ds->surface->pf.gshift);
-        *dst++ = (uint8_t)(pix >> vs->ds->surface->pf.bshift);
-    }
-}
-
-#define DEFINE_RGB_GET_ROW_FUNCTION(bpp)                                \
-                                                                        \
-    static void                                                         \
-    rgb_prepare_row##bpp(VncState *vs, uint8_t *dst,                    \
-                         int x, int y, int count)                       \
-    {                                                                   \
-        VncDisplay *vd = vs->vd;                                        \
-        uint##bpp##_t *fbptr;                                           \
-        uint##bpp##_t pix;                                              \
-        int r, g, b;                                                    \
-                                                                        \
-        fbptr = vnc_server_fb_ptr(vd, x, y);                            \
-                                                                        \
-        while (count--) {                                               \
-            pix = *fbptr++;                                             \
-                                                                        \
-            r = (int)((pix >> vs->ds->surface->pf.rshift)               \
-                      & vs->ds->surface->pf.rmax);                      \
-            g = (int)((pix >> vs->ds->surface->pf.gshift)               \
-                      & vs->ds->surface->pf.gmax);                      \
-            b = (int)((pix >> vs->ds->surface->pf.bshift)               \
-                      & vs->ds->surface->pf.bmax);                      \
-                                                                        \
-            *dst++ = (uint8_t)((r * 255 + vs->ds->surface->pf.rmax / 2) \
-                               / vs->ds->surface->pf.rmax);             \
-            *dst++ = (uint8_t)((g * 255 + vs->ds->surface->pf.gmax / 2) \
-                               / vs->ds->surface->pf.gmax);             \
-            *dst++ = (uint8_t)((b * 255 + vs->ds->surface->pf.bmax / 2) \
-                               / vs->ds->surface->pf.bmax);             \
-        }                                                               \
-    }
-
-DEFINE_RGB_GET_ROW_FUNCTION(16)
-DEFINE_RGB_GET_ROW_FUNCTION(32)
-
-static void rgb_prepare_row(VncState *vs, uint8_t *dst, int x, int y,
-                            int count)
-{
-    if (VNC_SERVER_FB_BYTES == 4) {
-        if (1) {
-            rgb_prepare_row24(vs, dst, x, y, count);
-        } else {
-            rgb_prepare_row32(vs, dst, x, y, count);
-        }
-    } else {
-        rgb_prepare_row16(vs, dst, x, y, count);
-    }
-}
-#endif /* CONFIG_VNC_JPEG or CONFIG_VNC_PNG */
-
 /*
  * JPEG compression stuff.
  */
@@ -1257,6 +1189,7 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
     struct jpeg_compress_struct cinfo;
     struct jpeg_error_mgr jerr;
     struct jpeg_destination_mgr manager;
+    pixman_image_t *linebuf;
     JSAMPROW row[1];
     uint8_t *buf;
     int dy;
@@ -1285,13 +1218,14 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
 
     jpeg_start_compress(&cinfo, true);
 
-    buf = g_malloc(w * 3);
+    linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, w);
+    buf = (uint8_t *)pixman_image_get_data(linebuf);
     row[0] = buf;
     for (dy = 0; dy < h; dy++) {
-        rgb_prepare_row(vs, buf, x, y + dy, w);
+        qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, dy);
         jpeg_write_scanlines(&cinfo, row, 1);
     }
-    g_free(buf);
+    qemu_pixman_image_unref(linebuf);
 
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
@@ -1370,6 +1304,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_structp png_ptr;
     png_infop info_ptr;
     png_colorp png_palette = NULL;
+    pixman_image_t *linebuf;
     int level = tight_png_conf[vs->tight.compression].png_zlib_level;
     int filters = tight_png_conf[vs->tight.compression].png_filters;
     uint8_t *buf;
@@ -1424,17 +1359,18 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_write_info(png_ptr, info_ptr);
 
     buffer_reserve(&vs->tight.png, 2048);
-    buf = g_malloc(w * 3);
+    linebuf = qemu_pixman_linebuf_create(PIXMAN_BE_r8g8b8, w);
+    buf = (uint8_t *)pixman_image_get_data(linebuf);
     for (dy = 0; dy < h; dy++)
     {
         if (color_type == PNG_COLOR_TYPE_PALETTE) {
             memcpy(buf, vs->tight.tight.buffer + (dy * w), w);
         } else {
-            rgb_prepare_row(vs, buf, x, y + dy, w);
+            qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, dy);
         }
         png_write_row(png_ptr, buf);
     }
-    g_free(buf);
+    qemu_pixman_image_unref(linebuf);
 
     png_write_end(png_ptr, NULL);
 
