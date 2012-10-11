@@ -731,8 +731,10 @@ static inline void mips_vpe_wake(CPUMIPSState *c)
     cpu_interrupt(c, CPU_INTERRUPT_WAKE);
 }
 
-static inline void mips_vpe_sleep(CPUMIPSState *c)
+static inline void mips_vpe_sleep(MIPSCPU *cpu)
 {
+    CPUMIPSState *c = &cpu->env;
+
     /* The VPE was shut off, really go to bed.
        Reset any old _WAKE requests.  */
     c->halted = 1;
@@ -755,7 +757,7 @@ static inline void mips_tc_sleep(MIPSCPU *cpu, int tc)
 
     /* FIXME: TC reschedule.  */
     if (!mips_vpe_active(c)) {
-        mips_vpe_sleep(c);
+        mips_vpe_sleep(cpu);
     }
 }
 
@@ -1889,8 +1891,10 @@ target_ulong helper_dvpe(CPUMIPSState *env)
     do {
         /* Turn off all VPEs except the one executing the dvpe.  */
         if (other_cpu_env != env) {
+            MIPSCPU *other_cpu = mips_env_get_cpu(other_cpu_env);
+
             other_cpu_env->mvp->CP0_MVPControl &= ~(1 << CP0MVPCo_EVP);
-            mips_vpe_sleep(other_cpu_env);
+            mips_vpe_sleep(other_cpu);
         }
         other_cpu_env = other_cpu_env->next_cpu;
     } while (other_cpu_env);
