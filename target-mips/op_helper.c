@@ -749,8 +749,10 @@ static inline void mips_tc_wake(MIPSCPU *cpu, int tc)
     }
 }
 
-static inline void mips_tc_sleep(CPUMIPSState *c, int tc)
+static inline void mips_tc_sleep(MIPSCPU *cpu, int tc)
 {
+    CPUMIPSState *c = &cpu->env;
+
     /* FIXME: TC reschedule.  */
     if (!mips_vpe_active(c)) {
         mips_vpe_sleep(c);
@@ -1352,7 +1354,7 @@ void helper_mtc0_tchalt(CPUMIPSState *env, target_ulong arg1)
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
     if (env->active_tc.CP0_TCHalt & 1) {
-        mips_tc_sleep(env, env->current_tc);
+        mips_tc_sleep(cpu, env->current_tc);
     } else {
         mips_tc_wake(cpu, env->current_tc);
     }
@@ -1372,7 +1374,7 @@ void helper_mttc0_tchalt(CPUMIPSState *env, target_ulong arg1)
         other->tcs[other_tc].CP0_TCHalt = arg1;
 
     if (arg1 & 1) {
-        mips_tc_sleep(other, other_tc);
+        mips_tc_sleep(other_cpu, other_tc);
     } else {
         mips_tc_wake(other_cpu, other_tc);
     }
