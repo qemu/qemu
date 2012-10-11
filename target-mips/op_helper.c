@@ -1874,35 +1874,35 @@ target_ulong helper_emt(void)
 
 target_ulong helper_dvpe(CPUMIPSState *env)
 {
-    CPUMIPSState *other_cpu = first_cpu;
+    CPUMIPSState *other_cpu_env = first_cpu;
     target_ulong prev = env->mvp->CP0_MVPControl;
 
     do {
         /* Turn off all VPEs except the one executing the dvpe.  */
-        if (other_cpu != env) {
-            other_cpu->mvp->CP0_MVPControl &= ~(1 << CP0MVPCo_EVP);
-            mips_vpe_sleep(other_cpu);
+        if (other_cpu_env != env) {
+            other_cpu_env->mvp->CP0_MVPControl &= ~(1 << CP0MVPCo_EVP);
+            mips_vpe_sleep(other_cpu_env);
         }
-        other_cpu = other_cpu->next_cpu;
-    } while (other_cpu);
+        other_cpu_env = other_cpu_env->next_cpu;
+    } while (other_cpu_env);
     return prev;
 }
 
 target_ulong helper_evpe(CPUMIPSState *env)
 {
-    CPUMIPSState *other_cpu = first_cpu;
+    CPUMIPSState *other_cpu_env = first_cpu;
     target_ulong prev = env->mvp->CP0_MVPControl;
 
     do {
-        if (other_cpu != env
-           /* If the VPE is WFI, don't disturb its sleep.  */
-           && !mips_vpe_is_wfi(other_cpu)) {
+        if (other_cpu_env != env
+            /* If the VPE is WFI, don't disturb its sleep.  */
+            && !mips_vpe_is_wfi(other_cpu_env)) {
             /* Enable the VPE.  */
-            other_cpu->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
-            mips_vpe_wake(other_cpu); /* And wake it up.  */
+            other_cpu_env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
+            mips_vpe_wake(other_cpu_env); /* And wake it up.  */
         }
-        other_cpu = other_cpu->next_cpu;
-    } while (other_cpu);
+        other_cpu_env = other_cpu_env->next_cpu;
+    } while (other_cpu_env);
     return prev;
 }
 #endif /* !CONFIG_USER_ONLY */
