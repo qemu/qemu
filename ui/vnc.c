@@ -666,24 +666,6 @@ static void vnc_write_pixels_generic(VncState *vs,
             vnc_convert_pixel(vs, buf, pixels[i]);
             vnc_write(vs, buf, vs->client_pf.bytes_per_pixel);
         }
-    } else if (VNC_SERVER_FB_BYTES == 2) {
-        uint16_t *pixels = pixels1;
-        int n, i;
-        n = size >> 1;
-        for (i = 0; i < n; i++) {
-            vnc_convert_pixel(vs, buf, pixels[i]);
-            vnc_write(vs, buf, vs->client_pf.bytes_per_pixel);
-        }
-    } else if (VNC_SERVER_FB_BYTES == 1) {
-        uint8_t *pixels = pixels1;
-        int n, i;
-        n = size;
-        for (i = 0; i < n; i++) {
-            vnc_convert_pixel(vs, buf, pixels[i]);
-            vnc_write(vs, buf, vs->client_pf.bytes_per_pixel);
-        }
-    } else {
-        fprintf(stderr, "%s: VncState color depth not supported\n", __func__);
     }
 }
 

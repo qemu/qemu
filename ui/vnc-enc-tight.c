@@ -671,41 +671,35 @@ DEFINE_GRADIENT_FILTER_FUNCTION(32)
  * that case new color will be stored in *colorPtr.
  */
 
-#define DEFINE_CHECK_SOLID_FUNCTION(bpp)                                \
-                                                                        \
-    static bool                                                         \
-    check_solid_tile##bpp(VncState *vs, int x, int y, int w, int h,     \
-                          uint32_t* color, bool samecolor)              \
-    {                                                                   \
-        VncDisplay *vd = vs->vd;                                        \
-        uint##bpp##_t *fbptr;                                           \
-        uint##bpp##_t c;                                                \
-        int dx, dy;                                                     \
-                                                                        \
-        fbptr = vnc_server_fb_ptr(vd, x, y);                            \
-                                                                        \
-        c = *fbptr;                                                     \
-        if (samecolor && (uint32_t)c != *color) {                       \
-            return false;                                               \
-        }                                                               \
-                                                                        \
-        for (dy = 0; dy < h; dy++) {                                    \
-            for (dx = 0; dx < w; dx++) {                                \
-                if (c != fbptr[dx]) {                                   \
-                    return false;                                       \
-                }                                                       \
-            }                                                           \
-            fbptr = (uint##bpp##_t *)                                   \
-                ((uint8_t *)fbptr + vnc_server_fb_stride(vd));          \
-        }                                                               \
-                                                                        \
-        *color = (uint32_t)c;                                           \
-        return true;                                                    \
+static bool
+check_solid_tile32(VncState *vs, int x, int y, int w, int h,
+                   uint32_t *color, bool samecolor)
+{
+    VncDisplay *vd = vs->vd;
+    uint32_t *fbptr;
+    uint32_t c;
+    int dx, dy;
+
+    fbptr = vnc_server_fb_ptr(vd, x, y);
+
+    c = *fbptr;
+    if (samecolor && (uint32_t)c != *color) {
+        return false;
     }
 
-DEFINE_CHECK_SOLID_FUNCTION(32)
-DEFINE_CHECK_SOLID_FUNCTION(16)
-DEFINE_CHECK_SOLID_FUNCTION(8)
+    for (dy = 0; dy < h; dy++) {
+        for (dx = 0; dx < w; dx++) {
+            if (c != fbptr[dx]) {
+                return false;
+            }
+        }
+        fbptr = (uint32_t *)
+            ((uint8_t *)fbptr + vnc_server_fb_stride(vd));
+    }
+
+    *color = (uint32_t)c;
+    return true;
+}
 
 static bool check_solid_tile(VncState *vs, int x, int y, int w, int h,
                              uint32_t* color, bool samecolor)
@@ -713,10 +707,6 @@ static bool check_solid_tile(VncState *vs, int x, int y, int w, int h,
     switch (VNC_SERVER_FB_BYTES) {
     case 4:
         return check_solid_tile32(vs, x, y, w, h, color, samecolor);
-    case 2:
-        return check_solid_tile16(vs, x, y, w, h, color, samecolor);
-    default:
-        return check_solid_tile8(vs, x, y, w, h, color, samecolor);
     }
 }
 

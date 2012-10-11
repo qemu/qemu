@@ -32,29 +32,9 @@ static void hextile_enc_cord(uint8_t *ptr, int x, int y, int w, int h)
     ptr[1] = (((w - 1) & 0x0F) << 4) | ((h - 1) & 0x0F);
 }
 
-#define BPP 8
-#include "vnc-enc-hextile-template.h"
-#undef BPP
-
-#define BPP 16
-#include "vnc-enc-hextile-template.h"
-#undef BPP
-
 #define BPP 32
 #include "vnc-enc-hextile-template.h"
 #undef BPP
-
-#define GENERIC
-#define BPP 8
-#include "vnc-enc-hextile-template.h"
-#undef BPP
-#undef GENERIC
-
-#define GENERIC
-#define BPP 16
-#include "vnc-enc-hextile-template.h"
-#undef BPP
-#undef GENERIC
 
 #define GENERIC
 #define BPP 32
@@ -89,24 +69,12 @@ void vnc_hextile_set_pixel_conversion(VncState *vs, int generic)
 {
     if (!generic) {
         switch (VNC_SERVER_FB_BITS) {
-        case 8:
-            vs->hextile.send_tile = send_hextile_tile_8;
-            break;
-        case 16:
-            vs->hextile.send_tile = send_hextile_tile_16;
-            break;
         case 32:
             vs->hextile.send_tile = send_hextile_tile_32;
             break;
         }
     } else {
         switch (VNC_SERVER_FB_BITS) {
-        case 8:
-            vs->hextile.send_tile = send_hextile_tile_generic_8;
-            break;
-        case 16:
-            vs->hextile.send_tile = send_hextile_tile_generic_16;
-            break;
         case 32:
             vs->hextile.send_tile = send_hextile_tile_generic_32;
             break;
