@@ -788,7 +788,6 @@ uint64_t HELPER(neon_qshlu_s64)(CPUARMState *env, uint64_t valop, uint64_t shift
     return helper_neon_qshl_u64(env, valop, shiftop);
 }
 
-/* FIXME: This is wrong.  */
 #define NEON_FN(dest, src1, src2) do { \
     int8_t tmp; \
     tmp = (int8_t)src2; \
