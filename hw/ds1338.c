@@ -19,11 +19,26 @@
 
 typedef struct {
     I2CSlave i2c;
-    time_t offset;
+    int64_t offset;
     uint8_t nvram[NVRAM_SIZE];
-    int ptr;
-    int addr_byte;
+    int32_t ptr;
+    bool addr_byte;
 } DS1338State;
+
+static const VMStateDescription vmstate_ds1338 = {
+    .name = "ds1338",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_I2C_SLAVE(i2c, DS1338State),
+        VMSTATE_INT64(offset, DS1338State),
+        VMSTATE_UINT8_ARRAY(nvram, DS1338State, NVRAM_SIZE),
+        VMSTATE_INT32(ptr, DS1338State),
+        VMSTATE_BOOL(addr_byte, DS1338State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void capture_current_time(DS1338State *s)
 {
@@ -74,7 +89,7 @@ static void ds1338_event(I2CSlave *i2c, enum i2c_event event)
         capture_current_time(s);
         break;
     case I2C_START_SEND:
-        s->addr_byte = 1;
+        s->addr_byte = true;
         break;
     default:
         break;
@@ -96,7 +111,7 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
     DS1338State *s = FROM_I2C_SLAVE(DS1338State, i2c);
     if (s->addr_byte) {
         s->ptr = data & (NVRAM_SIZE - 1);
-        s->addr_byte = 0;
+        s->addr_byte = false;
         return 0;
     }
     if (s->ptr < 8) {
@@ -153,12 +168,14 @@ static int ds1338_init(I2CSlave *i2c)
 
 static void ds1338_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->init = ds1338_init;
     k->event = ds1338_event;
     k->recv = ds1338_recv;
     k->send = ds1338_send;
+    dc->vmsd = &vmstate_ds1338;
 }
 
 static TypeInfo ds1338_info = {
