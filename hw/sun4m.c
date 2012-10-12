@@ -253,8 +253,10 @@ void cpu_check_irqs(CPUSPARCState *env)
     }
 }
 
-static void cpu_kick_irq(CPUSPARCState *env)
+static void cpu_kick_irq(SPARCCPU *cpu)
 {
+    CPUSPARCState *env = &cpu->env;
+
     env->halted = 0;
     cpu_check_irqs(env);
     qemu_cpu_kick(env);
@@ -268,7 +270,7 @@ static void cpu_set_irq(void *opaque, int irq, int level)
     if (level) {
         trace_sun4m_cpu_set_irq_raise(irq);
         env->pil_in |= 1 << irq;
-        cpu_kick_irq(env);
+        cpu_kick_irq(cpu);
     } else {
         trace_sun4m_cpu_set_irq_lower(irq);
         env->pil_in &= ~(1 << irq);
