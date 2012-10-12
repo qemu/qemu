@@ -274,6 +274,7 @@ static uint32_t cadence_ttc_read_imp(void *opaque, target_phys_addr_t offset)
         /* cleared after read */
         value = s->reg_intr;
         s->reg_intr = 0;
+        cadence_timer_update(s);
         return value;
 
     case 0x60: /* interrupt enable */
@@ -355,7 +356,6 @@ static void cadence_ttc_write(void *opaque, target_phys_addr_t offset,
     case 0x54: /* interrupt register */
     case 0x58:
     case 0x5c:
-        s->reg_intr &= (~value & 0xfff);
         break;
 
     case 0x60: /* interrupt enable */
