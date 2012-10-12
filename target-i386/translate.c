@@ -64,7 +64,7 @@ static TCGv cpu_A0, cpu_cc_src, cpu_cc_dst;
 static TCGv_i32 cpu_cc_op;
 static TCGv cpu_regs[CPU_NB_REGS];
 /* local temps */
-static TCGv cpu_T[2], cpu_T3;
+static TCGv cpu_T[2];
 /* local register indexes (only used inside old micro ops) */
 static TCGv cpu_tmp0, cpu_tmp4;
 static TCGv_ptr cpu_ptr0, cpu_ptr1;
@@ -1858,8 +1858,8 @@ static void gen_rotc_rm_T1(DisasContext *s, int ot, int op1,
 }
 
 /* XXX: add faster immediate case */
-static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1, 
-                                int is_right)
+static void gen_shiftd_rm_T1(DisasContext *s, int ot, int op1,
+                             int is_right, TCGv count)
 {
     int label1, label2, data_bits;
     target_ulong mask;
@@ -1883,10 +1883,8 @@ static void gen_shiftd_rm_T1_T3(DisasContext *s, int ot, int op1,
         gen_op_mov_v_reg(ot, t0, op1);
     }
 
-    tcg_gen_andi_tl(cpu_T3, cpu_T3, mask);
-
+    tcg_gen_andi_tl(t2, count, mask);
     tcg_gen_mov_tl(t1, cpu_T[1]);
-    tcg_gen_mov_tl(t2, cpu_T3);
 
     /* Must test zero case to avoid using undefined behaviour in TCG
        shifts. */
@@ -5583,12 +5581,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_op_mov_TN_reg(ot, 1, reg);
 
         if (shift) {
-            val = cpu_ldub_code(env, s->pc++);
-            tcg_gen_movi_tl(cpu_T3, val);
+            TCGv imm = tcg_const_tl(cpu_ldub_code(env, s->pc++));
+            gen_shiftd_rm_T1(s, ot, opreg, op, imm);
+            tcg_temp_free(imm);
         } else {
-            tcg_gen_mov_tl(cpu_T3, cpu_regs[R_ECX]);
+            gen_shiftd_rm_T1(s, ot, opreg, op, cpu_regs[R_ECX]);
         }
-        gen_shiftd_rm_T1_T3(s, ot, opreg, op);
         break;
 
         /************************/
@@ -7869,7 +7867,6 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     cpu_T[0] = tcg_temp_new();
     cpu_T[1] = tcg_temp_new();
     cpu_A0 = tcg_temp_new();
-    cpu_T3 = tcg_temp_new();
 
     cpu_tmp0 = tcg_temp_new();
     cpu_tmp1_i64 = tcg_temp_new_i64();
