@@ -262,7 +262,8 @@ static void cpu_kick_irq(CPUSPARCState *env)
 
 static void cpu_set_irq(void *opaque, int irq, int level)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     if (level) {
         trace_sun4m_cpu_set_irq_raise(irq);
@@ -840,7 +841,7 @@ static void cpu_devinit(const char *cpu_model, unsigned int id,
         qemu_register_reset(secondary_cpu_reset, cpu);
         env->halted = 1;
     }
-    *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
+    *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);
     env->prom_addr = prom_addr;
 }
 
