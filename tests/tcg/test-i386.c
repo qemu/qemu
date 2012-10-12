@@ -925,7 +925,7 @@ void test_fbcd(double a)
 
 void test_fenv(void)
 {
-    struct QEMU_PACKED {
+    struct __attribute__((__packed__)) {
         uint16_t fpuc;
         uint16_t dummy1;
         uint16_t fpus;
@@ -935,7 +935,7 @@ void test_fenv(void)
         uint32_t ignored[4];
         long double fpregs[8];
     } float_env32;
-    struct QEMU_PACKED {
+    struct __attribute__((__packed__)) {
         uint16_t fpuc;
         uint16_t fpus;
         uint16_t fptag;
@@ -1280,7 +1280,7 @@ void test_segs(void)
     struct {
         uint32_t offset;
         uint16_t seg;
-    } QEMU_PACKED segoff;
+    } __attribute__((__packed__)) segoff;
 
     ldt.entry_number = 1;
     ldt.base_addr = (unsigned long)&seg_data1;
