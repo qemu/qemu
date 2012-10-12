@@ -20,7 +20,6 @@
 typedef struct {
     I2CSlave i2c;
     time_t offset;
-    struct tm now;
     uint8_t nvram[NVRAM_SIZE];
     int ptr;
     int addr_byte;
@@ -31,21 +30,22 @@ static void capture_current_time(DS1338State *s)
     /* Capture the current time into the secondary registers
      * which will be actually read by the data transfer operation.
      */
-    qemu_get_timedate(&s->now, s->offset);
-    s->nvram[0] = to_bcd(s->now.tm_sec);
-    s->nvram[1] = to_bcd(s->now.tm_min);
+    struct tm now;
+    qemu_get_timedate(&now, s->offset);
+    s->nvram[0] = to_bcd(now.tm_sec);
+    s->nvram[1] = to_bcd(now.tm_min);
     if (s->nvram[2] & 0x40) {
-        s->nvram[2] = (to_bcd((s->now.tm_hour % 12)) + 1) | 0x40;
-        if (s->now.tm_hour >= 12) {
+        s->nvram[2] = (to_bcd((now.tm_hour % 12)) + 1) | 0x40;
+        if (now.tm_hour >= 12) {
             s->nvram[2] |= 0x20;
         }
     } else {
-        s->nvram[2] = to_bcd(s->now.tm_hour);
+        s->nvram[2] = to_bcd(now.tm_hour);
     }
-    s->nvram[3] = to_bcd(s->now.tm_wday) + 1;
-    s->nvram[4] = to_bcd(s->now.tm_mday);
-    s->nvram[5] = to_bcd(s->now.tm_mon) + 1;
-    s->nvram[6] = to_bcd(s->now.tm_year - 100);
+    s->nvram[3] = to_bcd(now.tm_wday) + 1;
+    s->nvram[4] = to_bcd(now.tm_mday);
+    s->nvram[5] = to_bcd(now.tm_mon) + 1;
+    s->nvram[6] = to_bcd(now.tm_year - 100);
 }
 
 static void inc_regptr(DS1338State *s)
@@ -100,14 +100,15 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
         return 0;
     }
     if (s->ptr < 8) {
-        qemu_get_timedate(&s->now, s->offset);
+        struct tm now;
+        qemu_get_timedate(&now, s->offset);
         switch(s->ptr) {
         case 0:
             /* TODO: Implement CH (stop) bit.  */
-            s->now.tm_sec = from_bcd(data & 0x7f);
+            now.tm_sec = from_bcd(data & 0x7f);
             break;
         case 1:
-            s->now.tm_min = from_bcd(data & 0x7f);
+            now.tm_min = from_bcd(data & 0x7f);
             break;
         case 2:
             if (data & 0x40) {
@@ -119,25 +120,25 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             } else {
                 data = from_bcd(data);
             }
-            s->now.tm_hour = data;
+            now.tm_hour = data;
             break;
         case 3:
-            s->now.tm_wday = from_bcd(data & 7) - 1;
+            now.tm_wday = from_bcd(data & 7) - 1;
             break;
         case 4:
-            s->now.tm_mday = from_bcd(data & 0x3f);
+            now.tm_mday = from_bcd(data & 0x3f);
             break;
         case 5:
-            s->now.tm_mon = from_bcd(data & 0x1f) - 1;
+            now.tm_mon = from_bcd(data & 0x1f) - 1;
             break;
         case 6:
-            s->now.tm_year = from_bcd(data) + 100;
+            now.tm_year = from_bcd(data) + 100;
             break;
         case 7:
             /* Control register. Currently ignored.  */
             break;
         }
-        s->offset = qemu_timedate_diff(&s->now);
+        s->offset = qemu_timedate_diff(&now);
     } else {
         s->nvram[s->ptr] = data;
     }
