@@ -29,11 +29,6 @@
 
 #include "qxl.h"
 
-#ifndef CONFIG_QXL_IO_MONITORS_CONFIG_ASYNC
-/* spice-protocol is too old, add missing definitions */
-#define QXL_IO_MONITORS_CONFIG_ASYNC (QXL_IO_FLUSH_RELEASE + 1)
-#endif
-
 /*
  * NOTE: SPICE_RING_PROD_ITEM accesses memory on the pci bar and as
  * such can be changed by the guest, so to avoid a guest trigerrable
@@ -262,9 +257,6 @@ static void qxl_spice_destroy_surfaces(PCIQXLDevice *qxl, qxl_async_io async)
 static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
 {
     trace_qxl_spice_monitors_config(qxl->id);
-/* 0x000b01 == 0.11.1 */
-#if SPICE_SERVER_VERSION >= 0x000b01 && \
-    defined(CONFIG_QXL_IO_MONITORS_CONFIG_ASYNC)
     if (replay) {
         /*
          * don't use QXL_COOKIE_TYPE_IO:
@@ -286,10 +278,6 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
                 (uintptr_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
                                           QXL_IO_MONITORS_CONFIG_ASYNC));
     }
-#else
-    fprintf(stderr, "qxl: too old spice-protocol/spice-server for "
-            "QXL_IO_MONITORS_CONFIG_ASYNC\n");
-#endif
 }
 
 void qxl_spice_reset_image_cache(PCIQXLDevice *qxl)
@@ -948,8 +936,6 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
     }
 }
 
-#if SPICE_SERVER_VERSION >= 0x000b04
-
 /* called from spice server thread context only */
 static void interface_set_client_capabilities(QXLInstance *sin,
                                               uint8_t client_present,
@@ -970,11 +956,6 @@ static void interface_set_client_capabilities(QXLInstance *sin,
 
     qxl_send_events(qxl, QXL_INTERRUPT_CLIENT);
 }
-
-#endif
-
-#if defined(CONFIG_QXL_CLIENT_MONITORS_CONFIG) \
-    && SPICE_SERVER_VERSION >= 0x000b05
 
 static uint32_t qxl_crc32(const uint8_t *p, unsigned len)
 {
@@ -1044,7 +1025,6 @@ static int interface_client_monitors_config(QXLInstance *sin,
     qxl_send_events(qxl, QXL_INTERRUPT_CLIENT_MONITORS_CONFIG);
     return 1;
 }
-#endif
 
 static const QXLInterface qxl_interface = {
     .base.type               = SPICE_INTERFACE_QXL,
@@ -1067,13 +1047,8 @@ static const QXLInterface qxl_interface = {
     .flush_resources         = interface_flush_resources,
     .async_complete          = interface_async_complete,
     .update_area_complete    = interface_update_area_complete,
-#if SPICE_SERVER_VERSION >= 0x000b04
     .set_client_capabilities = interface_set_client_capabilities,
-#endif
-#if SPICE_SERVER_VERSION >= 0x000b05 && \
-    defined(CONFIG_QXL_CLIENT_MONITORS_CONFIG)
     .client_monitors_config = interface_client_monitors_config,
-#endif
 };
 
 static void qxl_enter_vga_mode(PCIQXLDevice *d)
@@ -1461,12 +1436,12 @@ static void ioport_write(void *opaque, target_phys_addr_t addr,
     qxl_async_io async = QXL_SYNC;
     uint32_t orig_io_port = io_port;
 
-    if (d->guest_bug && !io_port == QXL_IO_RESET) {
+    if (d->guest_bug && io_port != QXL_IO_RESET) {
         return;
     }
 
     if (d->revision <= QXL_REVISION_STABLE_V10 &&
-        io_port >= QXL_IO_FLUSH_SURFACES_ASYNC) {
+        io_port > QXL_IO_FLUSH_RELEASE) {
         qxl_set_guest_bug(d, "unsupported io %d for revision %d\n",
             io_port, d->revision);
         return;
@@ -1547,20 +1522,13 @@ async_common:
         if (d->ram->update_surface > d->ssd.num_surfaces) {
             qxl_set_guest_bug(d, "QXL_IO_UPDATE_AREA: invalid surface id %d\n",
                               d->ram->update_surface);
-            return;
+            break;
         }
-        if (update.left >= update.right || update.top >= update.bottom) {
+        if (update.left >= update.right || update.top >= update.bottom ||
+            update.left < 0 || update.top < 0) {
             qxl_set_guest_bug(d,
                     "QXL_IO_UPDATE_AREA: invalid area (%ux%u)x(%ux%u)\n",
                     update.left, update.top, update.right, update.bottom);
-            return;
-        }
-
-        if (update.left < 0 || update.top < 0 || update.left >= update.right ||
-            update.top >= update.bottom) {
-            qxl_set_guest_bug(d, "QXL_IO_UPDATE_AREA: "
-                              "invalid area(%d,%d,%d,%d)\n", update.left,
-                              update.right, update.top, update.bottom);
             break;
         }
         if (async == QXL_ASYNC) {
@@ -1811,7 +1779,7 @@ static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
 
 static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
 {
-    intptr_t vram_start;
+    uintptr_t vram_start;
     int i;
 
     if (qxl->mode != QXL_MODE_NATIVE && qxl->mode != QXL_MODE_COMPAT) {
@@ -1822,7 +1790,7 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
     qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
                   qxl->shadow_rom.surface0_area_size);
 
-    vram_start =  (intptr_t)memory_region_get_ram_ptr(&qxl->vram_bar);
+    vram_start = (uintptr_t)memory_region_get_ram_ptr(&qxl->vram_bar);
 
     /* dirty the off-screen surfaces */
     for (i = 0; i < qxl->ssd.num_surfaces; i++) {
@@ -1854,7 +1822,6 @@ static void qxl_vm_change_state_handler(void *opaque, int running,
                                         RunState state)
 {
     PCIQXLDevice *qxl = opaque;
-    qemu_spice_vm_change_state_handler(&qxl->ssd, running, state);
 
     if (running) {
         /*
@@ -1971,14 +1938,10 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         pci_device_rev = QXL_REVISION_STABLE_V10;
         io_size = 32; /* PCI region size must be pow2 */
         break;
-/* 0x000b01 == 0.11.1 */
-#if SPICE_SERVER_VERSION >= 0x000b01 && \
-        defined(CONFIG_QXL_IO_MONITORS_CONFIG_ASYNC)
     case 4: /* qxl-4 */
         pci_device_rev = QXL_REVISION_STABLE_V12;
         io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
         break;
-#endif
     default:
         error_report("Invalid revision %d for qxl device (max %d)",
                      qxl->revision, QXL_DEFAULT_REVISION);
@@ -2044,7 +2007,11 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     qxl->ssd.qxl.id = qxl->id;
-    qemu_spice_add_interface(&qxl->ssd.qxl.base);
+    if (qemu_spice_add_interface(&qxl->ssd.qxl.base) != 0) {
+        error_report("qxl interface %d.%d not supported by spice-server\n",
+                     SPICE_INTERFACE_QXL_MAJOR, SPICE_INTERFACE_QXL_MINOR);
+        return -1;
+    }
     qemu_add_vm_change_state_handler(qxl_vm_change_state_handler, qxl);
 
     init_pipe_signaling(qxl);
