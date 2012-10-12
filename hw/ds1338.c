@@ -26,27 +26,52 @@ typedef struct {
     int addr_byte;
 } DS1338State;
 
+static void capture_current_time(DS1338State *s)
+{
+    /* Capture the current time into the secondary registers
+     * which will be actually read by the data transfer operation.
+     */
+    qemu_get_timedate(&s->now, s->offset);
+    s->nvram[0] = to_bcd(s->now.tm_sec);
+    s->nvram[1] = to_bcd(s->now.tm_min);
+    if (s->nvram[2] & 0x40) {
+        s->nvram[2] = (to_bcd((s->now.tm_hour % 12)) + 1) | 0x40;
+        if (s->now.tm_hour >= 12) {
+            s->nvram[2] |= 0x20;
+        }
+    } else {
+        s->nvram[2] = to_bcd(s->now.tm_hour);
+    }
+    s->nvram[3] = to_bcd(s->now.tm_wday) + 1;
+    s->nvram[4] = to_bcd(s->now.tm_mday);
+    s->nvram[5] = to_bcd(s->now.tm_mon) + 1;
+    s->nvram[6] = to_bcd(s->now.tm_year - 100);
+}
+
+static void inc_regptr(DS1338State *s)
+{
+    /* The register pointer wraps around after 0x3F; wraparound
+     * causes the current time/date to be retransferred into
+     * the secondary registers.
+     */
+    s->ptr = (s->ptr + 1) & (NVRAM_SIZE - 1);
+    if (!s->ptr) {
+        capture_current_time(s);
+    }
+}
+
 static void ds1338_event(I2CSlave *i2c, enum i2c_event event)
 {
     DS1338State *s = FROM_I2C_SLAVE(DS1338State, i2c);
 
     switch (event) {
     case I2C_START_RECV:
-        qemu_get_timedate(&s->now, s->offset);
-        s->nvram[0] = to_bcd(s->now.tm_sec);
-        s->nvram[1] = to_bcd(s->now.tm_min);
-        if (s->nvram[2] & 0x40) {
-            s->nvram[2] = (to_bcd((s->now.tm_hour % 12)) + 1) | 0x40;
-            if (s->now.tm_hour >= 12) {
-                s->nvram[2] |= 0x20;
-            }
-        } else {
-            s->nvram[2] = to_bcd(s->now.tm_hour);
-        }
-        s->nvram[3] = to_bcd(s->now.tm_wday) + 1;
-        s->nvram[4] = to_bcd(s->now.tm_mday);
-        s->nvram[5] = to_bcd(s->now.tm_mon) + 1;
-        s->nvram[6] = to_bcd(s->now.tm_year - 100);
+        /* In h/w, capture happens on any START condition, not just a
+         * START_RECV, but there is no need to actually capture on
+         * START_SEND, because the guest can't get at that data
+         * without going through a START_RECV which would overwrite it.
+         */
+        capture_current_time(s);
         break;
     case I2C_START_SEND:
         s->addr_byte = 1;
@@ -62,7 +87,7 @@ static int ds1338_recv(I2CSlave *i2c)
     uint8_t res;
 
     res  = s->nvram[s->ptr];
-    s->ptr = (s->ptr + 1) & (NVRAM_SIZE - 1);
+    inc_regptr(s);
     return res;
 }
 
@@ -116,7 +141,7 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
     } else {
         s->nvram[s->ptr] = data;
     }
-    s->ptr = (s->ptr + 1) & (NVRAM_SIZE - 1);
+    inc_regptr(s);
     return 0;
 }
 
