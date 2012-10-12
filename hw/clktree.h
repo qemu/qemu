@@ -1,10 +1,9 @@
 /*
- * STM32 Microcontroller basic clock building blocks
+ * Basic Clock Tree Building Blocks
  *
- * Copyright (C) 2010 Andre Beckus
+ * Copyright (C) 2012 Andre Beckus
  *
- * Source code based on omap_clk.c
- * Implementation based on ST Microelectronics "RM0008 Reference Manual Rev 10"
+ * Source code roughly based on omap_clk.c
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
