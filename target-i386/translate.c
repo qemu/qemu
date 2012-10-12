@@ -6896,13 +6896,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     gen_op_set_cc_op(s->cc_op);
                 gen_op_add_reg_im(s->aflag, R_ECX, -1);
                 gen_op_jz_ecx(s->aflag, l3);
-                gen_compute_eflags(cpu_tmp0);
-                tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, CC_Z);
-                if (b == 0) {
-                    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, l1);
-                } else {
-                    tcg_gen_brcondi_tl(TCG_COND_NE, cpu_tmp0, 0, l1);
-                }
+                gen_jcc1(s, (JCC_Z << 1) | (b ^ 1), l1);
                 break;
             case 2: /* loop */
                 gen_op_add_reg_im(s->aflag, R_ECX, -1);
