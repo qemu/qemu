@@ -310,8 +310,10 @@ void cpu_check_irqs(CPUSPARCState *env)
     }
 }
 
-static void cpu_kick_irq(CPUSPARCState *env)
+static void cpu_kick_irq(SPARCCPU *cpu)
 {
+    CPUSPARCState *env = &cpu->env;
+
     env->halted = 0;
     cpu_check_irqs(env);
     qemu_cpu_kick(env);
@@ -431,7 +433,7 @@ static void tick_irq(void *opaque)
     }
 
     env->softint |= SOFTINT_TIMER;
-    cpu_kick_irq(env);
+    cpu_kick_irq(cpu);
 }
 
 static void stick_irq(void *opaque)
@@ -449,7 +451,7 @@ static void stick_irq(void *opaque)
     }
 
     env->softint |= SOFTINT_STIMER;
-    cpu_kick_irq(env);
+    cpu_kick_irq(cpu);
 }
 
 static void hstick_irq(void *opaque)
@@ -467,7 +469,7 @@ static void hstick_irq(void *opaque)
     }
 
     env->softint |= SOFTINT_STIMER;
-    cpu_kick_irq(env);
+    cpu_kick_irq(cpu);
 }
 
 static int64_t cpu_to_timer_ticks(int64_t cpu_ticks, uint32_t frequency)
