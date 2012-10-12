@@ -185,6 +185,7 @@ libdir="\${prefix}/lib"
 libexecdir="\${prefix}/libexec"
 includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
+local_statedir="\${prefix}/var"
 confsuffix="/qemu"
 slirp="yes"
 fmod_lib=""
@@ -554,6 +555,7 @@ EOF
   qemu_docdir="\${prefix}"
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
+  local_statedir="\${prefix}"
   confsuffix=""
   libs_qga="-lws2_32 -lwinmm -lpowrprof $libs_qga"
 fi
@@ -630,7 +632,9 @@ for opt do
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
-  --sbindir=*|--sharedstatedir=*|--localstatedir=*|\
+  --localstatedir=*) local_statedir="$optarg"
+  ;;
+  --sbindir=*|--sharedstatedir=*|\
   --oldincludedir=*|--datarootdir=*|--infodir=*|--localedir=*|\
   --htmldir=*|--dvidir=*|--pdfdir=*|--psdir=*)
     # These switches are silently ignored, for compatibility with
@@ -1028,6 +1032,7 @@ echo "  --datadir=PATH           install firmware in PATH$confsuffix"
 echo "  --docdir=PATH            install documentation in PATH$confsuffix"
 echo "  --bindir=PATH            install binaries in PATH"
 echo "  --sysconfdir=PATH        install config in PATH$confsuffix"
+echo "  --localstatedir=PATH     install local state in PATH"
 echo "  --with-confsuffix=SUFFIX suffix for QEMU data inside datadir and sysconfdir [$confsuffix]"
 echo "  --enable-debug-tcg       enable TCG debugging"
 echo "  --disable-debug-tcg      disable TCG debugging (default)"
@@ -3111,6 +3116,7 @@ echo "library directory `eval echo $libdir`"
 echo "libexec directory `eval echo $libexecdir`"
 echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
+echo "local state directory   `eval echo $local_statedir`"
 if test "$mingw32" = "no" ; then
 echo "Manual directory  `eval echo $mandir`"
 echo "ELF interp prefix $interp_prefix"
@@ -3220,6 +3226,7 @@ echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
+echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
 echo "CONFIG_QEMU_HELPERDIR=\"$libexecdir\"" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
