@@ -366,7 +366,7 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_timer(f, s->qtimer);
 }
 
-static CPUTimer* cpu_timer_create(const char* name, CPUSPARCState *env,
+static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
                                   QEMUBHFunc *cb, uint32_t frequency,
                                   uint64_t disabled_mask)
 {
@@ -379,7 +379,7 @@ static CPUTimer* cpu_timer_create(const char* name, CPUSPARCState *env,
     timer->disabled = 1;
     timer->clock_offset = qemu_get_clock_ns(vm_clock);
 
-    timer->qtimer = qemu_new_timer_ns(vm_clock, cb, env);
+    timer->qtimer = qemu_new_timer_ns(vm_clock, cb, cpu);
 
     return timer;
 }
@@ -418,7 +418,8 @@ static void main_cpu_reset(void *opaque)
 
 static void tick_irq(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     CPUTimer* timer = env->tick;
 
@@ -435,7 +436,8 @@ static void tick_irq(void *opaque)
 
 static void stick_irq(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     CPUTimer* timer = env->stick;
 
@@ -452,7 +454,8 @@ static void stick_irq(void *opaque)
 
 static void hstick_irq(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     CPUTimer* timer = env->hstick;
 
@@ -772,13 +775,13 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
     }
     env = &cpu->env;
 
-    env->tick = cpu_timer_create("tick", env, tick_irq,
+    env->tick = cpu_timer_create("tick", cpu, tick_irq,
                                   tick_frequency, TICK_NPT_MASK);
 
-    env->stick = cpu_timer_create("stick", env, stick_irq,
+    env->stick = cpu_timer_create("stick", cpu, stick_irq,
                                    stick_frequency, TICK_INT_DIS);
 
-    env->hstick = cpu_timer_create("hstick", env, hstick_irq,
+    env->hstick = cpu_timer_create("hstick", cpu, hstick_irq,
                                     hstick_frequency, TICK_INT_DIS);
 
     reset_info = g_malloc0(sizeof(ResetData));
