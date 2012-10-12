@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "dump.h"
+#include "clients.h"
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "qemu-log.h"

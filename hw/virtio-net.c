@@ -973,6 +973,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
     }
     n->mac_table.first_multi = i;
+
+    /* nc.link_down can't be migrated, so infer link_down according
+     * to link status bit in n->status */
+    n->nic->nc.link_down = (n->status & VIRTIO_NET_S_LINK_UP) == 0;
+
     return 0;
 }
 
