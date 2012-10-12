@@ -321,7 +321,8 @@ static void cpu_kick_irq(SPARCCPU *cpu)
 
 static void cpu_set_ivec_irq(void *opaque, int irq, int level)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     if (level) {
         if (!(env->ivec_status & 0x20)) {
@@ -802,7 +803,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                         const struct hwdef *hwdef)
 {
     SPARCCPU *cpu;
-    CPUSPARCState *env;
     M48t59State *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
@@ -815,14 +815,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     /* init CPUs */
     cpu = cpu_devinit(cpu_model, hwdef);
-    env = &cpu->env;
 
     /* set up devices */
     ram_init(0, RAM_size);
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    ivec_irqs = qemu_allocate_irqs(cpu_set_ivec_irq, env, IVEC_MAX);
+    ivec_irqs = qemu_allocate_irqs(cpu_set_ivec_irq, cpu, IVEC_MAX);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_bus2,
                            &pci_bus3, &pbm_irqs);
     pci_vga_init(pci_bus);
