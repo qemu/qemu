@@ -69,7 +69,7 @@ struct CharDriverState {
     void (*chr_guest_open)(struct CharDriverState *chr);
     void (*chr_guest_close)(struct CharDriverState *chr);
     void *opaque;
-    QEMUBH *bh;
+    QEMUTimer *open_timer;
     char *label;
     char *filename;
     int opened;
