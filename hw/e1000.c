@@ -1079,11 +1079,23 @@ static bool is_version_1(void *opaque, int version_id)
     return version_id == 1;
 }
 
+static int e1000_post_load(void *opaque, int version_id)
+{
+    E1000State *s = opaque;
+
+    /* nc.link_down can't be migrated, so infer link_down according
+     * to link status bit in mac_reg[STATUS] */
+    s->nic->nc.link_down = (s->mac_reg[STATUS] & E1000_STATUS_LU) == 0;
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_e1000 = {
     .name = "e1000",
     .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .post_load = e1000_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, E1000State),
         VMSTATE_UNUSED_TEST(is_version_1, 4), /* was instance id */

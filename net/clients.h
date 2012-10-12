@@ -21,8 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#ifndef QEMU_NET_DUMP_H
-#define QEMU_NET_DUMP_H
+#ifndef QEMU_NET_CLIENTS_H
+#define QEMU_NET_CLIENTS_H
 
 #include "net.h"
 #include "qapi-types.h"
@@ -30,4 +30,26 @@
 int net_init_dump(const NetClientOptions *opts, const char *name,
                   NetClientState *peer);
 
-#endif /* QEMU_NET_DUMP_H */
+#ifdef CONFIG_SLIRP
+int net_init_slirp(const NetClientOptions *opts, const char *name,
+                   NetClientState *peer);
+#endif
+
+int net_init_hubport(const NetClientOptions *opts, const char *name,
+                     NetClientState *peer);
+
+int net_init_socket(const NetClientOptions *opts, const char *name,
+                    NetClientState *peer);
+
+int net_init_tap(const NetClientOptions *opts, const char *name,
+                 NetClientState *peer);
+
+int net_init_bridge(const NetClientOptions *opts, const char *name,
+                    NetClientState *peer);
+
+#ifdef CONFIG_VDE
+int net_init_vde(const NetClientOptions *opts, const char *name,
+                 NetClientState *peer);
+#endif
+
+#endif /* QEMU_NET_CLIENTS_H */

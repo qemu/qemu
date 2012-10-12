@@ -372,6 +372,10 @@ VncInfo *qmp_query_vnc(Error **errp)
             }
         }
 
+        if (vnc_display->lsock == -1) {
+            return info;
+        }
+
         if (getsockname(vnc_display->lsock, (struct sockaddr *)&sa,
                         &salen) == -1) {
             error_set(errp, QERR_UNDEFINED_ERROR);

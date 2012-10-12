@@ -223,7 +223,6 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     client = qdict_new();
     server = qdict_new();
 
-#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
     if (info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
         add_addr_info(client, (struct sockaddr *)&info->paddr_ext,
                       info->plen_ext);
@@ -232,12 +231,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     } else {
         error_report("spice: %s, extended address is expected",
                      __func__);
-#endif
-        add_addr_info(client, &info->paddr, info->plen);
-        add_addr_info(server, &info->laddr, info->llen);
-#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
     }
-#endif
 
     if (event == SPICE_CHANNEL_EVENT_INITIALIZED) {
         qdict_put(server, "auth", qstring_from_str(auth));
@@ -276,7 +270,6 @@ static SpiceCoreInterface core_interface = {
     .channel_event      = channel_event,
 };
 
-#ifdef SPICE_INTERFACE_MIGRATION
 typedef struct SpiceMigration {
     SpiceMigrateInstance sin;
     struct {
@@ -313,7 +306,6 @@ static void migrate_end_complete_cb(SpiceMigrateInstance *sin)
     monitor_protocol_event(QEVENT_SPICE_MIGRATE_COMPLETED, NULL);
     spice_migration_completed = true;
 }
-#endif
 
 /* config string parsing */
 
@@ -393,17 +385,13 @@ static SpiceChannelList *qmp_query_spice_channels(void)
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
 
-#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
         if (item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
             paddr = (struct sockaddr *)&item->info->paddr_ext;
             plen = item->info->plen_ext;
         } else {
-#endif
             paddr = &item->info->paddr;
             plen = item->info->plen;
-#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
         }
-#endif
 
         getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
@@ -473,13 +461,10 @@ SpiceInfo *qmp_query_spice(Error **errp)
         info->tls_port = tls_port;
     }
 
-#if SPICE_SERVER_VERSION >= 0x000a03 /* 0.10.3 */
     info->mouse_mode = spice_server_is_server_mouse(spice_server) ?
                        SPICE_QUERY_MOUSE_MODE_SERVER :
                        SPICE_QUERY_MOUSE_MODE_CLIENT;
-#else
-    info->mouse_mode = SPICE_QUERY_MOUSE_MODE_UNKNOWN;
-#endif
+
     /* for compatibility with the original command */
     info->has_channels = true;
     info->channels = qmp_query_spice_channels();
@@ -492,19 +477,11 @@ static void migration_state_notifier(Notifier *notifier, void *data)
     MigrationState *s = data;
 
     if (migration_is_active(s)) {
-#ifdef SPICE_INTERFACE_MIGRATION
         spice_server_migrate_start(spice_server);
-#endif
     } else if (migration_has_finished(s)) {
-#ifndef SPICE_INTERFACE_MIGRATION
-        spice_server_migrate_switch(spice_server);
-        monitor_protocol_event(QEVENT_SPICE_MIGRATE_COMPLETED, NULL);
-        spice_migration_completed = true;
-#else
         spice_server_migrate_end(spice_server, true);
     } else if (migration_has_failed(s)) {
         spice_server_migrate_end(spice_server, false);
-#endif
     }
 }
 
@@ -513,16 +490,11 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             MonitorCompletion *cb, void *opaque)
 {
     int ret;
-#ifdef SPICE_INTERFACE_MIGRATION
+
     spice_migrate.connect_complete.cb = cb;
     spice_migrate.connect_complete.opaque = opaque;
     ret = spice_server_migrate_connect(spice_server, hostname,
                                        port, tls_port, subject);
-#else
-    ret = spice_server_migrate_info(spice_server, hostname,
-                                    port, tls_port, subject);
-    cb(opaque, NULL);
-#endif
     return ret;
 }
 
@@ -561,7 +533,6 @@ static int add_channel(const char *name, const char *value, void *opaque)
 static void vm_change_state_handler(void *opaque, int running,
                                     RunState state)
 {
-#if SPICE_SERVER_VERSION >= 0x000b02 /* 0.11.2 */
     if (running) {
         qemu_spice_display_start();
         spice_server_vm_start(spice_server);
@@ -569,7 +540,6 @@ static void vm_change_state_handler(void *opaque, int running,
         spice_server_vm_stop(spice_server);
         qemu_spice_display_stop();
     }
-#endif
 }
 
 void qemu_spice_init(void)
@@ -585,9 +555,7 @@ void qemu_spice_init(void)
     int port, tls_port, len, addr_flags;
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
-#if SPICE_SERVER_VERSION >= 0x000b02 /* 0.11.2 */
     bool seamless_migration;
-#endif
 
     qemu_thread_get_self(&me);
 
@@ -672,16 +640,11 @@ void qemu_spice_init(void)
         spice_server_set_ticket(spice_server, password, 0, 0, 0);
     }
     if (qemu_opt_get_bool(opts, "sasl", 0)) {
-#if SPICE_SERVER_VERSION >= 0x000900 /* 0.9.0 */
         if (spice_server_set_sasl_appname(spice_server, "qemu") == -1 ||
             spice_server_set_sasl(spice_server, 1) == -1) {
             error_report("spice: failed to enable sasl");
             exit(1);
         }
-#else
-        error_report("spice: sasl is not available (spice >= 0.9 required)");
-        exit(1);
-#endif
     }
     if (qemu_opt_get_bool(opts, "disable-ticketing", 0)) {
         auth = "none";
@@ -726,15 +689,11 @@ void qemu_spice_init(void)
 
     qemu_opt_foreach(opts, add_channel, &tls_port, 0);
 
-#if SPICE_SERVER_VERSION >= 0x000a02 /* 0.10.2 */
     spice_server_set_name(spice_server, qemu_name);
     spice_server_set_uuid(spice_server, qemu_uuid);
-#endif
 
-#if SPICE_SERVER_VERSION >= 0x000b02 /* 0.11.2 */
     seamless_migration = qemu_opt_get_bool(opts, "seamless-migration", 0);
     spice_server_set_seamless_migration(spice_server, seamless_migration);
-#endif
     if (0 != spice_server_init(spice_server, &core_interface)) {
         error_report("failed to initialize spice server");
         exit(1);
@@ -743,11 +702,9 @@ void qemu_spice_init(void)
 
     migration_state.notify = migration_state_notifier;
     add_migration_state_change_notifier(&migration_state);
-#ifdef SPICE_INTERFACE_MIGRATION
     spice_migrate.sin.base.sif = &migrate_interface.base;
     spice_migrate.connect_complete.cb = NULL;
     qemu_spice_add_interface(&spice_migrate.sin.base);
-#endif
 
     qemu_spice_input_init();
     qemu_spice_audio_init();
@@ -815,15 +772,11 @@ int qemu_spice_set_pw_expire(time_t expires)
 
 int qemu_spice_display_add_client(int csock, int skipauth, int tls)
 {
-#if SPICE_SERVER_VERSION >= 0x000a01
     if (tls) {
         return spice_server_add_ssl_client(spice_server, csock, skipauth);
     } else {
         return spice_server_add_client(spice_server, csock, skipauth);
     }
-#else
-    return -1;
-#endif
 }
 
 static void spice_register_config(void)

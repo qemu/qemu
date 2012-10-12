@@ -126,21 +126,6 @@ void qemu_spice_wakeup(SimpleSpiceDisplay *ssd)
     ssd->worker->wakeup(ssd->worker);
 }
 
-#if SPICE_SERVER_VERSION < 0x000b02 /* before 0.11.2 */
-static void qemu_spice_start(SimpleSpiceDisplay *ssd)
-{
-    trace_qemu_spice_start(ssd->qxl.id);
-    ssd->worker->start(ssd->worker);
-}
-
-static void qemu_spice_stop(SimpleSpiceDisplay *ssd)
-{
-    trace_qemu_spice_stop(ssd->qxl.id);
-    ssd->worker->stop(ssd->worker);
-}
-
-#else
-
 static int spice_display_is_running;
 
 void qemu_spice_display_start(void)
@@ -153,15 +138,9 @@ void qemu_spice_display_stop(void)
     spice_display_is_running = false;
 }
 
-#endif
-
 int qemu_spice_display_is_running(SimpleSpiceDisplay *ssd)
 {
-#if SPICE_SERVER_VERSION < 0x000b02 /* before 0.11.2 */
-    return ssd->running;
-#else
     return spice_display_is_running;
-#endif
 }
 
 static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
@@ -362,22 +341,6 @@ void qemu_spice_destroy_host_primary(SimpleSpiceDisplay *ssd)
     dprint(1, "%s:\n", __FUNCTION__);
 
     qemu_spice_destroy_primary_surface(ssd, 0, QXL_SYNC);
-}
-
-void qemu_spice_vm_change_state_handler(void *opaque, int running,
-                                        RunState state)
-{
-#if SPICE_SERVER_VERSION < 0x000b02 /* before 0.11.2 */
-    SimpleSpiceDisplay *ssd = opaque;
-
-    if (running) {
-        ssd->running = true;
-        qemu_spice_start(ssd);
-    } else {
-        qemu_spice_stop(ssd);
-        ssd->running = false;
-    }
-#endif
 }
 
 void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
@@ -623,7 +586,6 @@ void qemu_spice_display_init(DisplayState *ds)
     qemu_spice_add_interface(&sdpy.qxl.base);
     assert(sdpy.worker);
 
-    qemu_add_vm_change_state_handler(qemu_spice_vm_change_state_handler, &sdpy);
     qemu_spice_create_host_memslot(&sdpy);
     qemu_spice_create_host_primary(&sdpy);
 }

@@ -371,6 +371,14 @@ static QEMUMachine pc_machine_v1_3 = {
             .driver   = "ivshmem",\
             .property = "use64",\
             .value    = "0",\
+        },{\
+            .driver   = "qxl",\
+            .property = "revision",\
+            .value    = stringify(3),\
+        },{\
+            .driver   = "qxl-vga",\
+            .property = "revision",\
+            .value    = stringify(3),\
         }
 
 static QEMUMachine pc_machine_v1_2 = {

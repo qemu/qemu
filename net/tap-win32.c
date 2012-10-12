@@ -26,7 +26,7 @@
  *  distribution); if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "net/tap.h"
+#include "tap.h"
 
 #include "qemu-common.h"
 #include "net.h"
