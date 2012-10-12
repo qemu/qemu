@@ -12,11 +12,16 @@
 
 #include "i2c.h"
 
+/* Size of NVRAM including both the user-accessible area and the
+ * secondary register area.
+ */
+#define NVRAM_SIZE 64
+
 typedef struct {
     I2CSlave i2c;
     time_t offset;
     struct tm now;
-    uint8_t nvram[56];
+    uint8_t nvram[NVRAM_SIZE];
     int ptr;
     int addr_byte;
 } DS1338State;
@@ -57,7 +62,7 @@ static int ds1338_recv(I2CSlave *i2c)
     uint8_t res;
 
     res  = s->nvram[s->ptr];
-    s->ptr = (s->ptr + 1) & 0xff;
+    s->ptr = (s->ptr + 1) & (NVRAM_SIZE - 1);
     return res;
 }
 
@@ -65,14 +70,13 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
 {
     DS1338State *s = FROM_I2C_SLAVE(DS1338State, i2c);
     if (s->addr_byte) {
-        s->ptr = data;
+        s->ptr = data & (NVRAM_SIZE - 1);
         s->addr_byte = 0;
         return 0;
     }
-    s->nvram[s->ptr - 8] = data;
-    if (data < 8) {
+    if (s->ptr < 8) {
         qemu_get_timedate(&s->now, s->offset);
-        switch(data) {
+        switch(s->ptr) {
         case 0:
             /* TODO: Implement CH (stop) bit.  */
             s->now.tm_sec = from_bcd(data & 0x7f);
@@ -109,8 +113,10 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             break;
         }
         s->offset = qemu_timedate_diff(&s->now);
+    } else {
+        s->nvram[s->ptr] = data;
     }
-    s->ptr = (s->ptr + 1) & 0xff;
+    s->ptr = (s->ptr + 1) & (NVRAM_SIZE - 1);
     return 0;
 }
 
