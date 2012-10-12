@@ -674,7 +674,7 @@ static int img_convert(int argc, char **argv)
     QEMUOptionParameter *out_baseimg_param;
     char *options = NULL;
     const char *snapshot_name = NULL;
-    float local_progress;
+    float local_progress = 0;
     int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
 
     fmt = NULL;
@@ -914,8 +914,10 @@ static int img_convert(int argc, char **argv)
         sector_num = 0;
 
         nb_sectors = total_sectors;
-        local_progress = (float)100 /
-            (nb_sectors / MIN(nb_sectors, cluster_sectors));
+        if (nb_sectors != 0) {
+            local_progress = (float)100 /
+                (nb_sectors / MIN(nb_sectors, cluster_sectors));
+        }
 
         for(;;) {
             int64_t bs_num;
@@ -986,8 +988,10 @@ static int img_convert(int argc, char **argv)
 
         sector_num = 0; // total number of sectors converted so far
         nb_sectors = total_sectors - sector_num;
-        local_progress = (float)100 /
-            (nb_sectors / MIN(nb_sectors, IO_BUF_SIZE / 512));
+        if (nb_sectors != 0) {
+            local_progress = (float)100 /
+                (nb_sectors / MIN(nb_sectors, IO_BUF_SIZE / 512));
+        }
 
         for(;;) {
             nb_sectors = total_sectors - sector_num;
@@ -1585,7 +1589,7 @@ static int img_rebase(int argc, char **argv)
         int n;
         uint8_t * buf_old;
         uint8_t * buf_new;
-        float local_progress;
+        float local_progress = 0;
 
         buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
         buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
@@ -1594,8 +1598,11 @@ static int img_rebase(int argc, char **argv)
         bdrv_get_geometry(bs_old_backing, &old_backing_num_sectors);
         bdrv_get_geometry(bs_new_backing, &new_backing_num_sectors);
 
-        local_progress = (float)100 /
-            (num_sectors / MIN(num_sectors, IO_BUF_SIZE / 512));
+        if (num_sectors != 0) {
+            local_progress = (float)100 /
+                (num_sectors / MIN(num_sectors, IO_BUF_SIZE / 512));
+        }
+
         for (sector = 0; sector < num_sectors; sector += n) {
 
             /* How many sectors can we handle with the next read? */
