@@ -17,7 +17,7 @@
 #include "arm_gic_internal.h"
 
 typedef struct {
-    gic_state gic;
+    GICState gic;
     struct {
         uint32_t control;
         uint32_t reload;
@@ -505,9 +505,9 @@ static void armv7m_nvic_instance_init(Object *obj)
      * than our superclass. This function runs after qdev init
      * has set the defaults from the Property array and before
      * any user-specified property setting, so just modify the
-     * value in the gic_state struct.
+     * value in the GICState struct.
      */
-    gic_state *s = ARM_GIC_COMMON(obj);
+    GICState *s = ARM_GIC_COMMON(obj);
     /* The ARM v7m may have anything from 0 to 496 external interrupt
      * IRQ lines. We default to 64. Other boards may differ and should
      * set the num-irq property appropriately.

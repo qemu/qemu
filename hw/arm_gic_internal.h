@@ -69,7 +69,7 @@ typedef struct gic_irq_state {
     unsigned trigger:1; /* nonzero = edge triggered.  */
 } gic_irq_state;
 
-typedef struct gic_state {
+typedef struct GICState {
     SysBusDevice busdev;
     qemu_irq parent_irq[NCPU];
     int enabled;
@@ -92,25 +92,25 @@ typedef struct gic_state {
     /* This is just so we can have an opaque pointer which identifies
      * both this GIC and which CPU interface we should be accessing.
      */
-    struct gic_state *backref[NCPU];
+    struct GICState *backref[NCPU];
     MemoryRegion cpuiomem[NCPU+1]; /* CPU interfaces */
     uint32_t num_irq;
     uint32_t revision;
-} gic_state;
+} GICState;
 
 /* The special cases for the revision property: */
 #define REV_11MPCORE 0
 #define REV_NVIC 0xffffffff
 
-void gic_set_pending_private(gic_state *s, int cpu, int irq);
-uint32_t gic_acknowledge_irq(gic_state *s, int cpu);
-void gic_complete_irq(gic_state *s, int cpu, int irq);
-void gic_update(gic_state *s);
-void gic_init_irqs_and_distributor(gic_state *s, int num_irq);
+void gic_set_pending_private(GICState *s, int cpu, int irq);
+uint32_t gic_acknowledge_irq(GICState *s, int cpu);
+void gic_complete_irq(GICState *s, int cpu, int irq);
+void gic_update(GICState *s);
+void gic_init_irqs_and_distributor(GICState *s, int num_irq);
 
 #define TYPE_ARM_GIC_COMMON "arm_gic_common"
 #define ARM_GIC_COMMON(obj) \
-     OBJECT_CHECK(gic_state, (obj), TYPE_ARM_GIC_COMMON)
+     OBJECT_CHECK(GICState, (obj), TYPE_ARM_GIC_COMMON)
 #define ARM_GIC_COMMON_CLASS(klass) \
      OBJECT_CLASS_CHECK(ARMGICCommonClass, (klass), TYPE_ARM_GIC_COMMON)
 #define ARM_GIC_COMMON_GET_CLASS(obj) \
@@ -122,7 +122,7 @@ typedef struct ARMGICCommonClass {
 
 #define TYPE_ARM_GIC "arm_gic"
 #define ARM_GIC(obj) \
-     OBJECT_CHECK(gic_state, (obj), TYPE_ARM_GIC)
+     OBJECT_CHECK(GICState, (obj), TYPE_ARM_GIC)
 #define ARM_GIC_CLASS(klass) \
      OBJECT_CLASS_CHECK(ARMGICClass, (klass), TYPE_ARM_GIC)
 #define ARM_GIC_GET_CLASS(obj) \

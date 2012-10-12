@@ -91,7 +91,7 @@ typedef enum {
 typedef enum {
   PSS,
   DDDR,
-  DMAC,
+  DMAC = 3,
   USB,
   GEM,
   SDIO,
