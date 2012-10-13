@@ -138,7 +138,7 @@ static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
     if (src & 1) {
         return MAKE_TCGV_I32(GET_TCGV_I64(cpu_fpr[src / 2]));
     } else {
-        TCGv_i32 ret = tcg_temp_local_new_i32();
+        TCGv_i32 ret = tcg_temp_new_i32();
         TCGv_i64 t = tcg_temp_new_i64();
 
         tcg_gen_shri_i64(t, cpu_fpr[src / 2], 32);
@@ -1000,14 +1000,17 @@ static inline void save_npc(DisasContext *dc)
     }
 }
 
-static inline void save_state(DisasContext *dc)
+static inline void update_psr(DisasContext *dc)
 {
-    tcg_gen_movi_tl(cpu_pc, dc->pc);
-    /* flush pending conditional evaluations before exposing cpu state */
     if (dc->cc_op != CC_OP_FLAGS) {
         dc->cc_op = CC_OP_FLAGS;
         gen_helper_compute_psr(cpu_env);
     }
+}
+
+static inline void save_state(DisasContext *dc)
+{
+    tcg_gen_movi_tl(cpu_pc, dc->pc);
     save_npc(dc);
 }
 
@@ -1045,7 +1048,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                         DisasContext *dc)
 {
     static int subcc_cond[16] = {
-        -1, /* never */
+        TCG_COND_NEVER,
         TCG_COND_EQ,
         TCG_COND_LE,
         TCG_COND_LT,
@@ -1053,7 +1056,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         TCG_COND_LTU,
         -1, /* neg */
         -1, /* overflow */
-        -1, /* always */
+        TCG_COND_ALWAYS,
         TCG_COND_NE,
         TCG_COND_GT,
         TCG_COND_GE,
@@ -1061,6 +1064,25 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
         TCG_COND_GEU,
         -1, /* pos */
         -1, /* no overflow */
+    };
+
+    static int logic_cond[16] = {
+        TCG_COND_NEVER,
+        TCG_COND_EQ,     /* eq:  Z */
+        TCG_COND_LE,     /* le:  Z | (N ^ V) -> Z | N */
+        TCG_COND_LT,     /* lt:  N ^ V -> N */
+        TCG_COND_EQ,     /* leu: C | Z -> Z */
+        TCG_COND_NEVER,  /* ltu: C -> 0 */
+        TCG_COND_LT,     /* neg: N */
+        TCG_COND_NEVER,  /* vs:  V -> 0 */
+        TCG_COND_ALWAYS,
+        TCG_COND_NE,     /* ne:  !Z */
+        TCG_COND_GT,     /* gt:  !(Z | (N ^ V)) -> !(Z | N) */
+        TCG_COND_GE,     /* ge:  !(N ^ V) -> !N */
+        TCG_COND_NE,     /* gtu: !(C | Z) -> !Z */
+        TCG_COND_ALWAYS, /* geu: !C -> 1 */
+        TCG_COND_GE,     /* pos: !N */
+        TCG_COND_ALWAYS, /* vc:  !V -> 1 */
     };
 
     TCGv_i32 r_src;
@@ -1077,28 +1099,31 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
 #endif
 
     switch (dc->cc_op) {
+    case CC_OP_LOGIC:
+        cmp->cond = logic_cond[cond];
+    do_compare_dst_0:
+        cmp->is_bool = false;
+        cmp->g2 = false;
+        cmp->c2 = tcg_const_tl(0);
+#ifdef TARGET_SPARC64
+        if (!xcc) {
+            cmp->g1 = false;
+            cmp->c1 = tcg_temp_new();
+            tcg_gen_ext32s_tl(cmp->c1, cpu_cc_dst);
+            break;
+        }
+#endif
+        cmp->g1 = true;
+        cmp->c1 = cpu_cc_dst;
+        break;
+
     case CC_OP_SUB:
         switch (cond) {
         case 6:  /* neg */
         case 14: /* pos */
             cmp->cond = (cond == 6 ? TCG_COND_LT : TCG_COND_GE);
-            cmp->is_bool = false;
-            cmp->g2 = false;
-            cmp->c2 = tcg_const_tl(0);
-#ifdef TARGET_SPARC64
-            if (!xcc) {
-                cmp->g1 = false;
-                cmp->c1 = tcg_temp_new();
-                tcg_gen_ext32s_tl(cmp->c1, cpu_cc_dst);
-                break;
-            }
-#endif
-            cmp->g1 = true;
-            cmp->c1 = cpu_cc_dst;
-            break;
+            goto do_compare_dst_0;
 
-        case 0: /* never */
-        case 8: /* always */
         case 7: /* overflow */
         case 15: /* !overflow */
             goto do_dynamic;
@@ -1115,6 +1140,7 @@ static void gen_compare(DisasCompare *cmp, bool xcc, unsigned int cond,
                 cmp->c2 = tcg_temp_new();
                 tcg_gen_ext32s_tl(cmp->c1, cpu_cc_src);
                 tcg_gen_ext32s_tl(cmp->c2, cpu_cc_src2);
+                break;
             }
 #endif
             cmp->g1 = cmp->g2 = true;
@@ -2676,7 +2702,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 rdccr */
-                    gen_helper_compute_psr(cpu_env);
+                    update_psr(dc);
                     gen_helper_rdccr(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -2755,10 +2781,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #if !defined(CONFIG_USER_ONLY)
             } else if (xop == 0x29) { /* rdpsr / UA2005 rdhpr */
 #ifndef TARGET_SPARC64
-                if (!supervisor(dc))
+                if (!supervisor(dc)) {
                     goto priv_insn;
-                gen_helper_compute_psr(cpu_env);
-                dc->cc_op = CC_OP_FLAGS;
+                }
+                update_psr(dc);
                 gen_helper_rdpsr(cpu_dst, cpu_env);
 #else
                 CHECK_IU_FEATURE(dc, HYPV);
@@ -3584,7 +3610,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         dc->cc_op = CC_OP_TSUBTV;
                         break;
                     case 0x24: /* mulscc */
-                        gen_helper_compute_psr(cpu_env);
+                        update_psr(dc);
                         gen_op_mulscc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
@@ -3857,28 +3883,16 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                                 tcg_gen_mov_tl(cpu_tbr, cpu_tmp0);
                                 break;
                             case 6: // pstate
-                                {
-                                    TCGv r_tmp = tcg_temp_local_new();
-
-                                    tcg_gen_mov_tl(r_tmp, cpu_tmp0);
-                                    save_state(dc);
-                                    gen_helper_wrpstate(cpu_env, r_tmp);
-                                    tcg_temp_free(r_tmp);
-                                    dc->npc = DYNAMIC_PC;
-                                }
+                                save_state(dc);
+                                gen_helper_wrpstate(cpu_env, cpu_tmp0);
+                                dc->npc = DYNAMIC_PC;
                                 break;
                             case 7: // tl
-                                {
-                                    TCGv r_tmp = tcg_temp_local_new();
-
-                                    tcg_gen_mov_tl(r_tmp, cpu_tmp0);
-                                    save_state(dc);
-                                    tcg_gen_trunc_tl_i32(cpu_tmp32, r_tmp);
-                                    tcg_temp_free(r_tmp);
-                                    tcg_gen_st_i32(cpu_tmp32, cpu_env,
-                                                   offsetof(CPUSPARCState, tl));
-                                    dc->npc = DYNAMIC_PC;
-                                }
+                                save_state(dc);
+                                tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
+                                tcg_gen_st_i32(cpu_tmp32, cpu_env,
+                                               offsetof(CPUSPARCState, tl));
+                                dc->npc = DYNAMIC_PC;
                                 break;
                             case 8: // pil
                                 gen_helper_wrpil(cpu_env, cpu_tmp0);
@@ -4635,12 +4649,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
 
-            /* flush pending conditional evaluations before exposing
-               cpu state */
-            if (dc->cc_op != CC_OP_FLAGS) {
-                dc->cc_op = CC_OP_FLAGS;
-                gen_helper_compute_psr(cpu_env);
-            }
             cpu_src1 = get_src1(insn, cpu_src1);
             if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
                 rs2 = GET_FIELD(insn, 27, 31);
@@ -5490,10 +5498,5 @@ void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb, int pc_pos)
         }
     } else {
         env->npc = npc;
-    }
-
-    /* flush pending conditional evaluations before exposing cpu state */
-    if (CC_OP != CC_OP_FLAGS) {
-        helper_compute_psr(env);
     }
 }

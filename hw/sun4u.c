@@ -310,8 +310,10 @@ void cpu_check_irqs(CPUSPARCState *env)
     }
 }
 
-static void cpu_kick_irq(CPUSPARCState *env)
+static void cpu_kick_irq(SPARCCPU *cpu)
 {
+    CPUSPARCState *env = &cpu->env;
+
     env->halted = 0;
     cpu_check_irqs(env);
     qemu_cpu_kick(env);
@@ -319,7 +321,8 @@ static void cpu_kick_irq(CPUSPARCState *env)
 
 static void cpu_set_ivec_irq(void *opaque, int irq, int level)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     if (level) {
         if (!(env->ivec_status & 0x20)) {
@@ -366,7 +369,7 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_timer(f, s->qtimer);
 }
 
-static CPUTimer* cpu_timer_create(const char* name, CPUSPARCState *env,
+static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
                                   QEMUBHFunc *cb, uint32_t frequency,
                                   uint64_t disabled_mask)
 {
@@ -379,7 +382,7 @@ static CPUTimer* cpu_timer_create(const char* name, CPUSPARCState *env,
     timer->disabled = 1;
     timer->clock_offset = qemu_get_clock_ns(vm_clock);
 
-    timer->qtimer = qemu_new_timer_ns(vm_clock, cb, env);
+    timer->qtimer = qemu_new_timer_ns(vm_clock, cb, cpu);
 
     return timer;
 }
@@ -418,7 +421,8 @@ static void main_cpu_reset(void *opaque)
 
 static void tick_irq(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     CPUTimer* timer = env->tick;
 
@@ -430,12 +434,13 @@ static void tick_irq(void *opaque)
     }
 
     env->softint |= SOFTINT_TIMER;
-    cpu_kick_irq(env);
+    cpu_kick_irq(cpu);
 }
 
 static void stick_irq(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     CPUTimer* timer = env->stick;
 
@@ -447,12 +452,13 @@ static void stick_irq(void *opaque)
     }
 
     env->softint |= SOFTINT_STIMER;
-    cpu_kick_irq(env);
+    cpu_kick_irq(cpu);
 }
 
 static void hstick_irq(void *opaque)
 {
-    CPUSPARCState *env = opaque;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
 
     CPUTimer* timer = env->hstick;
 
@@ -464,7 +470,7 @@ static void hstick_irq(void *opaque)
     }
 
     env->softint |= SOFTINT_STIMER;
-    cpu_kick_irq(env);
+    cpu_kick_irq(cpu);
 }
 
 static int64_t cpu_to_timer_ticks(int64_t cpu_ticks, uint32_t frequency)
@@ -772,13 +778,13 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
     }
     env = &cpu->env;
 
-    env->tick = cpu_timer_create("tick", env, tick_irq,
+    env->tick = cpu_timer_create("tick", cpu, tick_irq,
                                   tick_frequency, TICK_NPT_MASK);
 
-    env->stick = cpu_timer_create("stick", env, stick_irq,
+    env->stick = cpu_timer_create("stick", cpu, stick_irq,
                                    stick_frequency, TICK_INT_DIS);
 
-    env->hstick = cpu_timer_create("hstick", env, hstick_irq,
+    env->hstick = cpu_timer_create("hstick", cpu, hstick_irq,
                                     hstick_frequency, TICK_INT_DIS);
 
     reset_info = g_malloc0(sizeof(ResetData));
@@ -797,7 +803,6 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                         const struct hwdef *hwdef)
 {
     SPARCCPU *cpu;
-    CPUSPARCState *env;
     M48t59State *nvram;
     unsigned int i;
     uint64_t initrd_addr, initrd_size, kernel_addr, kernel_size, kernel_entry;
@@ -810,14 +815,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     /* init CPUs */
     cpu = cpu_devinit(cpu_model, hwdef);
-    env = &cpu->env;
 
     /* set up devices */
     ram_init(0, RAM_size);
 
     prom_init(hwdef->prom_addr, bios_name);
 
-    ivec_irqs = qemu_allocate_irqs(cpu_set_ivec_irq, env, IVEC_MAX);
+    ivec_irqs = qemu_allocate_irqs(cpu_set_ivec_irq, cpu, IVEC_MAX);
     pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_bus2,
                            &pci_bus3, &pbm_irqs);
     pci_vga_init(pci_bus);
