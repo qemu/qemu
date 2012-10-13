@@ -468,13 +468,6 @@ uint32_t m48t59_read (void *opaque, uint32_t addr)
     return retval;
 }
 
-void m48t59_set_addr (void *opaque, uint32_t addr)
-{
-    M48t59State *NVRAM = opaque;
-
-    NVRAM->addr = addr;
-}
-
 void m48t59_toggle_lock (void *opaque, int lock)
 {
     M48t59State *NVRAM = opaque;
