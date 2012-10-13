@@ -37,6 +37,12 @@
 #include <linux/kvm_para.h>
 #endif
 
+#include "sysemu.h"
+#ifndef CONFIG_USER_ONLY
+#include "hw/xen.h"
+#include "hw/sysbus.h"
+#endif
+
 /* feature flags taken from "Intel Processor Identification and the CPUID
  * Instruction" and AMD's "CPUID Specification".  In cases of disagreement
  * between feature naming conventions, aliases may be added.
@@ -1879,12 +1885,63 @@ static void mce_init(X86CPU *cpu)
     }
 }
 
+#define MSI_ADDR_BASE 0xfee00000
+
+#ifndef CONFIG_USER_ONLY
+static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
+{
+    static int apic_mapped;
+    CPUX86State *env = &cpu->env;
+    const char *apic_type = "apic";
+
+    if (kvm_irqchip_in_kernel()) {
+        apic_type = "kvm-apic";
+    } else if (xen_enabled()) {
+        apic_type = "xen-apic";
+    }
+
+    env->apic_state = qdev_try_create(NULL, apic_type);
+    if (env->apic_state == NULL) {
+        error_setg(errp, "APIC device '%s' could not be created", apic_type);
+        return;
+    }
+
+    object_property_add_child(OBJECT(cpu), "apic",
+                              OBJECT(env->apic_state), NULL);
+    qdev_prop_set_uint8(env->apic_state, "id", env->cpuid_apic_id);
+    /* TODO: convert to link<> */
+    qdev_prop_set_ptr(env->apic_state, "cpu_env", env);
+
+    if (qdev_init(env->apic_state)) {
+        error_setg(errp, "APIC device '%s' could not be initialized",
+                   object_get_typename(OBJECT(env->apic_state)));
+        return;
+    }
+
+    /* XXX: mapping more APICs at the same memory location */
+    if (apic_mapped == 0) {
+        /* NOTE: the APIC is directly connected to the CPU - it is not
+           on the global memory bus. */
+        /* XXX: what if the base changes? */
+        sysbus_mmio_map(sysbus_from_qdev(env->apic_state), 0, MSI_ADDR_BASE);
+        apic_mapped = 1;
+    }
+}
+#endif
+
 void x86_cpu_realize(Object *obj, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
 
 #ifndef CONFIG_USER_ONLY
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
+
+    if (cpu->env.cpuid_features & CPUID_APIC || smp_cpus > 1) {
+        x86_cpu_apic_init(cpu, errp);
+        if (error_is_set(errp)) {
+            return;
+        }
+    }
 #endif
 
     mce_init(cpu);
