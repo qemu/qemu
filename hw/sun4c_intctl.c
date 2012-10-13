@@ -94,29 +94,6 @@ static const MemoryRegionOps sun4c_intctl_mem_ops = {
     },
 };
 
-void sun4c_pic_info(Monitor *mon, void *opaque)
-{
-    Sun4c_INTCTLState *s = opaque;
-
-    monitor_printf(mon, "master: pending 0x%2.2x, enabled 0x%2.2x\n",
-                   s->pending, s->reg);
-}
-
-void sun4c_irq_info(Monitor *mon, void *opaque)
-{
-#ifndef DEBUG_IRQ_COUNT
-    monitor_printf(mon, "irq statistic code not compiled.\n");
-#else
-    Sun4c_INTCTLState *s = opaque;
-    int64_t count;
-
-    monitor_printf(mon, "IRQ statistics:\n");
-    count = s->irq_count;
-    if (count > 0)
-        monitor_printf(mon, " %" PRId64 "\n", count);
-#endif
-}
-
 static const uint32_t intbit_to_level[] = { 0, 1, 4, 6, 8, 10, 0, 14, };
 
 static void sun4c_check_interrupts(void *opaque)
