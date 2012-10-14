@@ -7768,7 +7768,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             goto illegal_op;
 
         modrm = cpu_ldub_code(cpu_single_env, s->pc++);
-        reg = ((modrm >> 3) & 7);
+        reg = ((modrm >> 3) & 7) | rex_r;
 
         if (s->prefix & PREFIX_DATA)
             ot = OT_WORD;
