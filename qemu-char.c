@@ -2787,13 +2787,13 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
 
     if (qemu_opts_id(opts) == NULL) {
         error_setg(errp, "chardev: no id specified\n");
-        return NULL;
+        goto err;
     }
 
     if (qemu_opt_get(opts, "backend") == NULL) {
         error_setg(errp, "chardev: \"%s\" missing backend\n",
                    qemu_opts_id(opts));
-        return NULL;
+        goto err;
     }
     for (i = 0; i < ARRAY_SIZE(backend_table); i++) {
         if (strcmp(backend_table[i].name, qemu_opt_get(opts, "backend")) == 0)
@@ -2802,14 +2802,14 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
     if (i == ARRAY_SIZE(backend_table)) {
         error_setg(errp, "chardev: backend \"%s\" not found\n",
                    qemu_opt_get(opts, "backend"));
-        return NULL;
+        goto err;
     }
 
     chr = backend_table[i].open(opts);
     if (!chr) {
         error_setg(errp, "chardev: opening backend \"%s\" failed\n",
                    qemu_opt_get(opts, "backend"));
-        return NULL;
+        goto err;
     }
 
     if (!chr->filename)
@@ -2830,7 +2830,12 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
         chr->avail_connections = 1;
     }
     chr->label = g_strdup(qemu_opts_id(opts));
+    chr->opts = opts;
     return chr;
+
+err:
+    qemu_opts_del(opts);
+    return NULL;
 }
 
 CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
@@ -2856,7 +2861,6 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
         monitor_init(chr, MONITOR_USE_READLINE);
     }
-    qemu_opts_del(opts);
     return chr;
 }
 
@@ -2884,10 +2888,14 @@ void qemu_chr_fe_close(struct CharDriverState *chr)
 void qemu_chr_delete(CharDriverState *chr)
 {
     QTAILQ_REMOVE(&chardevs, chr, next);
-    if (chr->chr_close)
+    if (chr->chr_close) {
         chr->chr_close(chr);
+    }
     g_free(chr->filename);
     g_free(chr->label);
+    if (chr->opts) {
+        qemu_opts_del(chr->opts);
+    }
     g_free(chr);
 }
 
