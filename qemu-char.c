@@ -2779,19 +2779,20 @@ static const struct {
 };
 
 CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
-                                    void (*init)(struct CharDriverState *s))
+                                    void (*init)(struct CharDriverState *s),
+                                    Error **errp)
 {
     CharDriverState *chr;
     int i;
 
     if (qemu_opts_id(opts) == NULL) {
-        fprintf(stderr, "chardev: no id specified\n");
+        error_setg(errp, "chardev: no id specified\n");
         return NULL;
     }
 
     if (qemu_opt_get(opts, "backend") == NULL) {
-        fprintf(stderr, "chardev: \"%s\" missing backend\n",
-                qemu_opts_id(opts));
+        error_setg(errp, "chardev: \"%s\" missing backend\n",
+                   qemu_opts_id(opts));
         return NULL;
     }
     for (i = 0; i < ARRAY_SIZE(backend_table); i++) {
@@ -2799,15 +2800,15 @@ CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
             break;
     }
     if (i == ARRAY_SIZE(backend_table)) {
-        fprintf(stderr, "chardev: backend \"%s\" not found\n",
-                qemu_opt_get(opts, "backend"));
+        error_setg(errp, "chardev: backend \"%s\" not found\n",
+                   qemu_opt_get(opts, "backend"));
         return NULL;
     }
 
     chr = backend_table[i].open(opts);
     if (!chr) {
-        fprintf(stderr, "chardev: opening backend \"%s\" failed\n",
-                qemu_opt_get(opts, "backend"));
+        error_setg(errp, "chardev: opening backend \"%s\" failed\n",
+                   qemu_opt_get(opts, "backend"));
         return NULL;
     }
 
@@ -2837,6 +2838,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
     const char *p;
     CharDriverState *chr;
     QemuOpts *opts;
+    Error *err = NULL;
 
     if (strstart(filename, "chardev:", &p)) {
         return qemu_chr_find(p);
@@ -2846,7 +2848,11 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
     if (!opts)
         return NULL;
 
-    chr = qemu_chr_new_from_opts(opts, init);
+    chr = qemu_chr_new_from_opts(opts, init, &err);
+    if (error_is_set(&err)) {
+        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_free(err);
+    }
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
         monitor_init(chr, MONITOR_USE_READLINE);
     }
