@@ -242,11 +242,12 @@ static const MemoryRegionOps gpio_ops = {
 static struct cris_load_info li;
 
 static
-void axisdev88_init (ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+void axisdev88_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
     CRISCPU *cpu;
     CPUCRISState *env;
     DeviceState *dev;

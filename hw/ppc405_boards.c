@@ -158,7 +158,7 @@ static void ref405ep_fpga_reset (void *opaque)
     fpga->reg1 = 0x0F;
 }
 
-static void ref405ep_fpga_init (MemoryRegion *sysmem, uint32_t base)
+static void ref405ep_fpga_init(MemoryRegion *sysmem, uint32_t base)
 {
     ref405ep_fpga_t *fpga;
     MemoryRegion *fpga_memory = g_new(MemoryRegion, 1);
@@ -170,13 +170,12 @@ static void ref405ep_fpga_init (MemoryRegion *sysmem, uint32_t base)
     qemu_register_reset(&ref405ep_fpga_reset, fpga);
 }
 
-static void ref405ep_init (ram_addr_t ram_size,
-                           const char *boot_device,
-                           const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
-                           const char *cpu_model)
+static void ref405ep_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     char *filename;
     ppc4xx_bd_info_t bd;
     CPUPPCState *env;
@@ -484,7 +483,7 @@ static void taihu_cpld_reset (void *opaque)
     cpld->reg1 = 0x80;
 }
 
-static void taihu_cpld_init (MemoryRegion *sysmem, uint32_t base)
+static void taihu_cpld_init(MemoryRegion *sysmem, uint32_t base)
 {
     taihu_cpld_t *cpld;
     MemoryRegion *cpld_memory = g_new(MemoryRegion, 1);
@@ -495,13 +494,11 @@ static void taihu_cpld_init (MemoryRegion *sysmem, uint32_t base)
     qemu_register_reset(&taihu_cpld_reset, cpld);
 }
 
-static void taihu_405ep_init(ram_addr_t ram_size,
-                             const char *boot_device,
-                             const char *kernel_filename,
-                             const char *kernel_cmdline,
-                             const char *initrd_filename,
-                             const char *cpu_model)
+static void taihu_405ep_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *kernel_filename = args->kernel_filename;
+    const char *initrd_filename = args->initrd_filename;
     char *filename;
     qemu_irq *pic;
     MemoryRegion *sysmem = get_system_memory();

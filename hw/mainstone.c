@@ -171,11 +171,13 @@ static void mainstone_common_init(MemoryRegion *address_space_mem,
     arm_load_kernel(mpu->cpu, &mainstone_binfo);
 }
 
-static void mainstone_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void mainstone_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     mainstone_common_init(get_system_memory(), ram_size, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, mainstone, 0x196);
 }

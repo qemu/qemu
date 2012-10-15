@@ -90,13 +90,11 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
     cpu->env.pc = entry;
 }
 
-static void openrisc_sim_init(ram_addr_t ram_size,
-                              const char *boot_device,
-                              const char *kernel_filename,
-                              const char *kernel_cmdline,
-                              const char *initrd_filename,
-                              const char *cpu_model)
+static void openrisc_sim_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
    OpenRISCCPU *cpu = NULL;
     MemoryRegion *ram;
     int n;

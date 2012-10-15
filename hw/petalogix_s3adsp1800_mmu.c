@@ -57,12 +57,10 @@ static void machine_cpu_reset(MicroBlazeCPU *cpu)
 }
 
 static void
-petalogix_s3adsp1800_init(ram_addr_t ram_size,
-                          const char *boot_device,
-                          const char *kernel_filename,
-                          const char *kernel_cmdline,
-                          const char *initrd_filename, const char *cpu_model)
+petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
     DeviceState *dev;
     MicroBlazeCPU *cpu;
     CPUMBState *env;

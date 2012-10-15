@@ -151,11 +151,13 @@ static void main_cpu_reset(void *opaque)
 
 static const int sector_len = 32 * 1024;
 static
-void mips_r4k_init (ram_addr_t ram_size,
-                    const char *boot_device,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
+void mips_r4k_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

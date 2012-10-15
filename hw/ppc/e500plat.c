@@ -25,13 +25,14 @@ static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
                          sizeof(compatible));
 }
 
-static void e500plat_init(ram_addr_t ram_size,
-                           const char *boot_device,
-                           const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
-                           const char *cpu_model)
+static void e500plat_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *boot_device = args->boot_device;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     PPCE500Params params = {
         .ram_size = ram_size,
         .boot_device = boot_device,

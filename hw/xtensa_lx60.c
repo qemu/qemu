@@ -268,11 +268,14 @@ static void lx_init(const LxBoardDesc *board,
     }
 }
 
-static void xtensa_lx60_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void xtensa_lx60_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     static const LxBoardDesc lx60_board = {
         .flash_size = 0x400000,
         .flash_sector_size = 0x10000,
@@ -283,11 +286,14 @@ static void xtensa_lx60_init(ram_addr_t ram_size,
             initrd_filename, cpu_model);
 }
 
-static void xtensa_lx200_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void xtensa_lx200_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     static const LxBoardDesc lx200_board = {
         .flash_size = 0x1000000,
         .flash_sector_size = 0x20000,

@@ -302,21 +302,19 @@ static void mips_jazz_init(MemoryRegion *address_space,
 }
 
 static
-void mips_magnum_init (ram_addr_t ram_size,
-                       const char *boot_device,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+void mips_magnum_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
         mips_jazz_init(get_system_memory(), get_system_io(),
                        ram_size, cpu_model, JAZZ_MAGNUM);
 }
 
 static
-void mips_pica61_init (ram_addr_t ram_size,
-                       const char *boot_device,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+void mips_pica61_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
     mips_jazz_init(get_system_memory(), get_system_io(),
                    ram_size, cpu_model, JAZZ_PICA61);
 }

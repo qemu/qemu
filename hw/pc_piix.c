@@ -287,13 +287,14 @@ static void pc_init1(MemoryRegion *system_memory,
     }
 }
 
-static void pc_init_pci(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename,
-                        const char *cpu_model)
+static void pc_init_pci(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     pc_init1(get_system_memory(),
              get_system_io(),
              ram_size, boot_device,
@@ -301,13 +302,14 @@ static void pc_init_pci(ram_addr_t ram_size,
              initrd_filename, cpu_model, 1, 1);
 }
 
-static void pc_init_pci_no_kvmclock(ram_addr_t ram_size,
-                                    const char *boot_device,
-                                    const char *kernel_filename,
-                                    const char *kernel_cmdline,
-                                    const char *initrd_filename,
-                                    const char *cpu_model)
+static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     pc_init1(get_system_memory(),
              get_system_io(),
              ram_size, boot_device,
@@ -315,13 +317,14 @@ static void pc_init_pci_no_kvmclock(ram_addr_t ram_size,
              initrd_filename, cpu_model, 1, 0);
 }
 
-static void pc_init_isa(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename,
-                        const char *cpu_model)
+static void pc_init_isa(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     if (cpu_model == NULL)
         cpu_model = "486";
     pc_init1(get_system_memory(),
@@ -332,19 +335,12 @@ static void pc_init_isa(ram_addr_t ram_size,
 }
 
 #ifdef CONFIG_XEN
-static void pc_xen_hvm_init(ram_addr_t ram_size,
-                            const char *boot_device,
-                            const char *kernel_filename,
-                            const char *kernel_cmdline,
-                            const char *initrd_filename,
-                            const char *cpu_model)
+static void pc_xen_hvm_init(QEMUMachineInitArgs *args)
 {
     if (xen_hvm_init() != 0) {
         hw_error("xen hardware virtual machine initialisation failed");
     }
-    pc_init_pci_no_kvmclock(ram_size, boot_device,
-                            kernel_filename, kernel_cmdline,
-                            initrd_filename, cpu_model);
+    pc_init_pci_no_kvmclock(args);
     xen_vcpu_init();
 }
 #endif

@@ -330,11 +330,14 @@ static void realview_init(ram_addr_t ram_size,
     arm_load_kernel(arm_env_get_cpu(first_cpu), &realview_binfo);
 }
 
-static void realview_eb_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void realview_eb_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     if (!cpu_model) {
         cpu_model = "arm926";
     }
@@ -342,11 +345,14 @@ static void realview_eb_init(ram_addr_t ram_size,
                   initrd_filename, cpu_model, BOARD_EB);
 }
 
-static void realview_eb_mpcore_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void realview_eb_mpcore_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     if (!cpu_model) {
         cpu_model = "arm11mpcore";
     }
@@ -354,11 +360,14 @@ static void realview_eb_mpcore_init(ram_addr_t ram_size,
                   initrd_filename, cpu_model, BOARD_EB_MPCORE);
 }
 
-static void realview_pb_a8_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void realview_pb_a8_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     if (!cpu_model) {
         cpu_model = "cortex-a8";
     }
@@ -366,11 +375,14 @@ static void realview_pb_a8_init(ram_addr_t ram_size,
                   initrd_filename, cpu_model, BOARD_PB_A8);
 }
 
-static void realview_pbx_a9_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void realview_pbx_a9_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     if (!cpu_model) {
         cpu_model = "cortex-a9";
     }
