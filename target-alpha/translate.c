@@ -3517,7 +3517,7 @@ static const struct cpu_def_t cpu_defs[] = {
 				| AMASK_MVI | AMASK_TRAP | AMASK_PREFETCH), }
 };
 
-CPUAlphaState * cpu_alpha_init (const char *cpu_model)
+AlphaCPU *cpu_alpha_init(const char *cpu_model)
 {
     AlphaCPU *cpu;
     CPUAlphaState *env;
@@ -3546,7 +3546,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     env->cpu_model_str = cpu_model;
 
     qemu_init_vcpu(env);
-    return env;
+    return cpu;
 }
 
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)

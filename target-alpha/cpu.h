@@ -290,7 +290,6 @@ struct CPUAlphaState {
     int implver;
 };
 
-#define cpu_init cpu_alpha_init
 #define cpu_exec cpu_alpha_exec
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
@@ -427,7 +426,17 @@ enum {
     IR_ZERO = 31,
 };
 
-CPUAlphaState * cpu_alpha_init (const char *cpu_model);
+AlphaCPU *cpu_alpha_init(const char *cpu_model);
+
+static inline CPUAlphaState *cpu_init(const char *cpu_model)
+{
+    AlphaCPU *cpu = cpu_alpha_init(cpu_model);
+    if (cpu == NULL) {
+        return NULL;
+    }
+    return &cpu->env;
+}
+
 int cpu_alpha_exec(CPUAlphaState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
