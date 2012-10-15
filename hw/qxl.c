@@ -447,6 +447,12 @@ static int qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
                               qxl->ssd.num_surfaces);
             return 1;
         }
+        if (cmd->type == QXL_SURFACE_CMD_CREATE &&
+            (cmd->u.surface_create.stride & 0x03) != 0) {
+            qxl_set_guest_bug(qxl, "QXL_CMD_SURFACE stride = %d %% 4 != 0\n",
+                              cmd->u.surface_create.stride);
+            return 1;
+        }
         qemu_mutex_lock(&qxl->track_lock);
         if (cmd->type == QXL_SURFACE_CMD_CREATE) {
             qxl->guest_surfaces.cmds[id] = ext->cmd.data;
@@ -1356,6 +1362,12 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
                                    sc->format, sc->position);
     trace_qxl_create_guest_primary_rest(qxl->id, sc->stride, sc->type,
                                         sc->flags);
+
+    if ((surface.stride & 0x3) != 0) {
+        qxl_set_guest_bug(qxl, "primary surface stride = %d %% 4 != 0",
+                          surface.stride);
+        return;
+    }
 
     surface.mouse_mode = true;
     surface.group_id   = MEMSLOT_GROUP_GUEST;
