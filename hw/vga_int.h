@@ -29,9 +29,6 @@
 #define ST01_V_RETRACE      0x08
 #define ST01_DISP_ENABLE    0x01
 
-/* bochs VBE support */
-#define CONFIG_BOCHS_VBE
-
 #define VBE_DISPI_MAX_XRES              16000
 #define VBE_DISPI_MAX_YRES              12000
 #define VBE_DISPI_MAX_BPP               32
@@ -64,21 +61,6 @@
 #define VBE_DISPI_NOCLEARMEM            0x80
 
 #define VBE_DISPI_LFB_PHYSICAL_ADDRESS  0xE0000000
-
-#ifdef CONFIG_BOCHS_VBE
-
-#define VGA_STATE_COMMON_BOCHS_VBE              \
-    uint16_t vbe_index;                         \
-    uint16_t vbe_regs[VBE_DISPI_INDEX_NB];      \
-    uint32_t vbe_start_addr;                    \
-    uint32_t vbe_line_offset;                   \
-    uint32_t vbe_bank_mask;			\
-    int vbe_mapped;
-#else
-
-#define VGA_STATE_COMMON_BOCHS_VBE
-
-#endif /* !CONFIG_BOCHS_VBE */
 
 #define CH_ATTR_SIZE (160 * 100)
 #define VGA_MAX_HEIGHT 2048
@@ -140,7 +122,13 @@ typedef struct VGACommonState {
     void (*get_resolution)(struct VGACommonState *s,
                         int *pwidth,
                         int *pheight);
-    VGA_STATE_COMMON_BOCHS_VBE
+    /* bochs vbe state */
+    uint16_t vbe_index;
+    uint16_t vbe_regs[VBE_DISPI_INDEX_NB];
+    uint32_t vbe_start_addr;
+    uint32_t vbe_line_offset;
+    uint32_t vbe_bank_mask;
+    int vbe_mapped;
     /* display refresh support */
     DisplayState *ds;
     uint32_t font_offsets[2];
@@ -209,12 +197,10 @@ void ppm_save(const char *filename, struct DisplaySurface *ds, Error **errp);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
 
-#ifdef CONFIG_BOCHS_VBE
 void vga_init_vbe(VGACommonState *s, MemoryRegion *address_space);
 uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr);
 void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val);
 void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val);
-#endif
 
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];
