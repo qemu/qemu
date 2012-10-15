@@ -96,6 +96,7 @@ class QEMUMonitorProtocol:
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
         self.__sock, _ = self.__sock.accept()
+        self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
 
     def cmd_obj(self, qmp_cmd):
