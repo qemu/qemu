@@ -48,25 +48,25 @@ static const VMStateDescription vmstate_vga_pci = {
 
 static int pci_std_vga_initfn(PCIDevice *dev)
 {
-     PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
-     VGACommonState *s = &d->vga;
+    PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
+    VGACommonState *s = &d->vga;
 
-     // vga + console init
-     vga_common_init(s);
-     vga_init(s, pci_address_space(dev), pci_address_space_io(dev), true);
+    /* vga + console init */
+    vga_common_init(s);
+    vga_init(s, pci_address_space(dev), pci_address_space_io(dev), true);
 
-     s->ds = graphic_console_init(s->update, s->invalidate,
-                                  s->screen_dump, s->text_update, s);
+    s->ds = graphic_console_init(s->update, s->invalidate,
+                                 s->screen_dump, s->text_update, s);
 
-     /* XXX: VGA_RAM_SIZE must be a power of two */
-     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
+    /* XXX: VGA_RAM_SIZE must be a power of two */
+    pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
 
-     if (!dev->rom_bar) {
-         /* compatibility with pc-0.13 and older */
-         vga_init_vbe(s, pci_address_space(dev));
-     }
+    if (!dev->rom_bar) {
+        /* compatibility with pc-0.13 and older */
+        vga_init_vbe(s, pci_address_space(dev));
+    }
 
-     return 0;
+    return 0;
 }
 
 static Property vga_pci_properties[] = {
