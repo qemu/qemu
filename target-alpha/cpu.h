@@ -425,6 +425,8 @@ enum {
     IR_ZERO = 31,
 };
 
+void alpha_translate_init(void);
+
 AlphaCPU *cpu_alpha_init(const char *cpu_model);
 
 static inline CPUAlphaState *cpu_init(const char *cpu_model)
