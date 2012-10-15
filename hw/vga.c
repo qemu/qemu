@@ -591,7 +591,7 @@ static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
+uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
 {
     VGACommonState *s = opaque;
     uint32_t val;
@@ -627,13 +627,13 @@ static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
     return val;
 }
 
-static void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val)
+void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val)
 {
     VGACommonState *s = opaque;
     s->vbe_index = val;
 }
 
-static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
+void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
     VGACommonState *s = opaque;
 

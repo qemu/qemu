@@ -379,6 +379,10 @@ static QEMUMachine pc_machine_v1_3 = {
             .driver   = "qxl-vga",\
             .property = "revision",\
             .value    = stringify(3),\
+        },{\
+            .driver   = "VGA",\
+            .property = "mmio",\
+            .value    = "off",\
         }
 
 static QEMUMachine pc_machine_v1_2 = {
