@@ -27,6 +27,8 @@
 #include "ssi.h"
 
 #define NUM_SPI_FLASHES 4
+#define NUM_QSPI_FLASHES 2
+#define NUM_QSPI_BUSSES 2
 
 #define FLASH_SIZE (64 * 1024 * 1024)
 #define FLASH_SECTOR_SIZE (128 * 1024)
@@ -49,30 +51,43 @@ static void gem_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq)
+static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
+                                         bool is_qspi)
 {
     DeviceState *dev;
     SysBusDevice *busdev;
     SSIBus *spi;
-    int i;
+    int i, j;
+    int num_busses =  is_qspi ? NUM_QSPI_BUSSES : 1;
+    int num_ss = is_qspi ? NUM_QSPI_FLASHES : NUM_SPI_FLASHES;
 
     dev = qdev_create(NULL, "xilinx,spips");
+    qdev_prop_set_uint8(dev, "num-txrx-bytes", is_qspi ? 4 : 1);
+    qdev_prop_set_uint8(dev, "num-ss-bits", num_ss);
+    qdev_prop_set_uint8(dev, "num-busses", num_busses);
     qdev_init_nofail(dev);
     busdev = sysbus_from_qdev(dev);
     sysbus_mmio_map(busdev, 0, base_addr);
+    if (is_qspi) {
+        sysbus_mmio_map(busdev, 1, 0xFC000000);
+    }
     sysbus_connect_irq(busdev, 0, irq);
 
-    spi = (SSIBus *)qdev_get_child_bus(dev, "spi");
-
-    for (i = 0; i < NUM_SPI_FLASHES; ++i) {
+    for (i = 0; i < num_busses; ++i) {
+        char bus_name[16];
         qemu_irq cs_line;
 
-        dev = ssi_create_slave_no_init(spi, "m25p80");
-        qdev_prop_set_string(dev, "partname", "n25q128");
-        qdev_init_nofail(dev);
+        snprintf(bus_name, 16, "spi%d", i);
+        spi = (SSIBus *)qdev_get_child_bus(dev, bus_name);
 
-        cs_line = qdev_get_gpio_in(dev, 0);
-        sysbus_connect_irq(busdev, i+1, cs_line);
+        for (j = 0; j < num_ss; ++j) {
+            dev = ssi_create_slave_no_init(spi, "m25p80");
+            qdev_prop_set_string(dev, "partname", "n25q128");
+            qdev_init_nofail(dev);
+
+            cs_line = qdev_get_gpio_in(dev, 0);
+            sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
+        }
     }
 
 }
@@ -147,8 +162,9 @@ static void zynq_init(QEMUMachineInitArgs *args)
         pic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    zynq_init_spi_flashes(0xE0006000, pic[58-IRQ_OFFSET]);
-    zynq_init_spi_flashes(0xE0007000, pic[81-IRQ_OFFSET]);
+    zynq_init_spi_flashes(0xE0006000, pic[58-IRQ_OFFSET], false);
+    zynq_init_spi_flashes(0xE0007000, pic[81-IRQ_OFFSET], false);
+    zynq_init_spi_flashes(0xE000D000, pic[51-IRQ_OFFSET], true);
 
     sysbus_create_simple("cadence_uart", 0xE0000000, pic[59-IRQ_OFFSET]);
     sysbus_create_simple("cadence_uart", 0xE0001000, pic[82-IRQ_OFFSET]);
