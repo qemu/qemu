@@ -2483,7 +2483,7 @@ static void gen_faligndata(TCGv dst, TCGv gsr, TCGv s1, TCGv s2)
 static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 {
     unsigned int opc, rs1, rs2, rd;
-    TCGv cpu_src1, cpu_src2, cpu_tmp1, cpu_tmp2;
+    TCGv cpu_src1, cpu_src2;
     TCGv_i32 cpu_src1_32, cpu_src2_32, cpu_dst_32;
     TCGv_i64 cpu_src1_64, cpu_src2_64, cpu_dst_64;
     target_long simm;
@@ -2495,9 +2495,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     opc = GET_FIELD(insn, 0, 1);
 
     rd = GET_FIELD(insn, 2, 6);
-
-    cpu_tmp1 = cpu_src1 = tcg_temp_new();
-    cpu_tmp2 = cpu_src2 = tcg_temp_new();
 
     switch (opc) {
     case 0:                     /* branches/sethi */
@@ -4602,8 +4599,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 
             cpu_src1 = get_src1(dc, insn);
             if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
-                rs2 = GET_FIELD(insn, 27, 31);
-                cpu_src2 = gen_load_gpr(dc, rs2);
                 tcg_gen_mov_tl(cpu_addr, cpu_src1);
             } else if (IS_IMM) {     /* immediate */
                 simm = GET_FIELDs(insn, 19, 31);
@@ -5074,9 +5069,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */
+                    rs2 = GET_FIELD(insn, 27, 31);
+                    cpu_src2 = gen_load_gpr(dc, rs2);
                     gen_cas_asi(dc, cpu_addr, cpu_src2, insn, rd);
                     break;
                 case 0x3e: /* V9 casxa */
+                    rs2 = GET_FIELD(insn, 27, 31);
+                    cpu_src2 = gen_load_gpr(dc, rs2);
                     gen_casx_asi(dc, cpu_addr, cpu_src2, insn, rd);
                     break;
 #else
@@ -5089,8 +5088,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 default:
                     goto illegal_insn;
                 }
-            } else
+            } else {
                 goto illegal_insn;
+            }
         }
         break;
     }
@@ -5169,8 +5169,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     goto egress;
 #endif
  egress:
-    tcg_temp_free(cpu_tmp1);
-    tcg_temp_free(cpu_tmp2);
     if (dc->n_t32 != 0) {
         int i;
         for (i = dc->n_t32 - 1; i >= 0; --i) {
