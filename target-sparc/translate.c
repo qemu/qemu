@@ -2865,14 +2865,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 3: // tt
                     {
-                        TCGv_ptr r_tsptr;
+                        TCGv_ptr r_tsptr = tcg_temp_new_ptr();
 
-                        r_tsptr = tcg_temp_new_ptr();
                         gen_load_trap_state_at_tl(r_tsptr, cpu_env);
-                        tcg_gen_ld_i32(cpu_tmp32, r_tsptr,
-                                       offsetof(trap_state, tt));
+                        tcg_gen_ld32s_tl(cpu_tmp0, r_tsptr,
+                                         offsetof(trap_state, tt));
                         tcg_temp_free_ptr(r_tsptr);
-                        tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
                     }
                     break;
                 case 4: // tick
@@ -2890,53 +2888,44 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_mov_tl(cpu_tmp0, cpu_tbr);
                     break;
                 case 6: // pstate
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, pstate));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, pstate));
                     break;
                 case 7: // tl
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, tl));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, tl));
                     break;
                 case 8: // pil
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, psrpil));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, psrpil));
                     break;
                 case 9: // cwp
                     gen_helper_rdcwp(cpu_tmp0, cpu_env);
                     break;
                 case 10: // cansave
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, cansave));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, cansave));
                     break;
                 case 11: // canrestore
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, canrestore));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, canrestore));
                     break;
                 case 12: // cleanwin
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, cleanwin));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, cleanwin));
                     break;
                 case 13: // otherwin
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, otherwin));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, otherwin));
                     break;
                 case 14: // wstate
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, wstate));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, wstate));
                     break;
                 case 16: // UA2005 gl
                     CHECK_IU_FEATURE(dc, GL);
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env,
-                                   offsetof(CPUSPARCState, gl));
-                    tcg_gen_ext_i32_tl(cpu_tmp0, cpu_tmp32);
+                    tcg_gen_ld32s_tl(cpu_tmp0, cpu_env,
+                                     offsetof(CPUSPARCState, gl));
                     break;
                 case 26: // UA2005 strand status
                     CHECK_IU_FEATURE(dc, HYPV);
