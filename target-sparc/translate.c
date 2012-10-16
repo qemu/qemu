@@ -83,7 +83,9 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     sparc_def_t *def;
     TCGv_i32 t32[3];
+    TCGv ttl[5];
     int n_t32;
+    int n_ttl;
 } DisasContext;
 
 typedef struct {
@@ -261,6 +263,49 @@ static inline void gen_address_mask(DisasContext *dc, TCGv addr)
     if (AM_CHECK(dc))
         tcg_gen_andi_tl(addr, addr, 0xffffffffULL);
 #endif
+}
+
+static inline TCGv get_temp_tl(DisasContext *dc)
+{
+    TCGv t;
+    assert(dc->n_ttl < ARRAY_SIZE(dc->ttl));
+    dc->ttl[dc->n_ttl++] = t = tcg_temp_new();
+    return t;
+}
+
+static inline TCGv gen_load_gpr(DisasContext *dc, int reg)
+{
+    if (reg == 0 || reg >= 8) {
+        TCGv t = get_temp_tl(dc);
+        if (reg == 0) {
+            tcg_gen_movi_tl(t, 0);
+        } else {
+            tcg_gen_ld_tl(t, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
+        }
+        return t;
+    } else {
+        return cpu_gregs[reg];
+    }
+}
+
+static inline void gen_store_gpr(DisasContext *dc, int reg, TCGv v)
+{
+    if (reg > 0) {
+        if (reg < 8) {
+            tcg_gen_mov_tl(cpu_gregs[reg], v);
+        } else {
+            tcg_gen_st_tl(v, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
+        }
+    }
+}
+
+static inline TCGv gen_dest_gpr(DisasContext *dc, int reg)
+{
+    if (reg == 0 || reg >= 8) {
+        return get_temp_tl(dc);
+    } else {
+        return cpu_gregs[reg];
+    }
 }
 
 static inline void gen_movl_reg_TN(int reg, TCGv tn)
@@ -5228,6 +5273,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             tcg_temp_free_i32(dc->t32[i]);
         }
         dc->n_t32 = 0;
+    }
+    if (dc->n_ttl != 0) {
+        int i;
+        for (i = dc->n_ttl - 1; i >= 0; --i) {
+            tcg_temp_free(dc->ttl[i]);
+        }
+        dc->n_ttl = 0;
     }
 }
 
