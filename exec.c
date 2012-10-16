@@ -578,7 +578,12 @@ static inline void *alloc_code_gen_buffer(void)
     /* Constrain the position of the buffer based on the host cpu.
        Note that these addresses are chosen in concert with the
        addresses assigned in the relevant linker script file.  */
-# if defined(__x86_64__) && defined(MAP_32BIT)
+# if defined(__PIE__) || defined(__PIC__)
+    /* Don't bother setting a preferred location if we're building
+       a position-independent executable.  We're more likely to get
+       an address near the main executable if we let the kernel
+       choose the address.  */
+# elif defined(__x86_64__) && defined(MAP_32BIT)
     /* Force the memory down into low memory with the executable.
        Leave the choice of exact location with the kernel.  */
     flags |= MAP_32BIT;
