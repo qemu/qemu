@@ -529,7 +529,11 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
 # define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
 #endif
 
-#define DEFAULT_CODE_GEN_BUFFER_SIZE (32u * 1024 * 1024)
+#define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (32u * 1024 * 1024)
+
+#define DEFAULT_CODE_GEN_BUFFER_SIZE \
+  (DEFAULT_CODE_GEN_BUFFER_SIZE_1 < MAX_CODE_GEN_BUFFER_SIZE \
+   ? DEFAULT_CODE_GEN_BUFFER_SIZE_1 : MAX_CODE_GEN_BUFFER_SIZE)
 
 static inline size_t size_code_gen_buffer(size_t tb_size)
 {
