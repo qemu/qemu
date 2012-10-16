@@ -211,15 +211,6 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
-    /* top and base may be valid, but let's make sure that base is reachable
-     * from top */
-    if (bdrv_find_backing_image(top, base->filename) != base) {
-        error_setg(errp,
-                   "Base (%s) is not reachable from top (%s)",
-                   base->filename, top->filename);
-        return;
-    }
-
     overlay_bs = bdrv_find_overlay(bs, top);
 
     if (overlay_bs == NULL) {
