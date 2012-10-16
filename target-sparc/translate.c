@@ -60,7 +60,6 @@ static TCGv cpu_wim;
 #endif
 /* local register indexes (only used inside old micro ops) */
 static TCGv cpu_tmp0;
-static TCGv_i32 cpu_tmp32;
 static TCGv_i64 cpu_tmp64;
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
@@ -4834,17 +4833,15 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (rd == 1) {
                         tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
                         gen_helper_ldxfsr(cpu_env, cpu_tmp64);
-                    } else {
-                        tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
-                        tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
-                        gen_helper_ldfsr(cpu_env, cpu_tmp32);
-                    }
-#else
-                    {
-                        tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
-                        gen_helper_ldfsr(cpu_env, cpu_tmp32);
+                        break;
                     }
 #endif
+                    {
+                        TCGv_i32 t32 = get_temp_i32(dc);
+                        tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
+                        tcg_gen_trunc_tl_i32(t32, cpu_tmp0);
+                        gen_helper_ldfsr(cpu_env, t32);
+                    }
                     break;
                 case 0x22:      /* ldqf, load quad fpreg */
                     {
@@ -4979,17 +4976,19 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_st32(cpu_tmp0, cpu_addr, dc->mem_idx);
                     break;
                 case 0x25: /* stfsr, V9 stxfsr */
+                    {
+                        TCGv t = get_temp_tl(dc);
+
+                        tcg_gen_ld_tl(t, cpu_env, offsetof(CPUSPARCState, fsr));
 #ifdef TARGET_SPARC64
-                    gen_address_mask(dc, cpu_addr);
-                    tcg_gen_ld_i64(cpu_tmp64, cpu_env, offsetof(CPUSPARCState, fsr));
-                    if (rd == 1)
-                        tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
-                    else
-                        tcg_gen_qemu_st32(cpu_tmp64, cpu_addr, dc->mem_idx);
-#else
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUSPARCState, fsr));
-                    tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);
+                        gen_address_mask(dc, cpu_addr);
+                        if (rd == 1) {
+                            tcg_gen_qemu_st64(t, cpu_addr, dc->mem_idx);
+                            break;
+                        }
 #endif
+                        tcg_gen_qemu_st32(t, cpu_addr, dc->mem_idx);
+                    }
                     break;
                 case 0x26:
 #ifdef TARGET_SPARC64
@@ -5236,7 +5235,6 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         insn = cpu_ldl_code(env, dc->pc);
 
         cpu_tmp0 = tcg_temp_new();
-        cpu_tmp32 = tcg_temp_new_i32();
         cpu_tmp64 = tcg_temp_new_i64();
         cpu_dst = tcg_temp_new();
 
@@ -5245,7 +5243,6 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
 
         tcg_temp_free(cpu_dst);
         tcg_temp_free_i64(cpu_tmp64);
-        tcg_temp_free_i32(cpu_tmp32);
         tcg_temp_free(cpu_tmp0);
 
         if (dc->is_br)
