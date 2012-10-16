@@ -148,7 +148,9 @@ Changes the backing file of an image. Only the formats @code{qcow2} and
 
 The backing file is changed to @var{backing_file} and (if the image format of
 @var{filename} supports this) the backing file format is changed to
-@var{backing_fmt}.
+@var{backing_fmt}. If @var{backing_file} is specified as ``'' (the empty
+string), then the image is rebased onto no backing file (i.e. it will exist
+independently of any backing file).
 
 There are two different modes in which @code{rebase} can operate:
 @table @option
