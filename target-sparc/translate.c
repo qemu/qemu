@@ -2086,7 +2086,7 @@ static inline void gen_stf_asi(TCGv addr, int insn, int size, int rd)
     tcg_temp_free_i32(r_asi);
 }
 
-static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
+static inline void gen_swap_asi(TCGv dst, TCGv src, TCGv addr, int insn)
 {
     TCGv_i32 r_asi, r_size, r_sign;
 
@@ -2095,7 +2095,7 @@ static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
     r_sign = tcg_const_i32(0);
     gen_helper_ld_asi(cpu_tmp64, cpu_env, addr, r_asi, r_size, r_sign);
     tcg_temp_free_i32(r_sign);
-    gen_helper_st_asi(cpu_env, addr, dst, r_asi, r_size);
+    gen_helper_st_asi(cpu_env, addr, src, r_asi, r_size);
     tcg_temp_free_i32(r_size);
     tcg_temp_free_i32(r_asi);
     tcg_gen_trunc_i64_tl(dst, cpu_tmp64);
@@ -2176,7 +2176,7 @@ static inline void gen_st_asi(TCGv src, TCGv addr, int insn, int size)
     tcg_temp_free(r_asi);
 }
 
-static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
+static inline void gen_swap_asi(TCGv dst, TCGv src, TCGv addr, int insn)
 {
     TCGv_i32 r_asi, r_size, r_sign;
     TCGv_i64 r_val;
@@ -2187,7 +2187,7 @@ static inline void gen_swap_asi(TCGv dst, TCGv addr, int insn)
     gen_helper_ld_asi(cpu_tmp64, cpu_env, addr, r_asi, r_size, r_sign);
     tcg_temp_free(r_sign);
     r_val = tcg_temp_new_i64();
-    tcg_gen_extu_tl_i64(r_val, dst);
+    tcg_gen_extu_tl_i64(r_val, src);
     gen_helper_st_asi(cpu_env, addr, r_val, r_asi, r_size);
     tcg_temp_free_i64(r_val);
     tcg_temp_free(r_size);
@@ -4694,10 +4694,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x0f:      /* swap, swap register with memory. Also
                                    atomically */
                     CHECK_IU_FEATURE(dc, SWAP);
-                    gen_movl_reg_TN(rd, cpu_val);
+                    cpu_src1 = gen_load_gpr(dc, rd);
                     gen_address_mask(dc, cpu_addr);
                     tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
-                    tcg_gen_qemu_st32(cpu_val, cpu_addr, dc->mem_idx);
+                    tcg_gen_qemu_st32(cpu_src1, cpu_addr, dc->mem_idx);
                     tcg_gen_mov_tl(cpu_val, cpu_tmp0);
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
@@ -4783,8 +4783,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto priv_insn;
 #endif
                     save_state(dc);
-                    gen_movl_reg_TN(rd, cpu_val);
-                    gen_swap_asi(cpu_val, cpu_addr, insn);
+                    cpu_src1 = gen_load_gpr(dc, rd);
+                    gen_swap_asi(cpu_val, cpu_src1, cpu_addr, insn);
                     break;
 
 #ifndef TARGET_SPARC64
