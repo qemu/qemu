@@ -516,10 +516,10 @@ static inline void gen_arm_shift_im(TCGv var, int shiftop, int shift, int flags)
             tcg_gen_rotri_i32(var, var, shift); break;
         } else {
             TCGv tmp = tcg_temp_new_i32();
+            tcg_gen_shli_i32(tmp, cpu_CF, 31);
             if (flags)
                 shifter_out_im(var, 0);
             tcg_gen_shri_i32(var, var, 1);
-            tcg_gen_shli_i32(tmp, cpu_CF, 31);
             tcg_gen_or_i32(var, var, tmp);
             tcg_temp_free_i32(tmp);
         }
