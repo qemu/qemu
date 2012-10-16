@@ -48,7 +48,7 @@ static TCGv cpu_y;
 #ifndef CONFIG_USER_ONLY
 static TCGv cpu_tbr;
 #endif
-static TCGv cpu_cond, cpu_dst, cpu_addr;
+static TCGv cpu_cond, cpu_dst;
 #ifdef TARGET_SPARC64
 static TCGv_i32 cpu_xcc, cpu_asi, cpu_fprs;
 static TCGv cpu_gsr;
@@ -4596,20 +4596,22 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     case 3:                     /* load/store instructions */
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
+            /* ??? gen_address_mask prevents us from using a source
+               register directly.  Always generate a temporary.  */
+            TCGv cpu_addr = get_temp_tl(dc);
 
-            cpu_src1 = get_src1(dc, insn);
-            if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
-                tcg_gen_mov_tl(cpu_addr, cpu_src1);
+            tcg_gen_mov_tl(cpu_addr, get_src1(dc, insn));
+            if (xop == 0x3c || xop == 0x3e) {
+                /* V9 casa/casxa : no offset */
             } else if (IS_IMM) {     /* immediate */
                 simm = GET_FIELDs(insn, 19, 31);
-                tcg_gen_addi_tl(cpu_addr, cpu_src1, simm);
+                if (simm != 0) {
+                    tcg_gen_addi_tl(cpu_addr, cpu_addr, simm);
+                }
             } else {            /* register */
                 rs2 = GET_FIELD(insn, 27, 31);
                 if (rs2 != 0) {
-                    cpu_src2 = gen_load_gpr(dc, rs2);
-                    tcg_gen_add_tl(cpu_addr, cpu_src1, cpu_src2);
-                } else {
-                    tcg_gen_mov_tl(cpu_addr, cpu_src1);
+                    tcg_gen_add_tl(cpu_addr, cpu_addr, gen_load_gpr(dc, rs2));
                 }
             }
             if (xop < 4 || (xop > 7 && xop < 0x14 && xop != 0x0e) ||
@@ -5251,12 +5253,10 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         cpu_tmp32 = tcg_temp_new_i32();
         cpu_tmp64 = tcg_temp_new_i64();
         cpu_dst = tcg_temp_new();
-        cpu_addr = tcg_temp_new();
 
         disas_sparc_insn(dc, insn);
         num_insns++;
 
-        tcg_temp_free(cpu_addr);
         tcg_temp_free(cpu_dst);
         tcg_temp_free_i64(cpu_tmp64);
         tcg_temp_free_i32(cpu_tmp32);
