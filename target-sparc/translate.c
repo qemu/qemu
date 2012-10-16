@@ -60,7 +60,6 @@ static TCGv cpu_wim;
 #endif
 /* local register indexes (only used inside old micro ops) */
 static TCGv cpu_tmp0;
-static TCGv_i64 cpu_tmp64;
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
@@ -4637,6 +4636,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto illegal_insn;
                     else {
                         TCGv_i32 r_const;
+                        TCGv_i64 t64;
 
                         save_state(dc);
                         r_const = tcg_const_i32(7);
@@ -4644,12 +4644,14 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         gen_helper_check_align(cpu_env, cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         gen_address_mask(dc, cpu_addr);
-                        tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
-                        tcg_gen_trunc_i64_tl(cpu_tmp0, cpu_tmp64);
+                        t64 = tcg_temp_new_i64();
+                        tcg_gen_qemu_ld64(t64, cpu_addr, dc->mem_idx);
+                        tcg_gen_trunc_i64_tl(cpu_tmp0, t64);
                         tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0xffffffffULL);
                         gen_store_gpr(dc, rd + 1, cpu_tmp0);
-                        tcg_gen_shri_i64(cpu_tmp64, cpu_tmp64, 32);
-                        tcg_gen_trunc_i64_tl(cpu_val, cpu_tmp64);
+                        tcg_gen_shri_i64(t64, t64, 32);
+                        tcg_gen_trunc_i64_tl(cpu_val, t64);
+                        tcg_temp_free_i64(t64);
                         tcg_gen_andi_tl(cpu_val, cpu_val, 0xffffffffULL);
                     }
                     break;
@@ -4846,8 +4848,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #ifdef TARGET_SPARC64
                     gen_address_mask(dc, cpu_addr);
                     if (rd == 1) {
-                        tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
-                        gen_helper_ldxfsr(cpu_env, cpu_tmp64);
+                        TCGv_i64 t64 = tcg_temp_new_i64();
+                        tcg_gen_qemu_ld64(t64, cpu_addr, dc->mem_idx);
+                        gen_helper_ldxfsr(cpu_env, t64);
+                        tcg_temp_free_i64(t64);
                         break;
                     }
 #endif
@@ -4902,6 +4906,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto illegal_insn;
                     else {
                         TCGv_i32 r_const;
+                        TCGv_i64 t64;
                         TCGv lo;
 
                         save_state(dc);
@@ -4911,8 +4916,11 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         gen_helper_check_align(cpu_env, cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         lo = gen_load_gpr(dc, rd + 1);
-                        tcg_gen_concat_tl_i64(cpu_tmp64, lo, cpu_val);
-                        tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
+
+                        t64 = tcg_temp_new_i64();
+                        tcg_gen_concat_tl_i64(t64, lo, cpu_val);
+                        tcg_gen_qemu_st64(t64, cpu_addr, dc->mem_idx);
+                        tcg_temp_free_i64(t64);
                     }
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
@@ -5250,14 +5258,12 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         insn = cpu_ldl_code(env, dc->pc);
 
         cpu_tmp0 = tcg_temp_new();
-        cpu_tmp64 = tcg_temp_new_i64();
         cpu_dst = tcg_temp_new();
 
         disas_sparc_insn(dc, insn);
         num_insns++;
 
         tcg_temp_free(cpu_dst);
-        tcg_temp_free_i64(cpu_tmp64);
         tcg_temp_free(cpu_tmp0);
 
         if (dc->is_br)
