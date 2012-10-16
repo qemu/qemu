@@ -48,7 +48,7 @@ static TCGv cpu_y;
 #ifndef CONFIG_USER_ONLY
 static TCGv cpu_tbr;
 #endif
-static TCGv cpu_cond, cpu_dst, cpu_addr, cpu_val;
+static TCGv cpu_cond, cpu_dst, cpu_addr;
 #ifdef TARGET_SPARC64
 static TCGv_i32 cpu_xcc, cpu_asi, cpu_fprs;
 static TCGv cpu_gsr;
@@ -305,28 +305,6 @@ static inline TCGv gen_dest_gpr(DisasContext *dc, int reg)
         return get_temp_tl(dc);
     } else {
         return cpu_gregs[reg];
-    }
-}
-
-static inline void gen_movl_reg_TN(int reg, TCGv tn)
-{
-    if (reg == 0)
-        tcg_gen_movi_tl(tn, 0);
-    else if (reg < 8)
-        tcg_gen_mov_tl(tn, cpu_gregs[reg]);
-    else {
-        tcg_gen_ld_tl(tn, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
-    }
-}
-
-static inline void gen_movl_TN_reg(int reg, TCGv tn)
-{
-    if (reg == 0)
-        return;
-    else if (reg < 8)
-        tcg_gen_mov_tl(cpu_gregs[reg], tn);
-    else {
-        tcg_gen_st_tl(tn, cpu_regwptr, (reg - 8) * sizeof(target_ulong));
     }
 }
 
@@ -2127,24 +2105,28 @@ static inline void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
     tcg_temp_free_i32(r_asi);
 }
 
-static inline void gen_cas_asi(DisasContext *dc, TCGv dst, TCGv addr,
+static inline void gen_cas_asi(DisasContext *dc, TCGv addr,
                                TCGv val2, int insn, int rd)
 {
-    TCGv r_val1 = gen_load_gpr(dc, rd);
+    TCGv val1 = gen_load_gpr(dc, rd);
+    TCGv dst = gen_dest_gpr(dc, rd);
     TCGv_i32 r_asi = gen_get_asi(insn, addr);
 
-    gen_helper_cas_asi(dst, cpu_env, addr, r_val1, val2, r_asi);
+    gen_helper_cas_asi(dst, cpu_env, addr, val1, val2, r_asi);
     tcg_temp_free_i32(r_asi);
+    gen_store_gpr(dc, rd, dst);
 }
 
-static inline void gen_casx_asi(DisasContext *dc, TCGv dst, TCGv addr,
+static inline void gen_casx_asi(DisasContext *dc, TCGv addr,
                                 TCGv val2, int insn, int rd)
 {
-    TCGv r_val1 = gen_load_gpr(dc, rd);
+    TCGv val1 = gen_load_gpr(dc, rd);
+    TCGv dst = gen_dest_gpr(dc, rd);
     TCGv_i32 r_asi = gen_get_asi(insn, addr);
 
-    gen_helper_casx_asi(dst, cpu_env, addr, r_val1, val2, r_asi);
+    gen_helper_casx_asi(dst, cpu_env, addr, val1, val2, r_asi);
     tcg_temp_free_i32(r_asi);
+    gen_store_gpr(dc, rd, dst);
 }
 
 #elif !defined(CONFIG_USER_ONLY)
@@ -4638,6 +4620,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
             if (xop < 4 || (xop > 7 && xop < 0x14 && xop != 0x0e) ||
                 (xop > 0x17 && xop <= 0x1d ) ||
                 (xop > 0x2c && xop <= 0x33) || xop == 0x1f || xop == 0x3d) {
+                TCGv cpu_val = gen_dest_gpr(dc, rd);
+
                 switch (xop) {
                 case 0x0:       /* ld, V9 lduw, load unsigned word */
                     gen_address_mask(dc, cpu_addr);
@@ -4903,7 +4887,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 }
             } else if (xop < 8 || (xop >= 0x14 && xop < 0x18) ||
                        xop == 0xe || xop == 0x1e) {
-                gen_movl_reg_TN(rd, cpu_val);
+                TCGv cpu_val = gen_load_gpr(dc, rd);
+
                 switch (xop) {
                 case 0x4: /* st, store word */
                     gen_address_mask(dc, cpu_addr);
@@ -4922,6 +4907,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto illegal_insn;
                     else {
                         TCGv_i32 r_const;
+                        TCGv lo;
 
                         save_state(dc);
                         gen_address_mask(dc, cpu_addr);
@@ -4929,8 +4915,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         /* XXX remove alignment check */
                         gen_helper_check_align(cpu_env, cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
-                        gen_movl_reg_TN(rd + 1, cpu_tmp0);
-                        tcg_gen_concat_tl_i64(cpu_tmp64, cpu_tmp0, cpu_val);
+                        lo = gen_load_gpr(dc, rd + 1);
+                        tcg_gen_concat_tl_i64(cpu_tmp64, lo, cpu_val);
                         tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
                     }
                     break;
@@ -5088,12 +5074,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_stf_asi(cpu_addr, insn, 8, DFPREG(rd));
                     break;
                 case 0x3c: /* V9 casa */
-                    gen_cas_asi(dc, cpu_val, cpu_addr, cpu_src2, insn, rd);
-                    gen_store_gpr(dc, rd, cpu_val);
+                    gen_cas_asi(dc, cpu_addr, cpu_src2, insn, rd);
                     break;
                 case 0x3e: /* V9 casxa */
-                    gen_casx_asi(dc, cpu_val, cpu_addr, cpu_src2, insn, rd);
-                    gen_store_gpr(dc, rd, cpu_val);
+                    gen_casx_asi(dc, cpu_addr, cpu_src2, insn, rd);
                     break;
 #else
                 case 0x34: /* stc */
@@ -5269,14 +5253,12 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         cpu_tmp32 = tcg_temp_new_i32();
         cpu_tmp64 = tcg_temp_new_i64();
         cpu_dst = tcg_temp_new();
-        cpu_val = tcg_temp_new();
         cpu_addr = tcg_temp_new();
 
         disas_sparc_insn(dc, insn);
         num_insns++;
 
         tcg_temp_free(cpu_addr);
-        tcg_temp_free(cpu_val);
         tcg_temp_free(cpu_dst);
         tcg_temp_free_i64(cpu_tmp64);
         tcg_temp_free_i32(cpu_tmp32);
