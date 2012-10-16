@@ -206,9 +206,9 @@ static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
     gen_update_fprs_dirty(dst);
 }
 
-static TCGv_i64 gen_dest_fpr_D(void)
+static TCGv_i64 gen_dest_fpr_D(DisasContext *dc, unsigned int dst)
 {
-    return cpu_tmp64;
+    return cpu_fpr[DFPREG(dst) / 2];
 }
 
 static void gen_op_load_fpr_QT0(unsigned int src)
@@ -1758,7 +1758,7 @@ static inline void gen_fop_DD(DisasContext *dc, int rd, int rs,
     TCGv_i64 dst, src;
 
     src = gen_load_fpr_D(dc, rs);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src);
 
@@ -1772,7 +1772,7 @@ static inline void gen_ne_fop_DD(DisasContext *dc, int rd, int rs,
     TCGv_i64 dst, src;
 
     src = gen_load_fpr_D(dc, rs);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, src);
 
@@ -1787,7 +1787,7 @@ static inline void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 
     src1 = gen_load_fpr_D(dc, rs1);
     src2 = gen_load_fpr_D(dc, rs2);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src1, src2);
 
@@ -1802,7 +1802,7 @@ static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 
     src1 = gen_load_fpr_D(dc, rs1);
     src2 = gen_load_fpr_D(dc, rs2);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, src1, src2);
 
@@ -1816,7 +1816,7 @@ static inline void gen_gsr_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 
     src1 = gen_load_fpr_D(dc, rs1);
     src2 = gen_load_fpr_D(dc, rs2);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_gsr, src1, src2);
 
@@ -1831,7 +1831,7 @@ static inline void gen_ne_fop_DDDD(DisasContext *dc, int rd, int rs1, int rs2,
     src1 = gen_load_fpr_D(dc, rs1);
     src2 = gen_load_fpr_D(dc, rs2);
     src0 = gen_load_fpr_D(dc, rd);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, src0, src1, src2);
 
@@ -1883,7 +1883,7 @@ static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
 
     src1 = gen_load_fpr_F(dc, rs1);
     src2 = gen_load_fpr_F(dc, rs2);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src1, src2);
 
@@ -1912,7 +1912,7 @@ static inline void gen_fop_DF(DisasContext *dc, int rd, int rs,
     TCGv_i32 src;
 
     src = gen_load_fpr_F(dc, rs);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src);
 
@@ -1927,7 +1927,7 @@ static inline void gen_ne_fop_DF(DisasContext *dc, int rd, int rs,
     TCGv_i32 src;
 
     src = gen_load_fpr_F(dc, rs);
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src);
 
@@ -1967,7 +1967,7 @@ static inline void gen_fop_DQ(DisasContext *dc, int rd, int rs,
     TCGv_i64 dst;
 
     gen_op_load_fpr_QT1(QFPREG(rs));
-    dst = gen_dest_fpr_D();
+    dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env);
 
@@ -2303,7 +2303,7 @@ static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 
 static void gen_fmovd(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
 {
-    TCGv_i64 dst = gen_dest_fpr_D();
+    TCGv_i64 dst = gen_dest_fpr_D(dc, rd);
     tcg_gen_movcond_i64(cmp->cond, dst, cmp->c1, cmp->c2,
                         gen_load_fpr_D(dc, rs),
                         gen_load_fpr_D(dc, rd));
@@ -4317,7 +4317,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x060: /* VIS I fzero */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_dst_64 = gen_dest_fpr_D();
+                    cpu_dst_64 = gen_dest_fpr_D(dc, rd);
                     tcg_gen_movi_i64(cpu_dst_64, 0);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
@@ -4445,7 +4445,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x07e: /* VIS I fone */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_dst_64 = gen_dest_fpr_D();
+                    cpu_dst_64 = gen_dest_fpr_D(dc, rd);
                     tcg_gen_movi_i64(cpu_dst_64, -1);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
@@ -4873,7 +4873,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x23:      /* lddf, load double fpreg */
                     gen_address_mask(dc, cpu_addr);
-                    cpu_dst_64 = gen_dest_fpr_D();
+                    cpu_dst_64 = gen_dest_fpr_D(dc, rd);
                     tcg_gen_qemu_ld64(cpu_dst_64, cpu_addr, dc->mem_idx);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
