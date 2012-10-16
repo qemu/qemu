@@ -3176,7 +3176,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 #define FMOVR(sz)                                                  \
                 do {                                               \
                     DisasCompare cmp;                              \
-                    cond = GET_FIELD_SP(insn, 14, 17);             \
+                    cond = GET_FIELD_SP(insn, 10, 12);             \
                     cpu_src1 = get_src1(dc, insn);                 \
                     gen_compare_reg(&cmp, cond, cpu_src1);         \
                     gen_fmov##sz(dc, &cmp, rd, rs2);               \
