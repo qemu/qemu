@@ -48,7 +48,7 @@ static TCGv cpu_y;
 #ifndef CONFIG_USER_ONLY
 static TCGv cpu_tbr;
 #endif
-static TCGv cpu_cond, cpu_dst;
+static TCGv cpu_cond;
 #ifdef TARGET_SPARC64
 static TCGv_i32 cpu_xcc, cpu_asi, cpu_fprs;
 static TCGv cpu_gsr;
@@ -2511,7 +2511,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 
     opc = GET_FIELD(insn, 0, 1);
-
     rd = GET_FIELD(insn, 2, 6);
 
     switch (opc) {
@@ -2620,6 +2619,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     case 2:                     /* FPU & Logical Operations */
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
+            TCGv cpu_dst = gen_dest_gpr(dc, rd);
+
             if (xop == 0x3a) {  /* generate trap */
                 int cond = GET_FIELD(insn, 3, 6);
                 TCGv_i32 trap;
@@ -5258,12 +5259,10 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         insn = cpu_ldl_code(env, dc->pc);
 
         cpu_tmp0 = tcg_temp_new();
-        cpu_dst = tcg_temp_new();
 
         disas_sparc_insn(dc, insn);
         num_insns++;
 
-        tcg_temp_free(cpu_dst);
         tcg_temp_free(cpu_tmp0);
 
         if (dc->is_br)
