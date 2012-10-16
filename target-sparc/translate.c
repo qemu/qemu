@@ -3655,20 +3655,20 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             case 0x14: /* Softint set */
                                 if (!supervisor(dc))
                                     goto illegal_insn;
-                                tcg_gen_xor_tl(cpu_tmp64, cpu_src1, cpu_src2);
-                                gen_helper_set_softint(cpu_env, cpu_tmp64);
+                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
+                                gen_helper_set_softint(cpu_env, cpu_tmp0);
                                 break;
                             case 0x15: /* Softint clear */
                                 if (!supervisor(dc))
                                     goto illegal_insn;
-                                tcg_gen_xor_tl(cpu_tmp64, cpu_src1, cpu_src2);
-                                gen_helper_clear_softint(cpu_env, cpu_tmp64);
+                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
+                                gen_helper_clear_softint(cpu_env, cpu_tmp0);
                                 break;
                             case 0x16: /* Softint write */
                                 if (!supervisor(dc))
                                     goto illegal_insn;
-                                tcg_gen_xor_tl(cpu_tmp64, cpu_src1, cpu_src2);
-                                gen_helper_write_softint(cpu_env, cpu_tmp64);
+                                tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
+                                gen_helper_write_softint(cpu_env, cpu_tmp0);
                                 break;
                             case 0x17: /* Tick compare */
 #if !defined(CONFIG_USER_ONLY)
