@@ -23,7 +23,7 @@ typedef struct TyphoonCchip {
     uint64_t drir;
     uint64_t dim[4];
     uint32_t iic[4];
-    CPUAlphaState *cpu[4];
+    AlphaCPU *cpu[4];
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
@@ -58,10 +58,11 @@ typedef struct TyphoonState {
 } TyphoonState;
 
 /* Called when one of DRIR or DIM changes.  */
-static void cpu_irq_change(CPUAlphaState *env, uint64_t req)
+static void cpu_irq_change(AlphaCPU *cpu, uint64_t req)
 {
     /* If there are any non-masked interrupts, tell the cpu.  */
-    if (env) {
+    if (cpu != NULL) {
+        CPUAlphaState *env = &cpu->env;
         if (req) {
             cpu_interrupt(env, CPU_INTERRUPT_HARD);
         } else {
@@ -353,8 +354,9 @@ static void cchip_write(void *opaque, hwaddr addr,
         if ((newval ^ oldval) & 0xff0) {
             int i;
             for (i = 0; i < 4; ++i) {
-                CPUAlphaState *env = s->cchip.cpu[i];
-                if (env) {
+                AlphaCPU *cpu = s->cchip.cpu[i];
+                if (cpu != NULL) {
+                    CPUAlphaState *env = &cpu->env;
                     /* IPI can be either cleared or set by the write.  */
                     if (newval & (1 << (i + 8))) {
                         cpu_interrupt(env, CPU_INTERRUPT_SMP);
@@ -661,8 +663,8 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
 
     /* Deliver the interrupt to each CPU, considering each CPU's IIC.  */
     for (i = 0; i < 4; ++i) {
-        CPUAlphaState *env = s->cchip.cpu[i];
-        if (env) {
+        AlphaCPU *cpu = s->cchip.cpu[i];
+        if (cpu != NULL) {
             uint32_t iic = s->cchip.iic[i];
 
             /* ??? The verbage in Section 10.2.2.10 isn't 100% clear.
@@ -681,7 +683,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
                 /* Set the ITI bit for this cpu.  */
                 s->cchip.misc |= 1 << (i + 4);
                 /* And signal the interrupt.  */
-                cpu_interrupt(env, CPU_INTERRUPT_TIMER);
+                cpu_interrupt(&cpu->env, CPU_INTERRUPT_TIMER);
             }
         }
     }
@@ -694,12 +696,12 @@ static void typhoon_alarm_timer(void *opaque)
 
     /* Set the ITI bit for this cpu.  */
     s->cchip.misc |= 1 << (cpu + 4);
-    cpu_interrupt(s->cchip.cpu[cpu], CPU_INTERRUPT_TIMER);
+    cpu_interrupt(&s->cchip.cpu[cpu]->env, CPU_INTERRUPT_TIMER);
 }
 
 PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
                      qemu_irq *p_rtc_irq,
-                     CPUAlphaState *cpus[4], pci_map_irq_fn sys_map_irq)
+                     AlphaCPU *cpus[4], pci_map_irq_fn sys_map_irq)
 {
     const uint64_t MB = 1024 * 1024;
     const uint64_t GB = 1024 * MB;
@@ -719,9 +721,10 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
-        CPUAlphaState *env = cpus[i];
-        s->cchip.cpu[i] = env;
-        if (env) {
+        AlphaCPU *cpu = cpus[i];
+        s->cchip.cpu[i] = cpu;
+        if (cpu != NULL) {
+            CPUAlphaState *env = &cpu->env;
             env->alarm_timer = qemu_new_timer_ns(rtc_clock,
                                                  typhoon_alarm_timer,
                                                  (void *)((uintptr_t)s + i));

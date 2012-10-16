@@ -50,7 +50,7 @@ static void clipper_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    CPUAlphaState *cpus[4];
+    AlphaCPU *cpus[4];
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq rtc_irq;
@@ -62,12 +62,12 @@ static void clipper_init(QEMUMachineInitArgs *args)
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i] = cpu_init(cpu_model ? cpu_model : "ev67");
+        cpus[i] = cpu_alpha_init(cpu_model ? cpu_model : "ev67");
     }
 
-    cpus[0]->trap_arg0 = ram_size;
-    cpus[0]->trap_arg1 = 0;
-    cpus[0]->trap_arg2 = smp_cpus;
+    cpus[0]->env.trap_arg0 = ram_size;
+    cpus[0]->env.trap_arg1 = 0;
+    cpus[0]->env.trap_arg2 = smp_cpus;
 
     /* Init the chipset.  */
     pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
@@ -119,9 +119,9 @@ static void clipper_init(QEMUMachineInitArgs *args)
 
     /* Start all cpus at the PALcode RESET entry point.  */
     for (i = 0; i < smp_cpus; ++i) {
-        cpus[i]->pal_mode = 1;
-        cpus[i]->pc = palcode_entry;
-        cpus[i]->palbr = palcode_entry;
+        cpus[i]->env.pal_mode = 1;
+        cpus[i]->env.pc = palcode_entry;
+        cpus[i]->env.palbr = palcode_entry;
     }
 
     /* Load a kernel.  */
@@ -136,7 +136,7 @@ static void clipper_init(QEMUMachineInitArgs *args)
             exit(1);
         }
 
-        cpus[0]->trap_arg1 = kernel_entry;
+        cpus[0]->env.trap_arg1 = kernel_entry;
 
         param_offset = kernel_low - 0x6000;
 
