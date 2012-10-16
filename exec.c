@@ -498,6 +498,10 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
 # define USE_MMAP
 #endif
 
+/* Minimum size of the code gen buffer.  This number is randomly chosen,
+   but not so small that we can't have a fair number of TB's live.  */
+#define MIN_CODE_GEN_BUFFER_SIZE     (1024u * 1024)
+
 /* Maximum size of the code gen buffer we'd like to use.  Unless otherwise
    indicated, this is constrained by the range of direct branches on the
    host cpu, as used by the TCG implementation of goto_tb.  */

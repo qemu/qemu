@@ -121,8 +121,6 @@ static inline void tlb_flush(CPUArchState *env, int flush_global)
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
-#define MIN_CODE_GEN_BUFFER_SIZE     (1024 * 1024)
-
 /* estimated block size for TB allocation */
 /* XXX: use a per code average code fragment size and modulate it
    according to the host CPU */
