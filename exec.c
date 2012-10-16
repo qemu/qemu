@@ -86,22 +86,7 @@ static int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
-#if defined(__arm__) || defined(__sparc__)
-/* The prologue must be reachable with a direct jump. ARM and Sparc64
- have limited branch ranges (possibly also PPC) so place it in a
- section close to code segment. */
-#define code_gen_section                                \
-    __attribute__((__section__(".gen_code")))           \
-    __attribute__((aligned (32)))
-#elif defined(_WIN32) && !defined(_WIN64)
-#define code_gen_section                                \
-    __attribute__((aligned (16)))
-#else
-#define code_gen_section                                \
-    __attribute__((aligned (32)))
-#endif
-
-uint8_t code_gen_prologue[1024] code_gen_section;
+uint8_t *code_gen_prologue;
 static uint8_t *code_gen_buffer;
 static size_t code_gen_buffer_size;
 /* threshold to flush the translated code buffer */
@@ -221,7 +206,7 @@ static int tb_flush_count;
 static int tb_phys_invalidate_count;
 
 #ifdef _WIN32
-static void map_exec(void *addr, long size)
+static inline void map_exec(void *addr, long size)
 {
     DWORD old_protect;
     VirtualProtect(addr, size,
@@ -229,7 +214,7 @@ static void map_exec(void *addr, long size)
     
 }
 #else
-static void map_exec(void *addr, long size)
+static inline void map_exec(void *addr, long size)
 {
     unsigned long start, end, page_size;
     
@@ -621,7 +606,14 @@ static inline void code_gen_alloc(size_t tb_size)
         exit(1);
     }
 
-    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
+    /* Steal room for the prologue at the end of the buffer.  This ensures
+       (via the MAX_CODE_GEN_BUFFER_SIZE limits above) that direct branches
+       from TB's to the prologue are going to be in range.  It also means
+       that we don't need to mark (additional) portions of the data segment
+       as executable.  */
+    code_gen_prologue = code_gen_buffer + code_gen_buffer_size - 1024;
+    code_gen_buffer_size -= 1024;
+
     code_gen_buffer_max_size = code_gen_buffer_size -
         (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
     code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
