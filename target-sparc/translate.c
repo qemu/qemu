@@ -125,6 +125,22 @@ static int sign_extend(int x, int len)
 
 #define IS_IMM (insn & (1<<13))
 
+static inline TCGv_i32 get_temp_i32(DisasContext *dc)
+{
+    TCGv_i32 t;
+    assert(dc->n_t32 < ARRAY_SIZE(dc->t32));
+    dc->t32[dc->n_t32++] = t = tcg_temp_new_i32();
+    return t;
+}
+
+static inline TCGv get_temp_tl(DisasContext *dc)
+{
+    TCGv t;
+    assert(dc->n_ttl < ARRAY_SIZE(dc->ttl));
+    dc->ttl[dc->n_ttl++] = t = tcg_temp_new();
+    return t;
+}
+
 static inline void gen_update_fprs_dirty(int rd)
 {
 #if defined(TARGET_SPARC64)
@@ -145,15 +161,12 @@ static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
     if (src & 1) {
         return MAKE_TCGV_I32(GET_TCGV_I64(cpu_fpr[src / 2]));
     } else {
-        TCGv_i32 ret = tcg_temp_new_i32();
+        TCGv_i32 ret = get_temp_i32(dc);
         TCGv_i64 t = tcg_temp_new_i64();
 
         tcg_gen_shri_i64(t, cpu_fpr[src / 2], 32);
         tcg_gen_trunc_i64_i32(ret, t);
         tcg_temp_free_i64(t);
-
-        dc->t32[dc->n_t32++] = ret;
-        assert(dc->n_t32 <= ARRAY_SIZE(dc->t32));
 
         return ret;
     }
@@ -263,14 +276,6 @@ static inline void gen_address_mask(DisasContext *dc, TCGv addr)
     if (AM_CHECK(dc))
         tcg_gen_andi_tl(addr, addr, 0xffffffffULL);
 #endif
-}
-
-static inline TCGv get_temp_tl(DisasContext *dc)
-{
-    TCGv t;
-    assert(dc->n_ttl < ARRAY_SIZE(dc->ttl));
-    dc->ttl[dc->n_ttl++] = t = tcg_temp_new();
-    return t;
 }
 
 static inline TCGv gen_load_gpr(DisasContext *dc, int reg)
