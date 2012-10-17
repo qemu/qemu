@@ -343,18 +343,21 @@ static unsigned long *migration_bitmap;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 
-static inline bool migration_bitmap_test_and_reset_dirty(MemoryRegion *mr,
-                                                         ram_addr_t offset)
+static inline
+ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
+                                                 ram_addr_t start)
 {
-    bool ret;
-    int nr = (mr->ram_addr + offset) >> TARGET_PAGE_BITS;
+    unsigned long base = mr->ram_addr >> TARGET_PAGE_BITS;
+    unsigned long nr = base + (start >> TARGET_PAGE_BITS);
+    unsigned long size = base + (int128_get64(mr->size) >> TARGET_PAGE_BITS);
 
-    ret = test_and_clear_bit(nr, migration_bitmap);
+    unsigned long next = find_next_bit(migration_bitmap, size, nr);
 
-    if (ret) {
+    if (next < size) {
+        clear_bit(next, migration_bitmap);
         migration_dirty_pages--;
     }
-    return ret;
+    return (next - base) << TARGET_PAGE_BITS;
 }
 
 static inline bool migration_bitmap_set_dirty(MemoryRegion *mr,
@@ -423,6 +426,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 {
     RAMBlock *block = last_seen_block;
     ram_addr_t offset = last_offset;
+    bool complete_round = false;
     int bytes_sent = -1;
     MemoryRegion *mr;
     ram_addr_t current_addr;
@@ -430,9 +434,21 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
     if (!block)
         block = QTAILQ_FIRST(&ram_list.blocks);
 
-    do {
+    while (true) {
         mr = block->mr;
-        if (migration_bitmap_test_and_reset_dirty(mr, offset)) {
+        offset = migration_bitmap_find_and_reset_dirty(mr, offset);
+        if (complete_round && block == last_seen_block &&
+            offset >= last_offset) {
+            break;
+        }
+        if (offset >= block->length) {
+            offset = 0;
+            block = QTAILQ_NEXT(block, next);
+            if (!block) {
+                block = QTAILQ_FIRST(&ram_list.blocks);
+                complete_round = true;
+            }
+        } else {
             uint8_t *p;
             int cont = (block == last_sent_block) ?
                 RAM_SAVE_FLAG_CONTINUE : 0;
@@ -467,16 +483,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
                 break;
             }
         }
-
-        offset += TARGET_PAGE_SIZE;
-        if (offset >= block->length) {
-            offset = 0;
-            block = QTAILQ_NEXT(block, next);
-            if (!block)
-                block = QTAILQ_FIRST(&ram_list.blocks);
-        }
-    } while (block != last_seen_block || offset != last_offset);
-
+    }
     last_seen_block = block;
     last_offset = offset;
 
