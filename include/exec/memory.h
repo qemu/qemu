@@ -454,6 +454,22 @@ void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
                              hwaddr size);
 
 /**
+ * memory_region_test_and_clear_dirty: Check whether a range of bytes is dirty
+ *                                     for a specified client. It clears them.
+ *
+ * Checks whether a range of bytes has been written to since the last
+ * call to memory_region_reset_dirty() with the same @client.  Dirty logging
+ * must be enabled.
+ *
+ * @mr: the memory region being queried.
+ * @addr: the address (relative to the start of the region) being queried.
+ * @size: the size of the range being queried.
+ * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
+ *          %DIRTY_MEMORY_VGA.
+ */
+bool memory_region_test_and_clear_dirty(MemoryRegion *mr, hwaddr addr,
+                                        hwaddr size, unsigned client);
+/**
  * memory_region_sync_dirty_bitmap: Synchronize a region's dirty bitmap with
  *                                  any external TLBs (e.g. kvm)
  *
