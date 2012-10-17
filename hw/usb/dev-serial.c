@@ -427,6 +427,10 @@ static void usb_serial_handle_destroy(USBDevice *dev)
 static int usb_serial_can_read(void *opaque)
 {
     USBSerialState *s = opaque;
+
+    if (!s->dev.attached) {
+        return 0;
+    }
     return RECV_BUF - s->recv_used;
 }
 
@@ -469,8 +473,14 @@ static void usb_serial_event(void *opaque, int event)
         case CHR_EVENT_FOCUS:
             break;
         case CHR_EVENT_OPENED:
-            usb_serial_reset(s);
-            /* TODO: Reset USB port */
+            if (!s->dev.attached) {
+                usb_device_attach(&s->dev);
+            }
+            break;
+        case CHR_EVENT_CLOSED:
+            if (s->dev.attached) {
+                usb_device_detach(&s->dev);
+            }
             break;
     }
 }
@@ -481,6 +491,7 @@ static int usb_serial_initfn(USBDevice *dev)
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    dev->auto_attach = 0;
 
     if (!s->cs) {
         error_report("Property chardev is required");
@@ -490,6 +501,10 @@ static int usb_serial_initfn(USBDevice *dev)
     qemu_chr_add_handlers(s->cs, usb_serial_can_read, usb_serial_read,
                           usb_serial_event, s);
     usb_serial_handle_reset(dev);
+
+    if (s->cs->opened && !dev->attached) {
+        usb_device_attach(dev);
+    }
     return 0;
 }
 
