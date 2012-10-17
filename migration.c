@@ -698,7 +698,7 @@ static void *buffered_file_thread(void *opaque)
             DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
             DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
-            if (pending_size >= max_size) {
+            if (pending_size && pending_size >= max_size) {
                 ret = qemu_savevm_state_iterate(s->file);
                 if (ret < 0) {
                     qemu_mutex_unlock_iothread();
