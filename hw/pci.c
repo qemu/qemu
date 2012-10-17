@@ -1117,7 +1117,13 @@ PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
          pin = bus->map_irq(dev, pin);
          dev = bus->parent_dev;
     } while (dev);
-    assert(bus->route_intx_to_irq);
+
+    if (!bus->route_intx_to_irq) {
+        error_report("PCI: Bug - unimplemented PCI INTx routing (%s)\n",
+                     object_get_typename(OBJECT(bus->qbus.parent)));
+        return (PCIINTxRoute) { PCI_INTX_DISABLED, -1 };
+    }
+
     return bus->route_intx_to_irq(bus->irq_opaque, pin);
 }
 
