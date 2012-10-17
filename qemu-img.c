@@ -1112,6 +1112,23 @@ static void dump_snapshots(BlockDriverState *bs)
     g_free(sn_tab);
 }
 
+static void dump_json_image_info_list(ImageInfoList *list)
+{
+    Error *errp = NULL;
+    QString *str;
+    QmpOutputVisitor *ov = qmp_output_visitor_new();
+    QObject *obj;
+    visit_type_ImageInfoList(qmp_output_get_visitor(ov),
+                             &list, NULL, &errp);
+    obj = qmp_output_get_qobject(ov);
+    str = qobject_to_json_pretty(obj);
+    assert(str != NULL);
+    printf("%s\n", qstring_get_str(str));
+    qobject_decref(obj);
+    qmp_output_visitor_cleanup(ov);
+    QDECREF(str);
+}
+
 static void collect_snapshots(BlockDriverState *bs , ImageInfo *info)
 {
     int i, sn_count;
@@ -1251,9 +1268,129 @@ static void dump_human_image_info(ImageInfo *info)
             printf("backing file format: %s\n", info->backing_filename_format);
         }
     }
+
+    if (info->has_snapshots) {
+        SnapshotInfoList *elem;
+        char buf[256];
+
+        printf("Snapshot list:\n");
+        printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), NULL));
+
+        /* Ideally bdrv_snapshot_dump() would operate on SnapshotInfoList but
+         * we convert to the block layer's native QEMUSnapshotInfo for now.
+         */
+        for (elem = info->snapshots; elem; elem = elem->next) {
+            QEMUSnapshotInfo sn = {
+                .vm_state_size = elem->value->vm_state_size,
+                .date_sec = elem->value->date_sec,
+                .date_nsec = elem->value->date_nsec,
+                .vm_clock_nsec = elem->value->vm_clock_sec * 1000000000ULL +
+                                 elem->value->vm_clock_nsec,
+            };
+
+            pstrcpy(sn.id_str, sizeof(sn.id_str), elem->value->id);
+            pstrcpy(sn.name, sizeof(sn.name), elem->value->name);
+            printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), &sn));
+        }
+    }
 }
 
-enum {OPTION_OUTPUT = 256};
+static void dump_human_image_info_list(ImageInfoList *list)
+{
+    ImageInfoList *elem;
+    bool delim = false;
+
+    for (elem = list; elem; elem = elem->next) {
+        if (delim) {
+            printf("\n");
+        }
+        delim = true;
+
+        dump_human_image_info(elem->value);
+    }
+}
+
+static gboolean str_equal_func(gconstpointer a, gconstpointer b)
+{
+    return strcmp(a, b) == 0;
+}
+
+/**
+ * Open an image file chain and return an ImageInfoList
+ *
+ * @filename: topmost image filename
+ * @fmt: topmost image format (may be NULL to autodetect)
+ * @chain: true  - enumerate entire backing file chain
+ *         false - only topmost image file
+ *
+ * Returns a list of ImageInfo objects or NULL if there was an error opening an
+ * image file.  If there was an error a message will have been printed to
+ * stderr.
+ */
+static ImageInfoList *collect_image_info_list(const char *filename,
+                                              const char *fmt,
+                                              bool chain)
+{
+    ImageInfoList *head = NULL;
+    ImageInfoList **last = &head;
+    GHashTable *filenames;
+
+    filenames = g_hash_table_new_full(g_str_hash, str_equal_func, NULL, NULL);
+
+    while (filename) {
+        BlockDriverState *bs;
+        ImageInfo *info;
+        ImageInfoList *elem;
+
+        if (g_hash_table_lookup_extended(filenames, filename, NULL, NULL)) {
+            error_report("Backing file '%s' creates an infinite loop.",
+                         filename);
+            goto err;
+        }
+        g_hash_table_insert(filenames, (gpointer)filename, NULL);
+
+        bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING,
+                           false);
+        if (!bs) {
+            goto err;
+        }
+
+        info = g_new0(ImageInfo, 1);
+        collect_image_info(bs, info, filename, fmt);
+        collect_snapshots(bs, info);
+
+        elem = g_new0(ImageInfoList, 1);
+        elem->value = info;
+        *last = elem;
+        last = &elem->next;
+
+        bdrv_delete(bs);
+
+        filename = fmt = NULL;
+        if (chain) {
+            if (info->has_full_backing_filename) {
+                filename = info->full_backing_filename;
+            } else if (info->has_backing_filename) {
+                filename = info->backing_filename;
+            }
+            if (info->has_backing_filename_format) {
+                fmt = info->backing_filename_format;
+            }
+        }
+    }
+    g_hash_table_destroy(filenames);
+    return head;
+
+err:
+    qapi_free_ImageInfoList(head);
+    g_hash_table_destroy(filenames);
+    return NULL;
+}
+
+enum {
+    OPTION_OUTPUT = 256,
+    OPTION_BACKING_CHAIN = 257,
+};
 
 typedef enum OutputFormat {
     OFORMAT_JSON,
@@ -1264,9 +1401,9 @@ static int img_info(int argc, char **argv)
 {
     int c;
     OutputFormat output_format = OFORMAT_HUMAN;
+    bool chain = false;
     const char *filename, *fmt, *output;
-    BlockDriverState *bs;
-    ImageInfo *info;
+    ImageInfoList *list;
 
     fmt = NULL;
     output = NULL;
@@ -1276,6 +1413,7 @@ static int img_info(int argc, char **argv)
             {"help", no_argument, 0, 'h'},
             {"format", required_argument, 0, 'f'},
             {"output", required_argument, 0, OPTION_OUTPUT},
+            {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:h",
@@ -1294,6 +1432,9 @@ static int img_info(int argc, char **argv)
         case OPTION_OUTPUT:
             output = optarg;
             break;
+        case OPTION_BACKING_CHAIN:
+            chain = true;
+            break;
         }
     }
     if (optind >= argc) {
@@ -1310,27 +1451,25 @@ static int img_info(int argc, char **argv)
         return 1;
     }
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING, false);
-    if (!bs) {
+    list = collect_image_info_list(filename, fmt, chain);
+    if (!list) {
         return 1;
     }
 
-    info = g_new0(ImageInfo, 1);
-    collect_image_info(bs, info, filename, fmt);
-
     switch (output_format) {
     case OFORMAT_HUMAN:
-        dump_human_image_info(info);
-        dump_snapshots(bs);
+        dump_human_image_info_list(list);
         break;
     case OFORMAT_JSON:
-        collect_snapshots(bs, info);
-        dump_json_image_info(info);
+        if (chain) {
+            dump_json_image_info_list(list);
+        } else {
+            dump_json_image_info(list->value);
+        }
         break;
     }
 
-    qapi_free_ImageInfo(info);
-    bdrv_delete(bs);
+    qapi_free_ImageInfoList(list);
     return 0;
 }
 
