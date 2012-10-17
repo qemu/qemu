@@ -692,6 +692,12 @@ void serial_init_core(SerialState *s)
                           serial_event, s);
 }
 
+void serial_exit_core(SerialState *s)
+{
+    qemu_chr_add_handlers(s->chr, NULL, NULL, NULL, NULL);
+    qemu_unregister_reset(serial_reset, s);
+}
+
 /* Change the main reference oscillator frequency. */
 void serial_set_frequency(SerialState *s, uint32_t frequency)
 {

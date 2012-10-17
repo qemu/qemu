@@ -21,6 +21,7 @@ common-obj-$(CONFIG_ESCC) += escc.o
 common-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
 
 common-obj-$(CONFIG_SERIAL) += serial.o serial-isa.o
+common-obj-$(CONFIG_SERIAL_PCI) += serial-pci.o
 common-obj-$(CONFIG_PARALLEL) += parallel.o
 common-obj-$(CONFIG_I8254) += i8254_common.o i8254.o
 common-obj-$(CONFIG_PCSPK) += pcspk.o

@@ -84,6 +84,7 @@ extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
 void serial_init_core(SerialState *s);
+void serial_exit_core(SerialState *s);
 void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 /* legacy pre qom */
