@@ -1022,6 +1022,7 @@ void memory_region_init_reservation(MemoryRegion *mr,
 void memory_region_destroy(MemoryRegion *mr)
 {
     assert(QTAILQ_EMPTY(&mr->subregions));
+    assert(memory_region_transaction_depth == 0);
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
