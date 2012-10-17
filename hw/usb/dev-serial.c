@@ -421,7 +421,7 @@ static void usb_serial_handle_destroy(USBDevice *dev)
 {
     USBSerialState *s = (USBSerialState *)dev;
 
-    qemu_chr_delete(s->cs);
+    qemu_chr_add_handlers(s->cs, NULL, NULL, NULL, NULL);
 }
 
 static int usb_serial_can_read(void *opaque)
