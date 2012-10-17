@@ -390,13 +390,12 @@ static void migration_bitmap_sync(void)
 
     QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-            if (memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
-                                        DIRTY_MEMORY_MIGRATION)) {
+            if (memory_region_test_and_clear_dirty(block->mr,
+                                                   addr, TARGET_PAGE_SIZE,
+                                                   DIRTY_MEMORY_MIGRATION)) {
                 migration_bitmap_set_dirty(block->mr, addr);
             }
         }
-        memory_region_reset_dirty(block->mr, 0, block->length,
-                                  DIRTY_MEMORY_MIGRATION);
     }
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
