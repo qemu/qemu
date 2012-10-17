@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* see docs/specs/pci-serial.txt */
+
 #include "serial.h"
 #include "pci.h"
 
