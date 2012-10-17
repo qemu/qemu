@@ -25,6 +25,11 @@
 
 int gen_new_label(void);
 
+static inline void tcg_gen_op0(TCGOpcode opc)
+{
+    *gen_opc_ptr++ = opc;
+}
+
 static inline void tcg_gen_op1_i32(TCGOpcode opc, TCGv_i32 arg1)
 {
     *gen_opc_ptr++ = opc;
@@ -886,6 +891,8 @@ static inline void tcg_gen_add_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     tcg_gen_op6_i32(INDEX_op_add2_i32, TCGV_LOW(ret), TCGV_HIGH(ret),
                     TCGV_LOW(arg1), TCGV_HIGH(arg1), TCGV_LOW(arg2),
                     TCGV_HIGH(arg2));
+    /* Allow the optimizer room to replace add2 with two moves.  */
+    tcg_gen_op0(INDEX_op_nop);
 }
 
 static inline void tcg_gen_sub_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -893,6 +900,8 @@ static inline void tcg_gen_sub_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
     tcg_gen_op6_i32(INDEX_op_sub2_i32, TCGV_LOW(ret), TCGV_HIGH(ret),
                     TCGV_LOW(arg1), TCGV_HIGH(arg1), TCGV_LOW(arg2),
                     TCGV_HIGH(arg2));
+    /* Allow the optimizer room to replace sub2 with two moves.  */
+    tcg_gen_op0(INDEX_op_nop);
 }
 
 static inline void tcg_gen_and_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
@@ -1018,6 +1027,8 @@ static inline void tcg_gen_mul_i64(TCGv_i64 ret, TCGv_i64 arg1, TCGv_i64 arg2)
 
     tcg_gen_op4_i32(INDEX_op_mulu2_i32, TCGV_LOW(t0), TCGV_HIGH(t0),
                     TCGV_LOW(arg1), TCGV_LOW(arg2));
+    /* Allow the optimizer room to replace mulu2 with two moves.  */
+    tcg_gen_op0(INDEX_op_nop);
 
     tcg_gen_mul_i32(t1, TCGV_LOW(arg1), TCGV_HIGH(arg2));
     tcg_gen_add_i32(TCGV_HIGH(t0), TCGV_HIGH(t0), t1);
