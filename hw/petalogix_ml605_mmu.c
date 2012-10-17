@@ -34,7 +34,7 @@
 #include "boards.h"
 #include "xilinx.h"
 #include "blockdev.h"
-#include "pc.h"
+#include "serial.h"
 #include "exec-memory.h"
 #include "ssi.h"
 

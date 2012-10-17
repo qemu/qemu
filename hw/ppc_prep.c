@@ -24,6 +24,7 @@
 #include "hw.h"
 #include "nvram.h"
 #include "pc.h"
+#include "serial.h"
 #include "fdc.h"
 #include "net.h"
 #include "sysemu.h"

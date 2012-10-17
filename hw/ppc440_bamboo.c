@@ -23,7 +23,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "exec-memory.h"
-#include "pc.h"
+#include "serial.h"
 #include "ppc.h"
 #include "ppc405.h"
 #include "sysemu.h"

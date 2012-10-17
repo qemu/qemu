@@ -15,7 +15,7 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "pc.h"
+#include "serial.h"
 #include "qemu-timer.h"
 #include "ptimer.h"
 #include "block.h"

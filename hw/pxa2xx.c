@@ -10,7 +10,7 @@
 #include "sysbus.h"
 #include "pxa.h"
 #include "sysemu.h"
-#include "pc.h"
+#include "serial.h"
 #include "i2c.h"
 #include "ssi.h"
 #include "qemu-char.h"

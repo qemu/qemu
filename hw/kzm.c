@@ -21,7 +21,7 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "pc.h" /* for the FPGA UART that emulates a 16550 */
+#include "serial.h"
 #include "imx.h"
 
     /* Memory map for Kzm Emulation Baseboard:

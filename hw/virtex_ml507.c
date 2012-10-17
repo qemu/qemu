@@ -24,7 +24,7 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "pc.h"
+#include "serial.h"
 #include "net.h"
 #include "flash.h"
 #include "sysemu.h"

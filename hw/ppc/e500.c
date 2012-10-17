@@ -19,7 +19,7 @@
 #include "e500.h"
 #include "net.h"
 #include "hw/hw.h"
-#include "hw/pc.h"
+#include "hw/serial.h"
 #include "hw/pci.h"
 #include "hw/boards.h"
 #include "sysemu.h"

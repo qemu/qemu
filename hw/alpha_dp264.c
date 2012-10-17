@@ -15,6 +15,7 @@
 #include "mc146818rtc.h"
 #include "ide.h"
 #include "i8254.h"
+#include "serial.h"
 
 #define MAX_IDE_BUS 2
 

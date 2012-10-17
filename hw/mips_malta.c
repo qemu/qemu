@@ -24,6 +24,7 @@
 
 #include "hw.h"
 #include "pc.h"
+#include "serial.h"
 #include "fdc.h"
 #include "net.h"
 #include "boards.h"

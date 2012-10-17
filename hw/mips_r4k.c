@@ -11,6 +11,7 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pc.h"
+#include "serial.h"
 #include "isa.h"
 #include "net.h"
 #include "sysemu.h"

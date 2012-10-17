@@ -25,6 +25,7 @@
 #include "pci.h"
 #include "apb_pci.h"
 #include "pc.h"
+#include "serial.h"
 #include "nvram.h"
 #include "fdc.h"
 #include "net.h"
