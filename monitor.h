@@ -90,6 +90,9 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret);
 
 int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret);
 
+AddfdInfo *monitor_fdset_add_fd(int fd, bool has_fdset_id, int64_t fdset_id,
+                                bool has_opaque, const char *opaque,
+                                Error **errp);
 int monitor_fdset_get_fd(int64_t fdset_id, int flags);
 int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd);
 int monitor_fdset_dup_fd_remove(int dup_fd);
