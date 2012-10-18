@@ -2799,69 +2799,69 @@ int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
     return 0;
 }
 
+BlockInfo *bdrv_query_info(BlockDriverState *bs)
+{
+    BlockInfo *info = g_malloc0(sizeof(*info));
+    info->device = g_strdup(bs->device_name);
+    info->type = g_strdup("unknown");
+    info->locked = bdrv_dev_is_medium_locked(bs);
+    info->removable = bdrv_dev_has_removable_media(bs);
+
+    if (bdrv_dev_has_removable_media(bs)) {
+        info->has_tray_open = true;
+        info->tray_open = bdrv_dev_is_tray_open(bs);
+    }
+
+    if (bdrv_iostatus_is_enabled(bs)) {
+        info->has_io_status = true;
+        info->io_status = bs->iostatus;
+    }
+
+    if (bs->drv) {
+        info->has_inserted = true;
+        info->inserted = g_malloc0(sizeof(*info->inserted));
+        info->inserted->file = g_strdup(bs->filename);
+        info->inserted->ro = bs->read_only;
+        info->inserted->drv = g_strdup(bs->drv->format_name);
+        info->inserted->encrypted = bs->encrypted;
+        info->inserted->encryption_key_missing = bdrv_key_required(bs);
+
+        if (bs->backing_file[0]) {
+            info->inserted->has_backing_file = true;
+            info->inserted->backing_file = g_strdup(bs->backing_file);
+        }
+
+        info->inserted->backing_file_depth = bdrv_get_backing_file_depth(bs);
+
+        if (bs->io_limits_enabled) {
+            info->inserted->bps =
+                           bs->io_limits.bps[BLOCK_IO_LIMIT_TOTAL];
+            info->inserted->bps_rd =
+                           bs->io_limits.bps[BLOCK_IO_LIMIT_READ];
+            info->inserted->bps_wr =
+                           bs->io_limits.bps[BLOCK_IO_LIMIT_WRITE];
+            info->inserted->iops =
+                           bs->io_limits.iops[BLOCK_IO_LIMIT_TOTAL];
+            info->inserted->iops_rd =
+                           bs->io_limits.iops[BLOCK_IO_LIMIT_READ];
+            info->inserted->iops_wr =
+                           bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
+        }
+    }
+    return info;
+}
+
 BlockInfoList *qmp_query_block(Error **errp)
 {
-    BlockInfoList *head = NULL, *cur_item = NULL;
+    BlockInfoList *head = NULL, **p_next = &head;
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         BlockInfoList *info = g_malloc0(sizeof(*info));
+        info->value = bdrv_query_info(bs);
 
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->device = g_strdup(bs->device_name);
-        info->value->type = g_strdup("unknown");
-        info->value->locked = bdrv_dev_is_medium_locked(bs);
-        info->value->removable = bdrv_dev_has_removable_media(bs);
-
-        if (bdrv_dev_has_removable_media(bs)) {
-            info->value->has_tray_open = true;
-            info->value->tray_open = bdrv_dev_is_tray_open(bs);
-        }
-
-        if (bdrv_iostatus_is_enabled(bs)) {
-            info->value->has_io_status = true;
-            info->value->io_status = bs->iostatus;
-        }
-
-        if (bs->drv) {
-            info->value->has_inserted = true;
-            info->value->inserted = g_malloc0(sizeof(*info->value->inserted));
-            info->value->inserted->file = g_strdup(bs->filename);
-            info->value->inserted->ro = bs->read_only;
-            info->value->inserted->drv = g_strdup(bs->drv->format_name);
-            info->value->inserted->encrypted = bs->encrypted;
-            info->value->inserted->encryption_key_missing = bdrv_key_required(bs);
-            if (bs->backing_file[0]) {
-                info->value->inserted->has_backing_file = true;
-                info->value->inserted->backing_file = g_strdup(bs->backing_file);
-            }
-
-            info->value->inserted->backing_file_depth =
-                bdrv_get_backing_file_depth(bs);
-
-            if (bs->io_limits_enabled) {
-                info->value->inserted->bps =
-                               bs->io_limits.bps[BLOCK_IO_LIMIT_TOTAL];
-                info->value->inserted->bps_rd =
-                               bs->io_limits.bps[BLOCK_IO_LIMIT_READ];
-                info->value->inserted->bps_wr =
-                               bs->io_limits.bps[BLOCK_IO_LIMIT_WRITE];
-                info->value->inserted->iops =
-                               bs->io_limits.iops[BLOCK_IO_LIMIT_TOTAL];
-                info->value->inserted->iops_rd =
-                               bs->io_limits.iops[BLOCK_IO_LIMIT_READ];
-                info->value->inserted->iops_wr =
-                               bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
-            }
-        }
-
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        *p_next = info;
+        p_next = &info->next;
     }
 
     return head;
