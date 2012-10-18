@@ -2391,7 +2391,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     }
 
     if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
+        bdrv_set_dirty(bs, sector_num, nb_sectors);
     }
 
     if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
@@ -2960,9 +2960,7 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
 
-    if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
-    }
+    assert(!bs->dirty_bitmap);
 
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
@@ -4269,11 +4267,52 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
 
     if (bs->dirty_bitmap &&
         (sector << BDRV_SECTOR_BITS) < bdrv_getlength(bs)) {
-        return !!(bs->dirty_bitmap[chunk / (sizeof(unsigned long) * 8)] &
-            (1UL << (chunk % (sizeof(unsigned long) * 8))));
+        return !!(bs->dirty_bitmap[chunk / BITS_PER_LONG] &
+            (1UL << (chunk % BITS_PER_LONG)));
     } else {
         return 0;
     }
+}
+
+int64_t bdrv_get_next_dirty(BlockDriverState *bs, int64_t sector)
+{
+    int64_t chunk;
+    int bit, elem;
+
+    /* Avoid an infinite loop.  */
+    assert(bs->dirty_count > 0);
+
+    sector = (sector | (BDRV_SECTORS_PER_DIRTY_CHUNK - 1)) + 1;
+    chunk = sector / (int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK;
+
+    QEMU_BUILD_BUG_ON(sizeof(bs->dirty_bitmap[0]) * 8 != BITS_PER_LONG);
+    elem = chunk / BITS_PER_LONG;
+    bit = chunk % BITS_PER_LONG;
+    for (;;) {
+        if (sector >= bs->total_sectors) {
+            sector = 0;
+            bit = elem = 0;
+        }
+        if (bit == 0 && bs->dirty_bitmap[elem] == 0) {
+            sector += BDRV_SECTORS_PER_DIRTY_CHUNK * BITS_PER_LONG;
+            elem++;
+        } else {
+            if (bs->dirty_bitmap[elem] & (1UL << bit)) {
+                return sector;
+            }
+            sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
+            if (++bit == BITS_PER_LONG) {
+                bit = 0;
+                elem++;
+            }
+        }
+    }
+}
+
+void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
+                    int nr_sectors)
+{
+    set_dirty_bitmap(bs, cur_sector, nr_sectors, 1);
 }
 
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
