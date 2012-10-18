@@ -1562,11 +1562,6 @@ uint32_t HELPER(rbit)(uint32_t x)
     return x;
 }
 
-uint32_t HELPER(abs)(uint32_t x)
-{
-    return ((int32_t)x < 0) ? -x : x;
-}
-
 #if defined(CONFIG_USER_ONLY)
 
 void do_interrupt (CPUARMState *env)
