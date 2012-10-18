@@ -331,4 +331,24 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
                  BlockdevOnError on_error, BlockDriverCompletionFunc *cb,
                  void *opaque, Error **errp);
 
+/*
+ * mirror_start:
+ * @bs: Block device to operate on.
+ * @target: Block device to write to.
+ * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @mode: Whether to collapse all images in the chain to the target.
+ * @cb: Completion function for the job.
+ * @opaque: Opaque pointer value passed to @cb.
+ * @errp: Error object.
+ *
+ * Start a mirroring operation on @bs.  Clusters that are allocated
+ * in @bs will be written to @bs until the job is cancelled or
+ * manually completed.  At the end of a successful mirroring job,
+ * @bs will be switched to read from @target.
+ */
+void mirror_start(BlockDriverState *bs, BlockDriverState *target,
+                  int64_t speed, MirrorSyncMode mode,
+                  BlockDriverCompletionFunc *cb,
+                  void *opaque, Error **errp);
+
 #endif /* BLOCK_INT_H */

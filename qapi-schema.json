@@ -1166,6 +1166,23 @@
   'data': ['report', 'ignore', 'enospc', 'stop'] }
 
 ##
+# @MirrorSyncMode:
+#
+# An enumeration of possible behaviors for the initial synchronization
+# phase of storage mirroring.
+#
+# @top: copies data in the topmost image to the destination
+#
+# @full: copies data from all images to the destination
+#
+# @none: only copy data written from now on
+#
+# Since: 1.3
+##
+{ 'enum': 'MirrorSyncMode',
+  'data': ['top', 'full', 'none'] }
+
+##
 # @BlockJobInfo:
 #
 # Information about a long-running block device operation.
