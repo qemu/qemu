@@ -99,6 +99,16 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     job->speed = speed;
 }
 
+void block_job_complete(BlockJob *job, Error **errp)
+{
+    if (job->paused || job->cancelled || !job->job_type->complete) {
+        error_set(errp, QERR_BLOCK_JOB_NOT_READY, job->bs->device_name);
+        return;
+    }
+
+    job->job_type->complete(job, errp);
+}
+
 void block_job_pause(BlockJob *job)
 {
     job->paused = true;

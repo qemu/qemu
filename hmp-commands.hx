@@ -109,7 +109,22 @@ ETEXI
 STEXI
 @item block_job_cancel
 @findex block_job_cancel
-Stop an active block streaming operation.
+Stop an active background block operation (streaming, mirroring).
+ETEXI
+
+    {
+        .name       = "block_job_complete",
+        .args_type  = "device:B",
+        .params     = "device",
+        .help       = "stop an active background block operation",
+        .mhandler.cmd = hmp_block_job_complete,
+    },
+
+STEXI
+@item block_job_complete
+@findex block_job_complete
+Manually trigger completion of an active background block operation.
+For mirroring, this will switch the device to the destination path.
 ETEXI
 
     {

@@ -41,6 +41,12 @@ typedef struct BlockJobType {
 
     /** Optional callback for job types that support setting a speed limit */
     void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
+
+    /**
+     * Optional callback for job types whose completion must be triggered
+     * manually.
+     */
+    void (*complete)(BlockJob *job, Error **errp);
 } BlockJobType;
 
 /**
@@ -162,6 +168,15 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp);
  * Asynchronously cancel the specified job.
  */
 void block_job_cancel(BlockJob *job);
+
+/**
+ * block_job_complete:
+ * @job: The job to be completed.
+ * @errp: Error object.
+ *
+ * Asynchronously complete the specified job.
+ */
+void block_job_complete(BlockJob *job, Error **errp);
 
 /**
  * block_job_is_cancelled:

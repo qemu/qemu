@@ -990,6 +990,16 @@ void hmp_block_job_resume(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &error);
 }
 
+void hmp_block_job_complete(Monitor *mon, const QDict *qdict)
+{
+    Error *error = NULL;
+    const char *device = qdict_get_str(qdict, "device");
+
+    qmp_block_job_complete(device, &error);
+
+    hmp_handle_error(mon, &error);
+}
+
 typedef struct MigrationStatus
 {
     QEMUTimer *timer;

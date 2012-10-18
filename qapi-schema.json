@@ -2033,6 +2033,31 @@
 { 'command': 'block-job-resume', 'data': { 'device': 'str' } }
 
 ##
+# @block-job-complete:
+#
+# Manually trigger completion of an active background block operation.  This
+# is supported for drive mirroring, where it also switches the device to
+# write to the target path only.
+#
+# This command completes an active background block operation synchronously.
+# The ordering of this command's return with the BLOCK_JOB_COMPLETED event
+# is not defined.  Note that if an I/O error occurs during the processing of
+# this command: 1) the command itself will fail; 2) the error will be processed
+# according to the rerror/werror arguments that were specified when starting
+# the operation.
+#
+# A cancelled or paused job cannot be completed.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If no background operation is active on this device, DeviceNotActive
+#
+# Since: 1.3
+##
+{ 'command': 'block-job-complete', 'data': { 'device': 'str' } }
+
+##
 # @ObjectTypeInfo:
 #
 # This structure describes a search result from @qom-list-types

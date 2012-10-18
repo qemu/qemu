@@ -81,6 +81,7 @@ commit_start(void *bs, void *base, void *top, void *s, void *co, void *opaque) "
 qmp_block_job_cancel(void *job) "job %p"
 qmp_block_job_pause(void *job) "job %p"
 qmp_block_job_resume(void *job) "job %p"
+qmp_block_job_complete(void *job) "job %p"
 block_job_cb(void *bs, void *job, int ret) "bs %p job %p ret %d"
 qmp_block_stream(void *bs, void *job) "bs %p job %p"
 

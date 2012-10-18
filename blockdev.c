@@ -1266,6 +1266,19 @@ void qmp_block_job_resume(const char *device, Error **errp)
     block_job_resume(job);
 }
 
+void qmp_block_job_complete(const char *device, Error **errp)
+{
+    BlockJob *job = find_block_job(device);
+
+    if (!job) {
+        error_set(errp, QERR_BLOCK_JOB_NOT_ACTIVE, device);
+        return;
+    }
+
+    trace_qmp_block_job_complete(job);
+    block_job_complete(job, errp);
+}
+
 static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
 {
     BlockJobInfoList **prev = opaque;

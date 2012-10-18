@@ -843,6 +843,11 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_block_job_resume,
     },
     {
+        .name       = "block-job-complete",
+        .args_type  = "device:B",
+        .mhandler.cmd_new = qmp_marshal_input_block_job_complete,
+    },
+    {
         .name       = "transaction",
         .args_type  = "actions:q",
         .mhandler.cmd_new = qmp_marshal_input_transaction,
