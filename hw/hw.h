@@ -12,6 +12,7 @@
 #include "irq.h"
 #include "qemu-file.h"
 #include "vmstate.h"
+#include "qemu-log.h"
 
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64
