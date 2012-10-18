@@ -265,16 +265,21 @@ uint64_t xbzrle_mig_pages_overflow(void)
     return acct_info.xbzrle_overflows;
 }
 
-static void save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
-        int cont, int flag)
+static size_t save_block_hdr(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
+                             int cont, int flag)
 {
-        qemu_put_be64(f, offset | cont | flag);
-        if (!cont) {
-                qemu_put_byte(f, strlen(block->idstr));
-                qemu_put_buffer(f, (uint8_t *)block->idstr,
-                                strlen(block->idstr));
-        }
+    size_t size;
 
+    qemu_put_be64(f, offset | cont | flag);
+    size = 8;
+
+    if (!cont) {
+        qemu_put_byte(f, strlen(block->idstr));
+        qemu_put_buffer(f, (uint8_t *)block->idstr,
+                        strlen(block->idstr));
+        size += 1 + strlen(block->idstr);
+    }
+    return size;
 }
 
 #define ENCODING_FLAG_XBZRLE 0x1
@@ -321,11 +326,11 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t *current_data,
     }
 
     /* Send XBZRLE based compressed page */
-    save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_XBZRLE);
+    bytes_sent = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_XBZRLE);
     qemu_put_byte(f, ENCODING_FLAG_XBZRLE);
     qemu_put_be16(f, encoded_len);
     qemu_put_buffer(f, XBZRLE.encoded_buf, encoded_len);
-    bytes_sent = encoded_len + 1 + 2;
+    bytes_sent += encoded_len + 1 + 2;
     acct_info.xbzrle_pages++;
     acct_info.xbzrle_bytes += bytes_sent;
 
@@ -457,9 +462,10 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 
             if (is_dup_page(p)) {
                 acct_info.dup_pages++;
-                save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_COMPRESS);
+                bytes_sent = save_block_hdr(f, block, offset, cont,
+                                            RAM_SAVE_FLAG_COMPRESS);
                 qemu_put_byte(f, *p);
-                bytes_sent = 1;
+                bytes_sent += 1;
             } else if (migrate_use_xbzrle()) {
                 current_addr = block->offset + offset;
                 bytes_sent = save_xbzrle_page(f, p, current_addr, block,
@@ -471,9 +477,9 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 
             /* either we didn't send yet (we may have had XBZRLE overflow) */
             if (bytes_sent == -1) {
-                save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
+                bytes_sent = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
-                bytes_sent = TARGET_PAGE_SIZE;
+                bytes_sent += TARGET_PAGE_SIZE;
                 acct_info.norm_pages++;
             }
 
