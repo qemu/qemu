@@ -937,7 +937,8 @@ EQMP
 
     {
         .name       = "drive-mirror",
-        .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?",
+        .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
+                      "on-source-error:s?,on-target-error:s?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
     },
 
@@ -965,6 +966,11 @@ Arguments:
   possibilities include "full" for all the disk, "top" for only the sectors
   allocated in the topmost image, or "none" to only replicate new I/O
   (MirrorSyncMode).
+- "on-source-error": the action to take on an error on the source
+  (BlockdevOnError, default 'report')
+- "on-target-error": the action to take on an error on the target
+  (BlockdevOnError, default 'report')
+
 
 
 Example:
