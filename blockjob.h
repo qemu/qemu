@@ -42,6 +42,9 @@ typedef struct BlockJobType {
     /** Optional callback for job types that support setting a speed limit */
     void (*set_speed)(BlockJob *job, int64_t speed, Error **errp);
 
+    /** Optional callback for job types that need to forward I/O status reset */
+    void (*iostatus_reset)(BlockJob *job);
+
     /**
      * Optional callback for job types whose completion must be triggered
      * manually.
@@ -253,7 +256,8 @@ int block_job_cancel_sync(BlockJob *job);
  * block_job_iostatus_reset:
  * @job: The job whose I/O status should be reset.
  *
- * Reset I/O status on @job.
+ * Reset I/O status on @job and on BlockDriverState objects it uses,
+ * other than job->bs.
  */
 void block_job_iostatus_reset(BlockJob *job);
 

@@ -142,6 +142,9 @@ bool block_job_is_cancelled(BlockJob *job)
 void block_job_iostatus_reset(BlockJob *job)
 {
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+    if (job->job_type->iostatus_reset) {
+        job->job_type->iostatus_reset(job);
+    }
 }
 
 struct BlockCancelData {
