@@ -120,11 +120,13 @@ static uint64_t pl031_read(void *opaque, target_phys_addr_t offset,
     case RTC_MIS:
         return s->is & s->im;
     case RTC_ICR:
-        fprintf(stderr, "qemu: pl031_read: Unexpected offset 0x%x\n",
-                (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl031: read of write-only register at offset 0x%x\n",
+                      (int)offset);
         break;
     default:
-        hw_error("pl031_read: Bad offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl031_read: Bad offset 0x%x\n", (int)offset);
         break;
     }
 
@@ -167,12 +169,14 @@ static void pl031_write(void * opaque, target_phys_addr_t offset,
     case RTC_DR:
     case RTC_MIS:
     case RTC_RIS:
-        fprintf(stderr, "qemu: pl031_write: Unexpected offset 0x%x\n",
-                (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl031: write to read-only register at offset 0x%x\n",
+                      (int)offset);
         break;
 
     default:
-        hw_error("pl031_write: Bad offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl031_write: Bad offset 0x%x\n", (int)offset);
         break;
     }
 }
