@@ -1004,6 +1004,27 @@ Snapshot device, using snapshot file as target if provided
 ETEXI
 
     {
+        .name       = "drive_mirror",
+        .args_type  = "reuse:-n,full:-f,device:B,target:s,format:s?",
+        .params     = "[-n] [-f] device target [format]",
+        .help       = "initiates live storage\n\t\t\t"
+                      "migration for a device. The device's contents are\n\t\t\t"
+                      "copied to the new image file, including data that\n\t\t\t"
+                      "is written after the command is started.\n\t\t\t"
+                      "The -n flag requests QEMU to reuse the image found\n\t\t\t"
+                      "in new-image-file, instead of recreating it from scratch.\n\t\t\t"
+                      "The -f flag requests QEMU to copy the whole disk,\n\t\t\t"
+                      "so that the result does not need a backing file.\n\t\t\t",
+        .mhandler.cmd = hmp_drive_mirror,
+    },
+STEXI
+@item drive_mirror
+@findex drive_mirror
+Start mirroring a block device's writes to a new destination,
+using the specified target.
+ETEXI
+
+    {
         .name       = "drive_add",
         .args_type  = "pci_addr:s,opts:s",
         .params     = "[[<domain>:]<bus>:]<slot>\n"

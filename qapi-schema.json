@@ -1606,6 +1606,40 @@
   'data': { 'device': 'str', '*base': 'str', 'top': 'str',
             '*speed': 'int' } }
 
+##
+# @drive-mirror
+#
+# Start mirroring a block device's writes to a new destination.
+#
+# @device:  the name of the device whose writes should be mirrored.
+#
+# @target: the target of the new image. If the file exists, or if it
+#          is a device, the existing file/device will be used as the new
+#          destination.  If it does not exist, a new file will be created.
+#
+# @format: #optional the format of the new destination, default is to
+#          probe if @mode is 'existing', else the format of the source
+#
+# @mode: #optional whether and how QEMU should create a new image, default is
+#        'absolute-paths'.
+#
+# @speed:  #optional the maximum speed, in bytes per second
+#
+# @sync: what parts of the disk image should be copied to the destination
+#        (all the disk, only the sectors allocated in the topmost image, or
+#        only new I/O).
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Since 1.3
+##
+{ 'command': 'drive-mirror',
+  'data': { 'device': 'str', 'target': 'str', '*format': 'str',
+            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+            '*speed': 'int' } }
+
+##
 # @migrate_cancel
 #
 # Cancel the current executing migration process.
