@@ -339,7 +339,6 @@ DEF_HELPER_2(neon_mull_s16, i64, i32, i32)
 
 DEF_HELPER_1(neon_negl_u16, i64, i64)
 DEF_HELPER_1(neon_negl_u32, i64, i64)
-DEF_HELPER_1(neon_negl_u64, i64, i64)
 
 DEF_HELPER_2(neon_qabs_s8, i32, env, i32)
 DEF_HELPER_2(neon_qabs_s16, i32, env, i32)
