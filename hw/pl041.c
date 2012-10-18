@@ -536,8 +536,9 @@ static int pl041_init(SysBusDevice *dev)
     default:
         /* NC FIFO depth of 16 is not allowed because its id bits in
            AACIPERIPHID3 overlap with the id for the default NC FIFO depth */
-        fprintf(stderr, "pl041: unsupported non-compact fifo depth [%i]\n",
-                s->fifo_depth);
+        qemu_log_mask(LOG_UNIMP,
+                      "pl041: unsupported non-compact fifo depth [%i]\n",
+                      s->fifo_depth);
         return -1;
     }
 
