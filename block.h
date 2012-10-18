@@ -314,6 +314,7 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
 void bdrv_get_full_backing_filename(BlockDriverState *bs,
                                     char *dest, size_t sz);
 BlockInfo *bdrv_query_info(BlockDriverState *s);
+BlockStats *bdrv_query_stats(const BlockDriverState *bs);
 int bdrv_can_snapshot(BlockDriverState *bs);
 int bdrv_is_snapshot(BlockDriverState *bs);
 BlockDriverState *bdrv_snapshots(void);

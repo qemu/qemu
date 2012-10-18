@@ -2867,8 +2867,7 @@ BlockInfoList *qmp_query_block(Error **errp)
     return head;
 }
 
-/* Consider exposing this as a full fledged QMP command */
-static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
+BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 {
     BlockStats *s;
 
@@ -2892,7 +2891,7 @@ static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = qmp_query_blockstat(bs->file, NULL);
+        s->parent = bdrv_query_stats(bs->file);
     }
 
     return s;
@@ -2900,20 +2899,15 @@ static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
 
 BlockStatsList *qmp_query_blockstats(Error **errp)
 {
-    BlockStatsList *head = NULL, *cur_item = NULL;
+    BlockStatsList *head = NULL, **p_next = &head;
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
-        info->value = qmp_query_blockstat(bs, NULL);
+        info->value = bdrv_query_stats(bs);
 
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        *p_next = info;
+        p_next = &info->next;
     }
 
     return head;
