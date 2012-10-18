@@ -71,7 +71,7 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
     return job;
 }
 
-void block_job_complete(BlockJob *job, int ret)
+void block_job_completed(BlockJob *job, int ret)
 {
     BlockDriverState *bs = job->bs;
 

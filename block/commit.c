@@ -160,7 +160,7 @@ exit_restore_reopen:
         bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
     }
 
-    block_job_complete(&s->common, ret);
+    block_job_completed(&s->common, ret);
 }
 
 static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)

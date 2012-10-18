@@ -135,14 +135,14 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
 void block_job_sleep_ns(BlockJob *job, QEMUClock *clock, int64_t ns);
 
 /**
- * block_job_complete:
+ * block_job_completed:
  * @job: The job being completed.
  * @ret: The status code.
  *
  * Call the completion function that was registered at creation time, and
  * free @job.
  */
-void block_job_complete(BlockJob *job, int ret);
+void block_job_completed(BlockJob *job, int ret);
 
 /**
  * block_job_set_speed:
