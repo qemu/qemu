@@ -3068,7 +3068,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
             vs->lsock = unix_connect(display+5, NULL);
         else
             vs->lsock = inet_connect(display, NULL);
-        if (-1 == vs->lsock) {
+        if (vs->lsock < 0) {
             g_free(vs->display);
             vs->display = NULL;
             return -1;
@@ -3090,7 +3090,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
             vs->lsock = inet_listen(display, dpy, 256,
                                     SOCK_STREAM, 5900, NULL);
         }
-        if (-1 == vs->lsock) {
+        if (vs->lsock < 0) {
             g_free(dpy);
             return -1;
         } else {
