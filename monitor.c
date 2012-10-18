@@ -2105,8 +2105,9 @@ static void monitor_fdset_cleanup(MonFdset *mon_fdset)
     MonFdsetFd *mon_fdset_fd_next;
 
     QLIST_FOREACH_SAFE(mon_fdset_fd, &mon_fdset->fds, next, mon_fdset_fd_next) {
-        if (mon_fdset_fd->removed ||
-                (QLIST_EMPTY(&mon_fdset->dup_fds) && mon_refcount == 0)) {
+        if ((mon_fdset_fd->removed ||
+                (QLIST_EMPTY(&mon_fdset->dup_fds) && mon_refcount == 0)) &&
+                runstate_is_running()) {
             close(mon_fdset_fd->fd);
             g_free(mon_fdset_fd->opaque);
             QLIST_REMOVE(mon_fdset_fd, next);
