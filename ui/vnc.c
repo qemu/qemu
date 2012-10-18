@@ -3053,19 +3053,17 @@ int vnc_display_open(DisplayState *ds, const char *display)
 
     if (reverse) {
         /* connect to viewer */
-        if (strncmp(display, "unix:", 5) == 0)
-            vs->lsock = unix_connect(display+5, NULL);
-        else
-            vs->lsock = inet_connect(display, NULL);
-        if (vs->lsock < 0) {
-            goto fail;
+        int csock;
+        vs->lsock = -1;
+        if (strncmp(display, "unix:", 5) == 0) {
+            csock = unix_connect(display+5, NULL);
         } else {
-            int csock = vs->lsock;
-            vs->lsock = -1;
-            vnc_connect(vs, csock, 0);
+            csock = inet_connect(display, NULL);
         }
-        return 0;
-
+        if (csock < 0) {
+            goto fail;
+        }
+        vnc_connect(vs, csock, 0);
     } else {
         /* listen for connects */
         char *dpy;
