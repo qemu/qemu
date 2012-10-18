@@ -2625,7 +2625,7 @@
 #
 # Returns: @AddfdInfo on success
 #          If file descriptor was not received, FdNotSupplied
-#          If @fdset-id does not exist, InvalidParameterValue
+#          If @fdset-id is a negative value, InvalidParameterValue
 #
 # Notes: The list of fd sets is shared by all monitor connections.
 #

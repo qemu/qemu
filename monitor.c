@@ -2135,7 +2135,7 @@ AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
 {
     int fd;
     Monitor *mon = cur_mon;
-    MonFdset *mon_fdset;
+    MonFdset *mon_fdset = NULL;
     MonFdsetFd *mon_fdset_fd;
     AddfdInfo *fdinfo;
 
@@ -2147,34 +2147,54 @@ AddfdInfo *qmp_add_fd(bool has_fdset_id, int64_t fdset_id, bool has_opaque,
 
     if (has_fdset_id) {
         QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
-            if (mon_fdset->id == fdset_id) {
+            /* Break if match found or match impossible due to ordering by ID */
+            if (fdset_id <= mon_fdset->id) {
+                if (fdset_id < mon_fdset->id) {
+                    mon_fdset = NULL;
+                }
                 break;
             }
         }
-        if (mon_fdset == NULL) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
-                      "an existing fdset-id");
-            goto error;
-        }
-    } else {
+    }
+
+    if (mon_fdset == NULL) {
         int64_t fdset_id_prev = -1;
         MonFdset *mon_fdset_cur = QLIST_FIRST(&mon_fdsets);
 
-        /* Use first available fdset ID */
-        QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
-            mon_fdset_cur = mon_fdset;
-            if (fdset_id_prev == mon_fdset_cur->id - 1) {
-                fdset_id_prev = mon_fdset_cur->id;
-                continue;
+        if (has_fdset_id) {
+            if (fdset_id < 0) {
+                error_set(errp, QERR_INVALID_PARAMETER_VALUE, "fdset-id",
+                          "a non-negative value");
+                goto error;
             }
-            break;
+            /* Use specified fdset ID */
+            QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+                mon_fdset_cur = mon_fdset;
+                if (fdset_id < mon_fdset_cur->id) {
+                    break;
+                }
+            }
+        } else {
+            /* Use first available fdset ID */
+            QLIST_FOREACH(mon_fdset, &mon_fdsets, next) {
+                mon_fdset_cur = mon_fdset;
+                if (fdset_id_prev == mon_fdset_cur->id - 1) {
+                    fdset_id_prev = mon_fdset_cur->id;
+                    continue;
+                }
+                break;
+            }
         }
 
         mon_fdset = g_malloc0(sizeof(*mon_fdset));
-        mon_fdset->id = fdset_id_prev + 1;
+        if (has_fdset_id) {
+            mon_fdset->id = fdset_id;
+        } else {
+            mon_fdset->id = fdset_id_prev + 1;
+        }
 
         /* The fdset list is ordered by fdset ID */
-        if (mon_fdset->id == 0) {
+        if (!mon_fdset_cur) {
             QLIST_INSERT_HEAD(&mon_fdsets, mon_fdset, next);
         } else if (mon_fdset->id < mon_fdset_cur->id) {
             QLIST_INSERT_BEFORE(mon_fdset_cur, mon_fdset, next);
