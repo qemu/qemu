@@ -145,3 +145,17 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
         pcie_host_mmcfg_map(e, addr, size);
     }
 }
+
+static const TypeInfo pcie_host_type_info = {
+    .name = TYPE_PCIE_HOST_BRIDGE,
+    .parent = TYPE_PCI_HOST_BRIDGE,
+    .abstract = true,
+    .instance_size = sizeof(PCIExpressHost),
+};
+
+static void pcie_host_register_types(void)
+{
+    type_register_static(&pcie_host_type_info);
+}
+
+type_init(pcie_host_register_types)

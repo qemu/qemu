@@ -24,6 +24,10 @@
 #include "pci_host.h"
 #include "memory.h"
 
+#define TYPE_PCIE_HOST_BRIDGE "pcie-host-bridge"
+#define PCIE_HOST_BRIDGE(obj) \
+    OBJECT_CHECK(PCIExpressHost, (obj), TYPE_PCIE_HOST_BRIDGE)
+
 struct PCIExpressHost {
     PCIHostState pci;
 
