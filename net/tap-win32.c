@@ -29,6 +29,7 @@
 #include "tap.h"
 
 #include "qemu-common.h"
+#include "clients.h"            /* net_init_tap */
 #include "net.h"
 #include "sysemu.h"
 #include "qemu-error.h"

@@ -345,6 +345,7 @@ static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
 
 static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
 {
+    env->regs[21] = newtls;
 }
 
 static inline int cpu_interrupts_enabled(CPUMBState *env)

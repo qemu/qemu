@@ -17,6 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #define _GNU_SOURCE
+#include "compiler.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -1827,7 +1828,7 @@ void test_exceptions(void)
     printf("lock nop exception:\n");
     if (setjmp(jmp_env) == 0) {
         /* now execute an invalid instruction */
-        asm volatile("lock nop");
+        asm volatile(".byte 0xf0, 0x90"); /* lock nop */
     }
 
     printf("INT exception:\n");

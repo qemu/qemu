@@ -219,6 +219,9 @@ unsigned long init_guest_space(unsigned long host_start,
 
 #include "qemu-log.h"
 
+/* syscall.c */
+int host_to_target_waitstatus(int status);
+
 /* strace.c */
 void print_syscall(int num,
                    abi_long arg1, abi_long arg2, abi_long arg3,
