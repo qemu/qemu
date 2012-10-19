@@ -1098,12 +1098,12 @@ void bdrv_reopen_abort(BDRVReopenState *reopen_state)
 void bdrv_close(BlockDriverState *bs)
 {
     bdrv_flush(bs);
-    if (bs->drv) {
-        if (bs->job) {
-            block_job_cancel_sync(bs->job);
-        }
-        bdrv_drain_all();
+    if (bs->job) {
+        block_job_cancel_sync(bs->job);
+    }
+    bdrv_drain_all();
 
+    if (bs->drv) {
         if (bs == bs_snapshots) {
             bs_snapshots = NULL;
         }
