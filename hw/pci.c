@@ -1678,16 +1678,16 @@ PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
     return pci_create_simple_multifunction(bus, devfn, false, name);
 }
 
-static int pci_find_space(PCIDevice *pdev, uint8_t size)
+static uint8_t pci_find_space(PCIDevice *pdev, uint8_t size)
 {
-    int config_size = pci_config_size(pdev);
     int offset = PCI_CONFIG_HEADER_SIZE;
     int i;
-    for (i = PCI_CONFIG_HEADER_SIZE; i < config_size; ++i)
+    for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i) {
         if (pdev->used[i])
             offset = i + 1;
         else if (i - offset + 1 == size)
             return offset;
+    }
     return 0;
 }
 
