@@ -33,21 +33,21 @@
 /*
  * Locking:
  *
- * There is three levels of locking:
+ * There are three levels of locking:
  * - jobs queue lock: for each operation on the queue (push, pop, isEmpty?)
  * - VncDisplay global lock: mainly used for framebuffer updates to avoid
  *                      screen corruption if the framebuffer is updated
- *			while the worker is doing something.
+ *                      while the worker is doing something.
  * - VncState::output lock: used to make sure the output buffer is not corrupted
- * 		   	 if two threads try to write on it at the same time
+ *                          if two threads try to write on it at the same time
  *
- * While the VNC worker thread is working, the VncDisplay global lock is hold
- * to avoid screen corruptions (this does not block vnc_refresh() because it
- * uses trylock()) but the output lock is not hold because the thread work on
+ * While the VNC worker thread is working, the VncDisplay global lock is held
+ * to avoid screen corruption (this does not block vnc_refresh() because it
+ * uses trylock()) but the output lock is not held because the thread works on
  * its own output buffer.
  * When the encoding job is done, the worker thread will hold the output lock
  * and copy its output buffer in vs->output.
-*/
+ */
 
 struct VncJobQueue {
     QemuCond cond;
@@ -62,7 +62,7 @@ typedef struct VncJobQueue VncJobQueue;
 
 /*
  * We use a single global queue, but most of the functions are
- * already reetrant, so we can easilly add more than one encoding thread
+ * already reentrant, so we can easily add more than one encoding thread
  */
 static VncJobQueue *queue;
 

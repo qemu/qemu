@@ -1323,7 +1323,7 @@ if test -z "$cross_prefix" ; then
 # big/little endian test
 cat > $TMPC << EOF
 #include <inttypes.h>
-int main(int argc, char ** argv){
+int main(void) {
         volatile uint32_t i=0x01234567;
         return (*((uint8_t*)(&i))) == 0x67;
 }
@@ -2896,7 +2896,7 @@ static int sfaa(int *ptr)
   return __sync_fetch_and_and(ptr, 0);
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
   int val = 42;
   sfaa(&val);
