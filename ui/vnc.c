@@ -3088,9 +3088,6 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
     return;
 
 fail:
-    if (!error_is_set(errp)) {
-        error_set(errp, QERR_VNC_SERVER_FAILED, display);
-    }
     g_free(vs->display);
     vs->display = NULL;
 }
