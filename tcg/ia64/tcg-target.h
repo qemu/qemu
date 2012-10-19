@@ -147,9 +147,6 @@ typedef enum {
 
 #define TCG_AREG0 TCG_REG_R7
 
-/* Guest base is supported */
-#define TCG_TARGET_HAS_GUEST_BASE
-
 static inline void flush_icache_range(tcg_target_ulong start,
                                       tcg_target_ulong stop)
 {
