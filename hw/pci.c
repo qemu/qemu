@@ -1237,6 +1237,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0x0c02, "SSA controller", "ssa"},
     { 0x0c03, "USB controller", "usb"},
     { 0x0c04, "Fibre channel controller", "fibre-channel"},
+    { 0x0c05, "SMBus"},
     { 0, NULL}
 };
 
