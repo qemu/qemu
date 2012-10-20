@@ -92,7 +92,6 @@ static const int tcg_target_call_oarg_regs[] = {
 #if TCG_TARGET_REG_BITS == 64
 # define TCG_REG_L0 tcg_target_call_iarg_regs[0]
 # define TCG_REG_L1 tcg_target_call_iarg_regs[1]
-# define TCG_REG_L2 tcg_target_call_iarg_regs[2]
 #else
 # define TCG_REG_L0 TCG_REG_EAX
 # define TCG_REG_L1 TCG_REG_EDX
@@ -181,14 +180,11 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
 #if TCG_TARGET_REG_BITS == 64
             tcg_regset_set32(ct->u.regs, 0, 0xffff);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_L2);
 #else
             tcg_regset_set32(ct->u.regs, 0, 0xff);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
 #endif
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L0);
+        tcg_regset_reset_reg(ct->u.regs, TCG_REG_L1);
         break;
 
     case 'e':
