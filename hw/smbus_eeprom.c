@@ -26,7 +26,7 @@
 #include "i2c.h"
 #include "smbus.h"
 
-//#define DEBUG
+#define DEBUG
 
 typedef struct SMBusEEPROMDevice {
     SMBusDevice smbusdev;
@@ -137,6 +137,16 @@ static void smbus_eeprom_register_types(void)
 
 type_init(smbus_eeprom_register_types)
 
+void smbus_eeprom_init_single(i2c_bus *smbus, int address,
+                              uint8_t *eeprom_buf)
+{
+    DeviceState *eeprom;
+    eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
+    qdev_prop_set_uint8(eeprom, "address", address);
+    qdev_prop_set_ptr(eeprom, "data", eeprom_buf);
+    qdev_init_nofail(eeprom);
+}
+
 void smbus_eeprom_init(i2c_bus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
@@ -147,10 +157,7 @@ void smbus_eeprom_init(i2c_bus *smbus, int nb_eeprom,
     }
 
     for (i = 0; i < nb_eeprom; i++) {
-        DeviceState *eeprom;
-        eeprom = qdev_create((BusState *)smbus, "smbus-eeprom");
-        qdev_prop_set_uint8(eeprom, "address", 0x50 + i);
-        qdev_prop_set_ptr(eeprom, "data", eeprom_buf + (i * 256));
-        qdev_init_nofail(eeprom);
+        smbus_eeprom_init_single(smbus,
+                                 0x50 + i, eeprom_buf + (i * 256));
     }
 }

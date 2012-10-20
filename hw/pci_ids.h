@@ -22,6 +22,7 @@
 #define PCI_CLASS_NETWORK_ETHERNET       0x0200
 
 #define PCI_CLASS_DISPLAY_VGA            0x0300
+#define PCI_CLASS_DISPLAY_3D             0x0302
 #define PCI_CLASS_DISPLAY_OTHER          0x0380
 
 #define PCI_CLASS_MULTIMEDIA_AUDIO       0x0401
@@ -31,6 +32,7 @@
 #define PCI_CLASS_SYSTEM_OTHER           0x0880
 
 #define PCI_CLASS_SERIAL_USB             0x0c03
+#define PCI_CLASS_SERIAL_SMBUS           0x0c05
 
 #define PCI_CLASS_BRIDGE_HOST            0x0600
 #define PCI_CLASS_BRIDGE_ISA             0x0601
@@ -128,3 +130,12 @@
 
 #define PCI_VENDOR_ID_NEC                0x1033
 #define PCI_DEVICE_ID_NEC_UPD720200      0x0194
+
+#define PCI_VENDOR_ID_NVIDIA              0x10de
+#define PCI_DEVICE_ID_NVIDIA_NFORCE_LPC   0x01b2
+#define PCI_DEVICE_ID_NVIDIA_NFORCE_SMBUS 0x01b4
+#define PCI_DEVICE_ID_NVIDIA_NFORCE_AGP   0x01b7
+
+#define PCI_DEVICE_ID_NVIDIA_GEFORCE_NV2A 0x02a0
+#define PCI_DEVICE_ID_NVIDIA_XBOX_PCHB    0x02a5
+
