@@ -44,6 +44,7 @@ typedef struct MCPX_SMBState {
     PCIDevice dev;
 
     AMD756SMBus smb;
+    MemoryRegion smb_bar;
 } MCPX_SMBState;
 
 typedef struct MCPX_LPCState {

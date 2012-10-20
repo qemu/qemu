@@ -165,16 +165,44 @@ i2c_bus *mcpx_smbus_init(DeviceState *host, PCIBus *bus)
 
 
 
+#define MCPX_SMBUS_BASE_BAR 1
+
+static void mcpx_smb_ioport_writeb(void *opaque, target_phys_addr_t addr,
+                                   uint64_t val, unsigned size)
+{
+    MCPX_SMBState *s = opaque;
+
+    uint64_t offset = addr - s->dev.io_regions[MCPX_SMBUS_BASE_BAR].addr;
+    amd756_smb_ioport_writeb(&s->smb, offset, val);
+}
+
+static uint64_t mcpx_smb_ioport_readb(void *opaque, target_phys_addr_t addr,
+                                      unsigned size)
+{
+    MCPX_SMBState *s = opaque;
+
+    uint64_t offset = addr - s->dev.io_regions[MCPX_SMBUS_BASE_BAR].addr;
+    return amd756_smb_ioport_readb(&s->smb, offset);
+}
+
+static const MemoryRegionOps mcpx_smbus_ops = {
+    .read = mcpx_smb_ioport_readb,
+    .write = mcpx_smb_ioport_writeb,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 static int mcpx_smbus_initfn(PCIDevice *dev)
 {
     MCPX_SMBState *s = MCPX_SMBUS_DEVICE(dev);
 
-    //presumably configurable, but can't find docs...
-    const uint32_t smb_io_base = 0xc000;
-    register_ioport_write(smb_io_base, 64, 1, amd756_smb_ioport_writeb, &s->smb);
-    register_ioport_read(smb_io_base, 64, 1, amd756_smb_ioport_readb, &s->smb);
-
+    memory_region_init_io(&s->smb_bar, &mcpx_smbus_ops,
+                          s, "mcpx-smbus-bar", 32);
+    pci_register_bar(dev, MCPX_SMBUS_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
+                     &s->smb_bar);
     amd756_smbus_init(&dev->qdev, &s->smb);
 
     return 0;
@@ -199,9 +227,10 @@ static void mcpx_smbus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo mcpx_smbus_info = {
     .name = "mcpx-smbus",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
+    .instance_size = sizeof(MCPX_SMBState),
     .class_init = mcpx_smbus_class_init,
 };
+
 
 
 
@@ -284,7 +313,7 @@ static void mcpx_lpc_class_init(ObjectClass *klass, void *data)
 static const TypeInfo mcpx_lpc_info = {
     .name = "mcpx-lpc",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
+    .instance_size = sizeof(MCPX_LPCState),
     .class_init = mcpx_lpc_class_init,
 };
 
