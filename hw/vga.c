@@ -582,7 +582,6 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-#ifdef CONFIG_BOCHS_VBE
 static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
 {
     VGACommonState *s = opaque;
@@ -591,7 +590,7 @@ static uint32_t vbe_ioport_read_index(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
+uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
 {
     VGACommonState *s = opaque;
     uint32_t val;
@@ -627,13 +626,13 @@ static uint32_t vbe_ioport_read_data(void *opaque, uint32_t addr)
     return val;
 }
 
-static void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val)
+void vbe_ioport_write_index(void *opaque, uint32_t addr, uint32_t val)
 {
     VGACommonState *s = opaque;
     s->vbe_index = val;
 }
 
-static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
+void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 {
     VGACommonState *s = opaque;
 
@@ -784,7 +783,6 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
         }
     }
 }
-#endif
 
 /* called for accesses between 0xa0000 and 0xc0000 */
 uint32_t vga_mem_readb(VGACommonState *s, target_phys_addr_t addr)
@@ -1130,14 +1128,12 @@ static void vga_get_offsets(VGACommonState *s,
                             uint32_t *pline_compare)
 {
     uint32_t start_addr, line_offset, line_compare;
-#ifdef CONFIG_BOCHS_VBE
+
     if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
         line_offset = s->vbe_line_offset;
         start_addr = s->vbe_start_addr;
         line_compare = 65535;
-    } else
-#endif
-    {
+    } else {
         /* compute line_offset in bytes */
         line_offset = s->cr[VGA_CRTC_OFFSET];
         line_offset <<= 3;
@@ -1573,12 +1569,10 @@ static vga_draw_line_func * const vga_draw_line_table[NB_DEPTHS * VGA_DRAW_LINE_
 static int vga_get_bpp(VGACommonState *s)
 {
     int ret;
-#ifdef CONFIG_BOCHS_VBE
+
     if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
         ret = s->vbe_regs[VBE_DISPI_INDEX_BPP];
-    } else
-#endif
-    {
+    } else {
         ret = 0;
     }
     return ret;
@@ -1588,13 +1582,10 @@ static void vga_get_resolution(VGACommonState *s, int *pwidth, int *pheight)
 {
     int width, height;
 
-#ifdef CONFIG_BOCHS_VBE
     if (s->vbe_regs[VBE_DISPI_INDEX_ENABLE] & VBE_DISPI_ENABLED) {
         width = s->vbe_regs[VBE_DISPI_INDEX_XRES];
         height = s->vbe_regs[VBE_DISPI_INDEX_YRES];
-    } else
-#endif
-    {
+    } else {
         width = (s->cr[VGA_CRTC_H_DISP] + 1) * 8;
         height = s->cr[VGA_CRTC_V_DISP_END] |
             ((s->cr[VGA_CRTC_OVERFLOW] & 0x02) << 7) |
@@ -1951,14 +1942,12 @@ void vga_common_reset(VGACommonState *s)
     s->dac_8bit = 0;
     memset(s->palette, '\0', sizeof(s->palette));
     s->bank_offset = 0;
-#ifdef CONFIG_BOCHS_VBE
     s->vbe_index = 0;
     memset(s->vbe_regs, '\0', sizeof(s->vbe_regs));
     s->vbe_regs[VBE_DISPI_INDEX_ID] = VBE_DISPI_ID5;
     s->vbe_start_addr = 0;
     s->vbe_line_offset = 0;
     s->vbe_bank_mask = (s->vram_size >> 16) - 1;
-#endif
     memset(s->font_offsets, '\0', sizeof(s->font_offsets));
     s->graphic_mode = -1; /* force full update */
     s->shift_control = 0;
@@ -2232,13 +2221,11 @@ const VMStateDescription vmstate_vga_common = {
 
         VMSTATE_INT32(bank_offset, VGACommonState),
         VMSTATE_UINT8_EQUAL(is_vbe_vmstate, VGACommonState),
-#ifdef CONFIG_BOCHS_VBE
         VMSTATE_UINT16(vbe_index, VGACommonState),
         VMSTATE_UINT16_ARRAY(vbe_regs, VGACommonState, VBE_DISPI_INDEX_NB),
         VMSTATE_UINT32(vbe_start_addr, VGACommonState),
         VMSTATE_UINT32(vbe_line_offset, VGACommonState),
         VMSTATE_UINT32(vbe_bank_mask, VGACommonState),
-#endif
         VMSTATE_END_OF_LIST()
     }
 };
@@ -2278,11 +2265,7 @@ void vga_common_init(VGACommonState *s)
     }
     s->vram_size_mb = s->vram_size >> 20;
 
-#ifdef CONFIG_BOCHS_VBE
     s->is_vbe_vmstate = 1;
-#else
-    s->is_vbe_vmstate = 0;
-#endif
     memory_region_init_ram(&s->vram, "vga.vram", s->vram_size);
     vmstate_register_ram_global(&s->vram);
     xen_register_framebuffer(&s->vram);
@@ -2318,7 +2301,6 @@ static const MemoryRegionPortio vga_portio_list[] = {
     PORTIO_END_OF_LIST(),
 };
 
-#ifdef CONFIG_BOCHS_VBE
 static const MemoryRegionPortio vbe_portio_list[] = {
     { 0, 1, 2, .read = vbe_ioport_read_index, .write = vbe_ioport_write_index },
 # ifdef TARGET_I386
@@ -2328,7 +2310,6 @@ static const MemoryRegionPortio vbe_portio_list[] = {
 # endif
     PORTIO_END_OF_LIST(),
 };
-#endif /* CONFIG_BOCHS_VBE */
 
 /* Used by both ISA and PCI */
 MemoryRegion *vga_init_io(VGACommonState *s,
@@ -2338,10 +2319,7 @@ MemoryRegion *vga_init_io(VGACommonState *s,
     MemoryRegion *vga_mem;
 
     *vga_ports = vga_portio_list;
-    *vbe_ports = NULL;
-#ifdef CONFIG_BOCHS_VBE
     *vbe_ports = vbe_portio_list;
-#endif
 
     vga_mem = g_malloc(sizeof(*vga_mem));
     memory_region_init_io(vga_mem, &vga_mem_ops, s,
@@ -2383,7 +2361,6 @@ void vga_init(VGACommonState *s, MemoryRegion *address_space,
 
 void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
 {
-#ifdef CONFIG_BOCHS_VBE
     /* With pc-0.12 and below we map both the PCI BAR and the fixed VBE region,
      * so use an alias to avoid double-mapping the same region.
      */
@@ -2394,7 +2371,6 @@ void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                 &s->vram_vbe);
     s->vbe_mapped = 1;
-#endif
 }
 /********************************************************/
 /* vga screen dump */

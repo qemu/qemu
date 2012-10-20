@@ -183,12 +183,12 @@ static int xilinx_load_device_tree(target_phys_addr_t addr,
     return fdt_size;
 }
 
-static void virtex_init(ram_addr_t ram_size,
-                        const char *boot_device,
-                        const char *kernel_filename,
-                        const char *kernel_cmdline,
-                        const char *initrd_filename, const char *cpu_model)
+static void virtex_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
     PowerPCCPU *cpu;

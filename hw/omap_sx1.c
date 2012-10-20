@@ -209,20 +209,26 @@ static void sx1_init(ram_addr_t ram_size,
     //~ qemu_console_resize(ds, 640, 480);
 }
 
-static void sx1_init_v1(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void sx1_init_v1(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     sx1_init(ram_size, boot_device, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, 1);
 }
 
-static void sx1_init_v2(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void sx1_init_v2(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     sx1_init(ram_size, boot_device, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, 2);
 }

@@ -91,10 +91,12 @@ static void puv3_load_kernel(const char *kernel_filename)
     graphic_console_init(NULL, NULL, NULL, NULL, NULL);
 }
 
-static void puv3_init(ram_addr_t ram_size, const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model)
+static void puv3_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *initrd_filename = args->initrd_filename;
     CPUUniCore32State *env;
 
     if (initrd_filename) {

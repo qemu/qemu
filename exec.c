@@ -88,26 +88,11 @@ static int nb_tbs;
 /* any access to the tbs or the page table must use this lock */
 spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 
-#if defined(__arm__) || defined(__sparc__)
-/* The prologue must be reachable with a direct jump. ARM and Sparc64
- have limited branch ranges (possibly also PPC) so place it in a
- section close to code segment. */
-#define code_gen_section                                \
-    __attribute__((__section__(".gen_code")))           \
-    __attribute__((aligned (32)))
-#elif defined(_WIN32) && !defined(_WIN64)
-#define code_gen_section                                \
-    __attribute__((aligned (16)))
-#else
-#define code_gen_section                                \
-    __attribute__((aligned (32)))
-#endif
-
-uint8_t code_gen_prologue[1024] code_gen_section;
+uint8_t *code_gen_prologue;
 static uint8_t *code_gen_buffer;
-static uintptr_t code_gen_buffer_size;
+static size_t code_gen_buffer_size;
 /* threshold to flush the translated code buffer */
-static uintptr_t code_gen_buffer_max_size;
+static size_t code_gen_buffer_max_size;
 static uint8_t *code_gen_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
@@ -223,7 +208,7 @@ static int tb_flush_count;
 static int tb_phys_invalidate_count;
 
 #ifdef _WIN32
-static void map_exec(void *addr, long size)
+static inline void map_exec(void *addr, long size)
 {
     DWORD old_protect;
     VirtualProtect(addr, size,
@@ -231,7 +216,7 @@ static void map_exec(void *addr, long size)
 
 }
 #else
-static void map_exec(void *addr, long size)
+static inline void map_exec(void *addr, long size)
 {
     uintptr_t start, end, page_size;
 
@@ -499,111 +484,142 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
 #define mmap_unlock() do { } while(0)
 #endif
 
-#define DEFAULT_CODE_GEN_BUFFER_SIZE (32 * 1024 * 1024)
-
 #if defined(CONFIG_USER_ONLY)
 /* Currently it is not recommended to allocate big chunks of data in
-   user mode. It will change when a dedicated libc will be used */
+   user mode. It will change when a dedicated libc will be used.  */
+/* ??? 64-bit hosts ought to have no problem mmaping data outside the
+   region in which the guest needs to run.  Revisit this.  */
 #define USE_STATIC_CODE_GEN_BUFFER
 #endif
 
+/* ??? Should configure for this, not list operating systems here.  */
+#if (defined(__linux__) \
+    || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) \
+    || defined(__DragonFly__) || defined(__OpenBSD__) \
+    || defined(__NetBSD__))
+# define USE_MMAP
+#endif
+
+/* Minimum size of the code gen buffer.  This number is randomly chosen,
+   but not so small that we can't have a fair number of TB's live.  */
+#define MIN_CODE_GEN_BUFFER_SIZE     (1024u * 1024)
+
+/* Maximum size of the code gen buffer we'd like to use.  Unless otherwise
+   indicated, this is constrained by the range of direct branches on the
+   host cpu, as used by the TCG implementation of goto_tb.  */
+#if defined(__x86_64__)
+# define MAX_CODE_GEN_BUFFER_SIZE  (2ul * 1024 * 1024 * 1024)
+#elif defined(__sparc__)
+# define MAX_CODE_GEN_BUFFER_SIZE  (2ul * 1024 * 1024 * 1024)
+#elif defined(__arm__)
+# define MAX_CODE_GEN_BUFFER_SIZE  (16u * 1024 * 1024)
+#elif defined(__s390x__)
+  /* We have a +- 4GB range on the branches; leave some slop.  */
+# define MAX_CODE_GEN_BUFFER_SIZE  (3ul * 1024 * 1024 * 1024)
+#else
+# define MAX_CODE_GEN_BUFFER_SIZE  ((size_t)-1)
+#endif
+
+#define DEFAULT_CODE_GEN_BUFFER_SIZE_1 (32u * 1024 * 1024)
+
+#define DEFAULT_CODE_GEN_BUFFER_SIZE \
+  (DEFAULT_CODE_GEN_BUFFER_SIZE_1 < MAX_CODE_GEN_BUFFER_SIZE \
+   ? DEFAULT_CODE_GEN_BUFFER_SIZE_1 : MAX_CODE_GEN_BUFFER_SIZE)
+
+static inline size_t size_code_gen_buffer(size_t tb_size)
+{
+    /* Size the buffer.  */
+    if (tb_size == 0) {
+#ifdef USE_STATIC_CODE_GEN_BUFFER
+        tb_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+#else
+        /* ??? Needs adjustments.  */
+        /* ??? If we relax the requirement that CONFIG_USER_ONLY use the
+           static buffer, we could size this on RESERVED_VA, on the text
+           segment size of the executable, or continue to use the default.  */
+        tb_size = (unsigned long)(ram_size / 4);
+#endif
+    }
+    if (tb_size < MIN_CODE_GEN_BUFFER_SIZE) {
+        tb_size = MIN_CODE_GEN_BUFFER_SIZE;
+    }
+    if (tb_size > MAX_CODE_GEN_BUFFER_SIZE) {
+        tb_size = MAX_CODE_GEN_BUFFER_SIZE;
+    }
+    code_gen_buffer_size = tb_size;
+    return tb_size;
+}
+
 #ifdef USE_STATIC_CODE_GEN_BUFFER
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
-               __attribute__((aligned (CODE_GEN_ALIGN)));
-#endif
+    __attribute__((aligned(CODE_GEN_ALIGN)));
 
-static void code_gen_alloc(uintptr_t tb_size)
+static inline void *alloc_code_gen_buffer(void)
 {
-#ifdef USE_STATIC_CODE_GEN_BUFFER
-    code_gen_buffer = static_code_gen_buffer;
-    code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
-    map_exec(code_gen_buffer, code_gen_buffer_size);
-#else
-    code_gen_buffer_size = tb_size;
-    if (code_gen_buffer_size == 0) {
-#if defined(CONFIG_USER_ONLY)
-        code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
-#else
-        /* XXX: needs adjustments */
-        code_gen_buffer_size = (uintptr_t)(ram_size / 4);
-#endif
-    }
-    if (code_gen_buffer_size < MIN_CODE_GEN_BUFFER_SIZE)
-        code_gen_buffer_size = MIN_CODE_GEN_BUFFER_SIZE;
-    /* The code gen buffer location may have constraints depending on
-       the host cpu and OS */
-#if defined(__linux__)
-    {
-        int flags;
-        void *start = NULL;
+    map_exec(static_code_gen_buffer, code_gen_buffer_size);
+    return static_code_gen_buffer;
+}
+#elif defined(USE_MMAP)
+static inline void *alloc_code_gen_buffer(void)
+{
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    uintptr_t start = 0;
+    void *buf;
 
-        flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#if defined(__x86_64__)
-        flags |= MAP_32BIT;
-        /* Cannot map more than that */
-        if (code_gen_buffer_size > (800 * 1024 * 1024))
-            code_gen_buffer_size = (800 * 1024 * 1024);
-#elif defined(__sparc__) && HOST_LONG_BITS == 64
-        // Map the buffer below 2G, so we can use direct calls and branches
-        start = (void *) 0x40000000UL;
-        if (code_gen_buffer_size > (512 * 1024 * 1024))
-            code_gen_buffer_size = (512 * 1024 * 1024);
-#elif defined(__arm__)
-        /* Keep the buffer no bigger than 16MB to branch between blocks */
-        if (code_gen_buffer_size > 16 * 1024 * 1024)
-            code_gen_buffer_size = 16 * 1024 * 1024;
-#elif defined(__s390x__)
-        /* Map the buffer so that we can use direct calls and branches.  */
-        /* We have a +- 4GB range on the branches; leave some slop.  */
-        if (code_gen_buffer_size > (3ul * 1024 * 1024 * 1024)) {
-            code_gen_buffer_size = 3ul * 1024 * 1024 * 1024;
-        }
-        start = (void *)0x90000000UL;
-#endif
-        code_gen_buffer = mmap(start, code_gen_buffer_size,
-                               PROT_WRITE | PROT_READ | PROT_EXEC,
-                               flags, -1, 0);
-        if (code_gen_buffer == MAP_FAILED) {
-            fprintf(stderr, "Could not allocate dynamic translator buffer\n");
-            exit(1);
-        }
+    /* Constrain the position of the buffer based on the host cpu.
+       Note that these addresses are chosen in concert with the
+       addresses assigned in the relevant linker script file.  */
+# if defined(__PIE__) || defined(__PIC__)
+    /* Don't bother setting a preferred location if we're building
+       a position-independent executable.  We're more likely to get
+       an address near the main executable if we let the kernel
+       choose the address.  */
+# elif defined(__x86_64__) && defined(MAP_32BIT)
+    /* Force the memory down into low memory with the executable.
+       Leave the choice of exact location with the kernel.  */
+    flags |= MAP_32BIT;
+    /* Cannot expect to map more than 800MB in low memory.  */
+    if (code_gen_buffer_size > 800u * 1024 * 1024) {
+        code_gen_buffer_size = 800u * 1024 * 1024;
     }
-#elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) \
-    || defined(__DragonFly__) || defined(__OpenBSD__) \
-    || defined(__NetBSD__)
-    {
-        int flags;
-        void *addr = NULL;
-        flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#if defined(__x86_64__)
-        /* FreeBSD doesn't have MAP_32BIT, use MAP_FIXED and assume
-         * 0x40000000 is free */
-        flags |= MAP_FIXED;
-        addr = (void *)0x40000000;
-        /* Cannot map more than that */
-        if (code_gen_buffer_size > (800 * 1024 * 1024))
-            code_gen_buffer_size = (800 * 1024 * 1024);
-#elif defined(__sparc__) && HOST_LONG_BITS == 64
-        // Map the buffer below 2G, so we can use direct calls and branches
-        addr = (void *) 0x40000000UL;
-        if (code_gen_buffer_size > (512 * 1024 * 1024)) {
-            code_gen_buffer_size = (512 * 1024 * 1024);
-        }
-#endif
-        code_gen_buffer = mmap(addr, code_gen_buffer_size,
-                               PROT_WRITE | PROT_READ | PROT_EXEC,
-                               flags, -1, 0);
-        if (code_gen_buffer == MAP_FAILED) {
-            fprintf(stderr, "Could not allocate dynamic translator buffer\n");
-            exit(1);
-        }
-    }
+# elif defined(__sparc__)
+    start = 0x40000000ul;
+# elif defined(__s390x__)
+    start = 0x90000000ul;
+# endif
+
+    buf = mmap((void *)start, code_gen_buffer_size,
+               PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
+    return buf == MAP_FAILED ? NULL : buf;
+}
 #else
-    code_gen_buffer = g_malloc(code_gen_buffer_size);
-    map_exec(code_gen_buffer, code_gen_buffer_size);
-#endif
-#endif /* !USE_STATIC_CODE_GEN_BUFFER */
-    map_exec(code_gen_prologue, sizeof(code_gen_prologue));
+static inline void *alloc_code_gen_buffer(void)
+{
+    void *buf = g_malloc(code_gen_buffer_size);
+    if (buf) {
+        map_exec(buf, code_gen_buffer_size);
+    }
+    return buf;
+}
+#endif /* USE_STATIC_CODE_GEN_BUFFER, USE_MMAP */
+
+static inline void code_gen_alloc(size_t tb_size)
+{
+    code_gen_buffer_size = size_code_gen_buffer(tb_size);
+    code_gen_buffer = alloc_code_gen_buffer();
+    if (code_gen_buffer == NULL) {
+        fprintf(stderr, "Could not allocate dynamic translator buffer\n");
+        exit(1);
+    }
+
+    /* Steal room for the prologue at the end of the buffer.  This ensures
+       (via the MAX_CODE_GEN_BUFFER_SIZE limits above) that direct branches
+       from TB's to the prologue are going to be in range.  It also means
+       that we don't need to mark (additional) portions of the data segment
+       as executable.  */
+    code_gen_prologue = code_gen_buffer + code_gen_buffer_size - 1024;
+    code_gen_buffer_size -= 1024;
+
     code_gen_buffer_max_size = code_gen_buffer_size -
         (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
     code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
@@ -4243,7 +4259,7 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     }
     /* XXX: avoid using doubles ? */
     cpu_fprintf(f, "Translation buffer state:\n");
-    cpu_fprintf(f, "gen code size       %td/%" PRIuPTR "\n",
+    cpu_fprintf(f, "gen code size       %td/%zd\n",
                 code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
     cpu_fprintf(f, "TB count            %d/%d\n",
                 nb_tbs, code_gen_max_blocks);

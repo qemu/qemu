@@ -35,6 +35,7 @@ static inline bool qemu_log_enabled(void)
 #define CPU_LOG_TB_CPU     (1 << 8)
 #define CPU_LOG_RESET      (1 << 9)
 #define LOG_UNIMP          (1 << 10)
+#define LOG_GUEST_ERROR    (1 << 11)
 
 /* Returns true if a bit is set in the current loglevel mask
  */

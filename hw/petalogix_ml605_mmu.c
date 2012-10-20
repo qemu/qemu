@@ -73,12 +73,10 @@ static void machine_cpu_reset(MicroBlazeCPU *cpu)
 }
 
 static void
-petalogix_ml605_init(ram_addr_t ram_size,
-                          const char *boot_device,
-                          const char *kernel_filename,
-                          const char *kernel_cmdline,
-                          const char *initrd_filename, const char *cpu_model)
+petalogix_ml605_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
     MicroBlazeCPU *cpu;

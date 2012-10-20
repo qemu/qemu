@@ -157,11 +157,14 @@ static void main_cpu_reset(void *opaque)
 }
 
 static const int sector_len = 32 * 1024;
-static void mips_init(ram_addr_t ram_size,
-                    const char *boot_device,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
+
+static void mips_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     char *filename;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -299,27 +302,19 @@ static void mips_init(ram_addr_t ram_size,
 }
 
 static
-void mips_r4k_init(ram_addr_t ram_size,
-                    const char *boot_device,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
+void mips_r4k_init(QEMUMachineInitArgs *args)
 {
     /* Run MIPS system in big endian mode. */
     bigendian = 1;
-    mips_init(ram_size, boot_device,
-        kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+    mips_init(args);
 }
 
 static
-void mipsel_r4k_init(ram_addr_t ram_size,
-                    const char *boot_device,
-                    const char *kernel_filename, const char *kernel_cmdline,
-                    const char *initrd_filename, const char *cpu_model)
+void mipsel_r4k_init(QEMUMachineInitArgs *args)
 {
     /* Run MIPS system in little endian mode. */
     bigendian = 0;
-    mips_init(ram_size, boot_device,
-        kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+    mips_init(args);
 }
 
 static QEMUMachine mips_machine = {

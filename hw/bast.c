@@ -401,10 +401,7 @@ static struct arm_boot_info bast_binfo = {
     .ram_size = 0x10000000, /* 256MB */
 };
 
-static void stcb_init(ram_addr_t _ram_size,
-                      const char *boot_device,
-                      const char *kernel_filename, const char *kernel_cmdline,
-                      const char *initrd_filename, const char *cpu_model)
+static void stcb_init(QEMUMachineInitArgs *args)
 {
     MemoryRegion *sysmem = get_system_memory();
     STCBState *stcb;
@@ -419,16 +416,16 @@ static void stcb_init(ram_addr_t _ram_size,
     //~ qemu_irq *i8259;
 
     /* ensure memory is limited to 256MB */
-    if (_ram_size > (256 * MiB)) {
-        _ram_size = 256 * MiB;
+    if (args->ram_size > (256 * MiB)) {
+        args->ram_size = 256 * MiB;
     }
-    ram_size = _ram_size;
+    ram_size = args->ram_size;
 
     /* initialise board informations */
     bast_binfo.ram_size = ram_size;
-    bast_binfo.kernel_filename = kernel_filename;
-    bast_binfo.kernel_cmdline = kernel_cmdline;
-    bast_binfo.initrd_filename = initrd_filename;
+    bast_binfo.kernel_filename = args->kernel_filename;
+    bast_binfo.kernel_cmdline = args->kernel_cmdline;
+    bast_binfo.initrd_filename = args->initrd_filename;
     bast_binfo.nb_cpus = 1;
     bast_binfo.loader_start = BAST_NOR_RO_BASE;
 
@@ -472,7 +469,7 @@ static void stcb_init(ram_addr_t _ram_size,
     /* TODO: Read only ROM type mapping to address BAST_NOR_RO_BASE. */
 
     /* if kernel is given, boot that directly */
-    if (kernel_filename != NULL) {
+    if (args->kernel_filename != NULL) {
         bast_binfo.loader_start = CPU_S3C2410X_DRAM;
         //~ bast_binfo.loader_start = 0xc0108000 - 0x00010000;
         arm_load_kernel(stcb->soc->cpu, &bast_binfo);

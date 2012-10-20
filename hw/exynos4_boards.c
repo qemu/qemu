@@ -130,22 +130,22 @@ static Exynos4210State *exynos4_boards_init_common(
             exynos4_board_ram_size[board_type]);
 }
 
-static void nuri_init(ram_addr_t ram_size,
-        const char *boot_device,
-        const char *kernel_filename, const char *kernel_cmdline,
-        const char *initrd_filename, const char *cpu_model)
+static void nuri_init(QEMUMachineInitArgs *args)
 {
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     exynos4_boards_init_common(kernel_filename, kernel_cmdline,
                 initrd_filename, EXYNOS4_BOARD_NURI);
 
     arm_load_kernel(arm_env_get_cpu(first_cpu), &exynos4_board_binfo);
 }
 
-static void smdkc210_init(ram_addr_t ram_size,
-        const char *boot_device,
-        const char *kernel_filename, const char *kernel_cmdline,
-        const char *initrd_filename, const char *cpu_model)
+static void smdkc210_init(QEMUMachineInitArgs *args)
 {
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
     Exynos4210State *s = exynos4_boards_init_common(kernel_filename,
             kernel_cmdline, initrd_filename, EXYNOS4_BOARD_SMDKC210);
 

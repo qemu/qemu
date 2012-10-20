@@ -933,31 +933,40 @@ static const struct hwdef hwdefs[] = {
 };
 
 /* Sun4u hardware initialisation */
-static void sun4u_init(ram_addr_t RAM_size,
-                       const char *boot_devices,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+static void sun4u_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t RAM_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_devices = args->boot_device;
     sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[0]);
 }
 
 /* Sun4v hardware initialisation */
-static void sun4v_init(ram_addr_t RAM_size,
-                       const char *boot_devices,
-                       const char *kernel_filename, const char *kernel_cmdline,
-                       const char *initrd_filename, const char *cpu_model)
+static void sun4v_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t RAM_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_devices = args->boot_device;
     sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[1]);
 }
 
 /* Niagara hardware initialisation */
-static void niagara_init(ram_addr_t RAM_size,
-                         const char *boot_devices,
-                         const char *kernel_filename, const char *kernel_cmdline,
-                         const char *initrd_filename, const char *cpu_model)
+static void niagara_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t RAM_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_devices = args->boot_device;
     sun4uv_init(get_system_memory(), RAM_size, boot_devices, kernel_filename,
                 kernel_cmdline, initrd_filename, cpu_model, &hwdefs[2]);
 }
