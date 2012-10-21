@@ -46,7 +46,7 @@
 
 
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 # define SMBUS_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)

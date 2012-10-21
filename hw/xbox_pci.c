@@ -48,7 +48,7 @@
   */
 
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 # define XBOXPCI_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)

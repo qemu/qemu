@@ -26,7 +26,7 @@
 #include "i2c.h"
 #include "smbus.h"
 
-#define DEBUG
+//#define DEBUG
 
 typedef struct SMBusEEPROMDevice {
     SMBusDevice smbusdev;

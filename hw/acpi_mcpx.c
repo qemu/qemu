@@ -33,7 +33,7 @@
 
 #include "acpi_mcpx.h"
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 # define MCPX_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)

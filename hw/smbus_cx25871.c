@@ -32,7 +32,7 @@ typedef struct SMBusCX25871Device {
     uint8_t registers[256];
 } SMBusCX25871Device;
 
-#define DEBUG
+//#define DEBUG
 
 static void cx_quick_cmd(SMBusDevice *dev, uint8_t read)
 {

@@ -62,7 +62,7 @@
 static const char* pic_version_string = "P01";
 
 
-#define DEBUG
+//#define DEBUG
 
 typedef struct SMBusPIC16LCDevice {
     SMBusDevice smbusdev;
