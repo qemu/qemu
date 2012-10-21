@@ -22,11 +22,12 @@
 #include "pc.h"
 #include "console.h"
 #include "pci.h"
+#include "vga.h"
 #include "vga_int.h"
 
 #include "nv2a.h"
 
-#define DEBUG_NV2A
+//#define DEBUG_NV2A
 #ifdef DEBUG_NV2A
 # define NV2A_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
 #else
@@ -57,14 +58,26 @@
 #define NV_USER         19  /* PFIFO MMIO and DMA submission area */
 
 
+
+
+#define NV_PCRTC_START                  0x00000800
+#define NV_PCRTC_CONFIG                 0x00000804
+
+
+
+
+
 typedef struct NV2AState {
     PCIDevice dev;
+
     VGACommonState vga;
 
     MemoryRegion vram;
     MemoryRegion mmio;
 
     MemoryRegion block_mmio[NV_NUM_BLOCKS];
+
+    target_phys_addr_t crtc_start;
 } NV2AState;
 
 
@@ -200,17 +213,26 @@ static void nv2a_prmfb_write(void *opaque, target_phys_addr_t addr,
 }
 
 
+/* PRMVIO -aliases VGA sequencer and graphics controller registers */
 static uint64_t nv2a_prmvio_read(void *opaque,
                                   target_phys_addr_t addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+    uint64_t r = vga_ioport_read(&d->vga, addr);
+
+    NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx] -> %llx\n", addr, r);
+    return r;
 }
 static void nv2a_prmvio_write(void *opaque, target_phys_addr_t addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PRMVIO: [0x%llx] = 0x%02llx\n", addr, val);
+
+    vga_ioport_write(&d->vga, addr, val);
 }
+
 
 
 static uint64_t nv2a_pstraps_read(void *opaque,
@@ -242,26 +264,75 @@ static void nv2a_pgraph_write(void *opaque, target_phys_addr_t addr,
 static uint64_t nv2a_pcrtc_read(void *opaque,
                                   target_phys_addr_t addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PCRTC: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+    uint64_t r = 0;
+    switch (addr) {
+        case NV_PCRTC_START:
+            r = d->crtc_start;
+            break;
+        default:
+            break;
+    }
+    NV2A_DPRINTF("nv2a PCRTC: read [0x%llx] -> %llx\n", addr, r);
+    return r;
 }
 static void nv2a_pcrtc_write(void *opaque, target_phys_addr_t addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PCRTC: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+        case NV_PCRTC_START:
+            val &= 0x03FFFFFF;
+            if (val != d->crtc_start) {
+                if (d->crtc_start) {
+                    memory_region_del_subregion(&d->vram, &d->vga.vram);
+                }
+                d->crtc_start = val;
+                memory_region_add_subregion(&d->vram, val, &d->vga.vram);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 
+/* PRMCIO - aliases VGA CRTC and attribute controller registers */
 static uint64_t nv2a_prmcio_read(void *opaque,
                                   target_phys_addr_t addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+    uint64_t r = vga_ioport_read(&d->vga, addr);
+
+    NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx] -> %llx\n", addr, r);
+    return r;
 }
 static void nv2a_prmcio_write(void *opaque, target_phys_addr_t addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PRMCIO: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+        case VGA_ATT_W:
+            /* Cromwell sets attrs without enabling VGA_AR_ENABLE_DISPLAY
+             * (which should result in a blank screen).
+             * Either nvidia's hardware is lenient or it is set through
+             * something else. The former seems more likely.
+             */
+            if (d->vga.ar_flip_flop == 0) {
+                val |= VGA_AR_ENABLE_DISPLAY;
+            }
+            break;
+        default:
+            break;
+    }
+
+    vga_ioport_write(&d->vga, addr, val);
 }
 
 
@@ -502,22 +573,44 @@ static const struct NV2ABlockInfo blocktable[] = {
 
 
 
+static int nv2a_get_bpp(VGACommonState *s)
+{
+    if ((s->cr[0x28] & 3) == 3) {
+        return 32;
+    }
+    return (s->cr[0x28] & 3) * 8;
+}
 
 static int nv2a_initfn(PCIDevice *dev)
 {
     int i;
-    NV2AState *d = DO_UPCAST(NV2AState, dev, dev);
-    //uint8_t *pci_conf = d->dev.config;
+    NV2AState *d;
 
-    /* setup legacy VGA */
-    //d->vga.vram_size_mb = 16;
-    //vga_common_init(&d->vga);
 
+    d = DO_UPCAST(NV2AState, dev, dev);
+    d->crtc_start = 0;
+
+    /* legacy VGA shit */
+    VGACommonState *vga = &d->vga;
+    vga->vram_size_mb = 16;
+
+    /* seems to start in color mode */
+    vga->msr = VGA_MIS_COLOR;
+
+    vga_common_init(vga);
+    vga->get_bpp = nv2a_get_bpp;
+
+    vga->ds = graphic_console_init(vga->update, vga->invalidate,
+                                   vga->screen_dump, vga->text_update,
+                                   vga);
+
+
+
+    /* mmio */
     memory_region_init(&d->mmio, "nv2a-mmio", 0x1000000);
-
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    memory_region_init_ram(&d->vram, "nv2a-vram", 128 * 0x100000);
+    memory_region_init(&d->vram, "nv2a-vram", 128 * 0x100000);
     pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, &d->vram);
 
     for (i=0; i<sizeof(blocktable)/sizeof(blocktable[0]); i++) {
