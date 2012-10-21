@@ -3200,7 +3200,7 @@ echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
 echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
-echo "CONFIG_QEMU_HELPERDIR=\"`eval echo $libexecdir`\"" >> $config_host_mak
+echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
