@@ -320,12 +320,19 @@ static const TypeInfo mcpx_lpc_info = {
 
 
 
+static int xbox_agp_initfn(PCIDevice *d)
+{
+    pci_set_word(d->config + PCI_PREF_MEMORY_BASE, PCI_PREF_RANGE_TYPE_32);
+    pci_set_word(d->config + PCI_PREF_MEMORY_LIMIT, PCI_PREF_RANGE_TYPE_32);
+    return pci_bridge_initfn(d);
+}
+
 static void xbox_agp_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init         = pci_bridge_initfn;
+    k->init         = xbox_agp_initfn;
     k->exit         = pci_bridge_exitfn;
     k->config_write = pci_bridge_write_config;
     k->is_bridge    = 1;
