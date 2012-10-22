@@ -1381,9 +1381,6 @@ static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
         if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
             goto error;
     }
-    if (x86_cpu_def->cpuid_7_0_ebx_features && x86_cpu_def->level < 7) {
-        x86_cpu_def->level = 7;
-    }
     return 0;
 
 error:
@@ -2074,6 +2071,11 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
 void x86_cpu_realize(Object *obj, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+
+    if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
+        env->cpuid_level = 7;
+    }
 
 #ifndef CONFIG_USER_ONLY
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
