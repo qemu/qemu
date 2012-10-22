@@ -639,9 +639,8 @@ static void vfio_disable_msix(VFIODevice *vdev)
 
     vfio_disable_msi_common(vdev);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x, msi%s)\n", __func__,
-            vdev->host.domain, vdev->host.bus, vdev->host.slot,
-            vdev->host.function, msix ? "x" : "");
+    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
 }
 
 static void vfio_disable_msi(VFIODevice *vdev)
@@ -1917,6 +1916,10 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static const VMStateDescription vfio_pci_vmstate = {
+    .name = "vfio-pci",
+    .unmigratable = 1,
+};
 
 static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
 {
@@ -1925,6 +1928,8 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
 
     dc->reset = vfio_pci_reset;
     dc->props = vfio_pci_dev_properties;
+    dc->vmsd = &vfio_pci_vmstate;
+    dc->desc = "VFIO-based PCI device assignment";
     pdc->init = vfio_initfn;
     pdc->exit = vfio_exitfn;
     pdc->config_read = vfio_pci_read_config;
