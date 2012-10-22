@@ -383,13 +383,17 @@
 #
 # @normal : number of normal pages (since 1.2)
 #
-# @normal-bytes : number of normal bytes sent (since 1.2)
+# @normal-bytes: number of normal bytes sent (since 1.2)
+#
+# @dirty-pages-rate: number of pages dirtied by second by the
+#        guest (since 1.3)
 #
 # Since: 0.14.0
 ##
 { 'type': 'MigrationStats',
   'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' ,
-           'duplicate': 'int', 'normal': 'int', 'normal-bytes': 'int' } }
+           'duplicate': 'int', 'normal': 'int', 'normal-bytes': 'int',
+           'dirty-pages-rate' : 'int' } }
 
 ##
 # @XBZRLECacheStats
@@ -438,13 +442,23 @@
 #        If migration has ended, it returns the total migration
 #        time. (since 1.2)
 #
+# @downtime: #optional only present when migration finishes correctly
+#        total downtime in milliseconds for the guest.
+#        (since 1.3)
+#
+# @expected-downtime: #optional only present while migration is active
+#        expected downtime in milliseconds for the guest in last walk
+#        of the dirty bitmap. (since 1.3)
+#
 # Since: 0.14.0
 ##
 { 'type': 'MigrationInfo',
   'data': {'*status': 'str', '*ram': 'MigrationStats',
            '*disk': 'MigrationStats',
            '*xbzrle-cache': 'XBZRLECacheStats',
-           '*total-time': 'int'} }
+           '*total-time': 'int',
+           '*expected-downtime': 'int',
+           '*downtime': 'int'} }
 
 ##
 # @query-migrate

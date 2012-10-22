@@ -90,11 +90,6 @@ static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
 static inline int cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
                                                       int dirty_flags)
 {
-    if ((dirty_flags & MIGRATION_DIRTY_FLAG) &&
-        !cpu_physical_memory_get_dirty(addr, TARGET_PAGE_SIZE,
-                                       MIGRATION_DIRTY_FLAG)) {
-        ram_list.dirty_pages++;
-    }
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
 }
 
@@ -108,11 +103,6 @@ static inline int cpu_physical_memory_clear_dirty_flags(ram_addr_t addr,
 {
     int mask = ~dirty_flags;
 
-    if ((dirty_flags & MIGRATION_DIRTY_FLAG) &&
-        cpu_physical_memory_get_dirty(addr, TARGET_PAGE_SIZE,
-                                      MIGRATION_DIRTY_FLAG)) {
-        ram_list.dirty_pages--;
-    }
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] &= mask;
 }
 

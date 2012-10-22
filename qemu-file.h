@@ -71,7 +71,6 @@ QEMUFile *qemu_fopen_socket(int fd);
 QEMUFile *qemu_popen(FILE *popen_file, const char *mode);
 QEMUFile *qemu_popen_cmd(const char *command, const char *mode);
 int qemu_stdio_fd(QEMUFile *f);
-void qemu_fflush(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
 void qemu_put_byte(QEMUFile *f, int v);
@@ -104,12 +103,11 @@ int qemu_file_rate_limit(QEMUFile *f);
 int64_t qemu_file_set_rate_limit(QEMUFile *f, int64_t new_rate);
 int64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_get_error(QEMUFile *f);
-void qemu_file_set_error(QEMUFile *f, int error);
 
 /* Try to send any outstanding data.  This function is useful when output is
  * halted due to rate limiting or EAGAIN errors occur as it can be used to
  * resume output. */
-void qemu_file_put_notify(QEMUFile *f);
+int qemu_file_put_notify(QEMUFile *f);
 
 static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)
 {
@@ -231,8 +229,4 @@ static inline void qemu_get_sbe64s(QEMUFile *f, int64_t *pv)
 {
     qemu_get_be64s(f, (uint64_t *)pv);
 }
-
-int64_t qemu_ftell(QEMUFile *f);
-int64_t qemu_fseek(QEMUFile *f, int64_t pos, int whence);
-
 #endif
