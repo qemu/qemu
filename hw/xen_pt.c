@@ -59,6 +59,7 @@
 #include "xen_backend.h"
 #include "xen_pt.h"
 #include "range.h"
+#include "exec-memory.h"
 
 #define XEN_PT_NR_IRQS (256)
 static uint8_t xen_pt_mapped_machine_irq[XEN_PT_NR_IRQS] = {0};
@@ -600,14 +601,6 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
     }
 }
 
-static void xen_pt_begin(MemoryListener *l)
-{
-}
-
-static void xen_pt_commit(MemoryListener *l)
-{
-}
-
 static void xen_pt_region_add(MemoryListener *l, MemoryRegionSection *sec)
 {
     XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
@@ -624,36 +617,31 @@ static void xen_pt_region_del(MemoryListener *l, MemoryRegionSection *sec)
     xen_pt_region_update(s, sec, false);
 }
 
-static void xen_pt_region_nop(MemoryListener *l, MemoryRegionSection *s)
+static void xen_pt_io_region_add(MemoryListener *l, MemoryRegionSection *sec)
 {
+    XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
+                                             io_listener);
+
+    xen_pt_region_update(s, sec, true);
 }
 
-static void xen_pt_log_fns(MemoryListener *l, MemoryRegionSection *s)
+static void xen_pt_io_region_del(MemoryListener *l, MemoryRegionSection *sec)
 {
-}
+    XenPCIPassthroughState *s = container_of(l, XenPCIPassthroughState,
+                                             io_listener);
 
-static void xen_pt_log_global_fns(MemoryListener *l)
-{
-}
-
-static void xen_pt_eventfd_fns(MemoryListener *l, MemoryRegionSection *s,
-                               bool match_data, uint64_t data, EventNotifier *n)
-{
+    xen_pt_region_update(s, sec, false);
 }
 
 static const MemoryListener xen_pt_memory_listener = {
-    .begin = xen_pt_begin,
-    .commit = xen_pt_commit,
     .region_add = xen_pt_region_add,
-    .region_nop = xen_pt_region_nop,
     .region_del = xen_pt_region_del,
-    .log_start = xen_pt_log_fns,
-    .log_stop = xen_pt_log_fns,
-    .log_sync = xen_pt_log_fns,
-    .log_global_start = xen_pt_log_global_fns,
-    .log_global_stop = xen_pt_log_global_fns,
-    .eventfd_add = xen_pt_eventfd_fns,
-    .eventfd_del = xen_pt_eventfd_fns,
+    .priority = 10,
+};
+
+static const MemoryListener xen_pt_io_listener = {
+    .region_add = xen_pt_io_region_add,
+    .region_del = xen_pt_io_region_del,
     .priority = 10,
 };
 
@@ -694,6 +682,7 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
     s->memory_listener = xen_pt_memory_listener;
+    s->io_listener = xen_pt_io_listener;
 
     /* Handle real device's MMIO/PIO BARs */
     xen_pt_register_regions(s);
@@ -760,7 +749,8 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
 out:
-    memory_listener_register(&s->memory_listener, NULL);
+    memory_listener_register(&s->memory_listener, &address_space_memory);
+    memory_listener_register(&s->io_listener, &address_space_io);
     XEN_PT_LOG(d, "Real physical device %02x:%02x.%d registered successfuly!\n",
                bus, slot, func);
 
@@ -815,6 +805,7 @@ static void xen_pt_unregister_device(PCIDevice *d)
 
     xen_pt_unregister_regions(s);
     memory_listener_unregister(&s->memory_listener);
+    memory_listener_unregister(&s->io_listener);
 
     xen_host_pci_device_put(&s->real_device);
 }

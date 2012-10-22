@@ -26,7 +26,8 @@ void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
                              target_ulong vaddr);
 void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
                            uintptr_t length);
-MemoryRegionSection *phys_page_find(target_phys_addr_t index);
+MemoryRegionSection *phys_page_find(struct AddressSpaceDispatch *d,
+                                    target_phys_addr_t index);
 void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length);
 void tlb_set_dirty(CPUArchState *env, target_ulong vaddr);
 extern int tlb_flush_count;

@@ -454,14 +454,6 @@ static void xen_set_memory(struct MemoryListener *listener,
     }
 }
 
-static void xen_begin(MemoryListener *listener)
-{
-}
-
-static void xen_commit(MemoryListener *listener)
-{
-}
-
 static void xen_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -472,11 +464,6 @@ static void xen_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     xen_set_memory(listener, section, false);
-}
-
-static void xen_region_nop(MemoryListener *listener,
-                           MemoryRegionSection *section)
-{
 }
 
 static void xen_sync_dirty_bitmap(XenIOState *state,
@@ -565,33 +552,14 @@ static void xen_log_global_stop(MemoryListener *listener)
     xen_in_migration = false;
 }
 
-static void xen_eventfd_add(MemoryListener *listener,
-                            MemoryRegionSection *section,
-                            bool match_data, uint64_t data,
-                            EventNotifier *e)
-{
-}
-
-static void xen_eventfd_del(MemoryListener *listener,
-                            MemoryRegionSection *section,
-                            bool match_data, uint64_t data,
-                            EventNotifier *e)
-{
-}
-
 static MemoryListener xen_memory_listener = {
-    .begin = xen_begin,
-    .commit = xen_commit,
     .region_add = xen_region_add,
     .region_del = xen_region_del,
-    .region_nop = xen_region_nop,
     .log_start = xen_log_start,
     .log_stop = xen_log_stop,
     .log_sync = xen_log_sync,
     .log_global_start = xen_log_global_start,
     .log_global_stop = xen_log_global_stop,
-    .eventfd_add = xen_eventfd_add,
-    .eventfd_del = xen_eventfd_del,
     .priority = 10,
 };
 
@@ -1173,7 +1141,7 @@ int xen_hvm_init(void)
 
     state->memory_listener = xen_memory_listener;
     QLIST_INIT(&state->physmap);
-    memory_listener_register(&state->memory_listener, get_system_memory());
+    memory_listener_register(&state->memory_listener, &address_space_memory);
     state->log_for_dirtybit = NULL;
 
     /* Initialize backend core & drivers */

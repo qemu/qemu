@@ -157,6 +157,22 @@ struct MemoryRegionPortio {
 
 #define PORTIO_END_OF_LIST() { }
 
+typedef struct AddressSpace AddressSpace;
+
+/**
+ * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
+ */
+struct AddressSpace {
+    /* All fields are private. */
+    const char *name;
+    MemoryRegion *root;
+    struct FlatView *current_map;
+    int ioeventfd_nb;
+    struct MemoryRegionIoeventfd *ioeventfds;
+    struct AddressSpaceDispatch *dispatch;
+    QTAILQ_ENTRY(AddressSpace) address_spaces_link;
+};
+
 typedef struct MemoryRegionSection MemoryRegionSection;
 
 /**
@@ -172,7 +188,7 @@ typedef struct MemoryRegionSection MemoryRegionSection;
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
-    MemoryRegion *address_space;
+    AddressSpace *address_space;
     target_phys_addr_t offset_within_region;
     uint64_t size;
     target_phys_addr_t offset_within_address_space;
@@ -202,9 +218,13 @@ struct MemoryListener {
                         bool match_data, uint64_t data, EventNotifier *e);
     void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
                         bool match_data, uint64_t data, EventNotifier *e);
+    void (*coalesced_mmio_add)(MemoryListener *listener, MemoryRegionSection *section,
+                               target_phys_addr_t addr, target_phys_addr_t len);
+    void (*coalesced_mmio_del)(MemoryListener *listener, MemoryRegionSection *section,
+                               target_phys_addr_t addr, target_phys_addr_t len);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
-    MemoryRegion *address_space_filter;
+    AddressSpace *address_space_filter;
     QTAILQ_ENTRY(MemoryListener) link;
 };
 
@@ -755,7 +775,7 @@ void memory_region_transaction_commit(void);
  * @listener: an object containing the callbacks to be called
  * @filter: if non-%NULL, only regions in this address space will be observed
  */
-void memory_listener_register(MemoryListener *listener, MemoryRegion *filter);
+void memory_listener_register(MemoryListener *listener, AddressSpace *filter);
 
 /**
  * memory_listener_unregister: undo the effect of memory_listener_register()
@@ -775,6 +795,87 @@ void memory_global_dirty_log_start(void);
 void memory_global_dirty_log_stop(void);
 
 void mtree_info(fprintf_function mon_printf, void *f);
+
+/**
+ * address_space_init: initializes an address space
+ *
+ * @as: an uninitialized #AddressSpace
+ * @root: a #MemoryRegion that routes addesses for the address space
+ */
+void address_space_init(AddressSpace *as, MemoryRegion *root);
+
+
+/**
+ * address_space_destroy: destroy an address space
+ *
+ * Releases all resources associated with an address space.  After an address space
+ * is destroyed, its root memory region (given by address_space_init()) may be destroyed
+ * as well.
+ *
+ * @as: address space to be destroyed
+ */
+void address_space_destroy(AddressSpace *as);
+
+/**
+ * address_space_rw: read from or write to an address space.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ * @is_write: indicates the transfer direction
+ */
+void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
+                      int len, bool is_write);
+
+/**
+ * address_space_write: write to address space.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ */
+void address_space_write(AddressSpace *as, target_phys_addr_t addr,
+                         const uint8_t *buf, int len);
+
+/**
+ * address_space_read: read from an address space.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @buf: buffer with the data transferred
+ */
+void address_space_read(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf, int len);
+
+/* address_space_map: map a physical memory region into a host virtual address
+ *
+ * May map a subset of the requested range, given by and returned in @plen.
+ * May return %NULL if resources needed to perform the mapping are exhausted.
+ * Use only for reads OR writes - not for read-modify-write operations.
+ * Use cpu_register_map_client() to know when retrying the map operation is
+ * likely to succeed.
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @plen: pointer to length of buffer; updated on return
+ * @is_write: indicates the transfer direction
+ */
+void *address_space_map(AddressSpace *as, target_phys_addr_t addr,
+                        target_phys_addr_t *plen, bool is_write);
+
+/* address_space_unmap: Unmaps a memory region previously mapped by address_space_map()
+ *
+ * Will also mark the memory as dirty if @is_write == %true.  @access_len gives
+ * the amount of memory that was actually read or written by the caller.
+ *
+ * @as: #AddressSpace used
+ * @addr: address within that address space
+ * @len: buffer length as returned by address_space_map()
+ * @access_len: amount of data actually transferred
+ * @is_write: indicates the transfer direction
+ */
+void address_space_unmap(AddressSpace *as, void *buffer, target_phys_addr_t len,
+                         int is_write, target_phys_addr_t access_len);
+
 
 #endif
 

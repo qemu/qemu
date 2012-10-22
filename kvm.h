@@ -129,8 +129,6 @@ void *kvm_vmalloc(ram_addr_t size);
 void *kvm_arch_vmalloc(ram_addr_t size);
 void kvm_setup_guest_memory(void *start, size_t size);
 
-int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
-int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 void kvm_flush_coalesced_mmio_buffer(void);
 #endif
 

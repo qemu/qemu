@@ -29,16 +29,6 @@ int kvm_init_vcpu(CPUArchState *env)
     return -ENOSYS;
 }
 
-int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
-int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
-{
-    return -ENOSYS;
-}
-
 int kvm_init(void)
 {
     return -ENOSYS;
