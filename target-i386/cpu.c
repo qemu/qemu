@@ -1106,13 +1106,13 @@ static char *x86_cpuid_get_vendor(Object *obj, Error **errp)
     char *value;
     int i;
 
-    value = (char *)g_malloc(12 + 1);
+    value = (char *)g_malloc(CPUID_VENDOR_SZ + 1);
     for (i = 0; i < 4; i++) {
         value[i    ] = env->cpuid_vendor1 >> (8 * i);
         value[i + 4] = env->cpuid_vendor2 >> (8 * i);
         value[i + 8] = env->cpuid_vendor3 >> (8 * i);
     }
-    value[12] = '\0';
+    value[CPUID_VENDOR_SZ] = '\0';
     return value;
 }
 
@@ -1123,7 +1123,7 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
     CPUX86State *env = &cpu->env;
     int i;
 
-    if (strlen(value) != 12) {
+    if (strlen(value) != CPUID_VENDOR_SZ) {
         error_set(errp, QERR_PROPERTY_VALUE_BAD, "",
                   "vendor", value);
         return;
