@@ -1019,6 +1019,7 @@ void memory_region_init_reservation(MemoryRegion *mr,
 void memory_region_destroy(MemoryRegion *mr)
 {
     assert(QTAILQ_EMPTY(&mr->subregions));
+    assert(memory_region_transaction_depth == 0);
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
     g_free((char *)mr->name);
@@ -1234,6 +1235,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     };
     unsigned i;
 
+    adjust_endianness(mr, &mrfd.data, size);
     memory_region_transaction_begin();
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
         if (memory_region_ioeventfd_before(mrfd, mr->ioeventfds[i])) {
@@ -1265,6 +1267,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     };
     unsigned i;
 
+    adjust_endianness(mr, &mrfd.data, size);
     memory_region_transaction_begin();
     for (i = 0; i < mr->ioeventfd_nb; ++i) {
         if (memory_region_ioeventfd_equal(mrfd, mr->ioeventfds[i])) {

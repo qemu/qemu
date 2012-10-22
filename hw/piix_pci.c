@@ -69,8 +69,8 @@ typedef struct PIIX3State {
 } PIIX3State;
 
 typedef struct PAMMemoryRegion {
-    MemoryRegion mem;
-    bool initialized;
+    MemoryRegion alias[4];  /* index = PAM value */
+    unsigned current;
 } PAMMemoryRegion;
 
 struct PCII440FXState {
@@ -105,37 +105,35 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int pci_intx)
     return (pci_intx + slot_addend) & 3;
 }
 
-static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r,
-                       PAMMemoryRegion *mem)
+static void init_pam(PCII440FXState *d, PAMMemoryRegion *mem,
+                     uint32_t start, uint32_t size)
 {
-    if (mem->initialized) {
-        memory_region_del_subregion(d->system_memory, &mem->mem);
-        memory_region_destroy(&mem->mem);
-    }
+    int i;
 
-    //    printf("ISA mapping %08x-0x%08x: %d\n", start, end, r);
-    switch(r) {
-    case 3:
-        /* RAM */
-        memory_region_init_alias(&mem->mem, "pam-ram", d->ram_memory,
-                                 start, end - start);
-        break;
-    case 1:
-        /* ROM (XXX: not quite correct) */
-        memory_region_init_alias(&mem->mem, "pam-rom", d->ram_memory,
-                                 start, end - start);
-        memory_region_set_readonly(&mem->mem, true);
-        break;
-    case 2:
-    case 0:
-        /* XXX: should distinguish read/write cases */
-        memory_region_init_alias(&mem->mem, "pam-pci", d->pci_address_space,
-                                 start, end - start);
-        break;
+    /* RAM */
+    memory_region_init_alias(&mem->alias[3], "pam-ram", d->ram_memory, start, size);
+    /* ROM (XXX: not quite correct) */
+    memory_region_init_alias(&mem->alias[1], "pam-rom", d->ram_memory, start, size);
+    memory_region_set_readonly(&mem->alias[1], true);
+
+    /* XXX: should distinguish read/write cases */
+    memory_region_init_alias(&mem->alias[0], "pam-pci", d->pci_address_space,
+                             start, size);
+    memory_region_init_alias(&mem->alias[2], "pam-pci", d->pci_address_space,
+                             start, size);
+
+    for (i = 0; i < 4; ++i) {
+        memory_region_set_enabled(&mem->alias[i], false);
+        memory_region_add_subregion_overlap(d->system_memory, start, &mem->alias[i], 1);
     }
-    memory_region_add_subregion_overlap(d->system_memory,
-                                        start, &mem->mem, 1);
-    mem->initialized = true;
+    mem->current = 0;
+}
+
+static void update_pam(PAMMemoryRegion *pam, unsigned r)
+{
+    memory_region_set_enabled(&pam->alias[pam->current], false);
+    pam->current = r;
+    memory_region_set_enabled(&pam->alias[pam->current], true);
 }
 
 static void i440fx_update_memory_mappings(PCII440FXState *d)
@@ -145,12 +143,10 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     bool smram_enabled;
 
     memory_region_transaction_begin();
-    update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3,
-               &d->pam_regions[0]);
+    update_pam(&d->pam_regions[0], (d->dev.config[I440FX_PAM] >> 4) & 3);
     for(i = 0; i < 12; i++) {
         r = (d->dev.config[(i >> 1) + (I440FX_PAM + 1)] >> ((i & 1) * 4)) & 3;
-        update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r,
-                   &d->pam_regions[i+1]);
+        update_pam(&d->pam_regions[i+1], r);
     }
     smram = d->dev.config[I440FX_SMRAM];
     smram_enabled = (d->smm_enabled && (smram & 0x08)) || (smram & 0x40);
@@ -272,6 +268,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
     PCIHostState *s;
     PIIX3State *piix3;
     PCII440FXState *f;
+    unsigned i;
 
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = PCI_HOST_BRIDGE(dev);
@@ -303,6 +300,10 @@ static PCIBus *i440fx_common_init(const char *device_name,
     memory_region_add_subregion_overlap(f->system_memory, 0xa0000,
                                         &f->smram_region, 1);
     memory_region_set_enabled(&f->smram_region, false);
+    init_pam(f, &f->pam_regions[0], 0xf0000, 0x10000);
+    for (i = 0; i < 12; ++i) {
+        init_pam(f, &f->pam_regions[i+1], 0xc0000 + i * 0x4000, 0x4000);
+    }
 
     /* Xen supports additional interrupt routes from the PCI devices to
      * the IOAPIC: the four pins of each PCI device on the bus are also
