@@ -157,31 +157,42 @@ static void ioapic_init(GSIState *gsi_state)
 #define MAX_IDE_BUS 2
 
 /* mostly from pc_init1 */
-static void xbox_init(ram_addr_t ram_size,
-                      const char *boot_device,
-                      const char *kernel_filename,
-                      const char *kernel_cmdline,
-                      const char *initrd_filename,
-                      const char *cpu_model)
+static void xbox_init(QEMUMachineInitArgs *args)
 {
     int i;
+    ram_addr_t ram_size;
+    const char *cpu_model;
+    const char *boot_device;
+
     PCIBus *host_bus;
     ISABus *isa_bus;
+
+    MemoryRegion *system_memory;
+    MemoryRegion *system_io;
+    MemoryRegion *ram_memory;
+    MemoryRegion *pci_memory;
+
     qemu_irq *cpu_irq;
     qemu_irq *gsi;
     qemu_irq *i8259;
     GSIState *gsi_state;
+
     PCIDevice *ide_dev;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BusState *idebus[MAX_IDE_BUS];
+
     ISADevice *rtc_state;
     ISADevice *pit;
-    MemoryRegion *ram_memory;
-    MemoryRegion *pci_memory;
-
     DeviceState *xboxpci_host;
     i2c_bus *smbus;
     PCIBus *agp_bus;
+
+
+    ram_size = args->ram_size;
+    cpu_model = args->cpu_model;
+    boot_device = args->boot_device;
+    system_memory = get_system_memory();
+    system_io = get_system_io();
 
 
     pc_cpus_init(cpu_model);
@@ -190,7 +201,7 @@ static void xbox_init(ram_addr_t ram_size,
     memory_region_init(pci_memory, "pci", INT64_MAX);
 
     /* allocate ram and load rom/bios */
-    xbox_memory_init(get_system_memory(), ram_size,
+    xbox_memory_init(system_memory, ram_size,
                      pci_memory, &ram_memory);
 
 
@@ -200,7 +211,7 @@ static void xbox_init(ram_addr_t ram_size,
 
     /* init buses */
     host_bus = xbox_pci_init(&xboxpci_host, gsi,
-                             get_system_memory(), get_system_io(),
+                             system_memory, system_io,
                              pci_memory, ram_memory);
 
 
@@ -231,15 +242,15 @@ static void xbox_init(ram_addr_t ram_size,
 
     /* TODO: ethernet */
 
-    /* TODO: USB */
+    /* USB */
+    pci_create_simple(host_bus, PCI_DEVFN(2, 0), "pci-ohci");
+    pci_create_simple(host_bus, PCI_DEVFN(3, 0), "pci-ohci");
 
     /* hdd shit
      * piix3's ide be right for now, maybe
      */
-    
-    
     ide_drive_get(hd, MAX_IDE_BUS);
-    ide_dev = pci_piix4_ide_init(host_bus, hd, PCI_DEVFN(9, 0));
+    ide_dev = pci_piix3_ide_init(host_bus, hd, PCI_DEVFN(9, 0));
 
     idebus[0] = qdev_get_child_bus(&ide_dev->qdev, "ide.0");
     idebus[1] = qdev_get_child_bus(&ide_dev->qdev, "ide.1");
