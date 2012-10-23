@@ -32,6 +32,7 @@
 #include "qlist.h"
 #include "qemu-queue.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 #define VNC_PALETTE_HASH_SIZE 256
 #define VNC_PALETTE_MAX_SIZE  256
