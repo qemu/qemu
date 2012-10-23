@@ -1,6 +1,8 @@
 #ifndef QEMU_CONFIG_H
 #define QEMU_CONFIG_H
 
+#include <stdio.h>
+#include "qemu-option.h"
 #include "error.h"
 
 extern QemuOptsList qemu_fsdev_opts;
