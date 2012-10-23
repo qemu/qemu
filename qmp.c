@@ -85,7 +85,11 @@ void qmp_quit(Error **err)
 
 void qmp_stop(Error **errp)
 {
-    vm_stop(RUN_STATE_PAUSED);
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        autostart = 0;
+    } else {
+        vm_stop(RUN_STATE_PAUSED);
+    }
 }
 
 void qmp_system_reset(Error **errp)
@@ -144,10 +148,7 @@ void qmp_cont(Error **errp)
 {
     Error *local_err = NULL;
 
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
-        error_set(errp, QERR_MIGRATION_EXPECTED);
-        return;
-    } else if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+    if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
                runstate_check(RUN_STATE_SHUTDOWN)) {
         error_set(errp, QERR_RESET_REQUIRED);
         return;
@@ -162,7 +163,11 @@ void qmp_cont(Error **errp)
         return;
     }
 
-    vm_start();
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        autostart = 1;
+    } else {
+        vm_start();
+    }
 }
 
 void qmp_system_wakeup(Error **errp)

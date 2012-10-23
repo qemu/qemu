@@ -22,15 +22,11 @@
 # @KVMMissingCap: the requested operation can't be fulfilled because a
 #                 required KVM capability is missing
 #
-# @MigrationExpected: the requested operation can't be fulfilled because a
-#                     migration process is expected
-#
 # Since: 1.2
 ##
 { 'enum': 'ErrorClass',
   'data': [ 'GenericError', 'CommandNotFound', 'DeviceEncrypted',
-            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap',
-            'MigrationExpected' ] }
+            'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
 
 ##
 # @add_client
@@ -149,7 +145,11 @@
 #
 # @finish-migrate: guest is paused to finish the migration process
 #
-# @inmigrate: guest is paused waiting for an incoming migration
+# @inmigrate: guest is paused waiting for an incoming migration.  Note
+# that this state does not tell whether the machine will start at the
+# end of the migration.  This depends on the command-line -S option and
+# any invocation of 'stop' or 'cont' that has happened since QEMU was
+# started.
 #
 # @internal-error: An internal error that prevents further guest execution
 # has occurred
@@ -1210,7 +1210,9 @@
 # Since:  0.14.0
 #
 # Notes:  This function will succeed even if the guest is already in the stopped
-#         state
+#         state.  In "inmigrate" state, it will ensure that the guest
+#         remains paused once migration finishes, as if the -S option was
+#         passed on the command line.
 ##
 { 'command': 'stop' }
 
@@ -1299,11 +1301,14 @@
 # Since:  0.14.0
 #
 # Returns:  If successful, nothing
-#           If the QEMU is waiting for an incoming migration, MigrationExpected
 #           If QEMU was started with an encrypted block device and a key has
 #              not yet been set, DeviceEncrypted.
 #
-# Notes:  This command will succeed if the guest is currently running.
+# Notes:  This command will succeed if the guest is currently running.  It
+#         will also succeed if the guest is in the "inmigrate" state; in
+#         this case, the effect of the command is to make sure the guest
+#         starts once migration finishes, removing the effect of the -S
+#         command line option if it was passed.
 ##
 { 'command': 'cont' }
 

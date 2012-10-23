@@ -165,9 +165,6 @@ void assert_no_error(Error *err);
 #define QERR_MIGRATION_NOT_SUPPORTED \
     ERROR_CLASS_GENERIC_ERROR, "State blocked by non-migratable device '%s'"
 
-#define QERR_MIGRATION_EXPECTED \
-    ERROR_CLASS_MIGRATION_EXPECTED, "An incoming migration is expected before this command can be executed"
-
 #define QERR_MISSING_PARAMETER \
     ERROR_CLASS_GENERIC_ERROR, "Parameter '%s' is missing"
 
