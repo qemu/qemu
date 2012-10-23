@@ -108,6 +108,15 @@ static void pic_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len)
             //pic version string reset
             pic->versionStringIndex = buf[0];
             break;
+
+        //challenge response
+        // (http://www.xbox-linux.org/wiki/PIC_Challenge_Handshake_Sequence)
+        case 0x20:
+            break;
+        case 0x21:
+            break;
+
+
         default:
             break;
     }
@@ -128,6 +137,17 @@ static uint8_t pic_read_data(SMBusDevice *dev, uint8_t cmd, int n)
         case PIC16LC_REG_AVPACK:
             //pretend to ave a composite av pack plugged in
             return PIC16LC_REG_AVPACK_COMPOSITE;
+
+        //challenge request
+        case 0x1c:
+            return 0x52;
+        case 0x1d:
+            return 0x72;
+        case 0x1e:
+            return 0xea;
+        case 0x1f:
+            return 0x46;
+
         default:
             break;
     }
