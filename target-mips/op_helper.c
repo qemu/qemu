@@ -2509,9 +2509,11 @@ uint64_t helper_float_cvtl_d(CPUMIPSState *env, uint64_t fdt0)
     uint64_t dt2;
 
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2520,9 +2522,11 @@ uint64_t helper_float_cvtl_s(CPUMIPSState *env, uint32_t fst0)
     uint64_t dt2;
 
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2613,8 +2617,10 @@ uint32_t helper_float_cvtw_s(CPUMIPSState *env, uint32_t fst0)
 
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
     return wt2;
 }
 
@@ -2623,9 +2629,11 @@ uint32_t helper_float_cvtw_d(CPUMIPSState *env, uint64_t fdt0)
     uint32_t wt2;
 
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2636,9 +2644,11 @@ uint64_t helper_float_roundl_d(CPUMIPSState *env, uint64_t fdt0)
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2649,9 +2659,11 @@ uint64_t helper_float_roundl_s(CPUMIPSState *env, uint32_t fst0)
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2662,9 +2674,11 @@ uint32_t helper_float_roundw_d(CPUMIPSState *env, uint64_t fdt0)
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2675,9 +2689,11 @@ uint32_t helper_float_roundw_s(CPUMIPSState *env, uint32_t fst0)
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2686,9 +2702,11 @@ uint64_t helper_float_truncl_d(CPUMIPSState *env, uint64_t fdt0)
     uint64_t dt2;
 
     dt2 = float64_to_int64_round_to_zero(fdt0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2697,9 +2715,11 @@ uint64_t helper_float_truncl_s(CPUMIPSState *env, uint32_t fst0)
     uint64_t dt2;
 
     dt2 = float32_to_int64_round_to_zero(fst0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2708,9 +2728,11 @@ uint32_t helper_float_truncw_d(CPUMIPSState *env, uint64_t fdt0)
     uint32_t wt2;
 
     wt2 = float64_to_int32_round_to_zero(fdt0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2719,9 +2741,11 @@ uint32_t helper_float_truncw_s(CPUMIPSState *env, uint32_t fst0)
     uint32_t wt2;
 
     wt2 = float32_to_int32_round_to_zero(fst0, &env->active_fpu.fp_status);
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2732,9 +2756,11 @@ uint64_t helper_float_ceill_d(CPUMIPSState *env, uint64_t fdt0)
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2745,9 +2771,11 @@ uint64_t helper_float_ceill_s(CPUMIPSState *env, uint32_t fst0)
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2758,9 +2786,11 @@ uint32_t helper_float_ceilw_d(CPUMIPSState *env, uint64_t fdt0)
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2771,9 +2801,11 @@ uint32_t helper_float_ceilw_s(CPUMIPSState *env, uint32_t fst0)
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2784,9 +2816,11 @@ uint64_t helper_float_floorl_d(CPUMIPSState *env, uint64_t fdt0)
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2797,9 +2831,11 @@ uint64_t helper_float_floorl_s(CPUMIPSState *env, uint32_t fst0)
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         dt2 = FLOAT_SNAN64;
+    }
+    update_fcr31(env);
     return dt2;
 }
 
@@ -2810,9 +2846,11 @@ uint32_t helper_float_floorw_d(CPUMIPSState *env, uint64_t fdt0)
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
@@ -2823,9 +2861,11 @@ uint32_t helper_float_floorw_s(CPUMIPSState *env, uint32_t fst0)
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
-    update_fcr31(env);
-    if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
+    if (get_float_exception_flags(&env->active_fpu.fp_status)
+        & (float_flag_invalid | float_flag_overflow)) {
         wt2 = FLOAT_SNAN32;
+    }
+    update_fcr31(env);
     return wt2;
 }
 
