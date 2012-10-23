@@ -15,7 +15,6 @@
 
 #include "qobject.h"
 #include "qemu-queue.h"
-#include "qemu-common.h"
 #include "qemu-queue.h"
 
 typedef struct QListEntry {
