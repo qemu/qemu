@@ -503,7 +503,7 @@ static const char *state2str(uint32_t state)
     return nr2str(ehci_state_names, ARRAY_SIZE(ehci_state_names), state);
 }
 
-static const char *addr2str(target_phys_addr_t addr)
+static const char *addr2str(hwaddr addr)
 {
     return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names),
                   addr + OPREGBASE);
@@ -663,7 +663,7 @@ static int ehci_get_fetch_addr(EHCIState *s, int async)
     return async ? s->a_fetch_addr : s->p_fetch_addr;
 }
 
-static void ehci_trace_qh(EHCIQueue *q, target_phys_addr_t addr, EHCIqh *qh)
+static void ehci_trace_qh(EHCIQueue *q, hwaddr addr, EHCIqh *qh)
 {
     /* need three here due to argument count limits */
     trace_usb_ehci_qh_ptrs(q, addr, qh->next,
@@ -681,7 +681,7 @@ static void ehci_trace_qh(EHCIQueue *q, target_phys_addr_t addr, EHCIqh *qh)
                            (bool)(qh->epchar & QH_EPCHAR_I));
 }
 
-static void ehci_trace_qtd(EHCIQueue *q, target_phys_addr_t addr, EHCIqtd *qtd)
+static void ehci_trace_qtd(EHCIQueue *q, hwaddr addr, EHCIqtd *qtd)
 {
     /* need three here due to argument count limits */
     trace_usb_ehci_qtd_ptrs(q, addr, qtd->next, qtd->altnext);
@@ -698,7 +698,7 @@ static void ehci_trace_qtd(EHCIQueue *q, target_phys_addr_t addr, EHCIqtd *qtd)
                             (bool)(qtd->token & QTD_TOKEN_XACTERR));
 }
 
-static void ehci_trace_itd(EHCIState *s, target_phys_addr_t addr, EHCIitd *itd)
+static void ehci_trace_itd(EHCIState *s, hwaddr addr, EHCIitd *itd)
 {
     trace_usb_ehci_itd(addr, itd->next,
                        get_field(itd->bufptr[1], ITD_BUFPTR_MAXPKT),
@@ -707,7 +707,7 @@ static void ehci_trace_itd(EHCIState *s, target_phys_addr_t addr, EHCIitd *itd)
                        get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR));
 }
 
-static void ehci_trace_sitd(EHCIState *s, target_phys_addr_t addr,
+static void ehci_trace_sitd(EHCIState *s, hwaddr addr,
                             EHCIsitd *sitd)
 {
     trace_usb_ehci_sitd(addr, sitd->next,
@@ -1100,14 +1100,14 @@ static void ehci_reset(void *opaque)
     qemu_bh_cancel(s->async_bh);
 }
 
-static uint64_t ehci_caps_read(void *ptr, target_phys_addr_t addr,
+static uint64_t ehci_caps_read(void *ptr, hwaddr addr,
                                unsigned size)
 {
     EHCIState *s = ptr;
     return s->caps[addr];
 }
 
-static uint64_t ehci_opreg_read(void *ptr, target_phys_addr_t addr,
+static uint64_t ehci_opreg_read(void *ptr, hwaddr addr,
                                 unsigned size)
 {
     EHCIState *s = ptr;
@@ -1118,7 +1118,7 @@ static uint64_t ehci_opreg_read(void *ptr, target_phys_addr_t addr,
     return val;
 }
 
-static uint64_t ehci_port_read(void *ptr, target_phys_addr_t addr,
+static uint64_t ehci_port_read(void *ptr, hwaddr addr,
                                unsigned size)
 {
     EHCIState *s = ptr;
@@ -1157,7 +1157,7 @@ static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
     }
 }
 
-static void ehci_port_write(void *ptr, target_phys_addr_t addr,
+static void ehci_port_write(void *ptr, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     EHCIState *s = ptr;
@@ -1202,7 +1202,7 @@ static void ehci_port_write(void *ptr, target_phys_addr_t addr,
     trace_usb_ehci_portsc_change(addr + PORTSC_BEGIN, addr >> 2, *portsc, old);
 }
 
-static void ehci_opreg_write(void *ptr, target_phys_addr_t addr,
+static void ehci_opreg_write(void *ptr, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     EHCIState *s = ptr;

@@ -231,7 +231,7 @@ static void eeprom24c0x_write(int scl, int sda)
     eeprom.sda = sda;
 }
 
-static uint64_t malta_fpga_read(void *opaque, target_phys_addr_t addr,
+static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     MaltaFPGAState *s = opaque;
@@ -319,7 +319,7 @@ static uint64_t malta_fpga_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void malta_fpga_write(void *opaque, target_phys_addr_t addr,
+static void malta_fpga_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     MaltaFPGAState *s = opaque;
@@ -441,7 +441,7 @@ static void malta_fpga_led_init(CharDriverState *chr)
 }
 
 static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
-         target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)
+         hwaddr base, qemu_irq uart_irq, CharDriverState *uart_chr)
 {
     MaltaFPGAState *s;
 

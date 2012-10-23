@@ -76,7 +76,7 @@ static void cadence_timer_update(CadenceTimerState *s)
 }
 
 static CadenceTimerState *cadence_timer_from_addr(void *opaque,
-                                        target_phys_addr_t offset)
+                                        hwaddr offset)
 {
     unsigned int index;
     CadenceTTCState *s = (CadenceTTCState *)opaque;
@@ -224,7 +224,7 @@ static void cadence_timer_tick(void *opaque)
     cadence_timer_run(s);
 }
 
-static uint32_t cadence_ttc_read_imp(void *opaque, target_phys_addr_t offset)
+static uint32_t cadence_ttc_read_imp(void *opaque, hwaddr offset)
 {
     CadenceTimerState *s = cadence_timer_from_addr(opaque, offset);
     uint32_t value;
@@ -297,7 +297,7 @@ static uint32_t cadence_ttc_read_imp(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static uint64_t cadence_ttc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t cadence_ttc_read(void *opaque, hwaddr offset,
     unsigned size)
 {
     uint32_t ret = cadence_ttc_read_imp(opaque, offset);
@@ -306,7 +306,7 @@ static uint64_t cadence_ttc_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void cadence_ttc_write(void *opaque, target_phys_addr_t offset,
+static void cadence_ttc_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     CadenceTimerState *s = cadence_timer_from_addr(opaque, offset);

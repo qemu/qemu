@@ -259,7 +259,7 @@ int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address,
     return ret;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUUniCore32State *env,
+hwaddr cpu_get_phys_page_debug(CPUUniCore32State *env,
         target_ulong addr)
 {
     cpu_abort(env, "%s not supported yet\n", __func__);

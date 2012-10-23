@@ -193,7 +193,7 @@ static void spi_flush_txfifo(XilinxSPI *s)
 }
 
 static uint64_t
-spi_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+spi_read(void *opaque, hwaddr addr, unsigned int size)
 {
     XilinxSPI *s = opaque;
     uint32_t r = 0;
@@ -230,7 +230,7 @@ spi_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-spi_write(void *opaque, target_phys_addr_t addr,
+spi_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
     XilinxSPI *s = opaque;

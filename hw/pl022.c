@@ -130,7 +130,7 @@ static void pl022_xfer(pl022_state *s)
     pl022_update(s);
 }
 
-static uint64_t pl022_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl022_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl022_state *s = (pl022_state *)opaque;
@@ -174,7 +174,7 @@ static uint64_t pl022_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void pl022_write(void *opaque, target_phys_addr_t offset,
+static void pl022_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     pl022_state *s = (pl022_state *)opaque;

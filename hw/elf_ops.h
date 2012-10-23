@@ -62,7 +62,7 @@ static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
 
 static int glue(symfind, SZ)(const void *s0, const void *s1)
 {
-    target_phys_addr_t addr = *(target_phys_addr_t *)s0;
+    hwaddr addr = *(hwaddr *)s0;
     struct elf_sym *sym = (struct elf_sym *)s1;
     int result = 0;
     if (addr < sym->st_value) {
@@ -74,7 +74,7 @@ static int glue(symfind, SZ)(const void *s0, const void *s1)
 }
 
 static const char *glue(lookup_symbol, SZ)(struct syminfo *s,
-                                           target_phys_addr_t orig_addr)
+                                           hwaddr orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
     struct elf_sym *sym;

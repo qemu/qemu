@@ -228,9 +228,9 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
 
 
 static void *spapr_create_fdt_skel(const char *cpu_model,
-                                   target_phys_addr_t initrd_base,
-                                   target_phys_addr_t initrd_size,
-                                   target_phys_addr_t kernel_size,
+                                   hwaddr initrd_base,
+                                   hwaddr initrd_size,
+                                   hwaddr kernel_size,
                                    const char *boot_device,
                                    const char *kernel_cmdline)
 {
@@ -445,7 +445,7 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
                                 cpu_to_be32(0x0), cpu_to_be32(0x0),
                                 cpu_to_be32(0x0)};
     char mem_name[32];
-    target_phys_addr_t node0_size, mem_start;
+    hwaddr node0_size, mem_start;
     uint64_t mem_reg_property[2];
     int i, off;
 
@@ -502,9 +502,9 @@ static int spapr_populate_memory(sPAPREnvironment *spapr, void *fdt)
 }
 
 static void spapr_finalize_fdt(sPAPREnvironment *spapr,
-                               target_phys_addr_t fdt_addr,
-                               target_phys_addr_t rtas_addr,
-                               target_phys_addr_t rtas_size)
+                               hwaddr fdt_addr,
+                               hwaddr rtas_addr,
+                               hwaddr rtas_size)
 {
     int ret;
     void *fdt;
@@ -679,7 +679,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    target_phys_addr_t rma_alloc_size;
+    hwaddr rma_alloc_size;
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;

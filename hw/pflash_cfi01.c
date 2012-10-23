@@ -61,9 +61,9 @@ do {                                               \
 
 struct pflash_t {
     BlockDriverState *bs;
-    target_phys_addr_t base;
-    target_phys_addr_t sector_len;
-    target_phys_addr_t total_len;
+    hwaddr base;
+    hwaddr sector_len;
+    hwaddr total_len;
     int width;
     int wcycle; /* if 0, the flash is read normally */
     int bypass;
@@ -73,7 +73,7 @@ struct pflash_t {
     uint16_t ident[4];
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
-    target_phys_addr_t counter;
+    hwaddr counter;
     unsigned int writeblock_size;
     QEMUTimer *timer;
     MemoryRegion mem;
@@ -96,10 +96,10 @@ static void pflash_timer (void *opaque)
     pfl->cmd = 0;
 }
 
-static uint32_t pflash_read (pflash_t *pfl, target_phys_addr_t offset,
+static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
                              int width, int be)
 {
-    target_phys_addr_t boff;
+    hwaddr boff;
     uint32_t ret;
     uint8_t *p;
 
@@ -211,7 +211,7 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
+static inline void pflash_data_write(pflash_t *pfl, hwaddr offset,
                                      uint32_t value, int width, int be)
 {
     uint8_t *p = pfl->storage;
@@ -249,7 +249,7 @@ static inline void pflash_data_write(pflash_t *pfl, target_phys_addr_t offset,
 
 }
 
-static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
+static void pflash_write(pflash_t *pfl, hwaddr offset,
                          uint32_t value, int width, int be)
 {
     uint8_t *p;
@@ -389,7 +389,7 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
             pfl->status |= 0x80;
 
             if (!pfl->counter) {
-                target_phys_addr_t mask = pfl->writeblock_size - 1;
+                hwaddr mask = pfl->writeblock_size - 1;
                 mask = ~mask;
 
                 DPRINTF("%s: block write finished\n", __func__);
@@ -445,57 +445,57 @@ static void pflash_write(pflash_t *pfl, target_phys_addr_t offset,
 }
 
 
-static uint32_t pflash_readb_be(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readb_be(void *opaque, hwaddr addr)
 {
     return pflash_read(opaque, addr, 1, 1);
 }
 
-static uint32_t pflash_readb_le(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readb_le(void *opaque, hwaddr addr)
 {
     return pflash_read(opaque, addr, 1, 0);
 }
 
-static uint32_t pflash_readw_be(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readw_be(void *opaque, hwaddr addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 2, 1);
 }
 
-static uint32_t pflash_readw_le(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readw_le(void *opaque, hwaddr addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 2, 0);
 }
 
-static uint32_t pflash_readl_be(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readl_be(void *opaque, hwaddr addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 4, 1);
 }
 
-static uint32_t pflash_readl_le(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readl_le(void *opaque, hwaddr addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 4, 0);
 }
 
-static void pflash_writeb_be(void *opaque, target_phys_addr_t addr,
+static void pflash_writeb_be(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_write(opaque, addr, value, 1, 1);
 }
 
-static void pflash_writeb_le(void *opaque, target_phys_addr_t addr,
+static void pflash_writeb_le(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_write(opaque, addr, value, 1, 0);
 }
 
-static void pflash_writew_be(void *opaque, target_phys_addr_t addr,
+static void pflash_writew_be(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_t *pfl = opaque;
@@ -503,7 +503,7 @@ static void pflash_writew_be(void *opaque, target_phys_addr_t addr,
     pflash_write(pfl, addr, value, 2, 1);
 }
 
-static void pflash_writew_le(void *opaque, target_phys_addr_t addr,
+static void pflash_writew_le(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_t *pfl = opaque;
@@ -511,7 +511,7 @@ static void pflash_writew_le(void *opaque, target_phys_addr_t addr,
     pflash_write(pfl, addr, value, 2, 0);
 }
 
-static void pflash_writel_be(void *opaque, target_phys_addr_t addr,
+static void pflash_writel_be(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_t *pfl = opaque;
@@ -519,7 +519,7 @@ static void pflash_writel_be(void *opaque, target_phys_addr_t addr,
     pflash_write(pfl, addr, value, 4, 1);
 }
 
-static void pflash_writel_le(void *opaque, target_phys_addr_t addr,
+static void pflash_writel_le(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_t *pfl = opaque;
@@ -543,16 +543,16 @@ static const MemoryRegionOps pflash_cfi01_ops_le = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-pflash_t *pflash_cfi01_register(target_phys_addr_t base,
+pflash_t *pflash_cfi01_register(hwaddr base,
                                 DeviceState *qdev, const char *name,
-                                target_phys_addr_t size,
+                                hwaddr size,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3, int be)
 {
     pflash_t *pfl;
-    target_phys_addr_t total_len;
+    hwaddr total_len;
     int ret;
 
     total_len = sector_len * nb_blocs;

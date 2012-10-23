@@ -363,7 +363,7 @@ out:
 
 /* register regions */
 
-static uint64_t xen_pt_bar_read(void *o, target_phys_addr_t addr,
+static uint64_t xen_pt_bar_read(void *o, hwaddr addr,
                                 unsigned size)
 {
     PCIDevice *d = o;
@@ -373,7 +373,7 @@ static uint64_t xen_pt_bar_read(void *o, target_phys_addr_t addr,
                addr);
     return 0;
 }
-static void xen_pt_bar_write(void *o, target_phys_addr_t addr, uint64_t val,
+static void xen_pt_bar_write(void *o, hwaddr addr, uint64_t val,
                              unsigned size)
 {
     PCIDevice *d = o;

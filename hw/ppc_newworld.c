@@ -82,13 +82,13 @@
 #endif
 
 /* UniN device */
-static void unin_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void unin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     UNIN_DPRINTF("write addr " TARGET_FMT_plx " val %"PRIx64"\n", addr, value);
 }
 
-static uint64_t unin_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t unin_read(void *opaque, hwaddr addr, unsigned size)
 {
     uint32_t value;
 
@@ -115,7 +115,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
-static target_phys_addr_t round_page(target_phys_addr_t addr)
+static hwaddr round_page(hwaddr addr)
 {
     return (addr + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 }
@@ -143,7 +143,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
     int linux_boot, i;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
-    target_phys_addr_t kernel_base, initrd_base, cmdline_base = 0;
+    hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;

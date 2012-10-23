@@ -129,7 +129,7 @@ typedef struct ECCState {
     uint32_t version;
 } ECCState;
 
-static void ecc_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+static void ecc_mem_write(void *opaque, hwaddr addr, uint64_t val,
                           unsigned size)
 {
     ECCState *s = opaque;
@@ -172,7 +172,7 @@ static void ecc_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
     }
 }
 
-static uint64_t ecc_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ecc_mem_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     ECCState *s = opaque;
@@ -229,7 +229,7 @@ static const MemoryRegionOps ecc_mem_ops = {
     },
 };
 
-static void ecc_diag_mem_write(void *opaque, target_phys_addr_t addr,
+static void ecc_diag_mem_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     ECCState *s = opaque;
@@ -238,7 +238,7 @@ static void ecc_diag_mem_write(void *opaque, target_phys_addr_t addr,
     s->diag[addr & ECC_DIAG_MASK] = val;
 }
 
-static uint64_t ecc_diag_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ecc_diag_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     ECCState *s = opaque;

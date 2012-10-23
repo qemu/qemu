@@ -734,14 +734,14 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 }
 
 /* Memory mapped interface */
-static uint64_t serial_mm_read(void *opaque, target_phys_addr_t addr,
+static uint64_t serial_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     SerialState *s = opaque;
     return serial_ioport_read(s, addr >> s->it_shift);
 }
 
-static void serial_mm_write(void *opaque, target_phys_addr_t addr,
+static void serial_mm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     SerialState *s = opaque;
@@ -768,7 +768,7 @@ static const MemoryRegionOps serial_mm_ops[3] = {
 };
 
 SerialState *serial_mm_init(MemoryRegion *address_space,
-                            target_phys_addr_t base, int it_shift,
+                            hwaddr base, int it_shift,
                             qemu_irq irq, int baudbase,
                             CharDriverState *chr, enum device_endian end)
 {

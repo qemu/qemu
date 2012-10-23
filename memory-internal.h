@@ -52,8 +52,8 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 struct MemoryRegion;
 struct MemoryRegionSection;
 
-void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
-void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
+void qemu_register_coalesced_mmio(hwaddr addr, ram_addr_t size);
+void qemu_unregister_coalesced_mmio(hwaddr addr, ram_addr_t size);
 
 int cpu_physical_memory_set_dirty_tracking(int enable);
 

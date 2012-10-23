@@ -94,7 +94,7 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
     return val;
 }
 
-static void pci_host_config_write(void *opaque, target_phys_addr_t addr,
+static void pci_host_config_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned len)
 {
     PCIHostState *s = opaque;
@@ -107,7 +107,7 @@ static void pci_host_config_write(void *opaque, target_phys_addr_t addr,
     s->config_reg = val;
 }
 
-static uint64_t pci_host_config_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pci_host_config_read(void *opaque, hwaddr addr,
                                      unsigned len)
 {
     PCIHostState *s = opaque;
@@ -118,7 +118,7 @@ static uint64_t pci_host_config_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void pci_host_data_write(void *opaque, target_phys_addr_t addr,
+static void pci_host_data_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned len)
 {
     PCIHostState *s = opaque;
@@ -129,7 +129,7 @@ static void pci_host_data_write(void *opaque, target_phys_addr_t addr,
 }
 
 static uint64_t pci_host_data_read(void *opaque,
-                                   target_phys_addr_t addr, unsigned len)
+                                   hwaddr addr, unsigned len)
 {
     PCIHostState *s = opaque;
     uint32_t val;

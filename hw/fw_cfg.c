@@ -258,37 +258,37 @@ static uint8_t fw_cfg_read(FWCfgState *s)
     return ret;
 }
 
-static uint64_t fw_cfg_data_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t fw_cfg_data_mem_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_data_mem_write(void *opaque, target_phys_addr_t addr,
+static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     fw_cfg_write(opaque, (uint8_t)value);
 }
 
-static void fw_cfg_ctl_mem_write(void *opaque, target_phys_addr_t addr,
+static void fw_cfg_ctl_mem_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
     fw_cfg_select(opaque, (uint16_t)value);
 }
 
-static bool fw_cfg_ctl_mem_valid(void *opaque, target_phys_addr_t addr,
+static bool fw_cfg_ctl_mem_valid(void *opaque, hwaddr addr,
                                  unsigned size, bool is_write)
 {
     return is_write && size == 2;
 }
 
-static uint64_t fw_cfg_comb_read(void *opaque, target_phys_addr_t addr,
+static uint64_t fw_cfg_comb_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_comb_write(void *opaque, target_phys_addr_t addr,
+static void fw_cfg_comb_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     switch (size) {
@@ -301,7 +301,7 @@ static void fw_cfg_comb_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static bool fw_cfg_comb_valid(void *opaque, target_phys_addr_t addr,
+static bool fw_cfg_comb_valid(void *opaque, hwaddr addr,
                                   unsigned size, bool is_write)
 {
     return (size == 1) || (is_write && size == 2);
@@ -494,7 +494,7 @@ static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 }
 
 FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
-                        target_phys_addr_t ctl_addr, target_phys_addr_t data_addr)
+                        hwaddr ctl_addr, hwaddr data_addr)
 {
     DeviceState *dev;
     SysBusDevice *d;

@@ -27,7 +27,7 @@ static void an5206_init(QEMUMachineInitArgs *args)
     CPUM68KState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);

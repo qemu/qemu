@@ -30,8 +30,8 @@ static void memory_mapping_list_add_mapping_sorted(MemoryMappingList *list,
 }
 
 static void create_new_memory_mapping(MemoryMappingList *list,
-                                      target_phys_addr_t phys_addr,
-                                      target_phys_addr_t virt_addr,
+                                      hwaddr phys_addr,
+                                      hwaddr virt_addr,
                                       ram_addr_t length)
 {
     MemoryMapping *memory_mapping;
@@ -46,8 +46,8 @@ static void create_new_memory_mapping(MemoryMappingList *list,
 }
 
 static inline bool mapping_contiguous(MemoryMapping *map,
-                                      target_phys_addr_t phys_addr,
-                                      target_phys_addr_t virt_addr)
+                                      hwaddr phys_addr,
+                                      hwaddr virt_addr)
 {
     return phys_addr == map->phys_addr + map->length &&
            virt_addr == map->virt_addr + map->length;
@@ -58,7 +58,7 @@ static inline bool mapping_contiguous(MemoryMapping *map,
  * [phys_addr, phys_addr + length) have intersection?
  */
 static inline bool mapping_have_same_region(MemoryMapping *map,
-                                            target_phys_addr_t phys_addr,
+                                            hwaddr phys_addr,
                                             ram_addr_t length)
 {
     return !(phys_addr + length < map->phys_addr ||
@@ -71,8 +71,8 @@ static inline bool mapping_have_same_region(MemoryMapping *map,
  * intersection are the same?
  */
 static inline bool mapping_conflict(MemoryMapping *map,
-                                    target_phys_addr_t phys_addr,
-                                    target_phys_addr_t virt_addr)
+                                    hwaddr phys_addr,
+                                    hwaddr virt_addr)
 {
     return virt_addr - map->virt_addr != phys_addr - map->phys_addr;
 }
@@ -83,7 +83,7 @@ static inline bool mapping_conflict(MemoryMapping *map,
  * in the intersection are the same.
  */
 static inline void mapping_merge(MemoryMapping *map,
-                                 target_phys_addr_t virt_addr,
+                                 hwaddr virt_addr,
                                  ram_addr_t length)
 {
     if (virt_addr < map->virt_addr) {
@@ -98,8 +98,8 @@ static inline void mapping_merge(MemoryMapping *map,
 }
 
 void memory_mapping_list_add_merge_sorted(MemoryMappingList *list,
-                                          target_phys_addr_t phys_addr,
-                                          target_phys_addr_t virt_addr,
+                                          hwaddr phys_addr,
+                                          hwaddr virt_addr,
                                           ram_addr_t length)
 {
     MemoryMapping *memory_mapping, *last_mapping;

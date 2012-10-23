@@ -27,25 +27,25 @@
 #include "loader.h"
 #include "exec-memory.h"
 
-static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t static_readb(void *opaque, hwaddr offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 3) << 3);
 }
 
-static uint32_t static_readh(void *opaque, target_phys_addr_t offset)
+static uint32_t static_readh(void *opaque, hwaddr offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 1) << 3);
 }
 
-static uint32_t static_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t static_readw(void *opaque, hwaddr offset)
 {
     uint32_t *val = (uint32_t *) opaque;
     return *val >> ((offset & 0) << 3);
 }
 
-static void static_write(void *opaque, target_phys_addr_t offset,
+static void static_write(void *opaque, hwaddr offset,
                 uint32_t value)
 {
 #ifdef SPY

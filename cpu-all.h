@@ -474,7 +474,7 @@ void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 /* Return the physical page corresponding to a virtual one. Use it
    only for debugging because no protection checks are done. Return -1
    if no page found. */
-target_phys_addr_t cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
+hwaddr cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
 
 /* memory API */
 

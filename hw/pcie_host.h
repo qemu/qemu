@@ -30,10 +30,10 @@ struct PCIExpressHost {
     /* express part */
 
     /* base address where MMCONFIG area is mapped. */
-    target_phys_addr_t  base_addr;
+    hwaddr  base_addr;
 
     /* the size of MMCONFIG area. It's host bridge dependent */
-    target_phys_addr_t  size;
+    hwaddr  size;
 
     /* MMCONFIG mmio area */
     MemoryRegion mmio;
@@ -41,9 +41,9 @@ struct PCIExpressHost {
 
 int pcie_host_init(PCIExpressHost *e, uint32_t size);
 void pcie_host_mmcfg_unmap(PCIExpressHost *e);
-void pcie_host_mmcfg_map(PCIExpressHost *e, target_phys_addr_t addr);
+void pcie_host_mmcfg_map(PCIExpressHost *e, hwaddr addr);
 void pcie_host_mmcfg_update(PCIExpressHost *e,
                             int enable,
-                            target_phys_addr_t addr);
+                            hwaddr addr);
 
 #endif /* PCIE_HOST_H */

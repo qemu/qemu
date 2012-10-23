@@ -84,10 +84,10 @@ static inline ISABus *isa_bus_from_device(ISADevice *d)
     return DO_UPCAST(ISABus, qbus, d->qdev.parent_bus);
 }
 
-extern target_phys_addr_t isa_mem_base;
+extern hwaddr isa_mem_base;
 
-void isa_mmio_setup(MemoryRegion *mr, target_phys_addr_t size);
-void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size);
+void isa_mmio_setup(MemoryRegion *mr, hwaddr size);
+void isa_mmio_init(hwaddr base, hwaddr size);
 
 /* dma.c */
 int DMA_get_channel_mode (int nchan);

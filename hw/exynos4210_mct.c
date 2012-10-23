@@ -985,7 +985,7 @@ static void exynos4210_mct_reset(DeviceState *d)
 }
 
 /* Multi Core Timer read */
-static uint64_t exynos4210_mct_read(void *opaque, target_phys_addr_t offset,
+static uint64_t exynos4210_mct_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     Exynos4210MCTState *s = (Exynos4210MCTState *)opaque;
@@ -1098,7 +1098,7 @@ static uint64_t exynos4210_mct_read(void *opaque, target_phys_addr_t offset,
 }
 
 /* MCT write */
-static void exynos4210_mct_write(void *opaque, target_phys_addr_t offset,
+static void exynos4210_mct_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     Exynos4210MCTState *s = (Exynos4210MCTState *)opaque;

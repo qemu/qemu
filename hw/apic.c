@@ -630,25 +630,25 @@ static void apic_timer(void *opaque)
     apic_timer_update(s, s->next_time);
 }
 
-static uint32_t apic_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t apic_mem_readb(void *opaque, hwaddr addr)
 {
     return 0;
 }
 
-static uint32_t apic_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t apic_mem_readw(void *opaque, hwaddr addr)
 {
     return 0;
 }
 
-static void apic_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void apic_mem_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
 }
 
-static void apic_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void apic_mem_writew(void *opaque, hwaddr addr, uint32_t val)
 {
 }
 
-static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
 {
     DeviceState *d;
     APICCommonState *s;
@@ -732,7 +732,7 @@ static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static void apic_send_msi(target_phys_addr_t addr, uint32_t data)
+static void apic_send_msi(hwaddr addr, uint32_t data)
 {
     uint8_t dest = (addr & MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
     uint8_t vector = (data & MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
@@ -743,7 +743,7 @@ static void apic_send_msi(target_phys_addr_t addr, uint32_t data)
     apic_deliver_irq(dest, dest_mode, delivery, vector, trigger_mode);
 }
 
-static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     DeviceState *d;
     APICCommonState *s;

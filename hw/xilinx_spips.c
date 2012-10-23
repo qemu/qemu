@@ -183,7 +183,7 @@ static void xilinx_spips_flush_txfifo(XilinxSPIPS *s)
     xilinx_spips_update_ixr(s);
 }
 
-static uint64_t xilinx_spips_read(void *opaque, target_phys_addr_t addr,
+static uint64_t xilinx_spips_read(void *opaque, hwaddr addr,
                                                         unsigned size)
 {
     XilinxSPIPS *s = opaque;
@@ -224,7 +224,7 @@ static uint64_t xilinx_spips_read(void *opaque, target_phys_addr_t addr,
 
 }
 
-static void xilinx_spips_write(void *opaque, target_phys_addr_t addr,
+static void xilinx_spips_write(void *opaque, hwaddr addr,
                                         uint64_t value, unsigned size)
 {
     int mask = ~0;

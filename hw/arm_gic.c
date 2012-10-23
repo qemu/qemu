@@ -212,7 +212,7 @@ void gic_complete_irq(GICState *s, int cpu, int irq)
     }
 }
 
-static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
 {
     GICState *s = (GICState *)opaque;
     uint32_t res;
@@ -328,7 +328,7 @@ bad_reg:
     return 0;
 }
 
-static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readw(void *opaque, hwaddr offset)
 {
     uint32_t val;
     val = gic_dist_readb(opaque, offset);
@@ -336,7 +336,7 @@ static uint32_t gic_dist_readw(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
+static uint32_t gic_dist_readl(void *opaque, hwaddr offset)
 {
     uint32_t val;
     val = gic_dist_readw(opaque, offset);
@@ -344,7 +344,7 @@ static uint32_t gic_dist_readl(void *opaque, target_phys_addr_t offset)
     return val;
 }
 
-static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writeb(void *opaque, hwaddr offset,
                             uint32_t value)
 {
     GICState *s = (GICState *)opaque;
@@ -490,14 +490,14 @@ bad_reg:
     hw_error("gic_dist_writeb: Bad offset %x\n", (int)offset);
 }
 
-static void gic_dist_writew(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writew(void *opaque, hwaddr offset,
                             uint32_t value)
 {
     gic_dist_writeb(opaque, offset, value & 0xff);
     gic_dist_writeb(opaque, offset + 1, value >> 8);
 }
 
-static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
+static void gic_dist_writel(void *opaque, hwaddr offset,
                             uint32_t value)
 {
     GICState *s = (GICState *)opaque;
@@ -584,14 +584,14 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
 }
 
 /* Wrappers to read/write the GIC CPU interface for the current CPU */
-static uint64_t gic_thiscpu_read(void *opaque, target_phys_addr_t addr,
+static uint64_t gic_thiscpu_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     GICState *s = (GICState *)opaque;
     return gic_cpu_read(s, gic_get_current_cpu(s), addr);
 }
 
-static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
+static void gic_thiscpu_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     GICState *s = (GICState *)opaque;
@@ -601,7 +601,7 @@ static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
 /* Wrappers to read/write the GIC CPU interface for a specific CPU.
  * These just decode the opaque pointer into GICState* + cpu id.
  */
-static uint64_t gic_do_cpu_read(void *opaque, target_phys_addr_t addr,
+static uint64_t gic_do_cpu_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     GICState **backref = (GICState **)opaque;
@@ -610,7 +610,7 @@ static uint64_t gic_do_cpu_read(void *opaque, target_phys_addr_t addr,
     return gic_cpu_read(s, id, addr);
 }
 
-static void gic_do_cpu_write(void *opaque, target_phys_addr_t addr,
+static void gic_do_cpu_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
     GICState **backref = (GICState **)opaque;

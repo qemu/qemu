@@ -26,7 +26,7 @@ typedef struct {
     uint32_t reg_DIVCFG;
 } PUV3PMState;
 
-static uint64_t puv3_pm_read(void *opaque, target_phys_addr_t offset,
+static uint64_t puv3_pm_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     PUV3PMState *s = opaque;
@@ -74,7 +74,7 @@ static uint64_t puv3_pm_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void puv3_pm_write(void *opaque, target_phys_addr_t offset,
+static void puv3_pm_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     PUV3PMState *s = opaque;

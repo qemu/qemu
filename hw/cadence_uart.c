@@ -354,7 +354,7 @@ static void uart_read_rx_fifo(UartState *s, uint32_t *c)
     uart_update_status(s);
 }
 
-static void uart_write(void *opaque, target_phys_addr_t offset,
+static void uart_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     UartState *s = (UartState *)opaque;
@@ -397,7 +397,7 @@ static void uart_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint64_t uart_read(void *opaque, target_phys_addr_t offset,
+static uint64_t uart_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     UartState *s = (UartState *)opaque;

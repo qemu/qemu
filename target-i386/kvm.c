@@ -229,7 +229,7 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     return -ENOSYS;
 }
 
-static void kvm_mce_inject(CPUX86State *env, target_phys_addr_t paddr, int code)
+static void kvm_mce_inject(CPUX86State *env, hwaddr paddr, int code)
 {
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
                       MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
@@ -257,7 +257,7 @@ static void hardware_memory_error(void)
 int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
 {
     ram_addr_t ram_addr;
-    target_phys_addr_t paddr;
+    hwaddr paddr;
 
     if ((env->mcg_cap & MCG_SER_P) && addr
         && (code == BUS_MCEERR_AR || code == BUS_MCEERR_AO)) {
@@ -290,7 +290,7 @@ int kvm_arch_on_sigbus(int code, void *addr)
 {
     if ((first_cpu->mcg_cap & MCG_SER_P) && addr && code == BUS_MCEERR_AO) {
         ram_addr_t ram_addr;
-        target_phys_addr_t paddr;
+        hwaddr paddr;
 
         /* Hope we are lucky for AO MCE */
         if (qemu_ram_addr_from_host(addr, &ram_addr) ||

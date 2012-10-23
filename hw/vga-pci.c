@@ -62,7 +62,7 @@ static const VMStateDescription vmstate_vga_pci = {
     }
 };
 
-static uint64_t pci_vga_ioport_read(void *ptr, target_phys_addr_t addr,
+static uint64_t pci_vga_ioport_read(void *ptr, hwaddr addr,
                                     unsigned size)
 {
     PCIVGAState *d = ptr;
@@ -80,7 +80,7 @@ static uint64_t pci_vga_ioport_read(void *ptr, target_phys_addr_t addr,
     return ret;
 }
 
-static void pci_vga_ioport_write(void *ptr, target_phys_addr_t addr,
+static void pci_vga_ioport_write(void *ptr, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     PCIVGAState *d = ptr;
@@ -110,7 +110,7 @@ static const MemoryRegionOps pci_vga_ioport_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t pci_vga_bochs_read(void *ptr, target_phys_addr_t addr,
+static uint64_t pci_vga_bochs_read(void *ptr, hwaddr addr,
                                    unsigned size)
 {
     PCIVGAState *d = ptr;
@@ -120,7 +120,7 @@ static uint64_t pci_vga_bochs_read(void *ptr, target_phys_addr_t addr,
     return vbe_ioport_read_data(&d->vga, 0);
 }
 
-static void pci_vga_bochs_write(void *ptr, target_phys_addr_t addr,
+static void pci_vga_bochs_write(void *ptr, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     PCIVGAState *d = ptr;

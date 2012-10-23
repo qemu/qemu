@@ -626,13 +626,13 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     }
 }
 
-static uint64_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg,
+static uint64_t fdctrl_read_mem (void *opaque, hwaddr reg,
                                  unsigned ize)
 {
     return fdctrl_read(opaque, (uint32_t)reg);
 }
 
-static void fdctrl_write_mem (void *opaque, target_phys_addr_t reg,
+static void fdctrl_write_mem (void *opaque, hwaddr reg,
                               uint64_t value, unsigned size)
 {
     fdctrl_write(opaque, (uint32_t)reg, value);
@@ -2032,7 +2032,7 @@ ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
 }
 
 void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
-                        target_phys_addr_t mmio_base, DriveInfo **fds)
+                        hwaddr mmio_base, DriveInfo **fds)
 {
     FDCtrl *fdctrl;
     DeviceState *dev;
@@ -2053,7 +2053,7 @@ void fdctrl_init_sysbus(qemu_irq irq, int dma_chann,
     sysbus_mmio_map(&sys->busdev, 0, mmio_base);
 }
 
-void sun4m_fdctrl_init(qemu_irq irq, target_phys_addr_t io_base,
+void sun4m_fdctrl_init(qemu_irq irq, hwaddr io_base,
                        DriveInfo **fds, qemu_irq *fdc_tc)
 {
     DeviceState *dev;

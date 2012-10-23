@@ -246,7 +246,7 @@ void do_interrupt(CPUCRISState *env)
 		   env->pregs[PR_ERP]);
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUCRISState * env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUCRISState * env, target_ulong addr)
 {
 	uint32_t phy = addr;
 	struct cris_mmu_result res;

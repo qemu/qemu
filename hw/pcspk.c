@@ -121,7 +121,7 @@ int pcspk_audio_init(ISABus *bus)
     return 0;
 }
 
-static uint64_t pcspk_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pcspk_io_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     PCSpkState *s = opaque;
@@ -135,7 +135,7 @@ static uint64_t pcspk_io_read(void *opaque, target_phys_addr_t addr,
        (ch.out << 5);
 }
 
-static void pcspk_io_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+static void pcspk_io_write(void *opaque, hwaddr addr, uint64_t val,
                            unsigned size)
 {
     PCSpkState *s = opaque;

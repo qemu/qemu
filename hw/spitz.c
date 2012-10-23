@@ -60,7 +60,7 @@ typedef struct {
     ECCState ecc;
 } SLNANDState;
 
-static uint64_t sl_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t sl_read(void *opaque, hwaddr addr, unsigned size)
 {
     SLNANDState *s = (SLNANDState *) opaque;
     int ryby;
@@ -102,7 +102,7 @@ static uint64_t sl_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return 0;
 }
 
-static void sl_write(void *opaque, target_phys_addr_t addr,
+static void sl_write(void *opaque, hwaddr addr,
                      uint64_t value, unsigned size)
 {
     SLNANDState *s = (SLNANDState *) opaque;

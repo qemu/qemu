@@ -71,7 +71,7 @@ static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint64_t pcnet_ioport_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pcnet_ioport_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     PCNetState *d = opaque;
@@ -98,7 +98,7 @@ static uint64_t pcnet_ioport_read(void *opaque, target_phys_addr_t addr,
     return ((uint64_t)1 << (size * 8)) - 1;
 }
 
-static void pcnet_ioport_write(void *opaque, target_phys_addr_t addr,
+static void pcnet_ioport_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     PCNetState *d = opaque;
@@ -130,7 +130,7 @@ static const MemoryRegionOps pcnet_io_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pcnet_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pcnet_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
@@ -141,7 +141,7 @@ static void pcnet_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t va
         pcnet_aprom_writeb(d, addr & 0x0f, val);
 }
 
-static uint32_t pcnet_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t pcnet_mmio_readb(void *opaque, hwaddr addr)
 {
     PCNetState *d = opaque;
     uint32_t val = -1;
@@ -154,7 +154,7 @@ static uint32_t pcnet_mmio_readb(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static void pcnet_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pcnet_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
@@ -170,7 +170,7 @@ static void pcnet_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t va
     }
 }
 
-static uint32_t pcnet_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t pcnet_mmio_readw(void *opaque, hwaddr addr)
 {
     PCNetState *d = opaque;
     uint32_t val = -1;
@@ -189,7 +189,7 @@ static uint32_t pcnet_mmio_readw(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static void pcnet_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void pcnet_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     PCNetState *d = opaque;
 #ifdef PCNET_DEBUG_IO
@@ -207,7 +207,7 @@ static void pcnet_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t va
     }
 }
 
-static uint32_t pcnet_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t pcnet_mmio_readl(void *opaque, hwaddr addr)
 {
     PCNetState *d = opaque;
     uint32_t val;
@@ -252,13 +252,13 @@ static const MemoryRegionOps pcnet_mmio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
+static void pci_physical_memory_write(void *dma_opaque, hwaddr addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
     pci_dma_write(dma_opaque, addr, buf, len);
 }
 
-static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
+static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
                                      uint8_t *buf, int len, int do_bswap)
 {
     pci_dma_read(dma_opaque, addr, buf, len);

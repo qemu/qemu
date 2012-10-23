@@ -398,13 +398,13 @@ static void phys_map_nodes_reset(void)
 }
 
 
-static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t *index,
-                                target_phys_addr_t *nb, uint16_t leaf,
+static void phys_page_set_level(PhysPageEntry *lp, hwaddr *index,
+                                hwaddr *nb, uint16_t leaf,
                                 int level)
 {
     PhysPageEntry *p;
     int i;
-    target_phys_addr_t step = (target_phys_addr_t)1 << (level * L2_BITS);
+    hwaddr step = (hwaddr)1 << (level * L2_BITS);
 
     if (!lp->is_leaf && lp->ptr == PHYS_MAP_NODE_NIL) {
         lp->ptr = phys_map_node_alloc();
@@ -434,7 +434,7 @@ static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t *index,
 }
 
 static void phys_page_set(AddressSpaceDispatch *d,
-                          target_phys_addr_t index, target_phys_addr_t nb,
+                          hwaddr index, hwaddr nb,
                           uint16_t leaf)
 {
     /* Wildly overreserve - it doesn't matter much. */
@@ -443,7 +443,7 @@ static void phys_page_set(AddressSpaceDispatch *d,
     phys_page_set_level(&d->phys_map, &index, &nb, leaf, P_L2_LEVELS - 1);
 }
 
-MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, target_phys_addr_t index)
+MemoryRegionSection *phys_page_find(AddressSpaceDispatch *d, hwaddr index)
 {
     PhysPageEntry lp = d->phys_map;
     PhysPageEntry *p;
@@ -1473,7 +1473,7 @@ static void breakpoint_invalidate(CPUArchState *env, target_ulong pc)
     tb_invalidate_phys_page_range(pc, pc + 1, 0);
 }
 #else
-void tb_invalidate_phys_addr(target_phys_addr_t addr)
+void tb_invalidate_phys_addr(hwaddr addr)
 {
     ram_addr_t ram_addr;
     MemoryRegionSection *section;
@@ -1866,14 +1866,14 @@ int cpu_physical_memory_set_dirty_tracking(int enable)
     return ret;
 }
 
-target_phys_addr_t memory_region_section_get_iotlb(CPUArchState *env,
+hwaddr memory_region_section_get_iotlb(CPUArchState *env,
                                                    MemoryRegionSection *section,
                                                    target_ulong vaddr,
-                                                   target_phys_addr_t paddr,
+                                                   hwaddr paddr,
                                                    int prot,
                                                    target_ulong *address)
 {
-    target_phys_addr_t iotlb;
+    hwaddr iotlb;
     CPUWatchpoint *wp;
 
     if (memory_region_is_ram(section->mr)) {
@@ -2176,13 +2176,13 @@ int page_unprotect(target_ulong address, uintptr_t pc, void *puc)
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
     MemoryRegion iomem;
-    target_phys_addr_t base;
+    hwaddr base;
     uint16_t sub_section[TARGET_PAGE_SIZE];
 } subpage_t;
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
-static subpage_t *subpage_init(target_phys_addr_t base);
+static subpage_t *subpage_init(hwaddr base);
 static void destroy_page_desc(uint16_t section_index)
 {
     MemoryRegionSection *section = &phys_sections[section_index];
@@ -2241,14 +2241,14 @@ static void phys_sections_clear(void)
 static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *section)
 {
     subpage_t *subpage;
-    target_phys_addr_t base = section->offset_within_address_space
+    hwaddr base = section->offset_within_address_space
         & TARGET_PAGE_MASK;
     MemoryRegionSection *existing = phys_page_find(d, base >> TARGET_PAGE_BITS);
     MemoryRegionSection subsection = {
         .offset_within_address_space = base,
         .size = TARGET_PAGE_SIZE,
     };
-    target_phys_addr_t start, end;
+    hwaddr start, end;
 
     assert(existing->mr->subpage || existing->mr == &io_mem_unassigned);
 
@@ -2268,9 +2268,9 @@ static void register_subpage(AddressSpaceDispatch *d, MemoryRegionSection *secti
 
 static void register_multipage(AddressSpaceDispatch *d, MemoryRegionSection *section)
 {
-    target_phys_addr_t start_addr = section->offset_within_address_space;
+    hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
-    target_phys_addr_t addr;
+    hwaddr addr;
     uint16_t section_index = phys_section_add(section);
 
     assert(size);
@@ -2836,7 +2836,7 @@ ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr)
     return ram_addr;
 }
 
-static uint64_t unassigned_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
 #ifdef DEBUG_UNASSIGNED
@@ -2848,7 +2848,7 @@ static uint64_t unassigned_mem_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void unassigned_mem_write(void *opaque, target_phys_addr_t addr,
+static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
 #ifdef DEBUG_UNASSIGNED
@@ -2865,13 +2865,13 @@ static const MemoryRegionOps unassigned_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t error_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t error_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     abort();
 }
 
-static void error_mem_write(void *opaque, target_phys_addr_t addr,
+static void error_mem_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     abort();
@@ -2889,7 +2889,7 @@ static const MemoryRegionOps rom_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void notdirty_mem_write(void *opaque, target_phys_addr_t ram_addr,
+static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
     int dirty_flags;
@@ -2976,7 +2976,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
 /* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
    so these check for a hit then pass through to the normal out-of-line
    phys routines.  */
-static uint64_t watch_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t watch_mem_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_READ);
@@ -2988,7 +2988,7 @@ static uint64_t watch_mem_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void watch_mem_write(void *opaque, target_phys_addr_t addr,
+static void watch_mem_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_WRITE);
@@ -3012,7 +3012,7 @@ static const MemoryRegionOps watch_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t subpage_read(void *opaque, target_phys_addr_t addr,
+static uint64_t subpage_read(void *opaque, hwaddr addr,
                              unsigned len)
 {
     subpage_t *mmio = opaque;
@@ -3030,7 +3030,7 @@ static uint64_t subpage_read(void *opaque, target_phys_addr_t addr,
     return io_mem_read(section->mr, addr, len);
 }
 
-static void subpage_write(void *opaque, target_phys_addr_t addr,
+static void subpage_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned len)
 {
     subpage_t *mmio = opaque;
@@ -3055,7 +3055,7 @@ static const MemoryRegionOps subpage_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t subpage_ram_read(void *opaque, target_phys_addr_t addr,
+static uint64_t subpage_ram_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     ram_addr_t raddr = addr;
@@ -3068,7 +3068,7 @@ static uint64_t subpage_ram_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void subpage_ram_write(void *opaque, target_phys_addr_t addr,
+static void subpage_ram_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     ram_addr_t raddr = addr;
@@ -3112,7 +3112,7 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     return 0;
 }
 
-static subpage_t *subpage_init(target_phys_addr_t base)
+static subpage_t *subpage_init(hwaddr base)
 {
     subpage_t *mmio;
 
@@ -3143,7 +3143,7 @@ static uint16_t dummy_section(MemoryRegion *mr)
     return phys_section_add(&section);
 }
 
-MemoryRegion *iotlb_to_region(target_phys_addr_t index)
+MemoryRegion *iotlb_to_region(hwaddr index)
 {
     return phys_sections[index & ~TARGET_PAGE_MASK].mr;
 }
@@ -3333,8 +3333,8 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
 
 #else
 
-static void invalidate_and_set_dirty(target_phys_addr_t addr,
-                                     target_phys_addr_t length)
+static void invalidate_and_set_dirty(hwaddr addr,
+                                     hwaddr length)
 {
     if (!cpu_physical_memory_is_dirty(addr)) {
         /* invalidate code */
@@ -3345,14 +3345,14 @@ static void invalidate_and_set_dirty(target_phys_addr_t addr,
     xen_modified_memory(addr, length);
 }
 
-void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
+void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write)
 {
     AddressSpaceDispatch *d = as->dispatch;
     int l;
     uint8_t *ptr;
     uint32_t val;
-    target_phys_addr_t page;
+    hwaddr page;
     MemoryRegionSection *section;
 
     while (len > 0) {
@@ -3364,7 +3364,7 @@ void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
 
         if (is_write) {
             if (!memory_region_is_ram(section->mr)) {
-                target_phys_addr_t addr1;
+                hwaddr addr1;
                 addr1 = memory_region_section_addr(section, addr);
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
@@ -3397,7 +3397,7 @@ void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
         } else {
             if (!(memory_region_is_ram(section->mr) ||
                   memory_region_is_romd(section->mr))) {
-                target_phys_addr_t addr1;
+                hwaddr addr1;
                 /* I/O case */
                 addr1 = memory_region_section_addr(section, addr);
                 if (l >= 4 && ((addr1 & 3) == 0)) {
@@ -3431,7 +3431,7 @@ void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
     }
 }
 
-void address_space_write(AddressSpace *as, target_phys_addr_t addr,
+void address_space_write(AddressSpace *as, hwaddr addr,
                          const uint8_t *buf, int len)
 {
     address_space_rw(as, addr, (uint8_t *)buf, len, true);
@@ -3444,26 +3444,26 @@ void address_space_write(AddressSpace *as, target_phys_addr_t addr,
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  */
-void address_space_read(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf, int len)
+void address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len)
 {
     address_space_rw(as, addr, buf, len, false);
 }
 
 
-void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
+void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write)
 {
     return address_space_rw(&address_space_memory, addr, buf, len, is_write);
 }
 
 /* used for ROM loading : can write in RAM and ROM */
-void cpu_physical_memory_write_rom(target_phys_addr_t addr,
+void cpu_physical_memory_write_rom(hwaddr addr,
                                    const uint8_t *buf, int len)
 {
     AddressSpaceDispatch *d = address_space_memory.dispatch;
     int l;
     uint8_t *ptr;
-    target_phys_addr_t page;
+    hwaddr page;
     MemoryRegionSection *section;
 
     while (len > 0) {
@@ -3494,8 +3494,8 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
 
 typedef struct {
     void *buffer;
-    target_phys_addr_t addr;
-    target_phys_addr_t len;
+    hwaddr addr;
+    hwaddr len;
 } BounceBuffer;
 
 static BounceBuffer bounce;
@@ -3546,15 +3546,15 @@ static void cpu_notify_map_clients(void)
  * likely to succeed.
  */
 void *address_space_map(AddressSpace *as,
-                        target_phys_addr_t addr,
-                        target_phys_addr_t *plen,
+                        hwaddr addr,
+                        hwaddr *plen,
                         bool is_write)
 {
     AddressSpaceDispatch *d = as->dispatch;
-    target_phys_addr_t len = *plen;
-    target_phys_addr_t todo = 0;
+    hwaddr len = *plen;
+    hwaddr todo = 0;
     int l;
-    target_phys_addr_t page;
+    hwaddr page;
     MemoryRegionSection *section;
     ram_addr_t raddr = RAM_ADDR_MAX;
     ram_addr_t rlen;
@@ -3600,8 +3600,8 @@ void *address_space_map(AddressSpace *as,
  * Will also mark the memory as dirty if is_write == 1.  access_len gives
  * the amount of memory that was actually read or written by the caller.
  */
-void address_space_unmap(AddressSpace *as, void *buffer, target_phys_addr_t len,
-                         int is_write, target_phys_addr_t access_len)
+void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
+                         int is_write, hwaddr access_len)
 {
     if (buffer != bounce.buffer) {
         if (is_write) {
@@ -3629,21 +3629,21 @@ void address_space_unmap(AddressSpace *as, void *buffer, target_phys_addr_t len,
     cpu_notify_map_clients();
 }
 
-void *cpu_physical_memory_map(target_phys_addr_t addr,
-                              target_phys_addr_t *plen,
+void *cpu_physical_memory_map(hwaddr addr,
+                              hwaddr *plen,
                               int is_write)
 {
     return address_space_map(&address_space_memory, addr, plen, is_write);
 }
 
-void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
-                               int is_write, target_phys_addr_t access_len)
+void cpu_physical_memory_unmap(void *buffer, hwaddr len,
+                               int is_write, hwaddr access_len)
 {
     return address_space_unmap(&address_space_memory, buffer, len, is_write, access_len);
 }
 
 /* warning: addr must be aligned */
-static inline uint32_t ldl_phys_internal(target_phys_addr_t addr,
+static inline uint32_t ldl_phys_internal(hwaddr addr,
                                          enum device_endian endian)
 {
     uint8_t *ptr;
@@ -3686,23 +3686,23 @@ static inline uint32_t ldl_phys_internal(target_phys_addr_t addr,
     return val;
 }
 
-uint32_t ldl_phys(target_phys_addr_t addr)
+uint32_t ldl_phys(hwaddr addr)
 {
     return ldl_phys_internal(addr, DEVICE_NATIVE_ENDIAN);
 }
 
-uint32_t ldl_le_phys(target_phys_addr_t addr)
+uint32_t ldl_le_phys(hwaddr addr)
 {
     return ldl_phys_internal(addr, DEVICE_LITTLE_ENDIAN);
 }
 
-uint32_t ldl_be_phys(target_phys_addr_t addr)
+uint32_t ldl_be_phys(hwaddr addr)
 {
     return ldl_phys_internal(addr, DEVICE_BIG_ENDIAN);
 }
 
 /* warning: addr must be aligned */
-static inline uint64_t ldq_phys_internal(target_phys_addr_t addr,
+static inline uint64_t ldq_phys_internal(hwaddr addr,
                                          enum device_endian endian)
 {
     uint8_t *ptr;
@@ -3745,23 +3745,23 @@ static inline uint64_t ldq_phys_internal(target_phys_addr_t addr,
     return val;
 }
 
-uint64_t ldq_phys(target_phys_addr_t addr)
+uint64_t ldq_phys(hwaddr addr)
 {
     return ldq_phys_internal(addr, DEVICE_NATIVE_ENDIAN);
 }
 
-uint64_t ldq_le_phys(target_phys_addr_t addr)
+uint64_t ldq_le_phys(hwaddr addr)
 {
     return ldq_phys_internal(addr, DEVICE_LITTLE_ENDIAN);
 }
 
-uint64_t ldq_be_phys(target_phys_addr_t addr)
+uint64_t ldq_be_phys(hwaddr addr)
 {
     return ldq_phys_internal(addr, DEVICE_BIG_ENDIAN);
 }
 
 /* XXX: optimize */
-uint32_t ldub_phys(target_phys_addr_t addr)
+uint32_t ldub_phys(hwaddr addr)
 {
     uint8_t val;
     cpu_physical_memory_read(addr, &val, 1);
@@ -3769,7 +3769,7 @@ uint32_t ldub_phys(target_phys_addr_t addr)
 }
 
 /* warning: addr must be aligned */
-static inline uint32_t lduw_phys_internal(target_phys_addr_t addr,
+static inline uint32_t lduw_phys_internal(hwaddr addr,
                                           enum device_endian endian)
 {
     uint8_t *ptr;
@@ -3812,17 +3812,17 @@ static inline uint32_t lduw_phys_internal(target_phys_addr_t addr,
     return val;
 }
 
-uint32_t lduw_phys(target_phys_addr_t addr)
+uint32_t lduw_phys(hwaddr addr)
 {
     return lduw_phys_internal(addr, DEVICE_NATIVE_ENDIAN);
 }
 
-uint32_t lduw_le_phys(target_phys_addr_t addr)
+uint32_t lduw_le_phys(hwaddr addr)
 {
     return lduw_phys_internal(addr, DEVICE_LITTLE_ENDIAN);
 }
 
-uint32_t lduw_be_phys(target_phys_addr_t addr)
+uint32_t lduw_be_phys(hwaddr addr)
 {
     return lduw_phys_internal(addr, DEVICE_BIG_ENDIAN);
 }
@@ -3830,7 +3830,7 @@ uint32_t lduw_be_phys(target_phys_addr_t addr)
 /* warning: addr must be aligned. The ram page is not masked as dirty
    and the code inside is not invalidated. It is useful if the dirty
    bits are used to track modified PTEs */
-void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
+void stl_phys_notdirty(hwaddr addr, uint32_t val)
 {
     uint8_t *ptr;
     MemoryRegionSection *section;
@@ -3862,7 +3862,7 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
     }
 }
 
-void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
+void stq_phys_notdirty(hwaddr addr, uint64_t val)
 {
     uint8_t *ptr;
     MemoryRegionSection *section;
@@ -3890,7 +3890,7 @@ void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
 }
 
 /* warning: addr must be aligned */
-static inline void stl_phys_internal(target_phys_addr_t addr, uint32_t val,
+static inline void stl_phys_internal(hwaddr addr, uint32_t val,
                                      enum device_endian endian)
 {
     uint8_t *ptr;
@@ -3934,30 +3934,30 @@ static inline void stl_phys_internal(target_phys_addr_t addr, uint32_t val,
     }
 }
 
-void stl_phys(target_phys_addr_t addr, uint32_t val)
+void stl_phys(hwaddr addr, uint32_t val)
 {
     stl_phys_internal(addr, val, DEVICE_NATIVE_ENDIAN);
 }
 
-void stl_le_phys(target_phys_addr_t addr, uint32_t val)
+void stl_le_phys(hwaddr addr, uint32_t val)
 {
     stl_phys_internal(addr, val, DEVICE_LITTLE_ENDIAN);
 }
 
-void stl_be_phys(target_phys_addr_t addr, uint32_t val)
+void stl_be_phys(hwaddr addr, uint32_t val)
 {
     stl_phys_internal(addr, val, DEVICE_BIG_ENDIAN);
 }
 
 /* XXX: optimize */
-void stb_phys(target_phys_addr_t addr, uint32_t val)
+void stb_phys(hwaddr addr, uint32_t val)
 {
     uint8_t v = val;
     cpu_physical_memory_write(addr, &v, 1);
 }
 
 /* warning: addr must be aligned */
-static inline void stw_phys_internal(target_phys_addr_t addr, uint32_t val,
+static inline void stw_phys_internal(hwaddr addr, uint32_t val,
                                      enum device_endian endian)
 {
     uint8_t *ptr;
@@ -4001,35 +4001,35 @@ static inline void stw_phys_internal(target_phys_addr_t addr, uint32_t val,
     }
 }
 
-void stw_phys(target_phys_addr_t addr, uint32_t val)
+void stw_phys(hwaddr addr, uint32_t val)
 {
     stw_phys_internal(addr, val, DEVICE_NATIVE_ENDIAN);
 }
 
-void stw_le_phys(target_phys_addr_t addr, uint32_t val)
+void stw_le_phys(hwaddr addr, uint32_t val)
 {
     stw_phys_internal(addr, val, DEVICE_LITTLE_ENDIAN);
 }
 
-void stw_be_phys(target_phys_addr_t addr, uint32_t val)
+void stw_be_phys(hwaddr addr, uint32_t val)
 {
     stw_phys_internal(addr, val, DEVICE_BIG_ENDIAN);
 }
 
 /* XXX: optimize */
-void stq_phys(target_phys_addr_t addr, uint64_t val)
+void stq_phys(hwaddr addr, uint64_t val)
 {
     val = tswap64(val);
     cpu_physical_memory_write(addr, &val, 8);
 }
 
-void stq_le_phys(target_phys_addr_t addr, uint64_t val)
+void stq_le_phys(hwaddr addr, uint64_t val)
 {
     val = cpu_to_le64(val);
     cpu_physical_memory_write(addr, &val, 8);
 }
 
-void stq_be_phys(target_phys_addr_t addr, uint64_t val)
+void stq_be_phys(hwaddr addr, uint64_t val)
 {
     val = cpu_to_be64(val);
     cpu_physical_memory_write(addr, &val, 8);
@@ -4040,7 +4040,7 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write)
 {
     int l;
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     target_ulong page;
 
     while (len > 0) {
@@ -4195,7 +4195,7 @@ bool virtio_is_big_endian(void)
 #endif
 
 #ifndef CONFIG_USER_ONLY
-bool cpu_physical_memory_is_io(target_phys_addr_t phys_addr)
+bool cpu_physical_memory_is_io(hwaddr phys_addr)
 {
     MemoryRegionSection *section;
 

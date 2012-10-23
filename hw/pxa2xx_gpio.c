@@ -139,7 +139,7 @@ static void pxa2xx_gpio_handler_update(PXA2xxGPIOInfo *s) {
     }
 }
 
-static uint64_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pxa2xx_gpio_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
@@ -191,7 +191,7 @@ static uint64_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void pxa2xx_gpio_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_gpio_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
@@ -249,7 +249,7 @@ static const MemoryRegionOps pxa_gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
+DeviceState *pxa2xx_gpio_init(hwaddr base,
                 CPUARMState *env, DeviceState *pic, int lines)
 {
     DeviceState *dev;

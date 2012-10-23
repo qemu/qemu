@@ -49,12 +49,12 @@ static const unsigned int ppc440ep_sdram_bank_sizes[] = {
     256<<20, 128<<20, 64<<20, 32<<20, 16<<20, 8<<20, 0
 };
 
-static target_phys_addr_t entry;
+static hwaddr entry;
 
-static int bamboo_load_device_tree(target_phys_addr_t addr,
+static int bamboo_load_device_tree(hwaddr addr,
                                      uint32_t ramsize,
-                                     target_phys_addr_t initrd_base,
-                                     target_phys_addr_t initrd_size,
+                                     hwaddr initrd_base,
+                                     hwaddr initrd_size,
                                      const char *kernel_cmdline)
 {
     int ret = -1;
@@ -123,7 +123,7 @@ out:
 /* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
 static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
-                                     target_phys_addr_t pa)
+                                     hwaddr pa)
 {
     ppcemb_tlb_t *tlb = &env->tlb.tlbe[0];
 
@@ -168,8 +168,8 @@ static void bamboo_init(QEMUMachineInitArgs *args)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram_memories
         = g_malloc(PPC440EP_SDRAM_NR_BANKS * sizeof(*ram_memories));
-    target_phys_addr_t ram_bases[PPC440EP_SDRAM_NR_BANKS];
-    target_phys_addr_t ram_sizes[PPC440EP_SDRAM_NR_BANKS];
+    hwaddr ram_bases[PPC440EP_SDRAM_NR_BANKS];
+    hwaddr ram_sizes[PPC440EP_SDRAM_NR_BANKS];
     qemu_irq *pic;
     qemu_irq *irqs;
     PCIBus *pcibus;
@@ -177,7 +177,7 @@ static void bamboo_init(QEMUMachineInitArgs *args)
     CPUPPCState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    target_phys_addr_t loadaddr = 0;
+    hwaddr loadaddr = 0;
     target_long initrd_size = 0;
     DeviceState *dev;
     int success;

@@ -258,7 +258,7 @@ static int spapr_msicfg_find(sPAPRPHBState *phb, uint32_t config_addr,
  * This is required for msi_notify()/msix_notify() which
  * will write at the addresses via spapr_msi_write().
  */
-static void spapr_msi_setmsg(PCIDevice *pdev, target_phys_addr_t addr,
+static void spapr_msi_setmsg(PCIDevice *pdev, hwaddr addr,
                              bool msix, unsigned req_num)
 {
     unsigned i;
@@ -439,7 +439,7 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
 }
 
-static uint64_t spapr_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t spapr_io_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     switch (size) {
@@ -453,7 +453,7 @@ static uint64_t spapr_io_read(void *opaque, target_phys_addr_t addr,
     assert(0);
 }
 
-static void spapr_io_write(void *opaque, target_phys_addr_t addr,
+static void spapr_io_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
     switch (size) {
@@ -483,7 +483,7 @@ static const MemoryRegionOps spapr_io_ops = {
  * data is set to 0.
  * For MSI, the vector number is encoded in least bits in data.
  */
-static void spapr_msi_write(void *opaque, target_phys_addr_t addr,
+static void spapr_msi_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)
 {
     sPAPRPHBState *phb = opaque;

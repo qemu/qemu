@@ -678,7 +678,7 @@ static void vfio_disable_msi(VFIODevice *vdev)
 /*
  * IO Port/MMIO - Beware of the endians, VFIO is always little endian
  */
-static void vfio_bar_write(void *opaque, target_phys_addr_t addr,
+static void vfio_bar_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
     VFIOBAR *bar = opaque;
@@ -705,11 +705,11 @@ static void vfio_bar_write(void *opaque, target_phys_addr_t addr,
     }
 
     if (pwrite(bar->fd, &buf, size, bar->fd_offset + addr) != size) {
-        error_report("%s(,0x%"TARGET_PRIxPHYS", 0x%"PRIx64", %d) failed: %m\n",
+        error_report("%s(,0x%"HWADDR_PRIx", 0x%"PRIx64", %d) failed: %m\n",
                      __func__, addr, data, size);
     }
 
-    DPRINTF("%s(BAR%d+0x%"TARGET_PRIxPHYS", 0x%"PRIx64", %d)\n",
+    DPRINTF("%s(BAR%d+0x%"HWADDR_PRIx", 0x%"PRIx64", %d)\n",
             __func__, bar->nr, addr, data, size);
 
     /*
@@ -724,7 +724,7 @@ static void vfio_bar_write(void *opaque, target_phys_addr_t addr,
 }
 
 static uint64_t vfio_bar_read(void *opaque,
-                              target_phys_addr_t addr, unsigned size)
+                              hwaddr addr, unsigned size)
 {
     VFIOBAR *bar = opaque;
     union {
@@ -736,7 +736,7 @@ static uint64_t vfio_bar_read(void *opaque,
     uint64_t data = 0;
 
     if (pread(bar->fd, &buf, size, bar->fd_offset + addr) != size) {
-        error_report("%s(,0x%"TARGET_PRIxPHYS", %d) failed: %m\n",
+        error_report("%s(,0x%"HWADDR_PRIx", %d) failed: %m\n",
                      __func__, addr, size);
         return (uint64_t)-1;
     }
@@ -756,7 +756,7 @@ static uint64_t vfio_bar_read(void *opaque,
         break;
     }
 
-    DPRINTF("%s(BAR%d+0x%"TARGET_PRIxPHYS", %d) = 0x%"PRIx64"\n",
+    DPRINTF("%s(BAR%d+0x%"HWADDR_PRIx", %d) = 0x%"PRIx64"\n",
             __func__, bar->nr, addr, size, data);
 
     /* Same as write above */
@@ -882,7 +882,7 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
 static int vfio_dma_unmap(VFIOContainer *container,
-                          target_phys_addr_t iova, ram_addr_t size)
+                          hwaddr iova, ram_addr_t size)
 {
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
@@ -899,7 +899,7 @@ static int vfio_dma_unmap(VFIOContainer *container,
     return 0;
 }
 
-static int vfio_dma_map(VFIOContainer *container, target_phys_addr_t iova,
+static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
                         ram_addr_t size, void *vaddr, bool readonly)
 {
     struct vfio_iommu_type1_dma_map map = {
@@ -939,12 +939,12 @@ static void vfio_listener_region_add(MemoryListener *listener,
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
                                             iommu_data.listener);
-    target_phys_addr_t iova, end;
+    hwaddr iova, end;
     void *vaddr;
     int ret;
 
     if (vfio_listener_skipped_section(section)) {
-        DPRINTF("vfio: SKIPPING region_add %"TARGET_PRIxPHYS" - %"PRIx64"\n",
+        DPRINTF("vfio: SKIPPING region_add %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
                 section->offset_within_address_space + section->size - 1);
         return;
@@ -968,13 +968,13 @@ static void vfio_listener_region_add(MemoryListener *listener,
             section->offset_within_region +
             (iova - section->offset_within_address_space);
 
-    DPRINTF("vfio: region_add %"TARGET_PRIxPHYS" - %"TARGET_PRIxPHYS" [%p]\n",
+    DPRINTF("vfio: region_add %"HWADDR_PRIx" - %"HWADDR_PRIx" [%p]\n",
             iova, end - 1, vaddr);
 
     ret = vfio_dma_map(container, iova, end - iova, vaddr, section->readonly);
     if (ret) {
-        error_report("vfio_dma_map(%p, 0x%"TARGET_PRIxPHYS", "
-                     "0x%"TARGET_PRIxPHYS", %p) = %d (%m)\n",
+        error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
+                     "0x%"HWADDR_PRIx", %p) = %d (%m)\n",
                      container, iova, end - iova, vaddr, ret);
     }
 }
@@ -984,11 +984,11 @@ static void vfio_listener_region_del(MemoryListener *listener,
 {
     VFIOContainer *container = container_of(listener, VFIOContainer,
                                             iommu_data.listener);
-    target_phys_addr_t iova, end;
+    hwaddr iova, end;
     int ret;
 
     if (vfio_listener_skipped_section(section)) {
-        DPRINTF("vfio: SKIPPING region_del %"TARGET_PRIxPHYS" - %"PRIx64"\n",
+        DPRINTF("vfio: SKIPPING region_del %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
                 section->offset_within_address_space + section->size - 1);
         return;
@@ -1008,13 +1008,13 @@ static void vfio_listener_region_del(MemoryListener *listener,
         return;
     }
 
-    DPRINTF("vfio: region_del %"TARGET_PRIxPHYS" - %"TARGET_PRIxPHYS"\n",
+    DPRINTF("vfio: region_del %"HWADDR_PRIx" - %"HWADDR_PRIx"\n",
             iova, end - 1);
 
     ret = vfio_dma_unmap(container, iova, end - iova);
     if (ret) {
-        error_report("vfio_dma_unmap(%p, 0x%"TARGET_PRIxPHYS", "
-                     "0x%"TARGET_PRIxPHYS") = %d (%m)\n",
+        error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
+                     "0x%"HWADDR_PRIx") = %d (%m)\n",
                      container, iova, end - iova, ret);
     }
 }

@@ -412,7 +412,7 @@ static void enet_update_irq(struct XilinxAXIEnet *s)
     qemu_set_irq(s->irq, !!s->regs[R_IP]);
 }
 
-static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t enet_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct XilinxAXIEnet *s = opaque;
     uint32_t r = 0;
@@ -503,7 +503,7 @@ static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return r;
 }
 
-static void enet_write(void *opaque, target_phys_addr_t addr,
+static void enet_write(void *opaque, hwaddr addr,
                        uint64_t value, unsigned size)
 {
     struct XilinxAXIEnet *s = opaque;

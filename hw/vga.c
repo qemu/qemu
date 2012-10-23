@@ -172,7 +172,7 @@ static void vga_screen_dump(void *opaque, const char *filename, bool cswitch,
 static void vga_update_memory_access(VGACommonState *s)
 {
     MemoryRegion *region, *old_region = s->chain4_alias;
-    target_phys_addr_t base, offset, size;
+    hwaddr base, offset, size;
 
     s->chain4_alias = NULL;
 
@@ -785,7 +785,7 @@ void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-uint32_t vga_mem_readb(VGACommonState *s, target_phys_addr_t addr)
+uint32_t vga_mem_readb(VGACommonState *s, hwaddr addr)
 {
     int memory_map_mode, plane;
     uint32_t ret;
@@ -842,7 +842,7 @@ uint32_t vga_mem_readb(VGACommonState *s, target_phys_addr_t addr)
 }
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-void vga_mem_writeb(VGACommonState *s, target_phys_addr_t addr, uint32_t val)
+void vga_mem_writeb(VGACommonState *s, hwaddr addr, uint32_t val)
 {
     int memory_map_mode, plane, write_mode, b, func_select, mask;
     uint32_t write_mask, bit_mask, set_mask;
@@ -2152,7 +2152,7 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, s->last_width, height);
 }
 
-static uint64_t vga_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t vga_mem_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     VGACommonState *s = opaque;
@@ -2160,7 +2160,7 @@ static uint64_t vga_mem_read(void *opaque, target_phys_addr_t addr,
     return vga_mem_readb(s, addr);
 }
 
-static void vga_mem_write(void *opaque, target_phys_addr_t addr,
+static void vga_mem_write(void *opaque, hwaddr addr,
                           uint64_t data, unsigned size)
 {
     VGACommonState *s = opaque;

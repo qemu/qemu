@@ -53,7 +53,7 @@ static inline PCIDevice *pcie_dev_find_by_mmcfg_addr(PCIBus *s,
                            PCIE_MMCFG_DEVFN(mmcfg_addr));
 }
 
-static void pcie_mmcfg_data_write(void *opaque, target_phys_addr_t mmcfg_addr,
+static void pcie_mmcfg_data_write(void *opaque, hwaddr mmcfg_addr,
                                   uint64_t val, unsigned len)
 {
     PCIExpressHost *e = opaque;
@@ -76,7 +76,7 @@ static void pcie_mmcfg_data_write(void *opaque, target_phys_addr_t mmcfg_addr,
 }
 
 static uint64_t pcie_mmcfg_data_read(void *opaque,
-                                     target_phys_addr_t mmcfg_addr,
+                                     hwaddr mmcfg_addr,
                                      unsigned len)
 {
     PCIExpressHost *e = opaque;
@@ -105,7 +105,7 @@ static const MemoryRegionOps pcie_mmcfg_ops = {
 };
 
 /* pcie_host::base_addr == PCIE_BASE_ADDR_UNMAPPED when it isn't mapped. */
-#define PCIE_BASE_ADDR_UNMAPPED  ((target_phys_addr_t)-1ULL)
+#define PCIE_BASE_ADDR_UNMAPPED  ((hwaddr)-1ULL)
 
 int pcie_host_init(PCIExpressHost *e, uint32_t size)
 {
@@ -127,7 +127,7 @@ void pcie_host_mmcfg_unmap(PCIExpressHost *e)
     }
 }
 
-void pcie_host_mmcfg_map(PCIExpressHost *e, target_phys_addr_t addr)
+void pcie_host_mmcfg_map(PCIExpressHost *e, hwaddr addr)
 {
     e->base_addr = addr;
     memory_region_add_subregion(get_system_memory(), e->base_addr, &e->mmio);
@@ -135,7 +135,7 @@ void pcie_host_mmcfg_map(PCIExpressHost *e, target_phys_addr_t addr)
 
 void pcie_host_mmcfg_update(PCIExpressHost *e,
                             int enable,
-                            target_phys_addr_t addr)
+                            hwaddr addr)
 {
     pcie_host_mmcfg_unmap(e);
     if (enable) {

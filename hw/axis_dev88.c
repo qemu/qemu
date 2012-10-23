@@ -47,7 +47,7 @@ struct nand_state_t
 };
 
 static struct nand_state_t nand_state;
-static uint64_t nand_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t nand_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct nand_state_t *s = opaque;
     uint32_t r;
@@ -62,7 +62,7 @@ static uint64_t nand_read(void *opaque, target_phys_addr_t addr, unsigned size)
 }
 
 static void
-nand_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+nand_write(void *opaque, hwaddr addr, uint64_t value,
            unsigned size)
 {
     struct nand_state_t *s = opaque;
@@ -166,7 +166,7 @@ static struct gpio_state_t
     uint32_t regs[0x5c / 4];
 } gpio_state;
 
-static uint64_t gpio_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t gpio_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct gpio_state_t *s = opaque;
     uint32_t r = 0;
@@ -195,7 +195,7 @@ static uint64_t gpio_read(void *opaque, target_phys_addr_t addr, unsigned size)
     D(printf("%s %x=%x\n", __func__, addr, r));
 }
 
-static void gpio_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void gpio_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     struct gpio_state_t *s = opaque;

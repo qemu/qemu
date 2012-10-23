@@ -92,7 +92,7 @@ typedef struct PPC4xxPCIState PPC4xxPCIState;
 
 #define PCI_ALL_SIZE        (PCI_REG_BASE + PCI_REG_SIZE)
 
-static uint64_t pci4xx_cfgaddr_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pci4xx_cfgaddr_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
@@ -101,7 +101,7 @@ static uint64_t pci4xx_cfgaddr_read(void *opaque, target_phys_addr_t addr,
     return phb->config_reg;
 }
 
-static void pci4xx_cfgaddr_write(void *opaque, target_phys_addr_t addr,
+static void pci4xx_cfgaddr_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
@@ -116,7 +116,7 @@ static const MemoryRegionOps pci4xx_cfgaddr_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void ppc4xx_pci_reg_write4(void *opaque, target_phys_addr_t offset,
+static void ppc4xx_pci_reg_write4(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
     struct PPC4xxPCIState *pci = opaque;
@@ -184,7 +184,7 @@ static void ppc4xx_pci_reg_write4(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint64_t ppc4xx_pci_reg_read4(void *opaque, target_phys_addr_t offset,
+static uint64_t ppc4xx_pci_reg_read4(void *opaque, hwaddr offset,
                                      unsigned size)
 {
     struct PPC4xxPCIState *pci = opaque;

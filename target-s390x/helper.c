@@ -419,7 +419,7 @@ int cpu_s390x_handle_mmu_fault(CPUS390XState *env, target_ulong orig_vaddr,
     return 0;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUS390XState *env,
+hwaddr cpu_get_phys_page_debug(CPUS390XState *env,
                                            target_ulong vaddr)
 {
     target_ulong raddr;
@@ -474,7 +474,7 @@ static void do_svc_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    target_phys_addr_t len = TARGET_PAGE_SIZE;
+    hwaddr len = TARGET_PAGE_SIZE;
 
     lowcore = cpu_physical_memory_map(env->psa, &len, 1);
 
@@ -494,7 +494,7 @@ static void do_program_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    target_phys_addr_t len = TARGET_PAGE_SIZE;
+    hwaddr len = TARGET_PAGE_SIZE;
     int ilc = env->int_pgm_ilc;
 
     switch (ilc) {
@@ -538,7 +538,7 @@ static void do_ext_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
     LowCore *lowcore;
-    target_phys_addr_t len = TARGET_PAGE_SIZE;
+    hwaddr len = TARGET_PAGE_SIZE;
     ExtQueue *q;
 
     if (!(env->psw.mask & PSW_MASK_EXT)) {

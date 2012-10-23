@@ -47,7 +47,7 @@ static void mmio_ide_reset(void *opaque)
     ide_bus_reset(&s->bus);
 }
 
-static uint64_t mmio_ide_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mmio_ide_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     MMIOState *s = opaque;
@@ -58,7 +58,7 @@ static uint64_t mmio_ide_read(void *opaque, target_phys_addr_t addr,
         return ide_data_readw(&s->bus, 0);
 }
 
-static void mmio_ide_write(void *opaque, target_phys_addr_t addr,
+static void mmio_ide_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
@@ -75,14 +75,14 @@ static const MemoryRegionOps mmio_ide_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t mmio_ide_status_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mmio_ide_status_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     MMIOState *s= opaque;
     return ide_status_read(&s->bus, 0);
 }
 
-static void mmio_ide_cmd_write(void *opaque, target_phys_addr_t addr,
+static void mmio_ide_cmd_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
@@ -107,7 +107,7 @@ static const VMStateDescription vmstate_ide_mmio = {
     }
 };
 
-void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
+void mmio_ide_init (hwaddr membase, hwaddr membase2,
                     MemoryRegion *address_space,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1)

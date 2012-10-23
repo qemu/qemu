@@ -182,9 +182,9 @@ static void tmu2_start(MilkymistTMU2State *s)
     GLXPbuffer pbuffer;
     GLuint texture;
     void *fb;
-    target_phys_addr_t fb_len;
+    hwaddr fb_len;
     void *mesh;
-    target_phys_addr_t mesh_len;
+    hwaddr mesh_len;
     float m;
 
     trace_milkymist_tmu2_start();
@@ -310,7 +310,7 @@ static void tmu2_start(MilkymistTMU2State *s)
     qemu_irq_pulse(s->irq);
 }
 
-static uint64_t tmu2_read(void *opaque, target_phys_addr_t addr,
+static uint64_t tmu2_read(void *opaque, hwaddr addr,
                           unsigned size)
 {
     MilkymistTMU2State *s = opaque;
@@ -372,7 +372,7 @@ static void tmu2_check_registers(MilkymistTMU2State *s)
     }
 }
 
-static void tmu2_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void tmu2_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     MilkymistTMU2State *s = opaque;

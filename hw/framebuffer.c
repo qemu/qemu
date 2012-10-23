@@ -26,7 +26,7 @@
 void framebuffer_update_display(
     DisplayState *ds,
     MemoryRegion *address_space,
-    target_phys_addr_t base,
+    hwaddr base,
     int cols, /* Width in pixels.  */
     int rows, /* Height in pixels.  */
     int src_width, /* Length of source line, in bytes.  */
@@ -38,7 +38,7 @@ void framebuffer_update_display(
     int *first_row, /* Input and output.  */
     int *last_row /* Output only */)
 {
-    target_phys_addr_t src_len;
+    hwaddr src_len;
     uint8_t *dest;
     uint8_t *src;
     uint8_t *src_base;

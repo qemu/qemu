@@ -96,7 +96,7 @@
 
 typedef struct Exynos4210UartReg {
     const char         *name; /* the only reason is the debug output */
-    target_phys_addr_t  offset;
+    hwaddr  offset;
     uint32_t            reset_value;
 } Exynos4210UartReg;
 
@@ -184,7 +184,7 @@ typedef struct {
 
 #if DEBUG_UART
 /* Used only for debugging inside PRINT_DEBUG_... macros */
-static const char *exynos4210_uart_regname(target_phys_addr_t  offset)
+static const char *exynos4210_uart_regname(hwaddr  offset)
 {
 
     int regs_number = sizeof(exynos4210_uart_regs) / sizeof(Exynos4210UartReg);
@@ -348,7 +348,7 @@ static void exynos4210_uart_update_parameters(Exynos4210UartState *s)
                 s->channel, speed, parity, data_bits, stop_bits);
 }
 
-static void exynos4210_uart_write(void *opaque, target_phys_addr_t offset,
+static void exynos4210_uart_write(void *opaque, hwaddr offset,
                                uint64_t val, unsigned size)
 {
     Exynos4210UartState *s = (Exynos4210UartState *)opaque;
@@ -423,7 +423,7 @@ static void exynos4210_uart_write(void *opaque, target_phys_addr_t offset,
         break;
     }
 }
-static uint64_t exynos4210_uart_read(void *opaque, target_phys_addr_t offset,
+static uint64_t exynos4210_uart_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
     Exynos4210UartState *s = (Exynos4210UartState *)opaque;
@@ -581,7 +581,7 @@ static const VMStateDescription vmstate_exynos4210_uart = {
     }
 };
 
-DeviceState *exynos4210_uart_create(target_phys_addr_t addr,
+DeviceState *exynos4210_uart_create(hwaddr addr,
                                  int fifo_size,
                                  int channel,
                                  CharDriverState *chr,
@@ -617,7 +617,7 @@ DeviceState *exynos4210_uart_create(target_phys_addr_t addr,
 
     bus = sysbus_from_qdev(dev);
     qdev_init_nofail(dev);
-    if (addr != (target_phys_addr_t)-1) {
+    if (addr != (hwaddr)-1) {
         sysbus_mmio_map(bus, 0, addr);
     }
     sysbus_connect_irq(bus, 0, irq);

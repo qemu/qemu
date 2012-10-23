@@ -24,7 +24,7 @@
 #include "exec-memory.h"
 
 static ISABus *isabus;
-target_phys_addr_t isa_mem_base = 0;
+hwaddr isa_mem_base = 0;
 
 static void isabus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *isabus_get_fw_dev_path(DeviceState *dev);

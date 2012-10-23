@@ -89,8 +89,8 @@ static void default_reset_secondary(ARMCPU *cpu,
 static void set_kernel_args(const struct arm_boot_info *info)
 {
     int initrd_size = info->initrd_size;
-    target_phys_addr_t base = info->loader_start;
-    target_phys_addr_t p;
+    hwaddr base = info->loader_start;
+    hwaddr p;
 
     p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
@@ -142,10 +142,10 @@ static void set_kernel_args(const struct arm_boot_info *info)
 
 static void set_kernel_args_old(const struct arm_boot_info *info)
 {
-    target_phys_addr_t p;
+    hwaddr p;
     const char *s;
     int initrd_size = info->initrd_size;
-    target_phys_addr_t base = info->loader_start;
+    hwaddr base = info->loader_start;
 
     /* see linux/include/asm-arm/setup.h */
     p = base + KERNEL_ARGS_ADDR;
@@ -213,7 +213,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
 }
 
-static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
+static int load_dtb(hwaddr addr, const struct arm_boot_info *binfo)
 {
 #ifdef CONFIG_FDT
     uint32_t *mem_reg_property;
@@ -342,7 +342,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     int n;
     int is_linux = 0;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
     int big_endian;
     QemuOpts *machine_opts;
 
@@ -419,7 +419,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
          */
         if (info->dtb_filename) {
             /* Place the DTB after the initrd in memory */
-            target_phys_addr_t dtb_start = TARGET_PAGE_ALIGN(info->loader_start
+            hwaddr dtb_start = TARGET_PAGE_ALIGN(info->loader_start
                                                              + INITRD_LOAD_ADDR
                                                              + initrd_size);
             if (load_dtb(dtb_start, info)) {

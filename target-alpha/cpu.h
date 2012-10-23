@@ -454,7 +454,7 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);
 #ifndef CONFIG_USER_ONLY
 void swap_shadow_regs(CPUAlphaState *env);
 QEMU_NORETURN void cpu_unassigned_access(CPUAlphaState *env1,
-                                         target_phys_addr_t addr, int is_write,
+                                         hwaddr addr, int is_write,
                                          int is_exec, int unused, int size);
 #endif
 

@@ -32,7 +32,7 @@ mandatory for VMState fields.
 
 Don't use Linux kernel internal types like u32, __u32 or __le32.
 
-Use target_phys_addr_t for guest physical addresses except pcibus_t
+Use hwaddr for guest physical addresses except pcibus_t
 for PCI addresses.  In addition, ram_addr_t is a QEMU internal address
 space that maps guest RAM physical addresses into an intermediate
 address space that can map to host virtual address spaces.  Generally

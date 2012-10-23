@@ -68,10 +68,10 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 #define BUFFER_IO_MAX_DELAY  100
 
 typedef struct XenPhysmap {
-    target_phys_addr_t start_addr;
+    hwaddr start_addr;
     ram_addr_t size;
     char *name;
-    target_phys_addr_t phys_offset;
+    hwaddr phys_offset;
 
     QLIST_ENTRY(XenPhysmap) list;
 } XenPhysmap;
@@ -92,7 +92,7 @@ typedef struct XenIOState {
     struct xs_handle *xenstore;
     MemoryListener memory_listener;
     QLIST_HEAD(, XenPhysmap) physmap;
-    target_phys_addr_t free_phys_offset;
+    hwaddr free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
 
     Notifier exit;
@@ -231,7 +231,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
 }
 
 static XenPhysmap *get_physmapping(XenIOState *state,
-                                   target_phys_addr_t start_addr, ram_addr_t size)
+                                   hwaddr start_addr, ram_addr_t size)
 {
     XenPhysmap *physmap = NULL;
 
@@ -245,10 +245,10 @@ static XenPhysmap *get_physmapping(XenIOState *state,
     return NULL;
 }
 
-static target_phys_addr_t xen_phys_offset_to_gaddr(target_phys_addr_t start_addr,
+static hwaddr xen_phys_offset_to_gaddr(hwaddr start_addr,
                                                    ram_addr_t size, void *opaque)
 {
-    target_phys_addr_t addr = start_addr & TARGET_PAGE_MASK;
+    hwaddr addr = start_addr & TARGET_PAGE_MASK;
     XenIOState *xen_io_state = opaque;
     XenPhysmap *physmap = NULL;
 
@@ -263,16 +263,16 @@ static target_phys_addr_t xen_phys_offset_to_gaddr(target_phys_addr_t start_addr
 
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 340
 static int xen_add_to_physmap(XenIOState *state,
-                              target_phys_addr_t start_addr,
+                              hwaddr start_addr,
                               ram_addr_t size,
                               MemoryRegion *mr,
-                              target_phys_addr_t offset_within_region)
+                              hwaddr offset_within_region)
 {
     unsigned long i = 0;
     int rc = 0;
     XenPhysmap *physmap = NULL;
-    target_phys_addr_t pfn, start_gpfn;
-    target_phys_addr_t phys_offset = memory_region_get_ram_addr(mr);
+    hwaddr pfn, start_gpfn;
+    hwaddr phys_offset = memory_region_get_ram_addr(mr);
     char path[80], value[17];
 
     if (get_physmapping(state, start_addr, size)) {
@@ -349,13 +349,13 @@ go_physmap:
 }
 
 static int xen_remove_from_physmap(XenIOState *state,
-                                   target_phys_addr_t start_addr,
+                                   hwaddr start_addr,
                                    ram_addr_t size)
 {
     unsigned long i = 0;
     int rc = 0;
     XenPhysmap *physmap = NULL;
-    target_phys_addr_t phys_offset = 0;
+    hwaddr phys_offset = 0;
 
     physmap = get_physmapping(state, start_addr, size);
     if (physmap == NULL) {
@@ -394,16 +394,16 @@ static int xen_remove_from_physmap(XenIOState *state,
 
 #else
 static int xen_add_to_physmap(XenIOState *state,
-                              target_phys_addr_t start_addr,
+                              hwaddr start_addr,
                               ram_addr_t size,
                               MemoryRegion *mr,
-                              target_phys_addr_t offset_within_region)
+                              hwaddr offset_within_region)
 {
     return -ENOSYS;
 }
 
 static int xen_remove_from_physmap(XenIOState *state,
-                                   target_phys_addr_t start_addr,
+                                   hwaddr start_addr,
                                    ram_addr_t size)
 {
     return -ENOSYS;
@@ -415,7 +415,7 @@ static void xen_set_memory(struct MemoryListener *listener,
                            bool add)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
-    target_phys_addr_t start_addr = section->offset_within_address_space;
+    hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     bool log_dirty = memory_region_is_logging(section->mr);
     hvmmem_type_t mem_type;
@@ -467,10 +467,10 @@ static void xen_region_del(MemoryListener *listener,
 }
 
 static void xen_sync_dirty_bitmap(XenIOState *state,
-                                  target_phys_addr_t start_addr,
+                                  hwaddr start_addr,
                                   ram_addr_t size)
 {
-    target_phys_addr_t npages = size >> TARGET_PAGE_BITS;
+    hwaddr npages = size >> TARGET_PAGE_BITS;
     const int width = sizeof(unsigned long) * 8;
     unsigned long bitmap[(npages + width - 1) / width];
     int rc, i, j;

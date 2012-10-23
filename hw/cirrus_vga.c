@@ -1952,7 +1952,7 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
  ***************************************/
 
 static uint64_t cirrus_vga_mem_read(void *opaque,
-                                    target_phys_addr_t addr,
+                                    hwaddr addr,
                                     uint32_t size)
 {
     CirrusVGAState *s = opaque;
@@ -1996,7 +1996,7 @@ static uint64_t cirrus_vga_mem_read(void *opaque,
 }
 
 static void cirrus_vga_mem_write(void *opaque,
-                                 target_phys_addr_t addr,
+                                 hwaddr addr,
                                  uint64_t mem_value,
                                  uint32_t size)
 {
@@ -2255,7 +2255,7 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
  *
  ***************************************/
 
-static uint64_t cirrus_linear_read(void *opaque, target_phys_addr_t addr,
+static uint64_t cirrus_linear_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     CirrusVGAState *s = opaque;
@@ -2284,7 +2284,7 @@ static uint64_t cirrus_linear_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void cirrus_linear_write(void *opaque, target_phys_addr_t addr,
+static void cirrus_linear_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     CirrusVGAState *s = opaque;
@@ -2333,7 +2333,7 @@ static void cirrus_linear_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t cirrus_linear_bitblt_read(void *opaque,
-                                          target_phys_addr_t addr,
+                                          hwaddr addr,
                                           unsigned size)
 {
     CirrusVGAState *s = opaque;
@@ -2346,7 +2346,7 @@ static uint64_t cirrus_linear_bitblt_read(void *opaque,
 }
 
 static void cirrus_linear_bitblt_write(void *opaque,
-                                       target_phys_addr_t addr,
+                                       hwaddr addr,
                                        uint64_t val,
                                        unsigned size)
 {
@@ -2640,7 +2640,7 @@ static void cirrus_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
  *
  ***************************************/
 
-static uint64_t cirrus_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t cirrus_mmio_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     CirrusVGAState *s = opaque;
@@ -2652,7 +2652,7 @@ static uint64_t cirrus_mmio_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_mmio_write(void *opaque, target_phys_addr_t addr,
+static void cirrus_mmio_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
     CirrusVGAState *s = opaque;

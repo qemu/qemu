@@ -315,7 +315,7 @@ static int get_physical_address(CPUAlphaState *env, target_ulong addr,
     return ret;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUAlphaState *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUAlphaState *env, target_ulong addr)
 {
     target_ulong phys;
     int prot, fail;

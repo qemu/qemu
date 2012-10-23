@@ -168,8 +168,8 @@ static void s390_init(QEMUMachineInitArgs *args)
     int shift = 0;
     uint8_t *storage_keys;
     void *virtio_region;
-    target_phys_addr_t virtio_region_len;
-    target_phys_addr_t virtio_region_start;
+    hwaddr virtio_region_len;
+    hwaddr virtio_region_start;
     int i;
 
     /* s390x ram size detection needs a 16bit multiplier + an increment. So

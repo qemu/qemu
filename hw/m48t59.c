@@ -522,14 +522,14 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
     return retval;
 }
 
-static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void nvram_writeb (void *opaque, hwaddr addr, uint32_t value)
 {
     M48t59State *NVRAM = opaque;
 
     m48t59_write(NVRAM, addr, value & 0xff);
 }
 
-static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void nvram_writew (void *opaque, hwaddr addr, uint32_t value)
 {
     M48t59State *NVRAM = opaque;
 
@@ -537,7 +537,7 @@ static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t value)
     m48t59_write(NVRAM, addr + 1, value & 0xff);
 }
 
-static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void nvram_writel (void *opaque, hwaddr addr, uint32_t value)
 {
     M48t59State *NVRAM = opaque;
 
@@ -547,7 +547,7 @@ static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     m48t59_write(NVRAM, addr + 3, value & 0xff);
 }
 
-static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t nvram_readb (void *opaque, hwaddr addr)
 {
     M48t59State *NVRAM = opaque;
     uint32_t retval;
@@ -556,7 +556,7 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t nvram_readw (void *opaque, hwaddr addr)
 {
     M48t59State *NVRAM = opaque;
     uint32_t retval;
@@ -566,7 +566,7 @@ static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t nvram_readl (void *opaque, hwaddr addr)
 {
     M48t59State *NVRAM = opaque;
     uint32_t retval;
@@ -636,7 +636,7 @@ static const MemoryRegionOps m48t59_io_ops = {
 };
 
 /* Initialisation routine */
-M48t59State *m48t59_init(qemu_irq IRQ, target_phys_addr_t mem_base,
+M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
                          uint32_t io_base, uint16_t size, int model)
 {
     DeviceState *dev;

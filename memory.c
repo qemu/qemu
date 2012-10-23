@@ -209,7 +209,7 @@ typedef struct FlatView FlatView;
 /* Range of memory in the global map.  Addresses are absolute. */
 struct FlatRange {
     MemoryRegion *mr;
-    target_phys_addr_t offset_in_region;
+    hwaddr offset_in_region;
     AddrRange addr;
     uint8_t dirty_log_mask;
     bool readable;
@@ -300,7 +300,7 @@ static void flatview_simplify(FlatView *view)
 }
 
 static void memory_region_read_accessor(void *opaque,
-                                        target_phys_addr_t addr,
+                                        hwaddr addr,
                                         uint64_t *value,
                                         unsigned size,
                                         unsigned shift,
@@ -317,7 +317,7 @@ static void memory_region_read_accessor(void *opaque,
 }
 
 static void memory_region_write_accessor(void *opaque,
-                                         target_phys_addr_t addr,
+                                         hwaddr addr,
                                          uint64_t *value,
                                          unsigned size,
                                          unsigned shift,
@@ -333,13 +333,13 @@ static void memory_region_write_accessor(void *opaque,
     mr->ops->write(mr->opaque, addr, tmp, size);
 }
 
-static void access_with_adjusted_size(target_phys_addr_t addr,
+static void access_with_adjusted_size(hwaddr addr,
                                       uint64_t *value,
                                       unsigned size,
                                       unsigned access_size_min,
                                       unsigned access_size_max,
                                       void (*access)(void *opaque,
-                                                     target_phys_addr_t addr,
+                                                     hwaddr addr,
                                                      uint64_t *value,
                                                      unsigned size,
                                                      unsigned shift,
@@ -478,7 +478,7 @@ static void render_memory_region(FlatView *view,
 {
     MemoryRegion *subregion;
     unsigned i;
-    target_phys_addr_t offset_in_region;
+    hwaddr offset_in_region;
     Int128 remain;
     Int128 now;
     FlatRange fr;
@@ -817,7 +817,7 @@ void memory_region_init(MemoryRegion *mr,
 }
 
 static bool memory_region_access_valid(MemoryRegion *mr,
-                                       target_phys_addr_t addr,
+                                       hwaddr addr,
                                        unsigned size,
                                        bool is_write)
 {
@@ -843,7 +843,7 @@ static bool memory_region_access_valid(MemoryRegion *mr,
 }
 
 static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
-                                             target_phys_addr_t addr,
+                                             hwaddr addr,
                                              unsigned size)
 {
     uint64_t data = 0;
@@ -884,7 +884,7 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
 }
 
 static uint64_t memory_region_dispatch_read(MemoryRegion *mr,
-                                            target_phys_addr_t addr,
+                                            hwaddr addr,
                                             unsigned size)
 {
     uint64_t ret;
@@ -895,7 +895,7 @@ static uint64_t memory_region_dispatch_read(MemoryRegion *mr,
 }
 
 static void memory_region_dispatch_write(MemoryRegion *mr,
-                                         target_phys_addr_t addr,
+                                         hwaddr addr,
                                          uint64_t data,
                                          unsigned size)
 {
@@ -957,7 +957,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
 void memory_region_init_alias(MemoryRegion *mr,
                               const char *name,
                               MemoryRegion *orig,
-                              target_phys_addr_t offset,
+                              hwaddr offset,
                               uint64_t size)
 {
     memory_region_init(mr, name, size);
@@ -980,7 +980,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr);
 }
 
-static uint64_t invalid_read(void *opaque, target_phys_addr_t addr,
+static uint64_t invalid_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     MemoryRegion *mr = opaque;
@@ -992,7 +992,7 @@ static uint64_t invalid_read(void *opaque, target_phys_addr_t addr,
     return -1U;
 }
 
-static void invalid_write(void *opaque, target_phys_addr_t addr, uint64_t data,
+static void invalid_write(void *opaque, hwaddr addr, uint64_t data,
                           unsigned size)
 {
     MemoryRegion *mr = opaque;
@@ -1063,16 +1063,16 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
     memory_region_transaction_commit();
 }
 
-bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                             target_phys_addr_t size, unsigned client)
+bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
+                             hwaddr size, unsigned client)
 {
     assert(mr->terminates);
     return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
                                          1 << client);
 }
 
-void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                             target_phys_addr_t size)
+void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
+                             hwaddr size)
 {
     assert(mr->terminates);
     return cpu_physical_memory_set_dirty_range(mr->ram_addr + addr, size, -1);
@@ -1110,8 +1110,8 @@ void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
     }
 }
 
-void memory_region_reset_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                               target_phys_addr_t size, unsigned client)
+void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
+                               hwaddr size, unsigned client)
 {
     assert(mr->terminates);
     cpu_physical_memory_reset_dirty(mr->ram_addr + addr,
@@ -1180,7 +1180,7 @@ void memory_region_set_coalescing(MemoryRegion *mr)
 }
 
 void memory_region_add_coalescing(MemoryRegion *mr,
-                                  target_phys_addr_t offset,
+                                  hwaddr offset,
                                   uint64_t size)
 {
     CoalescedMemoryRange *cmr = g_malloc(sizeof(*cmr));
@@ -1220,7 +1220,7 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr)
 }
 
 void memory_region_add_eventfd(MemoryRegion *mr,
-                               target_phys_addr_t addr,
+                               hwaddr addr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
@@ -1252,7 +1252,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
 }
 
 void memory_region_del_eventfd(MemoryRegion *mr,
-                               target_phys_addr_t addr,
+                               hwaddr addr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
@@ -1284,7 +1284,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
 }
 
 static void memory_region_add_subregion_common(MemoryRegion *mr,
-                                               target_phys_addr_t offset,
+                                               hwaddr offset,
                                                MemoryRegion *subregion)
 {
     MemoryRegion *other;
@@ -1328,7 +1328,7 @@ done:
 
 
 void memory_region_add_subregion(MemoryRegion *mr,
-                                 target_phys_addr_t offset,
+                                 hwaddr offset,
                                  MemoryRegion *subregion)
 {
     subregion->may_overlap = false;
@@ -1337,7 +1337,7 @@ void memory_region_add_subregion(MemoryRegion *mr,
 }
 
 void memory_region_add_subregion_overlap(MemoryRegion *mr,
-                                         target_phys_addr_t offset,
+                                         hwaddr offset,
                                          MemoryRegion *subregion,
                                          unsigned priority)
 {
@@ -1366,7 +1366,7 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     memory_region_transaction_commit();
 }
 
-void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
+void memory_region_set_address(MemoryRegion *mr, hwaddr addr)
 {
     MemoryRegion *parent = mr->parent;
     unsigned priority = mr->priority;
@@ -1387,7 +1387,7 @@ void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
     memory_region_transaction_commit();
 }
 
-void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
+void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
 {
     assert(mr->alias);
 
@@ -1425,7 +1425,7 @@ static FlatRange *address_space_lookup(AddressSpace *as, AddrRange addr)
 }
 
 MemoryRegionSection memory_region_find(MemoryRegion *address_space,
-                                       target_phys_addr_t addr, uint64_t size)
+                                       hwaddr addr, uint64_t size)
 {
     AddressSpace *as = memory_region_to_address_space(address_space);
     AddrRange range = addrrange_make(int128_make64(addr),
@@ -1559,12 +1559,12 @@ void address_space_destroy(AddressSpace *as)
     g_free(as->current_map);
 }
 
-uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)
+uint64_t io_mem_read(MemoryRegion *mr, hwaddr addr, unsigned size)
 {
     return memory_region_dispatch_read(mr, addr, size);
 }
 
-void io_mem_write(MemoryRegion *mr, target_phys_addr_t addr,
+void io_mem_write(MemoryRegion *mr, hwaddr addr,
                   uint64_t val, unsigned size)
 {
     memory_region_dispatch_write(mr, addr, val, size);
@@ -1582,7 +1582,7 @@ typedef QTAILQ_HEAD(queue, MemoryRegionList) MemoryRegionListHead;
 
 static void mtree_print_mr(fprintf_function mon_printf, void *f,
                            const MemoryRegion *mr, unsigned int level,
-                           target_phys_addr_t base,
+                           hwaddr base,
                            MemoryRegionListHead *alias_print_queue)
 {
     MemoryRegionList *new_ml, *ml, *next_ml;
@@ -1620,7 +1620,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    "-" TARGET_FMT_plx "\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (target_phys_addr_t)int128_get64(mr->size) - 1,
+                   + (hwaddr)int128_get64(mr->size) - 1,
                    mr->priority,
                    mr->readable ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->readable) ? 'W'
@@ -1629,13 +1629,13 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->alias->name,
                    mr->alias_offset,
                    mr->alias_offset
-                   + (target_phys_addr_t)int128_get64(mr->size) - 1);
+                   + (hwaddr)int128_get64(mr->size) - 1);
     } else {
         mon_printf(f,
                    TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d, %c%c): %s\n",
                    base + mr->addr,
                    base + mr->addr
-                   + (target_phys_addr_t)int128_get64(mr->size) - 1,
+                   + (hwaddr)int128_get64(mr->size) - 1,
                    mr->priority,
                    mr->readable ? 'R' : '-',
                    !mr->readonly && !(mr->rom_device && mr->readable) ? 'W'

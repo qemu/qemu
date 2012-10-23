@@ -1059,7 +1059,7 @@ static void monitor_printc(Monitor *mon, int c)
 }
 
 static void memory_dump(Monitor *mon, int count, int format, int wsize,
-                        target_phys_addr_t addr, int is_physical)
+                        hwaddr addr, int is_physical)
 {
     CPUArchState *env;
     int l, line_size, i, max_digits, len;
@@ -1193,7 +1193,7 @@ static void do_physical_memory_dump(Monitor *mon, const QDict *qdict)
     int count = qdict_get_int(qdict, "count");
     int format = qdict_get_int(qdict, "format");
     int size = qdict_get_int(qdict, "size");
-    target_phys_addr_t addr = qdict_get_int(qdict, "addr");
+    hwaddr addr = qdict_get_int(qdict, "addr");
 
     memory_dump(mon, count, format, size, addr, 1);
 }
@@ -1201,21 +1201,21 @@ static void do_physical_memory_dump(Monitor *mon, const QDict *qdict)
 static void do_print(Monitor *mon, const QDict *qdict)
 {
     int format = qdict_get_int(qdict, "format");
-    target_phys_addr_t val = qdict_get_int(qdict, "val");
+    hwaddr val = qdict_get_int(qdict, "val");
 
     switch(format) {
     case 'o':
-        monitor_printf(mon, "%#" TARGET_PRIoPHYS, val);
+        monitor_printf(mon, "%#" HWADDR_PRIo, val);
         break;
     case 'x':
-        monitor_printf(mon, "%#" TARGET_PRIxPHYS, val);
+        monitor_printf(mon, "%#" HWADDR_PRIx, val);
         break;
     case 'u':
-        monitor_printf(mon, "%" TARGET_PRIuPHYS, val);
+        monitor_printf(mon, "%" HWADDR_PRIu, val);
         break;
     default:
     case 'd':
-        monitor_printf(mon, "%" TARGET_PRIdPHYS, val);
+        monitor_printf(mon, "%" HWADDR_PRId, val);
         break;
     case 'c':
         monitor_printc(mon, val);
@@ -1337,9 +1337,9 @@ static void do_boot_set(Monitor *mon, const QDict *qdict)
 }
 
 #if defined(TARGET_I386)
-static void print_pte(Monitor *mon, target_phys_addr_t addr,
-                      target_phys_addr_t pte,
-                      target_phys_addr_t mask)
+static void print_pte(Monitor *mon, hwaddr addr,
+                      hwaddr pte,
+                      hwaddr mask)
 {
 #ifdef TARGET_X86_64
     if (addr & (1ULL << 47)) {
@@ -1408,7 +1408,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
                     if (pde & PG_PSE_MASK) {
                         /* 2M pages with PAE, CR4.PSE is ignored */
                         print_pte(mon, (l1 << 30 ) + (l2 << 21), pde,
-                                  ~((target_phys_addr_t)(1 << 20) - 1));
+                                  ~((hwaddr)(1 << 20) - 1));
                     } else {
                         pt_addr = pde & 0x3fffffffff000ULL;
                         for (l3 = 0; l3 < 512; l3++) {
@@ -1418,7 +1418,7 @@ static void tlb_info_pae32(Monitor *mon, CPUArchState *env)
                                 print_pte(mon, (l1 << 30 ) + (l2 << 21)
                                           + (l3 << 12),
                                           pte & ~PG_PSE_MASK,
-                                          ~(target_phys_addr_t)0xfff);
+                                          ~(hwaddr)0xfff);
                             }
                         }
                     }
@@ -1510,9 +1510,9 @@ static void tlb_info(Monitor *mon)
     }
 }
 
-static void mem_print(Monitor *mon, target_phys_addr_t *pstart,
+static void mem_print(Monitor *mon, hwaddr *pstart,
                       int *plast_prot,
-                      target_phys_addr_t end, int prot)
+                      hwaddr end, int prot)
 {
     int prot1;
     prot1 = *plast_prot;
@@ -1538,7 +1538,7 @@ static void mem_info_32(Monitor *mon, CPUArchState *env)
     unsigned int l1, l2;
     int prot, last_prot;
     uint32_t pgd, pde, pte;
-    target_phys_addr_t start, end;
+    hwaddr start, end;
 
     pgd = env->cr[3] & ~0xfff;
     last_prot = 0;
@@ -1571,7 +1571,7 @@ static void mem_info_32(Monitor *mon, CPUArchState *env)
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (target_phys_addr_t)1 << 32, 0);
+    mem_print(mon, &start, &last_prot, (hwaddr)1 << 32, 0);
 }
 
 static void mem_info_pae32(Monitor *mon, CPUArchState *env)
@@ -1580,7 +1580,7 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env)
     int prot, last_prot;
     uint64_t pdpe, pde, pte;
     uint64_t pdp_addr, pd_addr, pt_addr;
-    target_phys_addr_t start, end;
+    hwaddr start, end;
 
     pdp_addr = env->cr[3] & ~0x1f;
     last_prot = 0;
@@ -1626,7 +1626,7 @@ static void mem_info_pae32(Monitor *mon, CPUArchState *env)
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (target_phys_addr_t)1 << 32, 0);
+    mem_print(mon, &start, &last_prot, (hwaddr)1 << 32, 0);
 }
 
 
@@ -1705,7 +1705,7 @@ static void mem_info_64(Monitor *mon, CPUArchState *env)
         }
     }
     /* Flush last range */
-    mem_print(mon, &start, &last_prot, (target_phys_addr_t)1 << 48, 0);
+    mem_print(mon, &start, &last_prot, (hwaddr)1 << 48, 0);
 }
 #endif
 

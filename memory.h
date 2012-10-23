@@ -20,7 +20,7 @@
 #include <stdbool.h>
 #include "qemu-common.h"
 #include "cpu-common.h"
-#include "targphys.h"
+#include "hwaddr.h"
 #include "qemu-queue.h"
 #include "iorange.h"
 #include "ioport.h"
@@ -48,7 +48,7 @@ typedef struct MemoryRegionIORange MemoryRegionIORange;
 struct MemoryRegionIORange {
     IORange iorange;
     MemoryRegion *mr;
-    target_phys_addr_t offset;
+    hwaddr offset;
 };
 
 /*
@@ -58,12 +58,12 @@ struct MemoryRegionOps {
     /* Read from the memory region. @addr is relative to @mr; @size is
      * in bytes. */
     uint64_t (*read)(void *opaque,
-                     target_phys_addr_t addr,
+                     hwaddr addr,
                      unsigned size);
     /* Write to the memory region. @addr is relative to @mr; @size is
      * in bytes. */
     void (*write)(void *opaque,
-                  target_phys_addr_t addr,
+                  hwaddr addr,
                   uint64_t data,
                   unsigned size);
 
@@ -84,7 +84,7 @@ struct MemoryRegionOps {
          * by the device (and results in machine dependent behaviour such
          * as a machine check exception).
          */
-        bool (*accepts)(void *opaque, target_phys_addr_t addr,
+        bool (*accepts)(void *opaque, hwaddr addr,
                         unsigned size, bool is_write);
     } valid;
     /* Internal implementation constraints: */
@@ -122,7 +122,7 @@ struct MemoryRegion {
     void *opaque;
     MemoryRegion *parent;
     Int128 size;
-    target_phys_addr_t addr;
+    hwaddr addr;
     void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
     bool subpage;
@@ -135,7 +135,7 @@ struct MemoryRegion {
     bool warning_printed; /* For reservations */
     bool flush_coalesced_mmio;
     MemoryRegion *alias;
-    target_phys_addr_t alias_offset;
+    hwaddr alias_offset;
     unsigned priority;
     bool may_overlap;
     QTAILQ_HEAD(subregions, MemoryRegion) subregions;
@@ -189,9 +189,9 @@ typedef struct MemoryRegionSection MemoryRegionSection;
 struct MemoryRegionSection {
     MemoryRegion *mr;
     AddressSpace *address_space;
-    target_phys_addr_t offset_within_region;
+    hwaddr offset_within_region;
     uint64_t size;
-    target_phys_addr_t offset_within_address_space;
+    hwaddr offset_within_address_space;
     bool readonly;
 };
 
@@ -219,9 +219,9 @@ struct MemoryListener {
     void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
                         bool match_data, uint64_t data, EventNotifier *e);
     void (*coalesced_mmio_add)(MemoryListener *listener, MemoryRegionSection *section,
-                               target_phys_addr_t addr, target_phys_addr_t len);
+                               hwaddr addr, hwaddr len);
     void (*coalesced_mmio_del)(MemoryListener *listener, MemoryRegionSection *section,
-                               target_phys_addr_t addr, target_phys_addr_t len);
+                               hwaddr addr, hwaddr len);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
     AddressSpace *address_space_filter;
@@ -301,7 +301,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
 void memory_region_init_alias(MemoryRegion *mr,
                               const char *name,
                               MemoryRegion *orig,
-                              target_phys_addr_t offset,
+                              hwaddr offset,
                               uint64_t size);
 
 /**
@@ -437,8 +437,8 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client);
  * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
  *          %DIRTY_MEMORY_VGA.
  */
-bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                             target_phys_addr_t size, unsigned client);
+bool memory_region_get_dirty(MemoryRegion *mr, hwaddr addr,
+                             hwaddr size, unsigned client);
 
 /**
  * memory_region_set_dirty: Mark a range of bytes as dirty in a memory region.
@@ -450,8 +450,8 @@ bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
  * @addr: the address (relative to the start of the region) being dirtied.
  * @size: size of the range being dirtied.
  */
-void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                             target_phys_addr_t size);
+void memory_region_set_dirty(MemoryRegion *mr, hwaddr addr,
+                             hwaddr size);
 
 /**
  * memory_region_sync_dirty_bitmap: Synchronize a region's dirty bitmap with
@@ -476,8 +476,8 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr);
  * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
  *          %DIRTY_MEMORY_VGA.
  */
-void memory_region_reset_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                               target_phys_addr_t size, unsigned client);
+void memory_region_reset_dirty(MemoryRegion *mr, hwaddr addr,
+                               hwaddr size, unsigned client);
 
 /**
  * memory_region_set_readonly: Turn a memory region read-only (or read-write)
@@ -527,7 +527,7 @@ void memory_region_set_coalescing(MemoryRegion *mr);
  * @size: the size of the subrange to be coalesced.
  */
 void memory_region_add_coalescing(MemoryRegion *mr,
-                                  target_phys_addr_t offset,
+                                  hwaddr offset,
                                   uint64_t size);
 
 /**
@@ -583,7 +583,7 @@ void memory_region_clear_flush_coalesced(MemoryRegion *mr);
  * @fd: the eventfd to be triggered when @addr, @size, and @data all match.
  **/
 void memory_region_add_eventfd(MemoryRegion *mr,
-                               target_phys_addr_t addr,
+                               hwaddr addr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
@@ -603,7 +603,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
  * @fd: the eventfd to be triggered when @addr, @size, and @data all match.
  */
 void memory_region_del_eventfd(MemoryRegion *mr,
-                               target_phys_addr_t addr,
+                               hwaddr addr,
                                unsigned size,
                                bool match_data,
                                uint64_t data,
@@ -624,7 +624,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
  * @subregion: the subregion to be added.
  */
 void memory_region_add_subregion(MemoryRegion *mr,
-                                 target_phys_addr_t offset,
+                                 hwaddr offset,
                                  MemoryRegion *subregion);
 /**
  * memory_region_add_subregion_overlap: Add a subregion to a container
@@ -644,7 +644,7 @@ void memory_region_add_subregion(MemoryRegion *mr,
  * @priority: used for resolving overlaps; highest priority wins.
  */
 void memory_region_add_subregion_overlap(MemoryRegion *mr,
-                                         target_phys_addr_t offset,
+                                         hwaddr offset,
                                          MemoryRegion *subregion,
                                          unsigned priority);
 
@@ -692,7 +692,7 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
  * @mr: the region to be updated
  * @addr: new address, relative to parent region
  */
-void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr);
+void memory_region_set_address(MemoryRegion *mr, hwaddr addr);
 
 /*
  * memory_region_set_alias_offset: dynamically update a memory alias's offset
@@ -704,7 +704,7 @@ void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr);
  * @offset: the new offset into the target memory region
  */
 void memory_region_set_alias_offset(MemoryRegion *mr,
-                                    target_phys_addr_t offset);
+                                    hwaddr offset);
 
 /**
  * memory_region_find: locate a MemoryRegion in an address space
@@ -725,7 +725,7 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
  * @size: size of the area to be searched
  */
 MemoryRegionSection memory_region_find(MemoryRegion *address_space,
-                                       target_phys_addr_t addr, uint64_t size);
+                                       hwaddr addr, uint64_t size);
 
 /**
  * memory_region_section_addr: get offset within MemoryRegionSection
@@ -735,9 +735,9 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
  * @section: the memory region section being queried
  * @addr: address in address space
  */
-static inline target_phys_addr_t
+static inline hwaddr
 memory_region_section_addr(MemoryRegionSection *section,
-                           target_phys_addr_t addr)
+                           hwaddr addr)
 {
     addr -= section->offset_within_address_space;
     addr += section->offset_within_region;
@@ -824,7 +824,7 @@ void address_space_destroy(AddressSpace *as);
  * @buf: buffer with the data transferred
  * @is_write: indicates the transfer direction
  */
-void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
+void address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
                       int len, bool is_write);
 
 /**
@@ -834,7 +834,7 @@ void address_space_rw(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  */
-void address_space_write(AddressSpace *as, target_phys_addr_t addr,
+void address_space_write(AddressSpace *as, hwaddr addr,
                          const uint8_t *buf, int len);
 
 /**
@@ -844,7 +844,7 @@ void address_space_write(AddressSpace *as, target_phys_addr_t addr,
  * @addr: address within that address space
  * @buf: buffer with the data transferred
  */
-void address_space_read(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf, int len);
+void address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len);
 
 /* address_space_map: map a physical memory region into a host virtual address
  *
@@ -859,8 +859,8 @@ void address_space_read(AddressSpace *as, target_phys_addr_t addr, uint8_t *buf,
  * @plen: pointer to length of buffer; updated on return
  * @is_write: indicates the transfer direction
  */
-void *address_space_map(AddressSpace *as, target_phys_addr_t addr,
-                        target_phys_addr_t *plen, bool is_write);
+void *address_space_map(AddressSpace *as, hwaddr addr,
+                        hwaddr *plen, bool is_write);
 
 /* address_space_unmap: Unmaps a memory region previously mapped by address_space_map()
  *
@@ -873,8 +873,8 @@ void *address_space_map(AddressSpace *as, target_phys_addr_t addr,
  * @access_len: amount of data actually transferred
  * @is_write: indicates the transfer direction
  */
-void address_space_unmap(AddressSpace *as, void *buffer, target_phys_addr_t len,
-                         int is_write, target_phys_addr_t access_len);
+void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
+                         int is_write, hwaddr access_len);
 
 
 #endif

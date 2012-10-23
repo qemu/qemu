@@ -150,7 +150,7 @@ static void lm4549_audio_out_callback(void *opaque, int free)
     }
 }
 
-uint32_t lm4549_read(lm4549_state *s, target_phys_addr_t offset)
+uint32_t lm4549_read(lm4549_state *s, hwaddr offset)
 {
     uint16_t *regfile = s->regfile;
     uint32_t value = 0;
@@ -165,7 +165,7 @@ uint32_t lm4549_read(lm4549_state *s, target_phys_addr_t offset)
 }
 
 void lm4549_write(lm4549_state *s,
-                  target_phys_addr_t offset, uint32_t value)
+                  hwaddr offset, uint32_t value)
 {
     uint16_t *regfile = s->regfile;
 

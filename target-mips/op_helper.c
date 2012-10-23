@@ -273,11 +273,11 @@ void helper_dmultu(CPUMIPSState *env, target_ulong arg1, target_ulong arg2)
 
 #ifndef CONFIG_USER_ONLY
 
-static inline target_phys_addr_t do_translate_address(CPUMIPSState *env,
+static inline hwaddr do_translate_address(CPUMIPSState *env,
                                                       target_ulong address,
                                                       int rw)
 {
-    target_phys_addr_t lladdr;
+    hwaddr lladdr;
 
     lladdr = cpu_mips_translate_address(env, address, rw);
 
@@ -2320,7 +2320,7 @@ void tlb_fill(CPUMIPSState *env, target_ulong addr, int is_write, int mmu_idx,
     }
 }
 
-void cpu_unassigned_access(CPUMIPSState *env, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMIPSState *env, hwaddr addr,
                            int is_write, int is_exec, int unused, int size)
 {
     if (is_exec)

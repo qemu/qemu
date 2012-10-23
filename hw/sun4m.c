@@ -87,16 +87,16 @@
 #define ESCC_CLOCK 4915200
 
 struct sun4m_hwdef {
-    target_phys_addr_t iommu_base, iommu_pad_base, iommu_pad_len, slavio_base;
-    target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
-    target_phys_addr_t serial_base, fd_base;
-    target_phys_addr_t afx_base, idreg_base, dma_base, esp_base, le_base;
-    target_phys_addr_t tcx_base, cs_base, apc_base, aux1_base, aux2_base;
-    target_phys_addr_t bpp_base, dbri_base, sx_base;
+    hwaddr iommu_base, iommu_pad_base, iommu_pad_len, slavio_base;
+    hwaddr intctl_base, counter_base, nvram_base, ms_kb_base;
+    hwaddr serial_base, fd_base;
+    hwaddr afx_base, idreg_base, dma_base, esp_base, le_base;
+    hwaddr tcx_base, cs_base, apc_base, aux1_base, aux2_base;
+    hwaddr bpp_base, dbri_base, sx_base;
     struct {
-        target_phys_addr_t reg_base, vram_base;
+        hwaddr reg_base, vram_base;
     } vsimm[MAX_VSIMMS];
-    target_phys_addr_t ecc_base;
+    hwaddr ecc_base;
     uint64_t max_mem;
     const char * const default_cpu_model;
     uint32_t ecc_version;
@@ -108,13 +108,13 @@ struct sun4m_hwdef {
 #define MAX_IOUNITS 5
 
 struct sun4d_hwdef {
-    target_phys_addr_t iounit_bases[MAX_IOUNITS], slavio_base;
-    target_phys_addr_t counter_base, nvram_base, ms_kb_base;
-    target_phys_addr_t serial_base;
-    target_phys_addr_t espdma_base, esp_base;
-    target_phys_addr_t ledma_base, le_base;
-    target_phys_addr_t tcx_base;
-    target_phys_addr_t sbi_base;
+    hwaddr iounit_bases[MAX_IOUNITS], slavio_base;
+    hwaddr counter_base, nvram_base, ms_kb_base;
+    hwaddr serial_base;
+    hwaddr espdma_base, esp_base;
+    hwaddr ledma_base, le_base;
+    hwaddr tcx_base;
+    hwaddr sbi_base;
     uint64_t max_mem;
     const char * const default_cpu_model;
     uint32_t iounit_version;
@@ -123,11 +123,11 @@ struct sun4d_hwdef {
 };
 
 struct sun4c_hwdef {
-    target_phys_addr_t iommu_base, slavio_base;
-    target_phys_addr_t intctl_base, counter_base, nvram_base, ms_kb_base;
-    target_phys_addr_t serial_base, fd_base;
-    target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
-    target_phys_addr_t tcx_base, aux1_base;
+    hwaddr iommu_base, slavio_base;
+    hwaddr intctl_base, counter_base, nvram_base, ms_kb_base;
+    hwaddr serial_base, fd_base;
+    hwaddr idreg_base, dma_base, esp_base, le_base;
+    hwaddr tcx_base, aux1_base;
     uint64_t max_mem;
     const char * const default_cpu_model;
     uint32_t iommu_version;
@@ -373,7 +373,7 @@ static unsigned long sun4m_load_kernel(const char *kernel_filename,
     return kernel_size;
 }
 
-static void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
+static void *iommu_init(hwaddr addr, uint32_t version, qemu_irq irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -388,7 +388,7 @@ static void *iommu_init(target_phys_addr_t addr, uint32_t version, qemu_irq irq)
     return s;
 }
 
-static void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
+static void *sparc32_dma_init(hwaddr daddr, qemu_irq parent_irq,
                               void *iommu, qemu_irq *dev_irq, int is_ledma)
 {
     DeviceState *dev;
@@ -406,7 +406,7 @@ static void *sparc32_dma_init(target_phys_addr_t daddr, qemu_irq parent_irq,
     return s;
 }
 
-static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
+static void lance_init(NICInfo *nd, hwaddr leaddr,
                        void *dma_opaque, qemu_irq irq)
 {
     DeviceState *dev;
@@ -426,8 +426,8 @@ static void lance_init(NICInfo *nd, target_phys_addr_t leaddr,
     qdev_connect_gpio_out(dma_opaque, 0, reset);
 }
 
-static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
-                                       target_phys_addr_t addrg,
+static DeviceState *slavio_intctl_init(hwaddr addr,
+                                       hwaddr addrg,
                                        qemu_irq **parent_irq)
 {
     DeviceState *dev;
@@ -455,7 +455,7 @@ static DeviceState *slavio_intctl_init(target_phys_addr_t addr,
 #define SYS_TIMER_OFFSET      0x10000ULL
 #define CPU_TIMER_OFFSET(cpu) (0x1000ULL * cpu)
 
-static void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
+static void slavio_timer_init_all(hwaddr addr, qemu_irq master_irq,
                                   qemu_irq *cpu_irqs, unsigned int num_cpus)
 {
     DeviceState *dev;
@@ -470,7 +470,7 @@ static void slavio_timer_init_all(target_phys_addr_t addr, qemu_irq master_irq,
     sysbus_mmio_map(s, 0, addr + SYS_TIMER_OFFSET);
 
     for (i = 0; i < MAX_CPUS; i++) {
-        sysbus_mmio_map(s, i + 1, addr + (target_phys_addr_t)CPU_TIMER_OFFSET(i));
+        sysbus_mmio_map(s, i + 1, addr + (hwaddr)CPU_TIMER_OFFSET(i));
         sysbus_connect_irq(s, i + 1, cpu_irqs[i]);
     }
 }
@@ -492,9 +492,9 @@ static Notifier slavio_system_powerdown_notifier = {
 #define MISC_MDM  0x01b00000
 #define MISC_SYS  0x01f00000
 
-static void slavio_misc_init(target_phys_addr_t base,
-                             target_phys_addr_t aux1_base,
-                             target_phys_addr_t aux2_base, qemu_irq irq,
+static void slavio_misc_init(hwaddr base,
+                             hwaddr aux1_base,
+                             hwaddr aux2_base, qemu_irq irq,
                              qemu_irq fdc_tc)
 {
     DeviceState *dev;
@@ -532,7 +532,7 @@ static void slavio_misc_init(target_phys_addr_t base,
     qemu_register_powerdown_notifier(&slavio_system_powerdown_notifier);
 }
 
-static void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
+static void ecc_init(hwaddr base, qemu_irq irq, uint32_t version)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -548,7 +548,7 @@ static void ecc_init(target_phys_addr_t base, qemu_irq irq, uint32_t version)
     }
 }
 
-static void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt)
+static void apc_init(hwaddr power_base, qemu_irq cpu_halt)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -561,7 +561,7 @@ static void apc_init(target_phys_addr_t power_base, qemu_irq cpu_halt)
     sysbus_connect_irq(s, 0, cpu_halt);
 }
 
-static void tcx_init(target_phys_addr_t addr, int vram_size, int width,
+static void tcx_init(hwaddr addr, int vram_size, int width,
                      int height, int depth)
 {
     DeviceState *dev;
@@ -597,7 +597,7 @@ static void tcx_init(target_phys_addr_t addr, int vram_size, int width,
 /* NCR89C100/MACIO Internal ID register */
 static const uint8_t idreg_data[] = { 0xfe, 0x81, 0x01, 0x03 };
 
-static void idreg_init(target_phys_addr_t addr)
+static void idreg_init(hwaddr addr)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -646,7 +646,7 @@ typedef struct AFXState {
 } AFXState;
 
 /* SS-5 TCX AFX register */
-static void afx_init(target_phys_addr_t addr)
+static void afx_init(hwaddr addr)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -690,11 +690,11 @@ typedef struct PROMState {
 /* Boot PROM (OpenBIOS) */
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
 {
-    target_phys_addr_t *base_addr = (target_phys_addr_t *)opaque;
+    hwaddr *base_addr = (hwaddr *)opaque;
     return addr + *base_addr - PROM_VADDR;
 }
 
-static void prom_init(target_phys_addr_t addr, const char *bios_name)
+static void prom_init(hwaddr addr, const char *bios_name)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -777,7 +777,7 @@ static int ram_init1(SysBusDevice *dev)
     return 0;
 }
 
-static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size,
+static void ram_init(hwaddr addr, ram_addr_t RAM_size,
                      uint64_t max_mem)
 {
     DeviceState *dev;
@@ -1544,7 +1544,7 @@ static const struct sun4d_hwdef sun4d_hwdefs[] = {
     },
 };
 
-static DeviceState *sbi_init(target_phys_addr_t addr, qemu_irq **parent_irq)
+static DeviceState *sbi_init(hwaddr addr, qemu_irq **parent_irq)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -1605,7 +1605,7 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
     }
 
     for (i = 0; i < MAX_IOUNITS; i++)
-        if (hwdef->iounit_bases[i] != (target_phys_addr_t)-1)
+        if (hwdef->iounit_bases[i] != (hwaddr)-1)
             iounits[i] = iommu_init(hwdef->iounit_bases[i],
                                     hwdef->iounit_version,
                                     sbi_irq[0]);
@@ -1744,7 +1744,7 @@ static const struct sun4c_hwdef sun4c_hwdefs[] = {
     },
 };
 
-static DeviceState *sun4c_intctl_init(target_phys_addr_t addr,
+static DeviceState *sun4c_intctl_init(hwaddr addr,
                                       qemu_irq *parent_irq)
 {
     DeviceState *dev;
@@ -1825,7 +1825,7 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
               slavio_irq[1], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);
 
-    if (hwdef->fd_base != (target_phys_addr_t)-1) {
+    if (hwdef->fd_base != (hwaddr)-1) {
         /* there is zero or one floppy drive */
         memset(fd, 0, sizeof(fd));
         fd[0] = drive_get(IF_FLOPPY, 0, 0);

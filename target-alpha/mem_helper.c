@@ -107,7 +107,7 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     cpu_loop_exit(env);
 }
 
-void cpu_unassigned_access(CPUAlphaState *env, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUAlphaState *env, hwaddr addr,
                            int is_write, int is_exec, int unused, int size)
 {
     env->trap_arg0 = addr;

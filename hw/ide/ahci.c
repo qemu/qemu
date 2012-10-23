@@ -174,7 +174,7 @@ static void ahci_trigger_irq(AHCIState *s, AHCIDevice *d,
 
 static void map_page(uint8_t **ptr, uint64_t addr, uint32_t wanted)
 {
-    target_phys_addr_t len = wanted;
+    hwaddr len = wanted;
 
     if (*ptr) {
         cpu_physical_memory_unmap(*ptr, len, 1, len);
@@ -279,7 +279,7 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     }
 }
 
-static uint64_t ahci_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ahci_mem_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     AHCIState *s = opaque;
@@ -317,7 +317,7 @@ static uint64_t ahci_mem_read(void *opaque, target_phys_addr_t addr,
 
 
 
-static void ahci_mem_write(void *opaque, target_phys_addr_t addr,
+static void ahci_mem_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     AHCIState *s = opaque;
@@ -373,7 +373,7 @@ static const MemoryRegionOps ahci_mem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t ahci_idp_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ahci_idp_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     AHCIState *s = opaque;
@@ -389,7 +389,7 @@ static uint64_t ahci_idp_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void ahci_idp_write(void *opaque, target_phys_addr_t addr,
+static void ahci_idp_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     AHCIState *s = opaque;
