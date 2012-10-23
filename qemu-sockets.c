@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "monitor.h"
 #include "qemu_socket.h"
 #include "qemu-common.h" /* for qemu_isdigit */
 #include "main-loop.h"
@@ -843,6 +844,104 @@ int unix_nonblocking_connect(const char *path,
     sock = unix_connect_opts(opts, errp, callback, opaque);
     qemu_opts_del(opts);
     return sock;
+}
+
+SocketAddress *socket_parse(const char *str, Error **errp)
+{
+    SocketAddress *addr = NULL;
+
+    addr = g_new(SocketAddress, 1);
+    if (strstart(str, "unix:", NULL)) {
+        if (str[5] == '\0') {
+            error_setg(errp, "invalid Unix socket address\n");
+            goto fail;
+        } else {
+            addr->kind = SOCKET_ADDRESS_KIND_UNIX;
+            addr->q_unix = g_new(UnixSocketAddress, 1);
+            addr->q_unix->path = g_strdup(str + 5);
+        }
+    } else if (strstart(str, "fd:", NULL)) {
+        if (str[3] == '\0') {
+            error_setg(errp, "invalid file descriptor address\n");
+            goto fail;
+        } else {
+            addr->kind = SOCKET_ADDRESS_KIND_FD;
+            addr->fd = g_new(String, 1);
+            addr->fd->str = g_strdup(str + 3);
+        }
+    } else {
+        addr->kind = SOCKET_ADDRESS_KIND_INET;
+        addr->inet = g_new(InetSocketAddress, 1);
+        addr->inet = inet_parse(str, errp);
+        if (addr->inet == NULL) {
+            goto fail;
+        }
+    }
+    return addr;
+
+fail:
+    qapi_free_SocketAddress(addr);
+    return NULL;
+}
+
+int socket_connect(SocketAddress *addr, Error **errp,
+                   NonBlockingConnectHandler *callback, void *opaque)
+{
+    QemuOpts *opts;
+    int fd;
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+    switch (addr->kind) {
+    case SOCKET_ADDRESS_KIND_INET:
+        inet_addr_to_opts(opts, addr->inet);
+        fd = inet_connect_opts(opts, errp, callback, opaque);
+        break;
+
+    case SOCKET_ADDRESS_KIND_UNIX:
+        qemu_opt_set(opts, "path", addr->q_unix->path);
+        fd = unix_connect_opts(opts, errp, callback, opaque);
+        break;
+
+    case SOCKET_ADDRESS_KIND_FD:
+        fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
+        if (callback) {
+            callback(fd, opaque);
+        }
+        break;
+
+    default:
+        abort();
+    }
+    qemu_opts_del(opts);
+    return fd;
+}
+
+int socket_listen(SocketAddress *addr, Error **errp)
+{
+    QemuOpts *opts;
+    int fd;
+
+    opts = qemu_opts_create(&dummy_opts, NULL, 0, NULL);
+    switch (addr->kind) {
+    case SOCKET_ADDRESS_KIND_INET:
+        inet_addr_to_opts(opts, addr->inet);
+        fd = inet_listen_opts(opts, 0, errp);
+        break;
+
+    case SOCKET_ADDRESS_KIND_UNIX:
+        qemu_opt_set(opts, "path", addr->q_unix->path);
+        fd = unix_listen_opts(opts, errp);
+        break;
+
+    case SOCKET_ADDRESS_KIND_FD:
+        fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
+        break;
+
+    default:
+        abort();
+    }
+    qemu_opts_del(opts);
+    return fd;
 }
 
 #ifdef _WIN32
