@@ -121,8 +121,6 @@ static inline void tlb_flush(CPUArchState *env, int flush_global)
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
-#define MIN_CODE_GEN_BUFFER_SIZE     (1024 * 1024)
-
 /* estimated block size for TB allocation */
 /* XXX: use a per code average code fragment size and modulate it
    according to the host CPU */
@@ -296,7 +294,8 @@ extern int tb_invalidated_flag;
 #if defined(CONFIG_TCG_INTERPRETER)
 /* Alpha and SH4 user mode emulations and Softmmu call GETPC().
    For all others, GETPC remains undefined (which makes TCI a little faster. */
-# if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4)
+# if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4) \
+     || defined(TARGET_SPARC)
 extern uintptr_t tci_tb_ptr;
 #  define GETPC() tci_tb_ptr
 # endif

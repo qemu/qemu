@@ -168,7 +168,8 @@ static uint64_t pl022_read(void *opaque, target_phys_addr_t offset,
         /* Not implemented.  */
         return 0;
     default:
-        hw_error("pl022_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl022_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -211,11 +212,12 @@ static void pl022_write(void *opaque, target_phys_addr_t offset,
         break;
     case 0x20: /* DMACR */
         if (value) {
-            hw_error("pl022: DMA not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "pl022: DMA not implemented\n");
         }
         break;
     default:
-        hw_error("pl022_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl022_write: Bad offset %x\n", (int)offset);
     }
 }
 

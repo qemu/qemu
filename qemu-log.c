@@ -116,6 +116,9 @@ const CPULogItem cpu_log_items[] = {
       "show all i/o ports accesses" },
     { LOG_UNIMP, "unimp",
       "log unimplemented functionality" },
+    { LOG_GUEST_ERROR, "guest_errors",
+      "log when the guest OS does something invalid (eg accessing a\n"
+      "non-existent register)" },
     { 0, NULL, NULL },
 };
 

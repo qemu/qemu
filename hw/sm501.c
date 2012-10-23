@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 #include "hw.h"
-#include "pc.h"
+#include "serial.h"
 #include "console.h"
 #include "devices.h"
 #include "sysbus.h"

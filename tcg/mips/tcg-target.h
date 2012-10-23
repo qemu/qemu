@@ -116,9 +116,6 @@ typedef enum {
 
 #define TCG_AREG0 TCG_REG_S0
 
-/* guest base is supported */
-#define TCG_TARGET_HAS_GUEST_BASE
-
 #ifdef __OpenBSD__
 #include <machine/sysarch.h>
 #else

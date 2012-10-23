@@ -20,7 +20,6 @@
 
 #include "cpu.h"
 #include "memory.h"
-#include "cputlb.h"
 #include "host-utils.h"
 #include "helper.h"
 #include <string.h>
@@ -81,7 +80,7 @@ int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
 #endif
 
     /* basic checks */
-    if (!memory_region_is_ram(phys_page_find(sccb >> TARGET_PAGE_BITS)->mr)) {
+    if (cpu_physical_memory_is_io(sccb)) {
         return -PGM_ADDRESSING;
     }
     if (sccb & ~0x7ffffff8ul) {

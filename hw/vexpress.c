@@ -467,25 +467,27 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     arm_load_kernel(arm_env_get_cpu(first_cpu), &vexpress_binfo);
 }
 
-static void vexpress_a9_init(ram_addr_t ram_size,
-                             const char *boot_device,
-                             const char *kernel_filename,
-                             const char *kernel_cmdline,
-                             const char *initrd_filename,
-                             const char *cpu_model)
+static void vexpress_a9_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     vexpress_common_init(&a9_daughterboard,
                          ram_size, boot_device, kernel_filename,
                          kernel_cmdline, initrd_filename, cpu_model);
 }
 
-static void vexpress_a15_init(ram_addr_t ram_size,
-                              const char *boot_device,
-                              const char *kernel_filename,
-                              const char *kernel_cmdline,
-                              const char *initrd_filename,
-                              const char *cpu_model)
+static void vexpress_a15_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     vexpress_common_init(&a15_daughterboard,
                          ram_size, boot_device, kernel_filename,
                          kernel_cmdline, initrd_filename, cpu_model);

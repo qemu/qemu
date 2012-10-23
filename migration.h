@@ -40,6 +40,9 @@ struct MigrationState
     void *opaque;
     MigrationParams params;
     int64_t total_time;
+    int64_t downtime;
+    int64_t expected_downtime;
+    int64_t dirty_pages_rate;
     bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
     int64_t xbzrle_cache_size;
 };
@@ -75,11 +78,18 @@ void migrate_fd_error(MigrationState *s);
 
 void migrate_fd_connect(MigrationState *s);
 
+ssize_t migrate_fd_put_buffer(MigrationState *s, const void *data,
+                              size_t size);
+void migrate_fd_put_ready(MigrationState *s);
+int migrate_fd_wait_for_unfreeze(MigrationState *s);
+int migrate_fd_close(MigrationState *s);
+
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);
 bool migration_is_active(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
+MigrationState *migrate_get_current(void);
 
 uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_transferred(void);

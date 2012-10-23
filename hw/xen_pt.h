@@ -209,6 +209,7 @@ struct XenPCIPassthroughState {
     MemoryRegion rom;
 
     MemoryListener memory_listener;
+    MemoryListener io_listener;
 };
 
 int xen_pt_config_init(XenPCIPassthroughState *s);

@@ -930,25 +930,6 @@ static int vfio_dma_map(VFIOContainer *container, target_phys_addr_t iova,
     return -errno;
 }
 
-static void vfio_listener_dummy1(MemoryListener *listener)
-{
-    /* We don't do batching (begin/commit) or care about logging */
-}
-
-static void vfio_listener_dummy2(MemoryListener *listener,
-                                 MemoryRegionSection *section)
-{
-    /* We don't do logging or care about nops */
-}
-
-static void vfio_listener_dummy3(MemoryListener *listener,
-                                 MemoryRegionSection *section,
-                                 bool match_data, uint64_t data,
-                                 EventNotifier *e)
-{
-    /* We don't care about eventfds */
-}
-
 static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 {
     return !memory_region_is_ram(section->mr);
@@ -1040,18 +1021,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
 }
 
 static MemoryListener vfio_memory_listener = {
-    .begin = vfio_listener_dummy1,
-    .commit = vfio_listener_dummy1,
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
-    .region_nop = vfio_listener_dummy2,
-    .log_start = vfio_listener_dummy2,
-    .log_stop = vfio_listener_dummy2,
-    .log_sync = vfio_listener_dummy2,
-    .log_global_start = vfio_listener_dummy1,
-    .log_global_stop = vfio_listener_dummy1,
-    .eventfd_add = vfio_listener_dummy3,
-    .eventfd_del = vfio_listener_dummy3,
 };
 
 static void vfio_listener_release(VFIOContainer *container)
@@ -1536,8 +1507,7 @@ static int vfio_connect_container(VFIOGroup *group)
         container->iommu_data.listener = vfio_memory_listener;
         container->iommu_data.release = vfio_listener_release;
 
-        memory_listener_register(&container->iommu_data.listener,
-                                 get_system_memory());
+        memory_listener_register(&container->iommu_data.listener, &address_space_memory);
     } else {
         error_report("vfio: No available IOMMU models\n");
         g_free(container);

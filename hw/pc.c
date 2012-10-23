@@ -23,6 +23,7 @@
  */
 #include "hw.h"
 #include "pc.h"
+#include "serial.h"
 #include "apic.h"
 #include "fdc.h"
 #include "ide.h"

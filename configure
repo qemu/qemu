@@ -199,7 +199,7 @@ cocoa="no"
 softmmu="yes"
 linux_user="no"
 bsd_user="no"
-guest_base=""
+guest_base="yes"
 uname_release=""
 mixemu="no"
 aix="no"
@@ -871,62 +871,35 @@ for opt do
   esac
 done
 
-host_guest_base="no"
 case "$cpu" in
     sparc)
            LDFLAGS="-m32 $LDFLAGS"
            QEMU_CFLAGS="-m32 -mcpu=ultrasparc $QEMU_CFLAGS"
-           host_guest_base="yes"
            ;;
     sparc64)
            LDFLAGS="-m64 $LDFLAGS"
            QEMU_CFLAGS="-m64 -mcpu=ultrasparc $QEMU_CFLAGS"
-           host_guest_base="yes"
            ;;
     s390)
            QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"
            LDFLAGS="-m31 $LDFLAGS"
-           host_guest_base="yes"
            ;;
     s390x)
            QEMU_CFLAGS="-m64 -march=z990 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
-           host_guest_base="yes"
            ;;
     i386)
            QEMU_CFLAGS="-m32 $QEMU_CFLAGS"
            LDFLAGS="-m32 $LDFLAGS"
            cc_i386='$(CC) -m32'
-           host_guest_base="yes"
            ;;
     x86_64)
            QEMU_CFLAGS="-m64 $QEMU_CFLAGS"
            LDFLAGS="-m64 $LDFLAGS"
            cc_i386='$(CC) -m32'
-           host_guest_base="yes"
            ;;
-    arm*)
-           host_guest_base="yes"
-           ;;
-    ppc*)
-           host_guest_base="yes"
-           ;;
-    mips*)
-           host_guest_base="yes"
-           ;;
-    ia64*)
-           host_guest_base="yes"
-           ;;
-    hppa*)
-           host_guest_base="yes"
-           ;;
-    unicore32*)
-           host_guest_base="yes"
-           ;;
+    # No special flags required for other host CPUs
 esac
-
-[ -z "$guest_base" ] && guest_base="$host_guest_base"
-
 
 default_target_list=""
 
@@ -1323,7 +1296,7 @@ if test -z "$cross_prefix" ; then
 # big/little endian test
 cat > $TMPC << EOF
 #include <inttypes.h>
-int main(int argc, char ** argv){
+int main(void) {
         volatile uint32_t i=0x01234567;
         return (*((uint8_t*)(&i))) == 0x67;
 }
@@ -2896,7 +2869,7 @@ static int sfaa(int *ptr)
   return __sync_fetch_and_and(ptr, 0);
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
   int val = 42;
   sfaa(&val);
@@ -3227,7 +3200,7 @@ echo "qemu_confdir=$qemu_confdir" >> $config_host_mak
 echo "qemu_datadir=$qemu_datadir" >> $config_host_mak
 echo "qemu_docdir=$qemu_docdir" >> $config_host_mak
 echo "qemu_localstatedir=$local_statedir" >> $config_host_mak
-echo "CONFIG_QEMU_HELPERDIR=\"$libexecdir\"" >> $config_host_mak
+echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then

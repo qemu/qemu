@@ -3638,8 +3638,13 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_init();
 
-    machine->init(ram_size, boot_devices,
-                  kernel_filename, kernel_cmdline, initrd_filename, cpu_model);
+    QEMUMachineInitArgs args = { .ram_size = ram_size,
+                                 .boot_device = boot_devices,
+                                 .kernel_filename = kernel_filename,
+                                 .kernel_cmdline = kernel_cmdline,
+                                 .initrd_filename = initrd_filename,
+                                 .cpu_model = cpu_model };
+    machine->init(&args);
 
     cpu_synchronize_all_post_init();
 

@@ -1,6 +1,8 @@
 /*
  * QEMU ISA VGA Emulator.
  *
+ * see docs/specs/standard-vga.txt for virtual hardware specs.
+ *
  * Copyright (c) 2003 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

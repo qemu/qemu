@@ -24,7 +24,7 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc405.h"
-#include "pc.h"
+#include "serial.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "qemu-log.h"

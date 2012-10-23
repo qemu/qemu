@@ -434,8 +434,7 @@ static void vhost_set_memory(MemoryListener *listener,
 
 static bool vhost_section(MemoryRegionSection *section)
 {
-    return section->address_space == get_system_memory()
-        && memory_region_is_ram(section->mr);
+    return memory_region_is_ram(section->mr);
 }
 
 static void vhost_begin(MemoryListener *listener)
@@ -793,7 +792,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, const char *devpath,
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
-    memory_listener_register(&hdev->memory_listener, NULL);
+    memory_listener_register(&hdev->memory_listener, &address_space_memory);
     hdev->force = force;
     return 0;
 fail:

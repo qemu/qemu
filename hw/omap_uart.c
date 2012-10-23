@@ -20,8 +20,7 @@
 #include "qemu-char.h"
 #include "hw.h"
 #include "omap.h"
-/* We use pc-style serial ports.  */
-#include "pc.h"
+#include "serial.h"
 #include "exec-memory.h"
 
 /* UARTs */

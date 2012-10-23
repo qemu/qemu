@@ -500,7 +500,6 @@ typedef struct RAMBlock {
 typedef struct RAMList {
     uint8_t *phys_dirty;
     QLIST_HEAD(, RAMBlock) blocks;
-    uint64_t dirty_pages;
 } RAMList;
 extern RAMList ram_list;
 
@@ -518,6 +517,7 @@ extern int mem_prealloc;
 #define TLB_MMIO        (1 << 5)
 
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
+ram_addr_t last_ram_offset(void);
 #endif /* !CONFIG_USER_ONLY */
 
 int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,

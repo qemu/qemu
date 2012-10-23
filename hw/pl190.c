@@ -143,7 +143,8 @@ static uint64_t pl190_read(void *opaque, target_phys_addr_t offset,
     case 13: /* DEFVECTADDR */
         return s->vect_addr[16];
     default:
-        hw_error("pl190_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl190_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -202,7 +203,8 @@ static void pl190_write(void *opaque, target_phys_addr_t offset,
         }
         break;
     default:
-        hw_error("pl190_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                     "pl190_write: Bad offset %x\n", (int)offset);
         return;
     }
     pl190_update(s);

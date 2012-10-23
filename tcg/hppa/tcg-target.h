@@ -103,8 +103,6 @@ typedef enum {
 #define TCG_TARGET_HAS_ext8u_i32        0 /* and rd, rs, 0xff */
 #define TCG_TARGET_HAS_ext16u_i32       0 /* and rd, rs, 0xffff */
 
-#define TCG_TARGET_HAS_GUEST_BASE
-
 #define TCG_AREG0 TCG_REG_R17
 
 

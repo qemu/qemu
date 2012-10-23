@@ -1397,21 +1397,27 @@ static struct arm_boot_info n810_binfo = {
     .atag_board = n810_atag_setup,
 };
 
-static void n800_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void n800_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     return n8x0_init(ram_size, boot_device,
                     kernel_filename, kernel_cmdline, initrd_filename,
                     cpu_model, &n800_binfo, 800);
 }
 
-static void n810_init(ram_addr_t ram_size,
-                const char *boot_device,
-                const char *kernel_filename, const char *kernel_cmdline,
-                const char *initrd_filename, const char *cpu_model)
+static void n810_init(QEMUMachineInitArgs *args)
 {
+    ram_addr_t ram_size = args->ram_size;
+    const char *cpu_model = args->cpu_model;
+    const char *kernel_filename = args->kernel_filename;
+    const char *kernel_cmdline = args->kernel_cmdline;
+    const char *initrd_filename = args->initrd_filename;
+    const char *boot_device = args->boot_device;
     return n8x0_init(ram_size, boot_device,
                     kernel_filename, kernel_cmdline, initrd_filename,
                     cpu_model, &n810_binfo, 810);
