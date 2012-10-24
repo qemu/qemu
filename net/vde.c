@@ -27,7 +27,6 @@
 
 #include "net.h"
 #include "clients.h"
-#include "qemu-char.h"
 #include "qemu-common.h"
 #include "qemu-option.h"
 

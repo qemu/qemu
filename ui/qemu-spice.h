@@ -24,7 +24,6 @@
 
 #include "qemu-option.h"
 #include "qemu-config.h"
-#include "qemu-char.h"
 #include "monitor.h"
 
 extern int using_spice;

@@ -1,7 +1,6 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include "qemu-char.h"
 #include "qemu-pixman.h"
 #include "qdict.h"
 #include "notify.h"

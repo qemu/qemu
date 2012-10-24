@@ -23,7 +23,6 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
 #include "qemu-log.h"
 #include "net.h"
 #include "net/checksum.h"

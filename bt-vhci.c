@@ -18,7 +18,6 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-char.h"
 #include "net.h"
 #include "hw/bt.h"
 #include "main-loop.h"

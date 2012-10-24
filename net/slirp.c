@@ -35,6 +35,7 @@
 #include "monitor.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"
+#include "qemu-char.h"
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {

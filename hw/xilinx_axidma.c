@@ -23,7 +23,6 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
 #include "qemu-timer.h"
 #include "ptimer.h"
 #include "qemu-log.h"

@@ -30,6 +30,7 @@
 #include "strongarm.h"
 #include "qemu-error.h"
 #include "arm-misc.h"
+#include "qemu-char.h"
 #include "sysemu.h"
 #include "ssi.h"
 

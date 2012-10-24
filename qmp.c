@@ -16,6 +16,7 @@
 #include "qemu-common.h"
 #include "sysemu.h"
 #include "qmp-commands.h"
+#include "qemu-char.h"
 #include "ui/qemu-spice.h"
 #include "ui/vnc.h"
 #include "kvm.h"

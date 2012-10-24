@@ -12,7 +12,6 @@
  *
  */
 
-#include "qemu-char.h"
 #include "fsdev/qemu-fsdev.h"
 #include "qemu-thread.h"
 #include "qemu-coroutine.h"
