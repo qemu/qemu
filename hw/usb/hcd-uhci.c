@@ -696,10 +696,6 @@ static USBDevice *uhci_find_device(UHCIState *s, uint8_t addr)
 static void uhci_async_complete(USBPort *port, USBPacket *packet);
 static void uhci_process_frame(UHCIState *s);
 
-/* return -1 if fatal error (frame must be stopped)
-          0 if TD successful
-          1 if TD unsuccessful or inactive
-*/
 static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_t *int_mask)
 {
     int len = 0, max_len, err, ret;
@@ -742,60 +738,40 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
 
 out:
     switch(ret) {
+    case USB_RET_NAK:
+        td->ctrl |= TD_CTRL_NAK;
+        return TD_RESULT_NEXT_QH;
+
     case USB_RET_STALL:
         td->ctrl |= TD_CTRL_STALL;
-        td->ctrl &= ~TD_CTRL_ACTIVE;
-        s->status |= UHCI_STS_USBERR;
-        if (td->ctrl & TD_CTRL_IOC) {
-            *int_mask |= 0x01;
-        }
-        uhci_update_irq(s);
         trace_usb_uhci_packet_complete_stall(async->queue->token, async->td);
-        return TD_RESULT_NEXT_QH;
+        err = TD_RESULT_NEXT_QH;
+        break;
 
     case USB_RET_BABBLE:
         td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
-        td->ctrl &= ~TD_CTRL_ACTIVE;
-        s->status |= UHCI_STS_USBERR;
-        if (td->ctrl & TD_CTRL_IOC) {
-            *int_mask |= 0x01;
-        }
-        uhci_update_irq(s);
         /* frame interrupted */
         trace_usb_uhci_packet_complete_babble(async->queue->token, async->td);
-        return TD_RESULT_STOP_FRAME;
-
-    case USB_RET_NAK:
-        td->ctrl |= TD_CTRL_NAK;
-        if (pid == USB_TOKEN_SETUP)
-            break;
-        return TD_RESULT_NEXT_QH;
+        err = TD_RESULT_STOP_FRAME;
+        break;
 
     case USB_RET_IOERROR:
     case USB_RET_NODEV:
     default:
-	break;
+        td->ctrl |= TD_CTRL_TIMEOUT;
+        td->ctrl &= ~(3 << TD_CTRL_ERROR_SHIFT);
+        trace_usb_uhci_packet_complete_error(async->queue->token, async->td);
+        err = TD_RESULT_NEXT_QH;
+        break;
     }
 
-    /* Retry the TD if error count is not zero */
-
-    td->ctrl |= TD_CTRL_TIMEOUT;
-    err = (td->ctrl >> TD_CTRL_ERROR_SHIFT) & 3;
-    if (err != 0) {
-        err--;
-        if (err == 0) {
-            td->ctrl &= ~TD_CTRL_ACTIVE;
-            s->status |= UHCI_STS_USBERR;
-            if (td->ctrl & TD_CTRL_IOC)
-                *int_mask |= 0x01;
-            uhci_update_irq(s);
-            trace_usb_uhci_packet_complete_error(async->queue->token,
-                                                 async->td);
-        }
+    td->ctrl &= ~TD_CTRL_ACTIVE;
+    s->status |= UHCI_STS_USBERR;
+    if (td->ctrl & TD_CTRL_IOC) {
+        *int_mask |= 0x01;
     }
-    td->ctrl = (td->ctrl & ~(3 << TD_CTRL_ERROR_SHIFT)) |
-        (err << TD_CTRL_ERROR_SHIFT);
-    return TD_RESULT_NEXT_QH;
+    uhci_update_irq(s);
+    return err;
 }
 
 static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
