@@ -627,7 +627,7 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     dev = usb_find_device(&s->port, ep->faddr[idx]);
     uep = usb_ep_get(dev, pid, ep->type[idx] & 0xf);
     usb_packet_setup(&ep->packey[dir].p, pid, uep,
-                     (dev->addr << 16) | (uep->nr << 8) | pid);
+                     (dev->addr << 16) | (uep->nr << 8) | pid, false);
     usb_packet_addbuf(&ep->packey[dir].p, ep->buf[idx], len);
     ep->packey[dir].ep = ep;
     ep->packey[dir].dir = dir;

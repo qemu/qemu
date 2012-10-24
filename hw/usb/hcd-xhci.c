@@ -1446,7 +1446,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         ep = usb_ep_get(dev, dir, xfer->epid >> 1);
     }
 
-    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr);
+    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr, false);
     xhci_xfer_map(xfer);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
             xfer->packet.pid, dev->addr, ep->nr);

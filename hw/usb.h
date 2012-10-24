@@ -351,6 +351,7 @@ struct USBPacket {
     USBEndpoint *ep;
     QEMUIOVector iov;
     uint64_t parameter; /* control transfers */
+    bool short_not_ok;
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
     USBPacketState state;
@@ -360,7 +361,8 @@ struct USBPacket {
 void usb_packet_init(USBPacket *p);
 void usb_packet_set_state(USBPacket *p, USBPacketState state);
 void usb_packet_check_state(USBPacket *p, USBPacketState expected);
-void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id);
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id,
+                      bool short_not_ok);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_unmap(USBPacket *p, QEMUSGList *sgl);

@@ -808,6 +808,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
     UHCIAsync *async;
     int len = 0, max_len;
     uint8_t pid;
+    bool spd;
     USBDevice *dev;
     USBEndpoint *ep;
 
@@ -852,13 +853,14 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
+    spd = (pid == USB_TOKEN_IN && (td->ctrl & TD_CTRL_SPD) != 0);
 
     dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
     ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
     if (ep_ret) {
         *ep_ret = ep;
     }
-    usb_packet_setup(&async->packet, pid, ep, addr);
+    usb_packet_setup(&async->packet, pid, ep, addr, spd);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
 
@@ -985,8 +987,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td, struct USBEndpoint *ep)
     UHCI_TD ptd;
     int ret;
 
-    ptd.ctrl = td->ctrl;
-    while (is_valid(plink) && !(ptd.ctrl & TD_CTRL_SPD)) {
+    while (is_valid(plink)) {
         pci_dma_read(&s->dev, plink & ~0xf, &ptd, sizeof(ptd));
         le32_to_cpus(&ptd.link);
         le32_to_cpus(&ptd.ctrl);
