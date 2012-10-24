@@ -236,6 +236,7 @@ static void uhci_async_cancel(UHCIAsync *async)
     trace_usb_uhci_packet_cancel(async->queue->token, async->td, async->done);
     if (!async->done)
         usb_cancel_packet(&async->packet);
+    usb_packet_unmap(&async->packet, &async->sgl);
     uhci_async_free(async);
 }
 
@@ -887,6 +888,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
 
     default:
         /* invalid pid : frame interrupted */
+        usb_packet_unmap(&async->packet, &async->sgl);
         uhci_async_free(async);
         s->status |= UHCI_STS_HCPERR;
         uhci_update_irq(s);
