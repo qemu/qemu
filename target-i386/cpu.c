@@ -74,6 +74,7 @@ static const char *ext2_feature_name[] = {
     NULL /* pat */, NULL /* pse36 */, NULL, NULL /* Linux mp */,
     "nx|xd", NULL, "mmxext", NULL /* mmx */,
     NULL /* fxsr */, "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
+    NULL, "lm|i64", "3dnowext", "3dnow",
 };
 static const char *ext3_feature_name[] = {
     "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
