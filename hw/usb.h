@@ -38,12 +38,13 @@
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
 
-#define USB_RET_NODEV   (-1)
-#define USB_RET_NAK     (-2)
-#define USB_RET_STALL   (-3)
-#define USB_RET_BABBLE  (-4)
-#define USB_RET_IOERROR (-5)
-#define USB_RET_ASYNC   (-6)
+#define USB_RET_NODEV             (-1)
+#define USB_RET_NAK               (-2)
+#define USB_RET_STALL             (-3)
+#define USB_RET_BABBLE            (-4)
+#define USB_RET_IOERROR           (-5)
+#define USB_RET_ASYNC             (-6)
+#define USB_RET_ADD_TO_QUEUE      (-7)
 
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1
@@ -293,6 +294,12 @@ typedef struct USBDeviceClass {
     void (*set_interface)(USBDevice *dev, int interface,
                           int alt_old, int alt_new);
 
+    /*
+     * Called when the hcd is done queuing packets for an endpoint, only
+     * necessary for devices which can return USB_RET_ADD_TO_QUEUE.
+     */
+    void (*flush_ep_queue)(USBDevice *dev, USBEndpoint *ep);
+
     const char *product_desc;
     const USBDesc *usb_desc;
 } USBDeviceClass;
@@ -506,6 +513,8 @@ int usb_device_handle_data(USBDevice *dev, USBPacket *p);
 
 void usb_device_set_interface(USBDevice *dev, int interface,
                               int alt_old, int alt_new);
+
+void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep);
 
 const char *usb_device_get_product_desc(USBDevice *dev);
 

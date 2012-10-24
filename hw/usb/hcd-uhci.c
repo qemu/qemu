@@ -818,7 +818,8 @@ out:
 }
 
 static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
-                          uint32_t *int_mask, bool queuing)
+                          uint32_t *int_mask, bool queuing,
+                          struct USBEndpoint **ep_ret)
 {
     UHCIAsync *async;
     int len = 0, max_len;
@@ -870,6 +871,9 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
 
     dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
     ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
+    if (ep_ret) {
+        *ep_ret = ep;
+    }
     usb_packet_setup(&async->packet, pid, ep, addr);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
@@ -983,7 +987,7 @@ static int qhdb_insert(QhDb *db, uint32_t addr)
     return 0;
 }
 
-static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
+static void uhci_fill_queue(UHCIState *s, UHCI_TD *td, struct USBEndpoint *ep)
 {
     uint32_t int_mask = 0;
     uint32_t plink = td->link;
@@ -1005,7 +1009,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
             break;
         }
         trace_usb_uhci_td_queue(plink & ~0xf, ptd.ctrl, ptd.token);
-        ret = uhci_handle_td(s, plink, &ptd, &int_mask, true);
+        ret = uhci_handle_td(s, plink, &ptd, &int_mask, true, NULL);
         if (ret == TD_RESULT_ASYNC_CONT) {
             break;
         }
@@ -1013,12 +1017,14 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
         assert(int_mask == 0);
         plink = ptd.link;
     }
+    usb_device_flush_ep_queue(ep->dev, ep);
 }
 
 static void uhci_process_frame(UHCIState *s)
 {
     uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
     uint32_t curr_qh, td_count = 0;
+    struct USBEndpoint *curr_ep;
     int cnt, ret;
     UHCI_TD td;
     UHCI_QH qh;
@@ -1089,7 +1095,7 @@ static void uhci_process_frame(UHCIState *s)
         trace_usb_uhci_td_load(curr_qh & ~0xf, link & ~0xf, td.ctrl, td.token);
 
         old_td_ctrl = td.ctrl;
-        ret = uhci_handle_td(s, link, &td, &int_mask, false);
+        ret = uhci_handle_td(s, link, &td, &int_mask, false, &curr_ep);
         if (old_td_ctrl != td.ctrl) {
             /* update the status bits of the TD */
             val = cpu_to_le32(td.ctrl);
@@ -1108,7 +1114,7 @@ static void uhci_process_frame(UHCIState *s)
 
         case TD_RESULT_ASYNC_START:
             trace_usb_uhci_td_async(curr_qh & ~0xf, link & ~0xf);
-            uhci_fill_queue(s, &td);
+            uhci_fill_queue(s, &td, curr_ep);
             link = curr_qh ? qh.link : td.link;
             continue;
 

@@ -1652,6 +1652,7 @@ static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid)
 {
     XHCIEPContext *epctx;
+    USBEndpoint *ep = NULL;
     uint64_t mfindex;
     int length;
     int i;
@@ -1745,12 +1746,14 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
         if (epid == 1) {
             if (xhci_fire_ctl_transfer(xhci, xfer) >= 0) {
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
+                ep = xfer->packet.ep;
             } else {
                 fprintf(stderr, "xhci: error firing CTL transfer\n");
             }
         } else {
             if (xhci_fire_transfer(xhci, xfer, epctx) >= 0) {
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
+                ep = xfer->packet.ep;
             } else {
                 if (!xfer->iso_xfer) {
                     fprintf(stderr, "xhci: error firing data transfer\n");
@@ -1766,6 +1769,9 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             epctx->retry = xfer;
             break;
         }
+    }
+    if (ep) {
+        usb_device_flush_ep_queue(ep->dev, ep);
     }
 }
 

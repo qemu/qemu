@@ -635,6 +635,7 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ret = usb_handle_packet(dev, &ep->packey[dir].p);
 
     if (ret == USB_RET_ASYNC) {
+        usb_device_flush_ep_queue(dev, uep);
         ep->status[dir] = len;
         return;
     }

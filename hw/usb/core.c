@@ -393,6 +393,10 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
         if (ret == USB_RET_ASYNC) {
             usb_packet_set_state(p, USB_PACKET_ASYNC);
             QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
+        } else if (ret == USB_RET_ADD_TO_QUEUE) {
+            usb_packet_set_state(p, USB_PACKET_QUEUED);
+            QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
+            ret = USB_RET_ASYNC;
         } else {
             /*
              * When pipelining is enabled usb-devices must always return async,

@@ -2072,6 +2072,7 @@ static int ehci_state_horizqh(EHCIQueue *q)
 
 static int ehci_fill_queue(EHCIPacket *p)
 {
+    USBEndpoint *ep = p->packet.ep;
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
     uint32_t qtdaddr, start_addr = p->qtdaddr;
@@ -2106,6 +2107,9 @@ static int ehci_fill_queue(EHCIPacket *p)
         }
         assert(p->usb_status == USB_RET_ASYNC);
         p->async = EHCI_ASYNC_INFLIGHT;
+    }
+    if (p->usb_status != USB_RET_PROCERR) {
+        usb_device_flush_ep_queue(ep->dev, ep);
     }
     return p->usb_status;
 }

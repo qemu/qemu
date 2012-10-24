@@ -816,6 +816,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
         ret = usb_handle_packet(dev, &ohci->usb_packet);
         if (ret == USB_RET_ASYNC) {
+            usb_device_flush_ep_queue(dev, ep);
             return 1;
         }
     }
@@ -1018,6 +1019,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         DPRINTF("ret=%d\n", ret);
 #endif
         if (ret == USB_RET_ASYNC) {
+            usb_device_flush_ep_queue(dev, ep);
             ohci->async_td = addr;
             return 1;
         }
