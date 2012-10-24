@@ -183,6 +183,9 @@ static UHCIQueue *uhci_queue_new(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
     queue->ep = ep;
     QTAILQ_INIT(&queue->asyncs);
     QTAILQ_INSERT_HEAD(&s->queues, queue, next);
+    /* valid needs to be large enough to handle 10 frame delay
+     * for initial isochronous requests */
+    queue->valid = 32;
     trace_usb_uhci_queue_add(queue->token);
     return queue;
 }
@@ -819,6 +822,10 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
         }
     }
 
+    if (q) {
+        q->valid = 32;
+    }
+
     /* Is active ? */
     if (!(td->ctrl & TD_CTRL_ACTIVE)) {
         if (async) {
@@ -836,9 +843,6 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     }
 
     if (async) {
-        /* Already submitted */
-        async->queue->valid = 32;
-
         if (!async->done)
             return TD_RESULT_ASYNC_CONT;
         if (queuing) {
@@ -859,11 +863,6 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
         q = uhci_queue_new(s, qh_addr, td, ep);
     }
     async = uhci_async_alloc(q, td_addr);
-
-    /* valid needs to be large enough to handle 10 frame delay
-     * for initial isochronous requests
-     */
-    async->queue->valid = 32;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     spd = (pid == USB_TOKEN_IN && (td->ctrl & TD_CTRL_SPD) != 0);
