@@ -1009,9 +1009,6 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
                               uint32_t state)
 {
     uint32_t ctx[5];
-    if (epctx->state == state) {
-        return;
-    }
 
     pci_dma_read(&xhci->pci_dev, epctx->pctx, ctx, sizeof(ctx));
     ctx[0] &= ~EP_STATE_MASK;
