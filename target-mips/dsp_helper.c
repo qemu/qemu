@@ -3167,6 +3167,239 @@ BIT_INSV(dinsv, 0x7F, 0x3F, target_long);
 #undef BIT_INSV
 
 
+/** DSP Compare-Pick Sub-class insns **/
+#define CMP_HAS_RET(name, func, split_num, filter, bit_size) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt) \
+{                                                       \
+    uint32_t rs_t, rt_t;                                \
+    uint8_t cc;                                         \
+    uint32_t temp = 0;                                  \
+    int i;                                              \
+                                                        \
+    for (i = 0; i < split_num; i++) {                   \
+        rs_t = (rs >> (bit_size * i)) & filter;         \
+        rt_t = (rt >> (bit_size * i)) & filter;         \
+        cc = mipsdsp_##func(rs_t, rt_t);                \
+        temp |= cc << i;                                \
+    }                                                   \
+                                                        \
+    return (target_ulong)temp;                          \
+}
+
+CMP_HAS_RET(cmpgu_eq_qb, cmpu_eq, 4, MIPSDSP_Q0, 8);
+CMP_HAS_RET(cmpgu_lt_qb, cmpu_lt, 4, MIPSDSP_Q0, 8);
+CMP_HAS_RET(cmpgu_le_qb, cmpu_le, 4, MIPSDSP_Q0, 8);
+
+#ifdef TARGET_MIPS64
+CMP_HAS_RET(cmpgu_eq_ob, cmpu_eq, 8, MIPSDSP_Q0, 8);
+CMP_HAS_RET(cmpgu_lt_ob, cmpu_lt, 8, MIPSDSP_Q0, 8);
+CMP_HAS_RET(cmpgu_le_ob, cmpu_le, 8, MIPSDSP_Q0, 8);
+#endif
+
+#undef CMP_HAS_RET
+
+
+#define CMP_NO_RET(name, func, split_num, filter, bit_size) \
+void helper_##name(target_ulong rs, target_ulong rt,        \
+                            CPUMIPSState *env)              \
+{                                                           \
+    int##bit_size##_t rs_t, rt_t;                           \
+    int##bit_size##_t flag = 0;                             \
+    int##bit_size##_t cc;                                   \
+    int i;                                                  \
+                                                            \
+    for (i = 0; i < split_num; i++) {                       \
+        rs_t = (rs >> (bit_size * i)) & filter;             \
+        rt_t = (rt >> (bit_size * i)) & filter;             \
+                                                            \
+        cc = mipsdsp_##func((int32_t)rs_t, (int32_t)rt_t);  \
+        flag |= cc << i;                                    \
+    }                                                       \
+                                                            \
+    set_DSPControl_24(flag, split_num, env);                \
+}
+
+CMP_NO_RET(cmpu_eq_qb, cmpu_eq, 4, MIPSDSP_Q0, 8);
+CMP_NO_RET(cmpu_lt_qb, cmpu_lt, 4, MIPSDSP_Q0, 8);
+CMP_NO_RET(cmpu_le_qb, cmpu_le, 4, MIPSDSP_Q0, 8);
+
+CMP_NO_RET(cmp_eq_ph, cmp_eq, 2, MIPSDSP_LO, 16);
+CMP_NO_RET(cmp_lt_ph, cmp_lt, 2, MIPSDSP_LO, 16);
+CMP_NO_RET(cmp_le_ph, cmp_le, 2, MIPSDSP_LO, 16);
+
+#ifdef TARGET_MIPS64
+CMP_NO_RET(cmpu_eq_ob, cmpu_eq, 8, MIPSDSP_Q0, 8);
+CMP_NO_RET(cmpu_lt_ob, cmpu_lt, 8, MIPSDSP_Q0, 8);
+CMP_NO_RET(cmpu_le_ob, cmpu_le, 8, MIPSDSP_Q0, 8);
+
+CMP_NO_RET(cmp_eq_qh, cmp_eq, 4, MIPSDSP_LO, 16);
+CMP_NO_RET(cmp_lt_qh, cmp_lt, 4, MIPSDSP_LO, 16);
+CMP_NO_RET(cmp_le_qh, cmp_le, 4, MIPSDSP_LO, 16);
+
+CMP_NO_RET(cmp_eq_pw, cmp_eq, 2, MIPSDSP_LLO, 32);
+CMP_NO_RET(cmp_lt_pw, cmp_lt, 2, MIPSDSP_LLO, 32);
+CMP_NO_RET(cmp_le_pw, cmp_le, 2, MIPSDSP_LLO, 32);
+#endif
+#undef CMP_NO_RET
+
+#if defined(TARGET_MIPS64)
+
+#define CMPGDU_OB(name) \
+target_ulong helper_cmpgdu_##name##_ob(target_ulong rs, target_ulong rt, \
+                                       CPUMIPSState *env)  \
+{                                                     \
+    int i;                                            \
+    uint8_t rs_t, rt_t;                               \
+    uint32_t cond;                                    \
+                                                      \
+    cond = 0;                                         \
+                                                      \
+    for (i = 0; i < 8; i++) {                         \
+        rs_t = (rs >> (8 * i)) & MIPSDSP_Q0;          \
+        rt_t = (rt >> (8 * i)) & MIPSDSP_Q0;          \
+                                                      \
+        if (mipsdsp_cmpu_##name(rs_t, rt_t)) {        \
+            cond |= 0x01 << i;                        \
+        }                                             \
+    }                                                 \
+                                                      \
+    set_DSPControl_24(cond, 8, env);                  \
+                                                      \
+    return (uint64_t)cond;                            \
+}
+
+CMPGDU_OB(eq)
+CMPGDU_OB(lt)
+CMPGDU_OB(le)
+#undef CMPGDU_OB
+#endif
+
+#define PICK_INSN(name, split_num, filter, bit_size, ret32bit) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt,   \
+                            CPUMIPSState *env)                 \
+{                                                              \
+    uint32_t rs_t, rt_t;                                       \
+    uint32_t cc;                                               \
+    target_ulong dsp;                                          \
+    int i;                                                     \
+    target_ulong result = 0;                                   \
+                                                               \
+    dsp = env->active_tc.DSPControl;                           \
+    for (i = 0; i < split_num; i++) {                          \
+        rs_t = (rs >> (bit_size * i)) & filter;                \
+        rt_t = (rt >> (bit_size * i)) & filter;                \
+        cc = (dsp >> (24 + i)) & 0x01;                         \
+        cc = cc == 1 ? rs_t : rt_t;                            \
+                                                               \
+        result |= (target_ulong)cc << (bit_size * i);          \
+    }                                                          \
+                                                               \
+    if (ret32bit) {                                            \
+        result = (target_long)(int32_t)(result & MIPSDSP_LLO); \
+    }                                                          \
+                                                               \
+    return result;                                             \
+}
+
+PICK_INSN(pick_qb, 4, MIPSDSP_Q0, 8, 1);
+PICK_INSN(pick_ph, 2, MIPSDSP_LO, 16, 1);
+
+#ifdef TARGET_MIPS64
+PICK_INSN(pick_ob, 8, MIPSDSP_Q0, 8, 0);
+PICK_INSN(pick_qh, 4, MIPSDSP_LO, 16, 0);
+PICK_INSN(pick_pw, 2, MIPSDSP_LLO, 32, 0);
+#endif
+#undef PICK_INSN
+
+#define APPEND_INSN(name, ret_32) \
+target_ulong helper_##name(target_ulong rt, target_ulong rs, uint32_t sa) \
+{                                                                         \
+    target_ulong temp;                                                    \
+                                                                          \
+    if (ret_32) {                                                         \
+        temp = ((rt & MIPSDSP_LLO) << sa) |                               \
+               ((rs & MIPSDSP_LLO) & ((0x01 << sa) - 1));                 \
+        temp = (target_long)(int32_t)(temp & MIPSDSP_LLO);                \
+    } else {                                                              \
+        temp = (rt << sa) | (rs & ((0x01 << sa) - 1));                    \
+    }                                                                     \
+                                                                          \
+    return temp;                                                          \
+}
+
+APPEND_INSN(append, 1);
+#ifdef TARGET_MIPS64
+APPEND_INSN(dappend, 0);
+#endif
+#undef APPEND_INSN
+
+#define PREPEND_INSN(name, or_val, ret_32)                    \
+target_ulong helper_##name(target_ulong rs, target_ulong rt,  \
+                           uint32_t sa)                       \
+{                                                             \
+    sa |= or_val;                                             \
+                                                              \
+    if (1) {                                                  \
+        return (target_long)(int32_t)(uint32_t)               \
+            (((rs & MIPSDSP_LLO) << (32 - sa)) |              \
+             ((rt & MIPSDSP_LLO) >> sa));                     \
+    } else {                                                  \
+        return (rs << (64 - sa)) | (rt >> sa);                \
+    }                                                         \
+}
+
+PREPEND_INSN(prepend, 0, 1);
+#ifdef TARGET_MIPS64
+PREPEND_INSN(prependw, 0, 0);
+PREPEND_INSN(prependd, 0x20, 0);
+#endif
+#undef PREPEND_INSN
+
+#define BALIGN_INSN(name, filter, ret32) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt, uint32_t bp) \
+{                                                                         \
+    bp = bp & 0x03;                                                       \
+                                                                          \
+    if ((bp & 1) == 0) {                                                  \
+        return rt;                                                        \
+    } else {                                                              \
+        if (ret32) {                                                      \
+            return (target_long)(int32_t)((rt << (8 * bp)) |              \
+                                          (rs >> (8 * (4 - bp))));        \
+        } else {                                                          \
+            return (rt << (8 * bp)) | (rs >> (8 * (8 - bp)));             \
+        }                                                                 \
+    }                                                                     \
+}
+
+BALIGN_INSN(balign, 0x03, 1);
+#if defined(TARGET_MIPS64)
+BALIGN_INSN(dbalign, 0x07, 0);
+#endif
+#undef BALIGN_INSN
+
+target_ulong helper_packrl_ph(target_ulong rs, target_ulong rt)
+{
+    uint32_t rsl, rth;
+
+    rsl =  rs & MIPSDSP_LO;
+    rth = (rt & MIPSDSP_HI) >> 16;
+
+    return (target_long)(int32_t)((rsl << 16) | rth);
+}
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_packrl_pw(target_ulong rs, target_ulong rt)
+{
+    uint32_t rs0, rt1;
+
+    rs0 = rs & MIPSDSP_LLO;
+    rt1 = (rt >> 32) & MIPSDSP_LLO;
+
+    return ((uint64_t)rs0 << 32) | (uint64_t)rt1;
+}
+#endif
+
 #undef MIPSDSP_LHI
 #undef MIPSDSP_LLO
 #undef MIPSDSP_HI

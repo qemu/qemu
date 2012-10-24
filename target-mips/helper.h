@@ -624,4 +624,56 @@ DEF_HELPER_FLAGS_3(insv, 0, tl, env, tl, tl)
 DEF_HELPER_FLAGS_3(dinsv, 0, tl, env, tl, tl);
 #endif
 
+/* DSP Compare-Pick Sub-class insns */
+DEF_HELPER_FLAGS_3(cmpu_eq_qb, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpu_lt_qb, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpu_le_qb, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_2(cmpgu_eq_qb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(cmpgu_lt_qb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(cmpgu_le_qb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_3(cmp_eq_ph, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_lt_ph, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_le_ph, 0, void, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(cmpu_eq_ob, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpu_lt_ob, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpu_le_ob, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpgdu_eq_ob, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpgdu_lt_ob, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmpgdu_le_ob, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_2(cmpgu_eq_ob, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(cmpgu_lt_ob, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(cmpgu_le_ob, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_3(cmp_eq_qh, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_lt_qh, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_le_qh, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_eq_pw, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_lt_pw, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_3(cmp_le_pw, 0, void, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(pick_qb, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(pick_ph, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(pick_ob, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(pick_qh, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(pick_pw, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(append, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dappend, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+#endif
+DEF_HELPER_FLAGS_3(prepend, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(prependd, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+DEF_HELPER_FLAGS_3(prependw, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+#endif
+DEF_HELPER_FLAGS_3(balign, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dbalign, TCG_CALL_NO_RWG_SE, tl, tl, tl, i32)
+#endif
+DEF_HELPER_FLAGS_2(packrl_ph, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_2(packrl_pw, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#endif
+
 #include "def-helper.h"

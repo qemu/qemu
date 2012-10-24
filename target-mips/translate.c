@@ -348,6 +348,11 @@ enum {
 #if defined(TARGET_MIPS64)
     OPC_DINSV_DSP      = 0x0D | OPC_SPECIAL3,
 #endif
+    /* MIPS DSP Compare-Pick Sub-class */
+    OPC_APPEND_DSP     = 0x31 | OPC_SPECIAL3,
+#if defined(TARGET_MIPS64)
+    OPC_DAPPEND_DSP    = 0x35 | OPC_SPECIAL3,
+#endif
 };
 
 /* BSHFL opcodes */
@@ -473,6 +478,22 @@ enum {
     OPC_PRECRQ_PH_W      = (0x14 << 6) | OPC_CMPU_EQ_QB_DSP,
     OPC_PRECRQ_RS_PH_W   = (0x15 << 6) | OPC_CMPU_EQ_QB_DSP,
     OPC_PRECRQU_S_QB_PH  = (0x0F << 6) | OPC_CMPU_EQ_QB_DSP,
+    /* DSP Compare-Pick Sub-class */
+    OPC_CMPU_EQ_QB       = (0x00 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPU_LT_QB       = (0x01 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPU_LE_QB       = (0x02 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPGU_EQ_QB      = (0x04 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPGU_LT_QB      = (0x05 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPGU_LE_QB      = (0x06 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPGDU_EQ_QB     = (0x18 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPGDU_LT_QB     = (0x19 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMPGDU_LE_QB     = (0x1A << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMP_EQ_PH        = (0x08 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMP_LT_PH        = (0x09 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_CMP_LE_PH        = (0x0A << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_PICK_QB          = (0x03 << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_PICK_PH          = (0x0B << 6) | OPC_CMPU_EQ_QB_DSP,
+    OPC_PACKRL_PH        = (0x0E << 6) | OPC_CMPU_EQ_QB_DSP,
 };
 
 #define MASK_SHLL_QB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
@@ -533,6 +554,14 @@ enum {
 enum {
     /* DSP Bit/Manipulation Sub-class */
     OPC_INSV = (0x00 << 6) | OPC_INSV_DSP,
+};
+
+#define MASK_APPEND(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+enum {
+    /* MIPS DSP Compare-Pick Sub-class */
+    OPC_APPEND  = (0x00 << 6) | OPC_APPEND_DSP,
+    OPC_PREPEND = (0x01 << 6) | OPC_APPEND_DSP,
+    OPC_BALIGN  = (0x10 << 6) | OPC_APPEND_DSP,
 };
 
 #if defined(TARGET_MIPS64)
@@ -603,6 +632,26 @@ enum {
 #if defined(TARGET_MIPS64)
 #define MASK_CMPU_EQ_OB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
+    /* DSP Compare-Pick Sub-class */
+    OPC_CMP_EQ_PW         = (0x10 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMP_LT_PW         = (0x11 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMP_LE_PW         = (0x12 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMP_EQ_QH         = (0x08 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMP_LT_QH         = (0x09 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMP_LE_QH         = (0x0A << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPGDU_EQ_OB      = (0x18 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPGDU_LT_OB      = (0x19 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPGDU_LE_OB      = (0x1A << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPGU_EQ_OB       = (0x04 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPGU_LT_OB       = (0x05 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPGU_LE_OB       = (0x06 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPU_EQ_OB        = (0x00 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPU_LT_OB        = (0x01 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_CMPU_LE_OB        = (0x02 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_PACKRL_PW         = (0x0E << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_PICK_OB           = (0x03 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_PICK_PW           = (0x13 << 6) | OPC_CMPU_EQ_OB_DSP,
+    OPC_PICK_QH           = (0x0B << 6) | OPC_CMPU_EQ_OB_DSP,
     /* MIPS DSP Arithmetic Sub-class */
     OPC_PRECR_OB_QH       = (0x0D << 6) | OPC_CMPU_EQ_OB_DSP,
     OPC_PRECR_SRA_QH_PW   = (0x1E << 6) | OPC_CMPU_EQ_OB_DSP,
@@ -612,6 +661,17 @@ enum {
     OPC_PRECRQ_QH_PW      = (0x14 << 6) | OPC_CMPU_EQ_OB_DSP,
     OPC_PRECRQ_RS_QH_PW   = (0x15 << 6) | OPC_CMPU_EQ_OB_DSP,
     OPC_PRECRQU_S_OB_QH   = (0x0F << 6) | OPC_CMPU_EQ_OB_DSP,
+};
+#endif
+
+#if defined(TARGET_MIPS64)
+#define MASK_DAPPEND(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+enum {
+    /* DSP Compare-Pick Sub-class */
+    OPC_DAPPEND  = (0x00 << 6) | OPC_DAPPEND_DSP,
+    OPC_PREPENDD = (0x03 << 6) | OPC_DAPPEND_DSP,
+    OPC_PREPENDW = (0x01 << 6) | OPC_DAPPEND_DSP,
+    OPC_DBALIGN  = (0x10 << 6) | OPC_DAPPEND_DSP,
 };
 #endif
 
@@ -13779,6 +13839,244 @@ static void gen_mipsdsp_bitinsn(CPUMIPSState *env, DisasContext *ctx,
     MIPS_DEBUG("%s", opn);
 }
 
+static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
+                                     uint32_t op1, uint32_t op2,
+                                     int ret, int v1, int v2, int check_ret)
+{
+    const char *opn = "mipsdsp add compare pick";
+    TCGv_i32 t0;
+    TCGv t1;
+    TCGv v1_t;
+    TCGv v2_t;
+
+    if ((ret == 0) && (check_ret == 1)) {
+        /* Treat as NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new_i32();
+    t1 = tcg_temp_new();
+    v1_t = tcg_temp_new();
+    v2_t = tcg_temp_new();
+
+    gen_load_gpr(v1_t, v1);
+    gen_load_gpr(v2_t, v2);
+
+    switch (op1) {
+    case OPC_APPEND_DSP:
+        switch (op2) {
+        case OPC_APPEND:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_append(cpu_gpr[ret], cpu_gpr[ret], v1_t, t0);
+            break;
+        case OPC_PREPEND:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_prepend(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            break;
+        case OPC_BALIGN:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_balign(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            break;
+        default:            /* Invid */
+            MIPS_INVAL("MASK APPEND");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
+        break;
+    case OPC_CMPU_EQ_QB_DSP:
+        switch (op2) {
+        case OPC_CMPU_EQ_QB:
+            check_dsp(ctx);
+            gen_helper_cmpu_eq_qb(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPU_LT_QB:
+            check_dsp(ctx);
+            gen_helper_cmpu_lt_qb(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPU_LE_QB:
+            check_dsp(ctx);
+            gen_helper_cmpu_le_qb(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPGU_EQ_QB:
+            check_dsp(ctx);
+            gen_helper_cmpgu_eq_qb(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_CMPGU_LT_QB:
+            check_dsp(ctx);
+            gen_helper_cmpgu_lt_qb(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_CMPGU_LE_QB:
+            check_dsp(ctx);
+            gen_helper_cmpgu_le_qb(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_CMPGDU_EQ_QB:
+            check_dspr2(ctx);
+            gen_helper_cmpgu_eq_qb(t1, v1_t, v2_t);
+            tcg_gen_mov_tl(cpu_gpr[ret], t1);
+            tcg_gen_andi_tl(cpu_dspctrl, cpu_dspctrl, 0xF0FFFFFF);
+            tcg_gen_shli_tl(t1, t1, 24);
+            tcg_gen_or_tl(cpu_dspctrl, cpu_dspctrl, t1);
+            break;
+        case OPC_CMPGDU_LT_QB:
+            check_dspr2(ctx);
+            gen_helper_cmpgu_lt_qb(t1, v1_t, v2_t);
+            tcg_gen_mov_tl(cpu_gpr[ret], t1);
+            tcg_gen_andi_tl(cpu_dspctrl, cpu_dspctrl, 0xF0FFFFFF);
+            tcg_gen_shli_tl(t1, t1, 24);
+            tcg_gen_or_tl(cpu_dspctrl, cpu_dspctrl, t1);
+            break;
+        case OPC_CMPGDU_LE_QB:
+            check_dspr2(ctx);
+            gen_helper_cmpgu_le_qb(t1, v1_t, v2_t);
+            tcg_gen_mov_tl(cpu_gpr[ret], t1);
+            tcg_gen_andi_tl(cpu_dspctrl, cpu_dspctrl, 0xF0FFFFFF);
+            tcg_gen_shli_tl(t1, t1, 24);
+            tcg_gen_or_tl(cpu_dspctrl, cpu_dspctrl, t1);
+            break;
+        case OPC_CMP_EQ_PH:
+            check_dsp(ctx);
+            gen_helper_cmp_eq_ph(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_LT_PH:
+            check_dsp(ctx);
+            gen_helper_cmp_lt_ph(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_LE_PH:
+            check_dsp(ctx);
+            gen_helper_cmp_le_ph(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_PICK_QB:
+            check_dsp(ctx);
+            gen_helper_pick_qb(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_PICK_PH:
+            check_dsp(ctx);
+            gen_helper_pick_ph(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_PACKRL_PH:
+            check_dsp(ctx);
+            gen_helper_packrl_ph(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        }
+        break;
+#ifdef TARGET_MIPS64
+    case OPC_CMPU_EQ_OB_DSP:
+        switch (op2) {
+        case OPC_CMP_EQ_PW:
+            check_dsp(ctx);
+            gen_helper_cmp_eq_pw(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_LT_PW:
+            check_dsp(ctx);
+            gen_helper_cmp_lt_pw(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_LE_PW:
+            check_dsp(ctx);
+            gen_helper_cmp_le_pw(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_EQ_QH:
+            check_dsp(ctx);
+            gen_helper_cmp_eq_qh(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_LT_QH:
+            check_dsp(ctx);
+            gen_helper_cmp_lt_qh(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMP_LE_QH:
+            check_dsp(ctx);
+            gen_helper_cmp_le_qh(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPGDU_EQ_OB:
+            check_dspr2(ctx);
+            gen_helper_cmpgdu_eq_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPGDU_LT_OB:
+            check_dspr2(ctx);
+            gen_helper_cmpgdu_lt_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPGDU_LE_OB:
+            check_dspr2(ctx);
+            gen_helper_cmpgdu_le_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPGU_EQ_OB:
+            check_dsp(ctx);
+            gen_helper_cmpgu_eq_ob(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_CMPGU_LT_OB:
+            check_dsp(ctx);
+            gen_helper_cmpgu_lt_ob(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_CMPGU_LE_OB:
+            check_dsp(ctx);
+            gen_helper_cmpgu_le_ob(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_CMPU_EQ_OB:
+            check_dsp(ctx);
+            gen_helper_cmpu_eq_ob(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPU_LT_OB:
+            check_dsp(ctx);
+            gen_helper_cmpu_lt_ob(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_CMPU_LE_OB:
+            check_dsp(ctx);
+            gen_helper_cmpu_le_ob(v1_t, v2_t, cpu_env);
+            break;
+        case OPC_PACKRL_PW:
+            check_dsp(ctx);
+            gen_helper_packrl_pw(cpu_gpr[ret], v1_t, v2_t);
+            break;
+        case OPC_PICK_OB:
+            check_dsp(ctx);
+            gen_helper_pick_ob(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_PICK_PW:
+            check_dsp(ctx);
+            gen_helper_pick_pw(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        case OPC_PICK_QH:
+            check_dsp(ctx);
+            gen_helper_pick_qh(cpu_gpr[ret], v1_t, v2_t, cpu_env);
+            break;
+        }
+        break;
+    case OPC_DAPPEND_DSP:
+        switch (op2) {
+        case OPC_DAPPEND:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_dappend(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            break;
+        case OPC_PREPENDD:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_prependd(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            break;
+        case OPC_PREPENDW:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_prependw(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            break;
+        case OPC_DBALIGN:
+            tcg_gen_movi_i32(t0, v2);
+            gen_helper_dbalign(cpu_gpr[ret], v1_t, cpu_gpr[ret], t0);
+            break;
+        default:            /* Invalid */
+            MIPS_INVAL("MASK DAPPEND");
+            generate_exception(ctx, EXCP_RI);
+            break;
+        }
+        break;
+#endif
+    }
+
+    tcg_temp_free_i32(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(v1_t);
+    tcg_temp_free(v2_t);
+
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s", opn);
+}
+
 /* End MIPSDSP functions. */
 
 static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
@@ -14270,6 +14568,25 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             case OPC_PRECRQU_S_QB_PH:
                 gen_mipsdsp_arith(ctx, op1, op2, rd, rs, rt);
                 break;
+            case OPC_CMPU_EQ_QB:
+            case OPC_CMPU_LT_QB:
+            case OPC_CMPU_LE_QB:
+            case OPC_CMP_EQ_PH:
+            case OPC_CMP_LT_PH:
+            case OPC_CMP_LE_PH:
+                gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rd, rs, rt, 0);
+                break;
+            case OPC_CMPGU_EQ_QB:
+            case OPC_CMPGU_LT_QB:
+            case OPC_CMPGU_LE_QB:
+            case OPC_CMPGDU_EQ_QB:
+            case OPC_CMPGDU_LT_QB:
+            case OPC_CMPGDU_LE_QB:
+            case OPC_PICK_QB:
+            case OPC_PICK_PH:
+            case OPC_PACKRL_PH:
+                gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rd, rs, rt, 1);
+                break;
             default:            /* Invalid */
                 MIPS_INVAL("MASK CMPU.EQ.QB");
                 generate_exception(ctx, EXCP_RI);
@@ -14342,6 +14659,11 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
                 generate_exception(ctx, EXCP_RI);
                 break;
             }
+            break;
+        case OPC_APPEND_DSP:
+            check_dspr2(ctx);
+            op2 = MASK_APPEND(ctx->opcode);
+            gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rt, rs, rd, 1);
             break;
 #if defined(TARGET_MIPS64)
         case OPC_DEXTM ... OPC_DEXT:
@@ -14453,11 +14775,39 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             case OPC_PRECRQU_S_OB_QH:
                 gen_mipsdsp_arith(ctx, op1, op2, rd, rs, rt);
                 break;
+            case OPC_CMPU_EQ_OB:
+            case OPC_CMPU_LT_OB:
+            case OPC_CMPU_LE_OB:
+            case OPC_CMP_EQ_QH:
+            case OPC_CMP_LT_QH:
+            case OPC_CMP_LE_QH:
+            case OPC_CMP_EQ_PW:
+            case OPC_CMP_LT_PW:
+            case OPC_CMP_LE_PW:
+                gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rd, rs, rt, 0);
+                break;
+            case OPC_CMPGDU_EQ_OB:
+            case OPC_CMPGDU_LT_OB:
+            case OPC_CMPGDU_LE_OB:
+            case OPC_CMPGU_EQ_OB:
+            case OPC_CMPGU_LT_OB:
+            case OPC_CMPGU_LE_OB:
+            case OPC_PACKRL_PW:
+            case OPC_PICK_OB:
+            case OPC_PICK_PW:
+            case OPC_PICK_QH:
+                gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rd, rs, rt, 1);
+                break;
             default:            /* Invalid */
                 MIPS_INVAL("MASK CMPU_EQ.OB");
                 generate_exception(ctx, EXCP_RI);
                 break;
             }
+            break;
+        case OPC_DAPPEND_DSP:
+            check_dspr2(ctx);
+            op2 = MASK_DAPPEND(ctx->opcode);
+            gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rt, rs, rd, 1);
             break;
         case OPC_DPAQ_W_QH_DSP:
             op2 = MASK_DPAQ_W_QH(ctx->opcode);
