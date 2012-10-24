@@ -313,6 +313,9 @@ enum {
     OPC_MODU_G_2E   = 0x23 | OPC_SPECIAL3,
     OPC_DMOD_G_2E   = 0x26 | OPC_SPECIAL3,
     OPC_DMODU_G_2E  = 0x27 | OPC_SPECIAL3,
+
+    /* MIPS DSP Load */
+    OPC_LX_DSP         = 0x0A | OPC_SPECIAL3,
 };
 
 /* BSHFL opcodes */
@@ -337,6 +340,17 @@ enum {
     OPC_BPOSGE32 = (0x1C << 16) | OPC_REGIMM,
 #if defined(TARGET_MIPS64)
     OPC_BPOSGE64 = (0x1D << 16) | OPC_REGIMM,
+#endif
+};
+
+#define MASK_LX(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+/* MIPS DSP Load */
+enum {
+    OPC_LBUX = (0x06 << 6) | OPC_LX_DSP,
+    OPC_LHX  = (0x04 << 6) | OPC_LX_DSP,
+    OPC_LWX  = (0x00 << 6) | OPC_LX_DSP,
+#if defined(TARGET_MIPS64)
+    OPC_LDX = (0x08 << 6) | OPC_LX_DSP,
 #endif
 };
 
@@ -12219,6 +12233,63 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx, int *is_b
 
 #endif
 
+/* MIPSDSP functions. */
+static void gen_mipsdsp_ld(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
+                           int rd, int base, int offset)
+{
+    const char *opn = "ldx";
+    TCGv t0;
+
+    if (rd == 0) {
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    check_dsp(ctx);
+    t0 = tcg_temp_new();
+
+    if (base == 0) {
+        gen_load_gpr(t0, offset);
+    } else if (offset == 0) {
+        gen_load_gpr(t0, base);
+    } else {
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[offset]);
+    }
+
+    save_cpu_state(ctx, 0);
+    switch (opc) {
+    case OPC_LBUX:
+        op_ld_lbu(t0, t0, ctx);
+        gen_store_gpr(t0, rd);
+        opn = "lbux";
+        break;
+    case OPC_LHX:
+        op_ld_lh(t0, t0, ctx);
+        gen_store_gpr(t0, rd);
+        opn = "lhx";
+        break;
+    case OPC_LWX:
+        op_ld_lw(t0, t0, ctx);
+        gen_store_gpr(t0, rd);
+        opn = "lwx";
+        break;
+#if defined(TARGET_MIPS64)
+    case OPC_LDX:
+        op_ld_ld(t0, t0, ctx);
+        gen_store_gpr(t0, rd);
+        opn = "ldx";
+        break;
+#endif
+    }
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s %s, %s(%s)", opn,
+               regnames[rd], regnames[offset], regnames[base]);
+    tcg_temp_free(t0);
+}
+
+
+/* End MIPSDSP functions. */
+
 static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
 {
     int32_t offset;
@@ -12574,6 +12645,23 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
         case OPC_MOD_G_2E ... OPC_MODU_G_2E:
             check_insn(env, ctx, INSN_LOONGSON2E);
             gen_loongson_integer(ctx, op1, rd, rs, rt);
+            break;
+        case OPC_LX_DSP:
+            op2 = MASK_LX(ctx->opcode);
+            switch (op2) {
+#if defined(TARGET_MIPS64)
+            case OPC_LDX:
+#endif
+            case OPC_LBUX:
+            case OPC_LHX:
+            case OPC_LWX:
+                gen_mipsdsp_ld(env, ctx, op2, rd, rs, rt);
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("MASK LX");
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
             break;
 #if defined(TARGET_MIPS64)
         case OPC_DEXTM ... OPC_DEXT:
