@@ -592,6 +592,9 @@ void do_interrupt (CPUMIPSState *env)
     case EXCP_THREAD:
         cause = 25;
         goto set_EPC;
+    case EXCP_DSPDIS:
+        cause = 26;
+        goto set_EPC;
     case EXCP_CACHE:
         cause = 30;
         if (env->CP0_Status & (1 << CP0St_BEV)) {

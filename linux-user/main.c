@@ -2286,6 +2286,12 @@ done_syscall:
                 queue_signal(env, info.si_signo, &info);
             }
             break;
+        case EXCP_DSPDIS:
+            info.si_signo = TARGET_SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPC;
+            queue_signal(env, info.si_signo, &info);
+            break;
         default:
             //        error:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",

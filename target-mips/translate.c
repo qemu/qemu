@@ -948,6 +948,24 @@ static inline void check_cp1_registers(DisasContext *ctx, int regs)
         generate_exception(ctx, EXCP_RI);
 }
 
+/* Verify that the processor is running with DSP instructions enabled.
+   This is enabled by CP0 Status register MX(24) bit.
+ */
+
+static inline void check_dsp(DisasContext *ctx)
+{
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSP))) {
+        generate_exception(ctx, EXCP_DSPDIS);
+    }
+}
+
+static inline void check_dspr2(DisasContext *ctx)
+{
+    if (unlikely(!(ctx->hflags & MIPS_HFLAG_DSPR2))) {
+        generate_exception(ctx, EXCP_DSPDIS);
+    }
+}
+
 /* This code generates a "reserved instruction" exception if the
    CPU does not support the instruction set corresponding to flags. */
 static inline void check_insn(CPUMIPSState *env, DisasContext *ctx, int flags)
@@ -13208,6 +13226,11 @@ void cpu_state_reset(CPUMIPSState *env)
     env->CP0_HWREna |= 0x0000000F;
     if (env->CP0_Config1 & (1 << CP0C1_FP)) {
         env->CP0_Status |= (1 << CP0St_CU1);
+    }
+    if (env->cpu_model->insn_flags & ASE_DSPR2) {
+        env->hflags |= MIPS_HFLAG_DSP | MIPS_HFLAG_DSPR2;
+    } else if (env->cpu_model->insn_flags & ASE_DSP) {
+        env->hflags |= MIPS_HFLAG_DSP;
     }
 #else
     if (env->hflags & MIPS_HFLAG_BMASK) {
