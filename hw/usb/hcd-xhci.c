@@ -2676,7 +2676,7 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
     trace_usb_xhci_runtime_write(reg, val);
 
     if (reg < 0x20) {
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", (int)reg);
+        fprintf(stderr, "%s: reg 0x%x unimplemented\n", __func__, (int)reg);
         return;
     }
 
