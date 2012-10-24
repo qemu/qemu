@@ -101,7 +101,6 @@ struct UHCIAsync {
     UHCIQueue *queue;
     QTAILQ_ENTRY(UHCIAsync) next;
     uint32_t  td;
-    uint8_t   isoc;
     uint8_t   done;
 };
 
@@ -849,7 +848,6 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
      * for initial isochronous requests
      */
     async->queue->valid = 32;
-    async->isoc = td->ctrl & TD_CTRL_IOS;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
@@ -911,30 +909,9 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
         return;
     }
 
-    if (async->isoc) {
-        UHCI_TD td;
-        uint32_t link = async->td;
-        uint32_t int_mask = 0, val;
-
-        pci_dma_read(&s->dev, link & ~0xf, &td, sizeof(td));
-        le32_to_cpus(&td.link);
-        le32_to_cpus(&td.ctrl);
-        le32_to_cpus(&td.token);
-        le32_to_cpus(&td.buffer);
-
-        uhci_async_unlink(async);
-        uhci_complete_td(s, &td, async, &int_mask);
-        s->pending_int_mask |= int_mask;
-
-        /* update the status bits of the TD */
-        val = cpu_to_le32(td.ctrl);
-        pci_dma_write(&s->dev, (link & ~0xf) + 4, &val, sizeof(val));
-        uhci_async_free(async);
-    } else {
-        async->done = 1;
-        if (s->frame_bytes < s->frame_bandwidth) {
-            qemu_bh_schedule(s->bh);
-        }
+    async->done = 1;
+    if (s->frame_bytes < s->frame_bandwidth) {
+        qemu_bh_schedule(s->bh);
     }
 }
 
