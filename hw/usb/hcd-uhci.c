@@ -693,6 +693,15 @@ static USBDevice *uhci_find_device(UHCIState *s, uint8_t addr)
     return NULL;
 }
 
+static void uhci_read_td(UHCIState *s, UHCI_TD *td, uint32_t link)
+{
+    pci_dma_read(&s->dev, link & ~0xf, td, sizeof(*td));
+    le32_to_cpus(&td->link);
+    le32_to_cpus(&td->ctrl);
+    le32_to_cpus(&td->token);
+    le32_to_cpus(&td->buffer);
+}
+
 static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_t *int_mask)
 {
     int len = 0, max_len, err, ret;
@@ -941,11 +950,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td, struct USBEndpoint *ep)
     int ret;
 
     while (is_valid(plink)) {
-        pci_dma_read(&s->dev, plink & ~0xf, &ptd, sizeof(ptd));
-        le32_to_cpus(&ptd.link);
-        le32_to_cpus(&ptd.ctrl);
-        le32_to_cpus(&ptd.token);
-        le32_to_cpus(&ptd.buffer);
+        uhci_read_td(s, &ptd, plink);
         if (!(ptd.ctrl & TD_CTRL_ACTIVE)) {
             break;
         }
@@ -1031,11 +1036,7 @@ static void uhci_process_frame(UHCIState *s)
         }
 
         /* TD */
-        pci_dma_read(&s->dev, link & ~0xf, &td, sizeof(td));
-        le32_to_cpus(&td.link);
-        le32_to_cpus(&td.ctrl);
-        le32_to_cpus(&td.token);
-        le32_to_cpus(&td.buffer);
+        uhci_read_td(s, &td, link);
         trace_usb_uhci_td_load(curr_qh & ~0xf, link & ~0xf, td.ctrl, td.token);
 
         old_td_ctrl = td.ctrl;
