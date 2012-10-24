@@ -29,7 +29,7 @@
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 

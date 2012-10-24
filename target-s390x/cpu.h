@@ -36,7 +36,7 @@
 
 #include "exec/cpu-all.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define NB_MMU_MODES 3
 

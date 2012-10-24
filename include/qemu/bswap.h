@@ -4,7 +4,7 @@
 #include "config-host.h"
 
 #include <inttypes.h>
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
 #include <sys/endian.h>

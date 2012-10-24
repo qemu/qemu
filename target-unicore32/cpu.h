@@ -24,7 +24,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define NB_MMU_MODES            2
 

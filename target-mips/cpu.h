@@ -13,7 +13,7 @@
 #include "qemu-common.h"
 #include "mips-defs.h"
 #include "exec/cpu-defs.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 struct CPUMIPSState;
 

@@ -41,7 +41,7 @@
 
 #include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_PAGE_BITS 12	/* 4k XXXXX */
 
@@ -229,8 +229,6 @@ static inline void cpu_set_tls(CPUSH4State *env, target_ulong newtls)
 }
 
 void cpu_load_tlb(CPUSH4State * env);
-
-#include "softfloat.h"
 
 static inline CPUSH4State *cpu_init(const char *cpu_model)
 {

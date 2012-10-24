@@ -43,7 +43,7 @@ extern CPUARMState *user_registers;
 
 /* includes */
 #include "fpsr.h"		/* FP control and status register definitions */
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define		typeNone		0x00
 #define		typeSingle		0x01

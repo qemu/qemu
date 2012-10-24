@@ -31,7 +31,7 @@ struct OpenRISCCPU;
 #include "config.h"
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 #include "qom/cpu.h"
 #include "qapi/error.h"
 
