@@ -744,22 +744,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     return TD_RESULT_COMPLETE;
 
 out:
-    /*
-     * We should not do any further processing on a queue with errors!
-     * This is esp. important for bulk endpoints with pipelining enabled
-     * (redirection to a real USB device), where we must cancel all the
-     * transfers after this one so that:
-     * 1) If they've completed already, they are not processed further
-     *    causing more stalls, originating from the same failed transfer
-     * 2) If still in flight, they are cancelled before the guest does
-     *    a clear stall, otherwise the guest and device can loose sync!
-     */
-    while (!QTAILQ_EMPTY(&async->queue->asyncs)) {
-        UHCIAsync *as = QTAILQ_FIRST(&async->queue->asyncs);
-        uhci_async_unlink(as);
-        uhci_async_cancel(as);
-    }
-
     switch(ret) {
     case USB_RET_STALL:
         td->ctrl |= TD_CTRL_STALL;
@@ -917,6 +901,12 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
 {
     UHCIAsync *async = container_of(packet, UHCIAsync, packet);
     UHCIState *s = async->queue->uhci;
+
+    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+        uhci_async_unlink(async);
+        uhci_async_cancel(async);
+        return;
+    }
 
     if (async->isoc) {
         UHCI_TD td;

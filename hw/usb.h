@@ -45,6 +45,7 @@
 #define USB_RET_IOERROR           (-5)
 #define USB_RET_ASYNC             (-6)
 #define USB_RET_ADD_TO_QUEUE      (-7)
+#define USB_RET_REMOVE_FROM_QUEUE (-8)
 
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1

@@ -1457,8 +1457,15 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     }
 
     p = container_of(packet, EHCIPacket, packet);
-    trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     assert(p->async == EHCI_ASYNC_INFLIGHT);
+
+    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+        trace_usb_ehci_packet_action(p->queue, p, "remove");
+        ehci_free_packet(p);
+        return;
+    }
+
+    trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     p->async = EHCI_ASYNC_FINISHED;
     p->usb_status = packet->result;
 
@@ -2216,19 +2223,6 @@ static int ehci_state_writeback(EHCIQueue *q)
      * bit is clear.
      */
     if (q->qh.token & QTD_TOKEN_HALT) {
-        /*
-         * We should not do any further processing on a halted queue!
-         * This is esp. important for bulk endpoints with pipelining enabled
-         * (redirection to a real USB device), where we must cancel all the
-         * transfers after this one so that:
-         * 1) If they've completed already, they are not processed further
-         *    causing more stalls, originating from the same failed transfer
-         * 2) If still in flight, they are cancelled before the guest does
-         *    a clear stall, otherwise the guest and device can loose sync!
-         */
-        while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
-            ehci_free_packet(p);
-        }
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     } else {

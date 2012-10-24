@@ -2839,6 +2839,10 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
 {
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
 
+    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+        xhci_ep_nuke_one_xfer(xfer);
+        return;
+    }
     xhci_complete_packet(xfer, packet->result);
     xhci_kick_ep(xfer->xhci, xfer->slotid, xfer->epid);
 }

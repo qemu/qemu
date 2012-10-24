@@ -442,8 +442,14 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
     usb_packet_check_state(p, USB_PACKET_ASYNC);
     usb_packet_complete_one(dev, p);
 
-    while (!ep->halted && !QTAILQ_EMPTY(&ep->queue)) {
+    while (!QTAILQ_EMPTY(&ep->queue)) {
         p = QTAILQ_FIRST(&ep->queue);
+        if (ep->halted) {
+            /* Empty the queue on a halt */
+            p->result = USB_RET_REMOVE_FROM_QUEUE;
+            dev->port->ops->complete(dev->port, p);
+            continue;
+        }
         if (p->state == USB_PACKET_ASYNC) {
             break;
         }
