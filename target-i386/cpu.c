@@ -766,9 +766,16 @@ static int cpu_x86_fill_model_id(char *str)
     return 0;
 }
 
-static void cpu_x86_fill_host(x86_def_t *x86_cpu_def)
+/* Fill a x86_def_t struct with information about the host CPU, and
+ * the CPU features supported by the host hardware + host kernel
+ *
+ * This function may be called only if KVM is enabled.
+ */
+static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+
+    assert(kvm_enabled());
 
     x86_cpu_def->name = "host";
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
@@ -784,7 +791,7 @@ static void cpu_x86_fill_host(x86_def_t *x86_cpu_def)
     x86_cpu_def->ext_features = ecx;
     x86_cpu_def->features = edx;
 
-    if (kvm_enabled() && x86_cpu_def->level >= 7) {
+    if (x86_cpu_def->level >= 7) {
         x86_cpu_def->cpuid_7_0_ebx_features = kvm_arch_get_supported_cpuid(kvm_state, 0x7, 0, R_EBX);
     } else {
         x86_cpu_def->cpuid_7_0_ebx_features = 0;
@@ -839,8 +846,10 @@ static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
 /* best effort attempt to inform user requested cpu flags aren't making
  * their way to the guest.  Note: ft[].check_feat ideally should be
  * specified via a guest_def field to suppress report of extraneous flags.
+ *
+ * This function may be called only if KVM is enabled.
  */
-static int check_features_against_host(x86_def_t *guest_def)
+static int kvm_check_features_against_host(x86_def_t *guest_def)
 {
     x86_def_t host_def;
     uint32_t mask;
@@ -855,7 +864,9 @@ static int check_features_against_host(x86_def_t *guest_def)
         {&guest_def->ext3_features, &host_def.ext3_features,
             ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001}};
 
-    cpu_x86_fill_host(&host_def);
+    assert(kvm_enabled());
+
+    kvm_cpu_fill_host(&host_def);
     for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
         for (mask = 1; mask; mask <<= 1)
             if (ft[i].check_feat & mask && *ft[i].guest_feat & mask &&
@@ -1142,7 +1153,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
         if (name && !strcmp(name, def->name))
             break;
     if (kvm_enabled() && name && strcmp(name, "host") == 0) {
-        cpu_x86_fill_host(x86_cpu_def);
+        kvm_cpu_fill_host(x86_cpu_def);
     } else if (!def) {
         goto error;
     } else {
@@ -1280,8 +1291,8 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     x86_cpu_def->kvm_features &= ~minus_kvm_features;
     x86_cpu_def->svm_features &= ~minus_svm_features;
     x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_7_0_ebx_features;
-    if (check_cpuid) {
-        if (check_features_against_host(x86_cpu_def) && enforce_cpuid)
+    if (check_cpuid && kvm_enabled()) {
+        if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
             goto error;
     }
     if (x86_cpu_def->cpuid_7_0_ebx_features && x86_cpu_def->level < 7) {
