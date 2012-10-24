@@ -1082,6 +1082,35 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     return CC_SUCCESS;
 }
 
+static int xhci_ep_nuke_one_xfer(XHCITransfer *t)
+{
+    int killed = 0;
+
+    if (t->running_async) {
+        usb_cancel_packet(&t->packet);
+        t->running_async = 0;
+        t->cancelled = 1;
+        DPRINTF("xhci: cancelling transfer, waiting for it to complete\n");
+        killed = 1;
+    }
+    if (t->running_retry) {
+        XHCIEPContext *epctx = t->xhci->slots[t->slotid-1].eps[t->epid-1];
+        if (epctx) {
+            epctx->retry = NULL;
+            qemu_del_timer(epctx->kick_timer);
+        }
+        t->running_retry = 0;
+    }
+    if (t->trbs) {
+        g_free(t->trbs);
+    }
+
+    t->trbs = NULL;
+    t->trb_count = t->trb_alloced = 0;
+
+    return killed;
+}
+
 static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
                                unsigned int epid)
 {
@@ -1103,25 +1132,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
 
     xferi = epctx->next_xfer;
     for (i = 0; i < TD_QUEUE; i++) {
-        XHCITransfer *t = &epctx->transfers[xferi];
-        if (t->running_async) {
-            usb_cancel_packet(&t->packet);
-            t->running_async = 0;
-            t->cancelled = 1;
-            DPRINTF("xhci: cancelling transfer %d, waiting for it to complete...\n", i);
-            killed++;
-        }
-        if (t->running_retry) {
-            t->running_retry = 0;
-            epctx->retry = NULL;
-            qemu_del_timer(epctx->kick_timer);
-        }
-        if (t->trbs) {
-            g_free(t->trbs);
-        }
-
-        t->trbs = NULL;
-        t->trb_count = t->trb_alloced = 0;
+        killed += xhci_ep_nuke_one_xfer(&epctx->transfers[xferi]);
         xferi = (xferi + 1) % TD_QUEUE;
     }
     return killed;
