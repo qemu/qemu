@@ -773,13 +773,13 @@ static int cpu_x86_fill_model_id(char *str)
  */
 static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 {
+    KVMState *s = kvm_state;
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
     assert(kvm_enabled());
 
     x86_cpu_def->name = "host";
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->level = eax;
     x86_cpu_def->vendor1 = ebx;
     x86_cpu_def->vendor2 = edx;
     x86_cpu_def->vendor3 = ecx;
@@ -788,21 +788,24 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     x86_cpu_def->family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
     x86_cpu_def->model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
     x86_cpu_def->stepping = eax & 0x0F;
-    x86_cpu_def->ext_features = ecx;
-    x86_cpu_def->features = edx;
+
+    x86_cpu_def->level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
+    x86_cpu_def->features = kvm_arch_get_supported_cpuid(s, 0x1, 0, R_EDX);
+    x86_cpu_def->ext_features = kvm_arch_get_supported_cpuid(s, 0x1, 0, R_ECX);
 
     if (x86_cpu_def->level >= 7) {
-        x86_cpu_def->cpuid_7_0_ebx_features = kvm_arch_get_supported_cpuid(kvm_state, 0x7, 0, R_EBX);
+        x86_cpu_def->cpuid_7_0_ebx_features =
+                    kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
     } else {
         x86_cpu_def->cpuid_7_0_ebx_features = 0;
     }
 
-    host_cpuid(0x80000000, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->xlevel = eax;
+    x86_cpu_def->xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
+    x86_cpu_def->ext2_features =
+                kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
+    x86_cpu_def->ext3_features =
+                kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
 
-    host_cpuid(0x80000001, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->ext2_features = edx;
-    x86_cpu_def->ext3_features = ecx;
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
     x86_cpu_def->vendor_override = 0;
 
@@ -811,11 +814,13 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
         x86_cpu_def->vendor2 == CPUID_VENDOR_VIA_2 &&
         x86_cpu_def->vendor3 == CPUID_VENDOR_VIA_3) {
         host_cpuid(0xC0000000, 0, &eax, &ebx, &ecx, &edx);
+        eax = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
         if (eax >= 0xC0000001) {
             /* Support VIA max extended level */
             x86_cpu_def->xlevel2 = eax;
             host_cpuid(0xC0000001, 0, &eax, &ebx, &ecx, &edx);
-            x86_cpu_def->ext4_features = edx;
+            x86_cpu_def->ext4_features =
+                    kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
         }
     }
 
