@@ -391,6 +391,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
         ret = usb_process_one(p);
         if (ret == USB_RET_ASYNC) {
+            assert(p->ep->type != USB_ENDPOINT_XFER_ISOC);
             usb_packet_set_state(p, USB_PACKET_ASYNC);
             QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
         } else if (ret == USB_RET_ADD_TO_QUEUE) {

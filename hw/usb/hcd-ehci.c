@@ -1667,7 +1667,6 @@ static int ehci_process_itd(EHCIState *ehci,
                                  (itd->transact[i] & ITD_XACT_IOC) != 0);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 ret = usb_handle_packet(dev, &ehci->ipacket);
-                assert(ret != USB_RET_ASYNC);
                 usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
             } else {
                 DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
