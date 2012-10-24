@@ -2054,6 +2054,23 @@ qemu-system-i386 --drive file=sheepdog:192.0.2.1:30000:MyVirtualMachine
 
 See also @url{http://http://www.osrg.net/sheepdog/}.
 
+@item GlusterFS
+GlusterFS is an user space distributed file system.
+QEMU supports the use of GlusterFS volumes for hosting VM disk images using
+TCP, Unix Domain Sockets and RDMA transport protocols.
+
+Syntax for specifying a VM disk image on GlusterFS volume is
+@example
+gluster[+transport]://[server[:port]]/volname/image[?socket=...]
+@end example
+
+
+Example
+@example
+qemu-system-x86_84 --drive file=gluster://192.0.2.1/testvol/a.img
+@end example
+
+See also @url{http://www.gluster.org}.
 @end table
 ETEXI
 
