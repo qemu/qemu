@@ -160,6 +160,8 @@ typedef struct UHCI_QH {
     uint32_t el_link;
 } UHCI_QH;
 
+static void uhci_async_cancel(UHCIAsync *async);
+
 static inline int32_t uhci_queue_token(UHCI_TD *td)
 {
     /* covers ep, dev, pid -> identifies the endpoint */
@@ -189,6 +191,12 @@ static UHCIQueue *uhci_queue_get(UHCIState *s, UHCI_TD *td)
 static void uhci_queue_free(UHCIQueue *queue)
 {
     UHCIState *s = queue->uhci;
+    UHCIAsync *async;
+
+    while (!QTAILQ_EMPTY(&queue->asyncs)) {
+        async = QTAILQ_FIRST(&queue->asyncs);
+        uhci_async_cancel(async);
+    }
 
     trace_usb_uhci_queue_del(queue->token);
     QTAILQ_REMOVE(&s->queues, queue, next);
@@ -259,17 +267,11 @@ static void uhci_async_validate_begin(UHCIState *s)
 static void uhci_async_validate_end(UHCIState *s)
 {
     UHCIQueue *queue, *n;
-    UHCIAsync *async;
 
     QTAILQ_FOREACH_SAFE(queue, &s->queues, next, n) {
-        if (queue->valid > 0) {
-            continue;
+        if (!queue->valid) {
+            uhci_queue_free(queue);
         }
-        while (!QTAILQ_EMPTY(&queue->asyncs)) {
-            async = QTAILQ_FIRST(&queue->asyncs);
-            uhci_async_cancel(async);
-        }
-        uhci_queue_free(queue);
     }
 }
 
@@ -292,12 +294,8 @@ static void uhci_async_cancel_device(UHCIState *s, USBDevice *dev)
 static void uhci_async_cancel_all(UHCIState *s)
 {
     UHCIQueue *queue, *nq;
-    UHCIAsync *curr, *n;
 
     QTAILQ_FOREACH_SAFE(queue, &s->queues, next, nq) {
-        QTAILQ_FOREACH_SAFE(curr, &queue->asyncs, next, n) {
-            uhci_async_cancel(curr);
-        }
         uhci_queue_free(queue);
     }
 }
