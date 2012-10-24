@@ -1508,6 +1508,10 @@ static void ehci_execute_complete(EHCIQueue *q)
 
         if (tbytes && p->pid == USB_TOKEN_IN) {
             tbytes -= p->usb_status;
+            if (tbytes) {
+                /* 4.15.1.2 must raise int on a short input packet */
+                ehci_raise_irq(q->ehci, USBSTS_INT);
+            }
         } else {
             tbytes = 0;
         }
