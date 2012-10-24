@@ -319,28 +319,18 @@ static void uhci_async_cancel_all(UHCIState *s)
     }
 }
 
-static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t td_addr,
-                                     UHCI_TD *td)
+static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t td_addr)
 {
-    uint32_t token = uhci_queue_token(td);
     UHCIQueue *queue;
     UHCIAsync *async;
 
     QTAILQ_FOREACH(queue, &s->queues, next) {
-        if (queue->token == token) {
-            break;
+        QTAILQ_FOREACH(async, &queue->asyncs, next) {
+            if (async->td_addr == td_addr) {
+                return async;
+            }
         }
     }
-    if (queue == NULL) {
-        return NULL;
-    }
-
-    QTAILQ_FOREACH(async, &queue->asyncs, next) {
-        if (async->td_addr == td_addr) {
-            return async;
-        }
-    }
-
     return NULL;
 }
 
@@ -805,11 +795,21 @@ out:
 static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
                           UHCI_TD *td, uint32_t td_addr, uint32_t *int_mask)
 {
-    UHCIAsync *async;
     int len = 0, max_len;
     bool spd;
     bool queuing = (q != NULL);
     uint8_t pid = td->token & 0xff;
+    UHCIAsync *async = uhci_async_find_td(s, td_addr);
+
+    if (async) {
+        if (uhci_queue_verify(async->queue, qh_addr, td, td_addr, queuing)) {
+            assert(q == NULL || q == async->queue);
+            q = async->queue;
+        } else {
+            uhci_queue_free(async->queue, "guest re-used pending td");
+            async = NULL;
+        }
+    }
 
     if (q == NULL) {
         q = uhci_queue_find(s, td);
@@ -831,7 +831,6 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
         return TD_RESULT_NEXT_QH;
     }
 
-    async = uhci_async_find_td(s, td_addr, td);
     if (async) {
         /* Already submitted */
         async->queue->valid = 32;
