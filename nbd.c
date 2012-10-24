@@ -208,7 +208,14 @@ int tcp_socket_outgoing(const char *address, uint16_t port)
 
 int tcp_socket_outgoing_spec(const char *address_and_port)
 {
-    return inet_connect(address_and_port, NULL);
+    Error *local_err = NULL;
+    int fd = inet_connect(address_and_port, &local_err);
+
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
 }
 
 int tcp_socket_incoming(const char *address, uint16_t port)
@@ -220,22 +227,38 @@ int tcp_socket_incoming(const char *address, uint16_t port)
 
 int tcp_socket_incoming_spec(const char *address_and_port)
 {
-    char *ostr  = NULL;
-    int olen = 0;
-    return inet_listen(address_and_port, ostr, olen, SOCK_STREAM, 0, NULL);
+    Error *local_err = NULL;
+    int fd = inet_listen(address_and_port, NULL, 0, SOCK_STREAM, 0, &local_err);
+
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
 }
 
 int unix_socket_incoming(const char *path)
 {
-    char *ostr = NULL;
-    int olen = 0;
+    Error *local_err = NULL;
+    int fd = unix_listen(path, NULL, 0, &local_err);
 
-    return unix_listen(path, ostr, olen);
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
 }
 
 int unix_socket_outgoing(const char *path)
 {
-    return unix_connect(path);
+    Error *local_err = NULL;
+    int fd = unix_connect(path, &local_err);
+
+    if (local_err != NULL) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+    }
+    return fd;
 }
 
 /* Basic flow for negotiation

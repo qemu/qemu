@@ -38,6 +38,12 @@ const char *qemu_get_vm_name(void)
 
 Monitor *cur_mon;
 
+int monitor_get_fd(Monitor *mon, const char *name, Error **errp)
+{
+    error_setg(errp, "only QEMU supports file descriptor passing");
+    return -1;
+}
+
 void vm_stop(RunState state)
 {
     abort();

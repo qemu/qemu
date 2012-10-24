@@ -2552,6 +2552,22 @@ EQMP
     },
 
     {
+        .name       = "nbd-server-start",
+        .args_type  = "addr:q",
+        .mhandler.cmd_new = qmp_marshal_input_nbd_server_start,
+    },
+    {
+        .name       = "nbd-server-add",
+        .args_type  = "device:B,writable:b?",
+        .mhandler.cmd_new = qmp_marshal_input_nbd_server_add,
+    },
+    {
+        .name       = "nbd-server-stop",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_nbd_server_stop,
+    },
+
+    {
         .name       = "change-vnc-password",
         .args_type  = "password:s",
         .mhandler.cmd_new = qmp_marshal_input_change_vnc_password,
