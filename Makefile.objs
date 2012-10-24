@@ -222,7 +222,7 @@ universal-obj-y += $(qapi-obj-y)
 ######################################################################
 # guest agent
 
-qga-obj-y = qga/ qemu-ga.o module.o qemu-tool.o
+qga-obj-y = qga/ module.o qemu-tool.o
 qga-obj-$(CONFIG_POSIX) += qemu-sockets.o qemu-option.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
