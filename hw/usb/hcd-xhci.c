@@ -322,6 +322,7 @@ typedef struct XHCITransfer {
     bool running_retry;
     bool cancelled;
     bool complete;
+    bool int_req;
     unsigned int iso_pkts;
     unsigned int slotid;
     unsigned int epid;
@@ -1292,17 +1293,21 @@ static TRBCCode xhci_set_ep_dequeue(XHCIState *xhci, unsigned int slotid,
     return CC_SUCCESS;
 }
 
-static int xhci_xfer_map(XHCITransfer *xfer)
+static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
 {
-    int in_xfer = (xfer->packet.pid == USB_TOKEN_IN);
     XHCIState *xhci = xfer->xhci;
     int i;
 
+    xfer->int_req = false;
     pci_dma_sglist_init(&xfer->sgl, &xhci->pci_dev, xfer->trb_count);
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
         dma_addr_t addr;
         unsigned int chunk = 0;
+
+        if (trb->control & TRB_TR_IOC) {
+            xfer->int_req = true;
+        }
 
         switch (TRB_TYPE(*trb)) {
         case TR_DATA:
@@ -1328,7 +1333,6 @@ static int xhci_xfer_map(XHCITransfer *xfer)
         }
     }
 
-    usb_packet_map(&xfer->packet, &xfer->sgl);
     return 0;
 
 err:
@@ -1446,8 +1450,10 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         ep = usb_ep_get(dev, dir, xfer->epid >> 1);
     }
 
-    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr, false);
-    xhci_xfer_map(xfer);
+    xhci_xfer_create_sgl(xfer, dir == USB_TOKEN_IN); /* Also sets int_req */
+    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr, false,
+                     xfer->int_req);
+    usb_packet_map(&xfer->packet, &xfer->sgl);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
             xfer->packet.pid, dev->addr, ep->nr);
     return 0;

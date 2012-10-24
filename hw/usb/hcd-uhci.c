@@ -860,7 +860,8 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
     if (ep_ret) {
         *ep_ret = ep;
     }
-    usb_packet_setup(&async->packet, pid, ep, addr, spd);
+    usb_packet_setup(&async->packet, pid, ep, addr, spd,
+                     (td->ctrl & TD_CTRL_IOC) != 0);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
 
