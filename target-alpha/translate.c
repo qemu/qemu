@@ -18,7 +18,7 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "host-utils.h"
 #include "tcg-op.h"
 

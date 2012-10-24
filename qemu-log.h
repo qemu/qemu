@@ -3,7 +3,7 @@
 
 #include <stdarg.h>
 #ifdef NEED_CPU_H
-#include "disas.h"
+#include "disas/disas.h"
 #endif
 
 /* Private global variables, don't use */

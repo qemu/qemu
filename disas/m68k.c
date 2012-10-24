@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "dis-asm.h"
+#include "disas/bfd.h"
 
 /* **** floatformat.h from sourceware.org CVS 2005-08-14.  */
 /* IEEE floating point support declarations, for GDB, the GNU Debugger.

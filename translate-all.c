@@ -33,7 +33,7 @@
 #include "qemu-common.h"
 #define NO_CPU_IO_DEFS
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg.h"
 #include "qemu-timer.h"
 #include "memory.h"

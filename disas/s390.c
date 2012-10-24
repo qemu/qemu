@@ -21,7 +21,7 @@
    02110-1301, USA.  */
 
 #include "qemu-common.h"
-#include "dis-asm.h"
+#include "disas/bfd.h"
 
 /* include/opcode/s390.h revision 1.9 */
 /* s390.h -- Header file for S390 opcode table

@@ -127,24 +127,10 @@ user-obj-y += $(trace-obj-y)
 user-obj-y += qom/
 
 ######################################################################
-# libdis
+# disassemblers
 # NOTE: the disassembler code is only needed for debugging
 
-libdis-y =
-libdis-$(CONFIG_ALPHA_DIS) += alpha-dis.o
-libdis-$(CONFIG_ARM_DIS) += arm-dis.o
-libdis-$(CONFIG_CRIS_DIS) += cris-dis.o
-libdis-$(CONFIG_HPPA_DIS) += hppa-dis.o
-libdis-$(CONFIG_I386_DIS) += i386-dis.o
-libdis-$(CONFIG_IA64_DIS) += ia64-dis.o
-libdis-$(CONFIG_M68K_DIS) += m68k-dis.o
-libdis-$(CONFIG_MICROBLAZE_DIS) += microblaze-dis.o
-libdis-$(CONFIG_MIPS_DIS) += mips-dis.o
-libdis-$(CONFIG_PPC_DIS) += ppc-dis.o
-libdis-$(CONFIG_S390_DIS) += s390-dis.o
-libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
-libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
-libdis-$(CONFIG_LM32_DIS) += lm32-dis.o
+universal-obj-y += disas/
 
 ######################################################################
 # trace
@@ -252,5 +238,6 @@ nested-vars += \
 	block-obj-y \
 	user-obj-y \
 	common-obj-y \
+	universal-obj-y \
 	extra-obj-y
 dummy := $(call unnest-vars)

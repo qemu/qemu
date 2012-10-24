@@ -18,7 +18,7 @@
  */
 #include "config.h"
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg.h"
 
 #undef EAX

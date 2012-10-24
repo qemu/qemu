@@ -43,7 +43,7 @@
  */
 
 #include "hw.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "monitor.h"
 #include "sysemu.h"
 #include "uboot_image.h"

@@ -23,7 +23,7 @@
  * inside "#if defined(TODO) ... #endif" statements to make tests easier.
  */
 
-#include "dis-asm.h"
+#include "disas/bfd.h"
 #include "gdbstub.h"
 #include <kvm.h>
 #include "kvm_ppc.h"

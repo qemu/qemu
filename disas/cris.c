@@ -19,7 +19,7 @@
    along with this program; if not, see <http://www.gnu.org/licenses/>. */
 
 #include "qemu-common.h"
-#include "dis-asm.h"
+#include "disas/bfd.h"
 //#include "sysdep.h"
 #include "target-cris/opcode-cris.h"
 //#include "libiberty.h"

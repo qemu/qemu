@@ -19,7 +19,7 @@
  */
 
 #include <stdio.h>
-#include "dis-asm.h"
+#include "disas/bfd.h"
 
 typedef enum {
     LM32_OP_SRUI = 0, LM32_OP_NORI, LM32_OP_MULI, LM32_OP_SH, LM32_OP_LB,

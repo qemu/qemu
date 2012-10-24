@@ -41,7 +41,7 @@
 #include "console.h"
 #include "blockdev.h"
 #include "audio/audio.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "balloon.h"
 #include "qemu-timer.h"
 #include "migration.h"

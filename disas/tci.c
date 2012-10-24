@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dis-asm.h"
+#include "disas/bfd.h"
 #include "tcg/tcg.h"
 
 /* Disassemble TCI bytecode. */

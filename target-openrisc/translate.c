@@ -20,7 +20,7 @@
 
 #include "cpu.h"
 #include "exec-all.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
 #include "qemu-log.h"

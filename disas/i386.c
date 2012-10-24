@@ -32,7 +32,7 @@
    the Intel manual for details.  */
 
 #include <stdlib.h>
-#include "dis-asm.h"
+#include "disas/bfd.h"
 /* include/opcode/i386.h r1.78 */
 
 /* opcode/i386.h -- Intel 80386 opcode macros

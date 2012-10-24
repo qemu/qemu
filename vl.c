@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 #endif
 #include "qtest.h"
 
-#include "disas.h"
+#include "disas/disas.h"
 
 #include "qemu_socket.h"
 

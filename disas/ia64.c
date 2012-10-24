@@ -21,7 +21,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dis-asm.h"
+#include "disas/bfd.h"
 
 /* ia64.h -- Header file for ia64 opcode table
    Copyright (C) 1998, 1999, 2000, 2002, 2005, 2006

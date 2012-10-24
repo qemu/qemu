@@ -1,11 +1,11 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
 #include "config.h"
-#include "dis-asm.h"
+#include "disas/bfd.h"
 #include "elf.h"
 #include <errno.h>
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 
 typedef struct CPUDebug {
     struct disassemble_info info;
