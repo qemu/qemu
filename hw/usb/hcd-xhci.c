@@ -964,6 +964,12 @@ static void xhci_er_reset(XHCIState *xhci, int v)
     XHCIInterrupter *intr = &xhci->intr[v];
     XHCIEvRingSeg seg;
 
+    if (intr->erstsz == 0) {
+        /* disabled */
+        intr->er_start = 0;
+        intr->er_size = 0;
+        return;
+    }
     /* cache the (sole) event ring segment location */
     if (intr->erstsz != 1) {
         fprintf(stderr, "xhci: invalid value for ERSTSZ: %d\n", intr->erstsz);
