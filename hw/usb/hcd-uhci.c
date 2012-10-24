@@ -991,7 +991,8 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
     UHCI_TD ptd;
     int ret;
 
-    while (is_valid(plink)) {
+    ptd.ctrl = td->ctrl;
+    while (is_valid(plink) && !(ptd.ctrl & TD_CTRL_SPD)) {
         pci_dma_read(&s->dev, plink & ~0xf, &ptd, sizeof(ptd));
         le32_to_cpus(&ptd.link);
         le32_to_cpus(&ptd.ctrl);
@@ -1010,9 +1011,6 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
         }
         assert(ret == TD_RESULT_ASYNC_START);
         assert(int_mask == 0);
-        if (ptd.ctrl & TD_CTRL_SPD) {
-            break;
-        }
         plink = ptd.link;
     }
 }
@@ -1110,9 +1108,7 @@ static void uhci_process_frame(UHCIState *s)
 
         case TD_RESULT_ASYNC_START:
             trace_usb_uhci_td_async(curr_qh & ~0xf, link & ~0xf);
-            if (is_valid(td.link) && !(td.ctrl & TD_CTRL_SPD)) {
-                uhci_fill_queue(s, &td);
-            }
+            uhci_fill_queue(s, &td);
             link = curr_qh ? qh.link : td.link;
             continue;
 
