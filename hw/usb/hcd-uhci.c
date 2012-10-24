@@ -110,7 +110,7 @@ struct UHCIQueue {
     UHCIState *uhci;
     USBEndpoint *ep;
     QTAILQ_ENTRY(UHCIQueue) next;
-    QTAILQ_HEAD(, UHCIAsync) asyncs;
+    QTAILQ_HEAD(asyncs_head, UHCIAsync) asyncs;
     int8_t    valid;
 };
 
@@ -843,15 +843,25 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     }
 
     if (async) {
-        if (!async->done)
-            return TD_RESULT_ASYNC_CONT;
         if (queuing) {
             /* we are busy filling the queue, we are not prepared
                to consume completed packages then, just leave them
                in async state */
             return TD_RESULT_ASYNC_CONT;
         }
+        if (!async->done) {
+            UHCI_TD last_td;
+            UHCIAsync *last = QTAILQ_LAST(&async->queue->asyncs, asyncs_head);
+            /*
+             * While we are waiting for the current td to complete, the guest
+             * may have added more tds to the queue. Note we re-read the td
+             * rather then caching it, as we want to see guest made changes!
+             */
+            uhci_read_td(s, &last_td, last->td_addr);
+            uhci_queue_fill(async->queue, &last_td);
 
+            return TD_RESULT_ASYNC_CONT;
+        }
         uhci_async_unlink(async);
         goto done;
     }
