@@ -370,6 +370,7 @@ USBDevice *usb_find_device(USBPort *port, uint8_t addr);
 
 int usb_handle_packet(USBDevice *dev, USBPacket *p);
 void usb_packet_complete(USBDevice *dev, USBPacket *p);
+void usb_packet_complete_one(USBDevice *dev, USBPacket *p);
 void usb_cancel_packet(USBPacket * p);
 
 void usb_ep_init(USBDevice *dev);

@@ -412,10 +412,11 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static void __usb_packet_complete(USBDevice *dev, USBPacket *p)
+void usb_packet_complete_one(USBDevice *dev, USBPacket *p)
 {
     USBEndpoint *ep = p->ep;
 
+    assert(QTAILQ_FIRST(&ep->queue) == p);
     assert(p->result != USB_RET_ASYNC && p->result != USB_RET_NAK);
 
     if (p->result < 0) {
@@ -435,8 +436,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
     int ret;
 
     usb_packet_check_state(p, USB_PACKET_ASYNC);
-    assert(QTAILQ_FIRST(&ep->queue) == p);
-    __usb_packet_complete(dev, p);
+    usb_packet_complete_one(dev, p);
 
     while (!ep->halted && !QTAILQ_EMPTY(&ep->queue)) {
         p = QTAILQ_FIRST(&ep->queue);
@@ -450,7 +450,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
             break;
         }
         p->result = ret;
-        __usb_packet_complete(ep->dev, p);
+        usb_packet_complete_one(ep->dev, p);
     }
 }
 
