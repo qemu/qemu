@@ -2189,6 +2189,929 @@ SHIFT_PH(shra_r, rnd16_rashift);
 
 #undef SHIFT_PH
 
+/** DSP Multiply Sub-class insns **/
+/* Return value made up by two 16bits value.
+ * FIXME give the macro a better name.
+ */
+#define MUL_RETURN32_16_PH(name, func, \
+                           rsmov1, rsmov2, rsfilter, \
+                           rtmov1, rtmov2, rtfilter) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt, \
+                           CPUMIPSState *env)                \
+{                                                            \
+    uint16_t rsB, rsA, rtB, rtA;                             \
+                                                             \
+    rsB = (rs >> rsmov1) & rsfilter;                         \
+    rsA = (rs >> rsmov2) & rsfilter;                         \
+    rtB = (rt >> rtmov1) & rtfilter;                         \
+    rtA = (rt >> rtmov2) & rtfilter;                         \
+                                                             \
+    rsB = mipsdsp_##func(rsB, rtB, env);                     \
+    rsA = mipsdsp_##func(rsA, rtA, env);                     \
+                                                             \
+    return MIPSDSP_RETURN32_16(rsB, rsA);                    \
+}
+
+MUL_RETURN32_16_PH(muleu_s_ph_qbl, mul_u8_u16, \
+                      24, 16, MIPSDSP_Q0, \
+                      16, 0, MIPSDSP_LO);
+MUL_RETURN32_16_PH(muleu_s_ph_qbr, mul_u8_u16, \
+                      8, 0, MIPSDSP_Q0, \
+                      16, 0, MIPSDSP_LO);
+MUL_RETURN32_16_PH(mulq_rs_ph, rndq15_mul_q15_q15, \
+                      16, 0, MIPSDSP_LO, \
+                      16, 0, MIPSDSP_LO);
+MUL_RETURN32_16_PH(mul_ph, mul_i16_i16, \
+                      16, 0, MIPSDSP_LO, \
+                      16, 0, MIPSDSP_LO);
+MUL_RETURN32_16_PH(mul_s_ph, sat16_mul_i16_i16, \
+                      16, 0, MIPSDSP_LO, \
+                      16, 0, MIPSDSP_LO);
+MUL_RETURN32_16_PH(mulq_s_ph, sat16_mul_q15_q15, \
+                      16, 0, MIPSDSP_LO, \
+                      16, 0, MIPSDSP_LO);
+
+#undef MUL_RETURN32_16_PH
+
+#define MUL_RETURN32_32_ph(name, func, movbits) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt, \
+                                  CPUMIPSState *env)         \
+{                                                            \
+    int16_t rsh, rth;                                        \
+    int32_t temp;                                            \
+                                                             \
+    rsh = (rs >> movbits) & MIPSDSP_LO;                      \
+    rth = (rt >> movbits) & MIPSDSP_LO;                      \
+    temp = mipsdsp_##func(rsh, rth, env);                    \
+                                                             \
+    return (target_long)(int32_t)temp;                       \
+}
+
+MUL_RETURN32_32_ph(muleq_s_w_phl, mul_q15_q15_overflowflag21, 16);
+MUL_RETURN32_32_ph(muleq_s_w_phr, mul_q15_q15_overflowflag21, 0);
+
+#undef MUL_RETURN32_32_ph
+
+#define MUL_VOID_PH(name, use_ac_env) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,        \
+                          CPUMIPSState *env)                             \
+{                                                                        \
+    int16_t rsh, rsl, rth, rtl;                                          \
+    int32_t tempB, tempA;                                                \
+    int64_t acc, dotp;                                                   \
+                                                                         \
+    MIPSDSP_SPLIT32_16(rs, rsh, rsl);                                    \
+    MIPSDSP_SPLIT32_16(rt, rth, rtl);                                    \
+                                                                         \
+    if (use_ac_env == 1) {                                               \
+        tempB = mipsdsp_mul_q15_q15(ac, rsh, rth, env);                  \
+        tempA = mipsdsp_mul_q15_q15(ac, rsl, rtl, env);                  \
+    } else {                                                             \
+        tempB = mipsdsp_mul_u16_u16(rsh, rth);                           \
+        tempA = mipsdsp_mul_u16_u16(rsl, rtl);                           \
+    }                                                                    \
+                                                                         \
+    dotp = (int64_t)tempB - (int64_t)tempA;                              \
+    acc = ((uint64_t)env->active_tc.HI[ac] << 32) |                      \
+          ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);               \
+    dotp = dotp + acc;                                                   \
+    env->active_tc.HI[ac] = (target_long)(int32_t)                       \
+                            ((dotp & MIPSDSP_LHI) >> 32);                \
+    env->active_tc.LO[ac] = (target_long)(int32_t)(dotp & MIPSDSP_LLO);  \
+}
+
+MUL_VOID_PH(mulsaq_s_w_ph, 1);
+MUL_VOID_PH(mulsa_w_ph, 0);
+
+#undef MUL_VOID_PH
+
+#if defined(TARGET_MIPS64)
+#define MUL_RETURN64_16_QH(name, func, \
+                           rsmov1, rsmov2, rsmov3, rsmov4, rsfilter, \
+                           rtmov1, rtmov2, rtmov3, rtmov4, rtfilter) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt,         \
+                           CPUMIPSState *env)                        \
+{                                                                    \
+    uint16_t rs3, rs2, rs1, rs0;                                     \
+    uint16_t rt3, rt2, rt1, rt0;                                     \
+    uint16_t tempD, tempC, tempB, tempA;                             \
+                                                                     \
+    rs3 = (rs >> rsmov1) & rsfilter;                                 \
+    rs2 = (rs >> rsmov2) & rsfilter;                                 \
+    rs1 = (rs >> rsmov3) & rsfilter;                                 \
+    rs0 = (rs >> rsmov4) & rsfilter;                                 \
+    rt3 = (rt >> rtmov1) & rtfilter;                                 \
+    rt2 = (rt >> rtmov2) & rtfilter;                                 \
+    rt1 = (rt >> rtmov3) & rtfilter;                                 \
+    rt0 = (rt >> rtmov4) & rtfilter;                                 \
+                                                                     \
+    tempD = mipsdsp_##func(rs3, rt3, env);                           \
+    tempC = mipsdsp_##func(rs2, rt2, env);                           \
+    tempB = mipsdsp_##func(rs1, rt1, env);                           \
+    tempA = mipsdsp_##func(rs0, rt0, env);                           \
+                                                                     \
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);          \
+}
+
+MUL_RETURN64_16_QH(muleu_s_qh_obl, mul_u8_u16, \
+                   56, 48, 40, 32, MIPSDSP_Q0, \
+                   48, 32, 16, 0, MIPSDSP_LO);
+MUL_RETURN64_16_QH(muleu_s_qh_obr, mul_u8_u16, \
+                   24, 16, 8, 0, MIPSDSP_Q0, \
+                   48, 32, 16, 0, MIPSDSP_LO);
+MUL_RETURN64_16_QH(mulq_rs_qh, rndq15_mul_q15_q15, \
+                   48, 32, 16, 0, MIPSDSP_LO, \
+                   48, 32, 16, 0, MIPSDSP_LO);
+
+#undef MUL_RETURN64_16_QH
+
+#define MUL_RETURN64_32_QH(name, \
+                           rsmov1, rsmov2, \
+                           rtmov1, rtmov2) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt, \
+                           CPUMIPSState *env)                \
+{                                                            \
+    uint16_t rsB, rsA;                                       \
+    uint16_t rtB, rtA;                                       \
+    uint32_t tempB, tempA;                                   \
+                                                             \
+    rsB = (rs >> rsmov1) & MIPSDSP_LO;                       \
+    rsA = (rs >> rsmov2) & MIPSDSP_LO;                       \
+    rtB = (rt >> rtmov1) & MIPSDSP_LO;                       \
+    rtA = (rt >> rtmov2) & MIPSDSP_LO;                       \
+                                                             \
+    tempB = mipsdsp_mul_q15_q15(5, rsB, rtB, env);           \
+    tempA = mipsdsp_mul_q15_q15(5, rsA, rtA, env);           \
+                                                             \
+    return ((uint64_t)tempB << 32) | (uint64_t)tempA;        \
+}
+
+MUL_RETURN64_32_QH(muleq_s_pw_qhl, 48, 32, 48, 32);
+MUL_RETURN64_32_QH(muleq_s_pw_qhr, 16, 0, 16, 0);
+
+#undef MUL_RETURN64_32_QH
+
+void helper_mulsaq_s_w_qh(target_ulong rs, target_ulong rt, uint32_t ac,
+                          CPUMIPSState *env)
+{
+    int16_t rs3, rs2, rs1, rs0;
+    int16_t rt3, rt2, rt1, rt0;
+    int32_t tempD, tempC, tempB, tempA;
+    int64_t acc[2];
+    int64_t temp[2];
+    int64_t temp_sum;
+
+    MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);
+
+    tempD = mipsdsp_mul_q15_q15(ac, rs3, rt3, env);
+    tempC = mipsdsp_mul_q15_q15(ac, rs2, rt2, env);
+    tempB = mipsdsp_mul_q15_q15(ac, rs1, rt1, env);
+    tempA = mipsdsp_mul_q15_q15(ac, rs0, rt0, env);
+
+    temp[0] = ((int32_t)tempD - (int32_t)tempC) +
+              ((int32_t)tempB - (int32_t)tempA);
+    temp[0] = (int64_t)(temp[0] << 30) >> 30;
+    if (((temp[0] >> 33) & 0x01) == 0) {
+        temp[1] = 0x00;
+    } else {
+        temp[1] = ~0ull;
+    }
+
+    acc[0] = env->active_tc.LO[ac];
+    acc[1] = env->active_tc.HI[ac];
+
+    temp_sum = acc[0] + temp[0];
+    if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&
+       ((uint64_t)temp_sum < (uint64_t)temp[0])) {
+        acc[1] += 1;
+    }
+    acc[0] = temp_sum;
+    acc[1] += temp[1];
+
+    env->active_tc.HI[ac] = acc[1];
+    env->active_tc.LO[ac] = acc[0];
+}
+#endif
+
+#define DP_QB(name, func, is_add, rsmov1, rsmov2, rtmov1, rtmov2) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,        \
+                   CPUMIPSState *env)                                    \
+{                                                                        \
+    uint8_t rs3, rs2;                                                    \
+    uint8_t rt3, rt2;                                                    \
+    uint16_t tempB, tempA;                                               \
+    uint64_t tempC, dotp;                                                \
+                                                                         \
+    rs3 = (rs >> rsmov1) & MIPSDSP_Q0;                                   \
+    rs2 = (rs >> rsmov2) & MIPSDSP_Q0;                                   \
+    rt3 = (rt >> rtmov1) & MIPSDSP_Q0;                                   \
+    rt2 = (rt >> rtmov2) & MIPSDSP_Q0;                                   \
+    tempB = mipsdsp_##func(rs3, rt3);                                    \
+    tempA = mipsdsp_##func(rs2, rt2);                                    \
+    dotp = (int64_t)tempB + (int64_t)tempA;                              \
+    if (is_add) {                                                        \
+        tempC = (((uint64_t)env->active_tc.HI[ac] << 32) |               \
+                 ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO))        \
+            + dotp;                                                      \
+    } else {                                                             \
+        tempC = (((uint64_t)env->active_tc.HI[ac] << 32) |               \
+                 ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO))        \
+            - dotp;                                                      \
+    }                                                                    \
+                                                                         \
+    env->active_tc.HI[ac] = (target_long)(int32_t)                       \
+                            ((tempC & MIPSDSP_LHI) >> 32);               \
+    env->active_tc.LO[ac] = (target_long)(int32_t)(tempC & MIPSDSP_LLO); \
+}
+
+DP_QB(dpau_h_qbl, mul_u8_u8, 1, 24, 16, 24, 16);
+DP_QB(dpau_h_qbr, mul_u8_u8, 1, 8, 0, 8, 0);
+DP_QB(dpsu_h_qbl, mul_u8_u8, 0, 24, 16, 24, 16);
+DP_QB(dpsu_h_qbr, mul_u8_u8, 0, 8, 0, 8, 0);
+
+#undef DP_QB
+
+#if defined(TARGET_MIPS64)
+#define DP_OB(name, add_sub, \
+              rsmov1, rsmov2, rsmov3, rsmov4, \
+              rtmov1, rtmov2, rtmov3, rtmov4) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac,       \
+                       CPUMIPSState *env)                               \
+{                                                                       \
+    uint8_t rsD, rsC, rsB, rsA;                                         \
+    uint8_t rtD, rtC, rtB, rtA;                                         \
+    uint16_t tempD, tempC, tempB, tempA;                                \
+    uint64_t temp[2];                                                   \
+    uint64_t acc[2];                                                    \
+    uint64_t temp_sum;                                                  \
+                                                                        \
+    temp[0] = 0;                                                        \
+    temp[1] = 0;                                                        \
+                                                                        \
+    rsD = (rs >> rsmov1) & MIPSDSP_Q0;                                  \
+    rsC = (rs >> rsmov2) & MIPSDSP_Q0;                                  \
+    rsB = (rs >> rsmov3) & MIPSDSP_Q0;                                  \
+    rsA = (rs >> rsmov4) & MIPSDSP_Q0;                                  \
+    rtD = (rt >> rtmov1) & MIPSDSP_Q0;                                  \
+    rtC = (rt >> rtmov2) & MIPSDSP_Q0;                                  \
+    rtB = (rt >> rtmov3) & MIPSDSP_Q0;                                  \
+    rtA = (rt >> rtmov4) & MIPSDSP_Q0;                                  \
+                                                                        \
+    tempD = mipsdsp_mul_u8_u8(rsD, rtD);                                \
+    tempC = mipsdsp_mul_u8_u8(rsC, rtC);                                \
+    tempB = mipsdsp_mul_u8_u8(rsB, rtB);                                \
+    tempA = mipsdsp_mul_u8_u8(rsA, rtA);                                \
+                                                                        \
+    temp[0] = (uint64_t)tempD + (uint64_t)tempC +                       \
+      (uint64_t)tempB + (uint64_t)tempA;                                \
+                                                                        \
+    acc[0] = env->active_tc.LO[ac];                                     \
+    acc[1] = env->active_tc.HI[ac];                                     \
+                                                                        \
+    if (add_sub) {                                                      \
+        temp_sum = acc[0] + temp[0];                                    \
+        if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&                  \
+            ((uint64_t)temp_sum < (uint64_t)temp[0])) {                 \
+            acc[1] += 1;                                                \
+        }                                                               \
+        temp[0] = temp_sum;                                             \
+        temp[1] = acc[1] + temp[1];                                     \
+    } else {                                                            \
+        temp_sum = acc[0] - temp[0];                                    \
+        if ((uint64_t)temp_sum > (uint64_t)acc[0]) {                    \
+            acc[1] -= 1;                                                \
+        }                                                               \
+        temp[0] = temp_sum;                                             \
+        temp[1] = acc[1] - temp[1];                                     \
+    }                                                                   \
+                                                                        \
+    env->active_tc.HI[ac] = temp[1];                                    \
+    env->active_tc.LO[ac] = temp[0];                                    \
+}
+
+DP_OB(dpau_h_obl, 1, 56, 48, 40, 32, 56, 48, 40, 32);
+DP_OB(dpau_h_obr, 1, 24, 16, 8, 0, 24, 16, 8, 0);
+DP_OB(dpsu_h_obl, 0, 56, 48, 40, 32, 56, 48, 40, 32);
+DP_OB(dpsu_h_obr, 0, 24, 16, 8, 0, 24, 16, 8, 0);
+
+#undef DP_OB
+#endif
+
+#define DP_NOFUNC_PH(name, is_add, rsmov1, rsmov2, rtmov1, rtmov2)             \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,              \
+                   CPUMIPSState *env)                                          \
+{                                                                              \
+    uint16_t rsB, rsA, rtB, rtA;                                               \
+    int32_t  tempA, tempB;                                                     \
+    int64_t  acc;                                                              \
+                                                                               \
+    rsB = (rs >> rsmov1) & MIPSDSP_LO;                                         \
+    rsA = (rs >> rsmov2) & MIPSDSP_LO;                                         \
+    rtB = (rt >> rtmov1) & MIPSDSP_LO;                                         \
+    rtA = (rt >> rtmov2) & MIPSDSP_LO;                                         \
+                                                                               \
+    tempB = (int32_t)rsB * (int32_t)rtB;                                       \
+    tempA = (int32_t)rsA * (int32_t)rtA;                                       \
+                                                                               \
+    acc = ((uint64_t)env->active_tc.HI[ac] << 32) |                            \
+          ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);                     \
+                                                                               \
+    if (is_add) {                                                              \
+        acc = acc + ((int64_t)tempB + (int64_t)tempA);                         \
+    } else {                                                                   \
+        acc = acc - ((int64_t)tempB + (int64_t)tempA);                         \
+    }                                                                          \
+                                                                               \
+    env->active_tc.HI[ac] = (target_long)(int32_t)((acc & MIPSDSP_LHI) >> 32); \
+    env->active_tc.LO[ac] = (target_long)(int32_t)(acc & MIPSDSP_LLO);         \
+}
+
+DP_NOFUNC_PH(dpa_w_ph, 1, 16, 0, 16, 0);
+DP_NOFUNC_PH(dpax_w_ph, 1, 16, 0, 0, 16);
+DP_NOFUNC_PH(dps_w_ph, 0, 16, 0, 16, 0);
+DP_NOFUNC_PH(dpsx_w_ph, 0, 16, 0, 0, 16);
+#undef DP_NOFUNC_PH
+
+#define DP_HASFUNC_PH(name, is_add, rsmov1, rsmov2, rtmov1, rtmov2) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,   \
+                   CPUMIPSState *env)                      \
+{                                                          \
+    int16_t rsB, rsA, rtB, rtA;                            \
+    int32_t tempB, tempA;                                  \
+    int64_t acc, dotp;                                     \
+                                                           \
+    rsB = (rs >> rsmov1) & MIPSDSP_LO;                     \
+    rsA = (rs >> rsmov2) & MIPSDSP_LO;                     \
+    rtB = (rt >> rtmov1) & MIPSDSP_LO;                     \
+    rtA = (rt >> rtmov2) & MIPSDSP_LO;                     \
+                                                           \
+    tempB = mipsdsp_mul_q15_q15(ac, rsB, rtB, env);        \
+    tempA = mipsdsp_mul_q15_q15(ac, rsA, rtA, env);        \
+                                                           \
+    dotp = (int64_t)tempB + (int64_t)tempA;                \
+    acc = ((uint64_t)env->active_tc.HI[ac] << 32) |        \
+          ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO); \
+                                                           \
+    if (is_add) {                                          \
+        acc = acc + dotp;                                  \
+    } else {                                               \
+        acc = acc - dotp;                                  \
+    }                                                      \
+                                                           \
+    env->active_tc.HI[ac] = (target_long)(int32_t)         \
+        ((acc & MIPSDSP_LHI) >> 32);                       \
+    env->active_tc.LO[ac] = (target_long)(int32_t)         \
+        (acc & MIPSDSP_LLO);                               \
+}
+
+DP_HASFUNC_PH(dpaq_s_w_ph, 1, 16, 0, 16, 0);
+DP_HASFUNC_PH(dpaqx_s_w_ph, 1, 16, 0, 0, 16);
+DP_HASFUNC_PH(dpsq_s_w_ph, 0, 16, 0, 16, 0);
+DP_HASFUNC_PH(dpsqx_s_w_ph, 0, 16, 0, 0, 16);
+
+#undef DP_HASFUNC_PH
+
+#define DP_128OPERATION_PH(name, is_add) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt, \
+                          CPUMIPSState *env)                             \
+{                                                                        \
+    int16_t rsh, rsl, rth, rtl;                                          \
+    int32_t tempB, tempA, tempC62_31, tempC63;                           \
+    int64_t acc, dotp, tempC;                                            \
+                                                                         \
+    MIPSDSP_SPLIT32_16(rs, rsh, rsl);                                    \
+    MIPSDSP_SPLIT32_16(rt, rth, rtl);                                    \
+                                                                         \
+    tempB = mipsdsp_mul_q15_q15(ac, rsh, rtl, env);                      \
+    tempA = mipsdsp_mul_q15_q15(ac, rsl, rth, env);                      \
+                                                                         \
+    dotp = (int64_t)tempB + (int64_t)tempA;                              \
+    acc = ((uint64_t)env->active_tc.HI[ac] << 32) |                      \
+          ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);               \
+    if (is_add) {                                                        \
+        tempC = acc + dotp;                                              \
+    } else {                                                             \
+        tempC = acc - dotp;                                              \
+    }                                                                    \
+    tempC63 = (tempC >> 63) & 0x01;                                      \
+    tempC62_31 = (tempC >> 31) & 0xFFFFFFFF;                             \
+                                                                         \
+    if ((tempC63 == 0) && (tempC62_31 != 0x00000000)) {                  \
+        tempC = 0x7FFFFFFF;                                              \
+        set_DSPControl_overflow_flag(1, 16 + ac, env);                   \
+    }                                                                    \
+                                                                         \
+    if ((tempC63 == 1) && (tempC62_31 != 0xFFFFFFFF)) {                  \
+        tempC = (int64_t)(int32_t)0x80000000;                            \
+        set_DSPControl_overflow_flag(1, 16 + ac, env);                   \
+    }                                                                    \
+                                                                         \
+    env->active_tc.HI[ac] = (target_long)(int32_t)                       \
+        ((tempC & MIPSDSP_LHI) >> 32);                                   \
+    env->active_tc.LO[ac] = (target_long)(int32_t)                       \
+        (tempC & MIPSDSP_LLO);                                           \
+}
+
+DP_128OPERATION_PH(dpaqx_sa_w_ph, 1);
+DP_128OPERATION_PH(dpsqx_sa_w_ph, 0);
+
+#undef DP_128OPERATION_HP
+
+#if defined(TARGET_MIPS64)
+#define DP_QH(name, is_add, use_ac_env) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac,    \
+                   CPUMIPSState *env)                                \
+{                                                                    \
+    int32_t rs3, rs2, rs1, rs0;                                      \
+    int32_t rt3, rt2, rt1, rt0;                                      \
+    int32_t tempD, tempC, tempB, tempA;                              \
+    int64_t acc[2];                                                  \
+    int64_t temp[2];                                                 \
+    int64_t temp_sum;                                                \
+                                                                     \
+    MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);                      \
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);                      \
+                                                                     \
+    if (use_ac_env) {                                                \
+        tempD = mipsdsp_mul_q15_q15(ac, rs3, rt3, env);              \
+        tempC = mipsdsp_mul_q15_q15(ac, rs2, rt2, env);              \
+        tempB = mipsdsp_mul_q15_q15(ac, rs1, rt1, env);              \
+        tempA = mipsdsp_mul_q15_q15(ac, rs0, rt0, env);              \
+    } else {                                                         \
+        tempD = mipsdsp_mul_u16_u16(rs3, rt3);                       \
+        tempC = mipsdsp_mul_u16_u16(rs2, rt2);                       \
+        tempB = mipsdsp_mul_u16_u16(rs1, rt1);                       \
+        tempA = mipsdsp_mul_u16_u16(rs0, rt0);                       \
+    }                                                                \
+                                                                     \
+    temp[0] = (int64_t)tempD + (int64_t)tempC +                      \
+              (int64_t)tempB + (int64_t)tempA;                       \
+                                                                     \
+    if (temp[0] >= 0) {                                              \
+        temp[1] = 0;                                                 \
+    } else {                                                         \
+        temp[1] = ~0ull;                                             \
+    }                                                                \
+                                                                     \
+    acc[1] = env->active_tc.HI[ac];                                  \
+    acc[0] = env->active_tc.LO[ac];                                  \
+                                                                     \
+    if (is_add) {                                                    \
+        temp_sum = acc[0] + temp[0];                                 \
+        if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&               \
+            ((uint64_t)temp_sum < (uint64_t)temp[0])) {              \
+            acc[1] = acc[1] + 1;                                     \
+        }                                                            \
+        temp[0] = temp_sum;                                          \
+        temp[1] = acc[1] + temp[1];                                  \
+    } else {                                                         \
+        temp_sum = acc[0] - temp[0];                                 \
+        if ((uint64_t)temp_sum > (uint64_t)acc[0]) {                 \
+            acc[1] = acc[1] - 1;                                     \
+        }                                                            \
+        temp[0] = temp_sum;                                          \
+        temp[1] = acc[1] - temp[1];                                  \
+    }                                                                \
+                                                                     \
+    env->active_tc.HI[ac] = temp[1];                                 \
+    env->active_tc.LO[ac] = temp[0];                                 \
+}
+
+DP_QH(dpa_w_qh, 1, 0);
+DP_QH(dpaq_s_w_qh, 1, 1);
+DP_QH(dps_w_qh, 0, 0);
+DP_QH(dpsq_s_w_qh, 0, 1);
+
+#undef DP_QH
+
+#endif
+
+#define DP_L_W(name, is_add) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,     \
+                   CPUMIPSState *env)                                 \
+{                                                                     \
+    int32_t temp63;                                                   \
+    int64_t dotp, acc;                                                \
+    uint64_t temp;                                                    \
+                                                                      \
+    dotp = mipsdsp_mul_q31_q31(ac, rs, rt, env);                      \
+    acc = ((uint64_t)env->active_tc.HI[ac] << 32) |                   \
+          ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);            \
+    if (!is_add) {                                                    \
+        dotp = -dotp;                                                 \
+    }                                                                 \
+                                                                      \
+    temp = acc + dotp;                                                \
+    if (MIPSDSP_OVERFLOW((uint64_t)acc, (uint64_t)dotp, temp,         \
+                         (0x01ull << 63))) {                          \
+        temp63 = (temp >> 63) & 0x01;                                 \
+        if (temp63 == 1) {                                            \
+            temp = (0x01ull << 63) - 1;                               \
+        } else {                                                      \
+            temp = 0x01ull << 63;                                     \
+        }                                                             \
+                                                                      \
+        set_DSPControl_overflow_flag(1, 16 + ac, env);                \
+    }                                                                 \
+                                                                      \
+    env->active_tc.HI[ac] = (target_long)(int32_t)                    \
+        ((temp & MIPSDSP_LHI) >> 32);                                 \
+    env->active_tc.LO[ac] = (target_long)(int32_t)                    \
+        (temp & MIPSDSP_LLO);                                         \
+}
+
+DP_L_W(dpaq_sa_l_w, 1);
+DP_L_W(dpsq_sa_l_w, 0);
+
+#undef DP_L_W
+
+#if defined(TARGET_MIPS64)
+#define DP_L_PW(name, func) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+                   CPUMIPSState *env)                             \
+{                                                                 \
+    int32_t rs1, rs0;                                             \
+    int32_t rt1, rt0;                                             \
+    int64_t tempB[2], tempA[2];                                   \
+    int64_t temp[2];                                              \
+    int64_t acc[2];                                               \
+    int64_t temp_sum;                                             \
+                                                                  \
+    temp[0] = 0;                                                  \
+    temp[1] = 0;                                                  \
+                                                                  \
+    MIPSDSP_SPLIT64_32(rs, rs1, rs0);                             \
+    MIPSDSP_SPLIT64_32(rt, rt1, rt0);                             \
+                                                                  \
+    tempB[0] = mipsdsp_mul_q31_q31(ac, rs1, rt1, env);            \
+    tempA[0] = mipsdsp_mul_q31_q31(ac, rs0, rt0, env);            \
+                                                                  \
+    if (tempB[0] >= 0) {                                          \
+        tempB[1] = 0x00;                                          \
+    } else {                                                      \
+        tempB[1] = ~0ull;                                         \
+    }                                                             \
+                                                                  \
+    if (tempA[0] >= 0) {                                          \
+        tempA[1] = 0x00;                                          \
+    } else {                                                      \
+        tempA[1] = ~0ull;                                         \
+    }                                                             \
+                                                                  \
+    temp_sum = tempB[0] + tempA[0];                               \
+    if (((uint64_t)temp_sum < (uint64_t)tempB[0]) &&              \
+        ((uint64_t)temp_sum < (uint64_t)tempA[0])) {              \
+        temp[1] += 1;                                             \
+    }                                                             \
+    temp[0] = temp_sum;                                           \
+    temp[1] += tempB[1] + tempA[1];                               \
+                                                                  \
+    mipsdsp_##func(acc, ac, temp, env);                           \
+                                                                  \
+    env->active_tc.HI[ac] = acc[1];                               \
+    env->active_tc.LO[ac] = acc[0];                               \
+}
+
+DP_L_PW(dpaq_sa_l_pw, sat64_acc_add_q63);
+DP_L_PW(dpsq_sa_l_pw, sat64_acc_sub_q63);
+
+#undef DP_L_PW
+
+void helper_mulsaq_s_l_pw(target_ulong rs, target_ulong rt, uint32_t ac,
+                          CPUMIPSState *env)
+{
+    int32_t rs1, rs0;
+    int32_t rt1, rt0;
+    int64_t tempB[2], tempA[2];
+    int64_t temp[2];
+    int64_t acc[2];
+    int64_t temp_sum;
+
+    rs1 = (rs >> 32) & MIPSDSP_LLO;
+    rs0 = rs & MIPSDSP_LLO;
+    rt1 = (rt >> 32) & MIPSDSP_LLO;
+    rt0 = rt & MIPSDSP_LLO;
+
+    tempB[0] = mipsdsp_mul_q31_q31(ac, rs1, rt1, env);
+    tempA[0] = mipsdsp_mul_q31_q31(ac, rs0, rt0, env);
+
+    if (tempB[0] >= 0) {
+        tempB[1] = 0x00;
+    } else {
+        tempB[1] = ~0ull;
+    }
+
+    if (tempA[0] >= 0) {
+        tempA[1] = 0x00;
+    } else {
+        tempA[1] = ~0ull;
+    }
+
+    acc[0] = env->active_tc.LO[ac];
+    acc[1] = env->active_tc.HI[ac];
+
+    temp_sum = tempB[0] - tempA[0];
+    if ((uint64_t)temp_sum > (uint64_t)tempB[0]) {
+        tempB[1] -= 1;
+    }
+    temp[0] = temp_sum;
+    temp[1] = tempB[1] - tempA[1];
+
+    if ((temp[1] & 0x01) == 0) {
+        temp[1] = 0x00;
+    } else {
+        temp[1] = ~0ull;
+    }
+
+    temp_sum = acc[0] + temp[0];
+    if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&
+       ((uint64_t)temp_sum < (uint64_t)temp[0])) {
+        acc[1] += 1;
+    }
+    acc[0] = temp_sum;
+    acc[1] += temp[1];
+
+    env->active_tc.HI[ac] = acc[1];
+    env->active_tc.LO[ac] = acc[0];
+}
+#endif
+
+#define MAQ_S_W(name, mov) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt, \
+                   CPUMIPSState *env)                             \
+{                                                                 \
+    int16_t rsh, rth;                                             \
+    int32_t tempA;                                                \
+    int64_t tempL, acc;                                           \
+                                                                  \
+    rsh = (rs >> mov) & MIPSDSP_LO;                               \
+    rth = (rt >> mov) & MIPSDSP_LO;                               \
+    tempA  = mipsdsp_mul_q15_q15(ac, rsh, rth, env);              \
+    acc = ((uint64_t)env->active_tc.HI[ac] << 32) |               \
+          ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);        \
+    tempL  = (int64_t)tempA + acc;                                \
+    env->active_tc.HI[ac] = (target_long)(int32_t)                \
+        ((tempL & MIPSDSP_LHI) >> 32);                            \
+    env->active_tc.LO[ac] = (target_long)(int32_t)                \
+        (tempL & MIPSDSP_LLO);                                    \
+}
+
+MAQ_S_W(maq_s_w_phl, 16);
+MAQ_S_W(maq_s_w_phr, 0);
+
+#undef MAQ_S_W
+
+#define MAQ_SA_W(name, mov) \
+void helper_##name(uint32_t ac, target_ulong rs, target_ulong rt,        \
+                   CPUMIPSState *env)                                    \
+{                                                                        \
+    int16_t rsh, rth;                                                    \
+    int32_t tempA;                                                       \
+                                                                         \
+    rsh = (rs >> mov) & MIPSDSP_LO;                                      \
+    rth = (rt >> mov) & MIPSDSP_LO;                                      \
+    tempA = mipsdsp_mul_q15_q15(ac, rsh, rth, env);                      \
+    tempA = mipsdsp_sat32_acc_q31(ac, tempA, env);                       \
+                                                                         \
+    env->active_tc.HI[ac] = (target_long)(int32_t)(((int64_t)tempA &     \
+                                                    MIPSDSP_LHI) >> 32); \
+    env->active_tc.LO[ac] = (target_long)(int32_t)((int64_t)tempA &      \
+                                                   MIPSDSP_LLO);         \
+}
+
+MAQ_SA_W(maq_sa_w_phl, 16);
+MAQ_SA_W(maq_sa_w_phr, 0);
+
+#undef MAQ_SA_W
+
+#define MULQ_W(name, addvar) \
+target_ulong helper_##name(target_ulong rs, target_ulong rt,   \
+                           CPUMIPSState *env)                  \
+{                                                              \
+    uint32_t rs_t, rt_t;                                       \
+    int32_t tempI;                                             \
+    int64_t tempL;                                             \
+                                                               \
+    rs_t = rs & MIPSDSP_LLO;                                   \
+    rt_t = rt & MIPSDSP_LLO;                                   \
+                                                               \
+    if ((rs_t == 0x80000000) && (rt_t == 0x80000000)) {        \
+        tempL = 0x7FFFFFFF00000000ull;                         \
+        set_DSPControl_overflow_flag(1, 21, env);              \
+    } else {                                                   \
+        tempL  = ((int64_t)rs_t * (int64_t)rt_t) << 1;         \
+        tempL += addvar;                                       \
+    }                                                          \
+    tempI = (tempL & MIPSDSP_LHI) >> 32;                       \
+                                                               \
+    return (target_long)(int32_t)tempI;                        \
+}
+
+MULQ_W(mulq_s_w, 0);
+MULQ_W(mulq_rs_w, 0x80000000ull);
+
+#undef MULQ_W
+
+#if defined(TARGET_MIPS64)
+
+#define MAQ_S_W_QH(name, mov) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+                   CPUMIPSState *env)                             \
+{                                                                 \
+    int16_t rs_t, rt_t;                                           \
+    int32_t temp_mul;                                             \
+    int64_t temp[2];                                              \
+    int64_t acc[2];                                               \
+    int64_t temp_sum;                                             \
+                                                                  \
+    temp[0] = 0;                                                  \
+    temp[1] = 0;                                                  \
+                                                                  \
+    rs_t = (rs >> mov) & MIPSDSP_LO;                              \
+    rt_t = (rt >> mov) & MIPSDSP_LO;                              \
+    temp_mul = mipsdsp_mul_q15_q15(ac, rs_t, rt_t, env);          \
+                                                                  \
+    temp[0] = (int64_t)temp_mul;                                  \
+    if (temp[0] >= 0) {                                           \
+        temp[1] = 0x00;                                           \
+    } else {                                                      \
+        temp[1] = ~0ull;                                          \
+    }                                                             \
+                                                                  \
+    acc[0] = env->active_tc.LO[ac];                               \
+    acc[1] = env->active_tc.HI[ac];                               \
+                                                                  \
+    temp_sum = acc[0] + temp[0];                                  \
+    if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&                \
+        ((uint64_t)temp_sum < (uint64_t)temp[0])) {               \
+        acc[1] += 1;                                              \
+    }                                                             \
+    acc[0] = temp_sum;                                            \
+    acc[1] += temp[1];                                            \
+                                                                  \
+    env->active_tc.HI[ac] = acc[1];                               \
+    env->active_tc.LO[ac] = acc[0];                               \
+}
+
+MAQ_S_W_QH(maq_s_w_qhll, 48);
+MAQ_S_W_QH(maq_s_w_qhlr, 32);
+MAQ_S_W_QH(maq_s_w_qhrl, 16);
+MAQ_S_W_QH(maq_s_w_qhrr, 0);
+
+#undef MAQ_S_W_QH
+
+#define MAQ_SA_W(name, mov) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+                   CPUMIPSState *env)                             \
+{                                                                 \
+    int16_t rs_t, rt_t;                                           \
+    int32_t temp;                                                 \
+    int64_t acc[2];                                               \
+                                                                  \
+    rs_t = (rs >> mov) & MIPSDSP_LO;                              \
+    rt_t = (rt >> mov) & MIPSDSP_LO;                              \
+    temp = mipsdsp_mul_q15_q15(ac, rs_t, rt_t, env);              \
+    temp = mipsdsp_sat32_acc_q31(ac, temp, env);                  \
+                                                                  \
+    acc[0] = (int64_t)(int32_t)temp;                              \
+    if (acc[0] >= 0) {                                            \
+        acc[1] = 0x00;                                            \
+    } else {                                                      \
+        acc[1] = ~0ull;                                           \
+    }                                                             \
+                                                                  \
+    env->active_tc.HI[ac] = acc[1];                               \
+    env->active_tc.LO[ac] = acc[0];                               \
+}
+
+MAQ_SA_W(maq_sa_w_qhll, 48);
+MAQ_SA_W(maq_sa_w_qhlr, 32);
+MAQ_SA_W(maq_sa_w_qhrl, 16);
+MAQ_SA_W(maq_sa_w_qhrr, 0);
+
+#undef MAQ_SA_W
+
+#define MAQ_S_L_PW(name, mov) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac, \
+                   CPUMIPSState *env)                             \
+{                                                                 \
+    int32_t rs_t, rt_t;                                           \
+    int64_t temp[2];                                              \
+    int64_t acc[2];                                               \
+    int64_t temp_sum;                                             \
+                                                                  \
+    temp[0] = 0;                                                  \
+    temp[1] = 0;                                                  \
+                                                                  \
+    rs_t = (rs >> mov) & MIPSDSP_LLO;                             \
+    rt_t = (rt >> mov) & MIPSDSP_LLO;                             \
+                                                                  \
+    temp[0] = mipsdsp_mul_q31_q31(ac, rs_t, rt_t, env);           \
+    if (temp[0] >= 0) {                                           \
+        temp[1] = 0x00;                                           \
+    } else {                                                      \
+        temp[1] = ~0ull;                                          \
+    }                                                             \
+                                                                  \
+    acc[0] = env->active_tc.LO[ac];                               \
+    acc[1] = env->active_tc.HI[ac];                               \
+                                                                  \
+    temp_sum = acc[0] + temp[0];                                  \
+    if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&                \
+        ((uint64_t)temp_sum < (uint64_t)temp[0])) {               \
+        acc[1] += 1;                                              \
+    }                                                             \
+    acc[0] = temp_sum;                                            \
+    acc[1] += temp[1];                                            \
+                                                                  \
+    env->active_tc.HI[ac] = acc[1];                               \
+    env->active_tc.LO[ac] = acc[0];                               \
+}
+
+MAQ_S_L_PW(maq_s_l_pwl, 32);
+MAQ_S_L_PW(maq_s_l_pwr, 0);
+
+#undef MAQ_S_L_PW
+
+#define DM_OPERATE(name, func, is_add, sigext) \
+void helper_##name(target_ulong rs, target_ulong rt, uint32_t ac,    \
+                  CPUMIPSState *env)                                 \
+{                                                                    \
+    int32_t rs1, rs0;                                                \
+    int32_t rt1, rt0;                                                \
+    int64_t tempBL[2], tempAL[2];                                    \
+    int64_t acc[2];                                                  \
+    int64_t temp[2];                                                 \
+    int64_t temp_sum;                                                \
+                                                                     \
+    temp[0] = 0x00;                                                  \
+    temp[1] = 0x00;                                                  \
+                                                                     \
+    MIPSDSP_SPLIT64_32(rs, rs1, rs0);                                \
+    MIPSDSP_SPLIT64_32(rt, rt1, rt0);                                \
+                                                                     \
+    if (sigext) {                                                    \
+        tempBL[0] = (int64_t)mipsdsp_##func(rs1, rt1);               \
+        tempAL[0] = (int64_t)mipsdsp_##func(rs0, rt0);               \
+                                                                     \
+        if (tempBL[0] >= 0) {                                        \
+            tempBL[1] = 0x0;                                         \
+        } else {                                                     \
+            tempBL[1] = ~0ull;                                       \
+        }                                                            \
+                                                                     \
+        if (tempAL[0] >= 0) {                                        \
+            tempAL[1] = 0x0;                                         \
+        } else {                                                     \
+            tempAL[1] = ~0ull;                                       \
+        }                                                            \
+    } else {                                                         \
+        tempBL[0] = mipsdsp_##func(rs1, rt1);                        \
+        tempAL[0] = mipsdsp_##func(rs0, rt0);                        \
+        tempBL[1] = 0;                                               \
+        tempAL[1] = 0;                                               \
+    }                                                                \
+                                                                     \
+    acc[1] = env->active_tc.HI[ac];                                  \
+    acc[0] = env->active_tc.LO[ac];                                  \
+                                                                     \
+    temp_sum = tempBL[0] + tempAL[0];                                \
+    if (((uint64_t)temp_sum < (uint64_t)tempBL[0]) &&                \
+        ((uint64_t)temp_sum < (uint64_t)tempAL[0])) {                \
+        temp[1] += 1;                                                \
+    }                                                                \
+    temp[0] = temp_sum;                                              \
+    temp[1] += tempBL[1] + tempAL[1];                                \
+                                                                     \
+    if (is_add) {                                                    \
+        temp_sum = acc[0] + temp[0];                                 \
+        if (((uint64_t)temp_sum < (uint64_t)acc[0]) &&               \
+            ((uint64_t)temp_sum < (uint64_t)temp[0])) {              \
+            acc[1] += 1;                                             \
+        }                                                            \
+        temp[0] = temp_sum;                                          \
+        temp[1] = acc[1] + temp[1];                                  \
+    } else {                                                         \
+        temp_sum = acc[0] - temp[0];                                 \
+        if ((uint64_t)temp_sum > (uint64_t)acc[0]) {                 \
+            acc[1] -= 1;                                             \
+        }                                                            \
+        temp[0] = temp_sum;                                          \
+        temp[1] = acc[1] - temp[1];                                  \
+    }                                                                \
+                                                                     \
+    env->active_tc.HI[ac] = temp[1];                                 \
+    env->active_tc.LO[ac] = temp[0];                                 \
+}
+
+DM_OPERATE(dmadd, mul_i32_i32, 1, 1);
+DM_OPERATE(dmaddu, mul_u32_u32, 1, 0);
+DM_OPERATE(dmsub, mul_i32_i32, 0, 1);
+DM_OPERATE(dmsubu, mul_u32_u32, 0, 0);
+#undef DM_OPERATE
+#endif
+
 #undef MIPSDSP_LHI
 #undef MIPSDSP_LLO
 #undef MIPSDSP_HI
