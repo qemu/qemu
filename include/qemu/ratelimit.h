@@ -42,7 +42,7 @@ static inline void ratelimit_set_speed(RateLimit *limit, uint64_t speed,
                                        uint64_t slice_ns)
 {
     limit->slice_ns = slice_ns;
-    limit->slice_quota = ((double)speed * 1000000000ULL) / slice_ns;
+    limit->slice_quota = ((double)speed * slice_ns)/1000000000ULL;
 }
 
 #endif
