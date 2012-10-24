@@ -443,6 +443,7 @@ struct EHCIState {
 
     uint64_t last_run_ns;
     uint32_t async_stepdown;
+    bool int_req_by_async;
 };
 
 #define SET_LAST_RUN_CLOCK(s) \
@@ -1529,6 +1530,9 @@ static void ehci_execute_complete(EHCIQueue *q)
 
     if (q->qh.token & QTD_TOKEN_IOC) {
         ehci_raise_irq(q->ehci, USBSTS_INT);
+        if (q->async) {
+            q->ehci->int_req_by_async = true;
+        }
     }
 }
 
@@ -2504,8 +2508,15 @@ static void ehci_frame_timer(void *opaque)
     }
 
     if (need_timer) {
-        expire_time = t_now + (get_ticks_per_sec()
+        /* If we've raised int, we speed up the timer, so that we quickly
+         * notice any new packets queued up in response */
+        if (ehci->int_req_by_async && (ehci->usbsts & USBSTS_INT)) {
+            expire_time = t_now + get_ticks_per_sec() / (FRAME_TIMER_FREQ * 2);
+            ehci->int_req_by_async = false;
+        } else {
+            expire_time = t_now + (get_ticks_per_sec()
                                * (ehci->async_stepdown+1) / FRAME_TIMER_FREQ);
+        }
         qemu_mod_timer(ehci->frame_timer, expire_time);
     }
 }
