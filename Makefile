@@ -132,7 +132,7 @@ $(SUBDIR_RULES): libqemustub.a
 
 $(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y)
 
-$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) subdir-libuser
+$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(user-obj-y)
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -224,8 +224,6 @@ $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
 qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(oslib-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemustub.a
 
-QEMULIBS=libuser
-
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
@@ -242,7 +240,7 @@ clean:
 	rm -rf qapi-generated
 	rm -rf qga/qapi-generated
 	$(MAKE) -C tests/tcg clean
-	for d in $(ALL_SUBDIRS) $(QEMULIBS) libcacard; do \
+	for d in $(ALL_SUBDIRS) libcacard; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
 	rm -f $$d/qemu-options.def; \
         done
@@ -265,7 +263,7 @@ distclean: clean
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -f qemu-tech.info qemu-tech.aux qemu-tech.cp qemu-tech.dvi qemu-tech.fn qemu-tech.info qemu-tech.ky qemu-tech.log qemu-tech.pdf qemu-tech.pg qemu-tech.toc qemu-tech.tp qemu-tech.vr
-	for d in $(TARGET_DIRS) $(QEMULIBS); do \
+	for d in $(TARGET_DIRS); do \
 	rm -rf $$d || exit 1 ; \
         done
 	if test -f pixman/config.log; then make -C pixman distclean; fi

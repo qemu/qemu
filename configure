@@ -4212,9 +4212,6 @@ for rom in seabios vgabios ; do
     echo "LD=$ld" >> $config_mak
 done
 
-d=libuser
-symlink "$source_path/Makefile.user" "$d/Makefile"
-
 if test "$docs" = "yes" ; then
   mkdir -p QMP
 fi

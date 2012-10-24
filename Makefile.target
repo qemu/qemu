@@ -155,9 +155,8 @@ all-obj-y += $(addprefix ../, $(universal-obj-y))
 
 ifdef CONFIG_SOFTMMU
 all-obj-y += $(addprefix ../, $(common-obj-y))
-all-obj-y += $(addprefix ../, $(trace-obj-y))
 else
-all-obj-y += $(addprefix ../libuser/, $(user-obj-y))
+all-obj-y += $(addprefix ../, $(user-obj-y))
 endif #CONFIG_LINUX_USER
 
 ifdef QEMU_PROGW

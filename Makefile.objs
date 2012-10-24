@@ -123,7 +123,6 @@ user-obj-y += tcg-runtime.o host-utils.o
 user-obj-y += cache-utils.o
 user-obj-y += module.o
 user-obj-y += qemu-user.o
-user-obj-y += $(trace-obj-y)
 user-obj-y += qom/
 
 ######################################################################
@@ -195,6 +194,8 @@ trace-obj-$(CONFIG_TRACE_STDERR) += trace/stderr.o
 trace-obj-y += trace/control.o
 
 $(trace-obj-y): $(GENERATED_HEADERS)
+
+universal-obj-y += $(trace-obj-y)
 
 ######################################################################
 # smartcard
