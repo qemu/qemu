@@ -2098,7 +2098,7 @@ static uint32_t xhci_cap_read(XHCIState *xhci, uint32_t reg)
         ret = 0x02000402; /* USB 2.0 */
         break;
     case 0x24: /* Supported Protocol:04 */
-        ret = 0x20425455; /* "USB " */
+        ret = 0x20425355; /* "USB " */
         break;
     case 0x28: /* Supported Protocol:08 */
         ret = 0x00000001 | (USB2_PORTS<<8);
@@ -2110,7 +2110,7 @@ static uint32_t xhci_cap_read(XHCIState *xhci, uint32_t reg)
         ret = 0x03000002; /* USB 3.0 */
         break;
     case 0x34: /* Supported Protocol:04 */
-        ret = 0x20425455; /* "USB " */
+        ret = 0x20425355; /* "USB " */
         break;
     case 0x38: /* Supported Protocol:08 */
         ret = 0x00000000 | (USB2_PORTS+1) | (USB3_PORTS<<8);
