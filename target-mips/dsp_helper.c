@@ -1061,3 +1061,897 @@ static inline int32_t mipsdsp_cmpu_lt(uint32_t a, uint32_t b)
     return a < b;
 }
 /*** MIPS DSP internal functions end ***/
+
+#define MIPSDSP_LHI 0xFFFFFFFF00000000ull
+#define MIPSDSP_LLO 0x00000000FFFFFFFFull
+#define MIPSDSP_HI  0xFFFF0000
+#define MIPSDSP_LO  0x0000FFFF
+#define MIPSDSP_Q3  0xFF000000
+#define MIPSDSP_Q2  0x00FF0000
+#define MIPSDSP_Q1  0x0000FF00
+#define MIPSDSP_Q0  0x000000FF
+
+#define MIPSDSP_SPLIT32_8(num, a, b, c, d)  \
+    do {                                    \
+        a = (num >> 24) & MIPSDSP_Q0;       \
+        b = (num >> 16) & MIPSDSP_Q0;       \
+        c = (num >> 8) & MIPSDSP_Q0;        \
+        d = num & MIPSDSP_Q0;               \
+    } while (0)
+
+#define MIPSDSP_SPLIT32_16(num, a, b)       \
+    do {                                    \
+        a = (num >> 16) & MIPSDSP_LO;       \
+        b = num & MIPSDSP_LO;               \
+    } while (0)
+
+#define MIPSDSP_RETURN32(a)             ((target_long)(int32_t)a)
+#define MIPSDSP_RETURN32_8(a, b, c, d)  ((target_long)(int32_t) \
+                                         (((uint32_t)a << 24) | \
+                                         (((uint32_t)b << 16) | \
+                                         (((uint32_t)c << 8) |  \
+                                          ((uint32_t)d & 0xFF)))))
+#define MIPSDSP_RETURN32_16(a, b)       ((target_long)(int32_t) \
+                                         (((uint32_t)a << 16) | \
+                                          ((uint32_t)b & 0xFFFF)))
+
+#ifdef TARGET_MIPS64
+#define MIPSDSP_SPLIT64_16(num, a, b, c, d)  \
+    do {                                     \
+        a = (num >> 48) & MIPSDSP_LO;        \
+        b = (num >> 32) & MIPSDSP_LO;        \
+        c = (num >> 16) & MIPSDSP_LO;        \
+        d = num & MIPSDSP_LO;                \
+    } while (0)
+
+#define MIPSDSP_SPLIT64_32(num, a, b)       \
+    do {                                    \
+        a = (num >> 32) & MIPSDSP_LLO;      \
+        b = num & MIPSDSP_LLO;              \
+    } while (0)
+
+#define MIPSDSP_RETURN64_16(a, b, c, d) (((uint64_t)a << 48) | \
+                                         ((uint64_t)b << 32) | \
+                                         ((uint64_t)c << 16) | \
+                                         (uint64_t)d)
+#define MIPSDSP_RETURN64_32(a, b)       (((uint64_t)a << 32) | (uint64_t)b)
+#endif
+
+/** DSP Arithmetic Sub-class insns **/
+#define ARITH_PH(name, func)                                      \
+target_ulong helper_##name##_ph(target_ulong rs, target_ulong rt) \
+{                                                                 \
+    uint16_t  rsh, rsl, rth, rtl, temph, templ;                   \
+                                                                  \
+    MIPSDSP_SPLIT32_16(rs, rsh, rsl);                             \
+    MIPSDSP_SPLIT32_16(rt, rth, rtl);                             \
+                                                                  \
+    temph = mipsdsp_##func(rsh, rth);                             \
+    templ = mipsdsp_##func(rsl, rtl);                             \
+                                                                  \
+    return MIPSDSP_RETURN32_16(temph, templ);                     \
+}
+
+#define ARITH_PH_ENV(name, func)                                  \
+target_ulong helper_##name##_ph(target_ulong rs, target_ulong rt, \
+                                CPUMIPSState *env)                \
+{                                                                 \
+    uint16_t  rsh, rsl, rth, rtl, temph, templ;                   \
+                                                                  \
+    MIPSDSP_SPLIT32_16(rs, rsh, rsl);                             \
+    MIPSDSP_SPLIT32_16(rt, rth, rtl);                             \
+                                                                  \
+    temph = mipsdsp_##func(rsh, rth, env);                        \
+    templ = mipsdsp_##func(rsl, rtl, env);                        \
+                                                                  \
+    return MIPSDSP_RETURN32_16(temph, templ);                     \
+}
+
+
+ARITH_PH_ENV(addq, add_i16);
+ARITH_PH_ENV(addq_s, sat_add_i16);
+ARITH_PH_ENV(addu, add_u16);
+ARITH_PH_ENV(addu_s, sat_add_u16);
+
+ARITH_PH(addqh, rshift1_add_q16);
+ARITH_PH(addqh_r, rrshift1_add_q16);
+
+ARITH_PH_ENV(subq, sub_i16);
+ARITH_PH_ENV(subq_s, sat16_sub);
+ARITH_PH_ENV(subu, sub_u16_u16);
+ARITH_PH_ENV(subu_s, satu16_sub_u16_u16);
+
+ARITH_PH(subqh, rshift1_sub_q16);
+ARITH_PH(subqh_r, rrshift1_sub_q16);
+
+#undef ARITH_PH
+#undef ARITH_PH_ENV
+
+#ifdef TARGET_MIPS64
+#define ARITH_QH_ENV(name, func) \
+target_ulong helper_##name##_qh(target_ulong rs, target_ulong rt, \
+                                CPUMIPSState *env)           \
+{                                                            \
+    uint16_t rs3, rs2, rs1, rs0;                             \
+    uint16_t rt3, rt2, rt1, rt0;                             \
+    uint16_t tempD, tempC, tempB, tempA;                     \
+                                                             \
+    MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);              \
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);              \
+                                                             \
+    tempD = mipsdsp_##func(rs3, rt3, env);                   \
+    tempC = mipsdsp_##func(rs2, rt2, env);                   \
+    tempB = mipsdsp_##func(rs1, rt1, env);                   \
+    tempA = mipsdsp_##func(rs0, rt0, env);                   \
+                                                             \
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);  \
+}
+
+ARITH_QH_ENV(addq, add_i16);
+ARITH_QH_ENV(addq_s, sat_add_i16);
+ARITH_QH_ENV(addu, add_u16);
+ARITH_QH_ENV(addu_s, sat_add_u16);
+
+ARITH_QH_ENV(subq, sub_i16);
+ARITH_QH_ENV(subq_s, sat16_sub);
+ARITH_QH_ENV(subu, sub_u16_u16);
+ARITH_QH_ENV(subu_s, satu16_sub_u16_u16);
+
+#undef ARITH_QH_ENV
+
+#endif
+
+#define ARITH_W(name, func) \
+target_ulong helper_##name##_w(target_ulong rs, target_ulong rt) \
+{                                                                \
+    uint32_t rd;                                                 \
+    rd = mipsdsp_##func(rs, rt);                                 \
+    return MIPSDSP_RETURN32(rd);                                 \
+}
+
+#define ARITH_W_ENV(name, func) \
+target_ulong helper_##name##_w(target_ulong rs, target_ulong rt, \
+                               CPUMIPSState *env)                \
+{                                                                \
+    uint32_t rd;                                                 \
+    rd = mipsdsp_##func(rs, rt, env);                            \
+    return MIPSDSP_RETURN32(rd);                                 \
+}
+
+ARITH_W_ENV(addq_s, sat_add_i32);
+
+ARITH_W(addqh, rshift1_add_q32);
+ARITH_W(addqh_r, rrshift1_add_q32);
+
+ARITH_W_ENV(subq_s, sat32_sub);
+
+ARITH_W(subqh, rshift1_sub_q32);
+ARITH_W(subqh_r, rrshift1_sub_q32);
+
+#undef ARITH_W
+#undef ARITH_W_ENV
+
+target_ulong helper_absq_s_w(target_ulong rt, CPUMIPSState *env)
+{
+    uint32_t rd;
+
+    rd = mipsdsp_sat_abs32(rt, env);
+
+    return (target_ulong)rd;
+}
+
+
+#if defined(TARGET_MIPS64)
+
+#define ARITH_PW_ENV(name, func) \
+target_ulong helper_##name##_pw(target_ulong rs, target_ulong rt, \
+                                CPUMIPSState *env)                \
+{                                                                 \
+    uint32_t rs1, rs0;                                            \
+    uint32_t rt1, rt0;                                            \
+    uint32_t tempB, tempA;                                        \
+                                                                  \
+    MIPSDSP_SPLIT64_32(rs, rs1, rs0);                             \
+    MIPSDSP_SPLIT64_32(rt, rt1, rt0);                             \
+                                                                  \
+    tempB = mipsdsp_##func(rs1, rt1, env);                        \
+    tempA = mipsdsp_##func(rs0, rt0, env);                        \
+                                                                  \
+    return MIPSDSP_RETURN64_32(tempB, tempA);                     \
+}
+
+ARITH_PW_ENV(addq, add_i32);
+ARITH_PW_ENV(addq_s, sat_add_i32);
+ARITH_PW_ENV(subq, sub32);
+ARITH_PW_ENV(subq_s, sat32_sub);
+
+#undef ARITH_PW_ENV
+
+#endif
+
+#define ARITH_QB(name, func) \
+target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt) \
+{                                                                 \
+    uint8_t  rs0, rs1, rs2, rs3;                                  \
+    uint8_t  rt0, rt1, rt2, rt3;                                  \
+    uint8_t  temp0, temp1, temp2, temp3;                          \
+                                                                  \
+    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);                    \
+    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                    \
+                                                                  \
+    temp0 = mipsdsp_##func(rs0, rt0);                             \
+    temp1 = mipsdsp_##func(rs1, rt1);                             \
+    temp2 = mipsdsp_##func(rs2, rt2);                             \
+    temp3 = mipsdsp_##func(rs3, rt3);                             \
+                                                                  \
+    return MIPSDSP_RETURN32_8(temp3, temp2, temp1, temp0);        \
+}
+
+#define ARITH_QB_ENV(name, func) \
+target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt, \
+                                CPUMIPSState *env)          \
+{                                                           \
+    uint8_t  rs0, rs1, rs2, rs3;                            \
+    uint8_t  rt0, rt1, rt2, rt3;                            \
+    uint8_t  temp0, temp1, temp2, temp3;                    \
+                                                            \
+    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);              \
+    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);              \
+                                                            \
+    temp0 = mipsdsp_##func(rs0, rt0, env);                  \
+    temp1 = mipsdsp_##func(rs1, rt1, env);                  \
+    temp2 = mipsdsp_##func(rs2, rt2, env);                  \
+    temp3 = mipsdsp_##func(rs3, rt3, env);                  \
+                                                            \
+    return MIPSDSP_RETURN32_8(temp3, temp2, temp1, temp0);  \
+}
+
+ARITH_QB(adduh, rshift1_add_u8);
+ARITH_QB(adduh_r, rrshift1_add_u8);
+
+ARITH_QB_ENV(addu, add_u8);
+ARITH_QB_ENV(addu_s, sat_add_u8);
+
+#undef ADDU_QB
+#undef ADDU_QB_ENV
+
+#if defined(TARGET_MIPS64)
+#define ARITH_OB(name, func) \
+target_ulong helper_##name##_ob(target_ulong rs, target_ulong rt) \
+{                                                                 \
+    int i;                                                        \
+    uint8_t rs_t[8], rt_t[8];                                     \
+    uint8_t temp[8];                                              \
+    uint64_t result;                                              \
+                                                                  \
+    result = 0;                                                   \
+                                                                  \
+    for (i = 0; i < 8; i++) {                                     \
+        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;                   \
+        rt_t[i] = (rt >> (8 * i)) & MIPSDSP_Q0;                   \
+        temp[i] = mipsdsp_##func(rs_t[i], rt_t[i]);               \
+        result |= (uint64_t)temp[i] << (8 * i);                   \
+    }                                                             \
+                                                                  \
+    return result;                                                \
+}
+
+#define ARITH_OB_ENV(name, func) \
+target_ulong helper_##name##_ob(target_ulong rs, target_ulong rt, \
+                                CPUMIPSState *env)                \
+{                                                                 \
+    int i;                                                        \
+    uint8_t rs_t[8], rt_t[8];                                     \
+    uint8_t temp[8];                                              \
+    uint64_t result;                                              \
+                                                                  \
+    result = 0;                                                   \
+                                                                  \
+    for (i = 0; i < 8; i++) {                                     \
+        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;                   \
+        rt_t[i] = (rt >> (8 * i)) & MIPSDSP_Q0;                   \
+        temp[i] = mipsdsp_##func(rs_t[i], rt_t[i], env);          \
+        result |= (uint64_t)temp[i] << (8 * i);                   \
+    }                                                             \
+                                                                  \
+    return result;                                                \
+}
+
+ARITH_OB_ENV(addu, add_u8);
+ARITH_OB_ENV(addu_s, sat_add_u8);
+
+ARITH_OB(adduh, rshift1_add_u8);
+ARITH_OB(adduh_r, rrshift1_add_u8);
+
+ARITH_OB_ENV(subu, sub_u8);
+ARITH_OB_ENV(subu_s, satu8_sub);
+
+ARITH_OB(subuh, rshift1_sub_u8);
+ARITH_OB(subuh_r, rrshift1_sub_u8);
+
+#undef ARITH_OB
+#undef ARITH_OB_ENV
+
+#endif
+
+#define SUBU_QB(name, func) \
+target_ulong helper_##name##_qb(target_ulong rs,               \
+                                target_ulong rt,               \
+                                CPUMIPSState *env)             \
+{                                                              \
+    uint8_t rs3, rs2, rs1, rs0;                                \
+    uint8_t rt3, rt2, rt1, rt0;                                \
+    uint8_t tempD, tempC, tempB, tempA;                        \
+                                                               \
+    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);                 \
+    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                 \
+                                                               \
+    tempD = mipsdsp_##func(rs3, rt3, env);                     \
+    tempC = mipsdsp_##func(rs2, rt2, env);                     \
+    tempB = mipsdsp_##func(rs1, rt1, env);                     \
+    tempA = mipsdsp_##func(rs0, rt0, env);                     \
+                                                               \
+    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);     \
+}
+
+SUBU_QB(subu, sub_u8);
+SUBU_QB(subu_s, satu8_sub);
+
+#undef SUBU_QB
+
+#define SUBUH_QB(name, var) \
+target_ulong helper_##name##_qb(target_ulong rs, target_ulong rt) \
+{                                                                 \
+    uint8_t rs3, rs2, rs1, rs0;                                   \
+    uint8_t rt3, rt2, rt1, rt0;                                   \
+    uint8_t tempD, tempC, tempB, tempA;                           \
+                                                                  \
+    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);                    \
+    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                    \
+                                                                  \
+    tempD = ((uint16_t)rs3 - (uint16_t)rt3 + var) >> 1;           \
+    tempC = ((uint16_t)rs2 - (uint16_t)rt2 + var) >> 1;           \
+    tempB = ((uint16_t)rs1 - (uint16_t)rt1 + var) >> 1;           \
+    tempA = ((uint16_t)rs0 - (uint16_t)rt0 + var) >> 1;           \
+                                                                  \
+    return ((uint32_t)tempD << 24) | ((uint32_t)tempC << 16) |    \
+        ((uint32_t)tempB << 8) | ((uint32_t)tempA);               \
+}
+
+SUBUH_QB(subuh, 0);
+SUBUH_QB(subuh_r, 1);
+
+#undef SUBUH_QB
+
+target_ulong helper_addsc(target_ulong rs, target_ulong rt, CPUMIPSState *env)
+{
+    uint64_t temp, tempRs, tempRt;
+    int32_t flag;
+
+    tempRs = (uint64_t)rs & MIPSDSP_LLO;
+    tempRt = (uint64_t)rt & MIPSDSP_LLO;
+
+    temp = tempRs + tempRt;
+    flag = (temp & 0x0100000000ull) >> 32;
+    set_DSPControl_carryflag(flag, env);
+
+    return (target_long)(int32_t)(temp & MIPSDSP_LLO);
+}
+
+target_ulong helper_addwc(target_ulong rs, target_ulong rt, CPUMIPSState *env)
+{
+    uint32_t rd;
+    int32_t temp32, temp31;
+    int64_t tempL;
+
+    tempL = (int64_t)(int32_t)rs + (int64_t)(int32_t)rt +
+        get_DSPControl_carryflag(env);
+    temp31 = (tempL >> 31) & 0x01;
+    temp32 = (tempL >> 32) & 0x01;
+
+    if (temp31 != temp32) {
+        set_DSPControl_overflow_flag(1, 20, env);
+    }
+
+    rd = tempL & MIPSDSP_LLO;
+
+    return (target_long)(int32_t)rd;
+}
+
+target_ulong helper_modsub(target_ulong rs, target_ulong rt)
+{
+    int32_t decr;
+    uint16_t lastindex;
+    target_ulong rd;
+
+    decr = rt & MIPSDSP_Q0;
+    lastindex = (rt >> 8) & MIPSDSP_LO;
+
+    if ((rs & MIPSDSP_LLO) == 0x00000000) {
+        rd = (target_ulong)lastindex;
+    } else {
+        rd = rs - decr;
+    }
+
+    return rd;
+}
+
+target_ulong helper_raddu_w_qb(target_ulong rs)
+{
+    uint8_t  rs3, rs2, rs1, rs0;
+    uint16_t temp;
+
+    MIPSDSP_SPLIT32_8(rs, rs3, rs2, rs1, rs0);
+
+    temp = (uint16_t)rs3 + (uint16_t)rs2 + (uint16_t)rs1 + (uint16_t)rs0;
+
+    return (target_ulong)temp;
+}
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_raddu_l_ob(target_ulong rs)
+{
+    int i;
+    uint16_t rs_t[8];
+    uint64_t temp;
+
+    temp = 0;
+
+    for (i = 0; i < 8; i++) {
+        rs_t[i] = (rs >> (8 * i)) & MIPSDSP_Q0;
+        temp += (uint64_t)rs_t[i];
+    }
+
+    return temp;
+}
+#endif
+
+target_ulong helper_absq_s_qb(target_ulong rt, CPUMIPSState *env)
+{
+    uint8_t tempD, tempC, tempB, tempA;
+
+    MIPSDSP_SPLIT32_8(rt, tempD, tempC, tempB, tempA);
+
+    tempD = mipsdsp_sat_abs8(tempD, env);
+    tempC = mipsdsp_sat_abs8(tempC, env);
+    tempB = mipsdsp_sat_abs8(tempB, env);
+    tempA = mipsdsp_sat_abs8(tempA, env);
+
+    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);
+}
+
+target_ulong helper_absq_s_ph(target_ulong rt, CPUMIPSState *env)
+{
+    uint16_t tempB, tempA;
+
+    MIPSDSP_SPLIT32_16(rt, tempB, tempA);
+
+    tempB = mipsdsp_sat_abs16 (tempB, env);
+    tempA = mipsdsp_sat_abs16 (tempA, env);
+
+    return MIPSDSP_RETURN32_16(tempB, tempA);
+}
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_absq_s_ob(target_ulong rt, CPUMIPSState *env)
+{
+    int i;
+    int8_t temp[8];
+    uint64_t result;
+
+    for (i = 0; i < 8; i++) {
+        temp[i] = (rt >> (8 * i)) & MIPSDSP_Q0;
+        temp[i] = mipsdsp_sat_abs8(temp[i], env);
+    }
+
+    for (i = 0; i < 8; i++) {
+        result = (uint64_t)(uint8_t)temp[i] << (8 * i);
+    }
+
+    return result;
+}
+
+target_ulong helper_absq_s_qh(target_ulong rt, CPUMIPSState *env)
+{
+    int16_t tempD, tempC, tempB, tempA;
+
+    MIPSDSP_SPLIT64_16(rt, tempD, tempC, tempB, tempA);
+
+    tempD = mipsdsp_sat_abs16(tempD, env);
+    tempC = mipsdsp_sat_abs16(tempC, env);
+    tempB = mipsdsp_sat_abs16(tempB, env);
+    tempA = mipsdsp_sat_abs16(tempA, env);
+
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
+}
+
+target_ulong helper_absq_s_pw(target_ulong rt, CPUMIPSState *env)
+{
+    int32_t tempB, tempA;
+
+    MIPSDSP_SPLIT64_32(rt, tempB, tempA);
+
+    tempB = mipsdsp_sat_abs32(tempB, env);
+    tempA = mipsdsp_sat_abs32(tempA, env);
+
+    return MIPSDSP_RETURN64_32(tempB, tempA);
+}
+#endif
+
+#define PRECR_QB_PH(name, a, b)\
+target_ulong helper_##name##_qb_ph(target_ulong rs, target_ulong rt) \
+{                                                                    \
+    uint8_t tempD, tempC, tempB, tempA;                              \
+                                                                     \
+    tempD = (rs >> a) & MIPSDSP_Q0;                                  \
+    tempC = (rs >> b) & MIPSDSP_Q0;                                  \
+    tempB = (rt >> a) & MIPSDSP_Q0;                                  \
+    tempA = (rt >> b) & MIPSDSP_Q0;                                  \
+                                                                     \
+    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);           \
+}
+
+PRECR_QB_PH(precr, 16, 0);
+PRECR_QB_PH(precrq, 24, 8);
+
+#undef PRECR_QB_OH
+
+target_ulong helper_precr_sra_ph_w(uint32_t sa, target_ulong rs,
+                                   target_ulong rt)
+{
+    uint16_t tempB, tempA;
+
+    tempB = ((int32_t)rt >> sa) & MIPSDSP_LO;
+    tempA = ((int32_t)rs >> sa) & MIPSDSP_LO;
+
+    return MIPSDSP_RETURN32_16(tempB, tempA);
+}
+
+target_ulong helper_precr_sra_r_ph_w(uint32_t sa,
+                                     target_ulong rs, target_ulong rt)
+{
+    uint64_t tempB, tempA;
+
+    /* If sa = 0, then (sa - 1) = -1 will case shift error, so we need else. */
+    if (sa == 0) {
+        tempB = (rt & MIPSDSP_LO) << 1;
+        tempA = (rs & MIPSDSP_LO) << 1;
+    } else {
+        tempB = ((int32_t)rt >> (sa - 1)) + 1;
+        tempA = ((int32_t)rs >> (sa - 1)) + 1;
+    }
+    rt = (((tempB >> 1) & MIPSDSP_LO) << 16) | ((tempA >> 1) & MIPSDSP_LO);
+
+    return (target_long)(int32_t)rt;
+}
+
+target_ulong helper_precrq_ph_w(target_ulong rs, target_ulong rt)
+{
+    uint16_t tempB, tempA;
+
+    tempB = (rs & MIPSDSP_HI) >> 16;
+    tempA = (rt & MIPSDSP_HI) >> 16;
+
+    return MIPSDSP_RETURN32_16(tempB, tempA);
+}
+
+target_ulong helper_precrq_rs_ph_w(target_ulong rs, target_ulong rt,
+                                   CPUMIPSState *env)
+{
+    uint16_t tempB, tempA;
+
+    tempB = mipsdsp_trunc16_sat16_round(rs, env);
+    tempA = mipsdsp_trunc16_sat16_round(rt, env);
+
+    return MIPSDSP_RETURN32_16(tempB, tempA);
+}
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_precr_ob_qh(target_ulong rs, target_ulong rt)
+{
+    uint8_t rs6, rs4, rs2, rs0;
+    uint8_t rt6, rt4, rt2, rt0;
+    uint64_t temp;
+
+    rs6 = (rs >> 48) & MIPSDSP_Q0;
+    rs4 = (rs >> 32) & MIPSDSP_Q0;
+    rs2 = (rs >> 16) & MIPSDSP_Q0;
+    rs0 = rs & MIPSDSP_Q0;
+    rt6 = (rt >> 48) & MIPSDSP_Q0;
+    rt4 = (rt >> 32) & MIPSDSP_Q0;
+    rt2 = (rt >> 16) & MIPSDSP_Q0;
+    rt0 = rt & MIPSDSP_Q0;
+
+    temp = ((uint64_t)rs6 << 56) | ((uint64_t)rs4 << 48) |
+           ((uint64_t)rs2 << 40) | ((uint64_t)rs0 << 32) |
+           ((uint64_t)rt6 << 24) | ((uint64_t)rt4 << 16) |
+           ((uint64_t)rt2 << 8) | (uint64_t)rt0;
+
+    return temp;
+}
+
+#define PRECR_QH_PW(name, var) \
+target_ulong helper_precr_##name##_qh_pw(target_ulong rs, target_ulong rt, \
+                                    uint32_t sa)                      \
+{                                                                     \
+    uint16_t rs3, rs2, rs1, rs0;                                      \
+    uint16_t rt3, rt2, rt1, rt0;                                      \
+    uint16_t tempD, tempC, tempB, tempA;                              \
+                                                                      \
+    MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);                       \
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);                       \
+                                                                      \
+    /* When sa = 0, we use rt2, rt0, rs2, rs0;                        \
+     * when sa != 0, we use rt3, rt1, rs3, rs1. */                    \
+    if (sa == 0) {                                                    \
+        tempD = rt2 << var;                                           \
+        tempC = rt0 << var;                                           \
+        tempB = rs2 << var;                                           \
+        tempA = rs0 << var;                                           \
+    } else {                                                          \
+        tempD = (((int16_t)rt3 >> sa) + var) >> var;                  \
+        tempC = (((int16_t)rt1 >> sa) + var) >> var;                  \
+        tempB = (((int16_t)rs3 >> sa) + var) >> var;                  \
+        tempA = (((int16_t)rs1 >> sa) + var) >> var;                  \
+    }                                                                 \
+                                                                      \
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);           \
+}
+
+PRECR_QH_PW(sra, 0);
+PRECR_QH_PW(sra_r, 1);
+
+#undef PRECR_QH_PW
+
+target_ulong helper_precrq_ob_qh(target_ulong rs, target_ulong rt)
+{
+    uint8_t rs6, rs4, rs2, rs0;
+    uint8_t rt6, rt4, rt2, rt0;
+    uint64_t temp;
+
+    rs6 = (rs >> 56) & MIPSDSP_Q0;
+    rs4 = (rs >> 40) & MIPSDSP_Q0;
+    rs2 = (rs >> 24) & MIPSDSP_Q0;
+    rs0 = (rs >> 8) & MIPSDSP_Q0;
+    rt6 = (rt >> 56) & MIPSDSP_Q0;
+    rt4 = (rt >> 40) & MIPSDSP_Q0;
+    rt2 = (rt >> 24) & MIPSDSP_Q0;
+    rt0 = (rt >> 8) & MIPSDSP_Q0;
+
+    temp = ((uint64_t)rs6 << 56) | ((uint64_t)rs4 << 48) |
+           ((uint64_t)rs2 << 40) | ((uint64_t)rs0 << 32) |
+           ((uint64_t)rt6 << 24) | ((uint64_t)rt4 << 16) |
+           ((uint64_t)rt2 << 8) | (uint64_t)rt0;
+
+    return temp;
+}
+
+target_ulong helper_precrq_qh_pw(target_ulong rs, target_ulong rt)
+{
+    uint16_t tempD, tempC, tempB, tempA;
+
+    tempD = (rs >> 48) & MIPSDSP_LO;
+    tempC = (rs >> 16) & MIPSDSP_LO;
+    tempB = (rt >> 48) & MIPSDSP_LO;
+    tempA = (rt >> 16) & MIPSDSP_LO;
+
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
+}
+
+target_ulong helper_precrq_rs_qh_pw(target_ulong rs, target_ulong rt,
+                                    CPUMIPSState *env)
+{
+    uint32_t rs2, rs0;
+    uint32_t rt2, rt0;
+    uint16_t tempD, tempC, tempB, tempA;
+
+    rs2 = (rs >> 32) & MIPSDSP_LLO;
+    rs0 = rs & MIPSDSP_LLO;
+    rt2 = (rt >> 32) & MIPSDSP_LLO;
+    rt0 = rt & MIPSDSP_LLO;
+
+    tempD = mipsdsp_trunc16_sat16_round(rs2, env);
+    tempC = mipsdsp_trunc16_sat16_round(rs0, env);
+    tempB = mipsdsp_trunc16_sat16_round(rt2, env);
+    tempA = mipsdsp_trunc16_sat16_round(rt0, env);
+
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);
+}
+
+target_ulong helper_precrq_pw_l(target_ulong rs, target_ulong rt)
+{
+    uint32_t tempB, tempA;
+
+    tempB = (rs >> 32) & MIPSDSP_LLO;
+    tempA = (rt >> 32) & MIPSDSP_LLO;
+
+    return MIPSDSP_RETURN64_32(tempB, tempA);
+}
+#endif
+
+target_ulong helper_precrqu_s_qb_ph(target_ulong rs, target_ulong rt,
+                                    CPUMIPSState *env)
+{
+    uint8_t  tempD, tempC, tempB, tempA;
+    uint16_t rsh, rsl, rth, rtl;
+
+    rsh = (rs & MIPSDSP_HI) >> 16;
+    rsl =  rs & MIPSDSP_LO;
+    rth = (rt & MIPSDSP_HI) >> 16;
+    rtl =  rt & MIPSDSP_LO;
+
+    tempD = mipsdsp_sat8_reduce_precision(rsh, env);
+    tempC = mipsdsp_sat8_reduce_precision(rsl, env);
+    tempB = mipsdsp_sat8_reduce_precision(rth, env);
+    tempA = mipsdsp_sat8_reduce_precision(rtl, env);
+
+    return MIPSDSP_RETURN32_8(tempD, tempC, tempB, tempA);
+}
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_precrqu_s_ob_qh(target_ulong rs, target_ulong rt,
+                                    CPUMIPSState *env)
+{
+    int i;
+    uint16_t rs3, rs2, rs1, rs0;
+    uint16_t rt3, rt2, rt1, rt0;
+    uint8_t temp[8];
+    uint64_t result;
+
+    result = 0;
+
+    MIPSDSP_SPLIT64_16(rs, rs3, rs2, rs1, rs0);
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);
+
+    temp[7] = mipsdsp_sat8_reduce_precision(rs3, env);
+    temp[6] = mipsdsp_sat8_reduce_precision(rs2, env);
+    temp[5] = mipsdsp_sat8_reduce_precision(rs1, env);
+    temp[4] = mipsdsp_sat8_reduce_precision(rs0, env);
+    temp[3] = mipsdsp_sat8_reduce_precision(rt3, env);
+    temp[2] = mipsdsp_sat8_reduce_precision(rt2, env);
+    temp[1] = mipsdsp_sat8_reduce_precision(rt1, env);
+    temp[0] = mipsdsp_sat8_reduce_precision(rt0, env);
+
+    for (i = 0; i < 8; i++) {
+        result |= (uint64_t)temp[i] << (8 * i);
+    }
+
+    return result;
+}
+
+#define PRECEQ_PW(name, a, b) \
+target_ulong helper_preceq_pw_##name(target_ulong rt) \
+{                                                       \
+    uint16_t tempB, tempA;                              \
+    uint32_t tempBI, tempAI;                            \
+                                                        \
+    tempB = (rt >> a) & MIPSDSP_LO;                     \
+    tempA = (rt >> b) & MIPSDSP_LO;                     \
+                                                        \
+    tempBI = (uint32_t)tempB << 16;                     \
+    tempAI = (uint32_t)tempA << 16;                     \
+                                                        \
+    return MIPSDSP_RETURN64_32(tempBI, tempAI);         \
+}
+
+PRECEQ_PW(qhl, 48, 32);
+PRECEQ_PW(qhr, 16, 0);
+PRECEQ_PW(qhla, 48, 16);
+PRECEQ_PW(qhra, 32, 0);
+
+#undef PRECEQ_PW
+
+#endif
+
+#define PRECEQU_PH(name, a, b) \
+target_ulong helper_precequ_ph_##name(target_ulong rt) \
+{                                                        \
+    uint16_t tempB, tempA;                               \
+                                                         \
+    tempB = (rt >> a) & MIPSDSP_Q0;                      \
+    tempA = (rt >> b) & MIPSDSP_Q0;                      \
+                                                         \
+    tempB = tempB << 7;                                  \
+    tempA = tempA << 7;                                  \
+                                                         \
+    return MIPSDSP_RETURN32_16(tempB, tempA);            \
+}
+
+PRECEQU_PH(qbl, 24, 16);
+PRECEQU_PH(qbr, 8, 0);
+PRECEQU_PH(qbla, 24, 8);
+PRECEQU_PH(qbra, 16, 0);
+
+#undef PRECEQU_PH
+
+#if defined(TARGET_MIPS64)
+#define PRECEQU_QH(name, a, b, c, d) \
+target_ulong helper_precequ_qh_##name(target_ulong rt)       \
+{                                                            \
+    uint16_t tempD, tempC, tempB, tempA;                     \
+                                                             \
+    tempD = (rt >> a) & MIPSDSP_Q0;                          \
+    tempC = (rt >> b) & MIPSDSP_Q0;                          \
+    tempB = (rt >> c) & MIPSDSP_Q0;                          \
+    tempA = (rt >> d) & MIPSDSP_Q0;                          \
+                                                             \
+    tempD = tempD << 7;                                      \
+    tempC = tempC << 7;                                      \
+    tempB = tempB << 7;                                      \
+    tempA = tempA << 7;                                      \
+                                                             \
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);  \
+}
+
+PRECEQU_QH(obl, 56, 48, 40, 32);
+PRECEQU_QH(obr, 24, 16, 8, 0);
+PRECEQU_QH(obla, 56, 40, 24, 8);
+PRECEQU_QH(obra, 48, 32, 16, 0);
+
+#undef PRECEQU_QH
+
+#endif
+
+#define PRECEU_PH(name, a, b) \
+target_ulong helper_preceu_ph_##name(target_ulong rt) \
+{                                                     \
+    uint16_t tempB, tempA;                            \
+                                                      \
+    tempB = (rt >> a) & MIPSDSP_Q0;                   \
+    tempA = (rt >> b) & MIPSDSP_Q0;                   \
+                                                      \
+    return MIPSDSP_RETURN32_16(tempB, tempA);         \
+}
+
+PRECEU_PH(qbl, 24, 16);
+PRECEU_PH(qbr, 8, 0);
+PRECEU_PH(qbla, 24, 8);
+PRECEU_PH(qbra, 16, 0);
+
+#undef PRECEU_PH
+
+#if defined(TARGET_MIPS64)
+#define PRECEU_QH(name, a, b, c, d) \
+target_ulong helper_preceu_qh_##name(target_ulong rt)        \
+{                                                            \
+    uint16_t tempD, tempC, tempB, tempA;                     \
+                                                             \
+    tempD = (rt >> a) & MIPSDSP_Q0;                          \
+    tempC = (rt >> b) & MIPSDSP_Q0;                          \
+    tempB = (rt >> c) & MIPSDSP_Q0;                          \
+    tempA = (rt >> d) & MIPSDSP_Q0;                          \
+                                                             \
+    return MIPSDSP_RETURN64_16(tempD, tempC, tempB, tempA);  \
+}
+
+PRECEU_QH(obl, 56, 48, 40, 32);
+PRECEU_QH(obr, 24, 16, 8, 0);
+PRECEU_QH(obla, 56, 40, 24, 8);
+PRECEU_QH(obra, 48, 32, 16, 0);
+
+#undef PRECEU_QH
+
+#endif
+
+#undef MIPSDSP_LHI
+#undef MIPSDSP_LLO
+#undef MIPSDSP_HI
+#undef MIPSDSP_LO
+#undef MIPSDSP_Q3
+#undef MIPSDSP_Q2
+#undef MIPSDSP_Q1
+#undef MIPSDSP_Q0
+
+#undef MIPSDSP_SPLIT32_8
+#undef MIPSDSP_SPLIT32_16
+
+#undef MIPSDSP_RETURN32
+#undef MIPSDSP_RETURN32_8
+#undef MIPSDSP_RETURN32_16
+
+#ifdef TARGET_MIPS64
+#undef MIPSDSP_SPLIT64_16
+#undef MIPSDSP_SPLIT64_32
+#undef MIPSDSP_RETURN64_16
+#undef MIPSDSP_RETURN64_32
+#endif
