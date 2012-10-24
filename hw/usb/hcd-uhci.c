@@ -105,6 +105,7 @@ struct UHCIAsync {
 };
 
 struct UHCIQueue {
+    uint32_t  qh_addr;
     uint32_t  token;
     UHCIState *uhci;
     USBEndpoint *ep;
@@ -170,20 +171,15 @@ static inline int32_t uhci_queue_token(UHCI_TD *td)
     return td->token & 0x7ffff;
 }
 
-static UHCIQueue *uhci_queue_get(UHCIState *s, UHCI_TD *td, USBEndpoint *ep)
+static UHCIQueue *uhci_queue_new(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
+                                 USBEndpoint *ep)
 {
-    uint32_t token = uhci_queue_token(td);
     UHCIQueue *queue;
-
-    QTAILQ_FOREACH(queue, &s->queues, next) {
-        if (queue->token == token) {
-            return queue;
-        }
-    }
 
     queue = g_new0(UHCIQueue, 1);
     queue->uhci = s;
-    queue->token = token;
+    queue->qh_addr = qh_addr;
+    queue->token = uhci_queue_token(td);
     queue->ep = ep;
     QTAILQ_INIT(&queue->asyncs);
     QTAILQ_INSERT_HEAD(&s->queues, queue, next);
@@ -191,7 +187,7 @@ static UHCIQueue *uhci_queue_get(UHCIState *s, UHCI_TD *td, USBEndpoint *ep)
     return queue;
 }
 
-static void uhci_queue_free(UHCIQueue *queue)
+static void uhci_queue_free(UHCIQueue *queue, const char *reason)
 {
     UHCIState *s = queue->uhci;
     UHCIAsync *async;
@@ -201,9 +197,33 @@ static void uhci_queue_free(UHCIQueue *queue)
         uhci_async_cancel(async);
     }
 
-    trace_usb_uhci_queue_del(queue->token);
+    trace_usb_uhci_queue_del(queue->token, reason);
     QTAILQ_REMOVE(&s->queues, queue, next);
     g_free(queue);
+}
+
+static UHCIQueue *uhci_queue_find(UHCIState *s, UHCI_TD *td)
+{
+    uint32_t token = uhci_queue_token(td);
+    UHCIQueue *queue;
+
+    QTAILQ_FOREACH(queue, &s->queues, next) {
+        if (queue->token == token) {
+            return queue;
+        }
+    }
+    return NULL;
+}
+
+static bool uhci_queue_verify(UHCIQueue *queue, uint32_t qh_addr, UHCI_TD *td,
+                              uint32_t td_addr, bool queuing)
+{
+    UHCIAsync *first = QTAILQ_FIRST(&queue->asyncs);
+
+    return queue->qh_addr == qh_addr &&
+           queue->token == uhci_queue_token(td) &&
+           (queuing || !(td->ctrl & TD_CTRL_ACTIVE) || first == NULL ||
+            first->td_addr == td_addr);
 }
 
 static UHCIAsync *uhci_async_alloc(UHCIQueue *queue, uint32_t td_addr)
@@ -274,7 +294,7 @@ static void uhci_async_validate_end(UHCIState *s)
 
     QTAILQ_FOREACH_SAFE(queue, &s->queues, next, n) {
         if (!queue->valid) {
-            uhci_queue_free(queue);
+            uhci_queue_free(queue, "validate-end");
         }
     }
 }
@@ -295,7 +315,7 @@ static void uhci_async_cancel_all(UHCIState *s)
     UHCIQueue *queue, *nq;
 
     QTAILQ_FOREACH_SAFE(queue, &s->queues, next, nq) {
-        uhci_queue_free(queue);
+        uhci_queue_free(queue, "cancel-all");
     }
 }
 
@@ -782,7 +802,7 @@ out:
     return err;
 }
 
-static int uhci_handle_td(UHCIState *s, UHCIQueue *q,
+static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
                           UHCI_TD *td, uint32_t td_addr, uint32_t *int_mask)
 {
     UHCIAsync *async;
@@ -790,6 +810,14 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q,
     bool spd;
     bool queuing = (q != NULL);
     uint8_t pid = td->token & 0xff;
+
+    if (q == NULL) {
+        q = uhci_queue_find(s, td);
+        if (q && !uhci_queue_verify(q, qh_addr, td, td_addr, queuing)) {
+            uhci_queue_free(q, "guest re-used qh");
+            q = NULL;
+        }
+    }
 
     /* Is active ? */
     if (!(td->ctrl & TD_CTRL_ACTIVE)) {
@@ -825,7 +853,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q,
     if (q == NULL) {
         USBDevice *dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
         USBEndpoint *ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
-        q = uhci_queue_get(s, td, ep);
+        q = uhci_queue_new(s, qh_addr, td, ep);
     }
     async = uhci_async_alloc(q, td_addr);
 
@@ -954,7 +982,7 @@ static void uhci_queue_fill(UHCIQueue *q, UHCI_TD *td)
             break;
         }
         trace_usb_uhci_td_queue(plink & ~0xf, ptd.ctrl, ptd.token);
-        ret = uhci_handle_td(q->uhci, q, &ptd, plink, &int_mask);
+        ret = uhci_handle_td(q->uhci, q, q->qh_addr, &ptd, plink, &int_mask);
         if (ret == TD_RESULT_ASYNC_CONT) {
             break;
         }
@@ -1035,7 +1063,7 @@ static void uhci_process_frame(UHCIState *s)
         trace_usb_uhci_td_load(curr_qh & ~0xf, link & ~0xf, td.ctrl, td.token);
 
         old_td_ctrl = td.ctrl;
-        ret = uhci_handle_td(s, NULL, &td, link, &int_mask);
+        ret = uhci_handle_td(s, NULL, curr_qh, &td, link, &int_mask);
         if (old_td_ctrl != td.ctrl) {
             /* update the status bits of the TD */
             val = cpu_to_le32(td.ctrl);
