@@ -488,4 +488,42 @@ DEF_HELPER_FLAGS_1(preceu_qh_obla, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(preceu_qh_obra, TCG_CALL_NO_RWG_SE, tl, tl)
 #endif
 
+/* DSP GPR-Based Shift Sub-class insns */
+DEF_HELPER_FLAGS_3(shll_qb, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(shll_ob, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(shll_ph, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(shll_s_ph, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(shll_qh, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(shll_s_qh, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(shll_s_w, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(shll_pw, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(shll_s_pw, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_2(shrl_qb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shrl_ph, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_2(shrl_ob, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shrl_qh, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#endif
+DEF_HELPER_FLAGS_2(shra_qb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_r_qb, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_2(shra_ob, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_r_ob, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#endif
+DEF_HELPER_FLAGS_2(shra_ph, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_r_ph, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_r_w, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_2(shra_qh, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_r_qh, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_pw, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+DEF_HELPER_FLAGS_2(shra_r_pw, TCG_CALL_NO_RWG_SE, tl, tl, tl)
+#endif
+
 #include "def-helper.h"

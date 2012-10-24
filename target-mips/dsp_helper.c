@@ -1933,6 +1933,262 @@ PRECEU_QH(obra, 48, 32, 16, 0);
 
 #endif
 
+/** DSP GPR-Based Shift Sub-class insns **/
+#define SHIFT_QB(name, func) \
+target_ulong helper_##name##_qb(target_ulong sa, target_ulong rt) \
+{                                                                    \
+    uint8_t rt3, rt2, rt1, rt0;                                      \
+                                                                     \
+    sa = sa & 0x07;                                                  \
+                                                                     \
+    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                       \
+                                                                     \
+    rt3 = mipsdsp_##func(rt3, sa);                                   \
+    rt2 = mipsdsp_##func(rt2, sa);                                   \
+    rt1 = mipsdsp_##func(rt1, sa);                                   \
+    rt0 = mipsdsp_##func(rt0, sa);                                   \
+                                                                     \
+    return MIPSDSP_RETURN32_8(rt3, rt2, rt1, rt0);                   \
+}
+
+#define SHIFT_QB_ENV(name, func) \
+target_ulong helper_##name##_qb(target_ulong sa, target_ulong rt,\
+                                CPUMIPSState *env) \
+{                                                                    \
+    uint8_t rt3, rt2, rt1, rt0;                                      \
+                                                                     \
+    sa = sa & 0x07;                                                  \
+                                                                     \
+    MIPSDSP_SPLIT32_8(rt, rt3, rt2, rt1, rt0);                       \
+                                                                     \
+    rt3 = mipsdsp_##func(rt3, sa, env);                              \
+    rt2 = mipsdsp_##func(rt2, sa, env);                              \
+    rt1 = mipsdsp_##func(rt1, sa, env);                              \
+    rt0 = mipsdsp_##func(rt0, sa, env);                              \
+                                                                     \
+    return MIPSDSP_RETURN32_8(rt3, rt2, rt1, rt0);                   \
+}
+
+SHIFT_QB_ENV(shll, lshift8);
+SHIFT_QB(shrl, rshift_u8);
+
+SHIFT_QB(shra, rashift8);
+SHIFT_QB(shra_r, rnd8_rashift);
+
+#undef SHIFT_QB
+#undef SHIFT_QB_ENV
+
+#if defined(TARGET_MIPS64)
+#define SHIFT_OB(name, func) \
+target_ulong helper_##name##_ob(target_ulong rt, target_ulong sa) \
+{                                                                        \
+    int i;                                                               \
+    uint8_t rt_t[8];                                                     \
+    uint64_t temp;                                                       \
+                                                                         \
+    sa = sa & 0x07;                                                      \
+    temp = 0;                                                            \
+                                                                         \
+    for (i = 0; i < 8; i++) {                                            \
+        rt_t[i] = (rt >> (8 * i)) & MIPSDSP_Q0;                          \
+        rt_t[i] = mipsdsp_##func(rt_t[i], sa);                           \
+        temp |= (uint64_t)rt_t[i] << (8 * i);                            \
+    }                                                                    \
+                                                                         \
+    return temp;                                                         \
+}
+
+#define SHIFT_OB_ENV(name, func) \
+target_ulong helper_##name##_ob(target_ulong rt, target_ulong sa, \
+                                CPUMIPSState *env)                       \
+{                                                                        \
+    int i;                                                               \
+    uint8_t rt_t[8];                                                     \
+    uint64_t temp;                                                       \
+                                                                         \
+    sa = sa & 0x07;                                                      \
+    temp = 0;                                                            \
+                                                                         \
+    for (i = 0; i < 8; i++) {                                            \
+        rt_t[i] = (rt >> (8 * i)) & MIPSDSP_Q0;                          \
+        rt_t[i] = mipsdsp_##func(rt_t[i], sa, env);                      \
+        temp |= (uint64_t)rt_t[i] << (8 * i);                            \
+    }                                                                    \
+                                                                         \
+    return temp;                                                         \
+}
+
+SHIFT_OB_ENV(shll, lshift8);
+SHIFT_OB(shrl, rshift_u8);
+
+SHIFT_OB(shra, rashift8);
+SHIFT_OB(shra_r, rnd8_rashift);
+
+#undef SHIFT_OB
+#undef SHIFT_OB_ENV
+
+#endif
+
+#define SHIFT_PH(name, func) \
+target_ulong helper_##name##_ph(target_ulong sa, target_ulong rt, \
+                                CPUMIPSState *env)                \
+{                                                                 \
+    uint16_t rth, rtl;                                            \
+                                                                  \
+    sa = sa & 0x0F;                                               \
+                                                                  \
+    MIPSDSP_SPLIT32_16(rt, rth, rtl);                             \
+                                                                  \
+    rth = mipsdsp_##func(rth, sa, env);                           \
+    rtl = mipsdsp_##func(rtl, sa, env);                           \
+                                                                  \
+    return MIPSDSP_RETURN32_16(rth, rtl);                         \
+}
+
+SHIFT_PH(shll, lshift16);
+SHIFT_PH(shll_s, sat16_lshift);
+
+#undef SHIFT_PH
+
+#if defined(TARGET_MIPS64)
+#define SHIFT_QH(name, func) \
+target_ulong helper_##name##_qh(target_ulong rt, target_ulong sa) \
+{                                                                 \
+    uint16_t rt3, rt2, rt1, rt0;                                  \
+                                                                  \
+    sa = sa & 0x0F;                                               \
+                                                                  \
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);                   \
+                                                                  \
+    rt3 = mipsdsp_##func(rt3, sa);                                \
+    rt2 = mipsdsp_##func(rt2, sa);                                \
+    rt1 = mipsdsp_##func(rt1, sa);                                \
+    rt0 = mipsdsp_##func(rt0, sa);                                \
+                                                                  \
+    return MIPSDSP_RETURN64_16(rt3, rt2, rt1, rt0);               \
+}
+
+#define SHIFT_QH_ENV(name, func) \
+target_ulong helper_##name##_qh(target_ulong rt, target_ulong sa, \
+                                CPUMIPSState *env)                \
+{                                                                 \
+    uint16_t rt3, rt2, rt1, rt0;                                  \
+                                                                  \
+    sa = sa & 0x0F;                                               \
+                                                                  \
+    MIPSDSP_SPLIT64_16(rt, rt3, rt2, rt1, rt0);                   \
+                                                                  \
+    rt3 = mipsdsp_##func(rt3, sa, env);                           \
+    rt2 = mipsdsp_##func(rt2, sa, env);                           \
+    rt1 = mipsdsp_##func(rt1, sa, env);                           \
+    rt0 = mipsdsp_##func(rt0, sa, env);                           \
+                                                                  \
+    return MIPSDSP_RETURN64_16(rt3, rt2, rt1, rt0);               \
+}
+
+SHIFT_QH_ENV(shll, lshift16);
+SHIFT_QH_ENV(shll_s, sat16_lshift);
+
+SHIFT_QH(shrl, rshift_u16);
+SHIFT_QH(shra, rashift16);
+SHIFT_QH(shra_r, rnd16_rashift);
+
+#undef SHIFT_QH
+#undef SHIFT_QH_ENV
+
+#endif
+
+#define SHIFT_W(name, func) \
+target_ulong helper_##name##_w(target_ulong sa, target_ulong rt) \
+{                                                                       \
+    uint32_t temp;                                                      \
+                                                                        \
+    sa = sa & 0x1F;                                                     \
+    temp = mipsdsp_##func(rt, sa);                                      \
+                                                                        \
+    return (target_long)(int32_t)temp;                                  \
+}
+
+#define SHIFT_W_ENV(name, func) \
+target_ulong helper_##name##_w(target_ulong sa, target_ulong rt, \
+                               CPUMIPSState *env) \
+{                                                                       \
+    uint32_t temp;                                                      \
+                                                                        \
+    sa = sa & 0x1F;                                                     \
+    temp = mipsdsp_##func(rt, sa, env);                                 \
+                                                                        \
+    return (target_long)(int32_t)temp;                                  \
+}
+
+SHIFT_W_ENV(shll_s, sat32_lshift);
+SHIFT_W(shra_r, rnd32_rashift);
+
+#undef SHIFT_W
+#undef SHIFT_W_ENV
+
+#if defined(TARGET_MIPS64)
+#define SHIFT_PW(name, func) \
+target_ulong helper_##name##_pw(target_ulong rt, target_ulong sa) \
+{                                                                 \
+    uint32_t rt1, rt0;                                            \
+                                                                  \
+    sa = sa & 0x1F;                                               \
+    MIPSDSP_SPLIT64_32(rt, rt1, rt0);                             \
+                                                                  \
+    rt1 = mipsdsp_##func(rt1, sa);                                \
+    rt0 = mipsdsp_##func(rt0, sa);                                \
+                                                                  \
+    return MIPSDSP_RETURN64_32(rt1, rt0);                         \
+}
+
+#define SHIFT_PW_ENV(name, func) \
+target_ulong helper_##name##_pw(target_ulong rt, target_ulong sa, \
+                                CPUMIPSState *env)                \
+{                                                                 \
+    uint32_t rt1, rt0;                                            \
+                                                                  \
+    sa = sa & 0x1F;                                               \
+    MIPSDSP_SPLIT64_32(rt, rt1, rt0);                             \
+                                                                  \
+    rt1 = mipsdsp_##func(rt1, sa, env);                           \
+    rt0 = mipsdsp_##func(rt0, sa, env);                           \
+                                                                  \
+    return MIPSDSP_RETURN64_32(rt1, rt0);                         \
+}
+
+SHIFT_PW_ENV(shll, lshift32);
+SHIFT_PW_ENV(shll_s, sat32_lshift);
+
+SHIFT_PW(shra, rashift32);
+SHIFT_PW(shra_r, rnd32_rashift);
+
+#undef SHIFT_PW
+#undef SHIFT_PW_ENV
+
+#endif
+
+#define SHIFT_PH(name, func) \
+target_ulong helper_##name##_ph(target_ulong sa, target_ulong rt) \
+{                                                                    \
+    uint16_t rth, rtl;                                               \
+                                                                     \
+    sa = sa & 0x0F;                                                  \
+                                                                     \
+    MIPSDSP_SPLIT32_16(rt, rth, rtl);                                \
+                                                                     \
+    rth = mipsdsp_##func(rth, sa);                                   \
+    rtl = mipsdsp_##func(rtl, sa);                                   \
+                                                                     \
+    return MIPSDSP_RETURN32_16(rth, rtl);                            \
+}
+
+SHIFT_PH(shrl, rshift_u16);
+SHIFT_PH(shra, rashift16);
+SHIFT_PH(shra_r, rnd16_rashift);
+
+#undef SHIFT_PH
+
 #undef MIPSDSP_LHI
 #undef MIPSDSP_LLO
 #undef MIPSDSP_HI
