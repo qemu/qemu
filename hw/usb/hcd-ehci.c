@@ -2073,7 +2073,7 @@ static int ehci_fill_queue(EHCIPacket *p)
 {
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
-    uint32_t qtdaddr;
+    uint32_t qtdaddr, start_addr = p->qtdaddr;
 
     for (;;) {
         if (NLPTR_TBIT(qtd.altnext) == 0) {
@@ -2083,6 +2083,13 @@ static int ehci_fill_queue(EHCIPacket *p)
             break;
         }
         qtdaddr = qtd.next;
+        /*
+         * Detect circular td lists, Windows creates these, counting on the
+         * active bit going low after execution to make the queue stop.
+         */
+        if (qtdaddr == start_addr) {
+            break;
+        }
         get_dwords(q->ehci, NLPTR_GET(qtdaddr),
                    (uint32_t *) &qtd, sizeof(EHCIqtd) >> 2);
         ehci_trace_qtd(q, NLPTR_GET(qtdaddr), &qtd);
