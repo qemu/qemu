@@ -1244,7 +1244,7 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
             s->usbcmd = val; /* Set usbcmd for ehci_update_halt() */
             ehci_update_halt(s);
             s->async_stepdown = 0;
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
+            qemu_bh_schedule(s->async_bh);
         }
         break;
 
@@ -2510,12 +2510,6 @@ static void ehci_frame_timer(void *opaque)
     }
 }
 
-static void ehci_async_bh(void *opaque)
-{
-    EHCIState *ehci = opaque;
-    ehci_advance_async_state(ehci);
-}
-
 static const MemoryRegionOps ehci_mmio_caps_ops = {
     .read = ehci_caps_read,
     .valid.min_access_size = 1,
@@ -2744,7 +2738,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     }
 
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
-    s->async_bh = qemu_bh_new(ehci_async_bh, s);
+    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
     usb_packet_init(&s->ipacket);
