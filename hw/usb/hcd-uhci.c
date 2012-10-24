@@ -100,7 +100,7 @@ struct UHCIAsync {
     QEMUSGList sgl;
     UHCIQueue *queue;
     QTAILQ_ENTRY(UHCIAsync) next;
-    uint32_t  td;
+    uint32_t  td_addr;
     uint8_t   done;
 };
 
@@ -203,22 +203,22 @@ static void uhci_queue_free(UHCIQueue *queue)
     g_free(queue);
 }
 
-static UHCIAsync *uhci_async_alloc(UHCIQueue *queue, uint32_t addr)
+static UHCIAsync *uhci_async_alloc(UHCIQueue *queue, uint32_t td_addr)
 {
     UHCIAsync *async = g_new0(UHCIAsync, 1);
 
     async->queue = queue;
-    async->td = addr;
+    async->td_addr = td_addr;
     usb_packet_init(&async->packet);
     pci_dma_sglist_init(&async->sgl, &queue->uhci->dev, 1);
-    trace_usb_uhci_packet_add(async->queue->token, async->td);
+    trace_usb_uhci_packet_add(async->queue->token, async->td_addr);
 
     return async;
 }
 
 static void uhci_async_free(UHCIAsync *async)
 {
-    trace_usb_uhci_packet_del(async->queue->token, async->td);
+    trace_usb_uhci_packet_del(async->queue->token, async->td_addr);
     usb_packet_cleanup(&async->packet);
     qemu_sglist_destroy(&async->sgl);
     g_free(async);
@@ -228,20 +228,21 @@ static void uhci_async_link(UHCIAsync *async)
 {
     UHCIQueue *queue = async->queue;
     QTAILQ_INSERT_TAIL(&queue->asyncs, async, next);
-    trace_usb_uhci_packet_link_async(async->queue->token, async->td);
+    trace_usb_uhci_packet_link_async(async->queue->token, async->td_addr);
 }
 
 static void uhci_async_unlink(UHCIAsync *async)
 {
     UHCIQueue *queue = async->queue;
     QTAILQ_REMOVE(&queue->asyncs, async, next);
-    trace_usb_uhci_packet_unlink_async(async->queue->token, async->td);
+    trace_usb_uhci_packet_unlink_async(async->queue->token, async->td_addr);
 }
 
 static void uhci_async_cancel(UHCIAsync *async)
 {
     uhci_async_unlink(async);
-    trace_usb_uhci_packet_cancel(async->queue->token, async->td, async->done);
+    trace_usb_uhci_packet_cancel(async->queue->token, async->td_addr,
+                                 async->done);
     if (!async->done)
         usb_cancel_packet(&async->packet);
     usb_packet_unmap(&async->packet, &async->sgl);
@@ -300,7 +301,8 @@ static void uhci_async_cancel_all(UHCIState *s)
     }
 }
 
-static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t addr, UHCI_TD *td)
+static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t td_addr,
+                                     UHCI_TD *td)
 {
     uint32_t token = uhci_queue_token(td);
     UHCIQueue *queue;
@@ -316,7 +318,7 @@ static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t addr, UHCI_TD *td)
     }
 
     QTAILQ_FOREACH(async, &queue->asyncs, next) {
-        if (async->td == addr) {
+        if (async->td_addr == td_addr) {
             return async;
         }
     }
@@ -722,13 +724,14 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
             *int_mask |= 0x02;
             /* short packet: do not update QH */
             trace_usb_uhci_packet_complete_shortxfer(async->queue->token,
-                                                    async->td);
+                                                     async->td_addr);
             return TD_RESULT_NEXT_QH;
         }
     }
 
     /* success */
-    trace_usb_uhci_packet_complete_success(async->queue->token, async->td);
+    trace_usb_uhci_packet_complete_success(async->queue->token,
+                                           async->td_addr);
     return TD_RESULT_COMPLETE;
 
 out:
@@ -739,14 +742,16 @@ out:
 
     case USB_RET_STALL:
         td->ctrl |= TD_CTRL_STALL;
-        trace_usb_uhci_packet_complete_stall(async->queue->token, async->td);
+        trace_usb_uhci_packet_complete_stall(async->queue->token,
+                                             async->td_addr);
         err = TD_RESULT_NEXT_QH;
         break;
 
     case USB_RET_BABBLE:
         td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
         /* frame interrupted */
-        trace_usb_uhci_packet_complete_babble(async->queue->token, async->td);
+        trace_usb_uhci_packet_complete_babble(async->queue->token,
+                                              async->td_addr);
         err = TD_RESULT_STOP_FRAME;
         break;
 
@@ -755,7 +760,8 @@ out:
     default:
         td->ctrl |= TD_CTRL_TIMEOUT;
         td->ctrl &= ~(3 << TD_CTRL_ERROR_SHIFT);
-        trace_usb_uhci_packet_complete_error(async->queue->token, async->td);
+        trace_usb_uhci_packet_complete_error(async->queue->token,
+                                             async->td_addr);
         err = TD_RESULT_NEXT_QH;
         break;
     }
@@ -769,7 +775,7 @@ out:
     return err;
 }
 
-static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
+static int uhci_handle_td(UHCIState *s, uint32_t td_addr, UHCI_TD *td,
                           uint32_t *int_mask, bool queuing,
                           struct USBEndpoint **ep_ret)
 {
@@ -792,7 +798,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
         return TD_RESULT_NEXT_QH;
     }
 
-    async = uhci_async_find_td(s, addr, td);
+    async = uhci_async_find_td(s, td_addr, td);
     if (async) {
         /* Already submitted */
         async->queue->valid = 32;
@@ -811,7 +817,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
     }
 
     /* Allocate new packet */
-    async = uhci_async_alloc(uhci_queue_get(s, td), addr);
+    async = uhci_async_alloc(uhci_queue_get(s, td), td_addr);
 
     /* valid needs to be large enough to handle 10 frame delay
      * for initial isochronous requests
@@ -827,7 +833,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td,
     if (ep_ret) {
         *ep_ret = ep;
     }
-    usb_packet_setup(&async->packet, pid, ep, addr, spd,
+    usb_packet_setup(&async->packet, pid, ep, td_addr, spd,
                      (td->ctrl & TD_CTRL_IOC) != 0);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
