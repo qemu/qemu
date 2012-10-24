@@ -24,10 +24,10 @@
 #include "config-host.h"
 
 #include "net.h"
-#include "net/clients.h"
-#include "net/hub.h"
-#include "net/slirp.h"
-#include "net/util.h"
+#include "clients.h"
+#include "hub.h"
+#include "slirp.h"
+#include "util.h"
 
 #include "monitor.h"
 #include "qemu-common.h"

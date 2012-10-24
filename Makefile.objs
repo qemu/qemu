@@ -66,7 +66,7 @@ endif
 # single QEMU executable should support all CPUs and machines.
 
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
-common-obj-y += net.o net/
+common-obj-y += net/
 common-obj-y += qom/
 common-obj-y += readline.o console.o cursor.o
 common-obj-y += qemu-pixman.o
