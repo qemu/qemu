@@ -20,7 +20,6 @@
 #include "hw.h"
 #include "block.h"
 #include "sysemu.h"
-#include "net.h"
 #include "boards.h"
 #include "monitor.h"
 #include "loader.h"

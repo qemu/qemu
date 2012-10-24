@@ -19,7 +19,6 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
 #include "flash.h"
 #include "devices.h"
 #include "boards.h"

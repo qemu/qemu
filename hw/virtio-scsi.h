@@ -15,7 +15,6 @@
 #define _QEMU_VIRTIO_SCSI_H
 
 #include "virtio.h"
-#include "net.h"
 #include "pci/pci.h"
 
 /* The ID for virtio_scsi */

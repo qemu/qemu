@@ -26,7 +26,6 @@
 #include "qemu-error.h"
 #include "pci/msi.h"
 #include "pci/msix.h"
-#include "net.h"
 #include "loader.h"
 #include "kvm.h"
 #include "blockdev.h"

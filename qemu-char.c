@@ -22,7 +22,6 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "net.h"
 #include "monitor.h"
 #include "console.h"
 #include "sysemu.h"

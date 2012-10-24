@@ -40,7 +40,6 @@
 #include "hw/audiodev.h"
 #include "kvm.h"
 #include "migration.h"
-#include "net.h"
 #include "gdbstub.h"
 #include "hw/smbios.h"
 #include "exec-memory.h"
