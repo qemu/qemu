@@ -22,7 +22,7 @@
 #include "qemu-char.h"
 #include "qemu-timer.h"
 #include "irq.h"
-#include "net.h"
+#include "bt-host.h"
 #include "bt.h"
 
 struct csrhci_s {

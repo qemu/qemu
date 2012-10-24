@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "net.h"
+#include "bt-host.h"
 #include "hw/bt.h"
 #include "main-loop.h"
 

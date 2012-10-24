@@ -21,7 +21,7 @@
 #include "qemu-common.h"
 #include "qemu-timer.h"
 #include "usb.h"
-#include "net.h"
+#include "bt-host.h"
 #include "bt.h"
 
 struct bt_hci_s {

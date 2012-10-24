@@ -133,20 +133,6 @@ extern int nb_nics;
 extern NICInfo nd_table[MAX_NICS];
 extern int default_net;
 
-/* BT HCI info */
-
-struct HCIInfo {
-    int (*bdaddr_set)(struct HCIInfo *hci, const uint8_t *bd_addr);
-    void (*cmd_send)(struct HCIInfo *hci, const uint8_t *data, int len);
-    void (*sco_send)(struct HCIInfo *hci, const uint8_t *data, int len);
-    void (*acl_send)(struct HCIInfo *hci, const uint8_t *data, int len);
-    void *opaque;
-    void (*evt_recv)(void *opaque, const uint8_t *data, int len);
-    void (*acl_recv)(void *opaque, const uint8_t *data, int len);
-};
-
-struct HCIInfo *qemu_next_hci(void);
-
 /* from net.c */
 extern const char *legacy_tftp_prefix;
 extern const char *legacy_bootp_filename;
