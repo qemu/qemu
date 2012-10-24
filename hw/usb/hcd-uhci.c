@@ -232,6 +232,7 @@ static void uhci_async_unlink(UHCIAsync *async)
 
 static void uhci_async_cancel(UHCIAsync *async)
 {
+    uhci_async_unlink(async);
     trace_usb_uhci_packet_cancel(async->queue->token, async->td, async->done);
     if (!async->done)
         usb_cancel_packet(&async->packet);
@@ -266,7 +267,6 @@ static void uhci_async_validate_end(UHCIState *s)
         }
         while (!QTAILQ_EMPTY(&queue->asyncs)) {
             async = QTAILQ_FIRST(&queue->asyncs);
-            uhci_async_unlink(async);
             uhci_async_cancel(async);
         }
         uhci_queue_free(queue);
@@ -284,7 +284,6 @@ static void uhci_async_cancel_device(UHCIState *s, USBDevice *dev)
                 curr->packet.ep->dev != dev) {
                 continue;
             }
-            uhci_async_unlink(curr);
             uhci_async_cancel(curr);
         }
     }
@@ -297,7 +296,6 @@ static void uhci_async_cancel_all(UHCIState *s)
 
     QTAILQ_FOREACH_SAFE(queue, &s->queues, next, nq) {
         QTAILQ_FOREACH_SAFE(curr, &queue->asyncs, next, n) {
-            uhci_async_unlink(curr);
             uhci_async_cancel(curr);
         }
         uhci_queue_free(queue);
