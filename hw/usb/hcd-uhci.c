@@ -167,8 +167,13 @@ static void uhci_queue_fill(UHCIQueue *q, UHCI_TD *td);
 
 static inline int32_t uhci_queue_token(UHCI_TD *td)
 {
-    /* covers ep, dev, pid -> identifies the endpoint */
-    return td->token & 0x7ffff;
+    if ((td->token & (0xf << 15)) == 0) {
+        /* ctrl ep, cover ep and dev, not pid! */
+        return td->token & 0x7ff00;
+    } else {
+        /* covers ep, dev, pid -> identifies the endpoint */
+        return td->token & 0x7ffff;
+    }
 }
 
 static UHCIQueue *uhci_queue_new(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
