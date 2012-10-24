@@ -353,6 +353,11 @@ enum {
 #if defined(TARGET_MIPS64)
     OPC_DAPPEND_DSP    = 0x35 | OPC_SPECIAL3,
 #endif
+    /* MIPS DSP Accumulator and DSPControl Access Sub-class */
+    OPC_EXTR_W_DSP     = 0x38 | OPC_SPECIAL3,
+#if defined(TARGET_MIPS64)
+    OPC_DEXTR_W_DSP    = 0x3C | OPC_SPECIAL3,
+#endif
 };
 
 /* BSHFL opcodes */
@@ -564,6 +569,30 @@ enum {
     OPC_BALIGN  = (0x10 << 6) | OPC_APPEND_DSP,
 };
 
+#define MASK_EXTR_W(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+enum {
+    /* MIPS DSP Accumulator and DSPControl Access Sub-class */
+    OPC_EXTR_W     = (0x00 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTR_R_W   = (0x04 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTR_RS_W  = (0x06 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTR_S_H   = (0x0E << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTRV_S_H  = (0x0F << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTRV_W    = (0x01 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTRV_R_W  = (0x05 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTRV_RS_W = (0x07 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTP       = (0x02 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTPV      = (0x03 << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTPDP     = (0x0A << 6) | OPC_EXTR_W_DSP,
+    OPC_EXTPDPV    = (0x0B << 6) | OPC_EXTR_W_DSP,
+    OPC_SHILO      = (0x1A << 6) | OPC_EXTR_W_DSP,
+    OPC_SHILOV     = (0x1B << 6) | OPC_EXTR_W_DSP,
+    OPC_MTHLIP     = (0x1F << 6) | OPC_EXTR_W_DSP,
+    OPC_WRDSP      = (0x13 << 6) | OPC_EXTR_W_DSP,
+    OPC_RDDSP      = (0x12 << 6) | OPC_EXTR_W_DSP,
+};
+
+
+
 #if defined(TARGET_MIPS64)
 #define MASK_ABSQ_S_QH(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
@@ -676,6 +705,32 @@ enum {
 #endif
 
 #if defined(TARGET_MIPS64)
+#define MASK_DEXTR_W(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+enum {
+    /* MIPS DSP Accumulator and DSPControl Access Sub-class */
+    OPC_DMTHLIP     = (0x1F << 6) | OPC_DEXTR_W_DSP,
+    OPC_DSHILO      = (0x1A << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTP       = (0x02 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTPDP     = (0x0A << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTPDPV    = (0x0B << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTPV      = (0x03 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_L     = (0x10 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_R_L   = (0x14 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_RS_L  = (0x16 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_W     = (0x00 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_R_W   = (0x04 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_RS_W  = (0x06 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTR_S_H   = (0x0E << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_L    = (0x11 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_R_L  = (0x15 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_RS_L = (0x17 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_S_H  = (0x0F << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_W    = (0x01 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_R_W  = (0x05 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DEXTRV_RS_W = (0x07 << 6) | OPC_DEXTR_W_DSP,
+    OPC_DSHILOV     = (0x1B << 6) | OPC_DEXTR_W_DSP,
+};
+
 #define MASK_DINSV(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* DSP Bit/Manipulation Sub-class */
@@ -14077,6 +14132,236 @@ static void gen_mipsdsp_add_cmp_pick(DisasContext *ctx,
     MIPS_DEBUG("%s", opn);
 }
 
+static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
+                                int ret, int v1, int v2, int check_ret)
+
+{
+    const char *opn = "mipsdsp accumulator";
+    TCGv t0;
+    TCGv t1;
+    TCGv v1_t;
+    TCGv v2_t;
+    int16_t imm;
+
+    if ((ret == 0) && (check_ret == 1)) {
+        /* Treat as NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    v1_t = tcg_temp_new();
+    v2_t = tcg_temp_new();
+
+    gen_load_gpr(v1_t, v1);
+    gen_load_gpr(v2_t, v2);
+
+    switch (op1) {
+    case OPC_EXTR_W_DSP:
+        check_dsp(ctx);
+        switch (op2) {
+        case OPC_EXTR_W:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_extr_w(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_EXTR_R_W:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_extr_r_w(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_EXTR_RS_W:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_extr_rs_w(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_EXTR_S_H:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_extr_s_h(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_EXTRV_S_H:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_extr_s_h(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_EXTRV_W:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_extr_w(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_EXTRV_R_W:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_extr_r_w(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_EXTRV_RS_W:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_extr_rs_w(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_EXTP:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_extp(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_EXTPV:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_extp(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_EXTPDP:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_extpdp(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_EXTPDPV:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_extpdp(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_SHILO:
+            imm = (ctx->opcode >> 20) & 0x3F;
+            tcg_gen_movi_tl(t0, ret);
+            tcg_gen_movi_tl(t1, imm);
+            gen_helper_shilo(t0, t1, cpu_env);
+            break;
+        case OPC_SHILOV:
+            tcg_gen_movi_tl(t0, ret);
+            gen_helper_shilo(t0, v1_t, cpu_env);
+            break;
+        case OPC_MTHLIP:
+            tcg_gen_movi_tl(t0, ret);
+            gen_helper_mthlip(t0, v1_t, cpu_env);
+            break;
+        case OPC_WRDSP:
+            imm = (ctx->opcode >> 11) & 0x3FF;
+            tcg_gen_movi_tl(t0, imm);
+            gen_helper_wrdsp(v1_t, t0, cpu_env);
+            break;
+        case OPC_RDDSP:
+            imm = (ctx->opcode >> 16) & 0x03FF;
+            tcg_gen_movi_tl(t0, imm);
+            gen_helper_rddsp(cpu_gpr[ret], t0, cpu_env);
+            break;
+        }
+        break;
+#ifdef TARGET_MIPS64
+    case OPC_DEXTR_W_DSP:
+        check_dsp(ctx);
+        switch (op2) {
+        case OPC_DMTHLIP:
+            tcg_gen_movi_tl(t0, ret);
+            gen_helper_dmthlip(v1_t, t0, cpu_env);
+            break;
+        case OPC_DSHILO:
+            {
+                int shift = (ctx->opcode >> 19) & 0x7F;
+                int ac = (ctx->opcode >> 11) & 0x03;
+                tcg_gen_movi_tl(t0, shift);
+                tcg_gen_movi_tl(t1, ac);
+                gen_helper_dshilo(t0, t1, cpu_env);
+                break;
+            }
+        case OPC_DSHILOV:
+            {
+                int ac = (ctx->opcode >> 11) & 0x03;
+                tcg_gen_movi_tl(t0, ac);
+                gen_helper_dshilo(v1_t, t0, cpu_env);
+                break;
+            }
+        case OPC_DEXTP:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+
+            gen_helper_dextp(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTPV:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextp(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTPDP:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextpdp(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTPDPV:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextpdp(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTR_L:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_l(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTR_R_L:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_r_l(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTR_RS_L:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_rs_l(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTR_W:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_w(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTR_R_W:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_r_w(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTR_RS_W:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_rs_w(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTR_S_H:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_s_h(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTRV_S_H:
+            tcg_gen_movi_tl(t0, v2);
+            tcg_gen_movi_tl(t1, v1);
+            gen_helper_dextr_s_h(cpu_gpr[ret], t0, t1, cpu_env);
+            break;
+        case OPC_DEXTRV_L:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextr_l(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTRV_R_L:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextr_r_l(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTRV_RS_L:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextr_rs_l(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTRV_W:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextr_w(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTRV_R_W:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextr_r_w(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        case OPC_DEXTRV_RS_W:
+            tcg_gen_movi_tl(t0, v2);
+            gen_helper_dextr_rs_w(cpu_gpr[ret], t0, v1_t, cpu_env);
+            break;
+        }
+        break;
+#endif
+    }
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free(v1_t);
+    tcg_temp_free(v2_t);
+
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s", opn);
+}
+
 /* End MIPSDSP functions. */
 
 static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
@@ -14665,6 +14950,38 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             op2 = MASK_APPEND(ctx->opcode);
             gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rt, rs, rd, 1);
             break;
+        case OPC_EXTR_W_DSP:
+            op2 = MASK_EXTR_W(ctx->opcode);
+            switch (op2) {
+            case OPC_EXTR_W:
+            case OPC_EXTR_R_W:
+            case OPC_EXTR_RS_W:
+            case OPC_EXTR_S_H:
+            case OPC_EXTRV_S_H:
+            case OPC_EXTRV_W:
+            case OPC_EXTRV_R_W:
+            case OPC_EXTRV_RS_W:
+            case OPC_EXTP:
+            case OPC_EXTPV:
+            case OPC_EXTPDP:
+            case OPC_EXTPDPV:
+                gen_mipsdsp_accinsn(ctx, op1, op2, rt, rs, rd, 1);
+                break;
+            case OPC_RDDSP:
+                gen_mipsdsp_accinsn(ctx, op1, op2, rd, rs, rt, 1);
+                break;
+            case OPC_SHILO:
+            case OPC_SHILOV:
+            case OPC_MTHLIP:
+            case OPC_WRDSP:
+                gen_mipsdsp_accinsn(ctx, op1, op2, rd, rs, rt, 0);
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("MASK EXTR.W");
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
+            break;
 #if defined(TARGET_MIPS64)
         case OPC_DEXTM ... OPC_DEXT:
         case OPC_DINSM ... OPC_DINS:
@@ -14808,6 +15125,40 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             check_dspr2(ctx);
             op2 = MASK_DAPPEND(ctx->opcode);
             gen_mipsdsp_add_cmp_pick(ctx, op1, op2, rt, rs, rd, 1);
+            break;
+        case OPC_DEXTR_W_DSP:
+            op2 = MASK_DEXTR_W(ctx->opcode);
+            switch (op2) {
+            case OPC_DEXTP:
+            case OPC_DEXTPDP:
+            case OPC_DEXTPDPV:
+            case OPC_DEXTPV:
+            case OPC_DEXTR_L:
+            case OPC_DEXTR_R_L:
+            case OPC_DEXTR_RS_L:
+            case OPC_DEXTR_W:
+            case OPC_DEXTR_R_W:
+            case OPC_DEXTR_RS_W:
+            case OPC_DEXTR_S_H:
+            case OPC_DEXTRV_L:
+            case OPC_DEXTRV_R_L:
+            case OPC_DEXTRV_RS_L:
+            case OPC_DEXTRV_S_H:
+            case OPC_DEXTRV_W:
+            case OPC_DEXTRV_R_W:
+            case OPC_DEXTRV_RS_W:
+                gen_mipsdsp_accinsn(ctx, op1, op2, rt, rs, rd, 1);
+                break;
+            case OPC_DMTHLIP:
+            case OPC_DSHILO:
+            case OPC_DSHILOV:
+                gen_mipsdsp_accinsn(ctx, op1, op2, rd, rs, rt, 0);
+                break;
+            default:            /* Invalid */
+                MIPS_INVAL("MASK EXTR.W");
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
             break;
         case OPC_DPAQ_W_QH_DSP:
             op2 = MASK_DPAQ_W_QH(ctx->opcode);

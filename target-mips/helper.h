@@ -676,4 +676,39 @@ DEF_HELPER_FLAGS_2(packrl_ph, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 DEF_HELPER_FLAGS_2(packrl_pw, TCG_CALL_NO_RWG_SE, tl, tl, tl)
 #endif
 
+/* DSP Accumulator and DSPControl Access Sub-class insns */
+DEF_HELPER_FLAGS_3(extr_w, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(extr_r_w, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(extr_rs_w, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dextr_w, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(dextr_r_w, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(dextr_rs_w, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(dextr_l, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(dextr_r_l, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(dextr_rs_l, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(extr_s_h, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dextr_s_h, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(extp, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(extpdp, 0, tl, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dextp, 0, tl, tl, tl, env)
+DEF_HELPER_FLAGS_3(dextpdp, 0, tl, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(shilo, 0, void, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dshilo, 0, void, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(mthlip, 0, void, tl, tl, env)
+#if defined(TARGET_MIPS64)
+DEF_HELPER_FLAGS_3(dmthlip, 0, void, tl, tl, env)
+#endif
+DEF_HELPER_FLAGS_3(wrdsp, 0, void, tl, tl, env)
+DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
+
+
+
 #include "def-helper.h"

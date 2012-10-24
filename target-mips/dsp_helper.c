@@ -3400,6 +3400,615 @@ target_ulong helper_packrl_pw(target_ulong rs, target_ulong rt)
 }
 #endif
 
+/** DSP Accumulator and DSPControl Access Sub-class insns **/
+target_ulong helper_extr_w(target_ulong ac, target_ulong shift,
+                           CPUMIPSState *env)
+{
+    int32_t tempI;
+    int64_t tempDL[2];
+
+    shift = shift & 0x0F;
+
+    mipsdsp_rndrashift_short_acc(tempDL, ac, shift, env);
+    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        (tempDL[1] != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    tempI = (tempDL[0] >> 1) & MIPSDSP_LLO;
+
+    tempDL[0] += 1;
+    if (tempDL[0] == 0) {
+        tempDL[1] += 1;
+    }
+
+    if ((!(tempDL[1] == 0 && (tempDL[0] & MIPSDSP_LHI) == 0x00)) &&
+        (!(tempDL[1] == 1 && (tempDL[0] & MIPSDSP_LHI) == MIPSDSP_LHI))) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (target_long)tempI;
+}
+
+target_ulong helper_extr_r_w(target_ulong ac, target_ulong shift,
+                             CPUMIPSState *env)
+{
+    int64_t tempDL[2];
+
+    shift = shift & 0x0F;
+
+    mipsdsp_rndrashift_short_acc(tempDL, ac, shift, env);
+    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        (tempDL[1] != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    tempDL[0] += 1;
+    if (tempDL[0] == 0) {
+        tempDL[1] += 1;
+    }
+
+    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        (tempDL[1] != 1 && (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (target_long)(int32_t)(tempDL[0] >> 1);
+}
+
+target_ulong helper_extr_rs_w(target_ulong ac, target_ulong shift,
+                              CPUMIPSState *env)
+{
+    int32_t tempI, temp64;
+    int64_t tempDL[2];
+
+    shift = shift & 0x0F;
+
+    mipsdsp_rndrashift_short_acc(tempDL, ac, shift, env);
+    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        (tempDL[1] != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+    tempDL[0] += 1;
+    if (tempDL[0] == 0) {
+        tempDL[1] += 1;
+    }
+    tempI = tempDL[0] >> 1;
+
+    if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
+        (tempDL[1] != 1 || (tempDL[0] & MIPSDSP_LHI) != MIPSDSP_LHI)) {
+        temp64 = tempDL[1];
+        if (temp64 == 0) {
+            tempI = 0x7FFFFFFF;
+        } else {
+            tempI = 0x80000000;
+        }
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (target_long)tempI;
+}
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_dextr_w(target_ulong ac, target_ulong shift,
+                            CPUMIPSState *env)
+{
+    uint64_t temp[3];
+
+    shift = shift & 0x3F;
+
+    mipsdsp_rndrashift_acc(temp, ac, shift, env);
+
+    return (int64_t)(int32_t)(temp[0] >> 1);
+}
+
+target_ulong helper_dextr_r_w(target_ulong ac, target_ulong shift,
+                              CPUMIPSState *env)
+{
+    uint64_t temp[3];
+    uint32_t temp128;
+
+    shift = shift & 0x3F;
+    mipsdsp_rndrashift_acc(temp, ac, shift, env);
+
+    temp[0] += 1;
+    if (temp[0] == 0) {
+        temp[1] += 1;
+        if (temp[1] == 0) {
+            temp[2] += 1;
+        }
+    }
+
+    temp128 = temp[2] & 0x01;
+
+    if ((temp128 != 0 || temp[1] != 0) &&
+       (temp128 != 1 || temp[1] != ~0ull)) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (int64_t)(int32_t)(temp[0] >> 1);
+}
+
+target_ulong helper_dextr_rs_w(target_ulong ac, target_ulong shift,
+                               CPUMIPSState *env)
+{
+    uint64_t temp[3];
+    uint32_t temp128;
+
+    shift = shift & 0x3F;
+    mipsdsp_rndrashift_acc(temp, ac, shift, env);
+
+    temp[0] += 1;
+    if (temp[0] == 0) {
+        temp[1] += 1;
+        if (temp[1] == 0) {
+            temp[2] += 1;
+        }
+    }
+
+    temp128 = temp[2] & 0x01;
+
+    if ((temp128 != 0 || temp[1] != 0) &&
+       (temp128 != 1 || temp[1] != ~0ull)) {
+        if (temp128 == 0) {
+            temp[0] = 0x0FFFFFFFF;
+        } else {
+            temp[0] = 0x0100000000;
+        }
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (int64_t)(int32_t)(temp[0] >> 1);
+}
+
+target_ulong helper_dextr_l(target_ulong ac, target_ulong shift,
+                            CPUMIPSState *env)
+{
+    uint64_t temp[3];
+    target_ulong result;
+
+    shift = shift & 0x3F;
+
+    mipsdsp_rndrashift_acc(temp, ac, shift, env);
+    result = (temp[1] << 63) | (temp[0] >> 1);
+
+    return result;
+}
+
+target_ulong helper_dextr_r_l(target_ulong ac, target_ulong shift,
+                              CPUMIPSState *env)
+{
+    uint64_t temp[3];
+    uint32_t temp128;
+    target_ulong result;
+
+    shift = shift & 0x3F;
+    mipsdsp_rndrashift_acc(temp, ac, shift, env);
+
+    temp[0] += 1;
+    if (temp[0] == 0) {
+        temp[1] += 1;
+        if (temp[1] == 0) {
+            temp[2] += 1;
+        }
+    }
+
+    temp128 = temp[2] & 0x01;
+
+    if ((temp128 != 0 || temp[1] != 0) &&
+       (temp128 != 1 || temp[1] != ~0ull)) {
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    result = (temp[1] << 63) | (temp[0] >> 1);
+
+    return result;
+}
+
+target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
+                               CPUMIPSState *env)
+{
+    uint64_t temp[3];
+    uint32_t temp128;
+    target_ulong result;
+
+    shift = shift & 0x3F;
+    mipsdsp_rndrashift_acc(temp, ac, shift, env);
+
+    temp[0] += 1;
+    if (temp[0] == 0) {
+        temp[1] += 1;
+        if (temp[1] == 0) {
+            temp[2] += 1;
+        }
+    }
+
+    temp128 = temp[2] & 0x01;
+
+    if ((temp128 != 0 || temp[1] != 0) &&
+       (temp128 != 1 || temp[1] != ~0ull)) {
+        if (temp128 == 0) {
+            temp[1] &= ~0x00ull - 1;
+            temp[0] |= ~0x00ull - 1;
+        } else {
+            temp[1] |= 0x01;
+            temp[0] &= 0x01;
+        }
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+    result = (temp[1] << 63) | (temp[0] >> 1);
+
+    return result;
+}
+#endif
+
+target_ulong helper_extr_s_h(target_ulong ac, target_ulong shift,
+                             CPUMIPSState *env)
+{
+    int64_t temp;
+
+    shift = shift & 0x0F;
+
+    temp = mipsdsp_rashift_short_acc(ac, shift, env);
+    if (temp > (int64_t)0x7FFF) {
+        temp = 0x00007FFF;
+        set_DSPControl_overflow_flag(1, 23, env);
+    } else if (temp < (int64_t)0xFFFFFFFFFFFF8000) {
+        temp = 0xFFFF8000;
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (target_long)(int32_t)(temp & 0xFFFFFFFF);
+}
+
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_dextr_s_h(target_ulong ac, target_ulong shift,
+                              CPUMIPSState *env)
+{
+    int64_t temp[2];
+    uint32_t temp127;
+
+    shift = shift & 0x1F;
+
+    mipsdsp_rashift_acc((uint64_t *)temp, ac, shift, env);
+
+    temp127 = (temp[1] >> 63) & 0x01;
+
+    if ((temp127 == 0) && (temp[1] > 0 || temp[0] > 32767)) {
+        temp[0] &= 0xFFFF0000;
+        temp[0] |= 0x00007FFF;
+        set_DSPControl_overflow_flag(1, 23, env);
+    } else if ((temp127 == 1) &&
+            (temp[1] < 0xFFFFFFFFFFFFFFFFll
+             || temp[0] < 0xFFFFFFFFFFFF1000ll)) {
+        temp[0] &= 0xFFFF0000;
+        temp[0] |= 0x00008000;
+        set_DSPControl_overflow_flag(1, 23, env);
+    }
+
+    return (int64_t)(int16_t)(temp[0] & MIPSDSP_LO);
+}
+
+#endif
+
+target_ulong helper_extp(target_ulong ac, target_ulong size, CPUMIPSState *env)
+{
+    int32_t start_pos;
+    int sub;
+    uint32_t temp;
+    uint64_t acc;
+
+    size = size & 0x1F;
+
+    temp = 0;
+    start_pos = get_DSPControl_pos(env);
+    sub = start_pos - (size + 1);
+    if (sub >= -1) {
+        acc = ((uint64_t)env->active_tc.HI[ac] << 32) |
+              ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);
+        temp = (acc >> (start_pos - size)) &
+               (((uint32_t)0x01 << (size + 1)) - 1);
+        set_DSPControl_efi(0, env);
+    } else {
+        set_DSPControl_efi(1, env);
+    }
+
+    return (target_ulong)temp;
+}
+
+target_ulong helper_extpdp(target_ulong ac, target_ulong size,
+                           CPUMIPSState *env)
+{
+    int32_t start_pos;
+    int sub;
+    uint32_t temp;
+    uint64_t acc;
+
+    size = size & 0x1F;
+    temp = 0;
+    start_pos = get_DSPControl_pos(env);
+    sub = start_pos - (size + 1);
+    if (sub >= -1) {
+        acc  = ((uint64_t)env->active_tc.HI[ac] << 32) |
+               ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);
+        temp = (acc >> (start_pos - size)) &
+               (((uint32_t)0x01 << (size + 1)) - 1);
+
+        set_DSPControl_pos(start_pos - (size + 1), env);
+        set_DSPControl_efi(0, env);
+    } else {
+        set_DSPControl_efi(1, env);
+    }
+
+    return (target_ulong)temp;
+}
+
+
+#if defined(TARGET_MIPS64)
+target_ulong helper_dextp(target_ulong ac, target_ulong size, CPUMIPSState *env)
+{
+    int start_pos;
+    int len;
+    int sub;
+    uint64_t tempB, tempA;
+    uint64_t temp;
+
+    temp = 0;
+
+    size = size & 0x3F;
+    start_pos = get_DSPControl_pos(env);
+    len = start_pos - size;
+    tempB = env->active_tc.HI[ac];
+    tempA = env->active_tc.LO[ac];
+
+    sub = start_pos - (size + 1);
+
+    if (sub >= -1) {
+        temp = (tempB << (64 - len)) | (tempA >> len);
+        temp = temp & ((0x01 << (size + 1)) - 1);
+        set_DSPControl_efi(0, env);
+    } else {
+        set_DSPControl_efi(1, env);
+    }
+
+    return temp;
+}
+
+target_ulong helper_dextpdp(target_ulong ac, target_ulong size,
+                            CPUMIPSState *env)
+{
+    int start_pos;
+    int len;
+    int sub;
+    uint64_t tempB, tempA;
+    uint64_t temp;
+
+    temp = 0;
+    size = size & 0x3F;
+    start_pos = get_DSPControl_pos(env);
+    len = start_pos - size;
+    tempB = env->active_tc.HI[ac];
+    tempA = env->active_tc.LO[ac];
+
+    sub = start_pos - (size + 1);
+
+    if (sub >= -1) {
+        temp = (tempB << (64 - len)) | (tempA >> len);
+        temp = temp & ((0x01 << (size + 1)) - 1);
+        set_DSPControl_pos(sub, env);
+        set_DSPControl_efi(0, env);
+    } else {
+        set_DSPControl_efi(1, env);
+    }
+
+    return temp;
+}
+
+#endif
+
+void helper_shilo(target_ulong ac, target_ulong rs, CPUMIPSState *env)
+{
+    int8_t  rs5_0;
+    uint64_t temp, acc;
+
+    rs5_0 = rs & 0x3F;
+    rs5_0 = (int8_t)(rs5_0 << 2) >> 2;
+    rs5_0 = MIPSDSP_ABS(rs5_0);
+    acc   = (((uint64_t)env->active_tc.HI[ac] << 32) & MIPSDSP_LHI) |
+            ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);
+    if (rs5_0 == 0) {
+        temp = acc;
+    } else {
+        if (rs5_0 > 0) {
+            temp = acc >> rs5_0;
+        } else {
+            temp = acc << rs5_0;
+        }
+    }
+
+    env->active_tc.HI[ac] = (target_ulong)(int32_t)((temp & MIPSDSP_LHI) >> 32);
+    env->active_tc.LO[ac] = (target_ulong)(int32_t)(temp & MIPSDSP_LLO);
+}
+
+#if defined(TARGET_MIPS64)
+void helper_dshilo(target_ulong shift, target_ulong ac, CPUMIPSState *env)
+{
+    int8_t shift_t;
+    uint64_t tempB, tempA;
+
+    shift_t = (int8_t)(shift << 1) >> 1;
+
+    tempB = env->active_tc.HI[ac];
+    tempA = env->active_tc.LO[ac];
+
+    if (shift_t != 0) {
+        if (shift_t >= 0) {
+            tempA = (tempB << (64 - shift_t)) | (tempA >> shift_t);
+            tempB = tempB >> shift_t;
+        } else {
+            shift_t = -shift_t;
+            tempB = (tempB << shift_t) | (tempA >> (64 - shift_t));
+            tempA = tempA << shift_t;
+        }
+    }
+
+    env->active_tc.HI[ac] = tempB;
+    env->active_tc.LO[ac] = tempA;
+}
+
+#endif
+void helper_mthlip(target_ulong ac, target_ulong rs, CPUMIPSState *env)
+{
+    int32_t tempA, tempB, pos;
+
+    tempA = rs;
+    tempB = env->active_tc.LO[ac];
+    env->active_tc.HI[ac] = (target_long)tempB;
+    env->active_tc.LO[ac] = (target_long)tempA;
+    pos = get_DSPControl_pos(env);
+
+    if (pos > 32) {
+        return;
+    } else {
+        set_DSPControl_pos(pos + 32, env);
+    }
+}
+
+#if defined(TARGET_MIPS64)
+void helper_dmthlip(target_ulong rs, target_ulong ac, CPUMIPSState *env)
+{
+    uint8_t ac_t;
+    uint8_t pos;
+    uint64_t tempB, tempA;
+
+    ac_t = ac & 0x3;
+
+    tempA = rs;
+    tempB = env->active_tc.LO[ac_t];
+
+    env->active_tc.HI[ac_t] = tempB;
+    env->active_tc.LO[ac_t] = tempA;
+
+    pos = get_DSPControl_pos(env);
+
+    if (pos <= 64) {
+        pos = pos + 64;
+        set_DSPControl_pos(pos, env);
+    }
+}
+#endif
+
+void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
+{
+    uint8_t  mask[6];
+    uint8_t  i;
+    uint32_t newbits, overwrite;
+    target_ulong dsp;
+
+    newbits   = 0x00;
+    overwrite = 0xFFFFFFFF;
+    dsp = env->active_tc.DSPControl;
+
+    for (i = 0; i < 6; i++) {
+        mask[i] = (mask_num >> i) & 0x01;
+    }
+
+    if (mask[0] == 1) {
+#if defined(TARGET_MIPS64)
+        overwrite &= 0xFFFFFF80;
+        newbits   &= 0xFFFFFF80;
+        newbits   |= 0x0000007F & rs;
+#else
+        overwrite &= 0xFFFFFFC0;
+        newbits   &= 0xFFFFFFC0;
+        newbits   |= 0x0000003F & rs;
+#endif
+    }
+
+    if (mask[1] == 1) {
+        overwrite &= 0xFFFFE07F;
+        newbits   &= 0xFFFFE07F;
+        newbits   |= 0x00001F80 & rs;
+    }
+
+    if (mask[2] == 1) {
+        overwrite &= 0xFFFFDFFF;
+        newbits   &= 0xFFFFDFFF;
+        newbits   |= 0x00002000 & rs;
+    }
+
+    if (mask[3] == 1) {
+        overwrite &= 0xFF00FFFF;
+        newbits   &= 0xFF00FFFF;
+        newbits   |= 0x00FF0000 & rs;
+    }
+
+    if (mask[4] == 1) {
+        overwrite &= 0x00FFFFFF;
+        newbits   &= 0x00FFFFFF;
+        newbits   |= 0xFF000000 & rs;
+    }
+
+    if (mask[5] == 1) {
+        overwrite &= 0xFFFFBFFF;
+        newbits   &= 0xFFFFBFFF;
+        newbits   |= 0x00004000 & rs;
+    }
+
+    dsp = dsp & overwrite;
+    dsp = dsp | newbits;
+    env->active_tc.DSPControl = dsp;
+}
+
+target_ulong helper_rddsp(target_ulong masknum, CPUMIPSState *env)
+{
+    uint8_t  mask[6];
+    uint32_t ruler, i;
+    target_ulong temp;
+    target_ulong dsp;
+
+    ruler = 0x01;
+    for (i = 0; i < 6; i++) {
+        mask[i] = (masknum & ruler) >> i ;
+        ruler = ruler << 1;
+    }
+
+    temp  = 0x00;
+    dsp = env->active_tc.DSPControl;
+
+    if (mask[0] == 1) {
+#if defined(TARGET_MIPS64)
+        temp |= dsp & 0x7F;
+#else
+        temp |= dsp & 0x3F;
+#endif
+    }
+
+    if (mask[1] == 1) {
+        temp |= dsp & 0x1F80;
+    }
+
+    if (mask[2] == 1) {
+        temp |= dsp & 0x2000;
+    }
+
+    if (mask[3] == 1) {
+        temp |= dsp & 0x00FF0000;
+    }
+
+    if (mask[4] == 1) {
+        temp |= dsp & 0xFF000000;
+    }
+
+    if (mask[5] == 1) {
+        temp |= dsp & 0x4000;
+    }
+
+    return temp;
+}
+
+
 #undef MIPSDSP_LHI
 #undef MIPSDSP_LLO
 #undef MIPSDSP_HI
