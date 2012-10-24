@@ -23,7 +23,7 @@
  */
 
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "flash.h"
 #include "boards.h"
 #include "etraxfs.h"

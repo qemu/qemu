@@ -25,7 +25,7 @@
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "exec-memory.h"

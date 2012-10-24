@@ -21,7 +21,7 @@
 #include "block.h"
 #include "blockdev.h"
 #include "sysemu.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "monitor.h"
 #include "loader.h"

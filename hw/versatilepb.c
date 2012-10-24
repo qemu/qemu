@@ -10,7 +10,7 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "devices.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "pci/pci.h"
 #include "i2c.h"

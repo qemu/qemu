@@ -23,7 +23,7 @@
 
 #include "sysemu.h"
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "arm-misc.h"
 #include "exec-memory.h"
 #include "exynos4210.h"

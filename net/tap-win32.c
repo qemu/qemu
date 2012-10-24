@@ -26,11 +26,11 @@
  *  distribution); if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "tap.h"
+#include "tap_int.h"
 
 #include "qemu-common.h"
 #include "clients.h"            /* net_init_tap */
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "qemu-error.h"
 #include <stdio.h>

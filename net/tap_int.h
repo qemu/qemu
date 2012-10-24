@@ -23,8 +23,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_NET_TAP_H
-#define QEMU_NET_TAP_H
+#ifndef QEMU_TAP_H
+#define QEMU_TAP_H
 
 #include "qemu-common.h"
 #include "qapi-types.h"
@@ -36,13 +36,6 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
 
 ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen);
 
-int tap_has_ufo(NetClientState *nc);
-int tap_has_vnet_hdr(NetClientState *nc);
-int tap_has_vnet_hdr_len(NetClientState *nc, int len);
-void tap_using_vnet_hdr(NetClientState *nc, int using_vnet_hdr);
-void tap_set_offload(NetClientState *nc, int csum, int tso4, int tso6, int ecn, int ufo);
-void tap_set_vnet_hdr_len(NetClientState *nc, int len);
-
 int tap_set_sndbuf(int fd, const NetdevTapOptions *tap);
 int tap_probe_vnet_hdr(int fd);
 int tap_probe_vnet_hdr_len(int fd, int len);
@@ -50,9 +43,4 @@ int tap_probe_has_ufo(int fd);
 void tap_fd_set_offload(int fd, int csum, int tso4, int tso6, int ecn, int ufo);
 void tap_fd_set_vnet_hdr_len(int fd, int len);
 
-int tap_get_fd(NetClientState *nc);
-
-struct vhost_net;
-struct vhost_net *tap_get_vhost_net(NetClientState *nc);
-
-#endif /* QEMU_NET_TAP_H */
+#endif /* QEMU_TAP_H */

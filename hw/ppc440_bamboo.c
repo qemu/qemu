@@ -13,7 +13,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "net.h"
+#include "net/net.h"
 #include "hw.h"
 #include "pci/pci.h"
 #include "boards.h"

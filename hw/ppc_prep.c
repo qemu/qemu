@@ -26,7 +26,7 @@
 #include "pc.h"
 #include "serial.h"
 #include "fdc.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "isa.h"
 #include "pci/pci.h"

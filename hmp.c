@@ -14,7 +14,7 @@
  */
 
 #include "hmp.h"
-#include "net.h"
+#include "net/net.h"
 #include "qemu-char.h"
 #include "qemu-option.h"
 #include "qemu-timer.h"

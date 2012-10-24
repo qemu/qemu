@@ -33,7 +33,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "trace.h"
 

@@ -3,7 +3,7 @@
 
 #include "qdev.h"
 #include "qdev-addr.h"
-#include "net.h"
+#include "net/net.h"
 
 static inline DeviceState *milkymist_uart_create(hwaddr base,
         qemu_irq irq)

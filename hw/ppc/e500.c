@@ -18,7 +18,7 @@
 #include "qemu-common.h"
 #include "e500.h"
 #include "e500-ccsr.h"
-#include "net.h"
+#include "net/net.h"
 #include "qemu-config.h"
 #include "hw/hw.h"
 #include "hw/serial.h"

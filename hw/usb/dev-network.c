@@ -26,7 +26,7 @@
 #include "qemu-common.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "net.h"
+#include "net/net.h"
 #include "qemu-queue.h"
 #include "qemu-config.h"
 #include "sysemu.h"

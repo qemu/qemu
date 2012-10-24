@@ -27,7 +27,7 @@
 
 #include "hw.h"
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 #include "loader.h"
 #include "sysemu.h"

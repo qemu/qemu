@@ -21,7 +21,7 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "loader.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "sysbus.h"

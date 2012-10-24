@@ -6,7 +6,7 @@
 #include "ioport.h"
 #include "isa.h"
 #include "fdc.h"
-#include "net.h"
+#include "net/net.h"
 #include "memory.h"
 #include "ioapic.h"
 

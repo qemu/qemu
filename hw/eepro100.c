@@ -43,7 +43,7 @@
 #include <stddef.h>             /* offsetof */
 #include "hw.h"
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "eeprom93xx.h"
 #include "sysemu.h"
 #include "dma.h"

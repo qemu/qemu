@@ -13,7 +13,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "net.h"
+#include "net/net.h"
 #include "net/tap.h"
 
 #include "virtio-net.h"

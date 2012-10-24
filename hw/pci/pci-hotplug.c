@@ -25,7 +25,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "hw/pc.h"
 #include "monitor.h"
 #include "hw/scsi.h"

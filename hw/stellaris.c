@@ -13,7 +13,7 @@
 #include "devices.h"
 #include "qemu-timer.h"
 #include "i2c.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "exec-memory.h"
 

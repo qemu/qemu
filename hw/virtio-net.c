@@ -13,7 +13,7 @@
 
 #include "iov.h"
 #include "virtio.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 #include "net/tap.h"
 #include "qemu-error.h"

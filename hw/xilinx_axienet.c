@@ -24,7 +24,7 @@
 
 #include "sysbus.h"
 #include "qemu-log.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 
 #include "stream.h"

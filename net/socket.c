@@ -23,7 +23,7 @@
  */
 #include "config-host.h"
 
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
 #include "monitor.h"
 #include "qemu-common.h"

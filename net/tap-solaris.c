@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "net/tap.h"
+#include "tap_int.h"
 #include "sysemu.h"
 
 #include <sys/stat.h>

@@ -28,7 +28,7 @@
 #include "serial.h"
 #include "nvram.h"
 #include "fdc.h"
-#include "net.h"
+#include "net/net.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "boards.h"

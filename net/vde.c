@@ -25,7 +25,7 @@
 
 #include <libvdeplug.h>
 
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
 #include "qemu-common.h"
 #include "qemu-option.h"

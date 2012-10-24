@@ -22,7 +22,7 @@
 #include "pc.h"
 #include "serial.h"
 #include "fdc.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "smbus.h"
 #include "block.h"

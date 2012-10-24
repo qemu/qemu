@@ -22,7 +22,7 @@
 #include "boards.h"
 #include "elf.h"
 #include "serial.h"
-#include "net.h"
+#include "net/net.h"
 #include "loader.h"
 #include "exec-memory.h"
 #include "sysemu.h"

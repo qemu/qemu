@@ -36,7 +36,7 @@
 #include <sys/wait.h>
 
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 #include "net/util.h"
 #include "xen_backend.h"

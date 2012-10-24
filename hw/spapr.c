@@ -27,7 +27,7 @@
 #include "sysemu.h"
 #include "hw.h"
 #include "elf.h"
-#include "net.h"
+#include "net/net.h"
 #include "blockdev.h"
 #include "cpus.h"
 #include "kvm.h"

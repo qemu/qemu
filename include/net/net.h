@@ -147,6 +147,9 @@ void net_host_device_remove(Monitor *mon, const QDict *qdict);
 void netdev_add(QemuOpts *opts, Error **errp);
 int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret);
 
+int net_hub_id_for_client(NetClientState *nc, int *id);
+NetClientState *net_hub_port_find(int hub_id);
+
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
 #define DEFAULT_BRIDGE_HELPER CONFIG_QEMU_HELPERDIR "/qemu-bridge-helper"

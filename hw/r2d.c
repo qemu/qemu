@@ -30,7 +30,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "sh7750_regs.h"
 #include "ide.h"
 #include "loader.h"

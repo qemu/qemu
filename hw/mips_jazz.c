@@ -32,7 +32,7 @@
 #include "sysemu.h"
 #include "arch_init.h"
 #include "boards.h"
-#include "net.h"
+#include "net/net.h"
 #include "esp.h"
 #include "mips-bios.h"
 #include "loader.h"

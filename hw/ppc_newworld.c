@@ -53,7 +53,7 @@
 #include "mac_dbdma.h"
 #include "nvram.h"
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "fw_cfg.h"

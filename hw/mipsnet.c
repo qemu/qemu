@@ -1,5 +1,5 @@
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "trace.h"
 #include "sysbus.h"
 

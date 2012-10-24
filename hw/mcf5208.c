@@ -10,7 +10,7 @@
 #include "qemu-timer.h"
 #include "ptimer.h"
 #include "sysemu.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"

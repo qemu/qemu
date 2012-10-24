@@ -3,7 +3,7 @@
 
 #include "xen_common.h"
 #include "sysemu.h"
-#include "net.h"
+#include "net/net.h"
 
 /* ------------------------------------------------------------- */
 

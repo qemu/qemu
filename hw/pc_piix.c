@@ -30,7 +30,7 @@
 #include "pci/pci.h"
 #include "pci/pci_ids.h"
 #include "usb.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "ide.h"
 #include "kvm.h"

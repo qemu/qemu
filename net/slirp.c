@@ -29,7 +29,7 @@
 #include <pwd.h>
 #include <sys/wait.h>
 #endif
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
 #include "hub.h"
 #include "monitor.h"

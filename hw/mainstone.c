@@ -14,7 +14,7 @@
 #include "hw.h"
 #include "pxa.h"
 #include "arm-misc.h"
-#include "net.h"
+#include "net/net.h"
 #include "devices.h"
 #include "boards.h"
 #include "flash.h"

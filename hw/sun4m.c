@@ -28,7 +28,7 @@
 #include "sparc32_dma.h"
 #include "fdc.h"
 #include "sysemu.h"
-#include "net.h"
+#include "net/net.h"
 #include "boards.h"
 #include "firmware_abi.h"
 #include "esp.h"

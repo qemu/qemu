@@ -13,7 +13,7 @@
  */
 
 #include "monitor.h"
-#include "net.h"
+#include "net/net.h"
 #include "clients.h"
 #include "hub.h"
 #include "iov.h"

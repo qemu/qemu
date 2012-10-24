@@ -36,7 +36,7 @@
 
 #include "hw.h"
 #include "pxa.h"
-#include "net.h"
+#include "net/net.h"
 #include "flash.h"
 #include "devices.h"
 #include "boards.h"

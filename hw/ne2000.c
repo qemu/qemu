@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "ne2000.h"
 #include "loader.h"
 #include "sysemu.h"

@@ -17,7 +17,7 @@
 
 #include "sysbus.h"
 #include "arm-misc.h"
-#include "net.h"
+#include "net/net.h"
 #include "exec-memory.h"
 #include "sysemu.h"
 #include "boards.h"

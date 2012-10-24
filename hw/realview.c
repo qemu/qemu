@@ -12,7 +12,7 @@
 #include "primecell.h"
 #include "devices.h"
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "i2c.h"

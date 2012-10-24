@@ -25,7 +25,7 @@
  *
  */
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "hw/qdev.h"
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"

@@ -30,7 +30,7 @@
 #include "mac_dbdma.h"
 #include "nvram.h"
 #include "sysemu.h"
-#include "net.h"
+#include "net/net.h"
 #include "isa.h"
 #include "pci/pci.h"
 #include "boards.h"

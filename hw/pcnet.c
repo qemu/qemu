@@ -36,7 +36,7 @@
  */
 
 #include "qdev.h"
-#include "net.h"
+#include "net/net.h"
 #include "qemu-timer.h"
 #include "qemu_socket.h"
 #include "sysemu.h"

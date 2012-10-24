@@ -32,7 +32,7 @@
 #include "memory.h"
 #include "exec-memory.h"
 #include "serial.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysbus.h"
 #include "flash.h"
 #include "blockdev.h"

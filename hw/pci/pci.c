@@ -26,7 +26,7 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "monitor.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "hw/loader.h"
 #include "range.h"

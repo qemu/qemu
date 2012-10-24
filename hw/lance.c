@@ -36,7 +36,7 @@
  */
 
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "qemu-timer.h"
 #include "qemu_socket.h"
 #include "sun4m.h"

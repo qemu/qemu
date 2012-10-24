@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 #include "hw/qdev.h"
 #include "hw/loader.h"
 #include "bt-host.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/slirp.h"
 #include "monitor.h"
 #include "console.h"

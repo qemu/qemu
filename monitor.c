@@ -31,7 +31,7 @@
 #include "hw/watchdog.h"
 #include "hw/loader.h"
 #include "gdbstub.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/slirp.h"
 #include "qemu-char.h"
 #include "ui/qemu-spice.h"

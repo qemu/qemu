@@ -29,7 +29,7 @@
 #include "mips_cpudevs.h"
 #include "serial.h"
 #include "isa.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "mips-bios.h"

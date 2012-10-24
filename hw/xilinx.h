@@ -1,6 +1,6 @@
 #include "stream.h"
 #include "qemu-common.h"
-#include "net.h"
+#include "net/net.h"
 
 static inline DeviceState *
 xilinx_intc_create(hwaddr base, qemu_irq irq, int kind_of_intr)

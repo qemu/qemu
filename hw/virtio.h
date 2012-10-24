@@ -15,7 +15,7 @@
 #define _QEMU_VIRTIO_H
 
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "qdev.h"
 #include "sysemu.h"
 #include "event_notifier.h"

@@ -11,7 +11,7 @@
  */
 
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "devices.h"
 #include "sysemu.h"
 #include "ptimer.h"

@@ -28,7 +28,7 @@
  */
 
 #include "pci/pci.h"
-#include "net.h"
+#include "net/net.h"
 #include "loader.h"
 #include "qemu-timer.h"
 #include "dma.h"

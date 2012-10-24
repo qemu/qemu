@@ -55,7 +55,7 @@
 #include "pci/pci.h"
 #include "dma.h"
 #include "qemu-timer.h"
-#include "net.h"
+#include "net/net.h"
 #include "loader.h"
 #include "sysemu.h"
 #include "iov.h"

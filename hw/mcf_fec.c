@@ -6,7 +6,7 @@
  * This code is licensed under the GPL
  */
 #include "hw.h"
-#include "net.h"
+#include "net/net.h"
 #include "mcf.h"
 /* For crc32 */
 #include <zlib.h>

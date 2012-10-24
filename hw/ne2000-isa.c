@@ -25,7 +25,7 @@
 #include "pc.h"
 #include "isa.h"
 #include "qdev.h"
-#include "net.h"
+#include "net/net.h"
 #include "ne2000.h"
 #include "exec-memory.h"
 
