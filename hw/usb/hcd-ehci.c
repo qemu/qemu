@@ -381,7 +381,7 @@ struct EHCIQueue {
     uint32_t qhaddr;       /* address QH read from                 */
     uint32_t qtdaddr;      /* address QTD read from                */
     USBDevice *dev;
-    QTAILQ_HEAD(, EHCIPacket) packets;
+    QTAILQ_HEAD(pkts_head, EHCIPacket) packets;
 };
 
 typedef QTAILQ_HEAD(EHCIQueueHead, EHCIQueue) EHCIQueueHead;
@@ -488,6 +488,7 @@ static const char *ehci_mmio_names[] = {
 
 static int ehci_state_executing(EHCIQueue *q);
 static int ehci_state_writeback(EHCIQueue *q);
+static int ehci_fill_queue(EHCIPacket *p);
 
 static const char *nr2str(const char **n, size_t len, uint32_t nr)
 {
@@ -1994,7 +1995,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
 {
     EHCIqtd qtd;
     EHCIPacket *p;
-    int again = 0;
+    int again = 1;
 
     get_dwords(q->ehci, NLPTR_GET(q->qtdaddr), (uint32_t *) &qtd,
                sizeof(EHCIqtd) >> 2);
@@ -2022,7 +2023,6 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             p = NULL;
         }
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-        again = 1;
     } else if (p != NULL) {
         switch (p->async) {
         case EHCI_ASYNC_NONE:
@@ -2031,6 +2031,9 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             ehci_set_state(q->ehci, q->async, EST_EXECUTE);
             break;
         case EHCI_ASYNC_INFLIGHT:
+            /* Check if the guest has added new tds to the queue */
+            again = (ehci_fill_queue(QTAILQ_LAST(&q->packets, pkts_head)) ==
+                     USB_RET_PROCERR) ? -1 : 1;
             /* Unfinished async handled packet, go horizontal */
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;
@@ -2042,13 +2045,11 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
             break;
         }
-        again = 1;
     } else {
         p = ehci_alloc_packet(q);
         p->qtdaddr = q->qtdaddr;
         p->qtd = qtd;
         ehci_set_state(q->ehci, q->async, EST_EXECUTE);
-        again = 1;
     }
 
     return again;
