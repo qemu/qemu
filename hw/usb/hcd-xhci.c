@@ -2430,7 +2430,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x02000402; /* USB 2.0 */
         break;
     case 0x24: /* Supported Protocol:04 */
-        ret = 0x20425455; /* "USB " */
+        ret = 0x20425355; /* "USB " */
         break;
     case 0x28: /* Supported Protocol:08 */
         ret = 0x00000001 | (xhci->numports_2<<8);
@@ -2442,7 +2442,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x03000002; /* USB 3.0 */
         break;
     case 0x34: /* Supported Protocol:04 */
-        ret = 0x20425455; /* "USB " */
+        ret = 0x20425355; /* "USB " */
         break;
     case 0x38: /* Supported Protocol:08 */
         ret = 0x00000000 | (xhci->numports_2+1) | (xhci->numports_3<<8);
