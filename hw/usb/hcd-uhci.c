@@ -693,9 +693,6 @@ static USBDevice *uhci_find_device(UHCIState *s, uint8_t addr)
     return NULL;
 }
 
-static void uhci_async_complete(USBPort *port, USBPacket *packet);
-static void uhci_process_frame(UHCIState *s);
-
 static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_t *int_mask)
 {
     int len = 0, max_len, err, ret;
