@@ -362,7 +362,6 @@ struct EHCIPacket {
     USBPacket packet;
     QEMUSGList sgl;
     int pid;
-    uint32_t tbytes;
     enum async_state async;
     int usb_status;
 };
@@ -1505,15 +1504,16 @@ static void ehci_execute_complete(EHCIQueue *q)
         }
     } else {
         // TODO check 4.12 for splits
+        uint32_t tbytes = get_field(q->qh.token, QTD_TOKEN_TBYTES);
 
-        if (p->tbytes && p->pid == USB_TOKEN_IN) {
-            p->tbytes -= p->usb_status;
+        if (tbytes && p->pid == USB_TOKEN_IN) {
+            tbytes -= p->usb_status;
         } else {
-            p->tbytes = 0;
+            tbytes = 0;
         }
 
-        DPRINTF("updating tbytes to %d\n", p->tbytes);
-        set_field(&q->qh.token, p->tbytes, QTD_TOKEN_TBYTES);
+        DPRINTF("updating tbytes to %d\n", tbytes);
+        set_field(&q->qh.token, tbytes, QTD_TOKEN_TBYTES);
     }
     ehci_finish_transfer(q, p->usb_status);
     usb_packet_unmap(&p->packet, &p->sgl);
@@ -1544,8 +1544,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         return USB_RET_PROCERR;
     }
 
-    p->tbytes = (p->qtd.token & QTD_TOKEN_TBYTES_MASK) >> QTD_TOKEN_TBYTES_SH;
-    if (p->tbytes > BUFF_SIZE) {
+    if (get_field(p->qtd.token, QTD_TOKEN_TBYTES) > BUFF_SIZE) {
         ehci_trace_guest_bug(p->queue->ehci,
                              "guest requested more bytes than allowed");
         return USB_RET_PROCERR;
@@ -1582,10 +1581,9 @@ static int ehci_execute(EHCIPacket *p, const char *action)
 
     trace_usb_ehci_packet_action(p->queue, p, action);
     ret = usb_handle_packet(p->queue->dev, &p->packet);
-    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
-            "(total %d) endp %x ret %d\n",
+    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd endp %x ret %d\n",
             q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
-            q->packet.iov.size, q->tbytes, endp, ret);
+            q->packet.iov.size, endp, ret);
 
     if (ret > BUFF_SIZE) {
         fprintf(stderr, "ret from usb_handle_packet > BUFF_SIZE\n");
