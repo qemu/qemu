@@ -343,6 +343,11 @@ enum {
 #if defined(TARGET_MIPS64)
     OPC_DPAQ_W_QH_DSP  = 0x34 | OPC_SPECIAL3,
 #endif
+    /* DSP Bit/Manipulation Sub-class */
+    OPC_INSV_DSP       = 0x0C | OPC_SPECIAL3,
+#if defined(TARGET_MIPS64)
+    OPC_DINSV_DSP      = 0x0D | OPC_SPECIAL3,
+#endif
 };
 
 /* BSHFL opcodes */
@@ -450,6 +455,12 @@ enum {
     OPC_PRECEU_PH_QBR   = (0x1D << 6) | OPC_ABSQ_S_PH_DSP,
     OPC_PRECEU_PH_QBLA  = (0x1E << 6) | OPC_ABSQ_S_PH_DSP,
     OPC_PRECEU_PH_QBRA  = (0x1F << 6) | OPC_ABSQ_S_PH_DSP,
+    /* DSP Bit/Manipulation Sub-class */
+    OPC_BITREV          = (0x1B << 6) | OPC_ABSQ_S_PH_DSP,
+    OPC_REPL_QB         = (0x02 << 6) | OPC_ABSQ_S_PH_DSP,
+    OPC_REPLV_QB        = (0x03 << 6) | OPC_ABSQ_S_PH_DSP,
+    OPC_REPL_PH         = (0x0A << 6) | OPC_ABSQ_S_PH_DSP,
+    OPC_REPLV_PH        = (0x0B << 6) | OPC_ABSQ_S_PH_DSP,
 };
 
 #define MASK_CMPU_EQ_QB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
@@ -518,6 +529,12 @@ enum {
     OPC_MULSA_W_PH    = (0x02 << 6) | OPC_DPA_W_PH_DSP,
 };
 
+#define MASK_INSV(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+enum {
+    /* DSP Bit/Manipulation Sub-class */
+    OPC_INSV = (0x00 << 6) | OPC_INSV_DSP,
+};
+
 #if defined(TARGET_MIPS64)
 #define MASK_ABSQ_S_QH(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
@@ -539,6 +556,13 @@ enum {
     OPC_ABSQ_S_OB       = (0x01 << 6) | OPC_ABSQ_S_QH_DSP,
     OPC_ABSQ_S_PW       = (0x11 << 6) | OPC_ABSQ_S_QH_DSP,
     OPC_ABSQ_S_QH       = (0x09 << 6) | OPC_ABSQ_S_QH_DSP,
+    /* DSP Bit/Manipulation Sub-class */
+    OPC_REPL_OB         = (0x02 << 6) | OPC_ABSQ_S_QH_DSP,
+    OPC_REPL_PW         = (0x12 << 6) | OPC_ABSQ_S_QH_DSP,
+    OPC_REPL_QH         = (0x0A << 6) | OPC_ABSQ_S_QH_DSP,
+    OPC_REPLV_OB        = (0x03 << 6) | OPC_ABSQ_S_QH_DSP,
+    OPC_REPLV_PW        = (0x13 << 6) | OPC_ABSQ_S_QH_DSP,
+    OPC_REPLV_QH        = (0x0B << 6) | OPC_ABSQ_S_QH_DSP,
 };
 #endif
 
@@ -588,6 +612,14 @@ enum {
     OPC_PRECRQ_QH_PW      = (0x14 << 6) | OPC_CMPU_EQ_OB_DSP,
     OPC_PRECRQ_RS_QH_PW   = (0x15 << 6) | OPC_CMPU_EQ_OB_DSP,
     OPC_PRECRQU_S_OB_QH   = (0x0F << 6) | OPC_CMPU_EQ_OB_DSP,
+};
+#endif
+
+#if defined(TARGET_MIPS64)
+#define MASK_DINSV(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
+enum {
+    /* DSP Bit/Manipulation Sub-class */
+    OPC_DINSV = (0x00 << 6) | OPC_DINSV_DSP,
 };
 #endif
 
@@ -13604,6 +13636,149 @@ static void gen_mipsdsp_multiply(DisasContext *ctx, uint32_t op1, uint32_t op2,
 
 }
 
+static void gen_mipsdsp_bitinsn(CPUMIPSState *env, DisasContext *ctx,
+                                uint32_t op1, uint32_t op2,
+                                int ret, int val)
+{
+    const char *opn = "mipsdsp Bit/ Manipulation";
+    int16_t imm;
+    TCGv t0;
+    TCGv val_t;
+
+    if (ret == 0) {
+        /* Treat as NOP. */
+        MIPS_DEBUG("NOP");
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    val_t = tcg_temp_new();
+    gen_load_gpr(val_t, val);
+
+    switch (op1) {
+    case OPC_ABSQ_S_PH_DSP:
+        switch (op2) {
+        case OPC_BITREV:
+            check_dsp(ctx);
+            gen_helper_bitrev(cpu_gpr[ret], val_t);
+            break;
+        case OPC_REPL_QB:
+            check_dsp(ctx);
+            {
+                target_long result;
+                imm = (ctx->opcode >> 16) & 0xFF;
+                result = (uint32_t)imm << 24 |
+                         (uint32_t)imm << 16 |
+                         (uint32_t)imm << 8  |
+                         (uint32_t)imm;
+                result = (int32_t)result;
+                tcg_gen_movi_tl(cpu_gpr[ret], result);
+            }
+            break;
+        case OPC_REPLV_QB:
+            check_dsp(ctx);
+            tcg_gen_ext8u_tl(cpu_gpr[ret], val_t);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 8);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 16);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            tcg_gen_ext32s_tl(cpu_gpr[ret], cpu_gpr[ret]);
+            break;
+        case OPC_REPL_PH:
+            check_dsp(ctx);
+            {
+                imm = (ctx->opcode >> 16) & 0x03FF;
+                tcg_gen_movi_tl(cpu_gpr[ret], \
+                                (target_long)((int32_t)imm << 16 | \
+                                (uint32_t)(uint16_t)imm));
+            }
+            break;
+        case OPC_REPLV_PH:
+            check_dsp(ctx);
+            tcg_gen_ext16u_tl(cpu_gpr[ret], val_t);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 16);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            tcg_gen_ext32s_tl(cpu_gpr[ret], cpu_gpr[ret]);
+            break;
+        }
+        break;
+#ifdef TARGET_MIPS64
+    case OPC_ABSQ_S_QH_DSP:
+        switch (op2) {
+        case OPC_REPL_OB:
+            check_dsp(ctx);
+            {
+                target_long temp;
+
+                imm = (ctx->opcode >> 16) & 0xFF;
+                temp = ((uint64_t)imm << 8) | (uint64_t)imm;
+                temp = (temp << 16) | temp;
+                temp = (temp << 32) | temp;
+                tcg_gen_movi_tl(cpu_gpr[ret], temp);
+                break;
+            }
+        case OPC_REPL_PW:
+            check_dsp(ctx);
+            {
+                target_long temp;
+
+                imm = (ctx->opcode >> 16) & 0x03FF;
+                imm = (int16_t)(imm << 6) >> 6;
+                temp = ((target_long)imm << 32) \
+                       | ((target_long)imm & 0xFFFFFFFF);
+                tcg_gen_movi_tl(cpu_gpr[ret], temp);
+                break;
+            }
+        case OPC_REPL_QH:
+            check_dsp(ctx);
+            {
+                target_long temp;
+
+                imm = (ctx->opcode >> 16) & 0x03FF;
+                imm = (int16_t)(imm << 6) >> 6;
+
+                temp = ((uint64_t)(uint16_t)imm << 48) |
+                       ((uint64_t)(uint16_t)imm << 32) |
+                       ((uint64_t)(uint16_t)imm << 16) |
+                       (uint64_t)(uint16_t)imm;
+                tcg_gen_movi_tl(cpu_gpr[ret], temp);
+                break;
+            }
+        case OPC_REPLV_OB:
+            check_dsp(ctx);
+            tcg_gen_ext8u_tl(cpu_gpr[ret], val_t);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 8);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 16);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 32);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            break;
+        case OPC_REPLV_PW:
+            check_dsp(ctx);
+            tcg_gen_ext32u_i64(cpu_gpr[ret], val_t);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 32);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            break;
+        case OPC_REPLV_QH:
+            check_dsp(ctx);
+            tcg_gen_ext16u_tl(cpu_gpr[ret], val_t);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 16);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            tcg_gen_shli_tl(t0, cpu_gpr[ret], 32);
+            tcg_gen_or_tl(cpu_gpr[ret], cpu_gpr[ret], t0);
+            break;
+        }
+        break;
+#endif
+    }
+    tcg_temp_free(t0);
+    tcg_temp_free(val_t);
+
+    (void)opn; /* avoid a compiler warning */
+    MIPS_DEBUG("%s", opn);
+}
+
 /* End MIPSDSP functions. */
 
 static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
@@ -14030,6 +14205,13 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             case OPC_PRECEU_PH_QBRA:
                 gen_mipsdsp_arith(ctx, op1, op2, rd, rs, rt);
                 break;
+            case OPC_BITREV:
+            case OPC_REPL_QB:
+            case OPC_REPLV_QB:
+            case OPC_REPL_PH:
+            case OPC_REPLV_PH:
+                gen_mipsdsp_bitinsn(env, ctx, op1, op2, rd, rt);
+                break;
             default:
                 MIPS_INVAL("MASK ABSQ_S.PH");
                 generate_exception(ctx, EXCP_RI);
@@ -14130,6 +14312,37 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
                 break;
             }
             break;
+        case OPC_INSV_DSP:
+            op2 = MASK_INSV(ctx->opcode);
+            switch (op2) {
+            case OPC_INSV:
+                check_dsp(ctx);
+                {
+                    TCGv t0, t1;
+
+                    if (rt == 0) {
+                        MIPS_DEBUG("NOP");
+                        break;
+                    }
+
+                    t0 = tcg_temp_new();
+                    t1 = tcg_temp_new();
+
+                    gen_load_gpr(t0, rt);
+                    gen_load_gpr(t1, rs);
+
+                    gen_helper_insv(cpu_gpr[rt], cpu_env, t1, t0);
+
+                    tcg_temp_free(t0);
+                    tcg_temp_free(t1);
+                    break;
+                }
+            default:            /* Invalid */
+                MIPS_INVAL("MASK INSV");
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
+            break;
 #if defined(TARGET_MIPS64)
         case OPC_DEXTM ... OPC_DEXT:
         case OPC_DINSM ... OPC_DINS:
@@ -14170,6 +14383,14 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
             case OPC_ABSQ_S_PW:
             case OPC_ABSQ_S_QH:
                 gen_mipsdsp_arith(ctx, op1, op2, rd, rs, rt);
+                break;
+            case OPC_REPL_OB:
+            case OPC_REPL_PW:
+            case OPC_REPL_QH:
+            case OPC_REPLV_OB:
+            case OPC_REPLV_PW:
+            case OPC_REPLV_QH:
+                gen_mipsdsp_bitinsn(env, ctx, op1, op2, rd, rt);
                 break;
             default:            /* Invalid */
                 MIPS_INVAL("MASK ABSQ_S.QH");
@@ -14273,6 +14494,34 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
                 break;
             default:            /* Invalid */
                 MIPS_INVAL("MASK DPAQ.W.QH");
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
+            break;
+        case OPC_DINSV_DSP:
+            op2 = MASK_INSV(ctx->opcode);
+            switch (op2) {
+            case OPC_DINSV:
+                {
+                    TCGv t0, t1;
+
+                    if (rt == 0) {
+                        MIPS_DEBUG("NOP");
+                        break;
+                    }
+                    check_dsp(ctx);
+
+                    t0 = tcg_temp_new();
+                    t1 = tcg_temp_new();
+
+                    gen_load_gpr(t0, rt);
+                    gen_load_gpr(t1, rs);
+
+                    gen_helper_dinsv(cpu_gpr[rt], cpu_env, t1, t0);
+                    break;
+                }
+            default:            /* Invalid */
+                MIPS_INVAL("MASK DINSV");
                 generate_exception(ctx, EXCP_RI);
                 break;
             }
