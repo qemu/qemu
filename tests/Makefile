@@ -48,7 +48,7 @@ tests/check-qdict$(EXESUF): tests/check-qdict.o qdict.o qfloat.o qint.o qstring.
 tests/check-qlist$(EXESUF): tests/check-qlist.o qlist.o qint.o
 tests/check-qfloat$(EXESUF): tests/check-qfloat.o qfloat.o
 tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) $(tools-obj-y)
-tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(coroutine-obj-y) $(tools-obj-y)
+tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(coroutine-obj-y) $(tools-obj-y) iov.o
 tests/test-iov$(EXESUF): tests/test-iov.o iov.o
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\

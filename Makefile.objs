@@ -92,7 +92,7 @@ common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
 common-obj-y += dma-helpers.o
-common-obj-y += iov.o acl.o
+common-obj-y += acl.o
 common-obj-$(CONFIG_POSIX) += compatfd.o
 common-obj-y += event_notifier.o
 common-obj-y += qemu-timer.o qemu-timer-common.o
@@ -113,7 +113,7 @@ endif
 user-obj-y =
 user-obj-y += envlist.o path.o
 user-obj-y += tcg-runtime.o host-utils.o
-user-obj-y += cutils.o iov.o cache-utils.o
+user-obj-y += cutils.o cache-utils.o
 user-obj-y += module.o
 user-obj-y += qemu-user.o
 user-obj-y += $(trace-obj-y)
