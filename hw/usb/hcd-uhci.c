@@ -821,6 +821,10 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
 
     /* Is active ? */
     if (!(td->ctrl & TD_CTRL_ACTIVE)) {
+        if (async) {
+            /* Guest marked a pending td non-active, cancel the queue */
+            uhci_queue_free(async->queue, "pending td non-active");
+        }
         /*
          * ehci11d spec page 22: "Even if the Active bit in the TD is already
          * cleared when the TD is fetched ... an IOC interrupt is generated"
