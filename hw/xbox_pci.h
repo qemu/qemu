@@ -65,18 +65,17 @@ typedef struct MCPX_LPCState {
 
 
 
-PCIBus *xbox_pci_init(DeviceState **xbox_pci_hostp,
-                      qemu_irq *pic,
+PCIBus *xbox_pci_init(qemu_irq *pic,
                       MemoryRegion *address_space_mem,
                       MemoryRegion *address_space_io,
                       MemoryRegion *pci_memory,
                       MemoryRegion *ram_memory);
 
-PCIBus *xbox_agp_init(DeviceState *host, PCIBus *bus);
+PCIBus *xbox_agp_init(PCIBus *bus);
 
-ISABus *mcpx_lpc_init(DeviceState *host, PCIBus *bus);
+ISABus *mcpx_lpc_init(PCIBus *bus, qemu_irq *gsi);
 
-i2c_bus *mcpx_smbus_init(DeviceState *host, PCIBus *bus);
+i2c_bus *mcpx_smbus_init(PCIBus *bus, qemu_irq *gsi);
 
 
 #endif

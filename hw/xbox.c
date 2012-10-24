@@ -183,7 +183,6 @@ static void xbox_init(QEMUMachineInitArgs *args)
 
     ISADevice *rtc_state;
     ISADevice *pit;
-    DeviceState *xboxpci_host;
     i2c_bus *smbus;
     PCIBus *agp_bus;
 
@@ -210,15 +209,15 @@ static void xbox_init(QEMUMachineInitArgs *args)
 
 
     /* init buses */
-    host_bus = xbox_pci_init(&xboxpci_host, gsi,
+    host_bus = xbox_pci_init(gsi,
                              system_memory, system_io,
                              pci_memory, ram_memory);
 
 
     /* bridges */
-    agp_bus = xbox_agp_init(xboxpci_host, host_bus);
-    isa_bus = mcpx_lpc_init(xboxpci_host, host_bus);
-    smbus = mcpx_smbus_init(xboxpci_host, host_bus);
+    agp_bus = xbox_agp_init(host_bus);
+    isa_bus = mcpx_lpc_init(host_bus, gsi);
+    smbus = mcpx_smbus_init(host_bus, gsi);
 
 
     /* irq shit */

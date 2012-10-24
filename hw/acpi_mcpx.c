@@ -30,7 +30,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "acpi.h"
-
+#include "xbox_pci.h"
 #include "acpi_mcpx.h"
 
 //#define DEBUG
@@ -55,10 +55,11 @@ static void mcpx_pm_update_sci_gn(ACPIREGS *regs)
 #define MCPX_PMIO_PM1_CNT   0x4
 #define MCPX_PMIO_PM_TMR    0x8
 
-static void mcpx_pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
-                                 uint64_t val)
+static void mcpx_pm_ioport_write(void *opaque,
+                                 target_phys_addr_t addr,
+                                 uint64_t val, unsigned size)
 {
-    MCPX_PMRegs *pm = container_of(ioport, MCPX_PMRegs, ioport);
+    MCPX_PMRegs *pm = opaque;
 
     switch (addr) {
         case MCPX_PMIO_PM1_STS:
@@ -79,11 +80,12 @@ static void mcpx_pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
                  (unsigned int)addr, (unsigned int)val);
 }
 
-static void mcpx_pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
-                                uint64_t *data)
+static uint64_t mcpx_pm_ioport_read(void *opaque,
+                                    target_phys_addr_t addr,
+                                    unsigned size)
 {
-    MCPX_PMRegs *pm = container_of(ioport, MCPX_PMRegs, ioport);
-    uint32_t val;
+    MCPX_PMRegs *pm = opaque;
+    uint64_t val;
 
     switch (addr) {
         case MCPX_PMIO_PM1_STS:
@@ -104,15 +106,19 @@ static void mcpx_pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
     }
     MCPX_DPRINTF("PM: read port=0x%04x val=0x%04x\n",
                  (unsigned int)addr, (unsigned int)val);
-    *data = val;
+    return val;
 }
 
-static const IORangeOps mcpx_iorange_ops = {
+static const MemoryRegionOps mcpx_pm_ops = {
     .read = mcpx_pm_ioport_read,
     .write = mcpx_pm_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
-
+#if 0
 void mcpx_pm_iospace_update(MCPX_PMRegs *pm, uint32_t pm_io_base) {
     MCPX_DPRINTF("PM: iospace update to 0x%x\n", pm_io_base);
 
@@ -122,8 +128,18 @@ void mcpx_pm_iospace_update(MCPX_PMRegs *pm, uint32_t pm_io_base) {
         ioport_register(&pm->ioport);
     }
 }
+#endif
 
-void mcpx_pm_init(MCPX_PMRegs *pm/*, qemu_irq sci_irq*/) {
+
+#define MCPX_PM_BASE_BAR 0
+
+void mcpx_pm_init(PCIDevice *dev, MCPX_PMRegs *pm/*, qemu_irq sci_irq*/) {
+
+    memory_region_init_io(&pm->bar, &mcpx_pm_ops,
+                          pm, "mcpx-pm-bar", 256);
+    pci_register_bar(dev, MCPX_PM_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
+                     &pm->bar);
+
     acpi_pm_tmr_init(&pm->acpi_regs, mcpx_pm_update_sci_gn);
     acpi_pm1_cnt_init(&pm->acpi_regs);
     //acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);

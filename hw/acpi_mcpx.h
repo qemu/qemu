@@ -23,14 +23,14 @@
 #include "acpi.h"
 
 typedef struct MCPX_PMRegs {
-	IORange ioport;
+	MemoryRegion bar;
     ACPIREGS acpi_regs;
 
     qemu_irq irq;   
 } MCPX_PMRegs;
 
-void mcpx_pm_init(MCPX_PMRegs *pm /*, qemu_irq sci_irq*/);
-void mcpx_pm_iospace_update(MCPX_PMRegs *pm, uint32_t pm_io_base);
+void mcpx_pm_init(PCIDevice *dev, MCPX_PMRegs *pm/*, qemu_irq sci_irq*/);
+//void mcpx_pm_iospace_update(MCPX_PMRegs *pm, uint32_t pm_io_base);
 
 
 #endif

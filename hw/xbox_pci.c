@@ -48,7 +48,7 @@
   */
 
 
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
 # define XBOXPCI_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)
@@ -60,8 +60,7 @@
 
 
 
-PCIBus *xbox_pci_init(DeviceState **xbox_pci_hostp,
-                      qemu_irq *pic,
+PCIBus *xbox_pci_init(qemu_irq *pic,
                       MemoryRegion *address_space_mem,
                       MemoryRegion *address_space_io,
                       MemoryRegion *pci_memory,
@@ -105,12 +104,11 @@ PCIBus *xbox_pci_init(DeviceState **xbox_pci_hostp,
                                 &bridge->pci_hole);
 
 
-    *xbox_pci_hostp = dev;
     return hostBus;
 }
 
 
-PCIBus *xbox_agp_init(DeviceState *host, PCIBus *bus)
+PCIBus *xbox_agp_init(PCIBus *bus)
 {
     PCIDevice *d;
     PCIBridge *br;
@@ -130,7 +128,7 @@ PCIBus *xbox_agp_init(DeviceState *host, PCIBus *bus)
 }
 
 
-ISABus *mcpx_lpc_init(DeviceState *host, PCIBus *bus)
+ISABus *mcpx_lpc_init(PCIBus *bus, qemu_irq *gsi)
 {
     PCIDevice *d;
     MCPX_LPCState *s;
@@ -142,14 +140,14 @@ ISABus *mcpx_lpc_init(DeviceState *host, PCIBus *bus)
     s = MCPX_LPC_DEVICE(d);
 
     //sci_irq = qemu_allocate_irqs(mcpx_set_sci, &s->irq_state, 1);
-    mcpx_pm_init(&s->pm /*, sci_irq[0]*/);
+    mcpx_pm_init(d, &s->pm /*, sci_irq[0]*/);
     //mcpx_lpc_reset(&s->dev.qdev);
 
     return s->isa_bus;
 }
 
 
-i2c_bus *mcpx_smbus_init(DeviceState *host, PCIBus *bus)
+i2c_bus *mcpx_smbus_init(PCIBus *bus, qemu_irq *gsi)
 {
     PCIDevice *d;
     MCPX_SMBState *s;
@@ -158,6 +156,7 @@ i2c_bus *mcpx_smbus_init(DeviceState *host, PCIBus *bus)
                                         true, "mcpx-smbus");
 
     s = MCPX_SMBUS_DEVICE(d);
+    amd756_smbus_init(&d->qdev, &s->smb, gsi[11]);
 
     return s->smb.smbus;
 }
@@ -203,7 +202,6 @@ static int mcpx_smbus_initfn(PCIDevice *dev)
                           s, "mcpx-smbus-bar", 32);
     pci_register_bar(dev, MCPX_SMBUS_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &s->smb_bar);
-    amd756_smbus_init(&dev->qdev, &s->smb);
 
     return 0;
 }
@@ -235,9 +233,6 @@ static const TypeInfo mcpx_smbus_info = {
 
 
 
-#define MCPX_LPC_PMBASE 0x84
-#define MCPX_LPC_PMBASE_ADDRESS_MASK 0xff00
-#define MCPX_LPC_PMBASE_DEFAULT 0x1
 
 static int mcpx_lpc_initfn(PCIDevice *d)
 {
@@ -249,6 +244,12 @@ static int mcpx_lpc_initfn(PCIDevice *d)
 
     return 0;
 }
+
+#if 0
+/* Xbox 1.1 uses a config register instead of a bar to set the pm base address */
+#define MCPX_LPC_PMBASE 0x84
+#define MCPX_LPC_PMBASE_ADDRESS_MASK 0xff00
+#define MCPX_LPC_PMBASE_DEFAULT 0x1
 
 static void mcpx_lpc_pmbase_update(MCPX_LPCState *s)
 {
@@ -290,6 +291,7 @@ static const VMStateDescription vmstate_mcpx_lpc = {
     .version_id = 1,
     .post_load = mcpx_lpc_post_load,
 };
+#endif
 
 static void mcpx_lpc_class_init(ObjectClass *klass, void *data)
 {
@@ -298,7 +300,7 @@ static void mcpx_lpc_class_init(ObjectClass *klass, void *data)
 
     k->no_hotplug   = 1;
     k->init         = mcpx_lpc_initfn;
-    k->config_write = mcpx_lpc_config_write;
+    //k->config_write = mcpx_lpc_config_write;
     k->vendor_id    = PCI_VENDOR_ID_NVIDIA;
     k->device_id    = PCI_DEVICE_ID_NVIDIA_NFORCE_LPC;
     k->revision     = 212;
@@ -306,8 +308,8 @@ static void mcpx_lpc_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "nForce LPC Bridge";
     dc->no_user     = 1;
-    dc->reset       = mcpx_lpc_reset;
-    dc->vmsd        = &vmstate_mcpx_lpc;
+    //dc->reset       = mcpx_lpc_reset;
+    //dc->vmsd        = &vmstate_mcpx_lpc;
 }
 
 static const TypeInfo mcpx_lpc_info = {
