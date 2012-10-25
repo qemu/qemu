@@ -67,7 +67,7 @@ typedef struct s3c24xx_serial_dev_s {
     qemu_irq rx_level;
 } s3c24xx_serial_dev;
 
-static void s3c24xx_serial_write(void *opaque, target_phys_addr_t addr,
+static void s3c24xx_serial_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
     s3c24xx_serial_dev *s = opaque;
@@ -145,7 +145,7 @@ static void s3c24xx_serial_write(void *opaque, target_phys_addr_t addr,
     };
 }
 
-static uint64_t s3c24xx_serial_read(void *opaque, target_phys_addr_t addr,
+static uint64_t s3c24xx_serial_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     s3c24xx_serial_dev *s = opaque;
@@ -240,7 +240,7 @@ s3c24xx_serial_receive(void *opaque, const uint8_t *buf, int size)
 struct s3c24xx_serial_dev_s *
 s3c24xx_serial_init(S3CState *soc,
                     CharDriverState *chr,
-                    target_phys_addr_t base_addr,
+                    hwaddr base_addr,
                     int irqn)
 {
     /* Initialise a serial port at the given port address */

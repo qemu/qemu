@@ -70,7 +70,7 @@ static void cpu_irq_change(CPUAlphaState *env, uint64_t req)
     }
 }
 
-static uint64_t cchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t cchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     CPUAlphaState *env = cpu_single_env;
     TyphoonState *s = opaque;
@@ -203,13 +203,13 @@ static uint64_t cchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return ret;
 }
 
-static uint64_t dchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t dchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     /* Skip this.  It's all related to DRAM timing and setup.  */
     return 0;
 }
 
-static uint64_t pchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
 {
     TyphoonState *s = opaque;
     uint64_t ret = 0;
@@ -306,7 +306,7 @@ static uint64_t pchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return ret;
 }
 
-static void cchip_write(void *opaque, target_phys_addr_t addr,
+static void cchip_write(void *opaque, hwaddr addr,
                         uint64_t v32, unsigned size)
 {
     TyphoonState *s = opaque;
@@ -463,13 +463,13 @@ static void cchip_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void dchip_write(void *opaque, target_phys_addr_t addr,
+static void dchip_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     /* Skip this.  It's all related to DRAM timing and setup.  */
 }
 
-static void pchip_write(void *opaque, target_phys_addr_t addr,
+static void pchip_write(void *opaque, hwaddr addr,
                         uint64_t v32, unsigned size)
 {
     TyphoonState *s = opaque;

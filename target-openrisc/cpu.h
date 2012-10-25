@@ -279,11 +279,11 @@ typedef struct CPUOpenRISCTLBContext {
     OpenRISCTLBEntry dtlb[DTLB_WAYS][DTLB_SIZE];
 
     int (*cpu_openrisc_map_address_code)(struct OpenRISCCPU *cpu,
-                                         target_phys_addr_t *physical,
+                                         hwaddr *physical,
                                          int *prot,
                                          target_ulong address, int rw);
     int (*cpu_openrisc_map_address_data)(struct OpenRISCCPU *cpu,
-                                         target_phys_addr_t *physical,
+                                         hwaddr *physical,
                                          int *prot,
                                          target_ulong address, int rw);
 } CPUOpenRISCTLBContext;
@@ -387,13 +387,13 @@ void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 
 void cpu_openrisc_mmu_init(OpenRISCCPU *cpu);
 int cpu_openrisc_get_phys_nommu(OpenRISCCPU *cpu,
-                                target_phys_addr_t *physical,
+                                hwaddr *physical,
                                 int *prot, target_ulong address, int rw);
 int cpu_openrisc_get_phys_code(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw);
 int cpu_openrisc_get_phys_data(OpenRISCCPU *cpu,
-                               target_phys_addr_t *physical,
+                               hwaddr *physical,
                                int *prot, target_ulong address, int rw);
 #endif
 

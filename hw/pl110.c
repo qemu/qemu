@@ -305,7 +305,7 @@ static void pl110_update(pl110_state *s)
   /* TODO: Implement interrupts.  */
 }
 
-static uint64_t pl110_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl110_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl110_state *s = (pl110_state *)opaque;
@@ -354,7 +354,7 @@ static uint64_t pl110_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void pl110_write(void *opaque, target_phys_addr_t offset,
+static void pl110_write(void *opaque, hwaddr offset,
                         uint64_t val, unsigned size)
 {
     pl110_state *s = (pl110_state *)opaque;

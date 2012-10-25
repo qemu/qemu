@@ -77,7 +77,7 @@
 #include "loader.h"             /* load_elf, load_image_targphys */
 #include "mips_cpudevs.h"       /* cpu_mips_kseg0_to_phys, ... */
 
-#include "hw/pc.h"              /* serial_16550_init, ... */
+#include "serial.h"             /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
 #include "hw/sysbus.h"          /* SysBusDevice */
 #include "hw/vlynq.h"           /* vlynq_create_bus */
@@ -2357,7 +2357,7 @@ static const char *const uart_write_names[] = {
 
 #define UART_MEM_TO_IO(addr)    (((addr) - AVALANCHE_UART0_BASE) / 4)
 
-static const target_phys_addr_t uart_base[] = {
+static const hwaddr uart_base[] = {
   AVALANCHE_UART0_BASE, AVALANCHE_UART1_BASE
 };
 
@@ -3147,7 +3147,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void io_writeb(void *opaque, hwaddr addr, uint32_t value)
 {
     if (0) {
 #if !defined(TARGET_WORDS_BIGENDIAN)
@@ -3181,7 +3181,7 @@ static void io_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
     //~ cpu_outb(NULL, addr & 0xffff, value);
 }
 
-static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t io_readb(void *opaque, hwaddr addr)
 {
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
@@ -3218,7 +3218,7 @@ static uint32_t io_readb(void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void io_writew(void *opaque, hwaddr addr, uint32_t value)
 {
     if (0) {
     } else {
@@ -3244,7 +3244,7 @@ static void io_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t io_readw(void *opaque, hwaddr addr)
 {
     uint32_t value = ar7_io_memread(opaque, addr & ~3);
     if (0) {
@@ -3270,7 +3270,7 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static uint64_t ar7_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t ar7_read(void *opaque, hwaddr addr, unsigned size)
 {
     AR7State *s = opaque;
     uint64_t value = 0;
@@ -3291,7 +3291,7 @@ static uint64_t ar7_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return value;
 }
 
-static void ar7_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void ar7_write(void *opaque, hwaddr addr, uint64_t value,
                       unsigned size)
 {
     AR7State *s = opaque;
@@ -3619,7 +3619,7 @@ static void ar7_reset(DeviceState *d)
 static void ar7_init(AR7State *s, CPUMIPSState *env)
 {
     MemoryRegion *system_memory = get_system_memory();
-    //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
+    //~ hwaddr addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
     memory_region_init_io(&s->mmio, &ar7_io_ops, s, "ar7.io", 0x0ffff000);
     memory_region_add_subregion(system_memory, 0x00001000, &s->mmio);

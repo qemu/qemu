@@ -511,7 +511,7 @@ static int parallel_isa_initfn(ISADevice *dev)
 }
 
 /* Memory mapped interface */
-static uint32_t parallel_mm_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t parallel_mm_readb (void *opaque, hwaddr addr)
 {
     ParallelState *s = opaque;
 
@@ -519,14 +519,14 @@ static uint32_t parallel_mm_readb (void *opaque, target_phys_addr_t addr)
 }
 
 static void parallel_mm_writeb (void *opaque,
-                                target_phys_addr_t addr, uint32_t value)
+                                hwaddr addr, uint32_t value)
 {
     ParallelState *s = opaque;
 
     parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFF);
 }
 
-static uint32_t parallel_mm_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t parallel_mm_readw (void *opaque, hwaddr addr)
 {
     ParallelState *s = opaque;
 
@@ -534,14 +534,14 @@ static uint32_t parallel_mm_readw (void *opaque, target_phys_addr_t addr)
 }
 
 static void parallel_mm_writew (void *opaque,
-                                target_phys_addr_t addr, uint32_t value)
+                                hwaddr addr, uint32_t value)
 {
     ParallelState *s = opaque;
 
     parallel_ioport_write_sw(s, addr >> s->it_shift, value & 0xFFFF);
 }
 
-static uint32_t parallel_mm_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t parallel_mm_readl (void *opaque, hwaddr addr)
 {
     ParallelState *s = opaque;
 
@@ -549,7 +549,7 @@ static uint32_t parallel_mm_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void parallel_mm_writel (void *opaque,
-                                target_phys_addr_t addr, uint32_t value)
+                                hwaddr addr, uint32_t value)
 {
     ParallelState *s = opaque;
 
@@ -566,7 +566,7 @@ static const MemoryRegionOps parallel_mm_ops = {
 
 /* If fd is zero, it means that the parallel device uses the console */
 bool parallel_mm_init(MemoryRegion *address_space,
-                      target_phys_addr_t base, int it_shift, qemu_irq irq,
+                      hwaddr base, int it_shift, qemu_irq irq,
                       CharDriverState *chr)
 {
     ParallelState *s;

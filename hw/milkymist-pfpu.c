@@ -131,7 +131,7 @@ struct MilkymistPFPUState {
 };
 typedef struct MilkymistPFPUState MilkymistPFPUState;
 
-static inline target_phys_addr_t
+static inline hwaddr
 get_dma_address(uint32_t base, uint32_t x, uint32_t y)
 {
     return base + 8 * (128 * y + x);
@@ -225,7 +225,7 @@ static int pfpu_decode_insn(MilkymistPFPUState *s)
     {
         uint32_t a = cpu_to_be32(s->gp_regs[reg_a]);
         uint32_t b = cpu_to_be32(s->gp_regs[reg_b]);
-        target_phys_addr_t dma_ptr =
+        hwaddr dma_ptr =
             get_dma_address(s->regs[R_MESHBASE],
                     s->gp_regs[GPR_X], s->gp_regs[GPR_Y]);
         cpu_physical_memory_write(dma_ptr, (uint8_t *)&a, 4);
@@ -380,7 +380,7 @@ static inline int get_microcode_address(MilkymistPFPUState *s, uint32_t addr)
     return (512 * s->regs[R_CODEPAGE]) + addr - MICROCODE_BEGIN;
 }
 
-static uint64_t pfpu_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pfpu_read(void *opaque, hwaddr addr,
                           unsigned size)
 {
     MilkymistPFPUState *s = opaque;
@@ -420,7 +420,7 @@ static uint64_t pfpu_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void pfpu_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void pfpu_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     MilkymistPFPUState *s = opaque;

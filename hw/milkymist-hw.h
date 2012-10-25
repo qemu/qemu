@@ -4,7 +4,7 @@
 #include "qdev.h"
 #include "qdev-addr.h"
 
-static inline DeviceState *milkymist_uart_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_uart_create(hwaddr base,
         qemu_irq irq)
 {
     DeviceState *dev;
@@ -17,7 +17,7 @@ static inline DeviceState *milkymist_uart_create(target_phys_addr_t base,
     return dev;
 }
 
-static inline DeviceState *milkymist_hpdmc_create(target_phys_addr_t base)
+static inline DeviceState *milkymist_hpdmc_create(hwaddr base)
 {
     DeviceState *dev;
 
@@ -28,7 +28,7 @@ static inline DeviceState *milkymist_hpdmc_create(target_phys_addr_t base)
     return dev;
 }
 
-static inline DeviceState *milkymist_memcard_create(target_phys_addr_t base)
+static inline DeviceState *milkymist_memcard_create(hwaddr base)
 {
     DeviceState *dev;
 
@@ -39,7 +39,7 @@ static inline DeviceState *milkymist_memcard_create(target_phys_addr_t base)
     return dev;
 }
 
-static inline DeviceState *milkymist_vgafb_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_vgafb_create(hwaddr base,
         uint32_t fb_offset, uint32_t fb_mask)
 {
     DeviceState *dev;
@@ -53,7 +53,7 @@ static inline DeviceState *milkymist_vgafb_create(target_phys_addr_t base,
     return dev;
 }
 
-static inline DeviceState *milkymist_sysctl_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_sysctl_create(hwaddr base,
         qemu_irq gpio_irq, qemu_irq timer0_irq, qemu_irq timer1_irq,
         uint32_t freq_hz, uint32_t system_id, uint32_t capabilities,
         uint32_t gpio_strappings)
@@ -74,7 +74,7 @@ static inline DeviceState *milkymist_sysctl_create(target_phys_addr_t base,
     return dev;
 }
 
-static inline DeviceState *milkymist_pfpu_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_pfpu_create(hwaddr base,
         qemu_irq irq)
 {
     DeviceState *dev;
@@ -97,7 +97,7 @@ static const int glx_fbconfig_attr[] = {
 };
 #endif
 
-static inline DeviceState *milkymist_tmu2_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_tmu2_create(hwaddr base,
         qemu_irq irq)
 {
 #ifdef CONFIG_OPENGL
@@ -152,7 +152,7 @@ static inline DeviceState *milkymist_tmu2_create(target_phys_addr_t base,
 #endif
 }
 
-static inline DeviceState *milkymist_ac97_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_ac97_create(hwaddr base,
         qemu_irq crrequest_irq, qemu_irq crreply_irq, qemu_irq dmar_irq,
         qemu_irq dmaw_irq)
 {
@@ -169,7 +169,7 @@ static inline DeviceState *milkymist_ac97_create(target_phys_addr_t base,
     return dev;
 }
 
-static inline DeviceState *milkymist_minimac_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_minimac_create(hwaddr base,
         qemu_irq rx_irq, qemu_irq tx_irq)
 {
     DeviceState *dev;
@@ -185,8 +185,8 @@ static inline DeviceState *milkymist_minimac_create(target_phys_addr_t base,
     return dev;
 }
 
-static inline DeviceState *milkymist_minimac2_create(target_phys_addr_t base,
-        target_phys_addr_t buffers_base, qemu_irq rx_irq, qemu_irq tx_irq)
+static inline DeviceState *milkymist_minimac2_create(hwaddr base,
+        hwaddr buffers_base, qemu_irq rx_irq, qemu_irq tx_irq)
 {
     DeviceState *dev;
 
@@ -202,7 +202,7 @@ static inline DeviceState *milkymist_minimac2_create(target_phys_addr_t base,
     return dev;
 }
 
-static inline DeviceState *milkymist_softusb_create(target_phys_addr_t base,
+static inline DeviceState *milkymist_softusb_create(hwaddr base,
         qemu_irq irq, uint32_t pmem_base, uint32_t pmem_size,
         uint32_t dmem_base, uint32_t dmem_size)
 {

@@ -151,7 +151,7 @@ static void grlib_apbuart_event(void *opaque, int event)
 }
 
 
-static uint64_t grlib_apbuart_read(void *opaque, target_phys_addr_t addr,
+static uint64_t grlib_apbuart_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     UART     *uart = opaque;
@@ -181,7 +181,7 @@ static uint64_t grlib_apbuart_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
+static void grlib_apbuart_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     UART          *uart = opaque;

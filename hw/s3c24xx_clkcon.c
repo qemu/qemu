@@ -44,7 +44,7 @@ struct s3c24xx_clkcon_state_s {
     uint32_t clkcon_reg[7];
 };
 
-static void s3c24xx_clkcon_write(void *opaque, target_phys_addr_t addr_,
+static void s3c24xx_clkcon_write(void *opaque, hwaddr addr_,
                                  uint64_t value, unsigned size)
 {
     struct s3c24xx_clkcon_state_s *s = opaque;
@@ -66,7 +66,7 @@ static void s3c24xx_clkcon_write(void *opaque, target_phys_addr_t addr_,
     }
 }
 
-static uint64_t s3c24xx_clkcon_read(void *opaque, target_phys_addr_t addr_,
+static uint64_t s3c24xx_clkcon_read(void *opaque, hwaddr addr_,
                                     unsigned size)
 {
     struct s3c24xx_clkcon_state_s *s = opaque;
@@ -110,7 +110,7 @@ static int s3c24xx_clkcon_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct s3c24xx_clkcon_state_s *
-s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_freq)
+s3c24xx_clkcon_init(S3CState *soc, hwaddr base_addr, uint32_t ref_freq)
 {
     struct s3c24xx_clkcon_state_s *s = g_new0(struct s3c24xx_clkcon_state_s, 1);
 

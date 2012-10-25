@@ -56,7 +56,7 @@ static const VirtIOBindings virtio_s390_bindings;
 static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev);
 
 /* length of VirtIO device pages */
-const target_phys_addr_t virtio_size = S390_DEVICE_PAGES * TARGET_PAGE_SIZE;
+const hwaddr virtio_size = S390_DEVICE_PAGES * TARGET_PAGE_SIZE;
 
 static void s390_virtio_bus_reset(void *opaque)
 {
@@ -67,7 +67,7 @@ static void s390_virtio_bus_reset(void *opaque)
 void s390_virtio_reset_idx(VirtIOS390Device *dev)
 {
     int i;
-    target_phys_addr_t idx_addr;
+    hwaddr idx_addr;
     uint8_t num_vq;
 
     num_vq = s390_virtio_device_num_vq(dev);

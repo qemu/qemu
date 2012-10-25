@@ -145,7 +145,7 @@ static void omap_set_intr_noedge(void *opaque, int irq, int req)
         bank->irqs = (bank->inputs &= ~(1 << n)) | bank->swi;
 }
 
-static uint64_t omap_inth_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_inth_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
@@ -223,7 +223,7 @@ static uint64_t omap_inth_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_inth_write(void *opaque, target_phys_addr_t addr,
+static void omap_inth_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
@@ -396,7 +396,7 @@ static TypeInfo omap_intc_info = {
     .class_init    = omap_intc_class_init,
 };
 
-static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap2_inth_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
@@ -477,7 +477,7 @@ static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
+static void omap2_inth_write(void *opaque, hwaddr addr,
                              uint64_t value, unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;

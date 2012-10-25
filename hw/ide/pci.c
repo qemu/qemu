@@ -327,7 +327,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
     bm->cmd = val & 0x09;
 }
 
-static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
+static uint64_t bmdma_addr_read(void *opaque, hwaddr addr,
                                 unsigned width)
 {
     BMDMAState *bm = opaque;
@@ -341,7 +341,7 @@ static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
     return data;
 }
 
-static void bmdma_addr_write(void *opaque, target_phys_addr_t addr,
+static void bmdma_addr_write(void *opaque, hwaddr addr,
                              uint64_t data, unsigned width)
 {
     BMDMAState *bm = opaque;

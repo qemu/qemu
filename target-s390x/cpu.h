@@ -324,7 +324,7 @@ unsigned s390_del_running_cpu(CPUS390XState *env);
 void s390_sclp_extint(uint32_t parm);
 
 /* from s390-virtio-bus */
-extern const target_phys_addr_t virtio_size;
+extern const hwaddr virtio_size;
 
 #else
 static inline void s390_add_running_cpu(CPUS390XState *env)

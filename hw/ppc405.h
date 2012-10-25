@@ -61,20 +61,20 @@ ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
 
 CPUPPCState *ppc405cr_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[4],
-                        target_phys_addr_t ram_bases[4],
-                        target_phys_addr_t ram_sizes[4],
+                        hwaddr ram_bases[4],
+                        hwaddr ram_sizes[4],
                         uint32_t sysclk, qemu_irq **picp,
                         int do_init);
 CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[2],
-                        target_phys_addr_t ram_bases[2],
-                        target_phys_addr_t ram_sizes[2],
+                        hwaddr ram_bases[2],
+                        hwaddr ram_sizes[2],
                         uint32_t sysclk, qemu_irq **picp,
                         int do_init);
 /* IBM STBxxx microcontrollers */
 CPUPPCState *ppc_stb025_init (MemoryRegion ram_memories[2],
-                           target_phys_addr_t ram_bases[2],
-                           target_phys_addr_t ram_sizes[2],
+                           hwaddr ram_bases[2],
+                           hwaddr ram_sizes[2],
                            uint32_t sysclk, qemu_irq **picp,
                            ram_addr_t *offsetp);
 

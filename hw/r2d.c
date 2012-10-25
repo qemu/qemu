@@ -127,7 +127,7 @@ static void r2d_fpga_irq_set(void *opaque, int n, int level)
     update_irl(fpga);
 }
 
-static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
+static uint32_t r2d_fpga_read(void *opaque, hwaddr addr)
 {
     r2d_fpga_t *s = opaque;
 
@@ -146,7 +146,7 @@ static uint32_t r2d_fpga_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void
-r2d_fpga_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+r2d_fpga_write(void *opaque, hwaddr addr, uint32_t value)
 {
     r2d_fpga_t *s = opaque;
 
@@ -178,7 +178,7 @@ static const MemoryRegionOps r2d_fpga_ops = {
 };
 
 static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
-                               target_phys_addr_t base, qemu_irq irl)
+                               hwaddr base, qemu_irq irl)
 {
     r2d_fpga_t *s;
 

@@ -1473,7 +1473,7 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
 }
 
 static uint64_t ohci_mem_read(void *opaque,
-                              target_phys_addr_t addr,
+                              hwaddr addr,
                               unsigned size)
 {
     OHCIState *ohci = opaque;
@@ -1596,7 +1596,7 @@ static uint64_t ohci_mem_read(void *opaque,
 }
 
 static void ohci_mem_write(void *opaque,
-                           target_phys_addr_t addr,
+                           hwaddr addr,
                            uint64_t val,
                            unsigned size)
 {

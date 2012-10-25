@@ -69,7 +69,7 @@ typedef enum {
 struct pflash_t {
     MemoryRegion mem;
     BlockDriverState *bs;
-    target_phys_addr_t base;
+    hwaddr base;
     uint32_t sector_len;
     uint32_t total_len;
     int width;
@@ -474,32 +474,32 @@ static void pflash_write(pflash_t *pfl, uint32_t offset, uint32_t value,
 }
 
 
-static uint32_t pflash_readb_be(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readb_be(void *opaque, hwaddr addr)
 {
     return pflash_read(opaque, addr, 1);
 }
 
-static uint32_t pflash_readw_be(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readw_be(void *opaque, hwaddr addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 2);
 }
 
-static uint32_t pflash_readl_be(void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readl_be(void *opaque, hwaddr addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 4);
 }
 
-static void pflash_writeb_be(void *opaque, target_phys_addr_t addr,
+static void pflash_writeb_be(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_write(opaque, addr, value, 1, true);
 }
 
-static void pflash_writew_be(void *opaque, target_phys_addr_t addr,
+static void pflash_writew_be(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_t *pfl = opaque;
@@ -507,7 +507,7 @@ static void pflash_writew_be(void *opaque, target_phys_addr_t addr,
     pflash_write(pfl, addr, value, 2, true);
 }
 
-static void pflash_writel_be(void *opaque, target_phys_addr_t addr,
+static void pflash_writel_be(void *opaque, hwaddr addr,
                              uint32_t value)
 {
     pflash_t *pfl = opaque;
@@ -567,7 +567,7 @@ static void flash_reset(void *opaque)
     pfl->cmd = 0;
 }
 
-pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
+pflash_t *pflash_amd_register (hwaddr base, ram_addr_t off,
                            BlockDriverState *bs,
                            uint32_t sector_len, int nb_blocs, int width,
                            uint16_t id0, uint16_t id1,

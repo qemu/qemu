@@ -2304,6 +2304,11 @@ The main json-object contains the following:
 - "total-time": total amount of ms since migration started.  If
                 migration has ended, it returns the total migration
 		 time (json-int)
+- "downtime": only present when migration has finished correctly
+              total amount in ms for downtime that happened (json-int)
+- "expected-downtime": only present while migration is active
+                total amount in ms for downtime that was calculated on
+		the last bitmap round (json-int)
 - "ram": only present if "status" is "active", it is a json-object with the
   following RAM information (in bytes):
          - "transferred": amount transferred (json-int)
@@ -2341,6 +2346,7 @@ Examples:
           "remaining":123,
           "total":246,
           "total-time":12345,
+          "downtime":12345,
           "duplicate":123,
           "normal":123,
           "normal-bytes":123456
@@ -2364,6 +2370,7 @@ Examples:
             "remaining":123,
             "total":246,
             "total-time":12345,
+            "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
             "normal-bytes":123456
@@ -2382,6 +2389,7 @@ Examples:
             "remaining":1053304,
             "transferred":3720,
             "total-time":12345,
+            "expected-downtime":12345,
             "duplicate":123,
             "normal":123,
             "normal-bytes":123456
@@ -2406,6 +2414,7 @@ Examples:
             "remaining":1053304,
             "transferred":3720,
             "total-time":12345,
+            "expected-downtime":12345,
             "duplicate":10,
             "normal":3333,
             "normal-bytes":3412992

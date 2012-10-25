@@ -26,7 +26,7 @@ static void dummy_m68k_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     int kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
 
     if (!cpu_model)
         cpu_model = "cfv4e";

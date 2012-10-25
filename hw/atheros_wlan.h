@@ -304,12 +304,12 @@ typedef struct Atheros_WLANState {
     uint32_t current_frequency;
 
 
-    target_phys_addr_t receive_queue_address;
+    hwaddr receive_queue_address;
     uint32_t receive_queue_count;
 
     uint32_t transmit_queue_size;
     uint8_t transmit_queue_enabled[16];
-    target_phys_addr_t transmit_queue_address[16];
+    hwaddr transmit_queue_address[16];
     uint32_t transmit_queue_processed[16];
 
     uint32_t mem[Atheros_WLAN_MEM_SIZE / 4];

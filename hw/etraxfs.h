@@ -29,7 +29,7 @@ qemu_irq *cris_pic_init_cpu(CPUCRISState *env);
 
 /* Instantiate an ETRAXFS Ethernet MAC.  */
 static inline DeviceState *
-etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
+etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,
                  void *dma_out, void *dma_in)
 {
     DeviceState *dev;

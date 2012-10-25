@@ -143,11 +143,11 @@ static void updateFrequency(Atheros_WLANState *s)
 
 
 
-static uint32_t mm_readl(Atheros_WLANState *s, target_phys_addr_t addr);
-static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr,
+static uint32_t mm_readl(Atheros_WLANState *s, hwaddr addr);
+static void mm_writel(Atheros_WLANState *s, hwaddr addr,
                       uint32_t val);
 
-static void Atheros_WLAN_mmio_writeb(void *opaque, target_phys_addr_t addr,
+static void Atheros_WLAN_mmio_writeb(void *opaque, hwaddr addr,
                                      uint32_t val)
 {
     DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
@@ -155,7 +155,7 @@ static void Atheros_WLAN_mmio_writeb(void *opaque, target_phys_addr_t addr,
     DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 }
 
-static void Atheros_WLAN_mmio_writew(void *opaque, target_phys_addr_t addr,
+static void Atheros_WLAN_mmio_writew(void *opaque, hwaddr addr,
                                      uint32_t val)
 {
     DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
@@ -163,7 +163,7 @@ static void Atheros_WLAN_mmio_writew(void *opaque, target_phys_addr_t addr,
     DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
 }
 
-static void Atheros_WLAN_mmio_writel(void *opaque, target_phys_addr_t addr,
+static void Atheros_WLAN_mmio_writel(void *opaque, hwaddr addr,
                                      uint32_t val)
 {
     mm_writel(opaque, Atheros_WLAN_MEM_SANITIZE(addr), val);
@@ -172,7 +172,7 @@ static void Atheros_WLAN_mmio_writel(void *opaque, target_phys_addr_t addr,
                  Atheros_WLAN_MEM_SANITIZE(addr), val, val));
 }
 
-static uint32_t Atheros_WLAN_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t Atheros_WLAN_mmio_readb(void *opaque, hwaddr addr)
 {
     DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
     DEBUG_PRINT(("mmio_readb " TARGET_FMT_plx "\n", addr));
@@ -181,7 +181,7 @@ static uint32_t Atheros_WLAN_mmio_readb(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static uint32_t Atheros_WLAN_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t Atheros_WLAN_mmio_readw(void *opaque, hwaddr addr)
 {
     DEBUG_PRINT(("!!! DEBUG INIMPLEMENTED !!!\n"));
     DEBUG_PRINT(("mmio_readw " TARGET_FMT_plx "\n", addr));
@@ -190,7 +190,7 @@ static uint32_t Atheros_WLAN_mmio_readw(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static uint32_t Atheros_WLAN_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t Atheros_WLAN_mmio_readl(void *opaque, hwaddr addr)
 {
     uint32_t val;
     val = mm_readl(opaque, Atheros_WLAN_MEM_SANITIZE(addr));
@@ -200,7 +200,7 @@ static uint32_t Atheros_WLAN_mmio_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint64_t Atheros_WLAN_read(void *opaque, target_phys_addr_t addr,
+static uint64_t Atheros_WLAN_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     Atheros_WLANState *s = opaque;
@@ -221,7 +221,7 @@ static uint64_t Atheros_WLAN_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void Atheros_WLAN_write(void *opaque, target_phys_addr_t addr,
+static void Atheros_WLAN_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     Atheros_WLANState *s = opaque;
@@ -274,7 +274,7 @@ void Atheros_WLAN_setup_io(PCIAtheros_WLANState *d)
 
 
 
-static uint32_t mm_readl(Atheros_WLANState *s, target_phys_addr_t addr)
+static uint32_t mm_readl(Atheros_WLANState *s, hwaddr addr)
 {
     uint32_t val = GET_MEM_L(s->mem, addr);
     switch (addr) {
@@ -351,7 +351,7 @@ static uint32_t mm_readl(Atheros_WLANState *s, target_phys_addr_t addr)
     return val;
 }
 
-static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr,
+static void mm_writel(Atheros_WLANState *s, hwaddr addr,
                       uint32_t val)
 {
     uint32_t h;
@@ -563,7 +563,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr,
             /* hm... ar5424 resets its queue to 0 :-( */
         }
         SET_MEM_L(s->mem, addr, val);
-        s->receive_queue_address = (target_phys_addr_t)val;
+        s->receive_queue_address = (hwaddr)val;
 
         /*
          * Madwifi hack: we allow only a certain
@@ -612,7 +612,7 @@ static void mm_writel(Atheros_WLANState *s, target_phys_addr_t addr,
              * once the queue is enabled
              */
             s->transmit_queue_processed[addr] = 0;
-            s->transmit_queue_address[addr] = (target_phys_addr_t)val;
+            s->transmit_queue_address[addr] = (hwaddr)val;
         } else {
             DEBUG_PRINT(("unknown queue " TARGET_FMT_plx "\n", addr));
         }

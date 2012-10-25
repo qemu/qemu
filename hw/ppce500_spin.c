@@ -68,18 +68,18 @@ static void spin_reset(void *opaque)
 }
 
 /* Create -kernel TLB entries for BookE, linearly spanning 256MB.  */
-static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
+static inline hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
     return (ffs(size >> 10) - 1) >> 1;
 }
 
 static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
-                                     target_phys_addr_t pa,
-                                     target_phys_addr_t len)
+                                     hwaddr pa,
+                                     hwaddr len)
 {
     ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 1);
-    target_phys_addr_t size;
+    hwaddr size;
 
     size = (booke206_page_size_to_tlb(len) << MAS1_TSIZE_SHIFT);
     tlb->mas1 = MAS1_VALID | size;
@@ -94,8 +94,8 @@ static void spin_kick(void *data)
     SpinKick *kick = data;
     CPUPPCState *env = kick->env;
     SpinInfo *curspin = kick->spin;
-    target_phys_addr_t map_size = 64 * 1024 * 1024;
-    target_phys_addr_t map_start;
+    hwaddr map_size = 64 * 1024 * 1024;
+    hwaddr map_start;
 
     cpu_synchronize_state(env);
     stl_p(&curspin->pir, env->spr[SPR_PIR]);
@@ -117,7 +117,7 @@ static void spin_kick(void *data)
     qemu_cpu_kick(env);
 }
 
-static void spin_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void spin_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned len)
 {
     SpinState *s = opaque;
@@ -166,7 +166,7 @@ static void spin_write(void *opaque, target_phys_addr_t addr, uint64_t value,
     }
 }
 
-static uint64_t spin_read(void *opaque, target_phys_addr_t addr, unsigned len)
+static uint64_t spin_read(void *opaque, hwaddr addr, unsigned len)
 {
     SpinState *s = opaque;
     uint8_t *spin_p = &((uint8_t*)s->spin)[addr];

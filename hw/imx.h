@@ -11,7 +11,7 @@
 #ifndef IMX_H
 #define IMX_H
 
-void imx_serial_create(int uart, const target_phys_addr_t addr, qemu_irq irq);
+void imx_serial_create(int uart, const hwaddr addr, qemu_irq irq);
 
 typedef enum  {
     NOCLK,
@@ -23,10 +23,10 @@ typedef enum  {
 
 uint32_t imx_clock_frequency(DeviceState *s, IMXClk clock);
 
-void imx_timerp_create(const target_phys_addr_t addr,
+void imx_timerp_create(const hwaddr addr,
                       qemu_irq irq,
                       DeviceState *ccm);
-void imx_timerg_create(const target_phys_addr_t addr,
+void imx_timerg_create(const hwaddr addr,
                       qemu_irq irq,
                       DeviceState *ccm);
 

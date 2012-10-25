@@ -38,11 +38,11 @@
 
 typedef struct {
     LM32CPU *cpu;
-    target_phys_addr_t bootstrap_pc;
-    target_phys_addr_t flash_base;
-    target_phys_addr_t initrd_base;
+    hwaddr bootstrap_pc;
+    hwaddr flash_base;
+    hwaddr initrd_base;
     size_t initrd_size;
-    target_phys_addr_t cmdline_base;
+    hwaddr cmdline_base;
 } ResetInfo;
 
 static void cpu_irq_handler(void *opaque, int irq, int level)
@@ -91,14 +91,14 @@ milkymist_init(QEMUMachineInitArgs *args)
     ResetInfo *reset_info;
 
     /* memory map */
-    target_phys_addr_t flash_base   = 0x00000000;
+    hwaddr flash_base   = 0x00000000;
     size_t flash_sector_size        = 128 * 1024;
     size_t flash_size               = 32 * 1024 * 1024;
-    target_phys_addr_t sdram_base   = 0x40000000;
+    hwaddr sdram_base   = 0x40000000;
     size_t sdram_size               = 128 * 1024 * 1024;
 
-    target_phys_addr_t initrd_base  = sdram_base + 0x1002000;
-    target_phys_addr_t cmdline_base = sdram_base + 0x1000000;
+    hwaddr initrd_base  = sdram_base + 0x1002000;
+    hwaddr cmdline_base = sdram_base + 0x1000000;
     size_t initrd_max = sdram_size - 0x1002000;
 
     reset_info = g_malloc0(sizeof(ResetInfo));

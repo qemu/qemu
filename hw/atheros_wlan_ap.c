@@ -464,7 +464,7 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
      * Write descriptor and packet back to DMA memory...
      */
     cpu_physical_memory_write(s->receive_queue_address, (uint8_t *)&desc, sizeof(desc));
-    cpu_physical_memory_write((target_phys_addr_t)desc.ds_data, (uint8_t *)frame, sizeof(struct mac80211_frame));
+    cpu_physical_memory_write((hwaddr)desc.ds_data, (uint8_t *)frame, sizeof(struct mac80211_frame));
 
     /*
      * Set address to next position
@@ -489,7 +489,7 @@ void Atheros_WLAN_handleRxBuffer(Atheros_WLANState *s, struct mac80211_frame *fr
     s->receive_queue_address =
         ((++s->receive_queue_count) > MAX_CONCURRENT_RX_FRAMES)
         ? 0
-        : (target_phys_addr_t)desc.ds_link;
+        : (hwaddr)desc.ds_link;
 
 
     DEBUG_PRINT((">> Enabling rx\n"));
@@ -525,7 +525,7 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
          * this way we have to process the next
          * frame in the single linked list!!
          */
-        s->transmit_queue_address[queue] = (target_phys_addr_t)desc.ds_link;
+        s->transmit_queue_address[queue] = (hwaddr)desc.ds_link;
 
         /*
          * And now get the frame we really have to process...
@@ -541,7 +541,7 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
         more = tx_desc->tx_control_1 & AR5K_AR5211_DESC_TX_CTL1_MORE;
         segment_len = tx_desc->tx_control_1 & AR5K_AR5212_DESC_TX_CTL1_BUF_LEN;
 
-        cpu_physical_memory_read((target_phys_addr_t)desc.ds_data, frame_pos, segment_len);
+        cpu_physical_memory_read((hwaddr)desc.ds_data, frame_pos, segment_len);
         frame_pos += segment_len;
         frame_length += segment_len;
 
@@ -591,7 +591,7 @@ void Atheros_WLAN_handleTxBuffer(Atheros_WLANState *s, uint32_t queue)
              * by this version) but let's do it the safe
              * way and not mess it up :-)
              */
-            s->transmit_queue_address[queue] = (target_phys_addr_t)desc.ds_link;
+            s->transmit_queue_address[queue] = (hwaddr)desc.ds_link;
             cpu_physical_memory_read(s->transmit_queue_address[queue], (uint8_t *)&desc, sizeof(desc));
         }
     } while (more && frame_length < sizeof(frame));

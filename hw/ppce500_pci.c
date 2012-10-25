@@ -91,7 +91,7 @@ struct PPCE500PCIState {
 
 typedef struct PPCE500PCIState PPCE500PCIState;
 
-static uint64_t pci_reg_read4(void *opaque, target_phys_addr_t addr,
+static uint64_t pci_reg_read4(void *opaque, hwaddr addr,
                               unsigned size)
 {
     PPCE500PCIState *pci = opaque;
@@ -160,7 +160,7 @@ static uint64_t pci_reg_read4(void *opaque, target_phys_addr_t addr,
     return value;
 }
 
-static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
+static void pci_reg_write4(void *opaque, hwaddr addr,
                            uint64_t value, unsigned size)
 {
     PPCE500PCIState *pci = opaque;

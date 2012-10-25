@@ -276,14 +276,14 @@ static int Atheros_WLAN_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_be32s(f, &s->current_frequency);
     qemu_get_be32s(f, &direct_value);
-    s->receive_queue_address = (target_phys_addr_t)direct_value;
+    s->receive_queue_address = (hwaddr)direct_value;
     qemu_get_be32s(f, &s->receive_queue_count);
 
     qemu_get_be32s(f, &s->transmit_queue_size);
     for (i = 0; i < 16; i++) {
         qemu_get_8s(f, &s->transmit_queue_enabled[i]);
         qemu_get_be32s(f, &direct_value);
-        s->transmit_queue_address[i] = (target_phys_addr_t)direct_value;
+        s->transmit_queue_address[i] = (hwaddr)direct_value;
         qemu_get_be32s(f, &s->transmit_queue_processed[i]);
     }
 

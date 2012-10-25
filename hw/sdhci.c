@@ -559,7 +559,7 @@ static void sdhci_sdma_transfer_single_block(SDHCIState *s)
 }
 
 typedef struct ADMADescr {
-    target_phys_addr_t addr;
+    hwaddr addr;
     uint16_t length;
     uint8_t attr;
     uint8_t incr;
@@ -569,19 +569,19 @@ static void get_adma_description(SDHCIState *s, ADMADescr *dscr)
 {
     uint32_t adma1 = 0;
     uint64_t adma2 = 0;
-    target_phys_addr_t entry_addr = (target_phys_addr_t)s->admasysaddr;
+    hwaddr entry_addr = s->admasysaddr;
 
     switch (SDHC_DMA_TYPE(s->hostctl)) {
     case SDHC_CTRL_ADMA2_32:
         cpu_physical_memory_read(entry_addr, (uint8_t *)&adma2, sizeof(adma2));
-        dscr->addr = (target_phys_addr_t)((adma2 >> 32) & 0xfffffffc);
+        dscr->addr = (hwaddr)((adma2 >> 32) & 0xfffffffc);
         dscr->length = (uint16_t)((adma2 >> 16) & 0xFFFF);
         dscr->attr = (uint8_t)(adma2 & 0x3F);
         dscr->incr = 8;
         break;
     case SDHC_CTRL_ADMA1_32:
         cpu_physical_memory_read(entry_addr, (uint8_t *)&adma1, sizeof(adma1));
-        dscr->addr = (target_phys_addr_t)(adma1 & 0xFFFFF000);
+        dscr->addr = (hwaddr)(adma1 & 0xFFFFF000);
         dscr->attr = (uint8_t)(adma1 & 0x3F);
         dscr->incr = 4;
         if ((dscr->attr & SDHC_ADMA_ATTR_ACT_MASK) == SDHC_ADMA_ATTR_SET_LEN) {
@@ -1083,7 +1083,7 @@ sdhci_write(SDHCIState *s, unsigned int offset, uint32_t value, unsigned size)
 }
 
 static uint64_t
-sdhci_readfn(void *opaque, target_phys_addr_t offset, unsigned size)
+sdhci_readfn(void *opaque, hwaddr offset, unsigned size)
 {
     SDHCIState *s = (SDHCIState *)opaque;
 
@@ -1091,7 +1091,7 @@ sdhci_readfn(void *opaque, target_phys_addr_t offset, unsigned size)
 }
 
 static void
-sdhci_writefn(void *opaque, target_phys_addr_t off, uint64_t val, unsigned sz)
+sdhci_writefn(void *opaque, hwaddr off, uint64_t val, unsigned sz)
 {
     SDHCIState *s = (SDHCIState *)opaque;
 

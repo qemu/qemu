@@ -1656,7 +1656,7 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
     }
 }
 
-static uint64_t eepro100_read(void *opaque, target_phys_addr_t addr,
+static uint64_t eepro100_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     EEPRO100State *s = opaque;
@@ -1669,7 +1669,7 @@ static uint64_t eepro100_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void eepro100_write(void *opaque, target_phys_addr_t addr,
+static void eepro100_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
     EEPRO100State *s = opaque;

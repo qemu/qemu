@@ -89,7 +89,7 @@ void apic_enable_tpr_access_reporting(DeviceState *d, bool enable)
     }
 }
 
-void apic_enable_vapic(DeviceState *d, target_phys_addr_t paddr)
+void apic_enable_vapic(DeviceState *d, hwaddr paddr)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
     APICCommonClass *info = APIC_COMMON_GET_CLASS(s);

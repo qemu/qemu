@@ -66,7 +66,7 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     CPUMBState *env;
     DriveInfo *dinfo;
     int i;
-    target_phys_addr_t ddr_base = MEMORY_BASEADDR;
+    hwaddr ddr_base = MEMORY_BASEADDR;
     MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;

@@ -36,7 +36,7 @@ typedef struct ISAVGAMMState {
 } ISAVGAMMState;
 
 /* Memory mapped interface */
-static uint32_t vga_mm_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t vga_mm_readb (void *opaque, hwaddr addr)
 {
     ISAVGAMMState *s = opaque;
 
@@ -44,14 +44,14 @@ static uint32_t vga_mm_readb (void *opaque, target_phys_addr_t addr)
 }
 
 static void vga_mm_writeb (void *opaque,
-                           target_phys_addr_t addr, uint32_t value)
+                           hwaddr addr, uint32_t value)
 {
     ISAVGAMMState *s = opaque;
 
     vga_ioport_write(&s->vga, addr >> s->it_shift, value & 0xff);
 }
 
-static uint32_t vga_mm_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t vga_mm_readw (void *opaque, hwaddr addr)
 {
     ISAVGAMMState *s = opaque;
 
@@ -59,14 +59,14 @@ static uint32_t vga_mm_readw (void *opaque, target_phys_addr_t addr)
 }
 
 static void vga_mm_writew (void *opaque,
-                           target_phys_addr_t addr, uint32_t value)
+                           hwaddr addr, uint32_t value)
 {
     ISAVGAMMState *s = opaque;
 
     vga_ioport_write(&s->vga, addr >> s->it_shift, value & 0xffff);
 }
 
-static uint32_t vga_mm_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t vga_mm_readl (void *opaque, hwaddr addr)
 {
     ISAVGAMMState *s = opaque;
 
@@ -74,7 +74,7 @@ static uint32_t vga_mm_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void vga_mm_writel (void *opaque,
-                           target_phys_addr_t addr, uint32_t value)
+                           hwaddr addr, uint32_t value)
 {
     ISAVGAMMState *s = opaque;
 
@@ -97,8 +97,8 @@ static const MemoryRegionOps vga_mm_ctrl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
-                        target_phys_addr_t ctrl_base, int it_shift,
+static void vga_mm_init(ISAVGAMMState *s, hwaddr vram_base,
+                        hwaddr ctrl_base, int it_shift,
                         MemoryRegion *address_space)
 {
     MemoryRegion *s_ioport_ctrl, *vga_io_memory;
@@ -123,8 +123,8 @@ static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
     memory_region_set_coalescing(vga_io_memory);
 }
 
-int isa_vga_mm_init(target_phys_addr_t vram_base,
-                    target_phys_addr_t ctrl_base, int it_shift,
+int isa_vga_mm_init(hwaddr vram_base,
+                    hwaddr ctrl_base, int it_shift,
                     MemoryRegion *address_space)
 {
     ISAVGAMMState *s;

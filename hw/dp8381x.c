@@ -286,7 +286,7 @@ typedef enum {
     MISR_MINT = BIT(15),
 } MISR_Bit;
 
-static void dp8381x_stl_le_phys(target_phys_addr_t addr, uint32_t val)
+static void dp8381x_stl_le_phys(hwaddr addr, uint32_t val)
 {
     val = cpu_to_le32(val);
     cpu_physical_memory_write(addr, (const uint8_t *)&val, sizeof(val));
@@ -740,7 +740,7 @@ static void micr_write(DP8381xState * s, uint16_t val)
     phy_reg_write(s, addr, val);
 }
 
-static uint8_t dp8381x_readb(DP8381xState * s, target_phys_addr_t addr)
+static uint8_t dp8381x_readb(DP8381xState * s, hwaddr addr)
 {
     uint8_t val = 0xff;
     if (0) {
@@ -772,7 +772,7 @@ static uint8_t dp8381x_readb(DP8381xState * s, target_phys_addr_t addr)
     return val;
 }
 
-static uint16_t dp8381x_readw(DP8381xState * s, target_phys_addr_t addr)
+static uint16_t dp8381x_readw(DP8381xState * s, hwaddr addr)
 {
     uint16_t val = 0xffff;
     int logging = 1;
@@ -831,7 +831,7 @@ static uint16_t dp8381x_readw(DP8381xState * s, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t dp8381x_readl(DP8381xState * s, target_phys_addr_t addr)
+static uint32_t dp8381x_readl(DP8381xState * s, hwaddr addr)
 {
     uint32_t val = 0xffffffffU;
     int logging = 1;
@@ -933,7 +933,7 @@ static uint32_t dp8381x_readl(DP8381xState * s, target_phys_addr_t addr)
     return val;
 }
 
-static void dp8381x_writeb(DP8381xState * s, target_phys_addr_t addr,
+static void dp8381x_writeb(DP8381xState * s, hwaddr addr,
                            uint8_t val)
 {
     if (0) {
@@ -946,7 +946,7 @@ static void dp8381x_writeb(DP8381xState * s, target_phys_addr_t addr,
     missing("byte access");
 }
 
-static void dp8381x_writew(DP8381xState * s, target_phys_addr_t addr,
+static void dp8381x_writew(DP8381xState * s, hwaddr addr,
                            uint16_t val)
 {
     int logging = 1;
@@ -1000,7 +1000,7 @@ static void dp8381x_writew(DP8381xState * s, target_phys_addr_t addr,
     }
 }
 
-static void dp8381x_writel(DP8381xState * s, target_phys_addr_t addr,
+static void dp8381x_writel(DP8381xState * s, hwaddr addr,
                            uint32_t val)
 {
     int logging = 1;
@@ -1171,7 +1171,7 @@ static void dp8381x_writel(DP8381xState * s, target_phys_addr_t addr,
  *
  ****************************************************************************/
 
-static uint64_t dp8381x_read(void *opaque, target_phys_addr_t addr,
+static uint64_t dp8381x_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     DP8381xState *s = opaque;
@@ -1193,7 +1193,7 @@ static uint64_t dp8381x_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void dp8381x_write(void *opaque, target_phys_addr_t addr,
+static void dp8381x_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     DP8381xState *s = opaque;

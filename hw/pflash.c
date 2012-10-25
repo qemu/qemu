@@ -26,9 +26,9 @@
 static int traceflag;
 #endif
 
-pflash_t *pflash_device_register(target_phys_addr_t base,
+pflash_t *pflash_device_register(hwaddr base,
                                  DeviceState *qdev, const char *name,
-                                 target_phys_addr_t size,
+                                 hwaddr size,
                                  BlockDriverState *bs, int width,
                                  uint16_t flash_manufacturer,
                                  uint16_t flash_type,

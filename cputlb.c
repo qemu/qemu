@@ -21,11 +21,11 @@
 #include "cpu.h"
 #include "exec-all.h"
 #include "memory.h"
+#include "exec-memory.h"
 
 #include "cputlb.h"
 
-#define WANT_EXEC_OBSOLETE
-#include "exec-obsolete.h"
+#include "memory-internal.h"
 
 //#define DEBUG_TLB
 //#define DEBUG_TLB_CHECK
@@ -237,7 +237,7 @@ static void tlb_add_large_page(CPUArchState *env, target_ulong vaddr,
    is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
    supplied size is only used by tlb_flush_page.  */
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
-                  target_phys_addr_t paddr, int prot,
+                  hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size)
 {
     MemoryRegionSection *section;
@@ -246,13 +246,13 @@ void tlb_set_page(CPUArchState *env, target_ulong vaddr,
     target_ulong code_address;
     uintptr_t addend;
     CPUTLBEntry *te;
-    target_phys_addr_t iotlb;
+    hwaddr iotlb;
 
     assert(size >= TARGET_PAGE_SIZE);
     if (size != TARGET_PAGE_SIZE) {
         tlb_add_large_page(env, vaddr, size);
     }
-    section = phys_page_find(paddr >> TARGET_PAGE_BITS);
+    section = phys_page_find(address_space_memory.dispatch, paddr >> TARGET_PAGE_BITS);
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
            " prot=%x idx=%d pd=0x%08lx\n",

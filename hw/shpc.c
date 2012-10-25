@@ -466,13 +466,13 @@ static int shpc_cap_add_config(PCIDevice *d)
     return 0;
 }
 
-static uint64_t shpc_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t shpc_mmio_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     return shpc_read(opaque, addr, size);
 }
 
-static void shpc_mmio_write(void *opaque, target_phys_addr_t addr,
+static void shpc_mmio_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     shpc_write(opaque, addr, val, size);

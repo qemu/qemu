@@ -258,7 +258,7 @@ void do_interrupt(CPUMBState *env)
     }
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
 {
     target_ulong vaddr, paddr = 0;
     struct microblaze_mmu_lookup lu;

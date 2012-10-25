@@ -42,7 +42,7 @@ typedef struct {
         uint16_t ver;
     } id;
     int shift;
-    target_phys_addr_t base;
+    hwaddr base;
     qemu_irq intr;
     qemu_irq rdy;
     BlockDriverState *bdrv;
@@ -588,7 +588,7 @@ static void onenand_command(OneNANDState *s)
     onenand_intr_update(s);
 }
 
-static uint64_t onenand_read(void *opaque, target_phys_addr_t addr,
+static uint64_t onenand_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     OneNANDState *s = (OneNANDState *) opaque;
@@ -653,7 +653,7 @@ static uint64_t onenand_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void onenand_write(void *opaque, target_phys_addr_t addr,
+static void onenand_write(void *opaque, hwaddr addr,
                           uint64_t value, unsigned size)
 {
     OneNANDState *s = (OneNANDState *) opaque;
@@ -760,7 +760,7 @@ static int onenand_initfn(SysBusDevice *dev)
     OneNANDState *s = (OneNANDState *)dev;
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
-    s->base = (target_phys_addr_t)-1;
+    s->base = (hwaddr)-1;
     s->rdy = NULL;
     s->blocks = size >> BLOCK_SHIFT;
     s->secs = size >> 9;

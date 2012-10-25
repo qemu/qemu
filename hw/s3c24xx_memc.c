@@ -24,7 +24,7 @@ struct s3c24xx_memc_state_s {
     uint32_t memc_reg[13];
 };
 
-static void s3c24xx_memc_write(void *opaque, target_phys_addr_t addr_,
+static void s3c24xx_memc_write(void *opaque, hwaddr addr_,
                                uint64_t value, unsigned size)
 {
     struct s3c24xx_memc_state_s *s = opaque;
@@ -36,7 +36,7 @@ static void s3c24xx_memc_write(void *opaque, target_phys_addr_t addr_,
     s->memc_reg[addr] = value;
 }
 
-static uint64_t s3c24xx_memc_read(void *opaque, target_phys_addr_t addr_,
+static uint64_t s3c24xx_memc_read(void *opaque, hwaddr addr_,
                                   unsigned size)
 {
     struct s3c24xx_memc_state_s *s = opaque;
@@ -79,7 +79,7 @@ static int s3c24xx_memc_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct s3c24xx_memc_state_s *
-s3c24xx_memc_init(target_phys_addr_t base_addr)
+s3c24xx_memc_init(hwaddr base_addr)
 {
     /* Memory controller is simple SDRAM control. As SDRAM is emulated and
      * requires no setup the emulation needs to be nothing more than memory

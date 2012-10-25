@@ -21,7 +21,8 @@
 #include "hw.h"
 #include "boards.h"
 #include "elf.h"
-#include "pc.h"
+#include "serial.h"
+#include "net.h"
 #include "loader.h"
 #include "exec-memory.h"
 #include "sysemu.h"
@@ -38,8 +39,8 @@ static void main_cpu_reset(void *opaque)
 }
 
 static void openrisc_sim_net_init(MemoryRegion *address_space,
-                                  target_phys_addr_t base,
-                                  target_phys_addr_t descriptors,
+                                  hwaddr base,
+                                  hwaddr descriptors,
                                   qemu_irq irq, NICInfo *nd)
 {
     DeviceState *dev;
@@ -63,7 +64,7 @@ static void cpu_openrisc_load_kernel(ram_addr_t ram_size,
 {
     long kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
 
     if (kernel_filename && !qtest_enabled()) {
         kernel_size = load_elf(kernel_filename, NULL, NULL,

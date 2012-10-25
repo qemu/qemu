@@ -926,25 +926,25 @@ void kqemu_cpu_interrupt(CPUState *env)
 
 #define QPI_COMM_PAGE_PHYS_ADDR 0xff000000
 
-static uint32_t qpi_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t qpi_mem_readb(void *opaque, hwaddr addr)
 {
     return 0;
 }
 
-static uint32_t qpi_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t qpi_mem_readw(void *opaque, hwaddr addr)
 {
     return 0;
 }
 
-static void qpi_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void qpi_mem_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
 }
 
-static void qpi_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void qpi_mem_writew(void *opaque, hwaddr addr, uint32_t val)
 {
 }
 
-static uint32_t qpi_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t qpi_mem_readl(void *opaque, hwaddr addr)
 {
     CPUState *env;
 
@@ -957,7 +957,7 @@ static uint32_t qpi_mem_readl(void *opaque, target_phys_addr_t addr)
 /* Note: after writing to this address, the guest code must make sure
    it is exiting the current TB. pushf/popf can be used for that
    purpose. */
-static void qpi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void qpi_mem_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     CPUState *env;
 

@@ -20,7 +20,7 @@ typedef struct {
     SysBusDevice busdev;
     MemoryRegion mmio;
     qemu_irq irq;
-    //~ target_phys_addr_t base;
+    //~ hwaddr base;
     DisplayState *ds;
     drawfn *line_fn;
 
@@ -44,7 +44,7 @@ typedef struct {
     int enable;
     int msb;
     int frm565;
-    target_phys_addr_t fb;
+    hwaddr fb;
     uint32_t palette[0x100];
     int invalidate;
     int invalidatep;
@@ -109,7 +109,7 @@ static void s3c24xx_lcd_reset(S3C24xxLCD_State *s)
 #define S3C24XX_PALETTEEND 0x7fc	/* Palette IO end offset */
 
 static uint64_t s3c24xx_lcd_read(void *opaque,
-                                 target_phys_addr_t addr, unsigned size)
+                                 hwaddr addr, unsigned size)
 {
     S3C24xxLCD_State *s = opaque;
 
@@ -158,7 +158,7 @@ static uint64_t s3c24xx_lcd_read(void *opaque,
     return 0;
 }
 
-static void s3c24xx_lcd_write(void *opaque, target_phys_addr_t addr,
+static void s3c24xx_lcd_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     S3C24xxLCD_State *s = opaque;

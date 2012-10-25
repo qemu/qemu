@@ -921,7 +921,9 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
             qemu_get_buffer(f, n->mac_table.macs,
                             n->mac_table.in_use * ETH_ALEN);
         } else if (n->mac_table.in_use) {
-            qemu_fseek(f, n->mac_table.in_use * ETH_ALEN, SEEK_CUR);
+            uint8_t *buf = g_malloc0(n->mac_table.in_use);
+            qemu_get_buffer(f, buf, n->mac_table.in_use * ETH_ALEN);
+            g_free(buf);
             n->mac_table.multi_overflow = n->mac_table.uni_overflow = 1;
             n->mac_table.in_use = 0;
         }

@@ -232,7 +232,7 @@ static void tt_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
     s->brightness |= level << irq;
 }
 
-static uint64_t tt_lcd_read(void *opaque, target_phys_addr_t offset,
+static uint64_t tt_lcd_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
     tt_lcd_state *s = opaque;
@@ -246,7 +246,7 @@ static uint64_t tt_lcd_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void tt_lcd_write(void *opaque, target_phys_addr_t offset,
+static void tt_lcd_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
     tt_lcd_state *s = opaque;
@@ -363,7 +363,7 @@ static const OffsetNamePair tt_syscon_names[] = {
     {}
 };
 
-static uint64_t tt_syscon_read(void *opaque, target_phys_addr_t offset,
+static uint64_t tt_syscon_read(void *opaque, hwaddr offset,
                                unsigned size)
 {
     uint32_t value = 0;
@@ -377,7 +377,7 @@ static uint64_t tt_syscon_read(void *opaque, target_phys_addr_t offset,
     return value;
 }
 
-static void tt_syscon_write(void *opaque, target_phys_addr_t offset,
+static void tt_syscon_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     logout("%s 0x%08" PRIx64 "\n", offset2name(tt_syscon_names, offset), value);
@@ -419,7 +419,7 @@ static const OffsetNamePair tt_ioport_names[] = {
     {}
 };
 
-static uint64_t tt_ioport_read(void *opaque, target_phys_addr_t offset,
+static uint64_t tt_ioport_read(void *opaque, hwaddr offset,
                                unsigned size)
 {
     uint32_t value = 0;
@@ -446,7 +446,7 @@ static uint64_t tt_ioport_read(void *opaque, target_phys_addr_t offset,
     return value;
 }
 
-static void tt_ioport_write(void *opaque, target_phys_addr_t offset,
+static void tt_ioport_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     logout("%s 0x%08" PRIx64 "\n", offset2name(tt_ioport_names, offset), value);
@@ -598,7 +598,7 @@ static void tt_gpio_pin_event(void *opaque, int pin, int level)
     }
 }
 
-static uint64_t tt_gpio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t tt_gpio_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     tt_gpio_state *s = opaque;
@@ -637,7 +637,7 @@ static uint64_t tt_gpio_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void tt_gpio_write(void *opaque, target_phys_addr_t offset,
+static void tt_gpio_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     tt_gpio_state *s = opaque;

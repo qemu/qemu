@@ -78,7 +78,7 @@ gpio_con_to_mask(uint32_t con)
 }
 
 static void
-s3c24xx_gpio_write_f(void *opaque, target_phys_addr_t addr_, uint64_t value,
+s3c24xx_gpio_write_f(void *opaque, hwaddr addr_, uint64_t value,
                      unsigned size)
 {
     S3C24xxGpioState *s = opaque;
@@ -118,7 +118,7 @@ s3c24xx_gpio_write_f(void *opaque, target_phys_addr_t addr_, uint64_t value,
 }
 
 static uint64_t
-s3c24xx_gpio_read_f(void *opaque, target_phys_addr_t addr_, unsigned size)
+s3c24xx_gpio_read_f(void *opaque, hwaddr addr_, unsigned size)
 {
     S3C24xxGpioState *s = opaque;
     uint32_t addr = (addr_ >> 2);
@@ -200,7 +200,7 @@ static int s3c24xx_gpio_init_(SysBusDevice *dev)
 }
 
 struct s3c24xx_gpio_state_s *
-s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
+s3c24xx_gpio_init(S3CState *soc, hwaddr base_addr, uint32_t cpu_id)
 {
     /* Samsung S3C24XX GPIO
      *

@@ -124,7 +124,7 @@ struct APICCommonState {
 
     uint32_t vapic_control;
     DeviceState *vapic;
-    target_phys_addr_t vapic_paddr; /* note: persistence via kvmvapic */
+    hwaddr vapic_paddr; /* note: persistence via kvmvapic */
 };
 
 typedef struct VAPICState {
@@ -140,7 +140,7 @@ extern bool apic_report_tpr_access;
 void apic_report_irq_delivered(int delivered);
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
 void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
-void apic_enable_vapic(DeviceState *d, target_phys_addr_t paddr);
+void apic_enable_vapic(DeviceState *d, hwaddr paddr);
 
 void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
                              TPRAccess access);

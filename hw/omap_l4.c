@@ -22,13 +22,13 @@
 
 struct omap_l4_s {
     MemoryRegion *address_space;
-    target_phys_addr_t base;
+    hwaddr base;
     int ta_num;
     struct omap_target_agent_s ta[0];
 };
 
 struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
-                               target_phys_addr_t base, int ta_num)
+                               hwaddr base, int ta_num)
 {
     struct omap_l4_s *bus = g_malloc0(
                     sizeof(*bus) + ta_num * sizeof(*bus->ta));
@@ -40,19 +40,19 @@ struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
     return bus;
 }
 
-target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
+hwaddr omap_l4_region_base(struct omap_target_agent_s *ta,
                                        int region)
 {
     return ta->bus->base + ta->start[region].offset;
 }
 
-target_phys_addr_t omap_l4_region_size(struct omap_target_agent_s *ta,
+hwaddr omap_l4_region_size(struct omap_target_agent_s *ta,
                                        int region)
 {
     return ta->start[region].size;
 }
 
-static uint64_t omap_l4ta_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_l4ta_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
@@ -76,7 +76,7 @@ static uint64_t omap_l4ta_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_l4ta_write(void *opaque, target_phys_addr_t addr,
+static void omap_l4ta_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
@@ -143,10 +143,10 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
     return ta;
 }
 
-target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta,
+hwaddr omap_l4_attach(struct omap_target_agent_s *ta,
                                          int region, MemoryRegion *mr)
 {
-    target_phys_addr_t base;
+    hwaddr base;
 
     if (region < 0 || region >= ta->regions) {
         fprintf(stderr, "%s: bad io region (%i)\n", __FUNCTION__, region);

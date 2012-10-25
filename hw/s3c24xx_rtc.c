@@ -74,7 +74,7 @@ static void update_time(struct s3c24xx_rtc_state_s *s)
     s->rtc_reg[S3C_REG_BCDYEAR] =  to_bcd(tm->tm_year - 100);
 }
 
-static void s3c24xx_rtc_write(void *opaque, target_phys_addr_t addr_,
+static void s3c24xx_rtc_write(void *opaque, hwaddr addr_,
                               uint64_t value, unsigned size)
 {
     struct s3c24xx_rtc_state_s *s = opaque;
@@ -85,7 +85,7 @@ static void s3c24xx_rtc_write(void *opaque, target_phys_addr_t addr_,
     s->rtc_reg[addr] = value;
 }
 
-static uint64_t s3c24xx_rtc_read(void *opaque, target_phys_addr_t addr_,
+static uint64_t s3c24xx_rtc_read(void *opaque, hwaddr addr_,
                                  unsigned size)
 {
     struct s3c24xx_rtc_state_s *s = opaque;
@@ -109,7 +109,7 @@ static const MemoryRegionOps s3c24xx_rtc_ops = {
     }
 };
 
-struct s3c24xx_rtc_state_s *s3c24xx_rtc_init(target_phys_addr_t base_addr)
+struct s3c24xx_rtc_state_s *s3c24xx_rtc_init(hwaddr base_addr)
 {
     struct s3c24xx_rtc_state_s *s = g_new0(struct s3c24xx_rtc_state_s, 1);
 

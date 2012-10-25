@@ -202,7 +202,7 @@ static void virtio_scsi_bad_req(void)
 }
 
 static void qemu_sgl_init_external(QEMUSGList *qsgl, struct iovec *sg,
-                                   target_phys_addr_t *addr, int num)
+                                   hwaddr *addr, int num)
 {
     memset(qsgl, 0, sizeof(*qsgl));
     while (num--) {

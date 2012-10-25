@@ -162,7 +162,7 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static uint64_t grlib_irqmp_read(void *opaque, target_phys_addr_t addr,
+static uint64_t grlib_irqmp_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     IRQMP      *irqmp = opaque;
@@ -226,7 +226,7 @@ static uint64_t grlib_irqmp_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void grlib_irqmp_write(void *opaque, target_phys_addr_t addr,
+static void grlib_irqmp_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     IRQMP      *irqmp = opaque;

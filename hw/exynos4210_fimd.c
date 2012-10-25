@@ -290,7 +290,7 @@ struct Exynos4210fimdWindow {
     uint16_t virtpage_offsize;       /* VIDWADD2 register */
     MemoryRegionSection mem_section; /* RAM fragment containing framebuffer */
     uint8_t *host_fb_addr;           /* Host pointer to window's framebuffer */
-    target_phys_addr_t fb_len;       /* Framebuffer length */
+    hwaddr fb_len;       /* Framebuffer length */
 };
 
 typedef struct {
@@ -1110,7 +1110,7 @@ static inline int fimd_get_buffer_id(Exynos4210fimdWindow *w)
 static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
 {
     Exynos4210fimdWindow *w = &s->window[win];
-    target_phys_addr_t fb_start_addr, fb_mapped_len;
+    hwaddr fb_start_addr, fb_mapped_len;
 
     if (!s->enabled || !(w->wincon & FIMD_WINCON_ENWIN) ||
             FIMD_WINDOW_PROTECTED(s->shadowcon, win)) {
@@ -1243,7 +1243,7 @@ static void exynos4210_fimd_update(void *opaque)
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
     Exynos4210fimdWindow *w;
     int i, line;
-    target_phys_addr_t fb_line_addr, inc_size;
+    hwaddr fb_line_addr, inc_size;
     int scrn_height;
     int first_line = -1, last_line = -1, scrn_width;
     bool blend = false;
@@ -1348,7 +1348,7 @@ static void exynos4210_fimd_reset(DeviceState *d)
     s->hueoffset = 0x01800080;
 }
 
-static void exynos4210_fimd_write(void *opaque, target_phys_addr_t offset,
+static void exynos4210_fimd_write(void *opaque, hwaddr offset,
                               uint64_t val, unsigned size)
 {
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
@@ -1649,7 +1649,7 @@ static void exynos4210_fimd_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint64_t exynos4210_fimd_read(void *opaque, target_phys_addr_t offset,
+static uint64_t exynos4210_fimd_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
     Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;

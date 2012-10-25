@@ -41,7 +41,7 @@ typedef struct SHPCIState {
     uint32_t iobr;
 } SHPCIState;
 
-static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint64_t val,
+static void sh_pci_reg_write (void *p, hwaddr addr, uint64_t val,
                               unsigned size)
 {
     SHPCIState *pcic = p;
@@ -69,7 +69,7 @@ static void sh_pci_reg_write (void *p, target_phys_addr_t addr, uint64_t val,
     }
 }
 
-static uint64_t sh_pci_reg_read (void *p, target_phys_addr_t addr,
+static uint64_t sh_pci_reg_read (void *p, hwaddr addr,
                                  unsigned size)
 {
     SHPCIState *pcic = p;

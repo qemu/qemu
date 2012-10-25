@@ -59,7 +59,7 @@
  * - 1 RTC
  */
 
-static uint64_t static_read(void *opaque, target_phys_addr_t offset,
+static uint64_t static_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
     uint32_t *val = (uint32_t *) opaque;
@@ -68,7 +68,7 @@ static uint64_t static_read(void *opaque, target_phys_addr_t offset,
     return *val >> ((offset & mask) << 3);
 }
 
-static void static_write(void *opaque, target_phys_addr_t offset,
+static void static_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
 #ifdef SPY

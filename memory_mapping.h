@@ -18,7 +18,7 @@
 
 /* The physical and virtual address in the memory mapping are contiguous. */
 typedef struct MemoryMapping {
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     target_ulong virt_addr;
     ram_addr_t length;
     QTAILQ_ENTRY(MemoryMapping) next;
@@ -39,8 +39,8 @@ bool cpu_paging_enabled(CPUArchState *env);
  * and is contiguous. The list is sorted by phys_addr.
  */
 void memory_mapping_list_add_merge_sorted(MemoryMappingList *list,
-                                          target_phys_addr_t phys_addr,
-                                          target_phys_addr_t virt_addr,
+                                          hwaddr phys_addr,
+                                          hwaddr virt_addr,
                                           ram_addr_t length);
 
 void memory_mapping_list_free(MemoryMappingList *list);

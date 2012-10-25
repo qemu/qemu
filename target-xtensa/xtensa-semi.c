@@ -169,12 +169,12 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t len = regs[5];
 
             while (len > 0) {
-                target_phys_addr_t paddr =
+                hwaddr paddr =
                     cpu_get_phys_page_debug(env, vaddr);
                 uint32_t page_left =
                     TARGET_PAGE_SIZE - (vaddr & (TARGET_PAGE_SIZE - 1));
                 uint32_t io_sz = page_left < len ? page_left : len;
-                target_phys_addr_t sz = io_sz;
+                hwaddr sz = io_sz;
                 void *buf = cpu_physical_memory_map(paddr, &sz, is_write);
 
                 if (buf) {
@@ -295,7 +295,7 @@ void HELPER(simcall)(CPUXtensaState *env)
             uint32_t sz = regs[5];
 
             while (sz) {
-                target_phys_addr_t len = sz;
+                hwaddr len = sz;
                 void *buf = cpu_physical_memory_map(base, &len, 1);
 
                 if (buf && len) {

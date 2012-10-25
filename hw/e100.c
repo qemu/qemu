@@ -2070,7 +2070,7 @@ static void e100_write4(E100State * s, uint32_t addr_offset, uint32_t val)
     e100_execute(s, addr_offset, val, OP_WRITE, WRITEL);
 }
 
-static uint64_t e100_read(void *opaque, target_phys_addr_t addr,
+static uint64_t e100_read(void *opaque, hwaddr addr,
                           unsigned size)
 {
     E100State *s = opaque;
@@ -2092,7 +2092,7 @@ static uint64_t e100_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void e100_write(void *opaque, target_phys_addr_t addr,
+static void e100_write(void *opaque, hwaddr addr,
                        uint64_t data, unsigned size)
 {
     E100State *s = opaque;

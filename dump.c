@@ -15,7 +15,7 @@
 #include "elf.h"
 #include "cpu.h"
 #include "cpu-all.h"
-#include "targphys.h"
+#include "hwaddr.h"
 #include "monitor.h"
 #include "kvm.h"
 #include "dump.h"
@@ -66,7 +66,7 @@ typedef struct DumpState {
     bool have_section;
     bool resume;
     size_t note_size;
-    target_phys_addr_t memory_offset;
+    hwaddr memory_offset;
     int fd;
 
     RAMBlock *block;
@@ -187,7 +187,7 @@ static int write_elf32_header(DumpState *s)
 }
 
 static int write_elf64_load(DumpState *s, MemoryMapping *memory_mapping,
-                            int phdr_index, target_phys_addr_t offset)
+                            int phdr_index, hwaddr offset)
 {
     Elf64_Phdr phdr;
     int ret;
@@ -216,7 +216,7 @@ static int write_elf64_load(DumpState *s, MemoryMapping *memory_mapping,
 }
 
 static int write_elf32_load(DumpState *s, MemoryMapping *memory_mapping,
-                            int phdr_index, target_phys_addr_t offset)
+                            int phdr_index, hwaddr offset)
 {
     Elf32_Phdr phdr;
     int ret;
@@ -248,7 +248,7 @@ static int write_elf64_note(DumpState *s)
 {
     Elf64_Phdr phdr;
     int endian = s->dump_info.d_endian;
-    target_phys_addr_t begin = s->memory_offset - s->note_size;
+    hwaddr begin = s->memory_offset - s->note_size;
     int ret;
 
     memset(&phdr, 0, sizeof(Elf64_Phdr));
@@ -296,7 +296,7 @@ static int write_elf64_notes(DumpState *s)
 
 static int write_elf32_note(DumpState *s)
 {
-    target_phys_addr_t begin = s->memory_offset - s->note_size;
+    hwaddr begin = s->memory_offset - s->note_size;
     Elf32_Phdr phdr;
     int endian = s->dump_info.d_endian;
     int ret;
@@ -414,11 +414,11 @@ static int write_memory(DumpState *s, RAMBlock *block, ram_addr_t start,
 }
 
 /* get the memory's offset in the vmcore */
-static target_phys_addr_t get_offset(target_phys_addr_t phys_addr,
+static hwaddr get_offset(hwaddr phys_addr,
                                      DumpState *s)
 {
     RAMBlock *block;
-    target_phys_addr_t offset = s->memory_offset;
+    hwaddr offset = s->memory_offset;
     int64_t size_in_block, start;
 
     if (s->has_filter) {
@@ -463,7 +463,7 @@ static target_phys_addr_t get_offset(target_phys_addr_t phys_addr,
 
 static int write_elf_loads(DumpState *s)
 {
-    target_phys_addr_t offset;
+    hwaddr offset;
     MemoryMapping *memory_mapping;
     uint32_t phdr_index = 1;
     int ret;

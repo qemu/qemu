@@ -26,7 +26,7 @@ typedef struct a9mp_priv_state {
     uint32_t num_irq;
 } a9mp_priv_state;
 
-static uint64_t a9_scu_read(void *opaque, target_phys_addr_t offset,
+static uint64_t a9_scu_read(void *opaque, hwaddr offset,
                             unsigned size)
 {
     a9mp_priv_state *s = (a9mp_priv_state *)opaque;
@@ -57,7 +57,7 @@ static uint64_t a9_scu_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void a9_scu_write(void *opaque, target_phys_addr_t offset,
+static void a9_scu_write(void *opaque, hwaddr offset,
                          uint64_t value, unsigned size)
 {
     a9mp_priv_state *s = (a9mp_priv_state *)opaque;

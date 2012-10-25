@@ -21,6 +21,7 @@
 #include "qdev.h"
 #include "kvm_ppc.h"
 #include "dma.h"
+#include "exec-memory.h"
 
 #include "hw/spapr.h"
 
@@ -65,8 +66,8 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
 
 static int spapr_tce_translate(DMAContext *dma,
                                dma_addr_t addr,
-                               target_phys_addr_t *paddr,
-                               target_phys_addr_t *len,
+                               hwaddr *paddr,
+                               hwaddr *len,
                                DMADirection dir)
 {
     sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
@@ -81,7 +82,7 @@ static int spapr_tce_translate(DMAContext *dma,
 
     if (tcet->bypass) {
         *paddr = addr;
-        *len = (target_phys_addr_t)-1;
+        *len = (hwaddr)-1;
         return 0;
     }
 
@@ -124,7 +125,7 @@ DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size)
     }
 
     tcet = g_malloc0(sizeof(*tcet));
-    dma_context_init(&tcet->dma, spapr_tce_translate, NULL, NULL);
+    dma_context_init(&tcet->dma, &address_space_memory, spapr_tce_translate, NULL, NULL);
 
     tcet->liobn = liobn;
     tcet->window_size = window_size;

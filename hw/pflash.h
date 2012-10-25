@@ -224,7 +224,7 @@ typedef enum {
 
 /* Special interfaces used by pflash_register. */
 
-pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
+pflash_t *pflash_amd_register (hwaddr base, ram_addr_t off,
                                BlockDriverState *bs,
                                uint32_t sector_len, int nb_blocs, int width,
                                uint16_t id0, uint16_t id1, 
@@ -232,9 +232,9 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
 
 /* User interface. */
 
-pflash_t *pflash_device_register(target_phys_addr_t base,
+pflash_t *pflash_device_register(hwaddr base,
                                  DeviceState *qdev, const char *name,
-                                 target_phys_addr_t size,
+                                 hwaddr size,
                                  BlockDriverState *bs, int width,
                                  uint16_t flash_manufacturer,
                                  uint16_t flash_type,

@@ -44,7 +44,7 @@ typedef struct RavenPCIState {
     PCIDevice dev;
 } RavenPCIState;
 
-static inline uint32_t PPC_PCIIO_config(target_phys_addr_t addr)
+static inline uint32_t PPC_PCIIO_config(hwaddr addr)
 {
     int i;
 
@@ -56,7 +56,7 @@ static inline uint32_t PPC_PCIIO_config(target_phys_addr_t addr)
     return (addr & 0x7ff) |  (i << 11);
 }
 
-static void ppc_pci_io_write(void *opaque, target_phys_addr_t addr,
+static void ppc_pci_io_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned int size)
 {
     PREPPCIState *s = opaque;
@@ -64,7 +64,7 @@ static void ppc_pci_io_write(void *opaque, target_phys_addr_t addr,
     pci_data_write(phb->bus, PPC_PCIIO_config(addr), val, size);
 }
 
-static uint64_t ppc_pci_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ppc_pci_io_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
     PREPPCIState *s = opaque;
@@ -78,7 +78,7 @@ static const MemoryRegionOps PPC_PCIIO_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t ppc_intack_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ppc_intack_read(void *opaque, hwaddr addr,
                                 unsigned int size)
 {
     return pic_read_irq(isa_pic);

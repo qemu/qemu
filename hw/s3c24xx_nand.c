@@ -32,7 +32,7 @@ typedef struct s3c24xx_nand_state_s {
     DeviceState *nand;
 } S3C24xxNandState;
 
-static void s3c24xx_nand_write(void *opaque, target_phys_addr_t addr,
+static void s3c24xx_nand_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
     S3C24xxNandState *s = opaque;
@@ -79,7 +79,7 @@ static void s3c24xx_nand_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t s3c24xx_nand_read(void *opaque, target_phys_addr_t addr,
+static uint64_t s3c24xx_nand_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     S3C24xxNandState *s = opaque;
@@ -120,7 +120,7 @@ static const MemoryRegionOps s3c24xx_nand_ops = {
     }
 };
 
-struct s3c24xx_nand_state_s *s3c24xx_nand_init(target_phys_addr_t base_addr)
+struct s3c24xx_nand_state_s *s3c24xx_nand_init(hwaddr base_addr)
 {
     S3C24xxNandState *s = g_new0(S3C24xxNandState, 1);
 

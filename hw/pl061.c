@@ -113,7 +113,7 @@ static void pl061_update(pl061_state *s)
     /* FIXME: Implement input interrupts.  */
 }
 
-static uint64_t pl061_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl061_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     pl061_state *s = (pl061_state *)opaque;
@@ -169,7 +169,7 @@ static uint64_t pl061_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void pl061_write(void *opaque, target_phys_addr_t offset,
+static void pl061_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     pl061_state *s = (pl061_state *)opaque;

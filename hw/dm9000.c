@@ -290,7 +290,7 @@ static void dm9000_mii_write(dm9000_state *state)
     }
 }
 
-static void dm9000_write(void *opaque, target_phys_addr_t address,
+static void dm9000_write(void *opaque, hwaddr address,
                          uint64_t value, unsigned size)
 {
     dm9000_state *state = opaque;
@@ -422,7 +422,7 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
 #endif
 }
 
-static uint64_t dm9000_read(void *opaque, target_phys_addr_t address,
+static uint64_t dm9000_read(void *opaque, hwaddr address,
                             unsigned size)
 {
     dm9000_state *state = opaque;

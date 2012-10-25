@@ -129,8 +129,6 @@ void *kvm_vmalloc(ram_addr_t size);
 void *kvm_arch_vmalloc(ram_addr_t size);
 void kvm_setup_guest_memory(void *start, size_t size);
 
-int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
-int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size);
 void kvm_flush_coalesced_mmio_buffer(void);
 #endif
 
@@ -261,7 +259,7 @@ static inline void cpu_synchronize_post_init(CPUArchState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
-                                       target_phys_addr_t *phys_addr);
+                                       hwaddr *phys_addr);
 #endif
 
 #endif

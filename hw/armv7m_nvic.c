@@ -392,7 +392,7 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
     }
 }
 
-static uint64_t nvic_sysreg_read(void *opaque, target_phys_addr_t addr,
+static uint64_t nvic_sysreg_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     /* At the moment we only support the ID registers for byte/word access.
@@ -412,7 +412,7 @@ static uint64_t nvic_sysreg_read(void *opaque, target_phys_addr_t addr,
     hw_error("NVIC: Bad read of size %d at offset 0x%x\n", size, offset);
 }
 
-static void nvic_sysreg_write(void *opaque, target_phys_addr_t addr,
+static void nvic_sysreg_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     uint32_t offset = addr;

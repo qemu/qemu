@@ -75,7 +75,7 @@ typedef struct {
     MemoryRegion mmio;
 } S3C24xxCamState;
 
-static uint64_t s3c24xx_cam_read(void *opaque, target_phys_addr_t offset,
+static uint64_t s3c24xx_cam_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     //~ S3C24xxCamState *s = opaque;
@@ -87,7 +87,7 @@ static uint64_t s3c24xx_cam_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void s3c24xx_cam_write(void *opaque, target_phys_addr_t offset,
+static void s3c24xx_cam_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     //~ S3C24xxCamState *s = opaque;
@@ -168,7 +168,7 @@ typedef struct {
     MemoryRegion mmio;
 } S3C24xxWdgState;
 
-static uint64_t s3c24xx_wdg_read(void *opaque, target_phys_addr_t offset,
+static uint64_t s3c24xx_wdg_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     //~ S3C24xxWdgState *s = opaque;
@@ -180,7 +180,7 @@ static uint64_t s3c24xx_wdg_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void s3c24xx_wdg_write(void *opaque, target_phys_addr_t offset,
+static void s3c24xx_wdg_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     //~ S3C24xxWdgState *s = opaque;
@@ -261,7 +261,7 @@ typedef struct {
     MemoryRegion mmio;
 } S3C24xxAdcState;
 
-static uint64_t s3c24xx_adc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t s3c24xx_adc_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     //~ S3C24xxAdcState *s = opaque;
@@ -276,7 +276,7 @@ static uint64_t s3c24xx_adc_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void s3c24xx_adc_write(void *opaque, target_phys_addr_t offset,
+static void s3c24xx_adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     //~ S3C24xxAdcState *s = opaque;

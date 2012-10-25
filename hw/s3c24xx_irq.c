@@ -110,7 +110,7 @@ s3c24xx_percolate_subsrc_interrupt(struct s3c24xx_irq_state_s *s)
     s3c24xx_percolate_interrupt(s);
 }
 
-static void s3c24xx_irq_write(void *opaque, target_phys_addr_t addr_,
+static void s3c24xx_irq_write(void *opaque, hwaddr addr_,
                               uint64_t value, unsigned size)
 {
     struct s3c24xx_irq_state_s *s = opaque;
@@ -128,7 +128,7 @@ static void s3c24xx_irq_write(void *opaque, target_phys_addr_t addr_,
     s3c24xx_percolate_subsrc_interrupt(s);
 }
 
-static uint64_t s3c24xx_irq_read(void *opaque, target_phys_addr_t addr_,
+static uint64_t s3c24xx_irq_read(void *opaque, hwaddr addr_,
                                  unsigned size)
 {
     struct s3c24xx_irq_state_s *s = opaque;
@@ -210,7 +210,7 @@ static int s3c24xx_irq_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 struct s3c24xx_irq_state_s *
-s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr)
+s3c24xx_irq_init(S3CState *soc, hwaddr base_addr)
 {
     struct s3c24xx_irq_state_s *s = g_new0(struct s3c24xx_irq_state_s, 1);
 

@@ -134,7 +134,7 @@ static void s3c_master_work(void *opaque)
     s3c24xx_i2c_irq(s);
 }
 
-static uint64_t s3c24xx_i2c_read(void *opaque, target_phys_addr_t addr,
+static uint64_t s3c24xx_i2c_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     struct s3c24xx_i2c_state_s *s = opaque;
@@ -159,7 +159,7 @@ static uint64_t s3c24xx_i2c_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void s3c24xx_i2c_write(void *opaque, target_phys_addr_t addr,
+static void s3c24xx_i2c_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
     struct s3c24xx_i2c_state_s *s = opaque;
@@ -233,7 +233,7 @@ static int s3c24xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 
 
 struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq,
-                                             target_phys_addr_t base_addr)
+                                             hwaddr base_addr)
 {
     MemoryRegion *system_memory = get_system_memory();
     struct s3c24xx_i2c_state_s *s = g_malloc0(sizeof(struct s3c24xx_i2c_state_s));

@@ -106,7 +106,7 @@ static void exynos4210_sdhci_start_adma(SDHCIState *sdhci)
 {
     Exynos4SDHCIState *s = EXYNOS4_SDHCI(sdhci);
     unsigned int length, n, begin;
-    target_phys_addr_t entry_addr;
+    hwaddr entry_addr;
     uint32_t addr;
     uint8_t attributes;
     const uint16_t block_size = sdhci->blksize & 0x0fff;
@@ -115,7 +115,7 @@ static void exynos4210_sdhci_start_adma(SDHCIState *sdhci)
 
     while (1) {
         addr = length = attributes = 0;
-        entry_addr = (target_phys_addr_t)(sdhci->admasysaddr & 0xFFFFFFFFull);
+        entry_addr = (hwaddr)(sdhci->admasysaddr & 0xFFFFFFFFull);
 
         /* fetch next entry from descriptor table */
         cpu_physical_memory_read(entry_addr + 4, (uint8_t *)(&addr), 4);
@@ -274,7 +274,7 @@ static bool exynos4210_sdhci_can_issue_command(SDHCIState *sdhci)
 }
 
 static uint64_t
-exynos4210_sdhci_readfn(void *opaque, target_phys_addr_t offset, unsigned size)
+exynos4210_sdhci_readfn(void *opaque, hwaddr offset, unsigned size)
 {
     Exynos4SDHCIState *s = (Exynos4SDHCIState *)opaque;
     uint32_t ret;
@@ -312,7 +312,7 @@ exynos4210_sdhci_readfn(void *opaque, target_phys_addr_t offset, unsigned size)
     return ret;
 }
 
-static void exynos4210_sdhci_writefn(void *opaque, target_phys_addr_t offset,
+static void exynos4210_sdhci_writefn(void *opaque, hwaddr offset,
         uint64_t val, unsigned size)
 {
     Exynos4SDHCIState *s = (Exynos4SDHCIState *)opaque;

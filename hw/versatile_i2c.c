@@ -32,7 +32,7 @@ typedef struct {
     int in;
 } VersatileI2CState;
 
-static uint64_t versatile_i2c_read(void *opaque, target_phys_addr_t offset,
+static uint64_t versatile_i2c_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     VersatileI2CState *s = (VersatileI2CState *)opaque;
@@ -45,7 +45,7 @@ static uint64_t versatile_i2c_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void versatile_i2c_write(void *opaque, target_phys_addr_t offset,
+static void versatile_i2c_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     VersatileI2CState *s = (VersatileI2CState *)opaque;

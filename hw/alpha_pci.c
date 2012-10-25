@@ -15,7 +15,7 @@
 /* PCI IO reads/writes, to byte-word addressable memory.  */
 /* ??? Doesn't handle multiple PCI busses.  */
 
-static uint64_t bw_io_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t bw_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     switch (size) {
     case 1:
@@ -28,7 +28,7 @@ static uint64_t bw_io_read(void *opaque, target_phys_addr_t addr, unsigned size)
     abort();
 }
 
-static void bw_io_write(void *opaque, target_phys_addr_t addr,
+static void bw_io_write(void *opaque, hwaddr addr,
                         uint64_t val, unsigned size)
 {
     switch (size) {
@@ -57,14 +57,14 @@ const MemoryRegionOps alpha_pci_bw_io_ops = {
 };
 
 /* PCI config space reads/writes, to byte-word addressable memory.  */
-static uint64_t bw_conf1_read(void *opaque, target_phys_addr_t addr,
+static uint64_t bw_conf1_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     PCIBus *b = opaque;
     return pci_data_read(b, addr, size);
 }
 
-static void bw_conf1_write(void *opaque, target_phys_addr_t addr,
+static void bw_conf1_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     PCIBus *b = opaque;
@@ -83,12 +83,12 @@ const MemoryRegionOps alpha_pci_conf1_ops = {
 
 /* PCI/EISA Interrupt Acknowledge Cycle.  */
 
-static uint64_t iack_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t iack_read(void *opaque, hwaddr addr, unsigned size)
 {
     return pic_read_irq(isa_pic);
 }
 
-static void special_write(void *opaque, target_phys_addr_t addr,
+static void special_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     qemu_log("pci: special write cycle");

@@ -13,13 +13,13 @@
 #include "hw/msi.h"
 #include "xen.h"
 
-static uint64_t xen_apic_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t xen_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     return ~(uint64_t)0;
 }
 
-static void xen_apic_mem_write(void *opaque, target_phys_addr_t addr,
+static void xen_apic_mem_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     if (size != sizeof(uint32_t)) {

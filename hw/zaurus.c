@@ -68,7 +68,7 @@ static inline void scoop_gpio_handler_update(ScoopInfo *s) {
     s->prev_level = level;
 }
 
-static uint64_t scoop_read(void *opaque, target_phys_addr_t addr,
+static uint64_t scoop_read(void *opaque, hwaddr addr,
                            unsigned size)
 {
     ScoopInfo *s = (ScoopInfo *) opaque;
@@ -102,7 +102,7 @@ static uint64_t scoop_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void scoop_write(void *opaque, target_phys_addr_t addr,
+static void scoop_write(void *opaque, hwaddr addr,
                         uint64_t value, unsigned size)
 {
     ScoopInfo *s = (ScoopInfo *) opaque;
@@ -285,7 +285,7 @@ static struct QEMU_PACKED sl_param_info {
     .phadadj		= 0x01,
 };
 
-void sl_bootparam_write(target_phys_addr_t ptr)
+void sl_bootparam_write(hwaddr ptr)
 {
     cpu_physical_memory_write(ptr, (void *)&zaurus_bootparam,
                               sizeof(struct sl_param_info));

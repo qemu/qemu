@@ -113,7 +113,7 @@ s3c24xx_timer4_tick(void *opaque)
     }
 }
 
-static void s3c24xx_timers_write_f(void *opaque, target_phys_addr_t addr_,
+static void s3c24xx_timers_write_f(void *opaque, hwaddr addr_,
                                    uint64_t value, unsigned size)
 {
     struct s3c24xx_timers_state_s *s = opaque;
@@ -136,7 +136,7 @@ static void s3c24xx_timers_write_f(void *opaque, target_phys_addr_t addr_,
 }
 
 static uint64_t
-s3c24xx_timers_read_f(void *opaque, target_phys_addr_t addr_, unsigned size)
+s3c24xx_timers_read_f(void *opaque, hwaddr addr_, unsigned size)
 {
     struct s3c24xx_timers_state_s *s = opaque;
     int addr = (addr_ >> 2) & 0x1f;
@@ -180,7 +180,7 @@ static int s3c24xx_timers_load(QEMUFile *f, void *opaque, int version_id)
 
 /* S3c24xx timer initialisation */
 struct s3c24xx_timers_state_s *
-s3c24xx_timers_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t tclk0, uint32_t tclk1)
+s3c24xx_timers_init(S3CState *soc, hwaddr base_addr, uint32_t tclk0, uint32_t tclk1)
 {
     MemoryRegion *system_memory = get_system_memory();
     struct s3c24xx_timers_state_s *s;

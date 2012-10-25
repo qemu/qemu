@@ -31,7 +31,8 @@
 #include "elf.h"
 #include "memory.h"
 #include "exec-memory.h"
-#include "pc.h"
+#include "serial.h"
+#include "net.h"
 #include "sysbus.h"
 #include "flash.h"
 #include "blockdev.h"
@@ -57,7 +58,7 @@ static void lx60_fpga_reset(void *opaque)
     s->switches = 0;
 }
 
-static uint64_t lx60_fpga_read(void *opaque, target_phys_addr_t addr,
+static uint64_t lx60_fpga_read(void *opaque, hwaddr addr,
         unsigned size)
 {
     Lx60FpgaState *s = opaque;
@@ -78,7 +79,7 @@ static uint64_t lx60_fpga_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void lx60_fpga_write(void *opaque, target_phys_addr_t addr,
+static void lx60_fpga_write(void *opaque, hwaddr addr,
         uint64_t val, unsigned size)
 {
     Lx60FpgaState *s = opaque;
@@ -103,7 +104,7 @@ static const MemoryRegionOps lx60_fpga_ops = {
 };
 
 static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
-        target_phys_addr_t base)
+        hwaddr base)
 {
     Lx60FpgaState *s = g_malloc(sizeof(Lx60FpgaState));
 
@@ -116,9 +117,9 @@ static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
 }
 
 static void lx60_net_init(MemoryRegion *address_space,
-        target_phys_addr_t base,
-        target_phys_addr_t descriptors,
-        target_phys_addr_t buffers,
+        hwaddr base,
+        hwaddr descriptors,
+        hwaddr buffers,
         qemu_irq irq, NICInfo *nd)
 {
     DeviceState *dev;

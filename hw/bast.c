@@ -26,7 +26,7 @@
 #include "smbus.h"
 #include "devices.h"
 #include "boards.h"
-#include "pc.h"                 /* serial_isa_init */
+#include "serial.h"             /* serial_isa_init */
 #include "dma.h"                /* QEMUSGList (in ide/internal.h) */
 #include "exec-memory.h"        /* get_system_memory */
 #include "ide/internal.h"       /* ide_cmd_write, ... */
@@ -57,7 +57,7 @@ typedef struct {
 #define BAST_CS5_CPLD_BASE (CPU_S3C2410X_CS5 | (0xc << 23))
 #define BAST_CPLD_SIZE (4<<23)
 
-static uint64_t cpld_read(void *opaque, target_phys_addr_t address,
+static uint64_t cpld_read(void *opaque, hwaddr address,
                           unsigned size)
 {
     STCBState *stcb = opaque;
@@ -68,7 +68,7 @@ static uint64_t cpld_read(void *opaque, target_phys_addr_t address,
     return 0;
 }
 
-static void cpld_write(void *opaque, target_phys_addr_t address,
+static void cpld_write(void *opaque, hwaddr address,
                        uint64_t value, unsigned size)
 {
     STCBState *stcb = opaque;
@@ -130,7 +130,7 @@ typedef struct {
     int shift;
 } MMIOState;
 
-static void stcb_ide_write(void *opaque, target_phys_addr_t addr,
+static void stcb_ide_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     MMIOState *s= opaque;
@@ -149,7 +149,7 @@ static void stcb_ide_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t stcb_ide_read(void *opaque, target_phys_addr_t addr,
+static uint64_t stcb_ide_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     MMIOState *s= opaque;
@@ -245,7 +245,7 @@ typedef struct {
     NICConf conf;
 } AX88796State;
 
-static uint64_t ax88796_read(void *opaque, target_phys_addr_t offset,
+static uint64_t ax88796_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     //~ AX88796State *s = opaque;
@@ -271,7 +271,7 @@ static uint64_t ax88796_read(void *opaque, target_phys_addr_t offset,
     return value;
 }
 
-static void ax88796_write(void *opaque, target_phys_addr_t offset,
+static void ax88796_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     //~ AX88796State *s = opaque;

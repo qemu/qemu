@@ -24,7 +24,7 @@ typedef struct {
     uint32_t reg_GPIR;
 } PUV3GPIOState;
 
-static uint64_t puv3_gpio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t puv3_gpio_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     PUV3GPIOState *s = opaque;
@@ -48,7 +48,7 @@ static uint64_t puv3_gpio_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void puv3_gpio_write(void *opaque, target_phys_addr_t offset,
+static void puv3_gpio_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     PUV3GPIOState *s = opaque;

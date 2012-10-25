@@ -152,6 +152,14 @@ void hmp_info_migrate(Monitor *mon)
         monitor_printf(mon, "Migration status: %s\n", info->status);
         monitor_printf(mon, "total time: %" PRIu64 " milliseconds\n",
                        info->total_time);
+        if (info->has_expected_downtime) {
+            monitor_printf(mon, "expected downtime: %" PRIu64 " milliseconds\n",
+                           info->expected_downtime);
+        }
+        if (info->has_downtime) {
+            monitor_printf(mon, "downtime: %" PRIu64 " milliseconds\n",
+                           info->downtime);
+        }
     }
 
     if (info->has_ram) {
@@ -167,6 +175,10 @@ void hmp_info_migrate(Monitor *mon)
                        info->ram->normal);
         monitor_printf(mon, "normal bytes: %" PRIu64 " kbytes\n",
                        info->ram->normal_bytes >> 10);
+        if (info->ram->dirty_pages_rate) {
+            monitor_printf(mon, "dirty pages rate: %" PRIu64 " pages\n",
+                           info->ram->dirty_pages_rate);
+        }
     }
 
     if (info->has_disk) {

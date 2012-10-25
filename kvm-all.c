@@ -60,7 +60,7 @@
 
 typedef struct KVMSlot
 {
-    target_phys_addr_t start_addr;
+    hwaddr start_addr;
     ram_addr_t memory_size;
     void *ram;
     int slot;
@@ -131,8 +131,8 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
 }
 
 static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
-                                         target_phys_addr_t start_addr,
-                                         target_phys_addr_t end_addr)
+                                         hwaddr start_addr,
+                                         hwaddr end_addr)
 {
     int i;
 
@@ -152,8 +152,8 @@ static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
  * Find overlapping slot with lowest start address
  */
 static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
-                                            target_phys_addr_t start_addr,
-                                            target_phys_addr_t end_addr)
+                                            hwaddr start_addr,
+                                            hwaddr end_addr)
 {
     KVMSlot *found = NULL;
     int i;
@@ -176,7 +176,7 @@ static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
 }
 
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
-                                       target_phys_addr_t *phys_addr)
+                                       hwaddr *phys_addr)
 {
     int i;
 
@@ -293,7 +293,7 @@ static int kvm_slot_dirty_pages_log_change(KVMSlot *mem, bool log_dirty)
     return kvm_set_user_memory_region(s, mem);
 }
 
-static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
+static int kvm_dirty_pages_log_change(hwaddr phys_addr,
                                       ram_addr_t size, bool log_dirty)
 {
     KVMState *s = kvm_state;
@@ -302,7 +302,7 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     if (mem == NULL)  {
         fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
                 TARGET_FMT_plx "\n", __func__, phys_addr,
-                (target_phys_addr_t)(phys_addr + size - 1));
+                (hwaddr)(phys_addr + size - 1));
         return -EINVAL;
     }
     return kvm_slot_dirty_pages_log_change(mem, log_dirty);
@@ -363,7 +363,7 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
 {
     unsigned int i, j;
     unsigned long page_number, c;
-    target_phys_addr_t addr, addr1;
+    hwaddr addr, addr1;
     unsigned int len = ((section->size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
     unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
 
@@ -406,8 +406,8 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
     KVMDirtyLog d;
     KVMSlot *mem;
     int ret = 0;
-    target_phys_addr_t start_addr = section->offset_within_address_space;
-    target_phys_addr_t end_addr = start_addr + section->size;
+    hwaddr start_addr = section->offset_within_address_space;
+    hwaddr end_addr = start_addr + section->size;
 
     d.dirty_bitmap = NULL;
     while (start_addr < end_addr) {
@@ -454,9 +454,10 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
     return ret;
 }
 
-int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
+static void kvm_coalesce_mmio_region(MemoryListener *listener,
+                                     MemoryRegionSection *secion,
+                                     hwaddr start, hwaddr size)
 {
-    int ret = -ENOSYS;
     KVMState *s = kvm_state;
 
     if (s->coalesced_mmio) {
@@ -466,15 +467,14 @@ int kvm_coalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
         zone.size = size;
         zone.pad = 0;
 
-        ret = kvm_vm_ioctl(s, KVM_REGISTER_COALESCED_MMIO, &zone);
+        (void)kvm_vm_ioctl(s, KVM_REGISTER_COALESCED_MMIO, &zone);
     }
-
-    return ret;
 }
 
-int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
+static void kvm_uncoalesce_mmio_region(MemoryListener *listener,
+                                       MemoryRegionSection *secion,
+                                       hwaddr start, hwaddr size)
 {
-    int ret = -ENOSYS;
     KVMState *s = kvm_state;
 
     if (s->coalesced_mmio) {
@@ -484,10 +484,8 @@ int kvm_uncoalesce_mmio_region(target_phys_addr_t start, ram_addr_t size)
         zone.size = size;
         zone.pad = 0;
 
-        ret = kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
+        (void)kvm_vm_ioctl(s, KVM_UNREGISTER_COALESCED_MMIO, &zone);
     }
-
-    return ret;
 }
 
 int kvm_check_extension(KVMState *s, unsigned int extension)
@@ -558,7 +556,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     int err;
     MemoryRegion *mr = section->mr;
     bool log_dirty = memory_region_is_logging(mr);
-    target_phys_addr_t start_addr = section->offset_within_address_space;
+    hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     void *ram = NULL;
     unsigned delta;
@@ -703,14 +701,6 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     }
 }
 
-static void kvm_begin(MemoryListener *listener)
-{
-}
-
-static void kvm_commit(MemoryListener *listener)
-{
-}
-
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -721,11 +711,6 @@ static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     kvm_set_phys_mem(section, false);
-}
-
-static void kvm_region_nop(MemoryListener *listener,
-                           MemoryRegionSection *section)
-{
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -755,9 +740,12 @@ static void kvm_log_global_stop(struct MemoryListener *listener)
     assert(r >= 0);
 }
 
-static void kvm_mem_ioeventfd_add(MemoryRegionSection *section,
-                                  bool match_data, uint64_t data, int fd)
+static void kvm_mem_ioeventfd_add(MemoryListener *listener,
+                                  MemoryRegionSection *section,
+                                  bool match_data, uint64_t data,
+                                  EventNotifier *e)
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     assert(match_data && section->size <= 8);
@@ -769,9 +757,12 @@ static void kvm_mem_ioeventfd_add(MemoryRegionSection *section,
     }
 }
 
-static void kvm_mem_ioeventfd_del(MemoryRegionSection *section,
-                                  bool match_data, uint64_t data, int fd)
+static void kvm_mem_ioeventfd_del(MemoryListener *listener,
+                                  MemoryRegionSection *section,
+                                  bool match_data, uint64_t data,
+                                  EventNotifier *e)
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     r = kvm_set_ioeventfd_mmio(fd, section->offset_within_address_space,
@@ -781,9 +772,12 @@ static void kvm_mem_ioeventfd_del(MemoryRegionSection *section,
     }
 }
 
-static void kvm_io_ioeventfd_add(MemoryRegionSection *section,
-                                 bool match_data, uint64_t data, int fd)
+static void kvm_io_ioeventfd_add(MemoryListener *listener,
+                                 MemoryRegionSection *section,
+                                 bool match_data, uint64_t data,
+                                 EventNotifier *e)
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     assert(match_data && section->size == 2);
@@ -795,10 +789,13 @@ static void kvm_io_ioeventfd_add(MemoryRegionSection *section,
     }
 }
 
-static void kvm_io_ioeventfd_del(MemoryRegionSection *section,
-                                 bool match_data, uint64_t data, int fd)
+static void kvm_io_ioeventfd_del(MemoryListener *listener,
+                                 MemoryRegionSection *section,
+                                 bool match_data, uint64_t data,
+                                 EventNotifier *e)
 
 {
+    int fd = event_notifier_get_fd(e);
     int r;
 
     r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
@@ -808,47 +805,24 @@ static void kvm_io_ioeventfd_del(MemoryRegionSection *section,
     }
 }
 
-static void kvm_eventfd_add(MemoryListener *listener,
-                            MemoryRegionSection *section,
-                            bool match_data, uint64_t data,
-                            EventNotifier *e)
-{
-    if (section->address_space == get_system_memory()) {
-        kvm_mem_ioeventfd_add(section, match_data, data,
-			      event_notifier_get_fd(e));
-    } else {
-        kvm_io_ioeventfd_add(section, match_data, data,
-			     event_notifier_get_fd(e));
-    }
-}
-
-static void kvm_eventfd_del(MemoryListener *listener,
-                            MemoryRegionSection *section,
-                            bool match_data, uint64_t data,
-                            EventNotifier *e)
-{
-    if (section->address_space == get_system_memory()) {
-        kvm_mem_ioeventfd_del(section, match_data, data,
-			      event_notifier_get_fd(e));
-    } else {
-        kvm_io_ioeventfd_del(section, match_data, data,
-			     event_notifier_get_fd(e));
-    }
-}
-
 static MemoryListener kvm_memory_listener = {
-    .begin = kvm_begin,
-    .commit = kvm_commit,
     .region_add = kvm_region_add,
     .region_del = kvm_region_del,
-    .region_nop = kvm_region_nop,
     .log_start = kvm_log_start,
     .log_stop = kvm_log_stop,
     .log_sync = kvm_log_sync,
     .log_global_start = kvm_log_global_start,
     .log_global_stop = kvm_log_global_stop,
-    .eventfd_add = kvm_eventfd_add,
-    .eventfd_del = kvm_eventfd_del,
+    .eventfd_add = kvm_mem_ioeventfd_add,
+    .eventfd_del = kvm_mem_ioeventfd_del,
+    .coalesced_mmio_add = kvm_coalesce_mmio_region,
+    .coalesced_mmio_del = kvm_uncoalesce_mmio_region,
+    .priority = 10,
+};
+
+static MemoryListener kvm_io_listener = {
+    .eventfd_add = kvm_io_ioeventfd_add,
+    .eventfd_del = kvm_io_ioeventfd_del,
     .priority = 10,
 };
 
@@ -1401,7 +1375,8 @@ int kvm_init(void)
     }
 
     kvm_state = s;
-    memory_listener_register(&kvm_memory_listener, NULL);
+    memory_listener_register(&kvm_memory_listener, &address_space_memory);
+    memory_listener_register(&kvm_io_listener, &address_space_io);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 

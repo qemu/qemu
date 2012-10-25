@@ -146,13 +146,13 @@ static void kvm_apic_external_nmi(APICCommonState *s)
     run_on_cpu(s->cpu_env, do_inject_external_nmi, s);
 }
 
-static uint64_t kvm_apic_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t kvm_apic_mem_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     return ~(uint64_t)0;
 }
 
-static void kvm_apic_mem_write(void *opaque, target_phys_addr_t addr,
+static void kvm_apic_mem_write(void *opaque, hwaddr addr,
                                uint64_t data, unsigned size)
 {
     MSIMessage msg = { .address = addr, .data = data };

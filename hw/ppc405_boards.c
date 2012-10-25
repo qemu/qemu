@@ -60,7 +60,7 @@ struct ref405ep_fpga_t {
     uint8_t reg1;
 };
 
-static uint32_t ref405ep_fpga_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t ref405ep_fpga_readb (void *opaque, hwaddr addr)
 {
     ref405ep_fpga_t *fpga;
     uint32_t ret;
@@ -82,7 +82,7 @@ static uint32_t ref405ep_fpga_readb (void *opaque, target_phys_addr_t addr)
 }
 
 static void ref405ep_fpga_writeb (void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+                                  hwaddr addr, uint32_t value)
 {
     ref405ep_fpga_t *fpga;
 
@@ -99,7 +99,7 @@ static void ref405ep_fpga_writeb (void *opaque,
     }
 }
 
-static uint32_t ref405ep_fpga_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t ref405ep_fpga_readw (void *opaque, hwaddr addr)
 {
     uint32_t ret;
 
@@ -110,13 +110,13 @@ static uint32_t ref405ep_fpga_readw (void *opaque, target_phys_addr_t addr)
 }
 
 static void ref405ep_fpga_writew (void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+                                  hwaddr addr, uint32_t value)
 {
     ref405ep_fpga_writeb(opaque, addr, (value >> 8) & 0xFF);
     ref405ep_fpga_writeb(opaque, addr + 1, value & 0xFF);
 }
 
-static uint32_t ref405ep_fpga_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t ref405ep_fpga_readl (void *opaque, hwaddr addr)
 {
     uint32_t ret;
 
@@ -129,7 +129,7 @@ static uint32_t ref405ep_fpga_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void ref405ep_fpga_writel (void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+                                  hwaddr addr, uint32_t value)
 {
     ref405ep_fpga_writeb(opaque, addr, (value >> 24) & 0xFF);
     ref405ep_fpga_writeb(opaque, addr + 1, (value >> 16) & 0xFF);
@@ -184,7 +184,7 @@ static void ref405ep_init(QEMUMachineInitArgs *args)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     ram_addr_t bdloc;
     MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
-    target_phys_addr_t ram_bases[2], ram_sizes[2];
+    hwaddr ram_bases[2], ram_sizes[2];
     target_ulong sram_size;
     long bios_size;
     //int phy_addr = 0;
@@ -389,7 +389,7 @@ struct taihu_cpld_t {
     uint8_t reg1;
 };
 
-static uint32_t taihu_cpld_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t taihu_cpld_readb (void *opaque, hwaddr addr)
 {
     taihu_cpld_t *cpld;
     uint32_t ret;
@@ -411,7 +411,7 @@ static uint32_t taihu_cpld_readb (void *opaque, target_phys_addr_t addr)
 }
 
 static void taihu_cpld_writeb (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               hwaddr addr, uint32_t value)
 {
     taihu_cpld_t *cpld;
 
@@ -428,7 +428,7 @@ static void taihu_cpld_writeb (void *opaque,
     }
 }
 
-static uint32_t taihu_cpld_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t taihu_cpld_readw (void *opaque, hwaddr addr)
 {
     uint32_t ret;
 
@@ -439,13 +439,13 @@ static uint32_t taihu_cpld_readw (void *opaque, target_phys_addr_t addr)
 }
 
 static void taihu_cpld_writew (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               hwaddr addr, uint32_t value)
 {
     taihu_cpld_writeb(opaque, addr, (value >> 8) & 0xFF);
     taihu_cpld_writeb(opaque, addr + 1, value & 0xFF);
 }
 
-static uint32_t taihu_cpld_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t taihu_cpld_readl (void *opaque, hwaddr addr)
 {
     uint32_t ret;
 
@@ -458,7 +458,7 @@ static uint32_t taihu_cpld_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void taihu_cpld_writel (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+                               hwaddr addr, uint32_t value)
 {
     taihu_cpld_writel(opaque, addr, (value >> 24) & 0xFF);
     taihu_cpld_writel(opaque, addr + 1, (value >> 16) & 0xFF);
@@ -504,7 +504,7 @@ static void taihu_405ep_init(QEMUMachineInitArgs *args)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *bios;
     MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
-    target_phys_addr_t ram_bases[2], ram_sizes[2];
+    hwaddr ram_bases[2], ram_sizes[2];
     long bios_size;
     target_ulong kernel_base, initrd_base;
     long kernel_size, initrd_size;

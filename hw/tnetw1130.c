@@ -343,7 +343,7 @@ static void tnetw1130_reset(tnetw1130_t *s)
     MISSING();
 }
 
-static uint8_t tnetw1130_read0b(tnetw1130_t *s, target_phys_addr_t addr)
+static uint8_t tnetw1130_read0b(tnetw1130_t *s, hwaddr addr)
 {
     uint8_t value = 0;
     if (addr < TNETW1130_MEM0_SIZE) {
@@ -365,7 +365,7 @@ typedef enum {
     RADIO_RADIA_16 = 0x16,
 } radio_t;
 
-static uint16_t tnetw1130_read0w(tnetw1130_t *s, target_phys_addr_t addr)
+static uint16_t tnetw1130_read0w(tnetw1130_t *s, hwaddr addr)
 {
     uint16_t value = 0;
     if (addr < TNETW1130_MEM0_SIZE) {
@@ -387,7 +387,7 @@ static uint16_t tnetw1130_read0w(tnetw1130_t *s, target_phys_addr_t addr)
     return value;
 }
 
-static uint32_t tnetw1130_read0l(tnetw1130_t *s, target_phys_addr_t addr)
+static uint32_t tnetw1130_read0l(tnetw1130_t *s, hwaddr addr)
 {
     uint32_t value = 0;
     assert(addr < TNETW1130_MEM0_SIZE);
@@ -404,7 +404,7 @@ static uint32_t tnetw1130_read0l(tnetw1130_t *s, target_phys_addr_t addr)
     return value;
 }
 
-static void tnetw1130_write0b(tnetw1130_t *s, target_phys_addr_t addr,
+static void tnetw1130_write0b(tnetw1130_t *s, hwaddr addr,
                               uint8_t value)
 {
     if (addr < TNETW1130_MEM0_SIZE) {
@@ -415,7 +415,7 @@ static void tnetw1130_write0b(tnetw1130_t *s, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%02x\n", tnetw1130_regname(addr), value));
 }
 
-static void tnetw1130_write0w(tnetw1130_t *s, target_phys_addr_t addr,
+static void tnetw1130_write0w(tnetw1130_t *s, hwaddr addr,
                               uint16_t value)
 {
     if (addr < TNETW1130_MEM0_SIZE) {
@@ -454,7 +454,7 @@ static void tnetw1130_write0w(tnetw1130_t *s, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%04x\n", tnetw1130_regname(addr), value));
 }
 
-static void tnetw1130_write0l(tnetw1130_t *s, target_phys_addr_t addr,
+static void tnetw1130_write0l(tnetw1130_t *s, hwaddr addr,
                               uint32_t value)
 {
     if (addr < TNETW1130_MEM0_SIZE) {
@@ -481,7 +481,7 @@ static void tnetw1130_write0l(tnetw1130_t *s, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%08x\n", tnetw1130_regname(addr), value));
 }
 
-static uint8_t tnetw1130_read1b(tnetw1130_t *s, target_phys_addr_t addr)
+static uint8_t tnetw1130_read1b(tnetw1130_t *s, hwaddr addr)
 {
     uint8_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
@@ -490,7 +490,7 @@ static uint8_t tnetw1130_read1b(tnetw1130_t *s, target_phys_addr_t addr)
     return value;
 }
 
-static uint16_t tnetw1130_read1w(tnetw1130_t *s, target_phys_addr_t addr)
+static uint16_t tnetw1130_read1w(tnetw1130_t *s, hwaddr addr)
 {
     uint16_t value = 0;
     assert(addr < TNETW1130_MEM1_SIZE);
@@ -499,7 +499,7 @@ static uint16_t tnetw1130_read1w(tnetw1130_t *s, target_phys_addr_t addr)
     return value;
 }
 
-static uint32_t tnetw1130_read1l(tnetw1130_t *s, target_phys_addr_t addr)
+static uint32_t tnetw1130_read1l(tnetw1130_t *s, hwaddr addr)
 {
     assert(addr < TNETW1130_MEM1_SIZE);
     uint32_t value = reg_read32(s->mem1, addr);
@@ -507,7 +507,7 @@ static uint32_t tnetw1130_read1l(tnetw1130_t *s, target_phys_addr_t addr)
     return value;
 }
 
-static void tnetw1130_write1b(tnetw1130_t *s, target_phys_addr_t addr,
+static void tnetw1130_write1b(tnetw1130_t *s, hwaddr addr,
                               uint8_t value)
 {
     assert(addr < TNETW1130_MEM1_SIZE);
@@ -515,7 +515,7 @@ static void tnetw1130_write1b(tnetw1130_t *s, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%02x\n", tnetw1130_regname1(addr), value));
 }
 
-static void tnetw1130_write1w(tnetw1130_t *s, target_phys_addr_t addr,
+static void tnetw1130_write1w(tnetw1130_t *s, hwaddr addr,
                               uint16_t value)
 {
     assert(addr < TNETW1130_MEM1_SIZE);
@@ -523,7 +523,7 @@ static void tnetw1130_write1w(tnetw1130_t *s, target_phys_addr_t addr,
     TRACE(TNETW, logout("addr %s = 0x%04x\n", tnetw1130_regname1(addr), value));
 }
 
-static void tnetw1130_write1l(tnetw1130_t *s, target_phys_addr_t addr,
+static void tnetw1130_write1l(tnetw1130_t *s, hwaddr addr,
                               uint32_t value)
 {
     assert(addr < TNETW1130_MEM1_SIZE);
@@ -537,7 +537,7 @@ static void tnetw1130_write1l(tnetw1130_t *s, target_phys_addr_t addr,
  *
  ****************************************************************************/
 
-static uint64_t tnetw1130_read0(void *opaque, target_phys_addr_t addr,
+static uint64_t tnetw1130_read0(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     TNETW1130State *d = opaque;
@@ -559,7 +559,7 @@ static uint64_t tnetw1130_read0(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void tnetw1130_write0(void *opaque, target_phys_addr_t addr,
+static void tnetw1130_write0(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     TNETW1130State *d = opaque;
@@ -585,7 +585,7 @@ static const MemoryRegionOps tnetw1130_ops0 = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static uint64_t tnetw1130_read1(void *opaque, target_phys_addr_t addr,
+static uint64_t tnetw1130_read1(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     TNETW1130State *d = opaque;
@@ -607,7 +607,7 @@ static uint64_t tnetw1130_read1(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void tnetw1130_write1(void *opaque, target_phys_addr_t addr,
+static void tnetw1130_write1(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     TNETW1130State *d = opaque;

@@ -249,8 +249,8 @@ void spapr_rtas_register(const char *name, spapr_rtas_fn fn)
     rtas_next++;
 }
 
-int spapr_rtas_device_tree_setup(void *fdt, target_phys_addr_t rtas_addr,
-                                 target_phys_addr_t rtas_size)
+int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
+                                 hwaddr rtas_size)
 {
     int ret;
     int i;

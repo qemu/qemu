@@ -33,11 +33,8 @@ MemoryRegion *get_system_memory(void);
  */
 MemoryRegion *get_system_io(void);
 
-/* Set the root memory region.  This region is the system memory map. */
-void set_system_memory_map(MemoryRegion *mr);
-
-/* Set the I/O memory region.  This region is the I/O memory map. */
-void set_system_io_map(MemoryRegion *mr);
+extern AddressSpace address_space_memory;
+extern AddressSpace address_space_io;
 
 #endif
 

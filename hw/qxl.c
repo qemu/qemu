@@ -1428,7 +1428,7 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
     qxl_rom_set_dirty(d);
 }
 
-static void ioport_write(void *opaque, target_phys_addr_t addr,
+static void ioport_write(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
     PCIQXLDevice *d = opaque;
@@ -1653,7 +1653,7 @@ cancel_async:
     }
 }
 
-static uint64_t ioport_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ioport_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     PCIQXLDevice *qxl = opaque;

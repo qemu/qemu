@@ -71,7 +71,7 @@ typedef struct {
     virtio_net_conf net;
 } SyborgVirtIOProxy;
 
-static uint32_t syborg_virtio_readl(void *opaque, target_phys_addr_t offset)
+static uint32_t syborg_virtio_readl(void *opaque, hwaddr offset)
 {
     SyborgVirtIOProxy *s = opaque;
     VirtIODevice *vdev = s->vdev;
@@ -119,7 +119,7 @@ static uint32_t syborg_virtio_readl(void *opaque, target_phys_addr_t offset)
     return ret;
 }
 
-static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
+static void syborg_virtio_writel(void *opaque, hwaddr offset,
                                  uint32_t value)
 {
     SyborgVirtIOProxy *s = opaque;
@@ -168,7 +168,7 @@ static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint32_t syborg_virtio_readw(void *opaque, target_phys_addr_t offset)
+static uint32_t syborg_virtio_readw(void *opaque, hwaddr offset)
 {
     SyborgVirtIOProxy *s = opaque;
     VirtIODevice *vdev = s->vdev;
@@ -181,7 +181,7 @@ static uint32_t syborg_virtio_readw(void *opaque, target_phys_addr_t offset)
     return -1;
 }
 
-static void syborg_virtio_writew(void *opaque, target_phys_addr_t offset,
+static void syborg_virtio_writew(void *opaque, hwaddr offset,
                                  uint32_t value)
 {
     SyborgVirtIOProxy *s = opaque;
@@ -195,7 +195,7 @@ static void syborg_virtio_writew(void *opaque, target_phys_addr_t offset,
     BADF("Bad halfword write offset 0x%x\n", (int)offset);
 }
 
-static uint32_t syborg_virtio_readb(void *opaque, target_phys_addr_t offset)
+static uint32_t syborg_virtio_readb(void *opaque, hwaddr offset)
 {
     SyborgVirtIOProxy *s = opaque;
     VirtIODevice *vdev = s->vdev;
@@ -208,7 +208,7 @@ static uint32_t syborg_virtio_readb(void *opaque, target_phys_addr_t offset)
     return -1;
 }
 
-static void syborg_virtio_writeb(void *opaque, target_phys_addr_t offset,
+static void syborg_virtio_writeb(void *opaque, hwaddr offset,
                                  uint32_t value)
 {
     SyborgVirtIOProxy *s = opaque;

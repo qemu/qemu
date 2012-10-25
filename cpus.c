@@ -898,6 +898,11 @@ int qemu_cpu_is_self(void *_env)
     return qemu_thread_is_self(cpu->thread);
 }
 
+static bool qemu_in_vcpu_thread(void)
+{
+    return cpu_single_env && qemu_cpu_is_self(cpu_single_env);
+}
+
 void qemu_mutex_lock_iothread(void)
 {
     if (!tcg_enabled()) {
@@ -943,7 +948,7 @@ void pause_all_vcpus(void)
         penv = penv->next_cpu;
     }
 
-    if (!qemu_thread_is_self(&io_thread)) {
+    if (qemu_in_vcpu_thread()) {
         cpu_stop_current();
         if (!kvm_enabled()) {
             while (penv) {
@@ -1060,7 +1065,7 @@ void cpu_stop_current(void)
 
 void vm_stop(RunState state)
 {
-    if (!qemu_thread_is_self(&io_thread)) {
+    if (qemu_in_vcpu_thread()) {
         qemu_system_vmstop_request(state);
         /*
          * FIXME: should not return to device code in case

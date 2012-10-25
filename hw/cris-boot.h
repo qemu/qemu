@@ -5,7 +5,7 @@ struct cris_load_info
     const char *cmdline;
     int image_size;
 
-    target_phys_addr_t entry;
+    hwaddr entry;
 };
 
 void cris_load_image(CRISCPU *cpu, struct cris_load_info *li);

@@ -58,7 +58,7 @@ static void syborg_pointer_update(SyborgPointerState *s)
     qemu_set_irq(s->irq, s->read_count && s->int_enabled);
 }
 
-static uint64_t syborg_pointer_read(void *opaque, target_phys_addr_t offset,
+static uint64_t syborg_pointer_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
     SyborgPointerState *s = (SyborgPointerState *)opaque;
@@ -88,7 +88,7 @@ static uint64_t syborg_pointer_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void syborg_pointer_write(void *opaque, target_phys_addr_t offset,
+static void syborg_pointer_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     SyborgPointerState *s = (SyborgPointerState *)opaque;

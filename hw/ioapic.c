@@ -139,7 +139,7 @@ void ioapic_eoi_broadcast(int vector)
 }
 
 static uint64_t
-ioapic_mem_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
 {
     IOAPICCommonState *s = opaque;
     int index;
@@ -181,7 +181,7 @@ ioapic_mem_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-ioapic_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+ioapic_mem_write(void *opaque, hwaddr addr, uint64_t val,
                  unsigned int size)
 {
     IOAPICCommonState *s = opaque;

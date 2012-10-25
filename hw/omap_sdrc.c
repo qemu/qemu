@@ -31,7 +31,7 @@ void omap_sdrc_reset(struct omap_sdrc_s *s)
     s->config = 0x10;
 }
 
-static uint64_t omap_sdrc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t omap_sdrc_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *) opaque;
@@ -86,7 +86,7 @@ static uint64_t omap_sdrc_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void omap_sdrc_write(void *opaque, target_phys_addr_t addr,
+static void omap_sdrc_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *) opaque;
@@ -154,7 +154,7 @@ static const MemoryRegionOps omap_sdrc_ops = {
 };
 
 struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
-                                   target_phys_addr_t base)
+                                   hwaddr base)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *)
             g_malloc0(sizeof(struct omap_sdrc_s));

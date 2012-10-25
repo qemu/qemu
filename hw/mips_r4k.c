@@ -13,6 +13,7 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pc.h"
+#include "serial.h"
 #include "isa.h"
 #include "net.h"
 #include "sysemu.h"
@@ -47,7 +48,7 @@ static struct _loaderparams {
     const char *initrd_filename;
 } loaderparams;
 
-static void mips_qemu_write (void *opaque, target_phys_addr_t addr,
+static void mips_qemu_write (void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     if ((addr & 0xffff) == 0 && val == 42)
@@ -56,7 +57,7 @@ static void mips_qemu_write (void *opaque, target_phys_addr_t addr,
         qemu_system_shutdown_request ();
 }
 
-static uint64_t mips_qemu_read (void *opaque, target_phys_addr_t addr,
+static uint64_t mips_qemu_read (void *opaque, hwaddr addr,
                                 unsigned size)
 {
     return 0;

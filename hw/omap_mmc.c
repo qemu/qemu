@@ -306,7 +306,7 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->clkdiv = 0;
 }
 
-static uint64_t omap_mmc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t omap_mmc_read(void *opaque, hwaddr offset,
                               unsigned size)
 {
     uint16_t i;
@@ -399,7 +399,7 @@ static uint64_t omap_mmc_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void omap_mmc_write(void *opaque, target_phys_addr_t offset,
+static void omap_mmc_write(void *opaque, hwaddr offset,
                            uint64_t value, unsigned size)
 {
     int i;
@@ -572,7 +572,7 @@ static void omap_mmc_cover_cb(void *opaque, int line, int level)
     }
 }
 
-struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
+struct omap_mmc_s *omap_mmc_init(hwaddr base,
                 MemoryRegion *sysmem,
                 BlockDriverState *bd,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk)
