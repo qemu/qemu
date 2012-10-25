@@ -88,6 +88,16 @@ enum {
 typedef struct UHCIState UHCIState;
 typedef struct UHCIAsync UHCIAsync;
 typedef struct UHCIQueue UHCIQueue;
+typedef struct UHCIInfo UHCIInfo;
+
+struct UHCIInfo {
+    const char *name;
+    uint16_t   vendor_id;
+    uint16_t   device_id;
+    uint8_t    revision;
+    int        (*initfn)(PCIDevice *dev);
+    bool       unplug;
+};
 
 /* 
  * Pending async transaction.
@@ -1293,143 +1303,77 @@ static Property uhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void piix3_uhci_class_init(ObjectClass *klass, void *data)
+static void uhci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    UHCIInfo *info = data;
 
-    k->init = usb_uhci_common_initfn;
-    k->exit = usb_uhci_exit;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371SB_2;
-    k->revision = 0x01;
-    k->class_id = PCI_CLASS_SERIAL_USB;
+    k->init = info->initfn ? info->initfn : usb_uhci_common_initfn;
+    k->exit = info->unplug ? usb_uhci_exit : NULL;
+    k->vendor_id = info->vendor_id;
+    k->device_id = info->device_id;
+    k->revision  = info->revision;
+    k->class_id  = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
 }
 
-static TypeInfo piix3_uhci_info = {
-    .name          = "piix3-usb-uhci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = piix3_uhci_class_init,
-};
-
-static void piix4_uhci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->exit = usb_uhci_exit;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371AB_2;
-    k->revision = 0x01;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo piix4_uhci_info = {
-    .name          = "piix4-usb-uhci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = piix4_uhci_class_init,
-};
-
-static void vt82c686b_uhci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_vt82c686b_initfn;
-    k->exit = usb_uhci_exit;
-    k->vendor_id = PCI_VENDOR_ID_VIA;
-    k->device_id = PCI_DEVICE_ID_VIA_UHCI;
-    k->revision = 0x01;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo vt82c686b_uhci_info = {
-    .name          = "vt82c686b-usb-uhci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = vt82c686b_uhci_class_init,
-};
-
-static void ich9_uhci1_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI1;
-    k->revision = 0x03;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo ich9_uhci1_info = {
-    .name          = "ich9-usb-uhci1",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = ich9_uhci1_class_init,
-};
-
-static void ich9_uhci2_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI2;
-    k->revision = 0x03;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo ich9_uhci2_info = {
-    .name          = "ich9-usb-uhci2",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = ich9_uhci2_class_init,
-};
-
-static void ich9_uhci3_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI3;
-    k->revision = 0x03;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo ich9_uhci3_info = {
-    .name          = "ich9-usb-uhci3",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = ich9_uhci3_class_init,
+static UHCIInfo uhci_info[] = {
+    {
+        .name       = "piix3-usb-uhci",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82371SB_2,
+        .revision  = 0x01,
+        .unplug    = true,
+    },{
+        .name      = "piix4-usb-uhci",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82371AB_2,
+        .revision  = 0x01,
+        .unplug    = true,
+    },{
+        .name      = "vt82c686b-usb-uhci",
+        .vendor_id = PCI_VENDOR_ID_VIA,
+        .device_id = PCI_DEVICE_ID_VIA_UHCI,
+        .revision  = 0x01,
+        .initfn    = usb_uhci_vt82c686b_initfn,
+        .unplug    = true,
+    },{
+        .name      = "ich9-usb-uhci1",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
+        .revision  = 0x03,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci2",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
+        .revision  = 0x03,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci3",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
+        .revision  = 0x03,
+        .unplug    = false,
+    }
 };
 
 static void uhci_register_types(void)
 {
-    type_register_static(&piix3_uhci_info);
-    type_register_static(&piix4_uhci_info);
-    type_register_static(&vt82c686b_uhci_info);
-    type_register_static(&ich9_uhci1_info);
-    type_register_static(&ich9_uhci2_info);
-    type_register_static(&ich9_uhci3_info);
+    TypeInfo uhci_type_info = {
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(UHCIState),
+        .class_init    = uhci_class_init,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(uhci_info); i++) {
+        uhci_type_info.name = uhci_info[i].name;
+        uhci_type_info.class_data = uhci_info + i;
+        type_register(&uhci_type_info);
+    }
 }
 
 type_init(uhci_register_types)
