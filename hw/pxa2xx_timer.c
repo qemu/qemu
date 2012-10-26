@@ -149,7 +149,7 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
     qemu_mod_timer(s->tm4[n].tm.qtimer, new_qemu);
 }
 
-static uint64_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pxa2xx_timer_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
     PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
@@ -227,7 +227,7 @@ static uint64_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_timer_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
     int i, tm = 0;

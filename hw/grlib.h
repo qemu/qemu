@@ -41,7 +41,7 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level);
 void grlib_irqmp_ack(DeviceState *dev, int intno);
 
 static inline
-DeviceState *grlib_irqmp_create(target_phys_addr_t   base,
+DeviceState *grlib_irqmp_create(hwaddr   base,
                                 CPUSPARCState            *env,
                                 qemu_irq           **cpu_irqs,
                                 uint32_t             nr_irqs,
@@ -73,7 +73,7 @@ DeviceState *grlib_irqmp_create(target_phys_addr_t   base,
 /* GPTimer */
 
 static inline
-DeviceState *grlib_gptimer_create(target_phys_addr_t  base,
+DeviceState *grlib_gptimer_create(hwaddr  base,
                                   uint32_t            nr_timers,
                                   uint32_t            freq,
                                   qemu_irq           *cpu_irqs,
@@ -103,7 +103,7 @@ DeviceState *grlib_gptimer_create(target_phys_addr_t  base,
 /* APB UART */
 
 static inline
-DeviceState *grlib_apbuart_create(target_phys_addr_t  base,
+DeviceState *grlib_apbuart_create(hwaddr  base,
                                   CharDriverState    *serial,
                                   qemu_irq            irq)
 {

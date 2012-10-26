@@ -65,8 +65,8 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
 
 static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
                                    MemoryRegionSection *section,
-                                   target_phys_addr_t start_addr,
-                                   target_phys_addr_t end_addr)
+                                   hwaddr start_addr,
+                                   hwaddr end_addr)
 {
     int i;
 
@@ -93,8 +93,8 @@ static void vhost_log_sync(MemoryListener *listener,
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    target_phys_addr_t start_addr = section->offset_within_address_space;
-    target_phys_addr_t end_addr = start_addr + section->size;
+    hwaddr start_addr = section->offset_within_address_space;
+    hwaddr end_addr = start_addr + section->size;
 
     vhost_sync_dirty_bitmap(dev, section, start_addr, end_addr);
 }
@@ -296,7 +296,7 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
     int i;
     for (i = 0; i < dev->nvqs; ++i) {
         struct vhost_virtqueue *vq = dev->vqs + i;
-        target_phys_addr_t l;
+        hwaddr l;
         void *p;
 
         if (!ranges_overlap(start_addr, size, vq->ring_phys, vq->ring_size)) {
@@ -362,7 +362,7 @@ static void vhost_set_memory(MemoryListener *listener,
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
-    target_phys_addr_t start_addr = section->offset_within_address_space;
+    hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     bool log_dirty = memory_region_is_logging(section->mr);
     int s = offsetof(struct vhost_memory, regions) +
@@ -617,7 +617,7 @@ static int vhost_virtqueue_init(struct vhost_dev *dev,
                                 struct vhost_virtqueue *vq,
                                 unsigned idx)
 {
-    target_phys_addr_t s, l, a;
+    hwaddr s, l, a;
     int r;
     struct vhost_vring_file file = {
         .index = idx,
@@ -948,7 +948,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     }
     for (i = 0; i < hdev->n_mem_sections; ++i) {
         vhost_sync_dirty_bitmap(hdev, &hdev->mem_sections[i],
-                                0, (target_phys_addr_t)~0x0ull);
+                                0, (hwaddr)~0x0ull);
     }
     r = vdev->binding->set_guest_notifiers(vdev->binding_opaque, false);
     if (r < 0) {

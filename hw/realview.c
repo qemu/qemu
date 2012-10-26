@@ -145,7 +145,7 @@ static void realview_init(ram_addr_t ram_size,
     sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
 
     if (is_mpcore) {
-        target_phys_addr_t periphbase;
+        hwaddr periphbase;
         dev = qdev_create(NULL, is_pb ? "a9mpcore_priv": "realview_mpcore");
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         qdev_init_nofail(dev);

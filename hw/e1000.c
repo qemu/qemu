@@ -1011,7 +1011,7 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 static void
-e1000_mmio_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                  unsigned size)
 {
     E1000State *s = opaque;
@@ -1028,7 +1028,7 @@ e1000_mmio_write(void *opaque, target_phys_addr_t addr, uint64_t val,
 }
 
 static uint64_t
-e1000_mmio_read(void *opaque, target_phys_addr_t addr, unsigned size)
+e1000_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
@@ -1051,7 +1051,7 @@ static const MemoryRegionOps e1000_mmio_ops = {
     },
 };
 
-static uint64_t e1000_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t e1000_io_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     E1000State *s = opaque;
@@ -1060,7 +1060,7 @@ static uint64_t e1000_io_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void e1000_io_write(void *opaque, target_phys_addr_t addr,
+static void e1000_io_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     E1000State *s = opaque;

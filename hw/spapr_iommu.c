@@ -66,8 +66,8 @@ static sPAPRTCETable *spapr_tce_find_by_liobn(uint32_t liobn)
 
 static int spapr_tce_translate(DMAContext *dma,
                                dma_addr_t addr,
-                               target_phys_addr_t *paddr,
-                               target_phys_addr_t *len,
+                               hwaddr *paddr,
+                               hwaddr *len,
                                DMADirection dir)
 {
     sPAPRTCETable *tcet = DO_UPCAST(sPAPRTCETable, dma, dma);
@@ -82,7 +82,7 @@ static int spapr_tce_translate(DMAContext *dma,
 
     if (tcet->bypass) {
         *paddr = addr;
-        *len = (target_phys_addr_t)-1;
+        *len = (hwaddr)-1;
         return 0;
     }
 

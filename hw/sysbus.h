@@ -36,7 +36,7 @@ struct SysBusDevice {
     qemu_irq *irqp[QDEV_MAX_IRQ];
     int num_mmio;
     struct {
-        target_phys_addr_t addr;
+        hwaddr addr;
         MemoryRegion *memory;
     } mmio[QDEV_MAX_MMIO];
     int num_pio;
@@ -56,31 +56,31 @@ void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
 
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq);
-void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr);
-void sysbus_add_memory(SysBusDevice *dev, target_phys_addr_t addr,
+void sysbus_mmio_map(SysBusDevice *dev, int n, hwaddr addr);
+void sysbus_add_memory(SysBusDevice *dev, hwaddr addr,
                        MemoryRegion *mem);
-void sysbus_add_memory_overlap(SysBusDevice *dev, target_phys_addr_t addr,
+void sysbus_add_memory_overlap(SysBusDevice *dev, hwaddr addr,
                                MemoryRegion *mem, unsigned priority);
 void sysbus_del_memory(SysBusDevice *dev, MemoryRegion *mem);
-void sysbus_add_io(SysBusDevice *dev, target_phys_addr_t addr,
+void sysbus_add_io(SysBusDevice *dev, hwaddr addr,
                    MemoryRegion *mem);
 void sysbus_del_io(SysBusDevice *dev, MemoryRegion *mem);
 MemoryRegion *sysbus_address_space(SysBusDevice *dev);
 
 /* Legacy helper function for creating devices.  */
 DeviceState *sysbus_create_varargs(const char *name,
-                                 target_phys_addr_t addr, ...);
+                                 hwaddr addr, ...);
 DeviceState *sysbus_try_create_varargs(const char *name,
-                                       target_phys_addr_t addr, ...);
+                                       hwaddr addr, ...);
 static inline DeviceState *sysbus_create_simple(const char *name,
-                                              target_phys_addr_t addr,
+                                              hwaddr addr,
                                               qemu_irq irq)
 {
     return sysbus_create_varargs(name, addr, irq, NULL);
 }
 
 static inline DeviceState *sysbus_try_create_simple(const char *name,
-                                                    target_phys_addr_t addr,
+                                                    hwaddr addr,
                                                     qemu_irq irq)
 {
     return sysbus_try_create_varargs(name, addr, irq, NULL);

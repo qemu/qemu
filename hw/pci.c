@@ -987,7 +987,7 @@ static pcibus_t pci_bar_address(PCIDevice *d,
      * to >4G. Check it. TODO: we might need to support
      * it in the future for e.g. PAE.
      */
-    if (last_addr >= TARGET_PHYS_ADDR_MAX) {
+    if (last_addr >= HWADDR_MAX) {
         return PCI_BAR_UNMAPPED;
     }
 

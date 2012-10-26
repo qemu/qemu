@@ -133,7 +133,7 @@ typedef struct AssignedDevice {
     int msi_virq_nr;
     int *msi_virq;
     MSIXTableEntry *msix_table;
-    target_phys_addr_t msix_table_addr;
+    hwaddr msix_table_addr;
     uint16_t msix_max;
     MemoryRegion mmio;
     char *configfd_name;
@@ -147,7 +147,7 @@ static void assigned_dev_load_option_rom(AssignedDevice *dev);
 static void assigned_dev_unregister_msix_mmio(AssignedDevice *dev);
 
 static uint64_t assigned_dev_ioport_rw(AssignedDevRegion *dev_region,
-                                       target_phys_addr_t addr, int size,
+                                       hwaddr addr, int size,
                                        uint64_t *data)
 {
     uint64_t val = 0;
@@ -206,19 +206,19 @@ static uint64_t assigned_dev_ioport_rw(AssignedDevRegion *dev_region,
     return val;
 }
 
-static void assigned_dev_ioport_write(void *opaque, target_phys_addr_t addr,
+static void assigned_dev_ioport_write(void *opaque, hwaddr addr,
                                       uint64_t data, unsigned size)
 {
     assigned_dev_ioport_rw(opaque, addr, size, &data);
 }
 
 static uint64_t assigned_dev_ioport_read(void *opaque,
-                                         target_phys_addr_t addr, unsigned size)
+                                         hwaddr addr, unsigned size)
 {
     return assigned_dev_ioport_rw(opaque, addr, size, NULL);
 }
 
-static uint32_t slow_bar_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t slow_bar_readb(void *opaque, hwaddr addr)
 {
     AssignedDevRegion *d = opaque;
     uint8_t *in = d->u.r_virtbase + addr;
@@ -230,7 +230,7 @@ static uint32_t slow_bar_readb(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static uint32_t slow_bar_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t slow_bar_readw(void *opaque, hwaddr addr)
 {
     AssignedDevRegion *d = opaque;
     uint16_t *in = (uint16_t *)(d->u.r_virtbase + addr);
@@ -242,7 +242,7 @@ static uint32_t slow_bar_readw(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static uint32_t slow_bar_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t slow_bar_readl(void *opaque, hwaddr addr)
 {
     AssignedDevRegion *d = opaque;
     uint32_t *in = (uint32_t *)(d->u.r_virtbase + addr);
@@ -254,7 +254,7 @@ static uint32_t slow_bar_readl(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void slow_bar_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slow_bar_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     AssignedDevRegion *d = opaque;
     uint8_t *out = d->u.r_virtbase + addr;
@@ -263,7 +263,7 @@ static void slow_bar_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     *out = val;
 }
 
-static void slow_bar_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slow_bar_writew(void *opaque, hwaddr addr, uint32_t val)
 {
     AssignedDevRegion *d = opaque;
     uint16_t *out = (uint16_t *)(d->u.r_virtbase + addr);
@@ -272,7 +272,7 @@ static void slow_bar_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
     *out = val;
 }
 
-static void slow_bar_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void slow_bar_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     AssignedDevRegion *d = opaque;
     uint32_t *out = (uint32_t *)(d->u.r_virtbase + addr);
@@ -1499,7 +1499,7 @@ static int assigned_device_pci_cap_init(PCIDevice *pci_dev)
 }
 
 static uint64_t
-assigned_dev_msix_mmio_read(void *opaque, target_phys_addr_t addr,
+assigned_dev_msix_mmio_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     AssignedDevice *adev = opaque;
@@ -1510,7 +1510,7 @@ assigned_dev_msix_mmio_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void assigned_dev_msix_mmio_write(void *opaque, target_phys_addr_t addr,
+static void assigned_dev_msix_mmio_write(void *opaque, hwaddr addr,
                                          uint64_t val, unsigned size)
 {
     AssignedDevice *adev = opaque;

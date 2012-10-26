@@ -2455,7 +2455,7 @@ static void rtl8139_TxStatus_write(RTL8139State *s, uint32_t txRegOffset, uint32
 
         if (descriptor == 0 && (val & 0x8))
         {
-            target_phys_addr_t tc_addr = rtl8139_addr64(s->TxStatus[0] & ~0x3f, s->TxStatus[1]);
+            hwaddr tc_addr = rtl8139_addr64(s->TxStatus[0] & ~0x3f, s->TxStatus[1]);
 
             /* dump tally counters to specified memory location */
             RTL8139TallyCounters_dma_write(s, tc_addr);
@@ -3219,33 +3219,33 @@ static uint32_t rtl8139_ioport_readl(void *opaque, uint32_t addr)
 
 /* */
 
-static void rtl8139_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rtl8139_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     rtl8139_io_writeb(opaque, addr & 0xFF, val);
 }
 
-static void rtl8139_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rtl8139_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
 {
     rtl8139_io_writew(opaque, addr & 0xFF, val);
 }
 
-static void rtl8139_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rtl8139_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     rtl8139_io_writel(opaque, addr & 0xFF, val);
 }
 
-static uint32_t rtl8139_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t rtl8139_mmio_readb(void *opaque, hwaddr addr)
 {
     return rtl8139_io_readb(opaque, addr & 0xFF);
 }
 
-static uint32_t rtl8139_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t rtl8139_mmio_readw(void *opaque, hwaddr addr)
 {
     uint32_t val = rtl8139_io_readw(opaque, addr & 0xFF);
     return val;
 }
 
-static uint32_t rtl8139_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t rtl8139_mmio_readl(void *opaque, hwaddr addr)
 {
     uint32_t val = rtl8139_io_readl(opaque, addr & 0xFF);
     return val;

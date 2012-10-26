@@ -81,7 +81,7 @@ static void vpb_sic_set_irq(void *opaque, int irq, int level)
     vpb_sic_update(s);
 }
 
-static uint64_t vpb_sic_read(void *opaque, target_phys_addr_t offset,
+static uint64_t vpb_sic_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
@@ -103,7 +103,7 @@ static uint64_t vpb_sic_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void vpb_sic_write(void *opaque, target_phys_addr_t offset,
+static void vpb_sic_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;

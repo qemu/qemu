@@ -68,21 +68,13 @@ static void tcp_wait_for_connect(int fd, void *opaque)
     }
 }
 
-int tcp_start_outgoing_migration(MigrationState *s, const char *host_port,
-                                 Error **errp)
+void tcp_start_outgoing_migration(MigrationState *s, const char *host_port, Error **errp)
 {
     s->get_error = socket_errno;
     s->write = socket_write;
     s->close = tcp_close;
 
-    s->fd = inet_nonblocking_connect(host_port, tcp_wait_for_connect, s,
-                                     errp);
-    if (error_is_set(errp)) {
-        migrate_fd_error(s);
-        return -1;
-    }
-
-    return 0;
+    s->fd = inet_nonblocking_connect(host_port, tcp_wait_for_connect, s, errp);
 }
 
 static void tcp_accept_incoming_migration(void *opaque)
@@ -119,18 +111,15 @@ out2:
     close(s);
 }
 
-int tcp_start_incoming_migration(const char *host_port, Error **errp)
+void tcp_start_incoming_migration(const char *host_port, Error **errp)
 {
     int s;
 
     s = inet_listen(host_port, NULL, 256, SOCK_STREAM, 0, errp);
-
     if (s < 0) {
-        return -1;
+        return;
     }
 
     qemu_set_fd_handler2(s, NULL, tcp_accept_incoming_migration, NULL,
                          (void *)(intptr_t)s);
-
-    return 0;
 }

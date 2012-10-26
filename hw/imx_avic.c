@@ -152,7 +152,7 @@ static void imx_avic_set_irq(void *opaque, int irq, int level)
 
 
 static uint64_t imx_avic_read(void *opaque,
-                             target_phys_addr_t offset, unsigned size)
+                             hwaddr offset, unsigned size)
 {
     IMXAVICState *s = (IMXAVICState *)opaque;
 
@@ -259,7 +259,7 @@ static uint64_t imx_avic_read(void *opaque,
     }
 }
 
-static void imx_avic_write(void *opaque, target_phys_addr_t offset,
+static void imx_avic_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
     IMXAVICState *s = (IMXAVICState *)opaque;

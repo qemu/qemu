@@ -63,7 +63,7 @@ static void heathrow_pic_update(HeathrowPICS *s)
     }
 }
 
-static void pic_write(void *opaque, target_phys_addr_t addr,
+static void pic_write(void *opaque, hwaddr addr,
                       uint64_t value, unsigned size)
 {
     HeathrowPICS *s = opaque;
@@ -91,7 +91,7 @@ static void pic_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t pic_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pic_read(void *opaque, hwaddr addr,
                          unsigned size)
 {
     HeathrowPICS *s = opaque;

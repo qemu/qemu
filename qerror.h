@@ -237,9 +237,6 @@ void assert_no_error(Error *err);
 #define QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION \
     ERROR_CLASS_GENERIC_ERROR, "Migration is disabled when VirtFS export path '%s' is mounted in the guest using mount_tag '%s'"
 
-#define QERR_VNC_SERVER_FAILED \
-    ERROR_CLASS_GENERIC_ERROR, "Could not start VNC server on %s"
-
 #define QERR_SOCKET_CONNECT_FAILED \
     ERROR_CLASS_GENERIC_ERROR, "Failed to connect to socket"
 

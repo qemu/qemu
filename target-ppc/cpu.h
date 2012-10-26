@@ -355,7 +355,7 @@ struct ppc6xx_tlb_t {
 
 typedef struct ppcemb_tlb_t ppcemb_tlb_t;
 struct ppcemb_tlb_t {
-    target_phys_addr_t RPN;
+    hwaddr RPN;
     target_ulong EPN;
     target_ulong PID;
     target_ulong size;
@@ -983,8 +983,8 @@ struct CPUPPCState {
     int slb_nr;
 #endif
     /* segment registers */
-    target_phys_addr_t htab_base;
-    target_phys_addr_t htab_mask;
+    hwaddr htab_base;
+    hwaddr htab_mask;
     target_ulong sr[32];
     /* externally stored hash table */
     uint8_t *external_htab;
@@ -1045,9 +1045,9 @@ struct CPUPPCState {
 #endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    target_phys_addr_t vpa;
-    target_phys_addr_t slb_shadow;
-    target_phys_addr_t dispatch_trace_log;
+    hwaddr vpa;
+    hwaddr slb_shadow;
+    hwaddr dispatch_trace_log;
     uint32_t dtl_size;
 #endif /* TARGET_PPC64 */
 
@@ -1066,7 +1066,7 @@ struct CPUPPCState {
     target_ulong ivor_mask;
     target_ulong ivpr_mask;
     target_ulong hreset_vector;
-    target_phys_addr_t mpic_cpu_base;
+    hwaddr mpic_cpu_base;
 #endif
 
     /* Those resources are used only during code translation */
@@ -1117,10 +1117,10 @@ do {                                            \
 /* Context used internally during MMU translations */
 typedef struct mmu_ctx_t mmu_ctx_t;
 struct mmu_ctx_t {
-    target_phys_addr_t raddr;      /* Real address              */
-    target_phys_addr_t eaddr;      /* Effective address         */
+    hwaddr raddr;      /* Real address              */
+    hwaddr eaddr;      /* Effective address         */
     int prot;                      /* Protection bits           */
-    target_phys_addr_t hash[2];    /* Pagetable hash values     */
+    hwaddr hash[2];    /* Pagetable hash values     */
     target_ulong ptem;             /* Virtual segment ID | API  */
     int key;                       /* Access key                */
     int nx;                        /* Non-execute area          */
@@ -1191,9 +1191,9 @@ void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
 void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot);
-target_phys_addr_t booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
+hwaddr booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
 int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
-                     target_phys_addr_t *raddrp, target_ulong address,
+                     hwaddr *raddrp, target_ulong address,
                      uint32_t pid);
 void ppc_tlb_invalidate_all (CPUPPCState *env);
 void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr);

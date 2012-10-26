@@ -42,8 +42,8 @@ typedef struct sPAPRPHBState {
     char *dtbusname;
 
     MemoryRegion memspace, iospace;
-    target_phys_addr_t mem_win_addr, mem_win_size, io_win_addr, io_win_size;
-    target_phys_addr_t msi_win_addr;
+    hwaddr mem_win_addr, mem_win_size, io_win_addr, io_win_size;
+    hwaddr msi_win_addr;
     MemoryRegion memwindow, iowindow, msiwindow;
 
     uint32_t dma_liobn;

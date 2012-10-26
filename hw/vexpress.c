@@ -74,7 +74,7 @@ enum {
     VE_DAPROM,
 };
 
-static target_phys_addr_t motherboard_legacy_map[] = {
+static hwaddr motherboard_legacy_map[] = {
     /* CS7: 0x10000000 .. 0x10020000 */
     [VE_SYSREGS] = 0x10000000,
     [VE_SP810] = 0x10001000,
@@ -106,7 +106,7 @@ static target_phys_addr_t motherboard_legacy_map[] = {
     [VE_USB] = 0x4f000000,
 };
 
-static target_phys_addr_t motherboard_aseries_map[] = {
+static hwaddr motherboard_aseries_map[] = {
     /* CS0: 0x08000000 .. 0x0c000000 */
     [VE_NORFLASH0] = 0x08000000,
     /* CS4: 0x0c000000 .. 0x10000000 */
@@ -150,9 +150,9 @@ typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
                           qemu_irq *pic, uint32_t *proc_id);
 
 struct VEDBoardInfo {
-    const target_phys_addr_t *motherboard_map;
-    target_phys_addr_t loader_start;
-    const target_phys_addr_t gic_cpu_if_addr;
+    const hwaddr *motherboard_map;
+    hwaddr loader_start;
+    const hwaddr gic_cpu_if_addr;
     DBoardInitFn *init;
 };
 
@@ -364,7 +364,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    const target_phys_addr_t *map = daughterboard->motherboard_map;
+    const hwaddr *map = daughterboard->motherboard_map;
 
     daughterboard->init(daughterboard, ram_size, cpu_model, pic, &proc_id);
 

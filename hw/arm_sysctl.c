@@ -92,7 +92,7 @@ static void arm_sysctl_reset(DeviceState *d)
     }
 }
 
-static uint64_t arm_sysctl_read(void *opaque, target_phys_addr_t offset,
+static uint64_t arm_sysctl_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
@@ -189,7 +189,7 @@ static uint64_t arm_sysctl_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
+static void arm_sysctl_write(void *opaque, hwaddr offset,
                              uint64_t val, unsigned size)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;

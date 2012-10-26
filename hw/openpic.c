@@ -178,9 +178,9 @@ static int get_current_cpu(void)
   return cpu_single_env->cpu_index;
 }
 
-static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
+static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
                                           int idx);
-static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
+static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx);
 
 enum {
@@ -596,7 +596,7 @@ static void write_mailbox_register (openpic_t *opp, int n_mbx,
 #endif
 #endif /* 0 : Code provision for Intel model */
 
-static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void openpic_gbl_write (void *opaque, hwaddr addr, uint32_t val)
 {
     openpic_t *opp = opaque;
     IRQ_dst_t *dst;
@@ -662,7 +662,7 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
     }
 }
 
-static uint32_t openpic_gbl_read (void *opaque, target_phys_addr_t addr)
+static uint32_t openpic_gbl_read (void *opaque, hwaddr addr)
 {
     openpic_t *opp = opaque;
     uint32_t retval;
@@ -826,7 +826,7 @@ static uint32_t openpic_src_read (void *opaque, uint32_t addr)
     return retval;
 }
 
-static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
+static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx)
 {
     openpic_t *opp = opaque;
@@ -886,12 +886,12 @@ static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void openpic_cpu_write(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void openpic_cpu_write(void *opaque, hwaddr addr, uint32_t val)
 {
     openpic_cpu_write_internal(opaque, addr, val, (addr & 0x1f000) >> 12);
 }
 
-static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
+static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
                                           int idx)
 {
     openpic_t *opp = opaque;
@@ -970,18 +970,18 @@ static uint32_t openpic_cpu_read_internal(void *opaque, target_phys_addr_t addr,
     return retval;
 }
 
-static uint32_t openpic_cpu_read(void *opaque, target_phys_addr_t addr)
+static uint32_t openpic_cpu_read(void *opaque, hwaddr addr)
 {
     return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
 }
 
 static void openpic_buggy_write (void *opaque,
-                                 target_phys_addr_t addr, uint32_t val)
+                                 hwaddr addr, uint32_t val)
 {
     printf("Invalid OPENPIC write access !\n");
 }
 
-static uint32_t openpic_buggy_read (void *opaque, target_phys_addr_t addr)
+static uint32_t openpic_buggy_read (void *opaque, hwaddr addr)
 {
     printf("Invalid OPENPIC read access !\n");
 
@@ -989,7 +989,7 @@ static uint32_t openpic_buggy_read (void *opaque, target_phys_addr_t addr)
 }
 
 static void openpic_writel (void *opaque,
-                            target_phys_addr_t addr, uint32_t val)
+                            hwaddr addr, uint32_t val)
 {
     openpic_t *opp = opaque;
 
@@ -1010,7 +1010,7 @@ static void openpic_writel (void *opaque,
     }
 }
 
-static uint32_t openpic_readl (void *opaque,target_phys_addr_t addr)
+static uint32_t openpic_readl (void *opaque,hwaddr addr)
 {
     openpic_t *opp = opaque;
     uint32_t retval;
@@ -1034,7 +1034,7 @@ static uint32_t openpic_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static uint64_t openpic_read(void *opaque, target_phys_addr_t addr,
+static uint64_t openpic_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     openpic_t *opp = opaque;
@@ -1045,7 +1045,7 @@ static uint64_t openpic_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void openpic_write(void *opaque, target_phys_addr_t addr,
+static void openpic_write(void *opaque, hwaddr addr,
                           uint64_t data, unsigned size)
 {
     openpic_t *opp = opaque;
@@ -1300,7 +1300,7 @@ static void mpic_reset (void *opaque)
     mpp->glbc = 0x00000000;
 }
 
-static void mpic_timer_write (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void mpic_timer_write (void *opaque, hwaddr addr, uint32_t val)
 {
     openpic_t *mpp = opaque;
     int idx, cpu;
@@ -1333,7 +1333,7 @@ static void mpic_timer_write (void *opaque, target_phys_addr_t addr, uint32_t va
     }
 }
 
-static uint32_t mpic_timer_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mpic_timer_read (void *opaque, hwaddr addr)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
@@ -1368,7 +1368,7 @@ static uint32_t mpic_timer_read (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static void mpic_src_ext_write (void *opaque, target_phys_addr_t addr,
+static void mpic_src_ext_write (void *opaque, hwaddr addr,
                                 uint32_t val)
 {
     openpic_t *mpp = opaque;
@@ -1390,7 +1390,7 @@ static void mpic_src_ext_write (void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint32_t mpic_src_ext_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mpic_src_ext_read (void *opaque, hwaddr addr)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
@@ -1416,7 +1416,7 @@ static uint32_t mpic_src_ext_read (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static void mpic_src_int_write (void *opaque, target_phys_addr_t addr,
+static void mpic_src_int_write (void *opaque, hwaddr addr,
                                 uint32_t val)
 {
     openpic_t *mpp = opaque;
@@ -1438,7 +1438,7 @@ static void mpic_src_int_write (void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint32_t mpic_src_int_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mpic_src_int_read (void *opaque, hwaddr addr)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
@@ -1464,7 +1464,7 @@ static uint32_t mpic_src_int_read (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static void mpic_src_msg_write (void *opaque, target_phys_addr_t addr,
+static void mpic_src_msg_write (void *opaque, hwaddr addr,
                                 uint32_t val)
 {
     openpic_t *mpp = opaque;
@@ -1486,7 +1486,7 @@ static void mpic_src_msg_write (void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint32_t mpic_src_msg_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mpic_src_msg_read (void *opaque, hwaddr addr)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
@@ -1512,7 +1512,7 @@ static uint32_t mpic_src_msg_read (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static void mpic_src_msi_write (void *opaque, target_phys_addr_t addr,
+static void mpic_src_msi_write (void *opaque, hwaddr addr,
                                 uint32_t val)
 {
     openpic_t *mpp = opaque;
@@ -1533,7 +1533,7 @@ static void mpic_src_msi_write (void *opaque, target_phys_addr_t addr,
         }
     }
 }
-static uint32_t mpic_src_msi_read (void *opaque, target_phys_addr_t addr)
+static uint32_t mpic_src_msi_read (void *opaque, hwaddr addr)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
@@ -1657,7 +1657,7 @@ static const MemoryRegionOps mpic_msi_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-qemu_irq *mpic_init (MemoryRegion *address_space, target_phys_addr_t base,
+qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
                      int nb_cpus, qemu_irq **irqs, qemu_irq irq_out)
 {
     openpic_t    *mpp;
@@ -1665,7 +1665,7 @@ qemu_irq *mpic_init (MemoryRegion *address_space, target_phys_addr_t base,
     struct {
         const char             *name;
         MemoryRegionOps const  *ops;
-        target_phys_addr_t      start_addr;
+        hwaddr      start_addr;
         ram_addr_t              size;
     } const list[] = {
         {"glb", &mpic_glb_ops, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},

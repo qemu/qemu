@@ -427,7 +427,7 @@ static void set_entry_value(XenPTMSIXEntry *e, int offset, uint32_t val)
     }
 }
 
-static void pci_msix_write(void *opaque, target_phys_addr_t addr,
+static void pci_msix_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned size)
 {
     XenPCIPassthroughState *s = opaque;
@@ -475,7 +475,7 @@ static void pci_msix_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t pci_msix_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pci_msix_read(void *opaque, hwaddr addr,
                               unsigned size)
 {
     XenPCIPassthroughState *s = opaque;

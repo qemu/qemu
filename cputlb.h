@@ -27,17 +27,17 @@ void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
 void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
                            uintptr_t length);
 MemoryRegionSection *phys_page_find(struct AddressSpaceDispatch *d,
-                                    target_phys_addr_t index);
+                                    hwaddr index);
 void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length);
 void tlb_set_dirty(CPUArchState *env, target_ulong vaddr);
 extern int tlb_flush_count;
 
 /* exec.c */
 void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr);
-target_phys_addr_t memory_region_section_get_iotlb(CPUArchState *env,
+hwaddr memory_region_section_get_iotlb(CPUArchState *env,
                                                    MemoryRegionSection *section,
                                                    target_ulong vaddr,
-                                                   target_phys_addr_t paddr,
+                                                   hwaddr paddr,
                                                    int prot,
                                                    target_ulong *address);
 bool memory_region_is_unassigned(MemoryRegion *mr);

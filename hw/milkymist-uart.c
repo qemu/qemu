@@ -78,7 +78,7 @@ static void uart_update_irq(MilkymistUartState *s)
     }
 }
 
-static uint64_t uart_read(void *opaque, target_phys_addr_t addr,
+static uint64_t uart_read(void *opaque, hwaddr addr,
                           unsigned size)
 {
     MilkymistUartState *s = opaque;
@@ -107,7 +107,7 @@ static uint64_t uart_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void uart_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void uart_write(void *opaque, hwaddr addr, uint64_t value,
                        unsigned size)
 {
     MilkymistUartState *s = opaque;

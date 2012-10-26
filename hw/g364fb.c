@@ -362,7 +362,7 @@ write_err:
 
 /* called for accesses to io ports */
 static uint64_t g364fb_ctrl_read(void *opaque,
-                                 target_phys_addr_t addr,
+                                 hwaddr addr,
                                  unsigned int size)
 {
     G364State *s = opaque;
@@ -424,7 +424,7 @@ static void g364_invalidate_cursor_position(G364State *s)
 }
 
 static void g364fb_ctrl_write(void *opaque,
-                              target_phys_addr_t addr,
+                              hwaddr addr,
                               uint64_t val,
                               unsigned int size)
 {

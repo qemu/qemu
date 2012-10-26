@@ -59,7 +59,7 @@
 #endif
 
 static struct {
-    target_phys_addr_t io_base;
+    hwaddr io_base;
     int irq;
 } sa_serial[] = {
     { 0x80010000, SA_PIC_UART1 },
@@ -113,7 +113,7 @@ static void strongarm_pic_set_irq(void *opaque, int irq, int level)
     strongarm_pic_update(s);
 }
 
-static uint64_t strongarm_pic_mem_read(void *opaque, target_phys_addr_t offset,
+static uint64_t strongarm_pic_mem_read(void *opaque, hwaddr offset,
                                        unsigned size)
 {
     StrongARMPICState *s = opaque;
@@ -138,7 +138,7 @@ static uint64_t strongarm_pic_mem_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void strongarm_pic_mem_write(void *opaque, target_phys_addr_t offset,
+static void strongarm_pic_mem_write(void *opaque, hwaddr offset,
                                     uint64_t value, unsigned size)
 {
     StrongARMPICState *s = opaque;
@@ -294,7 +294,7 @@ static inline void strongarm_rtc_hz_tick(void *opaque)
     strongarm_rtc_int_update(s);
 }
 
-static uint64_t strongarm_rtc_read(void *opaque, target_phys_addr_t addr,
+static uint64_t strongarm_rtc_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     StrongARMRTCState *s = opaque;
@@ -316,7 +316,7 @@ static uint64_t strongarm_rtc_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void strongarm_rtc_write(void *opaque, target_phys_addr_t addr,
+static void strongarm_rtc_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     StrongARMRTCState *s = opaque;
@@ -517,7 +517,7 @@ static void strongarm_gpio_handler_update(StrongARMGPIOInfo *s)
     s->prev_level = level;
 }
 
-static uint64_t strongarm_gpio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t strongarm_gpio_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
     StrongARMGPIOInfo *s = opaque;
@@ -559,7 +559,7 @@ static uint64_t strongarm_gpio_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void strongarm_gpio_write(void *opaque, target_phys_addr_t offset,
+static void strongarm_gpio_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     StrongARMGPIOInfo *s = opaque;
@@ -609,7 +609,7 @@ static const MemoryRegionOps strongarm_gpio_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static DeviceState *strongarm_gpio_init(target_phys_addr_t base,
+static DeviceState *strongarm_gpio_init(hwaddr base,
                 DeviceState *pic)
 {
     DeviceState *dev;
@@ -729,7 +729,7 @@ static void strongarm_ppc_handler_update(StrongARMPPCInfo *s)
     s->prev_level = level;
 }
 
-static uint64_t strongarm_ppc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t strongarm_ppc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     StrongARMPPCInfo *s = opaque;
@@ -759,7 +759,7 @@ static uint64_t strongarm_ppc_read(void *opaque, target_phys_addr_t offset,
     return 0;
 }
 
-static void strongarm_ppc_write(void *opaque, target_phys_addr_t offset,
+static void strongarm_ppc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     StrongARMPPCInfo *s = opaque;
@@ -1095,7 +1095,7 @@ static void strongarm_uart_tx(void *opaque)
     strongarm_uart_update_int_status(s);
 }
 
-static uint64_t strongarm_uart_read(void *opaque, target_phys_addr_t addr,
+static uint64_t strongarm_uart_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
     StrongARMUARTState *s = opaque;
@@ -1137,7 +1137,7 @@ static uint64_t strongarm_uart_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void strongarm_uart_write(void *opaque, target_phys_addr_t addr,
+static void strongarm_uart_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
     StrongARMUARTState *s = opaque;
@@ -1376,7 +1376,7 @@ static void strongarm_ssp_fifo_update(StrongARMSSPState *s)
     strongarm_ssp_int_update(s);
 }
 
-static uint64_t strongarm_ssp_read(void *opaque, target_phys_addr_t addr,
+static uint64_t strongarm_ssp_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     StrongARMSSPState *s = opaque;
@@ -1409,7 +1409,7 @@ static uint64_t strongarm_ssp_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void strongarm_ssp_write(void *opaque, target_phys_addr_t addr,
+static void strongarm_ssp_write(void *opaque, hwaddr addr,
                                 uint64_t value, unsigned size)
 {
     StrongARMSSPState *s = opaque;

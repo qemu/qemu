@@ -129,7 +129,7 @@ static void exynos4210_i2c_data_send(void *opaque)
     exynos4210_i2c_raise_interrupt(s);
 }
 
-static uint64_t exynos4210_i2c_read(void *opaque, target_phys_addr_t offset,
+static uint64_t exynos4210_i2c_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     Exynos4210I2CState *s = (Exynos4210I2CState *)opaque;
@@ -168,7 +168,7 @@ static uint64_t exynos4210_i2c_read(void *opaque, target_phys_addr_t offset,
     return value;
 }
 
-static void exynos4210_i2c_write(void *opaque, target_phys_addr_t offset,
+static void exynos4210_i2c_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     Exynos4210I2CState *s = (Exynos4210I2CState *)opaque;

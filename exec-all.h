@@ -103,9 +103,9 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end,
 void tlb_flush_page(CPUArchState *env, target_ulong addr);
 void tlb_flush(CPUArchState *env, int flush_global);
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
-                  target_phys_addr_t paddr, int prot,
+                  hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
-void tb_invalidate_phys_addr(target_phys_addr_t addr);
+void tb_invalidate_phys_addr(hwaddr addr);
 #else
 static inline void tlb_flush_page(CPUArchState *env, target_ulong addr)
 {
@@ -312,10 +312,10 @@ extern uintptr_t tci_tb_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 
-struct MemoryRegion *iotlb_to_region(target_phys_addr_t index);
-uint64_t io_mem_read(struct MemoryRegion *mr, target_phys_addr_t addr,
+struct MemoryRegion *iotlb_to_region(hwaddr index);
+uint64_t io_mem_read(struct MemoryRegion *mr, hwaddr addr,
                      unsigned size);
-void io_mem_write(struct MemoryRegion *mr, target_phys_addr_t addr,
+void io_mem_write(struct MemoryRegion *mr, hwaddr addr,
                   uint64_t value, unsigned size);
 
 void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,

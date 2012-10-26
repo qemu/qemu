@@ -75,7 +75,7 @@ struct etrax_timer {
 };
 
 static uint64_t
-timer_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+timer_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct etrax_timer *t = opaque;
     uint32_t r = 0;
@@ -242,7 +242,7 @@ static inline void timer_watchdog_update(struct etrax_timer *t, uint32_t value)
 }
 
 static void
-timer_write(void *opaque, target_phys_addr_t addr,
+timer_write(void *opaque, hwaddr addr,
             uint64_t val64, unsigned int size)
 {
     struct etrax_timer *t = opaque;

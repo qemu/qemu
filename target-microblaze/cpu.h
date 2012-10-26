@@ -370,7 +370,7 @@ static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUMBState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMBState *env1, hwaddr addr,
                            int is_write, int is_exec, int is_asi, int size);
 #endif
 

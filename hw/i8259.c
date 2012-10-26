@@ -235,7 +235,7 @@ static void pic_reset(DeviceState *dev)
     pic_init_reset(s);
 }
 
-static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
+static void pic_ioport_write(void *opaque, hwaddr addr64,
                              uint64_t val64, unsigned size)
 {
     PICCommonState *s = opaque;
@@ -329,7 +329,7 @@ static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
     }
 }
 
-static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
+static uint64_t pic_ioport_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
     PICCommonState *s = opaque;
@@ -366,14 +366,14 @@ int pic_get_output(DeviceState *d)
     return (pic_get_irq(s) >= 0);
 }
 
-static void elcr_ioport_write(void *opaque, target_phys_addr_t addr,
+static void elcr_ioport_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
     PICCommonState *s = opaque;
     s->elcr = val & s->elcr_mask;
 }
 
-static uint64_t elcr_ioport_read(void *opaque, target_phys_addr_t addr,
+static uint64_t elcr_ioport_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     PICCommonState *s = opaque;

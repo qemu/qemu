@@ -118,7 +118,7 @@ void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     }
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUXtensaState *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUXtensaState *env, target_ulong addr)
 {
     uint32_t paddr;
     uint32_t page_size;

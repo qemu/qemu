@@ -11,14 +11,14 @@
 
 #include <stdlib.h>
 
-typedef target_phys_addr_t (*phys_offset_to_gaddr_t)(target_phys_addr_t start_addr,
+typedef hwaddr (*phys_offset_to_gaddr_t)(hwaddr start_addr,
                                                      ram_addr_t size,
                                                      void *opaque);
 #ifdef CONFIG_XEN
 
 void xen_map_cache_init(phys_offset_to_gaddr_t f,
                         void *opaque);
-uint8_t *xen_map_cache(target_phys_addr_t phys_addr, target_phys_addr_t size,
+uint8_t *xen_map_cache(hwaddr phys_addr, hwaddr size,
                        uint8_t lock);
 ram_addr_t xen_ram_addr_from_mapcache(void *ptr);
 void xen_invalidate_map_cache_entry(uint8_t *buffer);
@@ -31,8 +31,8 @@ static inline void xen_map_cache_init(phys_offset_to_gaddr_t f,
 {
 }
 
-static inline uint8_t *xen_map_cache(target_phys_addr_t phys_addr,
-                                     target_phys_addr_t size,
+static inline uint8_t *xen_map_cache(hwaddr phys_addr,
+                                     hwaddr size,
                                      uint8_t lock)
 {
     abort();

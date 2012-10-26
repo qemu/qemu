@@ -106,7 +106,7 @@ static void pc_system_flash_init(MemoryRegion *rom_memory,
 {
     BlockDriverState *bdrv;
     int64_t size;
-    target_phys_addr_t phys_addr;
+    hwaddr phys_addr;
     int sector_bits, sector_size;
     pflash_t *system_flash;
     MemoryRegion *flash_mem;

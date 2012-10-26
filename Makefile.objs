@@ -43,11 +43,12 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 block-obj-y = cutils.o iov.o cache-utils.o qemu-option.o module.o async.o
 block-obj-y += nbd.o block.o blockjob.o aio.o aes.o qemu-config.o
-block-obj-y += qemu-progress.o qemu-sockets.o uri.o
+block-obj-y += qemu-progress.o qemu-sockets.o uri.o notify.o
 block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 block-obj-y += block/
+block-obj-y += $(qapi-obj-y) qapi-types.o qapi-visit.o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
@@ -60,7 +61,7 @@ endif
 # suppress *all* target specific code in case of system emulation, i.e. a
 # single QEMU executable should support all CPUs and machines.
 
-common-obj-y = $(block-obj-y) blockdev.o block/
+common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net.o net/
 common-obj-y += qom/
 common-obj-y += readline.o console.o cursor.o
@@ -93,7 +94,7 @@ common-obj-y += bt-host.o bt-vhci.o
 common-obj-y += dma-helpers.o
 common-obj-y += iov.o acl.o
 common-obj-$(CONFIG_POSIX) += compatfd.o
-common-obj-y += notify.o event_notifier.o
+common-obj-y += event_notifier.o
 common-obj-y += qemu-timer.o qemu-timer-common.o
 common-obj-y += qtest.o
 common-obj-y += vl.o
@@ -239,9 +240,9 @@ QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
 	qga-obj-y \
-	block-obj-y \
 	qom-obj-y \
 	qapi-obj-y \
+	block-obj-y \
 	user-obj-y \
 	common-obj-y \
 	extra-obj-y

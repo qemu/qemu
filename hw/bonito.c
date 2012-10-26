@@ -211,12 +211,12 @@ typedef struct PCIBonitoState
     MemoryRegion iomem_ldma;
     MemoryRegion iomem_cop;
 
-    target_phys_addr_t bonito_pciio_start;
-    target_phys_addr_t bonito_pciio_length;
+    hwaddr bonito_pciio_start;
+    hwaddr bonito_pciio_length;
     int bonito_pciio_handle;
 
-    target_phys_addr_t bonito_localio_start;
-    target_phys_addr_t bonito_localio_length;
+    hwaddr bonito_localio_start;
+    hwaddr bonito_localio_length;
     int bonito_localio_handle;
 
 } PCIBonitoState;
@@ -232,7 +232,7 @@ struct BonitoState {
     PCIBonitoState *pci_dev;
 };
 
-static void bonito_writel(void *opaque, target_phys_addr_t addr,
+static void bonito_writel(void *opaque, hwaddr addr,
                           uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -295,7 +295,7 @@ static void bonito_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t bonito_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t bonito_readl(void *opaque, hwaddr addr,
                              unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -322,7 +322,7 @@ static const MemoryRegionOps bonito_ops = {
     },
 };
 
-static void bonito_pciconf_writel(void *opaque, target_phys_addr_t addr,
+static void bonito_pciconf_writel(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -332,7 +332,7 @@ static void bonito_pciconf_writel(void *opaque, target_phys_addr_t addr,
     d->config_write(d, addr, val, 4);
 }
 
-static uint64_t bonito_pciconf_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t bonito_pciconf_readl(void *opaque, hwaddr addr,
                                      unsigned size)
 {
 
@@ -355,7 +355,7 @@ static const MemoryRegionOps bonito_pciconf_ops = {
     },
 };
 
-static uint64_t bonito_ldma_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t bonito_ldma_readl(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     uint32_t val;
@@ -366,7 +366,7 @@ static uint64_t bonito_ldma_readl(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void bonito_ldma_writel(void *opaque, target_phys_addr_t addr,
+static void bonito_ldma_writel(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -384,7 +384,7 @@ static const MemoryRegionOps bonito_ldma_ops = {
     },
 };
 
-static uint64_t bonito_cop_readl(void *opaque, target_phys_addr_t addr,
+static uint64_t bonito_cop_readl(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     uint32_t val;
@@ -395,7 +395,7 @@ static uint64_t bonito_cop_readl(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void bonito_cop_writel(void *opaque, target_phys_addr_t addr,
+static void bonito_cop_writel(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
@@ -413,7 +413,7 @@ static const MemoryRegionOps bonito_cop_ops = {
     },
 };
 
-static uint32_t bonito_sbridge_pciaddr(void *opaque, target_phys_addr_t addr)
+static uint32_t bonito_sbridge_pciaddr(void *opaque, hwaddr addr)
 {
     PCIBonitoState *s = opaque;
     PCIHostState *phb = PCI_HOST_BRIDGE(s->pcihost);
@@ -449,7 +449,7 @@ static uint32_t bonito_sbridge_pciaddr(void *opaque, target_phys_addr_t addr)
     return pciaddr;
 }
 
-static void bonito_spciconf_writeb(void *opaque, target_phys_addr_t addr,
+static void bonito_spciconf_writeb(void *opaque, hwaddr addr,
                                    uint32_t val)
 {
     PCIBonitoState *s = opaque;
@@ -475,7 +475,7 @@ static void bonito_spciconf_writeb(void *opaque, target_phys_addr_t addr,
     pci_set_word(d->config + PCI_STATUS, status);
 }
 
-static void bonito_spciconf_writew(void *opaque, target_phys_addr_t addr,
+static void bonito_spciconf_writew(void *opaque, hwaddr addr,
                                    uint32_t val)
 {
     PCIBonitoState *s = opaque;
@@ -503,7 +503,7 @@ static void bonito_spciconf_writew(void *opaque, target_phys_addr_t addr,
     pci_set_word(d->config + PCI_STATUS, status);
 }
 
-static void bonito_spciconf_writel(void *opaque, target_phys_addr_t addr,
+static void bonito_spciconf_writel(void *opaque, hwaddr addr,
                                    uint32_t val)
 {
     PCIBonitoState *s = opaque;
@@ -531,7 +531,7 @@ static void bonito_spciconf_writel(void *opaque, target_phys_addr_t addr,
     pci_set_word(d->config + PCI_STATUS, status);
 }
 
-static uint32_t bonito_spciconf_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t bonito_spciconf_readb(void *opaque, hwaddr addr)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
@@ -557,7 +557,7 @@ static uint32_t bonito_spciconf_readb(void *opaque, target_phys_addr_t addr)
     return pci_data_read(phb->bus, phb->config_reg, 1);
 }
 
-static uint32_t bonito_spciconf_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t bonito_spciconf_readw(void *opaque, hwaddr addr)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);
@@ -585,7 +585,7 @@ static uint32_t bonito_spciconf_readw(void *opaque, target_phys_addr_t addr)
     return pci_data_read(phb->bus, phb->config_reg, 2);
 }
 
-static uint32_t bonito_spciconf_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t bonito_spciconf_readl(void *opaque, hwaddr addr)
 {
     PCIBonitoState *s = opaque;
     PCIDevice *d = PCI_DEVICE(s);

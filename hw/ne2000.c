@@ -652,7 +652,7 @@ static const VMStateDescription vmstate_pci_ne2000 = {
     }
 };
 
-static uint64_t ne2000_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ne2000_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     NE2000State *s = opaque;
@@ -671,7 +671,7 @@ static uint64_t ne2000_read(void *opaque, target_phys_addr_t addr,
     return ((uint64_t)1 << (size * 8)) - 1;
 }
 
-static void ne2000_write(void *opaque, target_phys_addr_t addr,
+static void ne2000_write(void *opaque, hwaddr addr,
                          uint64_t data, unsigned size)
 {
     NE2000State *s = opaque;

@@ -48,8 +48,8 @@ typedef uint64_t dma_addr_t;
 
 typedef int DMATranslateFunc(DMAContext *dma,
                              dma_addr_t addr,
-                             target_phys_addr_t *paddr,
-                             target_phys_addr_t *len,
+                             hwaddr *paddr,
+                             hwaddr *len,
                              DMADirection dir);
 typedef void* DMAMapFunc(DMAContext *dma,
                          dma_addr_t addr,
@@ -177,7 +177,7 @@ static inline void *dma_memory_map(DMAContext *dma,
                                    DMADirection dir)
 {
     if (!dma_has_iommu(dma)) {
-        target_phys_addr_t xlen = *len;
+        hwaddr xlen = *len;
         void *p;
 
         p = address_space_map(dma->as, addr, &xlen, dir == DMA_DIRECTION_FROM_DEVICE);
@@ -196,7 +196,7 @@ static inline void dma_memory_unmap(DMAContext *dma,
                                     DMADirection dir, dma_addr_t access_len)
 {
     if (!dma_has_iommu(dma)) {
-        address_space_unmap(dma->as, buffer, (target_phys_addr_t)len,
+        address_space_unmap(dma->as, buffer, (hwaddr)len,
                             dir == DMA_DIRECTION_FROM_DEVICE, access_len);
     } else {
         iommu_dma_memory_unmap(dma, buffer, len, dir, access_len);

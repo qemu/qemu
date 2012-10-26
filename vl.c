@@ -3711,10 +3711,13 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_VNC
     /* init remote displays */
     if (vnc_display) {
+        Error *local_err = NULL;
         vnc_display_init(ds);
-        if (vnc_display_open(ds, vnc_display) < 0) {
-            fprintf(stderr, "Failed to start VNC server on `%s'\n",
-                    vnc_display);
+        vnc_display_open(ds, vnc_display, &local_err);
+        if (local_err != NULL) {
+            fprintf(stderr, "Failed to start VNC server on `%s': %s\n",
+                    vnc_display, error_get_pretty(local_err));
+            error_free(local_err);
             exit(1);
         }
 
@@ -3766,16 +3769,12 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
-        Error *errp = NULL;
-        int ret = qemu_start_incoming_migration(incoming, &errp);
-        if (ret < 0) {
-            if (error_is_set(&errp)) {
-                fprintf(stderr, "Migrate: %s\n", error_get_pretty(errp));
-                error_free(errp);
-            }
-            fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",
-                    incoming, ret);
-            exit(ret);
+        Error *local_err = NULL;
+        qemu_start_incoming_migration(incoming, &local_err);
+        if (local_err) {
+            fprintf(stderr, "-incoming %s: %s\n", incoming, error_get_pretty(local_err));
+            error_free(local_err);
+            exit(1);
         }
     } else if (autostart) {
         vm_start();

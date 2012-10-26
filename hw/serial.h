@@ -91,7 +91,7 @@ void serial_set_frequency(SerialState *s, uint32_t frequency);
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          CharDriverState *chr);
 SerialState *serial_mm_init(MemoryRegion *address_space,
-                            target_phys_addr_t base, int it_shift,
+                            hwaddr base, int it_shift,
                             qemu_irq irq, int baudbase,
                             CharDriverState *chr, enum device_endian end);
 

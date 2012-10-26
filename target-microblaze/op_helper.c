@@ -501,7 +501,7 @@ void helper_mmu_write(CPUMBState *env, uint32_t rn, uint32_t v)
     mmu_write(env, rn, v);
 }
 
-void cpu_unassigned_access(CPUMBState *env, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMBState *env, hwaddr addr,
                            int is_write, int is_exec, int is_asi, int size)
 {
     qemu_log_mask(CPU_LOG_INT, "Unassigned " TARGET_FMT_plx " wr=%d exe=%d\n",

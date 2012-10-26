@@ -12,6 +12,6 @@
 /* zaurus.c */
 
 #define SL_PXA_PARAM_BASE	0xa0000a00
-void sl_bootparam_write(target_phys_addr_t ptr);
+void sl_bootparam_write(hwaddr ptr);
 
 #endif

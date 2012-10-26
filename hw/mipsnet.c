@@ -96,7 +96,7 @@ static ssize_t mipsnet_receive(NetClientState *nc, const uint8_t *buf, size_t si
     return size;
 }
 
-static uint64_t mipsnet_ioport_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mipsnet_ioport_read(void *opaque, hwaddr addr,
                                     unsigned int size)
 {
     MIPSnetState *s = opaque;
@@ -142,7 +142,7 @@ static uint64_t mipsnet_ioport_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void mipsnet_ioport_write(void *opaque, target_phys_addr_t addr,
+static void mipsnet_ioport_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned int size)
 {
     MIPSnetState *s = opaque;

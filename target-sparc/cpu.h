@@ -583,10 +583,10 @@ static inline int tlb_compare_context(const SparcTLBEntry *tlb,
 
 /* cpu-exec.c */
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUSPARCState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUSPARCState *env1, hwaddr addr,
                            int is_write, int is_exec, int is_asi, int size);
 #if defined(TARGET_SPARC64)
-target_phys_addr_t cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
+hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx);
 #endif
 #endif

@@ -60,7 +60,7 @@
 
 typedef struct KVMSlot
 {
-    target_phys_addr_t start_addr;
+    hwaddr start_addr;
     ram_addr_t memory_size;
     void *ram;
     int slot;
@@ -131,8 +131,8 @@ static KVMSlot *kvm_alloc_slot(KVMState *s)
 }
 
 static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
-                                         target_phys_addr_t start_addr,
-                                         target_phys_addr_t end_addr)
+                                         hwaddr start_addr,
+                                         hwaddr end_addr)
 {
     int i;
 
@@ -152,8 +152,8 @@ static KVMSlot *kvm_lookup_matching_slot(KVMState *s,
  * Find overlapping slot with lowest start address
  */
 static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
-                                            target_phys_addr_t start_addr,
-                                            target_phys_addr_t end_addr)
+                                            hwaddr start_addr,
+                                            hwaddr end_addr)
 {
     KVMSlot *found = NULL;
     int i;
@@ -176,7 +176,7 @@ static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
 }
 
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
-                                       target_phys_addr_t *phys_addr)
+                                       hwaddr *phys_addr)
 {
     int i;
 
@@ -293,7 +293,7 @@ static int kvm_slot_dirty_pages_log_change(KVMSlot *mem, bool log_dirty)
     return kvm_set_user_memory_region(s, mem);
 }
 
-static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
+static int kvm_dirty_pages_log_change(hwaddr phys_addr,
                                       ram_addr_t size, bool log_dirty)
 {
     KVMState *s = kvm_state;
@@ -302,7 +302,7 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     if (mem == NULL)  {
         fprintf(stderr, "BUG: %s: invalid parameters " TARGET_FMT_plx "-"
                 TARGET_FMT_plx "\n", __func__, phys_addr,
-                (target_phys_addr_t)(phys_addr + size - 1));
+                (hwaddr)(phys_addr + size - 1));
         return -EINVAL;
     }
     return kvm_slot_dirty_pages_log_change(mem, log_dirty);
@@ -363,7 +363,7 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
 {
     unsigned int i, j;
     unsigned long page_number, c;
-    target_phys_addr_t addr, addr1;
+    hwaddr addr, addr1;
     unsigned int len = ((section->size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
     unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
 
@@ -406,8 +406,8 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
     KVMDirtyLog d;
     KVMSlot *mem;
     int ret = 0;
-    target_phys_addr_t start_addr = section->offset_within_address_space;
-    target_phys_addr_t end_addr = start_addr + section->size;
+    hwaddr start_addr = section->offset_within_address_space;
+    hwaddr end_addr = start_addr + section->size;
 
     d.dirty_bitmap = NULL;
     while (start_addr < end_addr) {
@@ -456,7 +456,7 @@ static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
 
 static void kvm_coalesce_mmio_region(MemoryListener *listener,
                                      MemoryRegionSection *secion,
-                                     target_phys_addr_t start, target_phys_addr_t size)
+                                     hwaddr start, hwaddr size)
 {
     KVMState *s = kvm_state;
 
@@ -473,7 +473,7 @@ static void kvm_coalesce_mmio_region(MemoryListener *listener,
 
 static void kvm_uncoalesce_mmio_region(MemoryListener *listener,
                                        MemoryRegionSection *secion,
-                                       target_phys_addr_t start, target_phys_addr_t size)
+                                       hwaddr start, hwaddr size)
 {
     KVMState *s = kvm_state;
 
@@ -556,7 +556,7 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     int err;
     MemoryRegion *mr = section->mr;
     bool log_dirty = memory_region_is_logging(mr);
-    target_phys_addr_t start_addr = section->offset_within_address_space;
+    hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     void *ram = NULL;
     unsigned delta;

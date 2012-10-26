@@ -528,7 +528,7 @@ static void open_eth_check_start_xmit(OpenEthState *s)
 }
 
 static uint64_t open_eth_reg_read(void *opaque,
-        target_phys_addr_t addr, unsigned int size)
+        hwaddr addr, unsigned int size)
 {
     static uint32_t (*reg_read[REG_MAX])(OpenEthState *s) = {
     };
@@ -620,7 +620,7 @@ static void open_eth_mii_tx_host_write(OpenEthState *s, uint32_t val)
 }
 
 static void open_eth_reg_write(void *opaque,
-        target_phys_addr_t addr, uint64_t val, unsigned int size)
+        hwaddr addr, uint64_t val, unsigned int size)
 {
     static void (*reg_write[REG_MAX])(OpenEthState *s, uint32_t val) = {
         [MODER] = open_eth_moder_host_write,
@@ -644,7 +644,7 @@ static void open_eth_reg_write(void *opaque,
 }
 
 static uint64_t open_eth_desc_read(void *opaque,
-        target_phys_addr_t addr, unsigned int size)
+        hwaddr addr, unsigned int size)
 {
     OpenEthState *s = opaque;
     uint64_t v = 0;
@@ -656,7 +656,7 @@ static uint64_t open_eth_desc_read(void *opaque,
 }
 
 static void open_eth_desc_write(void *opaque,
-        target_phys_addr_t addr, uint64_t val, unsigned int size)
+        hwaddr addr, uint64_t val, unsigned int size)
 {
     OpenEthState *s = opaque;
 

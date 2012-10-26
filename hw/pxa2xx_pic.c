@@ -119,7 +119,7 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
     return ichp;
 }
 
-static uint64_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pxa2xx_pic_mem_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
@@ -159,7 +159,7 @@ static uint64_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void pxa2xx_pic_mem_write(void *opaque, target_phys_addr_t offset,
+static void pxa2xx_pic_mem_write(void *opaque, hwaddr offset,
                                  uint64_t value, unsigned size)
 {
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
@@ -257,7 +257,7 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
     return 0;
 }
 
-DeviceState *pxa2xx_pic_init(target_phys_addr_t base, ARMCPU *cpu)
+DeviceState *pxa2xx_pic_init(hwaddr base, ARMCPU *cpu)
 {
     CPUARMState *env = &cpu->env;
     DeviceState *dev = qdev_create(NULL, "pxa2xx_pic");

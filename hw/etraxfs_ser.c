@@ -75,7 +75,7 @@ static void ser_update_irq(struct etrax_serial *s)
 }
 
 static uint64_t
-ser_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+ser_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct etrax_serial *s = opaque;
     D(CPUCRISState *env = s->env);
@@ -110,7 +110,7 @@ ser_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-ser_write(void *opaque, target_phys_addr_t addr,
+ser_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
     struct etrax_serial *s = opaque;

@@ -163,7 +163,7 @@ static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
     return ret;
 }
 
-static void ivshmem_io_write(void *opaque, target_phys_addr_t addr,
+static void ivshmem_io_write(void *opaque, hwaddr addr,
                              uint64_t val, unsigned size)
 {
     IVShmemState *s = opaque;
@@ -202,7 +202,7 @@ static void ivshmem_io_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint64_t ivshmem_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t ivshmem_io_read(void *opaque, hwaddr addr,
                                 unsigned size)
 {
 

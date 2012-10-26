@@ -349,11 +349,9 @@ void qmp_change_vnc_password(const char *password, Error **errp)
     }
 }
 
-static void qmp_change_vnc_listen(const char *target, Error **err)
+static void qmp_change_vnc_listen(const char *target, Error **errp)
 {
-    if (vnc_display_open(NULL, target) < 0) {
-        error_set(err, QERR_VNC_SERVER_FAILED, target);
-    }
+    vnc_display_open(NULL, target, errp);
 }
 
 static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,

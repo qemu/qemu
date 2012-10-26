@@ -157,7 +157,7 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
     }
 }
 
-static uint64_t msix_table_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t msix_table_mmio_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     PCIDevice *dev = opaque;
@@ -165,7 +165,7 @@ static uint64_t msix_table_mmio_read(void *opaque, target_phys_addr_t addr,
     return pci_get_long(dev->msix_table + addr);
 }
 
-static void msix_table_mmio_write(void *opaque, target_phys_addr_t addr,
+static void msix_table_mmio_write(void *opaque, hwaddr addr,
                                   uint64_t val, unsigned size)
 {
     PCIDevice *dev = opaque;
@@ -188,7 +188,7 @@ static const MemoryRegionOps msix_table_mmio_ops = {
     },
 };
 
-static uint64_t msix_pba_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     PCIDevice *dev = opaque;

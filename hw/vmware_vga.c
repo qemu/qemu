@@ -1130,7 +1130,7 @@ static void vmsvga_init(struct vmsvga_state_s *s,
     }
 }
 
-static uint64_t vmsvga_io_read(void *opaque, target_phys_addr_t addr,
+static uint64_t vmsvga_io_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     struct vmsvga_state_s *s = opaque;
@@ -1143,7 +1143,7 @@ static uint64_t vmsvga_io_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void vmsvga_io_write(void *opaque, target_phys_addr_t addr,
+static void vmsvga_io_write(void *opaque, hwaddr addr,
                             uint64_t data, unsigned size)
 {
     struct vmsvga_state_s *s = opaque;

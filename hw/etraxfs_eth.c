@@ -374,7 +374,7 @@ static void eth_validate_duplex(struct fs_eth *eth)
 }
 
 static uint64_t
-eth_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+eth_read(void *opaque, hwaddr addr, unsigned int size)
 {
 	struct fs_eth *eth = opaque;
 	uint32_t r = 0;
@@ -418,7 +418,7 @@ static void eth_update_ma(struct fs_eth *eth, int ma)
 }
 
 static void
-eth_write(void *opaque, target_phys_addr_t addr,
+eth_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
 	struct fs_eth *eth = opaque;

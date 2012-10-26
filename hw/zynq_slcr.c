@@ -246,7 +246,7 @@ static void zynq_slcr_reset(DeviceState *d)
 }
 
 static inline uint32_t zynq_slcr_read_imp(void *opaque,
-    target_phys_addr_t offset)
+    hwaddr offset)
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;
 
@@ -329,7 +329,7 @@ static inline uint32_t zynq_slcr_read_imp(void *opaque,
     }
 }
 
-static uint64_t zynq_slcr_read(void *opaque, target_phys_addr_t offset,
+static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     unsigned size)
 {
     uint32_t ret = zynq_slcr_read_imp(opaque, offset);
@@ -338,7 +338,7 @@ static uint64_t zynq_slcr_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void zynq_slcr_write(void *opaque, target_phys_addr_t offset,
+static void zynq_slcr_write(void *opaque, hwaddr offset,
                           uint64_t val, unsigned size)
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;

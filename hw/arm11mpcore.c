@@ -27,7 +27,7 @@ typedef struct mpcore_priv_state {
 
 /* Per-CPU private memory mapped IO.  */
 
-static uint64_t mpcore_scu_read(void *opaque, target_phys_addr_t offset,
+static uint64_t mpcore_scu_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
@@ -48,7 +48,7 @@ static uint64_t mpcore_scu_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void mpcore_scu_write(void *opaque, target_phys_addr_t offset,
+static void mpcore_scu_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
@@ -89,7 +89,7 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
      * at 0x200, 0x300...
      */
     for (i = 0; i < (s->num_cpu + 1); i++) {
-        target_phys_addr_t offset = 0x100 + (i * 0x100);
+        hwaddr offset = 0x100 + (i * 0x100);
         memory_region_add_subregion(&s->container, offset,
                                     sysbus_mmio_get_region(gicbusdev, i + 1));
     }
@@ -98,7 +98,7 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
      */
     for (i = 0; i < (s->num_cpu + 1) * 2; i++) {
         /* Timers at 0x600, 0x700, ...; watchdogs at 0x620, 0x720, ... */
-        target_phys_addr_t offset = 0x600 + (i >> 1) * 0x100 + (i & 1) * 0x20;
+        hwaddr offset = 0x600 + (i >> 1) * 0x100 + (i & 1) * 0x20;
         memory_region_add_subregion(&s->container, offset,
                                     sysbus_mmio_get_region(busdev, i));
     }

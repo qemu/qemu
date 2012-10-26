@@ -38,7 +38,7 @@ static uint8_t integrator_spd[128] = {
    0xe, 4, 0x1c, 1, 2, 0x20, 0xc0, 0, 0, 0, 0, 0x30, 0x28, 0x30, 0x28, 0x40
 };
 
-static uint64_t integratorcm_read(void *opaque, target_phys_addr_t offset,
+static uint64_t integratorcm_read(void *opaque, hwaddr offset,
                                   unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
@@ -141,7 +141,7 @@ static void integratorcm_update(integratorcm_state *s)
         hw_error("Core module interrupt\n");
 }
 
-static void integratorcm_write(void *opaque, target_phys_addr_t offset,
+static void integratorcm_write(void *opaque, hwaddr offset,
                                uint64_t value, unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
@@ -295,7 +295,7 @@ static void icp_pic_set_irq(void *opaque, int irq, int level)
     icp_pic_update(s);
 }
 
-static uint64_t icp_pic_read(void *opaque, target_phys_addr_t offset,
+static uint64_t icp_pic_read(void *opaque, hwaddr offset,
                              unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
@@ -324,7 +324,7 @@ static uint64_t icp_pic_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void icp_pic_write(void *opaque, target_phys_addr_t offset,
+static void icp_pic_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
@@ -381,7 +381,7 @@ static int icp_pic_init(SysBusDevice *dev)
 
 /* CP control registers.  */
 
-static uint64_t icp_control_read(void *opaque, target_phys_addr_t offset,
+static uint64_t icp_control_read(void *opaque, hwaddr offset,
                                  unsigned size)
 {
     switch (offset >> 2) {
@@ -399,7 +399,7 @@ static uint64_t icp_control_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void icp_control_write(void *opaque, target_phys_addr_t offset,
+static void icp_control_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     switch (offset >> 2) {
@@ -419,7 +419,7 @@ static const MemoryRegionOps icp_control_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void icp_control_init(target_phys_addr_t base)
+static void icp_control_init(hwaddr base)
 {
     MemoryRegion *io;
 

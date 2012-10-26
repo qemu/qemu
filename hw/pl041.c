@@ -97,7 +97,7 @@ static const char *pl041_regs_name[] = {
 
 
 #if defined(PL041_DEBUG_LEVEL)
-static const char *get_reg_name(target_phys_addr_t offset)
+static const char *get_reg_name(hwaddr offset)
 {
     if (offset <= PL041_dr1_7) {
         return pl041_regs_name[offset >> 2];
@@ -327,7 +327,7 @@ static void pl041_request_data(void *opaque)
     pl041_isr1_update(s);
 }
 
-static uint64_t pl041_read(void *opaque, target_phys_addr_t offset,
+static uint64_t pl041_read(void *opaque, hwaddr offset,
                                 unsigned size)
 {
     pl041_state *s = (pl041_state *)opaque;
@@ -361,7 +361,7 @@ static uint64_t pl041_read(void *opaque, target_phys_addr_t offset,
     return value;
 }
 
-static void pl041_write(void *opaque, target_phys_addr_t offset,
+static void pl041_write(void *opaque, hwaddr offset,
                              uint64_t value, unsigned size)
 {
     pl041_state *s = (pl041_state *)opaque;

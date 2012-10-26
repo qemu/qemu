@@ -144,6 +144,7 @@ int bdrv_reopen_prepare(BDRVReopenState *reopen_state,
 void bdrv_reopen_commit(BDRVReopenState *reopen_state);
 void bdrv_reopen_abort(BDRVReopenState *reopen_state);
 void bdrv_close(BlockDriverState *bs);
+void bdrv_add_close_notifier(BlockDriverState *bs, Notifier *notify);
 int bdrv_attach_dev(BlockDriverState *bs, void *dev);
 void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev);
 void bdrv_detach_dev(BlockDriverState *bs, void *dev);

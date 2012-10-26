@@ -141,7 +141,7 @@ static void gptm_tick(void *opaque)
     gptm_update_irq(s);
 }
 
-static uint64_t gptm_read(void *opaque, target_phys_addr_t offset,
+static uint64_t gptm_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     gptm_state *s = (gptm_state *)opaque;
@@ -190,7 +190,7 @@ static uint64_t gptm_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void gptm_write(void *opaque, target_phys_addr_t offset,
+static void gptm_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     gptm_state *s = (gptm_state *)opaque;
@@ -410,7 +410,7 @@ static int ssys_board_class(const ssys_state *s)
     }
 }
 
-static uint64_t ssys_read(void *opaque, target_phys_addr_t offset,
+static uint64_t ssys_read(void *opaque, hwaddr offset,
                           unsigned size)
 {
     ssys_state *s = (ssys_state *)opaque;
@@ -515,7 +515,7 @@ static void ssys_calculate_system_clock(ssys_state *s)
     }
 }
 
-static void ssys_write(void *opaque, target_phys_addr_t offset,
+static void ssys_write(void *opaque, hwaddr offset,
                        uint64_t value, unsigned size)
 {
     ssys_state *s = (ssys_state *)opaque;
@@ -701,7 +701,7 @@ typedef struct {
 #define STELLARIS_I2C_MCS_IDLE    0x20
 #define STELLARIS_I2C_MCS_BUSBSY  0x40
 
-static uint64_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stellaris_i2c_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
@@ -738,7 +738,7 @@ static void stellaris_i2c_update(stellaris_i2c_state *s)
     qemu_set_irq(s->irq, level);
 }
 
-static void stellaris_i2c_write(void *opaque, target_phys_addr_t offset,
+static void stellaris_i2c_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
@@ -989,7 +989,7 @@ static void stellaris_adc_reset(stellaris_adc_state *s)
     }
 }
 
-static uint64_t stellaris_adc_read(void *opaque, target_phys_addr_t offset,
+static uint64_t stellaris_adc_read(void *opaque, hwaddr offset,
                                    unsigned size)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
@@ -1037,7 +1037,7 @@ static uint64_t stellaris_adc_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
+static void stellaris_adc_write(void *opaque, hwaddr offset,
                                 uint64_t value, unsigned size)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;

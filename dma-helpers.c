@@ -281,7 +281,7 @@ void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
 bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
                             DMADirection dir)
 {
-    target_phys_addr_t paddr, plen;
+    hwaddr paddr, plen;
 
 #ifdef DEBUG_IOMMU
     fprintf(stderr, "dma_memory_check context=%p addr=0x" DMA_ADDR_FMT
@@ -308,7 +308,7 @@ bool iommu_dma_memory_valid(DMAContext *dma, dma_addr_t addr, dma_addr_t len,
 int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
                         void *buf, dma_addr_t len, DMADirection dir)
 {
-    target_phys_addr_t paddr, plen;
+    hwaddr paddr, plen;
     int err;
 
 #ifdef DEBUG_IOMMU
@@ -346,7 +346,7 @@ int iommu_dma_memory_rw(DMAContext *dma, dma_addr_t addr,
 int iommu_dma_memory_set(DMAContext *dma, dma_addr_t addr, uint8_t c,
                          dma_addr_t len)
 {
-    target_phys_addr_t paddr, plen;
+    hwaddr paddr, plen;
     int err;
 
 #ifdef DEBUG_IOMMU
@@ -392,7 +392,7 @@ void *iommu_dma_memory_map(DMAContext *dma, dma_addr_t addr, dma_addr_t *len,
                            DMADirection dir)
 {
     int err;
-    target_phys_addr_t paddr, plen;
+    hwaddr paddr, plen;
     void *buf;
 
     if (dma->map) {

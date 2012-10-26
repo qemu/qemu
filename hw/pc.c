@@ -638,13 +638,13 @@ static void load_linux(void *fw_cfg,
                        const char *kernel_filename,
 		       const char *initrd_filename,
 		       const char *kernel_cmdline,
-                       target_phys_addr_t max_ram_size)
+                       hwaddr max_ram_size)
 {
     uint16_t protocol;
     int setup_size, kernel_size, initrd_size = 0, cmdline_size;
     uint32_t initrd_max;
     uint8_t header[8192], *setup, *kernel, *initrd_data;
-    target_phys_addr_t real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
+    hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f;
     char *vmode;
 

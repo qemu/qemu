@@ -84,7 +84,7 @@ static void uart_update_status(struct xlx_uartlite *s)
 }
 
 static uint64_t
-uart_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+uart_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct xlx_uartlite *s = opaque;
     uint32_t r = 0;
@@ -109,7 +109,7 @@ uart_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-uart_write(void *opaque, target_phys_addr_t addr,
+uart_write(void *opaque, hwaddr addr,
            uint64_t val64, unsigned int size)
 {
     struct xlx_uartlite *s = opaque;

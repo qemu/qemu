@@ -61,7 +61,7 @@ typedef struct Sun4c_INTCTLState {
 
 static void sun4c_check_interrupts(void *opaque);
 
-static uint64_t sun4c_intctl_mem_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sun4c_intctl_mem_read(void *opaque, hwaddr addr,
                                       unsigned size)
 {
     Sun4c_INTCTLState *s = opaque;
@@ -73,7 +73,7 @@ static uint64_t sun4c_intctl_mem_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sun4c_intctl_mem_write(void *opaque, target_phys_addr_t addr,
+static void sun4c_intctl_mem_write(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
     Sun4c_INTCTLState *s = opaque;

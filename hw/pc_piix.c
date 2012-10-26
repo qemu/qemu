@@ -195,7 +195,7 @@ static void pc_init1(MemoryRegion *system_memory,
                               below_4g_mem_size,
                               0x100000000ULL - below_4g_mem_size,
                               0x100000000ULL + above_4g_mem_size,
-                              (sizeof(target_phys_addr_t) == 4
+                              (sizeof(hwaddr) == 4
                                ? 0
                                : ((uint64_t)1 << 62)),
                               pci_memory, ram_memory);

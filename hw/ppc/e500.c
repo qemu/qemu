@@ -108,9 +108,9 @@ static void dt_serial_create(void *fdt, unsigned long long offset,
 
 static int ppce500_load_device_tree(CPUPPCState *env,
                                     PPCE500Params *params,
-                                    target_phys_addr_t addr,
-                                    target_phys_addr_t initrd_base,
-                                    target_phys_addr_t initrd_size)
+                                    hwaddr addr,
+                                    hwaddr initrd_base,
+                                    hwaddr initrd_size)
 {
     int ret = -1;
     uint64_t mem_reg_property[] = { 0, cpu_to_be64(params->ram_size) };
@@ -346,7 +346,7 @@ out:
 }
 
 /* Create -kernel TLB entries for BookE.  */
-static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
+static inline hwaddr booke206_page_size_to_tlb(uint64_t size)
 {
     return 63 - clz64(size >> 10);
 }
@@ -355,7 +355,7 @@ static void mmubooke_create_initial_mapping(CPUPPCState *env)
 {
     struct boot_info *bi = env->load_info;
     ppcmas_tlb_t *tlb = booke206_get_tlbm(env, 1, 0, 0);
-    target_phys_addr_t size, dt_end;
+    hwaddr size, dt_end;
     int ps;
 
     /* Our initial TLB entry needs to cover everything from 0 to
@@ -412,8 +412,8 @@ void ppce500_init(PPCE500Params *params)
     CPUPPCState *env = NULL;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    target_phys_addr_t entry=0;
-    target_phys_addr_t loadaddr=UIMAGE_LOAD_BASE;
+    hwaddr entry=0;
+    hwaddr loadaddr=UIMAGE_LOAD_BASE;
     target_long kernel_size=0;
     target_ulong dt_base = 0;
     target_ulong initrd_base = 0;

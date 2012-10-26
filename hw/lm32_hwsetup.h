@@ -71,7 +71,7 @@ static inline void hwsetup_free(HWSetup *hw)
 }
 
 static inline void hwsetup_create_rom(HWSetup *hw,
-        target_phys_addr_t base)
+        hwaddr base)
 {
     rom_add_blob("hwsetup", hw->data, TARGET_PAGE_SIZE, base);
 }

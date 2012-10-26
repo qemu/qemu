@@ -89,7 +89,7 @@ static void sysctl_icap_write(MilkymistSysctlState *s, uint32_t value)
     }
 }
 
-static uint64_t sysctl_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sysctl_read(void *opaque, hwaddr addr,
                             unsigned size)
 {
     MilkymistSysctlState *s = opaque;
@@ -134,7 +134,7 @@ static uint64_t sysctl_read(void *opaque, target_phys_addr_t addr,
     return r;
 }
 
-static void sysctl_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+static void sysctl_write(void *opaque, hwaddr addr, uint64_t value,
                          unsigned size)
 {
     MilkymistSysctlState *s = opaque;

@@ -78,8 +78,8 @@ void tlb_fill(CPUS390XState *env, target_ulong addr, int is_write, int mmu_idx,
 static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
                             uint8_t byte)
 {
-    target_phys_addr_t dest_phys;
-    target_phys_addr_t len = l;
+    hwaddr dest_phys;
+    hwaddr len = l;
     void *dest_p;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     int flags;
@@ -100,9 +100,9 @@ static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
 static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
                              uint64_t src)
 {
-    target_phys_addr_t dest_phys;
-    target_phys_addr_t src_phys;
-    target_phys_addr_t len = l;
+    hwaddr dest_phys;
+    hwaddr src_phys;
+    hwaddr len = l;
     void *dest_p;
     void *src_p;
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;

@@ -292,7 +292,7 @@ static void platform_ioport_bar_setup(PCIXenPlatformState *d)
     memory_region_init_io(&d->bar, &xen_pci_io_ops, d, "xen-pci", 0x100);
 }
 
-static uint64_t platform_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t platform_mmio_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     DPRINTF("Warning: attempted read from physical address "
@@ -301,7 +301,7 @@ static uint64_t platform_mmio_read(void *opaque, target_phys_addr_t addr,
     return 0;
 }
 
-static void platform_mmio_write(void *opaque, target_phys_addr_t addr,
+static void platform_mmio_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
     DPRINTF("Warning: attempted write of 0x%"PRIx64" to physical "

@@ -59,8 +59,8 @@ typedef struct MegasasCmd {
     uint16_t count;
     uint64_t context;
 
-    target_phys_addr_t pa;
-    target_phys_addr_t pa_size;
+    hwaddr pa;
+    hwaddr pa_size;
     union mfi_frame *frame;
     SCSIRequest *req;
     QEMUSGList qsg;
@@ -277,7 +277,7 @@ static int megasas_build_sense(MegasasCmd *cmd, uint8_t *sense_ptr,
     uint8_t sense_len)
 {
     uint32_t pa_hi = 0, pa_lo;
-    target_phys_addr_t pa;
+    hwaddr pa;
 
     if (sense_len > cmd->frame->header.sense_len) {
         sense_len = cmd->frame->header.sense_len;
@@ -404,7 +404,7 @@ static int megasas_next_index(MegasasState *s, int index, int limit)
 }
 
 static MegasasCmd *megasas_lookup_frame(MegasasState *s,
-    target_phys_addr_t frame)
+    hwaddr frame)
 {
     MegasasCmd *cmd = NULL;
     int num = 0, index;
@@ -424,7 +424,7 @@ static MegasasCmd *megasas_lookup_frame(MegasasState *s,
 }
 
 static MegasasCmd *megasas_next_frame(MegasasState *s,
-    target_phys_addr_t frame)
+    hwaddr frame)
 {
     MegasasCmd *cmd = NULL;
     int num = 0, index;
@@ -452,11 +452,11 @@ static MegasasCmd *megasas_next_frame(MegasasState *s,
 }
 
 static MegasasCmd *megasas_enqueue_frame(MegasasState *s,
-    target_phys_addr_t frame, uint64_t context, int count)
+    hwaddr frame, uint64_t context, int count)
 {
     MegasasCmd *cmd = NULL;
     int frame_size = MFI_FRAME_SIZE * 16;
-    target_phys_addr_t frame_size_p = frame_size;
+    hwaddr frame_size_p = frame_size;
 
     cmd = megasas_next_frame(s, frame);
     /* All frames busy */
@@ -561,7 +561,7 @@ static void megasas_abort_command(MegasasCmd *cmd)
 static int megasas_init_firmware(MegasasState *s, MegasasCmd *cmd)
 {
     uint32_t pa_hi, pa_lo;
-    target_phys_addr_t iq_pa, initq_size;
+    hwaddr iq_pa, initq_size;
     struct mfi_init_qinfo *initq;
     uint32_t flags;
     int ret = MFI_STAT_OK;
@@ -1771,7 +1771,7 @@ static void megasas_command_cancel(SCSIRequest *req)
 static int megasas_handle_abort(MegasasState *s, MegasasCmd *cmd)
 {
     uint64_t abort_ctx = le64_to_cpu(cmd->frame->abort.abort_context);
-    target_phys_addr_t abort_addr, addr_hi, addr_lo;
+    hwaddr abort_addr, addr_hi, addr_lo;
     MegasasCmd *abort_cmd;
 
     addr_hi = le32_to_cpu(cmd->frame->abort.abort_mfi_addr_hi);
@@ -1861,7 +1861,7 @@ static void megasas_handle_frame(MegasasState *s, uint64_t frame_addr,
     }
 }
 
-static uint64_t megasas_mmio_read(void *opaque, target_phys_addr_t addr,
+static uint64_t megasas_mmio_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     MegasasState *s = opaque;
@@ -1897,7 +1897,7 @@ static uint64_t megasas_mmio_read(void *opaque, target_phys_addr_t addr,
     return retval;
 }
 
-static void megasas_mmio_write(void *opaque, target_phys_addr_t addr,
+static void megasas_mmio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     MegasasState *s = opaque;
@@ -1977,13 +1977,13 @@ static const MemoryRegionOps megasas_mmio_ops = {
     }
 };
 
-static uint64_t megasas_port_read(void *opaque, target_phys_addr_t addr,
+static uint64_t megasas_port_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     return megasas_mmio_read(opaque, addr & 0xff, size);
 }
 
-static void megasas_port_write(void *opaque, target_phys_addr_t addr,
+static void megasas_port_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     megasas_mmio_write(opaque, addr & 0xff, val, size);
@@ -1999,7 +1999,7 @@ static const MemoryRegionOps megasas_port_ops = {
     }
 };
 
-static uint64_t megasas_queue_read(void *opaque, target_phys_addr_t addr,
+static uint64_t megasas_queue_read(void *opaque, hwaddr addr,
                                    unsigned size)
 {
     return 0;

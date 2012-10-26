@@ -58,7 +58,7 @@ struct GutsState {
 
 typedef struct GutsState GutsState;
 
-static uint64_t mpc8544_guts_read(void *opaque, target_phys_addr_t addr,
+static uint64_t mpc8544_guts_read(void *opaque, hwaddr addr,
                                   unsigned size)
 {
     uint32_t value = 0;
@@ -80,7 +80,7 @@ static uint64_t mpc8544_guts_read(void *opaque, target_phys_addr_t addr,
     return value;
 }
 
-static void mpc8544_guts_write(void *opaque, target_phys_addr_t addr,
+static void mpc8544_guts_write(void *opaque, hwaddr addr,
                                uint64_t value, unsigned size)
 {
     addr &= MPC8544_GUTS_MMIO_SIZE - 1;

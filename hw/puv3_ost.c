@@ -28,7 +28,7 @@ typedef struct {
     uint32_t reg_OIER;
 } PUV3OSTState;
 
-static uint64_t puv3_ost_read(void *opaque, target_phys_addr_t offset,
+static uint64_t puv3_ost_read(void *opaque, hwaddr offset,
         unsigned size)
 {
     PUV3OSTState *s = opaque;
@@ -51,7 +51,7 @@ static uint64_t puv3_ost_read(void *opaque, target_phys_addr_t offset,
     return ret;
 }
 
-static void puv3_ost_write(void *opaque, target_phys_addr_t offset,
+static void puv3_ost_write(void *opaque, hwaddr offset,
         uint64_t value, unsigned size)
 {
     PUV3OSTState *s = opaque;

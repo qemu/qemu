@@ -74,7 +74,7 @@ static void update_irq(struct xlx_pic *p)
 }
 
 static uint64_t
-pic_read(void *opaque, target_phys_addr_t addr, unsigned int size)
+pic_read(void *opaque, hwaddr addr, unsigned int size)
 {
     struct xlx_pic *p = opaque;
     uint32_t r = 0;
@@ -93,7 +93,7 @@ pic_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 }
 
 static void
-pic_write(void *opaque, target_phys_addr_t addr,
+pic_write(void *opaque, hwaddr addr,
           uint64_t val64, unsigned int size)
 {
     struct xlx_pic *p = opaque;

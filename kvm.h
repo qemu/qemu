@@ -259,7 +259,7 @@ static inline void cpu_synchronize_post_init(CPUArchState *env)
 
 #if !defined(CONFIG_USER_ONLY)
 int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
-                                       target_phys_addr_t *phys_addr);
+                                       hwaddr *phys_addr);
 #endif
 
 #endif

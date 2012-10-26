@@ -456,7 +456,7 @@ typedef struct SM501State {
     DisplayState *ds;
 
     /* status & internal resources */
-    target_phys_addr_t base;
+    hwaddr base;
     uint32_t local_mem_size_index;
     uint8_t * local_mem;
     MemoryRegion local_mem_region;
@@ -726,7 +726,7 @@ static void sm501_2d_operation(SM501State * s)
     }
 }
 
-static uint64_t sm501_system_config_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sm501_system_config_read(void *opaque, hwaddr addr,
                                          unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -779,7 +779,7 @@ static uint64_t sm501_system_config_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sm501_system_config_write(void *opaque, target_phys_addr_t addr,
+static void sm501_system_config_write(void *opaque, hwaddr addr,
                                       uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -837,7 +837,7 @@ static const MemoryRegionOps sm501_system_config_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
+static uint32_t sm501_palette_read(void *opaque, hwaddr addr)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 palette read addr=%x\n", (int)addr);
@@ -850,7 +850,7 @@ static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void sm501_palette_write(void *opaque,
-				target_phys_addr_t addr, uint32_t value)
+				hwaddr addr, uint32_t value)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 palette write addr=%x, val=%x\n",
@@ -863,7 +863,7 @@ static void sm501_palette_write(void *opaque,
     *(uint32_t*)&s->dc_palette[addr] = value;
 }
 
-static uint64_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sm501_disp_ctrl_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -958,7 +958,7 @@ static uint64_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sm501_disp_ctrl_write(void *opaque, target_phys_addr_t addr,
+static void sm501_disp_ctrl_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -1073,7 +1073,7 @@ static const MemoryRegionOps sm501_disp_ctrl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr,
+static uint64_t sm501_2d_engine_read(void *opaque, hwaddr addr,
                                      unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
@@ -1093,7 +1093,7 @@ static uint64_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-static void sm501_2d_engine_write(void *opaque, target_phys_addr_t addr,
+static void sm501_2d_engine_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;

@@ -56,12 +56,12 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-static uint64_t rtc_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t rtc_read(void *opaque, hwaddr addr, unsigned size)
 {
     return cpu_inw(0x71);
 }
 
-static void rtc_write(void *opaque, target_phys_addr_t addr,
+static void rtc_write(void *opaque, hwaddr addr,
                       uint64_t val, unsigned size)
 {
     cpu_outw(0x71, val & 0xff);
@@ -73,7 +73,7 @@ static const MemoryRegionOps rtc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t dma_dummy_read(void *opaque, target_phys_addr_t addr,
+static uint64_t dma_dummy_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     /* Nothing to do. That is only to ensure that
@@ -81,7 +81,7 @@ static uint64_t dma_dummy_read(void *opaque, target_phys_addr_t addr,
     return 0xff;
 }
 
-static void dma_dummy_write(void *opaque, target_phys_addr_t addr,
+static void dma_dummy_write(void *opaque, hwaddr addr,
                             uint64_t val, unsigned size)
 {
     /* Nothing to do. That is only to ensure that

@@ -71,7 +71,7 @@ struct MilkymistSoftUsbState {
 };
 typedef struct MilkymistSoftUsbState MilkymistSoftUsbState;
 
-static uint64_t softusb_read(void *opaque, target_phys_addr_t addr,
+static uint64_t softusb_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
     MilkymistSoftUsbState *s = opaque;
@@ -95,7 +95,7 @@ static uint64_t softusb_read(void *opaque, target_phys_addr_t addr,
 }
 
 static void
-softusb_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+softusb_write(void *opaque, hwaddr addr, uint64_t value,
               unsigned size)
 {
     MilkymistSoftUsbState *s = opaque;

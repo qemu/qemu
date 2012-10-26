@@ -632,12 +632,12 @@ typedef struct PROMState {
 
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
 {
-    target_phys_addr_t *base_addr = (target_phys_addr_t *)opaque;
+    hwaddr *base_addr = (hwaddr *)opaque;
     return addr + *base_addr - PROM_VADDR;
 }
 
 /* Boot PROM (OpenBIOS) */
-static void prom_init(target_phys_addr_t addr, const char *bios_name)
+static void prom_init(hwaddr addr, const char *bios_name)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -721,7 +721,7 @@ static int ram_init1(SysBusDevice *dev)
     return 0;
 }
 
-static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size)
+static void ram_init(hwaddr addr, ram_addr_t RAM_size)
 {
     DeviceState *dev;
     SysBusDevice *s;

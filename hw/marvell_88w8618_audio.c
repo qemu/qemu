@@ -138,7 +138,7 @@ static void mv88w8618_audio_clock_update(mv88w8618_audio_state *s)
     wm8750_set_bclk_in(s->wm, rate);
 }
 
-static uint64_t mv88w8618_audio_read(void *opaque, target_phys_addr_t offset,
+static uint64_t mv88w8618_audio_read(void *opaque, hwaddr offset,
                                     unsigned size)
 {
     mv88w8618_audio_state *s = opaque;
@@ -164,7 +164,7 @@ static uint64_t mv88w8618_audio_read(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static void mv88w8618_audio_write(void *opaque, target_phys_addr_t offset,
+static void mv88w8618_audio_write(void *opaque, hwaddr offset,
                                   uint64_t value, unsigned size)
 {
     mv88w8618_audio_state *s = opaque;

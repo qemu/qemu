@@ -206,9 +206,9 @@ static void intel_hda_reset(DeviceState *dev);
 
 /* --------------------------------------------------------------------- */
 
-static target_phys_addr_t intel_hda_addr(uint32_t lbase, uint32_t ubase)
+static hwaddr intel_hda_addr(uint32_t lbase, uint32_t ubase)
 {
-    target_phys_addr_t addr;
+    hwaddr addr;
 
     addr = ((uint64_t)ubase << 32) | lbase;
     return addr;
@@ -295,7 +295,7 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
 
 static void intel_hda_corb_run(IntelHDAState *d)
 {
-    target_phys_addr_t addr;
+    hwaddr addr;
     uint32_t rp, verb;
 
     if (d->ics & ICH6_IRS_BUSY) {
@@ -332,7 +332,7 @@ static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t res
 {
     HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
-    target_phys_addr_t addr;
+    hwaddr addr;
     uint32_t wp, ex;
 
     if (d->ics & ICH6_IRS_BUSY) {
@@ -381,7 +381,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
 {
     HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
-    target_phys_addr_t addr;
+    hwaddr addr;
     uint32_t s, copy, left;
     IntelHDAStream *st;
     bool irq = false;
@@ -453,7 +453,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
 
 static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
 {
-    target_phys_addr_t addr;
+    hwaddr addr;
     uint8_t buf[16];
     uint32_t i;
 
@@ -890,7 +890,7 @@ static const struct IntelHDAReg regtab[] = {
 
 };
 
-static const IntelHDAReg *intel_hda_reg_find(IntelHDAState *d, target_phys_addr_t addr)
+static const IntelHDAReg *intel_hda_reg_find(IntelHDAState *d, hwaddr addr)
 {
     const IntelHDAReg *reg;
 
@@ -1033,7 +1033,7 @@ static void intel_hda_regs_reset(IntelHDAState *d)
 
 /* --------------------------------------------------------------------- */
 
-static void intel_hda_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void intel_hda_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
@@ -1041,7 +1041,7 @@ static void intel_hda_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_
     intel_hda_reg_write(d, reg, val, 0xff);
 }
 
-static void intel_hda_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void intel_hda_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
@@ -1049,7 +1049,7 @@ static void intel_hda_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_
     intel_hda_reg_write(d, reg, val, 0xffff);
 }
 
-static void intel_hda_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void intel_hda_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
@@ -1057,7 +1057,7 @@ static void intel_hda_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_
     intel_hda_reg_write(d, reg, val, 0xffffffff);
 }
 
-static uint32_t intel_hda_mmio_readb(void *opaque, target_phys_addr_t addr)
+static uint32_t intel_hda_mmio_readb(void *opaque, hwaddr addr)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
@@ -1065,7 +1065,7 @@ static uint32_t intel_hda_mmio_readb(void *opaque, target_phys_addr_t addr)
     return intel_hda_reg_read(d, reg, 0xff);
 }
 
-static uint32_t intel_hda_mmio_readw(void *opaque, target_phys_addr_t addr)
+static uint32_t intel_hda_mmio_readw(void *opaque, hwaddr addr)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);
@@ -1073,7 +1073,7 @@ static uint32_t intel_hda_mmio_readw(void *opaque, target_phys_addr_t addr)
     return intel_hda_reg_read(d, reg, 0xffff);
 }
 
-static uint32_t intel_hda_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint32_t intel_hda_mmio_readl(void *opaque, hwaddr addr)
 {
     IntelHDAState *d = opaque;
     const IntelHDAReg *reg = intel_hda_reg_find(d, addr);

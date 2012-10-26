@@ -503,7 +503,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     uint64_t ptep, pte;
     target_ulong pde_addr, pte_addr;
     int error_code, is_dirty, prot, page_size, is_write, is_user;
-    target_phys_addr_t paddr;
+    hwaddr paddr;
     uint32_t page_offset;
     target_ulong vaddr, virt_addr;
 
@@ -869,11 +869,11 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
+hwaddr cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
 {
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
-    target_phys_addr_t paddr;
+    hwaddr paddr;
     uint32_t page_offset;
     int page_size;
 

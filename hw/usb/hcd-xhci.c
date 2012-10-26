@@ -2364,7 +2364,7 @@ static void xhci_reset(DeviceState *dev)
     xhci_mfwrap_update(xhci);
 }
 
-static uint64_t xhci_cap_read(void *ptr, target_phys_addr_t reg, unsigned size)
+static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
 {
     XHCIState *xhci = ptr;
     uint32_t ret;
@@ -2431,7 +2431,7 @@ static uint64_t xhci_cap_read(void *ptr, target_phys_addr_t reg, unsigned size)
     return ret;
 }
 
-static uint64_t xhci_port_read(void *ptr, target_phys_addr_t reg, unsigned size)
+static uint64_t xhci_port_read(void *ptr, hwaddr reg, unsigned size)
 {
     XHCIPort *port = ptr;
     uint32_t ret;
@@ -2455,7 +2455,7 @@ static uint64_t xhci_port_read(void *ptr, target_phys_addr_t reg, unsigned size)
     return ret;
 }
 
-static void xhci_port_write(void *ptr, target_phys_addr_t reg,
+static void xhci_port_write(void *ptr, hwaddr reg,
                             uint64_t val, unsigned size)
 {
     XHCIPort *port = ptr;
@@ -2493,7 +2493,7 @@ static void xhci_port_write(void *ptr, target_phys_addr_t reg,
     }
 }
 
-static uint64_t xhci_oper_read(void *ptr, target_phys_addr_t reg, unsigned size)
+static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
 {
     XHCIState *xhci = ptr;
     uint32_t ret;
@@ -2535,7 +2535,7 @@ static uint64_t xhci_oper_read(void *ptr, target_phys_addr_t reg, unsigned size)
     return ret;
 }
 
-static void xhci_oper_write(void *ptr, target_phys_addr_t reg,
+static void xhci_oper_write(void *ptr, hwaddr reg,
                             uint64_t val, unsigned size)
 {
     XHCIState *xhci = ptr;
@@ -2596,7 +2596,7 @@ static void xhci_oper_write(void *ptr, target_phys_addr_t reg,
     }
 }
 
-static uint64_t xhci_runtime_read(void *ptr, target_phys_addr_t reg,
+static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
                                   unsigned size)
 {
     XHCIState *xhci = ptr;
@@ -2644,7 +2644,7 @@ static uint64_t xhci_runtime_read(void *ptr, target_phys_addr_t reg,
     return ret;
 }
 
-static void xhci_runtime_write(void *ptr, target_phys_addr_t reg,
+static void xhci_runtime_write(void *ptr, hwaddr reg,
                                uint64_t val, unsigned size)
 {
     XHCIState *xhci = ptr;
@@ -2700,7 +2700,7 @@ static void xhci_runtime_write(void *ptr, target_phys_addr_t reg,
     }
 }
 
-static uint64_t xhci_doorbell_read(void *ptr, target_phys_addr_t reg,
+static uint64_t xhci_doorbell_read(void *ptr, hwaddr reg,
                                    unsigned size)
 {
     /* doorbells always read as 0 */
@@ -2708,7 +2708,7 @@ static uint64_t xhci_doorbell_read(void *ptr, target_phys_addr_t reg,
     return 0;
 }
 
-static void xhci_doorbell_write(void *ptr, target_phys_addr_t reg,
+static void xhci_doorbell_write(void *ptr, hwaddr reg,
                                 uint64_t val, unsigned size)
 {
     XHCIState *xhci = ptr;

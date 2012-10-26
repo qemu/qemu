@@ -37,7 +37,7 @@ typedef struct CPUMIPSTLBContext CPUMIPSTLBContext;
 struct CPUMIPSTLBContext {
     uint32_t nb_tlb;
     uint32_t tlb_in_use;
-    int (*map_address) (struct CPUMIPSState *env, target_phys_addr_t *physical, int *prot, target_ulong address, int rw, int access_type);
+    int (*map_address) (struct CPUMIPSState *env, hwaddr *physical, int *prot, target_ulong address, int rw, int access_type);
     void (*helper_tlbwi)(struct CPUMIPSState *env);
     void (*helper_tlbwr)(struct CPUMIPSState *env);
     void (*helper_tlbp)(struct CPUMIPSState *env);
@@ -479,18 +479,18 @@ struct CPUMIPSState {
 #include "cpu-qom.h"
 
 #if !defined(CONFIG_USER_ONLY)
-int no_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
+int no_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                         target_ulong address, int rw, int access_type);
-int fixed_mmu_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
+int fixed_mmu_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                            target_ulong address, int rw, int access_type);
-int r4k_map_address (CPUMIPSState *env, target_phys_addr_t *physical, int *prot,
+int r4k_map_address (CPUMIPSState *env, hwaddr *physical, int *prot,
                      target_ulong address, int rw, int access_type);
 void r4k_helper_tlbwi(CPUMIPSState *env);
 void r4k_helper_tlbwr(CPUMIPSState *env);
 void r4k_helper_tlbp(CPUMIPSState *env);
 void r4k_helper_tlbr(CPUMIPSState *env);
 
-void cpu_unassigned_access(CPUMIPSState *env, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMIPSState *env, hwaddr addr,
                            int is_write, int is_exec, int unused, int size);
 #endif
 
@@ -658,7 +658,7 @@ int cpu_mips_handle_mmu_fault (CPUMIPSState *env, target_ulong address, int rw,
 void do_interrupt (CPUMIPSState *env);
 #if !defined(CONFIG_USER_ONLY)
 void r4k_invalidate_tlb (CPUMIPSState *env, int idx, int use_extra);
-target_phys_addr_t cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
+hwaddr cpu_mips_translate_address (CPUMIPSState *env, target_ulong address,
 		                               int rw);
 #endif
 

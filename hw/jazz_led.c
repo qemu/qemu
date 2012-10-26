@@ -39,7 +39,7 @@ typedef struct LedState {
     screen_state_t state;
 } LedState;
 
-static uint64_t jazz_led_read(void *opaque, target_phys_addr_t addr,
+static uint64_t jazz_led_read(void *opaque, hwaddr addr,
                               unsigned int size)
 {
     LedState *s = opaque;
@@ -51,7 +51,7 @@ static uint64_t jazz_led_read(void *opaque, target_phys_addr_t addr,
     return val;
 }
 
-static void jazz_led_write(void *opaque, target_phys_addr_t addr,
+static void jazz_led_write(void *opaque, hwaddr addr,
                            uint64_t val, unsigned int size)
 {
     LedState *s = opaque;

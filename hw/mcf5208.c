@@ -45,7 +45,7 @@ static void m5208_timer_update(m5208_timer_state *s)
         qemu_irq_lower(s->irq);
 }
 
-static void m5208_timer_write(void *opaque, target_phys_addr_t offset,
+static void m5208_timer_write(void *opaque, hwaddr offset,
                               uint64_t value, unsigned size)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
@@ -107,7 +107,7 @@ static void m5208_timer_trigger(void *opaque)
     m5208_timer_update(s);
 }
 
-static uint64_t m5208_timer_read(void *opaque, target_phys_addr_t addr,
+static uint64_t m5208_timer_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
@@ -130,7 +130,7 @@ static const MemoryRegionOps m5208_timer_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint64_t m5208_sys_read(void *opaque, target_phys_addr_t addr,
+static uint64_t m5208_sys_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     switch (addr) {
@@ -152,7 +152,7 @@ static uint64_t m5208_sys_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
+static void m5208_sys_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
@@ -195,7 +195,7 @@ static void mcf5208evb_init(QEMUMachineInitArgs *args)
     CPUM68KState *env;
     int kernel_size;
     uint64_t elf_entry;
-    target_phys_addr_t entry;
+    hwaddr entry;
     qemu_irq *pic;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
