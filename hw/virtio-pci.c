@@ -857,6 +857,19 @@ static int virtio_rng_init_pci(PCIDevice *pci_dev)
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
 
+    if (proxy->rng.rng == NULL) {
+        proxy->rng.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
+
+        object_property_add_child(OBJECT(pci_dev),
+                                  "default-backend",
+                                  OBJECT(proxy->rng.default_backend),
+                                  NULL);
+
+        object_property_set_link(OBJECT(pci_dev),
+                                 OBJECT(proxy->rng.default_backend),
+                                 "rng", NULL);
+    }
+
     vdev = virtio_rng_init(&pci_dev->qdev, &proxy->rng);
     if (!vdev) {
         return -1;
