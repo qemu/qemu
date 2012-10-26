@@ -56,7 +56,7 @@ static void mcpx_pm_update_sci_gn(ACPIREGS *regs)
 #define MCPX_PMIO_PM_TMR    0x8
 
 static void mcpx_pm_ioport_write(void *opaque,
-                                 target_phys_addr_t addr,
+                                 hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     MCPX_PMRegs *pm = opaque;
@@ -81,7 +81,7 @@ static void mcpx_pm_ioport_write(void *opaque,
 }
 
 static uint64_t mcpx_pm_ioport_read(void *opaque,
-                                    target_phys_addr_t addr,
+                                    hwaddr addr,
                                     unsigned size)
 {
     MCPX_PMRegs *pm = opaque;

@@ -77,19 +77,19 @@ typedef struct NV2AState {
 
     MemoryRegion block_mmio[NV_NUM_BLOCKS];
 
-    target_phys_addr_t crtc_start;
+    hwaddr crtc_start;
 } NV2AState;
 
 
 
 
 static uint64_t nv2a_pmc_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PMC: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pmc_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pmc_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PMC: [0x%llx] = 0x%02llx\n", addr, val);
@@ -97,12 +97,12 @@ static void nv2a_pmc_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pbus_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PBUS: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pbus_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pbus_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PBUS: [0x%llx] = 0x%02llx\n", addr, val);
@@ -110,12 +110,12 @@ static void nv2a_pbus_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pfifo_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PFIFO: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pfifo_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pfifo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PFIFO: [0x%llx] = 0x%02llx\n", addr, val);
@@ -123,12 +123,12 @@ static void nv2a_pfifo_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_prma_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMA: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_prma_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_prma_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMA: [0x%llx] = 0x%02llx\n", addr, val);
@@ -136,12 +136,12 @@ static void nv2a_prma_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pvideo_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVIDEO: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pvideo_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pvideo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVIDEO: [0x%llx] = 0x%02llx\n", addr, val);
@@ -149,12 +149,12 @@ static void nv2a_pvideo_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_ptimer_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PTIMER: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_ptimer_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_ptimer_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PTIMER: [0x%llx] = 0x%02llx\n", addr, val);
@@ -162,12 +162,12 @@ static void nv2a_ptimer_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pcounter_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PCOUNTER: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pcounter_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pcounter_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PCOUNTER: [0x%llx] = 0x%02llx\n", addr, val);
@@ -175,12 +175,12 @@ static void nv2a_pcounter_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pvpe_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVPE: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pvpe_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pvpe_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PVPE: [0x%llx] = 0x%02llx\n", addr, val);
@@ -188,12 +188,12 @@ static void nv2a_pvpe_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_ptv_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PTV: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_ptv_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_ptv_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PTV: [0x%llx] = 0x%02llx\n", addr, val);
@@ -201,12 +201,12 @@ static void nv2a_ptv_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_prmfb_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMFB: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_prmfb_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_prmfb_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMFB: [0x%llx] = 0x%02llx\n", addr, val);
@@ -215,7 +215,7 @@ static void nv2a_prmfb_write(void *opaque, target_phys_addr_t addr,
 
 /* PRMVIO -aliases VGA sequencer and graphics controller registers */
 static uint64_t nv2a_prmvio_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
     uint64_t r = vga_ioport_read(&d->vga, addr);
@@ -223,7 +223,7 @@ static uint64_t nv2a_prmvio_read(void *opaque,
     NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx] -> %llx\n", addr, r);
     return r;
 }
-static void nv2a_prmvio_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_prmvio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -236,12 +236,12 @@ static void nv2a_prmvio_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pstraps_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PSTRAPS: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pstraps_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pstraps_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PSTRAPS: [0x%llx] = 0x%02llx\n", addr, val);
@@ -249,12 +249,12 @@ static void nv2a_pstraps_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pgraph_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PGRAPH: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pgraph_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pgraph_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PGRAPH: [0x%llx] = 0x%02llx\n", addr, val);
@@ -262,7 +262,7 @@ static void nv2a_pgraph_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pcrtc_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
     uint64_t r = 0;
@@ -276,7 +276,7 @@ static uint64_t nv2a_pcrtc_read(void *opaque,
     NV2A_DPRINTF("nv2a PCRTC: read [0x%llx] -> %llx\n", addr, r);
     return r;
 }
-static void nv2a_pcrtc_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pcrtc_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -302,7 +302,7 @@ static void nv2a_pcrtc_write(void *opaque, target_phys_addr_t addr,
 
 /* PRMCIO - aliases VGA CRTC and attribute controller registers */
 static uint64_t nv2a_prmcio_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
     uint64_t r = vga_ioport_read(&d->vga, addr);
@@ -310,7 +310,7 @@ static uint64_t nv2a_prmcio_read(void *opaque,
     NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx] -> %llx\n", addr, r);
     return r;
 }
-static void nv2a_prmcio_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_prmcio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
@@ -337,12 +337,12 @@ static void nv2a_prmcio_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pramdac_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMDAC: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pramdac_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pramdac_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMDAC: [0x%llx] = 0x%02llx\n", addr, val);
@@ -350,12 +350,12 @@ static void nv2a_pramdac_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_prmdio_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMDIO: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_prmdio_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_prmdio_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRMDIO: [0x%llx] = 0x%02llx\n", addr, val);
@@ -363,12 +363,12 @@ static void nv2a_prmdio_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_pramin_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMIN: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_pramin_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_pramin_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMIN: [0x%llx] = 0x%02llx\n", addr, val);
@@ -376,12 +376,12 @@ static void nv2a_pramin_write(void *opaque, target_phys_addr_t addr,
 
 
 static uint64_t nv2a_user_read(void *opaque,
-                                  target_phys_addr_t addr, unsigned int size)
+                                  hwaddr addr, unsigned int size)
 {
     NV2A_DPRINTF("nv2a USER: read [0x%llx]\n", addr);
     return 0;
 }
-static void nv2a_user_write(void *opaque, target_phys_addr_t addr,
+static void nv2a_user_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a USER: [0x%llx] = 0x%02llx\n", addr, val);
@@ -392,7 +392,7 @@ static void nv2a_user_write(void *opaque, target_phys_addr_t addr,
 
 typedef struct NV2ABlockInfo {
     const char* name;
-    target_phys_addr_t offset;
+    hwaddr offset;
     uint64_t size;
     MemoryRegionOps ops;
 } NV2ABlockInfo;

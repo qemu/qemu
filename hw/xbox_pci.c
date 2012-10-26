@@ -48,7 +48,7 @@
   */
 
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 # define XBOXPCI_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)
@@ -166,7 +166,7 @@ i2c_bus *mcpx_smbus_init(PCIBus *bus, qemu_irq *gsi)
 
 #define MCPX_SMBUS_BASE_BAR 1
 
-static void mcpx_smb_ioport_writeb(void *opaque, target_phys_addr_t addr,
+static void mcpx_smb_ioport_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
     MCPX_SMBState *s = opaque;
@@ -175,7 +175,7 @@ static void mcpx_smb_ioport_writeb(void *opaque, target_phys_addr_t addr,
     amd756_smb_ioport_writeb(&s->smb, offset, val);
 }
 
-static uint64_t mcpx_smb_ioport_readb(void *opaque, target_phys_addr_t addr,
+static uint64_t mcpx_smb_ioport_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
     MCPX_SMBState *s = opaque;
