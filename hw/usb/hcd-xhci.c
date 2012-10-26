@@ -483,6 +483,8 @@ enum xhci_flags {
 
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid);
+static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
+                                unsigned int epid);
 static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v);
 static void xhci_write_event(XHCIState *xhci, XHCIEvent *event, int v);
 
@@ -1075,8 +1077,7 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
 
     slot = &xhci->slots[slotid-1];
     if (slot->eps[epid-1]) {
-        fprintf(stderr, "xhci: slot %d ep %d already enabled!\n", slotid, epid);
-        return CC_TRB_ERROR;
+        xhci_disable_ep(xhci, slotid, epid);
     }
 
     epctx = g_malloc(sizeof(XHCIEPContext));
@@ -1919,6 +1920,9 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     }
 
     for (i = 0; i < xhci->numslots; i++) {
+        if (i == slotid-1) {
+            continue;
+        }
         if (xhci->slots[i].uport == uport) {
             fprintf(stderr, "xhci: port %s already assigned to slot %d\n",
                     uport->path, i+1);
@@ -1936,6 +1940,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         slot->devaddr = xhci->devaddr++;
         slot_ctx[3] = (SLOT_ADDRESSED << SLOT_STATE_SHIFT) | slot->devaddr;
         DPRINTF("xhci: device address is %d\n", slot->devaddr);
+        usb_device_reset(dev);
         usb_device_handle_control(dev, NULL,
                                   DeviceOutRequest | USB_REQ_SET_ADDRESS,
                                   slot->devaddr, 0, 0, NULL);
