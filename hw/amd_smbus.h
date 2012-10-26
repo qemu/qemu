@@ -9,7 +9,7 @@ typedef struct AMD756SMBus {
     uint8_t smb_cmd;
     uint8_t smb_addr;
     uint8_t smb_data0;
-    //uint8_t smb_data1;
+    uint8_t smb_data1;
     uint8_t smb_data[32];
     uint8_t smb_index;
 

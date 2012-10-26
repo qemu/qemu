@@ -89,7 +89,7 @@ static void amd756_smb_transaction(AMD756SMBus *s)
             uint16_t val;
             val = smbus_read_word(bus, addr, cmd);
             s->smb_data0 = val;
-            //s->smb_data1 = val >> 8;
+            s->smb_data1 = val >> 8;
         } else {
             smbus_write_word(bus, addr, cmd, s->smb_data0);
         }
@@ -171,9 +171,9 @@ void amd756_smb_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
     case SMB_HOST_DATA:
         s->smb_data0 = val;
         break;
-    /*case SMBHSTDAT1:
+    case SMB_HOST_DATA+1:
         s->smb_data1 = val;
-        break;*/
+        break;
     case SMB_HOST_BLOCK_DATA:
         s->smb_data[s->smb_index++] = val;
         if (s->smb_index > 31)
@@ -207,9 +207,9 @@ uint32_t amd756_smb_ioport_readb(void *opaque, uint32_t addr)
     case SMB_HOST_DATA:
         val = s->smb_data0;
         break;
-    /*case SMBHSTDAT1:
+    case SMB_HOST_DATA+1:
         val = s->smb_data1;
-        break;*/
+        break;
     case SMB_HOST_BLOCK_DATA:
         val = s->smb_data[s->smb_index++];
         if (s->smb_index > 31)
