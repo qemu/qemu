@@ -56,6 +56,7 @@ struct arm_boot_info {
                                      const struct arm_boot_info *info);
     /* Used internally by arm_boot.c */
     int is_linux;
+    hwaddr initrd_start;
     hwaddr initrd_size;
     hwaddr entry;
 };
