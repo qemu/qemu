@@ -89,14 +89,21 @@ typedef struct UHCIState UHCIState;
 typedef struct UHCIAsync UHCIAsync;
 typedef struct UHCIQueue UHCIQueue;
 typedef struct UHCIInfo UHCIInfo;
+typedef struct UHCIPCIDeviceClass UHCIPCIDeviceClass;
 
 struct UHCIInfo {
     const char *name;
     uint16_t   vendor_id;
     uint16_t   device_id;
     uint8_t    revision;
+    uint8_t    irq_pin;
     int        (*initfn)(PCIDevice *dev);
     bool       unplug;
+};
+
+struct UHCIPCIDeviceClass {
+    PCIDeviceClass parent_class;
+    UHCIInfo       info;
 };
 
 /* 
@@ -1218,6 +1225,7 @@ static USBBusOps uhci_bus_ops = {
 static int usb_uhci_common_initfn(PCIDevice *dev)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    UHCIPCIDeviceClass *u = container_of(pc, UHCIPCIDeviceClass, parent_class);
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
     int i;
@@ -1226,20 +1234,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     /* TODO: reset value should be 0. */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    switch (pc->device_id) {
-    case PCI_DEVICE_ID_INTEL_82801I_UHCI1:
-        s->irq_pin = 0;  /* A */
-        break;
-    case PCI_DEVICE_ID_INTEL_82801I_UHCI2:
-        s->irq_pin = 1;  /* B */
-        break;
-    case PCI_DEVICE_ID_INTEL_82801I_UHCI3:
-        s->irq_pin = 2;  /* C */
-        break;
-    default:
-        s->irq_pin = 3;  /* D */
-        break;
-    }
+    s->irq_pin = u->info.irq_pin;
     pci_config_set_interrupt_pin(pci_conf, s->irq_pin + 1);
 
     if (s->masterbus) {
@@ -1307,6 +1302,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    UHCIPCIDeviceClass *u = container_of(k, UHCIPCIDeviceClass, parent_class);
     UHCIInfo *info = data;
 
     k->init = info->initfn ? info->initfn : usb_uhci_common_initfn;
@@ -1317,6 +1313,7 @@ static void uhci_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
+    u->info = *info;
 }
 
 static UHCIInfo uhci_info[] = {
@@ -1325,18 +1322,21 @@ static UHCIInfo uhci_info[] = {
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82371SB_2,
         .revision  = 0x01,
+        .irq_pin   = 3,
         .unplug    = true,
     },{
         .name      = "piix4-usb-uhci",
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82371AB_2,
         .revision  = 0x01,
+        .irq_pin   = 3,
         .unplug    = true,
     },{
         .name      = "vt82c686b-usb-uhci",
         .vendor_id = PCI_VENDOR_ID_VIA,
         .device_id = PCI_DEVICE_ID_VIA_UHCI,
         .revision  = 0x01,
+        .irq_pin   = 3,
         .initfn    = usb_uhci_vt82c686b_initfn,
         .unplug    = true,
     },{
@@ -1344,18 +1344,21 @@ static UHCIInfo uhci_info[] = {
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
         .revision  = 0x03,
+        .irq_pin   = 0,
         .unplug    = false,
     },{
         .name      = "ich9-usb-uhci2",
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
         .revision  = 0x03,
+        .irq_pin   = 1,
         .unplug    = false,
     },{
         .name      = "ich9-usb-uhci3",
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
         .revision  = 0x03,
+        .irq_pin   = 2,
         .unplug    = false,
     }
 };
@@ -1365,6 +1368,7 @@ static void uhci_register_types(void)
     TypeInfo uhci_type_info = {
         .parent        = TYPE_PCI_DEVICE,
         .instance_size = sizeof(UHCIState),
+        .class_size    = sizeof(UHCIPCIDeviceClass),
         .class_init    = uhci_class_init,
     };
     int i;
