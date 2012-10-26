@@ -2387,6 +2387,13 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
     xhci_port_notify(port, PORTSC_CSC);
 }
 
+static void xhci_port_reset(XHCIPort *port)
+{
+    DPRINTF("xhci: port %d reset\n", port);
+    usb_device_reset(port->uport->dev);
+    port->portsc |= PORTSC_PRC | PORTSC_PED;
+}
+
 static void xhci_reset(DeviceState *dev)
 {
     XHCIState *xhci = DO_UPCAST(XHCIState, pci_dev.qdev, dev);
@@ -2549,13 +2556,11 @@ static void xhci_port_write(void *ptr, hwaddr reg,
         /* read/write bits */
         portsc &= ~(PORTSC_PP|PORTSC_WCE|PORTSC_WDE|PORTSC_WOE);
         portsc |= (val & (PORTSC_PP|PORTSC_WCE|PORTSC_WDE|PORTSC_WOE));
+        port->portsc = portsc;
         /* write-1-to-start bits */
         if (val & PORTSC_PR) {
-            DPRINTF("xhci: port %d reset\n", port);
-            usb_device_reset(port->uport->dev);
-            portsc |= PORTSC_PRC | PORTSC_PED;
+            xhci_port_reset(port);
         }
-        port->portsc = portsc;
         break;
     case 0x04: /* PORTPMSC */
     case 0x08: /* PORTLI */
