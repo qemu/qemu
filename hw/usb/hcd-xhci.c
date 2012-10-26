@@ -2337,7 +2337,7 @@ static void xhci_process_commands(XHCIState *xhci)
     }
 }
 
-static void xhci_update_port(XHCIState *xhci, XHCIPort *port, int is_detach)
+static void xhci_port_update(XHCIPort *port, int is_detach)
 {
     port->portsc = PORTSC_PP;
     if (port->uport->dev && port->uport->dev->attached && !is_detach &&
@@ -2363,7 +2363,7 @@ static void xhci_update_port(XHCIState *xhci, XHCIPort *port, int is_detach)
         port->portsc |= PORTSC_CSC;
         XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
                          port->portnr << 24};
-        xhci_event(xhci, &ev, 0);
+        xhci_event(port->xhci, &ev, 0);
         DPRINTF("xhci: port change event for port %d\n", port->portnr);
     }
 }
@@ -2393,7 +2393,7 @@ static void xhci_reset(DeviceState *dev)
     }
 
     for (i = 0; i < xhci->numports; i++) {
-        xhci_update_port(xhci->ports + i, 0);
+        xhci_port_update(xhci->ports + i, 0);
     }
 
     for (i = 0; i < xhci->numintrs; i++) {
@@ -2840,7 +2840,7 @@ static void xhci_attach(USBPort *usbport)
     XHCIState *xhci = usbport->opaque;
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
-    xhci_update_port(xhci, port, 0);
+    xhci_port_update(port, 0);
 }
 
 static void xhci_detach(USBPort *usbport)
@@ -2848,7 +2848,7 @@ static void xhci_detach(USBPort *usbport)
     XHCIState *xhci = usbport->opaque;
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
 
-    xhci_update_port(xhci, port, 1);
+    xhci_port_update(port, 1);
 }
 
 static void xhci_wakeup(USBPort *usbport)
