@@ -146,6 +146,21 @@ typedef struct XHCITRB {
     bool ccs;
 } XHCITRB;
 
+enum {
+    PLS_U0              =  0,
+    PLS_U1              =  1,
+    PLS_U2              =  2,
+    PLS_U3              =  3,
+    PLS_DISABLED        =  4,
+    PLS_RX_DETECT       =  5,
+    PLS_INACTIVE        =  6,
+    PLS_POLLING         =  7,
+    PLS_RECOVERY        =  8,
+    PLS_HOT_RESET       =  9,
+    PLS_COMPILANCE_MODE = 10,
+    PLS_TEST_MODE       = 11,
+    PLS_RESUME          = 15,
+};
 
 typedef enum TRBType {
     TRB_RESERVED = 0,
@@ -286,6 +301,16 @@ typedef enum TRBCCode {
 #define SLOT_CONTEXT_ENTRIES_SHIFT 27
 
 typedef struct XHCIState XHCIState;
+
+#define get_field(data, field)                  \
+    (((data) >> field##_SHIFT) & field##_MASK)
+
+#define set_field(data, newval, field) do {                     \
+        uint32_t val = *data;                                   \
+        val &= ~(field##_MASK << field##_SHIFT);                \
+        val |= ((newval) & field##_MASK) << field##_SHIFT;      \
+        *data = val;                                            \
+    } while (0)
 
 typedef enum EPType {
     ET_INVALID = 0,
@@ -2334,7 +2359,7 @@ static void xhci_update_port(XHCIState *xhci, XHCIPort *port, int is_detach)
         }
     }
 
-    if (xhci_running(xhci)) {
+    if (xhci_running(port->xhci)) {
         port->portsc |= PORTSC_CSC;
         XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
                          port->portnr << 24};
@@ -2368,7 +2393,7 @@ static void xhci_reset(DeviceState *dev)
     }
 
     for (i = 0; i < xhci->numports; i++) {
-        xhci_update_port(xhci, xhci->ports + i, 0);
+        xhci_update_port(xhci->ports + i, 0);
     }
 
     for (i = 0; i < xhci->numintrs; i++) {
@@ -2499,8 +2524,8 @@ static void xhci_port_write(void *ptr, hwaddr reg,
                            PORTSC_PRC|PORTSC_PLC|PORTSC_CEC));
         if (val & PORTSC_LWS) {
             /* overwrite PLS only when LWS=1 */
-            portsc &= ~(PORTSC_PLS_MASK << PORTSC_PLS_SHIFT);
-            portsc |= val & (PORTSC_PLS_MASK << PORTSC_PLS_SHIFT);
+            uint32_t pls = get_field(val, PORTSC_PLS);
+            set_field(&portsc, pls, PORTSC_PLS);
         }
         /* read/write bits */
         portsc &= ~(PORTSC_PP|PORTSC_WCE|PORTSC_WDE|PORTSC_WOE);
@@ -2832,13 +2857,11 @@ static void xhci_wakeup(USBPort *usbport)
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
     XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
                      port->portnr << 24};
-    uint32_t pls;
 
-    pls = (port->portsc >> PORTSC_PLS_SHIFT) & PORTSC_PLS_MASK;
-    if (pls != 3) {
+    if (get_field(port->portsc, PORTSC_PLS) != PLS_U3) {
         return;
     }
-    port->portsc |= 0xf << PORTSC_PLS_SHIFT;
+    set_field(&port->portsc, PLS_RESUME, PORTSC_PLS);
     if (port->portsc & PORTSC_PLC) {
         return;
     }
