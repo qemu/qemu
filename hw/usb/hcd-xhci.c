@@ -2348,6 +2348,21 @@ static bool xhci_port_have_device(XHCIPort *port)
     return true;
 }
 
+static void xhci_port_notify(XHCIPort *port, uint32_t bits)
+{
+    XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
+                     port->portnr << 24 };
+
+    if ((port->portsc & bits) == bits) {
+        return;
+    }
+    port->portsc |= bits;
+    if (!xhci_running(port->xhci)) {
+        return;
+    }
+    xhci_event(port->xhci, &ev, 0);
+}
+
 static void xhci_port_update(XHCIPort *port, int is_detach)
 {
     port->portsc = PORTSC_PP;
@@ -2369,13 +2384,7 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
         }
     }
 
-    if (xhci_running(port->xhci)) {
-        port->portsc |= PORTSC_CSC;
-        XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
-                         port->portnr << 24};
-        xhci_event(port->xhci, &ev, 0);
-        DPRINTF("xhci: port change event for port %d\n", port->portnr);
-    }
+    xhci_port_notify(port, PORTSC_CSC);
 }
 
 static void xhci_reset(DeviceState *dev)
@@ -2865,18 +2874,12 @@ static void xhci_wakeup(USBPort *usbport)
 {
     XHCIState *xhci = usbport->opaque;
     XHCIPort *port = xhci_lookup_port(xhci, usbport);
-    XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS,
-                     port->portnr << 24};
 
     if (get_field(port->portsc, PORTSC_PLS) != PLS_U3) {
         return;
     }
     set_field(&port->portsc, PLS_RESUME, PORTSC_PLS);
-    if (port->portsc & PORTSC_PLC) {
-        return;
-    }
-    port->portsc |= PORTSC_PLC;
-    xhci_event(xhci, &ev, 0);
+    xhci_port_notify(port, PORTSC_PLC);
 }
 
 static void xhci_complete(USBPort *port, USBPacket *packet)
