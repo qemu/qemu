@@ -5,6 +5,7 @@ block-obj-y += qed-check.o
 block-obj-y += parallels.o blkdebug.o blkverify.o
 block-obj-$(CONFIG_WIN32) += raw-win32.o
 block-obj-$(CONFIG_POSIX) += raw-posix.o
+block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
 ifeq ($(CONFIG_POSIX),y)
 block-obj-y += nbd.o sheepdog.o
