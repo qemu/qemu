@@ -2337,11 +2337,21 @@ static void xhci_process_commands(XHCIState *xhci)
     }
 }
 
+static bool xhci_port_have_device(XHCIPort *port)
+{
+    if (!port->uport->dev || !port->uport->dev->attached) {
+        return false; /* no device present */
+    }
+    if (!((1 << port->uport->dev->speed) & port->speedmask)) {
+        return false; /* speed mismatch */
+    }
+    return true;
+}
+
 static void xhci_port_update(XHCIPort *port, int is_detach)
 {
     port->portsc = PORTSC_PP;
-    if (port->uport->dev && port->uport->dev->attached && !is_detach &&
-        (1 << port->uport->dev->speed) & port->speedmask) {
+    if (!is_detach && xhci_port_have_device(port)) {
         port->portsc |= PORTSC_CCS;
         switch (port->uport->dev->speed) {
         case USB_SPEED_LOW:
