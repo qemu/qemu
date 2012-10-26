@@ -2365,33 +2365,55 @@ static void xhci_port_notify(XHCIPort *port, uint32_t bits)
 
 static void xhci_port_update(XHCIPort *port, int is_detach)
 {
+    uint32_t pls = PLS_RX_DETECT;
+
     port->portsc = PORTSC_PP;
     if (!is_detach && xhci_port_have_device(port)) {
         port->portsc |= PORTSC_CCS;
         switch (port->uport->dev->speed) {
         case USB_SPEED_LOW:
             port->portsc |= PORTSC_SPEED_LOW;
+            pls = PLS_POLLING;
             break;
         case USB_SPEED_FULL:
             port->portsc |= PORTSC_SPEED_FULL;
+            pls = PLS_POLLING;
             break;
         case USB_SPEED_HIGH:
             port->portsc |= PORTSC_SPEED_HIGH;
+            pls = PLS_POLLING;
             break;
         case USB_SPEED_SUPER:
             port->portsc |= PORTSC_SPEED_SUPER;
+            port->portsc |= PORTSC_PED;
+            pls = PLS_U0;
             break;
         }
     }
-
+    set_field(&port->portsc, pls, PORTSC_PLS);
     xhci_port_notify(port, PORTSC_CSC);
 }
 
 static void xhci_port_reset(XHCIPort *port)
 {
     DPRINTF("xhci: port %d reset\n", port);
+    if (!xhci_port_have_device(port)) {
+        return;
+    }
+
     usb_device_reset(port->uport->dev);
-    port->portsc |= PORTSC_PRC | PORTSC_PED;
+
+    switch (port->uport->dev->speed) {
+    case USB_SPEED_LOW:
+    case USB_SPEED_FULL:
+    case USB_SPEED_HIGH:
+        set_field(&port->portsc, PLS_U0, PORTSC_PLS);
+        port->portsc |= PORTSC_PED;
+        break;
+    }
+
+    port->portsc &= ~PORTSC_PR;
+    xhci_port_notify(port, PORTSC_PRC);
 }
 
 static void xhci_reset(DeviceState *dev)
