@@ -2391,12 +2391,14 @@ static void xhci_port_update(XHCIPort *port, int is_detach)
         }
     }
     set_field(&port->portsc, pls, PORTSC_PLS);
+    trace_usb_xhci_port_link(port->portnr, pls);
     xhci_port_notify(port, PORTSC_CSC);
 }
 
 static void xhci_port_reset(XHCIPort *port)
 {
-    DPRINTF("xhci: port %d reset\n", port);
+    trace_usb_xhci_port_reset(port->portnr);
+
     if (!xhci_port_have_device(port)) {
         return;
     }
@@ -2408,6 +2410,7 @@ static void xhci_port_reset(XHCIPort *port)
     case USB_SPEED_FULL:
     case USB_SPEED_HIGH:
         set_field(&port->portsc, PLS_U0, PORTSC_PLS);
+        trace_usb_xhci_port_link(port->portnr, PLS_U0);
         port->portsc |= PORTSC_PED;
         break;
     }
@@ -2574,6 +2577,7 @@ static void xhci_port_write(void *ptr, hwaddr reg,
             /* overwrite PLS only when LWS=1 */
             uint32_t pls = get_field(val, PORTSC_PLS);
             set_field(&portsc, pls, PORTSC_PLS);
+            trace_usb_xhci_port_link(port->portnr, pls);
         }
         /* read/write bits */
         portsc &= ~(PORTSC_PP|PORTSC_WCE|PORTSC_WDE|PORTSC_WOE);
