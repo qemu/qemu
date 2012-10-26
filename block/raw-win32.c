@@ -36,6 +36,8 @@
 #define FTYPE_CD     1
 #define FTYPE_HARDDISK 2
 
+static QEMUWin32AIOState *aio;
+
 typedef struct RawWin32AIOData {
     BlockDriverState *bs;
     HANDLE hfile;
@@ -50,6 +52,7 @@ typedef struct BDRVRawState {
     HANDLE hfile;
     int type;
     char drive_path[16]; /* format: "d:\" */
+    QEMUWin32AIOState *aio;
 } BDRVRawState;
 
 /*
@@ -208,6 +211,9 @@ static void raw_parse_flags(int flags, int *access_flags, DWORD *overlapped)
     }
 
     *overlapped = FILE_ATTRIBUTE_NORMAL;
+    if (flags & BDRV_O_NATIVE_AIO) {
+        *overlapped |= FILE_FLAG_OVERLAPPED;
+    }
     if (flags & BDRV_O_NOCACHE) {
         *overlapped |= FILE_FLAG_NO_BUFFERING;
     }
@@ -222,6 +228,13 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
     s->type = FTYPE_FILE;
 
     raw_parse_flags(flags, &access_flags, &overlapped);
+    
+    if ((flags & BDRV_O_NATIVE_AIO) && aio == NULL) {
+        aio = win32_aio_init();
+        if (aio == NULL) {
+            return -EINVAL;
+        }
+    }
 
     s->hfile = CreateFile(filename, access_flags,
                           FILE_SHARE_READ, NULL,
@@ -231,7 +244,16 @@ static int raw_open(BlockDriverState *bs, const char *filename, int flags)
 
         if (err == ERROR_ACCESS_DENIED)
             return -EACCES;
-        return -1;
+        return -EINVAL;
+    }
+
+    if (flags & BDRV_O_NATIVE_AIO) {
+        int ret = win32_aio_attach(aio, s->hfile);
+        if (ret < 0) {
+            CloseHandle(s->hfile);
+            return ret;
+        }
+        s->aio = aio;
     }
     return 0;
 }
@@ -241,8 +263,13 @@ static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
                          BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
-    return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
-                       cb, opaque, QEMU_AIO_READ);
+    if (s->aio) {
+        return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
+                                nb_sectors, cb, opaque, QEMU_AIO_READ); 
+    } else {
+        return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
+                           cb, opaque, QEMU_AIO_READ);
+    }
 }
 
 static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
@@ -250,8 +277,13 @@ static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
                           BlockDriverCompletionFunc *cb, void *opaque)
 {
     BDRVRawState *s = bs->opaque;
-    return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
-                       cb, opaque, QEMU_AIO_WRITE);
+    if (s->aio) {
+        return win32_aio_submit(bs, s->aio, s->hfile, sector_num, qiov,
+                                nb_sectors, cb, opaque, QEMU_AIO_WRITE); 
+    } else {
+        return paio_submit(bs, s->hfile, sector_num, qiov, nb_sectors,
+                           cb, opaque, QEMU_AIO_WRITE);
+    }
 }
 
 static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,

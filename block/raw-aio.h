@@ -35,4 +35,14 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         BlockDriverCompletionFunc *cb, void *opaque, int type);
 #endif
 
+#ifdef _WIN32
+typedef struct QEMUWin32AIOState QEMUWin32AIOState;
+QEMUWin32AIOState *win32_aio_init(void);
+int win32_aio_attach(QEMUWin32AIOState *aio, HANDLE hfile);
+BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
+        QEMUWin32AIOState *aio, HANDLE hfile,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque, int type);
+#endif
+
 #endif /* QEMU_RAW_AIO_H */
