@@ -304,7 +304,7 @@ static void xbox_init(QEMUMachineInitArgs *args)
 
     smbus_eeprom_init_single(smbus, 0x54, eeprom_buf);
     
-    smbus_pic16lc_init(smbus, 0x10);
+    smbus_xbox_smc_init(smbus, 0x10);
     smbus_cx25871_init(smbus, 0x45);
     smbus_adm1032_init(smbus, 0x4c);
 

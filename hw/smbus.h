@@ -83,7 +83,7 @@ void smbus_eeprom_init(i2c_bus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int size);
 
 
-void smbus_pic16lc_init(i2c_bus *smbus, int address);
+void smbus_xbox_smc_init(i2c_bus *smbus, int address);
 void smbus_cx25871_init(i2c_bus *smbus, int address);
 void smbus_adm1032_init(i2c_bus *smbus, int address);
 
