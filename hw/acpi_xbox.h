@@ -1,5 +1,5 @@
 /*
- * QEMU MCPX PM Emulation
+ * QEMU Xbox PM Emulation
  *
  *  Copyright (c) 2012 espes
  *
@@ -17,20 +17,20 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef HW_ACPI_MCPX_H
-#define HW_ACPI_MCPX_H
+#ifndef HW_ACPI_XBOX_H
+#define HW_ACPI_XBOX_H
 
 #include "acpi.h"
 
-typedef struct MCPX_PMRegs {
+typedef struct XBOX_PMRegs {
 	MemoryRegion bar;
     ACPIREGS acpi_regs;
 
     qemu_irq irq;   
-} MCPX_PMRegs;
+} XBOX_PMRegs;
 
-void mcpx_pm_init(PCIDevice *dev, MCPX_PMRegs *pm/*, qemu_irq sci_irq*/);
-//void mcpx_pm_iospace_update(MCPX_PMRegs *pm, uint32_t pm_io_base);
+void xbox_pm_init(PCIDevice *dev, XBOX_PMRegs *pm/*, qemu_irq sci_irq*/);
+//void xbox_pm_iospace_update(MCPX_PMRegs *pm, uint32_t pm_io_base);
 
 
 #endif

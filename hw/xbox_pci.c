@@ -27,7 +27,7 @@
 #include "pci_bridge.h"
 #include "pci_internals.h"
 #include "exec-memory.h"
-#include "acpi_mcpx.h"
+#include "acpi_xbox.h"
 #include "amd_smbus.h"
 #include "qemu-common.h"
 
@@ -128,34 +128,34 @@ PCIBus *xbox_agp_init(PCIBus *bus)
 }
 
 
-ISABus *mcpx_lpc_init(PCIBus *bus, qemu_irq *gsi)
+ISABus *xbox_lpc_init(PCIBus *bus, qemu_irq *gsi)
 {
     PCIDevice *d;
-    MCPX_LPCState *s;
+    XBOX_LPCState *s;
     //qemu_irq *sci_irq;
 
     d = pci_create_simple_multifunction(bus, PCI_DEVFN(1, 0),
-                                        true, "mcpx-lpc");
+                                        true, "xbox-lpc");
 
-    s = MCPX_LPC_DEVICE(d);
+    s = XBOX_LPC_DEVICE(d);
 
-    //sci_irq = qemu_allocate_irqs(mcpx_set_sci, &s->irq_state, 1);
-    mcpx_pm_init(d, &s->pm /*, sci_irq[0]*/);
-    //mcpx_lpc_reset(&s->dev.qdev);
+    //sci_irq = qemu_allocate_irqs(xbox_set_sci, &s->irq_state, 1);
+    xbox_pm_init(d, &s->pm /*, sci_irq[0]*/);
+    //xbox_lpc_reset(&s->dev.qdev);
 
     return s->isa_bus;
 }
 
 
-i2c_bus *mcpx_smbus_init(PCIBus *bus, qemu_irq *gsi)
+i2c_bus *xbox_smbus_init(PCIBus *bus, qemu_irq *gsi)
 {
     PCIDevice *d;
-    MCPX_SMBState *s;
+    XBOX_SMBState *s;
     
     d = pci_create_simple_multifunction(bus, PCI_DEVFN(1, 1),
-                                        true, "mcpx-smbus");
+                                        true, "xbox-smbus");
 
-    s = MCPX_SMBUS_DEVICE(d);
+    s = XBOX_SMBUS_DEVICE(d);
     amd756_smbus_init(&d->qdev, &s->smb, gsi[11]);
 
     return s->smb.smbus;
@@ -164,29 +164,29 @@ i2c_bus *mcpx_smbus_init(PCIBus *bus, qemu_irq *gsi)
 
 
 
-#define MCPX_SMBUS_BASE_BAR 1
+#define XBOX_SMBUS_BASE_BAR 1
 
-static void mcpx_smb_ioport_writeb(void *opaque, hwaddr addr,
+static void xbox_smb_ioport_writeb(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned size)
 {
-    MCPX_SMBState *s = opaque;
+    XBOX_SMBState *s = opaque;
 
-    uint64_t offset = addr - s->dev.io_regions[MCPX_SMBUS_BASE_BAR].addr;
+    uint64_t offset = addr - s->dev.io_regions[XBOX_SMBUS_BASE_BAR].addr;
     amd756_smb_ioport_writeb(&s->smb, offset, val);
 }
 
-static uint64_t mcpx_smb_ioport_readb(void *opaque, hwaddr addr,
+static uint64_t xbox_smb_ioport_readb(void *opaque, hwaddr addr,
                                       unsigned size)
 {
-    MCPX_SMBState *s = opaque;
+    XBOX_SMBState *s = opaque;
 
-    uint64_t offset = addr - s->dev.io_regions[MCPX_SMBUS_BASE_BAR].addr;
+    uint64_t offset = addr - s->dev.io_regions[XBOX_SMBUS_BASE_BAR].addr;
     return amd756_smb_ioport_readb(&s->smb, offset);
 }
 
-static const MemoryRegionOps mcpx_smbus_ops = {
-    .read = mcpx_smb_ioport_readb,
-    .write = mcpx_smb_ioport_writeb,
+static const MemoryRegionOps xbox_smbus_ops = {
+    .read = xbox_smb_ioport_readb,
+    .write = xbox_smb_ioport_writeb,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
@@ -194,25 +194,25 @@ static const MemoryRegionOps mcpx_smbus_ops = {
     },
 };
 
-static int mcpx_smbus_initfn(PCIDevice *dev)
+static int xbox_smbus_initfn(PCIDevice *dev)
 {
-    MCPX_SMBState *s = MCPX_SMBUS_DEVICE(dev);
+    XBOX_SMBState *s = XBOX_SMBUS_DEVICE(dev);
 
-    memory_region_init_io(&s->smb_bar, &mcpx_smbus_ops,
-                          s, "mcpx-smbus-bar", 32);
-    pci_register_bar(dev, MCPX_SMBUS_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
+    memory_region_init_io(&s->smb_bar, &xbox_smbus_ops,
+                          s, "xbox-smbus-bar", 32);
+    pci_register_bar(dev, XBOX_SMBUS_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
                      &s->smb_bar);
 
     return 0;
 }
 
 
-static void mcpx_smbus_class_init(ObjectClass *klass, void *data)
+static void xbox_smbus_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init         = mcpx_smbus_initfn;
+    k->init         = xbox_smbus_initfn;
     k->vendor_id    = PCI_VENDOR_ID_NVIDIA;
     k->device_id    = PCI_DEVICE_ID_NVIDIA_NFORCE_SMBUS;
     k->revision     = 161;
@@ -222,11 +222,11 @@ static void mcpx_smbus_class_init(ObjectClass *klass, void *data)
     dc->no_user     = 1;
 }
 
-static const TypeInfo mcpx_smbus_info = {
-    .name = "mcpx-smbus",
+static const TypeInfo xbox_smbus_info = {
+    .name = "xbox-smbus",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MCPX_SMBState),
-    .class_init = mcpx_smbus_class_init,
+    .instance_size = sizeof(XBOX_SMBState),
+    .class_init = xbox_smbus_class_init,
 };
 
 
@@ -234,9 +234,9 @@ static const TypeInfo mcpx_smbus_info = {
 
 
 
-static int mcpx_lpc_initfn(PCIDevice *d)
+static int xbox_lpc_initfn(PCIDevice *d)
 {
-    MCPX_LPCState *lpc = MCPX_LPC_DEVICE(d);
+    XBOX_LPCState *lpc = XBOX_LPC_DEVICE(d);
     ISABus *isa_bus;
 
     isa_bus = isa_bus_new(&d->qdev, get_system_io());
@@ -247,60 +247,60 @@ static int mcpx_lpc_initfn(PCIDevice *d)
 
 #if 0
 /* Xbox 1.1 uses a config register instead of a bar to set the pm base address */
-#define MCPX_LPC_PMBASE 0x84
-#define MCPX_LPC_PMBASE_ADDRESS_MASK 0xff00
-#define MCPX_LPC_PMBASE_DEFAULT 0x1
+#define XBOX_LPC_PMBASE 0x84
+#define XBOX_LPC_PMBASE_ADDRESS_MASK 0xff00
+#define XBOX_LPC_PMBASE_DEFAULT 0x1
 
-static void mcpx_lpc_pmbase_update(MCPX_LPCState *s)
+static void xbox_lpc_pmbase_update(XBOX_LPCState *s)
 {
-    uint32_t pm_io_base = pci_get_long(s->dev.config + MCPX_LPC_PMBASE);
-    pm_io_base &= MCPX_LPC_PMBASE_ADDRESS_MASK;
+    uint32_t pm_io_base = pci_get_long(s->dev.config + XBOX_LPC_PMBASE);
+    pm_io_base &= XBOX_LPC_PMBASE_ADDRESS_MASK;
 
-    mcpx_pm_iospace_update(&s->pm, pm_io_base);
+    xbox_pm_iospace_update(&s->pm, pm_io_base);
 }
 
-static void mcpx_lpc_reset(DeviceState *dev)
+static void xbox_lpc_reset(DeviceState *dev)
 {
     PCIDevice *d = PCI_DEVICE(dev);
-    MCPX_LPCState *s = MCPX_LPC_DEVICE(d);
+    XBOX_LPCState *s = XBOX_LPC_DEVICE(d);
 
-    pci_set_long(s->dev.config + MCPX_LPC_PMBASE, MCPX_LPC_PMBASE_DEFAULT);
-    mcpx_lpc_pmbase_update(s);
+    pci_set_long(s->dev.config + XBOX_LPC_PMBASE, XBOX_LPC_PMBASE_DEFAULT);
+    xbox_lpc_pmbase_update(s);
 }
 
-static void mcpx_lpc_config_write(PCIDevice *dev,
+static void xbox_lpc_config_write(PCIDevice *dev,
                                     uint32_t addr, uint32_t val, int len)
 {
-    MCPX_LPCState *s = MCPX_LPC_DEVICE(dev);
+    XBOX_LPCState *s = XBOX_LPC_DEVICE(dev);
 
     pci_default_write_config(dev, addr, val, len);
-    if (ranges_overlap(addr, len, MCPX_LPC_PMBASE, 2)) {
-        mcpx_lpc_pmbase_update(s);
+    if (ranges_overlap(addr, len, XBOX_LPC_PMBASE, 2)) {
+        xbox_lpc_pmbase_update(s);
     }
 }
 
-static int mcpx_lpc_post_load(void *opaque, int version_id)
+static int xbox_lpc_post_load(void *opaque, int version_id)
 {
-    MCPX_LPCState *s = opaque;
-    mcpx_lpc_pmbase_update(s);
+    XBOX_LPCState *s = opaque;
+    xbox_lpc_pmbase_update(s);
     return 0;
 }
 
-static const VMStateDescription vmstate_mcpx_lpc = {
-    .name = "MCPX LPC",
+static const VMStateDescription vmstate_xbox_lpc = {
+    .name = "XBOX LPC",
     .version_id = 1,
-    .post_load = mcpx_lpc_post_load,
+    .post_load = xbox_lpc_post_load,
 };
 #endif
 
-static void mcpx_lpc_class_init(ObjectClass *klass, void *data)
+static void xbox_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug   = 1;
-    k->init         = mcpx_lpc_initfn;
-    //k->config_write = mcpx_lpc_config_write;
+    k->init         = xbox_lpc_initfn;
+    //k->config_write = xbox_lpc_config_write;
     k->vendor_id    = PCI_VENDOR_ID_NVIDIA;
     k->device_id    = PCI_DEVICE_ID_NVIDIA_NFORCE_LPC;
     k->revision     = 212;
@@ -308,15 +308,15 @@ static void mcpx_lpc_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "nForce LPC Bridge";
     dc->no_user     = 1;
-    //dc->reset       = mcpx_lpc_reset;
-    //dc->vmsd        = &vmstate_mcpx_lpc;
+    //dc->reset       = xbox_lpc_reset;
+    //dc->vmsd        = &vmstate_xbox_lpc;
 }
 
-static const TypeInfo mcpx_lpc_info = {
-    .name = "mcpx-lpc",
+static const TypeInfo xbox_lpc_info = {
+    .name = "xbox-lpc",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MCPX_LPCState),
-    .class_init = mcpx_lpc_class_init,
+    .instance_size = sizeof(XBOX_LPCState),
+    .class_init = xbox_lpc_class_init,
 };
 
 
@@ -435,8 +435,8 @@ static void xboxpci_register_types(void)
     type_register(&xbox_pci_info);
     type_register(&xbox_agp_info);
 
-    type_register(&mcpx_lpc_info);
-    type_register(&mcpx_smbus_info);
+    type_register(&xbox_lpc_info);
+    type_register(&xbox_smbus_info);
 }
 
 type_init(xboxpci_register_types)

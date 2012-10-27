@@ -216,8 +216,8 @@ static void xbox_init(QEMUMachineInitArgs *args)
 
     /* bridges */
     agp_bus = xbox_agp_init(host_bus);
-    isa_bus = mcpx_lpc_init(host_bus, gsi);
-    smbus = mcpx_smbus_init(host_bus, gsi);
+    isa_bus = xbox_lpc_init(host_bus, gsi);
+    smbus = xbox_smbus_init(host_bus, gsi);
 
 
     /* irq shit */

@@ -28,7 +28,7 @@
 #include "pci_host.h"
 #include "amd_smbus.h"
 #include "acpi.h"
-#include "acpi_mcpx.h"
+#include "acpi_xbox.h"
 
 
 typedef struct XBOX_PCIState {
@@ -40,28 +40,28 @@ typedef struct XBOX_PCIState {
     MemoryRegion pci_hole;
 } XBOX_PCIState;
 
-typedef struct MCPX_SMBState {
+typedef struct XBOX_SMBState {
     PCIDevice dev;
 
     AMD756SMBus smb;
     MemoryRegion smb_bar;
-} MCPX_SMBState;
+} XBOX_SMBState;
 
-typedef struct MCPX_LPCState {
+typedef struct XBOX_LPCState {
     PCIDevice dev;
 
     ISABus *isa_bus;
-    MCPX_PMRegs pm;
-} MCPX_LPCState;
+    XBOX_PMRegs pm;
+} XBOX_LPCState;
 
 #define XBOX_PCI_DEVICE(obj) \
     OBJECT_CHECK(XBOX_PCIState, (obj), "xbox-pci")
 
-#define MCPX_SMBUS_DEVICE(obj) \
-    OBJECT_CHECK(MCPX_SMBState, (obj), "mcpx-smbus")
+#define XBOX_SMBUS_DEVICE(obj) \
+    OBJECT_CHECK(XBOX_SMBState, (obj), "xbox-smbus")
 
-#define MCPX_LPC_DEVICE(obj) \
-    OBJECT_CHECK(MCPX_LPCState, (obj), "mcpx-lpc")
+#define XBOX_LPC_DEVICE(obj) \
+    OBJECT_CHECK(XBOX_LPCState, (obj), "xbox-lpc")
 
 
 
@@ -73,9 +73,9 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
 
 PCIBus *xbox_agp_init(PCIBus *bus);
 
-ISABus *mcpx_lpc_init(PCIBus *bus, qemu_irq *gsi);
+ISABus *xbox_lpc_init(PCIBus *bus, qemu_irq *gsi);
 
-i2c_bus *mcpx_smbus_init(PCIBus *bus, qemu_irq *gsi);
+i2c_bus *xbox_smbus_init(PCIBus *bus, qemu_irq *gsi);
 
 
 #endif
