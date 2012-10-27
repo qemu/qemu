@@ -1169,7 +1169,11 @@ cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
-    if compile_prog "-Werror $flag" "" ; then
+    # Use the positive sense of the flag when testing for -Wno-wombat
+    # support (gcc will happily accept the -Wno- form of unknown
+    # warning options).
+    optflag="$(echo $flag | sed -e 's/^-Wno-/-W/')"
+    if compile_prog "-Werror $optflag" "" ; then
 	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
     fi
 done
