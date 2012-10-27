@@ -8,6 +8,17 @@ ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
 all:
 include config-host.mak
+
+# Check that we're not trying to do an out-of-tree build from
+# a tree that's been used for an in-tree build.
+ifneq ($(realpath $(SRC_PATH)),$(realpath .))
+ifneq ($(wildcard $(SRC_PATH)/config-host.mak),)
+$(error This is an out of tree build but your source tree ($(SRC_PATH)) \
+seems to have been used for an in-tree build. You can fix this by running \
+"make distclean && rm -rf *-linux-user *-softmmu" in your source tree)
+endif
+endif
+
 include $(SRC_PATH)/rules.mak
 config-host.mak: $(SRC_PATH)/configure
 	@echo $@ is out-of-date, running configure
@@ -171,11 +182,10 @@ qemu-img.o: qemu-img-cmds.h
 
 tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-tool.o qemu-timer.o \
 	qemu-timer-common.o main-loop.o notify.o \
-	iohandler.o cutils.o iov.o async.o
+	iohandler.o cutils.o iov.o async.o error.o
 tools-obj-$(CONFIG_POSIX) += compatfd.o
 
-qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y) $(qapi-obj-y) \
-                              qapi-visit.o qapi-types.o
+qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y)
 qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y)
 qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y)
 

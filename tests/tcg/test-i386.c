@@ -785,7 +785,7 @@ void fpu_clear_exceptions(void)
         long double fpregs[8];
     } float_env32;
 
-    asm volatile ("fnstenv %0\n" : : "m" (float_env32));
+    asm volatile ("fnstenv %0\n" : "=m" (float_env32));
     float_env32.fpus &= ~0x7f;
     asm volatile ("fldenv %0\n" : : "m" (float_env32));
 }

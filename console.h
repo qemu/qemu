@@ -378,7 +378,7 @@ void cocoa_display_init(DisplayState *ds, int full_screen);
 /* vnc.c */
 void vnc_display_init(DisplayState *ds);
 void vnc_display_close(DisplayState *ds);
-int vnc_display_open(DisplayState *ds, const char *display);
+void vnc_display_open(DisplayState *ds, const char *display, Error **errp);
 void vnc_display_add_client(DisplayState *ds, int csock, int skipauth);
 int vnc_display_disable_login(DisplayState *ds);
 char *vnc_display_local_addr(DisplayState *ds);
