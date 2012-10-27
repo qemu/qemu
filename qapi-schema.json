@@ -2404,6 +2404,9 @@
 #
 # @dns: #optional guest-visible address of the virtual nameserver
 #
+# @dnssearch: #optional list of DNS suffixes to search, passed as DHCP option
+#             to the guest
+#
 # @smb: #optional root directory of the built-in SMB server
 #
 # @smbserver: #optional IP address of the built-in SMB server
@@ -2426,6 +2429,7 @@
     '*bootfile':  'str',
     '*dhcpstart': 'str',
     '*dns':       'str',
+    '*dnssearch': ['String'],
     '*smb':       'str',
     '*smbserver': 'str',
     '*hostfwd':   ['String'],

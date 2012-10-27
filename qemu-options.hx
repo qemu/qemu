@@ -1318,8 +1318,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
     "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=on|off]\n"
-    "         [,hostname=host][,dhcpstart=addr][,dns=addr][,tftp=dir][,bootfile=f]\n"
-    "         [,hostfwd=rule][,guestfwd=rule]"
+    "         [,hostname=host][,dhcpstart=addr][,dns=addr][,dnssearch=domain][,tftp=dir]\n"
+    "         [,bootfile=f][,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
                                              "[,smb=dir[,smbserver=addr]]\n"
 #endif
@@ -1428,7 +1428,7 @@ able to contact the host and no guest IP packets will be routed over the host
 to the outside. This option does not affect any explicitly set forwarding rules.
 
 @item hostname=@var{name}
-Specifies the client hostname reported by the builtin DHCP server.
+Specifies the client hostname reported by the built-in DHCP server.
 
 @item dhcpstart=@var{addr}
 Specify the first of the 16 IPs the built-in DHCP server can assign. Default
@@ -1438,6 +1438,18 @@ is the 15th to 31st IP in the guest network, i.e. x.x.x.15 to x.x.x.31.
 Specify the guest-visible address of the virtual nameserver. The address must
 be different from the host address. Default is the 3rd IP in the guest network,
 i.e. x.x.x.3.
+
+@item dnssearch=@var{domain}
+Provides an entry for the domain-search list sent by the built-in
+DHCP server. More than one domain suffix can be transmitted by specifying
+this option multiple times. If supported, this will cause the guest to
+automatically try to append the given domain suffix(es) in case a domain name
+can not be resolved.
+
+Example:
+@example
+qemu -net user,dnssearch=mgmt.example.org,dnssearch=example.org [...]
+@end example
 
 @item tftp=@var{dir}
 When using the user mode network stack, activate a built-in TFTP
