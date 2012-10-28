@@ -12,6 +12,6 @@ obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen_pt.o xen_pt_config_init.o xen_pt_msi.o
 obj-y += kvm/
 obj-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
-obj-$(CONFIG_XBOX) += xbox.o xbox_pci.o acpi_xbox.o amd_smbus.o nv2a.o smbus_xbox_smc.o smbus_cx25871.o smbus_adm1032.o
+obj-$(CONFIG_XBOX) += xbox.o xbox_pci.o acpi_xbox.o amd_smbus.o nv2a.o mcpx.o smbus_xbox_smc.o smbus_cx25871.o smbus_adm1032.o
 
 obj-y := $(addprefix ../,$(obj-y))
