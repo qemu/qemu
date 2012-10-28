@@ -2445,10 +2445,16 @@ static inline void update_fcr31(CPUMIPSState *env)
     int tmp = ieee_ex_to_mips(get_float_exception_flags(&env->active_fpu.fp_status));
 
     SET_FP_CAUSE(env->active_fpu.fcr31, tmp);
-    if (GET_FP_ENABLE(env->active_fpu.fcr31) & tmp)
-        helper_raise_exception(env, EXCP_FPE);
-    else
-        UPDATE_FP_FLAGS(env->active_fpu.fcr31, tmp);
+
+    if (tmp) {
+        set_float_exception_flags(0, &env->active_fpu.fp_status);
+
+        if (GET_FP_ENABLE(env->active_fpu.fcr31) & tmp) {
+            helper_raise_exception(env, EXCP_FPE);
+        } else {
+            UPDATE_FP_FLAGS(env->active_fpu.fcr31, tmp);
+        }
+    }
 }
 
 /* Float support.
@@ -2471,7 +2477,6 @@ uint64_t helper_float_cvtd_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float32_to_float64(fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fdt2;
@@ -2481,7 +2486,6 @@ uint64_t helper_float_cvtd_w(CPUMIPSState *env, uint32_t wt0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = int32_to_float64(wt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fdt2;
@@ -2491,7 +2495,6 @@ uint64_t helper_float_cvtd_l(CPUMIPSState *env, uint64_t dt0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = int64_to_float64(dt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fdt2;
@@ -2501,7 +2504,6 @@ uint64_t helper_float_cvtl_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2513,7 +2515,6 @@ uint64_t helper_float_cvtl_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2526,7 +2527,6 @@ uint64_t helper_float_cvtps_pw(CPUMIPSState *env, uint64_t dt0)
     uint32_t fst2;
     uint32_t fsth2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = int32_to_float32(dt0 & 0XFFFFFFFF, &env->active_fpu.fp_status);
     fsth2 = int32_to_float32(dt0 >> 32, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2538,7 +2538,6 @@ uint64_t helper_float_cvtpw_ps(CPUMIPSState *env, uint64_t fdt0)
     uint32_t wt2;
     uint32_t wth2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fdt0 & 0XFFFFFFFF, &env->active_fpu.fp_status);
     wth2 = float32_to_int32(fdt0 >> 32, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2553,7 +2552,6 @@ uint32_t helper_float_cvts_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float64_to_float32(fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fst2;
@@ -2563,7 +2561,6 @@ uint32_t helper_float_cvts_w(CPUMIPSState *env, uint32_t wt0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = int32_to_float32(wt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fst2;
@@ -2573,7 +2570,6 @@ uint32_t helper_float_cvts_l(CPUMIPSState *env, uint64_t dt0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = int64_to_float32(dt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fst2;
@@ -2583,7 +2579,6 @@ uint32_t helper_float_cvts_pl(CPUMIPSState *env, uint32_t wt0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = wt0;
     update_fcr31(env);
     return wt2;
@@ -2593,7 +2588,6 @@ uint32_t helper_float_cvts_pu(CPUMIPSState *env, uint32_t wth0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = wth0;
     update_fcr31(env);
     return wt2;
@@ -2603,7 +2597,6 @@ uint32_t helper_float_cvtw_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2615,7 +2608,6 @@ uint32_t helper_float_cvtw_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2627,7 +2619,6 @@ uint64_t helper_float_roundl_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2641,7 +2632,6 @@ uint64_t helper_float_roundl_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2655,7 +2645,6 @@ uint32_t helper_float_roundw_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2669,7 +2658,6 @@ uint32_t helper_float_roundw_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_nearest_even, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2683,7 +2671,6 @@ uint64_t helper_float_truncl_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     dt2 = float64_to_int64_round_to_zero(fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2695,7 +2682,6 @@ uint64_t helper_float_truncl_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     dt2 = float32_to_int64_round_to_zero(fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2707,7 +2693,6 @@ uint32_t helper_float_truncw_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = float64_to_int32_round_to_zero(fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2719,7 +2704,6 @@ uint32_t helper_float_truncw_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     wt2 = float32_to_int32_round_to_zero(fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & (FP_OVERFLOW | FP_INVALID))
@@ -2731,7 +2715,6 @@ uint64_t helper_float_ceill_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2745,7 +2728,6 @@ uint64_t helper_float_ceill_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2759,7 +2741,6 @@ uint32_t helper_float_ceilw_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2773,7 +2754,6 @@ uint32_t helper_float_ceilw_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_up, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2787,7 +2767,6 @@ uint64_t helper_float_floorl_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     dt2 = float64_to_int64(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2801,7 +2780,6 @@ uint64_t helper_float_floorl_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint64_t dt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     dt2 = float32_to_int64(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2815,7 +2793,6 @@ uint32_t helper_float_floorw_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     wt2 = float64_to_int32(fdt0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2829,7 +2806,6 @@ uint32_t helper_float_floorw_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t wt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     set_float_rounding_mode(float_round_down, &env->active_fpu.fp_status);
     wt2 = float32_to_int32(fst0, &env->active_fpu.fp_status);
     RESTORE_ROUNDING_MODE;
@@ -2867,7 +2843,6 @@ uint64_t helper_float_recip_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_div(FLOAT_ONE64, fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fdt2;
@@ -2877,7 +2852,6 @@ uint32_t helper_float_recip_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_div(FLOAT_ONE32, fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fst2;
@@ -2887,7 +2861,6 @@ uint64_t helper_float_rsqrt_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_sqrt(fdt0, &env->active_fpu.fp_status);
     fdt2 = float64_div(FLOAT_ONE64, fdt2, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2898,7 +2871,6 @@ uint32_t helper_float_rsqrt_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_sqrt(fst0, &env->active_fpu.fp_status);
     fst2 = float32_div(FLOAT_ONE32, fst2, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2909,7 +2881,6 @@ uint64_t helper_float_recip1_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_div(FLOAT_ONE64, fdt0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fdt2;
@@ -2919,7 +2890,6 @@ uint32_t helper_float_recip1_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_div(FLOAT_ONE32, fst0, &env->active_fpu.fp_status);
     update_fcr31(env);
     return fst2;
@@ -2930,7 +2900,6 @@ uint64_t helper_float_recip1_ps(CPUMIPSState *env, uint64_t fdt0)
     uint32_t fst2;
     uint32_t fsth2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_div(FLOAT_ONE32, fdt0 & 0XFFFFFFFF, &env->active_fpu.fp_status);
     fsth2 = float32_div(FLOAT_ONE32, fdt0 >> 32, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2941,7 +2910,6 @@ uint64_t helper_float_rsqrt1_d(CPUMIPSState *env, uint64_t fdt0)
 {
     uint64_t fdt2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_sqrt(fdt0, &env->active_fpu.fp_status);
     fdt2 = float64_div(FLOAT_ONE64, fdt2, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2952,7 +2920,6 @@ uint32_t helper_float_rsqrt1_s(CPUMIPSState *env, uint32_t fst0)
 {
     uint32_t fst2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_sqrt(fst0, &env->active_fpu.fp_status);
     fst2 = float32_div(FLOAT_ONE32, fst2, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -2964,7 +2931,6 @@ uint64_t helper_float_rsqrt1_ps(CPUMIPSState *env, uint64_t fdt0)
     uint32_t fst2;
     uint32_t fsth2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_sqrt(fdt0 & 0XFFFFFFFF, &env->active_fpu.fp_status);
     fsth2 = float32_sqrt(fdt0 >> 32, &env->active_fpu.fp_status);
     fst2 = float32_div(FLOAT_ONE32, fst2, &env->active_fpu.fp_status);
@@ -2982,7 +2948,6 @@ uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,            \
 {                                                                  \
     uint64_t dt2;                                                  \
                                                                    \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);            \
     dt2 = float64_ ## name (fdt0, fdt1, &env->active_fpu.fp_status);     \
     update_fcr31(env);                                             \
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INVALID)                \
@@ -2995,7 +2960,6 @@ uint32_t helper_float_ ## name ## _s(CPUMIPSState *env,            \
 {                                                                  \
     uint32_t wt2;                                                  \
                                                                    \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);            \
     wt2 = float32_ ## name (fst0, fst1, &env->active_fpu.fp_status);     \
     update_fcr31(env);                                             \
     if (GET_FP_CAUSE(env->active_fpu.fcr31) & FP_INVALID)                \
@@ -3014,7 +2978,6 @@ uint64_t helper_float_ ## name ## _ps(CPUMIPSState *env,           \
     uint32_t wt2;                                                  \
     uint32_t wth2;                                                 \
                                                                    \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);            \
     wt2 = float32_ ## name (fst0, fst1, &env->active_fpu.fp_status);     \
     wth2 = float32_ ## name (fsth0, fsth1, &env->active_fpu.fp_status);  \
     update_fcr31(env);                                             \
@@ -3037,7 +3000,6 @@ uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,              \
                                      uint64_t fdt0, uint64_t fdt1,   \
                                      uint64_t fdt2)                  \
 {                                                                    \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);        \
     fdt0 = float64_muladd(fdt0, fdt1, fdt2, type,                    \
                          &env->active_fpu.fp_status);                \
     update_fcr31(env);                                               \
@@ -3048,7 +3010,6 @@ uint32_t helper_float_ ## name ## _s(CPUMIPSState *env,              \
                                      uint32_t fst0, uint32_t fst1,   \
                                      uint32_t fst2)                  \
 {                                                                    \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);        \
     fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
                          &env->active_fpu.fp_status);                \
     update_fcr31(env);                                               \
@@ -3066,7 +3027,6 @@ uint64_t helper_float_ ## name ## _ps(CPUMIPSState *env,             \
     uint32_t fst2 = fdt2 & 0XFFFFFFFF;                               \
     uint32_t fsth2 = fdt2 >> 32;                                     \
                                                                      \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);        \
     fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
                           &env->active_fpu.fp_status);               \
     fsth0 = float32_muladd(fsth0, fsth1, fsth2, type,                \
@@ -3083,7 +3043,6 @@ FLOAT_FMA(nmsub, float_muladd_negate_result | float_muladd_negate_c)
 /* MIPS specific binary operations */
 uint64_t helper_float_recip2_d(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
 {
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_mul(fdt0, fdt2, &env->active_fpu.fp_status);
     fdt2 = float64_chs(float64_sub(fdt2, FLOAT_ONE64, &env->active_fpu.fp_status));
     update_fcr31(env);
@@ -3092,7 +3051,6 @@ uint64_t helper_float_recip2_d(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
 
 uint32_t helper_float_recip2_s(CPUMIPSState *env, uint32_t fst0, uint32_t fst2)
 {
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul(fst0, fst2, &env->active_fpu.fp_status);
     fst2 = float32_chs(float32_sub(fst2, FLOAT_ONE32, &env->active_fpu.fp_status));
     update_fcr31(env);
@@ -3106,7 +3064,6 @@ uint64_t helper_float_recip2_ps(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
     uint32_t fst2 = fdt2 & 0XFFFFFFFF;
     uint32_t fsth2 = fdt2 >> 32;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul(fst0, fst2, &env->active_fpu.fp_status);
     fsth2 = float32_mul(fsth0, fsth2, &env->active_fpu.fp_status);
     fst2 = float32_chs(float32_sub(fst2, FLOAT_ONE32, &env->active_fpu.fp_status));
@@ -3117,7 +3074,6 @@ uint64_t helper_float_recip2_ps(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
 
 uint64_t helper_float_rsqrt2_d(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
 {
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fdt2 = float64_mul(fdt0, fdt2, &env->active_fpu.fp_status);
     fdt2 = float64_sub(fdt2, FLOAT_ONE64, &env->active_fpu.fp_status);
     fdt2 = float64_chs(float64_div(fdt2, FLOAT_TWO64, &env->active_fpu.fp_status));
@@ -3127,7 +3083,6 @@ uint64_t helper_float_rsqrt2_d(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
 
 uint32_t helper_float_rsqrt2_s(CPUMIPSState *env, uint32_t fst0, uint32_t fst2)
 {
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul(fst0, fst2, &env->active_fpu.fp_status);
     fst2 = float32_sub(fst2, FLOAT_ONE32, &env->active_fpu.fp_status);
     fst2 = float32_chs(float32_div(fst2, FLOAT_TWO32, &env->active_fpu.fp_status));
@@ -3142,7 +3097,6 @@ uint64_t helper_float_rsqrt2_ps(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt2)
     uint32_t fst2 = fdt2 & 0XFFFFFFFF;
     uint32_t fsth2 = fdt2 >> 32;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul(fst0, fst2, &env->active_fpu.fp_status);
     fsth2 = float32_mul(fsth0, fsth2, &env->active_fpu.fp_status);
     fst2 = float32_sub(fst2, FLOAT_ONE32, &env->active_fpu.fp_status);
@@ -3162,7 +3116,6 @@ uint64_t helper_float_addr_ps(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt1)
     uint32_t fst2;
     uint32_t fsth2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_add (fst0, fsth0, &env->active_fpu.fp_status);
     fsth2 = float32_add (fst1, fsth1, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -3178,7 +3131,6 @@ uint64_t helper_float_mulr_ps(CPUMIPSState *env, uint64_t fdt0, uint64_t fdt1)
     uint32_t fst2;
     uint32_t fsth2;
 
-    set_float_exception_flags(0, &env->active_fpu.fp_status);
     fst2 = float32_mul (fst0, fsth0, &env->active_fpu.fp_status);
     fsth2 = float32_mul (fst1, fsth1, &env->active_fpu.fp_status);
     update_fcr31(env);
@@ -3191,7 +3143,6 @@ void helper_cmp_d_ ## op(CPUMIPSState *env, uint64_t fdt0,     \
                          uint64_t fdt1, int cc)                \
 {                                                              \
     int c;                                                     \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     c = cond;                                                  \
     update_fcr31(env);                                         \
     if (c)                                                     \
@@ -3203,7 +3154,6 @@ void helper_cmpabs_d_ ## op(CPUMIPSState *env, uint64_t fdt0,  \
                             uint64_t fdt1, int cc)             \
 {                                                              \
     int c;                                                     \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     fdt0 = float64_abs(fdt0);                                  \
     fdt1 = float64_abs(fdt1);                                  \
     c = cond;                                                  \
@@ -3240,7 +3190,6 @@ void helper_cmp_s_ ## op(CPUMIPSState *env, uint32_t fst0,     \
                          uint32_t fst1, int cc)                \
 {                                                              \
     int c;                                                     \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     c = cond;                                                  \
     update_fcr31(env);                                         \
     if (c)                                                     \
@@ -3252,7 +3201,6 @@ void helper_cmpabs_s_ ## op(CPUMIPSState *env, uint32_t fst0,  \
                             uint32_t fst1, int cc)             \
 {                                                              \
     int c;                                                     \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);  \
     fst0 = float32_abs(fst0);                                  \
     fst1 = float32_abs(fst1);                                  \
     c = cond;                                                  \
@@ -3290,7 +3238,6 @@ void helper_cmp_ps_ ## op(CPUMIPSState *env, uint64_t fdt0,     \
 {                                                               \
     uint32_t fst0, fsth0, fst1, fsth1;                          \
     int ch, cl;                                                 \
-    set_float_exception_flags(0, &env->active_fpu.fp_status);   \
     fst0 = fdt0 & 0XFFFFFFFF;                                   \
     fsth0 = fdt0 >> 32;                                         \
     fst1 = fdt1 & 0XFFFFFFFF;                                   \
