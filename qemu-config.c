@@ -114,6 +114,10 @@ static QemuOptsList qemu_drive_opts = {
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
             .help = "copy read data from backing file into image file",
+        },{
+            .name = "locked",
+            .type = QEMU_OPT_BOOL,
+            .help = "emulate a security locked drive",
         },
         { /* end of list */ }
     },

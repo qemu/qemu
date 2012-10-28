@@ -481,6 +481,7 @@ struct IDEDevice {
     char *serial;
     char *model;
     uint64_t wwn;
+    bool locked;
 };
 
 #define BM_STATUS_DMAING 0x01

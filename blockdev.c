@@ -296,6 +296,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     BlockIOLimit io_limits;
     int snapshot = 0;
     bool copy_on_read;
+    bool locked;
     int ret;
 
     translation = BIOS_ATA_TRANSLATION_AUTO;
@@ -313,6 +314,8 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
     ro = qemu_opt_get_bool(opts, "readonly", 0);
     copy_on_read = qemu_opt_get_bool(opts, "copy-on-read", false);
+
+    locked = qemu_opt_get_bool(opts, "locked", false);
 
     file = qemu_opt_get(opts, "file");
     serial = qemu_opt_get(opts, "serial");
@@ -541,6 +544,7 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     dinfo->opts = opts;
     dinfo->refcount = 1;
     dinfo->serial = serial;
+    dinfo->locked = locked;
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);

@@ -24,6 +24,14 @@ void blkconf_serial(BlockConf *conf, char **serial)
     }
 }
 
+void blkconf_locked(BlockConf *conf, bool *locked)
+{
+    DriveInfo *dinfo;
+
+    dinfo = drive_get_by_blockdev(conf->bs);
+    *locked = dinfo->locked;
+}
+
 int blkconf_geometry(BlockConf *conf, int *ptrans,
                      unsigned cyls_max, unsigned heads_max, unsigned secs_max)
 {

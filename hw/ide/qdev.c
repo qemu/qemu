@@ -148,6 +148,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
         return -1;
     }
 
+    blkconf_locked(&dev->conf, &dev->locked);
     blkconf_serial(&dev->conf, &dev->serial);
     if (kind != IDE_CD
         && blkconf_geometry(&dev->conf, &dev->chs_trans, 65536, 16, 255) < 0) {
