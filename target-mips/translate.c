@@ -1626,13 +1626,11 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
-        save_cpu_state(ctx, 0);
         op_ld_lwu(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
-        save_cpu_state(ctx, 0);
         op_ld_ld(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "ld";
@@ -1658,7 +1656,6 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "ldr";
         break;
     case OPC_LDPC:
-        save_cpu_state(ctx, 0);
         tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         op_ld_ld(t0, t0, ctx);
@@ -1667,7 +1664,6 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         break;
 #endif
     case OPC_LWPC:
-        save_cpu_state(ctx, 0);
         tcg_gen_movi_tl(t1, pc_relative_pc(ctx));
         gen_op_addr_add(ctx, t0, t0, t1);
         op_ld_lw(t0, t0, ctx);
@@ -1675,31 +1671,26 @@ static void gen_ld (CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         opn = "lwpc";
         break;
     case OPC_LW:
-        save_cpu_state(ctx, 0);
         op_ld_lw(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
     case OPC_LH:
-        save_cpu_state(ctx, 0);
         op_ld_lh(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
     case OPC_LHU:
-        save_cpu_state(ctx, 0);
         op_ld_lhu(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
     case OPC_LB:
-        save_cpu_state(ctx, 0);
         op_ld_lb(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lb";
         break;
     case OPC_LBU:
-        save_cpu_state(ctx, 0);
         op_ld_lbu(t0, t0, ctx);
         gen_store_gpr(t0, rt);
         opn = "lbu";
@@ -1744,7 +1735,6 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
-        save_cpu_state(ctx, 0);
         op_st_sd(t1, t0, ctx);
         opn = "sd";
         break;
@@ -1760,17 +1750,14 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
         break;
 #endif
     case OPC_SW:
-        save_cpu_state(ctx, 0);
         op_st_sw(t1, t0, ctx);
         opn = "sw";
         break;
     case OPC_SH:
-        save_cpu_state(ctx, 0);
         op_st_sh(t1, t0, ctx);
         opn = "sh";
         break;
     case OPC_SB:
-        save_cpu_state(ctx, 0);
         op_st_sb(t1, t0, ctx);
         opn = "sb";
         break;
@@ -8691,7 +8678,6 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
-    save_cpu_state(ctx, 0);
     switch (opc) {
     case OPC_LWXC1:
         check_cop1x(ctx);
@@ -10964,7 +10950,6 @@ static void gen_ldxs (DisasContext *ctx, int base, int index, int rd)
         gen_op_addr_add(ctx, t0, t1, t0);
     }
 
-    save_cpu_state(ctx, 0);
     op_ld_lw(t1, t0, ctx);
     gen_store_gpr(t1, rd);
 
@@ -10994,7 +10979,6 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
             generate_exception(ctx, EXCP_RI);
             return;
         }
-        save_cpu_state(ctx, 0);
         op_ld_lw(t1, t0, ctx);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 4);
@@ -11004,7 +10988,6 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
         opn = "lwp";
         break;
     case SWP:
-        save_cpu_state(ctx, 0);
         gen_load_gpr(t1, rd);
         op_st_sw(t1, t0, ctx);
         tcg_gen_movi_tl(t1, 4);
@@ -11019,7 +11002,6 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
             generate_exception(ctx, EXCP_RI);
             return;
         }
-        save_cpu_state(ctx, 0);
         op_ld_ld(t1, t0, ctx);
         gen_store_gpr(t1, rd);
         tcg_gen_movi_tl(t1, 8);
@@ -11029,7 +11011,6 @@ static void gen_ldst_pair (DisasContext *ctx, uint32_t opc, int rd,
         opn = "ldp";
         break;
     case SDP:
-        save_cpu_state(ctx, 0);
         gen_load_gpr(t1, rd);
         op_st_sd(t1, t0, ctx);
         tcg_gen_movi_tl(t1, 8);
@@ -12671,7 +12652,6 @@ static void gen_mipsdsp_ld(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
         gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[offset]);
     }
 
-    save_cpu_state(ctx, 0);
     switch (opc) {
     case OPC_LBUX:
         op_ld_lbu(t0, t0, ctx);
