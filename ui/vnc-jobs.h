@@ -40,7 +40,6 @@ void vnc_jobs_join(VncState *vs);
 
 void vnc_jobs_consume_buffer(VncState *vs);
 void vnc_start_worker_thread(void);
-bool vnc_worker_thread_running(void);
 void vnc_stop_worker_thread(void);
 
 /* Locks */

@@ -493,9 +493,6 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting);
 
 
 /* Buffer I/O functions */
-uint8_t read_u8(uint8_t *data, size_t offset);
-uint16_t read_u16(uint8_t *data, size_t offset);
-int32_t read_s32(uint8_t *data, size_t offset);
 uint32_t read_u32(uint8_t *data, size_t offset);
 
 /* Protocol stage functions */
@@ -507,8 +504,6 @@ void start_auth_vnc(VncState *vs);
 
 /* Buffer management */
 void buffer_reserve(Buffer *buffer, size_t len);
-int buffer_empty(Buffer *buffer);
-uint8_t *buffer_end(Buffer *buffer);
 void buffer_reset(Buffer *buffer);
 void buffer_free(Buffer *buffer);
 void buffer_append(Buffer *buffer, const void *data, size_t len);
