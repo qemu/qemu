@@ -188,9 +188,12 @@ static unsigned phys_map_nodes_nb, phys_map_nodes_nb_alloc;
 
 static void io_mem_init(void);
 static void memory_map_init(void);
+static void *qemu_safe_ram_ptr(ram_addr_t addr);
 
 static MemoryRegion io_mem_watch;
 #endif
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+                         tb_page_addr_t phys_page2);
 
 /* statistics */
 static int tb_flush_count;
@@ -1349,8 +1352,8 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 
 /* add a new TB and link it to the physical page tables. phys_page2 is
    (-1) to indicate that only one page contains the TB. */
-void tb_link_page(TranslationBlock *tb,
-                  tb_page_addr_t phys_pc, tb_page_addr_t phys_page2)
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+                         tb_page_addr_t phys_page2)
 {
     unsigned int h;
     TranslationBlock **ptb;
@@ -1859,7 +1862,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     }
 }
 
-int cpu_physical_memory_set_dirty_tracking(int enable)
+static int cpu_physical_memory_set_dirty_tracking(int enable)
 {
     int ret = 0;
     in_migration = enable;
@@ -2741,7 +2744,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
  * Same as qemu_get_ram_ptr but avoid reordering ramblocks.
  */
-void *qemu_safe_ram_ptr(ram_addr_t addr)
+static void *qemu_safe_ram_ptr(ram_addr_t addr)
 {
     RAMBlock *block;
 
@@ -2771,7 +2774,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
  * but takes a size argument */
-void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
+static void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
 {
     if (*size == 0) {
         return NULL;
@@ -3519,7 +3522,7 @@ void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
     return client;
 }
 
-void cpu_unregister_map_client(void *_client)
+static void cpu_unregister_map_client(void *_client)
 {
     MapClient *client = (MapClient *)_client;
 
