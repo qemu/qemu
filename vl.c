@@ -3311,6 +3311,12 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    qemu_init_cpu_loop();
+    if (qemu_init_main_loop()) {
+        fprintf(stderr, "qemu_init_main_loop failed\n");
+        exit(1);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
         exit(1);
     }
@@ -3462,12 +3468,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     configure_accelerator();
-
-    qemu_init_cpu_loop();
-    if (qemu_init_main_loop()) {
-        fprintf(stderr, "qemu_init_main_loop failed\n");
-        exit(1);
-    }
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
