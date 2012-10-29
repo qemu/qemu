@@ -385,7 +385,6 @@ struct EHCIQueue {
 typedef QTAILQ_HEAD(EHCIQueueHead, EHCIQueue) EHCIQueueHead;
 
 struct EHCIState {
-    PCIDevice dev;
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
@@ -446,6 +445,11 @@ struct EHCIState {
     uint32_t async_stepdown;
     bool int_req_by_async;
 };
+
+typedef struct EHCIPCIState {
+    PCIDevice pcidev;
+    EHCIState ehci;
+} EHCIPCIState;
 
 #define SET_LAST_RUN_CLOCK(s) \
     (s)->last_run_ns = qemu_get_clock_ns(vm_clock);
@@ -2553,7 +2557,7 @@ static const MemoryRegionOps ehci_mmio_port_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int usb_ehci_initfn(PCIDevice *dev);
+static int usb_ehci_pci_initfn(PCIDevice *dev);
 
 static USBPortOps ehci_port_ops = {
     .attach = ehci_attach,
@@ -2614,12 +2618,11 @@ static void usb_ehci_vm_state_change(void *opaque, int running, RunState state)
 }
 
 static const VMStateDescription vmstate_ehci = {
-    .name        = "ehci",
+    .name        = "ehci-core",
     .version_id  = 2,
     .minimum_version_id  = 1,
     .post_load   = usb_ehci_post_load,
     .fields      = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(dev, EHCIState),
         /* mmio registers */
         VMSTATE_UINT32(usbcmd, EHCIState),
         VMSTATE_UINT32(usbsts, EHCIState),
@@ -2650,8 +2653,19 @@ static const VMStateDescription vmstate_ehci = {
     }
 };
 
-static Property ehci_properties[] = {
-    DEFINE_PROP_UINT32("maxframes", EHCIState, maxframes, 128),
+static const VMStateDescription vmstate_ehci_pci = {
+    .name        = "ehci",
+    .version_id  = 2,
+    .minimum_version_id  = 1,
+    .post_load   = usb_ehci_post_load,
+    .fields      = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(pcidev, EHCIPCIState),
+        VMSTATE_STRUCT(ehci, EHCIPCIState, 2, vmstate_ehci, EHCIState),
+    }
+};
+
+static Property ehci_pci_properties[] = {
+    DEFINE_PROP_UINT32("maxframes", EHCIPCIState, ehci.maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -2660,13 +2674,13 @@ static void ehci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = usb_ehci_initfn;
+    k->init = usb_ehci_pci_initfn;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801D; /* ich4 */
     k->revision = 0x10;
     k->class_id = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_ehci;
-    dc->props = ehci_properties;
+    dc->props = ehci_pci_properties;
 }
 
 static TypeInfo ehci_info = {
@@ -2681,13 +2695,13 @@ static void ich9_ehci_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = usb_ehci_initfn;
+    k->init = usb_ehci_pci_initfn;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI1;
     k->revision = 0x03;
     k->class_id = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_ehci;
-    dc->props = ehci_properties;
+    dc->props = ehci_pci_properties;
 }
 
 static TypeInfo ich9_ehci_info = {
@@ -2697,43 +2711,9 @@ static TypeInfo ich9_ehci_info = {
     .class_init    = ich9_ehci_class_init,
 };
 
-static int usb_ehci_initfn(PCIDevice *dev)
+static void usb_ehci_initfn(EHCIState *s, DeviceState *dev)
 {
-    EHCIState *s = DO_UPCAST(EHCIState, dev, dev);
-    uint8_t *pci_conf = s->dev.config;
     int i;
-
-    pci_set_byte(&pci_conf[PCI_CLASS_PROG], 0x20);
-
-    /* capabilities pointer */
-    pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x00);
-    //pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x50);
-
-    pci_set_byte(&pci_conf[PCI_INTERRUPT_PIN], 4); /* interrupt pin D */
-    pci_set_byte(&pci_conf[PCI_MIN_GNT], 0);
-    pci_set_byte(&pci_conf[PCI_MAX_LAT], 0);
-
-    // pci_conf[0x50] = 0x01; // power management caps
-
-    pci_set_byte(&pci_conf[USB_SBRN], USB_RELEASE_2); // release number (2.1.4)
-    pci_set_byte(&pci_conf[0x61], 0x20);  // frame length adjustment (2.1.5)
-    pci_set_word(&pci_conf[0x62], 0x00);  // port wake up capability (2.1.6)
-
-    pci_conf[0x64] = 0x00;
-    pci_conf[0x65] = 0x00;
-    pci_conf[0x66] = 0x00;
-    pci_conf[0x67] = 0x00;
-    pci_conf[0x68] = 0x01;
-    pci_conf[0x69] = 0x00;
-    pci_conf[0x6a] = 0x00;
-    pci_conf[0x6b] = 0x00;  // USBLEGSUP
-    pci_conf[0x6c] = 0x00;
-    pci_conf[0x6d] = 0x00;
-    pci_conf[0x6e] = 0x00;
-    pci_conf[0x6f] = 0xc0;  // USBLEFCTLSTS
-
-    s->capsbase = 0x00;
-    s->opregbase = 0x20;
 
     /* 2.2 host controller interface version */
     s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
@@ -2745,15 +2725,10 @@ static int usb_ehci_initfn(PCIDevice *dev)
     s->caps[0x06] = 0x00;
     s->caps[0x07] = 0x00;
     s->caps[0x08] = 0x80;        /* We can cache whole frame, no 64-bit */
-    s->caps[0x09] = 0x68;        /* EECP */
     s->caps[0x0a] = 0x00;
     s->caps[0x0b] = 0x00;
 
-    s->irq = s->dev.irq[3];
-
-    s->dma = pci_dma_context(dev);
-
-    usb_bus_new(&s->bus, &ehci_bus_ops, &s->dev.qdev);
+    usb_bus_new(&s->bus, &ehci_bus_ops, dev);
     for(i = 0; i < NB_PORTS; i++) {
         usb_register_port(&s->bus, &s->ports[i], s, i, &ehci_port_ops,
                           USB_SPEED_MASK_HIGH);
@@ -2781,8 +2756,53 @@ static int usb_ehci_initfn(PCIDevice *dev)
     memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
     memory_region_add_subregion(&s->mem, s->opregbase + PORTSC_BEGIN,
                                 &s->mem_ports);
+}
 
-    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
+static int usb_ehci_pci_initfn(PCIDevice *dev)
+{
+    EHCIPCIState *i = DO_UPCAST(EHCIPCIState, pcidev, dev);
+    EHCIState *s = &i->ehci;
+    uint8_t *pci_conf = dev->config;
+
+    pci_set_byte(&pci_conf[PCI_CLASS_PROG], 0x20);
+
+    /* capabilities pointer */
+    pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x00);
+    /* pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x50); */
+
+    pci_set_byte(&pci_conf[PCI_INTERRUPT_PIN], 4); /* interrupt pin D */
+    pci_set_byte(&pci_conf[PCI_MIN_GNT], 0);
+    pci_set_byte(&pci_conf[PCI_MAX_LAT], 0);
+
+    /* pci_conf[0x50] = 0x01; *//* power management caps */
+
+    pci_set_byte(&pci_conf[USB_SBRN], USB_RELEASE_2); /* release # (2.1.4) */
+    pci_set_byte(&pci_conf[0x61], 0x20);  /* frame length adjustment (2.1.5) */
+    pci_set_word(&pci_conf[0x62], 0x00);  /* port wake up capability (2.1.6) */
+
+    pci_conf[0x64] = 0x00;
+    pci_conf[0x65] = 0x00;
+    pci_conf[0x66] = 0x00;
+    pci_conf[0x67] = 0x00;
+    pci_conf[0x68] = 0x01;
+    pci_conf[0x69] = 0x00;
+    pci_conf[0x6a] = 0x00;
+    pci_conf[0x6b] = 0x00;  /* USBLEGSUP */
+    pci_conf[0x6c] = 0x00;
+    pci_conf[0x6d] = 0x00;
+    pci_conf[0x6e] = 0x00;
+    pci_conf[0x6f] = 0xc0;  /* USBLEFCTLSTS */
+
+    s->caps[0x09] = 0x68;        /* EECP */
+
+    s->irq = dev->irq[3];
+    s->dma = pci_dma_context(dev);
+
+    s->capsbase = 0x00;
+    s->opregbase = 0x20;
+
+    usb_ehci_initfn(s, DEVICE(dev));
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     return 0;
 }
