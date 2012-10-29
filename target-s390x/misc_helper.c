@@ -67,55 +67,12 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
     }
 }
 
-/*
- * ret < 0 indicates program check, ret = 0, 1, 2, 3 -> cc
- */
-int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code)
-{
-    int r = 0;
-    int shift = 0;
-
-#ifdef DEBUG_HELPER
-    printf("sclp(0x%x, 0x%" PRIx64 ")\n", sccb, code);
-#endif
-
-    /* basic checks */
-    if (cpu_physical_memory_is_io(sccb)) {
-        return -PGM_ADDRESSING;
-    }
-    if (sccb & ~0x7ffffff8ul) {
-        return -PGM_SPECIFICATION;
-    }
-
-    switch (code) {
-    case SCLP_CMDW_READ_SCP_INFO:
-    case SCLP_CMDW_READ_SCP_INFO_FORCED:
-        while ((ram_size >> (20 + shift)) > 65535) {
-            shift++;
-        }
-        stw_phys(sccb + SCP_MEM_CODE, ram_size >> (20 + shift));
-        stb_phys(sccb + SCP_INCREMENT, 1 << shift);
-        stw_phys(sccb + SCP_RESPONSE_CODE, 0x10);
-
-        s390_sclp_extint(sccb & ~3);
-        break;
-    default:
-#ifdef DEBUG_HELPER
-        printf("KVM: invalid sclp call 0x%x / 0x%" PRIx64 "x\n", sccb, code);
-#endif
-        r = 3;
-        break;
-    }
-
-    return r;
-}
-
 /* SCLP service call */
 uint32_t HELPER(servc)(CPUS390XState *env, uint32_t r1, uint64_t r2)
 {
     int r;
 
-    r = sclp_service_call(env, r1, r2);
+    r = sclp_service_call(r1, r2);
     if (r < 0) {
         program_interrupt(env, -r, 4);
         return 0;
