@@ -245,20 +245,19 @@ void hmp_info_cpus(Monitor *mon)
             active = '*';
         }
 
-        monitor_printf(mon, "%c CPU #%" PRId64 ": ", active, cpu->value->CPU);
+        monitor_printf(mon, "%c CPU #%" PRId64 ":", active, cpu->value->CPU);
 
         if (cpu->value->has_pc) {
-            monitor_printf(mon, "pc=0x%016" PRIx64, cpu->value->pc);
+            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->pc);
         }
         if (cpu->value->has_nip) {
-            monitor_printf(mon, "nip=0x%016" PRIx64, cpu->value->nip);
+            monitor_printf(mon, " nip=0x%016" PRIx64, cpu->value->nip);
         }
         if (cpu->value->has_npc) {
-            monitor_printf(mon, "pc=0x%016" PRIx64, cpu->value->pc);
-            monitor_printf(mon, "npc=0x%016" PRIx64, cpu->value->npc);
+            monitor_printf(mon, " npc=0x%016" PRIx64, cpu->value->npc);
         }
         if (cpu->value->has_PC) {
-            monitor_printf(mon, "PC=0x%016" PRIx64, cpu->value->PC);
+            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->PC);
         }
 
         if (cpu->value->halted) {
