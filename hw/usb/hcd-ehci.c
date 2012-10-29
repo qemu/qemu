@@ -36,7 +36,9 @@
 #include "dma.h"
 #include "sysemu.h"
 
+#ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0
+#endif
 
 #if EHCI_DEBUG
 #define DPRINTF printf
