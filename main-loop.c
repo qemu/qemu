@@ -26,6 +26,7 @@
 #include "qemu-timer.h"
 #include "slirp/slirp.h"
 #include "main-loop.h"
+#include "qemu-aio.h"
 
 #ifndef _WIN32
 
@@ -199,6 +200,8 @@ static int qemu_signal_init(void)
 }
 #endif
 
+static AioContext *qemu_aio_context;
+
 int qemu_init_main_loop(void)
 {
     int ret;
@@ -218,6 +221,7 @@ int qemu_init_main_loop(void)
         return ret;
     }
 
+    qemu_aio_context = aio_context_new();
     return 0;
 }
 
@@ -481,7 +485,7 @@ int main_loop_wait(int nonblocking)
     if (nonblocking) {
         timeout = 0;
     } else {
-        qemu_bh_update_timeout(&timeout);
+        aio_bh_update_timeout(qemu_aio_context, &timeout);
     }
 
     /* poll any events */
@@ -509,4 +513,16 @@ int main_loop_wait(int nonblocking)
     qemu_bh_poll();
 
     return ret;
+}
+
+/* Functions to operate on the main QEMU AioContext.  */
+
+QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
+{
+    return aio_bh_new(qemu_aio_context, cb, opaque);
+}
+
+int qemu_bh_poll(void)
+{
+    return aio_bh_poll(qemu_aio_context);
 }

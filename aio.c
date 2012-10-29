@@ -18,8 +18,6 @@
 #include "qemu-queue.h"
 #include "qemu_socket.h"
 
-typedef struct AioHandler AioHandler;
-
 /* The list of registered AIO handlers */
 static QLIST_HEAD(, AioHandler) aio_handlers;
 

@@ -15,7 +15,6 @@
 #define QEMU_AIO_H
 
 #include "qemu-common.h"
-#include "qemu-char.h"
 #include "event_notifier.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
@@ -39,8 +38,86 @@ void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
                    BlockDriverCompletionFunc *cb, void *opaque);
 void qemu_aio_release(void *p);
 
+typedef struct AioHandler AioHandler;
+typedef void QEMUBHFunc(void *opaque);
+typedef void IOHandler(void *opaque);
+
+typedef struct AioContext {
+    /* Anchor of the list of Bottom Halves belonging to the context */
+    struct QEMUBH *first_bh;
+
+    /* A simple lock used to protect the first_bh list, and ensure that
+     * no callbacks are removed while we're walking and dispatching callbacks.
+     */
+    int walking_bh;
+} AioContext;
+
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
 typedef int (AioFlushEventNotifierHandler)(EventNotifier *e);
+
+/**
+ * aio_context_new: Allocate a new AioContext.
+ *
+ * AioContext provide a mini event-loop that can be waited on synchronously.
+ * They also provide bottom halves, a service to execute a piece of code
+ * as soon as possible.
+ */
+AioContext *aio_context_new(void);
+
+/**
+ * aio_bh_new: Allocate a new bottom half structure.
+ *
+ * Bottom halves are lightweight callbacks whose invocation is guaranteed
+ * to be wait-free, thread-safe and signal-safe.  The #QEMUBH structure
+ * is opaque and must be allocated prior to its use.
+ */
+QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
+
+/**
+ * aio_bh_poll: Poll bottom halves for an AioContext.
+ *
+ * These are internal functions used by the QEMU main loop.
+ */
+int aio_bh_poll(AioContext *ctx);
+void aio_bh_update_timeout(AioContext *ctx, uint32_t *timeout);
+
+/**
+ * qemu_bh_schedule: Schedule a bottom half.
+ *
+ * Scheduling a bottom half interrupts the main loop and causes the
+ * execution of the callback that was passed to qemu_bh_new.
+ *
+ * Bottom halves that are scheduled from a bottom half handler are instantly
+ * invoked.  This can create an infinite loop if a bottom half handler
+ * schedules itself.
+ *
+ * @bh: The bottom half to be scheduled.
+ */
+void qemu_bh_schedule(QEMUBH *bh);
+
+/**
+ * qemu_bh_cancel: Cancel execution of a bottom half.
+ *
+ * Canceling execution of a bottom half undoes the effect of calls to
+ * qemu_bh_schedule without freeing its resources yet.  While cancellation
+ * itself is also wait-free and thread-safe, it can of course race with the
+ * loop that executes bottom halves unless you are holding the iothread
+ * mutex.  This makes it mostly useless if you are not holding the mutex.
+ *
+ * @bh: The bottom half to be canceled.
+ */
+void qemu_bh_cancel(QEMUBH *bh);
+
+/**
+ *qemu_bh_delete: Cancel execution of a bottom half and free its resources.
+ *
+ * Deleting a bottom half frees the memory that was allocated for it by
+ * qemu_bh_new.  It also implies canceling the bottom half if it was
+ * scheduled.
+ *
+ * @bh: The bottom half to be deleted.
+ */
+void qemu_bh_delete(QEMUBH *bh);
 
 /* Flush any pending AIO operation. This function will block until all
  * outstanding AIO operations have been completed or cancelled. */
