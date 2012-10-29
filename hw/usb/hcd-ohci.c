@@ -1851,7 +1851,7 @@ static int ohci_init_pxa(SysBusDevice *dev)
 
     /* Cannot fail as we pass NULL for masterbus */
     usb_ohci_init(&s->ohci, &dev->qdev, s->num_ports, s->dma_offset, NULL, 0,
-                  NULL);
+                  &dma_context_memory);
     sysbus_init_irq(dev, &s->ohci.irq);
     sysbus_init_mmio(dev, &s->ohci.mem);
 
