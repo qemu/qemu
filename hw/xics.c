@@ -326,8 +326,7 @@ static void ics_eoi(struct ics_state *ics, int nr)
 
 qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
 {
-    if ((irq < icp->ics->offset)
-        || (irq >= (icp->ics->offset + icp->ics->nr_irqs))) {
+    if (!ics_valid_irq(icp->ics, irq)) {
         return NULL;
     }
 
@@ -336,8 +335,7 @@ qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
 
 void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi)
 {
-    assert((irq >= icp->ics->offset)
-           && (irq < (icp->ics->offset + icp->ics->nr_irqs)));
+    assert(ics_valid_irq(icp->ics, irq));
 
     icp->ics->irqs[irq - icp->ics->offset].lsi = lsi;
 }
