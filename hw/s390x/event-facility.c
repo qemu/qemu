@@ -315,6 +315,7 @@ static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
 static int init_event_facility(S390SCLPDevice *sdev)
 {
     SCLPEventFacility *event_facility;
+    DeviceState *quiesce;
 
     event_facility = g_malloc0(sizeof(SCLPEventFacility));
     sdev->ef = event_facility;
@@ -326,6 +327,12 @@ static int init_event_facility(S390SCLPDevice *sdev)
                         TYPE_SCLP_EVENTS_BUS, (DeviceState *)sdev, NULL);
     event_facility->sbus.qbus.allow_hotplug = 0;
     event_facility->qdev = (DeviceState *) sdev;
+
+    quiesce = qdev_create(&event_facility->sbus.qbus, "sclpquiesce");
+    if (!quiesce) {
+        return -1;
+    }
+    qdev_init_nofail(quiesce);
 
     return 0;
 }
