@@ -60,9 +60,6 @@
 #define SIGP_STORE_STATUS_ADDR          0x0e
 #define SIGP_SET_ARCH                   0x12
 
-#define SCLP_CMDW_READ_SCP_INFO         0x00020001
-#define SCLP_CMDW_READ_SCP_INFO_FORCED  0x00120001
-
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
 };
@@ -344,7 +341,7 @@ static int kvm_sclp_service_call(CPUS390XState *env, struct kvm_run *run,
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
-    r = sclp_service_call(env, sccb, code);
+    r = sclp_service_call(sccb, code);
     if (r < 0) {
         enter_pgmcheck(env, -r);
     }
