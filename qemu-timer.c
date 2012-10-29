@@ -430,9 +430,11 @@ void qemu_unregister_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
 
 void init_clocks(void)
 {
-    rt_clock = qemu_new_clock(QEMU_CLOCK_REALTIME);
-    vm_clock = qemu_new_clock(QEMU_CLOCK_VIRTUAL);
-    host_clock = qemu_new_clock(QEMU_CLOCK_HOST);
+    if (!rt_clock) {
+        rt_clock = qemu_new_clock(QEMU_CLOCK_REALTIME);
+        vm_clock = qemu_new_clock(QEMU_CLOCK_VIRTUAL);
+        host_clock = qemu_new_clock(QEMU_CLOCK_HOST);
+    }
 }
 
 uint64_t qemu_timer_expire_time_ns(QEMUTimer *ts)
@@ -744,6 +746,10 @@ int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
     int i, err = -1;
+
+    if (alarm_timer) {
+        return 0;
+    }
 
     for (i = 0; alarm_timers[i].name; i++) {
         t = &alarm_timers[i];
