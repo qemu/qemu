@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,6 +9,12 @@
 #include <sys/wait.h>
 #include <sched.h>
 
+void checked_write(int fd, const void *buf, size_t count)
+{
+    ssize_t rc = write(fd, buf, count);
+    assert(rc == count);
+}
+
 void *thread1_func(void *arg)
 {
     int i;
@@ -15,7 +22,7 @@ void *thread1_func(void *arg)
 
     for(i=0;i<10;i++) {
         snprintf(buf, sizeof(buf), "thread1: %d %s\n", i, (char *)arg);
-        write(1, buf, strlen(buf));
+        checked_write(1, buf, strlen(buf));
         usleep(100 * 1000);
     }
     return NULL;
@@ -27,7 +34,7 @@ void *thread2_func(void *arg)
     char buf[512];
     for(i=0;i<20;i++) {
         snprintf(buf, sizeof(buf), "thread2: %d %s\n", i, (char *)arg);
-        write(1, buf, strlen(buf));
+        checked_write(1, buf, strlen(buf));
         usleep(150 * 1000);
     }
     return NULL;
