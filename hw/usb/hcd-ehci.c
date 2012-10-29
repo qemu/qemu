@@ -389,6 +389,7 @@ struct EHCIState {
     USBBus bus;
     qemu_irq irq;
     MemoryRegion mem;
+    DMAContext *dma;
     MemoryRegion mem_caps;
     MemoryRegion mem_opreg;
     MemoryRegion mem_ports;
@@ -1304,7 +1305,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
     int i;
 
     for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        pci_dma_read(&ehci->dev, addr, buf, sizeof(*buf));
+        dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
@@ -1319,7 +1320,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 
     for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        pci_dma_write(&ehci->dev, addr, &tmp, sizeof(tmp));
+        dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
     }
 
     return 1;
@@ -1402,7 +1403,7 @@ static int ehci_init_transfer(EHCIPacket *p)
     cpage  = get_field(p->qtd.token, QTD_TOKEN_CPAGE);
     bytes  = get_field(p->qtd.token, QTD_TOKEN_TBYTES);
     offset = p->qtd.bufptr[0] & ~QTD_BUFPTR_MASK;
-    pci_dma_sglist_init(&p->sgl, &p->queue->ehci->dev, 5);
+    qemu_sglist_init(&p->sgl, 5, p->queue->ehci->dma);
 
     while (bytes > 0) {
         if (cpage > 4) {
@@ -1647,7 +1648,7 @@ static int ehci_process_itd(EHCIState *ehci,
                 return USB_RET_PROCERR;
             }
 
-            pci_dma_sglist_init(&ehci->isgl, &ehci->dev, 2);
+            qemu_sglist_init(&ehci->isgl, 2, ehci->dma);
             if (off + len > 4096) {
                 /* transfer crosses page border */
                 uint32_t len2 = off + len - 4096;
@@ -2402,7 +2403,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         }
         list |= ((ehci->frindex & 0x1ff8) >> 1);
 
-        pci_dma_read(&ehci->dev, list, &entry, sizeof entry);
+        dma_memory_read(ehci->dma, list, &entry, sizeof entry);
         entry = le32_to_cpu(entry);
 
         DPRINTF("PERIODIC state adv fr=%d.  [%08X] -> %08X\n",
@@ -2749,6 +2750,8 @@ static int usb_ehci_initfn(PCIDevice *dev)
     s->caps[0x0b] = 0x00;
 
     s->irq = s->dev.irq[3];
+
+    s->dma = pci_dma_context(dev);
 
     usb_bus_new(&s->bus, &ehci_bus_ops, &s->dev.qdev);
     for(i = 0; i < NB_PORTS; i++) {
