@@ -150,7 +150,7 @@ static void m68k_semi_cb(CPUM68KState *env, target_ulong ret, target_ulong err)
     }
     /* FIXME - handle put_user() failure */
     put_user_u32(ret, args);
-    put_user_u32(errno, args + 4);
+    put_user_u32(err, args + 4);
 }
 
 #define ARG(n)					\
