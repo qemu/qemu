@@ -18,6 +18,15 @@
 
 #include "sclp.h"
 
+static inline S390SCLPDevice *get_event_facility(void)
+{
+    ObjectProperty *op = object_property_find(qdev_get_machine(),
+                                              "s390-sclp-event-facility",
+                                              NULL);
+    assert(op);
+    return op->opaque;
+}
+
 /* Provide information about the configuration, CPUs and storage */
 static void read_SCP_info(SCCB *sccb)
 {
@@ -34,13 +43,15 @@ static void read_SCP_info(SCCB *sccb)
 
 static void sclp_execute(SCCB *sccb, uint64_t code)
 {
+    S390SCLPDevice *sdev = get_event_facility();
+
     switch (code) {
     case SCLP_CMDW_READ_SCP_INFO:
     case SCLP_CMDW_READ_SCP_INFO_FORCED:
         read_SCP_info(sccb);
         break;
     default:
-        sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
+        sdev->sclp_command_handler(sdev->ef, sccb, code);
         break;
     }
 }
@@ -89,10 +100,44 @@ out:
 
 void sclp_service_interrupt(uint32_t sccb)
 {
-    s390_sclp_extint(sccb & ~3);
+    S390SCLPDevice *sdev = get_event_facility();
+    uint32_t param = sccb & ~3;
+
+    /* Indicate whether an event is still pending */
+    param |= sdev->event_pending(sdev->ef) ? 1 : 0;
+
+    if (!param) {
+        /* No need to send an interrupt, there's nothing to be notified about */
+        return;
+    }
+    s390_sclp_extint(param);
 }
 
 /* qemu object creation and initialization functions */
+
+void s390_sclp_init(void)
+{
+    DeviceState *dev  = qdev_create(NULL, "s390-sclp-event-facility");
+
+    object_property_add_child(qdev_get_machine(), "s390-sclp-event-facility",
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+}
+
+static int s390_sclp_dev_init(SysBusDevice *dev)
+{
+    int r;
+    S390SCLPDevice *sdev = (S390SCLPDevice *)dev;
+    S390SCLPDeviceClass *sclp = SCLP_S390_DEVICE_GET_CLASS(dev);
+
+    r = sclp->init(sdev);
+    if (!r) {
+        assert(sdev->event_pending);
+        assert(sdev->sclp_command_handler);
+    }
+
+    return r;
+}
 
 static void s390_sclp_device_class_init(ObjectClass *klass, void *data)
 {
