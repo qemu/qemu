@@ -963,7 +963,7 @@ struct CPUPPCState {
     /* floating point registers */
     float64 fpr[32];
     /* floating point status and control register */
-    uint32_t fpscr;
+    target_ulong fpscr;
 
     /* Next instruction pointer */
     target_ulong nip;
@@ -1014,6 +1014,8 @@ struct CPUPPCState {
     /* Altivec registers */
     ppc_avr_t avr[32];
     uint32_t vscr;
+    /* VSX registers */
+    uint64_t vsr[32];
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
