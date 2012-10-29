@@ -106,6 +106,10 @@ class VM(object):
 
         return self._qmp.cmd(cmd, args=qmp_args)
 
+    def get_qmp_event(self, wait=False):
+        '''Poll for one queued QMP events and return it'''
+        return self._qmp.pull_event(wait=wait)
+
     def get_qmp_events(self, wait=False):
         '''Poll for queued QMP events and return a list of dicts'''
         events = self._qmp.get_events(wait=wait)

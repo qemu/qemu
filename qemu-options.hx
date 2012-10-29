@@ -253,6 +253,14 @@ qemu-system-i386 -drive file=file,index=2,media=disk
 qemu-system-i386 -drive file=file,index=3,media=disk
 @end example
 
+You can open an image using pre-opened file descriptors from an fd set:
+@example
+qemu-system-i386
+-add-fd fd=3,set=2,opaque="rdwr:/path/to/file"
+-add-fd fd=4,set=2,opaque="rdonly:/path/to/file"
+-drive file=/dev/fdset/2,index=0,media=disk
+@end example
+
 You can connect a CDROM to the slave of ide0:
 @example
 qemu-system-i386 -drive file=file,if=ide,index=1,media=cdrom
@@ -282,6 +290,34 @@ qemu-system-i386 -drive file=a -drive file=b"
 is interpreted like:
 @example
 qemu-system-i386 -hda a -hdb b
+@end example
+ETEXI
+
+DEF("add-fd", HAS_ARG, QEMU_OPTION_add_fd,
+    "-add-fd fd=fd,set=set[,opaque=opaque]\n"
+    "                Add 'fd' to fd 'set'\n", QEMU_ARCH_ALL)
+STEXI
+@item -add-fd fd=@var{fd},set=@var{set}[,opaque=@var{opaque}]
+@findex -add-fd
+
+Add a file descriptor to an fd set.  Valid options are:
+
+@table @option
+@item fd=@var{fd}
+This option defines the file descriptor of which a duplicate is added to fd set.
+The file descriptor cannot be stdin, stdout, or stderr.
+@item set=@var{set}
+This option defines the ID of the fd set to add the file descriptor to.
+@item opaque=@var{opaque}
+This option defines a free-form string that can be used to describe @var{fd}.
+@end table
+
+You can open an image using pre-opened file descriptors from an fd set:
+@example
+qemu-system-i386
+-add-fd fd=3,set=2,opaque="rdwr:/path/to/file"
+-add-fd fd=4,set=2,opaque="rdonly:/path/to/file"
+-drive file=/dev/fdset/2,index=0,media=disk
 @end example
 ETEXI
 

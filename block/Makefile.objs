@@ -12,3 +12,4 @@ block-obj-$(CONFIG_GLUSTERFS) += gluster.o
 
 common-obj-y += stream.o
 common-obj-y += commit.o
+common-obj-y += mirror.o

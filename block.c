@@ -387,7 +387,8 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     };
 
     if (!drv->bdrv_create) {
-        return -ENOTSUP;
+        ret = -ENOTSUP;
+        goto out;
     }
 
     if (qemu_in_coroutine()) {
@@ -402,8 +403,9 @@ int bdrv_create(BlockDriver *drv, const char* filename,
     }
 
     ret = cco.ret;
-    g_free(cco.filename);
 
+out:
+    g_free(cco.filename);
     return ret;
 }
 
@@ -742,6 +744,42 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     return 0;
 }
 
+int bdrv_open_backing_file(BlockDriverState *bs)
+{
+    char backing_filename[PATH_MAX];
+    int back_flags, ret;
+    BlockDriver *back_drv = NULL;
+
+    if (bs->backing_hd != NULL) {
+        return 0;
+    }
+
+    bs->open_flags &= ~BDRV_O_NO_BACKING;
+    if (bs->backing_file[0] == '\0') {
+        return 0;
+    }
+
+    bs->backing_hd = bdrv_new("");
+    bdrv_get_full_backing_filename(bs, backing_filename,
+                                   sizeof(backing_filename));
+
+    if (bs->backing_format[0] != '\0') {
+        back_drv = bdrv_find_format(bs->backing_format);
+    }
+
+    /* backing files always opened read-only */
+    back_flags = bs->open_flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT);
+
+    ret = bdrv_open(bs->backing_hd, backing_filename, back_flags, back_drv);
+    if (ret < 0) {
+        bdrv_delete(bs->backing_hd);
+        bs->backing_hd = NULL;
+        bs->open_flags |= BDRV_O_NO_BACKING;
+        return ret;
+    }
+    return 0;
+}
+
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  */
@@ -829,24 +867,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     }
 
     /* If there is a backing file, use it */
-    if ((flags & BDRV_O_NO_BACKING) == 0 && bs->backing_file[0] != '\0') {
-        char backing_filename[PATH_MAX];
-        int back_flags;
-        BlockDriver *back_drv = NULL;
-
-        bs->backing_hd = bdrv_new("");
-        bdrv_get_full_backing_filename(bs, backing_filename,
-                                       sizeof(backing_filename));
-
-        if (bs->backing_format[0] != '\0') {
-            back_drv = bdrv_find_format(bs->backing_format);
-        }
-
-        /* backing files always opened read-only */
-        back_flags =
-            flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
-
-        ret = bdrv_open(bs->backing_hd, backing_filename, back_flags, back_drv);
+    if ((flags & BDRV_O_NO_BACKING) == 0) {
+        ret = bdrv_open_backing_file(bs);
         if (ret < 0) {
             bdrv_close(bs);
             return ret;
@@ -2378,7 +2400,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     }
 
     if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
+        bdrv_set_dirty(bs, sector_num, nb_sectors);
     }
 
     if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
@@ -2806,76 +2828,82 @@ int coroutine_fn bdrv_co_is_allocated_above(BlockDriverState *top,
     return 0;
 }
 
+BlockInfo *bdrv_query_info(BlockDriverState *bs)
+{
+    BlockInfo *info = g_malloc0(sizeof(*info));
+    info->device = g_strdup(bs->device_name);
+    info->type = g_strdup("unknown");
+    info->locked = bdrv_dev_is_medium_locked(bs);
+    info->removable = bdrv_dev_has_removable_media(bs);
+
+    if (bdrv_dev_has_removable_media(bs)) {
+        info->has_tray_open = true;
+        info->tray_open = bdrv_dev_is_tray_open(bs);
+    }
+
+    if (bdrv_iostatus_is_enabled(bs)) {
+        info->has_io_status = true;
+        info->io_status = bs->iostatus;
+    }
+
+    if (bs->dirty_bitmap) {
+        info->has_dirty = true;
+        info->dirty = g_malloc0(sizeof(*info->dirty));
+        info->dirty->count = bdrv_get_dirty_count(bs) *
+            BDRV_SECTORS_PER_DIRTY_CHUNK * BDRV_SECTOR_SIZE;
+    }
+
+    if (bs->drv) {
+        info->has_inserted = true;
+        info->inserted = g_malloc0(sizeof(*info->inserted));
+        info->inserted->file = g_strdup(bs->filename);
+        info->inserted->ro = bs->read_only;
+        info->inserted->drv = g_strdup(bs->drv->format_name);
+        info->inserted->encrypted = bs->encrypted;
+        info->inserted->encryption_key_missing = bdrv_key_required(bs);
+
+        if (bs->backing_file[0]) {
+            info->inserted->has_backing_file = true;
+            info->inserted->backing_file = g_strdup(bs->backing_file);
+        }
+
+        info->inserted->backing_file_depth = bdrv_get_backing_file_depth(bs);
+
+        if (bs->io_limits_enabled) {
+            info->inserted->bps =
+                           bs->io_limits.bps[BLOCK_IO_LIMIT_TOTAL];
+            info->inserted->bps_rd =
+                           bs->io_limits.bps[BLOCK_IO_LIMIT_READ];
+            info->inserted->bps_wr =
+                           bs->io_limits.bps[BLOCK_IO_LIMIT_WRITE];
+            info->inserted->iops =
+                           bs->io_limits.iops[BLOCK_IO_LIMIT_TOTAL];
+            info->inserted->iops_rd =
+                           bs->io_limits.iops[BLOCK_IO_LIMIT_READ];
+            info->inserted->iops_wr =
+                           bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
+        }
+    }
+    return info;
+}
+
 BlockInfoList *qmp_query_block(Error **errp)
 {
-    BlockInfoList *head = NULL, *cur_item = NULL;
+    BlockInfoList *head = NULL, **p_next = &head;
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         BlockInfoList *info = g_malloc0(sizeof(*info));
+        info->value = bdrv_query_info(bs);
 
-        info->value = g_malloc0(sizeof(*info->value));
-        info->value->device = g_strdup(bs->device_name);
-        info->value->type = g_strdup("unknown");
-        info->value->locked = bdrv_dev_is_medium_locked(bs);
-        info->value->removable = bdrv_dev_has_removable_media(bs);
-
-        if (bdrv_dev_has_removable_media(bs)) {
-            info->value->has_tray_open = true;
-            info->value->tray_open = bdrv_dev_is_tray_open(bs);
-        }
-
-        if (bdrv_iostatus_is_enabled(bs)) {
-            info->value->has_io_status = true;
-            info->value->io_status = bs->iostatus;
-        }
-
-        if (bs->drv) {
-            info->value->has_inserted = true;
-            info->value->inserted = g_malloc0(sizeof(*info->value->inserted));
-            info->value->inserted->file = g_strdup(bs->filename);
-            info->value->inserted->ro = bs->read_only;
-            info->value->inserted->drv = g_strdup(bs->drv->format_name);
-            info->value->inserted->encrypted = bs->encrypted;
-            info->value->inserted->encryption_key_missing = bdrv_key_required(bs);
-            if (bs->backing_file[0]) {
-                info->value->inserted->has_backing_file = true;
-                info->value->inserted->backing_file = g_strdup(bs->backing_file);
-            }
-
-            info->value->inserted->backing_file_depth =
-                bdrv_get_backing_file_depth(bs);
-
-            if (bs->io_limits_enabled) {
-                info->value->inserted->bps =
-                               bs->io_limits.bps[BLOCK_IO_LIMIT_TOTAL];
-                info->value->inserted->bps_rd =
-                               bs->io_limits.bps[BLOCK_IO_LIMIT_READ];
-                info->value->inserted->bps_wr =
-                               bs->io_limits.bps[BLOCK_IO_LIMIT_WRITE];
-                info->value->inserted->iops =
-                               bs->io_limits.iops[BLOCK_IO_LIMIT_TOTAL];
-                info->value->inserted->iops_rd =
-                               bs->io_limits.iops[BLOCK_IO_LIMIT_READ];
-                info->value->inserted->iops_wr =
-                               bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
-            }
-        }
-
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        *p_next = info;
+        p_next = &info->next;
     }
 
     return head;
 }
 
-/* Consider exposing this as a full fledged QMP command */
-static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
+BlockStats *bdrv_query_stats(const BlockDriverState *bs)
 {
     BlockStats *s;
 
@@ -2899,7 +2927,7 @@ static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
 
     if (bs->file) {
         s->has_parent = true;
-        s->parent = qmp_query_blockstat(bs->file, NULL);
+        s->parent = bdrv_query_stats(bs->file);
     }
 
     return s;
@@ -2907,20 +2935,15 @@ static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
 
 BlockStatsList *qmp_query_blockstats(Error **errp)
 {
-    BlockStatsList *head = NULL, *cur_item = NULL;
+    BlockStatsList *head = NULL, **p_next = &head;
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         BlockStatsList *info = g_malloc0(sizeof(*info));
-        info->value = qmp_query_blockstat(bs, NULL);
+        info->value = bdrv_query_stats(bs);
 
-        /* XXX: waiting for the qapi to support GSList */
-        if (!cur_item) {
-            head = cur_item = info;
-        } else {
-            cur_item->next = info;
-            cur_item = info;
-        }
+        *p_next = info;
+        p_next = &info->next;
     }
 
     return head;
@@ -2953,9 +2976,7 @@ int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return -EIO;
 
-    if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
-    }
+    assert(!bs->dirty_bitmap);
 
     return drv->bdrv_write_compressed(bs, sector_num, buf, nb_sectors);
 }
@@ -3132,22 +3153,70 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
+/* backing_file can either be relative, or absolute, or a protocol.  If it is
+ * relative, it must be relative to the chain.  So, passing in bs->filename
+ * from a BDS as backing_file should not be done, as that may be relative to
+ * the CWD rather than the chain. */
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
         const char *backing_file)
 {
-    if (!bs->drv) {
+    char *filename_full = NULL;
+    char *backing_file_full = NULL;
+    char *filename_tmp = NULL;
+    int is_protocol = 0;
+    BlockDriverState *curr_bs = NULL;
+    BlockDriverState *retval = NULL;
+
+    if (!bs || !bs->drv || !backing_file) {
         return NULL;
     }
 
-    if (bs->backing_hd) {
-        if (strcmp(bs->backing_file, backing_file) == 0) {
-            return bs->backing_hd;
+    filename_full     = g_malloc(PATH_MAX);
+    backing_file_full = g_malloc(PATH_MAX);
+    filename_tmp      = g_malloc(PATH_MAX);
+
+    is_protocol = path_has_protocol(backing_file);
+
+    for (curr_bs = bs; curr_bs->backing_hd; curr_bs = curr_bs->backing_hd) {
+
+        /* If either of the filename paths is actually a protocol, then
+         * compare unmodified paths; otherwise make paths relative */
+        if (is_protocol || path_has_protocol(curr_bs->backing_file)) {
+            if (strcmp(backing_file, curr_bs->backing_file) == 0) {
+                retval = curr_bs->backing_hd;
+                break;
+            }
         } else {
-            return bdrv_find_backing_image(bs->backing_hd, backing_file);
+            /* If not an absolute filename path, make it relative to the current
+             * image's filename path */
+            path_combine(filename_tmp, PATH_MAX, curr_bs->filename,
+                         backing_file);
+
+            /* We are going to compare absolute pathnames */
+            if (!realpath(filename_tmp, filename_full)) {
+                continue;
+            }
+
+            /* We need to make sure the backing filename we are comparing against
+             * is relative to the current image filename (or absolute) */
+            path_combine(filename_tmp, PATH_MAX, curr_bs->filename,
+                         curr_bs->backing_file);
+
+            if (!realpath(filename_tmp, backing_file_full)) {
+                continue;
+            }
+
+            if (strcmp(backing_file_full, filename_full) == 0) {
+                retval = curr_bs->backing_hd;
+                break;
+            }
         }
     }
 
-    return NULL;
+    g_free(filename_full);
+    g_free(backing_file_full);
+    g_free(filename_tmp);
+    return retval;
 }
 
 int bdrv_get_backing_file_depth(BlockDriverState *bs)
@@ -4214,11 +4283,52 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector)
 
     if (bs->dirty_bitmap &&
         (sector << BDRV_SECTOR_BITS) < bdrv_getlength(bs)) {
-        return !!(bs->dirty_bitmap[chunk / (sizeof(unsigned long) * 8)] &
-            (1UL << (chunk % (sizeof(unsigned long) * 8))));
+        return !!(bs->dirty_bitmap[chunk / BITS_PER_LONG] &
+            (1UL << (chunk % BITS_PER_LONG)));
     } else {
         return 0;
     }
+}
+
+int64_t bdrv_get_next_dirty(BlockDriverState *bs, int64_t sector)
+{
+    int64_t chunk;
+    int bit, elem;
+
+    /* Avoid an infinite loop.  */
+    assert(bs->dirty_count > 0);
+
+    sector = (sector | (BDRV_SECTORS_PER_DIRTY_CHUNK - 1)) + 1;
+    chunk = sector / (int64_t)BDRV_SECTORS_PER_DIRTY_CHUNK;
+
+    QEMU_BUILD_BUG_ON(sizeof(bs->dirty_bitmap[0]) * 8 != BITS_PER_LONG);
+    elem = chunk / BITS_PER_LONG;
+    bit = chunk % BITS_PER_LONG;
+    for (;;) {
+        if (sector >= bs->total_sectors) {
+            sector = 0;
+            bit = elem = 0;
+        }
+        if (bit == 0 && bs->dirty_bitmap[elem] == 0) {
+            sector += BDRV_SECTORS_PER_DIRTY_CHUNK * BITS_PER_LONG;
+            elem++;
+        } else {
+            if (bs->dirty_bitmap[elem] & (1UL << bit)) {
+                return sector;
+            }
+            sector += BDRV_SECTORS_PER_DIRTY_CHUNK;
+            if (++bit == BITS_PER_LONG) {
+                bit = 0;
+                elem++;
+            }
+        }
+    }
+}
+
+void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector,
+                    int nr_sectors)
+{
+    set_dirty_bitmap(bs, cur_sector, nr_sectors, 1);
 }
 
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
@@ -4268,6 +4378,9 @@ void bdrv_iostatus_reset(BlockDriverState *bs)
 {
     if (bdrv_iostatus_is_enabled(bs)) {
         bs->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+        if (bs->job) {
+            block_job_iostatus_reset(bs->job);
+        }
     }
 }
 

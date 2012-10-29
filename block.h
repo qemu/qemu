@@ -133,6 +133,7 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
+int bdrv_open_backing_file(BlockDriverState *bs);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv);
 BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
@@ -314,6 +315,8 @@ void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size);
 void bdrv_get_full_backing_filename(BlockDriverState *bs,
                                     char *dest, size_t sz);
+BlockInfo *bdrv_query_info(BlockDriverState *s);
+BlockStats *bdrv_query_stats(const BlockDriverState *bs);
 int bdrv_can_snapshot(BlockDriverState *bs);
 int bdrv_is_snapshot(BlockDriverState *bs);
 BlockDriverState *bdrv_snapshots(void);
@@ -351,8 +354,9 @@ void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 void bdrv_set_dirty_tracking(BlockDriverState *bs, int enable);
 int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
-                      int nr_sectors);
+void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
+void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
+int64_t bdrv_get_next_dirty(BlockDriverState *bs, int64_t sector);
 int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 
 void bdrv_enable_copy_on_read(BlockDriverState *bs);

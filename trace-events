@@ -77,10 +77,18 @@ stream_start(void *bs, void *base, void *s, void *co, void *opaque) "bs %p base 
 commit_one_iteration(void *s, int64_t sector_num, int nb_sectors, int is_allocated) "s %p sector_num %"PRId64" nb_sectors %d is_allocated %d"
 commit_start(void *bs, void *base, void *top, void *s, void *co, void *opaque) "bs %p base %p top %p s %p co %p opaque %p"
 
+# block/mirror.c
+mirror_start(void *bs, void *s, void *co, void *opaque) "bs %p s %p co %p opaque %p"
+mirror_before_flush(void *s) "s %p"
+mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64
+mirror_before_sleep(void *s, int64_t cnt, int synced) "s %p dirty count %"PRId64" synced %d"
+mirror_one_iteration(void *s, int64_t sector_num, int nb_sectors) "s %p sector_num %"PRId64" nb_sectors %d"
+
 # blockdev.c
 qmp_block_job_cancel(void *job) "job %p"
 qmp_block_job_pause(void *job) "job %p"
 qmp_block_job_resume(void *job) "job %p"
+qmp_block_job_complete(void *job) "job %p"
 block_job_cb(void *bs, void *job, int ret) "bs %p job %p ret %d"
 qmp_block_stream(void *bs, void *job) "bs %p job %p"
 

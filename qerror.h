@@ -54,6 +54,9 @@ void assert_no_error(Error *err);
 #define QERR_BLOCK_JOB_PAUSED \
     ERROR_CLASS_GENERIC_ERROR, "The block job for device '%s' is currently paused"
 
+#define QERR_BLOCK_JOB_NOT_READY \
+    ERROR_CLASS_GENERIC_ERROR, "The active block job for device '%s' cannot be completed"
+
 #define QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED \
     ERROR_CLASS_GENERIC_ERROR, "Block format '%s' used by device '%s' does not support feature '%s'"
 
