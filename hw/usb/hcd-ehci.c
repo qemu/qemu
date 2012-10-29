@@ -48,20 +48,18 @@
 #define USB_RET_PROCERR   (-99)
 
 #define MMIO_SIZE        0x1000
+#define CAPA_SIZE        0x10
 
 /* Capability Registers Base Address - section 2.2 */
-#define CAPREGBASE       0x0000
-#define CAPLENGTH        CAPREGBASE + 0x0000  // 1-byte, 0x0001 reserved
-#define HCIVERSION       CAPREGBASE + 0x0002  // 2-bytes, i/f version #
-#define HCSPARAMS        CAPREGBASE + 0x0004  // 4-bytes, structural params
-#define HCCPARAMS        CAPREGBASE + 0x0008  // 4-bytes, capability params
+#define CAPLENGTH        0x0000  /* 1-byte, 0x0001 reserved */
+#define HCIVERSION       0x0002  /* 2-bytes, i/f version # */
+#define HCSPARAMS        0x0004  /* 4-bytes, structural params */
+#define HCCPARAMS        0x0008  /* 4-bytes, capability params */
 #define EECP             HCCPARAMS + 1
-#define HCSPPORTROUTE1   CAPREGBASE + 0x000c
-#define HCSPPORTROUTE2   CAPREGBASE + 0x0010
+#define HCSPPORTROUTE1   0x000c
+#define HCSPPORTROUTE2   0x0010
 
-#define OPREGBASE        0x0020        // Operational Registers Base Address
-
-#define USBCMD           OPREGBASE + 0x0000
+#define USBCMD           0x0000
 #define USBCMD_RUNSTOP   (1 << 0)      // run / Stop
 #define USBCMD_HCRESET   (1 << 1)      // HC Reset
 #define USBCMD_FLS       (3 << 2)      // Frame List Size
@@ -75,7 +73,7 @@
 #define USBCMD_ITC       (0x7f << 16)  // Int Threshold Control
 #define USBCMD_ITC_SH    16            // Int Threshold Control Shift
 
-#define USBSTS           OPREGBASE + 0x0004
+#define USBSTS           0x0004
 #define USBSTS_RO_MASK   0x0000003f
 #define USBSTS_INT       (1 << 0)      // USB Interrupt
 #define USBSTS_ERRINT    (1 << 1)      // Error Interrupt
@@ -92,18 +90,18 @@
  *  Interrupt enable bits correspond to the interrupt active bits in USBSTS
  *  so no need to redefine here.
  */
-#define USBINTR              OPREGBASE + 0x0008
+#define USBINTR              0x0008
 #define USBINTR_MASK         0x0000003f
 
-#define FRINDEX              OPREGBASE + 0x000c
-#define CTRLDSSEGMENT        OPREGBASE + 0x0010
-#define PERIODICLISTBASE     OPREGBASE + 0x0014
-#define ASYNCLISTADDR        OPREGBASE + 0x0018
+#define FRINDEX              0x000c
+#define CTRLDSSEGMENT        0x0010
+#define PERIODICLISTBASE     0x0014
+#define ASYNCLISTADDR        0x0018
 #define ASYNCLISTADDR_MASK   0xffffffe0
 
-#define CONFIGFLAG           OPREGBASE + 0x0040
+#define CONFIGFLAG           0x0040
 
-#define PORTSC               (OPREGBASE + 0x0044)
+#define PORTSC               0x0044
 #define PORTSC_BEGIN         PORTSC
 #define PORTSC_END           (PORTSC + 4 * NB_PORTS)
 /*
@@ -395,6 +393,8 @@ struct EHCIState {
     MemoryRegion mem_opreg;
     MemoryRegion mem_ports;
     int companion_count;
+    uint16_t capsbase;
+    uint16_t opregbase;
 
     /* properties */
     uint32_t maxframes;
@@ -403,9 +403,9 @@ struct EHCIState {
      *  EHCI spec version 1.0 Section 2.3
      *  Host Controller Operational Registers
      */
-    uint8_t caps[OPREGBASE];
+    uint8_t caps[CAPA_SIZE];
     union {
-        uint32_t opreg[(PORTSC_BEGIN-OPREGBASE)/sizeof(uint32_t)];
+        uint32_t opreg[PORTSC_BEGIN/sizeof(uint32_t)];
         struct {
             uint32_t usbcmd;
             uint32_t usbsts;
@@ -506,8 +506,7 @@ static const char *state2str(uint32_t state)
 
 static const char *addr2str(hwaddr addr)
 {
-    return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names),
-                  addr + OPREGBASE);
+    return nr2str(ehci_mmio_names, ARRAY_SIZE(ehci_mmio_names), addr);
 }
 
 static void ehci_trace_usbsts(uint32_t mask, int state)
@@ -1115,7 +1114,7 @@ static uint64_t ehci_opreg_read(void *ptr, hwaddr addr,
     uint32_t val;
 
     val = s->opreg[addr >> 2];
-    trace_usb_ehci_opreg_read(addr + OPREGBASE, addr2str(addr), val);
+    trace_usb_ehci_opreg_read(addr + s->opregbase, addr2str(addr), val);
     return val;
 }
 
@@ -1211,9 +1210,9 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
     uint32_t old = *mmio;
     int i;
 
-    trace_usb_ehci_opreg_write(addr + OPREGBASE, addr2str(addr), val);
+    trace_usb_ehci_opreg_write(addr + s->opregbase, addr2str(addr), val);
 
-    switch (addr + OPREGBASE) {
+    switch (addr) {
     case USBCMD:
         if (val & USBCMD_HCRESET) {
             ehci_reset(s);
@@ -1291,7 +1290,8 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
     }
 
     *mmio = val;
-    trace_usb_ehci_opreg_change(addr + OPREGBASE, addr2str(addr), *mmio, old);
+    trace_usb_ehci_opreg_change(addr + s->opregbase, addr2str(addr),
+                                *mmio, old);
 }
 
 
@@ -2731,8 +2731,11 @@ static int usb_ehci_initfn(PCIDevice *dev)
     pci_conf[0x6e] = 0x00;
     pci_conf[0x6f] = 0xc0;  // USBLEFCTLSTS
 
+    s->capsbase = 0x00;
+    s->opregbase = 0x20;
+
     /* 2.2 host controller interface version */
-    s->caps[0x00] = (uint8_t) OPREGBASE;
+    s->caps[0x00] = (uint8_t)(s->opregbase - s->capsbase);
     s->caps[0x01] = 0x00;
     s->caps[0x02] = 0x00;
     s->caps[0x03] = 0x01;        /* HC version */
@@ -2765,15 +2768,16 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
     memory_region_init(&s->mem, "ehci", MMIO_SIZE);
     memory_region_init_io(&s->mem_caps, &ehci_mmio_caps_ops, s,
-                          "capabilities", OPREGBASE);
+                          "capabilities", CAPA_SIZE);
     memory_region_init_io(&s->mem_opreg, &ehci_mmio_opreg_ops, s,
-                          "operational", PORTSC_BEGIN - OPREGBASE);
+                          "operational", PORTSC_BEGIN);
     memory_region_init_io(&s->mem_ports, &ehci_mmio_port_ops, s,
                           "ports", PORTSC_END - PORTSC_BEGIN);
 
-    memory_region_add_subregion(&s->mem, 0,            &s->mem_caps);
-    memory_region_add_subregion(&s->mem, OPREGBASE,    &s->mem_opreg);
-    memory_region_add_subregion(&s->mem, PORTSC_BEGIN, &s->mem_ports);
+    memory_region_add_subregion(&s->mem, s->capsbase, &s->mem_caps);
+    memory_region_add_subregion(&s->mem, s->opregbase, &s->mem_opreg);
+    memory_region_add_subregion(&s->mem, s->opregbase + PORTSC_BEGIN,
+                                &s->mem_ports);
 
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
