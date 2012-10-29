@@ -1045,9 +1045,9 @@ struct CPUPPCState {
 #endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    hwaddr vpa_addr;
-    hwaddr slb_shadow_addr, slb_shadow_size;
-    hwaddr dtl_addr, dtl_size;
+    uint64_t vpa_addr;
+    uint64_t slb_shadow_addr, slb_shadow_size;
+    uint64_t dtl_addr, dtl_size;
 #endif /* TARGET_PPC64 */
 
     int error_code;
