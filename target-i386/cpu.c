@@ -125,6 +125,25 @@ typedef struct model_features_t {
 int check_cpuid = 0;
 int enforce_cpuid = 0;
 
+#if defined(CONFIG_KVM)
+static uint32_t kvm_default_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
+        (1 << KVM_FEATURE_NOP_IO_DELAY) |
+        (1 << KVM_FEATURE_MMU_OP) |
+        (1 << KVM_FEATURE_CLOCKSOURCE2) |
+        (1 << KVM_FEATURE_ASYNC_PF) |
+        (1 << KVM_FEATURE_STEAL_TIME) |
+        (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
+static const uint32_t kvm_pv_eoi_features = (0x1 << KVM_FEATURE_PV_EOI);
+#else
+static uint32_t kvm_default_features = 0;
+static const uint32_t kvm_pv_eoi_features = 0;
+#endif
+
+void enable_kvm_pv_eoi(void)
+{
+    kvm_default_features |= kvm_pv_eoi_features;
+}
+
 void host_cpuid(uint32_t function, uint32_t count,
                 uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
 {
@@ -1108,7 +1127,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     /* Features to be added*/
     uint32_t plus_features = 0, plus_ext_features = 0;
     uint32_t plus_ext2_features = 0, plus_ext3_features = 0;
-    uint32_t plus_kvm_features = 0, plus_svm_features = 0;
+    uint32_t plus_kvm_features = kvm_default_features, plus_svm_features = 0;
     uint32_t plus_7_0_ebx_features = 0;
     /* Features to be removed */
     uint32_t minus_features = 0, minus_ext_features = 0;
@@ -1127,18 +1146,6 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     } else {
         memcpy(x86_cpu_def, def, sizeof(*def));
     }
-
-#if defined(CONFIG_KVM)
-    plus_kvm_features = (1 << KVM_FEATURE_CLOCKSOURCE) |
-        (1 << KVM_FEATURE_NOP_IO_DELAY) | 
-        (1 << KVM_FEATURE_MMU_OP) |
-        (1 << KVM_FEATURE_CLOCKSOURCE2) |
-        (1 << KVM_FEATURE_ASYNC_PF) | 
-        (1 << KVM_FEATURE_STEAL_TIME) |
-        (1 << KVM_FEATURE_CLOCKSOURCE_STABLE_BIT);
-#else
-    plus_kvm_features = 0;
-#endif
 
     add_flagname_to_bitmaps("hypervisor", &plus_features,
             &plus_ext_features, &plus_ext2_features, &plus_ext3_features,

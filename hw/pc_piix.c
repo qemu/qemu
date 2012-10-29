@@ -43,6 +43,7 @@
 #include "xen.h"
 #include "memory.h"
 #include "exec-memory.h"
+#include "cpu.h"
 #ifdef CONFIG_XEN
 #  include <xen/hvm/hvm_info_table.h>
 #endif
@@ -302,6 +303,12 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
              initrd_filename, cpu_model, 1, 1);
 }
 
+static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
+{
+    enable_kvm_pv_eoi();
+    pc_init_pci(args);
+}
+
 static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
 {
     ram_addr_t ram_size = args->ram_size;
@@ -349,7 +356,7 @@ static QEMUMachine pc_machine_v1_3 = {
     .name = "pc-1.3",
     .alias = "pc",
     .desc = "Standard PC",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_3,
     .max_cpus = 255,
     .is_default = 1,
 };
