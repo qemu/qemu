@@ -133,24 +133,44 @@ static void translate_stat(CPUM68KState *env, target_ulong addr, struct stat *s)
     unlock_user(p, addr, sizeof(struct m68k_gdb_stat));
 }
 
+static void m68k_semi_return_u32(CPUM68KState *env, uint32_t ret, uint32_t err)
+{
+    target_ulong args = env->dregs[1];
+    if (put_user_u32(ret, args) ||
+        put_user_u32(err, args + 4)) {
+        /* The m68k semihosting ABI does not provide any way to report this
+         * error to the guest, so the best we can do is log it in qemu.
+         * It is always a guest error not to pass us a valid argument block.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR, "m68k-semihosting: return value "
+                      "discarded because argument block not writable\n");
+    }
+}
+
+static void m68k_semi_return_u64(CPUM68KState *env, uint64_t ret, uint32_t err)
+{
+    target_ulong args = env->dregs[1];
+    if (put_user_u32(ret >> 32, args) ||
+        put_user_u32(ret, args + 4) ||
+        put_user_u32(err, args + 8)) {
+        /* No way to report this via m68k semihosting ABI; just log it */
+        qemu_log_mask(LOG_GUEST_ERROR, "m68k-semihosting: return value "
+                      "discarded because argument block not writable\n");
+    }
+}
+
 static int m68k_semi_is_fseek;
 
 static void m68k_semi_cb(CPUM68KState *env, target_ulong ret, target_ulong err)
 {
-    target_ulong args;
-
-    args = env->dregs[1];
     if (m68k_semi_is_fseek) {
         /* FIXME: We've already lost the high bits of the fseek
            return value.  */
-        /* FIXME - handle put_user() failure */
-        put_user_u32(0, args);
-        args += 4;
+        m68k_semi_return_u64(env, ret, err);
         m68k_semi_is_fseek = 0;
+    } else {
+        m68k_semi_return_u32(env, ret, err);
     }
-    /* FIXME - handle put_user() failure */
-    put_user_u32(ret, args);
-    put_user_u32(err, args + 4);
 }
 
 /* Read the input value from the argument block; fail the semihosting
@@ -269,10 +289,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
                                arg0, off, arg3);
             } else {
                 off = lseek(arg0, off, arg3);
-                /* FIXME - handle put_user() failure */
-                put_user_u32(off >> 32, args);
-                put_user_u32(off, args + 4);
-                put_user_u32(errno, args + 8);
+                m68k_semi_return_u64(env, off, errno);
             }
             return;
         }
@@ -444,7 +461,5 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         result = 0;
     }
 failed:
-    /* FIXME - handle put_user() failure */
-    put_user_u32(result, args);
-    put_user_u32(errno, args + 4);
+    m68k_semi_return_u32(env, result, errno);
 }
