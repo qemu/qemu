@@ -35,23 +35,3 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 void monitor_set_error(Monitor *mon, QError *qerror)
 {
 }
-
-int monitor_fdset_get_fd(int64_t fdset_id, int flags)
-{
-    return -1;
-}
-
-int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
-{
-    return -1;
-}
-
-int monitor_fdset_dup_fd_remove(int dup_fd)
-{
-    return -1;
-}
-
-int monitor_fdset_dup_fd_find(int dup_fd)
-{
-    return -1;
-}

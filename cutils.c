@@ -280,11 +280,6 @@ int qemu_parse_fd(const char *param)
     return fd;
 }
 
-int qemu_parse_fdset(const char *param)
-{
-    return qemu_parse_fd(param);
-}
-
 /* round down to the nearest power of 2*/
 int64_t pow2floor(int64_t value)
 {
