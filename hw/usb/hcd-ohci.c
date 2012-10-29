@@ -810,12 +810,15 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     if (completion) {
         ret = ohci->usb_packet.result;
     } else {
+        bool int_req = relative_frame_number == frame_count &&
+                       OHCI_BM(iso_td.flags, TD_DI) == 0;
         dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
         ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
-        usb_packet_setup(&ohci->usb_packet, pid, ep, addr);
+        usb_packet_setup(&ohci->usb_packet, pid, ep, addr, false, int_req);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
         ret = usb_handle_packet(dev, &ohci->usb_packet);
         if (ret == USB_RET_ASYNC) {
+            usb_device_flush_ep_queue(dev, ep);
             return 1;
         }
     }
@@ -1011,13 +1014,15 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         }
         dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
         ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
-        usb_packet_setup(&ohci->usb_packet, pid, ep, addr);
+        usb_packet_setup(&ohci->usb_packet, pid, ep, addr, !flag_r,
+                         OHCI_BM(td.flags, TD_DI) == 0);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
         ret = usb_handle_packet(dev, &ohci->usb_packet);
 #ifdef DEBUG_PACKET
         DPRINTF("ret=%d\n", ret);
 #endif
         if (ret == USB_RET_ASYNC) {
+            usb_device_flush_ep_queue(dev, ep);
             ohci->async_td = addr;
             return 1;
         }

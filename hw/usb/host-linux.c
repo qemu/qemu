@@ -1224,7 +1224,8 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
                 usb_ep_set_type(&s->dev, pid, ep, type);
                 usb_ep_set_ifnum(&s->dev, pid, ep, interface);
                 if ((s->options & (1 << USB_HOST_OPT_PIPELINE)) &&
-                    (type == USB_ENDPOINT_XFER_BULK)) {
+                    (type == USB_ENDPOINT_XFER_BULK) &&
+                    (pid == USB_TOKEN_OUT)) {
                     usb_ep_set_pipeline(&s->dev, pid, ep, true);
                 }
 
