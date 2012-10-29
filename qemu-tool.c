@@ -70,7 +70,7 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 
 int64_t cpu_get_clock(void)
 {
-    return qemu_get_clock_ns(rt_clock);
+    return get_clock_realtime();
 }
 
 int64_t cpu_get_icount(void)
