@@ -974,3 +974,14 @@ static int default_monitor_get_fd(Monitor *mon, const char *name, Error **errp)
     return -1;
 }
 QEMU_WEAK_ALIAS(monitor_get_fd, default_monitor_get_fd);
+
+static int default_qemu_set_fd_handler2(int fd,
+                                        IOCanReadHandler *fd_read_poll,
+                                        IOHandler *fd_read,
+                                        IOHandler *fd_write,
+                                        void *opaque)
+
+{
+    abort();
+}
+QEMU_WEAK_ALIAS(qemu_set_fd_handler2, default_qemu_set_fd_handler2);
