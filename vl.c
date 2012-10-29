@@ -203,7 +203,6 @@ CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
 int win2k_install_hack = 0;
-int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
 int max_cpus = 0;
@@ -790,6 +789,17 @@ static int parse_sandbox(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+/*********QEMU USB setting******/
+bool usb_enabled(bool default_usb)
+{
+    QemuOpts *mach_opts;
+    mach_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (mach_opts) {
+        return qemu_opt_get_bool(mach_opts, "usb", default_usb);
+    }
+    return default_usb;
+}
+
 /***********************************************************/
 /* QEMU Block devices */
 
@@ -1077,8 +1087,9 @@ static int usb_device_add(const char *devname)
     const char *p;
     USBDevice *dev = NULL;
 
-    if (!usb_enabled)
+    if (!usb_enabled(false)) {
         return -1;
+    }
 
     /* drivers with .usbdevice_name entry in USBDeviceInfo */
     dev = usbdevice_create(devname);
@@ -1114,8 +1125,9 @@ static int usb_device_del(const char *devname)
     if (strstart(devname, "host:", &p))
         return usb_host_device_close(p);
 
-    if (!usb_enabled)
+    if (!usb_enabled(false)) {
         return -1;
+    }
 
     p = strchr(devname, '.');
     if (!p)
@@ -3083,10 +3095,16 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_usb:
-                usb_enabled = 1;
+                machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+                if (machine_opts) {
+                    qemu_opt_set_bool(machine_opts, "usb", true);
+                }
                 break;
             case QEMU_OPTION_usbdevice:
-                usb_enabled = 1;
+                machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+                if (machine_opts) {
+                    qemu_opt_set_bool(machine_opts, "usb", true);
+                }
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
@@ -3653,7 +3671,7 @@ int main(int argc, char **argv, char **envp)
     current_machine = machine;
 
     /* init USB devices */
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
             exit(1);
     }

@@ -619,6 +619,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "mem-merge",
             .type = QEMU_OPT_BOOL,
             .help = "enable/disable memory merge support",
+        },{
+            .name = "usb",
+            .type = QEMU_OPT_BOOL,
+            .help = "Set on/off to enable/disable usb",
         },
         { /* End of list */ }
     },

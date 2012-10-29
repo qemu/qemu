@@ -59,7 +59,7 @@ static int bamboo_load_device_tree(hwaddr addr,
 {
     int ret = -1;
 #ifdef CONFIG_FDT
-    uint32_t mem_reg_property[] = { 0, 0, ramsize };
+    uint32_t mem_reg_property[] = { 0, 0, cpu_to_be32(ramsize) };
     char *filename;
     int fdt_size;
     void *fdt;

@@ -348,10 +348,6 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     ide_mem[1] = pmac_ide_init(hd, pic[0x0d], dbdma, 0x16, pic[0x02]);
     ide_mem[2] = pmac_ide_init(&hd[MAX_IDE_DEVS], pic[0x0e], dbdma, 0x1a, pic[0x02]);
 
-    /* cuda also initialize ADB */
-    if (machine_arch == ARCH_MAC99_U3) {
-        usb_enabled = 1;
-    }
     cuda_init(&cuda_mem, pic[0x19]);
 
     adb_kbd_init(&adb_bus);
@@ -360,15 +356,14 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem,
                dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
 
-    if (usb_enabled) {
+    if (usb_enabled(machine_arch == ARCH_MAC99_U3)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
-    }
-
-    /* U3 needs to use USB for input because Linux doesn't support via-cuda
-       on PPC64 */
-    if (machine_arch == ARCH_MAC99_U3) {
-        usbdevice_create("keyboard");
-        usbdevice_create("mouse");
+        /* U3 needs to use USB for input because Linux doesn't support via-cuda
+        on PPC64 */
+        if (machine_arch == ARCH_MAC99_U3) {
+            usbdevice_create("keyboard");
+            usbdevice_create("mouse");
+        }
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)
