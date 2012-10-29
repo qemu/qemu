@@ -967,3 +967,10 @@ int socket_init(void)
 #endif
     return 0;
 }
+
+static int default_monitor_get_fd(Monitor *mon, const char *name, Error **errp)
+{
+    error_setg(errp, "only QEMU supports file descriptor passing");
+    return -1;
+}
+QEMU_WEAK_ALIAS(monitor_get_fd, default_monitor_get_fd);
