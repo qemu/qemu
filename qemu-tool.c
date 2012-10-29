@@ -92,13 +92,6 @@ void qemu_clock_warp(QEMUClock *clock)
 {
 }
 
-int qemu_init_main_loop(void)
-{
-    init_clocks();
-    init_timer_alarm();
-    return main_loop_init();
-}
-
 void slirp_update_timeout(uint32_t *timeout)
 {
 }

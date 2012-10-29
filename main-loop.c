@@ -199,9 +199,12 @@ static int qemu_signal_init(void)
 }
 #endif
 
-int main_loop_init(void)
+int qemu_init_main_loop(void)
 {
     int ret;
+
+    init_clocks();
+    init_timer_alarm();
 
     qemu_mutex_lock_iothread();
     ret = qemu_signal_init();
