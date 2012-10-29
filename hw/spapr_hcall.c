@@ -366,26 +366,26 @@ static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
         return H_PARAMETER;
     }
 
-    env->vpa = vpa;
+    env->vpa_addr = vpa;
 
-    tmp = ldub_phys(env->vpa + VPA_SHARED_PROC_OFFSET);
+    tmp = ldub_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET);
     tmp |= VPA_SHARED_PROC_VAL;
-    stb_phys(env->vpa + VPA_SHARED_PROC_OFFSET, tmp);
+    stb_phys(env->vpa_addr + VPA_SHARED_PROC_OFFSET, tmp);
 
     return H_SUCCESS;
 }
 
 static target_ulong deregister_vpa(CPUPPCState *env, target_ulong vpa)
 {
-    if (env->slb_shadow) {
+    if (env->slb_shadow_addr) {
         return H_RESOURCE;
     }
 
-    if (env->dispatch_trace_log) {
+    if (env->dtl_addr) {
         return H_RESOURCE;
     }
 
-    env->vpa = 0;
+    env->vpa_addr = 0;
     return H_SUCCESS;
 }
 
@@ -407,18 +407,20 @@ static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
         return H_PARAMETER;
     }
 
-    if (!env->vpa) {
+    if (!env->vpa_addr) {
         return H_RESOURCE;
     }
 
-    env->slb_shadow = addr;
+    env->slb_shadow_addr = addr;
+    env->slb_shadow_size = size;
 
     return H_SUCCESS;
 }
 
 static target_ulong deregister_slb_shadow(CPUPPCState *env, target_ulong addr)
 {
-    env->slb_shadow = 0;
+    env->slb_shadow_addr = 0;
+    env->slb_shadow_size = 0;
     return H_SUCCESS;
 }
 
@@ -437,11 +439,11 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
         return H_PARAMETER;
     }
 
-    if (!env->vpa) {
+    if (!env->vpa_addr) {
         return H_RESOURCE;
     }
 
-    env->dispatch_trace_log = addr;
+    env->dtl_addr = addr;
     env->dtl_size = size;
 
     return H_SUCCESS;
@@ -449,7 +451,7 @@ static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
 
 static target_ulong deregister_dtl(CPUPPCState *env, target_ulong addr)
 {
-    env->dispatch_trace_log = 0;
+    env->dtl_addr = 0;
     env->dtl_size = 0;
 
     return H_SUCCESS;
@@ -670,11 +672,10 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
     } else {
         assert((opcode >= KVMPPC_HCALL_BASE) && (opcode <= KVMPPC_HCALL_MAX));
 
-
         slot = &kvmppc_hypercall_table[opcode - KVMPPC_HCALL_BASE];
     }
 
-    assert(!(*slot) || (fn == *slot));
+    assert(!(*slot));
     *slot = fn;
 }
 

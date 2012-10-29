@@ -362,7 +362,6 @@ struct EHCIPacket {
     USBPacket packet;
     QEMUSGList sgl;
     int pid;
-    uint32_t tbytes;
     enum async_state async;
     int usb_status;
 };
@@ -382,7 +381,7 @@ struct EHCIQueue {
     uint32_t qhaddr;       /* address QH read from                 */
     uint32_t qtdaddr;      /* address QTD read from                */
     USBDevice *dev;
-    QTAILQ_HEAD(, EHCIPacket) packets;
+    QTAILQ_HEAD(pkts_head, EHCIPacket) packets;
 };
 
 typedef QTAILQ_HEAD(EHCIQueueHead, EHCIQueue) EHCIQueueHead;
@@ -444,6 +443,7 @@ struct EHCIState {
 
     uint64_t last_run_ns;
     uint32_t async_stepdown;
+    bool int_req_by_async;
 };
 
 #define SET_LAST_RUN_CLOCK(s) \
@@ -488,6 +488,7 @@ static const char *ehci_mmio_names[] = {
 
 static int ehci_state_executing(EHCIQueue *q);
 static int ehci_state_writeback(EHCIQueue *q);
+static int ehci_fill_queue(EHCIPacket *p);
 
 static const char *nr2str(const char **n, size_t len, uint32_t nr)
 {
@@ -1245,7 +1246,7 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
             s->usbcmd = val; /* Set usbcmd for ehci_update_halt() */
             ehci_update_halt(s);
             s->async_stepdown = 0;
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
+            qemu_bh_schedule(s->async_bh);
         }
         break;
 
@@ -1456,8 +1457,15 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     }
 
     p = container_of(packet, EHCIPacket, packet);
-    trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     assert(p->async == EHCI_ASYNC_INFLIGHT);
+
+    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+        trace_usb_ehci_packet_action(p->queue, p, "remove");
+        ehci_free_packet(p);
+        return;
+    }
+
+    trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     p->async = EHCI_ASYNC_FINISHED;
     p->usb_status = packet->result;
 
@@ -1505,15 +1513,20 @@ static void ehci_execute_complete(EHCIQueue *q)
         }
     } else {
         // TODO check 4.12 for splits
+        uint32_t tbytes = get_field(q->qh.token, QTD_TOKEN_TBYTES);
 
-        if (p->tbytes && p->pid == USB_TOKEN_IN) {
-            p->tbytes -= p->usb_status;
+        if (tbytes && p->pid == USB_TOKEN_IN) {
+            tbytes -= p->usb_status;
+            if (tbytes) {
+                /* 4.15.1.2 must raise int on a short input packet */
+                ehci_raise_irq(q->ehci, USBSTS_INT);
+            }
         } else {
-            p->tbytes = 0;
+            tbytes = 0;
         }
 
-        DPRINTF("updating tbytes to %d\n", p->tbytes);
-        set_field(&q->qh.token, p->tbytes, QTD_TOKEN_TBYTES);
+        DPRINTF("updating tbytes to %d\n", tbytes);
+        set_field(&q->qh.token, tbytes, QTD_TOKEN_TBYTES);
     }
     ehci_finish_transfer(q, p->usb_status);
     usb_packet_unmap(&p->packet, &p->sgl);
@@ -1525,6 +1538,9 @@ static void ehci_execute_complete(EHCIQueue *q)
 
     if (q->qh.token & QTD_TOKEN_IOC) {
         ehci_raise_irq(q->ehci, USBSTS_INT);
+        if (q->async) {
+            q->ehci->int_req_by_async = true;
+        }
     }
 }
 
@@ -1535,6 +1551,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     USBEndpoint *ep;
     int ret;
     int endp;
+    bool spd;
 
     assert(p->async == EHCI_ASYNC_NONE ||
            p->async == EHCI_ASYNC_INITIALIZED);
@@ -1544,8 +1561,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         return USB_RET_PROCERR;
     }
 
-    p->tbytes = (p->qtd.token & QTD_TOKEN_TBYTES_MASK) >> QTD_TOKEN_TBYTES_SH;
-    if (p->tbytes > BUFF_SIZE) {
+    if (get_field(p->qtd.token, QTD_TOKEN_TBYTES) > BUFF_SIZE) {
         ehci_trace_guest_bug(p->queue->ehci,
                              "guest requested more bytes than allowed");
         return USB_RET_PROCERR;
@@ -1575,17 +1591,18 @@ static int ehci_execute(EHCIPacket *p, const char *action)
             return USB_RET_PROCERR;
         }
 
-        usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr);
+        spd = (p->pid == USB_TOKEN_IN && NLPTR_TBIT(p->qtd.altnext) == 0);
+        usb_packet_setup(&p->packet, p->pid, ep, p->qtdaddr, spd,
+                         (p->qtd.token & QTD_TOKEN_IOC) != 0);
         usb_packet_map(&p->packet, &p->sgl);
         p->async = EHCI_ASYNC_INITIALIZED;
     }
 
     trace_usb_ehci_packet_action(p->queue, p, action);
     ret = usb_handle_packet(p->queue->dev, &p->packet);
-    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
-            "(total %d) endp %x ret %d\n",
+    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd endp %x ret %d\n",
             q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
-            q->packet.iov.size, q->tbytes, endp, ret);
+            q->packet.iov.size, endp, ret);
 
     if (ret > BUFF_SIZE) {
         fprintf(stderr, "ret from usb_handle_packet > BUFF_SIZE\n");
@@ -1646,10 +1663,10 @@ static int ehci_process_itd(EHCIState *ehci,
             dev = ehci_find_device(ehci, devaddr);
             ep = usb_ep_get(dev, pid, endp);
             if (ep && ep->type == USB_ENDPOINT_XFER_ISOC) {
-                usb_packet_setup(&ehci->ipacket, pid, ep, addr);
+                usb_packet_setup(&ehci->ipacket, pid, ep, addr, false,
+                                 (itd->transact[i] & ITD_XACT_IOC) != 0);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
                 ret = usb_handle_packet(dev, &ehci->ipacket);
-                assert(ret != USB_RET_ASYNC);
                 usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
             } else {
                 DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
@@ -1988,7 +2005,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
 {
     EHCIqtd qtd;
     EHCIPacket *p;
-    int again = 0;
+    int again = 1;
 
     get_dwords(q->ehci, NLPTR_GET(q->qtdaddr), (uint32_t *) &qtd,
                sizeof(EHCIqtd) >> 2);
@@ -2016,7 +2033,6 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             p = NULL;
         }
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-        again = 1;
     } else if (p != NULL) {
         switch (p->async) {
         case EHCI_ASYNC_NONE:
@@ -2025,6 +2041,9 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             ehci_set_state(q->ehci, q->async, EST_EXECUTE);
             break;
         case EHCI_ASYNC_INFLIGHT:
+            /* Check if the guest has added new tds to the queue */
+            again = (ehci_fill_queue(QTAILQ_LAST(&q->packets, pkts_head)) ==
+                     USB_RET_PROCERR) ? -1 : 1;
             /* Unfinished async handled packet, go horizontal */
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;
@@ -2036,13 +2055,11 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
             break;
         }
-        again = 1;
     } else {
         p = ehci_alloc_packet(q);
         p->qtdaddr = q->qtdaddr;
         p->qtd = qtd;
         ehci_set_state(q->ehci, q->async, EST_EXECUTE);
-        again = 1;
     }
 
     return again;
@@ -2065,18 +2082,23 @@ static int ehci_state_horizqh(EHCIQueue *q)
 
 static int ehci_fill_queue(EHCIPacket *p)
 {
+    USBEndpoint *ep = p->packet.ep;
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
-    uint32_t qtdaddr;
+    uint32_t qtdaddr, start_addr = p->qtdaddr;
 
     for (;;) {
-        if (NLPTR_TBIT(qtd.altnext) == 0) {
-            break;
-        }
         if (NLPTR_TBIT(qtd.next) != 0) {
             break;
         }
         qtdaddr = qtd.next;
+        /*
+         * Detect circular td lists, Windows creates these, counting on the
+         * active bit going low after execution to make the queue stop.
+         */
+        if (qtdaddr == start_addr) {
+            break;
+        }
         get_dwords(q->ehci, NLPTR_GET(qtdaddr),
                    (uint32_t *) &qtd, sizeof(EHCIqtd) >> 2);
         ehci_trace_qtd(q, NLPTR_GET(qtdaddr), &qtd);
@@ -2092,6 +2114,9 @@ static int ehci_fill_queue(EHCIPacket *p)
         }
         assert(p->usb_status == USB_RET_ASYNC);
         p->async = EHCI_ASYNC_INFLIGHT;
+    }
+    if (p->usb_status != USB_RET_PROCERR) {
+        usb_device_flush_ep_queue(ep->dev, ep);
     }
     return p->usb_status;
 }
@@ -2198,19 +2223,6 @@ static int ehci_state_writeback(EHCIQueue *q)
      * bit is clear.
      */
     if (q->qh.token & QTD_TOKEN_HALT) {
-        /*
-         * We should not do any further processing on a halted queue!
-         * This is esp. important for bulk endpoints with pipelining enabled
-         * (redirection to a real USB device), where we must cancel all the
-         * transfers after this one so that:
-         * 1) If they've completed already, they are not processed further
-         *    causing more stalls, originating from the same failed transfer
-         * 2) If still in flight, they are cancelled before the guest does
-         *    a clear stall, otherwise the guest and device can loose sync!
-         */
-        while ((p = QTAILQ_FIRST(&q->packets)) != NULL) {
-            ehci_free_packet(p);
-        }
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         again = 1;
     } else {
@@ -2502,16 +2514,17 @@ static void ehci_frame_timer(void *opaque)
     }
 
     if (need_timer) {
-        expire_time = t_now + (get_ticks_per_sec()
+        /* If we've raised int, we speed up the timer, so that we quickly
+         * notice any new packets queued up in response */
+        if (ehci->int_req_by_async && (ehci->usbsts & USBSTS_INT)) {
+            expire_time = t_now + get_ticks_per_sec() / (FRAME_TIMER_FREQ * 2);
+            ehci->int_req_by_async = false;
+        } else {
+            expire_time = t_now + (get_ticks_per_sec()
                                * (ehci->async_stepdown+1) / FRAME_TIMER_FREQ);
+        }
         qemu_mod_timer(ehci->frame_timer, expire_time);
     }
-}
-
-static void ehci_async_bh(void *opaque)
-{
-    EHCIState *ehci = opaque;
-    ehci_advance_async_state(ehci);
 }
 
 static const MemoryRegionOps ehci_mmio_caps_ops = {
@@ -2742,7 +2755,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     }
 
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
-    s->async_bh = qemu_bh_new(ehci_async_bh, s);
+    s->async_bh = qemu_bh_new(ehci_frame_timer, s);
     QTAILQ_INIT(&s->aqueues);
     QTAILQ_INIT(&s->pqueues);
     usb_packet_init(&s->ipacket);

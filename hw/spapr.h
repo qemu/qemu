@@ -26,6 +26,9 @@ typedef struct sPAPREnvironment {
     int rtc_offset;
     char *cpu_model;
     bool has_graphics;
+
+    uint32_t epow_irq;
+    Notifier epow_notifier;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
@@ -335,7 +338,12 @@ typedef struct sPAPRTCE {
 #define SPAPR_VIO_BASE_LIOBN    0x00000000
 #define SPAPR_PCI_BASE_LIOBN    0x80000000
 
+#define RTAS_ERROR_LOG_MAX      2048
+
+
 void spapr_iommu_init(void);
+void spapr_events_init(sPAPREnvironment *spapr);
+void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 DMAContext *spapr_tce_new_dma_context(uint32_t liobn, size_t window_size);
 void spapr_tce_free(DMAContext *dma);
 void spapr_tce_reset(DMAContext *dma);

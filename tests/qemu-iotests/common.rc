@@ -145,6 +145,16 @@ _check_test_img()
     	sed -e 's/qemu-img\: This image format does not support checks/No errors were found on the image./'
 }
 
+_img_info()
+{
+    $QEMU_IMG info "$@" $TEST_IMG 2>&1 | \
+        sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
+            -e "s#$TEST_DIR#TEST_DIR#g" \
+            -e "s#$IMGFMT#IMGFMT#g" \
+            -e "/^disk size:/ D" \
+            -e "/actual-size/ D"
+}
+
 _get_pids_by_name()
 {
     if [ $# -ne 1 ]

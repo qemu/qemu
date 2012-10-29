@@ -1498,7 +1498,7 @@ static void gen_spr_BookE (CPUPPCState *env, uint64_t ivor_mask)
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_DBCR0, "DBCR0",
                  SPR_NOACCESS, SPR_NOACCESS,
-                 &spr_read_generic, &spr_write_generic,
+                 &spr_read_generic, &spr_write_40x_dbcr0,
                  0x00000000);
     /* XXX : not implemented */
     spr_register(env, SPR_BOOKE_DBCR1, "DBCR1",
@@ -10425,9 +10425,10 @@ static void ppc_cpu_reset(CPUState *s)
     env->error_code = 0;
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    env->vpa = 0;
-    env->slb_shadow = 0;
-    env->dispatch_trace_log = 0;
+    env->vpa_addr = 0;
+    env->slb_shadow_addr = 0;
+    env->slb_shadow_size = 0;
+    env->dtl_addr = 0;
     env->dtl_size = 0;
 #endif /* TARGET_PPC64 */
 

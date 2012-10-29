@@ -40,6 +40,19 @@ struct PCIBus {
     int *irq_count;
 };
 
+typedef struct PCIBridgeWindows PCIBridgeWindows;
+
+/*
+ * Aliases for each of the address space windows that the bridge
+ * can forward. Mapped into the bridge's parent's address space,
+ * as subregions.
+ */
+struct PCIBridgeWindows {
+    MemoryRegion alias_pref_mem;
+    MemoryRegion alias_mem;
+    MemoryRegion alias_io;
+};
+
 struct PCIBridge {
     PCIDevice dev;
 
@@ -55,14 +68,9 @@ struct PCIBridge {
      */
     MemoryRegion address_space_mem;
     MemoryRegion address_space_io;
-    /*
-     * Aliases for each of the address space windows that the bridge
-     * can forward. Mapped into the bridge's parent's address space,
-     * as subregions.
-     */
-    MemoryRegion alias_pref_mem;
-    MemoryRegion alias_mem;
-    MemoryRegion alias_io;
+
+    PCIBridgeWindows *windows;
+
     pci_map_irq_fn map_irq;
     const char *bus_name;
 };

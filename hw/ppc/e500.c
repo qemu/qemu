@@ -52,7 +52,6 @@
 #define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + 0x8000ULL)
 #define MPC8544_PCI_REGS_SIZE      0x1000ULL
 #define MPC8544_PCI_IO             0xE1000000ULL
-#define MPC8544_PCI_IOLEN          0x10000ULL
 #define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000ULL)
 #define MPC8544_SPIN_BASE          0xEF000000ULL
 
@@ -496,7 +495,7 @@ void ppce500_init(PPCE500Params *params)
     if (serial_hds[1]) {
         serial_mm_init(address_space_mem, MPC8544_SERIAL1_REGS_BASE,
                        0, mpic[12+26], 399193,
-                       serial_hds[0], DEVICE_BIG_ENDIAN);
+                       serial_hds[1], DEVICE_BIG_ENDIAN);
     }
 
     /* General Utility device */
@@ -511,7 +510,7 @@ void ppce500_init(PPCE500Params *params)
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
 
-    isa_mmio_init(MPC8544_PCI_IO, MPC8544_PCI_IOLEN);
+    sysbus_mmio_map(sysbus_from_qdev(dev), 1, MPC8544_PCI_IO);
 
     if (pci_bus) {
         /* Register network interfaces. */

@@ -77,11 +77,20 @@ destroyed, but local temporaries and globals are preserved.
 Using the tcg_gen_helper_x_y it is possible to call any function
 taking i32, i64 or pointer types. By default, before calling a helper,
 all globals are stored at their canonical location and it is assumed
-that the function can modify them. This can be overridden by the
-TCG_CALL_CONST function modifier. By default, the helper is allowed to
-modify the CPU state or raise an exception. This can be overridden by
-the TCG_CALL_PURE function modifier, in which case the call to the
-function is removed if the return value is not used.
+that the function can modify them. By default, the helper is allowed to
+modify the CPU state or raise an exception.
+
+This can be overridden using the following function modifiers:
+- TCG_CALL_NO_READ_GLOBALS means that the helper does not read globals,
+  either directly or via an exception. They will not be saved to their
+  canonical locations before calling the helper.
+- TCG_CALL_NO_WRITE_GLOBALS means that the helper does not modify any globals.
+  They will only be saved to their canonical location before calling helpers,
+  but they won't be reloaded afterwise.
+- TCG_CALL_NO_SIDE_EFFECTS means that the call to the function is removed if
+  the return value is not used.
+
+Note that TCG_CALL_NO_READ_GLOBALS implies TCG_CALL_NO_WRITE_GLOBALS.
 
 On some TCG targets (e.g. x86), several calling conventions are
 supported.
@@ -348,6 +357,9 @@ st32_i64 t0, t1, offset
 
 write(t0, t1 + offset)
 Write 8, 16, 32 or 64 bits to host memory.
+
+All this opcodes assume that the pointed host memory doesn't correspond
+to a global. In the latter case the behaviour is unpredictable.
 
 ********* 64-bit target on 32-bit host support
 

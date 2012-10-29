@@ -1,0 +1,15 @@
+QA output created by 042
+
+== Creating zero size image ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=0
+No errors were found on the image.
+
+== Converting the image ==
+No errors were found on the image.
+
+== Converting the image, compressed ==
+No errors were found on the image.
+
+== Rebasing the image ==
+No errors were found on the image.
+*** done

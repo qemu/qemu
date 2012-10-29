@@ -31,6 +31,8 @@
 #define PCIE500_ALL_SIZE      0x1000
 #define PCIE500_REG_SIZE      (PCIE500_ALL_SIZE - PCIE500_REG_BASE)
 
+#define PCIE500_PCI_IOLEN     0x10000ULL
+
 #define PPCE500_PCI_CONFIG_ADDR         0x0
 #define PPCE500_PCI_CONFIG_DATA         0x4
 #define PPCE500_PCI_INTACK              0x8
@@ -87,6 +89,7 @@ struct PPCE500PCIState {
     /* mmio maps */
     MemoryRegion container;
     MemoryRegion iomem;
+    MemoryRegion pio;
 };
 
 typedef struct PPCE500PCIState PPCE500PCIState;
@@ -314,7 +317,6 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     PCIBus *b;
     int i;
     MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *address_space_io = get_system_io();
 
     h = PCI_HOST_BRIDGE(dev);
     s = PPC_E500_PCI_HOST_BRIDGE(dev);
@@ -323,9 +325,11 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->irq[i]);
     }
 
+    memory_region_init(&s->pio, "pci-pio", PCIE500_PCI_IOLEN);
+
     b = pci_register_bus(DEVICE(dev), NULL, mpc85xx_pci_set_irq,
                          mpc85xx_pci_map_irq, s->irq, address_space_mem,
-                         address_space_io, PCI_DEVFN(0x11, 0), 4);
+                         &s->pio, PCI_DEVFN(0x11, 0), 4);
     h->bus = b;
 
     pci_create_simple(b, 0, "e500-host-bridge");
@@ -341,6 +345,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     memory_region_add_subregion(&s->container, PCIE500_CFGDATA, &h->data_mem);
     memory_region_add_subregion(&s->container, PCIE500_REG_BASE, &s->iomem);
     sysbus_init_mmio(dev, &s->container);
+    sysbus_init_mmio(dev, &s->pio);
 
     return 0;
 }

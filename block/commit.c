@@ -160,7 +160,7 @@ exit_restore_reopen:
         bdrv_reopen(overlay_bs, s->orig_overlay_flags, NULL);
     }
 
-    block_job_complete(&s->common, ret);
+    block_job_completed(&s->common, ret);
 }
 
 static void commit_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -208,15 +208,6 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
 
     if (top == base) {
         error_setg(errp, "Invalid files for merge: top and base are the same");
-        return;
-    }
-
-    /* top and base may be valid, but let's make sure that base is reachable
-     * from top */
-    if (bdrv_find_backing_image(top, base->filename) != base) {
-        error_setg(errp,
-                   "Base (%s) is not reachable from top (%s)",
-                   base->filename, top->filename);
         return;
     }
 

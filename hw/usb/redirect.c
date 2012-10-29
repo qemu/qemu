@@ -1270,6 +1270,16 @@ static void usbredir_interface_info(void *priv,
     }
 }
 
+static void usbredir_set_pipeline(USBRedirDevice *dev, struct USBEndpoint *uep)
+{
+    if (uep->type != USB_ENDPOINT_XFER_BULK) {
+        return;
+    }
+    if (uep->pid == USB_TOKEN_OUT) {
+        uep->pipeline = true;
+    }
+}
+
 static void usbredir_ep_info(void *priv,
     struct usb_redir_ep_info_header *ep_info)
 {
@@ -1311,9 +1321,7 @@ static void usbredir_ep_info(void *priv,
             dev->endpoint[i].max_packet_size =
                 usb_ep->max_packet_size = ep_info->max_packet_size[i];
         }
-        if (ep_info->type[i] == usb_redir_type_bulk) {
-            usb_ep->pipeline = true;
-        }
+        usbredir_set_pipeline(dev, usb_ep);
     }
 }
 
@@ -1574,9 +1582,7 @@ static int usbredir_post_load(void *priv, int version_id)
         usb_ep->type = dev->endpoint[i].type;
         usb_ep->ifnum = dev->endpoint[i].interface;
         usb_ep->max_packet_size = dev->endpoint[i].max_packet_size;
-        if (dev->endpoint[i].type == usb_redir_type_bulk) {
-            usb_ep->pipeline = true;
-        }
+        usbredir_set_pipeline(dev, usb_ep);
     }
     return 0;
 }

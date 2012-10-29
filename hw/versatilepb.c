@@ -248,7 +248,7 @@ static void versatile_init(ram_addr_t ram_size,
             pci_nic_init_nofail(nd, "rtl8139", NULL);
         }
     }
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
     n = drive_get_max_bus(IF_SCSI);

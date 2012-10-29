@@ -116,7 +116,6 @@ extern const char *keyboard_layout;
 extern int win2k_install_hack;
 extern int alt_grab;
 extern int ctrl_grab;
-extern int usb_enabled;
 extern int smp_cpus;
 extern int max_cpus;
 extern int cursor_hide;
@@ -186,4 +185,7 @@ void register_devices(void);
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
                           const char *suffix);
 char *get_boot_devices_list(uint32_t *size);
+
+bool usb_enabled(bool default_usb);
+
 #endif

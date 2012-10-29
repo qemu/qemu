@@ -99,7 +99,7 @@ void process_incoming_migration(QEMUFile *f)
     if (autostart) {
         vm_start();
     } else {
-        runstate_set(RUN_STATE_PRELAUNCH);
+        runstate_set(RUN_STATE_PAUSED);
     }
 }
 
