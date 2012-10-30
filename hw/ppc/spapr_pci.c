@@ -506,12 +506,11 @@ static const MemoryRegionOps spapr_msi_ops = {
 /*
  * PHB PCI device
  */
-static DMAContext *spapr_pci_dma_context_fn(PCIBus *bus, void *opaque,
-                                            int devfn)
+static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
 {
     sPAPRPHBState *phb = opaque;
 
-    return spapr_tce_get_dma(phb->tcet);
+    return &phb->iommu_as;
 }
 
 static int spapr_phb_init(SysBusDevice *s)
@@ -651,7 +650,8 @@ static int spapr_phb_init(SysBusDevice *s)
         fprintf(stderr, "Unable to create TCE table for %s\n", sphb->dtbusname);
         return -1;
     }
-    pci_setup_iommu(bus, spapr_pci_dma_context_fn, sphb);
+    address_space_init(&sphb->iommu_as, spapr_tce_get_iommu(sphb->tcet));
+    pci_setup_iommu(bus, spapr_pci_dma_iommu, sphb);
 
     QLIST_INSERT_HEAD(&spapr->phbs, sphb, list);
 
