@@ -145,3 +145,56 @@ static void ehci_pci_register_types(void)
 }
 
 type_init(ehci_pci_register_types)
+
+struct ehci_companions {
+    const char *name;
+    int func;
+    int port;
+};
+
+static const struct ehci_companions ich9_1d[] = {
+    { .name = "ich9-usb-uhci1", .func = 0, .port = 0 },
+    { .name = "ich9-usb-uhci2", .func = 1, .port = 2 },
+    { .name = "ich9-usb-uhci3", .func = 2, .port = 4 },
+};
+
+static const struct ehci_companions ich9_1a[] = {
+    { .name = "ich9-usb-uhci4", .func = 0, .port = 0 },
+    { .name = "ich9-usb-uhci5", .func = 1, .port = 2 },
+    { .name = "ich9-usb-uhci6", .func = 2, .port = 4 },
+};
+
+int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
+{
+    const struct ehci_companions *comp;
+    PCIDevice *ehci, *uhci;
+    BusState *usbbus;
+    const char *name;
+    int i;
+
+    switch (slot) {
+    case 0x1d:
+        name = "ich9-usb-ehci1";
+        comp = ich9_1d;
+        break;
+    case 0x1a:
+        name = "ich9-usb-ehci2";
+        comp = ich9_1a;
+        break;
+    default:
+        return -1;
+    }
+
+    ehci = pci_create_multifunction(bus, PCI_DEVFN(slot, 7), true, name);
+    qdev_init_nofail(&ehci->qdev);
+    usbbus = QLIST_FIRST(&ehci->qdev.child_bus);
+
+    for (i = 0; i < 3; i++) {
+        uhci = pci_create_multifunction(bus, PCI_DEVFN(slot, comp[i].func),
+                                        true, comp[i].name);
+        qdev_prop_set_string(&uhci->qdev, "masterbus", usbbus->name);
+        qdev_prop_set_uint32(&uhci->qdev, "firstport", comp[i].port);
+        qdev_init_nofail(&uhci->qdev);
+    }
+    return 0;
+}
