@@ -182,7 +182,8 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
             DPRINTF("%s: Device ID Code %04x\n", __func__, ret);
             break;
         default:
-            DPRINTF("%s: Read Device Information boff=%x\n", __func__, boff);
+            DPRINTF("%s: Read Device Information boff=%x\n", __func__,
+                    (unsigned)boff);
             ret = 0;
             break;
         }
