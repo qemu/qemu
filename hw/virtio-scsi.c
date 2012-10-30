@@ -204,7 +204,7 @@ static void virtio_scsi_bad_req(void)
 static void qemu_sgl_init_external(QEMUSGList *qsgl, struct iovec *sg,
                                    hwaddr *addr, int num)
 {
-    memset(qsgl, 0, sizeof(*qsgl));
+    qemu_sglist_init(qsgl, num, &dma_context_memory);
     while (num--) {
         qemu_sglist_add(qsgl, *(addr++), (sg++)->iov_len);
     }
