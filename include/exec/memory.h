@@ -53,6 +53,24 @@ struct MemoryRegionIORange {
     hwaddr offset;
 };
 
+typedef struct IOMMUTLBEntry IOMMUTLBEntry;
+
+/* See address_space_translate: bit 0 is read, bit 1 is write.  */
+typedef enum {
+    IOMMU_NONE = 0,
+    IOMMU_RO   = 1,
+    IOMMU_WO   = 2,
+    IOMMU_RW   = 3,
+} IOMMUAccessFlags;
+
+struct IOMMUTLBEntry {
+    AddressSpace    *target_as;
+    hwaddr           iova;
+    hwaddr           translated_addr;
+    hwaddr           addr_mask;  /* 0xfff = 4k translation */
+    IOMMUAccessFlags perm;
+};
+
 /*
  * Memory region callbacks
  */
@@ -115,12 +133,20 @@ struct MemoryRegionOps {
     const MemoryRegionMmio old_mmio;
 };
 
+typedef struct MemoryRegionIOMMUOps MemoryRegionIOMMUOps;
+
+struct MemoryRegionIOMMUOps {
+    /* Return a TLB entry that contains a given address. */
+    IOMMUTLBEntry (*translate)(MemoryRegion *iommu, hwaddr addr);
+};
+
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
 struct MemoryRegion {
     /* All fields are private - violators will be prosecuted */
     const MemoryRegionOps *ops;
+    const MemoryRegionIOMMUOps *iommu_ops;
     void *opaque;
     MemoryRegion *parent;
     Int128 size;
@@ -332,6 +358,24 @@ void memory_region_init_rom_device(MemoryRegion *mr,
 void memory_region_init_reservation(MemoryRegion *mr,
                                     const char *name,
                                     uint64_t size);
+
+/**
+ * memory_region_init_iommu: Initialize a memory region that translates
+ * addresses
+ *
+ * An IOMMU region translates addresses and forwards accesses to a target
+ * memory region.
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @ops: a function that translates addresses into the @target region
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region.
+ */
+void memory_region_init_iommu(MemoryRegion *mr,
+                              const MemoryRegionIOMMUOps *ops,
+                              const char *name,
+                              uint64_t size);
+
 /**
  * memory_region_destroy: Destroy a memory region and reclaim all resources.
  *
@@ -369,6 +413,15 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
 {
     return mr->rom_device && mr->romd_mode;
 }
+
+/**
+ * memory_region_is_iommu: check whether a memory region is an iommu
+ *
+ * Returns %true is a memory region is an iommu.
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_iommu(MemoryRegion *mr);
 
 /**
  * memory_region_name: get a memory region's name
@@ -825,7 +878,8 @@ void address_space_destroy(AddressSpace *as);
 /**
  * address_space_rw: read from or write to an address space.
  *
- * Return true if the operation hit any unassigned memory.
+ * Return true if the operation hit any unassigned memory or encountered an
+ * IOMMU fault.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -838,7 +892,8 @@ bool address_space_rw(AddressSpace *as, hwaddr addr, uint8_t *buf,
 /**
  * address_space_write: write to address space.
  *
- * Return true if the operation hit any unassigned memory.
+ * Return true if the operation hit any unassigned memory or encountered an
+ * IOMMU fault.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -850,7 +905,8 @@ bool address_space_write(AddressSpace *as, hwaddr addr,
 /**
  * address_space_read: read from an address space.
  *
- * Return true if the operation hit any unassigned memory.
+ * Return true if the operation hit any unassigned memory or encountered an
+ * IOMMU fault.
  *
  * @as: #AddressSpace to be accessed
  * @addr: address within that address space
@@ -875,7 +931,9 @@ MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
 /* address_space_access_valid: check for validity of accessing an address
  * space range
  *
- * Check whether memory is assigned to the given address space range.
+ * Check whether memory is assigned to the given address space range, and
+ * access is permitted by any IOMMU regions that are active for the address
+ * space.
  *
  * For now, addr and len should be aligned to a page size.  This limitation
  * will be lifted in the future.

@@ -824,6 +824,7 @@ void memory_region_init(MemoryRegion *mr,
 {
     mr->ops = &unassigned_mem_ops;
     mr->opaque = NULL;
+    mr->iommu_ops = NULL;
     mr->parent = NULL;
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
@@ -1063,6 +1064,16 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr);
 }
 
+void memory_region_init_iommu(MemoryRegion *mr,
+                              const MemoryRegionIOMMUOps *ops,
+                              const char *name,
+                              uint64_t size)
+{
+    memory_region_init(mr, name, size);
+    mr->iommu_ops = ops,
+    mr->terminates = true;  /* then re-forwards */
+}
+
 void memory_region_init_reservation(MemoryRegion *mr,
                                     const char *name,
                                     uint64_t size)
@@ -1106,6 +1117,11 @@ bool memory_region_is_logging(MemoryRegion *mr)
 bool memory_region_is_rom(MemoryRegion *mr)
 {
     return mr->ram && mr->readonly;
+}
+
+bool memory_region_is_iommu(MemoryRegion *mr)
+{
+    return mr->iommu_ops;
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
