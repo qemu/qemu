@@ -116,9 +116,14 @@ static struct EHCIPCIInfo ehci_pci_info[] = {
         .device_id = PCI_DEVICE_ID_INTEL_82801D, /* ich4 */
         .revision  = 0x10,
     },{
-        .name      = "ich9-usb-ehci1",
+        .name      = "ich9-usb-ehci1", /* 00:1d.7 */
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI1,
+        .revision  = 0x03,
+    },{
+        .name      = "ich9-usb-ehci2", /* 00:1a.7 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI2,
         .revision  = 0x03,
     }
 };
