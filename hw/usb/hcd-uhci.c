@@ -1340,23 +1340,44 @@ static UHCIInfo uhci_info[] = {
         .initfn    = usb_uhci_vt82c686b_initfn,
         .unplug    = true,
     },{
-        .name      = "ich9-usb-uhci1",
+        .name      = "ich9-usb-uhci1", /* 00:1d.0 */
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
         .revision  = 0x03,
         .irq_pin   = 0,
         .unplug    = false,
     },{
-        .name      = "ich9-usb-uhci2",
+        .name      = "ich9-usb-uhci2", /* 00:1d.1 */
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
         .revision  = 0x03,
         .irq_pin   = 1,
         .unplug    = false,
     },{
-        .name      = "ich9-usb-uhci3",
+        .name      = "ich9-usb-uhci3", /* 00:1d.2 */
         .vendor_id = PCI_VENDOR_ID_INTEL,
         .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
+        .revision  = 0x03,
+        .irq_pin   = 2,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci4", /* 00:1a.0 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI4,
+        .revision  = 0x03,
+        .irq_pin   = 0,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci5", /* 00:1a.1 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI5,
+        .revision  = 0x03,
+        .irq_pin   = 1,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci6", /* 00:1a.2 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI6,
         .revision  = 0x03,
         .irq_pin   = 2,
         .unplug    = false,
