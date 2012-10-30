@@ -138,9 +138,8 @@ void armv7m_nvic_complete_irq(void *opaque, int irq)
     gic_complete_irq(&s->gic, 0, irq);
 }
 
-static uint32_t nvic_readl(void *opaque, uint32_t offset)
+static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
 {
-    nvic_state *s = (nvic_state *)opaque;
     uint32_t val;
     int irq;
 
@@ -216,14 +215,6 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
     case 0xd14: /* Configuration Control.  */
         /* TODO: Implement Configuration Control bits.  */
         return 0;
-    case 0xd18: case 0xd1c: case 0xd20: /* System Handler Priority.  */
-        irq = offset - 0xd14;
-        val = 0;
-        val |= s->gic.priority1[irq++][0];
-        val |= s->gic.priority1[irq++][0] << 8;
-        val |= s->gic.priority1[irq++][0] << 16;
-        val |= s->gic.priority1[irq][0] << 24;
-        return val;
     case 0xd24: /* System Handler Status.  */
         val = 0;
         if (s->gic.irq_state[ARMV7M_EXCP_MEM].active) val |= (1 << 0);
@@ -285,9 +276,8 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
     }
 }
 
-static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
+static void nvic_writel(nvic_state *s, uint32_t offset, uint32_t value)
 {
-    nvic_state *s = (nvic_state *)opaque;
     uint32_t oldval;
     switch (offset) {
     case 0x10: /* SysTick Control and Status.  */
@@ -356,17 +346,6 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
     case 0xd14: /* Configuration Control.  */
         /* TODO: Implement control registers.  */
         goto bad_reg;
-    case 0xd18: case 0xd1c: case 0xd20: /* System Handler Priority.  */
-        {
-            int irq;
-            irq = offset - 0xd14;
-            s->gic.priority1[irq++][0] = value & 0xff;
-            s->gic.priority1[irq++][0] = (value >> 8) & 0xff;
-            s->gic.priority1[irq++][0] = (value >> 16) & 0xff;
-            s->gic.priority1[irq][0] = (value >> 24) & 0xff;
-            gic_update(&s->gic);
-        }
-        break;
     case 0xd24: /* System Handler Control.  */
         /* TODO: Real hardware allows you to set/clear the active bits
            under some circumstances.  We don't implement this.  */
@@ -395,19 +374,26 @@ static void nvic_writel(void *opaque, uint32_t offset, uint32_t value)
 static uint64_t nvic_sysreg_read(void *opaque, hwaddr addr,
                                  unsigned size)
 {
-    /* At the moment we only support the ID registers for byte/word access.
-     * This is not strictly correct as a few of the other registers also
-     * allow byte access.
-     */
+    nvic_state *s = (nvic_state *)opaque;
     uint32_t offset = addr;
-    if (offset >= 0xfe0) {
+    int i;
+    uint32_t val;
+
+    switch (offset) {
+    case 0xd18 ... 0xd23: /* System Handler Priority.  */
+        val = 0;
+        for (i = 0; i < size; i++) {
+            val |= s->gic.priority1[(offset - 0xd14) + i][0] << (i * 8);
+        }
+        return val;
+    case 0xfe0 ... 0xfff: /* ID.  */
         if (offset & 3) {
             return 0;
         }
         return nvic_id[(offset - 0xfe0) >> 2];
     }
     if (size == 4) {
-        return nvic_readl(opaque, offset);
+        return nvic_readl(s, offset);
     }
     hw_error("NVIC: Bad read of size %d at offset 0x%x\n", size, offset);
 }
@@ -415,9 +401,21 @@ static uint64_t nvic_sysreg_read(void *opaque, hwaddr addr,
 static void nvic_sysreg_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
+    nvic_state *s = (nvic_state *)opaque;
     uint32_t offset = addr;
+    int i;
+
+    switch (offset) {
+    case 0xd18 ... 0xd23: /* System Handler Priority.  */
+        for (i = 0; i < size; i++) {
+            s->gic.priority1[(offset - 0xd14) + i][0] =
+                (value >> (i * 8)) & 0xff;
+        }
+        gic_update(&s->gic);
+        return;
+    }
     if (size == 4) {
-        nvic_writel(opaque, offset, value);
+        nvic_writel(s, offset, value);
         return;
     }
     hw_error("NVIC: Bad write of size %d at offset 0x%x\n", size, offset);
