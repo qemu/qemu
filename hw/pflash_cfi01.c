@@ -61,7 +61,6 @@ do {                                               \
 
 struct pflash_t {
     BlockDriverState *bs;
-    hwaddr base;
     hwaddr sector_len;
     hwaddr total_len;
     int width;
@@ -594,7 +593,6 @@ pflash_t *pflash_cfi01_register(hwaddr base,
     }
 
     pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
-    pfl->base = base;
     pfl->sector_len = sector_len;
     pfl->total_len = total_len;
     pfl->width = width;

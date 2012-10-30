@@ -56,7 +56,6 @@ do {                                               \
 
 struct pflash_t {
     BlockDriverState *bs;
-    hwaddr base;
     uint32_t sector_len;
     uint32_t chip_len;
     int mappings;
@@ -602,7 +601,6 @@ pflash_t *pflash_cfi02_register(hwaddr base,
         name, size);
     vmstate_register_ram(&pfl->orig_mem, qdev);
     pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
-    pfl->base = base;
     pfl->chip_len = chip_len;
     pfl->mappings = nb_mappings;
     pfl->bs = bs;
@@ -618,7 +616,7 @@ pflash_t *pflash_cfi02_register(hwaddr base,
 
     pflash_setup_mappings(pfl);
     pfl->rom_mode = 1;
-    memory_region_add_subregion(get_system_memory(), pfl->base, &pfl->mem);
+    memory_region_add_subregion(get_system_memory(), base, &pfl->mem);
 
     if (pfl->bs) {
         pfl->ro = bdrv_is_read_only(pfl->bs);
