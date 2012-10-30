@@ -31,6 +31,12 @@ typedef struct VirtIORNG {
     bool popped;
 
     RngBackend *rng;
+
+    /* We purposefully don't migrate this state.  The quota will reset on the
+     * destination as a result.  Rate limiting is host state, not guest state.
+     */
+    QEMUTimer *rate_limit_timer;
+    int64_t quota_remaining;
 } VirtIORNG;
 
 static bool is_guest_ready(VirtIORNG *vrng)
@@ -55,6 +61,8 @@ static size_t pop_an_elem(VirtIORNG *vrng)
     return size;
 }
 
+static void virtio_rng_process(VirtIORNG *vrng);
+
 /* Send data from a char device over to the guest */
 static void chr_read(void *opaque, const void *buf, size_t size)
 {
@@ -65,6 +73,8 @@ static void chr_read(void *opaque, const void *buf, size_t size)
     if (!is_guest_ready(vrng)) {
         return;
     }
+
+    vrng->quota_remaining -= size;
 
     offset = 0;
     while (offset < size) {
@@ -85,21 +95,30 @@ static void chr_read(void *opaque, const void *buf, size_t size)
      * didn't have enough data to fill them all, indicate we want more
      * data.
      */
-    len = pop_an_elem(vrng);
-    if (len) {
+    virtio_rng_process(vrng);
+}
+
+static void virtio_rng_process(VirtIORNG *vrng)
+{
+    ssize_t size;
+
+    if (!is_guest_ready(vrng)) {
+        return;
+    }
+
+    size = pop_an_elem(vrng);
+    size = MIN(vrng->quota_remaining, size);
+
+    if (size > 0) {
         rng_backend_request_entropy(vrng->rng, size, chr_read, vrng);
     }
 }
 
+
 static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIORNG *vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
-    size_t size;
-
-    size = pop_an_elem(vrng);
-    if (size) {
-        rng_backend_request_entropy(vrng->rng, size, chr_read, vrng);
-    }
+    virtio_rng_process(vrng);
 }
 
 static uint32_t get_features(VirtIODevice *vdev, uint32_t f)
@@ -163,8 +182,26 @@ static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
         virtqueue_map_sg(vrng->elem.out_sg, vrng->elem.out_addr,
                          vrng->elem.out_num, 0);
     }
+
+    /* We may have an element ready but couldn't process it due to a quota
+       limit.  Make sure to try again after live migration when the quota may
+       have been reset.
+    */
+    virtio_rng_process(vrng);
+
     return 0;
 }
+
+static void check_rate_limit(void *opaque)
+{
+    VirtIORNG *s = opaque;
+
+    s->quota_remaining = s->conf->max_bytes;
+    virtio_rng_process(s);
+    qemu_mod_timer(s->rate_limit_timer,
+                   qemu_get_clock_ms(vm_clock) + s->conf->period_ms);
+}
+
 
 VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
 {
@@ -196,6 +233,16 @@ VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
     vrng->qdev = dev;
     vrng->conf = conf;
     vrng->popped = false;
+    vrng->quota_remaining = vrng->conf->max_bytes;
+
+    g_assert_cmpint(vrng->conf->max_bytes, <=, INT64_MAX);
+
+    vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
+                                               check_rate_limit, vrng);
+
+    qemu_mod_timer(vrng->rate_limit_timer,
+                   qemu_get_clock_ms(vm_clock) + vrng->conf->period_ms);
+
     register_savevm(dev, "virtio-rng", -1, 1, virtio_rng_save,
                     virtio_rng_load, vrng);
 
