@@ -429,6 +429,12 @@ void check_file_fixed_mmaps(void)
 	fprintf (stderr, " passed\n");
 }
 
+void checked_write(int fd, const void *buf, size_t count)
+{
+    ssize_t rc = write(fd, buf, count);
+    fail_unless(rc == count);
+}
+
 int main(int argc, char **argv)
 {
 	char tempname[] = "/tmp/.cmmapXXXXXX";
@@ -450,13 +456,15 @@ int main(int argc, char **argv)
 	unlink(tempname);
 
 	/* Fill the file with int's counting from zero and up.  */
-	for (i = 0; i < (pagesize * 4) / sizeof i; i++)
-		write (test_fd, &i, sizeof i);
+    for (i = 0; i < (pagesize * 4) / sizeof i; i++) {
+        checked_write(test_fd, &i, sizeof i);
+    }
+
 	/* Append a few extra writes to make the file end at non 
 	   page boundary.  */
-	write (test_fd, &i, sizeof i); i++;
-	write (test_fd, &i, sizeof i); i++;
-	write (test_fd, &i, sizeof i); i++;
+    checked_write(test_fd, &i, sizeof i); i++;
+    checked_write(test_fd, &i, sizeof i); i++;
+    checked_write(test_fd, &i, sizeof i); i++;
 
 	test_fsize = lseek(test_fd, 0, SEEK_CUR);
 
