@@ -62,7 +62,6 @@ do {                                               \
 struct pflash_t {
     BlockDriverState *bs;
     hwaddr sector_len;
-    hwaddr total_len;
     int width;
     int wcycle; /* if 0, the flash is read normally */
     int bypass;
@@ -594,7 +593,6 @@ pflash_t *pflash_cfi01_register(hwaddr base,
 
     pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
     pfl->sector_len = sector_len;
-    pfl->total_len = total_len;
     pfl->width = width;
     pfl->wcycle = 0;
     pfl->cmd = 0;
