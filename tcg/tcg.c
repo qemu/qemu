@@ -1329,8 +1329,8 @@ static void tcg_liveness_analysis(TCGContext *s)
                the low part.  The result can be optimized to a simple
                add or sub.  This happens often for x86_64 guest when the
                cpu mode is set to 32 bit.  */
-            if (dead_temps[args[1]]) {
-                if (dead_temps[args[0]]) {
+            if (dead_temps[args[1]] && !mem_temps[1]) {
+                if (dead_temps[args[0]] && !mem_temps[0]) {
                     goto do_remove;
                 }
                 /* Create the single operation plus nop.  */
@@ -1355,8 +1355,8 @@ static void tcg_liveness_analysis(TCGContext *s)
             nb_iargs = 2;
             nb_oargs = 2;
             /* Likewise, test for the high part of the operation dead.  */
-            if (dead_temps[args[1]]) {
-                if (dead_temps[args[0]]) {
+            if (dead_temps[args[1]] && !mem_temps[1]) {
+                if (dead_temps[args[0]] && !mem_temps[0]) {
                     goto do_remove;
                 }
                 gen_opc_buf[op_index] = op = INDEX_op_mul_i32;
