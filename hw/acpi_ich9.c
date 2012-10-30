@@ -2,6 +2,11 @@
  * ACPI implementation
  *
  * Copyright (c) 2006 Fabrice Bellard
+ * Copyright (c) 2009 Isaku Yamahata <yamahata at valinux co jp>
+ *                    VA Linux Systems Japan K.K.
+ * Copyright (C) 2012 Jason Baron <jbaron@redhat.com>
+ *
+ * This is based on acpi.c.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -14,13 +19,9 @@
  *
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>
- */
-/*
- *  Copyright (c) 2009 Isaku Yamahata <yamahata at valinux co jp>
- *                     VA Linux Systems Japan K.K.
- *  Copyright (C) 2012 Jason Baron <jbaron@redhat.com>
  *
- *  This is based on acpi.c.
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw.h"
 #include "pc.h"
