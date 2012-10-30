@@ -476,19 +476,28 @@ void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
 
 static void sd_erase(SDState *sd)
 {
-    int i, start, end;
+    int i;
+    uint64_t erase_start = sd->erase_start;
+    uint64_t erase_end = sd->erase_end;
+
     if (!sd->erase_start || !sd->erase_end) {
         sd->card_status |= ERASE_SEQ_ERROR;
         return;
     }
 
-    start = sd_addr_to_wpnum(sd->erase_start);
-    end = sd_addr_to_wpnum(sd->erase_end);
+    if (extract32(sd->ocr, OCR_CCS_BITN, 1)) {
+        /* High capacity memory card: erase units are 512 byte blocks */
+        erase_start *= 512;
+        erase_end *= 512;
+    }
+
+    erase_start = sd_addr_to_wpnum(erase_start);
+    erase_end = sd_addr_to_wpnum(erase_end);
     sd->erase_start = 0;
     sd->erase_end = 0;
     sd->csd[14] |= 0x40;
 
-    for (i = start; i <= end; i++) {
+    for (i = erase_start; i <= erase_end; i++) {
         if (test_bit(i, sd->wp_groups)) {
             sd->card_status |= WP_ERASE_SKIP;
         }
