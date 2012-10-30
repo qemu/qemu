@@ -1572,6 +1572,8 @@ void address_space_init(AddressSpace *as, MemoryRegion *root)
     as->root = root;
     as->current_map = g_new(FlatView, 1);
     flatview_init(as->current_map);
+    as->ioeventfd_nb = 0;
+    as->ioeventfds = NULL;
     QTAILQ_INSERT_TAIL(&address_spaces, as, address_spaces_link);
     as->name = NULL;
     memory_region_transaction_commit();
@@ -1588,6 +1590,7 @@ void address_space_destroy(AddressSpace *as)
     address_space_destroy_dispatch(as);
     flatview_destroy(as->current_map);
     g_free(as->current_map);
+    g_free(as->ioeventfds);
 }
 
 uint64_t io_mem_read(MemoryRegion *mr, hwaddr addr, unsigned size)
