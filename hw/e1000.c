@@ -265,6 +265,8 @@ rxbufsize(uint32_t v)
 static void e1000_reset(void *opaque)
 {
     E1000State *d = opaque;
+    uint8_t *macaddr = d->conf.macaddr.a;
+    int i;
 
     qemu_del_timer(d->autoneg_timer);
     memset(d->phy_reg, 0, sizeof d->phy_reg);
@@ -276,6 +278,14 @@ static void e1000_reset(void *opaque)
 
     if (d->nic->nc.link_down) {
         e1000_link_down(d);
+    }
+
+    /* Some guests expect pre-initialized RAH/RAL (AddrValid flag + MACaddr) */
+    d->mac_reg[RA] = 0;
+    d->mac_reg[RA + 1] = E1000_RAH_AV;
+    for (i = 0; i < 4; i++) {
+        d->mac_reg[RA] |= macaddr[i] << (8 * i);
+        d->mac_reg[RA + 1] |= (i < 2) ? macaddr[i + 4] << (8 * i) : 0;
     }
 }
 
