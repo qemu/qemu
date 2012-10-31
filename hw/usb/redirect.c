@@ -29,6 +29,7 @@
 #include "qemu-timer.h"
 #include "monitor.h"
 #include "sysemu.h"
+#include "iov.h"
 
 #include <dirent.h>
 #include <sys/ioctl.h>
@@ -312,6 +313,11 @@ static void usbredir_cancel_packet(USBDevice *udev, USBPacket *p)
 {
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
 
+    if (p->combined) {
+        usb_combined_packet_cancel(udev, p);
+        return;
+    }
+
     packet_id_queue_add(&dev->cancelled, p->id);
     usbredirparser_send_cancel_data_packet(dev->parser, p->id);
     usbredirparser_do_write(dev->parser);
@@ -331,6 +337,10 @@ static void usbredir_fill_already_in_flight_from_ep(USBRedirDevice *dev,
     static USBPacket *p;
 
     QTAILQ_FOREACH(p, &ep->queue, queue) {
+        /* Skip combined packets, except for the first */
+        if (p->combined && p != p->combined->first) {
+            continue;
+        }
         packet_id_queue_add(&dev->already_in_flight, p->id);
     }
 }
@@ -565,17 +575,18 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
                                       uint8_t ep)
 {
     struct usb_redir_bulk_packet_header bulk_packet;
+    size_t size = (p->combined) ? p->combined->iov.size : p->iov.size;
 
-    DPRINTF("bulk-out ep %02X len %zd id %"PRIu64"\n", ep, p->iov.size, p->id);
+    DPRINTF("bulk-out ep %02X len %zd id %"PRIu64"\n", ep, size, p->id);
 
     if (usbredir_already_in_flight(dev, p->id)) {
         return USB_RET_ASYNC;
     }
 
     bulk_packet.endpoint  = ep;
-    bulk_packet.length    = p->iov.size;
+    bulk_packet.length    = size;
     bulk_packet.stream_id = 0;
-    bulk_packet.length_high = p->iov.size >> 16;
+    bulk_packet.length_high = size >> 16;
     assert(bulk_packet.length_high == 0 ||
            usbredirparser_peer_has_cap(dev->parser,
                                        usb_redir_cap_32bits_bulk_length));
@@ -584,11 +595,16 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
         usbredirparser_send_bulk_packet(dev->parser, p->id,
                                         &bulk_packet, NULL, 0);
     } else {
-        uint8_t buf[p->iov.size];
-        usb_packet_copy(p, buf, p->iov.size);
-        usbredir_log_data(dev, "bulk data out:", buf, p->iov.size);
+        uint8_t buf[size];
+        if (p->combined) {
+            iov_to_buf(p->combined->iov.iov, p->combined->iov.niov,
+                       0, buf, size);
+        } else {
+            usb_packet_copy(p, buf, size);
+        }
+        usbredir_log_data(dev, "bulk data out:", buf, size);
         usbredirparser_send_bulk_packet(dev->parser, p->id,
-                                        &bulk_packet, buf, p->iov.size);
+                                        &bulk_packet, buf, size);
     }
     usbredirparser_do_write(dev->parser);
     return USB_RET_ASYNC;
@@ -705,6 +721,10 @@ static int usbredir_handle_data(USBDevice *udev, USBPacket *p)
     case USB_ENDPOINT_XFER_ISOC:
         return usbredir_handle_iso_data(dev, p, ep);
     case USB_ENDPOINT_XFER_BULK:
+        if (p->state == USB_PACKET_SETUP && p->pid == USB_TOKEN_IN &&
+                p->ep->pipeline) {
+            return USB_RET_ADD_TO_QUEUE;
+        }
         return usbredir_handle_bulk_data(dev, p, ep);
     case USB_ENDPOINT_XFER_INT:
         return usbredir_handle_interrupt_data(dev, p, ep);
@@ -712,6 +732,13 @@ static int usbredir_handle_data(USBDevice *udev, USBPacket *p)
         ERROR("handle_data ep %02X has unknown type %d\n", ep,
               dev->endpoint[EP2I(ep)].type);
         return USB_RET_NAK;
+    }
+}
+
+static void usbredir_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
+{
+    if (ep->pid == USB_TOKEN_IN && ep->pipeline) {
+        usb_ep_combine_input_packets(ep);
     }
 }
 
@@ -1283,6 +1310,11 @@ static void usbredir_set_pipeline(USBRedirDevice *dev, struct USBEndpoint *uep)
     if (uep->pid == USB_TOKEN_OUT) {
         uep->pipeline = true;
     }
+    if (uep->pid == USB_TOKEN_IN && uep->max_packet_size != 0 &&
+        usbredirparser_peer_has_cap(dev->parser,
+                                    usb_redir_cap_32bits_bulk_length)) {
+        uep->pipeline = true;
+    }
 }
 
 static void usbredir_ep_info(void *priv,
@@ -1465,11 +1497,17 @@ static void usbredir_bulk_packet(void *priv, uint64_t id,
 
     p = usbredir_find_packet_by_id(dev, ep, id);
     if (p) {
+        size_t size = (p->combined) ? p->combined->iov.size : p->iov.size;
         len = usbredir_handle_status(dev, bulk_packet->status, len);
         if (len > 0) {
             usbredir_log_data(dev, "bulk data in:", data, data_len);
-            if (data_len <= p->iov.size) {
-                usb_packet_copy(p, data, data_len);
+            if (data_len <= size) {
+                if (p->combined) {
+                    iov_from_buf(p->combined->iov.iov, p->combined->iov.niov,
+                                 0, data, data_len);
+                } else {
+                    usb_packet_copy(p, data, data_len);
+                }
             } else {
                 ERROR("bulk got more data then requested (%d > %zd)\n",
                       data_len, p->iov.size);
@@ -1477,7 +1515,11 @@ static void usbredir_bulk_packet(void *priv, uint64_t id,
             }
         }
         p->result = len;
-        usb_packet_complete(&dev->dev, p);
+        if (p->pid == USB_TOKEN_IN && p->ep->pipeline) {
+            usb_combined_input_packet_complete(&dev->dev, p);
+        } else {
+            usb_packet_complete(&dev->dev, p);
+        }
     }
     free(data);
 }
@@ -1884,6 +1926,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usbredir_handle_reset;
     uc->handle_data    = usbredir_handle_data;
     uc->handle_control = usbredir_handle_control;
+    uc->flush_ep_queue = usbredir_flush_ep_queue;
     dc->vmsd           = &usbredir_vmstate;
     dc->props          = usbredir_properties;
 }
