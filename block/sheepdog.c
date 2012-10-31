@@ -420,7 +420,7 @@ static void sd_aio_cancel(BlockDriverAIOCB *blockacb)
     acb->canceled = true;
 }
 
-static AIOPool sd_aio_pool = {
+static const AIOCBInfo sd_aiocb_info = {
     .aiocb_size = sizeof(SheepdogAIOCB),
     .cancel = sd_aio_cancel,
 };
@@ -431,7 +431,7 @@ static SheepdogAIOCB *sd_aio_setup(BlockDriverState *bs, QEMUIOVector *qiov,
 {
     SheepdogAIOCB *acb;
 
-    acb = qemu_aio_get(&sd_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&sd_aiocb_info, bs, cb, opaque);
 
     acb->qiov = qiov;
 

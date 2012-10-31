@@ -21,19 +21,19 @@
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
-typedef struct AIOPool {
+typedef struct AIOCBInfo {
     void (*cancel)(BlockDriverAIOCB *acb);
     size_t aiocb_size;
-} AIOPool;
+} AIOCBInfo;
 
 struct BlockDriverAIOCB {
-    AIOPool *pool;
+    const AIOCBInfo *aiocb_info;
     BlockDriverState *bs;
     BlockDriverCompletionFunc *cb;
     void *opaque;
 };
 
-void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
+void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockDriverCompletionFunc *cb, void *opaque);
 void qemu_aio_release(void *p);
 

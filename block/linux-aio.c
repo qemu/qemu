@@ -140,7 +140,7 @@ static void laio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-static AIOPool laio_pool = {
+static const AIOCBInfo laio_aiocb_info = {
     .aiocb_size         = sizeof(struct qemu_laiocb),
     .cancel             = laio_cancel,
 };
@@ -154,7 +154,7 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     struct iocb *iocbs;
     off_t offset = sector_num * 512;
 
-    laiocb = qemu_aio_get(&laio_pool, bs, cb, opaque);
+    laiocb = qemu_aio_get(&laio_aiocb_info, bs, cb, opaque);
     laiocb->nbytes = nb_sectors * 512;
     laiocb->ctx = s;
     laiocb->ret = -EINPROGRESS;
