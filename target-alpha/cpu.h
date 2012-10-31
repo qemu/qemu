@@ -277,7 +277,6 @@ struct CPUAlphaState {
 #endif
 
     /* This alarm doesn't exist in real hardware; we wish it did.  */
-    struct QEMUTimer *alarm_timer;
     uint64_t alarm_expire;
 
     /* Those resources are used only in QEMU core */

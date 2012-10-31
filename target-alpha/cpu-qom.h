@@ -58,6 +58,9 @@ typedef struct AlphaCPU {
     /*< public >*/
 
     CPUAlphaState env;
+
+    /* This alarm doesn't exist in real hardware; we wish it did.  */
+    struct QEMUTimer *alarm_timer;
 } AlphaCPU;
 
 static inline AlphaCPU *alpha_env_get_cpu(CPUAlphaState *env)
