@@ -735,9 +735,52 @@ static void uhci_read_td(UHCIState *s, UHCI_TD *td, uint32_t link)
     le32_to_cpus(&td->buffer);
 }
 
+static int uhci_handle_td_error(UHCIState *s, UHCI_TD *td, uint32_t td_addr,
+                                int status, uint32_t *int_mask)
+{
+    uint32_t queue_token = uhci_queue_token(td);
+    int ret;
+
+    switch (status) {
+    case USB_RET_NAK:
+        td->ctrl |= TD_CTRL_NAK;
+        return TD_RESULT_NEXT_QH;
+
+    case USB_RET_STALL:
+        td->ctrl |= TD_CTRL_STALL;
+        trace_usb_uhci_packet_complete_stall(queue_token, td_addr);
+        ret = TD_RESULT_NEXT_QH;
+        break;
+
+    case USB_RET_BABBLE:
+        td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
+        /* frame interrupted */
+        trace_usb_uhci_packet_complete_babble(queue_token, td_addr);
+        ret = TD_RESULT_STOP_FRAME;
+        break;
+
+    case USB_RET_IOERROR:
+    case USB_RET_NODEV:
+    default:
+        td->ctrl |= TD_CTRL_TIMEOUT;
+        td->ctrl &= ~(3 << TD_CTRL_ERROR_SHIFT);
+        trace_usb_uhci_packet_complete_error(queue_token, td_addr);
+        ret = TD_RESULT_NEXT_QH;
+        break;
+    }
+
+    td->ctrl &= ~TD_CTRL_ACTIVE;
+    s->status |= UHCI_STS_USBERR;
+    if (td->ctrl & TD_CTRL_IOC) {
+        *int_mask |= 0x01;
+    }
+    uhci_update_irq(s);
+    return ret;
+}
+
 static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_t *int_mask)
 {
-    int len = 0, max_len, err, ret;
+    int len = 0, max_len, ret;
     uint8_t pid;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
@@ -748,8 +791,9 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     if (td->ctrl & TD_CTRL_IOS)
         td->ctrl &= ~TD_CTRL_ACTIVE;
 
-    if (ret < 0)
-        goto out;
+    if (ret < 0) {
+        return uhci_handle_td_error(s, td, async->td_addr, ret, int_mask);
+    }
 
     len = async->packet.result;
     td->ctrl = (td->ctrl & ~0x7ff) | ((len - 1) & 0x7ff);
@@ -775,46 +819,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     trace_usb_uhci_packet_complete_success(async->queue->token,
                                            async->td_addr);
     return TD_RESULT_COMPLETE;
-
-out:
-    switch(ret) {
-    case USB_RET_NAK:
-        td->ctrl |= TD_CTRL_NAK;
-        return TD_RESULT_NEXT_QH;
-
-    case USB_RET_STALL:
-        td->ctrl |= TD_CTRL_STALL;
-        trace_usb_uhci_packet_complete_stall(async->queue->token,
-                                             async->td_addr);
-        err = TD_RESULT_NEXT_QH;
-        break;
-
-    case USB_RET_BABBLE:
-        td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
-        /* frame interrupted */
-        trace_usb_uhci_packet_complete_babble(async->queue->token,
-                                              async->td_addr);
-        err = TD_RESULT_STOP_FRAME;
-        break;
-
-    case USB_RET_IOERROR:
-    case USB_RET_NODEV:
-    default:
-        td->ctrl |= TD_CTRL_TIMEOUT;
-        td->ctrl &= ~(3 << TD_CTRL_ERROR_SHIFT);
-        trace_usb_uhci_packet_complete_error(async->queue->token,
-                                             async->td_addr);
-        err = TD_RESULT_NEXT_QH;
-        break;
-    }
-
-    td->ctrl &= ~TD_CTRL_ACTIVE;
-    s->status |= UHCI_STS_USBERR;
-    if (td->ctrl & TD_CTRL_IOC) {
-        *int_mask |= 0x01;
-    }
-    uhci_update_irq(s);
-    return err;
 }
 
 static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
