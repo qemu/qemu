@@ -1601,7 +1601,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     const MemoryRegion *submr;
     unsigned int i;
 
-    if (!mr) {
+    if (!mr || !mr->enabled) {
         return;
     }
 
