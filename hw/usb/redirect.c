@@ -1353,7 +1353,8 @@ static void usbredir_ep_info(void *priv,
         case usb_redir_type_interrupt:
             if (dev->endpoint[i].interval == 0) {
                 ERROR("Received 0 interval for isoc or irq endpoint\n");
-                usbredir_device_disconnect(dev);
+                usbredir_reject_device(dev);
+                return;
             }
             /* Fall through */
         case usb_redir_type_control:
@@ -1363,7 +1364,7 @@ static void usbredir_ep_info(void *priv,
             break;
         default:
             ERROR("Received invalid endpoint type\n");
-            usbredir_device_disconnect(dev);
+            usbredir_reject_device(dev);
             return;
         }
     }
