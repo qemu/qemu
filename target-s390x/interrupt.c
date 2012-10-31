@@ -19,7 +19,8 @@ void s390_sclp_extint(uint32_t parm)
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
-        kvm_s390_interrupt_internal(env, KVM_S390_INT_SERVICE, parm, 0, 1);
+        kvm_s390_interrupt_internal(dummy_cpu, KVM_S390_INT_SERVICE, parm,
+                                    0, 1);
 #endif
     } else {
         env->psw.addr += 4;

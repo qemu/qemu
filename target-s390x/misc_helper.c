@@ -57,7 +57,7 @@ void program_interrupt(CPUS390XState *env, uint32_t code, int ilc)
 
     if (kvm_enabled()) {
 #ifdef CONFIG_KVM
-        kvm_s390_interrupt(env, KVM_S390_PROGRAM_INT, code);
+        kvm_s390_interrupt(s390_env_get_cpu(env), KVM_S390_PROGRAM_INT, code);
 #endif
     } else {
         env->int_pgm_code = code;

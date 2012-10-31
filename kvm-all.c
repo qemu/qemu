@@ -1557,7 +1557,7 @@ int kvm_cpu_exec(CPUArchState *env)
         }
         qemu_mutex_unlock_iothread();
 
-        run_ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
+        run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
         qemu_mutex_lock_iothread();
         kvm_arch_post_run(cpu, run);
@@ -1658,9 +1658,8 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
     return ret;
 }
 
-int kvm_vcpu_ioctl(CPUArchState *env, int type, ...)
+int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     int ret;
     void *arg;
     va_list ap;
@@ -1791,9 +1790,9 @@ struct kvm_set_guest_debug_data {
 static void kvm_invoke_set_guest_debug(void *data)
 {
     struct kvm_set_guest_debug_data *dbg_data = data;
-    CPUArchState *env = dbg_data->env;
+    CPUState *cpu = ENV_GET_CPU(dbg_data->env);
 
-    dbg_data->err = kvm_vcpu_ioctl(env, KVM_SET_GUEST_DEBUG, &dbg_data->dbg);
+    dbg_data->err = kvm_vcpu_ioctl(cpu, KVM_SET_GUEST_DEBUG, &dbg_data->dbg);
 }
 
 int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
@@ -1955,18 +1954,19 @@ void kvm_remove_all_breakpoints(CPUArchState *current_env)
 
 int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_signal_mask *sigmask;
     int r;
 
     if (!sigset) {
-        return kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, NULL);
+        return kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, NULL);
     }
 
     sigmask = g_malloc(sizeof(*sigmask) + sizeof(*sigset));
 
     sigmask->len = 8;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
-    r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
+    r = kvm_vcpu_ioctl(cpu, KVM_SET_SIGNAL_MASK, sigmask);
     g_free(sigmask);
 
     return r;

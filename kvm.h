@@ -152,7 +152,7 @@ int kvm_ioctl(KVMState *s, int type, ...);
 
 int kvm_vm_ioctl(KVMState *s, int type, ...);
 
-int kvm_vcpu_ioctl(CPUArchState *env, int type, ...);
+int kvm_vcpu_ioctl(CPUState *cpu, int type, ...);
 
 /* Arch specific hooks */
 

@@ -99,8 +99,10 @@ int kvm_arch_init(KVMState *s)
     return 0;
 }
 
-static int kvm_arch_sync_sregs(CPUPPCState *cenv)
+static int kvm_arch_sync_sregs(PowerPCCPU *cpu)
 {
+    CPUPPCState *cenv = &cpu->env;
+    CPUState *cs = CPU(cpu);
     struct kvm_sregs sregs;
     int ret;
 
@@ -117,18 +119,20 @@ static int kvm_arch_sync_sregs(CPUPPCState *cenv)
         }
     }
 
-    ret = kvm_vcpu_ioctl(cenv, KVM_GET_SREGS, &sregs);
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
     if (ret) {
         return ret;
     }
 
     sregs.pvr = cenv->spr[SPR_PVR];
-    return kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
+    return kvm_vcpu_ioctl(cs, KVM_SET_SREGS, &sregs);
 }
 
 /* Set up a shared TLB array with KVM */
-static int kvm_booke206_tlb_init(CPUPPCState *env)
+static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     struct kvm_book3e_206_tlb_params params = {};
     struct kvm_config_tlb cfg = {};
     struct kvm_enable_cap encap = {};
@@ -161,7 +165,7 @@ static int kvm_booke206_tlb_init(CPUPPCState *env)
     encap.cap = KVM_CAP_SW_TLB;
     encap.args[0] = (uintptr_t)&cfg;
 
-    ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &encap);
+    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &encap);
     if (ret < 0) {
         fprintf(stderr, "%s: couldn't enable KVM_CAP_SW_TLB: %s\n",
                 __func__, strerror(-ret));
@@ -385,7 +389,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     kvm_fixup_page_sizes(cenv);
 
     /* Synchronize sregs with kvm */
-    ret = kvm_arch_sync_sregs(cenv);
+    ret = kvm_arch_sync_sregs(cpu);
     if (ret) {
         return ret;
     }
@@ -395,7 +399,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
     case POWERPC_MMU_BOOKE206:
-        ret = kvm_booke206_tlb_init(cenv);
+        ret = kvm_booke206_tlb_init(cpu);
         break;
     default:
         break;
@@ -408,8 +412,10 @@ void kvm_arch_reset_vcpu(CPUState *cpu)
 {
 }
 
-static void kvm_sw_tlb_put(CPUPPCState *env)
+static void kvm_sw_tlb_put(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     struct kvm_dirty_tlb dirty_tlb;
     unsigned char *bitmap;
     int ret;
@@ -424,7 +430,7 @@ static void kvm_sw_tlb_put(CPUPPCState *env)
     dirty_tlb.bitmap = (uintptr_t)bitmap;
     dirty_tlb.num_dirty = env->nb_tlb;
 
-    ret = kvm_vcpu_ioctl(env, KVM_DIRTY_TLB, &dirty_tlb);
+    ret = kvm_vcpu_ioctl(cs, KVM_DIRTY_TLB, &dirty_tlb);
     if (ret) {
         fprintf(stderr, "%s: KVM_DIRTY_TLB: %s\n",
                 __func__, strerror(-ret));
@@ -441,9 +447,10 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     int ret;
     int i;
 
-    ret = kvm_vcpu_ioctl(env, KVM_GET_REGS, &regs);
-    if (ret < 0)
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
+    if (ret < 0) {
         return ret;
+    }
 
     regs.ctr = env->ctr;
     regs.lr  = env->lr;
@@ -468,12 +475,12 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     for (i = 0;i < 32; i++)
         regs.gpr[i] = env->gpr[i];
 
-    ret = kvm_vcpu_ioctl(env, KVM_SET_REGS, &regs);
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
     if (ret < 0)
         return ret;
 
     if (env->tlb_dirty) {
-        kvm_sw_tlb_put(env);
+        kvm_sw_tlb_put(cpu);
         env->tlb_dirty = false;
     }
 
@@ -506,7 +513,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
                 | env->IBAT[1][i];
         }
 
-        ret = kvm_vcpu_ioctl(env, KVM_SET_SREGS, &sregs);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_SREGS, &sregs);
         if (ret) {
             return ret;
         }
@@ -519,7 +526,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
             .addr = (uintptr_t) &hior,
         };
 
-        ret = kvm_vcpu_ioctl(env, KVM_SET_ONE_REG, &reg);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
         if (ret) {
             return ret;
         }
@@ -537,7 +544,7 @@ int kvm_arch_get_registers(CPUState *cs)
     uint32_t cr;
     int i, ret;
 
-    ret = kvm_vcpu_ioctl(env, KVM_GET_REGS, &regs);
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
     if (ret < 0)
         return ret;
 
@@ -571,7 +578,7 @@ int kvm_arch_get_registers(CPUState *cs)
         env->gpr[i] = regs.gpr[i];
 
     if (cap_booke_sregs) {
-        ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
         if (ret < 0) {
             return ret;
         }
@@ -675,7 +682,7 @@ int kvm_arch_get_registers(CPUState *cs)
     }
 
     if (cap_segstate) {
-        ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_SREGS, &sregs);
         if (ret < 0) {
             return ret;
         }
@@ -707,7 +714,7 @@ int kvm_arch_get_registers(CPUState *cs)
     return 0;
 }
 
-int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
+int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 {
     unsigned virq = level ? KVM_INTERRUPT_SET_LEVEL : KVM_INTERRUPT_UNSET;
 
@@ -719,7 +726,7 @@ int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
         return 0;
     }
 
-    kvm_vcpu_ioctl(env, KVM_INTERRUPT, &virq);
+    kvm_vcpu_ioctl(CPU(cpu), KVM_INTERRUPT, &virq);
 
     return 0;
 }
@@ -753,7 +760,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
         irq = KVM_INTERRUPT_SET;
 
         dprintf("injected interrupt %d\n", irq);
-        r = kvm_vcpu_ioctl(env, KVM_INTERRUPT, &irq);
+        r = kvm_vcpu_ioctl(cs, KVM_INTERRUPT, &irq);
         if (r < 0)
             printf("cpu %d fail inject %x\n", env->cpu_index, irq);
 
@@ -1007,13 +1014,15 @@ int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
     return 0;
 }
 
-void kvmppc_set_papr(CPUPPCState *env)
+void kvmppc_set_papr(PowerPCCPU *cpu)
 {
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
     struct kvm_enable_cap cap = {};
     int ret;
 
     cap.cap = KVM_CAP_PPC_PAPR;
-    ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &cap);
+    ret = kvm_vcpu_ioctl(cs, KVM_ENABLE_CAP, &cap);
 
     if (ret) {
         cpu_abort(env, "This KVM version does not support PAPR\n");

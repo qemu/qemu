@@ -65,7 +65,7 @@ void ppc_set_irq(CPUPPCState *env, int n_IRQ, int level)
 
     if (old_pending != env->pending_interrupts) {
 #ifdef CONFIG_KVM
-        kvmppc_set_interrupt(env, n_IRQ, level);
+        kvmppc_set_interrupt(ppc_env_get_cpu(env), n_IRQ, level);
 #endif
     }
 

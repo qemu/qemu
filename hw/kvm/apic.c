@@ -104,7 +104,7 @@ static void kvm_apic_enable_tpr_reporting(APICCommonState *s, bool enable)
         .enabled = enable
     };
 
-    kvm_vcpu_ioctl(&s->cpu->env, KVM_TPR_ACCESS_REPORTING, &ctl);
+    kvm_vcpu_ioctl(CPU(s->cpu), KVM_TPR_ACCESS_REPORTING, &ctl);
 }
 
 static void kvm_apic_vapic_base_update(APICCommonState *s)
@@ -114,7 +114,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
     };
     int ret;
 
-    ret = kvm_vcpu_ioctl(&s->cpu->env, KVM_SET_VAPIC_ADDR, &vapid_addr);
+    ret = kvm_vcpu_ioctl(CPU(s->cpu), KVM_SET_VAPIC_ADDR, &vapid_addr);
     if (ret < 0) {
         fprintf(stderr, "KVM: setting VAPIC address failed (%s)\n",
                 strerror(-ret));
@@ -125,15 +125,15 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
 static void do_inject_external_nmi(void *data)
 {
     APICCommonState *s = data;
-    CPUX86State *env = &s->cpu->env;
+    CPUState *cpu = CPU(s->cpu);
     uint32_t lvt;
     int ret;
 
-    cpu_synchronize_state(env);
+    cpu_synchronize_state(&s->cpu->env);
 
     lvt = s->lvt[APIC_LVT_LINT1];
     if (!(lvt & APIC_LVT_MASKED) && ((lvt >> 8) & 7) == APIC_DM_NMI) {
-        ret = kvm_vcpu_ioctl(env, KVM_NMI);
+        ret = kvm_vcpu_ioctl(cpu, KVM_NMI);
         if (ret < 0) {
             fprintf(stderr, "KVM: injection failed, NMI lost (%s)\n",
                     strerror(-ret));
