@@ -1334,8 +1334,9 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
     n8x0_dss_setup(s);
     n8x0_cbus_setup(s);
     n8x0_uart_setup(s);
-    if (usb_enabled)
+    if (usb_enabled(false)) {
         n8x0_usb_setup(s);
+    }
 
     if (kernel_filename) {
         /* Or at the linux loader.  */

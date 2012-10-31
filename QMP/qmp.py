@@ -96,6 +96,7 @@ class QEMUMonitorProtocol:
         @raise QMPCapabilitiesError if fails to negotiate capabilities
         """
         self.__sock, _ = self.__sock.accept()
+        self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
 
     def cmd_obj(self, qmp_cmd):
@@ -134,6 +135,26 @@ class QEMUMonitorProtocol:
         if ret.has_key('error'):
             raise Exception(ret['error']['desc'])
         return ret['return']
+
+    def pull_event(self, wait=False):
+        """
+        Get and delete the first available QMP event.
+
+        @param wait: block until an event is available (bool)
+        """
+        self.__sock.setblocking(0)
+        try:
+            self.__json_read()
+        except socket.error, err:
+            if err[0] == errno.EAGAIN:
+                # No data available
+                pass
+        self.__sock.setblocking(1)
+        if not self.__events and wait:
+            self.__json_read(only_event=True)
+        event = self.__events[0]
+        del self.__events[0]
+        return event
 
     def get_events(self, wait=False):
         """

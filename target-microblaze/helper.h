@@ -2,10 +2,10 @@
 
 DEF_HELPER_2(raise_exception, void, env, i32)
 DEF_HELPER_1(debug, void, env)
-DEF_HELPER_FLAGS_3(carry, TCG_CALL_PURE | TCG_CALL_CONST, i32, i32, i32, i32)
+DEF_HELPER_FLAGS_3(carry, TCG_CALL_NO_RWG_SE, i32, i32, i32, i32)
 DEF_HELPER_2(cmp, i32, i32, i32)
 DEF_HELPER_2(cmpu, i32, i32, i32)
-DEF_HELPER_FLAGS_1(clz, TCG_CALL_PURE | TCG_CALL_CONST, i32, i32)
+DEF_HELPER_FLAGS_1(clz, TCG_CALL_NO_RWG_SE, i32, i32)
 
 DEF_HELPER_3(divs, i32, env, i32, i32)
 DEF_HELPER_3(divu, i32, env, i32, i32)
@@ -26,7 +26,7 @@ DEF_HELPER_3(fcmp_gt, i32, env, i32, i32)
 DEF_HELPER_3(fcmp_ne, i32, env, i32, i32)
 DEF_HELPER_3(fcmp_ge, i32, env, i32, i32)
 
-DEF_HELPER_FLAGS_2(pcmpbf, TCG_CALL_PURE | TCG_CALL_CONST, i32, i32, i32)
+DEF_HELPER_FLAGS_2(pcmpbf, TCG_CALL_NO_RWG_SE, i32, i32, i32)
 #if !defined(CONFIG_USER_ONLY)
 DEF_HELPER_2(mmu_read, i32, env, i32)
 DEF_HELPER_3(mmu_write, void, env, i32, i32)

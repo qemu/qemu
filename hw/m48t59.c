@@ -27,6 +27,7 @@
 #include "sysemu.h"
 #include "sysbus.h"
 #include "isa.h"
+#include "exec-memory.h"
 
 //#define DEBUG_NVRAM
 
@@ -80,6 +81,7 @@ typedef struct M48t59ISAState {
 typedef struct M48t59SysBusState {
     SysBusDevice busdev;
     M48t59State state;
+    MemoryRegion io;
 } M48t59SysBusState;
 
 /* Fake timer functions */
@@ -481,7 +483,8 @@ void m48t59_toggle_lock (void *opaque, int lock)
 }
 
 /* IO access to NVRAM */
-static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
+static void NVRAM_writeb(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned size)
 {
     M48t59State *NVRAM = opaque;
 
@@ -504,7 +507,7 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
+static uint64_t NVRAM_readb(void *opaque, hwaddr addr, unsigned size)
 {
     M48t59State *NVRAM = opaque;
     uint32_t retval;
@@ -626,13 +629,14 @@ static void m48t59_reset_sysbus(DeviceState *d)
     m48t59_reset_common(NVRAM);
 }
 
-static const MemoryRegionPortio m48t59_portio[] = {
-    {0, 4, 1, .read = NVRAM_readb, .write = NVRAM_writeb },
-    PORTIO_END_OF_LIST(),
-};
-
 static const MemoryRegionOps m48t59_io_ops = {
-    .old_portio = m48t59_portio,
+    .read = NVRAM_readb,
+    .write = NVRAM_writeb,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /* Initialisation routine */
@@ -653,9 +657,9 @@ M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
     d = FROM_SYSBUS(M48t59SysBusState, s);
     state = &d->state;
     sysbus_connect_irq(s, 0, IRQ);
+    memory_region_init_io(&d->io, &m48t59_io_ops, state, "m48t59", 4);
     if (io_base != 0) {
-        register_ioport_read(io_base, 0x04, 1, NVRAM_readb, state);
-        register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, state);
+        memory_region_add_subregion(get_system_io(), io_base, &d->io);
     }
     if (mem_base != 0) {
         sysbus_mmio_map(s, 0, mem_base);

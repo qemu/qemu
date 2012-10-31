@@ -151,58 +151,63 @@ static void pci_bridge_init_alias(PCIBridge *bridge, MemoryRegion *alias,
     memory_region_add_subregion_overlap(parent_space, base, alias, 1);
 }
 
-static void pci_bridge_cleanup_alias(MemoryRegion *alias,
-                                     MemoryRegion *parent_space)
-{
-    memory_region_del_subregion(parent_space, alias);
-    memory_region_destroy(alias);
-}
-
-static void pci_bridge_region_init(PCIBridge *br)
+static PCIBridgeWindows *pci_bridge_region_init(PCIBridge *br)
 {
     PCIBus *parent = br->dev.bus;
+    PCIBridgeWindows *w = g_new(PCIBridgeWindows, 1);
     uint16_t cmd = pci_get_word(br->dev.config + PCI_COMMAND);
 
-    pci_bridge_init_alias(br, &br->alias_pref_mem,
+    pci_bridge_init_alias(br, &w->alias_pref_mem,
                           PCI_BASE_ADDRESS_MEM_PREFETCH,
                           "pci_bridge_pref_mem",
                           &br->address_space_mem,
                           parent->address_space_mem,
                           cmd & PCI_COMMAND_MEMORY);
-    pci_bridge_init_alias(br, &br->alias_mem,
+    pci_bridge_init_alias(br, &w->alias_mem,
                           PCI_BASE_ADDRESS_SPACE_MEMORY,
                           "pci_bridge_mem",
                           &br->address_space_mem,
                           parent->address_space_mem,
                           cmd & PCI_COMMAND_MEMORY);
-    pci_bridge_init_alias(br, &br->alias_io,
+    pci_bridge_init_alias(br, &w->alias_io,
                           PCI_BASE_ADDRESS_SPACE_IO,
                           "pci_bridge_io",
                           &br->address_space_io,
                           parent->address_space_io,
                           cmd & PCI_COMMAND_IO);
    /* TODO: optinal VGA and VGA palette snooping support. */
+
+    return w;
 }
 
-static void pci_bridge_region_cleanup(PCIBridge *br)
+static void pci_bridge_region_del(PCIBridge *br, PCIBridgeWindows *w)
 {
     PCIBus *parent = br->dev.bus;
-    pci_bridge_cleanup_alias(&br->alias_io,
-                             parent->address_space_io);
-    pci_bridge_cleanup_alias(&br->alias_mem,
-                             parent->address_space_mem);
-    pci_bridge_cleanup_alias(&br->alias_pref_mem,
-                             parent->address_space_mem);
+
+    memory_region_del_subregion(parent->address_space_io, &w->alias_io);
+    memory_region_del_subregion(parent->address_space_mem, &w->alias_mem);
+    memory_region_del_subregion(parent->address_space_mem, &w->alias_pref_mem);
+}
+
+static void pci_bridge_region_cleanup(PCIBridge *br, PCIBridgeWindows *w)
+{
+    memory_region_destroy(&w->alias_io);
+    memory_region_destroy(&w->alias_mem);
+    memory_region_destroy(&w->alias_pref_mem);
+    g_free(w);
 }
 
 static void pci_bridge_update_mappings(PCIBridge *br)
 {
+    PCIBridgeWindows *w = br->windows;
+
     /* Make updates atomic to: handle the case of one VCPU updating the bridge
      * while another accesses an unaffected region. */
     memory_region_transaction_begin();
-    pci_bridge_region_cleanup(br);
-    pci_bridge_region_init(br);
+    pci_bridge_region_del(br, br->windows);
+    br->windows = pci_bridge_region_init(br);
     memory_region_transaction_commit();
+    pci_bridge_region_cleanup(br, w);
 }
 
 /* default write_config function for PCI-to-PCI bridge */
@@ -326,7 +331,7 @@ int pci_bridge_initfn(PCIDevice *dev)
     memory_region_init(&br->address_space_mem, "pci_bridge_pci", INT64_MAX);
     sec_bus->address_space_io = &br->address_space_io;
     memory_region_init(&br->address_space_io, "pci_bridge_io", 65536);
-    pci_bridge_region_init(br);
+    br->windows = pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
     return 0;
@@ -338,7 +343,8 @@ void pci_bridge_exitfn(PCIDevice *pci_dev)
     PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
     assert(QLIST_EMPTY(&s->sec_bus.child));
     QLIST_REMOVE(&s->sec_bus, sibling);
-    pci_bridge_region_cleanup(s);
+    pci_bridge_region_del(s, s->windows);
+    pci_bridge_region_cleanup(s, s->windows);
     memory_region_destroy(&s->address_space_mem);
     memory_region_destroy(&s->address_space_io);
     /* qbus_free() is called automatically by qdev_free() */

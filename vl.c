@@ -203,7 +203,6 @@ CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
 int win2k_install_hack = 0;
-int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
 int max_cpus = 0;
@@ -341,7 +340,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
 
     { RUN_STATE_INMIGRATE, RUN_STATE_RUNNING },
-    { RUN_STATE_INMIGRATE, RUN_STATE_PRELAUNCH },
+    { RUN_STATE_INMIGRATE, RUN_STATE_PAUSED },
 
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PAUSED },
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_FINISH_MIGRATE },
@@ -790,6 +789,89 @@ static int parse_sandbox(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+/*********QEMU USB setting******/
+bool usb_enabled(bool default_usb)
+{
+    QemuOpts *mach_opts;
+    mach_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (mach_opts) {
+        return qemu_opt_get_bool(mach_opts, "usb", default_usb);
+    }
+    return default_usb;
+}
+
+#ifndef _WIN32
+static int parse_add_fd(QemuOpts *opts, void *opaque)
+{
+    int fd, dupfd, flags;
+    int64_t fdset_id;
+    const char *fd_opaque = NULL;
+
+    fd = qemu_opt_get_number(opts, "fd", -1);
+    fdset_id = qemu_opt_get_number(opts, "set", -1);
+    fd_opaque = qemu_opt_get(opts, "opaque");
+
+    if (fd < 0) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "fd option is required and must be non-negative");
+        return -1;
+    }
+
+    if (fd <= STDERR_FILENO) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "fd cannot be a standard I/O stream");
+        return -1;
+    }
+
+    /*
+     * All fds inherited across exec() necessarily have FD_CLOEXEC
+     * clear, while qemu sets FD_CLOEXEC on all other fds used internally.
+     */
+    flags = fcntl(fd, F_GETFD);
+    if (flags == -1 || (flags & FD_CLOEXEC)) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "fd is not valid or already in use");
+        return -1;
+    }
+
+    if (fdset_id < 0) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "set option is required and must be non-negative");
+        return -1;
+    }
+
+#ifdef F_DUPFD_CLOEXEC
+    dupfd = fcntl(fd, F_DUPFD_CLOEXEC, 0);
+#else
+    dupfd = dup(fd);
+    if (dupfd != -1) {
+        qemu_set_cloexec(dupfd);
+    }
+#endif
+    if (dupfd == -1) {
+        qerror_report(ERROR_CLASS_GENERIC_ERROR,
+                      "Error duplicating fd: %s", strerror(errno));
+        return -1;
+    }
+
+    /* add the duplicate fd, and optionally the opaque string, to the fd set */
+    monitor_fdset_add_fd(dupfd, true, fdset_id, fd_opaque ? true : false,
+                         fd_opaque, NULL);
+
+    return 0;
+}
+
+static int cleanup_add_fd(QemuOpts *opts, void *opaque)
+{
+    int fd;
+
+    fd = qemu_opt_get_number(opts, "fd", -1);
+    close(fd);
+
+    return 0;
+}
+#endif
+
 /***********************************************************/
 /* QEMU Block devices */
 
@@ -1077,8 +1159,9 @@ static int usb_device_add(const char *devname)
     const char *p;
     USBDevice *dev = NULL;
 
-    if (!usb_enabled)
+    if (!usb_enabled(false)) {
         return -1;
+    }
 
     /* drivers with .usbdevice_name entry in USBDeviceInfo */
     dev = usbdevice_create(devname);
@@ -1114,8 +1197,9 @@ static int usb_device_del(const char *devname)
     if (strstart(devname, "host:", &p))
         return usb_host_device_close(p);
 
-    if (!usb_enabled)
+    if (!usb_enabled(false)) {
         return -1;
+    }
 
     p = strchr(devname, '.');
     if (!p)
@@ -3078,10 +3162,16 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_usb:
-                usb_enabled = 1;
+                machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+                if (machine_opts) {
+                    qemu_opt_set_bool(machine_opts, "usb", true);
+                }
                 break;
             case QEMU_OPTION_usbdevice:
-                usb_enabled = 1;
+                machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+                if (machine_opts) {
+                    qemu_opt_set_bool(machine_opts, "usb", true);
+                }
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:
@@ -3304,6 +3394,18 @@ int main(int argc, char **argv, char **envp)
                     exit(0);
                 }
                 break;
+            case QEMU_OPTION_add_fd:
+#ifndef _WIN32
+                opts = qemu_opts_parse(qemu_find_opts("add-fd"), optarg, 0);
+                if (!opts) {
+                    exit(0);
+                }
+#else
+                error_report("File descriptor passing is disabled on this "
+                             "platform");
+                exit(1);
+#endif
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }
@@ -3320,6 +3422,16 @@ int main(int argc, char **argv, char **envp)
     if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
         exit(1);
     }
+
+#ifndef _WIN32
+    if (qemu_opts_foreach(qemu_find_opts("add-fd"), parse_add_fd, NULL, 1)) {
+        exit(1);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("add-fd"), cleanup_add_fd, NULL, 1)) {
+        exit(1);
+    }
+#endif
 
     if (machine == NULL) {
         fprintf(stderr, "No machine found.\n");
@@ -3648,7 +3760,7 @@ int main(int argc, char **argv, char **envp)
     current_machine = machine;
 
     /* init USB devices */
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
             exit(1);
     }

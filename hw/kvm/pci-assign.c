@@ -882,8 +882,7 @@ static int assign_intx(AssignedDevice *dev)
     intx_route = pci_device_route_intx_to_irq(&dev->dev, dev->intpin);
     assert(intx_route.mode != PCI_INTX_INVERTED);
 
-    if (dev->intx_route.mode == intx_route.mode &&
-        dev->intx_route.irq == intx_route.irq) {
+    if (!pci_intx_route_changed(&dev->intx_route, &intx_route)) {
         return 0;
     }
 
@@ -997,12 +996,9 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
     }
 
     if (ctrl_byte & PCI_MSI_FLAGS_ENABLE) {
-        uint8_t *pos = pci_dev->config + pci_dev->msi_cap;
-        MSIMessage msg;
+        MSIMessage msg = msi_get_message(pci_dev, 0);
         int virq;
 
-        msg.address = pci_get_long(pos + PCI_MSI_ADDRESS_LO);
-        msg.data = pci_get_word(pos + PCI_MSI_DATA_32);
         virq = kvm_irqchip_add_msi_route(kvm_state, msg);
         if (virq < 0) {
             perror("assigned_dev_update_msi: kvm_irqchip_add_msi_route");

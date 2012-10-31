@@ -539,12 +539,12 @@ static void render_memory_region(FlatView *view,
             offset_in_region += int128_get64(now);
             int128_subfrom(&remain, now);
         }
-        if (int128_eq(base, view->ranges[i].addr.start)) {
-            now = int128_min(remain, view->ranges[i].addr.size);
-            int128_addto(&base, now);
-            offset_in_region += int128_get64(now);
-            int128_subfrom(&remain, now);
-        }
+        now = int128_sub(int128_min(int128_add(base, remain),
+                                    addrrange_end(view->ranges[i].addr)),
+                         base);
+        int128_addto(&base, now);
+        offset_in_region += int128_get64(now);
+        int128_subfrom(&remain, now);
     }
     if (int128_nz(remain)) {
         fr.mr = mr;

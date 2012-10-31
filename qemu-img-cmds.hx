@@ -34,9 +34,9 @@ STEXI
 ETEXI
 
 DEF("info", img_info,
-    "info [-f fmt] [--output=ofmt] filename")
+    "info [-f fmt] [--output=ofmt] [--backing-chain] filename")
 STEXI
-@item info [-f @var{fmt}] [--output=@var{ofmt}] @var{filename}
+@item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 ETEXI
 
 DEF("snapshot", img_snapshot,

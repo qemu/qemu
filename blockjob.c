@@ -71,7 +71,7 @@ void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
     return job;
 }
 
-void block_job_complete(BlockJob *job, int ret)
+void block_job_completed(BlockJob *job, int ret)
 {
     BlockDriverState *bs = job->bs;
 
@@ -97,6 +97,16 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     }
 
     job->speed = speed;
+}
+
+void block_job_complete(BlockJob *job, Error **errp)
+{
+    if (job->paused || job->cancelled || !job->job_type->complete) {
+        error_set(errp, QERR_BLOCK_JOB_NOT_READY, job->bs->device_name);
+        return;
+    }
+
+    job->job_type->complete(job, errp);
 }
 
 void block_job_pause(BlockJob *job)
@@ -132,6 +142,9 @@ bool block_job_is_cancelled(BlockJob *job)
 void block_job_iostatus_reset(BlockJob *job)
 {
     job->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+    if (job->job_type->iostatus_reset) {
+        job->job_type->iostatus_reset(job);
+    }
 }
 
 struct BlockCancelData {
@@ -214,6 +227,27 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
     }
 }
 
+
+QObject *qobject_from_block_job(BlockJob *job)
+{
+    return qobject_from_jsonf("{ 'type': %s,"
+                              "'device': %s,"
+                              "'len': %" PRId64 ","
+                              "'offset': %" PRId64 ","
+                              "'speed': %" PRId64 " }",
+                              job->job_type->job_type,
+                              bdrv_get_device_name(job->bs),
+                              job->len,
+                              job->offset,
+                              job->speed);
+}
+
+void block_job_ready(BlockJob *job)
+{
+    QObject *data = qobject_from_block_job(job);
+    monitor_protocol_event(QEVENT_BLOCK_JOB_READY, data);
+    qobject_decref(data);
+}
 
 BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
                                         BlockdevOnError on_err,

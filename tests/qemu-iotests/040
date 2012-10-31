@@ -26,6 +26,7 @@ import os
 import iotests
 from iotests import qemu_img, qemu_io
 import struct
+import errno
 
 backing_img = os.path.join(iotests.test_dir, 'backing.img')
 mid_img = os.path.join(iotests.test_dir, 'mid.img')
@@ -111,7 +112,7 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_no_active_commit()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % backing_img, base='%s' % backing_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Invalid files for merge: top and base are the same')
+        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % backing_img)
 
     def test_top_invalid(self):
         self.assert_no_active_commit()
@@ -135,13 +136,114 @@ class TestSingleDrive(ImageCommitTestCase):
         self.assert_no_active_commit()
         result = self.vm.qmp('block-commit', device='drive0', top='%s' % backing_img, base='%s' % mid_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
-        self.assert_qmp(result, 'error/desc', 'Base (%(1)s) is not reachable from top (%(2)s)' % {"1" : mid_img, "2" : backing_img})
+        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % mid_img)
 
     def test_top_omitted(self):
         self.assert_no_active_commit()
         result = self.vm.qmp('block-commit', device='drive0')
         self.assert_qmp(result, 'error/class', 'GenericError')
         self.assert_qmp(result, 'error/desc', "Parameter 'top' is missing")
+
+class TestRelativePaths(ImageCommitTestCase):
+    image_len = 1 * 1024 * 1024
+    test_len = 1 * 1024 * 256
+
+    dir1 = "dir1"
+    dir2 = "dir2/"
+    dir3 = "dir2/dir3/"
+
+    test_img = os.path.join(iotests.test_dir, dir3, 'test.img')
+    mid_img = "../mid.img"
+    backing_img = "../dir1/backing.img"
+
+    backing_img_abs = os.path.join(iotests.test_dir, dir1, 'backing.img')
+    mid_img_abs = os.path.join(iotests.test_dir, dir2, 'mid.img')
+
+    def setUp(self):
+        try:
+            os.mkdir(os.path.join(iotests.test_dir, self.dir1))
+            os.mkdir(os.path.join(iotests.test_dir, self.dir2))
+            os.mkdir(os.path.join(iotests.test_dir, self.dir3))
+        except OSError as exception:
+            if exception.errno != errno.EEXIST:
+                raise
+        self.create_image(self.backing_img_abs, TestRelativePaths.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.backing_img_abs, self.mid_img_abs)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.mid_img_abs, self.test_img)
+        qemu_img('rebase', '-u', '-b', self.backing_img, self.mid_img_abs)
+        qemu_img('rebase', '-u', '-b', self.mid_img, self.test_img)
+        qemu_io('-c', 'write -P 0xab 0 524288', self.backing_img_abs)
+        qemu_io('-c', 'write -P 0xef 524288 524288', self.mid_img_abs)
+        self.vm = iotests.VM().add_drive(self.test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(self.test_img)
+        os.remove(self.mid_img_abs)
+        os.remove(self.backing_img_abs)
+        try:
+            os.rmdir(os.path.join(iotests.test_dir, self.dir1))
+            os.rmdir(os.path.join(iotests.test_dir, self.dir3))
+            os.rmdir(os.path.join(iotests.test_dir, self.dir2))
+        except OSError as exception:
+            if exception.errno != errno.EEXIST and exception.errno != errno.ENOTEMPTY:
+                raise
+
+    def test_commit(self):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.mid_img)
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'commit')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_commit()
+        self.vm.shutdown()
+
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xab 0 524288', self.backing_img_abs).find("verification failed"))
+        self.assertEqual(-1, qemu_io('-c', 'read -P 0xef 524288 524288', self.backing_img_abs).find("verification failed"))
+
+    def test_device_not_found(self):
+        result = self.vm.qmp('block-commit', device='nonexistent', top='%s' % self.mid_img)
+        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+    def test_top_same_base(self):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.mid_img, base='%s' % self.mid_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % self.mid_img)
+
+    def test_top_invalid(self):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top='badfile', base='%s' % self.backing_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Top image file badfile not found')
+
+    def test_base_invalid(self):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.mid_img, base='badfile')
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Base \'badfile\' not found')
+
+    def test_top_is_active(self):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.test_img, base='%s' % self.backing_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Top image as the active layer is currently unsupported')
+
+    def test_top_and_base_reversed(self):
+        self.assert_no_active_commit()
+        result = self.vm.qmp('block-commit', device='drive0', top='%s' % self.backing_img, base='%s' % self.mid_img)
+        self.assert_qmp(result, 'error/class', 'GenericError')
+        self.assert_qmp(result, 'error/desc', 'Base \'%s\' not found' % self.mid_img)
 
 
 class TestSetSpeed(ImageCommitTestCase):

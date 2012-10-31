@@ -1509,10 +1509,8 @@ static void mmubooke_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
         mask = ~(entry->size - 1);
         ea = entry->EPN & mask;
         pa = entry->RPN & mask;
-#if (TARGET_PHYS_ADDR_SPACE_BITS >= 36)
         /* Extend the physical address to 36 bits */
         pa |= (hwaddr)(entry->RPN & 0xF) << 32;
-#endif
         size /= 1024;
         if (size >= 1024) {
             snprintf(size_buf, sizeof(size_buf), "%3" PRId64 "M", size / 1024);

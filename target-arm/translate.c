@@ -462,8 +462,15 @@ static void gen_sar(TCGv dest, TCGv t0, TCGv t1)
     tcg_temp_free_i32(tmp1);
 }
 
-/* FIXME:  Implement this natively.  */
-#define tcg_gen_abs_i32(t0, t1) gen_helper_abs(t0, t1)
+static void tcg_gen_abs_i32(TCGv dest, TCGv src)
+{
+    TCGv c0 = tcg_const_i32(0);
+    TCGv tmp = tcg_temp_new_i32();
+    tcg_gen_neg_i32(tmp, src);
+    tcg_gen_movcond_i32(TCG_COND_GT, dest, src, c0, src, tmp);
+    tcg_temp_free_i32(c0);
+    tcg_temp_free_i32(tmp);
+}
 
 static void shifter_out_im(TCGv var, int shift)
 {
@@ -4184,7 +4191,9 @@ static inline void gen_neon_negl(TCGv_i64 var, int size)
     switch (size) {
     case 0: gen_helper_neon_negl_u16(var, var); break;
     case 1: gen_helper_neon_negl_u32(var, var); break;
-    case 2: gen_helper_neon_negl_u64(var, var); break;
+    case 2:
+        tcg_gen_neg_i64(var, var);
+        break;
     default: abort();
     }
 }

@@ -86,3 +86,12 @@ ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
  */
 void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
                  FILE *fp, const char *prefix, size_t limit);
+
+/*
+ * Partial copy of vector from iov to dst_iov (data is not copied).
+ * dst_iov overlaps iov at a specified offset.
+ * size of dst_iov is at most bytes. dst vector count is returned.
+ */
+unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
+                 const struct iovec *iov, unsigned int iov_cnt,
+                 size_t offset, size_t bytes);

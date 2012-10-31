@@ -286,7 +286,7 @@ static void ppc_heathrow_init(QEMUMachineInitArgs *args)
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem,
                dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
 
-    if (usb_enabled) {
+    if (usb_enabled(false)) {
         pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 

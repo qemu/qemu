@@ -72,6 +72,10 @@ typedef struct FlashPartInfo {
     .page_size = 256,\
     .flags = (_flags),\
 
+#define JEDEC_NUMONYX 0x20
+#define JEDEC_WINBOND 0xEF
+#define JEDEC_SPANSION 0x01
+
 static const FlashPartInfo known_devices[] = {
     /* Atmel -- some are (confusingly) marketed as "DataFlash" */
     { INFO("at25fs010",   0x1f6601,      0,  32 << 10,   4, ER_4K) },
@@ -180,17 +184,26 @@ static const FlashPartInfo known_devices[] = {
 
 typedef enum {
     NOP = 0,
-    PP = 0x2,
-    READ = 0x3,
     WRDI = 0x4,
     RDSR = 0x5,
     WREN = 0x6,
+    JEDEC_READ = 0x9f,
+    BULK_ERASE = 0xc7,
+
+    READ = 0x3,
     FAST_READ = 0xb,
+    DOR = 0x3b,
+    QOR = 0x6b,
+    DIOR = 0xbb,
+    QIOR = 0xeb,
+
+    PP = 0x2,
+    DPP = 0xa2,
+    QPP = 0x32,
+
     ERASE_4K = 0x20,
     ERASE_32K = 0x52,
     ERASE_SECTOR = 0xd8,
-    JEDEC_READ = 0x9f,
-    BULK_ERASE = 0xc7,
 } FlashCMD;
 
 typedef enum {
@@ -346,11 +359,17 @@ static void complete_collecting_data(Flash *s)
     s->cur_addr |= s->data[2];
 
     switch (s->cmd_in_progress) {
+    case DPP:
+    case QPP:
     case PP:
         s->state = STATE_PAGE_PROGRAM;
         break;
     case READ:
     case FAST_READ:
+    case DOR:
+    case QOR:
+    case DIOR:
+    case QIOR:
         s->state = STATE_READ;
         break;
     case ERASE_4K:
@@ -374,6 +393,8 @@ static void decode_new_cmd(Flash *s, uint32_t value)
     case ERASE_32K:
     case ERASE_SECTOR:
     case READ:
+    case DPP:
+    case QPP:
     case PP:
         s->needed_bytes = 3;
         s->pos = 0;
@@ -382,7 +403,39 @@ static void decode_new_cmd(Flash *s, uint32_t value)
         break;
 
     case FAST_READ:
+    case DOR:
+    case QOR:
         s->needed_bytes = 4;
+        s->pos = 0;
+        s->len = 0;
+        s->state = STATE_COLLECTING_DATA;
+        break;
+
+    case DIOR:
+        switch ((s->pi->jedec >> 16) & 0xFF) {
+        case JEDEC_WINBOND:
+        case JEDEC_SPANSION:
+            s->needed_bytes = 4;
+            break;
+        case JEDEC_NUMONYX:
+        default:
+            s->needed_bytes = 5;
+        }
+        s->pos = 0;
+        s->len = 0;
+        s->state = STATE_COLLECTING_DATA;
+        break;
+
+    case QIOR:
+        switch ((s->pi->jedec >> 16) & 0xFF) {
+        case JEDEC_WINBOND:
+        case JEDEC_SPANSION:
+            s->needed_bytes = 6;
+            break;
+        case JEDEC_NUMONYX:
+        default:
+            s->needed_bytes = 8;
+        }
         s->pos = 0;
         s->len = 0;
         s->state = STATE_COLLECTING_DATA;

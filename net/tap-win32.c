@@ -752,3 +752,13 @@ struct vhost_net *tap_get_vhost_net(NetClientState *nc)
 {
     return NULL;
 }
+
+int tap_has_vnet_hdr_len(NetClientState *nc, int len)
+{
+    return 0;
+}
+
+void tap_set_vnet_hdr_len(NetClientState *nc, int len)
+{
+    assert(0);
+}
