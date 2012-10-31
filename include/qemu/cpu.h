@@ -80,6 +80,7 @@ struct CPUState {
 
 #if !defined(CONFIG_USER_ONLY)
     int kvm_fd;
+    bool kvm_vcpu_dirty;
 #endif
 
     /* TODO Move common fields from CPUArchState here. */

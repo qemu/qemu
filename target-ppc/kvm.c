@@ -375,9 +375,10 @@ static inline void kvm_fixup_page_sizes(CPUPPCState *env)
 
 #endif /* !defined (TARGET_PPC64) */
 
-int kvm_arch_init_vcpu(CPUPPCState *cenv)
+int kvm_arch_init_vcpu(CPUState *cs)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(cenv);
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *cenv = &cpu->env;
     int ret;
 
     /* Gather server mmu info from KVM and update the CPU state */
@@ -403,7 +404,7 @@ int kvm_arch_init_vcpu(CPUPPCState *cenv)
     return ret;
 }
 
-void kvm_arch_reset_vcpu(CPUPPCState *env)
+void kvm_arch_reset_vcpu(CPUState *cpu)
 {
 }
 
@@ -432,8 +433,10 @@ static void kvm_sw_tlb_put(CPUPPCState *env)
     g_free(bitmap);
 }
 
-int kvm_arch_put_registers(CPUPPCState *env, int level)
+int kvm_arch_put_registers(CPUState *cs, int level)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     struct kvm_regs regs;
     int ret;
     int i;
@@ -525,8 +528,10 @@ int kvm_arch_put_registers(CPUPPCState *env, int level)
     return ret;
 }
 
-int kvm_arch_get_registers(CPUPPCState *env)
+int kvm_arch_get_registers(CPUState *cs)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     struct kvm_regs regs;
     struct kvm_sregs sregs;
     uint32_t cr;
@@ -727,8 +732,10 @@ int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
 #define PPC_INPUT_INT PPC6xx_INPUT_INT
 #endif
 
-void kvm_arch_pre_run(CPUPPCState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     int r;
     unsigned irq;
 
@@ -760,13 +767,14 @@ void kvm_arch_pre_run(CPUPPCState *env, struct kvm_run *run)
      * anyways, so we will get a chance to deliver the rest. */
 }
 
-void kvm_arch_post_run(CPUPPCState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
 {
 }
 
-int kvm_arch_process_async_events(CPUPPCState *env)
+int kvm_arch_process_async_events(CPUState *cs)
 {
-    return env->halted;
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    return cpu->env.halted;
 }
 
 static int kvmppc_handle_halt(CPUPPCState *env)
@@ -796,8 +804,10 @@ static int kvmppc_handle_dcr_write(CPUPPCState *env, uint32_t dcrn, uint32_t dat
     return 0;
 }
 
-int kvm_arch_handle_exit(CPUPPCState *env, struct kvm_run *run)
+int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
     int ret;
 
     switch (run->exit_reason) {
@@ -817,7 +827,7 @@ int kvm_arch_handle_exit(CPUPPCState *env, struct kvm_run *run)
 #ifdef CONFIG_PSERIES
     case KVM_EXIT_PAPR_HCALL:
         dprintf("handle PAPR hypercall\n");
-        run->papr_hcall.ret = spapr_hypercall(ppc_env_get_cpu(env),
+        run->papr_hcall.ret = spapr_hypercall(cpu,
                                               run->papr_hcall.nr,
                                               run->papr_hcall.args);
         ret = 0;
@@ -1225,12 +1235,12 @@ int kvmppc_fixup_cpu(CPUPPCState *env)
 }
 
 
-bool kvm_arch_stop_on_emulation_error(CPUPPCState *env)
+bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
 {
     return true;
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUPPCState *env, int code, void *addr)
+int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return 1;
 }

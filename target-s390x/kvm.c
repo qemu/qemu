@@ -72,8 +72,9 @@ int kvm_arch_init(KVMState *s)
     return 0;
 }
 
-int kvm_arch_init_vcpu(CPUS390XState *env)
+int kvm_arch_init_vcpu(CPUState *cpu)
 {
+    CPUS390XState *env = &S390_CPU(cpu)->env;
     int ret = 0;
 
     if (kvm_vcpu_ioctl(env, KVM_S390_INITIAL_RESET, NULL) < 0) {
@@ -83,13 +84,15 @@ int kvm_arch_init_vcpu(CPUS390XState *env)
     return ret;
 }
 
-void kvm_arch_reset_vcpu(CPUS390XState *env)
+void kvm_arch_reset_vcpu(CPUState *cpu)
 {
     /* FIXME: add code to reset vcpu. */
 }
 
-int kvm_arch_put_registers(CPUS390XState *env, int level)
+int kvm_arch_put_registers(CPUState *cs, int level)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int ret;
@@ -149,8 +152,10 @@ int kvm_arch_put_registers(CPUS390XState *env, int level)
     return 0;
 }
 
-int kvm_arch_get_registers(CPUS390XState *env)
+int kvm_arch_get_registers(CPUState *cs)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
     int ret;
@@ -239,8 +244,10 @@ void *kvm_arch_vmalloc(ram_addr_t size)
     }
 }
 
-int kvm_arch_insert_sw_breakpoint(CPUS390XState *env, struct kvm_sw_breakpoint *bp)
+int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 
     if (cpu_memory_rw_debug(env, bp->pc, (uint8_t *)&bp->saved_insn, 4, 0) ||
@@ -250,8 +257,10 @@ int kvm_arch_insert_sw_breakpoint(CPUS390XState *env, struct kvm_sw_breakpoint *
     return 0;
 }
 
-int kvm_arch_remove_sw_breakpoint(CPUS390XState *env, struct kvm_sw_breakpoint *bp)
+int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     uint8_t t[4];
     static const uint8_t diag_501[] = {0x83, 0x24, 0x05, 0x01};
 
@@ -266,17 +275,18 @@ int kvm_arch_remove_sw_breakpoint(CPUS390XState *env, struct kvm_sw_breakpoint *
     return 0;
 }
 
-void kvm_arch_pre_run(CPUS390XState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
 {
 }
 
-void kvm_arch_post_run(CPUS390XState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUState *cpu, struct kvm_run *run)
 {
 }
 
-int kvm_arch_process_async_events(CPUS390XState *env)
+int kvm_arch_process_async_events(CPUState *cs)
 {
-    return env->halted;
+    S390CPU *cpu = S390_CPU(cs);
+    return cpu->env.halted;
 }
 
 void kvm_s390_interrupt_internal(CPUS390XState *env, int type, uint32_t parm,
@@ -565,8 +575,10 @@ static int handle_intercept(CPUS390XState *env)
     return r;
 }
 
-int kvm_arch_handle_exit(CPUS390XState *env, struct kvm_run *run)
+int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
     int ret = 0;
 
     switch (run->exit_reason) {
@@ -587,12 +599,12 @@ int kvm_arch_handle_exit(CPUS390XState *env, struct kvm_run *run)
     return ret;
 }
 
-bool kvm_arch_stop_on_emulation_error(CPUS390XState *env)
+bool kvm_arch_stop_on_emulation_error(CPUState *cpu)
 {
     return true;
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUS390XState *env, int code, void *addr)
+int kvm_arch_on_sigbus_vcpu(CPUState *cpu, int code, void *addr)
 {
     return 1;
 }
