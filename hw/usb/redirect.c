@@ -106,6 +106,7 @@ struct USBRedirDevice {
     struct usb_redir_interface_info_header interface_info;
     struct usbredirfilter_rule *filter_rules;
     int filter_rules_count;
+    int compatible_speedmask;
 };
 
 static void usbredir_hello(void *priv, struct usb_redir_hello_header *h);
@@ -962,6 +963,7 @@ static void usbredir_do_attach(void *opaque)
     }
 
     if (usb_device_attach(&dev->dev) != 0) {
+        WARNING("rejecting device due to speed mismatch\n");
         usbredir_reject_device(dev);
     }
 }
@@ -1067,6 +1069,9 @@ static int usbredir_initfn(USBDevice *udev)
 
     /* We'll do the attach once we receive the speed from the usb-host */
     udev->auto_attach = 0;
+
+    /* Will be cleared during setup when we find conflicts */
+    dev->compatible_speedmask = USB_SPEED_MASK_FULL;
 
     /* Let the backend know we are ready */
     qemu_chr_fe_open(dev->cs);
@@ -1208,6 +1213,7 @@ static void usbredir_device_connect(void *priv,
     case usb_redir_speed_low:
         speed = "low speed";
         dev->dev.speed = USB_SPEED_LOW;
+        dev->compatible_speedmask &= ~USB_SPEED_MASK_FULL;
         break;
     case usb_redir_speed_full:
         speed = "full speed";
@@ -1241,7 +1247,7 @@ static void usbredir_device_connect(void *priv,
              device_connect->device_class);
     }
 
-    dev->dev.speedmask = (1 << dev->dev.speed);
+    dev->dev.speedmask = (1 << dev->dev.speed) | dev->compatible_speedmask;
     dev->device_info = *device_connect;
 
     if (usbredir_check_filter(dev)) {
@@ -1281,6 +1287,7 @@ static void usbredir_device_disconnect(void *priv)
     dev->interface_info.interface_count = NO_INTERFACE_INFO;
     dev->dev.addr = 0;
     dev->dev.speed = 0;
+    dev->compatible_speedmask = USB_SPEED_MASK_FULL;
 }
 
 static void usbredir_interface_info(void *priv,
@@ -1300,6 +1307,12 @@ static void usbredir_interface_info(void *priv,
                   "change, disconnecting!\n");
         }
     }
+}
+
+static void usbredir_mark_speed_incompatible(USBRedirDevice *dev, int speed)
+{
+    dev->compatible_speedmask &= ~(1 << speed);
+    dev->dev.speedmask = (1 << dev->dev.speed) | dev->compatible_speedmask;
 }
 
 static void usbredir_set_pipeline(USBRedirDevice *dev, struct USBEndpoint *uep)
@@ -1350,7 +1363,14 @@ static void usbredir_ep_info(void *priv,
         case usb_redir_type_invalid:
             break;
         case usb_redir_type_iso:
+            usbredir_mark_speed_incompatible(dev, USB_SPEED_FULL);
+            /* Fall through */
         case usb_redir_type_interrupt:
+            if (!usbredirparser_peer_has_cap(dev->parser,
+                                     usb_redir_cap_ep_info_max_packet_size) ||
+                    ep_info->max_packet_size[i] > 64) {
+                usbredir_mark_speed_incompatible(dev, USB_SPEED_FULL);
+            }
             if (dev->endpoint[i].interval == 0) {
                 ERROR("Received 0 interval for isoc or irq endpoint\n");
                 usbredir_reject_device(dev);
@@ -1367,6 +1387,14 @@ static void usbredir_ep_info(void *priv,
             usbredir_reject_device(dev);
             return;
         }
+    }
+    /* The new ep info may have caused a speed incompatibility, recheck */
+    if (dev->dev.attached &&
+            !(dev->dev.port->speedmask & dev->dev.speedmask)) {
+        ERROR("Device no longer matches speed after endpoint info change, "
+              "disconnecting!\n");
+        usbredir_reject_device(dev);
+        return;
     }
     usbredir_setup_usb_eps(dev);
 }
