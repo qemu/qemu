@@ -35,7 +35,7 @@
 #endif
 
 
-#define NV_NUM_BLOCKS 20
+#define NV_NUM_BLOCKS 21
 #define NV_PMC          0   /* card master control */
 #define NV_PBUS         1   /* bus control */
 #define NV_PFIFO        2   /* MMIO and DMA FIFO submission to PGRAPH and VPE */
@@ -48,77 +48,766 @@
 #define NV_PTV          9   /* TV encoder */
 #define NV_PRMFB        10  /* aliases VGA memory window */
 #define NV_PRMVIO       11  /* aliases VGA sequencer and graphics controller registers */
-#define NV_PSTRAPS      12  /* straps readout / override */
-#define NV_PGRAPH       13  /* accelerated 2d/3d drawing engine */
-#define NV_PCRTC        14  /* more CRTC controls */
-#define NV_PRMCIO       15  /* aliases VGA CRTC and attribute controller registers */
-#define NV_PRAMDAC      16  /* RAMDAC, cursor, and PLL control */
-#define NV_PRMDIO       17  /* aliases VGA palette registers */
-#define NV_PRAMIN       18  /* RAMIN access */
-#define NV_USER         19  /* PFIFO MMIO and DMA submission area */
+#define NV_PFB          12  /* memory interface */
+#define NV_PSTRAPS      13  /* straps readout / override */
+#define NV_PGRAPH       14  /* accelerated 2d/3d drawing engine */
+#define NV_PCRTC        15  /* more CRTC controls */
+#define NV_PRMCIO       16  /* aliases VGA CRTC and attribute controller registers */
+#define NV_PRAMDAC      17  /* RAMDAC, cursor, and PLL control */
+#define NV_PRMDIO       18  /* aliases VGA palette registers */
+#define NV_PRAMIN       19  /* RAMIN access */
+#define NV_USER         20  /* PFIFO MMIO and DMA submission area */
+
+
+
+#define NV_PMC_BOOT_0                                    0x00000000
+#define NV_PMC_INTR_0                                    0x00000100
+#   define NV_PMC_INTR_0_PFIFO                                 (1 << 8)
+#   define NV_PMC_INTR_0_PGRAPH                               (1 << 12)
+#   define NV_PMC_INTR_0_PCRTC                                (1 << 24)
+#   define NV_PMC_INTR_0_PBUS                                 (1 << 28)
+#   define NV_PMC_INTR_0_SOFTWARE                             (1 << 31)
+#define NV_PMC_INTR_EN_0                                 0x00000140
+#   define NV_PMC_INTR_EN_0_HARDWARE                            1
+#   define NV_PMC_INTR_EN_0_SOFTWARE                            2
+#define NV_PMC_ENABLE                                    0x00000200
+#   define NV_PMC_ENABLE_PFIFO                                 (1 << 8)
+#   define NV_PMC_ENABLE_PGRAPH                               (1 << 12)
+
+
+/* These map approximately to the pci registers */
+#define NV_PBUS_PCI_NV_0                                 0x00000800
+#   define NV_PBUS_PCI_NV_0_VENDOR_ID                         0x0000FFFF
+#   define NV_CONFIG_PCI_NV_0_DEVICE_ID                       0xFFFF0000
+#define NV_PBUS_PCI_NV_1                                 0x00000804
+#define NV_PBUS_PCI_NV_2                                 0x00000808
+#   define NV_PBUS_PCI_NV_2_REVISION_ID                       0x000000FF
+#   define NV_PBUS_PCI_NV_2_CLASS_CODE                        0xFFFFFF00
+
+
+#define NV_PFIFO_INTR_0                                  0x00000100
+#   define NV_PFIFO_INTR_0_CACHE_ERROR                          (1 << 0)
+#   define NV_PFIFO_INTR_0_RUNOUT                               (1 << 4)
+#   define NV_PFIFO_INTR_0_RUNOUT_OVERFLOW                      (1 << 8)
+#   define NV_PFIFO_INTR_0_DMA_PUSHER                          (1 << 12)
+#   define NV_PFIFO_INTR_0_DMA_PT                              (1 << 16)
+#   define NV_PFIFO_INTR_0_SEMAPHORE                           (1 << 20)
+#   define NV_PFIFO_INTR_0_ACQUIRE_TIMEOUT                     (1 << 24)
+#define NV_PFIFO_INTR_EN_0                               0x00000140
+#   define NV_PFIFO_INTR_EN_0_CACHE_ERROR                       (1 << 0)
+#   define NV_PFIFO_INTR_EN_0_RUNOUT                            (1 << 4)
+#   define NV_PFIFO_INTR_EN_0_RUNOUT_OVERFLOW                   (1 << 8)
+#   define NV_PFIFO_INTR_EN_0_DMA_PUSHER                       (1 << 12)
+#   define NV_PFIFO_INTR_EN_0_DMA_PT                           (1 << 16)
+#   define NV_PFIFO_INTR_EN_0_SEMAPHORE                        (1 << 20)
+#   define NV_PFIFO_INTR_EN_0_ACQUIRE_TIMEOUT                  (1 << 24)
+#define NV_PFIFO_RAMHT                                   0x00000210
+#   define NV_PFIFO_RAMHT_BASE_ADDRESS                        0x000001F0
+#   define NV_PFIFO_RAMHT_SIZE                                0x00030000
+#       define NV_PFIFO_RAMHT_SIZE_4K                             0x00000000
+#       define NV_PFIFO_RAMHT_SIZE_8K                             0x00010000
+#       define NV_PFIFO_RAMHT_SIZE_16K                            0x00020000
+#       define NV_PFIFO_RAMHT_SIZE_32K                            0x00030000
+#   define NV_PFIFO_RAMHT_SEARCH                              0x03000000
+#       define NV_PFIFO_RAMHT_SEARCH_16                           0x00000000
+#       define NV_PFIFO_RAMHT_SEARCH_32                           0x01000000
+#       define NV_PFIFO_RAMHT_SEARCH_64                           0x02000000
+#       define NV_PFIFO_RAMHT_SEARCH_128                          0x03000000
+#define NV_PFIFO_RAMFC                                   0x00000214
+#   define NV_PFIFO_RAMFC_BASE_ADDRESS1                       0x000001FC
+#   define NV_PFIFO_RAMFC_SIZE                                0x00010000
+#   define NV_PFIFO_RAMFC_BASE_ADDRESS2                       0x00FE0000
+#define NV_PFIFO_RAMRO                                   0x00000218
+#   define NV_PFIFO_RAMRO_BASE_ADDRESS                        0x000001FE
+#   define NV_PFIFO_RAMRO_SIZE                                0x00010000
+#define NV_PFIFO_RUNOUT_STATUS                           0x00000400
+#   define NV_PFIFO_RUNOUT_STATUS_RANOUT                       (1 << 0)
+#   define NV_PFIFO_RUNOUT_STATUS_LOW_MARK                     (1 << 4)
+#   define NV_PFIFO_RUNOUT_STATUS_HIGH_MARK                    (1 << 8)
+#define NV_PFIFO_MODE                                    0x00000504
+#define NV_PFIFO_DMA                                     0x00000508
+#define NV_PFIFO_CACHE1_PUSH0                            0x00001200
+#   define NV_PFIFO_CACHE1_PUSH0_ACCESS                         (1 << 0)
+#define NV_PFIFO_CACHE1_PUSH1                            0x00001204
+#   define NV_PFIFO_CACHE1_PUSH1_CHID                         0x0000001F
+#   define NV_PFIFO_CACHE1_PUSH1_MODE                         0x00000100
+#define NV_PFIFO_CACHE1_STATUS                           0x00001214
+#   define NV_PFIFO_CACHE1_STATUS_LOW_MARK                      (1 << 4)
+#   define NV_PFIFO_CACHE1_STATUS_HIGH_MARK                     (1 << 8)
+#define NV_PFIFO_CACHE1_DMA_PUSH                         0x00001220
+#   define NV_PFIFO_CACHE1_DMA_PUSH_ACCESS                      (1 << 0)
+#   define NV_PFIFO_CACHE1_DMA_PUSH_STATE                       (1 << 4)
+#   define NV_PFIFO_CACHE1_DMA_PUSH_BUFFER                      (1 << 8)
+#   define NV_PFIFO_CACHE1_DMA_PUSH_STATUS                     (1 << 12)
+#   define NV_PFIFO_CACHE1_DMA_PUSH_ACQUIRE                    (1 << 16)
+#define NV_PFIFO_CACHE1_DMA_FETCH                        0x00001224
+#   define NV_PFIFO_CACHE1_DMA_FETCH_TRIG                     0x000000F8
+#   define NV_PFIFO_CACHE1_DMA_FETCH_SIZE                     0x0000E000
+#   define NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS                 0x001F0000
+#define NV_PFIFO_CACHE1_DMA_STATE                        0x00001228
+#   define NV_PFIFO_CACHE1_DMA_STATE_METHOD_TYPE                (1 << 0)
+#   define NV_PFIFO_CACHE1_DMA_STATE_METHOD                   0x00001FFC
+#   define NV_PFIFO_CACHE1_DMA_STATE_SUBCHANNEL               0x0000E000
+#   define NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT             0x1FFC0000
+#   define NV_PFIFO_CACHE1_DMA_STATE_ERROR                    0xE0000000
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE               0x00000000
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_CALL               0x00000001
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_NON_CACHE          0x00000002
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_RETURN             0x00000003
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD       0x00000004
+#       define NV_PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION         0x00000006
+#define NV_PFIFO_CACHE1_DMA_INSTANCE                     0x0000122C
+#   define NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS               0x0000FFFF
+#define NV_PFIFO_CACHE1_DMA_PUT                          0x00001240
+#define NV_PFIFO_CACHE1_DMA_GET                          0x00001244
+#define NV_PFIFO_CACHE1_DMA_SUBROUTINE                   0x0000124C
+#   define NV_PFIFO_CACHE1_DMA_SUBROUTINE_RETURN_OFFSET       0x1FFFFFFC
+#   define NV_PFIFO_CACHE1_DMA_SUBROUTINE_STATE                (1 << 0)
+#define NV_PFIFO_CACHE1_DMA_DCOUNT                       0x000012A0
+#   define NV_PFIFO_CACHE1_DMA_DCOUNT_VALUE                   0x00001FFC
+#define NV_PFIFO_CACHE1_DMA_GET_JMP_SHADOW               0x000012A4
+#   define NV_PFIFO_CACHE1_DMA_GET_JMP_SHADOW_OFFSET          0x1FFFFFFC
+#define NV_PFIFO_CACHE1_DMA_RSVD_SHADOW                  0x000012A8
+#define NV_PFIFO_CACHE1_DMA_DATA_SHADOW                  0x000012AC
+
+
+#define NV_PGRAPH_CTX_CONTROL                            0x00000144
+#   define NV_PGRAPH_CTX_CONTROL_MINIMUM_TIME                 0x00000003
+#   define NV_PGRAPH_CTX_CONTROL_TIME                           (1 << 8)
+#   define NV_PGRAPH_CTX_CONTROL_CHID                          (1 << 16)
+#   define NV_PGRAPH_CTX_CONTROL_CHANGE                        (1 << 20)
+#   define NV_PGRAPH_CTX_CONTROL_SWITCHING                     (1 << 24)
+#   define NV_PGRAPH_CTX_CONTROL_DEVICE                        (1 << 28)
+#define NV_PGRAPH_CHANNEL_CTX_TABLE                      0x00000780
+#   define NV_PGRAPH_CHANNEL_CTX_TABLE_INST                   0x0000FFFF
+#define NV_PGRAPH_CHANNEL_CTX_POINTER                    0x00000784
+#   define NV_PGRAPH_CHANNEL_CTX_POINTER_INST                 0x0000FFFF
+#define NV_PGRAPH_CHANNEL_CTX_TRIGGER                    0x00000788
+#   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
+#   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
+
+
+#define NV_PCRTC_INTR_0                                  0x00000100
+#   define NV_PCRTC_INTR_0_VBLANK                               (1 << 0)
+#define NV_PCRTC_INTR_EN_0                               0x00000140
+#   define NV_PCRTC_INTR_EN_0_VBLANK                            (1 << 0)
+#define NV_PCRTC_START                                   0x00000800
+#define NV_PCRTC_CONFIG                                  0x00000804
+
+
+#define NV_PTIMER_INTR_0                                 0x00000100
+#   define NV_PTIMER_INTR_0_ALARM                               (1 << 0)
+#define NV_PTIMER_INTR_EN_0                              0x00000140
+#   define NV_PTIMER_INTR_EN_0_ALARM                            (1 << 0)
+#define NV_PTIMER_NUMERATOR                              0x00000200
+#define NV_PTIMER_DENOMINATOR                            0x00000210
+#define NV_PTIMER_TIME_0                                 0x00000400
+#define NV_PTIMER_TIME_1                                 0x00000410
+#define NV_PTIMER_ALARM_0                                0x00000420
+
+
+#define NV_PFB_CFG0                                      0x00000200
+#   define NV_PFB_CFG0_PART                                   0x00000003
+#define NV_PFB_CSTATUS                                   0x0000020C
+
+
+#define NV_PRAMDAC_NVPLL_COEFF                           0x00000500
+#   define NV_PRAMDAC_NVPLL_COEFF_MDIV                        0x000000FF
+#   define NV_PRAMDAC_NVPLL_COEFF_NDIV                        0x0000FF00
+#   define NV_PRAMDAC_NVPLL_COEFF_PDIV                        0x00070000
+#define NV_PRAMDAC_MPLL_COEFF                            0x00000504
+#   define NV_PRAMDAC_MPLL_COEFF_MDIV                         0x000000FF
+#   define NV_PRAMDAC_MPLL_COEFF_NDIV                         0x0000FF00
+#   define NV_PRAMDAC_MPLL_COEFF_PDIV                         0x00070000
+#define NV_PRAMDAC_VPLL_COEFF                            0x00000508
+#   define NV_PRAMDAC_VPLL_COEFF_MDIV                         0x000000FF
+#   define NV_PRAMDAC_VPLL_COEFF_NDIV                         0x0000FF00
+#   define NV_PRAMDAC_VPLL_COEFF_PDIV                         0x00070000
+#define NV_PRAMDAC_PLL_TEST_COUNTER                      0x00000514
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_NOOFIPCLKS             0x000003FF
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_VALUE                  0x0000FFFF
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_ENABLE                  (1 << 16)
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_RESET                   (1 << 20)
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_SOURCE                 0x03000000
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_VPLL2_LOCK              (1 << 27)
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_PDIV_RST                (1 << 28)
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_NVPLL_LOCK              (1 << 29)
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_MPLL_LOCK               (1 << 30)
+#   define NV_PRAMDAC_PLL_TEST_COUNTER_VPLL_LOCK               (1 << 31)
+
+
+#define NV_USER_DMA_PUT                                  0x40
+#define NV_USER_DMA_GET                                  0x44
+#define NV_USER_REF                                      0x48
+
+
+
+/* DMA Objects */
+#define NV_DMA_FROM_MEMORY_CLASS          0x02
+#define NV_DMA_TO_MEMORY_CLASS            0x03
+#define NV_DMA_IN_MEMORY_CLASS            0x3d
+
+/* object layout: */
+#define NV_DMA_CLASS                                          0x00000FFF
+#define NV_DMA_PAGE_TABLE                                      (1 << 12)
+#define NV_DMA_PAGE_ENTRY                                      (1 << 13)
+#define NV_DMA_FLAGS_ACCESS                                    (1 << 14)
+#define NV_DMA_FLAGS_MAPPING_COHERENCY                         (1 << 15)
+#define NV_DMA_TARGET                                         0x00030000
+#   define NV_DMA_TARGET_NVM                                      0x00000000
+#   define NV_DMA_TARGET_NVM_TILED                                0x00010000
+#   define NV_DMA_TARGET_PCI                                      0x00020000
+#   define NV_DMA_TARGET_AGP                                      0x00030000
 
 
 
 
-#define NV_PCRTC_START                  0x00000800
-#define NV_PCRTC_CONFIG                 0x00000804
+#define NV2A_CRYSTAL_FREQ 13500000
+#define NV2A_NUM_CHANNELS 32
+
+enum NV2AFifoMode {
+    FIFO_PIO = 0,
+    FIFO_DMA = 1,
+};
 
 
+typedef struct NV2ACache1State {
+    uint8_t channel_id;
+    enum NV2AFifoMode mode;
 
+    bool push_enabled;
+    bool dma_push_enabled;
+
+    /* DMA state */
+    hwaddr dma_instance;
+    bool method_nonincreasing;
+    uint32_t method;
+    uint32_t subchannel;
+    uint32_t method_count;
+    uint32_t dcount;
+    bool subroutine_active;
+    hwaddr subroutine_return;
+    hwaddr get_jmp_shadow;
+    uint32_t rsvd_shadow;
+    uint32_t data_shadow;
+    uint32_t error;
+} NV2ACache1State;
+
+typedef struct NV2AChannelControl {
+    hwaddr dma_put;
+    hwaddr dma_get;
+    uint32_t ref;
+} NV2AChannelControl;
 
 
 typedef struct NV2AState {
     PCIDevice dev;
+    qemu_irq irq;
 
     VGACommonState vga;
 
     MemoryRegion vram;
+    MemoryRegion ramin;
+    uint8_t *ramin_ptr;
+
     MemoryRegion mmio;
 
     MemoryRegion block_mmio[NV_NUM_BLOCKS];
 
-    hwaddr crtc_start;
+    struct {
+        uint32_t pending_interrupts;
+        uint32_t enabled_interrupts;
+    } pmc;
+
+    struct {
+        uint32_t pending_interrupts;
+        uint32_t enabled_interrupts;
+
+        hwaddr ramht_address;
+        uint32_t ramht_size;
+        uint32_t ramht_search;
+
+        hwaddr ramfc_address1;
+        hwaddr ramfc_address2;
+        uint32_t ramfc_size;
+
+        /* Weather the fifo chanels are PIO or DMA */
+        uint32_t channel_modes;
+
+        uint32_t channels_pending_push;
+
+        NV2ACache1State cache1;
+    } pfifo;
+
+    struct {
+        uint32_t pending_interrupts;
+        uint32_t enabled_interrupts;
+
+        uint32_t numerator;
+        uint32_t denominator;
+
+        uint32_t alarm_time;
+    } ptimer;
+
+    struct {
+        hwaddr ctx_table;
+        hwaddr ctx_pointer;
+    } pgraph;
+
+    struct {
+        uint32_t pending_interrupts;
+        uint32_t enabled_interrupts;
+
+        hwaddr start;
+    } pcrtc;
+
+    struct {
+        uint32_t core_clock_coeff;
+        uint64_t core_clock_freq;
+        uint32_t memory_clock_coeff;
+        uint32_t video_clock_coeff;
+    } pramdac;
+
+    struct {
+        NV2AChannelControl channel_control[NV2A_NUM_CHANNELS];
+    } user;
+
 } NV2AState;
 
 
+#define NV2A_DEVICE(obj) \
+    OBJECT_CHECK(NV2AState, (obj), "nv2a")
 
 
-static uint64_t nv2a_pmc_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+
+static void nv2a_update_irq(NV2AState *d)
 {
-    NV2A_DPRINTF("nv2a PMC: read [0x%llx]\n", addr);
-    return 0;
+    /* PFIFO */
+    if (d->pfifo.pending_interrupts & d->pfifo.enabled_interrupts) {
+        d->pmc.pending_interrupts |= NV_PMC_INTR_0_PFIFO;
+    }
+
+    if (d->pmc.pending_interrupts && d->pmc.enabled_interrupts) {
+        qemu_irq_raise(d->irq);
+    }
+}
+
+
+static void nv2a_cache_push(NV2AState *d,
+                            uint32_t subchannel,
+                            uint32_t method,
+                            uint32_t parameter,
+                            bool nonincreasing)
+{
+    NV2A_DPRINTF("nv2a cache push: 0x%x, 0x%x, 0x%x, %d\n",
+                 subchannel, method, parameter, nonincreasing);
+}
+
+static void nv2a_run_pusher(NV2AState *d) {
+    uint8_t channel_id;
+    NV2AChannelControl *control;
+    NV2ACache1State *state;
+    uint8_t *dma_ptr;
+    uint32_t flags;
+    uint32_t dma_class;
+    uint32_t limit;
+    uint32_t start;
+
+    uint8_t buf[4];
+
+    /* TODO: How is cache1 selected? */
+    state = &d->pfifo.cache1;
+    channel_id = state->channel_id;
+    control = &d->user.channel_control[channel_id];
+
+    /* only handling DMA for now... */
+
+    /* Channel running DMA */
+    assert(d->pfifo.channel_modes & (1 << channel_id));
+
+    assert(state->mode == FIFO_DMA);
+    assert(state->push_enabled);
+    assert(state->dma_push_enabled);
+
+    /* No pending errors... */
+    assert(state->error == NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE);
+
+    dma_ptr = d->ramin_ptr + state->dma_instance;
+
+    flags = le32_to_cpupu((uint32_t*)dma_ptr);
+
+    dma_class = flags & NV_DMA_CLASS;
+    assert(dma_class == NV_DMA_FROM_MEMORY_CLASS);
+
+    limit = le32_to_cpupu((uint32_t*)(dma_ptr + 4));
+    start = le32_to_cpupu((uint32_t*)(dma_ptr + 8)) & (~3);
+
+    NV2A_DPRINTF("nv2a DMA pusher: 0x%x - 0x%x, 0x%llx - 0x%llx\n",
+                 start, limit, control->dma_get, control->dma_put);
+
+    /* based on the convenient pseudocode in envytools */
+    while (control->dma_get != control->dma_put) {
+        if (start+control->dma_get < start
+            || start+control->dma_get >= limit) {
+
+            state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION;
+            break;
+        }
+
+        cpu_physical_memory_read(start+control->dma_get, buf, 4);
+        uint32_t word = le32_to_cpupu((uint32_t*)buf);
+
+        control->dma_get += 4;
+
+        if (state->method_count) {
+            /* data word of methods command */
+            state->data_shadow = word;
+
+            nv2a_cache_push(d, state->subchannel, state->method, word,
+                            state->method_nonincreasing);
+
+            if (!state->method_nonincreasing) {
+                state->method++;
+            }
+            state->method_count--;
+            state->dcount++;
+        } else {
+            /* no command active - this is the first word of a new one */
+            state->rsvd_shadow = word;
+            /* match all forms */
+            if ((word & 0xe0000003) == 0x20000000) {
+                /* old jump */
+                state->get_jmp_shadow = control->dma_get;
+                control->dma_get = word & 0x1fffffff;
+                NV2A_DPRINTF("nv2a pb OLD_JMP 0x%llx\n", control->dma_get);
+            } else if ((word & 3) == 1) {
+                /* jump */
+                state->get_jmp_shadow = control->dma_get;
+                control->dma_get = word & 0xfffffffc;
+                NV2A_DPRINTF("nv2a pb JMP 0x%llx\n", control->dma_get);
+            } else if ((word & 3) == 2) {
+                /* call */
+                if (state->subroutine_active) {
+                    state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_CALL;
+                    break;
+                }
+                state->subroutine_return = control->dma_get;
+                state->subroutine_active = true;
+                control->dma_get = word & 0xfffffffc;
+                NV2A_DPRINTF("nv2a pb CALL 0x%llx\n", control->dma_get);
+            } else if (word == 0x00020000) {
+                /* return */
+                if (!state->subroutine_active) {
+                    state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_RETURN;
+                    break;
+                }
+                control->dma_get = state->subroutine_return;
+                state->subroutine_active = false;
+                NV2A_DPRINTF("nv2a pb RET 0x%llx\n", control->dma_get);
+            } else if ((word & 0xe0030003) == 0) {
+                /* increasing methods */
+                state->method = (word >> 2) & 0x7ff;
+                state->subchannel = (word >> 13) & 7;
+                state->method_count = (word >> 18) & 0x7ff;
+                state->method_nonincreasing = false;
+                state->dcount = 0;
+            } else if ((word & 0xe0030003) == 0x40000000) {
+                /* non-increasing methods */
+                state->method = (word >> 2) & 0x7ff;
+                state->subchannel = (word >> 13) & 7;
+                state->method_count = (word >> 18) & 0x7ff;
+                state->method_nonincreasing = true;
+                state->dcount = 0;
+            } else {
+                state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD;
+                break;
+            }
+        }
+    }
+
+    if (state->error) {
+        NV2A_DPRINTF("nv2a pb error: %d\n", state->error);
+        d->pfifo.pending_interrupts |= NV_PFIFO_INTR_0_DMA_PUSHER;
+        nv2a_update_irq(d);
+    }
+}
+
+
+
+
+
+/* PMC - card master control */
+static uint64_t nv2a_pmc_read(void *opaque,
+                              hwaddr addr, unsigned int size)
+{
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PMC_BOOT_0:
+        /* chipset and stepping:
+         * NV2A, A02, Rev 0 */
+
+        r = 0x02A000A2;
+        break;
+    case NV_PMC_INTR_0:
+        /* Shows which functional units have pending IRQ */
+        r = d->pmc.pending_interrupts;
+
+        qemu_irq_lower(d->irq);
+
+        break;
+    case NV_PMC_INTR_EN_0:
+        /* Selects which functional units can cause IRQs */
+        r = d->pmc.enabled_interrupts;
+        break;
+    default:
+        break;
+    }
+
+    NV2A_DPRINTF("nv2a PMC: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
 }
 static void nv2a_pmc_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                           uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PMC: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PMC_INTR_0:
+        /* the bits of the interrupts to clear are wrtten */
+        d->pmc.pending_interrupts &= ~val;
+        break;
+    case NV_PMC_INTR_EN_0:
+        d->pmc.enabled_interrupts = val;
+        break;
+    default:
+        break;
+    }
 }
 
 
+/* PBUS - bus control */
 static uint64_t nv2a_pbus_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+                               hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PBUS: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PBUS_PCI_NV_0:
+        r = pci_get_long(d->dev.config + PCI_VENDOR_ID);
+        break;
+    case NV_PBUS_PCI_NV_1:
+        r = pci_get_long(d->dev.config + PCI_COMMAND);
+        break;
+    case NV_PBUS_PCI_NV_2:
+        r = pci_get_long(d->dev.config + PCI_CLASS_REVISION);
+        break;
+    default:
+        break;
+    }
+
+    NV2A_DPRINTF("nv2a PBUS: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
 }
 static void nv2a_pbus_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                            uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PBUS: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PBUS_PCI_NV_1:
+        pci_set_long(d->dev.config + PCI_COMMAND, val);
+    default:
+        break;
+    }
 }
 
 
+/* PFIFO - MMIO and DMA FIFO submission to PGRAPH and VPE */
 static uint64_t nv2a_pfifo_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PFIFO: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PFIFO_INTR_0:
+        r = d->pfifo.pending_interrupts;
+        break;
+    case NV_PFIFO_INTR_EN_0:
+        r = d->pfifo.enabled_interrupts;
+        break;
+    case NV_PFIFO_RAMHT:
+        r = ( (d->pfifo.ramht_address >> 12) << 4)
+             | (d->pfifo.ramht_size << 16)
+             | (d->pfifo.ramht_search << 24);
+        break;
+    case NV_PFIFO_RAMFC:
+        r = ( (d->pfifo.ramfc_address1 >> 10) << 2)
+             | (d->pfifo.ramfc_size << 16)
+             | ((d->pfifo.ramfc_address2 >> 10) << 17);
+        break;
+    case NV_PFIFO_RUNOUT_STATUS:
+        r = NV_PFIFO_RUNOUT_STATUS_LOW_MARK; /* low mark empty */
+        break;
+    case NV_PFIFO_MODE:
+        r = d->pfifo.channel_modes;
+        break;
+    case NV_PFIFO_DMA:
+        r = d->pfifo.channels_pending_push;
+        break;
+
+    case NV_PFIFO_CACHE1_PUSH0:
+        r = d->pfifo.cache1.push_enabled;
+        break;
+    case NV_PFIFO_CACHE1_PUSH1:
+        r = (d->pfifo.cache1.channel_id & NV_PFIFO_CACHE1_PUSH1_CHID)
+            | (d->pfifo.cache1.mode << 8);
+        break;
+    case NV_PFIFO_CACHE1_STATUS:
+        r = (1 << 4); /* low mark empty */
+        break;
+    case NV_PFIFO_CACHE1_DMA_PUSH:
+        r = d->pfifo.cache1.dma_push_enabled
+            | (1 << 8) /* buffer empty */
+            | (1 << 12); /* status suspended */
+        break;
+    case NV_PFIFO_CACHE1_DMA_STATE:
+        r = d->pfifo.cache1.method_nonincreasing
+            | (d->pfifo.cache1.method << 2)
+            | (d->pfifo.cache1.subchannel << 13)
+            | (d->pfifo.cache1.method_count << 18)
+            | (d->pfifo.cache1.error << 29);
+        break;
+    case NV_PFIFO_CACHE1_DMA_INSTANCE:
+        r = (d->pfifo.cache1.dma_instance >> 4)
+             & NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS;
+        break;
+    case NV_PFIFO_CACHE1_DMA_PUT:
+        r = d->user.channel_control[d->pfifo.cache1.channel_id].dma_put;
+        break;
+    case NV_PFIFO_CACHE1_DMA_GET:
+        r = d->user.channel_control[d->pfifo.cache1.channel_id].dma_get;
+        break;
+    case NV_PFIFO_CACHE1_DMA_SUBROUTINE:
+        r = d->pfifo.cache1.subroutine_return
+            | d->pfifo.cache1.subroutine_active;
+        break;
+    case NV_PFIFO_CACHE1_DMA_DCOUNT:
+        r = d->pfifo.cache1.dcount;
+        break;
+    case NV_PFIFO_CACHE1_DMA_GET_JMP_SHADOW:
+        r = d->pfifo.cache1.get_jmp_shadow;
+        break;
+    case NV_PFIFO_CACHE1_DMA_RSVD_SHADOW:
+        r = d->pfifo.cache1.rsvd_shadow;
+        break;
+    case NV_PFIFO_CACHE1_DMA_DATA_SHADOW:
+        r = d->pfifo.cache1.data_shadow;
+        break;
+    default:
+        break;
+    }
+
+    NV2A_DPRINTF("nv2a PFIFO: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
 }
 static void nv2a_pfifo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PFIFO: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PFIFO_INTR_0:
+        d->pfifo.pending_interrupts &= ~val;
+        break;
+    case NV_PFIFO_INTR_EN_0:
+        d->pfifo.enabled_interrupts = val;
+        break;
+    case NV_PFIFO_RAMHT:
+        d->pfifo.ramht_address =
+            ((val & NV_PFIFO_RAMHT_BASE_ADDRESS) >> 4) << 12;
+        d->pfifo.ramht_size = (val & NV_PFIFO_RAMHT_SIZE) >> 16;
+        d->pfifo.ramht_search = (val & NV_PFIFO_RAMHT_SEARCH) >> 24;
+        break;
+    case NV_PFIFO_RAMFC:
+        d->pfifo.ramfc_address1 =
+            ((val & NV_PFIFO_RAMFC_BASE_ADDRESS1) >> 2) << 10;
+        d->pfifo.ramfc_size = (val & NV_PFIFO_RAMFC_SIZE) >> 16;
+        d->pfifo.ramfc_address2 =
+            ((val & NV_PFIFO_RAMFC_BASE_ADDRESS2) >> 17) << 10;
+        break;
+    case NV_PFIFO_MODE:
+        d->pfifo.channel_modes = val;
+        break;
+    case NV_PFIFO_DMA:
+        d->pfifo.channels_pending_push = val;
+        break;
+
+    case NV_PFIFO_CACHE1_PUSH0:
+        d->pfifo.cache1.push_enabled = val & NV_PFIFO_CACHE1_PUSH0_ACCESS;
+        break;
+    case NV_PFIFO_CACHE1_PUSH1:
+        d->pfifo.cache1.channel_id = val & NV_PFIFO_CACHE1_PUSH1_CHID;
+        d->pfifo.cache1.mode = (val & NV_PFIFO_CACHE1_PUSH1_MODE) >> 8;
+        assert(d->pfifo.cache1.channel_id < NV2A_NUM_CHANNELS);
+        break;
+    case NV_PFIFO_CACHE1_DMA_PUSH:
+        d->pfifo.cache1.dma_push_enabled =
+            val & NV_PFIFO_CACHE1_DMA_PUSH_ACCESS;
+        break;
+    case NV_PFIFO_CACHE1_DMA_STATE:
+        d->pfifo.cache1.method_nonincreasing =
+            (val & NV_PFIFO_CACHE1_DMA_STATE_METHOD_TYPE);
+        d->pfifo.cache1.method = (val & NV_PFIFO_CACHE1_DMA_STATE_METHOD);
+        d->pfifo.cache1.subchannel =
+            (val & NV_PFIFO_CACHE1_DMA_STATE_SUBCHANNEL) >> 13;
+        d->pfifo.cache1.method_count =
+            (val & NV_PFIFO_CACHE1_DMA_STATE_METHOD_COUNT) >> 18;
+        d->pfifo.cache1.error =
+            (val & NV_PFIFO_CACHE1_DMA_STATE_ERROR) >> 29;
+        break;
+    case NV_PFIFO_CACHE1_DMA_INSTANCE:
+        d->pfifo.cache1.dma_instance =
+            (val & NV_PFIFO_CACHE1_DMA_INSTANCE_ADDRESS) << 4;
+        break;
+    case NV_PFIFO_CACHE1_DMA_PUT:
+        d->user.channel_control[d->pfifo.cache1.channel_id].dma_put = val;
+        break;
+    case NV_PFIFO_CACHE1_DMA_GET:
+        d->user.channel_control[d->pfifo.cache1.channel_id].dma_get = val;
+        break;
+    case NV_PFIFO_CACHE1_DMA_SUBROUTINE:
+        d->pfifo.cache1.subroutine_return =
+            (val & NV_PFIFO_CACHE1_DMA_SUBROUTINE_RETURN_OFFSET);
+        d->pfifo.cache1.subroutine_active =
+            (val & NV_PFIFO_CACHE1_DMA_SUBROUTINE_STATE);
+        break;
+    case NV_PFIFO_CACHE1_DMA_DCOUNT:
+        d->pfifo.cache1.dcount =
+            (val & NV_PFIFO_CACHE1_DMA_DCOUNT_VALUE);
+        break;
+    case NV_PFIFO_CACHE1_DMA_GET_JMP_SHADOW:
+        d->pfifo.cache1.get_jmp_shadow =
+            (val & NV_PFIFO_CACHE1_DMA_GET_JMP_SHADOW_OFFSET);
+        break;
+    case NV_PFIFO_CACHE1_DMA_RSVD_SHADOW:
+        d->pfifo.cache1.rsvd_shadow = val;
+        break;
+    case NV_PFIFO_CACHE1_DMA_DATA_SHADOW:
+        d->pfifo.cache1.data_shadow = val;
+        break;
+    default:
+        break;
+    }
 }
 
 
@@ -148,16 +837,73 @@ static void nv2a_pvideo_write(void *opaque, hwaddr addr,
 }
 
 
+
+
+/* PIMTER - time measurement and time-based alarms */
+static uint64_t nv2a_ptimer_get_clock(NV2AState *d)
+{
+    return muldiv64(qemu_get_clock_ns(vm_clock),
+                    d->pramdac.core_clock_freq * d->ptimer.numerator,
+                    get_ticks_per_sec() * d->ptimer.denominator);
+}
 static uint64_t nv2a_ptimer_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PTIMER: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PTIMER_INTR_0:
+        r = d->ptimer.pending_interrupts;
+        break;
+    case NV_PTIMER_INTR_EN_0:
+        r = d->ptimer.enabled_interrupts;
+        break;
+    case NV_PTIMER_NUMERATOR:
+        r = d->ptimer.numerator;
+        break;
+    case NV_PTIMER_DENOMINATOR:
+        r = d->ptimer.denominator;
+        break;
+    case NV_PTIMER_TIME_0:
+        r = (nv2a_ptimer_get_clock(d) & 0x7ffffff) << 5;
+        break;
+    case NV_PTIMER_TIME_1:
+        r = (nv2a_ptimer_get_clock(d) >> 27) & 0x1fffffff;
+        break;
+    default:
+        break;
+    }
+
+    NV2A_DPRINTF("nv2a PTIMER: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
 }
 static void nv2a_ptimer_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PTIMER: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PTIMER_INTR_0:
+        d->ptimer.pending_interrupts &= ~val;
+        break;
+    case NV_PTIMER_INTR_EN_0:
+        d->ptimer.enabled_interrupts = val;
+        break;
+    case NV_PTIMER_DENOMINATOR:
+        d->ptimer.denominator = val;
+        break;
+    case NV_PTIMER_NUMERATOR:
+        d->ptimer.numerator = val;
+        break;
+    case NV_PTIMER_ALARM_0:
+        d->ptimer.alarm_time = val;
+        break;
+    default:
+        break;
+    }
 }
 
 
@@ -213,14 +959,14 @@ static void nv2a_prmfb_write(void *opaque, hwaddr addr,
 }
 
 
-/* PRMVIO -aliases VGA sequencer and graphics controller registers */
+/* PRMVIO - aliases VGA sequencer and graphics controller registers */
 static uint64_t nv2a_prmvio_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
     uint64_t r = vga_ioport_read(&d->vga, addr);
 
-    NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx] -> %llx\n", addr, r);
+    NV2A_DPRINTF("nv2a PRMVIO: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
 static void nv2a_prmvio_write(void *opaque, hwaddr addr,
@@ -233,6 +979,33 @@ static void nv2a_prmvio_write(void *opaque, hwaddr addr,
     vga_ioport_write(&d->vga, addr, val);
 }
 
+
+static uint64_t nv2a_pfb_read(void *opaque,
+                                  hwaddr addr, unsigned int size)
+{
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PFB_CFG0:
+        /* 3-4 memory partitions. The debug bios checks this. */
+        r = 3;
+        break;
+    case NV_PFB_CSTATUS:
+        r = memory_region_size(&d->vram);
+        break;
+    default:
+        break;
+    }
+
+    NV2A_DPRINTF("nv2a PFB: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
+}
+static void nv2a_pfb_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned int size)
+{
+    NV2A_DPRINTF("nv2a PFB: [0x%llx] = 0x%02llx\n", addr, val);
+}
 
 
 static uint64_t nv2a_pstraps_read(void *opaque,
@@ -247,55 +1020,104 @@ static void nv2a_pstraps_write(void *opaque, hwaddr addr,
     NV2A_DPRINTF("nv2a PSTRAPS: [0x%llx] = 0x%02llx\n", addr, val);
 }
 
-
+/* PGRAPH - accelerated 2d/3d drawing engine */
 static uint64_t nv2a_pgraph_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PGRAPH_CHANNEL_CTX_TABLE:
+        r = d->pgraph.ctx_table;
+        break;
+    case NV_PGRAPH_CHANNEL_CTX_POINTER:
+        r = d->pgraph.ctx_pointer;
+        break;
+    default:
+        break;
+    }
+
     NV2A_DPRINTF("nv2a PGRAPH: read [0x%llx]\n", addr);
-    return 0;
+    return r;
 }
 static void nv2a_pgraph_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a PGRAPH: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PGRAPH_CHANNEL_CTX_TABLE:
+        d->pgraph.ctx_table = val & NV_PGRAPH_CHANNEL_CTX_TABLE_INST;
+        break;
+    case NV_PGRAPH_CHANNEL_CTX_POINTER:
+        d->pgraph.ctx_pointer = val & NV_PGRAPH_CHANNEL_CTX_POINTER_INST;
+        break;
+    case NV_PGRAPH_CHANNEL_CTX_TRIGGER:
+        if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
+            /* do stuff ... */
+        }
+        if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT) {
+            /* do stuff ... */
+        }
+        break;
+    default:
+        break;
+    }
 }
 
 
 static uint64_t nv2a_pcrtc_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+                                hwaddr addr, unsigned int size)
 {
     NV2AState *d = opaque;
+
     uint64_t r = 0;
     switch (addr) {
+        case NV_PCRTC_INTR_0:
+            r = d->pcrtc.pending_interrupts;
+            break;
+        case NV_PCRTC_INTR_EN_0:
+            r = d->pcrtc.enabled_interrupts;
+            break;
         case NV_PCRTC_START:
-            r = d->crtc_start;
+            r = d->pcrtc.start;
             break;
         default:
             break;
     }
-    NV2A_DPRINTF("nv2a PCRTC: read [0x%llx] -> %llx\n", addr, r);
+
+    NV2A_DPRINTF("nv2a PCRTC: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
 static void nv2a_pcrtc_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                             uint64_t val, unsigned int size)
 {
     NV2AState *d = opaque;
 
     NV2A_DPRINTF("nv2a PCRTC: [0x%llx] = 0x%02llx\n", addr, val);
 
     switch (addr) {
-        case NV_PCRTC_START:
-            val &= 0x03FFFFFF;
-            if (val != d->crtc_start) {
-                if (d->crtc_start) {
-                    memory_region_del_subregion(&d->vram, &d->vga.vram);
-                }
-                d->crtc_start = val;
-                memory_region_add_subregion(&d->vram, val, &d->vga.vram);
+    case NV_PCRTC_INTR_0:
+        d->pcrtc.pending_interrupts &= ~val;
+        break;
+    case NV_PCRTC_INTR_EN_0:
+        d->pcrtc.enabled_interrupts = val;
+        break;
+    case NV_PCRTC_START:
+        val &= 0x03FFFFFF;
+        if (val != d->pcrtc.start) {
+            if (d->pcrtc.start) {
+                memory_region_del_subregion(&d->vram, &d->vga.vram);
             }
-            break;
-        default:
-            break;
+            d->pcrtc.start = val;
+            memory_region_add_subregion(&d->vram, val, &d->vga.vram);
+        }
+        break;
+    default:
+        break;
     }
 }
 
@@ -307,7 +1129,7 @@ static uint64_t nv2a_prmcio_read(void *opaque,
     NV2AState *d = opaque;
     uint64_t r = vga_ioport_read(&d->vga, addr);
 
-    NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx] -> %llx\n", addr, r);
+    NV2A_DPRINTF("nv2a PRMCIO: read [0x%llx] -> 0x%llx\n", addr, r);
     return r;
 }
 static void nv2a_prmcio_write(void *opaque, hwaddr addr,
@@ -318,18 +1140,18 @@ static void nv2a_prmcio_write(void *opaque, hwaddr addr,
     NV2A_DPRINTF("nv2a PRMCIO: [0x%llx] = 0x%02llx\n", addr, val);
 
     switch (addr) {
-        case VGA_ATT_W:
-            /* Cromwell sets attrs without enabling VGA_AR_ENABLE_DISPLAY
-             * (which should result in a blank screen).
-             * Either nvidia's hardware is lenient or it is set through
-             * something else. The former seems more likely.
-             */
-            if (d->vga.ar_flip_flop == 0) {
-                val |= VGA_AR_ENABLE_DISPLAY;
-            }
-            break;
-        default:
-            break;
+    case VGA_ATT_W:
+        /* Cromwell sets attrs without enabling VGA_AR_ENABLE_DISPLAY
+         * (which should result in a blank screen).
+         * Either nvidia's hardware is lenient or it is set through
+         * something else. The former seems more likely.
+         */
+        if (d->vga.ar_flip_flop == 0) {
+            val |= VGA_AR_ENABLE_DISPLAY;
+        }
+        break;
+    default:
+        break;
     }
 
     vga_ioport_write(&d->vga, addr, val);
@@ -339,13 +1161,68 @@ static void nv2a_prmcio_write(void *opaque, hwaddr addr,
 static uint64_t nv2a_pramdac_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRAMDAC: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr & ~3) {
+    case NV_PRAMDAC_NVPLL_COEFF:
+        r = d->pramdac.core_clock_coeff;
+        break;
+    case NV_PRAMDAC_MPLL_COEFF:
+        r = d->pramdac.memory_clock_coeff;
+        break;
+    case NV_PRAMDAC_VPLL_COEFF:
+        r = d->pramdac.video_clock_coeff;
+        break;
+    case NV_PRAMDAC_PLL_TEST_COUNTER:
+        /* emulated PLLs locked instantly? */
+        return NV_PRAMDAC_PLL_TEST_COUNTER_VPLL2_LOCK
+             | NV_PRAMDAC_PLL_TEST_COUNTER_NVPLL_LOCK
+             | NV_PRAMDAC_PLL_TEST_COUNTER_MPLL_LOCK
+             | NV_PRAMDAC_PLL_TEST_COUNTER_VPLL_LOCK;
+    default:
+        break;
+    }
+
+    /* Surprisingly, QEMU doesn't handle unaligned access for you properly */
+    r >>= 32 - 8 * size - 8 * (addr & 3);
+
+    NV2A_DPRINTF("nv2a PRAMDAC: read %d [0x%llx] -> %llx\n", size, addr, r);
+    return r;
 }
 static void nv2a_pramdac_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+    uint32_t m, n, p;
+
     NV2A_DPRINTF("nv2a PRAMDAC: [0x%llx] = 0x%02llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PRAMDAC_NVPLL_COEFF:
+        d->pramdac.core_clock_coeff = val;
+
+        m = val & NV_PRAMDAC_NVPLL_COEFF_MDIV;
+        n = (val & NV_PRAMDAC_NVPLL_COEFF_NDIV) >> 8;
+        p = (val & NV_PRAMDAC_NVPLL_COEFF_PDIV) >> 16;
+
+        if (m == 0) {
+            d->pramdac.core_clock_freq = 0;
+        } else {
+            d->pramdac.core_clock_freq = (NV2A_CRYSTAL_FREQ * n)
+                                          / (1 << p) / m;
+        }
+
+        break;
+    case NV_PRAMDAC_MPLL_COEFF:
+        d->pramdac.memory_clock_coeff = val;
+        break;
+    case NV_PRAMDAC_VPLL_COEFF:
+        d->pramdac.video_clock_coeff = val;
+        break;
+    default:
+        break;
+    }
 }
 
 
@@ -362,29 +1239,92 @@ static void nv2a_prmdio_write(void *opaque, hwaddr addr,
 }
 
 
+/* PRAMIN - RAMIN access */
+/*
 static uint64_t nv2a_pramin_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+                                 hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRAMIN: read [0x%llx]\n", addr);
+    NV2A_DPRINTF("nv2a PRAMIN: read [0x%llx] -> 0x%llx\n", addr, r);
     return 0;
 }
 static void nv2a_pramin_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                              uint64_t val, unsigned int size)
 {
     NV2A_DPRINTF("nv2a PRAMIN: [0x%llx] = 0x%02llx\n", addr, val);
-}
+}*/
 
 
+/* USER - PFIFO MMIO and DMA submission area */
 static uint64_t nv2a_user_read(void *opaque,
-                                  hwaddr addr, unsigned int size)
+                               hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a USER: read [0x%llx]\n", addr);
-    return 0;
+    NV2AState *d = opaque;
+
+    unsigned int channel_id = addr >> 16;
+    assert(channel_id < NV2A_NUM_CHANNELS);
+
+    NV2AChannelControl *control = &d->user.channel_control[channel_id];
+
+    uint64_t r = 0;
+    if (d->pfifo.channel_modes & (1 << channel_id)) {
+        /* DMA Mode */
+        switch (addr & 0xFFFF) {
+        case NV_USER_DMA_PUT:
+            r = control->dma_put;
+            break;
+        case NV_USER_DMA_GET:
+            r = control->dma_get;
+            break;
+        case NV_USER_REF:
+            r = control->ref;
+            break;
+        default:
+            break;
+        }
+    } else {
+        /* PIO Mode */
+        /* dunno */
+    }
+
+    NV2A_DPRINTF("nv2a USER: read [0x%llx] -> %llx\n", addr, r);
+    return r;
 }
 static void nv2a_user_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned int size)
+                            uint64_t val, unsigned int size)
 {
+    NV2AState *d = opaque;
+
     NV2A_DPRINTF("nv2a USER: [0x%llx] = 0x%02llx\n", addr, val);
+
+    unsigned int channel_id = addr >> 16;
+    assert(channel_id < NV2A_NUM_CHANNELS);
+
+    NV2AChannelControl *control = &d->user.channel_control[channel_id];
+
+    if (d->pfifo.channel_modes & (1 << channel_id)) {
+        /* DMA Mode */
+        switch (addr & 0xFFFF) {
+        case NV_USER_DMA_PUT:
+            control->dma_put = val;
+
+            if (d->pfifo.cache1.push_enabled) {
+                nv2a_run_pusher(d);
+            }
+            break;
+        case NV_USER_DMA_GET:
+            control->dma_get = val;
+            break;
+        case NV_USER_REF:
+            control->ref = val;
+            break;
+        default:
+            break;
+        }
+    } else {
+        /* PIO Mode */
+        /* dunno */
+    }
+
 }
 
 
@@ -497,6 +1437,15 @@ static const struct NV2ABlockInfo blocktable[] = {
             .write = nv2a_prmvio_write,
         },
     },
+    [ NV_PFB ]  = {
+        .name = "PFB",
+        .offset = 0x100000,
+        .size   = 0x001000,
+        .ops = {
+            .read = nv2a_pfb_read,
+            .write = nv2a_pfb_write,
+        },
+    },
     [ NV_PSTRAPS ]  = {
         .name = "PSTRAPS",
         .offset = 0x101000,
@@ -551,7 +1500,7 @@ static const struct NV2ABlockInfo blocktable[] = {
             .write = nv2a_prmdio_write,
         },
     },
-    [ NV_PRAMIN ]  = {
+    /*[ NV_PRAMIN ]  = {
         .name = "PRAMIN",
         .offset = 0x700000,
         .size   = 0x100000,
@@ -559,7 +1508,7 @@ static const struct NV2ABlockInfo blocktable[] = {
             .read = nv2a_pramin_read,
             .write = nv2a_pramin_write,
         },
-    },
+    },*/
     [ NV_USER ]  = {
         .name = "USER",
         .offset = 0x800000,
@@ -586,13 +1535,19 @@ static int nv2a_initfn(PCIDevice *dev)
     int i;
     NV2AState *d;
 
+    d = NV2A_DEVICE(dev);
 
-    d = DO_UPCAST(NV2AState, dev, dev);
-    d->crtc_start = 0;
+    d->pcrtc.start = 0;
+
+    d->pramdac.core_clock_coeff = 0x00011c01; /* 189MHz...? */
+    d->pramdac.core_clock_freq = 189000000;
+    d->pramdac.memory_clock_coeff = 0;
+    d->pramdac.video_clock_coeff = 0x0003C20D; /* 25182Khz...? */
+
+
 
     /* legacy VGA shit */
     VGACommonState *vga = &d->vga;
-    vga->vram_size_mb = 16;
 
     /* seems to start in color mode */
     vga->msr = VGA_MIS_COLOR;
@@ -605,13 +1560,9 @@ static int nv2a_initfn(PCIDevice *dev)
                                    vga);
 
 
-
     /* mmio */
     memory_region_init(&d->mmio, "nv2a-mmio", 0x1000000);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
-
-    memory_region_init(&d->vram, "nv2a-vram", 128 * 0x100000);
-    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, &d->vram);
 
     for (i=0; i<sizeof(blocktable)/sizeof(blocktable[0]); i++) {
         if (!blocktable[i].name) continue;
@@ -621,6 +1572,17 @@ static int nv2a_initfn(PCIDevice *dev)
                                     &d->block_mmio[i]);
     }
 
+
+    /* vram */
+    memory_region_init_ram(&d->vram, "nv2a-vram", 128 * 0x100000);
+    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, &d->vram);
+
+    memory_region_init_alias(&d->ramin, "nv2a-ramin", &d->vram,
+                             memory_region_size(&d->vram) - 0x100000,
+                             0x100000);
+    memory_region_add_subregion(&d->mmio, 0x700000, &d->ramin);
+
+    d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
 
     return 0;
 }
@@ -656,7 +1618,11 @@ type_init(nv2a_register);
 
 
 
-void nv2a_init(PCIBus *bus, int devfn)
+void nv2a_init(PCIBus *bus, int devfn, qemu_irq irq)
 {
-    pci_create_simple(bus, devfn, "nv2a");
+    PCIDevice *dev;
+    NV2AState *d;
+    dev = pci_create_simple(bus, devfn, "nv2a");
+    d = NV2A_DEVICE(dev);
+    d->irq = irq;
 }
