@@ -318,46 +318,30 @@ enum {
     OPC_LX_DSP         = 0x0A | OPC_SPECIAL3,
     /* MIPS DSP Arithmetic */
     OPC_ADDU_QB_DSP    = 0x10 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_ADDU_OB_DSP    = 0x14 | OPC_SPECIAL3,
-#endif
     OPC_ABSQ_S_PH_DSP  = 0x12 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_ABSQ_S_QH_DSP  = 0x16 | OPC_SPECIAL3,
-#endif
     /* OPC_ADDUH_QB_DSP is same as OPC_MULT_G_2E.  */
     /* OPC_ADDUH_QB_DSP   = 0x18 | OPC_SPECIAL3,  */
     OPC_CMPU_EQ_QB_DSP = 0x11 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_CMPU_EQ_OB_DSP = 0x15 | OPC_SPECIAL3,
-#endif
     /* MIPS DSP GPR-Based Shift Sub-class */
     OPC_SHLL_QB_DSP    = 0x13 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_SHLL_OB_DSP    = 0x17 | OPC_SPECIAL3,
-#endif
     /* MIPS DSP Multiply Sub-class insns */
     /* OPC_MUL_PH_DSP is same as OPC_ADDUH_QB_DSP.  */
     /* OPC_MUL_PH_DSP     = 0x18 | OPC_SPECIAL3,  */
     OPC_DPA_W_PH_DSP   = 0x30 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_DPAQ_W_QH_DSP  = 0x34 | OPC_SPECIAL3,
-#endif
     /* DSP Bit/Manipulation Sub-class */
     OPC_INSV_DSP       = 0x0C | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_DINSV_DSP      = 0x0D | OPC_SPECIAL3,
-#endif
     /* MIPS DSP Compare-Pick Sub-class */
     OPC_APPEND_DSP     = 0x31 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_DAPPEND_DSP    = 0x35 | OPC_SPECIAL3,
-#endif
     /* MIPS DSP Accumulator and DSPControl Access Sub-class */
     OPC_EXTR_W_DSP     = 0x38 | OPC_SPECIAL3,
-#if defined(TARGET_MIPS64)
     OPC_DEXTR_W_DSP    = 0x3C | OPC_SPECIAL3,
-#endif
 };
 
 /* BSHFL opcodes */
@@ -380,9 +364,7 @@ enum {
 /* MIPS DSP REGIMM opcodes */
 enum {
     OPC_BPOSGE32 = (0x1C << 16) | OPC_REGIMM,
-#if defined(TARGET_MIPS64)
     OPC_BPOSGE64 = (0x1D << 16) | OPC_REGIMM,
-#endif
 };
 
 #define MASK_LX(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
@@ -391,9 +373,7 @@ enum {
     OPC_LBUX = (0x06 << 6) | OPC_LX_DSP,
     OPC_LHX  = (0x04 << 6) | OPC_LX_DSP,
     OPC_LWX  = (0x00 << 6) | OPC_LX_DSP,
-#if defined(TARGET_MIPS64)
     OPC_LDX = (0x08 << 6) | OPC_LX_DSP,
-#endif
 };
 
 #define MASK_ADDU_QB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
@@ -591,9 +571,6 @@ enum {
     OPC_RDDSP      = (0x12 << 6) | OPC_EXTR_W_DSP,
 };
 
-
-
-#if defined(TARGET_MIPS64)
 #define MASK_ABSQ_S_QH(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* MIPS DSP Arithmetic Sub-class */
@@ -622,9 +599,7 @@ enum {
     OPC_REPLV_PW        = (0x13 << 6) | OPC_ABSQ_S_QH_DSP,
     OPC_REPLV_QH        = (0x0B << 6) | OPC_ABSQ_S_QH_DSP,
 };
-#endif
 
-#if defined(TARGET_MIPS64)
 #define MASK_ADDU_OB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* MIPS DSP Multiply Sub-class insns */
@@ -656,9 +631,7 @@ enum {
     OPC_ADDUH_OB       = (0x18 << 6) | OPC_ADDU_OB_DSP,
     OPC_ADDUH_R_OB     = (0x1A << 6) | OPC_ADDU_OB_DSP,
 };
-#endif
 
-#if defined(TARGET_MIPS64)
 #define MASK_CMPU_EQ_OB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* DSP Compare-Pick Sub-class */
@@ -691,9 +664,7 @@ enum {
     OPC_PRECRQ_RS_QH_PW   = (0x15 << 6) | OPC_CMPU_EQ_OB_DSP,
     OPC_PRECRQU_S_OB_QH   = (0x0F << 6) | OPC_CMPU_EQ_OB_DSP,
 };
-#endif
 
-#if defined(TARGET_MIPS64)
 #define MASK_DAPPEND(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* DSP Compare-Pick Sub-class */
@@ -702,9 +673,7 @@ enum {
     OPC_PREPENDW = (0x01 << 6) | OPC_DAPPEND_DSP,
     OPC_DBALIGN  = (0x10 << 6) | OPC_DAPPEND_DSP,
 };
-#endif
 
-#if defined(TARGET_MIPS64)
 #define MASK_DEXTR_W(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* MIPS DSP Accumulator and DSPControl Access Sub-class */
@@ -736,9 +705,7 @@ enum {
     /* DSP Bit/Manipulation Sub-class */
     OPC_DINSV = (0x00 << 6) | OPC_DINSV_DSP,
 };
-#endif
 
-#if defined(TARGET_MIPS64)
 #define MASK_DPAQ_W_QH(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* MIPS DSP Multiply Sub-class insns */
@@ -769,9 +736,7 @@ enum {
     OPC_MULSAQ_S_L_PW = (0x0E << 6) | OPC_DPAQ_W_QH_DSP,
     OPC_MULSAQ_S_W_QH = (0x06 << 6) | OPC_DPAQ_W_QH_DSP,
 };
-#endif
 
-#if defined(TARGET_MIPS64)
 #define MASK_SHLL_OB(op) (MASK_SPECIAL3(op) | (op & (0x1F << 6)))
 enum {
     /* MIPS DSP GPR-Based Shift Sub-class */
@@ -802,7 +767,6 @@ enum {
     OPC_SHRL_OB    = (0x01 << 6) | OPC_SHLL_OB_DSP,
     OPC_SHRL_QH    = (0x19 << 6) | OPC_SHLL_OB_DSP,
 };
-#endif
 
 /* Coprocessor 0 (rs field) */
 #define MASK_CP0(op)       MASK_OP_MAJOR(op) | (op & (0x1F << 21))
