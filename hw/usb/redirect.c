@@ -1317,17 +1317,35 @@ static void usbredir_set_pipeline(USBRedirDevice *dev, struct USBEndpoint *uep)
     }
 }
 
+static void usbredir_setup_usb_eps(USBRedirDevice *dev)
+{
+    struct USBEndpoint *usb_ep;
+    int i, pid;
+
+    for (i = 0; i < MAX_ENDPOINTS; i++) {
+        pid = (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT;
+        usb_ep = usb_ep_get(&dev->dev, pid, i & 0x0f);
+        usb_ep->type = dev->endpoint[i].type;
+        usb_ep->ifnum = dev->endpoint[i].interface;
+        usb_ep->max_packet_size = dev->endpoint[i].max_packet_size;
+        usbredir_set_pipeline(dev, usb_ep);
+    }
+}
+
 static void usbredir_ep_info(void *priv,
     struct usb_redir_ep_info_header *ep_info)
 {
     USBRedirDevice *dev = priv;
-    struct USBEndpoint *usb_ep;
     int i;
 
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         dev->endpoint[i].type = ep_info->type[i];
         dev->endpoint[i].interval = ep_info->interval[i];
         dev->endpoint[i].interface = ep_info->interface[i];
+        if (usbredirparser_peer_has_cap(dev->parser,
+                                     usb_redir_cap_ep_info_max_packet_size)) {
+            dev->endpoint[i].max_packet_size = ep_info->max_packet_size[i];
+        }
         switch (dev->endpoint[i].type) {
         case usb_redir_type_invalid:
             break;
@@ -1348,18 +1366,8 @@ static void usbredir_ep_info(void *priv,
             usbredir_device_disconnect(dev);
             return;
         }
-        usb_ep = usb_ep_get(&dev->dev,
-                            (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT,
-                            i & 0x0f);
-        usb_ep->type = dev->endpoint[i].type;
-        usb_ep->ifnum = dev->endpoint[i].interface;
-        if (usbredirparser_peer_has_cap(dev->parser,
-                                     usb_redir_cap_ep_info_max_packet_size)) {
-            dev->endpoint[i].max_packet_size =
-                usb_ep->max_packet_size = ep_info->max_packet_size[i];
-        }
-        usbredir_set_pipeline(dev, usb_ep);
     }
+    usbredir_setup_usb_eps(dev);
 }
 
 static void usbredir_configuration_status(void *priv, uint64_t id,
@@ -1601,8 +1609,6 @@ static void usbredir_pre_save(void *priv)
 static int usbredir_post_load(void *priv, int version_id)
 {
     USBRedirDevice *dev = priv;
-    struct USBEndpoint *usb_ep;
-    int i;
 
     switch (dev->device_info.speed) {
     case usb_redir_speed_low:
@@ -1622,15 +1628,8 @@ static int usbredir_post_load(void *priv, int version_id)
     }
     dev->dev.speedmask = (1 << dev->dev.speed);
 
-    for (i = 0; i < MAX_ENDPOINTS; i++) {
-        usb_ep = usb_ep_get(&dev->dev,
-                            (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT,
-                            i & 0x0f);
-        usb_ep->type = dev->endpoint[i].type;
-        usb_ep->ifnum = dev->endpoint[i].interface;
-        usb_ep->max_packet_size = dev->endpoint[i].max_packet_size;
-        usbredir_set_pipeline(dev, usb_ep);
-    }
+    usbredir_setup_usb_eps(dev);
+
     return 0;
 }
 
