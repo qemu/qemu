@@ -1387,6 +1387,7 @@ invalid_param_len:
 
 static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     uint8_t *p = inbuf;
     int cmd = r->req.cmd.buf[0];
     int len = r->req.cmd.xfer;
@@ -1423,6 +1424,14 @@ static void scsi_disk_emulate_mode_select(SCSIDiskReq *r, uint8_t *inbuf)
             return;
         }
     }
+    if (!bdrv_enable_write_cache(s->qdev.conf.bs)) {
+        /* The request is used as the AIO opaque value, so add a ref.  */
+        scsi_req_ref(&r->req);
+        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
+        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
+        return;
+    }
+
     scsi_req_complete(&r->req, GOOD);
     return;
 
