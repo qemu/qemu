@@ -575,6 +575,10 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
     bulk_packet.endpoint  = ep;
     bulk_packet.length    = p->iov.size;
     bulk_packet.stream_id = 0;
+    bulk_packet.length_high = p->iov.size >> 16;
+    assert(bulk_packet.length_high == 0 ||
+           usbredirparser_peer_has_cap(dev->parser,
+                                       usb_redir_cap_32bits_bulk_length));
 
     if (ep & USB_DIR_IN) {
         usbredirparser_send_bulk_packet(dev->parser, p->id,
@@ -896,6 +900,7 @@ static void usbredir_create_parser(USBRedirDevice *dev)
     usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_ep_info_max_packet_size);
     usbredirparser_caps_set_cap(caps, usb_redir_cap_64bits_ids);
+    usbredirparser_caps_set_cap(caps, usb_redir_cap_32bits_bulk_length);
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         flags |= usbredirparser_fl_no_hello;
@@ -1452,7 +1457,7 @@ static void usbredir_bulk_packet(void *priv, uint64_t id,
 {
     USBRedirDevice *dev = priv;
     uint8_t ep = bulk_packet->endpoint;
-    int len = bulk_packet->length;
+    int len = (bulk_packet->length_high << 16) | bulk_packet->length;
     USBPacket *p;
 
     DPRINTF("bulk-in status %d ep %02X len %d id %"PRIu64"\n",
