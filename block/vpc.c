@@ -201,7 +201,8 @@ static int vpc_open(BlockDriverState *bs, int flags)
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
 
-    if (bs->total_sectors >= 65535 * 16 * 255) {
+    /* Allow a maximum disk size of approximately 2 TB */
+    if (bs->total_sectors >= 65535LL * 255 * 255) {
         err = -EFBIG;
         goto fail;
     }
@@ -527,19 +528,27 @@ static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
  * Note that the geometry doesn't always exactly match total_sectors but
  * may round it down.
  *
- * Returns 0 on success, -EFBIG if the size is larger than 127 GB
+ * Returns 0 on success, -EFBIG if the size is larger than ~2 TB. Override
+ * the hardware EIDE and ATA-2 limit of 16 heads (max disk size of 127 GB)
+ * and instead allow up to 255 heads.
  */
 static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     uint8_t* heads, uint8_t* secs_per_cyl)
 {
     uint32_t cyls_times_heads;
 
-    if (total_sectors > 65535 * 16 * 255)
+    /* Allow a maximum disk size of approximately 2 TB */
+    if (total_sectors > 65535LL * 255 * 255) {
         return -EFBIG;
+    }
 
     if (total_sectors > 65535 * 16 * 63) {
         *secs_per_cyl = 255;
-        *heads = 16;
+        if (total_sectors > 65535 * 16 * 255) {
+            *heads = 255;
+        } else {
+            *heads = 16;
+        }
         cyls_times_heads = total_sectors / *secs_per_cyl;
     } else {
         *secs_per_cyl = 17;
