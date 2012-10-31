@@ -216,6 +216,7 @@ static void kvm_reset_vcpu(void *opaque)
 
 int kvm_init_vcpu(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     KVMState *s = kvm_state;
     long mmap_size;
     int ret;
@@ -228,7 +229,7 @@ int kvm_init_vcpu(CPUArchState *env)
         goto err;
     }
 
-    env->kvm_fd = ret;
+    cpu->kvm_fd = ret;
     env->kvm_state = s;
     env->kvm_vcpu_dirty = 1;
 
@@ -240,7 +241,7 @@ int kvm_init_vcpu(CPUArchState *env)
     }
 
     env->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-                        env->kvm_fd, 0);
+                        cpu->kvm_fd, 0);
     if (env->kvm_run == MAP_FAILED) {
         ret = -errno;
         DPRINTF("mmap'ing vcpu state failed\n");
@@ -1652,6 +1653,7 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
 
 int kvm_vcpu_ioctl(CPUArchState *env, int type, ...)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int ret;
     void *arg;
     va_list ap;
@@ -1660,7 +1662,7 @@ int kvm_vcpu_ioctl(CPUArchState *env, int type, ...)
     arg = va_arg(ap, void *);
     va_end(ap);
 
-    ret = ioctl(env->kvm_fd, type, arg);
+    ret = ioctl(cpu->kvm_fd, type, arg);
     if (ret == -1) {
         ret = -errno;
     }
