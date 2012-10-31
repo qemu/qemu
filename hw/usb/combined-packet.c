@@ -117,7 +117,7 @@ void usb_ep_combine_input_packets(USBEndpoint *ep)
 {
     USBPacket *p, *u, *next, *prev = NULL, *first = NULL;
     USBPort *port = ep->dev->port;
-    int ret;
+    int ret, totalsize;
 
     assert(ep->pipeline);
     assert(ep->pid == USB_TOKEN_IN);
@@ -161,8 +161,11 @@ void usb_ep_combine_input_packets(USBEndpoint *ep)
         }
 
         /* Is this packet the last one of a (combined) transfer? */
+        totalsize = (p->combined) ? p->combined->iov.size : p->iov.size;
         if ((p->iov.size % ep->max_packet_size) != 0 || !p->short_not_ok ||
-                next == NULL) {
+                next == NULL ||
+                /* Work around for Linux usbfs bulk splitting + migration */
+                (totalsize == 16348 && p->int_req)) {
             ret = usb_device_handle_data(ep->dev, first);
             assert(ret == USB_RET_ASYNC);
             if (first->combined) {
