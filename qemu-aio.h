@@ -23,7 +23,7 @@ typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 
 typedef struct AIOPool {
     void (*cancel)(BlockDriverAIOCB *acb);
-    int aiocb_size;
+    size_t aiocb_size;
     BlockDriverAIOCB *free_aiocb;
 } AIOPool;
 
