@@ -3909,13 +3909,8 @@ void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
 {
     BlockDriverAIOCB *acb;
 
-    if (pool->free_aiocb) {
-        acb = pool->free_aiocb;
-        pool->free_aiocb = acb->next;
-    } else {
-        acb = g_malloc0(pool->aiocb_size);
-        acb->pool = pool;
-    }
+    acb = g_slice_alloc(pool->aiocb_size);
+    acb->pool = pool;
     acb->bs = bs;
     acb->cb = cb;
     acb->opaque = opaque;
@@ -3924,10 +3919,8 @@ void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
 
 void qemu_aio_release(void *p)
 {
-    BlockDriverAIOCB *acb = (BlockDriverAIOCB *)p;
-    AIOPool *pool = acb->pool;
-    acb->next = pool->free_aiocb;
-    pool->free_aiocb = acb;
+    BlockDriverAIOCB *acb = p;
+    g_slice_free1(acb->pool->aiocb_size, acb);
 }
 
 /**************************************************************/
