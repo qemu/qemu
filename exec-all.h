@@ -310,6 +310,42 @@ extern uintptr_t tci_tb_ptr;
 # define GETPC() ((uintptr_t)__builtin_return_address(0) - 1)
 #endif
 
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+/* qemu_ld/st optimization split code generation to fast and slow path, thus,
+   it needs special handling for an MMU helper which is called from the slow
+   path, to get the fast path's pc without any additional argument.
+   It uses a tricky solution which embeds the fast path pc into the slow path.
+
+   Code flow in slow path:
+   (1) pre-process
+   (2) call MMU helper
+   (3) jump to (5)
+   (4) fast path information (implementation specific)
+   (5) post-process (e.g. stack adjust)
+   (6) jump to corresponding code of the next of fast path
+ */
+# if defined(__i386__) || defined(__x86_64__)
+/* To avoid broken disassembling, long jmp is used for embedding fast path pc,
+   so that the destination is the next code of fast path, though this jmp is
+   never executed.
+
+   call MMU helper
+   jmp POST_PROC (2byte)    <- GETRA()
+   jmp NEXT_CODE (5byte)
+   POST_PROCESS ...         <- GETRA() + 7
+ */
+#  define GETRA() ((uintptr_t)__builtin_return_address(0))
+#  define GETPC_LDST() ((uintptr_t)(GETRA() + 7 + \
+                                    *(int32_t *)((void *)GETRA() + 3) - 1))
+# else
+#  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
+# endif
+bool is_tcg_gen_code(uintptr_t pc_ptr);
+# define GETPC_EXT() (is_tcg_gen_code(GETRA()) ? GETPC_LDST() : GETPC())
+#else
+# define GETPC_EXT() GETPC()
+#endif
+
 #if !defined(CONFIG_USER_ONLY)
 
 struct MemoryRegion *iotlb_to_region(hwaddr index);
