@@ -123,19 +123,20 @@ void qemu_chr_be_event(CharDriverState *s, int event)
     s->chr_event(s->handler_opaque, event);
 }
 
-static void qemu_chr_generic_open_bh(void *opaque)
+static void qemu_chr_fire_open_event(void *opaque)
 {
     CharDriverState *s = opaque;
     qemu_chr_be_event(s, CHR_EVENT_OPENED);
-    qemu_bh_delete(s->bh);
-    s->bh = NULL;
+    qemu_free_timer(s->open_timer);
+    s->open_timer = NULL;
 }
 
 void qemu_chr_generic_open(CharDriverState *s)
 {
-    if (s->bh == NULL) {
-	s->bh = qemu_bh_new(qemu_chr_generic_open_bh, s);
-	qemu_bh_schedule(s->bh);
+    if (s->open_timer == NULL) {
+        s->open_timer = qemu_new_timer_ms(vm_clock,
+                                          qemu_chr_fire_open_event, s);
+        qemu_mod_timer(s->open_timer, qemu_get_clock_ms(vm_clock) - 1);
     }
 }
 
