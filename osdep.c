@@ -88,7 +88,6 @@ static int qemu_dup_flags(int fd, int flags)
     int ret;
     int serrno;
     int dup_flags;
-    int setfl_flags;
 
 #ifdef F_DUPFD_CLOEXEC
     ret = fcntl(fd, F_DUPFD_CLOEXEC, 0);
@@ -113,16 +112,7 @@ static int qemu_dup_flags(int fd, int flags)
     }
 
     /* Set/unset flags that we can with fcntl */
-    setfl_flags = O_APPEND | O_ASYNC | O_NONBLOCK;
-#ifdef O_NOATIME
-    setfl_flags |= O_NOATIME;
-#endif
-#ifdef O_DIRECT
-    setfl_flags |= O_DIRECT;
-#endif
-    dup_flags &= ~setfl_flags;
-    dup_flags |= (flags & setfl_flags);
-    if (fcntl(ret, F_SETFL, dup_flags) == -1) {
+    if (fcntl(ret, F_SETFL, flags) == -1) {
         goto fail;
     }
 

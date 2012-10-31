@@ -28,6 +28,10 @@ Command parameters:
 is the disk image format. It is guessed automatically in most cases. See below
 for a description of the supported disk formats.
 
+@item --backing-chain
+will enumerate information about backing files in a disk image chain. Refer
+below for further description.
+
 @item size
 is the disk image size in bytes. Optional suffixes @code{k} or @code{K}
 (kilobyte, 1024) @code{M} (megabyte, 1024k) and @code{G} (gigabyte, 1024M)
@@ -129,13 +133,28 @@ created as a copy on write image of the specified base image; the
 @var{backing_file} should have the same content as the input's base image,
 however the path, image format, etc may differ.
 
-@item info [-f @var{fmt}] [--output=@var{ofmt}] @var{filename}
+@item info [-f @var{fmt}] [--output=@var{ofmt}] [--backing-chain] @var{filename}
 
 Give information about the disk image @var{filename}. Use it in
 particular to know the size reserved on disk which can be different
 from the displayed size. If VM snapshots are stored in the disk image,
 they are displayed too. The command can output in the format @var{ofmt}
 which is either @code{human} or @code{json}.
+
+If a disk image has a backing file chain, information about each disk image in
+the chain can be recursively enumerated by using the option @code{--backing-chain}.
+
+For instance, if you have an image chain like:
+
+@example
+base.qcow2 <- snap1.qcow2 <- snap2.qcow2
+@end example
+
+To enumerate information about each disk image in the above chain, starting from top to base, do:
+
+@example
+qemu-img info --backing-chain snap2.qcow2
+@end example
 
 @item snapshot [-l | -a @var{snapshot} | -c @var{snapshot} | -d @var{snapshot} ] @var{filename}
 
@@ -148,7 +167,9 @@ Changes the backing file of an image. Only the formats @code{qcow2} and
 
 The backing file is changed to @var{backing_file} and (if the image format of
 @var{filename} supports this) the backing file format is changed to
-@var{backing_fmt}.
+@var{backing_fmt}. If @var{backing_file} is specified as ``'' (the empty
+string), then the image is rebased onto no backing file (i.e. it will exist
+independently of any backing file).
 
 There are two different modes in which @code{rebase} can operate:
 @table @option

@@ -1117,8 +1117,19 @@ PCIINTxRoute pci_device_route_intx_to_irq(PCIDevice *dev, int pin)
          pin = bus->map_irq(dev, pin);
          dev = bus->parent_dev;
     } while (dev);
-    assert(bus->route_intx_to_irq);
+
+    if (!bus->route_intx_to_irq) {
+        error_report("PCI: Bug - unimplemented PCI INTx routing (%s)\n",
+                     object_get_typename(OBJECT(bus->qbus.parent)));
+        return (PCIINTxRoute) { PCI_INTX_DISABLED, -1 };
+    }
+
     return bus->route_intx_to_irq(bus->irq_opaque, pin);
+}
+
+bool pci_intx_route_changed(PCIINTxRoute *old, PCIINTxRoute *new)
+{
+    return old->mode != new->mode || old->irq != new->irq;
 }
 
 void pci_bus_fire_intx_routing_notifier(PCIBus *bus)
@@ -1142,6 +1153,24 @@ void pci_device_set_intx_routing_notifier(PCIDevice *dev,
                                           PCIINTxRoutingNotifier notifier)
 {
     dev->intx_routing_notifier = notifier;
+}
+
+/*
+ * PCI-to-PCI bridge specification
+ * 9.1: Interrupt routing. Table 9-1
+ *
+ * the PCI Express Base Specification, Revision 2.1
+ * 2.2.8.1: INTx interrutp signaling - Rules
+ *          the Implementation Note
+ *          Table 2-20
+ */
+/*
+ * 0 <= pin <= 3 0 = INTA, 1 = INTB, 2 = INTC, 3 = INTD
+ * 0-origin unlike PCI interrupt pin register.
+ */
+int pci_swizzle_map_irq_fn(PCIDevice *pci_dev, int pin)
+{
+    return (pin + PCI_SLOT(pci_dev->devfn)) % PCI_NUM_PINS;
 }
 
 /***********************************************************/
@@ -1208,6 +1237,7 @@ static const pci_class_desc pci_class_descriptions[] =
     { 0x0c02, "SSA controller", "ssa"},
     { 0x0c03, "USB controller", "usb"},
     { 0x0c04, "Fibre channel controller", "fibre-channel"},
+    { 0x0c05, "SMBus"},
     { 0, NULL}
 };
 
@@ -1667,16 +1697,16 @@ PCIDevice *pci_create_simple(PCIBus *bus, int devfn, const char *name)
     return pci_create_simple_multifunction(bus, devfn, false, name);
 }
 
-static int pci_find_space(PCIDevice *pdev, uint8_t size)
+static uint8_t pci_find_space(PCIDevice *pdev, uint8_t size)
 {
-    int config_size = pci_config_size(pdev);
     int offset = PCI_CONFIG_HEADER_SIZE;
     int i;
-    for (i = PCI_CONFIG_HEADER_SIZE; i < config_size; ++i)
+    for (i = PCI_CONFIG_HEADER_SIZE; i < PCI_CONFIG_SPACE_SIZE; ++i) {
         if (pdev->used[i])
             offset = i + 1;
         else if (i - offset + 1 == size)
             return offset;
+    }
     return 0;
 }
 
@@ -1895,7 +1925,7 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
     config[PCI_CAP_LIST_NEXT] = pdev->config[PCI_CAPABILITY_LIST];
     pdev->config[PCI_CAPABILITY_LIST] = offset;
     pdev->config[PCI_STATUS] |= PCI_STATUS_CAP_LIST;
-    memset(pdev->used + offset, 0xFF, size);
+    memset(pdev->used + offset, 0xFF, QEMU_ALIGN_UP(size, 4));
     /* Make capability read-only by default */
     memset(pdev->wmask + offset, 0, size);
     /* Check capability by default */
@@ -1915,7 +1945,7 @@ void pci_del_capability(PCIDevice *pdev, uint8_t cap_id, uint8_t size)
     memset(pdev->w1cmask + offset, 0, size);
     /* Clear cmask as device-specific registers can't be checked */
     memset(pdev->cmask + offset, 0, size);
-    memset(pdev->used + offset, 0, size);
+    memset(pdev->used + offset, 0, QEMU_ALIGN_UP(size, 4));
 
     if (!pdev->config[PCI_CAPABILITY_LIST])
         pdev->config[PCI_STATUS] &= ~PCI_STATUS_CAP_LIST;

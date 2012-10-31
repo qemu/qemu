@@ -575,6 +575,7 @@ static TCGv cpu_HI[MIPS_DSP_ACC], cpu_LO[MIPS_DSP_ACC], cpu_ACX[MIPS_DSP_ACC];
 static TCGv cpu_dspctrl, btarget, bcond;
 static TCGv_i32 hflags;
 static TCGv_i32 fpu_fcr0, fpu_fcr31;
+static TCGv_i64 fpu_f64[32];
 
 static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
@@ -642,26 +643,31 @@ enum {
     BS_EXCP     = 3, /* We reached an exception condition */
 };
 
-static const char *regnames[] =
-    { "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-      "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-      "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-      "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra", };
+static const char * const regnames[] = {
+    "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
+    "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
+    "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
+    "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
+};
 
-static const char *regnames_HI[] =
-    { "HI0", "HI1", "HI2", "HI3", };
+static const char * const regnames_HI[] = {
+    "HI0", "HI1", "HI2", "HI3",
+};
 
-static const char *regnames_LO[] =
-    { "LO0", "LO1", "LO2", "LO3", };
+static const char * const regnames_LO[] = {
+    "LO0", "LO1", "LO2", "LO3",
+};
 
-static const char *regnames_ACX[] =
-    { "ACX0", "ACX1", "ACX2", "ACX3", };
+static const char * const regnames_ACX[] = {
+    "ACX0", "ACX1", "ACX2", "ACX3",
+};
 
-static const char *fregnames[] =
-    { "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
-      "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
-      "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
-      "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31", };
+static const char * const fregnames[] = {
+    "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",
+    "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
+    "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
+    "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
+};
 
 #define MIPS_DEBUG(fmt, ...)                                                  \
     do {                                                                      \
@@ -758,54 +764,54 @@ static inline void gen_store_srsgpr (int from, int to)
 }
 
 /* Floating point register moves. */
-static inline void gen_load_fpr32 (TCGv_i32 t, int reg)
+static void gen_load_fpr32(TCGv_i32 t, int reg)
 {
-    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUMIPSState, active_fpu.fpr[reg].w[FP_ENDIAN_IDX]));
+    tcg_gen_trunc_i64_i32(t, fpu_f64[reg]);
 }
 
-static inline void gen_store_fpr32 (TCGv_i32 t, int reg)
+static void gen_store_fpr32(TCGv_i32 t, int reg)
 {
-    tcg_gen_st_i32(t, cpu_env, offsetof(CPUMIPSState, active_fpu.fpr[reg].w[FP_ENDIAN_IDX]));
+    TCGv_i64 t64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(t64, t);
+    tcg_gen_deposit_i64(fpu_f64[reg], fpu_f64[reg], t64, 0, 32);
+    tcg_temp_free_i64(t64);
 }
 
-static inline void gen_load_fpr32h (TCGv_i32 t, int reg)
+static void gen_load_fpr32h(TCGv_i32 t, int reg)
 {
-    tcg_gen_ld_i32(t, cpu_env, offsetof(CPUMIPSState, active_fpu.fpr[reg].w[!FP_ENDIAN_IDX]));
+    TCGv_i64 t64 = tcg_temp_new_i64();
+    tcg_gen_shri_i64(t64, fpu_f64[reg], 32);
+    tcg_gen_trunc_i64_i32(t, t64);
+    tcg_temp_free_i64(t64);
 }
 
-static inline void gen_store_fpr32h (TCGv_i32 t, int reg)
+static void gen_store_fpr32h(TCGv_i32 t, int reg)
 {
-    tcg_gen_st_i32(t, cpu_env, offsetof(CPUMIPSState, active_fpu.fpr[reg].w[!FP_ENDIAN_IDX]));
+    TCGv_i64 t64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(t64, t);
+    tcg_gen_deposit_i64(fpu_f64[reg], fpu_f64[reg], t64, 32, 32);
+    tcg_temp_free_i64(t64);
 }
 
-static inline void gen_load_fpr64 (DisasContext *ctx, TCGv_i64 t, int reg)
+static void gen_load_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
     if (ctx->hflags & MIPS_HFLAG_F64) {
-        tcg_gen_ld_i64(t, cpu_env, offsetof(CPUMIPSState, active_fpu.fpr[reg].d));
+        tcg_gen_mov_i64(t, fpu_f64[reg]);
     } else {
-        TCGv_i32 t0 = tcg_temp_new_i32();
-        TCGv_i32 t1 = tcg_temp_new_i32();
-        gen_load_fpr32(t0, reg & ~1);
-        gen_load_fpr32(t1, reg | 1);
-        tcg_gen_concat_i32_i64(t, t0, t1);
-        tcg_temp_free_i32(t0);
-        tcg_temp_free_i32(t1);
+        tcg_gen_concat32_i64(t, fpu_f64[reg & ~1], fpu_f64[reg | 1]);
     }
 }
 
-static inline void gen_store_fpr64 (DisasContext *ctx, TCGv_i64 t, int reg)
+static void gen_store_fpr64(DisasContext *ctx, TCGv_i64 t, int reg)
 {
     if (ctx->hflags & MIPS_HFLAG_F64) {
-        tcg_gen_st_i64(t, cpu_env, offsetof(CPUMIPSState, active_fpu.fpr[reg].d));
+        tcg_gen_mov_i64(fpu_f64[reg], t);
     } else {
-        TCGv_i64 t0 = tcg_temp_new_i64();
-        TCGv_i32 t1 = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(t1, t);
-        gen_store_fpr32(t1, reg & ~1);
+        TCGv_i64 t0;
+        tcg_gen_deposit_i64(fpu_f64[reg & ~1], fpu_f64[reg & ~1], t, 0, 32);
+        t0 = tcg_temp_new_i64();
         tcg_gen_shri_i64(t0, t, 32);
-        tcg_gen_trunc_i64_i32(t1, t0);
-        gen_store_fpr32(t1, reg | 1);
-        tcg_temp_free_i32(t1);
+        tcg_gen_deposit_i64(fpu_f64[reg | 1], fpu_f64[reg | 1], t0, 0, 32);
         tcg_temp_free_i64(t0);
     }
 }
@@ -13073,6 +13079,12 @@ static void mips_tcg_init(void)
         cpu_gpr[i] = tcg_global_mem_new(TCG_AREG0,
                                         offsetof(CPUMIPSState, active_tc.gpr[i]),
                                         regnames[i]);
+
+    for (i = 0; i < 32; i++) {
+        int off = offsetof(CPUMIPSState, active_fpu.fpr[i]);
+        fpu_f64[i] = tcg_global_mem_new_i64(TCG_AREG0, off, fregnames[i]);
+    }
+
     cpu_PC = tcg_global_mem_new(TCG_AREG0,
                                 offsetof(CPUMIPSState, active_tc.PC), "PC");
     for (i = 0; i < MIPS_DSP_ACC; i++) {

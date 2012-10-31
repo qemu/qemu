@@ -43,6 +43,7 @@
 #include "xen.h"
 #include "memory.h"
 #include "exec-memory.h"
+#include "cpu.h"
 #ifdef CONFIG_XEN
 #  include <xen/hvm/hvm_info_table.h>
 #endif
@@ -267,7 +268,7 @@ static void pc_init1(MemoryRegion *system_memory,
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
                  floppy, idebus[0], idebus[1], rtc_state);
 
-    if (pci_enabled && usb_enabled) {
+    if (pci_enabled && usb_enabled(false)) {
         pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");
     }
 
@@ -300,6 +301,12 @@ static void pc_init_pci(QEMUMachineInitArgs *args)
              ram_size, boot_device,
              kernel_filename, kernel_cmdline,
              initrd_filename, cpu_model, 1, 1);
+}
+
+static void pc_init_pci_1_3(QEMUMachineInitArgs *args)
+{
+    enable_kvm_pv_eoi();
+    pc_init_pci(args);
 }
 
 static void pc_init_pci_no_kvmclock(QEMUMachineInitArgs *args)
@@ -349,7 +356,7 @@ static QEMUMachine pc_machine_v1_3 = {
     .name = "pc-1.3",
     .alias = "pc",
     .desc = "Standard PC",
-    .init = pc_init_pci,
+    .init = pc_init_pci_1_3,
     .max_cpus = 255,
     .is_default = 1,
 };

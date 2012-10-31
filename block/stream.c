@@ -86,7 +86,7 @@ static void coroutine_fn stream_run(void *opaque)
 
     s->common.len = bdrv_getlength(bs);
     if (s->common.len < 0) {
-        block_job_complete(&s->common, s->common.len);
+        block_job_completed(&s->common, s->common.len);
         return;
     }
 
@@ -184,7 +184,7 @@ wait:
     }
 
     qemu_vfree(buf);
-    block_job_complete(&s->common, ret);
+    block_job_completed(&s->common, ret);
 }
 
 static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)

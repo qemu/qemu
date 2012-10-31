@@ -421,7 +421,8 @@ typedef struct Port92State {
     qemu_irq *a20_out;
 } Port92State;
 
-static void port92_write(void *opaque, uint32_t addr, uint32_t val)
+static void port92_write(void *opaque, hwaddr addr, uint64_t val,
+                         unsigned size)
 {
     Port92State *s = opaque;
 
@@ -433,7 +434,8 @@ static void port92_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t port92_read(void *opaque, uint32_t addr)
+static uint64_t port92_read(void *opaque, hwaddr addr,
+                            unsigned size)
 {
     Port92State *s = opaque;
     uint32_t ret;
@@ -468,13 +470,14 @@ static void port92_reset(DeviceState *d)
     s->outport &= ~1;
 }
 
-static const MemoryRegionPortio port92_portio[] = {
-    { 0, 1, 1, .read = port92_read, .write = port92_write },
-    PORTIO_END_OF_LIST(),
-};
-
 static const MemoryRegionOps port92_ops = {
-    .old_portio = port92_portio
+    .read = port92_read,
+    .write = port92_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int port92_initfn(ISADevice *dev)

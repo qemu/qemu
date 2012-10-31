@@ -596,17 +596,6 @@ static inline const char *cc_name(int cc_op)
     return cc_names[cc_op];
 }
 
-/* SCLP PV interface defines */
-#define SCLP_CMDW_READ_SCP_INFO         0x00020001
-#define SCLP_CMDW_READ_SCP_INFO_FORCED  0x00120001
-
-#define SCP_LENGTH                      0x00
-#define SCP_FUNCTION_CODE               0x02
-#define SCP_CONTROL_MASK                0x03
-#define SCP_RESPONSE_CODE               0x06
-#define SCP_MEM_CODE                    0x08
-#define SCP_INCREMENT                   0x0a
-
 typedef struct LowCore
 {
     /* prefix area: defined by architecture */
@@ -955,7 +944,7 @@ static inline void ebcdic_put(uint8_t *p, const char *ascii, int len)
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
 int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags);
-int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code);
+int sclp_service_call(uint32_t sccb, uint64_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
 

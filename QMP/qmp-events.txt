@@ -118,6 +118,24 @@ Example:
               "action": "stop" },
     "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
 
+BLOCK_JOB_READY
+---------------
+
+Emitted when a block job is ready to complete.
+
+Data:
+
+- "device": device name (json-string)
+
+Example:
+
+{ "event": "BLOCK_JOB_READY",
+    "data": { "device": "ide0-hd1" },
+    "timestamp": { "seconds": 1265044230, "microseconds": 450486 } }
+
+Note: The "ready to complete" status is always reset by a BLOCK_JOB_ERROR
+event.
+
 DEVICE_TRAY_MOVED
 -----------------
 

@@ -32,6 +32,7 @@
 #include "exec-memory.h"
 
 #include "hw/s390-virtio-bus.h"
+#include "hw/s390x/sclp.h"
 
 //#define DEBUG_S390
 
@@ -184,6 +185,7 @@ static void s390_init(QEMUMachineInitArgs *args)
 
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
+    s390_sclp_init();
 
     /* allocate RAM */
     memory_region_init_ram(ram, "s390.ram", my_ram_size);
@@ -285,8 +287,8 @@ static void s390_init(QEMUMachineInitArgs *args)
         }
 
         /* we have to overwrite values in the kernel image, which are "rom" */
-        memcpy(rom_ptr(INITRD_PARM_START), &initrd_offset, 8);
-        memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
+        stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
+        stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
     }
 
     if (rom_ptr(KERN_PARM_AREA)) {

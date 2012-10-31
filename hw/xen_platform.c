@@ -228,18 +228,46 @@ static void platform_fixed_ioport_reset(void *opaque)
     platform_fixed_ioport_writeb(s, 0, 0);
 }
 
-const MemoryRegionPortio xen_platform_ioport[] = {
-    { 0, 16, 4, .write = platform_fixed_ioport_writel, },
-    { 0, 16, 2, .write = platform_fixed_ioport_writew, },
-    { 0, 16, 1, .write = platform_fixed_ioport_writeb, },
-    { 0, 16, 2, .read = platform_fixed_ioport_readw, },
-    { 0, 16, 1, .read = platform_fixed_ioport_readb, },
-    PORTIO_END_OF_LIST()
-};
+static uint64_t platform_fixed_ioport_read(void *opaque,
+                                           hwaddr addr,
+                                           unsigned size)
+{
+    switch (size) {
+    case 1:
+        return platform_fixed_ioport_readb(opaque, addr);
+    case 2:
+        return platform_fixed_ioport_readw(opaque, addr);
+    default:
+        return -1;
+    }
+}
+
+static void platform_fixed_ioport_write(void *opaque, hwaddr addr,
+
+                                        uint64_t val, unsigned size)
+{
+    switch (size) {
+    case 1:
+        platform_fixed_ioport_writeb(opaque, addr, val);
+        break;
+    case 2:
+        platform_fixed_ioport_writew(opaque, addr, val);
+        break;
+    case 4:
+        platform_fixed_ioport_writel(opaque, addr, val);
+        break;
+    }
+}
+
 
 static const MemoryRegionOps platform_fixed_io_ops = {
-    .old_portio = xen_platform_ioport,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .read = platform_fixed_ioport_read,
+    .write = platform_fixed_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void platform_fixed_ioport_init(PCIXenPlatformState* s)

@@ -1160,6 +1160,7 @@ gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
 gcc_flags="-fstack-protector-all -Wendif-labels $gcc_flags"
+gcc_flags="-Wno-initializer-overrides $gcc_flags"
 # Note that we do not add -Werror to gcc_flags here, because that would
 # enable it for all configure tests. If a configure test failed due
 # to -Werror this would just silently disable some features,
@@ -1168,7 +1169,11 @@ cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
-    if compile_prog "-Werror $flag" "" ; then
+    # Use the positive sense of the flag when testing for -Wno-wombat
+    # support (gcc will happily accept the -Wno- form of unknown
+    # warning options).
+    optflag="$(echo $flag | sed -e 's/^-Wno-/-W/')"
+    if compile_prog "-Werror $optflag" "" ; then
 	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
     fi
 done
@@ -2398,8 +2403,7 @@ cat > $TMPC << EOF
 int main(void)
 {
     int pipefd[2];
-    pipe2(pipefd, O_CLOEXEC);
-    return 0;
+    return pipe2(pipefd, O_CLOEXEC);
 }
 EOF
 if compile_prog "" "" ; then
@@ -2813,6 +2817,24 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# check if we have usable SIGEV_THREAD_ID
+
+sigev_thread_id=no
+cat > $TMPC << EOF
+#include <signal.h>
+int main(void) {
+  struct sigevent ev;
+  ev.sigev_notify = SIGEV_THREAD_ID;
+  ev._sigev_un._tid = 0;
+  asm volatile("" : : "g"(&ev));
+  return 0;
+}
+EOF
+if compile_prog "" "" ; then
+    sigev_thread_id=yes
+fi
+
+##########################################
 # check if trace backend exists
 
 $python "$source_path/scripts/tracetool.py" "--backend=$trace_backend" --check-backend  > /dev/null 2> /dev/null
@@ -3159,6 +3181,7 @@ echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
 echo "madvise           $madvise"
 echo "posix_madvise     $posix_madvise"
+echo "sigev_thread_id   $sigev_thread_id"
 echo "uuid support      $uuid"
 echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
@@ -3442,6 +3465,9 @@ if test "$madvise" = "yes" ; then
 fi
 if test "$posix_madvise" = "yes" ; then
   echo "CONFIG_POSIX_MADVISE=y" >> $config_host_mak
+fi
+if test "$sigev_thread_id" = "yes" ; then
+  echo "CONFIG_SIGEV_THREAD_ID=y" >> $config_host_mak
 fi
 
 if test "$spice" = "yes" ; then

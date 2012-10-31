@@ -122,6 +122,31 @@ void msi_set_message(PCIDevice *dev, MSIMessage msg)
     pci_set_word(dev->config + msi_data_off(dev, msi64bit), msg.data);
 }
 
+MSIMessage msi_get_message(PCIDevice *dev, unsigned int vector)
+{
+    uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
+    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
+    unsigned int nr_vectors = msi_nr_vectors(flags);
+    MSIMessage msg;
+
+    assert(vector < nr_vectors);
+
+    if (msi64bit) {
+        msg.address = pci_get_quad(dev->config + msi_address_lo_off(dev));
+    } else {
+        msg.address = pci_get_long(dev->config + msi_address_lo_off(dev));
+    }
+
+    /* upper bit 31:16 is zero */
+    msg.data = pci_get_word(dev->config + msi_data_off(dev, msi64bit));
+    if (nr_vectors > 1) {
+        msg.data &= ~(nr_vectors - 1);
+        msg.data |= vector;
+    }
+
+    return msg;
+}
+
 bool msi_enabled(const PCIDevice *dev)
 {
     return msi_present(dev) &&
@@ -249,8 +274,7 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
     uint16_t flags = pci_get_word(dev->config + msi_flags_off(dev));
     bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
     unsigned int nr_vectors = msi_nr_vectors(flags);
-    uint64_t address;
-    uint32_t data;
+    MSIMessage msg;
 
     assert(vector < nr_vectors);
     if (msi_is_masked(dev, vector)) {
@@ -261,24 +285,13 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
         return;
     }
 
-    if (msi64bit) {
-        address = pci_get_quad(dev->config + msi_address_lo_off(dev));
-    } else {
-        address = pci_get_long(dev->config + msi_address_lo_off(dev));
-    }
-
-    /* upper bit 31:16 is zero */
-    data = pci_get_word(dev->config + msi_data_off(dev, msi64bit));
-    if (nr_vectors > 1) {
-        data &= ~(nr_vectors - 1);
-        data |= vector;
-    }
+    msg = msi_get_message(dev, vector);
 
     MSI_DEV_PRINTF(dev,
                    "notify vector 0x%x"
                    " address: 0x%"PRIx64" data: 0x%"PRIx32"\n",
-                   vector, address, data);
-    stl_le_phys(address, data);
+                   vector, msg.address, msg.data);
+    stl_le_phys(msg.address, msg.data);
 }
 
 /* Normally called by pci_default_write_config(). */

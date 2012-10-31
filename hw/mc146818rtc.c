@@ -383,7 +383,8 @@ static void rtc_update_timer(void *opaque)
     check_update_timer(s);
 }
 
-static void cmos_ioport_write(void *opaque, uint32_t addr, uint32_t data)
+static void cmos_ioport_write(void *opaque, hwaddr addr,
+                              uint64_t data, unsigned size)
 {
     RTCState *s = opaque;
 
@@ -595,7 +596,8 @@ static int update_in_progress(RTCState *s)
     return 0;
 }
 
-static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
+static uint64_t cmos_ioport_read(void *opaque, hwaddr addr,
+                                 unsigned size)
 {
     RTCState *s = opaque;
     int ret;
@@ -769,13 +771,14 @@ static void rtc_reset(void *opaque)
 #endif
 }
 
-static const MemoryRegionPortio cmos_portio[] = {
-    {0, 2, 1, .read = cmos_ioport_read, .write = cmos_ioport_write },
-    PORTIO_END_OF_LIST(),
-};
-
 static const MemoryRegionOps cmos_ops = {
-    .old_portio = cmos_portio
+    .read = cmos_ioport_read,
+    .write = cmos_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void rtc_get_date(Object *obj, Visitor *v, void *opaque,

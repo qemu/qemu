@@ -391,8 +391,13 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
         ret = usb_process_one(p);
         if (ret == USB_RET_ASYNC) {
+            assert(p->ep->type != USB_ENDPOINT_XFER_ISOC);
             usb_packet_set_state(p, USB_PACKET_ASYNC);
             QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
+        } else if (ret == USB_RET_ADD_TO_QUEUE) {
+            usb_packet_set_state(p, USB_PACKET_QUEUED);
+            QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
+            ret = USB_RET_ASYNC;
         } else {
             /*
              * When pipelining is enabled usb-devices must always return async,
@@ -412,13 +417,14 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static void __usb_packet_complete(USBDevice *dev, USBPacket *p)
+void usb_packet_complete_one(USBDevice *dev, USBPacket *p)
 {
     USBEndpoint *ep = p->ep;
 
+    assert(QTAILQ_FIRST(&ep->queue) == p);
     assert(p->result != USB_RET_ASYNC && p->result != USB_RET_NAK);
 
-    if (p->result < 0) {
+    if (p->result < 0 || (p->short_not_ok && (p->result < p->iov.size))) {
         ep->halted = true;
     }
     usb_packet_set_state(p, USB_PACKET_COMPLETE);
@@ -435,11 +441,16 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
     int ret;
 
     usb_packet_check_state(p, USB_PACKET_ASYNC);
-    assert(QTAILQ_FIRST(&ep->queue) == p);
-    __usb_packet_complete(dev, p);
+    usb_packet_complete_one(dev, p);
 
-    while (!ep->halted && !QTAILQ_EMPTY(&ep->queue)) {
+    while (!QTAILQ_EMPTY(&ep->queue)) {
         p = QTAILQ_FIRST(&ep->queue);
+        if (ep->halted) {
+            /* Empty the queue on a halt */
+            p->result = USB_RET_REMOVE_FROM_QUEUE;
+            dev->port->ops->complete(dev->port, p);
+            continue;
+        }
         if (p->state == USB_PACKET_ASYNC) {
             break;
         }
@@ -450,7 +461,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
             break;
         }
         p->result = ret;
-        __usb_packet_complete(ep->dev, p);
+        usb_packet_complete_one(ep->dev, p);
     }
 }
 
@@ -522,7 +533,8 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
     p->state = state;
 }
 
-void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id)
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id,
+                      bool short_not_ok, bool int_req)
 {
     assert(!usb_packet_is_inflight(p));
     assert(p->iov.iov != NULL);
@@ -531,6 +543,8 @@ void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id)
     p->ep = ep;
     p->result = 0;
     p->parameter = 0;
+    p->short_not_ok = short_not_ok;
+    p->int_req = int_req;
     qemu_iovec_reset(&p->iov);
     usb_packet_set_state(p, USB_PACKET_SETUP);
 }

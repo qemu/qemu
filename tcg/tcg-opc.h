@@ -37,8 +37,8 @@ DEF(nopn, 0, 0, 1, 0) /* variable number of parameters */
 DEF(discard, 1, 0, 0, 0)
 
 DEF(set_label, 0, 0, 1, TCG_OPF_BB_END)
-DEF(call, 0, 1, 2, TCG_OPF_SIDE_EFFECTS) /* variable number of parameters */
-DEF(br, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(call, 0, 1, 2, TCG_OPF_CALL_CLOBBER) /* variable number of parameters */
+DEF(br, 0, 0, 1, TCG_OPF_BB_END)
 
 #define IMPL(X) (X ? 0 : TCG_OPF_NOT_PRESENT)
 #if TCG_TARGET_REG_BITS == 32
@@ -57,9 +57,9 @@ DEF(ld8s_i32, 1, 1, 1, 0)
 DEF(ld16u_i32, 1, 1, 1, 0)
 DEF(ld16s_i32, 1, 1, 1, 0)
 DEF(ld_i32, 1, 1, 1, 0)
-DEF(st8_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF(st16_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF(st_i32, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(st8_i32, 0, 2, 1, 0)
+DEF(st16_i32, 0, 2, 1, 0)
+DEF(st_i32, 0, 2, 1, 0)
 /* arith */
 DEF(add_i32, 1, 2, 0, 0)
 DEF(sub_i32, 1, 2, 0, 0)
@@ -81,12 +81,11 @@ DEF(rotl_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_rot_i32))
 DEF(rotr_i32, 1, 2, 0, IMPL(TCG_TARGET_HAS_rot_i32))
 DEF(deposit_i32, 1, 2, 2, IMPL(TCG_TARGET_HAS_deposit_i32))
 
-DEF(brcond_i32, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(brcond_i32, 0, 2, 2, TCG_OPF_BB_END)
 
 DEF(add2_i32, 2, 4, 0, IMPL(TCG_TARGET_REG_BITS == 32))
 DEF(sub2_i32, 2, 4, 0, IMPL(TCG_TARGET_REG_BITS == 32))
-DEF(brcond2_i32, 0, 4, 2,
-    TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS | IMPL(TCG_TARGET_REG_BITS == 32))
+DEF(brcond2_i32, 0, 4, 2, TCG_OPF_BB_END | IMPL(TCG_TARGET_REG_BITS == 32))
 DEF(mulu2_i32, 2, 2, 0, IMPL(TCG_TARGET_REG_BITS == 32))
 DEF(setcond2_i32, 1, 4, 1, IMPL(TCG_TARGET_REG_BITS == 32))
 
@@ -116,10 +115,10 @@ DEF(ld16s_i64, 1, 1, 1, IMPL64)
 DEF(ld32u_i64, 1, 1, 1, IMPL64)
 DEF(ld32s_i64, 1, 1, 1, IMPL64)
 DEF(ld_i64, 1, 1, 1, IMPL64)
-DEF(st8_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | IMPL64)
-DEF(st16_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | IMPL64)
-DEF(st32_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | IMPL64)
-DEF(st_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | IMPL64)
+DEF(st8_i64, 0, 2, 1, IMPL64)
+DEF(st16_i64, 0, 2, 1, IMPL64)
+DEF(st32_i64, 0, 2, 1, IMPL64)
+DEF(st_i64, 0, 2, 1, IMPL64)
 /* arith */
 DEF(add_i64, 1, 2, 0, IMPL64)
 DEF(sub_i64, 1, 2, 0, IMPL64)
@@ -141,7 +140,7 @@ DEF(rotl_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_rot_i64))
 DEF(rotr_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_rot_i64))
 DEF(deposit_i64, 1, 2, 2, IMPL64 | IMPL(TCG_TARGET_HAS_deposit_i64))
 
-DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS | IMPL64)
+DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | IMPL64)
 DEF(ext8s_i64, 1, 1, 0, IMPL64 | IMPL(TCG_TARGET_HAS_ext8s_i64))
 DEF(ext16s_i64, 1, 1, 0, IMPL64 | IMPL(TCG_TARGET_HAS_ext16s_i64))
 DEF(ext32s_i64, 1, 1, 0, IMPL64 | IMPL(TCG_TARGET_HAS_ext32s_i64))
@@ -165,8 +164,8 @@ DEF(debug_insn_start, 0, 0, 2, 0)
 #else
 DEF(debug_insn_start, 0, 0, 1, 0)
 #endif
-DEF(exit_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
-DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(exit_tb, 0, 0, 1, TCG_OPF_BB_END)
+DEF(goto_tb, 0, 0, 1, TCG_OPF_BB_END)
 /* Note: even if TARGET_LONG_BITS is not defined, the INDEX_op
    constants must be defined */
 #if TCG_TARGET_REG_BITS == 32

@@ -1664,12 +1664,6 @@ uint64_t HELPER(neon_negl_u32)(uint64_t x)
     return low | ((uint64_t)high << 32);
 }
 
-/* FIXME:  There should be a native op for this.  */
-uint64_t HELPER(neon_negl_u64)(uint64_t x)
-{
-    return -x;
-}
-
 /* Saturating sign manipulation.  */
 /* ??? Make these use NEON_VOP1 */
 #define DO_QABS8(x) do { \

@@ -2633,7 +2633,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     case 2:                     /* FPU & Logical Operations */
         {
             unsigned int xop = GET_FIELD(insn, 7, 12);
-            TCGv cpu_dst = gen_dest_gpr(dc, rd);
+            TCGv cpu_dst = get_temp_tl(dc);
             TCGv cpu_tmp0;
 
             if (xop == 0x3a) {  /* generate trap */

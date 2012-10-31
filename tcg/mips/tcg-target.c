@@ -323,6 +323,9 @@ enum {
     OPC_BLTZ     = OPC_REGIMM | (0x00 << 16),
     OPC_BGEZ     = OPC_REGIMM | (0x01 << 16),
 
+    OPC_SPECIAL2 = 0x1c << 26,
+    OPC_MUL      = OPC_SPECIAL2 | 0x002,
+
     OPC_SPECIAL3 = 0x1f << 26,
     OPC_INS      = OPC_SPECIAL3 | 0x004,
     OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
@@ -1403,8 +1406,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_mov(s, TCG_TYPE_I32, args[0], TCG_REG_AT);
         break;
     case INDEX_op_mul_i32:
+#if defined(__mips_isa_rev) && (__mips_isa_rev >= 1)
+        tcg_out_opc_reg(s, OPC_MUL, args[0], args[1], args[2]);
+#else
         tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
+#endif
         break;
     case INDEX_op_mulu2_i32:
         tcg_out_opc_reg(s, OPC_MULTU, 0, args[2], args[3]);

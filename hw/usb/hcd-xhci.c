@@ -322,6 +322,7 @@ typedef struct XHCITransfer {
     bool running_retry;
     bool cancelled;
     bool complete;
+    bool int_req;
     unsigned int iso_pkts;
     unsigned int slotid;
     unsigned int epid;
@@ -416,6 +417,8 @@ struct XHCIState {
     /* properties */
     uint32_t numports_2;
     uint32_t numports_3;
+    uint32_t numintrs;
+    uint32_t numslots;
     uint32_t flags;
 
     /* Operational Registers */
@@ -815,8 +818,8 @@ static void xhci_event(XHCIState *xhci, XHCIEvent *event, int v)
     dma_addr_t erdp;
     unsigned int dp_idx;
 
-    if (v >= MAXINTRS) {
-        DPRINTF("intr nr out of range (%d >= %d)\n", v, MAXINTRS);
+    if (v >= xhci->numintrs) {
+        DPRINTF("intr nr out of range (%d >= %d)\n", v, xhci->numintrs);
         return;
     }
     intr = &xhci->intr[v];
@@ -963,6 +966,12 @@ static void xhci_er_reset(XHCIState *xhci, int v)
     XHCIInterrupter *intr = &xhci->intr[v];
     XHCIEvRingSeg seg;
 
+    if (intr->erstsz == 0) {
+        /* disabled */
+        intr->er_start = 0;
+        intr->er_size = 0;
+        return;
+    }
     /* cache the (sole) event ring segment location */
     if (intr->erstsz != 1) {
         fprintf(stderr, "xhci: invalid value for ERSTSZ: %d\n", intr->erstsz);
@@ -1008,9 +1017,6 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
                               uint32_t state)
 {
     uint32_t ctx[5];
-    if (epctx->state == state) {
-        return;
-    }
 
     pci_dma_read(&xhci->pci_dev, epctx->pctx, ctx, sizeof(ctx));
     ctx[0] &= ~EP_STATE_MASK;
@@ -1039,7 +1045,7 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     int i;
 
     trace_usb_xhci_ep_enable(slotid, epid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
     assert(epid >= 1 && epid <= 31);
 
     slot = &xhci->slots[slotid-1];
@@ -1082,13 +1088,42 @@ static TRBCCode xhci_enable_ep(XHCIState *xhci, unsigned int slotid,
     return CC_SUCCESS;
 }
 
+static int xhci_ep_nuke_one_xfer(XHCITransfer *t)
+{
+    int killed = 0;
+
+    if (t->running_async) {
+        usb_cancel_packet(&t->packet);
+        t->running_async = 0;
+        t->cancelled = 1;
+        DPRINTF("xhci: cancelling transfer, waiting for it to complete\n");
+        killed = 1;
+    }
+    if (t->running_retry) {
+        XHCIEPContext *epctx = t->xhci->slots[t->slotid-1].eps[t->epid-1];
+        if (epctx) {
+            epctx->retry = NULL;
+            qemu_del_timer(epctx->kick_timer);
+        }
+        t->running_retry = 0;
+    }
+    if (t->trbs) {
+        g_free(t->trbs);
+    }
+
+    t->trbs = NULL;
+    t->trb_count = t->trb_alloced = 0;
+
+    return killed;
+}
+
 static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
                                unsigned int epid)
 {
     XHCISlot *slot;
     XHCIEPContext *epctx;
     int i, xferi, killed = 0;
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
     assert(epid >= 1 && epid <= 31);
 
     DPRINTF("xhci_ep_nuke_xfers(%d, %d)\n", slotid, epid);
@@ -1103,25 +1138,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
 
     xferi = epctx->next_xfer;
     for (i = 0; i < TD_QUEUE; i++) {
-        XHCITransfer *t = &epctx->transfers[xferi];
-        if (t->running_async) {
-            usb_cancel_packet(&t->packet);
-            t->running_async = 0;
-            t->cancelled = 1;
-            DPRINTF("xhci: cancelling transfer %d, waiting for it to complete...\n", i);
-            killed++;
-        }
-        if (t->running_retry) {
-            t->running_retry = 0;
-            epctx->retry = NULL;
-            qemu_del_timer(epctx->kick_timer);
-        }
-        if (t->trbs) {
-            g_free(t->trbs);
-        }
-
-        t->trbs = NULL;
-        t->trb_count = t->trb_alloced = 0;
+        killed += xhci_ep_nuke_one_xfer(&epctx->transfers[xferi]);
         xferi = (xferi + 1) % TD_QUEUE;
     }
     return killed;
@@ -1134,7 +1151,7 @@ static TRBCCode xhci_disable_ep(XHCIState *xhci, unsigned int slotid,
     XHCIEPContext *epctx;
 
     trace_usb_xhci_ep_disable(slotid, epid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
     assert(epid >= 1 && epid <= 31);
 
     slot = &xhci->slots[slotid-1];
@@ -1164,7 +1181,7 @@ static TRBCCode xhci_stop_ep(XHCIState *xhci, unsigned int slotid,
     XHCIEPContext *epctx;
 
     trace_usb_xhci_ep_stop(slotid, epid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     if (epid < 1 || epid > 31) {
         fprintf(stderr, "xhci: bad ep %d\n", epid);
@@ -1198,7 +1215,7 @@ static TRBCCode xhci_reset_ep(XHCIState *xhci, unsigned int slotid,
     USBDevice *dev;
 
     trace_usb_xhci_ep_reset(slotid, epid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     if (epid < 1 || epid > 31) {
         fprintf(stderr, "xhci: bad ep %d\n", epid);
@@ -1248,7 +1265,7 @@ static TRBCCode xhci_set_ep_dequeue(XHCIState *xhci, unsigned int slotid,
     XHCIEPContext *epctx;
     dma_addr_t dequeue;
 
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     if (epid < 1 || epid > 31) {
         fprintf(stderr, "xhci: bad ep %d\n", epid);
@@ -1281,17 +1298,21 @@ static TRBCCode xhci_set_ep_dequeue(XHCIState *xhci, unsigned int slotid,
     return CC_SUCCESS;
 }
 
-static int xhci_xfer_map(XHCITransfer *xfer)
+static int xhci_xfer_create_sgl(XHCITransfer *xfer, int in_xfer)
 {
-    int in_xfer = (xfer->packet.pid == USB_TOKEN_IN);
     XHCIState *xhci = xfer->xhci;
     int i;
 
+    xfer->int_req = false;
     pci_dma_sglist_init(&xfer->sgl, &xhci->pci_dev, xfer->trb_count);
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
         dma_addr_t addr;
         unsigned int chunk = 0;
+
+        if (trb->control & TRB_TR_IOC) {
+            xfer->int_req = true;
+        }
 
         switch (TRB_TYPE(*trb)) {
         case TR_DATA:
@@ -1317,7 +1338,6 @@ static int xhci_xfer_map(XHCITransfer *xfer)
         }
     }
 
-    usb_packet_map(&xfer->packet, &xfer->sgl);
     return 0;
 
 err:
@@ -1435,8 +1455,10 @@ static int xhci_setup_packet(XHCITransfer *xfer)
         ep = usb_ep_get(dev, dir, xfer->epid >> 1);
     }
 
-    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr);
-    xhci_xfer_map(xfer);
+    xhci_xfer_create_sgl(xfer, dir == USB_TOKEN_IN); /* Also sets int_req */
+    usb_packet_setup(&xfer->packet, dir, ep, xfer->trbs[0].addr, false,
+                     xfer->int_req);
+    usb_packet_map(&xfer->packet, &xfer->sgl);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
             xfer->packet.pid, dev->addr, ep->nr);
     return 0;
@@ -1641,12 +1663,13 @@ static int xhci_fire_transfer(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid)
 {
     XHCIEPContext *epctx;
+    USBEndpoint *ep = NULL;
     uint64_t mfindex;
     int length;
     int i;
 
     trace_usb_xhci_ep_kick(slotid, epid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
     assert(epid >= 1 && epid <= 31);
 
     if (!xhci->slots[slotid-1].enabled) {
@@ -1734,12 +1757,14 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
         if (epid == 1) {
             if (xhci_fire_ctl_transfer(xhci, xfer) >= 0) {
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
+                ep = xfer->packet.ep;
             } else {
                 fprintf(stderr, "xhci: error firing CTL transfer\n");
             }
         } else {
             if (xhci_fire_transfer(xhci, xfer, epctx) >= 0) {
                 epctx->next_xfer = (epctx->next_xfer + 1) % TD_QUEUE;
+                ep = xfer->packet.ep;
             } else {
                 if (!xfer->iso_xfer) {
                     fprintf(stderr, "xhci: error firing data transfer\n");
@@ -1756,12 +1781,15 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             break;
         }
     }
+    if (ep) {
+        usb_device_flush_ep_queue(ep->dev, ep);
+    }
 }
 
 static TRBCCode xhci_enable_slot(XHCIState *xhci, unsigned int slotid)
 {
     trace_usb_xhci_slot_enable(slotid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
     xhci->slots[slotid-1].enabled = 1;
     xhci->slots[slotid-1].uport = NULL;
     memset(xhci->slots[slotid-1].eps, 0, sizeof(XHCIEPContext*)*31);
@@ -1774,7 +1802,7 @@ static TRBCCode xhci_disable_slot(XHCIState *xhci, unsigned int slotid)
     int i;
 
     trace_usb_xhci_slot_disable(slotid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     for (i = 1; i <= 31; i++) {
         if (xhci->slots[slotid-1].eps[i-1]) {
@@ -1826,7 +1854,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     TRBCCode res;
 
     trace_usb_xhci_slot_address(slotid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
     pci_dma_read(&xhci->pci_dev, dcbaap + 8*slotid, &poctx, sizeof(poctx));
@@ -1865,7 +1893,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         return CC_USB_TRANSACTION_ERROR;
     }
 
-    for (i = 0; i < MAXSLOTS; i++) {
+    for (i = 0; i < xhci->numslots; i++) {
         if (xhci->slots[i].uport == uport) {
             fprintf(stderr, "xhci: port %s already assigned to slot %d\n",
                     uport->path, i+1);
@@ -1914,7 +1942,7 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
     TRBCCode res;
 
     trace_usb_xhci_slot_configure(slotid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     ictx = xhci_mask64(pictx);
     octx = xhci->slots[slotid-1].ctx;
@@ -2002,7 +2030,7 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
     uint32_t slot_ctx[4];
 
     trace_usb_xhci_slot_evaluate(slotid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     ictx = xhci_mask64(pictx);
     octx = xhci->slots[slotid-1].ctx;
@@ -2065,7 +2093,7 @@ static TRBCCode xhci_reset_slot(XHCIState *xhci, unsigned int slotid)
     int i;
 
     trace_usb_xhci_slot_reset(slotid);
-    assert(slotid >= 1 && slotid <= MAXSLOTS);
+    assert(slotid >= 1 && slotid <= xhci->numslots);
 
     octx = xhci->slots[slotid-1].ctx;
 
@@ -2091,7 +2119,7 @@ static unsigned int xhci_get_slot(XHCIState *xhci, XHCIEvent *event, XHCITRB *tr
 {
     unsigned int slotid;
     slotid = (trb->control >> TRB_CR_SLOTID_SHIFT) & TRB_CR_SLOTID_MASK;
-    if (slotid < 1 || slotid > MAXSLOTS) {
+    if (slotid < 1 || slotid > xhci->numslots) {
         fprintf(stderr, "xhci: bad slot id %d\n", slotid);
         event->ccode = CC_TRB_ERROR;
         return 0;
@@ -2183,12 +2211,12 @@ static void xhci_process_commands(XHCIState *xhci)
         event.ptr = addr;
         switch (type) {
         case CR_ENABLE_SLOT:
-            for (i = 0; i < MAXSLOTS; i++) {
+            for (i = 0; i < xhci->numslots; i++) {
                 if (!xhci->slots[i].enabled) {
                     break;
                 }
             }
-            if (i >= MAXSLOTS) {
+            if (i >= xhci->numslots) {
                 fprintf(stderr, "xhci: no device slots available\n");
                 event.ccode = CC_NO_SLOTS_ERROR;
             } else {
@@ -2335,7 +2363,7 @@ static void xhci_reset(DeviceState *dev)
     xhci->config = 0;
     xhci->devaddr = 2;
 
-    for (i = 0; i < MAXSLOTS; i++) {
+    for (i = 0; i < xhci->numslots; i++) {
         xhci_disable_slot(xhci, i+1);
     }
 
@@ -2343,7 +2371,7 @@ static void xhci_reset(DeviceState *dev)
         xhci_update_port(xhci, xhci->ports + i, 0);
     }
 
-    for (i = 0; i < MAXINTRS; i++) {
+    for (i = 0; i < xhci->numintrs; i++) {
         xhci->intr[i].iman = 0;
         xhci->intr[i].imod = 0;
         xhci->intr[i].erstsz = 0;
@@ -2375,7 +2403,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         break;
     case 0x04: /* HCSPARAMS 1 */
         ret = ((xhci->numports_2+xhci->numports_3)<<24)
-            | (MAXINTRS<<8) | MAXSLOTS;
+            | (xhci->numintrs<<8) | xhci->numslots;
         break;
     case 0x08: /* HCSPARAMS 2 */
         ret = 0x0000000f;
@@ -2402,7 +2430,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x02000402; /* USB 2.0 */
         break;
     case 0x24: /* Supported Protocol:04 */
-        ret = 0x20425455; /* "USB " */
+        ret = 0x20425355; /* "USB " */
         break;
     case 0x28: /* Supported Protocol:08 */
         ret = 0x00000001 | (xhci->numports_2<<8);
@@ -2414,7 +2442,7 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
         ret = 0x03000002; /* USB 3.0 */
         break;
     case 0x34: /* Supported Protocol:04 */
-        ret = 0x20425455; /* "USB " */
+        ret = 0x20425355; /* "USB " */
         break;
     case 0x38: /* Supported Protocol:08 */
         ret = 0x00000000 | (xhci->numports_2+1) | (xhci->numports_3<<8);
@@ -2653,7 +2681,7 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
     trace_usb_xhci_runtime_write(reg, val);
 
     if (reg < 0x20) {
-        fprintf(stderr, "xhci_oper_write: reg 0x%x unimplemented\n", (int)reg);
+        fprintf(stderr, "%s: reg 0x%x unimplemented\n", __func__, (int)reg);
         return;
     }
 
@@ -2730,7 +2758,7 @@ static void xhci_doorbell_write(void *ptr, hwaddr reg,
                     (uint32_t)val);
         }
     } else {
-        if (reg > MAXSLOTS) {
+        if (reg > xhci->numslots) {
             fprintf(stderr, "xhci: bad doorbell %d\n", (int)reg);
         } else if (val > 31) {
             fprintf(stderr, "xhci: bad doorbell %d write: 0x%x\n",
@@ -2822,6 +2850,10 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
 {
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
 
+    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+        xhci_ep_nuke_one_xfer(xfer);
+        return;
+    }
     xhci_complete_packet(xfer, packet->result);
     xhci_kick_ep(xfer->xhci, xfer->slotid, xfer->epid);
 }
@@ -2832,7 +2864,7 @@ static void xhci_child_detach(USBPort *uport, USBDevice *child)
     XHCIState *xhci = container_of(bus, XHCIState, bus);
     int i;
 
-    for (i = 0; i < MAXSLOTS; i++) {
+    for (i = 0; i < xhci->numslots; i++) {
         if (xhci->slots[i].uport == uport) {
             xhci->slots[i].uport = NULL;
         }
@@ -2852,7 +2884,7 @@ static int xhci_find_slotid(XHCIState *xhci, USBDevice *dev)
     XHCISlot *slot;
     int slotid;
 
-    for (slotid = 1; slotid <= MAXSLOTS; slotid++) {
+    for (slotid = 1; slotid <= xhci->numslots; slotid++) {
         slot = &xhci->slots[slotid-1];
         if (slot->devaddr == dev->addr) {
             return slotid;
@@ -2948,6 +2980,19 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
 
     usb_xhci_init(xhci, &dev->qdev);
 
+    if (xhci->numintrs > MAXINTRS) {
+        xhci->numintrs = MAXINTRS;
+    }
+    if (xhci->numintrs < 1) {
+        xhci->numintrs = 1;
+    }
+    if (xhci->numslots > MAXSLOTS) {
+        xhci->numslots = MAXSLOTS;
+    }
+    if (xhci->numslots < 1) {
+        xhci->numslots = 1;
+    }
+
     xhci->mfwrap_timer = qemu_new_timer_ns(vm_clock, xhci_mfwrap_timer, xhci);
 
     xhci->irq = xhci->pci_dev.irq[0];
@@ -2984,10 +3029,10 @@ static int usb_xhci_initfn(struct PCIDevice *dev)
     assert(ret >= 0);
 
     if (xhci->flags & (1 << XHCI_FLAG_USE_MSI)) {
-        msi_init(&xhci->pci_dev, 0x70, MAXINTRS, true, false);
+        msi_init(&xhci->pci_dev, 0x70, xhci->numintrs, true, false);
     }
     if (xhci->flags & (1 << XHCI_FLAG_USE_MSI_X)) {
-        msix_init(&xhci->pci_dev, MAXINTRS,
+        msix_init(&xhci->pci_dev, xhci->numintrs,
                   &xhci->mem, 0, OFF_MSIX_TABLE,
                   &xhci->mem, 0, OFF_MSIX_PBA,
                   0x90);
@@ -3002,10 +3047,12 @@ static const VMStateDescription vmstate_xhci = {
 };
 
 static Property xhci_properties[] = {
-    DEFINE_PROP_BIT("msi",    XHCIState, flags, XHCI_FLAG_USE_MSI, true),
-    DEFINE_PROP_BIT("msix",   XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
-    DEFINE_PROP_UINT32("p2",  XHCIState, numports_2, 4),
-    DEFINE_PROP_UINT32("p3",  XHCIState, numports_3, 4),
+    DEFINE_PROP_BIT("msi",      XHCIState, flags, XHCI_FLAG_USE_MSI, true),
+    DEFINE_PROP_BIT("msix",     XHCIState, flags, XHCI_FLAG_USE_MSI_X, true),
+    DEFINE_PROP_UINT32("intrs", XHCIState, numintrs, MAXINTRS),
+    DEFINE_PROP_UINT32("slots", XHCIState, numslots, MAXSLOTS),
+    DEFINE_PROP_UINT32("p2",    XHCIState, numports_2, 4),
+    DEFINE_PROP_UINT32("p3",    XHCIState, numports_3, 4),
     DEFINE_PROP_END_OF_LIST(),
 };
 
