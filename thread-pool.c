@@ -39,6 +39,11 @@ struct ThreadPoolElement {
     BlockDriverAIOCB common;
     ThreadPoolFunc *func;
     void *arg;
+
+    /* Moving state out of THREAD_QUEUED is protected by lock.  After
+     * that, only the worker thread can write to it.  Reads and writes
+     * of state and ret are ordered with memory barriers.
+     */
     enum ThreadState state;
     int ret;
 
@@ -95,9 +100,12 @@ static void *worker_thread(void *unused)
 
         ret = req->func(req->arg);
 
-        qemu_mutex_lock(&lock);
-        req->state = THREAD_DONE;
         req->ret = ret;
+        /* Write ret before state.  */
+        smp_wmb();
+        req->state = THREAD_DONE;
+
+        qemu_mutex_lock(&lock);
         if (pending_cancellations) {
             qemu_cond_broadcast(&check_cancel);
         }
@@ -162,11 +170,10 @@ restart:
             trace_thread_pool_complete(elem, elem->common.opaque, elem->ret);
         }
         if (elem->state == THREAD_DONE && elem->common.cb) {
-            qemu_mutex_lock(&lock);
-            int ret = elem->ret;
-            qemu_mutex_unlock(&lock);
             QLIST_REMOVE(elem, all);
-            elem->common.cb(elem->common.opaque, ret);
+            /* Read state before ret.  */
+            smp_rmb();
+            elem->common.cb(elem->common.opaque, elem->ret);
             qemu_aio_release(elem);
             goto restart;
         } else {
