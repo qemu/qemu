@@ -1071,7 +1071,7 @@ static int usbredir_initfn(USBDevice *udev)
     udev->auto_attach = 0;
 
     /* Will be cleared during setup when we find conflicts */
-    dev->compatible_speedmask = USB_SPEED_MASK_FULL;
+    dev->compatible_speedmask = USB_SPEED_MASK_FULL | USB_SPEED_MASK_HIGH;
 
     /* Let the backend know we are ready */
     qemu_chr_fe_open(dev->cs);
@@ -1214,10 +1214,12 @@ static void usbredir_device_connect(void *priv,
         speed = "low speed";
         dev->dev.speed = USB_SPEED_LOW;
         dev->compatible_speedmask &= ~USB_SPEED_MASK_FULL;
+        dev->compatible_speedmask &= ~USB_SPEED_MASK_HIGH;
         break;
     case usb_redir_speed_full:
         speed = "full speed";
         dev->dev.speed = USB_SPEED_FULL;
+        dev->compatible_speedmask &= ~USB_SPEED_MASK_HIGH;
         break;
     case usb_redir_speed_high:
         speed = "high speed";
@@ -1287,7 +1289,7 @@ static void usbredir_device_disconnect(void *priv)
     dev->interface_info.interface_count = NO_INTERFACE_INFO;
     dev->dev.addr = 0;
     dev->dev.speed = 0;
-    dev->compatible_speedmask = USB_SPEED_MASK_FULL;
+    dev->compatible_speedmask = USB_SPEED_MASK_FULL | USB_SPEED_MASK_HIGH;
 }
 
 static void usbredir_interface_info(void *priv,
@@ -1364,12 +1366,18 @@ static void usbredir_ep_info(void *priv,
             break;
         case usb_redir_type_iso:
             usbredir_mark_speed_incompatible(dev, USB_SPEED_FULL);
+            usbredir_mark_speed_incompatible(dev, USB_SPEED_HIGH);
             /* Fall through */
         case usb_redir_type_interrupt:
             if (!usbredirparser_peer_has_cap(dev->parser,
                                      usb_redir_cap_ep_info_max_packet_size) ||
                     ep_info->max_packet_size[i] > 64) {
                 usbredir_mark_speed_incompatible(dev, USB_SPEED_FULL);
+            }
+            if (!usbredirparser_peer_has_cap(dev->parser,
+                                     usb_redir_cap_ep_info_max_packet_size) ||
+                    ep_info->max_packet_size[i] > 1024) {
+                usbredir_mark_speed_incompatible(dev, USB_SPEED_HIGH);
             }
             if (dev->endpoint[i].interval == 0) {
                 ERROR("Received 0 interval for isoc or irq endpoint\n");
@@ -1500,6 +1508,17 @@ static void usbredir_control_packet(void *priv, uint64_t id,
 
     DPRINTF("ctrl-in status %d len %d id %"PRIu64"\n", control_packet->status,
             len, id);
+
+    /* Fix up USB-3 ep0 maxpacket size to allow superspeed connected devices
+     * to work redirected to a not superspeed capable hcd */
+    if (dev->dev.speed == USB_SPEED_SUPER &&
+            !((dev->dev.port->speedmask & USB_SPEED_MASK_SUPER)) &&
+            control_packet->requesttype == 0x80 &&
+            control_packet->request == 6 &&
+            control_packet->value == 0x100 && control_packet->index == 0 &&
+            data_len >= 18 && data[7] == 9) {
+        data[7] = 64;
+    }
 
     p = usbredir_find_packet_by_id(dev, 0, id);
     if (p) {
