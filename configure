@@ -2788,7 +2788,7 @@ fi
 
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
-    if $pkg_config --atleast-version=0.5 libusbredirparser-0.5 >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=0.5.3 libusbredirparser-0.5 >/dev/null 2>&1 ; then
         usb_redir="yes"
         usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5 2>/dev/null)
         usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5 2>/dev/null)
