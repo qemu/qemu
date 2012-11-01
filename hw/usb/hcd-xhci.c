@@ -1388,7 +1388,7 @@ static void xhci_xfer_report(XHCITransfer *xfer)
     XHCIState *xhci = xfer->xhci;
     int i;
 
-    left = xfer->packet.status ? 0 : xfer->packet.actual_length;
+    left = xfer->packet.actual_length;
 
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
@@ -1416,7 +1416,7 @@ static void xhci_xfer_report(XHCITransfer *xfer)
 
         if (!reported && ((trb->control & TRB_TR_IOC) ||
                           (shortpkt && (trb->control & TRB_TR_ISP)) ||
-                          (xfer->status != CC_SUCCESS))) {
+                          (xfer->status != CC_SUCCESS && left == 0))) {
             event.slotid = xfer->slotid;
             event.epid = xfer->epid;
             event.length = (trb->status & 0x1ffff) - chunk;
