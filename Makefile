@@ -118,6 +118,15 @@ endif
 
 subdir-libcacard: $(oslib-obj-y) $(trace-obj-y) qemu-timer-common.o
 
+subdir-pixman: pixman/Makefile
+	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pixman V="$(V)" all,)
+
+pixman/Makefile: $(SRC_PATH)/pixman/configure
+	(cd pixman; $(SRC_PATH)/pixman/configure --disable-shared --enable-static)
+
+$(SRC_PATH)/pixman/configure:
+	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
+
 $(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y) subdir-libdis
 
 $(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) subdir-libdis-user subdir-libuser

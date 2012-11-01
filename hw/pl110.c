@@ -239,7 +239,7 @@ static void pl110_update_display(void *opaque)
                                fn, s->palette,
                                &first, &last);
     if (first >= 0) {
-        dpy_update(s->ds, 0, first, s->cols, last - first + 1);
+        dpy_gfx_update(s->ds, 0, first, s->cols, last - first + 1);
     }
     s->invalidate = 0;
 }

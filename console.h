@@ -2,6 +2,7 @@
 #define CONSOLE_H
 
 #include "qemu-char.h"
+#include "qemu-pixman.h"
 #include "qdict.h"
 #include "notify.h"
 #include "monitor.h"
@@ -107,7 +108,6 @@ void kbd_put_keysym(int keysym);
 
 #define QEMU_BIG_ENDIAN_FLAG    0x01
 #define QEMU_ALLOCATED_FLAG     0x02
-#define QEMU_REALPIXELS_FLAG    0x04
 
 struct PixelFormat {
     uint8_t bits_per_pixel;
@@ -120,11 +120,9 @@ struct PixelFormat {
 };
 
 struct DisplaySurface {
+    pixman_format_code_t format;
+    pixman_image_t *image;
     uint8_t flags;
-    int width;
-    int height;
-    int linesize;        /* bytes per line */
-    uint8_t *data;
 
     struct PixelFormat pf;
 };
@@ -154,35 +152,32 @@ struct DisplayChangeListener {
     int idle;
     uint64_t gui_timer_interval;
 
-    void (*dpy_update)(struct DisplayState *s, int x, int y, int w, int h);
-    void (*dpy_resize)(struct DisplayState *s);
-    void (*dpy_setdata)(struct DisplayState *s);
     void (*dpy_refresh)(struct DisplayState *s);
-    void (*dpy_copy)(struct DisplayState *s, int src_x, int src_y,
-                     int dst_x, int dst_y, int w, int h);
-    void (*dpy_fill)(struct DisplayState *s, int x, int y,
-                     int w, int h, uint32_t c);
+
+    void (*dpy_gfx_update)(struct DisplayState *s, int x, int y, int w, int h);
+    void (*dpy_gfx_resize)(struct DisplayState *s);
+    void (*dpy_gfx_setdata)(struct DisplayState *s);
+    void (*dpy_gfx_copy)(struct DisplayState *s, int src_x, int src_y,
+                         int dst_x, int dst_y, int w, int h);
+
     void (*dpy_text_cursor)(struct DisplayState *s, int x, int y);
+    void (*dpy_text_resize)(struct DisplayState *s, int w, int h);
+    void (*dpy_text_update)(struct DisplayState *s, int x, int y, int w, int h);
 
-    struct DisplayChangeListener *next;
-};
+    void (*dpy_mouse_set)(struct DisplayState *s, int x, int y, int on);
+    void (*dpy_cursor_define)(struct DisplayState *s, QEMUCursor *cursor);
 
-struct DisplayAllocator {
-    DisplaySurface* (*create_displaysurface)(int width, int height);
-    DisplaySurface* (*resize_displaysurface)(DisplaySurface *surface, int width, int height);
-    void (*free_displaysurface)(DisplaySurface *surface);
+    QLIST_ENTRY(DisplayChangeListener) next;
 };
 
 struct DisplayState {
     struct DisplaySurface *surface;
     void *opaque;
     struct QEMUTimer *gui_timer;
+    bool have_gfx;
+    bool have_text;
 
-    struct DisplayAllocator* allocator;
-    struct DisplayChangeListener* listeners;
-
-    void (*mouse_set)(int x, int y, int on);
-    void (*cursor_define)(QEMUCursor *cursor);
+    QLIST_HEAD(, DisplayChangeListener) listeners;
 
     struct DisplayState *next;
 };
@@ -191,29 +186,14 @@ void register_displaystate(DisplayState *ds);
 DisplayState *get_displaystate(void);
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
                                                 int linesize, uint8_t *data);
-void qemu_alloc_display(DisplaySurface *surface, int width, int height,
-                        int linesize, PixelFormat pf, int newflags);
 PixelFormat qemu_different_endianness_pixelformat(int bpp);
 PixelFormat qemu_default_pixelformat(int bpp);
 
-DisplayAllocator *register_displayallocator(DisplayState *ds, DisplayAllocator *da);
-
-static inline DisplaySurface* qemu_create_displaysurface(DisplayState *ds, int width, int height)
-{
-    return ds->allocator->create_displaysurface(width, height);    
-}
-
-static inline DisplaySurface* qemu_resize_displaysurface(DisplayState *ds, int width, int height)
-{
-    trace_displaysurface_resize(ds, ds->surface, width, height);
-    return ds->allocator->resize_displaysurface(ds->surface, width, height);
-}
-
-static inline void qemu_free_displaysurface(DisplayState *ds)
-{
-    trace_displaysurface_free(ds, ds->surface);
-    ds->allocator->free_displaysurface(ds->surface);
-}
+DisplaySurface *qemu_create_displaysurface(DisplayState *ds,
+                                           int width, int height);
+DisplaySurface *qemu_resize_displaysurface(DisplayState *ds,
+                                           int width, int height);
+void qemu_free_displaysurface(DisplayState *ds);
 
 static inline int is_surface_bgr(DisplaySurface *surface)
 {
@@ -225,109 +205,176 @@ static inline int is_surface_bgr(DisplaySurface *surface)
 
 static inline int is_buffer_shared(DisplaySurface *surface)
 {
-    return (!(surface->flags & QEMU_ALLOCATED_FLAG) &&
-            !(surface->flags & QEMU_REALPIXELS_FLAG));
+    return !(surface->flags & QEMU_ALLOCATED_FLAG);
 }
+
+void gui_setup_refresh(DisplayState *ds);
 
 static inline void register_displaychangelistener(DisplayState *ds, DisplayChangeListener *dcl)
 {
-    dcl->next = ds->listeners;
-    ds->listeners = dcl;
-}
-
-static inline void dpy_update(DisplayState *s, int x, int y, int w, int h)
-{
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        dcl->dpy_update(s, x, y, w, h);
-        dcl = dcl->next;
+    QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
+    gui_setup_refresh(ds);
+    if (dcl->dpy_gfx_resize) {
+        dcl->dpy_gfx_resize(ds);
     }
 }
 
-static inline void dpy_resize(DisplayState *s)
+static inline void unregister_displaychangelistener(DisplayState *ds,
+                                                    DisplayChangeListener *dcl)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        dcl->dpy_resize(s);
-        dcl = dcl->next;
+    QLIST_REMOVE(dcl, next);
+    gui_setup_refresh(ds);
+}
+
+static inline void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_gfx_update) {
+            dcl->dpy_gfx_update(s, x, y, w, h);
+        }
     }
 }
 
-static inline void dpy_setdata(DisplayState *s)
+static inline void dpy_gfx_resize(DisplayState *s)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_setdata) dcl->dpy_setdata(s);
-        dcl = dcl->next;
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_gfx_resize) {
+            dcl->dpy_gfx_resize(s);
+        }
+    }
+}
+
+static inline void dpy_gfx_setdata(DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_gfx_setdata) {
+            dcl->dpy_gfx_setdata(s);
+        }
     }
 }
 
 static inline void dpy_refresh(DisplayState *s)
 {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_refresh) dcl->dpy_refresh(s);
-        dcl = dcl->next;
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_refresh) {
+            dcl->dpy_refresh(s);
+        }
     }
 }
 
-static inline void dpy_copy(struct DisplayState *s, int src_x, int src_y,
-                             int dst_x, int dst_y, int w, int h) {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_copy)
-            dcl->dpy_copy(s, src_x, src_y, dst_x, dst_y, w, h);
-        else /* TODO */
-            dcl->dpy_update(s, dst_x, dst_y, w, h);
-        dcl = dcl->next;
+static inline void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
+                             int dst_x, int dst_y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_gfx_copy) {
+            dcl->dpy_gfx_copy(s, src_x, src_y, dst_x, dst_y, w, h);
+        } else { /* TODO */
+            dcl->dpy_gfx_update(s, dst_x, dst_y, w, h);
+        }
     }
 }
 
-static inline void dpy_fill(struct DisplayState *s, int x, int y,
-                             int w, int h, uint32_t c) {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_fill) dcl->dpy_fill(s, x, y, w, h, c);
-        dcl = dcl->next;
+static inline void dpy_text_cursor(struct DisplayState *s, int x, int y)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_text_cursor) {
+            dcl->dpy_text_cursor(s, x, y);
+        }
     }
 }
 
-static inline void dpy_cursor(struct DisplayState *s, int x, int y) {
-    struct DisplayChangeListener *dcl = s->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_text_cursor) dcl->dpy_text_cursor(s, x, y);
-        dcl = dcl->next;
+static inline void dpy_text_update(DisplayState *s, int x, int y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_text_update) {
+            dcl->dpy_text_update(s, x, y, w, h);
+        }
     }
+}
+
+static inline void dpy_text_resize(DisplayState *s, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_text_resize) {
+            dcl->dpy_text_resize(s, w, h);
+        }
+    }
+}
+
+static inline void dpy_mouse_set(struct DisplayState *s, int x, int y, int on)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_mouse_set) {
+            dcl->dpy_mouse_set(s, x, y, on);
+        }
+    }
+}
+
+static inline void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_cursor_define) {
+            dcl->dpy_cursor_define(s, cursor);
+        }
+    }
+}
+
+static inline bool dpy_cursor_define_supported(struct DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->dpy_cursor_define) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static inline int ds_get_linesize(DisplayState *ds)
 {
-    return ds->surface->linesize;
+    return pixman_image_get_stride(ds->surface->image);
 }
 
 static inline uint8_t* ds_get_data(DisplayState *ds)
 {
-    return ds->surface->data;
+    return (void *)pixman_image_get_data(ds->surface->image);
 }
 
 static inline int ds_get_width(DisplayState *ds)
 {
-    return ds->surface->width;
+    return pixman_image_get_width(ds->surface->image);
 }
 
 static inline int ds_get_height(DisplayState *ds)
 {
-    return ds->surface->height;
+    return pixman_image_get_height(ds->surface->image);
 }
 
 static inline int ds_get_bits_per_pixel(DisplayState *ds)
 {
-    return ds->surface->pf.bits_per_pixel;
+    int bits = PIXMAN_FORMAT_BPP(ds->surface->format);
+    return bits;
 }
 
 static inline int ds_get_bytes_per_pixel(DisplayState *ds)
 {
-    return ds->surface->pf.bytes_per_pixel;
+    int bits = PIXMAN_FORMAT_BPP(ds->surface->format);
+    return (bits + 7) / 8;
+}
+
+static inline pixman_format_code_t ds_get_format(DisplayState *ds)
+{
+    return ds->surface->format;
 }
 
 #ifdef CONFIG_CURSES

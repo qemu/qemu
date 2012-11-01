@@ -255,7 +255,7 @@ static void zrle_write_u8(VncState *vs, uint8_t value)
 static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
                                         int w, int h)
 {
-    bool be = !!(vs->clientds.flags & QEMU_BIG_ENDIAN_FLAG);
+    bool be = vs->client_be;
     size_t bytes;
     int zywrle_level;
 
@@ -277,13 +277,13 @@ static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
 
     vnc_zrle_start(vs);
 
-    switch(vs->clientds.pf.bytes_per_pixel) {
+    switch (vs->client_pf.bytes_per_pixel) {
     case 1:
         zrle_encode_8ne(vs, x, y, w, h, zywrle_level);
         break;
 
     case 2:
-        if (vs->clientds.pf.gmax > 0x1F) {
+        if (vs->client_pf.gmax > 0x1F) {
             if (be) {
                 zrle_encode_16be(vs, x, y, w, h, zywrle_level);
             } else {
@@ -304,13 +304,13 @@ static int zrle_send_framebuffer_update(VncState *vs, int x, int y,
         bool fits_in_ms3bytes;
 
         fits_in_ls3bytes =
-            ((vs->clientds.pf.rmax << vs->clientds.pf.rshift) < (1 << 24) &&
-             (vs->clientds.pf.gmax << vs->clientds.pf.gshift) < (1 << 24) &&
-             (vs->clientds.pf.bmax << vs->clientds.pf.bshift) < (1 << 24));
+            ((vs->client_pf.rmax << vs->client_pf.rshift) < (1 << 24) &&
+             (vs->client_pf.gmax << vs->client_pf.gshift) < (1 << 24) &&
+             (vs->client_pf.bmax << vs->client_pf.bshift) < (1 << 24));
 
-        fits_in_ms3bytes = (vs->clientds.pf.rshift > 7 &&
-                            vs->clientds.pf.gshift > 7 &&
-                            vs->clientds.pf.bshift > 7);
+        fits_in_ms3bytes = (vs->client_pf.rshift > 7 &&
+                            vs->client_pf.gshift > 7 &&
+                            vs->client_pf.bshift > 7);
 
         if ((fits_in_ls3bytes && !be) || (fits_in_ms3bytes && be)) {
             if (be) {

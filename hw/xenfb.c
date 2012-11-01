@@ -717,7 +717,7 @@ static void xenfb_update(void *opaque)
 	if (xenfb_queue_full(xenfb))
 	    return;
 
-        for (l = xenfb->c.ds->listeners; l != NULL; l = l->next) {
+        QLIST_FOREACH(l, &xenfb->c.ds->listeners, next) {
             if (l->idle)
                 continue;
             idle = 0;
