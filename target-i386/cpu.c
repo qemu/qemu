@@ -95,10 +95,14 @@ static const char *ext3_feature_name[] = {
 };
 
 static const char *kvm_feature_name[] = {
-    "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock", "kvm_asyncpf", NULL, "kvm_pv_eoi", NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
+    "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
 };
 
 static const char *svm_feature_name[] = {
@@ -113,8 +117,8 @@ static const char *svm_feature_name[] = {
 };
 
 static const char *cpuid_7_0_ebx_feature_name[] = {
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, "smep",
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    "fsgsbase", NULL, NULL, "bmi1", "hle", "avx2", NULL, "smep",
+    "bmi2", "erms", "invpcid", "rtm", NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, "smap", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
@@ -769,13 +773,20 @@ static int cpu_x86_fill_model_id(char *str)
     return 0;
 }
 
-static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
+/* Fill a x86_def_t struct with information about the host CPU, and
+ * the CPU features supported by the host hardware + host kernel
+ *
+ * This function may be called only if KVM is enabled.
+ */
+static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 {
+    KVMState *s = kvm_state;
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
+
+    assert(kvm_enabled());
 
     x86_cpu_def->name = "host";
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->level = eax;
     x86_cpu_def->vendor1 = ebx;
     x86_cpu_def->vendor2 = edx;
     x86_cpu_def->vendor3 = ecx;
@@ -784,21 +795,24 @@ static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
     x86_cpu_def->family = ((eax >> 8) & 0x0F) + ((eax >> 20) & 0xFF);
     x86_cpu_def->model = ((eax >> 4) & 0x0F) | ((eax & 0xF0000) >> 12);
     x86_cpu_def->stepping = eax & 0x0F;
-    x86_cpu_def->ext_features = ecx;
-    x86_cpu_def->features = edx;
 
-    if (kvm_enabled() && x86_cpu_def->level >= 7) {
-        x86_cpu_def->cpuid_7_0_ebx_features = kvm_arch_get_supported_cpuid(kvm_state, 0x7, 0, R_EBX);
+    x86_cpu_def->level = kvm_arch_get_supported_cpuid(s, 0x0, 0, R_EAX);
+    x86_cpu_def->features = kvm_arch_get_supported_cpuid(s, 0x1, 0, R_EDX);
+    x86_cpu_def->ext_features = kvm_arch_get_supported_cpuid(s, 0x1, 0, R_ECX);
+
+    if (x86_cpu_def->level >= 7) {
+        x86_cpu_def->cpuid_7_0_ebx_features =
+                    kvm_arch_get_supported_cpuid(s, 0x7, 0, R_EBX);
     } else {
         x86_cpu_def->cpuid_7_0_ebx_features = 0;
     }
 
-    host_cpuid(0x80000000, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->xlevel = eax;
+    x86_cpu_def->xlevel = kvm_arch_get_supported_cpuid(s, 0x80000000, 0, R_EAX);
+    x86_cpu_def->ext2_features =
+                kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
+    x86_cpu_def->ext3_features =
+                kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
 
-    host_cpuid(0x80000001, 0, &eax, &ebx, &ecx, &edx);
-    x86_cpu_def->ext2_features = edx;
-    x86_cpu_def->ext3_features = ecx;
     cpu_x86_fill_model_id(x86_cpu_def->model_id);
     x86_cpu_def->vendor_override = 0;
 
@@ -807,11 +821,13 @@ static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
         x86_cpu_def->vendor2 == CPUID_VENDOR_VIA_2 &&
         x86_cpu_def->vendor3 == CPUID_VENDOR_VIA_3) {
         host_cpuid(0xC0000000, 0, &eax, &ebx, &ecx, &edx);
+        eax = kvm_arch_get_supported_cpuid(s, 0xC0000000, 0, R_EAX);
         if (eax >= 0xC0000001) {
             /* Support VIA max extended level */
             x86_cpu_def->xlevel2 = eax;
             host_cpuid(0xC0000001, 0, &eax, &ebx, &ecx, &edx);
-            x86_cpu_def->ext4_features = edx;
+            x86_cpu_def->ext4_features =
+                    kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
         }
     }
 
@@ -822,8 +838,6 @@ static int cpu_x86_fill_host(x86_def_t *x86_cpu_def)
      * unsupported ones later.
      */
     x86_cpu_def->svm_features = -1;
-
-    return 0;
 }
 
 static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
@@ -844,8 +858,10 @@ static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
 /* best effort attempt to inform user requested cpu flags aren't making
  * their way to the guest.  Note: ft[].check_feat ideally should be
  * specified via a guest_def field to suppress report of extraneous flags.
+ *
+ * This function may be called only if KVM is enabled.
  */
-static int check_features_against_host(x86_def_t *guest_def)
+static int kvm_check_features_against_host(x86_def_t *guest_def)
 {
     x86_def_t host_def;
     uint32_t mask;
@@ -860,7 +876,9 @@ static int check_features_against_host(x86_def_t *guest_def)
         {&guest_def->ext3_features, &host_def.ext3_features,
             ~CPUID_EXT3_SVM, ext3_feature_name, 0x80000001}};
 
-    cpu_x86_fill_host(&host_def);
+    assert(kvm_enabled());
+
+    kvm_cpu_fill_host(&host_def);
     for (rv = 0, i = 0; i < ARRAY_SIZE(ft); ++i)
         for (mask = 1; mask; mask <<= 1)
             if (ft[i].check_feat & mask && *ft[i].guest_feat & mask &&
@@ -1147,7 +1165,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
         if (name && !strcmp(name, def->name))
             break;
     if (kvm_enabled() && name && strcmp(name, "host") == 0) {
-        cpu_x86_fill_host(x86_cpu_def);
+        kvm_cpu_fill_host(x86_cpu_def);
     } else if (!def) {
         goto error;
     } else {
@@ -1285,8 +1303,8 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     x86_cpu_def->kvm_features &= ~minus_kvm_features;
     x86_cpu_def->svm_features &= ~minus_svm_features;
     x86_cpu_def->cpuid_7_0_ebx_features &= ~minus_7_0_ebx_features;
-    if (check_cpuid) {
-        if (check_features_against_host(x86_cpu_def) && enforce_cpuid)
+    if (check_cpuid && kvm_enabled()) {
+        if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
             goto error;
     }
     if (x86_cpu_def->cpuid_7_0_ebx_features && x86_cpu_def->level < 7) {
@@ -1375,6 +1393,32 @@ CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
+#ifdef CONFIG_KVM
+static void filter_features_for_kvm(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+    KVMState *s = kvm_state;
+
+    env->cpuid_features &=
+        kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
+    env->cpuid_ext_features &=
+        kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
+    env->cpuid_ext2_features &=
+        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_EDX);
+    env->cpuid_ext3_features &=
+        kvm_arch_get_supported_cpuid(s, 0x80000001, 0, R_ECX);
+    env->cpuid_svm_features  &=
+        kvm_arch_get_supported_cpuid(s, 0x8000000A, 0, R_EDX);
+    env->cpuid_7_0_ebx_features &=
+        kvm_arch_get_supported_cpuid(s, 7, 0, R_EBX);
+    env->cpuid_kvm_features &=
+        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+    env->cpuid_ext4_features &=
+        kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
+
+}
+#endif
+
 int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
 {
     CPUX86State *env = &cpu->env;
@@ -1432,6 +1476,10 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
             );
         env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
+    } else {
+#ifdef CONFIG_KVM
+        filter_features_for_kvm(cpu);
+#endif
     }
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", &error);
     if (error) {

@@ -433,6 +433,12 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
         return NULL;
     }
 
+    if (qemu_opt_get(opts, "boot") != NULL) {
+        fprintf(stderr, "qemu-kvm: boot=on|off is deprecated and will be "
+                "ignored. Future versions will reject this parameter. Please "
+                "update your scripts.\n");
+    }
+
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
     if ((buf = qemu_opt_get(opts, "werror")) != NULL) {
         if (type != IF_IDE && type != IF_SCSI && type != IF_VIRTIO && type != IF_NONE) {
