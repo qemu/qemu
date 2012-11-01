@@ -139,6 +139,7 @@ extern const VMStateInfo vmstate_info_uint64;
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
 extern const VMStateInfo vmstate_info_unused_buffer;
+extern const VMStateInfo vmstate_info_bitmap;
 
 #define type_check_array(t1,t2,n) ((t1(*)[n])0 - (t2*)0)
 #define type_check_pointer(t1,t2) ((t1**)0 - (t2*)0)
@@ -409,6 +410,18 @@ extern const VMStateInfo vmstate_info_unused_buffer;
     .size         = (_size),                                         \
     .info         = &vmstate_info_unused_buffer,                     \
     .flags        = VMS_BUFFER,                                      \
+}
+
+/* _field_size should be a int32_t field in the _state struct giving the
+ * size of the bitmap _field in bits.
+ */
+#define VMSTATE_BITMAP(_field, _state, _version, _field_size) {      \
+    .name         = (stringify(_field)),                             \
+    .version_id   = (_version),                                      \
+    .size_offset  = vmstate_offset_value(_state, _field_size, int32_t),\
+    .info         = &vmstate_info_bitmap,                            \
+    .flags        = VMS_VBUFFER|VMS_POINTER,                         \
+    .offset       = offsetof(_state, _field),                        \
 }
 
 /* _f : field name

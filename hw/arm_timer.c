@@ -64,7 +64,8 @@ static uint32_t arm_timer_read(void *opaque, hwaddr offset)
             return 0;
         return s->int_level;
     default:
-        hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset %x\n", __func__, (int)offset);
         return 0;
     }
 }
@@ -131,7 +132,8 @@ static void arm_timer_write(void *opaque, hwaddr offset,
         arm_timer_recalibrate(s, 0);
         break;
     default:
-        hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: Bad offset %x\n", __func__, (int)offset);
     }
     arm_timer_update(s);
 }
@@ -223,10 +225,14 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
     /* Integration Test control registers, which we won't support */
     case 0xf00: /* TimerITCR */
     case 0xf04: /* TimerITOP (strictly write only but..) */
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: integration test registers unimplemented\n",
+                      __func__);
         return 0;
     }
 
-    hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "%s: Bad offset %x\n", __func__, (int)offset);
     return 0;
 }
 
@@ -246,7 +252,8 @@ static void sp804_write(void *opaque, hwaddr offset,
     }
 
     /* Technically we could be writing to the Test Registers, but not likely */
-    hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %x\n",
+                  __func__, (int)offset);
 }
 
 static const MemoryRegionOps sp804_ops = {
@@ -300,7 +307,7 @@ static uint64_t icp_pit_read(void *opaque, hwaddr offset,
     /* ??? Don't know the PrimeCell ID for this device.  */
     n = offset >> 8;
     if (n > 2) {
-        hw_error("%s: Bad timer %d\n", __func__, n);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
     }
 
     return arm_timer_read(s->timer[n], offset & 0xff);
@@ -314,7 +321,7 @@ static void icp_pit_write(void *opaque, hwaddr offset,
 
     n = offset >> 8;
     if (n > 2) {
-        hw_error("%s: Bad timer %d\n", __func__, n);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad timer %d\n", __func__, n);
     }
 
     arm_timer_write(s->timer[n], offset & 0xff, value);

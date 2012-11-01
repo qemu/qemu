@@ -184,7 +184,9 @@ static uint64_t arm_sysctl_read(void *opaque, hwaddr offset,
         return s->sys_cfgstat;
     default:
     bad_reg:
-        printf ("arm_sysctl_read: Bad register offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "arm_sysctl_read: Bad register offset 0x%x\n",
+                      (int)offset);
         return 0;
     }
 }
@@ -339,7 +341,9 @@ static void arm_sysctl_write(void *opaque, hwaddr offset,
         return;
     default:
     bad_reg:
-        printf ("arm_sysctl_write: Bad register offset 0x%x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "arm_sysctl_write: Bad register offset 0x%x\n",
+                      (int)offset);
         return;
     }
 }

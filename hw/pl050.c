@@ -95,7 +95,8 @@ static uint64_t pl050_read(void *opaque, hwaddr offset,
     case 4: /* KMIIR */
         return s->pending | 2;
     default:
-        hw_error("pl050_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl050_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -123,7 +124,8 @@ static void pl050_write(void *opaque, hwaddr offset,
         s->clk = value;
         return;
     default:
-        hw_error("pl050_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl050_write: Bad offset %x\n", (int)offset);
     }
 }
 static const MemoryRegionOps pl050_ops = {

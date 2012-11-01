@@ -349,7 +349,8 @@ static uint64_t pl110_read(void *opaque, hwaddr offset,
     case 12: /* LCDLPCURR */
         return s->lpbase;
     default:
-        hw_error("pl110_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl110_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -417,7 +418,8 @@ static void pl110_write(void *opaque, hwaddr offset,
         pl110_update(s);
         break;
     default:
-        hw_error("pl110_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl110_write: Bad offset %x\n", (int)offset);
     }
 }
 

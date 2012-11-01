@@ -93,11 +93,8 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
     }
 }
 
-static Exynos4210State *exynos4_boards_init_common(
-        const char *kernel_filename,
-        const char *kernel_cmdline,
-        const char *initrd_filename,
-        Exynos4BoardType board_type)
+static Exynos4210State *exynos4_boards_init_common(QEMUMachineInitArgs *args,
+                                                   Exynos4BoardType board_type)
 {
     if (smp_cpus != EXYNOS4210_NCPUS) {
         fprintf(stderr, "%s board supports only %d CPU cores. Ignoring smp_cpus"
@@ -110,9 +107,9 @@ static Exynos4210State *exynos4_boards_init_common(
     exynos4_board_binfo.board_id = exynos4_board_id[board_type];
     exynos4_board_binfo.smp_bootreg_addr =
             exynos4_board_smp_bootreg_addr[board_type];
-    exynos4_board_binfo.kernel_filename = kernel_filename;
-    exynos4_board_binfo.initrd_filename = initrd_filename;
-    exynos4_board_binfo.kernel_cmdline = kernel_cmdline;
+    exynos4_board_binfo.kernel_filename = args->kernel_filename;
+    exynos4_board_binfo.initrd_filename = args->initrd_filename;
+    exynos4_board_binfo.kernel_cmdline = args->kernel_cmdline;
     exynos4_board_binfo.gic_cpu_if_addr =
             EXYNOS4210_SMP_PRIVATE_BASE_ADDR + 0x100;
 
@@ -122,9 +119,9 @@ static Exynos4210State *exynos4_boards_init_common(
             " initrd_filename: %s\n",
             exynos4_board_ram_size[board_type] / 1048576,
             exynos4_board_ram_size[board_type],
-            kernel_filename,
-            kernel_cmdline,
-            initrd_filename);
+            args->kernel_filename,
+            args->kernel_cmdline,
+            args->initrd_filename);
 
     return exynos4210_init(get_system_memory(),
             exynos4_board_ram_size[board_type]);
@@ -132,22 +129,15 @@ static Exynos4210State *exynos4_boards_init_common(
 
 static void nuri_init(QEMUMachineInitArgs *args)
 {
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    exynos4_boards_init_common(kernel_filename, kernel_cmdline,
-                initrd_filename, EXYNOS4_BOARD_NURI);
+    exynos4_boards_init_common(args, EXYNOS4_BOARD_NURI);
 
     arm_load_kernel(arm_env_get_cpu(first_cpu), &exynos4_board_binfo);
 }
 
 static void smdkc210_init(QEMUMachineInitArgs *args)
 {
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    Exynos4210State *s = exynos4_boards_init_common(kernel_filename,
-            kernel_cmdline, initrd_filename, EXYNOS4_BOARD_SMDKC210);
+    Exynos4210State *s = exynos4_boards_init_common(args,
+                                                    EXYNOS4_BOARD_SMDKC210);
 
     lan9215_init(SMDK_LAN9118_BASE_ADDR,
             qemu_irq_invert(s->irq_table[exynos4210_get_irq(37, 1)]));
