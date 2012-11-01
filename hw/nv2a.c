@@ -178,6 +178,12 @@
 #   define NV_PGRAPH_CTX_CONTROL_CHANGE                        (1 << 20)
 #   define NV_PGRAPH_CTX_CONTROL_SWITCHING                     (1 << 24)
 #   define NV_PGRAPH_CTX_CONTROL_DEVICE                        (1 << 28)
+#define NV_PGRAPH_CTX_USER                               0x00000148
+#   define NV_PGRAPH_CTX_USER_CHANNEL_3D                        (1 << 0)
+#   define NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID                  (1 << 4)
+#   define NV_PGRAPH_CTX_USER_SUBCH                           0x0000E000
+#   define NV_PGRAPH_CTX_USER_CHID                            0x1F000000
+#   define NV_PGRAPH_CTX_USER_SINGLE_STEP                      (1 << 31)
 #define NV_PGRAPH_CHANNEL_CTX_TABLE                      0x00000780
 #   define NV_PGRAPH_CHANNEL_CTX_TABLE_INST                   0x0000FFFF
 #define NV_PGRAPH_CHANNEL_CTX_POINTER                    0x00000784
@@ -243,9 +249,9 @@
 
 
 /* DMA Objects */
-#define NV_DMA_FROM_MEMORY_CLASS          0x02
-#define NV_DMA_TO_MEMORY_CLASS            0x03
-#define NV_DMA_IN_MEMORY_CLASS            0x3d
+#define NV_DMA_FROM_MEMORY_CLASS                         0x02
+#define NV_DMA_TO_MEMORY_CLASS                           0x03
+#define NV_DMA_IN_MEMORY_CLASS                           0x3d
 
 /* object layout: */
 #define NV_DMA_CLASS                                          0x00000FFF
@@ -260,30 +266,59 @@
 #   define NV_DMA_TARGET_AGP                                      0x00030000
 
 
+#define NV_RAMHT_HANDLE                                      0xFFFFFFFF
+#define NV_RAMHT_INSTANCE                                    0x0000FFFF
+#define NV_RAMHT_ENGINE                                      0x00030000
+#   define NV_RAMHT_ENGINE_SW                                     0x00000000
+#   define NV_RAMHT_ENGINE_GRAPHICS                               0x00010000
+#   define NV_RAMHT_ENGINE_DVD                                    0x00020000
+#define NV_RAMHT_CHID                                        0x1F000000
+#define NV_RAMHT_STATUS                                      0x80000000
+
 
 
 #define NV2A_CRYSTAL_FREQ 13500000
 #define NV2A_NUM_CHANNELS 32
+#define NV2A_NUM_SUBCHANNELS 8
 
-enum NV2AFifoMode {
+
+
+
+enum FifoMode {
     FIFO_PIO = 0,
     FIFO_DMA = 1,
 };
 
+enum RAMHTEngine {
+    ENGINE_SOFTWARE = 0,
+    ENGINE_GRAPHICS = 1,
+    ENGINE_DVD = 2,
+};
 
-typedef struct NV2ACache1State {
-    uint8_t channel_id;
-    enum NV2AFifoMode mode;
+
+
+typedef struct RAMHTEntry {
+    uint32_t handle;
+    uint16_t instance;
+    enum RAMHTEngine engine;
+    unsigned int channel_id : 5;
+    bool valid;
+} RAMHTEntry;
+
+
+typedef struct Cache1State {
+    unsigned int channel_id;
+    enum FifoMode mode;
 
     bool push_enabled;
     bool dma_push_enabled;
 
-    /* DMA state */
+    /* Pusher state */
     hwaddr dma_instance;
     bool method_nonincreasing;
-    uint32_t method;
-    uint32_t subchannel;
-    uint32_t method_count;
+    unsigned int method : 12;
+    unsigned int subchannel : 3;
+    unsigned int method_count : 24;
     uint32_t dcount;
     bool subroutine_active;
     hwaddr subroutine_return;
@@ -291,13 +326,18 @@ typedef struct NV2ACache1State {
     uint32_t rsvd_shadow;
     uint32_t data_shadow;
     uint32_t error;
-} NV2ACache1State;
 
-typedef struct NV2AChannelControl {
+    /* Puller state */
+    hwaddr semaphore_offset;
+    uint8_t bound_engines[NV2A_NUM_SUBCHANNELS];
+    unsigned int last_engine : 5;
+} Cache1State;
+
+typedef struct ChannelControl {
     hwaddr dma_put;
     hwaddr dma_get;
     uint32_t ref;
-} NV2AChannelControl;
+} ChannelControl;
 
 
 typedef struct NV2AState {
@@ -324,19 +364,19 @@ typedef struct NV2AState {
         uint32_t enabled_interrupts;
 
         hwaddr ramht_address;
-        uint32_t ramht_size;
+        unsigned int ramht_size;
         uint32_t ramht_search;
 
         hwaddr ramfc_address1;
         hwaddr ramfc_address2;
-        uint32_t ramfc_size;
+        unsigned int ramfc_size;
 
         /* Weather the fifo chanels are PIO or DMA */
         uint32_t channel_modes;
 
         uint32_t channels_pending_push;
 
-        NV2ACache1State cache1;
+        Cache1State cache1;
     } pfifo;
 
     struct {
@@ -352,6 +392,11 @@ typedef struct NV2AState {
     struct {
         hwaddr ctx_table;
         hwaddr ctx_pointer;
+
+        /* context */
+        bool channel_3d;
+        unsigned int channel_id;
+        unsigned int subchannel;
     } pgraph;
 
     struct {
@@ -369,7 +414,7 @@ typedef struct NV2AState {
     } pramdac;
 
     struct {
-        NV2AChannelControl channel_control[NV2A_NUM_CHANNELS];
+        ChannelControl channel_control[NV2A_NUM_CHANNELS];
     } user;
 
 } NV2AState;
@@ -392,21 +437,117 @@ static void nv2a_update_irq(NV2AState *d)
     }
 }
 
+static uint32_t nv2a_ramht_hash(NV2AState *d,
+                                uint32_t handle)
+{
+    uint32_t hash = 0;
+    /* XXX: Think this is different to what nouveau calculates... */
+    uint32_t bits = ffs(d->pfifo.ramht_size)-2;
+
+    while (handle) {
+        hash ^= (handle & ((1 << bits) - 1));
+        handle >>= bits;
+    }
+    hash ^= d->pfifo.cache1.channel_id << (bits - 4);
+
+    return hash;
+}
+
+
+static RAMHTEntry nv2a_lookup_ramht(NV2AState *d, uint32_t handle)
+{
+    uint32_t hash;
+    uint8_t *entry_ptr;
+    uint32_t entry_handle;
+    uint32_t entry_context;
+
+
+    hash = nv2a_ramht_hash(d, handle);
+    assert(hash * 8 < d->pfifo.ramht_size);
+
+    entry_ptr = d->ramin_ptr + d->pfifo.ramht_address + hash * 8;
+
+    entry_handle = le32_to_cpupu((uint32_t*)entry_ptr);
+    entry_context = le32_to_cpupu((uint32_t*)(entry_ptr + 4));
+
+    return (RAMHTEntry){
+        .handle = entry_handle,
+        .instance = entry_context & NV_RAMHT_INSTANCE,
+        .engine = (entry_context & NV_RAMHT_ENGINE) >> 16,
+        .channel_id = (entry_context & NV_RAMHT_CHID) >> 24,
+        .valid = entry_context & NV_RAMHT_STATUS,
+    };
+}
+
+
+
+static void nv2a_pgraph_method(NV2AState *d,
+                               unsigned int subchannel,
+                               unsigned int method,
+                               uint32_t parameter)
+{
+    NV2A_DPRINTF("nv2a pgraph method: 0x%x, 0x%x, 0x%x\n",
+                 subchannel, method, parameter);
+}
+
 
 static void nv2a_cache_push(NV2AState *d,
-                            uint32_t subchannel,
-                            uint32_t method,
+                            unsigned int subchannel,
+                            unsigned int method,
                             uint32_t parameter,
                             bool nonincreasing)
 {
+    Cache1State *state = &d->pfifo.cache1;
+
+
     NV2A_DPRINTF("nv2a cache push: 0x%x, 0x%x, 0x%x, %d\n",
                  subchannel, method, parameter, nonincreasing);
+
+
+    if (method == 0) {
+        RAMHTEntry entry = nv2a_lookup_ramht(d, parameter);
+        assert(entry.valid);
+
+        assert(entry.channel_id == state->channel_id);
+
+        if (entry.engine == ENGINE_SOFTWARE) {
+            /* TODO */
+            assert(false);
+        } else if (entry.engine == ENGINE_GRAPHICS) {
+            nv2a_pgraph_method(d, subchannel, 0, entry.instance);
+        } else {
+            assert(false);
+        }
+
+        /* the engine is bound to the subchannel */
+        state->bound_engines[subchannel] = entry.engine;
+        state->last_engine = state->bound_engines[subchannel];
+    } else if (method >= 0x100) {
+        /* method passed to engine */
+        RAMHTEntry entry = nv2a_lookup_ramht(d, parameter);
+        assert(entry.valid);
+
+        assert(entry.channel_id == state->channel_id);
+
+        if (entry.engine == ENGINE_SOFTWARE) {
+            assert(false);
+        } else if (entry.engine == ENGINE_GRAPHICS) {
+            nv2a_pgraph_method(d, subchannel, method, entry.instance);
+        } else {
+            assert(false);
+        }
+
+        state->last_engine = state->bound_engines[subchannel];
+    } else {
+        assert(false);
+    }
+
 }
 
 static void nv2a_run_pusher(NV2AState *d) {
     uint8_t channel_id;
-    NV2AChannelControl *control;
-    NV2ACache1State *state;
+    ChannelControl *control;
+    Cache1State *state;
     uint8_t *dma_ptr;
     uint32_t flags;
     uint32_t dma_class;
@@ -506,14 +647,14 @@ static void nv2a_run_pusher(NV2AState *d) {
                 NV2A_DPRINTF("nv2a pb RET 0x%llx\n", control->dma_get);
             } else if ((word & 0xe0030003) == 0) {
                 /* increasing methods */
-                state->method = (word >> 2) & 0x7ff;
+                state->method = word & 0x1fff;
                 state->subchannel = (word >> 13) & 7;
                 state->method_count = (word >> 18) & 0x7ff;
                 state->method_nonincreasing = false;
                 state->dcount = 0;
             } else if ((word & 0xe0030003) == 0x40000000) {
                 /* non-increasing methods */
-                state->method = (word >> 2) & 0x7ff;
+                state->method = word & 0x1fff;
                 state->subchannel = (word >> 13) & 7;
                 state->method_count = (word >> 18) & 0x7ff;
                 state->method_nonincreasing = true;
@@ -531,6 +672,7 @@ static void nv2a_run_pusher(NV2AState *d) {
         nv2a_update_irq(d);
     }
 }
+
 
 
 
@@ -645,8 +787,25 @@ static uint64_t nv2a_pfifo_read(void *opaque,
         break;
     case NV_PFIFO_RAMHT:
         r = ( (d->pfifo.ramht_address >> 12) << 4)
-             | (d->pfifo.ramht_size << 16)
              | (d->pfifo.ramht_search << 24);
+
+        switch (d->pfifo.ramht_size) {
+            case 4096:
+                r |= NV_PFIFO_RAMHT_SIZE_4K;
+                break;
+            case 8192:
+                r |= NV_PFIFO_RAMHT_SIZE_8K;
+                break;
+            case 16384:
+                r |= NV_PFIFO_RAMHT_SIZE_16K;
+                break;
+            case 32768:
+                r |= NV_PFIFO_RAMHT_SIZE_32K;
+                break;
+            default:
+                break;
+        }
+
         break;
     case NV_PFIFO_RAMFC:
         r = ( (d->pfifo.ramfc_address1 >> 10) << 2)
@@ -735,7 +894,23 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
     case NV_PFIFO_RAMHT:
         d->pfifo.ramht_address =
             ((val & NV_PFIFO_RAMHT_BASE_ADDRESS) >> 4) << 12;
-        d->pfifo.ramht_size = (val & NV_PFIFO_RAMHT_SIZE) >> 16;
+        switch (val & NV_PFIFO_RAMHT_SIZE) {
+            case NV_PFIFO_RAMHT_SIZE_4K:
+                d->pfifo.ramht_size = 4096;
+                break;
+            case NV_PFIFO_RAMHT_SIZE_8K:
+                d->pfifo.ramht_size = 8192;
+                break;
+            case NV_PFIFO_RAMHT_SIZE_16K:
+                d->pfifo.ramht_size = 16384;
+                break;
+            case NV_PFIFO_RAMHT_SIZE_32K:
+                d->pfifo.ramht_size = 32768;
+                break;
+            default:
+                d->pfifo.ramht_size = 0;
+                break;
+        }
         d->pfifo.ramht_search = (val & NV_PFIFO_RAMHT_SEARCH) >> 24;
         break;
     case NV_PFIFO_RAMFC:
@@ -1028,6 +1203,12 @@ static uint64_t nv2a_pgraph_read(void *opaque,
 
     uint64_t r = 0;
     switch (addr) {
+    case NV_PGRAPH_CTX_USER:
+        r = d->pgraph.channel_3d
+            | NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID
+            | (d->pgraph.subchannel << 13)
+            | (d->pgraph.channel_id << 24);
+        break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
         r = d->pgraph.ctx_table;
         break;
@@ -1049,6 +1230,11 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
     NV2A_DPRINTF("nv2a PGRAPH: [0x%llx] = 0x%02llx\n", addr, val);
 
     switch (addr) {
+    case NV_PGRAPH_CTX_USER:
+        d->pgraph.channel_3d = val & NV_PGRAPH_CTX_USER_CHANNEL_3D;
+        d->pgraph.subchannel = (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
+        d->pgraph.channel_id = (val & NV_PGRAPH_CTX_USER_CHID) >> 24;
+        break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
         d->pgraph.ctx_table = val & NV_PGRAPH_CHANNEL_CTX_TABLE_INST;
         break;
@@ -1263,7 +1449,7 @@ static uint64_t nv2a_user_read(void *opaque,
     unsigned int channel_id = addr >> 16;
     assert(channel_id < NV2A_NUM_CHANNELS);
 
-    NV2AChannelControl *control = &d->user.channel_control[channel_id];
+    ChannelControl *control = &d->user.channel_control[channel_id];
 
     uint64_t r = 0;
     if (d->pfifo.channel_modes & (1 << channel_id)) {
@@ -1299,7 +1485,7 @@ static void nv2a_user_write(void *opaque, hwaddr addr,
     unsigned int channel_id = addr >> 16;
     assert(channel_id < NV2A_NUM_CHANNELS);
 
-    NV2AChannelControl *control = &d->user.channel_control[channel_id];
+    ChannelControl *control = &d->user.channel_control[channel_id];
 
     if (d->pfifo.channel_modes & (1 << channel_id)) {
         /* DMA Mode */
