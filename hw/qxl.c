@@ -1701,7 +1701,13 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     uint32_t le_events = cpu_to_le32(events);
 
     trace_qxl_send_events(d->id, events);
-    assert(qemu_spice_display_is_running(&d->ssd));
+    if (!qemu_spice_display_is_running(&d->ssd)) {
+        /* spice-server tracks guest running state and should not do this */
+        fprintf(stderr, "%s: spice-server bug: guest stopped, ignoring\n",
+                __func__);
+        trace_qxl_send_events_vm_stopped(d->id, events);
+        return;
+    }
     old_pending = __sync_fetch_and_or(&d->ram->int_pending, le_events);
     if ((old_pending & le_events) == le_events) {
         return;
