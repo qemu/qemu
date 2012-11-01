@@ -503,7 +503,7 @@ static int usb_audio_set_control(USBAudioState *s, uint8_t attrib,
     return ret;
 }
 
-static int usb_audio_handle_control(USBDevice *dev, USBPacket *p,
+static void usb_audio_handle_control(USBDevice *dev, USBPacket *p,
                                     int request, int value, int index,
                                     int length, uint8_t *data)
 {
@@ -518,7 +518,7 @@ static int usb_audio_handle_control(USBDevice *dev, USBPacket *p,
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
 
     switch (request) {
@@ -534,6 +534,7 @@ static int usb_audio_handle_control(USBDevice *dev, USBPacket *p,
             }
             goto fail;
         }
+        p->actual_length = ret;
         break;
 
     case ClassInterfaceOutRequest | CR_SET_CUR:
@@ -557,10 +558,9 @@ fail:
                     "request 0x%04x value 0x%04x index 0x%04x length 0x%04x\n",
                     request, value, index, length);
         }
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
 static void usb_audio_set_interface(USBDevice *dev, int iface,
@@ -583,50 +583,35 @@ static void usb_audio_handle_reset(USBDevice *dev)
     usb_audio_set_output_altset(s, ALTSET_OFF);
 }
 
-static int usb_audio_handle_dataout(USBAudioState *s, USBPacket *p)
+static void usb_audio_handle_dataout(USBAudioState *s, USBPacket *p)
 {
-    int rc;
-
     if (s->out.altset == ALTSET_OFF) {
-        return USB_RET_STALL;
+        p->status = USB_RET_STALL;
+        return;
     }
 
-    rc = streambuf_put(&s->out.buf, p);
-    if (rc < p->iov.size && s->debug > 1) {
+    streambuf_put(&s->out.buf, p);
+    if (p->actual_length < p->iov.size && s->debug > 1) {
         fprintf(stderr, "usb-audio: output overrun (%zd bytes)\n",
-                p->iov.size - rc);
+                p->iov.size - p->actual_length);
     }
-
-    return 0;
 }
 
-static int usb_audio_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_audio_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBAudioState *s = (USBAudioState *) dev;
-    int ret = 0;
 
-    switch (p->pid) {
-    case USB_TOKEN_OUT:
-        switch (p->ep->nr) {
-        case 1:
-            ret = usb_audio_handle_dataout(s, p);
-            break;
-        default:
-            goto fail;
-        }
-        break;
-
-    default:
-fail:
-        ret = USB_RET_STALL;
-        break;
+    if (p->pid == USB_TOKEN_OUT && p->ep->nr == 1) {
+        usb_audio_handle_dataout(s, p);
+        return;
     }
-    if (ret == USB_RET_STALL && s->debug) {
+
+    p->status = USB_RET_STALL;
+    if (s->debug) {
         fprintf(stderr, "usb-audio: failed data transaction: "
                         "pid 0x%x ep 0x%x len 0x%zx\n",
                         p->pid, p->ep->nr, p->iov.size);
     }
-    return ret;
 }
 
 static void usb_audio_handle_destroy(USBDevice *dev)

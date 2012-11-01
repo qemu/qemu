@@ -1388,7 +1388,7 @@ static void xhci_xfer_report(XHCITransfer *xfer)
     XHCIState *xhci = xfer->xhci;
     int i;
 
-    left = xfer->packet.result < 0 ? 0 : xfer->packet.result;
+    left = xfer->packet.status ? 0 : xfer->packet.actual_length;
 
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
@@ -1490,16 +1490,16 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     return 0;
 }
 
-static int xhci_complete_packet(XHCITransfer *xfer, int ret)
+static int xhci_complete_packet(XHCITransfer *xfer)
 {
-    if (ret == USB_RET_ASYNC) {
+    if (xfer->packet.status == USB_RET_ASYNC) {
         trace_usb_xhci_xfer_async(xfer);
         xfer->running_async = 1;
         xfer->running_retry = 0;
         xfer->complete = 0;
         xfer->cancelled = 0;
         return 0;
-    } else if (ret == USB_RET_NAK) {
+    } else if (xfer->packet.status == USB_RET_NAK) {
         trace_usb_xhci_xfer_nak(xfer);
         xfer->running_async = 0;
         xfer->running_retry = 1;
@@ -1513,16 +1513,16 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
         xhci_xfer_unmap(xfer);
     }
 
-    if (ret >= 0) {
-        trace_usb_xhci_xfer_success(xfer, ret);
+    if (xfer->packet.status == USB_RET_SUCCESS) {
+        trace_usb_xhci_xfer_success(xfer, xfer->packet.actual_length);
         xfer->status = CC_SUCCESS;
         xhci_xfer_report(xfer);
         return 0;
     }
 
     /* error */
-    trace_usb_xhci_xfer_error(xfer, ret);
-    switch (ret) {
+    trace_usb_xhci_xfer_error(xfer, xfer->packet.status);
+    switch (xfer->packet.status) {
     case USB_RET_NODEV:
         xfer->status = CC_USB_TRANSACTION_ERROR;
         xhci_xfer_report(xfer);
@@ -1534,7 +1534,8 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
         xhci_stall_ep(xfer);
         break;
     default:
-        fprintf(stderr, "%s: FIXME: ret = %d\n", __FUNCTION__, ret);
+        fprintf(stderr, "%s: FIXME: status = %d\n", __func__,
+                xfer->packet.status);
         FIXME();
     }
     return 0;
@@ -1544,7 +1545,6 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 {
     XHCITRB *trb_setup, *trb_status;
     uint8_t bmRequestType;
-    int ret;
 
     trb_setup = &xfer->trbs[0];
     trb_status = &xfer->trbs[xfer->trb_count-1];
@@ -1587,9 +1587,9 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     }
     xfer->packet.parameter = trb_setup->parameter;
 
-    ret = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+    usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
-    xhci_complete_packet(xfer, ret);
+    xhci_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
         xhci_kick_ep(xhci, xfer->slotid, xfer->epid);
     }
@@ -1636,7 +1636,6 @@ static void xhci_check_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
 {
     uint64_t mfindex;
-    int ret;
 
     DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
 
@@ -1671,9 +1670,9 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     if (xhci_setup_packet(xfer) < 0) {
         return -1;
     }
-    ret = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+    usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
-    xhci_complete_packet(xfer, ret);
+    xhci_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
         xhci_kick_ep(xhci, xfer->slotid, xfer->epid);
     }
@@ -1711,7 +1710,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
 
     if (epctx->retry) {
         XHCITransfer *xfer = epctx->retry;
-        int result;
 
         trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
@@ -1725,19 +1723,19 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             if (xhci_setup_packet(xfer) < 0) {
                 return;
             }
-            result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-            assert(result != USB_RET_NAK);
-            xhci_complete_packet(xfer, result);
+            usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+            assert(xfer->packet.status != USB_RET_NAK);
+            xhci_complete_packet(xfer);
         } else {
             /* retry nak'ed transfer */
             if (xhci_setup_packet(xfer) < 0) {
                 return;
             }
-            result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-            if (result == USB_RET_NAK) {
+            usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+            if (xfer->packet.status == USB_RET_NAK) {
                 return;
             }
-            xhci_complete_packet(xfer, result);
+            xhci_complete_packet(xfer);
         }
         assert(!xfer->running_retry);
         epctx->retry = NULL;
@@ -2922,11 +2920,11 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
 {
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
 
-    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+    if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
         xhci_ep_nuke_one_xfer(xfer);
         return;
     }
-    xhci_complete_packet(xfer, packet->result);
+    xhci_complete_packet(xfer);
     xhci_kick_ep(xfer->xhci, xfer->slotid, xfer->epid);
 }
 

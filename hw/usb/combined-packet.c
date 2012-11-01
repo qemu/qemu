@@ -46,7 +46,7 @@ void usb_combined_input_packet_complete(USBDevice *dev, USBPacket *p)
     USBEndpoint *ep = p->ep;
     USBPacket *next;
     enum { completing, complete, leftover };
-    int result, state = completing;
+    int status, actual_length, state = completing;
     bool short_not_ok;
 
     if (combined == NULL) {
@@ -56,27 +56,34 @@ void usb_combined_input_packet_complete(USBDevice *dev, USBPacket *p)
 
     assert(combined->first == p && p == QTAILQ_FIRST(&combined->packets));
 
-    result = combined->first->result;
+    status = combined->first->status;
+    actual_length = combined->first->actual_length;
     short_not_ok = QTAILQ_LAST(&combined->packets, packets_head)->short_not_ok;
 
     QTAILQ_FOREACH_SAFE(p, &combined->packets, combined_entry, next) {
         if (state == completing) {
             /* Distribute data over uncombined packets */
-            if (result >= p->iov.size) {
-                p->result = p->iov.size;
+            if (actual_length >= p->iov.size) {
+                p->actual_length = p->iov.size;
             } else {
                 /* Send short or error packet to complete the transfer */
-                p->result = result;
+                p->actual_length = actual_length;
                 state = complete;
+            }
+            /* Report status on the last packet */
+            if (state == complete || next == NULL) {
+                p->status = status;
+            } else {
+                p->status = USB_RET_SUCCESS;
             }
             p->short_not_ok = short_not_ok;
             usb_combined_packet_remove(combined, p);
             usb_packet_complete_one(dev, p);
-            result -= p->result;
+            actual_length -= p->actual_length;
         } else {
             /* Remove any leftover packets from the queue */
             state = leftover;
-            p->result = USB_RET_REMOVE_FROM_QUEUE;
+            p->status = USB_RET_REMOVE_FROM_QUEUE;
             dev->port->ops->complete(dev->port, p);
         }
     }
@@ -117,7 +124,7 @@ void usb_ep_combine_input_packets(USBEndpoint *ep)
 {
     USBPacket *p, *u, *next, *prev = NULL, *first = NULL;
     USBPort *port = ep->dev->port;
-    int ret, totalsize;
+    int totalsize;
 
     assert(ep->pipeline);
     assert(ep->pid == USB_TOKEN_IN);
@@ -125,7 +132,7 @@ void usb_ep_combine_input_packets(USBEndpoint *ep)
     QTAILQ_FOREACH_SAFE(p, &ep->queue, queue, next) {
         /* Empty the queue on a halt */
         if (ep->halted) {
-            p->result = USB_RET_REMOVE_FROM_QUEUE;
+            p->status = USB_RET_REMOVE_FROM_QUEUE;
             port->ops->complete(port, p);
             continue;
         }
@@ -166,8 +173,8 @@ void usb_ep_combine_input_packets(USBEndpoint *ep)
                 next == NULL ||
                 /* Work around for Linux usbfs bulk splitting + migration */
                 (totalsize == 16348 && p->int_req)) {
-            ret = usb_device_handle_data(ep->dev, first);
-            assert(ret == USB_RET_ASYNC);
+            usb_device_handle_data(ep->dev, first);
+            assert(first->status == USB_RET_ASYNC);
             if (first->combined) {
                 QTAILQ_FOREACH(u, &first->combined->packets, combined_entry) {
                     usb_packet_set_state(u, USB_PACKET_ASYNC);

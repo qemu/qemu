@@ -121,7 +121,7 @@ static void usb_host_handle_reset(USBDevice *dev)
  * -check device states against transfer requests
  *  and return appropriate response
  */
-static int usb_host_handle_control(USBDevice *dev,
+static void usb_host_handle_control(USBDevice *dev,
                                    USBPacket *p,
                                    int request,
                                    int value,
@@ -139,7 +139,6 @@ static int usb_host_handle_control(USBDevice *dev,
 
         /* specific SET_ADDRESS support */
         dev->addr = value;
-        return 0;
     } else if ((request >> 8) == UT_WRITE_DEVICE &&
                (request & 0xff) == UR_SET_CONFIG) {
 
@@ -151,10 +150,8 @@ static int usb_host_handle_control(USBDevice *dev,
             printf("handle_control: failed to set configuration - %s\n",
                    strerror(errno));
 #endif
-            return USB_RET_STALL;
+            p->status = USB_RET_STALL;
         }
-
-        return 0;
     } else if ((request >> 8) == UT_WRITE_INTERFACE &&
                (request & 0xff) == UR_SET_INTERFACE) {
 
@@ -168,10 +165,8 @@ static int usb_host_handle_control(USBDevice *dev,
             printf("handle_control: failed to set alternate interface - %s\n",
                    strerror(errno));
 #endif
-            return USB_RET_STALL;
+            p->status = USB_RET_STALL;
         }
-
-        return 0;
     } else {
         req.ucr_request.bmRequestType = request >> 8;
         req.ucr_request.bRequest = request & 0xff;
@@ -201,14 +196,14 @@ static int usb_host_handle_control(USBDevice *dev,
             printf("handle_control: error after request - %s\n",
                    strerror(errno));
 #endif
-            return USB_RET_NAK; // STALL
+            p->status = USB_RET_NAK; /* STALL */
         } else {
-            return req.ucr_actlen;
+            p->actual_length = req.ucr_actlen;
         }
     }
 }
 
-static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBHostDevice *s = (USBHostDevice *)dev;
     int ret, fd, mode;
@@ -232,7 +227,8 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     fd = ensure_ep_open(s, devep, mode);
     if (fd < 0) {
         sigprocmask(SIG_SETMASK, &old_mask, NULL);
-        return USB_RET_NODEV;
+        p->status = USB_RET_NODEV;
+        return;
     }
 
     if (ioctl(fd, USB_SET_TIMEOUT, &timeout) < 0) {
@@ -267,12 +263,13 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         switch(errno) {
         case ETIMEDOUT:
         case EINTR:
-            return USB_RET_NAK;
+            p->status = USB_RET_NAK;
+            break;
         default:
-            return USB_RET_STALL;
+            p->status = USB_RET_STALL;
         }
     } else {
-        return ret;
+        p->actual_length = ret;
     }
 }
 

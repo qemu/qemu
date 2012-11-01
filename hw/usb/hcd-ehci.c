@@ -1163,7 +1163,7 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     p = container_of(packet, EHCIPacket, packet);
     assert(p->async == EHCI_ASYNC_INFLIGHT);
 
-    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+    if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
         trace_usb_ehci_packet_action(p->queue, p, "remove");
         ehci_free_packet(p);
         return;
@@ -1171,7 +1171,7 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 
     trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     p->async = EHCI_ASYNC_FINISHED;
-    p->usb_status = packet->result;
+    p->usb_status = packet->status ? packet->status : packet->actual_length;
 
     if (p->queue->async) {
         qemu_bh_schedule(p->queue->ehci->async_bh);
@@ -1253,7 +1253,6 @@ static void ehci_execute_complete(EHCIQueue *q)
 static int ehci_execute(EHCIPacket *p, const char *action)
 {
     USBEndpoint *ep;
-    int ret;
     int endp;
     bool spd;
 
@@ -1303,17 +1302,22 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     }
 
     trace_usb_ehci_packet_action(p->queue, p, action);
-    ret = usb_handle_packet(p->queue->dev, &p->packet);
-    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd endp %x ret %d\n",
-            q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
-            q->packet.iov.size, endp, ret);
+    usb_handle_packet(p->queue->dev, &p->packet);
+    DPRINTF("submit: qh 0x%x next 0x%x qtd 0x%x pid 0x%x len %zd endp 0x%x "
+            "status %d actual_length %d\n", p->queue->qhaddr, p->qtd.next,
+            p->qtdaddr, p->pid, p->packet.iov.size, endp, p->packet.status,
+            p->packet.actual_length);
 
-    if (ret > BUFF_SIZE) {
+    if (p->packet.actual_length > BUFF_SIZE) {
         fprintf(stderr, "ret from usb_handle_packet > BUFF_SIZE\n");
         return USB_RET_PROCERR;
     }
 
-    return ret;
+    if (p->packet.status == USB_RET_SUCCESS) {
+        return p->packet.actual_length;
+    } else {
+        return p->packet.status;
+    }
 }
 
 /*  4.7.2
@@ -1370,8 +1374,10 @@ static int ehci_process_itd(EHCIState *ehci,
                 usb_packet_setup(&ehci->ipacket, pid, ep, addr, false,
                                  (itd->transact[i] & ITD_XACT_IOC) != 0);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
-                ret = usb_handle_packet(dev, &ehci->ipacket);
+                usb_handle_packet(dev, &ehci->ipacket);
                 usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
+                ret = (ehci->ipacket.status == USB_RET_SUCCESS) ?
+                      ehci->ipacket.actual_length : ehci->ipacket.status;
             } else {
                 DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
                 ret = USB_RET_NAK;

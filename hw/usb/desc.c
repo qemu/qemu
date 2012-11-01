@@ -626,7 +626,8 @@ int usb_desc_string(USBDevice *dev, int index, uint8_t *dest, size_t len)
     return pos;
 }
 
-int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len)
+int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
+                            int value, uint8_t *dest, size_t len)
 {
     const USBDesc *desc = usb_device_get_usb_desc(dev);
     const USBDescDevice *other_dev;
@@ -696,6 +697,8 @@ int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len
             ret = len;
         }
         memcpy(dest, buf, ret);
+        p->actual_length = ret;
+        ret = 0;
     }
     return ret;
 }
@@ -715,7 +718,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         break;
 
     case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
-        ret = usb_desc_get_descriptor(dev, value, data, length);
+        ret = usb_desc_get_descriptor(dev, p, value, data, length);
         break;
 
     case DeviceRequest | USB_REQ_GET_CONFIGURATION:
@@ -724,7 +727,8 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
          * the non zero value of bConfigurationValue.
          */
         data[0] = dev->config ? dev->config->bConfigurationValue : 0;
-        ret = 1;
+        p->actual_length = 1;
+        ret = 0;
         break;
     case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
         ret = usb_desc_set_config(dev, value);
@@ -749,7 +753,8 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
             data[0] |= 1 << USB_DEVICE_REMOTE_WAKEUP;
         }
         data[1] = 0x00;
-        ret = 2;
+        p->actual_length = 2;
+        ret = 0;
         break;
     }
     case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
@@ -772,7 +777,8 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
             break;
         }
         data[0] = dev->altsetting[index];
-        ret = 1;
+        p->actual_length = 1;
+        ret = 0;
         break;
     case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
         ret = usb_desc_set_interface(dev, index, value);
