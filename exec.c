@@ -607,6 +607,8 @@ static inline void code_gen_alloc(size_t tb_size)
         exit(1);
     }
 
+    qemu_madvise(code_gen_buffer, code_gen_buffer_size, QEMU_MADV_HUGEPAGE);
+
     /* Steal room for the prologue at the end of the buffer.  This ensures
        (via the MAX_CODE_GEN_BUFFER_SIZE limits above) that direct branches
        from TB's to the prologue are going to be in range.  It also means
