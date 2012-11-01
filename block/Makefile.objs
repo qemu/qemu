@@ -2,13 +2,18 @@ block-obj-y += raw.o cow.o qcow.o vdi.o vmdk.o cloop.o dmg.o bochs.o vpc.o vvfat
 block-obj-y += qcow2.o qcow2-refcount.o qcow2-cluster.o qcow2-snapshot.o qcow2-cache.o
 block-obj-y += qed.o qed-gencb.o qed-l2-cache.o qed-table.o qed-cluster.o
 block-obj-y += qed-check.o
-block-obj-y += parallels.o nbd.o blkdebug.o sheepdog.o blkverify.o
-block-obj-$(CONFIG_WIN32) += raw-win32.o
+block-obj-y += parallels.o blkdebug.o blkverify.o
+block-obj-$(CONFIG_WIN32) += raw-win32.o win32-aio.o
 block-obj-$(CONFIG_POSIX) += raw-posix.o
+block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
+
+ifeq ($(CONFIG_POSIX),y)
+block-obj-y += nbd.o sheepdog.o
 block-obj-$(CONFIG_LIBISCSI) += iscsi.o
 block-obj-$(CONFIG_CURL) += curl.o
 block-obj-$(CONFIG_RBD) += rbd.o
 block-obj-$(CONFIG_GLUSTERFS) += gluster.o
+endif
 
 common-obj-y += stream.o
 common-obj-y += commit.o

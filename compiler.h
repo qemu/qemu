@@ -50,16 +50,13 @@
 #   define __printf__ __gnu_printf__
 #  endif
 # endif
-#if defined(_WIN32)
-#define GCC_WEAK __attribute__((weak))
-#define GCC_WEAK_DECL GCC_WEAK
-#else
-#define GCC_WEAK __attribute__((weak))
-#define GCC_WEAK_DECL
-#endif
+# define QEMU_WEAK_ALIAS(newname, oldname) \
+        typeof(oldname) newname __attribute__((weak, alias (#oldname)))
 #else
 #define GCC_ATTR /**/
 #define GCC_FMT_ATTR(n, m)
+#define QEMU_WEAK_ALIAS(newname, oldname) \
+        _Pragma("weak " #newname "=" #oldname)
 #endif
 
 #endif /* COMPILER_H */

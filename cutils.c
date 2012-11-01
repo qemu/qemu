@@ -142,109 +142,6 @@ int qemu_fdatasync(int fd)
 #endif
 }
 
-/* io vectors */
-
-void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint)
-{
-    qiov->iov = g_malloc(alloc_hint * sizeof(struct iovec));
-    qiov->niov = 0;
-    qiov->nalloc = alloc_hint;
-    qiov->size = 0;
-}
-
-void qemu_iovec_init_external(QEMUIOVector *qiov, struct iovec *iov, int niov)
-{
-    int i;
-
-    qiov->iov = iov;
-    qiov->niov = niov;
-    qiov->nalloc = -1;
-    qiov->size = 0;
-    for (i = 0; i < niov; i++)
-        qiov->size += iov[i].iov_len;
-}
-
-void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
-{
-    assert(qiov->nalloc != -1);
-
-    if (qiov->niov == qiov->nalloc) {
-        qiov->nalloc = 2 * qiov->nalloc + 1;
-        qiov->iov = g_realloc(qiov->iov, qiov->nalloc * sizeof(struct iovec));
-    }
-    qiov->iov[qiov->niov].iov_base = base;
-    qiov->iov[qiov->niov].iov_len = len;
-    qiov->size += len;
-    ++qiov->niov;
-}
-
-/*
- * Concatenates (partial) iovecs from src to the end of dst.
- * It starts copying after skipping `soffset' bytes at the
- * beginning of src and adds individual vectors from src to
- * dst copies up to `sbytes' bytes total, or up to the end
- * of src if it comes first.  This way, it is okay to specify
- * very large value for `sbytes' to indicate "up to the end
- * of src".
- * Only vector pointers are processed, not the actual data buffers.
- */
-void qemu_iovec_concat(QEMUIOVector *dst,
-                       QEMUIOVector *src, size_t soffset, size_t sbytes)
-{
-    int i;
-    size_t done;
-    struct iovec *siov = src->iov;
-    assert(dst->nalloc != -1);
-    assert(src->size >= soffset);
-    for (i = 0, done = 0; done < sbytes && i < src->niov; i++) {
-        if (soffset < siov[i].iov_len) {
-            size_t len = MIN(siov[i].iov_len - soffset, sbytes - done);
-            qemu_iovec_add(dst, siov[i].iov_base + soffset, len);
-            done += len;
-            soffset = 0;
-        } else {
-            soffset -= siov[i].iov_len;
-        }
-    }
-    /* return done; */
-}
-
-void qemu_iovec_destroy(QEMUIOVector *qiov)
-{
-    assert(qiov->nalloc != -1);
-
-    qemu_iovec_reset(qiov);
-    g_free(qiov->iov);
-    qiov->nalloc = 0;
-    qiov->iov = NULL;
-}
-
-void qemu_iovec_reset(QEMUIOVector *qiov)
-{
-    assert(qiov->nalloc != -1);
-
-    qiov->niov = 0;
-    qiov->size = 0;
-}
-
-size_t qemu_iovec_to_buf(QEMUIOVector *qiov, size_t offset,
-                         void *buf, size_t bytes)
-{
-    return iov_to_buf(qiov->iov, qiov->niov, offset, buf, bytes);
-}
-
-size_t qemu_iovec_from_buf(QEMUIOVector *qiov, size_t offset,
-                           const void *buf, size_t bytes)
-{
-    return iov_from_buf(qiov->iov, qiov->niov, offset, buf, bytes);
-}
-
-size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
-                         int fillc, size_t bytes)
-{
-    return iov_memset(qiov->iov, qiov->niov, offset, fillc, bytes);
-}
-
 /*
  * Checks if a buffer is all zeroes
  *
@@ -381,11 +278,6 @@ int qemu_parse_fd(const char *param)
         return -1;
     }
     return fd;
-}
-
-int qemu_parse_fdset(const char *param)
-{
-    return qemu_parse_fd(param);
 }
 
 /* round down to the nearest power of 2*/

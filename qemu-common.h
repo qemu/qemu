@@ -14,6 +14,7 @@
 
 typedef struct QEMUTimer QEMUTimer;
 typedef struct QEMUFile QEMUFile;
+typedef struct QEMUBH QEMUBH;
 typedef struct DeviceState DeviceState;
 
 struct Monitor;
@@ -167,7 +168,6 @@ int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
-int qemu_parse_fdset(const char *param);
 
 /*
  * strtosz() suffixes used to specify the default treatment of an
@@ -218,7 +218,6 @@ ssize_t qemu_recv_full(int fd, void *buf, size_t count, int flags)
     QEMU_WARN_UNUSED_RESULT;
 
 #ifndef _WIN32
-int qemu_eventfd(int pipefd[2]);
 int qemu_pipe(int pipefd[2]);
 #endif
 
