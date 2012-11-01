@@ -68,7 +68,7 @@ static TCGv cpu_cfar;
 #endif
 static TCGv cpu_xer;
 static TCGv cpu_reserve;
-static TCGv_i32 cpu_fpscr;
+static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
 #include "gen-icount.h"
@@ -163,8 +163,8 @@ void ppc_translate_init(void)
                                      offsetof(CPUPPCState, reserve_addr),
                                      "reserve_addr");
 
-    cpu_fpscr = tcg_global_mem_new_i32(TCG_AREG0,
-                                       offsetof(CPUPPCState, fpscr), "fpscr");
+    cpu_fpscr = tcg_global_mem_new(TCG_AREG0,
+                                   offsetof(CPUPPCState, fpscr), "fpscr");
 
     cpu_access_type = tcg_global_mem_new_i32(TCG_AREG0,
                                              offsetof(CPUPPCState, access_type), "access_type");
@@ -2302,6 +2302,7 @@ GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT);
 /* mcrfs */
 static void gen_mcrfs(DisasContext *ctx)
 {
+    TCGv tmp = tcg_temp_new();
     int bfa;
 
     if (unlikely(!ctx->fpu_enabled)) {
@@ -2309,9 +2310,11 @@ static void gen_mcrfs(DisasContext *ctx)
         return;
     }
     bfa = 4 * (7 - crfS(ctx->opcode));
-    tcg_gen_shri_i32(cpu_crf[crfD(ctx->opcode)], cpu_fpscr, bfa);
+    tcg_gen_shri_tl(tmp, cpu_fpscr, bfa);
+    tcg_gen_trunc_tl_i32(cpu_crf[crfD(ctx->opcode)], tmp);
+    tcg_temp_free(tmp);
     tcg_gen_andi_i32(cpu_crf[crfD(ctx->opcode)], cpu_crf[crfD(ctx->opcode)], 0xf);
-    tcg_gen_andi_i32(cpu_fpscr, cpu_fpscr, ~(0xF << bfa));
+    tcg_gen_andi_tl(cpu_fpscr, cpu_fpscr, ~(0xF << bfa));
 }
 
 /* mffs */
@@ -2322,7 +2325,7 @@ static void gen_mffs(DisasContext *ctx)
         return;
     }
     gen_reset_fpstatus();
-    tcg_gen_extu_i32_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpscr);
+    tcg_gen_extu_tl_i64(cpu_fpr[rD(ctx->opcode)], cpu_fpscr);
     gen_compute_fprf(cpu_fpr[rD(ctx->opcode)], 0, Rc(ctx->opcode) != 0);
 }
 
@@ -2346,7 +2349,8 @@ static void gen_mtfsb0(DisasContext *ctx)
         tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
+        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
 }
 
@@ -2371,7 +2375,8 @@ static void gen_mtfsb1(DisasContext *ctx)
         tcg_temp_free_i32(t0);
     }
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
+        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a differed exception */
     gen_helper_float_check_status(cpu_env);
@@ -2397,7 +2402,8 @@ static void gen_mtfsf(DisasContext *ctx)
     gen_helper_store_fpscr(cpu_env, cpu_fpr[rB(ctx->opcode)], t0);
     tcg_temp_free_i32(t0);
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
+        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a differed exception */
     gen_helper_float_check_status(cpu_env);
@@ -2425,7 +2431,8 @@ static void gen_mtfsfi(DisasContext *ctx)
     tcg_temp_free_i64(t0);
     tcg_temp_free_i32(t1);
     if (unlikely(Rc(ctx->opcode) != 0)) {
-        tcg_gen_shri_i32(cpu_crf[1], cpu_fpscr, FPSCR_OX);
+        tcg_gen_trunc_tl_i32(cpu_crf[1], cpu_fpscr);
+        tcg_gen_shri_i32(cpu_crf[1], cpu_crf[1], FPSCR_OX);
     }
     /* We can raise a differed exception */
     gen_helper_float_check_status(cpu_env);
@@ -9463,7 +9470,7 @@ void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
         if ((i & (RFPL - 1)) == (RFPL - 1))
             cpu_fprintf(f, "\n");
     }
-    cpu_fprintf(f, "FPSCR %08x\n", env->fpscr);
+    cpu_fprintf(f, "FPSCR " TARGET_FMT_lx "\n", env->fpscr);
 #if !defined(CONFIG_USER_ONLY)
     cpu_fprintf(f, " SRR0 " TARGET_FMT_lx "  SRR1 " TARGET_FMT_lx
                    "    PVR " TARGET_FMT_lx " VRSAVE " TARGET_FMT_lx "\n",

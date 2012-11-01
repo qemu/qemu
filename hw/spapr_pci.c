@@ -439,6 +439,43 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(spapr_phb_lsi_qirq(phb, irq_num), level);
 }
 
+static uint64_t spapr_io_read(void *opaque, hwaddr addr,
+                              unsigned size)
+{
+    switch (size) {
+    case 1:
+        return cpu_inb(addr);
+    case 2:
+        return cpu_inw(addr);
+    case 4:
+        return cpu_inl(addr);
+    }
+    assert(0);
+}
+
+static void spapr_io_write(void *opaque, hwaddr addr,
+                           uint64_t data, unsigned size)
+{
+    switch (size) {
+    case 1:
+        cpu_outb(addr, data);
+        return;
+    case 2:
+        cpu_outw(addr, data);
+        return;
+    case 4:
+        cpu_outl(addr, data);
+        return;
+    }
+    assert(0);
+}
+
+static const MemoryRegionOps spapr_io_ops = {
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .read = spapr_io_read,
+    .write = spapr_io_write
+};
+
 /*
  * MSI/MSIX memory region implementation.
  * The handler handles both MSI and MSIX.
@@ -508,9 +545,14 @@ static int spapr_phb_init(SysBusDevice *s)
      * old_portion are updated */
     sprintf(namebuf, "%s.io", sphb->dtbusname);
     memory_region_init(&sphb->iospace, namebuf, SPAPR_PCI_IO_WIN_SIZE);
+    /* FIXME: fix to support multiple PHBs */
+    memory_region_add_subregion(get_system_io(), 0, &sphb->iospace);
 
+    sprintf(namebuf, "%s.io-alias", sphb->dtbusname);
+    memory_region_init_io(&sphb->iowindow, &spapr_io_ops, sphb,
+                          namebuf, SPAPR_PCI_IO_WIN_SIZE);
     memory_region_add_subregion(get_system_memory(), sphb->io_win_addr,
-                                &sphb->iospace);
+                                &sphb->iowindow);
 
     /* As MSI/MSIX interrupts trigger by writing at MSI/MSIX vectors,
      * we need to allocate some memory to catch those writes coming
