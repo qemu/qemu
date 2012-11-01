@@ -501,8 +501,10 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
 #include "cpu-all.h"
 #include "exec-all.h"
 
-static inline int cpu_has_work(CPUXtensaState *env)
+static inline int cpu_has_work(CPUState *cpu)
 {
+    CPUXtensaState *env = &XTENSA_CPU(cpu)->env;
+
     return env->pending_irq_level;
 }
 

@@ -125,12 +125,13 @@ void xtensa_rearm_ccompare_timer(CPUXtensaState *env)
 
 static void xtensa_ccompare_cb(void *opaque)
 {
-    CPUXtensaState *env = opaque;
+    XtensaCPU *cpu = opaque;
+    CPUXtensaState *env = &cpu->env;
 
     if (env->halted) {
         env->halt_clock = qemu_get_clock_ns(vm_clock);
         xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
-        if (!cpu_has_work(env)) {
+        if (!cpu_has_work(CPU(cpu))) {
             env->sregs[CCOUNT] = env->wake_ccount + 1;
             xtensa_rearm_ccompare_timer(env);
         }
@@ -139,12 +140,14 @@ static void xtensa_ccompare_cb(void *opaque)
 
 void xtensa_irq_init(CPUXtensaState *env)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
+
     env->irq_inputs = (void **)qemu_allocate_irqs(
             xtensa_set_irq, env, env->config->ninterrupt);
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT) &&
             env->config->nccompare > 0) {
         env->ccompare_timer =
-            qemu_new_timer_ns(vm_clock, &xtensa_ccompare_cb, env);
+            qemu_new_timer_ns(vm_clock, &xtensa_ccompare_cb, cpu);
     }
 }
 

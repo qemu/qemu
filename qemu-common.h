@@ -324,9 +324,7 @@ void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
 
 /* Unblock cpu */
-void qemu_cpu_kick(void *env);
 void qemu_cpu_kick_self(void);
-int qemu_cpu_is_self(void *env);
 
 /* work queue */
 struct qemu_work_item {

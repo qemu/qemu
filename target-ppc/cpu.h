@@ -2222,10 +2222,12 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
     return msr & (1ULL << MSR_SF);
 }
 
-extern void (*cpu_ppc_hypercall)(CPUPPCState *);
+extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
-static inline bool cpu_has_work(CPUPPCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+
     return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
 }
 

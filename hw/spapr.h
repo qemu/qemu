@@ -286,12 +286,12 @@ extern sPAPREnvironment *spapr;
     do { } while (0)
 #endif
 
-typedef target_ulong (*spapr_hcall_fn)(CPUPPCState *env, sPAPREnvironment *spapr,
+typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                                        target_ulong opcode,
                                        target_ulong *args);
 
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
-target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
+target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args);
 
 int spapr_allocate_irq(int hint, bool lsi);

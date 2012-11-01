@@ -229,8 +229,9 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     return -ENOSYS;
 }
 
-static void kvm_mce_inject(CPUX86State *env, hwaddr paddr, int code)
+static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
+    CPUX86State *env = &cpu->env;
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
                       MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
     uint64_t mcg_status = MCG_STATUS_MCIP;
@@ -242,7 +243,7 @@ static void kvm_mce_inject(CPUX86State *env, hwaddr paddr, int code)
         status |= 0xc0;
         mcg_status |= MCG_STATUS_RIPV;
     }
-    cpu_x86_inject_mce(NULL, env, 9, status, mcg_status, paddr,
+    cpu_x86_inject_mce(NULL, cpu, 9, status, mcg_status, paddr,
                        (MCM_ADDR_PHYS << 6) | 0xc,
                        cpu_x86_support_mca_broadcast(env) ?
                        MCE_INJECT_BROADCAST : 0);
@@ -256,6 +257,7 @@ static void hardware_memory_error(void)
 
 int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     ram_addr_t ram_addr;
     hwaddr paddr;
 
@@ -273,7 +275,7 @@ int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
             }
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(env, paddr, code);
+        kvm_mce_inject(cpu, paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
@@ -301,7 +303,7 @@ int kvm_arch_on_sigbus(int code, void *addr)
             return 0;
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(first_cpu, paddr, code);
+        kvm_mce_inject(x86_env_get_cpu(first_cpu), paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
@@ -1365,8 +1367,9 @@ static int kvm_put_mp_state(CPUX86State *env)
     return kvm_vcpu_ioctl(env, KVM_SET_MP_STATE, &mp_state);
 }
 
-static int kvm_get_mp_state(CPUX86State *env)
+static int kvm_get_mp_state(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     struct kvm_mp_state mp_state;
     int ret;
 
@@ -1552,9 +1555,10 @@ static int kvm_get_debugregs(CPUX86State *env)
 
 int kvm_arch_put_registers(CPUX86State *env, int level)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int ret;
 
-    assert(cpu_is_stopped(env) || qemu_cpu_is_self(env));
+    assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
 
     ret = kvm_getput_regs(env, 1);
     if (ret < 0) {
@@ -1609,9 +1613,10 @@ int kvm_arch_put_registers(CPUX86State *env, int level)
 
 int kvm_arch_get_registers(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int ret;
 
-    assert(cpu_is_stopped(env) || qemu_cpu_is_self(env));
+    assert(cpu_is_stopped(CPU(cpu)) || qemu_cpu_is_self(CPU(cpu)));
 
     ret = kvm_getput_regs(env, 0);
     if (ret < 0) {
@@ -1633,7 +1638,7 @@ int kvm_arch_get_registers(CPUX86State *env)
     if (ret < 0) {
         return ret;
     }
-    ret = kvm_get_mp_state(env);
+    ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1781,8 +1786,10 @@ int kvm_arch_process_async_events(CPUX86State *env)
     return env->halted;
 }
 
-static int kvm_handle_halt(CPUX86State *env)
+static int kvm_handle_halt(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
+
     if (!((env->interrupt_request & CPU_INTERRUPT_HARD) &&
           (env->eflags & IF_MASK)) &&
         !(env->interrupt_request & CPU_INTERRUPT_NMI)) {
@@ -1996,13 +2003,14 @@ static bool host_supports_vmx(void)
 
 int kvm_arch_handle_exit(CPUX86State *env, struct kvm_run *run)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     uint64_t code;
     int ret;
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
         DPRINTF("handle_hlt\n");
-        ret = kvm_handle_halt(env);
+        ret = kvm_handle_halt(cpu);
         break;
     case KVM_EXIT_SET_TPR:
         ret = 0;
