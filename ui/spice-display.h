@@ -20,8 +20,7 @@
 #include <spice/qxl_dev.h>
 
 #include "qemu-thread.h"
-#include "console.h"
-#include "pflib.h"
+#include "qemu-pixman.h"
 #include "sysemu.h"
 
 #define NUM_MEMSLOTS 8
@@ -72,13 +71,13 @@ typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
 struct SimpleSpiceDisplay {
     DisplayState *ds;
-    uint8_t *ds_mirror;
     void *buf;
     int bufsize;
     QXLWorker *worker;
     QXLInstance qxl;
     uint32_t unique;
-    QemuPfConv *conv;
+    pixman_image_t *surface;
+    pixman_image_t *mirror;
     int32_t num_surfaces;
 
     QXLRect dirty;
