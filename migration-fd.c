@@ -48,29 +48,26 @@ static int fd_close(MigrationState *s)
     int ret;
 
     DPRINTF("fd_close\n");
-    if (s->fd != -1) {
-        ret = fstat(s->fd, &st);
-        if (ret == 0 && S_ISREG(st.st_mode)) {
-            /*
-             * If the file handle is a regular file make sure the
-             * data is flushed to disk before signaling success.
-             */
-            ret = fsync(s->fd);
-            if (ret != 0) {
-                ret = -errno;
-                perror("migration-fd: fsync");
-                return ret;
-            }
-        }
-        ret = close(s->fd);
-        s->fd = -1;
+    ret = fstat(s->fd, &st);
+    if (ret == 0 && S_ISREG(st.st_mode)) {
+        /*
+         * If the file handle is a regular file make sure the
+         * data is flushed to disk before signaling success.
+         */
+        ret = fsync(s->fd);
         if (ret != 0) {
             ret = -errno;
-            perror("migration-fd: close");
+            perror("migration-fd: fsync");
             return ret;
         }
     }
-    return 0;
+    ret = close(s->fd);
+    s->fd = -1;
+    if (ret != 0) {
+        ret = -errno;
+        perror("migration-fd: close");
+    }
+    return ret;
 }
 
 void fd_start_outgoing_migration(MigrationState *s, const char *fdname, Error **errp)
@@ -92,9 +89,8 @@ static void fd_accept_incoming_migration(void *opaque)
 {
     QEMUFile *f = opaque;
 
+    qemu_set_fd_handler2(qemu_get_fd(f), NULL, NULL, NULL, NULL);
     process_incoming_migration(f);
-    qemu_set_fd_handler2(qemu_stdio_fd(f), NULL, NULL, NULL, NULL);
-    qemu_fclose(f);
 }
 
 void fd_start_incoming_migration(const char *infd, Error **errp)
