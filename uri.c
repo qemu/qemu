@@ -432,7 +432,7 @@ rfc3986_parse_host(URI *uri, const char **str)
 
     host = cur;
     /*
-     * IPv6 and future adressing scheme are enclosed between brackets
+     * IPv6 and future addressing scheme are enclosed between brackets
      */
     if (*cur == '[') {
         cur++;
@@ -1917,7 +1917,7 @@ done:
  *     http://site1.com/docs/pic1.gif   http://site1.com/docs/pic1.gif
  *
  *
- * Note: if the URI reference is really wierd or complicated, it may be
+ * Note: if the URI reference is really weird or complicated, it may be
  *       worthwhile to first convert it into a "nice" one by calling
  *       uri_resolve (using 'base') before calling this routine,
  *       since this routine (for reasonable efficiency) assumes URI has
