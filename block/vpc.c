@@ -26,6 +26,9 @@
 #include "block_int.h"
 #include "module.h"
 #include "migration.h"
+#if defined(CONFIG_UUID)
+#include <uuid/uuid.h>
+#endif
 
 /**************************************************************/
 
@@ -739,7 +742,9 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
 
     footer->type = be32_to_cpu(disk_type);
 
-    /* TODO uuid is missing */
+#if defined(CONFIG_UUID)
+    uuid_generate(footer->uuid);
+#endif
 
     footer->checksum = be32_to_cpu(vpc_checksum(buf, HEADER_SIZE));
 
