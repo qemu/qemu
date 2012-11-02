@@ -497,10 +497,21 @@ static void nv2a_update_irq(NV2AState *d)
     /* PFIFO */
     if (d->pfifo.pending_interrupts & d->pfifo.enabled_interrupts) {
         d->pmc.pending_interrupts |= NV_PMC_INTR_0_PFIFO;
+    } else {
+        d->pmc.pending_interrupts &= ~NV_PMC_INTR_0_PFIFO;
+    }
+
+    /* PCRTC */
+    if (d->pcrtc.pending_interrupts & d->pcrtc.enabled_interrupts) {
+        d->pmc.pending_interrupts |= NV_PMC_INTR_0_PCRTC;
+    } else {
+        d->pmc.pending_interrupts &= ~NV_PMC_INTR_0_PCRTC;
     }
 
     if (d->pmc.pending_interrupts && d->pmc.enabled_interrupts) {
         qemu_irq_raise(d->irq);
+    } else {
+        qemu_irq_lower(d->irq);
     }
 }
 
@@ -838,9 +849,6 @@ static uint64_t nv2a_pmc_read(void *opaque,
     case NV_PMC_INTR_0:
         /* Shows which functional units have pending IRQ */
         r = d->pmc.pending_interrupts;
-
-        qemu_irq_lower(d->irq);
-
         break;
     case NV_PMC_INTR_EN_0:
         /* Selects which functional units can cause IRQs */
@@ -864,9 +872,11 @@ static void nv2a_pmc_write(void *opaque, hwaddr addr,
     case NV_PMC_INTR_0:
         /* the bits of the interrupts to clear are wrtten */
         d->pmc.pending_interrupts &= ~val;
+        nv2a_update_irq(d);
         break;
     case NV_PMC_INTR_EN_0:
         d->pmc.enabled_interrupts = val;
+        nv2a_update_irq(d);
         break;
     default:
         break;
@@ -1030,9 +1040,11 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PFIFO_INTR_0:
         d->pfifo.pending_interrupts &= ~val;
+        nv2a_update_irq(d);
         break;
     case NV_PFIFO_INTR_EN_0:
         d->pfifo.enabled_interrupts = val;
+        nv2a_update_irq(d);
         break;
     case NV_PFIFO_RAMHT:
         d->pfifo.ramht_address =
@@ -1206,9 +1218,11 @@ static void nv2a_ptimer_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PTIMER_INTR_0:
         d->ptimer.pending_interrupts &= ~val;
+        nv2a_update_irq(d);
         break;
     case NV_PTIMER_INTR_EN_0:
         d->ptimer.enabled_interrupts = val;
+        nv2a_update_irq(d);
         break;
     case NV_PTIMER_DENOMINATOR:
         d->ptimer.denominator = val;
@@ -1436,9 +1450,11 @@ static void nv2a_pcrtc_write(void *opaque, hwaddr addr,
     switch (addr) {
     case NV_PCRTC_INTR_0:
         d->pcrtc.pending_interrupts &= ~val;
+        nv2a_update_irq(d);
         break;
     case NV_PCRTC_INTR_EN_0:
         d->pcrtc.enabled_interrupts = val;
+        nv2a_update_irq(d);
         break;
     case NV_PCRTC_START:
         val &= 0x03FFFFFF;
@@ -1864,6 +1880,37 @@ static int nv2a_get_bpp(VGACommonState *s)
     return (s->cr[0x28] & 3) * 8;
 }
 
+
+/* Graphic console methods. Need to wrap all of these since
+ * graphic_console_init takes a single opaque, and we
+ * need access to the nv2a state to set the vblank interrupt */
+static void nv2a_vga_update(void *opaque)
+{
+    NV2AState *d = NV2A_DEVICE(opaque);
+    d->vga.update(&d->vga);
+
+    d->pcrtc.pending_interrupts |= NV_PCRTC_INTR_0_VBLANK;
+    nv2a_update_irq(d);
+}
+static void nv2a_vga_invalidate(void *opaque)
+{
+    NV2AState *d = NV2A_DEVICE(opaque);
+    d->vga.invalidate(&d->vga);
+}
+static void nv2a_vga_screen_dump(void *opaque,
+                                 const char *filename,
+                                 bool cswitch,
+                                 Error **errp)
+{
+    NV2AState *d = NV2A_DEVICE(opaque);
+    d->vga.screen_dump(&d->vga, filename, cswitch, errp);
+}
+static void nv2a_vga_text_update(void *opaque, console_ch_t *chardata)
+{
+    NV2AState *d = NV2A_DEVICE(opaque);
+    d->vga.text_update(&d->vga, chardata);
+}
+
 static int nv2a_initfn(PCIDevice *dev)
 {
     int i;
@@ -1889,9 +1936,11 @@ static int nv2a_initfn(PCIDevice *dev)
     vga_common_init(vga);
     vga->get_bpp = nv2a_get_bpp;
 
-    vga->ds = graphic_console_init(vga->update, vga->invalidate,
-                                   vga->screen_dump, vga->text_update,
-                                   vga);
+    vga->ds = graphic_console_init(nv2a_vga_update,
+                                   nv2a_vga_invalidate,
+                                   nv2a_vga_screen_dump,
+                                   nv2a_vga_text_update,
+                                   d);
 
 
     /* mmio */
