@@ -50,8 +50,15 @@
 #   define __printf__ __gnu_printf__
 #  endif
 # endif
-# define QEMU_WEAK_ALIAS(newname, oldname) \
+# if defined(__APPLE__)
+#  define QEMU_WEAK_ALIAS(newname, oldname) \
+        static typeof(oldname) weak_##newname __attribute__((unused, weakref(#oldname)))
+#  define QEMU_WEAK_REF(newname, oldname) (weak_##newname ? weak_##newname : oldname)
+# else
+#  define QEMU_WEAK_ALIAS(newname, oldname) \
         typeof(oldname) newname __attribute__((weak, alias (#oldname)))
+#  define QEMU_WEAK_REF(newname, oldname) newname
+# endif
 #else
 #define GCC_ATTR /**/
 #define GCC_FMT_ATTR(n, m)

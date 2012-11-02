@@ -32,6 +32,13 @@
 #include "trace.h"
 #include "qemu_socket.h"
 
+static void default_qemu_fd_register(int fd)
+{
+}
+QEMU_WEAK_ALIAS(qemu_fd_register, default_qemu_fd_register);
+#define qemu_fd_register \
+    QEMU_WEAK_REF(qemu_fd_register, default_qemu_fd_register)
+
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
@@ -150,8 +157,3 @@ int qemu_get_thread_id(void)
 {
     return GetCurrentThreadId();
 }
-
-static void default_qemu_fd_register(int fd)
-{
-}
-QEMU_WEAK_ALIAS(qemu_fd_register, default_qemu_fd_register);
