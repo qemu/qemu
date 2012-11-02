@@ -128,7 +128,6 @@ int qemu_init_main_loop(void)
         exit(1);
     }
 
-    qemu_mutex_lock_iothread();
     ret = qemu_signal_init();
     if (ret) {
         return ret;

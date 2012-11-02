@@ -3477,7 +3477,6 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
-    qemu_init_cpu_loop();
     if (qemu_init_main_loop()) {
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
@@ -3676,6 +3675,9 @@ int main(int argc, char **argv, char **envp)
     }
 
     os_set_line_buffering();
+
+    qemu_init_cpu_loop();
+    qemu_mutex_lock_iothread();
 
 #ifdef CONFIG_SPICE
     /* spice needs the timers to be initialized by this point */
