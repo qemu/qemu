@@ -422,7 +422,7 @@ static void s3c24xx_update_display(void *opaque)
 
     s->srcpnd |= (1 << 1);			/* INT_FrSyn */
     s3c24xx_lcd_update(s);
-    dpy_update(s->ds, 0, miny, s->width, maxy);
+    dpy_gfx_update(s->ds, 0, miny, s->width, maxy);
 }
 
 static void s3c24xx_invalidate_display(void *opaque)

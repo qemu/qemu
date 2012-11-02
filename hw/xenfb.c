@@ -648,7 +648,7 @@ static void xenfb_guest_copy(struct XenFB *xenfb, int x, int y, int w, int h)
         xen_be_printf(&xenfb->c.xendev, 0, "%s: oops: convert %d -> %d bpp?\n",
                       __FUNCTION__, xenfb->depth, bpp);
 
-    dpy_update(xenfb->c.ds, x, y, w, h);
+    dpy_gfx_update(xenfb->c.ds, x, y, w, h);
 }
 
 #ifdef XENFB_TYPE_REFRESH_PERIOD
@@ -717,7 +717,7 @@ static void xenfb_update(void *opaque)
 	if (xenfb_queue_full(xenfb))
 	    return;
 
-        for (l = xenfb->c.ds->listeners; l != NULL; l = l->next) {
+        QLIST_FOREACH(l, &xenfb->c.ds->listeners, next) {
             if (l->idle)
                 continue;
             idle = 0;

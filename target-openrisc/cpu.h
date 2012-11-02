@@ -437,8 +437,10 @@ static inline int cpu_mmu_index(CPUOpenRISCState *env)
 }
 
 #define CPU_INTERRUPT_TIMER   CPU_INTERRUPT_TGT_INT_0
-static inline bool cpu_has_work(CPUOpenRISCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUOpenRISCState *env = &OPENRISC_CPU(cpu)->env;
+
     return env->interrupt_request & (CPU_INTERRUPT_HARD |
                                      CPU_INTERRUPT_TIMER);
 }

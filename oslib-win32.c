@@ -150,3 +150,8 @@ int qemu_get_thread_id(void)
 {
     return GetCurrentThreadId();
 }
+
+static void default_qemu_fd_register(int fd)
+{
+}
+QEMU_WEAK_ALIAS(qemu_fd_register, default_qemu_fd_register);

@@ -475,11 +475,13 @@ static void vapic_enable_tpr_reporting(bool enable)
     VAPICEnableTPRReporting info = {
         .enable = enable,
     };
+    X86CPU *cpu;
     CPUX86State *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = x86_env_get_cpu(env);
         info.apic = env->apic_state;
-        run_on_cpu(env, vapic_do_enable_tpr_reporting, &info);
+        run_on_cpu(CPU(cpu), vapic_do_enable_tpr_reporting, &info);
     }
 }
 
@@ -717,7 +719,7 @@ static int vapic_post_load(void *opaque, int version_id)
     }
     if (s->state == VAPIC_ACTIVE) {
         if (smp_cpus == 1) {
-            run_on_cpu(first_cpu, do_vapic_enable, s);
+            run_on_cpu(ENV_GET_CPU(first_cpu), do_vapic_enable, s);
         } else {
             zero = g_malloc0(s->rom_state.vapic_size);
             cpu_physical_memory_rw(s->vapic_paddr, zero,

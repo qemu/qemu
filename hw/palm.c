@@ -273,7 +273,7 @@ static void palmte_init(QEMUMachineInitArgs *args)
        will set the size once configured, so this just sets an initial
        size until the guest activates the display.  */
     ds->surface = qemu_resize_displaysurface(ds, 320, 320);
-    dpy_resize(ds);
+    dpy_gfx_resize(ds);
 }
 
 static QEMUMachine palmte_machine = {

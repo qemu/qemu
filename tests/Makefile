@@ -36,7 +36,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o
 
-test-qapi-obj-y =  $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y)
+test-qapi-obj-y =  $(qobject-obj-y) $(qapi-obj-y) qemu-tool.o
 test-qapi-obj-y += tests/test-qapi-visit.o tests/test-qapi-types.o
 test-qapi-obj-y += module.o
 
@@ -47,8 +47,8 @@ tests/check-qstring$(EXESUF): tests/check-qstring.o qstring.o
 tests/check-qdict$(EXESUF): tests/check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qlist.o
 tests/check-qlist$(EXESUF): tests/check-qlist.o qlist.o qint.o
 tests/check-qfloat$(EXESUF): tests/check-qfloat.o qfloat.o
-tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) $(tools-obj-y)
-tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(coroutine-obj-y) $(tools-obj-y)
+tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) qemu-tool.o
+tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) iov.o
 tests/test-iov$(EXESUF): tests/test-iov.o iov.o
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
@@ -81,7 +81,7 @@ TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
 check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 
-qtest-obj-y = tests/libqtest.o $(oslib-obj-y) $(tools-obj-y)
+qtest-obj-y = tests/libqtest.o $(oslib-obj-y)
 $(check-qtest-y): $(qtest-obj-y)
 
 .PHONY: check-help

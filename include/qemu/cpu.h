@@ -54,6 +54,9 @@ typedef struct CPUClass {
 
 /**
  * CPUState:
+ * @created: Indicates whether the CPU thread has been successfully created.
+ * @stop: Indicates a pending stop request.
+ * @stopped: Indicates the CPU has been artificially stopped.
  *
  * State of one CPU core or thread.
  */
@@ -66,7 +69,13 @@ struct CPUState {
 #ifdef _WIN32
     HANDLE hThread;
 #endif
+    int thread_id;
+    struct QemuCond *halt_cond;
+    struct qemu_work_item *queued_work_first, *queued_work_last;
     bool thread_kicked;
+    bool created;
+    bool stop;
+    bool stopped;
 
     /* TODO Move common fields from CPUArchState here. */
 };
@@ -77,6 +86,55 @@ struct CPUState {
  * @cpu: The CPU whose state is to be reset.
  */
 void cpu_reset(CPUState *cpu);
+
+/**
+ * qemu_cpu_has_work:
+ * @cpu: The vCPU to check.
+ *
+ * Checks whether the CPU has work to do.
+ *
+ * Returns: %true if the CPU has work, %false otherwise.
+ */
+bool qemu_cpu_has_work(CPUState *cpu);
+
+/**
+ * qemu_cpu_is_self:
+ * @cpu: The vCPU to check against.
+ *
+ * Checks whether the caller is executing on the vCPU thread.
+ *
+ * Returns: %true if called from @cpu's thread, %false otherwise.
+ */
+bool qemu_cpu_is_self(CPUState *cpu);
+
+/**
+ * qemu_cpu_kick:
+ * @cpu: The vCPU to kick.
+ *
+ * Kicks @cpu's thread.
+ */
+void qemu_cpu_kick(CPUState *cpu);
+
+/**
+ * cpu_is_stopped:
+ * @cpu: The CPU to check.
+ *
+ * Checks whether the CPU is stopped.
+ *
+ * Returns: %true if run state is not running or if artificially stopped;
+ * %false otherwise.
+ */
+bool cpu_is_stopped(CPUState *cpu);
+
+/**
+ * run_on_cpu:
+ * @cpu: The vCPU to run on.
+ * @func: The function to be executed.
+ * @data: Data to pass to the function.
+ *
+ * Schedules the function @func for execution on the vCPU @cpu.
+ */
+void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
 
 
 #endif

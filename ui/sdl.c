@@ -55,7 +55,6 @@ static int absolute_enabled = 0;
 static int guest_cursor = 0;
 static int guest_x, guest_y;
 static SDL_Cursor *guest_sprite = NULL;
-static uint8_t allocator;
 static SDL_PixelFormat host_format;
 static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
@@ -117,108 +116,13 @@ static void do_sdl_resize(int width, int height, int bpp)
 
 static void sdl_resize(DisplayState *ds)
 {
-    if  (!allocator) {
-        if (!scaling_active)
-            do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
-        else if (real_screen->format->BitsPerPixel != ds_get_bits_per_pixel(ds))
-            do_sdl_resize(real_screen->w, real_screen->h, ds_get_bits_per_pixel(ds));
-        sdl_setdata(ds);
-    } else {
-        if (guest_screen != NULL) {
-            SDL_FreeSurface(guest_screen);
-            guest_screen = NULL;
-        }
+    if (!scaling_active) {
+        do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
+    } else if (real_screen->format->BitsPerPixel != ds_get_bits_per_pixel(ds)) {
+        do_sdl_resize(real_screen->w, real_screen->h,
+                      ds_get_bits_per_pixel(ds));
     }
-}
-
-static PixelFormat sdl_to_qemu_pixelformat(SDL_PixelFormat *sdl_pf)
-{
-    PixelFormat qemu_pf;
-
-    memset(&qemu_pf, 0x00, sizeof(PixelFormat));
-
-    qemu_pf.bits_per_pixel = sdl_pf->BitsPerPixel;
-    qemu_pf.bytes_per_pixel = sdl_pf->BytesPerPixel;
-    qemu_pf.depth = (qemu_pf.bits_per_pixel) == 32 ? 24 : (qemu_pf.bits_per_pixel);
-
-    qemu_pf.rmask = sdl_pf->Rmask;
-    qemu_pf.gmask = sdl_pf->Gmask;
-    qemu_pf.bmask = sdl_pf->Bmask;
-    qemu_pf.amask = sdl_pf->Amask;
-
-    qemu_pf.rshift = sdl_pf->Rshift;
-    qemu_pf.gshift = sdl_pf->Gshift;
-    qemu_pf.bshift = sdl_pf->Bshift;
-    qemu_pf.ashift = sdl_pf->Ashift;
-
-    qemu_pf.rbits = 8 - sdl_pf->Rloss;
-    qemu_pf.gbits = 8 - sdl_pf->Gloss;
-    qemu_pf.bbits = 8 - sdl_pf->Bloss;
-    qemu_pf.abits = 8 - sdl_pf->Aloss;
-
-    qemu_pf.rmax = ((1 << qemu_pf.rbits) - 1);
-    qemu_pf.gmax = ((1 << qemu_pf.gbits) - 1);
-    qemu_pf.bmax = ((1 << qemu_pf.bbits) - 1);
-    qemu_pf.amax = ((1 << qemu_pf.abits) - 1);
-
-    return qemu_pf;
-}
-
-static DisplaySurface* sdl_create_displaysurface(int width, int height)
-{
-    DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
-
-    surface->width = width;
-    surface->height = height;
-
-    if (scaling_active) {
-        int linesize;
-        PixelFormat pf;
-        if (host_format.BytesPerPixel != 2 && host_format.BytesPerPixel != 4) {
-            linesize = width * 4;
-            pf = qemu_default_pixelformat(32);
-        } else {
-            linesize = width * host_format.BytesPerPixel;
-            pf = sdl_to_qemu_pixelformat(&host_format);
-        }
-        qemu_alloc_display(surface, width, height, linesize, pf, 0);
-        return surface;
-    }
-
-    if (host_format.BitsPerPixel == 16)
-        do_sdl_resize(width, height, 16);
-    else
-        do_sdl_resize(width, height, 32);
-
-    surface->pf = sdl_to_qemu_pixelformat(real_screen->format);
-    surface->linesize = real_screen->pitch;
-    surface->data = real_screen->pixels;
-
-#ifdef HOST_WORDS_BIGENDIAN
-    surface->flags = QEMU_REALPIXELS_FLAG | QEMU_BIG_ENDIAN_FLAG;
-#else
-    surface->flags = QEMU_REALPIXELS_FLAG;
-#endif
-    allocator = 1;
-
-    return surface;
-}
-
-static void sdl_free_displaysurface(DisplaySurface *surface)
-{
-    allocator = 0;
-    if (surface == NULL)
-        return;
-
-    if (surface->flags & QEMU_ALLOCATED_FLAG)
-        g_free(surface->data);
-    g_free(surface);
-}
-
-static DisplaySurface* sdl_resize_displaysurface(DisplaySurface *surface, int width, int height)
-{
-    sdl_free_displaysurface(surface);
-    return sdl_create_displaysurface(width, height);
+    sdl_setdata(ds);
 }
 
 /* generic keyboard conversion */
@@ -553,7 +457,7 @@ static void sdl_scale(DisplayState *ds, int width, int height)
     if (!is_buffer_shared(ds->surface)) {
         ds->surface = qemu_resize_displaysurface(ds, ds_get_width(ds),
                                                  ds_get_height(ds));
-        dpy_resize(ds);
+        dpy_gfx_resize(ds);
     }
 }
 
@@ -899,13 +803,7 @@ static void sdl_refresh(DisplayState *ds)
     }
 }
 
-static void sdl_fill(DisplayState *ds, int x, int y, int w, int h, uint32_t c)
-{
-    SDL_Rect dst = { x, y, w, h };
-    SDL_FillRect(real_screen, &dst, c);
-}
-
-static void sdl_mouse_warp(int x, int y, int on)
+static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
 {
     if (on) {
         if (!guest_cursor)
@@ -921,7 +819,7 @@ static void sdl_mouse_warp(int x, int y, int on)
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(QEMUCursor *c)
+static void sdl_mouse_define(DisplayState *ds, QEMUCursor *c)
 {
     uint8_t *image, *mask;
     int bpl;
@@ -955,7 +853,6 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 {
     int flags;
     uint8_t data = 0;
-    DisplayAllocator *da;
     const SDL_VideoInfo *vi;
     char *filename;
 
@@ -1020,22 +917,13 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
 
     dcl = g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_update = sdl_update;
-    dcl->dpy_resize = sdl_resize;
+    dcl->dpy_gfx_update = sdl_update;
+    dcl->dpy_gfx_resize = sdl_resize;
     dcl->dpy_refresh = sdl_refresh;
-    dcl->dpy_setdata = sdl_setdata;
-    dcl->dpy_fill = sdl_fill;
-    ds->mouse_set = sdl_mouse_warp;
-    ds->cursor_define = sdl_mouse_define;
+    dcl->dpy_gfx_setdata = sdl_setdata;
+    dcl->dpy_mouse_set = sdl_mouse_warp;
+    dcl->dpy_cursor_define = sdl_mouse_define;
     register_displaychangelistener(ds, dcl);
-
-    da = g_malloc0(sizeof(DisplayAllocator));
-    da->create_displaysurface = sdl_create_displaysurface;
-    da->resize_displaysurface = sdl_resize_displaysurface;
-    da->free_displaysurface = sdl_free_displaysurface;
-    if (register_displayallocator(ds, da) == da) {
-        dpy_resize(ds);
-    }
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&mouse_mode_notifier);

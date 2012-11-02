@@ -526,7 +526,7 @@ static void lcd_refresh(void *opaque)
                   ds_get_bits_per_pixel(s->ds));
     }
 
-    dpy_update(s->ds, 0, 0, 128*3, 64*3);
+    dpy_gfx_update(s->ds, 0, 0, 128*3, 64*3);
 }
 
 static void lcd_invalidate(void *opaque)

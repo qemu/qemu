@@ -134,7 +134,7 @@ static void vgafb_update_display(void *opaque)
                                &first, &last);
 
     if (first >= 0) {
-        dpy_update(s->ds, 0, first, s->regs[R_HRES], last - first + 1);
+        dpy_gfx_update(s->ds, 0, first, s->regs[R_HRES], last - first + 1);
     }
     s->invalidate = 0;
 }

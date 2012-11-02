@@ -438,8 +438,6 @@ void cpu_reset_interrupt(CPUArchState *env, int mask);
 
 void cpu_exit(CPUArchState *s);
 
-bool qemu_cpu_has_work(CPUArchState *env);
-
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01
 #define BP_MEM_WRITE          0x02
@@ -466,8 +464,6 @@ void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 #define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
 
 void cpu_single_step(CPUArchState *env, int enabled);
-int cpu_is_stopped(CPUArchState *env);
-void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 
 #if !defined(CONFIG_USER_ONLY)
 

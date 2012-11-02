@@ -86,6 +86,7 @@
 #include "memory.h"
 #include "qmp-commands.h"
 #include "trace.h"
+#include "bitops.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -1130,6 +1131,46 @@ const VMStateInfo vmstate_info_unused_buffer = {
     .name = "unused_buffer",
     .get  = get_unused_buffer,
     .put  = put_unused_buffer,
+};
+
+/* bitmaps (as defined by bitmap.h). Note that size here is the size
+ * of the bitmap in bits. The on-the-wire format of a bitmap is 64
+ * bit words with the bits in big endian order. The in-memory format
+ * is an array of 'unsigned long', which may be either 32 or 64 bits.
+ */
+/* This is the number of 64 bit words sent over the wire */
+#define BITS_TO_U64S(nr) DIV_ROUND_UP(nr, 64)
+static int get_bitmap(QEMUFile *f, void *pv, size_t size)
+{
+    unsigned long *bmp = pv;
+    int i, idx = 0;
+    for (i = 0; i < BITS_TO_U64S(size); i++) {
+        uint64_t w = qemu_get_be64(f);
+        bmp[idx++] = w;
+        if (sizeof(unsigned long) == 4 && idx < BITS_TO_LONGS(size)) {
+            bmp[idx++] = w >> 32;
+        }
+    }
+    return 0;
+}
+
+static void put_bitmap(QEMUFile *f, void *pv, size_t size)
+{
+    unsigned long *bmp = pv;
+    int i, idx = 0;
+    for (i = 0; i < BITS_TO_U64S(size); i++) {
+        uint64_t w = bmp[idx++];
+        if (sizeof(unsigned long) == 4 && idx < BITS_TO_LONGS(size)) {
+            w |= ((uint64_t)bmp[idx++]) << 32;
+        }
+        qemu_put_be64(f, w);
+    }
+}
+
+const VMStateInfo vmstate_info_bitmap = {
+    .name = "bitmap",
+    .get = get_bitmap,
+    .put = put_bitmap,
 };
 
 typedef struct CompatEntry {

@@ -321,14 +321,14 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     for (; line > 0; line --, src += bypl, dst += bypl)
         memcpy(dst, src, width);
 
-    dpy_update(s->vga.ds, x, y, w, h);
+    dpy_gfx_update(s->vga.ds, x, y, w, h);
 }
 
 static inline void vmsvga_update_screen(struct vmsvga_state_s *s)
 {
     memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr,
            s->bypp * s->width * s->height);
-    dpy_update(s->vga.ds, 0, 0, s->width, s->height);
+    dpy_gfx_update(s->vga.ds, 0, 0, s->width, s->height);
 }
 
 static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
@@ -478,8 +478,7 @@ static inline void vmsvga_cursor_define(struct vmsvga_state_s *s,
         qc = cursor_builtin_left_ptr();
     }
 
-    if (s->vga.ds->cursor_define)
-        s->vga.ds->cursor_define(qc);
+    dpy_cursor_define(s->vga.ds, qc);
     cursor_put(qc);
 }
 #endif
@@ -754,9 +753,10 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         caps |= SVGA_CAP_RECT_FILL;
 #endif
 #ifdef HW_MOUSE_ACCEL
-        if (s->vga.ds->mouse_set)
+        if (dpy_cursor_define_supported(s->vga.ds)) {
             caps |= SVGA_CAP_CURSOR | SVGA_CAP_CURSOR_BYPASS_2 |
                     SVGA_CAP_CURSOR_BYPASS;
+        }
 #endif
         return caps;
 
@@ -903,8 +903,9 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         s->cursor.on |= (value == SVGA_CURSOR_ON_SHOW);
         s->cursor.on &= (value != SVGA_CURSOR_ON_HIDE);
 #ifdef HW_MOUSE_ACCEL
-        if (s->vga.ds->mouse_set && value <= SVGA_CURSOR_ON_SHOW)
-            s->vga.ds->mouse_set(s->cursor.x, s->cursor.y, s->cursor.on);
+        if (value <= SVGA_CURSOR_ON_SHOW) {
+            dpy_mouse_set(s->vga.ds, s->cursor.x, s->cursor.y, s->cursor.on);
+        }
 #endif
         break;
 

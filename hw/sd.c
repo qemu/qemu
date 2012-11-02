@@ -55,24 +55,28 @@ typedef enum {
     sd_illegal = -2,
 } sd_rsp_type_t;
 
+enum SDCardModes {
+    sd_inactive,
+    sd_card_identification_mode,
+    sd_data_transfer_mode,
+};
+
+enum SDCardStates {
+    sd_inactive_state = -1,
+    sd_idle_state = 0,
+    sd_ready_state,
+    sd_identification_state,
+    sd_standby_state,
+    sd_transfer_state,
+    sd_sendingdata_state,
+    sd_receivingdata_state,
+    sd_programming_state,
+    sd_disconnect_state,
+};
+
 struct SDState {
-    enum {
-        sd_inactive,
-        sd_card_identification_mode,
-        sd_data_transfer_mode,
-    } mode;
-    enum {
-        sd_inactive_state = -1,
-        sd_idle_state = 0,
-        sd_ready_state,
-        sd_identification_state,
-        sd_standby_state,
-        sd_transfer_state,
-        sd_sendingdata_state,
-        sd_receivingdata_state,
-        sd_programming_state,
-        sd_disconnect_state,
-    } state;
+    uint32_t mode;    /* current card mode, one of SDCardModes */
+    int32_t state;    /* current card state, one of SDCardStates */
     uint32_t ocr;
     uint8_t scr[8];
     uint8_t cid[16];
@@ -83,21 +87,22 @@ struct SDState {
     uint32_t vhs;
     bool wp_switch;
     unsigned long *wp_groups;
+    int32_t wpgrps_size;
     uint64_t size;
-    int blk_len;
+    uint32_t blk_len;
     uint32_t erase_start;
     uint32_t erase_end;
     uint8_t pwd[16];
-    int pwd_len;
-    int function_group[6];
+    uint32_t pwd_len;
+    uint8_t function_group[6];
 
     bool spi;
-    int current_cmd;
+    uint8_t current_cmd;
     /* True if we will handle the next command as an ACMD. Note that this does
      * *not* track the APP_CMD status bit!
      */
     bool expecting_acmd;
-    int blk_written;
+    uint32_t blk_written;
     uint64_t data_start;
     uint32_t data_offset;
     uint8_t data[512];
@@ -421,8 +426,9 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     if (sd->wp_groups)
         g_free(sd->wp_groups);
     sd->wp_switch = bdrv ? bdrv_is_read_only(bdrv) : false;
-    sd->wp_groups = bitmap_new(sect);
-    memset(sd->function_group, 0, sizeof(int) * 6);
+    sd->wpgrps_size = sect;
+    sd->wp_groups = bitmap_new(sd->wpgrps_size);
+    memset(sd->function_group, 0, sizeof(sd->function_group));
     sd->erase_start = 0;
     sd->erase_end = 0;
     sd->size = size;
@@ -446,6 +452,38 @@ static const BlockDevOps sd_block_ops = {
     .change_media_cb = sd_cardchange,
 };
 
+static const VMStateDescription sd_vmstate = {
+    .name = "sd-card",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(mode, SDState),
+        VMSTATE_INT32(state, SDState),
+        VMSTATE_UINT8_ARRAY(cid, SDState, 16),
+        VMSTATE_UINT8_ARRAY(csd, SDState, 16),
+        VMSTATE_UINT16(rca, SDState),
+        VMSTATE_UINT32(card_status, SDState),
+        VMSTATE_PARTIAL_BUFFER(sd_status, SDState, 1),
+        VMSTATE_UINT32(vhs, SDState),
+        VMSTATE_BITMAP(wp_groups, SDState, 0, wpgrps_size),
+        VMSTATE_UINT32(blk_len, SDState),
+        VMSTATE_UINT32(erase_start, SDState),
+        VMSTATE_UINT32(erase_end, SDState),
+        VMSTATE_UINT8_ARRAY(pwd, SDState, 16),
+        VMSTATE_UINT32(pwd_len, SDState),
+        VMSTATE_UINT8_ARRAY(function_group, SDState, 6),
+        VMSTATE_UINT8(current_cmd, SDState),
+        VMSTATE_BOOL(expecting_acmd, SDState),
+        VMSTATE_UINT32(blk_written, SDState),
+        VMSTATE_UINT64(data_start, SDState),
+        VMSTATE_UINT32(data_offset, SDState),
+        VMSTATE_UINT8_ARRAY(data, SDState, 512),
+        VMSTATE_BUFFER_UNSAFE(buf, SDState, 1, 512),
+        VMSTATE_BOOL(enable, SDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /* We do not model the chip select pin, so allow the board to select
    whether card should be in SSI or MMC/SD mode.  It is also up to the
    board to ensure that ssi transfers only occur when the chip select
@@ -463,6 +501,7 @@ SDState *sd_init(BlockDriverState *bs, bool is_spi)
         bdrv_attach_dev_nofail(sd->bdrv, sd);
         bdrv_set_dev_ops(sd->bdrv, &sd_block_ops, sd);
     }
+    vmstate_register(NULL, -1, &sd_vmstate, sd);
     return sd;
 }
 
@@ -476,19 +515,28 @@ void sd_set_cb(SDState *sd, qemu_irq readonly, qemu_irq insert)
 
 static void sd_erase(SDState *sd)
 {
-    int i, start, end;
+    int i;
+    uint64_t erase_start = sd->erase_start;
+    uint64_t erase_end = sd->erase_end;
+
     if (!sd->erase_start || !sd->erase_end) {
         sd->card_status |= ERASE_SEQ_ERROR;
         return;
     }
 
-    start = sd_addr_to_wpnum(sd->erase_start);
-    end = sd_addr_to_wpnum(sd->erase_end);
+    if (extract32(sd->ocr, OCR_CCS_BITN, 1)) {
+        /* High capacity memory card: erase units are 512 byte blocks */
+        erase_start *= 512;
+        erase_end *= 512;
+    }
+
+    erase_start = sd_addr_to_wpnum(erase_start);
+    erase_end = sd_addr_to_wpnum(erase_end);
     sd->erase_start = 0;
     sd->erase_end = 0;
     sd->csd[14] |= 0x40;
 
-    for (i = start; i <= end; i++) {
+    for (i = erase_start; i <= erase_end; i++) {
         if (test_bit(i, sd->wp_groups)) {
             sd->card_status |= WP_ERASE_SKIP;
         }
@@ -567,7 +615,7 @@ static void sd_lock_command(SDState *sd)
             sd->card_status |= LOCK_UNLOCK_FAILED;
             return;
         }
-        bitmap_zero(sd->wp_groups, sd_addr_to_wpnum(sd->size) + 1);
+        bitmap_zero(sd->wp_groups, sd->wpgrps_size);
         sd->csd[14] &= ~0x10;
         sd->card_status &= ~CARD_IS_LOCKED;
         sd->pwd_len = 0;

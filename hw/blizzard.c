@@ -921,8 +921,8 @@ static void blizzard_update_display(void *opaque)
     for (; y < s->my[1]; y ++, src += bypl, dst += bypl)
         memcpy(dst, src, bwidth);
 
-    dpy_update(s->state, s->mx[0], s->my[0],
-                    s->mx[1] - s->mx[0], y - s->my[0]);
+    dpy_gfx_update(s->state, s->mx[0], s->my[0],
+                   s->mx[1] - s->mx[0], y - s->my[0]);
 
     s->mx[0] = s->x;
     s->mx[1] = 0;

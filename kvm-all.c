@@ -828,10 +828,12 @@ static MemoryListener kvm_io_listener = {
 
 static void kvm_handle_interrupt(CPUArchState *env, int mask)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     env->interrupt_request |= mask;
 
-    if (!qemu_cpu_is_self(env)) {
-        qemu_cpu_kick(env);
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
     }
 }
 
@@ -1498,8 +1500,10 @@ static void do_kvm_cpu_synchronize_state(void *_env)
 
 void kvm_cpu_synchronize_state(CPUArchState *env)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
+
     if (!env->kvm_vcpu_dirty) {
-        run_on_cpu(env, do_kvm_cpu_synchronize_state, env);
+        run_on_cpu(cpu, do_kvm_cpu_synchronize_state, env);
     }
 }
 
@@ -1785,6 +1789,7 @@ static void kvm_invoke_set_guest_debug(void *data)
 
 int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     struct kvm_set_guest_debug_data data;
 
     data.dbg.control = reinject_trap;
@@ -1795,7 +1800,7 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
     kvm_arch_update_guest_debug(env, &data.dbg);
     data.env = env;
 
-    run_on_cpu(env, kvm_invoke_set_guest_debug, &data);
+    run_on_cpu(cpu, kvm_invoke_set_guest_debug, &data);
     return data.err;
 }
 

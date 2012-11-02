@@ -28,7 +28,6 @@
 
 #include <windows.h>
 #include <winsock2.h>
-#include "main-loop.h"
 
 #if defined(_WIN64)
 /* MinGW-w64 has a 32 bit off_t, but we want 64 bit off_t. */

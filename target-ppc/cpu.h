@@ -963,7 +963,7 @@ struct CPUPPCState {
     /* floating point registers */
     float64 fpr[32];
     /* floating point status and control register */
-    uint32_t fpscr;
+    target_ulong fpscr;
 
     /* Next instruction pointer */
     target_ulong nip;
@@ -1014,6 +1014,8 @@ struct CPUPPCState {
     /* Altivec registers */
     ppc_avr_t avr[32];
     uint32_t vscr;
+    /* VSX registers */
+    uint64_t vsr[32];
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
@@ -1045,9 +1047,9 @@ struct CPUPPCState {
 #endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    hwaddr vpa_addr;
-    hwaddr slb_shadow_addr, slb_shadow_size;
-    hwaddr dtl_addr, dtl_size;
+    uint64_t vpa_addr;
+    uint64_t slb_shadow_addr, slb_shadow_size;
+    uint64_t dtl_addr, dtl_size;
 #endif /* TARGET_PPC64 */
 
     int error_code;
@@ -2220,10 +2222,12 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
     return msr & (1ULL << MSR_SF);
 }
 
-extern void (*cpu_ppc_hypercall)(CPUPPCState *);
+extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
-static inline bool cpu_has_work(CPUPPCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+
     return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
 }
 

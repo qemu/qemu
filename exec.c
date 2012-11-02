@@ -691,6 +691,9 @@ CPUArchState *qemu_get_cpu(int cpu)
 
 void cpu_exec_init(CPUArchState *env)
 {
+#ifndef CONFIG_USER_ONLY
+    CPUState *cpu = ENV_GET_CPU(env);
+#endif
     CPUArchState **penv;
     int cpu_index;
 
@@ -715,7 +718,7 @@ void cpu_exec_init(CPUArchState *env)
     QTAILQ_INIT(&env->breakpoints);
     QTAILQ_INIT(&env->watchpoints);
 #ifndef CONFIG_USER_ONLY
-    env->thread_id = qemu_get_thread_id();
+    cpu->thread_id = qemu_get_thread_id();
 #endif
     *penv = env;
 #if defined(CONFIG_USER_ONLY)
@@ -1707,6 +1710,7 @@ static void cpu_unlink_tb(CPUArchState *env)
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int old_mask;
 
     old_mask = env->interrupt_request;
@@ -1716,8 +1720,8 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
      * If called from iothread context, wake the target cpu in
      * case its halted.
      */
-    if (!qemu_cpu_is_self(env)) {
-        qemu_cpu_kick(env);
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
         return;
     }
 

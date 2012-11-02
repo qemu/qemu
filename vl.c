@@ -1366,17 +1366,49 @@ static void gui_update(void *opaque)
 {
     uint64_t interval = GUI_REFRESH_INTERVAL;
     DisplayState *ds = opaque;
-    DisplayChangeListener *dcl = ds->listeners;
+    DisplayChangeListener *dcl;
 
     dpy_refresh(ds);
 
-    while (dcl != NULL) {
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->gui_timer_interval &&
             dcl->gui_timer_interval < interval)
             interval = dcl->gui_timer_interval;
-        dcl = dcl->next;
     }
     qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
+}
+
+void gui_setup_refresh(DisplayState *ds)
+{
+    DisplayChangeListener *dcl;
+    bool need_timer = false;
+    bool have_gfx = false;
+    bool have_text = false;
+
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
+        if (dcl->dpy_refresh != NULL) {
+            need_timer = true;
+        }
+        if (dcl->dpy_gfx_update != NULL) {
+            have_gfx = true;
+        }
+        if (dcl->dpy_text_update != NULL) {
+            have_text = true;
+        }
+    }
+
+    if (need_timer && ds->gui_timer == NULL) {
+        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
+        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
+    }
+    if (!need_timer && ds->gui_timer != NULL) {
+        qemu_del_timer(ds->gui_timer);
+        qemu_free_timer(ds->gui_timer);
+        ds->gui_timer = NULL;
+    }
+
+    ds->have_gfx = have_gfx;
+    ds->have_text = have_text;
 }
 
 struct vm_change_state_entry {
@@ -2484,11 +2516,6 @@ static void free_and_trace(gpointer mem)
     free(mem);
 }
 
-int qemu_init_main_loop(void)
-{
-    return main_loop_init();
-}
-
 int main(int argc, char **argv, char **envp)
 {
     int i;
@@ -2498,7 +2525,6 @@ int main(int argc, char **argv, char **envp)
     const char *kernel_filename, *kernel_cmdline;
     char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
-    DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts;
     QemuOptsList *olist;
@@ -2625,6 +2651,11 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_M:
                 machine = machine_parse(optarg);
                 break;
+            case QEMU_OPTION_no_kvm_irqchip: {
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "kernel_irqchip=off", 0);
+                break;
+            }
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_model = optarg;
@@ -3217,6 +3248,30 @@ int main(int argc, char **argv, char **envp)
                     machine = machine_parse(optarg);
                 }
                 break;
+             case QEMU_OPTION_no_kvm:
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "accel=tcg", 0);
+                break;
+            case QEMU_OPTION_no_kvm_pit: {
+                fprintf(stderr, "Warning: KVM PIT can no longer be disabled "
+                                "separately.\n");
+                break;
+            }
+            case QEMU_OPTION_no_kvm_pit_reinjection: {
+                static GlobalProperty kvm_pit_lost_tick_policy[] = {
+                    {
+                        .driver   = "kvm-pit",
+                        .property = "lost_tick_policy",
+                        .value    = "discard",
+                    },
+                    { /* end of list */ }
+                };
+
+                fprintf(stderr, "Warning: option deprecated, use "
+                        "lost_tick_policy property of kvm-pit instead.\n");
+                qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
+                break;
+            }
             case QEMU_OPTION_usb:
                 machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
                 if (machine_opts) {
@@ -3305,6 +3360,10 @@ int main(int argc, char **argv, char **envp)
 		break;
             case QEMU_OPTION_semihosting:
                 semihosting_enabled = 1;
+                break;
+            case QEMU_OPTION_tdf:
+                fprintf(stderr, "Warning: user space PIT time drift fix "
+                                "is no longer supported.\n");
                 break;
             case QEMU_OPTION_name:
                 qemu_name = g_strdup(optarg);
@@ -3472,6 +3531,12 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    qemu_init_cpu_loop();
+    if (qemu_init_main_loop()) {
+        fprintf(stderr, "qemu_init_main_loop failed\n");
+        exit(1);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
         exit(1);
     }
@@ -3638,12 +3703,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     configure_accelerator();
-
-    qemu_init_cpu_loop();
-    if (qemu_init_main_loop()) {
-        fprintf(stderr, "qemu_init_main_loop failed\n");
-        exit(1);
-    }
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
@@ -3899,16 +3958,6 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     /* display setup */
-    dpy_resize(ds);
-    dcl = ds->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_refresh != NULL) {
-            ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
-            qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
-            break;
-        }
-        dcl = dcl->next;
-    }
     text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {

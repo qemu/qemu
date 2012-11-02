@@ -317,7 +317,7 @@ static void cpu_kick_irq(SPARCCPU *cpu)
 
     env->halted = 0;
     cpu_check_irqs(env);
-    qemu_cpu_kick(env);
+    qemu_cpu_kick(CPU(cpu));
 }
 
 static void cpu_set_ivec_irq(void *opaque, int irq, int level)
