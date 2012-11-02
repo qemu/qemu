@@ -565,7 +565,7 @@ static void tap_win32_free_buffer(tap_win32_overlapped_t *overlapped,
 }
 
 static int tap_win32_open(tap_win32_overlapped_t **phandle,
-                          const char *prefered_name)
+                          const char *preferred_name)
 {
     char device_path[256];
     char device_guid[0x100];
@@ -581,8 +581,9 @@ static int tap_win32_open(tap_win32_overlapped_t **phandle,
     DWORD version_len;
     DWORD idThread;
 
-    if (prefered_name != NULL)
-        snprintf(name_buffer, sizeof(name_buffer), "%s", prefered_name);
+    if (preferred_name != NULL) {
+        snprintf(name_buffer, sizeof(name_buffer), "%s", preferred_name);
+    }
 
     rc = get_device_guid(device_guid, sizeof(device_guid), name_buffer, sizeof(name_buffer));
     if (rc)
