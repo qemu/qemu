@@ -51,7 +51,7 @@
 
 /*
  * Normally packed structures are not the right thing to do, since all code
- * must take care of endianess. We cant use ldl_phys and friends for two
+ * must take care of endianness. We cannot use ldl_phys and friends for two
  * reasons, though:
  * - some of the embedded structures below the SCCB can appear multiple times
  *   at different locations, so there is no fixed offset
@@ -60,7 +60,7 @@
  *   alter the structure while we parse it. We cannot use ldl_p and friends
  *   either without doing pointer arithmetics
  * So we have to double check that all users of sclp data structures use the
- * right endianess wrappers.
+ * right endianness wrappers.
  */
 typedef struct SCCBHeader {
     uint16_t length;
