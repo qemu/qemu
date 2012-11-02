@@ -184,6 +184,23 @@
 #   define NV_PGRAPH_CTX_USER_SUBCH                           0x0000E000
 #   define NV_PGRAPH_CTX_USER_CHID                            0x1F000000
 #   define NV_PGRAPH_CTX_USER_SINGLE_STEP                      (1 << 31)
+#define NV_PGRAPH_CTX_SWITCH1                            0x0040014C
+#   define NV_PGRAPH_CTX_SWITCH1_GRCLASS                      0x000000FF
+#   define NV_PGRAPH_CTX_SWITCH1_CHROMA_KEY                    (1 << 12)
+#   define NV_PGRAPH_CTX_SWITCH1_SWIZZLE                       (1 << 14)
+#   define NV_PGRAPH_CTX_SWITCH1_PATCH_CONFIG                 0x00038000
+#   define NV_PGRAPH_CTX_SWITCH1_SYNCHRONIZE                   (1 << 18)
+#   define NV_PGRAPH_CTX_SWITCH1_ENDIAN_MODE                   (1 << 19)
+#   define NV_PGRAPH_CTX_SWITCH1_CLASS_TYPE                    (1 << 22)
+#   define NV_PGRAPH_CTX_SWITCH1_SINGLE_STEP                   (1 << 23)
+#   define NV_PGRAPH_CTX_SWITCH1_PATCH_STATUS                  (1 << 24)
+#   define NV_PGRAPH_CTX_SWITCH1_CONTEXT_SURFACE0              (1 << 25)
+#   define NV_PGRAPH_CTX_SWITCH1_CONTEXT_SURFACE1              (1 << 26)
+#   define NV_PGRAPH_CTX_SWITCH1_CONTEXT_PATTERN               (1 << 27)
+#   define NV_PGRAPH_CTX_SWITCH1_CONTEXT_ROP                   (1 << 28)
+#   define NV_PGRAPH_CTX_SWITCH1_CONTEXT_BETA1                 (1 << 29)
+#   define NV_PGRAPH_CTX_SWITCH1_CONTEXT_BETA4                 (1 << 30)
+#   define NV_PGRAPH_CTX_SWITCH1_VOLATILE_RESET                (1 << 31)
 #define NV_PGRAPH_CHANNEL_CTX_TABLE                      0x00000780
 #   define NV_PGRAPH_CHANNEL_CTX_TABLE_INST                   0x0000FFFF
 #define NV_PGRAPH_CHANNEL_CTX_POINTER                    0x00000784
@@ -248,12 +265,11 @@
 
 
 
-/* DMA Objects */
+/* DMA objects */
 #define NV_DMA_FROM_MEMORY_CLASS                         0x02
 #define NV_DMA_TO_MEMORY_CLASS                           0x03
 #define NV_DMA_IN_MEMORY_CLASS                           0x3d
 
-/* object layout: */
 #define NV_DMA_CLASS                                          0x00000FFF
 #define NV_DMA_PAGE_TABLE                                      (1 << 12)
 #define NV_DMA_PAGE_ENTRY                                      (1 << 13)
@@ -277,10 +293,24 @@
 
 
 
+/* graphic classes and methods */
+#define NV_SET_OBJECT                                        0x00000000
+
+#define NV_KELVIN_PRIMITIVE                                0x00000097
+#   define NV097_SET_CONTEXT_DMA_SEMAPHORE                        0x009701a4
+#   define NV097_SET_SEMAPHORE_OFFSET                             0x00971d6c
+#   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE                 0x00971d70
+
+#define NV_MEMORY_TO_MEMORY_FORMAT                           0x00000039
+#   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY                  0x00390180
+#   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_SOURCE                  0x00390184
+
+
+
+
 #define NV2A_CRYSTAL_FREQ 13500000
 #define NV2A_NUM_CHANNELS 32
 #define NV2A_NUM_SUBCHANNELS 8
-
 
 
 
@@ -299,11 +329,50 @@ enum RAMHTEngine {
 
 typedef struct RAMHTEntry {
     uint32_t handle;
-    uint16_t instance;
+    hwaddr instance;
     enum RAMHTEngine engine;
     unsigned int channel_id : 5;
     bool valid;
 } RAMHTEntry;
+
+
+typedef struct DMAObject {
+    unsigned int dma_class;
+    hwaddr start;
+    hwaddr limit;
+} DMAObject;
+
+
+typedef struct GraphicsObject {
+    uint8_t graphic_class;
+    union {
+        struct {
+            hwaddr dma_notifies;
+        } memory_to_memory_format;
+
+        struct {
+            hwaddr dma_state;
+            hwaddr dma_semaphore;
+            unsigned int semaphore_offset;
+        } kelvin_primitive;
+    } data;
+} GraphicsObject;
+
+typedef struct GraphicsSubchannelData {
+    hwaddr object_instance;
+    GraphicsObject object;
+    uint32_t object_cache[5];
+} GraphicsSubchannelData;
+
+typedef struct GraphicsContext {
+    bool channel_3d;
+    unsigned int channel_id;
+    unsigned int subchannel;
+
+    GraphicsSubchannelData subchannel_data[NV2A_NUM_SUBCHANNELS];
+} GraphicsContext;
+
+
 
 
 typedef struct Cache1State {
@@ -316,7 +385,7 @@ typedef struct Cache1State {
     /* Pusher state */
     hwaddr dma_instance;
     bool method_nonincreasing;
-    unsigned int method : 12;
+    unsigned int method : 14;
     unsigned int subchannel : 3;
     unsigned int method_count : 24;
     uint32_t dcount;
@@ -328,7 +397,6 @@ typedef struct Cache1State {
     uint32_t error;
 
     /* Puller state */
-    hwaddr semaphore_offset;
     uint8_t bound_engines[NV2A_NUM_SUBCHANNELS];
     unsigned int last_engine : 5;
 } Cache1State;
@@ -338,6 +406,7 @@ typedef struct ChannelControl {
     hwaddr dma_get;
     uint32_t ref;
 } ChannelControl;
+
 
 
 typedef struct NV2AState {
@@ -390,13 +459,11 @@ typedef struct NV2AState {
     } ptimer;
 
     struct {
-        hwaddr ctx_table;
-        hwaddr ctx_pointer;
+        hwaddr context_table;
+        hwaddr context_pointer;
 
-        /* context */
-        bool channel_3d;
         unsigned int channel_id;
-        unsigned int subchannel;
+        GraphicsContext context[NV2A_NUM_CHANNELS];
     } pgraph;
 
     struct {
@@ -472,7 +539,7 @@ static RAMHTEntry nv2a_lookup_ramht(NV2AState *d, uint32_t handle)
 
     return (RAMHTEntry){
         .handle = entry_handle,
-        .instance = entry_context & NV_RAMHT_INSTANCE,
+        .instance = (entry_context & NV_RAMHT_INSTANCE) << 4,
         .engine = (entry_context & NV_RAMHT_ENGINE) >> 16,
         .channel_id = (entry_context & NV_RAMHT_CHID) >> 24,
         .valid = entry_context & NV_RAMHT_STATUS,
@@ -480,14 +547,89 @@ static RAMHTEntry nv2a_lookup_ramht(NV2AState *d, uint32_t handle)
 }
 
 
+static DMAObject nv2a_load_dma_object(NV2AState *d,
+                                      hwaddr address)
+{
+    uint8_t *dma_ptr;
+    uint32_t flags;
+
+    dma_ptr = d->ramin_ptr + address;
+    flags = le32_to_cpupu((uint32_t*)dma_ptr);
+
+    return (DMAObject){
+        .dma_class = flags & NV_DMA_CLASS,
+        .limit = le32_to_cpupu((uint32_t*)(dma_ptr + 4)),
+        .start = le32_to_cpupu((uint32_t*)(dma_ptr + 8)) & (~3),
+    };
+}
+
+static GraphicsObject nv2a_load_graphics_object(NV2AState *d,
+                                                hwaddr address)
+{
+    uint8_t *obj_ptr;
+    uint32_t switch1, switch2, switch3;
+
+    obj_ptr = d->ramin_ptr + address;
+
+    switch1 = le32_to_cpupu((uint32_t*)obj_ptr);
+    switch2 = le32_to_cpupu((uint32_t*)(obj_ptr+4));
+    switch3 = le32_to_cpupu((uint32_t*)(obj_ptr+8));
+
+    return (GraphicsObject){
+        .graphic_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS,
+    };
+}
+
 
 static void nv2a_pgraph_method(NV2AState *d,
                                unsigned int subchannel,
                                unsigned int method,
                                uint32_t parameter)
 {
+    GraphicsContext *context = &d->pgraph.context[d->pgraph.channel_id];
+    GraphicsSubchannelData *subchannel_data =
+        &context->subchannel_data[subchannel];
+    GraphicsObject *object = &subchannel_data->object;
+
     NV2A_DPRINTF("nv2a pgraph method: 0x%x, 0x%x, 0x%x\n",
                  subchannel, method, parameter);
+
+    if (method == NV_SET_OBJECT) {
+        subchannel_data->object_instance = parameter;
+        *object = nv2a_load_graphics_object(d, parameter);
+
+        return;
+    }
+
+    DMAObject dma_semaphore;
+
+    switch ((object->graphic_class << 16) | method) {
+        case NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY:
+            object->data.memory_to_memory_format.dma_notifies = parameter;
+            break;
+
+        case NV097_SET_CONTEXT_DMA_SEMAPHORE:
+            object->data.kelvin_primitive.dma_semaphore = parameter;
+            break;
+        case NV097_SET_SEMAPHORE_OFFSET:
+            object->data.kelvin_primitive.semaphore_offset = parameter;
+            break;
+        case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE:
+            dma_semaphore = nv2a_load_dma_object(d,
+                                object->data.kelvin_primitive.dma_semaphore);
+
+            assert(object->data.kelvin_primitive.semaphore_offset
+                    < dma_semaphore.limit);
+
+            stl_le_phys(dma_semaphore.start
+                         + object->data.kelvin_primitive.semaphore_offset,
+                        parameter);
+            break;
+        default:
+            NV2A_DPRINTF("    unhandled  (0x%x 0x%x)\n",
+                         object->graphic_class, method);
+            break;
+    }
 }
 
 
@@ -500,9 +642,11 @@ static void nv2a_cache_push(NV2AState *d,
     Cache1State *state = &d->pfifo.cache1;
 
 
-    NV2A_DPRINTF("nv2a cache push: 0x%x, 0x%x, 0x%x, %d\n",
-                 subchannel, method, parameter, nonincreasing);
+    //NV2A_DPRINTF("nv2a cache push: 0x%x, 0x%x, 0x%x, %d\n",
+    //             subchannel, method, parameter, nonincreasing);
 
+    /* Don't bother emulating the pfifo cache roundtrip for now,
+     * emulate the puller on the method immediately... */
 
     if (method == 0) {
         RAMHTEntry entry = nv2a_lookup_ramht(d, parameter);
@@ -510,13 +654,17 @@ static void nv2a_cache_push(NV2AState *d,
 
         assert(entry.channel_id == state->channel_id);
 
-        if (entry.engine == ENGINE_SOFTWARE) {
+        switch (entry.engine) {
+        case ENGINE_SOFTWARE:
             /* TODO */
             assert(false);
-        } else if (entry.engine == ENGINE_GRAPHICS) {
+            break;
+        case ENGINE_GRAPHICS:
             nv2a_pgraph_method(d, subchannel, 0, entry.instance);
-        } else {
+            break;
+        default:
             assert(false);
+            break;
         }
 
         /* the engine is bound to the subchannel */
@@ -524,17 +672,27 @@ static void nv2a_cache_push(NV2AState *d,
         state->last_engine = state->bound_engines[subchannel];
     } else if (method >= 0x100) {
         /* method passed to engine */
-        RAMHTEntry entry = nv2a_lookup_ramht(d, parameter);
-        assert(entry.valid);
 
-        assert(entry.channel_id == state->channel_id);
+        /* methods that take objects.
+         * XXX: This range is probably not correct for the nv2a */
+        if (method >= 0x180 && method < 0x200) {
+            RAMHTEntry entry = nv2a_lookup_ramht(d, parameter);
+            assert(entry.valid);
+            assert(entry.channel_id == state->channel_id);
+            parameter = entry.instance;
+        }
 
-        if (entry.engine == ENGINE_SOFTWARE) {
+
+        switch (state->bound_engines[subchannel]) {
+        case ENGINE_SOFTWARE:
             assert(false);
-        } else if (entry.engine == ENGINE_GRAPHICS) {
-            nv2a_pgraph_method(d, subchannel, method, entry.instance);
-        } else {
+            break;
+        case ENGINE_GRAPHICS:
+            nv2a_pgraph_method(d, subchannel, method, parameter);
+            break;
+        default:
             assert(false);
+            break;
         }
 
         state->last_engine = state->bound_engines[subchannel];
@@ -548,13 +706,8 @@ static void nv2a_run_pusher(NV2AState *d) {
     uint8_t channel_id;
     ChannelControl *control;
     Cache1State *state;
-    uint8_t *dma_ptr;
-    uint32_t flags;
-    uint32_t dma_class;
-    uint32_t limit;
-    uint32_t start;
-
-    uint8_t buf[4];
+    DMAObject dma;
+    uint32_t word;
 
     /* TODO: How is cache1 selected? */
     state = &d->pfifo.cache1;
@@ -573,31 +726,21 @@ static void nv2a_run_pusher(NV2AState *d) {
     /* No pending errors... */
     assert(state->error == NV_PFIFO_CACHE1_DMA_STATE_ERROR_NONE);
 
-    dma_ptr = d->ramin_ptr + state->dma_instance;
+    dma = nv2a_load_dma_object(d, state->dma_instance);
+    assert(dma.dma_class == NV_DMA_FROM_MEMORY_CLASS);
 
-    flags = le32_to_cpupu((uint32_t*)dma_ptr);
-
-    dma_class = flags & NV_DMA_CLASS;
-    assert(dma_class == NV_DMA_FROM_MEMORY_CLASS);
-
-    limit = le32_to_cpupu((uint32_t*)(dma_ptr + 4));
-    start = le32_to_cpupu((uint32_t*)(dma_ptr + 8)) & (~3);
-
-    NV2A_DPRINTF("nv2a DMA pusher: 0x%x - 0x%x, 0x%llx - 0x%llx\n",
-                 start, limit, control->dma_get, control->dma_put);
+    NV2A_DPRINTF("nv2a DMA pusher: 0x%llx - 0x%llx, 0x%llx - 0x%llx\n",
+                 dma.start, dma.limit, control->dma_get, control->dma_put);
 
     /* based on the convenient pseudocode in envytools */
     while (control->dma_get != control->dma_put) {
-        if (start+control->dma_get < start
-            || start+control->dma_get >= limit) {
+        if (control->dma_get >= dma.limit) {
 
             state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_PROTECTION;
             break;
         }
 
-        cpu_physical_memory_read(start+control->dma_get, buf, 4);
-        uint32_t word = le32_to_cpupu((uint32_t*)buf);
-
+        word = ldl_le_phys(dma.start+control->dma_get);
         control->dma_get += 4;
 
         if (state->method_count) {
@@ -608,7 +751,7 @@ static void nv2a_run_pusher(NV2AState *d) {
                             state->method_nonincreasing);
 
             if (!state->method_nonincreasing) {
-                state->method++;
+                state->method += 4;
             }
             state->method_count--;
             state->dcount++;
@@ -1204,16 +1347,16 @@ static uint64_t nv2a_pgraph_read(void *opaque,
     uint64_t r = 0;
     switch (addr) {
     case NV_PGRAPH_CTX_USER:
-        r = d->pgraph.channel_3d
+        r = d->pgraph.context[d->pgraph.channel_id].channel_3d
             | NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID
-            | (d->pgraph.subchannel << 13)
+            | (d->pgraph.context[d->pgraph.channel_id].subchannel << 13)
             | (d->pgraph.channel_id << 24);
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
-        r = d->pgraph.ctx_table;
+        r = d->pgraph.context_table;
         break;
     case NV_PGRAPH_CHANNEL_CTX_POINTER:
-        r = d->pgraph.ctx_pointer;
+        r = d->pgraph.context_pointer;
         break;
     default:
         break;
@@ -1231,15 +1374,20 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case NV_PGRAPH_CTX_USER:
-        d->pgraph.channel_3d = val & NV_PGRAPH_CTX_USER_CHANNEL_3D;
-        d->pgraph.subchannel = (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
         d->pgraph.channel_id = (val & NV_PGRAPH_CTX_USER_CHID) >> 24;
+        d->pgraph.context[d->pgraph.channel_id].channel_id =
+            d->pgraph.channel_id;
+        d->pgraph.context[d->pgraph.channel_id].channel_3d =
+            val & NV_PGRAPH_CTX_USER_CHANNEL_3D;
+        d->pgraph.context[d->pgraph.channel_id].subchannel =
+            (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
+
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
-        d->pgraph.ctx_table = val & NV_PGRAPH_CHANNEL_CTX_TABLE_INST;
+        d->pgraph.context_table = val & NV_PGRAPH_CHANNEL_CTX_TABLE_INST;
         break;
     case NV_PGRAPH_CHANNEL_CTX_POINTER:
-        d->pgraph.ctx_pointer = val & NV_PGRAPH_CHANNEL_CTX_POINTER_INST;
+        d->pgraph.context_pointer = val & NV_PGRAPH_CHANNEL_CTX_POINTER_INST;
         break;
     case NV_PGRAPH_CHANNEL_CTX_TRIGGER:
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
