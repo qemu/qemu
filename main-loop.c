@@ -123,7 +123,10 @@ int qemu_init_main_loop(void)
     GSource *src;
 
     init_clocks();
-    init_timer_alarm();
+    if (init_timer_alarm() < 0) {
+        fprintf(stderr, "could not initialize alarm timer\n");
+        exit(1);
+    }
 
     qemu_mutex_lock_iothread();
     ret = qemu_signal_init();
