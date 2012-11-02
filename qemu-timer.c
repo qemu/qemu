@@ -30,6 +30,9 @@
 #include "hw/hw.h"
 
 #include "qemu-timer.h"
+#ifdef CONFIG_POSIX
+#include <pthread.h>
+#endif
 
 #ifdef _WIN32
 #include <mmsystem.h>
