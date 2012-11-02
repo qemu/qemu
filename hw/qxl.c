@@ -2049,6 +2049,7 @@ static int qxl_init_primary(PCIDevice *dev)
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
     PortioList *qxl_vga_port_list = g_new(PortioList, 1);
+    int rc;
 
     qxl->id = 0;
     qxl_init_ramsize(qxl);
@@ -2063,9 +2064,14 @@ static int qxl_init_primary(PCIDevice *dev)
     qemu_spice_display_init_common(&qxl->ssd, vga->ds);
 
     qxl0 = qxl;
-    register_displaychangelistener(vga->ds, &display_listener);
 
-    return qxl_init_common(qxl);
+    rc = qxl_init_common(qxl);
+    if (rc != 0) {
+        return rc;
+    }
+
+    register_displaychangelistener(vga->ds, &display_listener);
+    return rc;
 }
 
 static int qxl_init_secondary(PCIDevice *dev)
