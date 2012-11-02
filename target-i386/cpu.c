@@ -758,6 +758,7 @@ static x86_def_t builtin_x86_defs[] = {
     },
 };
 
+#ifdef CONFIG_KVM
 static int cpu_x86_fill_model_id(char *str)
 {
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
@@ -772,6 +773,7 @@ static int cpu_x86_fill_model_id(char *str)
     }
     return 0;
 }
+#endif
 
 /* Fill a x86_def_t struct with information about the host CPU, and
  * the CPU features supported by the host hardware + host kernel
@@ -780,6 +782,7 @@ static int cpu_x86_fill_model_id(char *str)
  */
 static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
 {
+#ifdef CONFIG_KVM
     KVMState *s = kvm_state;
     uint32_t eax = 0, ebx = 0, ecx = 0, edx = 0;
 
@@ -838,6 +841,7 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
      * unsupported ones later.
      */
     x86_cpu_def->svm_features = -1;
+#endif /* CONFIG_KVM */
 }
 
 static int unavailable_host_feature(struct model_features_t *f, uint32_t mask)
