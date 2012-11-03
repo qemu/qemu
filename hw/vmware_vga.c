@@ -31,13 +31,14 @@
 #define HW_FILL_ACCEL
 #define HW_MOUSE_ACCEL
 
-# include "vga_int.h"
+#include "vga_int.h"
+
+/* See http://vmware-svga.sf.net/ for some documentation on VMWare SVGA */
 
 struct vmsvga_state_s {
     VGACommonState vga;
 
     int invalidated;
-    int depth;
     int enable;
     int config;
     struct {
@@ -55,7 +56,6 @@ struct vmsvga_state_s {
     uint32_t guest;
     uint32_t svgaid;
     int syncing;
-    int fb_size;
 
     MemoryRegion fifo_ram;
     uint8_t *fifo_ptr;
@@ -756,10 +756,10 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return 0x0;
 
     case SVGA_REG_VRAM_SIZE:
-        return s->vga.vram_size;
+        return s->vga.vram_size; /* No physical VRAM besides the framebuffer */
 
     case SVGA_REG_FB_SIZE:
-        return s->fb_size;
+        return s->vga.vram_size;
 
     case SVGA_REG_CAPABILITIES:
         caps = SVGA_CAP_NONE;
@@ -848,7 +848,6 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         s->invalidated = 1;
         s->vga.invalidate(&s->vga);
         if (s->enable) {
-            s->fb_size = ((s->depth + 7) >> 3) * s->new_width * s->new_height;
             vga_dirty_log_stop(&s->vga);
         } else {
             vga_dirty_log_start(&s->vga);
@@ -873,10 +872,9 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         }
         break;
 
-    case SVGA_REG_DEPTH:
     case SVGA_REG_BITS_PER_PIXEL:
         if (value != ds_get_bits_per_pixel(s->vga.ds)) {
-            printf("%s: Bad colour depth: %i bits\n", __func__, value);
+            printf("%s: Bad bits per pixel: %i bits\n", __func__, value);
             s->config = 0;
         }
         break;
@@ -939,6 +937,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
 #endif
         break;
 
+    case SVGA_REG_DEPTH:
     case SVGA_REG_MEM_REGS:
     case SVGA_REG_NUM_DISPLAYS:
     case SVGA_REG_PITCHLOCK:
@@ -1077,7 +1076,7 @@ static const VMStateDescription vmstate_vmware_vga_internal = {
     .minimum_version_id_old = 0,
     .post_load = vmsvga_post_load,
     .fields      = (VMStateField[]) {
-        VMSTATE_INT32_EQUAL(depth, struct vmsvga_state_s),
+        VMSTATE_UNUSED(4), /* was depth */
         VMSTATE_INT32(enable, struct vmsvga_state_s),
         VMSTATE_INT32(config, struct vmsvga_state_s),
         VMSTATE_INT32(cursor.id, struct vmsvga_state_s),
@@ -1092,7 +1091,7 @@ static const VMStateDescription vmstate_vmware_vga_internal = {
         VMSTATE_UINT32(guest, struct vmsvga_state_s),
         VMSTATE_UINT32(svgaid, struct vmsvga_state_s),
         VMSTATE_INT32(syncing, struct vmsvga_state_s),
-        VMSTATE_INT32(fb_size, struct vmsvga_state_s),
+        VMSTATE_UNUSED(4), /* was fb_size */
         VMSTATE_END_OF_LIST()
     }
 };
