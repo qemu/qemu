@@ -736,7 +736,7 @@ static void cpu_ppc_hdecr_cb (void *opaque)
     _cpu_ppc_store_hdecr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
-void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value)
+static void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -1167,23 +1167,23 @@ static inline void nvram_write (nvram_t *nvram, uint32_t addr, uint32_t val)
     (*nvram->write_fn)(nvram->opaque, addr, val);
 }
 
-void NVRAM_set_byte (nvram_t *nvram, uint32_t addr, uint8_t value)
+static void NVRAM_set_byte(nvram_t *nvram, uint32_t addr, uint8_t value)
 {
     nvram_write(nvram, addr, value);
 }
 
-uint8_t NVRAM_get_byte (nvram_t *nvram, uint32_t addr)
+static uint8_t NVRAM_get_byte(nvram_t *nvram, uint32_t addr)
 {
     return nvram_read(nvram, addr);
 }
 
-void NVRAM_set_word (nvram_t *nvram, uint32_t addr, uint16_t value)
+static void NVRAM_set_word(nvram_t *nvram, uint32_t addr, uint16_t value)
 {
     nvram_write(nvram, addr, value >> 8);
     nvram_write(nvram, addr + 1, value & 0xFF);
 }
 
-uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
+static uint16_t NVRAM_get_word(nvram_t *nvram, uint32_t addr)
 {
     uint16_t tmp;
 
@@ -1193,7 +1193,7 @@ uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value)
+static void NVRAM_set_lword(nvram_t *nvram, uint32_t addr, uint32_t value)
 {
     nvram_write(nvram, addr, value >> 24);
     nvram_write(nvram, addr + 1, (value >> 16) & 0xFF);
@@ -1213,8 +1213,8 @@ uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
-                       const char *str, uint32_t max)
+static void NVRAM_set_string(nvram_t *nvram, uint32_t addr, const char *str,
+                             uint32_t max)
 {
     int i;
 

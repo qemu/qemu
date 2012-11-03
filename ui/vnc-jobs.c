@@ -321,6 +321,11 @@ static void *vnc_worker_thread(void *arg)
     return NULL;
 }
 
+static bool vnc_worker_thread_running(void)
+{
+    return queue; /* Check global queue */
+}
+
 void vnc_start_worker_thread(void)
 {
     VncJobQueue *q;
@@ -331,11 +336,6 @@ void vnc_start_worker_thread(void)
     q = vnc_queue_init();
     qemu_thread_create(&q->thread, vnc_worker_thread, q, QEMU_THREAD_DETACHED);
     queue = q; /* Set global queue */
-}
-
-bool vnc_worker_thread_running(void)
-{
-    return queue; /* Check global queue */
 }
 
 void vnc_stop_worker_thread(void)

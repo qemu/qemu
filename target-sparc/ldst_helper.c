@@ -65,6 +65,9 @@
 #define QT1 (env->qt1)
 
 #if !defined(CONFIG_USER_ONLY)
+static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
+                                              target_ulong addr, int is_write,
+                                              int is_user, uintptr_t retaddr);
 #include "softmmu_exec.h"
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
@@ -2407,8 +2410,9 @@ void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
-                         int is_user, uintptr_t retaddr)
+static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
+                                              target_ulong addr, int is_write,
+                                              int is_user, uintptr_t retaddr)
 {
 #ifdef DEBUG_UNALIGNED
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx

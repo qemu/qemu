@@ -39,10 +39,6 @@ typedef uint32_t CPUReadMemoryFunc(void *opaque, hwaddr addr);
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
-void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size);
-/* Same but slower, to use for migration, where the order of
- * RAMBlocks must not change. */
-void *qemu_safe_ram_ptr(ram_addr_t addr);
 void qemu_put_ram_ptr(void *addr);
 /* This should not be used by devices.  */
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
@@ -67,7 +63,6 @@ void *cpu_physical_memory_map(hwaddr addr,
 void cpu_physical_memory_unmap(void *buffer, hwaddr len,
                                int is_write, hwaddr access_len);
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque));
-void cpu_unregister_map_client(void *cookie);
 
 bool cpu_physical_memory_is_io(hwaddr phys_addr);
 
