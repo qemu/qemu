@@ -3882,7 +3882,7 @@ upper() {
 }
 
 case "$cpu" in
-  i386|x86_64)
+  i386|x86_64|ppc)
     echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_target_mak
   ;;
 esac
