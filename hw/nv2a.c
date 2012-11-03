@@ -297,9 +297,19 @@
 #define NV_SET_OBJECT                                        0x00000000
 
 #define NV_KELVIN_PRIMITIVE                                0x00000097
+#   define NV097_NO_OPERATION                                     0x00970100
+#   define NV097_WAIT_FOR_IDLE                                    0x00970110
+#   define NV097_SET_CONTEXT_DMA_NOTIFIES                         0x00970180
+#   define NV097_SET_CONTEXT_DMA_A                                0x00970184
+#   define NV097_SET_CONTEXT_DMA_B                                0x00970188
+#   define NV097_SET_CONTEXT_DMA_STATE                            0x00970190
+#   define NV097_SET_CONTEXT_DMA_VERTEX_A                         0x0097019c
+#   define NV097_SET_CONTEXT_DMA_VERTEX_B                         0x009701a0
 #   define NV097_SET_CONTEXT_DMA_SEMAPHORE                        0x009701a4
 #   define NV097_SET_SEMAPHORE_OFFSET                             0x00971d6c
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE                 0x00971d70
+
+
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                           0x00000039
 #   define NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY                  0x00390180
@@ -351,7 +361,12 @@ typedef struct GraphicsObject {
         } memory_to_memory_format;
 
         struct {
+            hwaddr dma_notifies;
+            hwaddr dma_a;
+            hwaddr dma_b;
             hwaddr dma_state;
+            hwaddr dma_vertex_a;
+            hwaddr dma_vertex_b;
             hwaddr dma_semaphore;
             unsigned int semaphore_offset;
         } kelvin_primitive;
@@ -569,6 +584,8 @@ static DMAObject nv2a_load_dma_object(NV2AState *d,
 
     return (DMAObject){
         .dma_class = flags & NV_DMA_CLASS,
+
+        /* XXX: Why is this layout different to nouveau? */
         .limit = le32_to_cpupu((uint32_t*)(dma_ptr + 4)),
         .start = le32_to_cpupu((uint32_t*)(dma_ptr + 8)) & (~3),
     };
@@ -619,6 +636,29 @@ static void nv2a_pgraph_method(NV2AState *d,
             object->data.memory_to_memory_format.dma_notifies = parameter;
             break;
 
+
+        case NV097_NO_OPERATION:
+            break;
+        case NV097_WAIT_FOR_IDLE:
+            break;
+        case NV097_SET_CONTEXT_DMA_NOTIFIES:
+            object->data.kelvin_primitive.dma_notifies = parameter;
+            break;
+        case NV097_SET_CONTEXT_DMA_A:
+            object->data.kelvin_primitive.dma_a = parameter;
+            break;
+        case NV097_SET_CONTEXT_DMA_B:
+            object->data.kelvin_primitive.dma_b = parameter;
+            break;
+        case NV097_SET_CONTEXT_DMA_STATE:
+            object->data.kelvin_primitive.dma_state = parameter;
+            break;
+        case NV097_SET_CONTEXT_DMA_VERTEX_A:
+            object->data.kelvin_primitive.dma_vertex_a = parameter;
+            break;
+        case NV097_SET_CONTEXT_DMA_VERTEX_B:
+            object->data.kelvin_primitive.dma_vertex_b = parameter;
+            break;
         case NV097_SET_CONTEXT_DMA_SEMAPHORE:
             object->data.kelvin_primitive.dma_semaphore = parameter;
             break;
@@ -637,8 +677,8 @@ static void nv2a_pgraph_method(NV2AState *d,
                         parameter);
             break;
         default:
-            NV2A_DPRINTF("    unhandled  (0x%x 0x%x)\n",
-                         object->graphic_class, method);
+            NV2A_DPRINTF("    unhandled  (0x%02x 0x%08x  -  0x%x)\n",
+                         object->graphic_class, method, parameter);
             break;
     }
 }
@@ -1929,7 +1969,7 @@ static int nv2a_initfn(PCIDevice *dev)
 
     /* legacy VGA shit */
     VGACommonState *vga = &d->vga;
-
+    vga->vram_size_mb = 16;
     /* seems to start in color mode */
     vga->msr = VGA_MIS_COLOR;
 
