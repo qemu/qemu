@@ -1017,8 +1017,8 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
     dcl = g_malloc0(sizeof(DisplayChangeListener));
 
     // register vga output callbacks
-    dcl->dpy_update = cocoa_update;
-    dcl->dpy_resize = cocoa_resize;
+    dcl->dpy_gfx_update = cocoa_update;
+    dcl->dpy_gfx_resize = cocoa_resize;
     dcl->dpy_refresh = cocoa_refresh;
 
 	register_displaychangelistener(ds, dcl);

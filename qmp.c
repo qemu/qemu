@@ -477,6 +477,8 @@ static CpuDefinitionInfoList *default_arch_query_cpu_definitions(Error **errp)
     return NULL;
 }
 QEMU_WEAK_ALIAS(arch_query_cpu_definitions, default_arch_query_cpu_definitions);
+#define arch_query_cpu_definitions \
+    QEMU_WEAK_REF(arch_query_cpu_definitions, default_arch_query_cpu_definitions)
 
 CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
 {

@@ -766,7 +766,7 @@ static void xenfb_update(void *opaque)
         xen_be_printf(&xenfb->c.xendev, 1, "update: resizing: %dx%d @ %d bpp%s\n",
                       xenfb->width, xenfb->height, xenfb->depth,
                       is_buffer_shared(xenfb->c.ds->surface) ? " (shared)" : "");
-        dpy_resize(xenfb->c.ds);
+        dpy_gfx_resize(xenfb->c.ds);
         xenfb->up_fullscreen = 1;
     }
 

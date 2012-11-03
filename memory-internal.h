@@ -55,8 +55,6 @@ struct MemoryRegionSection;
 void qemu_register_coalesced_mmio(hwaddr addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(hwaddr addr, ram_addr_t size);
 
-int cpu_physical_memory_set_dirty_tracking(int enable);
-
 #define VGA_DIRTY_FLAG       0x01
 #define CODE_DIRTY_FLAG      0x02
 #define MIGRATION_DIRTY_FLAG 0x08

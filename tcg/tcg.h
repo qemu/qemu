@@ -188,6 +188,24 @@ typedef tcg_target_ulong TCGArg;
    are aliases for target_ulong and host pointer sized values respectively.
  */
 
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+/* Macros/structures for qemu_ld/st IR code optimization:
+   TCG_MAX_HELPER_LABELS is defined as same as OPC_BUF_SIZE in exec-all.h. */
+#define TCG_MAX_QEMU_LDST       640
+
+typedef struct TCGLabelQemuLdst {
+    int is_ld:1;            /* qemu_ld: 1, qemu_st: 0 */
+    int opc:4;
+    int addrlo_reg;         /* reg index for low word of guest virtual addr */
+    int addrhi_reg;         /* reg index for high word of guest virtual addr */
+    int datalo_reg;         /* reg index for low word to be loaded or stored */
+    int datahi_reg;         /* reg index for high word to be loaded or stored */
+    int mem_index;          /* soft MMU memory index */
+    uint8_t *raddr;         /* gen code addr of the next IR of qemu_ld/st IR */
+    uint8_t *label_ptr[2];  /* label pointers to be updated */
+} TCGLabelQemuLdst;
+#endif
+
 #ifdef CONFIG_DEBUG_TCG
 #define DEBUG_TCGV 1
 #endif
@@ -431,6 +449,13 @@ struct TCGContext {
     int temps_in_use;
     int goto_tb_issue_mask;
 #endif
+
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+    /* labels info for qemu_ld/st IRs
+       The labels help to generate TLB miss case codes at the end of TB */
+    TCGLabelQemuLdst *qemu_ldst_labels;
+    int nb_qemu_ldst_labels;
+#endif
 };
 
 extern TCGContext tcg_ctx;
@@ -634,3 +659,8 @@ extern uint8_t *code_gen_prologue;
 #endif
 
 void tcg_register_jit(void *buf, size_t buf_size);
+
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+/* Generate TB finalization at the end of block */
+void tcg_out_tb_finalize(TCGContext *s);
+#endif

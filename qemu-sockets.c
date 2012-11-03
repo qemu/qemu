@@ -61,6 +61,28 @@ static QemuOptsList dummy_opts = {
     },
 };
 
+static int default_monitor_get_fd(Monitor *mon, const char *name, Error **errp)
+{
+    error_setg(errp, "only QEMU supports file descriptor passing");
+    return -1;
+}
+QEMU_WEAK_ALIAS(monitor_get_fd, default_monitor_get_fd);
+#define monitor_get_fd \
+    QEMU_WEAK_REF(monitor_get_fd, default_monitor_get_fd)
+
+static int default_qemu_set_fd_handler2(int fd,
+                                        IOCanReadHandler *fd_read_poll,
+                                        IOHandler *fd_read,
+                                        IOHandler *fd_write,
+                                        void *opaque)
+
+{
+    abort();
+}
+QEMU_WEAK_ALIAS(qemu_set_fd_handler2, default_qemu_set_fd_handler2);
+#define qemu_set_fd_handler2 \
+    QEMU_WEAK_REF(qemu_set_fd_handler2, default_qemu_set_fd_handler2)
+
 static int inet_getport(struct addrinfo *e)
 {
     struct sockaddr_in *i4;
@@ -967,21 +989,3 @@ int socket_init(void)
 #endif
     return 0;
 }
-
-static int default_monitor_get_fd(Monitor *mon, const char *name, Error **errp)
-{
-    error_setg(errp, "only QEMU supports file descriptor passing");
-    return -1;
-}
-QEMU_WEAK_ALIAS(monitor_get_fd, default_monitor_get_fd);
-
-static int default_qemu_set_fd_handler2(int fd,
-                                        IOCanReadHandler *fd_read_poll,
-                                        IOHandler *fd_read,
-                                        IOHandler *fd_write,
-                                        void *opaque)
-
-{
-    abort();
-}
-QEMU_WEAK_ALIAS(qemu_set_fd_handler2, default_qemu_set_fd_handler2);

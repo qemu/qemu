@@ -83,9 +83,15 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     }
 }
 
-void process_incoming_migration(QEMUFile *f)
+static void process_incoming_migration_co(void *opaque)
 {
-    if (qemu_loadvm_state(f) < 0) {
+    QEMUFile *f = opaque;
+    int ret;
+
+    ret = qemu_loadvm_state(f);
+    qemu_set_fd_handler(qemu_get_fd(f), NULL, NULL, NULL);
+    qemu_fclose(f);
+    if (ret < 0) {
         fprintf(stderr, "load of migration failed\n");
         exit(0);
     }
@@ -101,6 +107,23 @@ void process_incoming_migration(QEMUFile *f)
     } else {
         runstate_set(RUN_STATE_PAUSED);
     }
+}
+
+static void enter_migration_coroutine(void *opaque)
+{
+    Coroutine *co = opaque;
+    qemu_coroutine_enter(co, NULL);
+}
+
+void process_incoming_migration(QEMUFile *f)
+{
+    Coroutine *co = qemu_coroutine_create(process_incoming_migration_co);
+    int fd = qemu_get_fd(f);
+
+    assert(fd != -1);
+    socket_set_nonblock(fd);
+    qemu_set_fd_handler(fd, enter_migration_coroutine, NULL, co);
+    qemu_coroutine_enter(co, f);
 }
 
 /* amount of nanoseconds we are willing to wait for migration to be down.
@@ -243,21 +266,13 @@ static int migrate_fd_cleanup(MigrationState *s)
 {
     int ret = 0;
 
-    if (s->fd != -1) {
-        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    }
-
     if (s->file) {
         DPRINTF("closing file\n");
         ret = qemu_fclose(s->file);
         s->file = NULL;
     }
 
-    if (s->fd != -1) {
-        close(s->fd);
-        s->fd = -1;
-    }
-
+    migrate_fd_close(s);
     return ret;
 }
 
@@ -393,8 +408,13 @@ int migrate_fd_wait_for_unfreeze(MigrationState *s)
 
 int migrate_fd_close(MigrationState *s)
 {
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
-    return s->close(s);
+    int rc = 0;
+    if (s->fd != -1) {
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+        rc = s->close(s);
+        s->fd = -1;
+    }
+    return rc;
 }
 
 void add_migration_state_change_notifier(Notifier *notify)

@@ -88,6 +88,23 @@ enum {
 typedef struct UHCIState UHCIState;
 typedef struct UHCIAsync UHCIAsync;
 typedef struct UHCIQueue UHCIQueue;
+typedef struct UHCIInfo UHCIInfo;
+typedef struct UHCIPCIDeviceClass UHCIPCIDeviceClass;
+
+struct UHCIInfo {
+    const char *name;
+    uint16_t   vendor_id;
+    uint16_t   device_id;
+    uint8_t    revision;
+    uint8_t    irq_pin;
+    int        (*initfn)(PCIDevice *dev);
+    bool       unplug;
+};
+
+struct UHCIPCIDeviceClass {
+    PCIDeviceClass parent_class;
+    UHCIInfo       info;
+};
 
 /* 
  * Pending async transaction.
@@ -718,9 +735,52 @@ static void uhci_read_td(UHCIState *s, UHCI_TD *td, uint32_t link)
     le32_to_cpus(&td->buffer);
 }
 
+static int uhci_handle_td_error(UHCIState *s, UHCI_TD *td, uint32_t td_addr,
+                                int status, uint32_t *int_mask)
+{
+    uint32_t queue_token = uhci_queue_token(td);
+    int ret;
+
+    switch (status) {
+    case USB_RET_NAK:
+        td->ctrl |= TD_CTRL_NAK;
+        return TD_RESULT_NEXT_QH;
+
+    case USB_RET_STALL:
+        td->ctrl |= TD_CTRL_STALL;
+        trace_usb_uhci_packet_complete_stall(queue_token, td_addr);
+        ret = TD_RESULT_NEXT_QH;
+        break;
+
+    case USB_RET_BABBLE:
+        td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
+        /* frame interrupted */
+        trace_usb_uhci_packet_complete_babble(queue_token, td_addr);
+        ret = TD_RESULT_STOP_FRAME;
+        break;
+
+    case USB_RET_IOERROR:
+    case USB_RET_NODEV:
+    default:
+        td->ctrl |= TD_CTRL_TIMEOUT;
+        td->ctrl &= ~(3 << TD_CTRL_ERROR_SHIFT);
+        trace_usb_uhci_packet_complete_error(queue_token, td_addr);
+        ret = TD_RESULT_NEXT_QH;
+        break;
+    }
+
+    td->ctrl &= ~TD_CTRL_ACTIVE;
+    s->status |= UHCI_STS_USBERR;
+    if (td->ctrl & TD_CTRL_IOC) {
+        *int_mask |= 0x01;
+    }
+    uhci_update_irq(s);
+    return ret;
+}
+
 static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_t *int_mask)
 {
-    int len = 0, max_len, err, ret;
+    int len = 0, max_len, ret;
     uint8_t pid;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
@@ -731,8 +791,9 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     if (td->ctrl & TD_CTRL_IOS)
         td->ctrl &= ~TD_CTRL_ACTIVE;
 
-    if (ret < 0)
-        goto out;
+    if (ret < 0) {
+        return uhci_handle_td_error(s, td, async->td_addr, ret, int_mask);
+    }
 
     len = async->packet.result;
     td->ctrl = (td->ctrl & ~0x7ff) | ((len - 1) & 0x7ff);
@@ -758,46 +819,6 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
     trace_usb_uhci_packet_complete_success(async->queue->token,
                                            async->td_addr);
     return TD_RESULT_COMPLETE;
-
-out:
-    switch(ret) {
-    case USB_RET_NAK:
-        td->ctrl |= TD_CTRL_NAK;
-        return TD_RESULT_NEXT_QH;
-
-    case USB_RET_STALL:
-        td->ctrl |= TD_CTRL_STALL;
-        trace_usb_uhci_packet_complete_stall(async->queue->token,
-                                             async->td_addr);
-        err = TD_RESULT_NEXT_QH;
-        break;
-
-    case USB_RET_BABBLE:
-        td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
-        /* frame interrupted */
-        trace_usb_uhci_packet_complete_babble(async->queue->token,
-                                              async->td_addr);
-        err = TD_RESULT_STOP_FRAME;
-        break;
-
-    case USB_RET_IOERROR:
-    case USB_RET_NODEV:
-    default:
-        td->ctrl |= TD_CTRL_TIMEOUT;
-        td->ctrl &= ~(3 << TD_CTRL_ERROR_SHIFT);
-        trace_usb_uhci_packet_complete_error(async->queue->token,
-                                             async->td_addr);
-        err = TD_RESULT_NEXT_QH;
-        break;
-    }
-
-    td->ctrl &= ~TD_CTRL_ACTIVE;
-    s->status |= UHCI_STS_USBERR;
-    if (td->ctrl & TD_CTRL_IOC) {
-        *int_mask |= 0x01;
-    }
-    uhci_update_irq(s);
-    return err;
 }
 
 static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
@@ -875,6 +896,11 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     if (q == NULL) {
         USBDevice *dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
         USBEndpoint *ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
+
+        if (ep == NULL) {
+            return uhci_handle_td_error(s, td, td_addr, USB_RET_NODEV,
+                                        int_mask);
+        }
         q = uhci_queue_new(s, qh_addr, td, ep);
     }
     async = uhci_async_alloc(q, td_addr);
@@ -1208,6 +1234,7 @@ static USBBusOps uhci_bus_ops = {
 static int usb_uhci_common_initfn(PCIDevice *dev)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    UHCIPCIDeviceClass *u = container_of(pc, UHCIPCIDeviceClass, parent_class);
     UHCIState *s = DO_UPCAST(UHCIState, dev, dev);
     uint8_t *pci_conf = s->dev.config;
     int i;
@@ -1216,20 +1243,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     /* TODO: reset value should be 0. */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    switch (pc->device_id) {
-    case PCI_DEVICE_ID_INTEL_82801I_UHCI1:
-        s->irq_pin = 0;  /* A */
-        break;
-    case PCI_DEVICE_ID_INTEL_82801I_UHCI2:
-        s->irq_pin = 1;  /* B */
-        break;
-    case PCI_DEVICE_ID_INTEL_82801I_UHCI3:
-        s->irq_pin = 2;  /* C */
-        break;
-    default:
-        s->irq_pin = 3;  /* D */
-        break;
-    }
+    s->irq_pin = u->info.irq_pin;
     pci_config_set_interrupt_pin(pci_conf, s->irq_pin + 1);
 
     if (s->masterbus) {
@@ -1293,143 +1307,107 @@ static Property uhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void piix3_uhci_class_init(ObjectClass *klass, void *data)
+static void uhci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    UHCIPCIDeviceClass *u = container_of(k, UHCIPCIDeviceClass, parent_class);
+    UHCIInfo *info = data;
 
-    k->init = usb_uhci_common_initfn;
-    k->exit = usb_uhci_exit;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371SB_2;
-    k->revision = 0x01;
-    k->class_id = PCI_CLASS_SERIAL_USB;
+    k->init = info->initfn ? info->initfn : usb_uhci_common_initfn;
+    k->exit = info->unplug ? usb_uhci_exit : NULL;
+    k->vendor_id = info->vendor_id;
+    k->device_id = info->device_id;
+    k->revision  = info->revision;
+    k->class_id  = PCI_CLASS_SERIAL_USB;
     dc->vmsd = &vmstate_uhci;
     dc->props = uhci_properties;
+    u->info = *info;
 }
 
-static TypeInfo piix3_uhci_info = {
-    .name          = "piix3-usb-uhci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = piix3_uhci_class_init,
-};
-
-static void piix4_uhci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->exit = usb_uhci_exit;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82371AB_2;
-    k->revision = 0x01;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo piix4_uhci_info = {
-    .name          = "piix4-usb-uhci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = piix4_uhci_class_init,
-};
-
-static void vt82c686b_uhci_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_vt82c686b_initfn;
-    k->exit = usb_uhci_exit;
-    k->vendor_id = PCI_VENDOR_ID_VIA;
-    k->device_id = PCI_DEVICE_ID_VIA_UHCI;
-    k->revision = 0x01;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo vt82c686b_uhci_info = {
-    .name          = "vt82c686b-usb-uhci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = vt82c686b_uhci_class_init,
-};
-
-static void ich9_uhci1_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI1;
-    k->revision = 0x03;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo ich9_uhci1_info = {
-    .name          = "ich9-usb-uhci1",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = ich9_uhci1_class_init,
-};
-
-static void ich9_uhci2_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI2;
-    k->revision = 0x03;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo ich9_uhci2_info = {
-    .name          = "ich9-usb-uhci2",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = ich9_uhci2_class_init,
-};
-
-static void ich9_uhci3_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = usb_uhci_common_initfn;
-    k->vendor_id = PCI_VENDOR_ID_INTEL;
-    k->device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI3;
-    k->revision = 0x03;
-    k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_uhci;
-    dc->props = uhci_properties;
-}
-
-static TypeInfo ich9_uhci3_info = {
-    .name          = "ich9-usb-uhci3",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(UHCIState),
-    .class_init    = ich9_uhci3_class_init,
+static UHCIInfo uhci_info[] = {
+    {
+        .name       = "piix3-usb-uhci",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82371SB_2,
+        .revision  = 0x01,
+        .irq_pin   = 3,
+        .unplug    = true,
+    },{
+        .name      = "piix4-usb-uhci",
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82371AB_2,
+        .revision  = 0x01,
+        .irq_pin   = 3,
+        .unplug    = true,
+    },{
+        .name      = "vt82c686b-usb-uhci",
+        .vendor_id = PCI_VENDOR_ID_VIA,
+        .device_id = PCI_DEVICE_ID_VIA_UHCI,
+        .revision  = 0x01,
+        .irq_pin   = 3,
+        .initfn    = usb_uhci_vt82c686b_initfn,
+        .unplug    = true,
+    },{
+        .name      = "ich9-usb-uhci1", /* 00:1d.0 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
+        .revision  = 0x03,
+        .irq_pin   = 0,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci2", /* 00:1d.1 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
+        .revision  = 0x03,
+        .irq_pin   = 1,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci3", /* 00:1d.2 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
+        .revision  = 0x03,
+        .irq_pin   = 2,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci4", /* 00:1a.0 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI4,
+        .revision  = 0x03,
+        .irq_pin   = 0,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci5", /* 00:1a.1 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI5,
+        .revision  = 0x03,
+        .irq_pin   = 1,
+        .unplug    = false,
+    },{
+        .name      = "ich9-usb-uhci6", /* 00:1a.2 */
+        .vendor_id = PCI_VENDOR_ID_INTEL,
+        .device_id = PCI_DEVICE_ID_INTEL_82801I_UHCI6,
+        .revision  = 0x03,
+        .irq_pin   = 2,
+        .unplug    = false,
+    }
 };
 
 static void uhci_register_types(void)
 {
-    type_register_static(&piix3_uhci_info);
-    type_register_static(&piix4_uhci_info);
-    type_register_static(&vt82c686b_uhci_info);
-    type_register_static(&ich9_uhci1_info);
-    type_register_static(&ich9_uhci2_info);
-    type_register_static(&ich9_uhci3_info);
+    TypeInfo uhci_type_info = {
+        .parent        = TYPE_PCI_DEVICE,
+        .instance_size = sizeof(UHCIState),
+        .class_size    = sizeof(UHCIPCIDeviceClass),
+        .class_init    = uhci_class_init,
+    };
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(uhci_info); i++) {
+        uhci_type_info.name = uhci_info[i].name;
+        uhci_type_info.class_data = uhci_info + i;
+        type_register(&uhci_type_info);
+    }
 }
 
 type_init(uhci_register_types)

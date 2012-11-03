@@ -1276,7 +1276,8 @@ static int mmubooke_get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot)
+static void booke206_flush_tlb(CPUPPCState *env, int flags,
+                               const int check_iprot)
 {
     int tlb_size;
     int i, j;
@@ -1297,8 +1298,8 @@ void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot)
     tlb_flush(env, 1);
 }
 
-hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
-                                             ppcmas_tlb_t *tlb)
+static hwaddr booke206_tlb_to_page_size(CPUPPCState *env,
+                                        ppcmas_tlb_t *tlb)
 {
     int tlbm_size;
 
@@ -1706,8 +1707,8 @@ static inline int check_physical(CPUPPCState *env, mmu_ctx_t *ctx,
     return ret;
 }
 
-int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx, target_ulong eaddr,
-                         int rw, int access_type)
+static int get_physical_address(CPUPPCState *env, mmu_ctx_t *ctx,
+                                target_ulong eaddr, int rw, int access_type)
 {
     int ret;
 

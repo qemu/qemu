@@ -545,6 +545,7 @@ void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep, uint64_t id,
     p->parameter = 0;
     p->short_not_ok = short_not_ok;
     p->int_req = int_req;
+    p->combined = NULL;
     qemu_iovec_reset(&p->iov);
     usb_packet_set_state(p, USB_PACKET_SETUP);
 }

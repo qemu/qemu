@@ -377,6 +377,26 @@ static inline pixman_format_code_t ds_get_format(DisplayState *ds)
     return ds->surface->format;
 }
 
+static inline int ds_get_depth(DisplayState *ds)
+{
+    return ds->surface->pf.depth;
+}
+
+static inline int ds_get_rmask(DisplayState *ds)
+{
+    return ds->surface->pf.rmask;
+}
+
+static inline int ds_get_gmask(DisplayState *ds)
+{
+    return ds->surface->pf.gmask;
+}
+
+static inline int ds_get_bmask(DisplayState *ds)
+{
+    return ds->surface->pf.bmask;
+}
+
 #ifdef CONFIG_CURSES
 #include <curses.h>
 typedef chtype console_ch_t;
@@ -424,10 +444,8 @@ void cocoa_display_init(DisplayState *ds, int full_screen);
 
 /* vnc.c */
 void vnc_display_init(DisplayState *ds);
-void vnc_display_close(DisplayState *ds);
 void vnc_display_open(DisplayState *ds, const char *display, Error **errp);
 void vnc_display_add_client(DisplayState *ds, int csock, int skipauth);
-int vnc_display_disable_login(DisplayState *ds);
 char *vnc_display_local_addr(DisplayState *ds);
 #ifdef CONFIG_VNC
 int vnc_display_password(DisplayState *ds, const char *password);

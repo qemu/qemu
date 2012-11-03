@@ -1,13 +1,13 @@
 common-obj-$(CONFIG_USB_UHCI) += hcd-uhci.o
 common-obj-$(CONFIG_USB_OHCI) += hcd-ohci.o
-common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o
+common-obj-$(CONFIG_USB_EHCI) += hcd-ehci.o hcd-ehci-pci.o hcd-ehci-sysbus.o
 common-obj-$(CONFIG_USB_XHCI) += hcd-xhci.o
 common-obj-y += libhw.o
 
 common-obj-$(CONFIG_SMARTCARD) += dev-smartcard-reader.o
 common-obj-$(CONFIG_USB_REDIR) += redirect.o
 
-common-obj-y += core.o bus.o desc.o dev-hub.o
+common-obj-y += core.o combined-packet.o bus.o desc.o dev-hub.o
 common-obj-y += host-$(HOST_USB).o dev-bluetooth.o
 common-obj-y += dev-hid.o dev-storage.o dev-wacom.o
 common-obj-y += dev-serial.o dev-network.o dev-audio.o
