@@ -1616,7 +1616,7 @@ void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2)
     }
 }
 
-static void vga_sync_dirty_bitmap(VGACommonState *s)
+void vga_sync_dirty_bitmap(VGACommonState *s)
 {
     memory_region_sync_dirty_bitmap(&s->vram);
 }

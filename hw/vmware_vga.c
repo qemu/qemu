@@ -317,14 +317,6 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     dpy_gfx_update(s->vga.ds, x, y, w, h);
 }
 
-static inline void vmsvga_update_screen(struct vmsvga_state_s *s)
-{
-    memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr,
-           ds_get_linesize(s->vga.ds) * ds_get_height(s->vga.ds));
-    dpy_gfx_update(s->vga.ds, 0, 0,
-               ds_get_width(s->vga.ds), ds_get_height(s->vga.ds));
-}
-
 static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
                 int x, int y, int w, int h)
 {
@@ -843,11 +835,10 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         break;
 
     case SVGA_REG_ENABLE:
-        s->enable = value;
-        s->config &= !!value;
+        s->enable = !!value;
         s->invalidated = 1;
         s->vga.invalidate(&s->vga);
-        if (s->enable) {
+        if (s->enable && s->config) {
             vga_dirty_log_stop(&s->vga);
         } else {
             vga_dirty_log_start(&s->vga);
@@ -895,6 +886,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
             if (CMD(max) < CMD(min) + 10 * 1024) {
                 break;
             }
+            vga_dirty_log_stop(&s->vga);
         }
         s->config = !!value;
         break;
@@ -977,6 +969,8 @@ static inline void vmsvga_check_size(struct vmsvga_state_s *s)
 static void vmsvga_update_display(void *opaque)
 {
     struct vmsvga_state_s *s = opaque;
+    bool dirty = false;
+
     if (!s->enable) {
         s->vga.update(&s->vga);
         return;
@@ -991,9 +985,23 @@ static void vmsvga_update_display(void *opaque)
      * Is it more efficient to look at vram VGA-dirty bits or wait
      * for the driver to issue SVGA_CMD_UPDATE?
      */
-    if (s->invalidated) {
+    if (memory_region_is_logging(&s->vga.vram)) {
+        vga_sync_dirty_bitmap(&s->vga);
+        dirty = memory_region_get_dirty(&s->vga.vram, 0,
+            ds_get_linesize(s->vga.ds) * ds_get_height(s->vga.ds),
+            DIRTY_MEMORY_VGA);
+    }
+    if (s->invalidated || dirty) {
         s->invalidated = 0;
-        vmsvga_update_screen(s);
+        memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr,
+               ds_get_linesize(s->vga.ds) * ds_get_height(s->vga.ds));
+        dpy_gfx_update(s->vga.ds, 0, 0,
+                   ds_get_width(s->vga.ds), ds_get_height(s->vga.ds));
+    }
+    if (dirty) {
+        memory_region_reset_dirty(&s->vga.vram, 0,
+            ds_get_linesize(s->vga.ds) * ds_get_height(s->vga.ds),
+            DIRTY_MEMORY_VGA);
     }
 }
 
