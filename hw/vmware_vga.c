@@ -36,11 +36,8 @@
 struct vmsvga_state_s {
     VGACommonState vga;
 
-    int width;
-    int height;
     int invalidated;
     int depth;
-    int bypp;
     int enable;
     int config;
     struct {
@@ -57,9 +54,6 @@ struct vmsvga_state_s {
     int new_height;
     uint32_t guest;
     uint32_t svgaid;
-    uint32_t wred;
-    uint32_t wgreen;
-    uint32_t wblue;
     int syncing;
     int fb_size;
 
@@ -297,23 +291,23 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
     uint8_t *src;
     uint8_t *dst;
 
-    if (x + w > s->width) {
+    if (x + w > ds_get_width(s->vga.ds)) {
         fprintf(stderr, "%s: update width too large x: %d, w: %d\n",
                 __func__, x, w);
-        x = MIN(x, s->width);
-        w = s->width - x;
+        x = MIN(x, ds_get_width(s->vga.ds));
+        w = ds_get_width(s->vga.ds) - x;
     }
 
-    if (y + h > s->height) {
+    if (y + h > ds_get_height(s->vga.ds)) {
         fprintf(stderr, "%s: update height too large y: %d, h: %d\n",
                 __func__, y, h);
-        y = MIN(y, s->height);
-        h = s->height - y;
+        y = MIN(y, ds_get_height(s->vga.ds));
+        h = ds_get_height(s->vga.ds) - y;
     }
 
-    bypl = s->bypp * s->width;
-    width = s->bypp * w;
-    start = s->bypp * x + bypl * y;
+    bypl = ds_get_linesize(s->vga.ds);
+    width = ds_get_bytes_per_pixel(s->vga.ds) * w;
+    start = ds_get_bytes_per_pixel(s->vga.ds) * x + bypl * y;
     src = s->vga.vram_ptr + start;
     dst = ds_get_data(s->vga.ds) + start;
 
@@ -326,8 +320,9 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
 static inline void vmsvga_update_screen(struct vmsvga_state_s *s)
 {
     memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr,
-           s->bypp * s->width * s->height);
-    dpy_gfx_update(s->vga.ds, 0, 0, s->width, s->height);
+           ds_get_linesize(s->vga.ds) * ds_get_height(s->vga.ds));
+    dpy_gfx_update(s->vga.ds, 0, 0,
+               ds_get_width(s->vga.ds), ds_get_height(s->vga.ds));
 }
 
 static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
@@ -364,20 +359,21 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
                 int x0, int y0, int x1, int y1, int w, int h)
 {
     uint8_t *vram = s->vga.vram_ptr;
-    int bypl = s->bypp * s->width;
-    int width = s->bypp * w;
+    int bypl = ds_get_linesize(s->vga.ds);
+    int bypp = ds_get_bytes_per_pixel(s->vga.ds);
+    int width = bypp * w;
     int line = h;
     uint8_t *ptr[2];
 
     if (y1 > y0) {
-        ptr[0] = vram + s->bypp * x0 + bypl * (y0 + h - 1);
-        ptr[1] = vram + s->bypp * x1 + bypl * (y1 + h - 1);
+        ptr[0] = vram + bypp * x0 + bypl * (y0 + h - 1);
+        ptr[1] = vram + bypp * x1 + bypl * (y1 + h - 1);
         for (; line > 0; line --, ptr[0] -= bypl, ptr[1] -= bypl) {
             memmove(ptr[1], ptr[0], width);
         }
     } else {
-        ptr[0] = vram + s->bypp * x0 + bypl * y0;
-        ptr[1] = vram + s->bypp * x1 + bypl * y1;
+        ptr[0] = vram + bypp * x0 + bypl * y0;
+        ptr[1] = vram + bypp * x1 + bypl * y1;
         for (; line > 0; line --, ptr[0] += bypl, ptr[1] += bypl) {
             memmove(ptr[1], ptr[0], width);
         }
@@ -391,13 +387,11 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
 static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
                 uint32_t c, int x, int y, int w, int h)
 {
-    uint8_t *vram = s->vga.vram_ptr;
-    int bypp = s->bypp;
-    int bypl = bypp * s->width;
-    int width = bypp * w;
+    int bypl = ds_get_linesize(s->vga.ds);
+    int width = ds_get_bytes_per_pixel(s->vga.ds) * w;
     int line = h;
     int column;
-    uint8_t *fst = vram + bypp * x + bypl * y;
+    uint8_t *fst;
     uint8_t *dst;
     uint8_t *src;
     uint8_t col[4];
@@ -407,12 +401,14 @@ static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
     col[2] = c >> 16;
     col[3] = c >> 24;
 
+    fst = s->vga.vram_ptr + ds_get_bytes_per_pixel(s->vga.ds) * x + bypl * y;
+
     if (line--) {
         dst = fst;
         src = col;
         for (column = width; column > 0; column--) {
             *(dst++) = *(src++);
-            if (src - col == bypp) {
+            if (src - col == ds_get_bytes_per_pixel(s->vga.ds)) {
                 src = col;
             }
         }
@@ -718,10 +714,10 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return s->enable;
 
     case SVGA_REG_WIDTH:
-        return s->width;
+        return ds_get_width(s->vga.ds);
 
     case SVGA_REG_HEIGHT:
-        return s->height;
+        return ds_get_height(s->vga.ds);
 
     case SVGA_REG_MAX_WIDTH:
         return SVGA_MAX_WIDTH;
@@ -730,23 +726,25 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return SVGA_MAX_HEIGHT;
 
     case SVGA_REG_DEPTH:
-        return s->depth;
+        return ds_get_depth(s->vga.ds);
 
     case SVGA_REG_BITS_PER_PIXEL:
-        return (s->depth + 7) & ~7;
+        return ds_get_bits_per_pixel(s->vga.ds);
 
     case SVGA_REG_PSEUDOCOLOR:
         return 0x0;
 
     case SVGA_REG_RED_MASK:
-        return s->wred;
+        return ds_get_rmask(s->vga.ds);
+
     case SVGA_REG_GREEN_MASK:
-        return s->wgreen;
+        return ds_get_gmask(s->vga.ds);
+
     case SVGA_REG_BLUE_MASK:
-        return s->wblue;
+        return ds_get_bmask(s->vga.ds);
 
     case SVGA_REG_BYTES_PER_LINE:
-        return ((s->depth + 7) >> 3) * s->new_width;
+        return ds_get_bytes_per_pixel(s->vga.ds) * s->new_width;
 
     case SVGA_REG_FB_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
@@ -811,7 +809,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return s->cursor.on;
 
     case SVGA_REG_HOST_BITS_PER_PIXEL:
-        return (s->depth + 7) & ~7;
+        return ds_get_bits_per_pixel(s->vga.ds);
 
     case SVGA_REG_SCRATCH_SIZE:
         return s->scratch_size;
@@ -847,8 +845,6 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
     case SVGA_REG_ENABLE:
         s->enable = value;
         s->config &= !!value;
-        s->width = -1;
-        s->height = -1;
         s->invalidated = 1;
         s->vga.invalidate(&s->vga);
         if (s->enable) {
@@ -860,18 +856,26 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         break;
 
     case SVGA_REG_WIDTH:
-        s->new_width = value;
-        s->invalidated = 1;
+        if (value <= SVGA_MAX_WIDTH) {
+            s->new_width = value;
+            s->invalidated = 1;
+        } else {
+            printf("%s: Bad width: %i\n", __func__, value);
+        }
         break;
 
     case SVGA_REG_HEIGHT:
-        s->new_height = value;
-        s->invalidated = 1;
+        if (value <= SVGA_MAX_HEIGHT) {
+            s->new_height = value;
+            s->invalidated = 1;
+        } else {
+            printf("%s: Bad height: %i\n", __func__, value);
+        }
         break;
 
     case SVGA_REG_DEPTH:
     case SVGA_REG_BITS_PER_PIXEL:
-        if (value != s->depth) {
+        if (value != ds_get_bits_per_pixel(s->vga.ds)) {
             printf("%s: Bad colour depth: %i bits\n", __func__, value);
             s->config = 0;
         }
@@ -962,12 +966,11 @@ static void vmsvga_bios_write(void *opaque, uint32_t address, uint32_t data)
     printf("%s: what are we supposed to do with (%08x)?\n", __func__, data);
 }
 
-static inline void vmsvga_size(struct vmsvga_state_s *s)
+static inline void vmsvga_check_size(struct vmsvga_state_s *s)
 {
-    if (s->new_width != s->width || s->new_height != s->height) {
-        s->width = s->new_width;
-        s->height = s->new_height;
-        qemu_console_resize(s->vga.ds, s->width, s->height);
+    if (s->new_width != ds_get_width(s->vga.ds) ||
+        s->new_height != ds_get_height(s->vga.ds)) {
+        qemu_console_resize(s->vga.ds, s->new_width, s->new_height);
         s->invalidated = 1;
     }
 }
@@ -980,7 +983,7 @@ static void vmsvga_update_display(void *opaque)
         return;
     }
 
-    vmsvga_size(s);
+    vmsvga_check_size(s);
 
     vmsvga_fifo_run(s);
     vmsvga_update_rect_flush(s);
@@ -1004,8 +1007,6 @@ static void vmsvga_reset(DeviceState *dev)
     s->index = 0;
     s->enable = 0;
     s->config = 0;
-    s->width = -1;
-    s->height = -1;
     s->svgaid = SVGA_ID;
     s->cursor.on = 0;
     s->redraw_fifo_first = 0;
@@ -1037,9 +1038,13 @@ static void vmsvga_screen_dump(void *opaque, const char *filename, bool cswitch,
         return;
     }
 
-    if (s->depth == 32) {
-        DisplaySurface *ds = qemu_create_displaysurface_from(s->width,
-                s->height, 32, ds_get_linesize(s->vga.ds), s->vga.vram_ptr);
+    if (ds_get_bits_per_pixel(s->vga.ds) == 32) {
+        DisplaySurface *ds = qemu_create_displaysurface_from(
+                                 ds_get_width(s->vga.ds),
+                                 ds_get_height(s->vga.ds),
+                                 32,
+                                 ds_get_linesize(s->vga.ds),
+                                 s->vga.vram_ptr);
         ppm_save(filename, ds, errp);
         g_free(ds);
     }
@@ -1125,40 +1130,9 @@ static void vmsvga_init(struct vmsvga_state_s *s,
     vga_common_init(&s->vga);
     vga_init(&s->vga, address_space, io, true);
     vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
-
-    s->depth = ds_get_bits_per_pixel(s->vga.ds);
-    s->bypp = ds_get_bytes_per_pixel(s->vga.ds);
-    switch (s->depth) {
-    case 8:
-        s->wred   = 0x00000007;
-        s->wgreen = 0x00000038;
-        s->wblue  = 0x000000c0;
-        break;
-    case 15:
-        s->wred   = 0x0000001f;
-        s->wgreen = 0x000003e0;
-        s->wblue  = 0x00007c00;
-        break;
-    case 16:
-        s->wred   = 0x0000001f;
-        s->wgreen = 0x000007e0;
-        s->wblue  = 0x0000f800;
-        break;
-    case 24:
-        s->wred   = 0x00ff0000;
-        s->wgreen = 0x0000ff00;
-        s->wblue  = 0x000000ff;
-        break;
-    case 32:
-        s->wred   = 0x00ff0000;
-        s->wgreen = 0x0000ff00;
-        s->wblue  = 0x000000ff;
-        break;
-    }
 }
 
-static uint64_t vmsvga_io_read(void *opaque, hwaddr addr,
-                               unsigned size)
+static uint64_t vmsvga_io_read(void *opaque, hwaddr addr, unsigned size)
 {
     struct vmsvga_state_s *s = opaque;
 
@@ -1202,9 +1176,6 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 {
     struct pci_vmsvga_state_s *s =
         DO_UPCAST(struct pci_vmsvga_state_s, card, dev);
-    MemoryRegion *iomem;
-
-    iomem = &s->chip.vga.vram;
 
     s->card.config[PCI_CACHE_LINE_SIZE] = 0x08;         /* Cache line size */
     s->card.config[PCI_LATENCY_TIMER] = 0x40;           /* Latency timer */
@@ -1215,10 +1186,10 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     memory_region_set_flush_coalesced(&s->io_bar);
     pci_register_bar(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 
-    vmsvga_init(&s->chip, pci_address_space(dev),
-                pci_address_space_io(dev));
+    vmsvga_init(&s->chip, pci_address_space(dev), pci_address_space_io(dev));
 
-    pci_register_bar(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, iomem);
+    pci_register_bar(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
+                     &s->chip.vga.vram);
     pci_register_bar(&s->card, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
                      &s->chip.fifo_ram);
 

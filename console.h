@@ -377,6 +377,26 @@ static inline pixman_format_code_t ds_get_format(DisplayState *ds)
     return ds->surface->format;
 }
 
+static inline int ds_get_depth(DisplayState *ds)
+{
+    return ds->surface->pf.depth;
+}
+
+static inline int ds_get_rmask(DisplayState *ds)
+{
+    return ds->surface->pf.rmask;
+}
+
+static inline int ds_get_gmask(DisplayState *ds)
+{
+    return ds->surface->pf.gmask;
+}
+
+static inline int ds_get_bmask(DisplayState *ds)
+{
+    return ds->surface->pf.bmask;
+}
+
 #ifdef CONFIG_CURSES
 #include <curses.h>
 typedef chtype console_ch_t;
