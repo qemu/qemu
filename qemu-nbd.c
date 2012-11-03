@@ -539,6 +539,7 @@ int main(int argc, char **argv)
         snprintf(sockpath, 128, SOCKET_PATH, basename(device));
     }
 
+    qemu_init_main_loop();
     bdrv_init();
     atexit(bdrv_close_all);
 
@@ -584,7 +585,6 @@ int main(int argc, char **argv)
         memset(&client_thread, 0, sizeof(client_thread));
     }
 
-    qemu_init_main_loop();
     qemu_set_fd_handler2(fd, nbd_can_accept, nbd_accept, NULL,
                          (void *)(uintptr_t)fd);
 
