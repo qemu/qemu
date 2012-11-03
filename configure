@@ -1383,7 +1383,7 @@ fi
 # libseccomp check
 
 if test "$seccomp" != "no" ; then
-    if $pkg_config libseccomp --modversion >/dev/null 2>&1; then
+    if $pkg_config --atleast-version=1.0.0 libseccomp --modversion >/dev/null 2>&1; then
         LIBS=`$pkg_config --libs libseccomp`
 	seccomp="yes"
     else
