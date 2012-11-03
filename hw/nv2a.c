@@ -25,6 +25,19 @@
 #include "vga.h"
 #include "vga_int.h"
 
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#include <OpenGL/OpenGL.h>
+#include <OpenGL/CGLTypes.h>
+#include <OpenGL/CGLCurrent.h>
+#include <GLUT/glut.h>
+#else
+#include <X11/Xlib.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+#include <GL/glut.h>
+#endif
+
 #include "nv2a.h"
 
 //#define DEBUG_NV2A
@@ -171,6 +184,32 @@
 #define NV_PFIFO_CACHE1_DMA_DATA_SHADOW                  0x000012AC
 
 
+#define NV_PGRAPH_INTR                                   0x00000100
+#   define NV_PGRAPH_INTR_NOTIFY                              (1 << 0)
+#   define NV_PGRAPH_INTR_MISSING_HW                          (1 << 4)
+#   define NV_PGRAPH_INTR_TLB_PRESENT_DMA_R                   (1 << 6)
+#   define NV_PGRAPH_INTR_TLB_PRESENT_DMA_W                   (1 << 7)
+#   define NV_PGRAPH_INTR_TLB_PRESENT_TEX_A                   (1 << 8)
+#   define NV_PGRAPH_INTR_TLB_PRESENT_TEX_B                   (1 << 9)
+#   define NV_PGRAPH_INTR_TLB_PRESENT_VTX                    (1 << 10)
+#   define NV_PGRAPH_INTR_CONTEXT_SWITCH                     (1 << 12)
+#   define NV_PGRAPH_INTR_STATE3D                            (1 << 13)
+#   define NV_PGRAPH_INTR_BUFFER_NOTIFY                      (1 << 16)
+#   define NV_PGRAPH_INTR_ERROR                              (1 << 20)
+#   define NV_PGRAPH_INTR_SINGLE_STEP                        (1 << 24)
+#define NV_PGRAPH_INTR_EN                                0x00000140
+#   define NV_PGRAPH_INTR_EN_NOTIFY                           (1 << 0)
+#   define NV_PGRAPH_INTR_EN_MISSING_HW                       (1 << 4)
+#   define NV_PGRAPH_INTR_EN_TLB_PRESENT_DMA_R                (1 << 6)
+#   define NV_PGRAPH_INTR_EN_TLB_PRESENT_DMA_W                (1 << 7)
+#   define NV_PGRAPH_INTR_EN_TLB_PRESENT_TEX_A                (1 << 8)
+#   define NV_PGRAPH_INTR_EN_TLB_PRESENT_TEX_B                (1 << 9)
+#   define NV_PGRAPH_INTR_EN_TLB_PRESENT_VTX                 (1 << 10)
+#   define NV_PGRAPH_INTR_EN_CONTEXT_SWITCH                  (1 << 12)
+#   define NV_PGRAPH_INTR_EN_STATE3D                         (1 << 13)
+#   define NV_PGRAPH_INTR_EN_BUFFER_NOTIFY                   (1 << 16)
+#   define NV_PGRAPH_INTR_EN_ERROR                           (1 << 20)
+#   define NV_PGRAPH_INTR_EN_SINGLE_STEP                     (1 << 24)
 #define NV_PGRAPH_CTX_CONTROL                            0x00000144
 #   define NV_PGRAPH_CTX_CONTROL_MINIMUM_TIME                 0x00000003
 #   define NV_PGRAPH_CTX_CONTROL_TIME                           (1 << 8)
@@ -184,7 +223,7 @@
 #   define NV_PGRAPH_CTX_USER_SUBCH                           0x0000E000
 #   define NV_PGRAPH_CTX_USER_CHID                            0x1F000000
 #   define NV_PGRAPH_CTX_USER_SINGLE_STEP                      (1 << 31)
-#define NV_PGRAPH_CTX_SWITCH1                            0x0040014C
+#define NV_PGRAPH_CTX_SWITCH1                            0x0000014C
 #   define NV_PGRAPH_CTX_SWITCH1_GRCLASS                      0x000000FF
 #   define NV_PGRAPH_CTX_SWITCH1_CHROMA_KEY                    (1 << 12)
 #   define NV_PGRAPH_CTX_SWITCH1_SWIZZLE                       (1 << 14)
@@ -282,33 +321,44 @@
 #   define NV_DMA_TARGET_AGP                                      0x00030000
 
 
-#define NV_RAMHT_HANDLE                                      0xFFFFFFFF
-#define NV_RAMHT_INSTANCE                                    0x0000FFFF
-#define NV_RAMHT_ENGINE                                      0x00030000
+#define NV_RAMHT_HANDLE                                       0xFFFFFFFF
+#define NV_RAMHT_INSTANCE                                     0x0000FFFF
+#define NV_RAMHT_ENGINE                                       0x00030000
 #   define NV_RAMHT_ENGINE_SW                                     0x00000000
 #   define NV_RAMHT_ENGINE_GRAPHICS                               0x00010000
 #   define NV_RAMHT_ENGINE_DVD                                    0x00020000
-#define NV_RAMHT_CHID                                        0x1F000000
-#define NV_RAMHT_STATUS                                      0x80000000
+#define NV_RAMHT_CHID                                         0x1F000000
+#define NV_RAMHT_STATUS                                       0x80000000
 
 
 
 /* graphic classes and methods */
 #define NV_SET_OBJECT                                        0x00000000
 
-#define NV_KELVIN_PRIMITIVE                                0x00000097
-#   define NV097_NO_OPERATION                                     0x00970100
-#   define NV097_WAIT_FOR_IDLE                                    0x00970110
-#   define NV097_SET_CONTEXT_DMA_NOTIFIES                         0x00970180
-#   define NV097_SET_CONTEXT_DMA_A                                0x00970184
-#   define NV097_SET_CONTEXT_DMA_B                                0x00970188
-#   define NV097_SET_CONTEXT_DMA_STATE                            0x00970190
-#   define NV097_SET_CONTEXT_DMA_VERTEX_A                         0x0097019c
-#   define NV097_SET_CONTEXT_DMA_VERTEX_B                         0x009701a0
-#   define NV097_SET_CONTEXT_DMA_SEMAPHORE                        0x009701a4
-#   define NV097_SET_SEMAPHORE_OFFSET                             0x00971d6c
-#   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE                 0x00971d70
-
+#define NV_KELVIN_PRIMITIVE                              0x00000097
+#   define NV097_NO_OPERATION                                 0x00970100
+#   define NV097_WAIT_FOR_IDLE                                0x00970110
+#   define NV097_SET_CONTEXT_DMA_NOTIFIES                     0x00970180
+#   define NV097_SET_CONTEXT_DMA_A                            0x00970184
+#   define NV097_SET_CONTEXT_DMA_B                            0x00970188
+#   define NV097_SET_CONTEXT_DMA_STATE                        0x00970190
+#   define NV097_SET_CONTEXT_DMA_VERTEX_A                     0x0097019c
+#   define NV097_SET_CONTEXT_DMA_VERTEX_B                     0x009701a0
+#   define NV097_SET_CONTEXT_DMA_SEMAPHORE                    0x009701a4
+#   define NV097_SET_BEGIN_END                                0x009717fc
+#       define NV097_SET_BEGIN_END_OP_END                         0x00
+#       define NV097_SET_BEGIN_END_OP_POINTS                      0x01
+#       define NV097_SET_BEGIN_END_OP_LINES                       0x02
+#       define NV097_SET_BEGIN_END_OP_LINE_LOOP                   0x03
+#       define NV097_SET_BEGIN_END_OP_LINE_STRIP                  0x04
+#       define NV097_SET_BEGIN_END_OP_TRIANGLES                   0x05
+#       define NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP              0x06
+#       define NV097_SET_BEGIN_END_OP_TRIANGLE_FAN                0x07
+#       define NV097_SET_BEGIN_END_OP_QUADS                       0x08
+#       define NV097_SET_BEGIN_END_OP_QUAD_STRIP                  0x09
+#       define NV097_SET_BEGIN_END_OP_POLYGON                     0x0A
+#   define NV097_SET_SEMAPHORE_OFFSET                         0x00971d6c
+#   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971d70
 
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                           0x00000039
@@ -354,7 +404,7 @@ typedef struct DMAObject {
 
 
 typedef struct GraphicsObject {
-    uint8_t graphic_class;
+    uint8_t graphics_class;
     union {
         struct {
             hwaddr dma_notifies;
@@ -381,10 +431,16 @@ typedef struct GraphicsSubchannelData {
 
 typedef struct GraphicsContext {
     bool channel_3d;
-    unsigned int channel_id;
     unsigned int subchannel;
 
     GraphicsSubchannelData subchannel_data[NV2A_NUM_SUBCHANNELS];
+
+
+
+    CGLContextObj gl_context;
+
+    GLuint gl_framebuffer;
+    GLuint gl_renderbuffer;
 } GraphicsContext;
 
 
@@ -474,10 +530,14 @@ typedef struct NV2AState {
     } ptimer;
 
     struct {
+        uint32_t pending_interrupts;
+        uint32_t enabled_interrupts;
+
         hwaddr context_table;
         hwaddr context_pointer;
 
         unsigned int channel_id;
+        bool channel_valid;
         GraphicsContext context[NV2A_NUM_CHANNELS];
     } pgraph;
 
@@ -521,6 +581,13 @@ static void nv2a_update_irq(NV2AState *d)
         d->pmc.pending_interrupts |= NV_PMC_INTR_0_PCRTC;
     } else {
         d->pmc.pending_interrupts &= ~NV_PMC_INTR_0_PCRTC;
+    }
+
+    /* PGRAPH */
+    if (d->pgraph.pending_interrupts & d->pgraph.enabled_interrupts) {
+        d->pmc.pending_interrupts |= NV_PMC_INTR_0_PGRAPH;
+    } else {
+        d->pmc.pending_interrupts &= ~NV_PMC_INTR_0_PGRAPH;
     }
 
     if (d->pmc.pending_interrupts && d->pmc.enabled_interrupts) {
@@ -604,7 +671,7 @@ static GraphicsObject nv2a_load_graphics_object(NV2AState *d,
     switch3 = le32_to_cpupu((uint32_t*)(obj_ptr+8));
 
     return (GraphicsObject){
-        .graphic_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS,
+        .graphics_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS,
     };
 }
 
@@ -614,6 +681,8 @@ static void nv2a_pgraph_method(NV2AState *d,
                                unsigned int method,
                                uint32_t parameter)
 {
+    //assert(d->pgraph.channel_valid);
+
     GraphicsContext *context = &d->pgraph.context[d->pgraph.channel_id];
     GraphicsSubchannelData *subchannel_data =
         &context->subchannel_data[subchannel];
@@ -631,7 +700,7 @@ static void nv2a_pgraph_method(NV2AState *d,
 
     DMAObject dma_semaphore;
 
-    switch ((object->graphic_class << 16) | method) {
+    switch ((object->graphics_class << 16) | method) {
         case NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY:
             object->data.memory_to_memory_format.dma_notifies = parameter;
             break;
@@ -662,6 +731,31 @@ static void nv2a_pgraph_method(NV2AState *d,
         case NV097_SET_CONTEXT_DMA_SEMAPHORE:
             object->data.kelvin_primitive.dma_semaphore = parameter;
             break;
+
+        case NV097_SET_BEGIN_END:
+            if (parameter == NV097_SET_BEGIN_END_OP_END) {
+                glEnd();
+            } else {
+                GLenum mode_map[] = {
+                    0,
+                    GL_POINTS,
+                    GL_LINES,
+                    GL_LINE_LOOP,
+                    GL_LINE_STRIP,
+                    GL_TRIANGLES,
+                    GL_TRIANGLE_STRIP,
+                    GL_TRIANGLE_FAN,
+                    GL_QUADS,
+                    GL_QUAD_STRIP,
+                    GL_POLYGON,
+                };
+                assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
+
+                glBegin(mode_map[parameter]);
+            }
+
+            assert(e == GL_NO_ERROR);
+            break;
         case NV097_SET_SEMAPHORE_OFFSET:
             object->data.kelvin_primitive.semaphore_offset = parameter;
             break;
@@ -678,7 +772,7 @@ static void nv2a_pgraph_method(NV2AState *d,
             break;
         default:
             NV2A_DPRINTF("    unhandled  (0x%02x 0x%08x  -  0x%x)\n",
-                         object->graphic_class, method, parameter);
+                         object->graphics_class, method, parameter);
             break;
     }
 }
@@ -865,6 +959,63 @@ static void nv2a_run_pusher(NV2AState *d) {
         d->pfifo.pending_interrupts |= NV_PFIFO_INTR_0_DMA_PUSHER;
         nv2a_update_irq(d);
     }
+}
+
+
+
+static void nv2a_pgraph_context_init(GraphicsContext *context)
+{
+    /* TODO: context creation on linux */
+    CGLPixelFormatAttribute attributes[] = {
+        kCGLPFAAccelerated,
+        (CGLPixelFormatAttribute)0
+    };
+
+    CGLPixelFormatObj pix;
+    GLint num;
+    CGLChoosePixelFormat(attributes, &pix, &num);
+    CGLCreateContext(pix, NULL, &context->gl_context);
+    CGLDestroyPixelFormat(pix);
+
+    CGLSetCurrentContext(context->gl_context);
+
+
+    const GLubyte *extensions;
+    extensions = glGetString (GL_EXTENSIONS);
+
+    assert(gluCheckExtension((const GLubyte*)"GL_EXT_framebuffer_object",
+                             extensions));
+
+    glGenFramebuffersEXT(1, &context->gl_framebuffer);
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, context->gl_framebuffer);
+
+    glGenRenderbuffersEXT(1, &context->gl_renderbuffer);
+    glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, context->gl_renderbuffer);
+    glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_RGBA8,
+                             640, 480);
+    glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT,
+                                 GL_COLOR_ATTACHMENT0_EXT,
+                                 GL_RENDERBUFFER_EXT,
+                                 context->gl_renderbuffer);
+
+    assert(glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT)
+            == GL_FRAMEBUFFER_COMPLETE_EXT);
+
+    assert(glGetError() == GL_NO_ERROR);
+}
+
+static void nv2a_pgraph_context_set_current(GraphicsContext *context)
+{
+    printf("set current\n");
+    CGLSetCurrentContext(context->gl_context);
+}
+
+static void nv2a_pgraph_context_destroy(GraphicsContext *context)
+{
+    glDeleteRenderbuffersEXT(1, &context->gl_renderbuffer);
+    glDeleteFramebuffersEXT(1, &context->gl_framebuffer);
+
+    CGLDestroyContext(context->gl_context);
 }
 
 
@@ -1400,6 +1551,12 @@ static uint64_t nv2a_pgraph_read(void *opaque,
 
     uint64_t r = 0;
     switch (addr) {
+    case NV_PGRAPH_INTR:
+        r = d->pgraph.pending_interrupts;
+        break;
+    case NV_PGRAPH_INTR_EN:
+        r = d->pgraph.enabled_interrupts;
+        break;
     case NV_PGRAPH_CTX_USER:
         r = d->pgraph.context[d->pgraph.channel_id].channel_3d
             | NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID
@@ -1427,14 +1584,32 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
     NV2A_DPRINTF("nv2a PGRAPH: [0x%llx] = 0x%02llx\n", addr, val);
 
     switch (addr) {
+    case NV_PGRAPH_INTR:
+        d->pgraph.pending_interrupts &= ~val;
+        break;
+    case NV_PGRAPH_INTR_EN:
+        d->pgraph.enabled_interrupts = val;
+        break;
+    case NV_PGRAPH_CTX_CONTROL:
+        if (!(val & NV_PGRAPH_CTX_CONTROL_TIME)) {
+            /* time expired */
+            d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
+            nv2a_update_irq(d);
+            break;
+        }
+
+        d->pgraph.channel_valid = (val & NV_PGRAPH_CTX_CONTROL_CHID);
+        break;
     case NV_PGRAPH_CTX_USER:
         d->pgraph.channel_id = (val & NV_PGRAPH_CTX_USER_CHID) >> 24;
-        d->pgraph.context[d->pgraph.channel_id].channel_id =
-            d->pgraph.channel_id;
+
         d->pgraph.context[d->pgraph.channel_id].channel_3d =
             val & NV_PGRAPH_CTX_USER_CHANNEL_3D;
         d->pgraph.context[d->pgraph.channel_id].subchannel =
             (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
+
+        nv2a_pgraph_context_set_current(
+            &d->pgraph.context[d->pgraph.channel_id]);
 
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
@@ -2007,7 +2182,25 @@ static int nv2a_initfn(PCIDevice *dev)
 
     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
 
+
+
+    for (i=0; i<NV2A_NUM_CHANNELS; i++) {
+        nv2a_pgraph_context_init(&d->pgraph.context[i]);
+    }
+
+
     return 0;
+}
+
+static void nv2a_exitfn(PCIDevice *dev)
+{
+    int i;
+    NV2AState *d;
+    d = NV2A_DEVICE(dev);
+
+    for (i=0; i<NV2A_NUM_CHANNELS; i++) {
+        nv2a_pgraph_context_destroy(&d->pgraph.context[i]);
+    }
 }
 
 static void nv2a_class_init(ObjectClass *klass, void *data)
@@ -2020,6 +2213,7 @@ static void nv2a_class_init(ObjectClass *klass, void *data)
     k->revision = 161;
     k->class_id = PCI_CLASS_DISPLAY_3D;
     k->init = nv2a_initfn;
+    k->exit = nv2a_exitfn;
 
     dc->desc = "GeForce NV2A Integrated Graphics";
 }

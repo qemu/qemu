@@ -2276,15 +2276,28 @@ fi
 ##########################################
 # opengl probe, used by milkymist-tmu2
 if test "$opengl" != "no" ; then
-  opengl_libs="-lGL"
-  cat > $TMPC << EOF
+  if test "$darwin" = "yes" ; then
+    opengl_libs="-framework OpenGL -framework GLUT"
+    cat > $TMPC << EOF
+#include <OpenGL/gl.h>
+#include <OpenGL/CGLTypes.h>
+#include <OpenGL/CGLCurrent.h>
+#include <GLUT/glut.h>
+int main(void) { return GL_VERSION != 0; }
+EOF
+  else
+    opengl_libs="-lGL"
+    cat > $TMPC << EOF
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
+#include <GL/glut.h>
 int main(void) { return GL_VERSION != 0; }
 EOF
-  if compile_prog "" "-lGL" ; then
+  fi
+  if compile_prog "" "$opengl_libs" ; then
     opengl=yes
+    libs_softmmu="$opengl_libs $libs_softmmu"
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl"
@@ -3743,7 +3756,6 @@ case "$target_arch2" in
     target_nptl="yes"
   ;;
   lm32)
-    target_libs_softmmu="$opengl_libs"
   ;;
   m68k)
     bflt="yes"
