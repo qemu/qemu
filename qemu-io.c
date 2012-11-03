@@ -1892,9 +1892,8 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    bdrv_init();
-
     qemu_init_main_loop();
+    bdrv_init();
 
     /* initialize commands */
     quit_init();
