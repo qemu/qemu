@@ -55,7 +55,6 @@ typedef struct BDRVNBDState {
     uint32_t nbdflags;
     off_t size;
     size_t blocksize;
-    char *export_name; /* An NBD server may export several devices */
 
     CoMutex send_mutex;
     CoMutex free_sema;
@@ -65,13 +64,12 @@ typedef struct BDRVNBDState {
     Coroutine *recv_coroutine[MAX_NBD_REQUESTS];
     struct nbd_reply reply;
 
-    /* If it begins with  '/', this is a UNIX domain socket. Otherwise,
-     * it's a string of the form <hostname|ip4|\[ip6\]>:port
-     */
+    int is_unix;
     char *host_spec;
+    char *export_name; /* An NBD server may export several devices */
 } BDRVNBDState;
 
-static int nbd_config(BDRVNBDState *s, const char *filename, int flags)
+static int nbd_config(BDRVNBDState *s, const char *filename)
 {
     char *file;
     char *export_name;
@@ -98,11 +96,10 @@ static int nbd_config(BDRVNBDState *s, const char *filename, int flags)
 
     /* are we a UNIX or TCP socket? */
     if (strstart(host_spec, "unix:", &unixpath)) {
-        if (unixpath[0] != '/') { /* We demand  an absolute path*/
-            goto out;
-        }
+        s->is_unix = true;
         s->host_spec = g_strdup(unixpath);
     } else {
+        s->is_unix = false;
         s->host_spec = g_strdup(host_spec);
     }
 
@@ -262,7 +259,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     off_t size;
     size_t blocksize;
 
-    if (s->host_spec[0] == '/') {
+    if (s->is_unix) {
         sock = unix_socket_outgoing(s->host_spec);
     } else {
         sock = tcp_socket_outgoing_spec(s->host_spec);
@@ -320,7 +317,7 @@ static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
     qemu_co_mutex_init(&s->free_sema);
 
     /* Pop the config into our state object. Exit if invalid. */
-    result = nbd_config(s, filename, flags);
+    result = nbd_config(s, filename);
     if (result != 0) {
         return result;
     }
