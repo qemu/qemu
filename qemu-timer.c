@@ -745,6 +745,7 @@ static void quit_timers(void)
     t->stop(t);
 }
 
+#ifdef CONFIG_POSIX
 static void reinit_timers(void)
 {
     struct qemu_alarm_timer *t = alarm_timer;
@@ -755,6 +756,7 @@ static void reinit_timers(void)
     }
     qemu_rearm_alarm_timer(t);
 }
+#endif /* CONFIG_POSIX */
 
 int init_timer_alarm(void)
 {
