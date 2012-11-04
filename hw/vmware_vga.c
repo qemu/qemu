@@ -39,6 +39,8 @@ struct vmsvga_state_s {
     VGACommonState vga;
 
     int invalidated;
+    int depth;
+    int bypp;
     int enable;
     int config;
     struct {
@@ -55,6 +57,9 @@ struct vmsvga_state_s {
     int new_height;
     uint32_t guest;
     uint32_t svgaid;
+    uint32_t wred;
+    uint32_t wgreen;
+    uint32_t wblue;
     int syncing;
 
     MemoryRegion fifo_ram;
@@ -718,25 +723,25 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return SVGA_MAX_HEIGHT;
 
     case SVGA_REG_DEPTH:
-        return ds_get_depth(s->vga.ds);
+        return s->depth;
 
     case SVGA_REG_BITS_PER_PIXEL:
-        return ds_get_bits_per_pixel(s->vga.ds);
+        return (s->depth + 7) & ~7;
 
     case SVGA_REG_PSEUDOCOLOR:
         return 0x0;
 
     case SVGA_REG_RED_MASK:
-        return ds_get_rmask(s->vga.ds);
+        return s->wred;
 
     case SVGA_REG_GREEN_MASK:
-        return ds_get_gmask(s->vga.ds);
+        return s->wgreen;
 
     case SVGA_REG_BLUE_MASK:
-        return ds_get_bmask(s->vga.ds);
+        return s->wblue;
 
     case SVGA_REG_BYTES_PER_LINE:
-        return ds_get_bytes_per_pixel(s->vga.ds) * s->new_width;
+        return s->bypp * s->new_width;
 
     case SVGA_REG_FB_START: {
         struct pci_vmsvga_state_s *pci_vmsvga
@@ -801,7 +806,7 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
         return s->cursor.on;
 
     case SVGA_REG_HOST_BITS_PER_PIXEL:
-        return ds_get_bits_per_pixel(s->vga.ds);
+        return (s->depth + 7) & ~7;
 
     case SVGA_REG_SCRATCH_SIZE:
         return s->scratch_size;
@@ -864,7 +869,7 @@ static void vmsvga_value_write(void *opaque, uint32_t address, uint32_t value)
         break;
 
     case SVGA_REG_BITS_PER_PIXEL:
-        if (value != ds_get_bits_per_pixel(s->vga.ds)) {
+        if (value != s->depth) {
             printf("%s: Bad bits per pixel: %i bits\n", __func__, value);
             s->config = 0;
         }
@@ -1084,7 +1089,7 @@ static const VMStateDescription vmstate_vmware_vga_internal = {
     .minimum_version_id_old = 0,
     .post_load = vmsvga_post_load,
     .fields      = (VMStateField[]) {
-        VMSTATE_UNUSED(4), /* was depth */
+        VMSTATE_INT32_EQUAL(depth, struct vmsvga_state_s),
         VMSTATE_INT32(enable, struct vmsvga_state_s),
         VMSTATE_INT32(config, struct vmsvga_state_s),
         VMSTATE_INT32(cursor.id, struct vmsvga_state_s),
@@ -1137,6 +1142,13 @@ static void vmsvga_init(struct vmsvga_state_s *s,
     vga_common_init(&s->vga);
     vga_init(&s->vga, address_space, io, true);
     vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
+    /* Save some values here in case they are changed later.
+     * This is suspicious and needs more though why it is needed. */
+    s->depth = ds_get_bits_per_pixel(s->vga.ds);
+    s->bypp = ds_get_bytes_per_pixel(s->vga.ds);
+    s->wred = ds_get_rmask(s->vga.ds);
+    s->wgreen = ds_get_gmask(s->vga.ds);
+    s->wblue = ds_get_bmask(s->vga.ds);
 }
 
 static uint64_t vmsvga_io_read(void *opaque, hwaddr addr, unsigned size)
