@@ -93,6 +93,13 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
         return;
     }
 
+    if (!has_writable) {
+        writable = true;
+    }
+    if (bdrv_is_read_only(bs)) {
+        writable = false;
+    }
+
     exp = nbd_export_new(bs, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY,
                          nbd_server_put_ref);
 
