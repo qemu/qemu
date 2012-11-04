@@ -167,11 +167,11 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
         waiocb->is_linear = true;
     }
 
-    waiocb->ov = (OVERLAPPED) {
-        .Offset = (DWORD) offset,
-        .OffsetHigh = (DWORD) (offset >> 32),
-        .hEvent = event_notifier_get_handle(&aio->e)
-    };
+    memset(&waiocb->ov, 0, sizeof(waiocb->ov));
+    waiocb->ov.Offset = (DWORD)offset;
+    waiocb->ov.OffsetHigh = (DWORD)(offset >> 32);
+    waiocb->ov.hEvent = event_notifier_get_handle(&aio->e);
+
     aio->count++;
 
     if (type & QEMU_AIO_READ) {
