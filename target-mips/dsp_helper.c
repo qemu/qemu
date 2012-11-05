@@ -3653,7 +3653,7 @@ target_ulong helper_extr_s_h(target_ulong ac, target_ulong shift,
     if (temp > (int64_t)0x7FFF) {
         temp = 0x00007FFF;
         set_DSPControl_overflow_flag(1, 23, env);
-    } else if (temp < (int64_t)0xFFFFFFFFFFFF8000LL) {
+    } else if (temp < (int64_t)0xFFFFFFFFFFFF8000ULL) {
         temp = 0xFFFF8000;
         set_DSPControl_overflow_flag(1, 23, env);
     }
