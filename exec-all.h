@@ -337,7 +337,7 @@ extern uintptr_t tci_tb_ptr;
                                     *(int32_t *)((void *)GETRA() + 3) - 1))
 # elif defined (_ARCH_PPC) && !defined (_ARCH_PPC64)
 #  define GETRA() ((uintptr_t)__builtin_return_address(0))
-#  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() + 4)) - 1))
+#  define GETPC_LDST() ((uintptr_t) ((*(int32_t *)(GETRA() - 4)) - 1))
 # else
 #  error "CONFIG_QEMU_LDST_OPTIMIZATION needs GETPC_LDST() implementation!"
 # endif
