@@ -139,6 +139,10 @@ having a common prefix in a batch. For example, virtio-blk trace events could
 be enabled using:
   trace-event virtio_blk_* on
 
+If a line in the "-trace events=<file>" file begins with a '-', the trace event
+will be disabled instead of enabled.  This is useful when a wildcard was used
+to enable an entire family of events but one noisy event needs to be disabled.
+
 == Trace backends ==
 
 The "tracetool" script automates tedious trace event code generation and also
