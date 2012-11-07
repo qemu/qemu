@@ -3649,6 +3649,11 @@ if test "$sparse" = "yes" ; then
   echo "HOST_CC      := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
   echo "QEMU_CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
 fi
+if test "$cross_prefix" != ""; then
+  echo "AUTOCONF_HOST := --host=${cross_prefix%-}"     >> $config_host_mak
+else
+  echo "AUTOCONF_HOST := "                             >> $config_host_mak
+fi
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
