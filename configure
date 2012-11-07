@@ -2121,11 +2121,10 @@ else
     echo "      git submodule update --init pixman"
     exit 1
   fi
-  pixman_cflags="-I${source_path}/pixman/pixman"
-  pixman_libs="-Lpixman/pixman/.libs -lpixman-1"
+  mkdir -p pixman/pixman
+  pixman_cflags="-I\$(SRC_PATH)/pixman/pixman -I\$(BUILD_DIR)/pixman/pixman"
+  pixman_libs="-L\$(BUILD_DIR)/pixman/pixman/.libs -lpixman-1"
 fi
-QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
-libs_softmmu="$libs_softmmu $pixman_libs"
 
 ##########################################
 # libcap probe
@@ -3136,6 +3135,10 @@ fi
 if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
   roms="$roms spapr-rtas"
 fi
+
+# add pixman flags after all config tests are done
+QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
+libs_softmmu="$libs_softmmu $pixman_libs"
 
 echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $qemu_datadir`"
@@ -4154,7 +4157,6 @@ DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS qapi-generated"
 DIRS="$DIRS libcacard libcacard/libcacard libcacard/trace"
-DIRS="$DIRS pixman"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
 FILES="$FILES tests/tcg/lm32/Makefile libcacard/Makefile"
