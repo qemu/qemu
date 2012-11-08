@@ -840,7 +840,7 @@ static void dec_bit(DisasContext *dc)
             LOG_DIS("swapb r%d r%d\n", dc->rd, dc->ra);
             tcg_gen_bswap32_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
             break;
-        case 0x1e1:
+        case 0x1e2:
             /*swaph */
             LOG_DIS("swaph r%d r%d\n", dc->rd, dc->ra);
             tcg_gen_rotri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 16);
