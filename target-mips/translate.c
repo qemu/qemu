@@ -2013,7 +2013,6 @@ static void gen_logic_imm(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
                           int rt, int rs, int16_t imm)
 {
     target_ulong uimm;
-    const char *opn = "imm logic";
 
     if (rt == 0) {
         /* If no destination, treat it as a NOP. */
@@ -2027,29 +2026,34 @@ static void gen_logic_imm(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
             tcg_gen_andi_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
         else
             tcg_gen_movi_tl(cpu_gpr[rt], 0);
-        opn = "andi";
+        MIPS_DEBUG("andi %s, %s, " TARGET_FMT_lx, regnames[rt],
+                   regnames[rs], uimm);
         break;
     case OPC_ORI:
         if (rs != 0)
             tcg_gen_ori_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
         else
             tcg_gen_movi_tl(cpu_gpr[rt], uimm);
-        opn = "ori";
+        MIPS_DEBUG("ori %s, %s, " TARGET_FMT_lx, regnames[rt],
+                   regnames[rs], uimm);
         break;
     case OPC_XORI:
         if (likely(rs != 0))
             tcg_gen_xori_tl(cpu_gpr[rt], cpu_gpr[rs], uimm);
         else
             tcg_gen_movi_tl(cpu_gpr[rt], uimm);
-        opn = "xori";
+        MIPS_DEBUG("xori %s, %s, " TARGET_FMT_lx, regnames[rt],
+                   regnames[rs], uimm);
         break;
     case OPC_LUI:
         tcg_gen_movi_tl(cpu_gpr[rt], imm << 16);
-        opn = "lui";
+        MIPS_DEBUG("lui %s, " TARGET_FMT_lx, regnames[rt], uimm);
+        break;
+
+    default:
+        MIPS_DEBUG("Unknown logical immediate opcode %08x", opc);
         break;
     }
-    (void)opn; /* avoid a compiler warning */
-    MIPS_DEBUG("%s %s, %s, " TARGET_FMT_lx, opn, regnames[rt], regnames[rs], uimm);
 }
 
 /* Set on less than with immediate operand */
