@@ -605,7 +605,6 @@ static int buffered_close(void *opaque)
     if (ret >= 0) {
         ret = ret2;
     }
-    ret = migrate_fd_close(s);
     s->complete = true;
     return ret;
 }
