@@ -171,8 +171,8 @@ static Coroutine *coroutine_new(void)
     CoroutineThreadState *coTS;
     struct sigaction sa;
     struct sigaction osa;
-    struct sigaltstack ss;
-    struct sigaltstack oss;
+    stack_t ss;
+    stack_t oss;
     sigset_t sigs;
     sigset_t osigs;
     jmp_buf old_env;
