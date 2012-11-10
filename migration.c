@@ -272,7 +272,7 @@ static int migrate_fd_cleanup(MigrationState *s)
         s->file = NULL;
     }
 
-    migrate_fd_close(s);
+    assert(s->fd == -1);
     return ret;
 }
 
