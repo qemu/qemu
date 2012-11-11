@@ -108,13 +108,13 @@ static void icp_set_cppr(struct icp_state *icp, int server, uint8_t cppr)
     }
 }
 
-static void icp_set_mfrr(struct icp_state *icp, int nr, uint8_t mfrr)
+static void icp_set_mfrr(struct icp_state *icp, int server, uint8_t mfrr)
 {
-    struct icp_server_state *ss = icp->ss + nr;
+    struct icp_server_state *ss = icp->ss + server;
 
     ss->mfrr = mfrr;
     if (mfrr < CPPR(ss)) {
-        icp_check_ipi(icp, nr);
+        icp_check_ipi(icp, server);
     }
 }
 
@@ -326,8 +326,7 @@ static void ics_eoi(struct ics_state *ics, int nr)
 
 qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
 {
-    if ((irq < icp->ics->offset)
-        || (irq >= (icp->ics->offset + icp->ics->nr_irqs))) {
+    if (!ics_valid_irq(icp->ics, irq)) {
         return NULL;
     }
 
@@ -336,22 +335,22 @@ qemu_irq xics_get_qirq(struct icp_state *icp, int irq)
 
 void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi)
 {
-    assert((irq >= icp->ics->offset)
-           && (irq < (icp->ics->offset + icp->ics->nr_irqs)));
+    assert(ics_valid_irq(icp->ics, irq));
 
     icp->ics->irqs[irq - icp->ics->offset].lsi = lsi;
 }
 
-static target_ulong h_cppr(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_cppr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong cppr = args[0];
 
     icp_set_cppr(spapr->icp, env->cpu_index, cppr);
     return H_SUCCESS;
 }
 
-static target_ulong h_ipi(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_ipi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
     target_ulong server = args[0];
@@ -366,18 +365,20 @@ static target_ulong h_ipi(CPUPPCState *env, sPAPREnvironment *spapr,
 
 }
 
-static target_ulong h_xirr(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_xirr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     uint32_t xirr = icp_accept(spapr->icp->ss + env->cpu_index);
 
     args[0] = xirr;
     return H_SUCCESS;
 }
 
-static target_ulong h_eoi(CPUPPCState *env, sPAPREnvironment *spapr,
+static target_ulong h_eoi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
+    CPUPPCState *env = &cpu->env;
     target_ulong xirr = args[0];
 
     icp_eoi(spapr->icp, env->cpu_index, xirr);

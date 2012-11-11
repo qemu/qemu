@@ -907,9 +907,11 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     }
 }
 
-static inline void cpu_x86_load_seg_cache_sipi(CPUX86State *env,
+static inline void cpu_x86_load_seg_cache_sipi(X86CPU *cpu,
                                                int sipi_vector)
 {
+    CPUX86State *env = &cpu->env;
+
     env->eip = 0;
     cpu_x86_load_seg_cache(env, R_CS, sipi_vector << 8,
                            sipi_vector << 12,
@@ -1098,8 +1100,10 @@ static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
 #include "hw/apic.h"
 #endif
 
-static inline bool cpu_has_work(CPUX86State *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUX86State *env = &X86_CPU(cpu)->env;
+
     return ((env->interrupt_request & (CPU_INTERRUPT_HARD |
                                        CPU_INTERRUPT_POLL)) &&
             (env->eflags & IF_MASK)) ||
@@ -1131,7 +1135,7 @@ void do_cpu_sipi(X86CPU *cpu);
 #define MCE_INJECT_BROADCAST    1
 #define MCE_INJECT_UNCOND_AO    2
 
-void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
+void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags);
 

@@ -199,7 +199,7 @@ static void pl190_write(void *opaque, hwaddr offset,
         break;
     case 0xc0: /* ITCR */
         if (val) {
-            hw_error("pl190: Test mode not implemented\n");
+            qemu_log_mask(LOG_UNIMP, "pl190: Test mode not implemented\n");
         }
         break;
     default:

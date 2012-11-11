@@ -14,7 +14,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
                                              int *has_bg, int *has_fg)
 {
     VncDisplay *vd = vs->vd;
-    uint8_t *row = vd->server->data + y * ds_get_linesize(vs->ds) + x * ds_get_bytes_per_pixel(vs->ds);
+    uint8_t *row = vnc_server_fb_ptr(vd, x, y);
     pixel_t *irow = (pixel_t *)row;
     int j, i;
     pixel_t *last_bg = (pixel_t *)last_bg_;
@@ -25,7 +25,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     int bg_count = 0;
     int fg_count = 0;
     int flags = 0;
-    uint8_t data[(vs->clientds.pf.bytes_per_pixel + 2) * 16 * 16];
+    uint8_t data[(vs->client_pf.bytes_per_pixel + 2) * 16 * 16];
     int n_data = 0;
     int n_subtiles = 0;
 
@@ -58,7 +58,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	}
 	if (n_colors > 2)
 	    break;
-	irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
+	irow += vnc_server_fb_stride(vd) / sizeof(pixel_t);
     }
 
     if (n_colors > 1 && fg_count > bg_count) {
@@ -106,7 +106,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 		n_data += 2;
 		n_subtiles++;
 	    }
-	    irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
+	    irow += vnc_server_fb_stride(vd) / sizeof(pixel_t);
 	}
 	break;
     case 3:
@@ -133,7 +133,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 		    has_color = 0;
 #ifdef GENERIC
                     vnc_convert_pixel(vs, data + n_data, color);
-                    n_data += vs->clientds.pf.bytes_per_pixel;
+                    n_data += vs->client_pf.bytes_per_pixel;
 #else
 		    memcpy(data + n_data, &color, sizeof(color));
                     n_data += sizeof(pixel_t);
@@ -153,7 +153,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	    if (has_color) {
 #ifdef GENERIC
                 vnc_convert_pixel(vs, data + n_data, color);
-                n_data += vs->clientds.pf.bytes_per_pixel;
+                n_data += vs->client_pf.bytes_per_pixel;
 #else
                 memcpy(data + n_data, &color, sizeof(color));
                 n_data += sizeof(pixel_t);
@@ -162,7 +162,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 		n_data += 2;
 		n_subtiles++;
 	    }
-	    irow += ds_get_linesize(vs->ds) / sizeof(pixel_t);
+	    irow += vnc_server_fb_stride(vd) / sizeof(pixel_t);
 	}
 
 	/* A SubrectsColoured subtile invalidates the foreground color */
@@ -190,18 +190,17 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
     vnc_write_u8(vs, flags);
     if (n_colors < 4) {
 	if (flags & 0x02)
-	    vs->write_pixels(vs, &vd->server->pf, last_bg, sizeof(pixel_t));
+	    vs->write_pixels(vs, last_bg, sizeof(pixel_t));
 	if (flags & 0x04)
-	    vs->write_pixels(vs, &vd->server->pf, last_fg, sizeof(pixel_t));
+	    vs->write_pixels(vs, last_fg, sizeof(pixel_t));
 	if (n_subtiles) {
 	    vnc_write_u8(vs, n_subtiles);
 	    vnc_write(vs, data, n_data);
 	}
     } else {
 	for (j = 0; j < h; j++) {
-	    vs->write_pixels(vs, &vd->server->pf, row,
-                             w * ds_get_bytes_per_pixel(vs->ds));
-	    row += ds_get_linesize(vs->ds);
+	    vs->write_pixels(vs, row, w * 4);
+	    row += vnc_server_fb_stride(vd);
 	}
     }
 }

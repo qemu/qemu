@@ -133,37 +133,61 @@ static void translate_stat(CPUM68KState *env, target_ulong addr, struct stat *s)
     unlock_user(p, addr, sizeof(struct m68k_gdb_stat));
 }
 
+static void m68k_semi_return_u32(CPUM68KState *env, uint32_t ret, uint32_t err)
+{
+    target_ulong args = env->dregs[1];
+    if (put_user_u32(ret, args) ||
+        put_user_u32(err, args + 4)) {
+        /* The m68k semihosting ABI does not provide any way to report this
+         * error to the guest, so the best we can do is log it in qemu.
+         * It is always a guest error not to pass us a valid argument block.
+         */
+        qemu_log_mask(LOG_GUEST_ERROR, "m68k-semihosting: return value "
+                      "discarded because argument block not writable\n");
+    }
+}
+
+static void m68k_semi_return_u64(CPUM68KState *env, uint64_t ret, uint32_t err)
+{
+    target_ulong args = env->dregs[1];
+    if (put_user_u32(ret >> 32, args) ||
+        put_user_u32(ret, args + 4) ||
+        put_user_u32(err, args + 8)) {
+        /* No way to report this via m68k semihosting ABI; just log it */
+        qemu_log_mask(LOG_GUEST_ERROR, "m68k-semihosting: return value "
+                      "discarded because argument block not writable\n");
+    }
+}
+
 static int m68k_semi_is_fseek;
 
 static void m68k_semi_cb(CPUM68KState *env, target_ulong ret, target_ulong err)
 {
-    target_ulong args;
-
-    args = env->dregs[1];
     if (m68k_semi_is_fseek) {
         /* FIXME: We've already lost the high bits of the fseek
            return value.  */
-        /* FIXME - handle put_user() failure */
-        put_user_u32(0, args);
-        args += 4;
+        m68k_semi_return_u64(env, ret, err);
         m68k_semi_is_fseek = 0;
+    } else {
+        m68k_semi_return_u32(env, ret, err);
     }
-    /* FIXME - handle put_user() failure */
-    put_user_u32(ret, args);
-    put_user_u32(errno, args + 4);
 }
 
-#define ARG(n)					\
-({						\
-    target_ulong __arg;				\
-    /* FIXME - handle get_user() failure */	\
-    get_user_ual(__arg, args + (n) * 4);	\
-    __arg;					\
-})
-#define PARG(x) ((unsigned long)ARG(x))
+/* Read the input value from the argument block; fail the semihosting
+ * call if the memory read fails.
+ */
+#define GET_ARG(n) do {                                 \
+    if (get_user_ual(arg ## n, args + (n) * 4)) {       \
+        result = -1;                                    \
+        errno = EFAULT;                                 \
+        goto failed;                                    \
+    }                                                   \
+} while (0)
+
 void do_m68k_semihosting(CPUM68KState *env, int nr)
 {
     uint32_t args;
+    target_ulong arg0, arg1, arg2, arg3;
     void *p;
     void *q;
     uint32_t len;
@@ -175,27 +199,33 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         gdb_exit(env, env->dregs[0]);
         exit(env->dregs[0]);
     case HOSTED_OPEN:
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        GET_ARG(3);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "open,%s,%x,%x", ARG(0), (int)ARG(1),
-                           ARG(2), ARG(3));
+            gdb_do_syscall(m68k_semi_cb, "open,%s,%x,%x", arg0, (int)arg1,
+                           arg2, arg3);
             return;
         } else {
-            if (!(p = lock_user_string(ARG(0)))) {
+            p = lock_user_string(arg0);
+            if (!p) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
-                result = open(p, translate_openflags(ARG(2)), ARG(3));
-                unlock_user(p, ARG(0), 0);
+                result = open(p, translate_openflags(arg2), arg3);
+                unlock_user(p, arg0, 0);
             }
         }
         break;
     case HOSTED_CLOSE:
         {
             /* Ignore attempts to close stdin/out/err.  */
-            int fd = ARG(0);
+            GET_ARG(0);
+            int fd = arg0;
             if (fd > 2) {
                 if (use_gdb_syscalls()) {
-                    gdb_do_syscall(m68k_semi_cb, "close,%x", ARG(0));
+                    gdb_do_syscall(m68k_semi_cb, "close,%x", arg0);
                     return;
                 } else {
                     result = close(fd);
@@ -206,123 +236,147 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             break;
         }
     case HOSTED_READ:
-        len = ARG(2);
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        len = arg2;
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "read,%x,%x,%x",
-                           ARG(0), ARG(1), len);
+                           arg0, arg1, len);
             return;
         } else {
-            if (!(p = lock_user(VERIFY_WRITE, ARG(1), len, 0))) {
+            p = lock_user(VERIFY_WRITE, arg1, len, 0);
+            if (!p) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
-                result = read(ARG(0), p, len);
-                unlock_user(p, ARG(1), len);
+                result = read(arg0, p, len);
+                unlock_user(p, arg1, len);
             }
         }
         break;
     case HOSTED_WRITE:
-        len = ARG(2);
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        len = arg2;
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "write,%x,%x,%x",
-                           ARG(0), ARG(1), len);
+                           arg0, arg1, len);
             return;
         } else {
-            if (!(p = lock_user(VERIFY_READ, ARG(1), len, 1))) {
+            p = lock_user(VERIFY_READ, arg1, len, 1);
+            if (!p) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
-                result = write(ARG(0), p, len);
-                unlock_user(p, ARG(0), 0);
+                result = write(arg0, p, len);
+                unlock_user(p, arg0, 0);
             }
         }
         break;
     case HOSTED_LSEEK:
         {
             uint64_t off;
-            off = (uint32_t)ARG(2) | ((uint64_t)ARG(1) << 32);
+            GET_ARG(0);
+            GET_ARG(1);
+            GET_ARG(2);
+            GET_ARG(3);
+            off = (uint32_t)arg2 | ((uint64_t)arg1 << 32);
             if (use_gdb_syscalls()) {
                 m68k_semi_is_fseek = 1;
                 gdb_do_syscall(m68k_semi_cb, "fseek,%x,%lx,%x",
-                               ARG(0), off, ARG(3));
+                               arg0, off, arg3);
             } else {
-                off = lseek(ARG(0), off, ARG(3));
-                /* FIXME - handle put_user() failure */
-                put_user_u32(off >> 32, args);
-                put_user_u32(off, args + 4);
-                put_user_u32(errno, args + 8);
+                off = lseek(arg0, off, arg3);
+                m68k_semi_return_u64(env, off, errno);
             }
             return;
         }
     case HOSTED_RENAME:
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
+        GET_ARG(3);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "rename,%s,%s",
-                           ARG(0), (int)ARG(1), ARG(2), (int)ARG(3));
+                           arg0, (int)arg1, arg2, (int)arg3);
             return;
         } else {
-            p = lock_user_string(ARG(0));
-            q = lock_user_string(ARG(2));
+            p = lock_user_string(arg0);
+            q = lock_user_string(arg2);
             if (!p || !q) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
                 result = rename(p, q);
             }
-            unlock_user(p, ARG(0), 0);
-            unlock_user(q, ARG(2), 0);
+            unlock_user(p, arg0, 0);
+            unlock_user(q, arg2, 0);
         }
         break;
     case HOSTED_UNLINK:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "unlink,%s",
-                           ARG(0), (int)ARG(1));
+                           arg0, (int)arg1);
             return;
         } else {
-            if (!(p = lock_user_string(ARG(0)))) {
+            p = lock_user_string(arg0);
+            if (!p) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
                 result = unlink(p);
-                unlock_user(p, ARG(0), 0);
+                unlock_user(p, arg0, 0);
             }
         }
         break;
     case HOSTED_STAT:
+        GET_ARG(0);
+        GET_ARG(1);
+        GET_ARG(2);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "stat,%s,%x",
-                           ARG(0), (int)ARG(1), ARG(2));
+                           arg0, (int)arg1, arg2);
             return;
         } else {
             struct stat s;
-            if (!(p = lock_user_string(ARG(0)))) {
+            p = lock_user_string(arg0);
+            if (!p) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
                 result = stat(p, &s);
-                unlock_user(p, ARG(0), 0);
+                unlock_user(p, arg0, 0);
             }
             if (result == 0) {
-                translate_stat(env, ARG(2), &s);
+                translate_stat(env, arg2, &s);
             }
         }
         break;
     case HOSTED_FSTAT:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "fstat,%x,%x",
-                           ARG(0), ARG(1));
+                           arg0, arg1);
             return;
         } else {
             struct stat s;
-            result = fstat(ARG(0), &s);
+            result = fstat(arg0, &s);
             if (result == 0) {
-                translate_stat(env, ARG(1), &s);
+                translate_stat(env, arg1, &s);
             }
         }
         break;
     case HOSTED_GETTIMEOFDAY:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "gettimeofday,%x,%x",
-                           ARG(0), ARG(1));
+                           arg0, arg1);
             return;
         } else {
             qemu_timeval tv;
@@ -330,37 +384,41 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
             result = qemu_gettimeofday(&tv);
             if (result != 0) {
                 if (!(p = lock_user(VERIFY_WRITE,
-                                    ARG(0), sizeof(struct gdb_timeval), 0))) {
+                                    arg0, sizeof(struct gdb_timeval), 0))) {
                     /* FIXME - check error code? */
                     result = -1;
                 } else {
                     p->tv_sec = cpu_to_be32(tv.tv_sec);
                     p->tv_usec = cpu_to_be64(tv.tv_usec);
-                    unlock_user(p, ARG(0), sizeof(struct gdb_timeval));
+                    unlock_user(p, arg0, sizeof(struct gdb_timeval));
                 }
             }
         }
         break;
     case HOSTED_ISATTY:
+        GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(m68k_semi_cb, "isatty,%x", ARG(0));
+            gdb_do_syscall(m68k_semi_cb, "isatty,%x", arg0);
             return;
         } else {
-            result = isatty(ARG(0));
+            result = isatty(arg0);
         }
         break;
     case HOSTED_SYSTEM:
+        GET_ARG(0);
+        GET_ARG(1);
         if (use_gdb_syscalls()) {
             gdb_do_syscall(m68k_semi_cb, "system,%s",
-                           ARG(0), (int)ARG(1));
+                           arg0, (int)arg1);
             return;
         } else {
-            if (!(p = lock_user_string(ARG(0)))) {
+            p = lock_user_string(arg0);
+            if (!p) {
                 /* FIXME - check error code? */
                 result = -1;
             } else {
                 result = system(p);
-                unlock_user(p, ARG(0), 0);
+                unlock_user(p, arg0, 0);
             }
         }
         break;
@@ -402,7 +460,6 @@ void do_m68k_semihosting(CPUM68KState *env, int nr)
         cpu_abort(env, "Unsupported semihosting syscall %d\n", nr);
         result = 0;
     }
-    /* FIXME - handle put_user() failure */
-    put_user_u32(result, args);
-    put_user_u32(errno, args + 4);
+failed:
+    m68k_semi_return_u32(env, result, errno);
 }

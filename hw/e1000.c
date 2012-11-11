@@ -92,7 +92,6 @@ typedef struct E1000State_st {
 
     uint32_t rxbuf_size;
     uint32_t rxbuf_min_shift;
-    int check_rxov;
     struct e1000_tx {
         unsigned char header[256];
         unsigned char vlan_header[4];
@@ -266,6 +265,8 @@ rxbufsize(uint32_t v)
 static void e1000_reset(void *opaque)
 {
     E1000State *d = opaque;
+    uint8_t *macaddr = d->conf.macaddr.a;
+    int i;
 
     qemu_del_timer(d->autoneg_timer);
     memset(d->phy_reg, 0, sizeof d->phy_reg);
@@ -277,6 +278,14 @@ static void e1000_reset(void *opaque)
 
     if (d->nic->nc.link_down) {
         e1000_link_down(d);
+    }
+
+    /* Some guests expect pre-initialized RAH/RAL (AddrValid flag + MACaddr) */
+    d->mac_reg[RA] = 0;
+    d->mac_reg[RA + 1] = E1000_RAH_AV;
+    for (i = 0; i < 4; i++) {
+        d->mac_reg[RA] |= macaddr[i] << (8 * i);
+        d->mac_reg[RA + 1] |= (i < 2) ? macaddr[i + 4] << (8 * i) : 0;
     }
 }
 
@@ -741,11 +750,11 @@ static bool e1000_has_rxbufs(E1000State *s, size_t total_size)
     int bufs;
     /* Fast-path short packets */
     if (total_size <= s->rxbuf_size) {
-        return s->mac_reg[RDH] != s->mac_reg[RDT] || !s->check_rxov;
+        return s->mac_reg[RDH] != s->mac_reg[RDT];
     }
     if (s->mac_reg[RDH] < s->mac_reg[RDT]) {
         bufs = s->mac_reg[RDT] - s->mac_reg[RDH];
-    } else if (s->mac_reg[RDH] > s->mac_reg[RDT] || !s->check_rxov) {
+    } else if (s->mac_reg[RDH] > s->mac_reg[RDT]) {
         bufs = s->mac_reg[RDLEN] /  sizeof(struct e1000_rx_desc) +
             s->mac_reg[RDT] - s->mac_reg[RDH];
     } else {
@@ -848,7 +857,6 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;
-        s->check_rxov = 1;
         /* see comment in start_xmit; same here */
         if (s->mac_reg[RDH] == rdh_start) {
             DBGOUT(RXERR, "RDH wraparound @%x, RDT %x, RDLEN %x\n",
@@ -925,7 +933,6 @@ mac_writereg(E1000State *s, int index, uint32_t val)
 static void
 set_rdt(E1000State *s, int index, uint32_t val)
 {
-    s->check_rxov = 0;
     s->mac_reg[index] = val & 0xffff;
     if (e1000_has_rxbufs(s, 1)) {
         qemu_flush_queued_packets(&s->nic->nc);

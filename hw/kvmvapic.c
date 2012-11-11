@@ -384,15 +384,25 @@ static void patch_call(VAPICROMState *s, CPUX86State *env, target_ulong ip,
 
 static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
-    hwaddr paddr;
     VAPICHandlers *handlers;
     uint8_t opcode[2];
     uint32_t imm32;
+    TranslationBlock *current_tb;
+    target_ulong current_pc = 0;
+    target_ulong current_cs_base = 0;
+    int current_flags = 0;
 
     if (smp_cpus == 1) {
         handlers = &s->rom_state.up;
     } else {
         handlers = &s->rom_state.mp;
+    }
+
+    if (!kvm_enabled()) {
+        current_tb = tb_find_pc(env->mem_io_pc);
+        cpu_restore_state(current_tb, env, env->mem_io_pc);
+        cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
+                             &current_flags);
     }
 
     pause_all_vcpus();
@@ -430,9 +440,11 @@ static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong i
 
     resume_all_vcpus();
 
-    paddr = cpu_get_phys_page_debug(env, ip);
-    paddr += ip & ~TARGET_PAGE_MASK;
-    tb_invalidate_phys_page_range(paddr, paddr + 1, 1);
+    if (!kvm_enabled()) {
+        env->current_tb = NULL;
+        tb_gen_code(env, current_pc, current_cs_base, current_flags, 1);
+        cpu_resume_from_signal(env, NULL);
+    }
 }
 
 void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
@@ -475,11 +487,13 @@ static void vapic_enable_tpr_reporting(bool enable)
     VAPICEnableTPRReporting info = {
         .enable = enable,
     };
+    X86CPU *cpu;
     CPUX86State *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = x86_env_get_cpu(env);
         info.apic = env->apic_state;
-        run_on_cpu(env, vapic_do_enable_tpr_reporting, &info);
+        run_on_cpu(CPU(cpu), vapic_do_enable_tpr_reporting, &info);
     }
 }
 
@@ -717,7 +731,7 @@ static int vapic_post_load(void *opaque, int version_id)
     }
     if (s->state == VAPIC_ACTIVE) {
         if (smp_cpus == 1) {
-            run_on_cpu(first_cpu, do_vapic_enable, s);
+            run_on_cpu(ENV_GET_CPU(first_cpu), do_vapic_enable, s);
         } else {
             zero = g_malloc0(s->rom_state.vapic_size);
             cpu_physical_memory_rw(s->vapic_paddr, zero,

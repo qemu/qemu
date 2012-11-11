@@ -192,6 +192,41 @@ void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
     qemu_mutex_lock(mutex);
 }
 
+void qemu_sem_init(QemuSemaphore *sem, int init)
+{
+    /* Manual reset.  */
+    sem->sema = CreateSemaphore(NULL, init, LONG_MAX, NULL);
+}
+
+void qemu_sem_destroy(QemuSemaphore *sem)
+{
+    CloseHandle(sem->sema);
+}
+
+void qemu_sem_post(QemuSemaphore *sem)
+{
+    ReleaseSemaphore(sem->sema, 1, NULL);
+}
+
+int qemu_sem_timedwait(QemuSemaphore *sem, int ms)
+{
+    int rc = WaitForSingleObject(sem->sema, ms);
+    if (rc == WAIT_OBJECT_0) {
+        return 0;
+    }
+    if (rc != WAIT_TIMEOUT) {
+        error_exit(GetLastError(), __func__);
+    }
+    return -1;
+}
+
+void qemu_sem_wait(QemuSemaphore *sem)
+{
+    if (WaitForSingleObject(sem->sema, INFINITE) != WAIT_OBJECT_0) {
+        error_exit(GetLastError(), __func__);
+    }
+}
+
 struct QemuThreadData {
     /* Passed to win32_start_routine.  */
     void             *(*start_routine)(void *);

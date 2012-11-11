@@ -104,7 +104,7 @@ static void kvm_apic_enable_tpr_reporting(APICCommonState *s, bool enable)
         .enabled = enable
     };
 
-    kvm_vcpu_ioctl(s->cpu_env, KVM_TPR_ACCESS_REPORTING, &ctl);
+    kvm_vcpu_ioctl(&s->cpu->env, KVM_TPR_ACCESS_REPORTING, &ctl);
 }
 
 static void kvm_apic_vapic_base_update(APICCommonState *s)
@@ -114,7 +114,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
     };
     int ret;
 
-    ret = kvm_vcpu_ioctl(s->cpu_env, KVM_SET_VAPIC_ADDR, &vapid_addr);
+    ret = kvm_vcpu_ioctl(&s->cpu->env, KVM_SET_VAPIC_ADDR, &vapid_addr);
     if (ret < 0) {
         fprintf(stderr, "KVM: setting VAPIC address failed (%s)\n",
                 strerror(-ret));
@@ -125,7 +125,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
 static void do_inject_external_nmi(void *data)
 {
     APICCommonState *s = data;
-    CPUX86State *env = s->cpu_env;
+    CPUX86State *env = &s->cpu->env;
     uint32_t lvt;
     int ret;
 
@@ -143,7 +143,7 @@ static void do_inject_external_nmi(void *data)
 
 static void kvm_apic_external_nmi(APICCommonState *s)
 {
-    run_on_cpu(s->cpu_env, do_inject_external_nmi, s);
+    run_on_cpu(CPU(s->cpu), do_inject_external_nmi, s);
 }
 
 static uint64_t kvm_apic_mem_read(void *opaque, hwaddr addr,

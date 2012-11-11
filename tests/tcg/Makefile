@@ -22,6 +22,7 @@ I386_TESTS=hello-i386 \
 	   testthread \
 	   sha1-i386 \
 	   test-i386 \
+	   test-i386-fprem \
 	   test-mmap \
 	   # runcom
 
@@ -54,6 +55,11 @@ run-test-i386: test-i386
 	./test-i386 > test-i386.ref
 	-$(QEMU) test-i386 > test-i386.out
 	@if diff -u test-i386.ref test-i386.out ; then echo "Auto Test OK"; fi
+
+run-test-i386-fprem: test-i386-fprem
+	./test-i386-fprem > test-i386-fprem.ref
+	-$(QEMU) test-i386-fprem > test-i386-fprem.out
+	@if diff -u test-i386-fprem.ref test-i386-fprem.out ; then echo "Auto Test OK"; fi
 
 run-test-x86_64: test-x86_64
 	./test-x86_64 > test-x86_64.ref
@@ -92,6 +98,9 @@ test-i386: test-i386.c test-i386-code16.S test-i386-vm86.S \
            test-i386.h test-i386-shift.h test-i386-muldiv.h
 	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ \
               $(<D)/test-i386.c $(<D)/test-i386-code16.S $(<D)/test-i386-vm86.S -lm
+
+test-i386-fprem: test-i386-fprem.c
+	$(CC_I386) $(QEMU_INCLUDES) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 test-x86_64: test-i386.c \
            test-i386.h test-i386-shift.h test-i386-muldiv.h

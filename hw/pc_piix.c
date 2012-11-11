@@ -178,7 +178,7 @@ static void pc_init1(MemoryRegion *system_memory,
         fw_cfg = pc_memory_init(system_memory,
                        kernel_filename, kernel_cmdline, initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
-                       pci_enabled ? rom_memory : system_memory, &ram_memory);
+                       rom_memory, &ram_memory);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));

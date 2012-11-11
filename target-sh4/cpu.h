@@ -371,8 +371,10 @@ static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 
-static inline bool cpu_has_work(CPUSH4State *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUSH4State *env = &SUPERH_CPU(cpu)->env;
+
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 

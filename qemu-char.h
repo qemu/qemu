@@ -5,6 +5,7 @@
 #include "qemu-queue.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "qemu-aio.h"
 #include "qobject.h"
 #include "qstring.h"
 #include "main-loop.h"
@@ -69,7 +70,7 @@ struct CharDriverState {
     void (*chr_guest_open)(struct CharDriverState *chr);
     void (*chr_guest_close)(struct CharDriverState *chr);
     void *opaque;
-    QEMUBH *bh;
+    QEMUTimer *open_timer;
     char *label;
     char *filename;
     int opened;

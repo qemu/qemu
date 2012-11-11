@@ -180,7 +180,7 @@ static const char *data_dir;
 const char *bios_name = NULL;
 enum vga_retrace_method vga_retrace_method = VGA_RETRACE_DUMB;
 DisplayType display_type = DT_DEFAULT;
-int display_remote = 0;
+static int display_remote;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
@@ -214,7 +214,7 @@ const char *vnc_display;
 int acpi_enabled = 1;
 int no_hpet = 0;
 int fd_bootchk = 1;
-int no_reboot = 0;
+static int no_reboot;
 int no_shutdown = 0;
 int cursor_hide = 1;
 int graphic_rotate = 0;
@@ -242,7 +242,8 @@ struct FWBootEntry {
     char *suffix;
 };
 
-QTAILQ_HEAD(, FWBootEntry) fw_boot_order = QTAILQ_HEAD_INITIALIZER(fw_boot_order);
+static QTAILQ_HEAD(, FWBootEntry) fw_boot_order =
+    QTAILQ_HEAD_INITIALIZER(fw_boot_order);
 
 int nb_numa_nodes;
 uint64_t node_mem[MAX_NODES];
@@ -396,7 +397,7 @@ bool runstate_check(RunState state)
     return current_run_state == state;
 }
 
-void runstate_init(void)
+static void runstate_init(void)
 {
     const RunStateTransition *p;
 
@@ -1359,17 +1360,49 @@ static void gui_update(void *opaque)
 {
     uint64_t interval = GUI_REFRESH_INTERVAL;
     DisplayState *ds = opaque;
-    DisplayChangeListener *dcl = ds->listeners;
+    DisplayChangeListener *dcl;
 
     dpy_refresh(ds);
 
-    while (dcl != NULL) {
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
         if (dcl->gui_timer_interval &&
             dcl->gui_timer_interval < interval)
             interval = dcl->gui_timer_interval;
-        dcl = dcl->next;
     }
     qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
+}
+
+void gui_setup_refresh(DisplayState *ds)
+{
+    DisplayChangeListener *dcl;
+    bool need_timer = false;
+    bool have_gfx = false;
+    bool have_text = false;
+
+    QLIST_FOREACH(dcl, &ds->listeners, next) {
+        if (dcl->dpy_refresh != NULL) {
+            need_timer = true;
+        }
+        if (dcl->dpy_gfx_update != NULL) {
+            have_gfx = true;
+        }
+        if (dcl->dpy_text_update != NULL) {
+            have_text = true;
+        }
+    }
+
+    if (need_timer && ds->gui_timer == NULL) {
+        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
+        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
+    }
+    if (!need_timer && ds->gui_timer != NULL) {
+        qemu_del_timer(ds->gui_timer);
+        qemu_free_timer(ds->gui_timer);
+        ds->gui_timer = NULL;
+    }
+
+    ds->have_gfx = have_gfx;
+    ds->have_text = have_text;
 }
 
 struct vm_change_state_entry {
@@ -1457,14 +1490,14 @@ int qemu_reset_requested_get(void)
     return reset_requested;
 }
 
-int qemu_shutdown_requested(void)
+static int qemu_shutdown_requested(void)
 {
     int r = shutdown_requested;
     shutdown_requested = 0;
     return r;
 }
 
-void qemu_kill_report(void)
+static void qemu_kill_report(void)
 {
     if (!qtest_enabled() && shutdown_signal != -1) {
         fprintf(stderr, "qemu: terminating on signal %d", shutdown_signal);
@@ -1480,7 +1513,7 @@ void qemu_kill_report(void)
     }
 }
 
-int qemu_reset_requested(void)
+static int qemu_reset_requested(void)
 {
     int r = reset_requested;
     reset_requested = 0;
@@ -1501,7 +1534,7 @@ static int qemu_wakeup_requested(void)
     return r;
 }
 
-int qemu_powerdown_requested(void)
+static int qemu_powerdown_requested(void)
 {
     int r = powerdown_requested;
     powerdown_requested = 0;
@@ -2127,7 +2160,9 @@ struct device_config {
     Location loc;
     QTAILQ_ENTRY(device_config) next;
 };
-QTAILQ_HEAD(, device_config) device_configs = QTAILQ_HEAD_INITIALIZER(device_configs);
+
+static QTAILQ_HEAD(, device_config) device_configs =
+    QTAILQ_HEAD_INITIALIZER(device_configs);
 
 static void add_device_config(int type, const char *cmdline)
 {
@@ -2441,11 +2476,6 @@ static void free_and_trace(gpointer mem)
     free(mem);
 }
 
-int qemu_init_main_loop(void)
-{
-    return main_loop_init();
-}
-
 int main(int argc, char **argv, char **envp)
 {
     int i;
@@ -2455,7 +2485,6 @@ int main(int argc, char **argv, char **envp)
     const char *kernel_filename, *kernel_cmdline;
     char boot_devices[33] = "cad"; /* default to HD->floppy->CD-ROM */
     DisplayState *ds;
-    DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts;
     QemuOptsList *olist;
@@ -2574,6 +2603,11 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_M:
                 machine = machine_parse(optarg);
                 break;
+            case QEMU_OPTION_no_kvm_irqchip: {
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "kernel_irqchip=off", 0);
+                break;
+            }
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
                 cpu_model = optarg;
@@ -3166,6 +3200,30 @@ int main(int argc, char **argv, char **envp)
                     machine = machine_parse(optarg);
                 }
                 break;
+             case QEMU_OPTION_no_kvm:
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "accel=tcg", 0);
+                break;
+            case QEMU_OPTION_no_kvm_pit: {
+                fprintf(stderr, "Warning: KVM PIT can no longer be disabled "
+                                "separately.\n");
+                break;
+            }
+            case QEMU_OPTION_no_kvm_pit_reinjection: {
+                static GlobalProperty kvm_pit_lost_tick_policy[] = {
+                    {
+                        .driver   = "kvm-pit",
+                        .property = "lost_tick_policy",
+                        .value    = "discard",
+                    },
+                    { /* end of list */ }
+                };
+
+                fprintf(stderr, "Warning: option deprecated, use "
+                        "lost_tick_policy property of kvm-pit instead.\n");
+                qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
+                break;
+            }
             case QEMU_OPTION_usb:
                 machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
                 if (machine_opts) {
@@ -3254,6 +3312,10 @@ int main(int argc, char **argv, char **envp)
 		break;
             case QEMU_OPTION_semihosting:
                 semihosting_enabled = 1;
+                break;
+            case QEMU_OPTION_tdf:
+                fprintf(stderr, "Warning: user space PIT time drift fix "
+                                "is no longer supported.\n");
                 break;
             case QEMU_OPTION_name:
                 qemu_name = g_strdup(optarg);
@@ -3418,6 +3480,11 @@ int main(int argc, char **argv, char **envp)
     }
     loc_set_none();
 
+    if (qemu_init_main_loop()) {
+        fprintf(stderr, "qemu_init_main_loop failed\n");
+        exit(1);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("sandbox"), parse_sandbox, NULL, 0)) {
         exit(1);
     }
@@ -3580,12 +3647,6 @@ int main(int argc, char **argv, char **envp)
 
     configure_accelerator();
 
-    qemu_init_cpu_loop();
-    if (qemu_init_main_loop()) {
-        fprintf(stderr, "qemu_init_main_loop failed\n");
-        exit(1);
-    }
-
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
         kernel_filename = qemu_opt_get(machine_opts, "kernel");
@@ -3618,10 +3679,8 @@ int main(int argc, char **argv, char **envp)
 
     os_set_line_buffering();
 
-    if (init_timer_alarm() < 0) {
-        fprintf(stderr, "could not initialize alarm timer\n");
-        exit(1);
-    }
+    qemu_init_cpu_loop();
+    qemu_mutex_lock_iothread();
 
 #ifdef CONFIG_SPICE
     /* spice needs the timers to be initialized by this point */
@@ -3845,16 +3904,6 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     /* display setup */
-    dpy_resize(ds);
-    dcl = ds->listeners;
-    while (dcl != NULL) {
-        if (dcl->dpy_refresh != NULL) {
-            ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
-            qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
-            break;
-        }
-        dcl = dcl->next;
-    }
     text_consoles_set_display(ds);
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {

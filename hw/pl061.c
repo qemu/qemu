@@ -164,7 +164,8 @@ static uint64_t pl061_read(void *opaque, hwaddr offset,
     case 0x528: /* Analog mode select */
         return s->amsel;
     default:
-        hw_error("pl061_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl061_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -239,7 +240,8 @@ static void pl061_write(void *opaque, hwaddr offset,
         s->amsel = value & 0xff;
         break;
     default:
-        hw_error("pl061_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "pl061_write: Bad offset %x\n", (int)offset);
     }
     pl061_update(s);
 }

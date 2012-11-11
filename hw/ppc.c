@@ -75,9 +75,10 @@ void ppc_set_irq(CPUPPCState *env, int n_IRQ, int level)
 }
 
 /* PowerPC 6xx / 7xx internal IRQ controller */
-static void ppc6xx_set_irq (void *opaque, int pin, int level)
+static void ppc6xx_set_irq(void *opaque, int pin, int level)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -151,17 +152,20 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc6xx_irq_init (CPUPPCState *env)
+void ppc6xx_irq_init(CPUPPCState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env,
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, cpu,
                                                   PPC6xx_INPUT_NB);
 }
 
 #if defined(TARGET_PPC64)
 /* PowerPC 970 internal IRQ controller */
-static void ppc970_set_irq (void *opaque, int pin, int level)
+static void ppc970_set_irq(void *opaque, int pin, int level)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -202,7 +206,7 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
             } else {
                 LOG_IRQ("%s: restart the CPU\n", __func__);
                 env->halted = 0;
-                qemu_cpu_kick(env);
+                qemu_cpu_kick(CPU(cpu));
             }
             break;
         case PPC970_INPUT_HRESET:
@@ -233,16 +237,19 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc970_irq_init (CPUPPCState *env)
+void ppc970_irq_init(CPUPPCState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env,
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, cpu,
                                                   PPC970_INPUT_NB);
 }
 
 /* POWER7 internal IRQ controller */
-static void power7_set_irq (void *opaque, int pin, int level)
+static void power7_set_irq(void *opaque, int pin, int level)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
                 env, pin, level);
@@ -266,17 +273,20 @@ static void power7_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppcPOWER7_irq_init (CPUPPCState *env)
+void ppcPOWER7_irq_init(CPUPPCState *env)
 {
-    env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, env,
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, cpu,
                                                   POWER7_INPUT_NB);
 }
 #endif /* defined(TARGET_PPC64) */
 
 /* PowerPC 40x internal IRQ controller */
-static void ppc40x_set_irq (void *opaque, int pin, int level)
+static void ppc40x_set_irq(void *opaque, int pin, int level)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -325,7 +335,7 @@ static void ppc40x_set_irq (void *opaque, int pin, int level)
             } else {
                 LOG_IRQ("%s: restart the CPU\n", __func__);
                 env->halted = 0;
-                qemu_cpu_kick(env);
+                qemu_cpu_kick(CPU(cpu));
             }
             break;
         case PPC40x_INPUT_DEBUG:
@@ -346,16 +356,19 @@ static void ppc40x_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc40x_irq_init (CPUPPCState *env)
+void ppc40x_irq_init(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc40x_set_irq,
-                                                  env, PPC40x_INPUT_NB);
+                                                  cpu, PPC40x_INPUT_NB);
 }
 
 /* PowerPC E500 internal IRQ controller */
-static void ppce500_set_irq (void *opaque, int pin, int level)
+static void ppce500_set_irq(void *opaque, int pin, int level)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -407,10 +420,12 @@ static void ppce500_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppce500_irq_init (CPUPPCState *env)
+void ppce500_irq_init(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppce500_set_irq,
-                                        env, PPCE500_INPUT_NB);
+                                                  cpu, PPCE500_INPUT_NB);
 }
 /*****************************************************************************/
 /* PowerPC time base and decrementer emulation */
@@ -721,7 +736,7 @@ static void cpu_ppc_hdecr_cb (void *opaque)
     _cpu_ppc_store_hdecr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
-void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value)
+static void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -1152,23 +1167,23 @@ static inline void nvram_write (nvram_t *nvram, uint32_t addr, uint32_t val)
     (*nvram->write_fn)(nvram->opaque, addr, val);
 }
 
-void NVRAM_set_byte (nvram_t *nvram, uint32_t addr, uint8_t value)
+static void NVRAM_set_byte(nvram_t *nvram, uint32_t addr, uint8_t value)
 {
     nvram_write(nvram, addr, value);
 }
 
-uint8_t NVRAM_get_byte (nvram_t *nvram, uint32_t addr)
+static uint8_t NVRAM_get_byte(nvram_t *nvram, uint32_t addr)
 {
     return nvram_read(nvram, addr);
 }
 
-void NVRAM_set_word (nvram_t *nvram, uint32_t addr, uint16_t value)
+static void NVRAM_set_word(nvram_t *nvram, uint32_t addr, uint16_t value)
 {
     nvram_write(nvram, addr, value >> 8);
     nvram_write(nvram, addr + 1, value & 0xFF);
 }
 
-uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
+static uint16_t NVRAM_get_word(nvram_t *nvram, uint32_t addr)
 {
     uint16_t tmp;
 
@@ -1178,7 +1193,7 @@ uint16_t NVRAM_get_word (nvram_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_lword (nvram_t *nvram, uint32_t addr, uint32_t value)
+static void NVRAM_set_lword(nvram_t *nvram, uint32_t addr, uint32_t value)
 {
     nvram_write(nvram, addr, value >> 24);
     nvram_write(nvram, addr + 1, (value >> 16) & 0xFF);
@@ -1198,8 +1213,8 @@ uint32_t NVRAM_get_lword (nvram_t *nvram, uint32_t addr)
     return tmp;
 }
 
-void NVRAM_set_string (nvram_t *nvram, uint32_t addr,
-                       const char *str, uint32_t max)
+static void NVRAM_set_string(nvram_t *nvram, uint32_t addr, const char *str,
+                             uint32_t max)
 {
     int i;
 

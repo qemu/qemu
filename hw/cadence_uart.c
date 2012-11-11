@@ -359,7 +359,7 @@ static void uart_write(void *opaque, hwaddr offset,
 {
     UartState *s = (UartState *)opaque;
 
-    DB_PRINT(" offset:%x data:%08x\n", offset, (unsigned)value);
+    DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
     switch (offset) {
     case R_IER: /* ier (wts imr) */
@@ -405,12 +405,15 @@ static uint64_t uart_read(void *opaque, hwaddr offset,
 
     offset >>= 2;
     if (offset >= R_MAX) {
-        return 0;
+        c = 0;
     } else if (offset == R_TX_RX) {
         uart_read_rx_fifo(s, &c);
-        return c;
+    } else {
+       c = s->r[offset];
     }
-    return s->r[offset];
+
+    DB_PRINT(" offset:%x data:%08x\n", (unsigned)(offset << 2), (unsigned)c);
+    return c;
 }
 
 static const MemoryRegionOps uart_ops = {

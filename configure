@@ -147,6 +147,7 @@ curses=""
 docs=""
 fdt=""
 nptl=""
+pixman=""
 sdl=""
 virtfs=""
 vnc="yes"
@@ -641,6 +642,10 @@ for opt do
     # autoconf-generated configure scripts. This allows QEMU's
     # configure to be used by RPM and similar macros that set
     # lots of directory switches by default.
+  ;;
+  --with-system-pixman) pixman="system"
+  ;;
+  --without-system-pixman) pixman="internal"
   ;;
   --disable-sdl) sdl="no"
   ;;
@@ -2095,6 +2100,34 @@ else
 fi
 
 ##########################################
+# pixman support probe
+
+if test "$pixman" = ""; then
+  if $pkg_config pixman-1 > /dev/null 2>&1; then
+    pixman="system"
+  else
+    pixman="internal"
+  fi
+fi
+if test "$pixman" = "system"; then
+  pixman_cflags=`$pkg_config --cflags pixman-1 2>/dev/null`
+  pixman_libs=`$pkg_config --libs pixman-1 2>/dev/null`
+else
+  if test ! -d ${source_path}/pixman/pixman; then
+    echo "ERROR: pixman not present. Your options:"
+    echo "  (1) Prefered: Install the pixman devel package (any recent"
+    echo "      distro should have packages as Xorg needs pixman too)."
+    echo "  (2) Fetch the pixman submodule, using:"
+    echo "      git submodule update --init pixman"
+    exit 1
+  fi
+  pixman_cflags="-I${source_path}/pixman/pixman"
+  pixman_libs="-Lpixman/pixman/.libs -lpixman-1"
+fi
+QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
+libs_softmmu="$libs_softmmu $pixman_libs"
+
+##########################################
 # libcap probe
 
 if test "$cap" != "no" ; then
@@ -2768,7 +2801,7 @@ fi
 
 # check for usbredirparser for usb network redirection support
 if test "$usb_redir" != "no" ; then
-    if $pkg_config --atleast-version=0.5 libusbredirparser-0.5 >/dev/null 2>&1 ; then
+    if $pkg_config --atleast-version=0.5.3 libusbredirparser-0.5 >/dev/null 2>&1 ; then
         usb_redir="yes"
         usb_redir_cflags=$($pkg_config --cflags libusbredirparser-0.5 2>/dev/null)
         usb_redir_libs=$($pkg_config --libs libusbredirparser-0.5 2>/dev/null)
@@ -3155,6 +3188,7 @@ echo "-Werror enabled   $werror"
 if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
+echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -3859,6 +3893,12 @@ upper() {
     echo "$@"| LC_ALL=C tr '[a-z]' '[A-Z]'
 }
 
+case "$cpu" in
+  i386|x86_64|ppc)
+    echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_target_mak
+  ;;
+esac
+
 echo "TARGET_SHORT_ALIGNMENT=$target_short_alignment" >> $config_target_mak
 echo "TARGET_INT_ALIGNMENT=$target_int_alignment" >> $config_target_mak
 echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak
@@ -3919,6 +3959,9 @@ if test "$target_softmmu" = "yes" ; then
   echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
+  fi
+  if test "$pixman" = "internal" ; then
+    echo "subdir-$target: subdir-pixman" >> $config_host_mak
   fi
   case "$target_arch2" in
     i386|x86_64)
@@ -4123,6 +4166,7 @@ DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS qapi-generated"
 DIRS="$DIRS libcacard libcacard/libcacard libcacard/trace"
+DIRS="$DIRS pixman"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
 FILES="$FILES tests/tcg/lm32/Makefile libcacard/Makefile"

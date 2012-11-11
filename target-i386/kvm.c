@@ -98,6 +98,19 @@ static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
     return cpuid;
 }
 
+/* Run KVM_GET_SUPPORTED_CPUID ioctl(), allocating a buffer large enough
+ * for all entries.
+ */
+static struct kvm_cpuid2 *get_supported_cpuid(KVMState *s)
+{
+    struct kvm_cpuid2 *cpuid;
+    int max = 1;
+    while ((cpuid = try_get_cpuid(s, max)) == NULL) {
+        max *= 2;
+    }
+    return cpuid;
+}
+
 struct kvm_para_features {
     int cap;
     int feature;
@@ -123,60 +136,98 @@ static int get_para_features(KVMState *s)
 }
 
 
+/* Returns the value for a specific register on the cpuid entry
+ */
+static uint32_t cpuid_entry_get_reg(struct kvm_cpuid_entry2 *entry, int reg)
+{
+    uint32_t ret = 0;
+    switch (reg) {
+    case R_EAX:
+        ret = entry->eax;
+        break;
+    case R_EBX:
+        ret = entry->ebx;
+        break;
+    case R_ECX:
+        ret = entry->ecx;
+        break;
+    case R_EDX:
+        ret = entry->edx;
+        break;
+    }
+    return ret;
+}
+
+/* Find matching entry for function/index on kvm_cpuid2 struct
+ */
+static struct kvm_cpuid_entry2 *cpuid_find_entry(struct kvm_cpuid2 *cpuid,
+                                                 uint32_t function,
+                                                 uint32_t index)
+{
+    int i;
+    for (i = 0; i < cpuid->nent; ++i) {
+        if (cpuid->entries[i].function == function &&
+            cpuid->entries[i].index == index) {
+            return &cpuid->entries[i];
+        }
+    }
+    /* not found: */
+    return NULL;
+}
+
 uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
                                       uint32_t index, int reg)
 {
     struct kvm_cpuid2 *cpuid;
-    int i, max;
     uint32_t ret = 0;
     uint32_t cpuid_1_edx;
-    int has_kvm_features = 0;
+    bool found = false;
 
-    max = 1;
-    while ((cpuid = try_get_cpuid(s, max)) == NULL) {
-        max *= 2;
+    cpuid = get_supported_cpuid(s);
+
+    struct kvm_cpuid_entry2 *entry = cpuid_find_entry(cpuid, function, index);
+    if (entry) {
+        found = true;
+        ret = cpuid_entry_get_reg(entry, reg);
     }
 
-    for (i = 0; i < cpuid->nent; ++i) {
-        if (cpuid->entries[i].function == function &&
-            cpuid->entries[i].index == index) {
-            if (cpuid->entries[i].function == KVM_CPUID_FEATURES) {
-                has_kvm_features = 1;
-            }
-            switch (reg) {
-            case R_EAX:
-                ret = cpuid->entries[i].eax;
-                break;
-            case R_EBX:
-                ret = cpuid->entries[i].ebx;
-                break;
-            case R_ECX:
-                ret = cpuid->entries[i].ecx;
-                break;
-            case R_EDX:
-                ret = cpuid->entries[i].edx;
-                switch (function) {
-                case 1:
-                    /* KVM before 2.6.30 misreports the following features */
-                    ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
-                    break;
-                case 0x80000001:
-                    /* On Intel, kvm returns cpuid according to the Intel spec,
-                     * so add missing bits according to the AMD spec:
-                     */
-                    cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
-                    ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
-                    break;
-                }
-                break;
-            }
+    /* Fixups for the data returned by KVM, below */
+
+    if (function == 1 && reg == R_EDX) {
+        /* KVM before 2.6.30 misreports the following features */
+        ret |= CPUID_MTRR | CPUID_PAT | CPUID_MCE | CPUID_MCA;
+    } else if (function == 1 && reg == R_ECX) {
+        /* We can set the hypervisor flag, even if KVM does not return it on
+         * GET_SUPPORTED_CPUID
+         */
+        ret |= CPUID_EXT_HYPERVISOR;
+        /* tsc-deadline flag is not returned by GET_SUPPORTED_CPUID, but it
+         * can be enabled if the kernel has KVM_CAP_TSC_DEADLINE_TIMER,
+         * and the irqchip is in the kernel.
+         */
+        if (kvm_irqchip_in_kernel() &&
+                kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
+            ret |= CPUID_EXT_TSC_DEADLINE_TIMER;
         }
+
+        /* x2apic is reported by GET_SUPPORTED_CPUID, but it can't be enabled
+         * without the in-kernel irqchip
+         */
+        if (!kvm_irqchip_in_kernel()) {
+            ret &= ~CPUID_EXT_X2APIC;
+        }
+    } else if (function == 0x80000001 && reg == R_EDX) {
+        /* On Intel, kvm returns cpuid according to the Intel spec,
+         * so add missing bits according to the AMD spec:
+         */
+        cpuid_1_edx = kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
+        ret |= cpuid_1_edx & CPUID_EXT2_AMD_ALIASES;
     }
 
     g_free(cpuid);
 
     /* fallback for older kernels */
-    if (!has_kvm_features && (function == KVM_CPUID_FEATURES)) {
+    if ((function == KVM_CPUID_FEATURES) && !found) {
         ret = get_para_features(s);
     }
 
@@ -229,8 +280,9 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     return -ENOSYS;
 }
 
-static void kvm_mce_inject(CPUX86State *env, hwaddr paddr, int code)
+static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 {
+    CPUX86State *env = &cpu->env;
     uint64_t status = MCI_STATUS_VAL | MCI_STATUS_UC | MCI_STATUS_EN |
                       MCI_STATUS_MISCV | MCI_STATUS_ADDRV | MCI_STATUS_S;
     uint64_t mcg_status = MCG_STATUS_MCIP;
@@ -242,7 +294,7 @@ static void kvm_mce_inject(CPUX86State *env, hwaddr paddr, int code)
         status |= 0xc0;
         mcg_status |= MCG_STATUS_RIPV;
     }
-    cpu_x86_inject_mce(NULL, env, 9, status, mcg_status, paddr,
+    cpu_x86_inject_mce(NULL, cpu, 9, status, mcg_status, paddr,
                        (MCM_ADDR_PHYS << 6) | 0xc,
                        cpu_x86_support_mca_broadcast(env) ?
                        MCE_INJECT_BROADCAST : 0);
@@ -256,6 +308,7 @@ static void hardware_memory_error(void)
 
 int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     ram_addr_t ram_addr;
     hwaddr paddr;
 
@@ -273,7 +326,7 @@ int kvm_arch_on_sigbus_vcpu(CPUX86State *env, int code, void *addr)
             }
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(env, paddr, code);
+        kvm_mce_inject(cpu, paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
@@ -301,7 +354,7 @@ int kvm_arch_on_sigbus(int code, void *addr)
             return 0;
         }
         kvm_hwpoison_page_add(ram_addr);
-        kvm_mce_inject(first_cpu, paddr, code);
+        kvm_mce_inject(x86_env_get_cpu(first_cpu), paddr, code);
     } else {
         if (code == BUS_MCEERR_AO) {
             return 0;
@@ -359,30 +412,11 @@ int kvm_arch_init_vcpu(CPUX86State *env)
         struct kvm_cpuid2 cpuid;
         struct kvm_cpuid_entry2 entries[100];
     } QEMU_PACKED cpuid_data;
-    KVMState *s = env->kvm_state;
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;
     struct kvm_cpuid_entry2 *c;
     uint32_t signature[3];
     int r;
-
-    env->cpuid_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_EDX);
-
-    i = env->cpuid_ext_features & CPUID_EXT_HYPERVISOR;
-    j = env->cpuid_ext_features & CPUID_EXT_TSC_DEADLINE_TIMER;
-    env->cpuid_ext_features &= kvm_arch_get_supported_cpuid(s, 1, 0, R_ECX);
-    env->cpuid_ext_features |= i;
-    if (j && kvm_irqchip_in_kernel() &&
-        kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
-        env->cpuid_ext_features |= CPUID_EXT_TSC_DEADLINE_TIMER;
-    }
-
-    env->cpuid_ext2_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
-                                                             0, R_EDX);
-    env->cpuid_ext3_features &= kvm_arch_get_supported_cpuid(s, 0x80000001,
-                                                             0, R_ECX);
-    env->cpuid_svm_features  &= kvm_arch_get_supported_cpuid(s, 0x8000000A,
-                                                             0, R_EDX);
 
     cpuid_i = 0;
 
@@ -404,8 +438,7 @@ int kvm_arch_init_vcpu(CPUX86State *env)
     c = &cpuid_data.entries[cpuid_i++];
     memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_FEATURES;
-    c->eax = env->cpuid_kvm_features &
-        kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+    c->eax = env->cpuid_kvm_features;
 
     if (hyperv_enabled()) {
         memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
@@ -526,8 +559,6 @@ int kvm_arch_init_vcpu(CPUX86State *env)
 
     /* Call Centaur's CPUID instructions they are supported. */
     if (env->cpuid_xlevel2 > 0) {
-        env->cpuid_ext4_features &=
-            kvm_arch_get_supported_cpuid(s, 0xC0000001, 0, R_EDX);
         cpu_x86_cpuid(env, 0xC0000000, 0, &limit, &unused, &unused, &unused);
 
         for (i = 0xC0000000; i <= limit; i++) {
@@ -1365,8 +1396,9 @@ static int kvm_put_mp_state(CPUX86State *env)
     return kvm_vcpu_ioctl(env, KVM_SET_MP_STATE, &mp_state);
 }
 
-static int kvm_get_mp_state(CPUX86State *env)
+static int kvm_get_mp_state(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
     struct kvm_mp_state mp_state;
     int ret;
 
@@ -1552,9 +1584,10 @@ static int kvm_get_debugregs(CPUX86State *env)
 
 int kvm_arch_put_registers(CPUX86State *env, int level)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int ret;
 
-    assert(cpu_is_stopped(env) || qemu_cpu_is_self(env));
+    assert(cpu_is_stopped(cpu) || qemu_cpu_is_self(cpu));
 
     ret = kvm_getput_regs(env, 1);
     if (ret < 0) {
@@ -1609,9 +1642,10 @@ int kvm_arch_put_registers(CPUX86State *env, int level)
 
 int kvm_arch_get_registers(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     int ret;
 
-    assert(cpu_is_stopped(env) || qemu_cpu_is_self(env));
+    assert(cpu_is_stopped(CPU(cpu)) || qemu_cpu_is_self(CPU(cpu)));
 
     ret = kvm_getput_regs(env, 0);
     if (ret < 0) {
@@ -1633,7 +1667,7 @@ int kvm_arch_get_registers(CPUX86State *env)
     if (ret < 0) {
         return ret;
     }
-    ret = kvm_get_mp_state(env);
+    ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
         return ret;
     }
@@ -1781,8 +1815,10 @@ int kvm_arch_process_async_events(CPUX86State *env)
     return env->halted;
 }
 
-static int kvm_handle_halt(CPUX86State *env)
+static int kvm_handle_halt(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
+
     if (!((env->interrupt_request & CPU_INTERRUPT_HARD) &&
           (env->eflags & IF_MASK)) &&
         !(env->interrupt_request & CPU_INTERRUPT_NMI)) {
@@ -1909,14 +1945,15 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 static CPUWatchpoint hw_watchpoint;
 
-static int kvm_handle_debug(struct kvm_debug_exit_arch *arch_info)
+static int kvm_handle_debug(CPUX86State *env,
+                            struct kvm_debug_exit_arch *arch_info)
 {
     int ret = 0;
     int n;
 
     if (arch_info->exception == 1) {
         if (arch_info->dr6 & (1 << 14)) {
-            if (cpu_single_env->singlestep_enabled) {
+            if (env->singlestep_enabled) {
                 ret = EXCP_DEBUG;
             }
         } else {
@@ -1928,13 +1965,13 @@ static int kvm_handle_debug(struct kvm_debug_exit_arch *arch_info)
                         break;
                     case 0x1:
                         ret = EXCP_DEBUG;
-                        cpu_single_env->watchpoint_hit = &hw_watchpoint;
+                        env->watchpoint_hit = &hw_watchpoint;
                         hw_watchpoint.vaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_WRITE;
                         break;
                     case 0x3:
                         ret = EXCP_DEBUG;
-                        cpu_single_env->watchpoint_hit = &hw_watchpoint;
+                        env->watchpoint_hit = &hw_watchpoint;
                         hw_watchpoint.vaddr = hw_breakpoint[n].addr;
                         hw_watchpoint.flags = BP_MEM_ACCESS;
                         break;
@@ -1942,16 +1979,16 @@ static int kvm_handle_debug(struct kvm_debug_exit_arch *arch_info)
                 }
             }
         }
-    } else if (kvm_find_sw_breakpoint(cpu_single_env, arch_info->pc)) {
+    } else if (kvm_find_sw_breakpoint(env, arch_info->pc)) {
         ret = EXCP_DEBUG;
     }
     if (ret == 0) {
-        cpu_synchronize_state(cpu_single_env);
-        assert(cpu_single_env->exception_injected == -1);
+        cpu_synchronize_state(env);
+        assert(env->exception_injected == -1);
 
         /* pass to guest */
-        cpu_single_env->exception_injected = arch_info->exception;
-        cpu_single_env->has_error_code = 0;
+        env->exception_injected = arch_info->exception;
+        env->has_error_code = 0;
     }
 
     return ret;
@@ -1996,13 +2033,14 @@ static bool host_supports_vmx(void)
 
 int kvm_arch_handle_exit(CPUX86State *env, struct kvm_run *run)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     uint64_t code;
     int ret;
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
         DPRINTF("handle_hlt\n");
-        ret = kvm_handle_halt(env);
+        ret = kvm_handle_halt(cpu);
         break;
     case KVM_EXIT_SET_TPR:
         ret = 0;
@@ -2034,7 +2072,7 @@ int kvm_arch_handle_exit(CPUX86State *env, struct kvm_run *run)
         break;
     case KVM_EXIT_DEBUG:
         DPRINTF("kvm_exit_debug\n");
-        ret = kvm_handle_debug(&run->debug.arch);
+        ret = kvm_handle_debug(env, &run->debug.arch);
         break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);

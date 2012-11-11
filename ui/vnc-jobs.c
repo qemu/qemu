@@ -187,7 +187,8 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->vd = orig->vd;
     local->lossy_rect = orig->lossy_rect;
     local->write_pixels = orig->write_pixels;
-    local->clientds = orig->clientds;
+    local->client_pf = orig->client_pf;
+    local->client_be = orig->client_be;
     local->tight = orig->tight;
     local->zlib = orig->zlib;
     local->hextile = orig->hextile;
@@ -320,6 +321,11 @@ static void *vnc_worker_thread(void *arg)
     return NULL;
 }
 
+static bool vnc_worker_thread_running(void)
+{
+    return queue; /* Check global queue */
+}
+
 void vnc_start_worker_thread(void)
 {
     VncJobQueue *q;
@@ -330,11 +336,6 @@ void vnc_start_worker_thread(void)
     q = vnc_queue_init();
     qemu_thread_create(&q->thread, vnc_worker_thread, q, QEMU_THREAD_DETACHED);
     queue = q; /* Set global queue */
-}
-
-bool vnc_worker_thread_running(void)
-{
-    return queue; /* Check global queue */
 }
 
 void vnc_stop_worker_thread(void)

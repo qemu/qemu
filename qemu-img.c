@@ -2001,13 +2001,12 @@ int main(int argc, char **argv)
 
     error_set_progname(argv[0]);
 
+    qemu_init_main_loop();
     bdrv_init();
     if (argc < 2)
         help();
     cmdname = argv[1];
     argc--; argv++;
-
-    qemu_init_main_loop();
 
     /* find the command */
     for(cmd = img_cmds; cmd->name != NULL; cmd++) {

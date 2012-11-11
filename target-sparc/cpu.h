@@ -711,9 +711,6 @@ uint64_t cpu_tick_get_count(CPUTimer *timer);
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit);
 trap_state* cpu_tsptr(CPUSPARCState* env);
 #endif
-void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env, target_ulong addr,
-                                       int is_write, int is_user,
-                                       uintptr_t retaddr);
 void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr);
 
 #define TB_FLAG_FPU_ENABLED (1 << 4)
@@ -764,8 +761,10 @@ static inline bool tb_am_enabled(int tb_flags)
 #endif
 }
 
-static inline bool cpu_has_work(CPUSPARCState *env1)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUSPARCState *env1 = &SPARC_CPU(cpu)->env;
+
     return (env1->interrupt_request & CPU_INTERRUPT_HARD) &&
            cpu_interrupts_enabled(env1);
 }

@@ -188,9 +188,12 @@ static unsigned phys_map_nodes_nb, phys_map_nodes_nb_alloc;
 
 static void io_mem_init(void);
 static void memory_map_init(void);
+static void *qemu_safe_ram_ptr(ram_addr_t addr);
 
 static MemoryRegion io_mem_watch;
 #endif
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+                         tb_page_addr_t phys_page2);
 
 /* statistics */
 static int tb_flush_count;
@@ -689,6 +692,9 @@ CPUArchState *qemu_get_cpu(int cpu)
 
 void cpu_exec_init(CPUArchState *env)
 {
+#ifndef CONFIG_USER_ONLY
+    CPUState *cpu = ENV_GET_CPU(env);
+#endif
     CPUArchState **penv;
     int cpu_index;
 
@@ -707,7 +713,7 @@ void cpu_exec_init(CPUArchState *env)
     QTAILQ_INIT(&env->breakpoints);
     QTAILQ_INIT(&env->watchpoints);
 #ifndef CONFIG_USER_ONLY
-    env->thread_id = qemu_get_thread_id();
+    cpu->thread_id = qemu_get_thread_id();
 #endif
     *penv = env;
 #if defined(CONFIG_USER_ONLY)
@@ -1349,8 +1355,8 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 
 /* add a new TB and link it to the physical page tables. phys_page2 is
    (-1) to indicate that only one page contains the TB. */
-void tb_link_page(TranslationBlock *tb,
-                  tb_page_addr_t phys_pc, tb_page_addr_t phys_page2)
+static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
+                         tb_page_addr_t phys_page2)
 {
     unsigned int h;
     TranslationBlock **ptb;
@@ -1386,6 +1392,17 @@ void tb_link_page(TranslationBlock *tb,
 #endif
     mmap_unlock();
 }
+
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+/* check whether the given addr is in TCG generated code buffer or not */
+bool is_tcg_gen_code(uintptr_t tc_ptr)
+{
+    /* This can be called during code generation, code_gen_buffer_max_size
+       is used instead of code_gen_ptr for upper boundary checking */
+    return (tc_ptr >= (uintptr_t)code_gen_buffer &&
+            tc_ptr < (uintptr_t)(code_gen_buffer + code_gen_buffer_max_size));
+}
+#endif
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
    tb[1].tc_ptr. Return NULL if not found */
@@ -1693,6 +1710,7 @@ static void cpu_unlink_tb(CPUArchState *env)
 /* mask must never be zero, except for A20 change call */
 static void tcg_handle_interrupt(CPUArchState *env, int mask)
 {
+    CPUState *cpu = ENV_GET_CPU(env);
     int old_mask;
 
     old_mask = env->interrupt_request;
@@ -1702,8 +1720,8 @@ static void tcg_handle_interrupt(CPUArchState *env, int mask)
      * If called from iothread context, wake the target cpu in
      * case its halted.
      */
-    if (!qemu_cpu_is_self(env)) {
-        qemu_cpu_kick(env);
+    if (!qemu_cpu_is_self(cpu)) {
+        qemu_cpu_kick(cpu);
         return;
     }
 
@@ -1859,7 +1877,7 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
     }
 }
 
-int cpu_physical_memory_set_dirty_tracking(int enable)
+static int cpu_physical_memory_set_dirty_tracking(int enable)
 {
     int ret = 0;
     in_migration = enable;
@@ -2741,7 +2759,7 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
  * Same as qemu_get_ram_ptr but avoid reordering ramblocks.
  */
-void *qemu_safe_ram_ptr(ram_addr_t addr)
+static void *qemu_safe_ram_ptr(ram_addr_t addr)
 {
     RAMBlock *block;
 
@@ -2771,7 +2789,7 @@ void *qemu_safe_ram_ptr(ram_addr_t addr)
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
  * but takes a size argument */
-void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
+static void *qemu_ram_ptr_length(ram_addr_t addr, ram_addr_t *size)
 {
     if (*size == 0) {
         return NULL;
@@ -3519,7 +3537,7 @@ void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
     return client;
 }
 
-void cpu_unregister_map_client(void *_client)
+static void cpu_unregister_map_client(void *_client)
 {
     MapClient *client = (MapClient *)_client;
 

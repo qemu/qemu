@@ -118,6 +118,10 @@ static QemuOptsList qemu_drive_opts = {
             .name = "locked",
             .type = QEMU_OPT_BOOL,
             .help = "emulate a security locked drive",
+        },{
+            .name = "boot",
+            .type = QEMU_OPT_BOOL,
+            .help = "(deprecated, ignored)",
         },
         { /* end of list */ }
     },

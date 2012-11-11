@@ -1988,7 +1988,8 @@ static void do_acl_remove(Monitor *mon, const QDict *qdict)
 #if defined(TARGET_I386)
 static void do_inject_mce(Monitor *mon, const QDict *qdict)
 {
-    CPUArchState *cenv;
+    X86CPU *cpu;
+    CPUX86State *cenv;
     int cpu_index = qdict_get_int(qdict, "cpu_index");
     int bank = qdict_get_int(qdict, "bank");
     uint64_t status = qdict_get_int(qdict, "status");
@@ -2001,8 +2002,9 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
         flags |= MCE_INJECT_BROADCAST;
     }
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
+        cpu = x86_env_get_cpu(cenv);
         if (cenv->cpu_index == cpu_index) {
-            cpu_x86_inject_mce(mon, cenv, bank, status, mcg_status, addr, misc,
+            cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
                                flags);
             break;
         }

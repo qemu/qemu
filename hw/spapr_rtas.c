@@ -163,6 +163,7 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
                            uint32_t nret, target_ulong rets)
 {
     target_ulong id, start, r3;
+    CPUState *cpu;
     CPUPPCState *env;
 
     if (nargs != 3 || nret != 1) {
@@ -175,6 +176,8 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
     r3 = rtas_ld(args, 2);
 
     for (env = first_cpu; env; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
+
         if (env->cpu_index != id) {
             continue;
         }
@@ -194,7 +197,7 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
         env->gpr[3] = r3;
         env->halted = 0;
 
-        qemu_cpu_kick(env);
+        qemu_cpu_kick(cpu);
 
         rtas_st(rets, 0, 0);
         return;

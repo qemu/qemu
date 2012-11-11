@@ -19,3 +19,6 @@
 [submodule "roms/sgabios"]
 	path = roms/sgabios
 	url = git://git.qemu.org/sgabios.git
+[submodule "pixman"]
+	path = pixman
+	url = git://anongit.freedesktop.org/pixman

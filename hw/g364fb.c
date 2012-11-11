@@ -197,7 +197,8 @@ static void g364fb_draw_graphic8(G364State *s)
                 reset_dirty(s, page_min, page_max);
                 page_min = (ram_addr_t)-1;
                 page_max = 0;
-                dpy_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+                dpy_gfx_update(s->ds, xmin, ymin,
+                               xmax - xmin + 1, ymax - ymin + 1);
                 xmin = s->width;
                 xmax = 0;
                 ymin = s->height;
@@ -216,7 +217,7 @@ static void g364fb_draw_graphic8(G364State *s)
 
 done:
     if (page_min != (ram_addr_t)-1) {
-        dpy_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
+        dpy_gfx_update(s->ds, xmin, ymin, xmax - xmin + 1, ymax - ymin + 1);
         reset_dirty(s, page_min, page_max);
     }
 }
@@ -238,7 +239,7 @@ static void g364fb_draw_blank(G364State *s)
         d += ds_get_linesize(s->ds);
     }
 
-    dpy_update(s->ds, 0, 0, s->width, s->height);
+    dpy_gfx_update(s->ds, 0, 0, s->width, s->height);
     s->blanked = 1;
 }
 

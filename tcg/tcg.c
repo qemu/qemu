@@ -299,6 +299,14 @@ void tcg_func_start(TCGContext *s)
 
     gen_opc_ptr = gen_opc_buf;
     gen_opparam_ptr = gen_opparam_buf;
+
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+    /* Initialize qemu_ld/st labels to assist code generation at the end of TB
+       for TLB miss cases at the end of TB */
+    s->qemu_ldst_labels = tcg_malloc(sizeof(TCGLabelQemuLdst) *
+                                     TCG_MAX_QEMU_LDST);
+    s->nb_qemu_ldst_labels = 0;
+#endif
 }
 
 static inline void tcg_temp_alloc(TCGContext *s, int n)
@@ -1329,8 +1337,8 @@ static void tcg_liveness_analysis(TCGContext *s)
                the low part.  The result can be optimized to a simple
                add or sub.  This happens often for x86_64 guest when the
                cpu mode is set to 32 bit.  */
-            if (dead_temps[args[1]]) {
-                if (dead_temps[args[0]]) {
+            if (dead_temps[args[1]] && !mem_temps[args[1]]) {
+                if (dead_temps[args[0]] && !mem_temps[args[0]]) {
                     goto do_remove;
                 }
                 /* Create the single operation plus nop.  */
@@ -1355,8 +1363,8 @@ static void tcg_liveness_analysis(TCGContext *s)
             nb_iargs = 2;
             nb_oargs = 2;
             /* Likewise, test for the high part of the operation dead.  */
-            if (dead_temps[args[1]]) {
-                if (dead_temps[args[0]]) {
+            if (dead_temps[args[1]] && !mem_temps[args[1]]) {
+                if (dead_temps[args[0]] && !mem_temps[args[0]]) {
                     goto do_remove;
                 }
                 gen_opc_buf[op_index] = op = INDEX_op_mul_i32;
@@ -2314,6 +2322,10 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #endif
     }
  the_end:
+#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
+    /* Generate TB finalization at the end of block */
+    tcg_out_tb_finalize(s);
+#endif
     return -1;
 }
 

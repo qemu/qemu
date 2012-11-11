@@ -25,6 +25,8 @@
 #ifndef QEMU_MAIN_LOOP_H
 #define QEMU_MAIN_LOOP_H 1
 
+#include "qemu-aio.h"
+
 #define SIG_IPI SIGUSR1
 
 /**
@@ -41,16 +43,6 @@
  * In the case of QEMU tools, this will also start/initialize timers.
  */
 int qemu_init_main_loop(void);
-
-/**
- * main_loop_init: Initializes main loop
- *
- * Internal (but shared for compatibility reasons) initialization routine
- * for the main loop. This should not be used by applications directly,
- * use qemu_init_main_loop() instead.
- *
- */
-int main_loop_init(void);
 
 /**
  * main_loop_wait: Run one iteration of the main loop.
@@ -173,7 +165,6 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
 
 typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
 typedef int IOCanReadHandler(void *opaque);
-typedef void IOHandler(void *opaque);
 
 /**
  * qemu_set_fd_handler2: Register a file descriptor with the main loop
@@ -254,56 +245,6 @@ int qemu_set_fd_handler(int fd,
                         IOHandler *fd_write,
                         void *opaque);
 
-typedef struct QEMUBH QEMUBH;
-typedef void QEMUBHFunc(void *opaque);
-
-/**
- * qemu_bh_new: Allocate a new bottom half structure.
- *
- * Bottom halves are lightweight callbacks whose invocation is guaranteed
- * to be wait-free, thread-safe and signal-safe.  The #QEMUBH structure
- * is opaque and must be allocated prior to its use.
- */
-QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
-
-/**
- * qemu_bh_schedule: Schedule a bottom half.
- *
- * Scheduling a bottom half interrupts the main loop and causes the
- * execution of the callback that was passed to qemu_bh_new.
- *
- * Bottom halves that are scheduled from a bottom half handler are instantly
- * invoked.  This can create an infinite loop if a bottom half handler
- * schedules itself.
- *
- * @bh: The bottom half to be scheduled.
- */
-void qemu_bh_schedule(QEMUBH *bh);
-
-/**
- * qemu_bh_cancel: Cancel execution of a bottom half.
- *
- * Canceling execution of a bottom half undoes the effect of calls to
- * qemu_bh_schedule without freeing its resources yet.  While cancellation
- * itself is also wait-free and thread-safe, it can of course race with the
- * loop that executes bottom halves unless you are holding the iothread
- * mutex.  This makes it mostly useless if you are not holding the mutex.
- *
- * @bh: The bottom half to be canceled.
- */
-void qemu_bh_cancel(QEMUBH *bh);
-
-/**
- *qemu_bh_delete: Cancel execution of a bottom half and free its resources.
- *
- * Deleting a bottom half frees the memory that was allocated for it by
- * qemu_bh_new.  It also implies canceling the bottom half if it was
- * scheduled.
- *
- * @bh: The bottom half to be deleted.
- */
-void qemu_bh_delete(QEMUBH *bh);
-
 #ifdef CONFIG_POSIX
 /**
  * qemu_add_child_watch: Register a child process for reaping.
@@ -359,8 +300,7 @@ void qemu_fd_register(int fd);
 void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);
 void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int rc);
 
+QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule_idle(QEMUBH *bh);
-int qemu_bh_poll(void);
-void qemu_bh_update_timeout(uint32_t *timeout);
 
 #endif

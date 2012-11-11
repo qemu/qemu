@@ -108,10 +108,10 @@ int adb_poll(ADBBusState *s, uint8_t *obuf)
     return olen;
 }
 
-ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
-                               ADBDeviceRequest *devreq,
-                               ADBDeviceReset *devreset,
-                               void *opaque)
+static ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
+                                      ADBDeviceRequest *devreq,
+                                      ADBDeviceReset *devreset,
+                                      void *opaque)
 {
     ADBDevice *d;
     if (s->nb_devices >= MAX_ADB_DEVICES)

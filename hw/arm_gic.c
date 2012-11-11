@@ -324,7 +324,8 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset)
     }
     return res;
 bad_reg:
-    hw_error("gic_dist_readb: Bad offset %x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "gic_dist_readb: Bad offset %x\n", (int)offset);
     return 0;
 }
 
@@ -487,7 +488,8 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
     gic_update(s);
     return;
 bad_reg:
-    hw_error("gic_dist_writeb: Bad offset %x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR,
+                  "gic_dist_writeb: Bad offset %x\n", (int)offset);
 }
 
 static void gic_dist_writew(void *opaque, hwaddr offset,
@@ -556,7 +558,8 @@ static uint32_t gic_cpu_read(GICState *s, int cpu, int offset)
     case 0x18: /* Highest Pending Interrupt */
         return s->current_pending[cpu];
     default:
-        hw_error("gic_cpu_read: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gic_cpu_read: Bad offset %x\n", (int)offset);
         return 0;
     }
 }
@@ -577,7 +580,8 @@ static void gic_cpu_write(GICState *s, int cpu, int offset, uint32_t value)
     case 0x10: /* End Of Interrupt */
         return gic_complete_irq(s, cpu, value & 0x3ff);
     default:
-        hw_error("gic_cpu_write: Bad offset %x\n", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "gic_cpu_write: Bad offset %x\n", (int)offset);
         return;
     }
     gic_update(s);

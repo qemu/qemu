@@ -1,3 +1,5 @@
 qapi-obj-y = qapi-visit-core.o qapi-dealloc-visitor.o qmp-input-visitor.o
 qapi-obj-y += qmp-output-visitor.o qmp-registry.o qmp-dispatch.o
-qapi-obj-y += string-input-visitor.o string-output-visitor.o opts-visitor.o
+qapi-obj-y += string-input-visitor.o string-output-visitor.o
+
+common-obj-y += opts-visitor.o

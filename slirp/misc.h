@@ -64,7 +64,6 @@ void snooze_hup(int);
 void snooze(void);
 void relay(int);
 void add_emu(char *);
-void u_sleep(int);
 void fd_nonblock(int);
 void fd_block(int);
 int rsh_exec(struct socket *, struct socket *, char *, char *, char *);

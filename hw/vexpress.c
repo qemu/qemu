@@ -348,12 +348,7 @@ static const VEDBoardInfo a15_daughterboard = {
 };
 
 static void vexpress_common_init(const VEDBoardInfo *daughterboard,
-                                 ram_addr_t ram_size,
-                                 const char *boot_device,
-                                 const char *kernel_filename,
-                                 const char *kernel_cmdline,
-                                 const char *initrd_filename,
-                                 const char *cpu_model)
+                                 QEMUMachineInitArgs *args)
 {
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
@@ -366,7 +361,8 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     const hwaddr *map = daughterboard->motherboard_map;
 
-    daughterboard->init(daughterboard, ram_size, cpu_model, pic, &proc_id);
+    daughterboard->init(daughterboard, args->ram_size, args->cpu_model,
+                        pic, &proc_id);
 
     /* Motherboard peripherals: the wiring is the same but the
      * addresses vary between the legacy and A-Series memory maps.
@@ -454,10 +450,10 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     /* VE_DAPROM: not modelled */
 
-    vexpress_binfo.ram_size = ram_size;
-    vexpress_binfo.kernel_filename = kernel_filename;
-    vexpress_binfo.kernel_cmdline = kernel_cmdline;
-    vexpress_binfo.initrd_filename = initrd_filename;
+    vexpress_binfo.ram_size = args->ram_size;
+    vexpress_binfo.kernel_filename = args->kernel_filename;
+    vexpress_binfo.kernel_cmdline = args->kernel_cmdline;
+    vexpress_binfo.initrd_filename = args->initrd_filename;
     vexpress_binfo.nb_cpus = smp_cpus;
     vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
     vexpress_binfo.loader_start = daughterboard->loader_start;
@@ -469,28 +465,12 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
 static void vexpress_a9_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    vexpress_common_init(&a9_daughterboard,
-                         ram_size, boot_device, kernel_filename,
-                         kernel_cmdline, initrd_filename, cpu_model);
+    vexpress_common_init(&a9_daughterboard, args);
 }
 
 static void vexpress_a15_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    vexpress_common_init(&a15_daughterboard,
-                         ram_size, boot_device, kernel_filename,
-                         kernel_cmdline, initrd_filename, cpu_model);
+    vexpress_common_init(&a15_daughterboard, args);
 }
 
 static QEMUMachine vexpress_a9_machine = {

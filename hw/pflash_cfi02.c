@@ -41,6 +41,7 @@
 #include "block.h"
 #include "exec-memory.h"
 #include "host-utils.h"
+#include "sysbus.h"
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
@@ -55,19 +56,26 @@ do {                                               \
 #define PFLASH_LAZY_ROMD_THRESHOLD 42
 
 struct pflash_t {
+    SysBusDevice busdev;
     BlockDriverState *bs;
-    hwaddr base;
     uint32_t sector_len;
+    uint32_t nb_blocs;
     uint32_t chip_len;
-    int mappings;
-    int width;
+    uint8_t mappings;
+    uint8_t width;
+    uint8_t be;
     int wcycle; /* if 0, the flash is read normally */
     int bypass;
     int ro;
     uint8_t cmd;
     uint8_t status;
-    uint16_t ident[4];
-    uint16_t unlock_addr[2];
+    /* FIXME: implement array device properties */
+    uint16_t ident0;
+    uint16_t ident1;
+    uint16_t ident2;
+    uint16_t ident3;
+    uint16_t unlock_addr0;
+    uint16_t unlock_addr1;
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
     QEMUTimer *timer;
@@ -80,6 +88,7 @@ struct pflash_t {
     MemoryRegion orig_mem;
     int rom_mode;
     int read_counter; /* used for lazy switch-back to rom mode */
+    char *name;
     void *storage;
 };
 
@@ -190,16 +199,17 @@ static uint32_t pflash_read (pflash_t *pfl, hwaddr offset,
         switch (boff) {
         case 0x00:
         case 0x01:
-            ret = pfl->ident[boff & 0x01];
+            ret = boff & 0x01 ? pfl->ident1 : pfl->ident0;
             break;
         case 0x02:
             ret = 0x00; /* Pretend all sectors are unprotected */
             break;
         case 0x0E:
         case 0x0F:
-            if (pfl->ident[2 + (boff & 0x01)] == (uint8_t)-1)
+            ret = boff & 0x01 ? pfl->ident3 : pfl->ident2;
+            if (ret == (uint8_t)-1) {
                 goto flash_read;
-            ret = pfl->ident[2 + (boff & 0x01)];
+            }
             break;
         default:
             goto flash_read;
@@ -283,9 +293,9 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
             pfl->cmd = 0x98;
             return;
         }
-        if (boff != pfl->unlock_addr[0] || cmd != 0xAA) {
+        if (boff != pfl->unlock_addr0 || cmd != 0xAA) {
             DPRINTF("%s: unlock0 failed " TARGET_FMT_plx " %02x %04x\n",
-                    __func__, boff, cmd, pfl->unlock_addr[0]);
+                    __func__, boff, cmd, pfl->unlock_addr0);
             goto reset_flash;
         }
         DPRINTF("%s: unlock sequence started\n", __func__);
@@ -293,7 +303,7 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
     case 1:
         /* We started an unlock sequence */
     check_unlock1:
-        if (boff != pfl->unlock_addr[1] || cmd != 0x55) {
+        if (boff != pfl->unlock_addr1 || cmd != 0x55) {
             DPRINTF("%s: unlock1 failed " TARGET_FMT_plx " %02x\n", __func__,
                     boff, cmd);
             goto reset_flash;
@@ -302,7 +312,7 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
         break;
     case 2:
         /* We finished an unlock sequence */
-        if (!pfl->bypass && boff != pfl->unlock_addr[0]) {
+        if (!pfl->bypass && boff != pfl->unlock_addr0) {
             DPRINTF("%s: command failed " TARGET_FMT_plx " %02x\n", __func__,
                     boff, cmd);
             goto reset_flash;
@@ -400,7 +410,7 @@ static void pflash_write (pflash_t *pfl, hwaddr offset,
     case 5:
         switch (cmd) {
         case 0x10:
-            if (boff != pfl->unlock_addr[0]) {
+            if (boff != pfl->unlock_addr0) {
                 DPRINTF("%s: chip erase: invalid address " TARGET_FMT_plx "\n",
                         __func__, offset);
                 goto reset_flash;
@@ -575,50 +585,38 @@ static const MemoryRegionOps pflash_cfi02_ops_le = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-pflash_t *pflash_cfi02_register(hwaddr base,
-                                DeviceState *qdev, const char *name,
-                                hwaddr size,
-                                BlockDriverState *bs, uint32_t sector_len,
-                                int nb_blocs, int nb_mappings, int width,
-                                uint16_t id0, uint16_t id1,
-                                uint16_t id2, uint16_t id3,
-                                uint16_t unlock_addr0, uint16_t unlock_addr1,
-                                int be)
+static int pflash_cfi02_init(SysBusDevice *dev)
 {
-    pflash_t *pfl;
-    int32_t chip_len;
+    pflash_t *pfl = FROM_SYSBUS(typeof(*pfl), dev);
+    uint32_t chip_len;
     int ret;
 
-    chip_len = sector_len * nb_blocs;
+    chip_len = pfl->sector_len * pfl->nb_blocs;
     /* XXX: to be fixed */
 #if 0
     if (total_len != (8 * 1024 * 1024) && total_len != (16 * 1024 * 1024) &&
         total_len != (32 * 1024 * 1024) && total_len != (64 * 1024 * 1024))
         return NULL;
 #endif
-    pfl = g_malloc0(sizeof(pflash_t));
-    memory_region_init_rom_device(
-        &pfl->orig_mem, be ? &pflash_cfi02_ops_be : &pflash_cfi02_ops_le, pfl,
-        name, size);
-    vmstate_register_ram(&pfl->orig_mem, qdev);
+
+    memory_region_init_rom_device(&pfl->orig_mem, pfl->be ?
+                                  &pflash_cfi02_ops_be : &pflash_cfi02_ops_le,
+                                  pfl, pfl->name, chip_len);
+    vmstate_register_ram(&pfl->orig_mem, DEVICE(pfl));
     pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
-    pfl->base = base;
     pfl->chip_len = chip_len;
-    pfl->mappings = nb_mappings;
-    pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */
         ret = bdrv_read(pfl->bs, 0, pfl->storage, chip_len >> 9);
         if (ret < 0) {
             g_free(pfl);
-            return NULL;
+            return 1;
         }
-        bdrv_attach_dev_nofail(pfl->bs, pfl);
     }
 
     pflash_setup_mappings(pfl);
     pfl->rom_mode = 1;
-    memory_region_add_subregion(get_system_memory(), pfl->base, &pfl->mem);
+    sysbus_init_mmio(dev, &pfl->mem);
 
     if (pfl->bs) {
         pfl->ro = bdrv_is_read_only(pfl->bs);
@@ -627,17 +625,9 @@ pflash_t *pflash_cfi02_register(hwaddr base,
     }
 
     pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
-    pfl->sector_len = sector_len;
-    pfl->width = width;
     pfl->wcycle = 0;
     pfl->cmd = 0;
     pfl->status = 0;
-    pfl->ident[0] = id0;
-    pfl->ident[1] = id1;
-    pfl->ident[2] = id2;
-    pfl->ident[3] = id3;
-    pfl->unlock_addr[0] = unlock_addr0;
-    pfl->unlock_addr[1] = unlock_addr1;
     /* Hardcoded CFI table (mostly from SG29 Spansion flash) */
     pfl->cfi_len = 0x52;
     /* Standard "QRY" string */
@@ -693,10 +683,10 @@ pflash_t *pflash_cfi02_register(hwaddr base,
     /* Number of erase block regions (uniform) */
     pfl->cfi_table[0x2C] = 0x01;
     /* Erase block region 1 */
-    pfl->cfi_table[0x2D] = nb_blocs - 1;
-    pfl->cfi_table[0x2E] = (nb_blocs - 1) >> 8;
-    pfl->cfi_table[0x2F] = sector_len >> 8;
-    pfl->cfi_table[0x30] = sector_len >> 16;
+    pfl->cfi_table[0x2D] = pfl->nb_blocs - 1;
+    pfl->cfi_table[0x2E] = (pfl->nb_blocs - 1) >> 8;
+    pfl->cfi_table[0x2F] = pfl->sector_len >> 8;
+    pfl->cfi_table[0x30] = pfl->sector_len >> 16;
 
     /* Extended */
     pfl->cfi_table[0x31] = 'P';
@@ -716,5 +706,81 @@ pflash_t *pflash_cfi02_register(hwaddr base,
     pfl->cfi_table[0x3b] = 0x00;
     pfl->cfi_table[0x3c] = 0x00;
 
+    return 0;
+}
+
+static Property pflash_cfi02_properties[] = {
+    DEFINE_PROP_DRIVE("drive", struct pflash_t, bs),
+    DEFINE_PROP_UINT32("num-blocks", struct pflash_t, nb_blocs, 0),
+    DEFINE_PROP_UINT32("sector-length", struct pflash_t, sector_len, 0),
+    DEFINE_PROP_UINT8("width", struct pflash_t, width, 0),
+    DEFINE_PROP_UINT8("mappings", struct pflash_t, mappings, 0),
+    DEFINE_PROP_UINT8("big-endian", struct pflash_t, be, 0),
+    DEFINE_PROP_UINT16("id0", struct pflash_t, ident0, 0),
+    DEFINE_PROP_UINT16("id1", struct pflash_t, ident1, 0),
+    DEFINE_PROP_UINT16("id2", struct pflash_t, ident2, 0),
+    DEFINE_PROP_UINT16("id3", struct pflash_t, ident3, 0),
+    DEFINE_PROP_UINT16("unlock-addr0", struct pflash_t, unlock_addr0, 0),
+    DEFINE_PROP_UINT16("unlock-addr1", struct pflash_t, unlock_addr1, 0),
+    DEFINE_PROP_STRING("name", struct pflash_t, name),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pflash_cfi02_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pflash_cfi02_init;
+    dc->props = pflash_cfi02_properties;
+}
+
+static const TypeInfo pflash_cfi02_info = {
+    .name           = "cfi.pflash02",
+    .parent         = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(struct pflash_t),
+    .class_init     = pflash_cfi02_class_init,
+};
+
+static void pflash_cfi02_register_types(void)
+{
+    type_register_static(&pflash_cfi02_info);
+}
+
+type_init(pflash_cfi02_register_types)
+
+pflash_t *pflash_cfi02_register(hwaddr base,
+                                DeviceState *qdev, const char *name,
+                                hwaddr size,
+                                BlockDriverState *bs, uint32_t sector_len,
+                                int nb_blocs, int nb_mappings, int width,
+                                uint16_t id0, uint16_t id1,
+                                uint16_t id2, uint16_t id3,
+                                uint16_t unlock_addr0, uint16_t unlock_addr1,
+                                int be)
+{
+    DeviceState *dev = qdev_create(NULL, "cfi.pflash02");
+    SysBusDevice *busdev = sysbus_from_qdev(dev);
+    pflash_t *pfl = (pflash_t *)object_dynamic_cast(OBJECT(dev),
+                                                    "cfi.pflash02");
+
+    if (bs && qdev_prop_set_drive(dev, "drive", bs)) {
+        abort();
+    }
+    qdev_prop_set_uint32(dev, "num-blocks", nb_blocs);
+    qdev_prop_set_uint32(dev, "sector-length", sector_len);
+    qdev_prop_set_uint8(dev, "width", width);
+    qdev_prop_set_uint8(dev, "mappings", nb_mappings);
+    qdev_prop_set_uint8(dev, "big-endian", !!be);
+    qdev_prop_set_uint16(dev, "id0", id0);
+    qdev_prop_set_uint16(dev, "id1", id1);
+    qdev_prop_set_uint16(dev, "id2", id2);
+    qdev_prop_set_uint16(dev, "id3", id3);
+    qdev_prop_set_uint16(dev, "unlock-addr0", unlock_addr0);
+    qdev_prop_set_uint16(dev, "unlock-addr1", unlock_addr1);
+    qdev_prop_set_string(dev, "name", name);
+    qdev_init_nofail(dev);
+
+    sysbus_mmio_map(busdev, 0, base);
     return pfl;
 }

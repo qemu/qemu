@@ -167,11 +167,7 @@ static int vpb_sic_init(SysBusDevice *dev)
 
 static struct arm_boot_info versatile_binfo;
 
-static void versatile_init(ram_addr_t ram_size,
-                     const char *boot_device,
-                     const char *kernel_filename, const char *kernel_cmdline,
-                     const char *initrd_filename, const char *cpu_model,
-                     int board_id)
+static void versatile_init(QEMUMachineInitArgs *args, int board_id)
 {
     ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
@@ -189,15 +185,15 @@ static void versatile_init(ram_addr_t ram_size,
     int done_smc = 0;
     DriveInfo *dinfo;
 
-    if (!cpu_model) {
-        cpu_model = "arm926";
+    if (!args->cpu_model) {
+        args->cpu_model = "arm926";
     }
-    cpu = cpu_arm_init(cpu_model);
+    cpu = cpu_arm_init(args->cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    memory_region_init_ram(ram, "versatile.ram", ram_size);
+    memory_region_init_ram(ram, "versatile.ram", args->ram_size);
     vmstate_register_ram_global(ram);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
@@ -340,40 +336,22 @@ static void versatile_init(ram_addr_t ram_size,
         fprintf(stderr, "qemu: Error registering flash memory.\n");
     }
 
-    versatile_binfo.ram_size = ram_size;
-    versatile_binfo.kernel_filename = kernel_filename;
-    versatile_binfo.kernel_cmdline = kernel_cmdline;
-    versatile_binfo.initrd_filename = initrd_filename;
+    versatile_binfo.ram_size = args->ram_size;
+    versatile_binfo.kernel_filename = args->kernel_filename;
+    versatile_binfo.kernel_cmdline = args->kernel_cmdline;
+    versatile_binfo.initrd_filename = args->initrd_filename;
     versatile_binfo.board_id = board_id;
     arm_load_kernel(cpu, &versatile_binfo);
 }
 
 static void vpb_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    versatile_init(ram_size,
-                   boot_device,
-                   kernel_filename, kernel_cmdline,
-                   initrd_filename, cpu_model, 0x183);
+    versatile_init(args, 0x183);
 }
 
 static void vab_init(QEMUMachineInitArgs *args)
 {
-    ram_addr_t ram_size = args->ram_size;
-    const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
-    versatile_init(ram_size,
-                   boot_device,
-                   kernel_filename, kernel_cmdline,
-                   initrd_filename, cpu_model, 0x25e);
+    versatile_init(args, 0x25e);
 }
 
 static QEMUMachine versatilepb_machine = {

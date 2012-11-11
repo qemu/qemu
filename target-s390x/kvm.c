@@ -403,7 +403,7 @@ static int s390_cpu_restart(S390CPU *cpu)
 
     kvm_s390_interrupt(env, KVM_S390_RESTART, 0);
     s390_add_running_cpu(env);
-    qemu_cpu_kick(env);
+    qemu_cpu_kick(CPU(cpu));
     dprintf("DONE: SIGP cpu restart: %p\n", env);
     return 0;
 }

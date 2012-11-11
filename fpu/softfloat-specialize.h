@@ -486,6 +486,33 @@ static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
         return 1;
     }
 }
+#elif defined(TARGET_MIPS)
+static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+{
+    /* For MIPS, the (inf,zero,qnan) case sets InvalidOp and returns
+     * the default NaN
+     */
+    if (infzero) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        return 3;
+    }
+
+    /* Prefer sNaN over qNaN, in the a, b, c order. */
+    if (aIsSNaN) {
+        return 0;
+    } else if (bIsSNaN) {
+        return 1;
+    } else if (cIsSNaN) {
+        return 2;
+    } else if (aIsQNaN) {
+        return 0;
+    } else if (bIsQNaN) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
 #elif defined(TARGET_PPC)
 static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
                          flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)

@@ -73,9 +73,11 @@ static int cap_hior;
  */
 static QEMUTimer *idle_timer;
 
-static void kvm_kick_env(void *env)
+static void kvm_kick_cpu(void *opaque)
 {
-    qemu_cpu_kick(env);
+    PowerPCCPU *cpu = opaque;
+
+    qemu_cpu_kick(CPU(cpu));
 }
 
 int kvm_arch_init(KVMState *s)
@@ -375,6 +377,7 @@ static inline void kvm_fixup_page_sizes(CPUPPCState *env)
 
 int kvm_arch_init_vcpu(CPUPPCState *cenv)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(cenv);
     int ret;
 
     /* Gather server mmu info from KVM and update the CPU state */
@@ -386,7 +389,7 @@ int kvm_arch_init_vcpu(CPUPPCState *cenv)
         return ret;
     }
 
-    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_env, cenv);
+    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_cpu, cpu);
 
     /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
@@ -814,7 +817,8 @@ int kvm_arch_handle_exit(CPUPPCState *env, struct kvm_run *run)
 #ifdef CONFIG_PSERIES
     case KVM_EXIT_PAPR_HCALL:
         dprintf("handle PAPR hypercall\n");
-        run->papr_hcall.ret = spapr_hypercall(env, run->papr_hcall.nr,
+        run->papr_hcall.ret = spapr_hypercall(ppc_env_get_cpu(env),
+                                              run->papr_hcall.nr,
                                               run->papr_hcall.args);
         ret = 0;
         break;

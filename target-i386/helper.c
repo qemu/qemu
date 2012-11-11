@@ -1141,10 +1141,11 @@ static void do_inject_x86_mce(void *data)
     }
 }
 
-void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
+void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags)
 {
+    CPUX86State *cenv = &cpu->env;
     MCEInjectionParams params = {
         .mon = mon,
         .env = cenv,
@@ -1176,7 +1177,7 @@ void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
         return;
     }
 
-    run_on_cpu(cenv, do_inject_x86_mce, &params);
+    run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
     if (flags & MCE_INJECT_BROADCAST) {
         params.bank = 1;
         params.status = MCI_STATUS_VAL | MCI_STATUS_UC;
@@ -1188,7 +1189,7 @@ void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
                 continue;
             }
             params.env = env;
-            run_on_cpu(cenv, do_inject_x86_mce, &params);
+            run_on_cpu(CPU(cpu), do_inject_x86_mce, &params);
         }
     }
 }
@@ -1243,6 +1244,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
 {
     X86CPU *cpu;
     CPUX86State *env;
+    Error *error = NULL;
 
     cpu = X86_CPU(object_new(TYPE_X86_CPU));
     env = &cpu->env;
@@ -1253,8 +1255,12 @@ X86CPU *cpu_x86_init(const char *cpu_model)
         return NULL;
     }
 
-    x86_cpu_realize(OBJECT(cpu), NULL);
-
+    x86_cpu_realize(OBJECT(cpu), &error);
+    if (error) {
+        error_free(error);
+        object_delete(OBJECT(cpu));
+        return NULL;
+    }
     return cpu;
 }
 

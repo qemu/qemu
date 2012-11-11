@@ -31,7 +31,7 @@
 
 
 /* Map CPU modes onto saved register banks.  */
-static inline int bank_number(int mode)
+static inline int bank_number(CPUUniCore32State *env, int mode)
 {
     switch (mode) {
     case ASR_MODE_USER:
@@ -46,7 +46,7 @@ static inline int bank_number(int mode)
     case ASR_MODE_INTR:
         return 4;
     }
-    cpu_abort(cpu_single_env, "Bad mode %x\n", mode);
+    cpu_abort(env, "Bad mode %x\n", mode);
     return -1;
 }
 
@@ -60,12 +60,12 @@ void switch_mode(CPUUniCore32State *env, int mode)
         return;
     }
 
-    i = bank_number(old_mode);
+    i = bank_number(env, old_mode);
     env->banked_r29[i] = env->regs[29];
     env->banked_r30[i] = env->regs[30];
     env->banked_bsr[i] = env->bsr;
 
-    i = bank_number(mode);
+    i = bank_number(env, mode);
     env->regs[29] = env->banked_r29[i];
     env->regs[30] = env->banked_r30[i];
     env->bsr = env->banked_bsr[i];

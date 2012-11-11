@@ -963,7 +963,7 @@ struct CPUPPCState {
     /* floating point registers */
     float64 fpr[32];
     /* floating point status and control register */
-    uint32_t fpscr;
+    target_ulong fpscr;
 
     /* Next instruction pointer */
     target_ulong nip;
@@ -1014,6 +1014,8 @@ struct CPUPPCState {
     /* Altivec registers */
     ppc_avr_t avr[32];
     uint32_t vscr;
+    /* VSX registers */
+    uint64_t vsr[32];
     /* SPE registers */
     uint64_t spe_acc;
     uint32_t spe_fscr;
@@ -1045,9 +1047,9 @@ struct CPUPPCState {
 #endif
 
 #if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
-    hwaddr vpa_addr;
-    hwaddr slb_shadow_addr, slb_shadow_size;
-    hwaddr dtl_addr, dtl_size;
+    uint64_t vpa_addr;
+    uint64_t slb_shadow_addr, slb_shadow_size;
+    uint64_t dtl_addr, dtl_size;
 #endif /* TARGET_PPC64 */
 
     int error_code;
@@ -1140,10 +1142,6 @@ int cpu_ppc_signal_handler (int host_signum, void *pinfo,
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
-#if !defined(CONFIG_USER_ONLY)
-int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,
-                          int rw, int access_type);
-#endif
 void do_interrupt (CPUPPCState *env);
 void ppc_hw_interrupt (CPUPPCState *env);
 
@@ -1177,7 +1175,6 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value);
 uint32_t cpu_ppc_load_hdecr (CPUPPCState *env);
 void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value);
 uint64_t cpu_ppc_load_purr (CPUPPCState *env);
-void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value);
 uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env);
 uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env);
 #if !defined(CONFIG_USER_ONLY)
@@ -1189,8 +1186,6 @@ void store_40x_dbcr0 (CPUPPCState *env, uint32_t val);
 void store_40x_sler (CPUPPCState *env, uint32_t val);
 void store_booke_tcr (CPUPPCState *env, target_ulong val);
 void store_booke_tsr (CPUPPCState *env, target_ulong val);
-void booke206_flush_tlb(CPUPPCState *env, int flags, const int check_iprot);
-hwaddr booke206_tlb_to_page_size(CPUPPCState *env, ppcmas_tlb_t *tlb);
 int ppcmas_tlb_check(CPUPPCState *env, ppcmas_tlb_t *tlb,
                      hwaddr *raddrp, target_ulong address,
                      uint32_t pid);
@@ -2220,10 +2215,12 @@ static inline bool msr_is_64bit(CPUPPCState *env, target_ulong msr)
     return msr & (1ULL << MSR_SF);
 }
 
-extern void (*cpu_ppc_hypercall)(CPUPPCState *);
+extern void (*cpu_ppc_hypercall)(PowerPCCPU *);
 
-static inline bool cpu_has_work(CPUPPCState *env)
+static inline bool cpu_has_work(CPUState *cpu)
 {
+    CPUPPCState *env = &POWERPC_CPU(cpu)->env;
+
     return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
