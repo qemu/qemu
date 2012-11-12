@@ -495,7 +495,7 @@ static void xics_reset(void *opaque)
 
     for (i = 0; i < icp->nr_servers; i++) {
         icp->ss[i].xirr = 0;
-        icp->ss[i].pending_priority = 0;
+        icp->ss[i].pending_priority = 0xff;
         icp->ss[i].mfrr = 0xff;
         /* Make all outputs are deasserted */
         qemu_set_irq(icp->ss[i].output, 0);
