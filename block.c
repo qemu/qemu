@@ -634,6 +634,26 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
     bs->copy_on_read--;
 }
 
+static int bdrv_open_flags(BlockDriverState *bs, int flags)
+{
+    int open_flags = flags | BDRV_O_CACHE_WB;
+
+    /*
+     * Clear flags that are internal to the block layer before opening the
+     * image.
+     */
+    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
+
+    /*
+     * Snapshots should be writable.
+     */
+    if (bs->is_temporary) {
+        open_flags |= BDRV_O_RDWR;
+    }
+
+    return open_flags;
+}
+
 /*
  * Common part for opening disk images and files
  */
@@ -665,20 +685,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->opaque = g_malloc0(drv->instance_size);
 
     bs->enable_write_cache = !!(flags & BDRV_O_CACHE_WB);
-    open_flags = flags | BDRV_O_CACHE_WB;
-
-    /*
-     * Clear flags that are internal to the block layer before opening the
-     * image.
-     */
-    open_flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
-
-    /*
-     * Snapshots should be writable.
-     */
-    if (bs->is_temporary) {
-        open_flags |= BDRV_O_RDWR;
-    }
+    open_flags = bdrv_open_flags(bs, flags);
 
     bs->read_only = !(open_flags & BDRV_O_RDWR);
 
