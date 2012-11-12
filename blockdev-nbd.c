@@ -82,6 +82,11 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     NBDExport *exp;
     NBDCloseNotifier *n;
 
+    if (server_fd == -1) {
+        error_setg(errp, "NBD server not running");
+        return;
+    }
+
     if (nbd_export_find(device)) {
         error_setg(errp, "NBD server already exporting device '%s'", device);
         return;
