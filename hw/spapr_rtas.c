@@ -301,7 +301,7 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
     for (i = 0; i < TOKEN_MAX; i++) {
         struct rtas_call *call = &rtas_table[i];
 
-        if (!call->fn) {
+        if (!call->name) {
             continue;
         }
 
