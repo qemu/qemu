@@ -171,6 +171,10 @@ static void vga_update_memory_access(VGACommonState *s)
     MemoryRegion *region, *old_region = s->chain4_alias;
     hwaddr base, offset, size;
 
+    if (s->legacy_address_space == NULL) {
+        return;
+    }
+
     s->chain4_alias = NULL;
 
     if ((s->sr[VGA_SEQ_PLANE_WRITE] & VGA_SR02_ALL_PLANES) ==
