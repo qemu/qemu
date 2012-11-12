@@ -7962,7 +7962,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     cpu_ptr0 = tcg_temp_new_ptr();
     cpu_ptr1 = tcg_temp_new_ptr();
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
@@ -7984,7 +7984,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
             }
         }
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -8034,7 +8034,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     /* we don't forget to fill the last values */
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

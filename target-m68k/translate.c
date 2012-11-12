@@ -2982,7 +2982,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
 
     dc->tb = tb;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->env = env;
     dc->is_jmp = DISAS_NEXT;
@@ -3015,7 +3015,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
                 break;
         }
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -3075,7 +3075,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
     }
 #endif
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

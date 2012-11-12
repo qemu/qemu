@@ -2849,7 +2849,7 @@ static void gen_intermediate_code_internal(
     DisasContext dc;
     int insn_count = 0;
     int j, lj = -1;
-    uint16_t *gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    uint16_t *gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     int max_insns = tb->cflags & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
     uint32_t next_page_start =
@@ -2893,7 +2893,7 @@ static void gen_intermediate_code_internal(
         check_breakpoint(env, &dc);
 
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j) {

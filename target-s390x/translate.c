@@ -5134,7 +5134,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
     dc.tb = tb;
     dc.cc_op = CC_OP_DYNAMIC;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
 
@@ -5156,7 +5156,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
             }
         }
         if (search_pc) {
-            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -5209,7 +5209,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
     gen_icount_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j) {
             gen_opc_instr_start[lj++] = 0;

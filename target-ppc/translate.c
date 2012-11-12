@@ -9624,7 +9624,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
     int max_insns;
 
     pc_start = tb->pc;
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.nip = pc_start;
     ctx.tb = tb;
     ctx.exception = POWERPC_EXCP_NONE;
@@ -9675,7 +9675,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
             }
         }
         if (unlikely(search_pc)) {
-            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -9777,7 +9777,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
     gen_icount_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (unlikely(search_pc)) {
-        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

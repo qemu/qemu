@@ -1967,7 +1967,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     int max_insns;
 
     pc_start = tb->pc;
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     ctx.pc = pc_start;
     ctx.flags = (uint32_t)tb->flags;
     ctx.bstate = BS_NONE;
@@ -1999,7 +1999,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 	    }
 	}
         if (search_pc) {
-            i = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+            i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (ii < i) {
                 ii++;
                 while (ii < i)
@@ -2058,7 +2058,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     gen_icount_end(tb, num_insns);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        i = tcg_ctx.gen_opc_ptr - gen_opc_buf;
+        i = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         ii++;
         while (ii <= i)
             gen_opc_instr_start[ii++] = 0;

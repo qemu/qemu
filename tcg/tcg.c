@@ -297,7 +297,7 @@ void tcg_func_start(TCGContext *s)
     s->goto_tb_issue_mask = 0;
 #endif
 
-    s->gen_opc_ptr = gen_opc_buf;
+    s->gen_opc_ptr = s->gen_opc_buf;
     s->gen_opparam_ptr = gen_opparam_buf;
 
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
@@ -896,7 +896,7 @@ void tcg_dump_ops(TCGContext *s)
     char buf[128];
 
     first_insn = 1;
-    opc_ptr = gen_opc_buf;
+    opc_ptr = s->gen_opc_buf;
     args = gen_opparam_buf;
     while (opc_ptr < s->gen_opc_ptr) {
         c = *opc_ptr++;
@@ -1231,7 +1231,7 @@ static void tcg_liveness_analysis(TCGContext *s)
     
     s->gen_opc_ptr++; /* skip end */
 
-    nb_ops = s->gen_opc_ptr - gen_opc_buf;
+    nb_ops = s->gen_opc_ptr - s->gen_opc_buf;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
     s->op_sync_args = tcg_malloc(nb_ops * sizeof(uint8_t));
@@ -1243,7 +1243,7 @@ static void tcg_liveness_analysis(TCGContext *s)
     args = s->gen_opparam_ptr;
     op_index = nb_ops - 1;
     while (op_index >= 0) {
-        op = gen_opc_buf[op_index];
+        op = s->gen_opc_buf[op_index];
         def = &tcg_op_defs[op];
         switch(op) {
         case INDEX_op_call:
@@ -1266,7 +1266,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                             goto do_not_remove_call;
                         }
                     }
-                    tcg_set_nop(s, gen_opc_buf + op_index, 
+                    tcg_set_nop(s, s->gen_opc_buf + op_index,
                                 args - 1, nb_args);
                 } else {
                 do_not_remove_call:
@@ -1347,11 +1347,11 @@ static void tcg_liveness_analysis(TCGContext *s)
                 } else {
                     op = INDEX_op_sub_i32;
                 }
-                gen_opc_buf[op_index] = op;
+                s->gen_opc_buf[op_index] = op;
                 args[1] = args[2];
                 args[2] = args[4];
-                assert(gen_opc_buf[op_index + 1] == INDEX_op_nop);
-                tcg_set_nop(s, gen_opc_buf + op_index + 1, args + 3, 3);
+                assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
+                tcg_set_nop(s, s->gen_opc_buf + op_index + 1, args + 3, 3);
                 /* Fall through and mark the single-word operation live.  */
                 nb_iargs = 2;
                 nb_oargs = 1;
@@ -1367,11 +1367,11 @@ static void tcg_liveness_analysis(TCGContext *s)
                 if (dead_temps[args[0]] && !mem_temps[args[0]]) {
                     goto do_remove;
                 }
-                gen_opc_buf[op_index] = op = INDEX_op_mul_i32;
+                s->gen_opc_buf[op_index] = op = INDEX_op_mul_i32;
                 args[1] = args[2];
                 args[2] = args[3];
-                assert(gen_opc_buf[op_index + 1] == INDEX_op_nop);
-                tcg_set_nop(s, gen_opc_buf + op_index + 1, args + 3, 1);
+                assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
+                tcg_set_nop(s, s->gen_opc_buf + op_index + 1, args + 3, 1);
                 /* Fall through and mark the single-word operation live.  */
                 nb_oargs = 1;
             }
@@ -1394,7 +1394,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                     }
                 }
             do_remove:
-                tcg_set_nop(s, gen_opc_buf + op_index, args, def->nb_args);
+                tcg_set_nop(s, s->gen_opc_buf + op_index, args, def->nb_args);
 #ifdef CONFIG_PROFILER
                 s->del_op_count++;
 #endif
@@ -1448,7 +1448,7 @@ static void tcg_liveness_analysis(TCGContext *s)
 static void tcg_liveness_analysis(TCGContext *s)
 {
     int nb_ops;
-    nb_ops = s->gen_opc_ptr - gen_opc_buf;
+    nb_ops = s->gen_opc_ptr - s->gen_opc_buf;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
     memset(s->op_dead_args, 0, nb_ops * sizeof(uint16_t));
@@ -2253,7 +2253,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     op_index = 0;
 
     for(;;) {
-        opc = gen_opc_buf[op_index];
+        opc = s->gen_opc_buf[op_index];
 #ifdef CONFIG_PROFILER
         tcg_table_op_count[opc]++;
 #endif
@@ -2334,7 +2334,7 @@ int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
 #ifdef CONFIG_PROFILER
     {
         int n;
-        n = (s->gen_opc_ptr - gen_opc_buf);
+        n = (s->gen_opc_ptr - s->gen_opc_buf);
         s->op_count += n;
         if (n > s->op_count_max)
             s->op_count_max = n;
