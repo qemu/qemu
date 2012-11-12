@@ -1047,7 +1047,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
         check_breakpoint(env, dc);
 
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -1071,7 +1071,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
         num_insns++;
 
     } while (!dc->is_jmp
-         && gen_opc_ptr < gen_opc_end
+         && tcg_ctx.gen_opc_ptr < gen_opc_end
          && !env->singlestep_enabled
          && !singlestep
          && (dc->pc < next_page_start)
@@ -1105,9 +1105,9 @@ static void gen_intermediate_code_internal(CPULM32State *env,
     }
 
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         lj++;
         while (lj <= j) {
             gen_opc_instr_start[lj++] = 0;
@@ -1122,7 +1122,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
         qemu_log("\n");
         log_target_disas(env, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
+            dc->pc - pc_start, tcg_ctx.gen_opc_ptr - gen_opc_buf);
     }
 #endif
 }

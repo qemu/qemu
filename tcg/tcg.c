@@ -297,7 +297,7 @@ void tcg_func_start(TCGContext *s)
     s->goto_tb_issue_mask = 0;
 #endif
 
-    gen_opc_ptr = gen_opc_buf;
+    s->gen_opc_ptr = gen_opc_buf;
     gen_opparam_ptr = gen_opparam_buf;
 
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
@@ -641,7 +641,7 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
     }
 #endif /* TCG_TARGET_EXTEND_ARGS */
 
-    *gen_opc_ptr++ = INDEX_op_call;
+    *s->gen_opc_ptr++ = INDEX_op_call;
     nparam = gen_opparam_ptr++;
     if (ret != TCG_CALL_DUMMY_ARG) {
 #if TCG_TARGET_REG_BITS < 64
@@ -898,7 +898,7 @@ void tcg_dump_ops(TCGContext *s)
     first_insn = 1;
     opc_ptr = gen_opc_buf;
     args = gen_opparam_buf;
-    while (opc_ptr < gen_opc_ptr) {
+    while (opc_ptr < s->gen_opc_ptr) {
         c = *opc_ptr++;
         def = &tcg_op_defs[c];
         if (c == INDEX_op_debug_insn_start) {
@@ -1229,9 +1229,9 @@ static void tcg_liveness_analysis(TCGContext *s)
     uint16_t dead_args;
     uint8_t sync_args;
     
-    gen_opc_ptr++; /* skip end */
+    s->gen_opc_ptr++; /* skip end */
 
-    nb_ops = gen_opc_ptr - gen_opc_buf;
+    nb_ops = s->gen_opc_ptr - gen_opc_buf;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
     s->op_sync_args = tcg_malloc(nb_ops * sizeof(uint8_t));
@@ -1448,7 +1448,7 @@ static void tcg_liveness_analysis(TCGContext *s)
 static void tcg_liveness_analysis(TCGContext *s)
 {
     int nb_ops;
-    nb_ops = gen_opc_ptr - gen_opc_buf;
+    nb_ops = s->gen_opc_ptr - gen_opc_buf;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
     memset(s->op_dead_args, 0, nb_ops * sizeof(uint16_t));
@@ -2222,7 +2222,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 
 #ifdef USE_TCG_OPTIMIZATIONS
     gen_opparam_ptr =
-        tcg_optimize(s, gen_opc_ptr, gen_opparam_buf, tcg_op_defs);
+        tcg_optimize(s, s->gen_opc_ptr, gen_opparam_buf, tcg_op_defs);
 #endif
 
 #ifdef CONFIG_PROFILER
@@ -2334,7 +2334,7 @@ int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
 #ifdef CONFIG_PROFILER
     {
         int n;
-        n = (gen_opc_ptr - gen_opc_buf);
+        n = (s->gen_opc_ptr - gen_opc_buf);
         s->op_count += n;
         if (n > s->op_count_max)
             s->op_count_max = n;

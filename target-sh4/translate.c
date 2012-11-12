@@ -1986,7 +1986,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     if (max_insns == 0)
         max_insns = CF_COUNT_MASK;
     gen_icount_start();
-    while (ctx.bstate == BS_NONE && gen_opc_ptr < gen_opc_end) {
+    while (ctx.bstate == BS_NONE && tcg_ctx.gen_opc_ptr < gen_opc_end) {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (ctx.pc == bp->pc) {
@@ -1999,7 +1999,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
 	    }
 	}
         if (search_pc) {
-            i = gen_opc_ptr - gen_opc_buf;
+            i = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (ii < i) {
                 ii++;
                 while (ii < i)
@@ -2056,9 +2056,9 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
     }
 
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        i = gen_opc_ptr - gen_opc_buf;
+        i = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         ii++;
         while (ii <= i)
             gen_opc_instr_start[ii++] = 0;

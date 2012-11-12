@@ -5156,7 +5156,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
             }
         }
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -5182,7 +5182,8 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         if (env->singlestep_enabled) {
             gen_debug(&dc);
         }
-    } while (!dc.is_jmp && gen_opc_ptr < gen_opc_end && dc.pc < next_page_start
+    } while (!dc.is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end
+             && dc.pc < next_page_start
              && num_insns < max_insns && !env->singlestep_enabled
              && !singlestep);
 
@@ -5206,9 +5207,9 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
         tcg_gen_exit_tb(0);
     }
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         lj++;
         while (lj <= j) {
             gen_opc_instr_start[lj++] = 0;

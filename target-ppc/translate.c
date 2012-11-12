@@ -9664,7 +9664,8 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
 
     gen_icount_start();
     /* Set env in case of segfault during code fetch */
-    while (ctx.exception == POWERPC_EXCP_NONE && gen_opc_ptr < gen_opc_end) {
+    while (ctx.exception == POWERPC_EXCP_NONE
+            && tcg_ctx.gen_opc_ptr < gen_opc_end) {
         if (unlikely(!QTAILQ_EMPTY(&env->breakpoints))) {
             QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
                 if (bp->pc == ctx.nip) {
@@ -9674,7 +9675,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
             }
         }
         if (unlikely(search_pc)) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -9774,9 +9775,9 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
         tcg_gen_exit_tb(0);
     }
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (unlikely(search_pc)) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

@@ -3406,7 +3406,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
             }
         }
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -3432,7 +3432,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
            or exhaust instruction count, stop generation.  */
         if (ret == NO_EXIT
             && ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0
-                || gen_opc_ptr >= gen_opc_end
+                || tcg_ctx.gen_opc_ptr >= gen_opc_end
                 || num_insns >= max_insns
                 || singlestep
                 || env->singlestep_enabled)) {
@@ -3463,9 +3463,9 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
     }
 
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

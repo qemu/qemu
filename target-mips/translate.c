@@ -15549,7 +15549,7 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
         }
 
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -15597,8 +15597,9 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
             break;
 
-        if (gen_opc_ptr >= gen_opc_end)
+        if (tcg_ctx.gen_opc_ptr >= gen_opc_end) {
             break;
+        }
 
         if (num_insns >= max_insns)
             break;
@@ -15630,9 +15631,9 @@ gen_intermediate_code_internal (CPUMIPSState *env, TranslationBlock *tb,
     }
 done_generating:
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

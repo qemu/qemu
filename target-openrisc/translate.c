@@ -1703,7 +1703,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     do {
         check_breakpoint(cpu, dc);
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
             if (k < j) {
                 k++;
                 while (k < j) {
@@ -1744,7 +1744,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
             }
         }
     } while (!dc->is_jmp
-             && gen_opc_ptr < gen_opc_end
+             && tcg_ctx.gen_opc_ptr < gen_opc_end
              && !cpu->env.singlestep_enabled
              && !singlestep
              && (dc->pc < next_page_start)
@@ -1782,9 +1782,9 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     }
 
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - gen_opc_buf;
         k++;
         while (k <= j) {
             gen_opc_instr_start[k++] = 0;
@@ -1799,7 +1799,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         qemu_log("\n");
         log_target_disas(&cpu->env, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
+            dc->pc - pc_start, tcg_ctx.gen_opc_ptr - gen_opc_buf);
     }
 #endif
 }
