@@ -3,20 +3,18 @@
  *
  * Copyright (c) 2012 espes
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License version 2 as published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 or
+ * (at your option) version 3 of the License.
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, see <http://www.gnu.org/licenses/>
- *
- * Contributions after 2012-01-13 are licensed under the terms of the
- * GNU GPL, version 2 or (at your option) any later version.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
 #include "pc.h"
@@ -24,6 +22,8 @@
 #include "pci.h"
 #include "vga.h"
 #include "vga_int.h"
+#include "qstring.h"
+#include "nv2a_vsh.h"
 
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
@@ -176,6 +176,9 @@
 #define NV_PFIFO_CACHE1_DMA_SUBROUTINE                   0x0000124C
 #   define NV_PFIFO_CACHE1_DMA_SUBROUTINE_RETURN_OFFSET       0x1FFFFFFC
 #   define NV_PFIFO_CACHE1_DMA_SUBROUTINE_STATE                (1 << 0)
+#define NV_PFIFO_CACHE1_PULL0                            0x00001250
+#   define NV_PFIFO_CACHE1_PULL0_ACCESS                        (1 << 0)
+#define NV_PFIFO_CACHE1_ENGINE                           0x00001280
 #define NV_PFIFO_CACHE1_DMA_DCOUNT                       0x000012A0
 #   define NV_PFIFO_CACHE1_DMA_DCOUNT_VALUE                   0x00001FFC
 #define NV_PFIFO_CACHE1_DMA_GET_JMP_SHADOW               0x000012A4
@@ -342,10 +345,23 @@
 #   define NV097_SET_CONTEXT_DMA_A                            0x00970184
 #   define NV097_SET_CONTEXT_DMA_B                            0x00970188
 #   define NV097_SET_CONTEXT_DMA_STATE                        0x00970190
-#   define NV097_SET_CONTEXT_DMA_VERTEX_A                     0x0097019c
-#   define NV097_SET_CONTEXT_DMA_VERTEX_B                     0x009701a0
-#   define NV097_SET_CONTEXT_DMA_SEMAPHORE                    0x009701a4
-#   define NV097_SET_BEGIN_END                                0x009717fc
+#   define NV097_SET_CONTEXT_DMA_VERTEX_A                     0x0097019C
+#   define NV097_SET_CONTEXT_DMA_VERTEX_B                     0x009701A0
+#   define NV097_SET_CONTEXT_DMA_SEMAPHORE                    0x009701A4
+#   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
+#   define NV097_SET_TRANSFORM_CONSTANT                       0x00970B80
+#   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET                 0x00971720
+#   define NV097_SET_VERTEX_DATA_ARRAY_FORMAT                 0x00971760
+#       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE            0x0000000F
+#           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D     0
+#           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1         1
+#           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F          2
+#           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL     3
+#           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K       5
+#           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP        6
+#       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE            0x000000F0
+#       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE          0xFFFFFF00
+#   define NV097_SET_BEGIN_END                                0x009717fC
 #       define NV097_SET_BEGIN_END_OP_END                         0x00
 #       define NV097_SET_BEGIN_END_OP_POINTS                      0x01
 #       define NV097_SET_BEGIN_END_OP_LINES                       0x02
@@ -357,8 +373,40 @@
 #       define NV097_SET_BEGIN_END_OP_QUADS                       0x08
 #       define NV097_SET_BEGIN_END_OP_QUAD_STRIP                  0x09
 #       define NV097_SET_BEGIN_END_OP_POLYGON                     0x0A
-#   define NV097_SET_SEMAPHORE_OFFSET                         0x00971d6c
-#   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971d70
+#   define NV097_ARRAY_ELEMENT16                              0x00971800
+#   define NV097_ARRAY_ELEMENT32                              0x00971808
+#   define NV097_DRAW_ARRAYS                                  0x00971810
+#   define NV097_INLINE_ARRAY                                 0x00971818
+#   define NV097_SET_SEMAPHORE_OFFSET                         0x00971D6C
+#   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971D70
+#   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00971D8C
+#   define NV097_SET_COLOR_CLEAR_VALUE                        0x00971D90
+#   define NV097_CLEAR_SURFACE                                0x00971D94
+#       define NV097_CLEAR_SURFACE_Z                              (1 << 0)
+#       define NV097_CLEAR_SURFACE_STENCIL                        (1 << 1)
+#       define NV097_CLEAR_SURFACE_R                              (1 << 4)
+#       define NV097_CLEAR_SURFACE_G                              (1 << 5)
+#       define NV097_CLEAR_SURFACE_B                              (1 << 6)
+#       define NV097_CLEAR_SURFACE_A                              (1 << 7)
+#   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
+#   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
+#   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
+#   define NV097_SET_TRANSFORM_PROGRAM_START                  0x00971EA0
+#   define NV097_SET_TRANSFORM_CONSTANT_LOAD                  0x00971EA4
+
+static const GLenum kelvin_primitive_map[] = {
+    0,
+    GL_POINTS,
+    GL_LINES,
+    GL_LINE_LOOP,
+    GL_LINE_STRIP,
+    GL_TRIANGLES,
+    GL_TRIANGLE_STRIP,
+    GL_TRIANGLE_FAN,
+    GL_QUADS,
+    GL_QUAD_STRIP,
+    GL_POLYGON,
+};
 
 
 #define NV_MEMORY_TO_MEMORY_FORMAT                           0x00000039
@@ -371,6 +419,12 @@
 #define NV2A_CRYSTAL_FREQ 13500000
 #define NV2A_NUM_CHANNELS 32
 #define NV2A_NUM_SUBCHANNELS 8
+#define NV2A_MAX_PUSHBUFFER_METHOD 2048
+
+#define NV2A_VERTEXSHADER_SLOTS  32 /*???*/
+#define NV2A_MAX_VERTEXSHADER_LENGTH 136
+#define NV2A_VERTEXSHADER_CONSTANTS 192
+#define NV2A_VERTEXSHADER_ATTRIBUTES 16
 
 
 
@@ -379,7 +433,7 @@ enum FifoMode {
     FIFO_DMA = 1,
 };
 
-enum RAMHTEngine {
+enum FIFOEngine {
     ENGINE_SOFTWARE = 0,
     ENGINE_GRAPHICS = 1,
     ENGINE_DVD = 2,
@@ -390,7 +444,7 @@ enum RAMHTEngine {
 typedef struct RAMHTEntry {
     uint32_t handle;
     hwaddr instance;
-    enum RAMHTEngine engine;
+    enum FIFOEngine engine;
     unsigned int channel_id : 5;
     bool valid;
 } RAMHTEntry;
@@ -403,37 +457,87 @@ typedef struct DMAObject {
 } DMAObject;
 
 
+
+
+typedef struct VertexAttribute {
+    GLenum gl_type;
+    GLboolean gl_normalize;
+    unsigned int size; /* size of the data type */
+    unsigned int count; /* number of components */
+    uint32_t stride;
+} VertexAttribute;
+
+typedef struct VertexShaderConstant {
+    uint32 data[16];
+} VertexShaderConstant;
+
+typedef struct VertexShader {
+    unsigned int program_length;
+    uint32_t program_data[NV2A_MAX_VERTEXSHADER_LENGTH];
+
+    bool dirty;
+    GLuint gl_program;
+} VertexShader;
+
+typedef struct KelvinState {
+    hwaddr dma_notifies;
+    hwaddr dma_a;
+    hwaddr dma_b;
+    hwaddr dma_state;
+    hwaddr dma_vertex_a;
+    hwaddr dma_vertex_b;
+    hwaddr dma_semaphore;
+    unsigned int semaphore_offset;
+
+    unsigned int vertexshader_start_slot;
+    unsigned int vertexshader_load_slot;
+    VertexShader vertexshaders[NV2A_VERTEXSHADER_SLOTS];
+
+    unsigned int constant_load_slot;
+    VertexShaderConstant constants[NV2A_VERTEXSHADER_CONSTANTS];
+
+
+    GLenum gl_primitive_mode;
+
+    VertexAttribute vertex_attributes[NV2A_VERTEXSHADER_ATTRIBUTES];
+
+    struct {
+        uint32_t offset;
+        bool dma_select;
+    } vertex_attribute_offsets[NV2A_VERTEXSHADER_ATTRIBUTES];
+
+    unsigned int inline_vertex_data_offset;
+    uint32_t inline_vertex_data[NV2A_MAX_PUSHBUFFER_METHOD];
+
+    unsigned int array_batch_offset;
+    uint32_t array_batch[NV2A_MAX_PUSHBUFFER_METHOD];
+
+    bool use_vertex_program;
+    bool enable_vertex_program_write;
+} KelvinState;
+
 typedef struct GraphicsObject {
     uint8_t graphics_class;
     union {
         struct {
             hwaddr dma_notifies;
-        } memory_to_memory_format;
+        } m2mf;
 
-        struct {
-            hwaddr dma_notifies;
-            hwaddr dma_a;
-            hwaddr dma_b;
-            hwaddr dma_state;
-            hwaddr dma_vertex_a;
-            hwaddr dma_vertex_b;
-            hwaddr dma_semaphore;
-            unsigned int semaphore_offset;
-        } kelvin_primitive;
+        KelvinState kelvin;
     } data;
 } GraphicsObject;
 
-typedef struct GraphicsSubchannelData {
+typedef struct GraphicsSubchannel {
     hwaddr object_instance;
     GraphicsObject object;
     uint32_t object_cache[5];
-} GraphicsSubchannelData;
+} GraphicsSubchannel;
 
 typedef struct GraphicsContext {
     bool channel_3d;
     unsigned int subchannel;
 
-    GraphicsSubchannelData subchannel_data[NV2A_NUM_SUBCHANNELS];
+    GraphicsSubchannel subchannel_data[NV2A_NUM_SUBCHANNELS];
 
 
 
@@ -450,10 +554,9 @@ typedef struct Cache1State {
     unsigned int channel_id;
     enum FifoMode mode;
 
+    /* Pusher state */
     bool push_enabled;
     bool dma_push_enabled;
-
-    /* Pusher state */
     hwaddr dma_instance;
     bool method_nonincreasing;
     unsigned int method : 14;
@@ -468,8 +571,9 @@ typedef struct Cache1State {
     uint32_t error;
 
     /* Puller state */
-    uint8_t bound_engines[NV2A_NUM_SUBCHANNELS];
-    unsigned int last_engine : 5;
+    bool pull_enabled;
+    enum FIFOEngine bound_engines[NV2A_NUM_SUBCHANNELS];
+    enum FIFOEngine last_engine;
 } Cache1State;
 
 typedef struct ChannelControl {
@@ -487,6 +591,7 @@ typedef struct NV2AState {
     VGACommonState vga;
 
     MemoryRegion vram;
+    uint8_t *vram_ptr;
     MemoryRegion ramin;
     uint8_t *ramin_ptr;
 
@@ -661,6 +766,7 @@ static DMAObject nv2a_load_dma_object(NV2AState *d,
 static GraphicsObject nv2a_load_graphics_object(NV2AState *d,
                                                 hwaddr address)
 {
+    int i;
     uint8_t *obj_ptr;
     uint32_t switch1, switch2, switch3;
 
@@ -670,11 +776,229 @@ static GraphicsObject nv2a_load_graphics_object(NV2AState *d,
     switch2 = le32_to_cpupu((uint32_t*)(obj_ptr+4));
     switch3 = le32_to_cpupu((uint32_t*)(obj_ptr+8));
 
-    return (GraphicsObject){
-        .graphics_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS,
-    };
+    GraphicsObject ret;
+    ret.graphics_class = switch1 & NV_PGRAPH_CTX_SWITCH1_GRCLASS;
+
+    /* init graphics object */
+    KelvinState *kelvin;
+    switch (ret.graphics_class) {
+    case NV_KELVIN_PRIMITIVE:
+        kelvin = &ret.data.kelvin;
+
+        /* generate vertex programs */
+        for (i=0; i<NV2A_VERTEXSHADER_SLOTS; i++) {
+            VertexShader *shader = &kelvin->vertexshaders[i];
+            glGenProgramsARB(1, &shader->gl_program);
+        }
+        assert(glGetError() == GL_NO_ERROR);
+
+        break;
+    default:
+        break;
+    }
+
+    return ret;
 }
 
+
+static unsigned int kelvin_bind_inline_vertex_data(KelvinState *kelvin)
+{
+    int i;
+    unsigned int offset = 0;
+    for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
+        VertexAttribute *attribute = &kelvin->vertex_attributes[i];
+        if (attribute->count) {
+
+            glVertexAttribPointer(i,
+                attribute->count,
+                attribute->gl_type,
+                attribute->gl_normalize,
+                attribute->stride,
+                kelvin->inline_vertex_data + offset);
+
+            glEnableVertexAttribArray(i);
+
+            offset += attribute->size * attribute->count;
+        } else {
+            glDisableVertexAttribArray(i);
+        }
+    }
+    return offset;
+}
+
+static void kelvin_bind_vertex_attribute_offsets(NV2AState *d,
+                                                 KelvinState *kelvin)
+{
+    int i;
+    for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
+        VertexAttribute *attribute = &kelvin->vertex_attributes[i];
+        if (attribute->count) {
+            DMAObject vertex_dma;
+            if (kelvin->vertex_attribute_offsets[i].dma_select) {
+                vertex_dma = nv2a_load_dma_object(d, kelvin->dma_vertex_b);
+            } else {
+                vertex_dma = nv2a_load_dma_object(d, kelvin->dma_vertex_a);
+            }
+            uint32_t offset = kelvin->vertex_attribute_offsets[i].offset;
+            assert(offset < vertex_dma.limit);
+
+            if (vertex_dma.dma_class == NV_DMA_IN_MEMORY_CLASS) {
+                glVertexAttribPointer(i,
+                    attribute->count,
+                    attribute->gl_type,
+                    attribute->gl_normalize,
+                    attribute->stride,
+                    d->vram_ptr + vertex_dma.start + offset);
+            } else {
+                assert(false);
+            }
+        } else {
+            glDisableVertexAttribArray(i);
+        }
+    }
+}
+
+static void kelvin_bind_vertexshader(KelvinState *kelvin)
+{
+    int i;
+    VertexShader *shader;
+
+    assert(kelvin->use_vertex_program);
+
+    /* TODO */
+    assert(!kelvin->enable_vertex_program_write);
+
+    shader = &kelvin->vertexshaders[kelvin->vertexshader_start_slot];
+
+    glBindProgramARB(GL_VERTEX_PROGRAM_ARB, shader->gl_program);
+
+    if (shader->dirty) {
+        QString *shader_code = vsh_translate(VSH_VERSION_XVS,
+                                             shader->program_data,
+                                             shader->program_length);
+        const char* shader_code_str = qstring_get_str(shader_code);
+
+        NV2A_DPRINTF("nv2a bind shader %d, code:\n%s\n",
+                     kelvin->vertexshader_start_slot,
+                     shader_code_str);
+
+        glProgramStringARB(GL_VERTEX_PROGRAM_ARB,
+                           GL_PROGRAM_FORMAT_ASCII_ARB,
+                           strlen(shader_code_str),
+                           shader_code_str);
+
+        /* Check it compiled */
+        GLint pos;
+        glGetIntegerv(GL_PROGRAM_ERROR_POSITION_ARB, &pos);
+        if (pos != -1) {
+            fprintf(stderr, "nv2a: Shader compilation failed:\n"
+                            "      pos %d, %s\n",
+                    pos, glGetString(GL_PROGRAM_ERROR_STRING_ARB));
+            fprintf(stderr, "ucode:\n");
+            for (i=0; i<shader->program_length; i++) {
+                fprintf(stderr, "    0x%08x,\n", shader->program_data[i]);
+            }
+            abort();
+        }
+
+        /* Check we're within resource limits */
+        GLint native;
+        glGetProgramivARB(GL_FRAGMENT_PROGRAM_ARB,
+                          GL_PROGRAM_UNDER_NATIVE_LIMITS_ARB,
+                          &native);
+        assert(native);
+
+        QDECREF(shader_code);
+        shader->dirty = false;
+    }
+
+    /* load constants */
+    for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
+        VertexShaderConstant *constant = &kelvin->constants[i];
+        glProgramEnvParameter4fvARB(GL_VERTEX_PROGRAM_ARB,
+                                    i,
+                                    (const GLfloat*)constant->data);
+    }
+
+    assert(glGetError() == GL_NO_ERROR);
+}
+
+
+static void nv2a_pgraph_context_init(GraphicsContext *context)
+{
+    /* TODO: context creation on linux */
+    CGLPixelFormatAttribute attributes[] = {
+        kCGLPFAAccelerated,
+        (CGLPixelFormatAttribute)0
+    };
+
+    CGLPixelFormatObj pix;
+    GLint num;
+    CGLChoosePixelFormat(attributes, &pix, &num);
+    CGLCreateContext(pix, NULL, &context->gl_context);
+    CGLDestroyPixelFormat(pix);
+
+    CGLSetCurrentContext(context->gl_context);
+
+
+    /* Check context capabilities */
+    const GLubyte *extensions;
+    extensions = glGetString (GL_EXTENSIONS);
+
+    assert(gluCheckExtension((const GLubyte*)"GL_EXT_framebuffer_object",
+                             extensions));
+
+    assert(gluCheckExtension((const GLubyte*)"GL_ARB_vertex_program",
+                             extensions));
+
+    GLint max_vertex_attributes;
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attributes);
+    assert(max_vertex_attributes >= NV2A_VERTEXSHADER_ATTRIBUTES);
+
+
+
+    glGenFramebuffersEXT(1, &context->gl_framebuffer);
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, context->gl_framebuffer);
+
+    glGenRenderbuffersEXT(1, &context->gl_renderbuffer);
+    glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, context->gl_renderbuffer);
+    glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_RGBA8,
+                             640, 480);
+    glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT,
+                                 GL_COLOR_ATTACHMENT0_EXT,
+                                 GL_RENDERBUFFER_EXT,
+                                 context->gl_renderbuffer);
+
+    assert(glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT)
+            == GL_FRAMEBUFFER_COMPLETE_EXT);
+
+
+    assert(glGetError() == GL_NO_ERROR);
+
+
+    CGLSetCurrentContext(NULL);
+}
+
+static void nv2a_pgraph_context_set_current(GraphicsContext *context)
+{
+    if (context) {
+        CGLSetCurrentContext(context->gl_context);
+    } else {
+        CGLSetCurrentContext(NULL);
+    }
+}
+
+static void nv2a_pgraph_context_destroy(GraphicsContext *context)
+{
+    CGLSetCurrentContext(context->gl_context);
+
+    glDeleteRenderbuffersEXT(1, &context->gl_renderbuffer);
+    glDeleteFramebuffersEXT(1, &context->gl_framebuffer);
+
+    CGLSetCurrentContext(NULL);
+
+    CGLDestroyContext(context->gl_context);
+}
 
 static void nv2a_pgraph_method(NV2AState *d,
                                unsigned int subchannel,
@@ -682,14 +1006,16 @@ static void nv2a_pgraph_method(NV2AState *d,
                                uint32_t parameter)
 {
     //assert(d->pgraph.channel_valid);
-
     GraphicsContext *context = &d->pgraph.context[d->pgraph.channel_id];
-    GraphicsSubchannelData *subchannel_data =
+    GraphicsSubchannel *subchannel_data =
         &context->subchannel_data[subchannel];
     GraphicsObject *object = &subchannel_data->object;
 
     NV2A_DPRINTF("nv2a pgraph method: 0x%x, 0x%x, 0x%x\n",
                  subchannel, method, parameter);
+
+
+    nv2a_pgraph_context_set_current(context);
 
     if (method == NV_SET_OBJECT) {
         subchannel_data->object_instance = parameter;
@@ -698,91 +1024,241 @@ static void nv2a_pgraph_method(NV2AState *d,
         return;
     }
 
+
+    KelvinState *kelvin = &object->data.kelvin;
+
     DMAObject dma_semaphore;
+    unsigned int slot;
+    VertexAttribute *vertex_attribute;
+    VertexShader *vertexshader;
+    VertexShaderConstant *constant;
 
-    switch ((object->graphics_class << 16) | method) {
-        case NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY:
-            object->data.memory_to_memory_format.dma_notifies = parameter;
-            break;
+
+    uint32_t class_method = (object->graphics_class << 16) | method;
+    switch (class_method) {
+    case NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY:
+        object->data.m2mf.dma_notifies = parameter;
+        break;
 
 
-        case NV097_NO_OPERATION:
-            break;
-        case NV097_WAIT_FOR_IDLE:
-            break;
-        case NV097_SET_CONTEXT_DMA_NOTIFIES:
-            object->data.kelvin_primitive.dma_notifies = parameter;
-            break;
-        case NV097_SET_CONTEXT_DMA_A:
-            object->data.kelvin_primitive.dma_a = parameter;
-            break;
-        case NV097_SET_CONTEXT_DMA_B:
-            object->data.kelvin_primitive.dma_b = parameter;
-            break;
-        case NV097_SET_CONTEXT_DMA_STATE:
-            object->data.kelvin_primitive.dma_state = parameter;
-            break;
-        case NV097_SET_CONTEXT_DMA_VERTEX_A:
-            object->data.kelvin_primitive.dma_vertex_a = parameter;
-            break;
-        case NV097_SET_CONTEXT_DMA_VERTEX_B:
-            object->data.kelvin_primitive.dma_vertex_b = parameter;
-            break;
-        case NV097_SET_CONTEXT_DMA_SEMAPHORE:
-            object->data.kelvin_primitive.dma_semaphore = parameter;
-            break;
+    case NV097_NO_OPERATION:
+        break;
+    case NV097_WAIT_FOR_IDLE:
+        break;
+    case NV097_SET_CONTEXT_DMA_NOTIFIES:
+        kelvin->dma_notifies = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_A:
+        kelvin->dma_a = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_B:
+        kelvin->dma_b = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_STATE:
+        kelvin->dma_state = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_VERTEX_A:
+        kelvin->dma_vertex_a = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_VERTEX_B:
+        kelvin->dma_vertex_b = parameter;
+        break;
+    case NV097_SET_CONTEXT_DMA_SEMAPHORE:
+        kelvin->dma_semaphore = parameter;
+        break;
 
-        case NV097_SET_BEGIN_END:
-            if (parameter == NV097_SET_BEGIN_END_OP_END) {
-                glEnd();
-            } else {
-                GLenum mode_map[] = {
-                    0,
-                    GL_POINTS,
-                    GL_LINES,
-                    GL_LINE_LOOP,
-                    GL_LINE_STRIP,
-                    GL_TRIANGLES,
-                    GL_TRIANGLE_STRIP,
-                    GL_TRIANGLE_FAN,
-                    GL_QUADS,
-                    GL_QUAD_STRIP,
-                    GL_POLYGON,
-                };
-                assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
+    case NV097_SET_TRANSFORM_PROGRAM ...
+            NV097_SET_TRANSFORM_PROGRAM + 0x7c:
 
-                glBegin(mode_map[parameter]);
-            }
+        slot = (class_method - NV097_SET_TRANSFORM_PROGRAM) / 4;
+        /* TODO: It should still work using a non-increasing slot??? */
 
-            assert(e == GL_NO_ERROR);
+        vertexshader = &kelvin->vertexshaders[kelvin->vertexshader_load_slot];
+        assert(vertexshader->program_length < NV2A_MAX_VERTEXSHADER_LENGTH);
+        vertexshader->program_data[
+            vertexshader->program_length++] = parameter;
+        break;
+
+    case NV097_SET_TRANSFORM_CONSTANT ...
+            NV097_SET_TRANSFORM_CONSTANT + 0x7c:
+
+        slot = (class_method - NV097_SET_TRANSFORM_CONSTANT) / 4;
+
+        constant = &kelvin->constants[kelvin->constant_load_slot];
+        constant->data[slot] = parameter;
+        break;
+
+
+    case NV097_SET_VERTEX_DATA_ARRAY_FORMAT ...
+            NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 0x3c:
+
+        slot = (class_method - NV097_SET_VERTEX_DATA_ARRAY_FORMAT) / 4;
+        vertex_attribute = &kelvin->vertex_attributes[slot];
+
+        switch (parameter & NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE) {
+        case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D:
+        case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL:
+            vertex_attribute->gl_type = GL_UNSIGNED_BYTE;
+            vertex_attribute->gl_normalize = GL_TRUE;
+            vertex_attribute->size = 1;
             break;
-        case NV097_SET_SEMAPHORE_OFFSET:
-            object->data.kelvin_primitive.semaphore_offset = parameter;
+        case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1:
+            vertex_attribute->gl_type = GL_SHORT;
+            vertex_attribute->gl_normalize = GL_FALSE;
+            vertex_attribute->size = 2;
             break;
-        case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE:
-            dma_semaphore = nv2a_load_dma_object(d,
-                                object->data.kelvin_primitive.dma_semaphore);
-
-            assert(object->data.kelvin_primitive.semaphore_offset
-                    < dma_semaphore.limit);
-
-            stl_le_phys(dma_semaphore.start
-                         + object->data.kelvin_primitive.semaphore_offset,
-                        parameter);
+        case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F:
+            vertex_attribute->gl_type = GL_FLOAT;
+            vertex_attribute->gl_normalize = GL_FALSE;
+            vertex_attribute->size = 4;
+            break;
+        case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K:
+            vertex_attribute->gl_type = GL_UNSIGNED_SHORT;
+            vertex_attribute->gl_normalize = GL_FALSE;
+            vertex_attribute->size = 2;
             break;
         default:
-            NV2A_DPRINTF("    unhandled  (0x%02x 0x%08x  -  0x%x)\n",
-                         object->graphics_class, method, parameter);
+            assert(false);
             break;
+        }
+        vertex_attribute->count =
+            (parameter & NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE) >> 4;
+        vertex_attribute->stride =
+            (parameter & NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE) >> 8;
+
+        break;
+    case NV097_SET_VERTEX_DATA_ARRAY_OFFSET ...
+            NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 0x3c:
+
+        slot = (class_method - NV097_SET_VERTEX_DATA_ARRAY_OFFSET) / 4;
+
+        kelvin->vertex_attribute_offsets[slot].dma_select =
+            parameter & 0x80000000;
+        kelvin->vertex_attribute_offsets[slot].offset =
+            parameter & 0x7fffffff;
+
+        break;
+
+    case NV097_SET_BEGIN_END:
+        if (parameter == NV097_SET_BEGIN_END_OP_END) {
+            if (kelvin->use_vertex_program) {
+                glEnable(GL_VERTEX_PROGRAM_ARB);
+                kelvin_bind_vertexshader(kelvin);
+            } else {
+                glDisable(GL_VERTEX_PROGRAM_ARB);
+            }
+
+            if (kelvin->inline_vertex_data_offset) {
+                unsigned int vertex_size =
+                    kelvin_bind_inline_vertex_data(kelvin);
+                unsigned int vertex_count =
+                    kelvin->inline_vertex_data_offset*4 / vertex_size;
+                glDrawArrays(kelvin->gl_primitive_mode,
+                             0, vertex_count);
+            } else if (kelvin->array_batch_offset) {
+                kelvin_bind_vertex_attribute_offsets(d, kelvin);
+
+                glDrawElements(kelvin->gl_primitive_mode,
+                               kelvin->array_batch_offset,
+                               GL_UNSIGNED_INT,
+                               kelvin->array_batch);
+            } else {
+                assert(false);
+            }
+            assert(glGetError() == GL_NO_ERROR);
+        } else {
+            assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
+
+            kelvin->gl_primitive_mode = kelvin_primitive_map[parameter];
+
+            kelvin->array_batch_offset = 0;
+            kelvin->inline_vertex_data_offset = 0;
+        }
+        break;
+    case NV097_ARRAY_ELEMENT16:
+        assert(kelvin->array_batch_offset < NV2A_MAX_PUSHBUFFER_METHOD);
+        kelvin->array_batch[
+            kelvin->array_batch_offset++] = parameter & 0xFFFF;
+        kelvin->array_batch[
+            kelvin->array_batch_offset++] = parameter >> 16;
+        break;
+    case NV097_ARRAY_ELEMENT32:
+        assert(kelvin->array_batch_offset < NV2A_MAX_PUSHBUFFER_METHOD);
+        kelvin->array_batch[
+            kelvin->array_batch_offset++] = parameter;
+        break;
+    case NV097_INLINE_ARRAY:
+        assert(kelvin->inline_vertex_data_offset < NV2A_MAX_PUSHBUFFER_METHOD);
+        kelvin->inline_vertex_data[
+            kelvin->inline_vertex_data_offset++] = parameter;
+        break;
+
+    case NV097_SET_SEMAPHORE_OFFSET:
+        kelvin->semaphore_offset = parameter;
+        break;
+    case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE:
+        dma_semaphore = nv2a_load_dma_object(d, kelvin->dma_semaphore);
+
+        assert(kelvin->semaphore_offset < dma_semaphore.limit);
+
+        stl_le_phys(dma_semaphore.start + kelvin->semaphore_offset,
+                    parameter);
+        break;
+
+    case NV097_CLEAR_SURFACE:
+        /* QQQ */
+        printf("------------------CLEAR 0x%x---------------\n", parameter);
+        glClearColor(1, 0, 0, 1);
+
+        GLbitfield gl_mask = 0;
+        if (parameter & NV097_CLEAR_SURFACE_Z) {
+            gl_mask |= GL_DEPTH_BUFFER_BIT;
+        }
+        if (parameter & NV097_CLEAR_SURFACE_STENCIL) {
+            gl_mask |= GL_STENCIL_BUFFER_BIT;
+        }
+        if (parameter & (
+                NV097_CLEAR_SURFACE_R | NV097_CLEAR_SURFACE_G
+                | NV097_CLEAR_SURFACE_B | NV097_CLEAR_SURFACE_A)) {
+            gl_mask |= GL_COLOR_BUFFER_BIT;
+        }
+        glClear(gl_mask);
+        break;
+
+    case NV097_SET_TRANSFORM_EXECUTION_MODE:
+        kelvin->use_vertex_program = (parameter & 3) == 2;
+        break;
+    case NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN:
+        kelvin->enable_vertex_program_write = parameter;
+        break;
+    case NV097_SET_TRANSFORM_PROGRAM_LOAD:
+        assert(parameter < NV2A_VERTEXSHADER_SLOTS);
+        kelvin->vertexshader_load_slot = parameter;
+        kelvin->vertexshaders[parameter].program_length = 0; /* ??? */
+        kelvin->vertexshaders[parameter].dirty = true;
+        break;
+    case NV097_SET_TRANSFORM_PROGRAM_START:
+        assert(parameter < NV2A_VERTEXSHADER_SLOTS);
+        kelvin->vertexshader_start_slot = parameter;
+        break;
+    case NV097_SET_TRANSFORM_CONSTANT_LOAD:
+        assert(parameter < NV2A_VERTEXSHADER_CONSTANTS);
+        kelvin->constant_load_slot = parameter;
+        printf("load to %d\n", parameter);
+        break;
+
+    default:
+        NV2A_DPRINTF("    unhandled  (0x%02x 0x%08x)\n",
+                     object->graphics_class, method);
+        break;
     }
 }
 
-
-static void nv2a_cache_push(NV2AState *d,
-                            unsigned int subchannel,
-                            unsigned int method,
-                            uint32_t parameter,
-                            bool nonincreasing)
+static void nv2a_fifo_cache1_push(NV2AState *d,
+                                  unsigned int subchannel,
+                                  unsigned int method,
+                                  uint32_t parameter,
+                                  bool nonincreasing)
 {
     Cache1State *state = &d->pfifo.cache1;
 
@@ -805,6 +1281,11 @@ static void nv2a_cache_push(NV2AState *d,
             assert(false);
             break;
         case ENGINE_GRAPHICS:
+            /*if (!d->pgraph.channel_valid) {
+                d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
+                nv2a_update_irq(d);
+                return -1;
+            }*/
             nv2a_pgraph_method(d, subchannel, 0, entry.instance);
             break;
         default:
@@ -847,7 +1328,7 @@ static void nv2a_cache_push(NV2AState *d,
 
 }
 
-static void nv2a_run_pusher(NV2AState *d) {
+static void nv2a_fifo_run_pusher(NV2AState *d) {
     uint8_t channel_id;
     ChannelControl *control;
     Cache1State *state;
@@ -892,8 +1373,8 @@ static void nv2a_run_pusher(NV2AState *d) {
             /* data word of methods command */
             state->data_shadow = word;
 
-            nv2a_cache_push(d, state->subchannel, state->method, word,
-                            state->method_nonincreasing);
+            nv2a_fifo_cache1_push(d, state->subchannel, state->method, word,
+                                  state->method_nonincreasing);
 
             if (!state->method_nonincreasing) {
                 state->method += 4;
@@ -962,61 +1443,6 @@ static void nv2a_run_pusher(NV2AState *d) {
 }
 
 
-
-static void nv2a_pgraph_context_init(GraphicsContext *context)
-{
-    /* TODO: context creation on linux */
-    CGLPixelFormatAttribute attributes[] = {
-        kCGLPFAAccelerated,
-        (CGLPixelFormatAttribute)0
-    };
-
-    CGLPixelFormatObj pix;
-    GLint num;
-    CGLChoosePixelFormat(attributes, &pix, &num);
-    CGLCreateContext(pix, NULL, &context->gl_context);
-    CGLDestroyPixelFormat(pix);
-
-    CGLSetCurrentContext(context->gl_context);
-
-
-    const GLubyte *extensions;
-    extensions = glGetString (GL_EXTENSIONS);
-
-    assert(gluCheckExtension((const GLubyte*)"GL_EXT_framebuffer_object",
-                             extensions));
-
-    glGenFramebuffersEXT(1, &context->gl_framebuffer);
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, context->gl_framebuffer);
-
-    glGenRenderbuffersEXT(1, &context->gl_renderbuffer);
-    glBindRenderbufferEXT(GL_RENDERBUFFER_EXT, context->gl_renderbuffer);
-    glRenderbufferStorageEXT(GL_RENDERBUFFER_EXT, GL_RGBA8,
-                             640, 480);
-    glFramebufferRenderbufferEXT(GL_FRAMEBUFFER_EXT,
-                                 GL_COLOR_ATTACHMENT0_EXT,
-                                 GL_RENDERBUFFER_EXT,
-                                 context->gl_renderbuffer);
-
-    assert(glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT)
-            == GL_FRAMEBUFFER_COMPLETE_EXT);
-
-    assert(glGetError() == GL_NO_ERROR);
-}
-
-static void nv2a_pgraph_context_set_current(GraphicsContext *context)
-{
-    printf("set current\n");
-    CGLSetCurrentContext(context->gl_context);
-}
-
-static void nv2a_pgraph_context_destroy(GraphicsContext *context)
-{
-    glDeleteRenderbuffersEXT(1, &context->gl_renderbuffer);
-    glDeleteFramebuffersEXT(1, &context->gl_framebuffer);
-
-    CGLDestroyContext(context->gl_context);
-}
 
 
 
@@ -1119,6 +1545,7 @@ static void nv2a_pbus_write(void *opaque, hwaddr addr,
 static uint64_t nv2a_pfifo_read(void *opaque,
                                   hwaddr addr, unsigned int size)
 {
+    int i;
     NV2AState *d = opaque;
 
     uint64_t r = 0;
@@ -1202,6 +1629,14 @@ static uint64_t nv2a_pfifo_read(void *opaque,
         r = d->pfifo.cache1.subroutine_return
             | d->pfifo.cache1.subroutine_active;
         break;
+    case NV_PFIFO_CACHE1_PULL0:
+        r = d->pfifo.cache1.pull_enabled;
+        break;
+    case NV_PFIFO_CACHE1_ENGINE:
+        for (i=0; i<NV2A_NUM_SUBCHANNELS; i++) {
+            r |= d->pfifo.cache1.bound_engines[i] << (i*2);
+        }
+        break;
     case NV_PFIFO_CACHE1_DMA_DCOUNT:
         r = d->pfifo.cache1.dcount;
         break;
@@ -1224,6 +1659,7 @@ static uint64_t nv2a_pfifo_read(void *opaque,
 static void nv2a_pfifo_write(void *opaque, hwaddr addr,
                                uint64_t val, unsigned int size)
 {
+    int i;
     NV2AState *d = opaque;
 
     NV2A_DPRINTF("nv2a PFIFO: [0x%llx] = 0x%02llx\n", addr, val);
@@ -1283,7 +1719,7 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
         break;
     case NV_PFIFO_CACHE1_DMA_PUSH:
         d->pfifo.cache1.dma_push_enabled =
-            val & NV_PFIFO_CACHE1_DMA_PUSH_ACCESS;
+            (val & NV_PFIFO_CACHE1_DMA_PUSH_ACCESS);
         break;
     case NV_PFIFO_CACHE1_DMA_STATE:
         d->pfifo.cache1.method_nonincreasing =
@@ -1311,6 +1747,15 @@ static void nv2a_pfifo_write(void *opaque, hwaddr addr,
             (val & NV_PFIFO_CACHE1_DMA_SUBROUTINE_RETURN_OFFSET);
         d->pfifo.cache1.subroutine_active =
             (val & NV_PFIFO_CACHE1_DMA_SUBROUTINE_STATE);
+        break;
+    case NV_PFIFO_CACHE1_PULL0:
+        d->pfifo.cache1.pull_enabled =
+            (val & NV_PFIFO_CACHE1_PULL0_ACCESS);
+        break;
+    case NV_PFIFO_CACHE1_ENGINE:
+        for (i=0; i<NV2A_NUM_SUBCHANNELS; i++) {
+            d->pfifo.cache1.bound_engines[i] = (val >> (i*2)) & 3;
+        }
         break;
     case NV_PFIFO_CACHE1_DMA_DCOUNT:
         d->pfifo.cache1.dcount =
@@ -1601,6 +2046,7 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
         d->pgraph.channel_valid = (val & NV_PGRAPH_CTX_CONTROL_CHID);
         break;
     case NV_PGRAPH_CTX_USER:
+        printf("ppp ctx_user %d\n", (bool)(val & NV_PGRAPH_CTX_USER_CHANNEL_3D));
         d->pgraph.channel_id = (val & NV_PGRAPH_CTX_USER_CHID) >> 24;
 
         d->pgraph.context[d->pgraph.channel_id].channel_3d =
@@ -1608,19 +2054,24 @@ static void nv2a_pgraph_write(void *opaque, hwaddr addr,
         d->pgraph.context[d->pgraph.channel_id].subchannel =
             (val & NV_PGRAPH_CTX_USER_SUBCH) >> 13;
 
-        nv2a_pgraph_context_set_current(
-            &d->pgraph.context[d->pgraph.channel_id]);
+        /* QQQ */
+        d->pgraph.context[d->pgraph.channel_id].channel_3d = true;
 
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
+        printf("ppp11 %llx - %x\n", val,
+            le32_to_cpupu((uint32_t*)(d->ramin_ptr+val)));
         d->pgraph.context_table = val & NV_PGRAPH_CHANNEL_CTX_TABLE_INST;
         break;
     case NV_PGRAPH_CHANNEL_CTX_POINTER:
+        printf("ppp1 %llx\n", val);
         d->pgraph.context_pointer = val & NV_PGRAPH_CHANNEL_CTX_POINTER_INST;
         break;
     case NV_PGRAPH_CHANNEL_CTX_TRIGGER:
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
             /* do stuff ... */
+            printf("ppp %llx\n", d->pgraph.context_pointer);
+            printf("ppp_ %x\n", le32_to_cpupu((uint32_t*)(d->ramin_ptr+d->pgraph.context_pointer)));
         }
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT) {
             /* do stuff ... */
@@ -1873,7 +2324,7 @@ static void nv2a_user_write(void *opaque, hwaddr addr,
             control->dma_put = val;
 
             if (d->pfifo.cache1.push_enabled) {
-                nv2a_run_pusher(d);
+                nv2a_fifo_run_pusher(d);
             }
             break;
         case NV_USER_DMA_GET:
@@ -2102,6 +2553,23 @@ static int nv2a_get_bpp(VGACommonState *s)
 static void nv2a_vga_update(void *opaque)
 {
     NV2AState *d = NV2A_DEVICE(opaque);
+
+    GraphicsContext *context = &d->pgraph.context[d->pgraph.channel_id];
+    if (context->channel_3d) {
+        printf("3d ping! %d\n", nv2a_get_bpp(&d->vga));
+
+        nv2a_pgraph_context_set_current(context);
+
+        //glClearColor(1, 0, 0, 1);
+        //glClear(GL_COLOR_BUFFER_BIT);
+        glReadPixels(0, 0, 640, 480, GL_RGBA, GL_UNSIGNED_BYTE,
+            d->vga.vram_ptr);
+        assert(glGetError() == GL_NO_ERROR);
+        memory_region_set_dirty(&d->vga.vram, 0, 640*480*4);
+
+        nv2a_pgraph_context_set_current(NULL);
+    }
+
     d->vga.update(&d->vga);
 
     d->pcrtc.pending_interrupts |= NV_PCRTC_INTR_0_VBLANK;
@@ -2180,6 +2648,7 @@ static int nv2a_initfn(PCIDevice *dev)
                              0x100000);
     memory_region_add_subregion(&d->mmio, 0x700000, &d->ramin);
 
+    d->vram_ptr = memory_region_get_ram_ptr(&d->vram);
     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
 
 
@@ -2187,7 +2656,6 @@ static int nv2a_initfn(PCIDevice *dev)
     for (i=0; i<NV2A_NUM_CHANNELS; i++) {
         nv2a_pgraph_context_init(&d->pgraph.context[i]);
     }
-
 
     return 0;
 }
