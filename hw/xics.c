@@ -549,7 +549,7 @@ struct icp_state *xics_system_init(int nr_irqs)
 
     ics = g_malloc0(sizeof(*ics));
     ics->nr_irqs = nr_irqs;
-    ics->offset = 16;
+    ics->offset = XICS_IRQ_BASE;
     ics->irqs = g_malloc0(nr_irqs * sizeof(struct ics_irq_state));
 
     icp->ics = ics;

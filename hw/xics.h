@@ -28,6 +28,7 @@
 #define __XICS_H__
 
 #define XICS_IPI        0x2
+#define XICS_IRQ_BASE   0x10
 
 struct icp_state;
 

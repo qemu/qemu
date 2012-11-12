@@ -801,7 +801,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 
     /* Set up Interrupt Controller */
     spapr->icp = xics_system_init(XICS_IRQS);
-    spapr->next_irq = 16;
+    spapr->next_irq = XICS_IRQ_BASE;
 
     /* Set up EPOW events infrastructure */
     spapr_events_init(spapr);
