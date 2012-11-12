@@ -179,13 +179,13 @@ struct ics_irq_state {
 #define XICS_STATUS_REJECTED           0x4
 #define XICS_STATUS_MASKED_PENDING     0x8
     uint8_t status;
-    bool lsi;
 };
 
 struct ics_state {
     int nr_irqs;
     int offset;
     qemu_irq *qirqs;
+    bool *islsi;
     struct ics_irq_state *irqs;
     struct icp_state *icp;
 };
@@ -254,9 +254,8 @@ static void set_irq_lsi(struct ics_state *ics, int srcno, int val)
 static void ics_set_irq(void *opaque, int srcno, int val)
 {
     struct ics_state *ics = (struct ics_state *)opaque;
-    struct ics_irq_state *irq = ics->irqs + srcno;
 
-    if (irq->lsi) {
+    if (ics->islsi[srcno]) {
         set_irq_lsi(ics, srcno, val);
     } else {
         set_irq_msi(ics, srcno, val);
@@ -293,7 +292,7 @@ static void ics_write_xive(struct ics_state *ics, int nr, int server,
 
     trace_xics_ics_write_xive(nr, srcno, server, priority);
 
-    if (irq->lsi) {
+    if (ics->islsi[srcno]) {
         write_xive_lsi(ics, srcno);
     } else {
         write_xive_msi(ics, srcno);
@@ -314,10 +313,8 @@ static void ics_resend(struct ics_state *ics)
     int i;
 
     for (i = 0; i < ics->nr_irqs; i++) {
-        struct ics_irq_state *irq = ics->irqs + i;
-
         /* FIXME: filter by server#? */
-        if (irq->lsi) {
+        if (ics->islsi[i]) {
             resend_lsi(ics, i);
         } else {
             resend_msi(ics, i);
@@ -332,7 +329,7 @@ static void ics_eoi(struct ics_state *ics, int nr)
 
     trace_xics_ics_eoi(nr);
 
-    if (irq->lsi) {
+    if (ics->islsi[srcno]) {
         irq->status &= ~XICS_STATUS_SENT;
     }
 }
@@ -354,7 +351,7 @@ void xics_set_irq_type(struct icp_state *icp, int irq, bool lsi)
 {
     assert(ics_valid_irq(icp->ics, irq));
 
-    icp->ics->irqs[irq - icp->ics->offset].lsi = lsi;
+    icp->ics->islsi[irq - icp->ics->offset] = lsi;
 }
 
 static target_ulong h_cppr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
@@ -518,10 +515,8 @@ static void xics_reset(void *opaque)
         qemu_set_irq(icp->ss[i].output, 0);
     }
 
+    memset(ics->irqs, 0, sizeof(struct ics_irq_state) * ics->nr_irqs);
     for (i = 0; i < ics->nr_irqs; i++) {
-        /* Reset everything *except* the type */
-        ics->irqs[i].server = 0;
-        ics->irqs[i].status = 0;
         ics->irqs[i].priority = 0xff;
         ics->irqs[i].saved_priority = 0xff;
     }
@@ -568,6 +563,7 @@ struct icp_state *xics_system_init(int nr_irqs)
     ics->nr_irqs = nr_irqs;
     ics->offset = XICS_IRQ_BASE;
     ics->irqs = g_malloc0(nr_irqs * sizeof(struct ics_irq_state));
+    ics->islsi = g_malloc0(nr_irqs * sizeof(bool));
 
     icp->ics = ics;
     ics->icp = icp;
