@@ -26,6 +26,7 @@
  */
 
 #include "hw.h"
+#include "trace.h"
 #include "hw/spapr.h"
 #include "hw/xics.h"
 
@@ -65,6 +66,8 @@ static void icp_check_ipi(struct icp_state *icp, int server)
     if (XISR(ss) && (ss->pending_priority <= ss->mfrr)) {
         return;
     }
+
+    trace_xics_icp_check_ipi(server, ss->mfrr);
 
     if (XISR(ss)) {
         ics_reject(icp->ics, XISR(ss));
@@ -120,11 +123,13 @@ static void icp_set_mfrr(struct icp_state *icp, int server, uint8_t mfrr)
 
 static uint32_t icp_accept(struct icp_server_state *ss)
 {
-    uint32_t xirr;
+    uint32_t xirr = ss->xirr;
 
     qemu_irq_lower(ss->output);
-    xirr = ss->xirr;
     ss->xirr = ss->pending_priority << 24;
+
+    trace_xics_icp_accept(xirr, ss->xirr);
+
     return xirr;
 }
 
@@ -134,6 +139,7 @@ static void icp_eoi(struct icp_state *icp, int server, uint32_t xirr)
 
     /* Send EOI -> ICS */
     ss->xirr = (ss->xirr & ~CPPR_MASK) | (xirr & CPPR_MASK);
+    trace_xics_icp_eoi(server, xirr, ss->xirr);
     ics_eoi(icp->ics, xirr & XISR_MASK);
     if (!XISR(ss)) {
         icp_resend(icp, server);
@@ -144,6 +150,8 @@ static void icp_irq(struct icp_state *icp, int server, int nr, uint8_t priority)
 {
     struct icp_server_state *ss = icp->ss + server;
 
+    trace_xics_icp_irq(server, nr, priority);
+
     if ((priority >= CPPR(ss))
         || (XISR(ss) && (ss->pending_priority <= priority))) {
         ics_reject(icp->ics, nr);
@@ -153,6 +161,7 @@ static void icp_irq(struct icp_state *icp, int server, int nr, uint8_t priority)
         }
         ss->xirr = (ss->xirr & ~XISR_MASK) | (nr & XISR_MASK);
         ss->pending_priority = priority;
+        trace_xics_icp_raise(ss->xirr, ss->pending_priority);
         qemu_irq_raise(ss->output);
     }
 }
@@ -217,10 +226,12 @@ static void set_irq_msi(struct ics_state *ics, int srcno, int val)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
+    trace_xics_set_irq_msi(srcno, srcno + ics->offset);
+
     if (val) {
         if (irq->priority == 0xff) {
             irq->status |= XICS_STATUS_MASKED_PENDING;
-            /* masked pending */ ;
+            trace_xics_masked_pending();
         } else  {
             icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
         }
@@ -231,6 +242,7 @@ static void set_irq_lsi(struct ics_state *ics, int srcno, int val)
 {
     struct ics_irq_state *irq = ics->irqs + srcno;
 
+    trace_xics_set_irq_lsi(srcno, srcno + ics->offset);
     if (val) {
         irq->status |= XICS_STATUS_ASSERTED;
     } else {
@@ -279,6 +291,8 @@ static void ics_write_xive(struct ics_state *ics, int nr, int server,
     irq->priority = priority;
     irq->saved_priority = saved_priority;
 
+    trace_xics_ics_write_xive(nr, srcno, server, priority);
+
     if (irq->lsi) {
         write_xive_lsi(ics, srcno);
     } else {
@@ -290,6 +304,7 @@ static void ics_reject(struct ics_state *ics, int nr)
 {
     struct ics_irq_state *irq = ics->irqs + nr - ics->offset;
 
+    trace_xics_ics_reject(nr, nr - ics->offset);
     irq->status |= XICS_STATUS_REJECTED; /* Irrelevant but harmless for LSI */
     irq->status &= ~XICS_STATUS_SENT; /* Irrelevant but harmless for MSI */
 }
@@ -314,6 +329,8 @@ static void ics_eoi(struct ics_state *ics, int nr)
 {
     int srcno = nr - ics->offset;
     struct ics_irq_state *irq = ics->irqs + srcno;
+
+    trace_xics_ics_eoi(nr);
 
     if (irq->lsi) {
         irq->status &= ~XICS_STATUS_SENT;
