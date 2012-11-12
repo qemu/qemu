@@ -1079,6 +1079,7 @@ static int megasas_dcmd_ld_get_list(MegasasState *s, MegasasCmd *cmd)
         /* Logical device size is in blocks */
         bdrv_get_geometry(conf->bs, &ld_size);
         info.ld_list[num_ld_disks].ld.v.target_id = sdev->id;
+        info.ld_list[num_ld_disks].ld.v.lun_id = sdev->lun;
         info.ld_list[num_ld_disks].state = MFI_LD_STATE_OPTIMAL;
         info.ld_list[num_ld_disks].size = cpu_to_le64(ld_size);
         num_ld_disks++;
