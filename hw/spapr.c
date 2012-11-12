@@ -657,6 +657,36 @@ static void spapr_cpu_reset(void *opaque)
         (spapr->htab_shift - 18);
 }
 
+static void spapr_create_nvram(sPAPREnvironment *spapr)
+{
+    QemuOpts *machine_opts;
+    DeviceState *dev;
+
+    dev = qdev_create(&spapr->vio_bus->bus, "spapr-nvram");
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        const char *drivename;
+
+        drivename = qemu_opt_get(machine_opts, "nvram");
+        if (drivename) {
+            BlockDriverState *bs;
+
+            bs = bdrv_find(drivename);
+            if (!bs) {
+                fprintf(stderr, "No such block device \"%s\" for nvram\n",
+                        drivename);
+                exit(1);
+            }
+            qdev_prop_set_drive_nofail(dev, "drive", bs);
+        }
+    }
+
+    qdev_init_nofail(dev);
+
+    spapr->nvram = (struct sPAPRNVRAM *)dev;
+}
+
 /* Returns whether we want to use VGA or not */
 static int spapr_vga_init(PCIBus *pci_bus)
 {
@@ -817,6 +847,9 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
             spapr_vty_create(spapr->vio_bus, serial_hds[i]);
         }
     }
+
+    /* We always have at least the nvram device on VIO */
+    spapr_create_nvram(spapr);
 
     /* Set up PCI */
     spapr_pci_rtas_init();

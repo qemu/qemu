@@ -6,11 +6,13 @@
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
+struct sPAPRNVRAM;
 struct icp_state;
 
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
+    struct sPAPRNVRAM *nvram;
     struct icp_state *icp;
 
     hwaddr ram_limit;
