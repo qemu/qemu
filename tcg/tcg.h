@@ -450,6 +450,12 @@ struct TCGContext {
     int goto_tb_issue_mask;
 #endif
 
+    uint16_t gen_opc_buf[OPC_BUF_SIZE];
+    TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
+
+    uint16_t *gen_opc_ptr;
+    TCGArg *gen_opparam_ptr;
+
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* labels info for qemu_ld/st IRs
        The labels help to generate TLB miss case codes at the end of TB */
