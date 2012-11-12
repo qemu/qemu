@@ -3956,9 +3956,6 @@ if test "$target_softmmu" = "yes" ; then
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
   fi
-  if test "$pixman" = "internal" ; then
-    echo "subdir-$target: subdir-pixman" >> $config_host_mak
-  fi
   case "$target_arch2" in
     i386|x86_64)
       echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak
@@ -4155,6 +4152,10 @@ echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
 echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
 
 done # for target in $targets
+
+if [ "$pixman" = "internal" ]; then
+  echo "config-host.h: subdir-pixman" >> $config_host_mak
+fi
 
 # build tree in object directory in case the source is not in the current directory
 DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32"
