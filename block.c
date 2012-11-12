@@ -518,22 +518,16 @@ BlockDriver *bdrv_find_protocol(const char *filename)
     return NULL;
 }
 
-static int find_image_format(const char *filename, BlockDriver **pdrv)
+static int find_image_format(BlockDriverState *bs, const char *filename,
+                             BlockDriver **pdrv)
 {
-    int ret, score, score_max;
+    int score, score_max;
     BlockDriver *drv1, *drv;
     uint8_t buf[2048];
-    BlockDriverState *bs;
-
-    ret = bdrv_file_open(&bs, filename, 0);
-    if (ret < 0) {
-        *pdrv = NULL;
-        return ret;
-    }
+    int ret = 0;
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
     if (bs->sg || !bdrv_is_inserted(bs)) {
-        bdrv_delete(bs);
         drv = bdrv_find_format("raw");
         if (!drv) {
             ret = -ENOENT;
@@ -543,7 +537,6 @@ static int find_image_format(const char *filename, BlockDriver **pdrv)
     }
 
     ret = bdrv_pread(bs, 0, buf, sizeof(buf));
-    bdrv_delete(bs);
     if (ret < 0) {
         *pdrv = NULL;
         return ret;
@@ -657,7 +650,8 @@ static int bdrv_open_flags(BlockDriverState *bs, int flags)
 /*
  * Common part for opening disk images and files
  */
-static int bdrv_open_common(BlockDriverState *bs, const char *filename,
+static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
+    const char *filename,
     int flags, BlockDriver *drv)
 {
     int ret, open_flags;
@@ -691,12 +685,16 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
 
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
-        ret = drv->bdrv_file_open(bs, filename, open_flags);
-    } else {
-        ret = bdrv_file_open(&bs->file, filename, open_flags);
-        if (ret >= 0) {
-            ret = drv->bdrv_open(bs, open_flags);
+        if (file != NULL) {
+            bdrv_swap(file, bs);
+            ret = 0;
+        } else {
+            ret = drv->bdrv_file_open(bs, filename, open_flags);
         }
+    } else {
+        assert(file != NULL);
+        bs->file = file;
+        ret = drv->bdrv_open(bs, open_flags);
     }
 
     if (ret < 0) {
@@ -716,10 +714,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     return 0;
 
 free_and_fail:
-    if (bs->file) {
-        bdrv_delete(bs->file);
-        bs->file = NULL;
-    }
+    bs->file = NULL;
     g_free(bs->opaque);
     bs->opaque = NULL;
     bs->drv = NULL;
@@ -741,7 +736,7 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags)
     }
 
     bs = bdrv_new("");
-    ret = bdrv_open_common(bs, filename, flags, drv);
+    ret = bdrv_open_common(bs, NULL, filename, flags, drv);
     if (ret < 0) {
         bdrv_delete(bs);
         return ret;
@@ -796,6 +791,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     int ret;
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char tmp_filename[PATH_MAX + 1];
+    BlockDriverState *file = NULL;
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -855,23 +851,34 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         bs->is_temporary = 1;
     }
 
-    /* Find the right image format driver */
-    if (!drv) {
-        ret = find_image_format(filename, &drv);
-    }
-
-    if (!drv) {
-        goto unlink_and_fail;
-    }
-
+    /* Open image file without format layer */
     if (flags & BDRV_O_RDWR) {
         flags |= BDRV_O_ALLOW_RDWR;
     }
 
+    ret = bdrv_file_open(&file, filename, bdrv_open_flags(bs, flags));
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* Find the right image format driver */
+    if (!drv) {
+        ret = find_image_format(file, filename, &drv);
+    }
+
+    if (!drv) {
+        goto unlink_and_fail;
+    }
+
     /* Open the image */
-    ret = bdrv_open_common(bs, filename, flags, drv);
+    ret = bdrv_open_common(bs, file, filename, flags, drv);
     if (ret < 0) {
         goto unlink_and_fail;
+    }
+
+    if (bs->file != file) {
+        bdrv_delete(file);
+        file = NULL;
     }
 
     /* If there is a backing file, use it */
@@ -895,6 +902,9 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     return 0;
 
 unlink_and_fail:
+    if (file != NULL) {
+        bdrv_delete(file);
+    }
     if (bs->is_temporary) {
         unlink(filename);
     }
