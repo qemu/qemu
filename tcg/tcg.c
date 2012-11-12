@@ -298,7 +298,7 @@ void tcg_func_start(TCGContext *s)
 #endif
 
     s->gen_opc_ptr = s->gen_opc_buf;
-    s->gen_opparam_ptr = gen_opparam_buf;
+    s->gen_opparam_ptr = s->gen_opparam_buf;
 
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* Initialize qemu_ld/st labels to assist code generation at the end of TB
@@ -897,7 +897,7 @@ void tcg_dump_ops(TCGContext *s)
 
     first_insn = 1;
     opc_ptr = s->gen_opc_buf;
-    args = gen_opparam_buf;
+    args = s->gen_opparam_buf;
     while (opc_ptr < s->gen_opc_ptr) {
         c = *opc_ptr++;
         def = &tcg_op_defs[c];
@@ -1440,8 +1440,9 @@ static void tcg_liveness_analysis(TCGContext *s)
         op_index--;
     }
 
-    if (args != gen_opparam_buf)
+    if (args != s->gen_opparam_buf) {
         tcg_abort();
+    }
 }
 #else
 /* dummy liveness analysis */
@@ -2222,7 +2223,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 
 #ifdef USE_TCG_OPTIMIZATIONS
     s->gen_opparam_ptr =
-        tcg_optimize(s, s->gen_opc_ptr, gen_opparam_buf, tcg_op_defs);
+        tcg_optimize(s, s->gen_opc_ptr, s->gen_opparam_buf, tcg_op_defs);
 #endif
 
 #ifdef CONFIG_PROFILER
@@ -2249,7 +2250,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     s->code_buf = gen_code_buf;
     s->code_ptr = gen_code_buf;
 
-    args = gen_opparam_buf;
+    args = s->gen_opparam_buf;
     op_index = 0;
 
     for(;;) {
