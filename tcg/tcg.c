@@ -96,10 +96,6 @@ const size_t tcg_op_defs_max = ARRAY_SIZE(tcg_op_defs);
 static TCGRegSet tcg_target_available_regs[2];
 static TCGRegSet tcg_target_call_clobber_regs;
 
-/* XXX: move that inside the context */
-uint16_t *gen_opc_ptr;
-TCGArg *gen_opparam_ptr;
-
 static inline void tcg_out8(TCGContext *s, uint8_t v)
 {
     *s->code_ptr++ = v;
