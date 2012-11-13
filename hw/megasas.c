@@ -1296,7 +1296,7 @@ static int megasas_dcmd_get_properties(MegasasState *s, MegasasCmd *cmd)
 
 static int megasas_cache_flush(MegasasState *s, MegasasCmd *cmd)
 {
-    qemu_aio_flush();
+    bdrv_drain_all();
     return MFI_STAT_OK;
 }
 
