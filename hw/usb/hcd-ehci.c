@@ -964,6 +964,9 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
 
     case USBINTR:
         val &= USBINTR_MASK;
+        if (ehci_enabled(s) && (USBSTS_FLR & val)) {
+            qemu_bh_schedule(s->async_bh);
+        }
         break;
 
     case FRINDEX:
@@ -2218,6 +2221,10 @@ static void ehci_frame_timer(void *opaque)
     if (ehci->usbsts_pending) {
         need_timer++;
         ehci->async_stepdown = 0;
+    }
+
+    if (ehci_enabled(ehci) && (ehci->usbintr & USBSTS_FLR)) {
+        need_timer++;
     }
 
     if (need_timer) {
