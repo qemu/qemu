@@ -59,7 +59,9 @@ static SDL_PixelFormat host_format;
 static int scaling_active = 0;
 static Notifier mouse_mode_notifier;
 
-static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
+static void sdl_update(DisplayChangeListener *dcl,
+                       DisplayState *ds,
+                       int x, int y, int w, int h)
 {
     //    printf("updating x=%d y=%d w=%d h=%d\n", x, y, w, h);
     SDL_Rect rec;
@@ -81,7 +83,8 @@ static void sdl_update(DisplayState *ds, int x, int y, int w, int h)
     SDL_UpdateRect(real_screen, rec.x, rec.y, rec.w, rec.h);
 }
 
-static void sdl_setdata(DisplayState *ds)
+static void sdl_setdata(DisplayChangeListener *dcl,
+                        DisplayState *ds)
 {
     if (guest_screen != NULL) SDL_FreeSurface(guest_screen);
 
@@ -114,7 +117,8 @@ static void do_sdl_resize(int width, int height, int bpp)
     }
 }
 
-static void sdl_resize(DisplayState *ds)
+static void sdl_resize(DisplayChangeListener *dcl,
+                       DisplayState *ds)
 {
     if (!scaling_active) {
         do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
@@ -122,7 +126,7 @@ static void sdl_resize(DisplayState *ds)
         do_sdl_resize(real_screen->w, real_screen->h,
                       ds_get_bits_per_pixel(ds));
     }
-    sdl_setdata(ds);
+    sdl_setdata(dcl, ds);
 }
 
 /* generic keyboard conversion */
@@ -514,7 +518,7 @@ static void handle_keydown(DisplayState *ds, SDL_Event *ev)
         case 0x16: /* 'u' key on US keyboard */
             if (scaling_active) {
                 scaling_active = 0;
-                sdl_resize(ds);
+                sdl_resize(dcl, ds);
                 vga_hw_invalidate();
                 vga_hw_update();
             }
@@ -753,7 +757,8 @@ static void handle_activation(DisplayState *ds, SDL_Event *ev)
     }
 }
 
-static void sdl_refresh(DisplayState *ds)
+static void sdl_refresh(DisplayChangeListener *dcl,
+                        DisplayState *ds)
 {
     SDL_Event ev1, *ev = &ev1;
 
@@ -768,7 +773,7 @@ static void sdl_refresh(DisplayState *ds)
     while (SDL_PollEvent(ev)) {
         switch (ev->type) {
         case SDL_VIDEOEXPOSE:
-            sdl_update(ds, 0, 0, real_screen->w, real_screen->h);
+            sdl_update(dcl, ds, 0, 0, real_screen->w, real_screen->h);
             break;
         case SDL_KEYDOWN:
             handle_keydown(ds, ev);
@@ -803,7 +808,9 @@ static void sdl_refresh(DisplayState *ds)
     }
 }
 
-static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
+static void sdl_mouse_warp(DisplayChangeListener *dcl,
+                           DisplayState *ds,
+                           int x, int y, int on)
 {
     if (on) {
         if (!guest_cursor)
@@ -819,7 +826,9 @@ static void sdl_mouse_warp(DisplayState *ds, int x, int y, int on)
     guest_x = x, guest_y = y;
 }
 
-static void sdl_mouse_define(DisplayState *ds, QEMUCursor *c)
+static void sdl_mouse_define(DisplayChangeListener *dcl,
+                             DisplayState *ds,
+                             QEMUCursor *c)
 {
     uint8_t *image, *mask;
     int bpl;
@@ -848,6 +857,16 @@ static void sdl_cleanup(void)
         SDL_FreeCursor(guest_sprite);
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
+
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name          = "sdl",
+    .dpy_gfx_update    = sdl_update,
+    .dpy_gfx_resize    = sdl_resize,
+    .dpy_refresh       = sdl_refresh,
+    .dpy_gfx_setdata   = sdl_setdata,
+    .dpy_mouse_set     = sdl_mouse_warp,
+    .dpy_cursor_define = sdl_mouse_define,
+};
 
 void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
 {
@@ -917,12 +936,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     }
 
     dcl = g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_gfx_update = sdl_update;
-    dcl->dpy_gfx_resize = sdl_resize;
-    dcl->dpy_refresh = sdl_refresh;
-    dcl->dpy_gfx_setdata = sdl_setdata;
-    dcl->dpy_mouse_set = sdl_mouse_warp;
-    dcl->dpy_cursor_define = sdl_mouse_define;
+    dcl->ops = &dcl_ops;
     register_displaychangelistener(ds, dcl);
 
     mouse_mode_notifier.notify = sdl_mouse_mode_change;

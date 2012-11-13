@@ -960,6 +960,8 @@ dma_map_wait(void *dbs) "dbs=%p"
 # console.h
 displaysurface_free(void *display_state, void *display_surface) "state=%p surface=%p"
 displaysurface_resize(void *display_state, void *display_surface, int width, int height) "state=%p surface=%p %dx%d"
+displaychangelistener_register(void *dcl, const char *name) "%p [ %s ]"
+displaychangelistener_unregister(void *dcl, const char *name) "%p [ %s ]"
 
 # vga.c
 ppm_save(const char *filename, void *display_surface) "%s surface=%p"

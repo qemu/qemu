@@ -583,25 +583,30 @@ static const QXLInterface dpy_interface = {
 
 static SimpleSpiceDisplay sdpy;
 
-static void display_update(struct DisplayState *ds, int x, int y, int w, int h)
+static void display_update(DisplayChangeListener *dcl,
+                           struct DisplayState *ds,
+                           int x, int y, int w, int h)
 {
     qemu_spice_display_update(&sdpy, x, y, w, h);
 }
 
-static void display_resize(struct DisplayState *ds)
+static void display_resize(DisplayChangeListener *dcl,
+                           struct DisplayState *ds)
 {
     qemu_spice_display_resize(&sdpy);
 }
 
-static void display_refresh(struct DisplayState *ds)
+static void display_refresh(DisplayChangeListener *dcl,
+                            struct DisplayState *ds)
 {
     qemu_spice_display_refresh(&sdpy);
 }
 
-static DisplayChangeListener display_listener = {
+static const DisplayChangeListenerOps display_listener_ops = {
+    .dpy_name        = "spice",
     .dpy_gfx_update  = display_update,
     .dpy_gfx_resize  = display_resize,
-    .dpy_refresh = display_refresh,
+    .dpy_refresh     = display_refresh,
 };
 
 void qemu_spice_display_init(DisplayState *ds)
@@ -615,5 +620,7 @@ void qemu_spice_display_init(DisplayState *ds)
 
     qemu_spice_create_host_memslot(&sdpy);
     qemu_spice_create_host_primary(&sdpy);
-    register_displaychangelistener(ds, &display_listener);
+
+    sdpy.dcl.ops = &display_listener_ops;
+    register_displaychangelistener(ds, &sdpy.dcl);
 }

@@ -969,7 +969,9 @@ int main (int argc, const char * argv[]) {
 
 
 #pragma mark qemu
-static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
+static void cocoa_update(DisplayChangeListener *dcl,
+                         DisplayState *ds,
+                         int x, int y, int w, int h)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_update\n");
 
@@ -986,14 +988,16 @@ static void cocoa_update(DisplayState *ds, int x, int y, int w, int h)
     [cocoaView setNeedsDisplayInRect:rect];
 }
 
-static void cocoa_resize(DisplayState *ds)
+static void cocoa_resize(DisplayChangeListener *dcl,
+                         DisplayState *ds)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_resize\n");
 
     [cocoaView resizeContentToWidth:(int)(ds_get_width(ds)) height:(int)(ds_get_height(ds)) displayState:ds];
 }
 
-static void cocoa_refresh(DisplayState *ds)
+static void cocoa_refresh(DisplayChangeListener *dcl,
+                          DisplayState *ds)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
 
@@ -1030,6 +1034,14 @@ static void cocoa_cleanup(void)
     g_free(dcl);
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name          = "cocoa",
+    .dpy_gfx_update = cocoa_update;
+    .dpy_gfx_resize = cocoa_resize;
+    .dpy_gfx_setdata = cocoa_setdata;
+    .dpy_refresh = cocoa_refresh;
+};
+
 void cocoa_display_init(DisplayState *ds, int full_screen)
 {
     COCOA_DEBUG("qemu_cocoa: cocoa_display_init\n");
@@ -1037,12 +1049,8 @@ void cocoa_display_init(DisplayState *ds, int full_screen)
     dcl = g_malloc0(sizeof(DisplayChangeListener));
 
     // register vga output callbacks
-    dcl->dpy_gfx_update = cocoa_update;
-    dcl->dpy_gfx_resize = cocoa_resize;
-    dcl->dpy_refresh = cocoa_refresh;
-    dcl->dpy_gfx_setdata = cocoa_setdata;
-
-	register_displaychangelistener(ds, dcl);
+    dcl->ops = &dcl_ops;
+    register_displaychangelistener(ds, dcl);
 
     // register cleanup function
     atexit(cocoa_cleanup);

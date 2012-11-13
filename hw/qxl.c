@@ -1866,21 +1866,25 @@ static void qxl_vm_change_state_handler(void *opaque, int running,
 
 /* display change listener */
 
-static void display_update(struct DisplayState *ds, int x, int y, int w, int h)
+static void display_update(DisplayChangeListener *dcl,
+                           struct DisplayState *ds,
+                           int x, int y, int w, int h)
 {
     if (qxl0->mode == QXL_MODE_VGA) {
         qemu_spice_display_update(&qxl0->ssd, x, y, w, h);
     }
 }
 
-static void display_resize(struct DisplayState *ds)
+static void display_resize(DisplayChangeListener *dcl,
+                           struct DisplayState *ds)
 {
     if (qxl0->mode == QXL_MODE_VGA) {
         qemu_spice_display_resize(&qxl0->ssd);
     }
 }
 
-static void display_refresh(struct DisplayState *ds)
+static void display_refresh(DisplayChangeListener *dcl,
+                            struct DisplayState *ds)
 {
     if (qxl0->mode == QXL_MODE_VGA) {
         qemu_spice_display_refresh(&qxl0->ssd);
@@ -1891,10 +1895,11 @@ static void display_refresh(struct DisplayState *ds)
     }
 }
 
-static DisplayChangeListener display_listener = {
+static DisplayChangeListenerOps display_listener_ops = {
+    .dpy_name        = "spice/qxl",
     .dpy_gfx_update  = display_update,
     .dpy_gfx_resize  = display_resize,
-    .dpy_refresh = display_refresh,
+    .dpy_refresh     = display_refresh,
 };
 
 static void qxl_init_ramsize(PCIQXLDevice *qxl)
@@ -2076,7 +2081,8 @@ static int qxl_init_primary(PCIDevice *dev)
         return rc;
     }
 
-    register_displaychangelistener(vga->ds, &display_listener);
+    qxl->ssd.dcl.ops = &display_listener_ops;
+    register_displaychangelistener(vga->ds, &qxl->ssd.dcl);
     return rc;
 }
 

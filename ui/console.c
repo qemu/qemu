@@ -1374,6 +1374,150 @@ void qemu_free_displaysurface(DisplayState *ds)
     g_free(ds->surface);
 }
 
+void register_displaychangelistener(DisplayState *ds,
+                                    DisplayChangeListener *dcl)
+{
+    trace_displaychangelistener_register(dcl, dcl->ops->dpy_name);
+    dcl->ds = ds;
+    QLIST_INSERT_HEAD(&ds->listeners, dcl, next);
+    gui_setup_refresh(ds);
+    if (dcl->ops->dpy_gfx_resize) {
+        dcl->ops->dpy_gfx_resize(dcl, ds);
+    }
+}
+
+void unregister_displaychangelistener(DisplayChangeListener *dcl)
+{
+    DisplayState *ds = dcl->ds;
+    trace_displaychangelistener_unregister(dcl, dcl->ops->dpy_name);
+    QLIST_REMOVE(dcl, next);
+    gui_setup_refresh(ds);
+}
+
+void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    int width = pixman_image_get_width(s->surface->image);
+    int height = pixman_image_get_height(s->surface->image);
+
+    x = MAX(x, 0);
+    y = MAX(y, 0);
+    x = MIN(x, width);
+    y = MIN(y, height);
+    w = MIN(w, width - x);
+    h = MIN(h, height - y);
+
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_gfx_update) {
+            dcl->ops->dpy_gfx_update(dcl, s, x, y, w, h);
+        }
+    }
+}
+
+void dpy_gfx_resize(DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_gfx_resize) {
+            dcl->ops->dpy_gfx_resize(dcl, s);
+        }
+    }
+}
+
+void dpy_gfx_setdata(DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_gfx_setdata) {
+            dcl->ops->dpy_gfx_setdata(dcl, s);
+        }
+    }
+}
+
+void dpy_refresh(DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_refresh) {
+            dcl->ops->dpy_refresh(dcl, s);
+        }
+    }
+}
+
+void dpy_gfx_copy(struct DisplayState *s, int src_x, int src_y,
+                             int dst_x, int dst_y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_gfx_copy) {
+            dcl->ops->dpy_gfx_copy(dcl, s, src_x, src_y, dst_x, dst_y, w, h);
+        } else { /* TODO */
+            dcl->ops->dpy_gfx_update(dcl, s, dst_x, dst_y, w, h);
+        }
+    }
+}
+
+void dpy_text_cursor(struct DisplayState *s, int x, int y)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_text_cursor) {
+            dcl->ops->dpy_text_cursor(dcl, s, x, y);
+        }
+    }
+}
+
+void dpy_text_update(DisplayState *s, int x, int y, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_text_update) {
+            dcl->ops->dpy_text_update(dcl, s, x, y, w, h);
+        }
+    }
+}
+
+void dpy_text_resize(DisplayState *s, int w, int h)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_text_resize) {
+            dcl->ops->dpy_text_resize(dcl, s, w, h);
+        }
+    }
+}
+
+void dpy_mouse_set(struct DisplayState *s, int x, int y, int on)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_mouse_set) {
+            dcl->ops->dpy_mouse_set(dcl, s, x, y, on);
+        }
+    }
+}
+
+void dpy_cursor_define(struct DisplayState *s, QEMUCursor *cursor)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_cursor_define) {
+            dcl->ops->dpy_cursor_define(dcl, s, cursor);
+        }
+    }
+}
+
+bool dpy_cursor_define_supported(struct DisplayState *s)
+{
+    struct DisplayChangeListener *dcl;
+    QLIST_FOREACH(dcl, &s->listeners, next) {
+        if (dcl->ops->dpy_cursor_define) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void dumb_display_init(void)
 {
     DisplayState *ds = g_malloc0(sizeof(DisplayState));

@@ -227,7 +227,8 @@ static void gd_update_caption(GtkDisplayState *s)
 
 /** DisplayState Callbacks **/
 
-static void gd_update(DisplayState *ds, int x, int y, int w, int h)
+static void gd_update(DisplayChangeListener *dcl,
+                      DisplayState *ds, int x, int y, int w, int h)
 {
     GtkDisplayState *s = ds->opaque;
     int x1, x2, y1, y2;
@@ -259,12 +260,14 @@ static void gd_update(DisplayState *ds, int x, int y, int w, int h)
     gtk_widget_queue_draw_area(s->drawing_area, mx + x1, my + y1, (x2 - x1), (y2 - y1));
 }
 
-static void gd_refresh(DisplayState *ds)
+static void gd_refresh(DisplayChangeListener *dcl,
+                       DisplayState *ds)
 {
     vga_hw_update();
 }
 
-static void gd_resize(DisplayState *ds)
+static void gd_resize(DisplayChangeListener *dcl,
+                      DisplayState *ds)
 {
     GtkDisplayState *s = ds->opaque;
     cairo_format_t kind;
@@ -382,7 +385,7 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
     GtkDisplayState *s = opaque;
 
     if (!no_quit) {
-        unregister_displaychangelistener(s->ds, &s->dcl);
+        unregister_displaychangelistener(&s->dcl);
         qmp_quit(NULL);
         return FALSE;
     }
@@ -735,7 +738,7 @@ static void gd_menu_zoom_in(GtkMenuItem *item, void *opaque)
     s->scale_x += .25;
     s->scale_y += .25;
 
-    gd_resize(s->ds);
+    gd_resize(&s->dcl, s->ds);
 }
 
 static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
@@ -751,7 +754,7 @@ static void gd_menu_zoom_out(GtkMenuItem *item, void *opaque)
     s->scale_x = MAX(s->scale_x, .25);
     s->scale_y = MAX(s->scale_y, .25);
 
-    gd_resize(s->ds);
+    gd_resize(&s->dcl, s->ds);
 }
 
 static void gd_menu_zoom_fixed(GtkMenuItem *item, void *opaque)
@@ -761,7 +764,7 @@ static void gd_menu_zoom_fixed(GtkMenuItem *item, void *opaque)
     s->scale_x = 1.0;
     s->scale_y = 1.0;
 
-    gd_resize(s->ds);
+    gd_resize(&s->dcl, s->ds);
 }
 
 static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
@@ -775,7 +778,7 @@ static void gd_menu_zoom_fit(GtkMenuItem *item, void *opaque)
         s->free_scale = FALSE;
     }
 
-    gd_resize(s->ds);
+    gd_resize(&s->dcl, s->ds);
 
     gdk_drawable_get_size(gtk_widget_get_window(s->drawing_area), &ww, &wh);
     gtk_widget_queue_draw_area(s->drawing_area, 0, 0, ww, wh);
@@ -1281,6 +1284,13 @@ static void gd_create_menus(GtkDisplayState *s)
     gtk_menu_shell_append(GTK_MENU_SHELL(s->menu_bar), s->view_menu_item);
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name          = "gtk",
+    .dpy_gfx_update    = gd_update,
+    .dpy_gfx_resize    = gd_resize,
+    .dpy_refresh       = gd_refresh,
+};
+
 void gtk_display_init(DisplayState *ds)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
@@ -1289,9 +1299,7 @@ void gtk_display_init(DisplayState *ds)
 
     ds->opaque = s;
     s->ds = ds;
-    s->dcl.dpy_gfx_update = gd_update;
-    s->dcl.dpy_gfx_resize = gd_resize;
-    s->dcl.dpy_refresh = gd_refresh;
+    s->dcl.ops = &dcl_ops;
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if GTK_CHECK_VERSION(3, 2, 0)
