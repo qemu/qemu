@@ -688,28 +688,6 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     vector->use = false;
 }
 
-/* TODO This should move to msi.c */
-static MSIMessage msi_get_msg(PCIDevice *pdev, unsigned int vector)
-{
-    uint16_t flags = pci_get_word(pdev->config + pdev->msi_cap + PCI_MSI_FLAGS);
-    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
-    MSIMessage msg;
-
-    if (msi64bit) {
-        msg.address = pci_get_quad(pdev->config +
-                                   pdev->msi_cap + PCI_MSI_ADDRESS_LO);
-    } else {
-        msg.address = pci_get_long(pdev->config +
-                                   pdev->msi_cap + PCI_MSI_ADDRESS_LO);
-    }
-
-    msg.data = pci_get_word(pdev->config + pdev->msi_cap +
-                            (msi64bit ? PCI_MSI_DATA_64 : PCI_MSI_DATA_32));
-    msg.data += vector;
-
-    return msg;
-}
-
 static void vfio_enable_msix(VFIODevice *vdev)
 {
     vfio_disable_interrupts(vdev);
@@ -748,7 +726,7 @@ retry:
             error_report("vfio: Error: event_notifier_init failed\n");
         }
 
-        msg = msi_get_msg(&vdev->pdev, i);
+        msg = msi_get_message(&vdev->pdev, i);
 
         /*
          * Attempt to enable route through KVM irqchip,
