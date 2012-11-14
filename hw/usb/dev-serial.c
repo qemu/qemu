@@ -219,7 +219,7 @@ static uint8_t usb_get_modem_lines(USBSerialState *s)
     return ret;
 }
 
-static int usb_serial_handle_control(USBDevice *dev, USBPacket *p,
+static void usb_serial_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBSerialState *s = (USBSerialState *)dev;
@@ -228,13 +228,11 @@ static int usb_serial_handle_control(USBDevice *dev, USBPacket *p,
     DPRINTF("got control %x, value %x\n",request, value);
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
 
-    ret = 0;
     switch (request) {
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
-        ret = 0;
         break;
 
         /* Class specific requests.  */
@@ -323,7 +321,7 @@ static int usb_serial_handle_control(USBDevice *dev, USBPacket *p,
     case DeviceInVendor | FTDI_GET_MDM_ST:
         data[0] = usb_get_modem_lines(s) | 1;
         data[1] = 0;
-        ret = 2;
+        p->actual_length = 2;
         break;
     case DeviceOutVendor | FTDI_SET_EVENT_CHR:
         /* TODO: handle it */
@@ -338,25 +336,23 @@ static int usb_serial_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case DeviceInVendor | FTDI_GET_LATENCY:
         data[0] = s->latency;
-        ret = 1;
+        p->actual_length = 1;
         break;
     default:
     fail:
         DPRINTF("got unsupported/bogus control %x, value %x\n", request, value);
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
-static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = (USBSerialState *)dev;
-    int i, ret = 0;
     uint8_t devep = p->ep->nr;
     struct iovec *iov;
     uint8_t header[2];
-    int first_len, len;
+    int i, first_len, len;
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
@@ -366,6 +362,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
             iov = p->iov.iov + i;
             qemu_chr_fe_write(s->cs, iov->iov_base, iov->iov_len);
         }
+        p->actual_length = p->iov.size;
         break;
 
     case USB_TOKEN_IN:
@@ -374,7 +371,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
         first_len = RECV_BUF - s->recv_ptr;
         len = p->iov.size;
         if (len <= 2) {
-            ret = USB_RET_NAK;
+            p->status = USB_RET_NAK;
             break;
         }
         header[0] = usb_get_modem_lines(s) | 1;
@@ -384,7 +381,6 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
             s->event_trigger &= ~FTDI_BI;
             header[1] = FTDI_BI;
             usb_packet_copy(p, header, 2);
-            ret = 2;
             break;
         } else {
             header[1] = 0;
@@ -393,7 +389,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
         if (len > s->recv_used)
             len = s->recv_used;
         if (!len) {
-            ret = USB_RET_NAK;
+            p->status = USB_RET_NAK;
             break;
         }
         if (first_len > len)
@@ -404,17 +400,14 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
             usb_packet_copy(p, s->recv_buf, len - first_len);
         s->recv_used -= len;
         s->recv_ptr = (s->recv_ptr + len) % RECV_BUF;
-        ret = len + 2;
         break;
 
     default:
         DPRINTF("Bad token\n");
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-
-    return ret;
 }
 
 static void usb_serial_handle_destroy(USBDevice *dev)

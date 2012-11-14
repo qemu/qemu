@@ -29,9 +29,6 @@
 
 #include "hw/usb/hcd-ehci.h"
 
-/* internal processing - reset HC to try and recover */
-#define USB_RET_PROCERR   (-99)
-
 /* Capability Registers Base Address - section 2.2 */
 #define CAPLENGTH        0x0000  /* 1-byte, 0x0001 reserved */
 #define HCIVERSION       0x0002  /* 2-bytes, i/f version # */
@@ -1111,7 +1108,7 @@ static int ehci_init_transfer(EHCIPacket *p)
     while (bytes > 0) {
         if (cpage > 4) {
             fprintf(stderr, "cpage out of range (%d)\n", cpage);
-            return USB_RET_PROCERR;
+            return -1;
         }
 
         page  = p->qtd.bufptr[cpage] & QTD_BUFPTR_MASK;
@@ -1129,16 +1126,16 @@ static int ehci_init_transfer(EHCIPacket *p)
     return 0;
 }
 
-static void ehci_finish_transfer(EHCIQueue *q, int status)
+static void ehci_finish_transfer(EHCIQueue *q, int len)
 {
     uint32_t cpage, offset;
 
-    if (status > 0) {
+    if (len > 0) {
         /* update cpage & offset */
         cpage  = get_field(q->qh.token, QTD_TOKEN_CPAGE);
         offset = q->qh.bufptr[0] & ~QTD_BUFPTR_MASK;
 
-        offset += status;
+        offset += len;
         cpage  += offset >> QTD_BUFPTR_SH;
         offset &= ~QTD_BUFPTR_MASK;
 
@@ -1163,7 +1160,7 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
     p = container_of(packet, EHCIPacket, packet);
     assert(p->async == EHCI_ASYNC_INFLIGHT);
 
-    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+    if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
         trace_usb_ehci_packet_action(p->queue, p, "remove");
         ehci_free_packet(p);
         return;
@@ -1171,7 +1168,6 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 
     trace_usb_ehci_packet_action(p->queue, p, "wakeup");
     p->async = EHCI_ASYNC_FINISHED;
-    p->usb_status = packet->result;
 
     if (p->queue->async) {
         qemu_bh_schedule(p->queue->ehci->async_bh);
@@ -1181,58 +1177,60 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 static void ehci_execute_complete(EHCIQueue *q)
 {
     EHCIPacket *p = QTAILQ_FIRST(&q->packets);
+    uint32_t tbytes;
 
     assert(p != NULL);
     assert(p->qtdaddr == q->qtdaddr);
     assert(p->async == EHCI_ASYNC_INITIALIZED ||
            p->async == EHCI_ASYNC_FINISHED);
 
-    DPRINTF("execute_complete: qhaddr 0x%x, next %x, qtdaddr 0x%x, status %d\n",
-            q->qhaddr, q->qh.next, q->qtdaddr, q->usb_status);
+    DPRINTF("execute_complete: qhaddr 0x%x, next 0x%x, qtdaddr 0x%x, "
+            "status %d, actual_length %d\n",
+            q->qhaddr, q->qh.next, q->qtdaddr,
+            p->packet.status, p->packet.actual_length);
 
-    if (p->usb_status < 0) {
-        switch (p->usb_status) {
-        case USB_RET_IOERROR:
-        case USB_RET_NODEV:
-            q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_XACTERR);
-            set_field(&q->qh.token, 0, QTD_TOKEN_CERR);
-            ehci_raise_irq(q->ehci, USBSTS_ERRINT);
-            break;
-        case USB_RET_STALL:
-            q->qh.token |= QTD_TOKEN_HALT;
-            ehci_raise_irq(q->ehci, USBSTS_ERRINT);
-            break;
-        case USB_RET_NAK:
-            set_field(&q->qh.altnext_qtd, 0, QH_ALTNEXT_NAKCNT);
-            return; /* We're not done yet with this transaction */
-        case USB_RET_BABBLE:
-            q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_BABBLE);
-            ehci_raise_irq(q->ehci, USBSTS_ERRINT);
-            break;
-        default:
-            /* should not be triggerable */
-            fprintf(stderr, "USB invalid response %d\n", p->usb_status);
-            assert(0);
-            break;
+    switch (p->packet.status) {
+    case USB_RET_SUCCESS:
+        break;
+    case USB_RET_IOERROR:
+    case USB_RET_NODEV:
+        q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_XACTERR);
+        set_field(&q->qh.token, 0, QTD_TOKEN_CERR);
+        ehci_raise_irq(q->ehci, USBSTS_ERRINT);
+        break;
+    case USB_RET_STALL:
+        q->qh.token |= QTD_TOKEN_HALT;
+        ehci_raise_irq(q->ehci, USBSTS_ERRINT);
+        break;
+    case USB_RET_NAK:
+        set_field(&q->qh.altnext_qtd, 0, QH_ALTNEXT_NAKCNT);
+        return; /* We're not done yet with this transaction */
+    case USB_RET_BABBLE:
+        q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_BABBLE);
+        ehci_raise_irq(q->ehci, USBSTS_ERRINT);
+        break;
+    default:
+        /* should not be triggerable */
+        fprintf(stderr, "USB invalid response %d\n", p->packet.status);
+        assert(0);
+        break;
+    }
+
+    /* TODO check 4.12 for splits */
+    tbytes = get_field(q->qh.token, QTD_TOKEN_TBYTES);
+    if (tbytes && p->pid == USB_TOKEN_IN) {
+        tbytes -= p->packet.actual_length;
+        if (tbytes) {
+            /* 4.15.1.2 must raise int on a short input packet */
+            ehci_raise_irq(q->ehci, USBSTS_INT);
         }
     } else {
-        // TODO check 4.12 for splits
-        uint32_t tbytes = get_field(q->qh.token, QTD_TOKEN_TBYTES);
-
-        if (tbytes && p->pid == USB_TOKEN_IN) {
-            tbytes -= p->usb_status;
-            if (tbytes) {
-                /* 4.15.1.2 must raise int on a short input packet */
-                ehci_raise_irq(q->ehci, USBSTS_INT);
-            }
-        } else {
-            tbytes = 0;
-        }
-
-        DPRINTF("updating tbytes to %d\n", tbytes);
-        set_field(&q->qh.token, tbytes, QTD_TOKEN_TBYTES);
+        tbytes = 0;
     }
-    ehci_finish_transfer(q, p->usb_status);
+    DPRINTF("updating tbytes to %d\n", tbytes);
+    set_field(&q->qh.token, tbytes, QTD_TOKEN_TBYTES);
+
+    ehci_finish_transfer(q, p->packet.actual_length);
     usb_packet_unmap(&p->packet, &p->sgl);
     qemu_sglist_destroy(&p->sgl);
     p->async = EHCI_ASYNC_NONE;
@@ -1248,12 +1246,10 @@ static void ehci_execute_complete(EHCIQueue *q)
     }
 }
 
-// 4.10.3
-
+/* 4.10.3 returns "again" */
 static int ehci_execute(EHCIPacket *p, const char *action)
 {
     USBEndpoint *ep;
-    int ret;
     int endp;
     bool spd;
 
@@ -1262,13 +1258,13 @@ static int ehci_execute(EHCIPacket *p, const char *action)
 
     if (!(p->qtd.token & QTD_TOKEN_ACTIVE)) {
         fprintf(stderr, "Attempting to execute inactive qtd\n");
-        return USB_RET_PROCERR;
+        return -1;
     }
 
     if (get_field(p->qtd.token, QTD_TOKEN_TBYTES) > BUFF_SIZE) {
         ehci_trace_guest_bug(p->queue->ehci,
                              "guest requested more bytes than allowed");
-        return USB_RET_PROCERR;
+        return -1;
     }
 
     p->pid = (p->qtd.token & QTD_TOKEN_PID_MASK) >> QTD_TOKEN_PID_SH;
@@ -1292,7 +1288,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
 
     if (p->async == EHCI_ASYNC_NONE) {
         if (ehci_init_transfer(p) != 0) {
-            return USB_RET_PROCERR;
+            return -1;
         }
 
         spd = (p->pid == USB_TOKEN_IN && NLPTR_TBIT(p->qtd.altnext) == 0);
@@ -1303,17 +1299,18 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     }
 
     trace_usb_ehci_packet_action(p->queue, p, action);
-    ret = usb_handle_packet(p->queue->dev, &p->packet);
-    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd endp %x ret %d\n",
-            q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
-            q->packet.iov.size, endp, ret);
+    usb_handle_packet(p->queue->dev, &p->packet);
+    DPRINTF("submit: qh 0x%x next 0x%x qtd 0x%x pid 0x%x len %zd endp 0x%x "
+            "status %d actual_length %d\n", p->queue->qhaddr, p->qtd.next,
+            p->qtdaddr, p->pid, p->packet.iov.size, endp, p->packet.status,
+            p->packet.actual_length);
 
-    if (ret > BUFF_SIZE) {
+    if (p->packet.actual_length > BUFF_SIZE) {
         fprintf(stderr, "ret from usb_handle_packet > BUFF_SIZE\n");
-        return USB_RET_PROCERR;
+        return -1;
     }
 
-    return ret;
+    return 1;
 }
 
 /*  4.7.2
@@ -1325,7 +1322,6 @@ static int ehci_process_itd(EHCIState *ehci,
 {
     USBDevice *dev;
     USBEndpoint *ep;
-    int ret;
     uint32_t i, len, pid, dir, devaddr, endp;
     uint32_t pg, off, ptr1, ptr2, max, mult;
 
@@ -1348,7 +1344,7 @@ static int ehci_process_itd(EHCIState *ehci,
             }
 
             if (len > BUFF_SIZE) {
-                return USB_RET_PROCERR;
+                return -1;
             }
 
             qemu_sglist_init(&ehci->isgl, 2, ehci->dma);
@@ -1370,45 +1366,45 @@ static int ehci_process_itd(EHCIState *ehci,
                 usb_packet_setup(&ehci->ipacket, pid, ep, addr, false,
                                  (itd->transact[i] & ITD_XACT_IOC) != 0);
                 usb_packet_map(&ehci->ipacket, &ehci->isgl);
-                ret = usb_handle_packet(dev, &ehci->ipacket);
+                usb_handle_packet(dev, &ehci->ipacket);
                 usb_packet_unmap(&ehci->ipacket, &ehci->isgl);
             } else {
                 DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
-                ret = USB_RET_NAK;
+                ehci->ipacket.status = USB_RET_NAK;
+                ehci->ipacket.actual_length = 0;
             }
             qemu_sglist_destroy(&ehci->isgl);
 
-            if (ret < 0) {
-                switch (ret) {
-                default:
-                    fprintf(stderr, "Unexpected iso usb result: %d\n", ret);
-                    /* Fall through */
-                case USB_RET_IOERROR:
-                case USB_RET_NODEV:
-                    /* 3.3.2: XACTERR is only allowed on IN transactions */
-                    if (dir) {
-                        itd->transact[i] |= ITD_XACT_XACTERR;
-                        ehci_raise_irq(ehci, USBSTS_ERRINT);
-                    }
-                    break;
-                case USB_RET_BABBLE:
-                    itd->transact[i] |= ITD_XACT_BABBLE;
+            switch (ehci->ipacket.status) {
+            case USB_RET_SUCCESS:
+                break;
+            default:
+                fprintf(stderr, "Unexpected iso usb result: %d\n",
+                        ehci->ipacket.status);
+                /* Fall through */
+            case USB_RET_IOERROR:
+            case USB_RET_NODEV:
+                /* 3.3.2: XACTERR is only allowed on IN transactions */
+                if (dir) {
+                    itd->transact[i] |= ITD_XACT_XACTERR;
                     ehci_raise_irq(ehci, USBSTS_ERRINT);
-                    break;
-                case USB_RET_NAK:
-                    /* no data for us, so do a zero-length transfer */
-                    ret = 0;
-                    break;
                 }
+                break;
+            case USB_RET_BABBLE:
+                itd->transact[i] |= ITD_XACT_BABBLE;
+                ehci_raise_irq(ehci, USBSTS_ERRINT);
+                break;
+            case USB_RET_NAK:
+                /* no data for us, so do a zero-length transfer */
+                ehci->ipacket.actual_length = 0;
+                break;
             }
-            if (ret >= 0) {
-                if (!dir) {
-                    /* OUT */
-                    set_field(&itd->transact[i], len - ret, ITD_XACT_LENGTH);
-                } else {
-                    /* IN */
-                    set_field(&itd->transact[i], ret, ITD_XACT_LENGTH);
-                }
+            if (!dir) {
+                set_field(&itd->transact[i], len - ehci->ipacket.actual_length,
+                          ITD_XACT_LENGTH); /* OUT */
+            } else {
+                set_field(&itd->transact[i], ehci->ipacket.actual_length,
+                          ITD_XACT_LENGTH); /* IN */
             }
             if (itd->transact[i] & ITD_XACT_IOC) {
                 ehci_raise_irq(ehci, USBSTS_INT);
@@ -1746,8 +1742,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             break;
         case EHCI_ASYNC_INFLIGHT:
             /* Check if the guest has added new tds to the queue */
-            again = (ehci_fill_queue(QTAILQ_LAST(&q->packets, pkts_head)) ==
-                     USB_RET_PROCERR) ? -1 : 1;
+            again = ehci_fill_queue(QTAILQ_LAST(&q->packets, pkts_head));
             /* Unfinished async handled packet, go horizontal */
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;
@@ -1784,6 +1779,7 @@ static int ehci_state_horizqh(EHCIQueue *q)
     return again;
 }
 
+/* Returns "again" */
 static int ehci_fill_queue(EHCIPacket *p)
 {
     USBEndpoint *ep = p->packet.ep;
@@ -1812,17 +1808,14 @@ static int ehci_fill_queue(EHCIPacket *p)
         p = ehci_alloc_packet(q);
         p->qtdaddr = qtdaddr;
         p->qtd = qtd;
-        p->usb_status = ehci_execute(p, "queue");
-        if (p->usb_status == USB_RET_PROCERR) {
-            break;
+        if (ehci_execute(p, "queue") == -1) {
+            return -1;
         }
-        assert(p->usb_status == USB_RET_ASYNC);
+        assert(p->packet.status == USB_RET_ASYNC);
         p->async = EHCI_ASYNC_INFLIGHT;
     }
-    if (p->usb_status != USB_RET_PROCERR) {
-        usb_device_flush_ep_queue(ep->dev, ep);
-    }
-    return p->usb_status;
+    usb_device_flush_ep_queue(ep->dev, ep);
+    return 1;
 }
 
 static int ehci_state_execute(EHCIQueue *q)
@@ -1851,18 +1844,17 @@ static int ehci_state_execute(EHCIQueue *q)
         ehci_set_usbsts(q->ehci, USBSTS_REC);
     }
 
-    p->usb_status = ehci_execute(p, "process");
-    if (p->usb_status == USB_RET_PROCERR) {
-        again = -1;
+    again = ehci_execute(p, "process");
+    if (again == -1) {
         goto out;
     }
-    if (p->usb_status == USB_RET_ASYNC) {
+    if (p->packet.status == USB_RET_ASYNC) {
         ehci_flush_qh(q);
         trace_usb_ehci_packet_action(p->queue, p, "async");
         p->async = EHCI_ASYNC_INFLIGHT;
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
         if (q->async) {
-            again = (ehci_fill_queue(p) == USB_RET_PROCERR) ? -1 : 1;
+            again = ehci_fill_queue(p);
         } else {
             again = 1;
         }
@@ -1891,7 +1883,7 @@ static int ehci_state_executing(EHCIQueue *q)
     }
 
     /* 4.10.5 */
-    if (p->usb_status == USB_RET_NAK) {
+    if (p->packet.status == USB_RET_NAK) {
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
     } else {
         ehci_set_state(q->ehci, q->async, EST_WRITEBACK);

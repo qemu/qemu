@@ -91,6 +91,7 @@ static const VMStateDescription vmstate_ehci_pci = {
     .fields      = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(pcidev, EHCIPCIState),
         VMSTATE_STRUCT(ehci, EHCIPCIState, 2, vmstate_ehci, EHCIState),
+        VMSTATE_END_OF_LIST()
     }
 };
 
@@ -105,7 +106,7 @@ static void ehci_class_init(ObjectClass *klass, void *data)
     k->device_id = i->device_id;
     k->revision = i->revision;
     k->class_id = PCI_CLASS_SERIAL_USB;
-    dc->vmsd = &vmstate_ehci;
+    dc->vmsd = &vmstate_ehci_pci;
     dc->props = ehci_pci_properties;
 }
 

@@ -216,7 +216,8 @@ void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str);
 void usb_desc_create_serial(USBDevice *dev);
 const char *usb_desc_get_string(USBDevice *dev, uint8_t index);
 int usb_desc_string(USBDevice *dev, int index, uint8_t *dest, size_t len);
-int usb_desc_get_descriptor(USBDevice *dev, int value, uint8_t *dest, size_t len);
+int usb_desc_get_descriptor(USBDevice *dev, USBPacket *p,
+        int value, uint8_t *dest, size_t len);
 int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         int request, int value, int index, int length, uint8_t *data);
 

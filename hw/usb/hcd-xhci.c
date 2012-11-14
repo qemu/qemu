@@ -634,6 +634,34 @@ static inline dma_addr_t xhci_mask64(uint64_t addr)
     }
 }
 
+static inline void xhci_dma_read_u32s(XHCIState *xhci, dma_addr_t addr,
+                                      uint32_t *buf, size_t len)
+{
+    int i;
+
+    assert((len % sizeof(uint32_t)) == 0);
+
+    pci_dma_read(&xhci->pci_dev, addr, buf, len);
+
+    for (i = 0; i < (len / sizeof(uint32_t)); i++) {
+        buf[i] = le32_to_cpu(buf[i]);
+    }
+}
+
+static inline void xhci_dma_write_u32s(XHCIState *xhci, dma_addr_t addr,
+                                       uint32_t *buf, size_t len)
+{
+    int i;
+    uint32_t tmp[len / sizeof(uint32_t)];
+
+    assert((len % sizeof(uint32_t)) == 0);
+
+    for (i = 0; i < (len / sizeof(uint32_t)); i++) {
+        tmp[i] = cpu_to_le32(buf[i]);
+    }
+    pci_dma_write(&xhci->pci_dev, addr, tmp, len);
+}
+
 static XHCIPort *xhci_lookup_port(XHCIState *xhci, struct USBPort *uport)
 {
     int index;
@@ -1045,14 +1073,14 @@ static void xhci_set_ep_state(XHCIState *xhci, XHCIEPContext *epctx,
 {
     uint32_t ctx[5];
 
-    pci_dma_read(&xhci->pci_dev, epctx->pctx, ctx, sizeof(ctx));
+    xhci_dma_read_u32s(xhci, epctx->pctx, ctx, sizeof(ctx));
     ctx[0] &= ~EP_STATE_MASK;
     ctx[0] |= state;
     ctx[2] = epctx->ring.dequeue | epctx->ring.ccs;
     ctx[3] = (epctx->ring.dequeue >> 16) >> 16;
     DPRINTF("xhci: set epctx: " DMA_ADDR_FMT " state=%d dequeue=%08x%08x\n",
             epctx->pctx, state, ctx[3], ctx[2]);
-    pci_dma_write(&xhci->pci_dev, epctx->pctx, ctx, sizeof(ctx));
+    xhci_dma_write_u32s(xhci, epctx->pctx, ctx, sizeof(ctx));
     epctx->state = state;
 }
 
@@ -1388,7 +1416,7 @@ static void xhci_xfer_report(XHCITransfer *xfer)
     XHCIState *xhci = xfer->xhci;
     int i;
 
-    left = xfer->packet.result < 0 ? 0 : xfer->packet.result;
+    left = xfer->packet.actual_length;
 
     for (i = 0; i < xfer->trb_count; i++) {
         XHCITRB *trb = &xfer->trbs[i];
@@ -1416,7 +1444,7 @@ static void xhci_xfer_report(XHCITransfer *xfer)
 
         if (!reported && ((trb->control & TRB_TR_IOC) ||
                           (shortpkt && (trb->control & TRB_TR_ISP)) ||
-                          (xfer->status != CC_SUCCESS))) {
+                          (xfer->status != CC_SUCCESS && left == 0))) {
             event.slotid = xfer->slotid;
             event.epid = xfer->epid;
             event.length = (trb->status & 0x1ffff) - chunk;
@@ -1490,16 +1518,16 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     return 0;
 }
 
-static int xhci_complete_packet(XHCITransfer *xfer, int ret)
+static int xhci_complete_packet(XHCITransfer *xfer)
 {
-    if (ret == USB_RET_ASYNC) {
+    if (xfer->packet.status == USB_RET_ASYNC) {
         trace_usb_xhci_xfer_async(xfer);
         xfer->running_async = 1;
         xfer->running_retry = 0;
         xfer->complete = 0;
         xfer->cancelled = 0;
         return 0;
-    } else if (ret == USB_RET_NAK) {
+    } else if (xfer->packet.status == USB_RET_NAK) {
         trace_usb_xhci_xfer_nak(xfer);
         xfer->running_async = 0;
         xfer->running_retry = 1;
@@ -1513,16 +1541,16 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
         xhci_xfer_unmap(xfer);
     }
 
-    if (ret >= 0) {
-        trace_usb_xhci_xfer_success(xfer, ret);
+    if (xfer->packet.status == USB_RET_SUCCESS) {
+        trace_usb_xhci_xfer_success(xfer, xfer->packet.actual_length);
         xfer->status = CC_SUCCESS;
         xhci_xfer_report(xfer);
         return 0;
     }
 
     /* error */
-    trace_usb_xhci_xfer_error(xfer, ret);
-    switch (ret) {
+    trace_usb_xhci_xfer_error(xfer, xfer->packet.status);
+    switch (xfer->packet.status) {
     case USB_RET_NODEV:
         xfer->status = CC_USB_TRANSACTION_ERROR;
         xhci_xfer_report(xfer);
@@ -1534,7 +1562,8 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
         xhci_stall_ep(xfer);
         break;
     default:
-        fprintf(stderr, "%s: FIXME: ret = %d\n", __FUNCTION__, ret);
+        fprintf(stderr, "%s: FIXME: status = %d\n", __func__,
+                xfer->packet.status);
         FIXME();
     }
     return 0;
@@ -1544,7 +1573,6 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 {
     XHCITRB *trb_setup, *trb_status;
     uint8_t bmRequestType;
-    int ret;
 
     trb_setup = &xfer->trbs[0];
     trb_status = &xfer->trbs[xfer->trb_count-1];
@@ -1587,9 +1615,9 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     }
     xfer->packet.parameter = trb_setup->parameter;
 
-    ret = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+    usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
-    xhci_complete_packet(xfer, ret);
+    xhci_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
         xhci_kick_ep(xhci, xfer->slotid, xfer->epid);
     }
@@ -1636,7 +1664,6 @@ static void xhci_check_iso_kick(XHCIState *xhci, XHCITransfer *xfer,
 static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx)
 {
     uint64_t mfindex;
-    int ret;
 
     DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
 
@@ -1671,9 +1698,9 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     if (xhci_setup_packet(xfer) < 0) {
         return -1;
     }
-    ret = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+    usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
 
-    xhci_complete_packet(xfer, ret);
+    xhci_complete_packet(xfer);
     if (!xfer->running_async && !xfer->running_retry) {
         xhci_kick_ep(xhci, xfer->slotid, xfer->epid);
     }
@@ -1711,7 +1738,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
 
     if (epctx->retry) {
         XHCITransfer *xfer = epctx->retry;
-        int result;
 
         trace_usb_xhci_xfer_retry(xfer);
         assert(xfer->running_retry);
@@ -1725,19 +1751,19 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             if (xhci_setup_packet(xfer) < 0) {
                 return;
             }
-            result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-            assert(result != USB_RET_NAK);
-            xhci_complete_packet(xfer, result);
+            usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+            assert(xfer->packet.status != USB_RET_NAK);
+            xhci_complete_packet(xfer);
         } else {
             /* retry nak'ed transfer */
             if (xhci_setup_packet(xfer) < 0) {
                 return;
             }
-            result = usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
-            if (result == USB_RET_NAK) {
+            usb_handle_packet(xfer->packet.ep->dev, &xfer->packet);
+            if (xfer->packet.status == USB_RET_NAK) {
                 return;
             }
-            xhci_complete_packet(xfer, result);
+            xhci_complete_packet(xfer);
         }
         assert(!xfer->running_retry);
         epctx->retry = NULL;
@@ -1883,14 +1909,14 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     assert(slotid >= 1 && slotid <= xhci->numslots);
 
     dcbaap = xhci_addr64(xhci->dcbaap_low, xhci->dcbaap_high);
-    pci_dma_read(&xhci->pci_dev, dcbaap + 8*slotid, &poctx, sizeof(poctx));
+    poctx = ldq_le_pci_dma(&xhci->pci_dev, dcbaap + 8*slotid);
     ictx = xhci_mask64(pictx);
-    octx = xhci_mask64(le64_to_cpu(poctx));
+    octx = xhci_mask64(poctx);
 
     DPRINTF("xhci: input context at "DMA_ADDR_FMT"\n", ictx);
     DPRINTF("xhci: output context at "DMA_ADDR_FMT"\n", octx);
 
-    pci_dma_read(&xhci->pci_dev, ictx, ictl_ctx, sizeof(ictl_ctx));
+    xhci_dma_read_u32s(xhci, ictx, ictl_ctx, sizeof(ictl_ctx));
 
     if (ictl_ctx[0] != 0x0 || ictl_ctx[1] != 0x3) {
         fprintf(stderr, "xhci: invalid input context control %08x %08x\n",
@@ -1898,8 +1924,8 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         return CC_TRB_ERROR;
     }
 
-    pci_dma_read(&xhci->pci_dev, ictx+32, slot_ctx, sizeof(slot_ctx));
-    pci_dma_read(&xhci->pci_dev, ictx+64, ep0_ctx, sizeof(ep0_ctx));
+    xhci_dma_read_u32s(xhci, ictx+32, slot_ctx, sizeof(slot_ctx));
+    xhci_dma_read_u32s(xhci, ictx+64, ep0_ctx, sizeof(ep0_ctx));
 
     DPRINTF("xhci: input slot context: %08x %08x %08x %08x\n",
             slot_ctx[0], slot_ctx[1], slot_ctx[2], slot_ctx[3]);
@@ -1953,8 +1979,8 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     DPRINTF("xhci: output ep0 context: %08x %08x %08x %08x %08x\n",
             ep0_ctx[0], ep0_ctx[1], ep0_ctx[2], ep0_ctx[3], ep0_ctx[4]);
 
-    pci_dma_write(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
-    pci_dma_write(&xhci->pci_dev, octx+32, ep0_ctx, sizeof(ep0_ctx));
+    xhci_dma_write_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
+    xhci_dma_write_u32s(xhci, octx+32, ep0_ctx, sizeof(ep0_ctx));
 
     return res;
 }
@@ -1987,17 +2013,17 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
             }
         }
 
-        pci_dma_read(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+        xhci_dma_read_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
         slot_ctx[3] &= ~(SLOT_STATE_MASK << SLOT_STATE_SHIFT);
         slot_ctx[3] |= SLOT_ADDRESSED << SLOT_STATE_SHIFT;
         DPRINTF("xhci: output slot context: %08x %08x %08x %08x\n",
                 slot_ctx[0], slot_ctx[1], slot_ctx[2], slot_ctx[3]);
-        pci_dma_write(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+        xhci_dma_write_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
 
         return CC_SUCCESS;
     }
 
-    pci_dma_read(&xhci->pci_dev, ictx, ictl_ctx, sizeof(ictl_ctx));
+    xhci_dma_read_u32s(xhci, ictx, ictl_ctx, sizeof(ictl_ctx));
 
     if ((ictl_ctx[0] & 0x3) != 0x0 || (ictl_ctx[1] & 0x3) != 0x1) {
         fprintf(stderr, "xhci: invalid input context control %08x %08x\n",
@@ -2005,8 +2031,8 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
         return CC_TRB_ERROR;
     }
 
-    pci_dma_read(&xhci->pci_dev, ictx+32, islot_ctx, sizeof(islot_ctx));
-    pci_dma_read(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+    xhci_dma_read_u32s(xhci, ictx+32, islot_ctx, sizeof(islot_ctx));
+    xhci_dma_read_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
 
     if (SLOT_STATE(slot_ctx[3]) < SLOT_ADDRESSED) {
         fprintf(stderr, "xhci: invalid slot state %08x\n", slot_ctx[3]);
@@ -2018,8 +2044,7 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
             xhci_disable_ep(xhci, slotid, i);
         }
         if (ictl_ctx[1] & (1<<i)) {
-            pci_dma_read(&xhci->pci_dev, ictx+32+(32*i), ep_ctx,
-                         sizeof(ep_ctx));
+            xhci_dma_read_u32s(xhci, ictx+32+(32*i), ep_ctx, sizeof(ep_ctx));
             DPRINTF("xhci: input ep%d.%d context: %08x %08x %08x %08x %08x\n",
                     i/2, i%2, ep_ctx[0], ep_ctx[1], ep_ctx[2],
                     ep_ctx[3], ep_ctx[4]);
@@ -2031,7 +2056,7 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
             DPRINTF("xhci: output ep%d.%d context: %08x %08x %08x %08x %08x\n",
                     i/2, i%2, ep_ctx[0], ep_ctx[1], ep_ctx[2],
                     ep_ctx[3], ep_ctx[4]);
-            pci_dma_write(&xhci->pci_dev, octx+(32*i), ep_ctx, sizeof(ep_ctx));
+            xhci_dma_write_u32s(xhci, octx+(32*i), ep_ctx, sizeof(ep_ctx));
         }
     }
 
@@ -2043,7 +2068,7 @@ static TRBCCode xhci_configure_slot(XHCIState *xhci, unsigned int slotid,
     DPRINTF("xhci: output slot context: %08x %08x %08x %08x\n",
             slot_ctx[0], slot_ctx[1], slot_ctx[2], slot_ctx[3]);
 
-    pci_dma_write(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+    xhci_dma_write_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
 
     return CC_SUCCESS;
 }
@@ -2068,7 +2093,7 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
     DPRINTF("xhci: input context at "DMA_ADDR_FMT"\n", ictx);
     DPRINTF("xhci: output context at "DMA_ADDR_FMT"\n", octx);
 
-    pci_dma_read(&xhci->pci_dev, ictx, ictl_ctx, sizeof(ictl_ctx));
+    xhci_dma_read_u32s(xhci, ictx, ictl_ctx, sizeof(ictl_ctx));
 
     if (ictl_ctx[0] != 0x0 || ictl_ctx[1] & ~0x3) {
         fprintf(stderr, "xhci: invalid input context control %08x %08x\n",
@@ -2077,12 +2102,12 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
     }
 
     if (ictl_ctx[1] & 0x1) {
-        pci_dma_read(&xhci->pci_dev, ictx+32, islot_ctx, sizeof(islot_ctx));
+        xhci_dma_read_u32s(xhci, ictx+32, islot_ctx, sizeof(islot_ctx));
 
         DPRINTF("xhci: input slot context: %08x %08x %08x %08x\n",
                 islot_ctx[0], islot_ctx[1], islot_ctx[2], islot_ctx[3]);
 
-        pci_dma_read(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+        xhci_dma_read_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
 
         slot_ctx[1] &= ~0xFFFF; /* max exit latency */
         slot_ctx[1] |= islot_ctx[1] & 0xFFFF;
@@ -2092,17 +2117,17 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
         DPRINTF("xhci: output slot context: %08x %08x %08x %08x\n",
                 slot_ctx[0], slot_ctx[1], slot_ctx[2], slot_ctx[3]);
 
-        pci_dma_write(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+        xhci_dma_write_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
     }
 
     if (ictl_ctx[1] & 0x2) {
-        pci_dma_read(&xhci->pci_dev, ictx+64, iep0_ctx, sizeof(iep0_ctx));
+        xhci_dma_read_u32s(xhci, ictx+64, iep0_ctx, sizeof(iep0_ctx));
 
         DPRINTF("xhci: input ep0 context: %08x %08x %08x %08x %08x\n",
                 iep0_ctx[0], iep0_ctx[1], iep0_ctx[2],
                 iep0_ctx[3], iep0_ctx[4]);
 
-        pci_dma_read(&xhci->pci_dev, octx+32, ep0_ctx, sizeof(ep0_ctx));
+        xhci_dma_read_u32s(xhci, octx+32, ep0_ctx, sizeof(ep0_ctx));
 
         ep0_ctx[1] &= ~0xFFFF0000; /* max packet size*/
         ep0_ctx[1] |= iep0_ctx[1] & 0xFFFF0000;
@@ -2110,7 +2135,7 @@ static TRBCCode xhci_evaluate_slot(XHCIState *xhci, unsigned int slotid,
         DPRINTF("xhci: output ep0 context: %08x %08x %08x %08x %08x\n",
                 ep0_ctx[0], ep0_ctx[1], ep0_ctx[2], ep0_ctx[3], ep0_ctx[4]);
 
-        pci_dma_write(&xhci->pci_dev, octx+32, ep0_ctx, sizeof(ep0_ctx));
+        xhci_dma_write_u32s(xhci, octx+32, ep0_ctx, sizeof(ep0_ctx));
     }
 
     return CC_SUCCESS;
@@ -2135,12 +2160,12 @@ static TRBCCode xhci_reset_slot(XHCIState *xhci, unsigned int slotid)
         }
     }
 
-    pci_dma_read(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+    xhci_dma_read_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
     slot_ctx[3] &= ~(SLOT_STATE_MASK << SLOT_STATE_SHIFT);
     slot_ctx[3] |= SLOT_DEFAULT << SLOT_STATE_SHIFT;
     DPRINTF("xhci: output slot context: %08x %08x %08x %08x\n",
             slot_ctx[0], slot_ctx[1], slot_ctx[2], slot_ctx[3]);
-    pci_dma_write(&xhci->pci_dev, octx, slot_ctx, sizeof(slot_ctx));
+    xhci_dma_write_u32s(xhci, octx, slot_ctx, sizeof(slot_ctx));
 
     return CC_SUCCESS;
 }
@@ -2922,11 +2947,11 @@ static void xhci_complete(USBPort *port, USBPacket *packet)
 {
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
 
-    if (packet->result == USB_RET_REMOVE_FROM_QUEUE) {
+    if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
         xhci_ep_nuke_one_xfer(xfer);
         return;
     }
-    xhci_complete_packet(xfer, packet->result);
+    xhci_complete_packet(xfer);
     xhci_kick_ep(xfer->xhci, xfer->slotid, xfer->epid);
 }
 
