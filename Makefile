@@ -122,7 +122,7 @@ subdir-pixman: pixman/Makefile
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pixman V="$(V)" all,)
 
 pixman/Makefile: $(SRC_PATH)/pixman/configure
-	(cd pixman; $(SRC_PATH)/pixman/configure --disable-shared --enable-static)
+	(cd pixman; CFLAGS="$(CFLAGS) -fPIC" $(SRC_PATH)/pixman/configure $(AUTOCONF_HOST) --disable-gtk --disable-shared --enable-static)
 
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
@@ -278,6 +278,7 @@ distclean: clean
 	for d in $(TARGET_DIRS) $(QEMULIBS); do \
 	rm -rf $$d || exit 1 ; \
         done
+	test -f pixman/config.log && make -C pixman distclean
 
 KEYMAPS=da     en-gb  et  fr     fr-ch  is  lt  modifiers  no  pt-br  sv \
 ar      de     en-us  fi  fr-be  hr     it  lv  nl         pl  ru     th \

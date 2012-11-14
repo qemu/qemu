@@ -1,3 +1,8 @@
+/*
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
+
 #include "qemu-pixman.h"
 
 int qemu_pixman_get_type(int rshift, int gshift, int bshift)

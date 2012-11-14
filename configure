@@ -2121,11 +2121,10 @@ else
     echo "      git submodule update --init pixman"
     exit 1
   fi
-  pixman_cflags="-I${source_path}/pixman/pixman"
-  pixman_libs="-Lpixman/pixman/.libs -lpixman-1"
+  mkdir -p pixman/pixman
+  pixman_cflags="-I\$(SRC_PATH)/pixman/pixman -I\$(BUILD_DIR)/pixman/pixman"
+  pixman_libs="-L\$(BUILD_DIR)/pixman/pixman/.libs -lpixman-1"
 fi
-QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
-libs_softmmu="$libs_softmmu $pixman_libs"
 
 ##########################################
 # libcap probe
@@ -3137,6 +3136,10 @@ if test "$cpu" = "ppc64" -a "$targetos" != "Darwin" ; then
   roms="$roms spapr-rtas"
 fi
 
+# add pixman flags after all config tests are done
+QEMU_CFLAGS="$QEMU_CFLAGS $pixman_cflags"
+libs_softmmu="$libs_softmmu $pixman_libs"
+
 echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $qemu_datadir`"
 echo "binary directory  `eval echo $bindir`"
@@ -3646,6 +3649,11 @@ if test "$sparse" = "yes" ; then
   echo "HOST_CC      := REAL_CC=\"\$(HOST_CC)\" cgcc"  >> $config_host_mak
   echo "QEMU_CFLAGS  += -Wbitwise -Wno-transparent-union -Wno-old-initializer -Wno-non-pointer-null" >> $config_host_mak
 fi
+if test "$cross_prefix" != ""; then
+  echo "AUTOCONF_HOST := --host=${cross_prefix%-}"     >> $config_host_mak
+else
+  echo "AUTOCONF_HOST := "                             >> $config_host_mak
+fi
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
 echo "ARLIBS_BEGIN=$arlibs_begin" >> $config_host_mak
 echo "ARLIBS_END=$arlibs_end" >> $config_host_mak
@@ -3948,9 +3956,6 @@ if test "$target_softmmu" = "yes" ; then
   if test "$smartcard_nss" = "yes" ; then
     echo "subdir-$target: subdir-libcacard" >> $config_host_mak
   fi
-  if test "$pixman" = "internal" ; then
-    echo "subdir-$target: subdir-pixman" >> $config_host_mak
-  fi
   case "$target_arch2" in
     i386|x86_64)
       echo "CONFIG_HAVE_CORE_DUMP=y" >> $config_target_mak
@@ -4148,13 +4153,16 @@ echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
 
 done # for target in $targets
 
+if [ "$pixman" = "internal" ]; then
+  echo "config-host.h: subdir-pixman" >> $config_host_mak
+fi
+
 # build tree in object directory in case the source is not in the current directory
 DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32"
 DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS qapi-generated"
 DIRS="$DIRS libcacard libcacard/libcacard libcacard/trace"
-DIRS="$DIRS pixman"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
 FILES="$FILES tests/tcg/lm32/Makefile libcacard/Makefile"
