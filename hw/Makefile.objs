@@ -38,6 +38,7 @@ common-obj-$(CONFIG_SMARTCARD) += ccid-card-passthru.o
 common-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
 common-obj-y += fifo.o
+common-obj-y += pam.o
 
 # PPC devices
 common-obj-$(CONFIG_PREP_PCI) += prep_pci.o
