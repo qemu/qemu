@@ -34,6 +34,7 @@
 #include "mc146818rtc.h"
 #include "xen.h"
 #include "kvm.h"
+#include "kvm/clock.h"
 #include "q35.h"
 #include "exec-memory.h"
 #include "ich9.h"
@@ -86,6 +87,8 @@ static void pc_q35_init(QEMUMachineInitArgs *args)
     qemu_irq *cmos_s3;
 
     pc_cpus_init(cpu_model);
+
+    kvmclock_create();
 
     if (ram_size >= 0xb0000000) {
         above_4g_mem_size = ram_size - 0xb0000000;
