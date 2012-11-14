@@ -365,6 +365,15 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs);
 void bdrv_set_in_use(BlockDriverState *bs, int in_use);
 int bdrv_in_use(BlockDriverState *bs);
 
+#ifdef CONFIG_LINUX_AIO
+int raw_get_aio_fd(BlockDriverState *bs);
+#else
+static inline int raw_get_aio_fd(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+#endif
+
 enum BlockAcctType {
     BDRV_ACCT_READ,
     BDRV_ACCT_WRITE,
