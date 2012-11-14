@@ -37,7 +37,7 @@ int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 
         while (len) {
             dma_addr_t xlen = len;
-            mem = dma_memory_map(sgl->dma, sgl->sg[i].base, &xlen, dir);
+            mem = dma_memory_map(sgl->dma, base, &xlen, dir);
             if (!mem) {
                 goto err;
             }
