@@ -204,7 +204,7 @@ static void virtio_scsi_bad_req(void)
 static void qemu_sgl_init_external(QEMUSGList *qsgl, struct iovec *sg,
                                    hwaddr *addr, int num)
 {
-    memset(qsgl, 0, sizeof(*qsgl));
+    qemu_sglist_init(qsgl, num, &dma_context_memory);
     while (num--) {
         qemu_sglist_add(qsgl, *(addr++), (sg++)->iov_len);
     }
@@ -596,6 +596,10 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     VirtIOSCSIEvent *evt;
     int in_size;
 
+    if (!(s->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        return;
+    }
+
     if (!req) {
         s->events_dropped = true;
         return;
@@ -648,7 +652,6 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
 
     if (((s->vdev.guest_features >> VIRTIO_SCSI_F_CHANGE) & 1) &&
-        (s->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK) &&
         dev->type != TYPE_ROM) {
         virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_PARAM_CHANGE,
                                sense.asc | (sense.ascq << 8));
@@ -659,8 +662,7 @@ static void virtio_scsi_hotplug(SCSIBus *bus, SCSIDevice *dev)
 {
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
 
-    if (((s->vdev.guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) &&
-        (s->vdev.status & VIRTIO_CONFIG_S_DRIVER_OK)) {
+    if ((s->vdev.guest_features >> VIRTIO_SCSI_F_HOTPLUG) & 1) {
         virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_TRANSPORT_RESET,
                                VIRTIO_SCSI_EVT_RESET_RESCAN);
     }

@@ -1085,7 +1085,7 @@ struct mfi_pd_list {
 union mfi_ld_ref {
     struct {
         uint8_t target_id;
-        uint8_t reserved;
+        uint8_t lun_id;
         uint16_t seq;
     } v;
     uint32_t ref;
