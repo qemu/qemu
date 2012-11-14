@@ -189,6 +189,7 @@ static const char *ehci_mmio_names[] = {
 
 static int ehci_state_executing(EHCIQueue *q);
 static int ehci_state_writeback(EHCIQueue *q);
+static int ehci_state_advqueue(EHCIQueue *q);
 static int ehci_fill_queue(EHCIPacket *p);
 
 static const char *nr2str(const char **n, size_t len, uint32_t nr)
@@ -459,6 +460,9 @@ static void ehci_free_packet(EHCIPacket *p)
         fprintf(stderr, "EHCI: Warning packet completed but not processed\n");
         ehci_state_executing(q);
         ehci_state_writeback(q);
+        if (!(q->qh.token & QTD_TOKEN_HALT)) {
+            ehci_state_advqueue(q);
+        }
         ehci_set_state(q->ehci, q->async, state);
         /* state_writeback recurses into us with async == EHCI_ASYNC_NONE!! */
         return;
