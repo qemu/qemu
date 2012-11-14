@@ -48,6 +48,7 @@
 #include "qemu/config-file.h"
 #include "qmp-commands.h"
 #include "trace.h"
+#include "exec/cpu-all.h"
 
 #ifdef DEBUG_ARCH_INIT
 #define DPRINTF(fmt, ...) \

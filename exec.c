@@ -43,6 +43,7 @@
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #endif
+#include "exec/cpu-all.h"
 
 #include "exec/cputlb.h"
 #include "translate-all.h"
@@ -1043,6 +1044,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     new_block->length = size;
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
+    ram_list.mru_block = NULL;
 
     ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
@@ -1071,6 +1073,7 @@ void qemu_ram_free_from_ptr(ram_addr_t addr)
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (addr == block->offset) {
             QLIST_REMOVE(block, next);
+            ram_list.mru_block = NULL;
             g_free(block);
             return;
         }
@@ -1084,6 +1087,7 @@ void qemu_ram_free(ram_addr_t addr)
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (addr == block->offset) {
             QLIST_REMOVE(block, next);
+            ram_list.mru_block = NULL;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
             } else if (mem_path) {
@@ -1189,37 +1193,40 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
 {
     RAMBlock *block;
 
+    block = ram_list.mru_block;
+    if (block && addr - block->offset < block->length) {
+        goto found;
+    }
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (addr - block->offset < block->length) {
-            /* Move this entry to to start of the list.  */
-            if (block != QLIST_FIRST(&ram_list.blocks)) {
-                QLIST_REMOVE(block, next);
-                QLIST_INSERT_HEAD(&ram_list.blocks, block, next);
-            }
-            if (xen_enabled()) {
-                /* We need to check if the requested address is in the RAM
-                 * because we don't want to map the entire memory in QEMU.
-                 * In that case just map until the end of the page.
-                 */
-                if (block->offset == 0) {
-                    return xen_map_cache(addr, 0, 0);
-                } else if (block->host == NULL) {
-                    block->host =
-                        xen_map_cache(block->offset, block->length, 1);
-                }
-            }
-            return block->host + (addr - block->offset);
+            goto found;
         }
     }
 
     fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
     abort();
 
-    return NULL;
+found:
+    ram_list.mru_block = block;
+    if (xen_enabled()) {
+        /* We need to check if the requested address is in the RAM
+         * because we don't want to map the entire memory in QEMU.
+         * In that case just map until the end of the page.
+         */
+        if (block->offset == 0) {
+            return xen_map_cache(addr, 0, 0);
+        } else if (block->host == NULL) {
+            block->host =
+                xen_map_cache(block->offset, block->length, 1);
+        }
+    }
+    return block->host + (addr - block->offset);
 }
 
-/* Return a host pointer to ram allocated with qemu_ram_alloc.
- * Same as qemu_get_ram_ptr but avoid reordering ramblocks.
+/* Return a host pointer to ram allocated with qemu_ram_alloc.  Same as
+ * qemu_get_ram_ptr but do not touch ram_list.mru_block.
+ *
+ * ??? Is this still necessary?
  */
 static void *qemu_safe_ram_ptr(ram_addr_t addr)
 {
