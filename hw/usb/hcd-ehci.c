@@ -453,12 +453,13 @@ static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
 static void ehci_free_packet(EHCIPacket *p)
 {
     if (p->async == EHCI_ASYNC_FINISHED) {
-        int state = ehci_get_state(p->queue->ehci, p->queue->async);
+        EHCIQueue *q = p->queue;
+        int state = ehci_get_state(q->ehci, q->async);
         /* This is a normal, but rare condition (cancel racing completion) */
         fprintf(stderr, "EHCI: Warning packet completed but not processed\n");
-        ehci_state_executing(p->queue);
-        ehci_state_writeback(p->queue);
-        ehci_set_state(p->queue->ehci, p->queue->async, state);
+        ehci_state_executing(q);
+        ehci_state_writeback(q);
+        ehci_set_state(q->ehci, q->async, state);
         /* state_writeback recurses into us with async == EHCI_ASYNC_NONE!! */
         return;
     }
