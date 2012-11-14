@@ -6,6 +6,7 @@ obj-y += pci-hotplug.o smbios.o wdt_ib700.o
 obj-y += debugcon.o multiboot.o
 obj-y += pc_piix.o
 obj-y += pc_sysfw.o
+obj-y += lpc_ich9.o
 obj-$(CONFIG_XEN) += xen_platform.o xen_apic.o
 obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen-host-pci-device.o
 obj-$(CONFIG_XEN_PCI_PASSTHROUGH) += xen_pt.o xen_pt_config_init.o xen_pt_msi.o
