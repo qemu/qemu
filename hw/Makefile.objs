@@ -10,6 +10,7 @@ common-obj-$(CONFIG_PCI) += shpc.o
 common-obj-$(CONFIG_PCI) += slotid_cap.o
 common-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
 common-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
+common-obj-$(CONFIG_PCI) += i82801b11.o
 common-obj-y += watchdog.o
 common-obj-$(CONFIG_ISA_MMIO) += isa_mmio.o
 common-obj-$(CONFIG_ECC) += ecc.o
