@@ -382,7 +382,7 @@ static void migration_bitmap_sync(void)
     trace_migration_bitmap_sync_start();
     memory_global_sync_dirty_bitmap(get_system_memory());
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
             if (memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
                                         DIRTY_MEMORY_MIGRATION)) {
@@ -424,7 +424,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
     ram_addr_t current_addr;
 
     if (!block)
-        block = QLIST_FIRST(&ram_list.blocks);
+        block = QTAILQ_FIRST(&ram_list.blocks);
 
     do {
         mr = block->mr;
@@ -465,9 +465,9 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
         offset += TARGET_PAGE_SIZE;
         if (offset >= block->length) {
             offset = 0;
-            block = QLIST_NEXT(block, next);
+            block = QTAILQ_NEXT(block, next);
             if (!block)
-                block = QLIST_FIRST(&ram_list.blocks);
+                block = QTAILQ_FIRST(&ram_list.blocks);
         }
     } while (block != last_block || offset != last_offset);
 
@@ -499,7 +499,7 @@ uint64_t ram_bytes_total(void)
     RAMBlock *block;
     uint64_t total = 0;
 
-    QLIST_FOREACH(block, &ram_list.blocks, next)
+    QTAILQ_FOREACH(block, &ram_list.blocks, next)
         total += block->length;
 
     return total;
@@ -518,18 +518,18 @@ static void sort_ram_list(void)
     RAMBlock *block, *nblock, **blocks;
     int n;
     n = 0;
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         ++n;
     }
     blocks = g_malloc(n * sizeof *blocks);
     n = 0;
-    QLIST_FOREACH_SAFE(block, &ram_list.blocks, next, nblock) {
+    QTAILQ_FOREACH_SAFE(block, &ram_list.blocks, next, nblock) {
         blocks[n++] = block;
-        QLIST_REMOVE(block, next);
+        QTAILQ_REMOVE(&ram_list.blocks, block, next);
     }
     qsort(blocks, n, sizeof *blocks, block_compar);
     while (--n >= 0) {
-        QLIST_INSERT_HEAD(&ram_list.blocks, blocks[n], next);
+        QTAILQ_INSERT_HEAD(&ram_list.blocks, blocks[n], next);
     }
     g_free(blocks);
 }
@@ -597,7 +597,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         qemu_put_byte(f, strlen(block->idstr));
         qemu_put_buffer(f, (uint8_t *)block->idstr, strlen(block->idstr));
         qemu_put_be64(f, block->length);
@@ -763,7 +763,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     qemu_get_buffer(f, (uint8_t *)id, len);
     id[len] = 0;
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (!strncmp(id, block->idstr, sizeof(id)))
             return memory_region_get_ram_ptr(block->mr) + offset;
     }
@@ -807,7 +807,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                     id[len] = 0;
                     length = qemu_get_be64(f);
 
-                    QLIST_FOREACH(block, &ram_list.blocks, next) {
+                    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
                         if (!strncmp(id, block->idstr, sizeof(id))) {
                             if (block->length != length) {
                                 ret =  -EINVAL;

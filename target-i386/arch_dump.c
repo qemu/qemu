@@ -403,7 +403,7 @@ int cpu_get_dump_info(ArchDumpInfo *info)
     } else {
         info->d_class = ELFCLASS32;
 
-        QLIST_FOREACH(block, &ram_list.blocks, next) {
+        QTAILQ_FOREACH(block, &ram_list.blocks, next) {
             if (block->offset + block->length > UINT_MAX) {
                 /* The memory size is greater than 4G */
                 info->d_class = ELFCLASS64;

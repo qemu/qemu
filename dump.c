@@ -427,7 +427,7 @@ static hwaddr get_offset(hwaddr phys_addr,
         }
     }
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (s->has_filter) {
             if (block->offset >= s->begin + s->length ||
                 block->offset + block->length <= s->begin) {
@@ -594,7 +594,7 @@ static int dump_completed(DumpState *s)
 static int get_next_block(DumpState *s, RAMBlock *block)
 {
     while (1) {
-        block = QLIST_NEXT(block, next);
+        block = QTAILQ_NEXT(block, next);
         if (!block) {
             /* no more block */
             return 1;
@@ -670,11 +670,11 @@ static ram_addr_t get_start_block(DumpState *s)
     RAMBlock *block;
 
     if (!s->has_filter) {
-        s->block = QLIST_FIRST(&ram_list.blocks);
+        s->block = QTAILQ_FIRST(&ram_list.blocks);
         return 0;
     }
 
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
         if (block->offset >= s->begin + s->length ||
             block->offset + block->length <= s->begin) {
             /* This block is out of the range */
