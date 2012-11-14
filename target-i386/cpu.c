@@ -66,7 +66,7 @@ static const char *ext_feature_name[] = {
     NULL, "pcid", "dca", "sse4.1|sse4_1",
     "sse4.2|sse4_2", "x2apic", "movbe", "popcnt",
     "tsc-deadline", "aes", "xsave", "osxsave",
-    "avx", NULL, NULL, "hypervisor",
+    "avx", "f16c", "rdrand", "hypervisor",
 };
 /* Feature names that are already defined on feature_name[] but are set on
  * CPUID[8000_0001].EDX on AMD CPUs don't have their names on
@@ -87,10 +87,10 @@ static const char *ext3_feature_name[] = {
     "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
     "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
     "3dnowprefetch", "osvw", "ibs", "xop",
-    "skinit", "wdt", NULL, NULL,
-    "fma4", NULL, "cvt16", "nodeid_msr",
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
+    "skinit", "wdt", NULL, "lwp",
+    "fma4", "tce", NULL, "nodeid_msr",
+    NULL, "tbm", "topoext", "perfctr_core",
+    "perfctr_nb", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
 };
 
@@ -119,7 +119,7 @@ static const char *svm_feature_name[] = {
 static const char *cpuid_7_0_ebx_feature_name[] = {
     "fsgsbase", NULL, NULL, "bmi1", "hle", "avx2", NULL, "smep",
     "bmi2", "erms", "invpcid", "rtm", NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, "smap", NULL, NULL, NULL,
+    NULL, NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
