@@ -756,6 +756,38 @@ static x86_def_t builtin_x86_defs[] = {
         .xlevel = 0x8000001A,
         .model_id = "AMD Opteron 62xx class CPU",
     },
+    {
+        .name = "Opteron_G5",
+        .level = 0xd,
+        .vendor1 = CPUID_VENDOR_AMD_1,
+        .vendor2 = CPUID_VENDOR_AMD_2,
+        .vendor3 = CPUID_VENDOR_AMD_3,
+        .family = 21,
+        .model = 2,
+        .stepping = 0,
+        .features = CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
+             CPUID_CLFLUSH | CPUID_PSE36 | CPUID_PAT | CPUID_CMOV | CPUID_MCA |
+             CPUID_PGE | CPUID_MTRR | CPUID_SEP | CPUID_APIC | CPUID_CX8 |
+             CPUID_MCE | CPUID_PAE | CPUID_MSR | CPUID_TSC | CPUID_PSE |
+             CPUID_DE | CPUID_FP87,
+        .ext_features = CPUID_EXT_F16C | CPUID_EXT_AVX | CPUID_EXT_XSAVE |
+             CPUID_EXT_AES | CPUID_EXT_POPCNT | CPUID_EXT_SSE42 |
+             CPUID_EXT_SSE41 | CPUID_EXT_CX16 | CPUID_EXT_FMA |
+             CPUID_EXT_SSSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3,
+        .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_RDTSCP |
+             CPUID_EXT2_PDPE1GB | CPUID_EXT2_FXSR | CPUID_EXT2_MMX |
+             CPUID_EXT2_NX | CPUID_EXT2_PSE36 | CPUID_EXT2_PAT |
+             CPUID_EXT2_CMOV | CPUID_EXT2_MCA | CPUID_EXT2_PGE |
+             CPUID_EXT2_MTRR | CPUID_EXT2_SYSCALL | CPUID_EXT2_APIC |
+             CPUID_EXT2_CX8 | CPUID_EXT2_MCE | CPUID_EXT2_PAE | CPUID_EXT2_MSR |
+             CPUID_EXT2_TSC | CPUID_EXT2_PSE | CPUID_EXT2_DE | CPUID_EXT2_FPU,
+        .ext3_features = CPUID_EXT3_TBM | CPUID_EXT3_FMA4 | CPUID_EXT3_XOP |
+             CPUID_EXT3_3DNOWPREFETCH | CPUID_EXT3_MISALIGNSSE |
+             CPUID_EXT3_SSE4A | CPUID_EXT3_ABM | CPUID_EXT3_SVM |
+             CPUID_EXT3_LAHF_LM,
+        .xlevel = 0x8000001A,
+        .model_id = "AMD Opteron 63xx class CPU",
+    },
 };
 
 #ifdef CONFIG_KVM
