@@ -505,35 +505,6 @@ uint64_t ram_bytes_total(void)
     return total;
 }
 
-static int block_compar(const void *a, const void *b)
-{
-    RAMBlock * const *ablock = a;
-    RAMBlock * const *bblock = b;
-
-    return strcmp((*ablock)->idstr, (*bblock)->idstr);
-}
-
-static void sort_ram_list(void)
-{
-    RAMBlock *block, *nblock, **blocks;
-    int n;
-    n = 0;
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        ++n;
-    }
-    blocks = g_malloc(n * sizeof *blocks);
-    n = 0;
-    QTAILQ_FOREACH_SAFE(block, &ram_list.blocks, next, nblock) {
-        blocks[n++] = block;
-        QTAILQ_REMOVE(&ram_list.blocks, block, next);
-    }
-    qsort(blocks, n, sizeof *blocks, block_compar);
-    while (--n >= 0) {
-        QTAILQ_INSERT_HEAD(&ram_list.blocks, blocks[n], next);
-    }
-    g_free(blocks);
-}
-
 static void migration_end(void)
 {
     if (migration_bitmap) {
@@ -562,7 +533,6 @@ static void reset_ram_globals(void)
 {
     last_block = NULL;
     last_offset = 0;
-    sort_ram_list();
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */

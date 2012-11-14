@@ -1007,7 +1007,7 @@ static int memory_try_enable_merging(void *addr, size_t len)
 ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr)
 {
-    RAMBlock *new_block;
+    RAMBlock *block, *new_block;
 
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
@@ -1043,7 +1043,17 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     }
     new_block->length = size;
 
-    QTAILQ_INSERT_HEAD(&ram_list.blocks, new_block, next);
+    /* Keep the list sorted from biggest to smallest block.  */
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+        if (block->length < new_block->length) {
+            break;
+        }
+    }
+    if (block) {
+        QTAILQ_INSERT_BEFORE(block, new_block, next);
+    } else {
+        QTAILQ_INSERT_TAIL(&ram_list.blocks, new_block, next);
+    }
     ram_list.mru_block = NULL;
 
     ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
