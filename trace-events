@@ -98,6 +98,9 @@ virtio_blk_rw_complete(void *req, int ret) "req %p ret %d"
 virtio_blk_handle_write(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
 virtio_blk_handle_read(void *req, uint64_t sector, size_t nsectors) "req %p sector %"PRIu64" nsectors %zu"
 
+# hw/dataplane/vring.c
+vring_setup(uint64_t physical, void *desc, void *avail, void *used) "vring physical %#"PRIx64" desc %p avail %p used %p"
+
 # thread-pool.c
 thread_pool_submit(void *req, void *opaque) "req %p opaque %p"
 thread_pool_complete(void *req, void *opaque, int ret) "req %p opaque %p ret %d"

@@ -1,3 +1,3 @@
 ifeq ($(CONFIG_VIRTIO), y)
-common-obj-$(CONFIG_VIRTIO_BLK_DATA_PLANE) += hostmem.o
+common-obj-$(CONFIG_VIRTIO_BLK_DATA_PLANE) += hostmem.o vring.o
 endif
