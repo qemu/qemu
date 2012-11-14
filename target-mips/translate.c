@@ -10385,7 +10385,7 @@ enum {
 
     /* bits 13..12 for 0x32 */
     MULT_ACC = 0x0,
-    MULTU_ACC = 0x0,
+    MULTU_ACC = 0x1,
 
     /* bits 15..12 for 0x2c */
     SEB = 0x2,
