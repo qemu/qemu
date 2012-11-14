@@ -217,8 +217,6 @@ const char *path(const char *pathname);
 
 void *qemu_oom_check(void *ptr);
 
-int qemu_open(const char *name, int flags, ...);
-int qemu_close(int fd);
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;
 ssize_t qemu_send_full(int fd, const void *buf, size_t count, int flags)
