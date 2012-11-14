@@ -264,9 +264,11 @@ static int ich9_gsi_to_pirq(int gsi)
 
 static void ich9_lpc_update_apic(ICH9LPCState *lpc, int gsi)
 {
-    int level;
+    int level = 0;
 
-    level = pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
+    if (gsi >= ICH9_LPC_PIC_NUM_PINS) {
+        level |= pci_bus_get_irq_level(lpc->d.bus, ich9_gsi_to_pirq(gsi));
+    }
     if (gsi == ich9_lpc_sci_irq(lpc)) {
         level |= lpc->sci_level;
     }
