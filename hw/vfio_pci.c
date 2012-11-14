@@ -185,6 +185,21 @@ static void vfio_unmask_intx(VFIODevice *vdev)
     ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
 }
 
+#ifdef CONFIG_KVM /* Unused outside of CONFIG_KVM code */
+static void vfio_mask_intx(VFIODevice *vdev)
+{
+    struct vfio_irq_set irq_set = {
+        .argsz = sizeof(irq_set),
+        .flags = VFIO_IRQ_SET_DATA_NONE | VFIO_IRQ_SET_ACTION_MASK,
+        .index = VFIO_PCI_INTX_IRQ_INDEX,
+        .start = 0,
+        .count = 1,
+    };
+
+    ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
+}
+#endif
+
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
  * also be a huge overhead.  We try to get the best of both worlds by
@@ -248,6 +263,161 @@ static void vfio_eoi(VFIODevice *vdev)
     vfio_unmask_intx(vdev);
 }
 
+static void vfio_enable_intx_kvm(VFIODevice *vdev)
+{
+#ifdef CONFIG_KVM
+    struct kvm_irqfd irqfd = {
+        .fd = event_notifier_get_fd(&vdev->intx.interrupt),
+        .gsi = vdev->intx.route.irq,
+        .flags = KVM_IRQFD_FLAG_RESAMPLE,
+    };
+    struct vfio_irq_set *irq_set;
+    int ret, argsz;
+    int32_t *pfd;
+
+    if (!kvm_irqchip_in_kernel() ||
+        vdev->intx.route.mode != PCI_INTX_ENABLED ||
+        !kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
+        return;
+    }
+
+    /* Get to a known interrupt state */
+    qemu_set_fd_handler(irqfd.fd, NULL, NULL, vdev);
+    vfio_mask_intx(vdev);
+    vdev->intx.pending = false;
+    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+
+    /* Get an eventfd for resample/unmask */
+    if (event_notifier_init(&vdev->intx.unmask, 0)) {
+        error_report("vfio: Error: event_notifier_init failed eoi\n");
+        goto fail;
+    }
+
+    /* KVM triggers it, VFIO listens for it */
+    irqfd.resamplefd = event_notifier_get_fd(&vdev->intx.unmask);
+
+    if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
+        error_report("vfio: Error: Failed to setup resample irqfd: %m\n");
+        goto fail_irqfd;
+    }
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_UNMASK;
+    irq_set->index = VFIO_PCI_INTX_IRQ_INDEX;
+    irq_set->start = 0;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+
+    *pfd = irqfd.resamplefd;
+
+    ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+    g_free(irq_set);
+    if (ret) {
+        error_report("vfio: Error: Failed to setup INTx unmask fd: %m\n");
+        goto fail_vfio;
+    }
+
+    /* Let'em rip */
+    vfio_unmask_intx(vdev);
+
+    vdev->intx.kvm_accel = true;
+
+    DPRINTF("%s(%04x:%02x:%02x.%x) KVM INTx accel enabled\n",
+            __func__, vdev->host.domain, vdev->host.bus,
+            vdev->host.slot, vdev->host.function);
+
+    return;
+
+fail_vfio:
+    irqfd.flags = KVM_IRQFD_FLAG_DEASSIGN;
+    kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd);
+fail_irqfd:
+    event_notifier_cleanup(&vdev->intx.unmask);
+fail:
+    qemu_set_fd_handler(irqfd.fd, vfio_intx_interrupt, NULL, vdev);
+    vfio_unmask_intx(vdev);
+#endif
+}
+
+static void vfio_disable_intx_kvm(VFIODevice *vdev)
+{
+#ifdef CONFIG_KVM
+    struct kvm_irqfd irqfd = {
+        .fd = event_notifier_get_fd(&vdev->intx.interrupt),
+        .gsi = vdev->intx.route.irq,
+        .flags = KVM_IRQFD_FLAG_DEASSIGN,
+    };
+
+    if (!vdev->intx.kvm_accel) {
+        return;
+    }
+
+    /*
+     * Get to a known state, hardware masked, QEMU ready to accept new
+     * interrupts, QEMU IRQ de-asserted.
+     */
+    vfio_mask_intx(vdev);
+    vdev->intx.pending = false;
+    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+
+    /* Tell KVM to stop listening for an INTx irqfd */
+    if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
+        error_report("vfio: Error: Failed to disable INTx irqfd: %m\n");
+    }
+
+    /* We only need to close the eventfd for VFIO to cleanup the kernel side */
+    event_notifier_cleanup(&vdev->intx.unmask);
+
+    /* QEMU starts listening for interrupt events. */
+    qemu_set_fd_handler(irqfd.fd, vfio_intx_interrupt, NULL, vdev);
+
+    vdev->intx.kvm_accel = false;
+
+    /* If we've missed an event, let it re-fire through QEMU */
+    vfio_unmask_intx(vdev);
+
+    DPRINTF("%s(%04x:%02x:%02x.%x) KVM INTx accel disabled\n",
+            __func__, vdev->host.domain, vdev->host.bus,
+            vdev->host.slot, vdev->host.function);
+#endif
+}
+
+static void vfio_update_irq(PCIDevice *pdev)
+{
+    VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
+    PCIINTxRoute route;
+
+    if (vdev->interrupt != VFIO_INT_INTx) {
+        return;
+    }
+
+    route = pci_device_route_intx_to_irq(&vdev->pdev, vdev->intx.pin);
+
+    if (!pci_intx_route_changed(&vdev->intx.route, &route)) {
+        return; /* Nothing changed */
+    }
+
+    DPRINTF("%s(%04x:%02x:%02x.%x) IRQ moved %d -> %d\n", __func__,
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function, vdev->intx.route.irq, route.irq);
+
+    vfio_disable_intx_kvm(vdev);
+
+    vdev->intx.route = route;
+
+    if (route.mode != PCI_INTX_ENABLED) {
+        return;
+    }
+
+    vfio_enable_intx_kvm(vdev);
+
+    /* Re-enable the interrupt in cased we missed an EOI */
+    vfio_eoi(vdev);
+}
+
 static int vfio_enable_intx(VFIODevice *vdev)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
@@ -262,6 +432,18 @@ static int vfio_enable_intx(VFIODevice *vdev)
     vfio_disable_interrupts(vdev);
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
+
+#ifdef CONFIG_KVM
+    /*
+     * Only conditional to avoid generating error messages on platforms
+     * where we won't actually use the result anyway.
+     */
+    if (kvm_check_extension(kvm_state, KVM_CAP_IRQFD_RESAMPLE)) {
+        vdev->intx.route = pci_device_route_intx_to_irq(&vdev->pdev,
+                                                        vdev->intx.pin);
+    }
+#endif
+
     ret = event_notifier_init(&vdev->intx.interrupt, 0);
     if (ret) {
         error_report("vfio: Error: event_notifier_init failed\n");
@@ -290,6 +472,8 @@ static int vfio_enable_intx(VFIODevice *vdev)
         return -errno;
     }
 
+    vfio_enable_intx_kvm(vdev);
+
     vdev->interrupt = VFIO_INT_INTx;
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
@@ -303,6 +487,7 @@ static void vfio_disable_intx(VFIODevice *vdev)
     int fd;
 
     qemu_del_timer(vdev->intx.mmap_timer);
+    vfio_disable_intx_kvm(vdev);
     vfio_disable_irqindex(vdev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
     qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
@@ -503,28 +688,6 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     vector->use = false;
 }
 
-/* TODO This should move to msi.c */
-static MSIMessage msi_get_msg(PCIDevice *pdev, unsigned int vector)
-{
-    uint16_t flags = pci_get_word(pdev->config + pdev->msi_cap + PCI_MSI_FLAGS);
-    bool msi64bit = flags & PCI_MSI_FLAGS_64BIT;
-    MSIMessage msg;
-
-    if (msi64bit) {
-        msg.address = pci_get_quad(pdev->config +
-                                   pdev->msi_cap + PCI_MSI_ADDRESS_LO);
-    } else {
-        msg.address = pci_get_long(pdev->config +
-                                   pdev->msi_cap + PCI_MSI_ADDRESS_LO);
-    }
-
-    msg.data = pci_get_word(pdev->config + pdev->msi_cap +
-                            (msi64bit ? PCI_MSI_DATA_64 : PCI_MSI_DATA_32));
-    msg.data += vector;
-
-    return msg;
-}
-
 static void vfio_enable_msix(VFIODevice *vdev)
 {
     vfio_disable_interrupts(vdev);
@@ -563,7 +726,7 @@ retry:
             error_report("vfio: Error: event_notifier_init failed\n");
         }
 
-        msg = msi_get_msg(&vdev->pdev, i);
+        msg = msi_get_message(&vdev->pdev, i);
 
         /*
          * Attempt to enable route through KVM irqchip,
@@ -1839,6 +2002,7 @@ static int vfio_initfn(PCIDevice *pdev)
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
         vdev->intx.mmap_timer = qemu_new_timer_ms(vm_clock,
                                                   vfio_intx_mmap_enable, vdev);
+        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_update_irq);
         ret = vfio_enable_intx(vdev);
         if (ret) {
             goto out_teardown;
