@@ -377,6 +377,11 @@ static inline pixman_format_code_t ds_get_format(DisplayState *ds)
     return ds->surface->format;
 }
 
+static inline pixman_image_t *ds_get_image(DisplayState *ds)
+{
+    return ds->surface->image;
+}
+
 static inline int ds_get_depth(DisplayState *ds)
 {
     return ds->surface->pf.depth;
