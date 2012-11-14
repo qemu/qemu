@@ -95,29 +95,6 @@ static void kvm_piix3_gsi_handler(void *opaque, int n, int level)
     }
 }
 
-static void ioapic_init(GSIState *gsi_state)
-{
-    DeviceState *dev;
-    SysBusDevice *d;
-    unsigned int i;
-
-    if (kvm_irqchip_in_kernel()) {
-        dev = qdev_create(NULL, "kvm-ioapic");
-    } else {
-        dev = qdev_create(NULL, "ioapic");
-    }
-    /* FIXME: this should be under the piix3.  */
-    object_property_add_child(object_resolve_path("i440fx", NULL),
-                              "ioapic", OBJECT(dev), NULL);
-    qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
-    sysbus_mmio_map(d, 0, 0xfec00000);
-
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
-    }
-}
-
 /* PC hardware initialisation */
 static void pc_init1(MemoryRegion *system_memory,
                      MemoryRegion *system_io,
@@ -221,7 +198,7 @@ static void pc_init1(MemoryRegion *system_memory,
         gsi_state->i8259_irq[i] = i8259[i];
     }
     if (pci_enabled) {
-        ioapic_init(gsi_state);
+        ioapic_init_gsi(gsi_state, "i440fx");
     }
 
     pc_register_ferr_irq(gsi[13]);

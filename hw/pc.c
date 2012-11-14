@@ -1083,3 +1083,27 @@ void pc_pci_device_init(PCIBus *pci_bus)
         pci_create_simple(pci_bus, -1, "lsi53c895a");
     }
 }
+
+void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
+{
+    DeviceState *dev;
+    SysBusDevice *d;
+    unsigned int i;
+
+    if (kvm_irqchip_in_kernel()) {
+        dev = qdev_create(NULL, "kvm-ioapic");
+    } else {
+        dev = qdev_create(NULL, "ioapic");
+    }
+    if (parent_name) {
+        object_property_add_child(object_resolve_path(parent_name, NULL),
+                                  "ioapic", OBJECT(dev), NULL);
+    }
+    qdev_init_nofail(dev);
+    d = sysbus_from_qdev(dev);
+    sysbus_mmio_map(d, 0, 0xfec00000);
+
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
+    }
+}
