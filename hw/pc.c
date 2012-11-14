@@ -1058,6 +1058,21 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     *floppy = fdctrl_init_isa(isa_bus, fd);
 }
 
+void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)
+{
+    int i;
+
+    for (i = 0; i < nb_nics; i++) {
+        NICInfo *nd = &nd_table[i];
+
+        if (!pci_bus || (nd->model && strcmp(nd->model, "ne2k_isa") == 0)) {
+            pc_init_ne2k_isa(isa_bus, nd);
+        } else {
+            pci_nic_init_nofail(nd, "e1000", NULL);
+        }
+    }
+}
+
 void pc_pci_device_init(PCIBus *pci_bus)
 {
     int max_bus;

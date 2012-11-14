@@ -234,14 +234,7 @@ static void pc_init1(MemoryRegion *system_memory,
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
 
-    for(i = 0; i < nb_nics; i++) {
-        NICInfo *nd = &nd_table[i];
-
-        if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
-            pc_init_ne2k_isa(isa_bus, nd);
-        else
-            pci_nic_init_nofail(nd, "e1000", NULL);
-    }
+    pc_nic_init(isa_bus, pci_bus);
 
     ide_drive_get(hd, MAX_IDE_BUS);
     if (pci_enabled) {
