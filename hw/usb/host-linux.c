@@ -385,10 +385,12 @@ static void async_complete(void *opaque)
             }
 
             if (aurb->urb.type == USBDEVFS_URB_TYPE_CONTROL) {
-                trace_usb_host_req_complete(s->bus_num, s->addr, p, p->status);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, aurb->urb.actual_length);
                 usb_generic_async_ctrl_complete(&s->dev, p);
             } else if (!aurb->more) {
-                trace_usb_host_req_complete(s->bus_num, s->addr, p, p->status);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, aurb->urb.actual_length);
                 usb_packet_complete(&s->dev, p);
             }
         }
@@ -863,8 +865,9 @@ static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
                             p->ep->nr, p->iov.size);
 
     if (!is_valid(s, p->pid, p->ep->nr)) {
-        trace_usb_host_req_complete(s->bus_num, s->addr, p, USB_RET_NAK);
         p->status = USB_RET_NAK;
+        trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                    p->status, p->actual_length);
         return;
     }
 
@@ -879,8 +882,9 @@ static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
         ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &arg);
         if (ret < 0) {
             perror("USBDEVFS_CLEAR_HALT");
-            trace_usb_host_req_complete(s->bus_num, s->addr, p, USB_RET_NAK);
             p->status = USB_RET_NAK;
+            trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                        p->status, p->actual_length);
             return;
         }
         clear_halt(s, p->pid, p->ep->nr);
@@ -936,15 +940,15 @@ static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
 
             switch(errno) {
             case ETIMEDOUT:
-                trace_usb_host_req_complete(s->bus_num, s->addr, p,
-                                            USB_RET_NAK);
                 p->status = USB_RET_NAK;
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, p->actual_length);
                 break;
             case EPIPE:
             default:
-                trace_usb_host_req_complete(s->bus_num, s->addr, p,
-                                            USB_RET_STALL);
                 p->status = USB_RET_STALL;
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, p->actual_length);
             }
             return;
         }
