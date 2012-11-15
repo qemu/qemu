@@ -135,7 +135,7 @@ static int parse_filter(const char *spec, struct USBAutoFilter *f);
 static void usb_host_auto_check(void *unused);
 static int usb_host_read_file(char *line, size_t line_size,
                             const char *device_file, const char *device_name);
-static int usb_linux_update_endp_table(USBHostDevice *s);
+static void usb_linux_update_endp_table(USBHostDevice *s);
 
 static int usb_host_usbfs_type(USBHostDevice *s, USBPacket *p)
 {
@@ -1132,8 +1132,7 @@ static void usb_host_handle_control(USBDevice *dev, USBPacket *p,
     p->status = USB_RET_ASYNC;
 }
 
-/* returns 1 on problem encountered or 0 for success */
-static int usb_linux_update_endp_table(USBHostDevice *s)
+static void usb_linux_update_endp_table(USBHostDevice *s)
 {
     static const char *tname[] = {
         [USB_ENDPOINT_XFER_CONTROL] = "control",
@@ -1159,23 +1158,23 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         if (d->bLength < 2) {
             trace_usb_host_parse_error(s->bus_num, s->addr,
                                        "descriptor too short");
-            goto error;
+            return;
         }
         if (i + d->bLength > s->descr_len) {
             trace_usb_host_parse_error(s->bus_num, s->addr,
                                        "descriptor too long");
-            goto error;
+            return;
         }
         switch (d->bDescriptorType) {
         case 0:
             trace_usb_host_parse_error(s->bus_num, s->addr,
                                        "invalid descriptor type");
-            goto error;
+            return;
         case USB_DT_DEVICE:
             if (d->bLength < 0x12) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "device descriptor too short");
-                goto error;
+                return;
             }
             v = (d->u.device.idVendor_hi << 8) | d->u.device.idVendor_lo;
             p = (d->u.device.idProduct_hi << 8) | d->u.device.idProduct_lo;
@@ -1185,7 +1184,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (d->bLength < 0x09) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "config descriptor too short");
-                goto error;
+                return;
             }
             configuration = d->u.config.bConfigurationValue;
             active = (configuration == s->dev.configuration);
@@ -1196,7 +1195,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (d->bLength < 0x09) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "interface descriptor too short");
-                goto error;
+                return;
             }
             interface = d->u.interface.bInterfaceNumber;
             altsetting = d->u.interface.bAlternateSetting;
@@ -1209,7 +1208,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (d->bLength < 0x07) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "endpoint descriptor too short");
-                goto error;
+                return;
             }
             devep = d->u.endpoint.bEndpointAddress;
             pid = (devep & USB_DIR_IN) ? USB_TOKEN_IN : USB_TOKEN_OUT;
@@ -1217,7 +1216,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (ep == 0) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "invalid endpoint address");
-                goto error;
+                return;
             }
 
             type = d->u.endpoint.bmAttributes & 0x3;
@@ -1250,11 +1249,6 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             break;
         }
     }
-    return 0;
-
-error:
-    usb_ep_reset(&s->dev);
-    return 1;
 }
 
 /*
@@ -1341,10 +1335,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
     }
 
     usb_ep_init(&dev->dev);
-    ret = usb_linux_update_endp_table(dev);
-    if (ret) {
-        goto fail;
-    }
+    usb_linux_update_endp_table(dev);
 
     if (speed == -1) {
         struct usbdevfs_connectinfo ci;
