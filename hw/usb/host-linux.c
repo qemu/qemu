@@ -366,8 +366,11 @@ static void async_complete(void *opaque)
         if (p) {
             switch (aurb->urb.status) {
             case 0:
-                p->actual_length = aurb->urb.actual_length;
-                p->status = USB_RET_SUCCESS; /* Clear previous ASYNC status */
+                p->actual_length += aurb->urb.actual_length;
+                if (!aurb->more) {
+                    /* Clear previous ASYNC status */
+                    p->status = USB_RET_SUCCESS;
+                }
                 break;
 
             case -EPIPE:
