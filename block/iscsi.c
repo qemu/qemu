@@ -947,8 +947,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
 
     iscsi_url = iscsi_parse_full_url(iscsi, filename);
     if (iscsi_url == NULL) {
-        error_report("Failed to parse URL : %s %s", filename,
-                     iscsi_get_error(iscsi));
+        error_report("Failed to parse URL : %s", filename);
         ret = -EINVAL;
         goto out;
     }
