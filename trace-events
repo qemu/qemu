@@ -286,6 +286,7 @@ usb_ehci_irq(uint32_t level, uint32_t frindex, uint32_t sts, uint32_t mask) "lev
 usb_ehci_guest_bug(const char *reason) "%s"
 usb_ehci_doorbell_ring(void) ""
 usb_ehci_doorbell_ack(void) ""
+usb_ehci_dma_error(void) ""
 
 # hw/usb/hcd-uhci.c
 usb_uhci_reset(void) "=== RESET ==="
