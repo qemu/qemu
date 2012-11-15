@@ -5220,7 +5220,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
 #if defined(S390X_DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(pc_start, dc.pc - pc_start, 1);
+        log_target_disas(env, pc_start, dc.pc - pc_start, 1);
         qemu_log("\n");
     }
 #endif

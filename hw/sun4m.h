@@ -26,10 +26,6 @@ static inline void sparc_iommu_memory_write(void *opaque,
 void slavio_pic_info(Monitor *mon, DeviceState *dev);
 void slavio_irq_info(Monitor *mon, DeviceState *dev);
 
-/* sun4c_intctl.c */
-void sun4c_pic_info(Monitor *mon, void *opaque);
-void sun4c_irq_info(Monitor *mon, void *opaque);
-
 /* sun4m.c */
 void sun4m_pic_info(Monitor *mon);
 void sun4m_irq_info(Monitor *mon);

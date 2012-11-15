@@ -1120,7 +1120,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
-        log_target_disas(pc_start, dc->pc - pc_start, 0);
+        log_target_disas(env, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%td\n",
             dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
     }

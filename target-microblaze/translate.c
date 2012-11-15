@@ -840,7 +840,7 @@ static void dec_bit(DisasContext *dc)
             LOG_DIS("swapb r%d r%d\n", dc->rd, dc->ra);
             tcg_gen_bswap32_i32(cpu_R[dc->rd], cpu_R[dc->ra]);
             break;
-        case 0x1e1:
+        case 0x1e2:
             /*swaph */
             LOG_DIS("swaph r%d r%d\n", dc->rd, dc->ra);
             tcg_gen_rotri_i32(cpu_R[dc->rd], cpu_R[dc->ra], 16);
@@ -1913,7 +1913,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
 #if DISAS_GNU
-        log_target_disas(pc_start, dc->pc - pc_start, 0);
+        log_target_disas(env, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%td\n",
             dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);

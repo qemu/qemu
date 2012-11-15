@@ -22,7 +22,8 @@
 
 #include "memory-internal.h"
 
-unsigned memory_region_transaction_depth = 0;
+static unsigned memory_region_transaction_depth;
+static bool memory_region_update_pending;
 static bool global_dirty_log = false;
 
 static QTAILQ_HEAD(memory_listeners, MemoryListener) memory_listeners
@@ -741,7 +742,8 @@ void memory_region_transaction_commit(void)
 
     assert(memory_region_transaction_depth);
     --memory_region_transaction_depth;
-    if (!memory_region_transaction_depth) {
+    if (!memory_region_transaction_depth && memory_region_update_pending) {
+        memory_region_update_pending = false;
         MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
 
         QTAILQ_FOREACH(as, &address_spaces, address_spaces_link) {
@@ -1064,6 +1066,7 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 
     memory_region_transaction_begin();
     mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
+    memory_region_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1101,6 +1104,7 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
     if (mr->readonly != readonly) {
         memory_region_transaction_begin();
         mr->readonly = readonly;
+        memory_region_update_pending |= mr->enabled;
         memory_region_transaction_commit();
     }
 }
@@ -1110,6 +1114,7 @@ void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
     if (mr->readable != readable) {
         memory_region_transaction_begin();
         mr->readable = readable;
+        memory_region_update_pending |= mr->enabled;
         memory_region_transaction_commit();
     }
 }
@@ -1252,6 +1257,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
+    memory_region_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1284,6 +1290,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     --mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
+    memory_region_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1327,6 +1334,7 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
     }
     QTAILQ_INSERT_TAIL(&mr->subregions, subregion, subregions_link);
 done:
+    memory_region_update_pending |= mr->enabled && subregion->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1357,6 +1365,7 @@ void memory_region_del_subregion(MemoryRegion *mr,
     assert(subregion->parent == mr);
     subregion->parent = NULL;
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
+    memory_region_update_pending |= mr->enabled && subregion->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1367,6 +1376,7 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     }
     memory_region_transaction_begin();
     mr->enabled = enabled;
+    memory_region_update_pending = true;
     memory_region_transaction_commit();
 }
 
@@ -1401,6 +1411,7 @@ void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
 
     memory_region_transaction_begin();
     mr->alias_offset = offset;
+    memory_region_update_pending |= mr->enabled;
     memory_region_transaction_commit();
 }
 
@@ -1594,7 +1605,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
     const MemoryRegion *submr;
     unsigned int i;
 
-    if (!mr) {
+    if (!mr || !mr->enabled) {
         return;
     }
 

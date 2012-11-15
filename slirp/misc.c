@@ -253,20 +253,6 @@ void lprint(const char *format, ...)
     va_end(args);
 }
 
-void
-u_sleep(int usec)
-{
-	struct timeval t;
-	fd_set fdset;
-
-	FD_ZERO(&fdset);
-
-	t.tv_sec = 0;
-	t.tv_usec = usec * 1000;
-
-	select(0, &fdset, &fdset, &fdset, &t);
-}
-
 void slirp_connection_info(Slirp *slirp, Monitor *mon)
 {
     const char * const tcpstates[] = {

@@ -596,22 +596,21 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
         return -serrno;
     }
 
-    if (flags & NBD_FLAG_READ_ONLY) {
-        int read_only = 1;
-        TRACE("Setting readonly attribute");
+    if (ioctl(fd, NBD_SET_FLAGS, flags) < 0) {
+        if (errno == ENOTTY) {
+            int read_only = (flags & NBD_FLAG_READ_ONLY) != 0;
+            TRACE("Setting readonly attribute");
 
-        if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
+            if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
+                int serrno = errno;
+                LOG("Failed setting read-only attribute");
+                return -serrno;
+            }
+        } else {
             int serrno = errno;
-            LOG("Failed setting read-only attribute");
+            LOG("Failed setting flags");
             return -serrno;
         }
-    }
-
-    if (ioctl(fd, NBD_SET_FLAGS, flags) < 0
-        && errno != ENOTTY) {
-        int serrno = errno;
-        LOG("Failed setting flags");
-        return -serrno;
     }
 
     TRACE("Negotiation ended");

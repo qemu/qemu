@@ -256,10 +256,10 @@ static void usb_uas_send_status_bh(void *opaque)
 
     uas->status = NULL;
     usb_packet_copy(p, &st->status, st->length);
-    p->result = st->length;
     QTAILQ_REMOVE(&uas->results, st, next);
     g_free(st);
 
+    p->status = USB_RET_SUCCESS; /* Clear previous ASYNC status */
     usb_packet_complete(&uas->dev, p);
 }
 
@@ -349,6 +349,7 @@ static void usb_uas_complete_data_packet(UASRequest *req)
     p = req->data;
     req->data = NULL;
     req->data_async = false;
+    p->status = USB_RET_SUCCESS; /* Clear previous ASYNC status */
     usb_packet_complete(&req->uas->dev, p);
 }
 
@@ -357,16 +358,16 @@ static void usb_uas_copy_data(UASRequest *req)
     uint32_t length;
 
     length = MIN(req->buf_size - req->buf_off,
-                 req->data->iov.size - req->data->result);
+                 req->data->iov.size - req->data->actual_length);
     trace_usb_uas_xfer_data(req->uas->dev.addr, req->tag, length,
-                            req->data->result, req->data->iov.size,
+                            req->data->actual_length, req->data->iov.size,
                             req->buf_off, req->buf_size);
     usb_packet_copy(req->data, scsi_req_get_buf(req->req) + req->buf_off,
                     length);
     req->buf_off += length;
     req->data_off += length;
 
-    if (req->data->result == req->data->iov.size) {
+    if (req->data->actual_length == req->data->iov.size) {
         usb_uas_complete_data_packet(req);
     }
     if (req->buf_size && req->buf_off == req->buf_size) {
@@ -504,17 +505,17 @@ static void usb_uas_handle_reset(USBDevice *dev)
     }
 }
 
-static int usb_uas_handle_control(USBDevice *dev, USBPacket *p,
+static void usb_uas_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     int ret;
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
     fprintf(stderr, "%s: unhandled control request\n", __func__);
-    return USB_RET_STALL;
+    p->status = USB_RET_STALL;
 }
 
 static void usb_uas_cancel_io(USBDevice *dev, USBPacket *p)
@@ -641,13 +642,13 @@ incorrect_lun:
     usb_uas_queue_response(uas, tag, UAS_RC_INCORRECT_LUN, 0);
 }
 
-static int usb_uas_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_uas_handle_data(USBDevice *dev, USBPacket *p)
 {
     UASDevice *uas = DO_UPCAST(UASDevice, dev, dev);
     uas_ui ui;
     UASStatus *st;
     UASRequest *req;
-    int length, ret = 0;
+    int length;
 
     switch (p->ep->nr) {
     case UAS_PIPE_ID_COMMAND:
@@ -656,16 +657,14 @@ static int usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         switch (ui.hdr.id) {
         case UAS_UI_COMMAND:
             usb_uas_command(uas, &ui);
-            ret = length;
             break;
         case UAS_UI_TASK_MGMT:
             usb_uas_task(uas, &ui);
-            ret = length;
             break;
         default:
             fprintf(stderr, "%s: unknown command ui: id 0x%x\n",
                     __func__, ui.hdr.id);
-            ret = USB_RET_STALL;
+            p->status = USB_RET_STALL;
             break;
         }
         break;
@@ -674,11 +673,10 @@ static int usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         if (st == NULL) {
             assert(uas->status == NULL);
             uas->status = p;
-            ret = USB_RET_ASYNC;
+            p->status = USB_RET_ASYNC;
             break;
         }
         usb_packet_copy(p, &st->status, st->length);
-        ret = st->length;
         QTAILQ_REMOVE(&uas->results, st, next);
         g_free(st);
         break;
@@ -687,28 +685,26 @@ static int usb_uas_handle_data(USBDevice *dev, USBPacket *p)
         req = (p->ep->nr == UAS_PIPE_ID_DATA_IN) ? uas->datain : uas->dataout;
         if (req == NULL) {
             fprintf(stderr, "%s: no inflight request\n", __func__);
-            ret = USB_RET_STALL;
+            p->status = USB_RET_STALL;
             break;
         }
         scsi_req_ref(req->req);
         req->data = p;
         usb_uas_copy_data(req);
-        if (p->result == p->iov.size || req->complete) {
+        if (p->actual_length == p->iov.size || req->complete) {
             req->data = NULL;
-            ret = p->result;
         } else {
             req->data_async = true;
-            ret = USB_RET_ASYNC;
+            p->status = USB_RET_ASYNC;
         }
         scsi_req_unref(req->req);
         usb_uas_start_next_transfer(uas);
         break;
     default:
         fprintf(stderr, "%s: invalid endpoint %d\n", __func__, p->ep->nr);
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
 static void usb_uas_handle_destroy(USBDevice *dev)

@@ -30,6 +30,5 @@ M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
                              int type);
 M48t59State *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
                          uint32_t io_base, uint16_t size, int type);
-void m48t59_set_addr (void *opaque, uint32_t addr);
 
 #endif /* !NVRAM_H */

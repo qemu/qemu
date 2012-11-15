@@ -1,3 +1,8 @@
+/*
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
+
 #include "qemu-pixman.h"
 
 int qemu_pixman_get_type(int rshift, int gshift, int bshift)
@@ -49,6 +54,19 @@ void qemu_pixman_linebuf_fill(pixman_image_t *linebuf, pixman_image_t *fb,
 {
     pixman_image_composite(PIXMAN_OP_SRC, fb, NULL, linebuf,
                            0, y, 0, 0, 0, 0, width, 1);
+}
+
+pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
+                                          pixman_image_t *image)
+{
+    pixman_image_t *mirror;
+
+    mirror = pixman_image_create_bits(format,
+                                      pixman_image_get_width(image),
+                                      pixman_image_get_height(image),
+                                      NULL,
+                                      pixman_image_get_stride(image));
+    return mirror;
 }
 
 void qemu_pixman_image_unref(pixman_image_t *image)

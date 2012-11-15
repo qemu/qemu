@@ -635,39 +635,38 @@ static void ccid_handle_reset(USBDevice *dev)
     ccid_reset(s);
 }
 
-static int ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
+static void ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
                                int value, int index, int length, uint8_t *data)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
-    int ret = 0;
+    int ret;
 
     DPRINTF(s, 1, "got control %x, value %x\n", request, value);
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
 
     switch (request) {
         /* Class specific requests.  */
     case InterfaceOutClass | CCID_CONTROL_ABORT:
         DPRINTF(s, 1, "ccid_control abort UNIMPLEMENTED\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     case InterfaceInClass | CCID_CONTROL_GET_CLOCK_FREQUENCIES:
         DPRINTF(s, 1, "ccid_control get clock frequencies UNIMPLEMENTED\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     case InterfaceInClass | CCID_CONTROL_GET_DATA_RATES:
         DPRINTF(s, 1, "ccid_control get data rates UNIMPLEMENTED\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     default:
         DPRINTF(s, 1, "got unsupported/bogus control %x, value %x\n",
                 request, value);
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
 static bool ccid_card_inserted(USBCCIDState *s)
@@ -870,18 +869,13 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
     }
 }
 
-/*
- * Handle a single USB_TOKEN_OUT, return value returned to guest.
- * Return value:
- *  0             - all ok
- *  USB_RET_STALL - failed to handle packet
- */
-static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
+static void ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
 
     if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
-        return USB_RET_STALL;
+        p->status = USB_RET_STALL;
+        return;
     }
     ccid_header = (CCID_Header *)s->bulk_out_data;
     usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
@@ -890,7 +884,7 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         DPRINTF(s, D_VERBOSE,
             "usb-ccid: bulk_in: expecting more packets (%zd/%d)\n",
             p->iov.size, ccid_header->dwLength);
-        return 0;
+        return;
     }
     if (s->bulk_out_pos < 10) {
         DPRINTF(s, 1,
@@ -949,60 +943,52 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
         }
     }
     s->bulk_out_pos = 0;
-    return 0;
 }
 
-static int ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
+static void ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
 {
-    int ret = 0;
+    int len = 0;
 
-    assert(p->iov.size > 0);
     ccid_bulk_in_get(s);
     if (s->current_bulk_in != NULL) {
-        ret = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
+        len = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
                   p->iov.size);
         usb_packet_copy(p, s->current_bulk_in->data +
-                        s->current_bulk_in->pos, ret);
-        s->current_bulk_in->pos += ret;
+                        s->current_bulk_in->pos, len);
+        s->current_bulk_in->pos += len;
         if (s->current_bulk_in->pos == s->current_bulk_in->len) {
             ccid_bulk_in_release(s);
         }
     } else {
         /* return when device has no data - usb 2.0 spec Table 8-4 */
-        ret = USB_RET_NAK;
+        p->status = USB_RET_NAK;
     }
-    if (ret > 0) {
+    if (len) {
         DPRINTF(s, D_MORE_INFO,
                 "%s: %zd/%d req/act to guest (BULK_IN)\n",
-                __func__, p->iov.size, ret);
+                __func__, p->iov.size, len);
     }
-    if (ret != USB_RET_NAK && ret < p->iov.size) {
+    if (len < p->iov.size) {
         DPRINTF(s, 1,
                 "%s: returning short (EREMOTEIO) %d < %zd\n",
-                __func__, ret, p->iov.size);
+                __func__, len, p->iov.size);
     }
-    return ret;
 }
 
-static int ccid_handle_data(USBDevice *dev, USBPacket *p)
+static void ccid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
-    int ret = 0;
     uint8_t buf[2];
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
-        ret = ccid_handle_bulk_out(s, p);
+        ccid_handle_bulk_out(s, p);
         break;
 
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case CCID_BULK_IN_EP:
-            if (!p->iov.size) {
-                ret = USB_RET_NAK;
-            } else {
-                ret = ccid_bulk_in_copy_to_guest(s, p);
-            }
+            ccid_bulk_in_copy_to_guest(s, p);
             break;
         case CCID_INT_IN_EP:
             if (s->notify_slot_change) {
@@ -1010,7 +996,6 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
                 buf[0] = CCID_MESSAGE_TYPE_RDR_to_PC_NotifySlotChange;
                 buf[1] = s->bmSlotICCState;
                 usb_packet_copy(p, buf, 2);
-                ret = 2;
                 s->notify_slot_change = false;
                 s->bmSlotICCState &= ~SLOT_0_CHANGED_MASK;
                 DPRINTF(s, D_INFO,
@@ -1021,17 +1006,15 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
             break;
         default:
             DPRINTF(s, 1, "Bad endpoint\n");
-            ret = USB_RET_STALL;
+            p->status = USB_RET_STALL;
             break;
         }
         break;
     default:
         DPRINTF(s, 1, "Bad token\n");
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-
-    return ret;
 }
 
 static void ccid_handle_destroy(USBDevice *dev)
