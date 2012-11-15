@@ -1550,8 +1550,10 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     endp    = get_field(qh.epchar, QH_EPCHAR_EP);
     if ((devaddr != get_field(q->qh.epchar, QH_EPCHAR_DEVADDR)) ||
         (endp    != get_field(q->qh.epchar, QH_EPCHAR_EP)) ||
-        (memcmp(&qh.current_qtd, &q->qh.current_qtd,
-                                 9 * sizeof(uint32_t)) != 0) ||
+        (qh.current_qtd != q->qh.current_qtd) ||
+        (q->async && qh.next_qtd != q->qh.next_qtd) ||
+        (memcmp(&qh.altnext_qtd, &q->qh.altnext_qtd,
+                                 7 * sizeof(uint32_t)) != 0) ||
         (q->dev != NULL && q->dev->addr != devaddr)) {
         if (ehci_reset_queue(q) > 0) {
             ehci_trace_guest_bug(ehci, "guest updated active QH");
@@ -1719,7 +1721,8 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     p = QTAILQ_FIRST(&q->packets);
     if (p != NULL) {
         if (p->qtdaddr != q->qtdaddr ||
-            (!NLPTR_TBIT(p->qtd.next) && (p->qtd.next != qtd.next)) ||
+            (q->async && !NLPTR_TBIT(p->qtd.next) &&
+                (p->qtd.next != qtd.next)) ||
             (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd.altnext)) ||
             p->qtd.bufptr[0] != qtd.bufptr[0]) {
             ehci_cancel_queue(q);
