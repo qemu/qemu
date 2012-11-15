@@ -342,7 +342,9 @@ static void usbredir_fill_already_in_flight_from_ep(USBRedirDevice *dev,
         if (p->combined && p != p->combined->first) {
             continue;
         }
-        packet_id_queue_add(&dev->already_in_flight, p->id);
+        if (p->state == USB_PACKET_ASYNC) {
+            packet_id_queue_add(&dev->already_in_flight, p->id);
+        }
     }
 }
 
