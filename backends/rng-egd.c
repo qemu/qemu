@@ -110,6 +110,18 @@ static void rng_egd_chr_read(void *opaque, const uint8_t *buf, int size)
     }
 }
 
+static void rng_egd_free_requests(RngEgd *s)
+{
+    GSList *i;
+
+    for (i = s->requests; i; i = i->next) {
+        rng_egd_free_request(i->data);
+    }
+
+    g_slist_free(s->requests);
+    s->requests = NULL;
+}
+
 static void rng_egd_cancel_requests(RngBackend *b)
 {
     RngEgd *s = RNG_EGD(b);
@@ -118,9 +130,7 @@ static void rng_egd_cancel_requests(RngBackend *b)
      * queue waiting to be read, this is okay, because there will always be
      * more data than we requested originally
      */
-    g_slist_free_full(s->requests,
-                      (GDestroyNotify)rng_egd_free_request);
-    s->requests = NULL;
+    rng_egd_free_requests(s);
 }
 
 static void rng_egd_opened(RngBackend *b, Error **errp)
@@ -185,8 +195,7 @@ static void rng_egd_finalize(Object *obj)
 
     g_free(s->chr_name);
 
-    g_slist_free_full(s->requests, (GDestroyNotify)rng_egd_free_request);
-    s->requests = NULL;
+    rng_egd_free_requests(s);
 }
 
 static void rng_egd_class_init(ObjectClass *klass, void *data)
