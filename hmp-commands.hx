@@ -1573,13 +1573,6 @@ show roms
 @end table
 ETEXI
 
-#ifdef CONFIG_TRACE_SIMPLE
-STEXI
-@item info trace
-show contents of trace buffer
-ETEXI
-#endif
-
 STEXI
 @item info trace-events
 show available trace events and their state
