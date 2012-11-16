@@ -1,4 +1,8 @@
 #######################################################################
+# Stub library, linked in tools
+stub-obj-y = stubs/
+
+#######################################################################
 # Target-independent parts used in system and user emulation
 universal-obj-y =
 universal-obj-y += qemu-log.o
@@ -239,6 +243,7 @@ vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
 QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
+	stub-obj-y \
 	qga-obj-y \
 	qom-obj-y \
 	qapi-obj-y \
