@@ -20,6 +20,8 @@
 #include "qemu/range.h"
 #include "isa.h"
 #include "sysbus.h"
+#include "sysemu/sysemu.h"
+#include "loader.h"
 #include "pc.h"
 #include "pci/pci.h"
 #include "pci/pci_bus.h"
@@ -228,19 +230,73 @@ static const TypeInfo xbox_smbus_info = {
 
 
 
-
-
-
 static int xbox_lpc_initfn(PCIDevice *d)
 {
-    XBOX_LPCState *lpc = XBOX_LPC_DEVICE(d);
+    XBOX_LPCState *s = XBOX_LPC_DEVICE(d);
     ISABus *isa_bus;
 
     isa_bus = isa_bus_new(&d->qdev, get_system_io());
-    lpc->isa_bus = isa_bus;
+    s->isa_bus = isa_bus;
+
+
+    /* southbridge chip contains and controls bootrom image.
+     * can't load it through loader.c because it overlaps with the bios...
+     */
+    char *filename;
+    int rc, fd = -1;
+    if (bootrom_name
+          && (filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bootrom_name))) {
+        s->bootrom_size = get_image_size(filename);
+
+        if (s->bootrom_size != 512) {
+            fprintf(stderr, "MCPX bootrom should be 512 bytes, got %d\n",
+                    s->bootrom_size);
+            return -1;
+        }
+
+        fd = open(filename, O_RDONLY | O_BINARY);
+        assert(fd != -1);
+        rc = read(fd, s->bootrom_data, s->bootrom_size);
+        assert(rc == s->bootrom_size);
+
+        close(fd);
+    }
+
 
     return 0;
 }
+
+
+
+static void xbox_lpc_reset(DeviceState *dev)
+{
+    PCIDevice *d = PCI_DEVICE(dev);
+    XBOX_LPCState *s = XBOX_LPC_DEVICE(d);
+
+
+    if (s->bootrom_size) {
+        /* qemu's memory region shit is actually kinda broken -
+         * Trying to execute off a non-page-aligned memory region
+         * is fucked, so we can't must map in the bootrom.
+         *
+         * We need to be able to disable it at runtime, and
+         * it shouldn't be visible ontop of the bios mirrors. It'll have to
+         * be a retarded hack.
+         *
+         * Be lazy for now and just write it ontop of the bios.
+         *
+         * (We do this here since loader.c loads roms into memory in a reset
+         * handler, and here we /should/ be handler after it.)
+         */
+
+        hwaddr bootrom_addr = (uint32_t)(-s->bootrom_size);
+        cpu_physical_memory_write_rom(bootrom_addr,
+                                      s->bootrom_data,
+                                      s->bootrom_size);
+     }
+
+}
+
 
 #if 0
 /* Xbox 1.1 uses a config register instead of a bar to set the pm base address */
@@ -305,7 +361,7 @@ static void xbox_lpc_class_init(ObjectClass *klass, void *data)
 
     dc->desc        = "nForce LPC Bridge";
     dc->no_user     = 1;
-    //dc->reset       = xbox_lpc_reset;
+    dc->reset       = xbox_lpc_reset;
     //dc->vmsd        = &vmstate_xbox_lpc;
 }
 

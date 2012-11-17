@@ -53,6 +53,9 @@ typedef struct XBOX_LPCState {
 
     ISABus *isa_bus;
     XBOX_PMRegs pm;
+
+    int bootrom_size;
+    uint8_t bootrom_data[512];
 } XBOX_LPCState;
 
 #define XBOX_PCI_DEVICE(obj) \
