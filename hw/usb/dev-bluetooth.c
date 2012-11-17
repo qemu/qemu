@@ -27,6 +27,7 @@
 struct USBBtState {
     USBDevice dev;
     struct HCIInfo *hci;
+    USBEndpoint *intr;
 
     int config;
 
@@ -290,10 +291,7 @@ static inline void usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
 {
     int len;
 
-    if (likely(!fifo->len)) {
-        p->status = USB_RET_STALL;
-        return;
-    }
+    assert(fifo->len != 0);
 
     len = MIN(p->iov.size, fifo->fifo[fifo->start].len);
     usb_packet_copy(p, fifo->fifo[fifo->start].data, len);
@@ -422,14 +420,26 @@ static void usb_bt_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         switch (p->ep->nr) {
         case USB_EVT_EP:
+            if (s->evt.len == 0) {
+                p->status = USB_RET_NAK;
+                break;
+            }
             usb_bt_fifo_dequeue(&s->evt, p);
             break;
 
         case USB_ACL_EP:
+            if (s->evt.len == 0) {
+                p->status = USB_RET_STALL;
+                break;
+            }
             usb_bt_fifo_dequeue(&s->acl, p);
             break;
 
         case USB_SCO_EP:
+            if (s->evt.len == 0) {
+                p->status = USB_RET_STALL;
+                break;
+            }
             usb_bt_fifo_dequeue(&s->sco, p);
             break;
 
@@ -467,6 +477,9 @@ static void usb_bt_out_hci_packet_event(void *opaque,
 {
     struct USBBtState *s = (struct USBBtState *) opaque;
 
+    if (s->evt.len == 0) {
+        usb_wakeup(s->intr);
+    }
     usb_bt_fifo_enqueue(&s->evt, data, len);
 }
 
@@ -489,8 +502,12 @@ static void usb_bt_handle_destroy(USBDevice *dev)
 
 static int usb_bt_initfn(USBDevice *dev)
 {
+    struct USBBtState *s = DO_UPCAST(struct USBBtState, dev, dev);
+
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, USB_EVT_EP);
+
     return 0;
 }
 
