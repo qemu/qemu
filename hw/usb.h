@@ -197,6 +197,7 @@ struct USBEndpoint {
 
 enum USBDeviceFlags {
     USB_DEV_FLAG_FULL_PATH,
+    USB_DEV_FLAG_IS_HOST,
 };
 
 /* definition of a USB device */
