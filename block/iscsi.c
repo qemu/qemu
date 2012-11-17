@@ -65,13 +65,6 @@ typedef struct IscsiAIOCB {
 #endif
 } IscsiAIOCB;
 
-struct IscsiTask {
-    IscsiLun *iscsilun;
-    BlockDriverState *bs;
-    int status;
-    int complete;
-};
-
 static void
 iscsi_bh_cb(void *p)
 {
@@ -380,7 +373,7 @@ iscsi_aio_readv(BlockDriverState *bs, int64_t sector_num,
         *(uint16_t *)&acb->task->cdb[7] = htons(num_sectors);
         break;
     }
-    
+
     if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
                                  iscsi_aio_read16_cb,
                                  NULL,
@@ -665,163 +658,6 @@ iscsi_getlength(BlockDriverState *bs)
     return len;
 }
 
-static void
-iscsi_readcapacity16_cb(struct iscsi_context *iscsi, int status,
-                        void *command_data, void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_readcapacity16 *rc16;
-    struct scsi_task *task = command_data;
-
-    if (status != 0) {
-        error_report("iSCSI: Failed to read capacity of iSCSI lun. %s",
-                     iscsi_get_error(iscsi));
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    rc16 = scsi_datain_unmarshall(task);
-    if (rc16 == NULL) {
-        error_report("iSCSI: Failed to unmarshall readcapacity16 data.");
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    itask->iscsilun->block_size = rc16->block_length;
-    itask->iscsilun->num_blocks = rc16->returned_lba + 1;
-    itask->bs->total_sectors    = itask->iscsilun->num_blocks *
-                               itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
-
-    itask->status   = 0;
-    itask->complete = 1;
-    scsi_free_scsi_task(task);
-}
-
-static void
-iscsi_readcapacity10_cb(struct iscsi_context *iscsi, int status,
-                        void *command_data, void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_readcapacity10 *rc10;
-    struct scsi_task *task = command_data;
-
-    if (status != 0) {
-        error_report("iSCSI: Failed to read capacity of iSCSI lun. %s",
-                     iscsi_get_error(iscsi));
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    rc10 = scsi_datain_unmarshall(task);
-    if (rc10 == NULL) {
-        error_report("iSCSI: Failed to unmarshall readcapacity10 data.");
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    itask->iscsilun->block_size = rc10->block_size;
-    if (rc10->lba == 0) {
-        /* blank disk loaded */
-        itask->iscsilun->num_blocks = 0;
-    } else {
-        itask->iscsilun->num_blocks = rc10->lba + 1;
-    }
-    itask->bs->total_sectors    = itask->iscsilun->num_blocks *
-                               itask->iscsilun->block_size / BDRV_SECTOR_SIZE ;
-
-    itask->status   = 0;
-    itask->complete = 1;
-    scsi_free_scsi_task(task);
-}
-
-static void
-iscsi_inquiry_cb(struct iscsi_context *iscsi, int status, void *command_data,
-                 void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_task *task = command_data;
-    struct scsi_inquiry_standard *inq;
-
-    if (status != 0) {
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    inq = scsi_datain_unmarshall(task);
-    if (inq == NULL) {
-        error_report("iSCSI: Failed to unmarshall inquiry data.");
-        itask->status   = 1;
-        itask->complete = 1;
-        scsi_free_scsi_task(task);
-        return;
-    }
-
-    itask->iscsilun->type = inq->periperal_device_type;
-
-    scsi_free_scsi_task(task);
-
-    switch (itask->iscsilun->type) {
-    case TYPE_DISK:
-        task = iscsi_readcapacity16_task(iscsi, itask->iscsilun->lun,
-                                   iscsi_readcapacity16_cb, opaque);
-        if (task == NULL) {
-            error_report("iSCSI: failed to send readcapacity16 command.");
-            itask->status   = 1;
-            itask->complete = 1;
-            return;
-        }
-        break;
-    case TYPE_ROM:
-        task = iscsi_readcapacity10_task(iscsi, itask->iscsilun->lun,
-                                   0, 0,
-                                   iscsi_readcapacity10_cb, opaque);
-        if (task == NULL) {
-            error_report("iSCSI: failed to send readcapacity16 command.");
-            itask->status   = 1;
-            itask->complete = 1;
-            return;
-        }
-        break;
-    default:
-        itask->status   = 0;
-        itask->complete = 1;
-    }
-}
-
-static void
-iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
-                 void *opaque)
-{
-    struct IscsiTask *itask = opaque;
-    struct scsi_task *task;
-
-    if (status != 0) {
-        itask->status   = 1;
-        itask->complete = 1;
-        return;
-    }
-
-    task = iscsi_inquiry_task(iscsi, itask->iscsilun->lun,
-                              0, 0, 36,
-                              iscsi_inquiry_cb, opaque);
-    if (task == NULL) {
-        error_report("iSCSI: failed to send inquiry command.");
-        itask->status   = 1;
-        itask->complete = 1;
-        return;
-    }
-}
-
 static int parse_chap(struct iscsi_context *iscsi, const char *target)
 {
     QemuOptsList *list;
@@ -934,7 +770,10 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
     struct iscsi_url *iscsi_url = NULL;
-    struct IscsiTask task;
+    struct scsi_task *task = NULL;
+    struct scsi_inquiry_standard *inq = NULL;
+    struct scsi_readcapacity10 *rc10 = NULL;
+    struct scsi_readcapacity16 *rc16 = NULL;
     char *initiator_name = NULL;
     int ret;
 
@@ -997,32 +836,79 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     /* check if we got HEADER_DIGEST via the options */
     parse_header_digest(iscsi, iscsi_url->target);
 
-    task.iscsilun = iscsilun;
-    task.status = 0;
-    task.complete = 0;
-    task.bs = bs;
+    if (iscsi_full_connect_sync(iscsi, iscsi_url->portal, iscsi_url->lun) != 0) {
+        error_report("iSCSI: Failed to connect to LUN : %s",
+            iscsi_get_error(iscsi));
+        ret = -EINVAL;
+        goto out;
+    }
 
     iscsilun->iscsi = iscsi;
     iscsilun->lun   = iscsi_url->lun;
 
-    if (iscsi_full_connect_async(iscsi, iscsi_url->portal, iscsi_url->lun,
-                                 iscsi_connect_cb, &task)
-        != 0) {
-        error_report("iSCSI: Failed to start async connect.");
+    task = iscsi_inquiry_sync(iscsi, iscsilun->lun, 0, 0, 36);
+
+    if (task == NULL || task->status != SCSI_STATUS_GOOD) {
+        error_report("iSCSI: failed to send inquiry command.");
         ret = -EINVAL;
         goto out;
     }
 
-    while (!task.complete) {
-        iscsi_set_events(iscsilun);
-        qemu_aio_wait();
-    }
-    if (task.status != 0) {
-        error_report("iSCSI: Failed to connect to LUN : %s",
-                     iscsi_get_error(iscsi));
+    inq = scsi_datain_unmarshall(task);
+    if (inq == NULL) {
+        error_report("iSCSI: Failed to unmarshall inquiry data.");
         ret = -EINVAL;
         goto out;
     }
+
+    iscsilun->type = inq->periperal_device_type;
+
+    scsi_free_scsi_task(task);
+
+    switch (iscsilun->type) {
+    case TYPE_DISK:
+        task = iscsi_readcapacity16_sync(iscsi, iscsilun->lun);
+        if (task == NULL || task->status != SCSI_STATUS_GOOD) {
+            error_report("iSCSI: failed to send readcapacity16 command.");
+            ret = -EINVAL;
+            goto out;
+        }
+        rc16 = scsi_datain_unmarshall(task);
+        if (rc16 == NULL) {
+            error_report("iSCSI: Failed to unmarshall readcapacity16 data.");
+            ret = -EINVAL;
+            goto out;
+        }
+        iscsilun->block_size = rc16->block_length;
+        iscsilun->num_blocks = rc16->returned_lba + 1;
+        break;
+    case TYPE_ROM:
+        task = iscsi_readcapacity10_sync(iscsi, iscsilun->lun, 0, 0);
+        if (task == NULL || task->status != SCSI_STATUS_GOOD) {
+            error_report("iSCSI: failed to send readcapacity10 command.");
+            ret = -EINVAL;
+            goto out;
+        }
+        rc10 = scsi_datain_unmarshall(task);
+        if (rc10 == NULL) {
+            error_report("iSCSI: Failed to unmarshall readcapacity10 data.");
+            ret = -EINVAL;
+            goto out;
+        }
+        iscsilun->block_size = rc10->block_size;
+        if (rc10->lba == 0) {
+            /* blank disk loaded */
+            iscsilun->num_blocks = 0;
+        } else {
+            iscsilun->num_blocks = rc10->lba + 1;
+        }
+        break;
+    default:
+        break;
+    }
+
+    bs->total_sectors    = iscsilun->num_blocks *
+                           iscsilun->block_size / BDRV_SECTOR_SIZE ;
 
     /* Medium changer or tape. We dont have any emulation for this so this must
      * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
@@ -1041,6 +927,9 @@ out:
     }
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
+    }
+    if (task != NULL) {
+        scsi_free_scsi_task(task);
     }
 
     if (ret) {
