@@ -230,6 +230,7 @@ struct USBDevice {
     USBEndpoint ep_out[USB_MAX_ENDPOINTS];
 
     QLIST_HEAD(, USBDescString) strings;
+    const USBDesc *usb_desc; /* Overrides class usb_desc if not NULL */
     const USBDescDevice *device;
 
     int configuration;
