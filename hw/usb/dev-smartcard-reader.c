@@ -1002,6 +1002,8 @@ static void ccid_handle_data(USBDevice *dev, USBPacket *p)
                         "handle_data: int_in: notify_slot_change %X, "
                         "requested len %zd\n",
                         s->bmSlotICCState, p->iov.size);
+            } else {
+                p->status = USB_RET_NAK;
             }
             break;
         default:
