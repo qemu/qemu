@@ -951,6 +951,11 @@ static void iscsi_close(BlockDriverState *bs)
     memset(iscsilun, 0, sizeof(IscsiLun));
 }
 
+static int iscsi_has_zero_init(BlockDriverState *bs)
+{
+    return 0;
+}
+
 static BlockDriver bdrv_iscsi = {
     .format_name     = "iscsi",
     .protocol_name   = "iscsi",
@@ -966,6 +971,7 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_aio_flush  = iscsi_aio_flush,
 
     .bdrv_aio_discard = iscsi_aio_discard,
+    .bdrv_has_zero_init = iscsi_has_zero_init,
 
 #ifdef __linux__
     .bdrv_ioctl       = iscsi_ioctl,
