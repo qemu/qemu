@@ -152,6 +152,7 @@ struct UHCIState {
     QEMUBH *bh;
     uint32_t frame_bytes;
     uint32_t frame_bandwidth;
+    bool completions_only;
     UHCIPort ports[NB_PORTS];
 
     /* Interrupts that should be raised at the end of the current frame.  */
@@ -891,6 +892,10 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
         goto done;
     }
 
+    if (s->completions_only) {
+        return TD_RESULT_ASYNC_CONT;
+    }
+
     /* Allocate new packet */
     if (q == NULL) {
         USBDevice *dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
@@ -960,9 +965,9 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
     }
 
     async->done = 1;
-    if (s->frame_bytes < s->frame_bandwidth) {
-        qemu_bh_schedule(s->bh);
-    }
+    /* Force processing of this packet *now*, needed for migration */
+    s->completions_only = true;
+    qemu_bh_schedule(s->bh);
 }
 
 static int is_valid(uint32_t link)
@@ -1054,7 +1059,7 @@ static void uhci_process_frame(UHCIState *s)
     qhdb_reset(&qhdb);
 
     for (cnt = FRAME_MAX_LOOPS; is_valid(link) && cnt; cnt--) {
-        if (s->frame_bytes >= s->frame_bandwidth) {
+        if (!s->completions_only && s->frame_bytes >= s->frame_bandwidth) {
             /* We've reached the usb 1.1 bandwidth, which is
                1280 bytes/frame, stop processing */
             trace_usb_uhci_frame_stop_bandwidth();
@@ -1170,6 +1175,7 @@ static void uhci_frame_timer(void *opaque)
     /* prepare the timer for the next frame */
     s->expire_time += (get_ticks_per_sec() / FRAME_TIMER_FREQ);
     s->frame_bytes = 0;
+    s->completions_only = false;
     qemu_bh_cancel(s->bh);
 
     if (!(s->cmd & UHCI_CMD_RS)) {
