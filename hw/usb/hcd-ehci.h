@@ -311,6 +311,7 @@ struct EHCIState {
 
     uint64_t last_run_ns;
     uint32_t async_stepdown;
+    uint32_t periodic_sched_active;
     bool int_req_by_async;
 };
 
