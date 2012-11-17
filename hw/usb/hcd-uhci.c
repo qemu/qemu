@@ -963,7 +963,6 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
     UHCIState *s = async->queue->uhci;
 
     if (packet->status == USB_RET_REMOVE_FROM_QUEUE) {
-        uhci_async_unlink(async);
         uhci_async_cancel(async);
         return;
     }
