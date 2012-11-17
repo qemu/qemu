@@ -556,6 +556,10 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
                 }
             }
             port->ctrl &= UHCI_PORT_READ_ONLY;
+            /* enabled may only be set if a device is connected */
+            if (!(port->ctrl & UHCI_PORT_CCS)) {
+                val &= ~UHCI_PORT_EN;
+            }
             port->ctrl |= (val & ~UHCI_PORT_READ_ONLY);
             /* some bits are reset when a '1' is written to them */
             port->ctrl &= ~(val & UHCI_PORT_WRITE_CLEAR);
