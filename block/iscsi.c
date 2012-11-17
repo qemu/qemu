@@ -957,6 +957,56 @@ static int iscsi_has_zero_init(BlockDriverState *bs)
     return 0;
 }
 
+static int iscsi_create(const char *filename, QEMUOptionParameter *options)
+{
+    int ret = 0;
+    int64_t total_size = 0;
+    BlockDriverState bs;
+    IscsiLun *iscsilun = NULL;
+
+    memset(&bs, 0, sizeof(BlockDriverState));
+
+    /* Read out options */
+    while (options && options->name) {
+        if (!strcmp(options->name, "size")) {
+            total_size = options->value.n / BDRV_SECTOR_SIZE;
+        }
+        options++;
+    }
+
+    bs.opaque = g_malloc0(sizeof(struct IscsiLun));
+    iscsilun = bs.opaque;
+
+    ret = iscsi_open(&bs, filename, 0);
+    if (ret != 0) {
+        goto out;
+    }
+    if (iscsilun->type != TYPE_DISK) {
+        ret = -ENODEV;
+        goto out;
+    }
+    if (bs.total_sectors < total_size) {
+        ret = -ENOSPC;
+    }
+
+    ret = 0;
+out:
+    if (iscsilun->iscsi != NULL) {
+        iscsi_destroy_context(iscsilun->iscsi);
+    }
+    g_free(bs.opaque);
+    return ret;
+}
+
+static QEMUOptionParameter iscsi_create_options[] = {
+    {
+        .name = BLOCK_OPT_SIZE,
+        .type = OPT_SIZE,
+        .help = "Virtual disk size"
+    },
+    { NULL }
+};
+
 static BlockDriver bdrv_iscsi = {
     .format_name     = "iscsi",
     .protocol_name   = "iscsi",
@@ -964,6 +1014,8 @@ static BlockDriver bdrv_iscsi = {
     .instance_size   = sizeof(IscsiLun),
     .bdrv_file_open  = iscsi_open,
     .bdrv_close      = iscsi_close,
+    .bdrv_create     = iscsi_create,
+    .create_options  = iscsi_create_options,
 
     .bdrv_getlength  = iscsi_getlength,
 
