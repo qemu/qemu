@@ -43,6 +43,7 @@
 
 typedef struct USBWacomState {
     USBDevice dev;
+    USBEndpoint *intr;
     QEMUPutMouseEntry *eh_entry;
     int dx, dy, dz, buttons_state;
     int x, y;
@@ -137,6 +138,7 @@ static void usb_mouse_event(void *opaque,
     s->dz += dz1;
     s->buttons_state = buttons_state;
     s->changed = 1;
+    usb_wakeup(s->intr);
 }
 
 static void usb_wacom_event(void *opaque,
@@ -150,6 +152,7 @@ static void usb_wacom_event(void *opaque,
     s->dz += dz;
     s->buttons_state = buttons_state;
     s->changed = 1;
+    usb_wakeup(s->intr);
 }
 
 static inline int int_clamp(int val, int vmin, int vmax)
@@ -337,6 +340,7 @@ static int usb_wacom_initfn(USBDevice *dev)
     USBWacomState *s = DO_UPCAST(USBWacomState, dev, dev);
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     s->changed = 1;
     return 0;
 }

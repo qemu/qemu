@@ -184,6 +184,7 @@ static void usb_hub_detach(USBPort *port1)
         port->wPortStatus &= ~PORT_STAT_ENABLE;
         port->wPortChange |= PORT_STAT_C_ENABLE;
     }
+    usb_wakeup(s->intr);
 }
 
 static void usb_hub_child_detach(USBPort *port1, USBDevice *child)
@@ -363,6 +364,7 @@ static void usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
                     port->wPortStatus |= PORT_STAT_ENABLE;
+                    usb_wakeup(s->intr);
                 }
                 break;
             case PORT_POWER:
