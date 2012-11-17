@@ -662,20 +662,21 @@ static void usbredir_handle_interrupt_in_data(USBRedirDevice *dev,
     usbredir_handle_status(dev, p, status);
 }
 
+/*
+ * Handle interrupt out data, the usbredir protocol expects us to do this
+ * async, so that it can report back a completion status. But guests will
+ * expect immediate completion for an interrupt endpoint, and handling this
+ * async causes migration issues. So we report success directly, counting
+ * on the fact that output interrupt packets normally always succeed.
+ */
 static void usbredir_handle_interrupt_out_data(USBRedirDevice *dev,
                                                USBPacket *p, uint8_t ep)
 {
-    /* Output interrupt endpoint, normal async operation */
     struct usb_redir_interrupt_packet_header interrupt_packet;
     uint8_t buf[p->iov.size];
 
     DPRINTF("interrupt-out ep %02X len %zd id %"PRIu64"\n", ep,
             p->iov.size, p->id);
-
-    if (usbredir_already_in_flight(dev, p->id)) {
-        p->status = USB_RET_ASYNC;
-        return;
-    }
 
     interrupt_packet.endpoint  = ep;
     interrupt_packet.length    = p->iov.size;
@@ -685,7 +686,6 @@ static void usbredir_handle_interrupt_out_data(USBRedirDevice *dev,
     usbredirparser_send_interrupt_packet(dev->parser, p->id,
                                     &interrupt_packet, buf, p->iov.size);
     usbredirparser_do_write(dev->parser);
-    p->status = USB_RET_ASYNC;
 }
 
 static void usbredir_stop_interrupt_receiving(USBRedirDevice *dev,
@@ -1647,11 +1647,13 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
         /* bufp_alloc also adds the packet to the ep queue */
         bufp_alloc(dev, data, data_len, interrupt_packet->status, ep);
     } else {
-        USBPacket *p = usbredir_find_packet_by_id(dev, ep, id);
-        if (p) {
-            usbredir_handle_status(dev, p, interrupt_packet->status);
-            p->actual_length = interrupt_packet->length;
-            usb_packet_complete(&dev->dev, p);
+        /*
+         * We report output interrupt packets as completed directly upon
+         * submission, so all we can do here if one failed is warn.
+         */
+        if (interrupt_packet->status) {
+            WARNING("interrupt output failed status %d ep %02X id %"PRIu64"\n",
+                    interrupt_packet->status, ep, id);
         }
     }
 }
