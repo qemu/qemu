@@ -3891,7 +3891,10 @@ upper() {
 
 case "$cpu" in
   i386|x86_64|ppc)
-    echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_target_mak
+    # The TCG interpreter currently does not support ld/st optimization.
+    if test "$tcg_interpreter" = "no" ; then
+        echo "CONFIG_QEMU_LDST_OPTIMIZATION=y" >> $config_target_mak
+    fi
   ;;
 esac
 
