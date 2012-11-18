@@ -2992,7 +2992,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
 
     dc->tb = tb;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->env = env;
     dc->is_jmp = DISAS_NEXT;
@@ -3025,7 +3025,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
                 break;
         }
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -3040,7 +3040,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
         num_insns++;
-    } while (!dc->is_jmp && gen_opc_ptr < gen_opc_end &&
+    } while (!dc->is_jmp && tcg_ctx.gen_opc_ptr < gen_opc_end &&
              !env->singlestep_enabled &&
              !singlestep &&
              (pc_offset) < (TARGET_PAGE_SIZE - 32) &&
@@ -3074,7 +3074,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
         }
     }
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -3085,7 +3085,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
     }
 #endif
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

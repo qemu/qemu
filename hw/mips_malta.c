@@ -873,7 +873,9 @@ void mips_malta_init(QEMUMachineInitArgs *args)
     memory_region_add_subregion(system_memory, 0, ram);
 
     /* FPGA */
-    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[2], serial_hds[2], env->bigendian);
+    /* The CBUS UART is attached to the MIPS CPU INT2 pin, ie interrupt 4 */
+    malta_fpga_init(system_memory, FPGA_ADDRESS, env->irq[4], serial_hds[2],
+                    env->bigendian);
 
     /* Load firmware in flash / BIOS. */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);

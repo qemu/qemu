@@ -1741,7 +1741,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
     dc->tb = tb;
     org_flags = dc->synced_flags = dc->tb_flags = tb->flags;
 
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     dc->is_jmp = DISAS_NEXT;
     dc->jmp = 0;
@@ -1784,7 +1784,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         check_breakpoint(env, dc);
 
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -1846,7 +1846,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         if (env->singlestep_enabled)
             break;
     } while (!dc->is_jmp && !dc->cpustate_changed
-         && gen_opc_ptr < gen_opc_end
+         && tcg_ctx.gen_opc_ptr < gen_opc_end
                  && !singlestep
          && (dc->pc < next_page_start)
                  && num_insns < max_insns);
@@ -1897,9 +1897,9 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         }
     }
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (search_pc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;
@@ -1916,7 +1916,8 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
         log_target_disas(env, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%td\n",
-            dc->pc - pc_start, gen_opc_ptr - gen_opc_buf);
+            dc->pc - pc_start, tcg_ctx.gen_opc_ptr -
+            tcg_ctx.gen_opc_buf);
     }
 #endif
 #endif

@@ -27,338 +27,338 @@ int gen_new_label(void);
 
 static inline void tcg_gen_op0(TCGOpcode opc)
 {
-    *gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opc_ptr++ = opc;
 }
 
 static inline void tcg_gen_op1_i32(TCGOpcode opc, TCGv_i32 arg1)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
 }
 
 static inline void tcg_gen_op1_i64(TCGOpcode opc, TCGv_i64 arg1)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
 }
 
 static inline void tcg_gen_op1i(TCGOpcode opc, TCGArg arg1)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = arg1;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = arg1;
 }
 
 static inline void tcg_gen_op2_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
 }
 
 static inline void tcg_gen_op2_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
 }
 
 static inline void tcg_gen_op2i_i32(TCGOpcode opc, TCGv_i32 arg1, TCGArg arg2)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = arg2;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = arg2;
 }
 
 static inline void tcg_gen_op2i_i64(TCGOpcode opc, TCGv_i64 arg1, TCGArg arg2)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = arg2;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = arg2;
 }
 
 static inline void tcg_gen_op2ii(TCGOpcode opc, TCGArg arg1, TCGArg arg2)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = arg1;
-    *gen_opparam_ptr++ = arg2;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = arg1;
+    *tcg_ctx.gen_opparam_ptr++ = arg2;
 }
 
 static inline void tcg_gen_op3_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                    TCGv_i32 arg3)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
 }
 
 static inline void tcg_gen_op3_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                    TCGv_i64 arg3)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
 }
 
 static inline void tcg_gen_op3i_i32(TCGOpcode opc, TCGv_i32 arg1,
                                     TCGv_i32 arg2, TCGArg arg3)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = arg3;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = arg3;
 }
 
 static inline void tcg_gen_op3i_i64(TCGOpcode opc, TCGv_i64 arg1,
                                     TCGv_i64 arg2, TCGArg arg3)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = arg3;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = arg3;
 }
 
 static inline void tcg_gen_ldst_op_i32(TCGOpcode opc, TCGv_i32 val,
                                        TCGv_ptr base, TCGArg offset)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(val);
-    *gen_opparam_ptr++ = GET_TCGV_PTR(base);
-    *gen_opparam_ptr++ = offset;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(val);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_PTR(base);
+    *tcg_ctx.gen_opparam_ptr++ = offset;
 }
 
 static inline void tcg_gen_ldst_op_i64(TCGOpcode opc, TCGv_i64 val,
                                        TCGv_ptr base, TCGArg offset)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(val);
-    *gen_opparam_ptr++ = GET_TCGV_PTR(base);
-    *gen_opparam_ptr++ = offset;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(val);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_PTR(base);
+    *tcg_ctx.gen_opparam_ptr++ = offset;
 }
 
 static inline void tcg_gen_qemu_ldst_op_i64_i32(TCGOpcode opc, TCGv_i64 val,
                                                 TCGv_i32 addr, TCGArg mem_index)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(val);
-    *gen_opparam_ptr++ = GET_TCGV_I32(addr);
-    *gen_opparam_ptr++ = mem_index;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(val);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(addr);
+    *tcg_ctx.gen_opparam_ptr++ = mem_index;
 }
 
 static inline void tcg_gen_qemu_ldst_op_i64_i64(TCGOpcode opc, TCGv_i64 val,
                                                 TCGv_i64 addr, TCGArg mem_index)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(val);
-    *gen_opparam_ptr++ = GET_TCGV_I64(addr);
-    *gen_opparam_ptr++ = mem_index;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(val);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(addr);
+    *tcg_ctx.gen_opparam_ptr++ = mem_index;
 }
 
 static inline void tcg_gen_op4_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                    TCGv_i32 arg3, TCGv_i32 arg4)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg4);
 }
 
 static inline void tcg_gen_op4_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                    TCGv_i64 arg3, TCGv_i64 arg4)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg4);
 }
 
 static inline void tcg_gen_op4i_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                     TCGv_i32 arg3, TCGArg arg4)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = arg4;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = arg4;
 }
 
 static inline void tcg_gen_op4i_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                     TCGv_i64 arg3, TCGArg arg4)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = arg4;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = arg4;
 }
 
 static inline void tcg_gen_op4ii_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                      TCGArg arg3, TCGArg arg4)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = arg3;
-    *gen_opparam_ptr++ = arg4;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = arg3;
+    *tcg_ctx.gen_opparam_ptr++ = arg4;
 }
 
 static inline void tcg_gen_op4ii_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                      TCGArg arg3, TCGArg arg4)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = arg3;
-    *gen_opparam_ptr++ = arg4;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = arg3;
+    *tcg_ctx.gen_opparam_ptr++ = arg4;
 }
 
 static inline void tcg_gen_op5_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                    TCGv_i32 arg3, TCGv_i32 arg4, TCGv_i32 arg5)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg5);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg5);
 }
 
 static inline void tcg_gen_op5_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                    TCGv_i64 arg3, TCGv_i64 arg4, TCGv_i64 arg5)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg5);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg5);
 }
 
 static inline void tcg_gen_op5i_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                     TCGv_i32 arg3, TCGv_i32 arg4, TCGArg arg5)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
-    *gen_opparam_ptr++ = arg5;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = arg5;
 }
 
 static inline void tcg_gen_op5i_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                     TCGv_i64 arg3, TCGv_i64 arg4, TCGArg arg5)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
-    *gen_opparam_ptr++ = arg5;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = arg5;
 }
 
 static inline void tcg_gen_op5ii_i32(TCGOpcode opc, TCGv_i32 arg1,
                                      TCGv_i32 arg2, TCGv_i32 arg3,
                                      TCGArg arg4, TCGArg arg5)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = arg4;
-    *gen_opparam_ptr++ = arg5;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = arg4;
+    *tcg_ctx.gen_opparam_ptr++ = arg5;
 }
 
 static inline void tcg_gen_op5ii_i64(TCGOpcode opc, TCGv_i64 arg1,
                                      TCGv_i64 arg2, TCGv_i64 arg3,
                                      TCGArg arg4, TCGArg arg5)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = arg4;
-    *gen_opparam_ptr++ = arg5;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = arg4;
+    *tcg_ctx.gen_opparam_ptr++ = arg5;
 }
 
 static inline void tcg_gen_op6_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                    TCGv_i32 arg3, TCGv_i32 arg4, TCGv_i32 arg5,
                                    TCGv_i32 arg6)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg5);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg6);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg5);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg6);
 }
 
 static inline void tcg_gen_op6_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                    TCGv_i64 arg3, TCGv_i64 arg4, TCGv_i64 arg5,
                                    TCGv_i64 arg6)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg5);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg6);
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg5);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg6);
 }
 
 static inline void tcg_gen_op6i_i32(TCGOpcode opc, TCGv_i32 arg1, TCGv_i32 arg2,
                                     TCGv_i32 arg3, TCGv_i32 arg4,
                                     TCGv_i32 arg5, TCGArg arg6)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg5);
-    *gen_opparam_ptr++ = arg6;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg5);
+    *tcg_ctx.gen_opparam_ptr++ = arg6;
 }
 
 static inline void tcg_gen_op6i_i64(TCGOpcode opc, TCGv_i64 arg1, TCGv_i64 arg2,
                                     TCGv_i64 arg3, TCGv_i64 arg4,
                                     TCGv_i64 arg5, TCGArg arg6)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg5);
-    *gen_opparam_ptr++ = arg6;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg5);
+    *tcg_ctx.gen_opparam_ptr++ = arg6;
 }
 
 static inline void tcg_gen_op6ii_i32(TCGOpcode opc, TCGv_i32 arg1,
                                      TCGv_i32 arg2, TCGv_i32 arg3,
                                      TCGv_i32 arg4, TCGArg arg5, TCGArg arg6)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I32(arg4);
-    *gen_opparam_ptr++ = arg5;
-    *gen_opparam_ptr++ = arg6;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I32(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = arg5;
+    *tcg_ctx.gen_opparam_ptr++ = arg6;
 }
 
 static inline void tcg_gen_op6ii_i64(TCGOpcode opc, TCGv_i64 arg1,
                                      TCGv_i64 arg2, TCGv_i64 arg3,
                                      TCGv_i64 arg4, TCGArg arg5, TCGArg arg6)
 {
-    *gen_opc_ptr++ = opc;
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg1);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg2);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg3);
-    *gen_opparam_ptr++ = GET_TCGV_I64(arg4);
-    *gen_opparam_ptr++ = arg5;
-    *gen_opparam_ptr++ = arg6;
+    *tcg_ctx.gen_opc_ptr++ = opc;
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg1);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg2);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg3);
+    *tcg_ctx.gen_opparam_ptr++ = GET_TCGV_I64(arg4);
+    *tcg_ctx.gen_opparam_ptr++ = arg5;
+    *tcg_ctx.gen_opparam_ptr++ = arg6;
 }
 
 static inline void gen_set_label(int n)

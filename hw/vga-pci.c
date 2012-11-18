@@ -84,9 +84,10 @@ static void pci_vga_ioport_write(void *ptr, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
     PCIVGAState *d = ptr;
+
     switch (size) {
     case 1:
-        vga_ioport_write(&d->vga, addr, val);
+        vga_ioport_write(&d->vga, addr + 0x3c0, val);
         break;
     case 2:
         /*
@@ -94,8 +95,8 @@ static void pci_vga_ioport_write(void *ptr, hwaddr addr,
          * indexed registers with a single word write because the
          * index byte is updated first.
          */
-        vga_ioport_write(&d->vga, addr, val & 0xff);
-        vga_ioport_write(&d->vga, addr+1, (val >> 8) & 0xff);
+        vga_ioport_write(&d->vga, addr + 0x3c0, val & 0xff);
+        vga_ioport_write(&d->vga, addr + 0x3c1, (val >> 8) & 0xff);
         break;
     }
 }

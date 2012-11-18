@@ -2849,7 +2849,7 @@ static void gen_intermediate_code_internal(
     DisasContext dc;
     int insn_count = 0;
     int j, lj = -1;
-    uint16_t *gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    uint16_t *gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
     int max_insns = tb->cflags & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
     uint32_t next_page_start =
@@ -2893,7 +2893,7 @@ static void gen_intermediate_code_internal(
         check_breakpoint(env, &dc);
 
         if (search_pc) {
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j) {
@@ -2944,7 +2944,7 @@ static void gen_intermediate_code_internal(
     } while (dc.is_jmp == DISAS_NEXT &&
             insn_count < max_insns &&
             dc.pc < next_page_start &&
-            gen_opc_ptr < gen_opc_end);
+            tcg_ctx.gen_opc_ptr < gen_opc_end);
 
     reset_litbase(&dc);
     reset_sar_tracker(&dc);
@@ -2960,7 +2960,7 @@ static void gen_intermediate_code_internal(
         gen_jumpi(&dc, dc.pc, 0);
     }
     gen_icount_end(tb, insn_count);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
     if (!search_pc) {
         tb->size = dc.pc - pc_start;
