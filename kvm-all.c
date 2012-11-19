@@ -1905,6 +1905,8 @@ void kvm_remove_all_breakpoints(CPUArchState *current_env)
                 }
             }
         }
+        QTAILQ_REMOVE(&s->kvm_sw_breakpoints, bp, entry);
+        g_free(bp);
     }
     kvm_arch_remove_all_hw_breakpoints();
 

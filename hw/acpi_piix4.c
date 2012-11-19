@@ -235,10 +235,9 @@ static int vmstate_acpi_post_load(void *opaque, int version_id)
  {                                                                   \
      .name       = (stringify(_field)),                              \
      .version_id = 0,                                                \
-     .num        = GPE_LEN,                                          \
      .info       = &vmstate_info_uint16,                             \
      .size       = sizeof(uint16_t),                                 \
-     .flags      = VMS_ARRAY | VMS_POINTER,                          \
+     .flags      = VMS_SINGLE | VMS_POINTER,                         \
      .offset     = vmstate_offset_pointer(_state, _field, uint8_t),  \
  }
 
@@ -267,11 +266,54 @@ static const VMStateDescription vmstate_pci_status = {
     }
 };
 
+static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
+{
+    PIIX4PMState *s = opaque;
+    int ret, i;
+    uint16_t temp;
+
+    ret = pci_device_load(&s->dev, f);
+    if (ret < 0) {
+        return ret;
+    }
+    qemu_get_be16s(f, &s->ar.pm1.evt.sts);
+    qemu_get_be16s(f, &s->ar.pm1.evt.en);
+    qemu_get_be16s(f, &s->ar.pm1.cnt.cnt);
+
+    ret = vmstate_load_state(f, &vmstate_apm, opaque, 1);
+    if (ret) {
+        return ret;
+    }
+
+    qemu_get_timer(f, s->ar.tmr.timer);
+    qemu_get_sbe64s(f, &s->ar.tmr.overflow_time);
+
+    qemu_get_be16s(f, (uint16_t *)s->ar.gpe.sts);
+    for (i = 0; i < 3; i++) {
+        qemu_get_be16s(f, &temp);
+    }
+
+    qemu_get_be16s(f, (uint16_t *)s->ar.gpe.en);
+    for (i = 0; i < 3; i++) {
+        qemu_get_be16s(f, &temp);
+    }
+
+    ret = vmstate_load_state(f, &vmstate_pci_status, opaque, 1);
+    return ret;
+}
+
+/* qemu-kvm 1.2 uses version 3 but advertised as 2
+ * To support incoming qemu-kvm 1.2 migration, change version_id
+ * and minimum_version_id to 2 below (which breaks migration from
+ * qemu 1.2).
+ *
+ */
 static const VMStateDescription vmstate_acpi = {
     .name = "piix4_pm",
-    .version_id = 2,
-    .minimum_version_id = 1,
+    .version_id = 3,
+    .minimum_version_id = 3,
     .minimum_version_id_old = 1,
+    .load_state_old = acpi_load_old,
     .post_load = vmstate_acpi_post_load,
     .fields      = (VMStateField []) {
         VMSTATE_PCI_DEVICE(dev, PIIX4PMState),
