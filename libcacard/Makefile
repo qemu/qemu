@@ -1,6 +1,6 @@
 -include ../config-host.mak
--include $(SRC_PATH)/Makefile.objs
 -include $(SRC_PATH)/rules.mak
+-include $(SRC_PATH)/Makefile.objs
 
 libcacard_includedir=$(includedir)/cacard
 
