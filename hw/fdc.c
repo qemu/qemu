@@ -327,7 +327,7 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
 static void fdctrl_reset_fifo(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
-static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0);
+static void fdctrl_raise_irq(FDCtrl *fdctrl);
 static FDrive *get_cur_drv(FDCtrl *fdctrl);
 
 static uint32_t fdctrl_read_statusA(FDCtrl *fdctrl);
@@ -349,12 +349,12 @@ enum {
     FD_DIR_SCANE   = 2,
     FD_DIR_SCANL   = 3,
     FD_DIR_SCANH   = 4,
+    FD_DIR_VERIFY  = 5,
 };
 
 enum {
     FD_STATE_MULTI  = 0x01,	/* multi track flag */
     FD_STATE_FORMAT = 0x02,	/* format flag */
-    FD_STATE_SEEK   = 0x04,	/* seek flag */
 };
 
 enum {
@@ -496,7 +496,6 @@ enum {
 };
 
 #define FD_MULTI_TRACK(state) ((state) & FD_STATE_MULTI)
-#define FD_DID_SEEK(state) ((state) & FD_STATE_SEEK)
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct FDCtrl {
@@ -799,6 +798,7 @@ static void fdctrl_handle_tc(void *opaque, int irq, int level)
 /* Change IRQ state */
 static void fdctrl_reset_irq(FDCtrl *fdctrl)
 {
+    fdctrl->status0 = 0;
     if (!(fdctrl->sra & FD_SRA_INTPEND))
         return;
     FLOPPY_DPRINTF("Reset interrupt\n");
@@ -806,14 +806,13 @@ static void fdctrl_reset_irq(FDCtrl *fdctrl)
     fdctrl->sra &= ~FD_SRA_INTPEND;
 }
 
-static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
+static void fdctrl_raise_irq(FDCtrl *fdctrl)
 {
     /* Sparc mutation */
     if (fdctrl->sun4m && (fdctrl->msr & FD_MSR_CMDBUSY)) {
         /* XXX: not sure */
         fdctrl->msr &= ~FD_MSR_CMDBUSY;
         fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
-        fdctrl->status0 = status0;
         return;
     }
     if (!(fdctrl->sra & FD_SRA_INTPEND)) {
@@ -822,7 +821,6 @@ static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0)
     }
 
     fdctrl->reset_sensei = 0;
-    fdctrl->status0 = status0;
     FLOPPY_DPRINTF("Set interrupt status to 0x%02x\n", fdctrl->status0);
 }
 
@@ -851,7 +849,8 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
         fd_recalibrate(&fdctrl->drives[i]);
     fdctrl_reset_fifo(fdctrl);
     if (do_irq) {
-        fdctrl_raise_irq(fdctrl, FD_SR0_RDYCHG);
+        fdctrl->status0 |= FD_SR0_RDYCHG;
+        fdctrl_raise_irq(fdctrl);
         fdctrl->reset_sensei = FD_RESET_SENSEI_COUNT;
     }
 }
@@ -1079,15 +1078,12 @@ static void fdctrl_reset_fifo(FDCtrl *fdctrl)
 }
 
 /* Set FIFO status for the host to read */
-static void fdctrl_set_fifo(FDCtrl *fdctrl, int fifo_len, uint8_t status0)
+static void fdctrl_set_fifo(FDCtrl *fdctrl, int fifo_len)
 {
     fdctrl->data_dir = FD_DIR_READ;
     fdctrl->data_len = fifo_len;
     fdctrl->data_pos = 0;
     fdctrl->msr |= FD_MSR_CMDBUSY | FD_MSR_RQM | FD_MSR_DIO;
-    if (status0) {
-        fdctrl_raise_irq(fdctrl, status0);
-    }
 }
 
 /* Set an error: unimplemented/unknown command */
@@ -1096,7 +1092,7 @@ static void fdctrl_unimplemented(FDCtrl *fdctrl, int direction)
     qemu_log_mask(LOG_UNIMP, "fdc: unimplemented command 0x%02x\n",
                   fdctrl->fifo[0]);
     fdctrl->fifo[0] = FD_SR0_INVCMD;
-    fdctrl_set_fifo(fdctrl, 1, 0);
+    fdctrl_set_fifo(fdctrl, 1);
 }
 
 /* Seek to next sector
@@ -1126,11 +1122,13 @@ static int fdctrl_seek_to_next_sect(FDCtrl *fdctrl, FDrive *cur_drv)
             } else {
                 new_head = 0;
                 new_track++;
+                fdctrl->status0 |= FD_SR0_SEEK;
                 if ((cur_drv->flags & FDISK_DBL_SIDES) == 0) {
                     ret = 0;
                 }
             }
         } else {
+            fdctrl->status0 |= FD_SR0_SEEK;
             new_track++;
             ret = 0;
         }
@@ -1150,10 +1148,14 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
                                  uint8_t status1, uint8_t status2)
 {
     FDrive *cur_drv;
-
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl->status0 = status0 | FD_SR0_SEEK | (cur_drv->head << 2) |
-                      GET_CUR_DRV(fdctrl);
+
+    fdctrl->status0 &= ~(FD_SR0_DS0 | FD_SR0_DS1 | FD_SR0_HEAD);
+    fdctrl->status0 |= GET_CUR_DRV(fdctrl);
+    if (cur_drv->head) {
+        fdctrl->status0 |= FD_SR0_HEAD;
+    }
+    fdctrl->status0 |= status0;
 
     FLOPPY_DPRINTF("transfer status: %02x %02x %02x (%02x)\n",
                    status0, status1, status2, fdctrl->status0);
@@ -1170,7 +1172,9 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     }
     fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
     fdctrl->msr &= ~FD_MSR_NONDMA;
-    fdctrl_set_fifo(fdctrl, 7, fdctrl->status0);
+
+    fdctrl_set_fifo(fdctrl, 7);
+    fdctrl_raise_irq(fdctrl);
 }
 
 /* Prepare a data transfer (either DMA or FIFO) */
@@ -1178,7 +1182,6 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv;
     uint8_t kh, kt, ks;
-    int did_seek = 0;
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
@@ -1212,7 +1215,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         fdctrl->fifo[5] = ks;
         return;
     case 1:
-        did_seek = 1;
+        fdctrl->status0 |= FD_SR0_SEEK;
         break;
     default:
         break;
@@ -1234,16 +1237,12 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     /* Set the FIFO state */
     fdctrl->data_dir = direction;
     fdctrl->data_pos = 0;
-    fdctrl->msr |= FD_MSR_CMDBUSY;
+    assert(fdctrl->msr & FD_MSR_CMDBUSY);
     if (fdctrl->fifo[0] & 0x80)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
         fdctrl->data_state &= ~FD_STATE_MULTI;
-    if (did_seek)
-        fdctrl->data_state |= FD_STATE_SEEK;
-    else
-        fdctrl->data_state &= ~FD_STATE_SEEK;
-    if (fdctrl->fifo[5] == 00) {
+    if (fdctrl->fifo[5] == 0) {
         fdctrl->data_len = fdctrl->fifo[8];
     } else {
         int tmp;
@@ -1266,14 +1265,21 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         if (((direction == FD_DIR_SCANE || direction == FD_DIR_SCANL ||
               direction == FD_DIR_SCANH) && dma_mode == 0) ||
             (direction == FD_DIR_WRITE && dma_mode == 2) ||
-            (direction == FD_DIR_READ && dma_mode == 1)) {
+            (direction == FD_DIR_READ && dma_mode == 1) ||
+            (direction == FD_DIR_VERIFY)) {
             /* No access is allowed until DMA transfer has completed */
             fdctrl->msr &= ~FD_MSR_RQM;
-            /* Now, we just have to wait for the DMA controller to
-             * recall us...
-             */
-            DMA_hold_DREQ(fdctrl->dma_chann);
-            DMA_schedule(fdctrl->dma_chann);
+            if (direction != FD_DIR_VERIFY) {
+                /* Now, we just have to wait for the DMA controller to
+                 * recall us...
+                 */
+                DMA_hold_DREQ(fdctrl->dma_chann);
+                DMA_schedule(fdctrl->dma_chann);
+            } else {
+                /* Start transfer */
+                fdctrl_transfer_handler(fdctrl, fdctrl->dma_chann, 0,
+                                        fdctrl->data_len);
+            }
             return;
         } else {
             FLOPPY_DPRINTF("bad dma_mode=%d direction=%d\n", dma_mode,
@@ -1285,7 +1291,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     if (direction != FD_DIR_WRITE)
         fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl_raise_irq(fdctrl);
 }
 
 /* Prepare a transfer of deleted data */
@@ -1376,6 +1382,9 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                 goto transfer_error;
             }
             break;
+        case FD_DIR_VERIFY:
+            /* VERIFY commands */
+            break;
         default:
             /* SCAN commands */
             {
@@ -1411,8 +1420,6 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         fdctrl->data_dir == FD_DIR_SCANL ||
         fdctrl->data_dir == FD_DIR_SCANH)
         status2 = FD_SR2_SEH;
-    if (FD_DID_SEEK(fdctrl->data_state))
-        status0 |= FD_SR0_SEEK;
     fdctrl->data_len -= len;
     fdctrl_stop_transfer(fdctrl, status0, status1, status2);
  transfer_error:
@@ -1458,7 +1465,7 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
          * then from status mode to command mode
          */
         if (fdctrl->msr & FD_MSR_NONDMA) {
-            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         } else {
             fdctrl_reset_fifo(fdctrl);
             fdctrl_reset_irq(fdctrl);
@@ -1506,7 +1513,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
         fdctrl->fifo[5] = ks;
         return;
     case 1:
-        fdctrl->data_state |= FD_STATE_SEEK;
+        fdctrl->status0 |= FD_SR0_SEEK;
         break;
     default:
         break;
@@ -1520,10 +1527,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
         if (cur_drv->sect == cur_drv->last_sect) {
             fdctrl->data_state &= ~FD_STATE_FORMAT;
             /* Last sector done */
-            if (FD_DID_SEEK(fdctrl->data_state))
-                fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
-            else
-                fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         } else {
             /* More to do */
             fdctrl->data_pos = 0;
@@ -1536,7 +1540,7 @@ static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
     fdctrl->fifo[0] = fdctrl->lock << 4;
-    fdctrl_set_fifo(fdctrl, 1, 0);
+    fdctrl_set_fifo(fdctrl, 1);
 }
 
 static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
@@ -1561,20 +1565,20 @@ static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
         (cur_drv->perpendicular << 2);
     fdctrl->fifo[8] = fdctrl->config;
     fdctrl->fifo[9] = fdctrl->precomp_trk;
-    fdctrl_set_fifo(fdctrl, 10, 0);
+    fdctrl_set_fifo(fdctrl, 10);
 }
 
 static void fdctrl_handle_version(FDCtrl *fdctrl, int direction)
 {
     /* Controller's version */
     fdctrl->fifo[0] = fdctrl->version;
-    fdctrl_set_fifo(fdctrl, 1, 0);
+    fdctrl_set_fifo(fdctrl, 1);
 }
 
 static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
 {
     fdctrl->fifo[0] = 0x41; /* Stepping 1 */
-    fdctrl_set_fifo(fdctrl, 1, 0);
+    fdctrl_set_fifo(fdctrl, 1);
 }
 
 static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
@@ -1627,7 +1631,7 @@ static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
     fdctrl->fifo[12] = fdctrl->pwrd;
     fdctrl->fifo[13] = 0;
     fdctrl->fifo[14] = 0;
-    fdctrl_set_fifo(fdctrl, 15, 0);
+    fdctrl_set_fifo(fdctrl, 15);
 }
 
 static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
@@ -1650,7 +1654,6 @@ static void fdctrl_handle_format_track(FDCtrl *fdctrl, int direction)
         fdctrl->data_state |= FD_STATE_MULTI;
     else
         fdctrl->data_state &= ~FD_STATE_MULTI;
-    fdctrl->data_state &= ~FD_STATE_SEEK;
     cur_drv->bps =
         fdctrl->fifo[2] > 7 ? 16384 : 128 << fdctrl->fifo[2];
 #if 0
@@ -1693,7 +1696,7 @@ static void fdctrl_handle_sense_drive_status(FDCtrl *fdctrl, int direction)
         (cur_drv->head << 2) |
         GET_CUR_DRV(fdctrl) |
         0x28;
-    fdctrl_set_fifo(fdctrl, 1, 0);
+    fdctrl_set_fifo(fdctrl, 1);
 }
 
 static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
@@ -1705,7 +1708,8 @@ static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
     fd_recalibrate(cur_drv);
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
@@ -1718,7 +1722,7 @@ static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
         fdctrl->reset_sensei--;
     } else if (!(fdctrl->sra & FD_SRA_INTPEND)) {
         fdctrl->fifo[0] = FD_SR0_INVCMD;
-        fdctrl_set_fifo(fdctrl, 1, 0);
+        fdctrl_set_fifo(fdctrl, 1);
         return;
     } else {
         fdctrl->fifo[0] =
@@ -1727,7 +1731,7 @@ static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
     }
 
     fdctrl->fifo[1] = cur_drv->track;
-    fdctrl_set_fifo(fdctrl, 2, 0);
+    fdctrl_set_fifo(fdctrl, 2);
     fdctrl_reset_irq(fdctrl);
     fdctrl->status0 = FD_SR0_RDYCHG;
 }
@@ -1744,7 +1748,8 @@ static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
      */
     fd_seek(cur_drv, cur_drv->head, fdctrl->fifo[2], cur_drv->sect, 1);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
@@ -1769,7 +1774,7 @@ static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 {
     fdctrl->pwrd = fdctrl->fifo[1];
     fdctrl->fifo[0] = fdctrl->fifo[1];
-    fdctrl_set_fifo(fdctrl, 1, 0);
+    fdctrl_set_fifo(fdctrl, 1);
 }
 
 static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
@@ -1788,7 +1793,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl->fifo[2] = 0;
             fdctrl->fifo[3] = 0;
-            fdctrl_set_fifo(fdctrl, 4, 0);
+            fdctrl_set_fifo(fdctrl, 4);
         } else {
             fdctrl_reset_fifo(fdctrl);
         }
@@ -1796,7 +1801,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
         /* ERROR */
         fdctrl->fifo[0] = 0x80 |
             (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-        fdctrl_set_fifo(fdctrl, 1, 0);
+        fdctrl_set_fifo(fdctrl, 1);
     }
 }
 
@@ -1815,7 +1820,8 @@ static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
@@ -1832,7 +1838,8 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
     }
     fdctrl_reset_fifo(fdctrl);
     /* Raise Interrupt */
-    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
+    fdctrl->status0 |= FD_SR0_SEEK;
+    fdctrl_raise_irq(fdctrl);
 }
 
 static const struct {
@@ -1854,7 +1861,7 @@ static const struct {
     { FD_CMD_SAVE, 0xff, "SAVE", 0, fdctrl_handle_save }, /* part of READ DELETED DATA */
     { FD_CMD_READ_DELETED, 0x1f, "READ DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_READ },
     { FD_CMD_SCAN_EQUAL, 0x1f, "SCAN EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANE },
-    { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_unimplemented },
+    { FD_CMD_VERIFY, 0x1f, "VERIFY", 8, fdctrl_start_transfer, FD_DIR_VERIFY },
     { FD_CMD_SCAN_LOW_OR_EQUAL, 0x1f, "SCAN LOW OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANL },
     { FD_CMD_SCAN_HIGH_OR_EQUAL, 0x1f, "SCAN HIGH OR EQUAL", 8, fdctrl_start_transfer, FD_DIR_SCANH },
     { FD_CMD_WRITE_DELETED, 0x3f, "WRITE DELETED DATA", 8, fdctrl_start_transfer_del, FD_DIR_WRITE },
@@ -1918,7 +1925,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
          * then from status mode to command mode
          */
         if (fdctrl->data_pos == fdctrl->data_len)
-            fdctrl_stop_transfer(fdctrl, FD_SR0_SEEK, 0x00, 0x00);
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
         return;
     }
     if (fdctrl->data_pos == 0) {

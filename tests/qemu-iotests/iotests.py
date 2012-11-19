@@ -42,6 +42,10 @@ def qemu_img(*args):
     devnull = open('/dev/null', 'r+')
     return subprocess.call(qemu_img_args + list(args), stdin=devnull, stdout=devnull)
 
+def qemu_img_verbose(*args):
+    '''Run qemu-img without supressing its output and return the exit code'''
+    return subprocess.call(qemu_img_args + list(args))
+
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
@@ -182,4 +186,4 @@ def main(supported_fmts=[]):
     try:
         unittest.main(testRunner=MyTestRunner)
     finally:
-        sys.stderr.write(re.sub(r'Ran (\d+) test[s] in [\d.]+s', r'Ran \1 tests', output.getvalue()))
+        sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s', r'Ran \1 tests', output.getvalue()))

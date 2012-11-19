@@ -336,7 +336,7 @@ static void trim_aio_cancel(BlockDriverAIOCB *acb)
     qemu_aio_release(iocb);
 }
 
-static AIOPool trim_aio_pool = {
+static const AIOCBInfo trim_aiocb_info = {
     .aiocb_size         = sizeof(TrimAIOCB),
     .cancel             = trim_aio_cancel,
 };
@@ -360,7 +360,7 @@ BlockDriverAIOCB *ide_issue_trim(BlockDriverState *bs,
     TrimAIOCB *iocb;
     int i, j, ret;
 
-    iocb = qemu_aio_get(&trim_aio_pool, bs, cb, opaque);
+    iocb = qemu_aio_get(&trim_aiocb_info, bs, cb, opaque);
     iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
     iocb->ret = 0;
 

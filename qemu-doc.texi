@@ -421,6 +421,7 @@ snapshots.
 * disk_images_nbd::           NBD access
 * disk_images_sheepdog::      Sheepdog disk images
 * disk_images_iscsi::         iSCSI LUNs
+* disk_images_gluster::       GlusterFS disk images
 @end menu
 
 @node disk_images_quickstart
@@ -814,7 +815,55 @@ qemu-system-i386 -iscsi initiator-name=iqn.qemu.test:my-initiator \
     -cdrom iscsi://127.0.0.1/iqn.qemu.test/2
 @end example
 
+@node disk_images_gluster
+@subsection GlusterFS disk images
 
+GlusterFS is an user space distributed file system.
+
+You can boot from the GlusterFS disk image with the command:
+@example
+qemu-system-x86_64 -drive file=gluster[+@var{transport}]://[@var{server}[:@var{port}]]/@var{volname}/@var{image}[?socket=...]
+@end example
+
+@var{gluster} is the protocol.
+
+@var{transport} specifies the transport type used to connect to gluster
+management daemon (glusterd). Valid transport types are
+tcp, unix and rdma. If a transport type isn't specified, then tcp
+type is assumed.
+
+@var{server} specifies the server where the volume file specification for
+the given volume resides. This can be either hostname, ipv4 address
+or ipv6 address. ipv6 address needs to be within square brackets [ ].
+If transport type is unix, then @var{server} field should not be specifed.
+Instead @var{socket} field needs to be populated with the path to unix domain
+socket.
+
+@var{port} is the port number on which glusterd is listening. This is optional
+and if not specified, QEMU will send 0 which will make gluster to use the
+default port. If the transport type is unix, then @var{port} should not be
+specified.
+
+@var{volname} is the name of the gluster volume which contains the disk image.
+
+@var{image} is the path to the actual disk image that resides on gluster volume.
+
+You can create a GlusterFS disk image with the command:
+@example
+qemu-img create gluster://@var{server}/@var{volname}/@var{image} @var{size}
+@end example
+
+Examples
+@example
+qemu-system-x86_64 -drive file=gluster://1.2.3.4/testvol/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://1.2.3.4/testvol/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://1.2.3.4:24007/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://[1:2:3:4:5:6:7:8]:24007/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+tcp://server.domain.com:24007/testvol/dir/a.img
+qemu-system-x86_64 -drive file=gluster+unix:///testvol/dir/a.img?socket=/tmp/glusterd.socket
+qemu-system-x86_64 -drive file=gluster+rdma://1.2.3.4:24007/testvol/a.img
+@end example
 
 @node pcsys_network
 @section Network emulation

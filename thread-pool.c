@@ -216,7 +216,7 @@ static void thread_pool_cancel(BlockDriverAIOCB *acb)
     qemu_mutex_unlock(&lock);
 }
 
-static AIOPool thread_pool_cb_pool = {
+static const AIOCBInfo thread_pool_aiocb_info = {
     .aiocb_size         = sizeof(ThreadPoolElement),
     .cancel             = thread_pool_cancel,
 };
@@ -226,7 +226,7 @@ BlockDriverAIOCB *thread_pool_submit_aio(ThreadPoolFunc *func, void *arg,
 {
     ThreadPoolElement *req;
 
-    req = qemu_aio_get(&thread_pool_cb_pool, NULL, cb, opaque);
+    req = qemu_aio_get(&thread_pool_aiocb_info, NULL, cb, opaque);
     req->func = func;
     req->arg = arg;
     req->state = THREAD_QUEUED;
