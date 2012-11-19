@@ -162,12 +162,12 @@ endif #CONFIG_LINUX_USER
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(all-obj-y)
+$(QEMU_PROGW): $(all-obj-y) ../libqemustub.a
 	$(call LINK,$^)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
 else
-$(QEMU_PROG): $(all-obj-y)
+$(QEMU_PROG): $(all-obj-y) ../libqemustub.a
 	$(call LINK,$^)
 endif
 

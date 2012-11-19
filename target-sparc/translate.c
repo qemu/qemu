@@ -5257,7 +5257,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (env->singlestep_enabled || singlestep);
-    gen_opc_end = gen_opc_buf + OPC_MAX_SIZE;
+    gen_opc_end = tcg_ctx.gen_opc_buf + OPC_MAX_SIZE;
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
@@ -5279,7 +5279,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         }
         if (spc) {
             qemu_log("Search PC...\n");
-            j = gen_opc_ptr - gen_opc_buf;
+            j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
             if (lj < j) {
                 lj++;
                 while (lj < j)
@@ -5312,7 +5312,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         if (dc->singlestep) {
             break;
         }
-    } while ((gen_opc_ptr < gen_opc_end) &&
+    } while ((tcg_ctx.gen_opc_ptr < gen_opc_end) &&
              (dc->pc - pc_start) < (TARGET_PAGE_SIZE - 32) &&
              num_insns < max_insns);
 
@@ -5334,9 +5334,9 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         }
     }
     gen_icount_end(tb, num_insns);
-    *gen_opc_ptr = INDEX_op_end;
+    *tcg_ctx.gen_opc_ptr = INDEX_op_end;
     if (spc) {
-        j = gen_opc_ptr - gen_opc_buf;
+        j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
             gen_opc_instr_start[lj++] = 0;

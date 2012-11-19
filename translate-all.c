@@ -33,9 +33,6 @@
 /* code generation context */
 TCGContext tcg_ctx;
 
-uint16_t gen_opc_buf[OPC_BUF_SIZE];
-TCGArg gen_opparam_buf[OPPARAM_BUF_SIZE];
-
 target_ulong gen_opc_pc[OPC_BUF_SIZE];
 uint16_t gen_opc_icount[OPC_BUF_SIZE];
 uint8_t gen_opc_instr_start[OPC_BUF_SIZE];

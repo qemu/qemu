@@ -610,14 +610,14 @@ QEMU can access directly to block device exported using the Network Block Device
 protocol.
 
 @example
-qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+qemu-system-i386 linux.img -hdb nbd://my_nbd_server.mydomain.org:1024/
 @end example
 
 If the NBD server is located on the same host, you can use an unix socket instead
 of an inet socket:
 
 @example
-qemu-system-i386 linux.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
 In this case, the block device must be exported using qemu-nbd:
@@ -631,17 +631,26 @@ The use of qemu-nbd allows to share a disk between several guests:
 qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
 @end example
 
+@noindent
 and then you can use it with two guests:
 @example
-qemu-system-i386 linux1.img -hdb nbd:unix:/tmp/my_socket
-qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 linux1.img -hdb nbd+unix://?socket=/tmp/my_socket
+qemu-system-i386 linux2.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
-If the nbd-server uses named exports (since NBD 2.9.18), you must use the
-"exportname" option:
+If the nbd-server uses named exports (supported since NBD 2.9.18, or with QEMU's
+own embedded NBD server), you must specify an export name in the URI:
 @example
-qemu-system-i386 -cdrom nbd:localhost:exportname=debian-500-ppc-netinst
-qemu-system-i386 -cdrom nbd:localhost:exportname=openSUSE-11.1-ppc-netinst
+qemu-system-i386 -cdrom nbd://localhost/debian-500-ppc-netinst
+qemu-system-i386 -cdrom nbd://localhost/openSUSE-11.1-ppc-netinst
+@end example
+
+The URI syntax for NBD is supported since QEMU 1.3.  An alternative syntax is
+also available.  Here are some example of the older syntax:
+@example
+qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 -cdrom nbd:localhost:10809:exportname=debian-500-ppc-netinst
 @end example
 
 @node disk_images_sheepdog

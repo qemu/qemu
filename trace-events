@@ -1001,6 +1001,7 @@ qxl_spice_update_area(int qid, uint32_t surface_id, uint32_t left, uint32_t righ
 qxl_spice_update_area_rest(int qid, uint32_t num_dirty_rects, uint32_t clear_dirty_region) "%d #d=%d clear=%d"
 qxl_surfaces_dirty(int qid, int surface, int offset, int size) "%d surface=%d offset=%d size=%d"
 qxl_send_events(int qid, uint32_t events) "%d %d"
+qxl_send_events_vm_stopped(int qid, uint32_t events) "%d %d"
 qxl_set_guest_bug(int qid) "%d"
 qxl_interrupt_client_monitors_config(int qid, int num_heads, void *heads) "%d %d %p"
 qxl_client_monitors_config_unsupported_by_guest(int qid, uint32_t int_mask, void *client_monitors_config) "%d %X %p"

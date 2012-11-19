@@ -122,11 +122,9 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 {
     AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
-    bool scheduled = false;
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
-            scheduled = true;
             if (bh->idle) {
                 /* idle bottom halves will be polled at least
                  * every 10ms */
@@ -135,12 +133,12 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
                 /* non-idle bottom halves will be executed
                  * immediately */
                 *timeout = 0;
-                break;
+                return true;
             }
         }
     }
 
-    return scheduled;
+    return false;
 }
 
 static gboolean

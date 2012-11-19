@@ -19,6 +19,7 @@
 
 #include "virtio-blk.h"
 #include "virtio-net.h"
+#include "virtio-rng.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
 
@@ -75,6 +76,7 @@ struct VirtIOS390Device {
     virtio_serial_conf serial;
     virtio_net_conf net;
     VirtIOSCSIConf scsi;
+    VirtIORNGConf rng;
 };
 
 typedef struct VirtIOS390Bus {

@@ -371,7 +371,7 @@ static void usb_hid_handle_reset(USBDevice *dev)
     hid_reset(&us->hid);
 }
 
-static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
+static void usb_hid_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
@@ -380,10 +380,9 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        return ret;
+        return;
     }
 
-    ret = 0;
     switch (request) {
         /* hid specific requests */
     case InterfaceRequest | USB_REQ_GET_DESCRIPTOR:
@@ -392,15 +391,15 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
             if (hs->kind == HID_MOUSE) {
 		memcpy(data, qemu_mouse_hid_report_descriptor,
 		       sizeof(qemu_mouse_hid_report_descriptor));
-		ret = sizeof(qemu_mouse_hid_report_descriptor);
+                p->actual_length = sizeof(qemu_mouse_hid_report_descriptor);
             } else if (hs->kind == HID_TABLET) {
                 memcpy(data, qemu_tablet_hid_report_descriptor,
 		       sizeof(qemu_tablet_hid_report_descriptor));
-		ret = sizeof(qemu_tablet_hid_report_descriptor);
+                p->actual_length = sizeof(qemu_tablet_hid_report_descriptor);
             } else if (hs->kind == HID_KEYBOARD) {
                 memcpy(data, qemu_keyboard_hid_report_descriptor,
                        sizeof(qemu_keyboard_hid_report_descriptor));
-                ret = sizeof(qemu_keyboard_hid_report_descriptor);
+                p->actual_length = sizeof(qemu_keyboard_hid_report_descriptor);
             }
             break;
         default:
@@ -409,14 +408,14 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case GET_REPORT:
         if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
-            ret = hid_pointer_poll(hs, data, length);
+            p->actual_length = hid_pointer_poll(hs, data, length);
         } else if (hs->kind == HID_KEYBOARD) {
-            ret = hid_keyboard_poll(hs, data, length);
+            p->actual_length = hid_keyboard_poll(hs, data, length);
         }
         break;
     case SET_REPORT:
         if (hs->kind == HID_KEYBOARD) {
-            ret = hid_keyboard_write(hs, data, length);
+            p->actual_length = hid_keyboard_write(hs, data, length);
         } else {
             goto fail;
         }
@@ -425,19 +424,18 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         if (hs->kind != HID_KEYBOARD && hs->kind != HID_MOUSE) {
             goto fail;
         }
-        ret = 1;
         data[0] = hs->protocol;
+        p->actual_length = 1;
         break;
     case SET_PROTOCOL:
         if (hs->kind != HID_KEYBOARD && hs->kind != HID_MOUSE) {
             goto fail;
         }
-        ret = 0;
         hs->protocol = value;
         break;
     case GET_IDLE:
-        ret = 1;
         data[0] = hs->idle;
+        p->actual_length = 1;
         break;
     case SET_IDLE:
         hs->idle = (uint8_t) (value >> 8);
@@ -445,22 +443,20 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
             hid_pointer_activate(hs);
         }
-        ret = 0;
         break;
     default:
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
-static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
+static void usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
     HIDState *hs = &us->hid;
     uint8_t buf[p->iov.size];
-    int ret = 0;
+    int len = 0;
 
     switch (p->pid) {
     case USB_TOKEN_IN:
@@ -471,15 +467,16 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
             }
             if (!hid_has_events(hs) &&
                 (!hs->idle || hs->next_idle_clock - curtime > 0)) {
-                return USB_RET_NAK;
+                p->status = USB_RET_NAK;
+                return;
             }
             hid_set_next_idle(hs, curtime);
             if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
-                ret = hid_pointer_poll(hs, buf, p->iov.size);
+                len = hid_pointer_poll(hs, buf, p->iov.size);
             } else if (hs->kind == HID_KEYBOARD) {
-                ret = hid_keyboard_poll(hs, buf, p->iov.size);
+                len = hid_keyboard_poll(hs, buf, p->iov.size);
             }
-            usb_packet_copy(p, buf, ret);
+            usb_packet_copy(p, buf, len);
         } else {
             goto fail;
         }
@@ -487,10 +484,9 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_OUT:
     default:
     fail:
-        ret = USB_RET_STALL;
+        p->status = USB_RET_STALL;
         break;
     }
-    return ret;
 }
 
 static void usb_hid_handle_destroy(USBDevice *dev)

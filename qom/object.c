@@ -1183,6 +1183,62 @@ void object_property_add_str(Object *obj, const char *name,
                         prop, errp);
 }
 
+typedef struct BoolProperty
+{
+    bool (*get)(Object *, Error **);
+    void (*set)(Object *, bool, Error **);
+} BoolProperty;
+
+static void property_get_bool(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    BoolProperty *prop = opaque;
+    bool value;
+
+    value = prop->get(obj, errp);
+    visit_type_bool(v, &value, name, errp);
+}
+
+static void property_set_bool(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    BoolProperty *prop = opaque;
+    bool value;
+    Error *local_err = NULL;
+
+    visit_type_bool(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    prop->set(obj, value, errp);
+}
+
+static void property_release_bool(Object *obj, const char *name,
+                                  void *opaque)
+{
+    BoolProperty *prop = opaque;
+    g_free(prop);
+}
+
+void object_property_add_bool(Object *obj, const char *name,
+                              bool (*get)(Object *, Error **),
+                              void (*set)(Object *, bool, Error **),
+                              Error **errp)
+{
+    BoolProperty *prop = g_malloc0(sizeof(*prop));
+
+    prop->get = get;
+    prop->set = set;
+
+    object_property_add(obj, name, "bool",
+                        get ? property_get_bool : NULL,
+                        set ? property_set_bool : NULL,
+                        property_release_bool,
+                        prop, errp);
+}
+
 static char *qdev_get_type(Object *obj, Error **errp)
 {
     return g_strdup(object_get_typename(obj));

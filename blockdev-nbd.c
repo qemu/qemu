@@ -82,6 +82,11 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     NBDExport *exp;
     NBDCloseNotifier *n;
 
+    if (server_fd == -1) {
+        error_setg(errp, "NBD server not running");
+        return;
+    }
+
     if (nbd_export_find(device)) {
         error_setg(errp, "NBD server already exporting device '%s'", device);
         return;
@@ -91,6 +96,13 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
         return;
+    }
+
+    if (!has_writable) {
+        writable = true;
+    }
+    if (bdrv_is_read_only(bs)) {
+        writable = false;
     }
 
     exp = nbd_export_new(bs, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY,
@@ -113,7 +125,9 @@ void qmp_nbd_server_stop(Error **errp)
         nbd_close_notifier(&cn->n, nbd_export_get_blockdev(cn->exp));
     }
 
-    qemu_set_fd_handler2(server_fd, NULL, NULL, NULL, NULL);
-    close(server_fd);
-    server_fd = -1;
+    if (server_fd != -1) {
+        qemu_set_fd_handler2(server_fd, NULL, NULL, NULL, NULL);
+        close(server_fd);
+        server_fd = -1;
+    }
 }

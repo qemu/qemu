@@ -16,7 +16,7 @@ static inline void gen_icount_start(void)
     count = tcg_temp_local_new_i32();
     tcg_gen_ld_i32(count, cpu_env, offsetof(CPUArchState, icount_decr.u32));
     /* This is a horrid hack to allow fixing up the value later.  */
-    icount_arg = gen_opparam_ptr + 1;
+    icount_arg = tcg_ctx.gen_opparam_ptr + 1;
     tcg_gen_subi_i32(count, count, 0xdeadbeef);
 
     tcg_gen_brcondi_i32(TCG_COND_LT, count, 0, icount_label);

@@ -36,7 +36,8 @@ IO ports used
 
 03c0 - 03df : standard vga ports
 01ce        : bochs vbe interface index port
-01cf        : bochs vbe interface data port
+01cf        : bochs vbe interface data port (x86 only)
+01d0        : bochs vbe interface data port
 
 
 Memory regions used

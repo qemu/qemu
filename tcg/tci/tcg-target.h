@@ -67,7 +67,7 @@
 #define TCG_TARGET_HAS_ext8u_i32        1
 #define TCG_TARGET_HAS_ext16u_i32       1
 #define TCG_TARGET_HAS_andc_i32         0
-#define TCG_TARGET_HAS_deposit_i32      0
+#define TCG_TARGET_HAS_deposit_i32      1
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
@@ -81,7 +81,7 @@
 #define TCG_TARGET_HAS_bswap16_i64      1
 #define TCG_TARGET_HAS_bswap32_i64      1
 #define TCG_TARGET_HAS_bswap64_i64      1
-#define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_deposit_i64      1
 /* Not more than one of the next two defines must be 1. */
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_div2_i64         0

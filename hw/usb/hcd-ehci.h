@@ -230,7 +230,6 @@ struct EHCIPacket {
     QEMUSGList sgl;
     int pid;
     enum async_state async;
-    int usb_status;
 };
 
 struct EHCIQueue {

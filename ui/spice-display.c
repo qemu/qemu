@@ -150,9 +150,9 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
     QXLDrawable *drawable;
     QXLImage *image;
     QXLCommand *cmd;
-    uint8_t *src, *mirror, *dst;
-    int by, bw, bh, offset, bytes;
+    int bw, bh;
     struct timespec time_space;
+    pixman_image_t *dest;
 
     trace_qemu_spice_create_update(
            rect->left, rect->right,
@@ -195,20 +195,15 @@ static void qemu_spice_create_one_update(SimpleSpiceDisplay *ssd,
     image->bitmap.palette = 0;
     image->bitmap.format = SPICE_BITMAP_FMT_32BIT;
 
-    offset =
-        rect->top * ds_get_linesize(ssd->ds) +
-        rect->left * ds_get_bytes_per_pixel(ssd->ds);
-    bytes = ds_get_bytes_per_pixel(ssd->ds) * bw;
-    src = ds_get_data(ssd->ds) + offset;
-    mirror = ssd->ds_mirror + offset;
-    dst = update->bitmap;
-    for (by = 0; by < bh; by++) {
-        memcpy(mirror, src, bytes);
-        qemu_pf_conv_run(ssd->conv, dst, mirror, bw);
-        src += ds_get_linesize(ssd->ds);
-        mirror += ds_get_linesize(ssd->ds);
-        dst += image->bitmap.stride;
-    }
+    dest = pixman_image_create_bits(PIXMAN_x8r8g8b8, bw, bh,
+                                    (void *)update->bitmap, bw * 4);
+    pixman_image_composite(PIXMAN_OP_SRC, ssd->surface, NULL, ssd->mirror,
+                           rect->left, rect->top, 0, 0,
+                           rect->left, rect->top, bw, bh);
+    pixman_image_composite(PIXMAN_OP_SRC, ssd->mirror, NULL, dest,
+                           rect->left, rect->top, 0, 0,
+                           0, 0, bw, bh);
+    pixman_image_unref(dest);
 
     cmd->type = QXL_CMD_DRAW;
     cmd->data = (uintptr_t)drawable;
@@ -229,14 +224,10 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
         return;
     };
 
-    if (ssd->conv == NULL) {
-        PixelFormat dst = qemu_default_pixelformat(32);
-        ssd->conv = qemu_pf_conv_get(&dst, &ssd->ds->surface->pf);
-        assert(ssd->conv);
-    }
-    if (ssd->ds_mirror == NULL) {
-        int size = ds_get_height(ssd->ds) * ds_get_linesize(ssd->ds);
-        ssd->ds_mirror = g_malloc0(size);
+    if (ssd->surface == NULL) {
+        ssd->surface = pixman_image_ref(ds_get_image(ssd->ds));
+        ssd->mirror  = qemu_pixman_mirror_create(ds_get_format(ssd->ds),
+                                                 ds_get_image(ssd->ds));
     }
 
     for (blk = 0; blk < blocks; blk++) {
@@ -244,7 +235,7 @@ static void qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     }
 
     guest = ds_get_data(ssd->ds);
-    mirror = ssd->ds_mirror;
+    mirror = (void *)pixman_image_get_data(ssd->mirror);
     for (y = ssd->dirty.top; y < ssd->dirty.bottom; y++) {
         yoff = y * ds_get_linesize(ssd->ds);
         for (x = ssd->dirty.left; x < ssd->dirty.right; x += blksize) {
@@ -383,10 +374,12 @@ void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
     dprint(1, "%s:\n", __FUNCTION__);
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
-    qemu_pf_conv_put(ssd->conv);
-    ssd->conv = NULL;
-    g_free(ssd->ds_mirror);
-    ssd->ds_mirror = NULL;
+    if (ssd->surface) {
+        pixman_image_unref(ssd->surface);
+        ssd->surface = NULL;
+        pixman_image_unref(ssd->mirror);
+        ssd->mirror = NULL;
+    }
 
     qemu_mutex_lock(&ssd->lock);
     while ((update = QTAILQ_FIRST(&ssd->updates)) != NULL) {
@@ -580,7 +573,6 @@ void qemu_spice_display_init(DisplayState *ds)
 {
     assert(sdpy.ds == NULL);
     qemu_spice_display_init_common(&sdpy, ds);
-    register_displaychangelistener(ds, &display_listener);
 
     sdpy.qxl.base.sif = &dpy_interface.base;
     qemu_spice_add_interface(&sdpy.qxl.base);
@@ -588,4 +580,5 @@ void qemu_spice_display_init(DisplayState *ds)
 
     qemu_spice_create_host_memslot(&sdpy);
     qemu_spice_create_host_primary(&sdpy);
+    register_displaychangelistener(ds, &display_listener);
 }

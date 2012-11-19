@@ -54,38 +54,6 @@ static bool fips_enabled = false;
 
 static const char *qemu_version = QEMU_VERSION;
 
-static int default_fdset_get_fd(int64_t fdset_id, int flags)
-{
-    return -1;
-}
-QEMU_WEAK_ALIAS(monitor_fdset_get_fd, default_fdset_get_fd);
-#define monitor_fdset_get_fd \
-    QEMU_WEAK_REF(monitor_fdset_get_fd, default_fdset_get_fd)
-
-static int default_fdset_dup_fd_add(int64_t fdset_id, int dup_fd)
-{
-    return -1;
-}
-QEMU_WEAK_ALIAS(monitor_fdset_dup_fd_add, default_fdset_dup_fd_add);
-#define monitor_fdset_dup_fd_add \
-    QEMU_WEAK_REF(monitor_fdset_dup_fd_add, default_fdset_dup_fd_add)
-
-static int default_fdset_dup_fd_remove(int dup_fd)
-{
-    return -1;
-}
-QEMU_WEAK_ALIAS(monitor_fdset_dup_fd_remove, default_fdset_dup_fd_remove);
-#define monitor_fdset_dup_fd_remove \
-    QEMU_WEAK_REF(monitor_fdset_dup_fd_remove, default_fdset_dup_fd_remove)
-
-static int default_fdset_dup_fd_find(int dup_fd)
-{
-    return -1;
-}
-QEMU_WEAK_ALIAS(monitor_fdset_dup_fd_find, default_fdset_dup_fd_find);
-#define monitor_fdset_dup_fd_find \
-    QEMU_WEAK_REF(monitor_fdset_dup_fd_remove, default_fdset_dup_fd_find)
-
 int socket_set_cork(int fd, int v)
 {
 #if defined(SOL_TCP) && defined(TCP_CORK)

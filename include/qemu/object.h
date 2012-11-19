@@ -947,6 +947,22 @@ void object_property_add_str(Object *obj, const char *name,
                              struct Error **errp);
 
 /**
+ * object_property_add_bool:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @get: the getter or NULL if the property is write-only.
+ * @set: the setter or NULL if the property is read-only
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add a bool property using getters/setters.  This function will add a
+ * property of type 'bool'.
+ */
+void object_property_add_bool(Object *obj, const char *name,
+                              bool (*get)(Object *, struct Error **),
+                              void (*set)(Object *, bool, struct Error **),
+                              struct Error **errp);
+
+/**
  * object_child_foreach:
  * @obj: the object whose children will be navigated
  * @fn: the iterator function to be called

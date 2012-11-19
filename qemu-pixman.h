@@ -1,3 +1,8 @@
+/*
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
+
 #ifndef QEMU_PIXMAN_H
 #define QEMU_PIXMAN_H
 
@@ -27,6 +32,8 @@ pixman_image_t *qemu_pixman_linebuf_create(pixman_format_code_t format,
                                            int width);
 void qemu_pixman_linebuf_fill(pixman_image_t *linebuf, pixman_image_t *fb,
                               int width, int y);
+pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
+                                          pixman_image_t *image);
 void qemu_pixman_image_unref(pixman_image_t *image);
 
 #endif /* QEMU_PIXMAN_H */

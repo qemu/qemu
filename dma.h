@@ -68,6 +68,11 @@ struct DMAContext {
     DMAUnmapFunc *unmap;
 };
 
+/* A global DMA context corresponding to the address_space_memory
+ * AddressSpace, for sysbus devices which do DMA.
+ */
+extern DMAContext dma_context_memory;
+
 static inline void dma_barrier(DMAContext *dma, DMADirection dir)
 {
     /*

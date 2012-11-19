@@ -852,6 +852,41 @@ static void virtio_balloon_exit_pci(PCIDevice *pci_dev)
     virtio_exit_pci(pci_dev);
 }
 
+static int virtio_rng_init_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    VirtIODevice *vdev;
+
+    if (proxy->rng.rng == NULL) {
+        proxy->rng.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
+
+        object_property_add_child(OBJECT(pci_dev),
+                                  "default-backend",
+                                  OBJECT(proxy->rng.default_backend),
+                                  NULL);
+
+        object_property_set_link(OBJECT(pci_dev),
+                                 OBJECT(proxy->rng.default_backend),
+                                 "rng", NULL);
+    }
+
+    vdev = virtio_rng_init(&pci_dev->qdev, &proxy->rng);
+    if (!vdev) {
+        return -1;
+    }
+    virtio_init_pci(proxy, vdev);
+    return 0;
+}
+
+static void virtio_rng_exit_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    virtio_pci_stop_ioeventfd(proxy);
+    virtio_rng_exit(proxy->vdev);
+    virtio_exit_pci(pci_dev);
+}
+
 static Property virtio_blk_properties[] = {
     DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, blk.conf),
@@ -982,6 +1017,50 @@ static TypeInfo virtio_balloon_info = {
     .class_init    = virtio_balloon_class_init,
 };
 
+static void virtio_rng_initfn(Object *obj)
+{
+    PCIDevice *pci_dev = PCI_DEVICE(obj);
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
+                             (Object **)&proxy->rng.rng, NULL);
+}
+
+static Property virtio_rng_properties[] = {
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+    /* Set a default rate limit of 2^47 bytes per minute or roughly 2TB/s.  If
+       you have an entropy source capable of generating more entropy than this
+       and you can pass it through via virtio-rng, then hats off to you.  Until
+       then, this is unlimited for all practical purposes.
+    */
+    DEFINE_PROP_UINT64("max-bytes", VirtIOPCIProxy, rng.max_bytes, INT64_MAX),
+    DEFINE_PROP_UINT32("period", VirtIOPCIProxy, rng.period_ms, 1 << 16),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_rng_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = virtio_rng_init_pci;
+    k->exit = virtio_rng_exit_pci;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    k->device_id = PCI_DEVICE_ID_VIRTIO_RNG;
+    k->revision = VIRTIO_PCI_ABI_VERSION;
+    k->class_id = PCI_CLASS_OTHERS;
+    dc->reset = virtio_pci_reset;
+    dc->props = virtio_rng_properties;
+}
+
+static TypeInfo virtio_rng_info = {
+    .name          = "virtio-rng-pci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VirtIOPCIProxy),
+    .instance_init = virtio_rng_initfn,
+    .class_init    = virtio_rng_class_init,
+};
+
 static int virtio_scsi_init_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
@@ -1046,6 +1125,7 @@ static void virtio_pci_register_types(void)
     type_register_static(&virtio_serial_info);
     type_register_static(&virtio_balloon_info);
     type_register_static(&virtio_scsi_info);
+    type_register_static(&virtio_rng_info);
 }
 
 type_init(virtio_pci_register_types)

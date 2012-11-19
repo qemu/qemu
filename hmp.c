@@ -18,6 +18,7 @@
 #include "qemu-option.h"
 #include "qemu-timer.h"
 #include "qmp-commands.h"
+#include "qemu_socket.h"
 #include "monitor.h"
 #include "console.h"
 
@@ -1258,4 +1259,79 @@ void hmp_screen_dump(Monitor *mon, const QDict *qdict)
 
     qmp_screendump(filename, &err);
     hmp_handle_error(mon, &err);
+}
+
+void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
+{
+    const char *uri = qdict_get_str(qdict, "uri");
+    int writable = qdict_get_try_bool(qdict, "writable", 0);
+    int all = qdict_get_try_bool(qdict, "all", 0);
+    Error *local_err = NULL;
+    BlockInfoList *block_list, *info;
+    SocketAddress *addr;
+
+    if (writable && !all) {
+        error_setg(&local_err, "-w only valid together with -a");
+        goto exit;
+    }
+
+    /* First check if the address is valid and start the server.  */
+    addr = socket_parse(uri, &local_err);
+    if (local_err != NULL) {
+        goto exit;
+    }
+
+    qmp_nbd_server_start(addr, &local_err);
+    qapi_free_SocketAddress(addr);
+    if (local_err != NULL) {
+        goto exit;
+    }
+
+    if (!all) {
+        return;
+    }
+
+    /* Then try adding all block devices.  If one fails, close all and
+     * exit.
+     */
+    block_list = qmp_query_block(NULL);
+
+    for (info = block_list; info; info = info->next) {
+        if (!info->value->has_inserted) {
+            continue;
+        }
+
+        qmp_nbd_server_add(info->value->device, true, writable, &local_err);
+
+        if (local_err != NULL) {
+            qmp_nbd_server_stop(NULL);
+            break;
+        }
+    }
+
+    qapi_free_BlockInfoList(block_list);
+
+exit:
+    hmp_handle_error(mon, &local_err);
+}
+
+void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    int writable = qdict_get_try_bool(qdict, "writable", 0);
+    Error *local_err = NULL;
+
+    qmp_nbd_server_add(device, true, writable, &local_err);
+
+    if (local_err != NULL) {
+        hmp_handle_error(mon, &local_err);
+    }
+}
+
+void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
+{
+    Error *errp = NULL;
+
+    qmp_nbd_server_stop(&errp);
+    hmp_handle_error(mon, &errp);
 }

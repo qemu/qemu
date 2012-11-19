@@ -1,0 +1,8 @@
+stub-obj-y += arch-query-cpu-def.o
+stub-obj-y += fdset-add-fd.o
+stub-obj-y += fdset-find-fd.o
+stub-obj-y += fdset-get-fd.o
+stub-obj-y += fdset-remove-fd.o
+stub-obj-y += get-fd.o
+stub-obj-y += set-fd-handler.o
+stub-obj-$(CONFIG_WIN32) += fd-register.o
