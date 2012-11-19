@@ -610,7 +610,7 @@ void qemu_spice_init(void)
         }
 
         x509_key_password = qemu_opt_get(opts, "x509-key-password");
-        x509_dh_file = qemu_opt_get(opts, "x509-dh-file");
+        x509_dh_file = qemu_opt_get(opts, "x509-dh-key-file");
         tls_ciphers = qemu_opt_get(opts, "tls-ciphers");
     }
 
