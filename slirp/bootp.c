@@ -287,6 +287,18 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
             memcpy(q, slirp->client_hostname, val);
             q += val;
         }
+
+        if (slirp->vdnssearch) {
+            size_t spaceleft = sizeof(rbp->bp_vend) - (q - rbp->bp_vend);
+            val = slirp->vdnssearch_len;
+            if (val + 1 > spaceleft) {
+                g_warning("DHCP packet size exceeded, "
+                    "omitting domain-search option.");
+            } else {
+                memcpy(q, slirp->vdnssearch, val);
+                q += val;
+            }
+        }
     } else {
         static const char nak_msg[] = "requested address not available";
 

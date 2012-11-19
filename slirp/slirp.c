@@ -203,7 +203,8 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   struct in_addr vnetmask, struct in_addr vhost,
                   const char *vhostname, const char *tftp_path,
                   const char *bootfile, struct in_addr vdhcp_start,
-                  struct in_addr vnameserver, void *opaque)
+                  struct in_addr vnameserver, const char **vdnssearch,
+                  void *opaque)
 {
     Slirp *slirp = g_malloc0(sizeof(Slirp));
 
@@ -233,6 +234,10 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
 
+    if (vdnssearch) {
+        translate_dnssearch(slirp, vdnssearch);
+    }
+
     slirp->opaque = opaque;
 
     register_savevm(NULL, "slirp", 0, 3,
@@ -252,6 +257,7 @@ void slirp_cleanup(Slirp *slirp)
     ip_cleanup(slirp);
     m_cleanup(slirp);
 
+    g_free(slirp->vdnssearch);
     g_free(slirp->tftp_prefix);
     g_free(slirp->bootp_filename);
     g_free(slirp);
