@@ -24,6 +24,10 @@
 
 #define TYPE_SUPERH_CPU "superh-cpu"
 
+#define TYPE_SH7750R_CPU "sh7750r-" TYPE_SUPERH_CPU
+#define TYPE_SH7751R_CPU "sh7751r-" TYPE_SUPERH_CPU
+#define TYPE_SH7785_CPU "sh7785-" TYPE_SUPERH_CPU
+
 #define SUPERH_CPU_CLASS(klass) \
     OBJECT_CLASS_CHECK(SuperHCPUClass, (klass), TYPE_SUPERH_CPU)
 #define SUPERH_CPU(obj) \
@@ -35,6 +39,7 @@
  * SuperHCPUClass:
  * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
+ * @name: The name.
  *
  * A SuperH CPU model.
  */
@@ -45,6 +50,8 @@ typedef struct SuperHCPUClass {
 
     DeviceRealize parent_realize;
     void (*parent_reset)(CPUState *cpu);
+
+    const char *name;
 } SuperHCPUClass;
 
 /**
