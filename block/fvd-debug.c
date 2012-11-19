@@ -214,7 +214,7 @@ static void dump_alloc_tracers (void)
 }
 #endif
 
-static inline void *_my_qemu_aio_get (AIOPool * pool, BlockDriverState * bs,
+static inline void *_my_qemu_aio_get (AIOCBInfo *pool, BlockDriverState *bs,
                                       BlockDriverCompletionFunc * cb,
                                       void *opaque)
 {

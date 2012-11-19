@@ -135,7 +135,7 @@ static int parse_filter(const char *spec, struct USBAutoFilter *f);
 static void usb_host_auto_check(void *unused);
 static int usb_host_read_file(char *line, size_t line_size,
                             const char *device_file, const char *device_name);
-static int usb_linux_update_endp_table(USBHostDevice *s);
+static void usb_linux_update_endp_table(USBHostDevice *s);
 
 static int usb_host_usbfs_type(USBHostDevice *s, USBPacket *p)
 {
@@ -366,8 +366,11 @@ static void async_complete(void *opaque)
         if (p) {
             switch (aurb->urb.status) {
             case 0:
-                p->actual_length = aurb->urb.actual_length;
-                p->status = USB_RET_SUCCESS; /* Clear previous ASYNC status */
+                p->actual_length += aurb->urb.actual_length;
+                if (!aurb->more) {
+                    /* Clear previous ASYNC status */
+                    p->status = USB_RET_SUCCESS;
+                }
                 break;
 
             case -EPIPE:
@@ -385,10 +388,12 @@ static void async_complete(void *opaque)
             }
 
             if (aurb->urb.type == USBDEVFS_URB_TYPE_CONTROL) {
-                trace_usb_host_req_complete(s->bus_num, s->addr, p, p->status);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, aurb->urb.actual_length);
                 usb_generic_async_ctrl_complete(&s->dev, p);
             } else if (!aurb->more) {
-                trace_usb_host_req_complete(s->bus_num, s->addr, p, p->status);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, aurb->urb.actual_length);
                 usb_packet_complete(&s->dev, p);
             }
         }
@@ -863,8 +868,9 @@ static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
                             p->ep->nr, p->iov.size);
 
     if (!is_valid(s, p->pid, p->ep->nr)) {
-        trace_usb_host_req_complete(s->bus_num, s->addr, p, USB_RET_NAK);
         p->status = USB_RET_NAK;
+        trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                    p->status, p->actual_length);
         return;
     }
 
@@ -879,8 +885,9 @@ static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
         ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &arg);
         if (ret < 0) {
             perror("USBDEVFS_CLEAR_HALT");
-            trace_usb_host_req_complete(s->bus_num, s->addr, p, USB_RET_NAK);
             p->status = USB_RET_NAK;
+            trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                        p->status, p->actual_length);
             return;
         }
         clear_halt(s, p->pid, p->ep->nr);
@@ -936,15 +943,15 @@ static void usb_host_handle_data(USBDevice *dev, USBPacket *p)
 
             switch(errno) {
             case ETIMEDOUT:
-                trace_usb_host_req_complete(s->bus_num, s->addr, p,
-                                            USB_RET_NAK);
                 p->status = USB_RET_NAK;
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, p->actual_length);
                 break;
             case EPIPE:
             default:
-                trace_usb_host_req_complete(s->bus_num, s->addr, p,
-                                            USB_RET_STALL);
                 p->status = USB_RET_STALL;
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            p->status, p->actual_length);
             }
             return;
         }
@@ -1132,8 +1139,7 @@ static void usb_host_handle_control(USBDevice *dev, USBPacket *p,
     p->status = USB_RET_ASYNC;
 }
 
-/* returns 1 on problem encountered or 0 for success */
-static int usb_linux_update_endp_table(USBHostDevice *s)
+static void usb_linux_update_endp_table(USBHostDevice *s)
 {
     static const char *tname[] = {
         [USB_ENDPOINT_XFER_CONTROL] = "control",
@@ -1159,23 +1165,23 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         if (d->bLength < 2) {
             trace_usb_host_parse_error(s->bus_num, s->addr,
                                        "descriptor too short");
-            goto error;
+            return;
         }
         if (i + d->bLength > s->descr_len) {
             trace_usb_host_parse_error(s->bus_num, s->addr,
                                        "descriptor too long");
-            goto error;
+            return;
         }
         switch (d->bDescriptorType) {
         case 0:
             trace_usb_host_parse_error(s->bus_num, s->addr,
                                        "invalid descriptor type");
-            goto error;
+            return;
         case USB_DT_DEVICE:
             if (d->bLength < 0x12) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "device descriptor too short");
-                goto error;
+                return;
             }
             v = (d->u.device.idVendor_hi << 8) | d->u.device.idVendor_lo;
             p = (d->u.device.idProduct_hi << 8) | d->u.device.idProduct_lo;
@@ -1185,7 +1191,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (d->bLength < 0x09) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "config descriptor too short");
-                goto error;
+                return;
             }
             configuration = d->u.config.bConfigurationValue;
             active = (configuration == s->dev.configuration);
@@ -1196,7 +1202,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (d->bLength < 0x09) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "interface descriptor too short");
-                goto error;
+                return;
             }
             interface = d->u.interface.bInterfaceNumber;
             altsetting = d->u.interface.bAlternateSetting;
@@ -1209,7 +1215,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (d->bLength < 0x07) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "endpoint descriptor too short");
-                goto error;
+                return;
             }
             devep = d->u.endpoint.bEndpointAddress;
             pid = (devep & USB_DIR_IN) ? USB_TOKEN_IN : USB_TOKEN_OUT;
@@ -1217,7 +1223,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             if (ep == 0) {
                 trace_usb_host_parse_error(s->bus_num, s->addr,
                                            "invalid endpoint address");
-                goto error;
+                return;
             }
 
             type = d->u.endpoint.bmAttributes & 0x3;
@@ -1250,11 +1256,6 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             break;
         }
     }
-    return 0;
-
-error:
-    usb_ep_reset(&s->dev);
-    return 1;
 }
 
 /*
@@ -1341,10 +1342,7 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
     }
 
     usb_ep_init(&dev->dev);
-    ret = usb_linux_update_endp_table(dev);
-    if (ret) {
-        goto fail;
-    }
+    usb_linux_update_endp_table(dev);
 
     if (speed == -1) {
         struct usbdevfs_connectinfo ci;
@@ -1738,6 +1736,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
 }
 
 static QEMUTimer *usb_auto_timer;
+static VMChangeStateEntry *usb_vmstate;
 
 static int usb_host_auto_scan(void *opaque, int bus_num,
                               int addr, const char *port,
@@ -1792,6 +1791,13 @@ static int usb_host_auto_scan(void *opaque, int bus_num,
     return 0;
 }
 
+static void usb_host_vm_state(void *unused, int running, RunState state)
+{
+    if (running) {
+        usb_host_auto_check(unused);
+    }
+}
+
 static void usb_host_auto_check(void *unused)
 {
     struct USBHostDevice *s;
@@ -1820,6 +1826,9 @@ static void usb_host_auto_check(void *unused)
         }
     }
 
+    if (!usb_vmstate) {
+        usb_vmstate = qemu_add_vm_change_state_handler(usb_host_vm_state, NULL);
+    }
     if (!usb_auto_timer) {
         usb_auto_timer = qemu_new_timer_ms(rt_clock, usb_host_auto_check, NULL);
         if (!usb_auto_timer) {

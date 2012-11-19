@@ -30,7 +30,7 @@ static void qed_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-static AIOPool qed_aio_pool = {
+static const AIOCBInfo qed_aiocb_info = {
     .aiocb_size         = sizeof(QEDAIOCB),
     .cancel             = qed_aio_cancel,
 };
@@ -1311,7 +1311,7 @@ static BlockDriverAIOCB *qed_aio_setup(BlockDriverState *bs,
                                        BlockDriverCompletionFunc *cb,
                                        void *opaque, int flags)
 {
-    QEDAIOCB *acb = qemu_aio_get(&qed_aio_pool, bs, cb, opaque);
+    QEDAIOCB *acb = qemu_aio_get(&qed_aiocb_info, bs, cb, opaque);
 
     trace_qed_aio_setup(bs->opaque, acb, sector_num, nb_sectors,
                         opaque, flags);

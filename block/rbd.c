@@ -570,7 +570,7 @@ static void qemu_rbd_aio_cancel(BlockDriverAIOCB *blockacb)
     acb->cancelled = 1;
 }
 
-static AIOPool rbd_aio_pool = {
+static const AIOCBInfo rbd_aiocb_info = {
     .aiocb_size = sizeof(RBDAIOCB),
     .cancel = qemu_rbd_aio_cancel,
 };
@@ -672,7 +672,7 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
 
     BDRVRBDState *s = bs->opaque;
 
-    acb = qemu_aio_get(&rbd_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&rbd_aiocb_info, bs, cb, opaque);
     acb->cmd = cmd;
     acb->qiov = qiov;
     if (cmd == RBD_AIO_DISCARD) {

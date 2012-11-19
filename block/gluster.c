@@ -388,7 +388,7 @@ static void qemu_gluster_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-static AIOPool gluster_aio_pool = {
+static const AIOCBInfo gluster_aiocb_info = {
     .aiocb_size = sizeof(GlusterAIOCB),
     .cancel = qemu_gluster_aio_cancel,
 };
@@ -439,7 +439,7 @@ static BlockDriverAIOCB *qemu_gluster_aio_rw(BlockDriverState *bs,
     size = nb_sectors * BDRV_SECTOR_SIZE;
     s->qemu_aio_count++;
 
-    acb = qemu_aio_get(&gluster_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&gluster_aiocb_info, bs, cb, opaque);
     acb->size = size;
     acb->ret = 0;
     acb->finished = NULL;
@@ -484,7 +484,7 @@ static BlockDriverAIOCB *qemu_gluster_aio_flush(BlockDriverState *bs,
     GlusterAIOCB *acb;
     BDRVGlusterState *s = bs->opaque;
 
-    acb = qemu_aio_get(&gluster_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&gluster_aiocb_info, bs, cb, opaque);
     acb->size = 0;
     acb->ret = 0;
     acb->finished = NULL;

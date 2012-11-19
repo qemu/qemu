@@ -353,7 +353,7 @@ typedef struct FvdAIOCB {
     JournalCB jcb;        /* For AIOWriteCB and AIOStoreCompactCB. */
     CopyLock copy_lock;        /* For AIOWriteCB and AIOCopyCB. */
 
-    /* Use a union so that all requests can efficiently share one big AIOPool.*/
+    /* Use a union so that all requests can efficiently share one big AIOCBInfo.*/
     union {
         AIOWrapperCB wrapper;
         AIOReadCB read;
@@ -373,7 +373,7 @@ typedef struct FvdAIOCB {
 #endif
 } FvdAIOCB;
 
-static AIOPool fvd_aio_pool;
+static AIOCBInfo fvd_aio_pool;
 static BlockDriver bdrv_fvd;
 static QEMUOptionParameter fvd_create_options[];
 

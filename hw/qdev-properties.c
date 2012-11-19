@@ -4,6 +4,7 @@
 #include "blockdev.h"
 #include "hw/block-common.h"
 #include "net/hub.h"
+#include "qapi/qapi-visit-core.h"
 
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 {

@@ -46,7 +46,7 @@
 #include "block/fvd-journal.c"
 #include "block/fvd-prefetch.c"
 
-static AIOPool fvd_aio_pool = {
+static AIOCBInfo fvd_aio_pool = {
     .aiocb_size = sizeof (FvdAIOCB),
     .cancel = fvd_aio_cancel,
 };

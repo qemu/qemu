@@ -1,13 +1,13 @@
 -include ../config-host.mak
--include $(SRC_PATH)/Makefile.objs
 -include $(SRC_PATH)/rules.mak
+-include $(SRC_PATH)/Makefile.objs
 
 libcacard_includedir=$(includedir)/cacard
 
 $(call set-vpath, $(SRC_PATH))
 
 # objects linked into a shared library, built with libtool with -fPIC if required
-QEMU_OBJS=$(oslib-obj-y) qemu-timer-common.o $(trace-obj-y)
+QEMU_OBJS=$(oslib-obj-y) qemu-timer-common.o $(trace-obj-y) $(stub-obj-y)
 QEMU_OBJS_LIB=$(patsubst %.o,%.lo,$(QEMU_OBJS))
 
 QEMU_CFLAGS+=-I../

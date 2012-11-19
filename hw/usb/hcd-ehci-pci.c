@@ -17,6 +17,7 @@
 
 #include "hw/usb/hcd-ehci.h"
 #include "hw/pci.h"
+#include "range.h"
 
 typedef struct EHCIPCIState {
     PCIDevice pcidev;
@@ -79,6 +80,21 @@ static int usb_ehci_pci_initfn(PCIDevice *dev)
     return 0;
 }
 
+static void usb_ehci_pci_write_config(PCIDevice *dev, uint32_t addr,
+                                      uint32_t val, int l)
+{
+    EHCIPCIState *i = DO_UPCAST(EHCIPCIState, pcidev, dev);
+    bool busmaster;
+
+    pci_default_write_config(dev, addr, val, l);
+
+    if (!range_covers_byte(addr, l, PCI_COMMAND)) {
+        return;
+    }
+    busmaster = pci_get_word(dev->config + PCI_COMMAND) & PCI_COMMAND_MASTER;
+    i->ehci.dma = busmaster ? pci_dma_context(dev) : NULL;
+}
+
 static Property ehci_pci_properties[] = {
     DEFINE_PROP_UINT32("maxframes", EHCIPCIState, ehci.maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
@@ -106,6 +122,7 @@ static void ehci_class_init(ObjectClass *klass, void *data)
     k->device_id = i->device_id;
     k->revision = i->revision;
     k->class_id = PCI_CLASS_SERIAL_USB;
+    k->config_write = usb_ehci_pci_write_config;
     dc->vmsd = &vmstate_ehci_pci;
     dc->props = ehci_pci_properties;
 }

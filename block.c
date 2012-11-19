@@ -3521,7 +3521,7 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
 
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)
 {
-    acb->pool->cancel(acb);
+    acb->aiocb_info->cancel(acb);
 }
 
 /* block I/O throttling */
@@ -3711,7 +3711,7 @@ static void bdrv_aio_cancel_em(BlockDriverAIOCB *blockacb)
     qemu_aio_release(acb);
 }
 
-static AIOPool bdrv_em_aio_pool = {
+static const AIOCBInfo bdrv_em_aiocb_info = {
     .aiocb_size         = sizeof(BlockDriverAIOCBSync),
     .cancel             = bdrv_aio_cancel_em,
 };
@@ -3740,7 +3740,7 @@ static BlockDriverAIOCB *bdrv_aio_rw_vector(BlockDriverState *bs,
 {
     BlockDriverAIOCBSync *acb;
 
-    acb = qemu_aio_get(&bdrv_em_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&bdrv_em_aiocb_info, bs, cb, opaque);
     acb->is_write = is_write;
     acb->qiov = qiov;
     acb->bounce = qemu_blockalign(bs, qiov->size);
@@ -3785,7 +3785,7 @@ static void bdrv_aio_co_cancel_em(BlockDriverAIOCB *blockacb)
     qemu_aio_flush();
 }
 
-static AIOPool bdrv_em_co_aio_pool = {
+static const AIOCBInfo bdrv_em_co_aiocb_info = {
     .aiocb_size         = sizeof(BlockDriverAIOCBCoroutine),
     .cancel             = bdrv_aio_co_cancel_em,
 };
@@ -3828,7 +3828,7 @@ static BlockDriverAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
     Coroutine *co;
     BlockDriverAIOCBCoroutine *acb;
 
-    acb = qemu_aio_get(&bdrv_em_co_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
     acb->req.sector = sector_num;
     acb->req.nb_sectors = nb_sectors;
     acb->req.qiov = qiov;
@@ -3858,7 +3858,7 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     Coroutine *co;
     BlockDriverAIOCBCoroutine *acb;
 
-    acb = qemu_aio_get(&bdrv_em_co_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
     co = qemu_coroutine_create(bdrv_aio_flush_co_entry);
     qemu_coroutine_enter(co, acb);
 
@@ -3884,7 +3884,7 @@ BlockDriverAIOCB *bdrv_aio_discard(BlockDriverState *bs,
 
     trace_bdrv_aio_discard(bs, sector_num, nb_sectors, opaque);
 
-    acb = qemu_aio_get(&bdrv_em_co_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&bdrv_em_co_aiocb_info, bs, cb, opaque);
     acb->req.sector = sector_num;
     acb->req.nb_sectors = nb_sectors;
     co = qemu_coroutine_create(bdrv_aio_discard_co_entry);
@@ -3904,18 +3904,13 @@ void bdrv_init_with_whitelist(void)
     bdrv_init();
 }
 
-void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
+void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
                    BlockDriverCompletionFunc *cb, void *opaque)
 {
     BlockDriverAIOCB *acb;
 
-    if (pool->free_aiocb) {
-        acb = pool->free_aiocb;
-        pool->free_aiocb = acb->next;
-    } else {
-        acb = g_malloc0(pool->aiocb_size);
-        acb->pool = pool;
-    }
+    acb = g_slice_alloc(aiocb_info->aiocb_size);
+    acb->aiocb_info = aiocb_info;
     acb->bs = bs;
     acb->cb = cb;
     acb->opaque = opaque;
@@ -3924,10 +3919,8 @@ void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
 
 void qemu_aio_release(void *p)
 {
-    BlockDriverAIOCB *acb = (BlockDriverAIOCB *)p;
-    AIOPool *pool = acb->pool;
-    acb->next = pool->free_aiocb;
-    pool->free_aiocb = acb;
+    BlockDriverAIOCB *acb = p;
+    g_slice_free1(acb->aiocb_info->aiocb_size, acb);
 }
 
 /**************************************************************/

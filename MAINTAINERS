@@ -553,6 +553,7 @@ T: git git://github.com/kvaneesh/QEMU.git
 
 virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: hw/virtio-blk*
 
@@ -583,6 +584,7 @@ F: audio/
 
 Block
 M: Kevin Wolf <kwolf@redhat.com>
+M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Supported
 F: block*
 F: block/

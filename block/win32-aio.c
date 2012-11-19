@@ -131,7 +131,7 @@ static void win32_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-static AIOPool win32_aio_pool = {
+static const AIOCBInfo win32_aiocb_info = {
     .aiocb_size         = sizeof(QEMUWin32AIOCB),
     .cancel             = win32_aio_cancel,
 };
@@ -145,7 +145,7 @@ BlockDriverAIOCB *win32_aio_submit(BlockDriverState *bs,
     uint64_t offset = sector_num * 512;
     DWORD rc;
 
-    waiocb = qemu_aio_get(&win32_aio_pool, bs, cb, opaque);
+    waiocb = qemu_aio_get(&win32_aiocb_info, bs, cb, opaque);
     waiocb->nbytes = nb_sectors * 512;
     waiocb->qiov = qiov;
     waiocb->is_read = (type == QEMU_AIO_READ);

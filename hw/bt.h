@@ -23,6 +23,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "hw/irq.h"
+
 /* BD Address */
 typedef struct {
     uint8_t b[6];

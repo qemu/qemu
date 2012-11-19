@@ -12,6 +12,8 @@
 
 void trace_backend_init_events(const char *fname)
 {
+    int ret;
+
     if (fname == NULL) {
         return;
     }
@@ -30,7 +32,12 @@ void trace_backend_init_events(const char *fname)
             if ('#' == line_buf[0]) { /* skip commented lines */
                 continue;
             }
-            if (!trace_event_set_state(line_buf, true)) {
+            if ('-' == line_buf[0]) {
+                ret = trace_event_set_state(line_buf+1, false);
+            } else {
+                ret = trace_event_set_state(line_buf, true);
+            }
+            if (!ret) {
                 fprintf(stderr,
                         "error: trace event '%s' does not exist\n", line_buf);
                 exit(1);

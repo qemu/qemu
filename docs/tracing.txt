@@ -139,6 +139,10 @@ having a common prefix in a batch. For example, virtio-blk trace events could
 be enabled using:
   trace-event virtio_blk_* on
 
+If a line in the "-trace events=<file>" file begins with a '-', the trace event
+will be disabled instead of enabled.  This is useful when a wildcard was used
+to enable an entire family of events but one noisy event needs to be disabled.
+
 == Trace backends ==
 
 The "tracetool" script automates tedious trace event code generation and also
@@ -184,15 +188,6 @@ The "simple" backend currently does not capture string arguments, it simply
 records the char* pointer value instead of the string that is pointed to.
 
 ==== Monitor commands ====
-
-* info trace
-  Display the contents of trace buffer.  This command dumps the trace buffer
-  with simple formatting.  For full pretty-printing, use the simpletrace.py
-  script on a binary trace file.
-
-  The trace buffer is written into until full.  The full trace buffer is
-  flushed and emptied.  This means the 'info trace' will display few or no
-  entries if the buffer has just been flushed.
 
 * trace-file on|off|flush|set <path>
   Enable/disable/flush the trace file or set the trace file name.

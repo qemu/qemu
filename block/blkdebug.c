@@ -41,7 +41,7 @@ typedef struct BlkdebugAIOCB {
 
 static void blkdebug_aio_cancel(BlockDriverAIOCB *blockacb);
 
-static AIOPool blkdebug_aio_pool = {
+static const AIOCBInfo blkdebug_aiocb_info = {
     .aiocb_size = sizeof(BlkdebugAIOCB),
     .cancel     = blkdebug_aio_cancel,
 };
@@ -335,7 +335,7 @@ static BlockDriverAIOCB *inject_error(BlockDriverState *bs,
         return NULL;
     }
 
-    acb = qemu_aio_get(&blkdebug_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&blkdebug_aiocb_info, bs, cb, opaque);
     acb->ret = -error;
 
     bh = qemu_bh_new(error_callback_bh, acb);

@@ -83,7 +83,7 @@ typedef struct SimAIOCB {
 
 } SimAIOCB;
 
-static AIOPool sim_aio_pool = {
+static AIOCBInfo sim_aio_pool = {
     .aiocb_size = sizeof (SimAIOCB),
     .cancel = sim_aio_cancel,
 };
@@ -226,7 +226,7 @@ static SimAIOCB *search_task_list (SimAIOCB * acb)
     return NULL;
 }
 
-static inline void *my_qemu_aio_get (AIOPool * pool, BlockDriverState * bs,
+static inline void *my_qemu_aio_get (AIOCBInfo *pool, BlockDriverState *bs,
                                      BlockDriverCompletionFunc * cb,
                                      void *opaque)
 {

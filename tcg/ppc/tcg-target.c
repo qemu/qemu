@@ -901,7 +901,6 @@ static void tcg_out_qemu_ld_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
 
 static void tcg_out_qemu_st_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
 {
-    int s_bits;
     int ir;
     int opc = label->opc;
     int mem_index = label->mem_index;
@@ -910,8 +909,6 @@ static void tcg_out_qemu_st_slow_path (TCGContext *s, TCGLabelQemuLdst *label)
     int addr_reg = label->addrlo_reg;
     uint8_t *raddr = label->raddr;
     uint8_t **label_ptr = &label->label_ptr[0];
-
-    s_bits = opc & 3;
 
     /* resolve label address */
     reloc_pc14 (label_ptr[0], (tcg_target_long) s->code_ptr);
