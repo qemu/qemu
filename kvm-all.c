@@ -364,7 +364,7 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
     unsigned int i, j;
     unsigned long page_number, c;
     hwaddr addr, addr1;
-    unsigned int len = ((section->size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
+    unsigned int len = ((section->size / getpagesize()) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
     unsigned long hpratio = getpagesize() / TARGET_PAGE_SIZE;
 
     /*
