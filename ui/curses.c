@@ -28,10 +28,6 @@
 #include <termios.h>
 #endif
 
-#ifdef __OpenBSD__
-#define resize_term resizeterm
-#endif
-
 #include "qemu-common.h"
 #include "console.h"
 #include "sysemu.h"
