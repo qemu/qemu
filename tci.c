@@ -338,9 +338,9 @@ static uint64_t tci_read_ri64(uint8_t **tb_ptr)
 }
 #endif
 
-static target_ulong tci_read_label(uint8_t **tb_ptr)
+static tcg_target_ulong tci_read_label(uint8_t **tb_ptr)
 {
-    target_ulong label = tci_read_i(tb_ptr);
+    tcg_target_ulong label = tci_read_i(tb_ptr);
     assert(label != 0);
     return label;
 }
