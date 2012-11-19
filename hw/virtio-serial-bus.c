@@ -53,6 +53,15 @@ struct VirtIOSerial {
     uint32_t *ports_map;
 
     struct virtio_console_config config;
+
+    struct {
+        QEMUTimer *timer;
+        int nr_active_ports;
+        struct {
+            VirtIOSerialPort *port;
+            uint8_t host_connected;
+        } *connected;
+    } post_load;
 };
 
 static VirtIOSerialPort *find_port_by_id(VirtIOSerial *vser, uint32_t id)
@@ -626,6 +635,29 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
     }
 }
 
+static void virtio_serial_post_load_timer_cb(void *opaque)
+{
+    int i;
+    VirtIOSerial *s = opaque;
+    VirtIOSerialPort *port;
+    uint8_t host_connected;
+
+    for (i = 0 ; i < s->post_load.nr_active_ports; ++i) {
+        port = s->post_load.connected[i].port;
+        host_connected = s->post_load.connected[i].host_connected;
+        if (host_connected != port->host_connected) {
+            /*
+             * We have to let the guest know of the host connection
+             * status change
+             */
+            send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN,
+                               port->host_connected);
+        }
+    }
+    g_free(s->post_load.connected);
+    s->post_load.connected = NULL;
+}
+
 static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 {
     VirtIOSerial *s = opaque;
@@ -673,10 +705,13 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
 
     qemu_get_be32s(f, &nr_active_ports);
 
+    s->post_load.nr_active_ports = nr_active_ports;
+    s->post_load.connected =
+        g_malloc0(sizeof(*s->post_load.connected) * nr_active_ports);
+
     /* Items in struct VirtIOSerialPort */
     for (i = 0; i < nr_active_ports; i++) {
         uint32_t id;
-        bool host_connected;
 
         id = qemu_get_be32(f);
         port = find_port_by_id(s, id);
@@ -685,15 +720,8 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         port->guest_connected = qemu_get_byte(f);
-        host_connected = qemu_get_byte(f);
-        if (host_connected != port->host_connected) {
-            /*
-             * We have to let the guest know of the host connection
-             * status change
-             */
-            send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN,
-                               port->host_connected);
-        }
+        s->post_load.connected[i].port = port;
+        s->post_load.connected[i].host_connected = qemu_get_byte(f);
 
         if (version_id > 2) {
             uint32_t elem_popped;
@@ -718,6 +746,7 @@ static int virtio_serial_load(QEMUFile *f, void *opaque, int version_id)
             }
         }
     }
+    qemu_mod_timer(s->post_load.timer, 1);
     return 0;
 }
 
@@ -967,6 +996,9 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
     register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
 
+    vser->post_load.timer = qemu_new_timer_ns(vm_clock,
+            virtio_serial_post_load_timer_cb, vser);
+
     return vdev;
 }
 
@@ -979,6 +1011,8 @@ void virtio_serial_exit(VirtIODevice *vdev)
     g_free(vser->ivqs);
     g_free(vser->ovqs);
     g_free(vser->ports_map);
+    g_free(vser->post_load.connected);
+    qemu_free_timer(vser->post_load.timer);
 
     virtio_cleanup(vdev);
 }
