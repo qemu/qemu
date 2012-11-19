@@ -66,7 +66,7 @@ static const char *ext_feature_name[] = {
     NULL, "pcid", "dca", "sse4.1|sse4_1",
     "sse4.2|sse4_2", "x2apic", "movbe", "popcnt",
     "tsc-deadline", "aes", "xsave", "osxsave",
-    "avx", NULL, NULL, "hypervisor",
+    "avx", "f16c", "rdrand", "hypervisor",
 };
 /* Feature names that are already defined on feature_name[] but are set on
  * CPUID[8000_0001].EDX on AMD CPUs don't have their names on
@@ -87,10 +87,10 @@ static const char *ext3_feature_name[] = {
     "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
     "cr8legacy" /* AMD AltMovCr8 */, "abm", "sse4a", "misalignsse",
     "3dnowprefetch", "osvw", "ibs", "xop",
-    "skinit", "wdt", NULL, NULL,
-    "fma4", NULL, "cvt16", "nodeid_msr",
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL,
+    "skinit", "wdt", NULL, "lwp",
+    "fma4", "tce", NULL, "nodeid_msr",
+    NULL, "tbm", "topoext", "perfctr_core",
+    "perfctr_nb", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
 };
 
@@ -119,7 +119,7 @@ static const char *svm_feature_name[] = {
 static const char *cpuid_7_0_ebx_feature_name[] = {
     "fsgsbase", NULL, NULL, "bmi1", "hle", "avx2", NULL, "smep",
     "bmi2", "erms", "invpcid", "rtm", NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, "smap", NULL, NULL, NULL,
+    NULL, NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
@@ -647,6 +647,35 @@ static x86_def_t builtin_x86_defs[] = {
         .model_id = "Intel Xeon E312xx (Sandy Bridge)",
     },
     {
+        .name = "Haswell",
+        .level = 0xd,
+        .vendor1 = CPUID_VENDOR_INTEL_1,
+        .vendor2 = CPUID_VENDOR_INTEL_2,
+        .vendor3 = CPUID_VENDOR_INTEL_3,
+        .family = 6,
+        .model = 60,
+        .stepping = 1,
+        .features = CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
+             CPUID_CLFLUSH | CPUID_PSE36 | CPUID_PAT | CPUID_CMOV | CPUID_MCA |
+             CPUID_PGE | CPUID_MTRR | CPUID_APIC | CPUID_CX8 |
+             CPUID_MCE | CPUID_PAE | CPUID_MSR | CPUID_TSC | CPUID_PSE |
+             CPUID_DE | CPUID_FP87,
+        .ext_features = CPUID_EXT_AVX | CPUID_EXT_XSAVE | CPUID_EXT_AES |
+             CPUID_EXT_POPCNT | CPUID_EXT_X2APIC | CPUID_EXT_SSE42 |
+             CPUID_EXT_SSE41 | CPUID_EXT_CX16 | CPUID_EXT_SSSE3 |
+             CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3 |
+             CPUID_EXT_TSC_DEADLINE_TIMER | CPUID_EXT_FMA | CPUID_EXT_MOVBE |
+             CPUID_EXT_PCID,
+        .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_NX | CPUID_EXT2_SYSCALL,
+        .ext3_features = CPUID_EXT3_LAHF_LM,
+        .cpuid_7_0_ebx_features = CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_BMI1 |
+            CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_AVX2 | CPUID_7_0_EBX_SMEP |
+            CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ERMS | CPUID_7_0_EBX_INVPCID |
+            CPUID_7_0_EBX_RTM,
+        .xlevel = 0x8000000A,
+        .model_id = "Intel Core Processor (Haswell)",
+    },
+    {
         .name = "Opteron_G1",
         .level = 5,
         .vendor1 = CPUID_VENDOR_AMD_1,
@@ -755,6 +784,38 @@ static x86_def_t builtin_x86_defs[] = {
              CPUID_EXT3_LAHF_LM,
         .xlevel = 0x8000001A,
         .model_id = "AMD Opteron 62xx class CPU",
+    },
+    {
+        .name = "Opteron_G5",
+        .level = 0xd,
+        .vendor1 = CPUID_VENDOR_AMD_1,
+        .vendor2 = CPUID_VENDOR_AMD_2,
+        .vendor3 = CPUID_VENDOR_AMD_3,
+        .family = 21,
+        .model = 2,
+        .stepping = 0,
+        .features = CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
+             CPUID_CLFLUSH | CPUID_PSE36 | CPUID_PAT | CPUID_CMOV | CPUID_MCA |
+             CPUID_PGE | CPUID_MTRR | CPUID_SEP | CPUID_APIC | CPUID_CX8 |
+             CPUID_MCE | CPUID_PAE | CPUID_MSR | CPUID_TSC | CPUID_PSE |
+             CPUID_DE | CPUID_FP87,
+        .ext_features = CPUID_EXT_F16C | CPUID_EXT_AVX | CPUID_EXT_XSAVE |
+             CPUID_EXT_AES | CPUID_EXT_POPCNT | CPUID_EXT_SSE42 |
+             CPUID_EXT_SSE41 | CPUID_EXT_CX16 | CPUID_EXT_FMA |
+             CPUID_EXT_SSSE3 | CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3,
+        .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_RDTSCP |
+             CPUID_EXT2_PDPE1GB | CPUID_EXT2_FXSR | CPUID_EXT2_MMX |
+             CPUID_EXT2_NX | CPUID_EXT2_PSE36 | CPUID_EXT2_PAT |
+             CPUID_EXT2_CMOV | CPUID_EXT2_MCA | CPUID_EXT2_PGE |
+             CPUID_EXT2_MTRR | CPUID_EXT2_SYSCALL | CPUID_EXT2_APIC |
+             CPUID_EXT2_CX8 | CPUID_EXT2_MCE | CPUID_EXT2_PAE | CPUID_EXT2_MSR |
+             CPUID_EXT2_TSC | CPUID_EXT2_PSE | CPUID_EXT2_DE | CPUID_EXT2_FPU,
+        .ext3_features = CPUID_EXT3_TBM | CPUID_EXT3_FMA4 | CPUID_EXT3_XOP |
+             CPUID_EXT3_3DNOWPREFETCH | CPUID_EXT3_MISALIGNSSE |
+             CPUID_EXT3_SSE4A | CPUID_EXT3_ABM | CPUID_EXT3_SVM |
+             CPUID_EXT3_LAHF_LM,
+        .xlevel = 0x8000001A,
+        .model_id = "AMD Opteron 63xx class CPU",
     },
 };
 

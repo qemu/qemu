@@ -14,6 +14,7 @@
 #include <string.h>
 #include "qemu-fsdev.h"
 #include "qemu-config.h"
+#include "module.h"
 
 int qemu_fsdev_add(QemuOpts *opts)
 {

@@ -1,6 +1,8 @@
 #ifndef QEMU_DEVICES_H
 #define QEMU_DEVICES_H
 
+#include "hw/irq.h"
+
 /* ??? Not all users of this file can include cpu-common.h.  */
 struct MemoryRegion;
 

@@ -25,6 +25,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "mc146818rtc.h"
+#include "qapi/qapi-visit-core.h"
 
 #ifdef TARGET_I386
 #include "apic.h"
