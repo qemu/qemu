@@ -241,8 +241,17 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     /* XXX we should pass the iovec to write16 to avoid the extra copy */
     /* this will allow us to get rid of 'buf' completely */
     size = nb_sectors * BDRV_SECTOR_SIZE;
-    acb->buf = g_malloc(size);
-    qemu_iovec_to_buf(acb->qiov, 0, acb->buf, size);
+    data.size = MIN(size, acb->qiov->size);
+
+    /* if the iovec only contains one buffer we can pass it directly */
+    if (acb->qiov->niov == 1) {
+        acb->buf = NULL;
+        data.data = acb->qiov->iov[0].iov_base;
+    } else {
+        acb->buf = g_malloc(data.size);
+        qemu_iovec_to_buf(acb->qiov, 0, acb->buf, data.size);
+        data.data = acb->buf;
+    }
 
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
@@ -262,9 +271,6 @@ iscsi_aio_writev(BlockDriverState *bs, int64_t sector_num,
     num_sectors = size / iscsilun->block_size;
     *(uint32_t *)&acb->task->cdb[10] = htonl(num_sectors);
     acb->task->expxferlen = size;
-
-    data.data = acb->buf;
-    data.size = size;
 
     if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
                                  iscsi_aio_write16_cb,
