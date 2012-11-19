@@ -1,3 +1,4 @@
+/* public domain */
 #include "hw/hw.h"
 #include "monitor.h"
 #include "audio.h"
