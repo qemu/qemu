@@ -189,6 +189,7 @@ static const char *ehci_mmio_names[] = {
 
 static int ehci_state_executing(EHCIQueue *q);
 static int ehci_state_writeback(EHCIQueue *q);
+static int ehci_state_advqueue(EHCIQueue *q);
 static int ehci_fill_queue(EHCIPacket *p);
 
 static const char *nr2str(const char **n, size_t len, uint32_t nr)
@@ -453,12 +454,16 @@ static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
 static void ehci_free_packet(EHCIPacket *p)
 {
     if (p->async == EHCI_ASYNC_FINISHED) {
-        int state = ehci_get_state(p->queue->ehci, p->queue->async);
+        EHCIQueue *q = p->queue;
+        int state = ehci_get_state(q->ehci, q->async);
         /* This is a normal, but rare condition (cancel racing completion) */
         fprintf(stderr, "EHCI: Warning packet completed but not processed\n");
-        ehci_state_executing(p->queue);
-        ehci_state_writeback(p->queue);
-        ehci_set_state(p->queue->ehci, p->queue->async, state);
+        ehci_state_executing(q);
+        ehci_state_writeback(q);
+        if (!(q->qh.token & QTD_TOKEN_HALT)) {
+            ehci_state_advqueue(q);
+        }
+        ehci_set_state(q->ehci, q->async, state);
         /* state_writeback recurses into us with async == EHCI_ASYNC_NONE!! */
         return;
     }
@@ -959,6 +964,9 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
 
     case USBINTR:
         val &= USBINTR_MASK;
+        if (ehci_enabled(s) && (USBSTS_FLR & val)) {
+            qemu_bh_schedule(s->async_bh);
+        }
         break;
 
     case FRINDEX:
@@ -995,21 +1003,25 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
                                 *mmio, old);
 }
 
-
-// TODO : Put in common header file, duplication from usb-ohci.c
-
 /* Get an array of dwords from main memory */
 static inline int get_dwords(EHCIState *ehci, uint32_t addr,
                              uint32_t *buf, int num)
 {
     int i;
 
+    if (!ehci->dma) {
+        ehci_raise_irq(ehci, USBSTS_HSE);
+        ehci->usbcmd &= ~USBCMD_RUNSTOP;
+        trace_usb_ehci_dma_error();
+        return -1;
+    }
+
     for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
-    return 1;
+    return num;
 }
 
 /* Put an array of dwords in to main memory */
@@ -1018,12 +1030,19 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 {
     int i;
 
+    if (!ehci->dma) {
+        ehci_raise_irq(ehci, USBSTS_HSE);
+        ehci->usbcmd &= ~USBCMD_RUNSTOP;
+        trace_usb_ehci_dma_error();
+        return -1;
+    }
+
     for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
         dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
     }
 
-    return 1;
+    return num;
 }
 
 /*
@@ -1435,8 +1454,10 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
 
     /*  Find the head of the list (4.9.1.1) */
     for(i = 0; i < MAX_QH; i++) {
-        get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &qh,
-                   sizeof(EHCIqh) >> 2);
+        if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &qh,
+                       sizeof(EHCIqh) >> 2) < 0) {
+            return 0;
+        }
         ehci_trace_qh(NULL, NLPTR_GET(entry), &qh);
 
         if (qh.epchar & QH_EPCHAR_H) {
@@ -1533,8 +1554,11 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         goto out;
     }
 
-    get_dwords(ehci, NLPTR_GET(q->qhaddr),
-               (uint32_t *) &qh, sizeof(EHCIqh) >> 2);
+    if (get_dwords(ehci, NLPTR_GET(q->qhaddr),
+                   (uint32_t *) &qh, sizeof(EHCIqh) >> 2) < 0) {
+        q = NULL;
+        goto out;
+    }
     ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &qh);
 
     /*
@@ -1545,8 +1569,10 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     endp    = get_field(qh.epchar, QH_EPCHAR_EP);
     if ((devaddr != get_field(q->qh.epchar, QH_EPCHAR_DEVADDR)) ||
         (endp    != get_field(q->qh.epchar, QH_EPCHAR_EP)) ||
-        (memcmp(&qh.current_qtd, &q->qh.current_qtd,
-                                 9 * sizeof(uint32_t)) != 0) ||
+        (qh.current_qtd != q->qh.current_qtd) ||
+        (q->async && qh.next_qtd != q->qh.next_qtd) ||
+        (memcmp(&qh.altnext_qtd, &q->qh.altnext_qtd,
+                                 7 * sizeof(uint32_t)) != 0) ||
         (q->dev != NULL && q->dev->addr != devaddr)) {
         if (ehci_reset_queue(q) > 0) {
             ehci_trace_guest_bug(ehci, "guest updated active QH");
@@ -1621,8 +1647,10 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
     assert(!async);
     entry = ehci_get_fetch_addr(ehci, async);
 
-    get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &itd,
-               sizeof(EHCIitd) >> 2);
+    if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *) &itd,
+                   sizeof(EHCIitd) >> 2) < 0) {
+        return -1;
+    }
     ehci_trace_itd(ehci, entry, &itd);
 
     if (ehci_process_itd(ehci, &itd, entry) != 0) {
@@ -1645,8 +1673,10 @@ static int ehci_state_fetchsitd(EHCIState *ehci, int async)
     assert(!async);
     entry = ehci_get_fetch_addr(ehci, async);
 
-    get_dwords(ehci, NLPTR_GET(entry), (uint32_t *)&sitd,
-               sizeof(EHCIsitd) >> 2);
+    if (get_dwords(ehci, NLPTR_GET(entry), (uint32_t *)&sitd,
+                   sizeof(EHCIsitd) >> 2) < 0) {
+        return 0;
+    }
     ehci_trace_sitd(ehci, entry, &sitd);
 
     if (!(sitd.results & SITD_RESULTS_ACTIVE)) {
@@ -1707,14 +1737,17 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     EHCIPacket *p;
     int again = 1;
 
-    get_dwords(q->ehci, NLPTR_GET(q->qtdaddr), (uint32_t *) &qtd,
-               sizeof(EHCIqtd) >> 2);
+    if (get_dwords(q->ehci, NLPTR_GET(q->qtdaddr), (uint32_t *) &qtd,
+                   sizeof(EHCIqtd) >> 2) < 0) {
+        return 0;
+    }
     ehci_trace_qtd(q, NLPTR_GET(q->qtdaddr), &qtd);
 
     p = QTAILQ_FIRST(&q->packets);
     if (p != NULL) {
         if (p->qtdaddr != q->qtdaddr ||
-            (!NLPTR_TBIT(p->qtd.next) && (p->qtd.next != qtd.next)) ||
+            (q->async && !NLPTR_TBIT(p->qtd.next) &&
+                (p->qtd.next != qtd.next)) ||
             (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd.altnext)) ||
             p->qtd.bufptr[0] != qtd.bufptr[0]) {
             ehci_cancel_queue(q);
@@ -1785,7 +1818,7 @@ static int ehci_fill_queue(EHCIPacket *p)
     USBEndpoint *ep = p->packet.ep;
     EHCIQueue *q = p->queue;
     EHCIqtd qtd = p->qtd;
-    uint32_t qtdaddr, start_addr = p->qtdaddr;
+    uint32_t qtdaddr;
 
     for (;;) {
         if (NLPTR_TBIT(qtd.next) != 0) {
@@ -1796,11 +1829,15 @@ static int ehci_fill_queue(EHCIPacket *p)
          * Detect circular td lists, Windows creates these, counting on the
          * active bit going low after execution to make the queue stop.
          */
-        if (qtdaddr == start_addr) {
-            break;
+        QTAILQ_FOREACH(p, &q->packets, next) {
+            if (p->qtdaddr == qtdaddr) {
+                goto leave;
+            }
         }
-        get_dwords(q->ehci, NLPTR_GET(qtdaddr),
-                   (uint32_t *) &qtd, sizeof(EHCIqtd) >> 2);
+        if (get_dwords(q->ehci, NLPTR_GET(qtdaddr),
+                       (uint32_t *) &qtd, sizeof(EHCIqtd) >> 2) < 0) {
+            return -1;
+        }
         ehci_trace_qtd(q, NLPTR_GET(qtdaddr), &qtd);
         if (!(qtd.token & QTD_TOKEN_ACTIVE)) {
             break;
@@ -1814,6 +1851,7 @@ static int ehci_fill_queue(EHCIPacket *p)
         assert(p->packet.status == USB_RET_ASYNC);
         p->async = EHCI_ASYNC_INFLIGHT;
     }
+leave:
     usb_device_flush_ep_queue(ep->dev, ep);
     return 1;
 }
@@ -2098,8 +2136,9 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         }
         list |= ((ehci->frindex & 0x1ff8) >> 1);
 
-        dma_memory_read(ehci->dma, list, &entry, sizeof entry);
-        entry = le32_to_cpu(entry);
+        if (get_dwords(ehci, list, &entry, 1) < 0) {
+            break;
+        }
 
         DPRINTF("PERIODIC state adv fr=%d.  [%08X] -> %08X\n",
                 ehci->frindex / 8, list, entry);
@@ -2207,6 +2246,10 @@ static void ehci_frame_timer(void *opaque)
     if (ehci->usbsts_pending) {
         need_timer++;
         ehci->async_stepdown = 0;
+    }
+
+    if (ehci_enabled(ehci) && (ehci->usbintr & USBSTS_FLR)) {
+        need_timer++;
     }
 
     if (need_timer) {

@@ -342,7 +342,9 @@ static void usbredir_fill_already_in_flight_from_ep(USBRedirDevice *dev,
         if (p->combined && p != p->combined->first) {
             continue;
         }
-        packet_id_queue_add(&dev->already_in_flight, p->id);
+        if (p->state == USB_PACKET_ASYNC) {
+            packet_id_queue_add(&dev->already_in_flight, p->id);
+        }
     }
 }
 
@@ -1960,7 +1962,7 @@ static const VMStateDescription usbredir_vmstate = {
 
 static Property usbredir_properties[] = {
     DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
-    DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, 0),
+    DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, usbredirparser_warning),
     DEFINE_PROP_STRING("filter", USBRedirDevice, filter_str),
     DEFINE_PROP_INT32("bootindex", USBRedirDevice, bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
