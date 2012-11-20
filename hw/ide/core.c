@@ -579,6 +579,7 @@ void ide_dma_cb(void *opaque, int ret)
     IDEState *s = opaque;
     int n;
     int64_t sector_num;
+    bool stay_active = false;
 
     if (ret < 0) {
         int op = BM_STATUS_DMA_RETRY;
@@ -594,6 +595,14 @@ void ide_dma_cb(void *opaque, int ret)
     }
 
     n = s->io_buffer_size >> 9;
+    if (n > s->nsector) {
+        /* The PRDs were longer than needed for this request. Shorten them so
+         * we don't get a negative remainder. The Active bit must remain set
+         * after the request completes. */
+        n = s->nsector;
+        stay_active = true;
+    }
+
     sector_num = ide_get_sector(s);
     if (n > 0) {
         dma_buf_commit(s);
@@ -646,6 +655,9 @@ eot:
         bdrv_acct_done(s->bs, &s->acct);
     }
     ide_set_inactive(s);
+    if (stay_active) {
+        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_DMAING);
+    }
 }
 
 static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
