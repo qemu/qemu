@@ -20,7 +20,7 @@
 #include "pc.h"
 #include "pci.h"
 
-#include "mcpx.h"
+#include "mcpx_apu.h"
 
 
 //#define DEBUG
@@ -31,38 +31,38 @@
 #endif
 
 
-typedef struct MCPXState {
+typedef struct MCPXAPUState {
     PCIDevice dev;
 
     qemu_irq irq;
 
     MemoryRegion mmio;
     MemoryRegion vp;
-} MCPXState;
+} MCPXAPUState;
 
 
-#define MCPX_DEVICE(obj) \
-    OBJECT_CHECK(MCPXState, (obj), "mcpx")
+#define MCPX_APU_DEVICE(obj) \
+    OBJECT_CHECK(MCPXAPUState, (obj), "mcpx-apu")
 
 
-static uint64_t mcpx_read(void *opaque,
+static uint64_t mcpx_apu_read(void *opaque,
                           hwaddr addr, unsigned int size)
 {
-    MCPX_DPRINTF("mcpx: read [0x%llx]\n", addr);
+    MCPX_DPRINTF("mcpx apu: read [0x%llx]\n", addr);
     return 0;
 }
-static void mcpx_write(void *opaque, hwaddr addr,
+static void mcpx_apu_write(void *opaque, hwaddr addr,
                        uint64_t val, unsigned int size)
 {
-    MCPX_DPRINTF("mcpx: [0x%llx] = 0x%llx\n", addr, val);
+    MCPX_DPRINTF("mcpx apu: [0x%llx] = 0x%llx\n", addr, val);
 }
 
 
 /* Voice Processor */
-static uint64_t mcpx_vp_read(void *opaque,
+static uint64_t mcpx_apu_vp_read(void *opaque,
                              hwaddr addr, unsigned int size)
 {
-    MCPX_DPRINTF("mcpx VP: read [0x%llx]\n", addr);
+    MCPX_DPRINTF("mcpx apu VP: read [0x%llx]\n", addr);
     switch (addr) {
     case 0x10: /* instruction queue free space */
         return 0x20;
@@ -71,32 +71,32 @@ static uint64_t mcpx_vp_read(void *opaque,
     }
     return 0;
 }
-static void mcpx_vp_write(void *opaque, hwaddr addr,
+static void mcpx_apu_vp_write(void *opaque, hwaddr addr,
                           uint64_t val, unsigned int size)
 {
-    MCPX_DPRINTF("mcpx VP: [0x%llx] = 0x%llx\n", addr, val);
+    MCPX_DPRINTF("mcpx apu VP: [0x%llx] = 0x%llx\n", addr, val);
 }
 
 
-static const MemoryRegionOps mcpx_mmio_ops = {
-    .read = mcpx_read,
-    .write = mcpx_write,
+static const MemoryRegionOps mcpx_apu_mmio_ops = {
+    .read = mcpx_apu_read,
+    .write = mcpx_apu_write,
 };
-static const MemoryRegionOps mcpx_vp_ops = {
-    .read = mcpx_vp_read,
-    .write = mcpx_vp_write,
+static const MemoryRegionOps mcpx_apu_vp_ops = {
+    .read = mcpx_apu_vp_read,
+    .write = mcpx_apu_vp_write,
 };
 
 
-static int mcpx_initfn(PCIDevice *dev)
+static int mcpx_apu_initfn(PCIDevice *dev)
 {
-    MCPXState *d = MCPX_DEVICE(dev);
+    MCPXAPUState *d = MCPX_APU_DEVICE(dev);
 
-    memory_region_init_io(&d->mmio, &mcpx_mmio_ops, d,
-                          "mcpx-mmio", 0x80000);
+    memory_region_init_io(&d->mmio, &mcpx_apu_mmio_ops, d,
+                          "mcpx-apu-mmio", 0x80000);
 
-    memory_region_init_io(&d->vp, &mcpx_vp_ops, d,
-                          "mcpx-vp", 0x10000);
+    memory_region_init_io(&d->vp, &mcpx_apu_vp_ops, d,
+                          "mcpx-apu-vp", 0x10000);
     memory_region_add_subregion(&d->mmio, 0x20000, &d->vp);
 
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
@@ -104,40 +104,40 @@ static int mcpx_initfn(PCIDevice *dev)
     return 0;
 }
 
-static void mcpx_class_init(ObjectClass *klass, void *data)
+static void mcpx_apu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_NVIDIA;
-    k->device_id = PCI_DEVICE_ID_NVIDIA_MCPX;
+    k->device_id = PCI_DEVICE_ID_NVIDIA_MCPX_APU;
     k->revision = 210;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
-    k->init = mcpx_initfn;
+    k->init = mcpx_apu_initfn;
 
     dc->desc = "MCPX Audio Processing Unit";
 }
 
-static const TypeInfo mcpx_info = {
-    .name          = "mcpx",
+static const TypeInfo mcpx_apu_info = {
+    .name          = "mcpx-apu",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(MCPXState),
-    .class_init    = mcpx_class_init,
+    .instance_size = sizeof(MCPXAPUState),
+    .class_init    = mcpx_apu_class_init,
 };
 
-static void mcpx_register(void)
+static void mcpx_apu_register(void)
 {
-    type_register_static(&mcpx_info);
+    type_register_static(&mcpx_apu_info);
 }
-type_init(mcpx_register);
+type_init(mcpx_apu_register);
 
 
 
-void mcpx_init(PCIBus *bus, int devfn, qemu_irq irq)
+void mcpx_apu_init(PCIBus *bus, int devfn, qemu_irq irq)
 {
     PCIDevice *dev;
-    MCPXState *d;
-    dev = pci_create_simple(bus, devfn, "mcpx");
-    d = MCPX_DEVICE(dev);
+    MCPXAPUState *d;
+    dev = pci_create_simple(bus, devfn, "mcpx-apu");
+    d = MCPX_APU_DEVICE(dev);
     d->irq = irq;
 }

@@ -17,9 +17,9 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HW_MCPX_H
-#define HW_MCPX_H
+#ifndef HW_MCPX_APU_H
+#define HW_MCPX_APU_H
 
-void mcpx_init(PCIBus *bus, int devfn, qemu_irq irq);
+void mcpx_apu_init(PCIBus *bus, int devfn, qemu_irq irq);
 
 #endif

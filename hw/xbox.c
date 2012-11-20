@@ -40,7 +40,7 @@
 
 #include "xbox_pci.h"
 #include "nv2a.h"
-#include "mcpx.h"
+#include "mcpx_apu.h"
 
 /* mostly from pc_memory_init */
 static void xbox_memory_init(MemoryRegion *system_memory,
@@ -307,7 +307,7 @@ static void xbox_init(QEMUMachineInitArgs *args)
     smbus_adm1032_init(smbus, 0x4c);
 
     /* APU! */
-    mcpx_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
+    mcpx_apu_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
 
     /* GPU! */
     nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3]);
