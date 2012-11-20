@@ -40,6 +40,9 @@
  * @parent_realize: The parent class' realize handler.
  * @parent_reset: The parent class' reset handler.
  * @name: The name.
+ * @pvr: Processor Version Register
+ * @prr: Processor Revision Register
+ * @cvr: Cache Version Register
  *
  * A SuperH CPU model.
  */
@@ -52,6 +55,9 @@ typedef struct SuperHCPUClass {
     void (*parent_reset)(CPUState *cpu);
 
     const char *name;
+    uint32_t pvr;
+    uint32_t prr;
+    uint32_t cvr;
 } SuperHCPUClass;
 
 /**

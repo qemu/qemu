@@ -156,9 +156,6 @@ static void sh7750r_cpu_initfn(Object *obj)
     CPUSH4State *env = &cpu->env;
 
     env->id = SH_CPU_SH7750R;
-    env->pvr = 0x00050000;
-    env->prr = 0x00000100;
-    env->cvr = 0x00110000;
     env->features = SH_FEATURE_BCR3_AND_BCR4;
 }
 
@@ -167,6 +164,9 @@ static void sh7750r_class_init(ObjectClass *oc, void *data)
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
     scc->name = "SH7750R";
+    scc->pvr = 0x00050000;
+    scc->prr = 0x00000100;
+    scc->cvr = 0x00110000;
 }
 
 static const TypeInfo sh7750r_type_info = {
@@ -182,9 +182,6 @@ static void sh7751r_cpu_initfn(Object *obj)
     CPUSH4State *env = &cpu->env;
 
     env->id = SH_CPU_SH7751R;
-    env->pvr = 0x04050005;
-    env->prr = 0x00000113;
-    env->cvr = 0x00110000; /* Neutered caches, should be 0x20480000 */
     env->features = SH_FEATURE_BCR3_AND_BCR4;
 }
 
@@ -193,6 +190,9 @@ static void sh7751r_class_init(ObjectClass *oc, void *data)
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
     scc->name = "SH7751R";
+    scc->pvr = 0x04050005;
+    scc->prr = 0x00000113;
+    scc->cvr = 0x00110000; /* Neutered caches, should be 0x20480000 */
 }
 
 static const TypeInfo sh7751r_type_info = {
@@ -208,9 +208,6 @@ static void sh7785_cpu_initfn(Object *obj)
     CPUSH4State *env = &cpu->env;
 
     env->id = SH_CPU_SH7785;
-    env->pvr = 0x10300700;
-    env->prr = 0x00000200;
-    env->cvr = 0x71440211;
     env->features = SH_FEATURE_SH4A;
 }
 
@@ -219,6 +216,9 @@ static void sh7785_class_init(ObjectClass *oc, void *data)
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
     scc->name = "SH7785";
+    scc->pvr = 0x10300700;
+    scc->prr = 0x00000200;
+    scc->cvr = 0x71440211;
 }
 
 static const TypeInfo sh7785_type_info = {

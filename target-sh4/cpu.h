@@ -179,9 +179,6 @@ typedef struct CPUSH4State {
     CPU_COMMON
 
     int id;			/* CPU model */
-    uint32_t pvr;		/* Processor Version Register */
-    uint32_t prr;		/* Processor Revision Register */
-    uint32_t cvr;		/* Cache Version Register */
 
     void *intc_handle;
     int in_sleep;		/* SR_BL ignored during sleep */
