@@ -625,6 +625,7 @@ void ide_dma_cb(void *opaque, int ret)
     if (s->bus->dma->ops->prepare_buf(s->bus->dma, ide_cmd_is_read(s)) == 0) {
         /* The PRDs were too short. Reset the Active bit, but don't raise an
          * interrupt. */
+        s->status = READY_STAT | SEEK_STAT;
         goto eot;
     }
 
