@@ -3,6 +3,7 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
+#include "blockdev.h"
 #include "qdev.h"
 
 typedef struct QEMUMachineInitArgs {
@@ -24,7 +25,7 @@ typedef struct QEMUMachine {
     const char *desc;
     QEMUMachineInitFunc *init;
     QEMUMachineResetFunc *reset;
-    int use_scsi;
+    BlockInterfaceType block_default_type;
     int max_cpus;
     unsigned int no_serial:1,
         no_parallel:1,

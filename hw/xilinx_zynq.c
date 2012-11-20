@@ -200,7 +200,7 @@ static QEMUMachine zynq_machine = {
     .name = "xilinx-zynq-a9",
     .desc = "Xilinx Zynq Platform Baseboard for Cortex-A9",
     .init = zynq_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 1,
     .no_sdcard = 1
 };

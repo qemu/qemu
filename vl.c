@@ -886,9 +886,9 @@ static int cleanup_add_fd(QemuOpts *opts, void *opaque)
 
 static int drive_init_func(QemuOpts *opts, void *opaque)
 {
-    int *use_scsi = opaque;
+    BlockInterfaceType *block_default_type = opaque;
 
-    return drive_init(opts, *use_scsi) == NULL;
+    return drive_init(opts, *block_default_type) == NULL;
 }
 
 static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
@@ -899,14 +899,15 @@ static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static void default_drive(int enable, int snapshot, int use_scsi,
+static void default_drive(int enable, int snapshot,
+                          BlockInterfaceType block_default_type,
                           BlockInterfaceType type, int index,
                           const char *optstr)
 {
     QemuOpts *opts;
 
     if (type == IF_DEFAULT) {
-        type = use_scsi ? IF_SCSI : IF_IDE;
+        type = block_default_type;
     }
 
     if (!enable || drive_get_by_index(type, index)) {
@@ -917,7 +918,7 @@ static void default_drive(int enable, int snapshot, int use_scsi,
     if (snapshot) {
         drive_enable_snapshot(opts, NULL);
     }
-    if (!drive_init(opts, use_scsi)) {
+    if (!drive_init(opts, type)) {
         exit(1);
     }
 }
@@ -3770,14 +3771,16 @@ int main(int argc, char **argv, char **envp)
     /* open the virtual block devices */
     if (snapshot)
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL, 0);
-    if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func, &machine->use_scsi, 1) != 0)
+    if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
+                          &machine->block_default_type, 1) != 0) {
         exit(1);
+    }
 
-    default_drive(default_cdrom, snapshot, machine->use_scsi,
+    default_drive(default_cdrom, snapshot, machine->block_default_type,
                   IF_DEFAULT, 2, CDROM_OPTS);
-    default_drive(default_floppy, snapshot, machine->use_scsi,
+    default_drive(default_floppy, snapshot, machine->block_default_type,
                   IF_FLOPPY, 0, FD_OPTS);
-    default_drive(default_sdcard, snapshot, machine->use_scsi,
+    default_drive(default_sdcard, snapshot, machine->block_default_type,
                   IF_SD, 0, SD_OPTS);
 
     register_savevm_live(NULL, "ram", 0, 4, &savevm_ram_handlers, NULL);
