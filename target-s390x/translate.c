@@ -5163,7 +5163,7 @@ static inline void gen_intermediate_code_internal(CPUS390XState *env,
                     gen_opc_instr_start[lj++] = 0;
                 }
             }
-            gen_opc_pc[lj] = dc.pc;
+            tcg_ctx.gen_opc_pc[lj] = dc.pc;
             gen_opc_cc_op[lj] = dc.cc_op;
             gen_opc_instr_start[lj] = 1;
             gen_opc_icount[lj] = num_insns;
@@ -5240,7 +5240,7 @@ void gen_intermediate_code_pc (CPUS390XState *env, struct TranslationBlock *tb)
 void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb, int pc_pos)
 {
     int cc_op;
-    env->psw.addr = gen_opc_pc[pc_pos];
+    env->psw.addr = tcg_ctx.gen_opc_pc[pc_pos];
     cc_op = gen_opc_cc_op[pc_pos];
     if ((cc_op != CC_OP_DYNAMIC) && (cc_op != CC_OP_STATIC)) {
         env->cc_op = cc_op;

@@ -2005,7 +2005,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
                 while (ii < i)
                     gen_opc_instr_start[ii++] = 0;
             }
-            gen_opc_pc[ii] = ctx.pc;
+            tcg_ctx.gen_opc_pc[ii] = ctx.pc;
             gen_opc_hflags[ii] = ctx.flags;
             gen_opc_instr_start[ii] = 1;
             gen_opc_icount[ii] = num_insns;
@@ -2088,6 +2088,6 @@ void gen_intermediate_code_pc(CPUSH4State * env, struct TranslationBlock *tb)
 
 void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb, int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
     env->flags = gen_opc_hflags[pc_pos];
 }

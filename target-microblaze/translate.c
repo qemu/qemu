@@ -1790,7 +1790,7 @@ gen_intermediate_code_internal(CPUMBState *env, TranslationBlock *tb,
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = dc->pc;
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
                         gen_opc_icount[lj] = num_insns;
         }
@@ -2014,5 +2014,5 @@ MicroBlazeCPU *cpu_mb_init(const char *cpu_model)
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->sregs[SR_PC] = gen_opc_pc[pc_pos];
+    env->sregs[SR_PC] = tcg_ctx.gen_opc_pc[pc_pos];
 }

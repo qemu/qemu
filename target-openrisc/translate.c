@@ -1710,7 +1710,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
                     gen_opc_instr_start[k++] = 0;
                 }
             }
-            gen_opc_pc[k] = dc->pc;
+            tcg_ctx.gen_opc_pc[k] = dc->pc;
             gen_opc_instr_start[k] = 1;
             gen_opc_icount[k] = num_insns;
         }
@@ -1832,5 +1832,5 @@ void cpu_dump_state(CPUOpenRISCState *env, FILE *f,
 void restore_state_to_opc(CPUOpenRISCState *env, TranslationBlock *tb,
                           int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

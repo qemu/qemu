@@ -3412,7 +3412,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = ctx.pc;
+            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
             gen_opc_instr_start[lj] = 1;
             gen_opc_icount[lj] = num_insns;
         }
@@ -3551,5 +3551,5 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }

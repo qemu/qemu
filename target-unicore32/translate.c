@@ -2006,7 +2006,7 @@ static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
                     gen_opc_instr_start[lj++] = 0;
                 }
             }
-            gen_opc_pc[lj] = dc->pc;
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
             gen_opc_icount[lj] = num_insns;
         }
@@ -2203,5 +2203,5 @@ void cpu_dump_state(CPUUniCore32State *env, FILE *f,
 
 void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
 {
-    env->regs[31] = gen_opc_pc[pc_pos];
+    env->regs[31] = tcg_ctx.gen_opc_pc[pc_pos];
 }

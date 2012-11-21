@@ -9682,7 +9682,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
                 while (lj < j)
                     gen_opc_instr_start[lj++] = 0;
             }
-            gen_opc_pc[lj] = ctx.nip;
+            tcg_ctx.gen_opc_pc[lj] = ctx.nip;
             gen_opc_instr_start[lj] = 1;
             gen_opc_icount[lj] = num_insns;
         }
@@ -9810,5 +9810,5 @@ void gen_intermediate_code_pc (CPUPPCState *env, struct TranslationBlock *tb)
 
 void restore_state_to_opc(CPUPPCState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->nip = gen_opc_pc[pc_pos];
+    env->nip = tcg_ctx.gen_opc_pc[pc_pos];
 }

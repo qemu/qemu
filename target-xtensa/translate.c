@@ -2900,7 +2900,7 @@ static void gen_intermediate_code_internal(
                     gen_opc_instr_start[lj++] = 0;
                 }
             }
-            gen_opc_pc[lj] = dc.pc;
+            tcg_ctx.gen_opc_pc[lj] = dc.pc;
             gen_opc_instr_start[lj] = 1;
             gen_opc_icount[lj] = insn_count;
         }
@@ -3028,5 +3028,5 @@ void cpu_dump_state(CPUXtensaState *env, FILE *f, fprintf_function cpu_fprintf,
 
 void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb, int pc_pos)
 {
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
 }
