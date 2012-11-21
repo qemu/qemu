@@ -22,13 +22,9 @@ typedef struct VirtIORNG {
 
     /* Only one vq - guest puts buffer(s) on it when it needs entropy */
     VirtQueue *vq;
-    VirtQueueElement elem;
 
     /* Config data for the device -- currently only chardev */
     VirtIORNGConf *conf;
-
-    /* Whether we've popped a vq element into 'elem' above */
-    bool popped;
 
     RngBackend *rng;
 
@@ -48,17 +44,12 @@ static bool is_guest_ready(VirtIORNG *vrng)
     return false;
 }
 
-static size_t pop_an_elem(VirtIORNG *vrng)
+static size_t get_request_size(VirtQueue *vq)
 {
-    size_t size;
+    unsigned int in, out;
 
-    if (!vrng->popped && !virtqueue_pop(vrng->vq, &vrng->elem)) {
-        return 0;
-    }
-    vrng->popped = true;
-
-    size = iov_size(vrng->elem.in_sg, vrng->elem.in_num);
-    return size;
+    virtqueue_get_avail_bytes(vq, &in, &out);
+    return in;
 }
 
 static void virtio_rng_process(VirtIORNG *vrng);
@@ -67,6 +58,7 @@ static void virtio_rng_process(VirtIORNG *vrng);
 static void chr_read(void *opaque, const void *buf, size_t size)
 {
     VirtIORNG *vrng = opaque;
+    VirtQueueElement elem;
     size_t len;
     int offset;
 
@@ -78,15 +70,14 @@ static void chr_read(void *opaque, const void *buf, size_t size)
 
     offset = 0;
     while (offset < size) {
-        if (!pop_an_elem(vrng)) {
+        if (!virtqueue_pop(vrng->vq, &elem)) {
             break;
         }
-        len = iov_from_buf(vrng->elem.in_sg, vrng->elem.in_num,
+        len = iov_from_buf(elem.in_sg, elem.in_num,
                            0, buf + offset, size - offset);
         offset += len;
 
-        virtqueue_push(vrng->vq, &vrng->elem, len);
-        vrng->popped = false;
+        virtqueue_push(vrng->vq, &elem, len);
     }
     virtio_notify(&vrng->vdev, vrng->vq);
 
@@ -100,20 +91,18 @@ static void chr_read(void *opaque, const void *buf, size_t size)
 
 static void virtio_rng_process(VirtIORNG *vrng)
 {
-    ssize_t size;
+    size_t size;
 
     if (!is_guest_ready(vrng)) {
         return;
     }
 
-    size = pop_an_elem(vrng);
+    size = get_request_size(vrng->vq);
     size = MIN(vrng->quota_remaining, size);
-
-    if (size > 0) {
+    if (size) {
         rng_backend_request_entropy(vrng->rng, size, chr_read, vrng);
     }
 }
-
 
 static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
 {
@@ -131,23 +120,6 @@ static void virtio_rng_save(QEMUFile *f, void *opaque)
     VirtIORNG *vrng = opaque;
 
     virtio_save(&vrng->vdev, f);
-
-    qemu_put_byte(f, vrng->popped);
-    if (vrng->popped) {
-        int i;
-
-        qemu_put_be32(f, vrng->elem.index);
-
-        qemu_put_be32(f, vrng->elem.in_num);
-        for (i = 0; i < vrng->elem.in_num; i++) {
-            qemu_put_be64(f, vrng->elem.in_addr[i]);
-        }
-
-        qemu_put_be32(f, vrng->elem.out_num);
-        for (i = 0; i < vrng->elem.out_num; i++) {
-            qemu_put_be64(f, vrng->elem.out_addr[i]);
-        }
-    }
 }
 
 static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
@@ -158,30 +130,6 @@ static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
         return -EINVAL;
     }
     virtio_load(&vrng->vdev, f);
-
-    vrng->popped = qemu_get_byte(f);
-    if (vrng->popped) {
-        int i;
-
-        vrng->elem.index = qemu_get_be32(f);
-
-        vrng->elem.in_num = qemu_get_be32(f);
-        g_assert(vrng->elem.in_num < VIRTQUEUE_MAX_SIZE);
-        for (i = 0; i < vrng->elem.in_num; i++) {
-            vrng->elem.in_addr[i] = qemu_get_be64(f);
-        }
-
-        vrng->elem.out_num = qemu_get_be32(f);
-        g_assert(vrng->elem.out_num < VIRTQUEUE_MAX_SIZE);
-        for (i = 0; i < vrng->elem.out_num; i++) {
-            vrng->elem.out_addr[i] = qemu_get_be64(f);
-        }
-
-        virtqueue_map_sg(vrng->elem.in_sg, vrng->elem.in_addr,
-                         vrng->elem.in_num, 1);
-        virtqueue_map_sg(vrng->elem.out_sg, vrng->elem.out_addr,
-                         vrng->elem.out_num, 0);
-    }
 
     /* We may have an element ready but couldn't process it due to a quota
        limit.  Make sure to try again after live migration when the quota may
@@ -232,7 +180,7 @@ VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
 
     vrng->qdev = dev;
     vrng->conf = conf;
-    vrng->popped = false;
+
     vrng->quota_remaining = vrng->conf->max_bytes;
 
     g_assert_cmpint(vrng->conf->max_bytes, <=, INT64_MAX);
