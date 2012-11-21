@@ -354,3 +354,54 @@ size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
 {
     return iov_memset(qiov->iov, qiov->niov, offset, fillc, bytes);
 }
+
+size_t iov_discard_front(struct iovec **iov, unsigned int *iov_cnt,
+                         size_t bytes)
+{
+    size_t total = 0;
+    struct iovec *cur;
+
+    for (cur = *iov; *iov_cnt > 0; cur++) {
+        if (cur->iov_len > bytes) {
+            cur->iov_base += bytes;
+            cur->iov_len -= bytes;
+            total += bytes;
+            break;
+        }
+
+        bytes -= cur->iov_len;
+        total += cur->iov_len;
+        *iov_cnt -= 1;
+    }
+
+    *iov = cur;
+    return total;
+}
+
+size_t iov_discard_back(struct iovec *iov, unsigned int *iov_cnt,
+                        size_t bytes)
+{
+    size_t total = 0;
+    struct iovec *cur;
+
+    if (*iov_cnt == 0) {
+        return 0;
+    }
+
+    cur = iov + (*iov_cnt - 1);
+
+    while (*iov_cnt > 0) {
+        if (cur->iov_len > bytes) {
+            cur->iov_len -= bytes;
+            total += bytes;
+            break;
+        }
+
+        bytes -= cur->iov_len;
+        total += cur->iov_len;
+        cur--;
+        *iov_cnt -= 1;
+    }
+
+    return total;
+}
