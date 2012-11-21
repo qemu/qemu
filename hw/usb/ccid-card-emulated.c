@@ -473,6 +473,9 @@ static uint32_t parse_enumeration(char *str,
 {
     uint32_t ret = not_found_value;
 
+    if (str == NULL)
+        return 0;
+
     while (table->name != NULL) {
         if (strcmp(table->name, str) == 0) {
             ret = table->value;
