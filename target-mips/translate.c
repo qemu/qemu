@@ -10239,9 +10239,19 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx,
     return n_bytes;
 }
 
-/* microMIPS extension to MIPS32 */
+/* microMIPS extension to MIPS32/MIPS64 */
 
-/* microMIPS32 major opcodes */
+/*
+ * microMIPS32/microMIPS64 major opcodes
+ *
+ * 1. MIPS Architecture for Programmers Volume II-B:
+ *      The microMIPS32 Instruction Set (Revision 3.05)
+ *
+ *    Table 6.2 microMIPS32 Encoding of Major Opcode Field
+ *
+ * 2. MIPS Architecture For Programmers Volume II-A:
+ *      The MIPS64 Instruction Set (Revision 3.51)
+ */
 
 enum {
     POOL32A = 0x00,
@@ -10268,9 +10278,10 @@ enum {
     POOL16D = 0x13,
     ORI32 = 0x14,
     POOL32F = 0x15,
-    POOL32S = 0x16,
-    DADDIU32 = 0x17,
+    POOL32S = 0x16,  /* MIPS64 */
+    DADDIU32 = 0x17, /* MIPS64 */
 
+    /* 0x1f is reserved */
     POOL32C = 0x18,
     LWGP16 = 0x19,
     LW16 = 0x1a,
@@ -10278,7 +10289,6 @@ enum {
     XORI32 = 0x1c,
     JALS32 = 0x1d,
     ADDIUPC = 0x1e,
-    POOL48A = 0x1f,
 
     /* 0x20 is reserved */
     RES_20 = 0x20,
@@ -10307,8 +10317,8 @@ enum {
     B16 = 0x33,
     ANDI32 = 0x34,
     J32 = 0x35,
-    SD32 = 0x36,
-    LD32 = 0x37,
+    SD32 = 0x36, /* MIPS64 */
+    LD32 = 0x37, /* MIPS64 */
 
     /* 0x38 and 0x39 are reserved */
     RES_38 = 0x38,
