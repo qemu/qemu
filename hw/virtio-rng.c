@@ -194,6 +194,8 @@ void virtio_rng_exit(VirtIODevice *vdev)
 {
     VirtIORNG *vrng = DO_UPCAST(VirtIORNG, vdev, vdev);
 
+    qemu_del_timer(vrng->rate_limit_timer);
+    qemu_free_timer(vrng->rate_limit_timer);
     unregister_savevm(vrng->qdev, "virtio-rng", vrng);
     virtio_cleanup(vdev);
 }
