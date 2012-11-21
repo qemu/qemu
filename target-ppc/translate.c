@@ -9680,10 +9680,10 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
             tcg_ctx.gen_opc_pc[lj] = ctx.nip;
-            gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         LOG_DISAS("----------------\n");
@@ -9781,7 +9781,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.nip - pc_start;
         tb->icount = num_insns;

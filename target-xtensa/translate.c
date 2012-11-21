@@ -2897,11 +2897,11 @@ static void gen_intermediate_code_internal(
             if (lj < j) {
                 lj++;
                 while (lj < j) {
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
                 }
             }
             tcg_ctx.gen_opc_pc[lj] = dc.pc;
-            gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = insn_count;
         }
 

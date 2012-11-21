@@ -3410,10 +3410,10 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
             tcg_ctx.gen_opc_pc[lj] = ctx.pc;
-            gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
@@ -3468,7 +3468,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     } else {
         tb->size = ctx.pc - pc_start;
         tb->icount = num_insns;

@@ -7988,11 +7988,11 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
             }
             tcg_ctx.gen_opc_pc[lj] = pc_ptr;
             gen_opc_cc_op[lj] = dc->cc_op;
-            gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
@@ -8037,7 +8037,7 @@ static inline void gen_intermediate_code_internal(CPUX86State *env,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
     }
 
 #ifdef DEBUG_DISAS
@@ -8080,7 +8080,7 @@ void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb, int pc_pos)
         int i;
         qemu_log("RESTORE:\n");
         for(i = 0;i <= pc_pos; i++) {
-            if (gen_opc_instr_start[i]) {
+            if (tcg_ctx.gen_opc_instr_start[i]) {
                 qemu_log("0x%04x: " TARGET_FMT_lx "\n", i,
                         tcg_ctx.gen_opc_pc[i]);
             }

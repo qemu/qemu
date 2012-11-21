@@ -5283,10 +5283,10 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
                 tcg_ctx.gen_opc_pc[lj] = dc->pc;
                 gen_opc_npc[lj] = dc->npc;
-                gen_opc_instr_start[lj] = 1;
+                tcg_ctx.gen_opc_instr_start[lj] = 1;
                 tcg_ctx.gen_opc_icount[lj] = num_insns;
             }
         }
@@ -5339,7 +5339,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
 #if 0
         log_page_dump();
 #endif
