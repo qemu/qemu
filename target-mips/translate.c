@@ -10359,6 +10359,19 @@ enum {
 
 /* POOL32AXF encoding of minor opcode field extension */
 
+/*
+ * 1. MIPS Architecture for Programmers Volume II-B:
+ *      The microMIPS32 Instruction Set (Revision 3.05)
+ *
+ *    Table 6.5 POOL32Axf Encoding of Minor Opcode Extension Field
+ *
+ * 2. MIPS Architecture for Programmers VolumeIV-e:
+ *      The MIPS DSP Application-Specific Extension
+ *        to the microMIPS32 Architecture (Revision 2.34)
+ *
+ *    Table 5.5 POOL32Axf Encoding of Minor Opcode Extension Field
+ */
+
 enum {
     /* bits 11..6 */
     TEQ = 0x00,
@@ -10370,6 +10383,8 @@ enum {
 
     MFC0 = 0x03,
     MTC0 = 0x0b,
+
+    /* begin of microMIPS32 DSP */
 
     /* bits 13..12 for 0x01 */
     MFHI_ACC = 0x0,
@@ -10386,6 +10401,8 @@ enum {
     /* bits 13..12 for 0x32 */
     MULT_ACC = 0x0,
     MULTU_ACC = 0x1,
+
+    /* end of microMIPS32 DSP */
 
     /* bits 15..12 for 0x2c */
     SEB = 0x2,
