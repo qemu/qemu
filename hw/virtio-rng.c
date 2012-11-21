@@ -23,7 +23,6 @@ typedef struct VirtIORNG {
     /* Only one vq - guest puts buffer(s) on it when it needs entropy */
     VirtQueue *vq;
 
-    /* Config data for the device -- currently only chardev */
     VirtIORNGConf *conf;
 
     RngBackend *rng;
@@ -125,9 +124,9 @@ static int virtio_rng_load(QEMUFile *f, void *opaque, int version_id)
     virtio_load(&vrng->vdev, f);
 
     /* We may have an element ready but couldn't process it due to a quota
-       limit.  Make sure to try again after live migration when the quota may
-       have been reset.
-    */
+     * limit.  Make sure to try again after live migration when the quota may
+     * have been reset.
+     */
     virtio_rng_process(vrng);
 
     return 0;
