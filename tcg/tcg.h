@@ -455,6 +455,9 @@ struct TCGContext {
 
     uint16_t *gen_opc_ptr;
     TCGArg *gen_opparam_ptr;
+    target_ulong gen_opc_pc[OPC_BUF_SIZE];
+    uint16_t gen_opc_icount[OPC_BUF_SIZE];
+    uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
 #if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* labels info for qemu_ld/st IRs
