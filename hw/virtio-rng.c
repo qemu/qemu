@@ -80,13 +80,6 @@ static void chr_read(void *opaque, const void *buf, size_t size)
         virtqueue_push(vrng->vq, &elem, len);
     }
     virtio_notify(&vrng->vdev, vrng->vq);
-
-    /*
-     * Lastly, if we had multiple elems queued by the guest, and we
-     * didn't have enough data to fill them all, indicate we want more
-     * data.
-     */
-    virtio_rng_process(vrng);
 }
 
 static void virtio_rng_process(VirtIORNG *vrng)
