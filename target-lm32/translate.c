@@ -1056,7 +1056,7 @@ static void gen_intermediate_code_internal(CPULM32State *env,
             }
             tcg_ctx.gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
 
         /* Pretty disas.  */

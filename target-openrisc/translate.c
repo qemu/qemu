@@ -1712,7 +1712,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
             }
             tcg_ctx.gen_opc_pc[k] = dc->pc;
             gen_opc_instr_start[k] = 1;
-            gen_opc_icount[k] = num_insns;
+            tcg_ctx.gen_opc_icount[k] = num_insns;
         }
 
         if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {

@@ -2008,7 +2008,7 @@ gen_intermediate_code_internal(CPUSH4State * env, TranslationBlock * tb,
             tcg_ctx.gen_opc_pc[ii] = ctx.pc;
             gen_opc_hflags[ii] = ctx.flags;
             gen_opc_instr_start[ii] = 1;
-            gen_opc_icount[ii] = num_insns;
+            tcg_ctx.gen_opc_icount[ii] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();

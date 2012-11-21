@@ -148,7 +148,7 @@ int cpu_restore_state(TranslationBlock *tb,
     /* now find start of instruction before */
     while (gen_opc_instr_start[j] == 0)
         j--;
-    env->icount_decr.u16.low -= gen_opc_icount[j];
+    env->icount_decr.u16.low -= s->gen_opc_icount[j];
 
     restore_state_to_opc(env, tb, j);
 

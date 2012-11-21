@@ -9684,7 +9684,7 @@ static inline void gen_intermediate_code_internal(CPUPPCState *env,
             }
             tcg_ctx.gen_opc_pc[lj] = ctx.nip;
             gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         LOG_DISAS("----------------\n");
         LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",

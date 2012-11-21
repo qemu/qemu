@@ -3023,7 +3023,7 @@ gen_intermediate_code_internal(CPUM68KState *env, TranslationBlock *tb,
             }
             tcg_ctx.gen_opc_pc[lj] = dc->pc;
             gen_opc_instr_start[lj] = 1;
-            gen_opc_icount[lj] = num_insns;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
