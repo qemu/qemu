@@ -170,9 +170,6 @@ static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
     uint32_t val;
 
     switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_PM1_TMR:
-        val = acpi_pm_tmr_get(&pm->acpi_regs);
-        break;
     case ICH9_PMIO_SMI_EN:
         val = pm->smi_en;
         break;
@@ -320,7 +317,7 @@ void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
     memory_region_set_enabled(&pm->io, false);
     memory_region_add_subregion(get_system_io(), 0, &pm->io);
 
-    acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn);
+    acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
     acpi_pm1_cnt_init(&pm->acpi_regs);
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
     acpi_gpe_blk(&pm->acpi_regs, ICH9_PMIO_GPE0_STS);

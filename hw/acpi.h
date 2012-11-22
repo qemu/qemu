@@ -84,6 +84,7 @@ typedef void (*acpi_update_sci_fn)(ACPIREGS *ar);
 
 struct ACPIPMTimer {
     QEMUTimer *timer;
+    MemoryRegion io;
     int64_t overflow_time;
 
     acpi_update_sci_fn update_sci;
@@ -119,8 +120,8 @@ struct ACPIREGS {
 /* PM_TMR */
 void acpi_pm_tmr_update(ACPIREGS *ar, bool enable);
 void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar);
-uint32_t acpi_pm_tmr_get(ACPIREGS *ar);
-void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci);
+void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                      MemoryRegion *parent);
 void acpi_pm_tmr_reset(ACPIREGS *ar);
 
 #include "qemu-timer.h"

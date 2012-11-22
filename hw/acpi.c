@@ -331,7 +331,7 @@ void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar)
     ar->tmr.overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
 }
 
-uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
+static uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
 {
     uint32_t d = acpi_pm_tmr_get_clock();
     return d & 0xffffff;
@@ -344,10 +344,25 @@ static void acpi_pm_tmr_timer(void *opaque)
     ar->tmr.update_sci(ar);
 }
 
-void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci)
+static uint64_t acpi_pm_tmr_read(void *opaque, hwaddr addr, unsigned width)
+{
+    return acpi_pm_tmr_get(opaque);
+}
+
+static const MemoryRegionOps acpi_pm_tmr_ops = {
+    .read = acpi_pm_tmr_read,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                      MemoryRegion *parent)
 {
     ar->tmr.update_sci = update_sci;
     ar->tmr.timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, ar);
+    memory_region_init_io(&ar->tmr.io, &acpi_pm_tmr_ops, ar, "acpi-tmr", 4);
+    memory_region_add_subregion(parent, 8, &ar->tmr.io);
 }
 
 void acpi_pm_tmr_reset(ACPIREGS *ar)

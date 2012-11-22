@@ -252,14 +252,10 @@ static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
 {
-    VT686PMState *s = opaque;
     uint32_t val;
 
     addr &= 0x0f;
     switch (addr) {
-    case 0x08:
-        val = acpi_pm_tmr_get(&s->ar);
-        break;
     default:
         val = 0;
         break;
@@ -446,7 +442,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
-    acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
+    acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_cnt_init(&s->ar);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);

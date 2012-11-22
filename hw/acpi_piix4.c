@@ -154,9 +154,6 @@ static uint64_t pm_ioport_read(void *opaque, hwaddr addr, unsigned width)
     case 0x04:
         val = s->ar.pm1.cnt.cnt;
         break;
-    case 0x08:
-        val = acpi_pm_tmr_get(&s->ar);
-        break;
     default:
         val = 0;
         break;
@@ -463,7 +460,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
-    acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
+    acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_gpe_init(&s->ar, GPE_LEN);
 
     s->powerdown_notifier.notify = piix4_pm_powerdown_req;
