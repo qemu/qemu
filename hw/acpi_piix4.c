@@ -110,45 +110,6 @@ static void pm_tmr_timer(ACPIREGS *ar)
     pm_update_sci(s);
 }
 
-static void pm_ioport_write(void *opaque, hwaddr addr, uint64_t val,
-                            unsigned width)
-{
-    if (width != 2) {
-        PIIX4_DPRINTF("PM write port=0x%04x width=%d val=0x%08x\n",
-                      (unsigned)addr, width, (unsigned)val);
-    }
-
-    switch(addr) {
-    default:
-        break;
-    }
-    PIIX4_DPRINTF("PM writew port=0x%04x val=0x%04x\n", (unsigned int)addr,
-                  (unsigned int)val);
-}
-
-static uint64_t pm_ioport_read(void *opaque, hwaddr addr, unsigned width)
-{
-    uint32_t val;
-
-    switch(addr) {
-    default:
-        val = 0;
-        break;
-    }
-    PIIX4_DPRINTF("PM readw port=0x%04x val=0x%04x\n", (unsigned int)addr, val);
-    return val;
-}
-
-static const MemoryRegionOps pm_io_ops = {
-    .read = pm_ioport_read,
-    .write = pm_ioport_write,
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static void apm_ctrl_changed(uint32_t val, void *arg)
 {
     PIIX4PMState *s = arg;
@@ -433,7 +394,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     register_ioport_write(s->smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
     register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
 
-    memory_region_init_io(&s->io, &pm_io_ops, s, "piix4-pm", 64);
+    memory_region_init(&s->io, "piix4-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
