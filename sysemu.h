@@ -145,8 +145,7 @@ extern unsigned int nb_prom_envs;
 
 /* pci-hotplug */
 void pci_device_hot_add(Monitor *mon, const QDict *qdict);
-int pci_drive_hot_add(Monitor *mon, const QDict *qdict,
-                      DriveInfo *dinfo, int type);
+int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo);
 void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 
 /* generic hotplug */
