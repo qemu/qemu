@@ -3167,6 +3167,7 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_SERIAL_USB;
     k->revision     = 0x03;
     k->is_express   = 1;
+    k->no_hotplug   = 1;
 }
 
 static TypeInfo xhci_info = {
