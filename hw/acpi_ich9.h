@@ -30,6 +30,7 @@ typedef struct ICH9LPCPMRegs {
      * PM1a_CNT_BLK = 2 in FADT so it is defined as uint16_t.
      */
     ACPIREGS acpi_regs;
+    MemoryRegion io;
     uint32_t smi_en;
     uint32_t smi_sts;
 

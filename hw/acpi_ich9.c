@@ -29,6 +29,7 @@
 #include "sysemu.h"
 #include "acpi.h"
 #include "kvm.h"
+#include "exec-memory.h"
 
 #include "ich9.h"
 
@@ -217,30 +218,34 @@ static uint32_t pm_ioport_read_fallback(void *opaque, uint32_t addr, int len)
     return val;
 }
 
+static const MemoryRegionOps pm_io_ops = {
+    .old_portio = (MemoryRegionPortio[]) {
+        { .offset = 0, .len = ICH9_PMIO_SIZE, .size = 1,
+          .read = pm_ioport_readb, .write = pm_ioport_writeb },
+        { .offset = 0, .len = ICH9_PMIO_SIZE, .size = 2,
+          .read = pm_ioport_readw, .write = pm_ioport_writew },
+        { .offset = 0, .len = ICH9_PMIO_SIZE, .size = 4,
+          .read = pm_ioport_readl, .write = pm_ioport_writel },
+        PORTIO_END_OF_LIST(),
+    },
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
 {
     ICH9_DEBUG("to 0x%x\n", pm_io_base);
 
     assert((pm_io_base & ICH9_PMIO_MASK) == 0);
 
-    if (pm->pm_io_base != 0) {
-        isa_unassign_ioport(pm->pm_io_base, ICH9_PMIO_SIZE);
-    }
-
-    /* don't map at 0 */
-    if (pm_io_base == 0) {
-        return;
-    }
-
-    register_ioport_write(pm_io_base, ICH9_PMIO_SIZE, 1, pm_ioport_writeb, pm);
-    register_ioport_read(pm_io_base, ICH9_PMIO_SIZE, 1, pm_ioport_readb, pm);
-    register_ioport_write(pm_io_base, ICH9_PMIO_SIZE, 2, pm_ioport_writew, pm);
-    register_ioport_read(pm_io_base, ICH9_PMIO_SIZE, 2, pm_ioport_readw, pm);
-    register_ioport_write(pm_io_base, ICH9_PMIO_SIZE, 4, pm_ioport_writel, pm);
-    register_ioport_read(pm_io_base, ICH9_PMIO_SIZE, 4, pm_ioport_readl, pm);
-
     pm->pm_io_base = pm_io_base;
-    acpi_gpe_blk(&pm->acpi_regs, pm_io_base + ICH9_PMIO_GPE0_STS);
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&pm->io, pm->pm_io_base != 0);
+    memory_region_set_address(&pm->io, pm->pm_io_base);
+    memory_region_transaction_commit();
 }
 
 static int ich9_pm_post_load(void *opaque, int version_id)
@@ -311,9 +316,14 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
 
 void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
 {
+    memory_region_init_io(&pm->io, &pm_io_ops, pm, "ich9-pm", ICH9_PMIO_SIZE);
+    memory_region_set_enabled(&pm->io, false);
+    memory_region_add_subregion(get_system_io(), 0, &pm->io);
+
     acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn);
     acpi_pm1_cnt_init(&pm->acpi_regs);
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
+    acpi_gpe_blk(&pm->acpi_regs, ICH9_PMIO_GPE0_STS);
 
     pm->irq = sci_irq;
     qemu_register_reset(pm_reset, pm);
