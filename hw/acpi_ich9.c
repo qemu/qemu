@@ -42,10 +42,6 @@ do { printf("%s "fmt, __func__, ## __VA_ARGS__); } while (0)
 #define ICH9_DEBUG(fmt, ...)    do { } while (0)
 #endif
 
-static void pm_ioport_write_fallback(void *opaque, uint32_t addr, int len,
-                                     uint32_t val);
-static uint32_t pm_ioport_read_fallback(void *opaque, uint32_t addr, int len);
-
 static void pm_update_sci(ICH9LPCPMRegs *pm)
 {
     int sci_level, pm1a_sts;
@@ -70,125 +66,6 @@ static void ich9_pm_update_sci_fn(ACPIREGS *regs)
     ICH9LPCPMRegs *pm = container_of(regs, ICH9LPCPMRegs, acpi_regs);
     pm_update_sci(pm);
 }
-
-static void pm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
-{
-    switch (addr & ICH9_PMIO_MASK) {
-    default:
-        break;
-    }
-
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readb(void *opaque, uint32_t addr)
-{
-    uint32_t val = 0;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    default:
-        val = 0;
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    switch (addr & ICH9_PMIO_MASK) {
-    default:
-        pm_ioport_write_fallback(opaque, addr, 2, val);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
-{
-    uint32_t val;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    default:
-        val = pm_ioport_read_fallback(opaque, addr, 2);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    switch (addr & ICH9_PMIO_MASK) {
-    default:
-        pm_ioport_write_fallback(opaque, addr, 4, val);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%08x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
-{
-    uint32_t val;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    default:
-        val = pm_ioport_read_fallback(opaque, addr, 4);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%08x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_write_fallback(void *opaque, uint32_t addr, int len,
-                                     uint32_t val)
- {
-    int subsize = (len == 4) ? 2 : 1;
-    IOPortWriteFunc *ioport_write =
-        (subsize == 2) ? pm_ioport_writew : pm_ioport_writeb;
-
-    int i;
-
-    for (i = 0; i < len; i += subsize) {
-        ioport_write(opaque, addr, val);
-        val >>= 8 * subsize;
-    }
-}
-
-static uint32_t pm_ioport_read_fallback(void *opaque, uint32_t addr, int len)
-{
-    int subsize = (len == 4) ? 2 : 1;
-    IOPortReadFunc *ioport_read =
-        (subsize == 2) ? pm_ioport_readw : pm_ioport_readb;
-
-    uint32_t val;
-    int i;
-
-    val = 0;
-    for (i = 0; i < len; i += subsize) {
-        val <<= 8 * subsize;
-        val |= ioport_read(opaque, addr);
-    }
-
-    return val;
-}
-
-static const MemoryRegionOps pm_io_ops = {
-    .old_portio = (MemoryRegionPortio[]) {
-        { .offset = 0, .len = ICH9_PMIO_SIZE, .size = 1,
-          .read = pm_ioport_readb, .write = pm_ioport_writeb },
-        { .offset = 0, .len = ICH9_PMIO_SIZE, .size = 2,
-          .read = pm_ioport_readw, .write = pm_ioport_writew },
-        { .offset = 0, .len = ICH9_PMIO_SIZE, .size = 4,
-          .read = pm_ioport_readl, .write = pm_ioport_writel },
-        PORTIO_END_OF_LIST(),
-    },
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
 
 static uint64_t ich9_gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
@@ -326,7 +203,7 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
 
 void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
 {
-    memory_region_init_io(&pm->io, &pm_io_ops, pm, "ich9-pm", ICH9_PMIO_SIZE);
+    memory_region_init(&pm->io, "ich9-pm", ICH9_PMIO_SIZE);
     memory_region_set_enabled(&pm->io, false);
     memory_region_add_subregion(get_system_io(), 0, &pm->io);
 
