@@ -28,6 +28,7 @@
 #include "range.h"
 #include "ioport.h"
 #include "fw_cfg.h"
+#include "exec-memory.h"
 
 //#define DEBUG
 
@@ -55,7 +56,7 @@ struct pci_status {
 
 typedef struct PIIX4PMState {
     PCIDevice dev;
-    IORange ioport;
+    MemoryRegion io;
     ACPIREGS ar;
 
     APMState apm;
@@ -109,10 +110,10 @@ static void pm_tmr_timer(ACPIREGS *ar)
     pm_update_sci(s);
 }
 
-static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
-                            uint64_t val)
+static void pm_ioport_write(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned width)
 {
-    PIIX4PMState *s = container_of(ioport, PIIX4PMState, ioport);
+    PIIX4PMState *s = opaque;
 
     if (width != 2) {
         PIIX4_DPRINTF("PM write port=0x%04x width=%d val=0x%08x\n",
@@ -138,10 +139,9 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
                   (unsigned int)val);
 }
 
-static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
-                            uint64_t *data)
+static uint64_t pm_ioport_read(void *opaque, hwaddr addr, unsigned width)
 {
-    PIIX4PMState *s = container_of(ioport, PIIX4PMState, ioport);
+    PIIX4PMState *s = opaque;
     uint32_t val;
 
     switch(addr) {
@@ -162,12 +162,17 @@ static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
         break;
     }
     PIIX4_DPRINTF("PM readw port=0x%04x val=0x%04x\n", (unsigned int)addr, val);
-    *data = val;
+    return val;
 }
 
-static const IORangeOps pm_iorange_ops = {
+static const MemoryRegionOps pm_io_ops = {
     .read = pm_ioport_read,
     .write = pm_ioport_write,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void apm_ctrl_changed(uint32_t val, void *arg)
@@ -193,15 +198,13 @@ static void pm_io_space_update(PIIX4PMState *s)
 {
     uint32_t pm_io_base;
 
-    if (s->dev.config[0x80] & 1) {
-        pm_io_base = le32_to_cpu(*(uint32_t *)(s->dev.config + 0x40));
-        pm_io_base &= 0xffc0;
+    pm_io_base = le32_to_cpu(*(uint32_t *)(s->dev.config + 0x40));
+    pm_io_base &= 0xffc0;
 
-        /* XXX: need to improve memory and ioport allocation */
-        PIIX4_DPRINTF("PM: mapping to 0x%x\n", pm_io_base);
-        iorange_init(&s->ioport, &pm_iorange_ops, pm_io_base, 64);
-        ioport_register(&s->ioport);
-    }
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
+    memory_region_set_address(&s->io, pm_io_base);
+    memory_region_transaction_commit();
 }
 
 static void pm_write_config(PCIDevice *d,
@@ -455,6 +458,10 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0xd2] = 0x09;
     register_ioport_write(s->smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
     register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
+
+    memory_region_init_io(&s->io, &pm_io_ops, s, "piix4-pm", 64);
+    memory_region_set_enabled(&s->io, false);
+    memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
     acpi_gpe_init(&s->ar, GPE_LEN);
