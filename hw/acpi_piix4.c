@@ -129,9 +129,6 @@ static void pm_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         acpi_pm1_evt_write_en(&s->ar, val);
         pm_update_sci(s);
         break;
-    case 0x04:
-        acpi_pm1_cnt_write(&s->ar, val, s->s4_val);
-        break;
     default:
         break;
     }
@@ -150,9 +147,6 @@ static uint64_t pm_ioport_read(void *opaque, hwaddr addr, unsigned width)
         break;
     case 0x02:
         val = s->ar.pm1.evt.en;
-        break;
-    case 0x04:
-        val = s->ar.pm1.cnt.cnt;
         break;
     default:
         val = 0;
@@ -461,6 +455,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_cnt_init(&s->ar, &s->io);
     acpi_gpe_init(&s->ar, GPE_LEN);
 
     s->powerdown_notifier.notify = piix4_pm_powerdown_req;
@@ -487,7 +482,6 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     s = DO_UPCAST(PIIX4PMState, dev, dev);
     s->irq = sci_irq;
-    acpi_pm1_cnt_init(&s->ar);
     s->smi_irq = smi_irq;
     s->kvm_enabled = kvm_enabled;
 

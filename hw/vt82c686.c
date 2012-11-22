@@ -211,9 +211,6 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         acpi_pm1_evt_write_en(&s->ar, val);
         pm_update_sci(s);
         break;
-    case 0x04:
-        acpi_pm1_cnt_write(&s->ar, val, 0);
-        break;
     default:
         break;
     }
@@ -232,9 +229,6 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
         break;
     case 0x02:
         val = s->ar.pm1.evt.en;
-        break;
-    case 0x04:
-        val = s->ar.pm1.cnt.cnt;
         break;
     default:
         val = 0;
@@ -443,7 +437,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
-    acpi_pm1_cnt_init(&s->ar);
+    acpi_pm1_cnt_init(&s->ar, &s->io);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
 

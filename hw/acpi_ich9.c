@@ -116,9 +116,6 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         pm->acpi_regs.pm1.evt.en = val;
         pm_update_sci(pm);
         break;
-    case ICH9_PMIO_PM1_CNT:
-        acpi_pm1_cnt_write(&pm->acpi_regs, val, 0);
-        break;
     default:
         pm_ioport_write_fallback(opaque, addr, 2, val);
         break;
@@ -137,9 +134,6 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
         break;
     case ICH9_PMIO_PM1_EN:
         val = pm->acpi_regs.pm1.evt.en;
-        break;
-    case ICH9_PMIO_PM1_CNT:
-        val = pm->acpi_regs.pm1.cnt.cnt;
         break;
     default:
         val = pm_ioport_read_fallback(opaque, addr, 2);
@@ -318,7 +312,7 @@ void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
     memory_region_add_subregion(get_system_io(), 0, &pm->io);
 
     acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
-    acpi_pm1_cnt_init(&pm->acpi_regs);
+    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io);
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
     acpi_gpe_blk(&pm->acpi_regs, ICH9_PMIO_GPE0_STS);
 

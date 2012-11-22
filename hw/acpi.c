@@ -372,13 +372,7 @@ void acpi_pm_tmr_reset(ACPIREGS *ar)
 }
 
 /* ACPI PM1aCNT */
-void acpi_pm1_cnt_init(ACPIREGS *ar)
-{
-    ar->wakeup.notify = acpi_notify_wakeup;
-    qemu_register_wakeup_notifier(&ar->wakeup);
-}
-
-void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val, char s4)
+static void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
 {
     ar->pm1.cnt.cnt = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
 
@@ -393,7 +387,7 @@ void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val, char s4)
             qemu_system_suspend_request();
             break;
         default:
-            if (sus_typ == s4) { /* S4 request */
+            if (sus_typ == ar->pm1.cnt.s4_val) { /* S4 request */
                 monitor_protocol_event(QEVENT_SUSPEND_DISK, NULL);
                 qemu_system_shutdown_request();
             }
@@ -411,6 +405,34 @@ void acpi_pm1_cnt_update(ACPIREGS *ar,
     } else if (sci_disable) {
         ar->pm1.cnt.cnt &= ~ACPI_BITMASK_SCI_ENABLE;
     }
+}
+
+static uint64_t acpi_pm_cnt_read(void *opaque, hwaddr addr, unsigned width)
+{
+    ACPIREGS *ar = opaque;
+    return ar->pm1.cnt.cnt;
+}
+
+static void acpi_pm_cnt_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
+{
+    acpi_pm1_cnt_write(opaque, val);
+}
+
+static const MemoryRegionOps acpi_pm_cnt_ops = {
+    .read = acpi_pm_cnt_read,
+    .write = acpi_pm_cnt_write,
+    .valid.min_access_size = 2,
+    .valid.max_access_size = 2,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent)
+{
+    ar->wakeup.notify = acpi_notify_wakeup;
+    qemu_register_wakeup_notifier(&ar->wakeup);
+    memory_region_init_io(&ar->pm1.cnt.io, &acpi_pm_cnt_ops, ar, "acpi-cnt", 2);
+    memory_region_add_subregion(parent, 4, &ar->pm1.cnt.io);
 }
 
 void acpi_pm1_cnt_reset(ACPIREGS *ar)
