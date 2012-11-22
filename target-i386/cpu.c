@@ -657,7 +657,7 @@ static x86_def_t builtin_x86_defs[] = {
         .stepping = 1,
         .features = CPUID_SSE2 | CPUID_SSE | CPUID_FXSR | CPUID_MMX |
              CPUID_CLFLUSH | CPUID_PSE36 | CPUID_PAT | CPUID_CMOV | CPUID_MCA |
-             CPUID_PGE | CPUID_MTRR | CPUID_APIC | CPUID_CX8 |
+             CPUID_PGE | CPUID_MTRR | CPUID_SEP | CPUID_APIC | CPUID_CX8 |
              CPUID_MCE | CPUID_PAE | CPUID_MSR | CPUID_TSC | CPUID_PSE |
              CPUID_DE | CPUID_FP87,
         .ext_features = CPUID_EXT_AVX | CPUID_EXT_XSAVE | CPUID_EXT_AES |
@@ -666,7 +666,8 @@ static x86_def_t builtin_x86_defs[] = {
              CPUID_EXT_PCLMULQDQ | CPUID_EXT_SSE3 |
              CPUID_EXT_TSC_DEADLINE_TIMER | CPUID_EXT_FMA | CPUID_EXT_MOVBE |
              CPUID_EXT_PCID,
-        .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_NX | CPUID_EXT2_SYSCALL,
+        .ext2_features = CPUID_EXT2_LM | CPUID_EXT2_RDTSCP | CPUID_EXT2_NX |
+             CPUID_EXT2_SYSCALL,
         .ext3_features = CPUID_EXT3_LAHF_LM,
         .cpuid_7_0_ebx_features = CPUID_7_0_EBX_FSGSBASE | CPUID_7_0_EBX_BMI1 |
             CPUID_7_0_EBX_HLE | CPUID_7_0_EBX_AVX2 | CPUID_7_0_EBX_SMEP |
