@@ -73,12 +73,7 @@ static void ich9_pm_update_sci_fn(ACPIREGS *regs)
 
 static void pm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
-    ICH9LPCPMRegs *pm = opaque;
-
     switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_GPE0_STS ... (ICH9_PMIO_GPE0_STS + ICH9_PMIO_GPE0_LEN - 1):
-        acpi_gpe_ioport_writeb(&pm->acpi_regs, addr, val);
-        break;
     default:
         break;
     }
@@ -88,13 +83,9 @@ static void pm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t pm_ioport_readb(void *opaque, uint32_t addr)
 {
-    ICH9LPCPMRegs *pm = opaque;
     uint32_t val = 0;
 
     switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_GPE0_STS ... (ICH9_PMIO_GPE0_STS + ICH9_PMIO_GPE0_LEN - 1):
-        val = acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
-        break;
     default:
         val = 0;
         break;
@@ -209,6 +200,29 @@ static const MemoryRegionOps pm_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t ich9_gpe_readb(void *opaque, hwaddr addr, unsigned width)
+{
+    ICH9LPCPMRegs *pm = opaque;
+    return acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
+}
+
+static void ich9_gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned width)
+{
+    ICH9LPCPMRegs *pm = opaque;
+    acpi_gpe_ioport_writeb(&pm->acpi_regs, addr, val);
+}
+
+static const MemoryRegionOps ich9_gpe_ops = {
+    .read = ich9_gpe_readb,
+    .write = ich9_gpe_writeb,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
 {
     ICH9_DEBUG("to 0x%x\n", pm_io_base);
@@ -297,8 +311,12 @@ void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
     acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
     acpi_pm1_evt_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
     acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io);
+
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
-    acpi_gpe_blk(&pm->acpi_regs, ICH9_PMIO_GPE0_STS);
+    acpi_gpe_blk(&pm->acpi_regs, 0);
+    memory_region_init_io(&pm->io_gpe, &ich9_gpe_ops, pm, "apci-gpe0",
+                          ICH9_PMIO_GPE0_LEN);
+    memory_region_add_subregion(&pm->io, ICH9_PMIO_GPE0_STS, &pm->io_gpe);
 
     pm->irq = sci_irq;
     qemu_register_reset(pm_reset, pm);
