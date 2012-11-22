@@ -119,12 +119,7 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
 
 static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 {
-    ICH9LPCPMRegs *pm = opaque;
-
     switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_SMI_EN:
-        pm->smi_en = val;
-        break;
     default:
         pm_ioport_write_fallback(opaque, addr, 4, val);
         break;
@@ -134,14 +129,9 @@ static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
 {
-    ICH9LPCPMRegs *pm = opaque;
     uint32_t val;
 
     switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_SMI_EN:
-        val = pm->smi_en;
-        break;
-
     default:
         val = pm_ioport_read_fallback(opaque, addr, 4);
         break;
@@ -220,6 +210,38 @@ static const MemoryRegionOps ich9_gpe_ops = {
     .valid.max_access_size = 4,
     .impl.min_access_size = 1,
     .impl.max_access_size = 1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static uint64_t ich9_smi_readl(void *opaque, hwaddr addr, unsigned width)
+{
+    ICH9LPCPMRegs *pm = opaque;
+    switch (addr) {
+    case 0:
+        return pm->smi_en;
+    case 4:
+        return pm->smi_sts;
+    default:
+        return 0;
+    }
+}
+
+static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned width)
+{
+    ICH9LPCPMRegs *pm = opaque;
+    switch (addr) {
+    case 0:
+        pm->smi_en = val;
+        break;
+    }
+}
+
+static const MemoryRegionOps ich9_smi_ops = {
+    .read = ich9_smi_readl,
+    .write = ich9_smi_writel,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -317,6 +339,10 @@ void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
     memory_region_init_io(&pm->io_gpe, &ich9_gpe_ops, pm, "apci-gpe0",
                           ICH9_PMIO_GPE0_LEN);
     memory_region_add_subregion(&pm->io, ICH9_PMIO_GPE0_STS, &pm->io_gpe);
+
+    memory_region_init_io(&pm->io_smi, &ich9_smi_ops, pm, "apci-smi",
+                          8);
+    memory_region_add_subregion(&pm->io, ICH9_PMIO_SMI_EN, &pm->io_smi);
 
     pm->irq = sci_irq;
     qemu_register_reset(pm_reset, pm);

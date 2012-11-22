@@ -32,6 +32,7 @@ typedef struct ICH9LPCPMRegs {
     ACPIREGS acpi_regs;
     MemoryRegion io;
     MemoryRegion io_gpe;
+    MemoryRegion io_smi;
     uint32_t smi_en;
     uint32_t smi_sts;
 
