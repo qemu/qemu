@@ -787,7 +787,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv)
 {
     int ret;
-    char tmp_filename[PATH_MAX];
+    /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
+    char tmp_filename[PATH_MAX + 1];
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
