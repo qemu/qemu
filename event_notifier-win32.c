@@ -16,7 +16,7 @@
 
 int event_notifier_init(EventNotifier *e, int active)
 {
-    e->event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    e->event = CreateEvent(NULL, TRUE, FALSE, NULL);
     assert(e->event);
     return 0;
 }
