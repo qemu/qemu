@@ -91,8 +91,10 @@ struct ACPIPMTimer {
 };
 
 struct ACPIPM1EVT {
+    MemoryRegion io;
     uint16_t sts;
     uint16_t en;
+    acpi_update_sci_fn update_sci;
 };
 
 struct ACPIPM1CNT {
@@ -135,10 +137,10 @@ static inline int64_t acpi_pm_tmr_get_clock(void)
 
 /* PM1a_EVT: piix and ich9 don't implement PM1b. */
 uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar);
-void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val);
-void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val);
 void acpi_pm1_evt_power_down(ACPIREGS *ar);
 void acpi_pm1_evt_reset(ACPIREGS *ar);
+void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                       MemoryRegion *parent);
 
 /* PM1a_CNT: piix and ich9 don't implement PM1b CNT. */
 void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent);

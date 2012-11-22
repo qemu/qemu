@@ -199,18 +199,8 @@ static void pm_tmr_timer(ACPIREGS *ar)
 
 static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 {
-    VT686PMState *s = opaque;
-
     addr &= 0x0f;
     switch (addr) {
-    case 0x00:
-        acpi_pm1_evt_write_sts(&s->ar, val);
-        pm_update_sci(s);
-        break;
-    case 0x02:
-        acpi_pm1_evt_write_en(&s->ar, val);
-        pm_update_sci(s);
-        break;
     default:
         break;
     }
@@ -219,17 +209,10 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
 
 static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
 {
-    VT686PMState *s = opaque;
     uint32_t val;
 
     addr &= 0x0f;
     switch (addr) {
-    case 0x00:
-        val = acpi_pm1_evt_get_sts(&s->ar);
-        break;
-    case 0x02:
-        val = s->ar.pm1.evt.en;
-        break;
     default:
         val = 0;
         break;
@@ -437,6 +420,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_cnt_init(&s->ar, &s->io);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);

@@ -113,22 +113,12 @@ static void pm_tmr_timer(ACPIREGS *ar)
 static void pm_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                             unsigned width)
 {
-    PIIX4PMState *s = opaque;
-
     if (width != 2) {
         PIIX4_DPRINTF("PM write port=0x%04x width=%d val=0x%08x\n",
                       (unsigned)addr, width, (unsigned)val);
     }
 
     switch(addr) {
-    case 0x00:
-        acpi_pm1_evt_write_sts(&s->ar, val);
-        pm_update_sci(s);
-        break;
-    case 0x02:
-        acpi_pm1_evt_write_en(&s->ar, val);
-        pm_update_sci(s);
-        break;
     default:
         break;
     }
@@ -138,16 +128,9 @@ static void pm_ioport_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t pm_ioport_read(void *opaque, hwaddr addr, unsigned width)
 {
-    PIIX4PMState *s = opaque;
     uint32_t val;
 
     switch(addr) {
-    case 0x00:
-        val = acpi_pm1_evt_get_sts(&s->ar);
-        break;
-    case 0x02:
-        val = s->ar.pm1.evt.en;
-        break;
     default:
         val = 0;
         break;
@@ -455,6 +438,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
+    acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_cnt_init(&s->ar, &s->io);
     acpi_gpe_init(&s->ar, GPE_LEN);
 

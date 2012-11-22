@@ -275,7 +275,7 @@ uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
     return ar->pm1.evt.sts;
 }
 
-void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
+static void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
 {
     uint16_t pm1_sts = acpi_pm1_evt_get_sts(ar);
     if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
@@ -285,7 +285,7 @@ void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
     ar->pm1.evt.sts &= ~val;
 }
 
-void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
+static void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
 {
     ar->pm1.evt.en = val;
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC,
@@ -308,6 +308,51 @@ void acpi_pm1_evt_reset(ACPIREGS *ar)
     ar->pm1.evt.en = 0;
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC, 0);
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_PMTIMER, 0);
+}
+
+static uint64_t acpi_pm_evt_read(void *opaque, hwaddr addr, unsigned width)
+{
+    ACPIREGS *ar = opaque;
+    switch (addr) {
+    case 0:
+        return acpi_pm1_evt_get_sts(ar);
+    case 2:
+        return ar->pm1.evt.en;
+    default:
+        return 0;
+    }
+}
+
+static void acpi_pm_evt_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
+{
+    ACPIREGS *ar = opaque;
+    switch (addr) {
+    case 0:
+        acpi_pm1_evt_write_sts(ar, val);
+        ar->pm1.evt.update_sci(ar);
+        break;
+    case 2:
+        acpi_pm1_evt_write_en(ar, val);
+        ar->pm1.evt.update_sci(ar);
+        break;
+    }
+}
+
+static const MemoryRegionOps acpi_pm_evt_ops = {
+    .read = acpi_pm_evt_read,
+    .write = acpi_pm_evt_write,
+    .valid.min_access_size = 2,
+    .valid.max_access_size = 2,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                       MemoryRegion *parent)
+{
+    ar->pm1.evt.update_sci = update_sci;
+    memory_region_init_io(&ar->pm1.evt.io, &acpi_pm_evt_ops, ar, "acpi-evt", 4);
+    memory_region_add_subregion(parent, 0, &ar->pm1.evt.io);
 }
 
 /* ACPI PM_TMR */
