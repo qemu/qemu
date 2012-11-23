@@ -307,6 +307,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
+    object_ref(obj);
     QTAILQ_INIT(&obj->properties);
     object_init_with_type(obj, type);
 }
@@ -395,7 +396,6 @@ Object *object_new_with_type(Type type)
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type);
-    object_ref(obj);
 
     return obj;
 }
