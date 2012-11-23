@@ -239,6 +239,14 @@ typedef struct ObjectProperty
 typedef void (ObjectUnparent)(Object *obj);
 
 /**
+ * ObjectFree:
+ * @obj: the object being freed
+ *
+ * Called when an object's last reference is removed.
+ */
+typedef void (ObjectFree)(void *obj);
+
+/**
  * ObjectClass:
  *
  * The base for all classes.  The only thing that #ObjectClass contains is an
@@ -272,6 +280,7 @@ struct Object
 {
     /*< private >*/
     ObjectClass *class;
+    ObjectFree *free;
     QTAILQ_HEAD(, ObjectProperty) properties;
     uint32_t ref;
     Object *parent;

@@ -388,6 +388,9 @@ void object_finalize(void *data)
     object_property_del_all(obj);
 
     g_assert(obj->ref == 0);
+    if (obj->free) {
+        obj->free(obj);
+    }
 }
 
 Object *object_new_with_type(Type type)
@@ -399,6 +402,7 @@ Object *object_new_with_type(Type type)
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type);
+    obj->free = g_free;
 
     return obj;
 }
@@ -415,7 +419,6 @@ void object_delete(Object *obj)
     object_unparent(obj);
     g_assert(obj->ref == 1);
     object_unref(obj);
-    g_free(obj);
 }
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
