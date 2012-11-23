@@ -197,65 +197,6 @@ static void pm_tmr_timer(ACPIREGS *ar)
     pm_update_sci(s);
 }
 
-static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    addr &= 0x0f;
-    switch (addr) {
-    default:
-        break;
-    }
-    DPRINTF("PM writew port=0x%04x val=0x%02x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
-{
-    uint32_t val;
-
-    addr &= 0x0f;
-    switch (addr) {
-    default:
-        val = 0;
-        break;
-    }
-    DPRINTF("PM readw port=0x%04x val=0x%02x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    addr &= 0x0f;
-    DPRINTF("PM writel port=0x%04x val=0x%08x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
-{
-    uint32_t val;
-
-    addr &= 0x0f;
-    switch (addr) {
-    default:
-        val = 0;
-        break;
-    }
-    DPRINTF("PM readl port=0x%04x val=0x%08x\n", addr, val);
-    return val;
-}
-
-static const MemoryRegionOps pm_io_ops = {
-    .old_portio = (MemoryRegionPortio[]) {
-        { .offset = 0, .len = 64, .size = 2,
-          .read = pm_ioport_readw, .write = pm_ioport_writew },
-        { .offset = 0, .len = 64, .size = 4,
-          .read = pm_ioport_readl, .write = pm_ioport_writel },
-        PORTIO_END_OF_LIST(),
-    },
-    .valid.min_access_size = 1,
-    .valid.max_access_size = 4,
-    .impl.min_access_size = 1,
-    .impl.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 static void pm_io_space_update(VT686PMState *s)
 {
     uint32_t pm_io_base;
@@ -415,7 +356,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
 
     apm_init(&s->apm, NULL, s);
 
-    memory_region_init_io(&s->io, &pm_io_ops, s, "vt82c686-pm", 64);
+    memory_region_init(&s->io, "vt82c686-pm", 64);
     memory_region_set_enabled(&s->io, false);
     memory_region_add_subregion(get_system_io(), 0, &s->io);
 
