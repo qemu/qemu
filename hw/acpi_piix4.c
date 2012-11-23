@@ -42,6 +42,9 @@
 
 #define GPE_BASE 0xafe0
 #define GPE_LEN 4
+
+#define PCI_HOTPLUG_ADDR 0xae00
+#define PCI_HOTPLUG_SIZE 0x000f
 #define PCI_UP_BASE 0xae00
 #define PCI_DOWN_BASE 0xae04
 #define PCI_EJ_BASE 0xae08
@@ -58,6 +61,7 @@ typedef struct PIIX4PMState {
     PCIDevice dev;
     MemoryRegion io;
     MemoryRegion io_gpe;
+    MemoryRegion io_pci;
     ACPIREGS ar;
 
     APMState apm;
@@ -574,6 +578,27 @@ static uint32_t pcirmv_read(void *opaque, uint32_t addr)
     return s->pci0_hotplug_enable;
 }
 
+static const MemoryRegionOps piix4_pci_ops = {
+    .old_portio = (MemoryRegionPortio[]) {
+        {
+            .offset = PCI_UP_BASE - PCI_HOTPLUG_ADDR,   .len = 4, .size = 4,
+            .read = pci_up_read,
+        },{
+            .offset = PCI_DOWN_BASE - PCI_HOTPLUG_ADDR, .len = 4, .size = 4,
+            .read = pci_down_read,
+        },{
+            .offset = PCI_EJ_BASE - PCI_HOTPLUG_ADDR,   .len = 4, .size = 4,
+            .read = pci_features_read,
+            .write = pciej_write,
+        },{
+            .offset = PCI_RMV_BASE - PCI_HOTPLUG_ADDR,  .len = 4, .size = 4,
+            .read = pcirmv_read,
+        },
+        PORTIO_END_OF_LIST()
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
                                 PCIHotplugState state);
 
@@ -583,14 +608,10 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
                           GPE_LEN);
     memory_region_add_subregion(get_system_io(), GPE_BASE, &s->io_gpe);
 
-    register_ioport_read(PCI_UP_BASE, 4, 4, pci_up_read, s);
-    register_ioport_read(PCI_DOWN_BASE, 4, 4, pci_down_read, s);
-
-    register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, s);
-    register_ioport_read(PCI_EJ_BASE, 4, 4,  pci_features_read, s);
-
-    register_ioport_read(PCI_RMV_BASE, 4, 4,  pcirmv_read, s);
-
+    memory_region_init_io(&s->io_pci, &piix4_pci_ops, s, "apci-pci-hotplug",
+                          PCI_HOTPLUG_SIZE);
+    memory_region_add_subregion(get_system_io(), PCI_HOTPLUG_ADDR,
+                                &s->io_pci);
     pci_bus_hotplug(bus, piix4_device_hotplug, &s->dev.qdev);
 }
 
