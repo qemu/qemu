@@ -1331,7 +1331,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                connect the host TAP network interface to VLAN 'n'\n"
 #else
     "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off][,vhostfd=h][,vhostforce=on|off]\n"
-    "                connect the host TAP network interface to VLAN 'n' \n"
+    "                connect the host TAP network interface to VLAN 'n'\n"
     "                use network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
     "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
     "                to deconfigure it\n"
