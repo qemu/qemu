@@ -417,7 +417,7 @@ void object_delete(Object *obj)
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
-    if (object_class_dynamic_cast(object_get_class(obj), typename)) {
+    if (obj && object_class_dynamic_cast(object_get_class(obj), typename)) {
         return obj;
     }
 
@@ -430,7 +430,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename)
 
     inst = object_dynamic_cast(obj, typename);
 
-    if (!inst) {
+    if (!inst && obj) {
         fprintf(stderr, "Object %p is not an instance of type %s\n",
                 obj, typename);
         abort();
