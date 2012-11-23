@@ -142,12 +142,29 @@ static void pm_io_space_update(PIIX4PMState *s)
     memory_region_transaction_commit();
 }
 
+static void smbus_io_space_update(PIIX4PMState *s)
+{
+    s->smb_io_base = le32_to_cpu(*(uint32_t *)(s->dev.config + 0x90));
+    s->smb_io_base &= 0xffc0;
+
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&s->smb.io, s->dev.config[0xd2] & 1);
+    memory_region_set_address(&s->smb.io, s->smb_io_base);
+    memory_region_transaction_commit();
+}
+
 static void pm_write_config(PCIDevice *d,
                             uint32_t address, uint32_t val, int len)
 {
     pci_default_write_config(d, address, val, len);
-    if (range_covers_byte(address, len, 0x80))
+    if (range_covers_byte(address, len, 0x80) ||
+        ranges_overlap(address, len, 0x40, 4)) {
         pm_io_space_update((PIIX4PMState *)d);
+    }
+    if (range_covers_byte(address, len, 0xd2) ||
+        ranges_overlap(address, len, 0x90, 4)) {
+        smbus_io_space_update((PIIX4PMState *)d);
+    }
 }
 
 static void vmstate_pci_status_pre_save(void *opaque)
@@ -392,6 +409,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x09;
     pm_smbus_init(&s->dev.qdev, &s->smb);
+    memory_region_set_enabled(&s->smb.io, pci_conf[0xd2] & 1);
     memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
 
     memory_region_init(&s->io, "piix4-pm", 64);
