@@ -57,6 +57,7 @@ struct pci_status {
 typedef struct PIIX4PMState {
     PCIDevice dev;
     MemoryRegion io;
+    MemoryRegion io_gpe;
     ACPIREGS ar;
 
     APMState apm;
@@ -500,7 +501,7 @@ static void piix4_pm_register_types(void)
 
 type_init(piix4_pm_register_types)
 
-static uint32_t gpe_readb(void *opaque, uint32_t addr)
+static uint64_t gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
     PIIX4PMState *s = opaque;
     uint32_t val = acpi_gpe_ioport_readb(&s->ar, addr);
@@ -509,7 +510,8 @@ static uint32_t gpe_readb(void *opaque, uint32_t addr)
     return val;
 }
 
-static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
+                       unsigned width)
 {
     PIIX4PMState *s = opaque;
 
@@ -518,6 +520,16 @@ static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
 
     PIIX4_DPRINTF("gpe write %x <== %d\n", addr, val);
 }
+
+static const MemoryRegionOps piix4_gpe_ops = {
+    .read = gpe_readb,
+    .write = gpe_writeb,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static uint32_t pci_up_read(void *opaque, uint32_t addr)
 {
@@ -567,10 +579,10 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
 
 static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 {
-
-    register_ioport_write(GPE_BASE, GPE_LEN, 1, gpe_writeb, s);
-    register_ioport_read(GPE_BASE, GPE_LEN, 1,  gpe_readb, s);
-    acpi_gpe_blk(&s->ar, GPE_BASE);
+    memory_region_init_io(&s->io_gpe, &piix4_gpe_ops, s, "apci-gpe0",
+                          GPE_LEN);
+    memory_region_add_subregion(get_system_io(), GPE_BASE, &s->io_gpe);
+    acpi_gpe_blk(&s->ar, 0);
 
     register_ioport_read(PCI_UP_BASE, 4, 4, pci_up_read, s);
     register_ioport_read(PCI_DOWN_BASE, 4, 4, pci_down_read, s);
