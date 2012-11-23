@@ -24,6 +24,7 @@
 #include "pm_smbus.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
+#include "exec-memory.h"
 
 typedef uint32_t pci_addr_t;
 #include "pci_host.h"
@@ -159,6 +160,7 @@ static void vt82c686b_write_config(PCIDevice * d, uint32_t address,
 
 typedef struct VT686PMState {
     PCIDevice dev;
+    MemoryRegion io;
     ACPIREGS ar;
     APMState apm;
     PMSMBus smb;
@@ -266,21 +268,32 @@ static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
     return val;
 }
 
+static const MemoryRegionOps pm_io_ops = {
+    .old_portio = (MemoryRegionPortio[]) {
+        { .offset = 0, .len = 64, .size = 2,
+          .read = pm_ioport_readw, .write = pm_ioport_writew },
+        { .offset = 0, .len = 64, .size = 4,
+          .read = pm_ioport_readl, .write = pm_ioport_writel },
+        PORTIO_END_OF_LIST(),
+    },
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 static void pm_io_space_update(VT686PMState *s)
 {
     uint32_t pm_io_base;
 
-    if (s->dev.config[0x80] & 1) {
-        pm_io_base = pci_get_long(s->dev.config + 0x40);
-        pm_io_base &= 0xffc0;
+    pm_io_base = pci_get_long(s->dev.config + 0x40);
+    pm_io_base &= 0xffc0;
 
-        /* XXX: need to improve memory and ioport allocation */
-        DPRINTF("PM: mapping to 0x%x\n", pm_io_base);
-        register_ioport_write(pm_io_base, 64, 2, pm_ioport_writew, s);
-        register_ioport_read(pm_io_base, 64, 2, pm_ioport_readw, s);
-        register_ioport_write(pm_io_base, 64, 4, pm_ioport_writel, s);
-        register_ioport_read(pm_io_base, 64, 4, pm_ioport_readl, s);
-    }
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&s->io, s->dev.config[0x80] & 1);
+    memory_region_set_address(&s->io, pm_io_base);
+    memory_region_transaction_commit();
 }
 
 static void pm_write_config(PCIDevice *d,
@@ -428,6 +441,10 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     register_ioport_read(s->smb_io_base, 0xf, 1, smb_ioport_readb, &s->smb);
 
     apm_init(&s->apm, NULL, s);
+
+    memory_region_init_io(&s->io, &pm_io_ops, s, "vt82c686-pm", 64);
+    memory_region_set_enabled(&s->io, false);
+    memory_region_add_subregion(get_system_io(), 0, &s->io);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
     acpi_pm1_cnt_init(&s->ar);
