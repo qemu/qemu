@@ -493,11 +493,6 @@ void acpi_gpe_init(ACPIREGS *ar, uint8_t len)
     ar->gpe.en = g_malloc0(len / 2);
 }
 
-void acpi_gpe_blk(ACPIREGS *ar, uint32_t blk)
-{
-    ar->gpe.blk = blk;
-}
-
 void acpi_gpe_reset(ACPIREGS *ar)
 {
     memset(ar->gpe.sts, 0, ar->gpe.len / 2);
@@ -523,7 +518,6 @@ void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val)
 {
     uint8_t *cur;
 
-    addr -= ar->gpe.blk;
     cur = acpi_gpe_ioport_get_ptr(ar, addr);
     if (addr < ar->gpe.len / 2) {
         /* GPE_STS */
@@ -541,7 +535,6 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
     uint8_t *cur;
     uint32_t val;
 
-    addr -= ar->gpe.blk;
     cur = acpi_gpe_ioport_get_ptr(ar, addr);
     val = 0;
     if (cur != NULL) {

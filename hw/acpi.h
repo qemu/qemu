@@ -104,7 +104,6 @@ struct ACPIPM1CNT {
 };
 
 struct ACPIGPE {
-    uint32_t blk;
     uint8_t len;
 
     uint8_t *sts;
@@ -150,7 +149,6 @@ void acpi_pm1_cnt_reset(ACPIREGS *ar);
 
 /* GPE0 */
 void acpi_gpe_init(ACPIREGS *ar, uint8_t len);
-void acpi_gpe_blk(ACPIREGS *ar, uint32_t blk);
 void acpi_gpe_reset(ACPIREGS *ar);
 
 void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val);

@@ -582,7 +582,6 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
     memory_region_init_io(&s->io_gpe, &piix4_gpe_ops, s, "apci-gpe0",
                           GPE_LEN);
     memory_region_add_subregion(get_system_io(), GPE_BASE, &s->io_gpe);
-    acpi_gpe_blk(&s->ar, 0);
 
     register_ioport_read(PCI_UP_BASE, 4, 4, pci_up_read, s);
     register_ioport_read(PCI_DOWN_BASE, 4, 4, pci_down_read, s);
