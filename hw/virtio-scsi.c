@@ -424,15 +424,17 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
                                          size_t resid)
 {
     VirtIOSCSIReq *req = r->hba_private;
+    uint32_t sense_len;
 
     req->resp.cmd->response = VIRTIO_SCSI_S_OK;
     req->resp.cmd->status = status;
     if (req->resp.cmd->status == GOOD) {
-        req->resp.cmd->resid = resid;
+        req->resp.cmd->resid = tswap32(resid);
     } else {
         req->resp.cmd->resid = 0;
-        req->resp.cmd->sense_len =
-            scsi_req_get_sense(r, req->resp.cmd->sense, VIRTIO_SCSI_SENSE_SIZE);
+        sense_len = scsi_req_get_sense(r, req->resp.cmd->sense,
+                                       VIRTIO_SCSI_SENSE_SIZE);
+        req->resp.cmd->sense_len = tswap32(sense_len);
     }
     virtio_scsi_complete_req(req);
 }
