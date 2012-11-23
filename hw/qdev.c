@@ -454,7 +454,6 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
     BusState *bus;
 
     bus = BUS(object_new(typename));
-    bus->qom_allocated = true;
 
     bus->parent = parent;
     bus->name = name ? g_strdup(name) : NULL;
@@ -465,14 +464,7 @@ BusState *qbus_create(const char *typename, DeviceState *parent, const char *nam
 
 void qbus_free(BusState *bus)
 {
-    if (bus->qom_allocated) {
-        object_delete(OBJECT(bus));
-    } else {
-        object_finalize(OBJECT(bus));
-        if (bus->glib_allocated) {
-            g_free(bus);
-        }
-    }
+    object_delete(OBJECT(bus));
 }
 
 static char *bus_get_fw_dev_path(BusState *bus, DeviceState *dev)

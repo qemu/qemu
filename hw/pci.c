@@ -301,9 +301,9 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
     PCIBus *bus;
 
     bus = g_malloc0(sizeof(*bus));
-    bus->qbus.glib_allocated = true;
     pci_bus_new_inplace(bus, parent, name, address_space_mem,
                         address_space_io, devfn_min);
+    OBJECT(bus)->free = g_free;
     return bus;
 }
 
