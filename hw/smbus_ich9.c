@@ -78,18 +78,6 @@ static int ich9_smbus_initfn(PCIDevice *d)
     pci_config_set_interrupt_pin(d->config, 0x01); /* interrupt pin 1 */
 
     pci_set_byte(d->config + ICH9_SMB_HOSTC, 0);
-
-    /*
-     * update parameters based on
-     * paralell_hds[0]
-     * serial_hds[0]
-     * serial_hds[0]
-     * fdc
-     *
-     * Is there any OS that depends on them?
-     */
-
-    pci_set_byte(d->config + ICH9_SMB_HOSTC, 0);
     /* TODO bar0, bar1: 64bit BAR support*/
 
     pm_smbus_init(&d->qdev, &s->smb);
