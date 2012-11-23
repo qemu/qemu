@@ -379,7 +379,7 @@ static void object_deinit(Object *obj, TypeImpl *type)
     }
 }
 
-void object_finalize(void *data)
+static void object_finalize(void *data)
 {
     Object *obj = data;
     TypeImpl *ti = obj->class->type;

@@ -505,15 +505,6 @@ void object_initialize_with_type(void *data, Type type);
 void object_initialize(void *obj, const char *typename);
 
 /**
- * object_finalize:
- * @obj: The object to finalize.
- *
- * This function destroys and object without freeing the memory associated with
- * it.
- */
-void object_finalize(void *obj);
-
-/**
  * object_dynamic_cast:
  * @obj: The object to cast.
  * @typename: The @typename to cast to.
