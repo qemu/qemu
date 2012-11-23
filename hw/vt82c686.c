@@ -351,8 +351,8 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     pci_conf[0x90] = s->smb_io_base | 1;
     pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x90;
-    register_ioport_write(s->smb_io_base, 0xf, 1, smb_ioport_writeb, &s->smb);
-    register_ioport_read(s->smb_io_base, 0xf, 1, smb_ioport_readb, &s->smb);
+    pm_smbus_init(&s->dev.qdev, &s->smb);
+    memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
 
     apm_init(&s->apm, NULL, s);
 
@@ -363,8 +363,6 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_evt_init(&s->ar, pm_tmr_timer, &s->io);
     acpi_pm1_cnt_init(&s->ar, &s->io);
-
-    pm_smbus_init(&s->dev.qdev, &s->smb);
 
     return 0;
 }

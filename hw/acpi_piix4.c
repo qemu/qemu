@@ -391,8 +391,8 @@ static int piix4_pm_initfn(PCIDevice *dev)
     pci_conf[0x90] = s->smb_io_base | 1;
     pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x09;
-    register_ioport_write(s->smb_io_base, 64, 1, smb_ioport_writeb, &s->smb);
-    register_ioport_read(s->smb_io_base, 64, 1, smb_ioport_readb, &s->smb);
+    pm_smbus_init(&s->dev.qdev, &s->smb);
+    memory_region_add_subregion(get_system_io(), s->smb_io_base, &s->smb.io);
 
     memory_region_init(&s->io, "piix4-pm", 64);
     memory_region_set_enabled(&s->io, false);
@@ -406,7 +406,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
     s->powerdown_notifier.notify = piix4_pm_powerdown_req;
     qemu_register_powerdown_notifier(&s->powerdown_notifier);
 
-    pm_smbus_init(&s->dev.qdev, &s->smb);
     s->machine_ready.notify = piix4_pm_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
     qemu_register_reset(piix4_reset, s);
