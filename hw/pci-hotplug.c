@@ -80,7 +80,13 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
     SCSIBus *scsibus;
     SCSIDevice *scsidev;
 
-    scsibus = SCSI_BUS(QLIST_FIRST(&adapter->child_bus));
+    scsibus = (SCSIBus *)
+        object_dynamic_cast(OBJECT(QLIST_FIRST(&adapter->child_bus)),
+                            TYPE_SCSI_BUS);
+    if (!scsibus) {
+	error_report("Device is not a SCSI adapter");
+	return -1;
+    }
 
     /*
      * drive_init() tries to find a default for dinfo->unit.  Doesn't
