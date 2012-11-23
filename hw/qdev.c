@@ -705,9 +705,6 @@ static void device_finalize(Object *obj)
             qemu_opts_del(dev->opts);
         }
     }
-    if (dev->parent_bus) {
-        bus_remove_child(dev->parent_bus, dev);
-    }
 }
 
 static void device_class_base_init(ObjectClass *class, void *data)
@@ -718,6 +715,18 @@ static void device_class_base_init(ObjectClass *class, void *data)
      * so do not propagate them to the subclasses.
      */
     klass->props = NULL;
+}
+
+static void qdev_remove_from_bus(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+
+    bus_remove_child(dev->parent_bus, dev);
+}
+
+static void device_class_init(ObjectClass *class, void *data)
+{
+    class->unparent = qdev_remove_from_bus;
 }
 
 void device_reset(DeviceState *dev)
@@ -747,6 +756,7 @@ static TypeInfo device_type_info = {
     .instance_init = device_initfn,
     .instance_finalize = device_finalize,
     .class_base_init = device_class_base_init,
+    .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
 };

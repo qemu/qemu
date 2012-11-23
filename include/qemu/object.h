@@ -230,6 +230,15 @@ typedef struct ObjectProperty
 } ObjectProperty;
 
 /**
+ * ObjectUnparent:
+ * @obj: the object that is being removed from the composition tree
+ *
+ * Called when an object is being removed from the QOM composition tree.
+ * The function should remove any backlinks from children objects to @obj.
+ */
+typedef void (ObjectUnparent)(Object *obj);
+
+/**
  * ObjectClass:
  *
  * The base for all classes.  The only thing that #ObjectClass contains is an
@@ -240,6 +249,8 @@ struct ObjectClass
     /*< private >*/
     Type type;
     GSList *interfaces;
+
+    ObjectUnparent *unparent;
 };
 
 /**
