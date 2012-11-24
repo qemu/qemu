@@ -1615,7 +1615,7 @@ static inline void temp_dead(TCGContext *s, int temp)
         if (ts->val_type == TEMP_VAL_REG) {
             s->reg_to_temp[ts->reg] = -1;
         }
-        if (temp < s->nb_globals || (ts->temp_local && ts->mem_allocated)) {
+        if (temp < s->nb_globals || ts->temp_local) {
             ts->val_type = TEMP_VAL_MEM;
         } else {
             ts->val_type = TEMP_VAL_DEAD;
