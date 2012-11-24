@@ -12383,7 +12383,6 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx, int *is_b
         case LB32:
         case LH32:
         case DADDIU32:
-        case POOL48A:           /* ??? */
         case LWC132:
         case LDC132:
         case LD32:
