@@ -286,7 +286,7 @@ distclean: clean
 	for d in $(TARGET_DIRS) $(QEMULIBS); do \
 	rm -rf $$d || exit 1 ; \
         done
-	test -f pixman/config.log && make -C pixman distclean
+	if test -f pixman/config.log; then make -C pixman distclean; fi
 
 KEYMAPS=da     en-gb  et  fr     fr-ch  is  lt  modifiers  no  pt-br  sv \
 ar      de     en-us  fi  fr-be  hr     it  lv  nl         pl  ru     th \
