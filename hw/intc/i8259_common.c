@@ -69,9 +69,6 @@ static int pic_dispatch_post_load(void *opaque, int version_id)
 static void pic_common_realize(DeviceState *dev, Error **errp)
 {
     PICCommonState *s = PIC_COMMON(dev);
-    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
-
-    info->init(s);
 
     isa_register_ioport(NULL, &s->base_io, s->iobase);
     if (s->elcr_addr != -1) {
