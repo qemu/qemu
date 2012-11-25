@@ -529,8 +529,9 @@ static InetSocketAddress *inet_parse(const char *str, Error **errp)
     optstr = str + pos;
     h = strstr(optstr, ",to=");
     if (h) {
-        if (1 != sscanf(str, "%d%n", &to, &pos) ||
-            (str[pos] != '\0' && str[pos] != ',')) {
+        h += 4;
+        if (sscanf(h, "%d%n", &to, &pos) != 1 ||
+            (h[pos] != '\0' && h[pos] != ',')) {
             error_setg(errp, "error parsing to= argument");
             goto fail;
         }
