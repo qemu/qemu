@@ -41,6 +41,8 @@
 //#define DEBUG_IRQ_LATENCY
 //#define DEBUG_IRQ_COUNT
 
+#define TYPE_I8259 "isa-i8259"
+
 #if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
 static int irq_level[16];
 #endif
@@ -448,25 +450,28 @@ void irq_info(Monitor *mon, const QDict *qdict)
 qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
 {
     qemu_irq *irq_set;
-    ISADevice *dev;
+    DeviceState *dev;
+    ISADevice *isadev;
     int i;
 
     irq_set = g_malloc(ISA_NUM_IRQS * sizeof(qemu_irq));
 
-    dev = i8259_init_chip("isa-i8259", bus, true);
+    isadev = i8259_init_chip(TYPE_I8259, bus, true);
+    dev = DEVICE(isadev);
 
-    qdev_connect_gpio_out(&dev->qdev, 0, parent_irq);
+    qdev_connect_gpio_out(dev, 0, parent_irq);
     for (i = 0 ; i < 8; i++) {
-        irq_set[i] = qdev_get_gpio_in(&dev->qdev, i);
+        irq_set[i] = qdev_get_gpio_in(dev, i);
     }
 
-    isa_pic = &dev->qdev;
+    isa_pic = dev;
 
-    dev = i8259_init_chip("isa-i8259", bus, false);
+    isadev = i8259_init_chip(TYPE_I8259, bus, false);
+    dev = DEVICE(isadev);
 
-    qdev_connect_gpio_out(&dev->qdev, 0, irq_set[2]);
+    qdev_connect_gpio_out(dev, 0, irq_set[2]);
     for (i = 0 ; i < 8; i++) {
-        irq_set[i + 8] = qdev_get_gpio_in(&dev->qdev, i);
+        irq_set[i + 8] = qdev_get_gpio_in(dev, i);
     }
 
     slave_pic = PIC_COMMON(dev);
@@ -484,7 +489,7 @@ static void i8259_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo i8259_info = {
-    .name       = "isa-i8259",
+    .name       = TYPE_I8259,
     .instance_size = sizeof(PICCommonState),
     .parent     = TYPE_PIC_COMMON,
     .class_init = i8259_class_init,
