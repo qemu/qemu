@@ -1497,7 +1497,8 @@ static int img_update(int argc, char **argv)
         help();
     filename = argv[optind++];
 
-    bs = bdrv_new_open(filename, fmt, BDRV_O_FLAGS | BDRV_O_NO_BACKING | BDRV_O_RDWR);
+    bs = bdrv_new_open(filename, fmt,
+                       BDRV_O_FLAGS | BDRV_O_NO_BACKING | BDRV_O_RDWR, true);
     if (!bs) {
         return 1;
     }
