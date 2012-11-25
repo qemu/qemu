@@ -2,7 +2,7 @@
 
 ; This NSIS script creates an installer for QEMU on Windows.
 
-; Copyright (C) 2006-2011 Stefan Weil
+; Copyright (C) 2006-2012 Stefan Weil
 ;
 ; This program is free software: you can redistribute it and/or modify
 ; it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT}"
 
 !ifndef BINDIR
-!define BINDIR ../bin/win/nsis.tmp
+!define BINDIR nsis.tmp
 !endif
 !ifndef SRCDIR
 !define SRCDIR .
@@ -116,7 +116,6 @@ Section "${PRODUCT} (required)"
     File "${BINDIR}\openbios-*"
 
     File /r "${BINDIR}\keymaps"
-    File /r "${BINDIR}\qemu"
 
     ; Write the installation path into the registry
     WriteRegStr HKLM SOFTWARE\${PRODUCT} "Install_Dir" "$INSTDIR"
@@ -135,9 +134,9 @@ Section "Tools" SectionTools
     File "${BINDIR}\qemu-io.exe"
 SectionEnd
 
-Section "PC (i386) System Emulation" SectionQemu
+Section "PC (i386) System Emulation" SectionI386
     SetOutPath "$INSTDIR"
-    File "${BINDIR}\qemu.exe"
+    File "${BINDIR}\qemu-system-i386.exe"
 SectionEnd
 
 Section "Other System Emulations" SectionOther
@@ -196,7 +195,9 @@ Section "Uninstall"
     Delete "$INSTDIR\qemu-doc.html"
     Delete "$INSTDIR\qemu-tech.html"
     RMDir /r "$INSTDIR\keymaps"
-    RMDir /r "$INSTDIR\qemu"
+    ; Remove generated files
+    Delete "$INSTDIR\stderr.txt"
+    Delete "$INSTDIR\stdout.txt"
     ; Remove uninstaller
     Delete "${UNINST_EXE}"
     RMDir "$INSTDIR"
@@ -206,7 +207,7 @@ SectionEnd
 
 ; Descriptions (mouse-over).
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-    !insertmacro MUI_DESCRIPTION_TEXT ${SectionQemu}  "PC system emulation (i386)."
+    !insertmacro MUI_DESCRIPTION_TEXT ${SectionI386}  "PC system emulation (i386)."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionOther} "Additional system emulations."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionTools} "Tools."
     !insertmacro MUI_DESCRIPTION_TEXT ${SectionDoc}   "Documentation."
