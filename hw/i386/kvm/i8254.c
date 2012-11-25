@@ -32,8 +32,11 @@
 
 #define CALIBRATION_ROUNDS   3
 
+#define KVM_PIT(obj) OBJECT_CHECK(KVMPITState, (obj), TYPE_KVM_I8254)
+
 typedef struct KVMPITState {
-    PITCommonState pit;
+    PITCommonState parent_obj;
+
     LostTickPolicy lost_tick_policy;
     bool vm_stopped;
     int64_t kernel_clock_offset;
@@ -70,7 +73,7 @@ static void kvm_pit_update_clock_offset(KVMPITState *s)
 
 static void kvm_pit_get(PITCommonState *pit)
 {
-    KVMPITState *s = DO_UPCAST(KVMPITState, pit, pit);
+    KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_state2 kpit;
     struct kvm_pit_channel_state *kchan;
     struct PITChannelState *sc;
@@ -124,7 +127,7 @@ static void kvm_pit_get(PITCommonState *pit)
 
 static void kvm_pit_put(PITCommonState *pit)
 {
-    KVMPITState *s = DO_UPCAST(KVMPITState, pit, pit);
+    KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_state2 kpit;
     struct kvm_pit_channel_state *kchan;
     struct PITChannelState *sc;
@@ -200,7 +203,7 @@ static void kvm_pit_get_channel_info(PITCommonState *s, PITChannelState *sc,
 
 static void kvm_pit_reset(DeviceState *dev)
 {
-    PITCommonState *s = DO_UPCAST(PITCommonState, dev.qdev, dev);
+    PITCommonState *s = PIT_COMMON(dev);
 
     pit_reset_common(s);
 
@@ -229,14 +232,14 @@ static void kvm_pit_vm_state_change(void *opaque, int running,
         s->vm_stopped = false;
     } else {
         kvm_pit_update_clock_offset(s);
-        kvm_pit_get(&s->pit);
+        kvm_pit_get(PIT_COMMON(s));
         s->vm_stopped = true;
     }
 }
 
 static int kvm_pit_initfn(PITCommonState *pit)
 {
-    KVMPITState *s = DO_UPCAST(KVMPITState, pit, pit);
+    KVMPITState *s = KVM_PIT(pit);
     struct kvm_pit_config config = {
         .flags = 0,
     };
@@ -282,7 +285,7 @@ static int kvm_pit_initfn(PITCommonState *pit)
 }
 
 static Property kvm_pit_properties[] = {
-    DEFINE_PROP_HEX32("iobase", KVMPITState, pit.iobase,  -1),
+    DEFINE_PROP_HEX32("iobase", PITCommonState, iobase,  -1),
     DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", KVMPITState,
                                lost_tick_policy, LOST_TICK_DELAY),
     DEFINE_PROP_END_OF_LIST(),
@@ -303,7 +306,7 @@ static void kvm_pit_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo kvm_pit_info = {
-    .name          = "kvm-pit",
+    .name          = TYPE_KVM_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(KVMPITState),
     .class_init = kvm_pit_class_init,
