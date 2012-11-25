@@ -13,6 +13,8 @@
 #include "hw/i386/apic_internal.h"
 #include "sysemu/kvm.h"
 
+#define TYPE_KVM_I8259 "kvm-i8259"
+
 static void kvm_pic_get(PICCommonState *s)
 {
     struct kvm_irqchip chip;
@@ -106,8 +108,8 @@ static void kvm_pic_init(PICCommonState *s)
 
 qemu_irq *kvm_i8259_init(ISABus *bus)
 {
-    i8259_init_chip("kvm-i8259", bus, true);
-    i8259_init_chip("kvm-i8259", bus, false);
+    i8259_init_chip(TYPE_KVM_I8259, bus, true);
+    i8259_init_chip(TYPE_KVM_I8259, bus, false);
 
     return qemu_allocate_irqs(kvm_pic_set_irq, NULL, ISA_NUM_IRQS);
 }
@@ -124,7 +126,7 @@ static void kvm_i8259_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo kvm_i8259_info = {
-    .name  = "kvm-i8259",
+    .name = TYPE_KVM_I8259,
     .parent = TYPE_PIC_COMMON,
     .instance_size = sizeof(PICCommonState),
     .class_init = kvm_i8259_class_init,
