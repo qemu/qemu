@@ -590,6 +590,13 @@ USBDevice *usbdevice_create(const char *cmdline)
         return NULL;
     }
 
+    if (!bus) {
+        error_report("Error: no usb bus to attach usbdevice %s, "
+                     "please try -machine usb=on and check that "
+                     "the machine model supports USB", driver);
+        return NULL;
+    }
+
     if (!f->usbdevice_init) {
         if (*params) {
             error_report("usbdevice %s accepts no params", driver);
