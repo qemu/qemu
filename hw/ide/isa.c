@@ -65,16 +65,16 @@ static const VMStateDescription vmstate_ide_isa = {
     }
 };
 
-static int isa_ide_initfn(ISADevice *dev)
+static void isa_ide_realizefn(DeviceState *dev, Error **errp)
 {
+    ISADevice *isadev = ISA_DEVICE(dev);
     ISAIDEState *s = ISA_IDE(dev);
 
-    ide_bus_new(&s->bus, DEVICE(dev), 0, 2);
-    ide_init_ioport(&s->bus, dev, s->iobase, s->iobase2);
-    isa_init_irq(dev, &s->irq, s->isairq);
+    ide_bus_new(&s->bus, dev, 0, 2);
+    ide_init_ioport(&s->bus, isadev, s->iobase, s->iobase2);
+    isa_init_irq(isadev, &s->irq, s->isairq);
     ide_init2(&s->bus, s->irq);
-    vmstate_register(&dev->qdev, 0, &vmstate_ide_isa, s);
-    return 0;
+    vmstate_register(dev, 0, &vmstate_ide_isa, s);
 };
 
 ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
@@ -113,8 +113,8 @@ static Property isa_ide_properties[] = {
 static void isa_ide_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = isa_ide_initfn;
+
+    dc->realize = isa_ide_realizefn;
     dc->fw_name = "ide";
     dc->reset = isa_ide_reset;
     dc->props = isa_ide_properties;

@@ -119,18 +119,6 @@ void isa_register_portio_list(ISADevice *dev, uint16_t start,
     portio_list_add(piolist, isabus->address_space_io, start);
 }
 
-static int isa_qdev_init(DeviceState *qdev)
-{
-    ISADevice *dev = ISA_DEVICE(qdev);
-    ISADeviceClass *klass = ISA_DEVICE_GET_CLASS(dev);
-
-    if (klass->init) {
-        return klass->init(dev);
-    }
-
-    return 0;
-}
-
 static void isa_device_init(Object *obj)
 {
     ISADevice *dev = ISA_DEVICE(obj);
@@ -230,7 +218,6 @@ static const TypeInfo isabus_bridge_info = {
 static void isa_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
-    k->init = isa_qdev_init;
     k->bus_type = TYPE_ISA_BUS;
 }
 

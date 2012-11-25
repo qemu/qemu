@@ -251,8 +251,9 @@ static const MemoryRegionPortio gus_portio_list2[] = {
     PORTIO_END_OF_LIST (),
 };
 
-static int gus_initfn (ISADevice *dev)
+static void gus_realizefn (DeviceState *dev, Error **errp)
 {
+    ISADevice *d = ISA_DEVICE(dev);
     GUSState *s = GUS (dev);
     struct audsettings as;
 
@@ -274,26 +275,25 @@ static int gus_initfn (ISADevice *dev)
 
     if (!s->voice) {
         AUD_remove_card (&s->card);
-        return -1;
+        error_setg(errp, "No voice");
+        return;
     }
 
     s->shift = 2;
     s->samples = AUD_get_buffer_size_out (s->voice) >> s->shift;
     s->mixbuf = g_malloc0 (s->samples << s->shift);
 
-    isa_register_portio_list (dev, s->port, gus_portio_list1, s, "gus");
-    isa_register_portio_list (dev, (s->port + 0x100) & 0xf00,
+    isa_register_portio_list (d, s->port, gus_portio_list1, s, "gus");
+    isa_register_portio_list (d, (s->port + 0x100) & 0xf00,
                               gus_portio_list2, s, "gus");
 
     DMA_register_channel (s->emu.gusdma, GUS_read_DMA, s);
     s->emu.himemaddr = s->himem;
     s->emu.gusdatapos = s->emu.himemaddr + 1024 * 1024 + 32;
     s->emu.opaque = s;
-    isa_init_irq (dev, &s->pic, s->emu.gusirq);
+    isa_init_irq (d, &s->pic, s->emu.gusirq);
 
     AUD_set_active_out (s->voice, 1);
-
-    return 0;
 }
 
 static int GUS_init (ISABus *bus)
@@ -313,8 +313,8 @@ static Property gus_properties[] = {
 static void gus_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
-    ic->init = gus_initfn;
+
+    dc->realize = gus_realizefn;
     dc->desc = "Gravis Ultrasound GF1";
     dc->vmsd = &vmstate_gus;
     dc->props = gus_properties;

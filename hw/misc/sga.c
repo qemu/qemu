@@ -38,17 +38,16 @@ typedef struct ISASGAState {
     ISADevice parent_obj;
 } ISASGAState;
 
-static int sga_initfn(ISADevice *dev)
+static void sga_realizefn(DeviceState *dev, Error **errp)
 {
     rom_add_vga(SGABIOS_FILENAME);
-    return 0;
 }
 
 static void sga_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = sga_initfn;
+
+    dc->realize = sga_realizefn;
     dc->desc = "Serial Graphics Adapter";
 }
 

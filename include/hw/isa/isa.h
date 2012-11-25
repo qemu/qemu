@@ -22,7 +22,6 @@
 
 typedef struct ISADeviceClass {
     DeviceClass parent_class;
-    int (*init)(ISADevice *dev);
 } ISADeviceClass;
 
 struct ISABus {

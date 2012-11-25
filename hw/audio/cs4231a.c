@@ -644,19 +644,25 @@ static const MemoryRegionOps cs_ioport_ops = {
     }
 };
 
-static int cs4231a_initfn (ISADevice *dev)
+static void cs4231a_initfn (Object *obj)
 {
-    CSState *s = CS4231A (dev);
-
-    isa_init_irq (dev, &s->pic, s->irq);
+    CSState *s = CS4231A (obj);
 
     memory_region_init_io (&s->ioports, &cs_ioport_ops, s, "cs4231a", 4);
-    isa_register_ioport (dev, &s->ioports, s->port);
+}
+
+static void cs4231a_realizefn (DeviceState *dev, Error **errp)
+{
+    ISADevice *d = ISA_DEVICE (dev);
+    CSState *s = CS4231A (dev);
+
+    isa_init_irq (d, &s->pic, s->irq);
+
+    isa_register_ioport (d, &s->ioports, s->port);
 
     DMA_register_channel (s->dma, cs_dma_read, s);
 
     AUD_register_card ("cs4231a", &s->card);
-    return 0;
 }
 
 static int cs4231a_init (ISABus *bus)
@@ -675,8 +681,8 @@ static Property cs4231a_properties[] = {
 static void cs4231a_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
-    ic->init = cs4231a_initfn;
+
+    dc->realize = cs4231a_realizefn;
     dc->reset = cs4231a_reset;
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;
@@ -687,6 +693,7 @@ static const TypeInfo cs4231a_info = {
     .name          = TYPE_CS4231A,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (CSState),
+    .instance_init = cs4231a_initfn,
     .class_init    = cs4231a_class_initfn,
 };
 

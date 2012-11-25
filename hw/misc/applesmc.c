@@ -201,7 +201,7 @@ static void qdev_applesmc_isa_reset(DeviceState *dev)
     applesmc_add_key(s, "MSSD", 1, "\0x3");
 }
 
-static int applesmc_isa_init(ISADevice *dev)
+static void applesmc_isa_realize(DeviceState *dev, Error **errp)
 {
     AppleSMCState *s = APPLE_SMC(dev);
 
@@ -220,9 +220,7 @@ static int applesmc_isa_init(ISADevice *dev)
     }
 
     QLIST_INIT(&s->data_def);
-    qdev_applesmc_isa_reset(&dev->qdev);
-
-    return 0;
+    qdev_applesmc_isa_reset(dev);
 }
 
 static Property applesmc_isa_properties[] = {
@@ -235,8 +233,8 @@ static Property applesmc_isa_properties[] = {
 static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = applesmc_isa_init;
+
+    dc->realize = applesmc_isa_realize;
     dc->reset = qdev_applesmc_isa_reset;
     dc->props = applesmc_isa_properties;
 }

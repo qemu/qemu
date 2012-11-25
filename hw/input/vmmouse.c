@@ -261,7 +261,7 @@ static void vmmouse_reset(DeviceState *d)
     vmmouse_disable(s);
 }
 
-static int vmmouse_initfn(ISADevice *dev)
+static void vmmouse_realizefn(DeviceState *dev, Error **errp)
 {
     VMMouseState *s = VMMOUSE(dev);
 
@@ -270,8 +270,6 @@ static int vmmouse_initfn(ISADevice *dev)
     vmport_register(VMMOUSE_STATUS, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_COMMAND, vmmouse_ioport_read, s);
     vmport_register(VMMOUSE_DATA, vmmouse_ioport_read, s);
-
-    return 0;
 }
 
 static Property vmmouse_properties[] = {
@@ -282,8 +280,8 @@ static Property vmmouse_properties[] = {
 static void vmmouse_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
-    ic->init = vmmouse_initfn;
+
+    dc->realize = vmmouse_realizefn;
     dc->no_user = 1;
     dc->reset = vmmouse_reset;
     dc->vmsd = &vmstate_vmmouse;
