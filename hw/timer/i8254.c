@@ -265,7 +265,7 @@ static void pit_irq_timer(void *opaque)
 
 static void pit_reset(DeviceState *dev)
 {
-    PITCommonState *pit = DO_UPCAST(PITCommonState, dev.qdev, dev);
+    PITCommonState *pit = PIT_COMMON(dev);
     PITChannelState *s;
 
     pit_reset_common(pit);
@@ -348,7 +348,7 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo pit_info = {
-    .name          = "isa-pit",
+    .name          = TYPE_I8254,
     .parent        = TYPE_PIT_COMMON,
     .instance_size = sizeof(PITCommonState),
     .class_init    = pit_class_initfn,
