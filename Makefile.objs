@@ -130,7 +130,6 @@ user-obj-y += envlist.o path.o
 user-obj-y += tcg-runtime.o host-utils.o
 user-obj-y += cache-utils.o
 user-obj-y += module.o
-user-obj-y += qemu-user.o
 user-obj-y += qom/
 
 ######################################################################
@@ -171,7 +170,7 @@ universal-obj-y += $(qapi-obj-y)
 ######################################################################
 # guest agent
 
-qga-obj-y = qga/ module.o qemu-tool.o
+qga-obj-y = qga/ module.o
 qga-obj-$(CONFIG_POSIX) += qemu-sockets.o qemu-option.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)

@@ -171,7 +171,7 @@ install-libcacard: libcacard.la
 
 qemu-img.o: qemu-img-cmds.h
 
-tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-tool.o qemu-timer.o \
+tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-timer.o \
 	main-loop.o iohandler.o error.o
 tools-obj-$(CONFIG_POSIX) += compatfd.o
 

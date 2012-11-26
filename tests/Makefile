@@ -70,7 +70,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o
 
-test-qapi-obj-y =  $(qobject-obj-y) $(qapi-obj-y) qemu-tool.o
+test-qapi-obj-y =  $(qobject-obj-y) $(qapi-obj-y)
 test-qapi-obj-y += tests/test-qapi-visit.o tests/test-qapi-types.o
 test-qapi-obj-y += module.o
 
@@ -81,7 +81,7 @@ tests/check-qstring$(EXESUF): tests/check-qstring.o qstring.o
 tests/check-qdict$(EXESUF): tests/check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qlist.o
 tests/check-qlist$(EXESUF): tests/check-qlist.o qlist.o qint.o
 tests/check-qfloat$(EXESUF): tests/check-qfloat.o qfloat.o
-tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) qemu-tool.o
+tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) libqemustub.a
 tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) iov.o libqemustub.a
 tests/test-aio$(EXESUF): tests/test-aio.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) libqemustub.a
 tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) libqemustub.a
@@ -98,13 +98,13 @@ $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -o tests -p "test-" < $<, "  GEN   $@")
 
 
-tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
-tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
-tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y)
-tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y)
-tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y)
-tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
-tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y)
+tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemustub.a
+tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y) libqemustub.a
+tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemustub.a
+tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y) libqemustub.a
+tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemustub.a
+tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) libqemustub.a
+tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemustub.a
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o $(trace-obj-y)
