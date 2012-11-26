@@ -610,80 +610,82 @@ static void usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
     p->status = USB_RET_ASYNC;
 }
 
-static void usbredir_handle_interrupt_data(USBRedirDevice *dev,
-                                           USBPacket *p, uint8_t ep)
+static void usbredir_handle_interrupt_in_data(USBRedirDevice *dev,
+                                              USBPacket *p, uint8_t ep)
 {
-    if (ep & USB_DIR_IN) {
-        /* Input interrupt endpoint, buffered packet input */
-        struct buf_packet *intp;
-        int status, len;
+    /* Input interrupt endpoint, buffered packet input */
+    struct buf_packet *intp;
+    int status, len;
 
-        if (!dev->endpoint[EP2I(ep)].interrupt_started &&
-                !dev->endpoint[EP2I(ep)].interrupt_error) {
-            struct usb_redir_start_interrupt_receiving_header start_int = {
-                .endpoint = ep,
-            };
-            /* No id, we look at the ep when receiving a status back */
-            usbredirparser_send_start_interrupt_receiving(dev->parser, 0,
-                                                          &start_int);
-            usbredirparser_do_write(dev->parser);
-            DPRINTF("interrupt recv started ep %02X\n", ep);
-            dev->endpoint[EP2I(ep)].interrupt_started = 1;
-            /* We don't really want to drop interrupt packets ever, but
-               having some upper limit to how much we buffer is good. */
-            dev->endpoint[EP2I(ep)].bufpq_target_size = 1000;
-            dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
-        }
-
-        intp = QTAILQ_FIRST(&dev->endpoint[EP2I(ep)].bufpq);
-        if (intp == NULL) {
-            DPRINTF2("interrupt-token-in ep %02X, no intp\n", ep);
-            /* Check interrupt_error for stream errors */
-            status = dev->endpoint[EP2I(ep)].interrupt_error;
-            dev->endpoint[EP2I(ep)].interrupt_error = 0;
-            if (status) {
-                usbredir_handle_status(dev, p, status);
-            } else {
-                p->status = USB_RET_NAK;
-            }
-            return;
-        }
-        DPRINTF("interrupt-token-in ep %02X status %d len %d\n", ep,
-                intp->status, intp->len);
-
-        status = intp->status;
-        len = intp->len;
-        if (len > p->iov.size) {
-            ERROR("received int data is larger then packet ep %02X\n", ep);
-            len = p->iov.size;
-            status = usb_redir_babble;
-        }
-        usb_packet_copy(p, intp->data, len);
-        bufp_free(dev, intp, ep);
-        usbredir_handle_status(dev, p, status);
-    } else {
-        /* Output interrupt endpoint, normal async operation */
-        struct usb_redir_interrupt_packet_header interrupt_packet;
-        uint8_t buf[p->iov.size];
-
-        DPRINTF("interrupt-out ep %02X len %zd id %"PRIu64"\n", ep,
-                p->iov.size, p->id);
-
-        if (usbredir_already_in_flight(dev, p->id)) {
-            p->status = USB_RET_ASYNC;
-            return;
-        }
-
-        interrupt_packet.endpoint  = ep;
-        interrupt_packet.length    = p->iov.size;
-
-        usb_packet_copy(p, buf, p->iov.size);
-        usbredir_log_data(dev, "interrupt data out:", buf, p->iov.size);
-        usbredirparser_send_interrupt_packet(dev->parser, p->id,
-                                        &interrupt_packet, buf, p->iov.size);
+    if (!dev->endpoint[EP2I(ep)].interrupt_started &&
+            !dev->endpoint[EP2I(ep)].interrupt_error) {
+        struct usb_redir_start_interrupt_receiving_header start_int = {
+            .endpoint = ep,
+        };
+        /* No id, we look at the ep when receiving a status back */
+        usbredirparser_send_start_interrupt_receiving(dev->parser, 0,
+                                                      &start_int);
         usbredirparser_do_write(dev->parser);
-        p->status = USB_RET_ASYNC;
+        DPRINTF("interrupt recv started ep %02X\n", ep);
+        dev->endpoint[EP2I(ep)].interrupt_started = 1;
+        /* We don't really want to drop interrupt packets ever, but
+           having some upper limit to how much we buffer is good. */
+        dev->endpoint[EP2I(ep)].bufpq_target_size = 1000;
+        dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
     }
+
+    intp = QTAILQ_FIRST(&dev->endpoint[EP2I(ep)].bufpq);
+    if (intp == NULL) {
+        DPRINTF2("interrupt-token-in ep %02X, no intp\n", ep);
+        /* Check interrupt_error for stream errors */
+        status = dev->endpoint[EP2I(ep)].interrupt_error;
+        dev->endpoint[EP2I(ep)].interrupt_error = 0;
+        if (status) {
+            usbredir_handle_status(dev, p, status);
+        } else {
+            p->status = USB_RET_NAK;
+        }
+        return;
+    }
+    DPRINTF("interrupt-token-in ep %02X status %d len %d\n", ep,
+            intp->status, intp->len);
+
+    status = intp->status;
+    len = intp->len;
+    if (len > p->iov.size) {
+        ERROR("received int data is larger then packet ep %02X\n", ep);
+        len = p->iov.size;
+        status = usb_redir_babble;
+    }
+    usb_packet_copy(p, intp->data, len);
+    bufp_free(dev, intp, ep);
+    usbredir_handle_status(dev, p, status);
+}
+
+/*
+ * Handle interrupt out data, the usbredir protocol expects us to do this
+ * async, so that it can report back a completion status. But guests will
+ * expect immediate completion for an interrupt endpoint, and handling this
+ * async causes migration issues. So we report success directly, counting
+ * on the fact that output interrupt packets normally always succeed.
+ */
+static void usbredir_handle_interrupt_out_data(USBRedirDevice *dev,
+                                               USBPacket *p, uint8_t ep)
+{
+    struct usb_redir_interrupt_packet_header interrupt_packet;
+    uint8_t buf[p->iov.size];
+
+    DPRINTF("interrupt-out ep %02X len %zd id %"PRIu64"\n", ep,
+            p->iov.size, p->id);
+
+    interrupt_packet.endpoint  = ep;
+    interrupt_packet.length    = p->iov.size;
+
+    usb_packet_copy(p, buf, p->iov.size);
+    usbredir_log_data(dev, "interrupt data out:", buf, p->iov.size);
+    usbredirparser_send_interrupt_packet(dev->parser, p->id,
+                                    &interrupt_packet, buf, p->iov.size);
+    usbredirparser_do_write(dev->parser);
 }
 
 static void usbredir_stop_interrupt_receiving(USBRedirDevice *dev,
@@ -729,7 +731,11 @@ static void usbredir_handle_data(USBDevice *udev, USBPacket *p)
         usbredir_handle_bulk_data(dev, p, ep);
         break;
     case USB_ENDPOINT_XFER_INT:
-        usbredir_handle_interrupt_data(dev, p, ep);
+        if (ep & USB_DIR_IN) {
+            usbredir_handle_interrupt_in_data(dev, p, ep);
+        } else {
+            usbredir_handle_interrupt_out_data(dev, p, ep);
+        }
         break;
     default:
         ERROR("handle_data ep %02X has unknown type %d\n", ep,
@@ -1641,11 +1647,13 @@ static void usbredir_interrupt_packet(void *priv, uint64_t id,
         /* bufp_alloc also adds the packet to the ep queue */
         bufp_alloc(dev, data, data_len, interrupt_packet->status, ep);
     } else {
-        USBPacket *p = usbredir_find_packet_by_id(dev, ep, id);
-        if (p) {
-            usbredir_handle_status(dev, p, interrupt_packet->status);
-            p->actual_length = interrupt_packet->length;
-            usb_packet_complete(&dev->dev, p);
+        /*
+         * We report output interrupt packets as completed directly upon
+         * submission, so all we can do here if one failed is warn.
+         */
+        if (interrupt_packet->status) {
+            WARNING("interrupt output failed status %d ep %02X id %"PRIu64"\n",
+                    interrupt_packet->status, ep, id);
         }
     }
 }
