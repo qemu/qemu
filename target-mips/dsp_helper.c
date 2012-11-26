@@ -3152,7 +3152,7 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong rs,  \
                                                                 \
     filter = ((int32_t)0x01 << size) - 1;                       \
     filter = filter << pos;                                     \
-    temprs = rs & filter;                                       \
+    temprs = (rs << pos) & filter;                              \
     temprt = rt & ~filter;                                      \
     temp = temprs | temprt;                                     \
                                                                 \
