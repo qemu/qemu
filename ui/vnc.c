@@ -2945,7 +2945,7 @@ void vnc_display_open(DisplayState *ds, const char *display, Error **errp)
 #endif
         } else if (strncmp(options, "lossy", 5) == 0) {
             vs->lossy = true;
-        } else if (strncmp(options, "non-adapative", 13) == 0) {
+        } else if (strncmp(options, "non-adaptive", 12) == 0) {
             vs->non_adaptive = true;
         } else if (strncmp(options, "share=", 6) == 0) {
             if (strncmp(options+6, "ignore", 6) == 0) {

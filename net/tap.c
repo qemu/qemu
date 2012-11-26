@@ -341,6 +341,13 @@ static TAPState *net_tap_fd_init(NetClientState *peer,
     s->using_vnet_hdr = 0;
     s->has_ufo = tap_probe_has_ufo(s->fd);
     tap_set_offload(&s->nc, 0, 0, 0, 0, 0);
+    /*
+     * Make sure host header length is set correctly in tap:
+     * it might have been modified by another instance of qemu.
+     */
+    if (tap_probe_vnet_hdr_len(s->fd, s->host_vnet_hdr_len)) {
+        tap_fd_set_vnet_hdr_len(s->fd, s->host_vnet_hdr_len);
+    }
     tap_read_poll(s, 1);
     s->vhost_net = NULL;
     return s;
