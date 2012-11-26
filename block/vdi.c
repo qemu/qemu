@@ -60,9 +60,6 @@
 /* TODO: move uuid emulation to some central place in QEMU. */
 #include "sysemu.h"     /* UUID_FMT */
 typedef unsigned char uuid_t[16];
-void uuid_generate(uuid_t out);
-int uuid_is_null(const uuid_t uu);
-void uuid_unparse(const uuid_t uu, char *out);
 #endif
 
 /* Code configuration options. */
@@ -124,18 +121,18 @@ void uuid_unparse(const uuid_t uu, char *out);
 #define VDI_IS_ALLOCATED(X) ((X) < VDI_DISCARDED)
 
 #if !defined(CONFIG_UUID)
-void uuid_generate(uuid_t out)
+static inline void uuid_generate(uuid_t out)
 {
     memset(out, 0, sizeof(uuid_t));
 }
 
-int uuid_is_null(const uuid_t uu)
+static inline int uuid_is_null(const uuid_t uu)
 {
     uuid_t null_uuid = { 0 };
     return memcmp(uu, null_uuid, sizeof(uuid_t)) == 0;
 }
 
-void uuid_unparse(const uuid_t uu, char *out)
+static inline void uuid_unparse(const uuid_t uu, char *out)
 {
     snprintf(out, 37, UUID_FMT,
             uu[0], uu[1], uu[2], uu[3], uu[4], uu[5], uu[6], uu[7],

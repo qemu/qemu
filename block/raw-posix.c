@@ -333,6 +333,10 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     }
 #endif
 
+    if (s->type == FTYPE_FD || s->type == FTYPE_CD) {
+        raw_s->open_flags |= O_NONBLOCK;
+    }
+
     raw_parse_flags(state->flags, &raw_s->open_flags);
 
     raw_s->fd = -1;
@@ -1409,6 +1413,9 @@ static BlockDriver bdrv_host_device = {
     .bdrv_probe_device  = hdev_probe_device,
     .bdrv_file_open     = hdev_open,
     .bdrv_close         = raw_close,
+    .bdrv_reopen_prepare = raw_reopen_prepare,
+    .bdrv_reopen_commit  = raw_reopen_commit,
+    .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
@@ -1530,6 +1537,9 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_probe_device	= floppy_probe_device,
     .bdrv_file_open     = floppy_open,
     .bdrv_close         = raw_close,
+    .bdrv_reopen_prepare = raw_reopen_prepare,
+    .bdrv_reopen_commit  = raw_reopen_commit,
+    .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
@@ -1629,6 +1639,9 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_file_open     = cdrom_open,
     .bdrv_close         = raw_close,
+    .bdrv_reopen_prepare = raw_reopen_prepare,
+    .bdrv_reopen_commit  = raw_reopen_commit,
+    .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
@@ -1748,6 +1761,9 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_probe_device	= cdrom_probe_device,
     .bdrv_file_open     = cdrom_open,
     .bdrv_close         = raw_close,
+    .bdrv_reopen_prepare = raw_reopen_prepare,
+    .bdrv_reopen_commit  = raw_reopen_commit,
+    .bdrv_reopen_abort   = raw_reopen_abort,
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
