@@ -10,7 +10,7 @@ int main()
     dsp    = 0x305;
     rt     = 0x12345678;
     rs     = 0x87654321;
-    result = 0x12345338;
+    result = 0x12345438;
     __asm
         ("wrdsp %2, 0x03\n\t"
          "insv  %0, %1\n\t"
