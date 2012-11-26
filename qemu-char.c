@@ -2924,3 +2924,75 @@ CharDriverState *qemu_char_get_next_serial(void)
     return serial_hds[next_serial++];
 }
 
+QemuOptsList qemu_chardev_opts = {
+    .name = "chardev",
+    .implied_opt_name = "backend",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_chardev_opts.head),
+    .desc = {
+        {
+            .name = "backend",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "path",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "host",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "port",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "localaddr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "localport",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "to",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "ipv4",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "ipv6",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "wait",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "server",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "delay",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "telnet",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "width",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "height",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "cols",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "rows",
+            .type = QEMU_OPT_NUMBER,
+        },{
+            .name = "mux",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "signal",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "name",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "debug",
+            .type = QEMU_OPT_NUMBER,
+        },
+        { /* end of list */ }
+    },
+};

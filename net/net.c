@@ -1054,3 +1054,29 @@ unsigned compute_mcast_idx(const uint8_t *ep)
     }
     return crc >> 26;
 }
+
+QemuOptsList qemu_netdev_opts = {
+    .name = "netdev",
+    .implied_opt_name = "type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_netdev_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};
+
+QemuOptsList qemu_net_opts = {
+    .name = "net",
+    .implied_opt_name = "type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_net_opts.head),
+    .desc = {
+        /*
+         * no elements => accept any params
+         * validation will happen later
+         */
+        { /* end of list */ }
+    },
+};
