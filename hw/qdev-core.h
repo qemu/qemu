@@ -106,17 +106,12 @@ typedef struct BusChild {
 
 /**
  * BusState:
- * @qom_allocated: Indicates whether the object was allocated by QOM.
- * @glib_allocated: Indicates whether the object was initialized in-place
- * yet is expected to be freed with g_free().
  */
 struct BusState {
     Object obj;
     DeviceState *parent;
     const char *name;
     int allow_hotplug;
-    bool qom_allocated;
-    bool glib_allocated;
     int max_index;
     QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;

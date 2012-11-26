@@ -54,70 +54,6 @@ static const int ide_iobase[MAX_IDE_BUS] = { 0x1f0, 0x170 };
 static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
-static void kvm_piix3_setup_irq_routing(bool pci_enabled)
-{
-#ifdef CONFIG_KVM
-    KVMState *s = kvm_state;
-    int i;
-
-    if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
-        for (i = 0; i < 8; ++i) {
-            if (i == 2) {
-                continue;
-            }
-            kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_MASTER, i);
-        }
-        for (i = 8; i < 16; ++i) {
-            kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_PIC_SLAVE, i - 8);
-        }
-        if (pci_enabled) {
-            for (i = 0; i < 24; ++i) {
-                if (i == 0) {
-                    kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, 2);
-                } else if (i != 2) {
-                    kvm_irqchip_add_irq_route(s, i, KVM_IRQCHIP_IOAPIC, i);
-                }
-            }
-        }
-    }
-#endif /* CONFIG_KVM */
-}
-
-static void kvm_piix3_gsi_handler(void *opaque, int n, int level)
-{
-    GSIState *s = opaque;
-
-    if (n < ISA_NUM_IRQS) {
-        /* Kernel will forward to both PIC and IOAPIC */
-        qemu_set_irq(s->i8259_irq[n], level);
-    } else {
-        qemu_set_irq(s->ioapic_irq[n], level);
-    }
-}
-
-static void ioapic_init(GSIState *gsi_state)
-{
-    DeviceState *dev;
-    SysBusDevice *d;
-    unsigned int i;
-
-    if (kvm_irqchip_in_kernel()) {
-        dev = qdev_create(NULL, "kvm-ioapic");
-    } else {
-        dev = qdev_create(NULL, "ioapic");
-    }
-    /* FIXME: this should be under the piix3.  */
-    object_property_add_child(object_resolve_path("i440fx", NULL),
-                              "ioapic", OBJECT(dev), NULL);
-    qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
-    sysbus_mmio_map(d, 0, 0xfec00000);
-
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
-    }
-}
-
 /* PC hardware initialisation */
 static void pc_init1(MemoryRegion *system_memory,
                      MemoryRegion *system_io,
@@ -183,8 +119,8 @@ static void pc_init1(MemoryRegion *system_memory,
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
     if (kvm_irqchip_in_kernel()) {
-        kvm_piix3_setup_irq_routing(pci_enabled);
-        gsi = qemu_allocate_irqs(kvm_piix3_gsi_handler, gsi_state,
+        kvm_pc_setup_irq_routing(pci_enabled);
+        gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
                                  GSI_NUM_PINS);
     } else {
         gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
@@ -221,7 +157,7 @@ static void pc_init1(MemoryRegion *system_memory,
         gsi_state->i8259_irq[i] = i8259[i];
     }
     if (pci_enabled) {
-        ioapic_init(gsi_state);
+        ioapic_init_gsi(gsi_state, "i440fx");
     }
 
     pc_register_ferr_irq(gsi[13]);
@@ -234,14 +170,7 @@ static void pc_init1(MemoryRegion *system_memory,
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
 
-    for(i = 0; i < nb_nics; i++) {
-        NICInfo *nd = &nd_table[i];
-
-        if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
-            pc_init_ne2k_isa(isa_bus, nd);
-        else
-            pci_nic_init_nofail(nd, "e1000", NULL);
-    }
+    pc_nic_init(isa_bus, pci_bus);
 
     ide_drive_get(hd, MAX_IDE_BUS);
     if (pci_enabled) {

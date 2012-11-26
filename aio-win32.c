@@ -173,7 +173,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     /* wait until next event */
-    for (;;) {
+    while (count > 0) {
         int timeout = blocking ? INFINITE : 0;
         int ret = WaitForMultipleObjects(count, events, FALSE, timeout);
 
@@ -209,6 +209,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
                 g_free(tmp);
             }
         }
+
+        /* Try again, but only call each handler once.  */
+        events[ret - WAIT_OBJECT_0] = events[--count];
     }
 
     return progress;
