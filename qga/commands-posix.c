@@ -170,7 +170,7 @@ void qmp_guest_file_close(int64_t handle, Error **err)
     }
 
     ret = fclose(gfh->fh);
-    if (ret == -1) {
+    if (ret == EOF) {
         error_set(err, QERR_QGA_COMMAND_FAILED, "fclose() failed");
         return;
     }
