@@ -46,10 +46,29 @@ extern char **environ;
 #endif
 #endif
 
+static void ga_wait_child(pid_t pid, int *status, Error **err)
+{
+    pid_t rpid;
+
+    *status = 0;
+
+    do {
+        rpid = waitpid(pid, status, 0);
+    } while (rpid == -1 && errno == EINTR);
+
+    if (rpid == -1) {
+        error_setg_errno(err, errno, "failed to wait for child (pid: %d)", pid);
+        return;
+    }
+
+    g_assert(rpid == pid);
+}
+
 void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
 {
     const char *shutdown_flag;
-    pid_t rpid, pid;
+    Error *local_err = NULL;
+    pid_t pid;
     int status;
 
     slog("guest-shutdown called, mode: %s", mode);
@@ -60,8 +79,8 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
     } else if (strcmp(mode, "reboot") == 0) {
         shutdown_flag = "-r";
     } else {
-        error_set(err, QERR_INVALID_PARAMETER_VALUE, "mode",
-                  "halt|powerdown|reboot");
+        error_setg(err,
+                   "mode is invalid (valid values are: halt|powerdown|reboot");
         return;
     }
 
@@ -77,18 +96,27 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
                "hypervisor initiated shutdown", (char*)NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
-        goto exit_err;
-    }
-
-    do {
-        rpid = waitpid(pid, &status, 0);
-    } while (rpid == -1 && errno == EINTR);
-    if (rpid == pid && WIFEXITED(status) && !WEXITSTATUS(status)) {
+        error_setg_errno(err, errno, "failed to create child process");
         return;
     }
 
-exit_err:
-    error_set(err, QERR_UNDEFINED_ERROR);
+    ga_wait_child(pid, &status, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(err, local_err);
+        return;
+    }
+
+    if (!WIFEXITED(status)) {
+        error_setg(err, "child process has terminated abnormally");
+        return;
+    }
+
+    if (WEXITSTATUS(status)) {
+        error_setg(err, "child process has failed to shutdown");
+        return;
+    }
+
+    /* succeded */
 }
 
 typedef struct GuestFileHandle {
