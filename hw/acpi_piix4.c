@@ -38,8 +38,6 @@
 # define PIIX4_DPRINTF(format, ...)     do { } while (0)
 #endif
 
-#define ACPI_DBG_IO_ADDR  0xb044
-
 #define GPE_BASE 0xafe0
 #define GPE_LEN 4
 
@@ -127,11 +125,6 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
             qemu_irq_raise(s->smi_irq);
         }
     }
-}
-
-static void acpi_dbg_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    PIIX4_DPRINTF("ACPI: DBG: 0x%08x\n", val);
 }
 
 static void pm_io_space_update(PIIX4PMState *s)
@@ -399,8 +392,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
 
     /* APM */
     apm_init(&s->apm, apm_ctrl_changed, s);
-
-    register_ioport_write(ACPI_DBG_IO_ADDR, 4, 4, acpi_dbg_writel, s);
 
     if (s->kvm_enabled) {
         /* Mark SMM as already inited to prevent SMM from running.  KVM does not
