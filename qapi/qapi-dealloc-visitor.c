@@ -132,7 +132,7 @@ static void qapi_dealloc_type_number(Visitor *v, double *obj, const char *name,
 {
 }
 
-static void qapi_dealloc_type_size(Visitor *v, size_t *obj, const char *name,
+static void qapi_dealloc_type_size(Visitor *v, uint64_t *obj, const char *name,
                                    Error **errp)
 {
 }
