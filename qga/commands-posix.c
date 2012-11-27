@@ -111,7 +111,7 @@ static void guest_file_handle_add(FILE *fh)
     QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
 }
 
-static GuestFileHandle *guest_file_handle_find(int64_t id)
+static GuestFileHandle *guest_file_handle_find(int64_t id, Error **err)
 {
     GuestFileHandle *gfh;
 
@@ -122,6 +122,7 @@ static GuestFileHandle *guest_file_handle_find(int64_t id)
         }
     }
 
+    error_setg(err, "handle '%" PRId64 "' has not been found", id);
     return NULL;
 }
 
@@ -160,12 +161,11 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, E
 
 void qmp_guest_file_close(int64_t handle, Error **err)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
     int ret;
 
     slog("guest-file-close called, handle: %ld", handle);
     if (!gfh) {
-        error_set(err, QERR_FD_NOT_FOUND, "handle");
         return;
     }
 
@@ -182,14 +182,13 @@ void qmp_guest_file_close(int64_t handle, Error **err)
 struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
                                           int64_t count, Error **err)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
     GuestFileRead *read_data = NULL;
     guchar *buf;
     FILE *fh;
     size_t read_count;
 
     if (!gfh) {
-        error_set(err, QERR_FD_NOT_FOUND, "handle");
         return NULL;
     }
 
@@ -228,11 +227,10 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     guchar *buf;
     gsize buf_len;
     int write_count;
-    GuestFileHandle *gfh = guest_file_handle_find(handle);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
     FILE *fh;
 
     if (!gfh) {
-        error_set(err, QERR_FD_NOT_FOUND, "handle");
         return NULL;
     }
 
@@ -265,13 +263,12 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
 struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
                                           int64_t whence, Error **err)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
     GuestFileSeek *seek_data = NULL;
     FILE *fh;
     int ret;
 
     if (!gfh) {
-        error_set(err, QERR_FD_NOT_FOUND, "handle");
         return NULL;
     }
 
@@ -291,12 +288,11 @@ struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
 
 void qmp_guest_file_flush(int64_t handle, Error **err)
 {
-    GuestFileHandle *gfh = guest_file_handle_find(handle);
+    GuestFileHandle *gfh = guest_file_handle_find(handle, err);
     FILE *fh;
     int ret;
 
     if (!gfh) {
-        error_set(err, QERR_FD_NOT_FOUND, "handle");
         return;
     }
 
