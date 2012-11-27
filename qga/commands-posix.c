@@ -618,8 +618,9 @@ error:
 static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
                                const char *sysfile_str, Error **err)
 {
+    Error *local_err = NULL;
     char *pmutils_path;
-    pid_t pid, rpid;
+    pid_t pid;
     int status;
 
     pmutils_path = g_find_program_in_path(pmutils_bin);
@@ -664,31 +665,38 @@ static void bios_supports_mode(const char *pmutils_bin, const char *pmutils_arg,
         }
 
         _exit(SUSPEND_NOT_SUPPORTED);
+    } else if (pid < 0) {
+        error_setg_errno(err, errno, "failed to create child process");
+        goto out;
     }
 
+    ga_wait_child(pid, &status, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(err, local_err);
+        goto out;
+    }
+
+    if (!WIFEXITED(status)) {
+        error_setg(err, "child process has terminated abnormally");
+        goto out;
+    }
+
+    switch (WEXITSTATUS(status)) {
+    case SUSPEND_SUPPORTED:
+        goto out;
+    case SUSPEND_NOT_SUPPORTED:
+        error_setg(err,
+                   "the requested suspend mode is not supported by the guest");
+        goto out;
+    default:
+        error_setg(err,
+                   "the helper program '%s' returned an unexpected exit status"
+                   " code (%d)", pmutils_path, WEXITSTATUS(status));
+        goto out;
+    }
+
+out:
     g_free(pmutils_path);
-
-    if (pid < 0) {
-        goto undef_err;
-    }
-
-    do {
-        rpid = waitpid(pid, &status, 0);
-    } while (rpid == -1 && errno == EINTR);
-    if (rpid == pid && WIFEXITED(status)) {
-        switch (WEXITSTATUS(status)) {
-        case SUSPEND_SUPPORTED:
-            return;
-        case SUSPEND_NOT_SUPPORTED:
-            error_set(err, QERR_UNSUPPORTED);
-            return;
-        default:
-            goto undef_err;
-        }
-    }
-
-undef_err:
-    error_set(err, QERR_UNDEFINED_ERROR);
 }
 
 static void guest_suspend(const char *pmutils_bin, const char *sysfile_str,
