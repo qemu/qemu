@@ -802,12 +802,9 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
     GuestNetworkInterfaceList *head = NULL, *cur_item = NULL;
     struct ifaddrs *ifap, *ifa;
-    char err_msg[512];
 
     if (getifaddrs(&ifap) < 0) {
-        snprintf(err_msg, sizeof(err_msg),
-                 "getifaddrs failed: %s", strerror(errno));
-        error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);
+        error_setg_errno(errp, errno, "getifaddrs failed");
         goto error;
     }
 
@@ -843,20 +840,16 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             /* we haven't obtained HW address yet */
             sock = socket(PF_INET, SOCK_STREAM, 0);
             if (sock == -1) {
-                snprintf(err_msg, sizeof(err_msg),
-                         "failed to create socket: %s", strerror(errno));
-                error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);
+                error_setg_errno(errp, errno, "failed to create socket");
                 goto error;
             }
 
             memset(&ifr, 0, sizeof(ifr));
             pstrcpy(ifr.ifr_name, IF_NAMESIZE, info->value->name);
             if (ioctl(sock, SIOCGIFHWADDR, &ifr) == -1) {
-                snprintf(err_msg, sizeof(err_msg),
-                         "failed to get MAC address of %s: %s",
-                         ifa->ifa_name,
-                         strerror(errno));
-                error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);
+                error_setg_errno(errp, errno,
+                                 "failed to get MAC address of %s",
+                                 ifa->ifa_name);
                 goto error;
             }
 
@@ -867,9 +860,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
                          (int) mac_addr[0], (int) mac_addr[1],
                          (int) mac_addr[2], (int) mac_addr[3],
                          (int) mac_addr[4], (int) mac_addr[5]) == -1) {
-                snprintf(err_msg, sizeof(err_msg),
-                         "failed to format MAC: %s", strerror(errno));
-                error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);
+                error_setg_errno(errp, errno, "failed to format MAC");
                 goto error;
             }
 
@@ -884,9 +875,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             address_item->value = g_malloc0(sizeof(*address_item->value));
             p = &((struct sockaddr_in *)ifa->ifa_addr)->sin_addr;
             if (!inet_ntop(AF_INET, p, addr4, sizeof(addr4))) {
-                snprintf(err_msg, sizeof(err_msg),
-                         "inet_ntop failed : %s", strerror(errno));
-                error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);
+                error_setg_errno(errp, errno, "inet_ntop failed");
                 goto error;
             }
 
@@ -906,9 +895,7 @@ GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
             address_item->value = g_malloc0(sizeof(*address_item->value));
             p = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
             if (!inet_ntop(AF_INET6, p, addr6, sizeof(addr6))) {
-                snprintf(err_msg, sizeof(err_msg),
-                         "inet_ntop failed : %s", strerror(errno));
-                error_set(errp, QERR_QGA_COMMAND_FAILED, err_msg);
+                error_setg_errno(errp, errno, "inet_ntop failed");
                 goto error;
             }
 
