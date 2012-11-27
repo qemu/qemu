@@ -565,7 +565,6 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
     struct FsMount *mount;
     int fd;
     Error *local_err = NULL;
-    char err_msg[512];
     struct fstrim_range r = {
         .start = 0,
         .len = -1,
@@ -584,9 +583,7 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
     QTAILQ_FOREACH(mount, &mounts, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
-            sprintf(err_msg, "failed to open %s, %s", mount->dirname,
-                    strerror(errno));
-            error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+            error_setg_errno(err, errno, "failed to open %s", mount->dirname);
             goto error;
         }
 
@@ -599,9 +596,8 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **err)
         ret = ioctl(fd, FITRIM, &r);
         if (ret == -1) {
             if (errno != ENOTTY && errno != EOPNOTSUPP) {
-                sprintf(err_msg, "failed to trim %s, %s",
-                        mount->dirname, strerror(errno));
-                error_set(err, QERR_QGA_COMMAND_FAILED, err_msg);
+                error_setg_errno(err, errno, "failed to trim %s",
+                                 mount->dirname);
                 close(fd);
                 goto error;
             }
