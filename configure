@@ -1183,6 +1183,21 @@ for flag in $gcc_flags; do
     fi
 done
 
+# Workaround for http://gcc.gnu.org/PR55489.  Happens with -fPIE/-fPIC and
+# large functions that use global variables.  The bug is in all releases of
+# GCC, but it became particularly acute in 4.6.x and 4.7.x.  It is fixed in
+# 4.7.3 and 4.8.0.  We should be able to delete this at the end of 2013.
+cat > $TMPC << EOF
+#if __GNUC__ == 4 && (__GNUC_MINOR__ == 6 || (__GNUC_MINOR__ == 7 && __GNUC_PATCHLEVEL__ <= 2))
+int main(void) { return 0; }
+#else
+#error No bug in this compiler.
+#endif
+EOF
+if compile_prog "-Werror -fno-gcse" "" ; then
+  TRANSLATE_OPT_CFLAGS=-fno-gcse
+fi
+
 if test "$static" = "yes" ; then
   if test "$pie" = "yes" ; then
     echo "static and pie are mutually incompatible"
@@ -3662,6 +3677,7 @@ echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
+echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak
 
 # generate list of library paths for linker script
 
