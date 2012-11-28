@@ -99,7 +99,7 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
     }
 
     if (!has_writable) {
-        writable = true;
+        writable = false;
     }
     if (bdrv_is_read_only(bs)) {
         writable = false;
