@@ -351,7 +351,7 @@ static void rtas_ibm_change_msi(sPAPREnvironment *spapr,
 
     /* There is no cached config, allocate MSIs */
     if (!phb->msi_table[ndev].nvec) {
-        irq = spapr_allocate_irq_block(req_num, true);
+        irq = spapr_allocate_irq_block(req_num, false);
         if (irq < 0) {
             fprintf(stderr, "Cannot allocate MSIs for device#%d", ndev);
             rtas_st(rets, 0, -1); /* Hardware error */
