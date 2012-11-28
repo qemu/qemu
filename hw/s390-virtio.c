@@ -155,7 +155,6 @@ unsigned s390_del_running_cpu(CPUS390XState *env)
 static void s390_init(QEMUMachineInitArgs *args)
 {
     ram_addr_t my_ram_size = args->ram_size;
-    ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
