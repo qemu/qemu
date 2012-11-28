@@ -26,7 +26,7 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "console.h"
+#include "ui/console.h"
 #include "qemu-timer.h"
 #include "hpet_emul.h"
 #include "sysbus.h"

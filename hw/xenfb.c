@@ -36,7 +36,7 @@
 #include <time.h>
 
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "qemu-char.h"
 #include "xen_backend.h"
 

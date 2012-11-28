@@ -31,7 +31,7 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 #include "hw/usb.h"
 #include "monitor.h"
 

@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "ps2.h"
-#include "console.h"
+#include "ui/console.h"
 #include "sysemu.h"
 
 /* debug PC keyboard */

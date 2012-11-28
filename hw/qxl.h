@@ -1,6 +1,6 @@
 #include "qemu-common.h"
 
-#include "console.h"
+#include "ui/console.h"
 #include "hw.h"
 #include "pci/pci.h"
 #include "vga_int.h"

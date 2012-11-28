@@ -26,7 +26,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "omap.h"
 #include "boards.h"
 #include "arm-misc.h"

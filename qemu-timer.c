@@ -24,7 +24,7 @@
 
 #include "sysemu.h"
 #include "monitor.h"
-#include "console.h"
+#include "ui/console.h"
 
 #include "hw/hw.h"
 

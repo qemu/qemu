@@ -24,7 +24,7 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "console.h"
+#include "ui/console.h"
 #include "hid.h"
 #include "qemu-error.h"
 

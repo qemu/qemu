@@ -10,7 +10,7 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 #include "elf.h"
 #include "exec-memory.h"
 #include "sysbus.h"

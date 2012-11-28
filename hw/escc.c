@@ -26,7 +26,7 @@
 #include "sysbus.h"
 #include "escc.h"
 #include "qemu-char.h"
-#include "console.h"
+#include "ui/console.h"
 #include "trace.h"
 
 /*

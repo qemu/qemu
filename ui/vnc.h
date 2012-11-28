@@ -30,7 +30,7 @@
 #include "qemu-common.h"
 #include "qemu-queue.h"
 #include "qemu-thread.h"
-#include "console.h"
+#include "ui/console.h"
 #include "monitor.h"
 #include "audio/audio.h"
 #include "bitmap.h"

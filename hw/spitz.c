@@ -21,7 +21,7 @@
 #include "qemu-timer.h"
 #include "devices.h"
 #include "sharpsl.h"
-#include "console.h"
+#include "ui/console.h"
 #include "block.h"
 #include "audio/audio.h"
 #include "boards.h"

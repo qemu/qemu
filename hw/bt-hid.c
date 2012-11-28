@@ -20,7 +20,7 @@
 
 #include "qemu-common.h"
 #include "qemu-timer.h"
-#include "console.h"
+#include "ui/console.h"
 #include "hid.h"
 #include "bt.h"
 

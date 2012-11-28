@@ -1,7 +1,7 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
-#include "qemu-pixman.h"
+#include "ui/qemu-pixman.h"
 #include "qdict.h"
 #include "notify.h"
 #include "monitor.h"

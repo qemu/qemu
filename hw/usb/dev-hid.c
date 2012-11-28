@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "qemu-timer.h"

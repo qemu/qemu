@@ -23,7 +23,7 @@
 #include "omap.h"
 #include "arm-misc.h"
 #include "irq.h"
-#include "console.h"
+#include "ui/console.h"
 #include "boards.h"
 #include "i2c.h"
 #include "devices.h"

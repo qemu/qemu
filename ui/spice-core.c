@@ -22,7 +22,7 @@
 #include "sysemu.h"
 
 #include "qemu-common.h"
-#include "qemu-spice.h"
+#include "ui/qemu-spice.h"
 #include "qemu-thread.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
@@ -37,7 +37,7 @@
 #include "migration.h"
 #include "monitor.h"
 #include "hw/hw.h"
-#include "spice-display.h"
+#include "ui/spice-display.h"
 
 /* core bits */
 

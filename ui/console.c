@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 #include "qemu-timer.h"
 #include "qmp-commands.h"
 #include "qemu-char.h"

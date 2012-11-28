@@ -25,9 +25,9 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "console.h"
+#include "ui/console.h"
 #include "framebuffer.h"
-#include "pixel_ops.h"
+#include "ui/pixel_ops.h"
 #include "qemu-error.h"
 
 #define BITS 8

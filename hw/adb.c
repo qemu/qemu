@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "adb.h"
-#include "console.h"
+#include "ui/console.h"
 
 /* debug ADB */
 //#define DEBUG_ADB

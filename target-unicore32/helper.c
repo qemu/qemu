@@ -13,7 +13,7 @@
 #include "gdbstub.h"
 #include "helper.h"
 #include "host-utils.h"
-#include "console.h"
+#include "ui/console.h"
 
 #undef DEBUG_UC32
 

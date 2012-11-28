@@ -3,7 +3,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu-pixman.h"
+#include "ui/qemu-pixman.h"
 
 int qemu_pixman_get_type(int rshift, int gshift, int bshift)
 {

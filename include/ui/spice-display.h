@@ -20,7 +20,7 @@
 #include <spice/qxl_dev.h>
 
 #include "qemu-thread.h"
-#include "qemu-pixman.h"
+#include "ui/qemu-pixman.h"
 #include "sysemu.h"
 
 #define NUM_MEMSLOTS 8

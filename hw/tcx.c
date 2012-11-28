@@ -23,8 +23,8 @@
  */
 
 #include "qemu-common.h"
-#include "console.h"
-#include "pixel_ops.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
 

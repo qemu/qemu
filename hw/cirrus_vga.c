@@ -28,7 +28,7 @@
  */
 #include "hw.h"
 #include "pci/pci.h"
-#include "console.h"
+#include "ui/console.h"
 #include "vga_int.h"
 #include "loader.h"
 

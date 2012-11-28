@@ -20,10 +20,11 @@
 #include "ptimer.h"
 #include "block.h"
 #include "flash.h"
-#include "console.h"
+#include "ui/console.h"
 #include "i2c.h"
 #include "blockdev.h"
 #include "exec-memory.h"
+#include "ui/pixel_ops.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -491,8 +492,6 @@ static inline void glue(set_lcd_pixel, depth) \
 SET_LCD_PIXEL(8, uint8_t)
 SET_LCD_PIXEL(16, uint16_t)
 SET_LCD_PIXEL(32, uint32_t)
-
-#include "pixel_ops.h"
 
 static void lcd_refresh(void *opaque)
 {

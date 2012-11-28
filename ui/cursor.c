@@ -1,5 +1,5 @@
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 
 #include "cursor_hidden.xpm"
 #include "cursor_left_ptr.xpm"

@@ -11,7 +11,7 @@
  */
 
 #include "ssi.h"
-#include "console.h"
+#include "ui/console.h"
 
 typedef struct {
     SSISlave ssidev;

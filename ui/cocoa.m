@@ -26,7 +26,7 @@
 #include <crt_externs.h>
 
 #include "qemu-common.h"
-#include "console.h"
+#include "ui/console.h"
 #include "sysemu.h"
 
 #ifndef MAC_OS_X_VERSION_10_4

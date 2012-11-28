@@ -68,8 +68,7 @@ endif
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
 common-obj-y += qom/
-common-obj-y += readline.o console.o cursor.o
-common-obj-y += qemu-pixman.o
+common-obj-y += readline.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
@@ -78,7 +77,6 @@ common-obj-$(CONFIG_LINUX) += fsdev/
 extra-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += tcg-runtime.o host-utils.o main-loop.o
-common-obj-y += input.o
 common-obj-y += buffered_file.o migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += block-migration.o iohandler.o
