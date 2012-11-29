@@ -164,6 +164,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
     CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
+    struct kvm_fpu fpu;
     int r;
     int i;
 
@@ -184,6 +185,17 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         if (r < 0) {
             return r;
         }
+    }
+
+    /* Floating point */
+    for (i = 0; i < 16; i++) {
+        fpu.fprs[i] = env->fregs[i].ll;
+    }
+    fpu.fpc = env->fpc;
+
+    r = kvm_vcpu_ioctl(cs, KVM_SET_FPU, &fpu);
+    if (r < 0) {
+        return r;
     }
 
     /* Do we need to save more than that? */
@@ -251,6 +263,7 @@ int kvm_arch_get_registers(CPUState *cs)
     CPUS390XState *env = &cpu->env;
     struct kvm_sregs sregs;
     struct kvm_regs regs;
+    struct kvm_fpu fpu;
     int i, r;
 
     /* get the PSW */
@@ -290,6 +303,16 @@ int kvm_arch_get_registers(CPUState *cs)
             env->cregs[i] = sregs.crs[i];
         }
     }
+
+    /* Floating point */
+    r = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
+    if (r < 0) {
+        return r;
+    }
+    for (i = 0; i < 16; i++) {
+        env->fregs[i].ll = fpu.fprs[i];
+    }
+    env->fpc = fpu.fpc;
 
     /* The prefix */
     if (cap_sync_regs && cs->kvm_run->kvm_valid_regs & KVM_SYNC_PREFIX) {
