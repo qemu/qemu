@@ -134,6 +134,7 @@ static void test_submit_many(void)
 static void test_cancel(void)
 {
     WorkerTestData data[100];
+    int num_canceled;
     int i;
 
     /* Start more work items than there will be threads, to ensure
@@ -163,15 +164,17 @@ static void test_cancel(void)
     g_assert_cmpint(active, >, 50);
 
     /* Cancel the jobs that haven't been started yet.  */
+    num_canceled = 0;
     for (i = 0; i < 100; i++) {
         if (__sync_val_compare_and_swap(&data[i].n, 0, 3) == 0) {
             data[i].ret = -ECANCELED;
             bdrv_aio_cancel(data[i].aiocb);
             active--;
+            num_canceled++;
         }
     }
-    g_assert_cmpint(active, >, 5);
-    g_assert_cmpint(active, <, 95);
+    g_assert_cmpint(active, >, 0);
+    g_assert_cmpint(num_canceled, <, 100);
 
     /* Canceling the others will be a blocking operation.  */
     for (i = 0; i < 100; i++) {

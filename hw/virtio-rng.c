@@ -173,9 +173,8 @@ VirtIODevice *virtio_rng_init(DeviceState *dev, VirtIORNGConf *conf)
     vrng->qdev = dev;
     vrng->conf = conf;
 
+    assert(vrng->conf->max_bytes <= INT64_MAX);
     vrng->quota_remaining = vrng->conf->max_bytes;
-
-    g_assert_cmpint(vrng->conf->max_bytes, <=, INT64_MAX);
 
     vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
                                                check_rate_limit, vrng);
