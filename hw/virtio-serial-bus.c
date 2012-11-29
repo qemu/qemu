@@ -36,6 +36,15 @@ struct VirtIOSerialBus {
     uint32_t max_nr_ports;
 };
 
+typedef struct VirtIOSerialPostLoad {
+    QEMUTimer *timer;
+    uint32_t nr_active_ports;
+    struct {
+        VirtIOSerialPort *port;
+        uint8_t host_connected;
+    } *connected;
+} VirtIOSerialPostLoad;
+
 struct VirtIOSerial {
     VirtIODevice vdev;
 
@@ -54,14 +63,7 @@ struct VirtIOSerial {
 
     struct virtio_console_config config;
 
-    struct {
-        QEMUTimer *timer;
-        uint32_t nr_active_ports;
-        struct {
-            VirtIOSerialPort *port;
-            uint8_t host_connected;
-        } *connected;
-    } post_load;
+    struct VirtIOSerialPostLoad *post_load;
 };
 
 static VirtIOSerialPort *find_port_by_id(VirtIOSerial *vser, uint32_t id)
@@ -642,9 +644,12 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
     VirtIOSerialPort *port;
     uint8_t host_connected;
 
-    for (i = 0 ; i < s->post_load.nr_active_ports; ++i) {
-        port = s->post_load.connected[i].port;
-        host_connected = s->post_load.connected[i].host_connected;
+    if (!s->post_load) {
+        return;
+    }
+    for (i = 0 ; i < s->post_load->nr_active_ports; ++i) {
+        port = s->post_load->connected[i].port;
+        host_connected = s->post_load->connected[i].host_connected;
         if (host_connected != port->host_connected) {
             /*
              * We have to let the guest know of the host connection
@@ -654,8 +659,10 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
                                port->host_connected);
         }
     }
-    g_free(s->post_load.connected);
-    s->post_load.connected = NULL;
+    g_free(s->post_load->connected);
+    qemu_free_timer(s->post_load->timer);
+    g_free(s->post_load);
+    s->post_load = NULL;
 }
 
 static int fetch_active_ports_list(QEMUFile *f, int version_id,
@@ -663,9 +670,14 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
 {
     uint32_t i;
 
-    s->post_load.nr_active_ports = nr_active_ports;
-    s->post_load.connected =
-        g_malloc0(sizeof(*s->post_load.connected) * nr_active_ports);
+    s->post_load = g_malloc0(sizeof(*s->post_load));
+    s->post_load->nr_active_ports = nr_active_ports;
+    s->post_load->connected =
+        g_malloc0(sizeof(*s->post_load->connected) * nr_active_ports);
+
+    s->post_load->timer = qemu_new_timer_ns(vm_clock,
+                                            virtio_serial_post_load_timer_cb,
+                                            s);
 
     /* Items in struct VirtIOSerialPort */
     for (i = 0; i < nr_active_ports; i++) {
@@ -679,8 +691,8 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
         }
 
         port->guest_connected = qemu_get_byte(f);
-        s->post_load.connected[i].port = port;
-        s->post_load.connected[i].host_connected = qemu_get_byte(f);
+        s->post_load->connected[i].port = port;
+        s->post_load->connected[i].host_connected = qemu_get_byte(f);
 
         if (version_id > 2) {
             uint32_t elem_popped;
@@ -705,7 +717,7 @@ static int fetch_active_ports_list(QEMUFile *f, int version_id,
             }
         }
     }
-    qemu_mod_timer(s->post_load.timer, 1);
+    qemu_mod_timer(s->post_load->timer, 1);
     return 0;
 }
 
@@ -1003,15 +1015,14 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
 
     vser->qdev = dev;
 
+    vser->post_load = NULL;
+
     /*
      * Register for the savevm section with the virtio-console name
      * to preserve backward compat
      */
     register_savevm(dev, "virtio-console", -1, 3, virtio_serial_save,
                     virtio_serial_load, vser);
-
-    vser->post_load.timer = qemu_new_timer_ns(vm_clock,
-            virtio_serial_post_load_timer_cb, vser);
 
     return vdev;
 }
@@ -1025,9 +1036,11 @@ void virtio_serial_exit(VirtIODevice *vdev)
     g_free(vser->ivqs);
     g_free(vser->ovqs);
     g_free(vser->ports_map);
-    g_free(vser->post_load.connected);
-    qemu_free_timer(vser->post_load.timer);
-
+    if (vser->post_load) {
+        g_free(vser->post_load->connected);
+        qemu_free_timer(vser->post_load->timer);
+        g_free(vser->post_load);
+    }
     virtio_cleanup(vdev);
 }
 
