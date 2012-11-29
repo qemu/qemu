@@ -56,7 +56,7 @@ struct VirtIOSerial {
 
     struct {
         QEMUTimer *timer;
-        int nr_active_ports;
+        uint32_t nr_active_ports;
         struct {
             VirtIOSerialPort *port;
             uint8_t host_connected;
@@ -637,7 +637,7 @@ static void virtio_serial_save(QEMUFile *f, void *opaque)
 
 static void virtio_serial_post_load_timer_cb(void *opaque)
 {
-    int i;
+    uint32_t i;
     VirtIOSerial *s = opaque;
     VirtIOSerialPort *port;
     uint8_t host_connected;
