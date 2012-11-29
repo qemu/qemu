@@ -45,6 +45,7 @@ static int usb_ehci_sysbus_initfn(SysBusDevice *dev)
 
     s->capsbase = 0x100;
     s->opregbase = 0x140;
+    s->dma = &dma_context_memory;
 
     usb_ehci_initfn(s, DEVICE(dev));
     sysbus_init_irq(dev, &s->irq);
