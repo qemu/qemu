@@ -12,6 +12,7 @@ bios: config.seabios
 	sh configure-seabios.sh $<
 	make -C seabios out/bios.bin
 	cp seabios/out/bios.bin ../pc-bios/bios.bin
+	cp seabios/out/*dsdt.aml ../pc-bios/
 
 seavgabios: $(patsubst %,seavgabios-%,$(vgabios_variants))
 
