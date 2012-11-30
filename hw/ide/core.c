@@ -2160,12 +2160,6 @@ static int ide_drive_post_load(void *opaque, int version_id)
 {
     IDEState *s = opaque;
 
-    if (version_id < 3) {
-        if (s->sense_key == UNIT_ATTENTION &&
-            s->asc == ASC_MEDIUM_MAY_HAVE_CHANGED) {
-            s->cdrom_changed = 1;
-        }
-    }
     if (s->identify_set) {
         bdrv_set_enable_write_cache(s->bs, !!(s->identify_data[85] & (1 << 5)));
     }

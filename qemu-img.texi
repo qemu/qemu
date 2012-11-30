@@ -226,7 +226,10 @@ After using this command to grow a disk image, you must use file system and
 partitioning tools inside the VM to actually begin using the new space on the
 device.
 @end table
+@c man end
 
+@ignore
+@c man begin NOTES
 Supported image file formats:
 
 @table @option
@@ -247,6 +250,13 @@ support of multiple VM snapshots.
 
 Supported options:
 @table @code
+@item compat
+Determines the qcow2 version to use. @code{compat=0.10} uses the traditional
+image format that can be read by any QEMU since 0.10 (this is the default).
+@code{compat=1.1} enables image format extensions that only QEMU 1.1 and
+newer understand. Amongst others, this includes zero clusters, which allow
+efficient copy-on-read for sparse images.
+
 @item backing_file
 File name of a base image (see @option{create} subcommand)
 @item backing_fmt
@@ -267,72 +277,32 @@ Preallocation mode (allowed values: off, metadata). An image with preallocated
 metadata is initially larger but can improve performance when the image needs
 to grow.
 
+@item lazy_refcounts
+If this option is set to @code{on}, reference count updates are postponed with
+the goal of avoiding metadata I/O and improving performance. This is
+particularly interesting with @option{cache=writethrough} which doesn't batch
+metadata updates. The tradeoff is that after a host crash, the reference count
+tables must be rebuilt, i.e. on the next open an (automatic) @code{qemu-img
+check -r all} is required, which may take some time.
+
+This option can only be enabled if @code{compat=1.1} is specified.
+
 @end table
 
-@item qed
-Image format with support for backing files and compact image files (when your
-filesystem or transport medium does not support holes).  Good performance due
-to less metadata than the more featureful qcow2 format, especially with
-cache=writethrough or cache=directsync.  Consider using qcow2 which will soon
-have a similar optimization and is most actively developed.
+@item Other
+QEMU also supports various other image file formats for compatibility with
+older QEMU versions or other hypervisors, including VMDK, VDI, VHD (vpc), qcow1
+and QED. For a full list of supported formats see @code{qemu-img --help}.
+For a more detailed description of these formats, see the QEMU Emulation User
+Documentation.
 
-Supported options:
-@table @code
-@item backing_file
-File name of a base image (see @option{create} subcommand).
-@item backing_fmt
-Image file format of backing file (optional).  Useful if the format cannot be
-autodetected because it has no header, like some vhd/vpc files.
-@item cluster_size
-Changes the cluster size (must be power-of-2 between 4K and 64K). Smaller
-cluster sizes can improve the image file size whereas larger cluster sizes
-generally provide better performance.
-@item table_size
-Changes the number of clusters per L1/L2 table (must be power-of-2 between 1
-and 16).  There is normally no need to change this value but this option can be
-used for performance benchmarking.
-@end table
-
-@item qcow
-Old QEMU image format. Left for compatibility.
-
-Supported options:
-@table @code
-@item backing_file
-File name of a base image (see @option{create} subcommand)
-@item encryption
-If this option is set to @code{on}, the image is encrypted.
-@end table
-
-@item cow
-User Mode Linux Copy On Write image format. Used to be the only growable
-image format in QEMU. It is supported only for compatibility with
-previous versions. It does not work on win32.
-@item vdi
-VirtualBox 1.1 compatible image format.
-@item vmdk
-VMware 3 and 4 compatible image format.
-
-Supported options:
-@table @code
-@item backing_fmt
-Image format of the base image
-@item compat6
-Create a VMDK version 6 image (instead of version 4)
-@end table
-
-@item vpc
-VirtualPC compatible image format (VHD).
-
-@item cloop
-Linux Compressed Loop image, useful only to reuse directly compressed
-CD-ROM images present for example in the Knoppix CD-ROMs.
+The main purpose of the block drivers for these formats is image conversion.
+For running VMs, it is recommended to convert the disk images to either raw or
+qcow2 in order to achieve good performance.
 @end table
 
 
 @c man end
-
-@ignore
 
 @setfilename qemu-img
 @settitle QEMU disk image utility
