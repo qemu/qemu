@@ -294,7 +294,7 @@ static int add_old_style_options(const char *fmt, QEMUOptionParameter *list,
 
 static int img_create(int argc, char **argv)
 {
-    int c, ret = 0;
+    int c;
     uint64_t img_size = -1;
     const char *fmt = "raw";
     const char *base_fmt = NULL;
@@ -351,15 +351,13 @@ static int img_create(int argc, char **argv)
             error_report("Invalid image size specified! You may use k, M, G or "
                   "T suffixes for ");
             error_report("kilobytes, megabytes, gigabytes and terabytes.");
-            ret = -1;
-            goto out;
+            return 1;
         }
         img_size = (uint64_t)sval;
     }
 
     if (options && is_help_option(options)) {
-        ret = print_block_option_help(filename, fmt);
-        goto out;
+        return print_block_option_help(filename, fmt);
     }
 
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
@@ -367,13 +365,9 @@ static int img_create(int argc, char **argv)
     if (error_is_set(&local_err)) {
         error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
-        ret = -1;
-    }
-
-out:
-    if (ret) {
         return 1;
     }
+
     return 0;
 }
 
