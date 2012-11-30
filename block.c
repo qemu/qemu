@@ -4442,9 +4442,9 @@ bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
     bs->total_time_ns[cookie->type] += get_clock() - cookie->start_time_ns;
 }
 
-int bdrv_img_create(const char *filename, const char *fmt,
-                    const char *base_filename, const char *base_fmt,
-                    char *options, uint64_t img_size, int flags, Error **errp)
+void bdrv_img_create(const char *filename, const char *fmt,
+                     const char *base_filename, const char *base_fmt,
+                     char *options, uint64_t img_size, int flags, Error **errp)
 {
     QEMUOptionParameter *param = NULL, *create_options = NULL;
     QEMUOptionParameter *backing_fmt, *backing_file, *size;
@@ -4456,18 +4456,14 @@ int bdrv_img_create(const char *filename, const char *fmt,
     /* Find driver and parse its options */
     drv = bdrv_find_format(fmt);
     if (!drv) {
-        error_report("Unknown file format '%s'", fmt);
         error_setg(errp, "Unknown file format '%s'", fmt);
-        ret = -EINVAL;
-        goto out;
+        return;
     }
 
     proto_drv = bdrv_find_protocol(filename);
     if (!proto_drv) {
-        error_report("Unknown protocol '%s'", filename);
         error_setg(errp, "Unknown protocol '%s'", filename);
-        ret = -EINVAL;
-        goto out;
+        return;
     }
 
     create_options = append_option_parameters(create_options,
@@ -4484,9 +4480,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
     if (options) {
         param = parse_option_parameters(options, create_options, param);
         if (param == NULL) {
-            error_report("Invalid options for file format '%s'.", fmt);
             error_setg(errp, "Invalid options for file format '%s'.", fmt);
-            ret = -EINVAL;
             goto out;
         }
     }
@@ -4494,22 +4488,16 @@ int bdrv_img_create(const char *filename, const char *fmt,
     if (base_filename) {
         if (set_option_parameter(param, BLOCK_OPT_BACKING_FILE,
                                  base_filename)) {
-            error_report("Backing file not supported for file format '%s'",
-                         fmt);
             error_setg(errp, "Backing file not supported for file format '%s'",
                        fmt);
-            ret = -EINVAL;
             goto out;
         }
     }
 
     if (base_fmt) {
         if (set_option_parameter(param, BLOCK_OPT_BACKING_FMT, base_fmt)) {
-            error_report("Backing file format not supported for file "
-                         "format '%s'", fmt);
             error_setg(errp, "Backing file format not supported for file "
                              "format '%s'", fmt);
-            ret = -EINVAL;
             goto out;
         }
     }
@@ -4517,11 +4505,8 @@ int bdrv_img_create(const char *filename, const char *fmt,
     backing_file = get_option_parameter(param, BLOCK_OPT_BACKING_FILE);
     if (backing_file && backing_file->value.s) {
         if (!strcmp(filename, backing_file->value.s)) {
-            error_report("Error: Trying to create an image with the "
-                         "same filename as the backing file");
             error_setg(errp, "Error: Trying to create an image with the "
                              "same filename as the backing file");
-            ret = -EINVAL;
             goto out;
         }
     }
@@ -4530,11 +4515,8 @@ int bdrv_img_create(const char *filename, const char *fmt,
     if (backing_fmt && backing_fmt->value.s) {
         backing_drv = bdrv_find_format(backing_fmt->value.s);
         if (!backing_drv) {
-            error_report("Unknown backing file format '%s'",
-                         backing_fmt->value.s);
             error_setg(errp, "Unknown backing file format '%s'",
                        backing_fmt->value.s);
-            ret = -EINVAL;
             goto out;
         }
     }
@@ -4556,7 +4538,6 @@ int bdrv_img_create(const char *filename, const char *fmt,
 
             ret = bdrv_open(bs, backing_file->value.s, back_flags, backing_drv);
             if (ret < 0) {
-                error_report("Could not open '%s'", backing_file->value.s);
                 error_setg_errno(errp, -ret, "Could not open '%s'",
                                  backing_file->value.s);
                 goto out;
@@ -4567,9 +4548,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
             snprintf(buf, sizeof(buf), "%" PRId64, size);
             set_option_parameter(param, BLOCK_OPT_SIZE, buf);
         } else {
-            error_report("Image creation needs a size parameter");
             error_setg(errp, "Image creation needs a size parameter");
-            ret = -EINVAL;
             goto out;
         }
     }
@@ -4579,21 +4558,14 @@ int bdrv_img_create(const char *filename, const char *fmt,
     puts("");
 
     ret = bdrv_create(drv, filename, param);
-
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            error_report("Formatting or formatting option not supported for "
-                         "file format '%s'", fmt);
             error_setg(errp,"Formatting or formatting option not supported for "
                             "file format '%s'", fmt);
         } else if (ret == -EFBIG) {
-            error_report("The image size is too large for file format '%s'",
-                         fmt);
             error_setg(errp, "The image size is too large for file format '%s'",
                        fmt);
         } else {
-            error_report("%s: error while creating %s: %s", filename, fmt,
-                         strerror(-ret));
             error_setg(errp, "%s: error while creating %s: %s", filename, fmt,
                        strerror(-ret));
         }
@@ -4606,6 +4578,4 @@ out:
     if (bs) {
         bdrv_delete(bs);
     }
-
-    return ret;
 }
