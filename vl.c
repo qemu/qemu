@@ -1427,8 +1427,9 @@ static int usb_device_del(const char *devname)
     int bus_num, addr;
     const char *p;
 
-    if (strstart(devname, "host:", &p))
-        return usb_host_device_close(p);
+    if (strstart(devname, "host:", &p)) {
+        return -1;
+    }
 
     if (!usb_enabled(false)) {
         return -1;

@@ -45,8 +45,3 @@ USBDevice *usb_host_device_open(USBBus *bus, const char *devname)
 {
     return NULL;
 }
-
-int usb_host_device_close(const char *devname)
-{
-    return 0;
-}

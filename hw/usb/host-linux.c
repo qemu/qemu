@@ -1540,30 +1540,6 @@ static void usb_host_register_types(void)
 
 type_init(usb_host_register_types)
 
-int usb_host_device_close(const char *devname)
-{
-#if 0
-    char product_name[PRODUCT_NAME_SZ];
-    int bus_num, addr;
-    USBHostDevice *s;
-
-    if (strstr(devname, "auto:")) {
-        return usb_host_auto_del(devname);
-    }
-    if (usb_host_find_device(&bus_num, &addr, product_name,
-                                    sizeof(product_name), devname) < 0) {
-        return -1;
-    }
-    s = hostdev_find(bus_num, addr);
-    if (s) {
-        usb_device_delete_addr(s->bus_num, s->dev.addr);
-        return 0;
-    }
-#endif
-
-    return -1;
-}
-
 /*
  * Read sys file-system device file
  *
