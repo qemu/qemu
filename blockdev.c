@@ -707,6 +707,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
     int ret = 0;
     BlockdevActionList *dev_entry = dev_list;
     BlkTransactionStates *states, *next;
+    Error *local_err = NULL;
 
     QSIMPLEQ_HEAD(snap_bdrv_states, BlkTransactionStates) snap_bdrv_states;
     QSIMPLEQ_INIT(&snap_bdrv_states);
@@ -786,12 +787,12 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
 
         /* create new image w/backing file */
         if (mode != NEW_IMAGE_MODE_EXISTING) {
-            ret = bdrv_img_create(new_image_file, format,
-                                  states->old_bs->filename,
-                                  states->old_bs->drv->format_name,
-                                  NULL, -1, flags, NULL);
-            if (ret) {
-                error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
+            bdrv_img_create(new_image_file, format,
+                            states->old_bs->filename,
+                            states->old_bs->drv->format_name,
+                            NULL, -1, flags, &local_err);
+            if (error_is_set(&local_err)) {
+                error_propagate(errp, local_err);
                 goto delete_and_fail;
             }
         }
