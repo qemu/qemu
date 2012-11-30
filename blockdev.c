@@ -789,7 +789,7 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
             ret = bdrv_img_create(new_image_file, format,
                                   states->old_bs->filename,
                                   states->old_bs->drv->format_name,
-                                  NULL, -1, flags);
+                                  NULL, -1, flags, NULL);
             if (ret) {
                 error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
                 goto delete_and_fail;
@@ -1264,7 +1264,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         bdrv_get_geometry(bs, &size);
         size *= 512;
         ret = bdrv_img_create(target, format,
-                              NULL, NULL, NULL, size, flags);
+                              NULL, NULL, NULL, size, flags, NULL);
     } else {
         switch (mode) {
         case NEW_IMAGE_MODE_EXISTING:
@@ -1275,7 +1275,7 @@ void qmp_drive_mirror(const char *device, const char *target,
             ret = bdrv_img_create(target, format,
                                   source->filename,
                                   source->drv->format_name,
-                                  NULL, -1, flags);
+                                  NULL, -1, flags, NULL);
             break;
         default:
             abort();
