@@ -240,9 +240,9 @@ int kvm_init_vcpu(CPUArchState *env)
         goto err;
     }
 
-    env->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+    cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
                         cpu->kvm_fd, 0);
-    if (env->kvm_run == MAP_FAILED) {
+    if (cpu->kvm_run == MAP_FAILED) {
         ret = -errno;
         DPRINTF("mmap'ing vcpu state failed\n");
         goto err;
@@ -250,7 +250,7 @@ int kvm_init_vcpu(CPUArchState *env)
 
     if (s->coalesced_mmio && !s->coalesced_mmio_ring) {
         s->coalesced_mmio_ring =
-            (void *)env->kvm_run + s->coalesced_mmio * PAGE_SIZE;
+            (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
     }
 
     ret = kvm_arch_init_vcpu(cpu);
@@ -1529,7 +1529,7 @@ void kvm_cpu_synchronize_post_init(CPUArchState *env)
 int kvm_cpu_exec(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
-    struct kvm_run *run = env->kvm_run;
+    struct kvm_run *run = cpu->kvm_run;
     int ret, run_ret;
 
     DPRINTF("kvm_cpu_exec()\n");

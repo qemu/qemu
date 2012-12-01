@@ -1859,9 +1859,11 @@ static int kvm_handle_halt(X86CPU *cpu)
     return 0;
 }
 
-static int kvm_handle_tpr_access(CPUX86State *env)
+static int kvm_handle_tpr_access(X86CPU *cpu)
 {
-    struct kvm_run *run = env->kvm_run;
+    CPUX86State *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+    struct kvm_run *run = cs->kvm_run;
 
     apic_handle_tpr_access_report(env->apic_state, run->tpr_access.rip,
                                   run->tpr_access.is_write ? TPR_ACCESS_WRITE
@@ -2067,7 +2069,6 @@ static bool host_supports_vmx(void)
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     X86CPU *cpu = X86_CPU(cs);
-    CPUX86State *env = &cpu->env;
     uint64_t code;
     int ret;
 
@@ -2080,7 +2081,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = 0;
         break;
     case KVM_EXIT_TPR_ACCESS:
-        ret = kvm_handle_tpr_access(env);
+        ret = kvm_handle_tpr_access(cpu);
         break;
     case KVM_EXIT_FAIL_ENTRY:
         code = run->fail_entry.hardware_entry_failure_reason;

@@ -53,6 +53,7 @@ typedef struct CPUClass {
 } CPUClass;
 
 struct KVMState;
+struct kvm_run;
 
 /**
  * CPUState:
@@ -85,6 +86,7 @@ struct CPUState {
     bool kvm_vcpu_dirty;
 #endif
     struct KVMState *kvm_state;
+    struct kvm_run *kvm_run;
 
     /* TODO Move common fields from CPUArchState here. */
 };

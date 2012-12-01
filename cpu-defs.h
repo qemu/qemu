@@ -134,7 +134,6 @@ typedef struct icount_decr_u16 {
 } icount_decr_u16;
 #endif
 
-struct kvm_run;
 struct qemu_work_item;
 
 typedef struct CPUBreakpoint {
@@ -203,7 +202,6 @@ typedef struct CPUWatchpoint {
     /* user data */                                                     \
     void *opaque;                                                       \
                                                                         \
-    const char *cpu_model_str;                                          \
-    struct kvm_run *kvm_run;
+    const char *cpu_model_str;
 
 #endif
