@@ -237,16 +237,15 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 
 }
 
-void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags)
+void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
     tb_env      = g_malloc0(sizeof(ppc_tb_t));
     booke_timer = g_malloc0(sizeof(booke_timer_t));
 
-    env->tb_env = tb_env;
+    cpu->env.tb_env = tb_env;
     tb_env->flags = flags | PPC_TIMER_BOOKE | PPC_DECR_ZERO_TRIGGERED;
 
     tb_env->tb_freq    = freq;

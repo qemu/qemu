@@ -195,7 +195,7 @@ static void bamboo_init(QEMUMachineInitArgs *args)
     env = &cpu->env;
 
     qemu_register_reset(main_cpu_reset, cpu);
-    ppc_booke_timers_init(env, 400000000, 0);
+    ppc_booke_timers_init(cpu, 400000000, 0);
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */

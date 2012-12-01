@@ -2482,7 +2482,7 @@ CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
     /* OBP arbitrer */
     ppc4xx_opba_init(0xef600600);
     /* Initialize timers */
-    ppc_booke_timers_init(env, sysclk, 0);
+    ppc_booke_timers_init(cpu, sysclk, 0);
     /* Universal interrupt controller */
     irqs = g_malloc0(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] =

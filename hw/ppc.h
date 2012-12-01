@@ -89,4 +89,4 @@ enum {
 #define PPC_SERIAL_MM_BAUDBASE 399193
 
 /* ppc_booke.c */
-void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags);
+void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags);

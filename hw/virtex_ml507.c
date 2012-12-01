@@ -94,7 +94,7 @@ static PowerPCCPU *ppc440_init_xilinx(ram_addr_t *ram_size,
     }
     env = &cpu->env;
 
-    ppc_booke_timers_init(env, sysclk, 0/* no flags */);
+    ppc_booke_timers_init(cpu, sysclk, 0/* no flags */);
 
     ppc_dcr_init(env, NULL, NULL);
 
