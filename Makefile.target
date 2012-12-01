@@ -143,6 +143,9 @@ GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
 
 endif # CONFIG_SOFTMMU
 
+# Workaround for http://gcc.gnu.org/PR55489, see configure.
+%/translate.o: QEMU_CFLAGS += $(TRANSLATE_OPT_CFLAGS)
+
 nested-vars += obj-y
 
 # This resolves all nested paths, so it must come last

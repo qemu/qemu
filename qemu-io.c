@@ -1362,7 +1362,7 @@ static int aio_write_f(int argc, char **argv)
 
 static int aio_flush_f(int argc, char **argv)
 {
-    qemu_aio_flush();
+    bdrv_drain_all();
     return 0;
 }
 

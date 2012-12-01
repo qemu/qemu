@@ -424,15 +424,17 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
                                          size_t resid)
 {
     VirtIOSCSIReq *req = r->hba_private;
+    uint32_t sense_len;
 
     req->resp.cmd->response = VIRTIO_SCSI_S_OK;
     req->resp.cmd->status = status;
     if (req->resp.cmd->status == GOOD) {
-        req->resp.cmd->resid = resid;
+        req->resp.cmd->resid = tswap32(resid);
     } else {
         req->resp.cmd->resid = 0;
-        req->resp.cmd->sense_len =
-            scsi_req_get_sense(r, req->resp.cmd->sense, VIRTIO_SCSI_SENSE_SIZE);
+        sense_len = scsi_req_get_sense(r, req->resp.cmd->sense,
+                                       VIRTIO_SCSI_SENSE_SIZE);
+        req->resp.cmd->sense_len = tswap32(sense_len);
     }
     virtio_scsi_complete_req(req);
 }
@@ -532,8 +534,8 @@ static void virtio_scsi_get_config(VirtIODevice *vdev,
     stl_raw(&scsiconf->event_info_size, sizeof(VirtIOSCSIEvent));
     stl_raw(&scsiconf->sense_size, s->sense_size);
     stl_raw(&scsiconf->cdb_size, s->cdb_size);
-    stl_raw(&scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
-    stl_raw(&scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
+    stw_raw(&scsiconf->max_channel, VIRTIO_SCSI_MAX_CHANNEL);
+    stw_raw(&scsiconf->max_target, VIRTIO_SCSI_MAX_TARGET);
     stl_raw(&scsiconf->max_lun, VIRTIO_SCSI_MAX_LUN);
 }
 

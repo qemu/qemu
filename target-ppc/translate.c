@@ -3473,7 +3473,8 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         if (unlikely(ctx->singlestep_enabled)) {
             if ((ctx->singlestep_enabled &
                 (CPU_BRANCH_STEP | CPU_SINGLE_STEP)) &&
-                ctx->exception == POWERPC_EXCP_BRANCH) {
+                (ctx->exception == POWERPC_EXCP_BRANCH ||
+                 ctx->exception == POWERPC_EXCP_TRACE)) {
                 target_ulong tmp = ctx->nip;
                 ctx->nip = dest;
                 gen_exception(ctx, POWERPC_EXCP_TRACE);

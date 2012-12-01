@@ -48,7 +48,7 @@ static void blkverify_aio_cancel(BlockDriverAIOCB *blockacb)
     }
 }
 
-static AIOPool blkverify_aio_pool = {
+static const AIOCBInfo blkverify_aiocb_info = {
     .aiocb_size         = sizeof(BlkverifyAIOCB),
     .cancel             = blkverify_aio_cancel,
 };
@@ -233,7 +233,7 @@ static BlkverifyAIOCB *blkverify_aio_get(BlockDriverState *bs, bool is_write,
                                          BlockDriverCompletionFunc *cb,
                                          void *opaque)
 {
-    BlkverifyAIOCB *acb = qemu_aio_get(&blkverify_aio_pool, bs, cb, opaque);
+    BlkverifyAIOCB *acb = qemu_aio_get(&blkverify_aiocb_info, bs, cb, opaque);
 
     acb->bh = NULL;
     acb->is_write = is_write;

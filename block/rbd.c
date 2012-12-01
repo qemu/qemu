@@ -69,7 +69,7 @@ typedef enum {
 typedef struct RBDAIOCB {
     BlockDriverAIOCB common;
     QEMUBH *bh;
-    int ret;
+    int64_t ret;
     QEMUIOVector *qiov;
     char *bounce;
     RBDAIOCmd cmd;
@@ -86,7 +86,7 @@ typedef struct RADOSCB {
     int done;
     int64_t size;
     char *buf;
-    int ret;
+    int64_t ret;
 } RADOSCB;
 
 #define RBD_FD_READ 0
@@ -570,7 +570,7 @@ static void qemu_rbd_aio_cancel(BlockDriverAIOCB *blockacb)
     acb->cancelled = 1;
 }
 
-static AIOPool rbd_aio_pool = {
+static const AIOCBInfo rbd_aiocb_info = {
     .aiocb_size = sizeof(RBDAIOCB),
     .cancel = qemu_rbd_aio_cancel,
 };
@@ -672,7 +672,7 @@ static BlockDriverAIOCB *rbd_start_aio(BlockDriverState *bs,
 
     BDRVRBDState *s = bs->opaque;
 
-    acb = qemu_aio_get(&rbd_aio_pool, bs, cb, opaque);
+    acb = qemu_aio_get(&rbd_aiocb_info, bs, cb, opaque);
     acb->cmd = cmd;
     acb->qiov = qiov;
     if (cmd == RBD_AIO_DISCARD) {

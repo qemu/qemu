@@ -8,6 +8,7 @@
  */
 #include <inttypes.h>
 
+#include "hw/irq.h"
 #include "qemu-common.h"
 
 /* xen-machine.c */

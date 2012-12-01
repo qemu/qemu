@@ -525,6 +525,37 @@ static int interface_flush_resources(QXLInstance *sin)
     return 0;
 }
 
+static void interface_update_area_complete(QXLInstance *sin,
+        uint32_t surface_id,
+        QXLRect *dirty, uint32_t num_updated_rects)
+{
+    /* should never be called, used in qxl native mode only */
+    fprintf(stderr, "%s: abort()\n", __func__);
+    abort();
+}
+
+/* called from spice server thread context only */
+static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
+{
+    /* should never be called, used in qxl native mode only */
+    fprintf(stderr, "%s: abort()\n", __func__);
+    abort();
+}
+
+static void interface_set_client_capabilities(QXLInstance *sin,
+                                              uint8_t client_present,
+                                              uint8_t caps[58])
+{
+    dprint(3, "%s:\n", __func__);
+}
+
+static int interface_client_monitors_config(QXLInstance *sin,
+                                        VDAgentMonitorsConfig *monitors_config)
+{
+    dprint(3, "%s:\n", __func__);
+    return 0; /* == not supported by guest */
+}
+
 static const QXLInterface dpy_interface = {
     .base.type               = SPICE_INTERFACE_QXL,
     .base.description        = "qemu simple display",
@@ -544,6 +575,10 @@ static const QXLInterface dpy_interface = {
     .req_cursor_notification = interface_req_cursor_notification,
     .notify_update           = interface_notify_update,
     .flush_resources         = interface_flush_resources,
+    .async_complete          = interface_async_complete,
+    .update_area_complete    = interface_update_area_complete,
+    .set_client_capabilities = interface_set_client_capabilities,
+    .client_monitors_config  = interface_client_monitors_config,
 };
 
 static SimpleSpiceDisplay sdpy;

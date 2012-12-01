@@ -301,9 +301,9 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
     PCIBus *bus;
 
     bus = g_malloc0(sizeof(*bus));
-    bus->qbus.glib_allocated = true;
     pci_bus_new_inplace(bus, parent, name, address_space_mem,
                         address_space_io, devfn_min);
+    OBJECT(bus)->free = g_free;
     return bus;
 }
 
@@ -366,6 +366,10 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
     memcpy(s->config, config, size);
 
     pci_update_mappings(s);
+
+    memory_region_set_enabled(&s->bus_master_enable_region,
+                              pci_get_word(s->config + PCI_COMMAND)
+                              & PCI_COMMAND_MASTER);
 
     g_free(config);
     return 0;

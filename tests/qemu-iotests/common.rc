@@ -49,6 +49,9 @@ umask 022
 
 if [ "$IMGPROTO" = "file" ]; then
     TEST_IMG=$TEST_DIR/t.$IMGFMT
+elif [ "$IMGPROTO" = "nbd" ]; then
+    TEST_IMG_FILE=$TEST_DIR/t.$IMGFMT
+    TEST_IMG="nbd:127.0.0.1:10810"
 else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi
@@ -86,6 +89,13 @@ _make_test_img()
     local extra_img_options=""
     local image_size=$*
     local optstr=""
+    local img_name=""
+
+    if [ -n "$TEST_IMG_FILE" ]; then
+        img_name=$TEST_IMG_FILE
+    else
+        img_name=$TEST_IMG
+    fi
 
     if [ -n "$IMGOPTS" ]; then
         optstr=$(_optstr_add "$optstr" "$IMGOPTS")
@@ -104,7 +114,7 @@ _make_test_img()
     fi
 
     # XXX(hch): have global image options?
-    $QEMU_IMG create -f $IMGFMT $extra_img_options $TEST_IMG $image_size | \
+    $QEMU_IMG create -f $IMGFMT $extra_img_options $img_name $image_size | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
@@ -115,12 +125,23 @@ _make_test_img()
             -e "s# compat6=\\(on\\|off\\)##g" \
             -e "s# static=\\(on\\|off\\)##g" \
             -e "s# lazy_refcounts=\\(on\\|off\\)##g"
+
+    # Start an NBD server on the image file, which is what we'll be talking to
+    if [ $IMGPROTO = "nbd" ]; then
+        eval "$QEMU_NBD -v -t -b 127.0.0.1 -p 10810  $TEST_IMG_FILE &"
+        QEMU_NBD_PID=$!
+        sleep 1 # FIXME: qemu-nbd needs to be listening before we continue
+    fi
 }
 
 _cleanup_test_img()
 {
     case "$IMGPROTO" in
 
+        nbd)
+            kill $QEMU_NBD_PID
+            rm -f $TEST_IMG_FILE
+            ;;
         file)
             rm -f $TEST_DIR/t.$IMGFMT
             rm -f $TEST_DIR/t.$IMGFMT.orig

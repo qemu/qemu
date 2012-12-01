@@ -307,6 +307,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
+    object_ref(obj);
     QTAILQ_INIT(&obj->properties);
     object_init_with_type(obj, type);
 }
@@ -362,6 +363,9 @@ void object_unparent(Object *obj)
     if (obj->parent) {
         object_property_del_child(obj->parent, obj, NULL);
     }
+    if (obj->class->unparent) {
+        (obj->class->unparent)(obj);
+    }
 }
 
 static void object_deinit(Object *obj, TypeImpl *type)
@@ -375,7 +379,7 @@ static void object_deinit(Object *obj, TypeImpl *type)
     }
 }
 
-void object_finalize(void *data)
+static void object_finalize(void *data)
 {
     Object *obj = data;
     TypeImpl *ti = obj->class->type;
@@ -384,6 +388,9 @@ void object_finalize(void *data)
     object_property_del_all(obj);
 
     g_assert(obj->ref == 0);
+    if (obj->free) {
+        obj->free(obj);
+    }
 }
 
 Object *object_new_with_type(Type type)
@@ -395,7 +402,7 @@ Object *object_new_with_type(Type type)
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type);
-    object_ref(obj);
+    obj->free = g_free;
 
     return obj;
 }
@@ -412,12 +419,11 @@ void object_delete(Object *obj)
     object_unparent(obj);
     g_assert(obj->ref == 1);
     object_unref(obj);
-    g_free(obj);
 }
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
-    if (object_class_dynamic_cast(object_get_class(obj), typename)) {
+    if (obj && object_class_dynamic_cast(object_get_class(obj), typename)) {
         return obj;
     }
 
@@ -430,7 +436,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename)
 
     inst = object_dynamic_cast(obj, typename);
 
-    if (!inst) {
+    if (!inst && obj) {
         fprintf(stderr, "Object %p is not an instance of type %s\n",
                 obj, typename);
         abort();

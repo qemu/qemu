@@ -38,7 +38,9 @@ void arp_table_add(Slirp *slirp, uint32_t ip_addr, uint8_t ethaddr[ETH_ALEN])
                 ethaddr[3], ethaddr[4], ethaddr[5]));
 
     /* Check 0.0.0.0/8 invalid source-only addresses */
-    assert((ip_addr & htonl(~(0xf << 28))) != 0);
+    if ((ip_addr & htonl(~(0xf << 28))) == 0) {
+        return;
+    }
 
     if (ip_addr == 0xffffffff || ip_addr == broadcast_addr) {
         /* Do not register broadcast addresses */

@@ -1092,6 +1092,7 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
     BDRVVmdkState *s = bs->opaque;
     int ret;
     uint64_t n, index_in_cluster;
+    uint64_t extent_begin_sector, extent_relative_sector_num;
     VmdkExtent *extent = NULL;
     uint64_t cluster_offset;
 
@@ -1103,7 +1104,9 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
         ret = get_cluster_offset(
                             bs, extent, NULL,
                             sector_num << 9, 0, &cluster_offset);
-        index_in_cluster = sector_num % extent->cluster_sectors;
+        extent_begin_sector = extent->end_sector - extent->sectors;
+        extent_relative_sector_num = sector_num - extent_begin_sector;
+        index_in_cluster = extent_relative_sector_num % extent->cluster_sectors;
         n = extent->cluster_sectors - index_in_cluster;
         if (n > nb_sectors) {
             n = nb_sectors;
@@ -1154,6 +1157,7 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
     VmdkExtent *extent = NULL;
     int n, ret;
     int64_t index_in_cluster;
+    uint64_t extent_begin_sector, extent_relative_sector_num;
     uint64_t cluster_offset;
     VmdkMetaData m_data;
 
@@ -1196,7 +1200,9 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         if (ret) {
             return -EINVAL;
         }
-        index_in_cluster = sector_num % extent->cluster_sectors;
+        extent_begin_sector = extent->end_sector - extent->sectors;
+        extent_relative_sector_num = sector_num - extent_begin_sector;
+        index_in_cluster = extent_relative_sector_num % extent->cluster_sectors;
         n = extent->cluster_sectors - index_in_cluster;
         if (n > nb_sectors) {
             n = nb_sectors;

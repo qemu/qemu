@@ -3273,16 +3273,12 @@ int main(int argc, char **argv, char **envp)
                 break;
             }
             case QEMU_OPTION_usb:
-                machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-                if (machine_opts) {
-                    qemu_opt_set_bool(machine_opts, "usb", true);
-                }
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "usb=on", 0);
                 break;
             case QEMU_OPTION_usbdevice:
-                machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
-                if (machine_opts) {
-                    qemu_opt_set_bool(machine_opts, "usb", true);
-                }
+                olist = qemu_find_opts("machine");
+                qemu_opts_parse(olist, "usb=on", 0);
                 add_device_config(DEV_USB, optarg);
                 break;
             case QEMU_OPTION_device:

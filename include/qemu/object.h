@@ -230,6 +230,23 @@ typedef struct ObjectProperty
 } ObjectProperty;
 
 /**
+ * ObjectUnparent:
+ * @obj: the object that is being removed from the composition tree
+ *
+ * Called when an object is being removed from the QOM composition tree.
+ * The function should remove any backlinks from children objects to @obj.
+ */
+typedef void (ObjectUnparent)(Object *obj);
+
+/**
+ * ObjectFree:
+ * @obj: the object being freed
+ *
+ * Called when an object's last reference is removed.
+ */
+typedef void (ObjectFree)(void *obj);
+
+/**
  * ObjectClass:
  *
  * The base for all classes.  The only thing that #ObjectClass contains is an
@@ -240,6 +257,8 @@ struct ObjectClass
     /*< private >*/
     Type type;
     GSList *interfaces;
+
+    ObjectUnparent *unparent;
 };
 
 /**
@@ -261,6 +280,7 @@ struct Object
 {
     /*< private >*/
     ObjectClass *class;
+    ObjectFree *free;
     QTAILQ_HEAD(, ObjectProperty) properties;
     uint32_t ref;
     Object *parent;
@@ -483,15 +503,6 @@ void object_initialize_with_type(void *data, Type type);
  * have already been allocated.
  */
 void object_initialize(void *obj, const char *typename);
-
-/**
- * object_finalize:
- * @obj: The object to finalize.
- *
- * This function destroys and object without freeing the memory associated with
- * it.
- */
-void object_finalize(void *obj);
 
 /**
  * object_dynamic_cast:

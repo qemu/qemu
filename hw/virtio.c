@@ -336,7 +336,8 @@ static unsigned virtqueue_next_desc(hwaddr desc_pa,
 }
 
 void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
-                               unsigned int *out_bytes)
+                               unsigned int *out_bytes,
+                               unsigned max_in_bytes, unsigned max_out_bytes)
 {
     unsigned int idx;
     unsigned int total_bufs, in_total, out_total;
@@ -385,6 +386,9 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
             } else {
                 out_total += vring_desc_len(desc_pa, i);
             }
+            if (in_total >= max_in_bytes && out_total >= max_out_bytes) {
+                goto done;
+            }
         } while ((i = virtqueue_next_desc(desc_pa, i, max)) != max);
 
         if (!indirect)
@@ -392,6 +396,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
         else
             total_bufs++;
     }
+done:
     if (in_bytes) {
         *in_bytes = in_total;
     }
@@ -405,12 +410,8 @@ int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
 {
     unsigned int in_total, out_total;
 
-    virtqueue_get_avail_bytes(vq, &in_total, &out_total);
-    if ((in_bytes && in_bytes < in_total)
-        || (out_bytes && out_bytes < out_total)) {
-        return 1;
-    }
-    return 0;
+    virtqueue_get_avail_bytes(vq, &in_total, &out_total, in_bytes, out_bytes);
+    return in_bytes <= in_total && out_bytes <= out_total;
 }
 
 void virtqueue_map_sg(struct iovec *sg, hwaddr *addr,

@@ -206,33 +206,33 @@ Open drive @option{file} as read-only. Guest write attempts will fail.
 file sectors into the image file.
 @end table
 
-By default, writethrough caching is used for all block device.  This means that
-the host page cache will be used to read and write data but write notification
-will be sent to the guest only when the data has been reported as written by
-the storage subsystem.
+By default, the @option{cache=writeback} mode is used. It will report data
+writes as completed as soon as the data is present in the host page cache.
+This is safe as long as your guest OS makes sure to correctly flush disk caches
+where needed. If your guest OS does not handle volatile disk write caches
+correctly and your host crashes or loses power, then the guest may experience
+data corruption.
 
-Writeback caching will report data writes as completed as soon as the data is
-present in the host page cache.  This is safe as long as you trust your host.
-If your host crashes or loses power, then the guest may experience data
-corruption.
+For such guests, you should consider using @option{cache=writethrough}. This
+means that the host page cache will be used to read and write data, but write
+notification will be sent to the guest only after QEMU has made sure to flush
+each write to the disk. Be aware that this has a major impact on performance.
 
 The host page cache can be avoided entirely with @option{cache=none}.  This will
-attempt to do disk IO directly to the guests memory.  QEMU may still perform
-an internal copy of the data.
+attempt to do disk IO directly to the guest's memory.  QEMU may still perform
+an internal copy of the data. Note that this is considered a writeback mode and
+the guest OS must handle the disk write cache correctly in order to avoid data
+corruption on host crashes.
 
 The host page cache can be avoided while only sending write notifications to
-the guest when the data has been reported as written by the storage subsystem
-using @option{cache=directsync}.
-
-Some block drivers perform badly with @option{cache=writethrough}, most notably,
-qcow2.  If performance is more important than correctness,
-@option{cache=writeback} should be used with qcow2.
+the guest when the data has been flushed to the disk using
+@option{cache=directsync}.
 
 In case you don't care about data integrity over host failures, use
-cache=unsafe. This option tells QEMU that it never needs to write any data
-to the disk but can instead keeps things in cache. If anything goes wrong,
+@option{cache=unsafe}. This option tells QEMU that it never needs to write any
+data to the disk but can instead keep things in cache. If anything goes wrong,
 like your host losing power, the disk storage getting disconnected accidentally,
-etc. you're image will most probably be rendered unusable.   When using
+etc. your image will most probably be rendered unusable.   When using
 the @option{-snapshot} option, unsafe caching is always used.
 
 Copy-on-read avoids accessing the same backing file sectors repeatedly and is
@@ -1318,8 +1318,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
     "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=on|off]\n"
-    "         [,hostname=host][,dhcpstart=addr][,dns=addr][,tftp=dir][,bootfile=f]\n"
-    "         [,hostfwd=rule][,guestfwd=rule]"
+    "         [,hostname=host][,dhcpstart=addr][,dns=addr][,dnssearch=domain][,tftp=dir]\n"
+    "         [,bootfile=f][,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
                                              "[,smb=dir[,smbserver=addr]]\n"
 #endif
@@ -1428,7 +1428,7 @@ able to contact the host and no guest IP packets will be routed over the host
 to the outside. This option does not affect any explicitly set forwarding rules.
 
 @item hostname=@var{name}
-Specifies the client hostname reported by the builtin DHCP server.
+Specifies the client hostname reported by the built-in DHCP server.
 
 @item dhcpstart=@var{addr}
 Specify the first of the 16 IPs the built-in DHCP server can assign. Default
@@ -1438,6 +1438,18 @@ is the 15th to 31st IP in the guest network, i.e. x.x.x.15 to x.x.x.31.
 Specify the guest-visible address of the virtual nameserver. The address must
 be different from the host address. Default is the 3rd IP in the guest network,
 i.e. x.x.x.3.
+
+@item dnssearch=@var{domain}
+Provides an entry for the domain-search list sent by the built-in
+DHCP server. More than one domain suffix can be transmitted by specifying
+this option multiple times. If supported, this will cause the guest to
+automatically try to append the given domain suffix(es) in case a domain name
+can not be resolved.
+
+Example:
+@example
+qemu -net user,dnssearch=mgmt.example.org,dnssearch=example.org [...]
+@end example
 
 @item tftp=@var{dir}
 When using the user mode network stack, activate a built-in TFTP
@@ -2054,6 +2066,23 @@ qemu-system-i386 --drive file=sheepdog:192.0.2.1:30000:MyVirtualMachine
 
 See also @url{http://http://www.osrg.net/sheepdog/}.
 
+@item GlusterFS
+GlusterFS is an user space distributed file system.
+QEMU supports the use of GlusterFS volumes for hosting VM disk images using
+TCP, Unix Domain Sockets and RDMA transport protocols.
+
+Syntax for specifying a VM disk image on GlusterFS volume is
+@example
+gluster[+transport]://[server[:port]]/volname/image[?socket=...]
+@end example
+
+
+Example
+@example
+qemu-system-x86_84 --drive file=gluster://192.0.2.1/testvol/a.img
+@end example
+
+See also @url{http://www.gluster.org}.
 @end table
 ETEXI
 
@@ -2889,17 +2918,17 @@ Enable FIPS 140-2 compliance mode.
 ETEXI
 
 HXCOMM Deprecated by -machine accel=tcg property
-DEF("no-kvm", HAS_ARG, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
+DEF("no-kvm", 0, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
 
 HXCOMM Deprecated by kvm-pit driver properties
-DEF("no-kvm-pit-reinjection", HAS_ARG, QEMU_OPTION_no_kvm_pit_reinjection,
+DEF("no-kvm-pit-reinjection", 0, QEMU_OPTION_no_kvm_pit_reinjection,
     "", QEMU_ARCH_I386)
 
 HXCOMM Deprecated (ignored)
-DEF("no-kvm-pit", HAS_ARG, QEMU_OPTION_no_kvm_pit, "", QEMU_ARCH_I386)
+DEF("no-kvm-pit", 0, QEMU_OPTION_no_kvm_pit, "", QEMU_ARCH_I386)
 
 HXCOMM Deprecated by -machine kernel_irqchip=on|off property
-DEF("no-kvm-irqchip", HAS_ARG, QEMU_OPTION_no_kvm_irqchip, "", QEMU_ARCH_I386)
+DEF("no-kvm-irqchip", 0, QEMU_OPTION_no_kvm_irqchip, "", QEMU_ARCH_I386)
 
 HXCOMM Deprecated (ignored)
 DEF("tdf", 0, QEMU_OPTION_tdf,"", QEMU_ARCH_ALL)

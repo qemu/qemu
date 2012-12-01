@@ -1,5 +1,14 @@
 
-/* Common header file that is included by all of qemu.  */
+/* Common header file that is included by all of QEMU.
+ *
+ * This file is supposed to be included only by .c files. No header file should
+ * depend on qemu-common.h, as this would easily lead to circular header
+ * dependencies.
+ *
+ * If a header file uses a definition from qemu-common.h, that definition
+ * must be moved to a separate header file, and the header that uses it
+ * must include that header.
+ */
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
@@ -208,8 +217,6 @@ const char *path(const char *pathname);
 
 void *qemu_oom_check(void *ptr);
 
-int qemu_open(const char *name, int flags, ...);
-int qemu_close(int fd);
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;
 ssize_t qemu_send_full(int fd, const void *buf, size_t count, int flags)
@@ -283,7 +290,6 @@ typedef struct PCIEPort PCIEPort;
 typedef struct PCIESlot PCIESlot;
 typedef struct MSIMessage MSIMessage;
 typedef struct SerialState SerialState;
-typedef struct IRQState *qemu_irq;
 typedef struct PCMCIACardState PCMCIACardState;
 typedef struct MouseTransformInfo MouseTransformInfo;
 typedef struct uWireSlave uWireSlave;

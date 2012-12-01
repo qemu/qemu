@@ -61,10 +61,10 @@ struct RngBackend
  * This function is used by the front-end to request entropy from an entropy
  * source.  This function can be called multiple times before @receive_entropy
  * is invoked with different values of @receive_entropy and @opaque.  The
- * backend will queue each request and handle appropriate.
+ * backend will queue each request and handle appropriately.
  *
  * The backend does not need to pass the full amount of data to @receive_entropy
- * but will pass at a value greater than 0.
+ * but will pass a value greater than 0.
  */
 void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,
@@ -87,7 +87,7 @@ void rng_backend_cancel_requests(RngBackend *s);
  *
  * This function will open the backend if it is not already open.  Calling this
  * function on an already opened backend will not result in an error.
- */ 
+ */
 void rng_backend_open(RngBackend *s, Error **errp);
 
 #endif
