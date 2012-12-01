@@ -71,17 +71,19 @@ struct booke_timer_t {
     uint32_t flags;
 };
 
-static void booke_update_irq(CPUPPCState *env)
+static void booke_update_irq(PowerPCCPU *cpu)
 {
-    ppc_set_irq(env, PPC_INTERRUPT_DECR,
+    CPUPPCState *env = &cpu->env;
+
+    ppc_set_irq(cpu, PPC_INTERRUPT_DECR,
                 (env->spr[SPR_BOOKE_TSR] & TSR_DIS
                  && env->spr[SPR_BOOKE_TCR] & TCR_DIE));
 
-    ppc_set_irq(env, PPC_INTERRUPT_WDT,
+    ppc_set_irq(cpu, PPC_INTERRUPT_WDT,
                 (env->spr[SPR_BOOKE_TSR] & TSR_WIS
                  && env->spr[SPR_BOOKE_TCR] & TCR_WIE));
 
-    ppc_set_irq(env, PPC_INTERRUPT_FIT,
+    ppc_set_irq(cpu, PPC_INTERRUPT_FIT,
                 (env->spr[SPR_BOOKE_TSR] & TSR_FIS
                  && env->spr[SPR_BOOKE_TCR] & TCR_FIE));
 }
@@ -154,9 +156,10 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
 static void booke_decr_cb(void *opaque)
 {
     CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
 
     env->spr[SPR_BOOKE_TSR] |= TSR_DIS;
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     if (env->spr[SPR_BOOKE_TCR] & TCR_ARE) {
         /* Auto Reload */
@@ -166,16 +169,18 @@ static void booke_decr_cb(void *opaque)
 
 static void booke_fit_cb(void *opaque)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
     env = opaque;
+    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     booke_timer = tb_env->opaque;
     env->spr[SPR_BOOKE_TSR] |= TSR_FIS;
 
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     booke_update_fixed_timer(env,
                              booke_get_fit_target(env, tb_env),
@@ -185,17 +190,19 @@ static void booke_fit_cb(void *opaque)
 
 static void booke_wdt_cb(void *opaque)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
     env = opaque;
+    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     booke_timer = tb_env->opaque;
 
     /* TODO: There's lots of complicated stuff to do here */
 
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     booke_update_fixed_timer(env,
                              booke_get_wdt_target(env, tb_env),
@@ -205,19 +212,22 @@ static void booke_wdt_cb(void *opaque)
 
 void store_booke_tsr(CPUPPCState *env, target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     env->spr[SPR_BOOKE_TSR] &= ~val;
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 }
 
 void store_booke_tcr(CPUPPCState *env, target_ulong val)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_tb_t *tb_env = env->tb_env;
     booke_timer_t *booke_timer = tb_env->opaque;
 
     tb_env = env->tb_env;
     env->spr[SPR_BOOKE_TCR] = val;
 
-    booke_update_irq(env);
+    booke_update_irq(cpu);
 
     booke_update_fixed_timer(env,
                              booke_get_fit_target(env, tb_env),

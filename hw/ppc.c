@@ -50,8 +50,9 @@
 static void cpu_ppc_tb_stop (CPUPPCState *env);
 static void cpu_ppc_tb_start (CPUPPCState *env);
 
-void ppc_set_irq(CPUPPCState *env, int n_IRQ, int level)
+void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level)
 {
+    CPUPPCState *env = &cpu->env;
     unsigned int old_pending = env->pending_interrupts;
 
     if (level) {
@@ -65,7 +66,7 @@ void ppc_set_irq(CPUPPCState *env, int n_IRQ, int level)
 
     if (old_pending != env->pending_interrupts) {
 #ifdef CONFIG_KVM
-        kvmppc_set_interrupt(ppc_env_get_cpu(env), n_IRQ, level);
+        kvmppc_set_interrupt(cpu, n_IRQ, level);
 #endif
     }
 
@@ -100,13 +101,13 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the external IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
             break;
         case PPC6xx_INPUT_SMI:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the SMI IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_SMI, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_SMI, level);
             break;
         case PPC6xx_INPUT_MCP:
             /* Negative edge sensitive */
@@ -116,7 +117,7 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
             if (cur_level == 1 && level == 0) {
                 LOG_IRQ("%s: raise machine check state\n",
                             __func__);
-                ppc_set_irq(env, PPC_INTERRUPT_MCK, 1);
+                ppc_set_irq(cpu, PPC_INTERRUPT_MCK, 1);
             }
             break;
         case PPC6xx_INPUT_CKSTP_IN:
@@ -138,7 +139,7 @@ static void ppc6xx_set_irq(void *opaque, int pin, int level)
         case PPC6xx_INPUT_SRESET:
             LOG_IRQ("%s: set the RESET IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_RESET, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_RESET, level);
             break;
         default:
             /* Unknown pin - do nothing */
@@ -178,13 +179,13 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the external IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
             break;
         case PPC970_INPUT_THINT:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the SMI IRQ state to %d\n", __func__,
                         level);
-            ppc_set_irq(env, PPC_INTERRUPT_THERM, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_THERM, level);
             break;
         case PPC970_INPUT_MCP:
             /* Negative edge sensitive */
@@ -194,7 +195,7 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
             if (cur_level == 1 && level == 0) {
                 LOG_IRQ("%s: raise machine check state\n",
                             __func__);
-                ppc_set_irq(env, PPC_INTERRUPT_MCK, 1);
+                ppc_set_irq(cpu, PPC_INTERRUPT_MCK, 1);
             }
             break;
         case PPC970_INPUT_CKSTP:
@@ -218,7 +219,7 @@ static void ppc970_set_irq(void *opaque, int pin, int level)
         case PPC970_INPUT_SRESET:
             LOG_IRQ("%s: set the RESET IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_RESET, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_RESET, level);
             break;
         case PPC970_INPUT_TBEN:
             LOG_IRQ("%s: set the TBEN state to %d\n", __func__,
@@ -259,7 +260,7 @@ static void power7_set_irq(void *opaque, int pin, int level)
         /* Level sensitive - active high */
         LOG_IRQ("%s: set the external IRQ state to %d\n",
                 __func__, level);
-        ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+        ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
         break;
     default:
         /* Unknown pin - do nothing */
@@ -319,13 +320,13 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the critical IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_CEXT, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_CEXT, level);
             break;
         case PPC40x_INPUT_INT:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the external IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
             break;
         case PPC40x_INPUT_HALT:
             /* Level sensitive - active low */
@@ -342,7 +343,7 @@ static void ppc40x_set_irq(void *opaque, int pin, int level)
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the debug pin state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_DEBUG, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_DEBUG, level);
             break;
         default:
             /* Unknown pin - do nothing */
@@ -387,26 +388,26 @@ static void ppce500_set_irq(void *opaque, int pin, int level)
         case PPCE500_INPUT_RESET_CORE:
             if (level) {
                 LOG_IRQ("%s: reset the PowerPC core\n", __func__);
-                ppc_set_irq(env, PPC_INTERRUPT_MCK, level);
+                ppc_set_irq(cpu, PPC_INTERRUPT_MCK, level);
             }
             break;
         case PPCE500_INPUT_CINT:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the critical IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_CEXT, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_CEXT, level);
             break;
         case PPCE500_INPUT_INT:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the core IRQ state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_EXT, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_EXT, level);
             break;
         case PPCE500_INPUT_DEBUG:
             /* Level sensitive - active high */
             LOG_IRQ("%s: set the debug pin state to %d\n",
                         __func__, level);
-            ppc_set_irq(env, PPC_INTERRUPT_DEBUG, level);
+            ppc_set_irq(cpu, PPC_INTERRUPT_DEBUG, level);
             break;
         default:
             /* Unknown pin - do nothing */
@@ -645,16 +646,20 @@ uint64_t cpu_ppc_load_purr (CPUPPCState *env)
  */
 static inline void cpu_ppc_decr_excp(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
-    ppc_set_irq(env, PPC_INTERRUPT_DECR, 1);
+    ppc_set_irq(cpu, PPC_INTERRUPT_DECR, 1);
 }
 
 static inline void cpu_ppc_hdecr_excp(CPUPPCState *env)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
-    ppc_set_irq(env, PPC_INTERRUPT_HDECR, 1);
+    ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 1);
 }
 
 static void __cpu_ppc_store_decr (CPUPPCState *env, uint64_t *nextp,
@@ -829,12 +834,14 @@ struct ppc40x_timer_t {
 /* Fixed interval timer */
 static void cpu_4xx_fit_cb (void *opaque)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
     env = opaque;
+    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     now = qemu_get_clock_ns(vm_clock);
@@ -860,8 +867,9 @@ static void cpu_4xx_fit_cb (void *opaque)
         next++;
     qemu_mod_timer(ppc40x_timer->fit_timer, next);
     env->spr[SPR_40x_TSR] |= 1 << 26;
-    if ((env->spr[SPR_40x_TCR] >> 23) & 0x1)
-        ppc_set_irq(env, PPC_INTERRUPT_FIT, 1);
+    if ((env->spr[SPR_40x_TCR] >> 23) & 0x1) {
+        ppc_set_irq(cpu, PPC_INTERRUPT_FIT, 1);
+    }
     LOG_TB("%s: ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx "\n", __func__,
            (int)((env->spr[SPR_40x_TCR] >> 23) & 0x1),
            env->spr[SPR_40x_TCR], env->spr[SPR_40x_TSR]);
@@ -897,16 +905,19 @@ static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
 
 static void cpu_4xx_pit_cb (void *opaque)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
 
     env = opaque;
+    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     env->spr[SPR_40x_TSR] |= 1 << 27;
-    if ((env->spr[SPR_40x_TCR] >> 26) & 0x1)
-        ppc_set_irq(env, ppc40x_timer->decr_excp, 1);
+    if ((env->spr[SPR_40x_TCR] >> 26) & 0x1) {
+        ppc_set_irq(cpu, ppc40x_timer->decr_excp, 1);
+    }
     start_stop_pit(env, tb_env, 1);
     LOG_TB("%s: ar %d ir %d TCR " TARGET_FMT_lx " TSR " TARGET_FMT_lx " "
            "%016" PRIx64 "\n", __func__,
@@ -919,12 +930,14 @@ static void cpu_4xx_pit_cb (void *opaque)
 /* Watchdog timer */
 static void cpu_4xx_wdt_cb (void *opaque)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
 
     env = opaque;
+    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     ppc40x_timer = tb_env->opaque;
     now = qemu_get_clock_ns(vm_clock);
@@ -961,8 +974,9 @@ static void cpu_4xx_wdt_cb (void *opaque)
         qemu_mod_timer(ppc40x_timer->wdt_timer, next);
         ppc40x_timer->wdt_next = next;
         env->spr[SPR_40x_TSR] |= 1 << 30;
-        if ((env->spr[SPR_40x_TCR] >> 27) & 0x1)
-            ppc_set_irq(env, PPC_INTERRUPT_WDT, 1);
+        if ((env->spr[SPR_40x_TCR] >> 27) & 0x1) {
+            ppc_set_irq(cpu, PPC_INTERRUPT_WDT, 1);
+        }
         break;
     case 0x3:
         env->spr[SPR_40x_TSR] &= ~0x30000000;

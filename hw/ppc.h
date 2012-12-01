@@ -1,4 +1,4 @@
-void ppc_set_irq (CPUPPCState *env, int n_IRQ, int level);
+void ppc_set_irq(PowerPCCPU *cpu, int n_IRQ, int level);
 
 /* PowerPC hardware exceptions management helpers */
 typedef void (*clk_setup_cb)(void *opaque, uint32_t freq);
