@@ -644,30 +644,27 @@ uint64_t cpu_ppc_load_purr (CPUPPCState *env)
 /* When decrementer expires,
  * all we need to do is generate or queue a CPU exception
  */
-static inline void cpu_ppc_decr_excp(CPUPPCState *env)
+static inline void cpu_ppc_decr_excp(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
     ppc_set_irq(cpu, PPC_INTERRUPT_DECR, 1);
 }
 
-static inline void cpu_ppc_hdecr_excp(CPUPPCState *env)
+static inline void cpu_ppc_hdecr_excp(PowerPCCPU *cpu)
 {
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
-
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
     ppc_set_irq(cpu, PPC_INTERRUPT_HDECR, 1);
 }
 
-static void __cpu_ppc_store_decr (CPUPPCState *env, uint64_t *nextp,
-                                  struct QEMUTimer *timer,
-                                  void (*raise_excp)(CPUPPCState *),
-                                  uint32_t decr, uint32_t value,
-                                  int is_excp)
+static void __cpu_ppc_store_decr(PowerPCCPU *cpu, uint64_t *nextp,
+                                 struct QEMUTimer *timer,
+                                 void (*raise_excp)(PowerPCCPU *),
+                                 uint32_t decr, uint32_t value,
+                                 int is_excp)
 {
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t now, next;
 
@@ -697,53 +694,61 @@ static void __cpu_ppc_store_decr (CPUPPCState *env, uint64_t *nextp,
     if ((tb_env->flags & PPC_DECR_UNDERFLOW_TRIGGERED)
         && (value & 0x80000000)
         && !(decr & 0x80000000)) {
-        (*raise_excp)(env);
+        (*raise_excp)(cpu);
     }
 }
 
-static inline void _cpu_ppc_store_decr(CPUPPCState *env, uint32_t decr,
+static inline void _cpu_ppc_store_decr(PowerPCCPU *cpu, uint32_t decr,
                                        uint32_t value, int is_excp)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    ppc_tb_t *tb_env = cpu->env.tb_env;
 
-    __cpu_ppc_store_decr(env, &tb_env->decr_next, tb_env->decr_timer,
+    __cpu_ppc_store_decr(cpu, &tb_env->decr_next, tb_env->decr_timer,
                          &cpu_ppc_decr_excp, decr, value, is_excp);
 }
 
 void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value)
 {
-    _cpu_ppc_store_decr(env, cpu_ppc_load_decr(env), value, 0);
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    _cpu_ppc_store_decr(cpu, cpu_ppc_load_decr(env), value, 0);
 }
 
 static void cpu_ppc_decr_cb (void *opaque)
 {
-    _cpu_ppc_store_decr(opaque, 0x00000000, 0xFFFFFFFF, 1);
+    CPUPPCState *env = opaque;
+
+    _cpu_ppc_store_decr(ppc_env_get_cpu(env), 0x00000000, 0xFFFFFFFF, 1);
 }
 
-static inline void _cpu_ppc_store_hdecr(CPUPPCState *env, uint32_t hdecr,
+static inline void _cpu_ppc_store_hdecr(PowerPCCPU *cpu, uint32_t hdecr,
                                         uint32_t value, int is_excp)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    ppc_tb_t *tb_env = cpu->env.tb_env;
 
     if (tb_env->hdecr_timer != NULL) {
-        __cpu_ppc_store_decr(env, &tb_env->hdecr_next, tb_env->hdecr_timer,
+        __cpu_ppc_store_decr(cpu, &tb_env->hdecr_next, tb_env->hdecr_timer,
                              &cpu_ppc_hdecr_excp, hdecr, value, is_excp);
     }
 }
 
 void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value)
 {
-    _cpu_ppc_store_hdecr(env, cpu_ppc_load_hdecr(env), value, 0);
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+
+    _cpu_ppc_store_hdecr(cpu, cpu_ppc_load_hdecr(env), value, 0);
 }
 
 static void cpu_ppc_hdecr_cb (void *opaque)
 {
-    _cpu_ppc_store_hdecr(opaque, 0x00000000, 0xFFFFFFFF, 1);
+    CPUPPCState *env = opaque;
+
+    _cpu_ppc_store_hdecr(ppc_env_get_cpu(env), 0x00000000, 0xFFFFFFFF, 1);
 }
 
-static void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
+static void cpu_ppc_store_purr(PowerPCCPU *cpu, uint64_t value)
 {
-    ppc_tb_t *tb_env = env->tb_env;
+    ppc_tb_t *tb_env = cpu->env.tb_env;
 
     tb_env->purr_load = value;
     tb_env->purr_start = qemu_get_clock_ns(vm_clock);
@@ -752,6 +757,7 @@ static void cpu_ppc_store_purr(CPUPPCState *env, uint64_t value)
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 {
     CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_tb_t *tb_env = env->tb_env;
 
     tb_env->tb_freq = freq;
@@ -760,9 +766,9 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
      * if a decrementer exception is pending when it enables msr_ee at startup,
      * it's not ready to handle it...
      */
-    _cpu_ppc_store_decr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
-    _cpu_ppc_store_hdecr(env, 0xFFFFFFFF, 0xFFFFFFFF, 0);
-    cpu_ppc_store_purr(env, 0x0000000000000000ULL);
+    _cpu_ppc_store_decr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+    _cpu_ppc_store_hdecr(cpu, 0xFFFFFFFF, 0xFFFFFFFF, 0);
+    cpu_ppc_store_purr(cpu, 0x0000000000000000ULL);
 }
 
 /* Set up (once) timebase frequency (in Hz) */
