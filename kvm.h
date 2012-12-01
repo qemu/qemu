@@ -207,10 +207,10 @@ struct kvm_sw_breakpoint {
 
 QTAILQ_HEAD(kvm_sw_breakpoint_head, kvm_sw_breakpoint);
 
-struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUArchState *env,
+struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
                                                  target_ulong pc);
 
-int kvm_sw_breakpoints_active(CPUArchState *env);
+int kvm_sw_breakpoints_active(CPUState *cpu);
 
 int kvm_arch_insert_sw_breakpoint(CPUState *current_cpu,
                                   struct kvm_sw_breakpoint *bp);

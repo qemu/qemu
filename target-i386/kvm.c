@@ -316,7 +316,7 @@ int kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
     if ((env->mcg_cap & MCG_SER_P) && addr
         && (code == BUS_MCEERR_AR || code == BUS_MCEERR_AO)) {
         if (qemu_ram_addr_from_host(addr, &ram_addr) ||
-            !kvm_physical_memory_addr_from_host(env->kvm_state, addr, &paddr)) {
+            !kvm_physical_memory_addr_from_host(c->kvm_state, addr, &paddr)) {
             fprintf(stderr, "Hardware memory error for memory used by "
                     "QEMU itself instead of guest system!\n");
             /* Hope we are lucky for AO MCE */
@@ -348,8 +348,8 @@ int kvm_arch_on_sigbus(int code, void *addr)
 
         /* Hope we are lucky for AO MCE */
         if (qemu_ram_addr_from_host(addr, &ram_addr) ||
-            !kvm_physical_memory_addr_from_host(first_cpu->kvm_state, addr,
-                                                &paddr)) {
+            !kvm_physical_memory_addr_from_host(CPU(first_cpu)->kvm_state,
+                                                addr, &paddr)) {
             fprintf(stderr, "Hardware memory error for memory used by "
                     "QEMU itself instead of guest system!: %p\n", addr);
             return 0;
@@ -579,12 +579,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (((env->cpuid_version >> 8)&0xF) >= 6
         && (env->cpuid_features&(CPUID_MCE|CPUID_MCA)) == (CPUID_MCE|CPUID_MCA)
-        && kvm_check_extension(env->kvm_state, KVM_CAP_MCE) > 0) {
+        && kvm_check_extension(cs->kvm_state, KVM_CAP_MCE) > 0) {
         uint64_t mcg_cap;
         int banks;
         int ret;
 
-        ret = kvm_get_mce_cap_supported(env->kvm_state, &mcg_cap, &banks);
+        ret = kvm_get_mce_cap_supported(cs->kvm_state, &mcg_cap, &banks);
         if (ret < 0) {
             fprintf(stderr, "kvm_get_mce_cap_supported: %s", strerror(-ret));
             return ret;
@@ -612,7 +612,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return r;
     }
 
-    r = kvm_check_extension(env->kvm_state, KVM_CAP_TSC_CONTROL);
+    r = kvm_check_extension(cs->kvm_state, KVM_CAP_TSC_CONTROL);
     if (r && env->tsc_khz) {
         r = kvm_vcpu_ioctl(cs, KVM_SET_TSC_KHZ, env->tsc_khz);
         if (r < 0) {
@@ -1977,9 +1977,10 @@ void kvm_arch_remove_all_hw_breakpoints(void)
 
 static CPUWatchpoint hw_watchpoint;
 
-static int kvm_handle_debug(CPUX86State *env,
+static int kvm_handle_debug(X86CPU *cpu,
                             struct kvm_debug_exit_arch *arch_info)
 {
+    CPUX86State *env = &cpu->env;
     int ret = 0;
     int n;
 
@@ -2011,7 +2012,7 @@ static int kvm_handle_debug(CPUX86State *env,
                 }
             }
         }
-    } else if (kvm_find_sw_breakpoint(env, arch_info->pc)) {
+    } else if (kvm_find_sw_breakpoint(CPU(cpu), arch_info->pc)) {
         ret = EXCP_DEBUG;
     }
     if (ret == 0) {
@@ -2028,7 +2029,6 @@ static int kvm_handle_debug(CPUX86State *env,
 
 void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
 {
-    CPUX86State *env = &X86_CPU(cpu)->env;
     const uint8_t type_code[] = {
         [GDB_BREAKPOINT_HW] = 0x0,
         [GDB_WATCHPOINT_WRITE] = 0x1,
@@ -2039,7 +2039,7 @@ void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg)
     };
     int n;
 
-    if (kvm_sw_breakpoints_active(env)) {
+    if (kvm_sw_breakpoints_active(cpu)) {
         dbg->control |= KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
     }
     if (nb_hw_breakpoint > 0) {
@@ -2106,7 +2106,7 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         break;
     case KVM_EXIT_DEBUG:
         DPRINTF("kvm_exit_debug\n");
-        ret = kvm_handle_debug(env, &run->debug.arch);
+        ret = kvm_handle_debug(cpu, &run->debug.arch);
         break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);

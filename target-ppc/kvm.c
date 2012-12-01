@@ -140,7 +140,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     int ret, i;
 
     if (!kvm_enabled() ||
-        !kvm_check_extension(env->kvm_state, KVM_CAP_SW_TLB)) {
+        !kvm_check_extension(cs->kvm_state, KVM_CAP_SW_TLB)) {
         return 0;
     }
 
@@ -178,9 +178,12 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 
 
 #if defined(TARGET_PPC64)
-static void kvm_get_fallback_smmu_info(CPUPPCState *env,
+static void kvm_get_fallback_smmu_info(PowerPCCPU *cpu,
                                        struct kvm_ppc_smmu_info *info)
 {
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
     memset(info, 0, sizeof(*info));
 
     /* We don't have the new KVM_PPC_GET_SMMU_INFO ioctl, so
@@ -206,7 +209,7 @@ static void kvm_get_fallback_smmu_info(CPUPPCState *env,
      *   implements KVM_CAP_PPC_GET_SMMU_INFO and thus doesn't hit
      *   this fallback.
      */
-    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
+    if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO)) {
         /* No flags */
         info->flags = 0;
         info->slb_size = 64;
@@ -262,18 +265,19 @@ static void kvm_get_fallback_smmu_info(CPUPPCState *env,
     }
 }
 
-static void kvm_get_smmu_info(CPUPPCState *env, struct kvm_ppc_smmu_info *info)
+static void kvm_get_smmu_info(PowerPCCPU *cpu, struct kvm_ppc_smmu_info *info)
 {
+    CPUState *cs = CPU(cpu);
     int ret;
 
-    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
-        ret = kvm_vm_ioctl(env->kvm_state, KVM_PPC_GET_SMMU_INFO, info);
+    if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
+        ret = kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_SMMU_INFO, info);
         if (ret == 0) {
             return;
         }
     }
 
-    kvm_get_fallback_smmu_info(env, info);
+    kvm_get_fallback_smmu_info(cpu, info);
 }
 
 static long getrampagesize(void)
@@ -316,10 +320,11 @@ static bool kvm_valid_page_size(uint32_t flags, long rampgsize, uint32_t shift)
     return (1ul << shift) <= rampgsize;
 }
 
-static void kvm_fixup_page_sizes(CPUPPCState *env)
+static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
     static struct kvm_ppc_smmu_info smmu_info;
     static bool has_smmu_info;
+    CPUPPCState *env = &cpu->env;
     long rampagesize;
     int iq, ik, jq, jk;
 
@@ -330,7 +335,7 @@ static void kvm_fixup_page_sizes(CPUPPCState *env)
 
     /* Collect MMU info from kernel if not already */
     if (!has_smmu_info) {
-        kvm_get_smmu_info(env, &smmu_info);
+        kvm_get_smmu_info(cpu, &smmu_info);
         has_smmu_info = true;
     }
 
@@ -373,7 +378,7 @@ static void kvm_fixup_page_sizes(CPUPPCState *env)
 }
 #else /* defined (TARGET_PPC64) */
 
-static inline void kvm_fixup_page_sizes(CPUPPCState *env)
+static inline void kvm_fixup_page_sizes(PowerPCCPU *cpu)
 {
 }
 
@@ -386,7 +391,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     int ret;
 
     /* Gather server mmu info from KVM and update the CPU state */
-    kvm_fixup_page_sizes(cenv);
+    kvm_fixup_page_sizes(cpu);
 
     /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cpu);
@@ -986,12 +991,14 @@ uint32_t kvmppc_get_dfp(void)
 
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     uint32_t *hc = (uint32_t*)buf;
 
     struct kvm_ppc_pvinfo pvinfo;
 
-    if (kvm_check_extension(env->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
-        !kvm_vm_ioctl(env->kvm_state, KVM_PPC_GET_PVINFO, &pvinfo)) {
+    if (kvm_check_extension(cs->kvm_state, KVM_CAP_PPC_GET_PVINFO) &&
+        !kvm_vm_ioctl(cs->kvm_state, KVM_PPC_GET_PVINFO, &pvinfo)) {
         memcpy(buf, pvinfo.hcall, buf_len);
 
         return 0;

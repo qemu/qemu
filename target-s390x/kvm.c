@@ -291,12 +291,11 @@ int kvm_arch_process_async_events(CPUState *cs)
 void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
                                  uint64_t parm64, int vm)
 {
-    CPUS390XState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
     struct kvm_s390_interrupt kvmint;
     int r;
 
-    if (!env->kvm_state) {
+    if (!cs->kvm_state) {
         return;
     }
 
@@ -305,7 +304,7 @@ void kvm_s390_interrupt_internal(S390CPU *cpu, int type, uint32_t parm,
     kvmint.parm64 = parm64;
 
     if (vm) {
-        r = kvm_vm_ioctl(env->kvm_state, KVM_S390_INTERRUPT, &kvmint);
+        r = kvm_vm_ioctl(cs->kvm_state, KVM_S390_INTERRUPT, &kvmint);
     } else {
         r = kvm_vcpu_ioctl(cs, KVM_S390_INTERRUPT, &kvmint);
     }

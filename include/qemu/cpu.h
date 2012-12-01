@@ -52,6 +52,8 @@ typedef struct CPUClass {
     void (*reset)(CPUState *cpu);
 } CPUClass;
 
+struct KVMState;
+
 /**
  * CPUState:
  * @created: Indicates whether the CPU thread has been successfully created.
@@ -82,6 +84,7 @@ struct CPUState {
     int kvm_fd;
     bool kvm_vcpu_dirty;
 #endif
+    struct KVMState *kvm_state;
 
     /* TODO Move common fields from CPUArchState here. */
 };
