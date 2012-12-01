@@ -714,11 +714,11 @@ void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value)
     _cpu_ppc_store_decr(cpu, cpu_ppc_load_decr(env), value, 0);
 }
 
-static void cpu_ppc_decr_cb (void *opaque)
+static void cpu_ppc_decr_cb(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
 
-    _cpu_ppc_store_decr(ppc_env_get_cpu(env), 0x00000000, 0xFFFFFFFF, 1);
+    _cpu_ppc_store_decr(cpu, 0x00000000, 0xFFFFFFFF, 1);
 }
 
 static inline void _cpu_ppc_store_hdecr(PowerPCCPU *cpu, uint32_t hdecr,
@@ -739,11 +739,11 @@ void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value)
     _cpu_ppc_store_hdecr(cpu, cpu_ppc_load_hdecr(env), value, 0);
 }
 
-static void cpu_ppc_hdecr_cb (void *opaque)
+static void cpu_ppc_hdecr_cb(void *opaque)
 {
-    CPUPPCState *env = opaque;
+    PowerPCCPU *cpu = opaque;
 
-    _cpu_ppc_store_hdecr(ppc_env_get_cpu(env), 0x00000000, 0xFFFFFFFF, 1);
+    _cpu_ppc_store_hdecr(cpu, 0x00000000, 0xFFFFFFFF, 1);
 }
 
 static void cpu_ppc_store_purr(PowerPCCPU *cpu, uint64_t value)
@@ -774,17 +774,19 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 /* Set up (once) timebase frequency (in Hz) */
 clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_tb_t *tb_env;
 
     tb_env = g_malloc0(sizeof(ppc_tb_t));
     env->tb_env = tb_env;
     tb_env->flags = PPC_DECR_UNDERFLOW_TRIGGERED;
     /* Create new timer */
-    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &cpu_ppc_decr_cb, env);
+    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &cpu_ppc_decr_cb, cpu);
     if (0) {
         /* XXX: find a suitable condition to enable the hypervisor decrementer
          */
-        tb_env->hdecr_timer = qemu_new_timer_ns(vm_clock, &cpu_ppc_hdecr_cb, env);
+        tb_env->hdecr_timer = qemu_new_timer_ns(vm_clock, &cpu_ppc_hdecr_cb,
+                                                cpu);
     } else {
         tb_env->hdecr_timer = NULL;
     }
