@@ -28,9 +28,9 @@
 #include "pci.h"
 
 /* PowerPC 4xx core initialization */
-CPUPPCState *ppc4xx_init (const char *cpu_model,
-                       clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
-                       uint32_t sysclk);
+PowerPCCPU *ppc4xx_init(const char *cpu_model,
+                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
+                        uint32_t sysclk);
 
 /* PowerPC 4xx universal interrupt controller */
 enum {
