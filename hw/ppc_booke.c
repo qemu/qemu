@@ -155,8 +155,8 @@ static void booke_update_fixed_timer(CPUPPCState         *env,
 
 static void booke_decr_cb(void *opaque)
 {
-    CPUPPCState *env = opaque;
-    PowerPCCPU *cpu = ppc_env_get_cpu(env);
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_BOOKE_TSR] |= TSR_DIS;
     booke_update_irq(cpu);
@@ -169,13 +169,11 @@ static void booke_decr_cb(void *opaque)
 
 static void booke_fit_cb(void *opaque)
 {
-    PowerPCCPU *cpu;
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
-    env = opaque;
-    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     booke_timer = tb_env->opaque;
     env->spr[SPR_BOOKE_TSR] |= TSR_FIS;
@@ -190,13 +188,11 @@ static void booke_fit_cb(void *opaque)
 
 static void booke_wdt_cb(void *opaque)
 {
-    PowerPCCPU *cpu;
-    CPUPPCState *env;
+    PowerPCCPU *cpu = opaque;
+    CPUPPCState *env = &cpu->env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
-    env = opaque;
-    cpu = ppc_env_get_cpu(env);
     tb_env = env->tb_env;
     booke_timer = tb_env->opaque;
 
@@ -243,6 +239,7 @@ void store_booke_tcr(CPUPPCState *env, target_ulong val)
 
 void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
@@ -255,10 +252,10 @@ void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags)
     tb_env->tb_freq    = freq;
     tb_env->decr_freq  = freq;
     tb_env->opaque     = booke_timer;
-    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &booke_decr_cb, env);
+    tb_env->decr_timer = qemu_new_timer_ns(vm_clock, &booke_decr_cb, cpu);
 
     booke_timer->fit_timer =
-        qemu_new_timer_ns(vm_clock, &booke_fit_cb, env);
+        qemu_new_timer_ns(vm_clock, &booke_fit_cb, cpu);
     booke_timer->wdt_timer =
-        qemu_new_timer_ns(vm_clock, &booke_wdt_cb, env);
+        qemu_new_timer_ns(vm_clock, &booke_wdt_cb, cpu);
 }
