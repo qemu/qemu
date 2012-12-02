@@ -79,6 +79,7 @@
 
 #define SMC_BITMAP_USE_THRESHOLD 10
 
+/* Code generation and translation blocks */
 static TranslationBlock *tbs;
 static int code_gen_max_blocks;
 TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
@@ -207,21 +208,20 @@ static inline void map_exec(void *addr, long size)
     DWORD old_protect;
     VirtualProtect(addr, size,
                    PAGE_EXECUTE_READWRITE, &old_protect);
-    
 }
 #else
 static inline void map_exec(void *addr, long size)
 {
     unsigned long start, end, page_size;
-    
+
     page_size = getpagesize();
     start = (unsigned long)addr;
     start &= ~(page_size - 1);
-    
+
     end = (unsigned long)addr + size;
     end += page_size - 1;
     end &= ~(page_size - 1);
-    
+
     mprotect((void *)start, end - start,
              PROT_READ | PROT_WRITE | PROT_EXEC);
 }
@@ -241,10 +241,12 @@ static void page_init(void)
 #else
     qemu_real_host_page_size = getpagesize();
 #endif
-    if (qemu_host_page_size == 0)
+    if (qemu_host_page_size == 0) {
         qemu_host_page_size = qemu_real_host_page_size;
-    if (qemu_host_page_size < TARGET_PAGE_SIZE)
+    }
+    if (qemu_host_page_size < TARGET_PAGE_SIZE) {
         qemu_host_page_size = TARGET_PAGE_SIZE;
+    }
     qemu_host_page_mask = ~(qemu_host_page_size - 1);
 
 #if defined(CONFIG_BSD) && defined(CONFIG_USER_ONLY)
@@ -291,7 +293,7 @@ static void page_init(void)
                 unsigned long startaddr, endaddr;
                 int n;
 
-                n = fscanf (f, "%lx-%lx %*[^\n]\n", &startaddr, &endaddr);
+                n = fscanf(f, "%lx-%lx %*[^\n]\n", &startaddr, &endaddr);
 
                 if (n == 2 && h2g_valid(startaddr)) {
                     startaddr = h2g(startaddr) & TARGET_PAGE_MASK;
@@ -591,6 +593,7 @@ static inline void *alloc_code_gen_buffer(void)
 static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = g_malloc(code_gen_buffer_size);
+
     if (buf) {
         map_exec(buf, code_gen_buffer_size);
     }
@@ -737,8 +740,9 @@ static TranslationBlock *tb_alloc(target_ulong pc)
     TranslationBlock *tb;
 
     if (nb_tbs >= code_gen_max_blocks ||
-        (code_gen_ptr - code_gen_buffer) >= code_gen_buffer_max_size)
+        (code_gen_ptr - code_gen_buffer) >= code_gen_buffer_max_size) {
         return NULL;
+    }
     tb = &tbs[nb_tbs++];
     tb->pc = pc;
     tb->cflags = 0;
@@ -766,8 +770,7 @@ static inline void invalidate_page_bitmap(PageDesc *p)
 }
 
 /* Set to NULL all the 'first_tb' fields in all PageDescs. */
-
-static void page_flush_tb_1 (int level, void **lp)
+static void page_flush_tb_1(int level, void **lp)
 {
     int i;
 
@@ -776,14 +779,16 @@ static void page_flush_tb_1 (int level, void **lp)
     }
     if (level == 0) {
         PageDesc *pd = *lp;
+
         for (i = 0; i < L2_SIZE; ++i) {
             pd[i].first_tb = NULL;
             invalidate_page_bitmap(pd + i);
         }
     } else {
         void **pp = *lp;
+
         for (i = 0; i < L2_SIZE; ++i) {
-            page_flush_tb_1 (level - 1, pp + i);
+            page_flush_tb_1(level - 1, pp + i);
         }
     }
 }
@@ -791,6 +796,7 @@ static void page_flush_tb_1 (int level, void **lp)
 static void page_flush_tb(void)
 {
     int i;
+
     for (i = 0; i < V_L1_SIZE; i++) {
         page_flush_tb_1(V_L1_SHIFT / L2_BITS - 1, l1_map + i);
     }
@@ -801,22 +807,24 @@ static void page_flush_tb(void)
 void tb_flush(CPUArchState *env1)
 {
     CPUArchState *env;
+
 #if defined(DEBUG_FLUSH)
     printf("qemu: flush code_size=%ld nb_tbs=%d avg_tb_size=%ld\n",
            (unsigned long)(code_gen_ptr - code_gen_buffer),
            nb_tbs, nb_tbs > 0 ?
            ((unsigned long)(code_gen_ptr - code_gen_buffer)) / nb_tbs : 0);
 #endif
-    if ((unsigned long)(code_gen_ptr - code_gen_buffer) > code_gen_buffer_size)
+    if ((unsigned long)(code_gen_ptr - code_gen_buffer)
+        > code_gen_buffer_size) {
         cpu_abort(env1, "Internal error: code buffer overflow\n");
-
+    }
     nb_tbs = 0;
 
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        memset (env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof (void *));
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
     }
 
-    memset (tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof (void *));
+    memset(tb_phys_hash, 0, CODE_GEN_PHYS_HASH_SIZE * sizeof(void *));
     page_flush_tb();
 
     code_gen_ptr = code_gen_buffer;
@@ -831,9 +839,10 @@ static void tb_invalidate_check(target_ulong address)
 {
     TranslationBlock *tb;
     int i;
+
     address &= TARGET_PAGE_MASK;
-    for(i = 0;i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for(tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
+    for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
+        for (tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             if (!(address + TARGET_PAGE_SIZE <= tb->pc ||
                   address >= tb->pc + tb->size)) {
                 printf("ERROR invalidate: address=" TARGET_FMT_lx
@@ -850,8 +859,8 @@ static void tb_page_check(void)
     TranslationBlock *tb;
     int i, flags1, flags2;
 
-    for(i = 0;i < CODE_GEN_PHYS_HASH_SIZE; i++) {
-        for(tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
+    for (i = 0; i < CODE_GEN_PHYS_HASH_SIZE; i++) {
+        for (tb = tb_phys_hash[i]; tb != NULL; tb = tb->phys_hash_next) {
             flags1 = page_get_flags(tb->pc);
             flags2 = page_get_flags(tb->pc + tb->size - 1);
             if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
@@ -864,12 +873,14 @@ static void tb_page_check(void)
 
 #endif
 
+
 /* invalidate one TB */
 static inline void tb_remove(TranslationBlock **ptb, TranslationBlock *tb,
                              int next_offset)
 {
     TranslationBlock *tb1;
-    for(;;) {
+
+    for (;;) {
         tb1 = *ptb;
         if (tb1 == tb) {
             *ptb = *(TranslationBlock **)((char *)tb1 + next_offset);
@@ -884,7 +895,7 @@ static inline void tb_page_remove(TranslationBlock **ptb, TranslationBlock *tb)
     TranslationBlock *tb1;
     unsigned int n1;
 
-    for(;;) {
+    for (;;) {
         tb1 = *ptb;
         n1 = (uintptr_t)tb1 & 3;
         tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
@@ -905,12 +916,13 @@ static inline void tb_jmp_remove(TranslationBlock *tb, int n)
     tb1 = *ptb;
     if (tb1) {
         /* find tb(n) in circular list */
-        for(;;) {
+        for (;;) {
             tb1 = *ptb;
             n1 = (uintptr_t)tb1 & 3;
             tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == n && tb1 == tb)
+            if (n1 == n && tb1 == tb) {
                 break;
+            }
             if (n1 == 2) {
                 ptb = &tb1->jmp_first;
             } else {
@@ -961,9 +973,10 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (env->tb_jmp_cache[h] == tb)
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        if (env->tb_jmp_cache[h] == tb) {
             env->tb_jmp_cache[h] = NULL;
+        }
     }
 
     /* suppress this TB from the two jump lists */
@@ -972,10 +985,11 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* suppress any remaining jumps to this TB */
     tb1 = tb->jmp_first;
-    for(;;) {
+    for (;;) {
         n1 = (uintptr_t)tb1 & 3;
-        if (n1 == 2)
+        if (n1 == 2) {
             break;
+        }
         tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
         tb2 = tb1->jmp_next[n1];
         tb_reset_jump(tb1, n1);
@@ -1031,8 +1045,9 @@ static void build_page_bitmap(PageDesc *p)
                it is not a problem */
             tb_start = tb->pc & ~TARGET_PAGE_MASK;
             tb_end = tb_start + tb->size;
-            if (tb_end > TARGET_PAGE_SIZE)
+            if (tb_end > TARGET_PAGE_SIZE) {
                 tb_end = TARGET_PAGE_SIZE;
+            }
         } else {
             tb_start = 0;
             tb_end = ((tb->pc + tb->size) & ~TARGET_PAGE_MASK);
@@ -1123,8 +1138,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 #endif /* TARGET_HAS_PRECISE_SMC */
 
     p = page_find(start >> TARGET_PAGE_BITS);
-    if (!p)
+    if (!p) {
         return;
+    }
     if (!p->code_bitmap &&
         ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD &&
         is_cpu_write_access) {
@@ -1133,7 +1149,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
     }
 
     /* we remove all the TBs in the range [start, end[ */
-    /* XXX: see if in some cases it could be faster to invalidate all the code */
+    /* XXX: see if in some cases it could be faster to invalidate all
+       the code */
     tb = p->first_tb;
     while (tb != NULL) {
         n = (uintptr_t)tb & 3;
@@ -1183,8 +1200,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
             tb_phys_invalidate(tb, -1);
             if (env) {
                 env->current_tb = saved_tb;
-                if (env->interrupt_request && env->current_tb)
+                if (env->interrupt_request && env->current_tb) {
                     cpu_interrupt(env, env->interrupt_request);
+                }
             }
         }
         tb = tb_next;
@@ -1215,6 +1233,7 @@ static inline void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
     PageDesc *p;
     int offset, b;
+
 #if 0
     if (1) {
         qemu_log("modifying code at 0x%x size=%d EIP=%x PC=%08x\n",
@@ -1225,13 +1244,15 @@ static inline void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
     }
 #endif
     p = page_find(start >> TARGET_PAGE_BITS);
-    if (!p)
+    if (!p) {
         return;
+    }
     if (p->code_bitmap) {
         offset = start & ~TARGET_PAGE_MASK;
         b = p->code_bitmap[offset >> 3] >> (offset & 7);
-        if (b & ((1 << len) - 1))
+        if (b & ((1 << len) - 1)) {
             goto do_invalidate;
+        }
     } else {
     do_invalidate:
         tb_invalidate_phys_page_range(start, start + len, 1);
@@ -1256,8 +1277,9 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 
     addr &= TARGET_PAGE_MASK;
     p = page_find(addr >> TARGET_PAGE_BITS);
-    if (!p)
+    if (!p) {
         return;
+    }
     tb = p->first_tb;
 #ifdef TARGET_HAS_PRECISE_SMC
     if (tb && pc != 0) {
@@ -1329,12 +1351,13 @@ static inline void tb_alloc_page(TranslationBlock *tb,
            page fault + mprotect overhead) */
         page_addr &= qemu_host_page_mask;
         prot = 0;
-        for(addr = page_addr; addr < page_addr + qemu_host_page_size;
+        for (addr = page_addr; addr < page_addr + qemu_host_page_size;
             addr += TARGET_PAGE_SIZE) {
 
-            p2 = page_find (addr >> TARGET_PAGE_BITS);
-            if (!p2)
+            p2 = page_find(addr >> TARGET_PAGE_BITS);
+            if (!p2) {
                 continue;
+            }
             prot |= p2->flags;
             p2->flags &= ~PAGE_WRITE;
           }
@@ -1376,20 +1399,23 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 
     /* add in the page list */
     tb_alloc_page(tb, 0, phys_pc & TARGET_PAGE_MASK);
-    if (phys_page2 != -1)
+    if (phys_page2 != -1) {
         tb_alloc_page(tb, 1, phys_page2);
-    else
+    } else {
         tb->page_addr[1] = -1;
+    }
 
     tb->jmp_first = (TranslationBlock *)((uintptr_t)tb | 2);
     tb->jmp_next[0] = NULL;
     tb->jmp_next[1] = NULL;
 
     /* init original jump addresses */
-    if (tb->tb_next_offset[0] != 0xffff)
+    if (tb->tb_next_offset[0] != 0xffff) {
         tb_reset_jump(tb, 0);
-    if (tb->tb_next_offset[1] != 0xffff)
+    }
+    if (tb->tb_next_offset[1] != 0xffff) {
         tb_reset_jump(tb, 1);
+    }
 
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
@@ -1416,8 +1442,9 @@ TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
     uintptr_t v;
     TranslationBlock *tb;
 
-    if (nb_tbs <= 0)
+    if (nb_tbs <= 0) {
         return NULL;
+    }
     if (tc_ptr < (uintptr_t)code_gen_buffer ||
         tc_ptr >= (uintptr_t)code_gen_ptr) {
         return NULL;
@@ -1429,9 +1456,9 @@ TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
         m = (m_min + m_max) >> 1;
         tb = &tbs[m];
         v = (uintptr_t)tb->tc_ptr;
-        if (v == tc_ptr)
+        if (v == tc_ptr) {
             return tb;
-        else if (tc_ptr < v) {
+        } else if (tc_ptr < v) {
             m_max = m - 1;
         } else {
             m_min = m + 1;
@@ -1450,11 +1477,12 @@ static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
     tb1 = tb->jmp_next[n];
     if (tb1 != NULL) {
         /* find head of list */
-        for(;;) {
+        for (;;) {
             n1 = (uintptr_t)tb1 & 3;
             tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == 2)
+            if (n1 == 2) {
                 break;
+            }
             tb1 = tb1->jmp_next[n1];
         }
         /* we are now sure now that tb jumps to tb1 */
@@ -1462,12 +1490,13 @@ static inline void tb_reset_jump_recursive2(TranslationBlock *tb, int n)
 
         /* remove tb from the jmp_first list */
         ptb = &tb_next->jmp_first;
-        for(;;) {
+        for (;;) {
             tb1 = *ptb;
             n1 = (uintptr_t)tb1 & 3;
             tb1 = (TranslationBlock *)((uintptr_t)tb1 & ~3);
-            if (n1 == n && tb1 == tb)
+            if (n1 == n && tb1 == tb) {
                 break;
+            }
             ptb = &tb1->jmp_next[n1];
         }
         *ptb = tb->jmp_next[n];
@@ -1499,7 +1528,8 @@ void tb_invalidate_phys_addr(hwaddr addr)
     ram_addr_t ram_addr;
     MemoryRegionSection *section;
 
-    section = phys_page_find(address_space_memory.dispatch, addr >> TARGET_PAGE_BITS);
+    section = phys_page_find(address_space_memory.dispatch,
+                             addr >> TARGET_PAGE_BITS);
     if (!(memory_region_is_ram(section->mr)
           || (section->mr->rom_device && section->mr->readable))) {
         return;
@@ -1939,9 +1969,7 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
  * Walks guest process memory "regions" one by one
  * and calls callback function 'fn' for each region.
  */
-
-struct walk_memory_regions_data
-{
+struct walk_memory_regions_data {
     walk_memory_regions_fn fn;
     void *priv;
     uintptr_t start;
@@ -1976,6 +2004,7 @@ static int walk_memory_regions_1(struct walk_memory_regions_data *data,
 
     if (level == 0) {
         PageDesc *pd = *lp;
+
         for (i = 0; i < L2_SIZE; ++i) {
             int prot = pd[i].flags;
 
@@ -1989,6 +2018,7 @@ static int walk_memory_regions_1(struct walk_memory_regions_data *data,
         }
     } else {
         void **pp = *lp;
+
         for (i = 0; i < L2_SIZE; ++i) {
             pa = base | ((abi_ulong)i <<
                 (TARGET_PAGE_BITS + L2_BITS * level));
@@ -2015,6 +2045,7 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     for (i = 0; i < V_L1_SIZE; i++) {
         int rc = walk_memory_regions_1(&data, (abi_ulong)i << V_L1_SHIFT,
                                        V_L1_SHIFT / L2_BITS - 1, l1_map + i);
+
         if (rc != 0) {
             return rc;
         }
@@ -2035,7 +2066,7 @@ static int dump_region(void *priv, abi_ulong start,
         ((prot & PAGE_WRITE) ? 'w' : '-'),
         ((prot & PAGE_EXEC) ? 'x' : '-'));
 
-    return (0);
+    return 0;
 }
 
 /* dump memory mappings */
@@ -2051,8 +2082,9 @@ int page_get_flags(target_ulong address)
     PageDesc *p;
 
     p = page_find(address >> TARGET_PAGE_BITS);
-    if (!p)
+    if (!p) {
         return 0;
+    }
     return p->flags;
 }
 
@@ -2115,28 +2147,34 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
         return -1;
     }
 
-    end = TARGET_PAGE_ALIGN(start+len); /* must do before we loose bits in the next step */
+    /* must do before we loose bits in the next step */
+    end = TARGET_PAGE_ALIGN(start + len);
     start = start & TARGET_PAGE_MASK;
 
     for (addr = start, len = end - start;
          len != 0;
          len -= TARGET_PAGE_SIZE, addr += TARGET_PAGE_SIZE) {
         p = page_find(addr >> TARGET_PAGE_BITS);
-        if( !p )
+        if (!p) {
             return -1;
-        if( !(p->flags & PAGE_VALID) )
+        }
+        if (!(p->flags & PAGE_VALID)) {
             return -1;
+        }
 
-        if ((flags & PAGE_READ) && !(p->flags & PAGE_READ))
+        if ((flags & PAGE_READ) && !(p->flags & PAGE_READ)) {
             return -1;
+        }
         if (flags & PAGE_WRITE) {
-            if (!(p->flags & PAGE_WRITE_ORG))
+            if (!(p->flags & PAGE_WRITE_ORG)) {
                 return -1;
+            }
             /* unprotect the page if it was put read-only because it
                contains translated code */
             if (!(p->flags & PAGE_WRITE)) {
-                if (!page_unprotect(addr, 0, NULL))
+                if (!page_unprotect(addr, 0, NULL)) {
                     return -1;
+                }
             }
             return 0;
         }
@@ -4101,7 +4139,7 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 
     tb = tb_find_pc(retaddr);
     if (!tb) {
-        cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p", 
+        cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p",
                   (void *)retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
@@ -4130,8 +4168,9 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
     }
 #endif
     /* This should never happen.  */
-    if (n > CF_COUNT_MASK)
+    if (n > CF_COUNT_MASK) {
         cpu_abort(env, "TB too big during recompile");
+    }
 
     cflags = n | CF_LAST_IO;
     pc = tb->pc;
@@ -4162,13 +4201,15 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     cross_page = 0;
     direct_jmp_count = 0;
     direct_jmp2_count = 0;
-    for(i = 0; i < nb_tbs; i++) {
+    for (i = 0; i < nb_tbs; i++) {
         tb = &tbs[i];
         target_code_size += tb->size;
-        if (tb->size > max_target_code_size)
+        if (tb->size > max_target_code_size) {
             max_target_code_size = tb->size;
-        if (tb->page_addr[1] != -1)
+        }
+        if (tb->page_addr[1] != -1) {
             cross_page++;
+        }
         if (tb->tb_next_offset[0] != 0xffff) {
             direct_jmp_count++;
             if (tb->tb_next_offset[1] != 0xffff) {
@@ -4180,14 +4221,15 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
     cpu_fprintf(f, "Translation buffer state:\n");
     cpu_fprintf(f, "gen code size       %td/%zd\n",
                 code_gen_ptr - code_gen_buffer, code_gen_buffer_max_size);
-    cpu_fprintf(f, "TB count            %d/%d\n", 
+    cpu_fprintf(f, "TB count            %d/%d\n",
                 nb_tbs, code_gen_max_blocks);
     cpu_fprintf(f, "TB avg target size  %d max=%d bytes\n",
                 nb_tbs ? target_code_size / nb_tbs : 0,
                 max_target_code_size);
     cpu_fprintf(f, "TB avg host size    %td bytes (expansion ratio: %0.1f)\n",
                 nb_tbs ? (code_gen_ptr - code_gen_buffer) / nb_tbs : 0,
-                target_code_size ? (double) (code_gen_ptr - code_gen_buffer) / target_code_size : 0);
+                target_code_size ? (double) (code_gen_ptr - code_gen_buffer)
+                / target_code_size : 0);
     cpu_fprintf(f, "cross page TB count %d (%d%%)\n",
             cross_page,
             nb_tbs ? (cross_page * 100) / nb_tbs : 0);
