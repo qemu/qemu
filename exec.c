@@ -2987,12 +2987,24 @@ static const MemoryRegionOps notdirty_mem_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void tb_check_watchpoint(CPUArchState *env)
+{
+    TranslationBlock *tb;
+
+    tb = tb_find_pc(env->mem_io_pc);
+    if (!tb) {
+        cpu_abort(env, "check_watchpoint: could not find TB for pc=%p",
+                  (void *)env->mem_io_pc);
+    }
+    cpu_restore_state(tb, env, env->mem_io_pc);
+    tb_phys_invalidate(tb, -1);
+}
+
 /* Generate a debug exception if a watchpoint has been hit.  */
 static void check_watchpoint(int offset, int len_mask, int flags)
 {
     CPUArchState *env = cpu_single_env;
     target_ulong pc, cs_base;
-    TranslationBlock *tb;
     target_ulong vaddr;
     CPUWatchpoint *wp;
     int cpu_flags;
@@ -3011,13 +3023,7 @@ static void check_watchpoint(int offset, int len_mask, int flags)
             wp->flags |= BP_WATCHPOINT_HIT;
             if (!env->watchpoint_hit) {
                 env->watchpoint_hit = wp;
-                tb = tb_find_pc(env->mem_io_pc);
-                if (!tb) {
-                    cpu_abort(env, "check_watchpoint: could not find TB for "
-                              "pc=%p", (void *)env->mem_io_pc);
-                }
-                cpu_restore_state(tb, env, env->mem_io_pc);
-                tb_phys_invalidate(tb, -1);
+                tb_check_watchpoint(env);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     env->exception_index = EXCP_DEBUG;
                     cpu_loop_exit(env);
