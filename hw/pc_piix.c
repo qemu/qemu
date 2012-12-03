@@ -87,6 +87,7 @@ static void pc_init1(MemoryRegion *system_memory,
     void *fw_cfg = NULL;
 
     pc_cpus_init(cpu_model);
+    pc_acpi_init("acpi-dsdt.aml");
 
     if (kvmclock_enabled) {
         kvmclock_create();

@@ -886,6 +886,29 @@ void pc_cpus_init(const char *cpu_model)
     }
 }
 
+void pc_acpi_init(const char *default_dsdt)
+{
+    char *filename = NULL, *arg = NULL;
+
+    if (acpi_tables != NULL) {
+        /* manually set via -acpitable, leave it alone */
+        return;
+    }
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, default_dsdt);
+    if (filename == NULL) {
+        fprintf(stderr, "WARNING: failed to find %s\n", default_dsdt);
+        return;
+    }
+
+    arg = g_strdup_printf("file=%s", filename);
+    if (acpi_table_add(arg) != 0) {
+        fprintf(stderr, "WARNING: failed to load %s\n", filename);
+    }
+    g_free(arg);
+    g_free(filename);
+}
+
 void *pc_memory_init(MemoryRegion *system_memory,
                     const char *kernel_filename,
                     const char *kernel_cmdline,
