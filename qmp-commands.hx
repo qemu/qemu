@@ -2549,13 +2549,6 @@ Make an asynchronous request for balloon info. When the request completes a
 json-object will be returned containing the following data:
 
 - "actual": current balloon value in bytes (json-int)
-- "mem_swapped_in": Amount of memory swapped in bytes (json-int, optional)
-- "mem_swapped_out": Amount of memory swapped out in bytes (json-int, optional)
-- "major_page_faults": Number of major faults (json-int, optional)
-- "minor_page_faults": Number of minor faults (json-int, optional)
-- "free_mem": Total amount of free and unused memory in
-              bytes (json-int, optional)
-- "total_mem": Total amount of available memory in bytes (json-int, optional)
 
 Example:
 
@@ -2563,12 +2556,6 @@ Example:
 <- {
       "return":{
          "actual":1073741824,
-         "mem_swapped_in":0,
-         "mem_swapped_out":0,
-         "major_page_faults":142,
-         "minor_page_faults":239245,
-         "free_mem":1014185984,
-         "total_mem":1044668416
       }
    }
 

@@ -977,28 +977,10 @@
 #
 # @actual: the number of bytes the balloon currently contains
 #
-# @mem_swapped_in: #optional number of pages swapped in within the guest
-#
-# @mem_swapped_out: #optional number of pages swapped out within the guest
-#
-# @major_page_faults: #optional number of major page faults within the guest
-#
-# @minor_page_faults: #optional number of minor page faults within the guest
-#
-# @free_mem: #optional amount of memory (in bytes) free in the guest
-#
-# @total_mem: #optional amount of memory (in bytes) visible to the guest
-#
 # Since: 0.14.0
 #
-# Notes: all current versions of QEMU do not fill out optional information in
-#        this structure.
 ##
-{ 'type': 'BalloonInfo',
-  'data': {'actual': 'int', '*mem_swapped_in': 'int',
-           '*mem_swapped_out': 'int', '*major_page_faults': 'int',
-           '*minor_page_faults': 'int', '*free_mem': 'int',
-           '*total_mem': 'int'} }
+{ 'type': 'BalloonInfo', 'data': {'actual': 'int' } }
 
 ##
 # @query-balloon:

@@ -164,28 +164,6 @@ static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
 static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
 {
     VirtIOBalloon *dev = opaque;
-
-#if 0
-    /* Disable guest-provided stats for now. For more details please check:
-     * https://bugzilla.redhat.com/show_bug.cgi?id=623903
-     *
-     * If you do enable it (which is probably not going to happen as we
-     * need a new command for it), remember that you also need to fill the
-     * appropriate members of the BalloonInfo structure so that the stats
-     * are returned to the client.
-     */
-    if (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ)) {
-        virtqueue_push(dev->svq, &dev->stats_vq_elem, dev->stats_vq_offset);
-        virtio_notify(&dev->vdev, dev->svq);
-        return;
-    }
-#endif
-
-    /* Stats are not supported.  Clear out any stale values that might
-     * have been set by a more featureful guest kernel.
-     */
-    reset_stats(dev);
-
     info->actual = ram_size - ((uint64_t) dev->actual <<
                                VIRTIO_BALLOON_PFN_SHIFT);
 }
@@ -254,8 +232,6 @@ VirtIODevice *virtio_balloon_init(DeviceState *dev)
     s->ivq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(&s->vdev, 128, virtio_balloon_receive_stats);
-
-    reset_stats(s);
 
     s->qdev = dev;
     register_savevm(dev, "virtio-balloon", -1, 1,
