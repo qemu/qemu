@@ -3814,17 +3814,18 @@ void helper_shilo(target_ulong ac, target_ulong rs, CPUMIPSState *env)
 
     rs5_0 = rs & 0x3F;
     rs5_0 = (int8_t)(rs5_0 << 2) >> 2;
-    rs5_0 = MIPSDSP_ABS(rs5_0);
+
+    if (unlikely(rs5_0 == 0)) {
+        return;
+    }
+
     acc   = (((uint64_t)env->active_tc.HI[ac] << 32) & MIPSDSP_LHI) |
             ((uint64_t)env->active_tc.LO[ac] & MIPSDSP_LLO);
-    if (rs5_0 == 0) {
-        temp = acc;
+
+    if (rs5_0 > 0) {
+        temp = acc >> rs5_0;
     } else {
-        if (rs5_0 > 0) {
-            temp = acc >> rs5_0;
-        } else {
-            temp = acc << rs5_0;
-        }
+        temp = acc << -rs5_0;
     }
 
     env->active_tc.HI[ac] = (target_ulong)(int32_t)((temp & MIPSDSP_LHI) >> 32);
