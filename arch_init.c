@@ -568,7 +568,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
 
     migration_bitmap = bitmap_new(ram_pages);
-    bitmap_set(migration_bitmap, 1, ram_pages);
+    bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
 
     bytes_transferred = 0;
