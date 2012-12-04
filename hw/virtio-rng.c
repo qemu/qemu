@@ -43,11 +43,11 @@ static bool is_guest_ready(VirtIORNG *vrng)
     return false;
 }
 
-static size_t get_request_size(VirtQueue *vq)
+static size_t get_request_size(VirtQueue *vq, unsigned quota)
 {
     unsigned int in, out;
 
-    virtqueue_get_avail_bytes(vq, &in, &out);
+    virtqueue_get_avail_bytes(vq, &in, &out, quota, 0);
     return in;
 }
 
@@ -84,12 +84,18 @@ static void chr_read(void *opaque, const void *buf, size_t size)
 static void virtio_rng_process(VirtIORNG *vrng)
 {
     size_t size;
+    unsigned quota;
 
     if (!is_guest_ready(vrng)) {
         return;
     }
 
-    size = get_request_size(vrng->vq);
+    if (vrng->quota_remaining < 0) {
+        quota = 0;
+    } else {
+        quota = MIN((uint64_t)vrng->quota_remaining, (uint64_t)UINT32_MAX);
+    }
+    size = get_request_size(vrng->vq, quota);
     size = MIN(vrng->quota_remaining, size);
     if (size) {
         rng_backend_request_entropy(vrng->rng, size, chr_read, vrng);

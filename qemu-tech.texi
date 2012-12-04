@@ -262,16 +262,16 @@ Current QEMU limitations:
 
 @item Core Xtensa ISA emulation, including most options: code density,
 loop, extended L32R, 16- and 32-bit multiplication, 32-bit division,
-MAC16, miscellaneous operations, boolean, multiprocessor synchronization,
+MAC16, miscellaneous operations, boolean, FP coprocessor, coprocessor
+context, debug, multiprocessor synchronization,
 conditional store, exceptions, relocatable vectors, unaligned exception,
 interrupts (including high priority and timer), hardware alignment,
 region protection, region translation, MMU, windowed registers, thread
 pointer, processor ID.
 
-@item Not implemented options: FP coprocessor, coprocessor context,
-data/instruction cache (including cache prefetch and locking), XLMI,
-processor interface, debug. Also options not covered by the core ISA
-(e.g. FLIX, wide branches) are not implemented.
+@item Not implemented options: data/instruction cache (including cache
+prefetch and locking), XLMI, processor interface. Also options not
+covered by the core ISA (e.g. FLIX, wide branches) are not implemented.
 
 @item Can run most Xtensa Linux binaries.
 

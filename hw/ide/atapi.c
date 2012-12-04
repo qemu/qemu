@@ -1124,12 +1124,17 @@ void ide_atapi_cmd(IDEState *s)
      * GET_EVENT_STATUS_NOTIFICATION to detect such tray open/close
      * states rely on this behavior.
      */
-    if (!s->tray_open && bdrv_is_inserted(s->bs) && s->cdrom_changed) {
-        ide_atapi_cmd_error(s, NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+    if (!(atapi_cmd_table[s->io_buffer[0]].flags & ALLOW_UA) &&
+        !s->tray_open && bdrv_is_inserted(s->bs) && s->cdrom_changed) {
 
-        s->cdrom_changed = 0;
-        s->sense_key = UNIT_ATTENTION;
-        s->asc = ASC_MEDIUM_MAY_HAVE_CHANGED;
+        if (s->cdrom_changed == 1) {
+            ide_atapi_cmd_error(s, NOT_READY, ASC_MEDIUM_NOT_PRESENT);
+            s->cdrom_changed = 2;
+        } else {
+            ide_atapi_cmd_error(s, UNIT_ATTENTION, ASC_MEDIUM_MAY_HAVE_CHANGED);
+            s->cdrom_changed = 0;
+        }
+
         return;
     }
 

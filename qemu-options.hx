@@ -206,33 +206,33 @@ Open drive @option{file} as read-only. Guest write attempts will fail.
 file sectors into the image file.
 @end table
 
-By default, writethrough caching is used for all block device.  This means that
-the host page cache will be used to read and write data but write notification
-will be sent to the guest only when the data has been reported as written by
-the storage subsystem.
+By default, the @option{cache=writeback} mode is used. It will report data
+writes as completed as soon as the data is present in the host page cache.
+This is safe as long as your guest OS makes sure to correctly flush disk caches
+where needed. If your guest OS does not handle volatile disk write caches
+correctly and your host crashes or loses power, then the guest may experience
+data corruption.
 
-Writeback caching will report data writes as completed as soon as the data is
-present in the host page cache.  This is safe as long as you trust your host.
-If your host crashes or loses power, then the guest may experience data
-corruption.
+For such guests, you should consider using @option{cache=writethrough}. This
+means that the host page cache will be used to read and write data, but write
+notification will be sent to the guest only after QEMU has made sure to flush
+each write to the disk. Be aware that this has a major impact on performance.
 
 The host page cache can be avoided entirely with @option{cache=none}.  This will
-attempt to do disk IO directly to the guests memory.  QEMU may still perform
-an internal copy of the data.
+attempt to do disk IO directly to the guest's memory.  QEMU may still perform
+an internal copy of the data. Note that this is considered a writeback mode and
+the guest OS must handle the disk write cache correctly in order to avoid data
+corruption on host crashes.
 
 The host page cache can be avoided while only sending write notifications to
-the guest when the data has been reported as written by the storage subsystem
-using @option{cache=directsync}.
-
-Some block drivers perform badly with @option{cache=writethrough}, most notably,
-qcow2.  If performance is more important than correctness,
-@option{cache=writeback} should be used with qcow2.
+the guest when the data has been flushed to the disk using
+@option{cache=directsync}.
 
 In case you don't care about data integrity over host failures, use
-cache=unsafe. This option tells QEMU that it never needs to write any data
-to the disk but can instead keeps things in cache. If anything goes wrong,
+@option{cache=unsafe}. This option tells QEMU that it never needs to write any
+data to the disk but can instead keep things in cache. If anything goes wrong,
 like your host losing power, the disk storage getting disconnected accidentally,
-etc. you're image will most probably be rendered unusable.   When using
+etc. your image will most probably be rendered unusable.   When using
 the @option{-snapshot} option, unsafe caching is always used.
 
 Copy-on-read avoids accessing the same backing file sectors repeatedly and is
