@@ -438,9 +438,9 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
     return;
 
  error_flash:
-    printf("%s: Unimplemented flash cmd sequence "
-           "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)\n",
-           __func__, offset, pfl->wcycle, pfl->cmd, value);
+    qemu_log_mask(LOG_UNIMP, "%s: Unimplemented flash cmd sequence "
+                  "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)"
+                  "\n", __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  reset_flash:
     memory_region_rom_device_set_readable(&pfl->mem, true);
