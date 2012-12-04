@@ -1215,7 +1215,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 
     char *s = g_strdup(cpu_model);
     char *featurestr, *name = strtok(s, ",");
-    /* Features to be added*/
+    /* Features to be added */
     uint32_t plus_features = 0, plus_ext_features = 0;
     uint32_t plus_ext2_features = 0, plus_ext3_features = 0;
     uint32_t plus_kvm_features = kvm_default_features, plus_svm_features = 0;
@@ -1227,9 +1227,11 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     uint32_t minus_7_0_ebx_features = 0;
     uint32_t numvalue;
 
-    for (def = x86_defs; def; def = def->next)
-        if (name && !strcmp(name, def->name))
+    for (def = x86_defs; def; def = def->next) {
+        if (name && !strcmp(name, def->name)) {
             break;
+        }
+    }
     if (kvm_enabled() && name && strcmp(name, "host") == 0) {
         kvm_cpu_fill_host(x86_cpu_def);
     } else if (!def) {
@@ -1835,17 +1837,17 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     case 0x8000000A:
-	if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
-		*eax = 0x00000001; /* SVM Revision */
-		*ebx = 0x00000010; /* nr of ASIDs */
-		*ecx = 0;
-		*edx = env->cpuid_svm_features; /* optional features */
-	} else {
-		*eax = 0;
-		*ebx = 0;
-		*ecx = 0;
-		*edx = 0;
-	}
+        if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
+            *eax = 0x00000001; /* SVM Revision */
+            *ebx = 0x00000010; /* nr of ASIDs */
+            *ecx = 0;
+            *edx = env->cpuid_svm_features; /* optional features */
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
         break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
