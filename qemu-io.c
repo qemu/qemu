@@ -265,6 +265,18 @@ static int do_co_write_zeroes(int64_t offset, int count, int *total)
     }
 }
 
+static int do_write_compressed(char *buf, int64_t offset, int count, int *total)
+{
+    int ret;
+
+    ret = bdrv_write_compressed(bs, offset >> 9, (uint8_t *)buf, count >> 9);
+    if (ret < 0) {
+        return ret;
+    }
+    *total = count;
+    return 1;
+}
+
 static int do_load_vmstate(char *buf, int64_t offset, int count, int *total)
 {
     *total = bdrv_load_vmstate(bs, (uint8_t *)buf, offset, count);
@@ -687,6 +699,7 @@ static void write_help(void)
 " Writes into a segment of the currently open file, using a buffer\n"
 " filled with a set pattern (0xcdcdcdcd).\n"
 " -b, -- write to the VM state rather than the virtual disk\n"
+" -c, -- write compressed data with bdrv_write_compressed\n"
 " -p, -- use bdrv_pwrite to write the file\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
@@ -703,7 +716,7 @@ static const cmdinfo_t write_cmd = {
     .cfunc      = write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bCpqz] [-P pattern ] off len",
+    .args       = "[-bcCpqz] [-P pattern ] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -712,6 +725,7 @@ static int write_f(int argc, char **argv)
 {
     struct timeval t1, t2;
     int Cflag = 0, pflag = 0, qflag = 0, bflag = 0, Pflag = 0, zflag = 0;
+    int cflag = 0;
     int c, cnt;
     char *buf = NULL;
     int64_t offset;
@@ -720,10 +734,13 @@ static int write_f(int argc, char **argv)
     int total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bCpP:qz")) != EOF) {
+    while ((c = getopt(argc, argv, "bcCpP:qz")) != EOF) {
         switch (c) {
         case 'b':
             bflag = 1;
+            break;
+        case 'c':
+            cflag = 1;
             break;
         case 'C':
             Cflag = 1;
@@ -801,6 +818,8 @@ static int write_f(int argc, char **argv)
         cnt = do_save_vmstate(buf, offset, count, &total);
     } else if (zflag) {
         cnt = do_co_write_zeroes(offset, count, &total);
+    } else if (cflag) {
+        cnt = do_write_compressed(buf, offset, count, &total);
     } else {
         cnt = do_write(buf, offset, count, &total);
     }
