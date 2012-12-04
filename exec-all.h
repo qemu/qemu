@@ -80,8 +80,8 @@ void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
 void cpu_gen_init(void);
 int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
-int cpu_restore_state(struct TranslationBlock *tb,
-                      CPUArchState *env, uintptr_t searched_pc);
+bool cpu_restore_state(CPUArchState *env, uintptr_t searched_pc);
+
 void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void QEMU_NORETURN cpu_io_recompile(CPUArchState *env, uintptr_t retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, 
@@ -274,8 +274,6 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
         tb_next->jmp_first = (TranslationBlock *)((uintptr_t)(tb) | (n));
     }
 }
-
-TranslationBlock *tb_find_pc(uintptr_t pc_ptr);
 
 #include "qemu-lock.h"
 

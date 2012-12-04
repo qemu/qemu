@@ -47,22 +47,12 @@ static void do_unaligned_access(CPUXtensaState *env,
 #define SHIFT 3
 #include "softmmu_template.h"
 
-static void do_restore_state(CPUXtensaState *env, uintptr_t pc)
-{
-    TranslationBlock *tb;
-
-    tb = tb_find_pc(pc);
-    if (tb) {
-        cpu_restore_state(tb, env, pc);
-    }
-}
-
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
-        do_restore_state(env, retaddr);
+        cpu_restore_state(env, retaddr);
         HELPER(exception_cause_vaddr)(env,
                 env->pc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
     }
@@ -86,7 +76,7 @@ void tlb_fill(CPUXtensaState *env,
                 paddr & TARGET_PAGE_MASK,
                 access, mmu_idx, page_size);
     } else {
-        do_restore_state(env, retaddr);
+        cpu_restore_state(env, retaddr);
         HELPER(exception_cause_vaddr)(env, env->pc, ret, vaddr);
     }
 }

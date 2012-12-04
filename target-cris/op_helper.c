@@ -57,7 +57,6 @@
 void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr)
 {
-    TranslationBlock *tb;
     int ret;
 
     D_LOG("%s pc=%x tpc=%x ra=%p\n", __func__,
@@ -66,12 +65,7 @@ void tlb_fill(CPUCRISState *env, target_ulong addr, int is_write, int mmu_idx,
     if (unlikely(ret)) {
         if (retaddr) {
             /* now we have a real cpu fault */
-            tb = tb_find_pc(retaddr);
-            if (tb) {
-                /* the PC is inside the translated code. It means that we have
-                   a virtual CPU fault */
-                cpu_restore_state(tb, env, retaddr);
-
+            if (cpu_restore_state(env, retaddr)) {
 		/* Evaluate flags after retranslation.  */
                 helper_top_evaluate_flags(env);
             }

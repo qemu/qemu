@@ -142,6 +142,7 @@ TCGContext tcg_ctx;
 
 static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2);
+static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
 
 void cpu_gen_init(void)
 {
@@ -211,8 +212,8 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
 
 /* The cpu state corresponding to 'searched_pc' is restored.
  */
-int cpu_restore_state(TranslationBlock *tb,
-                      CPUArchState *env, uintptr_t searched_pc)
+static int cpu_restore_state_from_tb(TranslationBlock *tb, CPUArchState *env,
+                                     uintptr_t searched_pc)
 {
     TCGContext *s = &tcg_ctx;
     int j;
@@ -264,6 +265,18 @@ int cpu_restore_state(TranslationBlock *tb,
     s->restore_count++;
 #endif
     return 0;
+}
+
+bool cpu_restore_state(CPUArchState *env, uintptr_t retaddr)
+{
+    TranslationBlock *tb;
+
+    tb = tb_find_pc(retaddr);
+    if (tb) {
+        cpu_restore_state_from_tb(tb, env, retaddr);
+        return true;
+    }
+    return false;
 }
 
 #ifdef _WIN32
@@ -1057,7 +1070,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                 restore the CPU state */
 
                 current_tb_modified = 1;
-                cpu_restore_state(current_tb, env, env->mem_io_pc);
+                cpu_restore_state_from_tb(current_tb, env, env->mem_io_pc);
                 cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                      &current_flags);
             }
@@ -1171,7 +1184,7 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
                    restore the CPU state */
 
             current_tb_modified = 1;
-            cpu_restore_state(current_tb, env, pc);
+            cpu_restore_state_from_tb(current_tb, env, pc);
             cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                                  &current_flags);
         }
@@ -1308,7 +1321,7 @@ bool is_tcg_gen_code(uintptr_t tc_ptr)
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
    tb[1].tc_ptr. Return NULL if not found */
-TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
+static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
 {
     int m_min, m_max, m;
     uintptr_t v;
@@ -1435,7 +1448,7 @@ void tb_check_watchpoint(CPUArchState *env)
         cpu_abort(env, "check_watchpoint: could not find TB for pc=%p",
                   (void *)env->mem_io_pc);
     }
-    cpu_restore_state(tb, env, env->mem_io_pc);
+    cpu_restore_state_from_tb(tb, env, env->mem_io_pc);
     tb_phys_invalidate(tb, -1);
 }
 
@@ -1486,7 +1499,7 @@ void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
                   (void *)retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state(tb, env, retaddr);
+    cpu_restore_state_from_tb(tb, env, retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
     n = n - env->icount_decr.u16.low;

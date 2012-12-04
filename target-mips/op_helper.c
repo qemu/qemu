@@ -38,7 +38,6 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
                                                         int error_code,
                                                         uintptr_t pc)
 {
-    TranslationBlock *tb;
 #if 1
     if (exception < 0x100)
         qemu_log("%s: %d %d\n", __func__, exception, error_code);
@@ -48,12 +47,7 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
 
     if (pc) {
         /* now we have a real cpu fault */
-        tb = tb_find_pc(pc);
-        if (tb) {
-            /* the PC is inside the translated code. It means that we have
-               a virtual CPU fault */
-            cpu_restore_state(tb, env, pc);
-        }
+        cpu_restore_state(env, pc);
     }
 
     cpu_loop_exit(env);
