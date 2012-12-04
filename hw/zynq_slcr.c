@@ -334,7 +334,7 @@ static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
 {
     uint32_t ret = zynq_slcr_read_imp(opaque, offset);
 
-    DB_PRINT("addr: %08x data: %08x\n", offset, ret);
+    DB_PRINT("addr: %08x data: %08x\n", (unsigned)offset, (unsigned)ret);
     return ret;
 }
 
@@ -343,7 +343,7 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;
 
-    DB_PRINT("offset: %08x data: %08x\n", offset, (unsigned)val);
+    DB_PRINT("offset: %08x data: %08x\n", (unsigned)offset, (unsigned)val);
 
     switch (offset) {
     case 0x00: /* SCL */
@@ -476,7 +476,8 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
             break;
         default:
         bad_reg:
-            DB_PRINT("Bad register write %x <= %08x\n", (int)offset, val);
+            DB_PRINT("Bad register write %x <= %08x\n", (int)offset,
+                     (unsigned)val);
         }
     } else {
         DB_PRINT("SCLR registers are locked. Unlock them first\n");
