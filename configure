@@ -656,6 +656,8 @@ for opt do
   ;;
   --without-system-pixman) pixman="internal"
   ;;
+  --without-pixman) pixman="none"
+  ;;
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
@@ -2130,13 +2132,25 @@ fi
 # pixman support probe
 
 if test "$pixman" = ""; then
-  if $pkg_config pixman-1 > /dev/null 2>&1; then
+  if test "$want_tools" = "no" -a "$softmmu" = "no"; then
+    pixman="none"
+  elif $pkg_config pixman-1 > /dev/null 2>&1; then
     pixman="system"
   else
     pixman="internal"
   fi
 fi
-if test "$pixman" = "system"; then
+if test "$pixman" = "none"; then
+  if test "$want_tools" != "no" -o "$softmmu" != "no"; then
+    echo "ERROR: pixman disabled but system emulation or tools build"
+    echo "       enabled.  You can turn off pixman only if you also"
+    echo "       disable all system emulation targets and the tools"
+    echo "       build with '--disable-tools --disable-system'."
+    exit 1
+  fi
+  pixman_cflags=
+  pixman_libs=
+elif test "$pixman" = "system"; then
   pixman_cflags=`$pkg_config --cflags pixman-1 2>/dev/null`
   pixman_libs=`$pkg_config --libs pixman-1 2>/dev/null`
 else

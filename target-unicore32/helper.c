@@ -13,7 +13,9 @@
 #include "exec/gdbstub.h"
 #include "helper.h"
 #include "qemu/host-utils.h"
+#ifndef CONFIG_USER_ONLY
 #include "ui/console.h"
+#endif
 
 #undef DEBUG_UC32
 
