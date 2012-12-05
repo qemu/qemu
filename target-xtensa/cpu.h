@@ -153,6 +153,7 @@ enum {
     ICOUNTLEVEL = 237,
     EXCVADDR = 238,
     CCOMPARE = 240,
+    MISC = 244,
 };
 
 #define PS_INTLEVEL 0xf

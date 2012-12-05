@@ -179,6 +179,10 @@ static const XtensaReg sregnames[256] = {
             XTENSA_OPTION_TIMER_INTERRUPT),
     [CCOMPARE + 2] = XTENSA_REG("CCOMPARE2",
             XTENSA_OPTION_TIMER_INTERRUPT),
+    [MISC] = XTENSA_REG("MISC0", XTENSA_OPTION_MISC_SR),
+    [MISC + 1] = XTENSA_REG("MISC1", XTENSA_OPTION_MISC_SR),
+    [MISC + 2] = XTENSA_REG("MISC2", XTENSA_OPTION_MISC_SR),
+    [MISC + 3] = XTENSA_REG("MISC3", XTENSA_OPTION_MISC_SR),
 };
 
 static const XtensaReg uregnames[256] = {
