@@ -182,12 +182,8 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
 static int uart_can_rx(void *opaque)
 {
     struct xlx_uartlite *s = opaque;
-    int r;
 
-    r = s->rx_fifo_len < sizeof(s->rx_fifo);
-    if (!r)
-        printf("cannot receive!\n");
-    return r;
+    return s->rx_fifo_len < sizeof(s->rx_fifo);
 }
 
 static void uart_event(void *opaque, int event)
