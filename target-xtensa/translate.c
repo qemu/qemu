@@ -78,78 +78,102 @@ static TCGv_i32 cpu_UR[256];
 
 #include "gen-icount.h"
 
-static const char * const sregnames[256] = {
-    [LBEG] = "LBEG",
-    [LEND] = "LEND",
-    [LCOUNT] = "LCOUNT",
-    [SAR] = "SAR",
-    [BR] = "BR",
-    [LITBASE] = "LITBASE",
-    [SCOMPARE1] = "SCOMPARE1",
-    [ACCLO] = "ACCLO",
-    [ACCHI] = "ACCHI",
-    [MR] = "MR0",
-    [MR + 1] = "MR1",
-    [MR + 2] = "MR2",
-    [MR + 3] = "MR3",
-    [WINDOW_BASE] = "WINDOW_BASE",
-    [WINDOW_START] = "WINDOW_START",
-    [PTEVADDR] = "PTEVADDR",
-    [RASID] = "RASID",
-    [ITLBCFG] = "ITLBCFG",
-    [DTLBCFG] = "DTLBCFG",
-    [IBREAKENABLE] = "IBREAKENABLE",
-    [CACHEATTR] = "CACHEATTR",
-    [ATOMCTL] = "ATOMCTL",
-    [IBREAKA] = "IBREAKA0",
-    [IBREAKA + 1] = "IBREAKA1",
-    [DBREAKA] = "DBREAKA0",
-    [DBREAKA + 1] = "DBREAKA1",
-    [DBREAKC] = "DBREAKC0",
-    [DBREAKC + 1] = "DBREAKC1",
-    [EPC1] = "EPC1",
-    [EPC1 + 1] = "EPC2",
-    [EPC1 + 2] = "EPC3",
-    [EPC1 + 3] = "EPC4",
-    [EPC1 + 4] = "EPC5",
-    [EPC1 + 5] = "EPC6",
-    [EPC1 + 6] = "EPC7",
-    [DEPC] = "DEPC",
-    [EPS2] = "EPS2",
-    [EPS2 + 1] = "EPS3",
-    [EPS2 + 2] = "EPS4",
-    [EPS2 + 3] = "EPS5",
-    [EPS2 + 4] = "EPS6",
-    [EPS2 + 5] = "EPS7",
-    [EXCSAVE1] = "EXCSAVE1",
-    [EXCSAVE1 + 1] = "EXCSAVE2",
-    [EXCSAVE1 + 2] = "EXCSAVE3",
-    [EXCSAVE1 + 3] = "EXCSAVE4",
-    [EXCSAVE1 + 4] = "EXCSAVE5",
-    [EXCSAVE1 + 5] = "EXCSAVE6",
-    [EXCSAVE1 + 6] = "EXCSAVE7",
-    [CPENABLE] = "CPENABLE",
-    [INTSET] = "INTSET",
-    [INTCLEAR] = "INTCLEAR",
-    [INTENABLE] = "INTENABLE",
-    [PS] = "PS",
-    [VECBASE] = "VECBASE",
-    [EXCCAUSE] = "EXCCAUSE",
-    [DEBUGCAUSE] = "DEBUGCAUSE",
-    [CCOUNT] = "CCOUNT",
-    [PRID] = "PRID",
-    [ICOUNT] = "ICOUNT",
-    [ICOUNTLEVEL] = "ICOUNTLEVEL",
-    [EXCVADDR] = "EXCVADDR",
-    [CCOMPARE] = "CCOMPARE0",
-    [CCOMPARE + 1] = "CCOMPARE1",
-    [CCOMPARE + 2] = "CCOMPARE2",
+typedef struct XtensaReg {
+    const char *name;
+    uint64_t opt_bits;
+} XtensaReg;
+
+#define XTENSA_REG(regname, opt) { \
+        .name = (regname), \
+        .opt_bits = XTENSA_OPTION_BIT(opt), \
+    }
+
+#define XTENSA_REG_BITS(regname, opt) { \
+        .name = (regname), \
+        .opt_bits = (opt), \
+    }
+
+static const XtensaReg sregnames[256] = {
+    [LBEG] = XTENSA_REG("LBEG", XTENSA_OPTION_LOOP),
+    [LEND] = XTENSA_REG("LEND", XTENSA_OPTION_LOOP),
+    [LCOUNT] = XTENSA_REG("LCOUNT", XTENSA_OPTION_LOOP),
+    [SAR] = XTENSA_REG_BITS("SAR", XTENSA_OPTION_ALL),
+    [BR] = XTENSA_REG("BR", XTENSA_OPTION_BOOLEAN),
+    [LITBASE] = XTENSA_REG("LITBASE", XTENSA_OPTION_EXTENDED_L32R),
+    [SCOMPARE1] = XTENSA_REG("SCOMPARE1", XTENSA_OPTION_CONDITIONAL_STORE),
+    [ACCLO] = XTENSA_REG("ACCLO", XTENSA_OPTION_MAC16),
+    [ACCHI] = XTENSA_REG("ACCHI", XTENSA_OPTION_MAC16),
+    [MR] = XTENSA_REG("MR0", XTENSA_OPTION_MAC16),
+    [MR + 1] = XTENSA_REG("MR1", XTENSA_OPTION_MAC16),
+    [MR + 2] = XTENSA_REG("MR2", XTENSA_OPTION_MAC16),
+    [MR + 3] = XTENSA_REG("MR3", XTENSA_OPTION_MAC16),
+    [WINDOW_BASE] = XTENSA_REG("WINDOW_BASE", XTENSA_OPTION_WINDOWED_REGISTER),
+    [WINDOW_START] = XTENSA_REG("WINDOW_START",
+            XTENSA_OPTION_WINDOWED_REGISTER),
+    [PTEVADDR] = XTENSA_REG("PTEVADDR", XTENSA_OPTION_MMU),
+    [RASID] = XTENSA_REG("RASID", XTENSA_OPTION_MMU),
+    [ITLBCFG] = XTENSA_REG("ITLBCFG", XTENSA_OPTION_MMU),
+    [DTLBCFG] = XTENSA_REG("DTLBCFG", XTENSA_OPTION_MMU),
+    [IBREAKENABLE] = XTENSA_REG("IBREAKENABLE", XTENSA_OPTION_DEBUG),
+    [CACHEATTR] = XTENSA_REG("CACHEATTR", XTENSA_OPTION_CACHEATTR),
+    [ATOMCTL] = XTENSA_REG("ATOMCTL", XTENSA_OPTION_ATOMCTL),
+    [IBREAKA] = XTENSA_REG("IBREAKA0", XTENSA_OPTION_DEBUG),
+    [IBREAKA + 1] = XTENSA_REG("IBREAKA1", XTENSA_OPTION_DEBUG),
+    [DBREAKA] = XTENSA_REG("DBREAKA0", XTENSA_OPTION_DEBUG),
+    [DBREAKA + 1] = XTENSA_REG("DBREAKA1", XTENSA_OPTION_DEBUG),
+    [DBREAKC] = XTENSA_REG("DBREAKC0", XTENSA_OPTION_DEBUG),
+    [DBREAKC + 1] = XTENSA_REG("DBREAKC1", XTENSA_OPTION_DEBUG),
+    [EPC1] = XTENSA_REG("EPC1", XTENSA_OPTION_EXCEPTION),
+    [EPC1 + 1] = XTENSA_REG("EPC2", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPC1 + 2] = XTENSA_REG("EPC3", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPC1 + 3] = XTENSA_REG("EPC4", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPC1 + 4] = XTENSA_REG("EPC5", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPC1 + 5] = XTENSA_REG("EPC6", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPC1 + 6] = XTENSA_REG("EPC7", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [DEPC] = XTENSA_REG("DEPC", XTENSA_OPTION_EXCEPTION),
+    [EPS2] = XTENSA_REG("EPS2", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPS2 + 1] = XTENSA_REG("EPS3", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPS2 + 2] = XTENSA_REG("EPS4", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPS2 + 3] = XTENSA_REG("EPS5", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPS2 + 4] = XTENSA_REG("EPS6", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EPS2 + 5] = XTENSA_REG("EPS7", XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EXCSAVE1] = XTENSA_REG("EXCSAVE1", XTENSA_OPTION_EXCEPTION),
+    [EXCSAVE1 + 1] = XTENSA_REG("EXCSAVE2",
+            XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EXCSAVE1 + 2] = XTENSA_REG("EXCSAVE3",
+            XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EXCSAVE1 + 3] = XTENSA_REG("EXCSAVE4",
+            XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EXCSAVE1 + 4] = XTENSA_REG("EXCSAVE5",
+            XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EXCSAVE1 + 5] = XTENSA_REG("EXCSAVE6",
+            XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [EXCSAVE1 + 6] = XTENSA_REG("EXCSAVE7",
+            XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
+    [CPENABLE] = XTENSA_REG("CPENABLE", XTENSA_OPTION_COPROCESSOR),
+    [INTSET] = XTENSA_REG("INTSET", XTENSA_OPTION_INTERRUPT),
+    [INTCLEAR] = XTENSA_REG("INTCLEAR", XTENSA_OPTION_INTERRUPT),
+    [INTENABLE] = XTENSA_REG("INTENABLE", XTENSA_OPTION_INTERRUPT),
+    [PS] = XTENSA_REG_BITS("PS", XTENSA_OPTION_ALL),
+    [VECBASE] = XTENSA_REG("VECBASE", XTENSA_OPTION_RELOCATABLE_VECTOR),
+    [EXCCAUSE] = XTENSA_REG("EXCCAUSE", XTENSA_OPTION_EXCEPTION),
+    [DEBUGCAUSE] = XTENSA_REG("DEBUGCAUSE", XTENSA_OPTION_DEBUG),
+    [CCOUNT] = XTENSA_REG("CCOUNT", XTENSA_OPTION_TIMER_INTERRUPT),
+    [PRID] = XTENSA_REG("PRID", XTENSA_OPTION_PROCESSOR_ID),
+    [ICOUNT] = XTENSA_REG("ICOUNT", XTENSA_OPTION_DEBUG),
+    [ICOUNTLEVEL] = XTENSA_REG("ICOUNTLEVEL", XTENSA_OPTION_DEBUG),
+    [EXCVADDR] = XTENSA_REG("EXCVADDR", XTENSA_OPTION_EXCEPTION),
+    [CCOMPARE] = XTENSA_REG("CCOMPARE0", XTENSA_OPTION_TIMER_INTERRUPT),
+    [CCOMPARE + 1] = XTENSA_REG("CCOMPARE1",
+            XTENSA_OPTION_TIMER_INTERRUPT),
+    [CCOMPARE + 2] = XTENSA_REG("CCOMPARE2",
+            XTENSA_OPTION_TIMER_INTERRUPT),
 };
 
-static const char * const uregnames[256] = {
-    [THREADPTR] = "THREADPTR",
-    [FCR] = "FCR",
-    [FSR] = "FSR",
+static const XtensaReg uregnames[256] = {
+    [THREADPTR] = XTENSA_REG("THREADPTR", XTENSA_OPTION_THREAD_POINTER),
+    [FCR] = XTENSA_REG("FCR", XTENSA_OPTION_FP_COPROCESSOR),
+    [FSR] = XTENSA_REG("FSR", XTENSA_OPTION_FP_COPROCESSOR),
 };
 
 void xtensa_translate_init(void)
@@ -185,18 +209,18 @@ void xtensa_translate_init(void)
     }
 
     for (i = 0; i < 256; ++i) {
-        if (sregnames[i]) {
+        if (sregnames[i].name) {
             cpu_SR[i] = tcg_global_mem_new_i32(TCG_AREG0,
                     offsetof(CPUXtensaState, sregs[i]),
-                    sregnames[i]);
+                    sregnames[i].name);
         }
     }
 
     for (i = 0; i < 256; ++i) {
-        if (uregnames[i]) {
+        if (uregnames[i].name) {
             cpu_UR[i] = tcg_global_mem_new_i32(TCG_AREG0,
                     offsetof(CPUXtensaState, uregs[i]),
-                    uregnames[i]);
+                    uregnames[i].name);
         }
     }
 #define GEN_HELPER 2
@@ -452,6 +476,18 @@ static void gen_brcondi(DisasContext *dc, TCGCond cond,
     tcg_temp_free(tmp);
 }
 
+static void gen_check_sr(DisasContext *dc, uint32_t sr)
+{
+    if (!xtensa_option_bits_enabled(dc->config, sregnames[sr].opt_bits)) {
+        if (sregnames[sr].name) {
+            qemu_log("SR %s is not configured\n", sregnames[sr].name);
+        } else {
+            qemu_log("SR %d is not implemented\n", sr);
+        }
+        gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+    }
+}
+
 static void gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 {
     gen_advance_ccount(dc);
@@ -473,14 +509,10 @@ static void gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
         [PTEVADDR] = gen_rsr_ptevaddr,
     };
 
-    if (sregnames[sr]) {
-        if (rsr_handler[sr]) {
-            rsr_handler[sr](dc, d, sr);
-        } else {
-            tcg_gen_mov_i32(d, cpu_SR[sr]);
-        }
+    if (rsr_handler[sr]) {
+        rsr_handler[sr](dc, d, sr);
     } else {
-        qemu_log("RSR %d not implemented, ", sr);
+        tcg_gen_mov_i32(d, cpu_SR[sr]);
     }
 }
 
@@ -721,14 +753,10 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [CCOMPARE + 2] = gen_wsr_ccompare,
     };
 
-    if (sregnames[sr]) {
-        if (wsr_handler[sr]) {
-            wsr_handler[sr](dc, sr, s);
-        } else {
-            tcg_gen_mov_i32(cpu_SR[sr], s);
-        }
+    if (wsr_handler[sr]) {
+        wsr_handler[sr](dc, sr, s);
     } else {
-        qemu_log("WSR %d not implemented, ", sr);
+        tcg_gen_mov_i32(cpu_SR[sr], s);
     }
 }
 
@@ -1439,6 +1467,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             case 6: /*XSR*/
                 {
                     TCGv_i32 tmp = tcg_temp_new_i32();
+                    gen_check_sr(dc, RSR_SR);
                     if (RSR_SR >= 64) {
                         gen_check_privilege(dc);
                     }
@@ -1447,9 +1476,6 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                     gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                     gen_wsr(dc, RSR_SR, tmp);
                     tcg_temp_free(tmp);
-                    if (!sregnames[RSR_SR]) {
-                        TBD();
-                    }
                 }
                 break;
 
@@ -1672,25 +1698,21 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         case 3: /*RST3*/
             switch (OP2) {
             case 0: /*RSR*/
+                gen_check_sr(dc, RSR_SR);
                 if (RSR_SR >= 64) {
                     gen_check_privilege(dc);
                 }
                 gen_window_check1(dc, RRR_T);
                 gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
-                if (!sregnames[RSR_SR]) {
-                    TBD();
-                }
                 break;
 
             case 1: /*WSR*/
+                gen_check_sr(dc, RSR_SR);
                 if (RSR_SR >= 64) {
                     gen_check_privilege(dc);
                 }
                 gen_window_check1(dc, RRR_T);
                 gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
-                if (!sregnames[RSR_SR]) {
-                    TBD();
-                }
                 break;
 
             case 2: /*SEXTu*/
@@ -1807,7 +1829,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 gen_window_check1(dc, RRR_R);
                 {
                     int st = (RRR_S << 4) + RRR_T;
-                    if (uregnames[st]) {
+                    if (uregnames[st].name) {
                         tcg_gen_mov_i32(cpu_R[RRR_R], cpu_UR[st]);
                     } else {
                         qemu_log("RUR %d not implemented, ", st);
@@ -1818,7 +1840,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
             case 15: /*WUR*/
                 gen_window_check1(dc, RRR_T);
-                if (uregnames[RSR_SR]) {
+                if (uregnames[RSR_SR].name) {
                     gen_wur(RSR_SR, cpu_R[RRR_T]);
                 } else {
                     qemu_log("WUR %d not implemented, ", RSR_SR);
@@ -3000,8 +3022,8 @@ void cpu_dump_state(CPUXtensaState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "PC=%08x\n\n", env->pc);
 
     for (i = j = 0; i < 256; ++i) {
-        if (sregnames[i]) {
-            cpu_fprintf(f, "%s=%08x%c", sregnames[i], env->sregs[i],
+        if (xtensa_option_bits_enabled(env->config, sregnames[i].opt_bits)) {
+            cpu_fprintf(f, "%12s=%08x%c", sregnames[i].name, env->sregs[i],
                     (j++ % 4) == 3 ? '\n' : ' ');
         }
     }
@@ -3009,8 +3031,8 @@ void cpu_dump_state(CPUXtensaState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
 
     for (i = j = 0; i < 256; ++i) {
-        if (uregnames[i]) {
-            cpu_fprintf(f, "%s=%08x%c", uregnames[i], env->uregs[i],
+        if (xtensa_option_bits_enabled(env->config, uregnames[i].opt_bits)) {
+            cpu_fprintf(f, "%s=%08x%c", uregnames[i].name, env->uregs[i],
                     (j++ % 4) == 3 ? '\n' : ' ');
         }
     }
@@ -3018,7 +3040,7 @@ void cpu_dump_state(CPUXtensaState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
 
     for (i = 0; i < 16; ++i) {
-        cpu_fprintf(f, "A%02d=%08x%c", i, env->regs[i],
+        cpu_fprintf(f, " A%02d=%08x%c", i, env->regs[i],
                 (i % 4) == 3 ? '\n' : ' ');
     }
 
