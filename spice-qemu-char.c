@@ -3,6 +3,7 @@
 #include "ui/qemu-spice.h"
 #include <spice.h>
 #include <spice-experimental.h>
+#include <spice/protocol.h>
 
 #include "osdep.h"
 
@@ -67,6 +68,27 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
     return bytes;
 }
 
+#if SPICE_SERVER_VERSION >= 0x000c02
+static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
+{
+    SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
+    int chr_event;
+
+    switch (event) {
+    case SPICE_PORT_EVENT_BREAK:
+        chr_event = CHR_EVENT_BREAK;
+        break;
+    default:
+        dprintf(scd, 2, "%s: unknown %d\n", __func__, event);
+        return;
+    }
+
+    dprintf(scd, 2, "%s: %d\n", __func__, event);
+    trace_spice_vmc_event(chr_event);
+    qemu_chr_be_event(scd->chr, chr_event);
+}
+#endif
+
 static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
 {
     SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
@@ -103,6 +125,9 @@ static SpiceCharDeviceInterface vmc_interface = {
     .state              = vmc_state,
     .write              = vmc_write,
     .read               = vmc_read,
+#if SPICE_SERVER_VERSION >= 0x000c02
+    .event              = vmc_event,
+#endif
 };
 
 
@@ -242,3 +267,23 @@ CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
 
     return chr;
 }
+
+#if SPICE_SERVER_VERSION >= 0x000c02
+CharDriverState *qemu_chr_open_spice_port(QemuOpts *opts)
+{
+    CharDriverState *chr;
+    SpiceCharDriver *s;
+    const char *name = qemu_opt_get(opts, "name");
+
+    if (name == NULL) {
+        fprintf(stderr, "spice-qemu-char: missing name parameter\n");
+        return NULL;
+    }
+
+    chr = chr_open(opts, "port");
+    s = chr->opaque;
+    s->sin.portname = name;
+
+    return chr;
+}
+#endif
