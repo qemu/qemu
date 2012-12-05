@@ -97,6 +97,7 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
                 s->rx_fifo_len--;
             uart_update_status(s);
             uart_update_irq(s);
+            qemu_chr_accept_input(s->chr);
             break;
 
         default:
