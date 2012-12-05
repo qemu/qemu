@@ -25,7 +25,6 @@
    inherit from a particular bus (e.g. PCI or I2C) rather than
    this API directly.  */
 
-#include "net.h"
 #include "qdev.h"
 #include "sysemu.h"
 #include "error.h"
@@ -310,19 +309,6 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 {
     assert(n >= 0 && n < dev->num_gpio_out);
     dev->gpio_out[n] = pin;
-}
-
-void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
-{
-    qdev_prop_set_macaddr(dev, "mac", nd->macaddr.a);
-    if (nd->netdev) {
-        qdev_prop_set_netdev(dev, "netdev", nd->netdev);
-    }
-    if (nd->nvectors != DEV_NVECTORS_UNSPECIFIED &&
-        object_property_find(OBJECT(dev), "vectors", NULL)) {
-        qdev_prop_set_uint32(dev, "vectors", nd->nvectors);
-    }
-    nd->instantiated = 1;
 }
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name)

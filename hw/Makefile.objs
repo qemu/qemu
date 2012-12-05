@@ -185,6 +185,7 @@ common-obj-y += bt.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o
 common-obj-y += bt-hci-csr.o
 common-obj-y += msmouse.o ps2.o
 common-obj-y += qdev.o qdev-properties.o qdev-monitor.o
+common-obj-y += qdev-properties-system.o
 common-obj-$(CONFIG_BRLAPI) += baum.o
 
 # xen backend driver support
