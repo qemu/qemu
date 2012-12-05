@@ -315,8 +315,9 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
 {
     qdev_prop_set_macaddr(dev, "mac", nd->macaddr.a);
-    if (nd->netdev)
+    if (nd->netdev) {
         qdev_prop_set_netdev(dev, "netdev", nd->netdev);
+    }
     if (nd->nvectors != DEV_NVECTORS_UNSPECIFIED &&
         object_property_find(OBJECT(dev), "vectors", NULL)) {
         qdev_prop_set_uint32(dev, "vectors", nd->nvectors);

@@ -95,10 +95,11 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
 {
     uint32_t *p = qdev_get_prop_ptr(dev, props);
     uint32_t mask = qdev_get_prop_mask(props);
-    if (val)
+    if (val) {
         *p |= mask;
-    else
+    } else {
         *p &= ~mask;
+    }
 }
 
 static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -420,11 +421,13 @@ static void release_string(Object *obj, const char *name, void *opaque)
     g_free(*(char **)qdev_get_prop_ptr(DEVICE(obj), prop));
 }
 
-static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len)
+static int print_string(DeviceState *dev, Property *prop, char *dest,
+                        size_t len)
 {
     char **ptr = qdev_get_prop_ptr(dev, prop);
-    if (!*ptr)
+    if (!*ptr) {
         return snprintf(dest, len, "<null>");
+    }
     return snprintf(dest, len, "\"%s\"", *ptr);
 }
 
@@ -483,10 +486,12 @@ static int parse_drive(DeviceState *dev, const char *str, void **ptr)
     BlockDriverState *bs;
 
     bs = bdrv_find(str);
-    if (bs == NULL)
+    if (bs == NULL) {
         return -ENOENT;
-    if (bdrv_attach_dev(bs, dev) < 0)
+    }
+    if (bdrv_attach_dev(bs, dev) < 0) {
         return -EEXIST;
+    }
     *ptr = bs;
     return 0;
 }
@@ -749,16 +754,20 @@ static void set_mac(Object *obj, Visitor *v, void *opaque,
     }
 
     for (i = 0, pos = 0; i < 6; i++, pos += 3) {
-        if (!qemu_isxdigit(str[pos]))
+        if (!qemu_isxdigit(str[pos])) {
             goto inval;
-        if (!qemu_isxdigit(str[pos+1]))
+        }
+        if (!qemu_isxdigit(str[pos+1])) {
             goto inval;
+        }
         if (i == 5) {
-            if (str[pos+2] != '\0')
+            if (str[pos+2] != '\0') {
                 goto inval;
+            }
         } else {
-            if (str[pos+2] != ':' && str[pos+2] != '-')
+            if (str[pos+2] != ':' && str[pos+2] != '-') {
                 goto inval;
+            }
         }
         mac->a[i] = strtol(str+pos, &p, 16);
     }
@@ -864,7 +873,8 @@ invalid:
     g_free(str);
 }
 
-static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t len)
+static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest,
+                           size_t len)
 {
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
@@ -1038,11 +1048,13 @@ PropertyInfo qdev_prop_pci_host_devaddr = {
 
 static Property *qdev_prop_walk(Property *props, const char *name)
 {
-    if (!props)
+    if (!props) {
         return NULL;
+    }
     while (props->name) {
-        if (strcmp(props->name, name) == 0)
+        if (strcmp(props->name, name) == 0) {
             return props;
+        }
         props++;
     }
     return NULL;
@@ -1158,7 +1170,8 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, const char *value)
     assert_no_error(errp);
 }
 
-int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
+int qdev_prop_set_drive(DeviceState *dev, const char *name,
+                        BlockDriverState *value)
 {
     Error *errp = NULL;
     const char *bdrv_name = value ? bdrv_get_device_name(value) : "";
@@ -1172,13 +1185,15 @@ int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *va
     return 0;
 }
 
-void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value)
+void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name,
+                                BlockDriverState *value)
 {
     if (qdev_prop_set_drive(dev, name, value) < 0) {
         exit(1);
     }
 }
-void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
+void qdev_prop_set_chr(DeviceState *dev, const char *name,
+                       CharDriverState *value)
 {
     Error *errp = NULL;
     assert(!value || value->label);
@@ -1187,7 +1202,8 @@ void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *valu
     assert_no_error(errp);
 }
 
-void qdev_prop_set_netdev(DeviceState *dev, const char *name, NetClientState *value)
+void qdev_prop_set_netdev(DeviceState *dev, const char *name,
+                          NetClientState *value)
 {
     Error *errp = NULL;
     assert(!value || value->name);
@@ -1229,7 +1245,8 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
     *ptr = value;
 }
 
-static QTAILQ_HEAD(, GlobalProperty) global_props = QTAILQ_HEAD_INITIALIZER(global_props);
+static QTAILQ_HEAD(, GlobalProperty) global_props =
+        QTAILQ_HEAD_INITIALIZER(global_props);
 
 static void qdev_prop_register_global(GlobalProperty *prop)
 {
