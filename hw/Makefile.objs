@@ -1,3 +1,9 @@
+# core qdev-related obj files, also used by *-user:
+hw-core-obj-y += qdev.o qdev-properties.o
+# irq.o needed for qdev GPIO handling:
+hw-core-obj-y += irq.o
+
+
 common-obj-y = usb/ ide/ pci/
 common-obj-y += loader.o
 common-obj-$(CONFIG_VIRTIO) += virtio-console.o
@@ -154,7 +160,6 @@ common-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 common-obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
 
 common-obj-y += usb/
-common-obj-y += irq.o
 common-obj-$(CONFIG_PTIMER) += ptimer.o
 common-obj-$(CONFIG_MAX7310) += max7310.o
 common-obj-$(CONFIG_WM8750) += wm8750.o
@@ -180,7 +185,7 @@ common-obj-$(CONFIG_SD) += sd.o
 common-obj-y += bt.o bt-l2cap.o bt-sdp.o bt-hci.o bt-hid.o
 common-obj-y += bt-hci-csr.o
 common-obj-y += msmouse.o ps2.o
-common-obj-y += qdev.o qdev-properties.o qdev-monitor.o
+common-obj-y += qdev-monitor.o
 common-obj-y += qdev-properties-system.o
 common-obj-$(CONFIG_BRLAPI) += baum.o
 
