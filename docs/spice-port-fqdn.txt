@@ -1,0 +1,19 @@
+A Spice port channel is an arbitrary communication between the Spice
+server host side and the client side.
+
+Thanks to the associated reverse fully qualified domain name (fqdn),
+a Spice client can handle the various ports appropriately.
+
+The following fqdn names are reserved by the QEMU project:
+
+org.qemu.monitor.hmp.0
+  QEMU human monitor
+
+org.qemu.monitor.qmp.0:
+  QEMU control monitor
+
+org.qemu.console.serial.0
+  QEMU virtual serial port
+
+org.qemu.console.debug.0
+  QEMU debug console
