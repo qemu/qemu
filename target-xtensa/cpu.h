@@ -65,6 +65,7 @@ enum {
     XTENSA_OPTION_FP_COPROCESSOR,
     XTENSA_OPTION_MP_SYNCHRO,
     XTENSA_OPTION_CONDITIONAL_STORE,
+    XTENSA_OPTION_ATOMCTL,
 
     /* Interrupts and exceptions */
     XTENSA_OPTION_EXCEPTION,
@@ -128,6 +129,7 @@ enum {
     ITLBCFG = 91,
     DTLBCFG = 92,
     IBREAKENABLE = 96,
+    ATOMCTL = 99,
     IBREAKA = 128,
     DBREAKA = 144,
     DBREAKC = 160,
@@ -192,6 +194,14 @@ enum {
 #define MAX_NDBREAK 2
 
 #define REGION_PAGE_MASK 0xe0000000
+
+#define PAGE_CACHE_MASK    0x700
+#define PAGE_CACHE_SHIFT   8
+#define PAGE_CACHE_INVALID 0x000
+#define PAGE_CACHE_BYPASS  0x100
+#define PAGE_CACHE_WT      0x200
+#define PAGE_CACHE_WB      0x400
+#define PAGE_CACHE_ISOLATE 0x600
 
 enum {
     /* Static vectors */

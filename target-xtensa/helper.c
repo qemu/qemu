@@ -390,6 +390,7 @@ int xtensa_tlb_lookup(const CPUXtensaState *env, uint32_t addr, bool dtlb,
 static unsigned mmu_attr_to_access(uint32_t attr)
 {
     unsigned access = 0;
+
     if (attr < 12) {
         access |= PAGE_READ;
         if (attr & 0x1) {
@@ -398,8 +399,22 @@ static unsigned mmu_attr_to_access(uint32_t attr)
         if (attr & 0x2) {
             access |= PAGE_WRITE;
         }
+
+        switch (attr & 0xc) {
+        case 0:
+            access |= PAGE_CACHE_BYPASS;
+            break;
+
+        case 4:
+            access |= PAGE_CACHE_WB;
+            break;
+
+        case 8:
+            access |= PAGE_CACHE_WT;
+            break;
+        }
     } else if (attr == 13) {
-        access |= PAGE_READ | PAGE_WRITE;
+        access |= PAGE_READ | PAGE_WRITE | PAGE_CACHE_ISOLATE;
     }
     return access;
 }
@@ -410,14 +425,17 @@ static unsigned mmu_attr_to_access(uint32_t attr)
  */
 static unsigned region_attr_to_access(uint32_t attr)
 {
-    unsigned access = 0;
-    if ((attr < 6 && attr != 3) || attr == 14) {
-        access |= PAGE_READ | PAGE_WRITE;
-    }
-    if (attr > 0 && attr < 6) {
-        access |= PAGE_EXEC;
-    }
-    return access;
+    static const unsigned access[16] = {
+         [0] = PAGE_READ | PAGE_WRITE             | PAGE_CACHE_WT,
+         [1] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_WT,
+         [2] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_BYPASS,
+         [3] =                          PAGE_EXEC | PAGE_CACHE_WB,
+         [4] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_WB,
+         [5] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_WB,
+        [14] = PAGE_READ | PAGE_WRITE             | PAGE_CACHE_ISOLATE,
+    };
+
+    return access[attr & 0xf];
 }
 
 static bool is_access_granted(unsigned access, int is_write)
@@ -566,7 +584,7 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
     } else {
         *paddr = vaddr;
         *page_size = TARGET_PAGE_SIZE;
-        *access = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
+        *access = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_BYPASS;
         return 0;
     }
 }
@@ -599,24 +617,34 @@ static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
                 xtensa_tlb_get_entry(env, dtlb, wi, ei);
 
             if (entry->asid) {
+                static const char * const cache_text[8] = {
+                    [PAGE_CACHE_BYPASS >> PAGE_CACHE_SHIFT] = "Bypass",
+                    [PAGE_CACHE_WT >> PAGE_CACHE_SHIFT] = "WT",
+                    [PAGE_CACHE_WB >> PAGE_CACHE_SHIFT] = "WB",
+                    [PAGE_CACHE_ISOLATE >> PAGE_CACHE_SHIFT] = "Isolate",
+                };
                 unsigned access = attr_to_access(entry->attr);
+                unsigned cache_idx = (access & PAGE_CACHE_MASK) >>
+                    PAGE_CACHE_SHIFT;
 
                 if (print_header) {
                     print_header = false;
                     cpu_fprintf(f, "Way %u (%d %s)\n", wi, sz, sz_text);
                     cpu_fprintf(f,
-                            "\tVaddr       Paddr       ASID  Attr RWX\n"
-                            "\t----------  ----------  ----  ---- ---\n");
+                            "\tVaddr       Paddr       ASID  Attr RWX Cache\n"
+                            "\t----------  ----------  ----  ---- --- -------\n");
                 }
                 cpu_fprintf(f,
-                        "\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c\n",
+                        "\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c %-7s\n",
                         entry->vaddr,
                         entry->paddr,
                         entry->asid,
                         entry->attr,
                         (access & PAGE_READ) ? 'R' : '-',
                         (access & PAGE_WRITE) ? 'W' : '-',
-                        (access & PAGE_EXEC) ? 'X' : '-');
+                        (access & PAGE_EXEC) ? 'X' : '-',
+                        cache_text[cache_idx] ? cache_text[cache_idx] :
+                            "Invalid");
             }
         }
     }

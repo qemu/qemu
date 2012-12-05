@@ -99,6 +99,7 @@ static const char * const sregnames[256] = {
     [ITLBCFG] = "ITLBCFG",
     [DTLBCFG] = "DTLBCFG",
     [IBREAKENABLE] = "IBREAKENABLE",
+    [ATOMCTL] = "ATOMCTL",
     [IBREAKA] = "IBREAKA0",
     [IBREAKA + 1] = "IBREAKA1",
     [DBREAKA] = "DBREAKA0",
@@ -556,6 +557,11 @@ static void gen_wsr_ibreakenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     gen_jumpi_check_loop_end(dc, 0);
 }
 
+static void gen_wsr_atomctl(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], v, 0x3f);
+}
+
 static void gen_wsr_ibreaka(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     unsigned id = sr - IBREAKA;
@@ -693,6 +699,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [ITLBCFG] = gen_wsr_tlbcfg,
         [DTLBCFG] = gen_wsr_tlbcfg,
         [IBREAKENABLE] = gen_wsr_ibreakenable,
+        [ATOMCTL] = gen_wsr_atomctl,
         [IBREAKA] = gen_wsr_ibreaka,
         [IBREAKA + 1] = gen_wsr_ibreaka,
         [DBREAKA] = gen_wsr_dbreaka,
@@ -2317,10 +2324,15 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 int label = gen_new_label();
                 TCGv_i32 tmp = tcg_temp_local_new_i32();
                 TCGv_i32 addr = tcg_temp_local_new_i32();
+                TCGv_i32 tpc;
 
                 tcg_gen_mov_i32(tmp, cpu_R[RRI8_T]);
                 tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2);
                 gen_load_store_alignment(dc, 2, addr, true);
+
+                gen_advance_ccount(dc);
+                tpc = tcg_const_i32(dc->pc);
+                gen_helper_check_atomctl(cpu_env, tpc, addr);
                 tcg_gen_qemu_ld32u(cpu_R[RRI8_T], addr, dc->cring);
                 tcg_gen_brcond_i32(TCG_COND_NE, cpu_R[RRI8_T],
                         cpu_SR[SCOMPARE1], label);
@@ -2328,6 +2340,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 tcg_gen_qemu_st32(tmp, addr, dc->cring);
 
                 gen_set_label(label);
+                tcg_temp_free(tpc);
                 tcg_temp_free(addr);
                 tcg_temp_free(tmp);
             }
