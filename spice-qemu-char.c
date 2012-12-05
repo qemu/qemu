@@ -14,8 +14,6 @@
         }                                                               \
     } while (0)
 
-#define VMC_MAX_HOST_WRITE    2048
-
 typedef struct SpiceCharDriver {
     CharDriverState*      chr;
     SpiceCharDeviceInstance     sin;
@@ -35,8 +33,8 @@ static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
     uint8_t* p = (uint8_t*)buf;
 
     while (len > 0) {
-        last_out = MIN(len, VMC_MAX_HOST_WRITE);
-        if (qemu_chr_be_can_write(scd->chr) < last_out) {
+        last_out = MIN(len, qemu_chr_be_can_write(scd->chr));
+        if (last_out <= 0) {
             break;
         }
         qemu_chr_be_write(scd->chr, p, last_out);
