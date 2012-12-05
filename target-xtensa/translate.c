@@ -1403,12 +1403,14 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
                 case 1: /*ABS*/
                     {
-                        int label = gen_new_label();
-                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
-                        tcg_gen_brcondi_i32(
-                                TCG_COND_GE, cpu_R[RRR_R], 0, label);
-                        tcg_gen_neg_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
-                        gen_set_label(label);
+                        TCGv_i32 zero = tcg_const_i32(0);
+                        TCGv_i32 neg = tcg_temp_new_i32();
+
+                        tcg_gen_neg_i32(neg, cpu_R[RRR_T]);
+                        tcg_gen_movcond_i32(TCG_COND_GE, cpu_R[RRR_R],
+                                cpu_R[RRR_T], zero, cpu_R[RRR_T], neg);
+                        tcg_temp_free(neg);
+                        tcg_temp_free(zero);
                     }
                     break;
 
@@ -1755,22 +1757,20 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 {
                     TCGv_i32 tmp1 = tcg_temp_new_i32();
                     TCGv_i32 tmp2 = tcg_temp_new_i32();
-                    int label = gen_new_label();
+                    TCGv_i32 zero = tcg_const_i32(0);
 
                     tcg_gen_sari_i32(tmp1, cpu_R[RRR_S], 24 - RRR_T);
                     tcg_gen_xor_i32(tmp2, tmp1, cpu_R[RRR_S]);
                     tcg_gen_andi_i32(tmp2, tmp2, 0xffffffff << (RRR_T + 7));
-                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
-                    tcg_gen_brcondi_i32(TCG_COND_EQ, tmp2, 0, label);
 
                     tcg_gen_sari_i32(tmp1, cpu_R[RRR_S], 31);
-                    tcg_gen_xori_i32(cpu_R[RRR_R], tmp1,
-                            0xffffffff >> (25 - RRR_T));
+                    tcg_gen_xori_i32(tmp1, tmp1, 0xffffffff >> (25 - RRR_T));
 
-                    gen_set_label(label);
-
+                    tcg_gen_movcond_i32(TCG_COND_EQ, cpu_R[RRR_R], tmp2, zero,
+                            cpu_R[RRR_S], tmp1);
                     tcg_temp_free(tmp1);
                     tcg_temp_free(tmp2);
+                    tcg_temp_free(zero);
                 }
                 break;
 
@@ -1787,19 +1787,9 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                         TCG_COND_LEU,
                         TCG_COND_GEU
                     };
-                    int label = gen_new_label();
-
-                    if (RRR_R != RRR_T) {
-                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
-                        tcg_gen_brcond_i32(cond[OP2 - 4],
-                                cpu_R[RRR_S], cpu_R[RRR_T], label);
-                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
-                    } else {
-                        tcg_gen_brcond_i32(cond[OP2 - 4],
-                                cpu_R[RRR_T], cpu_R[RRR_S], label);
-                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
-                    }
-                    gen_set_label(label);
+                    tcg_gen_movcond_i32(cond[OP2 - 4], cpu_R[RRR_R],
+                            cpu_R[RRR_S], cpu_R[RRR_T],
+                            cpu_R[RRR_S], cpu_R[RRR_T]);
                 }
                 break;
 
@@ -1810,15 +1800,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 gen_window_check3(dc, RRR_R, RRR_S, RRR_T);
                 {
                     static const TCGCond cond[] = {
-                        TCG_COND_NE,
                         TCG_COND_EQ,
+                        TCG_COND_NE,
+                        TCG_COND_LT,
                         TCG_COND_GE,
-                        TCG_COND_LT
                     };
-                    int label = gen_new_label();
-                    tcg_gen_brcondi_i32(cond[OP2 - 8], cpu_R[RRR_T], 0, label);
-                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
-                    gen_set_label(label);
+                    TCGv_i32 zero = tcg_const_i32(0);
+
+                    tcg_gen_movcond_i32(cond[OP2 - 8], cpu_R[RRR_R],
+                            cpu_R[RRR_T], zero, cpu_R[RRR_S], cpu_R[RRR_R]);
+                    tcg_temp_free(zero);
                 }
                 break;
 
@@ -1827,16 +1818,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 HAS_OPTION(XTENSA_OPTION_BOOLEAN);
                 gen_window_check2(dc, RRR_R, RRR_S);
                 {
-                    int label = gen_new_label();
+                    TCGv_i32 zero = tcg_const_i32(0);
                     TCGv_i32 tmp = tcg_temp_new_i32();
 
                     tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << RRR_T);
-                    tcg_gen_brcondi_i32(
-                            OP2 & 1 ? TCG_COND_EQ : TCG_COND_NE,
-                            tmp, 0, label);
-                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
-                    gen_set_label(label);
+                    tcg_gen_movcond_i32(OP2 & 1 ? TCG_COND_NE : TCG_COND_EQ,
+                            cpu_R[RRR_R], tmp, zero,
+                            cpu_R[RRR_S], cpu_R[RRR_R]);
+
                     tcg_temp_free(tmp);
+                    tcg_temp_free(zero);
                 }
                 break;
 
@@ -2127,15 +2118,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 gen_check_cpenable(dc, 0);
                 {
                     static const TCGCond cond[] = {
-                        TCG_COND_NE,
                         TCG_COND_EQ,
+                        TCG_COND_NE,
+                        TCG_COND_LT,
                         TCG_COND_GE,
-                        TCG_COND_LT
                     };
-                    int label = gen_new_label();
-                    tcg_gen_brcondi_i32(cond[OP2 - 8], cpu_R[RRR_T], 0, label);
-                    tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_FR[RRR_S]);
-                    gen_set_label(label);
+                    TCGv_i32 zero = tcg_const_i32(0);
+
+                    tcg_gen_movcond_i32(cond[OP2 - 8], cpu_FR[RRR_R],
+                            cpu_R[RRR_T], zero, cpu_FR[RRR_S], cpu_FR[RRR_R]);
+                    tcg_temp_free(zero);
                 }
                 break;
 
@@ -2144,16 +2136,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 HAS_OPTION(XTENSA_OPTION_BOOLEAN);
                 gen_check_cpenable(dc, 0);
                 {
-                    int label = gen_new_label();
+                    TCGv_i32 zero = tcg_const_i32(0);
                     TCGv_i32 tmp = tcg_temp_new_i32();
 
                     tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << RRR_T);
-                    tcg_gen_brcondi_i32(
-                            OP2 & 1 ? TCG_COND_EQ : TCG_COND_NE,
-                            tmp, 0, label);
-                    tcg_gen_mov_i32(cpu_FR[RRR_R], cpu_FR[RRR_S]);
-                    gen_set_label(label);
+                    tcg_gen_movcond_i32(OP2 & 1 ? TCG_COND_NE : TCG_COND_EQ,
+                            cpu_FR[RRR_R], tmp, zero,
+                            cpu_FR[RRR_S], cpu_FR[RRR_R]);
+
                     tcg_temp_free(tmp);
+                    tcg_temp_free(zero);
                 }
                 break;
 
