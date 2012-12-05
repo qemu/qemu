@@ -81,16 +81,27 @@ static TCGv_i32 cpu_UR[256];
 typedef struct XtensaReg {
     const char *name;
     uint64_t opt_bits;
+    enum {
+        SR_R = 1,
+        SR_W = 2,
+        SR_X = 4,
+        SR_RW = 3,
+        SR_RWX = 7,
+    } access;
 } XtensaReg;
 
-#define XTENSA_REG(regname, opt) { \
+#define XTENSA_REG_ACCESS(regname, opt, acc) { \
         .name = (regname), \
         .opt_bits = XTENSA_OPTION_BIT(opt), \
+        .access = (acc), \
     }
+
+#define XTENSA_REG(regname, opt) XTENSA_REG_ACCESS(regname, opt, SR_RWX)
 
 #define XTENSA_REG_BITS(regname, opt) { \
         .name = (regname), \
         .opt_bits = (opt), \
+        .access = SR_RWX, \
     }
 
 static const XtensaReg sregnames[256] = {
@@ -151,15 +162,15 @@ static const XtensaReg sregnames[256] = {
     [EXCSAVE1 + 6] = XTENSA_REG("EXCSAVE7",
             XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT),
     [CPENABLE] = XTENSA_REG("CPENABLE", XTENSA_OPTION_COPROCESSOR),
-    [INTSET] = XTENSA_REG("INTSET", XTENSA_OPTION_INTERRUPT),
-    [INTCLEAR] = XTENSA_REG("INTCLEAR", XTENSA_OPTION_INTERRUPT),
+    [INTSET] = XTENSA_REG_ACCESS("INTSET", XTENSA_OPTION_INTERRUPT, SR_RW),
+    [INTCLEAR] = XTENSA_REG_ACCESS("INTCLEAR", XTENSA_OPTION_INTERRUPT, SR_W),
     [INTENABLE] = XTENSA_REG("INTENABLE", XTENSA_OPTION_INTERRUPT),
     [PS] = XTENSA_REG_BITS("PS", XTENSA_OPTION_ALL),
     [VECBASE] = XTENSA_REG("VECBASE", XTENSA_OPTION_RELOCATABLE_VECTOR),
     [EXCCAUSE] = XTENSA_REG("EXCCAUSE", XTENSA_OPTION_EXCEPTION),
-    [DEBUGCAUSE] = XTENSA_REG("DEBUGCAUSE", XTENSA_OPTION_DEBUG),
+    [DEBUGCAUSE] = XTENSA_REG_ACCESS("DEBUGCAUSE", XTENSA_OPTION_DEBUG, SR_R),
     [CCOUNT] = XTENSA_REG("CCOUNT", XTENSA_OPTION_TIMER_INTERRUPT),
-    [PRID] = XTENSA_REG("PRID", XTENSA_OPTION_PROCESSOR_ID),
+    [PRID] = XTENSA_REG_ACCESS("PRID", XTENSA_OPTION_PROCESSOR_ID, SR_R),
     [ICOUNT] = XTENSA_REG("ICOUNT", XTENSA_OPTION_DEBUG),
     [ICOUNTLEVEL] = XTENSA_REG("ICOUNTLEVEL", XTENSA_OPTION_DEBUG),
     [EXCVADDR] = XTENSA_REG("EXCVADDR", XTENSA_OPTION_EXCEPTION),
@@ -476,7 +487,7 @@ static void gen_brcondi(DisasContext *dc, TCGCond cond,
     tcg_temp_free(tmp);
 }
 
-static void gen_check_sr(DisasContext *dc, uint32_t sr)
+static void gen_check_sr(DisasContext *dc, uint32_t sr, unsigned access)
 {
     if (!xtensa_option_bits_enabled(dc->config, sregnames[sr].opt_bits)) {
         if (sregnames[sr].name) {
@@ -484,6 +495,16 @@ static void gen_check_sr(DisasContext *dc, uint32_t sr)
         } else {
             qemu_log("SR %d is not implemented\n", sr);
         }
+        gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+    } else if (!(sregnames[sr].access & access)) {
+        static const char * const access_text[] = {
+            [SR_R] = "rsr",
+            [SR_W] = "wsr",
+            [SR_X] = "xsr",
+        };
+        assert(access < ARRAY_SIZE(access_text) && access_text[access]);
+        qemu_log("SR %s is not available for %s\n", sregnames[sr].name,
+                access_text[access]);
         gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
     }
 }
@@ -679,14 +700,6 @@ static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     gen_jumpi_check_loop_end(dc, -1);
 }
 
-static void gen_wsr_debugcause(DisasContext *dc, uint32_t sr, TCGv_i32 v)
-{
-}
-
-static void gen_wsr_prid(DisasContext *dc, uint32_t sr, TCGv_i32 v)
-{
-}
-
 static void gen_wsr_icount(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     if (dc->icount) {
@@ -744,8 +757,6 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [INTCLEAR] = gen_wsr_intclear,
         [INTENABLE] = gen_wsr_intenable,
         [PS] = gen_wsr_ps,
-        [DEBUGCAUSE] = gen_wsr_debugcause,
-        [PRID] = gen_wsr_prid,
         [ICOUNT] = gen_wsr_icount,
         [ICOUNTLEVEL] = gen_wsr_icountlevel,
         [CCOMPARE] = gen_wsr_ccompare,
@@ -1467,7 +1478,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             case 6: /*XSR*/
                 {
                     TCGv_i32 tmp = tcg_temp_new_i32();
-                    gen_check_sr(dc, RSR_SR);
+                    gen_check_sr(dc, RSR_SR, SR_X);
                     if (RSR_SR >= 64) {
                         gen_check_privilege(dc);
                     }
@@ -1698,7 +1709,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
         case 3: /*RST3*/
             switch (OP2) {
             case 0: /*RSR*/
-                gen_check_sr(dc, RSR_SR);
+                gen_check_sr(dc, RSR_SR, SR_R);
                 if (RSR_SR >= 64) {
                     gen_check_privilege(dc);
                 }
@@ -1707,7 +1718,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 break;
 
             case 1: /*WSR*/
-                gen_check_sr(dc, RSR_SR);
+                gen_check_sr(dc, RSR_SR, SR_W);
                 if (RSR_SR >= 64) {
                     gen_check_privilege(dc);
                 }
