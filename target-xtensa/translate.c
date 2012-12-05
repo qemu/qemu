@@ -99,6 +99,7 @@ static const char * const sregnames[256] = {
     [ITLBCFG] = "ITLBCFG",
     [DTLBCFG] = "DTLBCFG",
     [IBREAKENABLE] = "IBREAKENABLE",
+    [CACHEATTR] = "CACHEATTR",
     [ATOMCTL] = "ATOMCTL",
     [IBREAKA] = "IBREAKA0",
     [IBREAKA + 1] = "IBREAKA1",

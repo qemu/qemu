@@ -438,6 +438,24 @@ static unsigned region_attr_to_access(uint32_t attr)
     return access[attr & 0xf];
 }
 
+/*!
+ * Convert cacheattr to PAGE_{READ,WRITE,EXEC} mask.
+ * See ISA, A.2.14 The Cache Attribute Register
+ */
+static unsigned cacheattr_attr_to_access(uint32_t attr)
+{
+    static const unsigned access[16] = {
+         [0] = PAGE_READ | PAGE_WRITE             | PAGE_CACHE_WT,
+         [1] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_WT,
+         [2] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_BYPASS,
+         [3] =                          PAGE_EXEC | PAGE_CACHE_WB,
+         [4] = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_WB,
+        [14] = PAGE_READ | PAGE_WRITE             | PAGE_CACHE_ISOLATE,
+    };
+
+    return access[attr & 0xf];
+}
+
 static bool is_access_granted(unsigned access, int is_write)
 {
     switch (is_write) {
@@ -584,7 +602,8 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
     } else {
         *paddr = vaddr;
         *page_size = TARGET_PAGE_SIZE;
-        *access = PAGE_READ | PAGE_WRITE | PAGE_EXEC | PAGE_CACHE_BYPASS;
+        *access = cacheattr_attr_to_access(
+                env->sregs[CACHEATTR] >> ((vaddr & 0xe0000000) >> 27));
         return 0;
     }
 }
