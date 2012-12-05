@@ -24,7 +24,11 @@ typedef struct SpiceCharDriver {
     uint8_t               *datapos;
     ssize_t               bufsize, datalen;
     uint32_t              debug;
+    QLIST_ENTRY(SpiceCharDriver) next;
 } SpiceCharDriver;
+
+static QLIST_HEAD(, SpiceCharDriver) spice_chars =
+    QLIST_HEAD_INITIALIZER(spice_chars);
 
 static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
 {
@@ -179,6 +183,7 @@ static void spice_chr_close(struct CharDriverState *chr)
 
     printf("%s\n", __func__);
     vmc_unregister_interface(s);
+    QLIST_REMOVE(s, next);
     g_free(s);
 }
 
@@ -228,6 +233,8 @@ static CharDriverState *chr_open(QemuOpts *opts, const char *subtype)
     chr->chr_close = spice_chr_close;
     chr->chr_guest_open = spice_chr_guest_open;
     chr->chr_guest_close = spice_chr_guest_close;
+
+    QLIST_INSERT_HEAD(&spice_chars, s, next);
 
     return chr;
 }
