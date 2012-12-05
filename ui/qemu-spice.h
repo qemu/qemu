@@ -48,6 +48,7 @@ void do_info_spice(Monitor *mon, QObject **ret_data);
 CharDriverState *qemu_chr_open_spice(QemuOpts *opts);
 #if SPICE_SERVER_VERSION >= 0x000c02
 CharDriverState *qemu_chr_open_spice_port(QemuOpts *opts);
+void qemu_spice_register_ports(void);
 #endif
 
 #else  /* CONFIG_SPICE */

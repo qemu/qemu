@@ -714,6 +714,10 @@ void qemu_spice_init(void)
     g_free(x509_key_file);
     g_free(x509_cert_file);
     g_free(x509_cacert_file);
+
+#if SPICE_SERVER_VERSION >= 0x000c02
+    qemu_spice_register_ports();
+#endif
 }
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)

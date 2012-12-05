@@ -293,4 +293,16 @@ CharDriverState *qemu_chr_open_spice_port(QemuOpts *opts)
 
     return chr;
 }
+
+void qemu_spice_register_ports(void)
+{
+    SpiceCharDriver *s;
+
+    QLIST_FOREACH(s, &spice_chars, next) {
+        if (s->sin.portname == NULL) {
+            continue;
+        }
+        vmc_register_interface(s);
+    }
+}
 #endif
