@@ -835,8 +835,8 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 cur_nr_sectors * 512);
         }
 
-        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         qemu_co_mutex_unlock(&s->lock);
+        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
                                 (cluster_offset >> 9) + index_in_cluster);
         ret = bdrv_co_writev(bs->file,
