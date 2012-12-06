@@ -22,6 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef HOST_UTILS_H
+#define HOST_UTILS_H 1
 
 #include "compiler.h"   /* QEMU_GNUC_PREREQ */
 
@@ -234,3 +236,5 @@ static inline int ctpop64(uint64_t val)
     return val;
 #endif
 }
+
+#endif

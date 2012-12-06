@@ -21,6 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef HW_BAUM_H
+#define HW_BAUM_H 1
 
 /* char device */
 CharDriverState *chr_baum_init(QemuOpts *opts);
+
+#endif

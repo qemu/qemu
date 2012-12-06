@@ -7,6 +7,8 @@
  *
  *      QEMU-specific definitions belong in pci.h
  */
+#ifndef HW_PCI_IDS_H
+#define HW_PCI_IDS_H 1
 
 /* Device classes and subclasses */
 
@@ -145,3 +147,5 @@
 
 #define PCI_VENDOR_ID_NEC                0x1033
 #define PCI_DEVICE_ID_NEC_UPD720200      0x0194
+
+#endif

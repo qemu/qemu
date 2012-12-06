@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef TCG_TARGET_SPARC 
 #define TCG_TARGET_SPARC 1
 
 #define TCG_TARGET_WORDS_BIGENDIAN
@@ -138,3 +139,5 @@ static inline void flush_icache_range(tcg_target_ulong start,
     for (; p < stop; p += 8)
         __asm__ __volatile__("flush\t%0" : : "r" (p));
 }
+
+#endif

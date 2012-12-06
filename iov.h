@@ -11,6 +11,9 @@
  * the COPYING file in the top-level directory.
  */
 
+#ifndef IOV_H
+#define IOV_H
+
 #include "qemu-common.h"
 
 /**
@@ -95,3 +98,5 @@ void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
 unsigned iov_copy(struct iovec *dst_iov, unsigned int dst_iov_cnt,
                  const struct iovec *iov, unsigned int iov_cnt,
                  size_t offset, size_t bytes);
+
+#endif

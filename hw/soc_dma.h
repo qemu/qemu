@@ -18,6 +18,10 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef HW_SOC_DMA_H
+#define HW_SOC_DMA_H 1
+
+
 #include "memory.h"
 #include "hw/irq.h"
 
@@ -108,3 +112,5 @@ static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
 }
+
+#endif

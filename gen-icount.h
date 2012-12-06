@@ -1,3 +1,6 @@
+#ifndef GEN_ICOUNT_H
+#define GEN_ICOUNT_H 1
+
 #include "qemu-timer.h"
 
 /* Helpers for instruction counting code generation.  */
@@ -46,3 +49,5 @@ static inline void gen_io_end(void)
     tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUArchState, can_do_io));
     tcg_temp_free_i32(tmp);
 }
+
+#endif

@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef TCG_TARGET_IA64 
 #define TCG_TARGET_IA64 1
 
 /* We only map the first 64 registers */
@@ -158,3 +159,5 @@ static inline void flush_icache_range(tcg_target_ulong start,
     }
     asm volatile (";;sync.i;;srlz.i;;");
 }
+
+#endif

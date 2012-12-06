@@ -1,3 +1,6 @@
+#ifndef HW_ETRAXFS_DMA_H
+#define HW_ETRAXFS_DMA_H 1
+
 struct dma_context_metadata {
 	/* data descriptor md */
 	uint16_t metadata;
@@ -27,3 +30,5 @@ void etraxfs_dmac_connect_client(void *opaque, int c,
 				 struct etraxfs_dma_client *cl);
 int etraxfs_dmac_input(struct etraxfs_dma_client *client, 
 		       void *buf, int len, int eop);
+
+#endif

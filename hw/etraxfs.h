@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+#ifndef HW_EXTRAXFS_H
+#define HW_EXTRAXFS_H 1
+
 #include "net/net.h"
 #include "etraxfs_dma.h"
 
@@ -44,3 +47,5 @@ etraxfs_eth_init(NICInfo *nd, hwaddr base, int phyaddr,
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
     return dev;
 }
+
+#endif

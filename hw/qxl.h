@@ -1,3 +1,6 @@
+#ifndef HW_QXL_H
+#define HW_QXL_H 1
+
 #include "qemu-common.h"
 
 #include "ui/console.h"
@@ -158,3 +161,5 @@ void qxl_render_update(PCIQXLDevice *qxl);
 int qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
 void qxl_render_update_area_done(PCIQXLDevice *qxl, QXLCookie *cookie);
 void qxl_render_update_area_bh(void *opaque);
+
+#endif

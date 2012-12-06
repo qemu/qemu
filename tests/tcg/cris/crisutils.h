@@ -1,3 +1,6 @@
+#ifndef CRISUTILS_H
+#define CRISUTILS_H 1
+
 static char *tst_cc_loc = NULL;
 
 #define cris_tst_cc_init() \
@@ -69,3 +72,5 @@ static inline void cris_tst_cc(const int n, const int z,
 	if (c) cris_tst_cc_c1(); else cris_tst_cc_c0();
 	asm volatile ("" : : "g" (_err));
 }
+
+#endif

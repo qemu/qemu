@@ -6,6 +6,8 @@
  *
  * This code is licensed under the GPL
  */
+#ifndef SOFTMMU_SEMI_H
+#define SOFTMMU_SEMI_H 1
 
 static inline uint32_t softmmu_tget32(CPUArchState *env, uint32_t addr)
 {
@@ -71,3 +73,5 @@ static void softmmu_unlock_user(CPUArchState *env, void *p, target_ulong addr,
     free(p);
 }
 #define unlock_user(s, args, len) softmmu_unlock_user(env, s, args, len)
+
+#endif

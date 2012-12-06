@@ -22,6 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef HW_SERIAL_H
+#define HW_SERIAL_H 1
 
 #include "hw.h"
 #include "sysemu.h"
@@ -97,3 +99,5 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
 /* serial-isa.c */
 bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr);
+
+#endif
