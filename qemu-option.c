@@ -1076,22 +1076,14 @@ void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
     QemuOpt *opt;
     Error *local_err = NULL;
 
-    assert(opts->list->desc[0].name == NULL);
+    assert(opts_accepts_any(opts));
 
     QTAILQ_FOREACH(opt, &opts->head, next) {
-        int i;
-
-        for (i = 0; desc[i].name != NULL; i++) {
-            if (strcmp(desc[i].name, opt->name) == 0) {
-                break;
-            }
-        }
-        if (desc[i].name == NULL) {
+        opt->desc = find_desc_by_name(desc, opt->name);
+        if (!opt->desc) {
             error_set(errp, QERR_INVALID_PARAMETER, opt->name);
             return;
         }
-
-        opt->desc = &desc[i];
 
         qemu_opt_parse(opt, &local_err);
         if (error_is_set(&local_err)) {
