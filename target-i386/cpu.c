@@ -26,6 +26,7 @@
 
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "qerror.h"
 
 #include "qapi/qapi-visit-core.h"
 #include "arch_init.h"

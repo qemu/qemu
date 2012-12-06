@@ -27,6 +27,7 @@
 #define QEMU_OPTIONS_INTERNAL_H
 
 #include "qemu-option.h"
+#include "qemu-error.h"
 
 struct QemuOpt {
     const char   *name;

@@ -15,6 +15,7 @@
 #include "qemu-queue.h"
 #include "qemu-common.h"
 #include "qemu-objects.h"
+#include "qapi-visit-impl.h"
 
 typedef struct StackEntry
 {

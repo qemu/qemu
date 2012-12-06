@@ -13,7 +13,7 @@
 #ifndef QAPI_VISITOR_CORE_H
 #define QAPI_VISITOR_CORE_H
 
-#include "qapi/qapi-types-core.h"
+#include "error.h"
 #include <stdlib.h>
 
 typedef struct GenericList

@@ -12,7 +12,7 @@
 #ifndef QAPI_VISITOR_IMPL_H
 #define QAPI_VISITOR_IMPL_H
 
-#include "qapi/qapi-types-core.h"
+#include "error.h"
 #include "qapi/qapi-visit-core.h"
 
 void input_type_enum(Visitor *v, int *obj, const char *strings[],

@@ -11,6 +11,7 @@
  */
 
 #include "qemu-common.h"
+#include "qerror.h"
 #include "opts-visitor.h"
 #include "qemu-queue.h"
 #include "qemu-option-internal.h"
