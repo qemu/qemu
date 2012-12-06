@@ -234,6 +234,18 @@ static int add_rule(QemuOpts *opts, void *opaque)
     return 0;
 }
 
+static void remove_rule(BlkdebugRule *rule)
+{
+    switch (rule->action) {
+    case ACTION_INJECT_ERROR:
+    case ACTION_SET_STATE:
+        break;
+    }
+
+    QLIST_REMOVE(rule, next);
+    g_free(rule);
+}
+
 static int read_config(BDRVBlkdebugState *s, const char *filename)
 {
     FILE *f;
@@ -402,8 +414,7 @@ static void blkdebug_close(BlockDriverState *bs)
 
     for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
-            QLIST_REMOVE(rule, next);
-            g_free(rule);
+            remove_rule(rule);
         }
     }
 }
