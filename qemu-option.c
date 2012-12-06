@@ -780,6 +780,15 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
     return opts;
 }
 
+QemuOpts *qemu_opts_create_nofail(QemuOptsList *list)
+{
+    QemuOpts *opts;
+    Error *errp = NULL;
+    opts = qemu_opts_create(list, NULL, 0, &errp);
+    assert_no_error(errp);
+    return opts;
+}
+
 void qemu_opts_reset(QemuOptsList *list)
 {
     QemuOpts *opts, *next_opts;
