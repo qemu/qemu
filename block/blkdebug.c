@@ -240,6 +240,11 @@ static int read_config(BDRVBlkdebugState *s, const char *filename)
     int ret;
     struct add_rule_data d;
 
+    /* Allow usage without config file */
+    if (!*filename) {
+        return 0;
+    }
+
     f = fopen(filename, "r");
     if (f == NULL) {
         return -errno;
