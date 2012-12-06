@@ -1671,6 +1671,67 @@ static const cmdinfo_t map_cmd = {
        .oneline        = "prints the allocated areas of a file",
 };
 
+static int break_f(int argc, char **argv)
+{
+    int ret;
+
+    ret = bdrv_debug_breakpoint(bs, argv[1], argv[2]);
+    if (ret < 0) {
+        printf("Could not set breakpoint: %s\n", strerror(-ret));
+    }
+
+    return 0;
+}
+
+static const cmdinfo_t break_cmd = {
+       .name           = "break",
+       .argmin         = 2,
+       .argmax         = 2,
+       .cfunc          = break_f,
+       .args           = "event tag",
+       .oneline        = "sets a breakpoint on event and tags the stopped "
+                         "request as tag",
+};
+
+static int resume_f(int argc, char **argv)
+{
+    int ret;
+
+    ret = bdrv_debug_resume(bs, argv[1]);
+    if (ret < 0) {
+        printf("Could not resume request: %s\n", strerror(-ret));
+    }
+
+    return 0;
+}
+
+static const cmdinfo_t resume_cmd = {
+       .name           = "resume",
+       .argmin         = 1,
+       .argmax         = 1,
+       .cfunc          = resume_f,
+       .args           = "tag",
+       .oneline        = "resumes the request tagged as tag",
+};
+
+static int wait_break_f(int argc, char **argv)
+{
+    while (!bdrv_debug_is_suspended(bs, argv[1])) {
+        qemu_aio_wait();
+    }
+
+    return 0;
+}
+
+static const cmdinfo_t wait_break_cmd = {
+       .name           = "wait_break",
+       .argmin         = 1,
+       .argmax         = 1,
+       .cfunc          = wait_break_f,
+       .args           = "tag",
+       .oneline        = "waits for the suspension of a request",
+};
+
 static int abort_f(int argc, char **argv)
 {
     abort();
@@ -1934,6 +1995,9 @@ int main(int argc, char **argv)
     add_command(&discard_cmd);
     add_command(&alloc_cmd);
     add_command(&map_cmd);
+    add_command(&break_cmd);
+    add_command(&resume_cmd);
+    add_command(&wait_break_cmd);
     add_command(&abort_cmd);
 
     add_args_command(init_args_command);

@@ -3045,7 +3045,46 @@ void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
     }
 
     drv->bdrv_debug_event(bs, event);
+}
 
+int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
+                          const char *tag)
+{
+    while (bs && bs->drv && !bs->drv->bdrv_debug_breakpoint) {
+        bs = bs->file;
+    }
+
+    if (bs && bs->drv && bs->drv->bdrv_debug_breakpoint) {
+        return bs->drv->bdrv_debug_breakpoint(bs, event, tag);
+    }
+
+    return -ENOTSUP;
+}
+
+int bdrv_debug_resume(BlockDriverState *bs, const char *tag)
+{
+    while (bs && bs->drv && !bs->drv->bdrv_debug_resume) {
+        bs = bs->file;
+    }
+
+    if (bs && bs->drv && bs->drv->bdrv_debug_resume) {
+        return bs->drv->bdrv_debug_resume(bs, tag);
+    }
+
+    return -ENOTSUP;
+}
+
+bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag)
+{
+    while (bs && bs->drv && !bs->drv->bdrv_debug_is_suspended) {
+        bs = bs->file;
+    }
+
+    if (bs && bs->drv && bs->drv->bdrv_debug_is_suspended) {
+        return bs->drv->bdrv_debug_is_suspended(bs, tag);
+    }
+
+    return false;
 }
 
 /**************************************************************/
