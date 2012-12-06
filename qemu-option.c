@@ -602,26 +602,36 @@ static void qemu_opt_del(QemuOpt *opt)
     g_free(opt);
 }
 
-static void opt_set(QemuOpts *opts, const char *name, const char *value,
-                    bool prepend, Error **errp)
+static bool opts_accepts_any(const QemuOpts *opts)
 {
-    QemuOpt *opt;
-    const QemuOptDesc *desc = opts->list->desc;
-    Error *local_err = NULL;
+    return opts->list->desc[0].name == NULL;
+}
+
+static const QemuOptDesc *find_desc_by_name(const QemuOptDesc *desc,
+                                            const char *name)
+{
     int i;
 
     for (i = 0; desc[i].name != NULL; i++) {
         if (strcmp(desc[i].name, name) == 0) {
-            break;
+            return &desc[i];
         }
     }
-    if (desc[i].name == NULL) {
-        if (i == 0) {
-            /* empty list -> allow any */;
-        } else {
-            error_set(errp, QERR_INVALID_PARAMETER, name);
-            return;
-        }
+
+    return NULL;
+}
+
+static void opt_set(QemuOpts *opts, const char *name, const char *value,
+                    bool prepend, Error **errp)
+{
+    QemuOpt *opt;
+    const QemuOptDesc *desc;
+    Error *local_err = NULL;
+
+    desc = find_desc_by_name(opts->list->desc, name);
+    if (!desc && !opts_accepts_any(opts)) {
+        error_set(errp, QERR_INVALID_PARAMETER, name);
+        return;
     }
 
     opt = g_malloc0(sizeof(*opt));
@@ -632,9 +642,7 @@ static void opt_set(QemuOpts *opts, const char *name, const char *value,
     } else {
         QTAILQ_INSERT_TAIL(&opts->head, opt, next);
     }
-    if (desc[i].name != NULL) {
-        opt->desc = desc+i;
-    }
+    opt->desc = desc;
     if (value) {
         opt->str = g_strdup(value);
     }
