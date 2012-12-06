@@ -48,6 +48,7 @@ typedef struct IscsiLun {
     int block_size;
     uint64_t num_blocks;
     int events;
+    QEMUTimer *nop_timer;
 } IscsiLun;
 
 typedef struct IscsiAIOCB {
@@ -65,6 +66,9 @@ typedef struct IscsiAIOCB {
     sg_io_hdr_t *ioh;
 #endif
 } IscsiAIOCB;
+
+#define NOP_INTERVAL 5000
+#define MAX_NOP_FAILURES 3
 
 static void
 iscsi_bh_cb(void *p)
@@ -768,6 +772,26 @@ static char *parse_initiator_name(const char *target)
     }
 }
 
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+static void iscsi_nop_timed_event(void *opaque)
+{
+    IscsiLun *iscsilun = opaque;
+
+    if (iscsi_get_nops_in_flight(iscsilun->iscsi) > MAX_NOP_FAILURES) {
+        error_report("iSCSI: NOP timeout. Reconnecting...");
+        iscsi_reconnect(iscsilun->iscsi);
+    }
+
+    if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
+        error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
+        return;
+    }
+
+    qemu_mod_timer(iscsilun->nop_timer, qemu_get_clock_ms(rt_clock) + NOP_INTERVAL);
+    iscsi_set_events(iscsilun);
+}
+#endif
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -928,6 +952,12 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
 
     ret = 0;
 
+#if defined(LIBISCSI_FEATURE_NOP_COUNTER)
+    /* Set up a timer for sending out iSCSI NOPs */
+    iscsilun->nop_timer = qemu_new_timer_ms(rt_clock, iscsi_nop_timed_event, iscsilun);
+    qemu_mod_timer(iscsilun->nop_timer, qemu_get_clock_ms(rt_clock) + NOP_INTERVAL);
+#endif
+
 out:
     if (initiator_name != NULL) {
         g_free(initiator_name);
@@ -953,6 +983,10 @@ static void iscsi_close(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = iscsilun->iscsi;
 
+    if (iscsilun->nop_timer) {
+        qemu_del_timer(iscsilun->nop_timer);
+        qemu_free_timer(iscsilun->nop_timer);
+    }
     qemu_aio_set_fd_handler(iscsi_get_fd(iscsi), NULL, NULL, NULL, NULL);
     iscsi_destroy_context(iscsi);
     memset(iscsilun, 0, sizeof(IscsiLun));
@@ -986,6 +1020,10 @@ static int iscsi_create(const char *filename, QEMUOptionParameter *options)
     ret = iscsi_open(&bs, filename, 0);
     if (ret != 0) {
         goto out;
+    }
+    if (iscsilun->nop_timer) {
+        qemu_del_timer(iscsilun->nop_timer);
+        qemu_free_timer(iscsilun->nop_timer);
     }
     if (iscsilun->type != TYPE_DISK) {
         ret = -ENODEV;
