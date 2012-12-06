@@ -366,6 +366,7 @@ def gen_command_def_prologue(prefix="", proxy=False):
  *
  */
 
+#include "qemu-common.h"
 #include "qemu-objects.h"
 #include "qapi/qmp-core.h"
 #include "qapi/qapi-visit-core.h"

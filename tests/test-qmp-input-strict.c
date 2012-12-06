@@ -14,6 +14,7 @@
 #include <glib.h>
 #include <stdarg.h>
 
+#include "qemu-common.h"
 #include "qapi/qmp-input-visitor.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"

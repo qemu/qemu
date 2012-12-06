@@ -298,6 +298,7 @@ fdef.write(mcgen('''
  *
  */
 
+#include "qemu-common.h"
 #include "%(header)s"
 ''',
                  header=basename(h_file)))

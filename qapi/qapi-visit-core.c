@@ -11,6 +11,7 @@
  *
  */
 
+#include "qemu-common.h"
 #include "qapi/qapi-visit-core.h"
 #include "qapi/qapi-visit-impl.h"
 

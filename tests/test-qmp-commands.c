@@ -1,4 +1,5 @@
 #include <glib.h>
+#include "qemu-common.h"
 #include "qemu-objects.h"
 #include "test-qmp-commands.h"
 #include "qapi/qmp-core.h"
