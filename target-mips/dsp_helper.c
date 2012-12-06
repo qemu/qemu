@@ -3948,7 +3948,11 @@ void helper_wrdsp(target_ulong rs, target_ulong mask_num, CPUMIPSState *env)
     if (mask[4] == 1) {
         overwrite &= 0x00FFFFFF;
         newbits   &= 0x00FFFFFF;
+#if defined(TARGET_MIPS64)
         newbits   |= 0xFF000000 & rs;
+#else
+        newbits   |= 0x0F000000 & rs;
+#endif
     }
 
     if (mask[5] == 1) {
@@ -3999,7 +4003,11 @@ target_ulong helper_rddsp(target_ulong masknum, CPUMIPSState *env)
     }
 
     if (mask[4] == 1) {
+#if defined(TARGET_MIPS64)
         temp |= dsp & 0xFF000000;
+#else
+        temp |= dsp & 0x0F000000;
+#endif
     }
 
     if (mask[5] == 1) {
