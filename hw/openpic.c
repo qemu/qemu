@@ -46,27 +46,8 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define USE_MPCxxx /* Intel model is broken, for now */
-
-#if defined (USE_INTEL_GW80314)
-/* Intel GW80314 I/O Companion chip */
-
-#define MAX_CPU     4
-#define MAX_IRQ    32
-#define MAX_DBL     4
-#define MAX_MBX     4
-#define MAX_TMR     4
-#define VECTOR_BITS 8
-#define MAX_IPI     4
-
-#define VID (0x00000000)
-
-#elif defined(USE_MPCxxx)
-
 #define MAX_CPU    15
 #define MAX_IRQ   128
-#define MAX_DBL     0
-#define MAX_MBX     0
 #define MAX_TMR     4
 #define VECTOR_BITS 8
 #define MAX_IPI     4
@@ -148,12 +129,6 @@ enum mpic_ide_bits {
     IDR_P1     = 1,
     IDR_P0     = 0,
 };
-
-#else
-#error "Please select which OpenPic implementation is to be emulated"
-#endif
-
-#define OPENPIC_PAGE_SIZE 4096
 
 #define BF_WIDTH(_bits_) \
 (((_bits_) + (sizeof(uint32_t) * 8) - 1) / (sizeof(uint32_t) * 8))
@@ -250,19 +225,6 @@ typedef struct openpic_t {
         uint32_t ticc;  /* Global timer current count register */
         uint32_t tibc;  /* Global timer base count register */
     } timers[MAX_TMR];
-#if MAX_DBL > 0
-    /* Doorbell registers */
-    uint32_t dar;        /* Doorbell activate register */
-    struct {
-        uint32_t dmr;    /* Doorbell messaging register */
-    } doorbells[MAX_DBL];
-#endif
-#if MAX_MBX > 0
-    /* Mailbox registers */
-    struct {
-        uint32_t mbr;    /* Mailbox register */
-    } mailboxes[MAX_MAILBOXES];
-#endif
     /* IRQ out is used when in bypass mode (not implemented) */
     qemu_irq irq_out;
     int max_irq;
@@ -470,19 +432,6 @@ static void openpic_reset (void *opaque)
         opp->timers[i].ticc = 0x00000000;
         opp->timers[i].tibc = 0x80000000;
     }
-    /* Initialise doorbells */
-#if MAX_DBL > 0
-    opp->dar = 0x00000000;
-    for (i = 0; i < MAX_DBL; i++) {
-        opp->doorbells[i].dmr  = 0x00000000;
-    }
-#endif
-    /* Initialise mailboxes */
-#if MAX_MBX > 0
-    for (i = 0; i < MAX_MBX; i++) { /* ? */
-        opp->mailboxes[i].mbr   = 0x00000000;
-    }
-#endif
     /* Go out of RESET state */
     opp->glbc = 0x00000000;
 }
@@ -517,84 +466,6 @@ static inline void write_IRQreg_ipvp(openpic_t *opp, int n_IRQ, uint32_t val)
     DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
             opp->src[n_IRQ].ipvp);
 }
-
-#if 0 // Code provision for Intel model
-#if MAX_DBL > 0
-static uint32_t read_doorbell_register (openpic_t *opp,
-                                        int n_dbl, uint32_t offset)
-{
-    uint32_t retval;
-
-    switch (offset) {
-    case DBL_IPVP_OFFSET:
-        retval = read_IRQreg_ipvp(opp, IRQ_DBL0 + n_dbl);
-        break;
-    case DBL_IDE_OFFSET:
-        retval = read_IRQreg_ide(opp, IRQ_DBL0 + n_dbl);
-        break;
-    case DBL_DMR_OFFSET:
-        retval = opp->doorbells[n_dbl].dmr;
-        break;
-    }
-
-    return retval;
-}
-
-static void write_doorbell_register (penpic_t *opp, int n_dbl,
-                                     uint32_t offset, uint32_t value)
-{
-    switch (offset) {
-    case DBL_IVPR_OFFSET:
-        write_IRQreg_ipvp(opp, IRQ_DBL0 + n_dbl, value);
-        break;
-    case DBL_IDE_OFFSET:
-        write_IRQreg_ide(opp, IRQ_DBL0 + n_dbl, value);
-        break;
-    case DBL_DMR_OFFSET:
-        opp->doorbells[n_dbl].dmr = value;
-        break;
-    }
-}
-#endif
-
-#if MAX_MBX > 0
-static uint32_t read_mailbox_register (openpic_t *opp,
-                                       int n_mbx, uint32_t offset)
-{
-    uint32_t retval;
-
-    switch (offset) {
-    case MBX_MBR_OFFSET:
-        retval = opp->mailboxes[n_mbx].mbr;
-        break;
-    case MBX_IVPR_OFFSET:
-        retval = read_IRQreg_ipvp(opp, IRQ_MBX0 + n_mbx);
-        break;
-    case MBX_DMR_OFFSET:
-        retval = read_IRQreg_ide(opp, IRQ_MBX0 + n_mbx);
-        break;
-    }
-
-    return retval;
-}
-
-static void write_mailbox_register (openpic_t *opp, int n_mbx,
-                                    uint32_t address, uint32_t value)
-{
-    switch (offset) {
-    case MBX_MBR_OFFSET:
-        opp->mailboxes[n_mbx].mbr = value;
-        break;
-    case MBX_IVPR_OFFSET:
-        write_IRQreg_ipvp(opp, IRQ_MBX0 + n_mbx, value);
-        break;
-    case MBX_DMR_OFFSET:
-        write_IRQreg_ide(opp, IRQ_MBX0 + n_mbx, value);
-        break;
-    }
-}
-#endif
-#endif /* 0 : Code provision for Intel model */
 
 static void openpic_gbl_write (void *opaque, hwaddr addr, uint32_t val)
 {
@@ -841,7 +712,6 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
     dst = &opp->dst[idx];
     addr &= 0xFF0;
     switch (addr) {
-#if MAX_IPI > 0
     case 0x40: /* IPIDR */
     case 0x50:
     case 0x60:
@@ -853,7 +723,6 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 1);
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 0);
         break;
-#endif
     case 0x80: /* PCTP */
         dst->pctp = val & 0x0000000F;
         break;
@@ -1109,20 +978,6 @@ static void openpic_save(QEMUFile* f, void *opaque)
         qemu_put_be32s(f, &opp->timers[i].tibc);
     }
 
-#if MAX_DBL > 0
-    qemu_put_be32s(f, &opp->dar);
-
-    for (i = 0; i < MAX_DBL; i++) {
-        qemu_put_be32s(f, &opp->doorbells[i].dmr);
-    }
-#endif
-
-#if MAX_MBX > 0
-    for (i = 0; i < MAX_MAILBOXES; i++) {
-        qemu_put_be32s(f, &opp->mailboxes[i].mbr);
-    }
-#endif
-
     pci_device_save(&opp->pci_dev, f);
 }
 
@@ -1176,20 +1031,6 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
         qemu_get_be32s(f, &opp->timers[i].tibc);
     }
 
-#if MAX_DBL > 0
-    qemu_get_be32s(f, &opp->dar);
-
-    for (i = 0; i < MAX_DBL; i++) {
-        qemu_get_be32s(f, &opp->doorbells[i].dmr);
-    }
-#endif
-
-#if MAX_MBX > 0
-    for (i = 0; i < MAX_MAILBOXES; i++) {
-        qemu_get_be32s(f, &opp->mailboxes[i].mbr);
-    }
-#endif
-
     return pci_device_load(&opp->pci_dev, f);
 }
 
@@ -1222,11 +1063,7 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
     for (; i < OPENPIC_IRQ_TIM0; i++) {
         opp->src[i].type = IRQ_SPECIAL;
     }
-#if MAX_IPI > 0
     m = OPENPIC_IRQ_IPI0;
-#else
-    m = OPENPIC_IRQ_DBL0;
-#endif
     for (; i < m; i++) {
         opp->src[i].type = IRQ_TIMER;
     }
