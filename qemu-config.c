@@ -756,7 +756,7 @@ int qemu_global_option(const char *str)
         return -1;
     }
 
-    opts = qemu_opts_create(&qemu_global_opts, NULL, 0, NULL);
+    opts = qemu_opts_create_nofail(&qemu_global_opts);
     qemu_opt_set(opts, "driver", driver);
     qemu_opt_set(opts, "property", property);
     qemu_opt_set(opts, "value", str+offset+1);
@@ -843,7 +843,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
                 error_free(local_err);
                 goto out;
             }
-            opts = qemu_opts_create(list, NULL, 0, NULL);
+            opts = qemu_opts_create_nofail(list);
             continue;
         }
         if (sscanf(line, " %63s = \"%1023[^\"]\"", arg, value) == 2) {
