@@ -631,7 +631,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     old_cluster = g_malloc(m->nb_clusters * sizeof(uint64_t));
 
     /* copy content of unmodified sectors */
-    start_sect = (m->offset & ~(s->cluster_size - 1)) >> 9;
+    start_sect = m->offset >> 9;
     if (m->n_start) {
         cow = true;
         qemu_co_mutex_unlock(&s->lock);
@@ -966,7 +966,7 @@ again:
                 .cluster_offset = keep_clusters == 0 ?
                                   alloc_cluster_offset : cluster_offset,
                 .alloc_offset   = alloc_cluster_offset,
-                .offset         = alloc_offset,
+                .offset         = alloc_offset & ~(s->cluster_size - 1),
                 .n_start        = keep_clusters == 0 ? n_start : 0,
                 .nb_clusters    = nb_clusters,
                 .nb_available   = MIN(requested_sectors, avail_sectors),

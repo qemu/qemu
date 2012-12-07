@@ -199,12 +199,34 @@ struct QCowAIOCB;
 /* XXX This could be private for qcow2-cluster.c */
 typedef struct QCowL2Meta
 {
+    /** Guest offset of the first newly allocated cluster */
     uint64_t offset;
+
+    /** Host offset of the first cluster of the request */
     uint64_t cluster_offset;
+
+    /** Host offset of the first newly allocated cluster */
     uint64_t alloc_offset;
+
+    /**
+     * Number of sectors between the start of the first allocated cluster and
+     * the area that the guest actually writes to.
+     */
     int n_start;
+
+    /**
+     * Number of sectors from the start of the first allocated cluster to
+     * the end of the (possibly shortened) request
+     */
     int nb_available;
+
+    /** Number of newly allocated clusters */
     int nb_clusters;
+
+    /**
+     * Requests that overlap with this allocation and wait to be restarted
+     * when the allocating request has completed.
+     */
     CoQueue dependent_requests;
 
     QLIST_ENTRY(QCowL2Meta) next_in_flight;
