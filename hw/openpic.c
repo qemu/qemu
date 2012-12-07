@@ -207,6 +207,9 @@ typedef struct openpic_t {
     PCIDevice pci_dev;
     MemoryRegion mem;
 
+    /* Behavior control */
+    uint32_t flags;
+
     /* Sub-regions */
     MemoryRegion sub_io_mem[7];
 
@@ -234,8 +237,9 @@ typedef struct openpic_t {
     int irq_ipi0;
     int irq_tim0;
     void (*reset) (void *);
-    void (*irq_raise) (struct openpic_t *, int, IRQ_src_t *);
 } openpic_t;
+
+static void openpic_irq_raise(openpic_t *opp, int n_CPU, IRQ_src_t *src);
 
 static inline void IRQ_setbit (IRQ_queue_t *q, int n_IRQ)
 {
@@ -321,7 +325,7 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
         return;
     }
     DPRINTF("Raise OpenPIC INT output cpu %d irq %d\n", n_CPU, n_IRQ);
-    opp->irq_raise(opp, n_CPU, src);
+    openpic_irq_raise(opp, n_CPU, src);
 }
 
 /* update pic state because registers for n_IRQ have changed value */
@@ -753,7 +757,7 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
              IPVP_PRIORITY(src->ipvp) > dst->servicing.priority)) {
             DPRINTF("Raise OpenPIC INT output cpu %d irq %d\n",
                     idx, n_IRQ);
-            opp->irq_raise(opp, idx, src);
+            openpic_irq_raise(opp, idx, src);
         }
         break;
     default:
@@ -996,7 +1000,13 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 
 static void openpic_irq_raise(openpic_t *opp, int n_CPU, IRQ_src_t *src)
 {
-    qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
+    int n_ci = IDR_CI0 - n_CPU;
+
+    if ((opp->flags & OPENPIC_FLAG_IDE_CRIT) && test_bit(&src->ide, n_ci)) {
+        qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_CINT]);
+    } else {
+        qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
+    }
 }
 
 qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
@@ -1059,25 +1069,12 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
                     openpic_save, openpic_load, opp);
     qemu_register_reset(openpic_reset, opp);
 
-    opp->irq_raise = openpic_irq_raise;
     opp->reset = openpic_reset;
 
     if (pmem)
         *pmem = &opp->mem;
 
     return qemu_allocate_irqs(openpic_set_irq, opp, opp->max_irq);
-}
-
-static void mpic_irq_raise(openpic_t *mpp, int n_CPU, IRQ_src_t *src)
-{
-    int n_ci = IDR_CI0 - n_CPU;
-
-    if(test_bit(&src->ide, n_ci)) {
-        qemu_irq_raise(mpp->dst[n_CPU].irqs[OPENPIC_OUTPUT_CINT]);
-    }
-    else {
-        qemu_irq_raise(mpp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
-    }
 }
 
 static void mpic_reset (void *opaque)
@@ -1265,7 +1262,8 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
         mpp->dst[i].irqs = irqs[i];
     mpp->irq_out = irq_out;
 
-    mpp->irq_raise = mpic_irq_raise;
+    /* Enable critical interrupt support */
+    mpp->flags |= OPENPIC_FLAG_IDE_CRIT;
     mpp->reset = mpic_reset;
 
     register_savevm(NULL, "mpic", 0, 2, openpic_save, openpic_load, mpp);
