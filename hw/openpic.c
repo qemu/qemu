@@ -53,7 +53,6 @@
 #define MAX_IPI     4
 #define MAX_IRQ     (MAX_SRC + MAX_IPI + MAX_TMR)
 #define VID         0x03 /* MPIC version ID */
-#define VENI        0x00000000 /* Vendor ID */
 
 enum {
     IRQ_IPVP = 0,
@@ -124,6 +123,14 @@ enum {
 #define FSL_BRR1_IPID (0x0040 << 16) /* 16 bit IP-block ID */
 #define FSL_BRR1_IPMJ (0x00 << 8) /* 8 bit IP major number */
 #define FSL_BRR1_IPMN 0x00 /* 8 bit IP minor number */
+
+#define FREP_NIRQ_SHIFT   16
+#define FREP_NCPU_SHIFT    8
+#define FREP_VID_SHIFT     0
+
+#define VID_REVISION_1_2   2
+
+#define VENI_GENERIC      0x00000000 /* Generic Vendor ID */
 
 enum mpic_ide_bits {
     IDR_EP     = 31,
@@ -208,6 +215,13 @@ typedef struct openpic_t {
 
     /* Behavior control */
     uint32_t flags;
+    uint32_t nb_irqs;
+    uint32_t vid;
+    uint32_t veni; /* Vendor identification register */
+    uint32_t spve_mask;
+    uint32_t tifr_reset;
+    uint32_t ipvp_reset;
+    uint32_t ide_reset;
 
     /* Sub-regions */
     MemoryRegion sub_io_mem[7];
@@ -215,8 +229,6 @@ typedef struct openpic_t {
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
     uint32_t glbc; /* Global configuration register  */
-    uint32_t micr; /* MPIC interrupt configuration register */
-    uint32_t veni; /* Vendor identification register */
     uint32_t pint; /* Processor initialization register */
     uint32_t spve; /* Spurious vector register */
     uint32_t tifr; /* Timer frequency reporting register */
@@ -235,7 +247,6 @@ typedef struct openpic_t {
     int max_irq;
     int irq_ipi0;
     int irq_tim0;
-    void (*reset) (void *);
 } openpic_t;
 
 static void openpic_irq_raise(openpic_t *opp, int n_CPU, IRQ_src_t *src);
@@ -412,17 +423,17 @@ static void openpic_reset (void *opaque)
 
     opp->glbc = 0x80000000;
     /* Initialise controller registers */
-    opp->frep = ((OPENPIC_EXT_IRQ - 1) << 16) | ((MAX_CPU - 1) << 8) | VID;
-    opp->veni = VENI;
+    opp->frep = ((opp->nb_irqs -1) << FREP_NIRQ_SHIFT) |
+                ((opp->nb_cpus -1) << FREP_NCPU_SHIFT) |
+                (opp->vid << FREP_VID_SHIFT);
+
     opp->pint = 0x00000000;
-    opp->spve = 0x000000FF;
-    opp->tifr = 0x003F7A00;
-    /* ? */
-    opp->micr = 0x00000000;
+    opp->spve = -1 & opp->spve_mask;
+    opp->tifr = opp->tifr_reset;
     /* Initialise IRQ sources */
     for (i = 0; i < opp->max_irq; i++) {
-        opp->src[i].ipvp = 0xA0000000;
-        opp->src[i].ide  = 0x00000000;
+        opp->src[i].ipvp = opp->ipvp_reset;
+        opp->src[i].ide  = opp->ide_reset;
     }
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
@@ -499,9 +510,9 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x1000: /* FREP */
         break;
     case 0x1020: /* GLBC */
-        if (val & 0x80000000 && opp->reset)
-            opp->reset(opp);
-        opp->glbc = val & ~0x80000000;
+        if (val & 0x80000000) {
+            openpic_reset(opp);
+        }
         break;
     case 0x1080: /* VENI */
         break;
@@ -530,7 +541,7 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
         }
         break;
     case 0x10E0: /* SPVE */
-        opp->spve = val & 0x000000FF;
+        opp->spve = val & opp->spve_mask;
         break;
     default:
         break;
@@ -912,9 +923,7 @@ static void openpic_save(QEMUFile* f, void *opaque)
     openpic_t *opp = (openpic_t *)opaque;
     unsigned int i;
 
-    qemu_put_be32s(f, &opp->frep);
     qemu_put_be32s(f, &opp->glbc);
-    qemu_put_be32s(f, &opp->micr);
     qemu_put_be32s(f, &opp->veni);
     qemu_put_be32s(f, &opp->pint);
     qemu_put_be32s(f, &opp->spve);
@@ -964,9 +973,7 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     if (version_id != 1)
         return -EINVAL;
 
-    qemu_get_be32s(f, &opp->frep);
     qemu_get_be32s(f, &opp->glbc);
-    qemu_get_be32s(f, &opp->micr);
     qemu_get_be32s(f, &opp->veni);
     qemu_get_be32s(f, &opp->pint);
     qemu_get_be32s(f, &opp->spve);
@@ -1043,6 +1050,11 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
 
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
+    opp->nb_irqs = OPENPIC_EXT_IRQ;
+    opp->vid = VID;
+    opp->veni = VENI_GENERIC;
+    opp->spve_mask = 0xFF;
+    opp->tifr_reset = 0x003F7A00;
     opp->max_irq = OPENPIC_MAX_IRQ;
     opp->irq_ipi0 = OPENPIC_IRQ_IPI0;
     opp->irq_tim0 = OPENPIC_IRQ_TIM0;
@@ -1068,49 +1080,10 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
                     openpic_save, openpic_load, opp);
     qemu_register_reset(openpic_reset, opp);
 
-    opp->reset = openpic_reset;
-
     if (pmem)
         *pmem = &opp->mem;
 
     return qemu_allocate_irqs(openpic_set_irq, opp, opp->max_irq);
-}
-
-static void mpic_reset (void *opaque)
-{
-    openpic_t *mpp = (openpic_t *)opaque;
-    int i;
-
-    mpp->glbc = 0x80000000;
-    /* Initialise controller registers */
-    mpp->frep = 0x004f0002 | ((mpp->nb_cpus - 1) << 8);
-    mpp->veni = VENI;
-    mpp->pint = 0x00000000;
-    mpp->spve = 0x0000FFFF;
-    /* Initialise IRQ sources */
-    for (i = 0; i < mpp->max_irq; i++) {
-        mpp->src[i].ipvp = 0x80800000;
-        mpp->src[i].ide  = 0x00000001;
-    }
-    /* Set IDE for IPIs to 0 so we don't get spurious interrupts */
-    for (i = mpp->irq_ipi0; i < (mpp->irq_ipi0 + MAX_IPI); i++) {
-        mpp->src[i].ide = 0;
-    }
-    /* Initialise IRQ destinations */
-    for (i = 0; i < MAX_CPU; i++) {
-        mpp->dst[i].pctp      = 0x0000000F;
-        memset(&mpp->dst[i].raised, 0, sizeof(IRQ_queue_t));
-        mpp->dst[i].raised.next = -1;
-        memset(&mpp->dst[i].servicing, 0, sizeof(IRQ_queue_t));
-        mpp->dst[i].servicing.next = -1;
-    }
-    /* Initialise timers */
-    for (i = 0; i < MAX_TMR; i++) {
-        mpp->timers[i].ticc = 0x00000000;
-        mpp->timers[i].tibc = 0x80000000;
-    }
-    /* Go out of RESET state */
-    mpp->glbc = 0x00000000;
 }
 
 static const MemoryRegionOps mpic_glb_ops = {
@@ -1185,6 +1158,15 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
     }
 
     mpp->nb_cpus = nb_cpus;
+    /* 12 external sources, 48 internal sources , 4 timer sources,
+       4 IPI sources, 4 messaging sources, and 8 Shared MSI sources */
+    mpp->nb_irqs = 80;
+    mpp->vid = VID_REVISION_1_2;
+    mpp->veni = VENI_GENERIC;
+    mpp->spve_mask = 0xFFFF;
+    mpp->tifr_reset = 0x00000000;
+    mpp->ipvp_reset = 0x80000000;
+    mpp->ide_reset = 0x00000001;
     mpp->max_irq = MPIC_MAX_IRQ;
     mpp->irq_ipi0 = MPIC_IPI_IRQ;
     mpp->irq_tim0 = MPIC_TMR_IRQ;
@@ -1195,10 +1177,9 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
 
     /* Enable critical interrupt support */
     mpp->flags |= OPENPIC_FLAG_IDE_CRIT;
-    mpp->reset = mpic_reset;
 
     register_savevm(NULL, "mpic", 0, 2, openpic_save, openpic_load, mpp);
-    qemu_register_reset(mpic_reset, mpp);
+    qemu_register_reset(openpic_reset, mpp);
 
     return qemu_allocate_irqs(openpic_set_irq, mpp, mpp->max_irq);
 }
