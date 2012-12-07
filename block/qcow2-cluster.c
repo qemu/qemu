@@ -652,9 +652,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     uint64_t cluster_offset = m->alloc_offset;
 
     trace_qcow2_cluster_link_l2(qemu_coroutine_self(), m->nb_clusters);
-
-    if (m->nb_clusters == 0)
-        return 0;
+    assert(m->nb_clusters > 0);
 
     old_cluster = g_malloc(m->nb_clusters * sizeof(uint64_t));
 
@@ -856,7 +854,7 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  * Return 0 on success and -errno in error cases
  */
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta *m)
+    int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta **m)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index, ret, sectors;
@@ -928,11 +926,6 @@ again:
     }
 
     /* If there is something left to allocate, do that now */
-    *m = (QCowL2Meta) {
-        .nb_clusters        = 0,
-    };
-    qemu_co_queue_init(&m->dependent_requests);
-
     if (nb_clusters > 0) {
         uint64_t alloc_offset;
         uint64_t alloc_cluster_offset;
@@ -980,7 +973,9 @@ again:
                 cluster_offset = alloc_cluster_offset;
             }
 
-            *m = (QCowL2Meta) {
+            *m = g_malloc0(sizeof(**m));
+
+            **m = (QCowL2Meta) {
                 .alloc_offset   = alloc_cluster_offset,
                 .offset         = alloc_offset & ~(s->cluster_size - 1),
                 .nb_clusters    = nb_clusters,
@@ -995,8 +990,8 @@ again:
                     .nb_sectors = avail_sectors - nb_sectors,
                 },
             };
-            qemu_co_queue_init(&m->dependent_requests);
-            QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
+            qemu_co_queue_init(&(*m)->dependent_requests);
+            QLIST_INSERT_HEAD(&s->cluster_allocs, *m, next_in_flight);
         }
     }
 
@@ -1013,8 +1008,8 @@ again:
     return 0;
 
 fail:
-    if (m->nb_clusters > 0) {
-        QLIST_REMOVE(m, next_in_flight);
+    if (*m && (*m)->nb_clusters > 0) {
+        QLIST_REMOVE(*m, next_in_flight);
     }
     return ret;
 }

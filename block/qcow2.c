@@ -787,8 +787,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
     while (remaining_sectors != 0) {
 
-        l2meta = g_malloc0(sizeof(*l2meta));
-        qemu_co_queue_init(&l2meta->dependent_requests);
+        l2meta = NULL;
 
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
@@ -799,7 +798,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         }
 
         ret = qcow2_alloc_cluster_offset(bs, sector_num << 9,
-            index_in_cluster, n_end, &cur_nr_sectors, &cluster_offset, l2meta);
+            index_in_cluster, n_end, &cur_nr_sectors, &cluster_offset, &l2meta);
         if (ret < 0) {
             goto fail;
         }
@@ -845,14 +844,16 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             goto fail;
         }
 
-        ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
-        if (ret < 0) {
-            goto fail;
-        }
+        if (l2meta != NULL) {
+            ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
+            if (ret < 0) {
+                goto fail;
+            }
 
-        run_dependent_requests(s, l2meta);
-        g_free(l2meta);
-        l2meta = NULL;
+            run_dependent_requests(s, l2meta);
+            g_free(l2meta);
+            l2meta = NULL;
+        }
 
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
@@ -1134,11 +1135,10 @@ static int preallocate(BlockDriverState *bs)
     uint64_t host_offset = 0;
     int num;
     int ret;
-    QCowL2Meta meta;
+    QCowL2Meta *meta;
 
     nb_sectors = bdrv_getlength(bs) >> 9;
     offset = 0;
-    qemu_co_queue_init(&meta.dependent_requests);
 
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);
@@ -1148,15 +1148,17 @@ static int preallocate(BlockDriverState *bs)
             return ret;
         }
 
-        ret = qcow2_alloc_cluster_link_l2(bs, &meta);
+        ret = qcow2_alloc_cluster_link_l2(bs, meta);
         if (ret < 0) {
-            qcow2_free_any_clusters(bs, meta.alloc_offset, meta.nb_clusters);
+            qcow2_free_any_clusters(bs, meta->alloc_offset, meta->nb_clusters);
             return ret;
         }
 
         /* There are no dependent requests, but we need to remove our request
          * from the list of in-flight requests */
-        run_dependent_requests(bs->opaque, &meta);
+        if (meta != NULL) {
+            run_dependent_requests(bs->opaque, meta);
+        }
 
         /* TODO Preallocate data if requested */
 
