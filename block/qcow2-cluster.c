@@ -615,13 +615,41 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     return cluster_offset;
 }
 
+static int perform_cow(BlockDriverState *bs, QCowL2Meta *m, Qcow2COWRegion *r)
+{
+    BDRVQcowState *s = bs->opaque;
+    int ret;
+
+    if (r->nb_sectors == 0) {
+        return 0;
+    }
+
+    qemu_co_mutex_unlock(&s->lock);
+    ret = copy_sectors(bs, m->offset / BDRV_SECTOR_SIZE, m->alloc_offset,
+                       r->offset / BDRV_SECTOR_SIZE,
+                       r->offset / BDRV_SECTOR_SIZE + r->nb_sectors);
+    qemu_co_mutex_lock(&s->lock);
+
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * Before we update the L2 table to actually point to the new cluster, we
+     * need to be sure that the refcounts have been increased and COW was
+     * handled.
+     */
+    qcow2_cache_depends_on_flush(s->l2_table_cache);
+
+    return 0;
+}
+
 int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 {
     BDRVQcowState *s = bs->opaque;
     int i, j = 0, l2_index, ret;
-    uint64_t *old_cluster, start_sect, *l2_table;
+    uint64_t *old_cluster, *l2_table;
     uint64_t cluster_offset = m->alloc_offset;
-    bool cow = false;
 
     trace_qcow2_cluster_link_l2(qemu_coroutine_self(), m->nb_clusters);
 
@@ -631,36 +659,17 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     old_cluster = g_malloc(m->nb_clusters * sizeof(uint64_t));
 
     /* copy content of unmodified sectors */
-    start_sect = m->offset >> 9;
-    if (m->n_start) {
-        cow = true;
-        qemu_co_mutex_unlock(&s->lock);
-        ret = copy_sectors(bs, start_sect, cluster_offset, 0, m->n_start);
-        qemu_co_mutex_lock(&s->lock);
-        if (ret < 0)
-            goto err;
+    ret = perform_cow(bs, m, &m->cow_start);
+    if (ret < 0) {
+        goto err;
     }
 
-    if (m->nb_available & (s->cluster_sectors - 1)) {
-        cow = true;
-        qemu_co_mutex_unlock(&s->lock);
-        ret = copy_sectors(bs, start_sect, cluster_offset, m->nb_available,
-                           align_offset(m->nb_available, s->cluster_sectors));
-        qemu_co_mutex_lock(&s->lock);
-        if (ret < 0)
-            goto err;
+    ret = perform_cow(bs, m, &m->cow_end);
+    if (ret < 0) {
+        goto err;
     }
 
-    /*
-     * Update L2 table.
-     *
-     * Before we update the L2 table to actually point to the new cluster, we
-     * need to be sure that the refcounts have been increased and COW was
-     * handled.
-     */
-    if (cow) {
-        qcow2_cache_depends_on_flush(s->l2_table_cache);
-    }
+    /* Update L2 table. */
 
     if (qcow2_need_accurate_refcounts(s)) {
         qcow2_cache_set_dependency(bs, s->l2_table_cache,
@@ -957,19 +966,33 @@ again:
              *
              * avail_sectors: Number of sectors from the start of the first
              * newly allocated to the end of the last newly allocated cluster.
+             *
+             * nb_sectors: The number of sectors from the start of the first
+             * newly allocated cluster to the end of the aread that the write
+             * request actually writes to (excluding COW at the end)
              */
             int requested_sectors = n_end - keep_clusters * s->cluster_sectors;
             int avail_sectors = nb_clusters
                                 << (s->cluster_bits - BDRV_SECTOR_BITS);
+            int alloc_n_start = keep_clusters == 0 ? n_start : 0;
+            int nb_sectors = MIN(requested_sectors, avail_sectors);
 
             *m = (QCowL2Meta) {
                 .cluster_offset = keep_clusters == 0 ?
                                   alloc_cluster_offset : cluster_offset,
                 .alloc_offset   = alloc_cluster_offset,
                 .offset         = alloc_offset & ~(s->cluster_size - 1),
-                .n_start        = keep_clusters == 0 ? n_start : 0,
                 .nb_clusters    = nb_clusters,
-                .nb_available   = MIN(requested_sectors, avail_sectors),
+                .nb_available   = nb_sectors,
+
+                .cow_start = {
+                    .offset     = 0,
+                    .nb_sectors = alloc_n_start,
+                },
+                .cow_end = {
+                    .offset     = nb_sectors * BDRV_SECTOR_SIZE,
+                    .nb_sectors = avail_sectors - nb_sectors,
+                },
             };
             qemu_co_queue_init(&m->dependent_requests);
             QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);

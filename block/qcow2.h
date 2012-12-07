@@ -196,6 +196,17 @@ typedef struct QCowCreateState {
 
 struct QCowAIOCB;
 
+typedef struct Qcow2COWRegion {
+    /**
+     * Offset of the COW region in bytes from the start of the first cluster
+     * touched by the request.
+     */
+    uint64_t    offset;
+
+    /** Number of sectors to copy */
+    int         nb_sectors;
+} Qcow2COWRegion;
+
 /* XXX This could be private for qcow2-cluster.c */
 typedef struct QCowL2Meta
 {
@@ -207,12 +218,6 @@ typedef struct QCowL2Meta
 
     /** Host offset of the first newly allocated cluster */
     uint64_t alloc_offset;
-
-    /**
-     * Number of sectors between the start of the first allocated cluster and
-     * the area that the guest actually writes to.
-     */
-    int n_start;
 
     /**
      * Number of sectors from the start of the first allocated cluster to
@@ -228,6 +233,18 @@ typedef struct QCowL2Meta
      * when the allocating request has completed.
      */
     CoQueue dependent_requests;
+
+    /**
+     * The COW Region between the start of the first allocated cluster and the
+     * area the guest actually writes to.
+     */
+    Qcow2COWRegion cow_start;
+
+    /**
+     * The COW Region between the area the guest actually writes to and the
+     * end of the last allocated cluster.
+     */
+    Qcow2COWRegion cow_end;
 
     QLIST_ENTRY(QCowL2Meta) next_in_flight;
 } QCowL2Meta;
