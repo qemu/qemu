@@ -303,6 +303,8 @@ static inline bool qcow2_need_accurate_refcounts(BDRVQcowState *s)
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
+
+int qcow2_mark_dirty(BlockDriverState *bs);
 int qcow2_update_header(BlockDriverState *bs);
 
 /* qcow2-refcount.c functions */

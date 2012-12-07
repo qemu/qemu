@@ -222,7 +222,7 @@ static void report_unsupported_feature(BlockDriverState *bs,
  * updated successfully.  Therefore it is not required to check the return
  * value of this function.
  */
-static int qcow2_mark_dirty(BlockDriverState *bs)
+int qcow2_mark_dirty(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t val;
@@ -801,11 +801,6 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             index_in_cluster, n_end, &cur_nr_sectors, &cluster_offset, &l2meta);
         if (ret < 0) {
             goto fail;
-        }
-
-        if (l2meta->nb_clusters > 0 &&
-            (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS)) {
-            qcow2_mark_dirty(bs);
         }
 
         assert((cluster_offset & 511) == 0);
