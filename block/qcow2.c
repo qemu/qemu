@@ -745,21 +745,6 @@ fail:
     return ret;
 }
 
-static void run_dependent_requests(BDRVQcowState *s, QCowL2Meta *m)
-{
-    /* Take the request off the list of running requests */
-    if (m->nb_clusters != 0) {
-        QLIST_REMOVE(m, next_in_flight);
-    }
-
-    /* Restart all dependent requests */
-    if (!qemu_co_queue_empty(&m->dependent_requests)) {
-        qemu_co_mutex_unlock(&s->lock);
-        qemu_co_queue_restart_all(&m->dependent_requests);
-        qemu_co_mutex_lock(&s->lock);
-    }
-}
-
 static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                            int64_t sector_num,
                            int remaining_sectors,
@@ -845,7 +830,15 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 goto fail;
             }
 
-            run_dependent_requests(s, l2meta);
+            /* Take the request off the list of running requests */
+            if (l2meta->nb_clusters != 0) {
+                QLIST_REMOVE(l2meta, next_in_flight);
+            }
+
+            qemu_co_mutex_unlock(&s->lock);
+            qemu_co_queue_restart_all(&l2meta->dependent_requests);
+            qemu_co_mutex_lock(&s->lock);
+
             g_free(l2meta);
             l2meta = NULL;
         }
@@ -858,12 +851,15 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     ret = 0;
 
 fail:
+    qemu_co_mutex_unlock(&s->lock);
+
     if (l2meta != NULL) {
-        run_dependent_requests(s, l2meta);
+        if (l2meta->nb_clusters != 0) {
+            QLIST_REMOVE(l2meta, next_in_flight);
+        }
+        qemu_co_queue_restart_all(&l2meta->dependent_requests);
         g_free(l2meta);
     }
-
-    qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);
@@ -1152,7 +1148,7 @@ static int preallocate(BlockDriverState *bs)
         /* There are no dependent requests, but we need to remove our request
          * from the list of in-flight requests */
         if (meta != NULL) {
-            run_dependent_requests(bs->opaque, meta);
+            QLIST_REMOVE(meta, next_in_flight);
         }
 
         /* TODO Preallocate data if requested */
