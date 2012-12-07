@@ -856,7 +856,7 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
  * Return 0 on success and -errno in error cases
  */
 int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
-    int n_start, int n_end, int *num, QCowL2Meta *m)
+    int n_start, int n_end, int *num, uint64_t *host_offset, QCowL2Meta *m)
 {
     BDRVQcowState *s = bs->opaque;
     int l2_index, ret, sectors;
@@ -929,7 +929,6 @@ again:
 
     /* If there is something left to allocate, do that now */
     *m = (QCowL2Meta) {
-        .cluster_offset     = cluster_offset,
         .nb_clusters        = 0,
     };
     qemu_co_queue_init(&m->dependent_requests);
@@ -977,9 +976,11 @@ again:
             int alloc_n_start = keep_clusters == 0 ? n_start : 0;
             int nb_sectors = MIN(requested_sectors, avail_sectors);
 
+            if (keep_clusters == 0) {
+                cluster_offset = alloc_cluster_offset;
+            }
+
             *m = (QCowL2Meta) {
-                .cluster_offset = keep_clusters == 0 ?
-                                  alloc_cluster_offset : cluster_offset,
                 .alloc_offset   = alloc_cluster_offset,
                 .offset         = alloc_offset & ~(s->cluster_size - 1),
                 .nb_clusters    = nb_clusters,
@@ -1007,6 +1008,7 @@ again:
 
     assert(sectors > n_start);
     *num = sectors - n_start;
+    *host_offset = cluster_offset;
 
     return 0;
 
