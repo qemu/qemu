@@ -116,7 +116,7 @@ audio_drv_list=""
 audio_card_list="ac97 es1370 sb16 hda"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus hda"
 block_drv_whitelist=""
-host_cc="gcc"
+host_cc="cc"
 libs_softmmu=""
 libs_tools=""
 audio_pt_int=""
@@ -250,7 +250,16 @@ done
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate its usage altogether.
 
-cc="${CC-${cross_prefix}gcc}"
+# Preferred compiler:
+#  ${CC} (if set)
+#  ${cross_prefix}gcc (if cross-prefix specified)
+#  system compiler
+if test -z "${CC}${cross_prefix}"; then
+  cc="$host_cc"
+else
+  cc="${CC-${cross_prefix}gcc}"
+fi
+
 ar="${AR-${cross_prefix}ar}"
 objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
