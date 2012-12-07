@@ -46,11 +46,12 @@
 #define DPRINTF(fmt, ...) do { } while (0)
 #endif
 
-#define MAX_CPU    15
-#define MAX_IRQ   128
+#define MAX_CPU     15
+#define MAX_SRC     256
 #define MAX_TMR     4
 #define VECTOR_BITS 8
 #define MAX_IPI     4
+#define MAX_IRQ     (MAX_SRC + MAX_IPI + MAX_TMR)
 #define VID         0x03 /* MPIC version ID */
 #define VENI        0x00000000 /* Vendor ID */
 
@@ -82,32 +83,25 @@ enum {
 #define MPIC_MAX_CPU      1
 #define MPIC_MAX_EXT     12
 #define MPIC_MAX_INT     64
-#define MPIC_MAX_MSG      4
-#define MPIC_MAX_MSI      8
-#define MPIC_MAX_TMR      MAX_TMR
-#define MPIC_MAX_IPI      MAX_IPI
-#define MPIC_MAX_IRQ     (MPIC_MAX_EXT + MPIC_MAX_INT + MPIC_MAX_TMR + MPIC_MAX_MSG + MPIC_MAX_MSI + (MPIC_MAX_IPI * MPIC_MAX_CPU))
+#define MPIC_MAX_IRQ     MAX_IRQ
 
 /* Interrupt definitions */
-#define MPIC_EXT_IRQ      0
-#define MPIC_INT_IRQ      (MPIC_EXT_IRQ + MPIC_MAX_EXT)
-#define MPIC_TMR_IRQ      (MPIC_INT_IRQ + MPIC_MAX_INT)
-#define MPIC_MSG_IRQ      (MPIC_TMR_IRQ + MPIC_MAX_TMR)
-#define MPIC_MSI_IRQ      (MPIC_MSG_IRQ + MPIC_MAX_MSG)
-#define MPIC_IPI_IRQ      (MPIC_MSI_IRQ + MPIC_MAX_MSI)
+/* IRQs, accessible through the IRQ region */
+#define MPIC_EXT_IRQ      0x00
+#define MPIC_INT_IRQ      0x10
+#define MPIC_MSG_IRQ      0xb0
+#define MPIC_MSI_IRQ      0xe0
+/* These are available through separate regions, but
+   for simplicity's sake mapped into the same number space */
+#define MPIC_TMR_IRQ      0x100
+#define MPIC_IPI_IRQ      0x104
 
 #define MPIC_GLB_REG_START        0x0
 #define MPIC_GLB_REG_SIZE         0x10F0
 #define MPIC_TMR_REG_START        0x10F0
 #define MPIC_TMR_REG_SIZE         0x220
-#define MPIC_EXT_REG_START        0x10000
-#define MPIC_EXT_REG_SIZE         0x180
-#define MPIC_INT_REG_START        0x10200
-#define MPIC_INT_REG_SIZE         0x800
-#define MPIC_MSG_REG_START        0x11600
-#define MPIC_MSG_REG_SIZE         0x100
-#define MPIC_MSI_REG_START        0x11C00
-#define MPIC_MSI_REG_SIZE         0x100
+#define MPIC_IRQ_REG_START        0x10000
+#define MPIC_IRQ_REG_SIZE         (MAX_SRC * 0x20)
 #define MPIC_CPU_REG_START        0x20000
 #define MPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
 
@@ -1205,193 +1199,44 @@ static uint32_t mpic_timer_read (void *opaque, hwaddr addr)
     return retval;
 }
 
-static void mpic_src_ext_write (void *opaque, hwaddr addr,
-                                uint32_t val)
+static void mpic_src_irq_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned len)
 {
     openpic_t *mpp = opaque;
-    int idx = MPIC_EXT_IRQ;
+    int idx = addr / 0x20;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
+    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08" PRIx64 "\n",
+            __func__, addr, val);
     if (addr & 0xF)
         return;
 
-    if (addr < MPIC_EXT_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            write_IRQreg_ide(mpp, idx, val);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            write_IRQreg_ipvp(mpp, idx, val);
-        }
+    if (addr & 0x10) {
+        /* EXDE / IFEDE / IEEDE */
+        write_IRQreg_ide(mpp, idx, val);
+    } else {
+        /* EXVP / IFEVP / IEEVP */
+        write_IRQreg_ipvp(mpp, idx, val);
     }
 }
 
-static uint32_t mpic_src_ext_read (void *opaque, hwaddr addr)
+static uint64_t mpic_src_irq_read(void *opaque, hwaddr addr, unsigned len)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
-    int idx = MPIC_EXT_IRQ;
+    int idx = addr / 0x20;
 
     DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-    retval = 0xFFFFFFFF;
     if (addr & 0xF)
-        return retval;
+        return -1;
 
-    if (addr < MPIC_EXT_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg_ide(mpp, idx);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg_ipvp(mpp, idx);
-        }
-        DPRINTF("%s: => %08x\n", __func__, retval);
+    if (addr & 0x10) {
+        /* EXDE / IFEDE / IEEDE */
+        retval = read_IRQreg_ide(mpp, idx);
+    } else {
+        /* EXVP / IFEVP / IEEVP */
+        retval = read_IRQreg_ipvp(mpp, idx);
     }
-
-    return retval;
-}
-
-static void mpic_src_int_write (void *opaque, hwaddr addr,
-                                uint32_t val)
-{
-    openpic_t *mpp = opaque;
-    int idx = MPIC_INT_IRQ;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
-    if (addr & 0xF)
-        return;
-
-    if (addr < MPIC_INT_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            write_IRQreg_ide(mpp, idx, val);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            write_IRQreg_ipvp(mpp, idx, val);
-        }
-    }
-}
-
-static uint32_t mpic_src_int_read (void *opaque, hwaddr addr)
-{
-    openpic_t *mpp = opaque;
-    uint32_t retval;
-    int idx = MPIC_INT_IRQ;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-    retval = 0xFFFFFFFF;
-    if (addr & 0xF)
-        return retval;
-
-    if (addr < MPIC_INT_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg_ide(mpp, idx);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg_ipvp(mpp, idx);
-        }
-        DPRINTF("%s: => %08x\n", __func__, retval);
-    }
-
-    return retval;
-}
-
-static void mpic_src_msg_write (void *opaque, hwaddr addr,
-                                uint32_t val)
-{
-    openpic_t *mpp = opaque;
-    int idx = MPIC_MSG_IRQ;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
-    if (addr & 0xF)
-        return;
-
-    if (addr < MPIC_MSG_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            write_IRQreg_ide(mpp, idx, val);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            write_IRQreg_ipvp(mpp, idx, val);
-        }
-    }
-}
-
-static uint32_t mpic_src_msg_read (void *opaque, hwaddr addr)
-{
-    openpic_t *mpp = opaque;
-    uint32_t retval;
-    int idx = MPIC_MSG_IRQ;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-    retval = 0xFFFFFFFF;
-    if (addr & 0xF)
-        return retval;
-
-    if (addr < MPIC_MSG_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg_ide(mpp, idx);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg_ipvp(mpp, idx);
-        }
-        DPRINTF("%s: => %08x\n", __func__, retval);
-    }
-
-    return retval;
-}
-
-static void mpic_src_msi_write (void *opaque, hwaddr addr,
-                                uint32_t val)
-{
-    openpic_t *mpp = opaque;
-    int idx = MPIC_MSI_IRQ;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
-    if (addr & 0xF)
-        return;
-
-    if (addr < MPIC_MSI_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            write_IRQreg_ide(mpp, idx, val);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            write_IRQreg_ipvp(mpp, idx, val);
-        }
-    }
-}
-static uint32_t mpic_src_msi_read (void *opaque, hwaddr addr)
-{
-    openpic_t *mpp = opaque;
-    uint32_t retval;
-    int idx = MPIC_MSI_IRQ;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-    retval = 0xFFFFFFFF;
-    if (addr & 0xF)
-        return retval;
-
-    if (addr < MPIC_MSI_REG_SIZE) {
-        idx += (addr & 0xFFF0) >> 5;
-        if (addr & 0x10) {
-            /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg_ide(mpp, idx);
-        } else {
-            /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg_ipvp(mpp, idx);
-        }
-        DPRINTF("%s: => %08x\n", __func__, retval);
-    }
+    DPRINTF("%s: => %08x\n", __func__, retval);
 
     return retval;
 }
@@ -1438,60 +1283,14 @@ static const MemoryRegionOps mpic_cpu_ops = {
     .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static const MemoryRegionOps mpic_ext_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   mpic_src_ext_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   mpic_src_ext_read,
-        },
-    },
+static const MemoryRegionOps mpic_irq_ops = {
+    .write = mpic_src_irq_write,
+    .read  = mpic_src_irq_read,
     .endianness = DEVICE_BIG_ENDIAN,
-};
-
-static const MemoryRegionOps mpic_int_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   mpic_src_int_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   mpic_src_int_read,
-        },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
     },
-    .endianness = DEVICE_BIG_ENDIAN,
-};
-
-static const MemoryRegionOps mpic_msg_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   mpic_src_msg_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   mpic_src_msg_read,
-        },
-    },
-    .endianness = DEVICE_BIG_ENDIAN,
-};
-
-static const MemoryRegionOps mpic_msi_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   mpic_src_msi_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   mpic_src_msi_read,
-        },
-    },
-    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
@@ -1507,10 +1306,7 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
     } const list[] = {
         {"glb", &mpic_glb_ops, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
         {"tmr", &mpic_tmr_ops, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
-        {"ext", &mpic_ext_ops, MPIC_EXT_REG_START, MPIC_EXT_REG_SIZE},
-        {"int", &mpic_int_ops, MPIC_INT_REG_START, MPIC_INT_REG_SIZE},
-        {"msg", &mpic_msg_ops, MPIC_MSG_REG_START, MPIC_MSG_REG_SIZE},
-        {"msi", &mpic_msi_ops, MPIC_MSI_REG_START, MPIC_MSI_REG_SIZE},
+        {"irq", &mpic_irq_ops, MPIC_IRQ_REG_START, MPIC_IRQ_REG_SIZE},
         {"cpu", &mpic_cpu_ops, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
     };
 

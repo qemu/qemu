@@ -502,13 +502,13 @@ void ppce500_init(PPCE500Params *params)
     /* Serial */
     if (serial_hds[0]) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL0_REGS_OFFSET,
-                       0, mpic[12+26], 399193,
+                       0, mpic[42], 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
         serial_mm_init(ccsr_addr_space, MPC8544_SERIAL1_REGS_OFFSET,
-                       0, mpic[12+26], 399193,
+                       0, mpic[42], 399193,
                        serial_hds[1], DEVICE_BIG_ENDIAN);
     }
 
