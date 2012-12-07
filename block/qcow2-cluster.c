@@ -753,38 +753,16 @@ out:
 }
 
 /*
- * Allocates new clusters for the given guest_offset.
- *
- * At most *nb_clusters are allocated, and on return *nb_clusters is updated to
- * contain the number of clusters that have been allocated and are contiguous
- * in the image file.
- *
- * If *host_offset is non-zero, it specifies the offset in the image file at
- * which the new clusters must start. *nb_clusters can be 0 on return in this
- * case if the cluster at host_offset is already in use. If *host_offset is
- * zero, the clusters can be allocated anywhere in the image file.
- *
- * *host_offset is updated to contain the offset into the image file at which
- * the first allocated cluster starts.
- *
- * Return 0 on success and -errno in error cases. -EAGAIN means that the
- * function has been waiting for another request and the allocation must be
- * restarted, but the whole request should not be failed.
+ * Check if there already is an AIO write request in flight which allocates
+ * the same cluster. In this case we need to wait until the previous
+ * request has completed and updated the L2 table accordingly.
  */
-static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, unsigned int *nb_clusters)
+static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
+    unsigned int *nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
     QCowL2Meta *old_alloc;
 
-    trace_qcow2_do_alloc_clusters_offset(qemu_coroutine_self(), guest_offset,
-                                         *host_offset, *nb_clusters);
-
-    /*
-     * Check if there already is an AIO write request in flight which allocates
-     * the same cluster. In this case we need to wait until the previous
-     * request has completed and updated the L2 table accordingly.
-     */
     QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
 
         uint64_t start = guest_offset >> s->cluster_bits;
@@ -817,6 +795,42 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
         abort();
     }
 
+    return 0;
+}
+
+/*
+ * Allocates new clusters for the given guest_offset.
+ *
+ * At most *nb_clusters are allocated, and on return *nb_clusters is updated to
+ * contain the number of clusters that have been allocated and are contiguous
+ * in the image file.
+ *
+ * If *host_offset is non-zero, it specifies the offset in the image file at
+ * which the new clusters must start. *nb_clusters can be 0 on return in this
+ * case if the cluster at host_offset is already in use. If *host_offset is
+ * zero, the clusters can be allocated anywhere in the image file.
+ *
+ * *host_offset is updated to contain the offset into the image file at which
+ * the first allocated cluster starts.
+ *
+ * Return 0 on success and -errno in error cases. -EAGAIN means that the
+ * function has been waiting for another request and the allocation must be
+ * restarted, but the whole request should not be failed.
+ */
+static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
+    uint64_t *host_offset, unsigned int *nb_clusters)
+{
+    BDRVQcowState *s = bs->opaque;
+    int ret;
+
+    trace_qcow2_do_alloc_clusters_offset(qemu_coroutine_self(), guest_offset,
+                                         *host_offset, *nb_clusters);
+
+    ret = handle_dependencies(bs, guest_offset, nb_clusters);
+    if (ret < 0) {
+        return ret;
+    }
+
     /* Allocate new clusters */
     trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
     if (*host_offset == 0) {
@@ -828,7 +842,7 @@ static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
         *host_offset = cluster_offset;
         return 0;
     } else {
-        int ret = qcow2_alloc_clusters_at(bs, *host_offset, *nb_clusters);
+        ret = qcow2_alloc_clusters_at(bs, *host_offset, *nb_clusters);
         if (ret < 0) {
             return ret;
         }
