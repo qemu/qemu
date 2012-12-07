@@ -461,7 +461,8 @@ static inline void write_IRQreg_ipvp(openpic_t *opp, int n_IRQ, uint32_t val)
             opp->src[n_IRQ].ipvp);
 }
 
-static void openpic_gbl_write (void *opaque, hwaddr addr, uint32_t val)
+static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned len)
 {
     openpic_t *opp = opaque;
     IRQ_dst_t *dst;
@@ -527,7 +528,7 @@ static void openpic_gbl_write (void *opaque, hwaddr addr, uint32_t val)
     }
 }
 
-static uint32_t openpic_gbl_read (void *opaque, hwaddr addr)
+static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
 {
     openpic_t *opp = opaque;
     uint32_t retval;
@@ -584,7 +585,8 @@ static uint32_t openpic_gbl_read (void *opaque, hwaddr addr)
     return retval;
 }
 
-static void openpic_timer_write (void *opaque, uint32_t addr, uint32_t val)
+static void openpic_timer_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned len)
 {
     openpic_t *opp = opaque;
     int idx;
@@ -615,7 +617,7 @@ static void openpic_timer_write (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t openpic_timer_read (void *opaque, uint32_t addr)
+static uint64_t openpic_timer_read(void *opaque, hwaddr addr, unsigned len)
 {
     openpic_t *opp = opaque;
     uint32_t retval;
@@ -648,7 +650,8 @@ static uint32_t openpic_timer_read (void *opaque, uint32_t addr)
     return retval;
 }
 
-static void openpic_src_write (void *opaque, uint32_t addr, uint32_t val)
+static void openpic_src_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned len)
 {
     openpic_t *opp = opaque;
     int idx;
@@ -667,7 +670,7 @@ static void openpic_src_write (void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t openpic_src_read (void *opaque, uint32_t addr)
+static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
 {
     openpic_t *opp = opaque;
     uint32_t retval;
@@ -749,7 +752,8 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
     }
 }
 
-static void openpic_cpu_write(void *opaque, hwaddr addr, uint32_t val)
+static void openpic_cpu_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned len)
 {
     openpic_cpu_write_internal(opaque, addr, val, (addr & 0x1f000) >> 12);
 }
@@ -833,96 +837,63 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
     return retval;
 }
 
-static uint32_t openpic_cpu_read(void *opaque, hwaddr addr)
+static uint64_t openpic_cpu_read(void *opaque, hwaddr addr, unsigned len)
 {
     return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
 }
 
-static void openpic_buggy_write (void *opaque,
-                                 hwaddr addr, uint32_t val)
-{
-    printf("Invalid OPENPIC write access !\n");
-}
-
-static uint32_t openpic_buggy_read (void *opaque, hwaddr addr)
-{
-    printf("Invalid OPENPIC read access !\n");
-
-    return -1;
-}
-
-static void openpic_writel (void *opaque,
-                            hwaddr addr, uint32_t val)
+static void openpic_write(void *opaque, hwaddr addr, uint64_t val,
+                          unsigned len)
 {
     openpic_t *opp = opaque;
 
-    addr &= 0x3FFFF;
     DPRINTF("%s: offset %08x val: %08x\n", __func__, (int)addr, val);
     if (addr < 0x1100) {
         /* Global registers */
-        openpic_gbl_write(opp, addr, val);
+        openpic_gbl_write(opp, addr, val, len);
     } else if (addr < 0x10000) {
         /* Timers registers */
-        openpic_timer_write(opp, addr, val);
+        openpic_timer_write(opp, addr, val, len);
     } else if (addr < 0x20000) {
         /* Source registers */
-        openpic_src_write(opp, addr, val);
+        openpic_src_write(opp, addr, val, len);
     } else {
         /* CPU registers */
-        openpic_cpu_write(opp, addr, val);
+        openpic_cpu_write(opp, addr, val, len);
     }
 }
 
-static uint32_t openpic_readl (void *opaque,hwaddr addr)
+static uint64_t openpic_read(void *opaque, hwaddr addr, unsigned len)
 {
     openpic_t *opp = opaque;
     uint32_t retval;
 
-    addr &= 0x3FFFF;
     DPRINTF("%s: offset %08x\n", __func__, (int)addr);
     if (addr < 0x1100) {
         /* Global registers */
-        retval = openpic_gbl_read(opp, addr);
+        retval = openpic_gbl_read(opp, addr, len);
     } else if (addr < 0x10000) {
         /* Timers registers */
-        retval = openpic_timer_read(opp, addr);
+        retval = openpic_timer_read(opp, addr, len);
     } else if (addr < 0x20000) {
         /* Source registers */
-        retval = openpic_src_read(opp, addr);
+        retval = openpic_src_read(opp, addr, len);
     } else {
         /* CPU registers */
-        retval = openpic_cpu_read(opp, addr);
+        retval = openpic_cpu_read(opp, addr, len);
     }
 
     return retval;
-}
-
-static uint64_t openpic_read(void *opaque, hwaddr addr,
-                             unsigned size)
-{
-    openpic_t *opp = opaque;
-
-    switch (size) {
-    case 4: return openpic_readl(opp, addr);
-    default: return openpic_buggy_read(opp, addr);
-    }
-}
-
-static void openpic_write(void *opaque, hwaddr addr,
-                          uint64_t data, unsigned size)
-{
-    openpic_t *opp = opaque;
-
-    switch (size) {
-    case 4: return openpic_writel(opp, addr, data);
-    default: return openpic_buggy_write(opp, addr, data);
-    }
 }
 
 static const MemoryRegionOps openpic_ops = {
     .read = openpic_read,
     .write = openpic_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void openpic_save_IRQ_queue(QEMUFile* f, IRQ_queue_t *q)
@@ -1131,7 +1102,8 @@ static void mpic_reset (void *opaque)
     mpp->glbc = 0x00000000;
 }
 
-static void mpic_timer_write (void *opaque, hwaddr addr, uint32_t val)
+static void mpic_timer_write(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned len)
 {
     openpic_t *mpp = opaque;
     int idx, cpu;
@@ -1139,7 +1111,6 @@ static void mpic_timer_write (void *opaque, hwaddr addr, uint32_t val)
     DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    addr &= 0xFFFF;
     cpu = addr >> 12;
     idx = (addr >> 6) & 0x3;
     switch (addr & 0x30) {
@@ -1164,7 +1135,7 @@ static void mpic_timer_write (void *opaque, hwaddr addr, uint32_t val)
     }
 }
 
-static uint32_t mpic_timer_read (void *opaque, hwaddr addr)
+static uint64_t mpic_timer_read(void *opaque, hwaddr addr, unsigned len)
 {
     openpic_t *mpp = opaque;
     uint32_t retval;
@@ -1174,7 +1145,6 @@ static uint32_t mpic_timer_read (void *opaque, hwaddr addr)
     retval = 0xFFFFFFFF;
     if (addr & 0xF)
         return retval;
-    addr &= 0xFFFF;
     cpu = addr >> 12;
     idx = (addr >> 6) & 0x3;
     switch (addr & 0x30) {
@@ -1242,45 +1212,33 @@ static uint64_t mpic_src_irq_read(void *opaque, hwaddr addr, unsigned len)
 }
 
 static const MemoryRegionOps mpic_glb_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   openpic_gbl_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   openpic_gbl_read,
-        },
-    },
+    .write = openpic_gbl_write,
+    .read  = openpic_gbl_read,
     .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const MemoryRegionOps mpic_tmr_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   mpic_timer_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   mpic_timer_read,
-        },
-    },
+    .write = mpic_timer_write,
+    .read  = mpic_timer_read,
     .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const MemoryRegionOps mpic_cpu_ops = {
-    .old_mmio = {
-        .write = { openpic_buggy_write,
-                   openpic_buggy_write,
-                   openpic_cpu_write,
-        },
-        .read  = { openpic_buggy_read,
-                   openpic_buggy_read,
-                   openpic_cpu_read,
-        },
-    },
+    .write = openpic_cpu_write,
+    .read  = openpic_cpu_read,
     .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const MemoryRegionOps mpic_irq_ops = {
