@@ -100,8 +100,8 @@ enum {
 #define MPIC_GLB_REG_SIZE         0x10F0
 #define MPIC_TMR_REG_START        0x10F0
 #define MPIC_TMR_REG_SIZE         0x220
-#define MPIC_IRQ_REG_START        0x10000
-#define MPIC_IRQ_REG_SIZE         (MAX_SRC * 0x20)
+#define MPIC_SRC_REG_START        0x10000
+#define MPIC_SRC_REG_SIZE         (MAX_SRC * 0x20)
 #define MPIC_CPU_REG_START        0x20000
 #define MPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
 
@@ -1169,48 +1169,6 @@ static uint64_t mpic_timer_read(void *opaque, hwaddr addr, unsigned len)
     return retval;
 }
 
-static void mpic_src_irq_write(void *opaque, hwaddr addr,
-                               uint64_t val, unsigned len)
-{
-    openpic_t *mpp = opaque;
-    int idx = addr / 0x20;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08" PRIx64 "\n",
-            __func__, addr, val);
-    if (addr & 0xF)
-        return;
-
-    if (addr & 0x10) {
-        /* EXDE / IFEDE / IEEDE */
-        write_IRQreg_ide(mpp, idx, val);
-    } else {
-        /* EXVP / IFEVP / IEEVP */
-        write_IRQreg_ipvp(mpp, idx, val);
-    }
-}
-
-static uint64_t mpic_src_irq_read(void *opaque, hwaddr addr, unsigned len)
-{
-    openpic_t *mpp = opaque;
-    uint32_t retval;
-    int idx = addr / 0x20;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-    if (addr & 0xF)
-        return -1;
-
-    if (addr & 0x10) {
-        /* EXDE / IFEDE / IEEDE */
-        retval = read_IRQreg_ide(mpp, idx);
-    } else {
-        /* EXVP / IFEVP / IEEVP */
-        retval = read_IRQreg_ipvp(mpp, idx);
-    }
-    DPRINTF("%s: => %08x\n", __func__, retval);
-
-    return retval;
-}
-
 static const MemoryRegionOps mpic_glb_ops = {
     .write = openpic_gbl_write,
     .read  = openpic_gbl_read,
@@ -1242,8 +1200,8 @@ static const MemoryRegionOps mpic_cpu_ops = {
 };
 
 static const MemoryRegionOps mpic_irq_ops = {
-    .write = mpic_src_irq_write,
-    .read  = mpic_src_irq_read,
+    .write = openpic_src_write,
+    .read  = openpic_src_read,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1264,7 +1222,7 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
     } const list[] = {
         {"glb", &mpic_glb_ops, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
         {"tmr", &mpic_tmr_ops, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
-        {"irq", &mpic_irq_ops, MPIC_IRQ_REG_START, MPIC_IRQ_REG_SIZE},
+        {"src", &mpic_irq_ops, MPIC_SRC_REG_START, MPIC_SRC_REG_SIZE},
         {"cpu", &mpic_cpu_ops, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
     };
 
