@@ -195,7 +195,6 @@ enum IPVP_bits {
 #define IPVP_VECTOR(_ipvpr_)   ((_ipvpr_) & IPVP_VECTOR_MASK)
 
 typedef struct IRQ_dst_t {
-    uint32_t tfrr;
     uint32_t pctp; /* CPU current task priority */
     uint32_t pcsr; /* CPU sensitivity register */
     IRQ_queue_t raised;
@@ -533,9 +532,6 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x10E0: /* SPVE */
         opp->spve = val & 0x000000FF;
         break;
-    case 0x10F0: /* TIFR */
-        opp->tifr = val;
-        break;
     default:
         break;
     }
@@ -587,9 +583,6 @@ static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
     case 0x10E0: /* SPVE */
         retval = opp->spve;
         break;
-    case 0x10F0: /* TIFR */
-        retval = opp->tifr;
-        break;
     default:
         break;
     }
@@ -607,24 +600,28 @@ static void openpic_timer_write(void *opaque, hwaddr addr, uint64_t val,
     DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
     if (addr & 0xF)
         return;
-    addr -= 0x10;
-    addr &= 0xFFFF;
-    idx = (addr & 0xFFF0) >> 6;
+    idx = (addr >> 6) & 0x3;
     addr = addr & 0x30;
-    switch (addr) {
-    case 0x00: /* TICC */
+
+    if (addr == 0x0) {
+        /* TIFR (TFRR) */
+        opp->tifr = val;
+        return;
+    }
+    switch (addr & 0x30) {
+    case 0x00: /* TICC (GTCCR) */
         break;
-    case 0x10: /* TIBC */
+    case 0x10: /* TIBC (GTBCR) */
         if ((opp->timers[idx].ticc & 0x80000000) != 0 &&
             (val & 0x80000000) == 0 &&
             (opp->timers[idx].tibc & 0x80000000) != 0)
             opp->timers[idx].ticc &= ~0x80000000;
         opp->timers[idx].tibc = val;
         break;
-    case 0x20: /* TIVP */
+    case 0x20: /* TIVP (GTIVPR) */
         write_IRQreg_ipvp(opp, opp->irq_tim0 + idx, val);
         break;
-    case 0x30: /* TIDE */
+    case 0x30: /* TIDE (GTIDR) */
         write_IRQreg_ide(opp, opp->irq_tim0 + idx, val);
         break;
     }
@@ -633,31 +630,35 @@ static void openpic_timer_write(void *opaque, hwaddr addr, uint64_t val,
 static uint64_t openpic_timer_read(void *opaque, hwaddr addr, unsigned len)
 {
     openpic_t *opp = opaque;
-    uint32_t retval;
+    uint32_t retval = -1;
     int idx;
 
     DPRINTF("%s: addr %08x\n", __func__, addr);
-    retval = 0xFFFFFFFF;
-    if (addr & 0xF)
-        return retval;
-    addr -= 0x10;
-    addr &= 0xFFFF;
-    idx = (addr & 0xFFF0) >> 6;
-    addr = addr & 0x30;
-    switch (addr) {
-    case 0x00: /* TICC */
+    if (addr & 0xF) {
+        goto out;
+    }
+    idx = (addr >> 6) & 0x3;
+    if (addr == 0x0) {
+        /* TIFR (TFRR) */
+        retval = opp->tifr;
+        goto out;
+    }
+    switch (addr & 0x30) {
+    case 0x00: /* TICC (GTCCR) */
         retval = opp->timers[idx].ticc;
         break;
-    case 0x10: /* TIBC */
+    case 0x10: /* TIBC (GTBCR) */
         retval = opp->timers[idx].tibc;
         break;
-    case 0x20: /* TIPV */
+    case 0x20: /* TIPV (TIPV) */
         retval = read_IRQreg_ipvp(opp, opp->irq_tim0 + idx);
         break;
-    case 0x30: /* TIDE */
+    case 0x30: /* TIDE (TIDR) */
         retval = read_IRQreg_ide(opp, opp->irq_tim0 + idx);
         break;
     }
+
+out:
     DPRINTF("%s: => %08x\n", __func__, retval);
 
     return retval;
@@ -930,7 +931,6 @@ static void openpic_save(QEMUFile* f, void *opaque)
     qemu_put_sbe32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
-        qemu_put_be32s(f, &opp->dst[i].tfrr);
         qemu_put_be32s(f, &opp->dst[i].pctp);
         qemu_put_be32s(f, &opp->dst[i].pcsr);
         openpic_save_IRQ_queue(f, &opp->dst[i].raised);
@@ -983,7 +983,6 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     qemu_get_sbe32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
-        qemu_get_be32s(f, &opp->dst[i].tfrr);
         qemu_get_be32s(f, &opp->dst[i].pctp);
         qemu_get_be32s(f, &opp->dst[i].pcsr);
         openpic_load_IRQ_queue(f, &opp->dst[i].raised);
@@ -1100,7 +1099,6 @@ static void mpic_reset (void *opaque)
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
         mpp->dst[i].pctp      = 0x0000000F;
-        mpp->dst[i].tfrr      = 0x00000000;
         memset(&mpp->dst[i].raised, 0, sizeof(IRQ_queue_t));
         mpp->dst[i].raised.next = -1;
         memset(&mpp->dst[i].servicing, 0, sizeof(IRQ_queue_t));
@@ -1115,73 +1113,6 @@ static void mpic_reset (void *opaque)
     mpp->glbc = 0x00000000;
 }
 
-static void mpic_timer_write(void *opaque, hwaddr addr, uint64_t val,
-                             unsigned len)
-{
-    openpic_t *mpp = opaque;
-    int idx, cpu;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
-    if (addr & 0xF)
-        return;
-    cpu = addr >> 12;
-    idx = (addr >> 6) & 0x3;
-    switch (addr & 0x30) {
-    case 0x00: /* gtccr */
-        break;
-    case 0x10: /* gtbcr */
-        if ((mpp->timers[idx].ticc & 0x80000000) != 0 &&
-            (val & 0x80000000) == 0 &&
-            (mpp->timers[idx].tibc & 0x80000000) != 0)
-            mpp->timers[idx].ticc &= ~0x80000000;
-        mpp->timers[idx].tibc = val;
-        break;
-    case 0x20: /* GTIVPR */
-        write_IRQreg_ipvp(mpp, MPIC_TMR_IRQ + idx, val);
-        break;
-    case 0x30: /* GTIDR & TFRR */
-        if ((addr & 0xF0) == 0xF0)
-            mpp->dst[cpu].tfrr = val;
-        else
-            write_IRQreg_ide(mpp, MPIC_TMR_IRQ + idx, val);
-        break;
-    }
-}
-
-static uint64_t mpic_timer_read(void *opaque, hwaddr addr, unsigned len)
-{
-    openpic_t *mpp = opaque;
-    uint32_t retval;
-    int idx, cpu;
-
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
-    retval = 0xFFFFFFFF;
-    if (addr & 0xF)
-        return retval;
-    cpu = addr >> 12;
-    idx = (addr >> 6) & 0x3;
-    switch (addr & 0x30) {
-    case 0x00: /* gtccr */
-        retval = mpp->timers[idx].ticc;
-        break;
-    case 0x10: /* gtbcr */
-        retval = mpp->timers[idx].tibc;
-        break;
-    case 0x20: /* TIPV */
-        retval = read_IRQreg_ipvp(mpp, MPIC_TMR_IRQ + idx);
-        break;
-    case 0x30: /* TIDR */
-        if ((addr &0xF0) == 0XF0)
-            retval = mpp->dst[cpu].tfrr;
-        else
-            retval = read_IRQreg_ide(mpp, MPIC_TMR_IRQ + idx);
-        break;
-    }
-    DPRINTF("%s: => %08x\n", __func__, retval);
-
-    return retval;
-}
-
 static const MemoryRegionOps mpic_glb_ops = {
     .write = openpic_gbl_write,
     .read  = openpic_gbl_read,
@@ -1193,8 +1124,8 @@ static const MemoryRegionOps mpic_glb_ops = {
 };
 
 static const MemoryRegionOps mpic_tmr_ops = {
-    .write = mpic_timer_write,
-    .read  = mpic_timer_read,
+    .write = openpic_timer_write,
+    .read  = openpic_timer_read,
     .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
