@@ -270,6 +270,9 @@ typedef int TCGv_i64;
 #define TCGV_UNUSED_I32(x) x = MAKE_TCGV_I32(-1)
 #define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
 
+#define TCGV_IS_UNUSED_I32(x) (GET_TCGV_I32(x) == -1)
+#define TCGV_IS_UNUSED_I64(x) (GET_TCGV_I64(x) == -1)
+
 /* call flags */
 /* Helper does not read globals (either directly or through an exception). It
    implies TCG_CALL_NO_WRITE_GLOBALS. */
