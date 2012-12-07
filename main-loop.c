@@ -42,6 +42,7 @@ static void sigfd_handler(void *opaque)
     struct qemu_signalfd_siginfo info;
     struct sigaction action;
     ssize_t len;
+    int err;
 
     while (1) {
         do {
@@ -57,12 +58,18 @@ static void sigfd_handler(void *opaque)
             return;
         }
 
-        sigaction(info.ssi_signo, NULL, &action);
-        if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
-            action.sa_sigaction(info.ssi_signo,
-                                (siginfo_t *)&info, NULL);
-        } else if (action.sa_handler) {
-            action.sa_handler(info.ssi_signo);
+        err = sigaction(info.ssi_signo, NULL, &action);
+        if (err == 0) {
+            if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
+                action.sa_sigaction(info.ssi_signo,
+                                    (siginfo_t *)&info, NULL);
+            } else if (action.sa_handler) {
+                action.sa_handler(info.ssi_signo);
+            }
+        } else {
+            fprintf(stderr, "sigfd (%s) fail. errno: %d %s\n",
+                    strsignal(info.ssi_signo),
+                    errno, strerror(errno));
         }
     }
 }
