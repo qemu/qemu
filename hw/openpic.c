@@ -79,6 +79,15 @@ enum {
 #define OPENPIC_IRQ_MBX0   (OPENPIC_IRQ_DBL0 + OPENPIC_MAX_DBL) /* First mailbox IRQ */
 #endif
 
+#define OPENPIC_GLB_REG_START        0x0
+#define OPENPIC_GLB_REG_SIZE         0x10F0
+#define OPENPIC_TMR_REG_START        0x10F0
+#define OPENPIC_TMR_REG_SIZE         0x220
+#define OPENPIC_SRC_REG_START        0x10000
+#define OPENPIC_SRC_REG_SIZE         (MAX_SRC * 0x20)
+#define OPENPIC_CPU_REG_START        0x20000
+#define OPENPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
+
 /* MPIC */
 #define MPIC_MAX_CPU      1
 #define MPIC_MAX_EXT     12
@@ -842,53 +851,39 @@ static uint64_t openpic_cpu_read(void *opaque, hwaddr addr, unsigned len)
     return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
 }
 
-static void openpic_write(void *opaque, hwaddr addr, uint64_t val,
-                          unsigned len)
-{
-    openpic_t *opp = opaque;
+static const MemoryRegionOps openpic_glb_ops = {
+    .write = openpic_gbl_write,
+    .read  = openpic_gbl_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
-    DPRINTF("%s: offset %08x val: %08x\n", __func__, (int)addr, val);
-    if (addr < 0x1100) {
-        /* Global registers */
-        openpic_gbl_write(opp, addr, val, len);
-    } else if (addr < 0x10000) {
-        /* Timers registers */
-        openpic_timer_write(opp, addr, val, len);
-    } else if (addr < 0x20000) {
-        /* Source registers */
-        openpic_src_write(opp, addr, val, len);
-    } else {
-        /* CPU registers */
-        openpic_cpu_write(opp, addr, val, len);
-    }
-}
+static const MemoryRegionOps openpic_tmr_ops = {
+    .write = openpic_timer_write,
+    .read  = openpic_timer_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
-static uint64_t openpic_read(void *opaque, hwaddr addr, unsigned len)
-{
-    openpic_t *opp = opaque;
-    uint32_t retval;
+static const MemoryRegionOps openpic_cpu_ops = {
+    .write = openpic_cpu_write,
+    .read  = openpic_cpu_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
-    DPRINTF("%s: offset %08x\n", __func__, (int)addr);
-    if (addr < 0x1100) {
-        /* Global registers */
-        retval = openpic_gbl_read(opp, addr, len);
-    } else if (addr < 0x10000) {
-        /* Timers registers */
-        retval = openpic_timer_read(opp, addr, len);
-    } else if (addr < 0x20000) {
-        /* Source registers */
-        retval = openpic_src_read(opp, addr, len);
-    } else {
-        /* CPU registers */
-        retval = openpic_cpu_read(opp, addr, len);
-    }
-
-    return retval;
-}
-
-static const MemoryRegionOps openpic_ops = {
-    .read = openpic_read,
-    .write = openpic_write,
+static const MemoryRegionOps openpic_src_ops = {
+    .write = openpic_src_write,
+    .read  = openpic_src_read,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 4,
@@ -1009,12 +1004,33 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
 {
     openpic_t *opp;
     int i, m;
+    struct {
+        const char             *name;
+        MemoryRegionOps const  *ops;
+        hwaddr      start_addr;
+        ram_addr_t              size;
+    } const list[] = {
+        {"glb", &openpic_glb_ops, OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
+        {"tmr", &openpic_tmr_ops, OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
+        {"src", &openpic_src_ops, OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
+        {"cpu", &openpic_cpu_ops, OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
+    };
 
     /* XXX: for now, only one CPU is supported */
     if (nb_cpus != 1)
         return NULL;
     opp = g_malloc0(sizeof(openpic_t));
-    memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);
+
+    memory_region_init(&opp->mem, "openpic", 0x40000);
+
+    for (i = 0; i < ARRAY_SIZE(list); i++) {
+
+        memory_region_init_io(&opp->sub_io_mem[i], list[i].ops, opp,
+                              list[i].name, list[i].size);
+
+        memory_region_add_subregion(&opp->mem, list[i].start_addr,
+                                    &opp->sub_io_mem[i]);
+    }
 
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
