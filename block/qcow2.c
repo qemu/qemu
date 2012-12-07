@@ -774,14 +774,10 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     QEMUIOVector hd_qiov;
     uint64_t bytes_done = 0;
     uint8_t *cluster_data = NULL;
-    QCowL2Meta l2meta = {
-        .nb_clusters = 0,
-    };
+    QCowL2Meta *l2meta;
 
     trace_qcow2_writev_start_req(qemu_coroutine_self(), sector_num,
                                  remaining_sectors);
-
-    qemu_co_queue_init(&l2meta.dependent_requests);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -790,6 +786,9 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     qemu_co_mutex_lock(&s->lock);
 
     while (remaining_sectors != 0) {
+
+        l2meta = g_malloc0(sizeof(*l2meta));
+        qemu_co_queue_init(&l2meta->dependent_requests);
 
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
@@ -800,17 +799,17 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         }
 
         ret = qcow2_alloc_cluster_offset(bs, sector_num << 9,
-            index_in_cluster, n_end, &cur_nr_sectors, &l2meta);
+            index_in_cluster, n_end, &cur_nr_sectors, l2meta);
         if (ret < 0) {
             goto fail;
         }
 
-        if (l2meta.nb_clusters > 0 &&
+        if (l2meta->nb_clusters > 0 &&
             (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS)) {
             qcow2_mark_dirty(bs);
         }
 
-        cluster_offset = l2meta.cluster_offset;
+        cluster_offset = l2meta->cluster_offset;
         assert((cluster_offset & 511) == 0);
 
         qemu_iovec_reset(&hd_qiov);
@@ -847,12 +846,14 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             goto fail;
         }
 
-        ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
+        ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
         if (ret < 0) {
             goto fail;
         }
 
-        run_dependent_requests(s, &l2meta);
+        run_dependent_requests(s, l2meta);
+        g_free(l2meta);
+        l2meta = NULL;
 
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
@@ -862,7 +863,10 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     ret = 0;
 
 fail:
-    run_dependent_requests(s, &l2meta);
+    if (l2meta != NULL) {
+        run_dependent_requests(s, l2meta);
+        g_free(l2meta);
+    }
 
     qemu_co_mutex_unlock(&s->lock);
 
