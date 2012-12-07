@@ -256,7 +256,7 @@ void net_hub_info(Monitor *mon)
 /**
  * Get the hub id that a client is connected to
  *
- * @id              Pointer for hub id output, may be NULL
+ * @id: Pointer for hub id output, may be NULL
  */
 int net_hub_id_for_client(NetClientState *nc, int *id)
 {
