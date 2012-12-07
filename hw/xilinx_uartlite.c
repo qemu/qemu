@@ -97,6 +97,7 @@ uart_read(void *opaque, hwaddr addr, unsigned int size)
                 s->rx_fifo_len--;
             uart_update_status(s);
             uart_update_irq(s);
+            qemu_chr_accept_input(s->chr);
             break;
 
         default:
@@ -182,12 +183,8 @@ static void uart_rx(void *opaque, const uint8_t *buf, int size)
 static int uart_can_rx(void *opaque)
 {
     struct xlx_uartlite *s = opaque;
-    int r;
 
-    r = s->rx_fifo_len < sizeof(s->rx_fifo);
-    if (!r)
-        printf("cannot receive!\n");
-    return r;
+    return s->rx_fifo_len < sizeof(s->rx_fifo);
 }
 
 static void uart_event(void *opaque, int event)

@@ -59,6 +59,9 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 #define PNPMMIO_SIZE      0x20000
 #define MIN_BUF_SIZE      60 /* Min. octets in an ethernet frame sans FCS */
 
+/* this is the size past which hardware will drop packets when setting LPE=0 */
+#define MAXIMUM_ETHERNET_VLAN_SIZE 1522
+
 /*
  * HW models:
  *  E1000_DEV_ID_82540EM works with Windows and Linux
@@ -803,6 +806,13 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
         buf = min_buf;
         size = sizeof(min_buf);
+    }
+
+    /* Discard oversized packets if !LPE and !SBP. */
+    if (size > MAXIMUM_ETHERNET_VLAN_SIZE
+        && !(s->mac_reg[RCTL] & E1000_RCTL_LPE)
+        && !(s->mac_reg[RCTL] & E1000_RCTL_SBP)) {
+        return size;
     }
 
     if (!receive_filter(s, buf, size))
