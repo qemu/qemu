@@ -320,7 +320,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
             exit(1);
         }
     }
-    pic = openpic_init(&pic_mem, smp_cpus, openpic_irqs, NULL);
+    pic = openpic_init(&pic_mem, smp_cpus, openpic_irqs);
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
         pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());

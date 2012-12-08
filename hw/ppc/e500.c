@@ -493,7 +493,7 @@ void ppce500_init(PPCE500Params *params)
 
     /* MPIC */
     mpic = mpic_init(ccsr_addr_space, MPC8544_MPIC_REGS_OFFSET,
-                     smp_cpus, irqs, NULL);
+                     smp_cpus, irqs);
 
     if (!mpic) {
         cpu_abort(env, "MPIC failed to initialize\n");

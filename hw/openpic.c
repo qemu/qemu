@@ -237,8 +237,6 @@ typedef struct OpenPICState {
         uint32_t ticc;  /* Global timer current count register */
         uint32_t tibc;  /* Global timer base count register */
     } timers[MAX_TMR];
-    /* IRQ out is used when in bypass mode (not implemented) */
-    qemu_irq irq_out;
     int max_irq;
     int irq_ipi0;
     int irq_tim0;
@@ -1051,7 +1049,7 @@ static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src)
 }
 
 qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
-                        qemu_irq **irqs, qemu_irq irq_out)
+                        qemu_irq **irqs)
 {
     OpenPICState *opp;
     int i;
@@ -1100,7 +1098,6 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
 
     for (i = 0; i < nb_cpus; i++)
         opp->dst[i].irqs = irqs[i];
-    opp->irq_out = irq_out;
 
     register_savevm(&opp->pci_dev.qdev, "openpic", 0, 2,
                     openpic_save, openpic_load, opp);
@@ -1113,7 +1110,7 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
 }
 
 qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
-                     int nb_cpus, qemu_irq **irqs, qemu_irq irq_out)
+                     int nb_cpus, qemu_irq **irqs)
 {
     OpenPICState    *mpp;
     int           i;
@@ -1159,7 +1156,6 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
 
     for (i = 0; i < nb_cpus; i++)
         mpp->dst[i].irqs = irqs[i];
-    mpp->irq_out = irq_out;
 
     /* Enable critical interrupt support */
     mpp->flags |= OPENPIC_FLAG_IDE_CRIT;
