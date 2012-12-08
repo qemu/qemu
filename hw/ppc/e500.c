@@ -48,6 +48,7 @@
 #define MPC8544_CCSRBAR_BASE       0xE0000000ULL
 #define MPC8544_CCSRBAR_SIZE       0x00100000ULL
 #define MPC8544_MPIC_REGS_OFFSET   0x40000ULL
+#define MPC8544_MSI_REGS_OFFSET   0x41600ULL
 #define MPC8544_SERIAL0_REGS_OFFSET 0x4500ULL
 #define MPC8544_SERIAL1_REGS_OFFSET 0x4600ULL
 #define MPC8544_PCI_REGS_OFFSET    0x8000ULL
@@ -127,8 +128,10 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     char soc[128];
     char mpic[128];
     uint32_t mpic_ph;
+    uint32_t msi_ph;
     char gutil[128];
     char pci[128];
+    char msi[128];
     uint32_t pci_map[7 * 8];
     uint32_t pci_ranges[14] =
         {
@@ -300,6 +303,25 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_cells(fdt, gutil, "reg", MPC8544_UTIL_OFFSET, 0x1000);
     qemu_devtree_setprop(fdt, gutil, "fsl,has-rstcr", NULL, 0);
 
+    snprintf(msi, sizeof(msi), "/%s/msi@%llx", soc, MPC8544_MSI_REGS_OFFSET);
+    qemu_devtree_add_subnode(fdt, msi);
+    qemu_devtree_setprop_string(fdt, msi, "compatible", "fsl,mpic-msi");
+    qemu_devtree_setprop_cells(fdt, msi, "reg", MPC8544_MSI_REGS_OFFSET, 0x200);
+    msi_ph = qemu_devtree_alloc_phandle(fdt);
+    qemu_devtree_setprop_cells(fdt, msi, "msi-available-ranges", 0x0, 0x100);
+    qemu_devtree_setprop_phandle(fdt, msi, "interrupt-parent", mpic);
+    qemu_devtree_setprop_cells(fdt, msi, "interrupts",
+        0xe0, 0x0,
+        0xe1, 0x0,
+        0xe2, 0x0,
+        0xe3, 0x0,
+        0xe4, 0x0,
+        0xe5, 0x0,
+        0xe6, 0x0,
+        0xe7, 0x0);
+    qemu_devtree_setprop_cell(fdt, msi, "phandle", msi_ph);
+    qemu_devtree_setprop_cell(fdt, msi, "linux,phandle", msi_ph);
+
     snprintf(pci, sizeof(pci), "/pci@%llx", MPC8544_PCI_REGS_BASE);
     qemu_devtree_add_subnode(fdt, pci);
     qemu_devtree_setprop_cell(fdt, pci, "cell-index", 0);
@@ -315,6 +337,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     for (i = 0; i < 14; i++) {
         pci_ranges[i] = cpu_to_be32(pci_ranges[i]);
     }
+    qemu_devtree_setprop_cell(fdt, pci, "fsl,msi", msi_ph);
     qemu_devtree_setprop(fdt, pci, "ranges", pci_ranges, sizeof(pci_ranges));
     qemu_devtree_setprop_cells(fdt, pci, "reg", MPC8544_PCI_REGS_BASE >> 32,
                                MPC8544_PCI_REGS_BASE, 0, 0x1000);
