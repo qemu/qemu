@@ -38,6 +38,7 @@
 #include "pci.h"
 #include "openpic.h"
 #include "sysbus.h"
+#include "msi.h"
 
 //#define DEBUG_OPENPIC
 
@@ -52,6 +53,7 @@
 #define MAX_TMR     4
 #define VECTOR_BITS 8
 #define MAX_IPI     4
+#define MAX_MSI     8
 #define MAX_IRQ     (MAX_SRC + MAX_IPI + MAX_TMR)
 #define VID         0x03 /* MPIC version ID */
 
@@ -63,6 +65,8 @@
 #define OPENPIC_GLB_REG_SIZE         0x10F0
 #define OPENPIC_TMR_REG_START        0x10F0
 #define OPENPIC_TMR_REG_SIZE         0x220
+#define OPENPIC_MSI_REG_START        0x1600
+#define OPENPIC_MSI_REG_SIZE         0x200
 #define OPENPIC_SRC_REG_START        0x10000
 #define OPENPIC_SRC_REG_SIZE         (MAX_SRC * 0x20)
 #define OPENPIC_CPU_REG_START        0x20000
@@ -126,6 +130,12 @@
 #define IDR_CI1_SHIFT     29
 #define IDR_P1_SHIFT      1
 #define IDR_P0_SHIFT      0
+
+#define MSIIR_OFFSET       0x140
+#define MSIIR_SRS_SHIFT    29
+#define MSIIR_SRS_MASK     (0x7 << MSIIR_SRS_SHIFT)
+#define MSIIR_IBS_SHIFT    24
+#define MSIIR_IBS_MASK     (0x1f << MSIIR_IBS_SHIFT)
 
 #define BF_WIDTH(_bits_) \
 (((_bits_) + (sizeof(uint32_t) * 8) - 1) / (sizeof(uint32_t) * 8))
@@ -209,7 +219,7 @@ typedef struct OpenPICState {
     uint32_t brr1;
 
     /* Sub-regions */
-    MemoryRegion sub_io_mem[7];
+    MemoryRegion sub_io_mem[5];
 
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
@@ -227,9 +237,14 @@ typedef struct OpenPICState {
         uint32_t ticc;  /* Global timer current count register */
         uint32_t tibc;  /* Global timer base count register */
     } timers[MAX_TMR];
+    /* Shared MSI registers */
+    struct {
+        uint32_t msir;   /* Shared Message Signaled Interrupt Register */
+    } msi[MAX_MSI];
     uint32_t max_irq;
     uint32_t irq_ipi0;
     uint32_t irq_tim0;
+    uint32_t irq_msi;
 } OpenPICState;
 
 static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src);
@@ -704,6 +719,68 @@ static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
     return retval;
 }
 
+static void openpic_msi_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned size)
+{
+    OpenPICState *opp = opaque;
+    int idx = opp->irq_msi;
+    int srs, ibs;
+
+    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
+    if (addr & 0xF) {
+        return;
+    }
+
+    switch (addr) {
+    case MSIIR_OFFSET:
+        srs = val >> MSIIR_SRS_SHIFT;
+        idx += srs;
+        ibs = (val & MSIIR_IBS_MASK) >> MSIIR_IBS_SHIFT;
+        opp->msi[srs].msir |= 1 << ibs;
+        openpic_set_irq(opp, idx, 1);
+        break;
+    default:
+        /* most registers are read-only, thus ignored */
+        break;
+    }
+}
+
+static uint64_t openpic_msi_read(void *opaque, hwaddr addr, unsigned size)
+{
+    OpenPICState *opp = opaque;
+    uint64_t r = 0;
+    int i, srs;
+
+    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
+    if (addr & 0xF) {
+        return -1;
+    }
+
+    srs = addr >> 4;
+
+    switch (addr) {
+    case 0x00:
+    case 0x10:
+    case 0x20:
+    case 0x30:
+    case 0x40:
+    case 0x50:
+    case 0x60:
+    case 0x70: /* MSIRs */
+        r = opp->msi[srs].msir;
+        /* Clear on read */
+        opp->msi[srs].msir = 0;
+        break;
+    case 0x120: /* MSISR */
+        for (i = 0; i < MAX_MSI; i++) {
+            r |= (opp->msi[i].msir ? 1 : 0) << i;
+        }
+        break;
+    }
+
+    return r;
+}
+
 static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx)
 {
@@ -932,6 +1009,26 @@ static const MemoryRegionOps openpic_src_ops_be = {
     },
 };
 
+static const MemoryRegionOps openpic_msi_ops_le = {
+    .read = openpic_msi_read,
+    .write = openpic_msi_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_msi_ops_be = {
+    .read = openpic_msi_read,
+    .write = openpic_msi_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
 static void openpic_save_IRQ_queue(QEMUFile* f, IRQ_queue_t *q)
 {
     unsigned int i;
@@ -1039,6 +1136,7 @@ static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src)
 struct memreg {
     const char             *name;
     MemoryRegionOps const  *ops;
+    bool                   map;
     hwaddr      start_addr;
     ram_addr_t              size;
 };
@@ -1047,27 +1145,31 @@ static int openpic_init(SysBusDevice *dev)
 {
     OpenPICState *opp = FROM_SYSBUS(typeof (*opp), dev);
     int i, j;
-    const struct memreg list_le[] = {
-        {"glb", &openpic_glb_ops_le, OPENPIC_GLB_REG_START,
-                                     OPENPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops_le, OPENPIC_TMR_REG_START,
-                                     OPENPIC_TMR_REG_SIZE},
-        {"src", &openpic_src_ops_le, OPENPIC_SRC_REG_START,
-                                     OPENPIC_SRC_REG_SIZE},
-        {"cpu", &openpic_cpu_ops_le, OPENPIC_CPU_REG_START,
-                                     OPENPIC_CPU_REG_SIZE},
+    struct memreg list_le[] = {
+        {"glb", &openpic_glb_ops_le, true,
+                OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
+        {"tmr", &openpic_tmr_ops_le, true,
+                OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
+        {"msi", &openpic_msi_ops_le, true,
+                OPENPIC_MSI_REG_START, OPENPIC_MSI_REG_SIZE},
+        {"src", &openpic_src_ops_le, true,
+                OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
+        {"cpu", &openpic_cpu_ops_le, true,
+                OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
     };
-    const struct memreg list_be[] = {
-        {"glb", &openpic_glb_ops_be, OPENPIC_GLB_REG_START,
-                                     OPENPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops_be, OPENPIC_TMR_REG_START,
-                                     OPENPIC_TMR_REG_SIZE},
-        {"src", &openpic_src_ops_be, OPENPIC_SRC_REG_START,
-                                     OPENPIC_SRC_REG_SIZE},
-        {"cpu", &openpic_cpu_ops_be, OPENPIC_CPU_REG_START,
-                                     OPENPIC_CPU_REG_SIZE},
+    struct memreg list_be[] = {
+        {"glb", &openpic_glb_ops_be, true,
+                OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
+        {"tmr", &openpic_tmr_ops_be, true,
+                OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
+        {"msi", &openpic_msi_ops_be, true,
+                OPENPIC_MSI_REG_START, OPENPIC_MSI_REG_SIZE},
+        {"src", &openpic_src_ops_be, true,
+                OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
+        {"cpu", &openpic_cpu_ops_be, true,
+                OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
     };
-    struct memreg const *list;
+    struct memreg *list;
 
     switch (opp->model) {
     case OPENPIC_MODEL_FSL_MPIC_20:
@@ -1083,7 +1185,9 @@ static int openpic_init(SysBusDevice *dev)
         opp->max_irq = FSL_MPIC_20_MAX_IRQ;
         opp->irq_ipi0 = FSL_MPIC_20_IPI_IRQ;
         opp->irq_tim0 = FSL_MPIC_20_TMR_IRQ;
+        opp->irq_msi = FSL_MPIC_20_MSI_IRQ;
         opp->brr1 = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
+        msi_supported = true;
         list = list_be;
         break;
     case OPENPIC_MODEL_RAVEN:
@@ -1099,6 +1203,8 @@ static int openpic_init(SysBusDevice *dev)
         opp->irq_tim0 = RAVEN_TMR_IRQ;
         opp->brr1 = -1;
         list = list_le;
+        /* Don't map MSI region */
+        list[2].map = false;
 
         /* Only UP supported today */
         if (opp->nb_cpus != 1) {
@@ -1110,6 +1216,10 @@ static int openpic_init(SysBusDevice *dev)
     memory_region_init(&opp->mem, "openpic", 0x40000);
 
     for (i = 0; i < ARRAY_SIZE(list_le); i++) {
+        if (!list[i].map) {
+            continue;
+        }
+
         memory_region_init_io(&opp->sub_io_mem[i], list[i].ops, opp,
                               list[i].name, list[i].size);
 
