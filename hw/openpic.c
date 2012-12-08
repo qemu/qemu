@@ -168,13 +168,6 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
 static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx);
 
-enum {
-    IRQ_EXTERNAL = 0x01,
-    IRQ_INTERNAL = 0x02,
-    IRQ_TIMER    = 0x04,
-    IRQ_SPECIAL  = 0x08,
-};
-
 typedef struct IRQ_queue_t {
     uint32_t queue[BF_WIDTH(MAX_IRQ)];
     int next;
@@ -184,7 +177,6 @@ typedef struct IRQ_queue_t {
 typedef struct IRQ_src_t {
     uint32_t ipvp;  /* IRQ vector/priority register */
     uint32_t ide;   /* IRQ destination register */
-    int type;
     int last_cpu;
     int pending;    /* TRUE if IRQ is pending */
 } IRQ_src_t;
@@ -972,7 +964,6 @@ static void openpic_save(QEMUFile* f, void *opaque)
     for (i = 0; i < opp->max_irq; i++) {
         qemu_put_be32s(f, &opp->src[i].ipvp);
         qemu_put_be32s(f, &opp->src[i].ide);
-        qemu_put_sbe32s(f, &opp->src[i].type);
         qemu_put_sbe32s(f, &opp->src[i].last_cpu);
         qemu_put_sbe32s(f, &opp->src[i].pending);
     }
@@ -1022,7 +1013,6 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     for (i = 0; i < opp->max_irq; i++) {
         qemu_get_be32s(f, &opp->src[i].ipvp);
         qemu_get_be32s(f, &opp->src[i].ide);
-        qemu_get_sbe32s(f, &opp->src[i].type);
         qemu_get_sbe32s(f, &opp->src[i].last_cpu);
         qemu_get_sbe32s(f, &opp->src[i].pending);
     }
@@ -1059,7 +1049,7 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
                         qemu_irq **irqs, qemu_irq irq_out)
 {
     openpic_t *opp;
-    int i, m;
+    int i;
     struct {
         const char             *name;
         MemoryRegionOps const  *ops;
@@ -1102,20 +1092,7 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
     opp->max_irq = OPENPIC_MAX_IRQ;
     opp->irq_ipi0 = OPENPIC_IRQ_IPI0;
     opp->irq_tim0 = OPENPIC_IRQ_TIM0;
-    /* Set IRQ types */
-    for (i = 0; i < OPENPIC_EXT_IRQ; i++) {
-        opp->src[i].type = IRQ_EXTERNAL;
-    }
-    for (; i < OPENPIC_IRQ_TIM0; i++) {
-        opp->src[i].type = IRQ_SPECIAL;
-    }
-    m = OPENPIC_IRQ_IPI0;
-    for (; i < m; i++) {
-        opp->src[i].type = IRQ_TIMER;
-    }
-    for (; i < OPENPIC_MAX_IRQ; i++) {
-        opp->src[i].type = IRQ_INTERNAL;
-    }
+
     for (i = 0; i < nb_cpus; i++)
         opp->dst[i].irqs = irqs[i];
     opp->irq_out = irq_out;
