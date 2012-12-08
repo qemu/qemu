@@ -132,26 +132,6 @@ static void xbox_memory_init(MemoryRegion *system_memory,
 
 }
 
-
-
-static void ioapic_init(GSIState *gsi_state)
-{
-    DeviceState *dev;
-    SysBusDevice *d;
-    unsigned int i;
-
-    dev = qdev_create(NULL, "ioapic");
-
-    qdev_init_nofail(dev);
-    d = sysbus_from_qdev(dev);
-    sysbus_mmio_map(d, 0, 0xfec00000);
-
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        gsi_state->ioapic_irq[i] = qdev_get_gpio_in(dev, i);
-    }
-}
-
-
 #define MAX_IDE_BUS 2
 
 /* mostly from pc_init1 */
@@ -226,7 +206,6 @@ static void xbox_init(QEMUMachineInitArgs *args)
     for (i = 0; i < ISA_NUM_IRQS; i++) {
         gsi_state->i8259_irq[i] = i8259[i];
     }
-    ioapic_init(gsi_state);
 
 
     /* basic device init */
