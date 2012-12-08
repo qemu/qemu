@@ -867,7 +867,7 @@ static uint64_t openpic_cpu_read(void *opaque, hwaddr addr, unsigned len)
     return openpic_cpu_read_internal(opaque, addr, (addr & 0x1f000) >> 12);
 }
 
-static const MemoryRegionOps openpic_glb_ops = {
+static const MemoryRegionOps openpic_glb_ops_le = {
     .write = openpic_gbl_write,
     .read  = openpic_gbl_read,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -877,7 +877,17 @@ static const MemoryRegionOps openpic_glb_ops = {
     },
 };
 
-static const MemoryRegionOps openpic_tmr_ops = {
+static const MemoryRegionOps openpic_glb_ops_be = {
+    .write = openpic_gbl_write,
+    .read  = openpic_gbl_read,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_tmr_ops_le = {
     .write = openpic_timer_write,
     .read  = openpic_timer_read,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -887,7 +897,17 @@ static const MemoryRegionOps openpic_tmr_ops = {
     },
 };
 
-static const MemoryRegionOps openpic_cpu_ops = {
+static const MemoryRegionOps openpic_tmr_ops_be = {
+    .write = openpic_timer_write,
+    .read  = openpic_timer_read,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_cpu_ops_le = {
     .write = openpic_cpu_write,
     .read  = openpic_cpu_read,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -897,10 +917,30 @@ static const MemoryRegionOps openpic_cpu_ops = {
     },
 };
 
-static const MemoryRegionOps openpic_src_ops = {
+static const MemoryRegionOps openpic_cpu_ops_be = {
+    .write = openpic_cpu_write,
+    .read  = openpic_cpu_read,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_src_ops_le = {
     .write = openpic_src_write,
     .read  = openpic_src_read,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static const MemoryRegionOps openpic_src_ops_be = {
+    .write = openpic_src_write,
+    .read  = openpic_src_read,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -1026,10 +1066,14 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
         hwaddr      start_addr;
         ram_addr_t              size;
     } const list[] = {
-        {"glb", &openpic_glb_ops, OPENPIC_GLB_REG_START, OPENPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops, OPENPIC_TMR_REG_START, OPENPIC_TMR_REG_SIZE},
-        {"src", &openpic_src_ops, OPENPIC_SRC_REG_START, OPENPIC_SRC_REG_SIZE},
-        {"cpu", &openpic_cpu_ops, OPENPIC_CPU_REG_START, OPENPIC_CPU_REG_SIZE},
+        {"glb", &openpic_glb_ops_le, OPENPIC_GLB_REG_START,
+                                     OPENPIC_GLB_REG_SIZE},
+        {"tmr", &openpic_tmr_ops_le, OPENPIC_TMR_REG_START,
+                                     OPENPIC_TMR_REG_SIZE},
+        {"src", &openpic_src_ops_le, OPENPIC_SRC_REG_START,
+                                     OPENPIC_SRC_REG_SIZE},
+        {"cpu", &openpic_cpu_ops_le, OPENPIC_CPU_REG_START,
+                                     OPENPIC_CPU_REG_SIZE},
     };
 
     /* XXX: for now, only one CPU is supported */
@@ -1086,46 +1130,6 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
     return qemu_allocate_irqs(openpic_set_irq, opp, opp->max_irq);
 }
 
-static const MemoryRegionOps mpic_glb_ops = {
-    .write = openpic_gbl_write,
-    .read  = openpic_gbl_read,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
-
-static const MemoryRegionOps mpic_tmr_ops = {
-    .write = openpic_timer_write,
-    .read  = openpic_timer_read,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
-
-static const MemoryRegionOps mpic_cpu_ops = {
-    .write = openpic_cpu_write,
-    .read  = openpic_cpu_read,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
-
-static const MemoryRegionOps mpic_irq_ops = {
-    .write = openpic_src_write,
-    .read  = openpic_src_read,
-    .endianness = DEVICE_BIG_ENDIAN,
-    .impl = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
-};
-
 qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
                      int nb_cpus, qemu_irq **irqs, qemu_irq irq_out)
 {
@@ -1137,10 +1141,10 @@ qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
         hwaddr      start_addr;
         ram_addr_t              size;
     } const list[] = {
-        {"glb", &mpic_glb_ops, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
-        {"tmr", &mpic_tmr_ops, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
-        {"src", &mpic_irq_ops, MPIC_SRC_REG_START, MPIC_SRC_REG_SIZE},
-        {"cpu", &mpic_cpu_ops, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
+        {"glb", &openpic_glb_ops_be, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
+        {"tmr", &openpic_tmr_ops_be, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
+        {"src", &openpic_src_ops_be, MPIC_SRC_REG_START, MPIC_SRC_REG_SIZE},
+        {"cpu", &openpic_cpu_ops_be, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
     };
 
     mpp = g_malloc0(sizeof(openpic_t));
