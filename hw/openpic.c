@@ -37,6 +37,7 @@
 #include "ppc_mac.h"
 #include "pci.h"
 #include "openpic.h"
+#include "sysbus.h"
 
 //#define DEBUG_OPENPIC
 
@@ -54,30 +55,10 @@
 #define MAX_IRQ     (MAX_SRC + MAX_IPI + MAX_TMR)
 #define VID         0x03 /* MPIC version ID */
 
-enum {
-    IRQ_IPVP = 0,
-    IRQ_IDE,
-};
+/* OpenPIC capability flags */
+#define OPENPIC_FLAG_IDE_CRIT     (1 << 0)
 
-/* OpenPIC */
-#define OPENPIC_MAX_CPU      2
-#define OPENPIC_MAX_IRQ     64
-#define OPENPIC_EXT_IRQ     48
-#define OPENPIC_MAX_TMR      MAX_TMR
-#define OPENPIC_MAX_IPI      MAX_IPI
-
-/* Interrupt definitions */
-#define OPENPIC_IRQ_FE     (OPENPIC_EXT_IRQ)     /* Internal functional IRQ */
-#define OPENPIC_IRQ_ERR    (OPENPIC_EXT_IRQ + 1) /* Error IRQ */
-#define OPENPIC_IRQ_TIM0   (OPENPIC_EXT_IRQ + 2) /* First timer IRQ */
-#if OPENPIC_MAX_IPI > 0
-#define OPENPIC_IRQ_IPI0   (OPENPIC_IRQ_TIM0 + OPENPIC_MAX_TMR) /* First IPI IRQ */
-#define OPENPIC_IRQ_DBL0   (OPENPIC_IRQ_IPI0 + (OPENPIC_MAX_CPU * OPENPIC_MAX_IPI)) /* First doorbell IRQ */
-#else
-#define OPENPIC_IRQ_DBL0   (OPENPIC_IRQ_TIM0 + OPENPIC_MAX_TMR) /* First doorbell IRQ */
-#define OPENPIC_IRQ_MBX0   (OPENPIC_IRQ_DBL0 + OPENPIC_MAX_DBL) /* First mailbox IRQ */
-#endif
-
+/* OpenPIC address map */
 #define OPENPIC_GLB_REG_START        0x0
 #define OPENPIC_GLB_REG_SIZE         0x10F0
 #define OPENPIC_TMR_REG_START        0x10F0
@@ -87,31 +68,37 @@ enum {
 #define OPENPIC_CPU_REG_START        0x20000
 #define OPENPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
 
-/* MPIC */
-#define MPIC_MAX_CPU      1
-#define MPIC_MAX_EXT     12
-#define MPIC_MAX_INT     64
-#define MPIC_MAX_IRQ     MAX_IRQ
+/* Raven */
+#define RAVEN_MAX_CPU      2
+#define RAVEN_MAX_EXT     48
+#define RAVEN_MAX_IRQ     64
+#define RAVEN_MAX_TMR      MAX_TMR
+#define RAVEN_MAX_IPI      MAX_IPI
+
+/* Interrupt definitions */
+#define RAVEN_FE_IRQ     (RAVEN_MAX_EXT)     /* Internal functional IRQ */
+#define RAVEN_ERR_IRQ    (RAVEN_MAX_EXT + 1) /* Error IRQ */
+#define RAVEN_TMR_IRQ    (RAVEN_MAX_EXT + 2) /* First timer IRQ */
+#define RAVEN_IPI_IRQ    (RAVEN_TMR_IRQ + RAVEN_MAX_TMR) /* First IPI IRQ */
+/* First doorbell IRQ */
+#define RAVEN_DBL_IRQ    (RAVEN_IPI_IRQ + (RAVEN_MAX_CPU * RAVEN_MAX_IPI))
+
+/* FSL_MPIC_20 */
+#define FSL_MPIC_20_MAX_CPU      1
+#define FSL_MPIC_20_MAX_EXT     12
+#define FSL_MPIC_20_MAX_INT     64
+#define FSL_MPIC_20_MAX_IRQ     MAX_IRQ
 
 /* Interrupt definitions */
 /* IRQs, accessible through the IRQ region */
-#define MPIC_EXT_IRQ      0x00
-#define MPIC_INT_IRQ      0x10
-#define MPIC_MSG_IRQ      0xb0
-#define MPIC_MSI_IRQ      0xe0
+#define FSL_MPIC_20_EXT_IRQ      0x00
+#define FSL_MPIC_20_INT_IRQ      0x10
+#define FSL_MPIC_20_MSG_IRQ      0xb0
+#define FSL_MPIC_20_MSI_IRQ      0xe0
 /* These are available through separate regions, but
    for simplicity's sake mapped into the same number space */
-#define MPIC_TMR_IRQ      0x100
-#define MPIC_IPI_IRQ      0x104
-
-#define MPIC_GLB_REG_START        0x0
-#define MPIC_GLB_REG_SIZE         0x10F0
-#define MPIC_TMR_REG_START        0x10F0
-#define MPIC_TMR_REG_SIZE         0x220
-#define MPIC_SRC_REG_START        0x10000
-#define MPIC_SRC_REG_SIZE         (MAX_SRC * 0x20)
-#define MPIC_CPU_REG_START        0x20000
-#define MPIC_CPU_REG_SIZE         0x100 + ((MAX_CPU - 1) * 0x1000)
+#define FSL_MPIC_20_TMR_IRQ      0x100
+#define FSL_MPIC_20_IPI_IRQ      0x104
 
 /*
  * Block Revision Register1 (BRR1): QEMU does not fully emulate
@@ -129,6 +116,7 @@ enum {
 #define FREP_VID_SHIFT     0
 
 #define VID_REVISION_1_2   2
+#define VID_REVISION_1_3   3
 
 #define VENI_GENERIC      0x00000000 /* Generic Vendor ID */
 
@@ -205,10 +193,11 @@ typedef struct IRQ_dst_t {
 } IRQ_dst_t;
 
 typedef struct OpenPICState {
-    PCIDevice pci_dev;
+    SysBusDevice busdev;
     MemoryRegion mem;
 
     /* Behavior control */
+    uint32_t model;
     uint32_t flags;
     uint32_t nb_irqs;
     uint32_t vid;
@@ -231,15 +220,15 @@ typedef struct OpenPICState {
     IRQ_src_t src[MAX_IRQ];
     /* Local registers per output pin */
     IRQ_dst_t dst[MAX_CPU];
-    int nb_cpus;
+    uint32_t nb_cpus;
     /* Timer registers */
     struct {
         uint32_t ticc;  /* Global timer current count register */
         uint32_t tibc;  /* Global timer base count register */
     } timers[MAX_TMR];
-    int max_irq;
-    int irq_ipi0;
-    int irq_tim0;
+    uint32_t max_irq;
+    uint32_t irq_ipi0;
+    uint32_t irq_tim0;
 } OpenPICState;
 
 static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src);
@@ -411,9 +400,9 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     openpic_update_irq(opp, n_IRQ);
 }
 
-static void openpic_reset (void *opaque)
+static void openpic_reset(DeviceState *d)
 {
-    OpenPICState *opp = (OpenPICState *)opaque;
+    OpenPICState *opp = FROM_SYSBUS(typeof (*opp), sysbus_from_qdev(d));
     int i;
 
     opp->glbc = 0x80000000;
@@ -506,7 +495,7 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
         break;
     case 0x1020: /* GLBC */
         if (val & 0x80000000) {
-            openpic_reset(opp);
+            openpic_reset(&opp->busdev.qdev);
         }
         break;
     case 0x1080: /* VENI */
@@ -971,7 +960,7 @@ static void openpic_save(QEMUFile* f, void *opaque)
         qemu_put_sbe32s(f, &opp->src[i].pending);
     }
 
-    qemu_put_sbe32s(f, &opp->nb_cpus);
+    qemu_put_be32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
         qemu_put_be32s(f, &opp->dst[i].pctp);
@@ -984,8 +973,6 @@ static void openpic_save(QEMUFile* f, void *opaque)
         qemu_put_be32s(f, &opp->timers[i].ticc);
         qemu_put_be32s(f, &opp->timers[i].tibc);
     }
-
-    pci_device_save(&opp->pci_dev, f);
 }
 
 static void openpic_load_IRQ_queue(QEMUFile* f, IRQ_queue_t *q)
@@ -1020,7 +1007,7 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
         qemu_get_sbe32s(f, &opp->src[i].pending);
     }
 
-    qemu_get_sbe32s(f, &opp->nb_cpus);
+    qemu_get_be32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
         qemu_get_be32s(f, &opp->dst[i].pctp);
@@ -1034,7 +1021,7 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
         qemu_get_be32s(f, &opp->timers[i].tibc);
     }
 
-    return pci_device_load(&opp->pci_dev, f);
+    return 0;
 }
 
 static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src)
@@ -1048,17 +1035,18 @@ static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src)
     }
 }
 
-qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
-                        qemu_irq **irqs)
+struct memreg {
+    const char             *name;
+    MemoryRegionOps const  *ops;
+    hwaddr      start_addr;
+    ram_addr_t              size;
+};
+
+static int openpic_init(SysBusDevice *dev)
 {
-    OpenPICState *opp;
-    int i;
-    struct {
-        const char             *name;
-        MemoryRegionOps const  *ops;
-        hwaddr      start_addr;
-        ram_addr_t              size;
-    } const list[] = {
+    OpenPICState *opp = FROM_SYSBUS(typeof (*opp), dev);
+    int i, j;
+    const struct memreg list_le[] = {
         {"glb", &openpic_glb_ops_le, OPENPIC_GLB_REG_START,
                                      OPENPIC_GLB_REG_SIZE},
         {"tmr", &openpic_tmr_ops_le, OPENPIC_TMR_REG_START,
@@ -1068,16 +1056,57 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
         {"cpu", &openpic_cpu_ops_le, OPENPIC_CPU_REG_START,
                                      OPENPIC_CPU_REG_SIZE},
     };
+    const struct memreg list_be[] = {
+        {"glb", &openpic_glb_ops_be, OPENPIC_GLB_REG_START,
+                                     OPENPIC_GLB_REG_SIZE},
+        {"tmr", &openpic_tmr_ops_be, OPENPIC_TMR_REG_START,
+                                     OPENPIC_TMR_REG_SIZE},
+        {"src", &openpic_src_ops_be, OPENPIC_SRC_REG_START,
+                                     OPENPIC_SRC_REG_SIZE},
+        {"cpu", &openpic_cpu_ops_be, OPENPIC_CPU_REG_START,
+                                     OPENPIC_CPU_REG_SIZE},
+    };
+    struct memreg const *list;
 
-    /* XXX: for now, only one CPU is supported */
-    if (nb_cpus != 1)
-        return NULL;
-    opp = g_malloc0(sizeof(OpenPICState));
+    switch (opp->model) {
+    case OPENPIC_MODEL_FSL_MPIC_20:
+    default:
+        opp->flags |= OPENPIC_FLAG_IDE_CRIT;
+        opp->nb_irqs = 80;
+        opp->vid = VID_REVISION_1_2;
+        opp->veni = VENI_GENERIC;
+        opp->spve_mask = 0xFFFF;
+        opp->tifr_reset = 0x00000000;
+        opp->ipvp_reset = 0x80000000;
+        opp->ide_reset = 0x00000001;
+        opp->max_irq = FSL_MPIC_20_MAX_IRQ;
+        opp->irq_ipi0 = FSL_MPIC_20_IPI_IRQ;
+        opp->irq_tim0 = FSL_MPIC_20_TMR_IRQ;
+        list = list_be;
+        break;
+    case OPENPIC_MODEL_RAVEN:
+        opp->nb_irqs = RAVEN_MAX_EXT;
+        opp->vid = VID_REVISION_1_3;
+        opp->veni = VENI_GENERIC;
+        opp->spve_mask = 0xFF;
+        opp->tifr_reset = 0x003F7A00;
+        opp->ipvp_reset = 0xA0000000;
+        opp->ide_reset = 0x00000000;
+        opp->max_irq = RAVEN_MAX_IRQ;
+        opp->irq_ipi0 = RAVEN_IPI_IRQ;
+        opp->irq_tim0 = RAVEN_TMR_IRQ;
+        list = list_le;
+
+        /* Only UP supported today */
+        if (opp->nb_cpus != 1) {
+            return -EINVAL;
+        }
+        break;
+    }
 
     memory_region_init(&opp->mem, "openpic", 0x40000);
 
-    for (i = 0; i < ARRAY_SIZE(list); i++) {
-
+    for (i = 0; i < ARRAY_SIZE(list_le); i++) {
         memory_region_init_io(&opp->sub_io_mem[i], list[i].ops, opp,
                               list[i].name, list[i].size);
 
@@ -1085,83 +1114,48 @@ qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
                                     &opp->sub_io_mem[i]);
     }
 
-    //    isu_base &= 0xFFFC0000;
-    opp->nb_cpus = nb_cpus;
-    opp->nb_irqs = OPENPIC_EXT_IRQ;
-    opp->vid = VID;
-    opp->veni = VENI_GENERIC;
-    opp->spve_mask = 0xFF;
-    opp->tifr_reset = 0x003F7A00;
-    opp->max_irq = OPENPIC_MAX_IRQ;
-    opp->irq_ipi0 = OPENPIC_IRQ_IPI0;
-    opp->irq_tim0 = OPENPIC_IRQ_TIM0;
-
-    for (i = 0; i < nb_cpus; i++)
-        opp->dst[i].irqs = irqs[i];
-
-    register_savevm(&opp->pci_dev.qdev, "openpic", 0, 2,
-                    openpic_save, openpic_load, opp);
-    qemu_register_reset(openpic_reset, opp);
-
-    if (pmem)
-        *pmem = &opp->mem;
-
-    return qemu_allocate_irqs(openpic_set_irq, opp, opp->max_irq);
-}
-
-qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
-                     int nb_cpus, qemu_irq **irqs)
-{
-    OpenPICState    *mpp;
-    int           i;
-    struct {
-        const char             *name;
-        MemoryRegionOps const  *ops;
-        hwaddr      start_addr;
-        ram_addr_t              size;
-    } const list[] = {
-        {"glb", &openpic_glb_ops_be, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
-        {"tmr", &openpic_tmr_ops_be, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
-        {"src", &openpic_src_ops_be, MPIC_SRC_REG_START, MPIC_SRC_REG_SIZE},
-        {"cpu", &openpic_cpu_ops_be, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
-    };
-
-    mpp = g_malloc0(sizeof(OpenPICState));
-
-    memory_region_init(&mpp->mem, "mpic", 0x40000);
-    memory_region_add_subregion(address_space, base, &mpp->mem);
-
-    for (i = 0; i < sizeof(list)/sizeof(list[0]); i++) {
-
-        memory_region_init_io(&mpp->sub_io_mem[i], list[i].ops, mpp,
-                              list[i].name, list[i].size);
-
-        memory_region_add_subregion(&mpp->mem, list[i].start_addr,
-                                    &mpp->sub_io_mem[i]);
+    for (i = 0; i < opp->nb_cpus; i++) {
+        opp->dst[i].irqs = g_new(qemu_irq, OPENPIC_OUTPUT_NB);
+        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
+            sysbus_init_irq(dev, &opp->dst[i].irqs[j]);
+        }
     }
 
-    mpp->nb_cpus = nb_cpus;
-    /* 12 external sources, 48 internal sources , 4 timer sources,
-       4 IPI sources, 4 messaging sources, and 8 Shared MSI sources */
-    mpp->nb_irqs = 80;
-    mpp->vid = VID_REVISION_1_2;
-    mpp->veni = VENI_GENERIC;
-    mpp->spve_mask = 0xFFFF;
-    mpp->tifr_reset = 0x00000000;
-    mpp->ipvp_reset = 0x80000000;
-    mpp->ide_reset = 0x00000001;
-    mpp->max_irq = MPIC_MAX_IRQ;
-    mpp->irq_ipi0 = MPIC_IPI_IRQ;
-    mpp->irq_tim0 = MPIC_TMR_IRQ;
+    register_savevm(&opp->busdev.qdev, "openpic", 0, 2,
+                    openpic_save, openpic_load, opp);
 
-    for (i = 0; i < nb_cpus; i++)
-        mpp->dst[i].irqs = irqs[i];
+    sysbus_init_mmio(dev, &opp->mem);
+    qdev_init_gpio_in(&dev->qdev, openpic_set_irq, opp->max_irq);
 
-    /* Enable critical interrupt support */
-    mpp->flags |= OPENPIC_FLAG_IDE_CRIT;
-
-    register_savevm(NULL, "mpic", 0, 2, openpic_save, openpic_load, mpp);
-    qemu_register_reset(openpic_reset, mpp);
-
-    return qemu_allocate_irqs(openpic_set_irq, mpp, mpp->max_irq);
+    return 0;
 }
+
+static Property openpic_properties[] = {
+    DEFINE_PROP_UINT32("model", OpenPICState, model, OPENPIC_MODEL_FSL_MPIC_20),
+    DEFINE_PROP_UINT32("nb_cpus", OpenPICState, nb_cpus, 1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void openpic_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = openpic_init;
+    dc->props = openpic_properties;
+    dc->reset = openpic_reset;
+}
+
+static TypeInfo openpic_info = {
+    .name          = "openpic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(OpenPICState),
+    .class_init    = openpic_class_init,
+};
+
+static void openpic_register_types(void)
+{
+    type_register_static(&openpic_info);
+}
+
+type_init(openpic_register_types)

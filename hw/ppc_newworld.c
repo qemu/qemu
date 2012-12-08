@@ -67,6 +67,7 @@
 #include "hw/usb.h"
 #include "blockdev.h"
 #include "exec-memory.h"
+#include "sysbus.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -141,7 +142,7 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     char *filename;
     qemu_irq *pic, **openpic_irqs;
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
-    int linux_boot, i;
+    int linux_boot, i, j, k;
     MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     hwaddr kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
@@ -156,6 +157,8 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
     void *fw_cfg;
     void *dbdma;
     int machine_arch;
+    SysBusDevice *s;
+    DeviceState *dev;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -320,7 +323,25 @@ static void ppc_core99_init(QEMUMachineInitArgs *args)
             exit(1);
         }
     }
-    pic = openpic_init(&pic_mem, smp_cpus, openpic_irqs);
+
+    pic = g_new(qemu_irq, 64);
+
+    dev = qdev_create(NULL, "openpic");
+    qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_RAVEN);
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+    pic_mem = s->mmio[0].memory;
+    k = 0;
+    for (i = 0; i < smp_cpus; i++) {
+        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
+            sysbus_connect_irq(s, k++, openpic_irqs[i][j]);
+        }
+    }
+
+    for (i = 0; i < 64; i++) {
+        pic[i] = qdev_get_gpio_in(dev, i);
+    }
+
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
         pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());

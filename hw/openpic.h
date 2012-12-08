@@ -11,11 +11,7 @@ enum {
     OPENPIC_OUTPUT_NB,
 };
 
-/* OpenPIC capability flags */
-#define OPENPIC_FLAG_IDE_CRIT    (1 << 0)
+#define OPENPIC_MODEL_RAVEN       0
+#define OPENPIC_MODEL_FSL_MPIC_20 1
 
-qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
-                        qemu_irq **irqs);
-qemu_irq *mpic_init (MemoryRegion *address_space, hwaddr base,
-                     int nb_cpus, qemu_irq **irqs);
 #endif /* __OPENPIC_H__ */
