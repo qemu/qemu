@@ -132,13 +132,12 @@ enum {
 
 #define VENI_GENERIC      0x00000000 /* Generic Vendor ID */
 
-enum mpic_ide_bits {
-    IDR_EP     = 31,
-    IDR_CI0     = 30,
-    IDR_CI1     = 29,
-    IDR_P1     = 1,
-    IDR_P0     = 0,
-};
+#define IDR_EP_SHIFT      31
+#define IDR_EP_MASK       (1 << IDR_EP_SHIFT)
+#define IDR_CI0_SHIFT     30
+#define IDR_CI1_SHIFT     29
+#define IDR_P1_SHIFT      1
+#define IDR_P0_SHIFT      0
 
 #define BF_WIDTH(_bits_) \
 (((_bits_) + (sizeof(uint32_t) * 8) - 1) / (sizeof(uint32_t) * 8))
@@ -181,13 +180,17 @@ typedef struct IRQ_src_t {
     int pending;    /* TRUE if IRQ is pending */
 } IRQ_src_t;
 
-enum IPVP_bits {
-    IPVP_MASK     = 31,
-    IPVP_ACTIVITY = 30,
-    IPVP_MODE     = 29,
-    IPVP_POLARITY = 23,
-    IPVP_SENSE    = 22,
-};
+#define IPVP_MASK_SHIFT       31
+#define IPVP_MASK_MASK        (1 << IPVP_MASK_SHIFT)
+#define IPVP_ACTIVITY_SHIFT   30
+#define IPVP_ACTIVITY_MASK    (1 << IPVP_ACTIVITY_SHIFT)
+#define IPVP_MODE_SHIFT       29
+#define IPVP_MODE_MASK        (1 << IPVP_MODE_SHIFT)
+#define IPVP_POLARITY_SHIFT   23
+#define IPVP_POLARITY_MASK    (1 << IPVP_POLARITY_SHIFT)
+#define IPVP_SENSE_SHIFT      22
+#define IPVP_SENSE_MASK       (1 << IPVP_SENSE_SHIFT)
+
 #define IPVP_PRIORITY_MASK     (0x1F << 16)
 #define IPVP_PRIORITY(_ipvpr_) ((int)(((_ipvpr_) & IPVP_PRIORITY_MASK) >> 16))
 #define IPVP_VECTOR_MASK       ((1 << VECTOR_BITS) - 1)
@@ -310,7 +313,7 @@ static void IRQ_local_pipe (openpic_t *opp, int n_CPU, int n_IRQ)
                 __func__, n_IRQ, n_CPU);
         return;
     }
-    set_bit(&src->ipvp, IPVP_ACTIVITY);
+    src->ipvp |= IPVP_ACTIVITY_MASK;
     IRQ_setbit(&dst->raised, n_IRQ);
     if (priority < dst->raised.priority) {
         /* An higher priority IRQ is already raised */
@@ -343,7 +346,7 @@ static void openpic_update_irq(openpic_t *opp, int n_IRQ)
         DPRINTF("%s: IRQ %d is not pending\n", __func__, n_IRQ);
         return;
     }
-    if (test_bit(&src->ipvp, IPVP_MASK)) {
+    if (src->ipvp & IPVP_MASK_MASK) {
         /* Interrupt source is disabled */
         DPRINTF("%s: IRQ %d is disabled\n", __func__, n_IRQ);
         return;
@@ -353,7 +356,7 @@ static void openpic_update_irq(openpic_t *opp, int n_IRQ)
         DPRINTF("%s: IRQ %d has 0 priority\n", __func__, n_IRQ);
         return;
     }
-    if (test_bit(&src->ipvp, IPVP_ACTIVITY)) {
+    if (src->ipvp & IPVP_ACTIVITY_MASK) {
         /* IRQ already active */
         DPRINTF("%s: IRQ %d is already active\n", __func__, n_IRQ);
         return;
@@ -367,18 +370,19 @@ static void openpic_update_irq(openpic_t *opp, int n_IRQ)
     if (src->ide == (1 << src->last_cpu)) {
         /* Only one CPU is allowed to receive this IRQ */
         IRQ_local_pipe(opp, src->last_cpu, n_IRQ);
-    } else if (!test_bit(&src->ipvp, IPVP_MODE)) {
+    } else if (!(src->ipvp & IPVP_MODE_MASK)) {
         /* Directed delivery mode */
         for (i = 0; i < opp->nb_cpus; i++) {
-            if (test_bit(&src->ide, i))
+            if (src->ide & (1 << i)) {
                 IRQ_local_pipe(opp, i, n_IRQ);
+            }
         }
     } else {
         /* Distributed delivery mode */
         for (i = src->last_cpu + 1; i != src->last_cpu; i++) {
             if (i == opp->nb_cpus)
                 i = 0;
-            if (test_bit(&src->ide, i)) {
+            if (src->ide & (1 << i)) {
                 IRQ_local_pipe(opp, i, n_IRQ);
                 src->last_cpu = i;
                 break;
@@ -395,11 +399,12 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     src = &opp->src[n_IRQ];
     DPRINTF("openpic: set irq %d = %d ipvp=%08x\n",
             n_IRQ, level, src->ipvp);
-    if (test_bit(&src->ipvp, IPVP_SENSE)) {
+    if (src->ipvp & IPVP_SENSE_MASK) {
         /* level-sensitive irq */
         src->pending = level;
-        if (!level)
-            reset_bit(&src->ipvp, IPVP_ACTIVITY);
+        if (!level) {
+            src->ipvp &= ~IPVP_ACTIVITY_MASK;
+        }
     } else {
         /* edge-sensitive irq */
         if (level)
@@ -810,13 +815,13 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
             retval = IPVP_VECTOR(opp->spve);
         } else {
             src = &opp->src[n_IRQ];
-            if (!test_bit(&src->ipvp, IPVP_ACTIVITY) ||
+            if (!(src->ipvp & IPVP_ACTIVITY_MASK) ||
                 !(IPVP_PRIORITY(src->ipvp) > dst->pctp)) {
                 /* - Spurious level-sensitive IRQ
                  * - Priorities has been changed
                  *   and the pending IRQ isn't allowed anymore
                  */
-                reset_bit(&src->ipvp, IPVP_ACTIVITY);
+                src->ipvp &= ~IPVP_ACTIVITY_MASK;
                 retval = IPVP_VECTOR(opp->spve);
             } else {
                 /* IRQ enter servicing state */
@@ -825,20 +830,20 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
             }
             IRQ_resetbit(&dst->raised, n_IRQ);
             dst->raised.next = -1;
-            if (!test_bit(&src->ipvp, IPVP_SENSE)) {
+            if (!(src->ipvp & IPVP_SENSE_MASK)) {
                 /* edge-sensitive IRQ */
-                reset_bit(&src->ipvp, IPVP_ACTIVITY);
+                src->ipvp &= ~IPVP_ACTIVITY_MASK;
                 src->pending = 0;
             }
 
             if ((n_IRQ >= opp->irq_ipi0) &&  (n_IRQ < (opp->irq_ipi0 + MAX_IPI))) {
                 src->ide &= ~(1 << idx);
-                if (src->ide && !test_bit(&src->ipvp, IPVP_SENSE)) {
+                if (src->ide && !(src->ipvp & IPVP_SENSE_MASK)) {
                     /* trigger on CPUs that didn't know about it yet */
                     openpic_set_irq(opp, n_IRQ, 1);
                     openpic_set_irq(opp, n_IRQ, 0);
                     /* if all CPUs knew about it, set active bit again */
-                    set_bit(&src->ipvp, IPVP_ACTIVITY);
+                    src->ipvp |= IPVP_ACTIVITY_MASK;
                 }
             }
         }
@@ -1036,9 +1041,9 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 
 static void openpic_irq_raise(openpic_t *opp, int n_CPU, IRQ_src_t *src)
 {
-    int n_ci = IDR_CI0 - n_CPU;
+    int n_ci = IDR_CI0_SHIFT - n_CPU;
 
-    if ((opp->flags & OPENPIC_FLAG_IDE_CRIT) && test_bit(&src->ide, n_ci)) {
+    if ((opp->flags & OPENPIC_FLAG_IDE_CRIT) && (src->ide & (1 << n_ci))) {
         qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_CINT]);
     } else {
         qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
