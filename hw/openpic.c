@@ -206,6 +206,7 @@ typedef struct OpenPICState {
     uint32_t tifr_reset;
     uint32_t ipvp_reset;
     uint32_t ide_reset;
+    uint32_t brr1;
 
     /* Sub-regions */
     MemoryRegion sub_io_mem[7];
@@ -784,7 +785,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
     addr &= 0xFF0;
     switch (addr) {
     case 0x00: /* Block Revision Register1 (BRR1) */
-        retval = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
+        retval = opp->brr1;
         break;
     case 0x80: /* PCTP */
         retval = dst->pctp;
@@ -1082,6 +1083,7 @@ static int openpic_init(SysBusDevice *dev)
         opp->max_irq = FSL_MPIC_20_MAX_IRQ;
         opp->irq_ipi0 = FSL_MPIC_20_IPI_IRQ;
         opp->irq_tim0 = FSL_MPIC_20_TMR_IRQ;
+        opp->brr1 = FSL_BRR1_IPID | FSL_BRR1_IPMJ | FSL_BRR1_IPMN;
         list = list_be;
         break;
     case OPENPIC_MODEL_RAVEN:
@@ -1095,6 +1097,7 @@ static int openpic_init(SysBusDevice *dev)
         opp->max_irq = RAVEN_MAX_IRQ;
         opp->irq_ipi0 = RAVEN_IPI_IRQ;
         opp->irq_tim0 = RAVEN_TMR_IRQ;
+        opp->brr1 = -1;
         list = list_le;
 
         /* Only UP supported today */
