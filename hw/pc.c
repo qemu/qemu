@@ -98,7 +98,8 @@ void gsi_handler(void *opaque, int n, int level)
     qemu_set_irq(s->ioapic_irq[n], level);
 }
 
-static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
+static void ioport80_write(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned size)
 {
 }
 
@@ -116,7 +117,8 @@ void cpu_set_ferr(CPUX86State *s)
     qemu_irq_raise(ferr_irq);
 }
 
-static void ioportF0_write(void *opaque, uint32_t addr, uint32_t data)
+static void ioportF0_write(void *opaque, hwaddr addr, uint64_t data,
+                           unsigned size)
 {
     qemu_irq_lower(ferr_irq);
 }
@@ -567,6 +569,14 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
     return index;
 }
 
+static const MemoryRegionPortio bochs_bios_portio_list[] = {
+    { 0x500, 1, 1, .write = bochs_bios_write, }, /* 0x500 */
+    { 0x501, 1, 1, .write = bochs_bios_write, }, /* 0x501 */
+    { 0x501, 2, 2, .write = bochs_bios_write, }, /* 0x501 */
+    { 0x8900, 1, 1, .write = bochs_bios_write, }, /* 0x8900 */
+    PORTIO_END_OF_LIST(),
+};
+
 static void *bochs_bios_init(void)
 {
     void *fw_cfg;
@@ -574,12 +584,11 @@ static void *bochs_bios_init(void)
     size_t smbios_len;
     uint64_t *numa_fw_cfg;
     int i, j;
+    PortioList *bochs_bios_port_list = g_new(PortioList, 1);
 
-    register_ioport_write(0x8900, 1, 1, bochs_bios_write, NULL);
-
-    register_ioport_write(0x501, 1, 1, bochs_bios_write, NULL);
-    register_ioport_write(0x501, 1, 2, bochs_bios_write, NULL);
-    register_ioport_write(0x502, 1, 2, bochs_bios_write, NULL);
+    portio_list_init(bochs_bios_port_list, bochs_bios_portio_list,
+                     NULL, "bochs-bios");
+    portio_list_add(bochs_bios_port_list, get_system_io(), 0x0);
 
     fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
 
@@ -967,6 +976,24 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     }
 }
 
+static const MemoryRegionOps ioport80_io_ops = {
+    .write = ioport80_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static const MemoryRegionOps ioportF0_io_ops = {
+    .write = ioportF0_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           ISADevice **floppy,
@@ -981,10 +1008,14 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     qemu_irq *a20_line;
     ISADevice *i8042, *port92, *vmmouse, *pit = NULL;
     qemu_irq *cpu_exit_irq;
+    MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
+    MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
 
-    register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
+    memory_region_init_io(ioport80_io, &ioport80_io_ops, NULL, "ioport80", 1);
+    memory_region_add_subregion(isa_bus->address_space_io, 0x80, ioport80_io);
 
-    register_ioport_write(0xf0, 1, 1, ioportF0_write, NULL);
+    memory_region_init_io(ioportF0_io, &ioportF0_io_ops, NULL, "ioportF0", 1);
+    memory_region_add_subregion(isa_bus->address_space_io, 0xf0, ioportF0_io);
 
     /*
      * Check if an HPET shall be created.

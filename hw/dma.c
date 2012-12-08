@@ -58,6 +58,8 @@ static struct dma_cont {
     int dshift;
     struct dma_regs regs[4];
     qemu_irq *cpu_request_exit;
+    MemoryRegion channel_io;
+    MemoryRegion cont_io;
 } dma_controllers[2];
 
 enum {
@@ -149,7 +151,7 @@ static inline int getff (struct dma_cont *d)
     return ff;
 }
 
-static uint32_t read_chan (void *opaque, uint32_t nport)
+static uint64_t read_chan(void *opaque, hwaddr nport, unsigned size)
 {
     struct dma_cont *d = opaque;
     int ichan, nreg, iport, ff, val, dir;
@@ -171,7 +173,8 @@ static uint32_t read_chan (void *opaque, uint32_t nport)
     return (val >> (d->dshift + (ff << 3))) & 0xff;
 }
 
-static void write_chan (void *opaque, uint32_t nport, uint32_t data)
+static void write_chan(void *opaque, hwaddr nport, uint64_t data,
+                       unsigned size)
 {
     struct dma_cont *d = opaque;
     int iport, ichan, nreg;
@@ -189,22 +192,23 @@ static void write_chan (void *opaque, uint32_t nport, uint32_t data)
     }
 }
 
-static void write_cont (void *opaque, uint32_t nport, uint32_t data)
+static void write_cont(void *opaque, hwaddr nport, uint64_t data,
+                       unsigned size)
 {
     struct dma_cont *d = opaque;
     int iport, ichan = 0;
 
     iport = (nport >> d->dshift) & 0x0f;
     switch (iport) {
-    case 0x08:                  /* command */
+    case 0x01:                  /* command */
         if ((data != 0) && (data & CMD_NOT_SUPPORTED)) {
-            dolog ("command %#x not supported\n", data);
+            dolog("command %"PRIx64" not supported\n", data);
             return;
         }
         d->command = data;
         break;
 
-    case 0x09:
+    case 0x02:
         ichan = data & 3;
         if (data & 4) {
             d->status |= 1 << (ichan + 4);
@@ -216,7 +220,7 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
         DMA_run();
         break;
 
-    case 0x0a:                  /* single mask */
+    case 0x03:                  /* single mask */
         if (data & 4)
             d->mask |= 1 << (data & 3);
         else
@@ -224,7 +228,7 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
         DMA_run();
         break;
 
-    case 0x0b:                  /* mode */
+    case 0x04:                  /* mode */
         {
             ichan = data & 3;
 #ifdef DEBUG_DMA
@@ -243,23 +247,23 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
             break;
         }
 
-    case 0x0c:                  /* clear flip flop */
+    case 0x05:                  /* clear flip flop */
         d->flip_flop = 0;
         break;
 
-    case 0x0d:                  /* reset */
+    case 0x06:                  /* reset */
         d->flip_flop = 0;
         d->mask = ~0;
         d->status = 0;
         d->command = 0;
         break;
 
-    case 0x0e:                  /* clear mask for all channels */
+    case 0x07:                  /* clear mask for all channels */
         d->mask = 0;
         DMA_run();
         break;
 
-    case 0x0f:                  /* write mask for all channels */
+    case 0x08:                  /* write mask for all channels */
         d->mask = data;
         DMA_run();
         break;
@@ -277,7 +281,7 @@ static void write_cont (void *opaque, uint32_t nport, uint32_t data)
 #endif
 }
 
-static uint32_t read_cont (void *opaque, uint32_t nport)
+static uint64_t read_cont(void *opaque, hwaddr nport, unsigned size)
 {
     struct dma_cont *d = opaque;
     int iport, val;
@@ -463,7 +467,7 @@ void DMA_schedule(int nchan)
 static void dma_reset(void *opaque)
 {
     struct dma_cont *d = opaque;
-    write_cont (d, (0x0d << d->dshift), 0);
+    write_cont(d, (0x06 << d->dshift), 0, 1);
 }
 
 static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
@@ -473,38 +477,68 @@ static int dma_phony_handler (void *opaque, int nchan, int dma_pos, int dma_len)
     return dma_pos;
 }
 
+
+static const MemoryRegionOps channel_io_ops = {
+    .read = read_chan,
+    .write = write_chan,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+/* IOport from page_base */
+static const MemoryRegionPortio page_portio_list[] = {
+    { 0x01, 3, 1, .write = write_page, .read = read_page, },
+    { 0x07, 1, 1, .write = write_page, .read = read_page, },
+    PORTIO_END_OF_LIST(),
+};
+
+/* IOport from pageh_base */
+static const MemoryRegionPortio pageh_portio_list[] = {
+    { 0x01, 3, 1, .write = write_pageh, .read = read_pageh, },
+    { 0x07, 3, 1, .write = write_pageh, .read = read_pageh, },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionOps cont_io_ops = {
+    .read = read_cont,
+    .write = write_cont,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
 /* dshift = 0: 8 bit DMA, 1 = 16 bit DMA */
 static void dma_init2(struct dma_cont *d, int base, int dshift,
                       int page_base, int pageh_base,
                       qemu_irq *cpu_request_exit)
 {
-    static const int page_port_list[] = { 0x1, 0x2, 0x3, 0x7 };
     int i;
 
     d->dshift = dshift;
     d->cpu_request_exit = cpu_request_exit;
-    for (i = 0; i < 8; i++) {
-        register_ioport_write (base + (i << dshift), 1, 1, write_chan, d);
-        register_ioport_read (base + (i << dshift), 1, 1, read_chan, d);
+
+    memory_region_init_io(&d->channel_io, &channel_io_ops, d,
+                          "dma-chan", 8 << d->dshift);
+    memory_region_add_subregion(isa_address_space_io(NULL),
+                                base, &d->channel_io);
+
+    isa_register_portio_list(NULL, page_base, page_portio_list, d,
+                             "dma-page");
+    if (pageh_base >= 0) {
+        isa_register_portio_list(NULL, pageh_base, pageh_portio_list, d,
+                                 "dma-pageh");
     }
-    for (i = 0; i < ARRAY_SIZE (page_port_list); i++) {
-        register_ioport_write (page_base + page_port_list[i], 1, 1,
-                               write_page, d);
-        register_ioport_read (page_base + page_port_list[i], 1, 1,
-                              read_page, d);
-        if (pageh_base >= 0) {
-            register_ioport_write (pageh_base + page_port_list[i], 1, 1,
-                                   write_pageh, d);
-            register_ioport_read (pageh_base + page_port_list[i], 1, 1,
-                                  read_pageh, d);
-        }
-    }
-    for (i = 0; i < 8; i++) {
-        register_ioport_write (base + ((i + 8) << dshift), 1, 1,
-                               write_cont, d);
-        register_ioport_read (base + ((i + 8) << dshift), 1, 1,
-                              read_cont, d);
-    }
+
+    memory_region_init_io(&d->cont_io, &cont_io_ops, d, "dma-cont",
+                          8 << d->dshift);
+    memory_region_add_subregion(isa_address_space_io(NULL),
+                                base + (8 << d->dshift), &d->cont_io);
+
     qemu_register_reset(dma_reset, d);
     dma_reset(d);
     for (i = 0; i < ARRAY_SIZE (d->regs); ++i) {
