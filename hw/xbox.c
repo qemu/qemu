@@ -288,6 +288,9 @@ static void xbox_init(QEMUMachineInitArgs *args)
     /* APU! */
     mcpx_apu_init(host_bus, PCI_DEVFN(5, 0), gsi[5]);
 
+    /* ACI! */
+    mcpx_aci_init(host_bus, PCI_DEVFN(6, 0), gsi[6]);
+
     /* GPU! */
     nv2a_init(agp_bus, PCI_DEVFN(0, 0), gsi[3]);
 }

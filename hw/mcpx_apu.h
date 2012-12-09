@@ -21,5 +21,6 @@
 #define HW_MCPX_APU_H
 
 void mcpx_apu_init(PCIBus *bus, int devfn, qemu_irq irq);
+void mcpx_aci_init(PCIBus *bus, int devfn, qemu_irq irq);
 
 #endif
