@@ -599,6 +599,7 @@ M: Andreas Färber <afaerber@suse.de>
 S: Supported
 F: qom/cpu.c
 F: include/qemu/cpu.h
+F: target-i386/cpu.c
 
 Device Tree
 M: Peter Crosthwaite <peter.crosthwaite@petalogix.com>
