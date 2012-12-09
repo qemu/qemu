@@ -166,6 +166,7 @@ enum {                                          \
 MKREGS (PI, PI_INDEX * 16);
 MKREGS (PO, PO_INDEX * 16);
 MKREGS (MC, MC_INDEX * 16);
+MKREGS (SO, SO_INDEX * 16);
 
 enum {
     GLOB_CNT = 0x2c,
@@ -689,6 +690,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
     case PI_CIV:
     case PO_CIV:
     case MC_CIV:
+    case SO_CIV:
         r = &s->bm_regs[GET_BM (index)];
         val = r->civ;
         dolog ("CIV[%d] -> %#x\n", GET_BM (index), val);
@@ -696,6 +698,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
     case PI_LVI:
     case PO_LVI:
     case MC_LVI:
+    case SO_LVI:
         r = &s->bm_regs[GET_BM (index)];
         val = r->lvi;
         dolog ("LVI[%d] -> %#x\n", GET_BM (index), val);
@@ -703,6 +706,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
     case PI_PIV:
     case PO_PIV:
     case MC_PIV:
+    case SO_PIV:
         r = &s->bm_regs[GET_BM (index)];
         val = r->piv;
         dolog ("PIV[%d] -> %#x\n", GET_BM (index), val);
@@ -710,6 +714,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
     case PI_CR:
     case PO_CR:
     case MC_CR:
+    case SO_CR:
         r = &s->bm_regs[GET_BM (index)];
         val = r->cr;
         dolog ("CR[%d] -> %#x\n", GET_BM (index), val);
@@ -717,6 +722,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
     case PI_SR:
     case PO_SR:
     case MC_SR:
+    case SO_SR:
         r = &s->bm_regs[GET_BM (index)];
         val = r->sr & 0xff;
         dolog ("SRb[%d] -> %#x\n", GET_BM (index), val);
@@ -739,6 +745,7 @@ static uint32_t nabm_readw (void *opaque, uint32_t addr)
     case PI_SR:
     case PO_SR:
     case MC_SR:
+    case SO_SR:
         r = &s->bm_regs[GET_BM (index)];
         val = r->sr;
         dolog ("SR[%d] -> %#x\n", GET_BM (index), val);
@@ -746,6 +753,7 @@ static uint32_t nabm_readw (void *opaque, uint32_t addr)
     case PI_PICB:
     case PO_PICB:
     case MC_PICB:
+    case SO_PICB:
         r = &s->bm_regs[GET_BM (index)];
         val = r->picb;
         dolog ("PICB[%d] -> %#x\n", GET_BM (index), val);
@@ -768,6 +776,7 @@ static uint32_t nabm_readl (void *opaque, uint32_t addr)
     case PI_BDBAR:
     case PO_BDBAR:
     case MC_BDBAR:
+    case SO_BDBAR:
         r = &s->bm_regs[GET_BM (index)];
         val = r->bdbar;
         dolog ("BMADDR[%d] -> %#x\n", GET_BM (index), val);
@@ -775,6 +784,7 @@ static uint32_t nabm_readl (void *opaque, uint32_t addr)
     case PI_CIV:
     case PO_CIV:
     case MC_CIV:
+    case SO_CIV:
         r = &s->bm_regs[GET_BM (index)];
         val = r->civ | (r->lvi << 8) | (r->sr << 16);
         dolog ("CIV LVI SR[%d] -> %#x, %#x, %#x\n", GET_BM (index),
@@ -783,6 +793,7 @@ static uint32_t nabm_readl (void *opaque, uint32_t addr)
     case PI_PICB:
     case PO_PICB:
     case MC_PICB:
+    case SO_PICB:
         r = &s->bm_regs[GET_BM (index)];
         val = r->picb | (r->piv << 16) | (r->cr << 24);
         dolog ("PICB PIV CR[%d] -> %#x %#x %#x %#x\n", GET_BM (index),
@@ -816,6 +827,7 @@ static void nabm_writeb (void *opaque, uint32_t addr, uint32_t val)
     case PI_LVI:
     case PO_LVI:
     case MC_LVI:
+    case SO_LVI:
         r = &s->bm_regs[GET_BM (index)];
         if ((r->cr & CR_RPBM) && (r->sr & SR_DCH)) {
             r->sr &= ~(SR_DCH | SR_CELV);
@@ -829,6 +841,7 @@ static void nabm_writeb (void *opaque, uint32_t addr, uint32_t val)
     case PI_CR:
     case PO_CR:
     case MC_CR:
+    case SO_CR:
         r = &s->bm_regs[GET_BM (index)];
         if (val & CR_RR) {
             reset_bm_regs (s, r);
@@ -852,6 +865,7 @@ static void nabm_writeb (void *opaque, uint32_t addr, uint32_t val)
     case PI_SR:
     case PO_SR:
     case MC_SR:
+    case SO_SR:
         r = &s->bm_regs[GET_BM (index)];
         r->sr |= val & ~(SR_RO_MASK | SR_WCLEAR_MASK);
         update_sr (s, r, r->sr & ~(val & SR_WCLEAR_MASK));
@@ -872,6 +886,7 @@ static void nabm_writew (void *opaque, uint32_t addr, uint32_t val)
     case PI_SR:
     case PO_SR:
     case MC_SR:
+    case SO_SR:
         r = &s->bm_regs[GET_BM (index)];
         r->sr |= val & ~(SR_RO_MASK | SR_WCLEAR_MASK);
         update_sr (s, r, r->sr & ~(val & SR_WCLEAR_MASK));
@@ -892,6 +907,7 @@ static void nabm_writel (void *opaque, uint32_t addr, uint32_t val)
     case PI_BDBAR:
     case PO_BDBAR:
     case MC_BDBAR:
+    case SO_BDBAR:
         r = &s->bm_regs[GET_BM (index)];
         r->bdbar = val & ~3;
         dolog ("BDBAR[%d] <- %#x (bdbar %#x)\n",
@@ -1205,10 +1221,6 @@ static uint64_t nabm_read(void *opaque, hwaddr addr, unsigned size)
 {
     dolog("nabm_read [0x%llx] (%d)\n", addr, size);
 
-    if ((addr / size) > 64) {
-        return -1;
-    }
-
     switch (size) {
     case 1:
         return nabm_readb(opaque, addr);
@@ -1225,10 +1237,6 @@ static void nabm_write(void *opaque, hwaddr addr, uint64_t val,
                       unsigned size)
 {
     dolog("nabm_write [0x%llx] = 0x%llx (%d)\n", addr, val, size);
-
-    if ((addr / size) > 64) {
-        return;
-    }
 
     switch (size) {
     case 1:

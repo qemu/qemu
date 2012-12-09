@@ -30,6 +30,7 @@ enum {
     PI_INDEX = 0,   /* PCM in */
     PO_INDEX,       /* PCM out */
     MC_INDEX,       /* Mic in */
+    SO_INDEX = 7,   /* SPDIF out */
     LAST_INDEX
 };
 
