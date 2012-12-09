@@ -1175,9 +1175,11 @@ void kbd_put_keysym(int keysym)
         console_scroll(1);
         break;
     case QEMU_KEY_CTRL_PAGEUP:
+    case 0xf72c:
         console_scroll(-10);
         break;
     case QEMU_KEY_CTRL_PAGEDOWN:
+    case 0xf72d:
         console_scroll(10);
         break;
     default:
