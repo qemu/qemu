@@ -42,7 +42,7 @@ enum {
     R_MAX
 };
 
-#define MAX_TESTNAME_LEN 16
+#define MAX_TESTNAME_LEN 32
 
 #define TYPE_LM32_SYS "lm32-sys"
 #define LM32_SYS(obj) OBJECT_CHECK(LM32SysState, (obj), TYPE_LM32_SYS)
@@ -80,7 +80,8 @@ static void sys_write(void *opaque, hwaddr addr,
     case R_PASSFAIL:
         s->regs[addr] = value;
         testname = (char *)s->testname;
-        qemu_log("TC  %-16s %s\n", testname, (value) ? "FAILED" : "OK");
+        qemu_log("TC  %-*s %s\n", MAX_TESTNAME_LEN,
+                testname, (value) ? "FAILED" : "OK");
         break;
     case R_TESTNAME:
         s->regs[addr] = value;
