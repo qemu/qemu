@@ -66,43 +66,42 @@ PCIBus *xbox_pci_init(qemu_irq *pic,
 
 {
     DeviceState *dev;
-    PCIHostState *hostState;
-    PCIBus *hostBus;
-    PCIDevice *bridgeDev;
-    XBOX_PCIState *bridge;
+    PCIHostState *host_state;
+    PCIBus *host_bus;
+    PCIDevice *bridge;
+    XBOX_PCIState *bridge_state;
 
     /* pci host bus */
     dev = qdev_create(NULL, "xbox-pcihost");
-    hostState = PCI_HOST_BRIDGE(dev);
-    hostState->address_space = address_space_mem;
+    host_state = PCI_HOST_BRIDGE(dev);
+    host_state->address_space = address_space_mem;
 
-
-    hostBus = pci_bus_new(dev, NULL, pci_memory,
-                          address_space_io, 0);
-    hostState->bus = hostBus;
+    host_bus = pci_bus_new(dev, NULL,
+                           pci_memory, address_space_io, 0);
+    host_state->bus = host_bus;
 
     //pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
     //            PIIX_NUM_PIRQS);
 
     qdev_init_nofail(dev);
 
-    bridgeDev = pci_create_simple_multifunction(hostBus, PCI_DEVFN(0, 0),
-                                                   true, "xbox-pci");
-    bridge = XBOX_PCI_DEVICE(bridgeDev);
-    bridge->ram_memory = ram_memory;
-    bridge->pci_address_space = pci_memory;
-    bridge->system_memory = address_space_mem;
+    bridge = pci_create_simple_multifunction(host_bus, PCI_DEVFN(0, 0),
+                                             true, "xbox-pci");
+    bridge_state = XBOX_PCI_DEVICE(bridge);
+    bridge_state->ram_memory = ram_memory;
+    bridge_state->pci_address_space = pci_memory;
+    bridge_state->system_memory = address_space_mem;
 
     /* PCI hole */
-    memory_region_init_alias(&bridge->pci_hole, "pci-hole",
-                             bridge->pci_address_space,
+    memory_region_init_alias(&bridge_state->pci_hole, "pci-hole",
+                             bridge_state->pci_address_space,
                              ram_size,
                              0x100000000ULL - ram_size);    
-    memory_region_add_subregion(bridge->system_memory, ram_size,
-                                &bridge->pci_hole);
+    memory_region_add_subregion(bridge_state->system_memory, ram_size,
+                                &bridge_state->pci_hole);
 
 
-    return hostBus;
+    return host_bus;
 }
 
 
