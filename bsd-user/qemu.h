@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #endif /* DEBUG_REMAP */
 
-#include "qemu-types.h"
+#include "qemu-user-types.h"
 
 enum BSDType {
     target_freebsd,

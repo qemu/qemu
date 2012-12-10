@@ -591,6 +591,10 @@ static void enet_write(void *opaque, hwaddr addr,
             s->maddr[s->fmi & 3][addr & 1] = value;
             break;
 
+        case R_IS:
+            s->regs[addr] &= ~value;
+            break;
+
         case 0x8000 ... 0x83ff:
             s->ext_mtable[addr - 0x8000] = value;
             break;

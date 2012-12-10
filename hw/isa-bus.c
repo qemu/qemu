@@ -264,4 +264,13 @@ MemoryRegion *isa_address_space(ISADevice *dev)
     return get_system_memory();
 }
 
+MemoryRegion *isa_address_space_io(ISADevice *dev)
+{
+    if (dev) {
+        return isa_bus_from_device(dev)->address_space_io;
+    }
+
+    return isabus->address_space_io;
+}
+
 type_init(isabus_register_types)

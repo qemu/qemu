@@ -40,7 +40,6 @@ typedef struct ICH9SMBState {
     PCIDevice dev;
 
     PMSMBus smb;
-    MemoryRegion mem_bar;
 } ICH9SMBState;
 
 static const VMStateDescription vmstate_ich9_smbus = {
@@ -54,41 +53,22 @@ static const VMStateDescription vmstate_ich9_smbus = {
     }
 };
 
-static void ich9_smb_ioport_writeb(void *opaque, hwaddr addr,
-                                   uint64_t val, unsigned size)
+static void ich9_smbus_write_config(PCIDevice *d, uint32_t address,
+                                    uint32_t val, int len)
 {
-    ICH9SMBState *s = opaque;
-    uint8_t hostc = s->dev.config[ICH9_SMB_HOSTC];
+    ICH9SMBState *s = ICH9_SMB_DEVICE(d);
 
-    if ((hostc & ICH9_SMB_HOSTC_HST_EN) && !(hostc & ICH9_SMB_HOSTC_I2C_EN)) {
-        uint64_t offset = addr - s->dev.io_regions[ICH9_SMB_SMB_BASE_BAR].addr;
-        smb_ioport_writeb(&s->smb, offset, val);
+    pci_default_write_config(d, address, val, len);
+    if (range_covers_byte(address, len, ICH9_SMB_HOSTC)) {
+        uint8_t hostc = s->dev.config[ICH9_SMB_HOSTC];
+        if ((hostc & ICH9_SMB_HOSTC_HST_EN) &&
+            !(hostc & ICH9_SMB_HOSTC_I2C_EN)) {
+            memory_region_set_enabled(&s->smb.io, true);
+        } else {
+            memory_region_set_enabled(&s->smb.io, false);
+        }
     }
 }
-
-static uint64_t ich9_smb_ioport_readb(void *opaque, hwaddr addr,
-                                      unsigned size)
-{
-    ICH9SMBState *s = opaque;
-    uint8_t hostc = s->dev.config[ICH9_SMB_HOSTC];
-
-    if ((hostc & ICH9_SMB_HOSTC_HST_EN) && !(hostc & ICH9_SMB_HOSTC_I2C_EN)) {
-        uint64_t offset = addr - s->dev.io_regions[ICH9_SMB_SMB_BASE_BAR].addr;
-        return smb_ioport_readb(&s->smb, offset);
-    }
-
-    return 0xff;
-}
-
-static const MemoryRegionOps lpc_smb_mmio_ops = {
-    .read = ich9_smb_ioport_readb,
-    .write = ich9_smb_ioport_writeb,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-    .impl = {
-        .min_access_size = 1,
-        .max_access_size = 1,
-    },
-};
 
 static int ich9_smbus_initfn(PCIDevice *d)
 {
@@ -98,26 +78,11 @@ static int ich9_smbus_initfn(PCIDevice *d)
     pci_config_set_interrupt_pin(d->config, 0x01); /* interrupt pin 1 */
 
     pci_set_byte(d->config + ICH9_SMB_HOSTC, 0);
-
-    /*
-     * update parameters based on
-     * paralell_hds[0]
-     * serial_hds[0]
-     * serial_hds[0]
-     * fdc
-     *
-     * Is there any OS that depends on them?
-     */
-
-    /* TODO smb_io_base */
-    pci_set_byte(d->config + ICH9_SMB_HOSTC, 0);
     /* TODO bar0, bar1: 64bit BAR support*/
 
-    memory_region_init_io(&s->mem_bar, &lpc_smb_mmio_ops, s, "ich9-smbus-bar",
-                            ICH9_SMB_SMB_BASE_SIZE);
-    pci_register_bar(d, ICH9_SMB_SMB_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
-                        &s->mem_bar);
     pm_smbus_init(&d->qdev, &s->smb);
+    pci_register_bar(d, ICH9_SMB_SMB_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
+                     &s->smb.io);
     return 0;
 }
 
@@ -134,6 +99,7 @@ static void ich9_smb_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_ich9_smbus;
     dc->desc = "ICH9 SMBUS Bridge";
     k->init = ich9_smbus_initfn;
+    k->config_write = ich9_smbus_write_config;
 }
 
 i2c_bus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base)

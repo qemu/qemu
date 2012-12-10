@@ -180,7 +180,7 @@ static inline void tswap64s(uint64_t *s)
 
 #if defined(CONFIG_USER_ONLY)
 #include <assert.h>
-#include "qemu-types.h"
+#include "qemu-user-types.h"
 
 /* On some host systems the guest address space is reserved on the host.
  * This allows the guest address space to be offset to a convenient location.

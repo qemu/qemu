@@ -94,10 +94,11 @@ static void smb_transaction(PMSMBus *s)
     s->smb_stat |= 0x04;
 }
 
-void smb_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+static void smb_ioport_writeb(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
 {
     PMSMBus *s = opaque;
-    addr &= 0x3f;
+
     SMBUS_DPRINTF("SMB writeb port=0x%04x val=0x%02x\n", addr, val);
     switch(addr) {
     case SMBHSTSTS:
@@ -131,12 +132,11 @@ void smb_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t smb_ioport_readb(void *opaque, uint32_t addr)
+static uint64_t smb_ioport_readb(void *opaque, hwaddr addr, unsigned width)
 {
     PMSMBus *s = opaque;
     uint32_t val;
 
-    addr &= 0x3f;
     switch(addr) {
     case SMBHSTSTS:
         val = s->smb_stat;
@@ -170,7 +170,16 @@ uint32_t smb_ioport_readb(void *opaque, uint32_t addr)
     return val;
 }
 
+static const MemoryRegionOps pm_smbus_ops = {
+    .read = smb_ioport_readb,
+    .write = smb_ioport_writeb,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb)
 {
     smb->smbus = i2c_init_bus(parent, "i2c");
+    memory_region_init_io(&smb->io, &pm_smbus_ops, smb, "pm-smbus", 64);
 }

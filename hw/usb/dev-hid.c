@@ -46,6 +46,7 @@ typedef struct USBHIDState {
     USBDevice dev;
     USBEndpoint *intr;
     HIDState hid;
+    uint32_t usb_version;
 } USBHIDState;
 
 enum {
@@ -131,6 +132,36 @@ static const USBDescIface desc_iface_tablet = {
     },
 };
 
+static const USBDescIface desc_iface_tablet2 = {
+    .bInterfaceNumber              = 0,
+    .bNumEndpoints                 = 1,
+    .bInterfaceClass               = USB_CLASS_HID,
+    .bInterfaceProtocol            = 0x02,
+    .ndesc                         = 1,
+    .descs = (USBDescOther[]) {
+        {
+            /* HID descriptor */
+            .data = (uint8_t[]) {
+                0x09,          /*  u8  bLength */
+                USB_DT_HID,    /*  u8  bDescriptorType */
+                0x01, 0x00,    /*  u16 HID_class */
+                0x00,          /*  u8  country_code */
+                0x01,          /*  u8  num_descriptors */
+                USB_DT_REPORT, /*  u8  type: Report */
+                74, 0,         /*  u16 len */
+            },
+        },
+    },
+    .eps = (USBDescEndpoint[]) {
+        {
+            .bEndpointAddress      = USB_DIR_IN | 0x01,
+            .bmAttributes          = USB_ENDPOINT_XFER_INT,
+            .wMaxPacketSize        = 8,
+            .bInterval             = 4, /* 2 ^ (4-1) * 125 usecs = 1 ms */
+        },
+    },
+};
+
 static const USBDescIface desc_iface_keyboard = {
     .bInterfaceNumber              = 0,
     .bNumEndpoints                 = 1,
@@ -196,6 +227,23 @@ static const USBDescDevice desc_device_tablet = {
     },
 };
 
+static const USBDescDevice desc_device_tablet2 = {
+    .bcdUSB                        = 0x0200,
+    .bMaxPacketSize0               = 64,
+    .bNumConfigurations            = 1,
+    .confs = (USBDescConfig[]) {
+        {
+            .bNumInterfaces        = 1,
+            .bConfigurationValue   = 1,
+            .iConfiguration        = STR_CONFIG_TABLET,
+            .bmAttributes          = 0xa0,
+            .bMaxPower             = 50,
+            .nif = 1,
+            .ifs = &desc_iface_tablet2,
+        },
+    },
+};
+
 static const USBDescDevice desc_device_keyboard = {
     .bcdUSB                        = 0x0100,
     .bMaxPacketSize0               = 8,
@@ -236,6 +284,20 @@ static const USBDesc desc_tablet = {
         .iSerialNumber     = STR_SERIALNUMBER,
     },
     .full = &desc_device_tablet,
+    .str  = desc_strings,
+};
+
+static const USBDesc desc_tablet2 = {
+    .id = {
+        .idVendor          = 0x0627,
+        .idProduct         = 0x0001,
+        .bcdDevice         = 0,
+        .iManufacturer     = STR_MANUFACTURER,
+        .iProduct          = STR_PRODUCT_TABLET,
+        .iSerialNumber     = STR_SERIALNUMBER,
+    },
+    .full = &desc_device_tablet,
+    .high = &desc_device_tablet2,
     .str  = desc_strings,
 };
 
@@ -508,6 +570,21 @@ static int usb_hid_initfn(USBDevice *dev, int kind)
 
 static int usb_tablet_initfn(USBDevice *dev)
 {
+    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+
+    switch (us->usb_version) {
+    case 1:
+        dev->usb_desc = &desc_tablet;
+        break;
+    case 2:
+        dev->usb_desc = &desc_tablet2;
+        break;
+    default:
+        error_report("Invalid usb version %d for usb-tabler (must be 1 or 2)",
+                     us->usb_version);
+        return -1;
+    }
+
     return usb_hid_initfn(dev, HID_TABLET);
 }
 
@@ -562,7 +639,13 @@ static void usb_hid_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_hid_handle_control;
     uc->handle_data    = usb_hid_handle_data;
     uc->handle_destroy = usb_hid_handle_destroy;
+    uc->handle_attach  = usb_desc_attach;
 }
+
+static Property usb_tablet_properties[] = {
+        DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
+        DEFINE_PROP_END_OF_LIST(),
+};
 
 static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
 {
@@ -572,8 +655,8 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     usb_hid_class_initfn(klass, data);
     uc->init           = usb_tablet_initfn;
     uc->product_desc   = "QEMU USB Tablet";
-    uc->usb_desc       = &desc_tablet;
     dc->vmsd = &vmstate_usb_ptr;
+    dc->props = usb_tablet_properties;
 }
 
 static TypeInfo usb_tablet_info = {

@@ -280,13 +280,6 @@ struct CPUAlphaState {
     struct QEMUTimer *alarm_timer;
     uint64_t alarm_expire;
 
-#if TARGET_LONG_BITS > HOST_LONG_BITS
-    /* temporary fixed-point registers
-     * used to emulate 64 bits target on 32 bits hosts
-     */
-    target_ulong t0, t1;
-#endif
-
     /* Those resources are used only in QEMU core */
     CPU_COMMON
 

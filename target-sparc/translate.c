@@ -5278,11 +5278,11 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
             if (lj < j) {
                 lj++;
                 while (lj < j)
-                    gen_opc_instr_start[lj++] = 0;
-                gen_opc_pc[lj] = dc->pc;
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
+                tcg_ctx.gen_opc_pc[lj] = dc->pc;
                 gen_opc_npc[lj] = dc->npc;
-                gen_opc_instr_start[lj] = 1;
-                gen_opc_icount[lj] = num_insns;
+                tcg_ctx.gen_opc_instr_start[lj] = 1;
+                tcg_ctx.gen_opc_icount[lj] = num_insns;
             }
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
@@ -5334,7 +5334,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         lj++;
         while (lj <= j)
-            gen_opc_instr_start[lj++] = 0;
+            tcg_ctx.gen_opc_instr_start[lj++] = 0;
 #if 0
         log_page_dump();
 #endif
@@ -5473,7 +5473,7 @@ void gen_intermediate_code_init(CPUSPARCState *env)
 void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb, int pc_pos)
 {
     target_ulong npc;
-    env->pc = gen_opc_pc[pc_pos];
+    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
     npc = gen_opc_npc[pc_pos];
     if (npc == 1) {
         /* dynamic NPC: already stored */

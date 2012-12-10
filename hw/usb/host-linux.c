@@ -1476,6 +1476,7 @@ static int usb_host_initfn(USBDevice *dev)
 {
     USBHostDevice *s = DO_UPCAST(USBHostDevice, dev, dev);
 
+    dev->flags |= (1 << USB_DEV_FLAG_IS_HOST);
     dev->auto_attach = 0;
     s->fd = -1;
     s->hub_fd = -1;

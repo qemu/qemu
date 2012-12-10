@@ -116,7 +116,7 @@ audio_drv_list=""
 audio_card_list="ac97 es1370 sb16 hda"
 audio_possible_cards="ac97 es1370 sb16 cs4231a adlib gus hda"
 block_drv_whitelist=""
-host_cc="gcc"
+host_cc="cc"
 libs_softmmu=""
 libs_tools=""
 audio_pt_int=""
@@ -252,7 +252,16 @@ done
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate its usage altogether.
 
-cc="${CC-${cross_prefix}gcc}"
+# Preferred compiler:
+#  ${CC} (if set)
+#  ${cross_prefix}gcc (if cross-prefix specified)
+#  system compiler
+if test -z "${CC}${cross_prefix}"; then
+  cc="$host_cc"
+else
+  cc="${CC-${cross_prefix}gcc}"
+fi
+
 ar="${AR-${cross_prefix}ar}"
 objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
@@ -2160,7 +2169,7 @@ fi
 # pixman support probe
 
 if test "$pixman" = ""; then
-  if $pkg_config pixman-1 > /dev/null 2>&1; then
+  if $pkg_config --atleast-version=0.18.4 pixman-1 > /dev/null 2>&1; then
     pixman="system"
   else
     pixman="internal"
@@ -2171,8 +2180,8 @@ if test "$pixman" = "system"; then
   pixman_libs=`$pkg_config --libs pixman-1 2>/dev/null`
 else
   if test ! -d ${source_path}/pixman/pixman; then
-    echo "ERROR: pixman not present. Your options:"
-    echo "  (1) Prefered: Install the pixman devel package (any recent"
+    echo "ERROR: pixman not present (or older than 0.18.4). Your options:"
+    echo "  (1) Preferred: Install the pixman devel package (any recent"
     echo "      distro should have packages as Xorg needs pixman too)."
     echo "  (2) Fetch the pixman submodule, using:"
     echo "      git submodule update --init pixman"
@@ -3021,8 +3030,6 @@ EOF
     else
 	coroutine_backend=gthread
     fi
-  else
-    echo "Silently falling back into gthread backend under darwin"
   fi
 elif test "$coroutine" = "gthread" ; then
   coroutine_backend=gthread

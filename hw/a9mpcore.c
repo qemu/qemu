@@ -19,7 +19,6 @@ typedef struct a9mp_priv_state {
     uint32_t old_timer_status[8];
     uint32_t num_cpu;
     MemoryRegion scu_iomem;
-    MemoryRegion ptimer_iomem;
     MemoryRegion container;
     DeviceState *mptimer;
     DeviceState *gic;

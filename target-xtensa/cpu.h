@@ -65,6 +65,7 @@ enum {
     XTENSA_OPTION_FP_COPROCESSOR,
     XTENSA_OPTION_MP_SYNCHRO,
     XTENSA_OPTION_CONDITIONAL_STORE,
+    XTENSA_OPTION_ATOMCTL,
 
     /* Interrupts and exceptions */
     XTENSA_OPTION_EXCEPTION,
@@ -93,6 +94,7 @@ enum {
     XTENSA_OPTION_REGION_PROTECTION,
     XTENSA_OPTION_REGION_TRANSLATION,
     XTENSA_OPTION_MMU,
+    XTENSA_OPTION_CACHEATTR,
 
     /* Other */
     XTENSA_OPTION_WINDOWED_REGISTER,
@@ -128,6 +130,8 @@ enum {
     ITLBCFG = 91,
     DTLBCFG = 92,
     IBREAKENABLE = 96,
+    CACHEATTR = 98,
+    ATOMCTL = 99,
     IBREAKA = 128,
     DBREAKA = 144,
     DBREAKC = 160,
@@ -149,6 +153,7 @@ enum {
     ICOUNTLEVEL = 237,
     EXCVADDR = 238,
     CCOMPARE = 240,
+    MISC = 244,
 };
 
 #define PS_INTLEVEL 0xf
@@ -192,6 +197,14 @@ enum {
 #define MAX_NDBREAK 2
 
 #define REGION_PAGE_MASK 0xe0000000
+
+#define PAGE_CACHE_MASK    0x700
+#define PAGE_CACHE_SHIFT   8
+#define PAGE_CACHE_INVALID 0x000
+#define PAGE_CACHE_BYPASS  0x100
+#define PAGE_CACHE_WT      0x200
+#define PAGE_CACHE_WB      0x400
+#define PAGE_CACHE_ISOLATE 0x600
 
 enum {
     /* Static vectors */
@@ -404,6 +417,7 @@ void debug_exception_env(CPUXtensaState *new_env, uint32_t cause);
 
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
+#define XTENSA_OPTION_ALL (~(uint64_t)0)
 
 static inline bool xtensa_option_bits_enabled(const XtensaConfig *config,
         uint64_t opt)

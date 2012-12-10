@@ -1,5 +1,10 @@
 #include <glib.h>
 #include <termios.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include "osdep.h"
 #include "qemu_socket.h"
 #include "qga/channel.h"
 

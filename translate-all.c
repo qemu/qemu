@@ -29,10 +29,6 @@
 /* code generation context */
 TCGContext tcg_ctx;
 
-target_ulong gen_opc_pc[OPC_BUF_SIZE];
-uint16_t gen_opc_icount[OPC_BUF_SIZE];
-uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
-
 void cpu_gen_init(void)
 {
     tcg_context_init(&tcg_ctx);
@@ -142,9 +138,10 @@ int cpu_restore_state(TranslationBlock *tb,
     if (j < 0)
         return -1;
     /* now find start of instruction before */
-    while (gen_opc_instr_start[j] == 0)
+    while (s->gen_opc_instr_start[j] == 0) {
         j--;
-    env->icount_decr.u16.low -= gen_opc_icount[j];
+    }
+    env->icount_decr.u16.low -= s->gen_opc_icount[j];
 
     restore_state_to_opc(env, tb, j);
 

@@ -275,7 +275,7 @@ uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
     return ar->pm1.evt.sts;
 }
 
-void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
+static void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
 {
     uint16_t pm1_sts = acpi_pm1_evt_get_sts(ar);
     if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
@@ -285,7 +285,7 @@ void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
     ar->pm1.evt.sts &= ~val;
 }
 
-void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
+static void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
 {
     ar->pm1.evt.en = val;
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC,
@@ -310,6 +310,51 @@ void acpi_pm1_evt_reset(ACPIREGS *ar)
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_PMTIMER, 0);
 }
 
+static uint64_t acpi_pm_evt_read(void *opaque, hwaddr addr, unsigned width)
+{
+    ACPIREGS *ar = opaque;
+    switch (addr) {
+    case 0:
+        return acpi_pm1_evt_get_sts(ar);
+    case 2:
+        return ar->pm1.evt.en;
+    default:
+        return 0;
+    }
+}
+
+static void acpi_pm_evt_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
+{
+    ACPIREGS *ar = opaque;
+    switch (addr) {
+    case 0:
+        acpi_pm1_evt_write_sts(ar, val);
+        ar->pm1.evt.update_sci(ar);
+        break;
+    case 2:
+        acpi_pm1_evt_write_en(ar, val);
+        ar->pm1.evt.update_sci(ar);
+        break;
+    }
+}
+
+static const MemoryRegionOps acpi_pm_evt_ops = {
+    .read = acpi_pm_evt_read,
+    .write = acpi_pm_evt_write,
+    .valid.min_access_size = 2,
+    .valid.max_access_size = 2,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void acpi_pm1_evt_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                       MemoryRegion *parent)
+{
+    ar->pm1.evt.update_sci = update_sci;
+    memory_region_init_io(&ar->pm1.evt.io, &acpi_pm_evt_ops, ar, "acpi-evt", 4);
+    memory_region_add_subregion(parent, 0, &ar->pm1.evt.io);
+}
+
 /* ACPI PM_TMR */
 void acpi_pm_tmr_update(ACPIREGS *ar, bool enable)
 {
@@ -331,7 +376,7 @@ void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar)
     ar->tmr.overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
 }
 
-uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
+static uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
 {
     uint32_t d = acpi_pm_tmr_get_clock();
     return d & 0xffffff;
@@ -344,10 +389,25 @@ static void acpi_pm_tmr_timer(void *opaque)
     ar->tmr.update_sci(ar);
 }
 
-void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci)
+static uint64_t acpi_pm_tmr_read(void *opaque, hwaddr addr, unsigned width)
+{
+    return acpi_pm_tmr_get(opaque);
+}
+
+static const MemoryRegionOps acpi_pm_tmr_ops = {
+    .read = acpi_pm_tmr_read,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
+                      MemoryRegion *parent)
 {
     ar->tmr.update_sci = update_sci;
     ar->tmr.timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, ar);
+    memory_region_init_io(&ar->tmr.io, &acpi_pm_tmr_ops, ar, "acpi-tmr", 4);
+    memory_region_add_subregion(parent, 8, &ar->tmr.io);
 }
 
 void acpi_pm_tmr_reset(ACPIREGS *ar)
@@ -357,13 +417,7 @@ void acpi_pm_tmr_reset(ACPIREGS *ar)
 }
 
 /* ACPI PM1aCNT */
-void acpi_pm1_cnt_init(ACPIREGS *ar)
-{
-    ar->wakeup.notify = acpi_notify_wakeup;
-    qemu_register_wakeup_notifier(&ar->wakeup);
-}
-
-void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val, char s4)
+static void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
 {
     ar->pm1.cnt.cnt = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
 
@@ -378,7 +432,7 @@ void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val, char s4)
             qemu_system_suspend_request();
             break;
         default:
-            if (sus_typ == s4) { /* S4 request */
+            if (sus_typ == ar->pm1.cnt.s4_val) { /* S4 request */
                 monitor_protocol_event(QEVENT_SUSPEND_DISK, NULL);
                 qemu_system_shutdown_request();
             }
@@ -398,6 +452,34 @@ void acpi_pm1_cnt_update(ACPIREGS *ar,
     }
 }
 
+static uint64_t acpi_pm_cnt_read(void *opaque, hwaddr addr, unsigned width)
+{
+    ACPIREGS *ar = opaque;
+    return ar->pm1.cnt.cnt;
+}
+
+static void acpi_pm_cnt_write(void *opaque, hwaddr addr, uint64_t val,
+                              unsigned width)
+{
+    acpi_pm1_cnt_write(opaque, val);
+}
+
+static const MemoryRegionOps acpi_pm_cnt_ops = {
+    .read = acpi_pm_cnt_read,
+    .write = acpi_pm_cnt_write,
+    .valid.min_access_size = 2,
+    .valid.max_access_size = 2,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent)
+{
+    ar->wakeup.notify = acpi_notify_wakeup;
+    qemu_register_wakeup_notifier(&ar->wakeup);
+    memory_region_init_io(&ar->pm1.cnt.io, &acpi_pm_cnt_ops, ar, "acpi-cnt", 2);
+    memory_region_add_subregion(parent, 4, &ar->pm1.cnt.io);
+}
+
 void acpi_pm1_cnt_reset(ACPIREGS *ar)
 {
     ar->pm1.cnt.cnt = 0;
@@ -409,11 +491,6 @@ void acpi_gpe_init(ACPIREGS *ar, uint8_t len)
     ar->gpe.len = len;
     ar->gpe.sts = g_malloc0(len / 2);
     ar->gpe.en = g_malloc0(len / 2);
-}
-
-void acpi_gpe_blk(ACPIREGS *ar, uint32_t blk)
-{
-    ar->gpe.blk = blk;
 }
 
 void acpi_gpe_reset(ACPIREGS *ar)
@@ -441,7 +518,6 @@ void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val)
 {
     uint8_t *cur;
 
-    addr -= ar->gpe.blk;
     cur = acpi_gpe_ioport_get_ptr(ar, addr);
     if (addr < ar->gpe.len / 2) {
         /* GPE_STS */
@@ -459,7 +535,6 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
     uint8_t *cur;
     uint32_t val;
 
-    addr -= ar->gpe.blk;
     cur = acpi_gpe_ioport_get_ptr(ar, addr);
     val = 0;
     if (cur != NULL) {
