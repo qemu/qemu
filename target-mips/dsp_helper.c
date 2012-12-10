@@ -484,35 +484,6 @@ static inline uint8_t mipsdsp_rrshift1_sub_u8(uint8_t a, uint8_t b)
     return (temp >> 1) & 0x00FF;
 }
 
-static inline int64_t mipsdsp_rashift_short_acc(int32_t ac,
-                                                int32_t shift,
-                                                CPUMIPSState *env)
-{
-    int32_t sign, temp31;
-    int64_t temp, acc;
-
-    sign = (env->active_tc.HI[ac] >> 31) & 0x01;
-    acc = ((int64_t)env->active_tc.HI[ac] << 32) |
-          ((int64_t)env->active_tc.LO[ac] & 0xFFFFFFFF);
-    if (shift == 0) {
-        temp = acc;
-    } else {
-        if (sign == 0) {
-            temp = (((int64_t)0x01 << (32 - shift + 1)) - 1) & (acc >> shift);
-        } else {
-            temp = ((((int64_t)0x01 << (shift + 1)) - 1) << (32 - shift)) |
-                   (acc >> shift);
-        }
-    }
-
-    temp31 = (temp >> 31) & 0x01;
-    if (sign != temp31) {
-        set_DSPControl_overflow_flag(1, 23, env);
-    }
-
-    return temp;
-}
-
 /*  128 bits long. p[0] is LO, p[1] is HI. */
 static inline void mipsdsp_rndrashift_short_acc(int64_t *p,
                                                 int32_t ac,
@@ -3407,7 +3378,7 @@ target_ulong helper_extr_w(target_ulong ac, target_ulong shift,
     int32_t tempI;
     int64_t tempDL[2];
 
-    shift = shift & 0x0F;
+    shift = shift & 0x1F;
 
     mipsdsp_rndrashift_short_acc(tempDL, ac, shift, env);
     if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
@@ -3435,7 +3406,7 @@ target_ulong helper_extr_r_w(target_ulong ac, target_ulong shift,
 {
     int64_t tempDL[2];
 
-    shift = shift & 0x0F;
+    shift = shift & 0x1F;
 
     mipsdsp_rndrashift_short_acc(tempDL, ac, shift, env);
     if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
@@ -3462,7 +3433,7 @@ target_ulong helper_extr_rs_w(target_ulong ac, target_ulong shift,
     int32_t tempI, temp64;
     int64_t tempDL[2];
 
-    shift = shift & 0x0F;
+    shift = shift & 0x1F;
 
     mipsdsp_rndrashift_short_acc(tempDL, ac, shift, env);
     if ((tempDL[1] != 0 || (tempDL[0] & MIPSDSP_LHI) != 0) &&
@@ -3645,11 +3616,15 @@ target_ulong helper_dextr_rs_l(target_ulong ac, target_ulong shift,
 target_ulong helper_extr_s_h(target_ulong ac, target_ulong shift,
                              CPUMIPSState *env)
 {
-    int64_t temp;
+    int64_t temp, acc;
 
-    shift = shift & 0x0F;
+    shift = shift & 0x1F;
 
-    temp = mipsdsp_rashift_short_acc(ac, shift, env);
+    acc = ((int64_t)env->active_tc.HI[ac] << 32) |
+          ((int64_t)env->active_tc.LO[ac] & 0xFFFFFFFF);
+
+    temp = acc >> shift;
+
     if (temp > (int64_t)0x7FFF) {
         temp = 0x00007FFF;
         set_DSPControl_overflow_flag(1, 23, env);
