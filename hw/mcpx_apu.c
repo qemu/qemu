@@ -65,7 +65,7 @@ static uint64_t mcpx_apu_vp_read(void *opaque,
     MCPX_DPRINTF("mcpx apu VP: read [0x%llx]\n", addr);
     switch (addr) {
     case 0x10: /* instruction queue free space */
-        return 0x20;
+        return 0x80;
     default:
         break;
     }
