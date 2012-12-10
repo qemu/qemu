@@ -757,7 +757,8 @@ static void *buffered_file_thread(void *opaque)
             /* usleep expects microseconds */
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
-        if (buffered_flush(s) < 0) {
+        ret = buffered_flush(s);
+        if (ret < 0) {
             break;
         }
 
