@@ -290,8 +290,8 @@ typedef int TCGv_i64;
 #define TCG_CALL_DUMMY_TCGV     MAKE_TCGV_I32(-1)
 #define TCG_CALL_DUMMY_ARG      ((TCGArg)(-1))
 
-/* Conditions.  Note that these are layed out for easy manipulation by
-   the the functions below:
+/* Conditions.  Note that these are laid out for easy manipulation by
+   the functions below:
      bit 0 is used for inverting;
      bit 1 is signed,
      bit 2 is unsigned,

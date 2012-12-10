@@ -284,7 +284,7 @@ typedef struct USBDeviceClass {
      * Called from handle_packet().
      *
      * Status gets stored in p->status, and if p->status == USB_RET_SUCCESS
-     * then the number of bytes transfered is stored in p->actual_length
+     * then the number of bytes transferred is stored in p->actual_length
      */
     void (*handle_control)(USBDevice *dev, USBPacket *p, int request, int value,
                            int index, int length, uint8_t *data);
@@ -294,7 +294,7 @@ typedef struct USBDeviceClass {
      * Called from handle_packet().
      *
      * Status gets stored in p->status, and if p->status == USB_RET_SUCCESS
-     * then the number of bytes transfered is stored in p->actual_length
+     * then the number of bytes transferred is stored in p->actual_length
      */
     void (*handle_data)(USBDevice *dev, USBPacket *p);
 
@@ -360,7 +360,7 @@ struct USBPacket {
     bool short_not_ok;
     bool int_req;
     int status; /* USB_RET_* status code */
-    int actual_length; /* Number of bytes actually transfered */
+    int actual_length; /* Number of bytes actually transferred */
     /* Internal use by the USB layer.  */
     USBPacketState state;
     USBCombinedPacket *combined;

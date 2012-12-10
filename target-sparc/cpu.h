@@ -392,7 +392,6 @@ struct CPUSPARCState {
     target_ulong cc_dst;
     uint32_t cc_op;
 
-    target_ulong t0, t1; /* temporaries live across basic blocks */
     target_ulong cond; /* conditional branch result (XXX: save it in a
                           temporary register when possible) */
 

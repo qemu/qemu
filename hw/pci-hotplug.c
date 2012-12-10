@@ -111,15 +111,14 @@ static int scsi_hot_add(Monitor *mon, DeviceState *adapter,
     return 0;
 }
 
-int pci_drive_hot_add(Monitor *mon, const QDict *qdict,
-                      DriveInfo *dinfo, int type)
+int pci_drive_hot_add(Monitor *mon, const QDict *qdict, DriveInfo *dinfo)
 {
     int dom, pci_bus;
     unsigned slot;
     PCIDevice *dev;
     const char *pci_addr = qdict_get_str(qdict, "pci_addr");
 
-    switch (type) {
+    switch (dinfo->type) {
     case IF_SCSI:
         if (pci_read_devaddr(mon, pci_addr, &dom, &pci_bus, &slot)) {
             goto err;
@@ -135,7 +134,7 @@ int pci_drive_hot_add(Monitor *mon, const QDict *qdict,
         }
         break;
     default:
-        monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
+        monitor_printf(mon, "Can't hot-add drive to type %d\n", dinfo->type);
         goto err;
     }
 

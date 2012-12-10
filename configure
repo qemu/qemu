@@ -2139,7 +2139,7 @@ if test "$pixman" = "system"; then
 else
   if test ! -d ${source_path}/pixman/pixman; then
     echo "ERROR: pixman not present (or older than 0.18.4). Your options:"
-    echo "  (1) Prefered: Install the pixman devel package (any recent"
+    echo "  (1) Preferred: Install the pixman devel package (any recent"
     echo "      distro should have packages as Xorg needs pixman too)."
     echo "  (2) Fetch the pixman submodule, using:"
     echo "      git submodule update --init pixman"
@@ -2978,8 +2978,6 @@ EOF
     else
 	coroutine_backend=gthread
     fi
-  else
-    echo "Silently falling back into gthread backend under darwin"
   fi
 elif test "$coroutine" = "gthread" ; then
   coroutine_backend=gthread
