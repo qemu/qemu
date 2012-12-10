@@ -38,7 +38,6 @@ static void cx_quick_cmd(SMBusDevice *dev, uint8_t read)
 
 static void cx_send_byte(SMBusDevice *dev, uint8_t val)
 {
-    SMBusCX25871Device *cx = (SMBusCX25871Device *) dev;
 #ifdef DEBUG
     printf("cx_send_byte: addr=0x%02x val=0x%02x\n",
            dev->i2c.address, val);
@@ -47,7 +46,6 @@ static void cx_send_byte(SMBusDevice *dev, uint8_t val)
 
 static uint8_t cx_receive_byte(SMBusDevice *dev)
 {
-    SMBusCX25871Device *cx = (SMBusCX25871Device *) dev;
 #ifdef DEBUG
     printf("cx_receive_byte: addr=0x%02x\n",
            dev->i2c.address);
@@ -79,14 +77,11 @@ static uint8_t cx_read_data(SMBusDevice *dev, uint8_t cmd, int n)
 
 static int smbus_cx_init(SMBusDevice *dev)
 {
-    SMBusCX25871Device *cx = (SMBusCX25871Device *)dev;
-    
     return 0;
 }
 
 static void smbus_cx25871_class_initfn(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     sc->init = smbus_cx_init;
