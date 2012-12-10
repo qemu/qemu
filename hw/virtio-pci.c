@@ -894,6 +894,7 @@ static Property virtio_blk_properties[] = {
 #ifdef __linux__
     DEFINE_PROP_BIT("scsi", VirtIOPCIProxy, blk.scsi, 0, true),
 #endif
+    DEFINE_PROP_BIT("config-wce", VirtIOPCIProxy, blk.config_wce, 0, true),
     DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
     DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
     DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
