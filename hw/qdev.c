@@ -109,10 +109,12 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     dev = qdev_try_create(bus, name);
     if (!dev) {
         if (bus) {
-            hw_error("Unknown device '%s' for bus '%s'\n", name,
-                     object_get_typename(OBJECT(bus)));
+            error_report("Unknown device '%s' for bus '%s'\n", name,
+                         object_get_typename(OBJECT(bus)));
+            abort();
         } else {
-            hw_error("Unknown device '%s' for default sysbus\n", name);
+            error_report("Unknown device '%s' for default sysbus\n", name);
+            abort();
         }
     }
 

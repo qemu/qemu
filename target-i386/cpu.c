@@ -1106,13 +1106,13 @@ static char *x86_cpuid_get_vendor(Object *obj, Error **errp)
     char *value;
     int i;
 
-    value = (char *)g_malloc(12 + 1);
+    value = (char *)g_malloc(CPUID_VENDOR_SZ + 1);
     for (i = 0; i < 4; i++) {
         value[i    ] = env->cpuid_vendor1 >> (8 * i);
         value[i + 4] = env->cpuid_vendor2 >> (8 * i);
         value[i + 8] = env->cpuid_vendor3 >> (8 * i);
     }
-    value[12] = '\0';
+    value[CPUID_VENDOR_SZ] = '\0';
     return value;
 }
 
@@ -1123,7 +1123,7 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
     CPUX86State *env = &cpu->env;
     int i;
 
-    if (strlen(value) != 12) {
+    if (strlen(value) != CPUID_VENDOR_SZ) {
         error_set(errp, QERR_PROPERTY_VALUE_BAD, "",
                   "vendor", value);
         return;
@@ -1208,14 +1208,33 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
     cpu->env.tsc_khz = value / 1000;
 }
 
-static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
+static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *name)
 {
-    unsigned int i;
     x86_def_t *def;
 
-    char *s = g_strdup(cpu_model);
-    char *featurestr, *name = strtok(s, ",");
-    /* Features to be added*/
+    for (def = x86_defs; def; def = def->next) {
+        if (name && !strcmp(name, def->name)) {
+            break;
+        }
+    }
+    if (kvm_enabled() && name && strcmp(name, "host") == 0) {
+        kvm_cpu_fill_host(x86_cpu_def);
+    } else if (!def) {
+        return -1;
+    } else {
+        memcpy(x86_cpu_def, def, sizeof(*def));
+    }
+
+    return 0;
+}
+
+/* Parse "+feature,-feature,feature=foo" CPU feature string
+ */
+static int cpu_x86_parse_featurestr(x86_def_t *x86_cpu_def, char *features)
+{
+    unsigned int i;
+    char *featurestr; /* Single 'key=value" string being parsed */
+    /* Features to be added */
     uint32_t plus_features = 0, plus_ext_features = 0;
     uint32_t plus_ext2_features = 0, plus_ext3_features = 0;
     uint32_t plus_kvm_features = kvm_default_features, plus_svm_features = 0;
@@ -1227,22 +1246,11 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     uint32_t minus_7_0_ebx_features = 0;
     uint32_t numvalue;
 
-    for (def = x86_defs; def; def = def->next)
-        if (name && !strcmp(name, def->name))
-            break;
-    if (kvm_enabled() && name && strcmp(name, "host") == 0) {
-        kvm_cpu_fill_host(x86_cpu_def);
-    } else if (!def) {
-        goto error;
-    } else {
-        memcpy(x86_cpu_def, def, sizeof(*def));
-    }
-
     add_flagname_to_bitmaps("hypervisor", &plus_features,
             &plus_ext_features, &plus_ext2_features, &plus_ext3_features,
             &plus_kvm_features, &plus_svm_features,  &plus_7_0_ebx_features);
 
-    featurestr = strtok(NULL, ",");
+    featurestr = features ? strtok(features, ",") : NULL;
 
     while (featurestr) {
         char *val;
@@ -1373,14 +1381,9 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
         if (kvm_check_features_against_host(x86_cpu_def) && enforce_cpuid)
             goto error;
     }
-    if (x86_cpu_def->cpuid_7_0_ebx_features && x86_cpu_def->level < 7) {
-        x86_cpu_def->level = 7;
-    }
-    g_free(s);
     return 0;
 
 error:
-    g_free(s);
     return -1;
 }
 
@@ -1490,11 +1493,25 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     CPUX86State *env = &cpu->env;
     x86_def_t def1, *def = &def1;
     Error *error = NULL;
+    char *name, *features;
+    gchar **model_pieces;
 
     memset(def, 0, sizeof(*def));
 
-    if (cpu_x86_find_by_name(def, cpu_model) < 0)
-        return -1;
+    model_pieces = g_strsplit(cpu_model, ",", 2);
+    if (!model_pieces[0]) {
+        goto error;
+    }
+    name = model_pieces[0];
+    features = model_pieces[1];
+
+    if (cpu_x86_find_by_name(def, name) < 0) {
+        goto error;
+    }
+
+    if (cpu_x86_parse_featurestr(def, features) < 0) {
+        goto error;
+    }
     if (def->vendor1) {
         env->cpuid_vendor1 = def->vendor1;
         env->cpuid_vendor2 = def->vendor2;
@@ -1551,9 +1568,14 @@ int cpu_x86_register(X86CPU *cpu, const char *cpu_model)
     if (error) {
         fprintf(stderr, "%s\n", error_get_pretty(error));
         error_free(error);
-        return -1;
+        goto error;
     }
+
+    g_strfreev(model_pieces);
     return 0;
+error:
+    g_strfreev(model_pieces);
+    return -1;
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1835,17 +1857,17 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         break;
     case 0x8000000A:
-	if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
-		*eax = 0x00000001; /* SVM Revision */
-		*ebx = 0x00000010; /* nr of ASIDs */
-		*ecx = 0;
-		*edx = env->cpuid_svm_features; /* optional features */
-	} else {
-		*eax = 0;
-		*ebx = 0;
-		*ecx = 0;
-		*edx = 0;
-	}
+        if (env->cpuid_ext3_features & CPUID_EXT3_SVM) {
+            *eax = 0x00000001; /* SVM Revision */
+            *ebx = 0x00000010; /* nr of ASIDs */
+            *ecx = 0;
+            *edx = env->cpuid_svm_features; /* optional features */
+        } else {
+            *eax = 0;
+            *ebx = 0;
+            *ecx = 0;
+            *edx = 0;
+        }
         break;
     case 0xC0000000:
         *eax = env->cpuid_xlevel2;
@@ -2049,6 +2071,11 @@ static void x86_cpu_apic_init(X86CPU *cpu, Error **errp)
 void x86_cpu_realize(Object *obj, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+
+    if (env->cpuid_7_0_ebx_features && env->cpuid_level < 7) {
+        env->cpuid_level = 7;
+    }
 
 #ifndef CONFIG_USER_ONLY
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);

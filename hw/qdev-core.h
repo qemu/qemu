@@ -3,19 +3,10 @@
 
 #include "qemu-queue.h"
 #include "qemu-option.h"
+#include "qemu-types.h"
 #include "qemu/object.h"
 #include "hw/irq.h"
 #include "error.h"
-
-typedef struct Property Property;
-
-typedef struct PropertyInfo PropertyInfo;
-
-typedef struct CompatProperty CompatProperty;
-
-typedef struct BusState BusState;
-
-typedef struct BusClass BusClass;
 
 enum DevState {
     DEV_STATE_CREATED = 1,
