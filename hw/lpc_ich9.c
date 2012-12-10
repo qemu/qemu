@@ -60,6 +60,7 @@
 #include "pam.h"
 #include "pci_internals.h"
 #include "exec-memory.h"
+#include "sysemu.h"
 
 static int ich9_lpc_sci_irq(ICH9LPCState *lpc);
 
@@ -456,6 +457,30 @@ static const MemoryRegionOps rbca_mmio_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static void ich9_lpc_machine_ready(Notifier *n, void *opaque)
+{
+    ICH9LPCState *s = container_of(n, ICH9LPCState, machine_ready);
+    uint8_t *pci_conf;
+
+    pci_conf = s->d.config;
+    if (isa_is_ioport_assigned(0x3f8)) {
+        /* com1 */
+        pci_conf[0x82] |= 0x01;
+    }
+    if (isa_is_ioport_assigned(0x2f8)) {
+        /* com2 */
+        pci_conf[0x82] |= 0x02;
+    }
+    if (isa_is_ioport_assigned(0x378)) {
+        /* lpt */
+        pci_conf[0x82] |= 0x04;
+    }
+    if (isa_is_ioport_assigned(0x3f0)) {
+        /* floppy */
+        pci_conf[0x82] |= 0x08;
+    }
+}
+
 static int ich9_lpc_initfn(PCIDevice *d)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
@@ -473,6 +498,10 @@ static int ich9_lpc_initfn(PCIDevice *d)
 
     ich9_cc_init(lpc);
     apm_init(d, &lpc->apm, ich9_apm_ctrl_changed, lpc);
+
+    lpc->machine_ready.notify = ich9_lpc_machine_ready;
+    qemu_add_machine_init_done_notifier(&lpc->machine_ready);
+
     return 0;
 }
 

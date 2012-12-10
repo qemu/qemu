@@ -3,6 +3,7 @@
 
 typedef struct PMSMBus {
     i2c_bus *smbus;
+    MemoryRegion io;
 
     uint8_t smb_stat;
     uint8_t smb_ctl;
@@ -15,7 +16,5 @@ typedef struct PMSMBus {
 } PMSMBus;
 
 void pm_smbus_init(DeviceState *parent, PMSMBus *smb);
-void smb_ioport_writeb(void *opaque, uint32_t addr, uint32_t val);
-uint32_t smb_ioport_readb(void *opaque, uint32_t addr);
 
 #endif /* !PM_SMBUS_H */

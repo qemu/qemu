@@ -29,6 +29,7 @@
 #include "sysemu.h"
 #include "acpi.h"
 #include "kvm.h"
+#include "exec-memory.h"
 
 #include "ich9.h"
 
@@ -40,10 +41,6 @@ do { printf("%s "fmt, __func__, ## __VA_ARGS__); } while (0)
 #else
 #define ICH9_DEBUG(fmt, ...)    do { } while (0)
 #endif
-
-static void pm_ioport_write_fallback(void *opaque, uint32_t addr, int len,
-                                     uint32_t val);
-static uint32_t pm_ioport_read_fallback(void *opaque, uint32_t addr, int len);
 
 static void pm_update_sci(ICH9LPCPMRegs *pm)
 {
@@ -70,152 +67,60 @@ static void ich9_pm_update_sci_fn(ACPIREGS *regs)
     pm_update_sci(pm);
 }
 
-static void pm_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
+static uint64_t ich9_gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
     ICH9LPCPMRegs *pm = opaque;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_GPE0_STS ... (ICH9_PMIO_GPE0_STS + ICH9_PMIO_GPE0_LEN - 1):
-        acpi_gpe_ioport_writeb(&pm->acpi_regs, addr, val);
-        break;
-    default:
-        break;
-    }
-
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
+    return acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
 }
 
-static uint32_t pm_ioport_readb(void *opaque, uint32_t addr)
+static void ich9_gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned width)
 {
     ICH9LPCPMRegs *pm = opaque;
-    uint32_t val = 0;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_GPE0_STS ... (ICH9_PMIO_GPE0_STS + ICH9_PMIO_GPE0_LEN - 1):
-        val = acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
-        break;
-    default:
-        val = 0;
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
-    return val;
+    acpi_gpe_ioport_writeb(&pm->acpi_regs, addr, val);
 }
 
-static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
+static const MemoryRegionOps ich9_gpe_ops = {
+    .read = ich9_gpe_readb,
+    .write = ich9_gpe_writeb,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static uint64_t ich9_smi_readl(void *opaque, hwaddr addr, unsigned width)
 {
     ICH9LPCPMRegs *pm = opaque;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_PM1_STS:
-        acpi_pm1_evt_write_sts(&pm->acpi_regs, val);
-        pm_update_sci(pm);
-        break;
-    case ICH9_PMIO_PM1_EN:
-        pm->acpi_regs.pm1.evt.en = val;
-        pm_update_sci(pm);
-        break;
-    case ICH9_PMIO_PM1_CNT:
-        acpi_pm1_cnt_write(&pm->acpi_regs, val, 0);
-        break;
+    switch (addr) {
+    case 0:
+        return pm->smi_en;
+    case 4:
+        return pm->smi_sts;
     default:
-        pm_ioport_write_fallback(opaque, addr, 2, val);
-        break;
+        return 0;
     }
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
 }
 
-static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
+static void ich9_smi_writel(void *opaque, hwaddr addr, uint64_t val,
+                            unsigned width)
 {
     ICH9LPCPMRegs *pm = opaque;
-    uint32_t val;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_PM1_STS:
-        val = acpi_pm1_evt_get_sts(&pm->acpi_regs);
-        break;
-    case ICH9_PMIO_PM1_EN:
-        val = pm->acpi_regs.pm1.evt.en;
-        break;
-    case ICH9_PMIO_PM1_CNT:
-        val = pm->acpi_regs.pm1.cnt.cnt;
-        break;
-    default:
-        val = pm_ioport_read_fallback(opaque, addr, 2);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%04x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    ICH9LPCPMRegs *pm = opaque;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_SMI_EN:
+    switch (addr) {
+    case 0:
         pm->smi_en = val;
         break;
-    default:
-        pm_ioport_write_fallback(opaque, addr, 4, val);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%08x\n", addr, val);
-}
-
-static uint32_t pm_ioport_readl(void *opaque, uint32_t addr)
-{
-    ICH9LPCPMRegs *pm = opaque;
-    uint32_t val;
-
-    switch (addr & ICH9_PMIO_MASK) {
-    case ICH9_PMIO_PM1_TMR:
-        val = acpi_pm_tmr_get(&pm->acpi_regs);
-        break;
-    case ICH9_PMIO_SMI_EN:
-        val = pm->smi_en;
-        break;
-
-    default:
-        val = pm_ioport_read_fallback(opaque, addr, 4);
-        break;
-    }
-    ICH9_DEBUG("port=0x%04x val=0x%08x\n", addr, val);
-    return val;
-}
-
-static void pm_ioport_write_fallback(void *opaque, uint32_t addr, int len,
-                                     uint32_t val)
- {
-    int subsize = (len == 4) ? 2 : 1;
-    IOPortWriteFunc *ioport_write =
-        (subsize == 2) ? pm_ioport_writew : pm_ioport_writeb;
-
-    int i;
-
-    for (i = 0; i < len; i += subsize) {
-        ioport_write(opaque, addr, val);
-        val >>= 8 * subsize;
     }
 }
 
-static uint32_t pm_ioport_read_fallback(void *opaque, uint32_t addr, int len)
-{
-    int subsize = (len == 4) ? 2 : 1;
-    IOPortReadFunc *ioport_read =
-        (subsize == 2) ? pm_ioport_readw : pm_ioport_readb;
-
-    uint32_t val;
-    int i;
-
-    val = 0;
-    for (i = 0; i < len; i += subsize) {
-        val <<= 8 * subsize;
-        val |= ioport_read(opaque, addr);
-    }
-
-    return val;
-}
+static const MemoryRegionOps ich9_smi_ops = {
+    .read = ich9_smi_readl,
+    .write = ich9_smi_writel,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
 {
@@ -223,24 +128,11 @@ void ich9_pm_iospace_update(ICH9LPCPMRegs *pm, uint32_t pm_io_base)
 
     assert((pm_io_base & ICH9_PMIO_MASK) == 0);
 
-    if (pm->pm_io_base != 0) {
-        isa_unassign_ioport(pm->pm_io_base, ICH9_PMIO_SIZE);
-    }
-
-    /* don't map at 0 */
-    if (pm_io_base == 0) {
-        return;
-    }
-
-    register_ioport_write(pm_io_base, ICH9_PMIO_SIZE, 1, pm_ioport_writeb, pm);
-    register_ioport_read(pm_io_base, ICH9_PMIO_SIZE, 1, pm_ioport_readb, pm);
-    register_ioport_write(pm_io_base, ICH9_PMIO_SIZE, 2, pm_ioport_writew, pm);
-    register_ioport_read(pm_io_base, ICH9_PMIO_SIZE, 2, pm_ioport_readw, pm);
-    register_ioport_write(pm_io_base, ICH9_PMIO_SIZE, 4, pm_ioport_writel, pm);
-    register_ioport_read(pm_io_base, ICH9_PMIO_SIZE, 4, pm_ioport_readl, pm);
-
     pm->pm_io_base = pm_io_base;
-    acpi_gpe_blk(&pm->acpi_regs, pm_io_base + ICH9_PMIO_GPE0_STS);
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&pm->io, pm->pm_io_base != 0);
+    memory_region_set_address(&pm->io, pm->pm_io_base);
+    memory_region_transaction_commit();
 }
 
 static int ich9_pm_post_load(void *opaque, int version_id)
@@ -311,9 +203,22 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
 
 void ich9_pm_init(ICH9LPCPMRegs *pm, qemu_irq sci_irq, qemu_irq cmos_s3)
 {
-    acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn);
-    acpi_pm1_cnt_init(&pm->acpi_regs);
+    memory_region_init(&pm->io, "ich9-pm", ICH9_PMIO_SIZE);
+    memory_region_set_enabled(&pm->io, false);
+    memory_region_add_subregion(get_system_io(), 0, &pm->io);
+
+    acpi_pm_tmr_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
+    acpi_pm1_evt_init(&pm->acpi_regs, ich9_pm_update_sci_fn, &pm->io);
+    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io);
+
     acpi_gpe_init(&pm->acpi_regs, ICH9_PMIO_GPE0_LEN);
+    memory_region_init_io(&pm->io_gpe, &ich9_gpe_ops, pm, "apci-gpe0",
+                          ICH9_PMIO_GPE0_LEN);
+    memory_region_add_subregion(&pm->io, ICH9_PMIO_GPE0_STS, &pm->io_gpe);
+
+    memory_region_init_io(&pm->io_smi, &ich9_smi_ops, pm, "apci-smi",
+                          8);
+    memory_region_add_subregion(&pm->io, ICH9_PMIO_SMI_EN, &pm->io_smi);
 
     pm->irq = sci_irq;
     qemu_register_reset(pm_reset, pm);
