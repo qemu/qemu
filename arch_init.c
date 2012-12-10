@@ -422,9 +422,8 @@ static void migration_bitmap_sync(void)
 /*
  * ram_save_block: Writes a page of memory to the stream f
  *
- * Returns:  0: if the page hasn't changed
- *          -1: if there are no more dirty pages
- *           n: the amount of bytes written in other case
+ * Returns:  The number of bytes written.
+ *           0 means no dirty pages
  */
 
 static int ram_save_block(QEMUFile *f, bool last_stage)
@@ -432,7 +431,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
     RAMBlock *block = last_seen_block;
     ram_addr_t offset = last_offset;
     bool complete_round = false;
-    int bytes_sent = -1;
+    int bytes_sent = 0;
     MemoryRegion *mr;
     ram_addr_t current_addr;
 
@@ -460,6 +459,8 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
 
             p = memory_region_get_ram_ptr(mr) + offset;
 
+            /* In doubt sent page as normal */
+            bytes_sent = -1;
             if (is_dup_page(p)) {
                 acct_info.dup_pages++;
                 bytes_sent = save_block_hdr(f, block, offset, cont,
@@ -475,7 +476,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
                 }
             }
 
-            /* either we didn't send yet (we may have had XBZRLE overflow) */
+            /* XBZRLE overflow or normal page */
             if (bytes_sent == -1) {
                 bytes_sent = save_block_hdr(f, block, offset, cont, RAM_SAVE_FLAG_PAGE);
                 qemu_put_buffer(f, p, TARGET_PAGE_SIZE);
@@ -484,7 +485,7 @@ static int ram_save_block(QEMUFile *f, bool last_stage)
             }
 
             /* if page is unmodified, continue to the next */
-            if (bytes_sent != 0) {
+            if (bytes_sent > 0) {
                 last_sent_block = block;
                 break;
             }
@@ -605,6 +606,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int ret;
     int i;
     int64_t t0;
+    int total_sent = 0;
 
     qemu_mutex_lock_ramlist();
 
@@ -619,10 +621,10 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
         bytes_sent = ram_save_block(f, false);
         /* no more blocks to sent */
-        if (bytes_sent < 0) {
+        if (bytes_sent == 0) {
             break;
         }
-        bytes_transferred += bytes_sent;
+        total_sent += bytes_sent;
         acct_info.iterations++;
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
@@ -641,13 +643,16 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     }
 
     if (ret < 0) {
+        bytes_transferred += total_sent;
         return ret;
     }
 
     qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
+    total_sent += 8;
+    bytes_transferred += total_sent;
 
-    return i;
+    return total_sent;
 }
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
@@ -664,7 +669,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
         bytes_sent = ram_save_block(f, true);
         /* no more blocks to sent */
-        if (bytes_sent < 0) {
+        if (bytes_sent == 0) {
             break;
         }
         bytes_transferred += bytes_sent;
