@@ -38,10 +38,9 @@ static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
                                                         int error_code,
                                                         uintptr_t pc)
 {
-#if 1
-    if (exception < 0x100)
+    if (exception < EXCP_SC) {
         qemu_log("%s: %d %d\n", __func__, exception, error_code);
-#endif
+    }
     env->exception_index = exception;
     env->error_code = error_code;
 
