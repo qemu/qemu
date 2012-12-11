@@ -3762,6 +3762,9 @@ int main(int argc, char **argv, char **envp)
     }
     configure_icount(icount_option);
 
+    /* clean up network at qemu process termination */
+    atexit(&net_cleanup);
+
     if (net_init_clients() < 0) {
         exit(1);
     }
@@ -4014,7 +4017,6 @@ int main(int argc, char **argv, char **envp)
     main_loop();
     bdrv_close_all();
     pause_all_vcpus();
-    net_cleanup();
     res_free();
 
     return 0;
