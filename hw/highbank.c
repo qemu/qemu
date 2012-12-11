@@ -44,9 +44,12 @@ static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
         0xe210000f, /* ands r0, r0, #0x0f */
         0xe3a03040, /* mov r3, #0x40 - jump address is 0x40 + 0x10 * core id */
         0xe0830200, /* add r0, r3, r0, lsl #4 */
-        0xe59f2018, /* ldr r2, privbase */
+        0xe59f2024, /* ldr r2, privbase */
         0xe3a01001, /* mov r1, #1 */
-        0xe5821100, /* str r1, [r2, #256] */
+        0xe5821100, /* str r1, [r2, #256] - set GICC_CTLR.Enable */
+        0xe3a010ff, /* mov r1, #0xff */
+        0xe5821104, /* str r1, [r2, #260] - set GICC_PMR.Priority to 0xff */
+        0xf57ff04f, /* dsb */
         0xe320f003, /* wfi */
         0xe5901000, /* ldr     r1, [r0] */
         0xe1110001, /* tst     r1, r1 */
