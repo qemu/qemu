@@ -524,34 +524,6 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
     cpu_x86_set_a20(cpu, level);
 }
 
-/***********************************************************/
-/* Bochs BIOS debug ports */
-
-static void bochs_bios_write(void *opaque, uint32_t addr, uint32_t val)
-{
-    static const char shutdown_str[8] = "Shutdown";
-    static int shutdown_index = 0;
-
-    switch(addr) {
-    case 0x8900:
-        /* same as Bochs power off */
-        if (val == shutdown_str[shutdown_index]) {
-            shutdown_index++;
-            if (shutdown_index == 8) {
-                shutdown_index = 0;
-                qemu_system_shutdown_request();
-            }
-        } else {
-            shutdown_index = 0;
-        }
-        break;
-
-    case 0x501:
-    case 0x502:
-        exit((val << 1) | 1);
-    }
-}
-
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
     int index = le32_to_cpu(e820_table.count);
@@ -569,14 +541,6 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
     return index;
 }
 
-static const MemoryRegionPortio bochs_bios_portio_list[] = {
-    { 0x500, 1, 1, .write = bochs_bios_write, }, /* 0x500 */
-    { 0x501, 1, 1, .write = bochs_bios_write, }, /* 0x501 */
-    { 0x501, 2, 2, .write = bochs_bios_write, }, /* 0x501 */
-    { 0x8900, 1, 1, .write = bochs_bios_write, }, /* 0x8900 */
-    PORTIO_END_OF_LIST(),
-};
-
 static void *bochs_bios_init(void)
 {
     void *fw_cfg;
@@ -584,11 +548,6 @@ static void *bochs_bios_init(void)
     size_t smbios_len;
     uint64_t *numa_fw_cfg;
     int i, j;
-    PortioList *bochs_bios_port_list = g_new(PortioList, 1);
-
-    portio_list_init(bochs_bios_port_list, bochs_bios_portio_list,
-                     NULL, "bochs-bios");
-    portio_list_add(bochs_bios_port_list, get_system_io(), 0x0);
 
     fw_cfg = fw_cfg_init(BIOS_CFG_IOPORT, BIOS_CFG_IOPORT + 1, 0, 0);
 
