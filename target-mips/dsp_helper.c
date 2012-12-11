@@ -2,7 +2,7 @@
  * MIPS ASE DSP Instruction emulation helpers for QEMU.
  *
  * Copyright (c) 2012  Jia Liu <proljc@gmail.com>
- *                     Dongxue Zhang <elat.era@gmail.com>
+ *                     Dongxue Zhang <elta.era@gmail.com>
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
