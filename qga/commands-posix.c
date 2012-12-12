@@ -410,6 +410,66 @@ static void build_fs_mount_list(FsMountList *mounts, Error **err)
 
 #if defined(CONFIG_FSFREEZE)
 
+typedef enum {
+    FSFREEZE_HOOK_THAW = 0,
+    FSFREEZE_HOOK_FREEZE,
+} FsfreezeHookArg;
+
+const char *fsfreeze_hook_arg_string[] = {
+    "thaw",
+    "freeze",
+};
+
+static void execute_fsfreeze_hook(FsfreezeHookArg arg, Error **err)
+{
+    int status;
+    pid_t pid;
+    const char *hook;
+    const char *arg_str = fsfreeze_hook_arg_string[arg];
+    Error *local_err = NULL;
+
+    hook = ga_fsfreeze_hook(ga_state);
+    if (!hook) {
+        return;
+    }
+    if (access(hook, X_OK) != 0) {
+        error_setg_errno(err, errno, "can't access fsfreeze hook '%s'", hook);
+        return;
+    }
+
+    slog("executing fsfreeze hook with arg '%s'", arg_str);
+    pid = fork();
+    if (pid == 0) {
+        setsid();
+        reopen_fd_to_null(0);
+        reopen_fd_to_null(1);
+        reopen_fd_to_null(2);
+
+        execle(hook, hook, arg_str, NULL, environ);
+        _exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        error_setg_errno(err, errno, "failed to create child process");
+        return;
+    }
+
+    ga_wait_child(pid, &status, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(err, local_err);
+        return;
+    }
+
+    if (!WIFEXITED(status)) {
+        error_setg(err, "fsfreeze hook has terminated abnormally");
+        return;
+    }
+
+    status = WEXITSTATUS(status);
+    if (status) {
+        error_setg(err, "fsfreeze hook has failed with status %d", status);
+        return;
+    }
+}
+
 /*
  * Return status of freeze/thaw
  */
@@ -435,6 +495,12 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     int fd;
 
     slog("guest-fsfreeze called");
+
+    execute_fsfreeze_hook(FSFREEZE_HOOK_FREEZE, &local_err);
+    if (error_is_set(&local_err)) {
+        error_propagate(err, local_err);
+        return -1;
+    }
 
     QTAILQ_INIT(&mounts);
     build_fs_mount_list(&mounts, &local_err);
@@ -537,6 +603,9 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 
     ga_unset_frozen(ga_state);
     free_fs_mount_list(&mounts);
+
+    execute_fsfreeze_hook(FSFREEZE_HOOK_THAW, err);
+
     return i;
 }
 
