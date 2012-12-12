@@ -14,6 +14,7 @@
 #include "e500.h"
 #include "../boards.h"
 #include "device_tree.h"
+#include "hw/pci.h"
 
 static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
 {
@@ -40,8 +41,8 @@ static void e500plat_init(QEMUMachineInitArgs *args)
         .kernel_cmdline = kernel_cmdline,
         .initrd_filename = initrd_filename,
         .cpu_model = cpu_model,
-        .pci_first_slot = 0x11,
-        .pci_nr_slots = 2,
+        .pci_first_slot = 0x1,
+        .pci_nr_slots = PCI_SLOT_MAX - 1,
         .fixup_devtree = e500plat_fixup_devtree,
     };
 
