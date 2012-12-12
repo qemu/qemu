@@ -253,17 +253,10 @@ static const MemoryRegionOps e500_pci_reg_ops = {
 
 static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    int devno = pci_dev->devfn >> 3, ret = 0;
+    int devno = pci_dev->devfn >> 3;
+    int ret;
 
-    switch (devno) {
-        /* Two PCI slot */
-        case 0x11:
-        case 0x12:
-            ret = (irq_num + devno - 0x10) % 4;
-            break;
-        default:
-            printf("Error:%s:unknown dev number\n", __func__);
-    }
+    ret = (irq_num + devno) % 4;
 
     pci_debug("%s: devfn %x irq %d -> %d  devno:%x\n", __func__,
            pci_dev->devfn, irq_num, ret, devno);
