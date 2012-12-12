@@ -637,7 +637,8 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, bool assign)
                       msix_nr_vectors_allocated(&proxy->pci_dev));
         r = msix_set_vector_notifiers(&proxy->pci_dev,
                                       kvm_virtio_pci_vector_use,
-                                      kvm_virtio_pci_vector_release);
+                                      kvm_virtio_pci_vector_release,
+                                      NULL);
         if (r < 0) {
             goto assign_error;
         }

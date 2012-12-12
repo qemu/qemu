@@ -36,6 +36,7 @@ void msix_reset(PCIDevice *dev);
 
 int msix_set_vector_notifiers(PCIDevice *dev,
                               MSIVectorUseNotifier use_notifier,
-                              MSIVectorReleaseNotifier release_notifier);
+                              MSIVectorReleaseNotifier release_notifier,
+                              MSIVectorPollNotifier poll_notifier);
 void msix_unset_vector_notifiers(PCIDevice *dev);
 #endif
