@@ -217,13 +217,12 @@ static void flush_queued_data(VirtIOSerialPort *port)
     do_flush_queued_data(port, port->ovq, &port->vser->vdev);
 }
 
-static size_t send_control_msg(VirtIOSerialPort *port, void *buf, size_t len)
+static size_t send_control_msg(VirtIOSerial *vser, void *buf, size_t len)
 {
     VirtQueueElement elem;
     VirtQueue *vq;
-    struct virtio_console_control *cpkt;
 
-    vq = port->vser->c_ivq;
+    vq = vser->c_ivq;
     if (!virtio_queue_ready(vq)) {
         return 0;
     }
@@ -231,25 +230,24 @@ static size_t send_control_msg(VirtIOSerialPort *port, void *buf, size_t len)
         return 0;
     }
 
-    cpkt = (struct virtio_console_control *)buf;
-    stl_p(&cpkt->id, port->id);
     memcpy(elem.in_sg[0].iov_base, buf, len);
 
     virtqueue_push(vq, &elem, len);
-    virtio_notify(&port->vser->vdev, vq);
+    virtio_notify(&vser->vdev, vq);
     return len;
 }
 
-static size_t send_control_event(VirtIOSerialPort *port, uint16_t event,
-                                 uint16_t value)
+static size_t send_control_event(VirtIOSerial *vser, uint32_t port_id,
+                                 uint16_t event, uint16_t value)
 {
     struct virtio_console_control cpkt;
 
+    stl_p(&cpkt.id, port_id);
     stw_p(&cpkt.event, event);
     stw_p(&cpkt.value, value);
 
-    trace_virtio_serial_send_control_event(port->id, event, value);
-    return send_control_msg(port, &cpkt, sizeof(cpkt));
+    trace_virtio_serial_send_control_event(port_id, event, value);
+    return send_control_msg(vser, &cpkt, sizeof(cpkt));
 }
 
 /* Functions for use inside qemu to open and read from/write to ports */
@@ -261,7 +259,7 @@ int virtio_serial_open(VirtIOSerialPort *port)
     }
     /* Send port open notification to the guest */
     port->host_connected = true;
-    send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
+    send_control_event(port->vser, port->id, VIRTIO_CONSOLE_PORT_OPEN, 1);
 
     return 0;
 }
@@ -276,7 +274,7 @@ int virtio_serial_close(VirtIOSerialPort *port)
     port->throttled = false;
     discard_vq_data(port->ovq, &port->vser->vdev);
 
-    send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN, 0);
+    send_control_event(port->vser, port->id, VIRTIO_CONSOLE_PORT_OPEN, 0);
 
     return 0;
 }
@@ -365,7 +363,7 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
          * ports we have here.
          */
         QTAILQ_FOREACH(port, &vser->ports, next) {
-            send_control_event(port, VIRTIO_CONSOLE_PORT_ADD, 1);
+            send_control_event(vser, port->id, VIRTIO_CONSOLE_PORT_ADD, 1);
         }
         return;
     }
@@ -396,10 +394,11 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
          * up to hvc.
          */
         if (vsc->is_console) {
-            send_control_event(port, VIRTIO_CONSOLE_CONSOLE_PORT, 1);
+            send_control_event(vser, port->id, VIRTIO_CONSOLE_CONSOLE_PORT, 1);
         }
 
         if (port->name) {
+            stl_p(&cpkt.id, port->id);
             stw_p(&cpkt.event, VIRTIO_CONSOLE_PORT_NAME);
             stw_p(&cpkt.value, 1);
 
@@ -410,12 +409,12 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
             memcpy(buffer + sizeof(cpkt), port->name, strlen(port->name));
             buffer[buffer_len - 1] = 0;
 
-            send_control_msg(port, buffer, buffer_len);
+            send_control_msg(vser, buffer, buffer_len);
             g_free(buffer);
         }
 
         if (port->host_connected) {
-            send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN, 1);
+            send_control_event(vser, port->id, VIRTIO_CONSOLE_PORT_OPEN, 1);
         }
 
         /*
@@ -655,7 +654,7 @@ static void virtio_serial_post_load_timer_cb(void *opaque)
              * We have to let the guest know of the host connection
              * status change
              */
-            send_control_event(port, VIRTIO_CONSOLE_PORT_OPEN,
+            send_control_event(s, port->id, VIRTIO_CONSOLE_PORT_OPEN,
                                port->host_connected);
         }
     }
@@ -841,9 +840,7 @@ static void mark_port_added(VirtIOSerial *vser, uint32_t port_id)
 static void add_port(VirtIOSerial *vser, uint32_t port_id)
 {
     mark_port_added(vser, port_id);
-
-    send_control_event(find_port_by_id(vser, port_id),
-                       VIRTIO_CONSOLE_PORT_ADD, 1);
+    send_control_event(vser, port_id, VIRTIO_CONSOLE_PORT_ADD, 1);
 }
 
 static void remove_port(VirtIOSerial *vser, uint32_t port_id)
@@ -858,7 +855,7 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
     /* Flush out any unconsumed buffers first */
     discard_vq_data(port->ovq, &port->vser->vdev);
 
-    send_control_event(port, VIRTIO_CONSOLE_PORT_REMOVE, 1);
+    send_control_event(vser, port->id, VIRTIO_CONSOLE_PORT_REMOVE, 1);
 }
 
 static int virtser_port_qdev_init(DeviceState *qdev)
