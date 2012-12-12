@@ -755,6 +755,12 @@ void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled)
     uep->pipeline = enabled;
 }
 
+void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    uep->halted = halted;
+}
+
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
                                     uint64_t id)
 {

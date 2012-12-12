@@ -417,6 +417,7 @@ void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
+void usb_ep_set_halted(USBDevice *dev, int pid, int ep, bool halted);
 USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
                                     uint64_t id);
 
