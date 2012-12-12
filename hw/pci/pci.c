@@ -21,18 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "pci.h"
-#include "pci_bridge.h"
-#include "pci_internals.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_internals.h"
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"
-#include "loader.h"
+#include "hw/loader.h"
 #include "range.h"
 #include "qmp-commands.h"
-#include "msi.h"
-#include "msix.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
 #include "exec-memory.h"
 
 //#define DEBUG_PCI

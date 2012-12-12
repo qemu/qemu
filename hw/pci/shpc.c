@@ -2,10 +2,10 @@
 #include <stdint.h>
 #include "range.h"
 #include "range.h"
-#include "shpc.h"
-#include "pci.h"
-#include "pci_internals.h"
-#include "msi.h"
+#include "hw/pci/shpc.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_internals.h"
+#include "hw/pci/msi.h"
 
 /* TODO: model power only and disabled slot states. */
 /* TODO: handle SERR and wakeups */

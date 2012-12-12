@@ -21,7 +21,7 @@
 #ifndef QEMU_PCIE_AER_H
 #define QEMU_PCIE_AER_H
 
-#include "hw.h"
+#include "hw/hw.h"
 
 /* definitions which PCIExpressDevice uses */
 

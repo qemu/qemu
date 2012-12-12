@@ -21,7 +21,7 @@
 #ifndef PCIE_HOST_H
 #define PCIE_HOST_H
 
-#include "pci_host.h"
+#include "hw/pci/pci_host.h"
 #include "memory.h"
 
 #define TYPE_PCIE_HOST_BRIDGE "pcie-host-bridge"

@@ -19,12 +19,12 @@
  */
 
 #include "qemu-common.h"
-#include "pci_bridge.h"
-#include "pcie.h"
-#include "msix.h"
-#include "msi.h"
-#include "pci_internals.h"
-#include "pcie_regs.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pcie.h"
+#include "hw/pci/msix.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/pci_internals.h"
+#include "hw/pci/pcie_regs.h"
 #include "range.h"
 
 //#define DEBUG_PCIE

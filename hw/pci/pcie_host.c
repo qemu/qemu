@@ -19,9 +19,9 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
-#include "pci.h"
-#include "pcie_host.h"
+#include "hw/hw.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pcie_host.h"
 #include "exec-memory.h"
 
 /*

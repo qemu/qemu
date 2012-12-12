@@ -28,7 +28,7 @@
 #ifndef PCI_HOST_H
 #define PCI_HOST_H
 
-#include "sysbus.h"
+#include "hw/sysbus.h"
 
 #define TYPE_PCI_HOST_BRIDGE "pci-host-bridge"
 #define PCI_HOST_BRIDGE(obj) \

@@ -29,8 +29,8 @@
  *                    VA Linux Systems Japan K.K.
  */
 
-#include "pci_bridge.h"
-#include "pci_internals.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_internals.h"
 #include "range.h"
 
 /* PCI bridge subsystem vendor ID helper functions */

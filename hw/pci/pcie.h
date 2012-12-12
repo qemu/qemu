@@ -21,10 +21,10 @@
 #ifndef QEMU_PCIE_H
 #define QEMU_PCIE_H
 
-#include "hw.h"
-#include "pci_regs.h"
-#include "pcie_regs.h"
-#include "pcie_aer.h"
+#include "hw/hw.h"
+#include "hw/pci/pci_regs.h"
+#include "hw/pci/pcie_regs.h"
+#include "hw/pci/pcie_aer.h"
 
 typedef enum {
     /* for attention and power indicator */
