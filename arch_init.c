@@ -535,9 +535,13 @@ static void sort_ram_list(void)
 
 static void migration_end(void)
 {
-    memory_global_dirty_log_stop();
+    if (migration_bitmap) {
+        memory_global_dirty_log_stop();
+        g_free(migration_bitmap);
+        migration_bitmap = NULL;
+    }
 
-    if (migrate_use_xbzrle()) {
+    if (XBZRLE.cache) {
         cache_fini(XBZRLE.cache);
         g_free(XBZRLE.cache);
         g_free(XBZRLE.encoded_buf);
@@ -689,12 +693,9 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
         }
         bytes_transferred += bytes_sent;
     }
-    memory_global_dirty_log_stop();
+    migration_end();
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
-
-    g_free(migration_bitmap);
-    migration_bitmap = NULL;
 
     return 0;
 }
