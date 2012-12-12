@@ -54,7 +54,7 @@
 
 #include <sys/ioctl.h>
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "xen.h"
 #include "xen_backend.h"
 #include "xen_pt.h"

@@ -18,8 +18,8 @@
  */
 
 #include "hw.h"
-#include "pci.h"
-#include "msi.h"
+#include "pci/pci.h"
+#include "pci/msi.h"
 #include "qemu-timer.h"
 #include "audiodev.h"
 #include "intel-hda.h"

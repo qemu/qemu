@@ -35,7 +35,7 @@
  */
 #include "hw.h"
 #include "ppc_mac.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "openpic.h"
 
 //#define DEBUG_OPENPIC

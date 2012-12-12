@@ -11,7 +11,7 @@
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"

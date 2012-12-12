@@ -29,7 +29,7 @@
 #include "devices.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "net.h"
 #include "sh7750_regs.h"
 #include "ide.h"

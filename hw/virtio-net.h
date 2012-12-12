@@ -16,7 +16,7 @@
 
 #include "virtio.h"
 #include "net.h"
-#include "pci.h"
+#include "pci/pci.h"
 
 #define ETH_ALEN    6
 

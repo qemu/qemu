@@ -31,7 +31,7 @@
 #include "hw/apic.h"
 #include "ioport.h"
 #include "hyperv.h"
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 
 //#define DEBUG_KVM
 

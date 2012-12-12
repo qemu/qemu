@@ -22,7 +22,7 @@
 #include "pc.h"
 #include "apm.h"
 #include "pm_smbus.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "acpi.h"
 #include "sysemu.h"
 #include "range.h"

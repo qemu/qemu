@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "apb_pci.h"
 #include "pc.h"
 #include "serial.h"

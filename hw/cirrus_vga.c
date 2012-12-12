@@ -27,7 +27,7 @@
  *   available at http://home.worldonline.dk/~finth/
  */
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "console.h"
 #include "vga_int.h"
 #include "loader.h"

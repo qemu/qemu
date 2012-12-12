@@ -8,13 +8,13 @@
 #include "pc.h"
 #include "apm.h"
 #include "ioapic.h"
-#include "pci.h"
-#include "pcie_host.h"
-#include "pci_bridge.h"
+#include "pci/pci.h"
+#include "pci/pcie_host.h"
+#include "pci/pci_bridge.h"
 #include "acpi.h"
 #include "acpi_ich9.h"
 #include "pam.h"
-#include "pci_internals.h"
+#include "pci/pci_internals.h"
 
 void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);

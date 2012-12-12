@@ -22,7 +22,7 @@
 
 #include "apm.h"
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 
 //#define DEBUG
 

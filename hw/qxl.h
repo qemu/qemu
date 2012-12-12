@@ -2,7 +2,7 @@
 
 #include "console.h"
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "vga_int.h"
 #include "qemu-thread.h"
 

@@ -27,7 +27,7 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "irq.h"
 #include "xen_common.h"
 #include "net.h"

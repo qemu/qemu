@@ -26,7 +26,7 @@
 #include "qemu-config.h"
 #include "sysemu.h"
 #include "hw/hw.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 #include "gdbstub.h"
 #include "kvm.h"
 #include "bswap.h"

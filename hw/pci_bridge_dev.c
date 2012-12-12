@@ -19,13 +19,13 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci_bridge.h"
-#include "pci_ids.h"
-#include "msi.h"
-#include "shpc.h"
-#include "slotid_cap.h"
+#include "pci/pci_bridge.h"
+#include "pci/pci_ids.h"
+#include "pci/msi.h"
+#include "pci/shpc.h"
+#include "pci/slotid_cap.h"
 #include "memory.h"
-#include "pci_internals.h"
+#include "pci/pci_internals.h"
 
 #define REDHAT_PCI_VENDOR_ID 0x1b36
 #define PCI_BRIDGE_DEV_VENDOR_ID REDHAT_PCI_VENDOR_ID

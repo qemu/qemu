@@ -19,9 +19,9 @@
  */
 
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "dma.h"
-#include "msix.h"
+#include "pci/msix.h"
 #include "iov.h"
 #include "scsi.h"
 #include "scsi-defs.h"

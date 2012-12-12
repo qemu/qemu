@@ -23,8 +23,8 @@
 #if !defined(__HW_SPAPR_PCI_H__)
 #define __HW_SPAPR_PCI_H__
 
-#include "hw/pci.h"
-#include "hw/pci_host.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 #include "hw/xics.h"
 
 #define SPAPR_MSIX_MAX_DEVS 32

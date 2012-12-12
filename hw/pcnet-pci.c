@@ -27,7 +27,7 @@
  * AMD Publication# 19436  Rev:E  Amendment/0  Issue Date: June 2000
  */
 
-#include "pci.h"
+#include "pci/pci.h"
 #include "net.h"
 #include "loader.h"
 #include "qemu-timer.h"

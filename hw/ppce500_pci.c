@@ -15,8 +15,8 @@
  */
 
 #include "hw.h"
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
 #include "bswap.h"
 
 #ifdef DEBUG_PCI

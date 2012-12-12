@@ -25,7 +25,7 @@
  */
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "acpi.h"

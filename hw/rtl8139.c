@@ -52,7 +52,7 @@
 #include <zlib.h>
 
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "dma.h"
 #include "qemu-timer.h"
 #include "net.h"

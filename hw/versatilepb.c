@@ -12,7 +12,7 @@
 #include "devices.h"
 #include "net.h"
 #include "sysemu.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "i2c.h"
 #include "boards.h"
 #include "blockdev.h"

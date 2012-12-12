@@ -18,8 +18,8 @@
  */
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
-#include "msix.h"
+#include "pci/pci.h"
+#include "pci/msix.h"
 #include "kvm.h"
 #include "migration.h"
 #include "qerror.h"
