@@ -140,17 +140,17 @@
 #define BF_WIDTH(_bits_) \
 (((_bits_) + (sizeof(uint32_t) * 8) - 1) / (sizeof(uint32_t) * 8))
 
-static inline void set_bit (uint32_t *field, int bit)
+static inline void set_bit(uint32_t *field, int bit)
 {
     field[bit >> 5] |= 1 << (bit & 0x1F);
 }
 
-static inline void reset_bit (uint32_t *field, int bit)
+static inline void reset_bit(uint32_t *field, int bit)
 {
     field[bit >> 5] &= ~(1 << (bit & 0x1F));
 }
 
-static inline int test_bit (uint32_t *field, int bit)
+static inline int test_bit(uint32_t *field, int bit)
 {
     return (field[bit >> 5] & 1 << (bit & 0x1F)) != 0;
 }
@@ -249,17 +249,17 @@ typedef struct OpenPICState {
 
 static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src);
 
-static inline void IRQ_setbit (IRQ_queue_t *q, int n_IRQ)
+static inline void IRQ_setbit(IRQ_queue_t *q, int n_IRQ)
 {
     set_bit(q->queue, n_IRQ);
 }
 
-static inline void IRQ_resetbit (IRQ_queue_t *q, int n_IRQ)
+static inline void IRQ_resetbit(IRQ_queue_t *q, int n_IRQ)
 {
     reset_bit(q->queue, n_IRQ);
 }
 
-static inline int IRQ_testbit (IRQ_queue_t *q, int n_IRQ)
+static inline int IRQ_testbit(IRQ_queue_t *q, int n_IRQ)
 {
     return test_bit(q->queue, n_IRQ);
 }
