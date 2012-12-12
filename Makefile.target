@@ -12,6 +12,7 @@ endif
 QEMU_CFLAGS += -I.. -I$(SRC_PATH)/target-$(TARGET_BASE_ARCH) -DNEED_CPU_H
 
 QEMU_CFLAGS+=-I$(SRC_PATH)/include
+QEMU_CFLAGS+=-I$(SRC_PATH)/hw/pci -I$(SRC_PATH)/hw
 
 ifdef CONFIG_USER_ONLY
 # user emulator name

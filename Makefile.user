@@ -11,6 +11,7 @@ $(call set-vpath, $(SRC_PATH))
 QEMU_CFLAGS+=-I..
 QEMU_CFLAGS += -I$(SRC_PATH)/include
 QEMU_CFLAGS += -DCONFIG_USER_ONLY
+QEMU_CFLAGS+=-I$(SRC_PATH)/hw/pci -I$(SRC_PATH)/hw
 
 include $(SRC_PATH)/Makefile.objs
 
