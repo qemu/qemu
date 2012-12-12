@@ -2,14 +2,10 @@
 #define QEMU_PCI_INTERNALS_H
 
 /*
- * This header files is private to pci.c and pci_bridge.c
- * So following structures are opaque to others and shouldn't be
- * accessed.
+ * PCI Bus and Bridge datastructures.
  *
- * For pci-to-pci bridge needs to include this header file to embed
- * PCIBridge in its structure or to get sizeof(PCIBridge),
- * However, they shouldn't access those following members directly.
- * Use accessor function in pci.h, pci_bridge.h
+ * Do not access the following members directly;
+ * use accessor functions in pci.h, pci_bridge.h
  */
 
 #define TYPE_PCI_BUS "PCI"
