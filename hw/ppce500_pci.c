@@ -87,6 +87,7 @@ struct PPCE500PCIState {
     struct pci_inbound pib[PPCE500_PCI_NR_PIBS];
     uint32_t gasket_time;
     qemu_irq irq[4];
+    uint32_t first_slot;
     /* mmio maps */
     MemoryRegion container;
     MemoryRegion iomem;
@@ -361,7 +362,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 
     b = pci_register_bus(DEVICE(dev), NULL, mpc85xx_pci_set_irq,
                          mpc85xx_pci_map_irq, s->irq, address_space_mem,
-                         &s->pio, PCI_DEVFN(0x11, 0), 4);
+                         &s->pio, PCI_DEVFN(s->first_slot, 0), 4);
     h->bus = b;
 
     pci_create_simple(b, 0, "e500-host-bridge");
@@ -401,12 +402,18 @@ static const TypeInfo e500_host_bridge_info = {
     .class_init    = e500_host_bridge_class_init,
 };
 
+static Property pcihost_properties[] = {
+    DEFINE_PROP_UINT32("first_slot", PPCE500PCIState, first_slot, 0x11),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void e500_pcihost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = e500_pcihost_initfn;
+    dc->props = pcihost_properties;
     dc->vmsd = &vmstate_ppce500_pci;
 }
 
