@@ -24,7 +24,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bridge.h"
-#include "hw/pci/pci_internals.h"
+#include "hw/pci/pci_bus.h"
 #include "monitor.h"
 #include "net.h"
 #include "sysemu.h"

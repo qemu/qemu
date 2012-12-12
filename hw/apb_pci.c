@@ -30,7 +30,7 @@
 #include "pci/pci.h"
 #include "pci/pci_host.h"
 #include "pci/pci_bridge.h"
-#include "pci/pci_internals.h"
+#include "pci/pci_bus.h"
 #include "apb_pci.h"
 #include "sysemu.h"
 #include "exec-memory.h"

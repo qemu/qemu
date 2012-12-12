@@ -42,7 +42,7 @@
 #include "acpi.h"
 #include "acpi_ich9.h"
 #include "pam.h"
-#include "pci/pci_internals.h"
+#include "pci/pci_bus.h"
 #include "exec-memory.h"
 #include "sysemu.h"
 

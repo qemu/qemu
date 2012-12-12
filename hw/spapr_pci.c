@@ -33,7 +33,7 @@
 #include <libfdt.h>
 #include "trace.h"
 
-#include "hw/pci/pci_internals.h"
+#include "hw/pci/pci_bus.h"
 
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0

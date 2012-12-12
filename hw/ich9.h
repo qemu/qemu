@@ -14,7 +14,7 @@
 #include "acpi.h"
 #include "acpi_ich9.h"
 #include "pam.h"
-#include "pci/pci_internals.h"
+#include "pci/pci_bus.h"
 
 void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);

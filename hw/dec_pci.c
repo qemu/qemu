@@ -28,7 +28,7 @@
 #include "pci/pci.h"
 #include "pci/pci_host.h"
 #include "pci/pci_bridge.h"
-#include "pci/pci_internals.h"
+#include "pci/pci_bus.h"
 
 /* debug DEC */
 //#define DEBUG_DEC

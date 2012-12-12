@@ -25,7 +25,7 @@
 #include "pci/shpc.h"
 #include "pci/slotid_cap.h"
 #include "memory.h"
-#include "pci/pci_internals.h"
+#include "pci/pci_bus.h"
 
 #define REDHAT_PCI_VENDOR_ID 0x1b36
 #define PCI_BRIDGE_DEV_VENDOR_ID REDHAT_PCI_VENDOR_ID
