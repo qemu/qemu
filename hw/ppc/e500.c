@@ -66,25 +66,33 @@ struct boot_info
     uint32_t entry;
 };
 
-static void pci_map_create(void *fdt, uint32_t *pci_map, uint32_t mpic)
+static uint32_t *pci_map_create(void *fdt, uint32_t mpic, int first_slot,
+                                int nr_slots, int *len)
 {
-    int i;
-    const uint32_t tmp[] = {
-                             /* IDSEL 0x11 J17 Slot 1 */
-                             0x8800, 0x0, 0x0, 0x1, mpic, 0x2, 0x1,
-                             0x8800, 0x0, 0x0, 0x2, mpic, 0x3, 0x1,
-                             0x8800, 0x0, 0x0, 0x3, mpic, 0x4, 0x1,
-                             0x8800, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
+    int i = 0;
+    int slot;
+    int pci_irq;
+    int last_slot = first_slot + nr_slots;
+    uint32_t *pci_map;
 
-                             /* IDSEL 0x12 J16 Slot 2 */
-                             0x9000, 0x0, 0x0, 0x1, mpic, 0x3, 0x1,
-                             0x9000, 0x0, 0x0, 0x2, mpic, 0x4, 0x1,
-                             0x9000, 0x0, 0x0, 0x3, mpic, 0x2, 0x1,
-                             0x9000, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
-                           };
-    for (i = 0; i < (7 * 8); i++) {
-        pci_map[i] = cpu_to_be32(tmp[i]);
+    *len = nr_slots * 4 * 7 * sizeof(uint32_t);
+    pci_map = g_malloc(*len);
+
+    for (slot = first_slot; slot < last_slot; slot++) {
+        for (pci_irq = 0; pci_irq < 4; pci_irq++) {
+            pci_map[i++] = cpu_to_be32(slot << 11);
+            pci_map[i++] = cpu_to_be32(0x0);
+            pci_map[i++] = cpu_to_be32(0x0);
+            pci_map[i++] = cpu_to_be32(pci_irq + 1);
+            pci_map[i++] = cpu_to_be32(mpic);
+            pci_map[i++] = cpu_to_be32(((pci_irq + slot) % 4) + 1);
+            pci_map[i++] = cpu_to_be32(0x1);
+        }
     }
+
+    assert((i * sizeof(uint32_t)) == *len);
+
+    return pci_map;
 }
 
 static void dt_serial_create(void *fdt, unsigned long long offset,
@@ -132,7 +140,8 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     char gutil[128];
     char pci[128];
     char msi[128];
-    uint32_t pci_map[7 * 8];
+    uint32_t *pci_map = NULL;
+    int len;
     uint32_t pci_ranges[14] =
         {
             0x2000000, 0x0, 0xc0000000,
@@ -329,8 +338,9 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_string(fdt, pci, "device_type", "pci");
     qemu_devtree_setprop_cells(fdt, pci, "interrupt-map-mask", 0xf800, 0x0,
                                0x0, 0x7);
-    pci_map_create(fdt, pci_map, qemu_devtree_get_phandle(fdt, mpic));
-    qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, sizeof(pci_map));
+    pci_map = pci_map_create(fdt, qemu_devtree_get_phandle(fdt, mpic),
+                             0x11, 2, &len);
+    qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, len);
     qemu_devtree_setprop_phandle(fdt, pci, "interrupt-parent", mpic);
     qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2);
     qemu_devtree_setprop_cells(fdt, pci, "bus-range", 0, 255);
@@ -364,6 +374,7 @@ done:
     ret = fdt_size;
 
 out:
+    g_free(pci_map);
 
     return ret;
 }
