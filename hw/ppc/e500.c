@@ -339,7 +339,8 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_cells(fdt, pci, "interrupt-map-mask", 0xf800, 0x0,
                                0x0, 0x7);
     pci_map = pci_map_create(fdt, qemu_devtree_get_phandle(fdt, mpic),
-                             0x11, 2, &len);
+                             params->pci_first_slot, params->pci_nr_slots,
+                             &len);
     qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, len);
     qemu_devtree_setprop_phandle(fdt, pci, "interrupt-parent", mpic);
     qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2);
@@ -569,6 +570,7 @@ void ppce500_init(PPCE500Params *params)
 
     /* PCI */
     dev = qdev_create(NULL, "e500-pcihost");
+    qdev_prop_set_uint32(dev, "first_slot", params->pci_first_slot);
     qdev_init_nofail(dev);
     s = SYS_BUS_DEVICE(dev);
     sysbus_connect_irq(s, 0, mpic[pci_irq_nrs[0]]);
