@@ -1,5 +1,5 @@
-#ifndef QEMU_PCI_INTERNALS_H
-#define QEMU_PCI_INTERNALS_H
+#ifndef QEMU_PCI_BUS_H
+#define QEMU_PCI_BUS_H
 
 /*
  * PCI Bus and Bridge datastructures.
@@ -71,4 +71,4 @@ struct PCIBridge {
     const char *bus_name;
 };
 
-#endif /* QEMU_PCI_INTERNALS_H */
+#endif /* QEMU_PCI_BUS_H */
