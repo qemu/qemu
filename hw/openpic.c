@@ -206,7 +206,6 @@ typedef struct IRQ_src_t {
 
 typedef struct IRQ_dst_t {
     uint32_t pctp; /* CPU current task priority */
-    uint32_t pcsr; /* CPU sensitivity register */
     IRQ_queue_t raised;
     IRQ_queue_t servicing;
     qemu_irq *irqs;
@@ -458,7 +457,6 @@ static void openpic_reset(DeviceState *d)
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
         opp->dst[i].pctp      = 15;
-        opp->dst[i].pcsr      = 0x00000000;
         memset(&opp->dst[i].raised, 0, sizeof(IRQ_queue_t));
         opp->dst[i].raised.next = -1;
         memset(&opp->dst[i].servicing, 0, sizeof(IRQ_queue_t));
@@ -1083,7 +1081,6 @@ static void openpic_save(QEMUFile* f, void *opaque)
 
     for (i = 0; i < opp->nb_cpus; i++) {
         qemu_put_be32s(f, &opp->dst[i].pctp);
-        qemu_put_be32s(f, &opp->dst[i].pcsr);
         openpic_save_IRQ_queue(f, &opp->dst[i].raised);
         openpic_save_IRQ_queue(f, &opp->dst[i].servicing);
     }
@@ -1130,7 +1127,6 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 
     for (i = 0; i < opp->nb_cpus; i++) {
         qemu_get_be32s(f, &opp->dst[i].pctp);
-        qemu_get_be32s(f, &opp->dst[i].pcsr);
         openpic_load_IRQ_queue(f, &opp->dst[i].raised);
         openpic_load_IRQ_queue(f, &opp->dst[i].servicing);
     }
