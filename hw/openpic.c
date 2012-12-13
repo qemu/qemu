@@ -440,8 +440,8 @@ static void openpic_reset(DeviceState *d)
 
     opp->glbc = GLBC_RESET;
     /* Initialise controller registers */
-    opp->frep = ((opp->nb_irqs -1) << FREP_NIRQ_SHIFT) |
-                ((opp->nb_cpus -1) << FREP_NCPU_SHIFT) |
+    opp->frep = ((opp->nb_irqs - 1) << FREP_NIRQ_SHIFT) |
+                ((opp->nb_cpus - 1) << FREP_NCPU_SHIFT) |
                 (opp->vid << FREP_VID_SHIFT);
 
     opp->pint = 0;
