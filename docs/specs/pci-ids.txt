@@ -33,3 +33,18 @@ maintained as part of the virtio specification.
 1af4:1110  ivshmem device (shared memory, docs/specs/ivshmem_device_spec.txt)
 
 All other device IDs are reserved.
+
+1b36 vendor ID
+--------------
+
+The 0000 -> 00ff device ID range is used as follows for QEMU-specific
+PCI devices (other than virtio):
+
+1b36:0001  PCI-PCI bridge
+1b36:0002  PCI serial port (16550A) adapter (docs/specs/pci-serial.txt)
+1b36:0003  PCI Dual-port 16550A adapter (docs/specs/pci-serial.txt)
+1b36:0004  PCI Quad-port 16550A adapter (docs/specs/pci-serial.txt)
+
+All these devices are documented in docs/specs.
+
+The 0100 device ID is used for the QXL video card device.
