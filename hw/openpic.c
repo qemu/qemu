@@ -169,6 +169,7 @@ typedef struct IRQ_queue_t {
     uint32_t queue[BF_WIDTH(MAX_IRQ)];
     int next;
     int priority;
+    int pending;    /* nr of pending bits in queue */
 } IRQ_queue_t;
 
 typedef struct IRQ_src_t {
@@ -251,11 +252,13 @@ static void openpic_irq_raise(OpenPICState *opp, int n_CPU, IRQ_src_t *src);
 
 static inline void IRQ_setbit(IRQ_queue_t *q, int n_IRQ)
 {
+    q->pending++;
     set_bit(q->queue, n_IRQ);
 }
 
 static inline void IRQ_resetbit(IRQ_queue_t *q, int n_IRQ)
 {
+    q->pending--;
     reset_bit(q->queue, n_IRQ);
 }
 
@@ -271,6 +274,12 @@ static void IRQ_check(OpenPICState *opp, IRQ_queue_t *q)
 
     next = -1;
     priority = -1;
+
+    if (!q->pending) {
+        /* IRQ bitmap is empty */
+        goto out;
+    }
+
     for (i = 0; i < opp->max_irq; i++) {
         if (IRQ_testbit(q, i)) {
             DPRINTF("IRQ_check: irq %d set ipvp_pr=%d pr=%d\n",
@@ -281,6 +290,8 @@ static void IRQ_check(OpenPICState *opp, IRQ_queue_t *q)
             }
         }
     }
+
+out:
     q->next = next;
     q->priority = priority;
 }
