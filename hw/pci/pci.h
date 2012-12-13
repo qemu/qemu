@@ -77,6 +77,7 @@
 #define PCI_DEVICE_ID_VIRTIO_CONSOLE     0x1003
 #define PCI_DEVICE_ID_VIRTIO_SCSI        0x1004
 #define PCI_DEVICE_ID_VIRTIO_RNG         0x1005
+#define PCI_DEVICE_ID_VIRTIO_9P          0x1009
 
 #define FMT_PCIBUS                      PRIx64
 

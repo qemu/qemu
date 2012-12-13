@@ -21,6 +21,7 @@ maintained as part of the virtio specification.
 1af4:1003  console device
 1af4:1004  SCSI host bus adapter device
 1af4:1005  entropy generator device
+1af4:1009  9p filesystem device
 
 1af4:10f0  Available for experimental usage without registration.  Must get
    to      official ID when the code leaves the test lab (i.e. when seeking
