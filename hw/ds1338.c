@@ -17,6 +17,12 @@
  */
 #define NVRAM_SIZE 64
 
+/* Flags definitions */
+#define SECONDS_CH 0x80
+#define HOURS_12   0x40
+#define HOURS_PM   0x20
+#define CTRL_OSF   0x20
+
 typedef struct {
     I2CSlave i2c;
     int64_t offset;
