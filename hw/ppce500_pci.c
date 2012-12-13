@@ -19,6 +19,7 @@
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
+#include "ppce500_pci.h"
 
 #ifdef DEBUG_PCI
 #define pci_debug(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
@@ -256,7 +257,7 @@ static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
     int devno = pci_dev->devfn >> 3;
     int ret;
 
-    ret = (irq_num + devno) % 4;
+    ret = ppce500_pci_map_irq_slot(devno, irq_num);
 
     pci_debug("%s: devfn %x irq %d -> %d  devno:%x\n", __func__,
            pci_dev->devfn, irq_num, ret, devno);

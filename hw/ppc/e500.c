@@ -34,6 +34,7 @@
 #include "hw/sysbus.h"
 #include "exec-memory.h"
 #include "host-utils.h"
+#include "hw/ppce500_pci.h"
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
@@ -72,6 +73,7 @@ static uint32_t *pci_map_create(void *fdt, uint32_t mpic, int first_slot,
     int i = 0;
     int slot;
     int pci_irq;
+    int host_irq;
     int last_slot = first_slot + nr_slots;
     uint32_t *pci_map;
 
@@ -85,7 +87,8 @@ static uint32_t *pci_map_create(void *fdt, uint32_t mpic, int first_slot,
             pci_map[i++] = cpu_to_be32(0x0);
             pci_map[i++] = cpu_to_be32(pci_irq + 1);
             pci_map[i++] = cpu_to_be32(mpic);
-            pci_map[i++] = cpu_to_be32(((pci_irq + slot) % 4) + 1);
+            host_irq = ppce500_pci_map_irq_slot(slot, pci_irq);
+            pci_map[i++] = cpu_to_be32(host_irq + 1);
             pci_map[i++] = cpu_to_be32(0x1);
         }
     }
