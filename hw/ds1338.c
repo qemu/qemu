@@ -55,10 +55,15 @@ static void capture_current_time(DS1338State *s)
     qemu_get_timedate(&now, s->offset);
     s->nvram[0] = to_bcd(now.tm_sec);
     s->nvram[1] = to_bcd(now.tm_min);
-    if (s->nvram[2] & 0x40) {
-        s->nvram[2] = (to_bcd((now.tm_hour % 12)) + 1) | 0x40;
-        if (now.tm_hour >= 12) {
-            s->nvram[2] |= 0x20;
+    if (s->nvram[2] & HOURS_12) {
+        int tmp = now.tm_hour;
+        if (tmp == 0) {
+            tmp = 24;
+        }
+        if (tmp <= 12) {
+            s->nvram[2] = HOURS_12 | to_bcd(tmp);
+        } else {
+            s->nvram[2] = HOURS_12 | HOURS_PM | to_bcd(tmp - 12);
         }
     } else {
         s->nvram[2] = to_bcd(now.tm_hour);
@@ -132,16 +137,18 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             now.tm_min = from_bcd(data & 0x7f);
             break;
         case 2:
-            if (data & 0x40) {
-                if (data & 0x20) {
-                    data = from_bcd(data & 0x4f) + 11;
-                } else {
-                    data = from_bcd(data & 0x1f) - 1;
+            if (data & HOURS_12) {
+                int tmp = from_bcd(data & (HOURS_PM - 1));
+                if (data & HOURS_PM) {
+                    tmp += 12;
                 }
+                if (tmp == 24) {
+                    tmp = 0;
+                }
+                now.tm_hour = tmp;
             } else {
-                data = from_bcd(data);
+                now.tm_hour = from_bcd(data & (HOURS_12 - 1));
             }
-            now.tm_hour = data;
             break;
         case 3:
             now.tm_wday = from_bcd(data & 7) - 1;
