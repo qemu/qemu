@@ -398,10 +398,14 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
         qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                  req->elem.out_num - 1);
         virtio_blk_handle_write(req, mrb);
-    } else {
+    } else if (type == VIRTIO_BLK_T_IN || type == VIRTIO_BLK_T_BARRIER) {
+        /* VIRTIO_BLK_T_IN is 0, so we can't just & it. */
         qemu_iovec_init_external(&req->qiov, &req->elem.in_sg[0],
                                  req->elem.in_num - 1);
         virtio_blk_handle_read(req);
+    } else {
+        virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+        g_free(req);
     }
 }
 
