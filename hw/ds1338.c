@@ -26,6 +26,7 @@
 typedef struct {
     I2CSlave i2c;
     int64_t offset;
+    uint8_t wday_offset;
     uint8_t nvram[NVRAM_SIZE];
     int32_t ptr;
     bool addr_byte;
@@ -33,12 +34,13 @@ typedef struct {
 
 static const VMStateDescription vmstate_ds1338 = {
     .name = "ds1338",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_I2C_SLAVE(i2c, DS1338State),
         VMSTATE_INT64(offset, DS1338State),
+        VMSTATE_UINT8_V(wday_offset, DS1338State, 2),
         VMSTATE_UINT8_ARRAY(nvram, DS1338State, NVRAM_SIZE),
         VMSTATE_INT32(ptr, DS1338State),
         VMSTATE_BOOL(addr_byte, DS1338State),
@@ -68,7 +70,7 @@ static void capture_current_time(DS1338State *s)
     } else {
         s->nvram[2] = to_bcd(now.tm_hour);
     }
-    s->nvram[3] = to_bcd(now.tm_wday + 1);
+    s->nvram[3] = (now.tm_wday + s->wday_offset) % 7 + 1;
     s->nvram[4] = to_bcd(now.tm_mday);
     s->nvram[5] = to_bcd(now.tm_mon + 1);
     s->nvram[6] = to_bcd(now.tm_year - 100);
@@ -152,7 +154,13 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             }
             break;
         case 3:
-            now.tm_wday = from_bcd(data & 7) - 1;
+            {
+                /* The day field is supposed to contain a value in
+                   the range 1-7. Otherwise behavior is undefined.
+                 */
+                int user_wday = (data & 7) - 1;
+                s->wday_offset = (user_wday - now.tm_wday + 7) % 7;
+            }
             break;
         case 4:
             now.tm_mday = from_bcd(data & 0x3f);
@@ -194,6 +202,7 @@ static void ds1338_reset(DeviceState *dev)
 
     /* The clock is running and synchronized with the host */
     s->offset = 0;
+    s->wday_offset = 0;
     memset(s->nvram, 0, NVRAM_SIZE);
     s->ptr = 0;
     s->addr_byte = false;
