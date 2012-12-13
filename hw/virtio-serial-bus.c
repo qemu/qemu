@@ -1038,6 +1038,7 @@ void virtio_serial_exit(VirtIODevice *vdev)
     g_free(vser->ports_map);
     if (vser->post_load) {
         g_free(vser->post_load->connected);
+        qemu_del_timer(vser->post_load->timer);
         qemu_free_timer(vser->post_load->timer);
         g_free(vser->post_load);
     }
