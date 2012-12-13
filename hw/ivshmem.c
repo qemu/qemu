@@ -29,6 +29,9 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 
+#define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
+#define PCI_DEVICE_ID_IVSHMEM   0x1110
+
 #define IVSHMEM_IOEVENTFD   0
 #define IVSHMEM_MSI     1
 
@@ -800,8 +803,8 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_ivshmem_init;
     k->exit = pci_ivshmem_uninit;
-    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
-    k->device_id = 0x1110;
+    k->vendor_id = PCI_VENDOR_ID_IVSHMEM;
+    k->device_id = PCI_DEVICE_ID_IVSHMEM;
     k->class_id = PCI_CLASS_MEMORY_RAM;
     dc->reset = ivshmem_reset;
     dc->props = ivshmem_properties;
