@@ -125,7 +125,8 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
         s->addr_byte = false;
         return 0;
     }
-    if (s->ptr < 8) {
+    if (s->ptr < 7) {
+        /* Time register. */
         struct tm now;
         qemu_get_timedate(&now, s->offset);
         switch(s->ptr) {
@@ -162,11 +163,19 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
         case 6:
             now.tm_year = from_bcd(data) + 100;
             break;
-        case 7:
-            /* Control register. Currently ignored.  */
-            break;
         }
         s->offset = qemu_timedate_diff(&now);
+    } else if (s->ptr == 7) {
+        /* Control register. */
+
+        /* Ensure bits 2, 3 and 6 will read back as zero. */
+        data &= 0xB3;
+
+        /* Attempting to write the OSF flag to logic 1 leaves the
+           value unchanged. */
+        data = (data & ~CTRL_OSF) | (data & s->nvram[s->ptr] & CTRL_OSF);
+
+        s->nvram[s->ptr] = data;
     } else {
         s->nvram[s->ptr] = data;
     }
