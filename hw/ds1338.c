@@ -179,6 +179,17 @@ static int ds1338_init(I2CSlave *i2c)
     return 0;
 }
 
+static void ds1338_reset(DeviceState *dev)
+{
+    DS1338State *s = FROM_I2C_SLAVE(DS1338State, I2C_SLAVE_FROM_QDEV(dev));
+
+    /* The clock is running and synchronized with the host */
+    s->offset = 0;
+    memset(s->nvram, 0, NVRAM_SIZE);
+    s->ptr = 0;
+    s->addr_byte = false;
+}
+
 static void ds1338_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -188,6 +199,7 @@ static void ds1338_class_init(ObjectClass *klass, void *data)
     k->event = ds1338_event;
     k->recv = ds1338_recv;
     k->send = ds1338_send;
+    dc->reset = ds1338_reset;
     dc->vmsd = &vmstate_ds1338;
 }
 
