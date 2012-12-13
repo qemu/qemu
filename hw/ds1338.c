@@ -57,9 +57,9 @@ static void capture_current_time(DS1338State *s)
     } else {
         s->nvram[2] = to_bcd(now.tm_hour);
     }
-    s->nvram[3] = to_bcd(now.tm_wday) + 1;
+    s->nvram[3] = to_bcd(now.tm_wday + 1);
     s->nvram[4] = to_bcd(now.tm_mday);
-    s->nvram[5] = to_bcd(now.tm_mon) + 1;
+    s->nvram[5] = to_bcd(now.tm_mon + 1);
     s->nvram[6] = to_bcd(now.tm_year - 100);
 }
 
