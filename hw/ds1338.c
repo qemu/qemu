@@ -17,9 +17,16 @@
  */
 #define NVRAM_SIZE 64
 
+/* Flags definitions */
+#define SECONDS_CH 0x80
+#define HOURS_12   0x40
+#define HOURS_PM   0x20
+#define CTRL_OSF   0x20
+
 typedef struct {
     I2CSlave i2c;
     int64_t offset;
+    uint8_t wday_offset;
     uint8_t nvram[NVRAM_SIZE];
     int32_t ptr;
     bool addr_byte;
@@ -27,12 +34,13 @@ typedef struct {
 
 static const VMStateDescription vmstate_ds1338 = {
     .name = "ds1338",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
         VMSTATE_I2C_SLAVE(i2c, DS1338State),
         VMSTATE_INT64(offset, DS1338State),
+        VMSTATE_UINT8_V(wday_offset, DS1338State, 2),
         VMSTATE_UINT8_ARRAY(nvram, DS1338State, NVRAM_SIZE),
         VMSTATE_INT32(ptr, DS1338State),
         VMSTATE_BOOL(addr_byte, DS1338State),
@@ -49,17 +57,22 @@ static void capture_current_time(DS1338State *s)
     qemu_get_timedate(&now, s->offset);
     s->nvram[0] = to_bcd(now.tm_sec);
     s->nvram[1] = to_bcd(now.tm_min);
-    if (s->nvram[2] & 0x40) {
-        s->nvram[2] = (to_bcd((now.tm_hour % 12)) + 1) | 0x40;
-        if (now.tm_hour >= 12) {
-            s->nvram[2] |= 0x20;
+    if (s->nvram[2] & HOURS_12) {
+        int tmp = now.tm_hour;
+        if (tmp == 0) {
+            tmp = 24;
+        }
+        if (tmp <= 12) {
+            s->nvram[2] = HOURS_12 | to_bcd(tmp);
+        } else {
+            s->nvram[2] = HOURS_12 | HOURS_PM | to_bcd(tmp - 12);
         }
     } else {
         s->nvram[2] = to_bcd(now.tm_hour);
     }
-    s->nvram[3] = to_bcd(now.tm_wday) + 1;
+    s->nvram[3] = (now.tm_wday + s->wday_offset) % 7 + 1;
     s->nvram[4] = to_bcd(now.tm_mday);
-    s->nvram[5] = to_bcd(now.tm_mon) + 1;
+    s->nvram[5] = to_bcd(now.tm_mon + 1);
     s->nvram[6] = to_bcd(now.tm_year - 100);
 }
 
@@ -114,7 +127,8 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
         s->addr_byte = false;
         return 0;
     }
-    if (s->ptr < 8) {
+    if (s->ptr < 7) {
+        /* Time register. */
         struct tm now;
         qemu_get_timedate(&now, s->offset);
         switch(s->ptr) {
@@ -126,19 +140,27 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             now.tm_min = from_bcd(data & 0x7f);
             break;
         case 2:
-            if (data & 0x40) {
-                if (data & 0x20) {
-                    data = from_bcd(data & 0x4f) + 11;
-                } else {
-                    data = from_bcd(data & 0x1f) - 1;
+            if (data & HOURS_12) {
+                int tmp = from_bcd(data & (HOURS_PM - 1));
+                if (data & HOURS_PM) {
+                    tmp += 12;
                 }
+                if (tmp == 24) {
+                    tmp = 0;
+                }
+                now.tm_hour = tmp;
             } else {
-                data = from_bcd(data);
+                now.tm_hour = from_bcd(data & (HOURS_12 - 1));
             }
-            now.tm_hour = data;
             break;
         case 3:
-            now.tm_wday = from_bcd(data & 7) - 1;
+            {
+                /* The day field is supposed to contain a value in
+                   the range 1-7. Otherwise behavior is undefined.
+                 */
+                int user_wday = (data & 7) - 1;
+                s->wday_offset = (user_wday - now.tm_wday + 7) % 7;
+            }
             break;
         case 4:
             now.tm_mday = from_bcd(data & 0x3f);
@@ -149,11 +171,19 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
         case 6:
             now.tm_year = from_bcd(data) + 100;
             break;
-        case 7:
-            /* Control register. Currently ignored.  */
-            break;
         }
         s->offset = qemu_timedate_diff(&now);
+    } else if (s->ptr == 7) {
+        /* Control register. */
+
+        /* Ensure bits 2, 3 and 6 will read back as zero. */
+        data &= 0xB3;
+
+        /* Attempting to write the OSF flag to logic 1 leaves the
+           value unchanged. */
+        data = (data & ~CTRL_OSF) | (data & s->nvram[s->ptr] & CTRL_OSF);
+
+        s->nvram[s->ptr] = data;
     } else {
         s->nvram[s->ptr] = data;
     }
@@ -166,6 +196,18 @@ static int ds1338_init(I2CSlave *i2c)
     return 0;
 }
 
+static void ds1338_reset(DeviceState *dev)
+{
+    DS1338State *s = FROM_I2C_SLAVE(DS1338State, I2C_SLAVE_FROM_QDEV(dev));
+
+    /* The clock is running and synchronized with the host */
+    s->offset = 0;
+    s->wday_offset = 0;
+    memset(s->nvram, 0, NVRAM_SIZE);
+    s->ptr = 0;
+    s->addr_byte = false;
+}
+
 static void ds1338_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -175,6 +217,7 @@ static void ds1338_class_init(ObjectClass *klass, void *data)
     k->event = ds1338_event;
     k->recv = ds1338_recv;
     k->send = ds1338_send;
+    dc->reset = ds1338_reset;
     dc->vmsd = &vmstate_ds1338;
 }
 

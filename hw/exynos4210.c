@@ -80,12 +80,16 @@ void exynos4210_write_secondary(ARMCPU *cpu,
 {
     int n;
     uint32_t smpboot[] = {
-        0xe59f3024, /* ldr r3, External gic_cpu_if */
-        0xe59f2024, /* ldr r2, Internal gic_cpu_if */
-        0xe59f0024, /* ldr r0, startaddr */
+        0xe59f3034, /* ldr r3, External gic_cpu_if */
+        0xe59f2034, /* ldr r2, Internal gic_cpu_if */
+        0xe59f0034, /* ldr r0, startaddr */
         0xe3a01001, /* mov r1, #1 */
         0xe5821000, /* str r1, [r2] */
         0xe5831000, /* str r1, [r3] */
+        0xe3a010ff, /* mov r1, #0xff */
+        0xe5821004, /* str r1, [r2, #4] */
+        0xe5831004, /* str r1, [r3, #4] */
+        0xf57ff04f, /* dsb */
         0xe320f003, /* wfi */
         0xe5901000, /* ldr     r1, [r0] */
         0xe1110001, /* tst     r1, r1 */

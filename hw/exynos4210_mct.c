@@ -568,7 +568,7 @@ static void exynos4210_gfrc_event(void *opaque)
     /* Reload FRC to reach nearest comparator */
     s->g_timer.curr_comp = exynos4210_gcomp_find(s);
     distance = exynos4210_gcomp_get_distance(s, s->g_timer.curr_comp);
-    if (distance > MCT_GT_COUNTER_STEP) {
+    if (distance > MCT_GT_COUNTER_STEP || !distance) {
         distance = MCT_GT_COUNTER_STEP;
     }
     exynos4210_gfrc_set_count(&s->g_timer, distance);

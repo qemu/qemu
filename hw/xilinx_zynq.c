@@ -57,6 +57,7 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
     DeviceState *dev;
     SysBusDevice *busdev;
     SSIBus *spi;
+    DeviceState *flash_dev;
     int i, j;
     int num_busses =  is_qspi ? NUM_QSPI_BUSSES : 1;
     int num_ss = is_qspi ? NUM_QSPI_FLASHES : NUM_SPI_FLASHES;
@@ -81,11 +82,11 @@ static inline void zynq_init_spi_flashes(uint32_t base_addr, qemu_irq irq,
         spi = (SSIBus *)qdev_get_child_bus(dev, bus_name);
 
         for (j = 0; j < num_ss; ++j) {
-            dev = ssi_create_slave_no_init(spi, "m25p80");
-            qdev_prop_set_string(dev, "partname", "n25q128");
-            qdev_init_nofail(dev);
+            flash_dev = ssi_create_slave_no_init(spi, "m25p80");
+            qdev_prop_set_string(flash_dev, "partname", "n25q128");
+            qdev_init_nofail(flash_dev);
 
-            cs_line = qdev_get_gpio_in(dev, 0);
+            cs_line = qdev_get_gpio_in(flash_dev, 0);
             sysbus_connect_irq(busdev, i * num_ss + j + 1, cs_line);
         }
     }

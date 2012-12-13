@@ -73,7 +73,7 @@ void gic_update(GICState *s)
             }
         }
         level = 0;
-        if (best_prio <= s->priority_mask[cpu]) {
+        if (best_prio < s->priority_mask[cpu]) {
             s->current_pending[cpu] = best_irq;
             if (best_prio < s->running_priority[cpu]) {
                 DPRINTF("Raised pending IRQ %d\n", best_irq);
@@ -374,7 +374,8 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
           value = 0xff;
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
-                int mask = (irq < GIC_INTERNAL) ? (1 << cpu) : GIC_TARGET(irq);
+                int mask =
+                    (irq < GIC_INTERNAL) ? (1 << cpu) : GIC_TARGET(irq + i);
                 int cm = (irq < GIC_INTERNAL) ? (1 << cpu) : ALL_CPU_MASK;
 
                 if (!GIC_TEST_ENABLED(irq + i, cm)) {
@@ -417,7 +418,7 @@ static void gic_dist_writeb(void *opaque, hwaddr offset,
 
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
-                GIC_SET_PENDING(irq + i, GIC_TARGET(irq));
+                GIC_SET_PENDING(irq + i, GIC_TARGET(irq + i));
             }
         }
     } else if (offset < 0x300) {
