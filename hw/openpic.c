@@ -51,7 +51,6 @@
 #define MAX_CPU     15
 #define MAX_SRC     256
 #define MAX_TMR     4
-#define VECTOR_BITS 8
 #define MAX_IPI     4
 #define MAX_MSI     8
 #define MAX_IRQ     (MAX_SRC + MAX_IPI + MAX_TMR)
@@ -197,8 +196,7 @@ typedef struct IRQ_src_t {
 
 #define IPVP_PRIORITY_MASK     (0xF << 16)
 #define IPVP_PRIORITY(_ipvpr_) ((int)(((_ipvpr_) & IPVP_PRIORITY_MASK) >> 16))
-#define IPVP_VECTOR_MASK       ((1 << VECTOR_BITS) - 1)
-#define IPVP_VECTOR(_ipvpr_)   ((_ipvpr_) & IPVP_VECTOR_MASK)
+#define IPVP_VECTOR(opp, _ipvpr_) ((_ipvpr_) & (opp)->vector_mask)
 
 /* IDE[EP/CI] are only for FSL MPIC prior to v4.0 */
 #define IDE_EP      0x80000000  /* external pin */
@@ -221,7 +219,7 @@ typedef struct OpenPICState {
     uint32_t nb_irqs;
     uint32_t vid;
     uint32_t veni; /* Vendor identification register */
-    uint32_t spve_mask;
+    uint32_t vector_mask;
     uint32_t tifr_reset;
     uint32_t ipvp_reset;
     uint32_t ide_reset;
@@ -447,7 +445,7 @@ static void openpic_reset(DeviceState *d)
                 (opp->vid << FREP_VID_SHIFT);
 
     opp->pint = 0;
-    opp->spve = -1 & opp->spve_mask;
+    opp->spve = -1 & opp->vector_mask;
     opp->tifr = opp->tifr_reset;
     /* Initialise IRQ sources */
     for (i = 0; i < opp->max_irq; i++) {
@@ -496,7 +494,7 @@ static inline void write_IRQreg_ipvp(OpenPICState *opp, int n_IRQ, uint32_t val)
     /* NOTE: not fully accurate for special IRQs, but simple and sufficient */
     /* ACTIVITY bit is read-only */
     opp->src[n_IRQ].ipvp = (opp->src[n_IRQ].ipvp & IPVP_ACTIVITY_MASK) |
-        (val & (IPVP_MASK_MASK | IPVP_PRIORITY_MASK | IPVP_VECTOR_MASK));
+        (val & (IPVP_MASK_MASK | IPVP_PRIORITY_MASK | opp->vector_mask));
     openpic_update_irq(opp, n_IRQ);
     DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
             opp->src[n_IRQ].ipvp);
@@ -559,7 +557,7 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
         }
         break;
     case 0x10E0: /* SPVE */
-        opp->spve = val & opp->spve_mask;
+        opp->spve = val & opp->vector_mask;
         break;
     default:
         break;
@@ -896,7 +894,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
         DPRINTF("PIAC: irq=%d\n", n_IRQ);
         if (n_IRQ == -1) {
             /* No more interrupt pending */
-            retval = IPVP_VECTOR(opp->spve);
+            retval = opp->spve;
         } else {
             src = &opp->src[n_IRQ];
             if (!(src->ipvp & IPVP_ACTIVITY_MASK) ||
@@ -906,11 +904,11 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
                  *   and the pending IRQ isn't allowed anymore
                  */
                 src->ipvp &= ~IPVP_ACTIVITY_MASK;
-                retval = IPVP_VECTOR(opp->spve);
+                retval = opp->spve;
             } else {
                 /* IRQ enter servicing state */
                 IRQ_setbit(&dst->servicing, n_IRQ);
-                retval = IPVP_VECTOR(src->ipvp);
+                retval = IPVP_VECTOR(opp, src->ipvp);
             }
             IRQ_resetbit(&dst->raised, n_IRQ);
             dst->raised.next = -1;
@@ -1195,7 +1193,7 @@ static int openpic_init(SysBusDevice *dev)
         opp->nb_irqs = 80;
         opp->vid = VID_REVISION_1_2;
         opp->veni = VENI_GENERIC;
-        opp->spve_mask = 0xFFFF;
+        opp->vector_mask = 0xFFFF;
         opp->tifr_reset = 0;
         opp->ipvp_reset = IPVP_MASK_MASK;
         opp->ide_reset = 1 << 0;
@@ -1211,7 +1209,7 @@ static int openpic_init(SysBusDevice *dev)
         opp->nb_irqs = RAVEN_MAX_EXT;
         opp->vid = VID_REVISION_1_3;
         opp->veni = VENI_GENERIC;
-        opp->spve_mask = 0xFF;
+        opp->vector_mask = 0xFF;
         opp->tifr_reset = 4160000;
         opp->ipvp_reset = IPVP_MASK_MASK | IPVP_MODE_MASK;
         opp->ide_reset = 0;
