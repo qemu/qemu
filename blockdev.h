@@ -19,8 +19,13 @@ void blockdev_auto_del(BlockDriverState *bs);
 
 typedef enum {
     IF_DEFAULT = -1,            /* for use with drive_add() only */
+    /*
+     * IF_IDE must be zero, because we want QEMUMachine member
+     * block_default_type to default-initialize to IF_IDE
+     */
+    IF_IDE = 0,
     IF_NONE,
-    IF_IDE, IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
+    IF_SCSI, IF_FLOPPY, IF_PFLASH, IF_MTD, IF_SD, IF_VIRTIO, IF_XEN,
     IF_COUNT
 } BlockInterfaceType;
 
@@ -51,7 +56,7 @@ DriveInfo *drive_get_by_blockdev(BlockDriverState *bs);
 QemuOpts *drive_def(const char *optstr);
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
                     const char *optstr);
-DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi);
+DriveInfo *drive_init(QemuOpts *arg, BlockInterfaceType block_default_type);
 
 /* device-hotplug */
 

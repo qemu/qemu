@@ -343,9 +343,9 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
 
-int bdrv_img_create(const char *filename, const char *fmt,
-                    const char *base_filename, const char *base_fmt,
-                    char *options, uint64_t img_size, int flags);
+void bdrv_img_create(const char *filename, const char *fmt,
+                     const char *base_filename, const char *base_fmt,
+                     char *options, uint64_t img_size, int flags, Error **errp);
 
 void bdrv_set_buffer_alignment(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
@@ -430,5 +430,10 @@ typedef enum {
 
 #define BLKDBG_EVENT(bs, evt) bdrv_debug_event(bs, evt)
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
+
+int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
+                           const char *tag);
+int bdrv_debug_resume(BlockDriverState *bs, const char *tag);
+bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 
 #endif

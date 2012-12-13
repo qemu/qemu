@@ -886,9 +886,9 @@ static int cleanup_add_fd(QemuOpts *opts, void *opaque)
 
 static int drive_init_func(QemuOpts *opts, void *opaque)
 {
-    int *use_scsi = opaque;
+    BlockInterfaceType *block_default_type = opaque;
 
-    return drive_init(opts, *use_scsi) == NULL;
+    return drive_init(opts, *block_default_type) == NULL;
 }
 
 static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
@@ -899,15 +899,10 @@ static int drive_enable_snapshot(QemuOpts *opts, void *opaque)
     return 0;
 }
 
-static void default_drive(int enable, int snapshot, int use_scsi,
-                          BlockInterfaceType type, int index,
-                          const char *optstr)
+static void default_drive(int enable, int snapshot, BlockInterfaceType type,
+                          int index, const char *optstr)
 {
     QemuOpts *opts;
-
-    if (type == IF_DEFAULT) {
-        type = use_scsi ? IF_SCSI : IF_IDE;
-    }
 
     if (!enable || drive_get_by_index(type, index)) {
         return;
@@ -917,7 +912,7 @@ static void default_drive(int enable, int snapshot, int use_scsi,
     if (snapshot) {
         drive_enable_snapshot(opts, NULL);
     }
-    if (!drive_init(opts, use_scsi)) {
+    if (!drive_init(opts, type)) {
         exit(1);
     }
 }
@@ -2001,7 +1996,7 @@ static int balloon_parse(const char *arg)
                 return  -1;
         } else {
             /* create empty opts */
-            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0, NULL);
+            opts = qemu_opts_create_nofail(qemu_find_opts("device"));
         }
         qemu_opt_set(opts, "driver", "virtio-balloon");
         return 0;
@@ -2251,14 +2246,14 @@ static int virtcon_parse(const char *devname)
         exit(1);
     }
 
-    bus_opts = qemu_opts_create(device, NULL, 0, NULL);
+    bus_opts = qemu_opts_create_nofail(device);
     if (arch_type == QEMU_ARCH_S390X) {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-s390");
     } else {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-pci");
     } 
 
-    dev_opts = qemu_opts_create(device, NULL, 0, NULL);
+    dev_opts = qemu_opts_create_nofail(device);
     qemu_opt_set(dev_opts, "driver", "virtconsole");
 
     snprintf(label, sizeof(label), "virtcon%d", index);
@@ -3110,8 +3105,7 @@ int main(int argc, char **argv, char **envp)
 
                 qemu_opt_set_bool(fsdev, "readonly",
                                 qemu_opt_get_bool(opts, "readonly", 0));
-                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
-                                          NULL);
+                device = qemu_opts_create_nofail(qemu_find_opts("device"));
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev",
                              qemu_opt_get(opts, "mount_tag"));
@@ -3131,8 +3125,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 qemu_opt_set(fsdev, "fsdriver", "synth");
 
-                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
-                                          NULL);
+                device = qemu_opts_create_nofail(qemu_find_opts("device"));
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev", "v_synth");
                 qemu_opt_set(device, "mount_tag", "v_synth");
@@ -3770,15 +3763,15 @@ int main(int argc, char **argv, char **envp)
     /* open the virtual block devices */
     if (snapshot)
         qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot, NULL, 0);
-    if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func, &machine->use_scsi, 1) != 0)
+    if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
+                          &machine->block_default_type, 1) != 0) {
         exit(1);
+    }
 
-    default_drive(default_cdrom, snapshot, machine->use_scsi,
-                  IF_DEFAULT, 2, CDROM_OPTS);
-    default_drive(default_floppy, snapshot, machine->use_scsi,
-                  IF_FLOPPY, 0, FD_OPTS);
-    default_drive(default_sdcard, snapshot, machine->use_scsi,
-                  IF_SD, 0, SD_OPTS);
+    default_drive(default_cdrom, snapshot, machine->block_default_type, 2,
+                  CDROM_OPTS);
+    default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
+    default_drive(default_sdcard, snapshot, IF_SD, 0, SD_OPTS);
 
     register_savevm_live(NULL, "ram", 0, 4, &savevm_ram_handlers, NULL);
 

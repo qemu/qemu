@@ -15,6 +15,14 @@
 
 AioContext *ctx;
 
+/* Wait until there are no more BHs or AIO requests */
+static void wait_for_aio(void)
+{
+    while (aio_poll(ctx, true)) {
+        /* Do nothing */
+    }
+}
+
 /* Simple callbacks for testing.  */
 
 typedef struct {
@@ -78,14 +86,6 @@ static void test_notify(void)
     g_assert(!aio_poll(ctx, false));
 }
 
-static void test_flush(void)
-{
-    g_assert(!aio_poll(ctx, false));
-    aio_notify(ctx);
-    aio_flush(ctx);
-    g_assert(!aio_poll(ctx, false));
-}
-
 static void test_bh_schedule(void)
 {
     BHTestData data = { .n = 0 };
@@ -116,7 +116,7 @@ static void test_bh_schedule10(void)
     g_assert(aio_poll(ctx, true));
     g_assert_cmpint(data.n, ==, 2);
 
-    aio_flush(ctx);
+    wait_for_aio();
     g_assert_cmpint(data.n, ==, 10);
 
     g_assert(!aio_poll(ctx, false));
@@ -164,7 +164,7 @@ static void test_bh_delete_from_cb(void)
     qemu_bh_schedule(data1.bh);
     g_assert_cmpint(data1.n, ==, 0);
 
-    aio_flush(ctx);
+    wait_for_aio();
     g_assert_cmpint(data1.n, ==, data1.max);
     g_assert(data1.bh == NULL);
 
@@ -200,7 +200,7 @@ static void test_bh_delete_from_cb_many(void)
     g_assert_cmpint(data4.n, ==, 1);
     g_assert(data1.bh == NULL);
 
-    aio_flush(ctx);
+    wait_for_aio();
     g_assert_cmpint(data1.n, ==, data1.max);
     g_assert_cmpint(data2.n, ==, data2.max);
     g_assert_cmpint(data3.n, ==, data3.max);
@@ -219,7 +219,7 @@ static void test_bh_flush(void)
     qemu_bh_schedule(data.bh);
     g_assert_cmpint(data.n, ==, 0);
 
-    aio_flush(ctx);
+    wait_for_aio();
     g_assert_cmpint(data.n, ==, 1);
 
     g_assert(!aio_poll(ctx, false));
@@ -281,7 +281,7 @@ static void test_flush_event_notifier(void)
     g_assert_cmpint(data.active, ==, 9);
     g_assert(aio_poll(ctx, false));
 
-    aio_flush(ctx);
+    wait_for_aio();
     g_assert_cmpint(data.n, ==, 10);
     g_assert_cmpint(data.active, ==, 0);
     g_assert(!aio_poll(ctx, false));
@@ -325,7 +325,7 @@ static void test_wait_event_notifier_noflush(void)
     g_assert_cmpint(data.n, ==, 2);
 
     event_notifier_set(&dummy.e);
-    aio_flush(ctx);
+    wait_for_aio();
     g_assert_cmpint(data.n, ==, 2);
     g_assert_cmpint(dummy.n, ==, 1);
     g_assert_cmpint(dummy.active, ==, 0);
@@ -346,7 +346,7 @@ static void test_wait_event_notifier_noflush(void)
  * - sometimes both the AioContext and the glib main loop wake
  *   themselves up.  Hence, some "g_assert(!aio_poll(ctx, false));"
  *   are replaced by "while (g_main_context_iteration(NULL, false));".
- * - there is no exact replacement for aio_flush's blocking wait.
+ * - there is no exact replacement for a blocking wait.
  *   "while (g_main_context_iteration(NULL, true)" seems to work,
  *   but it is not documented _why_ it works.  For these tests a
  *   non-blocking loop like "while (g_main_context_iteration(NULL, false)"
@@ -637,7 +637,6 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
     g_test_add_func("/aio/notify",                  test_notify);
-    g_test_add_func("/aio/flush",                   test_flush);
     g_test_add_func("/aio/bh/schedule",             test_bh_schedule);
     g_test_add_func("/aio/bh/schedule10",           test_bh_schedule10);
     g_test_add_func("/aio/bh/cancel",               test_bh_cancel);

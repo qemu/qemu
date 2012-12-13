@@ -294,13 +294,14 @@ static int add_old_style_options(const char *fmt, QEMUOptionParameter *list,
 
 static int img_create(int argc, char **argv)
 {
-    int c, ret = 0;
+    int c;
     uint64_t img_size = -1;
     const char *fmt = "raw";
     const char *base_fmt = NULL;
     const char *filename;
     const char *base_filename = NULL;
     char *options = NULL;
+    Error *local_err = NULL;
 
     for(;;) {
         c = getopt(argc, argv, "F:b:f:he6o:");
@@ -350,23 +351,23 @@ static int img_create(int argc, char **argv)
             error_report("Invalid image size specified! You may use k, M, G or "
                   "T suffixes for ");
             error_report("kilobytes, megabytes, gigabytes and terabytes.");
-            ret = -1;
-            goto out;
+            return 1;
         }
         img_size = (uint64_t)sval;
     }
 
     if (options && is_help_option(options)) {
-        ret = print_block_option_help(filename, fmt);
-        goto out;
+        return print_block_option_help(filename, fmt);
     }
 
-    ret = bdrv_img_create(filename, fmt, base_filename, base_fmt,
-                          options, img_size, BDRV_O_FLAGS);
-out:
-    if (ret) {
+    bdrv_img_create(filename, fmt, base_filename, base_fmt,
+                    options, img_size, BDRV_O_FLAGS, &local_err);
+    if (error_is_set(&local_err)) {
+        error_report("%s", error_get_pretty(local_err));
+        error_free(local_err);
         return 1;
     }
+
     return 0;
 }
 
@@ -1933,7 +1934,7 @@ static int img_resize(int argc, char **argv)
     }
 
     /* Parse size */
-    param = qemu_opts_create(&resize_options, NULL, 0, NULL);
+    param = qemu_opts_create_nofail(&resize_options);
     if (qemu_opt_set(param, BLOCK_OPT_SIZE, size)) {
         /* Error message already printed when size parsing fails */
         ret = -1;

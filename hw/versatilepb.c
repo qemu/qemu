@@ -358,14 +358,14 @@ static QEMUMachine versatilepb_machine = {
     .name = "versatilepb",
     .desc = "ARM Versatile/PB (ARM926EJ-S)",
     .init = vpb_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static QEMUMachine versatileab_machine = {
     .name = "versatileab",
     .desc = "ARM Versatile/AB (ARM926EJ-S)",
     .init = vab_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static void versatile_machine_init(void)

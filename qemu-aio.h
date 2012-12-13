@@ -162,10 +162,6 @@ void qemu_bh_cancel(QEMUBH *bh);
  */
 void qemu_bh_delete(QEMUBH *bh);
 
-/* Flush any pending AIO operation. This function will block until all
- * outstanding AIO operations have been completed or cancelled. */
-void aio_flush(AioContext *ctx);
-
 /* Return whether there are any pending callbacks from the GSource
  * attached to the AioContext.
  *
@@ -196,7 +192,7 @@ typedef int (AioFlushHandler)(void *opaque);
 
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
- * be invoked when using either qemu_aio_wait() or qemu_aio_flush().
+ * be invoked when using qemu_aio_wait().
  *
  * Code that invokes AIO completion functions should rely on this function
  * instead of qemu_set_fd_handler[2].
@@ -211,7 +207,7 @@ void aio_set_fd_handler(AioContext *ctx,
 
 /* Register an event notifier and associated callbacks.  Behaves very similarly
  * to event_notifier_set_handler.  Unlike event_notifier_set_handler, these callbacks
- * will be invoked when using either qemu_aio_wait() or qemu_aio_flush().
+ * will be invoked when using qemu_aio_wait().
  *
  * Code that invokes AIO completion functions should rely on this function
  * instead of event_notifier_set_handler.
@@ -228,7 +224,6 @@ GSource *aio_get_g_source(AioContext *ctx);
 
 /* Functions to operate on the main QEMU AioContext.  */
 
-void qemu_aio_flush(void);
 bool qemu_aio_wait(void);
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
                                  EventNotifierHandler *io_read,

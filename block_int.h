@@ -190,6 +190,12 @@ struct BlockDriver {
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 
+    /* TODO Better pass a option string/QDict/QemuOpts to add any rule? */
+    int (*bdrv_debug_breakpoint)(BlockDriverState *bs, const char *event,
+        const char *tag);
+    int (*bdrv_debug_resume)(BlockDriverState *bs, const char *tag);
+    bool (*bdrv_debug_is_suspended)(BlockDriverState *bs, const char *tag);
+
     /*
      * Returns 1 if newly created images are guaranteed to contain only
      * zeros, 0 otherwise.

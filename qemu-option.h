@@ -126,6 +126,7 @@ int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
 void qemu_opt_set_err(QemuOpts *opts, const char *name, const char *value,
                       Error **errp);
 int qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val);
+int qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val);
 typedef int (*qemu_opt_loopfunc)(const char *name, const char *value, void *opaque);
 int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
                      int abort_on_failure);
@@ -133,6 +134,7 @@ int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
 QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id);
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp);
+QemuOpts *qemu_opts_create_nofail(QemuOptsList *list);
 void qemu_opts_reset(QemuOptsList *list);
 void qemu_opts_loc_restore(QemuOpts *opts);
 int qemu_opts_set(QemuOptsList *list, const char *id,
