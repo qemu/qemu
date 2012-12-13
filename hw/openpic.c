@@ -124,6 +124,11 @@
 
 #define VENI_GENERIC      0x00000000 /* Generic Vendor ID */
 
+#define GLBC_RESET        0x80000000
+
+#define TIBC_CI           0x80000000 /* count inhibit */
+#define TICC_TOG          0x80000000 /* toggles when decrement to zero */
+
 #define IDR_EP_SHIFT      31
 #define IDR_EP_MASK       (1 << IDR_EP_SHIFT)
 #define IDR_CI0_SHIFT     30
@@ -190,10 +195,14 @@ typedef struct IRQ_src_t {
 #define IPVP_SENSE_SHIFT      22
 #define IPVP_SENSE_MASK       (1 << IPVP_SENSE_SHIFT)
 
-#define IPVP_PRIORITY_MASK     (0x1F << 16)
+#define IPVP_PRIORITY_MASK     (0xF << 16)
 #define IPVP_PRIORITY(_ipvpr_) ((int)(((_ipvpr_) & IPVP_PRIORITY_MASK) >> 16))
 #define IPVP_VECTOR_MASK       ((1 << VECTOR_BITS) - 1)
 #define IPVP_VECTOR(_ipvpr_)   ((_ipvpr_) & IPVP_VECTOR_MASK)
+
+/* IDE[EP/CI] are only for FSL MPIC prior to v4.0 */
+#define IDE_EP      0x80000000  /* external pin */
+#define IDE_CI      0x40000000  /* critical interrupt */
 
 typedef struct IRQ_dst_t {
     uint32_t pctp; /* CPU current task priority */
@@ -375,7 +384,7 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
         DPRINTF("%s: IRQ %d is already active\n", __func__, n_IRQ);
         return;
     }
-    if (src->ide == 0x00000000) {
+    if (src->ide == 0) {
         /* No target */
         DPRINTF("%s: IRQ %d has no target\n", __func__, n_IRQ);
         return;
@@ -432,13 +441,13 @@ static void openpic_reset(DeviceState *d)
     OpenPICState *opp = FROM_SYSBUS(typeof (*opp), sysbus_from_qdev(d));
     int i;
 
-    opp->glbc = 0x80000000;
+    opp->glbc = GLBC_RESET;
     /* Initialise controller registers */
     opp->frep = ((opp->nb_irqs -1) << FREP_NIRQ_SHIFT) |
                 ((opp->nb_cpus -1) << FREP_NCPU_SHIFT) |
                 (opp->vid << FREP_VID_SHIFT);
 
-    opp->pint = 0x00000000;
+    opp->pint = 0;
     opp->spve = -1 & opp->spve_mask;
     opp->tifr = opp->tifr_reset;
     /* Initialise IRQ sources */
@@ -448,7 +457,7 @@ static void openpic_reset(DeviceState *d)
     }
     /* Initialise IRQ destinations */
     for (i = 0; i < MAX_CPU; i++) {
-        opp->dst[i].pctp      = 0x0000000F;
+        opp->dst[i].pctp      = 15;
         opp->dst[i].pcsr      = 0x00000000;
         memset(&opp->dst[i].raised, 0, sizeof(IRQ_queue_t));
         opp->dst[i].raised.next = -1;
@@ -457,11 +466,11 @@ static void openpic_reset(DeviceState *d)
     }
     /* Initialise timers */
     for (i = 0; i < MAX_TMR; i++) {
-        opp->timers[i].ticc = 0x00000000;
-        opp->timers[i].tibc = 0x80000000;
+        opp->timers[i].ticc = 0;
+        opp->timers[i].tibc = TIBC_CI;
     }
     /* Go out of RESET state */
-    opp->glbc = 0x00000000;
+    opp->glbc = 0;
 }
 
 static inline uint32_t read_IRQreg_ide(OpenPICState *opp, int n_IRQ)
@@ -478,7 +487,7 @@ static inline void write_IRQreg_ide(OpenPICState *opp, int n_IRQ, uint32_t val)
 {
     uint32_t tmp;
 
-    tmp = val & 0xC0000000;
+    tmp = val & (IDE_EP | IDE_CI);
     tmp |= val & ((1ULL << MAX_CPU) - 1);
     opp->src[n_IRQ].ide = tmp;
     DPRINTF("Set IDE %d to 0x%08x\n", n_IRQ, opp->src[n_IRQ].ide);
@@ -488,8 +497,8 @@ static inline void write_IRQreg_ipvp(OpenPICState *opp, int n_IRQ, uint32_t val)
 {
     /* NOTE: not fully accurate for special IRQs, but simple and sufficient */
     /* ACTIVITY bit is read-only */
-    opp->src[n_IRQ].ipvp = (opp->src[n_IRQ].ipvp & 0x40000000)
-                         | (val & 0x800F00FF);
+    opp->src[n_IRQ].ipvp = (opp->src[n_IRQ].ipvp & IPVP_ACTIVITY_MASK) |
+        (val & (IPVP_MASK_MASK | IPVP_PRIORITY_MASK | IPVP_VECTOR_MASK));
     openpic_update_irq(opp, n_IRQ);
     DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
             opp->src[n_IRQ].ipvp);
@@ -521,7 +530,7 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x1000: /* FREP */
         break;
     case 0x1020: /* GLBC */
-        if (val & 0x80000000) {
+        if (val & GLBC_RESET) {
             openpic_reset(&opp->busdev.qdev);
         }
         break;
@@ -634,10 +643,11 @@ static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
     case 0x00: /* TICC (GTCCR) */
         break;
     case 0x10: /* TIBC (GTBCR) */
-        if ((opp->timers[idx].ticc & 0x80000000) != 0 &&
-            (val & 0x80000000) == 0 &&
-            (opp->timers[idx].tibc & 0x80000000) != 0)
-            opp->timers[idx].ticc &= ~0x80000000;
+        if ((opp->timers[idx].ticc & TICC_TOG) != 0 &&
+            (val & TIBC_CI) == 0 &&
+            (opp->timers[idx].tibc & TIBC_CI) != 0) {
+            opp->timers[idx].ticc &= ~TICC_TOG;
+        }
         opp->timers[idx].tibc = val;
         break;
     case 0x20: /* TIVP (GTIVPR) */
@@ -1190,9 +1200,9 @@ static int openpic_init(SysBusDevice *dev)
         opp->vid = VID_REVISION_1_2;
         opp->veni = VENI_GENERIC;
         opp->spve_mask = 0xFFFF;
-        opp->tifr_reset = 0x00000000;
-        opp->ipvp_reset = 0x80000000;
-        opp->ide_reset = 0x00000001;
+        opp->tifr_reset = 0;
+        opp->ipvp_reset = IPVP_MASK_MASK;
+        opp->ide_reset = 1 << 0;
         opp->max_irq = FSL_MPIC_20_MAX_IRQ;
         opp->irq_ipi0 = FSL_MPIC_20_IPI_IRQ;
         opp->irq_tim0 = FSL_MPIC_20_TMR_IRQ;
@@ -1206,9 +1216,9 @@ static int openpic_init(SysBusDevice *dev)
         opp->vid = VID_REVISION_1_3;
         opp->veni = VENI_GENERIC;
         opp->spve_mask = 0xFF;
-        opp->tifr_reset = 0x003F7A00;
-        opp->ipvp_reset = 0xA0000000;
-        opp->ide_reset = 0x00000000;
+        opp->tifr_reset = 4160000;
+        opp->ipvp_reset = IPVP_MASK_MASK | IPVP_MODE_MASK;
+        opp->ide_reset = 0;
         opp->max_irq = RAVEN_MAX_IRQ;
         opp->irq_ipi0 = RAVEN_IPI_IRQ;
         opp->irq_tim0 = RAVEN_TMR_IRQ;
