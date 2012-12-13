@@ -161,7 +161,11 @@ static inline int test_bit(uint32_t *field, int bit)
 
 static int get_current_cpu(void)
 {
-  return cpu_single_env->cpu_index;
+    if (!cpu_single_env) {
+        return -1;
+    }
+
+    return cpu_single_env->cpu_index;
 }
 
 static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
@@ -810,6 +814,11 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
 
     DPRINTF("%s: cpu %d addr " TARGET_FMT_plx " <= %08x\n", __func__, idx,
             addr, val);
+
+    if (idx < 0) {
+        return;
+    }
+
     if (addr & 0xF)
         return;
     dst = &opp->dst[idx];
@@ -875,6 +884,11 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
 
     DPRINTF("%s: cpu %d addr " TARGET_FMT_plx "\n", __func__, idx, addr);
     retval = 0xFFFFFFFF;
+
+    if (idx < 0) {
+        return retval;
+    }
+
     if (addr & 0xF)
         return retval;
     dst = &opp->dst[idx];
