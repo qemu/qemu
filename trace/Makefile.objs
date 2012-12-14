@@ -1,0 +1,70 @@
+# -*- mode: makefile -*-
+
+######################################################################
+# Auto-generated tracing routines
+
+ifeq ($(TRACE_BACKEND),dtrace)
+TRACE_H_EXTRA_DEPS=$(obj)/generated-tracers-dtrace.h
+endif
+$(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp $(TRACE_H_EXTRA_DEPS)
+$(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=h \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-tracers.c: $(obj)/generated-tracers.c-timestamp
+$(obj)/generated-tracers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=c \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-tracers.o: $(obj)/generated-tracers.c $(obj)/generated-tracers.h
+
+ifneq ($(TRACE_BACKEND),dtrace)
+trace-obj-y += generated-tracers.o
+endif
+
+
+######################################################################
+# Auto-generated DTrace code
+
+# Normal practice is to name DTrace probe file with a '.d' extension
+# but that gets picked up by QEMU's Makefile as an external dependency
+# rule file. So we use '.dtrace' instead
+$(obj)/generated-tracers-dtrace.dtrace: $(obj)/generated-tracers-dtrace.dtrace-timestamp
+$(obj)/generated-tracers-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	$(call quiet-command,$(TRACETOOL) \
+		--format=d \
+		--backend=$(TRACE_BACKEND) \
+		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
+	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
+
+$(obj)/generated-tracers-dtrace.h: trace/generated-tracers-dtrace.dtrace
+	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   $@")
+
+$(obj)/generated-tracers-dtrace.o: trace/generated-tracers-dtrace.dtrace
+	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $@")
+
+trace-obj-$(CONFIG_TRACE_DTRACE) += generated-tracers-dtrace.o
+
+
+ifeq ($(LIBTOOL),)
+$(obj)/generated-tracers-dtrace.lo: $(obj)/generated-tracers-dtrace.dtrace
+	@echo "missing libtool. please install and rerun configure."; exit 1
+else
+$(obj)/generated-tracers-dtrace.lo: $(obj)/generated-tracers-dtrace.dtrace
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN $@")
+endif
+
+
+######################################################################
+# Backend code
+
+trace-obj-$(CONFIG_TRACE_DEFAULT) += default.o
+trace-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
+trace-obj-$(CONFIG_TRACE_STDERR) += stderr.o
+trace-obj-y += control.o

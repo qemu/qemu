@@ -133,66 +133,7 @@ universal-obj-y += disas/
 ######################################################################
 # trace
 
-ifeq ($(TRACE_BACKEND),dtrace)
-TRACE_H_EXTRA_DEPS=trace-dtrace.h
-endif
-trace.h: trace.h-timestamp $(TRACE_H_EXTRA_DEPS)
-trace.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,$(TRACETOOL) \
-		--format=h \
-		--backend=$(TRACE_BACKEND) \
-		< $< > $@,"  GEN   trace.h")
-	@cmp -s $@ trace.h || cp $@ trace.h
-
-trace.c: trace.c-timestamp
-trace.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,$(TRACETOOL) \
-		--format=c \
-		--backend=$(TRACE_BACKEND) \
-		< $< > $@,"  GEN   trace.c")
-	@cmp -s $@ trace.c || cp $@ trace.c
-
-trace.o: trace.c $(GENERATED_HEADERS)
-
-trace-dtrace.h: trace-dtrace.dtrace
-	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   trace-dtrace.h")
-
-# Normal practice is to name DTrace probe file with a '.d' extension
-# but that gets picked up by QEMU's Makefile as an external dependency
-# rule file. So we use '.dtrace' instead
-trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
-trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
-	$(call quiet-command,$(TRACETOOL) \
-		--format=d \
-		--backend=$(TRACE_BACKEND) \
-		< $< > $@,"  GEN   trace-dtrace.dtrace")
-	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
-
-trace-dtrace.o: trace-dtrace.dtrace $(GENERATED_HEADERS)
-	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   trace-dtrace.o")
-
-ifeq ($(LIBTOOL),)
-trace-dtrace.lo: trace-dtrace.dtrace
-	@echo "missing libtool. please install and rerun configure."; exit 1
-else
-trace-dtrace.lo: trace-dtrace.dtrace
-	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN trace-dtrace.o")
-endif
-
-trace/simple.o: trace/simple.c $(GENERATED_HEADERS)
-
-trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
-ifneq ($(TRACE_BACKEND),dtrace)
-trace-obj-y = trace.o
-endif
-
-trace-obj-$(CONFIG_TRACE_DEFAULT) += trace/default.o
-trace-obj-$(CONFIG_TRACE_SIMPLE) += trace/simple.o
-trace-obj-$(CONFIG_TRACE_SIMPLE) += qemu-timer-common.o
-trace-obj-$(CONFIG_TRACE_STDERR) += trace/stderr.o
-trace-obj-y += trace/control.o
-
-$(trace-obj-y): $(GENERATED_HEADERS)
+trace-obj-y += trace/
 
 universal-obj-y += $(trace-obj-y)
 
@@ -239,5 +180,6 @@ nested-vars += \
 	user-obj-y \
 	common-obj-y \
 	universal-obj-y \
-	extra-obj-y
+	extra-obj-y \
+	trace-obj-y
 dummy := $(call unnest-vars)
