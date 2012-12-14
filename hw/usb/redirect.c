@@ -980,6 +980,8 @@ static void usbredir_do_attach(void *opaque)
         usbredirparser_peer_has_cap(dev->parser,
                                     usb_redir_cap_ep_info_max_packet_size) &&
         usbredirparser_peer_has_cap(dev->parser,
+                                    usb_redir_cap_32bits_bulk_length) &&
+        usbredirparser_peer_has_cap(dev->parser,
                                     usb_redir_cap_64bits_ids))) {
         ERROR("usb-redir-host lacks capabilities needed for use with XHCI\n");
         usbredir_reject_device(dev);
