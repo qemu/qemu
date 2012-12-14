@@ -438,6 +438,36 @@ static inline bool ehci_periodic_enabled(EHCIState *s)
     return ehci_enabled(s) && (s->usbcmd & USBCMD_PSE);
 }
 
+static bool ehci_verify_qh(EHCIQueue *q, EHCIqh *qh)
+{
+    uint32_t devaddr = get_field(qh->epchar, QH_EPCHAR_DEVADDR);
+    uint32_t endp    = get_field(qh->epchar, QH_EPCHAR_EP);
+    if ((devaddr != get_field(q->qh.epchar, QH_EPCHAR_DEVADDR)) ||
+        (endp    != get_field(q->qh.epchar, QH_EPCHAR_EP)) ||
+        (qh->current_qtd != q->qh.current_qtd) ||
+        (q->async && qh->next_qtd != q->qh.next_qtd) ||
+        (memcmp(&qh->altnext_qtd, &q->qh.altnext_qtd,
+                                 7 * sizeof(uint32_t)) != 0) ||
+        (q->dev != NULL && q->dev->addr != devaddr)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+static bool ehci_verify_qtd(EHCIPacket *p, EHCIqtd *qtd)
+{
+    if (p->qtdaddr != p->queue->qtdaddr ||
+        (p->queue->async && !NLPTR_TBIT(p->qtd.next) &&
+            (p->qtd.next != qtd->next)) ||
+        (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd->altnext)) ||
+        p->qtd.bufptr[0] != qtd->bufptr[0]) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 /* Finish executing and writeback a packet outside of the regular
    fetchqh -> fetchqtd -> execute -> writeback cycle */
 static void ehci_writeback_async_complete_packet(EHCIPacket *p)
@@ -1557,8 +1587,8 @@ out:
 
 static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 {
+    uint32_t entry;
     EHCIPacket *p;
-    uint32_t entry, devaddr, endp;
     EHCIQueue *q;
     EHCIqh qh;
 
@@ -1588,15 +1618,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
      * The overlay area of the qh should never be changed by the guest,
      * except when idle, in which case the reset is a nop.
      */
-    devaddr = get_field(qh.epchar, QH_EPCHAR_DEVADDR);
-    endp    = get_field(qh.epchar, QH_EPCHAR_EP);
-    if ((devaddr != get_field(q->qh.epchar, QH_EPCHAR_DEVADDR)) ||
-        (endp    != get_field(q->qh.epchar, QH_EPCHAR_EP)) ||
-        (qh.current_qtd != q->qh.current_qtd) ||
-        (q->async && qh.next_qtd != q->qh.next_qtd) ||
-        (memcmp(&qh.altnext_qtd, &q->qh.altnext_qtd,
-                                 7 * sizeof(uint32_t)) != 0) ||
-        (q->dev != NULL && q->dev->addr != devaddr)) {
+    if (!ehci_verify_qh(q, &qh)) {
         if (ehci_reset_queue(q) > 0) {
             ehci_trace_guest_bug(ehci, "guest updated active QH");
         }
@@ -1610,7 +1632,8 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     }
 
     if (q->dev == NULL) {
-        q->dev = ehci_find_device(q->ehci, devaddr);
+        q->dev = ehci_find_device(q->ehci,
+                                  get_field(q->qh.epchar, QH_EPCHAR_DEVADDR));
     }
 
     if (p && p->async == EHCI_ASYNC_FINISHED) {
@@ -1768,11 +1791,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
 
     p = QTAILQ_FIRST(&q->packets);
     if (p != NULL) {
-        if (p->qtdaddr != q->qtdaddr ||
-            (q->async && !NLPTR_TBIT(p->qtd.next) &&
-                (p->qtd.next != qtd.next)) ||
-            (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd.altnext)) ||
-            p->qtd.bufptr[0] != qtd.bufptr[0]) {
+        if (!ehci_verify_qtd(p, &qtd)) {
             ehci_cancel_queue(q);
             ehci_trace_guest_bug(q->ehci, "guest updated active QH or qTD");
             p = NULL;
