@@ -1347,6 +1347,9 @@ static void ehci_execute_complete(EHCIQueue *q)
         if (tbytes) {
             /* 4.15.1.2 must raise int on a short input packet */
             ehci_raise_irq(q->ehci, USBSTS_INT);
+            if (q->async) {
+                q->ehci->int_req_by_async = true;
+            }
         }
     } else {
         tbytes = 0;
@@ -2337,7 +2340,7 @@ static void ehci_frame_timer(void *opaque)
         /* If we've raised int, we speed up the timer, so that we quickly
          * notice any new packets queued up in response */
         if (ehci->int_req_by_async && (ehci->usbsts & USBSTS_INT)) {
-            expire_time = t_now + get_ticks_per_sec() / (FRAME_TIMER_FREQ * 2);
+            expire_time = t_now + get_ticks_per_sec() / (FRAME_TIMER_FREQ * 4);
             ehci->int_req_by_async = false;
         } else {
             expire_time = t_now + (get_ticks_per_sec()
