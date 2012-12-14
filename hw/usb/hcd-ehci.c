@@ -438,6 +438,48 @@ static inline bool ehci_periodic_enabled(EHCIState *s)
     return ehci_enabled(s) && (s->usbcmd & USBCMD_PSE);
 }
 
+/* Get an array of dwords from main memory */
+static inline int get_dwords(EHCIState *ehci, uint32_t addr,
+                             uint32_t *buf, int num)
+{
+    int i;
+
+    if (!ehci->dma) {
+        ehci_raise_irq(ehci, USBSTS_HSE);
+        ehci->usbcmd &= ~USBCMD_RUNSTOP;
+        trace_usb_ehci_dma_error();
+        return -1;
+    }
+
+    for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
+        dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
+        *buf = le32_to_cpu(*buf);
+    }
+
+    return num;
+}
+
+/* Put an array of dwords in to main memory */
+static inline int put_dwords(EHCIState *ehci, uint32_t addr,
+                             uint32_t *buf, int num)
+{
+    int i;
+
+    if (!ehci->dma) {
+        ehci_raise_irq(ehci, USBSTS_HSE);
+        ehci->usbcmd &= ~USBCMD_RUNSTOP;
+        trace_usb_ehci_dma_error();
+        return -1;
+    }
+
+    for (i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
+        uint32_t tmp = cpu_to_le32(*buf);
+        dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
+    }
+
+    return num;
+}
+
 static bool ehci_verify_qh(EHCIQueue *q, EHCIqh *qh)
 {
     uint32_t devaddr = get_field(qh->epchar, QH_EPCHAR_DEVADDR);
@@ -1052,48 +1094,6 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
     *mmio = val;
     trace_usb_ehci_opreg_change(addr + s->opregbase, addr2str(addr),
                                 *mmio, old);
-}
-
-/* Get an array of dwords from main memory */
-static inline int get_dwords(EHCIState *ehci, uint32_t addr,
-                             uint32_t *buf, int num)
-{
-    int i;
-
-    if (!ehci->dma) {
-        ehci_raise_irq(ehci, USBSTS_HSE);
-        ehci->usbcmd &= ~USBCMD_RUNSTOP;
-        trace_usb_ehci_dma_error();
-        return -1;
-    }
-
-    for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        dma_memory_read(ehci->dma, addr, buf, sizeof(*buf));
-        *buf = le32_to_cpu(*buf);
-    }
-
-    return num;
-}
-
-/* Put an array of dwords in to main memory */
-static inline int put_dwords(EHCIState *ehci, uint32_t addr,
-                             uint32_t *buf, int num)
-{
-    int i;
-
-    if (!ehci->dma) {
-        ehci_raise_irq(ehci, USBSTS_HSE);
-        ehci->usbcmd &= ~USBCMD_RUNSTOP;
-        trace_usb_ehci_dma_error();
-        return -1;
-    }
-
-    for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        uint32_t tmp = cpu_to_le32(*buf);
-        dma_memory_write(ehci->dma, addr, &tmp, sizeof(tmp));
-    }
-
-    return num;
 }
 
 /*
