@@ -1706,15 +1706,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
         } else if ((val = strchr(featurestr, '='))) {
             *val = 0; val++;
             feat2prop(featurestr);
-            if (!strcmp(featurestr, "family")) {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
-            } else if (!strcmp(featurestr, "model")) {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
-            } else if (!strcmp(featurestr, "stepping")) {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
-            } else if (!strcmp(featurestr, "level")) {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
-            } else if (!strcmp(featurestr, "xlevel")) {
+            if (!strcmp(featurestr, "xlevel")) {
                 char *err;
                 char num[32];
 
@@ -1730,10 +1722,6 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 }
                 snprintf(num, sizeof(num), "%" PRIu32, numvalue);
                 object_property_parse(OBJECT(cpu), num, featurestr, errp);
-            } else if (!strcmp(featurestr, "vendor")) {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
-            } else if (!strcmp(featurestr, "model-id")) {
-                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             } else if (!strcmp(featurestr, "tsc-freq")) {
                 int64_t tsc_freq;
                 char *err;
@@ -1765,8 +1753,7 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 snprintf(num, sizeof(num), "%" PRId32, numvalue);
                 object_property_parse(OBJECT(cpu), num, featurestr, errp);
             } else {
-                error_setg(errp, "unrecognized feature %s", featurestr);
-                goto out;
+                object_property_parse(OBJECT(cpu), val, featurestr, errp);
             }
         } else {
             feat2prop(featurestr);
