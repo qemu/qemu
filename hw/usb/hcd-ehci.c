@@ -438,6 +438,22 @@ static inline bool ehci_periodic_enabled(EHCIState *s)
     return ehci_enabled(s) && (s->usbcmd & USBCMD_PSE);
 }
 
+/* Finish executing and writeback a packet outside of the regular
+   fetchqh -> fetchqtd -> execute -> writeback cycle */
+static void ehci_writeback_async_complete_packet(EHCIPacket *p)
+{
+    EHCIQueue *q = p->queue;
+    int state;
+
+    state = ehci_get_state(q->ehci, q->async);
+    ehci_state_executing(q);
+    ehci_state_writeback(q); /* Frees the packet! */
+    if (!(q->qh.token & QTD_TOKEN_HALT)) {
+        ehci_state_advqueue(q);
+    }
+    ehci_set_state(q->ehci, q->async, state);
+}
+
 /* packet management */
 
 static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
@@ -455,17 +471,7 @@ static EHCIPacket *ehci_alloc_packet(EHCIQueue *q)
 static void ehci_free_packet(EHCIPacket *p)
 {
     if (p->async == EHCI_ASYNC_FINISHED) {
-        EHCIQueue *q = p->queue;
-        int state = ehci_get_state(q->ehci, q->async);
-        /* This is a normal, but rare condition (cancel racing completion) */
-        fprintf(stderr, "EHCI: Warning packet completed but not processed\n");
-        ehci_state_executing(q);
-        ehci_state_writeback(q);
-        if (!(q->qh.token & QTD_TOKEN_HALT)) {
-            ehci_state_advqueue(q);
-        }
-        ehci_set_state(q->ehci, q->async, state);
-        /* state_writeback recurses into us with async == EHCI_ASYNC_NONE!! */
+        ehci_writeback_async_complete_packet(p);
         return;
     }
     trace_usb_ehci_packet_action(p->queue, p, "free");
