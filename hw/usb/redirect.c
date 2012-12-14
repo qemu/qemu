@@ -1063,6 +1063,17 @@ static void usbredir_vm_state_change(void *priv, int running, RunState state)
     }
 }
 
+static void usbredir_init_endpoints(USBRedirDevice *dev)
+{
+    int i;
+
+    usb_ep_init(&dev->dev);
+    memset(dev->endpoint, 0, sizeof(dev->endpoint));
+    for (i = 0; i < MAX_ENDPOINTS; i++) {
+        QTAILQ_INIT(&dev->endpoint[i].bufpq);
+    }
+}
+
 static int usbredir_initfn(USBDevice *udev)
 {
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
@@ -1089,9 +1100,7 @@ static int usbredir_initfn(USBDevice *udev)
 
     packet_id_queue_init(&dev->cancelled, dev, "cancelled");
     packet_id_queue_init(&dev->already_in_flight, dev, "already-in-flight");
-    for (i = 0; i < MAX_ENDPOINTS; i++) {
-        QTAILQ_INIT(&dev->endpoint[i].bufpq);
-    }
+    usbredir_init_endpoints(dev);
 
     /* We'll do the attach once we receive the speed from the usb-host */
     udev->auto_attach = 0;
@@ -1295,7 +1304,6 @@ static void usbredir_device_connect(void *priv,
 static void usbredir_device_disconnect(void *priv)
 {
     USBRedirDevice *dev = priv;
-    int i;
 
     /* Stop any pending attaches */
     qemu_del_timer(dev->attach_timer);
@@ -1312,11 +1320,7 @@ static void usbredir_device_disconnect(void *priv)
 
     /* Reset state so that the next dev connected starts with a clean slate */
     usbredir_cleanup_device_queues(dev);
-    memset(dev->endpoint, 0, sizeof(dev->endpoint));
-    for (i = 0; i < MAX_ENDPOINTS; i++) {
-        QTAILQ_INIT(&dev->endpoint[i].bufpq);
-    }
-    usb_ep_init(&dev->dev);
+    usbredir_init_endpoints(dev);
     dev->interface_info.interface_count = NO_INTERFACE_INFO;
     dev->dev.addr = 0;
     dev->dev.speed = 0;
