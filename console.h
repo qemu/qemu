@@ -229,6 +229,16 @@ static inline void unregister_displaychangelistener(DisplayState *ds,
 static inline void dpy_gfx_update(DisplayState *s, int x, int y, int w, int h)
 {
     struct DisplayChangeListener *dcl;
+    int width = pixman_image_get_width(s->surface->image);
+    int height = pixman_image_get_height(s->surface->image);
+
+    x = MAX(x, 0);
+    y = MAX(y, 0);
+    x = MIN(x, width);
+    y = MIN(y, height);
+    w = MIN(w, width - x);
+    h = MIN(h, height - y);
+
     QLIST_FOREACH(dcl, &s->listeners, next) {
         if (dcl->dpy_gfx_update) {
             dcl->dpy_gfx_update(s, x, y, w, h);
