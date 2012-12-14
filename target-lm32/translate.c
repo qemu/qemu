@@ -324,10 +324,20 @@ static inline void gen_compare(DisasContext *dc, int cond)
     int rX = (dc->format == OP_FMT_RR) ? dc->r2 : dc->r1;
     int rY = (dc->format == OP_FMT_RR) ? dc->r0 : dc->r0;
     int rZ = (dc->format == OP_FMT_RR) ? dc->r1 : -1;
+    int i;
 
     if (dc->format == OP_FMT_RI) {
-        tcg_gen_setcondi_tl(cond, cpu_R[rX], cpu_R[rY],
-                sign_extend(dc->imm16, 16));
+        switch (cond) {
+        case TCG_COND_GEU:
+        case TCG_COND_GTU:
+            i = zero_extend(dc->imm16, 16);
+            break;
+        default:
+            i = sign_extend(dc->imm16, 16);
+            break;
+        }
+
+        tcg_gen_setcondi_tl(cond, cpu_R[rX], cpu_R[rY], i);
     } else {
         tcg_gen_setcond_tl(cond, cpu_R[rX], cpu_R[rY], cpu_R[rZ]);
     }
@@ -373,7 +383,7 @@ static void dec_cmpgeu(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
         LOG_DIS("cmpgeui r%d, r%d, %d\n", dc->r0, dc->r1,
-                sign_extend(dc->imm16, 16));
+                zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpgeu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
@@ -385,7 +395,7 @@ static void dec_cmpgu(DisasContext *dc)
 {
     if (dc->format == OP_FMT_RI) {
         LOG_DIS("cmpgui r%d, r%d, %d\n", dc->r0, dc->r1,
-                sign_extend(dc->imm16, 16));
+                zero_extend(dc->imm16, 16));
     } else {
         LOG_DIS("cmpgu r%d, r%d, r%d\n", dc->r2, dc->r0, dc->r1);
     }
