@@ -61,6 +61,7 @@ struct buf_packet {
 };
 
 struct endp_data {
+    USBRedirDevice *dev;
     uint8_t type;
     uint8_t interval;
     uint8_t interface; /* bInterfaceNumber this ep belongs to */
@@ -1070,6 +1071,7 @@ static void usbredir_init_endpoints(USBRedirDevice *dev)
     usb_ep_init(&dev->dev);
     memset(dev->endpoint, 0, sizeof(dev->endpoint));
     for (i = 0; i < MAX_ENDPOINTS; i++) {
+        dev->endpoint[i].dev = dev;
         QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
 }
@@ -1783,22 +1785,26 @@ static const VMStateInfo usbredir_parser_vmstate_info = {
 static void usbredir_put_bufpq(QEMUFile *f, void *priv, size_t unused)
 {
     struct endp_data *endp = priv;
+    USBRedirDevice *dev = endp->dev;
     struct buf_packet *bufp;
-    int remain = endp->bufpq_size;
+    int i = 0;
 
     qemu_put_be32(f, endp->bufpq_size);
     QTAILQ_FOREACH(bufp, &endp->bufpq, next) {
+        DPRINTF("put_bufpq %d/%d len %d status %d\n", i + 1, endp->bufpq_size,
+                bufp->len, bufp->status);
         qemu_put_be32(f, bufp->len);
         qemu_put_be32(f, bufp->status);
         qemu_put_buffer(f, bufp->data, bufp->len);
-        remain--;
+        i++;
     }
-    assert(remain == 0);
+    assert(i == endp->bufpq_size);
 }
 
 static int usbredir_get_bufpq(QEMUFile *f, void *priv, size_t unused)
 {
     struct endp_data *endp = priv;
+    USBRedirDevice *dev = endp->dev;
     struct buf_packet *bufp;
     int i;
 
@@ -1810,6 +1816,8 @@ static int usbredir_get_bufpq(QEMUFile *f, void *priv, size_t unused)
         bufp->data = qemu_oom_check(malloc(bufp->len)); /* regular malloc! */
         qemu_get_buffer(f, bufp->data, bufp->len);
         QTAILQ_INSERT_TAIL(&endp->bufpq, bufp, next);
+        DPRINTF("get_bufpq %d/%d len %d status %d\n", i + 1, endp->bufpq_size,
+                bufp->len, bufp->status);
     }
     return 0;
 }
