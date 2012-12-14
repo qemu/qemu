@@ -192,6 +192,7 @@ static int ehci_state_executing(EHCIQueue *q);
 static int ehci_state_writeback(EHCIQueue *q);
 static int ehci_state_advqueue(EHCIQueue *q);
 static int ehci_fill_queue(EHCIPacket *p);
+static void ehci_free_packet(EHCIPacket *p);
 
 static const char *nr2str(const char **n, size_t len, uint32_t nr)
 {
@@ -516,7 +517,20 @@ static bool ehci_verify_qtd(EHCIPacket *p, EHCIqtd *qtd)
 static void ehci_writeback_async_complete_packet(EHCIPacket *p)
 {
     EHCIQueue *q = p->queue;
+    EHCIqtd qtd;
+    EHCIqh qh;
     int state;
+
+    /* Verify the qh + qtd, like we do when going through fetchqh & fetchqtd */
+    get_dwords(q->ehci, NLPTR_GET(q->qhaddr),
+               (uint32_t *) &qh, sizeof(EHCIqh) >> 2);
+    get_dwords(q->ehci, NLPTR_GET(q->qtdaddr),
+               (uint32_t *) &qtd, sizeof(EHCIqtd) >> 2);
+    if (!ehci_verify_qh(q, &qh) || !ehci_verify_qtd(p, &qtd)) {
+        p->async = EHCI_ASYNC_INITIALIZED;
+        ehci_free_packet(p);
+        return;
+    }
 
     state = ehci_get_state(q->ehci, q->async);
     ehci_state_executing(q);
