@@ -432,11 +432,6 @@ QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
     return aio_bh_new(qemu_aio_context, cb, opaque);
 }
 
-void qemu_aio_flush(void)
-{
-    aio_flush(qemu_aio_context);
-}
-
 bool qemu_aio_wait(void)
 {
     return aio_poll(qemu_aio_context, true);

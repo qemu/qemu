@@ -924,9 +924,9 @@ static QEMUMachine spapr_machine = {
     .desc = "pSeries Logical Partition (PAPR compliant)",
     .init = ppc_spapr_init,
     .reset = ppc_spapr_reset,
+    .block_default_type = IF_SCSI,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
-    .use_scsi = 1,
 };
 
 static void spapr_machine_init(void)

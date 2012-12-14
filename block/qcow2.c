@@ -222,7 +222,7 @@ static void report_unsupported_feature(BlockDriverState *bs,
  * updated successfully.  Therefore it is not required to check the return
  * value of this function.
  */
-static int qcow2_mark_dirty(BlockDriverState *bs)
+int qcow2_mark_dirty(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t val;
@@ -745,21 +745,6 @@ fail:
     return ret;
 }
 
-static void run_dependent_requests(BDRVQcowState *s, QCowL2Meta *m)
-{
-    /* Take the request off the list of running requests */
-    if (m->nb_clusters != 0) {
-        QLIST_REMOVE(m, next_in_flight);
-    }
-
-    /* Restart all dependent requests */
-    if (!qemu_co_queue_empty(&m->dependent_requests)) {
-        qemu_co_mutex_unlock(&s->lock);
-        qemu_co_queue_restart_all(&m->dependent_requests);
-        qemu_co_mutex_lock(&s->lock);
-    }
-}
-
 static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                            int64_t sector_num,
                            int remaining_sectors,
@@ -774,14 +759,10 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     QEMUIOVector hd_qiov;
     uint64_t bytes_done = 0;
     uint8_t *cluster_data = NULL;
-    QCowL2Meta l2meta = {
-        .nb_clusters = 0,
-    };
+    QCowL2Meta *l2meta;
 
     trace_qcow2_writev_start_req(qemu_coroutine_self(), sector_num,
                                  remaining_sectors);
-
-    qemu_co_queue_init(&l2meta.dependent_requests);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
 
@@ -790,6 +771,8 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     qemu_co_mutex_lock(&s->lock);
 
     while (remaining_sectors != 0) {
+
+        l2meta = NULL;
 
         trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
@@ -800,17 +783,11 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         }
 
         ret = qcow2_alloc_cluster_offset(bs, sector_num << 9,
-            index_in_cluster, n_end, &cur_nr_sectors, &l2meta);
+            index_in_cluster, n_end, &cur_nr_sectors, &cluster_offset, &l2meta);
         if (ret < 0) {
             goto fail;
         }
 
-        if (l2meta.nb_clusters > 0 &&
-            (s->compatible_features & QCOW2_COMPAT_LAZY_REFCOUNTS)) {
-            qcow2_mark_dirty(bs);
-        }
-
-        cluster_offset = l2meta.cluster_offset;
         assert((cluster_offset & 511) == 0);
 
         qemu_iovec_reset(&hd_qiov);
@@ -835,8 +812,8 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                 cur_nr_sectors * 512);
         }
 
-        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         qemu_co_mutex_unlock(&s->lock);
+        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         trace_qcow2_writev_data(qemu_coroutine_self(),
                                 (cluster_offset >> 9) + index_in_cluster);
         ret = bdrv_co_writev(bs->file,
@@ -847,12 +824,24 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             goto fail;
         }
 
-        ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
-        if (ret < 0) {
-            goto fail;
-        }
+        if (l2meta != NULL) {
+            ret = qcow2_alloc_cluster_link_l2(bs, l2meta);
+            if (ret < 0) {
+                goto fail;
+            }
 
-        run_dependent_requests(s, &l2meta);
+            /* Take the request off the list of running requests */
+            if (l2meta->nb_clusters != 0) {
+                QLIST_REMOVE(l2meta, next_in_flight);
+            }
+
+            qemu_co_mutex_unlock(&s->lock);
+            qemu_co_queue_restart_all(&l2meta->dependent_requests);
+            qemu_co_mutex_lock(&s->lock);
+
+            g_free(l2meta);
+            l2meta = NULL;
+        }
 
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
@@ -862,9 +851,15 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
     ret = 0;
 
 fail:
-    run_dependent_requests(s, &l2meta);
-
     qemu_co_mutex_unlock(&s->lock);
+
+    if (l2meta != NULL) {
+        if (l2meta->nb_clusters != 0) {
+            QLIST_REMOVE(l2meta, next_in_flight);
+        }
+        qemu_co_queue_restart_all(&l2meta->dependent_requests);
+        g_free(l2meta);
+    }
 
     qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);
@@ -1128,31 +1123,33 @@ static int preallocate(BlockDriverState *bs)
 {
     uint64_t nb_sectors;
     uint64_t offset;
+    uint64_t host_offset = 0;
     int num;
     int ret;
-    QCowL2Meta meta;
+    QCowL2Meta *meta;
 
     nb_sectors = bdrv_getlength(bs) >> 9;
     offset = 0;
-    qemu_co_queue_init(&meta.dependent_requests);
-    meta.cluster_offset = 0;
 
     while (nb_sectors) {
         num = MIN(nb_sectors, INT_MAX >> 9);
-        ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num, &meta);
+        ret = qcow2_alloc_cluster_offset(bs, offset, 0, num, &num,
+                                         &host_offset, &meta);
         if (ret < 0) {
             return ret;
         }
 
-        ret = qcow2_alloc_cluster_link_l2(bs, &meta);
+        ret = qcow2_alloc_cluster_link_l2(bs, meta);
         if (ret < 0) {
-            qcow2_free_any_clusters(bs, meta.cluster_offset, meta.nb_clusters);
+            qcow2_free_any_clusters(bs, meta->alloc_offset, meta->nb_clusters);
             return ret;
         }
 
         /* There are no dependent requests, but we need to remove our request
          * from the list of in-flight requests */
-        run_dependent_requests(bs->opaque, &meta);
+        if (meta != NULL) {
+            QLIST_REMOVE(meta, next_in_flight);
+        }
 
         /* TODO Preallocate data if requested */
 
@@ -1165,10 +1162,10 @@ static int preallocate(BlockDriverState *bs)
      * all of the allocated clusters (otherwise we get failing reads after
      * EOF). Extend the image to the last allocated sector.
      */
-    if (meta.cluster_offset != 0) {
+    if (host_offset != 0) {
         uint8_t buf[512];
         memset(buf, 0, 512);
-        ret = bdrv_write(bs->file, (meta.cluster_offset >> 9) + num - 1, buf, 1);
+        ret = bdrv_write(bs->file, (host_offset >> 9) + num - 1, buf, 1);
         if (ret < 0) {
             return ret;
         }

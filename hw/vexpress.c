@@ -477,7 +477,7 @@ static QEMUMachine vexpress_a9_machine = {
     .name = "vexpress-a9",
     .desc = "ARM Versatile Express for Cortex-A9",
     .init = vexpress_a9_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 
@@ -485,7 +485,7 @@ static QEMUMachine vexpress_a15_machine = {
     .name = "vexpress-a15",
     .desc = "ARM Versatile Express for Cortex-A15",
     .init = vexpress_a15_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
     .max_cpus = 4,
 };
 

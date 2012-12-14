@@ -44,11 +44,17 @@ static uint32_t bootloader[] = {
  * for an interprocessor interrupt and polling a configurable
  * location for the kernel secondary CPU entry point.
  */
+#define DSB_INSN 0xf57ff04f
+#define CP15_DSB_INSN 0xee070f9a /* mcr cp15, 0, r0, c7, c10, 4 */
+
 static uint32_t smpboot[] = {
-  0xe59f201c, /* ldr r2, gic_cpu_if */
-  0xe59f001c, /* ldr r0, startaddr */
+  0xe59f2028, /* ldr r2, gic_cpu_if */
+  0xe59f0028, /* ldr r0, startaddr */
   0xe3a01001, /* mov r1, #1 */
-  0xe5821000, /* str r1, [r2] */
+  0xe5821000, /* str r1, [r2] - set GICC_CTLR.Enable */
+  0xe3a010ff, /* mov r1, #0xff */
+  0xe5821004, /* str r1, [r2, 4] - set GIC_PMR.Priority to 0xff */
+  DSB_INSN,   /* dsb */
   0xe320f003, /* wfi */
   0xe5901000, /* ldr     r1, [r0] */
   0xe1110001, /* tst     r1, r1 */
@@ -65,6 +71,11 @@ static void default_write_secondary(ARMCPU *cpu,
     smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
     smpboot[ARRAY_SIZE(smpboot) - 2] = info->gic_cpu_if_addr;
     for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
+        /* Replace DSB with the pre-v7 DSB if necessary. */
+        if (!arm_feature(&cpu->env, ARM_FEATURE_V7) &&
+            smpboot[n] == DSB_INSN) {
+            smpboot[n] = CP15_DSB_INSN;
+        }
         smpboot[n] = tswap32(smpboot[n]);
     }
     rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),

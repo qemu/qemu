@@ -98,7 +98,7 @@ static void pc_fw_add_pflash_drv(void)
       return;
     }
 
-    if (!drive_init(opts, machine->use_scsi)) {
+    if (!drive_init(opts, machine->block_default_type)) {
         qemu_opts_del(opts);
     }
 }

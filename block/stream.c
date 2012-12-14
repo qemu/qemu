@@ -108,7 +108,7 @@ static void coroutine_fn stream_run(void *opaque)
 
 wait:
         /* Note that even when no rate limit is applied we need to yield
-         * with no pending I/O here so that qemu_aio_flush() returns.
+         * with no pending I/O here so that bdrv_drain_all() returns.
          */
         block_job_sleep_ns(&s->common, rt_clock, delay_ns);
         if (block_job_is_cancelled(&s->common)) {

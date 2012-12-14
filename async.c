@@ -215,8 +215,3 @@ void aio_context_unref(AioContext *ctx)
 {
     g_source_unref(&ctx->source);
 }
-
-void aio_flush(AioContext *ctx)
-{
-    while (aio_poll(ctx, true));
-}

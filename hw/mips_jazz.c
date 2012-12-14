@@ -324,14 +324,14 @@ static QEMUMachine mips_magnum_machine = {
     .name = "magnum",
     .desc = "MIPS Magnum",
     .init = mips_magnum_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static QEMUMachine mips_pica61_machine = {
     .name = "pica61",
     .desc = "Acer Pica 61",
     .init = mips_pica61_init,
-    .use_scsi = 1,
+    .block_default_type = IF_SCSI,
 };
 
 static void mips_jazz_machine_init(void)

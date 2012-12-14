@@ -568,7 +568,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
 
     migration_bitmap = bitmap_new(ram_pages);
-    bitmap_set(migration_bitmap, 1, ram_pages);
+    bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
 
     bytes_transferred = 0;
@@ -840,7 +840,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             memset(host, ch, TARGET_PAGE_SIZE);
 #ifndef _WIN32
             if (ch == 0 &&
-                (!kvm_enabled() || kvm_has_sync_mmu())) {
+                (!kvm_enabled() || kvm_has_sync_mmu()) &&
+                getpagesize() <= TARGET_PAGE_SIZE) {
                 qemu_madvise(host, TARGET_PAGE_SIZE, QEMU_MADV_DONTNEED);
             }
 #endif

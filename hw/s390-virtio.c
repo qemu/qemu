@@ -314,21 +314,6 @@ static void s390_init(QEMUMachineInitArgs *args)
         qdev_set_nic_properties(dev, nd);
         qdev_init_nofail(dev);
     }
-
-    /* Create VirtIO disk drives */
-    for(i = 0; i < MAX_BLK_DEVS; i++) {
-        DriveInfo *dinfo;
-        DeviceState *dev;
-
-        dinfo = drive_get(IF_IDE, 0, i);
-        if (!dinfo) {
-            continue;
-        }
-
-        dev = qdev_create((BusState *)s390_bus, "virtio-blk-s390");
-        qdev_prop_set_drive_nofail(dev, "drive", dinfo->bdrv);
-        qdev_init_nofail(dev);
-    }
 }
 
 static QEMUMachine s390_machine = {
@@ -336,6 +321,7 @@ static QEMUMachine s390_machine = {
     .alias = "s390",
     .desc = "VirtIO based S390 machine",
     .init = s390_init,
+    .block_default_type = IF_VIRTIO,
     .no_cdrom = 1,
     .no_floppy = 1,
     .no_serial = 1,
@@ -352,3 +338,4 @@ static void s390_machine_init(void)
 }
 
 machine_init(s390_machine_init);
+

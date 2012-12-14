@@ -104,7 +104,6 @@ struct VirtIOBlkConf
     BlockConf conf;
     char *serial;
     uint32_t scsi;
-    uint32_t config_wce;
 };
 
 #define DEFINE_VIRTIO_BLK_FEATURES(_state, _field) \

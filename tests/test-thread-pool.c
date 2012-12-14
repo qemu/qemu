@@ -47,11 +47,19 @@ static void qemu_aio_wait_nonblocking(void)
     qemu_aio_wait();
 }
 
+/* Wait until all aio and bh activity has finished */
+static void qemu_aio_wait_all(void)
+{
+    while (qemu_aio_wait()) {
+        /* Do nothing */
+    }
+}
+
 static void test_submit(void)
 {
     WorkerTestData data = { .n = 0 };
     thread_pool_submit(worker_cb, &data);
-    qemu_aio_flush();
+    qemu_aio_wait_all();
     g_assert_cmpint(data.n, ==, 1);
 }
 
@@ -63,7 +71,7 @@ static void test_submit_aio(void)
     /* The callbacks are not called until after the first wait.  */
     active = 1;
     g_assert_cmpint(data.ret, ==, -EINPROGRESS);
-    qemu_aio_flush();
+    qemu_aio_wait_all();
     g_assert_cmpint(active, ==, 0);
     g_assert_cmpint(data.n, ==, 1);
     g_assert_cmpint(data.ret, ==, 0);
@@ -84,7 +92,7 @@ static void co_test_cb(void *opaque)
     data->ret = 0;
     active--;
 
-    /* The test continues in test_submit_co, after qemu_aio_flush... */
+    /* The test continues in test_submit_co, after qemu_aio_wait_all... */
 }
 
 static void test_submit_co(void)
@@ -99,9 +107,9 @@ static void test_submit_co(void)
     g_assert_cmpint(active, ==, 1);
     g_assert_cmpint(data.ret, ==, -EINPROGRESS);
 
-    /* qemu_aio_flush will execute the rest of the coroutine.  */
+    /* qemu_aio_wait_all will execute the rest of the coroutine.  */
 
-    qemu_aio_flush();
+    qemu_aio_wait_all();
 
     /* Back here after the coroutine has finished.  */
 
@@ -184,7 +192,7 @@ static void test_cancel(void)
     }
 
     /* Finish execution and execute any remaining callbacks.  */
-    qemu_aio_flush();
+    qemu_aio_wait_all();
     g_assert_cmpint(active, ==, 0);
     for (i = 0; i < 100; i++) {
         if (data[i].n == 3) {

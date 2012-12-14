@@ -1869,6 +1869,8 @@ static void ide_reset(IDEState *s)
     s->io_buffer_index = 0;
     s->cd_sector_size = 0;
     s->atapi_dma = 0;
+    s->tray_locked = 0;
+    s->tray_open = 0;
     /* ATA DMA state */
     s->io_buffer_size = 0;
     s->req_nb_sectors = 0;
