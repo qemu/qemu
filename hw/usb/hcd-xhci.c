@@ -1970,13 +1970,18 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
     if (bsr) {
         slot_ctx[3] = SLOT_DEFAULT << SLOT_STATE_SHIFT;
     } else {
+        USBPacket p;
         slot->devaddr = xhci->devaddr++;
         slot_ctx[3] = (SLOT_ADDRESSED << SLOT_STATE_SHIFT) | slot->devaddr;
         DPRINTF("xhci: device address is %d\n", slot->devaddr);
         usb_device_reset(dev);
-        usb_device_handle_control(dev, NULL,
+        usb_packet_setup(&p, USB_TOKEN_OUT,
+                         usb_ep_get(dev, USB_TOKEN_OUT, 0),
+                         0, false, false);
+        usb_device_handle_control(dev, &p,
                                   DeviceOutRequest | USB_REQ_SET_ADDRESS,
                                   slot->devaddr, 0, 0, NULL);
+        assert(p.status != USB_RET_ASYNC);
     }
 
     res = xhci_enable_ep(xhci, slotid, 1, octx+32, ep0_ctx);
