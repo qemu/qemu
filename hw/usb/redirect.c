@@ -774,6 +774,14 @@ static void usbredir_stop_ep(USBRedirDevice *dev, int i)
     usbredir_free_bufpq(dev, ep);
 }
 
+static void usbredir_ep_stopped(USBDevice *udev, USBEndpoint *uep)
+{
+    USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
+
+    usbredir_stop_ep(dev, USBEP2I(uep));
+    usbredirparser_do_write(dev->parser);
+}
+
 static void usbredir_set_config(USBRedirDevice *dev, USBPacket *p,
                                 int config)
 {
@@ -1995,6 +2003,7 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->handle_data    = usbredir_handle_data;
     uc->handle_control = usbredir_handle_control;
     uc->flush_ep_queue = usbredir_flush_ep_queue;
+    uc->ep_stopped     = usbredir_ep_stopped;
     dc->vmsd           = &usbredir_vmstate;
     dc->props          = usbredir_properties;
 }
