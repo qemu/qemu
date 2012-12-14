@@ -78,6 +78,8 @@
 /* Must be large enough to handle 10 frame delay for initial isoc requests */
 #define QH_VALID         32
 
+#define MAX_FRAMES_PER_TICK    (QH_VALID / 2)
+
 #define NB_PORTS 2
 
 enum {
@@ -500,7 +502,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             trace_usb_uhci_schedule_start();
             s->expire_time = qemu_get_clock_ns(vm_clock) +
                 (get_ticks_per_sec() / FRAME_TIMER_FREQ);
-            qemu_mod_timer(s->frame_timer, qemu_get_clock_ns(vm_clock));
+            qemu_mod_timer(s->frame_timer, s->expire_time);
             s->status &= ~UHCI_STS_HCHALTED;
         } else if (!(val & UHCI_CMD_RS)) {
             s->status |= UHCI_STS_HCHALTED;
@@ -1176,10 +1178,10 @@ static void uhci_bh(void *opaque)
 static void uhci_frame_timer(void *opaque)
 {
     UHCIState *s = opaque;
+    uint64_t t_now, t_last_run;
+    int i, frames;
+    const uint64_t frame_t = get_ticks_per_sec() / FRAME_TIMER_FREQ;
 
-    /* prepare the timer for the next frame */
-    s->expire_time += (get_ticks_per_sec() / FRAME_TIMER_FREQ);
-    s->frame_bytes = 0;
     s->completions_only = false;
     qemu_bh_cancel(s->bh);
 
@@ -1193,20 +1195,29 @@ static void uhci_frame_timer(void *opaque)
         return;
     }
 
-    /* Process the current frame */
-    trace_usb_uhci_frame_start(s->frnum);
+    /* We still store expire_time in our state, for migration */
+    t_last_run = s->expire_time - frame_t;
+    t_now = qemu_get_clock_ns(vm_clock);
 
-    uhci_async_validate_begin(s);
+    /* Process up to MAX_FRAMES_PER_TICK frames */
+    frames = (t_now - t_last_run) / frame_t;
+    if (frames > MAX_FRAMES_PER_TICK) {
+        frames = MAX_FRAMES_PER_TICK;
+    }
 
-    uhci_process_frame(s);
+    for (i = 0; i < frames; i++) {
+        s->frame_bytes = 0;
+        trace_usb_uhci_frame_start(s->frnum);
+        uhci_async_validate_begin(s);
+        uhci_process_frame(s);
+        uhci_async_validate_end(s);
+        /* The spec says frnum is the frame currently being processed, and
+         * the guest must look at frnum - 1 on interrupt, so inc frnum now */
+        s->frnum = (s->frnum + 1) & 0x7ff;
+        s->expire_time += frame_t;
+    }
 
-    uhci_async_validate_end(s);
-
-    /* The uhci spec says frnum reflects the frame currently being processed,
-     * and the guest must look at frnum - 1 on interrupt, so inc frnum now */
-    s->frnum = (s->frnum + 1) & 0x7ff;
-
-    /* Complete the previous frame */
+    /* Complete the previous frame(s) */
     if (s->pending_int_mask) {
         s->status2 |= s->pending_int_mask;
         s->status  |= UHCI_STS_USBINT;
@@ -1214,7 +1225,7 @@ static void uhci_frame_timer(void *opaque)
     }
     s->pending_int_mask = 0;
 
-    qemu_mod_timer(s->frame_timer, s->expire_time);
+    qemu_mod_timer(s->frame_timer, t_now + frame_t);
 }
 
 static const MemoryRegionPortio uhci_portio[] = {
