@@ -461,6 +461,7 @@ static bool ehci_verify_qtd(EHCIPacket *p, EHCIqtd *qtd)
         (p->queue->async && !NLPTR_TBIT(p->qtd.next) &&
             (p->qtd.next != qtd->next)) ||
         (!NLPTR_TBIT(p->qtd.altnext) && (p->qtd.altnext != qtd->altnext)) ||
+        p->qtd.token != qtd->token ||
         p->qtd.bufptr[0] != qtd->bufptr[0]) {
         return false;
     } else {
@@ -1793,7 +1794,9 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     if (p != NULL) {
         if (!ehci_verify_qtd(p, &qtd)) {
             ehci_cancel_queue(q);
-            ehci_trace_guest_bug(q->ehci, "guest updated active QH or qTD");
+            if (qtd.token & QTD_TOKEN_ACTIVE) {
+                ehci_trace_guest_bug(q->ehci, "guest updated active qTD");
+            }
             p = NULL;
         } else {
             p->qtd = qtd;
@@ -1802,11 +1805,6 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
     }
 
     if (!(qtd.token & QTD_TOKEN_ACTIVE)) {
-        if (p != NULL) {
-            /* transfer canceled by guest (clear active) */
-            ehci_cancel_queue(q);
-            p = NULL;
-        }
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
     } else if (p != NULL) {
         switch (p->async) {
