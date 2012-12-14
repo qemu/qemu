@@ -2127,7 +2127,7 @@ fi
 # pixman support probe
 
 if test "$pixman" = ""; then
-  if $pkg_config --atleast-version=0.18.4 pixman-1 > /dev/null 2>&1; then
+  if $pkg_config pixman-1 > /dev/null 2>&1; then
     pixman="system"
   else
     pixman="internal"
@@ -2138,7 +2138,7 @@ if test "$pixman" = "system"; then
   pixman_libs=`$pkg_config --libs pixman-1 2>/dev/null`
 else
   if test ! -d ${source_path}/pixman/pixman; then
-    echo "ERROR: pixman not present (or older than 0.18.4). Your options:"
+    echo "ERROR: pixman not present. Your options:"
     echo "  (1) Preferred: Install the pixman devel package (any recent"
     echo "      distro should have packages as Xorg needs pixman too)."
     echo "  (2) Fetch the pixman submodule, using:"
