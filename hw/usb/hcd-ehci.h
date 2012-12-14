@@ -248,6 +248,7 @@ struct EHCIQueue {
     EHCIqh qh;             /* copy of current QH (being worked on) */
     uint32_t qhaddr;       /* address QH read from                 */
     uint32_t qtdaddr;      /* address QTD read from                */
+    int last_pid;          /* pid of last packet executed          */
     USBDevice *dev;
     QTAILQ_HEAD(pkts_head, EHCIPacket) packets;
 };

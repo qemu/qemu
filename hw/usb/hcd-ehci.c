@@ -527,6 +527,19 @@ static bool ehci_verify_qtd(EHCIPacket *p, EHCIqtd *qtd)
     }
 }
 
+static bool ehci_verify_pid(EHCIQueue *q, EHCIqtd *qtd)
+{
+    int ep  = get_field(q->qh.epchar, QH_EPCHAR_EP);
+    int pid = ehci_get_pid(qtd);
+
+    /* Note the pid changing is normal for ep 0 (the control ep) */
+    if (q->last_pid && ep != 0 && pid != q->last_pid) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 /* Finish executing and writeback a packet outside of the regular
    fetchqh -> fetchqtd -> execute -> writeback cycle */
 static void ehci_writeback_async_complete_packet(EHCIPacket *p)
@@ -634,6 +647,7 @@ static int ehci_reset_queue(EHCIQueue *q)
     packets = ehci_cancel_queue(q);
     q->dev = NULL;
     q->qtdaddr = 0;
+    q->last_pid = 0;
     return packets;
 }
 
@@ -1368,6 +1382,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
     }
 
     p->pid = ehci_get_pid(&p->qtd);
+    p->queue->last_pid = p->pid;
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
     ep = usb_ep_get(p->queue->dev, p->pid, endp);
 
@@ -1881,6 +1896,10 @@ static int ehci_fill_queue(EHCIPacket *p)
         }
         ehci_trace_qtd(q, NLPTR_GET(qtdaddr), &qtd);
         if (!(qtd.token & QTD_TOKEN_ACTIVE)) {
+            break;
+        }
+        if (!ehci_verify_pid(q, &qtd)) {
+            ehci_trace_guest_bug(q->ehci, "guest queued token with wrong pid");
             break;
         }
         p = ehci_alloc_packet(q);
