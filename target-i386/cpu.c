@@ -1768,18 +1768,9 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 error_setg(errp, "unrecognized feature %s", featurestr);
                 goto out;
             }
-        } else if (!strcmp(featurestr, "check")) {
-            object_property_parse(OBJECT(cpu), "on", featurestr, errp);
-        } else if (!strcmp(featurestr, "enforce")) {
-            object_property_parse(OBJECT(cpu), "on", featurestr, errp);
-        } else if (!strcmp(featurestr, "hv_relaxed")) {
-            object_property_parse(OBJECT(cpu), "on", "hv-relaxed", errp);
-        } else if (!strcmp(featurestr, "hv_vapic")) {
-            object_property_parse(OBJECT(cpu), "on", "hv-vapic", errp);
         } else {
-            error_setg(errp, "feature string `%s' not in format (+feature|"
-                       "-feature|feature=xyz)", featurestr);
-            goto out;
+            feat2prop(featurestr);
+            object_property_parse(OBJECT(cpu), "on", featurestr, errp);
         }
         if (error_is_set(errp)) {
             goto out;
