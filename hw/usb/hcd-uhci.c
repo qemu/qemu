@@ -433,7 +433,7 @@ static int uhci_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_uhci = {
     .name = "uhci",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .post_load = uhci_post_load,
@@ -451,6 +451,7 @@ static const VMStateDescription vmstate_uhci = {
         VMSTATE_UINT8(status2, UHCIState),
         VMSTATE_TIMER(frame_timer, UHCIState),
         VMSTATE_INT64_V(expire_time, UHCIState, 2),
+        VMSTATE_UINT32_V(pending_int_mask, UHCIState, 3),
         VMSTATE_END_OF_LIST()
     }
 };
