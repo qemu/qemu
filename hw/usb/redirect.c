@@ -44,6 +44,11 @@
 #define NO_INTERFACE_INFO 255 /* Valid interface_count always <= 32 */
 #define EP2I(ep_address) (((ep_address & 0x80) >> 3) | (ep_address & 0x0f))
 #define I2EP(i) (((i & 0x10) << 3) | (i & 0x0f))
+#define USBEP2I(usb_ep) (((usb_ep)->pid == USB_TOKEN_IN) ? \
+                         ((usb_ep)->nr | 0x10) : ((usb_ep)->nr))
+#define I2USBEP(d, i) (usb_ep_get(&(d)->dev, \
+                       ((i) & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT, \
+                       (i) & 0x0f))
 
 typedef struct USBRedirDevice USBRedirDevice;
 
@@ -1351,11 +1356,10 @@ static void usbredir_set_pipeline(USBRedirDevice *dev, struct USBEndpoint *uep)
 static void usbredir_setup_usb_eps(USBRedirDevice *dev)
 {
     struct USBEndpoint *usb_ep;
-    int i, pid;
+    int i;
 
     for (i = 0; i < MAX_ENDPOINTS; i++) {
-        pid = (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT;
-        usb_ep = usb_ep_get(&dev->dev, pid, i & 0x0f);
+        usb_ep = I2USBEP(dev, i);
         usb_ep->type = dev->endpoint[i].type;
         usb_ep->ifnum = dev->endpoint[i].interface;
         usb_ep->max_packet_size = dev->endpoint[i].max_packet_size;
