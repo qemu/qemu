@@ -75,6 +75,9 @@
 
 #define FRAME_MAX_LOOPS  256
 
+/* Must be large enough to handle 10 frame delay for initial isoc requests */
+#define QH_VALID         32
+
 #define NB_PORTS 2
 
 enum {
@@ -206,9 +209,7 @@ static UHCIQueue *uhci_queue_new(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
     queue->ep = ep;
     QTAILQ_INIT(&queue->asyncs);
     QTAILQ_INSERT_HEAD(&s->queues, queue, next);
-    /* valid needs to be large enough to handle 10 frame delay
-     * for initial isochronous requests */
-    queue->valid = 32;
+    queue->valid = QH_VALID;
     trace_usb_uhci_queue_add(queue->token);
     return queue;
 }
@@ -854,7 +855,7 @@ static int uhci_handle_td(UHCIState *s, UHCIQueue *q, uint32_t qh_addr,
     }
 
     if (q) {
-        q->valid = 32;
+        q->valid = QH_VALID;
     }
 
     /* Is active ? */
