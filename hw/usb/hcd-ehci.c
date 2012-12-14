@@ -757,7 +757,6 @@ static void ehci_attach(USBPort *port)
     *portsc |= PORTSC_CSC;
 
     ehci_raise_irq(s, USBSTS_PCD);
-    ehci_commit_irq(s);
 }
 
 static void ehci_detach(USBPort *port)
@@ -787,7 +786,6 @@ static void ehci_detach(USBPort *port)
     *portsc |= PORTSC_CSC;
 
     ehci_raise_irq(s, USBSTS_PCD);
-    ehci_commit_irq(s);
 }
 
 static void ehci_child_detach(USBPort *port, USBDevice *child)
