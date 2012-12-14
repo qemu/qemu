@@ -761,7 +761,7 @@ USBPacket *usb_ep_find_packet_by_id(USBDevice *dev, int pid, int ep,
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     USBPacket *p;
 
-    while ((p = QTAILQ_FIRST(&uep->queue)) != NULL) {
+    QTAILQ_FOREACH(p, &uep->queue, queue) {
         if (p->id == id) {
             return p;
         }
