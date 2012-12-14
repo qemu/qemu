@@ -752,6 +752,23 @@ static void usbredir_flush_ep_queue(USBDevice *dev, USBEndpoint *ep)
     }
 }
 
+static void usbredir_stop_ep(USBRedirDevice *dev, int i)
+{
+    uint8_t ep = I2EP(i);
+
+    switch (dev->endpoint[i].type) {
+    case USB_ENDPOINT_XFER_ISOC:
+        usbredir_stop_iso_stream(dev, ep);
+        break;
+    case USB_ENDPOINT_XFER_INT:
+        if (ep & USB_DIR_IN) {
+            usbredir_stop_interrupt_receiving(dev, ep);
+        }
+        break;
+    }
+    usbredir_free_bufpq(dev, ep);
+}
+
 static void usbredir_set_config(USBRedirDevice *dev, USBPacket *p,
                                 int config)
 {
@@ -761,17 +778,7 @@ static void usbredir_set_config(USBRedirDevice *dev, USBPacket *p,
     DPRINTF("set config %d id %"PRIu64"\n", config, p->id);
 
     for (i = 0; i < MAX_ENDPOINTS; i++) {
-        switch (dev->endpoint[i].type) {
-        case USB_ENDPOINT_XFER_ISOC:
-            usbredir_stop_iso_stream(dev, I2EP(i));
-            break;
-        case USB_ENDPOINT_XFER_INT:
-            if (i & 0x10) {
-                usbredir_stop_interrupt_receiving(dev, I2EP(i));
-            }
-            break;
-        }
-        usbredir_free_bufpq(dev, I2EP(i));
+        usbredir_stop_ep(dev, i);
     }
 
     set_config.configuration = config;
@@ -799,17 +806,7 @@ static void usbredir_set_interface(USBRedirDevice *dev, USBPacket *p,
 
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         if (dev->endpoint[i].interface == interface) {
-            switch (dev->endpoint[i].type) {
-            case USB_ENDPOINT_XFER_ISOC:
-                usbredir_stop_iso_stream(dev, I2EP(i));
-                break;
-            case USB_ENDPOINT_XFER_INT:
-                if (i & 0x10) {
-                    usbredir_stop_interrupt_receiving(dev, I2EP(i));
-                }
-                break;
-            }
-            usbredir_free_bufpq(dev, I2EP(i));
+            usbredir_stop_ep(dev, i);
         }
     }
 
