@@ -2569,7 +2569,7 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
             uint8_t *server_ptr;
 
             if (vd->guest.format != VNC_SERVER_FB_FORMAT) {
-                qemu_pixman_linebuf_fill(tmpbuf, vd->guest.fb, width, y);
+                qemu_pixman_linebuf_fill(tmpbuf, vd->guest.fb, width, 0, y);
                 guest_ptr = (uint8_t *)pixman_image_get_data(tmpbuf);
             } else {
                 guest_ptr = guest_row;

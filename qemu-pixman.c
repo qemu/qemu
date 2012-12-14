@@ -52,10 +52,10 @@ pixman_image_t *qemu_pixman_linebuf_create(pixman_format_code_t format,
 }
 
 void qemu_pixman_linebuf_fill(pixman_image_t *linebuf, pixman_image_t *fb,
-                              int width, int y)
+                              int width, int x, int y)
 {
     pixman_image_composite(PIXMAN_OP_SRC, fb, NULL, linebuf,
-                           0, y, 0, 0, 0, 0, width, 1);
+                           x, y, 0, 0, 0, 0, width, 1);
 }
 
 pixman_image_t *qemu_pixman_mirror_create(pixman_format_code_t format,
