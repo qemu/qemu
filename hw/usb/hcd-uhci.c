@@ -1191,17 +1191,7 @@ static void uhci_frame_timer(void *opaque)
         return;
     }
 
-    /* Complete the previous frame */
-    if (s->pending_int_mask) {
-        s->status2 |= s->pending_int_mask;
-        s->status  |= UHCI_STS_USBINT;
-        uhci_update_irq(s);
-    }
-    s->pending_int_mask = 0;
-
-    /* Start new frame */
-    s->frnum = (s->frnum + 1) & 0x7ff;
-
+    /* Process the current frame */
     trace_usb_uhci_frame_start(s->frnum);
 
     uhci_async_validate_begin(s);
@@ -1209,6 +1199,18 @@ static void uhci_frame_timer(void *opaque)
     uhci_process_frame(s);
 
     uhci_async_validate_end(s);
+
+    /* The uhci spec says frnum reflects the frame currently being processed,
+     * and the guest must look at frnum - 1 on interrupt, so inc frnum now */
+    s->frnum = (s->frnum + 1) & 0x7ff;
+
+    /* Complete the previous frame */
+    if (s->pending_int_mask) {
+        s->status2 |= s->pending_int_mask;
+        s->status  |= UHCI_STS_USBINT;
+        uhci_update_irq(s);
+    }
+    s->pending_int_mask = 0;
 
     qemu_mod_timer(s->frame_timer, s->expire_time);
 }
