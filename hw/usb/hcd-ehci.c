@@ -481,6 +481,21 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
     return num;
 }
 
+static int ehci_get_pid(EHCIqtd *qtd)
+{
+    switch (get_field(qtd->token, QTD_TOKEN_PID)) {
+    case 0:
+        return USB_TOKEN_OUT;
+    case 1:
+        return USB_TOKEN_IN;
+    case 2:
+        return USB_TOKEN_SETUP;
+    default:
+        fprintf(stderr, "bad token\n");
+        return 0;
+    }
+}
+
 static bool ehci_verify_qh(EHCIQueue *q, EHCIqh *qh)
 {
     uint32_t devaddr = get_field(qh->epchar, QH_EPCHAR_DEVADDR);
@@ -1352,22 +1367,7 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         return -1;
     }
 
-    p->pid = (p->qtd.token & QTD_TOKEN_PID_MASK) >> QTD_TOKEN_PID_SH;
-    switch (p->pid) {
-    case 0:
-        p->pid = USB_TOKEN_OUT;
-        break;
-    case 1:
-        p->pid = USB_TOKEN_IN;
-        break;
-    case 2:
-        p->pid = USB_TOKEN_SETUP;
-        break;
-    default:
-        fprintf(stderr, "bad token\n");
-        break;
-    }
-
+    p->pid = ehci_get_pid(&p->qtd);
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);
     ep = usb_ep_get(p->queue->dev, p->pid, endp);
 
