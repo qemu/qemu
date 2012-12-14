@@ -226,6 +226,7 @@ static void uhci_queue_free(UHCIQueue *queue, const char *reason)
         async = QTAILQ_FIRST(&queue->asyncs);
         uhci_async_cancel(async);
     }
+    usb_device_ep_stopped(queue->ep->dev, queue->ep);
 
     trace_usb_uhci_queue_del(queue->token, reason);
     QTAILQ_REMOVE(&s->queues, queue, next);

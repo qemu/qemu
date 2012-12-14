@@ -622,6 +622,17 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, uint32_t addr, int async)
     return q;
 }
 
+static void ehci_queue_stopped(EHCIQueue *q)
+{
+    int endp  = get_field(q->qh.epchar, QH_EPCHAR_EP);
+
+    if (!q->last_pid || !q->dev) {
+        return;
+    }
+
+    usb_device_ep_stopped(q->dev, usb_ep_get(q->dev, q->last_pid, endp));
+}
+
 static int ehci_cancel_queue(EHCIQueue *q)
 {
     EHCIPacket *p;
@@ -629,7 +640,7 @@ static int ehci_cancel_queue(EHCIQueue *q)
 
     p = QTAILQ_FIRST(&q->packets);
     if (p == NULL) {
-        return 0;
+        goto leave;
     }
 
     trace_usb_ehci_queue_action(q, "cancel");
@@ -637,6 +648,9 @@ static int ehci_cancel_queue(EHCIQueue *q)
         ehci_free_packet(p);
         packets++;
     } while ((p = QTAILQ_FIRST(&q->packets)) != NULL);
+
+leave:
+    ehci_queue_stopped(q);
     return packets;
 }
 
@@ -1392,6 +1406,9 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         return -1;
     }
 
+    if (!ehci_verify_pid(p->queue, &p->qtd)) {
+        ehci_queue_stopped(p->queue); /* Mark the ep in the prev dir stopped */
+    }
     p->pid = ehci_get_pid(&p->qtd);
     p->queue->last_pid = p->pid;
     endp = get_field(p->queue->qh.epchar, QH_EPCHAR_EP);

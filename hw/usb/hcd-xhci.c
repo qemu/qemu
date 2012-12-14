@@ -1177,6 +1177,7 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
     XHCISlot *slot;
     XHCIEPContext *epctx;
     int i, xferi, killed = 0;
+    USBEndpoint *ep = NULL;
     assert(slotid >= 1 && slotid <= xhci->numslots);
     assert(epid >= 1 && epid <= 31);
 
@@ -1192,8 +1193,14 @@ static int xhci_ep_nuke_xfers(XHCIState *xhci, unsigned int slotid,
 
     xferi = epctx->next_xfer;
     for (i = 0; i < TD_QUEUE; i++) {
+        if (epctx->transfers[xferi].packet.ep) {
+            ep = epctx->transfers[xferi].packet.ep;
+        }
         killed += xhci_ep_nuke_one_xfer(&epctx->transfers[xferi]);
         xferi = (xferi + 1) % TD_QUEUE;
+    }
+    if (ep) {
+        usb_device_ep_stopped(ep->dev, ep);
     }
     return killed;
 }

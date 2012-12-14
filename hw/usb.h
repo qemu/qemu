@@ -307,6 +307,12 @@ typedef struct USBDeviceClass {
      */
     void (*flush_ep_queue)(USBDevice *dev, USBEndpoint *ep);
 
+    /*
+     * Called by the hcd to let the device know the queue for an endpoint
+     * has been unlinked / stopped. Optional may be NULL.
+     */
+    void (*ep_stopped)(USBDevice *dev, USBEndpoint *ep);
+
     const char *product_desc;
     const USBDesc *usb_desc;
 } USBDeviceClass;
@@ -538,6 +544,8 @@ void usb_device_set_interface(USBDevice *dev, int interface,
                               int alt_old, int alt_new);
 
 void usb_device_flush_ep_queue(USBDevice *dev, USBEndpoint *ep);
+
+void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep);
 
 const char *usb_device_get_product_desc(USBDevice *dev);
 
