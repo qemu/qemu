@@ -1603,7 +1603,6 @@ out:
 static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 {
     uint32_t entry;
-    EHCIPacket *p;
     EHCIQueue *q;
     EHCIqh qh;
 
@@ -1612,7 +1611,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     if (NULL == q) {
         q = ehci_alloc_queue(ehci, entry, async);
     }
-    p = QTAILQ_FIRST(&q->packets);
 
     q->seen++;
     if (q->seen > 1) {
@@ -1637,7 +1635,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         if (ehci_reset_queue(q) > 0) {
             ehci_trace_guest_bug(ehci, "guest updated active QH");
         }
-        p = NULL;
     }
     q->qh = qh;
 
@@ -1649,13 +1646,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     if (q->dev == NULL) {
         q->dev = ehci_find_device(q->ehci,
                                   get_field(q->qh.epchar, QH_EPCHAR_DEVADDR));
-    }
-
-    if (p && p->async == EHCI_ASYNC_FINISHED) {
-        /* I/O finished -- continue processing queue */
-        trace_usb_ehci_packet_action(p->queue, p, "complete");
-        ehci_set_state(ehci, async, EST_EXECUTING);
-        goto out;
     }
 
     if (async && (q->qh.epchar & QH_EPCHAR_H)) {
@@ -1834,10 +1824,7 @@ static int ehci_state_fetchqtd(EHCIQueue *q)
             ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
             break;
         case EHCI_ASYNC_FINISHED:
-            /*
-             * We get here when advqueue moves to a packet which is already
-             * finished, which can happen with packets queued up by fill_queue
-             */
+            /* Complete executing of the packet */
             ehci_set_state(q->ehci, q->async, EST_EXECUTING);
             break;
         }
