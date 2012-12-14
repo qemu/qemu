@@ -171,6 +171,7 @@ struct UHCIState {
     /* Properties */
     char *masterbus;
     uint32_t firstport;
+    uint32_t maxframes;
 };
 
 typedef struct UHCI_TD {
@@ -1201,6 +1202,12 @@ static void uhci_frame_timer(void *opaque)
 
     /* Process up to MAX_FRAMES_PER_TICK frames */
     frames = (t_now - t_last_run) / frame_t;
+    if (frames > s->maxframes) {
+        int skipped = frames - s->maxframes;
+        s->expire_time += skipped * frame_t;
+        s->frnum = (s->frnum + skipped) & 0x7ff;
+        frames -= skipped;
+    }
     if (frames > MAX_FRAMES_PER_TICK) {
         frames = MAX_FRAMES_PER_TICK;
     }
@@ -1326,6 +1333,7 @@ static Property uhci_properties[] = {
     DEFINE_PROP_STRING("masterbus", UHCIState, masterbus),
     DEFINE_PROP_UINT32("firstport", UHCIState, firstport, 0),
     DEFINE_PROP_UINT32("bandwidth", UHCIState, frame_bandwidth, 1280),
+    DEFINE_PROP_UINT32("maxframes", UHCIState, maxframes, 128),
     DEFINE_PROP_END_OF_LIST(),
 };
 
