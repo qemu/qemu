@@ -355,7 +355,7 @@ struct ppc6xx_tlb_t {
 
 typedef struct ppcemb_tlb_t ppcemb_tlb_t;
 struct ppcemb_tlb_t {
-    hwaddr RPN;
+    uint64_t RPN;
     target_ulong EPN;
     target_ulong PID;
     target_ulong size;

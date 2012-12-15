@@ -17,6 +17,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "e500.h"
+#include "e500-ccsr.h"
 #include "net.h"
 #include "hw/hw.h"
 #include "hw/serial.h"
@@ -33,6 +34,7 @@
 #include "hw/sysbus.h"
 #include "exec-memory.h"
 #include "host-utils.h"
+#include "hw/ppce500_pci.h"
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
@@ -46,13 +48,16 @@
 /* TODO: parameterize */
 #define MPC8544_CCSRBAR_BASE       0xE0000000ULL
 #define MPC8544_CCSRBAR_SIZE       0x00100000ULL
-#define MPC8544_MPIC_REGS_BASE     (MPC8544_CCSRBAR_BASE + 0x40000ULL)
-#define MPC8544_SERIAL0_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4500ULL)
-#define MPC8544_SERIAL1_REGS_BASE  (MPC8544_CCSRBAR_BASE + 0x4600ULL)
-#define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + 0x8000ULL)
+#define MPC8544_MPIC_REGS_OFFSET   0x40000ULL
+#define MPC8544_MSI_REGS_OFFSET   0x41600ULL
+#define MPC8544_SERIAL0_REGS_OFFSET 0x4500ULL
+#define MPC8544_SERIAL1_REGS_OFFSET 0x4600ULL
+#define MPC8544_PCI_REGS_OFFSET    0x8000ULL
+#define MPC8544_PCI_REGS_BASE      (MPC8544_CCSRBAR_BASE + \
+                                    MPC8544_PCI_REGS_OFFSET)
 #define MPC8544_PCI_REGS_SIZE      0x1000ULL
 #define MPC8544_PCI_IO             0xE1000000ULL
-#define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000ULL)
+#define MPC8544_UTIL_OFFSET        0xe0000ULL
 #define MPC8544_SPIN_BASE          0xEF000000ULL
 
 struct boot_info
@@ -62,25 +67,35 @@ struct boot_info
     uint32_t entry;
 };
 
-static void pci_map_create(void *fdt, uint32_t *pci_map, uint32_t mpic)
+static uint32_t *pci_map_create(void *fdt, uint32_t mpic, int first_slot,
+                                int nr_slots, int *len)
 {
-    int i;
-    const uint32_t tmp[] = {
-                             /* IDSEL 0x11 J17 Slot 1 */
-                             0x8800, 0x0, 0x0, 0x1, mpic, 0x2, 0x1,
-                             0x8800, 0x0, 0x0, 0x2, mpic, 0x3, 0x1,
-                             0x8800, 0x0, 0x0, 0x3, mpic, 0x4, 0x1,
-                             0x8800, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
+    int i = 0;
+    int slot;
+    int pci_irq;
+    int host_irq;
+    int last_slot = first_slot + nr_slots;
+    uint32_t *pci_map;
 
-                             /* IDSEL 0x12 J16 Slot 2 */
-                             0x9000, 0x0, 0x0, 0x1, mpic, 0x3, 0x1,
-                             0x9000, 0x0, 0x0, 0x2, mpic, 0x4, 0x1,
-                             0x9000, 0x0, 0x0, 0x3, mpic, 0x2, 0x1,
-                             0x9000, 0x0, 0x0, 0x4, mpic, 0x1, 0x1,
-                           };
-    for (i = 0; i < (7 * 8); i++) {
-        pci_map[i] = cpu_to_be32(tmp[i]);
+    *len = nr_slots * 4 * 7 * sizeof(uint32_t);
+    pci_map = g_malloc(*len);
+
+    for (slot = first_slot; slot < last_slot; slot++) {
+        for (pci_irq = 0; pci_irq < 4; pci_irq++) {
+            pci_map[i++] = cpu_to_be32(slot << 11);
+            pci_map[i++] = cpu_to_be32(0x0);
+            pci_map[i++] = cpu_to_be32(0x0);
+            pci_map[i++] = cpu_to_be32(pci_irq + 1);
+            pci_map[i++] = cpu_to_be32(mpic);
+            host_irq = ppce500_pci_map_irq_slot(slot, pci_irq);
+            pci_map[i++] = cpu_to_be32(host_irq + 1);
+            pci_map[i++] = cpu_to_be32(0x1);
+        }
     }
+
+    assert((i * sizeof(uint32_t)) == *len);
+
+    return pci_map;
 }
 
 static void dt_serial_create(void *fdt, unsigned long long offset,
@@ -124,9 +139,12 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     char soc[128];
     char mpic[128];
     uint32_t mpic_ph;
+    uint32_t msi_ph;
     char gutil[128];
     char pci[128];
-    uint32_t pci_map[7 * 8];
+    char msi[128];
+    uint32_t *pci_map = NULL;
+    int len;
     uint32_t pci_ranges[14] =
         {
             0x2000000, 0x0, 0xc0000000,
@@ -267,13 +285,12 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     /* XXX should contain a reasonable value */
     qemu_devtree_setprop_cell(fdt, soc, "bus-frequency", 0);
 
-    snprintf(mpic, sizeof(mpic), "%s/pic@%llx", soc,
-             MPC8544_MPIC_REGS_BASE - MPC8544_CCSRBAR_BASE);
+    snprintf(mpic, sizeof(mpic), "%s/pic@%llx", soc, MPC8544_MPIC_REGS_OFFSET);
     qemu_devtree_add_subnode(fdt, mpic);
     qemu_devtree_setprop_string(fdt, mpic, "device_type", "open-pic");
     qemu_devtree_setprop_string(fdt, mpic, "compatible", "chrp,open-pic");
-    qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_BASE -
-                               MPC8544_CCSRBAR_BASE, 0x40000);
+    qemu_devtree_setprop_cells(fdt, mpic, "reg", MPC8544_MPIC_REGS_OFFSET,
+                               0x40000);
     qemu_devtree_setprop_cell(fdt, mpic, "#address-cells", 0);
     qemu_devtree_setprop_cell(fdt, mpic, "#interrupt-cells", 2);
     mpic_ph = qemu_devtree_alloc_phandle(fdt);
@@ -286,18 +303,36 @@ static int ppce500_load_device_tree(CPUPPCState *env,
      * device it finds in the dt as serial output device. And we generate
      * devices in reverse order to the dt.
      */
-    dt_serial_create(fdt, MPC8544_SERIAL1_REGS_BASE - MPC8544_CCSRBAR_BASE,
+    dt_serial_create(fdt, MPC8544_SERIAL1_REGS_OFFSET,
                      soc, mpic, "serial1", 1, false);
-    dt_serial_create(fdt, MPC8544_SERIAL0_REGS_BASE - MPC8544_CCSRBAR_BASE,
+    dt_serial_create(fdt, MPC8544_SERIAL0_REGS_OFFSET,
                      soc, mpic, "serial0", 0, true);
 
     snprintf(gutil, sizeof(gutil), "%s/global-utilities@%llx", soc,
-             MPC8544_UTIL_BASE - MPC8544_CCSRBAR_BASE);
+             MPC8544_UTIL_OFFSET);
     qemu_devtree_add_subnode(fdt, gutil);
     qemu_devtree_setprop_string(fdt, gutil, "compatible", "fsl,mpc8544-guts");
-    qemu_devtree_setprop_cells(fdt, gutil, "reg", MPC8544_UTIL_BASE -
-                               MPC8544_CCSRBAR_BASE, 0x1000);
+    qemu_devtree_setprop_cells(fdt, gutil, "reg", MPC8544_UTIL_OFFSET, 0x1000);
     qemu_devtree_setprop(fdt, gutil, "fsl,has-rstcr", NULL, 0);
+
+    snprintf(msi, sizeof(msi), "/%s/msi@%llx", soc, MPC8544_MSI_REGS_OFFSET);
+    qemu_devtree_add_subnode(fdt, msi);
+    qemu_devtree_setprop_string(fdt, msi, "compatible", "fsl,mpic-msi");
+    qemu_devtree_setprop_cells(fdt, msi, "reg", MPC8544_MSI_REGS_OFFSET, 0x200);
+    msi_ph = qemu_devtree_alloc_phandle(fdt);
+    qemu_devtree_setprop_cells(fdt, msi, "msi-available-ranges", 0x0, 0x100);
+    qemu_devtree_setprop_phandle(fdt, msi, "interrupt-parent", mpic);
+    qemu_devtree_setprop_cells(fdt, msi, "interrupts",
+        0xe0, 0x0,
+        0xe1, 0x0,
+        0xe2, 0x0,
+        0xe3, 0x0,
+        0xe4, 0x0,
+        0xe5, 0x0,
+        0xe6, 0x0,
+        0xe7, 0x0);
+    qemu_devtree_setprop_cell(fdt, msi, "phandle", msi_ph);
+    qemu_devtree_setprop_cell(fdt, msi, "linux,phandle", msi_ph);
 
     snprintf(pci, sizeof(pci), "/pci@%llx", MPC8544_PCI_REGS_BASE);
     qemu_devtree_add_subnode(fdt, pci);
@@ -306,14 +341,17 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     qemu_devtree_setprop_string(fdt, pci, "device_type", "pci");
     qemu_devtree_setprop_cells(fdt, pci, "interrupt-map-mask", 0xf800, 0x0,
                                0x0, 0x7);
-    pci_map_create(fdt, pci_map, qemu_devtree_get_phandle(fdt, mpic));
-    qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, sizeof(pci_map));
+    pci_map = pci_map_create(fdt, qemu_devtree_get_phandle(fdt, mpic),
+                             params->pci_first_slot, params->pci_nr_slots,
+                             &len);
+    qemu_devtree_setprop(fdt, pci, "interrupt-map", pci_map, len);
     qemu_devtree_setprop_phandle(fdt, pci, "interrupt-parent", mpic);
     qemu_devtree_setprop_cells(fdt, pci, "interrupts", 24, 2);
     qemu_devtree_setprop_cells(fdt, pci, "bus-range", 0, 255);
     for (i = 0; i < 14; i++) {
         pci_ranges[i] = cpu_to_be32(pci_ranges[i]);
     }
+    qemu_devtree_setprop_cell(fdt, pci, "fsl,msi", msi_ph);
     qemu_devtree_setprop(fdt, pci, "ranges", pci_ranges, sizeof(pci_ranges));
     qemu_devtree_setprop_cells(fdt, pci, "reg", MPC8544_PCI_REGS_BASE >> 32,
                                MPC8544_PCI_REGS_BASE, 0, 0x1000);
@@ -340,6 +378,7 @@ done:
     ret = fdt_size;
 
 out:
+    g_free(pci_map);
 
     return ret;
 }
@@ -417,11 +456,14 @@ void ppce500_init(PPCE500Params *params)
     target_ulong dt_base = 0;
     target_ulong initrd_base = 0;
     target_long initrd_size=0;
-    int i=0;
+    int i = 0, j, k;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
     CPUPPCState *firstenv = NULL;
+    MemoryRegion *ccsr_addr_space;
+    SysBusDevice *s;
+    PPCE500CCSRState *ccsr;
 
     /* Setup CPUs */
     if (params->cpu_model == NULL) {
@@ -450,7 +492,8 @@ void ppce500_init(PPCE500Params *params)
         irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
-        env->mpic_cpu_base = MPC8544_MPIC_REGS_BASE + 0x20000;
+        env->mpic_cpu_base = MPC8544_CCSRBAR_BASE +
+                              MPC8544_MPIC_REGS_OFFSET + 0x20000;
 
         ppc_booke_timers_init(env, 400000000, PPC_TIMER_E500);
 
@@ -477,35 +520,69 @@ void ppce500_init(PPCE500Params *params)
     vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
-    /* MPIC */
-    mpic = mpic_init(address_space_mem, MPC8544_MPIC_REGS_BASE,
-                     smp_cpus, irqs, NULL);
+    dev = qdev_create(NULL, "e500-ccsr");
+    object_property_add_child(qdev_get_machine(), "e500-ccsr",
+                              OBJECT(dev), NULL);
+    qdev_init_nofail(dev);
+    ccsr = CCSR(dev);
+    ccsr_addr_space = &ccsr->ccsr_space;
+    memory_region_add_subregion(address_space_mem, MPC8544_CCSRBAR_BASE,
+                                ccsr_addr_space);
 
-    if (!mpic) {
-        cpu_abort(env, "MPIC failed to initialize\n");
+    /* MPIC */
+    mpic = g_new(qemu_irq, 256);
+    dev = qdev_create(NULL, "openpic");
+    qdev_prop_set_uint32(dev, "nb_cpus", smp_cpus);
+    qdev_prop_set_uint32(dev, "model", OPENPIC_MODEL_FSL_MPIC_20);
+    qdev_init_nofail(dev);
+    s = sysbus_from_qdev(dev);
+
+    k = 0;
+    for (i = 0; i < smp_cpus; i++) {
+        for (j = 0; j < OPENPIC_OUTPUT_NB; j++) {
+            sysbus_connect_irq(s, k++, irqs[i][j]);
+        }
     }
+
+    for (i = 0; i < 256; i++) {
+        mpic[i] = qdev_get_gpio_in(dev, i);
+    }
+
+    memory_region_add_subregion(ccsr_addr_space, MPC8544_MPIC_REGS_OFFSET,
+                                s->mmio[0].memory);
 
     /* Serial */
     if (serial_hds[0]) {
-        serial_mm_init(address_space_mem, MPC8544_SERIAL0_REGS_BASE,
-                       0, mpic[12+26], 399193,
+        serial_mm_init(ccsr_addr_space, MPC8544_SERIAL0_REGS_OFFSET,
+                       0, mpic[42], 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
-        serial_mm_init(address_space_mem, MPC8544_SERIAL1_REGS_BASE,
-                       0, mpic[12+26], 399193,
+        serial_mm_init(ccsr_addr_space, MPC8544_SERIAL1_REGS_OFFSET,
+                       0, mpic[42], 399193,
                        serial_hds[1], DEVICE_BIG_ENDIAN);
     }
 
     /* General Utility device */
-    sysbus_create_simple("mpc8544-guts", MPC8544_UTIL_BASE, NULL);
+    dev = qdev_create(NULL, "mpc8544-guts");
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(ccsr_addr_space, MPC8544_UTIL_OFFSET,
+                                sysbus_mmio_get_region(s, 0));
 
     /* PCI */
-    dev = sysbus_create_varargs("e500-pcihost", MPC8544_PCI_REGS_BASE,
-                                mpic[pci_irq_nrs[0]], mpic[pci_irq_nrs[1]],
-                                mpic[pci_irq_nrs[2]], mpic[pci_irq_nrs[3]],
-                                NULL);
+    dev = qdev_create(NULL, "e500-pcihost");
+    qdev_prop_set_uint32(dev, "first_slot", params->pci_first_slot);
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    sysbus_connect_irq(s, 0, mpic[pci_irq_nrs[0]]);
+    sysbus_connect_irq(s, 1, mpic[pci_irq_nrs[1]]);
+    sysbus_connect_irq(s, 2, mpic[pci_irq_nrs[2]]);
+    sysbus_connect_irq(s, 3, mpic[pci_irq_nrs[3]]);
+    memory_region_add_subregion(ccsr_addr_space, MPC8544_PCI_REGS_OFFSET,
+                                sysbus_mmio_get_region(s, 0));
+
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (!pci_bus)
         printf("couldn't create PCI controller!\n");
@@ -578,3 +655,33 @@ void ppce500_init(PPCE500Params *params)
         kvmppc_init();
     }
 }
+
+static int e500_ccsr_initfn(SysBusDevice *dev)
+{
+    PPCE500CCSRState *ccsr;
+
+    ccsr = CCSR(dev);
+    memory_region_init(&ccsr->ccsr_space, "e500-ccsr",
+                       MPC8544_CCSRBAR_SIZE);
+    return 0;
+}
+
+static void e500_ccsr_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = e500_ccsr_initfn;
+}
+
+static const TypeInfo e500_ccsr_info = {
+    .name          = TYPE_CCSR,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PPCE500CCSRState),
+    .class_init    = e500_ccsr_class_init,
+};
+
+static void e500_register_types(void)
+{
+    type_register_static(&e500_ccsr_info);
+}
+
+type_init(e500_register_types)

@@ -1022,3 +1022,16 @@ spapr_pci_rtas_ibm_change_msi(unsigned func, unsigned req) "func %u, requested %
 spapr_pci_rtas_ibm_query_interrupt_source_number(unsigned ioa, unsigned intr) "queries for #%u, IRQ%u"
 spapr_pci_msi_write(uint64_t addr, uint64_t data, uint32_t dt_irq) "@%"PRIx64"<=%"PRIx64" IRQ %u"
 spapr_pci_lsi_set(const char *busname, int pin, uint32_t irq) "%s PIN%d IRQ %u"
+
+# hw/xics.c
+xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=%#x"
+xics_icp_accept(uint32_t old_xirr, uint32_t new_xirr) "icp_accept: XIRR %#"PRIx32"->%#"PRIx32
+xics_icp_eoi(int server, uint32_t xirr, uint32_t new_xirr) "icp_eoi: server %d given XIRR %#"PRIx32" new XIRR %#"PRIx32
+xics_icp_irq(int server, int nr, uint8_t priority) "cpu %d trying to deliver irq %#"PRIx32" priority %#x"
+xics_icp_raise(uint32_t xirr, uint8_t pending_priority) "raising IRQ new XIRR=%#x new pending priority=%#x"
+xics_set_irq_msi(int srcno, int nr) "set_irq_msi: srcno %d [irq %#x]"
+xics_masked_pending(void) "set_irq_msi: masked pending"
+xics_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq %#x]"
+xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq %#x [src %d] server %#x prio %#x"
+xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
+xics_ics_eoi(int nr) "ics_eoi: irq %#x"
