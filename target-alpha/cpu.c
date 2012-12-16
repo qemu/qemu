@@ -33,11 +33,6 @@ static void alpha_cpu_realize(Object *obj, Error **errp)
 #endif
 }
 
-typedef struct AlphaCPUListState {
-    fprintf_function cpu_fprintf;
-    FILE *file;
-} AlphaCPUListState;
-
 /* Sort alphabetically by type name. */
 static gint alpha_cpu_list_compare(gconstpointer a, gconstpointer b)
 {
@@ -53,7 +48,7 @@ static gint alpha_cpu_list_compare(gconstpointer a, gconstpointer b)
 static void alpha_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
-    AlphaCPUListState *s = user_data;
+    CPUListState *s = user_data;
 
     (*s->cpu_fprintf)(s->file, "  %s\n",
                       object_class_get_name(oc));
@@ -61,7 +56,7 @@ static void alpha_cpu_list_entry(gpointer data, gpointer user_data)
 
 void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    AlphaCPUListState s = {
+    CPUListState s = {
         .file = f,
         .cpu_fprintf = cpu_fprintf,
     };
