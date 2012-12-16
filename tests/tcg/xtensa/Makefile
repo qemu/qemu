@@ -26,6 +26,7 @@ TESTCASES += test_bi.tst
 TESTCASES += test_break.tst
 TESTCASES += test_bz.tst
 TESTCASES += test_clamps.tst
+TESTCASES += test_extui.tst
 TESTCASES += test_fail.tst
 TESTCASES += test_interrupt.tst
 TESTCASES += test_loop.tst
