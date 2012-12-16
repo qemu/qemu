@@ -27,6 +27,7 @@
 #include "arm-misc.h"
 #include "loader.h"
 #include "exynos4210.h"
+#include "usb/hcd-ehci.h"
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
 
@@ -71,6 +72,9 @@
 
 /* Display controllers (FIMD) */
 #define EXYNOS4210_FIMD0_BASE_ADDR          0x11C00000
+
+/* EHCI */
+#define EXYNOS4210_EHCI_BASE_ADDR           0x12580000
 
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
@@ -337,6 +341,9 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
             s->irq_table[exynos4210_get_irq(11, 1)],
             s->irq_table[exynos4210_get_irq(11, 2)],
             NULL);
+
+    sysbus_create_simple(TYPE_EXYNOS4210_EHCI, EXYNOS4210_EHCI_BASE_ADDR,
+            s->irq_table[exynos4210_get_irq(28, 3)]);
 
     return s;
 }
