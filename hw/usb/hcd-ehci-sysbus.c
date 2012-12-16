@@ -35,10 +35,11 @@ static Property ehci_sysbus_properties[] = {
 static int usb_ehci_sysbus_initfn(SysBusDevice *dev)
 {
     EHCISysBusState *i = SYS_BUS_EHCI(dev);
+    SysBusEHCIClass *sec = SYS_BUS_EHCI_GET_CLASS(dev);
     EHCIState *s = &i->ehci;
 
-    s->capsbase = 0x100;
-    s->opregbase = 0x140;
+    s->capsbase = sec->capsbase;
+    s->opregbase = sec->opregbase;
     s->dma = &dma_context_memory;
 
     usb_ehci_initfn(s, DEVICE(dev));
@@ -63,11 +64,21 @@ static const TypeInfo ehci_type_info = {
     .instance_size = sizeof(EHCISysBusState),
     .abstract      = true,
     .class_init    = ehci_sysbus_class_init,
+    .class_size    = sizeof(SysBusEHCIClass),
 };
+
+static void ehci_xlnx_class_init(ObjectClass *oc, void *data)
+{
+    SysBusEHCIClass *sec = SYS_BUS_EHCI_CLASS(oc);
+
+    sec->capsbase = 0x100;
+    sec->opregbase = 0x140;
+}
 
 static const TypeInfo ehci_xlnx_type_info = {
     .name          = "xlnx,ps7-usb",
     .parent        = TYPE_SYS_BUS_EHCI,
+    .class_init    = ehci_xlnx_class_init,
 };
 
 static void ehci_sysbus_register_types(void)

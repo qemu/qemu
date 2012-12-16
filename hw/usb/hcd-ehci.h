@@ -339,6 +339,10 @@ typedef struct EHCIPCIState {
 #define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
 #define SYS_BUS_EHCI(obj) \
     OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
+#define SYS_BUS_EHCI_CLASS(class) \
+    OBJECT_CLASS_CHECK(SysBusEHCIClass, (class), TYPE_SYS_BUS_EHCI)
+#define SYS_BUS_EHCI_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(SysBusEHCIClass, (obj), TYPE_SYS_BUS_EHCI)
 
 typedef struct EHCISysBusState {
     /*< private >*/
@@ -347,5 +351,14 @@ typedef struct EHCISysBusState {
 
     EHCIState ehci;
 } EHCISysBusState;
+
+typedef struct SysBusEHCIClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+    /*< public >*/
+
+    uint16_t capsbase;
+    uint16_t opregbase;
+} SysBusEHCIClass;
 
 #endif
