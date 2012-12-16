@@ -16,12 +16,6 @@
  */
 
 #include "hw/usb/hcd-ehci.h"
-#include "hw/sysbus.h"
-
-typedef struct EHCISysBusState {
-    SysBusDevice busdev;
-    EHCIState ehci;
-} EHCISysBusState;
 
 static const VMStateDescription vmstate_ehci_sysbus = {
     .name        = "ehci-sysbus",
@@ -40,7 +34,7 @@ static Property ehci_sysbus_properties[] = {
 
 static int usb_ehci_sysbus_initfn(SysBusDevice *dev)
 {
-    EHCISysBusState *i = FROM_SYSBUS(EHCISysBusState, dev);
+    EHCISysBusState *i = SYS_BUS_EHCI(dev);
     EHCIState *s = &i->ehci;
 
     s->capsbase = 0x100;
@@ -63,15 +57,22 @@ static void ehci_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = ehci_sysbus_properties;
 }
 
-TypeInfo ehci_xlnx_type_info = {
-    .name          = "xlnx,ps7-usb",
+static const TypeInfo ehci_type_info = {
+    .name          = TYPE_SYS_BUS_EHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(EHCISysBusState),
+    .abstract      = true,
     .class_init    = ehci_sysbus_class_init,
+};
+
+static const TypeInfo ehci_xlnx_type_info = {
+    .name          = "xlnx,ps7-usb",
+    .parent        = TYPE_SYS_BUS_EHCI,
 };
 
 static void ehci_sysbus_register_types(void)
 {
+    type_register_static(&ehci_type_info);
     type_register_static(&ehci_xlnx_type_info);
 }
 

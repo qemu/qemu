@@ -24,6 +24,8 @@
 #include "trace.h"
 #include "sysemu/dma.h"
 #include "sysemu/sysemu.h"
+#include "hw/pci/pci.h"
+#include "hw/sysbus.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0
@@ -321,5 +323,29 @@ struct EHCIState {
 extern const VMStateDescription vmstate_ehci;
 
 void usb_ehci_initfn(EHCIState *s, DeviceState *dev);
+
+#define TYPE_PCI_EHCI "pci-ehci-usb"
+#define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)
+
+typedef struct EHCIPCIState {
+    /*< private >*/
+    PCIDevice pcidev;
+    /*< public >*/
+
+    EHCIState ehci;
+} EHCIPCIState;
+
+
+#define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
+#define SYS_BUS_EHCI(obj) \
+    OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
+
+typedef struct EHCISysBusState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    EHCIState ehci;
+} EHCISysBusState;
 
 #endif
