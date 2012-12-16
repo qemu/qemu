@@ -337,6 +337,8 @@ typedef struct EHCIPCIState {
 
 
 #define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
+#define TYPE_EXYNOS4210_EHCI "exynos4210-ehci-usb"
+
 #define SYS_BUS_EHCI(obj) \
     OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)
 #define SYS_BUS_EHCI_CLASS(class) \
