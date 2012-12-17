@@ -26,7 +26,6 @@
 #include "config.h"
 #include <setjmp.h>
 #include <inttypes.h>
-#include <signal.h>
 #include "qemu/osdep.h"
 #include "qemu/queue.h"
 #include "exec/hwaddr.h"
@@ -160,7 +159,6 @@ typedef struct CPUWatchpoint {
                                      memory was accessed */             \
     uint32_t halted; /* Nonzero if the CPU is in suspend state */       \
     uint32_t interrupt_request;                                         \
-    volatile sig_atomic_t exit_request;                                 \
     CPU_COMMON_TLB                                                      \
     struct TranslationBlock *tb_jmp_cache[TB_JMP_CACHE_SIZE];           \
     /* buffer for temporaries in the code generator */                  \

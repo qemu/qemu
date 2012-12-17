@@ -196,7 +196,7 @@ int cpu_exec(CPUArchState *env)
     cpu_single_env = env;
 
     if (unlikely(exit_request)) {
-        env->exit_request = 1;
+        cpu->exit_request = 1;
     }
 
 #if defined(TARGET_I386)
@@ -537,8 +537,8 @@ int cpu_exec(CPUArchState *env)
                         next_tb = 0;
                     }
                 }
-                if (unlikely(env->exit_request)) {
-                    env->exit_request = 0;
+                if (unlikely(cpu->exit_request)) {
+                    cpu->exit_request = 0;
                     env->exception_index = EXCP_INTERRUPT;
                     cpu_loop_exit(env);
                 }
@@ -591,7 +591,7 @@ int cpu_exec(CPUArchState *env)
                    starting execution if there is a pending interrupt. */
                 env->current_tb = tb;
                 barrier();
-                if (likely(!env->exit_request)) {
+                if (likely(!cpu->exit_request)) {
                     tc_ptr = tb->tc_ptr;
                     /* execute the generated code */
                     next_tb = tcg_qemu_tb_exec(env, tc_ptr);

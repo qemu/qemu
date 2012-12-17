@@ -513,13 +513,14 @@ static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
-    if (!cpu_has_work(CPU(cpu))) {
+    if (!cpu_has_work(cs)) {
         env->halted = 1;
         env->exception_index = EXCP_HLT;
-        env->exit_request = 1;
+        cs->exit_request = 1;
     }
     return H_SUCCESS;
 }

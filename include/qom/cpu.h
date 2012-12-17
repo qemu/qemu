@@ -20,6 +20,7 @@
 #ifndef QEMU_CPU_H
 #define QEMU_CPU_H
 
+#include <signal.h>
 #include "hw/qdev-core.h"
 #include "qemu/thread.h"
 
@@ -96,6 +97,7 @@ struct CPUState {
     bool created;
     bool stop;
     bool stopped;
+    volatile sig_atomic_t exit_request;
 
     int kvm_fd;
     bool kvm_vcpu_dirty;

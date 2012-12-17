@@ -32,6 +32,7 @@ void cpu_reset(CPUState *cpu)
 
 static void cpu_common_reset(CPUState *cpu)
 {
+    cpu->exit_request = 0;
 }
 
 ObjectClass *cpu_class_by_name(const char *typename, const char *cpu_model)

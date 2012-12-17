@@ -492,7 +492,9 @@ void cpu_reset_interrupt(CPUArchState *env, int mask)
 
 void cpu_exit(CPUArchState *env)
 {
-    env->exit_request = 1;
+    CPUState *cpu = ENV_GET_CPU(env);
+
+    cpu->exit_request = 1;
     cpu_unlink_tb(env);
 }
 
