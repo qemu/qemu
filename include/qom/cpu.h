@@ -156,5 +156,15 @@ bool cpu_is_stopped(CPUState *cpu);
  */
 void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
 
+/**
+ * qemu_get_cpu:
+ * @index: The CPUState@cpu_index value of the CPU to obtain.
+ *
+ * Gets a CPU matching @index.
+ *
+ * Returns: The CPU or %NULL if there is no matching CPU.
+ */
+CPUState *qemu_get_cpu(int index);
+
 
 #endif

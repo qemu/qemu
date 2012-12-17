@@ -277,7 +277,7 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
 
     s = FROM_SYSBUS(PXA2xxGPIOInfo, dev);
 
-    s->cpu = arm_env_get_cpu(qemu_get_cpu(s->ncpu));
+    s->cpu = ARM_CPU(qemu_get_cpu(s->ncpu));
 
     qdev_init_gpio_in(&dev->qdev, pxa2xx_gpio_set, s->lines);
     qdev_init_gpio_out(&dev->qdev, s->handler, s->lines);

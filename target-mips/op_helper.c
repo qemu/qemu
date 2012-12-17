@@ -585,8 +585,9 @@ static inline void mips_tc_sleep(MIPSCPU *cpu, int tc)
           walking the list of CPUMIPSStates.  */
 static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
 {
+    MIPSCPU *cpu;
     CPUState *cs;
-    CPUMIPSState *other;
+    CPUState *other_cs;
     int vpe_idx;
     int tc_idx = *tc;
 
@@ -599,8 +600,12 @@ static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
     cs = CPU(mips_env_get_cpu(env));
     vpe_idx = tc_idx / cs->nr_threads;
     *tc = tc_idx % cs->nr_threads;
-    other = qemu_get_cpu(vpe_idx);
-    return other ? other : env;
+    other_cs = qemu_get_cpu(vpe_idx);
+    if (other_cs == NULL) {
+        return env;
+    }
+    cpu = MIPS_CPU(other_cs);
+    return &cpu->env;
 }
 
 /* The per VPE CP0_Status register shares some fields with the per TC

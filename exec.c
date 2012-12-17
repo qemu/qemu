@@ -247,10 +247,10 @@ static const VMStateDescription vmstate_cpu_common = {
 };
 #endif
 
-CPUArchState *qemu_get_cpu(int index)
+CPUState *qemu_get_cpu(int index)
 {
     CPUArchState *env = first_cpu;
-    CPUState *cpu;
+    CPUState *cpu = NULL;
 
     while (env) {
         cpu = ENV_GET_CPU(env);
@@ -260,7 +260,7 @@ CPUArchState *qemu_get_cpu(int index)
         env = env->next_cpu;
     }
 
-    return env;
+    return cpu;
 }
 
 void cpu_exec_init(CPUArchState *env)
