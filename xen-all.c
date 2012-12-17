@@ -721,7 +721,7 @@ static inline void write_phys_req_item(hwaddr addr,
 
 static void cpu_ioreq_pio(ioreq_t *req)
 {
-    int i;
+    uint32_t i;
 
     if (req->dir == IOREQ_READ) {
         if (!req->data_is_ptr) {
@@ -750,7 +750,7 @@ static void cpu_ioreq_pio(ioreq_t *req)
 
 static void cpu_ioreq_move(ioreq_t *req)
 {
-    int i;
+    uint32_t i;
 
     if (!req->data_is_ptr) {
         if (req->dir == IOREQ_READ) {
