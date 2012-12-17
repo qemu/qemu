@@ -872,9 +872,11 @@ EventInfoList *qmp_query_events(Error **errp)
 int monitor_set_cpu(int cpu_index)
 {
     CPUArchState *env;
+    CPUState *cpu;
 
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        if (env->cpu_index == cpu_index) {
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
+        if (cpu->cpu_index == cpu_index) {
             cur_mon->mon_cpu = env;
             return 0;
         }
@@ -893,7 +895,8 @@ static CPUArchState *mon_get_cpu(void)
 
 int monitor_get_cpu_index(void)
 {
-    return mon_get_cpu()->cpu_index;
+    CPUState *cpu = ENV_GET_CPU(mon_get_cpu());
+    return cpu->cpu_index;
 }
 
 static void do_info_registers(Monitor *mon)
@@ -1791,7 +1794,7 @@ static void do_info_numa(Monitor *mon)
         for (env = first_cpu; env != NULL; env = env->next_cpu) {
             cpu = ENV_GET_CPU(env);
             if (cpu->numa_node == i) {
-                monitor_printf(mon, " %d", env->cpu_index);
+                monitor_printf(mon, " %d", cpu->cpu_index);
             }
         }
         monitor_printf(mon, "\n");
@@ -1993,6 +1996,7 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
 {
     X86CPU *cpu;
     CPUX86State *cenv;
+    CPUState *cs;
     int cpu_index = qdict_get_int(qdict, "cpu_index");
     int bank = qdict_get_int(qdict, "bank");
     uint64_t status = qdict_get_int(qdict, "status");
@@ -2006,7 +2010,8 @@ static void do_inject_mce(Monitor *mon, const QDict *qdict)
     }
     for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
         cpu = x86_env_get_cpu(cenv);
-        if (cenv->cpu_index == cpu_index) {
+        cs = CPU(cpu);
+        if (cs->cpu_index == cpu_index) {
             cpu_x86_inject_mce(mon, cpu, bank, status, mcg_status, addr, misc,
                                flags);
             break;

@@ -580,14 +580,17 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
 
 void helper_mwait(CPUX86State *env, int next_eip_addend)
 {
+    CPUState *cpu;
+
     if ((uint32_t)ECX != 0) {
         raise_exception(env, EXCP0D_GPF);
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0);
     EIP += next_eip_addend;
 
+    cpu = CPU(x86_env_get_cpu(env));
     /* XXX: not complete but not completely erroneous */
-    if (env->cpu_index != 0 || env->next_cpu != NULL) {
+    if (cpu->cpu_index != 0 || env->next_cpu != NULL) {
         /* more than one CPU: do not sleep because another CPU may
            wake this one */
     } else {

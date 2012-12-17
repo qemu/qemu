@@ -467,9 +467,11 @@ static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong vpa = args[2];
     target_ulong ret = H_PARAMETER;
     CPUPPCState *tenv;
+    CPUState *tcpu;
 
     for (tenv = first_cpu; tenv; tenv = tenv->next_cpu) {
-        if (tenv->cpu_index == procno) {
+        tcpu = CPU(ppc_env_get_cpu(tenv));
+        if (tcpu->cpu_index == procno) {
             break;
         }
     }

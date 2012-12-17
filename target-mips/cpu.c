@@ -29,7 +29,15 @@ static void mips_cpu_reset(CPUState *s)
     MIPSCPUClass *mcc = MIPS_CPU_GET_CLASS(cpu);
     CPUMIPSState *env = &cpu->env;
 
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     mcc->parent_reset(s);
+
+    memset(env, 0, offsetof(CPUMIPSState, breakpoints));
+    tlb_flush(env, 1);
 
     cpu_state_reset(env);
 }

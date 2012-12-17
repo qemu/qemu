@@ -2401,9 +2401,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             thread = strtoull(p+16, (char **)&p, 16);
             env = find_cpu(thread);
             if (env != NULL) {
+                CPUState *cpu = ENV_GET_CPU(env);
                 cpu_synchronize_state(env);
                 len = snprintf((char *)mem_buf, sizeof(mem_buf),
-                               "CPU#%d [%s]", env->cpu_index,
+                               "CPU#%d [%s]", cpu->cpu_index,
                                env->halted ? "halted " : "running");
                 memtohex(buf, mem_buf, len);
                 put_packet(s, buf);

@@ -250,13 +250,14 @@ static const MemoryRegionOps pxa_gpio_ops = {
 };
 
 DeviceState *pxa2xx_gpio_init(hwaddr base,
-                CPUARMState *env, DeviceState *pic, int lines)
+                              ARMCPU *cpu, DeviceState *pic, int lines)
 {
+    CPUState *cs = CPU(cpu);
     DeviceState *dev;
 
     dev = qdev_create(NULL, "pxa2xx-gpio");
     qdev_prop_set_int32(dev, "lines", lines);
-    qdev_prop_set_int32(dev, "ncpu", env->cpu_index);
+    qdev_prop_set_int32(dev, "ncpu", cs->cpu_index);
     qdev_init_nofail(dev);
 
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);

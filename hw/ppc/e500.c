@@ -239,25 +239,28 @@ static int ppce500_load_device_tree(CPUPPCState *env,
     /* We need to generate the cpu nodes in reverse order, so Linux can pick
        the first node as boot node and be happy */
     for (i = smp_cpus - 1; i >= 0; i--) {
+        CPUState *cpu = NULL;
         char cpu_name[128];
         uint64_t cpu_release_addr = MPC8544_SPIN_BASE + (i * 0x20);
 
         for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            if (env->cpu_index == i) {
+            cpu = ENV_GET_CPU(env);
+            if (cpu->cpu_index == i) {
                 break;
             }
         }
 
-        if (!env) {
+        if (cpu == NULL) {
             continue;
         }
 
-        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", env->cpu_index);
+        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x",
+                 cpu->cpu_index);
         qemu_devtree_add_subnode(fdt, cpu_name);
         qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
         qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
         qemu_devtree_setprop_string(fdt, cpu_name, "device_type", "cpu");
-        qemu_devtree_setprop_cell(fdt, cpu_name, "reg", env->cpu_index);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "reg", cpu->cpu_index);
         qemu_devtree_setprop_cell(fdt, cpu_name, "d-cache-line-size",
                                   env->dcache_line_size);
         qemu_devtree_setprop_cell(fdt, cpu_name, "i-cache-line-size",
@@ -265,7 +268,7 @@ static int ppce500_load_device_tree(CPUPPCState *env,
         qemu_devtree_setprop_cell(fdt, cpu_name, "d-cache-size", 0x8000);
         qemu_devtree_setprop_cell(fdt, cpu_name, "i-cache-size", 0x8000);
         qemu_devtree_setprop_cell(fdt, cpu_name, "bus-frequency", 0);
-        if (env->cpu_index) {
+        if (cpu->cpu_index) {
             qemu_devtree_setprop_string(fdt, cpu_name, "status", "disabled");
             qemu_devtree_setprop_string(fdt, cpu_name, "enable-method", "spin-table");
             qemu_devtree_setprop_u64(fdt, cpu_name, "cpu-release-addr",
@@ -479,6 +482,7 @@ void ppce500_init(PPCE500Params *params)
     irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
         PowerPCCPU *cpu;
+        CPUState *cs;
         qemu_irq *input;
 
         cpu = cpu_ppc_init(params->cpu_model);
@@ -487,6 +491,7 @@ void ppce500_init(PPCE500Params *params)
             exit(1);
         }
         env = &cpu->env;
+        cs = CPU(cpu);
 
         if (!firstenv) {
             firstenv = env;
@@ -496,7 +501,7 @@ void ppce500_init(PPCE500Params *params)
         input = (qemu_irq *)env->irq_inputs;
         irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
-        env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
+        env->spr[SPR_BOOKE_PIR] = cs->cpu_index = i;
         env->mpic_iack = MPC8544_CCSRBAR_BASE +
                          MPC8544_MPIC_REGS_OFFSET + 0x200A0;
 

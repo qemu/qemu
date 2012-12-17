@@ -57,6 +57,7 @@ struct kvm_run;
 
 /**
  * CPUState:
+ * @cpu_index: CPU index (informative).
  * @nr_cores: Number of cores within this CPU package.
  * @nr_threads: Number of threads within this CPU.
  * @numa_node: NUMA node this CPU is belonging to.
@@ -96,6 +97,7 @@ struct CPUState {
     struct kvm_run *kvm_run;
 
     /* TODO Move common fields from CPUArchState here. */
+    int cpu_index; /* used by alpha TCG */
 };
 
 

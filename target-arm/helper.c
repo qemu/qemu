@@ -902,7 +902,8 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
 static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t *value)
 {
-    uint32_t mpidr = env->cpu_index;
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+    uint32_t mpidr = cs->cpu_index;
     /* We don't support setting cluster ID ([8..11])
      * so these bits always RAZ.
      */

@@ -1936,7 +1936,7 @@ static void x86_cpu_reset(CPUState *s)
     int i;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        qemu_log("CPU Reset (CPU %d)\n", s->cpu_index);
         log_cpu_state(env, CPU_DUMP_FPU | CPU_DUMP_CCOP);
     }
 
@@ -2010,7 +2010,7 @@ static void x86_cpu_reset(CPUState *s)
 
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
-    if (env->cpu_index == 0) {
+    if (s->cpu_index == 0) {
         apic_designate_bsp(env->apic_state);
     }
 
@@ -2148,6 +2148,7 @@ void x86_cpu_realize(Object *obj, Error **errp)
 
 static void x86_cpu_initfn(Object *obj)
 {
+    CPUState *cs = CPU(obj);
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     static int inited;
@@ -2179,7 +2180,7 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpuid_get_tsc_freq,
                         x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
 
-    env->cpuid_apic_id = env->cpu_index;
+    env->cpuid_apic_id = cs->cpu_index;
 
     /* init various static tables used in TCG mode */
     if (tcg_enabled() && !inited) {

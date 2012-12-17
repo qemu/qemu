@@ -223,7 +223,7 @@ int kvm_init_vcpu(CPUArchState *env)
 
     DPRINTF("kvm_init_vcpu\n");
 
-    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, env->cpu_index);
+    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, cpu->cpu_index);
     if (ret < 0) {
         DPRINTF("kvm_create_vcpu failed\n");
         goto err;
