@@ -262,9 +262,7 @@ CPUArchState *qemu_get_cpu(int cpu)
 
 void cpu_exec_init(CPUArchState *env)
 {
-#ifndef CONFIG_USER_ONLY
     CPUState *cpu = ENV_GET_CPU(env);
-#endif
     CPUArchState **penv;
     int cpu_index;
 
@@ -279,7 +277,7 @@ void cpu_exec_init(CPUArchState *env)
         cpu_index++;
     }
     env->cpu_index = cpu_index;
-    env->numa_node = 0;
+    cpu->numa_node = 0;
     QTAILQ_INIT(&env->breakpoints);
     QTAILQ_INIT(&env->watchpoints);
 #ifndef CONFIG_USER_ONLY

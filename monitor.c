@@ -1783,12 +1783,14 @@ static void do_info_numa(Monitor *mon)
 {
     int i;
     CPUArchState *env;
+    CPUState *cpu;
 
     monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
     for (i = 0; i < nb_numa_nodes; i++) {
         monitor_printf(mon, "node %d cpus:", i);
         for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            if (env->numa_node == i) {
+            cpu = ENV_GET_CPU(env);
+            if (cpu->numa_node == i) {
                 monitor_printf(mon, " %d", env->cpu_index);
             }
         }

@@ -140,6 +140,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;
     CPUPPCState *env;
+    CPUState *cpu;
     char cpu_model[32];
     int smt = kvmppc_smt_threads();
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
@@ -147,11 +148,12 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
     assert(spapr->cpu_model);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
-                                    cpu_to_be32(env->numa_node),
+                                    cpu_to_be32(cpu->numa_node),
                                     cpu_to_be32(env->cpu_index)};
 
         if ((env->cpu_index % smt) != 0) {

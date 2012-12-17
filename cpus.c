@@ -1160,12 +1160,14 @@ static void tcg_exec_all(void)
 void set_numa_modes(void)
 {
     CPUArchState *env;
+    CPUState *cpu;
     int i;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu = ENV_GET_CPU(env);
         for (i = 0; i < nb_numa_nodes; i++) {
             if (test_bit(env->cpu_index, node_cpumask[i])) {
-                env->numa_node = i;
+                cpu->numa_node = i;
             }
         }
     }
