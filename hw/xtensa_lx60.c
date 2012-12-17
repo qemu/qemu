@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
@@ -35,7 +35,7 @@
 #include "net/net.h"
 #include "sysbus.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "qemu-char.h"
 #include "xtensa_bootparam.h"
 

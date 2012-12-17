@@ -40,7 +40,7 @@
 #include "flash.h"
 #include "devices.h"
 #include "boards.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 static const int sector_len = 128 * 1024;

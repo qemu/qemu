@@ -29,7 +29,7 @@
 #include "adb.h"
 #include "mac_dbdma.h"
 #include "nvram.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "isa.h"
 #include "pci/pci.h"
@@ -39,9 +39,9 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define MAX_IDE_BUS 2

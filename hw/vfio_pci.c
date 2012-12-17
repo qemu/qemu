@@ -29,7 +29,7 @@
 #include "config.h"
 #include "qemu/event_notifier.h"
 #include "exec/address-spaces.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "exec/memory.h"
 #include "pci/msi.h"
 #include "pci/msix.h"

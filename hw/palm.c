@@ -18,7 +18,7 @@
  */
 #include "hw.h"
 #include "audio/audio.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "ui/console.h"
 #include "omap.h"
 #include "boards.h"

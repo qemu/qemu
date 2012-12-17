@@ -24,11 +24,11 @@
 #include "hw.h"
 #include "ppc.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "nvram.h"
 #include "qemu/log.h"
 #include "loader.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 //#define PPC_DEBUG_IRQ

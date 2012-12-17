@@ -32,10 +32,10 @@ do { printf("scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "qemu/error-report.h"
 #include "scsi.h"
 #include "scsi-defs.h"
-#include "sysemu.h"
-#include "blockdev.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 #ifdef __linux
 #include <scsi/sg.h>

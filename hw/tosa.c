@@ -21,7 +21,7 @@
 #include "boards.h"
 #include "i2c.h"
 #include "ssi.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "exec/address-spaces.h"
 

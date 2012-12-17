@@ -9,7 +9,7 @@
 #include "mcf.h"
 #include "qemu/timer.h"
 #include "ptimer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "boards.h"
 #include "loader.h"

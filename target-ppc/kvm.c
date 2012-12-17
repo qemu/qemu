@@ -24,12 +24,12 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
-#include "kvm.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "cpu.h"
-#include "cpus.h"
-#include "device_tree.h"
+#include "sysemu/cpus.h"
+#include "sysemu/device_tree.h"
 #include "hw/sysbus.h"
 #include "hw/spapr.h"
 

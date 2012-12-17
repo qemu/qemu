@@ -23,10 +23,10 @@
  * THE SOFTWARE.
  */
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw/i8254.h"
 #include "hw/i8254_internal.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #define KVM_PIT_REINJECT_BIT 0
 

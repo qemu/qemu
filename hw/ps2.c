@@ -24,7 +24,7 @@
 #include "hw.h"
 #include "ps2.h"
 #include "ui/console.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 /* debug PC keyboard */
 //#define DEBUG_KBD

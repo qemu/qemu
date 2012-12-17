@@ -29,7 +29,7 @@
 #include "net/net.h"
 #include "qemu/queue.h"
 #include "qemu/config-file.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/iov.h"
 
 /*#define TRAFFIC_DEBUG*/

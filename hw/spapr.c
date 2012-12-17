@@ -24,13 +24,13 @@
  * THE SOFTWARE.
  *
  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw.h"
 #include "elf.h"
 #include "net/net.h"
-#include "blockdev.h"
-#include "cpus.h"
-#include "kvm.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 #include "hw/boards.h"
@@ -43,7 +43,7 @@
 #include "hw/xics.h"
 #include "hw/pci/msi.h"
 
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 #include "pci/pci.h"
 

@@ -27,7 +27,7 @@
 #include "hw/pci/pci_bus.h"
 #include "monitor/monitor.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw/loader.h"
 #include "qemu/range.h"
 #include "qmp-commands.h"

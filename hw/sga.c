@@ -27,7 +27,7 @@
 #include "pci/pci.h"
 #include "pc.h"
 #include "loader.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define SGABIOS_FILENAME "sgabios.bin"
 

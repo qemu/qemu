@@ -20,7 +20,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "hw/loader.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"

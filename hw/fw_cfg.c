@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
 #include "fw_cfg.h"
 #include "sysbus.h"

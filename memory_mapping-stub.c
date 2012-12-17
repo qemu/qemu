@@ -13,7 +13,7 @@
 
 #include "cpu.h"
 #include "exec/cpu-all.h"
-#include "memory_mapping.h"
+#include "sysemu/memory_mapping.h"
 
 int qemu_get_guest_memory_mapping(MemoryMappingList *list)
 {

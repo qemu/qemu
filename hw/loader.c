@@ -45,7 +45,7 @@
 #include "hw.h"
 #include "disas/disas.h"
 #include "monitor/monitor.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "uboot_image.h"
 #include "loader.h"
 #include "fw_cfg.h"

@@ -9,7 +9,7 @@
 #include "config.h"
 #include "alpha_sys.h"
 #include "qemu/log.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 
 /* PCI IO reads/writes, to byte-word addressable memory.  */

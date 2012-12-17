@@ -26,7 +26,7 @@
 #include <hw/pc.h>
 #include <hw/pcmcia.h>
 #include "block/block.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>
 

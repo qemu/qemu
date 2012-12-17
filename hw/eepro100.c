@@ -45,8 +45,8 @@
 #include "pci/pci.h"
 #include "net/net.h"
 #include "eeprom93xx.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 /* QEMU sends frames smaller than 60 bytes to ethernet nics.
  * Such frames are rejected by real nics and their emulations.

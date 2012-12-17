@@ -24,9 +24,9 @@
 
 #include "hw.h"
 #include "boards.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "qemu/config-file.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 
 DriveInfo *add_init_drive(const char *optstr)

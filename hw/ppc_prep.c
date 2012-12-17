@@ -27,7 +27,7 @@
 #include "serial.h"
 #include "fdc.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
 #include "pci/pci.h"
 #include "pci/pci_host.h"
@@ -37,8 +37,8 @@
 #include "ide.h"
 #include "loader.h"
 #include "mc146818rtc.h"
-#include "blockdev.h"
-#include "arch_init.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/arch_init.h"
 #include "exec/address-spaces.h"
 
 //#define HARD_DEBUG_PPC_IO

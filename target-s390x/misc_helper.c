@@ -23,7 +23,7 @@
 #include "qemu/host-utils.h"
 #include "helper.h"
 #include <string.h>
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "qemu/timer.h"
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -31,7 +31,7 @@
 
 #if !defined(CONFIG_USER_ONLY)
 #include "exec/softmmu_exec.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #endif
 
 /* #define DEBUG_HELPER */

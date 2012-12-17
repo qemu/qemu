@@ -10,7 +10,7 @@
 #include "exec/exec-all.h"
 #include "hw.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "alpha_sys.h"
 #include "exec/address-spaces.h"
 

@@ -24,7 +24,7 @@
 #include "audiodev.h"
 #include "intel-hda.h"
 #include "intel-hda-defs.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */

@@ -31,7 +31,7 @@
 #include "qemu/error-report.h"
 #include "arm-misc.h"
 #include "qemu-char.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "ssi.h"
 
 //#define DEBUG

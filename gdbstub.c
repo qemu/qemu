@@ -31,7 +31,7 @@
 #else
 #include "monitor/monitor.h"
 #include "qemu-char.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #endif
 
@@ -39,7 +39,7 @@
 
 #include "cpu.h"
 #include "qemu/sockets.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #ifndef TARGET_CPU_MEMORY_RW_DEBUG
 static inline int target_memory_rw_debug(CPUArchState *env, target_ulong addr,

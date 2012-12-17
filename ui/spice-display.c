@@ -21,7 +21,7 @@
 #include "qemu/queue.h"
 #include "monitor/monitor.h"
 #include "ui/console.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 
 #include "ui/spice-display.h"

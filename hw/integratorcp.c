@@ -13,7 +13,7 @@
 #include "arm-misc.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 typedef struct {
     SysBusDevice busdev;

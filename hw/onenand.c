@@ -22,7 +22,7 @@
 #include "hw.h"
 #include "flash.h"
 #include "irq.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "sysbus.h"

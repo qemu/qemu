@@ -27,8 +27,8 @@
 #include <hw/pci/pci.h>
 #include <hw/isa.h>
 #include "block/block.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
 

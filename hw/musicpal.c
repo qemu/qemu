@@ -13,7 +13,7 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "serial.h"
 #include "qemu/timer.h"
@@ -22,7 +22,7 @@
 #include "flash.h"
 #include "ui/console.h"
 #include "i2c.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
 

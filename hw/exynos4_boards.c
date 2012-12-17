@@ -21,7 +21,7 @@
  *
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 #include "net/net.h"
 #include "arm-misc.h"

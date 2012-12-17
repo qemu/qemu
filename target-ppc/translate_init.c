@@ -25,9 +25,9 @@
 
 #include "disas/bfd.h"
 #include "exec/gdbstub.h"
-#include <kvm.h>
+#include <sysemu/kvm.h>
 #include "kvm_ppc.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR

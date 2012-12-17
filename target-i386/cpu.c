@@ -22,14 +22,14 @@
 #include <inttypes.h>
 
 #include "cpu.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
 
 #include "qapi/visitor.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
 
 #include "hyperv.h"
 
@@ -38,7 +38,7 @@
 #include <linux/kvm_para.h>
 #endif
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen.h"
 #include "hw/sysbus.h"

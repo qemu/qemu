@@ -19,7 +19,7 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #include "qemu-common.h"
 #include "ui/qemu-spice.h"

@@ -58,7 +58,7 @@
 #include <uuid/uuid.h>
 #else
 /* TODO: move uuid emulation to some central place in QEMU. */
-#include "sysemu.h"     /* UUID_FMT */
+#include "sysemu/sysemu.h"     /* UUID_FMT */
 typedef unsigned char uuid_t[16];
 #endif
 

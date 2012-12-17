@@ -35,7 +35,7 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu/log.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #include "helper.h"
 #define GEN_HELPER 1

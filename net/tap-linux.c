@@ -30,7 +30,7 @@
 #include <net/if.h>
 #include <sys/ioctl.h>
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 

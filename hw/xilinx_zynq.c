@@ -19,10 +19,10 @@
 #include "arm-misc.h"
 #include "net/net.h"
 #include "exec/address-spaces.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "loader.h"
 #include "ssi.h"
 

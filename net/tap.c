@@ -36,7 +36,7 @@
 #include "net/net.h"
 #include "clients.h"
 #include "monitor/monitor.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 

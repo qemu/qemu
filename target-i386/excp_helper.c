@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "qemu/log.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "helper.h"
 
 #if 0

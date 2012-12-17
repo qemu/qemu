@@ -31,7 +31,7 @@
 #include "hw/scsi.h"
 #include "hw/virtio-blk.h"
 #include "qemu/config-file.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "qapi/error.h"
 
 #if defined(TARGET_I386)

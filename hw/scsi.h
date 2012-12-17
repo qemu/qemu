@@ -4,7 +4,7 @@
 #include "qdev.h"
 #include "block/block.h"
 #include "hw/block-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define MAX_SCSI_DEVS	255
 

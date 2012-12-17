@@ -27,7 +27,7 @@
 
 #include "net/net.h"
 #include "qdev.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 

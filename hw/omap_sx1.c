@@ -31,7 +31,7 @@
 #include "boards.h"
 #include "arm-misc.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 /*****************************************************************************/

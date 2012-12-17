@@ -17,7 +17,7 @@
 #include "qmp-commands.h"
 
 #include "qemu/range.h"
-#include "xen-mapcache.h"
+#include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 

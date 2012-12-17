@@ -28,7 +28,7 @@
 #include <hw/sysbus.h>
 
 #include "monitor/monitor.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "exec/cpu-common.h"
 #include "internal.h"
 #include <hw/ide/pci.h>

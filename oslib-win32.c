@@ -27,7 +27,7 @@
  */
 #include <windows.h>
 #include "config-host.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
 #include "qemu/sockets.h"

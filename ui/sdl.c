@@ -30,7 +30,7 @@
 
 #include "qemu-common.h"
 #include "ui/console.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "x_keymap.h"
 #include "sdl_zoom.h"
 

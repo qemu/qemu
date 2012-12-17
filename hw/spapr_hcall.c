@@ -1,6 +1,6 @@
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "cpu.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "helper_regs.h"
 #include "hw/spapr.h"
 

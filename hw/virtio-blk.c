@@ -15,7 +15,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block-common.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "virtio-blk.h"
 #include "scsi-defs.h"
 #ifdef __linux__

@@ -20,7 +20,7 @@
  */
 
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu-char.h"
 
 #include "exynos4210.h"

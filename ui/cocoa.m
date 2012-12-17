@@ -27,7 +27,7 @@
 
 #include "qemu-common.h"
 #include "ui/console.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #ifndef MAC_OS_X_VERSION_10_4
 #define MAC_OS_X_VERSION_10_4 1040

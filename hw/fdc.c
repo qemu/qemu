@@ -34,8 +34,8 @@
 #include "isa.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
-#include "blockdev.h"
-#include "sysemu.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
 #include "qemu/log.h"
 
 /********************************************************/

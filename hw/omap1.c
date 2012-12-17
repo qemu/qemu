@@ -19,9 +19,9 @@
 #include "hw.h"
 #include "arm-misc.h"
 #include "omap.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "soc_dma.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "qemu/range.h"
 #include "sysbus.h"
 

@@ -19,7 +19,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu-char.h"
 #include "imx.h"
 

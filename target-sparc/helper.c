@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 #include "helper.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 void helper_raise_exception(CPUSPARCState *env, int tt)
 {

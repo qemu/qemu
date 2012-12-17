@@ -23,15 +23,15 @@
  * THE SOFTWARE.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "hw.h"
 #include "pc.h"
 #include "hw/boards.h"
 #include "loader.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "flash.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #define BIOS_FILENAME "bios.bin"
 

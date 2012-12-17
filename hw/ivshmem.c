@@ -20,7 +20,7 @@
 #include "pc.h"
 #include "pci/pci.h"
 #include "pci/msix.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/event_notifier.h"

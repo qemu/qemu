@@ -65,7 +65,7 @@
 #endif
 
 #ifdef CONFIG_SECCOMP
-#include "qemu-seccomp.h"
+#include "sysemu/seccomp.h"
 #endif
 
 #ifdef __sun__
@@ -131,18 +131,18 @@ int main(int argc, char **argv)
 #include "net/slirp.h"
 #include "monitor/monitor.h"
 #include "ui/console.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #include "qemu-char.h"
 #include "qemu/cache-utils.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
 #include "migration/block.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
@@ -152,7 +152,7 @@ int main(int argc, char **argv)
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
-#include "qtest.h"
+#include "sysemu/qtest.h"
 
 #include "disas/disas.h"
 
@@ -163,8 +163,8 @@ int main(int argc, char **argv)
 #include "trace.h"
 #include "trace/control.h"
 #include "qemu/queue.h"
-#include "cpus.h"
-#include "arch_init.h"
+#include "sysemu/cpus.h"
+#include "sysemu/arch_init.h"
 #include "qemu/osdep.h"
 
 #include "ui/qemu-spice.h"

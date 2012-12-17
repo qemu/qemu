@@ -30,8 +30,8 @@
 #include "net/net.h"
 #include "net/checksum.h"
 #include "loader.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 
 #include "e1000_hw.h"
 

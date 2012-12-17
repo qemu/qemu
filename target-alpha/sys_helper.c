@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "helper.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 
 

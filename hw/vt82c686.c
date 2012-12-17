@@ -22,7 +22,7 @@
 #include "apm.h"
 #include "acpi.h"
 #include "pm_smbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 

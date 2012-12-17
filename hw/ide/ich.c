@@ -66,7 +66,7 @@
 #include <hw/pci/pci.h>
 #include <hw/isa.h>
 #include "block/block.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>

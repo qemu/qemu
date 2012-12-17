@@ -30,7 +30,7 @@
 #include "serial.h"
 #include "isa.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "mips-bios.h"
 #include "loader.h"

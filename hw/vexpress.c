@@ -26,10 +26,10 @@
 #include "primecell.h"
 #include "devices.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "exec/address-spaces.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "flash.h"
 
 #define VEXPRESS_BOARD_ID 0x8e0

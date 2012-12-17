@@ -18,9 +18,9 @@
  */
 
 #include "cpu.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #endif
 

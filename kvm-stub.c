@@ -15,7 +15,7 @@
 #include "hw/pci/msi.h"
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;

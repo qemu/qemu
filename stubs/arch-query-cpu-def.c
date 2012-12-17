@@ -1,5 +1,5 @@
 #include "qemu-common.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
 #include "qapi/qmp/qerror.h"
 
 CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)

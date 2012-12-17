@@ -22,7 +22,7 @@
  */
 
 #include "hw.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "ssi.h"
 #include "devices.h"
 

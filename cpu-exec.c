@@ -21,7 +21,7 @@
 #include "disas/disas.h"
 #include "tcg.h"
 #include "qemu/atomic.h"
-#include "qtest.h"
+#include "sysemu/qtest.h"
 
 int tb_invalidated_flag;
 

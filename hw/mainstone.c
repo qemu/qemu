@@ -18,7 +18,7 @@
 #include "devices.h"
 #include "boards.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "exec/address-spaces.h"
 

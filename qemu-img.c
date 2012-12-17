@@ -28,7 +28,7 @@
 #include "qemu/option.h"
 #include "qemu/error-report.h"
 #include "qemu/osdep.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "block/block_int.h"
 #include <getopt.h>
 #include <stdio.h>

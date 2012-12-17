@@ -53,11 +53,11 @@
 
 #include "hw.h"
 #include "pci/pci.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "qemu/timer.h"
 #include "net/net.h"
 #include "loader.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/iov.h"
 
 /* debug RTL8139 card */

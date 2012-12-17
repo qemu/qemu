@@ -28,7 +28,7 @@
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "monitor/monitor.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/iov.h"
 
 #include <dirent.h>

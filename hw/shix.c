@@ -29,7 +29,7 @@
 */
 #include "hw.h"
 #include "sh.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "exec/address-spaces.h"

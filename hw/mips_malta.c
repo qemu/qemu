@@ -35,8 +35,8 @@
 #include "mips_cpudevs.h"
 #include "pci/pci.h"
 #include "qemu-char.h"
-#include "sysemu.h"
-#include "arch_init.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/arch_init.h"
 #include "boards.h"
 #include "qemu/log.h"
 #include "mips-bios.h"
@@ -45,7 +45,7 @@
 #include "elf.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 #include "sysbus.h"             /* SysBusDevice */
 

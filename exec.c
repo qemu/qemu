@@ -30,17 +30,17 @@
 #include "hw/hw.h"
 #include "hw/qdev.h"
 #include "qemu/osdep.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "hw/xen.h"
 #include "qemu/timer.h"
 #include "qemu/config-file.h"
 #include "exec/memory.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "exec/address-spaces.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #else /* !CONFIG_USER_ONLY */
-#include "xen-mapcache.h"
+#include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #endif
 

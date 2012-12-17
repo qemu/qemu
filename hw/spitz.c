@@ -13,7 +13,7 @@
 #include "hw.h"
 #include "pxa.h"
 #include "arm-misc.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "pcmcia.h"
 #include "i2c.h"
 #include "ssi.h"
@@ -25,7 +25,7 @@
 #include "block/block.h"
 #include "audio/audio.h"
 #include "boards.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "exec/address-spaces.h"
 

@@ -24,7 +24,7 @@
 #include "pm_smbus.h"
 #include "pci/pci.h"
 #include "acpi.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/range.h"
 #include "exec/ioport.h"
 #include "fw_cfg.h"

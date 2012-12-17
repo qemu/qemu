@@ -49,7 +49,7 @@ extern int daemon(int, int);
 #endif
 
 #include "config-host.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/sockets.h"
 

@@ -34,7 +34,7 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 
 /* RECSMALL is not used because it breaks tap networking in linux:

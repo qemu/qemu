@@ -27,7 +27,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu-common.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "loader.h"
 #include "elf.h"
 

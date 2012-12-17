@@ -20,7 +20,7 @@
 
 #include "hw.h"
 #include "pci/pci.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "pci/msix.h"
 #include "qemu/iov.h"
 #include "scsi.h"

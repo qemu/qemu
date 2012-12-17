@@ -5,7 +5,7 @@
 
 #include "hw/qdev.h"
 #include "exec/memory.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 /* PCI includes legacy ISA access.  */
 #include "hw/isa.h"

@@ -30,7 +30,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "cris-boot.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define D(x)

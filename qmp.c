@@ -14,15 +14,15 @@
  */
 
 #include "qemu-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "qemu-char.h"
 #include "ui/qemu-spice.h"
 #include "ui/vnc.h"
-#include "kvm.h"
-#include "arch_init.h"
+#include "sysemu/kvm.h"
+#include "sysemu/arch_init.h"
 #include "hw/qdev.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "qom/qom-qobject.h"
 
 NameInfo *qmp_query_name(Error **errp)

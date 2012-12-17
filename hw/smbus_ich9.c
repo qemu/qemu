@@ -28,7 +28,7 @@
 #include "pc.h"
 #include "pm_smbus.h"
 #include "pci/pci.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "i2c.h"
 #include "smbus.h"
 

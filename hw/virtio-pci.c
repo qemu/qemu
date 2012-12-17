@@ -27,8 +27,8 @@
 #include "pci/msi.h"
 #include "pci/msix.h"
 #include "loader.h"
-#include "kvm.h"
-#include "blockdev.h"
+#include "sysemu/kvm.h"
+#include "sysemu/blockdev.h"
 #include "virtio-pci.h"
 #include "qemu/range.h"
 

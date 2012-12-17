@@ -19,7 +19,7 @@
  */
 
 #include "qemu-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "omap.h"
 #include "arm-misc.h"
 #include "irq.h"
@@ -31,7 +31,7 @@
 #include "hw.h"
 #include "bt.h"
 #include "loader.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
 #include "exec/address-spaces.h"
 

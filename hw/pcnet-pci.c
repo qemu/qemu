@@ -31,7 +31,7 @@
 #include "net/net.h"
 #include "loader.h"
 #include "qemu/timer.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 #include "pcnet.h"
 

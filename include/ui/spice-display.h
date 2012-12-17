@@ -21,7 +21,7 @@
 
 #include "qemu/thread.h"
 #include "ui/qemu-pixman.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define NUM_MEMSLOTS 8
 #define MEMSLOT_GENERATION_BITS 8

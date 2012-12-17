@@ -15,8 +15,8 @@
 #include "hw/scsi.h"
 #include "ui/console.h"
 #include "monitor/monitor.h"
-#include "sysemu.h"
-#include "blockdev.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
 
 //#define DEBUG_MSD
 

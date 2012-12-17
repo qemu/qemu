@@ -19,7 +19,7 @@
 #include "hw.h"
 #include "monitor/monitor.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "isa.h"
 #include "exec/address-spaces.h"
 

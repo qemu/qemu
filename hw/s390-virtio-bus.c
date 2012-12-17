@@ -19,7 +19,7 @@
 
 #include "hw.h"
 #include "block/block.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "monitor/monitor.h"
 #include "loader.h"
@@ -29,7 +29,7 @@
 #include "hw/virtio-serial.h"
 #include "hw/virtio-net.h"
 #include "hw/sysbus.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #include "hw/s390-virtio-bus.h"
 

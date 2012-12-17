@@ -23,10 +23,10 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/error-report.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sd.h"
 
 enum {

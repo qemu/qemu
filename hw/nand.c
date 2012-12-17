@@ -20,7 +20,7 @@
 
 # include "hw.h"
 # include "flash.h"
-# include "blockdev.h"
+# include "sysemu/blockdev.h"
 # include "sysbus.h"
 #include "qemu/error-report.h"
 

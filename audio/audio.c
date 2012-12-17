@@ -25,7 +25,7 @@
 #include "audio.h"
 #include "monitor/monitor.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define AUDIO_CAP "audio"
 #include "audio_int.h"

@@ -2,7 +2,7 @@
 #include "exec/gdbstub.h"
 #include "helper.h"
 #include "qemu/host-utils.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 
 #ifndef CONFIG_USER_ONLY

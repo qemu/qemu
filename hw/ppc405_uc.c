@@ -26,7 +26,7 @@
 #include "ppc405.h"
 #include "serial.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 

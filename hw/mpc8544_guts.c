@@ -18,7 +18,7 @@
  */
 
 #include "hw.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 
 #define MPC8544_GUTS_MMIO_SIZE        0x1000

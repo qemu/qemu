@@ -36,7 +36,7 @@
 #include "exec/gdbstub.h"
 #include "exec/softmmu-semi.h"
 #endif
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #define HOSTED_EXIT  0
 #define HOSTED_INIT_SIM 1

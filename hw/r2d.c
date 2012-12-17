@@ -27,7 +27,7 @@
 #include "hw.h"
 #include "sh.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "pci/pci.h"
 #include "net/net.h"
@@ -36,7 +36,7 @@
 #include "loader.h"
 #include "usb.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define FLASH_BASE 0x00000000

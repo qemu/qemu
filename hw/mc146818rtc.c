@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "mc146818rtc.h"
 #include "qapi/visitor.h"
 

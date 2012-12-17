@@ -30,7 +30,7 @@
 #include "audiodev.h"
 #include "audio/audio.h"
 #include "pci/pci.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC

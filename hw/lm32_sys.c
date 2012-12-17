@@ -33,7 +33,7 @@
 #include "trace.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/log.h"
 
 enum {

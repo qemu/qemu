@@ -19,7 +19,7 @@
 #include "qemu/log.h"
 #include "migration/migration.h"
 #include "qemu/main-loop.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/sockets.h"
 #include "slirp/libslirp.h"
 

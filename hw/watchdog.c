@@ -25,7 +25,7 @@
 #include "qemu/queue.h"
 #include "qapi/qmp/types.h"
 #include "monitor/monitor.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw/watchdog.h"
 
 /* Possible values for action parameter. */

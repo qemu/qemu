@@ -26,15 +26,15 @@
 #include "config-host.h"
 
 #include "monitor/monitor.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
-#include "dma.h"
-#include "kvm.h"
+#include "sysemu/dma.h"
+#include "sysemu/kvm.h"
 #include "qmp-commands.h"
 
 #include "qemu/thread.h"
-#include "cpus.h"
-#include "qtest.h"
+#include "sysemu/cpus.h"
+#include "sysemu/qtest.h"
 #include "qemu/main-loop.h"
 #include "qemu/bitmap.h"
 

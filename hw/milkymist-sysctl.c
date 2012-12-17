@@ -23,7 +23,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "trace.h"
 #include "qemu/timer.h"
 #include "ptimer.h"

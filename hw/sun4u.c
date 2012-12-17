@@ -30,7 +30,7 @@
 #include "fdc.h"
 #include "net/net.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "firmware_abi.h"
 #include "fw_cfg.h"
@@ -38,7 +38,7 @@
 #include "ide.h"
 #include "loader.h"
 #include "elf.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG_IRQ

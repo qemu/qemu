@@ -18,7 +18,7 @@
  * Contributions after 2012-01-13 are licensed under the terms of the
  * GNU GPL, version 2 or (at your option) any later version.
  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw.h"
 #include "pc.h"
 #include "acpi.h"

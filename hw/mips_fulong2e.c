@@ -31,7 +31,7 @@
 #include "mips_cpudevs.h"
 #include "pci/pci.h"
 #include "qemu-char.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "audio/audio.h"
 #include "qemu/log.h"
 #include "loader.h"
@@ -41,7 +41,7 @@
 #include "vt82c686.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define DEBUG_FULONG2E_INIT

@@ -14,7 +14,7 @@
 #include "serial.h"
 #include "isa.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "flash.h"
 #include "qemu/log.h"
@@ -24,7 +24,7 @@
 #include "elf.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define MAX_IDE_BUS 2

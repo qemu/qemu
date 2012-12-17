@@ -22,8 +22,8 @@
 #include "hw/usb.h"
 #include "monitor/monitor.h"
 #include "trace.h"
-#include "dma.h"
-#include "sysemu.h"
+#include "sysemu/dma.h"
+#include "sysemu/sysemu.h"
 
 #ifndef EHCI_DEBUG
 #define EHCI_DEBUG   0

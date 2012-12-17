@@ -20,14 +20,14 @@
  */
 
 #include "hw.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "monitor/monitor.h"
 #include "loader.h"
 #include "elf.h"
 #include "hw/sysbus.h"
-#include "kvm.h"
-#include "device_tree.h"
+#include "sysemu/kvm.h"
+#include "sysemu/device_tree.h"
 #include "kvm_ppc.h"
 
 #include "hw/spapr.h"

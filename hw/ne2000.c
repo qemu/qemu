@@ -26,7 +26,7 @@
 #include "net/net.h"
 #include "ne2000.h"
 #include "loader.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 /* debug NE2000 card */
 //#define DEBUG_NE2000

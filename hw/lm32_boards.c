@@ -23,7 +23,7 @@
 #include "devices.h"
 #include "boards.h"
 #include "loader.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "elf.h"
 #include "lm32_hwsetup.h"
 #include "lm32.h"

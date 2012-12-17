@@ -27,9 +27,9 @@
 #include "pc.h"
 #include "pci/pci.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "acpi.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 
 #include "ich9.h"

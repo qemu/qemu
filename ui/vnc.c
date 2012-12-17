@@ -26,7 +26,7 @@
 
 #include "vnc.h"
 #include "vnc-jobs.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
 #include "qemu/acl.h"

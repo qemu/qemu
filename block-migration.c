@@ -20,7 +20,7 @@
 #include "qemu/timer.h"
 #include "migration/block.h"
 #include "migration/migration.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include <assert.h>
 
 #define BLOCK_SIZE (BDRV_SECTORS_PER_DIRTY_CHUNK << BDRV_SECTOR_BITS)

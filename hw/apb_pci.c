@@ -32,7 +32,7 @@
 #include "pci/pci_bridge.h"
 #include "pci/pci_bus.h"
 #include "apb_pci.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 
 /* debug APB */

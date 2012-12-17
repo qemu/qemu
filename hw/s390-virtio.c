@@ -19,8 +19,8 @@
 
 #include "hw.h"
 #include "block/block.h"
-#include "blockdev.h"
-#include "sysemu.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "boards.h"
 #include "monitor/monitor.h"
@@ -28,7 +28,7 @@
 #include "elf.h"
 #include "hw/virtio.h"
 #include "hw/sysbus.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 
 #include "hw/s390-virtio-bus.h"

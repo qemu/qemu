@@ -13,7 +13,7 @@
 
 #include "cpu.h"
 #include "exec/cpu-all.h"
-#include "dump.h"
+#include "sysemu/dump.h"
 #include "elf.h"
 
 #ifdef TARGET_X86_64

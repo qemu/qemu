@@ -15,7 +15,7 @@
 #include "flash.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 #define IRQ_TC6393_NAND		0
 #define IRQ_TC6393_MMC		1

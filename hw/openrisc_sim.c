@@ -25,9 +25,9 @@
 #include "net/net.h"
 #include "loader.h"
 #include "exec/address-spaces.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
-#include "qtest.h"
+#include "sysemu/qtest.h"
 
 #define KERNEL_LOAD_ADDR 0x100
 

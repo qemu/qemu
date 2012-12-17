@@ -26,8 +26,8 @@
 
 #include "monitor/monitor.h"
 #include "exec/cpu-common.h"
-#include "kvm.h"
-#include "balloon.h"
+#include "sysemu/kvm.h"
+#include "sysemu/balloon.h"
 #include "trace.h"
 #include "qmp-commands.h"
 #include "qapi/qmp/qjson.h"

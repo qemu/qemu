@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "hw/pci/pci.h"
 #include "qmp-commands.h"

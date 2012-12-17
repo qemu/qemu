@@ -22,7 +22,7 @@
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "hw/usb.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 {

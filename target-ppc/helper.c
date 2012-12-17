@@ -19,9 +19,9 @@
 
 #include "cpu.h"
 #include "helper_regs.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "cpus.h"
+#include "sysemu/cpus.h"
 
 PowerPCCPU *cpu_ppc_init(const char *cpu_model)
 {

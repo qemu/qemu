@@ -21,7 +21,7 @@
 #include "audiodev.h"
 #include "audio/audio.h"
 #include "pci/pci.h"
-#include "dma.h"
+#include "sysemu/dma.h"
 
 enum {
     AC97_Reset                     = 0x00,

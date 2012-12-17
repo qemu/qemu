@@ -23,7 +23,7 @@
  */
 
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "ptimer.h"
 #include "qemu/log.h"
 #include "fifo.h"

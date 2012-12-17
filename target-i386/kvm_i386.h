@@ -11,7 +11,7 @@
 #ifndef QEMU_KVM_I386_H
 #define QEMU_KVM_I386_H
 
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 bool kvm_allows_irq0_override(void);
 

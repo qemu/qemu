@@ -27,7 +27,7 @@
 #include "multiboot.h"
 #include "loader.h"
 #include "elf.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 /* Show multiboot debug output */
 //#define DEBUG_MULTIBOOT

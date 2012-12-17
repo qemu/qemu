@@ -38,7 +38,7 @@
 #include "hw.h"
 #include "xen_backend.h"
 #include "xen_blkif.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 /* ------------------------------------------------------------- */
 

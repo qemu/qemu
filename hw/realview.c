@@ -13,10 +13,10 @@
 #include "devices.h"
 #include "pci/pci.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "i2c.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #define SMP_BOOT_ADDR 0xe0000000

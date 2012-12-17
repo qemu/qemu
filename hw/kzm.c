@@ -19,7 +19,7 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "serial.h"
 #include "imx.h"

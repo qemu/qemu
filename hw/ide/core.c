@@ -28,10 +28,10 @@
 #include <hw/isa.h>
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
-#include "sysemu.h"
-#include "dma.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/dma.h"
 #include "hw/block-common.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 #include <hw/ide/internal.h>
 

@@ -17,7 +17,7 @@
 #include "hw.h"
 #include "qemu/timer.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #ifdef ZYNQ_ARM_SLCR_ERR_DEBUG
 #define DB_PRINT(...) do { \

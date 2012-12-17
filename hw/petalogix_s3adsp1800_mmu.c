@@ -27,11 +27,11 @@
 #include "hw.h"
 #include "net/net.h"
 #include "flash.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "devices.h"
 #include "boards.h"
 #include "xilinx.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "exec/address-spaces.h"
 
 #include "microblaze_boot.h"

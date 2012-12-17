@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"

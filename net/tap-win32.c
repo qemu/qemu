@@ -31,7 +31,7 @@
 #include "qemu-common.h"
 #include "clients.h"            /* net_init_tap */
 #include "net/net.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 #include <stdio.h>
 #include <windows.h>

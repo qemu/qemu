@@ -20,7 +20,7 @@
 #include "qdev.h"
 #include "monitor/monitor.h"
 #include "qmp-commands.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
 #include "qemu/config-file.h"
 
 /*

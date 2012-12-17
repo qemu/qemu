@@ -17,7 +17,7 @@
 #include "exec/address-spaces.h"
 #include "exec/ioport.h"
 #include "qemu/bitops.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include <assert.h>
 
 #include "exec/memory-internal.h"

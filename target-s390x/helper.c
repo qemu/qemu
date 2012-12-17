@@ -22,7 +22,7 @@
 #include "exec/gdbstub.h"
 #include "qemu/timer.h"
 #ifndef CONFIG_USER_ONLY
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #endif
 
 //#define DEBUG_S390
