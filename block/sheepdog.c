@@ -724,7 +724,7 @@ static void coroutine_fn aio_read_response(void *opaque)
              * create requests are not allowed, so we search the
              * pending requests here.
              */
-            send_pending_req(s, vid_to_data_oid(s->inode.vdi_id, idx));
+            send_pending_req(s, aio_req->oid);
         }
         break;
     case AIOCB_READ_UDATA:
