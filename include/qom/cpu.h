@@ -66,6 +66,7 @@ struct kvm_run;
  * @nr_threads: Number of threads within this CPU.
  * @numa_node: NUMA node this CPU is belonging to.
  * @host_tid: Host thread ID.
+ * @running: #true if CPU is currently running (usermode).
  * @created: Indicates whether the CPU thread has been successfully created.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
@@ -88,6 +89,7 @@ struct CPUState {
 #endif
     int thread_id;
     uint32_t host_tid;
+    bool running;
     struct QemuCond *halt_cond;
     struct qemu_work_item *queued_work_first, *queued_work_last;
     bool thread_kicked;
