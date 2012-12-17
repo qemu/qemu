@@ -714,10 +714,11 @@ static void coroutine_fn aio_read_response(void *opaque)
              * and max_dirty_data_idx are changed to include updated
              * index between them.
              */
-            s->inode.data_vdi_id[idx] = s->inode.vdi_id;
-            s->max_dirty_data_idx = MAX(idx, s->max_dirty_data_idx);
-            s->min_dirty_data_idx = MIN(idx, s->min_dirty_data_idx);
-
+            if (rsp.result == SD_RES_SUCCESS) {
+                s->inode.data_vdi_id[idx] = s->inode.vdi_id;
+                s->max_dirty_data_idx = MAX(idx, s->max_dirty_data_idx);
+                s->min_dirty_data_idx = MIN(idx, s->min_dirty_data_idx);
+            }
             /*
              * Some requests may be blocked because simultaneous
              * create requests are not allowed, so we search the
