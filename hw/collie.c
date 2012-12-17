@@ -16,7 +16,7 @@
 #include "arm-misc.h"
 #include "flash.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,

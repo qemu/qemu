@@ -28,13 +28,13 @@
 
 #define CPUArchState struct CPUS390XState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 #define TARGET_PAGE_BITS 12
 
 #define TARGET_PHYS_ADDR_SPACE_BITS 64
 #define TARGET_VIRT_ADDR_SPACE_BITS 64
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 #include "softfloat.h"
 
@@ -350,7 +350,7 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 #define cpu_gen_code cpu_s390x_gen_code
 #define cpu_signal_handler cpu_s390x_signal_handler
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 #ifdef CONFIG_USER_ONLY
 

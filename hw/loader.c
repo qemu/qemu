@@ -49,8 +49,8 @@
 #include "uboot_image.h"
 #include "loader.h"
 #include "fw_cfg.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 
 #include <zlib.h>
 

@@ -42,7 +42,7 @@
 #include "mc146818rtc.h"
 #include "i8254.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define DEBUG_FULONG2E_INIT
 

@@ -10,7 +10,7 @@
 #include "mcf.h"
 /* For crc32 */
 #include <zlib.h>
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_FEC 1
 

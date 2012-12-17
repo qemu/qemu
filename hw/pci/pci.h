@@ -4,7 +4,7 @@
 #include "qemu-common.h"
 
 #include "hw/qdev.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "dma.h"
 
 /* PCI includes legacy ISA access.  */

@@ -45,7 +45,7 @@
 #include "mips.h"
 #include "pci/pci_host.h"
 #include "sysemu.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_BONITO
 

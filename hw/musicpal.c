@@ -23,7 +23,7 @@
 #include "ui/console.h"
 #include "i2c.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "ui/pixel_ops.h"
 
 #define MP_MISC_BASE            0x80002000

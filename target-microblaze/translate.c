@@ -50,7 +50,7 @@ static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_iflags;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {

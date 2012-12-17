@@ -3,7 +3,7 @@
 
 /* NOR flash devices */
 
-#include "memory.h"
+#include "exec/memory.h"
 
 typedef struct pflash_t pflash_t;
 

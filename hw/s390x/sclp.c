@@ -14,7 +14,7 @@
 
 #include "cpu.h"
 #include "kvm.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #include "sclp.h"
 

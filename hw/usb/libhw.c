@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "cpu-common.h"
+#include "exec/cpu-common.h"
 #include "hw/usb.h"
 #include "dma.h"
 

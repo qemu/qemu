@@ -22,7 +22,7 @@
 #include "device_tree.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "serial.h"
 #include "ppc.h"
 #include "ppc405.h"

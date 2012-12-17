@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_1(ldtlb, void, env)
 DEF_HELPER_1(raise_illegal_instruction, noreturn, env)
@@ -47,4 +47,4 @@ DEF_HELPER_2(ftrc_DT, i32, env, f64)
 DEF_HELPER_3(fipr, void, env, i32, i32)
 DEF_HELPER_2(ftrv, void, env, i32)
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

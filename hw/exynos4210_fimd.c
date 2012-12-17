@@ -23,7 +23,7 @@
  */
 
 #include "qemu-common.h"
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"

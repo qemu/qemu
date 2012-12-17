@@ -27,7 +27,7 @@
 #include "pci/pci.h"
 #include "pci/pci_host.h"
 #include "pc.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG
 

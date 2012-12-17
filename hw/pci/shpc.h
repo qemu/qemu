@@ -2,7 +2,7 @@
 #define SHPC_H
 
 #include "qemu-common.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "vmstate.h"
 
 struct SHPCDevice {

@@ -1,5 +1,5 @@
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "helper.h"
 #include "host-utils.h"
 #include "sysemu.h"

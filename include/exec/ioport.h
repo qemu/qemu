@@ -25,7 +25,7 @@
 #define IOPORT_H
 
 #include "qemu-common.h"
-#include "iorange.h"
+#include "exec/iorange.h"
 
 typedef uint32_t pio_addr_t;
 #define FMT_pioaddr     PRIx32

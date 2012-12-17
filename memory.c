@@ -13,14 +13,14 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "memory.h"
-#include "exec-memory.h"
-#include "ioport.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
+#include "exec/ioport.h"
 #include "bitops.h"
 #include "kvm.h"
 #include <assert.h>
 
-#include "memory-internal.h"
+#include "exec/memory-internal.h"
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;

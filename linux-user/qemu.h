@@ -11,13 +11,13 @@
 #include <stdlib.h>
 #endif /* DEBUG_REMAP */
 
-#include "qemu-user-types.h"
+#include "exec/user/abitypes.h"
 
-#include "thunk.h"
+#include "exec/user/thunk.h"
 #include "syscall_defs.h"
 #include "syscall.h"
 #include "target_signal.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "qemu-queue.h"
 
 #if defined(CONFIG_USE_NPTL)

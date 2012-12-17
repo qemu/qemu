@@ -13,7 +13,7 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 #include "arm-misc.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "arm_gic_internal.h"
 
 typedef struct {

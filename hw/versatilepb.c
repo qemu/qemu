@@ -16,7 +16,7 @@
 #include "i2c.h"
 #include "boards.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "flash.h"
 
 #define VERSATILE_FLASH_ADDR 0x34000000

@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "host-utils.h"
 #include "helper.h"
 #include <string.h>
@@ -30,7 +30,7 @@
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #include "sysemu.h"
 #endif
 

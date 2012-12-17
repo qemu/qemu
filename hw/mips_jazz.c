@@ -41,7 +41,7 @@
 #include "pcspk.h"
 #include "blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 enum jazz_model_e
 {

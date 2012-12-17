@@ -14,7 +14,7 @@
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define SYS_FREQ 66000000
 

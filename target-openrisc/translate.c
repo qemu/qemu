@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "exec-all.h"
+#include "exec/exec-all.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
@@ -61,7 +61,7 @@ static TCGv_i32 fpcsr;
 static TCGv machi, maclo;
 static TCGv fpmaddhi, fpmaddlo;
 static TCGv_i32 env_flags;
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void openrisc_translate_init(void)
 {

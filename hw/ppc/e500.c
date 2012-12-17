@@ -33,7 +33,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "host-utils.h"
 #include "hw/ppce500_pci.h"
 

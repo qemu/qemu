@@ -11,7 +11,7 @@
 #include "hw.h"
 #include "sh.h"
 #include "qemu-timer.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "ptimer.h"
 
 //#define DEBUG_TIMER

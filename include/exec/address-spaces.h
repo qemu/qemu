@@ -19,7 +19,7 @@
  * you're one of them.
  */
 
-#include "memory.h"
+#include "exec/memory.h"
 
 #ifndef CONFIG_USER_ONLY
 

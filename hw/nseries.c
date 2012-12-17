@@ -33,7 +33,7 @@
 #include "loader.h"
 #include "blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /* Nokia N8x0 support */
 struct n800_s {

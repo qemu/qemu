@@ -47,8 +47,8 @@
 #include "blockdev.h"
 #include "hw/block-common.h"
 #include "ui/qemu-spice.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "arch_init.h"
 #include "bitmap.h"
 

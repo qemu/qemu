@@ -21,7 +21,7 @@
 #include "balloon.h"
 #include "virtio-balloon.h"
 #include "kvm.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #if defined(__linux__)
 #include <sys/mman.h>

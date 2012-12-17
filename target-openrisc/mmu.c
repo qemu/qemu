@@ -20,7 +20,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "host-utils.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/loader.h"

@@ -317,7 +317,7 @@ static const VMStateDescription vmstate_ppce500_pci = {
     }
 };
 
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static int e500_pcihost_bridge_initfn(PCIDevice *d)
 {

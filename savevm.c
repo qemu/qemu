@@ -82,7 +82,7 @@
 #include "qemu-queue.h"
 #include "qemu-timer.h"
 #include "cpus.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "qmp-commands.h"
 #include "trace.h"
 #include "bitops.h"

@@ -41,7 +41,7 @@
 #include "devices.h"
 #include "boards.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static const int sector_len = 128 * 1024;
 

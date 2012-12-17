@@ -32,7 +32,7 @@
 #include "boards.h"
 #include "xilinx.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "microblaze_boot.h"
 #include "microblaze_pic_cpu.h"

@@ -47,7 +47,7 @@
 #include "kvm_ppc.h"
 #include "pci/pci.h"
 
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "hw/usb.h"
 #include "qemu-config.h"
 

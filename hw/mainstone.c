@@ -20,7 +20,7 @@
 #include "flash.h"
 #include "blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /* Device addresses */
 #define MST_FPGA_PHYS	0x08000000

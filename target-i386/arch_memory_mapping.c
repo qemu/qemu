@@ -12,7 +12,7 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "memory_mapping.h"
 
 /* PAE Paging or IA-32e Paging */

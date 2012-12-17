@@ -14,8 +14,8 @@
 #include "qemu-common.h"
 #include "elf.h"
 #include "cpu.h"
-#include "cpu-all.h"
-#include "hwaddr.h"
+#include "exec/cpu-all.h"
+#include "exec/hwaddr.h"
 #include "monitor.h"
 #include "kvm.h"
 #include "dump.h"
@@ -23,7 +23,7 @@
 #include "memory_mapping.h"
 #include "qapi/error.h"
 #include "qmp-commands.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 
 static uint16_t cpu_convert_to_target16(uint16_t val, int endian)
 {

@@ -31,7 +31,7 @@
 #include "elf.h"
 #include "cris-boot.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define D(x)
 #define DNAND(x)

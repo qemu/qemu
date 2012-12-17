@@ -35,7 +35,7 @@
 #include "xilinx.h"
 #include "blockdev.h"
 #include "serial.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "ssi.h"
 
 #include "microblaze_boot.h"

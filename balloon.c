@@ -25,7 +25,7 @@
  */
 
 #include "monitor.h"
-#include "cpu-common.h"
+#include "exec/cpu-common.h"
 #include "kvm.h"
 #include "balloon.h"
 #include "trace.h"

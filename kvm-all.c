@@ -27,11 +27,11 @@
 #include "sysemu.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "kvm.h"
 #include "bswap.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "event_notifier.h"
 
 /* This check must be after config-host.h is included */

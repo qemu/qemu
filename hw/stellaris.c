@@ -15,7 +15,7 @@
 #include "i2c.h"
 #include "net/net.h"
 #include "boards.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define GPIO_A 0
 #define GPIO_B 1

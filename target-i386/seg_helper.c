@@ -25,7 +25,7 @@
 //#define DEBUG_PCALL
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #ifdef DEBUG_PCALL

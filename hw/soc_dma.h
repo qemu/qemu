@@ -22,7 +22,7 @@
 #define HW_SOC_DMA_H 1
 
 
-#include "memory.h"
+#include "exec/memory.h"
 #include "hw/irq.h"
 
 struct soc_dma_s;

@@ -24,7 +24,7 @@
 #include "serial.h"
 #include "net/net.h"
 #include "loader.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysemu.h"
 #include "sysbus.h"
 #include "qtest.h"

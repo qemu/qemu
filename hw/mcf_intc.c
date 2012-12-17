@@ -7,7 +7,7 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     MemoryRegion iomem;

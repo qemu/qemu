@@ -21,7 +21,7 @@
 #include "hw.h"
 #include "omap.h"
 #include "serial.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /* UARTs */
 struct omap_uart_s {

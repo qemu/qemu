@@ -18,7 +18,7 @@
 #include "hw/hw.h"
 #include "range.h"
 #include <linux/vhost.h>
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   MemoryRegionSection *section,

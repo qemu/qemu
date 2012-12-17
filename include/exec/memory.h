@@ -19,11 +19,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "qemu-common.h"
-#include "cpu-common.h"
-#include "hwaddr.h"
+#include "exec/cpu-common.h"
+#include "exec/hwaddr.h"
 #include "qemu-queue.h"
-#include "iorange.h"
-#include "ioport.h"
+#include "exec/iorange.h"
+#include "exec/ioport.h"
 #include "int128.h"
 
 typedef struct MemoryRegionOps MemoryRegionOps;

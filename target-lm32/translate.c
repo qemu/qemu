@@ -53,7 +53,7 @@ static TCGv cpu_deba;
 static TCGv cpu_bp[4];
 static TCGv cpu_wp[4];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 enum {
     OP_FMT_RI,

@@ -28,7 +28,7 @@
 #include "net/net.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "blockdev.h"
 #include "flash.h"
 

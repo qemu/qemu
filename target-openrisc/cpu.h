@@ -30,7 +30,7 @@ struct OpenRISCCPU;
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 #include "softfloat.h"
 #include "qemu/cpu.h"
 #include "qapi/error.h"
@@ -398,7 +398,7 @@ static inline void cpu_clone_regs(CPUOpenRISCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 static inline void cpu_get_tb_cpu_state(CPUOpenRISCState *env,
                                         target_ulong *pc,
@@ -427,7 +427,7 @@ static inline bool cpu_has_work(CPUState *cpu)
                                      CPU_INTERRUPT_TIMER);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline target_ulong cpu_get_pc(CPUOpenRISCState *env)
 {

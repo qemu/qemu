@@ -10,7 +10,7 @@
 #include "qemu-timer.h"
 #include "ptimer.h"
 #include "sysemu.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /* General purpose timer module.  */
 typedef struct {

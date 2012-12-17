@@ -66,7 +66,7 @@
 #include "kvm_ppc.h"
 #include "hw/usb.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
 
 #define MAX_IDE_BUS 2

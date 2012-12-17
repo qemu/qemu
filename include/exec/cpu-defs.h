@@ -29,7 +29,7 @@
 #include <signal.h>
 #include "osdep.h"
 #include "qemu-queue.h"
-#include "hwaddr.h"
+#include "exec/hwaddr.h"
 
 #ifndef TARGET_LONG_BITS
 #error TARGET_LONG_BITS must be defined before including this header

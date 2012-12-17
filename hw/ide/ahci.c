@@ -29,7 +29,7 @@
 
 #include "monitor.h"
 #include "dma.h"
-#include "cpu-common.h"
+#include "exec/cpu-common.h"
 #include "internal.h"
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>

@@ -26,7 +26,7 @@
 
 #include <hw/hw.h>
 #include "qapi/error.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #define ST01_V_RETRACE      0x08
 #define ST01_DISP_ENABLE    0x01

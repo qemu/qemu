@@ -27,7 +27,7 @@
 #include "boards.h"
 #include "blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"

@@ -30,7 +30,7 @@
 #include "hw/pci/pci.h"
 #include "hw/watchdog.h"
 #include "hw/loader.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "net/net.h"
 #include "net/slirp.h"
 #include "qemu-char.h"
@@ -63,7 +63,7 @@
 #include "trace/simple.h"
 #endif
 #include "ui/qemu-spice.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "qmp-commands.h"
 #include "hmp.h"
 #include "qemu-thread.h"

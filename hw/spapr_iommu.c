@@ -21,7 +21,7 @@
 #include "qdev.h"
 #include "kvm_ppc.h"
 #include "dma.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "hw/spapr.h"
 

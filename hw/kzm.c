@@ -14,7 +14,7 @@
  */
 
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "hw.h"
 #include "arm-misc.h"
 #include "devices.h"

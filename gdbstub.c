@@ -32,7 +32,7 @@
 #include "monitor.h"
 #include "qemu-char.h"
 #include "sysemu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #endif
 
 #define MAX_PACKET_LENGTH 4096

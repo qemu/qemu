@@ -30,7 +30,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "grlib.h"
 

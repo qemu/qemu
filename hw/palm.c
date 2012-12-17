@@ -25,7 +25,7 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "loader.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static uint32_t static_readb(void *opaque, hwaddr offset)
 {

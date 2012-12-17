@@ -12,7 +12,7 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "memory_mapping.h"
 
 int qemu_get_guest_memory_mapping(MemoryMappingList *list)

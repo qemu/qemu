@@ -28,7 +28,7 @@
 #include "blockdev.h"
 #include "milkymist-hw.h"
 #include "lm32.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"
 #define BIOS_OFFSET      0x00860000

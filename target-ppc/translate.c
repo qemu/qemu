@@ -71,7 +71,7 @@ static TCGv cpu_reserve;
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void ppc_translate_init(void)
 {

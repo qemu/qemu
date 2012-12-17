@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "qemu-timer.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu.h"

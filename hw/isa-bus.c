@@ -21,7 +21,7 @@
 #include "sysbus.h"
 #include "sysemu.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static ISABus *isabus;
 hwaddr isa_mem_base = 0;

@@ -33,7 +33,7 @@
 #define ARM_ANGEL_HEAP_SIZE (128 * 1024 * 1024)
 #else
 #include "qemu-common.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include "hw/arm-misc.h"
 #endif
 
@@ -113,7 +113,7 @@ static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
     return code;
 }
 
-#include "softmmu-semi.h"
+#include "exec/softmmu-semi.h"
 #endif
 
 static target_ulong arm_semi_syscall_len;

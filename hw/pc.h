@@ -2,12 +2,12 @@
 #define HW_PC_H
 
 #include "qemu-common.h"
-#include "memory.h"
-#include "ioport.h"
+#include "exec/memory.h"
+#include "exec/ioport.h"
 #include "isa.h"
 #include "fdc.h"
 #include "net/net.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "ioapic.h"
 
 /* PC-style peripherals (also used by other machines).  */

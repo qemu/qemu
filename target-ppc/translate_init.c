@@ -24,7 +24,7 @@
  */
 
 #include "disas/bfd.h"
-#include "gdbstub.h"
+#include "exec/gdbstub.h"
 #include <kvm.h>
 #include "kvm_ppc.h"
 #include "arch_init.h"

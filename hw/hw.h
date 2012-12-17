@@ -5,10 +5,10 @@
 #include "qemu-common.h"
 
 #if !defined(CONFIG_USER_ONLY) && !defined(NEED_CPU_H)
-#include "cpu-common.h"
+#include "exec/cpu-common.h"
 #endif
 
-#include "ioport.h"
+#include "exec/ioport.h"
 #include "irq.h"
 #include "block/aio.h"
 #include "qemu-file.h"

@@ -12,7 +12,7 @@
 #include "config.h"
 #include "qemu-common.h"
 #include "mips-defs.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 #include "softfloat.h"
 
 struct CPUMIPSState;
@@ -560,7 +560,7 @@ static inline int cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
     return r;
 }
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /* Memory access type :
  * may be needed for precise access rights control and precise exceptions.
@@ -738,7 +738,7 @@ static inline bool cpu_has_work(CPUState *cpu)
     return has_work;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUMIPSState *env, TranslationBlock *tb)
 {

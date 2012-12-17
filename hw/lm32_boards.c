@@ -27,7 +27,7 @@
 #include "elf.h"
 #include "lm32_hwsetup.h"
 #include "lm32.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef struct {
     LM32CPU *cpu;

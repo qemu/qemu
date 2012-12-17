@@ -32,7 +32,7 @@
 #include "arm-misc.h"
 #include "flash.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /*****************************************************************************/
 /* Siemens SX1 Cellphone V1 */

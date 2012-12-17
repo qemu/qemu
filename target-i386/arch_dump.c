@@ -12,7 +12,7 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "dump.h"
 #include "elf.h"
 

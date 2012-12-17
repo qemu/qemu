@@ -64,7 +64,7 @@ static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 static target_ulong gen_opc_npc[OPC_BUF_SIZE];
 static target_ulong gen_opc_jump_pc[2];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 typedef struct DisasContext {
     target_ulong pc;    /* current Program Counter: integer or DYNAMIC_PC */

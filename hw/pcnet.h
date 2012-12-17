@@ -7,7 +7,7 @@
 #define PCNET_LOOPTEST_CRC	1
 #define PCNET_LOOPTEST_NOCRC	2
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* BUS CONFIGURATION REGISTERS */
 #define BCR_MSRDA    0

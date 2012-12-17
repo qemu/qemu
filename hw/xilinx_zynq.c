@@ -18,7 +18,7 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "net/net.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "flash.h"

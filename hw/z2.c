@@ -23,7 +23,7 @@
 #include "blockdev.h"
 #include "ui/console.h"
 #include "audio/audio.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #ifdef DEBUG_Z2
 #define DPRINTF(fmt, ...) \

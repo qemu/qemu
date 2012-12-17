@@ -18,11 +18,11 @@
  */
 
 #include "cpu.h"
-#include "ioport.h"
+#include "exec/ioport.h"
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* check if Port I/O is allowed in TSS */

@@ -26,7 +26,7 @@
 #include "boards.h"
 #include "sysbus.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define SMP_BOOT_ADDR 0x100
 #define SMP_BOOT_REG  0x40

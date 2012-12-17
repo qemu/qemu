@@ -26,8 +26,8 @@
  */
 
 #include "cpu.h"
-#include "exec-all.h"
-#include "gdbstub.h"
+#include "exec/exec-all.h"
+#include "exec/gdbstub.h"
 #include "host-utils.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"

@@ -69,7 +69,7 @@ static TCGv cpu_flags, cpu_delayed_pc;
 
 static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 static void sh4_translate_init(void)
 {

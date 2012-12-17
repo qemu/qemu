@@ -39,7 +39,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS

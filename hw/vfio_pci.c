@@ -28,9 +28,9 @@
 
 #include "config.h"
 #include "event_notifier.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "kvm.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "pci/msi.h"
 #include "pci/msix.h"
 #include "pci/pci.h"

@@ -32,7 +32,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "loader.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define BIOS_FILENAME "shix_bios.bin"
 #define BIOS_ADDRESS 0xA0000000

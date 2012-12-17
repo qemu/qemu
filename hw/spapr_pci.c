@@ -29,7 +29,7 @@
 #include "pci/pci_host.h"
 #include "hw/spapr.h"
 #include "hw/spapr_pci.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include <libfdt.h>
 #include "trace.h"
 

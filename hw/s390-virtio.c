@@ -29,7 +29,7 @@
 #include "hw/virtio.h"
 #include "hw/sysbus.h"
 #include "kvm.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "hw/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"

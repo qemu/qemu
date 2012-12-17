@@ -23,8 +23,8 @@
 #include "flash.h"
 #include "irq.h"
 #include "blockdev.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
 #include "qemu-error.h"
 

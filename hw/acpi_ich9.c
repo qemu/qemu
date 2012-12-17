@@ -30,7 +30,7 @@
 #include "sysemu.h"
 #include "acpi.h"
 #include "kvm.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include "ich9.h"
 

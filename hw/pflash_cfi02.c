@@ -39,7 +39,7 @@
 #include "flash.h"
 #include "qemu-timer.h"
 #include "block/block.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "host-utils.h"
 #include "sysbus.h"
 

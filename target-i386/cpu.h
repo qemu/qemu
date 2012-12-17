@@ -44,7 +44,7 @@
 
 #define CPUArchState struct CPUX86State
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
 #include "softfloat.h"
 
@@ -1117,7 +1117,7 @@ static inline void cpu_clone_regs(CPUX86State *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "svm.h"
 
 #if !defined(CONFIG_USER_ONLY)
@@ -1137,7 +1137,7 @@ static inline bool cpu_has_work(CPUState *cpu)
                                       CPU_INTERRUPT_MCE));
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUX86State *env, TranslationBlock *tb)
 {

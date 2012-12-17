@@ -24,7 +24,7 @@
 #include "pm_smbus.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 typedef uint32_t pci_addr_t;
 #include "pci/pci_host.h"

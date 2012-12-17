@@ -24,7 +24,7 @@
 #include "pci/msi.h"
 #include "pci/shpc.h"
 #include "pci/slotid_cap.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "pci/pci_bus.h"
 
 #define REDHAT_PCI_VENDOR_ID 0x1b36

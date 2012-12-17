@@ -3,10 +3,10 @@
 
 /* CPU interfaces that are target independent.  */
 
-#include "hwaddr.h"
+#include "exec/hwaddr.h"
 
 #ifndef NEED_CPU_H
-#include "poison.h"
+#include "exec/poison.h"
 #endif
 
 #include "bswap.h"

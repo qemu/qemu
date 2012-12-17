@@ -275,7 +275,7 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     }
 }
 
-#include "qemu-lock.h"
+#include "exec/spinlock.h"
 
 extern spinlock_t tb_lock;
 
@@ -353,22 +353,22 @@ void io_mem_write(struct MemoryRegion *mr, hwaddr addr,
 void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
               uintptr_t retaddr);
 
-#include "softmmu_defs.h"
+#include "exec/softmmu_defs.h"
 
 #define ACCESS_TYPE (NB_MMU_MODES + 1)
 #define MEMSUFFIX _code
 
 #define DATA_SIZE 1
-#include "softmmu_header.h"
+#include "exec/softmmu_header.h"
 
 #define DATA_SIZE 2
-#include "softmmu_header.h"
+#include "exec/softmmu_header.h"
 
 #define DATA_SIZE 4
-#include "softmmu_header.h"
+#include "exec/softmmu_header.h"
 
 #define DATA_SIZE 8
-#include "softmmu_header.h"
+#include "exec/softmmu_header.h"
 
 #undef ACCESS_TYPE
 #undef MEMSUFFIX

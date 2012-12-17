@@ -65,7 +65,7 @@ static TCGv cpu_tmp5;
 
 static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 #ifdef TARGET_X86_64
 static int x86_64_hregs;

@@ -39,7 +39,7 @@
 
 #define CPUArchState struct CPUSH4State
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
 #include "softfloat.h"
 
@@ -264,7 +264,7 @@ static inline void cpu_clone_regs(CPUSH4State *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /* Memory access type */
 enum {
@@ -378,7 +378,7 @@ static inline bool cpu_has_work(CPUState *cpu)
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUSH4State *env, TranslationBlock *tb)
 {

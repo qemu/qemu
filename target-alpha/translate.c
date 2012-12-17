@@ -88,7 +88,7 @@ static TCGv cpu_usp;
 /* register names */
 static char cpu_reg_names[10*4+21*5 + 10*5+21*6];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 static void alpha_translate_init(void)
 {

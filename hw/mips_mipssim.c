@@ -36,7 +36,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static struct _loaderparams {
     int ram_size;

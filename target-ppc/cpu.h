@@ -73,7 +73,7 @@
 
 #define CPUArchState struct CPUPPCState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
 #include "softfloat.h"
 
@@ -1251,7 +1251,7 @@ static inline void cpu_clone_regs(CPUPPCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 /*****************************************************************************/
 /* CRF definitions */
@@ -2224,7 +2224,7 @@ static inline bool cpu_has_work(CPUState *cpu)
     return msr_ee && (env->interrupt_request & CPU_INTERRUPT_HARD);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUPPCState *env, TranslationBlock *tb)
 {

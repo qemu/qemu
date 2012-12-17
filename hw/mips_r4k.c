@@ -25,7 +25,7 @@
 #include "mc146818rtc.h"
 #include "i8254.h"
 #include "blockdev.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define MAX_IDE_BUS 2
 

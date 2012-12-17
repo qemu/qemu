@@ -3,7 +3,7 @@
 
 #include "isa.h"
 #include "pci/pci.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #define MAX_IDE_DEVS	2
 

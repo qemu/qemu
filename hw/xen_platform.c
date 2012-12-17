@@ -32,7 +32,7 @@
 #include "xen_common.h"
 #include "xen_backend.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include <xenguest.h>
 

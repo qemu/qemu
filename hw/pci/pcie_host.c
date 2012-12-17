@@ -22,7 +22,7 @@
 #include "hw/hw.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pcie_host.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /*
  * PCI express mmcfig address

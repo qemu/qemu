@@ -22,7 +22,7 @@
 #ifndef HW_MAC_DBDMA_H
 #define HW_MAC_DBDMA_H 1
 
-#include "memory.h"
+#include "exec/memory.h"
 
 typedef struct DBDMA_io DBDMA_io;
 

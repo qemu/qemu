@@ -33,7 +33,7 @@
 #include "qmp-commands.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_PCI
 #ifdef DEBUG_PCI

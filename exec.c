@@ -34,9 +34,9 @@
 #include "hw/xen.h"
 #include "qemu-timer.h"
 #include "qemu-config.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "dma.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #if defined(CONFIG_USER_ONLY)
 #include <qemu.h>
 #else /* !CONFIG_USER_ONLY */
@@ -44,10 +44,10 @@
 #include "trace.h"
 #endif
 
-#include "cputlb.h"
+#include "exec/cputlb.h"
 #include "translate-all.h"
 
-#include "memory-internal.h"
+#include "exec/memory-internal.h"
 
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_SUBPAGE

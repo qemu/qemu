@@ -23,7 +23,7 @@
 #include "ssi.h"
 #include "blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000

@@ -11,7 +11,7 @@
 #define DMA_H
 
 #include <stdio.h>
-#include "memory.h"
+#include "exec/memory.h"
 #include "hw/hw.h"
 #include "block/block.h"
 #include "kvm.h"

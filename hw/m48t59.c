@@ -27,7 +27,7 @@
 #include "sysemu.h"
 #include "sysbus.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_NVRAM
 

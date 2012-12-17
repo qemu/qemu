@@ -12,7 +12,7 @@
 #include "qemu-common.h"
 #include "ui/console.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
 #include "boards.h"
 #include "loader.h"

@@ -25,7 +25,7 @@
 
 #define CPUArchState struct CPUSPARCState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
 #include "softfloat.h"
 
@@ -701,7 +701,7 @@ static inline void cpu_clone_regs(CPUSPARCState *env, target_ulong newsp)
 }
 #endif
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 
 #ifdef TARGET_SPARC64
 /* sun4u.c */
@@ -767,7 +767,7 @@ static inline bool cpu_has_work(CPUState *cpu)
            cpu_interrupts_enabled(env1);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUSPARCState *env, TranslationBlock *tb)
 {

@@ -27,7 +27,7 @@
 
 #include "hw.h"
 #include "sysemu.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 

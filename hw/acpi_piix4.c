@@ -26,9 +26,9 @@
 #include "acpi.h"
 #include "sysemu.h"
 #include "range.h"
-#include "ioport.h"
+#include "exec/ioport.h"
 #include "fw_cfg.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG
 

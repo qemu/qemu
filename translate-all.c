@@ -36,8 +36,8 @@
 #include "disas/disas.h"
 #include "tcg.h"
 #include "qemu-timer.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #if defined(CONFIG_USER_ONLY)
 #include "qemu.h"
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -57,7 +57,7 @@
 #endif
 #endif
 
-#include "cputlb.h"
+#include "exec/cputlb.h"
 #include "translate-all.h"
 
 //#define DEBUG_TB_INVALIDATE

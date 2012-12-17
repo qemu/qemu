@@ -37,7 +37,7 @@
 /* global register indexes */
 static TCGv_ptr cpu_env;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 #include "helper.h"
 #define GEN_HELPER 1
 #include "helper.h"

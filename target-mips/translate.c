@@ -1017,7 +1017,7 @@ static TCGv_i64 fpu_f64[32];
 static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
 static target_ulong gen_opc_btarget[OPC_BUF_SIZE];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 #define gen_helper_0e0i(name, arg) do {                           \
     TCGv_i32 helper_tmp = tcg_const_i32(arg);                     \

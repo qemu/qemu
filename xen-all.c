@@ -19,7 +19,7 @@
 #include "range.h"
 #include "xen-mapcache.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/params.h>
