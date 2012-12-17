@@ -4,7 +4,7 @@
 #include "ui/qemu-pixman.h"
 #include "qapi/qmp/qdict.h"
 #include "notify.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 #include "qapi-types.h"
 #include "qapi/error.h"

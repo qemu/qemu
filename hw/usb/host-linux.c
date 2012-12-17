@@ -32,7 +32,7 @@
 
 #include "qemu-common.h"
 #include "qemu-timer.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysemu.h"
 #include "trace.h"
 

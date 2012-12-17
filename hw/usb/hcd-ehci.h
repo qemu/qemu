@@ -20,7 +20,7 @@
 #include "hw/hw.h"
 #include "qemu-timer.h"
 #include "hw/usb.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "trace.h"
 #include "dma.h"
 #include "sysemu.h"

@@ -10,7 +10,7 @@
 #include "blockdev.h"
 #include "hw/block-common.h"
 #include "block/blockjob.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu-option.h"
 #include "qemu-config.h"

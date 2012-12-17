@@ -18,7 +18,7 @@
  */
 
 #include "qdev.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qmp-commands.h"
 #include "arch_init.h"
 #include "qemu-config.h"

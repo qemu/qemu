@@ -32,7 +32,7 @@
 #include "net/net.h"
 #include "clients.h"
 #include "hub.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu_socket.h"
 #include "slirp/libslirp.h"
 #include "qemu-char.h"

@@ -44,7 +44,7 @@
 
 #include "hw.h"
 #include "disas/disas.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysemu.h"
 #include "uboot_image.h"
 #include "loader.h"

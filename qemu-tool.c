@@ -14,7 +14,7 @@
  */
 
 #include "qemu-common.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu-timer.h"
 #include "qemu-log.h"
 #include "migration.h"

@@ -19,7 +19,7 @@
  */
 
 #include "sysemu.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "hw/pci/pci.h"
 #include "qmp-commands.h"
 

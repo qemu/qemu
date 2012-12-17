@@ -28,7 +28,7 @@
 #include "fdc.h"
 #include "ide.h"
 #include "pci/pci.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "fw_cfg.h"
 #include "hpet_emul.h"
 #include "smbios.h"

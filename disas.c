@@ -374,7 +374,7 @@ const char *lookup_symbol(target_ulong orig_addr)
 
 #if !defined(CONFIG_USER_ONLY)
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 static int monitor_disas_is_physical;
 

@@ -24,7 +24,7 @@
 #include "qemu-config.h"
 #include "qemu-queue.h"
 #include "qapi/qmp/types.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysemu.h"
 #include "hw/watchdog.h"
 

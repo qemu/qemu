@@ -31,7 +31,7 @@
 #include "qemu-timer.h"
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4

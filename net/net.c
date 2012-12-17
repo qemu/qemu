@@ -29,7 +29,7 @@
 #include "net/slirp.h"
 #include "util.h"
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu-common.h"
 #include "qemu_socket.h"
 #include "qemu-config.h"

@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "exec/cpu-common.h"
 #include "kvm.h"
 #include "balloon.h"

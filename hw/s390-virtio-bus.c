@@ -21,7 +21,7 @@
 #include "block/block.h"
 #include "sysemu.h"
 #include "boards.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "loader.h"
 #include "elf.h"
 #include "hw/virtio.h"

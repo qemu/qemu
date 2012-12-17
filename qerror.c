@@ -10,7 +10,7 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu-common.h"

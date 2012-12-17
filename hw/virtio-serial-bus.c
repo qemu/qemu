@@ -19,7 +19,7 @@
  */
 
 #include "iov.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu-queue.h"
 #include "sysbus.h"
 #include "trace.h"

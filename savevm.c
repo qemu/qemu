@@ -73,7 +73,7 @@
 #include "hw/hw.h"
 #include "hw/qdev.h"
 #include "net/net.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysemu.h"
 #include "qemu-timer.h"
 #include "audio/audio.h"

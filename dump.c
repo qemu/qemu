@@ -16,7 +16,7 @@
 #include "cpu.h"
 #include "exec/cpu-all.h"
 #include "exec/hwaddr.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "kvm.h"
 #include "dump.h"
 #include "sysemu.h"

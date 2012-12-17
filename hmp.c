@@ -20,7 +20,7 @@
 #include "qemu-timer.h"
 #include "qmp-commands.h"
 #include "qemu_socket.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "ui/console.h"
 
 static void hmp_handle_error(Monitor *mon, Error **errp)

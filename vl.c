@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 #include "bt-host.h"
 #include "net/net.h"
 #include "net/slirp.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "ui/console.h"
 #include "sysemu.h"
 #include "exec/gdbstub.h"

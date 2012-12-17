@@ -20,7 +20,7 @@
 
 #include "sysemu.h"
 #include "qapi/qmp/types.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie.h"
 #include "hw/pci/msix.h"

@@ -31,7 +31,7 @@
 #include "qemu-queue.h"
 #include "qemu-thread.h"
 #include "ui/console.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "audio/audio.h"
 #include "bitmap.h"
 #include <zlib.h>

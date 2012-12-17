@@ -17,7 +17,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysbus.h"
 #include "sysemu.h"
 #include "isa.h"

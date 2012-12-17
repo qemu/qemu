@@ -27,7 +27,7 @@
 #include "hw/pci/pci.h"
 #include "net/net.h"
 #include "hw/pc.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "hw/scsi.h"
 #include "hw/virtio-blk.h"
 #include "qemu-config.h"

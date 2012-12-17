@@ -29,7 +29,7 @@
 
 #include "qemu.h"
 #else
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "exec/gdbstub.h"

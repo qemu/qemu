@@ -19,7 +19,7 @@
 #include "ui/qemu-spice.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "ui/console.h"
 #include "sysemu.h"
 #include "trace.h"

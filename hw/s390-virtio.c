@@ -23,7 +23,7 @@
 #include "sysemu.h"
 #include "net/net.h"
 #include "boards.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "loader.h"
 #include "elf.h"
 #include "hw/virtio.h"

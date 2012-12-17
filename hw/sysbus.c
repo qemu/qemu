@@ -18,7 +18,7 @@
  */
 
 #include "sysbus.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "exec/address-spaces.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);

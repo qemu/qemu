@@ -5,7 +5,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "block/block.h"
-#include "readline.h"
+#include "monitor/readline.h"
 
 extern Monitor *cur_mon;
 extern Monitor *default_mon;

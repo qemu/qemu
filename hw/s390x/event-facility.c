@@ -15,7 +15,7 @@
  *
  */
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysemu.h"
 
 #include "sclp.h"

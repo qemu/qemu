@@ -26,7 +26,7 @@
 #include "config-host.h"
 #include "qemu-common.h"
 #include "trace.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "block/block.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"

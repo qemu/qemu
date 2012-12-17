@@ -27,7 +27,7 @@
 #include "blockdev.h"
 #include "qemu-config.h"
 #include "sysemu.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 DriveInfo *add_init_drive(const char *optstr)
 {

@@ -25,7 +25,7 @@
 
 #include "net/net.h"
 #include "clients.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "qemu-option.h"

@@ -14,7 +14,7 @@
 #include "hw/usb/desc.h"
 #include "hw/scsi.h"
 #include "ui/console.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysemu.h"
 #include "blockdev.h"
 

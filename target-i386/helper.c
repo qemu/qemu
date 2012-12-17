@@ -21,7 +21,7 @@
 #include "kvm.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #endif
 
 //#define DEBUG_MMU

@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qemu_socket.h"
 #include "qemu-common.h" /* for qemu_isdigit */
 #include "main-loop.h"

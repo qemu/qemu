@@ -31,7 +31,7 @@
 #include "qemu-error.h"
 #include "ui/console.h"
 #include "hw/loader.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "range.h"
 #include "sysemu.h"
 #include "hw/pci/pci.h"
