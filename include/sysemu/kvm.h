@@ -17,6 +17,7 @@
 #include <errno.h>
 #include "config-host.h"
 #include "qemu/queue.h"
+#include "qom/cpu.h"
 
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
@@ -120,9 +121,9 @@ int kvm_has_many_ioeventfds(void);
 int kvm_has_gsi_routing(void);
 int kvm_has_intx_set_mask(void);
 
-#ifdef NEED_CPU_H
-int kvm_init_vcpu(CPUArchState *env);
+int kvm_init_vcpu(CPUState *cpu);
 
+#ifdef NEED_CPU_H
 int kvm_cpu_exec(CPUArchState *env);
 
 #if !defined(CONFIG_USER_ONLY)

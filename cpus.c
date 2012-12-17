@@ -742,7 +742,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     cpu->thread_id = qemu_get_thread_id();
     cpu_single_env = env;
 
-    r = kvm_init_vcpu(env);
+    r = kvm_init_vcpu(cpu);
     if (r < 0) {
         fprintf(stderr, "kvm_init_vcpu failed: %s\n", strerror(-r));
         exit(1);

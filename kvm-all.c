@@ -214,9 +214,8 @@ static void kvm_reset_vcpu(void *opaque)
     kvm_arch_reset_vcpu(cpu);
 }
 
-int kvm_init_vcpu(CPUArchState *env)
+int kvm_init_vcpu(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     KVMState *s = kvm_state;
     long mmap_size;
     int ret;
