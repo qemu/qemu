@@ -572,11 +572,15 @@ static inline void mips_tc_sleep(MIPSCPU *cpu, int tc)
     }
 }
 
-/* tc should point to an int with the value of the global TC index.
-   This function will transform it into a local index within the
-   returned CPUMIPSState.
-
-   FIXME: This code assumes that all VPEs have the same number of TCs,
+/**
+ * mips_cpu_map_tc:
+ * @env: CPU from which mapping is performed.
+ * @tc: Should point to an int with the value of the global TC index.
+ *
+ * This function will transform @tc into a local index within the
+ * returned #CPUMIPSState.
+ */
+/* FIXME: This code assumes that all VPEs have the same number of TCs,
           which depends on runtime setup. Can probably be fixed by
           walking the list of CPUMIPSStates.  */
 static CPUMIPSState *mips_cpu_map_tc(CPUMIPSState *env, int *tc)
