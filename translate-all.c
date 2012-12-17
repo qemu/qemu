@@ -600,7 +600,7 @@ static inline void code_gen_alloc(size_t tb_size)
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
-void tcg_exec_init(unsigned long tb_size)
+void tcg_exec_init(uintptr_t tb_size)
 {
     cpu_gen_init();
     code_gen_alloc(tb_size);
