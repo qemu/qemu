@@ -1,10 +1,10 @@
 #ifndef BLOCK_H
 #define BLOCK_H
 
-#include "qemu-aio.h"
+#include "block/aio.h"
 #include "qemu-common.h"
 #include "qemu-option.h"
-#include "qemu-coroutine.h"
+#include "block/coroutine.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
 

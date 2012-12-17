@@ -25,7 +25,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "module.h"
 #include "migration.h"
 

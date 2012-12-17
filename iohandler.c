@@ -25,7 +25,7 @@
 #include "config-host.h"
 #include "qemu-common.h"
 #include "qemu-queue.h"
-#include "qemu-aio.h"
+#include "block/aio.h"
 #include "main-loop.h"
 
 #ifndef _WIN32

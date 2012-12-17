@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 #include <hw/hw.h>
-#include "block.h"
+#include "block/block.h"
 #include "dma.h"
 
 #include <hw/ide/internal.h>

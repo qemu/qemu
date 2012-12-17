@@ -16,7 +16,7 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include <glusterfs/api/glfs.h>
-#include "block_int.h"
+#include "block/block_int.h"
 #include "qemu_socket.h"
 #include "uri.h"
 

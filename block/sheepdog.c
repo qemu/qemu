@@ -15,7 +15,7 @@
 #include "qemu-common.h"
 #include "qemu-error.h"
 #include "qemu_socket.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "bitops.h"
 
 #define SD_PROTO_VER 0x01

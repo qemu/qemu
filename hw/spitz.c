@@ -22,7 +22,7 @@
 #include "devices.h"
 #include "sharpsl.h"
 #include "ui/console.h"
-#include "block.h"
+#include "block/block.h"
 #include "audio/audio.h"
 #include "boards.h"
 #include "blockdev.h"

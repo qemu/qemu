@@ -19,7 +19,7 @@
 #include "qemu_socket.h"
 #include "migration.h"
 #include "buffered_file.h"
-#include "block.h"
+#include "block/block.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 

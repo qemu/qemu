@@ -16,7 +16,7 @@
 #define _QEMU_VIRTIO_9P_COTH_H
 
 #include "qemu-thread.h"
-#include "qemu-coroutine.h"
+#include "block/coroutine.h"
 #include "virtio-9p.h"
 #include <glib.h>
 

@@ -25,7 +25,7 @@
 #ifndef BLOCKJOB_H
 #define BLOCKJOB_H 1
 
-#include "block.h"
+#include "block/block.h"
 
 /**
  * BlockJobType:

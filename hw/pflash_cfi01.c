@@ -38,7 +38,7 @@
 
 #include "hw.h"
 #include "flash.h"
-#include "block.h"
+#include "block/block.h"
 #include "qemu-timer.h"
 #include "exec-memory.h"
 #include "host-utils.h"

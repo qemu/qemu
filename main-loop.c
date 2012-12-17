@@ -26,7 +26,7 @@
 #include "qemu-timer.h"
 #include "slirp/slirp.h"
 #include "main-loop.h"
-#include "qemu-aio.h"
+#include "block/aio.h"
 
 #ifndef _WIN32
 

@@ -4,7 +4,7 @@
 #include "qemu-common.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
-#include "block.h"
+#include "block/block.h"
 #include "readline.h"
 
 extern Monitor *cur_mon;

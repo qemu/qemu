@@ -29,7 +29,7 @@
 #include "qemu-error.h"
 #include "osdep.h"
 #include "sysemu.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include <getopt.h>
 #include <stdio.h>
 

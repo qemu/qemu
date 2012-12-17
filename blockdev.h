@@ -10,7 +10,7 @@
 #ifndef BLOCKDEV_H
 #define BLOCKDEV_H
 
-#include "block.h"
+#include "block/block.h"
 #include "qapi/error.h"
 #include "qemu-queue.h"
 

@@ -18,7 +18,7 @@
 #include "serial.h"
 #include "qemu-timer.h"
 #include "ptimer.h"
-#include "block.h"
+#include "block/block.h"
 #include "flash.h"
 #include "ui/console.h"
 #include "i2c.h"

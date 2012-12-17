@@ -21,8 +21,8 @@
 #include "qemu-common.h"
 #include "qemu-queue.h"
 #include "qemu-thread.h"
-#include "qemu-coroutine.h"
-#include "block_int.h"
+#include "block/coroutine.h"
+#include "block/block_int.h"
 
 typedef int ThreadPoolFunc(void *opaque);
 

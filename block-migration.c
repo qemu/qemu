@@ -14,7 +14,7 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "hw/hw.h"
 #include "qemu-queue.h"
 #include "qemu-timer.h"

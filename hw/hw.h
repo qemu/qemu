@@ -10,7 +10,7 @@
 
 #include "ioport.h"
 #include "irq.h"
-#include "qemu-aio.h"
+#include "block/aio.h"
 #include "qemu-file.h"
 #include "vmstate.h"
 #include "qemu-log.h"

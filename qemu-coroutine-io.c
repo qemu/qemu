@@ -24,7 +24,7 @@
  */
 #include "qemu-common.h"
 #include "qemu_socket.h"
-#include "qemu-coroutine.h"
+#include "block/coroutine.h"
 #include "iov.h"
 
 ssize_t coroutine_fn

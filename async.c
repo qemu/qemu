@@ -23,7 +23,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-aio.h"
+#include "block/aio.h"
 #include "main-loop.h"
 
 /***********************************************************/

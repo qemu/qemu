@@ -16,7 +16,7 @@
 #include "sysemu.h"
 #include "qmp-commands.h"
 #include "trace.h"
-#include "nbd.h"
+#include "block/nbd.h"
 #include "qemu_socket.h"
 
 static int server_fd = -1;

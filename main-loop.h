@@ -25,7 +25,7 @@
 #ifndef QEMU_MAIN_LOOP_H
 #define QEMU_MAIN_LOOP_H 1
 
-#include "qemu-aio.h"
+#include "block/aio.h"
 
 #define SIG_IPI SIGUSR1
 

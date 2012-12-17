@@ -9,7 +9,7 @@
 
 #include <stdarg.h>
 #include "qemu_socket.h" /* for EINPROGRESS on Windows */
-#include "block_int.h"
+#include "block/block_int.h"
 
 typedef struct {
     BlockDriverState *test_file;

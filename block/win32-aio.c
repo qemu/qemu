@@ -23,10 +23,10 @@
  */
 #include "qemu-common.h"
 #include "qemu-timer.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "module.h"
 #include "qemu-common.h"
-#include "qemu-aio.h"
+#include "block/aio.h"
 #include "raw-aio.h"
 #include "event_notifier.h"
 #include <windows.h>

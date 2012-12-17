@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "module.h"
 #include <zlib.h>
-#include "aes.h"
+#include "block/aes.h"
 #include "migration.h"
 
 /**************************************************************/

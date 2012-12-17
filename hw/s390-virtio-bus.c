@@ -18,7 +18,7 @@
  */
 
 #include "hw.h"
-#include "block.h"
+#include "block/block.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "monitor.h"

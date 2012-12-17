@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include "memory.h"
 #include "hw/hw.h"
-#include "block.h"
+#include "block/block.h"
 #include "kvm.h"
 
 typedef struct DMAContext DMAContext;

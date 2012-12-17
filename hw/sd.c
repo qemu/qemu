@@ -30,7 +30,7 @@
  */
 
 #include "hw.h"
-#include "block.h"
+#include "block/block.h"
 #include "sd.h"
 #include "bitmap.h"
 

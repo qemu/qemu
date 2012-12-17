@@ -27,9 +27,9 @@
  */
 
 #include "qemu-common.h"
-#include "nbd.h"
+#include "block/nbd.h"
 #include "uri.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "module.h"
 #include "qemu_socket.h"
 

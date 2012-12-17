@@ -18,11 +18,11 @@
 #include "qemu-queue.h"
 #include "qemu-thread.h"
 #include "osdep.h"
-#include "qemu-coroutine.h"
+#include "block/coroutine.h"
 #include "trace.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "event_notifier.h"
-#include "thread-pool.h"
+#include "block/thread-pool.h"
 
 static void do_spawn_thread(void);
 
