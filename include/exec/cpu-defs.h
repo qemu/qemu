@@ -191,7 +191,6 @@ typedef struct CPUWatchpoint {
     int exception_index;                                                \
                                                                         \
     CPUArchState *next_cpu; /* next CPU sharing TB cache */                 \
-    uint32_t host_tid; /* host thread ID */                             \
     int running; /* Nonzero if cpu is currently running(usermode).  */  \
     /* user data */                                                     \
     void *opaque;                                                       \

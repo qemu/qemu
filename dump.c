@@ -271,11 +271,13 @@ static int write_elf64_note(DumpState *s)
 static int write_elf64_notes(DumpState *s)
 {
     CPUArchState *env;
+    CPUState *cpu;
     int ret;
     int id;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        id = cpu_index(env);
+        cpu = ENV_GET_CPU(env);
+        id = cpu_index(cpu);
         ret = cpu_write_elf64_note(fd_write_vmcore, env, id, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to write elf notes.\n");
@@ -321,11 +323,13 @@ static int write_elf32_note(DumpState *s)
 static int write_elf32_notes(DumpState *s)
 {
     CPUArchState *env;
+    CPUState *cpu;
     int ret;
     int id;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        id = cpu_index(env);
+        cpu = ENV_GET_CPU(env);
+        id = cpu_index(cpu);
         ret = cpu_write_elf32_note(fd_write_vmcore, env, id, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to write elf notes.\n");
