@@ -6,7 +6,7 @@
 #include "qemu-types.h"
 #include "qemu/object.h"
 #include "hw/irq.h"
-#include "error.h"
+#include "qapi/error.h"
 
 enum DevState {
     DEV_STATE_CREATED = 1,

@@ -28,7 +28,7 @@
 #include "aes.h"
 #include "block/qcow2.h"
 #include "qemu-error.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 #include "trace.h"
 
 /*

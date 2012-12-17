@@ -14,8 +14,8 @@
 #ifndef QMP_OUTPUT_VISITOR_H
 #define QMP_OUTPUT_VISITOR_H
 
-#include "qapi-visit-core.h"
-#include "qobject.h"
+#include "qapi/visitor.h"
+#include "qapi/qmp/qobject.h"
 
 typedef struct QmpOutputVisitor QmpOutputVisitor;
 

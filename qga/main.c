@@ -20,15 +20,15 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #endif
-#include "json-streamer.h"
-#include "json-parser.h"
-#include "qint.h"
-#include "qjson.h"
+#include "qapi/qmp/json-streamer.h"
+#include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qjson.h"
 #include "qga/guest-agent-core.h"
 #include "module.h"
 #include "signal.h"
-#include "qerror.h"
-#include "qapi/qmp-core.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qmp/dispatch.h"
 #include "qga/channel.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"

@@ -13,7 +13,7 @@
 #ifndef STRING_INPUT_VISITOR_H
 #define STRING_INPUT_VISITOR_H
 
-#include "qapi-visit-core.h"
+#include "qapi/visitor.h"
 
 typedef struct StringInputVisitor StringInputVisitor;
 

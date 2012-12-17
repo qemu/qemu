@@ -25,7 +25,7 @@
 #define QEMU_NET_SLIRP_H
 
 #include "qemu-common.h"
-#include "qdict.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu-option.h"
 #include "qapi-types.h"
 

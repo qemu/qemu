@@ -6,8 +6,8 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-aio.h"
-#include "qobject.h"
-#include "qstring.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qstring.h"
 #include "main-loop.h"
 
 /* character device */

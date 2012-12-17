@@ -14,10 +14,10 @@
 #ifndef QEMU_MIGRATION_H
 #define QEMU_MIGRATION_H
 
-#include "qdict.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
 #include "notify.h"
-#include "error.h"
+#include "qapi/error.h"
 #include "vmstate.h"
 #include "qapi-types.h"
 

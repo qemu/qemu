@@ -25,7 +25,7 @@
 #include "sysemu.h"
 #include "monitor.h"
 #include "ui/console.h"
-#include "error.h"
+#include "qapi/error.h"
 #include "qmp-commands.h"
 #include "qapi-types.h"
 

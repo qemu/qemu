@@ -12,7 +12,7 @@
 #include "blockdev.h"
 #include "hw/block-common.h"
 #include "monitor.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 #include "sysemu.h"
 #include "qmp-commands.h"
 #include "trace.h"

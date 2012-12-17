@@ -11,11 +11,11 @@
  */
 
 #include "qemu-common.h"
-#include "qerror.h"
-#include "opts-visitor.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/opts-visitor.h"
 #include "qemu-queue.h"
 #include "qemu-option-internal.h"
-#include "qapi-visit-impl.h"
+#include "qapi/visitor-impl.h"
 
 
 struct OptsVisitor

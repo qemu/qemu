@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 #include "audio/audio.h"
 #include "migration.h"
 #include "kvm.h"
-#include "qjson.h"
+#include "qapi/qmp/qjson.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-options.h"

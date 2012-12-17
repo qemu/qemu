@@ -45,7 +45,7 @@
 #endif
 
 #include "bswap.h"
-#include "qint.h"
+#include "qapi/qmp/qint.h"
 #include "vnc.h"
 #include "vnc-enc-tight.h"
 #include "vnc-palette.h"

@@ -28,8 +28,8 @@
 
 #include <stdint.h>
 #include "qemu-queue.h"
-#include "error.h"
-#include "qdict.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qdict.h"
 
 enum QEMUOptionParType {
     OPT_FLAG,

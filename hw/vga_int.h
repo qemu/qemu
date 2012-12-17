@@ -25,7 +25,7 @@
 #define HW_VGA_INT_H 1
 
 #include <hw/hw.h>
-#include "error.h"
+#include "qapi/error.h"
 #include "memory.h"
 
 #define ST01_V_RETRACE      0x08

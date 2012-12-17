@@ -12,18 +12,18 @@
 
 #include "qemu/object.h"
 #include "qemu-common.h"
-#include "qapi/qapi-visit-core.h"
+#include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
 #include "qemu/qom-qobject.h"
-#include "qobject.h"
-#include "qbool.h"
-#include "qint.h"
-#include "qstring.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qstring.h"
 
 #define MAX_INTERFACES 32
 

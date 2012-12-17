@@ -32,7 +32,7 @@
 #include "hw/virtio-blk.h"
 #include "qemu-config.h"
 #include "blockdev.h"
-#include "error.h"
+#include "qapi/error.h"
 
 #if defined(TARGET_I386)
 static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,

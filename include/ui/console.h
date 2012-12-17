@@ -2,12 +2,12 @@
 #define CONSOLE_H
 
 #include "ui/qemu-pixman.h"
-#include "qdict.h"
+#include "qapi/qmp/qdict.h"
 #include "notify.h"
 #include "monitor.h"
 #include "trace.h"
 #include "qapi-types.h"
-#include "error.h"
+#include "qapi/error.h"
 
 /* keyboard/mouse support */
 

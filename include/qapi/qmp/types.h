@@ -13,13 +13,13 @@
 #ifndef QEMU_OBJECTS_H
 #define QEMU_OBJECTS_H
 
-#include "qobject.h"
-#include "qint.h"
-#include "qfloat.h"
-#include "qbool.h"
-#include "qstring.h"
-#include "qdict.h"
-#include "qlist.h"
-#include "qjson.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qfloat.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qjson.h"
 
 #endif /* QEMU_OBJECTS_H */

@@ -2,8 +2,8 @@
 #define MONITOR_H
 
 #include "qemu-common.h"
-#include "qerror.h"
-#include "qdict.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qdict.h"
 #include "block.h"
 #include "readline.h"
 

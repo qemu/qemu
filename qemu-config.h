@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include "qemu-option.h"
-#include "error.h"
+#include "qapi/error.h"
 #include "qemu-option.h"
 
 extern QemuOptsList qemu_fsdev_opts;

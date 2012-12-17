@@ -12,9 +12,9 @@
  */
 
 #include "qemu-common.h"
-#include "qerror.h"
-#include "qapi/qapi-visit-core.h"
-#include "qapi/qapi-visit-impl.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/visitor.h"
+#include "qapi/visitor-impl.h"
 
 void visit_start_handle(Visitor *v, void **obj, const char *kind,
                         const char *name, Error **errp)

@@ -13,7 +13,7 @@
 #ifndef QLIST_H
 #define QLIST_H
 
-#include "qobject.h"
+#include "qapi/qmp/qobject.h"
 #include "qemu-queue.h"
 #include "qemu-queue.h"
 

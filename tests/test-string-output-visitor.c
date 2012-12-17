@@ -16,7 +16,7 @@
 #include "qapi/string-output-visitor.h"
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
 
 typedef struct TestOutputVisitorData {
     StringOutputVisitor *sov;

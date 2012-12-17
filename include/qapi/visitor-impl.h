@@ -12,8 +12,8 @@
 #ifndef QAPI_VISITOR_IMPL_H
 #define QAPI_VISITOR_IMPL_H
 
-#include "error.h"
-#include "qapi/qapi-visit-core.h"
+#include "qapi/error.h"
+#include "qapi/visitor.h"
 
 struct Visitor
 {

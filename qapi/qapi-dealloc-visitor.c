@@ -11,11 +11,11 @@
  *
  */
 
-#include "qapi-dealloc-visitor.h"
+#include "qapi/dealloc-visitor.h"
 #include "qemu-queue.h"
 #include "qemu-common.h"
-#include "qemu-objects.h"
-#include "qapi-visit-impl.h"
+#include "qapi/qmp/types.h"
+#include "qapi/visitor-impl.h"
 
 typedef struct StackEntry
 {

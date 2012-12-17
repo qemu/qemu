@@ -30,7 +30,7 @@
 #include "qemu_socket.h"
 #include "qemu-timer.h"
 #include "acl.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
 #include "qmp-commands.h"
 #include "osdep.h"
 

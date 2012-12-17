@@ -23,7 +23,7 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "qemu-queue.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
 #include "monitor.h"
 #include "sysemu.h"
 #include "hw/watchdog.h"

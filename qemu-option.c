@@ -28,9 +28,9 @@
 
 #include "qemu-common.h"
 #include "qemu-error.h"
-#include "qemu-objects.h"
-#include "error.h"
-#include "qerror.h"
+#include "qapi/qmp/types.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "qemu-option-internal.h"
 
 /*

@@ -15,7 +15,7 @@
 #include "qemu-timer.h"
 #include "trace.h"
 #include "qed.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 #include "migration.h"
 
 static void qed_aio_cancel(BlockDriverAIOCB *blockacb)

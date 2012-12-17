@@ -14,7 +14,7 @@
 #define QSTRING_H
 
 #include <stdint.h>
-#include "qobject.h"
+#include "qapi/qmp/qobject.h"
 
 typedef struct QString {
     QObject_HEAD;

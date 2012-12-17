@@ -14,9 +14,9 @@
 #ifndef QMP_CORE_H
 #define QMP_CORE_H
 
-#include "qobject.h"
-#include "qdict.h"
-#include "error.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/error.h"
 
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 

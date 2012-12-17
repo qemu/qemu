@@ -19,7 +19,7 @@
  */
 
 #include "sysemu.h"
-#include "qemu-objects.h"
+#include "qapi/qmp/types.h"
 #include "monitor.h"
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie.h"

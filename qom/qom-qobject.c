@@ -12,7 +12,7 @@
 #include "qemu-common.h"
 #include "qemu/object.h"
 #include "qemu/qom-qobject.h"
-#include "qapi/qapi-visit-core.h"
+#include "qapi/visitor.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 

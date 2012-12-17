@@ -3,7 +3,7 @@
 
 #include "qemu-queue.h"
 #include "qemu-common.h"
-#include "qdict.h"
+#include "qapi/qmp/qdict.h"
 #include "qemu-option.h"
 #include "net/queue.h"
 #include "vmstate.h"

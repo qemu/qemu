@@ -3,7 +3,7 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "hw/qdev.h"
-#include "error.h"
+#include "qapi/error.h"
 
 static QemuOptsList qemu_drive_opts = {
     .name = "drive",

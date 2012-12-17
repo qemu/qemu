@@ -30,7 +30,7 @@
 #include "block.h"
 #include "blockjob.h"
 #include "block_int.h"
-#include "qjson.h"
+#include "qapi/qmp/qjson.h"
 #include "qemu-coroutine.h"
 #include "qmp-commands.h"
 #include "qemu-timer.h"

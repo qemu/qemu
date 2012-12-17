@@ -27,8 +27,8 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #endif /* !_WIN32 */
 
 #include "qemu-option.h"
-#include "error.h"
-#include "qerror.h"
+#include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 
 /* misc helpers */
 int qemu_socket(int domain, int type, int protocol);

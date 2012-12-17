@@ -11,7 +11,7 @@
 #define BLOCKDEV_H
 
 #include "block.h"
-#include "error.h"
+#include "qapi/error.h"
 #include "qemu-queue.h"
 
 void blockdev_mark_auto_del(BlockDriverState *bs);

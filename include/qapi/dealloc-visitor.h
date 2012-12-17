@@ -14,7 +14,7 @@
 #ifndef QAPI_DEALLOC_VISITOR_H
 #define QAPI_DEALLOC_VISITOR_H
 
-#include "qapi-visit-core.h"
+#include "qapi/visitor.h"
 
 typedef struct QapiDeallocVisitor QapiDeallocVisitor;
 

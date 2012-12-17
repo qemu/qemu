@@ -38,7 +38,7 @@
 #include "iov.h"
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
-#include "qapi/qapi-dealloc-visitor.h"
+#include "qapi/dealloc-visitor.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)

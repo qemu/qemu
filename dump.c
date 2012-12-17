@@ -21,7 +21,7 @@
 #include "dump.h"
 #include "sysemu.h"
 #include "memory_mapping.h"
-#include "error.h"
+#include "qapi/error.h"
 #include "qmp-commands.h"
 #include "gdbstub.h"
 

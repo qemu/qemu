@@ -5,7 +5,7 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "qemu-coroutine.h"
-#include "qobject.h"
+#include "qapi/qmp/qobject.h"
 #include "qapi-types.h"
 
 /* block.c */

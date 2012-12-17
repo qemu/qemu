@@ -11,8 +11,8 @@
  */
 
 #include "monitor.h"
-#include "qjson.h"
-#include "qerror.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qerror.h"
 #include "qemu-common.h"
 
 static void qerror_destroy_obj(QObject *obj);

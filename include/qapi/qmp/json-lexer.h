@@ -14,8 +14,8 @@
 #ifndef QEMU_JSON_LEXER_H
 #define QEMU_JSON_LEXER_H
 
-#include "qstring.h"
-#include "qlist.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qlist.h"
 
 typedef enum json_token_type {
     JSON_OPERATOR = 100,

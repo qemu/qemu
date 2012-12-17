@@ -13,8 +13,8 @@
 #ifndef QDICT_H
 #define QDICT_H
 
-#include "qobject.h"
-#include "qlist.h"
+#include "qapi/qmp/qobject.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu-queue.h"
 #include <stdint.h>
 

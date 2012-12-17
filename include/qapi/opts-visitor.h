@@ -13,7 +13,7 @@
 #ifndef OPTS_VISITOR_H
 #define OPTS_VISITOR_H
 
-#include "qapi-visit-core.h"
+#include "qapi/visitor.h"
 #include "qemu-option.h"
 
 typedef struct OptsVisitor OptsVisitor;

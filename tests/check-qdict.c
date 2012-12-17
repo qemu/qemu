@@ -11,9 +11,9 @@
  */
 #include <glib.h>
 
-#include "qint.h"
-#include "qdict.h"
-#include "qstring.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu-common.h"
 
 /*

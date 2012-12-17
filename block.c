@@ -28,7 +28,7 @@
 #include "block_int.h"
 #include "blockjob.h"
 #include "module.h"
-#include "qjson.h"
+#include "qapi/qmp/qjson.h"
 #include "sysemu.h"
 #include "notify.h"
 #include "qemu-coroutine.h"
