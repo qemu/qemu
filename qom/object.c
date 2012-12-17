@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/object.h"
+#include "qom/object.h"
 #include "qemu-common.h"
 #include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
@@ -19,7 +19,7 @@
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
-#include "qemu/qom-qobject.h"
+#include "qom/qom-qobject.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qint.h"

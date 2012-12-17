@@ -4,7 +4,7 @@
 #include "qemu-queue.h"
 #include "qemu-option.h"
 #include "qemu-types.h"
-#include "qemu/object.h"
+#include "qom/object.h"
 #include "hw/irq.h"
 #include "qapi/error.h"
 

@@ -13,7 +13,7 @@
 #ifndef QEMU_QOM_QOBJECT_H
 #define QEMU_QOM_QOBJECT_H
 
-#include "qemu/object.h"
+#include "qom/object.h"
 
 /*
  * object_property_get_qobject:

@@ -20,7 +20,7 @@
 #ifndef QEMU_ALPHA_CPU_QOM_H
 #define QEMU_ALPHA_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "cpu.h"
 
 #define TYPE_ALPHA_CPU "alpha-cpu"

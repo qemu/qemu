@@ -20,7 +20,7 @@
 #ifndef QEMU_I386_CPU_QOM_H
 #define QEMU_I386_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "cpu.h"
 #include "qapi/error.h"
 

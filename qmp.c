@@ -23,7 +23,7 @@
 #include "arch_init.h"
 #include "hw/qdev.h"
 #include "blockdev.h"
-#include "qemu/qom-qobject.h"
+#include "qom/qom-qobject.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {

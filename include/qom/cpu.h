@@ -20,7 +20,7 @@
 #ifndef QEMU_CPU_H
 #define QEMU_CPU_H
 
-#include "qemu/object.h"
+#include "qom/object.h"
 #include "qemu-thread.h"
 
 /**

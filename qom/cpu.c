@@ -18,7 +18,7 @@
  * <http://www.gnu.org/licenses/gpl-2.0.html>
  */
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "qemu-common.h"
 
 void cpu_reset(CPUState *cpu)

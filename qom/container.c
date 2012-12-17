@@ -10,7 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu/object.h"
+#include "qom/object.h"
 #include "module.h"
 #include <assert.h>
 

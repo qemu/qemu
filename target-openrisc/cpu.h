@@ -32,7 +32,7 @@ struct OpenRISCCPU;
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "softfloat.h"
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "qapi/error.h"
 
 #define TYPE_OPENRISC_CPU "or32-cpu"
