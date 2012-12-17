@@ -387,7 +387,6 @@ static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong i
     VAPICHandlers *handlers;
     uint8_t opcode[2];
     uint32_t imm32;
-    TranslationBlock *current_tb;
     target_ulong current_pc = 0;
     target_ulong current_cs_base = 0;
     int current_flags = 0;
@@ -399,8 +398,7 @@ static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong i
     }
 
     if (!kvm_enabled()) {
-        current_tb = tb_find_pc(env->mem_io_pc);
-        cpu_restore_state(current_tb, env, env->mem_io_pc);
+        cpu_restore_state(env, env->mem_io_pc);
         cpu_get_tb_cpu_state(env, &current_pc, &current_cs_base,
                              &current_flags);
     }

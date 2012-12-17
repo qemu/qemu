@@ -1212,7 +1212,7 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
     buf = (uint8_t *)pixman_image_get_data(linebuf);
     row[0] = buf;
     for (dy = 0; dy < h; dy++) {
-        qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, dy);
+        qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, x, y + dy);
         jpeg_write_scanlines(&cinfo, row, 1);
     }
     qemu_pixman_image_unref(linebuf);
@@ -1356,7 +1356,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
         if (color_type == PNG_COLOR_TYPE_PALETTE) {
             memcpy(buf, vs->tight.tight.buffer + (dy * w), w);
         } else {
-            qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, dy);
+            qemu_pixman_linebuf_fill(linebuf, vs->vd->server, w, x, y + dy);
         }
         png_write_row(png_ptr, buf);
     }

@@ -494,16 +494,6 @@ void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n");
 }
 
-void do_restore_state(CPUAlphaState *env, uintptr_t retaddr)
-{
-    if (retaddr) {
-        TranslationBlock *tb = tb_find_pc(retaddr);
-        if (tb) {
-            cpu_restore_state(tb, env, retaddr);
-        }
-    }
-}
-
 /* This should only be called from translate, via gen_excp.
    We expect that ENV->PC has already been updated.  */
 void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
@@ -519,7 +509,9 @@ void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, uintptr_t retaddr,
 {
     env->exception_index = excp;
     env->error_code = error;
-    do_restore_state(env, retaddr);
+    if (retaddr) {
+        cpu_restore_state(env, retaddr);
+    }
     cpu_loop_exit(env);
 }
 

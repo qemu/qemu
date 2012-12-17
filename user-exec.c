@@ -82,7 +82,6 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
                                     void *puc)
 {
     uintptr_t address = (uintptr_t)ptr;
-    TranslationBlock *tb;
     int ret;
 
 #if defined(DEBUG_SIGNAL)
@@ -105,12 +104,7 @@ static inline int handle_cpu_signal(uintptr_t pc, void *ptr,
         return 1; /* the MMU fault was handled without causing real CPU fault */
     }
     /* now we have a real cpu fault */
-    tb = tb_find_pc(pc);
-    if (tb) {
-        /* the PC is inside the translated code. It means that we have
-           a virtual CPU fault */
-        cpu_restore_state(tb, cpu_single_env, pc);
-    }
+    cpu_restore_state(cpu_single_env, pc);
 
     /* we restore the process signal mask as the sigreturn should
        do it (XXX: use sigsetjmp) */

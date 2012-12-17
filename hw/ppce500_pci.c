@@ -15,9 +15,11 @@
  */
 
 #include "hw.h"
+#include "hw/ppc/e500-ccsr.h"
 #include "pci.h"
 #include "pci_host.h"
 #include "bswap.h"
+#include "ppce500_pci.h"
 
 #ifdef DEBUG_PCI
 #define pci_debug(fmt, ...) fprintf(stderr, fmt, ## __VA_ARGS__)
@@ -86,12 +88,26 @@ struct PPCE500PCIState {
     struct pci_inbound pib[PPCE500_PCI_NR_PIBS];
     uint32_t gasket_time;
     qemu_irq irq[4];
+    uint32_t first_slot;
     /* mmio maps */
     MemoryRegion container;
     MemoryRegion iomem;
     MemoryRegion pio;
 };
 
+#define TYPE_PPC_E500_PCI_BRIDGE "e500-host-bridge"
+#define PPC_E500_PCI_BRIDGE(obj) \
+    OBJECT_CHECK(PPCE500PCIBridgeState, (obj), TYPE_PPC_E500_PCI_BRIDGE)
+
+struct PPCE500PCIBridgeState {
+    /*< private >*/
+    PCIDevice parent;
+    /*< public >*/
+
+    MemoryRegion bar0;
+};
+
+typedef struct PPCE500PCIBridgeState PPCE500PCIBridgeState;
 typedef struct PPCE500PCIState PPCE500PCIState;
 
 static uint64_t pci_reg_read4(void *opaque, hwaddr addr,
@@ -238,17 +254,10 @@ static const MemoryRegionOps e500_pci_reg_ops = {
 
 static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
 {
-    int devno = pci_dev->devfn >> 3, ret = 0;
+    int devno = pci_dev->devfn >> 3;
+    int ret;
 
-    switch (devno) {
-        /* Two PCI slot */
-        case 0x11:
-        case 0x12:
-            ret = (irq_num + devno - 0x10) % 4;
-            break;
-        default:
-            printf("Error:%s:unknown dev number\n", __func__);
-    }
+    ret = ppce500_pci_map_irq_slot(devno, irq_num);
 
     pci_debug("%s: devfn %x irq %d -> %d  devno:%x\n", __func__,
            pci_dev->devfn, irq_num, ret, devno);
@@ -310,6 +319,24 @@ static const VMStateDescription vmstate_ppce500_pci = {
 
 #include "exec-memory.h"
 
+static int e500_pcihost_bridge_initfn(PCIDevice *d)
+{
+    PPCE500PCIBridgeState *b = PPC_E500_PCI_BRIDGE(d);
+    PPCE500CCSRState *ccsr = CCSR(container_get(qdev_get_machine(),
+                                  "/e500-ccsr"));
+
+    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_PCI);
+    d->config[PCI_HEADER_TYPE] =
+        (d->config[PCI_HEADER_TYPE] & PCI_HEADER_TYPE_MULTI_FUNCTION) |
+        PCI_HEADER_TYPE_BRIDGE;
+
+    memory_region_init_alias(&b->bar0, "e500-pci-bar0", &ccsr->ccsr_space,
+                             0, int128_get64(ccsr->ccsr_space.size));
+    pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &b->bar0);
+
+    return 0;
+}
+
 static int e500_pcihost_initfn(SysBusDevice *dev)
 {
     PCIHostState *h;
@@ -329,7 +356,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 
     b = pci_register_bus(DEVICE(dev), NULL, mpc85xx_pci_set_irq,
                          mpc85xx_pci_map_irq, s->irq, address_space_mem,
-                         &s->pio, PCI_DEVFN(0x11, 0), 4);
+                         &s->pio, PCI_DEVFN(s->first_slot, 0), 4);
     h->bus = b;
 
     pci_create_simple(b, 0, "e500-host-bridge");
@@ -355,6 +382,7 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    k->init = e500_pcihost_bridge_initfn;
     k->vendor_id = PCI_VENDOR_ID_FREESCALE;
     k->device_id = PCI_DEVICE_ID_MPC8533E;
     k->class_id = PCI_CLASS_PROCESSOR_POWERPC;
@@ -364,8 +392,13 @@ static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
 static const TypeInfo e500_host_bridge_info = {
     .name          = "e500-host-bridge",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
+    .instance_size = sizeof(PPCE500PCIBridgeState),
     .class_init    = e500_host_bridge_class_init,
+};
+
+static Property pcihost_properties[] = {
+    DEFINE_PROP_UINT32("first_slot", PPCE500PCIState, first_slot, 0x11),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void e500_pcihost_class_init(ObjectClass *klass, void *data)
@@ -374,6 +407,7 @@ static void e500_pcihost_class_init(ObjectClass *klass, void *data)
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = e500_pcihost_initfn;
+    dc->props = pcihost_properties;
     dc->vmsd = &vmstate_ppce500_pci;
 }
 

@@ -9,6 +9,8 @@ typedef struct PPCE500Params {
     const char *kernel_cmdline;
     const char *initrd_filename;
     const char *cpu_model;
+    int pci_first_slot;
+    int pci_nr_slots;
 
     /* e500-specific params */
 

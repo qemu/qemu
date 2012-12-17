@@ -94,7 +94,9 @@ static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
     uint64_t pc;
     uint32_t insn;
 
-    do_restore_state(env, retaddr);
+    if (retaddr) {
+        cpu_restore_state(env, retaddr);
+    }
 
     pc = env->pc;
     insn = cpu_ldl_code(env, pc);
@@ -143,7 +145,9 @@ void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
 
     ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
-        do_restore_state(env, retaddr);
+        if (retaddr) {
+            cpu_restore_state(env, retaddr);
+        }
         /* Exception index and error code are already set */
         cpu_loop_exit(env);
     }

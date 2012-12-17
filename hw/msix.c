@@ -180,8 +180,7 @@ static void msix_table_mmio_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps msix_table_mmio_ops = {
     .read = msix_table_mmio_read,
     .write = msix_table_mmio_write,
-    /* TODO: MSIX should be LITTLE_ENDIAN. */
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -198,8 +197,7 @@ static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
 
 static const MemoryRegionOps msix_pba_mmio_ops = {
     .read = msix_pba_mmio_read,
-    /* TODO: MSIX should be LITTLE_ENDIAN. */
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,

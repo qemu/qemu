@@ -6,11 +6,13 @@
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
+struct sPAPRNVRAM;
 struct icp_state;
 
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
+    struct sPAPRNVRAM *nvram;
     struct icp_state *icp;
 
     hwaddr ram_limit;
@@ -320,7 +322,7 @@ static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 typedef void (*spapr_rtas_fn)(sPAPREnvironment *spapr, uint32_t token,
                               uint32_t nargs, target_ulong args,
                               uint32_t nret, target_ulong rets);
-void spapr_rtas_register(const char *name, spapr_rtas_fn fn);
+int spapr_rtas_register(const char *name, spapr_rtas_fn fn);
 target_ulong spapr_rtas_call(sPAPREnvironment *spapr,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets);
