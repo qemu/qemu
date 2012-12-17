@@ -214,12 +214,13 @@ static int64_t suffix_mul(char suffix, int64_t unit)
 /*
  * Convert string to bytes, allowing either B/b for bytes, K/k for KB,
  * M/m for MB, G/g for GB or T/t for TB. End pointer will be returned
- * in *end, if not NULL. Return -1 on error.
+ * in *end, if not NULL. Return -ERANGE on overflow, Return -EINVAL on
+ * other error.
  */
 int64_t strtosz_suffix_unit(const char *nptr, char **end,
                             const char default_suffix, int64_t unit)
 {
-    int64_t retval = -1;
+    int64_t retval = -EINVAL;
     char *endptr;
     unsigned char c;
     int mul_required = 0;
@@ -246,6 +247,7 @@ int64_t strtosz_suffix_unit(const char *nptr, char **end,
         goto fail;
     }
     if ((val * mul >= INT64_MAX) || val < 0) {
+        retval = -ERANGE;
         goto fail;
     }
     retval = val * mul;
