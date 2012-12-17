@@ -585,9 +585,7 @@ static void xen_reset_vcpu(void *opaque)
 
 void xen_vcpu_init(void)
 {
-    CPUArchState *first_cpu;
-
-    if ((first_cpu = qemu_get_cpu(0))) {
+    if (first_cpu != NULL) {
         qemu_register_reset(xen_reset_vcpu, first_cpu);
         xen_reset_vcpu(first_cpu);
     }
