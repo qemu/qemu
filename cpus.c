@@ -1041,8 +1041,8 @@ void qemu_init_vcpu(void *_env)
     CPUArchState *env = _env;
     CPUState *cpu = ENV_GET_CPU(env);
 
-    env->nr_cores = smp_cores;
-    env->nr_threads = smp_threads;
+    cpu->nr_cores = smp_cores;
+    cpu->nr_threads = smp_threads;
     cpu->stopped = true;
     if (kvm_enabled()) {
         qemu_kvm_start_vcpu(env);

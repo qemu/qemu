@@ -57,6 +57,8 @@ struct kvm_run;
 
 /**
  * CPUState:
+ * @nr_cores: Number of cores within this CPU package.
+ * @nr_threads: Number of threads within this CPU.
  * @created: Indicates whether the CPU thread has been successfully created.
  * @stop: Indicates a pending stop request.
  * @stopped: Indicates the CPU has been artificially stopped.
@@ -68,6 +70,9 @@ struct CPUState {
     /*< private >*/
     DeviceState parent_obj;
     /*< public >*/
+
+    int nr_cores;
+    int nr_threads;
 
     struct QemuThread *thread;
 #ifdef _WIN32
