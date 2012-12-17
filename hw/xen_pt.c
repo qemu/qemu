@@ -671,7 +671,8 @@ static int xen_pt_initfn(PCIDevice *d)
     s->is_virtfn = s->real_device.is_virtfn;
     if (s->is_virtfn) {
         XEN_PT_LOG(d, "%04x:%02x:%02x.%d is a SR-IOV Virtual Function\n",
-                   s->real_device.domain, bus, slot, func);
+                   s->real_device.domain, s->real_device.bus,
+                   s->real_device.dev, s->real_device.func);
     }
 
     /* Initialize virtualized PCI configuration (Extended 256 Bytes) */
@@ -752,7 +753,7 @@ out:
     memory_listener_register(&s->memory_listener, &address_space_memory);
     memory_listener_register(&s->io_listener, &address_space_io);
     XEN_PT_LOG(d, "Real physical device %02x:%02x.%d registered successfuly!\n",
-               bus, slot, func);
+               s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function);
 
     return 0;
 }
