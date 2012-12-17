@@ -935,7 +935,7 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
 }
 
 void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
-                        void *opaque)
+                        DeviceState *opaque)
 {
     vdev->binding = binding;
     vdev->binding_opaque = opaque;

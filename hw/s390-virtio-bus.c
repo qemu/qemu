@@ -136,7 +136,7 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
 
     bus->dev_offs += dev_len;
 
-    virtio_bind_device(vdev, &virtio_s390_bindings, dev);
+    virtio_bind_device(vdev, &virtio_s390_bindings, DEVICE(dev));
     dev->host_features = vdev->get_features(vdev, dev->host_features);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
@@ -363,9 +363,23 @@ VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus, ram_addr_t mem)
     return NULL;
 }
 
-static void virtio_s390_notify(void *opaque, uint16_t vector)
+/* DeviceState to VirtIOS390Device. Note: used on datapath,
+ * be careful and test performance if you change this.
+ */
+static inline VirtIOS390Device *to_virtio_s390_device_fast(DeviceState *d)
 {
-    VirtIOS390Device *dev = (VirtIOS390Device*)opaque;
+    return container_of(d, VirtIOS390Device, qdev);
+}
+
+/* DeviceState to VirtIOS390Device. TODO: use QOM. */
+static inline VirtIOS390Device *to_virtio_s390_device(DeviceState *d)
+{
+    return container_of(d, VirtIOS390Device, qdev);
+}
+
+static void virtio_s390_notify(DeviceState *d, uint16_t vector)
+{
+    VirtIOS390Device *dev = to_virtio_s390_device_fast(d);
     uint64_t token = s390_virtio_device_vq_token(dev, vector);
     S390CPU *cpu = s390_cpu_addr2state(0);
     CPUS390XState *env = &cpu->env;
@@ -373,9 +387,9 @@ static void virtio_s390_notify(void *opaque, uint16_t vector)
     s390_virtio_irq(env, 0, token);
 }
 
-static unsigned virtio_s390_get_features(void *opaque)
+static unsigned virtio_s390_get_features(DeviceState *d)
 {
-    VirtIOS390Device *dev = (VirtIOS390Device*)opaque;
+    VirtIOS390Device *dev = to_virtio_s390_device(d);
     return dev->host_features;
 }
 
