@@ -16,7 +16,7 @@
 #define QEMU_SECCOMP_H
 
 #include <seccomp.h>
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 int seccomp_start(void);
 #endif

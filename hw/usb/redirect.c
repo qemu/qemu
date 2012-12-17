@@ -26,10 +26,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "monitor/monitor.h"
 #include "sysemu.h"
-#include "iov.h"
+#include "qemu/iov.h"
 
 #include <dirent.h>
 #include <sys/ioctl.h>

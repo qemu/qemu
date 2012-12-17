@@ -12,7 +12,7 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 #include "sysbus.h"
 #include "imx.h"

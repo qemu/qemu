@@ -36,8 +36,8 @@
 #include <linux/fs.h>
 #endif
 
-#include "qemu_socket.h"
-#include "qemu-queue.h"
+#include "qemu/sockets.h"
+#include "qemu/queue.h"
 
 //#define DEBUG_NBD
 

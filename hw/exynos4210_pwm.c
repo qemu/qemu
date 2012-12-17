@@ -21,7 +21,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-common.h"
 #include "ptimer.h"
 

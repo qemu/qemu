@@ -24,7 +24,7 @@
 
 #include "qemu-common.h"
 #include "block/aio.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */

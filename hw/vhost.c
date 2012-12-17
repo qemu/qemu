@@ -16,7 +16,7 @@
 #include <sys/ioctl.h>
 #include "vhost.h"
 #include "hw/hw.h"
-#include "range.h"
+#include "qemu/range.h"
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
 

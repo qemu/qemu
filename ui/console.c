@@ -23,7 +23,7 @@
  */
 #include "qemu-common.h"
 #include "ui/console.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qmp-commands.h"
 #include "qemu-char.h"
 

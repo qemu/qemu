@@ -21,18 +21,18 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
-#include "qemu-barrier.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/atomic.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "sysemu.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "exec/gdbstub.h"
 #include "kvm.h"
-#include "bswap.h"
+#include "qemu/bswap.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
-#include "event_notifier.h"
+#include "qemu/event_notifier.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD

@@ -43,10 +43,10 @@
 #include "audio/audio.h"
 #include "disas/disas.h"
 #include "balloon.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "migration/migration.h"
 #include "kvm.h"
-#include "acl.h"
+#include "qemu/acl.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qfloat.h"
 #include "qapi/qmp/qlist.h"
@@ -55,7 +55,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/json-streamer.h"
 #include "qapi/qmp/json-parser.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
 #include "cpu.h"
 #include "trace.h"
 #include "trace/control.h"
@@ -66,7 +66,7 @@
 #include "exec/memory.h"
 #include "qmp-commands.h"
 #include "hmp.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 /* for pic/irq_info */
 #if defined(TARGET_SPARC)

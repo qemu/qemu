@@ -25,7 +25,7 @@
 #ifndef __QEMU_ACL_H__
 #define __QEMU_ACL_H__
 
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 typedef struct qemu_acl_entry qemu_acl_entry;
 typedef struct qemu_acl qemu_acl;

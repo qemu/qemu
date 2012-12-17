@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "helper.h"
 #define GEN_HELPER 1

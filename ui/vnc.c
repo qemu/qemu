@@ -27,12 +27,12 @@
 #include "vnc.h"
 #include "vnc-jobs.h"
 #include "sysemu.h"
-#include "qemu_socket.h"
-#include "qemu-timer.h"
-#include "acl.h"
+#include "qemu/sockets.h"
+#include "qemu/timer.h"
+#include "qemu/acl.h"
 #include "qapi/qmp/types.h"
 #include "qmp-commands.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 #define VNC_REFRESH_INTERVAL_BASE 30
 #define VNC_REFRESH_INTERVAL_INC  50

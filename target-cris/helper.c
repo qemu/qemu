@@ -20,7 +20,7 @@
 
 #include "cpu.h"
 #include "mmu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 
 //#define CRIS_HELPER_DEBUG

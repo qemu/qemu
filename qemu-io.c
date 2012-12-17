@@ -15,7 +15,7 @@
 #include <libgen.h>
 
 #include "qemu-common.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 #include "block/block_int.h"
 #include "cmd.h"
 #include "trace/control.h"

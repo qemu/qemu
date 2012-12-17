@@ -18,7 +18,7 @@
 #define HW_USB_EHCI_H 1
 
 #include "hw/hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "hw/usb.h"
 #include "monitor/monitor.h"
 #include "trace.h"

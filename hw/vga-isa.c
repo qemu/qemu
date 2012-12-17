@@ -28,7 +28,7 @@
 #include "pc.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "loader.h"
 
 typedef struct ISAVGAState {

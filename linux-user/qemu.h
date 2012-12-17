@@ -18,7 +18,7 @@
 #include "syscall.h"
 #include "target_signal.h"
 #include "exec/gdbstub.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 #if defined(CONFIG_USE_NPTL)
 #define THREAD __thread
@@ -217,7 +217,7 @@ unsigned long init_guest_space(unsigned long host_start,
                                unsigned long guest_start,
                                bool fixed);
 
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /* syscall.c */
 int host_to_target_waitstatus(int status);

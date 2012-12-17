@@ -18,7 +18,7 @@
  */
 #include <hw/hw.h>
 #include "dma.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include <hw/ide/internal.h>
 #include "blockdev.h"
 #include "hw/block-common.h"

@@ -24,8 +24,8 @@
 #include "cpu.h"
 #include "kvm.h"
 
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
 
 #include "qapi/visitor.h"

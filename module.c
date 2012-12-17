@@ -14,8 +14,8 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-queue.h"
-#include "module.h"
+#include "qemu/queue.h"
+#include "qemu/module.h"
 
 typedef struct ModuleEntry
 {

@@ -31,10 +31,10 @@
 #include "hw.h"
 #include "sysbus.h"
 #include "trace.h"
-#include "qemu-log.h"
-#include "qemu-error.h"
+#include "qemu/log.h"
+#include "qemu/error-report.h"
 #include "sysemu.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 enum {
     R_CTRL = 0,

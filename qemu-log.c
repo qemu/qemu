@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #ifdef WIN32
 static const char *logfilename = "qemu.log";

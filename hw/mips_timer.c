@@ -22,7 +22,7 @@
 
 #include "hw.h"
 #include "mips_cpudevs.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 #define TIMER_FREQ	100 * 1000 * 1000
 

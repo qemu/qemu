@@ -12,7 +12,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/block-common.h"
 #include "blockdev.h"

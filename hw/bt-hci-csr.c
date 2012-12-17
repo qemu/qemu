@@ -20,7 +20,7 @@
 
 #include "qemu-common.h"
 #include "qemu-char.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "irq.h"
 #include "bt-host.h"
 #include "bt.h"

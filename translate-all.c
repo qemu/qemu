@@ -35,7 +35,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #if defined(CONFIG_USER_ONLY)

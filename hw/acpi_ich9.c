@@ -26,7 +26,7 @@
 #include "hw.h"
 #include "pc.h"
 #include "pci/pci.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "acpi.h"
 #include "kvm.h"

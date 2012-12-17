@@ -20,7 +20,7 @@
 #define CPU_ALL_H
 
 #include "qemu-common.h"
-#include "qemu-tls.h"
+#include "qemu/tls.h"
 #include "exec/cpu-common.h"
 
 /* some important defines:

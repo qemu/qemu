@@ -146,7 +146,7 @@ int get_osversion(void);
 void fork_start(void);
 void fork_end(int child);
 
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /* strace.c */
 void

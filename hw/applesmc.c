@@ -33,7 +33,7 @@
 #include "hw.h"
 #include "isa.h"
 #include "ui/console.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /* #define DEBUG_SMC */
 

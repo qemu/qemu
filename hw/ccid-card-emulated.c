@@ -31,7 +31,7 @@
 #include <vreader.h>
 #include <vcard_emul.h>
 
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 #include "qemu-char.h"
 #include "monitor/monitor.h"
 #include "hw/ccid.h"

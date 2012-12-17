@@ -1,9 +1,9 @@
 #ifndef QDEV_CORE_H
 #define QDEV_CORE_H
 
-#include "qemu-queue.h"
-#include "qemu-option.h"
-#include "qemu-types.h"
+#include "qemu/queue.h"
+#include "qemu/option.h"
+#include "qemu/typedefs.h"
 #include "qom/object.h"
 #include "hw/irq.h"
 #include "qapi/error.h"

@@ -10,9 +10,9 @@ typedef struct QemuSemaphore QemuSemaphore;
 typedef struct QemuThread QemuThread;
 
 #ifdef _WIN32
-#include "qemu-thread-win32.h"
+#include "qemu/thread-win32.h"
 #else
-#include "qemu-thread-posix.h"
+#include "qemu/thread-posix.h"
 #endif
 
 #define QEMU_THREAD_JOINABLE 0

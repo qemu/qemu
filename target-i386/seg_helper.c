@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "helper.h"
 
 //#define DEBUG_PCALL

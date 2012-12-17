@@ -19,7 +19,7 @@
  */
 
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #define D(x)
 #define DMMU(x)

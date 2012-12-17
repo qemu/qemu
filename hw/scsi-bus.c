@@ -1,5 +1,5 @@
 #include "hw.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "scsi.h"
 #include "scsi-defs.h"
 #include "qdev.h"

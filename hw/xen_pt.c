@@ -58,7 +58,7 @@
 #include "xen.h"
 #include "xen_backend.h"
 #include "xen_pt.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "exec/address-spaces.h"
 
 #define XEN_PT_NR_IRQS (256)

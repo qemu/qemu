@@ -27,10 +27,10 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "net/net.h"
-#include "qemu-queue.h"
-#include "qemu-config.h"
+#include "qemu/queue.h"
+#include "qemu/config-file.h"
 #include "sysemu.h"
-#include "iov.h"
+#include "qemu/iov.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.

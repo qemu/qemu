@@ -19,7 +19,7 @@
 
 #include "qemu-common.h"
 #include "bt-host.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 
 #ifndef _WIN32
 # include <errno.h>

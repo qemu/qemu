@@ -9,7 +9,7 @@
 #define PTIMER_H
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "migration/vmstate.h"
 
 /* ptimer.c */

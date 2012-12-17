@@ -367,7 +367,7 @@ def gen_command_def_prologue(prefix="", proxy=False):
  */
 
 #include "qemu-common.h"
-#include "module.h"
+#include "qemu/module.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"

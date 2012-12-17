@@ -3,7 +3,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "bswap.h"
+#include "qemu/bswap.h"
 
 #if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32

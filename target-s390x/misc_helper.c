@@ -20,11 +20,11 @@
 
 #include "cpu.h"
 #include "exec/memory.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "helper.h"
 #include <string.h>
 #include "kvm.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>
 #endif

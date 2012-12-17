@@ -14,7 +14,7 @@
 #define OPTS_VISITOR_H
 
 #include "qapi/visitor.h"
-#include "qemu-option.h"
+#include "qemu/option.h"
 
 typedef struct OptsVisitor OptsVisitor;
 

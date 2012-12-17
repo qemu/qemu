@@ -28,8 +28,8 @@
 #include "hw/hw.h"
 #include "hw/usb.h"
 #include "hw/pci/pci.h"
-#include "qemu-timer.h"
-#include "iov.h"
+#include "qemu/timer.h"
+#include "qemu/iov.h"
 #include "dma.h"
 #include "trace.h"
 

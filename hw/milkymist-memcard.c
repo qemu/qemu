@@ -25,7 +25,7 @@
 #include "sysbus.h"
 #include "sysemu.h"
 #include "trace.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "blockdev.h"
 #include "sd.h"
 

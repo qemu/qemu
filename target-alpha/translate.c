@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "disas/disas.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "tcg-op.h"
 
 #include "helper.h"

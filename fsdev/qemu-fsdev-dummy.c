@@ -13,8 +13,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "qemu-fsdev.h"
-#include "qemu-config.h"
-#include "module.h"
+#include "qemu/config-file.h"
+#include "qemu/module.h"
 
 int qemu_fsdev_add(QemuOpts *opts)
 {

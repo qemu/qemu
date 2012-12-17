@@ -2,13 +2,13 @@
 #define SYSEMU_H
 /* Misc. things related to the system emulator.  */
 
-#include "qemu-types.h"
-#include "qemu-option.h"
-#include "qemu-queue.h"
-#include "qemu-timer.h"
+#include "qemu/typedefs.h"
+#include "qemu/option.h"
+#include "qemu/queue.h"
+#include "qemu/timer.h"
 #include "qapi-types.h"
-#include "notify.h"
-#include "main-loop.h"
+#include "qemu/notify.h"
+#include "qemu/main-loop.h"
 
 /* vl.c */
 

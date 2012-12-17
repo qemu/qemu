@@ -22,7 +22,7 @@
 # include "flash.h"
 # include "blockdev.h"
 # include "sysbus.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 # define NAND_CMD_READ0		0x00
 # define NAND_CMD_READ1		0x01

@@ -10,7 +10,7 @@
 
 #include "hw.h"
 #include "sh.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "ptimer.h"
 

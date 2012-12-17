@@ -13,7 +13,7 @@
  */
 
 #include <hw/qdev.h>
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 #include "sclp.h"
 #include "event-facility.h"

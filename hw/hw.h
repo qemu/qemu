@@ -13,7 +13,7 @@
 #include "block/aio.h"
 #include "migration/qemu-file.h"
 #include "migration/vmstate.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #ifdef NEED_CPU_H
 #if TARGET_LONG_BITS == 64

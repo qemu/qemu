@@ -13,7 +13,7 @@
 
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/visitor-impl.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/qerror.h"

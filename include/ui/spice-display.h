@@ -19,7 +19,7 @@
 #include <spice/enums.h>
 #include <spice/qxl_dev.h>
 
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 #include "ui/qemu-pixman.h"
 #include "sysemu.h"
 

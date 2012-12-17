@@ -23,10 +23,10 @@
  */
 #include "hw.h"
 #include "ppc.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "nvram.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "loader.h"
 
 

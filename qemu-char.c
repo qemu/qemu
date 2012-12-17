@@ -25,7 +25,7 @@
 #include "monitor/monitor.h"
 #include "ui/console.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-char.h"
 #include "hw/usb.h"
 #include "hw/baum.h"
@@ -94,7 +94,7 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "ui/qemu-spice.h"
 
 #define READ_BUF_LEN 4096

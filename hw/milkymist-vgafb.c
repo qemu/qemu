@@ -28,7 +28,7 @@
 #include "ui/console.h"
 #include "framebuffer.h"
 #include "ui/pixel_ops.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #define BITS 8
 #include "milkymist-vgafb_template.h"

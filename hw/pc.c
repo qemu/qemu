@@ -50,7 +50,7 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "arch_init.h"
-#include "bitmap.h"
+#include "qemu/bitmap.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ

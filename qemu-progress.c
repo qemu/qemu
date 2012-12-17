@@ -23,7 +23,7 @@
  */
 
 #include "qemu-common.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
 #include "sysemu.h"
 #include <stdio.h>
 

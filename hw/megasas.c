@@ -22,7 +22,7 @@
 #include "pci/pci.h"
 #include "dma.h"
 #include "pci/msix.h"
-#include "iov.h"
+#include "qemu/iov.h"
 #include "scsi.h"
 #include "scsi-defs.h"
 #include "trace.h"

@@ -32,7 +32,7 @@
 #include "clients.h"            /* net_init_tap */
 #include "net/net.h"
 #include "sysemu.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include <stdio.h>
 #include <windows.h>
 #include <winioctl.h>

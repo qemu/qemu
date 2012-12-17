@@ -22,7 +22,7 @@
  */
 
 #include "net/queue.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "net/net.h"
 
 /* The delivery handler may only return zero if it will call

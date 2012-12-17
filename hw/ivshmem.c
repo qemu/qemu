@@ -23,7 +23,7 @@
 #include "kvm.h"
 #include "migration/migration.h"
 #include "qapi/qmp/qerror.h"
-#include "event_notifier.h"
+#include "qemu/event_notifier.h"
 #include "qemu-char.h"
 
 #include <sys/mman.h>

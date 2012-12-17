@@ -25,7 +25,7 @@
 #include "hw.h"
 #include "boards.h"
 #include "blockdev.h"
-#include "qemu-config.h"
+#include "qemu/config-file.h"
 #include "sysemu.h"
 #include "monitor/monitor.h"
 

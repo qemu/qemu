@@ -6,9 +6,9 @@
  * This code is licensed under the GNU LGPL.
  */
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 struct ptimer_state
 {

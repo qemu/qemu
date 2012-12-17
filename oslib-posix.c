@@ -51,7 +51,7 @@ extern int daemon(int, int);
 #include "config-host.h"
 #include "sysemu.h"
 #include "trace.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 #if defined(CONFIG_VALGRIND)
 static int running_on_valgrind = -1;

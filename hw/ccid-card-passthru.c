@@ -9,7 +9,7 @@
  */
 
 #include "qemu-char.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "hw/ccid.h"
 #include "libcacard/vscard_common.h"

@@ -21,7 +21,7 @@
 #include <assert.h>
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #define D(x)
 

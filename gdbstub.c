@@ -38,7 +38,7 @@
 #define MAX_PACKET_LENGTH 4096
 
 #include "cpu.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "kvm.h"
 
 #ifndef TARGET_CPU_MEMORY_RW_DEBUG

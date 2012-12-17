@@ -20,9 +20,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
-#include "qemu-queue.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "qemu/queue.h"
 #include "qapi/qmp/types.h"
 #include "monitor/monitor.h"
 #include "sysemu.h"

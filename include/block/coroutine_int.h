@@ -25,7 +25,7 @@
 #ifndef QEMU_COROUTINE_INT_H
 #define QEMU_COROUTINE_INT_H
 
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "block/coroutine.h"
 
 typedef enum {

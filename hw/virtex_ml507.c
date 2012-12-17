@@ -32,7 +32,7 @@
 #include "device_tree.h"
 #include "loader.h"
 #include "elf.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "exec/address-spaces.h"
 
 #include "ppc.h"

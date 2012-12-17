@@ -9,9 +9,9 @@
  */
 #include "qemu-common.h"
 #include "block/aio.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "block/raw-aio.h"
-#include "event_notifier.h"
+#include "qemu/event_notifier.h"
 
 #include <libaio.h>
 

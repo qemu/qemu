@@ -18,7 +18,7 @@
 #include "i2c.h"
 #include "ssi.h"
 #include "flash.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "devices.h"
 #include "sharpsl.h"
 #include "ui/console.h"

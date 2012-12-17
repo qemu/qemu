@@ -18,9 +18,9 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "iov.h"
+#include "qemu/iov.h"
 #include "monitor/monitor.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "sysbus.h"
 #include "trace.h"
 #include "virtio-serial.h"

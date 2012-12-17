@@ -23,7 +23,7 @@
 #include "acpi.h"
 #include "pm_smbus.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "exec/address-spaces.h"
 
 typedef uint32_t pci_addr_t;

@@ -26,7 +26,7 @@
 
 #include "sysbus.h"
 #include "sysemu.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "fifo.h"
 
 #include "ssi.h"

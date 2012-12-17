@@ -27,7 +27,7 @@
 
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 static void do_unaligned_access(CPUXtensaState *env,
         target_ulong addr, int is_write, int is_user, uintptr_t retaddr);

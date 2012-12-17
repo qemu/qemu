@@ -22,7 +22,7 @@
 #include "sysemu.h"
 #include "soc_dma.h"
 #include "blockdev.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "sysbus.h"
 
 /* Should signal the TCMI/GPMC */

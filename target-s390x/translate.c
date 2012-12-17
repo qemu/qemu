@@ -32,7 +32,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /* global register indexes */
 static TCGv_ptr cpu_env;

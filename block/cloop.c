@@ -23,7 +23,7 @@
  */
 #include "qemu-common.h"
 #include "block/block_int.h"
-#include "module.h"
+#include "qemu/module.h"
 #include <zlib.h>
 
 typedef struct BDRVCloopState {

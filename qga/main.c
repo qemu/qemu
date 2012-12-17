@@ -25,7 +25,7 @@
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qjson.h"
 #include "qga/guest-agent-core.h"
-#include "module.h"
+#include "qemu/module.h"
 #include "signal.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/dispatch.h"

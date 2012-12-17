@@ -12,7 +12,7 @@
 
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qobject.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
 
 static void qlist_destroy_obj(QObject *obj);

@@ -15,8 +15,8 @@
 #define QEMU_AIO_H
 
 #include "qemu-common.h"
-#include "qemu-queue.h"
-#include "event_notifier.h"
+#include "qemu/queue.h"
+#include "qemu/event_notifier.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);

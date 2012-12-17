@@ -16,7 +16,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "serial.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 #include "block/block.h"
 #include "flash.h"

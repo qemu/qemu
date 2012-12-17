@@ -29,7 +29,7 @@
  */
 #include "qemu-common.h"
 #include "hw.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "pc.h"

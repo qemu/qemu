@@ -2,13 +2,13 @@
 #define QEMU_CHAR_H
 
 #include "qemu-common.h"
-#include "qemu-queue.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/queue.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "block/aio.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qstring.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 
 /* character device */
 

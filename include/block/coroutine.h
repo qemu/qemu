@@ -16,8 +16,8 @@
 #define QEMU_COROUTINE_H
 
 #include <stdbool.h>
-#include "qemu-queue.h"
-#include "qemu-timer.h"
+#include "qemu/queue.h"
+#include "qemu/timer.h"
 
 /**
  * Coroutines are a mechanism for stack switching and can be used for

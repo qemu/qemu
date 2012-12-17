@@ -33,7 +33,7 @@
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "audio/audio.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "loader.h"
 #include "mips-bios.h"
 #include "ide.h"

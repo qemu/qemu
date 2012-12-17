@@ -15,13 +15,13 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "qemu-common.h"
-#include "qemu-queue.h"
-#include "qemu-thread.h"
-#include "osdep.h"
+#include "qemu/queue.h"
+#include "qemu/thread.h"
+#include "qemu/osdep.h"
 #include "block/coroutine.h"
 #include "trace.h"
 #include "block/block_int.h"
-#include "event_notifier.h"
+#include "qemu/event_notifier.h"
 #include "block/thread-pool.h"
 
 static void do_spawn_thread(void);

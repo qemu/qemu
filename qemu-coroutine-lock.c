@@ -25,7 +25,7 @@
 #include "qemu-common.h"
 #include "block/coroutine.h"
 #include "block/coroutine_int.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "block/aio.h"
 #include "trace.h"
 

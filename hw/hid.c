@@ -24,7 +24,7 @@
  */
 #include "hw.h"
 #include "ui/console.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "hid.h"
 
 #define HID_USAGE_ERROR_ROLLOVER        0x01

@@ -16,7 +16,7 @@
 
 #include <errno.h>
 #include "config-host.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 #ifdef CONFIG_KVM
 #include <linux/kvm.h>

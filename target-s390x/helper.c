@@ -20,7 +20,7 @@
 
 #include "cpu.h"
 #include "exec/gdbstub.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #ifndef CONFIG_USER_ONLY
 #include "sysemu.h"
 #endif

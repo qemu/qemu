@@ -8,8 +8,8 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "hw/scsi.h"

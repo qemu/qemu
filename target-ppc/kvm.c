@@ -23,7 +23,7 @@
 #include <linux/kvm.h>
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "kvm.h"
 #include "kvm_ppc.h"

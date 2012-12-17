@@ -28,11 +28,11 @@
 #include <sys/stat.h>
 #include "hw/hw.h"
 #include "hw/pc.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "ui/console.h"
 #include "hw/loader.h"
 #include "monitor/monitor.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "sysemu.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"

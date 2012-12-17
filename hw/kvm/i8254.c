@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "hw/i8254.h"
 #include "hw/i8254_internal.h"

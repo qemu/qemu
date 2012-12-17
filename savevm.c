@@ -75,17 +75,17 @@
 #include "net/net.h"
 #include "monitor/monitor.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "audio/audio.h"
 #include "migration/migration.h"
-#include "qemu_socket.h"
-#include "qemu-queue.h"
-#include "qemu-timer.h"
+#include "qemu/sockets.h"
+#include "qemu/queue.h"
+#include "qemu/timer.h"
 #include "cpus.h"
 #include "exec/memory.h"
 #include "qmp-commands.h"
 #include "trace.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 

@@ -11,7 +11,7 @@
 #include "ssi.h"
 #include "arm-misc.h"
 #include "devices.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "i2c.h"
 #include "net/net.h"
 #include "boards.h"

@@ -26,7 +26,7 @@
 #include "trace.h"
 #include "ui/console.h"
 #include "hid.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 enum {
     R_CTRL = 0,

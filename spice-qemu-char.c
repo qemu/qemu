@@ -5,7 +5,7 @@
 #include <spice.h>
 #include <spice-experimental.h>
 
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 #define dprintf(_scd, _level, _fmt, ...)                                \
     do {                                                                \

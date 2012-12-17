@@ -20,7 +20,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 static void error_exit(int err, const char *msg)
 {

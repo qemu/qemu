@@ -33,7 +33,7 @@
 #include "qapi/qmp/qjson.h"
 #include "block/coroutine.h"
 #include "qmp-commands.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
                        int64_t speed, BlockDriverCompletionFunc *cb,

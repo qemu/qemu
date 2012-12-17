@@ -13,10 +13,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu_socket.h"
+#include "qemu/error-report.h"
+#include "qemu/sockets.h"
 #include "block/block_int.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #define SD_PROTO_VER 0x01
 

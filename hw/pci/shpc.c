@@ -1,7 +1,7 @@
 #include <strings.h>
 #include <stdint.h>
-#include "range.h"
-#include "range.h"
+#include "qemu/range.h"
+#include "qemu/range.h"
 #include "hw/pci/shpc.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"

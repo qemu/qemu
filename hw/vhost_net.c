@@ -18,7 +18,7 @@
 
 #include "virtio-net.h"
 #include "vhost_net.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #include "config.h"
 

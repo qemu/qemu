@@ -49,7 +49,7 @@
 
 #include "exec/address-spaces.h"
 #include "hw/usb.h"
-#include "qemu-config.h"
+#include "qemu/config-file.h"
 
 #include <libfdt.h>
 

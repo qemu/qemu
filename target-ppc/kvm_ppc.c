@@ -12,7 +12,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "kvm_ppc.h"
 #include "device_tree.h"
 

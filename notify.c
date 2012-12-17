@@ -14,7 +14,7 @@
  */
 
 #include "qemu-common.h"
-#include "notify.h"
+#include "qemu/notify.h"
 
 void notifier_list_init(NotifierList *list)
 {

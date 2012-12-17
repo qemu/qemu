@@ -25,7 +25,7 @@
 #ifndef HOST_UTILS_H
 #define HOST_UTILS_H 1
 
-#include "compiler.h"   /* QEMU_GNUC_PREREQ */
+#include "qemu/compiler.h"   /* QEMU_GNUC_PREREQ */
 
 #if defined(__x86_64__)
 #define __HAVE_FAST_MULU64__

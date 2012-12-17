@@ -28,7 +28,7 @@
 #include "pci/pci.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "loader.h"
 
 #define PCI_VGA_IOPORT_OFFSET 0x400

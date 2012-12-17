@@ -28,7 +28,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <zlib.h>
-#include "bitmap.h"
+#include "qemu/bitmap.h"
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
@@ -133,9 +133,9 @@ int main(int argc, char **argv)
 #include "ui/console.h"
 #include "sysemu.h"
 #include "exec/gdbstub.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-char.h"
-#include "cache-utils.h"
+#include "qemu/cache-utils.h"
 #include "blockdev.h"
 #include "hw/block-common.h"
 #include "migration/block.h"
@@ -144,11 +144,11 @@ int main(int argc, char **argv)
 #include "migration/migration.h"
 #include "kvm.h"
 #include "qapi/qmp/qjson.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "qemu-options.h"
 #include "qmp-commands.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
@@ -156,16 +156,16 @@ int main(int argc, char **argv)
 
 #include "disas/disas.h"
 
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 #include "slirp/libslirp.h"
 
 #include "trace.h"
 #include "trace/control.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "cpus.h"
 #include "arch_init.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"

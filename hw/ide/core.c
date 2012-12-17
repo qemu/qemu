@@ -26,8 +26,8 @@
 #include <hw/pc.h>
 #include <hw/pci/pci.h>
 #include <hw/isa.h>
-#include "qemu-error.h"
-#include "qemu-timer.h"
+#include "qemu/error-report.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "dma.h"
 #include "hw/block-common.h"

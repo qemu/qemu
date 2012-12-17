@@ -30,7 +30,7 @@
 #define VNC_PALETTE_H
 
 #include "qapi/qmp/qlist.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include <stdint.h>
 #include <stdbool.h>
 

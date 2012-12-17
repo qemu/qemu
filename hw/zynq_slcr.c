@@ -15,7 +15,7 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysbus.h"
 #include "sysemu.h"
 

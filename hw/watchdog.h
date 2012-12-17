@@ -22,7 +22,7 @@
 #ifndef QEMU_WATCHDOG_H
 #define QEMU_WATCHDOG_H
 
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 struct WatchdogTimerModel {
     QLIST_ENTRY(WatchdogTimerModel) entry;

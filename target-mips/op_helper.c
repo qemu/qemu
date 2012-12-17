@@ -18,7 +18,7 @@
  */
 #include <stdlib.h>
 #include "cpu.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "helper.h"
 

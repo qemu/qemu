@@ -6,7 +6,7 @@
 
 #if defined(__i386__)
 
-#include "compiler.h"        /* QEMU_GNUC_PREREQ */
+#include "qemu/compiler.h"        /* QEMU_GNUC_PREREQ */
 
 /*
  * Because of the strongly ordered x86 storage model, wmb() and rmb() are nops

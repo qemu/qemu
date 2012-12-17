@@ -16,7 +16,7 @@
 #include "net/net.h"
 #include "clients.h"
 #include "hub.h"
-#include "iov.h"
+#include "qemu/iov.h"
 
 /*
  * A hub broadcasts incoming packets to all its ports except the source port.

@@ -78,7 +78,7 @@
  * For details on the use of these macros, see the queue(3) manual page.
  */
 
-#include "qemu-barrier.h" /* for smp_wmb() */
+#include "qemu/atomic.h" /* for smp_wmb() */
 
 /*
  * List definitions.

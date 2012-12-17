@@ -16,7 +16,7 @@
 
 #include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
-#include "notify.h"
+#include "qemu/notify.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 #include "qapi-types.h"

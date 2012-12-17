@@ -14,12 +14,12 @@
  */
 
 #include "qemu-common.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "migration/migration.h"
 #include "monitor/monitor.h"
 #include "buffered_file.h"
 #include "block/block.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 //#define DEBUG_MIGRATION_FD
 

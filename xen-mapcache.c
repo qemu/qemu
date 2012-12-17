@@ -14,7 +14,7 @@
 
 #include "hw/xen_backend.h"
 #include "blockdev.h"
-#include "bitmap.h"
+#include "qemu/bitmap.h"
 
 #include <xen/hvm/params.h>
 #include <sys/mman.h>

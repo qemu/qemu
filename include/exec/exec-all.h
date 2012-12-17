@@ -70,7 +70,7 @@ typedef struct TranslationBlock TranslationBlock;
 
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);

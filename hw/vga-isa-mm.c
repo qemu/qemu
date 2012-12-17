@@ -26,7 +26,7 @@
 #include "pc.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 #define VGA_RAM_SIZE (8192 * 1024)
 

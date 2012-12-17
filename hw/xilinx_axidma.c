@@ -23,9 +23,9 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "qdev-addr.h"
 
 #include "stream.h"

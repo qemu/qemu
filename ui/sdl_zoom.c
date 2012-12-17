@@ -12,7 +12,7 @@
  */
 
 #include "sdl_zoom.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
 #include <stdint.h>
 #include <stdio.h>
 

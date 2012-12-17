@@ -23,9 +23,9 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "qemu-common.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "config.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #include "helper.h"
 #define GEN_HELPER 1

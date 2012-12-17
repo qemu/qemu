@@ -14,7 +14,7 @@
 #ifndef QEMU_NOTIFY_H
 #define QEMU_NOTIFY_H
 
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 typedef struct Notifier Notifier;
 

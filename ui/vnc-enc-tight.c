@@ -44,7 +44,7 @@
 #include <jpeglib.h>
 #endif
 
-#include "bswap.h"
+#include "qemu/bswap.h"
 #include "qapi/qmp/qint.h"
 #include "vnc.h"
 #include "vnc-enc-tight.h"

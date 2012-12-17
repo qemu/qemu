@@ -18,7 +18,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "hw/pci/pci.h"
-#include "range.h"
+#include "qemu/range.h"
 
 #define MSIX_CAP_LENGTH 12
 

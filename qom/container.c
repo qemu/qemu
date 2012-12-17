@@ -11,7 +11,7 @@
  */
 
 #include "qom/object.h"
-#include "module.h"
+#include "qemu/module.h"
 #include <assert.h>
 
 static TypeInfo container_info = {

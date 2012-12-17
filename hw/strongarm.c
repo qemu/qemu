@@ -28,7 +28,7 @@
  */
 #include "sysbus.h"
 #include "strongarm.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "arm-misc.h"
 #include "qemu-char.h"
 #include "sysemu.h"

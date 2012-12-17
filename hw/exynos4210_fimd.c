@@ -27,7 +27,7 @@
 #include "sysbus.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-#include "bswap.h"
+#include "qemu/bswap.h"
 
 /* Debug messages configuration */
 #define EXYNOS4210_FIMD_DEBUG              0

@@ -25,7 +25,7 @@
 #include "pci/pci.h"
 #include "acpi.h"
 #include "sysemu.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "exec/ioport.h"
 #include "fw_cfg.h"
 #include "exec/address-spaces.h"

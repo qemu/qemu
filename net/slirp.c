@@ -33,7 +33,7 @@
 #include "clients.h"
 #include "hub.h"
 #include "monitor/monitor.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "slirp/libslirp.h"
 #include "qemu-char.h"
 

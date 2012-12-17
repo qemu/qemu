@@ -37,8 +37,8 @@
 
 #include "sysbus.h"
 #include "net/net.h"
-#include "qemu-timer.h"
-#include "qemu_socket.h"
+#include "qemu/timer.h"
+#include "qemu/sockets.h"
 #include "sun4m.h"
 #include "pcnet.h"
 #include "trace.h"

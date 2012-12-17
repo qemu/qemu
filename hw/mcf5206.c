@@ -7,7 +7,7 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 #include "sysemu.h"
 #include "exec/address-spaces.h"

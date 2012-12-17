@@ -19,8 +19,8 @@
 #define QEMU_THREAD_POOL_H 1
 
 #include "qemu-common.h"
-#include "qemu-queue.h"
-#include "qemu-thread.h"
+#include "qemu/queue.h"
+#include "qemu/thread.h"
 #include "block/coroutine.h"
 #include "block/block_int.h"
 

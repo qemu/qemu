@@ -32,14 +32,14 @@
 #include "kvm.h"
 #include "qmp-commands.h"
 
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 #include "cpus.h"
 #include "qtest.h"
-#include "main-loop.h"
-#include "bitmap.h"
+#include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
 
 #ifndef _WIN32
-#include "compatfd.h"
+#include "qemu/compatfd.h"
 #endif
 
 #ifdef CONFIG_LINUX

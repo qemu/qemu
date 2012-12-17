@@ -20,7 +20,7 @@
 #include "qemu-common.h"
 #include "bt-host.h"
 #include "hw/bt.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 
 #define VHCI_DEV	"/dev/vhci"
 #define VHCI_UDEV	"/dev/hci_vhci"

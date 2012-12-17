@@ -44,7 +44,7 @@ these four paragraphs for those parts of this code that are retained.
 
 #include <inttypes.h>
 #include "config-host.h"
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 /*----------------------------------------------------------------------------
 | Each of the following `typedef's defines the most convenient type that holds

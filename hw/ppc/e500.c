@@ -19,7 +19,7 @@
 #include "e500.h"
 #include "e500-ccsr.h"
 #include "net/net.h"
-#include "qemu-config.h"
+#include "qemu/config-file.h"
 #include "hw/hw.h"
 #include "hw/serial.h"
 #include "hw/pci/pci.h"
@@ -34,7 +34,7 @@
 #include "elf.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "hw/ppce500_pci.h"
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"

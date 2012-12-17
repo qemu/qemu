@@ -32,7 +32,7 @@
 
 #include "sysemu.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #define PATH_NET_TUN "/dev/net/tun"
 

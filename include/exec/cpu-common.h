@@ -9,8 +9,8 @@
 #include "exec/poison.h"
 #endif
 
-#include "bswap.h"
-#include "qemu-queue.h"
+#include "qemu/bswap.h"
+#include "qemu/queue.h"
 
 #if !defined(CONFIG_USER_ONLY)
 

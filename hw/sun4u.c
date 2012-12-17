@@ -29,7 +29,7 @@
 #include "nvram.h"
 #include "fdc.h"
 #include "net/net.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "boards.h"
 #include "firmware_abi.h"

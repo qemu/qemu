@@ -22,7 +22,7 @@
 #include <inttypes.h>
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "watchdog.h"
 #include "hw.h"
 #include "pci/pci.h"

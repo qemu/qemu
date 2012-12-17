@@ -19,7 +19,7 @@
 #ifndef _LIBFDT_ENV_H
 #define _LIBFDT_ENV_H
 
-#include "bswap.h"
+#include "qemu/bswap.h"
 
 #ifdef HOST_WORDS_BIGENDIAN
 #define fdt32_to_cpu(x)		(x)

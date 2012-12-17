@@ -12,7 +12,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "scsi.h"
 #include "blockdev.h"
 

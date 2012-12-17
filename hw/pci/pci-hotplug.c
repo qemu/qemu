@@ -30,7 +30,7 @@
 #include "monitor/monitor.h"
 #include "hw/scsi.h"
 #include "hw/virtio-blk.h"
-#include "qemu-config.h"
+#include "qemu/config-file.h"
 #include "blockdev.h"
 #include "qapi/error.h"
 

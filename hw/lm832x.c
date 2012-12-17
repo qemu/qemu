@@ -20,7 +20,7 @@
 
 #include "hw.h"
 #include "i2c.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ui/console.h"
 
 typedef struct {

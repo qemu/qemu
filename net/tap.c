@@ -38,7 +38,7 @@
 #include "monitor/monitor.h"
 #include "sysemu.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 #include "net/tap.h"
 

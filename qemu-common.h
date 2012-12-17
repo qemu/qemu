@@ -12,9 +12,9 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
-#include "compiler.h"
+#include "qemu/compiler.h"
 #include "config-host.h"
-#include "qemu-types.h"
+#include "qemu/typedefs.h"
 
 #if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__) || defined(__ia64__)
 #define WORDS_ALIGNED
@@ -122,8 +122,8 @@ extern int use_icount;
 /* FIXME: Remove NEED_CPU_H.  */
 #ifndef NEED_CPU_H
 
-#include "osdep.h"
-#include "bswap.h"
+#include "qemu/osdep.h"
+#include "qemu/bswap.h"
 
 #else
 
@@ -408,7 +408,7 @@ static inline bool is_power_of_2(uint64_t value)
 /* round down to the nearest power of 2*/
 int64_t pow2floor(int64_t value);
 
-#include "module.h"
+#include "qemu/module.h"
 
 /*
  * Implementation of ULEB128 (http://en.wikipedia.org/wiki/LEB128)

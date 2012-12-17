@@ -28,7 +28,7 @@
 #include "pci/pci.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "xen.h"
 #include "trace.h"
 

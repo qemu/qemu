@@ -29,7 +29,7 @@
 #include "sysemu.h"
 #include "block/block.h"
 #include "boards.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "loader.h"
 #include "blockdev.h"
 #include "exec/address-spaces.h"

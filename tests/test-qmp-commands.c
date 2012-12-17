@@ -3,7 +3,7 @@
 #include "qapi/qmp/types.h"
 #include "test-qmp-commands.h"
 #include "qapi/qmp/dispatch.h"
-#include "module.h"
+#include "qemu/module.h"
 #include "qapi/qmp-input-visitor.h"
 #include "tests/test-qapi-types.h"
 #include "tests/test-qapi-visit.h"

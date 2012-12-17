@@ -25,7 +25,7 @@
 #include "sh.h"
 #include "pci/pci.h"
 #include "pci/pci_host.h"
-#include "bswap.h"
+#include "qemu/bswap.h"
 #include "exec/address-spaces.h"
 
 typedef struct SHPCIState {

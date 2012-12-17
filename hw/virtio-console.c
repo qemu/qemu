@@ -11,7 +11,7 @@
  */
 
 #include "qemu-char.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "trace.h"
 #include "virtio-serial.h"
 

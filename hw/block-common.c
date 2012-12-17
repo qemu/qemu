@@ -9,7 +9,7 @@
 
 #include "blockdev.h"
 #include "hw/block-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 
 void blkconf_serial(BlockConf *conf, char **serial)
 {

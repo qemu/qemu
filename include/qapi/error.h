@@ -12,7 +12,7 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-#include "compiler.h"
+#include "qemu/compiler.h"
 #include "qapi-types.h"
 #include <stdbool.h>
 

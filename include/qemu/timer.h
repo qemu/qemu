@@ -2,8 +2,8 @@
 #define QEMU_TIMER_H
 
 #include "qemu-common.h"
-#include "main-loop.h"
-#include "notify.h"
+#include "qemu/main-loop.h"
+#include "qemu/notify.h"
 
 #ifdef __FreeBSD__
 #include <sys/param.h>

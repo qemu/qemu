@@ -25,10 +25,10 @@
 #define BLOCK_INT_H
 
 #include "block/block.h"
-#include "qemu-option.h"
-#include "qemu-queue.h"
+#include "qemu/option.h"
+#include "qemu/queue.h"
 #include "block/coroutine.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qapi-types.h"
 #include "qapi/qmp/qerror.h"
 #include "monitor/monitor.h"

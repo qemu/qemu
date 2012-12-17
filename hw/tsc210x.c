@@ -21,7 +21,7 @@
 
 #include "hw.h"
 #include "audio/audio.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ui/console.h"
 #include "omap.h"	/* For I2SCodec and uWireSlave */
 #include "devices.h"

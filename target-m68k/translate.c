@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #include "helpers.h"
 #define GEN_HELPER 1

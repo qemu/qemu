@@ -14,7 +14,7 @@
 
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qapi-types.h"
 #include <stdarg.h>

@@ -25,7 +25,7 @@
 #include "pc.h"
 #include "isa.h"
 #include "monitor/monitor.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "i8259_internal.h"
 
 /* debug PIC */

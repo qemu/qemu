@@ -21,10 +21,10 @@
 #include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "exec/hwaddr.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "exec/iorange.h"
 #include "exec/ioport.h"
-#include "int128.h"
+#include "qemu/int128.h"
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;

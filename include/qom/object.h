@@ -17,7 +17,7 @@
 #include <glib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 struct Visitor;
 struct Error;

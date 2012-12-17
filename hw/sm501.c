@@ -29,7 +29,7 @@
 #include "devices.h"
 #include "sysbus.h"
 #include "qdev-addr.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "ui/pixel_ops.h"
 
 /*

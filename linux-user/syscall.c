@@ -72,7 +72,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <sys/epoll.h>
 #endif
 #ifdef CONFIG_ATTR
-#include "qemu-xattr.h"
+#include "qemu/xattr.h"
 #endif
 
 #define termios host_termios

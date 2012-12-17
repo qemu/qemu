@@ -29,7 +29,7 @@
 #include "net/net.h"
 #include "sysemu.h"
 #include "hw/loader.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "qmp-commands.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"

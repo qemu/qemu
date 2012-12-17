@@ -27,7 +27,7 @@
 #define QEMU_OPTIONS_H
 
 #include <stdint.h>
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 

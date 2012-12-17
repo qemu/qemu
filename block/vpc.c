@@ -24,7 +24,7 @@
  */
 #include "qemu-common.h"
 #include "block/block_int.h"
-#include "module.h"
+#include "qemu/module.h"
 #include "migration/migration.h"
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>

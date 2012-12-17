@@ -21,7 +21,7 @@
 #define QEMU_CPU_H
 
 #include "qom/object.h"
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 /**
  * SECTION:cpu

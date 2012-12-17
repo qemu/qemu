@@ -23,7 +23,7 @@
  */
 #include "hw.h"
 #include "nvram.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 #include "sysbus.h"
 #include "isa.h"

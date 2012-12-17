@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "mmu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 //#define CRIS_OP_HELPER_DEBUG
 

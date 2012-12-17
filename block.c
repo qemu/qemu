@@ -27,13 +27,13 @@
 #include "monitor/monitor.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
-#include "module.h"
+#include "qemu/module.h"
 #include "qapi/qmp/qjson.h"
 #include "sysemu.h"
-#include "notify.h"
+#include "qemu/notify.h"
 #include "block/coroutine.h"
 #include "qmp-commands.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>

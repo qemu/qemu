@@ -26,7 +26,7 @@
 #include "sysbus.h"
 #include "trace.h"
 #include "net/net.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "qdev-addr.h"
 
 #include <zlib.h>

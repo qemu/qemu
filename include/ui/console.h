@@ -3,7 +3,7 @@
 
 #include "ui/qemu-pixman.h"
 #include "qapi/qmp/qdict.h"
-#include "notify.h"
+#include "qemu/notify.h"
 #include "monitor/monitor.h"
 #include "trace.h"
 #include "qapi-types.h"

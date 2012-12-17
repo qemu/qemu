@@ -19,7 +19,7 @@
 #include "buffered_file.h"
 #include "sysemu.h"
 #include "block/block.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "migration/block.h"
 #include "qmp-commands.h"
 

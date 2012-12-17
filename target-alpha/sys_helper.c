@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "helper.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 
 uint64_t helper_load_pcc(CPUAlphaState *env)

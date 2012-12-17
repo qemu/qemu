@@ -9,8 +9,8 @@
 
 #include "dma.h"
 #include "trace.h"
-#include "range.h"
-#include "qemu-thread.h"
+#include "qemu/range.h"
+#include "qemu/thread.h"
 
 /* #define DEBUG_IOMMU */
 

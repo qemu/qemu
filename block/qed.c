@@ -12,7 +12,7 @@
  *
  */
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "trace.h"
 #include "qed.h"
 #include "qapi/qmp/qerror.h"

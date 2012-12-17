@@ -25,7 +25,7 @@
 #include "hw/pci/msi.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
-#include "range.h"
+#include "qemu/range.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE

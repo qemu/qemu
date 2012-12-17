@@ -22,8 +22,8 @@
 #include "qemu-common.h"
 #include "device_tree.h"
 #include "hw/loader.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 
 #include <libfdt.h>
 

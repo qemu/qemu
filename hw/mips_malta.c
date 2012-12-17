@@ -38,7 +38,7 @@
 #include "sysemu.h"
 #include "arch_init.h"
 #include "boards.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "mips-bios.h"
 #include "ide.h"
 #include "loader.h"

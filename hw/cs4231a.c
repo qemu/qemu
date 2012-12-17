@@ -26,7 +26,7 @@
 #include "audio/audio.h"
 #include "isa.h"
 #include "qdev.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /*
   Missing features:

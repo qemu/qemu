@@ -18,7 +18,7 @@
 
 #include "sysbus.h"
 #include "qemu-char.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 #ifdef CADENCE_UART_ERR_DEBUG
 #define DB_PRINT(...) do { \

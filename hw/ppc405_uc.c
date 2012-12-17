@@ -25,9 +25,9 @@
 #include "ppc.h"
 #include "ppc405.h"
 #include "serial.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "exec/address-spaces.h"
 
 #define DEBUG_OPBA

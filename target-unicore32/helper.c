@@ -12,7 +12,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 #include "ui/console.h"
 
 #undef DEBUG_UC32

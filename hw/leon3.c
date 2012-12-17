@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 #include "qemu-char.h"
 #include "sysemu.h"

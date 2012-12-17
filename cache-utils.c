@@ -1,4 +1,4 @@
-#include "cache-utils.h"
+#include "qemu/cache-utils.h"
 
 #if defined(_ARCH_PPC)
 struct qemu_cache_conf qemu_cache_conf = {

@@ -16,10 +16,10 @@
 #include "hmp.h"
 #include "net/net.h"
 #include "qemu-char.h"
-#include "qemu-option.h"
-#include "qemu-timer.h"
+#include "qemu/option.h"
+#include "qemu/timer.h"
 #include "qmp-commands.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "ui/console.h"
 

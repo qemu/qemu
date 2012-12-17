@@ -1,7 +1,7 @@
 #include <assert.h>
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "hw/lm32_pic.h"
 #include "hw/lm32_juart.h"

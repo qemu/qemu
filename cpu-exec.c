@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "disas/disas.h"
 #include "tcg.h"
-#include "qemu-barrier.h"
+#include "qemu/atomic.h"
 #include "qtest.h"
 
 int tb_invalidated_flag;

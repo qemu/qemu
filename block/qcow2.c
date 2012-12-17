@@ -23,11 +23,11 @@
  */
 #include "qemu-common.h"
 #include "block/block_int.h"
-#include "module.h"
+#include "qemu/module.h"
 #include <zlib.h>
 #include "block/aes.h"
 #include "block/qcow2.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 #include "trace.h"
 

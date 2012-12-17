@@ -13,7 +13,7 @@
 #define BITMAP_H
 
 #include "qemu-common.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 /*
  * The available bitmap operations and their rough meaning in the

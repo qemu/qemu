@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sun4m.h"
 #include "nvram.h"
 #include "sparc32_dma.h"

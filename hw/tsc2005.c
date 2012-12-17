@@ -19,7 +19,7 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "ui/console.h"
 #include "devices.h"
 

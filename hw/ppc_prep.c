@@ -33,7 +33,7 @@
 #include "pci/pci_host.h"
 #include "ppc.h"
 #include "boards.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "ide.h"
 #include "loader.h"
 #include "mc146818rtc.h"
