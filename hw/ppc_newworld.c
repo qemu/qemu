@@ -52,7 +52,7 @@
 #include "adb.h"
 #include "mac_dbdma.h"
 #include "nvram.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"

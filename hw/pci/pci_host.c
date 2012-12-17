@@ -18,8 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pci.h"
-#include "pci_host.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/pci_host.h"
 
 /* debug PCI */
 //#define DEBUG_PCI

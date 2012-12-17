@@ -3,14 +3,14 @@
 
 #include "qemu-common.h"
 
-#include "qdev.h"
+#include "hw/qdev.h"
 #include "memory.h"
 #include "dma.h"
 
 /* PCI includes legacy ISA access.  */
-#include "isa.h"
+#include "hw/isa.h"
 
-#include "pcie.h"
+#include "hw/pci/pcie.h"
 
 /* PCI bus */
 
@@ -21,7 +21,7 @@
 #define PCI_FUNC_MAX            8
 
 /* Class, Vendor and Device IDs from Linux's pci_ids.h */
-#include "pci_ids.h"
+#include "hw/pci/pci_ids.h"
 
 /* QEMU-specific Vendor and Device ID definitions */
 
@@ -100,7 +100,7 @@ typedef struct PCIIORegion {
 #define PCI_ROM_SLOT 6
 #define PCI_NUM_REGIONS 7
 
-#include "pci_regs.h"
+#include "hw/pci/pci_regs.h"
 
 /* PCI HEADER_TYPE */
 #define  PCI_HEADER_TYPE_MULTI_FUNCTION 0x80

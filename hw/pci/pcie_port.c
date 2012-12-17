@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pcie_port.h"
+#include "hw/pci/pcie_port.h"
 
 void pcie_port_init_reg(PCIDevice *d)
 {

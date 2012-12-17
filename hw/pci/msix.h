@@ -2,7 +2,7 @@
 #define QEMU_MSIX_H
 
 #include "qemu-common.h"
-#include "pci.h"
+#include "hw/pci/pci.h"
 
 void msix_set_message(PCIDevice *dev, int vector, MSIMessage msg);
 int msix_init(PCIDevice *dev, unsigned short nentries,

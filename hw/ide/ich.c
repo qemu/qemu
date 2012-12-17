@@ -61,9 +61,9 @@
  */
 
 #include <hw/hw.h>
-#include <hw/msi.h>
+#include <hw/pci/msi.h>
 #include <hw/pc.h>
-#include <hw/pci.h>
+#include <hw/pci/pci.h>
 #include <hw/isa.h>
 #include "block.h"
 #include "dma.h"

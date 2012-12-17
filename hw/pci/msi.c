@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "msi.h"
+#include "hw/pci/msi.h"
 #include "range.h"
 
 /* Eventually those constants should go to Linux pci_regs.h */

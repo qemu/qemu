@@ -22,14 +22,14 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "boards.h"
-#include "pci.h"
+#include "hw/hw.h"
+#include "hw/boards.h"
+#include "hw/pci/pci.h"
 #include "net.h"
-#include "pc.h"
+#include "hw/pc.h"
 #include "monitor.h"
-#include "scsi.h"
-#include "virtio-blk.h"
+#include "hw/scsi.h"
+#include "hw/virtio-blk.h"
 #include "qemu-config.h"
 #include "blockdev.h"
 #include "error.h"

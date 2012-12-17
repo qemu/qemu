@@ -1,14 +1,10 @@
-common-obj-y = usb/ ide/
+common-obj-y = usb/ ide/ pci/
 common-obj-y += loader.o
 common-obj-$(CONFIG_VIRTIO) += virtio-console.o
 common-obj-$(CONFIG_VIRTIO) += virtio-rng.o
 common-obj-$(CONFIG_VIRTIO_PCI) += virtio-pci.o
 common-obj-y += fw_cfg.o
-common-obj-$(CONFIG_PCI) += pci.o pci_bridge.o pci_bridge_dev.o
-common-obj-$(CONFIG_PCI) += msix.o msi.o
-common-obj-$(CONFIG_PCI) += shpc.o
-common-obj-$(CONFIG_PCI) += slotid_cap.o
-common-obj-$(CONFIG_PCI) += pci_host.o pcie_host.o
+common-obj-$(CONFIG_PCI) += pci_bridge_dev.o
 common-obj-$(CONFIG_PCI) += ioh3420.o xio3130_upstream.o xio3130_downstream.o
 common-obj-$(CONFIG_PCI) += i82801b11.o
 common-obj-y += watchdog.o
@@ -40,6 +36,8 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 common-obj-$(CONFIG_I8259) += i8259_common.o i8259.o
 common-obj-y += fifo.o
 common-obj-y += pam.o
+
+extra-obj-y += pci/
 
 # PPC devices
 common-obj-$(CONFIG_PREP_PCI) += prep_pci.o
@@ -101,8 +99,6 @@ common-obj-$(CONFIG_XGMAC) += xgmac.o
 
 # PCI watchdog devices
 common-obj-$(CONFIG_PCI) += wdt_i6300esb.o
-
-common-obj-$(CONFIG_PCI) += pcie.o pcie_aer.o pcie_port.o
 
 # PCI network cards
 common-obj-$(CONFIG_NE2000_PCI) += ne2000.o
@@ -199,7 +195,6 @@ obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o virtio-scsi.o
 obj-$(CONFIG_SOFTMMU) += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/
-obj-$(CONFIG_NO_PCI) += pci-stub.o
 obj-$(CONFIG_VGA) += vga.o
 obj-$(CONFIG_SOFTMMU) += device-hotplug.o
 obj-$(CONFIG_XEN) += xen_domainbuild.o xen_machine_pv.o

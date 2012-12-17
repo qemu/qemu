@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "net.h"
 #include "ne2000.h"
 #include "loader.h"

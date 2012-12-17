@@ -16,7 +16,7 @@
  */
 
 #include "hw/usb/hcd-ehci.h"
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 #include "range.h"
 
 typedef struct EHCIPCIState {

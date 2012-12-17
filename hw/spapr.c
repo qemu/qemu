@@ -41,11 +41,11 @@
 #include "hw/spapr_vio.h"
 #include "hw/spapr_pci.h"
 #include "hw/xics.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 
 #include "kvm.h"
 #include "kvm_ppc.h"
-#include "pci.h"
+#include "pci/pci.h"
 
 #include "exec-memory.h"
 #include "hw/usb.h"

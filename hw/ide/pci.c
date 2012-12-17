@@ -24,7 +24,7 @@
  */
 #include <hw/hw.h>
 #include <hw/pc.h>
-#include <hw/pci.h>
+#include <hw/pci/pci.h>
 #include <hw/isa.h>
 #include "block.h"
 #include "dma.h"

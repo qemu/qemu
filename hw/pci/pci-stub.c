@@ -20,7 +20,7 @@
 
 #include "sysemu.h"
 #include "monitor.h"
-#include "pci.h"
+#include "hw/pci/pci.h"
 #include "qmp-commands.h"
 
 PciInfoList *qmp_query_pci(Error **errp)

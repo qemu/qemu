@@ -10,7 +10,7 @@
 
 #include <sys/mman.h>
 
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 #include "hw/pc.h"
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"

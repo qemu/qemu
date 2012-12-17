@@ -24,7 +24,7 @@
  * sgabios code originally available at code.google.com/p/sgabios
  *
  */
-#include "pci.h"
+#include "pci/pci.h"
 #include "pc.h"
 #include "loader.h"
 #include "sysemu.h"

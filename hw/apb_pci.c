@@ -27,10 +27,10 @@
    the secondary PCI bridge.  */
 
 #include "sysbus.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "pci_bridge.h"
-#include "pci_internals.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "pci/pci_bridge.h"
+#include "pci/pci_bus.h"
 #include "apb_pci.h"
 #include "sysemu.h"
 #include "exec-memory.h"

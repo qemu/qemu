@@ -26,7 +26,7 @@
 #include "qemu-config.h"
 #include "sysemu.h"
 #include "hw/hw.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 #include "gdbstub.h"
 #include "kvm.h"
 #include "bswap.h"
@@ -991,8 +991,6 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
         }
     }
     clear_gsi(s, virq);
-
-    kvm_irqchip_commit_routes(s);
 }
 
 static unsigned int kvm_hash_msi(uint32_t data)

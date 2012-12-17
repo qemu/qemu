@@ -20,7 +20,7 @@
 #include "apic_internal.h"
 #include "apic.h"
 #include "ioapic.h"
-#include "msi.h"
+#include "pci/msi.h"
 #include "host-utils.h"
 #include "trace.h"
 #include "pc.h"

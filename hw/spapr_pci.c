@@ -23,17 +23,17 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "pci.h"
-#include "msi.h"
-#include "msix.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/msi.h"
+#include "pci/msix.h"
+#include "pci/pci_host.h"
 #include "hw/spapr.h"
 #include "hw/spapr_pci.h"
 #include "exec-memory.h"
 #include <libfdt.h>
 #include "trace.h"
 
-#include "hw/pci_internals.h"
+#include "hw/pci/pci_bus.h"
 
 /* Copied from the kernel arch/powerpc/platforms/pseries/msi.c */
 #define RTAS_QUERY_FN           0

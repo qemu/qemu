@@ -34,8 +34,8 @@
 #include "monitor.h"
 #include "range.h"
 #include "sysemu.h"
-#include "hw/pci.h"
-#include "hw/msi.h"
+#include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "kvm_i386.h"
 
 #define MSIX_PAGE_SIZE 0x1000

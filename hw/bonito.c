@@ -40,10 +40,10 @@
 #include <assert.h>
 
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "pc.h"
 #include "mips.h"
-#include "pci_host.h"
+#include "pci/pci_host.h"
 #include "sysemu.h"
 #include "exec-memory.h"
 

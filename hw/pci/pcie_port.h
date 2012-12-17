@@ -21,8 +21,8 @@
 #ifndef QEMU_PCIE_PORT_H
 #define QEMU_PCIE_PORT_H
 
-#include "pci_bridge.h"
-#include "pci_internals.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pci_bus.h"
 
 struct PCIEPort {
     PCIBridge   br;

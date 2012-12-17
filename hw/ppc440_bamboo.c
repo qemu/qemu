@@ -15,7 +15,7 @@
 #include "qemu-common.h"
 #include "net.h"
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "boards.h"
 #include "kvm.h"
 #include "kvm_ppc.h"

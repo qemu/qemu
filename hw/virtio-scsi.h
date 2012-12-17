@@ -16,7 +16,7 @@
 
 #include "virtio.h"
 #include "net.h"
-#include "pci.h"
+#include "pci/pci.h"
 
 /* The ID for virtio_scsi */
 #define VIRTIO_ID_SCSI  8

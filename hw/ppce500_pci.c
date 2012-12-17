@@ -16,8 +16,8 @@
 
 #include "hw.h"
 #include "hw/ppc/e500-ccsr.h"
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
 #include "bswap.h"
 #include "ppce500_pci.h"
 

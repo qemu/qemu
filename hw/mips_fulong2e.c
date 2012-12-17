@@ -29,7 +29,7 @@
 #include "flash.h"
 #include "mips.h"
 #include "mips_cpudevs.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "audio/audio.h"

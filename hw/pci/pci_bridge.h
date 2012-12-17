@@ -26,7 +26,7 @@
 #ifndef QEMU_PCI_BRIDGE_H
 #define QEMU_PCI_BRIDGE_H
 
-#include "pci.h"
+#include "hw/pci/pci.h"
 
 int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
                           uint16_t svid, uint16_t ssid);

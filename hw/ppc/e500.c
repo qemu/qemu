@@ -21,7 +21,7 @@
 #include "net.h"
 #include "hw/hw.h"
 #include "hw/serial.h"
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 #include "hw/boards.h"
 #include "sysemu.h"
 #include "kvm.h"

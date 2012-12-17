@@ -14,10 +14,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-#include "hw.h"
-#include "msi.h"
-#include "msix.h"
-#include "pci.h"
+#include "hw/hw.h"
+#include "hw/pci/msi.h"
+#include "hw/pci/msix.h"
+#include "hw/pci/pci.h"
 #include "range.h"
 
 #define MSIX_CAP_LENGTH 12

@@ -36,7 +36,7 @@
 #include "arch_init.h"
 #include "audio/audio.h"
 #include "hw/pc.h"
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 #include "hw/audiodev.h"
 #include "kvm.h"
 #include "migration.h"

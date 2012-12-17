@@ -20,7 +20,7 @@
 #include "hw.h"
 #include "audiodev.h"
 #include "audio/audio.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "dma.h"
 
 enum {

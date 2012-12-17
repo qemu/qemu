@@ -22,7 +22,7 @@
 #define QEMU_MSI_H
 
 #include "qemu-common.h"
-#include "pci.h"
+#include "hw/pci/pci.h"
 
 struct MSIMessage {
     uint64_t address;

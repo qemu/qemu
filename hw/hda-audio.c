@@ -18,7 +18,7 @@
  */
 
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "intel-hda.h"
 #include "intel-hda-defs.h"
 #include "audio/audio.h"
