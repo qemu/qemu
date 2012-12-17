@@ -11,8 +11,8 @@
 #include "exec/ioport.h"
 #include "irq.h"
 #include "block/aio.h"
-#include "qemu-file.h"
-#include "vmstate.h"
+#include "migration/qemu-file.h"
+#include "migration/vmstate.h"
 #include "qemu-log.h"
 
 #ifdef NEED_CPU_H

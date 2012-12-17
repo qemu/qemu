@@ -17,7 +17,7 @@
 #include "monitor/monitor.h"
 #include "qemu-timer.h"
 #include "qemu-log.h"
-#include "migration.h"
+#include "migration/migration.h"
 #include "main-loop.h"
 #include "sysemu.h"
 #include "qemu_socket.h"

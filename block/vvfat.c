@@ -27,7 +27,7 @@
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "module.h"
-#include "migration.h"
+#include "migration/migration.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0

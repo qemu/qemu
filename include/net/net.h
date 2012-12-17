@@ -6,7 +6,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qemu-option.h"
 #include "net/queue.h"
-#include "vmstate.h"
+#include "migration/vmstate.h"
 #include "qapi-types.h"
 
 struct MACAddr {

@@ -26,7 +26,7 @@
 #include "module.h"
 #include <zlib.h>
 #include "block/aes.h"
-#include "migration.h"
+#include "migration/migration.h"
 
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */

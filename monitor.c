@@ -44,7 +44,7 @@
 #include "disas/disas.h"
 #include "balloon.h"
 #include "qemu-timer.h"
-#include "migration.h"
+#include "migration/migration.h"
 #include "kvm.h"
 #include "acl.h"
 #include "qapi/qmp/qint.h"

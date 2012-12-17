@@ -3,7 +3,7 @@
 
 #include "qemu-common.h"
 #include "exec/memory.h"
-#include "vmstate.h"
+#include "migration/vmstate.h"
 
 struct SHPCDevice {
     /* Capability offset in device's config space */

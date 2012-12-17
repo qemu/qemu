@@ -18,7 +18,7 @@
 #include "qemu-common.h"
 #include "notify.h"
 #include "qapi/error.h"
-#include "vmstate.h"
+#include "migration/vmstate.h"
 #include "qapi-types.h"
 
 struct MigrationParams {

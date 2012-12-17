@@ -15,7 +15,7 @@
 #define QEMU_BUFFERED_FILE_H
 
 #include "hw/hw.h"
-#include "migration.h"
+#include "migration/migration.h"
 
 QEMUFile *qemu_fopen_ops_buffered(MigrationState *migration_state);
 

@@ -77,7 +77,7 @@
 #include "sysemu.h"
 #include "qemu-timer.h"
 #include "audio/audio.h"
-#include "migration.h"
+#include "migration/migration.h"
 #include "qemu_socket.h"
 #include "qemu-queue.h"
 #include "qemu-timer.h"

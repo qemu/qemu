@@ -18,8 +18,8 @@
 #include "hw/hw.h"
 #include "qemu-queue.h"
 #include "qemu-timer.h"
-#include "block-migration.h"
-#include "migration.h"
+#include "migration/block.h"
+#include "migration/migration.h"
 #include "blockdev.h"
 #include <assert.h>
 
