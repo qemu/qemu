@@ -8,7 +8,7 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/sockets.h"
 #include "monitor/monitor.h"
 #include "hw/ccid.h"

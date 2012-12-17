@@ -35,7 +35,7 @@
 #include <sys/signal.h>
 
 #include "hw.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/log.h"
 #include "xen_backend.h"
 

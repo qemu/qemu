@@ -13,7 +13,7 @@
 
 #include "sysemu/qtest.h"
 #include "hw/qdev.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
 #include "hw/irq.h"

@@ -8,7 +8,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
+#include "char/char.h"
 
 typedef struct {
     SysBusDevice busdev;

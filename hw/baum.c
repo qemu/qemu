@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/timer.h"
 #include "usb.h"
 #include "baum.h"

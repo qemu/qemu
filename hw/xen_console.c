@@ -30,7 +30,7 @@
 #include <sys/mman.h>
 
 #include "hw.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "xen_backend.h"
 
 #include <xen/io/console.h>

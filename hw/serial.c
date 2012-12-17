@@ -24,7 +24,7 @@
  */
 
 #include "serial.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 

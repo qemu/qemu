@@ -36,7 +36,7 @@
 #include "sysbus.h"
 #include "flash.h"
 #include "sysemu/blockdev.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "xtensa_bootparam.h"
 
 typedef struct LxBoardDesc {

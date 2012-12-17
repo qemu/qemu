@@ -12,7 +12,7 @@
 
 #include "qemu-common.h"
 #include "qemu/event_notifier.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/main-loop.h"
 
 #ifdef CONFIG_EVENTFD

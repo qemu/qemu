@@ -10,7 +10,7 @@
  * the COPYING file in the top-level directory.
  */
 
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "virtio-serial.h"

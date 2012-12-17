@@ -13,7 +13,7 @@
 #include "serial.h"
 #include "i2c.h"
 #include "ssi.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "sysemu/blockdev.h"
 
 static struct {

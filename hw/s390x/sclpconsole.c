@@ -17,7 +17,7 @@
 
 #include "sclp.h"
 #include "event-facility.h"
-#include "qemu-char.h"
+#include "char/char.h"
 
 typedef struct ASCIIConsoleData {
     EventBufferHeader ebh;

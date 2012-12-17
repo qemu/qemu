@@ -25,7 +25,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/checksum.h"

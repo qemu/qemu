@@ -37,7 +37,7 @@
 
 #include "hw.h"
 #include "ui/console.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "xen_backend.h"
 
 #include <xen/event_channel.h>

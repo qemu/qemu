@@ -23,7 +23,7 @@
  */
 #include <stdlib.h>
 #include "qemu-common.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "ui/console.h"
 #include "msmouse.h"
 

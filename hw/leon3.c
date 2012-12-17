@@ -24,7 +24,7 @@
 #include "hw.h"
 #include "qemu/timer.h"
 #include "ptimer.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"

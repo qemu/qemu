@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "bt-host.h"
+#include "bt/bt.h"
 #include "bt.h"
 
 /* Slave implementations can ignore this */

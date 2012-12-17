@@ -15,7 +15,7 @@
 
 #include "hmp.h"
 #include "net/net.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qmp-commands.h"

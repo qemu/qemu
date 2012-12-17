@@ -30,7 +30,7 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pci/pci.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "sysemu/sysemu.h"
 #include "audio/audio.h"
 #include "qemu/log.h"

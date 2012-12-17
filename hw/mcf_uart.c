@@ -7,7 +7,7 @@
  */
 #include "hw.h"
 #include "mcf.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "exec/address-spaces.h"
 
 typedef struct {

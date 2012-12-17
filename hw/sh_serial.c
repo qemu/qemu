@@ -26,7 +26,7 @@
  */
 #include "hw.h"
 #include "sh.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "exec/address-spaces.h"
 
 //#define DEBUG_SERIAL

@@ -11,7 +11,7 @@
  */
 
 #include "qemu/rng.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/qdev.h" /* just for DEFINE_PROP_CHR */
 
