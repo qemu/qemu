@@ -508,8 +508,6 @@ static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
         }
         return ret;
     }
-
-    virtio_queue_set_guest_notifier_fd_handler(vq, true, true);
     return 0;
 }
 
@@ -528,8 +526,6 @@ static void kvm_virtio_pci_vq_vector_release(VirtIOPCIProxy *proxy,
     if (--irqfd->users == 0) {
         kvm_irqchip_release_virq(kvm_state, irqfd->virq);
     }
-
-    virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
 }
 
 static int kvm_virtio_pci_vector_use(PCIDevice *dev, unsigned vector,
@@ -580,7 +576,36 @@ static void kvm_virtio_pci_vector_release(PCIDevice *dev, unsigned vector)
     }
 }
 
-static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign)
+static void kvm_virtio_pci_vector_poll(PCIDevice *dev,
+                                       unsigned int vector_start,
+                                       unsigned int vector_end)
+{
+    VirtIOPCIProxy *proxy = container_of(dev, VirtIOPCIProxy, pci_dev);
+    VirtIODevice *vdev = proxy->vdev;
+    int queue_no;
+    unsigned int vector;
+    EventNotifier *notifier;
+    VirtQueue *vq;
+
+    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+        if (!virtio_queue_get_num(vdev, queue_no)) {
+            break;
+        }
+        vector = virtio_queue_vector(vdev, queue_no);
+        if (vector < vector_start || vector >= vector_end ||
+            !msix_is_masked(dev, vector)) {
+            continue;
+        }
+        vq = virtio_get_queue(vdev, queue_no);
+        notifier = virtio_queue_get_guest_notifier(vq);
+        if (event_notifier_test_and_clear(notifier)) {
+            msix_set_pending(dev, vector);
+        }
+    }
+}
+
+static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign,
+                                         bool with_irqfd)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtQueue *vq = virtio_get_queue(proxy->vdev, n);
@@ -591,9 +616,9 @@ static int virtio_pci_set_guest_notifier(DeviceState *d, int n, bool assign)
         if (r < 0) {
             return r;
         }
-        virtio_queue_set_guest_notifier_fd_handler(vq, true, false);
+        virtio_queue_set_guest_notifier_fd_handler(vq, true, with_irqfd);
     } else {
-        virtio_queue_set_guest_notifier_fd_handler(vq, false, false);
+        virtio_queue_set_guest_notifier_fd_handler(vq, false, with_irqfd);
         event_notifier_cleanup(notifier);
     }
 
@@ -611,9 +636,11 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, bool assign)
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = proxy->vdev;
     int r, n;
+    bool with_irqfd = msix_enabled(&proxy->pci_dev) &&
+        kvm_msi_via_irqfd_enabled();
 
     /* Must unset vector notifier while guest notifier is still assigned */
-    if (kvm_msi_via_irqfd_enabled() && !assign) {
+    if (proxy->vector_irqfd && !assign) {
         msix_unset_vector_notifiers(&proxy->pci_dev);
         g_free(proxy->vector_irqfd);
         proxy->vector_irqfd = NULL;
@@ -624,21 +651,22 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, bool assign)
             break;
         }
 
-        r = virtio_pci_set_guest_notifier(d, n, assign);
+        r = virtio_pci_set_guest_notifier(d, n, assign,
+                                          kvm_msi_via_irqfd_enabled());
         if (r < 0) {
             goto assign_error;
         }
     }
 
     /* Must set vector notifier after guest notifier has been assigned */
-    if (kvm_msi_via_irqfd_enabled() && assign) {
+    if (with_irqfd && assign) {
         proxy->vector_irqfd =
             g_malloc0(sizeof(*proxy->vector_irqfd) *
                       msix_nr_vectors_allocated(&proxy->pci_dev));
         r = msix_set_vector_notifiers(&proxy->pci_dev,
                                       kvm_virtio_pci_vector_use,
                                       kvm_virtio_pci_vector_release,
-                                      NULL);
+                                      kvm_virtio_pci_vector_poll);
         if (r < 0) {
             goto assign_error;
         }
@@ -650,7 +678,7 @@ assign_error:
     /* We get here on assignment failure. Recover by undoing for VQs 0 .. n. */
     assert(assign);
     while (--n >= 0) {
-        virtio_pci_set_guest_notifier(d, n, !assign);
+        virtio_pci_set_guest_notifier(d, n, !assign, with_irqfd);
     }
     return r;
 }
