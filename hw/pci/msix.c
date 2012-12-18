@@ -65,7 +65,7 @@ static int msix_is_pending(PCIDevice *dev, int vector)
     return *msix_pending_byte(dev, vector) & msix_pending_mask(vector);
 }
 
-static void msix_set_pending(PCIDevice *dev, int vector)
+void msix_set_pending(PCIDevice *dev, unsigned int vector)
 {
     *msix_pending_byte(dev, vector) |= msix_pending_mask(vector);
 }
@@ -75,13 +75,13 @@ static void msix_clr_pending(PCIDevice *dev, int vector)
     *msix_pending_byte(dev, vector) &= ~msix_pending_mask(vector);
 }
 
-static bool msix_vector_masked(PCIDevice *dev, int vector, bool fmask)
+static bool msix_vector_masked(PCIDevice *dev, unsigned int vector, bool fmask)
 {
     unsigned offset = vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
     return fmask || dev->msix_table[offset] & PCI_MSIX_ENTRY_CTRL_MASKBIT;
 }
 
-static bool msix_is_masked(PCIDevice *dev, int vector)
+bool msix_is_masked(PCIDevice *dev, unsigned int vector)
 {
     return msix_vector_masked(dev, vector, dev->msix_function_masked);
 }
