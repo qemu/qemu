@@ -321,7 +321,7 @@ static int xen_pt_msix_update_one(XenPCIPassthroughState *s, int entry_nr)
 
     pirq = entry->pirq;
 
-    rc = msi_msix_setup(s, entry->data, entry->data, &pirq, true, entry_nr,
+    rc = msi_msix_setup(s, entry->addr, entry->data, &pirq, true, entry_nr,
                         entry->pirq == XEN_PT_UNASSIGNED_PIRQ);
     if (rc) {
         return rc;
