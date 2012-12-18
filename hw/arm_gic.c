@@ -76,7 +76,7 @@ void gic_update(GICState *s)
         if (best_prio < s->priority_mask[cpu]) {
             s->current_pending[cpu] = best_irq;
             if (best_prio < s->running_priority[cpu]) {
-                DPRINTF("Raised pending IRQ %d\n", best_irq);
+                DPRINTF("Raised pending IRQ %d (cpu %d)\n", best_irq, cpu);
                 level = 1;
             }
         }

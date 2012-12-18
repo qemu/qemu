@@ -46,15 +46,15 @@
 
 #define PFLASH_BUG(fmt, ...) \
 do { \
-    printf("PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
+    fprintf(stderr, "PFLASH: Possible BUG - " fmt, ## __VA_ARGS__); \
     exit(1); \
 } while(0)
 
 /* #define PFLASH_DEBUG */
 #ifdef PFLASH_DEBUG
-#define DPRINTF(fmt, ...)                          \
-do {                                               \
-    printf("PFLASH: " fmt , ## __VA_ARGS__);       \
+#define DPRINTF(fmt, ...)                                   \
+do {                                                        \
+    fprintf(stderr, "PFLASH: " fmt , ## __VA_ARGS__);       \
 } while (0)
 #else
 #define DPRINTF(fmt, ...) do { } while (0)
@@ -438,9 +438,9 @@ static void pflash_write(pflash_t *pfl, hwaddr offset,
     return;
 
  error_flash:
-    printf("%s: Unimplemented flash cmd sequence "
-           "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)\n",
-           __func__, offset, pfl->wcycle, pfl->cmd, value);
+    qemu_log_mask(LOG_UNIMP, "%s: Unimplemented flash cmd sequence "
+                  "(offset " TARGET_FMT_plx ", wcycle 0x%x cmd 0x%x value 0x%x)"
+                  "\n", __func__, offset, pfl->wcycle, pfl->cmd, value);
 
  reset_flash:
     memory_region_rom_device_set_readable(&pfl->mem, true);

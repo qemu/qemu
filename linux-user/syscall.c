@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <limits.h>
+#include <grp.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
@@ -584,7 +585,6 @@ extern int personality(int);
 extern int flock(int, int);
 extern int setfsuid(int);
 extern int setfsgid(int);
-extern int setgroups(int, gid_t *);
 
 /* ARM EABI and MIPS expect 64bit types aligned even on pairs or registers */
 #ifdef TARGET_ARM
