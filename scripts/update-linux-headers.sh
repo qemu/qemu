@@ -54,6 +54,9 @@ for arch in $ARCHLIST; do
     if [ $arch = x86 ]; then
         cp "$tmpdir/include/asm/hyperv.h" "$output/linux-headers/asm-x86"
     fi
+    if [ $arch = powerpc ]; then
+        cp "$tmpdir/include/asm/epapr_hcalls.h" "$output/linux-headers/asm-powerpc/"
+    fi
 done
 
 rm -rf "$output/linux-headers/linux"
