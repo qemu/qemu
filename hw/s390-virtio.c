@@ -25,7 +25,6 @@
 #include "boards.h"
 #include "monitor/monitor.h"
 #include "loader.h"
-#include "elf.h"
 #include "hw/virtio.h"
 #include "hw/sysbus.h"
 #include "sysemu/kvm.h"
@@ -47,17 +46,6 @@
 #define KVM_S390_VIRTIO_NOTIFY          0
 #define KVM_S390_VIRTIO_RESET           1
 #define KVM_S390_VIRTIO_SET_STATUS      2
-
-#define KERN_IMAGE_START                0x010000UL
-#define KERN_PARM_AREA                  0x010480UL
-#define INITRD_START                    0x800000UL
-#define INITRD_PARM_START               0x010408UL
-#define INITRD_PARM_SIZE                0x010410UL
-#define PARMFILE_START                  0x001000UL
-
-#define ZIPL_START			0x009000UL
-#define ZIPL_LOAD_ADDR			0x009000UL
-#define ZIPL_FILENAME			"s390-zipl.rom"
 
 #define MAX_BLK_DEVS                    10
 
@@ -156,15 +144,10 @@ static void s390_init(QEMUMachineInitArgs *args)
 {
     ram_addr_t my_ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
-    const char *kernel_filename = args->kernel_filename;
-    const char *kernel_cmdline = args->kernel_cmdline;
-    const char *initrd_filename = args->initrd_filename;
     CPUS390XState *env = NULL;
+    DeviceState *dev;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    ram_addr_t kernel_size = 0;
-    ram_addr_t initrd_offset;
-    ram_addr_t initrd_size = 0;
     int shift = 0;
     uint8_t *storage_keys;
     void *virtio_region;
@@ -185,6 +168,15 @@ static void s390_init(QEMUMachineInitArgs *args)
     /* get a BUS */
     s390_bus = s390_virtio_bus_init(&my_ram_size);
     s390_sclp_init();
+    dev  = qdev_create(NULL, "s390-ipl");
+    if (args->kernel_filename) {
+        qdev_prop_set_string(dev, "kernel", args->kernel_filename);
+    }
+    if (args->initrd_filename) {
+        qdev_prop_set_string(dev, "initrd", args->initrd_filename);
+    }
+    qdev_prop_set_string(dev, "cmdline", args->kernel_cmdline);
+    qdev_init_nofail(dev);
 
     /* allocate RAM */
     memory_region_init_ram(ram, "s390.ram", my_ram_size);
@@ -225,76 +217,6 @@ static void s390_init(QEMUMachineInitArgs *args)
         tmp_env->storage_keys = storage_keys;
     }
 
-    /* One CPU has to run */
-    s390_add_running_cpu(env);
-
-    if (kernel_filename) {
-
-        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL, NULL,
-                               NULL, 1, ELF_MACHINE, 0);
-        if (kernel_size == -1UL) {
-            kernel_size = load_image_targphys(kernel_filename, 0, ram_size);
-        }
-        if (kernel_size == -1UL) {
-            fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                    kernel_filename);
-            exit(1);
-        }
-        /*
-         * we can not rely on the ELF entry point, since up to 3.2 this
-         * value was 0x800 (the SALIPL loader) and it wont work. For
-         * all (Linux) cases 0x10000 (KERN_IMAGE_START) should be fine.
-         */
-        env->psw.addr = KERN_IMAGE_START;
-        env->psw.mask = 0x0000000180000000ULL;
-    } else {
-        ram_addr_t bios_size = 0;
-        char *bios_filename;
-
-        /* Load zipl bootloader */
-        if (bios_name == NULL) {
-            bios_name = ZIPL_FILENAME;
-        }
-
-        bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        bios_size = load_image_targphys(bios_filename, ZIPL_LOAD_ADDR, 4096);
-        g_free(bios_filename);
-
-        if ((long)bios_size < 0) {
-            hw_error("could not load bootloader '%s'\n", bios_name);
-        }
-
-        if (bios_size > 4096) {
-            hw_error("stage1 bootloader is > 4k\n");
-        }
-
-        env->psw.addr = ZIPL_START;
-        env->psw.mask = 0x0000000180000000ULL;
-    }
-
-    if (initrd_filename) {
-        initrd_offset = INITRD_START;
-        while (kernel_size + 0x100000 > initrd_offset) {
-            initrd_offset += 0x100000;
-        }
-        initrd_size = load_image_targphys(initrd_filename, initrd_offset,
-                                          ram_size - initrd_offset);
-        if (initrd_size == -1UL) {
-            fprintf(stderr, "qemu: could not load initrd '%s'\n",
-                    initrd_filename);
-            exit(1);
-        }
-
-        /* we have to overwrite values in the kernel image, which are "rom" */
-        stq_p(rom_ptr(INITRD_PARM_START), initrd_offset);
-        stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
-    }
-
-    if (rom_ptr(KERN_PARM_AREA)) {
-        /* we have to overwrite values in the kernel image, which are "rom" */
-        memcpy(rom_ptr(KERN_PARM_AREA), kernel_cmdline,
-               strlen(kernel_cmdline) + 1);
-    }
 
     /* Create VirtIO network adapters */
     for(i = 0; i < nb_nics; i++) {
