@@ -109,12 +109,13 @@
 
 #define FRAME_TIMER_FREQ 1000
 #define FRAME_TIMER_NS   (1000000000 / FRAME_TIMER_FREQ)
+#define UFRAME_TIMER_NS  (FRAME_TIMER_NS / 8)
 
 #define NB_MAXINTRATE    8        // Max rate at which controller issues ints
 #define BUFF_SIZE        5*4096   // Max bytes to transfer per transaction
 #define MAX_QH           100      // Max allowable queue heads in a chain
-#define MIN_FR_PER_TICK  3        // Min frames to process when catching up
-#define PERIODIC_ACTIVE  64
+#define MIN_UFR_PER_TICK 24       /* Min frames to process when catching up */
+#define PERIODIC_ACTIVE  512      /* Micro-frames */
 
 /*  Internal periodic / asynchronous schedule state machine states
  */
@@ -955,7 +956,15 @@ static uint64_t ehci_opreg_read(void *ptr, hwaddr addr,
     EHCIState *s = ptr;
     uint32_t val;
 
-    val = s->opreg[addr >> 2];
+    switch (addr) {
+    case FRINDEX:
+        /* Round down to mult of 8, else it can go backwards on migration */
+        val = s->frindex & ~7;
+        break;
+    default:
+        val = s->opreg[addr >> 2];
+    }
+
     trace_usb_ehci_opreg_read(addr + s->opregbase, addr2str(addr), val);
     return val;
 }
@@ -1106,7 +1115,8 @@ static void ehci_opreg_write(void *ptr, hwaddr addr,
         break;
 
     case FRINDEX:
-        val &= 0x00003ff8; /* frindex is 14bits and always a multiple of 8 */
+        val &= 0x00003fff; /* frindex is 14bits */
+        s->usbsts_frindex = val;
         break;
 
     case CONFIGFLAG:
@@ -2219,16 +2229,16 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
     }
 }
 
-static void ehci_update_frindex(EHCIState *ehci, int frames)
+static void ehci_update_frindex(EHCIState *ehci, int uframes)
 {
     int i;
 
-    if (!ehci_enabled(ehci)) {
+    if (!ehci_enabled(ehci) && ehci->pstate == EST_INACTIVE) {
         return;
     }
 
-    for (i = 0; i < frames; i++) {
-        ehci->frindex += 8;
+    for (i = 0; i < uframes; i++) {
+        ehci->frindex++;
 
         if (ehci->frindex == 0x00002000) {
             ehci_raise_irq(ehci, USBSTS_FLR);
@@ -2252,33 +2262,33 @@ static void ehci_frame_timer(void *opaque)
     int need_timer = 0;
     int64_t expire_time, t_now;
     uint64_t ns_elapsed;
-    int frames, skipped_frames;
+    int uframes, skipped_uframes;
     int i;
 
     t_now = qemu_get_clock_ns(vm_clock);
     ns_elapsed = t_now - ehci->last_run_ns;
-    frames = ns_elapsed / FRAME_TIMER_NS;
+    uframes = ns_elapsed / UFRAME_TIMER_NS;
 
     if (ehci_periodic_enabled(ehci) || ehci->pstate != EST_INACTIVE) {
         need_timer++;
 
-        if (frames > ehci->maxframes) {
-            skipped_frames = frames - ehci->maxframes;
-            ehci_update_frindex(ehci, skipped_frames);
-            ehci->last_run_ns += FRAME_TIMER_NS * skipped_frames;
-            frames -= skipped_frames;
-            DPRINTF("WARNING - EHCI skipped %d frames\n", skipped_frames);
+        if (uframes > (ehci->maxframes * 8)) {
+            skipped_uframes = uframes - (ehci->maxframes * 8);
+            ehci_update_frindex(ehci, skipped_uframes);
+            ehci->last_run_ns += UFRAME_TIMER_NS * skipped_uframes;
+            uframes -= skipped_uframes;
+            DPRINTF("WARNING - EHCI skipped %d uframes\n", skipped_uframes);
         }
 
-        for (i = 0; i < frames; i++) {
+        for (i = 0; i < uframes; i++) {
             /*
              * If we're running behind schedule, we should not catch up
              * too fast, as that will make some guests unhappy:
-             * 1) We must process a minimum of MIN_FR_PER_TICK frames,
+             * 1) We must process a minimum of MIN_UFR_PER_TICK frames,
              *    otherwise we will never catch up
              * 2) Process frames until the guest has requested an irq (IOC)
              */
-            if (i >= MIN_FR_PER_TICK) {
+            if (i >= MIN_UFR_PER_TICK) {
                 ehci_commit_irq(ehci);
                 if ((ehci->usbsts & USBINTR_MASK) & ehci->usbintr) {
                     break;
@@ -2288,13 +2298,15 @@ static void ehci_frame_timer(void *opaque)
                 ehci->periodic_sched_active--;
             }
             ehci_update_frindex(ehci, 1);
-            ehci_advance_periodic_state(ehci);
-            ehci->last_run_ns += FRAME_TIMER_NS;
+            if ((ehci->frindex & 7) == 0) {
+                ehci_advance_periodic_state(ehci);
+            }
+            ehci->last_run_ns += UFRAME_TIMER_NS;
         }
     } else {
         ehci->periodic_sched_active = 0;
-        ehci_update_frindex(ehci, frames);
-        ehci->last_run_ns += FRAME_TIMER_NS * frames;
+        ehci_update_frindex(ehci, uframes);
+        ehci->last_run_ns += UFRAME_TIMER_NS * uframes;
     }
 
     if (ehci->periodic_sched_active) {
@@ -2373,6 +2385,17 @@ static USBBusOps ehci_bus_ops = {
     .wakeup_endpoint = ehci_wakeup_endpoint,
 };
 
+static void usb_ehci_pre_save(void *opaque)
+{
+    EHCIState *ehci = opaque;
+    uint32_t new_frindex;
+
+    /* Round down frindex to a multiple of 8 for migration compatibility */
+    new_frindex = ehci->frindex & ~7;
+    ehci->last_run_ns -= (ehci->frindex - new_frindex) * UFRAME_TIMER_NS;
+    ehci->frindex = new_frindex;
+}
+
 static int usb_ehci_post_load(void *opaque, int version_id)
 {
     EHCIState *s = opaque;
@@ -2423,6 +2446,7 @@ const VMStateDescription vmstate_ehci = {
     .name        = "ehci-core",
     .version_id  = 2,
     .minimum_version_id  = 1,
+    .pre_save    = usb_ehci_pre_save,
     .post_load   = usb_ehci_post_load,
     .fields      = (VMStateField[]) {
         /* mmio registers */
