@@ -23,7 +23,33 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
+#ifndef CONFIG_USER_ONLY
+#include "sysemu/arch_init.h"
+#endif
 
+/* generate CPU information for cpu -? */
+void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf)
+{
+#ifdef CONFIG_KVM
+    (*cpu_fprintf)(f, "s390 %16s\n", "host");
+#endif
+}
+
+#ifndef CONFIG_USER_ONLY
+CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+{
+    CpuDefinitionInfoList *entry;
+    CpuDefinitionInfo *info;
+
+    info = g_malloc0(sizeof(*info));
+    info->name = g_strdup("host");
+
+    entry = g_malloc0(sizeof(*entry));
+    entry->value = info;
+
+    return entry;
+}
+#endif
 
 /* CPUClass::reset() */
 static void s390_cpu_reset(CPUState *s)

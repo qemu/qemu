@@ -362,6 +362,9 @@ static inline void cpu_set_tls(CPUS390XState *env, target_ulong newtls)
 #define cpu_gen_code cpu_s390x_gen_code
 #define cpu_signal_handler cpu_s390x_signal_handler
 
+void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+#define cpu_list s390_cpu_list
+
 #include "exec/exec-all.h"
 
 #define EXCP_EXT 1 /* external interrupt */
