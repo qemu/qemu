@@ -113,11 +113,12 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
                qxl->guest_primary.bits_pp);
         if (qxl->guest_primary.qxl_stride > 0) {
             qemu_free_displaysurface(vga->ds);
-            qemu_create_displaysurface_from(qxl->guest_primary.surface.width,
-                                            qxl->guest_primary.surface.height,
-                                            qxl->guest_primary.bits_pp,
-                                            qxl->guest_primary.abs_stride,
-                                            qxl->guest_primary.data);
+            vga->ds->surface = qemu_create_displaysurface_from
+                (qxl->guest_primary.surface.width,
+                 qxl->guest_primary.surface.height,
+                 qxl->guest_primary.bits_pp,
+                 qxl->guest_primary.abs_stride,
+                 qxl->guest_primary.data);
         } else {
             qemu_resize_displaysurface(vga->ds,
                     qxl->guest_primary.surface.width,

@@ -535,6 +535,7 @@ spice_vmc_write(ssize_t out, int len) "spice wrottn %zd of requested %d"
 spice_vmc_read(int bytes, int len) "spice read %d of requested %d"
 spice_vmc_register_interface(void *scd) "spice vmc registered interface %p"
 spice_vmc_unregister_interface(void *scd) "spice vmc unregistered interface %p"
+spice_vmc_event(int event) "spice vmc event %d"
 
 # hw/lm32_pic.c
 lm32_pic_raise_irq(void) "Raise CPU interrupt"

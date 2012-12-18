@@ -714,6 +714,10 @@ void qemu_spice_init(void)
     g_free(x509_key_file);
     g_free(x509_cert_file);
     g_free(x509_cacert_file);
+
+#if SPICE_SERVER_VERSION >= 0x000c02
+    qemu_spice_register_ports();
+#endif
 }
 
 int qemu_spice_add_interface(SpiceBaseInstance *sin)
@@ -732,6 +736,8 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
          */
         spice_server = spice_server_new();
         spice_server_init(spice_server, &core_interface);
+        qemu_add_vm_change_state_handler(vm_change_state_handler,
+                                         &spice_server);
     }
 
     return spice_server_add_interface(spice_server, sin);
