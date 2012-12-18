@@ -494,7 +494,7 @@ uint16_t pcie_find_capability(PCIDevice *dev, uint16_t cap_id)
 
 static void pcie_ext_cap_set_next(PCIDevice *dev, uint16_t pos, uint16_t next)
 {
-    uint16_t header = pci_get_long(dev->config + pos);
+    uint32_t header = pci_get_long(dev->config + pos);
     assert(!(next & (PCI_EXT_CAP_ALIGN - 1)));
     header = (header & ~PCI_EXT_CAP_NEXT_MASK) |
         ((next << PCI_EXT_CAP_NEXT_SHIFT) & PCI_EXT_CAP_NEXT_MASK);
