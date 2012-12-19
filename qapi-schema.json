@@ -3032,6 +3032,22 @@
                                    'out' : 'str' } }
 
 ##
+# @ChardevPort:
+#
+# Configuration info for device chardevs.
+#
+# @device: The name of the special file for the device,
+#          i.e. /dev/ttyS0 on Unix or COM1: on Windows
+# @type: What kind of device this is.
+#
+# Since: 1.4
+##
+{ 'enum': 'ChardevPortKind', 'data': [ 'serial' ] }
+
+{ 'type': 'ChardevPort', 'data': { 'device' : 'str',
+                                   'type'   : 'ChardevPortKind'} }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3041,6 +3057,7 @@
 { 'type': 'ChardevDummy', 'data': { } }
 
 { 'union': 'ChardevBackend', 'data': { 'file' : 'ChardevFile',
+                                       'port' : 'ChardevPort',
                                        'null' : 'ChardevDummy' } }
 
 ##

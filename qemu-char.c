@@ -1230,21 +1230,27 @@ static void qemu_chr_close_tty(CharDriverState *chr)
     }
 }
 
+static CharDriverState *qemu_chr_open_tty_fd(int fd)
+{
+    CharDriverState *chr;
+
+    tty_serial_init(fd, 115200, 'N', 8, 1);
+    chr = qemu_chr_open_fd(fd, fd);
+    chr->chr_ioctl = tty_serial_ioctl;
+    chr->chr_close = qemu_chr_close_tty;
+    return chr;
+}
+
 static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
 {
     const char *filename = qemu_opt_get(opts, "path");
-    CharDriverState *chr;
     int fd;
 
     TFR(fd = qemu_open(filename, O_RDWR | O_NONBLOCK));
     if (fd < 0) {
         return NULL;
     }
-    tty_serial_init(fd, 115200, 'N', 8, 1);
-    chr = qemu_chr_open_fd(fd, fd);
-    chr->chr_ioctl = tty_serial_ioctl;
-    chr->chr_close = qemu_chr_close_tty;
-    return chr;
+    return qemu_chr_open_tty_fd(fd);
 }
 #endif /* __linux__ || __sun__ */
 
@@ -1666,9 +1672,8 @@ static int win_chr_poll(void *opaque)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_win(QemuOpts *opts)
+static CharDriverState *qemu_chr_open_win_path(const char *filename)
 {
-    const char *filename = qemu_opt_get(opts, "path");
     CharDriverState *chr;
     WinCharState *s;
 
@@ -1685,6 +1690,11 @@ static CharDriverState *qemu_chr_open_win(QemuOpts *opts)
     }
     qemu_chr_generic_open(chr);
     return chr;
+}
+
+static CharDriverState *qemu_chr_open_win(QemuOpts *opts)
+{
+    return qemu_chr_open_win_path(qemu_opt_get(opts, "path"));
 }
 
 static int win_chr_pipe_poll(void *opaque)
@@ -2765,6 +2775,7 @@ static const struct {
 #endif
 #ifdef HAVE_CHARDEV_TTY
     { .name = "tty",       .open = qemu_chr_open_tty },
+    { .name = "serial",    .open = qemu_chr_open_tty },
     { .name = "pty",       .open = qemu_chr_open_pty },
 #endif
 #ifdef HAVE_CHARDEV_PARPORT
@@ -3031,6 +3042,17 @@ static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
     return qemu_chr_open_win_file(out);
 }
 
+static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
+{
+    switch (port->type) {
+    case CHARDEV_PORT_KIND_SERIAL:
+        return qemu_chr_open_win_path(port->device);
+    default:
+        error_setg(errp, "unknown chardev port (%d)", port->type);
+        return NULL;
+    }
+}
+
 #else /* WIN32 */
 
 static int qmp_chardev_open_file_source(char *src, int flags,
@@ -3067,6 +3089,27 @@ static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
     return qemu_chr_open_fd(in, out);
 }
 
+static CharDriverState *qmp_chardev_open_port(ChardevPort *port, Error **errp)
+{
+    int flags, fd;
+
+    switch (port->type) {
+#ifdef HAVE_CHARDEV_TTY
+    case CHARDEV_PORT_KIND_SERIAL:
+        flags = O_RDWR;
+        fd = qmp_chardev_open_file_source(port->device, flags, errp);
+        if (error_is_set(errp)) {
+            return NULL;
+        }
+        socket_set_nonblock(fd);
+        return qemu_chr_open_tty_fd(fd);
+#endif
+    default:
+        error_setg(errp, "unknown chardev port (%d)", port->type);
+        return NULL;
+    }
+}
+
 #endif /* WIN32 */
 
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
@@ -3085,6 +3128,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     switch (backend->kind) {
     case CHARDEV_BACKEND_KIND_FILE:
         chr = qmp_chardev_open_file(backend->file, errp);
+        break;
+    case CHARDEV_BACKEND_KIND_PORT:
+        chr = qmp_chardev_open_port(backend->port, errp);
         break;
     case CHARDEV_BACKEND_KIND_NULL:
         chr = qemu_chr_open_null(NULL);
