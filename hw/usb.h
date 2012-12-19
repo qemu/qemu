@@ -553,5 +553,15 @@ const USBDesc *usb_device_get_usb_desc(USBDevice *dev);
 
 int ehci_create_ich9_with_companions(PCIBus *bus, int slot);
 
-#endif
+/* quirks.c */
 
+/* In bulk endpoints are streaming data sources (iow behave like isoc eps) */
+#define USB_QUIRK_BUFFER_BULK_IN	0x01
+/* Bulk pkts in FTDI format, need special handling when combining packets */
+#define USB_QUIRK_IS_FTDI		0x02
+
+int usb_get_quirks(uint16_t vendor_id, uint16_t product_id,
+                   uint8_t interface_class, uint8_t interface_subclass,
+                   uint8_t interface_protocol);
+
+#endif
