@@ -2672,11 +2672,17 @@ Arguments:
 - "id": the chardev's ID, must be unique (json-string)
 - "backend": chardev backend type + parameters
 
-Example:
+Examples:
 
 -> { "execute" : "chardev-add",
      "arguments" : { "id" : "foo",
                      "backend" : { "type" : "null", "data" : {} } } }
+<- { "return": {} }
+
+-> { "execute" : "chardev-add",
+     "arguments" : { "id" : "bar",
+                     "backend" : { "type" : "file",
+                                   "data" : { "out" : "/tmp/bar.log" } } } }
 <- { "return": {} }
 
 EQMP

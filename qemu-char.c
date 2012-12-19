@@ -3011,6 +3011,64 @@ QemuOptsList qemu_chardev_opts = {
     },
 };
 
+#ifdef _WIN32
+
+static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
+{
+    HANDLE out;
+
+    if (file->in) {
+        error_setg(errp, "input file not supported");
+        return NULL;
+    }
+
+    out = CreateFile(file->out, GENERIC_WRITE, FILE_SHARE_READ, NULL,
+                     OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (out == INVALID_HANDLE_VALUE) {
+        error_setg(errp, "open %s failed", file->out);
+        return NULL;
+    }
+    return qemu_chr_open_win_file(out);
+}
+
+#else /* WIN32 */
+
+static int qmp_chardev_open_file_source(char *src, int flags,
+                                        Error **errp)
+{
+    int fd = -1;
+
+    TFR(fd = qemu_open(src, flags, 0666));
+    if (fd == -1) {
+        error_setg(errp, "open %s: %s", src, strerror(errno));
+    }
+    return fd;
+}
+
+static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
+{
+    int flags, in = -1, out = -1;
+
+    flags = O_WRONLY | O_TRUNC | O_CREAT | O_BINARY;
+    out = qmp_chardev_open_file_source(file->out, flags, errp);
+    if (error_is_set(errp)) {
+        return NULL;
+    }
+
+    if (file->in) {
+        flags = O_RDONLY;
+        in = qmp_chardev_open_file_source(file->in, flags, errp);
+        if (error_is_set(errp)) {
+            qemu_close(out);
+            return NULL;
+        }
+    }
+
+    return qemu_chr_open_fd(in, out);
+}
+
+#endif /* WIN32 */
+
 ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
                                Error **errp)
 {
@@ -3025,6 +3083,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
 
     switch (backend->kind) {
+    case CHARDEV_BACKEND_KIND_FILE:
+        chr = qmp_chardev_open_file(backend->file, errp);
+        break;
     case CHARDEV_BACKEND_KIND_NULL:
         chr = qemu_chr_open_null(NULL);
         break;
