@@ -1336,3 +1336,26 @@ void hmp_nbd_server_stop(Monitor *mon, const QDict *qdict)
     qmp_nbd_server_stop(&errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_chardev_add(Monitor *mon, const QDict *qdict)
+{
+    const char *args = qdict_get_str(qdict, "args");
+    Error *err = NULL;
+    QemuOpts *opts;
+
+    opts = qemu_opts_parse(qemu_find_opts("chardev"), args, 1);
+    if (opts == NULL) {
+        error_setg(&err, "Parsing chardev args failed\n");
+    } else {
+        qemu_chr_new_from_opts(opts, NULL, &err);
+    }
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_chardev_remove(Monitor *mon, const QDict *qdict)
+{
+    Error *local_err = NULL;
+
+    qmp_chardev_remove(qdict_get_str(qdict, "id"), &local_err);
+    hmp_handle_error(mon, &local_err);
+}
