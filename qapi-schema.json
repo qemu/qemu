@@ -3017,3 +3017,52 @@
 # Since: 1.3.0
 ##
 { 'command': 'nbd-server-stop' }
+
+##
+# @ChardevBackend:
+#
+# Configuration info for the new chardev backend.
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevDummy', 'data': { } }
+
+{ 'union': 'ChardevBackend', 'data': { 'null' : 'ChardevDummy' } }
+
+##
+# @ChardevReturn:
+#
+# Return info about the chardev backend just created.
+#
+# Since: 1.4
+##
+{ 'type' : 'ChardevReturn', 'data': { } }
+
+##
+# @chardev-add:
+#
+# Add a file chardev
+#
+# @id: the chardev's ID, must be unique
+# @backend: backend type and parameters
+#
+# Returns: chardev info.
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-add', 'data': {'id'      : 'str',
+                                     'backend' : 'ChardevBackend' },
+  'returns': 'ChardevReturn' }
+
+##
+# @chardev-remove:
+#
+# Remove a chardev
+#
+# @id: the chardev's ID, must exist and not be in use
+#
+# Returns: Nothing on success
+#
+# Since: 1.4
+##
+{ 'command': 'chardev-remove', 'data': {'id': 'str'} }
