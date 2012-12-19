@@ -856,6 +856,8 @@ static void cfmakeraw (struct termios *termios_p)
     || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
     || defined(__GLIBC__)
 
+#define HAVE_CHARDEV_TTY 1
+
 typedef struct {
     int fd;
     int connected;
@@ -1244,14 +1246,12 @@ static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
     chr->chr_close = qemu_chr_close_tty;
     return chr;
 }
-#else  /* ! __linux__ && ! __sun__ */
-static CharDriverState *qemu_chr_open_pty(QemuOpts *opts)
-{
-    return NULL;
-}
 #endif /* __linux__ || __sun__ */
 
 #if defined(__linux__)
+
+#define HAVE_CHARDEV_PARPORT 1
+
 typedef struct {
     int fd;
     int mode;
@@ -1395,6 +1395,9 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
 #endif /* __linux__ */
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
+
+#define HAVE_CHARDEV_PARPORT 1
+
 static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
 {
     int fd = (int)(intptr_t)chr->opaque;
@@ -2755,19 +2758,16 @@ static const struct {
 #else
     { .name = "file",      .open = qemu_chr_open_file_out },
     { .name = "pipe",      .open = qemu_chr_open_pipe },
-    { .name = "pty",       .open = qemu_chr_open_pty },
     { .name = "stdio",     .open = qemu_chr_open_stdio },
 #endif
 #ifdef CONFIG_BRLAPI
     { .name = "braille",   .open = chr_baum_init },
 #endif
-#if defined(__linux__) || defined(__sun__) || defined(__FreeBSD__) \
-    || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
-    || defined(__FreeBSD_kernel__)
+#ifdef HAVE_CHARDEV_TTY
     { .name = "tty",       .open = qemu_chr_open_tty },
+    { .name = "pty",       .open = qemu_chr_open_pty },
 #endif
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__) \
-    || defined(__FreeBSD_kernel__)
+#ifdef HAVE_CHARDEV_PARPORT
     { .name = "parport",   .open = qemu_chr_open_pp },
 #endif
 #ifdef CONFIG_SPICE
