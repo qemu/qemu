@@ -132,7 +132,7 @@ Guest CPU Cores (KVM):
 ----------------------
 
 Overall
-M: Avi Kivity <avi@redhat.com>
+M: Gleb Natapov <gleb@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
@@ -150,7 +150,7 @@ S: Maintained
 F: target-s390x/kvm.c
 
 X86
-M: Avi Kivity <avi@redhat.com>
+M: Gleb Natapov <gleb@redhat.com>
 M: Marcelo Tosatti <mtosatti@redhat.com>
 L: kvm@vger.kernel.org
 S: Supported
