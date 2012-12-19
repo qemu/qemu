@@ -29,14 +29,14 @@
 #include "mips_cpudevs.h"
 #include "serial.h"
 #include "isa.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "mips-bios.h"
 #include "loader.h"
 #include "elf.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static struct _loaderparams {
     int ram_size;

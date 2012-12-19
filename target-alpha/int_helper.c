@@ -19,7 +19,7 @@
 
 #include "cpu.h"
 #include "helper.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 
 uint64_t helper_umulh(uint64_t op1, uint64_t op2)

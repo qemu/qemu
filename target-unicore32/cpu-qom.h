@@ -11,7 +11,7 @@
 #ifndef QEMU_UC32_CPU_QOM_H
 #define QEMU_UC32_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "cpu.h"
 
 #define TYPE_UNICORE32_CPU "unicore32-cpu"

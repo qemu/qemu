@@ -17,9 +17,9 @@
 #include <sys/wait.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
-#include "qerror.h"
-#include "qemu-queue.h"
-#include "host-utils.h"
+#include "qapi/qmp/qerror.h"
+#include "qemu/queue.h"
+#include "qemu/host-utils.h"
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__

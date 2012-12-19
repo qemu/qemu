@@ -18,7 +18,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "hw.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "omap.h"
 
 /* GP timers */

@@ -14,11 +14,10 @@
  */
 
 #include "qemu-common.h"
-#include "qemu_socket.h"
-#include "migration.h"
-#include "qemu-char.h"
+#include "qemu/sockets.h"
+#include "migration/migration.h"
 #include "buffered_file.h"
-#include "block.h"
+#include "block/block.h"
 
 //#define DEBUG_MIGRATION_UNIX
 

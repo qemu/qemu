@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "block_int.h"
+#include "block/block_int.h"
 #include "qemu-common.h"
 #include "qcow2.h"
 #include "trace.h"

@@ -27,17 +27,17 @@
 #include <linux/vfio.h>
 
 #include "config.h"
-#include "event_notifier.h"
-#include "exec-memory.h"
-#include "kvm.h"
-#include "memory.h"
-#include "msi.h"
-#include "msix.h"
-#include "pci.h"
+#include "qemu/event_notifier.h"
+#include "exec/address-spaces.h"
+#include "sysemu/kvm.h"
+#include "exec/memory.h"
+#include "pci/msi.h"
+#include "pci/msix.h"
+#include "pci/pci.h"
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "qemu-queue.h"
-#include "range.h"
+#include "qemu/error-report.h"
+#include "qemu/queue.h"
+#include "qemu/range.h"
 
 /* #define DEBUG_VFIO */
 #ifdef DEBUG_VFIO

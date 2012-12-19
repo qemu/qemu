@@ -1,5 +1,6 @@
 config-devices.*
 config-all-devices.*
+config-all-disas.*
 config-host.*
 config-target.*
 trace.h

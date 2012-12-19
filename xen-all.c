@@ -10,16 +10,16 @@
 
 #include <sys/mman.h>
 
-#include "hw/pci.h"
+#include "hw/pci/pci.h"
 #include "hw/pc.h"
 #include "hw/xen_common.h"
 #include "hw/xen_backend.h"
 #include "qmp-commands.h"
 
-#include "range.h"
-#include "xen-mapcache.h"
+#include "qemu/range.h"
+#include "sysemu/xen-mapcache.h"
 #include "trace.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/params.h>

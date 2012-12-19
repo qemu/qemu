@@ -18,7 +18,7 @@
  */
 #include "cpu.h"
 #include "helper.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 //#define DEBUG_MMU

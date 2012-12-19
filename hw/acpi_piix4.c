@@ -22,13 +22,13 @@
 #include "pc.h"
 #include "apm.h"
 #include "pm_smbus.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "acpi.h"
-#include "sysemu.h"
-#include "range.h"
-#include "ioport.h"
+#include "sysemu/sysemu.h"
+#include "qemu/range.h"
+#include "exec/ioport.h"
 #include "fw_cfg.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG
 

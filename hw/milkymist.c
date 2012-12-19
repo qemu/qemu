@@ -19,17 +19,16 @@
 
 #include "sysbus.h"
 #include "hw.h"
-#include "net.h"
 #include "flash.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "devices.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "milkymist-hw.h"
 #include "lm32.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"
 #define BIOS_OFFSET      0x00860000

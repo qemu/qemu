@@ -25,22 +25,21 @@
 #include "sysbus.h"
 #include "hw.h"
 #include "serial.h"
-#include "net.h"
 #include "flash.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "devices.h"
 #include "boards.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 #include "loader.h"
 #include "elf.h"
-#include "qemu-log.h"
-#include "exec-memory.h"
+#include "qemu/log.h"
+#include "exec/address-spaces.h"
 
 #include "ppc.h"
 #include "ppc4xx.h"
 #include "ppc405.h"
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "xilinx.h"
 
 #define EPAPR_MAGIC    (0x45504150)

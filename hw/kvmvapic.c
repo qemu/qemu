@@ -8,9 +8,9 @@
  * (at your option) any later version. See the COPYING file in the
  * top-level directory.
  */
-#include "sysemu.h"
-#include "cpus.h"
-#include "kvm.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "apic_internal.h"
 
 #define APIC_DEFAULT_ADDRESS    0xfee00000

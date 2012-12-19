@@ -27,7 +27,7 @@
 #define EXYNOS4210_H_
 
 #include "qemu-common.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #define EXYNOS4210_NCPUS                    2
 

@@ -26,7 +26,7 @@
 
 #include "qemu-x509.h"
 #include "vnc.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 #if defined(_VNC_DEBUG) && _VNC_DEBUG >= 2
 /* Very verbose, so only enabled for _VNC_DEBUG >= 2 */

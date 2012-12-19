@@ -25,7 +25,7 @@
  */
 
 #include "hw.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "isa.h"
 #include "pc.h"
 

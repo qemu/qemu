@@ -16,7 +16,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #define DEBUG_INT 1
 #undef DEBUG_INT /* comment out for debugging */

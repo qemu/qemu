@@ -10,13 +10,13 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include "qint.h"
-#include "qfloat.h"
-#include "qdict.h"
-#include "qbool.h"
-#include "qstring.h"
-#include "qobject.h"
-#include "qemu-queue.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qfloat.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qobject.h"
+#include "qemu/queue.h"
 #include "qemu-common.h"
 
 static void qdict_destroy_obj(QObject *obj);

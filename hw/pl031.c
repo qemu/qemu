@@ -12,8 +12,8 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 
 //#define DEBUG_PL031
 

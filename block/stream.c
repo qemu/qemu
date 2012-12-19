@@ -12,8 +12,8 @@
  */
 
 #include "trace.h"
-#include "block_int.h"
-#include "blockjob.h"
+#include "block/block_int.h"
+#include "block/blockjob.h"
 #include "qemu/ratelimit.h"
 
 enum {

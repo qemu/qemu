@@ -55,7 +55,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "uri.h"
+#include "qemu/uri.h"
 
 static void uri_clean(URI *uri);
 

@@ -14,13 +14,13 @@
  */
 
 #include "qemu-common.h"
-#include "monitor.h"
-#include "qemu-timer.h"
-#include "qemu-log.h"
-#include "migration.h"
-#include "main-loop.h"
-#include "sysemu.h"
-#include "qemu_socket.h"
+#include "monitor/monitor.h"
+#include "qemu/timer.h"
+#include "qemu/log.h"
+#include "migration/migration.h"
+#include "qemu/main-loop.h"
+#include "sysemu/sysemu.h"
+#include "qemu/sockets.h"
 #include "slirp/libslirp.h"
 
 #include <sys/time.h>

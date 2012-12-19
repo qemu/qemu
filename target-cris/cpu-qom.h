@@ -20,7 +20,7 @@
 #ifndef QEMU_CRIS_CPU_QOM_H
 #define QEMU_CRIS_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 
 #define TYPE_CRIS_CPU "cris-cpu"
 

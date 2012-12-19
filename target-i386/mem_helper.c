@@ -21,7 +21,7 @@
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 /* broken thread support */
@@ -114,16 +114,16 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #endif
 

@@ -1,11 +1,11 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
 #include "config.h"
-#include "dis-asm.h"
+#include "disas/bfd.h"
 #include "elf.h"
 #include <errno.h>
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 
 typedef struct CPUDebug {
     struct disassemble_info info;
@@ -374,7 +374,7 @@ const char *lookup_symbol(target_ulong orig_addr)
 
 #if !defined(CONFIG_USER_ONLY)
 
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 static int monitor_disas_is_physical;
 

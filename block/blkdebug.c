@@ -23,8 +23,9 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
+#include "qemu/config-file.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 
 typedef struct BDRVBlkdebugState {
     int state;

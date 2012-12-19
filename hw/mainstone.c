@@ -14,13 +14,13 @@
 #include "hw.h"
 #include "pxa.h"
 #include "arm-misc.h"
-#include "net.h"
+#include "net/net.h"
 #include "devices.h"
 #include "boards.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "sysbus.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 /* Device addresses */
 #define MST_FPGA_PHYS	0x08000000

@@ -13,15 +13,15 @@
  *
  */
 
-#include "iov.h"
+#include "qemu/iov.h"
 #include "qemu-common.h"
 #include "virtio.h"
 #include "pc.h"
 #include "cpu.h"
-#include "balloon.h"
+#include "sysemu/balloon.h"
 #include "virtio-balloon.h"
-#include "kvm.h"
-#include "exec-memory.h"
+#include "sysemu/kvm.h"
+#include "exec/address-spaces.h"
 
 #if defined(__linux__)
 #include <sys/mman.h>

@@ -23,7 +23,7 @@
  */
 #include <alsa/asoundlib.h>
 #include "qemu-common.h"
-#include "qemu-char.h"
+#include "qemu/main-loop.h"
 #include "audio.h"
 
 #if QEMU_GNUC_PREREQ(4, 3)

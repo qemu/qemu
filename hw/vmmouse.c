@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "ps2.h"
 #include "pc.h"
 #include "qdev.h"

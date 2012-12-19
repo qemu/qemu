@@ -9,15 +9,15 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
-#include "monitor.h"
-#include "qerror.h"
-#include "sysemu.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qerror.h"
+#include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "trace.h"
-#include "nbd.h"
-#include "qemu_socket.h"
+#include "block/nbd.h"
+#include "qemu/sockets.h"
 
 static int server_fd = -1;
 

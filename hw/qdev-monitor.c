@@ -18,9 +18,10 @@
  */
 
 #include "qdev.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "qmp-commands.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
+#include "qemu/config-file.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them

@@ -28,12 +28,12 @@
 #define __QEMU_VNC_H
 
 #include "qemu-common.h"
-#include "qemu-queue.h"
-#include "qemu-thread.h"
-#include "console.h"
-#include "monitor.h"
+#include "qemu/queue.h"
+#include "qemu/thread.h"
+#include "ui/console.h"
+#include "monitor/monitor.h"
 #include "audio/audio.h"
-#include "bitmap.h"
+#include "qemu/bitmap.h"
 #include <zlib.h>
 #include <stdbool.h>
 

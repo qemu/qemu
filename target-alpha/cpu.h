@@ -27,9 +27,9 @@
 
 #define CPUArchState struct CPUAlphaState
 
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
 
@@ -295,7 +295,7 @@ struct CPUAlphaState {
 #define cpu_gen_code cpu_alpha_gen_code
 #define cpu_signal_handler cpu_alpha_signal_handler
 
-#include "cpu-all.h"
+#include "exec/cpu-all.h"
 #include "cpu-qom.h"
 
 enum {
@@ -520,7 +520,7 @@ static inline bool cpu_has_work(CPUState *cpu)
                                      | CPU_INTERRUPT_MCHK);
 }
 
-#include "exec-all.h"
+#include "exec/exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUAlphaState *env, TranslationBlock *tb)
 {

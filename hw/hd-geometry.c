@@ -30,7 +30,7 @@
  * THE SOFTWARE.
  */
 
-#include "block.h"
+#include "block/block.h"
 #include "hw/block-common.h"
 #include "trace.h"
 

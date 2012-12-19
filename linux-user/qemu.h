@@ -11,14 +11,14 @@
 #include <stdlib.h>
 #endif /* DEBUG_REMAP */
 
-#include "qemu-user-types.h"
+#include "exec/user/abitypes.h"
 
-#include "thunk.h"
+#include "exec/user/thunk.h"
 #include "syscall_defs.h"
 #include "syscall.h"
 #include "target_signal.h"
-#include "gdbstub.h"
-#include "qemu-queue.h"
+#include "exec/gdbstub.h"
+#include "qemu/queue.h"
 
 #if defined(CONFIG_USE_NPTL)
 #define THREAD __thread
@@ -217,7 +217,7 @@ unsigned long init_guest_space(unsigned long host_start,
                                unsigned long guest_start,
                                bool fixed);
 
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 /* syscall.c */
 int host_to_target_waitstatus(int status);

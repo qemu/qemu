@@ -21,20 +21,20 @@
 #include "cpu.h"
 
 #ifndef CONFIG_USER_ONLY
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 void tlb_fill(CPUOpenRISCState *env, target_ulong addr, int is_write,
               int mmu_idx, uintptr_t retaddr)

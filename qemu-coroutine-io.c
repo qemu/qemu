@@ -23,9 +23,9 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "qemu_socket.h"
-#include "qemu-coroutine.h"
-#include "iov.h"
+#include "qemu/sockets.h"
+#include "block/coroutine.h"
+#include "qemu/iov.h"
 
 ssize_t coroutine_fn
 qemu_co_sendv_recvv(int sockfd, struct iovec *iov, unsigned iov_cnt,

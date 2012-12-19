@@ -9,8 +9,8 @@
 #include "hw/virtio.h"
 #include "fsdev/file-op-9p.h"
 #include "fsdev/virtio-9p-marshal.h"
-#include "qemu-thread.h"
-#include "qemu-coroutine.h"
+#include "qemu/thread.h"
+#include "block/coroutine.h"
 
 
 /* The feature bitmap for virtio 9P */

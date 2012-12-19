@@ -11,11 +11,11 @@
  */
 
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "pxa.h"
-#include "pixel_ops.h"
+#include "ui/pixel_ops.h"
 /* FIXME: For graphic_rotate. Should probably be done in common code.  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "framebuffer.h"
 
 struct DMAChannel {

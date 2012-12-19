@@ -20,9 +20,9 @@
 #ifndef QEMU_I386_CPU_QOM_H
 #define QEMU_I386_CPU_QOM_H
 
-#include "qemu/cpu.h"
+#include "qom/cpu.h"
 #include "cpu.h"
-#include "error.h"
+#include "qapi/error.h"
 
 #ifdef TARGET_X86_64
 #define TYPE_X86_CPU "x86_64-cpu"

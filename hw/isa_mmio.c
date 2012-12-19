@@ -24,7 +24,7 @@
 
 #include "hw.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static void isa_mmio_writeb (void *opaque, hwaddr addr,
                                   uint32_t val)

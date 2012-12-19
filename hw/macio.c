@@ -24,7 +24,7 @@
  */
 #include "hw.h"
 #include "ppc_mac.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "escc.h"
 
 typedef struct MacIOState

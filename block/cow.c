@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block_int.h"
-#include "module.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 
 /**************************************************************/
 /* COW block driver using file system holes */

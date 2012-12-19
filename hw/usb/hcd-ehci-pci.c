@@ -16,8 +16,8 @@
  */
 
 #include "hw/usb/hcd-ehci.h"
-#include "hw/pci.h"
-#include "range.h"
+#include "hw/pci/pci.h"
+#include "qemu/range.h"
 
 typedef struct EHCIPCIState {
     PCIDevice pcidev;

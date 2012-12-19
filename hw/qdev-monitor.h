@@ -2,7 +2,7 @@
 #define QEMU_QDEV_MONITOR_H
 
 #include "qdev-core.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 
 /*** monitor commands ***/
 

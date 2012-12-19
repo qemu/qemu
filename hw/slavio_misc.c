@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 #include "trace.h"
 

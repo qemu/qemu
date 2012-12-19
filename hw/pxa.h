@@ -9,7 +9,7 @@
 #ifndef PXA_H
 # define PXA_H			"pxa.h"
 
-#include "memory.h"
+#include "exec/memory.h"
 
 /* Interrupt numbers */
 # define PXA2XX_PIC_SSP3	0

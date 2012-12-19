@@ -1,4 +1,4 @@
-common-obj-y = queue.o checksum.o util.o hub.o
+common-obj-y = net.o queue.o checksum.o util.o hub.o
 common-obj-y += socket.o
 common-obj-y += dump.o
 common-obj-$(CONFIG_POSIX) += tap.o

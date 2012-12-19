@@ -16,9 +16,9 @@
 
 #include "hw.h"
 #include "hw/ppc/e500-ccsr.h"
-#include "pci.h"
-#include "pci_host.h"
-#include "bswap.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
+#include "qemu/bswap.h"
 #include "ppce500_pci.h"
 
 #ifdef DEBUG_PCI
@@ -317,7 +317,7 @@ static const VMStateDescription vmstate_ppce500_pci = {
     }
 };
 
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 static int e500_pcihost_bridge_initfn(PCIDevice *d)
 {

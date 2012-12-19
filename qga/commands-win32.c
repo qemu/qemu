@@ -16,7 +16,7 @@
 #include <powrprof.h>
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000

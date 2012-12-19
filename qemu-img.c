@@ -23,13 +23,13 @@
  */
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
-#include "qjson.h"
+#include "qapi/qmp/qjson.h"
 #include "qemu-common.h"
-#include "qemu-option.h"
-#include "qemu-error.h"
-#include "osdep.h"
-#include "sysemu.h"
-#include "block_int.h"
+#include "qemu/option.h"
+#include "qemu/error-report.h"
+#include "qemu/osdep.h"
+#include "sysemu/sysemu.h"
+#include "block/block_int.h"
 #include <getopt.h>
 #include <stdio.h>
 

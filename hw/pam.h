@@ -51,7 +51,7 @@
  */
 
 #include "qemu-common.h"
-#include "memory.h"
+#include "exec/memory.h"
 
 #define SMRAM_C_BASE    0xa0000
 #define SMRAM_C_END     0xc0000

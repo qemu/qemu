@@ -14,13 +14,13 @@
  */
 
 #include "qemu-common.h"
-#include "migration.h"
-#include "monitor.h"
+#include "migration/migration.h"
+#include "monitor/monitor.h"
 #include "buffered_file.h"
-#include "sysemu.h"
-#include "block.h"
-#include "qemu_socket.h"
-#include "block-migration.h"
+#include "sysemu/sysemu.h"
+#include "block/block.h"
+#include "qemu/sockets.h"
+#include "migration/block.h"
 #include "qmp-commands.h"
 
 //#define DEBUG_MIGRATION

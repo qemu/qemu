@@ -11,14 +11,14 @@
  *
  */
 
-#include "qtest.h"
+#include "sysemu/qtest.h"
 #include "hw/qdev.h"
-#include "qemu-char.h"
-#include "ioport.h"
-#include "memory.h"
+#include "char/char.h"
+#include "exec/ioport.h"
+#include "exec/memory.h"
 #include "hw/irq.h"
-#include "sysemu.h"
-#include "cpus.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/cpus.h"
 
 #define MAX_IRQ 256
 

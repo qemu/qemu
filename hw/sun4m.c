@@ -22,13 +22,13 @@
  * THE SOFTWARE.
  */
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sun4m.h"
 #include "nvram.h"
 #include "sparc32_dma.h"
 #include "fdc.h"
-#include "sysemu.h"
-#include "net.h"
+#include "sysemu/sysemu.h"
+#include "net/net.h"
 #include "boards.h"
 #include "firmware_abi.h"
 #include "esp.h"
@@ -40,7 +40,7 @@
 #include "qdev-addr.h"
 #include "loader.h"
 #include "elf.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "trace.h"
 
 /*

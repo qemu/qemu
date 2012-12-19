@@ -24,9 +24,9 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include "hw.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "qemu-common.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 #include "etraxfs_dma.h"
 

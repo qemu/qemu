@@ -22,16 +22,15 @@
 #include "virtio-net.h"
 #include "virtio-serial.h"
 #include "virtio-scsi.h"
-#include "pci.h"
-#include "qemu-error.h"
-#include "msi.h"
-#include "msix.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "qemu/error-report.h"
+#include "pci/msi.h"
+#include "pci/msix.h"
 #include "loader.h"
-#include "kvm.h"
-#include "blockdev.h"
+#include "sysemu/kvm.h"
+#include "sysemu/blockdev.h"
 #include "virtio-pci.h"
-#include "range.h"
+#include "qemu/range.h"
 
 /* from Linux's linux/virtio_pci.h */
 

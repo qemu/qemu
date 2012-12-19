@@ -11,7 +11,7 @@
 #include "loader.h"
 #include "boards.h"
 #include "alpha_sys.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "mc146818rtc.h"
 #include "ide.h"
 #include "i8254.h"

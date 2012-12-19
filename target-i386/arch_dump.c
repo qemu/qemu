@@ -12,8 +12,8 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
-#include "dump.h"
+#include "exec/cpu-all.h"
+#include "sysemu/dump.h"
 #include "elf.h"
 
 #ifdef TARGET_X86_64

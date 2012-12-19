@@ -8,7 +8,7 @@
  */
 #include "hw.h"
 #include "devices.h"
-#include "console.h"
+#include "ui/console.h"
 
 typedef struct {
     qemu_irq irq;

@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#ifndef TCG_TARGET_HPPA
 #define TCG_TARGET_HPPA 1
 
 #if TCG_TARGET_REG_BITS != 32
@@ -119,3 +120,5 @@ static inline void flush_icache_range(tcg_target_ulong start,
         start += 32;
     }
 }
+
+#endif

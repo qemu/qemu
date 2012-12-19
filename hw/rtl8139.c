@@ -52,13 +52,13 @@
 #include <zlib.h>
 
 #include "hw.h"
-#include "pci.h"
-#include "dma.h"
-#include "qemu-timer.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "sysemu/dma.h"
+#include "qemu/timer.h"
+#include "net/net.h"
 #include "loader.h"
-#include "sysemu.h"
-#include "iov.h"
+#include "sysemu/sysemu.h"
+#include "qemu/iov.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1

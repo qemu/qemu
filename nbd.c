@@ -16,10 +16,10 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "nbd.h"
-#include "block.h"
+#include "block/nbd.h"
+#include "block/block.h"
 
-#include "qemu-coroutine.h"
+#include "block/coroutine.h"
 
 #include <errno.h>
 #include <string.h>
@@ -36,8 +36,8 @@
 #include <linux/fs.h>
 #endif
 
-#include "qemu_socket.h"
-#include "qemu-queue.h"
+#include "qemu/sockets.h"
+#include "qemu/queue.h"
 
 //#define DEBUG_NBD
 

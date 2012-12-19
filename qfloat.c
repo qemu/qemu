@@ -11,8 +11,8 @@
  *
  */
 
-#include "qfloat.h"
-#include "qobject.h"
+#include "qapi/qmp/qfloat.h"
+#include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
 static void qfloat_destroy_obj(QObject *obj);

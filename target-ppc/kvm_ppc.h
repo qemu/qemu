@@ -9,7 +9,7 @@
 #ifndef __KVM_PPC_H__
 #define __KVM_PPC_H__
 
-#include "memory.h"
+#include "exec/memory.h"
 
 void kvmppc_init(void);
 

@@ -11,7 +11,7 @@
  */
 
 #include <glib.h>
-#include "qemu-aio.h"
+#include "block/aio.h"
 
 AioContext *ctx;
 

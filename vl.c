@@ -28,7 +28,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <zlib.h>
-#include "bitmap.h"
+#include "qemu/bitmap.h"
 
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
@@ -65,7 +65,7 @@
 #endif
 
 #ifdef CONFIG_SECCOMP
-#include "qemu-seccomp.h"
+#include "sysemu/seccomp.h"
 #endif
 
 #ifdef __sun__
@@ -126,46 +126,46 @@ int main(int argc, char **argv)
 #include "hw/xen.h"
 #include "hw/qdev.h"
 #include "hw/loader.h"
-#include "bt-host.h"
-#include "net.h"
+#include "bt/bt.h"
+#include "net/net.h"
 #include "net/slirp.h"
-#include "monitor.h"
-#include "console.h"
-#include "sysemu.h"
-#include "gdbstub.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "cache-utils.h"
-#include "blockdev.h"
+#include "monitor/monitor.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
+#include "exec/gdbstub.h"
+#include "qemu/timer.h"
+#include "char/char.h"
+#include "qemu/cache-utils.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
-#include "block-migration.h"
-#include "dma.h"
+#include "migration/block.h"
+#include "sysemu/dma.h"
 #include "audio/audio.h"
-#include "migration.h"
-#include "kvm.h"
-#include "qjson.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
+#include "migration/migration.h"
+#include "sysemu/kvm.h"
+#include "qapi/qmp/qjson.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "qemu-options.h"
 #include "qmp-commands.h"
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
-#include "qtest.h"
+#include "sysemu/qtest.h"
 
-#include "disas.h"
+#include "disas/disas.h"
 
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 
 #include "slirp/libslirp.h"
 
 #include "trace.h"
 #include "trace/control.h"
-#include "qemu-queue.h"
-#include "cpus.h"
-#include "arch_init.h"
-#include "osdep.h"
+#include "qemu/queue.h"
+#include "sysemu/cpus.h"
+#include "sysemu/arch_init.h"
+#include "qemu/osdep.h"
 
 #include "ui/qemu-spice.h"
 #include "qapi/string-input-visitor.h"

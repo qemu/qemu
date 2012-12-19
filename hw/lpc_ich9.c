@@ -1,5 +1,13 @@
 /*
+ * QEMU ICH9 Emulation
+ *
  * Copyright (c) 2006 Fabrice Bellard
+ * Copyright (c) 2009, 2010, 2011
+ *               Isaku Yamahata <yamahata at valinux co jp>
+ *               VA Linux Systems Japan K.K.
+ * Copyright (C) 2012 Jason Baron <jbaron@redhat.com>
+ *
+ * This is based on piix_pci.c, but heavily modified.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,48 +27,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-/*
- * QEMU ICH9 Emulation
- *
- *  Copyright (c) 2009, 2010, 2011
- *                Isaku Yamahata <yamahata at valinux co jp>
- *                VA Linux Systems Japan K.K.
- *  Copyright (C) 2012 Jason Baron <jbaron@redhat.com>
- *
- *  This is based on piix_pci.c, but heavily modified.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, see <http://www.gnu.org/licenses/>
- */
-
 #include "qemu-common.h"
 #include "hw.h"
-#include "range.h"
+#include "qemu/range.h"
 #include "isa.h"
 #include "sysbus.h"
 #include "pc.h"
 #include "apm.h"
 #include "ioapic.h"
-#include "pci.h"
-#include "pcie_host.h"
-#include "pci_bridge.h"
+#include "pci/pci.h"
+#include "pci/pcie_host.h"
+#include "pci/pci_bridge.h"
 #include "ich9.h"
 #include "acpi.h"
 #include "acpi_ich9.h"
 #include "pam.h"
-#include "pci_internals.h"
-#include "exec-memory.h"
-#include "sysemu.h"
+#include "pci/pci_bus.h"
+#include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 static int ich9_lpc_sci_irq(ICH9LPCState *lpc);
 

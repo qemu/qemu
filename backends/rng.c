@@ -11,7 +11,7 @@
  */
 
 #include "qemu/rng.h"
-#include "qerror.h"
+#include "qapi/qmp/qerror.h"
 
 void rng_backend_request_entropy(RngBackend *s, size_t size,
                                  EntropyReceiveFunc *receive_entropy,

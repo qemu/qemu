@@ -3,10 +3,9 @@
 #ifndef HW_ALPHA_H
 #define HW_ALPHA_H 1
 
-#include "pci.h"
-#include "pci_host.h"
+#include "pci/pci.h"
+#include "pci/pci_host.h"
 #include "ide.h"
-#include "net.h"
 #include "pc.h"
 #include "irq.h"
 

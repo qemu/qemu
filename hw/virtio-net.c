@@ -11,13 +11,13 @@
  *
  */
 
-#include "iov.h"
+#include "qemu/iov.h"
 #include "virtio.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 #include "net/tap.h"
-#include "qemu-error.h"
-#include "qemu-timer.h"
+#include "qemu/error-report.h"
+#include "qemu/timer.h"
 #include "virtio-net.h"
 #include "vhost_net.h"
 

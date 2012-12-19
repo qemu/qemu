@@ -40,7 +40,7 @@ these four paragraphs for those parts of this code that are retained.
  */
 #include "config.h"
 
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 
 /*----------------------------------------------------------------------------
 | Primitive arithmetic functions, including multi-word arithmetic, and

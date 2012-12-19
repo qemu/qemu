@@ -7,19 +7,19 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "hw/block-common.h"
-#include "blockjob.h"
-#include "monitor.h"
-#include "qerror.h"
-#include "qemu-option.h"
-#include "qemu-config.h"
-#include "qemu-objects.h"
-#include "sysemu.h"
-#include "block_int.h"
+#include "block/blockjob.h"
+#include "monitor/monitor.h"
+#include "qapi/qmp/qerror.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "qapi/qmp/types.h"
+#include "sysemu/sysemu.h"
+#include "block/block_int.h"
 #include "qmp-commands.h"
 #include "trace.h"
-#include "arch_init.h"
+#include "sysemu/arch_init.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 

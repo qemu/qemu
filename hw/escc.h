@@ -1,3 +1,6 @@
+#ifndef HW_ESCC_H
+#define HW_ESCC_H 1
+
 /* escc.c */
 #define ESCC_SIZE 4
 MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
@@ -6,3 +9,5 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
 
 void slavio_serial_ms_kbd_init(hwaddr base, qemu_irq irq,
                                int disabled, int clock, int it_shift);
+
+#endif

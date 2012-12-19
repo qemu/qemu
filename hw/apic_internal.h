@@ -20,9 +20,9 @@
 #ifndef QEMU_APIC_INTERNAL_H
 #define QEMU_APIC_INTERNAL_H
 
-#include "memory.h"
+#include "exec/memory.h"
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 
 /* APIC Local Vector Table */
 #define APIC_LVT_TIMER                  0

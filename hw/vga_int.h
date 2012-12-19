@@ -21,10 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef HW_VGA_INT_H
+#define HW_VGA_INT_H 1
 
 #include <hw/hw.h>
-#include "error.h"
-#include "memory.h"
+#include "qapi/error.h"
+#include "exec/memory.h"
 
 #define ST01_V_RETRACE      0x08
 #define ST01_DISP_ENABLE    0x01
@@ -212,3 +214,5 @@ extern const uint8_t gr_mask[16];
 #define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 
 extern const MemoryRegionOps vga_mem_ops;
+
+#endif

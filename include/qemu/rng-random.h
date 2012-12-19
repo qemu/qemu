@@ -12,7 +12,7 @@
 #ifndef QEMU_RNG_RANDOM_H
 #define QEMU_RNG_RANDOM_H
 
-#include "qemu/object.h"
+#include "qom/object.h"
 
 #define TYPE_RNG_RANDOM "rng-random"
 #define RNG_RANDOM(obj) OBJECT_CHECK(RndRandom, (obj), TYPE_RNG_RANDOM)

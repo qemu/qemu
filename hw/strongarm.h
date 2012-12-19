@@ -1,7 +1,7 @@
 #ifndef _STRONGARM_H
 #define _STRONGARM_H
 
-#include "memory.h"
+#include "exec/memory.h"
 
 #define SA_CS0          0x00000000
 #define SA_CS1          0x08000000

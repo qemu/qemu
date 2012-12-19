@@ -16,7 +16,7 @@
 
 #include "hw.h"
 #include "xen.h"
-#include "qemu-queue.h"
+#include "qemu/queue.h"
 
 /*
  * We don't support Xen prior to 3.3.0.

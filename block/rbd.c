@@ -14,8 +14,8 @@
 #include <inttypes.h>
 
 #include "qemu-common.h"
-#include "qemu-error.h"
-#include "block_int.h"
+#include "qemu/error-report.h"
+#include "block/block_int.h"
 
 #include <rbd/librbd.h>
 

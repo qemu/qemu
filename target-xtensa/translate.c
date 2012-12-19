@@ -31,11 +31,11 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "exec-all.h"
-#include "disas.h"
+#include "exec/exec-all.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
-#include "sysemu.h"
+#include "qemu/log.h"
+#include "sysemu/sysemu.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -76,7 +76,7 @@ static TCGv_i32 cpu_FR[16];
 static TCGv_i32 cpu_SR[256];
 static TCGv_i32 cpu_UR[256];
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 typedef struct XtensaReg {
     const char *name;

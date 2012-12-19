@@ -1,3 +1,7 @@
+#ifndef MICROBLAZE_SYSCALLS_H
+#define MICROBLAZE_SYSCALLS_H 1
+
+
 #define UNAME_MACHINE "microblaze"
 
 /* We use microblaze_reg_t to keep things similar to the kernel sources.  */
@@ -43,3 +47,5 @@ struct target_pt_regs {
         microblaze_reg_t fsr;
         uint32_t kernel_mode;
 };
+
+#endif

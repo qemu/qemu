@@ -68,21 +68,21 @@
 static void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env,
                                               target_ulong addr, int is_write,
                                               int is_user, uintptr_t retaddr);
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
 
 #define SHIFT 0
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 1
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 2
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 
 #define SHIFT 3
-#include "softmmu_template.h"
+#include "exec/softmmu_template.h"
 #endif
 
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)

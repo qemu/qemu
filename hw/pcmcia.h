@@ -1,3 +1,6 @@
+#ifndef HW_PCMCIA_H
+#define HW_PCMCIA_H 1
+
 /* PCMCIA/Cardbus */
 
 #include "qemu-common.h"
@@ -49,3 +52,5 @@ struct PCMCIACardState {
 
 /* dscm1xxxx.c */
 PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv);
+
+#endif

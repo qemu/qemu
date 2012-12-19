@@ -22,7 +22,7 @@
 #include "helper.h"
 
 #if !defined(CONFIG_USER_ONLY)
-#include "softmmu_exec.h"
+#include "exec/softmmu_exec.h"
 #endif /* !defined(CONFIG_USER_ONLY) */
 
 #define FPU_RC_MASK         0xc00

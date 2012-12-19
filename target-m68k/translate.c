@@ -19,9 +19,9 @@
  */
 
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 #include "helpers.h"
 #define GEN_HELPER 1
@@ -61,7 +61,7 @@ static TCGv NULL_QREG;
 /* Used to distinguish stores from bad addressing modes.  */
 static TCGv store_dummy;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void m68k_tcg_init(void)
 {
