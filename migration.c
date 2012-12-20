@@ -632,7 +632,7 @@ static int buffered_rate_limit(void *opaque)
         return ret;
     }
 
-    if (s->bytes_xfer > s->xfer_limit) {
+    if (s->bytes_xfer >= s->xfer_limit) {
         return 1;
     }
 
