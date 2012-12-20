@@ -3081,6 +3081,7 @@
 { 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
                                        'port'   : 'ChardevPort',
                                        'socket' : 'ChardevSocket',
+                                       'pty'    : 'ChardevDummy',
                                        'null'   : 'ChardevDummy' } }
 
 ##
@@ -3090,7 +3091,7 @@
 #
 # Since: 1.4
 ##
-{ 'type' : 'ChardevReturn', 'data': { } }
+{ 'type' : 'ChardevReturn', 'data': { '*pty' : 'str' } }
 
 ##
 # @chardev-add:

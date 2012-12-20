@@ -3204,6 +3204,19 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_SOCKET:
         chr = qmp_chardev_open_socket(backend->socket, errp);
         break;
+#ifdef HAVE_CHARDEV_TTY
+    case CHARDEV_BACKEND_KIND_PTY:
+    {
+        /* qemu_chr_open_pty sets "path" in opts */
+        QemuOpts *opts;
+        opts = qemu_opts_create_nofail(qemu_find_opts("chardev"));
+        chr = qemu_chr_open_pty(opts);
+        ret->pty = g_strdup(qemu_opt_get(opts, "path"));
+        ret->has_pty = true;
+        qemu_opts_del(opts);
+        break;
+    }
+#endif
     case CHARDEV_BACKEND_KIND_NULL:
         chr = qemu_chr_open_null(NULL);
         break;

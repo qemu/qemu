@@ -2685,6 +2685,11 @@ Examples:
                                    "data" : { "out" : "/tmp/bar.log" } } } }
 <- { "return": {} }
 
+-> { "execute" : "chardev-add",
+     "arguments" : { "id" : "baz",
+                     "backend" : { "type" : "pty", "data" : {} } } }
+<- { "return": { "pty" : "/dev/pty/42" } }
+
 EQMP
 
     {
