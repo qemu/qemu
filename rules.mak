@@ -23,7 +23,7 @@ QEMU_CFLAGS += -I$(<D) -I$(@D)
 ifeq ($(LIBTOOL),)
 LIBTOOL = /bin/false
 LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
        $(LIBS),"  LINK  $(TARGET_DIR)$@")
 else
 LIBTOOL += $(if $(V),,--quiet)
@@ -35,7 +35,7 @@ LIBTOOL += $(if $(V),,--quiet)
 LINK = $(call quiet-command,\
        $(if $(filter %.lo %.la,$^),$(LIBTOOL) --mode=link --tag=CC \
        )$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
-       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
+       $(sort $(filter %.o, $1)) $(filter-out %.o, $1) $(version-obj-y) \
        $(LIBS),$(if $(filter %.lo %.la,$^),"lt LINK ", "  LINK  ")"$(TARGET_DIR)$@")
 endif
 

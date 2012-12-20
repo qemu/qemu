@@ -25,7 +25,7 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 block-obj-y = async.o thread-pool.o
 block-obj-y += nbd.o block.o blockjob.o
-block-obj-y += $(coroutine-obj-y) $(version-obj-y)
+block-obj-y += $(coroutine-obj-y)
 block-obj-y += main-loop.o iohandler.o qemu-timer.o
 block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
@@ -58,7 +58,6 @@ common-obj-y += block-migration.o
 common-obj-y += page_cache.o
 
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
-common-obj-$(CONFIG_WIN32) += version.o
 
 common-obj-$(CONFIG_SPICE) += spice-qemu-char.o
 
