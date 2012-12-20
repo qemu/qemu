@@ -642,12 +642,13 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         i++;
     }
 
+    qemu_mutex_unlock_ramlist();
+
     if (ret < 0) {
         bytes_transferred += total_sent;
         return ret;
     }
 
-    qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     total_sent += 8;
     bytes_transferred += total_sent;
