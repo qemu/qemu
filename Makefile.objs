@@ -1,19 +1,12 @@
 #######################################################################
-# Stub library, linked in tools
+# Common libraries for tools and emulators
 stub-obj-y = stubs/
+util-obj-y = util/ qobject/
 
 #######################################################################
 # Target-independent parts used in system and user emulation
 universal-obj-y =
 universal-obj-y += qemu-log.o
-
-#######################################################################
-# QObject
-qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
-qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
-qobject-obj-y += qerror.o
-
-universal-obj-y += $(qobject-obj-y)
 
 #######################################################################
 # QOM
@@ -26,10 +19,6 @@ universal-obj-y += $(qom-obj-y)
 hw-core-obj-y += hw/
 
 universal-obj-y += $(hw-core-obj-y)
-
-#######################################################################
-# util-obj-y is code depending on the OS (win32 vs posix)
-util-obj-y += util/
 
 #######################################################################
 # coroutines
@@ -53,7 +42,7 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 block-obj-y = async.o thread-pool.o
 block-obj-y += nbd.o block.o blockjob.o
-block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
+block-obj-y += $(coroutine-obj-y) $(version-obj-y)
 block-obj-y += main-loop.o iohandler.o qemu-timer.o
 block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o

@@ -206,7 +206,7 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemuutil.a libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) $(trace-obj-y) $(qapi-obj-y) $(version-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 
 clean:
