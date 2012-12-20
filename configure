@@ -214,7 +214,6 @@ trace_backend="nop"
 trace_file="trace"
 spice=""
 rbd=""
-smartcard=""
 smartcard_nss=""
 usb_redir=""
 opengl=""
@@ -861,10 +860,6 @@ for opt do
   ;;
   --enable-xfsctl) xfs="yes"
   ;;
-  --disable-smartcard) smartcard="no"
-  ;;
-  --enable-smartcard) smartcard="yes"
-  ;;
   --disable-smartcard-nss) smartcard_nss="no"
   ;;
   --enable-smartcard-nss) smartcard_nss="yes"
@@ -1128,8 +1123,6 @@ echo "  --enable-spice           enable spice"
 echo "  --enable-rbd             enable building the rados block device (rbd)"
 echo "  --disable-libiscsi       disable iscsi support"
 echo "  --enable-libiscsi        enable iscsi support"
-echo "  --disable-smartcard      disable smartcard support"
-echo "  --enable-smartcard       enable smartcard support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
 echo "  --disable-usb-redir      disable usb network redirection support"
@@ -2813,42 +2806,36 @@ EOF
 fi
 
 # check for libcacard for smartcard support
-if test "$smartcard" != "no" ; then
-    smartcard="yes"
-    smartcard_cflags=""
-    # TODO - what's the minimal nss version we support?
-    if test "$smartcard_nss" != "no"; then
-      cat > $TMPC << EOF
+smartcard_cflags=""
+# TODO - what's the minimal nss version we support?
+if test "$smartcard_nss" != "no"; then
+  cat > $TMPC << EOF
 #include <pk11pub.h>
 int main(void) { PK11_FreeSlot(0); return 0; }
 EOF
-        smartcard_includes="-I\$(SRC_PATH)/libcacard"
-        libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
-        libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
-        test_cflags="$libcacard_cflags"
-        # The header files in nss < 3.13.3 have a bug which causes them to
-        # emit a warning. If we're going to compile QEMU with -Werror, then
-        # test that the headers don't have this bug. Otherwise we would pass
-        # the configure test but fail to compile QEMU later.
-        if test "$werror" = "yes"; then
-            test_cflags="-Werror $test_cflags"
-        fi
-        if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
-          compile_prog "$test_cflags" "$libcacard_libs"; then
-            smartcard_nss="yes"
-            QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
-            QEMU_INCLUDES="$QEMU_INCLUDES $smartcard_includes"
-            libs_softmmu="$libcacard_libs $libs_softmmu"
-        else
-            if test "$smartcard_nss" = "yes"; then
-                feature_not_found "nss"
-            fi
-            smartcard_nss="no"
-        fi
+    smartcard_includes="-I\$(SRC_PATH)/libcacard"
+    libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
+    libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
+    test_cflags="$libcacard_cflags"
+    # The header files in nss < 3.13.3 have a bug which causes them to
+    # emit a warning. If we're going to compile QEMU with -Werror, then
+    # test that the headers don't have this bug. Otherwise we would pass
+    # the configure test but fail to compile QEMU later.
+    if test "$werror" = "yes"; then
+        test_cflags="-Werror $test_cflags"
     fi
-fi
-if test "$smartcard" = "no" ; then
-    smartcard_nss="no"
+    if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
+      compile_prog "$test_cflags" "$libcacard_libs"; then
+        smartcard_nss="yes"
+        QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
+        QEMU_INCLUDES="$QEMU_INCLUDES $smartcard_includes"
+        libs_softmmu="$libcacard_libs $libs_softmmu"
+    else
+        if test "$smartcard_nss" = "yes"; then
+            feature_not_found "nss"
+        fi
+        smartcard_nss="no"
+    fi
 fi
 
 # check for usbredirparser for usb network redirection support
@@ -3592,10 +3579,6 @@ fi
 
 if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
-fi
-
-if test "$smartcard" = "yes" ; then
-  echo "CONFIG_SMARTCARD=y" >> $config_host_mak
 fi
 
 if test "$smartcard_nss" = "yes" ; then
