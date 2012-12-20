@@ -30,7 +30,8 @@ all: libcacard.la libcacard.pc
 #########################################################################
 # Rules for building libcacard standalone library
 
-libcacard.la: LDFLAGS += -rpath $(libdir) -no-undefined
+libcacard.la: LDFLAGS += -rpath $(libdir) -no-undefined \
+	-export-syms $(SRC_PATH)/libcacard/libcacard.syms
 libcacard.la: LIBS += $(libcacard_libs)
 libcacard.la: $(libcacard-lobj-y)
 	$(call LINK,$^)
