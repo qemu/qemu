@@ -29,16 +29,7 @@ universal-obj-y += $(hw-core-obj-y)
 
 #######################################################################
 # util-obj-y is code depending on the OS (win32 vs posix)
-util-obj-y = osdep.o cutils.o qemu-timer-common.o
-util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o event_notifier-win32.o
-util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o event_notifier-posix.o
-util-obj-y += envlist.o path.o host-utils.o cache-utils.o module.o
-util-obj-y += bitmap.o bitops.o
-util-obj-y += acl.o
-util-obj-y += error.o qemu-error.o
-util-obj-$(CONFIG_POSIX) += compatfd.o
-util-obj-y += iov.o aes.o qemu-config.o qemu-sockets.o uri.o notify.o
-util-obj-y += qemu-option.o qemu-progress.o
+util-obj-y += util/
 
 #######################################################################
 # coroutines
@@ -177,6 +168,7 @@ QEMU_CFLAGS+=$(GLIB_CFLAGS)
 
 nested-vars += \
 	stub-obj-y \
+	util-obj-y \
 	qga-obj-y \
 	qom-obj-y \
 	qapi-obj-y \

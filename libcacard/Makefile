@@ -4,9 +4,9 @@ TOOLS += vscclient$(EXESUF)
 
 # objects linked into a shared library, built with libtool with -fPIC if required
 libcacard-obj-y = $(trace-obj-y) $(stub-obj-y) $(libcacard-y)
-libcacard-obj-y += osdep.o cutils.o qemu-timer-common.o error.o
-libcacard-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
-libcacard-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
+libcacard-obj-y += util/osdep.o util/cutils.o util/qemu-timer-common.o util/error.o
+libcacard-obj-$(CONFIG_WIN32) += util/oslib-win32.o util/qemu-thread-win32.o
+libcacard-obj-$(CONFIG_POSIX) += util/oslib-posix.o util/qemu-thread-posix.o
 
 libcacard-lobj-y=$(patsubst %.o,%.lo,$(libcacard-obj-y))
 
