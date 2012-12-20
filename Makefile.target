@@ -83,7 +83,7 @@ ifdef CONFIG_LINUX_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
-obj-y += gdbstub.o thunk.o user-exec.o $(util-obj-y)
+obj-y += gdbstub.o thunk.o user-exec.o
 
 endif #CONFIG_LINUX_USER
 
@@ -95,7 +95,7 @@ ifdef CONFIG_BSD_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y += bsd-user/
-obj-y += gdbstub.o user-exec.o $(util-obj-y)
+obj-y += gdbstub.o user-exec.o
 
 endif #CONFIG_BSD_USER
 
@@ -155,12 +155,12 @@ endif #CONFIG_LINUX_USER
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.
-$(QEMU_PROGW): $(all-obj-y) ../libqemustub.a
+$(QEMU_PROGW): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
 else
-$(QEMU_PROG): $(all-obj-y) ../libqemustub.a
+$(QEMU_PROG): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
 endif
 

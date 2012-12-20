@@ -133,7 +133,7 @@ pixman/Makefile: $(SRC_PATH)/pixman/configure
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
 
-$(SUBDIR_RULES): libqemustub.a
+$(SUBDIR_RULES): libqemuutil.a libqemustub.a
 
 $(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y)
 
@@ -155,25 +155,26 @@ version.o: $(SRC_PATH)/version.rc config-host.h
 version-obj-$(CONFIG_WIN32) += version.o
 
 ######################################################################
-# Build library with stubs
+# Build libraries
 
 libqemustub.a: $(stub-obj-y)
+libqemuutil.a: $(util-obj-y)
 
 ######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 
-tools-obj-y = $(util-obj-y) $(trace-obj-y) qemu-timer.o \
+tools-obj-y = $(trace-obj-y) qemu-timer.o \
 	main-loop.o iohandler.o error.o
 tools-obj-$(CONFIG_POSIX) += compatfd.o
 
-qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y) libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y) libqemustub.a
-qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y) libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 
-fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o oslib-posix.o $(trace-obj-y)
+fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o $(trace-obj-y) libqemuutil.a libqemustub.a
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
@@ -209,7 +210,7 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) $(util-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 
 clean:

@@ -72,7 +72,6 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 
 test-qapi-obj-y =  $(qobject-obj-y) $(qapi-obj-y)
 test-qapi-obj-y += tests/test-qapi-visit.o tests/test-qapi-types.o
-test-qapi-obj-y += module.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
 
@@ -98,13 +97,13 @@ $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -o tests -p "test-" < $<, "  GEN   $@")
 
 
-tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemustub.a
-tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y) libqemustub.a
-tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemustub.a
-tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y) libqemustub.a
-tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemustub.a
-tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) libqemustub.a
-tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemustub.a
+tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 
 tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o $(trace-obj-y)
@@ -117,7 +116,7 @@ TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
 check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 
-qtest-obj-y = tests/libqtest.o $(util-obj-y) libqemustub.a
+qtest-obj-y = tests/libqtest.o libqemuutil.a libqemustub.a
 $(check-qtest-y): $(qtest-obj-y)
 
 .PHONY: check-help
