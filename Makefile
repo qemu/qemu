@@ -163,7 +163,7 @@ libqemustub.a: $(stub-obj-y)
 
 qemu-img.o: qemu-img-cmds.h
 
-tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-timer.o \
+tools-obj-y = $(util-obj-y) $(trace-obj-y) qemu-timer.o \
 	main-loop.o iohandler.o error.o
 tools-obj-$(CONFIG_POSIX) += compatfd.o
 
@@ -209,7 +209,7 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) $(oslib-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) $(util-obj-y) $(trace-obj-y) $(qapi-obj-y) $(qobject-obj-y) $(version-obj-y) libqemustub.a
 	$(call LINK, $^)
 
 clean:

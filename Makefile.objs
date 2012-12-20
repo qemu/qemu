@@ -29,10 +29,10 @@ hw-core-obj-y += qemu-option.o
 universal-obj-y += $(hw-core-obj-y)
 
 #######################################################################
-# oslib-obj-y is code depending on the OS (win32 vs posix)
-oslib-obj-y = osdep.o cutils.o qemu-timer-common.o
-oslib-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
-oslib-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
+# util-obj-y is code depending on the OS (win32 vs posix)
+util-obj-y = osdep.o cutils.o qemu-timer-common.o
+util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
+util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
 
 #######################################################################
 # coroutines
@@ -78,7 +78,7 @@ common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
 common-obj-y += qom/
 common-obj-y += readline.o
-common-obj-y += $(oslib-obj-y)
+common-obj-y += $(util-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 

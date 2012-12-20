@@ -83,7 +83,7 @@ ifdef CONFIG_LINUX_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/linux-user/$(TARGET_ABI_DIR) -I$(SRC_PATH)/linux-user
 
 obj-y += linux-user/
-obj-y += gdbstub.o thunk.o user-exec.o $(oslib-obj-y)
+obj-y += gdbstub.o thunk.o user-exec.o $(util-obj-y)
 
 endif #CONFIG_LINUX_USER
 
@@ -95,7 +95,7 @@ ifdef CONFIG_BSD_USER
 QEMU_CFLAGS+=-I$(SRC_PATH)/bsd-user -I$(SRC_PATH)/bsd-user/$(TARGET_ARCH)
 
 obj-y += bsd-user/
-obj-y += gdbstub.o user-exec.o $(oslib-obj-y)
+obj-y += gdbstub.o user-exec.o $(util-obj-y)
 
 endif #CONFIG_BSD_USER
 
