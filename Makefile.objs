@@ -4,33 +4,28 @@ stub-obj-y = stubs/
 util-obj-y = util/ qobject/ qapi/
 
 #######################################################################
-# coroutines
-coroutine-obj-y = qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
-coroutine-obj-y += qemu-coroutine-sleep.o
-
-# If you change this logic, please also check tests/Makefile
-ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
-coroutine-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
-else
-ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
-coroutine-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
-else
-coroutine-obj-$(CONFIG_POSIX) += coroutine-gthread.o
-endif
-endif
-coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
-
-#######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
 block-obj-y = async.o thread-pool.o
 block-obj-y += nbd.o block.o blockjob.o
-block-obj-y += $(coroutine-obj-y)
 block-obj-y += main-loop.o iohandler.o qemu-timer.o
 block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
 block-obj-y += qapi-types.o qapi-visit.o
+
+block-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
+block-obj-y += qemu-coroutine-sleep.o
+ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
+block-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
+else
+ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
+block-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
+else
+block-obj-$(CONFIG_POSIX) += coroutine-gthread.o
+endif
+endif
+block-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
