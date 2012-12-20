@@ -1648,7 +1648,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                     index = env->cpuid_xlevel;
                 }
             } else {
-                index =  env->cpuid_xlevel;
+                /* Intel documentation states that invalid EAX input will
+                 * return the same information as EAX=cpuid_level
+                 * (Intel SDM Vol. 2A - Instruction Set Reference - CPUID)
+                 */
+                index =  env->cpuid_level;
             }
         }
     } else {
