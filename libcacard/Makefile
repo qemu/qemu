@@ -36,7 +36,7 @@ install-libcacard:
 	@echo "libtool is missing, please install and rerun configure"; exit 1
 else
 libcacard.la: $(libcacard.lib-y) $(QEMU_OBJS_LIB)
-	$(call quiet-command,$(LIBTOOL) --mode=link --quiet --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs),"  lt LINK $@")
+	$(call quiet-command,$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs),"  lt LINK $@")
 
 libcacard_srcpath=$(SRC_PATH)/libcacard
 libcacard.pc: $(libcacard_srcpath)/libcacard.pc.in

@@ -24,8 +24,9 @@ ifeq ($(LIBTOOL),)
 %.lo: %.c
 	@echo "missing libtool. please install and rerun configure"; exit 1
 else
+LIBTOOL += $(if $(V),,--quiet)
 %.lo: %.c
-	$(call quiet-command,$(LIBTOOL) --mode=compile --quiet --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
 endif
 
 %.asm: %.S
