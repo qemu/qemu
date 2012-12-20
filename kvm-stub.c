@@ -131,6 +131,11 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
 {
 }
 
+int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
+{
+    return -ENOSYS;
+}
+
 int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
     return -ENOSYS;
