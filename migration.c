@@ -650,7 +650,7 @@ static int64_t buffered_set_rate_limit(void *opaque, int64_t new_rate)
         new_rate = SIZE_MAX;
     }
 
-    s->xfer_limit = new_rate / 10;
+    s->xfer_limit = new_rate / XFER_LIMIT_RATIO;
 
 out:
     return s->xfer_limit;
