@@ -99,7 +99,7 @@ typedef struct {
     int (*load_done)(DeviceState *d, QEMUFile *f);
     unsigned (*get_features)(DeviceState *d);
     bool (*query_guest_notifiers)(DeviceState *d);
-    int (*set_guest_notifiers)(DeviceState *d, bool assigned);
+    int (*set_guest_notifiers)(DeviceState *d, int nvqs, bool assigned);
     int (*set_host_notifier)(DeviceState *d, int n, bool assigned);
     void (*vmstate_change)(DeviceState *d, bool running);
 } VirtIOBindings;

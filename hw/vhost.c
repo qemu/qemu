@@ -879,7 +879,9 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         goto fail;
     }
 
-    r = vdev->binding->set_guest_notifiers(vdev->binding_opaque, true);
+    r = vdev->binding->set_guest_notifiers(vdev->binding_opaque,
+                                           hdev->nvqs,
+                                           true);
     if (r < 0) {
         fprintf(stderr, "Error binding guest notifier: %d\n", -r);
         goto fail_notifiers;
@@ -929,7 +931,7 @@ fail_vq:
     }
 fail_mem:
 fail_features:
-    vdev->binding->set_guest_notifiers(vdev->binding_opaque, false);
+    vdev->binding->set_guest_notifiers(vdev->binding_opaque, hdev->nvqs, false);
 fail_notifiers:
 fail:
     return r;
@@ -950,7 +952,9 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
         vhost_sync_dirty_bitmap(hdev, &hdev->mem_sections[i],
                                 0, (hwaddr)~0x0ull);
     }
-    r = vdev->binding->set_guest_notifiers(vdev->binding_opaque, false);
+    r = vdev->binding->set_guest_notifiers(vdev->binding_opaque,
+                                           hdev->nvqs,
+                                           false);
     if (r < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
         fflush(stderr);

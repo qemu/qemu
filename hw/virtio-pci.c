@@ -535,7 +535,7 @@ static int kvm_virtio_pci_vector_use(PCIDevice *dev, unsigned vector,
     VirtIODevice *vdev = proxy->vdev;
     int ret, queue_no;
 
-    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+    for (queue_no = 0; queue_no < proxy->nvqs_with_notifiers; queue_no++) {
         if (!virtio_queue_get_num(vdev, queue_no)) {
             break;
         }
@@ -565,7 +565,7 @@ static void kvm_virtio_pci_vector_release(PCIDevice *dev, unsigned vector)
     VirtIODevice *vdev = proxy->vdev;
     int queue_no;
 
-    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+    for (queue_no = 0; queue_no < proxy->nvqs_with_notifiers; queue_no++) {
         if (!virtio_queue_get_num(vdev, queue_no)) {
             break;
         }
@@ -587,7 +587,7 @@ static void kvm_virtio_pci_vector_poll(PCIDevice *dev,
     EventNotifier *notifier;
     VirtQueue *vq;
 
-    for (queue_no = 0; queue_no < VIRTIO_PCI_QUEUE_MAX; queue_no++) {
+    for (queue_no = 0; queue_no < proxy->nvqs_with_notifiers; queue_no++) {
         if (!virtio_queue_get_num(vdev, queue_no)) {
             break;
         }
@@ -631,13 +631,22 @@ static bool virtio_pci_query_guest_notifiers(DeviceState *d)
     return msix_enabled(&proxy->pci_dev);
 }
 
-static int virtio_pci_set_guest_notifiers(DeviceState *d, bool assign)
+static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
 {
     VirtIOPCIProxy *proxy = to_virtio_pci_proxy(d);
     VirtIODevice *vdev = proxy->vdev;
     int r, n;
     bool with_irqfd = msix_enabled(&proxy->pci_dev) &&
         kvm_msi_via_irqfd_enabled();
+
+    nvqs = MIN(nvqs, VIRTIO_PCI_QUEUE_MAX);
+
+    /* When deassigning, pass a consistent nvqs value
+     * to avoid leaking notifiers.
+     */
+    assert(assign || nvqs == proxy->nvqs_with_notifiers);
+
+    proxy->nvqs_with_notifiers = nvqs;
 
     /* Must unset vector notifier while guest notifier is still assigned */
     if (proxy->vector_irqfd && !assign) {
@@ -646,7 +655,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, bool assign)
         proxy->vector_irqfd = NULL;
     }
 
-    for (n = 0; n < VIRTIO_PCI_QUEUE_MAX; n++) {
+    for (n = 0; n < nvqs; n++) {
         if (!virtio_queue_get_num(vdev, n)) {
             break;
         }
