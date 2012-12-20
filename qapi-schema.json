@@ -3049,6 +3049,27 @@
                                    'type'   : 'ChardevPortKind'} }
 
 ##
+# @ChardevSocket:
+#
+# Configuration info for socket chardevs.
+#
+# @addr: socket address to listen on (server=true)
+#        or connect to (server=false)
+# @server: #optional create server socket (default: true)
+# @wait: #optional wait for connect (not used for server
+#        sockets, default: false)
+# @nodelay: #optional set TCP_NODELAY socket option (default: false)
+# @telnet: #optional enable telnet protocol (default: false)
+#
+# Since: 1.4
+##
+{ 'type': 'ChardevSocket', 'data': { 'addr'     : 'SocketAddress',
+                                     '*server'  : 'bool',
+                                     '*wait'    : 'bool',
+                                     '*nodelay' : 'bool',
+                                     '*telnet'  : 'bool' } }
+
+##
 # @ChardevBackend:
 #
 # Configuration info for the new chardev backend.
@@ -3057,9 +3078,10 @@
 ##
 { 'type': 'ChardevDummy', 'data': { } }
 
-{ 'union': 'ChardevBackend', 'data': { 'file' : 'ChardevFile',
-                                       'port' : 'ChardevPort',
-                                       'null' : 'ChardevDummy' } }
+{ 'union': 'ChardevBackend', 'data': { 'file'   : 'ChardevFile',
+                                       'port'   : 'ChardevPort',
+                                       'socket' : 'ChardevSocket',
+                                       'null'   : 'ChardevDummy' } }
 
 ##
 # @ChardevReturn:
