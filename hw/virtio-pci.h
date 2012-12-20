@@ -27,6 +27,7 @@
 #define VIRTIO_PCI_FLAG_USE_IOEVENTFD   (1 << VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT)
 
 typedef struct {
+    MSIMessage msg;
     int virq;
     unsigned int users;
 } VirtIOIRQFD;
