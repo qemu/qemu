@@ -3,7 +3,11 @@ libcacard_includedir=$(includedir)/cacard
 TOOLS += vscclient$(EXESUF)
 
 # objects linked into a shared library, built with libtool with -fPIC if required
-libcacard-obj-y=$(oslib-obj-y) error.o $(trace-obj-y) $(stub-obj-y) $(libcacard-y)
+libcacard-obj-y = $(trace-obj-y) $(stub-obj-y) $(libcacard-y)
+libcacard-obj-y += osdep.o cutils.o qemu-timer-common.o error.o
+libcacard-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
+libcacard-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
+
 libcacard-lobj-y=$(patsubst %.o,%.lo,$(libcacard-obj-y))
 
 # libtool will build the .o files, too
