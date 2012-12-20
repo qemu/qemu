@@ -80,11 +80,11 @@ tests/check-qstring$(EXESUF): tests/check-qstring.o qstring.o
 tests/check-qdict$(EXESUF): tests/check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qlist.o
 tests/check-qlist$(EXESUF): tests/check-qlist.o qlist.o qint.o
 tests/check-qfloat$(EXESUF): tests/check-qfloat.o qfloat.o
-tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) libqemustub.a
-tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) iov.o libqemustub.a
-tests/test-aio$(EXESUF): tests/test-aio.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) libqemustub.a
-tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(coroutine-obj-y) $(tools-obj-y) $(block-obj-y) libqemustub.a
-tests/test-iov$(EXESUF): tests/test-iov.o iov.o
+tests/check-qjson$(EXESUF): tests/check-qjson.o $(qobject-obj-y) libqemuutil.a libqemustub.a
+tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(block-obj-y) libqemuutil.a libqemustub.a
+tests/test-aio$(EXESUF): tests/test-aio.o $(block-obj-y) libqemuutil.a libqemustub.a
+tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemuutil.a libqemustub.a
+tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py

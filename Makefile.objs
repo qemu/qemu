@@ -11,7 +11,7 @@ universal-obj-y += qemu-log.o
 # QObject
 qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
 qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
-qobject-obj-y += qerror.o error.o qemu-error.o
+qobject-obj-y += qerror.o
 
 universal-obj-y += $(qobject-obj-y)
 
@@ -24,15 +24,21 @@ universal-obj-y += $(qom-obj-y)
 #######################################################################
 # Core hw code (qdev core)
 hw-core-obj-y += hw/
-hw-core-obj-y += qemu-option.o
 
 universal-obj-y += $(hw-core-obj-y)
 
 #######################################################################
 # util-obj-y is code depending on the OS (win32 vs posix)
 util-obj-y = osdep.o cutils.o qemu-timer-common.o
-util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
-util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
+util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o event_notifier-win32.o
+util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o event_notifier-posix.o
+util-obj-y += envlist.o path.o host-utils.o cache-utils.o module.o
+util-obj-y += bitmap.o bitops.o
+util-obj-y += acl.o
+util-obj-y += error.o qemu-error.o
+util-obj-$(CONFIG_POSIX) += compatfd.o
+util-obj-y += iov.o aes.o qemu-config.o qemu-sockets.o uri.o notify.o
+util-obj-y += qemu-option.o qemu-progress.o
 
 #######################################################################
 # coroutines
@@ -54,12 +60,12 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
-block-obj-y = iov.o cache-utils.o qemu-option.o module.o async.o
-block-obj-y += nbd.o block.o blockjob.o aes.o qemu-config.o
-block-obj-y += thread-pool.o qemu-progress.o qemu-sockets.o uri.o notify.o
+block-obj-y = async.o thread-pool.o
+block-obj-y += nbd.o block.o blockjob.o
 block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
-block-obj-$(CONFIG_POSIX) += event_notifier-posix.o aio-posix.o
-block-obj-$(CONFIG_WIN32) += event_notifier-win32.o aio-win32.o
+block-obj-y += main-loop.o iohandler.o qemu-timer.o
+block-obj-$(CONFIG_POSIX) += aio-posix.o
+block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
 block-obj-y += $(qapi-obj-y) qapi-types.o qapi-visit.o
 
@@ -84,12 +90,10 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 common-obj-$(CONFIG_LINUX) += fsdev/
 extra-obj-$(CONFIG_LINUX) += fsdev/
 
-common-obj-y += tcg-runtime.o host-utils.o main-loop.o
-common-obj-y += migration.o migration-tcp.o
+common-obj-y += tcg-runtime.o
 common-obj-y += migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
-common-obj-y += block-migration.o iohandler.o
-common-obj-y += bitmap.o bitops.o
+common-obj-y += block-migration.o
 common-obj-y += page_cache.o
 
 common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
@@ -105,9 +109,6 @@ common-obj-y += ui/
 common-obj-y += bt-host.o bt-vhci.o
 
 common-obj-y += dma-helpers.o
-common-obj-y += acl.o
-common-obj-$(CONFIG_POSIX) += compatfd.o
-common-obj-y += qemu-timer.o qemu-timer-common.o
 common-obj-y += qtest.o
 common-obj-y += vl.o
 
@@ -125,10 +126,7 @@ endif
 # libuser
 
 user-obj-y =
-user-obj-y += envlist.o path.o
-user-obj-y += tcg-runtime.o host-utils.o
-user-obj-y += cache-utils.o
-user-obj-y += module.o
+user-obj-y += tcg-runtime.o
 user-obj-y += qom/
 
 ######################################################################
@@ -169,8 +167,7 @@ universal-obj-y += $(qapi-obj-y)
 ######################################################################
 # guest agent
 
-qga-obj-y = qga/ module.o
-qga-obj-$(CONFIG_POSIX) += qemu-sockets.o qemu-option.o
+qga-obj-y = qga/
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 

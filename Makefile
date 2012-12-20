@@ -164,13 +164,9 @@ libqemuutil.a: $(util-obj-y)
 
 qemu-img.o: qemu-img-cmds.h
 
-tools-obj-y = $(trace-obj-y) qemu-timer.o \
-	main-loop.o iohandler.o error.o
-tools-obj-$(CONFIG_POSIX) += compatfd.o
-
-qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(tools-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
-qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(trace-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-nbd$(EXESUF): qemu-nbd.o $(trace-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-io$(EXESUF): qemu-io.o cmd.o $(trace-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 
