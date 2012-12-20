@@ -3721,7 +3721,13 @@ echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m 0755" >> $config_host_mak
 echo "INSTALL_DATA=$install -c -m 0644" >> $config_host_mak
-echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
+if test -n "$libtool"; then
+  echo "INSTALL_PROG=\$(LIBTOOL) --mode=install $install -c -m 0755" >> $config_host_mak
+  echo "INSTALL_LIB=\$(LIBTOOL) --mode=install $install -c -m 0644" >> $config_host_mak
+else
+  echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
+  echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
+fi
 echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak

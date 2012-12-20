@@ -10,6 +10,9 @@ $(call set-vpath, $(SRC_PATH))
 QEMU_OBJS=$(oslib-obj-y) qemu-timer-common.o $(trace-obj-y) $(stub-obj-y)
 QEMU_OBJS_LIB=$(patsubst %.o,%.lo,$(QEMU_OBJS))
 
+# libtool will build the .o files, too
+$(libcacard-obj-y): | $(libcacard-lobj-y)
+
 QEMU_CFLAGS+=-I../
 
 libcacard.lib-y=$(patsubst %.o,%.lo,$(libcacard-y))
@@ -54,10 +57,10 @@ install-libcacard: libcacard.pc libcacard.la vscclient
 	$(INSTALL_DIR) "$(DESTDIR)$(libdir)/pkgconfig"
 	$(INSTALL_DIR) "$(DESTDIR)$(libcacard_includedir)"
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
-	$(LIBTOOL) --mode=install $(INSTALL_PROG) vscclient "$(DESTDIR)$(bindir)"
-	$(LIBTOOL) --mode=install $(INSTALL_DATA) libcacard.la "$(DESTDIR)$(libdir)"
-	$(LIBTOOL) --mode=install $(INSTALL_DATA) libcacard.pc "$(DESTDIR)$(libdir)/pkgconfig"
+	$(INSTALL_PROG) vscclient "$(DESTDIR)$(bindir)"
+	$(INSTALL_LIB) libcacard.la "$(DESTDIR)$(libdir)"
+	$(INSTALL_DATA) libcacard.pc "$(DESTDIR)$(libdir)/pkgconfig"
 	for inc in *.h; do \
-		$(LIBTOOL) --mode=install $(INSTALL_DATA) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
+		$(INSTALL_DATA) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
 	done
 endif
