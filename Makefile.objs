@@ -103,7 +103,6 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 # qapi
 
 qapi-obj-y = qapi/
-qapi-obj-y += qapi-types.o qapi-visit.o
 
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
@@ -118,11 +117,14 @@ universal-obj-y += qom/
 universal-obj-y += disas/
 universal-obj-y += $(trace-obj-y)
 universal-obj-y += $(qapi-obj-y)
+universal-obj-y += qapi-types.o qapi-visit.o
 
 ######################################################################
 # guest agent
 
-qga-obj-y = qga/
+# FIXME: a few definitions from qapi-types.o/qapi-visit.o are needed
+# by libqemuutil.a.  These should be moved to a separate .json schema.
+qga-obj-y = qga/ qapi-types.o qapi-visit.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
