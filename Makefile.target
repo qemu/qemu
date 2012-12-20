@@ -146,12 +146,7 @@ include $(SRC_PATH)/Makefile.objs
 
 all-obj-y = $(obj-y)
 all-obj-y += $(addprefix ../, $(universal-obj-y))
-
-ifdef CONFIG_SOFTMMU
-all-obj-y += $(addprefix ../, $(common-obj-y))
-else
-all-obj-y += $(addprefix ../, $(user-obj-y))
-endif #CONFIG_LINUX_USER
+all-obj-$(CONFIG_SOFTMMU) += $(addprefix ../, $(common-obj-y))
 
 ifdef QEMU_PROGW
 # The linker builds a windows executable. Make also a console executable.

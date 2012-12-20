@@ -4,23 +4,6 @@ stub-obj-y = stubs/
 util-obj-y = util/ qobject/
 
 #######################################################################
-# Target-independent parts used in system and user emulation
-universal-obj-y =
-universal-obj-y += qemu-log.o
-
-#######################################################################
-# QOM
-qom-obj-y = qom/
-
-universal-obj-y += $(qom-obj-y)
-
-#######################################################################
-# Core hw code (qdev core)
-hw-core-obj-y += hw/
-
-universal-obj-y += $(hw-core-obj-y)
-
-#######################################################################
 # coroutines
 coroutine-obj-y = qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
 coroutine-obj-y += qemu-coroutine-sleep.o
@@ -62,7 +45,6 @@ endif
 
 common-obj-y = $(block-obj-y) blockdev.o blockdev-nbd.o block/
 common-obj-y += net/
-common-obj-y += qom/
 common-obj-y += readline.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
@@ -70,7 +52,6 @@ common-obj-$(CONFIG_POSIX) += os-posix.o
 common-obj-$(CONFIG_LINUX) += fsdev/
 extra-obj-$(CONFIG_LINUX) += fsdev/
 
-common-obj-y += tcg-runtime.o
 common-obj-y += migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += block-migration.o
@@ -103,24 +84,9 @@ common-obj-y += qemu-seccomp.o
 endif
 
 ######################################################################
-# libuser
-
-user-obj-y =
-user-obj-y += tcg-runtime.o
-user-obj-y += qom/
-
-######################################################################
-# disassemblers
-# NOTE: the disassembler code is only needed for debugging
-
-universal-obj-y += disas/
-
-######################################################################
 # trace
 
 trace-obj-y += trace/
-
-universal-obj-y += $(trace-obj-y)
 
 ######################################################################
 # smartcard
@@ -142,6 +108,15 @@ qapi-obj-y += qapi-types.o qapi-visit.o
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
 
+#######################################################################
+# Target-independent parts used in system and user emulation
+universal-obj-y =
+universal-obj-y += qemu-log.o
+universal-obj-y += tcg-runtime.o
+universal-obj-y += hw/
+universal-obj-y += qom/
+universal-obj-y += disas/
+universal-obj-y += $(trace-obj-y)
 universal-obj-y += $(qapi-obj-y)
 
 ######################################################################
@@ -159,13 +134,10 @@ nested-vars += \
 	stub-obj-y \
 	util-obj-y \
 	qga-obj-y \
-	qom-obj-y \
 	qapi-obj-y \
 	block-obj-y \
-	user-obj-y \
 	common-obj-y \
 	universal-obj-y \
-	hw-core-obj-y \
 	extra-obj-y \
 	trace-obj-y
 dummy := $(call unnest-vars)
