@@ -31,13 +31,6 @@ all: libcacard.la libcacard.pc
 #########################################################################
 # Rules for building libcacard standalone library
 
-ifeq ($(LIBTOOL),)
-libcacard.la:
-	@echo "libtool is missing, please install and rerun configure"; exit 1
-
-install-libcacard:
-	@echo "libtool is missing, please install and rerun configure"; exit 1
-else
 libcacard.la: $(libcacard.lib-y) $(QEMU_OBJS_LIB)
 	$(call quiet-command,$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs),"  lt LINK $@")
 
@@ -63,4 +56,3 @@ install-libcacard: libcacard.pc libcacard.la vscclient
 	for inc in *.h; do \
 		$(INSTALL_DATA) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
 	done
-endif

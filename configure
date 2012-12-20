@@ -2824,7 +2824,8 @@ EOF
     if test "$werror" = "yes"; then
         test_cflags="-Werror $test_cflags"
     fi
-    if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
+    if test -n "$libtool" &&
+            $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
       compile_prog "$test_cflags" "$libcacard_libs"; then
         smartcard_nss="yes"
         QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"

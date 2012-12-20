@@ -21,11 +21,7 @@ QEMU_CFLAGS += -I$(<D) -I$(@D)
 	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 ifeq ($(LIBTOOL),)
-%.lo: %.c
-	@echo "missing libtool. please install and rerun configure"; exit 1
-%.lo: %.dtrace
-	@echo "missing libtool. please install and rerun configure."; exit 1
-
+LIBTOOL = /bin/false
 LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
        $(sort $(filter %.o, $1)) $(filter-out %.o, $1) \
        $(LIBS),"  LINK  $(TARGET_DIR)$@")

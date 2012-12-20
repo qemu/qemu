@@ -160,12 +160,14 @@ libqemustub.a: $(stub-obj-y)
 ######################################################################
 # Support building shared library libcacard
 
+ifeq ($(CONFIG_SMARTCARD_NSS),y)
 .PHONY: libcacard.la install-libcacard
 libcacard.la: $(oslib-obj-y) qemu-timer-common.o $(trace-obj-y)
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" libcacard.la,)
 
 install-libcacard: libcacard.la
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
+endif
 
 ######################################################################
 
