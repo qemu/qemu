@@ -1,7 +1,7 @@
 #######################################################################
 # Common libraries for tools and emulators
 stub-obj-y = stubs/
-util-obj-y = util/ qobject/
+util-obj-y = util/ qobject/ qapi/
 
 #######################################################################
 # coroutines
@@ -30,7 +30,7 @@ block-obj-y += main-loop.o iohandler.o qemu-timer.o
 block-obj-$(CONFIG_POSIX) += aio-posix.o
 block-obj-$(CONFIG_WIN32) += aio-win32.o
 block-obj-y += block/
-block-obj-y += $(qapi-obj-y) qapi-types.o qapi-visit.o
+block-obj-y += qapi-types.o qapi-visit.o
 
 ifeq ($(CONFIG_VIRTIO)$(CONFIG_VIRTFS)$(CONFIG_PCI),yyy)
 # Lots of the fsdev/9pcode is pulled in by vl.c via qemu_fsdev_add.
@@ -102,8 +102,6 @@ common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
 ######################################################################
 # qapi
 
-qapi-obj-y = qapi/
-
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
 
@@ -116,8 +114,6 @@ universal-obj-y += hw/
 universal-obj-y += qom/
 universal-obj-y += disas/
 universal-obj-y += $(trace-obj-y)
-universal-obj-y += $(qapi-obj-y)
-universal-obj-y += qapi-types.o qapi-visit.o
 
 ######################################################################
 # guest agent
@@ -136,7 +132,6 @@ nested-vars += \
 	stub-obj-y \
 	util-obj-y \
 	qga-obj-y \
-	qapi-obj-y \
 	block-obj-y \
 	common-obj-y \
 	universal-obj-y \

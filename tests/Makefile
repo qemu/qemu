@@ -70,8 +70,7 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-qmp-input-visitor.o tests/test-qmp-input-strict.o \
 	tests/test-qmp-commands.o tests/test-visitor-serialization.o
 
-test-qapi-obj-y =  $(qapi-obj-y)
-test-qapi-obj-y += tests/test-qapi-visit.o tests/test-qapi-types.o
+test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o
 
 $(test-obj-y): QEMU_INCLUDES += -Itests
 
