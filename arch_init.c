@@ -658,9 +658,8 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
 
 static int ram_save_complete(QEMUFile *f, void *opaque)
 {
-    migration_bitmap_sync();
-
     qemu_mutex_lock_ramlist();
+    migration_bitmap_sync();
 
     /* try transferring iterative blocks of memory */
 
