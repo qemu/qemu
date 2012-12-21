@@ -15,8 +15,9 @@ $(libcacard-obj-y): | $(libcacard-lobj-y)
 
 QEMU_CFLAGS+=-I../
 
+vscclient: LIBS += $(libcacard_libs)
 vscclient: vscclient.o $(libcacard-obj-y)
-	$(call quiet-command,$(CC) -o $@ $^ $(libcacard_libs) $(LIBS),"  LINK  $@")
+	$(call LINK,$^)
 
 clean:
 	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ vscclient *.lo */*.lo .libs/* */.libs/* *.la */*.la *.pc
@@ -29,8 +30,10 @@ all: libcacard.la libcacard.pc
 #########################################################################
 # Rules for building libcacard standalone library
 
+libcacard.la: LDFLAGS += -rpath $(libdir) -no-undefined
+libcacard.la: LIBS += $(libcacard_libs)
 libcacard.la: $(libcacard-lobj-y)
-	$(call quiet-command,$(LIBTOOL) --mode=link --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs),"  lt LINK $@")
+	$(call LINK,$^)
 
 libcacard_srcpath=$(SRC_PATH)/libcacard
 libcacard.pc: $(libcacard_srcpath)/libcacard.pc.in
