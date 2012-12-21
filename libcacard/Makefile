@@ -11,8 +11,7 @@ $(libcacard-obj-y): | $(libcacard-lobj-y)
 
 all: libcacard.la libcacard.pc
 
-vscclient$(EXESUF): LIBS += $(libcacard_libs)
-vscclient$(EXESUF): libcacard/vscclient.o $(libcacard-obj-y)
+vscclient$(EXESUF): libcacard/vscclient.o libcacard.la
 	$(call LINK,$^)
 
 #########################################################################
