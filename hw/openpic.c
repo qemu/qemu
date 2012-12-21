@@ -810,6 +810,7 @@ static uint64_t openpic_msi_read(void *opaque, hwaddr addr, unsigned size)
         r = opp->msi[srs].msir;
         /* Clear on read */
         opp->msi[srs].msir = 0;
+        openpic_set_irq(opp, opp->irq_msi + srs, 0);
         break;
     case 0x120: /* MSISR */
         for (i = 0; i < MAX_MSI; i++) {
