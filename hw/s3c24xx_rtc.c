@@ -11,7 +11,7 @@
  */
 
 #include "hw.h"
-#include "exec-memory.h"        /* get_system_memory */
+#include "exec/address-spaces.h" /* get_system_memory */
 
 #include "s3c24xx.h"
 

@@ -17,12 +17,12 @@
 
 #include "sysbus.h"
 #include "arm-misc.h"
-#include "net.h"
-#include "exec-memory.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "loader.h"
 #include "ssi.h"
 

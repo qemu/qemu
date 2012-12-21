@@ -30,9 +30,9 @@
  */
 
 #include "hw.h"
-#include "block.h"
+#include "block/block.h"
 #include "sd.h"
-#include "bitmap.h"
+#include "qemu/bitmap.h"
 
 //#define DEBUG_SD 1
 

@@ -22,14 +22,13 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
-#include "qemu-log.h"
-#include "block_int.h"
-#include "module.h"
+#include "qemu/timer.h"
+#include "qemu/log.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 #include "trace.h"
-#include "thread-pool.h"
-#include "iov.h"
+#include "block/thread-pool.h"
+#include "qemu/iov.h"
 #include "raw-aio.h"
 
 #if defined(__APPLE__) && (__MACH__)

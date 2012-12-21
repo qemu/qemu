@@ -22,12 +22,11 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "net.h"
-#include "monitor.h"
-#include "console.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
+#include "monitor/monitor.h"
+#include "ui/console.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
+#include "char/char.h"
 #include "hw/usb.h"
 #include "hw/baum.h"
 #include "hw/msmouse.h"
@@ -95,7 +94,7 @@
 #endif
 #endif
 
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "ui/qemu-spice.h"
 
 #define READ_BUF_LEN 4096
@@ -2766,6 +2765,9 @@ static const struct {
 #endif
 #ifdef CONFIG_SPICE
     { .name = "spicevmc",     .open = qemu_chr_open_spice },
+#if SPICE_SERVER_VERSION >= 0x000c02
+    { .name = "spiceport",    .open = qemu_chr_open_spice_port },
+#endif
 #endif
 };
 

@@ -8,9 +8,11 @@
  * published by the Free Software Foundation, or any later version.
  * See the COPYING file in the top-level directory.
  */
-#include "console.h"
+
+#include "qemu-common.h"
+#include "ui/console.h"
 #include "elf.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "sysbus.h"
 #include "boards.h"
 #include "loader.h"

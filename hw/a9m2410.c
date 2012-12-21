@@ -15,18 +15,19 @@
  */
 
 #include "hw.h"
-#include "blockdev.h"           /* drive_get */
+#include "sysemu/blockdev.h"    /* drive_get */
 #include "sysbus.h"             /* sysbus_from_qdev, ... */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "arm-misc.h"
 #include "loader.h"             /* load_image_targphys */
-#include "net.h"
+#include "net/net.h"
 #include "smbus.h"
 #include "devices.h"
 #include "boards.h"
 #include "serial.h"             /* serial_isa_init */
-#include "dma.h"                /* QEMUSGList (in ide/internal.h) */
-#include "exec-memory.h"        /* get_system_memory */
+#include "sysemu/dma.h"         /* QEMUSGList (in ide/internal.h) */
+#include "char/char.h"          /* qemu_chr_new */
+#include "exec/address-spaces.h" /* get_system_memory */
 #include "ide/internal.h"       /* ide_cmd_write, ... */
 
 #include "s3c2410x.h"

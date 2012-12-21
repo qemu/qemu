@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 #include "sysbus.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
+#include "sysemu/sysemu.h"
+#include "qemu/timer.h"
 #include "ptimer.h"
 
 #define D(x)

@@ -10,8 +10,8 @@
 #include "sysbus.h"
 #include "boards.h"
 #include "arm-misc.h"
-#include "exec-memory.h"        /* get_system_memory */
-#include "net.h"
+#include "exec/address-spaces.h" /* get_system_memory */
+#include "net/net.h"
 
 static struct arm_boot_info phycard_binfo;
 

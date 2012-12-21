@@ -14,13 +14,13 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include "hw/hw.h"
-#include "qemu-queue.h"
-#include "qemu-timer.h"
-#include "block-migration.h"
-#include "migration.h"
-#include "blockdev.h"
+#include "qemu/queue.h"
+#include "qemu/timer.h"
+#include "migration/block.h"
+#include "migration/migration.h"
+#include "sysemu/blockdev.h"
 #include <assert.h>
 
 #define BLOCK_SIZE (BDRV_SECTORS_PER_DIRTY_CHUNK << BDRV_SECTOR_BITS)

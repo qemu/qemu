@@ -36,10 +36,10 @@
  */
 
 #include "qdev.h"
-#include "net.h"
-#include "qemu-timer.h"
-#include "qemu_socket.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "qemu/timer.h"
+#include "qemu/sockets.h"
+#include "sysemu/sysemu.h"
 
 #include "pcnet.h"
 

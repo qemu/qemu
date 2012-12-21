@@ -29,17 +29,17 @@
 
 #include "qemu.h"
 #else
-#include "monitor.h"
-#include "qemu-char.h"
-#include "sysemu.h"
-#include "gdbstub.h"
+#include "monitor/monitor.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
+#include "exec/gdbstub.h"
 #endif
 
 #define MAX_PACKET_LENGTH 4096
 
 #include "cpu.h"
-#include "qemu_socket.h"
-#include "kvm.h"
+#include "qemu/sockets.h"
+#include "sysemu/kvm.h"
 
 #ifndef TARGET_CPU_MEMORY_RW_DEBUG
 static inline int target_memory_rw_debug(CPUArchState *env, target_ulong addr,

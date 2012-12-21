@@ -23,7 +23,7 @@
 #include "qemu-common.h"
 #include "irq.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 //#define DEBUG
 

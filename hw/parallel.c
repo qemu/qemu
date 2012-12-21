@@ -23,10 +23,10 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "qemu-char.h"
+#include "char/char.h"
 #include "isa.h"
 #include "pc.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 //#define DEBUG_PARALLEL
 

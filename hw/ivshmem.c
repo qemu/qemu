@@ -18,12 +18,13 @@
  */
 #include "hw.h"
 #include "pc.h"
-#include "pci.h"
-#include "msix.h"
-#include "kvm.h"
-#include "migration.h"
-#include "qerror.h"
-#include "event_notifier.h"
+#include "pci/pci.h"
+#include "pci/msix.h"
+#include "sysemu/kvm.h"
+#include "migration/migration.h"
+#include "qapi/qmp/qerror.h"
+#include "qemu/event_notifier.h"
+#include "char/char.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>

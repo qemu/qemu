@@ -24,7 +24,7 @@
 
 #include "hw.h"
 #include "sun4m.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysbus.h"
 
 //#define DEBUG_IRQ_COUNT

@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block/block_int.h"
 #include <curl/curl.h>
 
 // #define DEBUG

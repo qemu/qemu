@@ -16,7 +16,7 @@
 #define HW_S390_SCLP_EVENT_FACILITY_H
 
 #include <hw/qdev.h>
-#include "qemu-thread.h"
+#include "qemu/thread.h"
 
 /* SCLP event types */
 #define SCLP_EVENT_ASCII_CONSOLE_DATA           0x1a

@@ -19,8 +19,8 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
-#include "qemu-char.h"
+#include "sysemu/sysemu.h"
+#include "char/char.h"
 #include "imx.h"
 
 //#define DEBUG_SERIAL 1

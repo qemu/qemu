@@ -27,17 +27,17 @@
 #include "hw.h"
 #include "sh.h"
 #include "devices.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
-#include "pci.h"
-#include "net.h"
+#include "pci/pci.h"
+#include "net/net.h"
 #include "sh7750_regs.h"
 #include "ide.h"
 #include "loader.h"
 #include "usb.h"
 #include "flash.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE 0x02000000

@@ -44,10 +44,10 @@
 #include <stdio.h>      /* fprintf */
 
 #include "hw.h"
-#include "block.h"
+#include "block/block.h"
 #include "flash.h"
 #include "pflash.h"     /* pflash_amd_register */
-#include "qemu-timer.h"
+#include "qemu&timer.h"
 #include "exec-all.h"
 
 #ifdef PFLASH_DEBUG

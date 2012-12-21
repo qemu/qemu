@@ -11,9 +11,9 @@
  */
 
 #include "qemu-common.h"
-#include "string-output-visitor.h"
-#include "qapi/qapi-visit-impl.h"
-#include "qerror.h"
+#include "qapi/string-output-visitor.h"
+#include "qapi/visitor-impl.h"
+#include "qapi/qmp/qerror.h"
 
 struct StringOutputVisitor
 {

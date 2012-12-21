@@ -12,9 +12,9 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "scsi.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 #ifdef __linux__
 

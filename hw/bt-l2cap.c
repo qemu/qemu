@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "bt.h"
 
 #define L2CAP_CID_MAX	0x100	/* Between 0x40 and 0x10000 */

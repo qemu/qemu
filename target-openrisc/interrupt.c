@@ -19,8 +19,8 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
-#include "gdbstub.h"
-#include "host-utils.h"
+#include "exec/gdbstub.h"
+#include "qemu/host-utils.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/loader.h"
 #endif

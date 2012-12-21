@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include <zlib.h>
 
 //#define DEBUG_STELLARIS_ENET 1

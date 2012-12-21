@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 #include "mc146818rtc.h"
-#include "qapi/qapi-visit-core.h"
+#include "qapi/visitor.h"
 
 #ifdef TARGET_I386
 #include "apic.h"

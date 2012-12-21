@@ -13,8 +13,8 @@
  */
 
 #include "fsdev/qemu-fsdev.h"
-#include "qemu-thread.h"
-#include "qemu-coroutine.h"
+#include "qemu/thread.h"
+#include "block/coroutine.h"
 #include "virtio-9p-coth.h"
 
 int v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t st_mode,

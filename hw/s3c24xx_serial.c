@@ -11,9 +11,9 @@
  */
 
 #include "hw.h"
-#include "exec-memory.h"        /* get_system_memory */
-#include "qemu-char.h"
-#include "sysemu.h"
+#include "exec/address-spaces.h" /* get_system_memory */
+#include "char/char.h"
+#include "sysemu/sysemu.h"
 
 #include "s3c24xx.h"
 

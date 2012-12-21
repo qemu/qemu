@@ -11,8 +11,8 @@
  */
 
 #include "qemu/rng.h"
-#include "qemu-char.h"
-#include "qerror.h"
+#include "char/char.h"
+#include "qapi/qmp/qerror.h"
 #include "hw/qdev.h" /* just for DEFINE_PROP_CHR */
 
 #define TYPE_RNG_EGD "rng-egd"

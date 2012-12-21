@@ -23,12 +23,12 @@
  */
 
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "ptimer.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 #include "fifo.h"
 #include "ssi.h"
-#include "bitops.h"
+#include "qemu/bitops.h"
 
 #ifdef XILINX_SPIPS_ERR_DEBUG
 #define DB_PRINT(...) do { \

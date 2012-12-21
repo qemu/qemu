@@ -11,8 +11,9 @@
  */
 
 #include "qemu-common.h"
-#include "event_notifier.h"
-#include "qemu-char.h"
+#include "qemu/event_notifier.h"
+#include "char/char.h"
+#include "qemu/main-loop.h"
 
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>

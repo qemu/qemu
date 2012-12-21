@@ -35,7 +35,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
-#include "cpu-defs.h"
+#include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"
 
 #define TARGET_HAS_ICE 1
@@ -512,8 +512,8 @@ static inline void cpu_get_tb_cpu_state(CPUXtensaState *env, target_ulong *pc,
     }
 }
 
-#include "cpu-all.h"
-#include "exec-all.h"
+#include "exec/cpu-all.h"
+#include "exec/exec-all.h"
 
 static inline int cpu_has_work(CPUState *cpu)
 {

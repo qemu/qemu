@@ -25,21 +25,21 @@
 /* Needed early for CONFIG_BSD etc. */
 #include "config-host.h"
 
-#include "monitor.h"
-#include "sysemu.h"
-#include "gdbstub.h"
-#include "dma.h"
-#include "kvm.h"
+#include "monitor/monitor.h"
+#include "sysemu/sysemu.h"
+#include "exec/gdbstub.h"
+#include "sysemu/dma.h"
+#include "sysemu/kvm.h"
 #include "qmp-commands.h"
 
-#include "qemu-thread.h"
-#include "cpus.h"
-#include "qtest.h"
-#include "main-loop.h"
-#include "bitmap.h"
+#include "qemu/thread.h"
+#include "sysemu/cpus.h"
+#include "sysemu/qtest.h"
+#include "qemu/main-loop.h"
+#include "qemu/bitmap.h"
 
 #ifndef _WIN32
-#include "compatfd.h"
+#include "qemu/compatfd.h"
 #endif
 
 #ifdef CONFIG_LINUX

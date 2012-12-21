@@ -23,7 +23,7 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 static void cp_reg_reset(gpointer key, gpointer value, gpointer opaque)
 {

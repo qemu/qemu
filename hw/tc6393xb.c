@@ -13,9 +13,9 @@
 #include "hw.h"
 #include "devices.h"
 #include "flash.h"
-#include "console.h"
-#include "pixel_ops.h"
-#include "blockdev.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
+#include "sysemu/blockdev.h"
 
 #define IRQ_TC6393_NAND		0
 #define IRQ_TC6393_MMC		1

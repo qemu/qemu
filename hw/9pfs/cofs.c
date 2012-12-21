@@ -13,8 +13,8 @@
  */
 
 #include "fsdev/qemu-fsdev.h"
-#include "qemu-thread.h"
-#include "qemu-coroutine.h"
+#include "qemu/thread.h"
+#include "block/coroutine.h"
 #include "virtio-9p-coth.h"
 
 int v9fs_co_readlink(V9fsPDU *pdu, V9fsPath *path, V9fsString *buf)

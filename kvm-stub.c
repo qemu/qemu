@@ -12,10 +12,10 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 #include "cpu.h"
-#include "gdbstub.h"
-#include "kvm.h"
+#include "exec/gdbstub.h"
+#include "sysemu/kvm.h"
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;

@@ -16,13 +16,11 @@
 
 #include <sys/time.h>
 #include <sys/types.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include <getopt.h>
 
-#include "qemu-timer.h"
 #include "qemu-common.h"
-#include "block_int.h"
+#include "qemu/timer.h"
+#include "block/block_int.h"
 #include "block/fvd-ext.h"
 #include "block/blksim.h"
 

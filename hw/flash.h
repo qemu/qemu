@@ -1,9 +1,9 @@
 #ifndef HW_FLASH_H
-#define HW_FLASH_H
+#define HW_FLASH_H 1
 
 /* NOR flash devices */
 
-#include "memory.h"
+#include "exec/memory.h"
 
 typedef struct pflash_t pflash_t;
 
@@ -61,4 +61,4 @@ uint8_t ecc_digest(ECCState *s, uint8_t sample);
 void ecc_reset(ECCState *s);
 extern VMStateDescription vmstate_ecc_state;
 
-#endif /* HW_FLASH_H */
+#endif

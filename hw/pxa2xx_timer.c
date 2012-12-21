@@ -8,8 +8,8 @@
  */
 
 #include "hw.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 #include "pxa.h"
 #include "sysbus.h"
 

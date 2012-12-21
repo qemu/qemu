@@ -16,15 +16,16 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "devices.h"
-#include "exec-memory.h"        /* get_system_memory */
-#include "net.h"
-#include "sysemu.h"
+#include "exec/address-spaces.h" /* get_system_memory */
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "pc.h"
 #include "ptimer.h"             /* ptimer_state */
-#include "qemu-timer.h"
-#include "block.h"
-#include "console.h"
+#include "qemu/timer.h"
+#include "block/block.h"
+#include "char/char.h"          /* qemu_chr_new */
+#include "ui/console.h"
 #include "i2c.h"
 
 #include "s3c2440.h"
@@ -184,7 +185,7 @@ SET_LCD_PIXEL(8, uint8_t)
 SET_LCD_PIXEL(16, uint16_t)
 SET_LCD_PIXEL(32, uint32_t)
 
-#include "pixel_ops.h"
+#include "ui/pixel_ops.h"
 
 static void lcd_refresh(void *opaque)
 {

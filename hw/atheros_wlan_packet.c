@@ -34,10 +34,9 @@
 #else
 
 #include "hw.h"
-#include "pci.h"
+#include "pci/pci.h"
 #include "pc.h"
-#include "net.h"
-
+#include "net/net.h"
 
 #include <stdio.h>
 #include <stdlib.h>

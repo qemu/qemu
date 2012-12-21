@@ -13,8 +13,8 @@
  *  GNU General Public License for more details.
  */
 
-#ifndef QEMU_TAP_H
-#define QEMU_TAP_H
+#ifndef QEMU_TAP_LINUX_H
+#define QEMU_TAP_LINUX_H
 
 #include <stdint.h>
 #ifdef __linux__
@@ -43,21 +43,5 @@
 #define TUN_F_TSO6	0x04	/* I can handle TSO for IPv6 packets */
 #define TUN_F_TSO_ECN	0x08	/* I can handle TSO with ECN bits. */
 #define TUN_F_UFO	0x10	/* I can handle UFO packets */
-
-struct virtio_net_hdr
-{
-    uint8_t flags;
-    uint8_t gso_type;
-    uint16_t hdr_len;
-    uint16_t gso_size;
-    uint16_t csum_start;
-    uint16_t csum_offset;
-};
-
-struct virtio_net_hdr_mrg_rxbuf
-{
-    struct virtio_net_hdr hdr;
-    uint16_t num_buffers;   /* Number of merged rx buffers */
-};
 
 #endif /* QEMU_TAP_H */

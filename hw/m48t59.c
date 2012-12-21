@@ -23,11 +23,11 @@
  */
 #include "hw.h"
 #include "nvram.h"
-#include "qemu-timer.h"
-#include "sysemu.h"
+#include "qemu/timer.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
 #include "isa.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_NVRAM
 

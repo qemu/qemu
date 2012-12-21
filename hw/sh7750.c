@@ -25,12 +25,12 @@
 #include <stdio.h>
 #include "hw.h"
 #include "sh.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "sh_intc.h"
 #include "cpu.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 
 #define NB_DEVICES 4
 

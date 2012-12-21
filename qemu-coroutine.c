@@ -14,8 +14,8 @@
 
 #include "trace.h"
 #include "qemu-common.h"
-#include "qemu-coroutine.h"
-#include "qemu-coroutine-int.h"
+#include "block/coroutine.h"
+#include "block/coroutine_int.h"
 
 Coroutine *qemu_coroutine_create(CoroutineEntry *entry)
 {

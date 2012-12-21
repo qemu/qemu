@@ -1,7 +1,7 @@
 #if !defined(__HW_SPAPR_H__)
 #define __HW_SPAPR_H__
 
-#include "dma.h"
+#include "sysemu/dma.h"
 #include "hw/xics.h"
 
 struct VIOsPAPRBus;

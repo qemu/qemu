@@ -10,7 +10,7 @@
 
 #include "qemu-common.h"
 #include "hw/xen.h"
-#include "memory.h"
+#include "exec/memory.h"
 #include "qmp-commands.h"
 
 void xenstore_store_pv_console_info(int i, CharDriverState *chr)

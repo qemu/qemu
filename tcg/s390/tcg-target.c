@@ -299,7 +299,7 @@ static const uint8_t tcg_cond_to_ltr_cond[] = {
 
 #ifdef CONFIG_SOFTMMU
 
-#include "../../softmmu_defs.h"
+#include "exec/softmmu_defs.h"
 
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */

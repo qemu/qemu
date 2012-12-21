@@ -22,10 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef HW_SERIAL_H
+#define HW_SERIAL_H 1
 
 #include "hw.h"
-#include "sysemu.h"
-#include "memory.h"
+#include "sysemu/sysemu.h"
+#include "exec/memory.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
 
@@ -103,3 +105,5 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
 /* serial-isa.c */
 bool serial_isa_init(ISABus *bus, int index, CharDriverState *chr);
+
+#endif

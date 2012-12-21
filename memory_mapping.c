@@ -12,8 +12,8 @@
  */
 
 #include "cpu.h"
-#include "cpu-all.h"
-#include "memory_mapping.h"
+#include "exec/cpu-all.h"
+#include "sysemu/memory_mapping.h"
 
 static void memory_mapping_list_add_mapping_sorted(MemoryMappingList *list,
                                                    MemoryMapping *mapping)

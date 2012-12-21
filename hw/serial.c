@@ -24,9 +24,9 @@
  */
 
 #include "serial.h"
-#include "qemu-char.h"
-#include "qemu-timer.h"
-#include "exec-memory.h"
+#include "char/char.h"
+#include "qemu/timer.h"
+#include "exec/address-spaces.h"
 
 //#define DEBUG_SERIAL
 

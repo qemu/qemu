@@ -25,8 +25,8 @@
 #include <hw/hw.h>
 #include <hw/ppc_mac.h>
 #include <hw/mac_dbdma.h>
-#include "block.h"
-#include "dma.h"
+#include "block/block.h"
+#include "sysemu/dma.h"
 
 #include <hw/ide/internal.h>
 

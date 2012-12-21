@@ -20,7 +20,7 @@
 
 #include <glib.h>
 #include "qemu-common.h"
-#include "qemu-coroutine-int.h"
+#include "block/coroutine_int.h"
 
 typedef struct {
     Coroutine base;

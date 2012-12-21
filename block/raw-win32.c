@@ -22,13 +22,13 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "qemu-timer.h"
-#include "block_int.h"
-#include "module.h"
+#include "qemu/timer.h"
+#include "block/block_int.h"
+#include "qemu/module.h"
 #include "raw-aio.h"
 #include "trace.h"
-#include "thread-pool.h"
-#include "iov.h"
+#include "block/thread-pool.h"
+#include "qemu/iov.h"
 #include <windows.h>
 #include <winioctl.h>
 
@@ -314,11 +314,11 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
      */
     dwPtrLow = SetFilePointer(s->hfile, low, &high, FILE_BEGIN);
     if (dwPtrLow == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
-        fprintf(stderr, "SetFilePointer error: %d\n", GetLastError());
+        fprintf(stderr, "SetFilePointer error: %lu\n", GetLastError());
         return -EIO;
     }
     if (SetEndOfFile(s->hfile) == 0) {
-        fprintf(stderr, "SetEndOfFile error: %d\n", GetLastError());
+        fprintf(stderr, "SetEndOfFile error: %lu\n", GetLastError());
         return -EIO;
     }
     return 0;

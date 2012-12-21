@@ -15,7 +15,7 @@
  *  work with the simulation engine block/sim.c
  *============================================================================*/
 
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "sysemu.h"
 
 struct QEMUBH {

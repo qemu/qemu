@@ -22,10 +22,10 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "monitor.h"
-#include "qemu_socket.h"
+#include "monitor/monitor.h"
+#include "qemu/sockets.h"
 #include "qemu-common.h" /* for qemu_isdigit */
-#include "main-loop.h"
+#include "qemu/main-loop.h"
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0

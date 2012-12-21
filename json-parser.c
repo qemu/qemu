@@ -14,15 +14,15 @@
 #include <stdarg.h>
 
 #include "qemu-common.h"
-#include "qstring.h"
-#include "qint.h"
-#include "qdict.h"
-#include "qlist.h"
-#include "qfloat.h"
-#include "qbool.h"
-#include "json-parser.h"
-#include "json-lexer.h"
-#include "qerror.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qfloat.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/json-parser.h"
+#include "qapi/qmp/json-lexer.h"
+#include "qapi/qmp/qerror.h"
 
 typedef struct JSONParserContext
 {

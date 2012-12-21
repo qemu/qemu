@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef TCG_TARGET_I386 
 #define TCG_TARGET_I386 1
 
 //#define TCG_TARGET_WORDS_BIGENDIAN
@@ -135,3 +136,5 @@ static inline void flush_icache_range(tcg_target_ulong start,
                                       tcg_target_ulong stop)
 {
 }
+
+#endif

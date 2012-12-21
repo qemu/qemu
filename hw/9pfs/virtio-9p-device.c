@@ -13,7 +13,7 @@
 
 #include "hw/virtio.h"
 #include "hw/pc.h"
-#include "qemu_socket.h"
+#include "qemu/sockets.h"
 #include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"

@@ -9,12 +9,12 @@
  */
 
 #include "hw.h"
-#include "exec-memory.h"        /* get_system_memory */
-#include "blockdev.h"           /* drive_get */
-#include "sysemu.h"
+#include "exec/address-spaces.h" /* get_system_memory */
+#include "sysemu/blockdev.h"    /* drive_get */
+#include "sysemu/sysemu.h"
 #include "arm-misc.h"
 #include "loader.h"             /* load_image_targphys */
-#include "net.h"
+#include "net/net.h"
 #include "smbus.h"
 #include "devices.h"
 #include "boards.h"

@@ -25,17 +25,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "memory.h"
-#include "exec-memory.h"
+#include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "serial.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysbus.h"
 #include "flash.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
+#include "char/char.h"
 #include "xtensa_bootparam.h"
 
 typedef struct LxBoardDesc {

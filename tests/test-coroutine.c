@@ -12,7 +12,7 @@
  */
 
 #include <glib.h>
-#include "qemu-coroutine.h"
+#include "block/coroutine.h"
 
 /*
  * Check that qemu_in_coroutine() works

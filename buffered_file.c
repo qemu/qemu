@@ -15,8 +15,7 @@
 
 #include "qemu-common.h"
 #include "hw/hw.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
+#include "qemu/timer.h"
 #include "buffered_file.h"
 
 //#define DEBUG_BUFFERED_FILE

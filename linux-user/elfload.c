@@ -8,7 +8,7 @@
 
 #include "qemu-common.h"
 #include "qemu.h"
-#include "disas.h"
+#include "disas/disas.h"
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO

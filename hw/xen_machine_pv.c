@@ -27,7 +27,7 @@
 #include "boards.h"
 #include "xen_backend.h"
 #include "xen_domainbuild.h"
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 
 static void xen_init_pv(QEMUMachineInitArgs *args)
 {

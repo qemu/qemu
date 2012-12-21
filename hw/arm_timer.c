@@ -8,7 +8,7 @@
  */
 
 #include "sysbus.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "qemu-common.h"
 #include "qdev.h"
 #include "ptimer.h"

@@ -28,9 +28,10 @@
  */
 #include "sysbus.h"
 #include "strongarm.h"
-#include "qemu-error.h"
+#include "qemu/error-report.h"
 #include "arm-misc.h"
-#include "sysemu.h"
+#include "char/char.h"
+#include "sysemu/sysemu.h"
 #include "ssi.h"
 
 //#define DEBUG

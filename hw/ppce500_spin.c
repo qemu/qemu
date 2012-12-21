@@ -28,9 +28,9 @@
  */
 
 #include "hw.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "sysbus.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 #define MAX_CPUS 32
 

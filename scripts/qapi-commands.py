@@ -342,8 +342,8 @@ def gen_command_decl_prologue(header, guard, prefix=""):
 #define %(guard)s
 
 #include "%(prefix)sqapi-types.h"
-#include "qdict.h"
-#include "error.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/error.h"
 
 ''',
                  header=basename(header), guard=guardname(header), prefix=prefix)
@@ -366,12 +366,15 @@ def gen_command_def_prologue(prefix="", proxy=False):
  *
  */
 
-#include "qemu-objects.h"
-#include "qapi/qmp-core.h"
-#include "qapi/qapi-visit-core.h"
+#include "qemu-common.h"
+#include "qemu/module.h"
+#include "qapi/qmp/qerror.h"
+#include "qapi/qmp/types.h"
+#include "qapi/qmp/dispatch.h"
+#include "qapi/visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/qmp-input-visitor.h"
-#include "qapi/qapi-dealloc-visitor.h"
+#include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
 

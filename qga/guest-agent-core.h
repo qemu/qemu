@@ -10,7 +10,7 @@
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
-#include "qapi/qmp-core.h"
+#include "qapi/qmp/dispatch.h"
 #include "qemu-common.h"
 
 #define QGA_READ_COUNT_DEFAULT 4096

@@ -19,7 +19,7 @@
 */
 
 #include "fpa11.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 #include "fpopcode.h"
 
 float32 float32_exp(float32 Fm);

@@ -12,7 +12,7 @@
 
 #include "hw.h"
 #include "sysbus.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "imx.h"
 
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */

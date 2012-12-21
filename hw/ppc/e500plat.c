@@ -13,8 +13,8 @@
 #include "qemu-common.h"
 #include "e500.h"
 #include "../boards.h"
-#include "device_tree.h"
-#include "hw/pci.h"
+#include "sysemu/device_tree.h"
+#include "hw/pci/pci.h"
 
 static void e500plat_fixup_devtree(PPCE500Params *params, void *fdt)
 {

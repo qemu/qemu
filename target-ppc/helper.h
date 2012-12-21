@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_3(raise_exception_err, void, env, i32, i32)
 DEF_HELPER_2(raise_exception, void, env, i32)
@@ -414,4 +414,4 @@ DEF_HELPER_3(store_601_batl, void, env, i32, tl)
 DEF_HELPER_3(store_601_batu, void, env, i32, tl)
 #endif
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

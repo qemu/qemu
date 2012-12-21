@@ -10,8 +10,8 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-#include "qint.h"
-#include "qobject.h"
+#include "qapi/qmp/qint.h"
+#include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
 static void qint_destroy_obj(QObject *obj);

@@ -23,7 +23,7 @@
  */
 
 #include "sysbus.h"
-#include "console.h"
+#include "ui/console.h"
 #include "syborg.h"
 #include "framebuffer.h"
 
@@ -99,7 +99,7 @@ enum {
     BPP_SRC_24 = -2
 };
 
-#include "pixel_ops.h"
+#include "ui/pixel_ops.h"
 
 #define BITS 8
 #include "pl110_template.h"

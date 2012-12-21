@@ -22,7 +22,7 @@
 #include <stdio.h>
 
 #include "cpu.h"
-#include "softfloat.h"
+#include "fpu/softfloat.h"
 #include "helper.h"
 
 uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)

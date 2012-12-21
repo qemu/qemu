@@ -25,8 +25,8 @@
 
 #include <assert.h>             /* assert */
 #include "hw.h"
-#include "net.h"
-#include "pci.h"
+#include "net/net.h"
+#include "pci/pci.h"
 
 #include "tnetw1130.h"
 

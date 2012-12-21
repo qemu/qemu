@@ -25,8 +25,8 @@
 #include "sysbus.h"
 #include "boards.h"
 #include "arm-misc.h"
-#include "net.h"
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
+#include "net/net.h"
 
 static struct arm_boot_info syborg_binfo;
 

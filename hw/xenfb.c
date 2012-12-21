@@ -36,8 +36,8 @@
 #include <time.h>
 
 #include "hw.h"
-#include "console.h"
-#include "qemu-char.h"
+#include "ui/console.h"
+#include "char/char.h"
 #include "xen_backend.h"
 
 #include <xen/event_channel.h>

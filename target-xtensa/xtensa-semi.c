@@ -31,7 +31,7 @@
 #include <stddef.h>
 #include "cpu.h"
 #include "helper.h"
-#include "qemu-log.h"
+#include "qemu/log.h"
 
 enum {
     TARGET_SYS_exit = 1,

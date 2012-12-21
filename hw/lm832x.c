@@ -20,8 +20,8 @@
 
 #include "hw.h"
 #include "i2c.h"
-#include "qemu-timer.h"
-#include "console.h"
+#include "qemu/timer.h"
+#include "ui/console.h"
 
 typedef struct {
     I2CSlave i2c;

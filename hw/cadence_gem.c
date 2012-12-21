@@ -25,7 +25,7 @@
 #include <zlib.h> /* For crc32 */
 
 #include "sysbus.h"
-#include "net.h"
+#include "net/net.h"
 #include "net/checksum.h"
 
 #ifdef CADENCE_GEM_ERR_DEBUG

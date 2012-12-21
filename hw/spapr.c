@@ -24,13 +24,13 @@
  * THE SOFTWARE.
  *
  */
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 #include "hw.h"
 #include "elf.h"
-#include "net.h"
-#include "blockdev.h"
-#include "cpus.h"
-#include "kvm.h"
+#include "net/net.h"
+#include "sysemu/blockdev.h"
+#include "sysemu/cpus.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
 
 #include "hw/boards.h"
@@ -41,14 +41,15 @@
 #include "hw/spapr_vio.h"
 #include "hw/spapr_pci.h"
 #include "hw/xics.h"
-#include "hw/msi.h"
+#include "hw/pci/msi.h"
 
-#include "kvm.h"
+#include "sysemu/kvm.h"
 #include "kvm_ppc.h"
-#include "pci.h"
+#include "pci/pci.h"
 
-#include "exec-memory.h"
+#include "exec/address-spaces.h"
 #include "hw/usb.h"
+#include "qemu/config-file.h"
 
 #include <libfdt.h>
 

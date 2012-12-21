@@ -23,7 +23,7 @@
  */
 
 #include "sysbus.h"
-#include "console.h"
+#include "ui/console.h"
 #include "syborg.h"
 
 enum {

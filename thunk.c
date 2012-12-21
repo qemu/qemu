@@ -19,7 +19,7 @@
 
 #include "qemu-common.h"
 #include "qemu.h"
-#include "thunk.h"
+#include "exec/user/thunk.h"
 
 //#define DEBUG
 

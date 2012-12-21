@@ -21,7 +21,7 @@
 
 #include "hw.h"
 #include "pc.h"
-#include "monitor.h"
+#include "monitor/monitor.h"
 #include "sysbus.h"
 #include "trace.h"
 #include "lm32_pic.h"

@@ -13,7 +13,7 @@
 #include "qemu-common.h"
 #include "e500.h"
 #include "../boards.h"
-#include "device_tree.h"
+#include "sysemu/device_tree.h"
 
 static void mpc8544ds_fixup_devtree(PPCE500Params *params, void *fdt)
 {

@@ -23,7 +23,7 @@
  */
 
 #include "keymaps.h"
-#include "sysemu.h"
+#include "sysemu/sysemu.h"
 
 static int get_keysym(const name2keysym_t *table,
 		      const char *name)

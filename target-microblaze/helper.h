@@ -1,4 +1,4 @@
-#include "def-helper.h"
+#include "exec/def-helper.h"
 
 DEF_HELPER_2(raise_exception, void, env, i32)
 DEF_HELPER_1(debug, void, env)
@@ -38,4 +38,4 @@ DEF_HELPER_2(stackprot, void, env, i32)
 DEF_HELPER_2(get, i32, i32, i32)
 DEF_HELPER_3(put, void, i32, i32, i32)
 
-#include "def-helper.h"
+#include "exec/def-helper.h"

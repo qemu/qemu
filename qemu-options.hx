@@ -1749,6 +1749,7 @@ DEF("chardev", HAS_ARG, QEMU_OPTION_chardev,
 #endif
 #if defined(CONFIG_SPICE)
     "-chardev spicevmc,id=id,name=name[,debug=debug]\n"
+    "-chardev spiceport,id=id,name=name[,debug=debug]\n"
 #endif
     , QEMU_ARCH_ALL
 )
@@ -1776,6 +1777,7 @@ Backend is one of:
 @option{tty},
 @option{parport},
 @option{spicevmc}.
+@option{spiceport}.
 The specific backend will determine the applicable options.
 
 All devices must have an id, which can be any string up to 127 characters long.
@@ -1960,6 +1962,17 @@ required.
 @option{name} name of spice channel to connect to
 
 Connect to a spice virtual machine channel, such as vdiport.
+
+@item -chardev spiceport ,id=@var{id} ,debug=@var{debug}, name=@var{name}
+
+@option{spiceport} is only available when spice support is built in.
+
+@option{debug} debug level for spicevmc
+
+@option{name} name of spice port to connect to
+
+Connect to a spice port, allowing a Spice client to handle the traffic
+identified by a name (preferably a fqdn).
 
 @end table
 ETEXI

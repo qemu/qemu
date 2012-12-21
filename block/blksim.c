@@ -19,18 +19,14 @@
 #include <sys/mman.h>
 #include <pthread.h>
 #include <execinfo.h>
-#include <stdlib.h>
 #include <sys/ioctl.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <inttypes.h>
-#include "block_int.h"
-#include "osdep.h"
-#include "qemu-option.h"
-#include "qemu-timer.h"
-#include "block.h"
-#include "qemu-queue.h"
 #include "qemu-common.h"
+#include "block/block_int.h"
+#include "qemu/option.h"
+#include "qemu/osdep.h"
+#include "qemu/queue.h"
+#include "qemu/timer.h"
+#include "block/block.h"
 #include "block/blksim.h"
 #include "block/fvd-ext.h"
 

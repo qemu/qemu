@@ -1,10 +1,12 @@
 #include "config-host.h"
 #include "trace.h"
 #include "ui/qemu-spice.h"
+#include "char/char.h"
 #include <spice.h>
 #include <spice-experimental.h>
+#include <spice/protocol.h>
 
-#include "osdep.h"
+#include "qemu/osdep.h"
 
 #define dprintf(_scd, _level, _fmt, ...)                                \
     do {                                                                \
@@ -13,8 +15,6 @@
             fprintf(stderr, "scd: %3d: " _fmt, ++__dprintf_counter, ## __VA_ARGS__);\
         }                                                               \
     } while (0)
-
-#define VMC_MAX_HOST_WRITE    2048
 
 typedef struct SpiceCharDriver {
     CharDriverState*      chr;
@@ -25,7 +25,11 @@ typedef struct SpiceCharDriver {
     uint8_t               *datapos;
     ssize_t               bufsize, datalen;
     uint32_t              debug;
+    QLIST_ENTRY(SpiceCharDriver) next;
 } SpiceCharDriver;
+
+static QLIST_HEAD(, SpiceCharDriver) spice_chars =
+    QLIST_HEAD_INITIALIZER(spice_chars);
 
 static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
 {
@@ -35,8 +39,8 @@ static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
     uint8_t* p = (uint8_t*)buf;
 
     while (len > 0) {
-        last_out = MIN(len, VMC_MAX_HOST_WRITE);
-        if (qemu_chr_be_can_write(scd->chr) < last_out) {
+        last_out = MIN(len, qemu_chr_be_can_write(scd->chr));
+        if (last_out <= 0) {
             break;
         }
         qemu_chr_be_write(scd->chr, p, last_out);
@@ -68,6 +72,27 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
     trace_spice_vmc_read(bytes, len);
     return bytes;
 }
+
+#if SPICE_SERVER_VERSION >= 0x000c02
+static void vmc_event(SpiceCharDeviceInstance *sin, uint8_t event)
+{
+    SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
+    int chr_event;
+
+    switch (event) {
+    case SPICE_PORT_EVENT_BREAK:
+        chr_event = CHR_EVENT_BREAK;
+        break;
+    default:
+        dprintf(scd, 2, "%s: unknown %d\n", __func__, event);
+        return;
+    }
+
+    dprintf(scd, 2, "%s: %d\n", __func__, event);
+    trace_spice_vmc_event(chr_event);
+    qemu_chr_be_event(scd->chr, chr_event);
+}
+#endif
 
 static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
 {
@@ -105,6 +130,9 @@ static SpiceCharDeviceInterface vmc_interface = {
     .state              = vmc_state,
     .write              = vmc_write,
     .read               = vmc_read,
+#if SPICE_SERVER_VERSION >= 0x000c02
+    .event              = vmc_event,
+#endif
 };
 
 
@@ -156,6 +184,7 @@ static void spice_chr_close(struct CharDriverState *chr)
 
     printf("%s\n", __func__);
     vmc_unregister_interface(s);
+    QLIST_REMOVE(s, next);
     g_free(s);
 }
 
@@ -188,13 +217,34 @@ static void print_allowed_subtypes(void)
     fprintf(stderr, "\n");
 }
 
-CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
+static CharDriverState *chr_open(QemuOpts *opts, const char *subtype)
 {
     CharDriverState *chr;
     SpiceCharDriver *s;
-    const char* name = qemu_opt_get(opts, "name");
     uint32_t debug = qemu_opt_get_number(opts, "debug", 0);
-    const char** psubtype = spice_server_char_device_recognized_subtypes();
+
+    chr = g_malloc0(sizeof(CharDriverState));
+    s = g_malloc0(sizeof(SpiceCharDriver));
+    s->chr = chr;
+    s->debug = debug;
+    s->active = false;
+    s->sin.subtype = subtype;
+    chr->opaque = s;
+    chr->chr_write = spice_chr_write;
+    chr->chr_close = spice_chr_close;
+    chr->chr_guest_open = spice_chr_guest_open;
+    chr->chr_guest_close = spice_chr_guest_close;
+
+    QLIST_INSERT_HEAD(&spice_chars, s, next);
+
+    return chr;
+}
+
+CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
+{
+    CharDriverState *chr;
+    const char *name = qemu_opt_get(opts, "name");
+    const char **psubtype = spice_server_char_device_recognized_subtypes();
     const char *subtype = NULL;
 
     if (name == NULL) {
@@ -214,17 +264,7 @@ CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
         return NULL;
     }
 
-    chr = g_malloc0(sizeof(CharDriverState));
-    s = g_malloc0(sizeof(SpiceCharDriver));
-    s->chr = chr;
-    s->debug = debug;
-    s->active = false;
-    s->sin.subtype = subtype;
-    chr->opaque = s;
-    chr->chr_write = spice_chr_write;
-    chr->chr_close = spice_chr_close;
-    chr->chr_guest_open = spice_chr_guest_open;
-    chr->chr_guest_close = spice_chr_guest_close;
+    chr = chr_open(opts, subtype);
 
 #if SPICE_SERVER_VERSION < 0x000901
     /* See comment in vmc_state() */
@@ -235,3 +275,35 @@ CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
 
     return chr;
 }
+
+#if SPICE_SERVER_VERSION >= 0x000c02
+CharDriverState *qemu_chr_open_spice_port(QemuOpts *opts)
+{
+    CharDriverState *chr;
+    SpiceCharDriver *s;
+    const char *name = qemu_opt_get(opts, "name");
+
+    if (name == NULL) {
+        fprintf(stderr, "spice-qemu-char: missing name parameter\n");
+        return NULL;
+    }
+
+    chr = chr_open(opts, "port");
+    s = chr->opaque;
+    s->sin.portname = name;
+
+    return chr;
+}
+
+void qemu_spice_register_ports(void)
+{
+    SpiceCharDriver *s;
+
+    QLIST_FOREACH(s, &spice_chars, next) {
+        if (s->sin.portname == NULL) {
+            continue;
+        }
+        vmc_register_interface(s);
+    }
+}
+#endif

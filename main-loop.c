@@ -23,14 +23,14 @@
  */
 
 #include "qemu-common.h"
-#include "qemu-timer.h"
+#include "qemu/timer.h"
 #include "slirp/slirp.h"
-#include "main-loop.h"
-#include "qemu-aio.h"
+#include "qemu/main-loop.h"
+#include "block/aio.h"
 
 #ifndef _WIN32
 
-#include "compatfd.h"
+#include "qemu/compatfd.h"
 
 /* If we have signalfd, we mask out the signals we want to handle and then
  * use signalfd to listen for them.  We rely on whatever the current signal

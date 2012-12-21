@@ -4,7 +4,7 @@
 #include "hw/isa.h"
 
 #include "cpu.h"
-#include "kvm.h"
+#include "sysemu/kvm.h"
 
 static const VMStateDescription vmstate_segment = {
     .name = "segment",

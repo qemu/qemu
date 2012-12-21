@@ -23,7 +23,7 @@
 #include <string.h>
 #include "qemu-common.h"
 #include "irq.h"
-#include "net.h"
+#include "net/net.h"
 #include "sysbus.h"
 
 /* Comment this out if you don't want register debug on stderr */

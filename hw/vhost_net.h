@@ -1,7 +1,7 @@
 #ifndef VHOST_NET_H
 #define VHOST_NET_H
 
-#include "net.h"
+#include "net/net.h"
 
 struct vhost_net;
 typedef struct vhost_net VHostNetState;

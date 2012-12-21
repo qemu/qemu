@@ -40,9 +40,9 @@
 #include <assert.h>
 
 #include "hw.h"
-#include "pci.h"
-#include "net.h"
-#include "qemu_socket.h"
+#include "pci/pci.h"
+#include "net/net.h"
+#include "qemu/sockets.h"
 
 // Alias for Control/Status register read/write
 #define CSR_STATUS  scb_status

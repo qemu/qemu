@@ -11,8 +11,8 @@
  *
  */
 
-#include "qemu-coroutine.h"
-#include "qemu-timer.h"
+#include "block/coroutine.h"
+#include "qemu/timer.h"
 
 typedef struct CoSleepCB {
     QEMUTimer *ts;

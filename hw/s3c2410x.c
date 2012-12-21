@@ -11,8 +11,8 @@
  */
 
 #include "sysbus.h"
-#include "sysemu.h"
-#include "exec-memory.h"        /* get_system_memory */
+#include "sysemu/sysemu.h"
+#include "exec/address-spaces.h" /* get_system_memory */
 
 #include "s3c2410x.h"
 

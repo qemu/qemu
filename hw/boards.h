@@ -3,7 +3,7 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
-#include "blockdev.h"
+#include "sysemu/blockdev.h"
 #include "qdev.h"
 
 typedef struct QEMUMachineInitArgs {

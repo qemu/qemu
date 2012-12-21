@@ -10,7 +10,7 @@
  */
 
 #include "hw.h"
-#include "console.h"
+#include "ui/console.h"
 #include "framebuffer.h"
 #include "sysbus.h"
 

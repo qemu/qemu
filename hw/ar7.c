@@ -61,19 +61,19 @@
 #include "hw.h"
 #include "boards.h"
 #include "mips.h"
-#include "net.h"
-#include "pci.h"
+#include "net/net.h"
+#include "pci/pci.h"
 
-#include "sysemu.h"             /* serial_hds */
-#include "qemu-char.h"          /* qemu_chr_fe_printf */
-#include "qemu-timer.h"         /* vm_clock */
+#include "sysemu/sysemu.h"      /* serial_hds */
+#include "char/char.h"          /* qemu_chr_fe_printf */
+#include "qemu/timer.h"         /* vm_clock */
 
-#include "block.h"              /* bdrv_getlength */
-#include "blockdev.h"           /* drive_get */
-#include "console.h"            /* console_select */
-#include "disas.h"              /* lookup_symbol */
+#include "block/block.h"        /* bdrv_getlength */
+#include "sysemu/blockdev.h"    /* drive_get */
+#include "ui/console.h"         /* console_select */
+#include "disas/disas.h"        /* lookup_symbol */
 #include "elf.h"                /* EM_MIPS (needed by loader.h) */
-#include "exec-memory.h"        /* get_system_memory */
+#include "exec/address-spaces.h" /* get_system_memory */
 #include "loader.h"             /* load_elf, load_image_targphys */
 #include "mips_cpudevs.h"       /* cpu_mips_kseg0_to_phys, ... */
 

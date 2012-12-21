@@ -21,12 +21,12 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "loader.h"
-#include "net.h"
-#include "sysemu.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "sysbus.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define SMP_BOOT_ADDR 0x100
 #define SMP_BOOT_REG  0x40

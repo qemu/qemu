@@ -11,13 +11,13 @@
 #include "arm-misc.h"
 #include "primecell.h"
 #include "devices.h"
-#include "pci.h"
-#include "net.h"
-#include "sysemu.h"
+#include "pci/pci.h"
+#include "net/net.h"
+#include "sysemu/sysemu.h"
 #include "boards.h"
 #include "i2c.h"
-#include "blockdev.h"
-#include "exec-memory.h"
+#include "sysemu/blockdev.h"
+#include "exec/address-spaces.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 #define SMP_BOOTREG_ADDR 0x10000030

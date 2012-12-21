@@ -20,9 +20,9 @@
 
 #include "qemu-common.h"
 #include "cpu.h"
-#include "disas.h"
+#include "disas/disas.h"
 #include "tcg-op.h"
-#include "host-utils.h"
+#include "qemu/host-utils.h"
 
 #include "helper.h"
 #define GEN_HELPER 1
@@ -72,7 +72,7 @@ static TCGv cpu_reserve;
 static TCGv cpu_fpscr;
 static TCGv_i32 cpu_access_type;
 
-#include "gen-icount.h"
+#include "exec/gen-icount.h"
 
 void ppc_translate_init(void)
 {
