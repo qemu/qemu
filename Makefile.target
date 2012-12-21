@@ -54,7 +54,7 @@ $(QEMU_PROG).stp: $(SRC_PATH)/trace-events
 		--binary=$(bindir)/$(QEMU_PROG) \
 		--target-arch=$(TARGET_ARCH) \
 		--target-type=$(TARGET_TYPE) \
-		< $< > $@,"  GEN   $(QEMU_PROG).stp")
+		< $< > $@,"  GEN   $(TARGET_DIR)$(QEMU_PROG).stp")
 else
 stap:
 endif
