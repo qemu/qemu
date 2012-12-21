@@ -1,7 +1,7 @@
 #######################################################################
 # Common libraries for tools and emulators
 stub-obj-y = stubs/
-util-obj-y = util/ qobject/ qapi/
+util-obj-y = util/ qobject/ qapi/ trace/
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -78,11 +78,6 @@ common-obj-y += qemu-seccomp.o
 endif
 
 ######################################################################
-# trace
-
-trace-obj-y += trace/
-
-######################################################################
 # smartcard
 
 libcacard-y += libcacard/cac.o libcacard/event.o
@@ -107,7 +102,6 @@ universal-obj-y += tcg-runtime.o
 universal-obj-y += hw/
 universal-obj-y += qom/
 universal-obj-y += disas/
-universal-obj-y += $(trace-obj-y)
 
 ######################################################################
 # guest agent
@@ -129,6 +123,5 @@ nested-vars += \
 	block-obj-y \
 	common-obj-y \
 	universal-obj-y \
-	extra-obj-y \
-	trace-obj-y
+	extra-obj-y
 dummy := $(call unnest-vars)

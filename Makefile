@@ -135,9 +135,9 @@ $(SRC_PATH)/pixman/configure:
 
 $(SUBDIR_RULES): libqemuutil.a libqemustub.a
 
-$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(common-obj-y) $(extra-obj-y)
+$(filter %-softmmu,$(SUBDIR_RULES)): $(universal-obj-y) $(common-obj-y) $(extra-obj-y)
 
-$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(trace-obj-y) $(user-obj-y)
+$(filter %-user,$(SUBDIR_RULES)): $(universal-obj-y) $(user-obj-y)
 
 ROMSUBDIR_RULES=$(patsubst %,romsubdir-%, $(ROMS))
 romsubdir-%:
@@ -164,13 +164,13 @@ libqemuutil.a: $(util-obj-y)
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o $(trace-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(trace-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
-qemu-io$(EXESUF): qemu-io.o cmd.o $(trace-obj-y) $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) libqemuutil.a libqemustub.a
+qemu-io$(EXESUF): qemu-io.o cmd.o $(block-obj-y) libqemuutil.a libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 
-fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o $(trace-obj-y) libqemuutil.a libqemustub.a
+fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o libqemuutil.a libqemustub.a
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
@@ -206,7 +206,7 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) $(trace-obj-y) libqemuutil.a libqemustub.a
+qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 
 clean:

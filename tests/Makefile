@@ -104,10 +104,10 @@ tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) qapi-types.o qapi-visit.o libqemuutil.a libqemustub.a
 tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
 
-tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
-tests/m48t59-test$(EXESUF): tests/m48t59-test.o $(trace-obj-y)
-tests/fdc-test$(EXESUF): tests/fdc-test.o tests/libqtest.o $(trace-obj-y)
-tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o tests/libqtest.o $(trace-obj-y)
+tests/rtc-test$(EXESUF): tests/rtc-test.o
+tests/m48t59-test$(EXESUF): tests/m48t59-test.o
+tests/fdc-test$(EXESUF): tests/fdc-test.o
+tests/hd-geo-test$(EXESUF): tests/hd-geo-test.o
 
 # QTest rules
 

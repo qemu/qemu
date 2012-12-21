@@ -51,8 +51,8 @@ endif
 ######################################################################
 # Backend code
 
-trace-obj-$(CONFIG_TRACE_DEFAULT) += default.o
-trace-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
-trace-obj-$(CONFIG_TRACE_STDERR) += stderr.o
-trace-obj-y += control.o
-trace-obj-y += generated-tracers.o
+util-obj-$(CONFIG_TRACE_DEFAULT) += default.o
+util-obj-$(CONFIG_TRACE_SIMPLE) += simple.o
+util-obj-$(CONFIG_TRACE_STDERR) += stderr.o
+util-obj-y += control.o
+util-obj-y += generated-tracers.o
