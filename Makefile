@@ -104,6 +104,14 @@ defconfig:
 -include config-all-devices.mak
 -include config-all-disas.mak
 
+ifneq ($(wildcard config-host.mak),)
+include $(SRC_PATH)/Makefile.objs
+include $(SRC_PATH)/tests/Makefile
+endif
+ifeq ($(CONFIG_SMARTCARD_NSS),y)
+include $(SRC_PATH)/libcacard/Makefile
+endif
+
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all
 
 config-host.h: config-host.h-timestamp
@@ -115,12 +123,6 @@ SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 
 subdir-%:
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C $* V="$(V)" TARGET_DIR="$*/" all,)
-
-ifneq ($(wildcard config-host.mak),)
-include $(SRC_PATH)/Makefile.objs
-endif
-
-subdir-libcacard: $(oslib-obj-y) $(trace-obj-y) qemu-timer-common.o
 
 subdir-pixman: pixman/Makefile
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pixman V="$(V)" all,)
@@ -158,18 +160,6 @@ version-obj-$(CONFIG_WIN32) += version.o
 libqemustub.a: $(stub-obj-y)
 
 ######################################################################
-# Support building shared library libcacard
-
-ifeq ($(CONFIG_SMARTCARD_NSS),y)
-.PHONY: libcacard.la install-libcacard
-libcacard.la: $(oslib-obj-y) qemu-timer-common.o $(trace-obj-y)
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" libcacard.la,)
-
-install-libcacard: libcacard.la
-	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C libcacard V="$(V)" TARGET_DIR="$*/" install-libcacard,)
-endif
-
-######################################################################
 
 qemu-img.o: qemu-img-cmds.h
 
@@ -183,10 +173,6 @@ qemu-io$(EXESUF): qemu-io.o cmd.o $(tools-obj-y) $(block-obj-y) libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 
-vscclient$(EXESUF): LIBS += $(libcacard_libs)
-vscclient$(EXESUF): $(libcacard-y) $(oslib-obj-y) $(trace-obj-y) libcacard/vscclient.o libqemustub.a
-	$(call LINK, $^)
-
 fsdev/virtfs-proxy-helper$(EXESUF): fsdev/virtfs-proxy-helper.o fsdev/virtio-9p-marshal.o oslib-posix.o $(trace-obj-y)
 fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 
@@ -197,10 +183,6 @@ qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 qemu-ga$(EXESUF): QEMU_CFLAGS += -I qga/qapi-generated
 
 gen-out-type = $(subst .,-,$(suffix $@))
-
-ifneq ($(wildcard config-host.mak),)
-include $(SRC_PATH)/tests/Makefile
-endif
 
 qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
 
@@ -236,6 +218,7 @@ clean:
 	rm -f qemu-options.def
 	find . -name '*.[od]' -type f -exec rm -f {} +
 	rm -f *.a *.lo $(TOOLS) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
+	rm -f *.la
 	rm -Rf .libs
 	rm -f qemu-img-cmds.h
 	@# May not be present in GENERATED_HEADERS
