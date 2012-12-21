@@ -193,6 +193,7 @@ typedef struct IRQSource {
     int last_cpu;
     int output;     /* IRQ level, e.g. OPENPIC_OUTPUT_INT */
     int pending;    /* TRUE if IRQ is pending */
+    bool nomask:1;  /* critical interrupts ignore mask on some FSL MPICs */
 } IRQSource;
 
 #define IVPR_MASK_SHIFT       31
@@ -389,7 +390,7 @@ static void openpic_update_irq(OpenPICState *opp, int n_IRQ)
         DPRINTF("%s: IRQ %d is not pending\n", __func__, n_IRQ);
         return;
     }
-    if (src->ivpr & IVPR_MASK_MASK) {
+    if ((src->ivpr & IVPR_MASK_MASK) && !src->nomask) {
         /* Interrupt source is disabled */
         DPRINTF("%s: IRQ %d is disabled\n", __func__, n_IRQ);
         return;
@@ -529,6 +530,7 @@ static inline void write_IRQreg_idr(OpenPICState *opp, int n_IRQ, uint32_t val)
             }
 
             src->output = OPENPIC_OUTPUT_CINT;
+            src->nomask = true;
             src->destmask = 0;
 
             for (i = 0; i < opp->nb_cpus; i++) {
@@ -540,6 +542,7 @@ static inline void write_IRQreg_idr(OpenPICState *opp, int n_IRQ, uint32_t val)
             }
         } else {
             src->output = OPENPIC_OUTPUT_INT;
+            src->nomask = false;
             src->destmask = src->idr & normal_mask;
         }
     } else {
