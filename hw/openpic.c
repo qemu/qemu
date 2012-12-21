@@ -215,7 +215,7 @@ typedef struct IRQSource {
 #define IDR_CI      0x40000000  /* critical interrupt */
 
 typedef struct IRQDest {
-    uint32_t ctpr; /* CPU current task priority */
+    int32_t ctpr; /* CPU current task priority */
     IRQQueue raised;
     IRQQueue servicing;
     qemu_irq *irqs;
@@ -1150,7 +1150,7 @@ static void openpic_save(QEMUFile* f, void *opaque)
     qemu_put_be32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
-        qemu_put_be32s(f, &opp->dst[i].ctpr);
+        qemu_put_sbe32s(f, &opp->dst[i].ctpr);
         openpic_save_IRQ_queue(f, &opp->dst[i].raised);
         openpic_save_IRQ_queue(f, &opp->dst[i].servicing);
     }
@@ -1197,7 +1197,7 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     qemu_get_be32s(f, &opp->nb_cpus);
 
     for (i = 0; i < opp->nb_cpus; i++) {
-        qemu_get_be32s(f, &opp->dst[i].ctpr);
+        qemu_get_sbe32s(f, &opp->dst[i].ctpr);
         openpic_load_IRQ_queue(f, &opp->dst[i].raised);
         openpic_load_IRQ_queue(f, &opp->dst[i].servicing);
     }
