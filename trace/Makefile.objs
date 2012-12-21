@@ -46,19 +46,7 @@ $(obj)/generated-tracers-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUI
 $(obj)/generated-tracers-dtrace.h: trace/generated-tracers-dtrace.dtrace
 	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   $@")
 
-$(obj)/generated-tracers-dtrace.o: trace/generated-tracers-dtrace.dtrace
-	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $@")
-
 trace-obj-$(CONFIG_TRACE_DTRACE) += generated-tracers-dtrace.o
-
-
-ifeq ($(LIBTOOL),)
-$(obj)/generated-tracers-dtrace.lo: $(obj)/generated-tracers-dtrace.dtrace
-	@echo "missing libtool. please install and rerun configure."; exit 1
-else
-$(obj)/generated-tracers-dtrace.lo: $(obj)/generated-tracers-dtrace.dtrace
-	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN $@")
-endif
 
 
 ######################################################################
