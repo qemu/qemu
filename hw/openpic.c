@@ -39,6 +39,7 @@
 #include "openpic.h"
 #include "sysbus.h"
 #include "pci/msi.h"
+#include "qemu/bitops.h"
 
 //#define DEBUG_OPENPIC
 
@@ -147,24 +148,6 @@ static const int debug_openpic = 0;
 #define MSIIR_IBS_SHIFT    24
 #define MSIIR_IBS_MASK     (0x1f << MSIIR_IBS_SHIFT)
 
-#define BF_WIDTH(_bits_) \
-(((_bits_) + (sizeof(uint32_t) * 8) - 1) / (sizeof(uint32_t) * 8))
-
-static inline void set_bit(uint32_t *field, int bit)
-{
-    field[bit >> 5] |= 1 << (bit & 0x1F);
-}
-
-static inline void reset_bit(uint32_t *field, int bit)
-{
-    field[bit >> 5] &= ~(1 << (bit & 0x1F));
-}
-
-static inline int test_bit(uint32_t *field, int bit)
-{
-    return (field[bit >> 5] & 1 << (bit & 0x1F)) != 0;
-}
-
 static int get_current_cpu(void)
 {
     if (!cpu_single_env) {
@@ -180,7 +163,10 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
                                        uint32_t val, int idx);
 
 typedef struct IRQQueue {
-    uint32_t queue[BF_WIDTH(MAX_IRQ)];
+    /* Round up to the nearest 64 IRQs so that the queue length
+     * won't change when moving between 32 and 64 bit hosts.
+     */
+    unsigned long queue[BITS_TO_LONGS((MAX_IRQ + 63) & ~63)];
     int next;
     int priority;
 } IRQQueue;
@@ -268,17 +254,17 @@ typedef struct OpenPICState {
 
 static inline void IRQ_setbit(IRQQueue *q, int n_IRQ)
 {
-    set_bit(q->queue, n_IRQ);
+    set_bit(n_IRQ, q->queue);
 }
 
 static inline void IRQ_resetbit(IRQQueue *q, int n_IRQ)
 {
-    reset_bit(q->queue, n_IRQ);
+    clear_bit(n_IRQ, q->queue);
 }
 
 static inline int IRQ_testbit(IRQQueue *q, int n_IRQ)
 {
-    return test_bit(q->queue, n_IRQ);
+    return test_bit(n_IRQ, q->queue);
 }
 
 static void IRQ_check(OpenPICState *opp, IRQQueue *q)
@@ -1117,8 +1103,16 @@ static void openpic_save_IRQ_queue(QEMUFile* f, IRQQueue *q)
 {
     unsigned int i;
 
-    for (i = 0; i < BF_WIDTH(MAX_IRQ); i++)
-        qemu_put_be32s(f, &q->queue[i]);
+    for (i = 0; i < ARRAY_SIZE(q->queue); i++) {
+        /* Always put the lower half of a 64-bit long first, in case we
+         * restore on a 32-bit host.  The least significant bits correspond
+         * to lower IRQ numbers in the bitmap.
+         */
+        qemu_put_be32(f, (uint32_t)q->queue[i]);
+#if LONG_MAX > 0x7FFFFFFF
+        qemu_put_be32(f, (uint32_t)(q->queue[i] >> 32));
+#endif
+    }
 
     qemu_put_sbe32s(f, &q->next);
     qemu_put_sbe32s(f, &q->priority);
@@ -1160,8 +1154,17 @@ static void openpic_load_IRQ_queue(QEMUFile* f, IRQQueue *q)
 {
     unsigned int i;
 
-    for (i = 0; i < BF_WIDTH(MAX_IRQ); i++)
-        qemu_get_be32s(f, &q->queue[i]);
+    for (i = 0; i < ARRAY_SIZE(q->queue); i++) {
+        unsigned long val;
+
+        val = qemu_get_be32(f);
+#if LONG_MAX > 0x7FFFFFFF
+        val <<= 32;
+        val |= qemu_get_be32(f);
+#endif
+
+        q->queue[i] = val;
+    }
 
     qemu_get_sbe32s(f, &q->next);
     qemu_get_sbe32s(f, &q->priority);
