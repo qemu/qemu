@@ -43,10 +43,16 @@
 //#define DEBUG_OPENPIC
 
 #ifdef DEBUG_OPENPIC
-#define DPRINTF(fmt, ...) do { printf(fmt , ## __VA_ARGS__); } while (0)
+static const int debug_openpic = 1;
 #else
-#define DPRINTF(fmt, ...) do { } while (0)
+static const int debug_openpic = 0;
 #endif
+
+#define DPRINTF(fmt, ...) do { \
+        if (debug_openpic) { \
+            printf(fmt , ## __VA_ARGS__); \
+        } \
+    } while (0)
 
 #define MAX_CPU     15
 #define MAX_SRC     256
@@ -422,7 +428,7 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     IRQSource *src;
 
     src = &opp->src[n_IRQ];
-    DPRINTF("openpic: set irq %d = %d ipvp=%08x\n",
+    DPRINTF("openpic: set irq %d = %d ipvp=0x%08x\n",
             n_IRQ, level, src->ipvp);
     if (src->ipvp & IPVP_SENSE_MASK) {
         /* level-sensitive irq */
@@ -513,7 +519,8 @@ static void openpic_gbl_write(void *opaque, hwaddr addr, uint64_t val,
     IRQDest *dst;
     int idx;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
+    DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
+            __func__, addr, val);
     if (addr & 0xF) {
         return;
     }
@@ -576,7 +583,7 @@ static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
     OpenPICState *opp = opaque;
     uint32_t retval;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
+    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
     retval = 0xFFFFFFFF;
     if (addr & 0xF) {
         return retval;
@@ -623,7 +630,7 @@ static uint64_t openpic_gbl_read(void *opaque, hwaddr addr, unsigned len)
     default:
         break;
     }
-    DPRINTF("%s: => %08x\n", __func__, retval);
+    DPRINTF("%s: => 0x%08x\n", __func__, retval);
 
     return retval;
 }
@@ -634,7 +641,8 @@ static void openpic_tmr_write(void *opaque, hwaddr addr, uint64_t val,
     OpenPICState *opp = opaque;
     int idx;
 
-    DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
+    DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
+            __func__, addr, val);
     if (addr & 0xF) {
         return;
     }
@@ -672,7 +680,7 @@ static uint64_t openpic_tmr_read(void *opaque, hwaddr addr, unsigned len)
     uint32_t retval = -1;
     int idx;
 
-    DPRINTF("%s: addr %08x\n", __func__, addr);
+    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
     if (addr & 0xF) {
         goto out;
     }
@@ -698,7 +706,7 @@ static uint64_t openpic_tmr_read(void *opaque, hwaddr addr, unsigned len)
     }
 
 out:
-    DPRINTF("%s: => %08x\n", __func__, retval);
+    DPRINTF("%s: => 0x%08x\n", __func__, retval);
 
     return retval;
 }
@@ -709,7 +717,8 @@ static void openpic_src_write(void *opaque, hwaddr addr, uint64_t val,
     OpenPICState *opp = opaque;
     int idx;
 
-    DPRINTF("%s: addr %08x <= %08x\n", __func__, addr, val);
+    DPRINTF("%s: addr %#" HWADDR_PRIx " <= %08" PRIx64 "\n",
+            __func__, addr, val);
     if (addr & 0xF) {
         return;
     }
@@ -730,7 +739,7 @@ static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
     uint32_t retval;
     int idx;
 
-    DPRINTF("%s: addr %08x\n", __func__, addr);
+    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
     retval = 0xFFFFFFFF;
     if (addr & 0xF) {
         return retval;
@@ -744,7 +753,7 @@ static uint64_t openpic_src_read(void *opaque, uint64_t addr, unsigned len)
         /* EXVP / IFEVP / IEEVP */
         retval = read_IRQreg_ipvp(opp, idx);
     }
-    DPRINTF("%s: => %08x\n", __func__, retval);
+    DPRINTF("%s: => 0x%08x\n", __func__, retval);
 
     return retval;
 }
@@ -756,7 +765,8 @@ static void openpic_msi_write(void *opaque, hwaddr addr, uint64_t val,
     int idx = opp->irq_msi;
     int srs, ibs;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx " <= %08x\n", __func__, addr, val);
+    DPRINTF("%s: addr %#" HWADDR_PRIx " <= 0x%08" PRIx64 "\n",
+            __func__, addr, val);
     if (addr & 0xF) {
         return;
     }
@@ -781,7 +791,7 @@ static uint64_t openpic_msi_read(void *opaque, hwaddr addr, unsigned size)
     uint64_t r = 0;
     int i, srs;
 
-    DPRINTF("%s: addr " TARGET_FMT_plx "\n", __func__, addr);
+    DPRINTF("%s: addr %#" HWADDR_PRIx "\n", __func__, addr);
     if (addr & 0xF) {
         return -1;
     }
@@ -819,7 +829,7 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
     IRQDest *dst;
     int s_IRQ, n_IRQ;
 
-    DPRINTF("%s: cpu %d addr " TARGET_FMT_plx " <= %08x\n", __func__, idx,
+    DPRINTF("%s: cpu %d addr %#" HWADDR_PRIx " <= 0x%08x\n", __func__, idx,
             addr, val);
 
     if (idx < 0) {
@@ -890,7 +900,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
     uint32_t retval;
     int n_IRQ;
 
-    DPRINTF("%s: cpu %d addr " TARGET_FMT_plx "\n", __func__, idx, addr);
+    DPRINTF("%s: cpu %d addr %#" HWADDR_PRIx "\n", __func__, idx, addr);
     retval = 0xFFFFFFFF;
 
     if (idx < 0) {
@@ -958,7 +968,7 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
     default:
         break;
     }
-    DPRINTF("%s: => %08x\n", __func__, retval);
+    DPRINTF("%s: => 0x%08x\n", __func__, retval);
 
     return retval;
 }
