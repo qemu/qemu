@@ -315,10 +315,8 @@ out:
 
 static int IRQ_get_next(OpenPICState *opp, IRQQueue *q)
 {
-    if (q->next == -1) {
-        /* XXX: optimize */
-        IRQ_check(opp, q);
-    }
+    /* XXX: optimize */
+    IRQ_check(opp, q);
 
     return q->next;
 }
@@ -365,7 +363,7 @@ static void IRQ_local_pipe(OpenPICState *opp, int n_CPU, int n_IRQ)
                 __func__, n_IRQ, dst->raised.next, n_CPU);
         return;
     }
-    IRQ_get_next(opp, &dst->raised);
+    IRQ_check(opp, &dst->raised);
     if (IRQ_get_next(opp, &dst->servicing) != -1 &&
         priority <= dst->servicing.priority) {
         DPRINTF("%s: IRQ %d is hidden by servicing IRQ %d on CPU %d\n",
@@ -916,7 +914,6 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
         DPRINTF("EOI\n");
         s_IRQ = IRQ_get_next(opp, &dst->servicing);
         IRQ_resetbit(&dst->servicing, s_IRQ);
-        dst->servicing.next = -1;
         /* Set up next servicing IRQ */
         s_IRQ = IRQ_get_next(opp, &dst->servicing);
         /* Check queued interrupts. */
@@ -993,7 +990,6 @@ static uint32_t openpic_cpu_read_internal(void *opaque, hwaddr addr,
                 retval = IVPR_VECTOR(opp, src->ivpr);
             }
             IRQ_resetbit(&dst->raised, n_IRQ);
-            dst->raised.next = -1;
             if (!(src->ivpr & IVPR_SENSE_MASK)) {
                 /* edge-sensitive IRQ */
                 src->ivpr &= ~IVPR_ACTIVITY_MASK;
