@@ -414,6 +414,11 @@ static void openpic_set_irq(void *opaque, int n_IRQ, int level)
     OpenPICState *opp = opaque;
     IRQSource *src;
 
+    if (n_IRQ >= MAX_IRQ) {
+        fprintf(stderr, "%s: IRQ %d out of range\n", __func__, n_IRQ);
+        abort();
+    }
+
     src = &opp->src[n_IRQ];
     DPRINTF("openpic: set irq %d = %d ivpr=0x%08x\n",
             n_IRQ, level, src->ivpr);
@@ -888,6 +893,12 @@ static void openpic_cpu_write_internal(void *opaque, hwaddr addr,
     case 0xB0: /* EOI */
         DPRINTF("EOI\n");
         s_IRQ = IRQ_get_next(opp, &dst->servicing);
+
+        if (s_IRQ < 0) {
+            DPRINTF("%s: EOI with no interrupt in service\n", __func__);
+            break;
+        }
+
         IRQ_resetbit(&dst->servicing, s_IRQ);
         /* Set up next servicing IRQ */
         s_IRQ = IRQ_get_next(opp, &dst->servicing);
